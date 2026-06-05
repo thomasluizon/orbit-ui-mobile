@@ -1,7 +1,10 @@
-import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { useEffect, useRef } from 'react'
+import { Animated, Pressable, StyleSheet, Text, View } from 'react-native'
 import Svg, { Circle, Line } from 'react-native-svg'
 import type { createTokensV2 } from '@/lib/theme'
+import { SectionLabel } from '@/components/ui/section-label'
 import { SettingsGroup, SettingsGroupRow } from '@/components/ui/settings-group'
+import { StatusDot } from '@/components/ui/status-dot'
 
 type Tokens = ReturnType<typeof createTokensV2>
 type TranslationFn = (key: string, params?: Record<string, unknown>) => string
@@ -139,151 +142,214 @@ function LegendItem({
   )
 }
 
+const STREAK_DAYS_PER_FREEZE = 7
+
 interface FreezeSectionProps {
   t: TranslationFn
   tokens: Tokens
+  isPro: boolean
   streak: number
   freezesUsedThisMonth: number
   maxFreezesPerMonth: number
   streakFreezesAccumulated: number
   maxStreakFreezesAccumulated: number
-  daysUntilNextFreeze: number
   isFrozenToday: boolean
-  hasCompletedToday: boolean
-  canFreeze: boolean
-  canEarnMore: boolean
-  hasReachedMonthlyLimit: boolean
-  freezeSuccess: boolean
-  errorMessage: string | null
-  onActivateFreeze: () => void
+  protectedDates: string[]
+  onUpgrade: () => void
+  displayDate: (value: string, options?: Intl.DateTimeFormatOptions) => string
 }
 
 /**
- * Freeze section: hairline rows for Available / This month / progress.
- * - When monthly limit is reached: shows "Available: 0" + italic limit message.
- * - Otherwise: shows count + inline "Use" link (if `canFreeze`) + usage row.
+ * Auto-freeze status section: explainer, a charge gauge of banked freezes,
+ * monthly usage, next-freeze countdown, and the auto-protected days list.
+ * Free users see a quiet Pro gate instead of the gauge.
  */
 export function FreezeSection({
   t,
   tokens,
+  isPro,
   streak,
   freezesUsedThisMonth,
   maxFreezesPerMonth,
   streakFreezesAccumulated,
   maxStreakFreezesAccumulated,
-  daysUntilNextFreeze,
   isFrozenToday,
-  hasCompletedToday,
-  canFreeze,
-  canEarnMore,
-  hasReachedMonthlyLimit,
-  freezeSuccess,
-  errorMessage,
-  onActivateFreeze,
+  protectedDates,
+  onUpgrade,
+  displayDate,
 }: Readonly<FreezeSectionProps>) {
-  const showActiveToday = isFrozenToday
-  const progressLabel =
-    daysUntilNextFreeze === 0
-      ? t('streakDisplay.freeze.progressReady')
-      : t('streakDisplay.freeze.progressSubtitle', {
-          days: daysUntilNextFreeze,
-          count: daysUntilNextFreeze,
-        })
+  if (!isPro) {
+    return (
+      <View style={styles.groupWrap}>
+        <SettingsGroup>
+          <SettingsGroupRow
+            label={t('streakDisplay.freeze.pro.gate')}
+            accessory="none"
+            trailing={
+              <Pressable
+                onPress={onUpgrade}
+                accessibilityRole="button"
+                accessibilityLabel={t('common.upgrade')}
+              >
+                <Text style={[styles.upgradeLink, { color: tokens.primary }]}>
+                  {t('common.upgrade')}
+                </Text>
+              </Pressable>
+            }
+          />
+        </SettingsGroup>
+      </View>
+    )
+  }
 
-  const helperText = (() => {
-    if (hasReachedMonthlyLimit) {
-      return t('streakDisplay.freeze.monthlyLimit', { max: maxFreezesPerMonth })
-    }
-    if (!canEarnMore) {
-      return t('streakDisplay.freeze.maxAccumulated', {
-        max: maxStreakFreezesAccumulated,
-      })
-    }
-    return progressLabel
-  })()
+  const isBankedFull = streakFreezesAccumulated >= maxStreakFreezesAccumulated
+  const nextFreezeDays = STREAK_DAYS_PER_FREEZE - (streak % STREAK_DAYS_PER_FREEZE)
+  const dates = protectedDates.slice(0, 5)
 
   return (
     <>
       <View style={styles.groupWrap}>
+        <Text style={[styles.explainer, { color: tokens.fg2 }]}>
+          {t('streakDisplay.freeze.auto.explainer')}
+        </Text>
         <SettingsGroup>
-          {hasReachedMonthlyLimit ? (
-            <SettingsGroupRow
-              label={t('streakDisplay.freeze.accumulatedLabel')}
-              accessory="none"
-              trailing={
-                <Text style={[styles.freezeCount, { color: tokens.fg3 }]}>0</Text>
-              }
-            />
-          ) : (
-            <>
-              <SettingsGroupRow
-                label={t('streakDisplay.freeze.accumulatedLabel')}
-                accessory="none"
-                trailing={
-                  <>
-                    <Text
-                      style={[styles.freezeCount, { color: tokens.fg1 }]}
-                    >
-                      {streakFreezesAccumulated}
-                    </Text>
-                    {streak > 0 && !isFrozenToday && canFreeze ? (
-                      <Pressable
-                        onPress={onActivateFreeze}
-                        accessibilityRole="button"
-                        accessibilityLabel={t('streakDisplay.freeze.activate')}
-                        style={styles.useLinkPress}
-                      >
-                        <Text style={[styles.useLink, { color: tokens.fg1 }]}>
-                          {t('streakDisplay.freeze.activate')}
-                        </Text>
-                      </Pressable>
-                    ) : null}
-                  </>
-                }
-              />
-              <SettingsGroupRow
-                label={t('streakDisplay.freeze.monthlyUsageLabel')}
-                accessory="none"
-                trailing={
-                  <Text style={[styles.freezeCount, { color: tokens.fg3 }]}>
-                    {t('streakDisplay.freeze.monthlyUsage', {
-                      used: freezesUsedThisMonth,
-                      max: maxFreezesPerMonth,
+          <SettingsGroupRow
+            label={t('streakDisplay.freeze.banked.label')}
+            accessory="none"
+            trailing={
+              <View style={styles.gaugeTrailing}>
+                <ChargeGauge
+                  banked={streakFreezesAccumulated}
+                  max={maxStreakFreezesAccumulated}
+                  tokens={tokens}
+                />
+                <Text style={[styles.freezeCount, { color: tokens.fg3 }]}>
+                  {`${streakFreezesAccumulated}/${maxStreakFreezesAccumulated}`}
+                </Text>
+              </View>
+            }
+          />
+          <SettingsGroupRow
+            label={t('streakDisplay.freeze.usedThisMonth.label')}
+            accessory="none"
+            trailing={
+              <Text style={[styles.freezeCount, { color: tokens.fg3 }]}>
+                {`${freezesUsedThisMonth}/${maxFreezesPerMonth}`}
+              </Text>
+            }
+          />
+          <SettingsGroupRow
+            label={t('streakDisplay.freeze.nextFreeze.label')}
+            accessory="none"
+            trailing={
+              <Text style={[styles.freezeCount, { color: tokens.fg3 }]}>
+                {isBankedFull
+                  ? t('streakDisplay.freeze.nextFreeze.full')
+                  : t('streakDisplay.freeze.nextFreeze.inDays', {
+                      days: nextFreezeDays,
                     })}
-                  </Text>
-                }
-              />
-            </>
-          )}
+              </Text>
+            }
+          />
         </SettingsGroup>
       </View>
 
-      <View style={styles.helperBlock}>
-        <Text style={[styles.italicText, { color: tokens.fg3 }]}>
-          {helperText}
-        </Text>
-        {showActiveToday ? (
-          <Text style={[styles.italicText, { color: tokens.statusFrozen }]}>
-            {t('streakDisplay.freeze.activeToday')}
+      <SectionLabel>{t('streakDisplay.freeze.protected.label')}</SectionLabel>
+      <View style={styles.groupWrap}>
+        {isFrozenToday || dates.length > 0 ? (
+          <SettingsGroup>
+            {isFrozenToday ? (
+              <SettingsGroupRow
+                label={t('streakDisplay.freeze.protected.today')}
+                accessory="none"
+                icon={<StatusDot state="frozen" size={8} />}
+                trailing={
+                  <Text style={[styles.freezeCount, { color: tokens.fg3 }]}>
+                    {t('streakDisplay.freeze.protected.todayValue')}
+                  </Text>
+                }
+              />
+            ) : null}
+            {dates.map((date) => (
+              <SettingsGroupRow
+                key={date}
+                label={displayDate(date, { month: 'short', day: 'numeric' })}
+                accessory="none"
+                icon={<StatusDot state="frozen" size={8} />}
+              />
+            ))}
+          </SettingsGroup>
+        ) : (
+          <Text style={[styles.emptyText, { color: tokens.fg2 }]}>
+            {t('streakDisplay.freeze.protected.empty')}
           </Text>
-        ) : null}
-        {hasCompletedToday && !isFrozenToday && streak > 0 ? (
-          <Text style={[styles.italicText, { color: tokens.statusDone }]}>
-            {t('streakDisplay.freeze.completedToday')}
-          </Text>
-        ) : null}
-        {freezeSuccess ? (
-          <Text style={[styles.italicText, { color: tokens.statusFrozen }]}>
-            {t('streakDisplay.freeze.success')}
-          </Text>
-        ) : null}
-        {errorMessage ? (
-          <Text style={[styles.italicText, { color: tokens.statusBad }]}>
-            {errorMessage}
-          </Text>
-        ) : null}
+        )}
       </View>
     </>
+  )
+}
+
+interface ChargeGaugeProps {
+  banked: number
+  max: number
+  tokens: Tokens
+}
+
+function ChargeGauge({ banked, max, tokens }: Readonly<ChargeGaugeProps>) {
+  return (
+    <View style={styles.gauge}>
+      {Array.from({ length: max }, (_, index) => (
+        <ChargePip
+          key={index}
+          filled={index < banked}
+          delay={index * 40}
+          tokens={tokens}
+        />
+      ))}
+    </View>
+  )
+}
+
+interface ChargePipProps {
+  filled: boolean
+  delay: number
+  tokens: Tokens
+}
+
+function ChargePip({ filled, delay, tokens }: Readonly<ChargePipProps>) {
+  const progress = useRef(new Animated.Value(0)).current
+
+  useEffect(() => {
+    const animation = Animated.timing(progress, {
+      toValue: 1,
+      duration: 180,
+      delay,
+      useNativeDriver: true,
+    })
+    animation.start()
+    return () => animation.stop()
+  }, [progress, delay])
+
+  return (
+    <Animated.View
+      style={{
+        width: 10,
+        height: 10,
+        borderRadius: 999,
+        backgroundColor: filled ? tokens.statusFrozen : 'transparent',
+        borderWidth: filled ? 0 : 1.5,
+        borderColor: filled ? 'transparent' : tokens.hairline,
+        opacity: progress,
+        transform: [
+          {
+            scale: progress.interpolate({
+              inputRange: [0, 1],
+              outputRange: [0.6, 1],
+            }),
+          },
+        ],
+      }}
+    />
   )
 }
 
@@ -352,29 +418,34 @@ const styles = StyleSheet.create({
   groupWrap: {
     paddingHorizontal: 20,
   },
-  helperBlock: {
-    paddingHorizontal: 20,
-    paddingTop: 10,
-    paddingBottom: 4,
-    gap: 6,
-  },
-  italicText: {
+  explainer: {
     fontFamily: 'Geist',
-    fontSize: 13,
-    fontStyle: 'italic',
+    fontSize: 14,
+    lineHeight: 21,
+    marginBottom: 14,
   },
   freezeCount: {
     fontFamily: 'GeistMono',
-    fontSize: 14,
-    fontWeight: '600',
-  },
-  useLinkPress: {
-    marginLeft: 4,
-  },
-  useLink: {
-    fontFamily: 'Geist',
     fontSize: 13,
-    fontWeight: '500',
-    textDecorationLine: 'underline',
+    fontVariant: ['tabular-nums'],
+  },
+  gaugeTrailing: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  gauge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  upgradeLink: {
+    fontFamily: 'Geist',
+    fontSize: 14,
+  },
+  emptyText: {
+    fontFamily: 'Geist',
+    fontSize: 14,
+    lineHeight: 21,
   },
 })

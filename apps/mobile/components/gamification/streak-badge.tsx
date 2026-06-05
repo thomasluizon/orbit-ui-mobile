@@ -1,5 +1,6 @@
-import { StyleSheet, Text, View } from 'react-native'
+import { type GestureResponderEvent, Pressable, StyleSheet, Text } from 'react-native'
 import Svg, { Path, Line } from 'react-native-svg'
+import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { plural } from '@/lib/plural'
 import { createTokensV2 } from '@/lib/theme'
@@ -14,10 +15,12 @@ interface StreakBadgeProps {
  * v8 streak badge — hairline pill with outline flame + tabular streak count.
  * No tier colors, no gradients, no glows. Active streak (>=2) strokes the
  * flame in status-bad; otherwise fg-3. Frozen state swaps to a snowflake
- * stroked by status-frozen.
+ * stroked by status-frozen. Tapping navigates to the streak page; the press
+ * stops propagation so the Today header's go-to-today Pressable does not fire.
  */
 export function StreakBadge({ streak, isFrozen }: Readonly<StreakBadgeProps>) {
   const { t } = useTranslation()
+  const router = useRouter()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
 
@@ -30,12 +33,19 @@ export function StreakBadge({ streak, isFrozen }: Readonly<StreakBadgeProps>) {
       ? tokens.statusBad
       : tokens.fg3
 
+  const handlePress = (event: GestureResponderEvent) => {
+    event.stopPropagation()
+    router.push('/streak')
+  }
+
   return (
-    <View
+    <Pressable
+      accessibilityRole="button"
       accessibilityLabel={plural(
         t('streakDisplay.badge.tooltip', { count: streak }),
         streak,
       )}
+      onPress={handlePress}
       style={[styles.badge, { borderColor: tokens.hairlineStrong }]}
     >
       {isFrozen ? (
@@ -60,7 +70,7 @@ export function StreakBadge({ streak, isFrozen }: Readonly<StreakBadgeProps>) {
       )}
 
       <Text style={[styles.count, { color: tokens.fg1 }]}>{streak}</Text>
-    </View>
+    </Pressable>
   )
 }
 

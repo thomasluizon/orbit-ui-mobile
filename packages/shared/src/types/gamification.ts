@@ -77,12 +77,3 @@ export const streakInfoSchema = z.object({
 })
 
 export type StreakInfo = z.infer<typeof streakInfoSchema>
-
-export const streakFreezeResponseSchema = z.object({
-  freezesRemainingThisMonth: z.number(),
-  frozenDate: z.string(),
-  currentStreak: z.number(),
-  streakFreezesAccumulated: z.number().default(0),
-})
-
-export type StreakFreezeResponse = z.infer<typeof streakFreezeResponseSchema>

@@ -242,6 +242,7 @@ export {
   getAchievementsByCategory,
   getEarnedAchievements,
   getLockedAchievements,
+  getStreakTierLabelKey,
 } from './gamification-selectors'
 export type {
   GamificationMilestoneState,

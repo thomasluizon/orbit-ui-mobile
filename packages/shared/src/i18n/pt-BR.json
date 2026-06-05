@@ -1662,8 +1662,7 @@
       "conflict": "Esta ação conflita com dados existentes",
       "tooManyRequests": "Muitas requisições. Aguarde um momento.",
       "server": "Algo deu errado. Tente novamente mais tarde.",
-      "unknown": "Ocorreu um erro inesperado",
-      "activateFreeze": "Falha ao ativar o congelamento da sequência"
+      "unknown": "Ocorreu um erro inesperado"
     }
   },
   "streakDisplay": {
@@ -1688,27 +1687,34 @@
       "encouragement365": "Um ano inteiro! Você é imparável!"
     },
     "freeze": {
-      "title": "Congelamento de Sequência",
-      "available": "Nenhum congelamento disponível | {count} congelamento disponível | {count} congelamentos disponíveis",
-      "activate": "Ativar Congelamento",
-      "confirmTitle": "Tirar um dia de descanso?",
-      "confirmBody": "Sem estresse! Use um congelamento para manter sua sequência de {streak} dias segura. Você tem {remaining} congelamento disponível este mês -- use quando precisar! | Sem estresse! Use um congelamento para manter sua sequência de {streak} dias segura. Você tem {remaining} congelamentos disponíveis este mês -- use quando precisar!",
+      "title": "Congelamento de sequência",
       "activeToday": "Congelamento ativo hoje",
-      "success": "Congelamento de sequência ativado!",
-      "recentLabel": "Usados recentemente",
-      "completedToday": "Você já completou um hábito hoje. Não precisa congelar!",
       "celebrationTitle": "Sequência salva!",
       "celebrationSubtitle": "Sua sequência continua.",
       "eyebrow": "Congelado · {date}",
-      "progressSubtitle": "Mais 1 dia de atividade libera seu próximo congelamento | Mais {days} dias de atividade liberam seu próximo congelamento",
-      "progressReady": "Seu próximo congelamento está pronto!",
-      "maxAccumulated": "Você atingiu o máximo de {max} congelamentos. Use um antes de ganhar mais.",
-      "monthlyUsage": "{used} de {max} usados este mês",
-      "monthlyUsageLabel": "Este mês",
-      "monthlyLimit": "Você já usou os {max} congelamentos deste mês",
-      "accumulatedLabel": "Congelamentos guardados",
-      "accumulatedShort": "{count}/{max}",
-      "noFreezesAvailable": "Continue firme para ganhar seu primeiro congelamento"
+      "auto": {
+        "explainer": "Se você perder um dia, um congelamento guardado é usado automaticamente para manter sua sequência viva."
+      },
+      "banked": {
+        "label": "Guardados"
+      },
+      "usedThisMonth": {
+        "label": "Usados este mês"
+      },
+      "nextFreeze": {
+        "label": "Próximo congelamento",
+        "inDays": "em {days} dias",
+        "full": "Limite atingido"
+      },
+      "protected": {
+        "label": "Dias protegidos",
+        "empty": "Nenhum congelamento usado ainda.",
+        "today": "Hoje",
+        "todayValue": "Protegido"
+      },
+      "pro": {
+        "gate": "Os congelamentos de sequência fazem parte do Pro."
+      }
     },
     "detail": {
       "title": "Detalhes da Sequência",

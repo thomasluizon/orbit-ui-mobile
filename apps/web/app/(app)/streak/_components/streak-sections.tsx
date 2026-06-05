@@ -1,9 +1,8 @@
 'use client'
 
-import { useMemo } from 'react'
 import { SectionLabel } from '@/components/ui/section-label'
 import { SettingsGroup, SettingsGroupRow } from '@/components/ui/settings-group'
-import { plural } from '@/lib/plural'
+import { getStreakTierLabelKey } from '@orbit/shared/utils'
 
 type StreakDayView = {
   dateStr: string
@@ -152,65 +151,40 @@ function StreakDot({ status }: Readonly<{ status: StreakDayView['status'] }>) {
   return <span aria-hidden="true" style={{ width: 7, height: 7 }} />
 }
 
+const STREAK_DAYS_PER_FREEZE = 7
+
 interface FreezeProgressCardProps {
   t: TranslationFn
-  locale: string
+  isPro: boolean
   streak: number
   streakFreezesAccumulated: number
   maxStreakFreezesAccumulated: number
-  daysUntilNextFreeze: number
   freezesUsedThisMonth: number
   maxFreezesPerMonth: number
   isFrozenToday: boolean
-  hasCompletedToday: boolean
-  canFreeze: boolean
-  canEarnMore: boolean
-  hasReachedMonthlyLimit: boolean
-  freezeSuccess: boolean
-  errorMessage?: string | null
   streakInfo: StreakInfoView | null
   longestStreak: number
-  onActivateFreeze: () => void
+  displayDate: (value: string | Date, options?: Intl.DateTimeFormatOptions) => string
 }
 
 export function FreezeProgressCard(props: Readonly<FreezeProgressCardProps>) {
   const {
     t,
+    isPro,
     streak,
     streakFreezesAccumulated,
     maxStreakFreezesAccumulated,
-    daysUntilNextFreeze,
     freezesUsedThisMonth,
     maxFreezesPerMonth,
     isFrozenToday,
-    hasCompletedToday,
-    canFreeze,
-    canEarnMore,
-    hasReachedMonthlyLimit,
-    freezeSuccess,
-    errorMessage,
     longestStreak,
     streakInfo,
-    onActivateFreeze,
+    displayDate,
   } = props
 
-  const progressSubtitle = useMemo(() => {
-    if (!canEarnMore) {
-      return t('streakDisplay.freeze.maxAccumulated', { max: maxStreakFreezesAccumulated })
-    }
-    if (streak <= 0) {
-      return t('streakDisplay.freeze.noFreezesAvailable')
-    }
-    if (daysUntilNextFreeze === 0) {
-      return t('streakDisplay.freeze.progressReady')
-    }
-    return plural(
-      t('streakDisplay.freeze.progressSubtitle', { days: daysUntilNextFreeze }),
-      daysUntilNextFreeze,
-    )
-  }, [canEarnMore, daysUntilNextFreeze, maxStreakFreezesAccumulated, streak, t])
-
-  const recentFreezeDates = streakInfo?.recentFreezeDates ?? []
+  const isBankedFull = streakFreezesAccumulated >= maxStreakFreezesAccumulated
+  const nextFreezeDays = STREAK_DAYS_PER_FREEZE - (streak % STREAK_DAYS_PER_FREEZE)
+  const protectedDates = (streakInfo?.recentFreezeDates ?? []).slice(0, 5)
 
   return (
     <div>
@@ -225,116 +199,152 @@ export function FreezeProgressCard(props: Readonly<FreezeProgressCardProps>) {
             label={t('streakDisplay.detail.longestStreak')}
             trailing={<StatValue value={longestStreak} />}
           />
+          <SettingsGroupRow
+            label={t(getStreakTierLabelKey(streak))}
+            trailing={
+              <span
+                className="block rounded-full"
+                style={{ width: 8, height: 8, background: 'var(--primary)' }}
+              />
+            }
+          />
         </SettingsGroup>
       </div>
 
       <SectionLabel>{t('streakDisplay.freeze.title')}</SectionLabel>
-      <div className="px-5">
-        <SettingsGroup>
-          <SettingsGroupRow
-            label={t('streakDisplay.freeze.accumulatedLabel')}
-            trailing={
-              <StatValue
-                value={t('streakDisplay.freeze.accumulatedShort', {
-                  count: streakFreezesAccumulated,
-                  max: maxStreakFreezesAccumulated,
-                })}
-              />
-            }
-          />
-          <SettingsGroupRow
-            label={t('streakDisplay.freeze.monthlyUsageLabel')}
-            trailing={
-              <StatValue value={`${freezesUsedThisMonth} / ${maxFreezesPerMonth}`} />
-            }
-          />
-        </SettingsGroup>
-      </div>
 
-      <div className="px-5" style={{ paddingTop: 14 }}>
-        <button
-          type="button"
-          onClick={onActivateFreeze}
-          disabled={!canFreeze}
-          aria-label={t('streakDisplay.freeze.activate')}
-          className="appearance-none border-0 cursor-pointer disabled:cursor-not-allowed inline-flex items-center justify-center w-full transition-[background-color] duration-150 ease-out enabled:hover:bg-[var(--primary-pressed)]"
-          style={{
-            height: 44,
-            borderRadius: 10,
-            background: canFreeze ? 'var(--primary)' : 'var(--bg-elev)',
-            color: canFreeze ? 'var(--fg-on-primary)' : 'var(--fg-3)',
-            fontFamily: 'var(--font-family-sans)',
-            fontSize: 14,
-            fontWeight: 600,
-            boxShadow: canFreeze ? 'none' : 'inset 0 0 0 1px var(--hairline-strong)',
-            opacity: canFreeze ? 1 : 0.7,
-          }}
-        >
-          {t('streakDisplay.freeze.activate')}
-        </button>
-      </div>
-
-      <div className="px-5 flex flex-col" style={{ paddingTop: 10, gap: 6 }}>
-        {hasReachedMonthlyLimit ? (
-          <HelperLine color="var(--fg-3)">
-            {t('streakDisplay.freeze.monthlyLimit', { max: maxFreezesPerMonth })}
-          </HelperLine>
-        ) : progressSubtitle ? (
-          <HelperLine color="var(--fg-3)">{progressSubtitle}</HelperLine>
-        ) : null}
-        {isFrozenToday && (
-          <HelperLine color="var(--status-frozen)">
-            {t('streakDisplay.freeze.activeToday')}
-          </HelperLine>
-        )}
-        {hasCompletedToday && !isFrozenToday && streak > 0 && (
-          <HelperLine color="var(--fg-3)">
-            {t('streakDisplay.freeze.completedToday')}
-          </HelperLine>
-        )}
-        {freezeSuccess && (
-          <HelperLine color="var(--status-frozen)">
-            {t('streakDisplay.freeze.success')}
-          </HelperLine>
-        )}
-        {errorMessage && (
-          <HelperLine color="var(--status-overdue)">{errorMessage}</HelperLine>
-        )}
-      </div>
-
-      {recentFreezeDates.length > 0 && (
+      {isPro ? (
         <>
-          <SectionLabel>{t('streakDisplay.freeze.recentLabel')}</SectionLabel>
-          <div
-            className="px-5"
-            style={{
-              display: 'flex',
-              flexWrap: 'wrap',
-              gap: 8,
-              paddingBottom: 14,
-            }}
-          >
-            {recentFreezeDates.slice(0, 5).map((date) => (
-              <span
-                key={date}
-                style={{
-                  padding: '4px 8px',
-                  borderRadius: 6,
-                  border: '1px solid var(--hairline)',
-                  background: 'var(--bg-elev)',
-                  fontFamily: 'var(--font-family-mono)',
-                  fontSize: 11,
-                  color: 'var(--fg-2)',
-                  fontVariantNumeric: 'tabular-nums',
-                }}
-              >
-                {date}
-              </span>
-            ))}
+          <div className="px-5">
+            <p className="t-secondary" style={{ marginBottom: 14 }}>
+              {t('streakDisplay.freeze.auto.explainer')}
+            </p>
+            <SettingsGroup>
+              <SettingsGroupRow
+                label={t('streakDisplay.freeze.banked.label')}
+                trailing={
+                  <span className="flex items-center" style={{ gap: 10 }}>
+                    <ChargeGauge
+                      banked={streakFreezesAccumulated}
+                      max={maxStreakFreezesAccumulated}
+                    />
+                    <StatValue
+                      value={`${streakFreezesAccumulated}/${maxStreakFreezesAccumulated}`}
+                    />
+                  </span>
+                }
+              />
+              <SettingsGroupRow
+                label={t('streakDisplay.freeze.usedThisMonth.label')}
+                trailing={
+                  <StatValue value={`${freezesUsedThisMonth}/${maxFreezesPerMonth}`} />
+                }
+              />
+              <SettingsGroupRow
+                label={t('streakDisplay.freeze.nextFreeze.label')}
+                trailing={
+                  <StatValue
+                    value={
+                      isBankedFull
+                        ? t('streakDisplay.freeze.nextFreeze.full')
+                        : t('streakDisplay.freeze.nextFreeze.inDays', {
+                            days: nextFreezeDays,
+                          })
+                    }
+                  />
+                }
+              />
+            </SettingsGroup>
+          </div>
+
+          <SectionLabel>{t('streakDisplay.freeze.protected.label')}</SectionLabel>
+          <div className="px-5" style={{ paddingBottom: 14 }}>
+            {isFrozenToday || protectedDates.length > 0 ? (
+              <SettingsGroup>
+                {isFrozenToday && (
+                  <ProtectedRow
+                    label={t('streakDisplay.freeze.protected.today')}
+                    value={t('streakDisplay.freeze.protected.todayValue')}
+                  />
+                )}
+                {protectedDates.map((date) => (
+                  <ProtectedRow
+                    key={date}
+                    label={displayDate(date, { month: 'short', day: 'numeric' })}
+                  />
+                ))}
+              </SettingsGroup>
+            ) : (
+              <p className="t-secondary">
+                {t('streakDisplay.freeze.protected.empty')}
+              </p>
+            )}
           </div>
         </>
+      ) : (
+        <div className="px-5" style={{ paddingBottom: 14 }}>
+          <SettingsGroup>
+            <SettingsGroupRow
+              label={t('streakDisplay.freeze.pro.gate')}
+              trailing={
+                <a
+                  href="/upgrade"
+                  className="t-secondary"
+                  style={{ color: 'var(--primary)' }}
+                >
+                  {t('common.upgrade')}
+                </a>
+              }
+            />
+          </SettingsGroup>
+        </div>
       )}
     </div>
+  )
+}
+
+function ChargeGauge({
+  banked,
+  max,
+}: Readonly<{ banked: number; max: number }>) {
+  return (
+    <span className="inline-flex items-center" style={{ gap: 5 }}>
+      {Array.from({ length: max }, (_, index) => {
+        const filled = index < banked
+        return (
+          <span
+            key={index}
+            aria-hidden="true"
+            className="streak-pip block rounded-full"
+            style={{
+              width: 10,
+              height: 10,
+              animationDelay: `${index * 40}ms`,
+              background: filled ? 'var(--status-frozen)' : 'transparent',
+              boxShadow: filled ? 'none' : 'inset 0 0 0 1.5px var(--hairline)',
+            }}
+          />
+        )
+      })}
+    </span>
+  )
+}
+
+function ProtectedRow({
+  label,
+  value,
+}: Readonly<{ label: string; value?: string }>) {
+  return (
+    <SettingsGroupRow
+      label={label}
+      icon={
+        <span
+          className="block rounded-full"
+          style={{ width: 8, height: 8, background: 'var(--status-frozen)' }}
+        />
+      }
+      trailing={value ? <StatValue value={value} /> : undefined}
+    />
   )
 }
 
@@ -349,24 +359,6 @@ function StatValue({ value }: Readonly<{ value: number | string }>) {
       }}
     >
       {value}
-    </span>
-  )
-}
-
-function HelperLine({
-  color,
-  children,
-}: Readonly<{ color: string; children: React.ReactNode }>) {
-  return (
-    <span
-      style={{
-        fontFamily: 'var(--font-family-sans)',
-        fontSize: 13,
-        fontStyle: 'italic',
-        color,
-      }}
-    >
-      {children}
     </span>
   )
 }

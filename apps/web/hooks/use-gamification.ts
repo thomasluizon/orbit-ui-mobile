@@ -3,15 +3,13 @@
 import { useState, useMemo, useRef, useCallback, useEffect } from 'react'
 import {
   useQuery,
-  useMutation,
   useQueryClient,
 } from '@tanstack/react-query'
-import { gamificationKeys, profileKeys, QUERY_STALE_TIMES } from '@orbit/shared/query'
+import { gamificationKeys, QUERY_STALE_TIMES } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
 import type {
   GamificationProfile,
   StreakInfo,
-  StreakFreezeResponse,
 } from '@orbit/shared/types/gamification'
 import {
   deriveGamificationProfileState,
@@ -19,7 +17,6 @@ import {
   deriveStreakFreezeState,
 } from '@orbit/shared/utils'
 import { fetchJson } from '@/lib/api-fetch'
-import { activateStreakFreeze as activateStreakFreezeAction } from '@/app/actions/gamification'
 
 export function useGamificationProfile(enabled = true) {
   const queryClient = useQueryClient()
@@ -99,38 +96,6 @@ export function useStreakInfo() {
     queryKey: gamificationKeys.streak(),
     queryFn: () => fetchJson<StreakInfo>(API.gamification.streak),
     staleTime: QUERY_STALE_TIMES.gamification,
-  })
-}
-
-export function useActivateStreakFreeze() {
-  const queryClient = useQueryClient()
-
-  return useMutation({
-    mutationFn: (): Promise<StreakFreezeResponse> => activateStreakFreezeAction(),
-
-    onSuccess: (data) => {
-      queryClient.setQueryData<StreakInfo>(gamificationKeys.streak(), (old) => {
-        if (!old) return old
-        const nextAccumulated = Math.max(0, data.streakFreezesAccumulated ?? Math.max(0, old.streakFreezesAccumulated - 1))
-        const nextUsedThisMonth = old.maxFreezesPerMonth - data.freezesRemainingThisMonth
-        return {
-          ...old,
-          isFrozenToday: true,
-          freezesAvailable: data.freezesRemainingThisMonth,
-          freezesUsedThisMonth: nextUsedThisMonth,
-          currentStreak: data.currentStreak,
-          recentFreezeDates: [...old.recentFreezeDates, data.frozenDate],
-          streakFreezesAccumulated: nextAccumulated,
-          freezesAvailableToUse: Math.min(nextAccumulated, Math.max(0, old.maxFreezesPerMonth - nextUsedThisMonth)),
-          canEarnMore: nextAccumulated < old.maxStreakFreezesAccumulated,
-        }
-      })
-    },
-
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: gamificationKeys.streak() })
-      queryClient.invalidateQueries({ queryKey: profileKeys.all })
-    },
   })
 }
 

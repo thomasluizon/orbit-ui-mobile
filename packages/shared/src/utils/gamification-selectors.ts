@@ -30,6 +30,17 @@ export interface StreakFreezeDerivedState {
   hasReachedMonthlyLimit: boolean
 }
 
+/**
+ * Streak tier i18n key by current streak length: steady at 7 days, strong at
+ * 30, legendary at 100. Single source of truth so web and mobile stay aligned.
+ */
+export function getStreakTierLabelKey(currentStreak: number): string {
+  if (currentStreak >= 100) return 'streakDisplay.detail.tierLegendary'
+  if (currentStreak >= 30) return 'streakDisplay.detail.tierStrong'
+  if (currentStreak >= 7) return 'streakDisplay.detail.tierSteady'
+  return 'streakDisplay.detail.tierNormal'
+}
+
 export interface GamificationProfileDerivedState {
   xpProgress: number
   earnedAchievements: Achievement[]

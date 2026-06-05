@@ -1,16 +1,14 @@
 'use client'
 
-import { useState, useMemo, useRef } from 'react'
+import { useMemo, useRef, useEffect } from 'react'
 import { subDays, isToday, format, parseISO } from 'date-fns'
-import { useTranslations, useLocale } from 'next-intl'
-import { getErrorMessage } from '@orbit/shared/utils'
+import { useTranslations } from 'next-intl'
 import { plural } from '@/lib/plural'
 import { useProfile } from '@/hooks/use-profile'
-import { useActivateStreakFreeze, useStreakFreeze } from '@/hooks/use-gamification'
+import { useStreakFreeze } from '@/hooks/use-gamification'
 import { useDateFormat } from '@/hooks/use-date-format'
 import { StreakFreezeCelebration, type StreakFreezeCelebrationHandle } from '@/components/gamification/streak-freeze-celebration'
 import { AppBar } from '@/components/ui/app-bar'
-import { AppOverlay } from '@/components/ui/app-overlay'
 import { FreezeProgressCard, StreakTimelineCard } from './_components/streak-sections'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import './streak.css'
@@ -18,30 +16,29 @@ import './streak.css'
 export default function StreakPage() {
   const t = useTranslations()
   const goBackOrFallback = useGoBackOrFallback()
-  const locale = useLocale()
   const { displayDate } = useDateFormat()
   const { profile } = useProfile()
   const streak = profile?.currentStreak ?? 0
+  const isPro = profile?.hasProAccess ?? false
   const {
     streakQuery,
     streakInfo,
-    freezesAvailable,
     isFrozenToday,
-    hasCompletedToday,
-    canFreeze,
     streakFreezesAccumulated,
     maxStreakFreezesAccumulated,
-    daysUntilNextFreeze,
     freezesUsedThisMonth,
     maxFreezesPerMonth,
-    canEarnMore,
-    hasReachedMonthlyLimit,
   } = useStreakFreeze(profile)
-  const activateFreezeMutation = useActivateStreakFreeze()
 
-  const [showConfirm, setShowConfirm] = useState(false)
-  const [freezeSuccess, setFreezeSuccess] = useState(false)
   const freezeCelebrationRef = useRef<StreakFreezeCelebrationHandle>(null)
+  const wasFrozenTodayRef = useRef(isFrozenToday)
+
+  useEffect(() => {
+    if (isFrozenToday && !wasFrozenTodayRef.current) {
+      freezeCelebrationRef.current?.show()
+    }
+    wasFrozenTodayRef.current = isFrozenToday
+  }, [isFrozenToday])
 
   const encouragement = useMemo(() => {
     if (streak >= 365) return t('streakDisplay.profile.encouragement365')
@@ -52,13 +49,6 @@ export default function StreakPage() {
     if (streak >= 1) return t('streakDisplay.profile.encouragement1')
     return ''
   }, [streak, t])
-
-  const tier = useMemo(() => {
-    if (streak >= 100) return 'legendary'
-    if (streak >= 30) return 'intense'
-    if (streak >= 7) return 'strong'
-    return 'normal'
-  }, [streak])
 
   const weekDays = useMemo(() => {
     const today = new Date()
@@ -93,18 +83,6 @@ export default function StreakPage() {
     })
   }, [streakInfo, streak, isFrozenToday, displayDate])
 
-  async function handleFreeze() {
-    setShowConfirm(false)
-    try {
-      await activateFreezeMutation.mutateAsync()
-      setFreezeSuccess(true)
-      setTimeout(() => setFreezeSuccess(false), 3000)
-      freezeCelebrationRef.current?.show()
-    } catch {
-      // Error surfaced via mutation.error
-    }
-  }
-
   const isLoading = streakQuery.isLoading && !streakInfo
 
   return (
@@ -125,7 +103,7 @@ export default function StreakPage() {
       ) : (
         <div className="flex-1 min-h-0 overflow-y-auto">
           <div
-            className={`streak-hero streak-hero--${tier} flex flex-col items-center text-center`}
+            className="streak-hero flex flex-col items-center text-center"
             style={{
               padding: '32px 20px 28px',
               gap: 10,
@@ -195,89 +173,19 @@ export default function StreakPage() {
 
           <FreezeProgressCard
             t={t}
-            locale={locale}
+            isPro={isPro}
             streak={streak}
             longestStreak={streakInfo?.longestStreak ?? 0}
             streakFreezesAccumulated={streakFreezesAccumulated}
             maxStreakFreezesAccumulated={maxStreakFreezesAccumulated}
-            daysUntilNextFreeze={daysUntilNextFreeze}
             freezesUsedThisMonth={freezesUsedThisMonth}
             maxFreezesPerMonth={maxFreezesPerMonth}
             isFrozenToday={isFrozenToday}
-            hasCompletedToday={hasCompletedToday}
-            canFreeze={canFreeze}
-            canEarnMore={canEarnMore}
-            hasReachedMonthlyLimit={hasReachedMonthlyLimit}
-            freezeSuccess={freezeSuccess}
-            errorMessage={
-              activateFreezeMutation.error
-                ? getErrorMessage(activateFreezeMutation.error, t('toast.errors.activateFreeze'))
-                : undefined
-            }
             streakInfo={streakInfo}
-            onActivateFreeze={() => setShowConfirm(true)}
+            displayDate={displayDate}
           />
         </div>
       )}
-
-      <AppOverlay
-        open={showConfirm}
-        onOpenChange={setShowConfirm}
-        title={t('streakDisplay.freeze.confirmTitle')}
-      >
-        <div className="space-y-4">
-          <p
-            style={{
-              fontFamily: 'var(--font-family-sans)',
-              fontSize: 14,
-              lineHeight: 1.6,
-              color: 'var(--fg-2)',
-            }}
-          >
-            {plural(
-              t('streakDisplay.freeze.confirmBody', {
-                count: freezesAvailable,
-                remaining: freezesAvailable,
-                streak,
-              }),
-              freezesAvailable,
-            )}
-          </p>
-          <div className="flex flex-col gap-2">
-            <button
-              type="button"
-              disabled={activateFreezeMutation.isPending}
-              onClick={handleFreeze}
-              className="appearance-none border-0 cursor-pointer disabled:cursor-not-allowed inline-flex items-center justify-center w-full transition-[background-color] duration-150 ease-out hover:bg-[var(--primary-pressed)]"
-              style={{
-                height: 44,
-                borderRadius: 8,
-                background: 'var(--primary)',
-                color: 'var(--fg-on-primary)',
-                fontFamily: 'var(--font-family-sans)',
-                fontSize: 14,
-                fontWeight: 600,
-                opacity: activateFreezeMutation.isPending ? 0.5 : 1,
-              }}
-            >
-              {activateFreezeMutation.isPending ? '...' : t('streakDisplay.freeze.activate')}
-            </button>
-            <button
-              type="button"
-              onClick={() => setShowConfirm(false)}
-              className="appearance-none border-0 bg-transparent cursor-pointer inline-flex items-center justify-center w-full transition-colors duration-150 ease-out hover:text-[var(--fg-1)]"
-              style={{
-                height: 40,
-                fontFamily: 'var(--font-family-sans)',
-                fontSize: 13,
-                color: 'var(--fg-3)',
-              }}
-            >
-              {t('common.cancel')}
-            </button>
-          </div>
-        </div>
-      </AppOverlay>
 
       <StreakFreezeCelebration ref={freezeCelebrationRef} />
     </div>

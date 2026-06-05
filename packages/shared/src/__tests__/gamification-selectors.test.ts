@@ -7,8 +7,22 @@ import {
   getAchievementsByCategory,
   getEarnedAchievements,
   getLockedAchievements,
+  getStreakTierLabelKey,
 } from '../utils/gamification-selectors'
 import type { GamificationProfile, StreakInfo } from '../types/gamification'
+
+describe('getStreakTierLabelKey', () => {
+  it('maps streak length to the tier i18n key at each threshold', () => {
+    expect(getStreakTierLabelKey(0)).toBe('streakDisplay.detail.tierNormal')
+    expect(getStreakTierLabelKey(6)).toBe('streakDisplay.detail.tierNormal')
+    expect(getStreakTierLabelKey(7)).toBe('streakDisplay.detail.tierSteady')
+    expect(getStreakTierLabelKey(29)).toBe('streakDisplay.detail.tierSteady')
+    expect(getStreakTierLabelKey(30)).toBe('streakDisplay.detail.tierStrong')
+    expect(getStreakTierLabelKey(99)).toBe('streakDisplay.detail.tierStrong')
+    expect(getStreakTierLabelKey(100)).toBe('streakDisplay.detail.tierLegendary')
+    expect(getStreakTierLabelKey(365)).toBe('streakDisplay.detail.tierLegendary')
+  })
+})
 
 function makeProfile(overrides: Partial<GamificationProfile> = {}): GamificationProfile {
   return {

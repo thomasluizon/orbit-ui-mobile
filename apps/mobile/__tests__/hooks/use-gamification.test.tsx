@@ -1,12 +1,9 @@
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { API } from '@orbit/shared/api'
 import { createMockGamificationProfile } from '@orbit/shared/__tests__/factories'
-import { gamificationKeys, profileKeys } from '@orbit/shared/query'
-import type { StreakInfo, StreakFreezeResponse } from '@orbit/shared/types/gamification'
+import type { StreakInfo } from '@orbit/shared/types/gamification'
 
 import {
-  useActivateStreakFreeze,
   useGamificationProfile,
   useStreakFreeze,
   useStreakInfo,
@@ -30,15 +27,6 @@ const mocks = vi.hoisted(() => {
 
   const queryClient = {
     invalidateQueries: vi.fn(async () => {}),
-    setQueryData: vi.fn((queryKey: readonly unknown[], updater: StreakInfo | ((old: StreakInfo | undefined) => StreakInfo | undefined)) => {
-      if (JSON.stringify(queryKey) !== JSON.stringify(gamificationKeys.streak())) {
-        return
-      }
-
-      state.streakInfo = typeof updater === 'function'
-        ? (updater(state.streakInfo) ?? state.streakInfo)
-        : updater
-    }),
   }
 
   return {
@@ -63,18 +51,6 @@ const mocks = vi.hoisted(() => {
       }
     }),
     useQueryClient: vi.fn(() => queryClient),
-    useMutation: vi.fn((options: {
-      mutationFn: () => Promise<StreakFreezeResponse>
-      onSuccess?: (data: StreakFreezeResponse) => void
-      onSettled?: () => void
-    }) => ({
-      mutateAsync: async () => {
-        const data = await options.mutationFn()
-        options.onSuccess?.(data)
-        options.onSettled?.()
-        return data
-      },
-    })),
     apiClient: vi.fn(),
   }
 })
@@ -82,7 +58,6 @@ const mocks = vi.hoisted(() => {
 vi.mock('@tanstack/react-query', () => ({
   useQuery: mocks.useQuery,
   useQueryClient: mocks.useQueryClient,
-  useMutation: mocks.useMutation,
 }))
 
 vi.mock('@/lib/api-client', () => ({
@@ -137,10 +112,8 @@ describe('mobile useGamificationProfile', () => {
   beforeEach(() => {
     mocks.state.gamificationProfile = createMockGamificationProfile()
     mocks.queryClient.invalidateQueries.mockClear()
-    mocks.queryClient.setQueryData.mockClear()
     mocks.useQuery.mockClear()
     mocks.useQueryClient.mockClear()
-    mocks.useMutation.mockClear()
     mocks.apiClient.mockClear()
   })
 
@@ -213,10 +186,8 @@ describe('mobile useStreakInfo and streak freeze', () => {
       canEarnMore: true,
     }
     mocks.queryClient.invalidateQueries.mockClear()
-    mocks.queryClient.setQueryData.mockClear()
     mocks.useQuery.mockClear()
     mocks.useQueryClient.mockClear()
-    mocks.useMutation.mockClear()
     mocks.apiClient.mockClear()
   })
 
@@ -235,32 +206,5 @@ describe('mobile useStreakInfo and streak freeze', () => {
     expect(hook.value.freezesAvailable).toBe(2)
     expect(hook.value.currentStreak).toBe(7)
     expect(hook.value.canFreeze).toBe(true)
-  })
-
-  it('syncs the streak cache after activating a freeze', async () => {
-    mocks.apiClient.mockResolvedValue({
-      freezesRemainingThisMonth: 1,
-      frozenDate: '2025-01-15',
-      currentStreak: 7,
-    })
-
-    const hook = await renderHookValue(() => useActivateStreakFreeze())
-
-    await hook.value.mutateAsync()
-
-    expect(mocks.apiClient).toHaveBeenCalledWith(
-      API.gamification.streakFreeze,
-      expect.objectContaining({ method: 'POST' }),
-    )
-    expect(mocks.queryClient.setQueryData).toHaveBeenCalledWith(
-      gamificationKeys.streak(),
-      expect.any(Function),
-    )
-    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({
-      queryKey: gamificationKeys.streak(),
-    })
-    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({
-      queryKey: profileKeys.all,
-    })
   })
 })

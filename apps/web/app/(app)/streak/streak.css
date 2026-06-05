@@ -1,5 +1,4 @@
-/* Streak hero tier markers. Kept as class hooks so future tier-specific styling
-   (e.g., a subtle hairline accent for legendary) has a place to live. */
+/* Streak hero base + freeze-pip entrance animation. */
 .streak-hero {
   position: relative;
 }
@@ -8,9 +7,23 @@
   color: var(--fg-1);
 }
 
-.streak-hero--strong,
-.streak-hero--intense,
-.streak-hero--legendary,
-.streak-hero--normal {
-  /* No additional styling at this time; reserved hooks. */
+.streak-pip {
+  animation: streak-pip-in 180ms cubic-bezier(0.25, 1, 0.5, 1) both;
+}
+
+@keyframes streak-pip-in {
+  from {
+    opacity: 0;
+    transform: scale(0.6);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .streak-pip {
+    animation: none;
+  }
 }
