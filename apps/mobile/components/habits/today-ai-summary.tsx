@@ -28,7 +28,7 @@ export function TodayAISummary({ date }: Readonly<TodayAISummaryProps>) {
   const { profile } = useProfile()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
-  const styles = useMemo(() => createStyles(tokens.fg1, tokens.fg2, tokens.primary), [tokens.fg1, tokens.fg2, tokens.primary])
+  const styles = useMemo(() => createStyles(tokens.fg1, tokens.fg2, tokens.fg3, tokens.primary, tokens.hairline), [tokens.fg1, tokens.fg2, tokens.fg3, tokens.primary, tokens.hairline])
 
   const hasProAccess = profile?.hasProAccess ?? false
   const aiSummaryEnabled = profile?.aiSummaryEnabled ?? false
@@ -77,6 +77,9 @@ export function TodayAISummary({ date }: Readonly<TodayAISummaryProps>) {
   const resolved = body()
   if (!resolved) return null
 
+  const showDisclaimer =
+    hasProAccess && aiSummaryEnabled && !isLoading && !error && !!summary
+
   return (
     <Pressable
       onPress={resolved.onPress}
@@ -98,17 +101,29 @@ export function TodayAISummary({ date }: Readonly<TodayAISummaryProps>) {
               strokeWidth={1.5}
             />
             <Text style={styles.heading}>Astra</Text>
+            <Text style={styles.aiBadge}>{t('aiDisclosure.isAiLabel')}</Text>
           </View>
           <Text style={styles.message} numberOfLines={3}>
             {resolved.text}
           </Text>
+          {showDisclaimer ? (
+            <Text style={styles.disclaimer}>
+              {t('aiDisclosure.notMedicalAdvice')}
+            </Text>
+          ) : null}
         </View>
       </View>
     </Pressable>
   )
 }
 
-function createStyles(fg1: string, fg2: string, primary: string) {
+function createStyles(
+  fg1: string,
+  fg2: string,
+  fg3: string,
+  primary: string,
+  hairline: string,
+) {
   return StyleSheet.create({
     wrap: {
       paddingHorizontal: 20,
@@ -144,11 +159,31 @@ function createStyles(fg1: string, fg2: string, primary: string) {
       color: fg1,
       letterSpacing: -0.2,
     },
+    aiBadge: {
+      fontFamily: 'GeistMono',
+      fontSize: 10,
+      fontWeight: '600',
+      letterSpacing: 0.6,
+      color: fg3,
+      borderWidth: StyleSheet.hairlineWidth,
+      borderColor: hairline,
+      borderRadius: 4,
+      paddingHorizontal: 5,
+      paddingVertical: 1,
+      overflow: 'hidden',
+    },
     message: {
       fontFamily: 'Geist',
       fontSize: 14,
       lineHeight: 20,
       color: fg2,
+    },
+    disclaimer: {
+      fontFamily: 'Geist',
+      fontSize: 11,
+      lineHeight: 15,
+      color: fg3,
+      fontStyle: 'italic',
     },
   })
 }

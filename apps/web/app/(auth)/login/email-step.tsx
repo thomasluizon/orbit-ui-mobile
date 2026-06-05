@@ -93,7 +93,7 @@ export function EmailStep({
         }}
       >
         {t('auth.legalPrefix')}{' '}
-        <Link href="/about" className="underline">
+        <Link href="/terms" className="underline">
           {t('auth.terms')}
         </Link>{' '}
         {t('auth.legalConjunction')}{' '}

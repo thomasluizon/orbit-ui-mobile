@@ -442,6 +442,9 @@ export default function RetrospectiveScreen() {
                   text={displayedRetrospective}
                   tokens={tokens}
                 />
+                <Text style={[styles.aiDisclaimer, { color: tokens.fg3 }]}>
+                  {t('aiDisclosure.notMedicalAdvice')}
+                </Text>
                 {displayedFromCache ? (
                   <View style={styles.cachedRow}>
                     <Text
@@ -600,6 +603,14 @@ const styles = StyleSheet.create({
     fontSize: 10.5,
     letterSpacing: 0.63,
     textTransform: 'uppercase',
+  },
+  aiDisclaimer: {
+    fontFamily: 'Geist',
+    fontSize: 11,
+    lineHeight: 15,
+    fontStyle: 'italic',
+    marginTop: 12,
+    paddingHorizontal: 20,
   },
   regenLinkPress: { padding: 4 },
   regenLink: {

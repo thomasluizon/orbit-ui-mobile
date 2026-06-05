@@ -28,6 +28,13 @@ export default function PrivacyScreen() {
     'openai',
     'resend',
   ] as const
+  const retentionKeys = [
+    'account',
+    'sessions',
+    'ai',
+    'afterDeletion',
+  ] as const
+  const googleScopesKeys = ['auth', 'calendar', 'control'] as const
 
   return (
     <SafeAreaView
@@ -50,6 +57,13 @@ export default function PrivacyScreen() {
         <View style={styles.bodyBlock}>
           <Text style={[styles.bodyText, { color: tokens.fg2 }]}>
             {t('privacy.intro.body')}
+          </Text>
+        </View>
+
+        <SectionLabel>{t('privacy.controller.title')}</SectionLabel>
+        <View style={styles.bodyBlock}>
+          <Text style={[styles.bodyText, { color: tokens.fg2 }]}>
+            {t('privacy.controller.body')}
           </Text>
         </View>
 
@@ -90,6 +104,58 @@ export default function PrivacyScreen() {
               {`• ${t(`privacy.thirdParty.${key}`)}`}
             </Text>
           ))}
+        </View>
+
+        <SectionLabel>{t('privacy.retention.title')}</SectionLabel>
+        <View style={styles.bodyBlock}>
+          <Text style={[styles.bodyText, { color: tokens.fg2 }]}>
+            {t('privacy.retention.intro')}
+          </Text>
+          {retentionKeys.map((key) => (
+            <Text key={key} style={[styles.bodyText, { color: tokens.fg2 }]}>
+              {`• ${t(`privacy.retention.${key}`)}`}
+            </Text>
+          ))}
+        </View>
+
+        <SectionLabel>{t('privacy.googleScopes.title')}</SectionLabel>
+        <View style={styles.bodyBlock}>
+          <Text style={[styles.bodyText, { color: tokens.fg2 }]}>
+            {t('privacy.googleScopes.intro')}
+          </Text>
+          {googleScopesKeys.map((key) => (
+            <Text key={key} style={[styles.bodyText, { color: tokens.fg2 }]}>
+              {`• ${t(`privacy.googleScopes.${key}`)}`}
+            </Text>
+          ))}
+        </View>
+
+        <SectionLabel>{t('privacy.dataResidency.title')}</SectionLabel>
+        <View style={styles.bodyBlock}>
+          <Text style={[styles.bodyText, { color: tokens.fg2 }]}>
+            {t('privacy.dataResidency.body')}
+          </Text>
+        </View>
+
+        <SectionLabel>{t('privacy.automatedProcessing.title')}</SectionLabel>
+        <View style={styles.bodyBlock}>
+          <Text style={[styles.bodyText, { color: tokens.fg2 }]}>
+            {t('privacy.automatedProcessing.body')}
+          </Text>
+        </View>
+
+        <SectionLabel>{t('privacy.minors.title')}</SectionLabel>
+        <View style={styles.bodyBlock}>
+          <Text style={[styles.bodyText, { color: tokens.fg2 }]}>
+            {t('privacy.minors.body')}
+          </Text>
+        </View>
+
+        <SectionLabel>{t('privacy.export.title')}</SectionLabel>
+        <View style={styles.bodyBlock}>
+          <Text style={[styles.bodyText, { color: tokens.fg2 }]}>
+            {t('privacy.export.body')}
+          </Text>
         </View>
 
         <SectionLabel>{t('privacy.noSell.title')}</SectionLabel>

@@ -31,6 +31,7 @@ import { DeleteAccountModal } from './_components/delete-account-modal'
 import { ProfileNavIcon } from './_components/profile-nav-icon'
 import { ProfileActionButton } from './_components/profile-action-button'
 import { TourReplayModal } from './_components/tour-replay-modal'
+import { exportUserData } from '@/app/actions/profile'
 
 export default function ProfilePage() {
   const t = useTranslations()
@@ -78,6 +79,30 @@ export default function ProfilePage() {
   const [showResetModal, setShowResetModal] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [showTourReplay, setShowTourReplay] = useState(false)
+  const [isExporting, setIsExporting] = useState(false)
+  const [exportError, setExportError] = useState<string | null>(null)
+
+  async function handleExportData() {
+    if (isExporting) return
+    setIsExporting(true)
+    setExportError(null)
+    try {
+      const data = await exportUserData()
+      const blob = new Blob([JSON.stringify(data, null, 2)], {
+        type: 'application/json',
+      })
+      const url = URL.createObjectURL(blob)
+      const anchor = document.createElement('a')
+      anchor.href = url
+      anchor.download = `orbit-data-export-${new Date().toISOString().slice(0, 10)}.json`
+      anchor.click()
+      URL.revokeObjectURL(url)
+    } catch {
+      setExportError(t('dataExport.error'))
+    } finally {
+      setIsExporting(false)
+    }
+  }
 
   function handleNavClick(item: ProfileNavItem) {
     if (shouldRedirectProfileNavItem(item, profile)) {
@@ -299,6 +324,24 @@ export default function ProfilePage() {
       </div>
 
       <SectionLabel>{t('profile.sections.accountActions')}</SectionLabel>
+      <ProfileActionButton
+        onClick={() => {
+          void handleExportData()
+        }}
+        label={isExporting ? t('dataExport.preparing') : t('dataExport.button')}
+      />
+      {exportError && (
+        <p
+          style={{
+            margin: '0 20px 8px',
+            fontFamily: 'var(--font-family-sans)',
+            fontSize: 12,
+            color: 'var(--status-bad)',
+          }}
+        >
+          {exportError}
+        </p>
+      )}
       <ProfileActionButton
         onClick={() => logout()}
         label={t('profile.logout')}

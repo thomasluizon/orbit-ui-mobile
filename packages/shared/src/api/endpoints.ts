@@ -21,6 +21,7 @@ export const API = {
     themePreference: '/api/profile/theme-preference',
     colorScheme: '/api/profile/color-scheme',
     reset: '/api/profile/reset',
+    export: '/api/profile/export',
   },
 
   habits: {

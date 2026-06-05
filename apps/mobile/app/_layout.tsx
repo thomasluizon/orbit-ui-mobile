@@ -278,6 +278,7 @@ function RootLayoutNav() {
               options={{ animation: 'slide_from_right' }}
             />
             <Stack.Screen name="privacy" options={{ animation: 'fade' }} />
+            <Stack.Screen name="terms" options={{ animation: 'fade' }} />
           </Stack>
         </View>
 
