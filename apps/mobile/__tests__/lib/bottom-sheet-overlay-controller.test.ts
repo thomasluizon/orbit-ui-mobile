@@ -60,6 +60,44 @@ describe('mobile bottom sheet overlay controller', () => {
     expect(onAttemptDismiss).toHaveBeenCalledWith('system-back')
   })
 
+  it('routes a drag dismiss through the dirty guard, keeping the sheet open', () => {
+    const state = createBottomSheetOverlayState()
+    state.isPresented = true
+    const dismissSheet = vi.fn()
+    const onAttemptDismiss = vi.fn()
+
+    expect(
+      requestBottomSheetClose(state, {
+        canDismiss: true,
+        dismissSheet,
+        isDirty: true,
+        onAttemptDismiss,
+        reason: 'navigation',
+      }),
+    ).toBe(true)
+    expect(dismissSheet).not.toHaveBeenCalled()
+    expect(onAttemptDismiss).toHaveBeenCalledWith('navigation')
+  })
+
+  it('dismisses on a drag dismiss when the sheet is clean', () => {
+    const state = createBottomSheetOverlayState()
+    state.isPresented = true
+    const dismissSheet = vi.fn()
+    const onAttemptDismiss = vi.fn()
+
+    expect(
+      requestBottomSheetClose(state, {
+        canDismiss: true,
+        dismissSheet,
+        isDirty: false,
+        onAttemptDismiss,
+        reason: 'navigation',
+      }),
+    ).toBe(true)
+    expect(dismissSheet).toHaveBeenCalledTimes(1)
+    expect(onAttemptDismiss).not.toHaveBeenCalled()
+  })
+
   it('registers overlays only after presentation and removes them on close', () => {
     const state = createBottomSheetOverlayState()
     const register = vi.fn()

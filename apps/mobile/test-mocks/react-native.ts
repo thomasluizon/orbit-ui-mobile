@@ -42,6 +42,7 @@ const Image = createHostComponent('Image')
 const Modal = createHostComponent('Modal')
 const ActivityIndicator = createHostComponent('ActivityIndicator')
 const AnimatedView = createHostComponent('AnimatedView')
+const KeyboardAvoidingView = createHostComponent('KeyboardAvoidingView')
 
 export const Animated = {
   Value: class AnimatedValue {
@@ -51,12 +52,17 @@ export const Animated = {
       this.value = nextValue
     }
 
+    stopAnimation(callback?: (value: number) => void) {
+      callback?.(this.value)
+    }
+
     interpolate<T>(config: { outputRange: T[] }) {
       return config.outputRange[0]
     }
   },
   View: AnimatedView,
   timing: () => ({ start: () => {}, stop: () => {} }),
+  spring: () => ({ start: () => {}, stop: () => {} }),
   sequence: (animations: { start?: () => void; stop?: () => void }[]) => ({
     start: () => animations.forEach((animation) => animation.start?.()),
     stop: () => animations.forEach((animation) => animation.stop?.()),
@@ -67,6 +73,14 @@ export const Animated = {
   }),
   loop: (animation: { start?: () => void; stop?: () => void }) => animation,
   event: () => () => {},
+}
+
+export const PanResponder = {
+  create: () => ({ panHandlers: {} }),
+}
+
+export const Dimensions = {
+  get: (_dimension: 'window' | 'screen') => ({ width: 412, height: 892 }),
 }
 
 export const Easing = {
