@@ -212,6 +212,7 @@ export function useChatComposer() {
       operations: result.data.operations,
       pendingOperations: result.data.pendingOperations,
       policyDenials: result.data.policyDenials,
+      correlationId: result.data.correlationId,
       timestamp: new Date(),
     })
 

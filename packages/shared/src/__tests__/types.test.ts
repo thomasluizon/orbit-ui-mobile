@@ -828,6 +828,39 @@ describe('chat schemas', () => {
       })
       expect(result.success).toBe(false)
     })
+
+    it('parses ai message with a correlationId', () => {
+      const result = chatMessageSchema.safeParse({
+        id: 'msg-3',
+        role: 'ai',
+        content: 'Done',
+        correlationId: 'req-abc-123',
+        timestamp: new Date(),
+      })
+      expect(result.success).toBe(true)
+    })
+
+    it('accepts a null correlationId', () => {
+      const result = chatMessageSchema.safeParse({
+        id: 'msg-4',
+        role: 'ai',
+        content: 'Done',
+        correlationId: null,
+        timestamp: new Date(),
+      })
+      expect(result.success).toBe(true)
+    })
+
+    it('rejects a non-string correlationId', () => {
+      const result = chatMessageSchema.safeParse({
+        id: 'msg-5',
+        role: 'ai',
+        content: 'Done',
+        correlationId: 123,
+        timestamp: new Date(),
+      })
+      expect(result.success).toBe(false)
+    })
   })
 
   describe('chatResponseSchema', () => {
@@ -858,6 +891,33 @@ describe('chat schemas', () => {
 
     it('rejects missing actions', () => {
       const result = chatResponseSchema.safeParse({ aiMessage: 'Hello' })
+      expect(result.success).toBe(false)
+    })
+
+    it('parses a response with a correlationId', () => {
+      const result = chatResponseSchema.safeParse({
+        aiMessage: 'Done!',
+        actions: [],
+        correlationId: 'req-abc-123',
+      })
+      expect(result.success).toBe(true)
+    })
+
+    it('accepts a null correlationId', () => {
+      const result = chatResponseSchema.safeParse({
+        aiMessage: 'Done!',
+        actions: [],
+        correlationId: null,
+      })
+      expect(result.success).toBe(true)
+    })
+
+    it('rejects a non-string correlationId', () => {
+      const result = chatResponseSchema.safeParse({
+        aiMessage: 'Done!',
+        actions: [],
+        correlationId: 123,
+      })
       expect(result.success).toBe(false)
     })
   })
