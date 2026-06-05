@@ -38,6 +38,9 @@ const { todayShellMock } = vi.hoisted(() => ({
 const { useTourTargetMock } = vi.hoisted(() => ({
   useTourTargetMock: vi.fn(),
 }));
+const { useHabitsMock } = vi.hoisted(() => ({
+  useHabitsMock: vi.fn(),
+}));
 
 const colorProxy = new Proxy<Record<string, string>>(
   {},
@@ -145,6 +148,13 @@ const habitListHandle = {
   checkAndPromptParentLog,
   refetch: vi.fn(),
 };
+function defaultUseHabitsReturn() {
+  return {
+    data: mockHabitsData,
+    getChildren: () => [],
+    isFetching: false,
+  };
+}
 const mockRouterPush = vi.fn();
 let mockProfile = createMockProfile({
   hasProAccess: false,
@@ -195,11 +205,7 @@ vi.mock("@/hooks/use-gamification", () => ({
 }));
 
 vi.mock("@/hooks/use-habits", () => ({
-  useHabits: () => ({
-    data: mockHabitsData,
-    getChildren: () => [],
-    isFetching: false,
-  }),
+  useHabits: useHabitsMock,
   useDeleteHabit: () => ({ mutateAsync: vi.fn() }),
   useBulkDeleteHabits: () => ({ mutateAsync: vi.fn() }),
   useBulkLogHabits: () => ({ mutateAsync: bulkLogMutateAsync }),
@@ -407,6 +413,7 @@ async function renderTodayScreen(): Promise<RenderedTree> {
 describe("TodayScreen", () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    useHabitsMock.mockImplementation(defaultUseHabitsReturn);
     vi.useRealTimers();
     mockRouterPush.mockReset();
     mockProfile = createMockProfile({
@@ -619,6 +626,7 @@ describe("TodayScreen overdue bulk selection", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
+    useHabitsMock.mockImplementation(defaultUseHabitsReturn);
     vi.useRealTimers();
     mockProfile = createMockProfile({
       hasProAccess: false,
@@ -721,5 +729,70 @@ describe("TodayScreen overdue bulk selection", () => {
     });
 
     expect(bulkSkipMutateAsync).toHaveBeenCalledWith([{ habitId: overdue.id }]);
+  });
+});
+
+describe("TodayScreen overdue date gating", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    useHabitsMock.mockImplementation(defaultUseHabitsReturn);
+    vi.useRealTimers();
+    mockProfile = createMockProfile({
+      hasProAccess: false,
+      aiSummaryEnabled: false,
+    });
+    mockHabitsData.habitsById = new Map();
+    mockHabitsData.childrenByParent = new Map();
+    mockHabitsData.topLevelHabits = [];
+    uiState.followToday = false;
+    uiState.activeView = "today";
+    uiState.isSelectMode = false;
+    uiState.searchQuery = "";
+    uiState.selectedFrequency = null;
+    uiState.selectedTagIds = [];
+    uiState.showCompleted = false;
+    uiState.selectedHabitIds = new Set<string>();
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  function lastFilters() {
+    return useHabitsMock.mock.calls.at(-1)?.[0];
+  }
+
+  it("includes overdue when the selected date is today", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-04-07T12:00:00"));
+    uiState.selectedDate = "2026-04-07";
+
+    await renderTodayScreen();
+
+    expect(lastFilters()).toMatchObject({
+      dateFrom: "2026-04-07",
+      dateTo: "2026-04-07",
+      includeOverdue: true,
+    });
+  });
+
+  it("excludes overdue when the selected date is in the future", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-04-07T12:00:00"));
+    uiState.selectedDate = "2026-04-09";
+
+    await renderTodayScreen();
+
+    expect(lastFilters()).toMatchObject({ includeOverdue: false });
+  });
+
+  it("excludes overdue when the selected date is in the past", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-04-07T12:00:00"));
+    uiState.selectedDate = "2026-04-05";
+
+    await renderTodayScreen();
+
+    expect(lastFilters()).toMatchObject({ includeOverdue: false });
   });
 });
