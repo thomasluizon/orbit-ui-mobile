@@ -13,19 +13,7 @@ import {
 import { useQueryClient } from '@tanstack/react-query'
 import { useLocale, useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
-import {
-  apiKeyKeys,
-  calendarKeys,
-  gamificationKeys,
-  goalKeys,
-  habitKeys,
-  notificationKeys,
-  profileKeys,
-  referralKeys,
-  subscriptionKeys,
-  tagKeys,
-  userFactKeys,
-} from '@orbit/shared/query'
+import { goalKeys, habitKeys, profileKeys } from '@orbit/shared/query'
 import type { Profile } from '@orbit/shared/types/profile'
 import type {
   AgentExecuteOperationResponse,
@@ -37,11 +25,18 @@ import {
   getChatImageValidationError,
 } from '@orbit/shared/chat'
 import {
+  buildAgentExecutionMessage,
+  CHAT_DRAFT_STORAGE_KEY,
+  classifySendFailure,
+  findPremiumPolicyDenial,
+  invalidateAgentQueries,
+  selectActionInvalidations,
+} from '@orbit/shared/hooks'
+import {
   buildRecentChatHistory,
   canAccessEntitlement,
   detectDefaultTimeFormat,
   getErrorMessage,
-  resolveUpgradeEntitlementDenial,
   resolveUpgradeEntitlementFromPolicyDenial,
 } from '@orbit/shared/utils'
 import { useSpeechToText } from '@/hooks/use-speech-to-text'
@@ -54,32 +49,6 @@ import {
   sendChatMessage,
   verifyPendingOperationStepUp,
 } from '@/app/actions/chat'
-
-const CHAT_DRAFT_STORAGE_KEY = 'orbit-chat-draft'
-
-const HABIT_ACTION_TYPES = new Set([
-  'CreateHabit',
-  'LogHabit',
-  'UpdateHabit',
-  'DeleteHabit',
-  'SkipHabit',
-  'BulkLogHabits',
-  'BulkSkipHabits',
-  'CreateSubHabit',
-  'AssignTags',
-  'DuplicateHabit',
-  'MoveHabit',
-  'SuggestBreakdown',
-])
-
-const GOAL_ACTION_TYPES = new Set([
-  'CreateGoal',
-  'UpdateGoal',
-  'DeleteGoal',
-  'UpdateGoalProgress',
-  'UpdateGoalStatus',
-  'LinkHabitsToGoal',
-])
 
 type PendingExecutionResult =
   | { ok: true; response: AgentExecuteOperationResponse }
@@ -95,33 +64,6 @@ type PreparedStepUpExecution =
 
 type SendChatMessageResult = Awaited<ReturnType<typeof sendChatMessage>>
 type FailedSendChatMessageResult = Extract<SendChatMessageResult, { ok: false }>
-
-function buildAgentExecutionMessage(response: AgentExecuteOperationResponse): string {
-  return (
-    response.operation.summary ??
-    response.policyDenial?.reason ??
-    response.operation.policyReason ??
-    response.operation.sourceName
-  )
-}
-
-async function invalidateAgentQueries(
-  queryClient: ReturnType<typeof useQueryClient>,
-): Promise<void> {
-  await Promise.all([
-    queryClient.invalidateQueries({ queryKey: habitKeys.all }),
-    queryClient.invalidateQueries({ queryKey: goalKeys.all }),
-    queryClient.invalidateQueries({ queryKey: profileKeys.all }),
-    queryClient.invalidateQueries({ queryKey: tagKeys.all }),
-    queryClient.invalidateQueries({ queryKey: notificationKeys.all }),
-    queryClient.invalidateQueries({ queryKey: calendarKeys.all }),
-    queryClient.invalidateQueries({ queryKey: userFactKeys.all }),
-    queryClient.invalidateQueries({ queryKey: gamificationKeys.all }),
-    queryClient.invalidateQueries({ queryKey: subscriptionKeys.all }),
-    queryClient.invalidateQueries({ queryKey: referralKeys.all }),
-    queryClient.invalidateQueries({ queryKey: apiKeyKeys.all }),
-  ])
-}
 
 export function useChatComposer() {
   const t = useTranslations()
@@ -234,23 +176,20 @@ export function useChatComposer() {
   const handleFailedSend = useCallback((result: FailedSendChatMessageResult) => {
     setIsTyping(false)
     const resolvedError = getErrorMessage(result.error, t('chat.sendError'))
-    const upgradeResolution = resolveUpgradeEntitlementDenial({
-      status: result.status,
-      reason: resolvedError,
-    })
+    const failure = classifySendFailure({ status: result.status, reason: resolvedError })
 
-    if (shouldRouteToUpgrade(upgradeResolution)) {
+    if (failure.kind === 'upgrade' && shouldRouteToUpgrade(failure.upgrade)) {
       setSendError(resolvedError)
       router.push('/upgrade')
       return
     }
 
-    if (result.status === 408) {
+    if (failure.kind === 'timeout') {
       setSendError(t('chat.timeoutError'))
-    } else if (result.status === 403) {
+    } else if (failure.kind === 'limit') {
       setSendError(t('chat.limitReachedError'))
     } else {
-      setSendError(getErrorMessage(result.error, t('chat.sendError')))
+      setSendError(resolvedError)
     }
 
     addMessage({
@@ -278,9 +217,7 @@ export function useChatComposer() {
 
     scrollToBottom()
 
-    const premiumDenial = result.data.policyDenials?.find((denial) =>
-      resolveUpgradeEntitlementFromPolicyDenial(denial).shouldUpgrade,
-    )
+    const premiumDenial = findPremiumPolicyDenial(result.data.policyDenials)
     if (premiumDenial) {
       const upgradeResolution = resolveUpgradeEntitlementFromPolicyDenial(premiumDenial)
       setSendError(premiumDenial.reason)
@@ -295,14 +232,12 @@ export function useChatComposer() {
       )
     }
 
-    const hasSuccessfulActions = result.data.actions?.some((action) => action.status === 'Success')
-    if (hasSuccessfulActions) {
-      if (result.data.actions.some((action) => HABIT_ACTION_TYPES.has(action.type))) {
-        queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
-      }
-      if (result.data.actions.some((action) => GOAL_ACTION_TYPES.has(action.type))) {
-        queryClient.invalidateQueries({ queryKey: goalKeys.lists() })
-      }
+    const invalidations = selectActionInvalidations(result.data.actions)
+    if (invalidations.habits) {
+      queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
+    }
+    if (invalidations.goals) {
+      queryClient.invalidateQueries({ queryKey: goalKeys.lists() })
     }
 
     if (result.data.operations?.some((operation) => operation.status === 'Succeeded')) {
@@ -568,6 +503,41 @@ export function useChatComposer() {
     queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
   }
 
+  const prepareStepUpForBubble = useCallback(
+    async (pendingOperationId: string) => {
+      const result = await preparePendingOperationStepUp(pendingOperationId)
+      if (!result.ok) {
+        return { ok: false as const, error: result.error }
+      }
+      return {
+        ok: true as const,
+        challengeId: result.challenge.challengeId,
+        confirmationToken: result.confirmationToken,
+      }
+    },
+    [preparePendingOperationStepUp],
+  )
+
+  const verifyStepUpForBubble = useCallback(
+    async (
+      pendingOperationId: string,
+      challengeId: string,
+      code: string,
+      confirmationToken: string,
+    ) => {
+      const result = await verifyAndExecutePendingOperationStepUp(
+        pendingOperationId,
+        challengeId,
+        code,
+        confirmationToken,
+      )
+      return result.ok
+        ? { ok: true as const, response: result.response }
+        : { ok: false as const, error: result.error }
+    },
+    [verifyAndExecutePendingOperationStepUp],
+  )
+
   return {
     chatContainerRef,
     textareaRef,
@@ -606,8 +576,8 @@ export function useChatComposer() {
     handleKeyDown,
     handleBreakdownConfirmed,
     confirmAndExecutePendingOperation,
-    preparePendingOperationStepUp,
-    verifyAndExecutePendingOperationStepUp,
+    prepareStepUpForBubble,
+    verifyStepUpForBubble,
     scrollToBottom,
   }
 }

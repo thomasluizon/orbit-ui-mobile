@@ -8,6 +8,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./chat": "./src/chat/index.ts",
+    "./hooks": "./src/hooks/index.ts",
     "./types": "./src/types/index.ts",
     "./types/*": "./src/types/*.ts",
     "./utils": "./src/utils/index.ts",

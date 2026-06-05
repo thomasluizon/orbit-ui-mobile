@@ -15,6 +15,7 @@ import {
   CHAT_SPEECH_LANGUAGES as SPEECH_LANGUAGES,
   CHAT_VISUALIZER_BAR_OFFSETS as VISUALIZER_BAR_OFFSETS,
 } from '@orbit/shared/chat'
+import { CHAT_GOAL_ACTION_TYPES } from '@orbit/shared/hooks'
 import { habitDetailToNormalized } from '@orbit/shared/utils'
 import { AppBar } from '@/components/ui/app-bar'
 import { LocalImage } from '@/components/ui/local-image'
@@ -26,15 +27,6 @@ import { SuggestionChips } from '@/components/chat/suggestion-chips'
 import { TypingIndicator } from '@/components/chat/typing-indicator'
 import { GoalDetailDrawer } from '@/components/goals/goal-detail-drawer'
 import { HabitDetailDrawer } from '@/components/habits/habit-detail-drawer'
-
-const GOAL_ACTION_TYPES = new Set([
-  'CreateGoal',
-  'UpdateGoal',
-  'DeleteGoal',
-  'UpdateGoalProgress',
-  'UpdateGoalStatus',
-  'LinkHabitsToGoal',
-])
 
 export default function ChatPage() {
   const t = useTranslations()
@@ -75,8 +67,8 @@ export default function ChatPage() {
     handleKeyDown,
     handleBreakdownConfirmed,
     confirmAndExecutePendingOperation,
-    preparePendingOperationStepUp,
-    verifyAndExecutePendingOperationStepUp,
+    prepareStepUpForBubble,
+    verifyStepUpForBubble,
   } = useChatComposer()
 
   const [selectedHabitId, setSelectedHabitId] = useState<string | null>(null)
@@ -88,7 +80,7 @@ export default function ChatPage() {
   )
 
   const handleActionChipClick = useCallback((entityId: string, actionType: string) => {
-    if (GOAL_ACTION_TYPES.has(actionType)) {
+    if (CHAT_GOAL_ACTION_TYPES.has(actionType)) {
       if (!hasProAccess) {
         router.push('/upgrade')
         return
@@ -220,35 +212,8 @@ export default function ChatPage() {
             onActionChipClick={handleActionChipClick}
             onUpgradeClick={() => router.push('/upgrade')}
             onPendingOperationConfirmExecute={confirmAndExecutePendingOperation}
-            onPendingOperationPrepareStepUp={async (pendingOperationId) => {
-              const result = await preparePendingOperationStepUp(pendingOperationId)
-              if (!result.ok) {
-                return { ok: false, error: result.error }
-              }
-
-              return {
-                ok: true,
-                challengeId: result.challenge.challengeId,
-                confirmationToken: result.confirmationToken,
-              }
-            }}
-            onPendingOperationVerifyStepUp={async (
-              pendingOperationId,
-              challengeId,
-              code,
-              confirmationToken,
-            ) => {
-              const result = await verifyAndExecutePendingOperationStepUp(
-                pendingOperationId,
-                challengeId,
-                code,
-                confirmationToken,
-              )
-
-              return result.ok
-                ? { ok: true, response: result.response }
-                : { ok: false, error: result.error }
-            }}
+            onPendingOperationPrepareStepUp={prepareStepUpForBubble}
+            onPendingOperationVerifyStepUp={verifyStepUpForBubble}
           />
         ))}
 

@@ -185,6 +185,7 @@ export {
 export * from './theme/index'
 export * from './api/index'
 export * from './chat/index'
+export * from './hooks/index'
 export * from './query/index'
 export * from './stores/index'
 export * from './validation/index'
