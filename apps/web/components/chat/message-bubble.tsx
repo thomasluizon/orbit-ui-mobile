@@ -46,13 +46,10 @@ export function MessageBubble({
   const [traceCopied, setTraceCopied] = useState(false)
 
   async function copyTraceId(correlationId: string) {
-    try {
-      await navigator.clipboard.writeText(correlationId)
-      setTraceCopied(true)
-      setTimeout(() => setTraceCopied(false), 2000)
-    } catch {
-      // Clipboard API unavailable
-    }
+    if (!navigator.clipboard) return
+    await navigator.clipboard.writeText(correlationId)
+    setTraceCopied(true)
+    setTimeout(() => setTraceCopied(false), 2000)
   }
 
   const suggestionActions = useMemo(
