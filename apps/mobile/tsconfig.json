@@ -17,6 +17,12 @@
       ],
       "@orbit/shared/*": [
         "../../packages/shared/src/*"
+      ],
+      "react-native": [
+        "./node_modules/react-native"
+      ],
+      "react-native/*": [
+        "./node_modules/react-native/*"
       ]
     },
     "types": [
