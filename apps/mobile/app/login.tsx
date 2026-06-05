@@ -7,7 +7,6 @@ import {
   Platform,
   StyleSheet,
   ActivityIndicator,
-  Linking,
 } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useLocalSearchParams, useRouter, type Href } from 'expo-router'
@@ -349,11 +348,11 @@ export default function LoginScreen() {
   }
 
   function openPrivacyPolicy() {
-    Linking.openURL('https://app.useorbit.org/privacy')
+    router.push('/privacy')
   }
 
   function openTerms() {
-    Linking.openURL('https://app.useorbit.org/terms')
+    router.push('/terms')
   }
 
   const canSubmitEmail = Boolean(email.trim()) && !isSubmitting && isOnline
