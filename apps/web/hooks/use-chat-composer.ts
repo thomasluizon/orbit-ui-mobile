@@ -13,7 +13,7 @@ import {
 import { useQueryClient } from '@tanstack/react-query'
 import { useLocale, useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
-import { goalKeys, habitKeys, profileKeys } from '@orbit/shared/query'
+import { goalKeys, habitKeys, profileKeys, tagKeys } from '@orbit/shared/query'
 import type { Profile } from '@orbit/shared/types/profile'
 import type {
   AgentExecuteOperationResponse,
@@ -213,6 +213,7 @@ export function useChatComposer() {
       pendingOperations: result.data.pendingOperations,
       policyDenials: result.data.policyDenials,
       correlationId: result.data.correlationId,
+      relatedSurfaces: result.data.relatedSurfaces,
       timestamp: new Date(),
     })
 
@@ -239,6 +240,9 @@ export function useChatComposer() {
     }
     if (invalidations.goals) {
       queryClient.invalidateQueries({ queryKey: goalKeys.lists() })
+    }
+    if (invalidations.tags) {
+      queryClient.invalidateQueries({ queryKey: tagKeys.lists() })
     }
 
     if (result.data.operations?.some((operation) => operation.status === 'Succeeded')) {

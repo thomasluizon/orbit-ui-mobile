@@ -61,6 +61,21 @@ vi.mock('lucide-react-native', () => {
   return {
     Sparkles: (props: Record<string, unknown>) => React.createElement('Sparkles', props),
     User: (props: Record<string, unknown>) => React.createElement('User', props),
+    ArrowUpRight: (props: Record<string, unknown>) =>
+      React.createElement('ArrowUpRight', props),
+  }
+})
+
+const push = vi.fn()
+vi.mock('expo-router', () => ({
+  useRouter: () => ({ push }),
+}))
+
+vi.mock('@/components/ui/markdown', () => {
+  const React = require('react')
+  return {
+    Markdown: ({ children }: { children: string }) =>
+      React.createElement('Markdown', null, children),
   }
 })
 
@@ -75,9 +90,6 @@ vi.mock('@/components/chat/clarification-card', () => ({
 }))
 vi.mock('@/components/chat/pending-operation-card', () => ({
   PendingOperationCard: () => null,
-}))
-vi.mock('@/components/chat/format-chat-message', () => ({
-  formatChatMessage: (text: string) => text,
 }))
 
 function makeMessage(overrides: Partial<ChatMessage> = {}): ChatMessage {
@@ -153,5 +165,57 @@ describe('MessageBubble trace footer (mobile)', () => {
     })
 
     expect(setStringAsync).toHaveBeenCalledWith('req-abc-123')
+  })
+})
+
+function findSurfaceLinks(root: TestTreeRoot, label: string): TestNode[] {
+  return root.findAll(
+    (node) =>
+      node.props != null &&
+      typeof node.type !== 'string' &&
+      typeof node.props.onPress === 'function' &&
+      node.props.accessibilityLabel === label,
+  )
+}
+
+describe('MessageBubble related-surfaces footer (mobile)', () => {
+  beforeEach(() => {
+    push.mockClear()
+  })
+
+  it('renders deep links for known surfaces and drops unknown ones', async () => {
+    let tree!: TestInstance
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(
+        <MessageBubble
+          message={makeMessage({
+            role: 'ai',
+            relatedSurfaces: ['gamification', 'mystery'],
+          })}
+        />,
+      )
+    })
+
+    const links = findSurfaceLinks(tree.root, 'chat.related.surface.gamification')
+    expect(links).toHaveLength(1)
+    expect(findSurfaceLinks(tree.root, 'chat.related.surface.mystery')).toHaveLength(0)
+
+    await TestRenderer.act(async () => {
+      links[0]?.props.onPress?.()
+    })
+    expect(push).toHaveBeenCalledWith('/achievements')
+  })
+
+  it('does not render the footer for user messages', async () => {
+    let tree!: TestInstance
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(
+        <MessageBubble
+          message={makeMessage({ role: 'user', relatedSurfaces: ['gamification'] })}
+        />,
+      )
+    })
+
+    expect(findSurfaceLinks(tree.root, 'chat.related.surface.gamification')).toHaveLength(0)
   })
 })

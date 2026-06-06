@@ -123,6 +123,7 @@ describe('selectActionInvalidations', () => {
     expect(selectActionInvalidations([makeAction({ type: 'CreateHabit' })])).toEqual({
       habits: true,
       goals: false,
+      tags: false,
     })
   })
 
@@ -130,6 +131,7 @@ describe('selectActionInvalidations', () => {
     expect(selectActionInvalidations([makeAction({ type: 'CreateGoal' })])).toEqual({
       habits: false,
       goals: true,
+      tags: false,
     })
   })
 
@@ -139,18 +141,46 @@ describe('selectActionInvalidations', () => {
         makeAction({ type: 'CreateHabit' }),
         makeAction({ type: 'UpdateGoal' }),
       ]),
-    ).toEqual({ habits: true, goals: true })
+    ).toEqual({ habits: true, goals: true, tags: false })
+  })
+
+  it('flags tags and habits when a successful tag action is present', () => {
+    expect(selectActionInvalidations([makeAction({ type: 'CreateTag' })])).toEqual({
+      habits: true,
+      goals: false,
+      tags: true,
+    })
+  })
+
+  it('flags habits when a habit reorder succeeds', () => {
+    expect(selectActionInvalidations([makeAction({ type: 'ReorderHabits' })])).toEqual({
+      habits: true,
+      goals: false,
+      tags: false,
+    })
+  })
+
+  it('flags goals when a goal reorder succeeds', () => {
+    expect(selectActionInvalidations([makeAction({ type: 'ReorderGoals' })])).toEqual({
+      habits: false,
+      goals: true,
+      tags: false,
+    })
   })
 
   it('flags nothing when no action succeeded', () => {
     expect(
       selectActionInvalidations([makeAction({ type: 'CreateHabit', status: 'Failed' })]),
-    ).toEqual({ habits: false, goals: false })
+    ).toEqual({ habits: false, goals: false, tags: false })
   })
 
   it('flags nothing for an empty or undefined action list', () => {
-    expect(selectActionInvalidations(undefined)).toEqual({ habits: false, goals: false })
-    expect(selectActionInvalidations([])).toEqual({ habits: false, goals: false })
+    expect(selectActionInvalidations(undefined)).toEqual({
+      habits: false,
+      goals: false,
+      tags: false,
+    })
+    expect(selectActionInvalidations([])).toEqual({ habits: false, goals: false, tags: false })
   })
 })
 

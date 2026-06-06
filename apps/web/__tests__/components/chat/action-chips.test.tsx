@@ -82,6 +82,25 @@ describe('ActionChips', () => {
     expect(document.body.textContent).toContain('chat.unknownEntity')
   })
 
+  it('renders localized labels for the new tag and reorder action types', () => {
+    const cases: Array<[string, string]> = [
+      ['CreateTag', 'chat.action.createdTag'],
+      ['UpdateTag', 'chat.action.updatedTag'],
+      ['DeleteTag', 'chat.action.deletedTag'],
+      ['ReorderGoals', 'chat.action.reorderedGoals'],
+      ['ReorderHabits', 'chat.action.reorderedHabits'],
+    ]
+    for (const [type, labelKey] of cases) {
+      const { unmount } = render(
+        <ActionChips actions={[makeAction({ type, entityName: 'Work' })]} />,
+      )
+      expect(document.body.textContent).toContain(labelKey)
+      // no humanized snake_case fallback for these
+      expect(document.body.textContent).not.toContain(`${type}:`)
+      unmount()
+    }
+  })
+
   it('renders conflict warning when present', () => {
     const actions = [
       makeAction({
@@ -152,6 +171,19 @@ describe('ActionChips', () => {
       ]
       render(<ActionChips actions={actions} onChipClick={() => {}} />)
       expect(screen.queryByRole('button')).not.toBeInTheDocument()
+    })
+
+    it('renders tag mutation chips as non-interactive spans even with handler', () => {
+      for (const type of ['CreateTag', 'UpdateTag', 'DeleteTag']) {
+        const { unmount } = render(
+          <ActionChips
+            actions={[makeAction({ type, status: 'Success', entityId: 'tag-1' })]}
+            onChipClick={() => {}}
+          />,
+        )
+        expect(screen.queryByRole('button')).not.toBeInTheDocument()
+        unmount()
+      }
     })
 
     it('renders DeleteGoal chip as non-interactive span even with handler', () => {

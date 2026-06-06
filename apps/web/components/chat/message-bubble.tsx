@@ -1,16 +1,18 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { Sparkles, User } from 'lucide-react'
+import { Sparkles, User, ArrowUpRight } from 'lucide-react'
 import { useTranslations } from 'next-intl'
+import { useRouter } from 'next/navigation'
 import type { ChatMessage } from '@orbit/shared/types/chat'
 import type { AgentExecuteOperationResponse } from '@orbit/shared/types/ai'
+import { getRelatedSurfaces } from '@orbit/shared/chat'
 import { resolveUpgradeEntitlementFromPolicyDenial } from '@orbit/shared/utils'
 import { LocalImage } from '@/components/ui/local-image'
+import { Markdown } from '@/components/ui/markdown'
 import { ActionChips } from './action-chips'
 import { BreakdownSuggestion } from './breakdown-suggestion'
 import { ClarificationCard } from './clarification-card'
-import { formatChatMessage } from './format-chat-message'
 import { PendingOperationCard } from './pending-operation-card'
 
 interface MessageBubbleProps {
@@ -42,8 +44,14 @@ export function MessageBubble({
   onUpgradeClick,
 }: Readonly<MessageBubbleProps>) {
   const t = useTranslations()
+  const router = useRouter()
   const [dismissedBreakdowns, setDismissedBreakdowns] = useState<Set<string>>(new Set())
   const [traceCopied, setTraceCopied] = useState(false)
+
+  const relatedSurfaces = useMemo(
+    () => getRelatedSurfaces(message.relatedSurfaces),
+    [message.relatedSurfaces],
+  )
 
   async function copyTraceId(correlationId: string) {
     if (!navigator.clipboard) return
@@ -119,12 +127,7 @@ export function MessageBubble({
               className="rounded-xl max-h-48 mb-2"
             />
           )}
-          <p
-            className="whitespace-pre-wrap"
-            dangerouslySetInnerHTML={{
-              __html: formatChatMessage(message.content ?? ''),
-            }}
-          />
+          <Markdown content={message.content ?? ''} />
         </div>
 
         {!isUser && message.correlationId && (
@@ -138,6 +141,27 @@ export function MessageBubble({
               ? t('chat.trace.copied')
               : t('chat.trace.label', { id: message.correlationId })}
           </button>
+        )}
+
+        {!isUser && relatedSurfaces.length > 0 && (
+          <div className="mt-2 w-full">
+            <span className="block text-[11px] font-medium text-[var(--fg-2)] mb-1.5 px-1">
+              {t('chat.related.title')}
+            </span>
+            <div className="flex flex-wrap gap-2">
+              {relatedSurfaces.map((surface) => (
+                <button
+                  key={surface.id}
+                  type="button"
+                  onClick={() => router.push(surface.webRoute)}
+                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-semibold border border-[var(--hairline)] bg-[var(--bg-elev)] text-[var(--fg-2)] hover:text-[var(--fg-1)] hover:scale-[1.02] transition-[background-color,border-color,color,transform] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+                >
+                  {t(surface.labelKey)}
+                  <ArrowUpRight className="size-2.5" />
+                </button>
+              ))}
+            </div>
+          </div>
         )}
 
         {!isUser && nonSuggestionActions.length > 0 && (

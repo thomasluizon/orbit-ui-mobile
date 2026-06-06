@@ -655,7 +655,22 @@
       "updatedGoalProgress": "Updated goal progress: {name}",
       "updatedGoalStatus": "Updated goal status: {name}",
       "linkedGoalHabits": "Linked habits to goal: {name}",
+      "createdTag": "Tag created: {name}",
+      "updatedTag": "Tag updated: {name}",
+      "deletedTag": "Tag deleted",
+      "reorderedGoals": "Goals reordered",
+      "reorderedHabits": "Habits reordered",
       "openEntity": "Open details: {name}"
+    },
+    "related": {
+      "title": "Related",
+      "surface": {
+        "today": "Today",
+        "gamification": "Achievements",
+        "notifications": "Notifications",
+        "subscriptions": "Upgrade",
+        "aiSettings": "AI settings"
+      }
     },
     "conflict": {
       "title": "Potential conflict"

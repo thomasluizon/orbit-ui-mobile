@@ -1,3 +1,5 @@
+export * from './related-surfaces'
+
 export const CHAT_SPEECH_LANG_KEY = 'orbit:speech-lang'
 
 export const CHAT_SPEECH_LANGUAGES = [

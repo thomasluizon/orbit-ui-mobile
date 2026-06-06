@@ -1,16 +1,18 @@
 import { useState, useMemo, useEffect } from "react";
 import { View, Text, Image, StyleSheet, Animated, Pressable } from "react-native";
 import * as Clipboard from "expo-clipboard";
-import { Sparkles, User } from "lucide-react-native";
+import { useRouter } from "expo-router";
+import { Sparkles, User, ArrowUpRight } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import type { ChatMessage } from "@orbit/shared/types/chat";
 import type { AgentExecuteOperationResponse } from "@orbit/shared/types";
+import { getRelatedSurfaces } from "@orbit/shared/chat";
 import { resolveUpgradeEntitlementFromPolicyDenial } from "@orbit/shared/utils";
 import { ActionChips } from "@/components/chat/action-chips";
 import { BreakdownSuggestion } from "@/components/chat/breakdown-suggestion";
 import { ClarificationCard } from "@/components/chat/clarification-card";
-import { formatChatMessage } from "@/components/chat/format-chat-message";
 import { PendingOperationCard } from "@/components/chat/pending-operation-card";
+import { Markdown } from "@/components/ui/markdown";
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from "@/lib/use-app-theme";
 
@@ -33,66 +35,6 @@ interface MessageBubbleProps {
   onUpgradeClick?: () => void;
 }
 
-interface FormattedSegment {
-  text: string;
-  bold?: boolean;
-  italic?: boolean;
-}
-
-function decodeHtmlEntities(value: string): string {
-  return value
-    .replaceAll("&lt;", "<")
-    .replaceAll("&gt;", ">")
-    .replaceAll("&quot;", '"')
-    .replaceAll("&amp;", "&");
-}
-
-function parseFormattedSegments(value: string): FormattedSegment[] {
-  const html = formatChatMessage(value);
-  const segments: FormattedSegment[] = [];
-  let cursor = 0;
-
-  while (cursor < html.length) {
-    if (html.startsWith("<strong>", cursor)) {
-      const end = html.indexOf("</strong>", cursor);
-      if (end === -1) break;
-      segments.push({
-        text: decodeHtmlEntities(html.slice(cursor + 8, end)),
-        bold: true,
-      });
-      cursor = end + 9;
-      continue;
-    }
-
-    if (html.startsWith("<em>", cursor)) {
-      const end = html.indexOf("</em>", cursor);
-      if (end === -1) break;
-      segments.push({
-        text: decodeHtmlEntities(html.slice(cursor + 4, end)),
-        italic: true,
-      });
-      cursor = end + 5;
-      continue;
-    }
-
-    const nextStrong = html.indexOf("<strong>", cursor);
-    const nextEm = html.indexOf("<em>", cursor);
-    const nextTagCandidates = [nextStrong, nextEm].filter(
-      (index) => index >= 0,
-    );
-    const nextTag =
-      nextTagCandidates.length > 0
-        ? Math.min(...nextTagCandidates)
-        : html.length;
-    segments.push({
-      text: decodeHtmlEntities(html.slice(cursor, nextTag)),
-    });
-    cursor = nextTag;
-  }
-
-  return segments.filter((segment) => segment.text.length > 0);
-}
-
 export function MessageBubble({
   message,
   onBreakdownConfirmed,
@@ -103,6 +45,7 @@ export function MessageBubble({
   onUpgradeClick,
 }: Readonly<MessageBubbleProps>) {
   const { t } = useTranslation();
+  const router = useRouter();
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
     () => createTokensV2(currentScheme, currentTheme),
@@ -146,9 +89,9 @@ export function MessageBubble({
       ) ?? [],
     [message.actions],
   );
-  const formattedSegments = useMemo(
-    () => parseFormattedSegments(message.content ?? ""),
-    [message.content],
+  const relatedSurfaces = useMemo(
+    () => getRelatedSurfaces(message.relatedSurfaces),
+    [message.relatedSurfaces],
   );
 
   function dismissBreakdown(key: string) {
@@ -190,20 +133,9 @@ export function MessageBubble({
             />
           )}
 
-          <Text style={[styles.messageText, isUser && styles.userText]}>
-            {formattedSegments.map((segment, index) => (
-              <Text
-                key={`${message.id}-segment-${index}`}
-                style={[
-                  isUser && styles.userText,
-                  segment.bold ? styles.messageTextBold : null,
-                  segment.italic ? styles.messageTextItalic : null,
-                ]}
-              >
-                {segment.text}
-              </Text>
-            ))}
-          </Text>
+          <Markdown tone={isUser ? "onPrimary" : "default"}>
+            {message.content ?? ""}
+          </Markdown>
         </View>
 
         {!isUser && message.correlationId ? (
@@ -219,6 +151,29 @@ export function MessageBubble({
                 : t("chat.trace.label", { id: message.correlationId })}
             </Text>
           </Pressable>
+        ) : null}
+
+        {!isUser && relatedSurfaces.length > 0 ? (
+          <View style={styles.relatedContainer}>
+            <Text style={styles.relatedTitle}>{t("chat.related.title")}</Text>
+            <View style={styles.relatedChips}>
+              {relatedSurfaces.map((surface) => (
+                <Pressable
+                  key={surface.id}
+                  accessibilityRole="button"
+                  accessibilityLabel={t(surface.labelKey)}
+                  onPress={() => router.push(surface.mobileRoute)}
+                  style={({ pressed }) => [
+                    styles.relatedChip,
+                    { opacity: pressed ? 0.7 : 1 },
+                  ]}
+                >
+                  <Text style={styles.relatedChipText}>{t(surface.labelKey)}</Text>
+                  <ArrowUpRight size={10} color={tokens.fg2} />
+                </Pressable>
+              ))}
+            </View>
+          </View>
         ) : null}
 
         {!isUser && nonSuggestionActions.length > 0 && (
@@ -466,19 +421,38 @@ function createStyles(tokens: AppTokens) {
       marginBottom: 8,
     },
 
-    messageText: {
-      fontSize: 14,
-      lineHeight: 20,
-      color: tokens.fg1,
+    relatedContainer: {
+      marginTop: 8,
+      width: "100%",
     },
-    messageTextBold: {
-      fontWeight: "700",
+    relatedTitle: {
+      fontSize: 11,
+      fontWeight: "500",
+      color: tokens.fg2,
+      marginBottom: 6,
+      paddingHorizontal: 4,
     },
-    messageTextItalic: {
-      fontStyle: "italic",
+    relatedChips: {
+      flexDirection: "row",
+      flexWrap: "wrap",
+      gap: 8,
     },
-    userText: {
-      color: tokens.fgOnPrimary,
+    relatedChip: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+      paddingHorizontal: 12,
+      paddingVertical: 4,
+      borderRadius: 999,
+      borderWidth: 1,
+      borderColor: tokens.hairline,
+      backgroundColor: tokens.bgElev,
+      alignSelf: "flex-start",
+    },
+    relatedChipText: {
+      fontSize: 10,
+      fontWeight: "600",
+      color: tokens.fg2,
     },
 
     breakdownContainer: {

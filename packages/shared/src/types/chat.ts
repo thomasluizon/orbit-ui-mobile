@@ -99,7 +99,10 @@ export type SuggestedSubHabit = z.infer<typeof suggestedSubHabitSchema>
 
 export const actionResultSchema = z
   .object({
-    type: aiActionTypeSchema,
+    // The backend emits PascalCase tool names beyond the 18-value aiActionTypeSchema
+    // enum (e.g. CreateTag, ReorderHabits), and the chat path renders these without
+    // ever calling .parse() — so a plain string keeps the type honest about the wire.
+    type: z.string(),
     status: actionStatusSchema,
     entityId: z.string().nullable(),
     entityName: z.string().nullable(),
@@ -137,6 +140,9 @@ export const chatMessageSchema = z.object({
   policyDenials: z.array(agentPolicyDenialSchema).optional(),
   imageUrl: z.string().nullable().optional(),
   correlationId: z.string().nullable().optional(),
+  // App surface IDs (e.g. "today", "gamification") the assistant linked to via a
+  // describe_feature reply; rendered as a deep-link footer when present.
+  relatedSurfaces: z.array(z.string()).optional(),
   timestamp: z.date(),
 })
 
@@ -149,6 +155,7 @@ export const chatResponseSchema = z.object({
   pendingOperations: z.array(pendingAgentOperationSchema).optional(),
   policyDenials: z.array(agentPolicyDenialSchema).optional(),
   correlationId: z.string().nullable().optional(),
+  relatedSurfaces: z.array(z.string()).optional(),
 })
 
 export type ChatResponse = z.infer<typeof chatResponseSchema>
