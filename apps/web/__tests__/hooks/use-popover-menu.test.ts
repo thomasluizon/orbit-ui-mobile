@@ -110,8 +110,6 @@ describe('usePopoverMenu', () => {
 
     const { result } = renderHook(() => usePopoverMenu())
 
-    // When closed, should not add pointerdown/keydown listeners
-    // (scroll/resize are on window)
     const pointerdownCalls = addSpy.mock.calls.filter(
       (call) => call[0] === 'pointerdown',
     )
@@ -135,6 +133,5 @@ describe('usePopoverMenu', () => {
     )
 
     expect(result.current.isOpen).toBe(false)
-    // The hook should initialize without error
   })
 })

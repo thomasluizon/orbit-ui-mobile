@@ -88,7 +88,6 @@ export function GoalCard({ goal }: Readonly<GoalCardProps>) {
 
   return (
     <>
-      {/* Use a button so the card is keyboard-accessible and has the correct role */}
       <motion.button
         type="button"
         data-tour="tour-goal-card"

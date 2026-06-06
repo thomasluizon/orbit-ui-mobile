@@ -8,7 +8,6 @@ import { DEFAULT_CONFIG, type AppConfig } from '@orbit/shared/types/config'
 async function fetchConfig(): Promise<AppConfig> {
   const res = await fetch(API.config.get)
   if (!res.ok) {
-    // Silently fall back to defaults on error
     return DEFAULT_CONFIG
   }
   return res.json()
@@ -18,7 +17,7 @@ export function useConfig() {
   const query = useQuery({
     queryKey: configKeys.detail(),
     queryFn: fetchConfig,
-    staleTime: 30 * 60 * 1000, // 30 minutes -- config rarely changes
+    staleTime: 30 * 60 * 1000,
     gcTime: 24 * 60 * 60 * 1000,
     placeholderData: DEFAULT_CONFIG,
   })

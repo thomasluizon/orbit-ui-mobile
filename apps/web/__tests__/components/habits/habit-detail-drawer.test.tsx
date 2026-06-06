@@ -4,9 +4,6 @@ import React from 'react'
 import { HabitDetailDrawer } from '@/components/habits/habit-detail-drawer'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 
-// ---------------------------------------------------------------------------
-// Mocks
-// ---------------------------------------------------------------------------
 
 const mockUpdateChecklistMutate = vi.fn()
 const mockLogHabitMutateAsync = vi.fn()
@@ -37,8 +34,6 @@ vi.mock('@/hooks/use-time-format', () => ({
   }),
 }))
 
-// Mock returns no habit.checklistItems so the drawer falls back to the prop's
-// checklistItems. Tests that exercise checklist behavior assert against the prop value.
 vi.mock('@/hooks/use-habits', () => ({
   useHabitFullDetail: () => ({
     data: {
@@ -156,9 +151,6 @@ vi.mock('@/components/habits/description-viewer', () => ({
   DescriptionViewer: () => null,
 }))
 
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
 
 describe('HabitDetailDrawer', () => {
   const defaultHabit = createMockHabit({
@@ -324,7 +316,6 @@ describe('HabitDetailDrawer', () => {
         habit={habit}
       />,
     )
-    // Toggle the only item (making all checked)
     fireEvent.click(screen.getByText('toggle-0'))
     expect(screen.getByTestId('confirm-dialog')).toBeDefined()
     expect(screen.getByText('habits.checklistCompleteTitle')).toBeDefined()
@@ -357,7 +348,6 @@ describe('HabitDetailDrawer', () => {
         habit={habit}
       />,
     )
-    // The text "habits.detail.endsOn" and the formatted date are in the same span
     expect(screen.getByText(/habits\.detail\.endsOn/)).toBeDefined()
   })
 
@@ -369,7 +359,6 @@ describe('HabitDetailDrawer', () => {
         habit={null}
       />,
     )
-    // Overlay renders but no habit content inside
     expect(screen.getByTestId('app-overlay')).toBeDefined()
   })
 })

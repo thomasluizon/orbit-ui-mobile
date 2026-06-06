@@ -32,17 +32,9 @@ export interface NormalizedHabitsData {
   currentPage: number
 }
 
-// Module-level stable reference so TanStack Query's select doesn't produce a fresh
-// data object every render. Without this, every consumer of useHabits re-renders on
-// every state change, defeating React.memo on HabitCard.
 const selectNormalizedHabits = (items: HabitScheduleItem[]): NormalizedHabitsData =>
   normalizeHabitQueryData(items)
 
-// Stable empty fallbacks for components that destructure useHabits data before it
-// loads. Using `?? new Map()` inline creates a fresh reference each render which
-// also defeats React.memo downstream. Types match the non-readonly NormalizedHabitsData
-// shape so consumers don't need to fight the type system -- treat these as read-only
-// by convention.
 export const EMPTY_HABITS_BY_ID: Map<string, NormalizedHabit> = new Map()
 export const EMPTY_CHILDREN_BY_PARENT: Map<string, string[]> = new Map()
 export const EMPTY_NORMALIZED_HABITS: NormalizedHabit[] = []
@@ -76,9 +68,6 @@ export function useHabits(filters: HabitsFilter) {
     },
     staleTime: QUERY_STALE_TIMES.habits,
     select: selectNormalizedHabits,
-    // Auto-refresh Today-style single-day queries every ~5 minutes so the list stays
-    // fresh across midnight rollovers and other-device logs. Calendar/month
-    // range queries stay event-driven only.
     refetchInterval: () => {
       const isSingleDay = !!filters.dateFrom && filters.dateFrom === filters.dateTo
       if (!isSingleDay) return false

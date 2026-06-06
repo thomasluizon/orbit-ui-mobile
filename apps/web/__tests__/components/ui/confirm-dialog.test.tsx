@@ -54,7 +54,6 @@ describe('ConfirmDialog', () => {
       />,
     )
 
-    // v8: description sits in a paragraph with an inline paddingBottom buffer.
     const desc = screen.getByText('This moves the task to tomorrow.') as HTMLElement
     expect(desc.style.paddingBottom).toBe('16px')
   })

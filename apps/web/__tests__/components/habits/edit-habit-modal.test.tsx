@@ -5,9 +5,6 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { EditHabitModal } from '@/components/habits/edit-habit-modal'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 
-// ---------------------------------------------------------------------------
-// Mocks
-// ---------------------------------------------------------------------------
 
 const mockUpdateMutateAsync = vi.fn()
 const mockFormReset = vi.fn()
@@ -142,9 +139,6 @@ vi.mock('@/components/habits/habit-form-fields', () => ({
   ),
 }))
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
 
 function renderWithProviders(ui: React.ReactElement) {
   const queryClient = new QueryClient({
@@ -155,9 +149,6 @@ function renderWithProviders(ui: React.ReactElement) {
   )
 }
 
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
 
 describe('EditHabitModal', () => {
   const defaultHabit = createMockHabit({ id: 'h-1', title: 'Exercise', frequencyUnit: 'Day' })
@@ -265,7 +256,6 @@ describe('EditHabitModal', () => {
     renderWithProviders(
       <EditHabitModal open={true} onOpenChange={vi.fn()} habit={null} />,
     )
-    // The overlay still renders but form reset won't fire with data
     expect(screen.getByTestId('app-overlay')).toBeDefined()
   })
 

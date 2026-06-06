@@ -17,11 +17,9 @@ import {
 import type { Goal, PaginatedGoalResponse } from '@orbit/shared/types/goal'
 import { createMockGoal } from '@orbit/shared/__tests__/factories'
 
-// Mock fetch
 const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
 
-// Mock server actions
 vi.mock('@/app/actions/goals', () => ({
   createGoal: vi.fn(),
   updateGoal: vi.fn(),
@@ -32,7 +30,6 @@ vi.mock('@/app/actions/goals', () => ({
   linkHabitsToGoal: vi.fn(),
 }))
 
-// Mock UI store
 vi.mock('@/stores/ui-store', () => ({
   useUIStore: Object.assign(
     () => ({
@@ -93,7 +90,6 @@ describe('useGoals', () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
     expect(result.current.data!.allGoals).toHaveLength(3)
-    // Should be sorted by position
     expect(result.current.data!.allGoals[0]!.id).toBe('g-2')
     expect(result.current.data!.allGoals[1]!.id).toBe('g-3')
     expect(result.current.data!.allGoals[2]!.id).toBe('g-1')
@@ -135,7 +131,6 @@ describe('useGoals', () => {
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
-    // Check the URL includes status param
     const calledUrl = mockFetch.mock.calls[0]![0] as string
     expect(calledUrl).toContain('status=Completed')
   })

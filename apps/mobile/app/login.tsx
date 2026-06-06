@@ -374,7 +374,6 @@ export default function LoginScreen() {
       keyboardShouldPersistTaps="always"
       showsVerticalScrollIndicator={false}
     >
-      {/* Referral banner at the very top edge */}
       {showReferralBanner && (
         <View style={styles.referralBanner}>
           <Text style={styles.referralBannerText}>
@@ -384,24 +383,20 @@ export default function LoginScreen() {
       )}
 
       <View style={styles.formColumn}>
-        {/* Saturn glyph + wordmark + hairline rule */}
         <View style={styles.brandingHeader}>
           <SaturnDropcap size={32} color={tokens.fg1} />
           <Text style={styles.wordmark}>Orbit</Text>
           <View style={styles.brandingRule} />
         </View>
 
-        {/* Step subtitle: "Sign in" / "Enter code" */}
         <Text style={styles.stepSubtitle}>
           {step === 'email' ? t('auth.signIn') : t('auth.enterCode')}
         </Text>
 
-        {/* Inline italic error (v8 spec: centered overdue) */}
         {errorMessage && (
           <Text style={styles.inlineError}>{errorMessage}</Text>
         )}
 
-        {/* Success alert */}
         {successMessage && (
           <Text style={styles.successText}>{successMessage}</Text>
         )}
@@ -491,7 +486,6 @@ export default function LoginScreen() {
               </Text>
             </Pressable>
 
-            {/* Legal */}
             <Text style={styles.legal}>
               {t('auth.legalPrefix')}{' '}
               <Text style={styles.legalLink} onPress={openTerms}>
@@ -549,7 +543,6 @@ export default function LoginScreen() {
               </Text>
             </Pressable>
 
-            {/* Mono countdown or resend link */}
             <View style={styles.resendRow}>
               {canResend ? (
                 <Pressable onPress={resendCode} disabled={!isOnline}>
@@ -598,7 +591,6 @@ function createStyles(tokens: AppTokensV2) {
       paddingBottom: 24,
     },
 
-    // Referral edge banner (very top, mono uppercase)
     referralBanner: {
       alignSelf: 'stretch',
       paddingHorizontal: 14,

@@ -9,7 +9,6 @@ export async function POST() {
   const apiBase = process.env.API_BASE ?? 'http://localhost:5000'
   const refreshToken = await getRefreshToken()
 
-  // Always clear cookies, even if backend call fails
   await clearSessionCookies()
 
   if (refreshToken) {
@@ -21,7 +20,6 @@ export async function POST() {
         signal: AbortSignal.timeout(5000),
       })
     } catch {
-      // Best-effort: session will expire naturally if revocation fails
     }
   }
 

@@ -104,7 +104,6 @@ describe('CreateGoalModal', () => {
 
   it('renders the title from the overlay', () => {
     render(<CreateGoalModal open={true} onOpenChange={vi.fn()} />)
-    // The title is "goals.create" passed to AppOverlay
     const titles = screen.getAllByText('goals.create')
     expect(titles.length).toBeGreaterThan(0)
   })

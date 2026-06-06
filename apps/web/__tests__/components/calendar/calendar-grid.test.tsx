@@ -22,7 +22,7 @@ import { CalendarGrid } from '@/components/calendar/calendar-grid'
 import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
 
 describe('CalendarGrid', () => {
-  const currentMonth = new Date(2025, 5, 1) // June 2025
+  const currentMonth = new Date(2025, 5, 1)
   const emptyMap = new Map<string, CalendarDayEntry[]>()
 
   it('renders weekday headers', () => {
@@ -33,7 +33,6 @@ describe('CalendarGrid', () => {
         onSelectDay={vi.fn()}
       />,
     )
-    // Monday first (weekStartDay=1)
     expect(screen.getByText('dates.daysShort.monday')).toBeInTheDocument()
     expect(screen.getByText('dates.daysShort.sunday')).toBeInTheDocument()
   })
@@ -46,7 +45,6 @@ describe('CalendarGrid', () => {
         onSelectDay={vi.fn()}
       />,
     )
-    // At least 28 day buttons (June has 30 days + padding)
     const buttons = screen.getAllByRole('button')
     expect(buttons.length).toBeGreaterThanOrEqual(28)
   })
@@ -60,7 +58,6 @@ describe('CalendarGrid', () => {
         onSelectDay={onSelectDay}
       />,
     )
-    // Click a cell with aria-label containing "June"
     const juneDay = screen.getAllByRole('button').find(
       (btn) => btn.getAttribute('aria-label')?.includes('June'),
     )
@@ -105,7 +102,6 @@ describe('CalendarGrid', () => {
         onSelectDay={vi.fn()}
       />,
     )
-    // v8: dots are inline span elements with the rounded-full class.
     const dots = container.querySelectorAll('span.block.rounded-full')
     expect(dots.length).toBeGreaterThan(0)
   })
@@ -133,7 +129,6 @@ describe('CalendarGrid', () => {
         onSelectDay={vi.fn()}
       />,
     )
-    // The completed-day indicator uses background: var(--fg-1) in inline style.
     const fullDot = Array.from(
       container.querySelectorAll<HTMLSpanElement>('span.block.rounded-full'),
     ).some((el) => el.style.background.includes('var(--fg-1)'))

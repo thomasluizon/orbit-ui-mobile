@@ -39,7 +39,6 @@ export function ReferralDrawer({ open, onOpenChange }: Readonly<ReferralDrawerPr
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
     } catch {
-      // Fallback: user can manually select text
     }
   }
 
@@ -52,14 +51,12 @@ export function ReferralDrawer({ open, onOpenChange }: Readonly<ReferralDrawerPr
         url: referralUrl,
       })
     } catch {
-      // User cancelled share
     }
   }
 
   return (
     <AppOverlay open={open} onOpenChange={onOpenChange} title={t('referral.drawer.title')}>
       <div className="-mx-6">
-        {/* Loading state */}
         {isLoading && (
           <div style={{ padding: '16px 20px' }}>
             <div
@@ -69,7 +66,6 @@ export function ReferralDrawer({ open, onOpenChange }: Readonly<ReferralDrawerPr
           </div>
         )}
 
-        {/* Error state */}
         {isError && !isLoading && (
           <div role="alert" style={{ padding: '12px 20px' }}>
             <p
@@ -85,7 +81,6 @@ export function ReferralDrawer({ open, onOpenChange }: Readonly<ReferralDrawerPr
           </div>
         )}
 
-        {/* Loaded state */}
         {!isLoading && !isError && (
           <>
             <SectionLabel>{t('referral.drawer.yourLink')}</SectionLabel>

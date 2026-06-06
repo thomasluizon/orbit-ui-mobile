@@ -40,9 +40,6 @@ describe('auth server actions', () => {
     })
   }
 
-  // -------------------------------------------------------------------------
-  // requestDeletion
-  // -------------------------------------------------------------------------
 
   describe('requestDeletion', () => {
     it('sends POST to /api/auth/request-deletion', async () => {
@@ -77,9 +74,6 @@ describe('auth server actions', () => {
     })
   })
 
-  // -------------------------------------------------------------------------
-  // confirmDeletion
-  // -------------------------------------------------------------------------
 
   describe('confirmDeletion', () => {
     it('sends POST to /api/auth/confirm-deletion with code', async () => {
@@ -126,9 +120,6 @@ describe('auth server actions', () => {
     })
   })
 
-  // -------------------------------------------------------------------------
-  // Error handling
-  // -------------------------------------------------------------------------
 
   describe('error handling', () => {
     it('throws with error message from response body', async () => {

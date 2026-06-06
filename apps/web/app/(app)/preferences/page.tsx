@@ -51,7 +51,7 @@ function SchemeSwatches({ active, hasProAccess, mounted, onSelect, t }: Readonly
         const isLocked = !hasProAccess && option.value !== 'purple'
         const ariaLabel = t(
           `preferences.color${option.value.charAt(0).toUpperCase() + option.value.slice(1)}` as Parameters<typeof t>[0],
-        ) // NOSONAR - dynamic i18n key
+        )
         return (
           <button
             key={option.value}
@@ -126,7 +126,6 @@ export default function PreferencesPage() {
         try {
           await updateLanguage({ language: locale })
         } catch {
-          // Error handled silently
         }
       }
       globalThis.location.reload()

@@ -95,7 +95,6 @@ describe('ActionChips', () => {
         <ActionChips actions={[makeAction({ type, entityName: 'Work' })]} />,
       )
       expect(document.body.textContent).toContain(labelKey)
-      // no humanized snake_case fallback for these
       expect(document.body.textContent).not.toContain(`${type}:`)
       unmount()
     }

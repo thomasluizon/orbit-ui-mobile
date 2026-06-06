@@ -6,7 +6,6 @@ import { useConfig, isFeatureEnabled } from '@/hooks/use-config'
 import { DEFAULT_CONFIG } from '@orbit/shared/types/config'
 import type { AppConfig } from '@orbit/shared/types/config'
 
-// Mock fetch
 const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
 
@@ -55,21 +54,19 @@ describe('useConfig', () => {
     })
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
-    // fetchConfig returns DEFAULT_CONFIG on !ok
     expect(result.current.config).toEqual(DEFAULT_CONFIG)
   })
 
   it('provides config immediately via placeholderData', () => {
     mockFetch.mockResolvedValue({
       ok: true,
-      json: () => new Promise(() => {}), // Never resolves
+      json: () => new Promise(() => {}),
     })
 
     const { result } = renderHook(() => useConfig(), {
       wrapper: createWrapper(),
     })
 
-    // Should have config from placeholderData even while loading
     expect(result.current.config).toEqual(DEFAULT_CONFIG)
   })
 })

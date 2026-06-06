@@ -34,8 +34,6 @@ export function useProfile() {
 
   const profile = query.data
 
-  // Hydrate color scheme and theme from DB (source of truth).
-  // On first login (null values), detect and persist local/system defaults.
   useEffect(() => {
     if (!profile) return
     syncSchemeFromProfile(profile.colorScheme, profile.hasProAccess)

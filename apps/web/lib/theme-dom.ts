@@ -52,7 +52,6 @@ export function applyThemeTokensToDOM(
     root.classList.remove('dark')
   }
 
-  // v2: scheme class drives OKLCH neutrals via .scheme-{name}.dark|.light rules.
   for (const s of VALID_COLOR_SCHEMES) root.classList.remove(`scheme-${s}`)
   root.classList.add(`scheme-${scheme}`)
 

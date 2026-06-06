@@ -58,8 +58,6 @@ import { VersionUpdateDrawer } from '@/components/version-update-drawer'
 import { TourProvider } from '@/components/tour/tour-provider'
 import { TourOverlay } from '@/components/tour/tour-overlay'
 
-// Push notifications are not supported in Expo Go (removed in SDK 53).
-// Only import PushPrompt in dev builds / standalone.
 const isExpoGo = Constants.appOwnership === 'expo'
 const PushPrompt = isExpoGo
   ? () => null

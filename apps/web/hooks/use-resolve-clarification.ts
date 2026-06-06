@@ -12,8 +12,6 @@ export function useResolveClarification() {
       resolveClarification(operationId, value),
 
     onSuccess: (result) => {
-      // Only invalidate when the resolve actually executed the tool successfully.
-      // Failed/Denied operations leave the habit list unchanged.
       if (!result.ok) return
       if (result.data.operation.status !== 'Succeeded') return
 

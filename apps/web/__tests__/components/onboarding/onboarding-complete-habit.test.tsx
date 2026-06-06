@@ -47,7 +47,6 @@ describe('OnboardingCompleteHabit', () => {
   it('does nothing when habitId is null', () => {
     render(<OnboardingCompleteHabit {...defaultProps} habitId={null} />)
     const buttons = screen.getAllByRole('button')
-    // Try clicking the completion button
     buttons.forEach((btn) => fireEvent.click(btn))
     expect(mockMutate).not.toHaveBeenCalled()
   })

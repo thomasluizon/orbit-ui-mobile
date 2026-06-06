@@ -155,7 +155,6 @@ export function HabitDetailDrawer({
             await logHabit.mutateAsync({ habitId: habit.id })
             onLogged?.(habit.id)
           } catch {
-            // Error handled by mutation
           }
         }}
       />

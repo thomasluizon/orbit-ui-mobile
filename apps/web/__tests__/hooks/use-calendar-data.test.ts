@@ -4,7 +4,6 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import React from 'react'
 import { useCalendarData } from '@/hooks/use-calendar-data'
 
-// Mock fetch
 const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
 
@@ -69,7 +68,7 @@ describe('useCalendarData', () => {
         }),
     })
 
-    const currentMonth = new Date(2025, 0, 1) // January 2025
+    const currentMonth = new Date(2025, 0, 1)
     const { result } = renderHook(() => useCalendarData(currentMonth), {
       wrapper: createWrapper(),
     })
@@ -78,7 +77,6 @@ describe('useCalendarData', () => {
 
     expect(result.current.dayMap.size).toBeGreaterThan(0)
 
-    // Jan 15 was logged - should be 'completed'
     const jan15 = result.current.dayMap.get('2025-01-15')
     expect(jan15).toBeDefined()
     expect(jan15![0]!.status).toBe('completed')
@@ -118,7 +116,6 @@ describe('useCalendarData', () => {
   })
 
   it('marks unlogged past dates as missed', async () => {
-    // Use a date far in the past to guarantee it is "missed"
     mockFetch.mockResolvedValue({
       ok: true,
       json: () =>
@@ -160,7 +157,7 @@ describe('useCalendarData', () => {
         }),
     })
 
-    const currentMonth = new Date(2020, 5, 1) // June 2020
+    const currentMonth = new Date(2020, 5, 1)
     const { result } = renderHook(() => useCalendarData(currentMonth), {
       wrapper: createWrapper(),
     })
@@ -214,7 +211,7 @@ describe('useCalendarData', () => {
         }),
     })
 
-    const currentMonth = new Date(2020, 2, 1) // March 2020
+    const currentMonth = new Date(2020, 2, 1)
     const { result } = renderHook(() => useCalendarData(currentMonth), {
       wrapper: createWrapper(),
     })

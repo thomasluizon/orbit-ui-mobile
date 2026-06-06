@@ -19,7 +19,6 @@ import type {
 } from '@orbit/shared/types/habit'
 import type { HabitLog } from '@orbit/shared/types/calendar'
 
-// Mock fetch
 const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
 
@@ -147,7 +146,6 @@ describe('useHabits (query hook)', () => {
       { wrapper: createWrapper() },
     )
 
-    // Before data loads, getChildren should return empty
     expect(result.current.getChildren('nonexistent')).toEqual([])
   })
 
@@ -178,7 +176,7 @@ describe('useHabits (query hook)', () => {
       })
 
     const { result } = renderHook(
-      () => useHabits({}), // no dateFrom -- triggers multi-page fetch
+      () => useHabits({}),
       { wrapper: createWrapper() },
     )
 
@@ -411,7 +409,7 @@ describe('useTotalHabitCount', () => {
   })
 
   it('returns 0 before data loads', () => {
-    mockFetch.mockReturnValue(new Promise(() => {})) // never resolves
+    mockFetch.mockReturnValue(new Promise(() => {}))
 
     const { result } = renderHook(() => useTotalHabitCount(), {
       wrapper: createWrapper(),

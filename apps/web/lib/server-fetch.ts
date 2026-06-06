@@ -39,7 +39,6 @@ export async function serverAuthFetch<T = unknown>(path: string, init: RequestIn
     const error = await res.json().catch(() => null) as Record<string, unknown> | null
     throw createApiClientError(res.status, error, `Failed with status ${res.status}`)
   }
-  // 204 No Content returns no body
   if (res.status === 204) return null as T
   const text = await res.text()
   if (!text) return null as T

@@ -83,7 +83,6 @@ export function OnboardingWelcome() {
 
   return (
     <View style={styles.container}>
-      {/* Saturn + 3-line manifesto */}
       <View style={styles.brandingHeader}>
         <SaturnDropcap size={48} color={tokens.fg1} />
       </View>
@@ -93,7 +92,6 @@ export function OnboardingWelcome() {
         {t('onboarding.flow.welcome.subtitle')}
       </Text>
 
-      {/* Week start */}
       <Text style={styles.sectionLabel}>
         {t('onboarding.flow.welcome.weekStart')}
       </Text>
@@ -109,7 +107,6 @@ export function OnboardingWelcome() {
         ))}
       </View>
 
-      {/* Scheme swatches (Pro/trial only) */}
       {hasProAccess && (
         <>
           <Text style={styles.sectionLabel}>

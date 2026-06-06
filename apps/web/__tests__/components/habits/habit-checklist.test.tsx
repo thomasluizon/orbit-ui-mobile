@@ -4,9 +4,6 @@ import React from 'react'
 import { HabitChecklist } from '@/components/habits/habit-checklist'
 import type { ChecklistItem } from '@orbit/shared/types/habit'
 
-// ---------------------------------------------------------------------------
-// Mocks
-// ---------------------------------------------------------------------------
 
 vi.mock('next-intl', () => ({
   useTranslations: () => {
@@ -20,9 +17,6 @@ vi.mock('next-intl', () => ({
   },
 }))
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
 
 function makeItems(overrides?: Partial<ChecklistItem>[]): ChecklistItem[] {
   const defaults: ChecklistItem[] = [
@@ -34,9 +28,6 @@ function makeItems(overrides?: Partial<ChecklistItem>[]): ChecklistItem[] {
   return overrides.map((o, i) => ({ ...defaults[i % defaults.length]!, ...o }) as ChecklistItem)
 }
 
-// ---------------------------------------------------------------------------
-// Tests: Rendering
-// ---------------------------------------------------------------------------
 
 describe('HabitChecklist', () => {
   beforeEach(() => {
@@ -46,7 +37,6 @@ describe('HabitChecklist', () => {
   describe('rendering', () => {
     it('renders without crashing with empty items', () => {
       render(<HabitChecklist items={[]} />)
-      // Should not crash; nothing visible
       expect(screen.queryByRole('progressbar')).toBeNull()
     })
 
@@ -150,7 +140,6 @@ describe('HabitChecklist', () => {
       const items = makeItems()
       render(<HabitChecklist items={items} editable />)
       const inputs = screen.getAllByRole('textbox')
-      // 3 items + 1 new item input
       expect(inputs).toHaveLength(4)
     })
 

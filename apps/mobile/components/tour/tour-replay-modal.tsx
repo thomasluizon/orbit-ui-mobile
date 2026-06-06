@@ -77,7 +77,6 @@ export function TourReplayModal({ visible, onClose }: TourReplayModalProps) {
     try {
       await apiClient(API.profile.tour, { method: 'DELETE' })
     } catch {
-      // Silently fail
     }
 
     queryClient.setQueryData(

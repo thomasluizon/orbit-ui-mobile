@@ -36,9 +36,6 @@ describe('chat server actions', () => {
     return fd
   }
 
-  // -------------------------------------------------------------------------
-  // sendChatMessage - success
-  // -------------------------------------------------------------------------
 
   describe('sendChatMessage', () => {
     it('sends POST to /api/chat with formData', async () => {
@@ -92,9 +89,6 @@ describe('chat server actions', () => {
       expect(init.headers).toHaveProperty('Authorization', 'Bearer test-token')
     })
 
-    // -----------------------------------------------------------------------
-    // sendChatMessage - error responses
-    // -----------------------------------------------------------------------
 
     it('returns error result on non-OK response', async () => {
       mockFetch.mockResolvedValue({
@@ -144,9 +138,6 @@ describe('chat server actions', () => {
       }
     })
 
-    // -----------------------------------------------------------------------
-    // sendChatMessage - 403 (Pro gating)
-    // -----------------------------------------------------------------------
 
     it('returns 403 error for non-pro users', async () => {
       mockFetch.mockResolvedValue({
@@ -164,9 +155,6 @@ describe('chat server actions', () => {
       }
     })
 
-    // -----------------------------------------------------------------------
-    // sendChatMessage - timeout
-    // -----------------------------------------------------------------------
 
     it('returns timeout error when request is aborted', async () => {
       const abortError = new DOMException('The operation was aborted', 'AbortError')
@@ -181,9 +169,6 @@ describe('chat server actions', () => {
       }
     })
 
-    // -----------------------------------------------------------------------
-    // sendChatMessage - unknown errors
-    // -----------------------------------------------------------------------
 
     it('returns generic error for unknown exceptions', async () => {
       mockFetch.mockRejectedValue(new Error('Network failed'))

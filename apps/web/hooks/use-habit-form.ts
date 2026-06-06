@@ -82,8 +82,6 @@ export function useHabitForm(options: HabitFormOptions = {}): HabitFormHelpers {
     },
   })
 
-  // useWatch (not form.watch()) so React Compiler can memoize — watch()'s
-  // function reference is unstable and trips react-hooks/incompatible-library.
   const watchedValues = normalizeHabitFormData(
     useWatch({ control: form.control }) as HabitFormInput,
   )

@@ -1,9 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 
-// ---------------------------------------------------------------------------
-// Mocks -- must come before component import
-// ---------------------------------------------------------------------------
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string, params?: Record<string, unknown>) => {
@@ -60,15 +57,9 @@ vi.mock('@/components/ui/fresh-start-animation', () => ({
   ),
 }))
 
-// ---------------------------------------------------------------------------
-// Import component after mocks
-// ---------------------------------------------------------------------------
 
 import { FreshStartModal } from '@/app/(app)/profile/_components/fresh-start-modal'
 
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
 
 describe('FreshStartModal', () => {
   beforeEach(() => {
@@ -222,7 +213,6 @@ describe('FreshStartModal', () => {
 
     fireEvent.click(screen.getByText('profile.freshStart.confirmButton'))
 
-    // Plain Error messages are surfaced directly by getErrorMessage.
     await waitFor(() => {
       expect(screen.getByText('Server error')).toBeInTheDocument()
     })
@@ -235,14 +225,11 @@ describe('FreshStartModal', () => {
       <FreshStartModal open={true} onOpenChange={onOpenChange} />,
     )
 
-    // Navigate to confirm step
     fireEvent.click(screen.getByText('common.continue'))
     expect(screen.getByText('profile.freshStart.confirmInstruction')).toBeInTheDocument()
 
-    // Simulate overlay triggering onOpenChange(true) which calls handleOpenChange(true) resetting state
     fireEvent.click(screen.getByTestId('overlay-reopen'))
 
-    // Should be back at info step
     expect(screen.getByText('profile.freshStart.description')).toBeInTheDocument()
   })
 })

@@ -30,8 +30,6 @@ interface CalendarLegendProps {
 function createStyles(tokens: ReturnType<typeof createTokensV2>) {
   return StyleSheet.create({
     headerWrap: {
-      // The AppBar handles its own padding; this wrapper is here so the
-      // tour engine can anchor the month nav to a stable parent.
     },
     monthNavRow: {
       flexDirection: "row",

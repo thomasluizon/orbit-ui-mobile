@@ -32,12 +32,11 @@ These ten rules apply everywhere — `apps/web`, `apps/mobile`, `packages/shared
 2. **Delete unused code immediately.** No "just in case" exports, dead branches, commented-out blocks, stub functions, or speculative parameters. If the linter can't see it's used, delete it.
 3. **No `any`.** Use `unknown` with narrowing. No `as any`, no `as unknown as X` escape hatches.
 4. **No `console.log` in production code.** Use the project logger if one exists, or don't log.
-5. **Comments — strict policy.**
-   - Allowed: short doc comments on **public / exported** functions, hooks, and types — one short paragraph on intent and contract.
-   - Allowed: WHY comments for non-obvious decisions (workaround for upstream bug, hidden invariant, subtle constraint).
-   - Banned: comments that restate the code (`// loop through items`).
-   - Banned: comments that reference the current task / PR / fix / ticket.
-   - Banned: TODOs without a tracked issue.
+5. **Comments — strict policy (lint-enforced via `local/no-comments`; autofix strips violations).**
+   - Allowed: `/** */` JSDoc on **exported** functions, hooks, and types — one short paragraph on intent and contract.
+   - Allowed: a WHY comment ONLY when it links an upstream issue/PR/doc URL (an external constraint you cannot fix here). No link → no comment.
+   - Allowed: tooling directives (`eslint-disable`, `@ts-expect-error`, `/// <reference>`).
+   - Banned: everything else. No `//` narration, no restating code, no task/PR/fix references, no TODOs. To explain code, rename it or extract a well-named function instead.
 6. **No premature abstraction.** Extract on the third real use, not the second. Three similar lines beats a premature helper.
 7. **Function size & nesting.** Soft cap: ~50 lines per function, ~3 levels of nesting. Hard cap: ~100 lines. Going beyond means the function is doing too much — split it.
 8. **Error handling at boundaries only.** Validate at trust boundaries (user input, external APIs). Inside the codebase, trust your types. Never swallow errors silently — surface them, or don't catch them.

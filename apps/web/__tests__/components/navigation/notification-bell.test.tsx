@@ -71,7 +71,6 @@ describe('NotificationBell', () => {
 
   it('shows unread indicator when there are unread notifications', () => {
     // v8 uses a 6x6 primary dot (no numeric badge). The aria-label disambiguates the
-    // count for assistive tech.
     mockNotifications = Array.from({ length: 3 }, (_, index) => ({
       id: `${index + 1}`,
       title: `Notification ${index + 1}`,

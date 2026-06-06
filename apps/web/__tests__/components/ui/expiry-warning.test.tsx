@@ -40,20 +40,20 @@ describe('ExpiryWarning', () => {
   })
 
   it('renders nothing when session is far from expiring', () => {
-    mockExpiresAt = Date.now() + 60 * 60000 // 60 minutes from now
+    mockExpiresAt = Date.now() + 60 * 60000
     const { container } = render(<ExpiryWarning />)
     expect(container.innerHTML).toBe('')
   })
 
   it('shows warning when session is about to expire', () => {
-    mockExpiresAt = Date.now() + 3 * 60000 // 3 minutes from now
+    mockExpiresAt = Date.now() + 3 * 60000
     render(<ExpiryWarning />)
     const alert = screen.getByRole('alert')
     expect(alert).toBeInTheDocument()
   })
 
   it('shows expired state when time has passed', () => {
-    mockExpiresAt = Date.now() - 1000 // Already expired
+    mockExpiresAt = Date.now() - 1000
     render(<ExpiryWarning />)
     expect(screen.getByText('auth.sessionExpired')).toBeInTheDocument()
   })

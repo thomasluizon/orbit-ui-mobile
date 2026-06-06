@@ -5,11 +5,9 @@ import React from 'react'
 import { useReferral } from '@/hooks/use-referral'
 import type { ReferralDashboard } from '@orbit/shared/types/referral'
 
-// Mock fetch
 const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
 
-// Mock fetchJson
 vi.mock('@/lib/api-fetch', () => ({
   fetchJson: vi.fn((url: string) =>
     fetch(url).then((res: Response) => {

@@ -40,10 +40,6 @@ export function useGamificationProfile(enabled = true) {
     achievementsByCategory,
   } = useMemo(() => deriveGamificationProfileState(profile), [profile])
 
-  // Detect level-ups and new achievements by comparing against the previous
-  // render's snapshot. Reading and writing refs is forbidden during render,
-  // so we perform the comparison and ref update inside an effect and surface
-  // the result via state.
   const [milestones, setMilestones] = useState<{
     leveledUp: boolean
     newLevel: number | null

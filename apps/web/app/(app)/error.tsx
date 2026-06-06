@@ -14,7 +14,6 @@ export default function AppError({
   const t = useTranslations()
 
   useEffect(() => {
-    // Log error for debugging (server-side only via digest)
   }, [error])
 
   return (

@@ -14,7 +14,7 @@ interface SummaryResponse {
 }
 
 interface UseSummaryOptions {
-  date: string // YYYY-MM-DD
+  date: string
   locale: string
   hasProAccess: boolean
   aiSummaryEnabled: boolean
@@ -51,10 +51,9 @@ export function useSummary({
       return data.summary
     },
     enabled,
-    staleTime: 5 * 60 * 1000, // 5 minutes -- summary is expensive, no need for frequent refresh
+    staleTime: 5 * 60 * 1000,
     refetchInterval: () => getMsUntilNextDailySummaryTimeBucket(),
     refetchIntervalInBackground: false,
-    // Summary is heavy/expensive -- don't refetch on window focus
     refetchOnWindowFocus: false,
   })
 

@@ -39,7 +39,6 @@ describe('ProBadge', () => {
     mockProfile.isTrialActive = true
     mockProfile.hasProAccess = true
     render(<ProBadge />)
-    // Trial takes priority in the condition check
     expect(screen.getByText('trial.proBadge')).toBeInTheDocument()
   })
 

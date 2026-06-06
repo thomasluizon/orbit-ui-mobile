@@ -1,9 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 
-// ---------------------------------------------------------------------------
-// Mocks -- must come before component import
-// ---------------------------------------------------------------------------
 
 const mockLogout = vi.fn()
 
@@ -54,15 +51,9 @@ vi.mock('@/components/ui/app-overlay', () => ({
     ) : null,
 }))
 
-// ---------------------------------------------------------------------------
-// Import component after mocks
-// ---------------------------------------------------------------------------
 
 import { DeleteAccountModal } from '@/app/(app)/profile/_components/delete-account-modal'
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
 
 const defaultProfile = {
   name: 'Thomas',
@@ -98,9 +89,6 @@ const defaultProfile = {
   googleCalendarLastSyncedAt: null,
 }
 
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
 
 describe('DeleteAccountModal', () => {
   beforeEach(() => {
@@ -143,7 +131,6 @@ describe('DeleteAccountModal', () => {
     render(
       <DeleteAccountModal open={true} onOpenChange={vi.fn()} profile={proProfile} />,
     )
-    // The pro warning includes the formatted date via i18n params
     expect(document.body.textContent).toContain('profile.deleteAccount.warningPro')
   })
 
@@ -172,7 +159,6 @@ describe('DeleteAccountModal', () => {
 
     fireEvent.click(screen.getByText('common.continue'))
 
-    // Plain Error messages are surfaced directly by getErrorMessage.
     await waitFor(() => {
       expect(screen.getByText('Network error')).toBeInTheDocument()
     })
@@ -213,19 +199,16 @@ describe('DeleteAccountModal', () => {
       <DeleteAccountModal open={true} onOpenChange={vi.fn()} profile={defaultProfile} />,
     )
 
-    // Go to code step
     fireEvent.click(screen.getByText('common.continue'))
     await waitFor(() => {
       expect(screen.getByText('profile.deleteAccount.codeInstructions')).toBeInTheDocument()
     })
 
-    // Fill in code
     const inputs = screen.getAllByRole('textbox')
     inputs.forEach((input, i) => {
       fireEvent.change(input, { target: { value: String(i + 1) } })
     })
 
-    // Confirm
     fireEvent.click(screen.getByText('auth.verify'))
 
     await waitFor(() => {
@@ -244,22 +227,18 @@ describe('DeleteAccountModal', () => {
       <DeleteAccountModal open={true} onOpenChange={vi.fn()} profile={defaultProfile} />,
     )
 
-    // Go to code step
     fireEvent.click(screen.getByText('common.continue'))
     await waitFor(() => {
       expect(screen.getByText('profile.deleteAccount.codeInstructions')).toBeInTheDocument()
     })
 
-    // Fill in code
     const inputs = screen.getAllByRole('textbox')
     inputs.forEach((input, i) => {
       fireEvent.change(input, { target: { value: String(i + 1) } })
     })
 
-    // Confirm
     fireEvent.click(screen.getByText('auth.verify'))
 
-    // Plain Error messages are surfaced directly by getErrorMessage.
     await waitFor(() => {
       expect(screen.getByText('Invalid code')).toBeInTheDocument()
     })
@@ -270,25 +249,21 @@ describe('DeleteAccountModal', () => {
       <DeleteAccountModal open={true} onOpenChange={vi.fn()} profile={defaultProfile} />,
     )
 
-    // Go to code step
     fireEvent.click(screen.getByText('common.continue'))
     await waitFor(() => {
       expect(screen.getByText('profile.deleteAccount.codeInstructions')).toBeInTheDocument()
     })
 
-    // Fill in code
     const inputs = screen.getAllByRole('textbox')
     inputs.forEach((input, i) => {
       fireEvent.change(input, { target: { value: String(i + 1) } })
     })
 
-    // Confirm deletion
     fireEvent.click(screen.getByText('auth.verify'))
     await waitFor(() => {
       expect(screen.getByText('profile.logout')).toBeInTheDocument()
     })
 
-    // Click logout
     fireEvent.click(screen.getByText('profile.logout'))
     expect(mockLogout).toHaveBeenCalledTimes(1)
   })
@@ -300,17 +275,13 @@ describe('DeleteAccountModal', () => {
       <DeleteAccountModal open={true} onOpenChange={onOpenChange} profile={defaultProfile} />,
     )
 
-    // Navigate to code step
     fireEvent.click(screen.getByText('common.continue'))
     await waitFor(() => {
       expect(screen.getByText('profile.deleteAccount.codeInstructions')).toBeInTheDocument()
     })
 
-    // Simulate overlay triggering onOpenChange(true) - this calls handleOpenChange(true) which resets state
-    // The overlay-reopen button in the mock triggers this path
     fireEvent.click(screen.getByTestId('overlay-reopen'))
 
-    // Should be back at confirm step since handleOpenChange resets state when value is true
     expect(screen.getByText('common.continue')).toBeInTheDocument()
     expect(screen.getByText('profile.deleteAccount.warningFree')).toBeInTheDocument()
   })

@@ -46,7 +46,6 @@ export async function sendChatMessage(formData: FormData): Promise<ChatResult> {
       return { ok: false, error: 'Unauthorized', status: 401 }
     }
 
-    // Do NOT set Content-Type -- fetch will set the multipart boundary automatically
     let res = await execute(session.token)
 
     if (res.status === 401) {

@@ -218,7 +218,6 @@ export function useLogHabit() {
     }) => logHabitAction(habitId, date ? { date } : undefined),
 
     onMutate: ({ habitId, date }) => {
-      // Start cancelling refetches, but don't delay the optimistic completion state on it.
       void queryClient.cancelQueries({ queryKey: habitKeys.lists() })
 
       const previousLists = queryClient.getQueriesData<HabitScheduleItem[]>({
@@ -251,7 +250,6 @@ export function useLogHabit() {
         .flatMap(([, items]) => items ?? [])
         .find((item) => item.id === variables.habitId)
 
-      // Streak celebration + update profile streak immediately so StreakBadge reflects it
       if (!loggedHabit?.isBadHabit && response?.isFirstCompletionToday && response.currentStreak > 0) {
         setStreakCelebration({ streak: response.currentStreak })
         queryClient.setQueryData<Profile>(profileKeys.detail(), (old) =>
@@ -259,7 +257,6 @@ export function useLogHabit() {
         )
       }
 
-      // Apply targeted goal updates from enriched response (instant, no refetch needed)
       if (response?.linkedGoalUpdates?.length) {
         queryClient.setQueriesData<Goal[]>(
           { queryKey: goalKeys.lists() },
@@ -267,7 +264,6 @@ export function useLogHabit() {
         )
       }
 
-      // Apply gamification XP/achievement updates from enriched response (instant)
       if (response?.xpEarned || response?.newAchievementIds?.length) {
         queryClient.setQueryData<GamificationProfile>(gamificationKeys.profile(), (old) => {
           if (!old) return old
@@ -285,7 +281,6 @@ export function useLogHabit() {
     },
 
     onSettled: () => {
-      // Refetch for eventual consistency (profileKeys removed -- already updated optimistically in onSuccess)
       queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
       queryClient.invalidateQueries({ queryKey: habitKeys.summaryPrefix() })
       queryClient.invalidateQueries({ queryKey: goalKeys.lists() })
@@ -308,7 +303,6 @@ export function useSkipHabit() {
         queryKey: habitKeys.lists(),
       })
 
-      // Optimistic: recurring skips should leave the current view; one-time skips are postponed.
       if (!date) {
         queryClient.setQueriesData<HabitScheduleItem[]>(
           { queryKey: habitKeys.lists() },

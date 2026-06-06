@@ -109,8 +109,6 @@ export default function AuthCallbackPage() {
     if (processedRef.current) return
     processedRef.current = true
 
-    // Extract provider tokens before Supabase client consumes them.
-    // Web: tokens are in the URL hash (implicit flow).
     let extractedProviderToken: string | undefined
     let extractedProviderRefreshToken: string | undefined
 

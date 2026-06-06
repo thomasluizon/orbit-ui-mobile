@@ -46,9 +46,6 @@ describe('goal server actions', () => {
     })
   }
 
-  // -------------------------------------------------------------------------
-  // createGoal
-  // -------------------------------------------------------------------------
 
   describe('createGoal', () => {
     it('sends POST to /api/goals with request body', async () => {
@@ -87,9 +84,6 @@ describe('goal server actions', () => {
     })
   })
 
-  // -------------------------------------------------------------------------
-  // updateGoal
-  // -------------------------------------------------------------------------
 
   describe('updateGoal', () => {
     it('sends PUT to /api/goals/:id', async () => {
@@ -112,9 +106,6 @@ describe('goal server actions', () => {
     })
   })
 
-  // -------------------------------------------------------------------------
-  // deleteGoal
-  // -------------------------------------------------------------------------
 
   describe('deleteGoal', () => {
     it('sends DELETE to /api/goals/:id', async () => {
@@ -134,9 +125,6 @@ describe('goal server actions', () => {
     })
   })
 
-  // -------------------------------------------------------------------------
-  // updateGoalProgress
-  // -------------------------------------------------------------------------
 
   describe('updateGoalProgress', () => {
     it('sends PUT to /api/goals/:id/progress', async () => {
@@ -159,9 +147,6 @@ describe('goal server actions', () => {
     })
   })
 
-  // -------------------------------------------------------------------------
-  // updateGoalStatus
-  // -------------------------------------------------------------------------
 
   describe('updateGoalStatus', () => {
     it('sends PUT to /api/goals/:id/status', async () => {
@@ -184,9 +169,6 @@ describe('goal server actions', () => {
     })
   })
 
-  // -------------------------------------------------------------------------
-  // reorderGoals
-  // -------------------------------------------------------------------------
 
   describe('reorderGoals', () => {
     it('sends PUT to /api/goals/reorder with positions', async () => {
@@ -218,9 +200,6 @@ describe('goal server actions', () => {
     })
   })
 
-  // -------------------------------------------------------------------------
-  // linkHabitsToGoal
-  // -------------------------------------------------------------------------
 
   describe('linkHabitsToGoal', () => {
     it('sends PUT to /api/goals/:id/habits', async () => {
@@ -252,9 +231,6 @@ describe('goal server actions', () => {
     })
   })
 
-  // -------------------------------------------------------------------------
-  // Error handling
-  // -------------------------------------------------------------------------
 
   describe('error handling', () => {
     it('throws with error message from response body', async () => {

@@ -133,7 +133,6 @@ describe('TrialExpiredModal', () => {
   it('dismisses when overlay onOpenChange is called with false', () => {
     mockTrialExpired = true
     render(<TrialExpiredModal />)
-    // The overlay is open, verify it exists
     expect(screen.getByTestId('overlay')).toBeInTheDocument()
   })
 })

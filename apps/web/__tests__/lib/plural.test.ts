@@ -59,7 +59,6 @@ describe('plural', () => {
     })
 
     it('handles strings with more than 3 pipe-separated forms', () => {
-      // Returns original text (no matching form count)
       expect(plural('a | b | c | d', 1)).toBe('a | b | c | d')
     })
   })

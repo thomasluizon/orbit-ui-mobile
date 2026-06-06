@@ -3,9 +3,6 @@ import { render, screen, fireEvent } from '@testing-library/react'
 import React from 'react'
 import { HabitSummaryCard } from '@/components/habits/habit-summary-card'
 
-// ---------------------------------------------------------------------------
-// Mocks
-// ---------------------------------------------------------------------------
 
 const mockRefetch = vi.fn()
 
@@ -35,9 +32,6 @@ import { useProfile } from '@/hooks/use-profile'
 const mockUseSummary = vi.mocked(useSummary)
 const mockUseProfile = vi.mocked(useProfile)
 
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
 
 describe('HabitSummaryCard', () => {
   beforeEach(() => {

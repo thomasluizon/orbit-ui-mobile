@@ -1,6 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-// Mock the server actions before importing the module under test
 const mockSubscribePush = vi.fn()
 const mockUnsubscribePush = vi.fn()
 vi.mock('@/app/actions/notifications', () => ({

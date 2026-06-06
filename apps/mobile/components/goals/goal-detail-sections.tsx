@@ -154,8 +154,6 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       color: tokens.fg1,
     },
     linkedList: {
-      // Linked habits render as rows; container has no extra padding so
-      // SettingsRow's own paddingHorizontal carries the layout.
     },
     linkedRow: {
       paddingHorizontal: 20,

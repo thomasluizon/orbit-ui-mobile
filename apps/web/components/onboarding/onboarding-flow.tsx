@@ -40,7 +40,7 @@ export function OnboardingFlow() {
   const [createdGoal, setCreatedGoal] = useState(false)
   const [mounted, setMounted] = useState(false)
 
-  if (typeof globalThis !== 'undefined' && typeof globalThis.document !== 'undefined' && !mounted) { // NOSONAR - SSR guard
+  if (typeof globalThis !== 'undefined' && typeof globalThis.document !== 'undefined' && !mounted) {
     setMounted(true)
   }
 
@@ -107,7 +107,6 @@ export function OnboardingFlow() {
     try {
       await completeOnboarding()
     } catch {
-      // Ignore -- user should proceed regardless
     }
     queryClient.setQueryData<Profile>(profileKeys.detail(), (old) =>
       old ? { ...old, hasCompletedOnboarding: true } : old,
@@ -329,7 +328,6 @@ function ProgressDots({ active, total }: Readonly<ProgressDotsProps>) {
     <div aria-hidden="true" className="flex items-center" style={{ gap: 6 }}>
       {Array.from({ length: total }).map((_, i) => (
         <span
-          // NOSONAR -- index is the dot identity (fixed-length array, never reorders)
           key={`progress-dot-${i}`}
           style={{
             width: 5,

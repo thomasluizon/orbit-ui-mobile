@@ -27,8 +27,6 @@ interface BreakdownSuggestionProps {
   onCancelled: () => void
 }
 
-// Extracted outside the component to avoid re-creating the renderer on every
-// render.
 function RichBoldPrimary(chunks: React.ReactNode): React.ReactNode {
   return <span className="text-[var(--primary)] font-bold">{chunks}</span>
 }
@@ -241,7 +239,7 @@ export function BreakdownSuggestion({
                       className="w-8 bg-transparent text-[11px] text-[var(--fg-2)] text-center outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"
                     />
                     <span className="text-[11px] text-[var(--fg-3)]">
-                      {t(`habits.form.unit${habit.frequencyUnit}` as Parameters<typeof t>[0])} {/* NOSONAR - dynamic i18n key requires assertion */}
+                      {t(`habits.form.unit${habit.frequencyUnit}` as Parameters<typeof t>[0])} {}
                     </span>
                   </>
                 )}

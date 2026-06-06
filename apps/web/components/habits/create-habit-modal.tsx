@@ -77,8 +77,6 @@ export function CreateHabitModal({
   const [reminderTimes, setReminderTimes] = useState<number[]>([0, 15])
   const titleInputRef = useRef<HTMLInputElement | null>(null)
   const [reminderWasManuallyToggled, setReminderWasManuallyToggled] = useState(false)
-  // Initial snapshot strings captured on open so the dirty-check can read them
-  // during render. State (not refs) so render-time reads are lint-safe.
   const [initialSnapshot, setInitialSnapshot] = useState({
     tagIds: '[]',
     goalIds: '[]',
@@ -152,8 +150,6 @@ export function CreateHabitModal({
     }
   }
 
-  // Drop sub-habit entries if the user loses pro access. "Adjusting state when
-  // a prop changes" pattern: track previous prop, react in render.
   const [previousHasProAccess, setPreviousHasProAccess] = useState(hasProAccess)
   if (hasProAccess !== previousHasProAccess) {
     setPreviousHasProAccess(hasProAccess)

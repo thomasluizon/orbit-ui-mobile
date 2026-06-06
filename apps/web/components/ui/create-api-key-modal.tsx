@@ -91,7 +91,6 @@ export function CreateApiKeyModal({
     setCopied(false)
   }
 
-  // Reset form fields when the modal transitions from open -> closed.
   const [previousOpen, setPreviousOpen] = useState(open)
   if (open !== previousOpen) {
     setPreviousOpen(open)
@@ -161,7 +160,6 @@ export function CreateApiKeyModal({
       setCopied(true)
       setTimeout(() => setCopied(false), 2000)
     } catch {
-      // Clipboard API unavailable.
     }
   }
 

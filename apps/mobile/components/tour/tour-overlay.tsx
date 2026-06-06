@@ -41,7 +41,6 @@ export function TourOverlay() {
     try {
       await apiClient(API.profile.tour, { method: 'PUT' })
     } catch {
-      // Silently fail
     }
     queryClient.setQueryData(profileKeys.detail(), (old: Profile | undefined) => {
       if (!old) return old
@@ -59,7 +58,6 @@ export function TourOverlay() {
         }),
       )
     } catch {
-      // Storage unavailable
     }
   }, [endTour, queryClient])
 

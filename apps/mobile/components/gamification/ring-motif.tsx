@@ -37,11 +37,6 @@ export function RingMotif({
   const tokens = createTokensV2(currentScheme, currentTheme)
   const color = ringColor ?? tokens.primary
 
-  // Rings are absolutely-positioned circular views centered behind the content.
-  // Note: react-native's borderStyle: 'dashed' renders inconsistently across
-  // Android API levels; the visual reads as a slightly broken stroke on some
-  // devices. We keep the prop because the spec specifies it; consumers should
-  // verify on-device before shipping a celebration that relies on it.
   const rings = Array.from({ length: ringCount }).map((_, i) => {
     const size = (ringSize * (i + 1)) / ringCount
     const opacity = i === 0 ? 0.85 : (1 - i / ringCount) * 0.6

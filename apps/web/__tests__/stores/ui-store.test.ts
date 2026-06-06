@@ -5,7 +5,6 @@ import { formatAPIDate } from '@orbit/shared/utils'
 describe('ui store', () => {
   beforeEach(() => {
     globalThis.localStorage.clear()
-    // Reset store state between tests
     useUIStore.setState({
       activeFilters: {},
       selectedDate: formatAPIDate(new Date()),
@@ -34,9 +33,6 @@ describe('ui store', () => {
     globalThis.localStorage.clear()
   })
 
-  // -------------------------------------------------------------------------
-  // Filter changes
-  // -------------------------------------------------------------------------
 
   describe('filters', () => {
     it('starts with empty filters', () => {
@@ -73,9 +69,6 @@ describe('ui store', () => {
     })
   })
 
-  // -------------------------------------------------------------------------
-  // Date navigation
-  // -------------------------------------------------------------------------
 
   describe('date navigation', () => {
     it('starts with today as selected date', () => {
@@ -102,9 +95,6 @@ describe('ui store', () => {
     })
   })
 
-  // -------------------------------------------------------------------------
-  // View mode
-  // -------------------------------------------------------------------------
 
   describe('view mode', () => {
     it('starts with today view', () => {
@@ -124,9 +114,6 @@ describe('ui store', () => {
     })
   })
 
-  // -------------------------------------------------------------------------
-  // Celebrations
-  // -------------------------------------------------------------------------
 
   describe('celebrations', () => {
     it('sets and clears streak celebration', () => {
@@ -196,7 +183,7 @@ describe('ui store', () => {
         const habits = new Map([
           ['h1', { parentId: null, isCompleted: true }],
           ['h2', { parentId: null, isCompleted: true }],
-          ['h3', { parentId: 'h1', isCompleted: false }], // child, ignored
+          ['h3', { parentId: 'h1', isCompleted: false }],
         ])
         checkAllDoneCelebration(habits)
 
@@ -264,9 +251,6 @@ describe('ui store', () => {
     })
   })
 
-  // -------------------------------------------------------------------------
-  // Select mode
-  // -------------------------------------------------------------------------
 
   describe('select mode', () => {
     it('starts with select mode off and empty selection', () => {
@@ -404,9 +388,7 @@ describe('ui store', () => {
 
         const state = useUIStore.getState()
         expect(state.selectedHabitIds.has('parent')).toBe(false)
-        // child-1 was manually selected, so it stays
         expect(state.selectedHabitIds.has('child-1')).toBe(true)
-        // child-2 was auto-selected, so it's removed
         expect(state.selectedHabitIds.has('child-2')).toBe(false)
       })
 
@@ -421,7 +403,6 @@ describe('ui store', () => {
         const { toggleSelectionCascade } = useUIStore.getState()
         toggleSelectionCascade('child-1', getDescendantIds, isAncestorSelected)
 
-        // State should be unchanged
         const state = useUIStore.getState()
         expect(state.selectedHabitIds.has('parent')).toBe(true)
         expect(state.selectedHabitIds.size).toBe(1)
@@ -429,9 +410,6 @@ describe('ui store', () => {
     })
   })
 
-  // -------------------------------------------------------------------------
-  // Last created habit ID
-  // -------------------------------------------------------------------------
 
   describe('lastCreatedHabitId', () => {
     beforeEach(() => {
@@ -465,9 +443,6 @@ describe('ui store', () => {
     })
   })
 
-  // -------------------------------------------------------------------------
-  // Create modals
-  // -------------------------------------------------------------------------
 
   describe('create modals', () => {
     it('starts with create modal hidden', () => {
@@ -497,9 +472,6 @@ describe('ui store', () => {
     })
   })
 
-  // -------------------------------------------------------------------------
-  // Search
-  // -------------------------------------------------------------------------
 
   describe('search', () => {
     it('starts with empty search query', () => {

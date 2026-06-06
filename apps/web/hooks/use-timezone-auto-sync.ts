@@ -21,13 +21,9 @@ async function syncTimezoneIfNeeded(
       old ? { ...old, timeZone: detected } : old,
     )
   } catch {
-    // Silently ignore -- timezone update is best-effort
   }
 }
 
-// Single-instance timezone auto-sync. Call exactly once from the app shell.
-// Compares the device timezone against the cached profile on mount and on
-// window focus; sends PUT /api/profile/timezone only when they differ.
 export function useTimezoneAutoSync(profile: Profile | undefined) {
   const queryClient = useQueryClient()
 

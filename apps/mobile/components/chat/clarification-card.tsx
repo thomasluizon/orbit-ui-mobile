@@ -48,11 +48,6 @@ export function ClarificationCard({
         operationId: clarificationRequest.operationId,
         value,
       })
-      // HTTP succeeded but the tool may still have been Denied/Failed/PendingConfirmation.
-      // Clarifications use the HabitsWrite capability (no step-up requirement), so
-      // PendingConfirmation isn't expected here — if it ever shows up the user gets the
-      // generic error and can re-initiate from chat. Only flip to the success state
-      // when the operation actually executed.
       if (response.operation.status !== 'Succeeded') {
         setErrorKey('habits.clarification.errorGeneric')
         return
@@ -60,9 +55,6 @@ export function ClarificationCard({
       setResolved(true)
       setResolvedLabel(label)
     } catch (err: unknown) {
-      // Narrow `err` defensively — matches the codebase idiom in
-      // apps/web/app/actions/chat.ts so unrelated runtime errors can't
-      // squeak through as a `status === 0` fallback.
       const status =
         typeof err === 'object' &&
         err !== null &&
@@ -132,9 +124,6 @@ export function ClarificationCard({
 }
 
 function mapStatusToErrorKey(status: number): string {
-  // 404 = backend currently returns this when the row is gone. 410 Gone is the
-  // semantically-correct status for an expired clarification; treat both the
-  // same in case the backend tightens up later.
   if (status === 404 || status === 410) return 'habits.clarification.errorExpired'
   if (status === 409) return 'habits.clarification.errorAlreadyResolved'
   return 'habits.clarification.errorGeneric'

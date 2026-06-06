@@ -9,11 +9,9 @@ import {
 } from '@/hooks/use-gamification'
 import type { GamificationProfile, StreakInfo } from '@orbit/shared/types/gamification'
 
-// Mock fetch
 const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
 
-// Mock fetchJson (used by useGamificationProfile and useStreakInfo)
 vi.mock('@/lib/api-fetch', () => ({
   fetchJson: vi.fn((url: string) =>
     fetch(url).then((res: Response) => {
@@ -147,7 +145,6 @@ describe('useGamificationProfile', () => {
     })
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
-    // (500 - 400) / (600 - 400) * 100 = 50%
     expect(result.current.xpProgress).toBe(50)
   })
 
@@ -162,7 +159,6 @@ describe('useGamificationProfile', () => {
       wrapper: createWrapper(),
     })
 
-    // Before data loads, should be 0
     expect(result.current.xpProgress).toBe(0)
   })
 
@@ -207,7 +203,6 @@ describe('useGamificationProfile', () => {
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
     expect(result.current.earnedAchievements).toHaveLength(2)
-    // Most recent first
     expect(result.current.earnedAchievements[0]!.id).toBe('a-2')
     expect(result.current.earnedAchievements[1]!.id).toBe('a-1')
   })
@@ -244,7 +239,6 @@ describe('useGamificationProfile', () => {
     expect(categories).toContain('GettingStarted')
     expect(categories).toContain('Consistency')
     expect(categories).toContain('Goals')
-    // Empty categories should not appear
     expect(categories).not.toContain('Volume')
   })
 })

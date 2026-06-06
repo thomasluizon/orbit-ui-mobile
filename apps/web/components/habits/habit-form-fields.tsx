@@ -488,7 +488,6 @@ function ReminderSection({
       </div>
       {reminderEnabled && (
         <div className="space-y-2">
-          {/* Selected reminder chips */}
           <div className="flex flex-wrap gap-2">
             {reminderTimes.map((time) => (
               <span
@@ -509,7 +508,6 @@ function ReminderSection({
             ))}
           </div>
 
-          {/* Add reminder */}
           <div className="relative">
             <button
               type="button"
@@ -1054,7 +1052,7 @@ export function HabitFormFields({
           {t('habits.form.flexibleDescription', {
             n: watchedFrequencyQuantity ?? 3,
             unit: watchedFrequencyUnit
-              ? t(`habits.form.unit${watchedFrequencyUnit}` as Parameters<typeof t>[0]) // NOSONAR - dynamic i18n key requires assertion
+              ? t(`habits.form.unit${watchedFrequencyUnit}` as Parameters<typeof t>[0])
               : '',
           })}
         </p>
@@ -1277,7 +1275,6 @@ export function HabitFormFields({
         </button>
       </div>
 
-      {/* Collapsible advanced section -- fields stay mounted for react-hook-form */}
       <div
         className={`overflow-hidden transition-[max-height,opacity] duration-300 ease-out ${
           showAdvanced ? 'max-h-[3000px] opacity-100' : 'max-h-0 opacity-0'

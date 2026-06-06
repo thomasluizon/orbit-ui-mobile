@@ -14,8 +14,6 @@ type MarkdownTone = "default" | "muted" | "onPrimary"
 
 interface MarkdownProps {
   children: string
-  // default → fg1 (AI bubbles), muted → fg2 (descriptions), onPrimary →
-  // fgOnPrimary (user bubbles on the primary background).
   tone?: MarkdownTone
 }
 

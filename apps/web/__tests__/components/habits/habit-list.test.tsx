@@ -11,9 +11,6 @@ const TODAY = formatAPIDate(new Date())
 const TOMORROW = formatAPIDate(new Date(Date.now() + 24 * 60 * 60 * 1000))
 const TOUR_FEATURED_HABIT_ID = 'tour-habit-2'
 
-// ---------------------------------------------------------------------------
-// Mocks - must be defined before importing the component
-// ---------------------------------------------------------------------------
 
 const mockHabitsData = {
   habitsById: new Map<string, NormalizedHabit>(),
@@ -276,12 +273,8 @@ vi.mock('@/components/ui/highlight-text', () => ({
   HighlightText: ({ text }: { text: string }) => <span>{text}</span>,
 }))
 
-// Import the component after all mocks
 import { HabitList, type HabitListHandle } from '@/components/habits/habit-list'
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
 
 function renderWithProviders(ui: React.ReactElement) {
   const queryClient = new QueryClient({
@@ -307,9 +300,6 @@ const defaultFilters = {
   includeOverdue: true,
 }
 
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
 
 describe('HabitList', () => {
   beforeEach(() => {
@@ -335,7 +325,6 @@ describe('HabitList', () => {
         isCompleted: true,
       })
     })
-    // Reset data
     mockHabitsData.habitsById.clear()
     mockHabitsData.childrenByParent.clear()
     mockHabitsData.topLevelHabits = []
@@ -345,7 +334,6 @@ describe('HabitList', () => {
     renderWithProviders(
       <HabitList filters={defaultFilters} />,
     )
-    // Default view is 'today', empty state says noDueToday
     expect(screen.getByText('habits.noDueToday')).toBeDefined()
   })
 
@@ -525,7 +513,6 @@ describe('HabitList', () => {
     renderWithProviders(
       <HabitList filters={defaultFilters} view="all" />,
     )
-    // The empty state in all/general view has a create button
     expect(screen.getByText('habits.createHabit')).toBeDefined()
   })
 

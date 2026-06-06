@@ -39,36 +39,30 @@ describe('HabitCalendar', () => {
 
   it('renders weekday headers', () => {
     render(<HabitCalendar habitId="h1" logs={logs} />, { wrapper: createWrapper() })
-    // Should show day abbreviation first chars
     expect(screen.getByText('calendar.completionHistory')).toBeInTheDocument()
   })
 
   it('renders month navigation', () => {
     render(<HabitCalendar habitId="h1" logs={logs} />, { wrapper: createWrapper() })
-    // Should have prev/next month buttons
     const buttons = screen.getAllByRole('button')
     expect(buttons.length).toBeGreaterThanOrEqual(2)
   })
 
   it('shows completion count', () => {
     render(<HabitCalendar habitId="h1" logs={logs} />, { wrapper: createWrapper() })
-    // Depends on whether logs are in the current month
     expect(screen.getByText('calendar.completionHistory')).toBeInTheDocument()
   })
 
   it('navigates to previous month', () => {
     render(<HabitCalendar habitId="h1" logs={[]} />, { wrapper: createWrapper() })
     const buttons = screen.getAllByRole('button')
-    // First button should be previous month
     fireEvent.click(buttons[0]!)
-    // Should not crash
     expect(screen.getByText('calendar.completionHistory')).toBeInTheDocument()
   })
 
   it('navigates to next month', () => {
     render(<HabitCalendar habitId="h1" logs={[]} />, { wrapper: createWrapper() })
     const buttons = screen.getAllByRole('button')
-    // Last navigation button is next month
     fireEvent.click(buttons[buttons.length > 2 ? 2 : buttons.length - 1]!)
     expect(screen.getByText('calendar.completionHistory')).toBeInTheDocument()
   })

@@ -6,7 +6,6 @@ import { useGoals, useGoalDetail, useGoalMetrics } from '@/hooks/use-goal-querie
 import { createMockGoal } from '@orbit/shared/__tests__/factories'
 import type { Goal, GoalDetailWithMetrics, GoalMetrics, PaginatedGoalResponse } from '@orbit/shared/types/goal'
 
-// Mock fetch
 const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
 

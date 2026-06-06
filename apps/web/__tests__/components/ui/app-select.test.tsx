@@ -33,7 +33,7 @@ describe('AppSelect', () => {
   it('renders with null value as empty string', () => {
     render(<AppSelect value={null} onChange={vi.fn()} options={options} />)
     const select = screen.getByRole('combobox') as HTMLSelectElement
-    expect(select.value).toBe('a') // defaults to first option
+    expect(select.value).toBe('a')
   })
 
   it('applies aria-label when label prop provided', () => {

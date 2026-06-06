@@ -44,7 +44,7 @@ export function HabitCalendar({ habitId, logs: externalLogs }: Readonly<HabitCal
     () =>
       buildHabitCalendarWeekdayKeys(weekStartsOn).map((key) => ({
         key,
-        label: t(`dates.daysShort.${key}` as Parameters<typeof t>[0]).charAt(0), // NOSONAR - dynamic i18n key requires assertion
+        label: t(`dates.daysShort.${key}` as Parameters<typeof t>[0]).charAt(0),
       })),
     [t, weekStartsOn],
   )

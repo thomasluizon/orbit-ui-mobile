@@ -1,9 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterAll } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 
-// ---------------------------------------------------------------------------
-// Mocks -- must come before component import
-// ---------------------------------------------------------------------------
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string, params?: Record<string, unknown>) => {
@@ -80,7 +77,6 @@ vi.mock('@orbit/shared/api', () => ({
   },
 }))
 
-// Default auto-sync hook state -- tests can override via the setters below
 let mockAutoSyncState: {
   data:
     | {
@@ -125,9 +121,6 @@ vi.mock('@/hooks/use-calendar-auto-sync', () => ({
   }),
 }))
 
-// Mock the new useCalendarEvents hook to translate fetch mocks into the
-// discriminated union the page consumes. Each test case still controls
-// behavior via `globalThis.fetch = vi.fn()...`.
 vi.mock('@/hooks/use-calendar-events', async () => {
   const { useEffect, useState } = await import('react')
   const { isCalendarSyncNotConnectedMessage } = await import('@orbit/shared/utils')
@@ -222,20 +215,13 @@ vi.mock('sonner', () => ({
   },
 }))
 
-// Control fetch responses
 let mockFetchResponse: { ok: boolean; status: number; json: () => Promise<unknown> } | null = null
 
 const originalFetch = globalThis.fetch
 
-// ---------------------------------------------------------------------------
-// Import component after mocks
-// ---------------------------------------------------------------------------
 
 import CalendarSyncPage from '@/app/(app)/calendar-sync/page'
 
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
 
 describe('CalendarSyncPage', () => {
   beforeEach(() => {
@@ -261,10 +247,8 @@ describe('CalendarSyncPage', () => {
     mockDismissSuggestion.mockClear()
     mockSignInWithOAuth.mockClear()
 
-    // Default: loading state (fetch never resolves immediately)
     globalThis.fetch = vi.fn().mockImplementation(() => {
       if (mockFetchResponse) return Promise.resolve(mockFetchResponse)
-      // Default: return an empty events array
       return Promise.resolve({
         ok: true,
         status: 200,
@@ -288,7 +272,6 @@ describe('CalendarSyncPage', () => {
     expect(screen.getByRole('button', { name: 'common.backToProfile' })).toBeInTheDocument()
   })
 
-  // ---- Non-Pro redirect ----
 
   it('redirects non-Pro users to upgrade', async () => {
     mockHasProAccess = false
@@ -299,17 +282,14 @@ describe('CalendarSyncPage', () => {
     })
   })
 
-  // ---- Loading state ----
 
   it('shows loading state initially for Pro users', () => {
-    // Fetch takes time, so loading step is shown initially
     globalThis.fetch = vi.fn().mockReturnValue(new Promise(() => {})) as unknown as typeof fetch
     render(<CalendarSyncPage />)
     expect(screen.getByText('calendar.fetchingEvents')).toBeInTheDocument()
     expect(screen.getByRole('status')).toBeInTheDocument()
   })
 
-  // ---- Not connected state ----
 
   it('shows not-connected state when API returns not connected error', async () => {
     globalThis.fetch = vi.fn().mockResolvedValue({
@@ -353,7 +333,6 @@ describe('CalendarSyncPage', () => {
     })
   })
 
-  // ---- Empty events ----
 
   it('shows no events message when calendar has no events', async () => {
     globalThis.fetch = vi.fn().mockResolvedValue({
@@ -369,7 +348,6 @@ describe('CalendarSyncPage', () => {
     expect(screen.getByText('common.goBack')).toBeInTheDocument()
   })
 
-  // ---- Event selection ----
 
   it('shows events when calendar returns data', async () => {
     const events = [
@@ -424,9 +402,7 @@ describe('CalendarSyncPage', () => {
       expect(screen.getByText('Event 1')).toBeInTheDocument()
     })
 
-    // Initially all are selected, so deselect all toggle is shown
     expect(screen.getByText('calendar.deselectAll')).toBeInTheDocument()
-    // Import button shows count matching total events
     expect(document.body.textContent).toContain('calendar.importButton')
   })
 
@@ -447,7 +423,6 @@ describe('CalendarSyncPage', () => {
     })
   })
 
-  // ---- Error state ----
 
   it('shows error state when fetch fails', async () => {
     globalThis.fetch = vi.fn().mockResolvedValue({

@@ -8,7 +8,6 @@ export function TypingIndicator() {
 
   return (
     <div className="flex gap-3 items-end" role="status" aria-live="polite" aria-atomic="true">
-      {/* AI avatar */}
       <div
         data-slot="ai-avatar"
         className="shrink-0 size-10 rounded-full bg-[var(--bg-elev)] border border-[var(--hairline-strong)] flex items-center justify-center"

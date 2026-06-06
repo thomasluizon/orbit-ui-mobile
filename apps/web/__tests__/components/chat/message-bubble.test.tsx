@@ -74,7 +74,6 @@ describe('MessageBubble', () => {
     const { container } = render(
       <MessageBubble message={makeMessage({ role: 'user' })} />,
     )
-    // User icon is the last avatar container
     const avatars = container.querySelectorAll('.rounded-full')
     expect(avatars.length).toBeGreaterThan(0)
   })
@@ -199,7 +198,6 @@ describe('MessageBubble', () => {
     const link = screen.getByRole('button', { name: 'chat.related.surface.gamification' })
     fireEvent.click(link)
     expect(push).toHaveBeenCalledWith('/achievements')
-    // unknown surface IDs are dropped
     expect(screen.queryByText('mystery')).not.toBeInTheDocument()
   })
 

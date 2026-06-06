@@ -79,7 +79,6 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
 
   const [showCalendarPrompt, setShowCalendarPrompt] = useState(false)
 
-  // Auto-trigger feature tour for users who completed onboarding but haven't seen the tour
   const tourStarted = useRef(false)
   useEffect(() => {
     if (
@@ -94,9 +93,6 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
     }
   }, [profile])
 
-  // Show the calendar import prompt once the profile meets the criteria.
-  // "Adjusting state when a prop changes" pattern: detect the criteria
-  // transitioning from false -> true during render.
   const calendarPromptCriteriaMet = !!(
     profile &&
     profile.hasCompletedOnboarding &&
@@ -142,7 +138,6 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
       return
     }
 
-    // No Google tokens yet -- trigger OAuth, redirect to calendar-sync after
     const supabase = getSupabaseClient()
     const redirectTo = `${globalThis.location.origin}/auth-callback`
     sessionStorage.setItem('auth_return_url', '/calendar-sync')
@@ -173,8 +168,6 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
         </RouteTransitionShell>
       </main>
 
-      {/* Bottom-fixed nav. Bar bg + hairline extend full-width so the bar reads as a system bezel,
-          while the tabs/FAB stay phone-width centered via the inner max-w wrapper. */}
       <div
         data-bottom-nav=""
         className="fixed bottom-0 left-0 right-0 z-40"
@@ -227,8 +220,6 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
   )
 }
 
-// Extracted to its own component so conditional children don't trigger React key warnings
-// in the parent AppLayoutContent
 function GlobalOverlays({
   profile,
   hasProAccess,

@@ -5,9 +5,6 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { CreateHabitModal } from '@/components/habits/create-habit-modal'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 
-// ---------------------------------------------------------------------------
-// Mocks
-// ---------------------------------------------------------------------------
 
 const mockCreateMutateAsync = vi.fn()
 const mockCreateSubMutateAsync = vi.fn()
@@ -156,16 +153,12 @@ vi.mock('./habit-form-fields', () => ({
   ),
 }))
 
-// Mock the HabitFormFields component from the correct path
 vi.mock('@/components/habits/habit-form-fields', () => ({
   HabitFormFields: ({ children }: { children?: React.ReactNode }) => (
     <div data-testid="habit-form-fields">{children}</div>
   ),
 }))
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
 
 function renderWithProviders(ui: React.ReactElement) {
   const queryClient = new QueryClient({
@@ -176,9 +169,6 @@ function renderWithProviders(ui: React.ReactElement) {
   )
 }
 
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
 
 describe('CreateHabitModal', () => {
   beforeEach(() => {
@@ -249,7 +239,6 @@ describe('CreateHabitModal', () => {
         parentHabit={parent}
       />,
     )
-    // Title should be "createSubHabit" (both in the overlay title and submit button)
     const texts = screen.getAllByText('habits.createSubHabit')
     expect(texts.length).toBeGreaterThanOrEqual(1)
   })
@@ -266,7 +255,6 @@ describe('CreateHabitModal', () => {
       <CreateHabitModal open={true} onOpenChange={vi.fn()} />,
     )
     expect(screen.getByText('common.cancel')).toBeDefined()
-    // Submit button also says "habits.createHabit"
     const submitButtons = screen.getAllByText('habits.createHabit')
     expect(submitButtons.length).toBeGreaterThanOrEqual(1)
   })

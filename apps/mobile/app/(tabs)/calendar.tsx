@@ -78,9 +78,6 @@ function entryDotState(entry: CalendarDayEntry): StatusDotState {
   return "empty";
 }
 
-// Visible outcome badge for a day-detail row. Only resolved states carry a badge;
-// an upcoming (not-yet-resolved) habit shows none — its status dot already conveys
-// the state — so the list stays quiet instead of repeating a label on every row.
 function statusBadge(
   entry: CalendarDayEntry,
   t: (key: string) => string,
@@ -155,7 +152,6 @@ export default function CalendarScreen() {
     setShowDayDetail(true);
   }, []);
 
-  // Weekday headers — short localized labels via shared i18n.
   const weekdayHeaders = useMemo(() => {
     const mondayFirst = [
       { key: "monday", label: t("dates.daysShort.monday") },
@@ -205,7 +201,6 @@ export default function CalendarScreen() {
     return days;
   }, [currentMonth, dayMap, weekStartsOn]);
 
-  // Selected day entries
   const selectedEntries = useMemo(() => {
     if (!selectedDay) return [];
     return dayMap.get(selectedDay) ?? [];
@@ -228,9 +223,6 @@ export default function CalendarScreen() {
     (entry: CalendarDayEntry) => entry.status === "completed",
   ).length;
 
-  // Stats: this month's best streak / total logs / missed (lightweight summary).
-  // The previous implementation computed only "current month" granularity; we
-  // keep that scope and surface the counts via SettingsRow below the legend.
   const monthStats = useMemo(() => {
     const monthDays = gridDays.filter((d) => d.isCurrentMonth);
     const totalLogs = monthDays.reduce(

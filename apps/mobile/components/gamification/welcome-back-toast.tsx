@@ -140,7 +140,6 @@ export function WelcomeBackToast() {
           }, 800)
         }
       } catch {
-        // Silently ignore storage errors
       }
     }
 

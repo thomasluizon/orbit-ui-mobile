@@ -3,7 +3,6 @@ import { useTourStore } from '@/stores/tour-store'
 
 describe('tour-store (web)', () => {
   beforeEach(() => {
-    // Reset store to initial state
     useTourStore.getState().endTour()
   })
 
@@ -139,7 +138,6 @@ describe('tour-store (web)', () => {
 
     const nextSection = useTourStore.getState().skipSection()
 
-    // Should have moved to a different section or ended the tour
     if (nextSection !== null) {
       expect(nextSection).not.toBe(firstSection)
     }
@@ -149,7 +147,6 @@ describe('tour-store (web)', () => {
     useTourStore.getState().startSectionReplay('habits')
     const total = useTourStore.getState().getTotalSteps()
 
-    // Advance to end
     for (let i = 0; i < total; i++) {
       useTourStore.getState().nextStep()
     }
@@ -158,11 +155,9 @@ describe('tour-store (web)', () => {
   })
 
   it('skipSection ends tour when no more sections', () => {
-    // Use a section replay so there's only one section
     useTourStore.getState().startSectionReplay('habits')
     const result = useTourStore.getState().skipSection()
 
-    // Should end tour since there's only one section in replay mode
     expect(result).toBeNull()
     expect(useTourStore.getState().isActive).toBe(false)
   })

@@ -41,7 +41,6 @@ export function usePopoverMenu(options: UsePopoverMenuOptions = {}): UsePopoverM
   const [isOpen, setIsOpen] = useState(false)
   const [position, setPosition] = useState<PopoverPosition>({ top: 0, left: 0 })
 
-  // Compute initial position from trigger rect, then clamp after paint.
   const computePosition = useCallback(() => {
     const trigger = triggerRef.current
     if (!trigger) return
@@ -53,31 +52,22 @@ export function usePopoverMenu(options: UsePopoverMenuOptions = {}): UsePopoverM
     let top = 0
     let left = 0
 
-    // Vertical axis: top placements put panel above trigger, bottom below.
     if (placement === 'top-start' || placement === 'top-end') {
-      // We use translateY(-100%) at render time to flip above trigger, so
-      // top here is the trigger's top edge. Clamping is applied post-paint.
       top = rect.top - offset
     } else {
       top = rect.bottom + offset
     }
 
-    // Horizontal axis
     if (placement === 'bottom-start' || placement === 'top-start') {
       left = rect.left
     } else if (placement === 'bottom-end' || placement === 'top-end') {
-      // Align panel's right edge to trigger's right edge.
-      // We don't know panel width yet so set left speculatively; clamping
-      // corrects it after the panel is in the DOM.
       left = rect.right
     } else {
-      // bottom-center: center under trigger; panel width unknown yet.
       left = rect.left + rect.width / 2
     }
 
     setPosition({ top, left })
 
-    // After paint, read actual panel dimensions and clamp to viewport.
     requestAnimationFrame(() => {
       const panel = panelRef.current
       if (!panel) return
@@ -90,19 +80,16 @@ export function usePopoverMenu(options: UsePopoverMenuOptions = {}): UsePopoverM
       let clampedTop = top
 
       if (placement === 'bottom-end' || placement === 'top-end') {
-        // We set left = trigger.right; shift left by panel width to right-align.
         clampedLeft = rect.right - panelW
       } else if (placement === 'bottom-center') {
         clampedLeft = rect.left + rect.width / 2 - panelW / 2
       }
 
-      // Clamp horizontally.
       clampedLeft = Math.max(
         margin,
         Math.min(clampedLeft, vw - panelW - margin),
       )
 
-      // Clamp vertically (bottom placements only -- top placements use CSS transform).
       if (placement !== 'top-start' && placement !== 'top-end') {
         clampedTop = Math.max(
           margin,
@@ -132,7 +119,6 @@ export function usePopoverMenu(options: UsePopoverMenuOptions = {}): UsePopoverM
     }
   }, [isOpen, computePosition])
 
-  // Dismiss listeners -- only active while open.
   useEffect(() => {
     if (!isOpen) return
 

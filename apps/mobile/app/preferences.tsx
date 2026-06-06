@@ -127,6 +127,7 @@ export default function PreferencesScreen() {
   }
 
   async function handleLanguageChange(locale: 'en' | 'pt-BR') {
+    const previousLanguage = selectedLanguage
     setSelectedLanguage(locale)
     i18n.changeLanguage(locale)
     try {
@@ -140,7 +141,8 @@ export default function PreferencesScreen() {
       })
       patchProfile({ language: locale })
     } catch {
-      // Silently fail
+      setSelectedLanguage(previousLanguage)
+      i18n.changeLanguage(previousLanguage)
     }
   }
 
@@ -211,7 +213,7 @@ export default function PreferencesScreen() {
         String(nextValue),
       )
     } catch {
-      // Best-effort persistence
+      setShowGeneralOnToday(!nextValue)
     }
   }
 

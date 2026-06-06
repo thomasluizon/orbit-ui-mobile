@@ -1,13 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
-// Mock sonner
 vi.mock('sonner', () => ({
   toast: {
     error: vi.fn(),
   },
 }))
 
-// Mock auth store (dynamic import inside apiFetch)
 const mockLogout = vi.fn()
 vi.mock('@/stores/auth-store', () => ({
   useAuthStore: {
@@ -17,7 +15,6 @@ vi.mock('@/stores/auth-store', () => ({
   },
 }))
 
-// Mock extractBackendError
 vi.mock('@orbit/shared/utils', () => ({
   buildClientTimeZoneHeaders: vi.fn(() => ({
     'X-Orbit-Time-Zone': 'America/Sao_Paulo',
@@ -28,7 +25,6 @@ vi.mock('@orbit/shared/utils', () => ({
 const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
 
-// Store original location
 const originalLocation = globalThis.location
 
 import { apiFetch, fetchJson, ApiError } from '@/lib/api-fetch'
@@ -42,7 +38,6 @@ describe('apiFetch', () => {
   })
 
   afterEach(() => {
-    // Restore location if it was modified
     if (globalThis.location !== originalLocation) {
       Object.defineProperty(globalThis, 'location', {
         value: originalLocation,

@@ -67,7 +67,6 @@ export function TourTooltip({
     ? t(`tour.sections.${sectionProgress.section}`)
     : ''
 
-  // Match web behavior: if target center is in the bottom half, show tooltip at top
   const screenHeight = Dimensions.get('window').height
   const targetCenter = targetRect.y + targetRect.height / 2
   const mode = targetCenter > screenHeight * 0.5 ? 'sheet-top' : 'sheet-bottom'

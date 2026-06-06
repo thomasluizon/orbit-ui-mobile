@@ -151,7 +151,6 @@ const TodaySearchBar = memo(function TodaySearchBar({
   }
   const focusAnim = focusAnimRef.current;
 
-  // Mirror controlled `initialValue` prop into local draft.
   const [previousInitialValue, setPreviousInitialValue] = useState(initialValue);
   if (initialValue !== previousInitialValue) {
     setPreviousInitialValue(initialValue);

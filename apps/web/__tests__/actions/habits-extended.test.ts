@@ -45,9 +45,6 @@ describe('habit server actions (extended)', () => {
     })
   }
 
-  // -------------------------------------------------------------------------
-  // bulkLogHabits
-  // -------------------------------------------------------------------------
 
   describe('bulkLogHabits', () => {
     it('sends POST to /api/habits/bulk/log with items', async () => {
@@ -94,9 +91,6 @@ describe('habit server actions (extended)', () => {
     })
   })
 
-  // -------------------------------------------------------------------------
-  // bulkSkipHabits
-  // -------------------------------------------------------------------------
 
   describe('bulkSkipHabits', () => {
     it('sends POST to /api/habits/bulk/skip with items', async () => {
@@ -135,9 +129,6 @@ describe('habit server actions (extended)', () => {
     })
   })
 
-  // -------------------------------------------------------------------------
-  // createSubHabit
-  // -------------------------------------------------------------------------
 
   describe('createSubHabit', () => {
     it('sends POST to /api/habits/:parentId/sub-habits', async () => {
@@ -169,9 +160,6 @@ describe('habit server actions (extended)', () => {
     })
   })
 
-  // -------------------------------------------------------------------------
-  // moveHabitParent
-  // -------------------------------------------------------------------------
 
   describe('moveHabitParent', () => {
     it('sends PUT to /api/habits/:id/parent', async () => {
@@ -203,9 +191,6 @@ describe('habit server actions (extended)', () => {
     })
   })
 
-  // -------------------------------------------------------------------------
-  // updateChecklist
-  // -------------------------------------------------------------------------
 
   describe('updateChecklist', () => {
     it('sends PUT to /api/habits/:id/checklist', async () => {
@@ -242,9 +227,6 @@ describe('habit server actions (extended)', () => {
     })
   })
 
-  // -------------------------------------------------------------------------
-  // linkGoalsToHabit
-  // -------------------------------------------------------------------------
 
   describe('linkGoalsToHabit', () => {
     it('sends PUT to /api/habits/:id/goals', async () => {

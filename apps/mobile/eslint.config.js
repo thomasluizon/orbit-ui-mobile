@@ -2,6 +2,7 @@
 const { defineConfig } = require("eslint/config")
 const expoConfig = require("eslint-config-expo/flat")
 const reactHooks = require("eslint-plugin-react-hooks")
+const noComments = require("../../eslint-rules/no-comments.cjs")
 
 // eslint-config-expo@55 ships react-hooks v5, which pre-dates the React 19 /
 // Compiler rules (set-state-in-effect, refs, immutability, etc.). Strip the
@@ -18,6 +19,12 @@ const patchedExpoConfig = expoConfigArray.map((c) => {
 
 module.exports = defineConfig([
   ...patchedExpoConfig,
+  {
+    files: ["**/*.{ts,tsx}"],
+    ignores: ["**/*.d.ts"],
+    plugins: { local: { rules: { "no-comments": noComments } } },
+    rules: { "local/no-comments": "error" },
+  },
   {
     plugins: { "react-hooks": reactHooks },
     rules: {

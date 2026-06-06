@@ -6,11 +6,9 @@ import { useHabits, useLogHabit, useSkipHabit, useCreateHabit, useDeleteHabit, u
 import { habitKeys, goalKeys, gamificationKeys, profileKeys } from '@orbit/shared/query'
 import type { HabitScheduleChild, HabitScheduleItem, PaginatedResponse } from '@orbit/shared/types/habit'
 
-// Mock fetch
 const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
 
-// Mock server actions
 vi.mock('@/app/actions/habits', () => ({
   createHabit: vi.fn(),
   updateHabit: vi.fn(),
@@ -28,7 +26,6 @@ vi.mock('@/app/actions/habits', () => ({
   bulkSkipHabits: vi.fn(),
 }))
 
-// Mock UI store
 vi.mock('@/stores/ui-store', () => ({
   useUIStore: Object.assign(
     () => ({
@@ -166,7 +163,6 @@ describe('useHabits', () => {
 
     expect(result.current.data).toBeDefined()
     expect(result.current.data!.habitsById.size).toBe(2)
-    // Top-level should be sorted by position
     expect(result.current.data!.topLevelHabits[0]!.id).toBe('h-2')
     expect(result.current.data!.topLevelHabits[1]!.id).toBe('h-1')
   })
@@ -217,7 +213,7 @@ describe('useHabits', () => {
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
 
     expect(result.current.data!.habitsById.has('child-1')).toBe(true)
-    expect(result.current.data!.topLevelHabits).toHaveLength(1) // child not in top-level
+    expect(result.current.data!.topLevelHabits).toHaveLength(1)
     expect(result.current.data!.childrenByParent.get('parent')).toContain('child-1')
   })
 
@@ -270,7 +266,6 @@ describe('useLogHabit', () => {
       currentStreak: 1,
     })
 
-    // Seed initial data for optimistic update
     mockFetch.mockResolvedValue({
       ok: true,
       json: () =>
@@ -468,9 +463,6 @@ describe('useDeleteHabit', () => {
   })
 })
 
-// ---------------------------------------------------------------------------
-// useLogHabit onSuccess callbacks
-// ---------------------------------------------------------------------------
 
 describe('useLogHabit onSuccess', () => {
   beforeEach(() => {
@@ -502,7 +494,6 @@ describe('useLogHabit onSuccess', () => {
     })
 
     expect(mockedLogHabit).toHaveBeenCalledWith('h-1', undefined)
-    // The onSuccess path is exercised (setStreakCelebration was called via the mock)
   })
 
   it('completes without triggering streak when not first today', async () => {
@@ -592,9 +583,6 @@ describe('useLogHabit onSuccess', () => {
   })
 })
 
-// ---------------------------------------------------------------------------
-// useUpdateHabit
-// ---------------------------------------------------------------------------
 
 describe('useUpdateHabit', () => {
   beforeEach(() => {
@@ -648,9 +636,6 @@ describe('useUpdateHabit', () => {
   })
 })
 
-// ---------------------------------------------------------------------------
-// useReorderHabits
-// ---------------------------------------------------------------------------
 
 describe('useReorderHabits', () => {
   beforeEach(() => {
@@ -681,9 +666,6 @@ describe('useReorderHabits', () => {
   })
 })
 
-// ---------------------------------------------------------------------------
-// useDuplicateHabit
-// ---------------------------------------------------------------------------
 
 describe('useDuplicateHabit', () => {
   beforeEach(() => {
@@ -707,9 +689,6 @@ describe('useDuplicateHabit', () => {
   })
 })
 
-// ---------------------------------------------------------------------------
-// useUpdateChecklist
-// ---------------------------------------------------------------------------
 
 describe('useUpdateChecklist', () => {
   beforeEach(() => {
@@ -814,7 +793,6 @@ describe('useUpdateChecklist', () => {
           items: [{ text: 'Optimistic', isChecked: true }],
         })
       } catch {
-        // expected
       }
     })
 
@@ -829,9 +807,6 @@ describe('useUpdateChecklist', () => {
   })
 })
 
-// ---------------------------------------------------------------------------
-// useCreateSubHabit
-// ---------------------------------------------------------------------------
 
 describe('useCreateSubHabit', () => {
   beforeEach(() => {
@@ -858,9 +833,6 @@ describe('useCreateSubHabit', () => {
   })
 })
 
-// ---------------------------------------------------------------------------
-// useMoveHabitParent
-// ---------------------------------------------------------------------------
 
 describe('useMoveHabitParent', () => {
   beforeEach(() => {
@@ -887,9 +859,6 @@ describe('useMoveHabitParent', () => {
   })
 })
 
-// ---------------------------------------------------------------------------
-// Bulk operations
-// ---------------------------------------------------------------------------
 
 describe('useBulkCreateHabits', () => {
   beforeEach(() => {
