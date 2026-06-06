@@ -31,15 +31,6 @@ export function resolveSnapHeights(
 }
 
 /**
- * Translate a target sheet height into a `translateY` offset for a container
- * rendered at `maxHeight`. A shorter sheet sits lower (larger offset); a
- * full-height sheet sits at offset 0.
- */
-export function offsetFor(height: number, maxHeight: number): number {
-  return maxHeight - height
-}
-
-/**
  * Pick the snap height a released drag should settle on. Biases toward the next
  * snap in the fling direction when the release velocity is past `velocityBias`
  * (positive velocity = dragging the sheet down/shorter), otherwise snaps to the
