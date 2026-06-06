@@ -139,10 +139,6 @@ export function TodayAISummary({ date }: Readonly<TodayAISummaryProps>) {
               fontSize: 14,
               lineHeight: 1.45,
               color: 'var(--fg-2)',
-              display: '-webkit-box',
-              WebkitLineClamp: 3,
-              WebkitBoxOrient: 'vertical',
-              overflow: 'hidden',
             }}
           >
             {resolved.text}
