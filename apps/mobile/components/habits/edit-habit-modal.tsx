@@ -68,6 +68,7 @@ export function EditHabitModal({
   const [initialTagIds, setInitialTagIds] = useState('[]')
   const [initialGoalIds, setInitialGoalIds] = useState('[]')
   const [initialReminderTimes, setInitialReminderTimes] = useState('[0,15]')
+  const [titleFilled, setTitleFilled] = useState(false)
 
   const atGoalLimit = selectedGoalIds.length >= 10
   const isDirty =
@@ -123,6 +124,7 @@ export function EditHabitModal({
     if (open && habit) {
       const prefill = buildEditHabitFormState(habit, habitDetail)
       formHelpers.form.reset(prefill.formValues)
+      setTitleFilled(prefill.formValues.title.trim().length > 0)
       setOriginalEndDate(prefill.originalEndDate)
       setReminderTimes(prefill.reminderTimes)
       tags.resetTags(prefill.selectedTagIds)
@@ -201,7 +203,7 @@ export function EditHabitModal({
     translate,
   ])
 
-  const submitDisabled = updateHabit.isPending || !formHelpers.form.formState.isValid
+  const submitDisabled = updateHabit.isPending || !titleFilled
 
   return (
     <>
@@ -229,6 +231,7 @@ export function EditHabitModal({
             reminderTimes={reminderTimes}
             onReminderTimesChange={setReminderTimes}
             onFlushBufferedInputsReady={handleBufferedInputsReady}
+            onTitlePresenceChange={setTitleFilled}
             defaultExpanded={true}
           />
 

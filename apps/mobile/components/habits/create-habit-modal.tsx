@@ -90,6 +90,7 @@ export function CreateHabitModal({
   const [selectedGoalIds, setSelectedGoalIds] = useState<string[]>([])
   const [subHabits, setSubHabits] = useState<SubHabitEntry[]>([])
   const [reminderTimes, setReminderTimes] = useState<number[]>([0, 15])
+  const [titleFilled, setTitleFilled] = useState(false)
   const [reminderWasManuallyToggled, setReminderWasManuallyToggled] = useState(false)
   const flushBufferedInputsRef = useRef<() => void>(() => {})
   const [initialTagIdsSnapshot, setInitialTagIdsSnapshot] = useState('[]')
@@ -145,6 +146,7 @@ export function CreateHabitModal({
       const fallbackDate = initialDate ?? formatAPIDate(new Date())
 
       setReminderWasManuallyToggled(false)
+      setTitleFilled(false)
       formHelpers.form.reset(buildEmptyHabitFormValues(fallbackDate))
       tags.resetTags()
       setSelectedGoalIds([])
@@ -312,7 +314,7 @@ export function CreateHabitModal({
   ])
 
   const isPending = createHabit.isPending || createSubHabit.isPending
-  const submitDisabled = isPending || !formHelpers.form.formState.isValid
+  const submitDisabled = isPending || !titleFilled
 
   const updateSubHabitValue = useCallback((id: string, value: string) => {
     setSubHabits((prev) =>
@@ -357,6 +359,7 @@ export function CreateHabitModal({
             onReminderTimesChange={setReminderTimes}
             onReminderEnabledChange={handleReminderEnabledChange}
             onFlushBufferedInputsReady={handleBufferedInputsReady}
+            onTitlePresenceChange={setTitleFilled}
           >
             {!isSubHabitMode ? (
               <SubHabitEditor

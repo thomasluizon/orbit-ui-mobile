@@ -38,6 +38,7 @@ interface HabitFormFieldsProps {
   onReminderTimesChange: (times: number[]) => void;
   onReminderEnabledChange?: (nextEnabled: boolean) => void;
   onFlushBufferedInputsReady?: (flush: () => void) => void;
+  onTitlePresenceChange?: (hasTitle: boolean) => void;
   /** When true, advanced fields are visible by default (used in edit modal) */
   defaultExpanded?: boolean;
   children?: ReactNode;
@@ -53,6 +54,7 @@ export function HabitFormFields({
   onReminderTimesChange,
   onReminderEnabledChange,
   onFlushBufferedInputsReady,
+  onTitlePresenceChange,
   defaultExpanded = false,
   children,
 }: Readonly<HabitFormFieldsProps>) {
@@ -135,6 +137,7 @@ export function HabitFormFields({
         error={errors.title?.message}
         registerFlush={registerBufferedInputFlusher}
         onCommit={(val) => setValue("title", val, { shouldDirty: true })}
+        onDraftChange={(val) => onTitlePresenceChange?.(val.trim().length > 0)}
         styles={styles}
         tokens={tokens}
       />
