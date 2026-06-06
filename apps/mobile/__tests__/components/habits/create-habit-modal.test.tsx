@@ -109,8 +109,8 @@ vi.mock('@orbit/shared/utils', async (importOriginal) => {
 })
 
 vi.mock('@/components/habits/habit-form-fields', () => ({
-  HabitFormFields: ({ children }: { children?: React.ReactNode }) =>
-    React.createElement('HabitFormFields', null, children),
+  HabitFormFields: (props: { children?: React.ReactNode }) =>
+    React.createElement('HabitFormFields', props, props.children),
 }))
 
 vi.mock('@/components/ui/pro-badge', () => ({
@@ -198,5 +198,27 @@ describe('CreateHabitModal (mobile)', () => {
     expect(
       tree.root.findAll((node: any) => node.props?.testID === 'pro-badge'),
     ).toHaveLength(1)
+  })
+
+  it('disables the submit button until the title has content', () => {
+    const tree = renderModal(<CreateHabitModal open onClose={vi.fn()} />)
+
+    const findSubmit = () =>
+      tree.root.findAll(
+        (node: any) =>
+          node.type === 'TouchableOpacity' &&
+          node.props.accessibilityLabel === 'habits.createHabit',
+      )[0]
+
+    expect(findSubmit().props.disabled).toBe(true)
+
+    const fields = tree.root.findAll(
+      (node: any) => node.type === 'HabitFormFields',
+    )[0]
+    TestRenderer.act(() => {
+      fields.props.onTitlePresenceChange(true)
+    })
+
+    expect(findSubmit().props.disabled).toBe(false)
   })
 })

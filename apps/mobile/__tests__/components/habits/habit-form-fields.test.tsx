@@ -409,4 +409,43 @@ describe('HabitFormFields (mobile)', () => {
     expect(hasText('habits.form.reminder')).toBe(true)
     expect(hasText('habits.form.tags')).toBe(true)
   })
+
+  it('reports title presence to onTitlePresenceChange as the title is typed and cleared', async () => {
+    const formHelpers = createMockFormHelpers({ title: '' })
+    const tags = createMockTags()
+    const onTitlePresenceChange = vi.fn()
+    let tree: any
+
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(
+        <HabitFormFields
+          formHelpers={formHelpers}
+          tags={tags}
+          selectedGoalIds={[]}
+          atGoalLimit={false}
+          onToggleGoal={vi.fn()}
+          reminderTimes={[]}
+          onReminderTimesChange={vi.fn()}
+          onTitlePresenceChange={onTitlePresenceChange}
+        />,
+      )
+    })
+
+    const titleInput = tree.root.findAll(
+      (node: any) =>
+        node.type === 'TextInput' &&
+        node.props.accessibilityLabel === 'habits.form.title',
+    )[0]
+    expect(titleInput).toBeTruthy()
+
+    await TestRenderer.act(async () => {
+      titleInput.props.onChangeText('Read a book')
+    })
+    expect(onTitlePresenceChange).toHaveBeenLastCalledWith(true)
+
+    await TestRenderer.act(async () => {
+      titleInput.props.onChangeText('   ')
+    })
+    expect(onTitlePresenceChange).toHaveBeenLastCalledWith(false)
+  })
 })

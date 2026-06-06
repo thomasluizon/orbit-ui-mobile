@@ -10,6 +10,7 @@ interface TitleSectionProps {
   error: string | undefined;
   registerFlush: (flush: () => void) => () => void;
   onCommit: (value: string) => void;
+  onDraftChange?: (value: string) => void;
   styles: HabitFormStyles;
   tokens: AppTokens;
 }
@@ -19,6 +20,7 @@ export function TitleSection({
   error,
   registerFlush,
   onCommit,
+  onDraftChange,
   styles,
   tokens,
 }: Readonly<TitleSectionProps>) {
@@ -36,6 +38,7 @@ export function TitleSection({
         placeholderTextColor={tokens.fg3}
         style={styles.input}
         onCommit={onCommit}
+        onDraftChange={onDraftChange}
         accessibilityLabel={t("habits.form.title")}
       />
       {error && (
