@@ -144,7 +144,7 @@ describe('useSummary', () => {
     const calledUrl = mockFetch.mock.calls[0]![0] as string
     expect(calledUrl).toContain('dateFrom=2025-01-15')
     expect(calledUrl).toContain('dateTo=2025-01-15')
-    expect(calledUrl).toContain('includeOverdue=true')
+    expect(calledUrl).not.toContain('includeOverdue')
     expect(calledUrl).toContain('language=pt-BR')
   })
 
