@@ -109,7 +109,6 @@ export function FeatureGuideDrawer({ open, onOpenChange }: Readonly<FeatureGuide
   return (
     <AppOverlay open={open} onOpenChange={onOpenChange} title={t('onboarding.featureGuide.title')}>
       <div className="-mx-6">
-        {}
         <div
           role="tablist"
           className="flex"
@@ -156,7 +155,6 @@ export function FeatureGuideDrawer({ open, onOpenChange }: Readonly<FeatureGuide
           })}
         </div>
 
-        {}
         {items.map((item) => (
           <div
             key={item.titleKey}

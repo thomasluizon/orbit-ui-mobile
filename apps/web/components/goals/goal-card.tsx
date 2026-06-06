@@ -88,7 +88,6 @@ export function GoalCard({ goal }: Readonly<GoalCardProps>) {
 
   return (
     <>
-      {}
       <motion.button
         type="button"
         data-tour="tour-goal-card"

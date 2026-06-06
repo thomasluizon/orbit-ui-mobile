@@ -137,14 +137,12 @@ export default function CalendarPage() {
         onNextMonth={nextMonth}
       />
 
-      {}
       <div
         className={`loading-bar w-full transition-opacity duration-300 ${
           isFetching && !isLoading ? 'opacity-100' : 'opacity-0 pointer-events-none'
         }`}
       />
 
-      {}
       <CalendarGrid
         currentMonth={currentMonth}
         dayMap={dayMap}
@@ -179,7 +177,6 @@ export default function CalendarPage() {
         divider={false}
       />
 
-      {}
       <CalendarDayDetail
         open={showDayDetail}
         onOpenChange={setShowDayDetail}

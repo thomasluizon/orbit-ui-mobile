@@ -488,7 +488,6 @@ function ReminderSection({
       </div>
       {reminderEnabled && (
         <div className="space-y-2">
-          {}
           <div className="flex flex-wrap gap-2">
             {reminderTimes.map((time) => (
               <span
@@ -509,7 +508,6 @@ function ReminderSection({
             ))}
           </div>
 
-          {}
           <div className="relative">
             <button
               type="button"
@@ -1277,7 +1275,6 @@ export function HabitFormFields({
         </button>
       </div>
 
-      {}
       <div
         className={`overflow-hidden transition-[max-height,opacity] duration-300 ease-out ${
           showAdvanced ? 'max-h-[3000px] opacity-100' : 'max-h-0 opacity-0'

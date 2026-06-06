@@ -48,7 +48,6 @@ export function AppSelect({
 
   return (
     <>
-      {}
       <TouchableOpacity
         style={styles.trigger}
         onPress={() => setIsOpen(true)}
@@ -68,7 +67,6 @@ export function AppSelect({
         <ChevronDown size={16} color={tokens.fg3} />
       </TouchableOpacity>
 
-      {}
       <Modal
         visible={isOpen}
         transparent

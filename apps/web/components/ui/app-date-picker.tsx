@@ -125,7 +125,6 @@ export function AppDatePicker({
 
       {isOpen && (
         <>
-          {}
           <div
             className="fixed inset-0 z-40 bg-black/65"
             aria-hidden="true"
@@ -138,7 +137,6 @@ export function AppDatePicker({
             aria-labelledby={dialogLabelId}
             className="fixed z-50 left-1/2 top-1/2 m-0 w-[min(90vw,320px)] -translate-x-1/2 -translate-y-1/2 rounded-[12px] border border-[var(--hairline)] bg-[var(--bg-elev)] p-2.5 text-[var(--fg-1)] shadow-[0_12px_40px_rgba(0,0,0,0.35)]"
           >
-            {}
             <div className="flex items-center justify-between mb-2">
               <button
                 type="button"

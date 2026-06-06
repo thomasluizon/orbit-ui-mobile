@@ -374,7 +374,6 @@ export default function LoginScreen() {
       keyboardShouldPersistTaps="always"
       showsVerticalScrollIndicator={false}
     >
-      {}
       {showReferralBanner && (
         <View style={styles.referralBanner}>
           <Text style={styles.referralBannerText}>
@@ -384,24 +383,20 @@ export default function LoginScreen() {
       )}
 
       <View style={styles.formColumn}>
-        {}
         <View style={styles.brandingHeader}>
           <SaturnDropcap size={32} color={tokens.fg1} />
           <Text style={styles.wordmark}>Orbit</Text>
           <View style={styles.brandingRule} />
         </View>
 
-        {}
         <Text style={styles.stepSubtitle}>
           {step === 'email' ? t('auth.signIn') : t('auth.enterCode')}
         </Text>
 
-        {}
         {errorMessage && (
           <Text style={styles.inlineError}>{errorMessage}</Text>
         )}
 
-        {}
         {successMessage && (
           <Text style={styles.successText}>{successMessage}</Text>
         )}
@@ -491,7 +486,6 @@ export default function LoginScreen() {
               </Text>
             </Pressable>
 
-            {}
             <Text style={styles.legal}>
               {t('auth.legalPrefix')}{' '}
               <Text style={styles.legalLink} onPress={openTerms}>
@@ -549,7 +543,6 @@ export default function LoginScreen() {
               </Text>
             </Pressable>
 
-            {}
             <View style={styles.resendRow}>
               {canResend ? (
                 <Pressable onPress={resendCode} disabled={!isOnline}>

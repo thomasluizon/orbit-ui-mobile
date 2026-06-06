@@ -168,7 +168,6 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
         </RouteTransitionShell>
       </main>
 
-      {}
       <div
         data-bottom-nav=""
         className="fixed bottom-0 left-0 right-0 z-40"

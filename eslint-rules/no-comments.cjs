@@ -52,7 +52,14 @@ module.exports = {
               let end = comment.range[1]
               let lineStart = start
               while (lineStart > 0 && text[lineStart - 1] !== '\n') lineStart--
-              if (text.slice(lineStart, start).trim() === '') {
+              const beforeComment = text.slice(lineStart, start)
+              const isJsxContainer = beforeComment.trim() === '{' && text[end] === '}'
+              if (isJsxContainer) {
+                start = lineStart
+                end += 1
+                if (text[end] === '\r') end++
+                if (text[end] === '\n') end++
+              } else if (beforeComment.trim() === '') {
                 start = lineStart
                 if (text[end] === '\r') end++
                 if (text[end] === '\n') end++

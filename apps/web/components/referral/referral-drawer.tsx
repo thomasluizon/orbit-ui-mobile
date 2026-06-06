@@ -57,7 +57,6 @@ export function ReferralDrawer({ open, onOpenChange }: Readonly<ReferralDrawerPr
   return (
     <AppOverlay open={open} onOpenChange={onOpenChange} title={t('referral.drawer.title')}>
       <div className="-mx-6">
-        {}
         {isLoading && (
           <div style={{ padding: '16px 20px' }}>
             <div
@@ -67,7 +66,6 @@ export function ReferralDrawer({ open, onOpenChange }: Readonly<ReferralDrawerPr
           </div>
         )}
 
-        {}
         {isError && !isLoading && (
           <div role="alert" style={{ padding: '12px 20px' }}>
             <p
@@ -83,7 +81,6 @@ export function ReferralDrawer({ open, onOpenChange }: Readonly<ReferralDrawerPr
           </div>
         )}
 
-        {}
         {!isLoading && !isError && (
           <>
             <SectionLabel>{t('referral.drawer.yourLink')}</SectionLabel>

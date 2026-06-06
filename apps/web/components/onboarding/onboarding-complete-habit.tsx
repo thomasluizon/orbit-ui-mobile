@@ -61,7 +61,6 @@ export function OnboardingCompleteHabit({
         {t('onboarding.flow.completeHabit.instruction')}
       </div>
 
-      {}
       <div
         className="flex items-center"
         style={{

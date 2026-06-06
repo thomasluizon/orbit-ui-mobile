@@ -97,7 +97,6 @@ export function LevelUpOverlay({
         className="flex flex-col items-center"
         style={{ gap: 14 }}
       >
-        {}
         <div
           style={{
             fontFamily: 'var(--font-family-mono)',
@@ -111,7 +110,6 @@ export function LevelUpOverlay({
           {t('gamification.levelUp.title')}
         </div>
 
-        {}
         <div
           className="relative flex items-center justify-center"
           style={{ width: 130, height: 130 }}

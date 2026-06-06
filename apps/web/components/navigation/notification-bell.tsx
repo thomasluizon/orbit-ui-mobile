@@ -128,7 +128,6 @@ export function NotificationBell() {
         placement="bottom-end"
         className="w-80 max-h-96 flex flex-col overflow-hidden"
       >
-        {}
         <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--hairline)]">
           <h3 className="text-sm font-semibold text-[var(--fg-1)]">{t('notifications.title')}</h3>
           <div className="flex items-center gap-2">
@@ -152,7 +151,6 @@ export function NotificationBell() {
           </div>
         </div>
 
-        {}
         <ul
           id="notification-dropdown"
           className="flex-1 overflow-y-auto list-none m-0 p-0"
@@ -210,7 +208,6 @@ export function NotificationBell() {
         </ul>
       </Popover>
 
-      {}
       {selectedNotification && (
         <NotificationDetailModal
           open={isModalOpen}

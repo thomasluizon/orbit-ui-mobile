@@ -120,7 +120,6 @@ export function AchievementToast() {
           gap: 12,
         }}
       >
-        {}
         <div
           className="relative flex items-center justify-center"
           style={{ width: 32, height: 32, flexShrink: 0 }}

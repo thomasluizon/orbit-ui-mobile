@@ -115,7 +115,6 @@ export function AppDatePicker({
 
   return (
     <>
-      {}
       <TouchableOpacity
         style={styles.trigger}
         onPress={() => setIsOpen(true)}
@@ -139,7 +138,6 @@ export function AppDatePicker({
         <Calendar size={16} color={tokens.fg3} />
       </TouchableOpacity>
 
-      {}
       <Modal
         visible={isOpen}
         transparent
@@ -155,7 +153,6 @@ export function AppDatePicker({
             style={styles.dialog}
             onStartShouldSetResponder={() => true}
           >
-            {}
             <View style={styles.monthNav}>
               <TouchableOpacity
                 onPress={prevMonth}
@@ -176,7 +173,6 @@ export function AppDatePicker({
               </TouchableOpacity>
             </View>
 
-            {}
             <View style={styles.weekRow}>
               {weekDays.map((day, i) => (
                 <View key={`wh-${i}`} style={styles.dayCell}>
@@ -185,7 +181,6 @@ export function AppDatePicker({
               ))}
             </View>
 
-            {}
             {calendarWeeks.map((week) => (
               <View key={week[0]?.toISOString()} style={styles.weekRow}>
                 {week.map((day) => {
