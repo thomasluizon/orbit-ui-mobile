@@ -103,7 +103,7 @@ export function TodayAISummary({ date }: Readonly<TodayAISummaryProps>) {
             <Text style={styles.heading}>Astra</Text>
             <Text style={styles.aiBadge}>{t('aiDisclosure.isAiLabel')}</Text>
           </View>
-          <Text style={styles.message} numberOfLines={3}>
+          <Text style={styles.message}>
             {resolved.text}
           </Text>
           {showDisclaimer ? (
