@@ -547,8 +547,7 @@
       "missed": "Missed",
       "upcoming": "Upcoming",
       "indulged": "Indulged",
-      "resisted": "Resisted",
-      "scheduled": "Scheduled"
+      "resisted": "Resisted"
     },
     "completionHistory": "Completion History",
     "showRecurring": "Show recurring",

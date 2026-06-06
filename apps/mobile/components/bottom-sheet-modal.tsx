@@ -4,9 +4,11 @@ import {
   BackHandler,
   Dimensions,
   Easing,
+  type GestureResponderEvent,
   KeyboardAvoidingView,
   Modal,
   PanResponder,
+  type PanResponderGestureState,
   Platform,
   Pressable,
   StyleSheet,
@@ -56,6 +58,8 @@ const RUBBER_BAND_FACTOR = 0.4
 const MIN_DRAG_BACKDROP_OPACITY = 0.2
 const OPEN_DURATION = 300
 const CLOSE_DURATION = 240
+/** Tolerance (px) for treating the sheet as "already at its tallest snap". */
+const SNAP_EPSILON = 1
 
 /**
  * Bottom-sheet modal built on React Native's core `Modal` + `Animated` rather
@@ -65,10 +69,13 @@ const CLOSE_DURATION = 240
  * The sheet animates its real `height` between snap points, so its content area
  * is bounded to the visible height — a `ScrollView` child scrolls and its footer
  * is always reachable — and it slides in/out via `translateY`. Drag the
- * handle/header up to expand to a larger snap, down to collapse, or past the
- * smallest snap to dismiss (honouring the dirty guard). `height` is JS-driven (a
- * layout prop); `translateY`/backdrop opacity are native-driven. Public props
- * mirror the previous wrapper so callers are unchanged.
+ * handle/header up to expand, down to collapse, or past the smallest snap to
+ * dismiss (honouring the dirty guard). Dragging the body upward also expands the
+ * sheet while it can still grow, then hands vertical drags back to the inner
+ * scroll once the tallest snap is reached — a real-drawer feel without stealing
+ * scroll. `height` is JS-driven (a layout prop); `translateY`/backdrop opacity
+ * are native-driven. Public props mirror the previous wrapper so callers are
+ * unchanged.
  */
 export function BottomSheetModal({
   open,
@@ -229,50 +236,65 @@ export function BottomSheetModal({
     [backdropOpacity, prefersReducedMotion, sheetHeight, translateY],
   )
 
-  const panResponder = useMemo(
-    () =>
-      PanResponder.create({
-        onMoveShouldSetPanResponder: (_event, gesture) =>
-          Math.abs(gesture.dy) > DRAG_ACTIVATION_DISTANCE &&
-          Math.abs(gesture.dy) > Math.abs(gesture.dx),
-        onPanResponderGrant: () => {
-          sheetHeight.stopAnimation((value: number) => {
-            dragBaseHeightRef.current = value
-          })
-          translateY.stopAnimation()
-          backdropOpacity.stopAnimation()
-        },
-        onPanResponderMove: (_event, gesture) => {
-          const extent = dragBaseHeightRef.current - gesture.dy
-          if (extent >= minSnap) {
-            // Resize between snaps; rubber-band when pulled past the tallest.
-            sheetHeight.setValue(clampExpand(extent, maxSnap))
-            translateY.setValue(0)
-            backdropOpacity.setValue(1)
-          } else {
-            // Below the smallest snap: hold height, slide down toward dismissal.
-            const slide = minSnap - extent
-            sheetHeight.setValue(minSnap)
-            translateY.setValue(slide)
-            backdropOpacity.setValue(backdropOpacityForSlide(slide, minSnap))
-          }
-        },
-        onPanResponderRelease: (_event, gesture) => {
-          const extent = dragBaseHeightRef.current - gesture.dy
-          const draggedPastMin = minSnap - extent
-          if (draggedPastMin > DISMISS_DISTANCE || gesture.vy > DISMISS_VELOCITY) {
-            // Spring back to the opening snap; if the dirty-guard blocks the
-            // dismiss this stands, otherwise the close effect slides it out.
-            settleToHeight(minSnap)
-            requestClose('navigation')
-            return
-          }
-          const targetHeight = nearestSnapHeight(snaps, Math.max(extent, minSnap), gesture.vy)
-          settleToHeight(targetHeight)
-        },
+  // Two responders share the same drag math: the header/handle controls the sheet
+  // outright, while the body claims only an upward drag that can still grow the
+  // sheet — so the inner ScrollView keeps its downward scroll and its at-max
+  // upward scroll, and the user can drag the body up to expand like a real drawer.
+  const { headerPanResponder, contentPanResponder } = useMemo(() => {
+    const onGrant = () => {
+      sheetHeight.stopAnimation((value: number) => {
+        dragBaseHeightRef.current = value
+      })
+      translateY.stopAnimation()
+      backdropOpacity.stopAnimation()
+    }
+    const onMove = (_event: GestureResponderEvent, gesture: PanResponderGestureState) => {
+      const extent = dragBaseHeightRef.current - gesture.dy
+      if (extent >= minSnap) {
+        // Resize between snaps; rubber-band when pulled past the tallest.
+        sheetHeight.setValue(clampExpand(extent, maxSnap))
+        translateY.setValue(0)
+        backdropOpacity.setValue(1)
+      } else {
+        // Below the smallest snap: hold height, slide down toward dismissal.
+        const slide = minSnap - extent
+        sheetHeight.setValue(minSnap)
+        translateY.setValue(slide)
+        backdropOpacity.setValue(backdropOpacityForSlide(slide, minSnap))
+      }
+    }
+    const onRelease = (_event: GestureResponderEvent, gesture: PanResponderGestureState) => {
+      const extent = dragBaseHeightRef.current - gesture.dy
+      const draggedPastMin = minSnap - extent
+      if (draggedPastMin > DISMISS_DISTANCE || gesture.vy > DISMISS_VELOCITY) {
+        // Spring back to the opening snap; if the dirty-guard blocks the
+        // dismiss this stands, otherwise the close effect slides it out.
+        settleToHeight(minSnap)
+        requestClose('navigation')
+        return
+      }
+      settleToHeight(nearestSnapHeight(snaps, Math.max(extent, minSnap), gesture.vy))
+    }
+    return {
+      headerPanResponder: PanResponder.create({
+        onMoveShouldSetPanResponder: (_event, gesture) => isVerticalDrag(gesture),
+        onPanResponderGrant: onGrant,
+        onPanResponderMove: onMove,
+        onPanResponderRelease: onRelease,
+        onPanResponderTerminationRequest: () => false,
       }),
-    [backdropOpacity, maxSnap, minSnap, requestClose, settleToHeight, snaps, sheetHeight, translateY],
-  )
+      contentPanResponder: PanResponder.create({
+        onMoveShouldSetPanResponder: (_event, gesture) =>
+          isVerticalDrag(gesture) &&
+          gesture.dy < 0 &&
+          restingHeightRef.current < maxSnap - SNAP_EPSILON,
+        onPanResponderGrant: onGrant,
+        onPanResponderMove: onMove,
+        onPanResponderRelease: onRelease,
+        onPanResponderTerminationRequest: () => false,
+      }),
+    }
+  }, [backdropOpacity, maxSnap, minSnap, requestClose, settleToHeight, snaps, sheetHeight, translateY])
 
   if (!visible) return null
 
@@ -314,7 +336,7 @@ export function BottomSheetModal({
               },
             ]}
           >
-            <View {...panResponder.panHandlers}>
+            <View {...headerPanResponder.panHandlers}>
               <View
                 style={styles.handle}
                 accessibilityRole="adjustable"
@@ -335,7 +357,9 @@ export function BottomSheetModal({
               ) : null}
             </View>
 
-            <View style={styles.content}>{children}</View>
+            <View style={styles.content} {...contentPanResponder.panHandlers}>
+              {children}
+            </View>
           </Animated.View>
         </KeyboardAvoidingView>
       </View>
@@ -350,6 +374,13 @@ function parseSnapKey(snapKey: string): (string | number)[] {
       ? asNumber
       : entry
   })
+}
+
+function isVerticalDrag(gesture: PanResponderGestureState): boolean {
+  return (
+    Math.abs(gesture.dy) > DRAG_ACTIVATION_DISTANCE &&
+    Math.abs(gesture.dy) > Math.abs(gesture.dx)
+  )
 }
 
 function clampExpand(height: number, maxSnap: number): number {
