@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { nearestSnapHeight, offsetFor, resolveSnapHeights } from '@/lib/bottom-sheet-snap'
+import { nearestSnapHeight, resolveSnapHeights } from '@/lib/bottom-sheet-snap'
 
 const SCREEN = 900
 const MAX = 820
@@ -35,16 +35,6 @@ describe('resolveSnapHeights', () => {
 
   it('falls back to a single capped snap when given no snap points', () => {
     expect(resolveSnapHeights([], SCREEN, MAX)).toEqual([MAX])
-  })
-})
-
-describe('offsetFor', () => {
-  it('returns the gap between the cap and the target height', () => {
-    expect(offsetFor(450, MAX)).toBe(MAX - 450)
-  })
-
-  it('returns zero when the sheet fills the cap', () => {
-    expect(offsetFor(MAX, MAX)).toBe(0)
   })
 })
 

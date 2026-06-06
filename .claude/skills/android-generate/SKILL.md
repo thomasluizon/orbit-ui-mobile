@@ -9,4 +9,4 @@ Runs the project's existing Android APK release command.
 
 ## Steps
 
-1. Run `npm run android:apk` from the project root.
+1. From the repo root, run `npm run android:apk -w @orbit/mobile`. The `android:apk` script is defined in the `apps/mobile` workspace (`node scripts/android-release-apk.js`), not at the root, so it must be targeted with `-w @orbit/mobile`.
