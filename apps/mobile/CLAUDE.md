@@ -7,6 +7,7 @@ Mobile client (Android only — no iOS app exists). Direct calls to `orbit-api` 
 - **Named exports only.** `kebab-case` filenames, `PascalCase` components.
 - **Zero `any`** — root `CLAUDE.md` Code Standards rule 3.
 - **No `console.log`** in production code — rule 4.
+- **No narration comments** — lint-enforced (`local/no-comments`, error); root rule 5. Only `/** */` JSDoc on exports + URL-linked WHY notes; tooling directives OK.
 - **All user-facing strings through i18n** (react-i18next). Read locale via `i18n.language`, not `useDeviceLocale`. Never hardcode display text.
 - **All mutations through `apiClient`** (`lib/api-client.ts`). Never call `fetch` directly.
 - **Imports:** types from `@orbit/shared/types`, query keys from `@orbit/shared/query`, endpoints from `@orbit/shared/api`.

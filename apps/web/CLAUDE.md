@@ -8,6 +8,7 @@ Web client. Server Components by default. Auth via httpOnly cookies + BFF proxy.
 - **Server Components by default.** `"use client"` only when you need hooks, events, browser APIs, or context. If you can render on the server, do.
 - **Zero `any`** — root `CLAUDE.md` Code Standards rule 3.
 - **No `console.log`** in production code — rule 4.
+- **No narration comments** — lint-enforced (`local/no-comments`, error); root rule 5. Only `/** */` JSDoc on exports + URL-linked WHY notes; tooling directives OK.
 - **All user-facing strings through i18n** (next-intl). Never hardcode display text.
 - **All mutations through Server Actions** in `app/actions/*.ts`. Never call the API from a client component.
 - **Imports:** types from `@orbit/shared/types`, query keys from `@orbit/shared/query`, endpoints from `@orbit/shared/api`.
