@@ -1,12 +1,10 @@
 'use client'
 
-import { useMemo } from 'react'
 import { createPortal } from 'react-dom'
-import { marked } from 'marked'
-import DOMPurify from 'dompurify'
 import { ArrowLeft } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useIsClient } from '@/hooks/use-is-client'
+import { Markdown } from '@/components/ui/markdown'
 
 interface DescriptionViewerProps {
   open: boolean
@@ -23,15 +21,6 @@ export function DescriptionViewer({
 }: Readonly<DescriptionViewerProps>) {
   const t = useTranslations()
   const mounted = useIsClient()
-
-  const renderedHtml = useMemo(() => {
-    if (!open || !description) return ''
-    const raw = marked.parse(description, { async: false }) as string // NOSONAR - marked.parse with async:false returns string but typed as string | Promise<string>
-    return DOMPurify.sanitize(raw, {
-      ALLOWED_TAGS: ['p', 'br', 'strong', 'em', 'ul', 'ol', 'li', 'code', 'pre', 'blockquote', 'h1', 'h2', 'h3', 'a'],
-      ALLOWED_ATTR: ['href', 'target', 'rel'],
-    })
-  }, [open, description])
 
   if (!mounted || !open) return null
 
@@ -51,10 +40,7 @@ export function DescriptionViewer({
 
       {/* Markdown content */}
       <div className="flex-1 overflow-y-auto px-6 py-6">
-        <div
-          className="prose-orbit"
-          dangerouslySetInnerHTML={{ __html: renderedHtml }}
-        />
+        <Markdown content={description} />
       </div>
     </div>,
     document.body,

@@ -11,7 +11,7 @@ import {
   getChatImageValidationError,
   resolveChatImageMimeType,
 } from "@orbit/shared/chat";
-import { goalKeys, habitKeys, profileKeys } from "@orbit/shared/query";
+import { goalKeys, habitKeys, profileKeys, tagKeys } from "@orbit/shared/query";
 import type {
   AgentExecuteOperationResponse,
   AgentStepUpChallenge,
@@ -336,6 +336,7 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
           pendingOperations: response.pendingOperations,
           policyDenials: response.policyDenials,
           correlationId: response.correlationId,
+          relatedSurfaces: response.relatedSurfaces,
           timestamp: new Date(),
         };
 
@@ -369,6 +370,9 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
         }
         if (invalidations.goals) {
           queryClient.invalidateQueries({ queryKey: goalKeys.lists() });
+        }
+        if (invalidations.tags) {
+          queryClient.invalidateQueries({ queryKey: tagKeys.lists() });
         }
 
         if (response.operations?.some((operation) => operation.status === "Succeeded")) {

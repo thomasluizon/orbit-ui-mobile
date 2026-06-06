@@ -35,7 +35,6 @@ export function useSummary({ date, locale, hasProAccess, aiSummaryEnabled }: Use
       const params = new URLSearchParams({
         dateFrom: date,
         dateTo: date,
-        includeOverdue: 'true',
         language: locale,
       })
 

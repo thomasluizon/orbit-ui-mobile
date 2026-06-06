@@ -785,6 +785,20 @@ describe('chat schemas', () => {
       })
       expect(result.success).toBe(true)
     })
+
+    it('accepts action types beyond the canonical enum', () => {
+      const result = actionResultSchema.safeParse({
+        type: 'ReorderHabits',
+        status: 'Success',
+        entityId: null,
+        entityName: null,
+        error: null,
+        field: null,
+        suggestedSubHabits: null,
+        conflictWarning: null,
+      })
+      expect(result.success).toBe(true)
+    })
   })
 
   describe('chatMessageSchema', () => {
@@ -861,6 +875,17 @@ describe('chat schemas', () => {
       })
       expect(result.success).toBe(false)
     })
+
+    it('parses an ai message with relatedSurfaces', () => {
+      const result = chatMessageSchema.safeParse({
+        id: 'msg-6',
+        role: 'ai',
+        content: 'Streaks work like this.',
+        relatedSurfaces: ['gamification', 'today'],
+        timestamp: new Date(),
+      })
+      expect(result.success).toBe(true)
+    })
   })
 
   describe('chatResponseSchema', () => {
@@ -919,6 +944,15 @@ describe('chat schemas', () => {
         correlationId: 123,
       })
       expect(result.success).toBe(false)
+    })
+
+    it('parses a response with relatedSurfaces', () => {
+      const result = chatResponseSchema.safeParse({
+        aiMessage: 'Streaks work like this.',
+        actions: [],
+        relatedSurfaces: ['gamification', 'today'],
+      })
+      expect(result.success).toBe(true)
     })
   })
 })
