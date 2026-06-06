@@ -78,18 +78,21 @@ function entryDotState(entry: CalendarDayEntry): StatusDotState {
   return "empty";
 }
 
-function statusLabel(
+// Visible outcome badge for a day-detail row. Only resolved states carry a badge;
+// an upcoming (not-yet-resolved) habit shows none — its status dot already conveys
+// the state — so the list stays quiet instead of repeating a label on every row.
+function statusBadge(
   entry: CalendarDayEntry,
   t: (key: string) => string,
-): string {
+): string | null {
   if (entry.isBadHabit) {
     if (entry.status === "completed") return t("calendar.status.indulged").toUpperCase();
     if (entry.status === "missed") return t("calendar.status.resisted").toUpperCase();
-    return t("calendar.status.scheduled").toUpperCase();
+    return null;
   }
   if (entry.status === "completed") return t("calendar.status.completed").toUpperCase();
   if (entry.status === "missed") return t("calendar.status.missed").toUpperCase();
-  return t("calendar.status.upcoming").toUpperCase();
+  return null;
 }
 
 export default function CalendarScreen() {
@@ -416,17 +419,21 @@ export default function CalendarScreen() {
               </View>
             ) : null}
 
-            {filteredEntries.map((entry: CalendarDayEntry, idx: number) => (
-              <CalendarDayEntryRow
-                key={`${entry.habitId}-${idx}`}
-                entry={entry}
-                tokens={tokens}
-                dotState={entryDotState(entry)}
-                statusText={statusLabel(entry, t)}
-                displayTime={displayTime}
-                isLast={idx === filteredEntries.length - 1}
-              />
-            ))}
+            {filteredEntries.map((entry: CalendarDayEntry, idx: number) => {
+              const badge = statusBadge(entry, t);
+              return (
+                <CalendarDayEntryRow
+                  key={`${entry.habitId}-${idx}`}
+                  entry={entry}
+                  tokens={tokens}
+                  dotState={entryDotState(entry)}
+                  statusText={badge}
+                  statusAccessibilityLabel={badge ?? t("calendar.status.upcoming")}
+                  displayTime={displayTime}
+                  isLast={idx === filteredEntries.length - 1}
+                />
+              );
+            })}
 
             <Pressable
               onPress={() => {

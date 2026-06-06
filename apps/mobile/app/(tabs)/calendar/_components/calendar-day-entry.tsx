@@ -11,7 +11,10 @@ interface CalendarDayEntryRowProps {
   entry: CalendarDayEntry;
   tokens: ReturnType<typeof createTokensV2>;
   dotState: StatusDotState;
-  statusText: string;
+  /** Visible outcome badge; null for upcoming habits (no badge shown). */
+  statusText: string | null;
+  /** Always-present label for the status dot's screen-reader announcement. */
+  statusAccessibilityLabel: string;
   displayTime: (time: string) => string;
   isLast: boolean;
 }
@@ -71,6 +74,7 @@ export function CalendarDayEntryRow({
   tokens,
   dotState,
   statusText,
+  statusAccessibilityLabel,
   displayTime,
   isLast,
 }: CalendarDayEntryRowProps) {
@@ -82,7 +86,7 @@ export function CalendarDayEntryRow({
         <StatusDot
           state={dotState}
           size={9}
-          accessibilityLabel={statusText}
+          accessibilityLabel={statusAccessibilityLabel}
         />
         <View style={styles.content}>
           <View style={styles.titleRow}>
@@ -100,7 +104,9 @@ export function CalendarDayEntryRow({
             ) : null}
           </View>
         </View>
-        <Text style={styles.statusText}>{statusText}</Text>
+        {statusText ? (
+          <Text style={styles.statusText}>{statusText}</Text>
+        ) : null}
       </View>
       {!isLast ? (
         <View testID="calendar-day-entry-divider" style={styles.divider} />

@@ -18,15 +18,14 @@ interface CalendarDayDetailProps {
   entries: CalendarDayEntry[]
 }
 
+// Tint for the outcome badge. Only resolved states are rendered, so there is no upcoming
+// case: for bad habits "indulged" (completed) reads as a setback, "resisted" (missed) as a win.
 function statusBadgeClass(entry: CalendarDayEntry): string {
+  const border = 'border border-[var(--hairline)]'
   if (entry.isBadHabit) {
-    if (entry.status === 'completed') return 'text-[var(--status-bad)] border border-[var(--hairline)]'
-    if (entry.status === 'missed') return 'text-[var(--status-done)] border border-[var(--hairline)]'
-    return 'text-[var(--fg-2)] border border-[var(--hairline)]'
+    return `${entry.status === 'completed' ? 'text-[var(--status-bad)]' : 'text-[var(--status-done)]'} ${border}`
   }
-  if (entry.status === 'completed') return 'text-[var(--status-done)] border border-[var(--hairline)]'
-  if (entry.status === 'missed') return 'text-[var(--status-overdue)] border border-[var(--hairline)]'
-  return 'text-[var(--fg-2)] border border-[var(--hairline)]'
+  return `${entry.status === 'completed' ? 'text-[var(--status-done)]' : 'text-[var(--status-overdue)]'} ${border}`
 }
 
 function statusIconBg(entry: CalendarDayEntry): string {
@@ -58,15 +57,16 @@ export function CalendarDayDetail({
 
   const completedCount = filteredEntries.filter((e) => e.status === 'completed').length
 
-  const statusLabel = useCallback((entry: CalendarDayEntry): string => {
+  // Only resolved states carry a visible badge; an upcoming habit shows none.
+  const statusLabel = useCallback((entry: CalendarDayEntry): string | null => {
     if (entry.isBadHabit) {
       if (entry.status === 'completed') return t('calendar.status.indulged')
       if (entry.status === 'missed') return t('calendar.status.resisted')
-      return t('calendar.status.scheduled')
+      return null
     }
     if (entry.status === 'completed') return t('calendar.status.completed')
     if (entry.status === 'missed') return t('calendar.status.missed')
-    return t('calendar.status.upcoming')
+    return null
   }, [t])
 
   return (
@@ -115,41 +115,46 @@ export function CalendarDayDetail({
             </div>
           )}
 
-          {filteredEntries.map((entry, i) => (
-            <div key={entry.habitId}>
-              <div className="flex items-center gap-3 py-3">
-                <div
-                  className={`shrink-0 size-6 rounded-full border flex items-center justify-center ${statusIconBg(entry)}`}
-                >
-                  {entry.status === 'completed' && (
-                    <Check className="size-3 text-[var(--status-done)]" />
-                  )}
-                </div>
-
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-baseline gap-2">
-                    <span
-                      className={`text-sm font-medium text-[var(--fg-1)] truncate ${entry.status === 'completed' ? 'opacity-60' : ''}`}
-                    >
-                      {entry.title}
-                    </span>
-                    {entry.dueTime && (
-                      <span className="shrink-0 text-[11px] font-semibold text-[var(--fg-2)]">
-                        {displayTime(entry.dueTime)}
-                      </span>
+          {filteredEntries.map((entry, i) => {
+            const label = statusLabel(entry)
+            return (
+              <div key={entry.habitId}>
+                <div className="flex items-center gap-3 py-3">
+                  <div
+                    className={`shrink-0 size-6 rounded-full border flex items-center justify-center ${statusIconBg(entry)}`}
+                  >
+                    {entry.status === 'completed' && (
+                      <Check className="size-3 text-[var(--status-done)]" />
                     )}
                   </div>
-                </div>
 
-                <span
-                  className={`shrink-0 px-2 py-0.5 rounded-lg text-[10px] font-bold uppercase tracking-wider ${statusBadgeClass(entry)}`}
-                >
-                  {statusLabel(entry)}
-                </span>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-baseline gap-2">
+                      <span
+                        className={`text-sm font-medium text-[var(--fg-1)] truncate ${entry.status === 'completed' ? 'opacity-60' : ''}`}
+                      >
+                        {entry.title}
+                      </span>
+                      {entry.dueTime && (
+                        <span className="shrink-0 text-[11px] font-semibold text-[var(--fg-2)]">
+                          {displayTime(entry.dueTime)}
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {label && (
+                    <span
+                      className={`shrink-0 px-2 py-0.5 rounded-lg text-[10px] font-bold uppercase tracking-wider ${statusBadgeClass(entry)}`}
+                    >
+                      {label}
+                    </span>
+                  )}
+                </div>
+                {i < filteredEntries.length - 1 && <div className="h-px bg-[var(--hairline)]" />}
               </div>
-              {i < filteredEntries.length - 1 && <div className="h-px bg-[var(--hairline)]" />}
-            </div>
-          ))}
+            )
+          })}
         </div>
       )}
     </AppOverlay>

@@ -130,16 +130,19 @@ describe('CalendarDayDetail', () => {
     expect(document.body.textContent).toContain('calendar.status.missed')
   })
 
-  it('shows upcoming status badge', () => {
+  it('shows no status badge for upcoming habits', () => {
     render(
       <CalendarDayDetail
         open={true}
         onOpenChange={vi.fn()}
         dateStr="2025-06-15"
-        entries={[makeEntry({ status: 'upcoming' })]}
+        entries={[makeEntry({ title: 'Read', status: 'upcoming' })]}
       />,
     )
-    expect(document.body.textContent).toContain('calendar.status.upcoming')
+    // The row still appears, but an unresolved habit carries no outcome badge.
+    expect(screen.getByText('Read')).toBeInTheDocument()
+    expect(document.body.textContent).not.toContain('calendar.status.upcoming')
+    expect(document.body.textContent).not.toContain('calendar.status.scheduled')
   })
 
   it('shows bad habit labels (indulged/resisted)', () => {
