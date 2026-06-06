@@ -6,6 +6,7 @@ import {
   Easing,
   KeyboardAvoidingView,
   Modal,
+  PanResponder,
   Platform,
   Pressable,
   StyleSheet,
@@ -22,7 +23,8 @@ import {
   syncBottomSheetOverlayRegistration,
   teardownBottomSheetOverlay,
 } from '@/lib/bottom-sheet-overlay-controller'
-import { usePrefersReducedMotion } from '@/lib/motion'
+import { nearestSnapHeight, offsetFor, resolveSnapHeights } from '@/lib/bottom-sheet-snap'
+import { getSpringConfig, usePrefersReducedMotion } from '@/lib/motion'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { isTopOverlay, registerOverlay, unregisterOverlay } from '@/lib/overlay-stack'
 
@@ -44,6 +46,13 @@ interface BottomSheetModalProps {
 
 const DEFAULT_SNAP_POINTS: (string | number)[] = ['50%', '80%']
 const SCREEN_HEIGHT = Dimensions.get('window').height
+/** Backdrop strip kept above the sheet so the status bar is never covered. */
+const TOP_GAP = 20
+const DRAG_ACTIVATION_DISTANCE = 6
+const DISMISS_DISTANCE = 80
+const DISMISS_VELOCITY = 0.6
+const RUBBER_BAND_FACTOR = 0.4
+const MIN_DRAG_BACKDROP_OPACITY = 0.2
 
 /**
  * Bottom-sheet modal built on React Native's core `Modal` + `Animated` rather
@@ -74,8 +83,16 @@ export function BottomSheetModal({
   const insets = useSafeAreaInsets()
   const prefersReducedMotion = usePrefersReducedMotion()
 
-  const snapPoints = snapPointsProp ?? DEFAULT_SNAP_POINTS
-  const sheetHeight = useMemo(() => resolveSheetHeight(snapPoints), [snapPoints])
+  const maxHeight = Math.max(SCREEN_HEIGHT - insets.top - TOP_GAP, 0)
+  // Consumers pass inline arrays; key on the values so the snaps (and the
+  // PanResponder that depends on them) stay referentially stable across renders.
+  const snapKey = (snapPointsProp ?? DEFAULT_SNAP_POINTS).join(',')
+  const snaps = useMemo(
+    () => resolveSnapHeights(parseSnapKey(snapKey), SCREEN_HEIGHT, maxHeight),
+    [snapKey, maxHeight],
+  )
+  const openOffset = offsetFor(snaps[0], maxHeight)
+  const expandedOffset = offsetFor(Math.max(...snaps), maxHeight)
 
   const overlayStateRef = useRef(createBottomSheetOverlayState())
   // Lazy useState keeps Date.now() / Math.random() out of render (purity rule).
@@ -90,6 +107,8 @@ export function BottomSheetModal({
 
   const translateY = useRef(new Animated.Value(SCREEN_HEIGHT)).current
   const backdropOpacity = useRef(new Animated.Value(0)).current
+  // Captured on gesture grant; read only inside handlers, never during render.
+  const dragBaseOffsetRef = useRef(openOffset)
 
   const requestClose = useCallback(
     (reason: DismissReason) =>
@@ -113,7 +132,7 @@ export function BottomSheetModal({
       const duration = prefersReducedMotion ? 0 : 300
       Animated.parallel([
         Animated.timing(translateY, {
-          toValue: 0,
+          toValue: openOffset,
           duration,
           easing: Easing.out(Easing.cubic),
           useNativeDriver: true,
@@ -147,7 +166,7 @@ export function BottomSheetModal({
         }
       })
     }
-  }, [open, contentKey, prefersReducedMotion, translateY, backdropOpacity])
+  }, [open, contentKey, prefersReducedMotion, openOffset, translateY, backdropOpacity])
 
   useEffect(() => {
     syncBottomSheetOverlayRegistration(overlayStateRef.current, {
@@ -179,6 +198,68 @@ export function BottomSheetModal({
 
     return () => subscription.remove()
   }, [isPresented, requestClose])
+
+  const settleToOffset = useCallback(
+    (offset: number) => {
+      backdropOpacity.setValue(1)
+      if (prefersReducedMotion) {
+        translateY.setValue(offset)
+        return
+      }
+      Animated.spring(translateY, {
+        toValue: offset,
+        useNativeDriver: true,
+        ...getSpringConfig('sheet', prefersReducedMotion),
+      }).start()
+    },
+    [backdropOpacity, prefersReducedMotion, translateY],
+  )
+
+  const panResponder = useMemo(
+    () =>
+      PanResponder.create({
+        onMoveShouldSetPanResponder: (_event, gesture) =>
+          Math.abs(gesture.dy) > DRAG_ACTIVATION_DISTANCE &&
+          Math.abs(gesture.dy) > Math.abs(gesture.dx),
+        onPanResponderGrant: () => {
+          translateY.stopAnimation((value: number) => {
+            dragBaseOffsetRef.current = value
+          })
+        },
+        onPanResponderMove: (_event, gesture) => {
+          const nextOffset = clampDragOffset(
+            dragBaseOffsetRef.current + gesture.dy,
+            expandedOffset,
+          )
+          translateY.setValue(nextOffset)
+          backdropOpacity.setValue(backdropOpacityForOffset(nextOffset, openOffset, snaps[0]))
+        },
+        onPanResponderRelease: (_event, gesture) => {
+          const releasedOffset = dragBaseOffsetRef.current + gesture.dy
+          const draggedPastOpen = releasedOffset - openOffset
+          if (draggedPastOpen > DISMISS_DISTANCE || gesture.vy > DISMISS_VELOCITY) {
+            // Spring back to the opening snap; if the dirty-guard blocks the
+            // dismiss this stands, otherwise the close effect takes over.
+            settleToOffset(openOffset)
+            requestClose('navigation')
+            return
+          }
+          const releasedHeight = maxHeight - releasedOffset
+          const targetHeight = nearestSnapHeight(snaps, releasedHeight, gesture.vy)
+          settleToOffset(offsetFor(targetHeight, maxHeight))
+        },
+      }),
+    [
+      backdropOpacity,
+      expandedOffset,
+      maxHeight,
+      openOffset,
+      requestClose,
+      settleToOffset,
+      snaps,
+      translateY,
+    ],
+  )
 
   if (!visible) return null
 
@@ -214,26 +295,32 @@ export function BottomSheetModal({
             style={[
               styles.sheet,
               {
-                height: sheetHeight + insets.bottom,
+                height: maxHeight,
                 paddingBottom: insets.bottom,
                 transform: [{ translateY }],
               },
             ]}
           >
-            <View style={styles.handle} />
+            <View {...panResponder.panHandlers}>
+              <View
+                style={styles.handle}
+                accessibilityRole="adjustable"
+                accessibilityLabel={title}
+              />
 
-            {title ? (
-              <View style={styles.header}>
-                <Text style={styles.title}>{title}</Text>
-                <TouchableOpacity
-                  style={styles.closeButton}
-                  onPress={() => requestClose('close-button')}
-                  activeOpacity={0.7}
-                >
-                  <X size={18} color={tokens.fg3} />
-                </TouchableOpacity>
-              </View>
-            ) : null}
+              {title ? (
+                <View style={styles.header}>
+                  <Text style={styles.title}>{title}</Text>
+                  <TouchableOpacity
+                    style={styles.closeButton}
+                    onPress={() => requestClose('close-button')}
+                    activeOpacity={0.7}
+                  >
+                    <X size={18} color={tokens.fg3} />
+                  </TouchableOpacity>
+                </View>
+              ) : null}
+            </View>
 
             <View style={styles.content}>{children}</View>
           </Animated.View>
@@ -243,12 +330,29 @@ export function BottomSheetModal({
   )
 }
 
-function resolveSheetHeight(snapPoints: (string | number)[]): number {
-  const largest = snapPoints[snapPoints.length - 1] ?? '85%'
-  if (typeof largest === 'number') return largest
-  const percent = Number.parseFloat(largest)
-  const ratio = Number.isFinite(percent) ? percent / 100 : 0.85
-  return SCREEN_HEIGHT * ratio
+function parseSnapKey(snapKey: string): (string | number)[] {
+  return snapKey.split(',').map((entry) => {
+    const asNumber = Number(entry)
+    return entry.length > 0 && !entry.includes('%') && Number.isFinite(asNumber)
+      ? asNumber
+      : entry
+  })
+}
+
+function clampDragOffset(offset: number, expandedOffset: number): number {
+  if (offset >= expandedOffset) return offset
+  // Rubber-band when dragging past the tallest snap so it resists, not jumps.
+  return expandedOffset - (expandedOffset - offset) * RUBBER_BAND_FACTOR
+}
+
+function backdropOpacityForOffset(
+  offset: number,
+  openOffset: number,
+  openHeight: number,
+): number {
+  if (offset <= openOffset || openHeight <= 0) return 1
+  const faded = 1 - (offset - openOffset) / openHeight
+  return Math.max(MIN_DRAG_BACKDROP_OPACITY, faded)
 }
 
 function createStyles(tokens: AppTokens, surfaces: ReturnType<typeof useAppTheme>['surfaces']) {
