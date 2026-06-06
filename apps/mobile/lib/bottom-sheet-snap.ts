@@ -47,7 +47,7 @@ export function offsetFor(height: number, maxHeight: number): number {
  * non-empty (as returned by `resolveSnapHeights`).
  */
 export function nearestSnapHeight(
-  snaps: number[],
+  snaps: readonly [number, ...number[]],
   currentHeight: number,
   velocity: number,
   velocityBias = 0.5,
@@ -60,7 +60,9 @@ export function nearestSnapHeight(
     const taller = snaps.find((snap) => snap > currentHeight)
     if (taller !== undefined) return taller
   }
-  return snaps.reduce((closest, snap) =>
-    Math.abs(snap - currentHeight) < Math.abs(closest - currentHeight) ? snap : closest,
+  return snaps.reduce(
+    (closest, snap) =>
+      Math.abs(snap - currentHeight) < Math.abs(closest - currentHeight) ? snap : closest,
+    snaps[0],
   )
 }

@@ -49,7 +49,7 @@ describe('offsetFor', () => {
 })
 
 describe('nearestSnapHeight', () => {
-  const snaps = [400, 600, 800]
+  const snaps: readonly [number, ...number[]] = [400, 600, 800]
 
   it('snaps to the closest height on a slow release', () => {
     expect(nearestSnapHeight(snaps, 560, 0)).toBe(600)
