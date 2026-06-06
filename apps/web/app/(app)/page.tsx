@@ -69,7 +69,7 @@ export default function TodayPage() {
   } as const
 
   const showGeneralOnToday = useMemo(() => {
-    if (typeof globalThis === 'undefined' || typeof globalThis.localStorage === 'undefined') return false // NOSONAR - SSR guard
+    if (typeof globalThis === 'undefined' || typeof globalThis.localStorage === 'undefined') return false
     return parseShowGeneralOnTodayPreference(localStorage.getItem('orbit_show_general_on_today'))
   }, [])
 
@@ -107,8 +107,6 @@ export default function TodayPage() {
   const controlsMenuRef = useRef<HTMLDivElement>(null)
   const controlsMenuPanelRef = useRef<HTMLDivElement>(null)
   const habitListRef = useRef<HabitListHandle>(null)
-  // Mirrored from HabitList via onAllCollapsedChange so we can read it during
-  // render (refs cannot be read during render under react-hooks/refs).
   const [habitListAllCollapsed, setHabitListAllCollapsed] = useState(false)
 
   const CONTROLS_MENU_WIDTH_PX = 220
@@ -265,9 +263,6 @@ export default function TodayPage() {
     }
   }, [localSearchQuery, setSearchQuery])
 
-  // Mirror the store search query into local input state when it changes
-  // externally (e.g., cleared from another component). "Adjusting state when
-  // a prop changes" pattern.
   const [previousStoreSearch, setPreviousStoreSearch] = useState(searchQueryStore)
   if (searchQueryStore !== previousStoreSearch) {
     setPreviousStoreSearch(searchQueryStore)

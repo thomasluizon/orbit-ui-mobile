@@ -1,7 +1,7 @@
 import { create } from 'zustand'
 import type { User, LoginResponse } from '@orbit/shared/types/auth'
 
-const EXPIRY_CHECK_INTERVAL = 60 * 1000 // 60 seconds
+const EXPIRY_CHECK_INTERVAL = 60 * 1000
 
 interface AuthState {
   isAuthenticated: boolean
@@ -44,12 +44,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         set({ isAuthenticated: false, user: null, expiresAt: null })
       }
     } catch {
-      // Network error -- keep current state, will retry next interval
     }
   },
 
   startExpiryMonitor: () => {
-    // Initial check
     get().checkSession()
 
     const intervalId = setInterval(() => {
@@ -61,7 +59,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       void get().checkSession()
     }, EXPIRY_CHECK_INTERVAL)
 
-    // Return cleanup function
     return () => clearInterval(intervalId)
   },
 
@@ -69,13 +66,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     try {
       await fetch('/api/auth/logout', { method: 'POST' })
     } catch {
-      // Best-effort: proceed with client-side cleanup regardless
     }
 
     set({ isAuthenticated: false, user: null, expiresAt: null })
 
-    // Redirect to login (only in browser)
-    if (typeof globalThis !== 'undefined' && typeof globalThis.location !== 'undefined') { // NOSONAR - SSR guard
+    if (typeof globalThis !== 'undefined' && typeof globalThis.location !== 'undefined') {
       globalThis.location.href = '/login'
     }
   },

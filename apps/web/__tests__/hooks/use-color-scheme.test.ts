@@ -1,13 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
 
-// Mock profile action
 vi.mock('@/app/actions/profile', () => ({
   updateColorScheme: vi.fn().mockResolvedValue(undefined),
   updateThemePreference: vi.fn().mockResolvedValue(undefined),
 }))
 
-// Mock matchMedia for prefers-color-scheme detection
 Object.defineProperty(window, 'matchMedia', {
   writable: true,
   configurable: true,
@@ -23,7 +21,6 @@ Object.defineProperty(window, 'matchMedia', {
   })),
 })
 
-// Mock document.cookie
 let mockCookies: Record<string, string> = {}
 Object.defineProperty(document, 'cookie', {
   get: () =>
@@ -45,7 +42,6 @@ Object.defineProperty(document, 'cookie', {
   configurable: true,
 })
 
-// Mock DOM manipulation
 const mockSetProperty = vi.fn()
 const mockClassList = {
   add: vi.fn(),
@@ -61,7 +57,6 @@ Object.defineProperty(document, 'documentElement', {
   configurable: true,
 })
 
-// Mock meta tags
 vi.spyOn(document, 'querySelector').mockImplementation(() => null)
 
 import { useColorScheme } from '@/hooks/use-color-scheme'
@@ -99,7 +94,7 @@ describe('useColorScheme', () => {
   it('ignores invalid scheme from cookie', () => {
     mockCookies['orbit_color_scheme'] = 'invalid'
     const { result } = renderHook(() => useColorScheme())
-    expect(result.current.currentScheme).toBe('purple') // fallback
+    expect(result.current.currentScheme).toBe('purple')
   })
 
   it('applyScheme updates current scheme', () => {
@@ -188,7 +183,6 @@ describe('useColorScheme', () => {
       result.current.syncSchemeFromProfile('purple')
     })
 
-    // Still purple, no unnecessary updates
     expect(result.current.currentScheme).toBe('purple')
   })
 

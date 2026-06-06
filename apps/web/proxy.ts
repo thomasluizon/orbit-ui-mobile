@@ -75,7 +75,6 @@ async function applyRefreshedSession(
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
 
-  // Allow API routes and static assets to pass through
   if (
     pathname.startsWith('/api/') ||
     pathname.startsWith('/_next/') ||
@@ -90,18 +89,15 @@ export async function proxy(request: NextRequest) {
     ? await resolveProxySession(request)
     : { token: null, refreshedTokens: null, refreshCookieCleared: false }
 
-  // Unauthenticated user on protected route: redirect to /login with returnUrl
   if (!session.token && !isPublic) {
     const url = request.nextUrl.clone()
     url.pathname = '/login'
-    // Only set returnUrl for paths that start with / and not //
     if (pathname.startsWith('/') && !pathname.startsWith('//')) {
       url.searchParams.set('returnUrl', pathname)
     }
     return NextResponse.redirect(url)
   }
 
-  // Authenticated user on /login: redirect to /
   if (session.token && pathname === '/login') {
     const url = request.nextUrl.clone()
     url.pathname = '/'
@@ -122,12 +118,6 @@ export async function proxy(request: NextRequest) {
 
 export const config = {
   matcher: [
-    /*
-     * Match all paths except:
-     * - _next/static (static files)
-     * - _next/image (image optimization)
-     * - favicon.ico, icons, images
-     */
     '/((?!_next/static|_next/image|favicon.ico|app-ads\\.txt|.*\\.(?:svg|png|jpg|jpeg|gif|webp|ico)$).*)',
   ],
 }

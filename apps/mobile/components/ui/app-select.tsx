@@ -48,7 +48,7 @@ export function AppSelect({
 
   return (
     <>
-      {/* Trigger button */}
+      {}
       <TouchableOpacity
         style={styles.trigger}
         onPress={() => setIsOpen(true)}
@@ -68,7 +68,7 @@ export function AppSelect({
         <ChevronDown size={16} color={tokens.fg3} />
       </TouchableOpacity>
 
-      {/* Options modal */}
+      {}
       <Modal
         visible={isOpen}
         transparent

@@ -17,17 +17,14 @@ export function FreshStartAnimation({ onComplete }: Readonly<FreshStartAnimation
   const mounted = useIsClient()
 
   useEffect(() => {
-    // Trigger entrance on next frame
     requestAnimationFrame(() => {
       setIsVisible(true)
     })
 
-    // Start fade out at 2s
     const fadeTimer = setTimeout(() => {
       setIsFadingOut(true)
     }, 2000)
 
-    // Emit complete at 2.5s (after fade out finishes)
     const completeTimer = setTimeout(() => {
       onComplete()
     }, 2500)
@@ -45,21 +42,21 @@ export function FreshStartAnimation({ onComplete }: Readonly<FreshStartAnimation
       className={`fresh-start-overlay ${isVisible ? 'is-visible' : ''} ${isFadingOut ? 'is-fading-out' : ''}`}
       aria-live="assertive"
     >
-      {/* Backdrop */}
+      {}
       <div className="absolute inset-0 bg-[var(--bg)]" />
 
-      {/* Center content */}
+      {}
       <div className="relative z-10 flex flex-col items-center justify-center h-full px-8">
-        {/* Radiating rings */}
+        {}
         <div className="fresh-start-ring fresh-start-ring-1" />
         <div className="fresh-start-ring fresh-start-ring-2" />
 
-        {/* Center orb */}
+        {}
         <div className="fresh-start-orb">
           <RefreshCw className="size-8 text-[var(--fg-1)]" />
         </div>
 
-        {/* Text */}
+        {}
         <div className="fresh-start-text mt-10 text-center">
           <p className="text-[length:var(--text-fluid-xl)] font-bold text-[var(--fg-1)] tracking-tight">
             {t('profile.freshStart.successTitle')}

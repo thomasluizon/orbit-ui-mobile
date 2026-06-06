@@ -17,7 +17,6 @@ describe('UpdatePrompt', () => {
 
   it('renders eyebrow and description when shown', () => {
     render(<UpdatePrompt show={true} onUpdate={vi.fn()} onDismiss={vi.fn()} />)
-    // Without version props the title falls back to the eyebrow label.
     expect(screen.getAllByText('updatePrompt.eyebrow').length).toBeGreaterThan(0)
     expect(screen.getByText('updatePrompt.description')).toBeInTheDocument()
   })
@@ -41,7 +40,6 @@ describe('UpdatePrompt', () => {
     const { container } = render(
       <UpdatePrompt show={true} onUpdate={vi.fn()} onDismiss={onDismiss} />,
     )
-    // X button is the last button (close)
     const buttons = container.querySelectorAll('button')
     const closeBtn = buttons[buttons.length - 1]
     fireEvent.click(closeBtn!)

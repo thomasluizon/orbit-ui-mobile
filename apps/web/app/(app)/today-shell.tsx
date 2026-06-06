@@ -100,7 +100,6 @@ export function TodayTabs({
         : (idx - 1 + tabs.length) % tabs.length
     const nextView = tabs[nextIdx]?.view
     if (nextView && onChangeView(nextView) !== false) {
-      // Focus follows selection (a11y): move focus to the newly selected tab.
       requestAnimationFrame(() => {
         document.getElementById(`tab-${nextView}`)?.focus()
       })

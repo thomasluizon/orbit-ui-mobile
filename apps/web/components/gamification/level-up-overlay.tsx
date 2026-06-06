@@ -97,7 +97,7 @@ export function LevelUpOverlay({
         className="flex flex-col items-center"
         style={{ gap: 14 }}
       >
-        {/* Eyebrow */}
+        {}
         <div
           style={{
             fontFamily: 'var(--font-family-mono)',
@@ -111,7 +111,7 @@ export function LevelUpOverlay({
           {t('gamification.levelUp.title')}
         </div>
 
-        {/* Rotating orbit ellipse + level number */}
+        {}
         <div
           className="relative flex items-center justify-center"
           style={{ width: 130, height: 130 }}

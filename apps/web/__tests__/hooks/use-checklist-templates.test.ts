@@ -107,7 +107,6 @@ describe('useCreateChecklistTemplate', () => {
       try {
         await result.current.mutateAsync({ name: 'Workout', items: ['Warmup'] })
       } catch {
-        // expected
       }
     })
 
@@ -167,7 +166,6 @@ describe('useCreateChecklistTemplate', () => {
       try {
         await result.current.mutateAsync({ name: 'New', items: ['B'] })
       } catch {
-        // expected
       }
     })
 
@@ -201,7 +199,6 @@ describe('useDeleteChecklistTemplate', () => {
 
     await act(async () => {
       result.current.mutate('t1')
-      // Flush microtasks so onMutate (which awaits cancelQueries) completes
       await Promise.resolve()
       await Promise.resolve()
     })
@@ -210,7 +207,6 @@ describe('useDeleteChecklistTemplate', () => {
       client.getQueryData<ChecklistTemplate[]>(checklistTemplateKeys.lists()),
     ).toEqual([{ id: 't2', name: 'B', items: [] }])
 
-    // Release the mutation so the test cleanup completes
     if (resolveDelete) (resolveDelete as () => void)()
   })
 
@@ -235,13 +231,9 @@ describe('useDeleteChecklistTemplate', () => {
       try {
         await result.current.mutateAsync('t1')
       } catch {
-        // expected
       }
     })
 
-    // After settle the list invalidates and refetches, so we only assert the
-    // rollback put the original snapshot back before invalidation kicked in.
-    // Use getQueryData before any refetch resolves.
     const data = client.getQueryData<ChecklistTemplate[]>(
       checklistTemplateKeys.lists(),
     )

@@ -16,9 +16,6 @@ vi.mock('lucide-react', async (importOriginal) => {
 import AppError from '@/app/(app)/error'
 import AuthError from '@/app/(auth)/error'
 
-// ---------------------------------------------------------------------------
-// (app) error page
-// ---------------------------------------------------------------------------
 
 describe('AppError', () => {
   const mockReset = vi.fn()
@@ -65,9 +62,6 @@ describe('AppError', () => {
   })
 })
 
-// ---------------------------------------------------------------------------
-// (auth) error page
-// ---------------------------------------------------------------------------
 
 describe('AuthError', () => {
   const mockReset = vi.fn()

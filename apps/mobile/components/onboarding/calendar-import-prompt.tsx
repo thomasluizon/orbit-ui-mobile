@@ -53,7 +53,6 @@ export function CalendarImportPrompt() {
         dedupeKey: 'calendar-dismiss-prompt',
       })
     } catch {
-      // Dismissal is best-effort; keep the prompt hidden for this session.
     } finally {
       invalidate()
     }

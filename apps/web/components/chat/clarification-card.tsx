@@ -24,9 +24,6 @@ export function ClarificationCard({
   const [activeValue, setActiveValue] = useState<string | null>(null)
   const [resolved, setResolved] = useState(false)
   const [resolvedLabel, setResolvedLabel] = useState<string | null>(null)
-  // Error keys are statically-known i18n catalog entries, but typing as string keeps
-  // the setter calls clean (no `as IntlKey` cast at every assignment). The cast
-  // moves to the single render call where t() is invoked.
   const [errorKey, setErrorKey] = useState<string | null>(null)
 
   async function handleSelect(label: string, value: string) {
@@ -45,11 +42,6 @@ export function ClarificationCard({
         return
       }
 
-      // HTTP succeeded but the tool may still have been Denied/Failed/PendingConfirmation.
-      // Clarifications use the HabitsWrite capability (no step-up requirement), so
-      // PendingConfirmation isn't expected here — if it ever shows up the user gets the
-      // generic error and can re-initiate from chat. Only flip to the success state
-      // when the operation actually executed.
       if (result.data.operation.status !== 'Succeeded') {
         setErrorKey('habits.clarification.errorGeneric')
         return
@@ -58,8 +50,6 @@ export function ClarificationCard({
       setResolved(true)
       setResolvedLabel(label)
     } catch {
-      // mutateAsync can throw on unmount, abort, or unexpected runtime errors.
-      // Always clear the active state below so the button doesn't get stuck disabled.
       setErrorKey('habits.clarification.errorGeneric')
     } finally {
       setActiveValue(null)
@@ -117,9 +107,6 @@ export function ClarificationCard({
 }
 
 function mapStatusToErrorKey(status: number): string {
-  // 404 = backend currently returns this when the row is gone. 410 Gone is the
-  // semantically-correct status for an expired clarification; treat both the
-  // same in case the backend tightens up later.
   if (status === 404 || status === 410) return 'habits.clarification.errorExpired'
   if (status === 409) return 'habits.clarification.errorAlreadyResolved'
   return 'habits.clarification.errorGeneric'

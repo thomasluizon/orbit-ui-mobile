@@ -101,7 +101,7 @@ function createStyles(tokens: AppTokensV2) {
       left: 0,
       right: 0,
       zIndex: 9998,
-      paddingTop: 50, // account for safe area
+      paddingTop: 50,
       backgroundColor: tokens.bg,
     },
     banner: {

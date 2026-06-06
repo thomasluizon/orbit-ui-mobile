@@ -82,7 +82,6 @@ describe('ChecklistTemplates', () => {
     const input = screen.getByPlaceholderText('habits.form.templateNamePlaceholder')
     fireEvent.change(input, { target: { value: 'Morning Routine' } })
 
-    // Enter key path
     fireEvent.keyDown(input, { key: 'Enter' })
     expect(mockCreate).not.toHaveBeenCalled()
   })

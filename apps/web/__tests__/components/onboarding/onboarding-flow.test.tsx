@@ -102,19 +102,15 @@ describe('OnboardingFlow', () => {
 
   it('advances through all steps via interactions', () => {
     render(<OnboardingFlow />)
-    // welcome -> meet astra
     fireEvent.click(screen.getByText('onboarding.flow.begin'))
     expect(screen.getByTestId('step-meet-astra')).toBeInTheDocument()
 
-    // meet astra -> create habit
     fireEvent.click(screen.getByText('onboarding.flow.next'))
     expect(screen.getByTestId('step-create-habit')).toBeInTheDocument()
 
-    // create habit -> complete habit
     fireEvent.click(screen.getByText('Create'))
     expect(screen.getByTestId('step-complete-habit')).toBeInTheDocument()
 
-    // complete habit -> create goal
     fireEvent.click(screen.getByText('Complete'))
     expect(screen.getByTestId('step-create-goal')).toBeInTheDocument()
   })

@@ -6,17 +6,14 @@ import { useProfile, useHasProAccess, useTrialDaysLeft, useCurrentPlan, useTrial
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import type { Profile } from '@orbit/shared/types/profile'
 
-// Mock fetch
 const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
 
-// Mock profile action -- include all exports used transitively
 vi.mock('@/app/actions/profile', () => ({
   updateThemePreference: vi.fn().mockResolvedValue(undefined),
   updateColorScheme: vi.fn().mockResolvedValue(undefined),
 }))
 
-// Mock color scheme hook -- useProfile calls useColorScheme() which requires DOM APIs
 vi.mock('@/hooks/use-color-scheme', () => ({
   useColorScheme: () => ({
     scheme: null,
@@ -74,7 +71,7 @@ describe('useProfile', () => {
   })
 
   it('returns undefined profile while loading', () => {
-    mockFetch.mockReturnValue(new Promise(() => {})) // Never resolves
+    mockFetch.mockReturnValue(new Promise(() => {}))
 
     const { result } = renderHook(() => useProfile(), {
       wrapper: createWrapper(),
@@ -430,7 +427,7 @@ describe('useIsYearlyPro', () => {
   })
 
   it('returns false when profile is not loaded', () => {
-    mockFetch.mockReturnValue(new Promise(() => {})) // Never resolves
+    mockFetch.mockReturnValue(new Promise(() => {}))
 
     const { result } = renderHook(() => useIsYearlyPro(), {
       wrapper: createWrapper(),

@@ -5,12 +5,10 @@ import React from 'react'
 import { useTourMockData } from '@/hooks/use-tour-mock-data'
 import { habitKeys, goalKeys, tagKeys, gamificationKeys } from '@orbit/shared/query'
 
-// Mock next-intl
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
 }))
 
-// Mock shared/tour
 vi.mock('@orbit/shared/tour', () => ({
   createTourMockHabits: vi.fn(() => [
     { id: 'mock-h-1', title: 'Mock Habit' },
@@ -23,7 +21,6 @@ vi.mock('@orbit/shared/tour', () => ({
   ]),
 }))
 
-// Mock shared/utils
 vi.mock('@orbit/shared/utils', () => ({
   formatAPIDate: vi.fn(() => '2025-01-01'),
 }))
@@ -51,7 +48,6 @@ describe('useTourMockData', () => {
       result.current.inject()
     })
 
-    // Check that mock data was injected
     const todayFilters = { dateFrom: '2025-01-01', dateTo: '2025-01-01', includeOverdue: true }
     const habitsData = queryClient.getQueryData(
       habitKeys.list(todayFilters as Record<string, unknown>),
@@ -78,7 +74,6 @@ describe('useTourMockData', () => {
       result.current.restore()
     })
 
-    // Should have invalidated habit, goal, tag, and gamification queries
     expect(invalidateSpy).toHaveBeenCalled()
     const invalidatedKeys = invalidateSpy.mock.calls.map(
       (call) => (call[0] as { queryKey: unknown[] }).queryKey,

@@ -61,7 +61,7 @@ export function OnboardingCompleteHabit({
         {t('onboarding.flow.completeHabit.instruction')}
       </div>
 
-      {/* Minimal habit row mirroring the Today screen */}
+      {}
       <div
         className="flex items-center"
         style={{

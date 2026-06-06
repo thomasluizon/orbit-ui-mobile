@@ -60,7 +60,6 @@ async function copyToClipboard(text: string): Promise<void> {
   try {
     await navigator.clipboard.writeText(text)
   } catch {
-    // Clipboard API not available
   }
 }
 
@@ -149,7 +148,6 @@ export default function AdvancedPage() {
       queryClient.invalidateQueries({ queryKey: apiKeyKeys.all })
       return result
     } catch {
-      // Errors thrown by createApiKey are developer-facing identifiers; translate for display.
       setCreateKeyError(t('orbitMcp.createKeyError'))
       return null
     }

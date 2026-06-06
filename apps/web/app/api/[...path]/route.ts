@@ -89,7 +89,6 @@ async function proxyRequest(
     headers['Authorization'] = `Bearer ${token}`
   }
 
-  // Forward client IP and geo headers for rate limiting and geo-sensitive pricing.
   Object.assign(headers, buildForwardedClientHeaders(request))
 
   const hasBody =
@@ -102,7 +101,6 @@ async function proxyRequest(
   if (hasBody) {
     const contentType = request.headers.get('content-type') ?? ''
     if (contentType.includes('multipart/form-data')) {
-      // Forward multipart form data as-is
       body = await request.formData()
     } else {
       const rawBody = await request.text().catch(() => '')

@@ -5,7 +5,6 @@ import React from 'react'
 import { useSummary } from '@/hooks/use-summary'
 import { habitKeys } from '@orbit/shared/query'
 
-// Mock fetch
 const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
 

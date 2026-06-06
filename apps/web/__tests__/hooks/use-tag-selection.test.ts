@@ -270,7 +270,6 @@ describe('useTagSelection', () => {
       const mockCreateTag = vi.fn().mockResolvedValue('id')
       const { result } = renderHook(() => useTagSelection())
 
-      // newTagName is empty by default
       await act(async () => {
         await result.current.createAndSelectTag(mockCreateTag)
       })

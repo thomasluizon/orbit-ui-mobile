@@ -2,11 +2,9 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
 import { useRetrospective } from '@/hooks/use-retrospective'
 
-// Mock fetch
 const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
 
-// Mock next-intl
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string, params?: Record<string, string>) => {
     if (params) return `${key}: ${JSON.stringify(params)}`
@@ -15,7 +13,6 @@ vi.mock('next-intl', () => ({
   useLocale: () => 'en',
 }))
 
-// Mock getErrorMessage
 vi.mock('@orbit/shared/utils', () => ({
   getErrorMessage: (err: unknown, fallback: string) => {
     if (err instanceof Error) return err.message
@@ -143,7 +140,6 @@ describe('useRetrospective', () => {
   })
 
   it('replaces old result with new generation', async () => {
-    // First generate
     mockFetch.mockResolvedValueOnce({
       ok: true,
       json: () => Promise.resolve({ retrospective: 'First result', fromCache: false }),
@@ -156,7 +152,6 @@ describe('useRetrospective', () => {
     })
     expect(result.current.retrospective).toBe('First result')
 
-    // Second generate
     mockFetch.mockResolvedValueOnce({
       ok: true,
       json: () => Promise.resolve({ retrospective: 'Second result', fromCache: true }),

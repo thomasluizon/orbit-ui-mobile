@@ -1,9 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
 
-// ---------------------------------------------------------------------------
-// Mocks -- must come before component import
-// ---------------------------------------------------------------------------
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string, params?: Record<string, unknown>) => {
@@ -87,15 +84,9 @@ vi.mock('@orbit/shared/utils', async (importOriginal) => {
   }
 })
 
-// ---------------------------------------------------------------------------
-// Import component after mocks
-// ---------------------------------------------------------------------------
 
 import UpgradePage from '@/app/(app)/upgrade/page'
 
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
 
 describe('UpgradePage', () => {
   beforeEach(() => {
@@ -137,14 +128,11 @@ describe('UpgradePage', () => {
     expect(tooltipButton).toHaveAttribute('aria-expanded', 'false')
   })
 
-  // ---- Free user (plans display) ----
 
   it('shows plan loading skeletons when plans are loading', () => {
     mockIsLoadingPlans = true
     const { container } = render(<UpgradePage />)
-    // Should show some skeleton shimmer elements
     const shimmerElements = container.querySelectorAll('.skeleton-shimmer, .animate-pulse')
-    // At least the header renders; plans section may show loading
     expect(screen.getByText('upgrade.title')).toBeInTheDocument()
   })
 
@@ -152,7 +140,6 @@ describe('UpgradePage', () => {
     mockIsPlansError = true
     mockPlans = null
     render(<UpgradePage />)
-    // Error state shows error message and retry
     expect(document.body.textContent).toContain('upgrade.plans.error')
   })
 
@@ -169,7 +156,6 @@ describe('UpgradePage', () => {
     expect(document.body.textContent).toContain('trial')
   })
 
-  // ---- Pro user with billing ----
 
   it('shows billing loading state for Pro users', () => {
     mockHasProAccess = true

@@ -43,8 +43,6 @@ export function BottomTabBar({
   const fabDisabled = active !== 'today'
 
   return (
-    // bg + hairline live on the parent fixed wrapper (full-width strip);
-    // the tab row itself is transparent so it inherits that bezel.
     <div className="relative shrink-0">
       {fabVisible && (
         <button

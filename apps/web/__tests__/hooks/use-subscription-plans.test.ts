@@ -10,11 +10,9 @@ import {
 } from '@/hooks/use-subscription-plans'
 import type { SubscriptionPlans } from '@orbit/shared/types/subscription'
 
-// Mock fetch
 const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
 
-// Mock fetchJson
 vi.mock('@/lib/api-fetch', () => ({
   fetchJson: vi.fn((url: string) =>
     fetch(url).then((res: Response) => {
@@ -62,7 +60,6 @@ describe('formatPrice', () => {
 
   it('formats BRL price with pt-BR locale', () => {
     const result = formatPrice(4990, 'brl')
-    // pt-BR locale uses R$ prefix
     expect(result).toContain('49,90')
   })
 
@@ -79,7 +76,7 @@ describe('formatPrice', () => {
 
 describe('monthlyEquivalent', () => {
   it('divides yearly amount by 12 and rounds', () => {
-    expect(monthlyEquivalent(7999)).toBe(667) // 7999 / 12 = 666.58 -> 667
+    expect(monthlyEquivalent(7999)).toBe(667)
   })
 
   it('handles exact division', () => {
@@ -155,7 +152,6 @@ describe('useSubscriptionPlans', () => {
     })
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
-    // No coupon - should return original amount
     expect(result.current.discountedAmount(1000)).toBe(1000)
   })
 
@@ -171,7 +167,6 @@ describe('useSubscriptionPlans', () => {
     })
 
     await waitFor(() => expect(result.current.isSuccess).toBe(true))
-    // 20% off 1000 = 800
     expect(result.current.discountedAmount(1000)).toBe(800)
   })
 

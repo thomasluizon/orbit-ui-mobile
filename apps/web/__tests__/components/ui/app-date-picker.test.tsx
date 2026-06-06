@@ -49,7 +49,6 @@ describe('AppDatePicker', () => {
     const onChange = vi.fn()
     render(<AppDatePicker value="2025-06-15" onChange={onChange} />)
     fireEvent.click(screen.getByRole('button'))
-    // Click a day cell with aria-pressed
     const dayButtons = document.querySelectorAll('td button')
     expect(dayButtons.length).toBeGreaterThan(0)
     fireEvent.click(dayButtons[10]!)
@@ -62,7 +61,6 @@ describe('AppDatePicker', () => {
     fireEvent.click(screen.getByRole('button'))
     const dayButtons = document.querySelectorAll('td button')
     fireEvent.click(dayButtons[10]!)
-    // Dialog should be closed
     expect(screen.queryByLabelText('common.previousMonth')).not.toBeInTheDocument()
   })
 

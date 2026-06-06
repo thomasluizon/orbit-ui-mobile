@@ -16,7 +16,6 @@ const ACTION_LABELS: Record<string, string> = {
   assign_tags: 'chat.action.tagsUpdated',
   duplicate_habit: 'chat.action.duplicated',
   move_habit: 'chat.action.moved',
-  // Legacy names (backward compat)
   LogHabit: 'chat.action.logged',
   CreateHabit: 'chat.action.created',
   UpdateHabit: 'chat.action.updated',
@@ -111,7 +110,6 @@ export function ActionChips({ actions, onChipClick }: Readonly<ActionChipsProps>
     const name = action.entityName || t('chat.unknownEntity')
     const labelKey = ACTION_LABELS[action.type]
     if (labelKey) return t(labelKey, { name })
-    // Fallback: humanize the tool name
     return `${action.type.replaceAll('_', ' ')}: ${name}`
   }
 

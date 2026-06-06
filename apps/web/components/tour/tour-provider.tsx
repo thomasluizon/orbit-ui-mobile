@@ -98,7 +98,6 @@ export function TourProvider() {
     }
   }, [resetSessionState, restore])
 
-  // Inject mock data and reset view when tour starts
   useEffect(() => {
     if (isActive && !mockDataInjectedRef.current) {
       uiSnapshotRef.current = getPersistedUIState(useUIStore.getState())
@@ -112,18 +111,14 @@ export function TourProvider() {
     }
   }, [isActive, inject, resetSessionState, restoreTourSession])
 
-  // Handle tour completion
   const handleEndTour = useCallback(async () => {
     endTour()
 
-    // Mark tour as completed
     try {
       await completeTour()
     } catch {
-      // Silently fail -- tour state is client-side too
     }
 
-    // Optimistically update profile cache
     queryClient.setQueryData(
       profileKeys.detail(),
       (old: Profile | undefined) => {
@@ -132,7 +127,6 @@ export function TourProvider() {
       },
     )
 
-    // Save section completion to localStorage
     try {
       localStorage.setItem(
         'orbit_tour_sections',
@@ -145,17 +139,14 @@ export function TourProvider() {
         }),
       )
     } catch {
-      // localStorage not available
     }
   }, [endTour, queryClient])
 
-  // Expose handleEndTour via store override
   const endTourRef = useRef(handleEndTour)
   useEffect(() => {
     endTourRef.current = handleEndTour
   }, [handleEndTour])
 
-  // Execute pre-actions for a step
   const executePreAction = useCallback(
     (preAction: string) => {
       switch (preAction) {
@@ -167,14 +158,12 @@ export function TourProvider() {
           break
         case 'scrollHabitsDown':
         case 'scrollHabitsUp':
-          // Web handles this via scrollIntoView, no-op here
           break
       }
     },
     [hasProAccess],
   )
 
-  // Find target element and set rect
   const findAndMeasureTarget = useCallback(
     (targetId: string) => {
       const el = document.querySelector(`[data-tour="${targetId}"]`)
@@ -198,13 +187,10 @@ export function TourProvider() {
     [scheduleTimeout, setNavigating, setTargetRect],
   )
 
-  // Watch for target element via MutationObserver
   const waitForTarget = useCallback(
     (targetId: string) => {
-      // Try immediately
       if (findAndMeasureTarget(targetId)) return
 
-      // Set up observer
       observerRef.current?.disconnect()
       if (timeoutRef.current) clearTimeout(timeoutRef.current)
 
@@ -224,7 +210,6 @@ export function TourProvider() {
 
       observerRef.current = observer
 
-      // Timeout: skip this step if element not found
       timeoutRef.current = setTimeout(() => {
         observer.disconnect()
         nextStep()
@@ -233,7 +218,6 @@ export function TourProvider() {
     [findAndMeasureTarget, nextStep],
   )
 
-  // React to step changes
   const currentStep = getCurrentStep()
   const stepId = currentStep?.id ?? null
 
@@ -241,24 +225,19 @@ export function TourProvider() {
     if (!isActive || !currentStep || stepId === prevStepIdRef.current) return
     prevStepIdRef.current = stepId
 
-    // Execute pre-action if any
     if (currentStep.preAction) {
       executePreAction(currentStep.preAction)
     }
 
-    // Navigate if needed
     const normalizedPathname = pathname === '/' ? '/' : pathname
     const normalizedRoute = currentStep.route === '/' ? '/' : currentStep.route
 
     if (normalizedPathname === normalizedRoute) {
-      // Same page: find element immediately
       setNavigating(true)
-      // Small delay to allow pre-actions (e.g. tab switch) to render
       scheduleTimeout(() => waitForTarget(currentStep.targetId), 100)
     } else {
       setNavigating(true)
       router.push(normalizedRoute)
-      // waitForTarget will be called when pathname changes (below)
     }
   }, [
     isActive,
@@ -272,7 +251,6 @@ export function TourProvider() {
     scheduleTimeout,
   ])
 
-  // When pathname changes during navigation, search for the element
   useEffect(() => {
     const step = getCurrentStep()
     if (!isActive || !step) return
@@ -284,12 +262,10 @@ export function TourProvider() {
       normalizedPathname === normalizedRoute &&
       useTourStore.getState().isNavigating
     ) {
-      // Arrived at the target page, wait for element
       scheduleTimeout(() => waitForTarget(step.targetId), 200)
     }
   }, [pathname, isActive, getCurrentStep, waitForTarget, scheduleTimeout])
 
-  // Update target rect on scroll/resize
   useEffect(() => {
     if (!isActive) return
 
@@ -324,7 +300,6 @@ export function TourProvider() {
     }
   }, [isActive, getCurrentStep, setTargetRect])
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
       resetSessionState()

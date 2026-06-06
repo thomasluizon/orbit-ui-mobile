@@ -12,11 +12,9 @@ import {
 import { createMockNotification } from '@orbit/shared/__tests__/factories'
 import type { NotificationsResponse } from '@orbit/shared/types/notification'
 
-// Mock fetch
 const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
 
-// Mock server actions
 vi.mock('@/app/actions/notifications', () => ({
   markNotificationRead: vi.fn(),
   markAllNotificationsRead: vi.fn(),
@@ -86,7 +84,7 @@ describe('useNotifications', () => {
   })
 
   it('defaults notifications and unreadCount when data is undefined', () => {
-    mockFetch.mockReturnValue(new Promise(() => {})) // Never resolves
+    mockFetch.mockReturnValue(new Promise(() => {}))
 
     const { result } = renderHook(() => useNotifications(), {
       wrapper: createWrapper(),
@@ -96,8 +94,6 @@ describe('useNotifications', () => {
     expect(result.current.unreadCount).toBe(0)
   })
 
-  // Polling is now handled by TanStack Query's refetchInterval option,
-  // so there are no manual visibilitychange listeners to test.
 })
 
 describe('useMarkNotificationRead', () => {
@@ -146,7 +142,6 @@ describe('useMarkNotificationRead optimistic update', () => {
   it('optimistically marks notification as read and decrements unread count', async () => {
     const { markNotificationRead } = await import('@/app/actions/notifications')
     const mockedAction = vi.mocked(markNotificationRead)
-    // Delay resolution to observe optimistic state
     mockedAction.mockImplementation(() => new Promise((resolve) => setTimeout(() => resolve(undefined as any), 100)))
 
     const queryClient = new QueryClient({
@@ -164,11 +159,9 @@ describe('useMarkNotificationRead optimistic update', () => {
       unreadCount: 1,
     }
 
-    // Seed the cache
     const { notificationKeys } = await import('@orbit/shared/query')
     queryClient.setQueryData(notificationKeys.lists(), initialData)
 
-    // Prevent refetches from overwriting optimistic state
     mockFetch.mockResolvedValue({
       ok: true,
       json: () => Promise.resolve(initialData),
@@ -182,11 +175,9 @@ describe('useMarkNotificationRead optimistic update', () => {
 
     await act(async () => {
       result.current.mutate('n-1')
-      // Give the onMutate a tick to run
       await new Promise((r) => setTimeout(r, 0))
     })
 
-    // Check optimistic state in cache
     const cached = queryClient.getQueryData<NotificationsResponse>(notificationKeys.lists())
     expect(cached?.items.find((n) => n.id === 'n-1')?.isRead).toBe(true)
     expect(cached?.unreadCount).toBe(0)
@@ -277,7 +268,6 @@ describe('useMarkAllNotificationsRead optimistic update', () => {
       try {
         await result.current.mutateAsync()
       } catch {
-        // Expected to fail
       }
     })
 
@@ -330,7 +320,6 @@ describe('useDeleteNotification', () => {
     const { notificationKeys } = await import('@orbit/shared/query')
     queryClient.setQueryData(notificationKeys.lists(), initialData)
 
-    // Prevent refetches from overwriting
     mockFetch.mockResolvedValue({
       ok: true,
       json: () => Promise.resolve(initialData),
@@ -346,11 +335,9 @@ describe('useDeleteNotification', () => {
       try {
         await result.current.mutateAsync('n-1')
       } catch {
-        // Expected to fail
       }
     })
 
-    // Cache should be rolled back to include n-1 again
     const cached = queryClient.getQueryData<NotificationsResponse>(notificationKeys.lists())
     expect(cached?.items).toHaveLength(2)
     expect(cached?.items.find((n) => n.id === 'n-1')).toBeDefined()
@@ -395,7 +382,6 @@ describe('useDeleteNotification', () => {
       await new Promise((r) => setTimeout(r, 0))
     })
 
-    // Check optimistic state
     const cached = queryClient.getQueryData<NotificationsResponse>(notificationKeys.lists())
     expect(cached?.items).toHaveLength(1)
     expect(cached?.items.find((n) => n.id === 'n-1')).toBeUndefined()
@@ -446,7 +432,6 @@ describe('useDeleteAllNotifications', () => {
     const { notificationKeys } = await import('@orbit/shared/query')
     queryClient.setQueryData(notificationKeys.lists(), initialData)
 
-    // Prevent refetches from overwriting
     mockFetch.mockResolvedValue({
       ok: true,
       json: () => Promise.resolve(initialData),
@@ -462,11 +447,9 @@ describe('useDeleteAllNotifications', () => {
       try {
         await result.current.mutateAsync()
       } catch {
-        // Expected to fail
       }
     })
 
-    // Cache should be rolled back to include both notifications
     const cached = queryClient.getQueryData<NotificationsResponse>(notificationKeys.lists())
     expect(cached?.items).toHaveLength(2)
     expect(cached?.unreadCount).toBe(1)
@@ -511,7 +494,6 @@ describe('useDeleteAllNotifications', () => {
       await new Promise((r) => setTimeout(r, 0))
     })
 
-    // Check optimistic state
     const cached = queryClient.getQueryData<NotificationsResponse>(notificationKeys.lists())
     expect(cached?.items).toEqual([])
     expect(cached?.unreadCount).toBe(0)

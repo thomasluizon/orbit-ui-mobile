@@ -101,7 +101,6 @@ describe('AppOverlay', () => {
       </AppOverlay>,
     )
     const closeButtons = screen.getAllByLabelText('common.close')
-    // Backdrop button + header close button
     expect(closeButtons.length).toBeGreaterThanOrEqual(2)
   })
 
@@ -111,7 +110,6 @@ describe('AppOverlay', () => {
         <p>Body</p>
       </AppOverlay>,
     )
-    // Only the backdrop button should remain (tabindex="-1")
     const closeButtons = screen.getAllByLabelText('common.close')
     expect(closeButtons).toHaveLength(1)
     expect(closeButtons[0]!.getAttribute('tabindex')).toBe('-1')
@@ -124,7 +122,6 @@ describe('AppOverlay', () => {
         <p>Body</p>
       </AppOverlay>,
     )
-    // Click the header close button (not the backdrop one with tabindex="-1")
     const closeButtons = screen.getAllByLabelText('common.close')
     const headerClose = closeButtons.find(btn => btn.getAttribute('tabindex') !== '-1')!
     fireEvent.click(headerClose)

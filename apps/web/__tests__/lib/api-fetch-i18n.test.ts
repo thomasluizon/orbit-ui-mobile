@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 
-// Mock sonner
 const mockToastError = vi.fn()
 vi.mock('sonner', () => ({
   toast: {
@@ -8,7 +7,6 @@ vi.mock('sonner', () => ({
   },
 }))
 
-// Mock auth store
 vi.mock('@/stores/auth-store', () => ({
   useAuthStore: {
     getState: () => ({
@@ -17,7 +15,6 @@ vi.mock('@/stores/auth-store', () => ({
   },
 }))
 
-// Mock extractBackendError
 vi.mock('@orbit/shared/utils', () => ({
   buildClientTimeZoneHeaders: vi.fn(() => ({
     'X-Orbit-Time-Zone': 'America/Sao_Paulo',
@@ -49,7 +46,6 @@ describe('setApiFetchTranslate', () => {
     try {
       await apiFetch('/api/test')
     } catch {
-      // expected
     }
 
     expect(mockToastError).toHaveBeenCalledWith(
@@ -73,7 +69,6 @@ describe('setApiFetchTranslate', () => {
     try {
       await apiFetch('/api/test')
     } catch {
-      // expected
     }
 
     expect(mockToastError).toHaveBeenCalledWith(
@@ -97,7 +92,6 @@ describe('setApiFetchTranslate', () => {
     try {
       await apiFetch('/api/test')
     } catch {
-      // expected
     }
 
     expect(mockToastError).toHaveBeenCalledWith(
@@ -121,7 +115,6 @@ describe('setApiFetchTranslate', () => {
     try {
       await apiFetch('/api/test')
     } catch {
-      // expected
     }
 
     expect(mockToastError).toHaveBeenCalledWith(
@@ -145,7 +138,6 @@ describe('setApiFetchTranslate', () => {
     try {
       await apiFetch('/api/test')
     } catch {
-      // expected
     }
 
     expect(mockToastError).toHaveBeenCalledWith(
@@ -162,14 +154,13 @@ describe('setApiFetchTranslate', () => {
 
     mockFetch.mockResolvedValue({
       ok: false,
-      status: 418, // I'm a teapot
+      status: 418,
       json: () => Promise.resolve({}),
     })
 
     try {
       await apiFetch('/api/test')
     } catch {
-      // expected
     }
 
     expect(mockToastError).toHaveBeenCalledWith(

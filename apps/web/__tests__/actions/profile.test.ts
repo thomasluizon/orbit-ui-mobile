@@ -48,9 +48,6 @@ describe('profile server actions', () => {
     })
   }
 
-  // -------------------------------------------------------------------------
-  // updateTimezone
-  // -------------------------------------------------------------------------
 
   describe('updateTimezone', () => {
     it('sends PUT to /api/profile/timezone', async () => {
@@ -82,9 +79,6 @@ describe('profile server actions', () => {
     })
   })
 
-  // -------------------------------------------------------------------------
-  // updateLanguage
-  // -------------------------------------------------------------------------
 
   describe('updateLanguage', () => {
     it('sends PUT to /api/profile/language', async () => {
@@ -107,9 +101,6 @@ describe('profile server actions', () => {
     })
   })
 
-  // -------------------------------------------------------------------------
-  // updateAiMemory
-  // -------------------------------------------------------------------------
 
   describe('updateAiMemory', () => {
     it('sends PUT to /api/profile/ai-memory', async () => {
@@ -133,9 +124,6 @@ describe('profile server actions', () => {
     })
   })
 
-  // -------------------------------------------------------------------------
-  // updateAiSummary
-  // -------------------------------------------------------------------------
 
   describe('updateAiSummary', () => {
     it('sends PUT to /api/profile/ai-summary', async () => {
@@ -159,9 +147,6 @@ describe('profile server actions', () => {
     })
   })
 
-  // -------------------------------------------------------------------------
-  // updateWeekStartDay
-  // -------------------------------------------------------------------------
 
   describe('updateWeekStartDay', () => {
     it('sends PUT to /api/profile/week-start-day', async () => {
@@ -193,9 +178,6 @@ describe('profile server actions', () => {
     })
   })
 
-  // -------------------------------------------------------------------------
-  // updateThemePreference
-  // -------------------------------------------------------------------------
 
   describe('updateThemePreference', () => {
     it('sends PUT to /api/profile/theme-preference', async () => {
@@ -219,9 +201,6 @@ describe('profile server actions', () => {
     })
   })
 
-  // -------------------------------------------------------------------------
-  // updateColorScheme
-  // -------------------------------------------------------------------------
 
   describe('updateColorScheme', () => {
     it('sends PUT to /api/profile/color-scheme', async () => {
@@ -244,9 +223,6 @@ describe('profile server actions', () => {
     })
   })
 
-  // -------------------------------------------------------------------------
-  // completeOnboarding
-  // -------------------------------------------------------------------------
 
   describe('completeOnboarding', () => {
     it('sends PUT to /api/profile/onboarding with no body', async () => {
@@ -275,9 +251,6 @@ describe('profile server actions', () => {
     })
   })
 
-  // -------------------------------------------------------------------------
-  // resetAccount
-  // -------------------------------------------------------------------------
 
   describe('resetAccount', () => {
     it('sends POST to /api/profile/reset', async () => {
@@ -297,9 +270,6 @@ describe('profile server actions', () => {
     })
   })
 
-  // -------------------------------------------------------------------------
-  // dismissCalendarImport
-  // -------------------------------------------------------------------------
 
   describe('dismissCalendarImport', () => {
     it('sends PUT to /api/calendar/dismiss', async () => {
@@ -319,9 +289,6 @@ describe('profile server actions', () => {
     })
   })
 
-  // -------------------------------------------------------------------------
-  // Error handling
-  // -------------------------------------------------------------------------
 
   describe('error handling', () => {
     it('throws with error message from response body', async () => {

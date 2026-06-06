@@ -59,7 +59,6 @@ export function OnboardingWelcome() {
   }
 
   const weekStartDay = profile?.weekStartDay ?? 1
-  // Maps weekStartDay (0=Sun, 1=Mon) to chip index in DAY_LABELS (Sun-first).
   const activeDayIndex = weekStartDay % 7
   const monday = ONBOARDING_WEEK_START_OPTIONS[0]
   const sunday = ONBOARDING_WEEK_START_OPTIONS[1]
@@ -104,7 +103,6 @@ export function OnboardingWelcome() {
                 : undefined
             return (
               <Chip
-                // NOSONAR -- fixed day initials, index is identity
                 key={`day-${i}`}
                 active={i === activeDayIndex}
                 onClick={onClick}
@@ -146,7 +144,7 @@ export function OnboardingWelcome() {
                       : 'inset 0 0 0 1px var(--hairline-strong)',
                   }}
                   aria-label={t(
-                    `preferences.color${option.value.charAt(0).toUpperCase() + option.value.slice(1)}` as Parameters<typeof t>[0], // NOSONAR -- dynamic i18n key
+                    `preferences.color${option.value.charAt(0).toUpperCase() + option.value.slice(1)}` as Parameters<typeof t>[0],
                   )}
                   aria-pressed={isActive}
                   onClick={() => handleSchemeSelect(option.value)}

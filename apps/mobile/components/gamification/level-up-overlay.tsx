@@ -45,7 +45,6 @@ export function LevelUpOverlay({
   const activeLevelUp =
     activeCelebration?.kind === 'level-up' ? activeCelebration : null
 
-  // Continuous orbit ring spin
   useEffect(() => {
     const spin = Animated.loop(
       Animated.timing(ringRotation, {

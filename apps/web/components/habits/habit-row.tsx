@@ -126,9 +126,6 @@ export function HabitRow({
   const emojiSize = child ? 16 : 18
   const showStreak = !child && streak != null && streak >= 2
 
-  // Every habit row is its own fully-rounded --bg-elev card. Hierarchy comes
-  // from the left indent (16px per depth level), not from shared containers.
-  // 6px gap below each row gives breathing room without hairlines.
   const indentPx = depth * 16
 
   function handleRowClick() {

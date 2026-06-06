@@ -26,7 +26,6 @@ describe('Calendar shell helpers', () => {
       />,
     )
 
-    // v8: title + month subtitle live inside AppBar; prev/next are trailing icon buttons.
     expect(screen.getByText('nav.calendar')).toBeInTheDocument()
     expect(screen.getByText('April 2026')).toBeInTheDocument()
 

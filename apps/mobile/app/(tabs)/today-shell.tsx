@@ -87,10 +87,6 @@ export function TodayTabs({
   useTourTarget('tour-tabs-bar', tabsRef)
   useTourTarget('tour-goals-tab', goalsTabRef)
 
-  // Single chip-strip — preserves the chip semantics through `Chip` primitive.
-  // The two refs are required so the tour engine can locate the tab strip and
-  // the goals tab specifically. `goalsTabRef` is attached to a wrapper around
-  // the chip strip's "Goals" position.
   const chipTabs = useMemo<SectionHeadTab<TodayTabView>[]>(
     () =>
       tabs.map((tab) => ({

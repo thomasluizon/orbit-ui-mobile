@@ -39,7 +39,6 @@ export function CodeInput({
     <View style={styles.row}>
       {digits.map((digit, index) => (
         <TextInput
-          // NOSONAR -- fixed-length code, index defines slot identity
           key={`code-digit-${index}`}
           ref={(node) => {
             inputRefs.current[index] = node

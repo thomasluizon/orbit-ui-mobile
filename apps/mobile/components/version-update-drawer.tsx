@@ -8,7 +8,7 @@ import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 const SNOOZE_STORAGE_KEY = 'orbit:version-update-snoozed-until'
-const SNOOZE_DURATION_MS = 1000 * 60 * 60 * 24 // 24h
+const SNOOZE_DURATION_MS = 1000 * 60 * 60 * 24
 
 /**
  * v8 version-update drawer (iOS path): quiet eyebrow + version title + mono
@@ -35,8 +35,6 @@ export function VersionUpdateDrawer() {
   const [snoozedUntil, setSnoozedUntil] = useState<number | null>(null)
   const [snoozeLoaded, setSnoozeLoaded] = useState(false)
   const [dismissedForSession, setDismissedForSession] = useState(false)
-  // Updated each render with current time; React Compiler considers Date.now()
-  // impure during render so we hold it as state and refresh in an interval.
   const [nowMs, setNowMs] = useState(() => Date.now())
 
   useEffect(() => {
@@ -62,7 +60,6 @@ export function VersionUpdateDrawer() {
     }
   }, [])
 
-  // Android: hand off to the native Play Core flow as soon as we detect an update.
   useEffect(() => {
     if (Platform.OS !== 'android') return
     if (!updateAvailable) return

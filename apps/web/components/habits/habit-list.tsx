@@ -175,9 +175,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
   const childrenByParent = data?.childrenByParent ?? EMPTY_CHILDREN_BY_PARENT
   const topLevelHabits = data?.topLevelHabits ?? EMPTY_NORMALIZED_HABITS
 
-  // The tour's "card" step anchors to the featured mock habit when injected,
-  // otherwise falls back to the first visible row so the spotlight still has
-  // something to point at when the user already has real habits.
   const tourCardHabitId = habitsById.has(TOUR_FEATURED_HABIT_ID)
     ? TOUR_FEATURED_HABIT_ID
     : topLevelHabits[0]?.id
@@ -538,7 +535,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
             await reorderHabitsMut.mutateAsync({ positions })
           }
         } catch {
-          // Error handled by mutation - query will be refetched
         }
       }
     }
@@ -750,7 +746,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
       setMovingHabitId(null)
       setSelectedMoveParentId(null)
     } catch {
-      // Error handled by mutation
     } finally {
       setIsMovingParent(false)
     }
@@ -787,7 +782,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
     try {
       await duplicateHabitMut.mutateAsync(id)
     } catch {
-      // Error handled by mutation
     } finally {
       setHabitToDuplicate(null)
       setShowDuplicateConfirm(false)
@@ -817,7 +811,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
     try {
       await deleteHabitMut.mutateAsync(habitToDelete)
     } catch {
-      // Error handled by mutation
     } finally {
       setHabitToDelete(null)
       setShowDeleteConfirm(false)
@@ -832,7 +825,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
       markRecentlyCompleted(skippedId)
       checkAndPromptParentLog(skippedId)
     } catch {
-      // Error handled by mutation
     } finally {
       setHabitToSkip(null)
       setShowSkipConfirm(false)
@@ -854,7 +846,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
       handleLogged(habitId, false)
     } catch {
       clearRecentlyCompleted(habitId)
-      // Error handled by mutation
     }
   }
   async function confirmForceLog() {
@@ -864,7 +855,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
       await logHabit.mutateAsync({ habitId: forceLogHabitId })
     } catch {
       clearRecentlyCompleted(forceLogHabitId)
-      // Error handled by mutation
     } finally {
       setForceLogHabitId(null)
       setShowForceLogConfirm(false)
@@ -897,9 +887,6 @@ const isPostponeAction = useMemo(() => {
     checkAndPromptParentLog,
   }))
 
-  // Derive HabitRow visual state from habit flags + status.
-  // `recentlyCompleted` flips immediately on optimistic log so the row reads as done
-  // before the server response lands.
   function deriveRowState(
     habit: NormalizedHabit,
     isChild: boolean,

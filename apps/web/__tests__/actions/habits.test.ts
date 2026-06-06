@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
-// Mock getAuthHeaders before importing the module under test
 vi.mock('@/lib/auth-api', () => ({
   getAuthHeaders: vi.fn().mockResolvedValue({
     Authorization: 'Bearer test-token',
@@ -12,11 +11,9 @@ vi.mock('@/lib/auth-api', () => ({
   }),
 }))
 
-// Mock global fetch
 const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
 
-// Import after mocks are set up
 const {
   createHabit,
   updateHabit,
@@ -51,9 +48,6 @@ describe('habit server actions', () => {
     })
   }
 
-  // -------------------------------------------------------------------------
-  // createHabit
-  // -------------------------------------------------------------------------
 
   describe('createHabit', () => {
     it('sends POST to /api/habits with request body', async () => {
@@ -86,9 +80,6 @@ describe('habit server actions', () => {
     })
   })
 
-  // -------------------------------------------------------------------------
-  // updateHabit
-  // -------------------------------------------------------------------------
 
   describe('updateHabit', () => {
     it('sends PUT to /api/habits/:id', async () => {
@@ -105,9 +96,6 @@ describe('habit server actions', () => {
     })
   })
 
-  // -------------------------------------------------------------------------
-  // deleteHabit
-  // -------------------------------------------------------------------------
 
   describe('deleteHabit', () => {
     it('sends DELETE to /api/habits/:id', async () => {
@@ -127,9 +115,6 @@ describe('habit server actions', () => {
     })
   })
 
-  // -------------------------------------------------------------------------
-  // logHabit
-  // -------------------------------------------------------------------------
 
   describe('logHabit', () => {
     it('sends POST to /api/habits/:id/log', async () => {
@@ -162,9 +147,6 @@ describe('habit server actions', () => {
     })
   })
 
-  // -------------------------------------------------------------------------
-  // skipHabit
-  // -------------------------------------------------------------------------
 
   describe('skipHabit', () => {
     it('sends POST to /api/habits/:id/skip', async () => {
@@ -188,9 +170,6 @@ describe('habit server actions', () => {
     })
   })
 
-  // -------------------------------------------------------------------------
-  // reorderHabits
-  // -------------------------------------------------------------------------
 
   describe('reorderHabits', () => {
     it('sends PUT to /api/habits/reorder', async () => {
@@ -209,9 +188,6 @@ describe('habit server actions', () => {
     })
   })
 
-  // -------------------------------------------------------------------------
-  // duplicateHabit
-  // -------------------------------------------------------------------------
 
   describe('duplicateHabit', () => {
     it('sends POST to /api/habits/:id/duplicate', async () => {
@@ -225,9 +201,6 @@ describe('habit server actions', () => {
     })
   })
 
-  // -------------------------------------------------------------------------
-  // bulkCreateHabits
-  // -------------------------------------------------------------------------
 
   describe('bulkCreateHabits', () => {
     it('sends POST to /api/habits/bulk', async () => {
@@ -248,9 +221,6 @@ describe('habit server actions', () => {
     })
   })
 
-  // -------------------------------------------------------------------------
-  // bulkDeleteHabits
-  // -------------------------------------------------------------------------
 
   describe('bulkDeleteHabits', () => {
     it('sends DELETE to /api/habits/bulk', async () => {
@@ -269,9 +239,6 @@ describe('habit server actions', () => {
     })
   })
 
-  // -------------------------------------------------------------------------
-  // Error handling
-  // -------------------------------------------------------------------------
 
   describe('error handling', () => {
     it('throws with error message from response body', async () => {

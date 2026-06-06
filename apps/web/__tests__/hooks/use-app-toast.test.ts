@@ -2,7 +2,6 @@ import { describe, it, expect, vi } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
 import { useAppToast } from '@/hooks/use-app-toast'
 
-// Mock sonner
 const mockToast = vi.fn()
 const mockToastError = vi.fn()
 const mockToastSuccess = vi.fn()

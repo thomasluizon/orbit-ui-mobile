@@ -22,32 +22,26 @@ export function useTourMockData() {
     const mockGoals = createTourMockGoals(t)
     const mockTags = createTourMockTags(t)
 
-    // Pause refetches
     queryClient.setQueryDefaults(habitKeys.lists(), { staleTime: Infinity, refetchInterval: false })
     queryClient.setQueryDefaults(goalKeys.lists(), { staleTime: Infinity })
     queryClient.setQueryDefaults(tagKeys.lists(), { staleTime: Infinity })
 
-    // Inject mock habits into ALL habit list queries
     queryClient.setQueriesData<HabitScheduleItem[]>(
       { queryKey: habitKeys.lists() },
       () => mockHabits,
     )
 
-    // Also set for the specific today filter in case no query exists yet
     const todayFilters = { dateFrom: today, dateTo: today, includeOverdue: true }
     queryClient.setQueryData(habitKeys.list(todayFilters as Record<string, unknown>), mockHabits)
 
-    // Inject mock goals
     queryClient.setQueriesData<Goal[]>(
       { queryKey: goalKeys.lists() },
       () => mockGoals,
     )
     queryClient.setQueryData(goalKeys.list({}), mockGoals)
 
-    // Inject mock tags
     queryClient.setQueryData(tagKeys.lists(), mockTags)
 
-    // Mock streak if user has none
     queryClient.setQueryDefaults(gamificationKeys.all, { staleTime: Infinity })
     queryClient.setQueryData(gamificationKeys.streak(), (old: StreakInfo | undefined) => {
       if (old && old.currentStreak > 0) return old

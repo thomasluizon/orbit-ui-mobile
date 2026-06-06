@@ -26,7 +26,7 @@ export function DescriptionViewer({
 
   return createPortal(
     <div className="fixed inset-0 z-[10000] bg-[var(--bg)] flex flex-col">
-      {/* Header */}
+      {}
       <div className="flex items-center gap-3 px-5 py-4 pt-[max(1rem,env(safe-area-inset-top))] border-b border-[var(--hairline)] shrink-0">
         <button
           aria-label={t('common.back')}
@@ -38,7 +38,7 @@ export function DescriptionViewer({
         <h1 className="font-bold text-lg text-[var(--fg-1)] truncate">{title}</h1>
       </div>
 
-      {/* Markdown content */}
+      {}
       <div className="flex-1 overflow-y-auto px-6 py-6">
         <Markdown content={description} />
       </div>

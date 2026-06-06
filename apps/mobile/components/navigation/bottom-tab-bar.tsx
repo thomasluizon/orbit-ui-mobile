@@ -54,8 +54,6 @@ export function BottomTabBar({
   const tokens = createTokensV2(currentScheme, currentTheme)
   const { t } = useTranslation()
 
-  // FAB hidden on Astra (has its own composer); rendered disabled on
-  // calendar/profile so the entry point stays anchored across tabs.
   const fabVisible = showFab && active !== 'chat'
   const fabDisabled = active !== 'today'
 
@@ -80,9 +78,6 @@ export function BottomTabBar({
             styles.fab,
             {
               backgroundColor: fabDisabled ? tokens.bgElev : tokens.primary,
-              // The 5px outer ring is the v8 "U-notch" trick: a shadow drawn in
-              // the background color so the FAB visually punches through the
-              // top hairline of the tab bar.
               shadowColor: tokens.bg,
               shadowOffset: { width: 0, height: 0 },
               shadowOpacity: 1,
@@ -116,10 +111,6 @@ export function BottomTabBar({
       <View style={styles.tabsRow}>
         {TABS.map((tab, index) => {
           const isActive = tab.id === active
-          // The FAB gap is a sibling between slots 1 and 2 so both halves of
-          // the row stay symmetric around the bar's midpoint. Nesting the gap
-          // inside slot 1 would shift only the chat icon away from the FAB
-          // and leave the calendar icon crowding the FAB's right edge.
           return (
             <Fragment key={tab.id}>
               <View style={styles.tabSlot}>
@@ -210,7 +201,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     zIndex: 2,
   },
-  // The 5px outer ring punches through the tab bar top edge.
   fabRing: {
     position: 'absolute',
     top: -5,

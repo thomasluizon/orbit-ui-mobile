@@ -9,7 +9,6 @@ import { isMissingBillingStatus } from '@orbit/shared/utils'
 async function fetchBillingDetails(): Promise<BillingDetails | null> {
   const res = await fetch(API.subscription.billing)
   if (isMissingBillingStatus(res.status)) {
-    // 404 = no Stripe subscription (e.g. lifetime Pro) -- not an error
     return null
   }
   if (!res.ok) {

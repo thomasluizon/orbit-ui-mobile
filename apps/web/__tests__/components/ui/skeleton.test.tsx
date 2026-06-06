@@ -30,7 +30,6 @@ describe('SkeletonCard', () => {
     const { container } = render(<SkeletonCard />)
     const card = container.firstChild as HTMLElement
     expect(card).toHaveAttribute('aria-hidden', 'true')
-    // 3 skeleton lines by default
     const lines = card.querySelectorAll('.skeleton-shimmer')
     expect(lines).toHaveLength(3)
   })
@@ -68,7 +67,7 @@ describe('SkeletonAvatar', () => {
   it('renders with default md size', () => {
     const { container } = render(<SkeletonAvatar />)
     const div = container.firstChild as HTMLElement
-    expect(div).toHaveClass('size-10') // md
+    expect(div).toHaveClass('size-10')
     expect(div).toHaveClass('rounded-full')
     expect(div).toHaveAttribute('aria-hidden', 'true')
   })

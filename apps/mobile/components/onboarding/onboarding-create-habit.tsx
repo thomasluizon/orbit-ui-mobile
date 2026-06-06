@@ -272,7 +272,6 @@ function createStyles(tokens: AppTokensV2) {
       fontSize: 14,
       fontWeight: '600',
     },
-    // Success state
     successCard: {
       borderTopWidth: 1,
       borderBottomWidth: 1,

@@ -5,8 +5,6 @@ vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
 }))
 
-// Mock the PushPrompt without the service worker complexity
-// Since it uses useEffect to check SW/PushManager, we test the rendering paths
 
 vi.mock('lucide-react', async (importOriginal) => {
   const actual = await importOriginal<typeof import('lucide-react')>()
@@ -19,7 +17,6 @@ vi.mock('lucide-react', async (importOriginal) => {
 
 import { PushPrompt } from '@/components/ui/push-prompt'
 
-// Provide a mock Notification class for the JSDOM environment
 let mockNotificationPermission = 'default' as NotificationPermission
 
 class MockNotification {
@@ -41,19 +38,16 @@ describe('PushPrompt', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockNotificationPermission = 'default'
-    // Default: no service worker support => component renders null
     Object.defineProperty(navigator, 'serviceWorker', {
       value: undefined,
       writable: true,
       configurable: true,
     })
-    // Clear cookies
     document.cookie = 'orbit_push_prompted=; max-age=0'
   })
 
   it('renders nothing initially (no SW support)', () => {
     const { container } = render(<PushPrompt />)
-    // Without service worker, it returns null after the effect
     expect(container.firstChild).toBeNull()
   })
 
@@ -136,8 +130,6 @@ describe('PushPrompt', () => {
 
     fireEvent.click(screen.getByText('pushPrompt.later'))
 
-    // After dismiss the prompt fades out (inline opacity flips to 0) before
-    // unmounting; assert via the dialog wrapper style.
     await waitFor(() => {
       const dialog = screen.getByRole('dialog')
       expect(dialog.style.opacity).toBe('0')
@@ -163,7 +155,6 @@ describe('PushPrompt', () => {
       expect(screen.getByTestId('x-icon')).toBeInTheDocument()
     })
 
-    // Click the X close button (its parent button)
     fireEvent.click(screen.getByTestId('x-icon').closest('button')!)
 
     await waitFor(() => {
@@ -188,9 +179,7 @@ describe('PushPrompt', () => {
 
     const { container } = render(<PushPrompt />)
 
-    // Give effect time to run
     await new Promise((r) => setTimeout(r, 50))
-    // Should remain hidden since already subscribed (no dialog mounted).
     expect(container.querySelector('[role="dialog"]')).toBeNull()
   })
 

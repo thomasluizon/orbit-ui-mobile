@@ -39,9 +39,6 @@ describe('tag server actions', () => {
     })
   }
 
-  // -------------------------------------------------------------------------
-  // getTags
-  // -------------------------------------------------------------------------
 
   describe('getTags', () => {
     it('sends GET to /api/tags', async () => {
@@ -85,9 +82,6 @@ describe('tag server actions', () => {
     })
   })
 
-  // -------------------------------------------------------------------------
-  // createTag
-  // -------------------------------------------------------------------------
 
   describe('createTag', () => {
     it('sends POST to /api/tags with name and color', async () => {
@@ -123,9 +117,6 @@ describe('tag server actions', () => {
     })
   })
 
-  // -------------------------------------------------------------------------
-  // updateTag
-  // -------------------------------------------------------------------------
 
   describe('updateTag', () => {
     it('sends PUT to /api/tags/:id with name and color', async () => {
@@ -151,9 +142,6 @@ describe('tag server actions', () => {
     })
   })
 
-  // -------------------------------------------------------------------------
-  // deleteTag
-  // -------------------------------------------------------------------------
 
   describe('deleteTag', () => {
     it('sends DELETE to /api/tags/:id', async () => {
@@ -173,9 +161,6 @@ describe('tag server actions', () => {
     })
   })
 
-  // -------------------------------------------------------------------------
-  // assignTags
-  // -------------------------------------------------------------------------
 
   describe('assignTags', () => {
     it('sends PUT to /api/tags/:habitId/assign with tagIds', async () => {
@@ -207,9 +192,6 @@ describe('tag server actions', () => {
     })
   })
 
-  // -------------------------------------------------------------------------
-  // Error handling
-  // -------------------------------------------------------------------------
 
   describe('error handling', () => {
     it('throws with error message from response body', async () => {

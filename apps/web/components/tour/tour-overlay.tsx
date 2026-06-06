@@ -55,7 +55,6 @@ export function TourOverlay() {
         }),
       )
     } catch {
-      // localStorage may throw in private-browsing modes — completion is server-persisted.
     }
   }, [endTour, queryClient])
 

@@ -64,7 +64,6 @@ async function getStatusError(
   body: unknown,
 ): Promise<ApiError | null> {
   if (status === 401) {
-    // Dynamic import to avoid circular deps
     const { useAuthStore } = await import('@/stores/auth-store')
     useAuthStore.getState().logout()
     return new ApiError(status, 'Unauthorized', body)

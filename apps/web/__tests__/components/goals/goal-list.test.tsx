@@ -99,9 +99,7 @@ describe('GoalList', () => {
   it('applies drag-ghost class on dragEnter', () => {
     const { container } = render(<GoalList goals={mockGoals} />)
     const sections = container.querySelectorAll('[draggable="true"]')
-    // Start dragging the first item
     fireEvent.dragStart(sections[0]!)
-    // Enter the second item
     fireEvent.dragEnter(sections[1]!)
     expect(sections[1]!.className).toContain('drag-ghost')
   })
@@ -109,12 +107,9 @@ describe('GoalList', () => {
   it('calls reorder mutation on dragEnd when items are reordered', () => {
     const { container } = render(<GoalList goals={mockGoals} />)
     const sections = container.querySelectorAll('[draggable="true"]')
-    // Start dragging first item, enter second, end drag
     fireEvent.dragStart(sections[0]!)
     fireEvent.dragEnter(sections[1]!)
     fireEvent.dragEnd(sections[0]!)
-    // Reorder should have been called (the mock mutate fn)
-    // We verify the drag classes are reset
     expect(sections[0]!.className).not.toContain('drag-chosen')
     expect(sections[1]!.className).not.toContain('drag-ghost')
   })
@@ -122,7 +117,6 @@ describe('GoalList', () => {
   it('resets drag state on dragEnd without reorder (same index)', () => {
     const { container } = render(<GoalList goals={mockGoals} />)
     const sections = container.querySelectorAll('[draggable="true"]')
-    // Start and end drag on same item without entering another
     fireEvent.dragStart(sections[0]!)
     fireEvent.dragEnd(sections[0]!)
     expect(sections[0]!.className).not.toContain('drag-chosen')
@@ -133,31 +127,25 @@ describe('GoalList', () => {
     const sections = container.querySelectorAll('[draggable="true"]')
     const event = new Event('dragover', { bubbles: true, cancelable: true })
     const prevented = !sections[0]!.dispatchEvent(event)
-    // React's onDragOver calls e.preventDefault(), so the default should be prevented
     expect(prevented).toBe(true)
   })
 
   it('handles touch start and clears on touch end without delay', () => {
     const { container } = render(<GoalList goals={mockGoals} />)
     const sections = container.querySelectorAll('[draggable="true"]')
-    // Simulate touch start
     fireEvent.touchStart(sections[0]!, {
       touches: [{ clientX: 100, clientY: 200 }],
     })
-    // Immediately end touch (before 300ms delay)
     fireEvent.touchEnd(sections[0]!)
-    // Should not enter drag mode
     expect(sections[0]!.className).not.toContain('drag-chosen')
   })
 
   it('cancels touch hold if moved beyond threshold', () => {
     const { container } = render(<GoalList goals={mockGoals} />)
     const sections = container.querySelectorAll('[draggable="true"]')
-    // Simulate touch start
     fireEvent.touchStart(sections[0]!, {
       touches: [{ clientX: 100, clientY: 200 }],
     })
-    // Move beyond threshold before hold delay
     fireEvent.touchMove(sections[0]!, {
       touches: [{ clientX: 120, clientY: 220 }],
     })

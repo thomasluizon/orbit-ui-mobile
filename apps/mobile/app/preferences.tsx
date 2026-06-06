@@ -140,7 +140,6 @@ export default function PreferencesScreen() {
       })
       patchProfile({ language: locale })
     } catch {
-      // Silently fail
     }
   }
 
@@ -211,7 +210,6 @@ export default function PreferencesScreen() {
         String(nextValue),
       )
     } catch {
-      // Best-effort persistence
     }
   }
 

@@ -119,7 +119,6 @@ export function GoalList({ goals }: Readonly<GoalListProps>) {
       const touch = e.touches[0]
       if (!touch) return
 
-      // Cancel hold if moved too far before delay elapsed
       if (!touchDragging.current && touchStartPos.current) {
         const dx = Math.abs(touch.clientX - touchStartPos.current.x)
         const dy = Math.abs(touch.clientY - touchStartPos.current.y)
@@ -131,7 +130,6 @@ export function GoalList({ goals }: Readonly<GoalListProps>) {
 
       if (!touchDragging.current) return
 
-      // Prevent scrolling while dragging
       e.preventDefault()
 
       const overIndex = getItemIndexFromPoint(touch.clientX, touch.clientY)

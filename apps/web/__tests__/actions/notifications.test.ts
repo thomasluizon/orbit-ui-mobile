@@ -44,9 +44,6 @@ describe('notification server actions', () => {
     })
   }
 
-  // -------------------------------------------------------------------------
-  // markNotificationRead
-  // -------------------------------------------------------------------------
 
   describe('markNotificationRead', () => {
     it('sends PUT to /api/notifications/:id/read', async () => {
@@ -77,9 +74,6 @@ describe('notification server actions', () => {
     })
   })
 
-  // -------------------------------------------------------------------------
-  // markAllNotificationsRead
-  // -------------------------------------------------------------------------
 
   describe('markAllNotificationsRead', () => {
     it('sends PUT to /api/notifications/read-all', async () => {
@@ -101,9 +95,6 @@ describe('notification server actions', () => {
     })
   })
 
-  // -------------------------------------------------------------------------
-  // deleteNotification
-  // -------------------------------------------------------------------------
 
   describe('deleteNotification', () => {
     it('sends DELETE to /api/notifications/:id', async () => {
@@ -125,9 +116,6 @@ describe('notification server actions', () => {
     })
   })
 
-  // -------------------------------------------------------------------------
-  // deleteAllNotifications
-  // -------------------------------------------------------------------------
 
   describe('deleteAllNotifications', () => {
     it('sends DELETE to /api/notifications/all', async () => {
@@ -147,9 +135,6 @@ describe('notification server actions', () => {
     })
   })
 
-  // -------------------------------------------------------------------------
-  // subscribePush
-  // -------------------------------------------------------------------------
 
   describe('subscribePush', () => {
     it('sends POST to /api/notifications/subscribe with flattened keys', async () => {
@@ -201,9 +186,6 @@ describe('notification server actions', () => {
     })
   })
 
-  // -------------------------------------------------------------------------
-  // unsubscribePush
-  // -------------------------------------------------------------------------
 
   describe('unsubscribePush', () => {
     it('sends POST to /api/notifications/unsubscribe with flattened keys', async () => {
@@ -255,9 +237,6 @@ describe('notification server actions', () => {
     })
   })
 
-  // -------------------------------------------------------------------------
-  // Error handling
-  // -------------------------------------------------------------------------
 
   describe('error handling', () => {
     it('throws with error message from response body', async () => {

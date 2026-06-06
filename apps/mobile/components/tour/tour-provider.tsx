@@ -55,11 +55,6 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
     setHiddenSections(hasProAccess ? [] : ['goals'])
   }, [hasProAccess, setHiddenSections])
 
-  // On Android with translucent status bar, measureInWindow returns Y from
-  // the top of the screen (behind status bar), but the overlay SVG starts
-  // below the status bar. We need to subtract the status bar height.
-  // The spotlight appearing ABOVE the element means Y is too small,
-  // so we need to ADD the offset to push the spotlight down.
   const yAdjust = Platform.OS === 'android' ? insets.top : 0
 
   const clearManagedTimeouts = useCallback(() => {
@@ -114,7 +109,6 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
     }
   }, [resetSessionState, restore])
 
-  // Inject mock data when tour starts
   useEffect(() => {
     if (isActive && !mockDataInjectedRef.current) {
       uiSnapshotRef.current = getPersistedUIState(useUIStore.getState())
@@ -183,28 +177,23 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
       const scrollEntry = tourScrollRegistry.get(route)
 
       if (!scrollEntry) {
-        // No scroll container - just measure in place
         measureAndSet(ref.current)
         return true
       }
 
-      // Measure current screen position
       ref.current.measureInWindow((x, y, width, height) => {
         if (width <= 0 || height <= 0) return
 
-        // Where we want the element: center of the visible area above tooltip
         const tooltipHeight = 280
         const visibleHeight = screenHeight - tooltipHeight
         const desiredScreenY = visibleHeight / 2 - height / 2
         const scrollDelta = y - desiredScreenY
 
-        // Scroll if element needs to move more than 20px
         if (Math.abs(scrollDelta) > 20) {
           const newScrollY = Math.max(0, scrollEntry.scrollY + scrollDelta)
           scrollEntry.scrollTo(newScrollY)
         }
 
-        // Re-measure after scroll settles
         scheduleTimeout(() => {
           if (ref.current) {
             measureAndSet(ref.current)
@@ -222,10 +211,8 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
       if (pollRef.current) clearInterval(pollRef.current)
       if (timeoutRef.current) clearTimeout(timeoutRef.current)
 
-      // Try immediately
       if (scrollIntoViewAndMeasure(targetId, route)) return
 
-      // Poll until found
       let attempts = 0
       const maxAttempts = TARGET_FIND_TIMEOUT / MEASURE_POLL_INTERVAL
 
@@ -248,7 +235,6 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
     [scrollIntoViewAndMeasure, nextStep],
   )
 
-  // Continuously re-measure the current target (mirrors web's scroll/resize listeners)
   useEffect(() => {
     if (!isActive) {
       if (reMeasureRef.current) clearInterval(reMeasureRef.current)
@@ -274,7 +260,6 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
     }
   }, [isActive, getCurrentStep, setTargetRect, yAdjust])
 
-  // React to step changes
   const currentStep = getCurrentStep()
   const stepId = currentStep?.id ?? null
 
@@ -324,7 +309,6 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
     scheduleTimeout,
   ])
 
-  // When pathname changes during navigation, search for the element
   useEffect(() => {
     const step = getCurrentStep()
     if (!isActive || !step) return
@@ -350,7 +334,6 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
     }
   }, [pathname, isActive, getCurrentStep, waitForTarget, scheduleTimeout])
 
-  // Cleanup on unmount
   useEffect(() => {
     return () => {
       resetSessionState()

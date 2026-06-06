@@ -77,7 +77,6 @@ describe('GoalLinkingField', () => {
     await waitFor(() => {
       expect(screen.getByText(/Run 100km/)).toBeInTheDocument()
     })
-    // Completed goal should not appear (only Active)
     expect(screen.queryByText(/Completed Goal/)).not.toBeInTheDocument()
 
     fireEvent.click(screen.getByText(/Run 100km/))

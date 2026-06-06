@@ -1,9 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen } from '@testing-library/react'
 
-// ---------------------------------------------------------------------------
-// Mocks -- must come before component import
-// ---------------------------------------------------------------------------
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string, params?: Record<string, unknown>) => {
@@ -32,15 +29,9 @@ vi.mock('@/lib/plural', () => ({
   plural: (text: string, _count: number) => text,
 }))
 
-// ---------------------------------------------------------------------------
-// Import component after mocks
-// ---------------------------------------------------------------------------
 
 import { SubscriptionCard } from '@/app/(app)/profile/_components/subscription-card'
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
 
 const baseProfile = {
   name: 'Thomas',
@@ -76,9 +67,6 @@ const baseProfile = {
   googleCalendarLastSyncedAt: null,
 }
 
-// ---------------------------------------------------------------------------
-// Tests — v8 SubscriptionCard: flush row, "Plan" label + state line + trailing link
-// ---------------------------------------------------------------------------
 
 describe('SubscriptionCard', () => {
   it('renders an upgrade link to /upgrade for free users', () => {
@@ -94,7 +82,6 @@ describe('SubscriptionCard', () => {
     render(
       <SubscriptionCard profile={baseProfile} trialDaysLeft={null} trialExpired={false} />,
     )
-    // Free state: "Free Plan · Upgrade to unlock..." appears in a single inline span
     expect(document.body.textContent).toContain('profile.subscription.free')
     expect(document.body.textContent).toContain('profile.subscription.freeHint')
   })

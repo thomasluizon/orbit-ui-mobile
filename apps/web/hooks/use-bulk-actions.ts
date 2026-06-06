@@ -45,7 +45,6 @@ export function useBulkActions({
     try {
       await bulkDelete.mutateAsync(ids)
     } catch {
-      // Error handled in hook
     } finally {
       onSuccess()
       setShowBulkDeleteConfirm(false)
@@ -65,7 +64,6 @@ export function useBulkActions({
       }
       promptParentLogsForBulkSuccesses(successIds)
     } catch {
-      // Error handled in hook
     } finally {
       onSuccess()
       setShowBulkLogConfirm(false)
@@ -85,7 +83,6 @@ export function useBulkActions({
       }
       promptParentLogsForBulkSuccesses(successIds)
     } catch {
-      // Error handled in hook
     } finally {
       onSuccess()
       setShowBulkSkipConfirm(false)

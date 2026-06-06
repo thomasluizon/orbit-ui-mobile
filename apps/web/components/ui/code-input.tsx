@@ -42,7 +42,6 @@ export function CodeInput({
     >
       {digits.map((digit, index) => (
         <input
-          // NOSONAR -- fixed-length code, index defines slot identity
           key={`code-digit-${index}`}
           ref={(el) => {
             inputRefs.current[index] = el

@@ -55,7 +55,6 @@ export function HabitChecklist({
     useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 5 } }),
   )
 
-  // Stable IDs for sortable context (index-based since checklist items have no unique id)
   const sortableIds = items.map((_, i) => `checklist-${i}`)
 
   const handleDragEnd = useCallback(

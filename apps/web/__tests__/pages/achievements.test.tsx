@@ -1,9 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
 
-// ---------------------------------------------------------------------------
-// Mocks -- must come before component import
-// ---------------------------------------------------------------------------
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string, params?: Record<string, unknown>) => {
@@ -63,15 +60,9 @@ vi.mock('@/hooks/use-go-back-or-fallback', () => ({
   useGoBackOrFallback: () => vi.fn(),
 }))
 
-// ---------------------------------------------------------------------------
-// Import component after mocks
-// ---------------------------------------------------------------------------
 
 import AchievementsPage from '@/app/(app)/achievements/page'
 
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
 
 describe('AchievementsPage', () => {
   beforeEach(() => {
@@ -100,7 +91,6 @@ describe('AchievementsPage', () => {
     expect(screen.getByTestId('pro-badge')).toBeInTheDocument()
   })
 
-  // ---- Locked state (non-Pro) ----
 
   it('shows locked state when user does not have Pro access', () => {
     mockHasProAccess = false
@@ -122,7 +112,6 @@ describe('AchievementsPage', () => {
     expect(screen.queryByText('gamification.page.lockedTitle')).not.toBeInTheDocument()
   })
 
-  // ---- Loading state ----
 
   it('shows skeleton loading state when gamification is loading', () => {
     mockGamificationLoading = true
@@ -132,7 +121,6 @@ describe('AchievementsPage', () => {
     expect(pulseElements.length).toBeGreaterThan(0)
   })
 
-  // ---- Pro user with profile data ----
 
   it('renders level header when profile is loaded', () => {
     mockGamificationProfile = {
@@ -249,7 +237,6 @@ describe('AchievementsPage', () => {
     mockProfileLoading = true
     mockHasProAccess = false
     render(<AchievementsPage />)
-    // The locked state has a guard: !profileLoading && !hasProAccess
     expect(screen.queryByText('gamification.page.lockedTitle')).not.toBeInTheDocument()
   })
 
@@ -257,7 +244,6 @@ describe('AchievementsPage', () => {
     mockGamificationLoading = false
     mockGamificationProfile = null
     const { container } = render(<AchievementsPage />)
-    // Should render the header but not the locked state nor skeleton
     expect(screen.getByText('gamification.title')).toBeInTheDocument()
     expect(container.querySelectorAll('.skeleton-shimmer').length).toBe(0)
   })

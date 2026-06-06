@@ -1,9 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 
-// ---------------------------------------------------------------------------
-// Mocks -- must come before component import
-// ---------------------------------------------------------------------------
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string, params?: Record<string, unknown>) => {
@@ -103,15 +100,9 @@ vi.mock('@/hooks/use-go-back-or-fallback', () => ({
   useGoBackOrFallback: () => vi.fn(),
 }))
 
-// ---------------------------------------------------------------------------
-// Import component after mocks
-// ---------------------------------------------------------------------------
 
 import AdvancedPage from '@/app/(app)/advanced/page'
 
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
 
 describe('AdvancedPage', () => {
   beforeEach(() => {
@@ -139,7 +130,6 @@ describe('AdvancedPage', () => {
     expect(screen.getByRole('button', { name: 'common.backToProfile' })).toBeInTheDocument()
   })
 
-  // ---- Widget tip ----
 
   it('renders widget tip button', () => {
     render(<AdvancedPage />)
@@ -172,7 +162,6 @@ describe('AdvancedPage', () => {
     expect(screen.getByText('profile.widgetHow.feature1')).toBeInTheDocument()
   })
 
-  // ---- For Developers / MCP section ----
 
   it('renders MCP section title with ProBadge', () => {
     render(<AdvancedPage />)
@@ -194,7 +183,6 @@ describe('AdvancedPage', () => {
     expect(upgradeLink).toBeTruthy()
   })
 
-  // ---- API Keys (Pro users) ----
 
   it('shows API keys section for Pro users', () => {
     render(<AdvancedPage />)
@@ -294,7 +282,6 @@ describe('AdvancedPage', () => {
     expect(screen.getByText('orbitMcp.maxKeysReached')).toBeInTheDocument()
   })
 
-  // ---- Connection Instructions ----
 
   it('renders connection instructions toggle', () => {
     render(<AdvancedPage />)

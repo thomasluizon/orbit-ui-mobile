@@ -11,7 +11,6 @@ export {
   CHAT_VISUALIZER_BAR_OFFSETS as VISUALIZER_BAR_OFFSETS,
 } from '@orbit/shared/chat'
 
-// Web Speech API type declarations (not in default TS DOM lib).
 interface SpeechRecognitionResult {
   readonly isFinal: boolean
   readonly length: number
@@ -61,9 +60,9 @@ export function useSpeechToText() {
   })
   const [transcript, setTranscript] = useState('')
   const [error, setError] = useState<string | null>(null)
-  const [selectedLanguage, setSelectedLanguageRaw] = useState(() => { // NOSONAR - setter wrapped by useCallback below
+  const [selectedLanguage, setSelectedLanguageRaw] = useState(() => {
     const defaultLanguage = getDefaultChatSpeechLanguage(locale)
-    if (typeof globalThis === 'undefined' || typeof globalThis.localStorage === 'undefined') return defaultLanguage // NOSONAR - SSR guard
+    if (typeof globalThis === 'undefined' || typeof globalThis.localStorage === 'undefined') return defaultLanguage
     return localStorage.getItem(CHAT_SPEECH_LANG_KEY) ?? defaultLanguage
   })
   const [recordingDuration, setRecordingDuration] = useState(0)

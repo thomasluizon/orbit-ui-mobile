@@ -67,7 +67,6 @@ export function HabitDetailStatsGrid({
     )
   }
 
-  // metrics is null and not loading
   return (
     <div>
       <SectionLabel>{t('habits.detail.stats')}</SectionLabel>

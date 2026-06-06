@@ -125,7 +125,6 @@ export function OnboardingFlow() {
         dedupeKey: 'profile-onboarding-complete',
       })
     } catch {
-      // Ignore -- user should proceed regardless
     }
     queryClient.setQueryData<Profile>(profileKeys.detail(), (old) =>
       old ? { ...old, hasCompletedOnboarding: true } : old,
@@ -214,7 +213,6 @@ export function OnboardingFlow() {
             <View style={styles.dotsRow}>
               {Array.from({ length: displayTotal }).map((_, i) => (
                 <View
-                  // NOSONAR -- progress dot index identifies the slot
                   key={`progress-dot-${i}`}
                   style={[
                     styles.dot,

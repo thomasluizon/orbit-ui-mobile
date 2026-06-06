@@ -141,9 +141,6 @@ export function HabitRow({
   const [menuAnchorRect, setMenuAnchorRect] = useState<MenuAnchorRect | null>(
     null,
   )
-  // Android nested-Pressable quirk: tapping the kebab can also fire the row's
-  // onPress. Stamping a timestamp on every menu interaction (open + close)
-  // lets handlePress swallow row presses that race the kebab/menu-item taps.
   const menuActivityAt = useRef(0)
 
   const hasMenuActions =
@@ -193,10 +190,6 @@ export function HabitRow({
 
   const linkedGoal = (habit.linkedGoals?.length ?? 0) > 0
 
-  // Every habit row is its own fully-rounded --bg-elev card. Hierarchy comes
-  // from the left indent (16px per depth level), not from shared containers.
-  // 6px gap below each row gives breathing room without hairlines.
-  // 20px horizontal margin matches the screen header's gutter.
   const indentPx = depth * 16
 
   return (
@@ -537,8 +530,6 @@ function MenuItem({ icon: Icon, label, color, onPress }: Readonly<MenuItemProps>
   )
 }
 
-// Tokens are consumed via inline styles for dynamic theming; static styles
-// below contain no color values.
 const styles = StyleSheet.create({
   row: {
     paddingRight: 16,

@@ -36,8 +36,6 @@ export function AppDatePicker({
   const weekStartsOn = (profile?.weekStartDay ?? 0) as 0 | 1
   const [isOpen, setIsOpen] = useState(false)
   const [viewDate, setViewDate] = useState(() => (value ? parseISO(value) : new Date()))
-  // Re-sync viewDate when the externally-controlled `value` prop changes.
-  // This is the documented "adjusting some state when a prop changes" pattern.
   const [lastSyncedValue, setLastSyncedValue] = useState(value)
   if (value !== lastSyncedValue) {
     setLastSyncedValue(value)
@@ -95,7 +93,6 @@ export function AppDatePicker({
 
   const displayValue = value ? formatLocaleDate(value, locale) : ''
 
-  // Close on click outside
   const handleClickOutside = useCallback(
     (e: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
@@ -128,7 +125,7 @@ export function AppDatePicker({
 
       {isOpen && (
         <>
-          {/* Backdrop to close */}
+          {}
           <div
             className="fixed inset-0 z-40 bg-black/65"
             aria-hidden="true"
@@ -141,7 +138,7 @@ export function AppDatePicker({
             aria-labelledby={dialogLabelId}
             className="fixed z-50 left-1/2 top-1/2 m-0 w-[min(90vw,320px)] -translate-x-1/2 -translate-y-1/2 rounded-[12px] border border-[var(--hairline)] bg-[var(--bg-elev)] p-2.5 text-[var(--fg-1)] shadow-[0_12px_40px_rgba(0,0,0,0.35)]"
           >
-            {/* Month navigation */}
+            {}
             <div className="flex items-center justify-between mb-2">
               <button
                 type="button"

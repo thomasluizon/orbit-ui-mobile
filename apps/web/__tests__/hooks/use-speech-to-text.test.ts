@@ -2,7 +2,6 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
 import { useSpeechToText } from '@/hooks/use-speech-to-text'
 
-// Mock next-intl
 vi.mock('next-intl', () => ({
   useLocale: () => 'en',
   useTranslations: () => (key: string, params?: Record<string, string>) => {
@@ -11,7 +10,6 @@ vi.mock('next-intl', () => ({
   },
 }))
 
-// Mock localStorage
 const mockStorage: Record<string, string> = {}
 vi.stubGlobal('localStorage', {
   getItem: vi.fn((key: string) => mockStorage[key] ?? null),
@@ -20,7 +18,6 @@ vi.stubGlobal('localStorage', {
   }),
 })
 
-// Mock SpeechRecognition
 class MockSpeechRecognition {
   continuous = false
   interimResults = false
@@ -30,10 +27,8 @@ class MockSpeechRecognition {
   onend: (() => void) | null = null
 
   start = vi.fn(() => {
-    // Simulate successful start
   })
   stop = vi.fn(() => {
-    // Simulate stop - trigger onend
     if (this.onend) this.onend()
   })
   abort = vi.fn()
@@ -159,7 +154,7 @@ describe('useSpeechToText', () => {
       expect(result.current.recordingDuration).toBe(0)
 
       act(() => {
-        vi.advanceTimersByTime(3000) // 3 seconds
+        vi.advanceTimersByTime(3000)
       })
 
       expect(result.current.recordingDuration).toBe(3)

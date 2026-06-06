@@ -48,7 +48,6 @@ export function ReferralDrawer({ open, onClose }: Readonly<ReferralDrawerProps>)
         message: `${t('referral.share.text', { discount: discountPercent })} ${referralUrl}`,
       })
     } catch {
-      // User cancelled share
     }
   }, [referralUrl, discountPercent, t])
 

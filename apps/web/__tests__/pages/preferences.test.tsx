@@ -1,9 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 
-// ---------------------------------------------------------------------------
-// Mocks -- must come before component import
-// ---------------------------------------------------------------------------
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string, params?: Record<string, unknown>) => {
@@ -110,15 +107,9 @@ vi.mock('@/hooks/use-go-back-or-fallback', () => ({
   useGoBackOrFallback: () => vi.fn(),
 }))
 
-// ---------------------------------------------------------------------------
-// Import component after mocks
-// ---------------------------------------------------------------------------
 
 import PreferencesPage from '@/app/(app)/preferences/page'
 
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
 
 describe('PreferencesPage', () => {
   beforeEach(() => {
@@ -151,7 +142,6 @@ describe('PreferencesPage', () => {
     expect(screen.getByRole('button', { name: 'common.backToProfile' })).toBeInTheDocument()
   })
 
-  // ---- Language section ----
 
   it('renders language section', () => {
     render(<PreferencesPage />)
@@ -171,7 +161,6 @@ describe('PreferencesPage', () => {
     expect(enButton).toHaveAttribute('aria-pressed', 'true')
   })
 
-  // ---- Color Scheme section ----
 
   it('renders color scheme section with ProBadge', () => {
     render(<PreferencesPage />)
@@ -198,7 +187,6 @@ describe('PreferencesPage', () => {
     expect(mockPush).toHaveBeenCalledWith('/upgrade')
   })
 
-  // ---- Week Start Day section ----
 
   it('renders week start day section', () => {
     render(<PreferencesPage />)
@@ -218,7 +206,6 @@ describe('PreferencesPage', () => {
     expect(mondayButton).toHaveAttribute('aria-pressed', 'true')
   })
 
-  // ---- Home Screen section ----
 
   it('renders home screen toggle', () => {
     render(<PreferencesPage />)
@@ -285,7 +272,6 @@ describe('PreferencesPage', () => {
     expect(screen.queryByRole('switch', { name: 'settings.notifications.title' })).not.toBeInTheDocument()
   })
 
-  // ---- Null profile edge case ----
 
   it('renders with null profile without crashing', () => {
     mockProfile = null

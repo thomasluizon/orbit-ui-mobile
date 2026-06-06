@@ -13,15 +13,10 @@ import type {
   CalendarSyncSuggestion,
 } from '@orbit/shared/types/calendar'
 
-// ---------------------------------------------------------------------------
-// Mocks
-// ---------------------------------------------------------------------------
 
 const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
 
-// Mock the calendar Server Actions so they don't hit Next.js cookies() in the test
-// environment. Each delegates to mockFetch so assertions on fetch calls still work.
 vi.mock('@/app/actions/calendar', () => ({
   setCalendarAutoSync: vi.fn(async (enabled: boolean) => {
     const res = await fetch('/api/calendar/auto-sync', {
@@ -133,9 +128,6 @@ const sampleSuggestions: CalendarSyncSuggestion[] = [
   },
 ]
 
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
 
 describe('useCalendarAutoSyncState', () => {
   beforeEach(() => {
@@ -159,7 +151,7 @@ describe('useCalendarAutoSyncState', () => {
   })
 
   it('exposes loading state while the request is pending', () => {
-    mockFetch.mockReturnValueOnce(new Promise(() => {})) // never resolves
+    mockFetch.mockReturnValueOnce(new Promise(() => {}))
 
     const { Wrapper } = createWrapper()
     const { result } = renderHook(() => useCalendarAutoSyncState(), { wrapper: Wrapper })
@@ -182,7 +174,6 @@ describe('useSetCalendarAutoSync', () => {
 
     const { Wrapper } = createWrapper(client)
 
-    // Resolves after we have time to observe the optimistic update
     let resolveRequest: (value: unknown) => void = () => {}
     mockFetch.mockReturnValueOnce(
       new Promise((resolve) => {
@@ -201,7 +192,6 @@ describe('useSetCalendarAutoSync', () => {
       expect(cached?.enabled).toBe(true)
     })
 
-    // Let the request complete so React Query settles cleanly
     act(() => {
       resolveRequest({
         ok: true,
@@ -228,7 +218,6 @@ describe('useSetCalendarAutoSync', () => {
       try {
         await result.current.mutateAsync({ enabled: true })
       } catch {
-        // expected
       }
     })
 
@@ -290,7 +279,6 @@ describe('useDismissCalendarSuggestion', () => {
       try {
         await result.current.mutateAsync({ id: 'sugg-1' })
       } catch {
-        // expected
       }
     })
 

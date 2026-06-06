@@ -6,9 +6,6 @@ import { HabitFormFields } from '@/components/habits/habit-form-fields'
 import type { HabitFormHelpers } from '@/hooks/use-habit-form'
 import type { TagSelectionState } from '@/hooks/use-tag-selection'
 
-// ---------------------------------------------------------------------------
-// Mocks
-// ---------------------------------------------------------------------------
 
 vi.mock('next-intl', () => ({
   useTranslations: () => {
@@ -60,9 +57,6 @@ vi.mock('@/components/ui/app-select', () => ({
   ),
 }))
 
-// ---------------------------------------------------------------------------
-// Helpers
-// ---------------------------------------------------------------------------
 
 function createMockFormHelpers(overrides?: Partial<HabitFormHelpers>): HabitFormHelpers {
   return {
@@ -158,9 +152,6 @@ function renderWithProviders(ui: React.ReactElement) {
   )
 }
 
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
 
 describe('HabitFormFields', () => {
   beforeEach(() => {
@@ -182,7 +173,6 @@ describe('HabitFormFields', () => {
         onReminderTimesChange={vi.fn()}
       />,
     )
-    // Should render the title field
     expect(screen.getByText('habits.form.title')).toBeDefined()
   })
 
@@ -490,7 +480,6 @@ describe('HabitFormFields', () => {
 
   it('shows slip alert toggle for bad habits', () => {
     const formHelpers = createMockFormHelpers({ isGeneral: false })
-    // Override watch to return isBadHabit: true
     formHelpers.form.watch = vi.fn((field: string) => {
       const defaults: Record<string, unknown> = {
         frequencyUnit: 'Day',
@@ -523,9 +512,6 @@ describe('HabitFormFields', () => {
     expect(screen.getByText('habits.form.slipAlert')).toBeDefined()
   })
 
-  // -------------------------------------------------------------------------
-  // Schedule type switching
-  // -------------------------------------------------------------------------
 
   it('calls setOneTime when one-time button is clicked', () => {
     const setOneTime = vi.fn()
@@ -607,9 +593,6 @@ describe('HabitFormFields', () => {
     expect(setGeneral).toHaveBeenCalled()
   })
 
-  // -------------------------------------------------------------------------
-  // One-time schedule type hides frequency and day picker
-  // -------------------------------------------------------------------------
 
   it('hides frequency picker and day picker for one-time habits', () => {
     const formHelpers = createMockFormHelpers({ isOneTime: true, isRecurring: false, showDayPicker: false, showEndDate: false })
@@ -629,9 +612,6 @@ describe('HabitFormFields', () => {
     expect(screen.queryByText('habits.form.activeDays')).toBeNull()
   })
 
-  // -------------------------------------------------------------------------
-  // General schedule type hides time/date/bad-habit sections
-  // -------------------------------------------------------------------------
 
   it('hides due date, due time, and bad habit toggle for general habits', () => {
     const formHelpers = createMockFormHelpers({ isGeneral: true, isOneTime: false, isRecurring: false, isFlexible: false, showDayPicker: false, showEndDate: false })
@@ -652,9 +632,6 @@ describe('HabitFormFields', () => {
     expect(screen.queryByText('habits.form.badHabitLabel')).toBeNull()
   })
 
-  // -------------------------------------------------------------------------
-  // Flexible description
-  // -------------------------------------------------------------------------
 
   it('shows flexible description when isFlexible is true', () => {
     const formHelpers = createMockFormHelpers({ isFlexible: true, isOneTime: false, isGeneral: false, isRecurring: false })
@@ -670,13 +647,9 @@ describe('HabitFormFields', () => {
         onReminderTimesChange={vi.fn()}
       />,
     )
-    // Flexible shows "timesPerUnit" label instead of "every"
     expect(screen.getByText('habits.form.timesPerUnit')).toBeDefined()
   })
 
-  // -------------------------------------------------------------------------
-  // Frequency picker for non-oneTime, non-general
-  // -------------------------------------------------------------------------
 
   it('shows frequency picker for recurring habits', () => {
     const formHelpers = createMockFormHelpers({ isOneTime: false, isGeneral: false, isRecurring: true })
@@ -696,9 +669,6 @@ describe('HabitFormFields', () => {
     expect(screen.getAllByText('habits.form.unit').length).toBeGreaterThan(0)
   })
 
-  // -------------------------------------------------------------------------
-  // Day picker interaction
-  // -------------------------------------------------------------------------
 
   it('calls toggleDay when a day button is clicked', () => {
     const toggleDay = vi.fn()
@@ -751,19 +721,14 @@ describe('HabitFormFields', () => {
         onReminderTimesChange={vi.fn()}
       />,
     )
-    // Mon and Wed should have the active class
     const monBtn = screen.getByText('Mon')
     expect(monBtn).toHaveAttribute('aria-pressed', 'true')
     const wedBtn = screen.getByText('Wed')
     expect(wedBtn).toHaveAttribute('aria-pressed', 'true')
-    // Tue should not
     const tueBtn = screen.getByText('Tue')
     expect(tueBtn).toHaveAttribute('aria-pressed', 'false')
   })
 
-  // -------------------------------------------------------------------------
-  // Due time input
-  // -------------------------------------------------------------------------
 
   it('calls setValue on due time change', () => {
     const setValue = vi.fn()
@@ -786,9 +751,6 @@ describe('HabitFormFields', () => {
     expect(setValue).toHaveBeenCalledWith('dueTime', '14:30', { shouldDirty: true })
   })
 
-  // -------------------------------------------------------------------------
-  // End time input shows when dueTime is set
-  // -------------------------------------------------------------------------
 
   it('shows end time field when dueTime is set', () => {
     const formHelpers = createMockFormHelpers({ isGeneral: false, isOneTime: false })
@@ -824,9 +786,6 @@ describe('HabitFormFields', () => {
     expect(screen.getByText('habits.form.dueEndTime')).toBeDefined()
   })
 
-  // -------------------------------------------------------------------------
-  // Invalid time validation messages
-  // -------------------------------------------------------------------------
 
   it('does not show inline invalid time error for malformed dueTime', () => {
     const formHelpers = createMockFormHelpers({ isGeneral: false })
@@ -896,9 +855,6 @@ describe('HabitFormFields', () => {
     expect(screen.queryByText('habits.form.endTimeBeforeStartTime')).toBeNull()
   })
 
-  // -------------------------------------------------------------------------
-  // End date section
-  // -------------------------------------------------------------------------
 
   it('shows add end date button when endDate is empty and showEndDate is true', () => {
     const formHelpers = createMockFormHelpers({ showEndDate: true })
@@ -1025,9 +981,6 @@ describe('HabitFormFields', () => {
     expect(setValue).toHaveBeenCalledWith('endDate', '', { shouldDirty: true })
   })
 
-  // -------------------------------------------------------------------------
-  // Reminder section (with dueTime)
-  // -------------------------------------------------------------------------
 
   it('shows reminder section when dueTime is set and not general', () => {
     const formHelpers = createMockFormHelpers({ isGeneral: false })
@@ -1095,7 +1048,6 @@ describe('HabitFormFields', () => {
       />,
     )
     expect(screen.getByText('habits.form.reminderAdd')).toBeDefined()
-    // Two reminder chips should be rendered
     expect(screen.getByText('habits.form.reminder15min')).toBeDefined()
     expect(screen.getByText('habits.form.reminder30min')).toBeDefined()
   })
@@ -1170,19 +1122,14 @@ describe('HabitFormFields', () => {
         onReminderTimesChange={onReminderTimesChange}
       />,
     )
-    // Click the remove button on the first reminder chip (15min)
     const removeBtns = screen.getAllByLabelText('habits.form.removeReminder')
     fireEvent.click(removeBtns[0]!)
     expect(onReminderTimesChange).toHaveBeenCalledWith([30])
   })
 
-  // -------------------------------------------------------------------------
-  // Scheduled reminders (no dueTime)
-  // -------------------------------------------------------------------------
 
   it('shows scheduled reminder section when dueTime is empty and not general', () => {
     const formHelpers = createMockFormHelpers({ isGeneral: false })
-    // dueTime is empty by default
     const tags = createMockTags()
     renderWithProviders(
       <HabitFormFields
@@ -1270,9 +1217,6 @@ describe('HabitFormFields', () => {
     expect(screen.getByText(/scheduledReminderDayBeforeAt/)).toBeDefined()
   })
 
-  // -------------------------------------------------------------------------
-  // Bad habit toggle interaction
-  // -------------------------------------------------------------------------
 
   it('toggles isBadHabit checkbox via setValue', () => {
     const setValue = vi.fn()
@@ -1291,14 +1235,10 @@ describe('HabitFormFields', () => {
       />,
     )
     const badHabitLabel = screen.getByText('habits.form.badHabitLabel')
-    // Click the label (which wraps a checkbox)
     fireEvent.click(badHabitLabel)
     expect(setValue).toHaveBeenCalledWith('isBadHabit', true, { shouldDirty: true })
   })
 
-  // -------------------------------------------------------------------------
-  // Slip alert with pro access
-  // -------------------------------------------------------------------------
 
   it('shows slip alert toggle switch when bad habit and pro access', () => {
     mockHasProAccess = true
@@ -1337,9 +1277,6 @@ describe('HabitFormFields', () => {
     expect(screen.getByRole('switch', { name: 'habits.form.slipAlert' })).toBeDefined()
   })
 
-  // -------------------------------------------------------------------------
-  // Tag section interactions
-  // -------------------------------------------------------------------------
 
   it('shows new tag button when showNewTag is false and not at limit', () => {
     const formHelpers = createMockFormHelpers()
@@ -1410,9 +1347,6 @@ describe('HabitFormFields', () => {
     expect(screen.getByText('common.save')).toBeDefined()
   })
 
-  // -------------------------------------------------------------------------
-  // Due date field
-  // -------------------------------------------------------------------------
 
   it('shows due date for non-general habits', () => {
     const formHelpers = createMockFormHelpers({ isGeneral: false })
@@ -1431,9 +1365,6 @@ describe('HabitFormFields', () => {
     expect(screen.getByText('habits.form.dueDate')).toBeDefined()
   })
 
-  // -------------------------------------------------------------------------
-  // Checklist section renders mocked components
-  // -------------------------------------------------------------------------
 
   it('renders checklist and checklist templates', () => {
     const formHelpers = createMockFormHelpers()

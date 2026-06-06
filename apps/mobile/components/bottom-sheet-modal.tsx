@@ -98,8 +98,6 @@ export function BottomSheetModal({
   const prefersReducedMotion = usePrefersReducedMotion()
 
   const maxHeight = Math.max(SCREEN_HEIGHT - insets.top - TOP_GAP, 0)
-  // Consumers pass inline arrays; key on the values so the snaps (and the
-  // PanResponder that depends on them) stay referentially stable across renders.
   const snapKey = (snapPointsProp ?? DEFAULT_SNAP_POINTS).join(',')
   const snaps = useMemo(
     () => resolveSnapHeights(parseSnapKey(snapKey), SCREEN_HEIGHT, maxHeight),
@@ -109,7 +107,6 @@ export function BottomSheetModal({
   const maxSnap = Math.max(...snaps)
 
   const overlayStateRef = useRef(createBottomSheetOverlayState())
-  // Lazy useState keeps Date.now() / Math.random() out of render (purity rule).
   const [overlayId] = useState(
     () => `sheet-${Date.now()}-${Math.random().toString(36).slice(2)}`,
   )
@@ -118,11 +115,9 @@ export function BottomSheetModal({
   const [visible, setVisible] = useState(open)
   const [isPresented, setIsPresented] = useState(false)
 
-  // Sheet height (current snap) is JS-driven; the slide + backdrop are native.
   const sheetHeight = useRef(new Animated.Value(minSnap)).current
   const translateY = useRef(new Animated.Value(minSnap)).current
   const backdropOpacity = useRef(new Animated.Value(0)).current
-  // Last settled height: the close-slide distance and the drag baseline.
   const restingHeightRef = useRef(minSnap)
   const dragBaseHeightRef = useRef(minSnap)
 
@@ -236,10 +231,6 @@ export function BottomSheetModal({
     [backdropOpacity, prefersReducedMotion, sheetHeight, translateY],
   )
 
-  // Two responders share the same drag math: the header/handle controls the sheet
-  // outright, while the body claims only an upward drag that can still grow the
-  // sheet — so the inner ScrollView keeps its downward scroll and its at-max
-  // upward scroll, and the user can drag the body up to expand like a real drawer.
   const { headerPanResponder, contentPanResponder } = useMemo(() => {
     const onGrant = () => {
       sheetHeight.stopAnimation((value: number) => {
@@ -251,12 +242,10 @@ export function BottomSheetModal({
     const onMove = (_event: GestureResponderEvent, gesture: PanResponderGestureState) => {
       const extent = dragBaseHeightRef.current - gesture.dy
       if (extent >= minSnap) {
-        // Resize between snaps; rubber-band when pulled past the tallest.
         sheetHeight.setValue(clampExpand(extent, maxSnap))
         translateY.setValue(0)
         backdropOpacity.setValue(1)
       } else {
-        // Below the smallest snap: hold height, slide down toward dismissal.
         const slide = minSnap - extent
         sheetHeight.setValue(minSnap)
         translateY.setValue(slide)
@@ -267,8 +256,6 @@ export function BottomSheetModal({
       const extent = dragBaseHeightRef.current - gesture.dy
       const draggedPastMin = minSnap - extent
       if (draggedPastMin > DISMISS_DISTANCE || gesture.vy > DISMISS_VELOCITY) {
-        // Spring back to the opening snap; if the dirty-guard blocks the
-        // dismiss this stands, otherwise the close effect slides it out.
         settleToHeight(minSnap)
         requestClose('navigation')
         return
@@ -385,7 +372,6 @@ function isVerticalDrag(gesture: PanResponderGestureState): boolean {
 
 function clampExpand(height: number, maxSnap: number): number {
   if (height <= maxSnap) return height
-  // Rubber-band when dragging past the tallest snap so it resists, not jumps.
   return maxSnap + (height - maxSnap) * RUBBER_BAND_FACTOR
 }
 

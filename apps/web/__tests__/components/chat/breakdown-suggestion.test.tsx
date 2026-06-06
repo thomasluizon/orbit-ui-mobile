@@ -70,13 +70,11 @@ describe('BreakdownSuggestion', () => {
     render(<BreakdownSuggestion {...defaultProps} />, { wrapper: createWrapper() })
     fireEvent.click(screen.getByText('habits.breakdown.addHabit'))
     const inputs = screen.getAllByRole('textbox')
-    // Original 2 + 1 new
     expect(inputs.length).toBeGreaterThanOrEqual(3)
   })
 
   it('removes a habit when X button clicked', () => {
     render(<BreakdownSuggestion {...defaultProps} />, { wrapper: createWrapper() })
-    // Find remove buttons (X icons)
     const removeButtons = screen.getAllByRole('button').filter((btn) => {
       const svg = btn.querySelector('svg')
       return svg && btn.closest('[class*="hover:text-red"]')

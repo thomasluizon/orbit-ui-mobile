@@ -41,7 +41,6 @@ export default function CalendarPage() {
     [currentMonth, dateFnsLocale],
   )
 
-  // Mini completion summary for the header
   const monthSummary = useMemo(() => {
     if (isLoading || dayMap.size === 0) return null
     let daysWithActivity = 0
@@ -75,8 +74,6 @@ export default function CalendarPage() {
     return dayMap.get(selectedDay) ?? []
   }, [selectedDay, dayMap])
 
-  // "Este mês" stat strip — mirrors mobile: best streak / total logs / missed
-  // computed from current-month days only.
   const monthStats = useMemo(() => {
     const monthStart = startOfMonth(currentMonth)
     const monthEnd = endOfMonth(currentMonth)
@@ -104,7 +101,6 @@ export default function CalendarPage() {
     return { bestStreak, totalLogs, missed }
   }, [currentMonth, dayMap])
 
-  // Swipe navigation
   const touchStartX = useRef<number | null>(null)
 
   const handleTouchStart = useCallback((e: React.TouchEvent) => {
@@ -141,15 +137,14 @@ export default function CalendarPage() {
         onNextMonth={nextMonth}
       />
 
-      {/* Refetch loading bar */}
+      {}
       <div
         className={`loading-bar w-full transition-opacity duration-300 ${
           isFetching && !isLoading ? 'opacity-100' : 'opacity-0 pointer-events-none'
         }`}
       />
 
-      {/* Calendar grid — always renders the structure so users see months
-       *  instantly; the loading state only suppresses status dots. */}
+      {}
       <CalendarGrid
         currentMonth={currentMonth}
         dayMap={dayMap}
@@ -184,7 +179,7 @@ export default function CalendarPage() {
         divider={false}
       />
 
-      {/* Day detail overlay */}
+      {}
       <CalendarDayDetail
         open={showDayDetail}
         onOpenChange={setShowDayDetail}

@@ -40,7 +40,6 @@ function getSectionCompletion(): Record<TourSection, boolean> {
     const stored = localStorage.getItem('orbit_tour_sections')
     if (stored) return JSON.parse(stored)
   } catch {
-    // fallback
   }
   return { habits: false, goals: false, chat: false, calendar: false, profile: false }
 }
@@ -59,11 +58,9 @@ export function TourReplayModal({ open, onOpenChange }: Readonly<TourReplayModal
   const handleReplayAll = useCallback(async () => {
     onOpenChange(false)
 
-    // Reset tour on backend
     try {
       await resetTour()
     } catch {
-      // Silently fail
     }
 
     queryClient.setQueryData(profileKeys.detail(), (old: Profile | undefined) => {

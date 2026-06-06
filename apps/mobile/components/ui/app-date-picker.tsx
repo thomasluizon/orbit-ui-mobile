@@ -53,8 +53,6 @@ export function AppDatePicker({
 
   const selectedDate = value ? parseISO(value) : null
 
-  // Mirror controlled `value` prop into local view date.
-  // "Adjust state when prop changes" pattern.
   const [previousValue, setPreviousValue] = useState(value)
   if (value !== previousValue) {
     setPreviousValue(value)
@@ -117,7 +115,7 @@ export function AppDatePicker({
 
   return (
     <>
-      {/* Trigger */}
+      {}
       <TouchableOpacity
         style={styles.trigger}
         onPress={() => setIsOpen(true)}
@@ -141,7 +139,7 @@ export function AppDatePicker({
         <Calendar size={16} color={tokens.fg3} />
       </TouchableOpacity>
 
-      {/* Calendar modal */}
+      {}
       <Modal
         visible={isOpen}
         transparent
@@ -157,7 +155,7 @@ export function AppDatePicker({
             style={styles.dialog}
             onStartShouldSetResponder={() => true}
           >
-            {/* Month navigation */}
+            {}
             <View style={styles.monthNav}>
               <TouchableOpacity
                 onPress={prevMonth}
@@ -178,7 +176,7 @@ export function AppDatePicker({
               </TouchableOpacity>
             </View>
 
-            {/* Weekday headers */}
+            {}
             <View style={styles.weekRow}>
               {weekDays.map((day, i) => (
                 <View key={`wh-${i}`} style={styles.dayCell}>
@@ -187,7 +185,7 @@ export function AppDatePicker({
               ))}
             </View>
 
-            {/* Calendar grid */}
+            {}
             {calendarWeeks.map((week) => (
               <View key={week[0]?.toISOString()} style={styles.weekRow}>
                 {week.map((day) => {

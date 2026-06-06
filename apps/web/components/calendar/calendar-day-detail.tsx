@@ -18,8 +18,6 @@ interface CalendarDayDetailProps {
   entries: CalendarDayEntry[]
 }
 
-// Tint for the outcome badge. Only resolved states are rendered, so there is no upcoming
-// case: for bad habits "indulged" (completed) reads as a setback, "resisted" (missed) as a win.
 function statusBadgeClass(entry: CalendarDayEntry): string {
   const border = 'border border-[var(--hairline)]'
   if (entry.isBadHabit) {
@@ -57,7 +55,6 @@ export function CalendarDayDetail({
 
   const completedCount = filteredEntries.filter((e) => e.status === 'completed').length
 
-  // Only resolved states carry a visible badge; an upcoming habit shows none.
   const statusLabel = useCallback((entry: CalendarDayEntry): string | null => {
     if (entry.isBadHabit) {
       if (entry.status === 'completed') return t('calendar.status.indulged')

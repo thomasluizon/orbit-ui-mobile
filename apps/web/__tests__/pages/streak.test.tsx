@@ -1,9 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
 
-// ---------------------------------------------------------------------------
-// Mocks -- must come before component import
-// ---------------------------------------------------------------------------
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string, params?: Record<string, unknown>) => {
@@ -23,7 +20,6 @@ vi.mock('@/lib/plural', () => ({
   plural: (text: string) => text,
 }))
 
-// CSS import mock
 vi.mock('@/app/(app)/streak/streak.css', () => ({}))
 
 let mockProfile: Record<string, unknown> | null = null
@@ -62,15 +58,9 @@ vi.mock('@/hooks/use-go-back-or-fallback', () => ({
   useGoBackOrFallback: () => vi.fn(),
 }))
 
-// ---------------------------------------------------------------------------
-// Import component after mocks
-// ---------------------------------------------------------------------------
 
 import StreakPage from '@/app/(app)/streak/page'
 
-// ---------------------------------------------------------------------------
-// Tests
-// ---------------------------------------------------------------------------
 
 describe('StreakPage', () => {
   beforeEach(() => {
@@ -101,7 +91,6 @@ describe('StreakPage', () => {
     expect(screen.getByRole('button', { name: 'common.backToProfile' })).toBeInTheDocument()
   })
 
-  // ---- Loading state ----
 
   it('shows skeleton loading state when streak query is loading', () => {
     mockStreakQuery = { isLoading: true, data: null }
@@ -111,7 +100,6 @@ describe('StreakPage', () => {
     expect(pulseElements.length).toBeGreaterThan(0)
   })
 
-  // ---- Streak hero section ----
 
   it('renders streak count in hero section', () => {
     const { container } = render(<StreakPage />)
@@ -137,7 +125,6 @@ describe('StreakPage', () => {
     expect(document.body.textContent).not.toContain('streakDisplay.profile.encouragement7')
   })
 
-  // ---- Weekly timeline ----
 
   it('renders 7-day timeline', () => {
     render(<StreakPage />)
@@ -151,7 +138,6 @@ describe('StreakPage', () => {
     expect(screen.getByText('streakDisplay.detail.dayMissed')).toBeInTheDocument()
   })
 
-  // ---- Stats section ----
 
   it('renders current and longest streak stats', () => {
     render(<StreakPage />)
@@ -164,7 +150,6 @@ describe('StreakPage', () => {
     expect(document.body.textContent).toContain('30')
   })
 
-  // ---- Auto-freeze section ----
 
   it('renders the freeze section title', () => {
     render(<StreakPage />)
@@ -179,7 +164,6 @@ describe('StreakPage', () => {
   it('renders the banked charge gauge with the banked count', () => {
     render(<StreakPage />)
     expect(screen.getByText('streakDisplay.freeze.banked.label')).toBeInTheDocument()
-    // banked/max mono value
     expect(document.body.textContent).toContain('2/3')
   })
 
@@ -187,7 +171,6 @@ describe('StreakPage', () => {
     render(<StreakPage />)
     expect(screen.getByText('streakDisplay.freeze.usedThisMonth.label')).toBeInTheDocument()
     expect(screen.getByText('streakDisplay.freeze.nextFreeze.label')).toBeInTheDocument()
-    // streak 10 -> 7 - (10 % 7) = 4 days
     expect(document.body.textContent).toContain('streakDisplay.freeze.nextFreeze.inDays')
     expect(document.body.textContent).toContain('"days":4')
   })
@@ -203,7 +186,6 @@ describe('StreakPage', () => {
     expect(screen.queryByText('streakDisplay.freeze.activate')).not.toBeInTheDocument()
   })
 
-  // ---- Protected days ----
 
   it('renders the protected-days empty state when no freezes used', () => {
     render(<StreakPage />)
@@ -221,7 +203,6 @@ describe('StreakPage', () => {
     }
     render(<StreakPage />)
     expect(screen.queryByText('streakDisplay.freeze.protected.empty')).not.toBeInTheDocument()
-    // formatted dates render (May 28 / May 25)
     expect(document.body.textContent).toContain('May')
   })
 
@@ -238,14 +219,12 @@ describe('StreakPage', () => {
     expect(screen.getAllByText('streakDisplay.freeze.activeToday').length).toBeGreaterThan(0)
   })
 
-  // ---- Pro gating ----
 
   it('renders the Pro gate instead of the gauge for free users', () => {
     mockProfile = { currentStreak: 10, hasProAccess: false }
     render(<StreakPage />)
     expect(screen.getByText('streakDisplay.freeze.pro.gate')).toBeInTheDocument()
     expect(screen.getByText('common.upgrade')).toBeInTheDocument()
-    // gauge rows must not render in the free state
     expect(screen.queryByText('streakDisplay.freeze.banked.label')).not.toBeInTheDocument()
   })
 
@@ -256,7 +235,6 @@ describe('StreakPage', () => {
     expect(upgradeLink).toHaveAttribute('href', '/upgrade')
   })
 
-  // ---- Tier ----
 
   it('shows the steady tier in stats for streak >= 7', () => {
     mockProfile = { currentStreak: 10, hasProAccess: true }

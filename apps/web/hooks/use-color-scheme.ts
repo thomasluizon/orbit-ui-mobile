@@ -56,7 +56,6 @@ export function useColorScheme() {
 
     if (persistToDb) {
       updateThemePreferenceAction({ themePreference: theme }).catch((_err: unknown) => {
-        // Rollback optimistic update on failure
         setCookie('orbit_theme_mode', prev)
         setCurrentTheme(prev)
         applyThemeTokensToDOM(currentScheme, prev, true)

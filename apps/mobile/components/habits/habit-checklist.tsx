@@ -55,8 +55,6 @@ function EditableChecklistItem({
 }: EditableChecklistItemProps) {
   const [localText, setLocalText] = useState(text)
 
-  // Sync from parent when items array changes externally (e.g. template load).
-  // "Adjusting state when a prop changes" pattern.
   const [previousText, setPreviousText] = useState(text)
   if (text !== previousText) {
     setPreviousText(text)

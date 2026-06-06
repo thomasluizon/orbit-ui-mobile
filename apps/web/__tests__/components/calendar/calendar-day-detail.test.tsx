@@ -139,7 +139,6 @@ describe('CalendarDayDetail', () => {
         entries={[makeEntry({ title: 'Read', status: 'upcoming' })]}
       />,
     )
-    // The row still appears, but an unresolved habit carries no outcome badge.
     expect(screen.getByText('Read')).toBeInTheDocument()
     expect(document.body.textContent).not.toContain('calendar.status.upcoming')
     expect(document.body.textContent).not.toContain('calendar.status.scheduled')

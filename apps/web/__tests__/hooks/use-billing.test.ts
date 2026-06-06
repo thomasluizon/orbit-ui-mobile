@@ -5,7 +5,6 @@ import React from 'react'
 import { useBilling } from '@/hooks/use-billing'
 import type { BillingDetails } from '@orbit/shared/types/subscription'
 
-// Mock fetch
 const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
 
@@ -50,7 +49,6 @@ describe('useBilling', () => {
       wrapper: createWrapper(),
     })
 
-    // Should not have made any fetch calls
     expect(mockFetch).not.toHaveBeenCalled()
     expect(result.current.billing).toBeNull()
   })

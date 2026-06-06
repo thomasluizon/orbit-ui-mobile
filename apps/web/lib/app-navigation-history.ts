@@ -80,7 +80,6 @@ function writeAppNavigationHistory(state: AppNavigationHistoryState): void {
       JSON.stringify(trimState(state)),
     )
   } catch {
-    // Session storage is a best-effort navigation hint only.
   }
 }
 

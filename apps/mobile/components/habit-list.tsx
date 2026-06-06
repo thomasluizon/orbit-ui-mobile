@@ -184,7 +184,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     }, [])
     const { onTourScroll } = useTourScrollContainer('/', scrollTo)
 
-    // Only reset back to the top for header-focused tour steps.
     const isTourActive = useTourStore((s) => s.isActive)
     const tourStepIndex = useTourStore((s) => s.currentStepIndex)
     useEffect(() => {
@@ -214,9 +213,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     const topLevelHabits =
       habitsQuery.data?.topLevelHabits ?? EMPTY_NORMALIZED_HABITS
 
-    // The tour's "card" step anchors to the featured mock habit when injected,
-    // otherwise falls back to the first visible row so the spotlight still
-    // has something to point at when the user already has real habits.
     const tourCardHabitId = habitsById.has(TOUR_FEATURED_HABIT_ID)
       ? TOUR_FEATURED_HABIT_ID
       : topLevelHabits[0]?.id
@@ -453,8 +449,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       [collapsedIds, expandableIds],
     )
 
-    // Publish allCollapsed and allLoadedIds upward so parents can read them
-    // in render without ref-during-render violations.
     useEffect(() => {
       onAllCollapsedChange?.(allCollapsed)
     }, [allCollapsed, onAllCollapsedChange])
@@ -533,8 +527,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
 
     const activeDragItems = dragOverrideItems ?? flatItems
     const activeDragItemsRef = useRef(activeDragItems)
-    // Update mutable drag-items ref inside an effect so the lint rule
-    // accepts it (refs may not be written during render).
     useEffect(() => {
       activeDragItemsRef.current = activeDragItems
     }, [activeDragItems])
@@ -734,7 +726,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
           handleLogged(habitId, false)
         } catch {
           clearRecentlyCompleted(habitId)
-          // Error handled by mutation
         }
       },
       [
@@ -757,7 +748,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         handleLogged(parentId, false)
       } catch {
         clearRecentlyCompleted(parentId)
-        // Error handled by mutation
       }
     }, [
       autoLogParentId,
@@ -782,7 +772,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         handleLogged(forceLogHabitId, false)
       } catch {
         clearRecentlyCompleted(forceLogHabitId)
-        // Error handled by mutation
       } finally {
         setForceLogHabitId(null)
         setShowForceLogConfirm(false)
@@ -809,7 +798,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         markRecentlyCompleted(skippedId)
         checkAndPromptParentLog(skippedId)
       } catch {
-        // Error handled by mutation
       } finally {
         setHabitToSkip(null)
         setShowSkipConfirm(false)
@@ -1013,7 +1001,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       try {
         await duplicateMutation.mutateAsync(id)
       } catch {
-        // Error handled by mutation
       } finally {
         setHabitToDuplicate(null)
         setShowDuplicateConfirm(false)
@@ -1050,7 +1037,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         })
         closeMoveParentDialog()
       } catch {
-        // Error handled by mutation
       }
     }, [
       canSubmitMoveParent,
@@ -1093,7 +1079,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       try {
         await deleteMutation.mutateAsync(habitToDelete)
       } catch {
-        // Error handled by mutation
       } finally {
         setHabitToDelete(null)
         setShowDeleteConfirm(false)
@@ -1155,7 +1140,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
             await reorderHabitsMutation.mutateAsync({ positions })
           }
         } catch {
-          // Error handled by mutation
         } finally {
           restoreCollapsedStateAfterDrag()
         }
@@ -1187,7 +1171,6 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
               animated: true,
             })
           } catch {
-            // Scroll failed
           }
         },
       }),

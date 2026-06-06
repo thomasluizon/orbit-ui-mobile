@@ -6,7 +6,6 @@ vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
 }))
 
-// Imported after mocks so HabitRow picks up the mocked next-intl.
 import { HabitRow } from '@/components/habits/habit-row'
 
 describe('HabitRow description preview', () => {
