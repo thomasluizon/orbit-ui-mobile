@@ -312,6 +312,7 @@ export function CreateHabitModal({
   ])
 
   const isPending = createHabit.isPending || createSubHabit.isPending
+  const submitDisabled = isPending || !formHelpers.form.formState.isValid
 
   const updateSubHabitValue = useCallback((id: string, value: string) => {
     setSubHabits((prev) =>
@@ -382,8 +383,8 @@ export function CreateHabitModal({
               <Text style={styles.cancelButtonText}>{t('common.cancel')}</Text>
             </TouchableOpacity>
             <TouchableOpacity
-              style={[styles.submitButton, isPending && styles.disabled]}
-              disabled={isPending}
+              style={[styles.submitButton, submitDisabled && styles.disabled]}
+              disabled={submitDisabled}
               onPress={handleSubmit}
               activeOpacity={0.7}
               accessibilityRole="button"

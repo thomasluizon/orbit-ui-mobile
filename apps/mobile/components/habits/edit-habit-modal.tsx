@@ -201,6 +201,8 @@ export function EditHabitModal({
     translate,
   ])
 
+  const submitDisabled = updateHabit.isPending || !formHelpers.form.formState.isValid
+
   return (
     <>
       <BottomSheetModal
@@ -244,9 +246,9 @@ export function EditHabitModal({
             <TouchableOpacity
               style={[
                 styles.submitButton,
-                updateHabit.isPending && styles.disabled,
+                submitDisabled && styles.disabled,
               ]}
-              disabled={updateHabit.isPending}
+              disabled={submitDisabled}
               onPress={handleSubmit}
               activeOpacity={0.7}
               accessibilityRole="button"
