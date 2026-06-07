@@ -13,6 +13,7 @@ const mocks = vi.hoisted(() => {
     } | null,
     subscriptions: [] as unknown[],
     connected: true,
+    authUser: { userId: 'user-abc' } as { userId: string } | null,
   }
   return {
     state,
@@ -57,7 +58,7 @@ vi.mock('@/lib/api-client', () => ({ apiClient: mocks.apiClient }))
 
 vi.mock('@/stores/auth-store', () => ({
   useAuthStore: (selector: (state: { user: { userId: string } | null }) => unknown) =>
-    selector({ user: { userId: 'user-abc' } }),
+    selector({ user: mocks.state.authUser }),
 }))
 
 import { extractPlayOffers, mapPlayErrorKey, usePlayBilling } from '@/hooks/use-play-billing'
@@ -151,6 +152,7 @@ describe('usePlayBilling', () => {
     mocks.state.iapOptions = null
     mocks.state.subscriptions = []
     mocks.state.connected = true
+    mocks.state.authUser = { userId: 'user-abc' }
     mocks.apiClient.mockReset().mockResolvedValue({})
     mocks.finishTransaction.mockReset().mockResolvedValue(undefined)
     mocks.getAvailablePurchases.mockReset().mockResolvedValue([])
@@ -205,6 +207,26 @@ describe('usePlayBilling', () => {
     )
   })
 
+  it('blocks the purchase and flags sign-in when the user id is missing', async () => {
+    mocks.state.authUser = null
+    mocks.state.subscriptions = [
+      {
+        id: 'orbit_pro',
+        subscriptionOffers: [
+          { basePlanIdAndroid: 'monthly', offerTokenAndroid: 'tok_m', displayPrice: 'R$14,90' },
+        ],
+      },
+    ]
+    const hook = renderUsePlayBillingLive()
+
+    await TestRenderer.act(async () => {
+      await hook.current.purchase('monthly')
+    })
+
+    expect(mocks.requestPurchase).not.toHaveBeenCalled()
+    expect(hook.current.errorKey).toBe('upgrade.playError.notSignedIn')
+  })
+
   it('verifies, invalidates entitlement, and finishes a successful purchase', async () => {
     renderUsePlayBilling()
     const purchase = { productId: 'orbit_pro', purchaseToken: 'tok_123' }
@@ -257,5 +279,41 @@ describe('usePlayBilling', () => {
     expect(restored).toBe(false)
     expect(hook.current.errorKey).toBe('upgrade.playError.serviceUnavailable')
     expect(mocks.apiClient).not.toHaveBeenCalled()
+  })
+
+  it('restores the remaining owned purchases even when one verify fails', async () => {
+    const bad = { productId: 'orbit_pro', purchaseToken: 'tok_bad' }
+    const good = { productId: 'orbit_pro', purchaseToken: 'tok_good' }
+    mocks.getAvailablePurchases.mockResolvedValue([bad, good])
+    mocks.apiClient.mockImplementation((_endpoint: string, options: { body: string }) => {
+      const body = JSON.parse(options.body) as { purchaseToken: string }
+      if (body.purchaseToken === 'tok_bad') return Promise.reject(new Error('verify failed'))
+      return Promise.resolve({})
+    })
+    const result = renderUsePlayBilling()
+
+    let restored: boolean | undefined
+    await TestRenderer.act(async () => {
+      restored = await result.restorePurchases()
+    })
+
+    expect(restored).toBe(true)
+    expect(mocks.finishTransaction).toHaveBeenCalledTimes(1)
+    expect(mocks.finishTransaction).toHaveBeenCalledWith({ purchase: good, isConsumable: false })
+    expect(mocks.invalidateQueries).toHaveBeenCalledTimes(2)
+  })
+
+  it('flags nothing-to-restore when the account owns no purchases', async () => {
+    mocks.getAvailablePurchases.mockResolvedValue([])
+    const hook = renderUsePlayBillingLive()
+
+    let restored: boolean | undefined
+    await TestRenderer.act(async () => {
+      restored = await hook.current.restorePurchases()
+    })
+
+    expect(restored).toBe(false)
+    expect(hook.current.errorKey).toBe('upgrade.playError.nothingToRestore')
+    expect(mocks.finishTransaction).not.toHaveBeenCalled()
   })
 })

@@ -1460,7 +1460,9 @@
       "alreadyOwned": "You already own this subscription. Try restoring your purchase.",
       "serviceUnavailable": "Google Play is unavailable right now. Please try again.",
       "deviceNotSupported": "This device doesn't support Google Play billing.",
-      "pending": "Your purchase is pending. We'll unlock Pro once it's confirmed."
+      "pending": "Your purchase is pending. We'll unlock Pro once it's confirmed.",
+      "notSignedIn": "Please sign in again before purchasing.",
+      "nothingToRestore": "No previous purchase found to restore."
     }
   },
   "ads": {

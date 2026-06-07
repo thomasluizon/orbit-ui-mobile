@@ -129,6 +129,10 @@ export function usePlayBilling() {
         setErrorKey('upgrade.playError.unavailable')
         return
       }
+      if (!userId) {
+        setErrorKey('upgrade.playError.notSignedIn')
+        return
+      }
       setErrorKey(null)
       setIsProcessing(true)
       try {
@@ -160,10 +164,17 @@ export function usePlayBilling() {
     try {
       const purchases = await getAvailablePurchases()
       let restored = false
+      let failed = false
       for (const owned of purchases) {
-        if (await verifyPlayPurchase(owned)) restored = true
+        try {
+          if (await verifyPlayPurchase(owned)) restored = true
+        } catch {
+          failed = true
+        }
       }
       if (restored) await invalidateEntitlement()
+      else if (failed) setErrorKey('upgrade.playError.serviceUnavailable')
+      else setErrorKey('upgrade.playError.nothingToRestore')
       return restored
     } catch {
       setErrorKey('upgrade.playError.serviceUnavailable')

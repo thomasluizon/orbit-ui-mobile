@@ -26,7 +26,7 @@ import {
   X as XIcon,
 } from 'lucide-react-native'
 import { API } from '@orbit/shared/api'
-import { formatLocaleDate, getErrorMessage, PLAY_SUBSCRIPTION_PRODUCT_ID } from '@orbit/shared/utils'
+import { formatLocaleDate, getErrorMessage, playManageSubscriptionUrl } from '@orbit/shared/utils'
 import {
   TRIAL_EXPIRED_FEATURE_KEYS,
   UPGRADE_FEATURE_CATEGORIES,
@@ -452,9 +452,8 @@ export default function UpgradeScreen() {
   }
 
   function handleManagePlay() {
-    const url = `https://play.google.com/store/account/subscriptions?sku=${PLAY_SUBSCRIPTION_PRODUCT_ID}&package=org.useorbit.app`
     setPortalError('')
-    Linking.openURL(url).catch((err: unknown) =>
+    Linking.openURL(playManageSubscriptionUrl()).catch((err: unknown) =>
       setPortalError(getErrorMessage(err, t('auth.genericError'))),
     )
   }

@@ -174,8 +174,10 @@ export {
 export {
   PLAY_BASE_PLAN_MONTHLY,
   PLAY_BASE_PLAN_YEARLY,
+  PLAY_PACKAGE_NAME,
   PLAY_SUBSCRIPTION_PRODUCT_ID,
   playBasePlanToInterval,
+  playManageSubscriptionUrl,
 } from './play-billing'
 export {
   applyLinkedGoalUpdates,
