@@ -172,6 +172,12 @@ export {
   isMissingBillingStatus,
 } from './billing'
 export {
+  PLAY_BASE_PLAN_MONTHLY,
+  PLAY_BASE_PLAN_YEARLY,
+  PLAY_SUBSCRIPTION_PRODUCT_ID,
+  playBasePlanToInterval,
+} from './play-billing'
+export {
   applyLinkedGoalUpdates,
   buildChildrenIndex,
   habitDetailToNormalized,

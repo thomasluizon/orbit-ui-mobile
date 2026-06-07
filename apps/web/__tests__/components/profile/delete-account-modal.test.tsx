@@ -74,6 +74,7 @@ const defaultProfile = {
   hasImportedCalendar: false,
   hasGoogleConnection: false,
   subscriptionInterval: null,
+  subscriptionSource: null,
   isLifetimePro: false,
   weekStartDay: 0,
   totalXp: 0,

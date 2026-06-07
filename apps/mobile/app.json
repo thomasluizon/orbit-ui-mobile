@@ -54,7 +54,8 @@
         "RECORD_AUDIO",
         "VIBRATE",
         "RECEIVE_BOOT_COMPLETED",
-        "com.google.android.gms.permission.AD_ID"
+        "com.google.android.gms.permission.AD_ID",
+        "com.android.vending.BILLING"
       ]
     },
     "web": {
@@ -107,11 +108,13 @@
       ],
       "expo-sqlite",
       "@react-native-community/datetimepicker",
+      "expo-iap",
       [
         "expo-build-properties",
         {
           "android": {
-            "enableProguardInReleaseBuilds": true
+            "enableProguardInReleaseBuilds": true,
+            "kotlinVersion": "2.2.0"
           }
         }
       ]
