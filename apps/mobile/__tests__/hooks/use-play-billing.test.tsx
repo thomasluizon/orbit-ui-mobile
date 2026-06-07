@@ -55,6 +55,11 @@ vi.mock('@tanstack/react-query', () => ({
 
 vi.mock('@/lib/api-client', () => ({ apiClient: mocks.apiClient }))
 
+vi.mock('@/stores/auth-store', () => ({
+  useAuthStore: (selector: (state: { user: { userId: string } | null }) => unknown) =>
+    selector({ user: { userId: 'user-abc' } }),
+}))
+
 import { extractPlayOffers, mapPlayErrorKey, usePlayBilling } from '@/hooks/use-play-billing'
 
 function renderUsePlayBilling(): ReturnType<typeof usePlayBilling> {
@@ -169,6 +174,35 @@ describe('usePlayBilling', () => {
 
     expect(result.monthlyOffer?.displayPrice).toBe('R$14,90')
     expect(result.yearlyOffer?.offerToken).toBe('tok_y')
+  })
+
+  it('binds the purchase to the user via obfuscatedAccountId', async () => {
+    mocks.state.subscriptions = [
+      {
+        id: 'orbit_pro',
+        subscriptionOffers: [
+          { basePlanIdAndroid: 'monthly', offerTokenAndroid: 'tok_m', displayPrice: 'R$14,90' },
+        ],
+      },
+    ]
+    const result = renderUsePlayBilling()
+
+    await TestRenderer.act(async () => {
+      await result.purchase('monthly')
+    })
+
+    expect(mocks.requestPurchase).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'subs',
+        request: {
+          google: expect.objectContaining({
+            skus: ['orbit_pro'],
+            subscriptionOffers: [{ sku: 'orbit_pro', offerToken: 'tok_m' }],
+            obfuscatedAccountId: 'user-abc',
+          }),
+        },
+      }),
+    )
   })
 
   it('verifies, invalidates entitlement, and finishes a successful purchase', async () => {

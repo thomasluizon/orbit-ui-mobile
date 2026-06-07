@@ -12,6 +12,7 @@ import { profileKeys, subscriptionKeys } from '@orbit/shared/query'
 import type { SubscriptionInterval } from '@orbit/shared/types/profile'
 import { PLAY_SUBSCRIPTION_PRODUCT_ID, playBasePlanToInterval } from '@orbit/shared/utils'
 import { apiClient } from '@/lib/api-client'
+import { useAuthStore } from '@/stores/auth-store'
 
 export interface PlayOffer {
   interval: SubscriptionInterval
@@ -85,6 +86,7 @@ async function verifyPlayPurchase(purchase: Purchase): Promise<boolean> {
  */
 export function usePlayBilling() {
   const queryClient = useQueryClient()
+  const userId = useAuthStore((state) => state.user?.userId)
   const [errorKey, setErrorKey] = useState<string | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
 
@@ -135,6 +137,7 @@ export function usePlayBilling() {
             google: {
               skus: [offer.sku],
               subscriptionOffers: [{ sku: offer.sku, offerToken: offer.offerToken }],
+              obfuscatedAccountId: userId,
             },
           },
           type: 'subs',
@@ -148,7 +151,7 @@ export function usePlayBilling() {
         )
       }
     },
-    [offers, requestPurchase],
+    [offers, requestPurchase, userId],
   )
 
   const restorePurchases = useCallback(async (): Promise<boolean> => {
