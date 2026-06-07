@@ -89,6 +89,7 @@ export function usePlayBilling() {
   const userId = useAuthStore((state) => state.user?.userId)
   const [errorKey, setErrorKey] = useState<string | null>(null)
   const [isProcessing, setIsProcessing] = useState(false)
+  const [isRestoring, setIsRestoring] = useState(false)
 
   const invalidateEntitlement = useCallback(async () => {
     await queryClient.invalidateQueries({ queryKey: subscriptionKeys.all })
@@ -160,7 +161,7 @@ export function usePlayBilling() {
 
   const restorePurchases = useCallback(async (): Promise<boolean> => {
     setErrorKey(null)
-    setIsProcessing(true)
+    setIsRestoring(true)
     try {
       const purchases = await getAvailablePurchases()
       let restored = false
@@ -180,7 +181,7 @@ export function usePlayBilling() {
       setErrorKey('upgrade.playError.serviceUnavailable')
       return false
     } finally {
-      setIsProcessing(false)
+      setIsRestoring(false)
     }
   }, [invalidateEntitlement])
 
@@ -194,6 +195,7 @@ export function usePlayBilling() {
     purchase,
     restorePurchases,
     isProcessing,
+    isRestoring,
     errorKey,
     clearError,
   }

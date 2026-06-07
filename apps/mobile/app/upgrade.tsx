@@ -981,12 +981,17 @@ export default function UpgradeScreen() {
                   onPress={() => {
                     void playBilling.restorePurchases()
                   }}
+                  disabled={playBilling.isRestoring}
                   accessibilityRole="button"
                   style={styles.linkPress}
                 >
-                  <Text style={[styles.restoreLink, { color: tokens.fg3 }]}>
-                    {t('upgrade.restorePurchase')}
-                  </Text>
+                  {playBilling.isRestoring ? (
+                    <ActivityIndicator size="small" color={tokens.fg3} />
+                  ) : (
+                    <Text style={[styles.restoreLink, { color: tokens.fg3 }]}>
+                      {t('upgrade.restorePurchase')}
+                    </Text>
+                  )}
                 </Pressable>
               </View>
             ) : null}
