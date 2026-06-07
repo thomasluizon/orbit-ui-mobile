@@ -1457,7 +1457,6 @@
     },
     "playError": {
       "unavailable": "A cobrança do Google Play não está disponível neste dispositivo.",
-      "userCancelled": "Compra cancelada.",
       "alreadyOwned": "Você já tem esta assinatura. Tente restaurar sua compra.",
       "serviceUnavailable": "O Google Play está indisponível no momento. Tente novamente.",
       "deviceNotSupported": "Este dispositivo não oferece suporte à cobrança do Google Play.",

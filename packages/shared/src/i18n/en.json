@@ -1457,7 +1457,6 @@
     },
     "playError": {
       "unavailable": "Google Play billing isn't available on this device.",
-      "userCancelled": "Purchase canceled.",
       "alreadyOwned": "You already own this subscription. Try restoring your purchase.",
       "serviceUnavailable": "Google Play is unavailable right now. Please try again.",
       "deviceNotSupported": "This device doesn't support Google Play billing.",

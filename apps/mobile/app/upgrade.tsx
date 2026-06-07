@@ -453,7 +453,10 @@ export default function UpgradeScreen() {
 
   function handleManagePlay() {
     const url = `https://play.google.com/store/account/subscriptions?sku=${PLAY_SUBSCRIPTION_PRODUCT_ID}&package=org.useorbit.app`
-    Linking.openURL(url).catch(() => {})
+    setPortalError('')
+    Linking.openURL(url).catch((err: unknown) =>
+      setPortalError(getErrorMessage(err, t('auth.genericError'))),
+    )
   }
 
   async function handlePortal() {

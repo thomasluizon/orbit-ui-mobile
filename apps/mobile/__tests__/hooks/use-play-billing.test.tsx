@@ -70,6 +70,19 @@ function renderUsePlayBilling(): ReturnType<typeof usePlayBilling> {
   return value
 }
 
+function renderUsePlayBillingLive(): { current: ReturnType<typeof usePlayBilling> } {
+  const holder: { current: ReturnType<typeof usePlayBilling> | null } = { current: null }
+  function Harness() {
+    holder.current = usePlayBilling()
+    return null
+  }
+  TestRenderer.act(() => {
+    TestRenderer.create(<Harness />)
+  })
+  if (!holder.current) throw new Error('usePlayBilling did not render')
+  return holder as { current: ReturnType<typeof usePlayBilling> }
+}
+
 async function flushAsync() {
   await TestRenderer.act(async () => {
     await new Promise((resolve) => setTimeout(resolve, 0))
@@ -174,5 +187,41 @@ describe('usePlayBilling', () => {
     )
     expect(mocks.finishTransaction).toHaveBeenCalledWith({ purchase, isConsumable: false })
     expect(mocks.invalidateQueries).toHaveBeenCalledTimes(2)
+  })
+
+  it('restores an owned purchase: verifies, finishes, and invalidates entitlement', async () => {
+    const purchase = { productId: 'orbit_pro', purchaseToken: 'tok_restore' }
+    mocks.getAvailablePurchases.mockResolvedValue([purchase])
+    const result = renderUsePlayBilling()
+
+    let restored: boolean | undefined
+    await TestRenderer.act(async () => {
+      restored = await result.restorePurchases()
+    })
+
+    expect(restored).toBe(true)
+    expect(mocks.apiClient).toHaveBeenCalledWith(
+      API.subscription.playVerify,
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ productId: 'orbit_pro', purchaseToken: 'tok_restore' }),
+      }),
+    )
+    expect(mocks.finishTransaction).toHaveBeenCalledWith({ purchase, isConsumable: false })
+    expect(mocks.invalidateQueries).toHaveBeenCalledTimes(2)
+  })
+
+  it('sets the service-unavailable error and skips verify when restore fails', async () => {
+    mocks.getAvailablePurchases.mockRejectedValue(new Error('network'))
+    const hook = renderUsePlayBillingLive()
+
+    let restored: boolean | undefined
+    await TestRenderer.act(async () => {
+      restored = await hook.current.restorePurchases()
+    })
+
+    expect(restored).toBe(false)
+    expect(hook.current.errorKey).toBe('upgrade.playError.serviceUnavailable')
+    expect(mocks.apiClient).not.toHaveBeenCalled()
   })
 })
