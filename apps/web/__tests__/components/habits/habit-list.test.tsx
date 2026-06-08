@@ -666,6 +666,7 @@ describe('HabitList', () => {
       id: 'child',
       title: 'Child',
       parentId: 'parent',
+      isCompleted: true,
     })
 
     mockHabitsData.habitsById.set(parent.id, parent)
@@ -685,6 +686,54 @@ describe('HabitList', () => {
     expect(screen.getByText('habits.autoLogParentMessage({"name":"Parent"})')).toBeDefined()
   })
 
+  it('opens the parent prompt exactly once for a burst of sibling completions', () => {
+    const parent = createMockHabit({
+      id: 'parent',
+      title: 'Parent',
+      hasSubHabits: true,
+      instances: [{ date: TODAY, status: 'Pending', logId: null }],
+    })
+    const childA = createMockHabit({
+      id: 'child-a',
+      title: 'Child A',
+      parentId: 'parent',
+      isCompleted: true,
+    })
+    const childB = createMockHabit({
+      id: 'child-b',
+      title: 'Child B',
+      parentId: 'parent',
+      isCompleted: true,
+    })
+    const childC = createMockHabit({
+      id: 'child-c',
+      title: 'Child C',
+      parentId: 'parent',
+      isCompleted: true,
+    })
+
+    mockHabitsData.habitsById.set(parent.id, parent)
+    mockHabitsData.habitsById.set(childA.id, childA)
+    mockHabitsData.habitsById.set(childB.id, childB)
+    mockHabitsData.habitsById.set(childC.id, childC)
+    mockHabitsData.childrenByParent.set(parent.id, [childA.id, childB.id, childC.id])
+    mockHabitsData.topLevelHabits = [parent]
+
+    const ref = React.createRef<HabitListHandle>()
+
+    renderWithProviders(<HabitList ref={ref} filters={defaultFilters} />)
+
+    act(() => {
+      ref.current?.checkAndPromptParentLog('child-a')
+      ref.current?.checkAndPromptParentLog('child-b')
+      ref.current?.checkAndPromptParentLog('child-c')
+    })
+
+    expect(
+      screen.getAllByText('habits.autoLogParentMessage({"name":"Parent"})'),
+    ).toHaveLength(1)
+  })
+
   it('prompts an overdue parent when the last child is marked completed', () => {
     const parent = createMockHabit({
       id: 'parent',
@@ -698,6 +747,7 @@ describe('HabitList', () => {
       id: 'child',
       title: 'Child',
       parentId: 'parent',
+      isCompleted: true,
     })
 
     mockHabitsData.habitsById.set(parent.id, parent)

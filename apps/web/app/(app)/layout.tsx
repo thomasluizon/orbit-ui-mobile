@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { useRouter, usePathname } from 'next/navigation'
+import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { CalendarDays } from 'lucide-react'
 import { Providers } from '@/lib/providers'
@@ -35,7 +35,7 @@ import { TourOverlay } from '@/components/tour/tour-overlay'
 import { RouteTransitionShell } from '@/components/motion/route-transition-shell'
 import { ApiFetchI18nProvider } from '@/lib/api-fetch-i18n-provider'
 import { setRouteTransitionIntent } from '@/lib/motion/route-intent'
-import { buildGoogleCalendarOAuthOptions } from '@orbit/shared/utils'
+import { buildGoogleCalendarOAuthOptions, formatAPIDate } from '@orbit/shared/utils'
 
 export default function AppLayout({
   children,
@@ -56,9 +56,15 @@ function pathnameToTab(pathname: string): BottomTab {
   return 'profile'
 }
 
+function getSelectedDateFromParam(dateParam: string | null): string {
+  if (dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam)) return dateParam
+  return formatAPIDate(new Date())
+}
+
 function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>) {
   const router = useRouter()
   const pathname = usePathname()
+  const searchParams = useSearchParams()
   const { profile } = useProfile()
   useTimezoneAutoSync(profile)
   const hasProAccess = profile?.hasProAccess ?? false
@@ -73,7 +79,6 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
   const setShowCreateModal = useUIStore((s) => s.setShowCreateModal)
   const showCreateGoalModal = useUIStore((s) => s.showCreateGoalModal)
   const setShowCreateGoalModal = useUIStore((s) => s.setShowCreateGoalModal)
-  const selectedDate = useUIStore((s) => s.selectedDate)
 
   const streakFreezeRef = useRef<{ show: () => void }>(null)
 
@@ -203,7 +208,11 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
         <CreateHabitModal
           open={showCreateModal}
           onOpenChange={setShowCreateModal}
-          initialDate={activeView === 'today' && pathname === '/' ? selectedDate : null}
+          initialDate={
+            activeView === 'today' && pathname === '/'
+              ? getSelectedDateFromParam(searchParams.get('date'))
+              : null
+          }
         />
       )}
       {showCreateGoalModal && (

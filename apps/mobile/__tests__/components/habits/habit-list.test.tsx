@@ -922,6 +922,7 @@ describe('HabitList', () => {
       id: 'child',
       title: 'Child',
       parentId: 'parent',
+      isCompleted: true,
     })
     seedHabits([parent, child])
 
@@ -965,6 +966,7 @@ describe('HabitList', () => {
       id: 'child',
       title: 'Child',
       parentId: 'parent',
+      isCompleted: true,
     })
     seedHabits([parent, child])
 
@@ -1206,5 +1208,169 @@ describe('HabitList', () => {
       expect.any(Function),
       expect.any(Function),
     )
+  })
+
+  it('shows the overdue meta token on a child row', () => {
+    const overdueChild = createMockHabit({
+      id: 'overdue-child',
+      title: 'Overdue child',
+      parentId: 'parent',
+      isOverdue: true,
+      frequencyUnit: null,
+      scheduledDates: [],
+    })
+
+    let tree: any
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <HabitRow habit={overdueChild} depth={1} />,
+      )
+    })
+
+    const italicNodes = tree.root.findAll(
+      (node: any) =>
+        node.props?.style?.fontStyle === 'italic' &&
+        node.props?.children === 'habits.overdue',
+    )
+
+    expect(italicNodes.length).toBeGreaterThan(0)
+  })
+
+  it('shows a future meta token for a habit due in six days', () => {
+    const inSixDays = formatAPIDate(new Date(Date.now() + 6 * 24 * 60 * 60 * 1000))
+    const futureHabit = createMockHabit({
+      id: 'future-1',
+      title: 'Dentist',
+      frequencyUnit: null,
+      dueDate: inSixDays,
+      scheduledDates: [inSixDays],
+    })
+
+    let tree: any
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<HabitRow habit={futureHabit} />)
+    })
+
+    const futureNodes = tree.root.findAll(
+      (node: any) =>
+        node.props?.style?.fontStyle === 'italic' &&
+        typeof node.props?.children === 'string' &&
+        node.props.children.includes('habits.schedule.dueindays') &&
+        node.props.children.includes('"count":6'),
+    )
+
+    expect(futureNodes.length).toBeGreaterThan(0)
+  })
+
+  it('renders the status dot read-only for a non-loggable row and interactive for a loggable one', () => {
+    const nonLoggable = createMockHabit({
+      id: 'non-loggable',
+      title: 'Daily yoga',
+      frequencyUnit: 'Day',
+      scheduledDates: [],
+      isOverdue: false,
+      isCompleted: false,
+    })
+    const loggable = createMockHabit({
+      id: 'loggable',
+      title: 'Pay rent',
+      frequencyUnit: null,
+      isCompleted: false,
+    })
+    const onLog = vi.fn()
+
+    let nonLoggableTree: any
+    let loggableTree: any
+    TestRenderer.act(() => {
+      nonLoggableTree = TestRenderer.create(
+        <HabitRow habit={nonLoggable} actions={{ onLog }} />,
+      )
+      loggableTree = TestRenderer.create(
+        <HabitRow habit={loggable} actions={{ onLog }} />,
+      )
+    })
+
+    const nonLoggableDot = nonLoggableTree.root.find(
+      (node: any) => node.props?.accessibilityLabel === 'habits.logHabit',
+    )
+    const loggableDot = loggableTree.root.find(
+      (node: any) => node.props?.accessibilityLabel === 'habits.logHabit',
+    )
+
+    expect(nonLoggableDot.props.disabled).toBe(true)
+    expect(loggableDot.props.disabled).toBe(false)
+
+    const nonLoggablePressables = nonLoggableDot.findAll(
+      (node: any) => typeof node.props?.onPress === 'function',
+    )
+    expect(nonLoggablePressables).toHaveLength(0)
+    expect(onLog).not.toHaveBeenCalled()
+
+    const loggablePressables = loggableDot.findAll(
+      (node: any) => typeof node.props?.onPress === 'function',
+    )
+    expect(loggablePressables.length).toBeGreaterThan(0)
+
+    TestRenderer.act(() => {
+      loggablePressables[0].props.onPress()
+    })
+    expect(onLog).toHaveBeenCalledTimes(1)
+  })
+
+  it('opens the parent prompt exactly once when several siblings complete in one burst', () => {
+    const parent = createMockHabit({
+      id: 'parent',
+      title: 'Parent',
+      hasSubHabits: true,
+      instances: [{ date: TODAY, status: 'Pending', logId: null }],
+    })
+    const childA = createMockHabit({ id: 'child-a', title: 'A', parentId: 'parent', isCompleted: true })
+    const childB = createMockHabit({ id: 'child-b', title: 'B', parentId: 'parent', isCompleted: true })
+    const childC = createMockHabit({ id: 'child-c', title: 'C', parentId: 'parent', isCompleted: true })
+    seedHabits([parent, childA, childB, childC])
+
+    const ref = React.createRef<HabitListHandle>()
+    let tree: any
+
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <HabitList
+          ref={ref}
+          view="today"
+          filters={{}}
+          showCompleted
+          onCreatePress={vi.fn()}
+        />,
+      )
+    })
+
+    TestRenderer.act(() => {
+      ref.current?.checkAndPromptParentLog('child-a')
+      ref.current?.checkAndPromptParentLog('child-b')
+      ref.current?.checkAndPromptParentLog('child-c')
+    })
+
+    const openDialogs = tree.root
+      .findAllByType('ConfirmDialog')
+      .filter((node: any) => node.props.title === 'habits.autoLogParentTitle')
+
+    expect(openDialogs).toHaveLength(1)
+
+    TestRenderer.act(() => {
+      const dialog = tree.root
+        .findAllByType('ConfirmDialog')
+        .find((node: any) => node.props.title === 'habits.autoLogParentTitle')
+      dialog?.props.onCancel()
+    })
+
+    TestRenderer.act(() => {
+      ref.current?.checkAndPromptParentLog('child-a')
+    })
+
+    const reopenedDialogs = tree.root
+      .findAllByType('ConfirmDialog')
+      .filter((node: any) => node.props.title === 'habits.autoLogParentTitle')
+
+    expect(reopenedDialogs).toHaveLength(0)
   })
 })

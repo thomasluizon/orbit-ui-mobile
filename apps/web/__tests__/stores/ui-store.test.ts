@@ -7,8 +7,6 @@ describe('ui store', () => {
     globalThis.localStorage.clear()
     useUIStore.setState({
       activeFilters: {},
-      selectedDate: formatAPIDate(new Date()),
-      followToday: true,
       activeView: 'today',
       activeCelebration: null,
       queuedCelebrations: [],
@@ -66,32 +64,6 @@ describe('ui store', () => {
 
       const state = useUIStore.getState()
       expect(state.activeFilters.dateFrom).toBe('2025-02-01')
-    })
-  })
-
-
-  describe('date navigation', () => {
-    it('starts with today as selected date', () => {
-      const state = useUIStore.getState()
-      expect(state.selectedDate).toBe(formatAPIDate(new Date()))
-    })
-
-    it('updates selected date', () => {
-      const { setSelectedDate } = useUIStore.getState()
-      setSelectedDate('2025-06-15')
-
-      expect(useUIStore.getState().selectedDate).toBe('2025-06-15')
-      expect(useUIStore.getState().followToday).toBe(false)
-    })
-
-    it('restores followToday when jumping back to today', () => {
-      const { setSelectedDate, goToToday } = useUIStore.getState()
-      setSelectedDate('2025-06-15')
-
-      goToToday()
-
-      expect(useUIStore.getState().selectedDate).toBe(formatAPIDate(new Date()))
-      expect(useUIStore.getState().followToday).toBe(true)
     })
   })
 
@@ -517,7 +489,6 @@ describe('ui store', () => {
         JSON.stringify({
           state: {
             activeFilters: { search: 'focus' },
-            selectedDate: '2000-01-01',
             activeView: 'goals',
             searchQuery: 'focus',
             selectedFrequency: 'Month',
@@ -532,8 +503,6 @@ describe('ui store', () => {
 
       expect(useUIStore.getState()).toMatchObject({
         activeFilters: { search: 'focus' },
-        selectedDate: '2000-01-01',
-        followToday: false,
         activeView: 'goals',
         searchQuery: 'focus',
         selectedFrequency: 'Month',
@@ -543,29 +512,29 @@ describe('ui store', () => {
       expect(useUIStore.getState().selectedHabitIds.size).toBe(0)
     })
 
-    it('migrates legacy today snapshots into followToday mode', async () => {
-      const today = formatAPIDate(new Date())
-
+    it('drops legacy day-selection keys when rehydrating an old snapshot', async () => {
       globalThis.localStorage.setItem(
         'orbit-ui-store',
         JSON.stringify({
           state: {
             activeFilters: {},
-            selectedDate: today,
+            selectedDate: '2000-01-01',
+            followToday: false,
             activeView: 'today',
             searchQuery: '',
             selectedFrequency: null,
             selectedTagIds: [],
             showCompleted: false,
           },
-          version: 0,
+          version: 1,
         }),
       )
 
       await useUIStore.persist.rehydrate()
 
-      expect(useUIStore.getState().selectedDate).toBe(today)
-      expect(useUIStore.getState().followToday).toBe(true)
+      const persisted = globalThis.localStorage.getItem('orbit-ui-store')
+      expect(persisted).not.toContain('selectedDate')
+      expect(persisted).not.toContain('followToday')
     })
   })
 })

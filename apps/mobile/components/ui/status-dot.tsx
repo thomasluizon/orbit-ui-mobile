@@ -18,6 +18,8 @@ interface StatusDotProps {
   onToggle?: () => void
   /** Accessibility label for screen readers (defaults to the state name). */
   accessibilityLabel?: string
+  /** Read-only mode: dimmed, non-interactive (mirrors the backend log rule). */
+  disabled?: boolean
 }
 
 /** v8 8px desaturated status dot. Hollow ring for `empty`, filled for everything else. */
@@ -26,6 +28,7 @@ export function StatusDot({
   size = 8,
   onToggle,
   accessibilityLabel,
+  disabled = false,
 }: Readonly<StatusDotProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
@@ -54,11 +57,12 @@ export function StatusDot({
     />
   )
 
-  if (!onToggle) {
+  if (!onToggle || disabled) {
     return (
       <View
         accessibilityLabel={accessibilityLabel ?? state}
         accessibilityRole="image"
+        style={disabled ? { opacity: 0.4 } : undefined}
       >
         {dot}
       </View>

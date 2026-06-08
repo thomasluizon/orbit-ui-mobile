@@ -2,7 +2,6 @@
 
 import { useEffect, useRef, useCallback } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
-import { formatAPIDate } from '@orbit/shared/utils'
 import {
   createTourUIState,
   getPersistedUIState,
@@ -101,7 +100,7 @@ export function TourProvider() {
   useEffect(() => {
     if (isActive && !mockDataInjectedRef.current) {
       uiSnapshotRef.current = getPersistedUIState(useUIStore.getState())
-      useUIStore.setState(createTourUIState(formatAPIDate(new Date())))
+      useUIStore.setState(createTourUIState())
       resetSessionState()
       inject()
       mockDataInjectedRef.current = true

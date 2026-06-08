@@ -1,8 +1,10 @@
 import type { NormalizedHabit } from '../types/habit'
-import { formatAPIDate } from './dates'
-import { hasHabitScheduleOnDate } from './habits'
+import { differenceInCalendarDays } from 'date-fns'
+import { formatAPIDate, parseAPIDate } from './dates'
+import { hasHabitScheduleOnDate, isWithinOverdueWindow } from './habits'
+import { formatLocaleDate } from './locale-format'
 
-export type HabitCardStatus = 'completed' | 'pending' | 'overdue' | 'due-today'
+export type HabitCardStatus = 'completed' | 'pending' | 'overdue' | 'due-today' | 'future'
 
 export type HabitCardTranslationAdapter = (
   key: string,
@@ -108,6 +110,51 @@ export function computeHabitFrequencyLabel(
     }),
     frequencyQuantity ?? 1,
   )
+}
+
+/**
+ * Whether the log control should be enabled for `habit` on `date`, mirroring the
+ * backend `LogHabitCommand.ValidateTargetDate`. One-time tasks (no `frequencyUnit`)
+ * stay loggable within the overdue window, including future dates; recurring and
+ * flexible habits cannot log a future date; recurring non-flexible habits must be
+ * scheduled on the date (or overdue today). Keep aligned with the backend validator.
+ */
+export function canLogHabitOnDate(
+  habit: Pick<
+    NormalizedHabit,
+    'frequencyUnit' | 'isFlexible' | 'isOverdue' | 'scheduledDates' | 'instances' | 'dueDate'
+  >,
+  date: string,
+  today: string,
+): boolean {
+  const isRecurringOrFlexible = habit.frequencyUnit != null
+  if (date > today && isRecurringOrFlexible) return false
+  if (!isWithinOverdueWindow(date, today)) return false
+  if (isRecurringOrFlexible && !habit.isFlexible && !hasHabitScheduleOnDate(habit, date)) {
+    const isOverdueToday = date === today && habit.isOverdue
+    if (!isOverdueToday) return false
+  }
+  return true
+}
+
+/**
+ * A localized hint for a future-due row: relative when due within a week
+ * (`in 6d`), otherwise the absolute scheduled date (`scheduled 13 Jun`).
+ * Returns null when the habit's `dueDate` is today or in the past.
+ */
+export function computeHabitFutureHint(
+  habit: Pick<NormalizedHabit, 'dueDate'>,
+  today: string,
+  t: HabitCardTranslationAdapter,
+  locale?: string | null,
+): string | null {
+  if (!habit.dueDate || habit.dueDate <= today) return null
+  const days = differenceInCalendarDays(parseAPIDate(habit.dueDate), parseAPIDate(today))
+  if (days <= 0) return null
+  if (days <= 7) return t('habits.schedule.dueInDays', { count: days })
+  return t('habits.schedule.scheduledOn', {
+    date: formatLocaleDate(habit.dueDate, locale, { month: 'short', day: 'numeric' }),
+  })
 }
 
 export function computeHabitFlexibleProgressLabel(

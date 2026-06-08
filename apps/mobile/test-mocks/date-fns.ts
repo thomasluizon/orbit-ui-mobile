@@ -106,6 +106,11 @@ export function subDays(dateInput: Date | number | string, amount: number): Date
   return new Date(date.getTime() - amount * 86400000)
 }
 
+export function addDays(dateInput: Date | number | string, amount: number): Date {
+  const date = toDate(dateInput)
+  return new Date(date.getTime() + amount * 86400000)
+}
+
 export function formatDistanceToNow(dateInput: Date | number | string): string {
   return formatDistanceToNowStrict(dateInput)
 }

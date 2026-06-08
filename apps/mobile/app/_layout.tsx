@@ -423,7 +423,6 @@ function AppBottomTabBar({
   pathname,
 }: Readonly<{ onCreate: () => void; pathname: string }>) {
   const router = useRouter()
-  const goToTodayDate = useUIStore((s) => s.goToToday)
   const setActiveView = useUIStore((s) => s.setActiveView)
   const fabRef = useRef<View>(null)
   useTourTarget('tour-fab-button', fabRef)
@@ -438,9 +437,8 @@ function AppBottomTabBar({
 
   const handleTab = (id: BottomTabId) => {
     if (id === 'today') {
-      goToTodayDate()
       setActiveView('today')
-      if (active !== 'today') router.navigate('/')
+      router.navigate('/')
       return
     }
     if (id === active) return

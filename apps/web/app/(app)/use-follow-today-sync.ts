@@ -10,12 +10,12 @@ function getMillisecondsUntilNextLocalMidnight(): number {
 }
 
 /**
- * Keeps a "followed today" selection on the real current day. Syncs the
- * selected date with today on mount, schedules a re-sync at the next local
- * midnight (rescheduling itself afterwards), and re-syncs whenever the tab
- * regains visibility or focus.
+ * Drives a "today tick": invokes `onRollover` at the next local midnight
+ * (rescheduling itself afterwards) and whenever the tab regains visibility or
+ * focus. Callers refresh their notion of today from it; pages following the
+ * real current day re-render, pinned dates stay put.
  */
-export function useFollowTodaySync(syncSelectedDateWithToday: () => void): void {
+export function useTodayTick(onRollover: () => void): void {
   useEffect(() => {
     let rolloverTimer: ReturnType<typeof globalThis.setTimeout> | null = null
 
@@ -25,23 +25,22 @@ export function useFollowTodaySync(syncSelectedDateWithToday: () => void): void 
       }
 
       rolloverTimer = globalThis.setTimeout(() => {
-        syncSelectedDateWithToday()
+        onRollover()
         resetRolloverTimer()
       }, getMillisecondsUntilNextLocalMidnight())
     }
 
     const handleVisible = () => {
       if (document.visibilityState !== 'visible') return
-      syncSelectedDateWithToday()
+      onRollover()
       resetRolloverTimer()
     }
 
     const handleFocus = () => {
-      syncSelectedDateWithToday()
+      onRollover()
       resetRolloverTimer()
     }
 
-    syncSelectedDateWithToday()
     resetRolloverTimer()
     document.addEventListener('visibilitychange', handleVisible)
     globalThis.addEventListener('focus', handleFocus)
@@ -53,5 +52,5 @@ export function useFollowTodaySync(syncSelectedDateWithToday: () => void): void 
       document.removeEventListener('visibilitychange', handleVisible)
       globalThis.removeEventListener('focus', handleFocus)
     }
-  }, [syncSelectedDateWithToday])
+  }, [onRollover])
 }
