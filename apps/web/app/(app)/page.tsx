@@ -60,7 +60,7 @@ export default function TodayPage() {
   const searchParams = useSearchParams()
   const queryClient = useQueryClient()
   const { profile } = useProfile()
-  const { data: streakInfo } = useStreakInfo()
+  const { data: streakInfo } = useStreakInfo(profile?.hasProAccess ?? false)
   const { tags } = useTags()
   const listMotionPreset = resolveMotionPreset('list-enter', Boolean(prefersReducedMotion))
   const listTransition = {

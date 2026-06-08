@@ -45,7 +45,7 @@ export default function ProfilePage() {
   const { profile: gamificationProfile } = useGamificationProfile(
     profile?.hasProAccess ?? false,
   )
-  const { data: streakInfo } = useStreakInfo()
+  const { data: streakInfo } = useStreakInfo(profile?.hasProAccess ?? false)
   const accountNavItems = PROFILE_NAV_ITEMS.filter(
     (item) => item.section === 'account',
   )

@@ -87,16 +87,17 @@ export function useGamificationProfile(enabled = true) {
   }
 }
 
-export function useStreakInfo() {
+export function useStreakInfo(enabled = true) {
   return useQuery({
     queryKey: gamificationKeys.streak(),
     queryFn: () => fetchJson<StreakInfo>(API.gamification.streak),
     staleTime: QUERY_STALE_TIMES.gamification,
+    enabled,
   })
 }
 
-export function useStreakFreeze(profile?: { streakFreezesAvailable?: number; currentStreak?: number } | null) {
-  const streakQuery = useStreakInfo()
+export function useStreakFreeze(profile?: { streakFreezesAvailable?: number; currentStreak?: number } | null, enabled = true) {
+  const streakQuery = useStreakInfo(enabled)
   const streakInfo = streakQuery.data ?? null
 
   const state = useMemo(

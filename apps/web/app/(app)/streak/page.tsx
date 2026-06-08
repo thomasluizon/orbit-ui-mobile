@@ -28,7 +28,7 @@ export default function StreakPage() {
     maxStreakFreezesAccumulated,
     freezesUsedThisMonth,
     maxFreezesPerMonth,
-  } = useStreakFreeze(profile)
+  } = useStreakFreeze(profile, isPro)
 
   const freezeCelebrationRef = useRef<StreakFreezeCelebrationHandle>(null)
   const wasFrozenTodayRef = useRef(isFrozenToday)

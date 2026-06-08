@@ -198,6 +198,14 @@ describe('mobile useStreakInfo and streak freeze', () => {
     expect(hook.value.data?.freezesAvailable).toBe(2)
   })
 
+  it('passes enabled false to the streak query when disabled', async () => {
+    await renderHookValue(() => useStreakInfo(false))
+
+    expect(mocks.useQuery).toHaveBeenCalledWith(
+      expect.objectContaining({ enabled: false }),
+    )
+  })
+
   it('derives freeze state from provided profile data while streak loads', async () => {
     const hook = await renderHookValue(() =>
       useStreakFreeze({ streakFreezesAvailable: 1, currentStreak: 4 }),
