@@ -937,7 +937,7 @@ const isPostponeAction = useMemo(() => {
     if (habit.isBadHabit && !isChild) {
       tokens.push({ kind: 'bad', label: t('habits.badHabit') })
     }
-    if (!habit.isCompleted) {
+    if (!habit.isCompleted && selectedDateStr === todayStr) {
       const futureHint = computeHabitFutureHint(habit, todayStr, t, locale)
       if (futureHint) tokens.push({ kind: 'future', label: futureHint })
     }

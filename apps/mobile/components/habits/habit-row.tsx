@@ -134,7 +134,7 @@ export function HabitRow({
   }
   if (isOverdue) metaParts.push({ kind: 'overdue' })
   if (habit.isBadHabit && !isChild) metaParts.push({ kind: 'bad' })
-  if (!habit.isCompleted) {
+  if (!habit.isCompleted && selectedDateStr === todayStr) {
     const futureHint = computeHabitFutureHint(habit, todayStr, t, locale)
     if (futureHint) metaParts.push({ kind: 'future', label: futureHint })
   }
