@@ -3,6 +3,7 @@ import {
   createTourUIState,
   createUIStoreState,
   getPersistedUIState,
+  migratePersistedUIState,
   type UIStoreState,
 } from "../stores/ui-store";
 
@@ -53,53 +54,6 @@ describe("shared ui store", () => {
       searchQuery: "focus",
       activeView: "goals",
     });
-  });
-
-  it("defaults to following the real current day", () => {
-    const store = createStoreHarness();
-
-    expect(store.getState().selectedDate).toBe("2026-04-06");
-    expect(store.getState().followToday).toBe(true);
-  });
-
-  it("pins manual date selections and disables follow-today mode", () => {
-    const store = createStoreHarness();
-
-    store.getState().setSelectedDate("2026-04-08");
-
-    expect(store.getState().selectedDate).toBe("2026-04-08");
-    expect(store.getState().followToday).toBe(false);
-  });
-
-  it("restores follow-today mode when jumping back to today", () => {
-    const store = createStoreHarness();
-
-    store.getState().setSelectedDate("2026-04-08");
-    vi.setSystemTime(new Date("2026-04-09T12:00:00Z"));
-
-    store.getState().goToToday();
-
-    expect(store.getState().selectedDate).toBe("2026-04-09");
-    expect(store.getState().followToday).toBe(true);
-  });
-
-  it("syncs a followed today date across day changes without moving pinned dates", () => {
-    const store = createStoreHarness();
-
-    vi.setSystemTime(new Date("2026-04-07T12:00:00Z"));
-    store.getState().syncSelectedDateWithToday();
-    expect(store.getState().selectedDate).toBe("2026-04-07");
-
-    store.getState().setSelectedDate("2026-04-05");
-    vi.setSystemTime(new Date("2026-04-08T12:00:00Z"));
-    store.getState().syncSelectedDateWithToday();
-    expect(store.getState().selectedDate).toBe("2026-04-05");
-
-    store.getState().goToToday();
-    vi.setSystemTime(new Date("2026-04-09T12:00:00Z"));
-    store.getState().syncSelectedDateWithToday();
-    expect(store.getState().selectedDate).toBe("2026-04-09");
-    expect(store.getState().followToday).toBe(true);
   });
 
   it("toggles cascaded selection and clears it when toggled again", () => {
@@ -200,11 +154,9 @@ describe("shared ui store", () => {
     expect(store.getState().streakCelebration).toEqual({ streak: 5 });
   });
 
-  it("creates a canonical tour ui state with today selected and no filters", () => {
-    expect(createTourUIState("2026-04-06")).toEqual({
+  it("creates a canonical tour ui state with no filters", () => {
+    expect(createTourUIState()).toEqual({
       activeFilters: {},
-      selectedDate: "2026-04-06",
-      followToday: true,
       activeView: "today",
       searchQuery: "",
       selectedFrequency: null,
@@ -234,5 +186,38 @@ describe("shared ui store", () => {
       includeOverdue: true,
     });
     expect(snapshot.selectedTagIds).toEqual(["focus"]);
+  });
+
+  it("excludes the day selection from the persisted snapshot", () => {
+    const store = createStoreHarness();
+
+    const snapshot = getPersistedUIState(store.getState());
+
+    expect(snapshot).not.toHaveProperty("selectedDate");
+    expect(snapshot).not.toHaveProperty("followToday");
+  });
+
+  it("drops legacy day-selection keys when migrating persisted state", () => {
+    const migrated = migratePersistedUIState({
+      activeFilters: { search: "focus" },
+      selectedDate: "2000-01-01",
+      followToday: false,
+      activeView: "all",
+      searchQuery: "focus",
+      selectedFrequency: "Month",
+      selectedTagIds: ["deep-work"],
+      showCompleted: true,
+    });
+
+    expect(migrated).not.toHaveProperty("selectedDate");
+    expect(migrated).not.toHaveProperty("followToday");
+    expect(migrated).toEqual({
+      activeFilters: { search: "focus" },
+      activeView: "all",
+      searchQuery: "focus",
+      selectedFrequency: "Month",
+      selectedTagIds: ["deep-work"],
+      showCompleted: true,
+    });
   });
 });

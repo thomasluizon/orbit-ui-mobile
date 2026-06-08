@@ -1,4 +1,4 @@
-import { isAfter, isSameDay } from 'date-fns'
+import { differenceInCalendarDays, isAfter, isSameDay } from 'date-fns'
 import { parseAPIDate } from './dates'
 import type { CalendarDayEntry, HabitDayStatus } from '../types/calendar'
 import type { CalendarMonthResponse } from '../types/habit'
@@ -90,6 +90,24 @@ export function hasHabitScheduleOnDate(
     (!habit.scheduledDates || habit.scheduledDates.length === 0) &&
     (!habit.instances || habit.instances.length === 0) &&
     habit.dueDate === date
+  )
+}
+
+export const DEFAULT_OVERDUE_WINDOW_DAYS = 7
+
+/**
+ * Whether `date` is recent enough to log, mirroring the backend overdue-window
+ * lower bound (`AppConstants.DefaultOverdueWindowDays`): a date passes when it is
+ * at most `windowDays` before `today`. Future dates pass — the future guard is
+ * enforced separately by callers.
+ */
+export function isWithinOverdueWindow(
+  date: string,
+  today: string,
+  windowDays: number = DEFAULT_OVERDUE_WINDOW_DAYS,
+): boolean {
+  return (
+    differenceInCalendarDays(parseAPIDate(today), parseAPIDate(date)) <= windowDays
   )
 }
 

@@ -46,6 +46,7 @@ export type HabitRowMetaToken =
   | string
   | { kind: 'overdue'; label: string }
   | { kind: 'bad'; label: string }
+  | { kind: 'future'; label: string }
 
 /** Linear-tight habit row. Single line: emoji / chevron / title / inline meta / status dot / streak.
  *  Sub-habit rows ("child") render a tree-line connector to the parent column. */
@@ -55,6 +56,9 @@ interface HabitRowProps {
   state?: StatusDotState
   /** Inline tokens between title and trailing dot (frequency, time, X/Y checklist, overdue, bad). */
   meta?: HabitRowMetaToken[]
+  /** Whether the status dot may be tapped to log for the selected date. When false and not done,
+   *  the dot renders disabled/read-only (mirrors the backend log rule). Defaults to true. */
+  canLog?: boolean
   /** Streak number from `habit.currentStreak` — only rendered when >= 2 and not child. */
   streak?: number
   /** True when this row is rendered under a parent. Renders with smaller text. */
@@ -79,6 +83,7 @@ export function HabitRow({
   habit,
   state = 'empty',
   meta = [],
+  canLog = true,
   streak,
   child = false,
   depth = 0,
@@ -304,6 +309,7 @@ export function HabitRow({
               state={state}
               size={22}
               onToggle={handleToggleStatus}
+              disabled={!canLog && !isDone}
               ariaLabel={t(`habits.statusDot.${state}` as Parameters<typeof t>[0])}
             />
           )

@@ -5,7 +5,7 @@ import {
   createMockProfile,
 } from "@orbit/shared/__tests__/factories";
 import type { NormalizedHabit } from "@orbit/shared/types/habit";
-import { computeHabitCardStatus, formatAPIDate } from "@orbit/shared/utils";
+import { computeHabitCardStatus } from "@orbit/shared/utils";
 
 import TodayScreen, {
   resolveBulkActionBarEnterShift,
@@ -80,31 +80,9 @@ const surfacesMock = {
   },
 };
 
-const setSelectedDate = vi.fn((date: string) => {
-  uiState.selectedDate = date;
-  uiState.followToday = false;
-});
-
-const goToToday = vi.fn(() => {
-  uiState.selectedDate = formatAPIDate(new Date());
-  uiState.followToday = true;
-});
-
-const syncSelectedDateWithToday = vi.fn(() => {
-  if (!uiState.followToday) return;
-
-  const today = formatAPIDate(new Date());
-  if (uiState.selectedDate !== today) {
-    uiState.selectedDate = today;
-  }
-});
+const dateParamState = { value: null as string | null };
 
 const uiState = {
-  selectedDate: "2026-04-07",
-  followToday: true,
-  setSelectedDate,
-  goToToday,
-  syncSelectedDateWithToday,
   activeView: "today",
   setActiveView: vi.fn(),
   searchQuery: "",
@@ -156,6 +134,7 @@ function defaultUseHabitsReturn() {
   };
 }
 const mockRouterPush = vi.fn();
+const mockRouterNavigate = vi.fn();
 let mockProfile = createMockProfile({
   hasProAccess: false,
   aiSummaryEnabled: false,
@@ -168,9 +147,11 @@ vi.mock("@react-native-async-storage/async-storage", () => ({
 }));
 
 vi.mock("expo-router", () => ({
-  useLocalSearchParams: () => ({}),
+  useLocalSearchParams: () =>
+    dateParamState.value ? { date: dateParamState.value } : {},
   useRouter: () => ({
     push: mockRouterPush,
+    navigate: mockRouterNavigate,
   }),
 }));
 
@@ -416,6 +397,7 @@ describe("TodayScreen", () => {
     useHabitsMock.mockImplementation(defaultUseHabitsReturn);
     vi.useRealTimers();
     mockRouterPush.mockReset();
+    mockRouterNavigate.mockReset();
     mockProfile = createMockProfile({
       hasProAccess: false,
       aiSummaryEnabled: false,
@@ -426,8 +408,7 @@ describe("TodayScreen", () => {
     mockHabitsData.childrenByParent = new Map();
     mockHabitsData.topLevelHabits = [];
     habitListHandle.allLoadedIds = new Set();
-    uiState.selectedDate = "2026-04-07";
-    uiState.followToday = true;
+    dateParamState.value = "2026-04-07";
     uiState.activeView = "today";
     uiState.isSelectMode = false;
     uiState.searchQuery = "";
@@ -579,24 +560,29 @@ describe("TodayScreen", () => {
   it("advances a followed today selection after midnight without reopening the screen", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-04-07T23:59:55"));
-    uiState.selectedDate = "2026-04-07";
-    uiState.followToday = true;
+    dateParamState.value = null;
 
     await renderTodayScreen();
+
+    expect(useHabitsMock.mock.calls.at(-1)?.[0]).toMatchObject({
+      dateFrom: "2026-04-07",
+      dateTo: "2026-04-07",
+    });
 
     await TestRenderer.act(async () => {
       await vi.advanceTimersByTimeAsync(6_000);
     });
 
-    expect(uiState.selectedDate).toBe("2026-04-08");
-    expect(syncSelectedDateWithToday).toHaveBeenCalled();
+    expect(useHabitsMock.mock.calls.at(-1)?.[0]).toMatchObject({
+      dateFrom: "2026-04-08",
+      dateTo: "2026-04-08",
+    });
   });
 
   it("keeps a manually pinned date fixed after midnight", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-04-07T23:59:55"));
-    uiState.selectedDate = "2026-04-06";
-    uiState.followToday = false;
+    dateParamState.value = "2026-04-06";
 
     await renderTodayScreen();
 
@@ -604,7 +590,61 @@ describe("TodayScreen", () => {
       await vi.advanceTimersByTimeAsync(6_000);
     });
 
-    expect(uiState.selectedDate).toBe("2026-04-06");
+    expect(useHabitsMock.mock.calls.at(-1)?.[0]).toMatchObject({
+      dateFrom: "2026-04-06",
+      dateTo: "2026-04-06",
+    });
+  });
+
+  it("navigates to adjacent days with a date query param", async () => {
+    dateParamState.value = "2026-04-07";
+
+    const tree = await renderTodayScreen();
+
+    const dateNav = tree.root.findByType("TodayDateNavigation");
+
+    TestRenderer.act(() => {
+      (dateNav.props.onGoToPreviousDay as () => void)();
+    });
+    expect(mockRouterPush).toHaveBeenCalledWith("/?date=2026-04-06");
+
+    TestRenderer.act(() => {
+      (dateNav.props.onGoToNextDay as () => void)();
+    });
+    expect(mockRouterPush).toHaveBeenCalledWith("/?date=2026-04-08");
+  });
+
+  it("returns to today via the bare tabs index, clearing the date param", async () => {
+    dateParamState.value = "2026-04-06";
+
+    const tree = await renderTodayScreen();
+
+    const dateNav = tree.root.findByType("TodayDateNavigation");
+
+    TestRenderer.act(() => {
+      (dateNav.props.onGoToToday as () => void)();
+    });
+
+    expect(mockRouterNavigate).toHaveBeenCalledWith("/");
+  });
+
+  it("renders today on the bare route and the pinned day on a date deep link", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-04-07T12:00:00"));
+
+    dateParamState.value = null;
+    await renderTodayScreen();
+    expect(useHabitsMock.mock.calls.at(-1)?.[0]).toMatchObject({
+      dateFrom: "2026-04-07",
+      dateTo: "2026-04-07",
+    });
+
+    dateParamState.value = "2026-04-02";
+    await renderTodayScreen();
+    expect(useHabitsMock.mock.calls.at(-1)?.[0]).toMatchObject({
+      dateFrom: "2026-04-02",
+      dateTo: "2026-04-02",
+    });
   });
 });
 
@@ -638,8 +678,7 @@ describe("TodayScreen overdue bulk selection", () => {
     mockHabitsData.childrenByParent = new Map();
     mockHabitsData.topLevelHabits = [];
     habitListHandle.allLoadedIds = new Set();
-    uiState.selectedDate = "2026-04-07";
-    uiState.followToday = true;
+    dateParamState.value = "2026-04-07";
     uiState.activeView = "today";
     uiState.isSelectMode = true;
     uiState.searchQuery = "";
@@ -744,7 +783,7 @@ describe("TodayScreen overdue date gating", () => {
     mockHabitsData.habitsById = new Map();
     mockHabitsData.childrenByParent = new Map();
     mockHabitsData.topLevelHabits = [];
-    uiState.followToday = false;
+    dateParamState.value = null;
     uiState.activeView = "today";
     uiState.isSelectMode = false;
     uiState.searchQuery = "";
@@ -765,7 +804,7 @@ describe("TodayScreen overdue date gating", () => {
   it("includes overdue when the selected date is today", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-04-07T12:00:00"));
-    uiState.selectedDate = "2026-04-07";
+    dateParamState.value = null;
 
     await renderTodayScreen();
 
@@ -779,7 +818,7 @@ describe("TodayScreen overdue date gating", () => {
   it("excludes overdue when the selected date is in the future", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-04-07T12:00:00"));
-    uiState.selectedDate = "2026-04-09";
+    dateParamState.value = "2026-04-09";
 
     await renderTodayScreen();
 
@@ -789,7 +828,7 @@ describe("TodayScreen overdue date gating", () => {
   it("excludes overdue when the selected date is in the past", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(new Date("2026-04-07T12:00:00"));
-    uiState.selectedDate = "2026-04-05";
+    dateParamState.value = "2026-04-05";
 
     await renderTodayScreen();
 

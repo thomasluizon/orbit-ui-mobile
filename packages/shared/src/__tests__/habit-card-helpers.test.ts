@@ -2,9 +2,11 @@ import { describe, expect, it } from 'vitest'
 import { createMockHabit } from './factories'
 import { parseAPIDate } from '../utils/dates'
 import {
+  canLogHabitOnDate,
   computeHabitCardStatus,
   computeHabitFlexibleProgressLabel,
   computeHabitFrequencyLabel,
+  computeHabitFutureHint,
   computeHabitMatchBadges,
   computeHabitStatusBadge,
 } from '../utils/habit-card-helpers'
@@ -262,5 +264,90 @@ describe('habit card helpers', () => {
     expect(
       computeHabitMatchBadges('', createMockHabit({ searchMatches: null }), translator),
     ).toEqual([])
+  })
+})
+
+describe('canLogHabitOnDate', () => {
+  const today = '2025-01-10'
+
+  it('lets one-time tasks log within the window, including future dates', () => {
+    const oneTime = createMockHabit({ frequencyUnit: null })
+    expect(canLogHabitOnDate(oneTime, '2025-01-20', today)).toBe(true)
+    expect(canLogHabitOnDate(oneTime, today, today)).toBe(true)
+  })
+
+  it('blocks recurring and flexible habits from logging a future date', () => {
+    const recurring = createMockHabit({ frequencyUnit: 'Day', isFlexible: false })
+    const flexible = createMockHabit({ frequencyUnit: 'Week', isFlexible: true })
+    expect(canLogHabitOnDate(recurring, '2025-01-11', today)).toBe(false)
+    expect(canLogHabitOnDate(flexible, '2025-01-11', today)).toBe(false)
+  })
+
+  it('requires recurring non-flexible habits to be scheduled on the date', () => {
+    const scheduled = createMockHabit({
+      frequencyUnit: 'Day',
+      isFlexible: false,
+      isOverdue: false,
+      scheduledDates: [today],
+      instances: [],
+    })
+    const notScheduled = createMockHabit({
+      frequencyUnit: 'Day',
+      isFlexible: false,
+      isOverdue: false,
+      scheduledDates: ['2025-01-09'],
+      instances: [],
+      dueDate: '2025-01-09',
+    })
+    expect(canLogHabitOnDate(scheduled, today, today)).toBe(true)
+    expect(canLogHabitOnDate(notScheduled, today, today)).toBe(false)
+  })
+
+  it('allows logging an overdue recurring habit today even when not scheduled', () => {
+    const overdue = createMockHabit({
+      frequencyUnit: 'Day',
+      isFlexible: false,
+      isOverdue: true,
+      scheduledDates: ['2025-01-08'],
+      instances: [],
+      dueDate: '2025-01-08',
+    })
+    expect(canLogHabitOnDate(overdue, today, today)).toBe(true)
+  })
+
+  it('rejects dates older than the overdue window', () => {
+    const oneTime = createMockHabit({ frequencyUnit: null })
+    expect(canLogHabitOnDate(oneTime, '2025-01-01', today)).toBe(false)
+  })
+})
+
+describe('computeHabitFutureHint', () => {
+  const today = '2025-01-10'
+  const t = createTranslator()
+
+  it('returns null for today or past due dates', () => {
+    expect(computeHabitFutureHint(createMockHabit({ dueDate: today }), today, t, 'en')).toBeNull()
+    expect(
+      computeHabitFutureHint(createMockHabit({ dueDate: '2025-01-05' }), today, t, 'en'),
+    ).toBeNull()
+  })
+
+  it('renders a relative day hint when due within a week', () => {
+    expect(
+      computeHabitFutureHint(createMockHabit({ dueDate: '2025-01-16' }), today, t, 'en'),
+    ).toBe('habits.schedule.dueInDays({"count":6})')
+    expect(
+      computeHabitFutureHint(createMockHabit({ dueDate: '2025-01-17' }), today, t, 'en'),
+    ).toBe('habits.schedule.dueInDays({"count":7})')
+  })
+
+  it('renders an absolute scheduled date beyond a week', () => {
+    const hint = computeHabitFutureHint(
+      createMockHabit({ dueDate: '2025-02-09' }),
+      today,
+      t,
+      'en',
+    )
+    expect(hint).toContain('habits.schedule.scheduledOn')
   })
 })

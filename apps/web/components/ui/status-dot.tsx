@@ -16,6 +16,7 @@ interface StatusDotProps {
   size?: number
   onToggle?: () => void
   ariaLabel?: string
+  disabled?: boolean
 }
 
 const FILLED_STATES: ReadonlySet<StatusDotState> = new Set(['done', 'skip', 'frozen'])
@@ -34,12 +35,14 @@ export function StatusDot({
   size = 8,
   onToggle,
   ariaLabel,
+  disabled = false,
 }: Readonly<StatusDotProps>) {
   const isFilled = FILLED_STATES.has(state)
   const color = COLOR_VAR[state]
 
   function handleClick(event: MouseEvent<HTMLButtonElement>) {
     event.stopPropagation()
+    if (disabled) return
     onToggle?.()
   }
 
@@ -47,12 +50,14 @@ export function StatusDot({
     <button
       type="button"
       onClick={handleClick}
+      disabled={disabled}
+      aria-disabled={disabled}
       aria-label={ariaLabel ?? state}
-      className="group appearance-none border-0 bg-transparent cursor-pointer shrink-0 flex items-center justify-center"
-      style={{ padding: 10, margin: -10 }}
+      className={`group appearance-none border-0 bg-transparent shrink-0 flex items-center justify-center ${disabled ? 'cursor-default' : 'cursor-pointer'}`}
+      style={{ padding: 10, margin: -10, opacity: disabled ? 0.4 : 1 }}
     >
       <span
-        className="block rounded-full transition-transform duration-150 ease-[cubic-bezier(0.25,1,0.5,1)] group-hover:scale-125 group-active:scale-90"
+        className={`block rounded-full transition-transform duration-150 ease-[cubic-bezier(0.25,1,0.5,1)] ${disabled ? '' : 'group-hover:scale-125 group-active:scale-90'}`}
         style={{
           width: size,
           height: size,

@@ -194,10 +194,6 @@ function activateNextCelebration(
   };
 }
 
-function getTodayDate(): string {
-  return formatAPIDate(new Date());
-}
-
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object";
 }
@@ -223,8 +219,6 @@ function isActiveView(value: unknown): value is ActiveView {
 
 export interface PersistedUIState {
   activeFilters: HabitsFilter;
-  selectedDate: string;
-  followToday: boolean;
   activeView: ActiveView;
   searchQuery: string;
   selectedFrequency: HabitFrequencyFilter | null;
@@ -235,20 +229,12 @@ export interface PersistedUIState {
 export function migratePersistedUIState(
   persistedState: unknown,
 ): PersistedUIState {
-  const today = getTodayDate();
   const state = isRecord(persistedState) ? persistedState : {};
-  const selectedDate =
-    typeof state.selectedDate === "string" ? state.selectedDate : today;
 
   return {
     activeFilters: isRecord(state.activeFilters)
       ? (state.activeFilters as HabitsFilter)
       : {},
-    selectedDate,
-    followToday:
-      typeof state.followToday === "boolean"
-        ? state.followToday
-        : selectedDate === today,
     activeView: isActiveView(state.activeView) ? state.activeView : "today",
     searchQuery: typeof state.searchQuery === "string" ? state.searchQuery : "",
     selectedFrequency: isHabitFrequencyFilter(state.selectedFrequency)
@@ -267,12 +253,6 @@ export function migratePersistedUIState(
 export interface UIStoreState {
   activeFilters: HabitsFilter;
   setFilters: (filters: Partial<HabitsFilter>) => void;
-
-  selectedDate: string;
-  followToday: boolean;
-  setSelectedDate: (date: string) => void;
-  goToToday: () => void;
-  syncSelectedDateWithToday: () => void;
 
   activeView: ActiveView;
   setActiveView: (view: ActiveView) => void;
@@ -333,8 +313,6 @@ export interface UIStoreState {
 export function getPersistedUIState(state: UIStoreState): PersistedUIState {
   return {
     activeFilters: { ...state.activeFilters },
-    selectedDate: state.selectedDate,
-    followToday: state.followToday,
     activeView: state.activeView,
     searchQuery: state.searchQuery,
     selectedFrequency: state.selectedFrequency,
@@ -343,11 +321,9 @@ export function getPersistedUIState(state: UIStoreState): PersistedUIState {
   };
 }
 
-export function createTourUIState(selectedDate: string): PersistedUIState {
+export function createTourUIState(): PersistedUIState {
   return {
     activeFilters: {},
-    selectedDate,
-    followToday: true,
     activeView: "today",
     searchQuery: "",
     selectedFrequency: null,
@@ -369,20 +345,6 @@ export function createUIStoreState(
       set((state) => ({
         activeFilters: { ...state.activeFilters, ...filters },
       })),
-
-    selectedDate: getTodayDate(),
-    followToday: true,
-    setSelectedDate: (date) => set({ selectedDate: date, followToday: false }),
-    goToToday: () => set({ selectedDate: getTodayDate(), followToday: true }),
-    syncSelectedDateWithToday: () =>
-      set((state) => {
-        const today = getTodayDate();
-        if (!state.followToday || state.selectedDate === today) {
-          return {};
-        }
-
-        return { selectedDate: today };
-      }),
 
     activeView: "today",
     setActiveView: (view) => set({ activeView: view }),

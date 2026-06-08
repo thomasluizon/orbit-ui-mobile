@@ -46,11 +46,15 @@ import {
   getTodayTabLabel,
   type TodayTabItem,
 } from './today-shell'
-import { useFollowTodaySync } from './use-follow-today-sync'
+import { useTodayTick } from './use-follow-today-sync'
 import type { HabitsFilter } from '@orbit/shared/types/habit'
 
 const TAB_VIEWS = ['today', 'all', 'general', 'goals'] as const
 const SKELETON_KEYS = ['sk-1', 'sk-2', 'sk-3', 'sk-4', 'sk-5'] as const
+
+function getTodayDate(): string {
+  return formatAPIDate(new Date())
+}
 
 export default function TodayPage() {
   const t = useTranslations()
@@ -73,10 +77,6 @@ export default function TodayPage() {
     return parseShowGeneralOnTodayPreference(localStorage.getItem('orbit_show_general_on_today'))
   }, [])
 
-  const selectedDateStr = useUIStore((s) => s.selectedDate)
-  const setSelectedDate = useUIStore((s) => s.setSelectedDate)
-  const goToTodayDate = useUIStore((s) => s.goToToday)
-  const syncSelectedDateWithToday = useUIStore((s) => s.syncSelectedDateWithToday)
   const activeView = useUIStore((s) => s.activeView)
   const setActiveView = useUIStore((s) => s.setActiveView)
   const searchQueryStore = useUIStore((s) => s.searchQuery)
@@ -113,24 +113,28 @@ export default function TodayPage() {
   const CONTROLS_MENU_MARGIN_PX = 8
 
   const dateParam = searchParams.get('date')
-  const initialDateStr = useMemo(() => {
+  const pinnedDateStr = useMemo(() => {
     if (dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam)) return dateParam
     return null
   }, [dateParam])
 
-  const [previousInitialDateStr, setPreviousInitialDateStr] = useState<string | null>(null)
-  if (initialDateStr !== previousInitialDateStr) {
-    setPreviousInitialDateStr(initialDateStr)
-    if (initialDateStr) {
-      setSelectedDate(initialDateStr)
-      setActiveView('today')
-    }
-  }
+  const [today, setToday] = useState(getTodayDate)
+  const handleTodayRollover = useCallback(() => {
+    setToday(getTodayDate())
+  }, [])
+  useTodayTick(handleTodayRollover)
 
+  const selectedDateStr = pinnedDateStr ?? today
   const selectedDate = useMemo(
     () => new Date(selectedDateStr + 'T00:00:00'),
     [selectedDateStr],
   )
+
+  const [previousPinnedDateStr, setPreviousPinnedDateStr] = useState(pinnedDateStr)
+  if (pinnedDateStr !== previousPinnedDateStr) {
+    setPreviousPinnedDateStr(pinnedDateStr)
+    if (pinnedDateStr) setActiveView('today')
+  }
 
   type FreqKey = 'Day' | 'Week' | 'Month' | 'Year' | 'none'
   const frequencyOptions = useMemo<Array<{ key: FreqKey; label: string }>>(
@@ -146,27 +150,19 @@ export default function TodayPage() {
 
   const goToPreviousDay = useCallback(() => {
     setSlideDirection('left')
-    setSelectedDate(formatAPIDate(subDays(selectedDate, 1)))
-  }, [selectedDate, setSelectedDate])
+    router.push(`/?date=${formatAPIDate(subDays(selectedDate, 1))}`)
+  }, [router, selectedDate])
 
   const goToNextDay = useCallback(() => {
     setSlideDirection('right')
-    setSelectedDate(formatAPIDate(addDays(selectedDate, 1)))
-  }, [selectedDate, setSelectedDate])
+    router.push(`/?date=${formatAPIDate(addDays(selectedDate, 1))}`)
+  }, [router, selectedDate])
 
   const goToToday = useCallback(() => {
-    if (isToday(selectedDate)) {
-      setSlideDirection('right')
-    } else if (selectedDate > new Date()) {
-      setSlideDirection('left')
-    } else {
-      setSlideDirection('right')
-    }
-    goToTodayDate()
+    setSlideDirection(selectedDate > new Date() ? 'left' : 'right')
     setActiveView('today')
-  }, [goToTodayDate, selectedDate, setActiveView])
-
-  useFollowTodaySync(syncSelectedDateWithToday)
+    router.push('/')
+  }, [router, selectedDate, setActiveView])
 
   const toggleControlsMenu = useCallback(() => {
     if (!showControlsMenu) {

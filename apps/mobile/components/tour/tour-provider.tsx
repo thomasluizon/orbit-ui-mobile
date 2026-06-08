@@ -7,7 +7,6 @@ import {
   getPersistedUIState,
   type PersistedUIState,
 } from '@orbit/shared/stores'
-import { formatAPIDate } from '@orbit/shared/utils'
 import { useTourStore } from '@/stores/tour-store'
 import { useUIStore } from '@/stores/ui-store'
 import { useTourMockData } from '@/hooks/use-tour-mock-data'
@@ -112,7 +111,7 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (isActive && !mockDataInjectedRef.current) {
       uiSnapshotRef.current = getPersistedUIState(useUIStore.getState())
-      useUIStore.setState(createTourUIState(formatAPIDate(new Date())))
+      useUIStore.setState(createTourUIState())
       resetSessionState()
       inject()
       mockDataInjectedRef.current = true

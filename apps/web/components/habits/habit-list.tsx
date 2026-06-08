@@ -33,7 +33,12 @@ import { HabitListConfirmDialogs } from './habit-list/confirm-dialogs'
 import { HabitListDrillContent } from './habit-list/drill-content'
 import { MoveParentOverlay, type MoveParentOption } from './habit-list/move-parent-overlay'
 import type { StatusDotState } from '@/components/ui/status-dot'
-import { computeHabitCardStatus, computeHabitFrequencyLabel } from '@orbit/shared/utils'
+import {
+  canLogHabitOnDate,
+  computeHabitCardStatus,
+  computeHabitFrequencyLabel,
+  computeHabitFutureHint,
+} from '@orbit/shared/utils'
 import {
   EMPTY_CHILDREN_BY_PARENT,
   EMPTY_HABITS_BY_ID,
@@ -184,32 +189,37 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
   const [recentlyCompletedIds, setRecentlyCompletedIds] = useState(
     new Set<string>(),
   )
-  const recentlyCompletedPromptIdsRef = useReactRef(new Set<string>())
+  const promptedParentIdsRef = useReactRef(new Set<string>())
+  const promptDataRef = useReactRef<{
+    getChildren: (id: string) => NormalizedHabit[]
+    isListView: boolean
+    visibility: ReturnType<typeof useHabitVisibility>
+    habitsById: Map<string, NormalizedHabit>
+    selectedDateStr: string
+  } | null>(null)
 
   const markRecentlyCompleted = useCallback((habitId: string) => {
-    recentlyCompletedPromptIdsRef.current.add(habitId)
     setRecentlyCompletedIds((prev) => new Set(prev).add(habitId))
     setTimeout(() => {
-      recentlyCompletedPromptIdsRef.current.delete(habitId)
       setRecentlyCompletedIds((prev) => {
         const next = new Set(prev)
         next.delete(habitId)
         return next
       })
     }, 1400)
-  }, [recentlyCompletedPromptIdsRef])
+  }, [])
 
   const clearRecentlyCompleted = useCallback((habitId: string) => {
-    recentlyCompletedPromptIdsRef.current.delete(habitId)
     setRecentlyCompletedIds((prev) => {
       if (!prev.has(habitId)) return prev
       const next = new Set(prev)
       next.delete(habitId)
       return next
     })
-  }, [recentlyCompletedPromptIdsRef])
+  }, [])
 
   const selectedDateStr = selectedDate ? formatAPIDate(selectedDate) : formatAPIDate(new Date())
+  const todayStr = formatAPIDate(new Date())
   const visibility = useHabitVisibility({
     habitsById,
     childrenByParent,
@@ -286,6 +296,13 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
   }, [getVisibleChildren, habits])
 
   const isListView = view === 'all' || view === 'general'
+  promptDataRef.current = {
+    getChildren,
+    isListView,
+    visibility,
+    habitsById,
+    selectedDateStr,
+  }
 
   const childrenProgressMap = useMemo(() => {
     const map = new Map<string, { done: number; total: number }>()
@@ -356,7 +373,9 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
 
   const getChildrenProgressForPrompt = useCallback(
     (habitId: string) => {
-      const completedOverrideIds = recentlyCompletedPromptIdsRef.current
+      const data = promptDataRef.current
+      if (!data) return { done: 0, total: 0 }
+      const { getChildren, isListView, visibility } = data
 
       function computeChildProgress(
         child: NormalizedHabit,
@@ -364,10 +383,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
       ): { done: number; total: number } {
         let done = 0
         let total = 0
-        const isCompletedForPrompt =
-          child.isCompleted ||
-          child.isLoggedInRange ||
-          completedOverrideIds.has(child.id)
+        const isCompletedForPrompt = child.isCompleted || child.isLoggedInRange
 
         const shouldCountDirectly =
           isListView ||
@@ -409,7 +425,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
 
       return compute(habitId)
     },
-    [getChildren, isListView, visibility, recentlyCompletedPromptIdsRef],
+    [promptDataRef],
   )
 
   const dateGroups = useMemo<HabitListDateGroup[]>(() => {
@@ -582,21 +598,28 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
   const movingHabit = movingHabitId ? habitsById.get(movingHabitId) ?? null : null
 
   function checkAndPromptParentLog(childHabitId: string) {
-    const child = habitsById.get(childHabitId)
+    const data = promptDataRef.current
+    if (!data) return
+    const child = data.habitsById.get(childHabitId)
     if (!child?.parentId) return
-    const parent = habitsById.get(child.parentId)
+    const parent = data.habitsById.get(child.parentId)
     if (!parent || parent.isCompleted) return
 
     const parentIsDueToday =
       parent.isGeneral ||
       parent.isOverdue ||
-      hasHabitScheduleOnDate(parent, selectedDateStr)
+      hasHabitScheduleOnDate(parent, data.selectedDateStr)
     if (!parentIsDueToday) return
 
     const { done, total } = getChildrenProgressForPrompt(parent.id)
     if (total > 0 && done >= total) {
-      setAutoLogParentId(parent.id)
-      setShowAutoLogParent(true)
+      if (!promptedParentIdsRef.current.has(parent.id)) {
+        promptedParentIdsRef.current.add(parent.id)
+        setAutoLogParentId(parent.id)
+        setShowAutoLogParent(true)
+      }
+    } else {
+      promptedParentIdsRef.current.delete(parent.id)
     }
   }
 
@@ -908,11 +931,15 @@ const isPostponeAction = useMemo(() => {
       const done = habit.checklistItems.filter((c) => c.isChecked).length
       tokens.push(`${done}/${habit.checklistItems.length}`)
     }
-    if (habit.isOverdue && !isChild && !habit.isCompleted) {
+    if (habit.isOverdue && !habit.isCompleted) {
       tokens.push({ kind: 'overdue', label: t('habits.overdue') })
     }
     if (habit.isBadHabit && !isChild) {
       tokens.push({ kind: 'bad', label: t('habits.badHabit') })
+    }
+    if (!habit.isCompleted) {
+      const futureHint = computeHabitFutureHint(habit, todayStr, t, locale)
+      if (futureHint) tokens.push({ kind: 'future', label: futureHint })
     }
     return tokens
   }
@@ -932,6 +959,7 @@ const isPostponeAction = useMemo(() => {
     const recentlyCompleted = recentlyCompletedIds.has(habit.id)
     const state = deriveRowState(habit, isChild, recentlyCompleted)
     const meta = buildMetaTokens(habit, isChild)
+    const canLog = canLogHabitOnDate(habit, selectedDateStr, todayStr)
     const hasLinkedGoal = (habit.linkedGoals?.length ?? 0) > 0
     const tourTargetId =
       habit.id === tourCardHabitId ? 'tour-habit-card' : undefined
@@ -943,6 +971,7 @@ const isPostponeAction = useMemo(() => {
         tourTargetId={tourTargetId}
         state={state}
         meta={meta}
+        canLog={canLog}
         streak={habit.currentStreak}
         child={isChild}
         depth={depth}

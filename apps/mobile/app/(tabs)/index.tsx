@@ -97,6 +97,10 @@ function getMillisecondsUntilNextLocalMidnight(): number {
   return Math.max(nextMidnight.getTime() - now.getTime(), 1_000);
 }
 
+function getTodayDate(): string {
+  return formatAPIDate(new Date());
+}
+
 export function resolveTodayView(
   activeView: TodayView,
   hasProAccess: boolean,
@@ -266,12 +270,6 @@ export default function TodayScreen() {
   const { tags } = useTags();
   const deleteHabit = useDeleteHabit();
 
-  const selectedDateStr = useUIStore((s) => s.selectedDate);
-  const setSelectedDate = useUIStore((s) => s.setSelectedDate);
-  const goToTodayDate = useUIStore((s) => s.goToToday);
-  const syncSelectedDateWithToday = useUIStore(
-    (s) => s.syncSelectedDateWithToday,
-  );
   const activeView = useUIStore((s) => s.activeView);
   const setActiveView = useUIStore((s) => s.setActiveView);
   const searchQueryStore = useUIStore((s) => s.searchQuery);
@@ -341,6 +339,16 @@ export default function TodayScreen() {
   const [habitPendingDelete, setHabitPendingDelete] =
     useState<NormalizedHabit | null>(null);
 
+  const dateParam = Array.isArray(date) ? date[0] : date;
+  const pinnedDateStr =
+    dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam) ? dateParam : null;
+
+  const [today, setToday] = useState(getTodayDate);
+  const handleTodayRollover = useCallback(() => {
+    setToday(getTodayDate());
+  }, []);
+
+  const selectedDateStr = pinnedDateStr ?? today;
   const selectedDate = useMemo(
     () => new Date(selectedDateStr + "T00:00:00"),
     [selectedDateStr],
@@ -373,12 +381,12 @@ export default function TodayScreen() {
       });
   }, []);
 
-  useEffect(() => {
-    const dateParam = Array.isArray(date) ? date[0] : date;
-    if (!dateParam || !/^\d{4}-\d{2}-\d{2}$/.test(dateParam)) return;
-    setSelectedDate(dateParam);
-    setActiveView("today");
-  }, [date, setActiveView, setSelectedDate]);
+  const [previousPinnedDateStr, setPreviousPinnedDateStr] =
+    useState(pinnedDateStr);
+  if (pinnedDateStr !== previousPinnedDateStr) {
+    setPreviousPinnedDateStr(pinnedDateStr);
+    if (pinnedDateStr) setActiveView("today");
+  }
 
   const frequencyOptions = useMemo<{ key: FreqKey; label: string }[]>(
     () => [
@@ -421,25 +429,19 @@ export default function TodayScreen() {
 
   const goToPreviousDay = useCallback(() => {
     setSlideDirection("left");
-    setSelectedDate(formatAPIDate(subDays(selectedDate, 1)));
-  }, [selectedDate, setSelectedDate]);
+    router.push(`/?date=${formatAPIDate(subDays(selectedDate, 1))}`);
+  }, [router, selectedDate]);
 
   const goToNextDay = useCallback(() => {
     setSlideDirection("right");
-    setSelectedDate(formatAPIDate(addDays(selectedDate, 1)));
-  }, [selectedDate, setSelectedDate]);
+    router.push(`/?date=${formatAPIDate(addDays(selectedDate, 1))}`);
+  }, [router, selectedDate]);
 
   const goToToday = useCallback(() => {
-    setSlideDirection(
-      isToday(selectedDate)
-        ? "right"
-        : selectedDate > new Date()
-          ? "left"
-          : "right",
-    );
-    goToTodayDate();
+    setSlideDirection(selectedDate > new Date() ? "left" : "right");
     setActiveView("today");
-  }, [goToTodayDate, selectedDate, setActiveView]);
+    router.navigate("/");
+  }, [router, selectedDate, setActiveView]);
 
   useEffect(() => {
     let rolloverTimer: ReturnType<typeof globalThis.setTimeout> | null = null;
@@ -450,17 +452,16 @@ export default function TodayScreen() {
       }
 
       rolloverTimer = globalThis.setTimeout(() => {
-        syncSelectedDateWithToday();
+        handleTodayRollover();
         resetRolloverTimer();
       }, getMillisecondsUntilNextLocalMidnight());
     };
 
-    syncSelectedDateWithToday();
     resetRolloverTimer();
 
     const subscription = AppState.addEventListener("change", (nextAppState) => {
       if (nextAppState !== "active") return;
-      syncSelectedDateWithToday();
+      handleTodayRollover();
       resetRolloverTimer();
     });
 
@@ -470,7 +471,7 @@ export default function TodayScreen() {
       }
       subscription.remove();
     };
-  }, [syncSelectedDateWithToday]);
+  }, [handleTodayRollover]);
 
   const swipePanResponder = useHorizontalSwipe({
     onSwipeLeft: goToNextDay,

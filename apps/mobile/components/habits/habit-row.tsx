@@ -22,8 +22,11 @@ import {
   type LucideIcon,
 } from 'lucide-react-native'
 import {
+  canLogHabitOnDate,
   computeHabitCardStatus,
   computeHabitFrequencyLabel,
+  computeHabitFutureHint,
+  formatAPIDate,
   resolveHabitEmoji,
 } from '@orbit/shared/utils'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
@@ -88,12 +91,15 @@ export function HabitRow({
   actions = {},
   style,
 }: Readonly<HabitRowProps>) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
+  const locale = i18n.language
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const { displayTime } = useTimeFormat()
 
   const isChild = depth > 0
+  const todayStr = formatAPIDate(new Date())
+  const selectedDateStr = formatAPIDate(selectedDate ?? new Date())
 
   const isDoneForRange = habit.isCompleted || habit.isLoggedInRange
   const status = useMemo(
@@ -107,8 +113,14 @@ export function HabitRow({
   )
 
   const isOverdue = status === 'overdue'
+  const canLog = canLogHabitOnDate(habit, selectedDateStr, todayStr)
 
-  const metaParts: (string | { kind: 'overdue' | 'bad' })[] = []
+  const metaParts: (
+    | string
+    | { kind: 'overdue' }
+    | { kind: 'bad' }
+    | { kind: 'future'; label: string }
+  )[] = []
   if (!habit.isGeneral && frequencyLabel) metaParts.push(frequencyLabel)
   if (habit.dueTime) {
     const due = displayTime(habit.dueTime)
@@ -120,8 +132,12 @@ export function HabitRow({
     const checked = habit.checklistItems.filter((i) => i.isChecked).length
     metaParts.push(`${checked}/${habit.checklistItems.length}`)
   }
-  if (isOverdue && !isChild) metaParts.push({ kind: 'overdue' })
+  if (isOverdue) metaParts.push({ kind: 'overdue' })
   if (habit.isBadHabit && !isChild) metaParts.push({ kind: 'bad' })
+  if (!habit.isCompleted) {
+    const futureHint = computeHabitFutureHint(habit, todayStr, t, locale)
+    if (futureHint) metaParts.push({ kind: 'future', label: futureHint })
+  }
 
   const streak = habit.currentStreak ?? 0
   const showStreak = streak >= 2 && !isChild && !isSelectMode
@@ -291,7 +307,9 @@ export function HabitRow({
                     <Text style={{ fontStyle: 'italic' }}>
                       {(part.kind === 'overdue'
                         ? t('habits.overdue')
-                        : t('habits.badHabit')
+                        : part.kind === 'bad'
+                          ? t('habits.badHabit')
+                          : part.label
                       ).toLowerCase()}
                     </Text>
                   )}
@@ -342,6 +360,7 @@ export function HabitRow({
                 state={dotState}
                 size={22}
                 onToggle={handleToggleStatus}
+                disabled={!canLog && !isDoneForRange}
                 accessibilityLabel={
                   isDoneForRange
                     ? t('habits.actions.unlog')

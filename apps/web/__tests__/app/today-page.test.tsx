@@ -1,37 +1,15 @@
 import React from 'react'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { fireEvent, render, screen, waitFor } from '@testing-library/react'
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { createMockHabit, createMockProfile } from '@orbit/shared/__tests__/factories'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
-import { computeHabitCardStatus, formatAPIDate } from '@orbit/shared/utils'
+import { computeHabitCardStatus } from '@orbit/shared/utils'
 
 const { useHabitsMock } = vi.hoisted(() => ({ useHabitsMock: vi.fn() }))
 
-const setSelectedDate = vi.fn((date: string) => {
-  uiState.selectedDate = date
-  uiState.followToday = false
-})
-
-const goToToday = vi.fn(() => {
-  uiState.selectedDate = formatAPIDate(new Date())
-  uiState.followToday = true
-})
-
-const syncSelectedDateWithToday = vi.fn(() => {
-  if (!uiState.followToday) return
-
-  const today = formatAPIDate(new Date())
-  if (uiState.selectedDate !== today) {
-    uiState.selectedDate = today
-  }
-})
+const dateParamState = { value: null as string | null }
 
 const uiState = {
-  selectedDate: '2026-04-07',
-  followToday: true,
-  setSelectedDate,
-  goToToday,
-  syncSelectedDateWithToday,
   activeView: 'today',
   setActiveView: vi.fn(),
   searchQuery: '',
@@ -84,7 +62,10 @@ vi.mock('next-intl', () => ({
 }))
 
 vi.mock('next/navigation', () => ({
-  useSearchParams: () => new URLSearchParams(),
+  useSearchParams: () =>
+    new URLSearchParams(
+      dateParamState.value ? { date: dateParamState.value } : {},
+    ),
   useRouter: () => ({
     push: mockRouterPush,
   }),
@@ -209,8 +190,7 @@ describe('TodayPage bulk parent prompts', () => {
     mockHabitsData.childrenByParent = new Map()
     mockHabitsData.topLevelHabits = []
     habitListHandle.allLoadedIds = new Set()
-    uiState.selectedDate = '2026-04-07'
-    uiState.followToday = true
+    dateParamState.value = '2026-04-07'
     uiState.activeView = 'today'
     uiState.isSelectMode = true
     uiState.searchQuery = ''
@@ -302,30 +282,95 @@ describe('TodayPage bulk parent prompts', () => {
   it('advances a followed today selection after midnight without refresh', async () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-04-07T23:59:55'))
-    uiState.selectedDate = '2026-04-07'
-    uiState.followToday = true
+    dateParamState.value = null
     uiState.isSelectMode = false
 
     render(<TodayPage />)
 
-    await vi.advanceTimersByTimeAsync(6_000)
+    expect(useHabitsMock.mock.calls.at(-1)?.[0]).toMatchObject({
+      dateFrom: '2026-04-07',
+      dateTo: '2026-04-07',
+    })
 
-    expect(uiState.selectedDate).toBe('2026-04-08')
-    expect(syncSelectedDateWithToday).toHaveBeenCalled()
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(6_000)
+    })
+
+    expect(useHabitsMock.mock.calls.at(-1)?.[0]).toMatchObject({
+      dateFrom: '2026-04-08',
+      dateTo: '2026-04-08',
+    })
   })
 
   it('keeps a manually pinned date fixed after midnight', async () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-04-07T23:59:55'))
-    uiState.selectedDate = '2026-04-06'
-    uiState.followToday = false
+    dateParamState.value = '2026-04-06'
     uiState.isSelectMode = false
 
     render(<TodayPage />)
 
-    await vi.advanceTimersByTimeAsync(6_000)
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(6_000)
+    })
 
-    expect(uiState.selectedDate).toBe('2026-04-06')
+    expect(useHabitsMock.mock.calls.at(-1)?.[0]).toMatchObject({
+      dateFrom: '2026-04-06',
+      dateTo: '2026-04-06',
+    })
+  })
+
+  it('navigates to the previous day with a date query param', () => {
+    dateParamState.value = '2026-04-07'
+    uiState.isSelectMode = false
+
+    render(<TodayPage />)
+
+    fireEvent.click(screen.getByLabelText('dates.previousDay'))
+
+    expect(mockRouterPush).toHaveBeenCalledWith('/?date=2026-04-06')
+  })
+
+  it('navigates to the next day with a date query param', () => {
+    dateParamState.value = '2026-04-07'
+    uiState.isSelectMode = false
+
+    render(<TodayPage />)
+
+    fireEvent.click(screen.getByLabelText('dates.nextDay'))
+
+    expect(mockRouterPush).toHaveBeenCalledWith('/?date=2026-04-08')
+  })
+
+  it('returns to today via the bare route when pressing the date label', () => {
+    dateParamState.value = '2026-04-06'
+    uiState.isSelectMode = false
+
+    render(<TodayPage />)
+
+    fireEvent.click(screen.getByLabelText('dates.goToToday'))
+
+    expect(mockRouterPush).toHaveBeenCalledWith('/')
+  })
+
+  it('renders today on the bare route and the pinned day on a date deep link', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2026-04-07T12:00:00'))
+    uiState.isSelectMode = false
+
+    dateParamState.value = null
+    const { rerender } = render(<TodayPage />)
+    expect(useHabitsMock.mock.calls.at(-1)?.[0]).toMatchObject({
+      dateFrom: '2026-04-07',
+      dateTo: '2026-04-07',
+    })
+
+    dateParamState.value = '2026-04-02'
+    rerender(<TodayPage />)
+    expect(useHabitsMock.mock.calls.at(-1)?.[0]).toMatchObject({
+      dateFrom: '2026-04-02',
+      dateTo: '2026-04-02',
+    })
   })
 })
 
@@ -356,8 +401,7 @@ describe('TodayPage overdue bulk selection', () => {
     mockHabitsData.childrenByParent = new Map()
     mockHabitsData.topLevelHabits = []
     habitListHandle.allLoadedIds = new Set()
-    uiState.selectedDate = '2026-04-07'
-    uiState.followToday = true
+    dateParamState.value = '2026-04-07'
     uiState.activeView = 'today'
     uiState.isSelectMode = true
     uiState.searchQuery = ''
@@ -428,7 +472,7 @@ describe('TodayPage overdue date gating', () => {
     mockHabitsData.habitsById = new Map()
     mockHabitsData.childrenByParent = new Map()
     mockHabitsData.topLevelHabits = []
-    uiState.followToday = false
+    dateParamState.value = null
     uiState.activeView = 'today'
     uiState.isSelectMode = false
     uiState.searchQuery = ''
@@ -449,7 +493,7 @@ describe('TodayPage overdue date gating', () => {
   it('includes overdue when the selected date is today', () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-04-07T12:00:00'))
-    uiState.selectedDate = '2026-04-07'
+    dateParamState.value = null
 
     render(<TodayPage />)
 
@@ -463,7 +507,7 @@ describe('TodayPage overdue date gating', () => {
   it('excludes overdue when the selected date is in the future', () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-04-07T12:00:00'))
-    uiState.selectedDate = '2026-04-09'
+    dateParamState.value = '2026-04-09'
 
     render(<TodayPage />)
 
@@ -473,7 +517,7 @@ describe('TodayPage overdue date gating', () => {
   it('excludes overdue when the selected date is in the past', () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2026-04-07T12:00:00'))
-    uiState.selectedDate = '2026-04-05'
+    dateParamState.value = '2026-04-05'
 
     render(<TodayPage />)
 

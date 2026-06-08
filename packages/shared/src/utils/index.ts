@@ -105,9 +105,11 @@ export type {
   HabitFormValidationContext,
 } from './habit-form-helpers'
 export {
+  canLogHabitOnDate,
   computeHabitCardStatus,
   computeHabitFlexibleProgressLabel,
   computeHabitFrequencyLabel,
+  computeHabitFutureHint,
   computeHabitMatchBadges,
   computeHabitStatusBadge,
 } from './habit-card-helpers'
@@ -263,10 +265,12 @@ export {
   computeHabitReorderPositions,
   collectSelectableDescendantIds,
   collectVisibleHabitTreeIds,
+  DEFAULT_OVERDUE_WINDOW_DAYS,
   determineHabitDayStatus,
   getHabitEmptyStateKey,
   hasAncestorInSet,
   hasHabitScheduleOnDate,
+  isWithinOverdueWindow,
 } from './habits'
 export {
   buildHabitCalendarDayCells,
