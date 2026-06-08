@@ -262,7 +262,7 @@ export default function TodayScreen() {
   const { showInterstitialIfDue } = useAdMob();
   const { profile } = useProfile();
   const reviewReminder = useReviewReminder(profile);
-  const { data: streakInfo } = useStreakInfo();
+  const { data: streakInfo } = useStreakInfo(profile?.hasProAccess ?? false);
   const { tags } = useTags();
   const deleteHabit = useDeleteHabit();
 

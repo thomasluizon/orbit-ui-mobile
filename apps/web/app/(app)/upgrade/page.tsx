@@ -755,7 +755,7 @@ export default function UpgradePage() {
   const { plans, isLoading: isLoadingPlans, isError: isPlansError, refetch: refetchPlans, discountedAmount } = useSubscriptionPlans()
 
   const isPlaySource = profile?.subscriptionSource === 'play'
-  const isBillingEnabled = hasProAccess && !profile?.isTrialActive && !isPlaySource
+  const isBillingEnabled = hasProAccess && !profile?.isTrialActive && !isPlaySource && !profile?.isLifetimePro
   const { billing, isLoading: isBillingLoading, isError: isBillingError, refetch: refetchBilling } = useBilling(isBillingEnabled)
 
   const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null)

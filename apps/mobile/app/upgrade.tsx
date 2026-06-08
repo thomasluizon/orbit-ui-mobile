@@ -420,7 +420,7 @@ export default function UpgradeScreen() {
     isLoading: isBillingLoading,
     isError: isBillingError,
     refetch: refetchBilling,
-  } = useBilling(showBilling && !isPlaySource)
+  } = useBilling(showBilling && !isPlaySource && !profile?.isLifetimePro)
   const [checkoutLoading, setCheckoutLoading] = useState<
     'monthly' | 'yearly' | null
   >(null)

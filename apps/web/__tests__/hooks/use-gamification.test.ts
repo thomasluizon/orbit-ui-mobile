@@ -264,6 +264,15 @@ describe('useStreakInfo', () => {
     expect(result.current.data!.freezesAvailable).toBe(2)
     expect(result.current.data!.isFrozenToday).toBe(false)
   })
+
+  it('does not fetch streak info when disabled', () => {
+    const { result } = renderHook(() => useStreakInfo(false), {
+      wrapper: createWrapper(),
+    })
+
+    expect(mockFetch).not.toHaveBeenCalled()
+    expect(result.current.data).toBeUndefined()
+  })
 })
 
 describe('useStreakFreeze', () => {

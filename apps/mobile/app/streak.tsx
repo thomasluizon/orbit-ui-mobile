@@ -51,7 +51,7 @@ export default function StreakScreen() {
     maxStreakFreezesAccumulated,
     freezesUsedThisMonth,
     maxFreezesPerMonth,
-  } = useStreakFreeze(profile)
+  } = useStreakFreeze(profile, isPro)
   const freezeCelebrationRef = useRef<StreakFreezeCelebrationHandle>(null)
   const wasFrozenTodayRef = useRef(isFrozenToday)
 

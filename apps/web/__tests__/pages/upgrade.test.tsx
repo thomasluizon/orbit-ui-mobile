@@ -60,13 +60,15 @@ let mockBilling: Record<string, unknown> | null = null
 let mockIsBillingLoading = false
 let mockIsBillingError = false
 
+const mockUseBilling = vi.fn((_enabled?: boolean) => ({
+  billing: mockBilling,
+  isLoading: mockIsBillingLoading,
+  isError: mockIsBillingError,
+  refetch: vi.fn(),
+}))
+
 vi.mock('@/hooks/use-billing', () => ({
-  useBilling: () => ({
-    billing: mockBilling,
-    isLoading: mockIsBillingLoading,
-    isError: mockIsBillingError,
-    refetch: vi.fn(),
-  }),
+  useBilling: (enabled?: boolean) => mockUseBilling(enabled),
 }))
 
 vi.mock('@orbit/shared/api', () => ({
@@ -107,6 +109,7 @@ describe('UpgradePage', () => {
     mockBilling = null
     mockIsBillingLoading = false
     mockIsBillingError = false
+    mockUseBilling.mockClear()
   })
 
   it('renders without crashing', () => {
@@ -337,5 +340,20 @@ describe('UpgradePage', () => {
     render(<UpgradePage />)
     expect(screen.getByText('upgrade.billing.actions.managePlay')).toBeInTheDocument()
     expect(screen.queryByText('upgrade.billing.actions.manage')).not.toBeInTheDocument()
+  })
+
+  it('skips Stripe billing and shows the lifetime panel for lifetime Pro users', () => {
+    mockHasProAccess = true
+    mockProfile = {
+      ...mockProfile,
+      hasProAccess: true,
+      isTrialActive: false,
+      isLifetimePro: true,
+    }
+    mockBilling = null
+    render(<UpgradePage />)
+    expect(mockUseBilling).toHaveBeenCalledWith(false)
+    expect(screen.getByText('upgrade.billing.plan.lifetime')).toBeInTheDocument()
+    expect(screen.queryByText('upgrade.billing.error')).not.toBeInTheDocument()
   })
 })
