@@ -92,6 +92,7 @@ export const API = {
     plans: '/api/subscriptions/plans',
     billing: '/api/subscriptions/billing',
     adReward: '/api/subscriptions/ad-reward',
+    playVerify: '/api/subscriptions/play/verify',
   },
 
   gamification: {

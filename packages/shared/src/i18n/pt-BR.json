@@ -1448,10 +1448,21 @@
       },
       "actions": {
         "manage": "Gerenciar Assinatura",
-        "manageHint": "Alterar plano, atualizar pagamento ou cancelar"
+        "manageHint": "Alterar plano, atualizar pagamento ou cancelar",
+        "managePlay": "Gerenciar no Google Play",
+        "managePlayHint": "Sua assinatura é cobrada pelo Google Play. Gerencie ou cancele por lá."
       },
       "error": "Não foi possível carregar detalhes de cobrança",
       "retry": "Tentar novamente"
+    },
+    "playError": {
+      "unavailable": "A cobrança do Google Play não está disponível neste dispositivo.",
+      "alreadyOwned": "Você já tem esta assinatura. Tente restaurar sua compra.",
+      "serviceUnavailable": "O Google Play está indisponível no momento. Tente novamente.",
+      "deviceNotSupported": "Este dispositivo não oferece suporte à cobrança do Google Play.",
+      "pending": "Sua compra está pendente. Vamos liberar o Pro assim que for confirmada.",
+      "notSignedIn": "Entre na sua conta novamente antes de comprar.",
+      "nothingToRestore": "Nenhuma compra anterior encontrada para restaurar."
     }
   },
   "ads": {

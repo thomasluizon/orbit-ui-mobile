@@ -88,6 +88,10 @@ export default defineConfig({
         replacement: path.resolve(__dirname, './test-mocks/expo-file-system.ts'),
       },
       {
+        find: 'expo-iap',
+        replacement: path.resolve(__dirname, './test-mocks/expo-iap.ts'),
+      },
+      {
         find: '@react-native-community/datetimepicker',
         replacement: path.resolve(__dirname, './test-mocks/react-native-datetimepicker.tsx'),
       },

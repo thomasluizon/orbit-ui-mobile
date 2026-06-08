@@ -26,7 +26,7 @@ import {
   X as XIcon,
 } from 'lucide-react-native'
 import { API } from '@orbit/shared/api'
-import { formatLocaleDate, getErrorMessage } from '@orbit/shared/utils'
+import { formatLocaleDate, getErrorMessage, playManageSubscriptionUrl } from '@orbit/shared/utils'
 import {
   TRIAL_EXPIRED_FEATURE_KEYS,
   UPGRADE_FEATURE_CATEGORIES,
@@ -40,6 +40,7 @@ import type {
 } from '@orbit/shared/types/subscription'
 import { apiClient } from '@/lib/api-client'
 import { useBilling } from '@/hooks/use-billing'
+import { usePlayBilling } from '@/hooks/use-play-billing'
 import {
   useSubscriptionPlans,
   formatPrice,
@@ -217,6 +218,8 @@ function PlanCards({
   checkoutLoading,
   discountedAmount,
   onCheckout,
+  monthlyPrice,
+  yearlyPrice,
   t,
   tokens,
 }: Readonly<{
@@ -225,6 +228,8 @@ function PlanCards({
   checkoutLoading: 'monthly' | 'yearly' | null
   discountedAmount: (amount: number) => number
   onCheckout: (interval: 'monthly' | 'yearly') => void
+  monthlyPrice?: string
+  yearlyPrice?: string
   t: UpgradeTextFn
   tokens: Tokens
 }>) {
@@ -244,7 +249,7 @@ function PlanCards({
       <PlanRow
         tokens={tokens}
         label={t('upgrade.plans.monthly.name')}
-        price={`${formatPrice(
+        price={`${monthlyPrice ?? formatPrice(
           plans.couponPercentOff
             ? discountedAmount(plans.monthly.unitAmount)
             : plans.monthly.unitAmount,
@@ -258,7 +263,7 @@ function PlanCards({
       <PlanRow
         tokens={tokens}
         label={t('upgrade.plans.yearly.name')}
-        price={`${formatPrice(
+        price={`${yearlyPrice ?? formatPrice(
           plans.couponPercentOff
             ? discountedAmount(plans.yearly.unitAmount)
             : plans.yearly.unitAmount,
@@ -400,6 +405,7 @@ export default function UpgradeScreen() {
   const trialExpired = useTrialExpired()
   const trialDaysLeft = useTrialDaysLeft()
   const trialUrgent = useTrialUrgent()
+  const playBilling = usePlayBilling()
   const {
     plans,
     isLoading: isLoadingPlans,
@@ -407,20 +413,28 @@ export default function UpgradeScreen() {
     refetch: refetchPlans,
     discountedAmount,
   } = useSubscriptionPlans()
+  const isPlaySource = profile?.subscriptionSource === 'play'
   const showBilling = hasProAccess && !profile?.isTrialActive
   const {
     billing,
     isLoading: isBillingLoading,
     isError: isBillingError,
     refetch: refetchBilling,
-  } = useBilling(showBilling)
+  } = useBilling(showBilling && !isPlaySource)
   const [checkoutLoading, setCheckoutLoading] = useState<
     'monthly' | 'yearly' | null
   >(null)
   const [portalLoading, setPortalLoading] = useState(false)
-  const [checkoutError, setCheckoutError] = useState('')
   const [portalError, setPortalError] = useState('')
+  const [prevProcessing, setPrevProcessing] = useState(false)
   const fallbackRoute = getUpgradeFallbackRoute(from, '/profile')
+
+  if (prevProcessing !== playBilling.isProcessing) {
+    setPrevProcessing(playBilling.isProcessing)
+    if (!playBilling.isProcessing) setCheckoutLoading(null)
+  }
+
+  const checkoutError = playBilling.errorKey ? t(playBilling.errorKey) : ''
 
   const usagePercent = useMemo(() => {
     if (!profile || profile.aiMessagesLimit === 0) return 0
@@ -430,25 +444,18 @@ export default function UpgradeScreen() {
     )
   }, [profile])
 
-  async function handleCheckout(interval: 'monthly' | 'yearly') {
-    if (!isOnline) {
-      setCheckoutError(t('calendarSync.notConnected'))
-      return
-    }
-
+  function handleCheckout(interval: 'monthly' | 'yearly') {
+    if (!isOnline) return
+    playBilling.clearError()
     setCheckoutLoading(interval)
-    setCheckoutError('')
-    try {
-      const res = await apiClient<{ url?: string }>(API.subscription.checkout, {
-        method: 'POST',
-        body: JSON.stringify({ interval }),
-      })
-      if (res.url) await Linking.openURL(res.url)
-    } catch (err: unknown) {
-      setCheckoutError(getErrorMessage(err, t('auth.genericError')))
-    } finally {
-      setCheckoutLoading(null)
-    }
+    void playBilling.purchase(interval)
+  }
+
+  function handleManagePlay() {
+    setPortalError('')
+    Linking.openURL(playManageSubscriptionUrl()).catch((err: unknown) =>
+      setPortalError(getErrorMessage(err, t('auth.genericError'))),
+    )
   }
 
   async function handlePortal() {
@@ -469,6 +476,63 @@ export default function UpgradeScreen() {
     } finally {
       setPortalLoading(false)
     }
+  }
+
+  function renderPlayBillingDashboard() {
+    return (
+      <>
+        <SectionLabel>{t('upgrade.billing.plan.title')}</SectionLabel>
+        <SettingsRow
+          label={
+            profile?.subscriptionInterval === 'yearly'
+              ? t('upgrade.billing.plan.yearly')
+              : t('upgrade.billing.plan.monthly')
+          }
+          value={
+            profile?.planExpiresAt
+              ? t('upgrade.billing.plan.renewsOn', {
+                  date: formatBillingDate(profile.planExpiresAt, locale),
+                })
+              : undefined
+          }
+          mono
+          accessory="none"
+        />
+        <UsageBlock
+          usagePercent={usagePercent}
+          usageUrgent={usagePercent > 80}
+          profile={
+            profile
+              ? {
+                  aiMessagesUsed: profile.aiMessagesUsed,
+                  aiMessagesLimit: profile.aiMessagesLimit,
+                }
+              : null
+          }
+          t={t}
+          tokens={tokens}
+        />
+        <View style={styles.actionPad}>
+          <Pressable
+            onPress={handleManagePlay}
+            accessibilityRole="button"
+            style={({ pressed }) => [
+              styles.primaryBtn,
+              {
+                backgroundColor: pressed ? tokens.primaryPressed : tokens.primary,
+              },
+            ]}
+          >
+            <Text style={[styles.primaryBtnText, { color: tokens.fgOnPrimary }]}>
+              {t('upgrade.billing.actions.managePlay')}
+            </Text>
+          </Pressable>
+          <Text style={[styles.centerMuted, { color: tokens.fg4 }]}>
+            {t('upgrade.billing.actions.managePlayHint')}
+          </Text>
+        </View>
+      </>
+    )
   }
 
   function renderBillingDashboard(data: BillingDetails | null) {
@@ -785,7 +849,7 @@ export default function UpgradeScreen() {
         ) : null}
 
         {showBilling ? (
-          renderBillingDashboard(billing)
+          isPlaySource ? renderPlayBillingDashboard() : renderBillingDashboard(billing)
         ) : (
           <>
             {trialExpired ? (
@@ -857,6 +921,8 @@ export default function UpgradeScreen() {
                 checkoutLoading={checkoutLoading}
                 discountedAmount={discountedAmount}
                 onCheckout={handleCheckout}
+                monthlyPrice={playBilling.monthlyOffer?.displayPrice}
+                yearlyPrice={playBilling.yearlyOffer?.displayPrice}
                 t={t}
                 tokens={tokens}
               />
@@ -912,13 +978,20 @@ export default function UpgradeScreen() {
                   </Text>
                 </Pressable>
                 <Pressable
-                  onPress={handlePortal}
+                  onPress={() => {
+                    void playBilling.restorePurchases()
+                  }}
+                  disabled={playBilling.isRestoring}
                   accessibilityRole="button"
                   style={styles.linkPress}
                 >
-                  <Text style={[styles.restoreLink, { color: tokens.fg3 }]}>
-                    {t('upgrade.restorePurchase')}
-                  </Text>
+                  {playBilling.isRestoring ? (
+                    <ActivityIndicator size="small" color={tokens.fg3} />
+                  ) : (
+                    <Text style={[styles.restoreLink, { color: tokens.fg3 }]}>
+                      {t('upgrade.restorePurchase')}
+                    </Text>
+                  )}
                 </Pressable>
               </View>
             ) : null}

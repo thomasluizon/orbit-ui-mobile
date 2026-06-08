@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { subscriptionIntervalSchema, subscriptionSourceSchema } from './profile'
 
 export const planPriceSchema = z.object({
   unitAmount: z.number(),
@@ -51,3 +52,19 @@ export const billingDetailsSchema = z.object({
 })
 
 export type BillingDetails = z.infer<typeof billingDetailsSchema>
+
+export const playVerifyRequestSchema = z.object({
+  productId: z.string(),
+  purchaseToken: z.string(),
+})
+
+export type PlayVerifyRequest = z.infer<typeof playVerifyRequestSchema>
+
+export const playVerifyResponseSchema = z.object({
+  hasProAccess: z.boolean(),
+  source: subscriptionSourceSchema.nullable(),
+  subscriptionInterval: subscriptionIntervalSchema.nullable(),
+  planExpiresAt: z.string().nullable(),
+})
+
+export type PlayVerifyResponse = z.infer<typeof playVerifyResponseSchema>

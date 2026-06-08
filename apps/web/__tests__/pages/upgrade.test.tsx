@@ -323,4 +323,19 @@ describe('UpgradePage', () => {
     render(<UpgradePage />)
     expect(screen.getByText('upgrade.billing.plan.pastDue')).toBeInTheDocument()
   })
+
+  it('shows the Google Play management panel for Play-sourced Pro users', () => {
+    mockHasProAccess = true
+    mockProfile = {
+      ...mockProfile,
+      hasProAccess: true,
+      isTrialActive: false,
+      subscriptionSource: 'play',
+      subscriptionInterval: 'yearly',
+      planExpiresAt: '2026-07-15T00:00:00Z',
+    }
+    render(<UpgradePage />)
+    expect(screen.getByText('upgrade.billing.actions.managePlay')).toBeInTheDocument()
+    expect(screen.queryByText('upgrade.billing.actions.manage')).not.toBeInTheDocument()
+  })
 })

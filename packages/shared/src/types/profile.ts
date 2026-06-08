@@ -9,6 +9,10 @@ export const subscriptionIntervalSchema = z.enum(['monthly', 'yearly'])
 
 export type SubscriptionInterval = z.infer<typeof subscriptionIntervalSchema>
 
+export const subscriptionSourceSchema = z.enum(['stripe', 'play'])
+
+export type SubscriptionSource = z.infer<typeof subscriptionSourceSchema>
+
 export const supportedLocaleSchema = z.enum(['en', 'pt-BR'])
 
 export type SupportedLocale = z.infer<typeof supportedLocaleSchema>
@@ -32,6 +36,7 @@ export const profileSchema = z.object({
   hasImportedCalendar: z.boolean(),
   hasGoogleConnection: z.boolean(),
   subscriptionInterval: subscriptionIntervalSchema.nullable(),
+  subscriptionSource: subscriptionSourceSchema.nullable(),
   isLifetimePro: z.boolean(),
   weekStartDay: z.number(),
   totalXp: z.number(),

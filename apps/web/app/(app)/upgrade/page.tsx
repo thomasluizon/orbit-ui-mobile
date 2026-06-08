@@ -24,6 +24,7 @@ import {
   formatLocaleDate,
   getClientTimeZone,
   getErrorMessage,
+  playManageSubscriptionUrl,
 } from '@orbit/shared/utils'
 import { createCheckoutSession, openCustomerPortal } from '@/app/actions/subscription'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
@@ -581,6 +582,57 @@ function BillingDashboard({
   )
 }
 
+interface PlayBillingDashboardProps {
+  profile: {
+    subscriptionInterval?: string | null
+    planExpiresAt?: string | null
+    aiMessagesUsed: number
+    aiMessagesLimit: number
+  } | null
+  locale: string
+  usagePercent: number
+  usageUrgent: boolean
+  t: ReturnType<typeof useTranslations>
+}
+
+function PlayBillingDashboard({ profile, locale, usagePercent, usageUrgent, t }: Readonly<PlayBillingDashboardProps>) {
+  return (
+    <div className="space-y-3">
+      <div className="bg-[var(--bg-elev)] rounded-[12px] shadow-[var(--shadow-sm)] p-5">
+        <div className="flex items-center gap-4">
+          <div className="bg-[var(--bg-elev)] rounded-full size-12 flex items-center justify-center shrink-0">
+            <BadgeCheck className="size-6 text-[var(--primary)]" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <h2 className="text-base font-bold text-[var(--fg-1)]">
+              {profile?.subscriptionInterval === 'yearly' ? t('upgrade.billing.plan.yearly') : t('upgrade.billing.plan.monthly')}
+            </h2>
+            {profile?.planExpiresAt && (
+              <p className="text-sm text-[var(--fg-2)] mt-0.5">
+                {t('upgrade.billing.plan.renewsOn', { date: formatBillingDate(profile.planExpiresAt, locale) })}
+              </p>
+            )}
+          </div>
+        </div>
+      </div>
+
+      <UsageStats usagePercent={usagePercent} usageUrgent={usageUrgent} profile={profile} t={t} />
+
+      <div className="space-y-2 pt-1">
+        <a
+          href={playManageSubscriptionUrl()}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="w-full py-3 rounded-[12px] bg-[var(--bg-elev)] text-[var(--fg-1)] text-sm font-semibold border border-[var(--hairline)] hover:bg-[var(--bg-elev)] transition-[background-color,border-color,color,transform,opacity] duration-200 active:scale-[0.98] flex items-center justify-center"
+        >
+          {t('upgrade.billing.actions.managePlay')}
+        </a>
+        <p className="text-xs text-[var(--fg-3)] text-center">{t('upgrade.billing.actions.managePlayHint')}</p>
+      </div>
+    </div>
+  )
+}
+
 interface PricingSectionProps {
   profile: { isTrialActive?: boolean } | null
   plans: ReturnType<typeof useSubscriptionPlans>['plans']
@@ -702,7 +754,8 @@ export default function UpgradePage() {
   const trialUrgent = useTrialUrgent()
   const { plans, isLoading: isLoadingPlans, isError: isPlansError, refetch: refetchPlans, discountedAmount } = useSubscriptionPlans()
 
-  const isBillingEnabled = hasProAccess && !profile?.isTrialActive
+  const isPlaySource = profile?.subscriptionSource === 'play'
+  const isBillingEnabled = hasProAccess && !profile?.isTrialActive && !isPlaySource
   const { billing, isLoading: isBillingLoading, isError: isBillingError, refetch: refetchBilling } = useBilling(isBillingEnabled)
 
   const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null)
@@ -755,19 +808,29 @@ export default function UpgradePage() {
       <div className="flex-1 min-h-0 overflow-y-auto px-5 py-5 space-y-4">
 
       {hasProAccess && !profile?.isTrialActive ? (
-        <BillingDashboard
-          billing={billing}
-          isBillingLoading={isBillingLoading}
-          isBillingError={isBillingError}
-          profile={profile ?? null}
-          locale={locale}
-          usagePercent={usagePercent}
-          usageUrgent={usageUrgent}
-          portalError={portalError}
-          onOpenPortal={handleOpenPortal}
-          onRetryBilling={() => refetchBilling()}
-          t={t}
-        />
+        isPlaySource ? (
+          <PlayBillingDashboard
+            profile={profile ?? null}
+            locale={locale}
+            usagePercent={usagePercent}
+            usageUrgent={usageUrgent}
+            t={t}
+          />
+        ) : (
+          <BillingDashboard
+            billing={billing}
+            isBillingLoading={isBillingLoading}
+            isBillingError={isBillingError}
+            profile={profile ?? null}
+            locale={locale}
+            usagePercent={usagePercent}
+            usageUrgent={usageUrgent}
+            portalError={portalError}
+            onOpenPortal={handleOpenPortal}
+            onRetryBilling={() => refetchBilling()}
+            t={t}
+          />
+        )
       ) : (
         <PricingSection
           profile={profile ?? null}

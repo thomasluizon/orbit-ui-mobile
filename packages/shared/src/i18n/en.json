@@ -1448,10 +1448,21 @@
       },
       "actions": {
         "manage": "Manage Subscription",
-        "manageHint": "Change plan, update payment method, or cancel"
+        "manageHint": "Change plan, update payment method, or cancel",
+        "managePlay": "Manage on Google Play",
+        "managePlayHint": "Your subscription is billed through Google Play. Manage or cancel it there."
       },
       "error": "Couldn't load billing details",
       "retry": "Try again"
+    },
+    "playError": {
+      "unavailable": "Google Play billing isn't available on this device.",
+      "alreadyOwned": "You already own this subscription. Try restoring your purchase.",
+      "serviceUnavailable": "Google Play is unavailable right now. Please try again.",
+      "deviceNotSupported": "This device doesn't support Google Play billing.",
+      "pending": "Your purchase is pending. We'll unlock Pro once it's confirmed.",
+      "notSignedIn": "Please sign in again before purchasing.",
+      "nothingToRestore": "No previous purchase found to restore."
     }
   },
   "ads": {
