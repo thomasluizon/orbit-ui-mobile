@@ -87,6 +87,7 @@ export const Dimensions = {
 export const Easing = {
   out: <T>(value: T) => value,
   cubic: 'cubic',
+  bezier: () => (value: number) => value,
 }
 
 export const AppState = {

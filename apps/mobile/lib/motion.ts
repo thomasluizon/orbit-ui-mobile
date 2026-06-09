@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { AccessibilityInfo, Platform } from 'react-native'
+import { AccessibilityInfo, Easing, Platform } from 'react-native'
 import {
   motionDurations,
   motionEasings,
@@ -94,6 +94,18 @@ export function useResolvedMotionPreset(scenario: MotionScenario) {
   return useMemo(
     () => resolveMotionPreset(scenario, prefersReducedMotion),
     [prefersReducedMotion, scenario],
+  )
+}
+
+/** Converts shared bezier control points into an RN Animated easing function. */
+export function toAnimatedEasing(
+  controlPoints: readonly [number, number, number, number],
+): (value: number) => number {
+  return Easing.bezier(
+    controlPoints[0],
+    controlPoints[1],
+    controlPoints[2],
+    controlPoints[3],
   )
 }
 

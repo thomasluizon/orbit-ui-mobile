@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
   Animated,
-  Easing,
   Modal,
   StyleSheet,
   Text,
@@ -9,8 +8,8 @@ import {
   View,
 } from 'react-native'
 import { useTranslation } from 'react-i18next'
-import { createTokensV2 } from '@/lib/theme'
-import { useResolvedMotionPreset } from '@/lib/motion'
+import { createTokensV2, easings } from '@/lib/theme'
+import { toAnimatedEasing, useResolvedMotionPreset } from '@/lib/motion'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 type AppTokens = ReturnType<typeof createTokensV2>
@@ -63,7 +62,7 @@ export function ConfirmDialog({
       Animated.timing(progress, {
         toValue: 1,
         duration: dialogMotion.enterDuration,
-        easing: Easing.out(Easing.cubic),
+        easing: toAnimatedEasing(easings.out),
         useNativeDriver: true,
       }).start()
       return
@@ -72,7 +71,7 @@ export function ConfirmDialog({
     Animated.timing(progress, {
       toValue: 0,
       duration: dialogMotion.exitDuration,
-      easing: Easing.out(Easing.cubic),
+      easing: toAnimatedEasing(easings.out),
       useNativeDriver: true,
     }).start(({ finished }) => {
       if (finished) {

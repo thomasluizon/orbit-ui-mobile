@@ -10,7 +10,6 @@ import {
 import {
   Animated,
   AppState,
-  Easing,
   View,
   Text,
   Pressable,
@@ -74,8 +73,8 @@ import { useHorizontalSwipe } from "@/hooks/use-horizontal-swipe";
 import type { MenuAnchorRect } from "@/lib/anchored-menu";
 import { useBulkActions } from "@/hooks/use-bulk-actions";
 import { shouldResetSelectionForViewChange } from "@/lib/habit-selection-state";
-import { useResolvedMotionPreset } from "@/lib/motion";
-import { createTokensV2 } from "@/lib/theme";
+import { toAnimatedEasing, useResolvedMotionPreset } from "@/lib/motion";
+import { createTokensV2, easings } from "@/lib/theme";
 import { useAppTheme } from "@/lib/use-app-theme";
 import { useReviewReminder } from "@/hooks/use-review-reminder";
 import { useTourScrollContainer } from "@/hooks/use-tour-scroll-container";
@@ -217,25 +216,6 @@ const TodaySearchBar = memo(function TodaySearchBar({
   );
 });
 
-function createAnimatedEasing(
-  easing: readonly [number, number, number, number],
-): (value: number) => number {
-  const easingWithBezier = Easing as typeof Easing & {
-    bezier?: (
-      x1: number,
-      y1: number,
-      x2: number,
-      y2: number,
-    ) => (value: number) => number;
-  };
-
-  if (typeof easingWithBezier.bezier === "function") {
-    return easingWithBezier.bezier(easing[0], easing[1], easing[2], easing[3]);
-  }
-
-  return Easing.out(Easing.cubic);
-}
-
 function createAnimatedTimingConfig(
   duration: number,
   easing: readonly [number, number, number, number],
@@ -243,7 +223,7 @@ function createAnimatedTimingConfig(
   return {
     toValue: 1,
     duration,
-    easing: createAnimatedEasing(easing),
+    easing: toAnimatedEasing(easing),
     useNativeDriver: true,
   } as const;
 }
@@ -511,7 +491,7 @@ export default function TodayScreen() {
     Animated.timing(dateLabelAnim, {
       toValue: 1,
       duration: 180,
-      easing: Easing.out(Easing.cubic),
+      easing: toAnimatedEasing(easings.out),
       useNativeDriver: true,
     }).start();
   }, [dateLabelAnim, selectedDateStr, slideDirection]);
@@ -671,7 +651,7 @@ export default function TodayScreen() {
       duration: isRefetching
         ? listMotion.enterDuration
         : listMotion.exitDuration,
-      easing: createAnimatedEasing(
+      easing: toAnimatedEasing(
         isRefetching ? listMotion.enterEasing : listMotion.exitEasing,
       ),
       useNativeDriver: true,
@@ -705,7 +685,7 @@ export default function TodayScreen() {
     Animated.timing(bulkBarAnim, {
       toValue: 0,
       duration: selectionMotion.exitDuration,
-      easing: createAnimatedEasing(selectionMotion.exitEasing),
+      easing: toAnimatedEasing(selectionMotion.exitEasing),
       useNativeDriver: true,
     }).start(({ finished }) => {
       if (finished) {

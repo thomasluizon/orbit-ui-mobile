@@ -11,7 +11,6 @@ import {
 import {
   Animated,
   Appearance,
-  Easing,
   Modal,
   StyleSheet,
   useColorScheme as useSystemColorScheme,
@@ -25,6 +24,7 @@ import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
 import {
   createColors,
   createSurfaces,
+  easings,
   getRuntimeTheme,
   radius,
   shadows,
@@ -33,6 +33,7 @@ import {
   type AppShadows,
   type AppSurfaces,
 } from '@/lib/theme'
+import { toAnimatedEasing } from '@/lib/motion'
 import { resolveAccessibleColorScheme } from '@orbit/shared/utils'
 
 export interface ThemeContextValue {
@@ -110,7 +111,7 @@ export function ThemeProvider({ children }: Readonly<{ children: ReactNode }>) {
       Animated.timing(transitionOpacity, {
         toValue: 0,
         duration: 420,
-        easing: Easing.out(Easing.cubic),
+        easing: toAnimatedEasing(easings.out),
         useNativeDriver: true,
       }).start(({ finished }: { finished: boolean }) => {
         transitionFrameRef.current = null

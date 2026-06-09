@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useRef } from 'react'
-import { Animated, Easing, View, Text, TouchableOpacity, StyleSheet } from 'react-native'
+import { Animated, View, Text, TouchableOpacity, StyleSheet } from 'react-native'
 import { useTourTarget } from '@/hooks/use-tour-target'
 import { differenceInDays, parseISO } from 'date-fns'
 import { Flame } from 'lucide-react-native'
@@ -7,8 +7,8 @@ import { useTranslation } from 'react-i18next'
 import type { Goal } from '@orbit/shared/types/goal'
 import { isStreakGoal } from '@orbit/shared/utils/goal-form'
 import { plural } from '@/lib/plural'
-import { createTokensV2, radius, shadows } from '@/lib/theme'
-import { useResolvedMotionPreset } from '@/lib/motion'
+import { createTokensV2, easings, radius, shadows } from '@/lib/theme'
+import { toAnimatedEasing, useResolvedMotionPreset } from '@/lib/motion'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { StatusDot, type StatusDotState } from '@/components/ui/status-dot'
 import { ParentRing } from '@/components/ui/parent-ring'
@@ -40,7 +40,7 @@ export function GoalCard({ goal, onPress, tourTargetId }: GoalCardProps) {
     Animated.timing(pressScale, {
       toValue: selectionMotion.reducedMotionEnabled ? 1 : 0.985,
       duration: 100,
-      easing: Easing.out(Easing.cubic),
+      easing: toAnimatedEasing(easings.out),
       useNativeDriver: true,
     }).start()
   }, [pressScale, selectionMotion.reducedMotionEnabled])
@@ -49,7 +49,7 @@ export function GoalCard({ goal, onPress, tourTargetId }: GoalCardProps) {
     Animated.timing(pressScale, {
       toValue: 1,
       duration: selectionMotion.exitDuration,
-      easing: Easing.out(Easing.cubic),
+      easing: toAnimatedEasing(easings.out),
       useNativeDriver: true,
     }).start()
   }, [pressScale, selectionMotion.exitDuration])

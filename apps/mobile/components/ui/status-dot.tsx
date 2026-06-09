@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useState } from 'react'
-import { AccessibilityInfo, Animated, Easing, Pressable, View } from 'react-native'
+import { AccessibilityInfo, Animated, Pressable, View } from 'react-native'
 import Svg, { Circle } from 'react-native-svg'
-import { createTokensV2 } from '@/lib/theme'
+import { createTokensV2, easings } from '@/lib/theme'
+import { toAnimatedEasing } from '@/lib/motion'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle)
@@ -84,7 +85,7 @@ export function StatusDot({
     Animated.timing(sweep, {
       toValue: 1,
       duration: SWEEP_MS,
-      easing: Easing.out(Easing.cubic),
+      easing: toAnimatedEasing(easings.out),
       useNativeDriver: false,
     }).start()
     const id = setTimeout(() => setPlaying(false), SWEEP_MS + 40)
