@@ -356,6 +356,7 @@ export function GoalActionButton({
         color: destructive ? 'var(--fg-3)' : 'var(--fg-1)',
         fontStyle: destructive ? 'italic' : 'normal',
         padding: 6,
+        whiteSpace: 'nowrap',
       }}
     >
       {label}

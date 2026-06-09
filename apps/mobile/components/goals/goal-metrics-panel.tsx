@@ -79,7 +79,7 @@ export function GoalMetricsPanel({
 
       {statusConfig ? (
         <SettingsRow
-          label={t('goals.metrics.title')}
+          label={t('goals.detail.statusLabel')}
           accessory="none"
           leadingDot={statusConfig.dot}
           value={statusConfig.label}

@@ -270,8 +270,8 @@ export function GoalDetailDrawer({
                 {t('goals.detail.askAstraDefault')}
               </PullQuote>
               <div
-                className="flex items-center justify-center"
-                style={{ gap: 22 }}
+                className="flex flex-wrap items-center justify-center"
+                style={{ columnGap: 22, rowGap: 8 }}
               >
                 {goal.status === 'Active' && (
                   <>
