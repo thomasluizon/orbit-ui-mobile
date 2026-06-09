@@ -8,6 +8,7 @@ import { AppOverlay } from '@/components/ui/app-overlay'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { SectionLabel } from '@/components/ui/section-label'
 import { SettingsRow } from '@/components/ui/settings-row'
+import { InfoRow } from '@/components/ui/info-row'
 import { PullQuote } from '@/components/chat/pull-quote'
 import { HabitChecklist } from './habit-checklist'
 import { HabitCalendar } from './habit-calendar'
@@ -19,7 +20,7 @@ import { DescriptionViewer } from './description-viewer'
 import { useTimeFormat } from '@/hooks/use-time-format'
 import { useHabitFullDetail, useUpdateChecklist, useLogHabit } from '@/hooks/use-habits'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
-import { formatLocaleDate } from '@orbit/shared/utils'
+import { formatHabitDetailSummary, formatLocaleDate } from '@orbit/shared/utils'
 
 interface HabitDetailDrawerProps {
   open: boolean
@@ -51,6 +52,18 @@ export function HabitDetailDrawer({
     () => fullDetail?.habit.checklistItems ?? habit?.checklistItems ?? [],
     [fullDetail?.habit.checklistItems, habit?.checklistItems],
   )
+
+  const summaryStrip = useMemo(() => {
+    if (!habit) return ''
+    return formatHabitDetailSummary({
+      currentStreak: habit.currentStreak ?? 0,
+      streakLabel: t('habits.detail.currentStreak'),
+      hasLinkedGoal: (habit.linkedGoals?.length ?? 0) > 0,
+      linkedGoalLabel: t('habits.detail.linkedGoal'),
+      checklistChecked: liveChecklist.filter((i) => i.isChecked).length,
+      checklistTotal: liveChecklist.length,
+    })
+  }, [habit, liveChecklist, t])
 
   const [showChecklistLogPrompt, setShowChecklistLogPrompt] = useState(false)
   const [descriptionViewerOpen, setDescriptionViewerOpen] = useState(false)
@@ -159,6 +172,8 @@ export function HabitDetailDrawer({
       >
         {habit && (
           <div className="-mx-6">
+            {summaryStrip ? <InfoRow label={summaryStrip} /> : null}
+
             {habit.dueTime && (
               <SettingsRow
                 label={t('habits.form.dueTime')}

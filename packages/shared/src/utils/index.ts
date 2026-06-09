@@ -119,6 +119,8 @@ export type {
   HabitCardStatusBadge,
   HabitCardTranslationAdapter,
 } from './habit-card-helpers'
+export { formatHabitDetailSummary } from './habit-detail-summary'
+export type { HabitDetailSummaryInput } from './habit-detail-summary'
 export { parseShowGeneralOnTodayPreference } from './preferences'
 export {
   detectDefaultTimeFormat,

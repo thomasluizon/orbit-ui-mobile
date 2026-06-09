@@ -9,6 +9,7 @@ import { withDrawerContentInset } from '@/components/ui/drawer-content-inset'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { SectionLabel } from '@/components/ui/section-label'
 import { SettingsRow } from '@/components/ui/settings-row'
+import { InfoRow } from '@/components/ui/info-row'
 import { HabitChecklist } from './habit-checklist'
 import { DescriptionViewer } from './description-viewer'
 import { HabitCalendar } from './habit-calendar'
@@ -20,7 +21,7 @@ import {
   useLogHabit,
 } from '@/hooks/use-habits'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
-import { formatLocaleDate } from '@orbit/shared/utils'
+import { formatHabitDetailSummary, formatLocaleDate } from '@orbit/shared/utils'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
@@ -114,18 +115,16 @@ export function HabitDetailDrawer({
     updateChecklist.mutate({ habitId: habit.id, items: [] })
   }, [habit, updateChecklist])
 
-  const summaryParts = useMemo(() => {
+  const summaryStrip = useMemo(() => {
     if (!habit) return ''
-    const parts: string[] = []
-    if (habit.currentStreak)
-      parts.push(`${t('habits.detail.currentStreak')} ${habit.currentStreak}`)
-    if (habit.linkedGoals && habit.linkedGoals.length > 0)
-      parts.push(t('habits.detail.linkedGoal'))
-    if (liveChecklist.length > 0) {
-      const checked = liveChecklist.filter((i) => i.isChecked).length
-      parts.push(`${checked}/${liveChecklist.length}`)
-    }
-    return parts.join('  ·  ')
+    return formatHabitDetailSummary({
+      currentStreak: habit.currentStreak ?? 0,
+      streakLabel: t('habits.detail.currentStreak'),
+      hasLinkedGoal: (habit.linkedGoals?.length ?? 0) > 0,
+      linkedGoalLabel: t('habits.detail.linkedGoal'),
+      checklistChecked: liveChecklist.filter((i) => i.isChecked).length,
+      checklistTotal: liveChecklist.length,
+    })
   }, [habit, liveChecklist, t])
 
   return (
@@ -173,9 +172,7 @@ export function HabitDetailDrawer({
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="always"
           >
-            {summaryParts ? (
-              <Text style={styles.summary}>{summaryParts}</Text>
-            ) : null}
+            {summaryStrip ? <InfoRow label={summaryStrip} /> : null}
 
             {habit.description ? (
               <TouchableOpacity
@@ -340,19 +337,6 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
     scrollContent: {
       paddingBottom: 40,
       gap: 0,
-    },
-    summary: {
-      paddingHorizontal: 20,
-      paddingTop: 4,
-      paddingBottom: 14,
-      fontFamily: 'GeistMono',
-      fontSize: 12,
-      fontWeight: '500',
-      color: tokens.fg3,
-      letterSpacing: 0.48,
-      fontVariant: ['tabular-nums'],
-      borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: tokens.hairline,
     },
     description: {
       paddingHorizontal: 20,
