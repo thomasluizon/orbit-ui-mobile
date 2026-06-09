@@ -5,9 +5,21 @@ interface MonoToggleProps {
   onToggle: () => void
   ariaLabel: string
   disabled?: boolean
+  /** Text shown when on. Default "ON". */
+  onLabel?: string
+  /** Text shown when off. Default "OFF". */
+  offLabel?: string
 }
 
-export function MonoToggle({ on, onToggle, ariaLabel, disabled }: Readonly<MonoToggleProps>) {
+/** v8 MonoToggle: monospaced ON/OFF pill, hairline ring inactive, primary fill when on. */
+export function MonoToggle({
+  on,
+  onToggle,
+  ariaLabel,
+  disabled = false,
+  onLabel = 'ON',
+  offLabel = 'OFF',
+}: Readonly<MonoToggleProps>) {
   return (
     <button
       type="button"
@@ -16,28 +28,21 @@ export function MonoToggle({ on, onToggle, ariaLabel, disabled }: Readonly<MonoT
       aria-label={ariaLabel}
       disabled={disabled}
       onClick={onToggle}
-      className="appearance-none border-0 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 relative shrink-0"
+      className="appearance-none cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 shrink-0 font-[family-name:var(--font-family-mono)]"
       style={{
-        width: 36,
-        height: 20,
-        borderRadius: 999,
-        background: on ? 'var(--primary)' : 'var(--bg-elev)',
-        boxShadow: on ? 'none' : 'inset 0 0 0 1px var(--hairline-strong)',
+        minWidth: 44,
+        padding: '4px 8px',
+        borderRadius: 4,
+        border: `1px solid ${on ? 'var(--primary)' : 'var(--hairline-strong)'}`,
+        background: on ? 'var(--primary)' : 'transparent',
+        color: on ? 'var(--fg-on-primary)' : 'var(--fg-2)',
+        fontSize: 10,
+        fontWeight: 600,
+        letterSpacing: '0.06em',
+        transition: 'background-color 150ms, border-color 150ms, color 150ms',
       }}
     >
-      <span
-        aria-hidden="true"
-        className="absolute rounded-full"
-        style={{
-          top: 2,
-          left: 2,
-          width: 16,
-          height: 16,
-          background: 'var(--fg-on-primary)',
-          transform: on ? 'translateX(16px)' : 'translateX(0)',
-          transition: 'transform 200ms cubic-bezier(0.4, 0, 0.2, 1)',
-        }}
-      />
+      {on ? onLabel : offLabel}
     </button>
   )
 }

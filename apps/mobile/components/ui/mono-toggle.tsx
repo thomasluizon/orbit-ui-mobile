@@ -14,7 +14,7 @@ interface MonoToggleProps {
 }
 
 /**
- * v8 MonoToggle: monospaced ON/OFF pill, hairline ring inactive, fg1 fill when on.
+ * v8 MonoToggle: monospaced ON/OFF pill, hairline ring inactive, primary fill when on.
  * Used inside `SettingsRow` slot for binary settings (push notifications,
  * memory, auto-sync, etc.).
  */
@@ -39,8 +39,8 @@ export function MonoToggle({
       style={({ pressed }) => [
         styles.toggle,
         {
-          borderColor: on ? tokens.fg1 : tokens.hairlineStrong,
-          backgroundColor: on ? tokens.fg1 : 'transparent',
+          borderColor: on ? tokens.primary : tokens.hairlineStrong,
+          backgroundColor: on ? tokens.primary : 'transparent',
           opacity: pressed && onPress && !disabled ? 0.75 : disabled ? 0.55 : 1,
         },
       ]}
@@ -48,7 +48,7 @@ export function MonoToggle({
       <Text
         style={[
           styles.label,
-          { color: on ? tokens.bg : tokens.fg2 },
+          { color: on ? tokens.fgOnPrimary : tokens.fg2 },
         ]}
       >
         {on ? onLabel : offLabel}

@@ -123,18 +123,20 @@ export function OnboardingComplete({
       {profile?.isTrialActive && (
         <div
           style={{
-            fontFamily: 'var(--font-family-sans)',
-            fontSize: 13,
-            fontStyle: 'italic',
-            color: 'var(--fg-2)',
-            lineHeight: 1.55,
+            display: 'flex',
+            flexDirection: 'column',
+            gap: 4,
+            padding: 14,
+            borderTop: '1px solid var(--hairline)',
+            borderBottom: '1px solid var(--hairline)',
           }}
         >
-          <span style={{ fontWeight: 600, fontStyle: 'normal', color: 'var(--fg-1)' }}>
+          <span style={{ fontFamily: 'var(--font-family-sans)', fontSize: 13, fontWeight: 600, color: 'var(--fg-1)' }}>
             {t('onboarding.flow.complete.trialTitle')}
           </span>
-          {' — '}
-          {t('onboarding.flow.complete.trialDesc', { date: formattedTrialEnd })}
+          <span style={{ fontFamily: 'var(--font-family-sans)', fontSize: 13, fontStyle: 'italic', color: 'var(--fg-2)', lineHeight: 1.4 }}>
+            {t('onboarding.flow.complete.trialDesc', { date: formattedTrialEnd })}
+          </span>
         </div>
       )}
 

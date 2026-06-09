@@ -1,5 +1,4 @@
 import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native'
-import { ClipboardList, CheckCircle2 } from 'lucide-react-native'
 import { getHabitEmptyStateKey } from '@orbit/shared/utils'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -12,54 +11,60 @@ interface HabitListEmptyStateProps {
   variant?: 'primary' | 'secondary'
 }
 
+/**
+ * v8 empty state: italic title, optional distinct description, optional Astra
+ * primary pill or quiet underline link. Mirrors the web habit-list empty state.
+ */
 export function HabitListEmptyState({
   title,
   description,
   actionLabel,
   onAction,
-  variant: _variant = 'primary',
+  variant = 'primary',
 }: HabitListEmptyStateProps) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
-  const allDoneToday = title === 'habits.allDoneToday'
+  const isAstraPrompt = variant === 'primary'
+  const hasDistinctDescription = Boolean(description) && description !== title
 
   return (
-    <View style={styles.emptyState}>
-      <View style={styles.emptyIconWrap}>
-        {allDoneToday ? (
-          <CheckCircle2 size={28} color={tokens.fg3} strokeWidth={1.4} />
-        ) : (
-          <ClipboardList size={28} color={tokens.fg3} strokeWidth={1.4} />
-        )}
-      </View>
-      {allDoneToday ? (
-        <Text style={[styles.emptyTitle, { color: tokens.fg1 }]}>{title}</Text>
+    <View style={styles.container}>
+      <Text style={[styles.title, { color: tokens.fg2 }]}>{title}</Text>
+      {hasDistinctDescription ? (
+        <Text style={[styles.description, { color: tokens.fg3 }]}>{description}</Text>
       ) : null}
-      <Text style={[styles.emptyDescription, { color: tokens.fg3 }]}>
-        {description}
-      </Text>
       {actionLabel ? (
-        <Pressable
-          onPress={onAction}
-          accessibilityRole="button"
-          accessibilityLabel={actionLabel}
-          style={({ pressed }) => [
-            styles.actionLink,
-            { opacity: pressed ? 0.7 : 1 },
-          ]}
-        >
-          <Text
-            style={[
-              styles.actionLinkText,
-              {
-                color: tokens.fg1,
-                textDecorationColor: tokens.hairlineStrong,
-              },
+        isAstraPrompt ? (
+          <Pressable
+            onPress={onAction}
+            accessibilityRole="button"
+            accessibilityLabel={actionLabel}
+            style={({ pressed }) => [
+              styles.primaryAction,
+              { backgroundColor: tokens.primary, opacity: pressed ? 0.85 : 1 },
             ]}
           >
-            {actionLabel}
-          </Text>
-        </Pressable>
+            <Text style={[styles.primaryActionText, { color: tokens.fgOnPrimary }]}>
+              {actionLabel}
+            </Text>
+          </Pressable>
+        ) : (
+          <Pressable
+            onPress={onAction}
+            accessibilityRole="button"
+            accessibilityLabel={actionLabel}
+            style={({ pressed }) => [styles.linkAction, { opacity: pressed ? 0.7 : 1 }]}
+          >
+            <Text
+              style={[
+                styles.linkActionText,
+                { color: tokens.fg1, textDecorationColor: tokens.hairlineStrong },
+              ]}
+            >
+              {actionLabel}
+            </Text>
+          </Pressable>
+        )
       ) : null}
     </View>
   )
@@ -93,38 +98,41 @@ export function getEmptyHabitsMessage(
 }
 
 const styles = StyleSheet.create({
-  emptyState: {
+  container: {
     alignItems: 'center',
     justifyContent: 'center',
     paddingHorizontal: 24,
-    paddingVertical: 56,
-    gap: 12,
+    paddingVertical: 60,
+    gap: 16,
   },
-  emptyIconWrap: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  emptyTitle: {
+  title: {
     fontFamily: 'Geist',
-    fontSize: 16,
-    fontWeight: '600',
-  },
-  emptyDescription: {
-    fontFamily: 'Geist',
-    fontSize: 14,
+    fontSize: 17,
     fontStyle: 'italic',
     textAlign: 'center',
-    lineHeight: 21,
   },
-  actionLink: {
-    marginTop: 4,
+  description: {
+    fontFamily: 'Geist',
+    fontSize: 13,
+    lineHeight: 20,
+    textAlign: 'center',
+    maxWidth: 280,
+  },
+  primaryAction: {
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 999,
+  },
+  primaryActionText: {
+    fontFamily: 'Geist',
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  linkAction: {
     paddingVertical: 6,
     paddingHorizontal: 8,
   },
-  actionLinkText: {
+  linkActionText: {
     fontFamily: 'Geist',
     fontSize: 13,
     fontWeight: '500',

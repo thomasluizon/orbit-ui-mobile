@@ -24,7 +24,7 @@ export function SkeletonLine({ width, height, className }: Readonly<SkeletonLine
   return (
     <div
       className={[
-        'skeleton-shimmer rounded-[var(--radius-sm)]',
+        'skeleton-pulse bg-[var(--bg-elev)] rounded-[var(--radius-sm)]',
         height ?? 'h-3',
         width ?? 'w-full',
         className,
@@ -64,7 +64,7 @@ export function SkeletonCard({ lines = 3, className }: Readonly<SkeletonCardProp
 export function SkeletonAvatar({ size = 'md', className }: Readonly<SkeletonAvatarProps>) {
   return (
     <div
-      className={['skeleton-shimmer rounded-full', avatarSizeClasses[size], className]
+      className={['skeleton-pulse bg-[var(--bg-elev)] rounded-full', avatarSizeClasses[size], className]
         .filter(Boolean)
         .join(' ')}
       aria-hidden="true"

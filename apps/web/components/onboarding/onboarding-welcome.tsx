@@ -12,7 +12,7 @@ import {
   updateWeekStartDay,
   updateColorScheme as updateColorSchemeAction,
 } from '@/app/actions/profile'
-import { SaturnDropcap } from '@/components/ui/saturn-dropcap'
+import { AppLogo } from '@/components/ui/app-logo'
 import { SectionLabel } from '@/components/ui/section-label'
 import { Chip } from '@/components/ui/chip'
 
@@ -70,7 +70,7 @@ export function OnboardingWelcome() {
         style={{ gap: 14, paddingTop: 14 }}
       >
         <div style={{ color: 'var(--fg-1)' }}>
-          <SaturnDropcap size={48} />
+          <AppLogo size={48} />
         </div>
         <h1
           className="text-center"
@@ -86,6 +86,19 @@ export function OnboardingWelcome() {
         >
           {t('onboarding.flow.welcome.title')}
         </h1>
+        <p
+          className="text-center"
+          style={{
+            fontFamily: 'var(--font-family-sans)',
+            fontSize: 14,
+            color: 'var(--fg-2)',
+            lineHeight: 1.5,
+            margin: 0,
+            maxWidth: 320,
+          }}
+        >
+          {t('onboarding.flow.welcome.subtitle')}
+        </p>
       </div>
 
       <div>

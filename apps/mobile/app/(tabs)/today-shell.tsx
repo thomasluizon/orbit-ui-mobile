@@ -9,7 +9,7 @@ import {
 import { useTranslation } from 'react-i18next'
 import { ChevronLeft, ChevronRight } from 'lucide-react-native'
 import { AppBar } from '@/components/ui/app-bar'
-import { SaturnDropcap } from '@/components/ui/saturn-dropcap'
+import { AppLogo } from '@/components/ui/app-logo'
 import { SectionHeadTabs, type SectionHeadTab } from '@/components/ui/section-head-tabs'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
 import { StreakBadge } from '@/components/gamification/streak-badge'
@@ -51,7 +51,7 @@ export function TodayHeader({
       accessibilityLabel={goToTodayLabel}
     >
       <AppBar
-        LeadingIcon={SaturnDropcap}
+        LeadingIcon={AppLogo}
         title={t('common.appName')}
         subtitle={subtitle}
         trailing={

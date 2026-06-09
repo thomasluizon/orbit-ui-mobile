@@ -181,7 +181,7 @@ function RootLayoutNav() {
 
   useEffect(() => {
     if (!isAuthenticated) return
-    syncWidgetTheme(currentScheme, currentTheme).catch(() => {})
+    syncWidgetTheme(createTokensV2(currentScheme, currentTheme)).catch(() => {})
   }, [currentScheme, currentTheme, isAuthenticated])
 
   useEffect(() => {

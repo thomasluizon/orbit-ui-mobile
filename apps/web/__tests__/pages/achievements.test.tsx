@@ -117,7 +117,7 @@ describe('AchievementsPage', () => {
     mockGamificationLoading = true
     mockGamificationProfile = null
     const { container } = render(<AchievementsPage />)
-    const pulseElements = container.querySelectorAll('.skeleton-shimmer')
+    const pulseElements = container.querySelectorAll('.skeleton-pulse')
     expect(pulseElements.length).toBeGreaterThan(0)
   })
 
@@ -245,6 +245,6 @@ describe('AchievementsPage', () => {
     mockGamificationProfile = null
     const { container } = render(<AchievementsPage />)
     expect(screen.getByText('gamification.title')).toBeInTheDocument()
-    expect(container.querySelectorAll('.skeleton-shimmer').length).toBe(0)
+    expect(container.querySelectorAll('.skeleton-pulse').length).toBe(0)
   })
 })

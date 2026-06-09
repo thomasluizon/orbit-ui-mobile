@@ -299,7 +299,7 @@ function createStyles(
       borderRadius: 17,
       alignItems: "center",
       justifyContent: "center",
-      backgroundColor: tokens.primary,
+      backgroundColor: tokens.statusDone,
     },
     completedDaySelected: {
       borderWidth: 2,
@@ -395,7 +395,7 @@ function createStyles(
       textAlign: "right",
       fontSize: 12,
       fontWeight: "700",
-      color: tokens.primary,
+      color: tokens.statusDone,
     },
   })
 }

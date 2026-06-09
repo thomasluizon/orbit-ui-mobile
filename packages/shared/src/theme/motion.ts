@@ -52,7 +52,6 @@ export const motionDurations = {
   toast: 220,
   theme: 260,
   celebration: 560,
-  shimmer: 3000,
   creationGlow: 1200,
   completePop: 500,
   completeGlow: 800,

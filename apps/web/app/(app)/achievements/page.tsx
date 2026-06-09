@@ -93,9 +93,9 @@ export default function AchievementsPage() {
           <>
             {isLoading && !profile && (
               <div className="px-5 py-6 space-y-4">
-                <div className="h-12 w-full rounded-md skeleton-shimmer" style={{ background: 'var(--bg-elev)' }} />
-                <div className="h-6 w-32 rounded-md skeleton-shimmer" style={{ background: 'var(--bg-elev)' }} />
-                <div className="h-24 w-full rounded-md skeleton-shimmer" style={{ background: 'var(--bg-elev)' }} />
+                <div className="h-12 w-full rounded-md skeleton-pulse" style={{ background: 'var(--bg-elev)' }} />
+                <div className="h-6 w-32 rounded-md skeleton-pulse" style={{ background: 'var(--bg-elev)' }} />
+                <div className="h-24 w-full rounded-md skeleton-pulse" style={{ background: 'var(--bg-elev)' }} />
               </div>
             )}
 

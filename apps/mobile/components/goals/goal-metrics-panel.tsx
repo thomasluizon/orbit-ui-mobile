@@ -48,21 +48,21 @@ export function GoalMetricsPanel({
       case 'success':
         return {
           label: t(presentation.labelKey),
-          bg: 'rgba(34, 197, 94, 0.10)',
+          bg: `${tokens.statusDone}1A`,
           text: tokens.statusDone,
           dot: tokens.statusDone,
         }
       case 'warning':
         return {
           label: t(presentation.labelKey),
-          bg: 'rgba(245, 158, 11, 0.10)',
+          bg: `${tokens.statusOverdue}1A`,
           text: tokens.statusOverdue,
           dot: tokens.statusOverdue,
         }
       case 'danger':
         return {
           label: t(presentation.labelKey),
-          bg: 'rgba(248, 113, 113, 0.10)',
+          bg: `${tokens.statusBad}1A`,
           text: tokens.statusBad,
           dot: tokens.statusBad,
         }

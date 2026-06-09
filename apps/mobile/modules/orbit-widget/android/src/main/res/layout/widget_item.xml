@@ -42,14 +42,13 @@
                 android:src="@drawable/widget_circle_empty"
                 android:contentDescription="Status" />
 
-            <!-- Progress badge for parents -->
+            <!-- Progress badge for parents (color set at runtime from tokens) -->
             <TextView
                 android:id="@+id/item_progress_badge"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_gravity="center"
-                android:background="@drawable/widget_progress_background"
-                android:textColor="#FFc084fc"
+                android:textColor="#FFFFFFFF"
                 android:textSize="10sp"
                 android:textStyle="bold"
                 android:fontFamily="sans-serif-medium"
@@ -61,15 +60,14 @@
 
         </FrameLayout>
 
-        <!-- Checklist badge (far right) -->
+        <!-- Checklist badge (far right; color set at runtime from tokens) -->
         <TextView
             android:id="@+id/item_checklist_badge"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:layout_alignParentEnd="true"
             android:layout_centerVertical="true"
-            android:background="@drawable/widget_badge_background"
-            android:textColor="#FF8b5cf6"
+            android:textColor="#FFFFFFFF"
             android:textSize="11sp"
             android:fontFamily="sans-serif-medium"
             android:paddingStart="7dp"

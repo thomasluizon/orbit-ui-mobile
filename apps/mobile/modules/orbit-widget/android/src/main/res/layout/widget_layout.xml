@@ -95,7 +95,7 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="2dp"
-                    android:textColor="#FFf97316"
+                    android:textColor="#FFf0eef6"
                     android:textSize="14sp"
                     android:textStyle="bold"
                     android:fontFamily="sans-serif-medium"
@@ -118,7 +118,7 @@
                     android:layout_width="36dp"
                     android:layout_height="36dp"
                     android:layout_marginStart="6dp"
-                    android:indeterminateTint="#AA8b5cf6"
+                    android:indeterminateTint="#AAf0eef6"
                     android:visibility="gone" />
             </LinearLayout>
         </RelativeLayout>

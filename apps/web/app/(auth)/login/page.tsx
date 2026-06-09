@@ -1,7 +1,7 @@
 'use client'
 
 import { AnimatePresence, motion } from 'motion/react'
-import { SaturnDropcap } from '@/components/ui/saturn-dropcap'
+import { AppLogo } from '@/components/ui/app-logo'
 import { EmailStep } from './email-step'
 import { CodeStep } from './code-step'
 import { useLoginFlow } from './use-login-flow'
@@ -44,7 +44,7 @@ export default function LoginPage() {
           style={{ gap: 14, paddingBottom: 12 }}
         >
           <div style={{ color: 'var(--fg-1)' }}>
-            <SaturnDropcap size={32} />
+            <AppLogo size={32} />
           </div>
           <div
             style={{

@@ -44,7 +44,7 @@ import { startMobileGoogleAuth } from '@/lib/google-auth'
 import { useOffline } from '@/hooks/use-offline'
 import { OfflineUnavailableState } from '@/components/ui/offline-unavailable-state'
 import { KeyboardAwareScrollView } from '@/components/ui/keyboard-aware-scroll-view'
-import { SaturnDropcap } from '@/components/ui/saturn-dropcap'
+import { AppLogo } from '@/components/ui/app-logo'
 import { UnderlinedInput } from '@/components/ui/underlined-input'
 import { CodeInput } from '@/components/ui/code-input'
 
@@ -384,7 +384,7 @@ export default function LoginScreen() {
 
       <View style={styles.formColumn}>
         <View style={styles.brandingHeader}>
-          <SaturnDropcap size={32} color={tokens.fg1} />
+          <AppLogo size={32} />
           <Text style={styles.wordmark}>Orbit</Text>
           <View style={styles.brandingRule} />
         </View>

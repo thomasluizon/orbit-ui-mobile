@@ -31,7 +31,7 @@ export function FreshStartAnimation({ onComplete }: Readonly<FreshStartAnimation
   const ringScale1 = useMemo(() => new Animated.Value(0.5), [])
   const ringOpacity1 = useMemo(() => new Animated.Value(0.6), [])
   const ringScale2 = useMemo(() => new Animated.Value(0.5), [])
-  const ringOpacity2 = useMemo(() => new Animated.Value(0.4), [])
+  const ringOpacity2 = useMemo(() => new Animated.Value(0.6), [])
   const textOpacity = useMemo(() => new Animated.Value(0), [])
   const textSlide = useMemo(() => new Animated.Value(20), [])
   const styles = useMemo(() => createStyles(tokens), [tokens])
@@ -51,65 +51,32 @@ export function FreshStartAnimation({ onComplete }: Readonly<FreshStartAnimation
       }),
     ]).start()
 
-    Animated.loop(
-      Animated.parallel([
-        Animated.sequence([
-          Animated.timing(ringScale1, {
-            toValue: 2,
-            duration: 1500,
-            useNativeDriver: true,
-          }),
-          Animated.timing(ringScale1, {
-            toValue: 0.5,
-            duration: 0,
-            useNativeDriver: true,
-          }),
-        ]),
-        Animated.sequence([
-          Animated.timing(ringOpacity1, {
-            toValue: 0,
-            duration: 1500,
-            useNativeDriver: true,
-          }),
-          Animated.timing(ringOpacity1, {
-            toValue: 0.6,
-            duration: 0,
-            useNativeDriver: true,
-          }),
-        ]),
-      ]),
-    ).start()
-
-    Animated.loop(
-      Animated.parallel([
-        Animated.sequence([
-          Animated.delay(200),
-          Animated.timing(ringScale2, {
-            toValue: 2.5,
-            duration: 1500,
-            useNativeDriver: true,
-          }),
-          Animated.timing(ringScale2, {
-            toValue: 0.5,
-            duration: 0,
-            useNativeDriver: true,
-          }),
-        ]),
-        Animated.sequence([
-          Animated.delay(200),
-          Animated.timing(ringOpacity2, {
-            toValue: 0,
-            duration: 1500,
-            useNativeDriver: true,
-          }),
-          Animated.timing(ringOpacity2, {
-            toValue: 0.4,
-            duration: 0,
-            useNativeDriver: true,
-          }),
-        ]),
-      ]),
-    ).start()
+    Animated.parallel([
+      Animated.timing(ringScale1, {
+        toValue: 3,
+        duration: 1200,
+        delay: 200,
+        useNativeDriver: true,
+      }),
+      Animated.timing(ringOpacity1, {
+        toValue: 0,
+        duration: 1200,
+        delay: 200,
+        useNativeDriver: true,
+      }),
+      Animated.timing(ringScale2, {
+        toValue: 3,
+        duration: 1200,
+        delay: 400,
+        useNativeDriver: true,
+      }),
+      Animated.timing(ringOpacity2, {
+        toValue: 0,
+        duration: 1200,
+        delay: 400,
+        useNativeDriver: true,
+      }),
+    ]).start()
 
     Animated.parallel([
       Animated.timing(textOpacity, {
@@ -223,7 +190,7 @@ function createStyles(tokens: AppTokens) {
       width: 80,
       height: 80,
       borderRadius: 40,
-      borderWidth: 2,
+      borderWidth: 1,
       borderColor: tokens.hairlineStrong,
     },
     orb: {

@@ -2,7 +2,6 @@
 
 import { useTranslations } from 'next-intl'
 import { useProfile } from '@/hooks/use-profile'
-import './pro-badge.css'
 
 export function ProBadge() {
   const t = useTranslations()
@@ -16,7 +15,7 @@ export function ProBadge() {
   const badgeLabel = isTrialActive ? t('trial.proBadge') : t('common.proBadge')
 
   return (
-    <span className="pro-badge-shimmer bg-[var(--bg-elev)] text-[var(--primary)] text-[10px] font-bold rounded-full px-1.5 py-0.5 transition-colors duration-150">
+    <span className="bg-[var(--bg-elev)] text-[var(--primary)] text-[10px] font-semibold font-[family-name:var(--font-family-mono)] tracking-[0.04em] rounded-full border border-[var(--hairline)] px-1.5 py-0.5">
       {badgeLabel}
     </span>
   )

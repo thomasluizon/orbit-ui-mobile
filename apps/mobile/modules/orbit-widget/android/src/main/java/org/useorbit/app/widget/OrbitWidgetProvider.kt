@@ -30,18 +30,14 @@ class OrbitWidgetProvider : AppWidgetProvider() {
             val colors = OrbitWidgetFactory.getThemeColors(context)
             val density = context.resources.displayMetrics.density
 
-            // Widget background (gradient with subtle primary tint at top)
+            // Widget background: flat surface with a hairline border (lift, not gradient)
             val displayMetrics = context.resources.displayMetrics
             val bgWidth = displayMetrics.widthPixels
             val bgHeight = displayMetrics.heightPixels / 2
-            val bgBitmap = OrbitWidgetFactory.createGradientBitmap(
+            val bgBitmap = OrbitWidgetFactory.createRoundedBitmap(
                 bgWidth, bgHeight,
-                intArrayOf(
-                    OrbitWidgetFactory.blendColor(colors.background, colors.primary, 0.06f),
-                    colors.background
-                ),
-                24f * density, android.graphics.drawable.GradientDrawable.Orientation.TOP_BOTTOM,
-                1f * density, colors.border
+                colors.background,
+                24f * density, 1f * density, colors.border
             )
             views.setImageViewBitmap(R.id.widget_bg, bgBitmap)
 
@@ -66,7 +62,8 @@ class OrbitWidgetProvider : AppWidgetProvider() {
             views.setInt(R.id.widget_refresh, "setColorFilter", Color.argb(0xAA, Color.red(colors.primary), Color.green(colors.primary), Color.blue(colors.primary)))
 
             // Flame bitmap (programmatic, avoids vector inflation issues)
-            val flameBitmap = OrbitWidgetFactory.createFlameBitmap(density)
+            val flameBitmap = OrbitWidgetFactory.createFlameBitmap(density, colors.streak)
+            views.setTextColor(R.id.widget_streak, colors.textPrimary)
 
             if (isSignedOut) {
                 views.setTextViewText(R.id.widget_header, "Orbit")

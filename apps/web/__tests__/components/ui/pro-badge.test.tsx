@@ -41,12 +41,4 @@ describe('ProBadge', () => {
     render(<ProBadge />)
     expect(screen.getByText('trial.proBadge')).toBeInTheDocument()
   })
-
-  it('has shimmer CSS class', () => {
-    mockProfile.isTrialActive = false
-    mockProfile.hasProAccess = true
-    render(<ProBadge />)
-    const badge = screen.getByText('common.proBadge')
-    expect(badge.className).toContain('pro-badge-shimmer')
-  })
 })

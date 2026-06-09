@@ -1,9 +1,28 @@
 import type { StyleProp, ViewStyle } from 'react-native'
 
+/**
+ * Resolved hex/rgba color tokens the Android widget reads from SharedPreferences.
+ * Keys match the native `WidgetColors` fields one-to-one; values are CSS color
+ * strings (`#rrggbb`, `#aarrggbb`, or `rgba(r, g, b, a)`) parsed natively.
+ */
+export interface WidgetThemeColors {
+  primary: string
+  primaryScale400: string
+  background: string
+  surface: string
+  surfaceGround: string
+  textPrimary: string
+  textMuted: string
+  border: string
+  borderMuted: string
+  overdue: string
+  streak: string
+}
+
 export interface OrbitWidgetModuleType {
   saveToken(token: string): Promise<void>
   clearToken(): Promise<void>
-  syncTheme(colorScheme: string, themeMode: string): Promise<void>
+  syncTheme(colors: WidgetThemeColors): Promise<void>
   refresh(): Promise<void>
 }
 

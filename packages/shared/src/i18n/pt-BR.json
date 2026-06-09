@@ -1510,7 +1510,7 @@
       "deadlineOptional": "Opcional",
       "addDeadline": "Adicionar prazo",
       "deadlineInPast": "Este prazo está no passado.",
-      "progressExceedsTarget": "Valor acima da meta — será limitado a 100%.",
+      "progressExceedsTarget": "Valor acima da meta. Será limitado a 100%.",
       "titleRequired": "O título é obrigatório",
       "titleTooLong": "O título deve ter no máximo 200 caracteres",
       "targetValueRequired": "Quantidade deve ser maior que 0",
@@ -2123,7 +2123,7 @@
     "title": "Excluir Sua Conta",
     "intro": {
       "title": "Como Excluir Sua Conta do Orbit",
-      "body": "Você pode excluir permanentemente sua conta do Orbit e todos os dados associados a qualquer momento. Não é preciso estar conectado nesta página para saber como — a exclusão está disponível diretamente no aplicativo e por solicitação via e-mail."
+      "body": "Você pode excluir permanentemente sua conta do Orbit e todos os dados associados a qualquer momento. Não é preciso estar conectado nesta página para saber como. A exclusão está disponível diretamente no aplicativo e por solicitação via e-mail."
     },
     "inApp": {
       "title": "Excluir Dentro do Aplicativo",

@@ -31,7 +31,7 @@ export function HabitSummaryCard({ date }: Readonly<HabitSummaryCardProps>) {
 
   if (isLoading) {
     return (
-      <div className="glass bg-[var(--bg-elev)] rounded-xl p-4 space-y-3 border border-[var(--hairline)] shadow-[var(--shadow-sm)]">
+      <div className="bg-[var(--bg-elev)] rounded-xl p-4 space-y-3 border border-[var(--hairline)] shadow-[var(--shadow-sm)]">
         <div className="flex items-center gap-2">
           <Sparkles className="text-[var(--primary)] size-5 animate-pulse" />
           <span className="text-sm font-bold text-[var(--fg-1)]">
@@ -64,7 +64,7 @@ export function HabitSummaryCard({ date }: Readonly<HabitSummaryCardProps>) {
 
   if (summary) {
     return (
-      <div className="glass bg-[var(--bg-elev)] rounded-xl p-4 border border-[var(--hairline)] shadow-[var(--shadow-sm)]">
+      <div className="bg-[var(--bg-elev)] rounded-xl p-4 border border-[var(--hairline)] shadow-[var(--shadow-sm)]">
         <div className="flex items-center gap-2">
           <Sparkles className="text-[var(--primary)] size-5" />
           <span className="text-sm font-bold text-[var(--fg-1)]">

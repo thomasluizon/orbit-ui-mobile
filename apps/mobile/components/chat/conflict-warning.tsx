@@ -20,20 +20,20 @@ function severityColors(
     case "HIGH":
       return {
         text: tokens.statusBad,
-        bg: tokens.statusBad,
-        border: tokens.statusBad,
+        bg: `${tokens.statusBad}1A`,
+        border: `${tokens.statusBad}4D`,
       };
     case "MEDIUM":
       return {
         text: tokens.statusOverdue,
-        bg: "rgba(245,158,11,0.10)",
-        border: "rgba(245,158,11,0.30)",
+        bg: `${tokens.statusOverdue}1A`,
+        border: `${tokens.statusOverdue}4D`,
       };
     case "LOW":
       return {
         text: tokens.primary,
-        bg: "rgba(59,130,246,0.10)",
-        border: "rgba(59,130,246,0.30)",
+        bg: `${tokens.primary}1A`,
+        border: `${tokens.primary}4D`,
       };
     default:
       return {

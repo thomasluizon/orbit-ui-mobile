@@ -12,7 +12,7 @@ export type StatusDotState =
   | 'frozen'
 
 interface StatusDotProps {
-  state?: StatusDotState
+  state: StatusDotState
   size?: number
   onToggle?: () => void
   ariaLabel?: string
@@ -31,7 +31,7 @@ const COLOR_VAR: Record<StatusDotState, string> = {
 }
 
 export function StatusDot({
-  state = 'empty',
+  state,
   size = 8,
   onToggle,
   ariaLabel,

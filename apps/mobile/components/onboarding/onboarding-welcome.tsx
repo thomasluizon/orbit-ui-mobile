@@ -11,7 +11,7 @@ import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
 import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { Chip } from '@/components/ui/chip'
-import { SaturnDropcap } from '@/components/ui/saturn-dropcap'
+import { AppLogo } from '@/components/ui/app-logo'
 
 interface OnboardingProfileState {
   colorScheme?: string
@@ -84,7 +84,7 @@ export function OnboardingWelcome() {
   return (
     <View style={styles.container}>
       <View style={styles.brandingHeader}>
-        <SaturnDropcap size={48} color={tokens.fg1} />
+        <AppLogo size={48} />
       </View>
 
       <Text style={styles.title}>{t('onboarding.flow.welcome.title')}</Text>

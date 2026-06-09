@@ -402,7 +402,7 @@ export default function CalendarSyncScreen() {
     )
     const dateLabel = event.startDate ?? ''
     const timeLabel = event.startTime
-      ? `${event.startTime}${event.endTime ? `–${event.endTime}` : ''}`
+      ? `${event.startTime}${event.endTime ? `-${event.endTime}` : ''}`
       : ''
     const meta = [dateLabel, timeLabel, event.isRecurring ? recurrenceLabel : null]
       .filter(Boolean)

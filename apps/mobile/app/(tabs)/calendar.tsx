@@ -59,16 +59,16 @@ interface GridDay {
 }
 
 type Tokens = ReturnType<typeof createTokensV2>;
-type DayStatus = "none" | "full" | "partial" | "upcoming";
+type DayStatus = "empty" | "full" | "partial" | "missed";
 
 function dayStatus(cell: GridDay): DayStatus {
-  if (!cell.isCurrentMonth || cell.totalCount === 0) return "none";
+  if (!cell.isCurrentMonth || cell.totalCount === 0) return "empty";
   if (cell.completedCount === cell.totalCount) return "full";
   const hasMissed = cell.entries.some(
     (entry: CalendarDayEntry) => entry.status === "missed",
   );
-  if (hasMissed) return "partial";
-  return "upcoming";
+  if (hasMissed) return "missed";
+  return "partial";
 }
 
 function entryDotState(entry: CalendarDayEntry): StatusDotState {
@@ -307,7 +307,7 @@ export default function CalendarScreen() {
                       styles.dayText,
                       {
                         color:
-                          status === "none" && !cell.isToday
+                          status === "empty" && !cell.isToday
                             ? tokens.fg3
                             : cell.isCurrentMonth
                               ? tokens.fg1
@@ -486,7 +486,7 @@ function DayDot({
       />
     );
   }
-  if (status === "partial") {
+  if (status === "missed") {
     return (
       <View
         style={{
@@ -498,7 +498,7 @@ function DayDot({
       />
     );
   }
-  if (status === "upcoming") {
+  if (status === "partial") {
     return (
       <View
         style={{

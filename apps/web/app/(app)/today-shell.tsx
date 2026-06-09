@@ -4,7 +4,7 @@ import { ChevronLeft, ChevronRight, Search, X, MoreHorizontal, Filter, Check } f
 import { useTranslations } from 'next-intl'
 import { AppBar } from '@/components/ui/app-bar'
 import { Popover } from '@/components/ui/popover'
-import { SaturnDropcap } from '@/components/ui/saturn-dropcap'
+import { AppLogo } from '@/components/ui/app-logo'
 import { SectionHeadTabs, type SectionHeadTabItem } from '@/components/ui/section-head-tabs'
 import { TagChip } from '@/components/ui/tag-chip'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
@@ -50,7 +50,7 @@ export function TodayHeader({
     <AppBar
       leadingIcon={
         <span style={{ color: 'var(--fg-2)' }}>
-          <SaturnDropcap size={20} strokeWidth={1.4} />
+          <AppLogo size={20} />
         </span>
       }
       title={title}

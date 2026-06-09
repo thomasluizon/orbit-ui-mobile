@@ -168,7 +168,6 @@ export const durations = {
   fast: motionDurations.fast,
   base: motionDurations.route,
   slow: motionDurations.slow,
-  shimmer: motionDurations.shimmer,
   creationGlow: motionDurations.creationGlow,
   completePop: motionDurations.completePop,
   completeGlow: motionDurations.completeGlow,
@@ -267,21 +266,12 @@ export const gradients = {
   surfaceSheen: ['rgba(255,255,255,0.035)', 'transparent'] as const,
   surfaceSheenChild: ['rgba(255,255,255,0.02)', 'transparent'] as const,
   surfaceSheenLocations: [0, 0.4] as const,
-  /** Returns a 3-stop diagonal shimmer: transparent -> primary/0.15 -> transparent */
-  proShimmer: (primaryRgb: string) =>
-    ['transparent', `rgba(${primaryRgb},0.15)`, 'transparent'] as const,
-  proShimmerLocations: [0.3, 0.5, 0.7] as const,
   /** Done-state log button: primary -> 30% white-mixed primary */
   logButtonDone: (primary: string, primaryLighter: string) =>
     [primary, primaryLighter] as const,
   /** Status side-glow: colored -> transparent horizontal */
   statusDue: ['rgba(245,158,11,0.12)', 'transparent'] as const,
   statusOverdue: ['rgba(239,68,68,0.12)', 'transparent'] as const,
-}
-
-/** Returns an rgba string using the given rgb components (defaults to purple 139,92,246) */
-export function primaryRgba(alpha: number, rgb?: string): string {
-  return `rgba(${rgb ?? '139,92,246'},${alpha})`
 }
 
 export interface AppTokensV2 {
