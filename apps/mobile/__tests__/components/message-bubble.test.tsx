@@ -59,7 +59,7 @@ vi.mock('lucide-react-native', () => {
 
   const React = require('react')
   return {
-    Sparkles: (props: Record<string, unknown>) => React.createElement('Sparkles', props),
+    Orbit: (props: Record<string, unknown>) => React.createElement('Orbit', props),
     User: (props: Record<string, unknown>) => React.createElement('User', props),
     ArrowUpRight: (props: Record<string, unknown>) =>
       React.createElement('ArrowUpRight', props),

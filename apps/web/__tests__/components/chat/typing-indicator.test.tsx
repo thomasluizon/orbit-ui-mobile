@@ -33,7 +33,7 @@ describe('TypingIndicator', () => {
     expect(dots[2]).toHaveStyle({ animationDelay: '400ms' })
   })
 
-  it('renders AI avatar with sparkles icon', () => {
+  it('renders AI avatar with the orbit icon', () => {
     const { container } = render(<TypingIndicator />)
     const avatar = container.querySelector('[data-slot="ai-avatar"]')
     expect(avatar).toBeInTheDocument()

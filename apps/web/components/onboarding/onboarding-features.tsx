@@ -1,7 +1,7 @@
 'use client'
 
 import {
-  Sparkles,
+  Orbit,
   ListTree,
   CalendarDays,
   Trophy,
@@ -17,7 +17,7 @@ interface FeatureRow {
 }
 
 const FEATURE_ROWS: FeatureRow[] = [
-  { Icon: Sparkles, titleKey: 'onboarding.flow.features.chat.title', descKey: 'onboarding.flow.features.chat.desc' },
+  { Icon: Orbit, titleKey: 'onboarding.flow.features.chat.title', descKey: 'onboarding.flow.features.chat.desc' },
   { Icon: ListTree, titleKey: 'onboarding.flow.features.subHabits.title', descKey: 'onboarding.flow.features.subHabits.desc' },
   { Icon: CalendarDays, titleKey: 'onboarding.flow.features.calendar.title', descKey: 'onboarding.flow.features.calendar.desc' },
   { Icon: Trophy, titleKey: 'onboarding.flow.features.achievements.title', descKey: 'onboarding.flow.features.achievements.desc' },

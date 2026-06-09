@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import { Sparkles } from "lucide-react-native";
+import { Orbit } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import { useProfile } from "@/hooks/use-profile";
 import { useSummary } from "@/hooks/use-habits";
@@ -48,7 +48,7 @@ export function HabitSummaryCard({ date }: Readonly<HabitSummaryCardProps>) {
     return (
       <View style={[styles.card, styles.loadingCard]}>
         <View style={styles.header}>
-          <Sparkles size={18} color={tokens.primary} />
+          <Orbit size={18} color={tokens.primary} />
           <Text style={styles.title}>{t("summary.title")}</Text>
           <ProBadge />
         </View>
@@ -77,7 +77,7 @@ export function HabitSummaryCard({ date }: Readonly<HabitSummaryCardProps>) {
   return (
     <View style={styles.card}>
       <View style={styles.header}>
-        <Sparkles size={18} color={tokens.primary} />
+        <Orbit size={18} color={tokens.primary} />
         <Text style={styles.title}>{t("summary.title")}</Text>
         <ProBadge />
       </View>

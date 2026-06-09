@@ -1,7 +1,7 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { Sparkles } from 'lucide-react'
+import { Orbit } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
 import { useSummary } from '@/hooks/use-summary'
 import { useProfile } from '@/hooks/use-profile'
@@ -12,7 +12,7 @@ interface TodayAISummaryProps {
 
 /**
  * Today screen "Astra" block: full-height primary rail on the left, then
- * Sparkles glyph + heading and one or two lines of message stacked on the
+ * Orbit glyph + heading and one or two lines of message stacked on the
  * right. No card chrome. Whole block is tappable; tap destination depends on
  * state (pro → /chat, free → /upgrade, error → refetch).
  *
@@ -100,11 +100,10 @@ export function TodayAISummary({ date }: Readonly<TodayAISummaryProps>) {
         />
         <div className="flex flex-col flex-1 min-w-0" style={{ gap: 8 }}>
           <div className="flex items-center" style={{ gap: 10 }}>
-            <Sparkles
+            <Orbit
               size={20}
               strokeWidth={1.5}
               color="var(--fg-1)"
-              fill="var(--fg-1)"
             />
             <span
               style={{

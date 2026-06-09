@@ -1,6 +1,6 @@
 import { useEffect, useMemo } from "react";
 import { View, Text, StyleSheet, Animated } from "react-native";
-import { Sparkles } from "lucide-react-native";
+import { Orbit } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from "@/lib/use-app-theme";
@@ -56,7 +56,7 @@ export function TypingIndicator() {
         accessibilityElementsHidden
         importantForAccessibility="no-hide-descendants"
       >
-        <Sparkles size={20} color={tokens.primary} />
+        <Orbit size={20} color={tokens.primary} />
       </View>
 
       <View style={styles.bubbleColumnAI}>

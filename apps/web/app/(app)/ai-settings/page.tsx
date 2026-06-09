@@ -6,7 +6,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Lock,
-  Sparkles,
+  Orbit,
   X,
 } from 'lucide-react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -434,7 +434,7 @@ export default function AiSettingsPage() {
             className="flex flex-col items-center text-center"
             style={{ padding: '40px 24px', gap: 14 }}
           >
-            <Sparkles size={28} strokeWidth={1.4} color="var(--fg-3)" />
+            <Orbit size={28} strokeWidth={1.4} color="var(--fg-3)" />
             <span
               style={{
                 fontFamily: 'var(--font-family-sans)',

@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import { Text, TouchableOpacity, View } from 'react-native'
-import { ChevronRight, Sparkles } from 'lucide-react-native'
+import { ChevronRight, Orbit } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import { useRouter } from 'expo-router'
 import AsyncStorage from '@react-native-async-storage/async-storage'
@@ -474,7 +474,7 @@ export function GoalDetailDrawer({
             />
             <View style={styles.askAstraContent}>
               <View style={styles.askAstraEyebrow}>
-                <Sparkles size={12} color={tokens.primary} strokeWidth={1.7} />
+                <Orbit size={12} color={tokens.primary} strokeWidth={1.7} />
                 <Text style={styles.askAstraEyebrowText}>
                   {t('goals.detail.askAstraEyebrow')}
                 </Text>

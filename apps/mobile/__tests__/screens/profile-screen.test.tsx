@@ -200,7 +200,7 @@ vi.mock('lucide-react-native', () => {
     ChevronRight: createIcon('ChevronRight'),
     Clock: createIcon('Clock'),
     BadgeCheck: createIcon('BadgeCheck'),
-    Sparkles: createIcon('Sparkles'),
+    Orbit: createIcon('Orbit'),
     X: createIcon('X'),
     Check: createIcon('Check'),
     Compass: createIcon('Compass'),

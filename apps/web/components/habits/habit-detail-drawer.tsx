@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import { Sparkles, ChevronRight } from 'lucide-react'
+import { Orbit, ChevronRight } from 'lucide-react'
 import { useTranslations, useLocale } from 'next-intl'
 import { AppOverlay } from '@/components/ui/app-overlay'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
@@ -151,7 +151,7 @@ export function HabitDetailDrawer({
                   paddingY={0}
                   eyebrow={
                     <>
-                      <Sparkles size={12} strokeWidth={1.7} color="var(--primary)" />
+                      <Orbit size={12} strokeWidth={1.7} color="var(--primary)" />
                       <span>{t('habits.detail.askAstraEyebrow')}</span>
                     </>
                   }

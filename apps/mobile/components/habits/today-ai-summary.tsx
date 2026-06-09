@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
-import { Sparkles } from 'lucide-react-native'
+import { Orbit } from 'lucide-react-native'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { useProfile } from '@/hooks/use-profile'
@@ -14,7 +14,7 @@ interface TodayAISummaryProps {
 
 /**
  * Today screen "Astra" block: full-height primary rail on the left, then
- * Sparkles glyph + heading and one or two lines of message stacked on the
+ * Orbit glyph + heading and one or two lines of message stacked on the
  * right. No card chrome. Whole block is tappable; tap destination depends on
  * state (pro → /chat, free → /upgrade, error → refetch).
  *
@@ -94,10 +94,9 @@ export function TodayAISummary({ date }: Readonly<TodayAISummaryProps>) {
         <View style={styles.rail} />
         <View style={styles.column}>
           <View style={styles.headerRow}>
-            <Sparkles
+            <Orbit
               size={20}
               color={tokens.fg1}
-              fill={tokens.fg1}
               strokeWidth={1.5}
             />
             <Text style={styles.heading}>Astra</Text>

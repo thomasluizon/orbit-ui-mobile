@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { Sparkles, User, ArrowUpRight } from 'lucide-react'
+import { Orbit, User, ArrowUpRight } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
 import type { ChatMessage } from '@orbit/shared/types/chat'
@@ -101,7 +101,7 @@ export function MessageBubble({
           className="shrink-0 size-10 rounded-full bg-[var(--bg-elev)] border border-[var(--hairline-strong)] flex items-center justify-center self-end"
           aria-hidden="true"
         >
-          <Sparkles className="size-5 text-[var(--primary)]" />
+          <Orbit className="size-5 text-[var(--primary)]" />
         </div>
       )}
 

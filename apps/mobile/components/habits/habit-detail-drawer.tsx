@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo } from 'react'
 import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
-import { ChevronRight, Sparkles } from 'lucide-react-native'
+import { ChevronRight, Orbit } from 'lucide-react-native'
 import { useRouter } from 'expo-router'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { BottomSheetModal } from '@/components/bottom-sheet-modal'
@@ -298,7 +298,7 @@ export function HabitDetailDrawer({
               />
               <View style={styles.askAstraContent}>
                 <View style={styles.askAstraEyebrow}>
-                  <Sparkles
+                  <Orbit
                     size={12}
                     color={tokens.primary}
                     strokeWidth={1.7}

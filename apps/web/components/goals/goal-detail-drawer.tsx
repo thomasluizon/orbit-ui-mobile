@@ -8,7 +8,7 @@ import {
   ChevronRight,
   PencilLine,
   RotateCw,
-  Sparkles,
+  Orbit,
   Trash2,
 } from 'lucide-react'
 import { useTranslations, useLocale } from 'next-intl'
@@ -290,7 +290,7 @@ export function GoalDetailDrawer({
                     paddingY={0}
                     eyebrow={
                       <>
-                        <Sparkles size={12} strokeWidth={1.7} color="var(--primary)" />
+                        <Orbit size={12} strokeWidth={1.7} color="var(--primary)" />
                         <span>{t('goals.detail.askAstraEyebrow')}</span>
                       </>
                     }

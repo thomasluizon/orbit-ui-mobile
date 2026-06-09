@@ -13,7 +13,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Lock,
-  Sparkles,
+  Orbit,
   Trash2,
   X,
 } from 'lucide-react-native'
@@ -373,7 +373,7 @@ export default function AiSettingsScreen() {
           </View>
         ) : facts.length === 0 ? (
           <View style={styles.emptyBlock}>
-            <Sparkles size={26} color={tokens.fg3} strokeWidth={1.4} />
+            <Orbit size={26} color={tokens.fg3} strokeWidth={1.4} />
             <Text
               style={[styles.emptyText, { color: tokens.fg3 }]}
             >

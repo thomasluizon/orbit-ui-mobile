@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
-  Sparkles,
+  Orbit,
   Mic,
   Square,
   ChevronRight as ChevronRightIcon,
@@ -132,7 +132,7 @@ export default function ChatPage() {
         back
         backLabel={t('common.goBack')}
         onBack={() => goBackOrFallback('/')}
-        leadingIcon={<Sparkles size={17} strokeWidth={1.5} color="var(--primary)" />}
+        leadingIcon={<Orbit size={17} strokeWidth={1.5} color="var(--primary)" />}
         title={t('chat.title')}
       />
 
@@ -169,7 +169,7 @@ export default function ChatPage() {
                   boxShadow: 'inset 0 0 0 1px var(--hairline-strong)',
                 }}
               />
-              <Sparkles size={36} strokeWidth={1.3} color="var(--fg-1)" />
+              <Orbit size={36} strokeWidth={1.3} color="var(--fg-1)" />
             </div>
             <div
               className="text-center"
