@@ -82,7 +82,7 @@ export function StatusDot({
       aria-disabled={disabled}
       aria-label={ariaLabel ?? state}
       className={`group appearance-none border-0 bg-transparent shrink-0 flex items-center justify-center ${disabled ? 'cursor-default' : 'cursor-pointer'}`}
-      style={{ padding: 10, margin: -10, opacity: disabled ? 0.4 : 1 }}
+      style={{ padding: 11, margin: -11, opacity: disabled ? 0.4 : 1 }}
     >
       {playing ? (
         <CompletionSweep size={size} />

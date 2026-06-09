@@ -98,10 +98,6 @@ vi.mock('@/lib/theme', () => ({
     shadow2: {},
     shadow3: {},
   },
-  gradients: {
-    surfaceSheen: ['transparent', 'transparent'],
-    surfaceSheenLocations: [0, 0.4],
-  },
 }))
 
 vi.mock('@/lib/api-client', () => ({

@@ -251,18 +251,6 @@ export const surfaces = new Proxy({} as AppSurfaces, {
   get: (_target, prop) => createSurfaces()[prop as keyof AppSurfaces],
 })
 
-export const gradients = {
-  surfaceSheen: ['rgba(255,255,255,0.035)', 'transparent'] as const,
-  surfaceSheenChild: ['rgba(255,255,255,0.02)', 'transparent'] as const,
-  surfaceSheenLocations: [0, 0.4] as const,
-  /** Done-state log button: primary -> 30% white-mixed primary */
-  logButtonDone: (primary: string, primaryLighter: string) =>
-    [primary, primaryLighter] as const,
-  /** Status side-glow: colored -> transparent horizontal */
-  statusDue: ['rgba(245,158,11,0.12)', 'transparent'] as const,
-  statusOverdue: ['rgba(239,68,68,0.12)', 'transparent'] as const,
-}
-
 export interface AppTokensV2 {
   bg: string
   bgElev: string
