@@ -1,10 +1,10 @@
 'use client'
 
-import { Sparkles } from 'lucide-react'
+import { Orbit } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { PullQuote } from '@/components/chat/pull-quote'
 
-/** v8 onboarding step: rotating orbit ring + Sparkles icon, italic Astra prose. */
+/** v8 onboarding step: rotating orbit ring + Orbit icon, italic Astra prose. */
 export function OnboardingMeetAstra() {
   const t = useTranslations()
 
@@ -22,7 +22,7 @@ export function OnboardingMeetAstra() {
             animation: 'spin 3.6s linear infinite',
           }}
         />
-        <Sparkles
+        <Orbit
           size={32}
           strokeWidth={1.4}
           style={{ color: 'var(--fg-1)' }}

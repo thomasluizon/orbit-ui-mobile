@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import {
   Animated,
   Dimensions,
-  Easing,
   Modal,
   StyleSheet,
   TouchableOpacity,
@@ -14,8 +13,8 @@ import {
   getAnchoredMenuPosition,
   type MenuAnchorRect,
 } from '@/lib/anchored-menu'
-import { radius } from '@/lib/theme'
-import { useResolvedMotionPreset } from '@/lib/motion'
+import { easings, radius } from '@/lib/theme'
+import { toAnimatedEasing, useResolvedMotionPreset } from '@/lib/motion'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 interface AnchoredMenuProps {
@@ -67,7 +66,7 @@ export function AnchoredMenu({
       Animated.timing(progress, {
         toValue: 1,
         duration: menuMotion.enterDuration,
-        easing: Easing.out(Easing.cubic),
+        easing: toAnimatedEasing(easings.out),
         useNativeDriver: true,
       }).start()
       return
@@ -76,7 +75,7 @@ export function AnchoredMenu({
     Animated.timing(progress, {
       toValue: 0,
       duration: menuMotion.exitDuration,
-      easing: Easing.out(Easing.cubic),
+      easing: toAnimatedEasing(easings.out),
       useNativeDriver: true,
     }).start(({ finished }) => {
       if (finished) {

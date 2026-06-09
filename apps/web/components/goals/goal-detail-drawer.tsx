@@ -1,7 +1,16 @@
 'use client'
 
 import { useState, useCallback, useMemo } from 'react'
-import { Sparkles } from 'lucide-react'
+import { useRouter } from 'next/navigation'
+import {
+  ArchiveX,
+  CheckCircle2,
+  ChevronRight,
+  PencilLine,
+  RotateCw,
+  Orbit,
+  Trash2,
+} from 'lucide-react'
 import { useTranslations, useLocale } from 'next-intl'
 import { AppOverlay } from '@/components/ui/app-overlay'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
@@ -10,7 +19,7 @@ import { PullQuote } from '@/components/chat/pull-quote'
 import { EditGoalModal } from './edit-goal-modal'
 import { GoalMetricsPanel } from './goal-metrics-panel'
 import {
-  GoalActionButton,
+  GoalActionRow,
   GoalLinkedHabitsSection,
   GoalProgressHistorySection,
   GoalProgressForm,
@@ -95,6 +104,17 @@ export function GoalDetailDrawer({
       progressNote.trim().length > 0
     )
   }, [progressNote, progressValue, showProgressForm, initialProgressValue])
+
+  const router = useRouter()
+  const askPrompt = t('goals.detail.askAstraDefault')
+  function handleAskAstra() {
+    const seed = goal?.title ? `${askPrompt} (${goal.title})` : askPrompt
+    if (typeof globalThis !== 'undefined' && typeof globalThis.localStorage !== 'undefined') {
+      globalThis.localStorage.setItem('orbit-chat-draft', seed)
+    }
+    onOpenChange(false)
+    router.push('/chat')
+  }
 
   const [previousSession, setPreviousSession] = useState<{ open: boolean; goalId: string | null }>({
     open,
@@ -256,55 +276,37 @@ export function GoalDetailDrawer({
         onAttemptDismiss={() => requestProgressDismiss('drawer')}
         footer={
           goal ? (
-            <div className="flex flex-col" style={{ gap: 16 }}>
-              <PullQuote
-                paddingX={0}
-                paddingY={0}
-                eyebrow={
-                  <>
-                    <Sparkles size={12} strokeWidth={1.7} color="var(--primary)" />
-                    <span>{t('goals.detail.askAstraEyebrow')}</span>
-                  </>
-                }
-              >
-                {t('goals.detail.askAstraDefault')}
-              </PullQuote>
-              <div
-                className="flex items-center justify-center"
-                style={{ gap: 22 }}
-              >
-                {goal.status === 'Active' && (
-                  <>
-                    <GoalActionButton
-                      label={t('goals.detail.markCompleted')}
-                      onClick={markCompleted}
-                      disabled={isUpdatingStatus}
-                    />
-                    <GoalActionButton
-                      label={t('goals.detail.markAbandoned')}
-                      onClick={markAbandoned}
-                      disabled={isUpdatingStatus}
-                    />
-                  </>
-                )}
-                {goal.status !== 'Active' && (
-                  <GoalActionButton
-                    label={t('goals.detail.reactivate')}
-                    onClick={reactivate}
-                    disabled={isUpdatingStatus}
-                  />
-                )}
-                <GoalActionButton
-                  label={t('goals.detail.edit')}
-                  onClick={() => setShowEditModal(true)}
-                />
-                <GoalActionButton
-                  label={t('goals.detail.delete')}
-                  destructive
-                  onClick={() => setShowDeleteConfirm(true)}
+            <button
+              type="button"
+              onClick={handleAskAstra}
+              aria-label={`${t('goals.detail.askAstraEyebrow')}: ${askPrompt}`}
+              className="block w-full text-left appearance-none border-0 bg-transparent cursor-pointer transition-[background-color,transform] duration-150 ease-out hover:bg-[var(--bg-elev-pressed)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-primary active:scale-[0.99]"
+              style={{ borderRadius: 8, padding: '8px 10px', margin: '-8px -10px' }}
+            >
+              <div className="flex items-center gap-3">
+                <div className="flex-1 min-w-0">
+                  <PullQuote
+                    paddingX={0}
+                    paddingY={0}
+                    eyebrow={
+                      <>
+                        <Orbit size={12} strokeWidth={1.7} color="var(--primary)" />
+                        <span>{t('goals.detail.askAstraEyebrow')}</span>
+                      </>
+                    }
+                  >
+                    {askPrompt}
+                  </PullQuote>
+                </div>
+                <ChevronRight
+                  size={16}
+                  strokeWidth={1.7}
+                  color="var(--fg-3)"
+                  aria-hidden="true"
+                  className="shrink-0"
                 />
               </div>
-            </div>
+            </button>
           ) : undefined
         }
       >
@@ -369,12 +371,11 @@ export function GoalDetailDrawer({
                 {goal.status === 'Active' && !showProgressForm && (
                   <button
                     type="button"
-                    className="appearance-none border-0 bg-transparent cursor-pointer"
+                    className="appearance-none border-0 bg-transparent cursor-pointer text-[var(--fg-1)] transition-colors duration-150 ease-out hover:text-[var(--primary)]"
                     style={{
                       fontFamily: 'var(--font-family-sans)',
                       fontSize: 13,
                       fontWeight: 500,
-                      color: 'var(--fg-1)',
                       padding: 0,
                     }}
                     onClick={() => {
@@ -461,6 +462,43 @@ export function GoalDetailDrawer({
                 {t('goals.detail.loadError')}
               </p>
             )}
+
+            <div style={{ marginTop: 16, paddingBottom: 4 }}>
+              {goal.status === 'Active' ? (
+                <>
+                  <GoalActionRow
+                    label={t('goals.detail.markCompleted')}
+                    icon={CheckCircle2}
+                    onClick={markCompleted}
+                    disabled={isUpdatingStatus}
+                  />
+                  <GoalActionRow
+                    label={t('goals.detail.markAbandoned')}
+                    icon={ArchiveX}
+                    onClick={markAbandoned}
+                    disabled={isUpdatingStatus}
+                  />
+                </>
+              ) : (
+                <GoalActionRow
+                  label={t('goals.detail.reactivate')}
+                  icon={RotateCw}
+                  onClick={reactivate}
+                  disabled={isUpdatingStatus}
+                />
+              )}
+              <GoalActionRow
+                label={t('goals.detail.edit')}
+                icon={PencilLine}
+                onClick={() => setShowEditModal(true)}
+              />
+              <GoalActionRow
+                label={t('goals.detail.delete')}
+                icon={Trash2}
+                destructive
+                onClick={() => setShowDeleteConfirm(true)}
+              />
+            </div>
           </div>
         )}
       </AppOverlay>

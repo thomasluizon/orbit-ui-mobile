@@ -132,7 +132,7 @@ export function HabitCalendar({ habitId, logs: externalLogs }: Readonly<HabitCal
           >
             {day.isCurrentMonth && day.isCompleted ? (
               <button
-                className={`size-8 flex items-center justify-center rounded-full text-xs font-bold transition-[filter,box-shadow] cursor-pointer bg-[var(--primary)] text-white hover:brightness-110 ${
+                className={`size-8 flex items-center justify-center rounded-full text-xs font-bold transition-[filter,box-shadow] cursor-pointer bg-[var(--status-done)] text-[var(--fg-on-primary)] hover:brightness-110 ${
                   selectedDate === day.dateStr
                     ? 'ring-2 ring-primary/50 ring-offset-2 ring-offset-[var(--bg)]'
                     : ''
@@ -189,7 +189,7 @@ export function HabitCalendar({ habitId, logs: externalLogs }: Readonly<HabitCal
         <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--fg-3)]">
           {t('calendar.completionHistory')}
         </span>
-        <span className="text-xs font-bold text-[var(--primary)]">
+        <span className="text-xs font-bold text-[var(--status-done)]">
           {totalInMonth}{' '}
           {totalInMonth === 1 ? t('habits.detail.day') : t('habits.detail.days')}
         </span>

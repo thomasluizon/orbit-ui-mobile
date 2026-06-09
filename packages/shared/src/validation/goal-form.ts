@@ -31,12 +31,6 @@ export function validateGoalForm(
   targetValue: number | null | undefined,
   unit: string,
 ): string | null {
-  if (!title.trim()) {
-    return 'goals.form.titleRequired'
-  }
-  if (title.trim().length > MAX_GOAL_TITLE_LENGTH) {
-    return 'goals.form.titleTooLong'
-  }
   if (!targetValue || targetValue <= 0) {
     return 'goals.form.targetValueRequired'
   }
@@ -45,6 +39,12 @@ export function validateGoalForm(
   }
   if (unit.trim().length > MAX_GOAL_UNIT_LENGTH) {
     return 'goals.form.unitTooLong'
+  }
+  if (!title.trim()) {
+    return 'goals.form.titleRequired'
+  }
+  if (title.trim().length > MAX_GOAL_TITLE_LENGTH) {
+    return 'goals.form.titleTooLong'
   }
   return null
 }

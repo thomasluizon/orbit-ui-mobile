@@ -4,7 +4,7 @@ import { ChevronLeft, ChevronRight, Search, X, MoreHorizontal, Filter, Check } f
 import { useTranslations } from 'next-intl'
 import { AppBar } from '@/components/ui/app-bar'
 import { Popover } from '@/components/ui/popover'
-import { SaturnDropcap } from '@/components/ui/saturn-dropcap'
+import { AppLogo } from '@/components/ui/app-logo'
 import { SectionHeadTabs, type SectionHeadTabItem } from '@/components/ui/section-head-tabs'
 import { TagChip } from '@/components/ui/tag-chip'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
@@ -50,7 +50,7 @@ export function TodayHeader({
     <AppBar
       leadingIcon={
         <span style={{ color: 'var(--fg-2)' }}>
-          <SaturnDropcap size={20} strokeWidth={1.4} />
+          <AppLogo size={20} />
         </span>
       }
       title={title}
@@ -87,6 +87,7 @@ export function TodayTabs({
     id: tab.view,
     label: tab.label,
     locked: tab.view === 'goals' && !hasProAccess,
+    dataTour: tab.view === 'goals' ? 'tour-goals-tab' : undefined,
   }))
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {
@@ -177,10 +178,11 @@ export function TodayDateNavigation({
           type="button"
           key={dateLabel}
           aria-label={isTodaySelected ? dateLabel : todayLabel}
-          className={`appearance-none border-0 bg-transparent cursor-pointer flex-1 inline-flex items-center justify-center transition-opacity duration-150 ease-out hover:opacity-80 animate-slide-date-${slideDirection}`}
+          className={`appearance-none border-0 bg-transparent cursor-pointer flex-1 inline-flex items-center justify-center transition-[background-color] duration-150 ease-out hover:bg-[var(--bg-elev)] animate-slide-date-${slideDirection}`}
           style={{
             height: 36,
             padding: '0 8px',
+            borderRadius: 8,
             fontFamily: 'var(--font-family-sans)',
             fontSize: 14,
             fontWeight: 500,

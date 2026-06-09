@@ -10,7 +10,7 @@ import {
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useRouter } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { Lock, Sparkles } from 'lucide-react-native'
+import { Lock, Orbit } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import { API } from '@orbit/shared/api'
 import { getErrorMessage } from '@orbit/shared/utils'
@@ -419,7 +419,7 @@ export default function RetrospectiveScreen() {
               <View style={styles.contentWrap}>
                 <View style={styles.astraRow}>
                   <View style={styles.astraEyebrowGroup}>
-                    <Sparkles size={11} color={tokens.primary} strokeWidth={1.7} />
+                    <Orbit size={11} color={tokens.primary} strokeWidth={1.7} />
                     <Text
                       style={[styles.astraEyebrow, { color: tokens.fg3 }]}
                     >
@@ -497,7 +497,7 @@ export default function RetrospectiveScreen() {
                       !isOnline && { opacity: 0.5 },
                     ]}
                   >
-                    <Sparkles
+                    <Orbit
                       size={14}
                       color={tokens.fgOnPrimary}
                       strokeWidth={1.7}

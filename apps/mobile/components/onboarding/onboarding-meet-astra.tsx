@@ -1,11 +1,11 @@
 import { useEffect, useMemo } from 'react'
 import { Animated, Easing, StyleSheet, Text, View } from 'react-native'
-import { Sparkles } from 'lucide-react-native'
+import { Orbit } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
-/** v8 onboarding step 2: rotating orbit ring + Sparkles icon, italic Astra prose. */
+/** v8 onboarding step 2: rotating orbit ring + Orbit icon, italic Astra prose. */
 export function OnboardingMeetAstra() {
   const { t } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
@@ -47,7 +47,7 @@ export function OnboardingMeetAstra() {
             },
           ]}
         />
-        <Sparkles size={32} strokeWidth={1.4} color={tokens.fg1} />
+        <Orbit size={32} strokeWidth={1.4} color={tokens.fg1} />
       </View>
 
       <Text style={[styles.title, { color: tokens.fg1 }]}>

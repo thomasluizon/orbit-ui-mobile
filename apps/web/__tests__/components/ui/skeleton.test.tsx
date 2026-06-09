@@ -1,13 +1,13 @@
 import { describe, it, expect } from 'vitest'
 import { render } from '@testing-library/react'
 import React from 'react'
-import { SkeletonLine, SkeletonCard, SkeletonAvatar } from '@/components/ui/skeleton'
+import { SkeletonLine, SkeletonCard } from '@/components/ui/skeleton'
 
 describe('SkeletonLine', () => {
   it('renders with default classes', () => {
     const { container } = render(<SkeletonLine />)
     const div = container.firstChild as HTMLElement
-    expect(div).toHaveClass('skeleton-shimmer')
+    expect(div).toHaveClass('skeleton-pulse')
     expect(div).toHaveAttribute('aria-hidden', 'true')
   })
 
@@ -30,21 +30,21 @@ describe('SkeletonCard', () => {
     const { container } = render(<SkeletonCard />)
     const card = container.firstChild as HTMLElement
     expect(card).toHaveAttribute('aria-hidden', 'true')
-    const lines = card.querySelectorAll('.skeleton-shimmer')
+    const lines = card.querySelectorAll('.skeleton-pulse')
     expect(lines).toHaveLength(3)
   })
 
   it('renders custom number of lines', () => {
     const { container } = render(<SkeletonCard lines={5} />)
     const card = container.firstChild as HTMLElement
-    const lines = card.querySelectorAll('.skeleton-shimmer')
+    const lines = card.querySelectorAll('.skeleton-pulse')
     expect(lines).toHaveLength(5)
   })
 
   it('first line is wider (h-4) than others', () => {
     const { container } = render(<SkeletonCard lines={3} />)
     const card = container.firstChild as HTMLElement
-    const lines = card.querySelectorAll('.skeleton-shimmer')
+    const lines = card.querySelectorAll('.skeleton-pulse')
     expect(lines[0]).toHaveClass('h-4')
     expect(lines[0]).toHaveClass('w-1/3')
   })
@@ -52,7 +52,7 @@ describe('SkeletonCard', () => {
   it('last line has w-2/3', () => {
     const { container } = render(<SkeletonCard lines={3} />)
     const card = container.firstChild as HTMLElement
-    const lines = card.querySelectorAll('.skeleton-shimmer')
+    const lines = card.querySelectorAll('.skeleton-pulse')
     expect(lines[2]).toHaveClass('w-2/3')
   })
 
@@ -63,30 +63,3 @@ describe('SkeletonCard', () => {
   })
 })
 
-describe('SkeletonAvatar', () => {
-  it('renders with default md size', () => {
-    const { container } = render(<SkeletonAvatar />)
-    const div = container.firstChild as HTMLElement
-    expect(div).toHaveClass('size-10')
-    expect(div).toHaveClass('rounded-full')
-    expect(div).toHaveAttribute('aria-hidden', 'true')
-  })
-
-  it('renders with sm size', () => {
-    const { container } = render(<SkeletonAvatar size="sm" />)
-    const div = container.firstChild as HTMLElement
-    expect(div).toHaveClass('size-8')
-  })
-
-  it('renders with lg size', () => {
-    const { container } = render(<SkeletonAvatar size="lg" />)
-    const div = container.firstChild as HTMLElement
-    expect(div).toHaveClass('size-14')
-  })
-
-  it('applies className', () => {
-    const { container } = render(<SkeletonAvatar className="ml-4" />)
-    const div = container.firstChild as HTMLElement
-    expect(div).toHaveClass('ml-4')
-  })
-})

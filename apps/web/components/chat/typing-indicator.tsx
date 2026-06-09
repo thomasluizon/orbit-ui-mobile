@@ -1,6 +1,6 @@
 'use client'
 
-import { Sparkles } from 'lucide-react'
+import { Orbit } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 
 export function TypingIndicator() {
@@ -13,7 +13,7 @@ export function TypingIndicator() {
         className="shrink-0 size-10 rounded-full bg-[var(--bg-elev)] border border-[var(--hairline-strong)] flex items-center justify-center"
         aria-hidden="true"
       >
-        <Sparkles className="size-5 text-[var(--primary)]" />
+        <Orbit className="size-5 text-[var(--primary)]" />
       </div>
       <div>
         <span className="text-[11px] font-medium text-[var(--fg-2)] mb-1 px-2 block">

@@ -67,8 +67,6 @@ export interface AppSurfaceLayer {
 export interface AppSurfaces {
   screen: {
     backgroundColor: string
-    ambientStart: string
-    ambientEnd: string
   }
   elevated: AppSurfaceLayer
   overlay: AppSurfaceLayer
@@ -168,11 +166,6 @@ export const durations = {
   fast: motionDurations.fast,
   base: motionDurations.route,
   slow: motionDurations.slow,
-  shimmer: motionDurations.shimmer,
-  creationGlow: motionDurations.creationGlow,
-  completePop: motionDurations.completePop,
-  completeGlow: motionDurations.completeGlow,
-  completeSpark: motionDurations.completeSpark,
 }
 
 export const shadows: AppShadows = {
@@ -229,9 +222,6 @@ export function createSurfaces(
 ): AppSurfaces {
   const colors = createColors(colorScheme, themeMode)
   const isLight = themeMode === 'light'
-  const screenAmbient = isLight
-    ? withAlpha(colors.primary, 0.05, 'rgba(139, 92, 246, 0.05)')
-    : withAlpha(colors.primary, 0.12, 'rgba(139, 92, 246, 0.12)')
   const topHighlight = isLight
     ? withAlpha(colors.white, 0.85, 'rgba(255, 255, 255, 0.85)')
     : withAlpha(colors.white, 0.05, 'rgba(255, 255, 255, 0.05)')
@@ -239,8 +229,6 @@ export function createSurfaces(
   return {
     screen: {
       backgroundColor: colors.background,
-      ambientStart: screenAmbient,
-      ambientEnd: 'transparent',
     },
     elevated: {
       backgroundColor: colors.surfaceElevated,
@@ -262,27 +250,6 @@ export function createSurfaces(
 export const surfaces = new Proxy({} as AppSurfaces, {
   get: (_target, prop) => createSurfaces()[prop as keyof AppSurfaces],
 })
-
-export const gradients = {
-  surfaceSheen: ['rgba(255,255,255,0.035)', 'transparent'] as const,
-  surfaceSheenChild: ['rgba(255,255,255,0.02)', 'transparent'] as const,
-  surfaceSheenLocations: [0, 0.4] as const,
-  /** Returns a 3-stop diagonal shimmer: transparent -> primary/0.15 -> transparent */
-  proShimmer: (primaryRgb: string) =>
-    ['transparent', `rgba(${primaryRgb},0.15)`, 'transparent'] as const,
-  proShimmerLocations: [0.3, 0.5, 0.7] as const,
-  /** Done-state log button: primary -> 30% white-mixed primary */
-  logButtonDone: (primary: string, primaryLighter: string) =>
-    [primary, primaryLighter] as const,
-  /** Status side-glow: colored -> transparent horizontal */
-  statusDue: ['rgba(245,158,11,0.12)', 'transparent'] as const,
-  statusOverdue: ['rgba(239,68,68,0.12)', 'transparent'] as const,
-}
-
-/** Returns an rgba string using the given rgb components (defaults to purple 139,92,246) */
-export function primaryRgba(alpha: number, rgb?: string): string {
-  return `rgba(${rgb ?? '139,92,246'},${alpha})`
-}
 
 export interface AppTokensV2 {
   bg: string

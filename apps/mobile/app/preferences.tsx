@@ -32,6 +32,7 @@ import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { AppBar } from '@/components/ui/app-bar'
 import { SectionLabel } from '@/components/ui/section-label'
+import { SettingsDescription } from '@/components/ui/settings-description'
 import { SettingsGroup, SettingsGroupRow } from '@/components/ui/settings-group'
 import { Chip } from '@/components/ui/chip'
 import { MonoToggle } from '@/components/ui/mono-toggle'
@@ -274,6 +275,7 @@ export default function PreferencesScreen() {
             </Chip>
           ))}
         </View>
+        <SettingsDescription>{t('profile.language.description')}</SettingsDescription>
 
         <SectionLabel>{t('preferences.themeMode')}</SectionLabel>
         <View style={styles.themeRow}>
@@ -302,6 +304,7 @@ export default function PreferencesScreen() {
             onSelect={handleSchemeChange}
           />
         </View>
+        <SettingsDescription>{t('profile.colorScheme.description')}</SettingsDescription>
 
         <SectionLabel>{t('settings.weekStartDay.title')}</SectionLabel>
         <View style={styles.weekRow}>
@@ -320,6 +323,7 @@ export default function PreferencesScreen() {
             ))}
           </View>
         </View>
+        <SettingsDescription>{t('settings.weekStartDay.description')}</SettingsDescription>
 
         <SectionLabel>{t('settings.notifications.title')}</SectionLabel>
         {pushSupported ? (

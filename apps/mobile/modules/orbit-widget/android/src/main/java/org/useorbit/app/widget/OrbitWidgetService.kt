@@ -8,7 +8,6 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.Paint
 import android.graphics.Path
-import android.graphics.PorterDuff
 import android.graphics.RectF
 import android.graphics.drawable.GradientDrawable
 import android.widget.RemoteViews
@@ -63,7 +62,7 @@ data class HabitWidgetResponse(
     val totalCount: Int?
 )
 
-/** Color tokens for a single theme variant (scheme + mode) */
+/** Resolved v8 token colors for the active scheme + mode, synced from JS. */
 data class WidgetColors(
     val primary: Int,
     val primaryScale400: Int,
@@ -73,7 +72,9 @@ data class WidgetColors(
     val textPrimary: Int,
     val textMuted: Int,
     val border: Int,
-    val borderMuted: Int
+    val borderMuted: Int,
+    val overdue: Int,
+    val streak: Int
 )
 
 class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.RemoteViewsFactory {
@@ -81,157 +82,27 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
     private var habits: List<HabitItem> = emptyList()
     private var headerLabel: String = "Today"
     private var lang: String = "en"
-    private var colors: WidgetColors = THEMES["purple_dark"]!!
+    private var colors: WidgetColors = defaultColors()
     private val gson = Gson()
 
     companion object {
         private const val API_BASE = "https://api.useorbit.org"
 
-        // Overdue colors (constant across all themes)
-        private const val COLOR_OVERDUE_RED = 0xCCf87171.toInt()
-        private const val COLOR_OVERDUE_BORDER = 0x33f87171.toInt()
-
-        // All 6 color schemes x 2 theme modes
-        // Values sourced from app/composables/useColorScheme.ts
-        private val THEMES = mapOf(
-            // --- Purple ---
-            "purple_dark" to WidgetColors(
-                primary = 0xFF8b5cf6.toInt(),
-                primaryScale400 = 0xFFc084fc.toInt(),
-                background = 0xFF07060e.toInt(),
-                surface = 0xFF13111f.toInt(),
-                surfaceGround = 0xFF0d0b16.toInt(),
-                textPrimary = 0xFFf0eef6.toInt(),
-                textMuted = 0xFF7a7490.toInt(),
-                border = 0x12FFFFFF,
-                borderMuted = 0x0AFFFFFF
-            ),
-            "purple_light" to WidgetColors(
-                primary = 0xFF7c3aed.toInt(),
-                primaryScale400 = 0xFFc084fc.toInt(),
-                background = 0xFFf8f6ff.toInt(),
-                surface = 0xFFffffff.toInt(),
-                surfaceGround = 0xFFf0eef8.toInt(),
-                textPrimary = 0xFF1a1625.toInt(),
-                textMuted = 0xFF8a8498.toInt(),
-                border = 0x14000000,
-                borderMuted = 0x0A000000
-            ),
-            // --- Blue ---
-            "blue_dark" to WidgetColors(
-                primary = 0xFF3b82f6.toInt(),
-                primaryScale400 = 0xFF60a5fa.toInt(),
-                background = 0xFF060a10.toInt(),
-                surface = 0xFF101825.toInt(),
-                surfaceGround = 0xFF0a1018.toInt(),
-                textPrimary = 0xFFf0eef6.toInt(),
-                textMuted = 0xFF6b7d99.toInt(),
-                border = 0x12FFFFFF,
-                borderMuted = 0x0AFFFFFF
-            ),
-            "blue_light" to WidgetColors(
-                primary = 0xFF2563eb.toInt(),
-                primaryScale400 = 0xFF60a5fa.toInt(),
-                background = 0xFFf6f8ff.toInt(),
-                surface = 0xFFffffff.toInt(),
-                surfaceGround = 0xFFeef2f8.toInt(),
-                textPrimary = 0xFF151a25.toInt(),
-                textMuted = 0xFF7d8a9e.toInt(),
-                border = 0x14000000,
-                borderMuted = 0x0A000000
-            ),
-            // --- Green ---
-            "green_dark" to WidgetColors(
-                primary = 0xFF22c55e.toInt(),
-                primaryScale400 = 0xFF4ade80.toInt(),
-                background = 0xFF060e0a.toInt(),
-                surface = 0xFF101f17.toInt(),
-                surfaceGround = 0xFF0a160f.toInt(),
-                textPrimary = 0xFFf0eef6.toInt(),
-                textMuted = 0xFF6b8d7c.toInt(),
-                border = 0x12FFFFFF,
-                borderMuted = 0x0AFFFFFF
-            ),
-            "green_light" to WidgetColors(
-                primary = 0xFF16a34a.toInt(),
-                primaryScale400 = 0xFF4ade80.toInt(),
-                background = 0xFFf5fcf8.toInt(),
-                surface = 0xFFffffff.toInt(),
-                surfaceGround = 0xFFeef7f2.toInt(),
-                textPrimary = 0xFF152018.toInt(),
-                textMuted = 0xFF7d9a8a.toInt(),
-                border = 0x14000000,
-                borderMuted = 0x0A000000
-            ),
-            // --- Rose ---
-            "rose_dark" to WidgetColors(
-                primary = 0xFFf43f5e.toInt(),
-                primaryScale400 = 0xFFfb7185.toInt(),
-                background = 0xFF0e0608.toInt(),
-                surface = 0xFF1f1014.toInt(),
-                surfaceGround = 0xFF16090d.toInt(),
-                textPrimary = 0xFFf0eef6.toInt(),
-                textMuted = 0xFF997a88.toInt(),
-                border = 0x12FFFFFF,
-                borderMuted = 0x0AFFFFFF
-            ),
-            "rose_light" to WidgetColors(
-                primary = 0xFFe11d48.toInt(),
-                primaryScale400 = 0xFFfb7185.toInt(),
-                background = 0xFFfef6f7.toInt(),
-                surface = 0xFFffffff.toInt(),
-                surfaceGround = 0xFFf8eef0.toInt(),
-                textPrimary = 0xFF201518.toInt(),
-                textMuted = 0xFF9a7d86.toInt(),
-                border = 0x14000000,
-                borderMuted = 0x0A000000
-            ),
-            // --- Orange ---
-            "orange_dark" to WidgetColors(
-                primary = 0xFFf97316.toInt(),
-                primaryScale400 = 0xFFfb923c.toInt(),
-                background = 0xFF0e0906.toInt(),
-                surface = 0xFF1f1610.toInt(),
-                surfaceGround = 0xFF160f0a.toInt(),
-                textPrimary = 0xFFf0eef6.toInt(),
-                textMuted = 0xFF998570.toInt(),
-                border = 0x12FFFFFF,
-                borderMuted = 0x0AFFFFFF
-            ),
-            "orange_light" to WidgetColors(
-                primary = 0xFFea580c.toInt(),
-                primaryScale400 = 0xFFfb923c.toInt(),
-                background = 0xFFfef8f5.toInt(),
-                surface = 0xFFffffff.toInt(),
-                surfaceGround = 0xFFf8f0ec.toInt(),
-                textPrimary = 0xFF201810.toInt(),
-                textMuted = 0xFF9a8878.toInt(),
-                border = 0x14000000,
-                borderMuted = 0x0A000000
-            ),
-            // --- Cyan ---
-            "cyan_dark" to WidgetColors(
-                primary = 0xFF06b6d4.toInt(),
-                primaryScale400 = 0xFF22d3ee.toInt(),
-                background = 0xFF060c0e.toInt(),
-                surface = 0xFF101e22.toInt(),
-                surfaceGround = 0xFF0a1416.toInt(),
-                textPrimary = 0xFFf0eef6.toInt(),
-                textMuted = 0xFF6b8e99.toInt(),
-                border = 0x12FFFFFF,
-                borderMuted = 0x0AFFFFFF
-            ),
-            "cyan_light" to WidgetColors(
-                primary = 0xFF0891b2.toInt(),
-                primaryScale400 = 0xFF22d3ee.toInt(),
-                background = 0xFFf5fbfd.toInt(),
-                surface = 0xFFffffff.toInt(),
-                surfaceGround = 0xFFeef6f8.toInt(),
-                textPrimary = 0xFF151e20.toInt(),
-                textMuted = 0xFF7d9aa2.toInt(),
-                border = 0x14000000,
-                borderMuted = 0x0A000000
-            )
+        // Bootstrap fallback (purple dark) for the first paint before JS syncs the
+        // active scheme into SharedPreferences. The full per-scheme palette lives
+        // in the app's createTokensV2 and arrives via OrbitWidgetModule.syncTheme.
+        private val FALLBACK_COLORS = mapOf(
+            "primary" to "#8b5cf6",
+            "primaryScale400" to "#a78bfa",
+            "background" to "#07060e",
+            "surface" to "#13111f",
+            "surfaceGround" to "#0d0b16",
+            "textPrimary" to "#f0eef6",
+            "textMuted" to "#7a7490",
+            "border" to "#12FFFFFF",
+            "borderMuted" to "#0AFFFFFF",
+            "overdue" to "#f0b35c",
+            "streak" to "#d6645d"
         )
 
         // i18n strings
@@ -260,11 +131,73 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
             return STRINGS[lang]?.get(key) ?: STRINGS["en"]?.get(key) ?: key
         }
 
+        /** Resolves a synced token color (or its purple-dark fallback) to an ARGB int. */
+        private fun readColor(prefs: android.content.SharedPreferences, token: String): Int {
+            val fallback = FALLBACK_COLORS.getValue(token)
+            val value = prefs.getString(OrbitWidgetModule.COLOR_KEY_PREFIX + token, fallback) ?: fallback
+            return parseColor(value, fallback)
+        }
+
+        /** Purple-dark bootstrap colors for the first paint before JS syncs the active scheme. */
+        fun defaultColors(): WidgetColors = WidgetColors(
+            primary = parseColor(FALLBACK_COLORS.getValue("primary"), "#8b5cf6"),
+            primaryScale400 = parseColor(FALLBACK_COLORS.getValue("primaryScale400"), "#a78bfa"),
+            background = parseColor(FALLBACK_COLORS.getValue("background"), "#07060e"),
+            surface = parseColor(FALLBACK_COLORS.getValue("surface"), "#13111f"),
+            surfaceGround = parseColor(FALLBACK_COLORS.getValue("surfaceGround"), "#0d0b16"),
+            textPrimary = parseColor(FALLBACK_COLORS.getValue("textPrimary"), "#f0eef6"),
+            textMuted = parseColor(FALLBACK_COLORS.getValue("textMuted"), "#7a7490"),
+            border = parseColor(FALLBACK_COLORS.getValue("border"), "#12FFFFFF"),
+            borderMuted = parseColor(FALLBACK_COLORS.getValue("borderMuted"), "#0AFFFFFF"),
+            overdue = parseColor(FALLBACK_COLORS.getValue("overdue"), "#f0b35c"),
+            streak = parseColor(FALLBACK_COLORS.getValue("streak"), "#d6645d")
+        )
+
         fun getThemeColors(context: Context): WidgetColors {
             val prefs = context.getSharedPreferences("orbit_widget_cache", Context.MODE_PRIVATE)
-            val scheme = prefs.getString("color_scheme", "purple") ?: "purple"
-            val mode = prefs.getString("theme_mode", "dark") ?: "dark"
-            return THEMES["${scheme}_${mode}"] ?: THEMES["purple_dark"]!!
+            return WidgetColors(
+                primary = readColor(prefs, "primary"),
+                primaryScale400 = readColor(prefs, "primaryScale400"),
+                background = readColor(prefs, "background"),
+                surface = readColor(prefs, "surface"),
+                surfaceGround = readColor(prefs, "surfaceGround"),
+                textPrimary = readColor(prefs, "textPrimary"),
+                textMuted = readColor(prefs, "textMuted"),
+                border = readColor(prefs, "border"),
+                borderMuted = readColor(prefs, "borderMuted"),
+                overdue = readColor(prefs, "overdue"),
+                streak = readColor(prefs, "streak")
+            )
+        }
+
+        /**
+         * Parses a CSS color string (`#rrggbb`, `#aarrggbb`, or `rgba(r, g, b, a)`)
+         * into an ARGB int, falling back when the value is malformed.
+         */
+        fun parseColor(value: String, fallback: String): Int {
+            val trimmed = value.trim()
+            return try {
+                if (trimmed.startsWith("rgba(") || trimmed.startsWith("rgb(")) {
+                    parseRgba(trimmed)
+                } else {
+                    Color.parseColor(trimmed)
+                }
+            } catch (_: Exception) {
+                if (fallback == trimmed) Color.BLACK else parseColor(fallback, fallback)
+            }
+        }
+
+        private fun parseRgba(value: String): Int {
+            val parts = value
+                .substringAfter('(')
+                .substringBefore(')')
+                .split(',')
+                .map { it.trim() }
+            val r = parts[0].toFloat().toInt().coerceIn(0, 255)
+            val g = parts[1].toFloat().toInt().coerceIn(0, 255)
+            val b = parts[2].toFloat().toInt().coerceIn(0, 255)
+            val a = if (parts.size > 3) (parts[3].toFloat() * 255f).toInt().coerceIn(0, 255) else 255
+            return Color.argb(a, r, g, b)
         }
 
         fun createRoundedBitmap(
@@ -283,34 +216,12 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
             return bitmap
         }
 
-        fun createGradientBitmap(
-            width: Int, height: Int, colors: IntArray,
-            cornerRadius: Float,
-            orientation: GradientDrawable.Orientation = GradientDrawable.Orientation.TOP_BOTTOM,
-            strokeWidth: Float = 0f, strokeColor: Int = 0
-        ): Bitmap {
-            val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
-            val canvas = Canvas(bitmap)
-            val drawable = GradientDrawable(orientation, colors).apply {
-                setCornerRadius(cornerRadius)
-                if (strokeWidth > 0f) setStroke(strokeWidth.toInt(), strokeColor)
-            }
-            drawable.setBounds(0, 0, width, height)
-            drawable.draw(canvas)
-            return bitmap
-        }
+        /** Hairline border tint for overdue rows: the overdue token at 20% alpha. */
+        fun overdueBorder(overdue: Int): Int =
+            Color.argb(0x33, Color.red(overdue), Color.green(overdue), Color.blue(overdue))
 
-        /** Blend RGB channels of base toward overlay by fraction, preserving base alpha */
-        fun blendColor(base: Int, overlay: Int, fraction: Float): Int {
-            val a = Color.alpha(base)
-            val r = (Color.red(base) * (1 - fraction) + Color.red(overlay) * fraction).toInt().coerceIn(0, 255)
-            val g = (Color.green(base) * (1 - fraction) + Color.green(overlay) * fraction).toInt().coerceIn(0, 255)
-            val b = (Color.blue(base) * (1 - fraction) + Color.blue(overlay) * fraction).toInt().coerceIn(0, 255)
-            return Color.argb(a, r, g, b)
-        }
-
-        /** Create flame icon bitmap programmatically (avoids vector drawable inflation issues) */
-        fun createFlameBitmap(density: Float): Bitmap {
+        /** Create flame icon bitmap tinted with the streak token (flat, single tone). */
+        fun createFlameBitmap(density: Float, streakColor: Int): Bitmap {
             val w = (14 * density).toInt().coerceAtLeast(1)
             val h = (16 * density).toInt().coerceAtLeast(1)
             val bitmap = Bitmap.createBitmap(w, h, Bitmap.Config.ARGB_8888)
@@ -320,11 +231,10 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
             canvas.scale(sx, sy)
 
             val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-                color = 0xFFf97316.toInt()
+                color = streakColor
                 style = Paint.Style.FILL
             }
 
-            // Outer flame shape
             val outer = Path().apply {
                 moveTo(8f, 0f)
                 cubicTo(8f, 0f, 2f, 6.5f, 2f, 12f)
@@ -333,18 +243,6 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
                 close()
             }
             canvas.drawPath(outer, paint)
-
-            // Inner highlight (lighter)
-            val inner = Path().apply {
-                moveTo(8f, 17f)
-                arcTo(RectF(5f, 11f, 11f, 17f), 90f, 180f, false)
-                cubicTo(5f, 12f, 8f, 8.5f, 8f, 8.5f)
-                cubicTo(8f, 8.5f, 11f, 12f, 11f, 14f)
-                arcTo(RectF(5f, 11f, 11f, 17f), 0f, 90f, false)
-                close()
-            }
-            paint.color = 0xFFfbbf24.toInt()
-            canvas.drawPath(inner, paint)
 
             return bitmap
         }
@@ -418,7 +316,7 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
         val colors = getThemeColors(context)
         val density = context.resources.displayMetrics.density
         val streakVisible = if (streak > 0) android.view.View.VISIBLE else android.view.View.GONE
-        val flameBitmap = createFlameBitmap(density)
+        val flameBitmap = createFlameBitmap(density, colors.streak)
         for (id in widgetIds) {
             val views = RemoteViews(context.packageName, R.layout.widget_layout)
             views.setTextViewText(R.id.widget_header, headerLabel)
@@ -426,6 +324,7 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
             views.setTextViewText(R.id.widget_subtitle, subtitleText)
             views.setTextColor(R.id.widget_subtitle, Color.argb(0x99, Color.red(colors.textMuted), Color.green(colors.textMuted), Color.blue(colors.textMuted)))
             views.setTextViewText(R.id.widget_streak, "$streak")
+            views.setTextColor(R.id.widget_streak, colors.textPrimary)
             views.setImageViewBitmap(R.id.widget_flame, flameBitmap)
             views.setViewVisibility(R.id.widget_flame, streakVisible)
             views.setViewVisibility(R.id.widget_streak, streakVisible)
@@ -549,27 +448,25 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
 
         val baseSurface = Color.argb(0xDD, Color.red(colors.surface), Color.green(colors.surface), Color.blue(colors.surface))
         val bgBitmap = when {
-            isChild -> createGradientBitmap(
+            isChild -> createRoundedBitmap(
                 bgWidth, bgHeight.toInt(),
-                intArrayOf(colors.surfaceGround, blendColor(colors.surfaceGround, colors.primary, 0.04f)),
-                10f * density, GradientDrawable.Orientation.LEFT_RIGHT
+                colors.surfaceGround,
+                10f * density
             )
             habit.isCompleted -> createRoundedBitmap(
                 bgWidth, bgHeight.toInt(),
                 Color.argb(0x55, Color.red(colors.surface), Color.green(colors.surface), Color.blue(colors.surface)),
                 cornerRadius
             )
-            habit.isOverdue -> createGradientBitmap(
+            habit.isOverdue -> createRoundedBitmap(
                 bgWidth, bgHeight.toInt(),
-                intArrayOf(blendColor(baseSurface, 0xFFf87171.toInt(), 0.04f), baseSurface),
-                cornerRadius, GradientDrawable.Orientation.LEFT_RIGHT,
-                strokeWidth, COLOR_OVERDUE_BORDER
+                baseSurface,
+                cornerRadius, strokeWidth, overdueBorder(colors.overdue)
             )
-            else -> createGradientBitmap(
+            else -> createRoundedBitmap(
                 bgWidth, bgHeight.toInt(),
-                intArrayOf(blendColor(baseSurface, colors.primary, 0.04f), baseSurface),
-                cornerRadius, GradientDrawable.Orientation.LEFT_RIGHT,
-                strokeWidth, colors.borderMuted
+                baseSurface,
+                cornerRadius, strokeWidth, colors.borderMuted
             )
         }
         views.setImageViewBitmap(R.id.item_bg, bgBitmap)
@@ -613,7 +510,7 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
                 }
                 habit.isOverdue -> {
                     views.setImageViewResource(R.id.item_status_icon, R.drawable.widget_circle_overdue)
-                    views.setInt(R.id.item_status_icon, "setColorFilter", 0xFFf87171.toInt())
+                    views.setInt(R.id.item_status_icon, "setColorFilter", colors.overdue)
                 }
                 else -> {
                     views.setImageViewResource(R.id.item_status_icon, R.drawable.widget_circle_empty)
@@ -635,7 +532,7 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
             views.setViewVisibility(R.id.item_time, android.view.View.VISIBLE)
             when {
                 habit.isCompleted -> views.setTextColor(R.id.item_time, Color.argb(0x44, Color.red(colors.textMuted), Color.green(colors.textMuted), Color.blue(colors.textMuted)))
-                habit.isOverdue -> views.setTextColor(R.id.item_time, COLOR_OVERDUE_RED)
+                habit.isOverdue -> views.setTextColor(R.id.item_time, Color.argb(0xCC, Color.red(colors.overdue), Color.green(colors.overdue), Color.blue(colors.overdue)))
                 else -> views.setTextColor(R.id.item_time, Color.argb(0x80, Color.red(colors.textMuted), Color.green(colors.textMuted), Color.blue(colors.textMuted)))
             }
         } else {

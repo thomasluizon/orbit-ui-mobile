@@ -1,17 +1,9 @@
 import React from 'react'
-import { describe, expect, it, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 
-import {
-  HabitDetailStatsGrid,
-} from '@/components/habits/habit-detail-sections'
+import { HabitDetailStatsRow } from '@/components/habits/habit-detail-sections'
 import { createTokensV2 } from '@/lib/theme'
 const TestRenderer = require('react-test-renderer')
-
-vi.mock('lucide-react-native', () => ({
-  BarChart3: () => null,
-  Flame: () => null,
-  Trophy: () => null,
-}))
 
 function findTextNodes(tree: ReturnType<typeof TestRenderer.create>, text: string) {
   return tree.root.findAll((node: { props: { children?: unknown } }) => {
@@ -23,40 +15,44 @@ function findTextNodes(tree: ReturnType<typeof TestRenderer.create>, text: strin
   })
 }
 
-describe('habit detail sections', () => {
-  it('renders the stats grid', () => {
+describe('HabitDetailStatsRow', () => {
+  it('renders current streak, longest streak, and monthly rate', () => {
     let tree: ReturnType<typeof TestRenderer.create> | null = null
     TestRenderer.act(() => {
       tree = TestRenderer.create(
-        <HabitDetailStatsGrid
+        <HabitDetailStatsRow
           metrics={{
             currentStreak: 5,
             longestStreak: 14,
             monthlyCompletionRate: 85.5,
           }}
           loading={false}
-          t={(key, params) =>
-            params ? `${key}(${JSON.stringify(params)})` : key
-          }
+          t={(key) => key}
           tokens={createTokensV2('purple', 'dark')}
-          styles={{
-            statsGrid: { flexDirection: 'row' },
-            statCard: { padding: 8 },
-            statLabel: { fontSize: 10 },
-            statValue: { fontSize: 18 },
-            skeletonIcon: { width: 20, height: 20 },
-            skeletonLabel: { width: 40, height: 10 },
-            skeletonValue: { width: 32, height: 20 },
-            sectionTitle: { fontSize: 14 },
-            noDataText: { fontSize: 14 },
-          }}
         />,
       )
     })
 
     expect(tree).not.toBeNull()
     expect(findTextNodes(tree!, 'habits.detail.currentStreak').length).toBeGreaterThanOrEqual(1)
-    expect(findTextNodes(tree!, 'habits.detail.streakDays({"n":5})').length).toBeGreaterThanOrEqual(1)
-    expect(findTextNodes(tree!, 'habits.detail.monthlyRate').length).toBeGreaterThanOrEqual(1)
+    expect(findTextNodes(tree!, '5').length).toBeGreaterThanOrEqual(1)
+    expect(findTextNodes(tree!, '14').length).toBeGreaterThanOrEqual(1)
+    expect(findTextNodes(tree!, '86%').length).toBeGreaterThanOrEqual(1)
+  })
+
+  it('renders the empty state when there are no metrics', () => {
+    let tree: ReturnType<typeof TestRenderer.create> | null = null
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <HabitDetailStatsRow
+          metrics={null}
+          loading={false}
+          t={(key) => key}
+          tokens={createTokensV2('purple', 'dark')}
+        />,
+      )
+    })
+
+    expect(findTextNodes(tree!, 'habits.detail.noDataYet').length).toBeGreaterThanOrEqual(1)
   })
 })

@@ -278,7 +278,11 @@ export default function PreferencesPage() {
         {pushSupported && (
           <>
             <SectionLabel>{t('settings.notifications.title')}</SectionLabel>
-            <SettingsRow label={t('settings.notifications.allowed')} accessory="none">
+            <SettingsRow
+              label={t('settings.notifications.allowed')}
+              accessory="none"
+              divider={false}
+            >
               {pushPermission !== 'denied' && (
                 <MonoToggle
                   on={pushSubscribed}

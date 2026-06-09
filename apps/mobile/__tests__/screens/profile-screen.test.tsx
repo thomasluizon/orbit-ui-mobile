@@ -98,10 +98,6 @@ vi.mock('@/lib/theme', () => ({
     shadow2: {},
     shadow3: {},
   },
-  gradients: {
-    surfaceSheen: ['transparent', 'transparent'],
-    surfaceSheenLocations: [0, 0.4],
-  },
 }))
 
 vi.mock('@/lib/api-client', () => ({
@@ -204,7 +200,7 @@ vi.mock('lucide-react-native', () => {
     ChevronRight: createIcon('ChevronRight'),
     Clock: createIcon('Clock'),
     BadgeCheck: createIcon('BadgeCheck'),
-    Sparkles: createIcon('Sparkles'),
+    Orbit: createIcon('Orbit'),
     X: createIcon('X'),
     Check: createIcon('Check'),
     Compass: createIcon('Compass'),

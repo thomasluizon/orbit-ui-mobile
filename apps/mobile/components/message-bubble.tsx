@@ -2,7 +2,7 @@ import { useState, useMemo, useEffect } from "react";
 import { View, Text, Image, StyleSheet, Animated, Pressable } from "react-native";
 import * as Clipboard from "expo-clipboard";
 import { useRouter } from "expo-router";
-import { Sparkles, User, ArrowUpRight } from "lucide-react-native";
+import { Orbit, User, ArrowUpRight } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import type { ChatMessage } from "@orbit/shared/types/chat";
 import type { AgentExecuteOperationResponse } from "@orbit/shared/types";
@@ -107,7 +107,7 @@ export function MessageBubble({
     >
       {!isUser && (
         <View style={styles.aiAvatar} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-          <Sparkles size={20} color={tokens.primary} />
+          <Orbit size={20} color={tokens.primary} />
         </View>
       )}
 
@@ -313,7 +313,7 @@ export function TypingIndicator() {
   return (
     <View style={[styles.container, styles.aiContainer]} accessibilityLiveRegion="polite">
       <View style={styles.aiAvatar} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-        <Sparkles size={20} color={tokens.primary} />
+        <Orbit size={20} color={tokens.primary} />
       </View>
 
       <View style={styles.bubbleColumnAI}>

@@ -1,6 +1,13 @@
-import { Pressable, View } from 'react-native'
-import { createTokensV2 } from '@/lib/theme'
+import { useEffect, useMemo, useState } from 'react'
+import { AccessibilityInfo, Animated, Pressable, View } from 'react-native'
+import Svg, { Circle } from 'react-native-svg'
+import { createTokensV2, easings } from '@/lib/theme'
+import { toAnimatedEasing } from '@/lib/motion'
 import { useAppTheme } from '@/lib/use-app-theme'
+
+const AnimatedCircle = Animated.createAnimatedComponent(Circle)
+
+const SWEEP_MS = 420
 
 export type StatusDotState =
   | 'done'
@@ -22,7 +29,9 @@ interface StatusDotProps {
   disabled?: boolean
 }
 
-/** v8 8px desaturated status dot. Hollow ring for `empty`, filled for everything else. */
+/** v8 8px desaturated status dot. Hollow ring for `empty`, filled otherwise.
+ *  On an interactive transition into `done`, a `primary` arc sweeps once around
+ *  the dot and the fill settles in (the Today completion signature). */
 export function StatusDot({
   state,
   size = 8,
@@ -33,6 +42,7 @@ export function StatusDot({
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const isFilled = state === 'done' || state === 'skip' || state === 'frozen'
+  const interactive = !!onToggle && !disabled
 
   const colorMap: Record<StatusDotState, string> = {
     done: tokens.statusDone,
@@ -44,7 +54,82 @@ export function StatusDot({
   }
   const color = colorMap[state]
 
-  const dot = (
+  const sweep = useMemo(() => new Animated.Value(0), [])
+
+  const [prevState, setPrevState] = useState(state)
+  const [playing, setPlaying] = useState(false)
+  const [reduceMotion, setReduceMotion] = useState(false)
+  if (state !== prevState) {
+    setPrevState(state)
+    setPlaying(prevState !== 'done' && state === 'done' && interactive && !reduceMotion)
+  }
+
+  useEffect(() => {
+    let active = true
+    AccessibilityInfo.isReduceMotionEnabled().then((enabled) => {
+      if (active) setReduceMotion(enabled)
+    })
+    const subscription = AccessibilityInfo.addEventListener(
+      'reduceMotionChanged',
+      setReduceMotion,
+    )
+    return () => {
+      active = false
+      subscription.remove()
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!playing) return
+    sweep.setValue(0)
+    Animated.timing(sweep, {
+      toValue: 1,
+      duration: SWEEP_MS,
+      easing: toAnimatedEasing(easings.out),
+      useNativeDriver: false,
+    }).start()
+    const id = setTimeout(() => setPlaying(false), SWEEP_MS + 40)
+    return () => clearTimeout(id)
+  }, [playing, sweep])
+
+  const trackStroke = 1.5
+  const trackR = (size - trackStroke) / 2
+  const pieR = size / 4
+  const pieStroke = size / 2
+  const c = 2 * Math.PI * pieR
+  const dashOffset = sweep.interpolate({
+    inputRange: [0, 1],
+    outputRange: [c, 0],
+  })
+
+  const dot = playing ? (
+    <View style={{ width: size, height: size }}>
+      <Svg
+        width={size}
+        height={size}
+        style={{ transform: [{ rotate: '-90deg' }] }}
+      >
+        <Circle
+          cx={size / 2}
+          cy={size / 2}
+          r={trackR}
+          fill="none"
+          stroke={tokens.statusEmpty}
+          strokeWidth={trackStroke}
+        />
+        <AnimatedCircle
+          cx={size / 2}
+          cy={size / 2}
+          r={pieR}
+          fill="none"
+          stroke={tokens.primary}
+          strokeWidth={pieStroke}
+          strokeDasharray={c}
+          strokeDashoffset={dashOffset}
+        />
+      </Svg>
+    </View>
+  ) : (
     <View
       style={{
         width: size,
@@ -57,7 +142,7 @@ export function StatusDot({
     />
   )
 
-  if (!onToggle || disabled) {
+  if (!onToggle) {
     return (
       <View
         accessibilityLabel={accessibilityLabel ?? state}
@@ -72,12 +157,14 @@ export function StatusDot({
   return (
     <Pressable
       onPress={onToggle}
+      disabled={disabled}
       hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? state}
+      accessibilityState={{ disabled }}
       style={({ pressed }) => ({
-        transform: [{ scale: pressed ? 0.9 : 1 }],
-        opacity: pressed ? 0.85 : 1,
+        transform: [{ scale: pressed && !disabled ? 0.9 : 1 }],
+        opacity: disabled ? 0.4 : pressed ? 0.85 : 1,
       })}
     >
       {dot}

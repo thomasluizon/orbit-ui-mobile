@@ -14,6 +14,7 @@ class OrbitWidgetModule : Module() {
     private const val PREFS_NAME = "orbit_widget_prefs"
     private const val KEY_TOKEN = "auth_token"
     private const val CACHE_PREFS_NAME = "orbit_widget_cache"
+    const val COLOR_KEY_PREFIX = "color_"
 
     fun getEncryptedPrefs(context: Context): SharedPreferences {
       return try {
@@ -93,13 +94,13 @@ class OrbitWidgetModule : Module() {
       refreshWidgets(context)
     }
 
-    AsyncFunction("syncTheme") { colorScheme: String, themeMode: String ->
+    AsyncFunction("syncTheme") { colors: Map<String, String> ->
       val context = moduleContext()
-      context.getSharedPreferences(CACHE_PREFS_NAME, Context.MODE_PRIVATE)
-        .edit()
-        .putString("color_scheme", colorScheme)
-        .putString("theme_mode", themeMode)
-        .apply()
+      val editor = context.getSharedPreferences(CACHE_PREFS_NAME, Context.MODE_PRIVATE).edit()
+      for ((token, value) in colors) {
+        editor.putString("$COLOR_KEY_PREFIX$token", value)
+      }
+      editor.apply()
       refreshWidgets(context)
     }
 

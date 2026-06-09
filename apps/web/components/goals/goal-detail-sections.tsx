@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import type { ReactNode } from 'react'
+import type { LucideIcon } from 'lucide-react'
 import type { Goal } from '@orbit/shared/types/goal'
 import { SectionLabel } from '@/components/ui/section-label'
 
@@ -327,38 +327,53 @@ export function GoalLinkedHabitsSection({
   )
 }
 
-interface GoalActionButtonProps {
-  icon?: ReactNode
+interface GoalActionRowProps {
   label: string
+  icon: LucideIcon
   onClick: () => void
-  className?: string
   disabled?: boolean
   destructive?: boolean
 }
 
-/** Quiet-link footer action: italic when destructive, otherwise fg-1. */
-export function GoalActionButton({
+/** Menu-item action row: leading icon + label, pressed-token hover,
+ *  italic fg-3 label when destructive. No dividers — spacing groups the cluster. */
+export function GoalActionRow({
   label,
+  icon: Icon,
   onClick,
   disabled = false,
   destructive = false,
-}: Readonly<GoalActionButtonProps>) {
+}: Readonly<GoalActionRowProps>) {
   return (
     <button
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="appearance-none border-0 bg-transparent cursor-pointer disabled:opacity-50"
+      className="appearance-none w-full bg-transparent cursor-pointer text-left flex items-center transition-colors duration-150 ease-out hover:bg-[var(--bg-elev-pressed)] disabled:opacity-50 disabled:cursor-default disabled:hover:bg-transparent"
       style={{
-        fontFamily: 'var(--font-family-sans)',
-        fontSize: 13,
-        fontWeight: 500,
-        color: destructive ? 'var(--fg-3)' : 'var(--fg-1)',
-        fontStyle: destructive ? 'italic' : 'normal',
-        padding: 6,
+        padding: '12px 20px',
+        gap: 12,
+        border: 0,
       }}
     >
-      {label}
+      <Icon
+        size={16}
+        strokeWidth={1.7}
+        color="var(--fg-3)"
+        aria-hidden="true"
+        className="shrink-0"
+      />
+      <span
+        style={{
+          fontFamily: 'var(--font-family-sans)',
+          fontSize: 15,
+          fontWeight: 400,
+          color: destructive ? 'var(--fg-3)' : 'var(--fg-1)',
+          fontStyle: destructive ? 'italic' : 'normal',
+        }}
+      >
+        {label}
+      </span>
     </button>
   )
 }

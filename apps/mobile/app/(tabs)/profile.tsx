@@ -798,14 +798,13 @@ export default function ProfileScreen() {
                   style={({ pressed }) => [
                     styles.dangerButton,
                     {
-                      backgroundColor: pressed
-                        ? `${tokens.statusBad}cc`
-                        : tokens.statusBad,
+                      borderColor: tokens.hairline,
+                      backgroundColor: pressed ? tokens.bgElevPressed : 'transparent',
                     },
                     deleteLoading && styles.buttonDisabled,
                   ]}
                 >
-                  <Text style={styles.dangerButtonText}>
+                  <Text style={[styles.dangerButtonText, { color: tokens.statusBad }]}>
                     {deleteLoading
                       ? t('profile.deleteAccount.sending')
                       : t('profile.deleteAccount.sendCode')}
@@ -863,15 +862,14 @@ export default function ProfileScreen() {
                   style={({ pressed }) => [
                     styles.dangerButton,
                     {
-                      backgroundColor: pressed
-                        ? `${tokens.statusBad}cc`
-                        : tokens.statusBad,
+                      borderColor: tokens.hairline,
+                      backgroundColor: pressed ? tokens.bgElevPressed : 'transparent',
                     },
                     (deleteLoading || deleteCodeDigits.join('').length !== 6) &&
                       styles.buttonDisabled,
                   ]}
                 >
-                  <Text style={styles.dangerButtonText}>
+                  <Text style={[styles.dangerButtonText, { color: tokens.statusBad }]}>
                     {deleteLoading
                       ? t('profile.deleteAccount.deleting')
                       : t('profile.deleteAccount.confirmDelete')}
@@ -1074,12 +1072,12 @@ function createStyles(_tokens: Tokens) {
       borderRadius: 8,
       paddingVertical: 12,
       alignItems: 'center',
+      borderWidth: 1,
     },
     dangerButtonText: {
       fontFamily: 'Geist',
       fontSize: 14,
       fontWeight: '500',
-      color: '#ffffff',
     },
     secondaryButton: {
       borderRadius: 8,

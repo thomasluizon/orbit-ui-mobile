@@ -35,7 +35,8 @@ describe('goal form utils', () => {
   })
 
   it('validates draft input across title, target, unit, and streak helpers', () => {
-    expect(validateGoalDraftInput('', '', '')).toBe('goals.form.titleRequired')
+    expect(validateGoalDraftInput('', '', '')).toBe('goals.form.targetValueRequired')
+    expect(validateGoalDraftInput('', '12', '')).toBe('goals.form.unitRequired')
     expect(validateGoalDraftInput('Read daily', '', 'pages')).toBe('goals.form.targetValueRequired')
     expect(validateGoalDraftInput('Read daily', '10', '')).toBe('goals.form.unitRequired')
     expect(validateGoalDraftInput('', 5, 'days')).toBeNull()

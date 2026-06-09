@@ -73,6 +73,7 @@ export const Animated = {
   }),
   loop: (animation: { start?: () => void; stop?: () => void }) => animation,
   event: () => () => {},
+  createAnimatedComponent: <C>(component: C): C => component,
 }
 
 export const PanResponder = {
@@ -86,6 +87,7 @@ export const Dimensions = {
 export const Easing = {
   out: <T>(value: T) => value,
   cubic: 'cubic',
+  bezier: () => (value: number) => value,
 }
 
 export const AppState = {

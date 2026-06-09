@@ -59,7 +59,7 @@ function UsageStats({ usagePercent, usageUrgent, profile, t }: Readonly<{
   t: ReturnType<typeof useTranslations>
 }>) {
   return (
-    <div className="bg-[var(--bg-elev)] rounded-[12px] shadow-[var(--shadow-sm)] p-5 space-y-3">
+    <div className="bg-[var(--bg-elev)] rounded-[var(--radius-md)] p-5 space-y-3">
       <h3 className="form-label">{t('upgrade.billing.usage.title')}</h3>
       <div>
         <div className="flex items-center justify-between mb-2">
@@ -170,7 +170,7 @@ function FeatureComparisonTable({ t }: Readonly<{ t: ReturnType<typeof useTransl
             return (
               <div
                 key={feat.key}
-                className="grid grid-cols-[1fr_auto_auto] gap-3 bg-[var(--bg-elev)] rounded-[var(--radius-lg)] shadow-[var(--shadow-sm)] py-3 px-4 items-center"
+                className="grid grid-cols-[1fr_auto_auto] gap-3 bg-[var(--bg-elev)] rounded-[var(--radius-lg)] py-3 px-4 items-center"
               >
                 <div className="flex items-center gap-2.5 min-w-0">
                   <Icon className="size-4 text-[var(--fg-3)] shrink-0" />
@@ -210,7 +210,7 @@ interface PlanCardsProps {
 function PlanCards({ plans, hasProAccess, checkoutLoading, discountedAmount, onCheckout, t }: Readonly<PlanCardsProps>) {
   return (
     <div className="space-y-3 mb-6">
-      <div className="rounded-[12px] border border-dashed border-[var(--hairline-strong)] bg-[var(--bg-sunk)] p-5">
+      <div className="rounded-[var(--radius-md)] border border-dashed border-[var(--hairline-strong)] bg-[var(--bg-sunk)] p-5">
         <div className="flex items-center justify-between mb-3">
           <h3 className="text-sm font-bold text-[var(--fg-3)] uppercase tracking-wider">
             {t('upgrade.plans.free.name')}
@@ -247,7 +247,7 @@ function PlanCards({ plans, hasProAccess, checkoutLoading, discountedAmount, onC
         )}
       </div>
 
-      <div className="rounded-[12px] border border-[var(--hairline)] bg-[var(--bg-elev)] p-5 shadow-[var(--shadow-sm)]">
+      <div className="rounded-[var(--radius-md)] border border-[var(--hairline)] bg-[var(--bg-elev)] p-5">
         <div className="flex items-center justify-between mb-1">
           <h3 className="text-sm font-bold text-[var(--fg-1)]">
             {t('upgrade.plans.monthly.name')}
@@ -298,7 +298,7 @@ function PlanCards({ plans, hasProAccess, checkoutLoading, discountedAmount, onC
         </button>
       </div>
 
-      <div className="relative rounded-[12px] border border-[var(--hairline-strong)] bg-[var(--bg-elev)] p-5">
+      <div className="relative rounded-[var(--radius-md)] border border-[var(--hairline-strong)] bg-[var(--bg-elev)] p-5">
         <div className="flex items-center gap-1.5 mb-3">
           <span className="text-[10px] font-bold uppercase px-2 py-1 rounded-full bg-[var(--bg-elev)] text-[var(--primary)] border border-[var(--hairline-strong)]">
             {t('upgrade.plans.yearly.recommended')}
@@ -363,7 +363,7 @@ function PlanCards({ plans, hasProAccess, checkoutLoading, discountedAmount, onC
           </p>
         )}
         <button
-          className="w-full py-3.5 rounded-[12px] bg-[var(--primary)] text-white text-sm font-bold hover:bg-[var(--primary-pressed)] transition-[background-color,border-color,color,transform,opacity] duration-200 active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2"
+          className="w-full py-3.5 rounded-[var(--radius-md)] bg-[var(--primary)] text-white text-sm font-bold hover:bg-[var(--primary-pressed)] transition-[background-color,border-color,color,transform,opacity] duration-200 active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2"
           disabled={!!checkoutLoading}
           onClick={() => onCheckout('yearly')}
         >
@@ -397,30 +397,30 @@ function BillingDashboard({
     <div className="space-y-3">
       {isBillingLoading && (
         <>
-          <div className="bg-[var(--bg-elev)] rounded-[12px] shadow-[var(--shadow-sm)] p-5">
+          <div className="bg-[var(--bg-elev)] rounded-[var(--radius-md)] p-5">
             <div className="flex items-center gap-4">
-              <div className="size-12 rounded-full bg-[var(--bg-elev)] skeleton-shimmer shrink-0" />
+              <div className="size-12 rounded-full bg-[var(--bg-elev)] skeleton-pulse shrink-0" />
               <div className="space-y-2 flex-1">
-                <div className="h-4 w-28 bg-[var(--bg-elev)] rounded skeleton-shimmer" />
-                <div className="h-3 w-44 bg-[var(--bg-elev)] rounded skeleton-shimmer" />
+                <div className="h-4 w-28 bg-[var(--bg-elev)] rounded skeleton-pulse" />
+                <div className="h-3 w-44 bg-[var(--bg-elev)] rounded skeleton-pulse" />
               </div>
             </div>
           </div>
-          <div className="bg-[var(--bg-elev)] rounded-[12px] shadow-[var(--shadow-sm)] p-5 space-y-3">
-            <div className="h-3 w-20 bg-[var(--bg-elev)] rounded skeleton-shimmer" />
+          <div className="bg-[var(--bg-elev)] rounded-[var(--radius-md)] p-5 space-y-3">
+            <div className="h-3 w-20 bg-[var(--bg-elev)] rounded skeleton-pulse" />
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <div className="h-3.5 w-24 bg-[var(--bg-elev)] rounded skeleton-shimmer" />
-                <div className="h-3.5 w-16 bg-[var(--bg-elev)] rounded skeleton-shimmer" />
+                <div className="h-3.5 w-24 bg-[var(--bg-elev)] rounded skeleton-pulse" />
+                <div className="h-3.5 w-16 bg-[var(--bg-elev)] rounded skeleton-pulse" />
               </div>
-              <div className="h-1.5 w-full bg-[var(--bg-elev)] rounded-full skeleton-shimmer" />
+              <div className="h-1.5 w-full bg-[var(--bg-elev)] rounded-full skeleton-pulse" />
             </div>
           </div>
         </>
       )}
 
       {isBillingError && !billing && !isBillingLoading && (
-        <div className="bg-[var(--bg-elev)] rounded-[12px] border border-[var(--hairline)] p-8 text-center space-y-3">
+        <div className="bg-[var(--bg-elev)] rounded-[var(--radius-md)] border border-[var(--hairline)] p-8 text-center space-y-3">
           <AlertTriangle className="size-8 text-[var(--fg-3)] mx-auto" />
           <p className="text-sm text-[var(--fg-2)]">{t('upgrade.billing.error')}</p>
           <button className="text-[var(--primary)] text-sm font-semibold hover:underline" onClick={onRetryBilling}>
@@ -431,7 +431,7 @@ function BillingDashboard({
 
       {billing && (
         <>
-          <div className="bg-[var(--bg-elev)] rounded-[12px] shadow-[var(--shadow-sm)] p-5">
+          <div className="bg-[var(--bg-elev)] rounded-[var(--radius-md)] p-5">
             <div className="flex items-center gap-4">
               <div className="bg-[var(--bg-elev)] rounded-full size-12 flex items-center justify-center shrink-0">
                 <BadgeCheck className="size-6 text-[var(--primary)]" />
@@ -468,7 +468,7 @@ function BillingDashboard({
           </div>
 
           {billing.paymentMethod && (
-            <div className="bg-[var(--bg-elev)] rounded-[12px] shadow-[var(--shadow-sm)] p-5">
+            <div className="bg-[var(--bg-elev)] rounded-[var(--radius-md)] p-5">
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3 min-w-0">
                   <CreditCard className="size-8 text-[var(--fg-3)] shrink-0" />
@@ -500,7 +500,7 @@ function BillingDashboard({
           <UsageStats usagePercent={usagePercent} usageUrgent={usageUrgent} profile={profile} t={t} />
 
           {billing.recentInvoices.length > 0 && (
-            <div className="bg-[var(--bg-elev)] rounded-[12px] shadow-[var(--shadow-sm)] overflow-hidden">
+            <div className="bg-[var(--bg-elev)] rounded-[var(--radius-md)] overflow-hidden">
               <div className="p-5 pb-3">
                 <h3 className="form-label">{t('upgrade.billing.invoices.title')}</h3>
               </div>
@@ -546,7 +546,7 @@ function BillingDashboard({
 
           <div className="space-y-2 pt-1">
             <button
-              className="w-full py-3 rounded-[12px] bg-[var(--bg-elev)] text-[var(--fg-1)] text-sm font-semibold border border-[var(--hairline)] hover:bg-[var(--bg-elev)] transition-[background-color,border-color,color,transform,opacity] duration-200 active:scale-[0.98]"
+              className="w-full py-3 rounded-[var(--radius-md)] bg-[var(--bg-elev)] text-[var(--fg-1)] text-sm font-semibold border border-[var(--hairline)] hover:bg-[var(--bg-elev)] transition-[background-color,border-color,color,transform,opacity] duration-200 active:scale-[0.98]"
               onClick={onOpenPortal}
             >
               {t('upgrade.billing.actions.manage')}
@@ -559,7 +559,7 @@ function BillingDashboard({
 
       {!isBillingLoading && !isBillingError && !billing && (
         <>
-          <div className="bg-[var(--bg-elev)] rounded-[12px] shadow-[var(--shadow-sm)] p-5">
+          <div className="bg-[var(--bg-elev)] rounded-[var(--radius-md)] p-5">
             <div className="flex items-center gap-4">
               <div className="bg-[var(--bg-elev)] rounded-full size-12 flex items-center justify-center shrink-0">
                 <Sparkles className="size-6 text-[var(--primary)]" />
@@ -598,7 +598,7 @@ interface PlayBillingDashboardProps {
 function PlayBillingDashboard({ profile, locale, usagePercent, usageUrgent, t }: Readonly<PlayBillingDashboardProps>) {
   return (
     <div className="space-y-3">
-      <div className="bg-[var(--bg-elev)] rounded-[12px] shadow-[var(--shadow-sm)] p-5">
+      <div className="bg-[var(--bg-elev)] rounded-[var(--radius-md)] p-5">
         <div className="flex items-center gap-4">
           <div className="bg-[var(--bg-elev)] rounded-full size-12 flex items-center justify-center shrink-0">
             <BadgeCheck className="size-6 text-[var(--primary)]" />
@@ -623,7 +623,7 @@ function PlayBillingDashboard({ profile, locale, usagePercent, usageUrgent, t }:
           href={playManageSubscriptionUrl()}
           target="_blank"
           rel="noopener noreferrer"
-          className="w-full py-3 rounded-[12px] bg-[var(--bg-elev)] text-[var(--fg-1)] text-sm font-semibold border border-[var(--hairline)] hover:bg-[var(--bg-elev)] transition-[background-color,border-color,color,transform,opacity] duration-200 active:scale-[0.98] flex items-center justify-center"
+          className="w-full py-3 rounded-[var(--radius-md)] bg-[var(--bg-elev)] text-[var(--fg-1)] text-sm font-semibold border border-[var(--hairline)] hover:bg-[var(--bg-elev)] transition-[background-color,border-color,color,transform,opacity] duration-200 active:scale-[0.98] flex items-center justify-center"
         >
           {t('upgrade.billing.actions.managePlay')}
         </a>
@@ -658,7 +658,7 @@ function PricingSection({
     <>
       {profile?.isTrialActive && (
         <div
-          className={`rounded-[12px] p-4 mb-4 flex items-center gap-3 border ${
+          className={`rounded-[var(--radius-md)] p-4 mb-4 flex items-center gap-3 border ${
             trialUrgent
               ? 'bg-[var(--status-overdue)]/10 border-[var(--status-overdue)]/20'
               : 'bg-[var(--bg-sunk)] border-[var(--hairline-strong)]'
@@ -674,7 +674,7 @@ function PricingSection({
       )}
 
       {trialExpired && (
-        <div className="bg-[var(--bg-elev)] rounded-[12px] shadow-[var(--shadow-sm)] p-5 mb-4 space-y-3">
+        <div className="bg-[var(--bg-elev)] rounded-[var(--radius-md)] p-5 mb-4 space-y-3">
           <div className="flex items-center gap-2">
             <Sparkles className="size-5 text-[var(--primary)]" />
             <span className="text-sm font-bold text-[var(--fg-1)]">{t('trial.expired.title')}</span>
@@ -696,24 +696,24 @@ function PricingSection({
       {isLoadingPlans && (
         <div className="space-y-3 mb-6">
           {[1, 2, 3].map((i) => (
-            <div key={i} className="rounded-[12px] p-5 border border-[var(--hairline)]">
+            <div key={i} className="rounded-[var(--radius-md)] p-5 border border-[var(--hairline)]">
               <div className="flex items-center justify-between mb-4">
-                <div className="h-4 w-20 bg-[var(--bg-elev)] rounded skeleton-shimmer" />
-                <div className="h-6 w-16 bg-[var(--bg-elev)] rounded-full skeleton-shimmer" />
+                <div className="h-4 w-20 bg-[var(--bg-elev)] rounded skeleton-pulse" />
+                <div className="h-6 w-16 bg-[var(--bg-elev)] rounded-full skeleton-pulse" />
               </div>
               <div className="space-y-2.5 mb-4">
-                <div className="h-3 w-3/4 bg-[var(--bg-elev)] rounded skeleton-shimmer" />
-                <div className="h-3 w-1/2 bg-[var(--bg-elev)] rounded skeleton-shimmer" />
-                <div className="h-3 w-2/3 bg-[var(--bg-elev)] rounded skeleton-shimmer" />
+                <div className="h-3 w-3/4 bg-[var(--bg-elev)] rounded skeleton-pulse" />
+                <div className="h-3 w-1/2 bg-[var(--bg-elev)] rounded skeleton-pulse" />
+                <div className="h-3 w-2/3 bg-[var(--bg-elev)] rounded skeleton-pulse" />
               </div>
-              <div className="h-10 w-full bg-[var(--bg-elev)] rounded-[var(--radius-lg)] skeleton-shimmer" />
+              <div className="h-10 w-full bg-[var(--bg-elev)] rounded-[var(--radius-lg)] skeleton-pulse" />
             </div>
           ))}
         </div>
       )}
 
       {isPlansError && !plans && !isLoadingPlans && (
-        <div className="bg-[var(--bg-elev)] rounded-[12px] border border-[var(--hairline)] p-8 text-center space-y-3 mb-6">
+        <div className="bg-[var(--bg-elev)] rounded-[var(--radius-md)] border border-[var(--hairline)] p-8 text-center space-y-3 mb-6">
           <AlertTriangle className="size-8 text-[var(--fg-3)] mx-auto" />
           <p className="text-sm text-[var(--fg-2)]">{t('upgrade.plans.error')}</p>
           <button className="text-[var(--primary)] text-sm font-semibold hover:underline" onClick={onRetryPlans}>

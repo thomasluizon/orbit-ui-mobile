@@ -13,7 +13,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Lock,
-  Sparkles,
+  Orbit,
   Trash2,
   X,
 } from 'lucide-react-native'
@@ -35,6 +35,7 @@ import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { AppBar } from '@/components/ui/app-bar'
 import { SectionLabel } from '@/components/ui/section-label'
 import { SettingsRow } from '@/components/ui/settings-row'
+import { SettingsDescription } from '@/components/ui/settings-description'
 import { MonoToggle } from '@/components/ui/mono-toggle'
 import { SelectCheck } from '@/components/ui/select-check'
 
@@ -300,6 +301,7 @@ export default function AiSettingsScreen() {
           <SettingsRow
             label={t('profile.aiMemory.title')}
             accessory="none"
+            divider={false}
           >
             <MonoToggle
               on={aiMemoryEnabled}
@@ -313,23 +315,19 @@ export default function AiSettingsScreen() {
             label={t('profile.aiMemory.title')}
             onPress={() => router.push(buildUpgradeHref('/ai-settings'))}
             accessory="chevron"
+            divider={false}
           >
             <Lock size={14} color={tokens.fg3} strokeWidth={1.4} />
           </SettingsRow>
         )}
-        <View
-          style={[styles.italicBlock, { borderBottomColor: tokens.hairline }]}
-        >
-          <Text style={[styles.italicText, { color: tokens.fg3 }]}>
-            {t('profile.aiMemory.description')}
-          </Text>
-        </View>
+        <SettingsDescription>{t('profile.aiMemory.description')}</SettingsDescription>
 
         <SectionLabel>{t('profile.aiSummary.title')}</SectionLabel>
         {hasProAccess ? (
           <SettingsRow
             label={t('profile.aiSummary.title')}
             accessory="none"
+            divider={false}
           >
             <MonoToggle
               on={aiSummaryEnabled}
@@ -343,17 +341,12 @@ export default function AiSettingsScreen() {
             label={t('profile.aiSummary.title')}
             onPress={() => router.push(buildUpgradeHref('/ai-settings'))}
             accessory="chevron"
+            divider={false}
           >
             <Lock size={14} color={tokens.fg3} strokeWidth={1.4} />
           </SettingsRow>
         )}
-        <View
-          style={[styles.italicBlock, { borderBottomColor: tokens.hairline }]}
-        >
-          <Text style={[styles.italicText, { color: tokens.fg3 }]}>
-            {t('profile.aiSummary.description')}
-          </Text>
-        </View>
+        <SettingsDescription>{t('profile.aiSummary.description')}</SettingsDescription>
 
         <SectionLabel
           trailing={
@@ -364,9 +357,7 @@ export default function AiSettingsScreen() {
         </SectionLabel>
 
         {!hasProAccess ? (
-          <View
-            style={[styles.italicBlock, { borderBottomColor: tokens.hairline }]}
-          >
+          <View style={styles.italicBlock}>
             <Text style={[styles.italicText, { color: tokens.fg3 }]}>
               {t('profile.facts.lockedHint')}
             </Text>
@@ -382,7 +373,7 @@ export default function AiSettingsScreen() {
           </View>
         ) : facts.length === 0 ? (
           <View style={styles.emptyBlock}>
-            <Sparkles size={26} color={tokens.fg3} strokeWidth={1.4} />
+            <Orbit size={26} color={tokens.fg3} strokeWidth={1.4} />
             <Text
               style={[styles.emptyText, { color: tokens.fg3 }]}
             >
@@ -551,7 +542,6 @@ function createStyles() {
     italicBlock: {
       paddingHorizontal: 20,
       paddingVertical: 10,
-      borderBottomWidth: StyleSheet.hairlineWidth,
     },
     italicText: {
       fontFamily: 'Geist',

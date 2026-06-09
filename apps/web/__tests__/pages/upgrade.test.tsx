@@ -135,7 +135,7 @@ describe('UpgradePage', () => {
   it('shows plan loading skeletons when plans are loading', () => {
     mockIsLoadingPlans = true
     const { container } = render(<UpgradePage />)
-    const shimmerElements = container.querySelectorAll('.skeleton-shimmer, .animate-pulse')
+    const shimmerElements = container.querySelectorAll('.skeleton-pulse, .animate-pulse')
     expect(screen.getByText('upgrade.title')).toBeInTheDocument()
   })
 
@@ -165,7 +165,7 @@ describe('UpgradePage', () => {
     mockProfile = { ...mockProfile, hasProAccess: true, isTrialActive: false }
     mockIsBillingLoading = true
     const { container } = render(<UpgradePage />)
-    const shimmerElements = container.querySelectorAll('.skeleton-shimmer')
+    const shimmerElements = container.querySelectorAll('.skeleton-pulse')
     expect(shimmerElements.length).toBeGreaterThan(0)
   })
 

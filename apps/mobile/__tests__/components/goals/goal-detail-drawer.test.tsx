@@ -37,6 +37,12 @@ vi.mock('react-i18next', () => ({
   }),
 }))
 
+vi.mock('expo-router', () => ({
+  useRouter: () => ({
+    push: vi.fn(),
+  }),
+}))
+
 vi.mock('react-native-safe-area-context', () => ({
   useSafeAreaInsets: () => ({ top: 0, right: 0, bottom: 0, left: 0 }),
 }))
@@ -97,7 +103,7 @@ vi.mock('lucide-react-native', () => {
     Flame: createIcon('Flame'),
     PencilLine: createIcon('PencilLine'),
     RotateCw: createIcon('RotateCw'),
-    Sparkles: createIcon('Sparkles'),
+    Orbit: createIcon('Orbit'),
     Trash2: createIcon('Trash2'),
   }
 })

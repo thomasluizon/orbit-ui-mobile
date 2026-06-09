@@ -43,7 +43,7 @@ export function createStyles(tokens: Tokens) {
       borderColor: tokens.primary,
       opacity: 0.85,
     },
-    sparkleGlow: {
+    sparkleInnerRing: {
       position: "absolute",
       top: 10,
       right: 10,
@@ -53,11 +53,19 @@ export function createStyles(tokens: Tokens) {
       borderWidth: 1,
       borderColor: tokens.hairlineStrong,
     },
-    emptyText: {
+    emptyTitle: {
       fontFamily: "Geist",
       fontSize: 20,
       fontWeight: "600",
       letterSpacing: -0.2,
+      textAlign: "center",
+    },
+    emptyText: {
+      fontFamily: "Geist",
+      fontSize: 14,
+      fontStyle: "italic",
+      lineHeight: 21,
+      maxWidth: 280,
       textAlign: "center",
     },
     aiDisclaimer: {

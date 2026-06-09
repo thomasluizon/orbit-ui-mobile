@@ -4,7 +4,7 @@ import {
   BellRing,
   CalendarDays,
   ListTree,
-  Sparkles,
+  Orbit,
   Trophy,
 } from 'lucide-react-native'
 import type { LucideIcon } from 'lucide-react-native'
@@ -20,14 +20,14 @@ interface FeatureItem {
 
 const features: FeatureItem[] = [
   {
-    Icon: Sparkles,
+    Icon: Orbit,
     titleKey: 'onboarding.flow.features.chat.title',
     descKey: 'onboarding.flow.features.chat.desc',
   },
   {
     Icon: ListTree,
-    titleKey: 'features.subHabits',
-    descKey: 'features.subHabits',
+    titleKey: 'onboarding.flow.features.subHabits.title',
+    descKey: 'onboarding.flow.features.subHabits.desc',
   },
   {
     Icon: CalendarDays,

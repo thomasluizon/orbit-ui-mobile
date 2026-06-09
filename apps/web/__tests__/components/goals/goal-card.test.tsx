@@ -89,20 +89,14 @@ describe('GoalCard', () => {
     expect(document.body.textContent).toContain('goals.deadline.overdue')
   })
 
-  it('applies on_track border class', () => {
-    const { container } = render(
-      <GoalCard goal={makeGoal({ trackingStatus: 'on_track' })} />,
-    )
-    const btn = container.querySelector('button')
-    expect(btn?.className).toContain('border-l-success')
+  it('shows on_track tracking dot', () => {
+    render(<GoalCard goal={makeGoal({ trackingStatus: 'on_track' })} />)
+    expect(screen.getByLabelText('goals.metrics.onTrack')).toBeInTheDocument()
   })
 
-  it('applies at_risk border class', () => {
-    const { container } = render(
-      <GoalCard goal={makeGoal({ trackingStatus: 'at_risk' })} />,
-    )
-    const btn = container.querySelector('button')
-    expect(btn?.className).toContain('border-l-warning')
+  it('shows at_risk tracking dot', () => {
+    render(<GoalCard goal={makeGoal({ trackingStatus: 'at_risk' })} />)
+    expect(screen.getByLabelText('goals.metrics.atRisk')).toBeInTheDocument()
   })
 
   it('opens detail drawer on click', () => {

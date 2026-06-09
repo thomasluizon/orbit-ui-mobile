@@ -8,6 +8,7 @@ export interface SectionHeadTabItem<TId extends string> {
   id: TId
   label: string
   locked?: boolean
+  dataTour?: string
 }
 
 interface SectionHeadTabsProps<TId extends string> {
@@ -43,10 +44,12 @@ export function SectionHeadTabs<TId extends string>({
         return (
           <button
             key={tab.id}
+            id={`tab-${tab.id}`}
             type="button"
             role="tab"
             aria-selected={isActive}
             aria-label={tab.label}
+            data-tour={tab.dataTour}
             onClick={() => onChange(tab.id)}
             className={
               'flex-1 appearance-none border-0 cursor-pointer inline-flex items-center justify-center gap-1.5 whitespace-nowrap transition-[background-color,color,box-shadow] duration-150 ease-out ' +

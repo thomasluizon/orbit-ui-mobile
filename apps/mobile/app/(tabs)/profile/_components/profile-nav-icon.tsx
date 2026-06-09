@@ -1,4 +1,4 @@
-import { Settings, Sparkles, Info, Wrench } from 'lucide-react-native'
+import { Settings, Orbit, Info, Wrench } from 'lucide-react-native'
 import Svg, { Path, Rect } from 'react-native-svg'
 import type { ProfileNavIconKey } from '@orbit/shared/utils/profile-navigation'
 
@@ -12,8 +12,8 @@ export function ProfileNavIcon({
   switch (iconKey) {
     case 'settings':
       return <Settings size={20} color={color} />
-    case 'sparkles':
-      return <Sparkles size={20} color={color} />
+    case 'orbit':
+      return <Orbit size={20} color={color} />
     case 'retrospective':
       return (
         <Svg viewBox="0 0 24 24" width={20} height={20} fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">

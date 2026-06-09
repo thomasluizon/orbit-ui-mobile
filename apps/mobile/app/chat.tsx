@@ -10,7 +10,7 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
-import { Sparkles, MoreHorizontal } from "lucide-react-native";
+import { Orbit, MoreHorizontal } from "lucide-react-native";
 import type { ChatMessage } from "@orbit/shared/types";
 import { CHAT_GOAL_ACTION_TYPES } from "@orbit/shared/hooks";
 import { habitDetailToNormalized } from "@orbit/shared/utils";
@@ -191,7 +191,7 @@ export default function ChatScreen() {
           back
           onBack={() => goBackOrFallback("/")}
           backLabel={t("common.goBack")}
-          LeadingIcon={Sparkles}
+          LeadingIcon={Orbit}
           title={t("chat.title")}
           trailing={
             <TouchableOpacity

@@ -66,8 +66,6 @@ const createSurfaceLayer = () => ({
 const surfacesMock = {
   screen: {
     backgroundColor: "#111111",
-    ambientStart: "#111111",
-    ambientEnd: "transparent",
   },
   ground: createSurfaceLayer(),
   card: createSurfaceLayer(),
@@ -302,6 +300,11 @@ vi.mock("@/lib/habit-selection-state", () => ({
 vi.mock("@/lib/theme", () => ({
   createColors: () => colorProxy,
   createTokensV2: () => colorProxy,
+  easings: {
+    spring: [0.34, 1.56, 0.64, 1],
+    out: [0.16, 1, 0.3, 1],
+    smooth: [0.2, 0, 0, 1],
+  },
   radius: {
     full: 999,
     lg: 16,

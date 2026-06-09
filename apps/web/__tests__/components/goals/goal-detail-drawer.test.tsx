@@ -10,6 +10,12 @@ vi.mock('next-intl', () => ({
   useLocale: () => 'en',
 }))
 
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({
+    push: vi.fn(),
+  }),
+}))
+
 vi.mock('dompurify', () => ({
   default: { sanitize: (html: string) => html },
 }))

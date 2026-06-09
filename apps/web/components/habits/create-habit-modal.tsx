@@ -307,7 +307,7 @@ export function CreateHabitModal({
                 </button>
               </div>
             ) : (
-              <div className="rounded-[12px] border border-[var(--hairline)] bg-[var(--bg-sunk)] p-4 space-y-3">
+              <div className="space-y-2.5 pt-1">
                 <div className="flex items-center justify-between gap-3">
                   <div className="space-y-1">
                     <div className="flex items-center gap-2">

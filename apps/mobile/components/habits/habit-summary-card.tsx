@@ -1,12 +1,12 @@
 import { useMemo } from "react";
 import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
-import { LinearGradient } from "expo-linear-gradient";
-import { Sparkles } from "lucide-react-native";
+import { Orbit } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import { useProfile } from "@/hooks/use-profile";
 import { useSummary } from "@/hooks/use-habits";
 import { ProBadge } from "@/components/ui/pro-badge";
-import { createTokensV2, gradients, radius, shadows } from '@/lib/theme';
+import { SkeletonLine } from "@/components/ui/skeleton";
+import { createTokensV2, radius, shadows } from '@/lib/theme';
 import { useAppTheme } from "@/lib/use-app-theme"
 
 type AppTokens = ReturnType<typeof createTokensV2>;
@@ -47,24 +47,15 @@ export function HabitSummaryCard({ date }: Readonly<HabitSummaryCardProps>) {
   if (isLoading) {
     return (
       <View style={[styles.card, styles.loadingCard]}>
-        <LinearGradient
-          colors={gradients.surfaceSheen}
-          locations={gradients.surfaceSheenLocations}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 0.25, y: 1 }}
-          style={StyleSheet.absoluteFillObject}
-          pointerEvents="none"
-        />
-        <View style={styles.insetHighlight} pointerEvents="none" />
         <View style={styles.header}>
-          <Sparkles size={18} color={tokens.primary} />
+          <Orbit size={18} color={tokens.primary} />
           <Text style={styles.title}>{t("summary.title")}</Text>
           <ProBadge />
         </View>
         <Text style={styles.loadingText}>{t("summary.loading")}</Text>
         <View style={styles.loadingSkeleton}>
-          <View style={styles.loadingLineFull} />
-          <View style={styles.loadingLineShort} />
+          <SkeletonLine height={14} />
+          <SkeletonLine height={14} width="72%" />
         </View>
       </View>
     );
@@ -85,17 +76,8 @@ export function HabitSummaryCard({ date }: Readonly<HabitSummaryCardProps>) {
 
   return (
     <View style={styles.card}>
-      <LinearGradient
-        colors={gradients.surfaceSheen}
-        locations={gradients.surfaceSheenLocations}
-        start={{ x: 0, y: 0 }}
-        end={{ x: 0.25, y: 1 }}
-        style={StyleSheet.absoluteFillObject}
-        pointerEvents="none"
-      />
-      <View style={styles.insetHighlight} pointerEvents="none" />
       <View style={styles.header}>
-        <Sparkles size={18} color={tokens.primary} />
+        <Orbit size={18} color={tokens.primary} />
         <Text style={styles.title}>{t("summary.title")}</Text>
         <ProBadge />
       </View>
@@ -120,14 +102,6 @@ function createStyles(tokens: AppTokens) {
     loadingCard: {
       borderColor: tokens.hairlineStrong,
     },
-    insetHighlight: {
-      position: "absolute",
-      top: 0,
-      left: 0,
-      right: 0,
-      height: 1,
-      backgroundColor: "rgba(255,255,255,0.06)",
-    },
     errorCard: {
       backgroundColor: tokens.bgElev,
       borderRadius: radius["2xl"],
@@ -142,48 +116,31 @@ function createStyles(tokens: AppTokens) {
       gap: 10,
     },
     title: {
-      fontSize: 15,
-      fontWeight: "800",
+      fontSize: 14,
+      fontWeight: "700",
       color: tokens.fg1,
     },
-    loadingRow: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 8,
-    },
     loadingText: {
-      fontSize: 15,
-      lineHeight: 22,
-      color: tokens.fg2,
+      fontSize: 14,
+      lineHeight: 20,
+      color: tokens.fg3,
     },
     loadingSkeleton: {
       gap: 10,
     },
-    loadingLineFull: {
-      height: 14,
-      width: "100%",
-      borderRadius: radius.full,
-      backgroundColor: tokens.bgElev,
-    },
-    loadingLineShort: {
-      height: 14,
-      width: "72%",
-      borderRadius: radius.full,
-      backgroundColor: tokens.bgElev,
-    },
     errorText: {
-      fontSize: 15,
-      lineHeight: 22,
+      fontSize: 14,
+      lineHeight: 20,
       color: tokens.fg2,
     },
     retryText: {
       fontSize: 14,
-      fontWeight: "700",
+      fontWeight: "500",
       color: tokens.primary,
     },
     summary: {
-      fontSize: 15,
-      lineHeight: 29,
+      fontSize: 14,
+      lineHeight: 22,
       color: tokens.fg2,
     },
   });

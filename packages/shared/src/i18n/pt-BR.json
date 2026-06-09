@@ -530,8 +530,9 @@
   },
   "calendar": {
     "legend": {
+      "today": "Hoje",
       "done": "Feito",
-      "upcoming": "Próximo",
+      "partial": "Parcial",
       "missed": "Perdido"
     },
     "thisMonth": "Este mês",
@@ -1094,6 +1095,10 @@
           "title": "Chat IA",
           "desc": "Peça para a IA criar hábitos, obter insights ou analisar seu progresso."
         },
+        "subHabits": {
+          "title": "Sub-hábitos",
+          "desc": "Divida hábitos grandes em passos menores dentro de um hábito principal."
+        },
         "calendar": {
           "title": "Calendário",
           "desc": "Veja seu histórico com um mapa de calor colorido."
@@ -1510,7 +1515,7 @@
       "deadlineOptional": "Opcional",
       "addDeadline": "Adicionar prazo",
       "deadlineInPast": "Este prazo está no passado.",
-      "progressExceedsTarget": "Valor acima da meta — será limitado a 100%.",
+      "progressExceedsTarget": "Valor acima da meta. Será limitado a 100%.",
       "titleRequired": "O título é obrigatório",
       "titleTooLong": "O título deve ter no máximo 200 caracteres",
       "targetValueRequired": "Quantidade deve ser maior que 0",
@@ -2026,7 +2031,7 @@
       },
       "legend": {
         "title": "Legenda de Cores",
-        "description": "Verde significa todos os hábitos feitos, amarelo significa conclusão parcial e vermelho significa hábitos perdidos. Construa uma sequência de dias verdes!"
+        "description": "Sua cor de destaque marca o dia de hoje. Um ponto sólido significa todos os hábitos feitos, um anel vazado significa conclusão parcial e âmbar marca hábitos perdidos. Construa uma sequência de dias sólidos!"
       },
       "monthNav": {
         "title": "Navegação por Mês",
@@ -2123,7 +2128,7 @@
     "title": "Excluir Sua Conta",
     "intro": {
       "title": "Como Excluir Sua Conta do Orbit",
-      "body": "Você pode excluir permanentemente sua conta do Orbit e todos os dados associados a qualquer momento. Não é preciso estar conectado nesta página para saber como — a exclusão está disponível diretamente no aplicativo e por solicitação via e-mail."
+      "body": "Você pode excluir permanentemente sua conta do Orbit e todos os dados associados a qualquer momento. Não é preciso estar conectado nesta página para saber como. A exclusão está disponível diretamente no aplicativo e por solicitação via e-mail."
     },
     "inApp": {
       "title": "Excluir Dentro do Aplicativo",

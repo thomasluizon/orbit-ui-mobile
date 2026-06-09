@@ -169,7 +169,6 @@ function createStyles(tokens: AppTokensV2) {
     trialCard: {
       paddingVertical: 14,
       paddingHorizontal: 14,
-      borderTopWidth: 1,
       borderBottomWidth: 1,
       borderColor: tokens.hairline,
       gap: 4,

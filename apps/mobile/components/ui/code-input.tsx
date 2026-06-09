@@ -72,11 +72,11 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'center',
     gap: 14,
   },
   slot: {
-    flex: 1,
-    minWidth: 0,
+    width: 44,
     backgroundColor: 'transparent',
     borderBottomWidth: 1,
     borderBottomColor: 'transparent',

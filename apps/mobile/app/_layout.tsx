@@ -8,7 +8,6 @@ import {
 } from '@react-navigation/native'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { LinearGradient } from 'expo-linear-gradient'
 import {
   Stack,
   useGlobalSearchParams,
@@ -181,7 +180,7 @@ function RootLayoutNav() {
 
   useEffect(() => {
     if (!isAuthenticated) return
-    syncWidgetTheme(currentScheme, currentTheme).catch(() => {})
+    syncWidgetTheme(createTokensV2(currentScheme, currentTheme)).catch(() => {})
   }, [currentScheme, currentTheme, isAuthenticated])
 
   useEffect(() => {
@@ -395,17 +394,6 @@ function RootLayoutContent() {
           { backgroundColor: surfaces.screen.backgroundColor },
         ]}
       >
-        <LinearGradient
-          colors={[
-            surfaces.screen.ambientStart,
-            surfaces.screen.backgroundColor,
-            surfaces.screen.ambientEnd,
-          ] as const}
-          locations={[0, 0.48, 1] as const}
-          start={{ x: 0, y: 0 }}
-          end={{ x: 1, y: 1 }}
-          style={StyleSheet.absoluteFill}
-        />
         <RootLayoutNav />
       </View>
     </NavigationThemeProvider>

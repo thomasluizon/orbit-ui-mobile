@@ -5,7 +5,8 @@ import { useTranslation } from 'react-i18next'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useGamificationProfile } from '@/hooks/use-gamification'
 import { useUIStore } from '@/stores/ui-store'
-import { createTokensV2, shadowsV2 } from '@/lib/theme'
+import { toAnimatedEasing } from '@/lib/motion'
+import { createTokensV2, easings, shadowsV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window')
@@ -94,22 +95,23 @@ export function AchievementToast() {
     scale.setValue(0.96)
 
     Animated.parallel([
-      Animated.spring(translateY, {
+      Animated.timing(translateY, {
         toValue: 0,
+        duration: 400,
+        easing: toAnimatedEasing(easings.out),
         useNativeDriver: true,
-        tension: 80,
-        friction: 12,
       }),
       Animated.timing(opacity, {
         toValue: 1,
         duration: 300,
+        easing: toAnimatedEasing(easings.out),
         useNativeDriver: true,
       }),
-      Animated.spring(scale, {
+      Animated.timing(scale, {
         toValue: 1,
+        duration: 400,
+        easing: toAnimatedEasing(easings.out),
         useNativeDriver: true,
-        tension: 80,
-        friction: 12,
       }),
     ]).start()
 

@@ -12,7 +12,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useTranslation } from 'react-i18next'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useProfile } from '@/hooks/use-profile'
-import { createTokensV2, shadowsV2 } from '@/lib/theme'
+import { toAnimatedEasing } from '@/lib/motion'
+import { createTokensV2, easings, shadowsV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window')
@@ -75,21 +76,22 @@ export function WelcomeBackToast() {
       setShouldRender(true)
 
       Animated.parallel([
-        Animated.spring(translateY, {
+        Animated.timing(translateY, {
           toValue: 0,
-          tension: 80,
-          friction: 12,
+          duration: 400,
+          easing: toAnimatedEasing(easings.out),
           useNativeDriver: true,
         }),
         Animated.timing(opacity, {
           toValue: 1,
           duration: 300,
+          easing: toAnimatedEasing(easings.out),
           useNativeDriver: true,
         }),
-        Animated.spring(scale, {
+        Animated.timing(scale, {
           toValue: 1,
-          tension: 80,
-          friction: 12,
+          duration: 400,
+          easing: toAnimatedEasing(easings.out),
           useNativeDriver: true,
         }),
       ]).start()

@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { Sparkles } from 'lucide-react'
+import { Orbit } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import DOMPurify from 'dompurify'
 import { RETROSPECTIVE_PERIODS } from '@orbit/shared/utils/retrospective'
@@ -273,7 +273,7 @@ export default function RetrospectivePage() {
                     gap: 6,
                   }}
                 >
-                  <Sparkles size={11} strokeWidth={1.7} color="var(--primary)" />
+                  <Orbit size={11} strokeWidth={1.7} color="var(--primary)" />
                   {t('retrospective.astraEyebrow')}
                 </div>
                 <div
@@ -364,7 +364,7 @@ export default function RetrospectivePage() {
                   italic
                   eyebrow={
                     <>
-                      <Sparkles size={11} strokeWidth={1.7} color="var(--primary)" />
+                      <Orbit size={11} strokeWidth={1.7} color="var(--primary)" />
                       {t('retrospective.astraEyebrow')}
                     </>
                   }
@@ -397,7 +397,7 @@ export default function RetrospectivePage() {
                       opacity: !isOnline ? 0.5 : 1,
                     }}
                   >
-                    <Sparkles size={14} strokeWidth={1.7} />
+                    <Orbit size={14} strokeWidth={1.7} />
                     {t('retrospective.generate')}
                   </button>
                 </div>

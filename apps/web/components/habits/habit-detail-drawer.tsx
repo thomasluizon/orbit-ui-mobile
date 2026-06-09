@@ -2,12 +2,13 @@
 
 import { useState, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import { Sparkles, ChevronRight } from 'lucide-react'
+import { Orbit, ChevronRight } from 'lucide-react'
 import { useTranslations, useLocale } from 'next-intl'
 import { AppOverlay } from '@/components/ui/app-overlay'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { SectionLabel } from '@/components/ui/section-label'
 import { SettingsRow } from '@/components/ui/settings-row'
+import { InfoRow } from '@/components/ui/info-row'
 import { PullQuote } from '@/components/chat/pull-quote'
 import { HabitChecklist } from './habit-checklist'
 import { HabitCalendar } from './habit-calendar'
@@ -19,7 +20,7 @@ import { DescriptionViewer } from './description-viewer'
 import { useTimeFormat } from '@/hooks/use-time-format'
 import { useHabitFullDetail, useUpdateChecklist, useLogHabit } from '@/hooks/use-habits'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
-import { formatLocaleDate } from '@orbit/shared/utils'
+import { formatHabitDetailSummary, formatLocaleDate } from '@orbit/shared/utils'
 
 interface HabitDetailDrawerProps {
   open: boolean
@@ -51,6 +52,18 @@ export function HabitDetailDrawer({
     () => fullDetail?.habit.checklistItems ?? habit?.checklistItems ?? [],
     [fullDetail?.habit.checklistItems, habit?.checklistItems],
   )
+
+  const summaryStrip = useMemo(() => {
+    if (!habit) return ''
+    return formatHabitDetailSummary({
+      currentStreak: habit.currentStreak ?? 0,
+      streakLabel: t('habits.detail.currentStreak'),
+      hasLinkedGoal: (habit.linkedGoals?.length ?? 0) > 0,
+      linkedGoalLabel: t('habits.detail.linkedGoal'),
+      checklistChecked: liveChecklist.filter((i) => i.isChecked).length,
+      checklistTotal: liveChecklist.length,
+    })
+  }, [habit, liveChecklist, t])
 
   const [showChecklistLogPrompt, setShowChecklistLogPrompt] = useState(false)
   const [descriptionViewerOpen, setDescriptionViewerOpen] = useState(false)
@@ -128,7 +141,7 @@ export function HabitDetailDrawer({
             type="button"
             onClick={handleAskAstra}
             aria-label={`${t('habits.detail.askAstraEyebrow')}: ${askPrompt}`}
-            className="block w-full text-left appearance-none border-0 bg-transparent cursor-pointer transition-[background-color,transform] duration-150 ease-out hover:bg-[var(--bg-elev)]/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-primary active:scale-[0.99]"
+            className="block w-full text-left appearance-none border-0 bg-transparent cursor-pointer transition-[background-color,transform] duration-150 ease-out hover:bg-[var(--bg-elev-pressed)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-primary active:scale-[0.99]"
             style={{ borderRadius: 8, padding: '8px 10px', margin: '-8px -10px' }}
           >
             <div className="flex items-center gap-3">
@@ -138,7 +151,7 @@ export function HabitDetailDrawer({
                   paddingY={0}
                   eyebrow={
                     <>
-                      <Sparkles size={12} strokeWidth={1.7} color="var(--primary)" />
+                      <Orbit size={12} strokeWidth={1.7} color="var(--primary)" />
                       <span>{t('habits.detail.askAstraEyebrow')}</span>
                     </>
                   }
@@ -159,6 +172,8 @@ export function HabitDetailDrawer({
       >
         {habit && (
           <div className="-mx-6">
+            {summaryStrip ? <InfoRow label={summaryStrip} /> : null}
+
             {habit.dueTime && (
               <SettingsRow
                 label={t('habits.form.dueTime')}
@@ -176,13 +191,11 @@ export function HabitDetailDrawer({
                     key={`${sr.when}-${sr.time}-${idx}`}
                     label={
                       sr.when === 'day_before'
-                        ? t('habits.form.scheduledReminderDayBeforeAt', {
-                            time: displayTime(sr.time),
-                          })
-                        : t('habits.form.scheduledReminderSameDayAt', {
-                            time: displayTime(sr.time),
-                          })
+                        ? t('habits.form.scheduledReminderDayBefore')
+                        : t('habits.form.scheduledReminderSameDay')
                     }
+                    value={displayTime(sr.time)}
+                    mono
                     accessory="none"
                   />
                 ))}

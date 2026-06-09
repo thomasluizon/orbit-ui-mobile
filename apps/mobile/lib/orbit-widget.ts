@@ -1,5 +1,9 @@
 import { Platform } from 'react-native'
-import type { OrbitWidgetModuleType } from '../modules/orbit-widget/src/OrbitWidget.types'
+import type {
+  OrbitWidgetModuleType,
+  WidgetThemeColors,
+} from '../modules/orbit-widget/src/OrbitWidget.types'
+import type { AppTokensV2 } from './theme'
 
 declare const require: (id: string) => unknown
 
@@ -38,11 +42,24 @@ export async function clearWidgetToken(): Promise<void> {
   await getOrbitWidgetModule()?.clearToken()
 }
 
-export async function syncWidgetTheme(
-  colorScheme: string,
-  themeMode: 'dark' | 'light' = 'dark',
-): Promise<void> {
-  await getOrbitWidgetModule()?.syncTheme(colorScheme, themeMode)
+function toWidgetColors(tokens: AppTokensV2): WidgetThemeColors {
+  return {
+    primary: tokens.primary,
+    primaryScale400: tokens.primaryPressed,
+    background: tokens.bg,
+    surface: tokens.bgElev,
+    surfaceGround: tokens.bgSunk,
+    textPrimary: tokens.fg1,
+    textMuted: tokens.fg3,
+    border: tokens.hairline,
+    borderMuted: tokens.hairlineStrong,
+    overdue: tokens.statusOverdue,
+    streak: tokens.statusBad,
+  }
+}
+
+export async function syncWidgetTheme(tokens: AppTokensV2): Promise<void> {
+  await getOrbitWidgetModule()?.syncTheme(toWidgetColors(tokens))
 }
 
 export async function refreshWidget(): Promise<void> {

@@ -42,6 +42,7 @@ import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { AppBar } from '@/components/ui/app-bar'
 import { SectionLabel } from '@/components/ui/section-label'
 import { SettingsRow } from '@/components/ui/settings-row'
+import { SettingsDescription } from '@/components/ui/settings-description'
 import { SelectCheck } from '@/components/ui/select-check'
 import { MonoToggle } from '@/components/ui/mono-toggle'
 
@@ -402,7 +403,7 @@ export default function CalendarSyncScreen() {
     )
     const dateLabel = event.startDate ?? ''
     const timeLabel = event.startTime
-      ? `${event.startTime}${event.endTime ? `–${event.endTime}` : ''}`
+      ? `${event.startTime}${event.endTime ? `-${event.endTime}` : ''}`
       : ''
     const meta = [dateLabel, timeLabel, event.isRecurring ? recurrenceLabel : null]
       .filter(Boolean)
@@ -468,6 +469,7 @@ export default function CalendarSyncScreen() {
             <SettingsRow
               label={t('calendar.autoSync.title')}
               accessory="none"
+              divider={false}
             >
               <MonoToggle
                 on={autoSyncState?.enabled ?? false}
@@ -483,31 +485,21 @@ export default function CalendarSyncScreen() {
                 accessibilityLabel={t('calendar.autoSync.title')}
               />
             </SettingsRow>
+            <SettingsDescription>{t('calendar.autoSync.description')}</SettingsDescription>
             {!autoSyncState?.hasGoogleConnection ? (
-              <View
-                style={[
-                  styles.italicBlock,
-                  { borderBottomColor: tokens.hairline },
-                ]}
-              >
-                <Text style={[styles.italicText, { color: tokens.fg3 }]}>
-                  {t('calendar.autoSync.connectGoogleFirst')}
-                </Text>
-              </View>
+              <SettingsDescription>
+                {t('calendar.autoSync.connectGoogleFirst')}
+              </SettingsDescription>
             ) : (
               <SettingsRow
                 label={t('calendar.autoSync.syncNow')}
                 onPress={handleSyncNow}
                 accessory="chevron"
+                divider={false}
               />
             )}
             {isCalendarAutoSyncStatusReconnectRequired(autoSyncState?.status) ? (
-              <View
-                style={[
-                  styles.italicBlock,
-                  { borderBottomColor: tokens.hairline },
-                ]}
-              >
+              <View style={styles.italicBlock}>
                 <Text
                   style={[styles.italicText, { color: tokens.statusOverdue }]}
                 >
@@ -760,7 +752,6 @@ function createStyles() {
     italicBlock: {
       paddingHorizontal: 20,
       paddingVertical: 12,
-      borderBottomWidth: StyleSheet.hairlineWidth,
       gap: 8,
     },
     italicText: {

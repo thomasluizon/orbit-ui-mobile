@@ -530,8 +530,9 @@
   },
   "calendar": {
     "legend": {
+      "today": "Today",
       "done": "Done",
-      "upcoming": "Upcoming",
+      "partial": "Partial",
       "missed": "Missed"
     },
     "thisMonth": "This month",
@@ -1094,6 +1095,10 @@
           "title": "AI Chat",
           "desc": "Ask AI to create habits, get insights, or analyze your progress."
         },
+        "subHabits": {
+          "title": "Sub-habits",
+          "desc": "Break big habits into smaller steps nested under a parent."
+        },
         "calendar": {
           "title": "Calendar",
           "desc": "See your completion history with a color-coded heatmap."
@@ -1510,7 +1515,7 @@
       "deadlineOptional": "Optional",
       "addDeadline": "Add deadline",
       "deadlineInPast": "This deadline is in the past.",
-      "progressExceedsTarget": "Value exceeds the target — it will be capped at 100%.",
+      "progressExceedsTarget": "Value exceeds the target. It will be capped at 100%.",
       "titleRequired": "Title is required",
       "titleTooLong": "Title must be 200 characters or fewer",
       "targetValueRequired": "Quantity must be greater than 0",
@@ -2026,7 +2031,7 @@
       },
       "legend": {
         "title": "Color Legend",
-        "description": "Green means all habits done, yellow means partial completion, and red means habits were missed. Build a streak of green days!"
+        "description": "Your accent color marks today. A solid dot means every habit was done, a hollow ring means partial completion, and amber marks missed habits. Build a streak of solid days!"
       },
       "monthNav": {
         "title": "Month Navigation",
@@ -2123,7 +2128,7 @@
     "title": "Delete Your Account",
     "intro": {
       "title": "How to Delete Your Orbit Account",
-      "body": "You can permanently delete your Orbit account and all associated data at any time. You do not need to be signed in on this page to learn how — deletion is available directly inside the app and by email request."
+      "body": "You can permanently delete your Orbit account and all associated data at any time. You do not need to be signed in on this page to learn how. Deletion is available directly inside the app and by email request."
     },
     "inApp": {
       "title": "Delete From Inside the App",

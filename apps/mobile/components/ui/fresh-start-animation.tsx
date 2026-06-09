@@ -1,5 +1,6 @@
 import { useMemo, useState, useEffect } from 'react'
 import {
+  AccessibilityInfo,
   View,
   Text,
   Modal,
@@ -8,7 +9,8 @@ import {
 } from 'react-native'
 import { RefreshCw } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
-import { createTokensV2 } from '@/lib/theme'
+import { toAnimatedEasing } from '@/lib/motion'
+import { createTokensV2, easings } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 type AppTokens = ReturnType<typeof createTokensV2>
@@ -31,105 +33,102 @@ export function FreshStartAnimation({ onComplete }: Readonly<FreshStartAnimation
   const ringScale1 = useMemo(() => new Animated.Value(0.5), [])
   const ringOpacity1 = useMemo(() => new Animated.Value(0.6), [])
   const ringScale2 = useMemo(() => new Animated.Value(0.5), [])
-  const ringOpacity2 = useMemo(() => new Animated.Value(0.4), [])
+  const ringOpacity2 = useMemo(() => new Animated.Value(0.6), [])
   const textOpacity = useMemo(() => new Animated.Value(0), [])
   const textSlide = useMemo(() => new Animated.Value(20), [])
   const styles = useMemo(() => createStyles(tokens), [tokens])
 
   useEffect(() => {
-    Animated.parallel([
-      Animated.timing(fadeAnim, {
-        toValue: 1,
-        duration: 400,
-        useNativeDriver: true,
-      }),
-      Animated.spring(scaleAnim, {
-        toValue: 1,
-        friction: 6,
-        tension: 80,
-        useNativeDriver: true,
-      }),
-    ]).start()
+    const easeOut = toAnimatedEasing(easings.out)
+    let cancelled = false
 
-    Animated.loop(
+    AccessibilityInfo.isReduceMotionEnabled().then((reduceMotion) => {
+      if (cancelled) return
+
+      if (reduceMotion) {
+        scaleAnim.setValue(1)
+        ringOpacity1.setValue(0)
+        ringOpacity2.setValue(0)
+        textOpacity.setValue(1)
+        textSlide.setValue(0)
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 400,
+          easing: easeOut,
+          useNativeDriver: true,
+        }).start()
+        return
+      }
+
       Animated.parallel([
-        Animated.sequence([
-          Animated.timing(ringScale1, {
-            toValue: 2,
-            duration: 1500,
-            useNativeDriver: true,
-          }),
-          Animated.timing(ringScale1, {
-            toValue: 0.5,
-            duration: 0,
-            useNativeDriver: true,
-          }),
-        ]),
-        Animated.sequence([
-          Animated.timing(ringOpacity1, {
-            toValue: 0,
-            duration: 1500,
-            useNativeDriver: true,
-          }),
-          Animated.timing(ringOpacity1, {
-            toValue: 0.6,
-            duration: 0,
-            useNativeDriver: true,
-          }),
-        ]),
-      ]),
-    ).start()
+        Animated.timing(fadeAnim, {
+          toValue: 1,
+          duration: 400,
+          easing: easeOut,
+          useNativeDriver: true,
+        }),
+        Animated.timing(scaleAnim, {
+          toValue: 1,
+          duration: 280,
+          easing: easeOut,
+          useNativeDriver: true,
+        }),
+      ]).start()
 
-    Animated.loop(
       Animated.parallel([
-        Animated.sequence([
-          Animated.delay(200),
-          Animated.timing(ringScale2, {
-            toValue: 2.5,
-            duration: 1500,
-            useNativeDriver: true,
-          }),
-          Animated.timing(ringScale2, {
-            toValue: 0.5,
-            duration: 0,
-            useNativeDriver: true,
-          }),
-        ]),
-        Animated.sequence([
-          Animated.delay(200),
-          Animated.timing(ringOpacity2, {
-            toValue: 0,
-            duration: 1500,
-            useNativeDriver: true,
-          }),
-          Animated.timing(ringOpacity2, {
-            toValue: 0.4,
-            duration: 0,
-            useNativeDriver: true,
-          }),
-        ]),
-      ]),
-    ).start()
+        Animated.timing(ringScale1, {
+          toValue: 3,
+          duration: 1200,
+          delay: 200,
+          easing: easeOut,
+          useNativeDriver: true,
+        }),
+        Animated.timing(ringOpacity1, {
+          toValue: 0,
+          duration: 1200,
+          delay: 200,
+          easing: easeOut,
+          useNativeDriver: true,
+        }),
+        Animated.timing(ringScale2, {
+          toValue: 3,
+          duration: 1200,
+          delay: 400,
+          easing: easeOut,
+          useNativeDriver: true,
+        }),
+        Animated.timing(ringOpacity2, {
+          toValue: 0,
+          duration: 1200,
+          delay: 400,
+          easing: easeOut,
+          useNativeDriver: true,
+        }),
+      ]).start()
 
-    Animated.parallel([
-      Animated.timing(textOpacity, {
-        toValue: 1,
-        duration: 400,
-        delay: 300,
-        useNativeDriver: true,
-      }),
-      Animated.timing(textSlide, {
-        toValue: 0,
-        duration: 400,
-        delay: 300,
-        useNativeDriver: true,
-      }),
-    ]).start()
+      Animated.parallel([
+        Animated.timing(textOpacity, {
+          toValue: 1,
+          duration: 400,
+          delay: 300,
+          easing: easeOut,
+          useNativeDriver: true,
+        }),
+        Animated.timing(textSlide, {
+          toValue: 0,
+          duration: 400,
+          delay: 300,
+          easing: easeOut,
+          useNativeDriver: true,
+        }),
+      ]).start()
+    })
 
     const fadeTimer = setTimeout(() => {
       Animated.timing(fadeAnim, {
         toValue: 0,
         duration: 400,
+        easing: toAnimatedEasing(easings.out),
         useNativeDriver: true,
       }).start()
     }, 2000)
@@ -140,6 +139,7 @@ export function FreshStartAnimation({ onComplete }: Readonly<FreshStartAnimation
     }, 2500)
 
     return () => {
+      cancelled = true
       clearTimeout(fadeTimer)
       clearTimeout(completeTimer)
     }
@@ -223,7 +223,7 @@ function createStyles(tokens: AppTokens) {
       width: 80,
       height: 80,
       borderRadius: 40,
-      borderWidth: 2,
+      borderWidth: 1,
       borderColor: tokens.hairlineStrong,
     },
     orb: {
@@ -241,13 +241,15 @@ function createStyles(tokens: AppTokens) {
       alignItems: 'center',
     },
     titleText: {
-      fontSize: 24,
+      fontFamily: 'Geist',
+      fontSize: 22,
       fontWeight: '700',
       color: tokens.fg1,
       textAlign: 'center',
       letterSpacing: -0.5,
     },
     subtitleText: {
+      fontFamily: 'Geist',
       fontSize: 14,
       color: tokens.fg2,
       textAlign: 'center',

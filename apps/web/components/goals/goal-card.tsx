@@ -3,8 +3,11 @@
 import { useState, useMemo } from 'react'
 import { differenceInDays, parseISO } from 'date-fns'
 import { motion, useReducedMotion } from 'motion/react'
+import { Flame } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { plural } from '@/lib/plural'
+import { StatusDot, type StatusDotState } from '@/components/ui/status-dot'
+import { ParentRing } from '@/components/ui/parent-ring'
 import { GoalDetailDrawer } from './goal-detail-drawer'
 import { resolveMotionPreset } from '@orbit/shared/theme'
 import { isStreakGoal } from '@orbit/shared/utils/goal-form'
@@ -23,12 +26,12 @@ export function GoalCard({ goal }: Readonly<GoalCardProps>) {
 
   const isStreak = isStreakGoal(goal.type)
 
-  const progress = useMemo<{ state: string; className: string }>(() => {
-    if (goal.status === 'Completed') return { state: 'completed', className: 'bg-[var(--status-done)]' }
-    if (goal.status === 'Abandoned') return { state: 'abandoned', className: 'bg-[var(--fg-3)]' }
-    if (isStreak) return { state: 'streak', className: 'bg-[var(--status-overdue)]' }
-    if (goal.progressPercentage >= 75) return { state: 'high', className: 'bg-[var(--status-done)]' }
-    return { state: 'mid', className: 'bg-[var(--primary)]' }
+  const progress = useMemo<{ state: string; color: string }>(() => {
+    if (goal.status === 'Completed') return { state: 'completed', color: 'var(--status-done)' }
+    if (goal.status === 'Abandoned') return { state: 'abandoned', color: 'var(--fg-3)' }
+    if (isStreak) return { state: 'streak', color: 'var(--status-overdue)' }
+    if (goal.progressPercentage >= 75) return { state: 'high', color: 'var(--status-done)' }
+    return { state: 'mid', color: 'var(--primary)' }
   }, [goal.status, goal.progressPercentage, isStreak])
 
   const deadlineInfo = useMemo(() => {
@@ -53,7 +56,7 @@ export function GoalCard({ goal }: Readonly<GoalCardProps>) {
     }
     return {
       text: plural(t('goals.deadline.daysLeft', { n: daysLeft }), daysLeft),
-      className: 'text-[var(--fg-3)] bg-[var(--bg-elev)]',
+      className: 'text-[var(--fg-3)] bg-[var(--bg-elev)] border border-[var(--hairline)]',
     }
   }, [goal.deadline, goal.status, t])
 
@@ -67,31 +70,32 @@ export function GoalCard({ goal }: Readonly<GoalCardProps>) {
     if (goal.status === 'Abandoned') {
       return {
         text: t('goals.status.abandoned'),
-        className: 'text-[var(--fg-3)] bg-[var(--bg-elev)]',
+        className: 'text-[var(--fg-3)] bg-[var(--bg-elev)] border border-[var(--hairline)]',
       }
     }
     return null
   }, [goal.status, t])
 
-  const trackingBorderClass = useMemo(() => {
+  const trackingDot = useMemo<{ state: StatusDotState; label: string } | null>(() => {
+    if (goal.status !== 'Active') return null
     switch (goal.trackingStatus) {
       case 'on_track':
-        return 'border-l-[3px] border-l-success'
+        return { state: 'done', label: t('goals.metrics.onTrack') }
       case 'at_risk':
-        return 'border-l-[3px] border-l-warning'
+        return { state: 'overdue', label: t('goals.metrics.atRisk') }
       case 'behind':
-        return 'border-l-[3px] border-l-danger'
+        return { state: 'bad', label: t('goals.metrics.behind') }
       default:
-        return ''
+        return null
     }
-  }, [goal.trackingStatus])
+  }, [goal.status, goal.trackingStatus, t])
 
   return (
     <>
       <motion.button
         type="button"
         data-tour="tour-goal-card"
-        className={`group relative w-full overflow-hidden rounded-[12px] border border-[var(--hairline)] bg-[var(--bg-elev)] p-5 text-left shadow-[var(--shadow-sm)] surface-interactive transition-[background-color,border-color,box-shadow,transform] cursor-pointer hover:bg-[var(--bg-elev)]/80 ${trackingBorderClass}`}
+        className={`group relative w-full overflow-hidden rounded-[12px] border border-[var(--hairline)] bg-[var(--bg-elev)] p-5 text-left shadow-[var(--shadow-sm)] surface-interactive transition-[background-color,border-color,box-shadow,transform] cursor-pointer hover:bg-[var(--bg-elev-pressed)]`}
         whileTap={tapTarget}
         transition={{
           duration: selectionMotion.enterDuration / 1000,
@@ -99,22 +103,30 @@ export function GoalCard({ goal }: Readonly<GoalCardProps>) {
         }}
         onClick={() => setShowDetail(true)}
       >
-        <span
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-0 opacity-80"
-          style={{ background: 'linear-gradient(165deg, var(--surface-sheen-start) 0%, transparent 44%)' }}
-        />
-        <span
-          aria-hidden="true"
-          className="pointer-events-none absolute inset-x-0 top-0 h-px bg-[var(--surface-top-highlight)]"
-        />
         <div className="relative z-10 flex items-start gap-3">
+          <div
+            className="shrink-0"
+            data-tour="tour-goal-progress"
+            data-progress-state={progress.state}
+            style={{ paddingTop: 2 }}
+          >
+            <progress
+              className="sr-only"
+              value={Math.min(goal.progressPercentage, 100)}
+              max={100}
+              aria-label={t('goals.progressPercentage', { pct: goal.progressPercentage })}
+            />
+            <ParentRing
+              done={Math.min(goal.progressPercentage, 100)}
+              total={100}
+              size={36}
+              color={progress.color}
+            />
+          </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1">
               {isStreak && (
-                <span className="text-base leading-none" aria-hidden="true">
-                  🔥
-                </span>
+                <Flame className="size-3.5 text-[var(--status-overdue)] shrink-0" aria-hidden="true" />
               )}
               <h3
                 className={`text-sm font-semibold text-[var(--fg-1)] truncate ${
@@ -125,13 +137,15 @@ export function GoalCard({ goal }: Readonly<GoalCardProps>) {
               >
                 {goal.title}
               </h3>
-              {statusBadge && (
+              {statusBadge ? (
                 <span
                   className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${statusBadge.className}`}
                 >
                   {statusBadge.text}
                 </span>
-              )}
+              ) : trackingDot ? (
+                <StatusDot state={trackingDot.state} ariaLabel={trackingDot.label} />
+              ) : null}
             </div>
 
             <p className="text-xs text-[var(--fg-2)] mb-2">
@@ -147,29 +161,8 @@ export function GoalCard({ goal }: Readonly<GoalCardProps>) {
                   })}
             </p>
 
-            <div className="relative mb-2" data-tour="tour-goal-progress">
-              <progress
-                className="sr-only"
-                value={Math.min(goal.progressPercentage, 100)}
-                max={100}
-                aria-label={t('goals.progressPercentage', { pct: goal.progressPercentage })}
-              />
-              <div
-                className="h-2 bg-[var(--bg-elev)] rounded-full overflow-hidden"
-                aria-hidden="true"
-              >
-                <div
-                  data-progress-state={progress.state}
-                  className={`h-full rounded-full transition-[width,background-color,transform] duration-500 animate-[progress-fill_0.6s_ease-out] ${progress.className}`}
-                  style={{
-                    width: `${Math.min(goal.progressPercentage, 100)}%`,
-                  }}
-                />
-              </div>
-            </div>
-
             <div className="flex items-center justify-between">
-              <span className="text-[11px] text-[var(--fg-3)] font-medium">
+              <span className="text-[12px] text-[var(--fg-2)] font-[family-name:var(--font-family-mono)] tabular-nums">
                 {t('goals.progressPercentage', {
                   pct: goal.progressPercentage,
                 })}

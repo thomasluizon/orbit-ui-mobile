@@ -125,7 +125,6 @@ function AutoSyncSettingsCard() {
             fontFamily: 'var(--font-family-sans)',
             fontSize: 13,
             color: 'var(--fg-3)',
-            borderBottom: '1px solid var(--hairline)',
           }}
         >
           <Loader2 className="size-3 animate-spin" aria-hidden />
@@ -140,7 +139,6 @@ function AutoSyncSettingsCard() {
             fontFamily: 'var(--font-family-sans)',
             fontSize: 13,
             color: 'var(--fg-3)',
-            borderBottom: '1px solid var(--hairline)',
           }}
         >
           {t('calendar.autoSync.connectGoogleFirst')}
@@ -153,7 +151,6 @@ function AutoSyncSettingsCard() {
           style={{
             padding: '8px 20px 14px',
             gap: 12,
-            borderBottom: '1px solid var(--hairline)',
           }}
         >
           <p
@@ -190,7 +187,6 @@ function AutoSyncSettingsCard() {
         <div
           style={{
             padding: '14px 20px',
-            borderBottom: '1px solid var(--hairline)',
             display: 'flex',
             flexDirection: 'column',
             gap: 10,

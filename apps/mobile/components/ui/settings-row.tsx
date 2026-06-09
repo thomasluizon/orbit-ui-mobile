@@ -19,6 +19,8 @@ interface SettingsRowProps {
   leadingDot?: string
   /** Slot rendered between the value and the chevron (e.g. ProTag, QuietLink). */
   children?: ReactNode
+  /** Hairline rule below the row; disable when helper text follows. */
+  divider?: boolean
 }
 
 /**
@@ -34,6 +36,7 @@ export function SettingsRow({
   mono = false,
   leadingDot,
   children,
+  divider = true,
 }: Readonly<SettingsRowProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
@@ -49,6 +52,7 @@ export function SettingsRow({
         {
           backgroundColor: pressed && onPress ? tokens.bgElev : 'transparent',
           borderBottomColor: tokens.hairline,
+          borderBottomWidth: divider ? StyleSheet.hairlineWidth : 0,
         },
       ]}
     >

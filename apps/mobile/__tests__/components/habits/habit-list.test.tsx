@@ -1262,7 +1262,7 @@ describe('HabitList', () => {
     expect(futureNodes.length).toBeGreaterThan(0)
   })
 
-  it('renders the status dot read-only for a non-loggable row and interactive for a loggable one', () => {
+  it('renders the status dot disabled for a non-loggable row and interactive for a loggable one', () => {
     const nonLoggable = createMockHabit({
       id: 'non-loggable',
       title: 'Daily yoga',
@@ -1300,10 +1300,11 @@ describe('HabitList', () => {
     expect(nonLoggableDot.props.disabled).toBe(true)
     expect(loggableDot.props.disabled).toBe(false)
 
-    const nonLoggablePressables = nonLoggableDot.findAll(
-      (node: any) => typeof node.props?.onPress === 'function',
+    const nonLoggableButton = nonLoggableDot.find(
+      (node: any) => node.props?.accessibilityRole === 'button',
     )
-    expect(nonLoggablePressables).toHaveLength(0)
+    expect(nonLoggableButton.props.disabled).toBe(true)
+    expect(nonLoggableButton.props.accessibilityState).toEqual({ disabled: true })
     expect(onLog).not.toHaveBeenCalled()
 
     const loggablePressables = loggableDot.findAll(

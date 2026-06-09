@@ -40,7 +40,7 @@ import { AppBar } from '@/components/ui/app-bar'
 import { SectionLabel } from '@/components/ui/section-label'
 import { SettingsRow } from '@/components/ui/settings-row'
 import { Chip } from '@/components/ui/chip'
-import { ConfirmDialogV2 } from '@/components/ui/confirm-dialog-v2'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 
 export default function AdvancedScreen() {
   const { t, i18n } = useTranslation()
@@ -205,6 +205,7 @@ export default function AdvancedScreen() {
           label={t('profile.widgetTitle')}
           onPress={() => setShowWidgetInfo(true)}
           accessory="chevron"
+          divider={false}
         />
 
         <SectionLabel>{t('advancedSettings.developersSection')}</SectionLabel>
@@ -233,12 +234,7 @@ export default function AdvancedScreen() {
             {!apiKeysQuery.isLoading &&
             !apiKeysQuery.error &&
             apiKeys.length === 0 ? (
-              <View
-                style={[
-                  styles.italicBlock,
-                  { borderBottomColor: tokens.hairline },
-                ]}
-              >
+              <View style={styles.italicBlock}>
                 <Text style={[styles.italicText, { color: tokens.fg3 }]}>
                   {t('orbitMcp.noKeys')}
                 </Text>
@@ -310,12 +306,7 @@ export default function AdvancedScreen() {
                 </Pressable>
               </View>
             ) : (
-              <View
-                style={[
-                  styles.italicBlock,
-                  { borderBottomColor: tokens.hairline },
-                ]}
-              >
+              <View style={styles.italicBlock}>
                 <Text style={[styles.italicText, { color: tokens.statusOverdue }]}>
                   {t('orbitMcp.maxKeysReached')}
                 </Text>
@@ -387,12 +378,7 @@ export default function AdvancedScreen() {
             )}
           </>
         ) : (
-          <View
-            style={[
-              styles.lockedRow,
-              { borderBottomColor: tokens.hairline },
-            ]}
-          >
+          <View style={styles.lockedRow}>
             <Lock size={16} color={tokens.fg3} strokeWidth={1.4} />
             <View style={{ flex: 1 }}>
               <Text style={[styles.lockedTitle, { color: tokens.fg1 }]}>
@@ -420,23 +406,24 @@ export default function AdvancedScreen() {
         <View style={{ height: 24 }} />
       </ScrollView>
 
-      <ConfirmDialogV2
+      <ConfirmDialog
         open={showWidgetInfo}
-        onClose={() => setShowWidgetInfo(false)}
+        onOpenChange={setShowWidgetInfo}
         title={t('profile.widgetTitle')}
-        body={t('profile.widgetHint')}
-        cancelLabel={t('common.close')}
+        description={t('profile.widgetHint')}
+        variant="info"
       />
 
-      <ConfirmDialogV2
+      <ConfirmDialog
         open={revokingKeyId !== null}
-        onClose={() => setRevokingKeyId(null)}
+        onOpenChange={(open) => {
+          if (!open) setRevokingKeyId(null)
+        }}
         title={t('orbitMcp.revoke')}
-        body={t('orbitMcp.revokeConfirm')}
+        description={t('orbitMcp.revokeConfirm')}
         cancelLabel={t('orbitMcp.cancel')}
-        actionLabel={t('orbitMcp.confirm')}
-        destructive
-        onAction={() => {
+        confirmLabel={t('orbitMcp.confirm')}
+        onConfirm={() => {
           if (revokingKeyId) revokeKeyMutation.mutate(revokingKeyId)
         }}
       />
@@ -468,7 +455,6 @@ const styles = StyleSheet.create({
   italicBlock: {
     paddingHorizontal: 20,
     paddingVertical: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
   },
   italicText: {
     fontFamily: 'Geist',
@@ -528,7 +514,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 14,
     gap: 10,
-    borderBottomWidth: StyleSheet.hairlineWidth,
   },
   lockedTitle: {
     fontFamily: 'Geist',

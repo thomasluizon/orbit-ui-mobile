@@ -39,14 +39,16 @@ describe('Calendar shell helpers', () => {
   it('renders the calendar legend labels inline', () => {
     render(
       <CalendarLegend
+        todayLabel="Today"
         doneLabel="Done"
-        upcomingLabel="Upcoming"
+        partialLabel="Partial"
         missedLabel="Missed"
       />,
     )
 
+    expect(screen.getByText('Today')).toBeInTheDocument()
     expect(screen.getByText('Done')).toBeInTheDocument()
-    expect(screen.getByText('Upcoming')).toBeInTheDocument()
+    expect(screen.getByText('Partial')).toBeInTheDocument()
     expect(screen.getByText('Missed')).toBeInTheDocument()
   })
 })

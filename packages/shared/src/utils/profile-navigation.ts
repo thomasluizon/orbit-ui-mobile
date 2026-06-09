@@ -11,7 +11,7 @@ export type ProfileNavVariant = 'default' | 'primary'
 
 export type ProfileNavIconKey =
   | 'settings'
-  | 'sparkles'
+  | 'orbit'
   | 'retrospective'
   | 'achievements'
   | 'calendar'
@@ -52,7 +52,7 @@ export const PROFILE_NAV_ITEMS: ProfileNavItem[] = [
     id: 'ai-settings',
     section: 'account',
     route: '/ai-settings',
-    iconKey: 'sparkles',
+    iconKey: 'orbit',
     titleKey: 'profile.sections.aiFeatures',
     hintKey: 'profile.sections.aiFeaturesHint',
     variant: 'default',
