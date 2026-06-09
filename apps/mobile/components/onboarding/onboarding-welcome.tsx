@@ -127,7 +127,6 @@ export function OnboardingWelcome() {
                         ? tokens.fg1
                         : tokens.hairlineStrong,
                     },
-                    isActive && styles.schemeBtnActive,
                   ]}
                 />
               )
@@ -195,9 +194,6 @@ function createStyles(tokens: AppTokensV2) {
       height: 28,
       borderRadius: 14,
       borderWidth: 1.5,
-    },
-    schemeBtnActive: {
-      transform: [{ scale: 1.08 }],
     },
   })
 }
