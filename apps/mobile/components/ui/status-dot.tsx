@@ -1,6 +1,13 @@
-import { Pressable, View } from 'react-native'
+import { useEffect, useMemo, useState } from 'react'
+import { Animated, Easing, Pressable, View } from 'react-native'
+import Svg, { Circle } from 'react-native-svg'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
+
+const AnimatedCircle = Animated.createAnimatedComponent(Circle)
+
+const SWEEP_MS = 360
+const FILL_MS = 140
 
 export type StatusDotState =
   | 'done'
@@ -22,7 +29,9 @@ interface StatusDotProps {
   disabled?: boolean
 }
 
-/** v8 8px desaturated status dot. Hollow ring for `empty`, filled for everything else. */
+/** v8 8px desaturated status dot. Hollow ring for `empty`, filled otherwise.
+ *  On an interactive transition into `done`, a `primary` arc sweeps once around
+ *  the dot and the fill settles in (the Today completion signature). */
 export function StatusDot({
   state,
   size = 8,
@@ -33,6 +42,7 @@ export function StatusDot({
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const isFilled = state === 'done' || state === 'skip' || state === 'frozen'
+  const interactive = !!onToggle && !disabled
 
   const colorMap: Record<StatusDotState, string> = {
     done: tokens.statusDone,
@@ -44,7 +54,85 @@ export function StatusDot({
   }
   const color = colorMap[state]
 
-  const dot = (
+  const sweep = useMemo(() => new Animated.Value(0), [])
+  const fillScale = useMemo(() => new Animated.Value(0), [])
+
+  const [prevState, setPrevState] = useState(state)
+  const [playing, setPlaying] = useState(false)
+  if (state !== prevState) {
+    setPrevState(state)
+    setPlaying(prevState !== 'done' && state === 'done' && interactive)
+  }
+
+  useEffect(() => {
+    if (!playing) return
+    sweep.setValue(0)
+    fillScale.setValue(0)
+    Animated.sequence([
+      Animated.timing(sweep, {
+        toValue: 1,
+        duration: SWEEP_MS,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: false,
+      }),
+      Animated.timing(fillScale, {
+        toValue: 1,
+        duration: FILL_MS,
+        easing: Easing.out(Easing.cubic),
+        useNativeDriver: true,
+      }),
+    ]).start()
+    const id = setTimeout(() => setPlaying(false), SWEEP_MS + FILL_MS + 60)
+    return () => clearTimeout(id)
+  }, [playing, sweep, fillScale])
+
+  const stroke = 1.5
+  const r = (size - stroke) / 2
+  const c = 2 * Math.PI * r
+  const dashOffset = sweep.interpolate({
+    inputRange: [0, 1],
+    outputRange: [c, 0],
+  })
+
+  const dot = playing ? (
+    <View style={{ width: size, height: size }}>
+      <Svg
+        width={size}
+        height={size}
+        style={{ transform: [{ rotate: '-90deg' }] }}
+      >
+        <Circle
+          cx={size / 2}
+          cy={size / 2}
+          r={r}
+          fill="none"
+          stroke={tokens.statusEmpty}
+          strokeWidth={stroke}
+        />
+        <AnimatedCircle
+          cx={size / 2}
+          cy={size / 2}
+          r={r}
+          fill="none"
+          stroke={tokens.primary}
+          strokeWidth={stroke}
+          strokeLinecap="round"
+          strokeDasharray={c}
+          strokeDashoffset={dashOffset}
+        />
+      </Svg>
+      <Animated.View
+        style={{
+          position: 'absolute',
+          width: size,
+          height: size,
+          borderRadius: 999,
+          backgroundColor: tokens.primary,
+          transform: [{ scale: fillScale }],
+        }}
+      />
+    </View>
+  ) : (
     <View
       style={{
         width: size,

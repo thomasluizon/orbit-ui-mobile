@@ -73,6 +73,7 @@ export const Animated = {
   }),
   loop: (animation: { start?: () => void; stop?: () => void }) => animation,
   event: () => () => {},
+  createAnimatedComponent: <C>(component: C): C => component,
 }
 
 export const PanResponder = {
