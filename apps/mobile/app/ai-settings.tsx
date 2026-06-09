@@ -35,6 +35,7 @@ import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { AppBar } from '@/components/ui/app-bar'
 import { SectionLabel } from '@/components/ui/section-label'
 import { SettingsRow } from '@/components/ui/settings-row'
+import { SettingsDescription } from '@/components/ui/settings-description'
 import { MonoToggle } from '@/components/ui/mono-toggle'
 import { SelectCheck } from '@/components/ui/select-check'
 
@@ -317,13 +318,7 @@ export default function AiSettingsScreen() {
             <Lock size={14} color={tokens.fg3} strokeWidth={1.4} />
           </SettingsRow>
         )}
-        <View
-          style={[styles.italicBlock, { borderBottomColor: tokens.hairline }]}
-        >
-          <Text style={[styles.italicText, { color: tokens.fg3 }]}>
-            {t('profile.aiMemory.description')}
-          </Text>
-        </View>
+        <SettingsDescription>{t('profile.aiMemory.description')}</SettingsDescription>
 
         <SectionLabel>{t('profile.aiSummary.title')}</SectionLabel>
         {hasProAccess ? (
@@ -347,13 +342,7 @@ export default function AiSettingsScreen() {
             <Lock size={14} color={tokens.fg3} strokeWidth={1.4} />
           </SettingsRow>
         )}
-        <View
-          style={[styles.italicBlock, { borderBottomColor: tokens.hairline }]}
-        >
-          <Text style={[styles.italicText, { color: tokens.fg3 }]}>
-            {t('profile.aiSummary.description')}
-          </Text>
-        </View>
+        <SettingsDescription>{t('profile.aiSummary.description')}</SettingsDescription>
 
         <SectionLabel
           trailing={

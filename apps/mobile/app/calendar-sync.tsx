@@ -42,6 +42,7 @@ import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { AppBar } from '@/components/ui/app-bar'
 import { SectionLabel } from '@/components/ui/section-label'
 import { SettingsRow } from '@/components/ui/settings-row'
+import { SettingsDescription } from '@/components/ui/settings-description'
 import { SelectCheck } from '@/components/ui/select-check'
 import { MonoToggle } from '@/components/ui/mono-toggle'
 
@@ -483,17 +484,11 @@ export default function CalendarSyncScreen() {
                 accessibilityLabel={t('calendar.autoSync.title')}
               />
             </SettingsRow>
+            <SettingsDescription>{t('calendar.autoSync.description')}</SettingsDescription>
             {!autoSyncState?.hasGoogleConnection ? (
-              <View
-                style={[
-                  styles.italicBlock,
-                  { borderBottomColor: tokens.hairline },
-                ]}
-              >
-                <Text style={[styles.italicText, { color: tokens.fg3 }]}>
-                  {t('calendar.autoSync.connectGoogleFirst')}
-                </Text>
-              </View>
+              <SettingsDescription>
+                {t('calendar.autoSync.connectGoogleFirst')}
+              </SettingsDescription>
             ) : (
               <SettingsRow
                 label={t('calendar.autoSync.syncNow')}
