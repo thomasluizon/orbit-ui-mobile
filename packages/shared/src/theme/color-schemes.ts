@@ -18,9 +18,6 @@ export const schemes: Record<ColorScheme, ColorSchemeDefinition> = {
       shadowSm: '0 1px 3px rgba(0, 0, 0, 0.4), 0 1px 2px rgba(0, 0, 0, 0.3)',
       shadowMd: '0 4px 12px rgba(0, 0, 0, 0.5), 0 2px 4px rgba(0, 0, 0, 0.4)',
       shadowLg: '0 12px 40px rgba(0, 0, 0, 0.6), 0 4px 12px rgba(0, 0, 0, 0.4)',
-      shadowGlow: '0 0 20px rgba(139, 92, 246, 0.2), 0 0 40px rgba(139, 92, 246, 0.1)',
-      shadowGlowSm: '0 0 10px rgba(139, 92, 246, 0.15)',
-      shadowGlowLg: '0 0 30px rgba(139, 92, 246, 0.3), 0 0 60px rgba(139, 92, 246, 0.15)',
       navGlassBg: 'rgba(7, 6, 14, 0.45)', navGlassBorder: 'rgba(255, 255, 255, 0.06)'
     },
     light: {
@@ -33,9 +30,6 @@ export const schemes: Record<ColorScheme, ColorSchemeDefinition> = {
       shadowSm: '0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04)',
       shadowMd: '0 4px 12px rgba(0, 0, 0, 0.1), 0 2px 4px rgba(0, 0, 0, 0.06)',
       shadowLg: '0 12px 40px rgba(0, 0, 0, 0.12), 0 4px 12px rgba(0, 0, 0, 0.06)',
-      shadowGlow: '0 0 20px rgba(139, 92, 246, 0.1), 0 0 40px rgba(139, 92, 246, 0.05)',
-      shadowGlowSm: '0 0 10px rgba(139, 92, 246, 0.08)',
-      shadowGlowLg: '0 0 30px rgba(139, 92, 246, 0.15), 0 0 60px rgba(139, 92, 246, 0.08)',
       navGlassBg: 'rgba(248, 246, 255, 0.65)', navGlassBorder: 'rgba(0, 0, 0, 0.06)'
     },
     scale: {
@@ -61,9 +55,6 @@ export const schemes: Record<ColorScheme, ColorSchemeDefinition> = {
       shadowSm: '0 1px 3px rgba(0, 0, 0, 0.4), 0 1px 2px rgba(0, 0, 0, 0.3)',
       shadowMd: '0 4px 12px rgba(0, 0, 0, 0.5), 0 2px 4px rgba(0, 0, 0, 0.4)',
       shadowLg: '0 12px 40px rgba(0, 0, 0, 0.6), 0 4px 12px rgba(0, 0, 0, 0.4)',
-      shadowGlow: '0 0 20px rgba(59, 130, 246, 0.2), 0 0 40px rgba(59, 130, 246, 0.1)',
-      shadowGlowSm: '0 0 10px rgba(59, 130, 246, 0.15)',
-      shadowGlowLg: '0 0 30px rgba(59, 130, 246, 0.3), 0 0 60px rgba(59, 130, 246, 0.15)',
       navGlassBg: 'rgba(6, 10, 16, 0.45)', navGlassBorder: 'rgba(255, 255, 255, 0.06)'
     },
     light: {
@@ -76,9 +67,6 @@ export const schemes: Record<ColorScheme, ColorSchemeDefinition> = {
       shadowSm: '0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04)',
       shadowMd: '0 4px 12px rgba(0, 0, 0, 0.1), 0 2px 4px rgba(0, 0, 0, 0.06)',
       shadowLg: '0 12px 40px rgba(0, 0, 0, 0.12), 0 4px 12px rgba(0, 0, 0, 0.06)',
-      shadowGlow: '0 0 20px rgba(59, 130, 246, 0.1), 0 0 40px rgba(59, 130, 246, 0.05)',
-      shadowGlowSm: '0 0 10px rgba(59, 130, 246, 0.08)',
-      shadowGlowLg: '0 0 30px rgba(59, 130, 246, 0.15), 0 0 60px rgba(59, 130, 246, 0.08)',
       navGlassBg: 'rgba(246, 248, 255, 0.65)', navGlassBorder: 'rgba(0, 0, 0, 0.06)'
     },
     scale: {
@@ -104,9 +92,6 @@ export const schemes: Record<ColorScheme, ColorSchemeDefinition> = {
       shadowSm: '0 1px 3px rgba(0, 0, 0, 0.4), 0 1px 2px rgba(0, 0, 0, 0.3)',
       shadowMd: '0 4px 12px rgba(0, 0, 0, 0.5), 0 2px 4px rgba(0, 0, 0, 0.4)',
       shadowLg: '0 12px 40px rgba(0, 0, 0, 0.6), 0 4px 12px rgba(0, 0, 0, 0.4)',
-      shadowGlow: '0 0 20px rgba(34, 197, 94, 0.2), 0 0 40px rgba(34, 197, 94, 0.1)',
-      shadowGlowSm: '0 0 10px rgba(34, 197, 94, 0.15)',
-      shadowGlowLg: '0 0 30px rgba(34, 197, 94, 0.3), 0 0 60px rgba(34, 197, 94, 0.15)',
       navGlassBg: 'rgba(6, 14, 10, 0.45)', navGlassBorder: 'rgba(255, 255, 255, 0.06)'
     },
     light: {
@@ -119,9 +104,6 @@ export const schemes: Record<ColorScheme, ColorSchemeDefinition> = {
       shadowSm: '0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04)',
       shadowMd: '0 4px 12px rgba(0, 0, 0, 0.1), 0 2px 4px rgba(0, 0, 0, 0.06)',
       shadowLg: '0 12px 40px rgba(0, 0, 0, 0.12), 0 4px 12px rgba(0, 0, 0, 0.06)',
-      shadowGlow: '0 0 20px rgba(34, 197, 94, 0.1), 0 0 40px rgba(34, 197, 94, 0.05)',
-      shadowGlowSm: '0 0 10px rgba(34, 197, 94, 0.08)',
-      shadowGlowLg: '0 0 30px rgba(34, 197, 94, 0.15), 0 0 60px rgba(34, 197, 94, 0.08)',
       navGlassBg: 'rgba(245, 252, 248, 0.65)', navGlassBorder: 'rgba(0, 0, 0, 0.06)'
     },
     scale: {
@@ -147,9 +129,6 @@ export const schemes: Record<ColorScheme, ColorSchemeDefinition> = {
       shadowSm: '0 1px 3px rgba(0, 0, 0, 0.4), 0 1px 2px rgba(0, 0, 0, 0.3)',
       shadowMd: '0 4px 12px rgba(0, 0, 0, 0.5), 0 2px 4px rgba(0, 0, 0, 0.4)',
       shadowLg: '0 12px 40px rgba(0, 0, 0, 0.6), 0 4px 12px rgba(0, 0, 0, 0.4)',
-      shadowGlow: '0 0 20px rgba(244, 63, 94, 0.2), 0 0 40px rgba(244, 63, 94, 0.1)',
-      shadowGlowSm: '0 0 10px rgba(244, 63, 94, 0.15)',
-      shadowGlowLg: '0 0 30px rgba(244, 63, 94, 0.3), 0 0 60px rgba(244, 63, 94, 0.15)',
       navGlassBg: 'rgba(14, 6, 8, 0.45)', navGlassBorder: 'rgba(255, 255, 255, 0.06)'
     },
     light: {
@@ -162,9 +141,6 @@ export const schemes: Record<ColorScheme, ColorSchemeDefinition> = {
       shadowSm: '0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04)',
       shadowMd: '0 4px 12px rgba(0, 0, 0, 0.1), 0 2px 4px rgba(0, 0, 0, 0.06)',
       shadowLg: '0 12px 40px rgba(0, 0, 0, 0.12), 0 4px 12px rgba(0, 0, 0, 0.06)',
-      shadowGlow: '0 0 20px rgba(244, 63, 94, 0.1), 0 0 40px rgba(244, 63, 94, 0.05)',
-      shadowGlowSm: '0 0 10px rgba(244, 63, 94, 0.08)',
-      shadowGlowLg: '0 0 30px rgba(244, 63, 94, 0.15), 0 0 60px rgba(244, 63, 94, 0.08)',
       navGlassBg: 'rgba(254, 246, 247, 0.65)', navGlassBorder: 'rgba(0, 0, 0, 0.06)'
     },
     scale: {
@@ -190,9 +166,6 @@ export const schemes: Record<ColorScheme, ColorSchemeDefinition> = {
       shadowSm: '0 1px 3px rgba(0, 0, 0, 0.4), 0 1px 2px rgba(0, 0, 0, 0.3)',
       shadowMd: '0 4px 12px rgba(0, 0, 0, 0.5), 0 2px 4px rgba(0, 0, 0, 0.4)',
       shadowLg: '0 12px 40px rgba(0, 0, 0, 0.6), 0 4px 12px rgba(0, 0, 0, 0.4)',
-      shadowGlow: '0 0 20px rgba(249, 115, 22, 0.2), 0 0 40px rgba(249, 115, 22, 0.1)',
-      shadowGlowSm: '0 0 10px rgba(249, 115, 22, 0.15)',
-      shadowGlowLg: '0 0 30px rgba(249, 115, 22, 0.3), 0 0 60px rgba(249, 115, 22, 0.15)',
       navGlassBg: 'rgba(14, 9, 6, 0.45)', navGlassBorder: 'rgba(255, 255, 255, 0.06)'
     },
     light: {
@@ -205,9 +178,6 @@ export const schemes: Record<ColorScheme, ColorSchemeDefinition> = {
       shadowSm: '0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04)',
       shadowMd: '0 4px 12px rgba(0, 0, 0, 0.1), 0 2px 4px rgba(0, 0, 0, 0.06)',
       shadowLg: '0 12px 40px rgba(0, 0, 0, 0.12), 0 4px 12px rgba(0, 0, 0, 0.06)',
-      shadowGlow: '0 0 20px rgba(249, 115, 22, 0.1), 0 0 40px rgba(249, 115, 22, 0.05)',
-      shadowGlowSm: '0 0 10px rgba(249, 115, 22, 0.08)',
-      shadowGlowLg: '0 0 30px rgba(249, 115, 22, 0.15), 0 0 60px rgba(249, 115, 22, 0.08)',
       navGlassBg: 'rgba(254, 248, 245, 0.65)', navGlassBorder: 'rgba(0, 0, 0, 0.06)'
     },
     scale: {
@@ -233,9 +203,6 @@ export const schemes: Record<ColorScheme, ColorSchemeDefinition> = {
       shadowSm: '0 1px 3px rgba(0, 0, 0, 0.4), 0 1px 2px rgba(0, 0, 0, 0.3)',
       shadowMd: '0 4px 12px rgba(0, 0, 0, 0.5), 0 2px 4px rgba(0, 0, 0, 0.4)',
       shadowLg: '0 12px 40px rgba(0, 0, 0, 0.6), 0 4px 12px rgba(0, 0, 0, 0.4)',
-      shadowGlow: '0 0 20px rgba(6, 182, 212, 0.2), 0 0 40px rgba(6, 182, 212, 0.1)',
-      shadowGlowSm: '0 0 10px rgba(6, 182, 212, 0.15)',
-      shadowGlowLg: '0 0 30px rgba(6, 182, 212, 0.3), 0 0 60px rgba(6, 182, 212, 0.15)',
       navGlassBg: 'rgba(6, 12, 14, 0.45)', navGlassBorder: 'rgba(255, 255, 255, 0.06)'
     },
     light: {
@@ -248,9 +215,6 @@ export const schemes: Record<ColorScheme, ColorSchemeDefinition> = {
       shadowSm: '0 1px 3px rgba(0, 0, 0, 0.08), 0 1px 2px rgba(0, 0, 0, 0.04)',
       shadowMd: '0 4px 12px rgba(0, 0, 0, 0.1), 0 2px 4px rgba(0, 0, 0, 0.06)',
       shadowLg: '0 12px 40px rgba(0, 0, 0, 0.12), 0 4px 12px rgba(0, 0, 0, 0.06)',
-      shadowGlow: '0 0 20px rgba(6, 182, 212, 0.1), 0 0 40px rgba(6, 182, 212, 0.05)',
-      shadowGlowSm: '0 0 10px rgba(6, 182, 212, 0.08)',
-      shadowGlowLg: '0 0 30px rgba(6, 182, 212, 0.15), 0 0 60px rgba(6, 182, 212, 0.08)',
       navGlassBg: 'rgba(245, 251, 253, 0.65)', navGlassBorder: 'rgba(0, 0, 0, 0.06)'
     },
     scale: {

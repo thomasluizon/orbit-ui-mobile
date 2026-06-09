@@ -67,8 +67,6 @@ export interface AppSurfaceLayer {
 export interface AppSurfaces {
   screen: {
     backgroundColor: string
-    ambientStart: string
-    ambientEnd: string
   }
   elevated: AppSurfaceLayer
   overlay: AppSurfaceLayer
@@ -168,10 +166,6 @@ export const durations = {
   fast: motionDurations.fast,
   base: motionDurations.route,
   slow: motionDurations.slow,
-  creationGlow: motionDurations.creationGlow,
-  completePop: motionDurations.completePop,
-  completeGlow: motionDurations.completeGlow,
-  completeSpark: motionDurations.completeSpark,
 }
 
 export const shadows: AppShadows = {
@@ -228,9 +222,6 @@ export function createSurfaces(
 ): AppSurfaces {
   const colors = createColors(colorScheme, themeMode)
   const isLight = themeMode === 'light'
-  const screenAmbient = isLight
-    ? withAlpha(colors.primary, 0.05, 'rgba(139, 92, 246, 0.05)')
-    : withAlpha(colors.primary, 0.12, 'rgba(139, 92, 246, 0.12)')
   const topHighlight = isLight
     ? withAlpha(colors.white, 0.85, 'rgba(255, 255, 255, 0.85)')
     : withAlpha(colors.white, 0.05, 'rgba(255, 255, 255, 0.05)')
@@ -238,8 +229,6 @@ export function createSurfaces(
   return {
     screen: {
       backgroundColor: colors.background,
-      ambientStart: screenAmbient,
-      ambientEnd: 'transparent',
     },
     elevated: {
       backgroundColor: colors.surfaceElevated,

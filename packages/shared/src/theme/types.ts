@@ -17,9 +17,6 @@ export interface ThemeValues {
   shadowSm: string
   shadowMd: string
   shadowLg: string
-  shadowGlow: string
-  shadowGlowSm: string
-  shadowGlowLg: string
   navGlassBg: string
   navGlassBorder: string
 }

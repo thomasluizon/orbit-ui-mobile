@@ -48,13 +48,10 @@
   color: var(--fg-1);
   --primary-shadow: 139, 92, 246;
 
-  /* Shadow tokens (dark-mode optimized: black base + primary glow) */
+  /* Shadow tokens (dark-mode optimized) */
   --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4), 0 1px 2px rgba(0, 0, 0, 0.3);
   --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.5), 0 2px 4px rgba(0, 0, 0, 0.4);
   --shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.6), 0 4px 12px rgba(0, 0, 0, 0.4);
-  --shadow-glow: 0 0 20px rgba(var(--primary-shadow), 0.2), 0 0 40px rgba(var(--primary-shadow), 0.1);
-  --shadow-glow-sm: 0 0 10px rgba(var(--primary-shadow), 0.15);
-  --shadow-glow-lg: 0 0 30px rgba(var(--primary-shadow), 0.3), 0 0 60px rgba(var(--primary-shadow), 0.15);
 
   /* Primary tint tokens (dark-mode defaults; overridden for light in use-color-scheme) */
   --primary-tint-bg: rgba(var(--primary-shadow), 0.10);
@@ -73,9 +70,6 @@
   --orbit-elevated-press-scale: 0.98;
   --orbit-elevated-press-y: -2px;
   --orbit-list-stagger: 40ms;
-  --orbit-route-tint-opacity: 0.12;
-  --orbit-completion-peak-scale: 1.12;
-  --orbit-completion-glow-scale: 1.4;
 
   /* Transition tokens */
   --duration-fast: 120ms;
@@ -551,7 +545,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 
 .drag-chosen {
   transform: scale(1.02);
-  box-shadow: var(--shadow-glow), var(--shadow-md);
+  box-shadow: var(--shadow-md);
   border-radius: var(--radius-xl);
   overflow: hidden;
   z-index: 50;
@@ -561,7 +555,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 .drag-active {
   opacity: 0.95;
   transform: scale(1.03);
-  box-shadow: var(--shadow-glow-lg), var(--shadow-lg);
+  box-shadow: var(--shadow-lg);
   border-radius: var(--radius-xl);
   overflow: hidden;
 }
@@ -576,53 +570,8 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 }
 
 /* ═══════════════════════════════════════════════════════
-   HABIT COMPLETION ANIMATION -- "Orbit Pulse"
-   ═══════════════════════════════════════════════════════ */
-
-@keyframes orbit-complete-pop {
-  0% { transform: scale(1); }
-  40% { transform: scale(1.3); }
-  70% { transform: scale(0.96); }
-  100% { transform: scale(1); }
-}
-
-@keyframes orbit-complete-glow {
-  0% { box-shadow: 0 0 0 0 rgba(var(--primary-shadow), 0); }
-  30% { box-shadow: 0 0 24px 6px rgba(var(--primary-shadow), 0.35); }
-  100% { box-shadow: 0 0 0 0 rgba(var(--primary-shadow), 0); }
-}
-
-@keyframes orbit-complete-spark {
-  0% { transform: translate(0, 0) scale(1); opacity: 1; }
-  100% { transform: translate(var(--spark-x), var(--spark-y)) scale(0); opacity: 0; }
-}
-
-.animate-complete-pop {
-  animation: orbit-complete-pop 500ms var(--ease-spring) forwards;
-}
-
-.animate-complete-glow {
-  animation: orbit-complete-glow 800ms ease-out forwards;
-}
-
-.animate-complete-spark {
-  animation: orbit-complete-spark 600ms ease-out forwards;
-}
-
-/* ═══════════════════════════════════════════════════════
    MICRO-INTERACTION ANIMATIONS
    ═══════════════════════════════════════════════════════ */
-
-/* Creation glow -- primary color pulse on new habit card */
-@keyframes orbit-creation-glow {
-  0% { box-shadow: 0 0 0 0 rgba(var(--primary-shadow), 0.4); }
-  50% { box-shadow: 0 0 20px 4px rgba(var(--primary-shadow), 0.3); }
-  100% { box-shadow: 0 0 0 0 rgba(var(--primary-shadow), 0); }
-}
-
-.animate-creation-glow {
-  animation: orbit-creation-glow 1.2s var(--ease-out);
-}
 
 /* Checklist check pop */
 @keyframes check-item-pop {
@@ -633,16 +582,6 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 
 .animate-check-pop {
   animation: check-item-pop 200ms var(--ease-spring);
-}
-
-/* Calendar perfect day shimmer */
-@keyframes perfect-day-glow {
-  0%, 100% { opacity: 0.8; box-shadow: 0 0 0 0 rgba(74, 222, 128, 0); }
-  50% { opacity: 1; box-shadow: 0 0 6px 2px rgba(74, 222, 128, 0.4); }
-}
-
-.animate-perfect-day {
-  animation: perfect-day-glow 3s ease-in-out infinite;
 }
 
 /* Chat chip slide-in */
@@ -664,17 +603,6 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 
 .animate-tag-pop {
   animation: tag-pop 150ms var(--ease-spring);
-}
-
-/* Sub-habit ring complete pulse */
-@keyframes ring-complete-pulse {
-  0% { filter: drop-shadow(0 0 0 transparent); }
-  50% { filter: drop-shadow(0 0 8px rgba(var(--primary-shadow), 0.5)); }
-  100% { filter: drop-shadow(0 0 0 transparent); }
-}
-
-.animate-ring-pulse {
-  animation: ring-complete-pulse 800ms var(--ease-out);
 }
 
 /* ═══════════════════════════════════════════════════════
@@ -1152,84 +1080,6 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 .theme-transitioning,
 .theme-transitioning * {
   transition: background-color 0.4s ease, color 0.4s ease, border-color 0.4s ease, box-shadow 0.4s ease !important;
-}
-
-/* Ambient background glow (add to page/section containers) */
-.ambient-glow {
-  position: relative;
-}
-.ambient-glow::before {
-  content: '';
-  position: fixed;
-  top: -20%;
-  left: 50%;
-  transform: translateX(-50%);
-  width: 60%;
-  height: 40%;
-  background: radial-gradient(
-    ellipse at center,
-    rgba(var(--primary-shadow), 0.04) 0%,
-    transparent 70%
-  );
-  pointer-events: none;
-  z-index: 0;
-}
-
-.ambient-glow::after {
-  content: '';
-  position: fixed;
-  right: -18%;
-  bottom: 10%;
-  width: min(34rem, 68vw);
-  height: min(34rem, 68vw);
-  background: radial-gradient(
-    circle at center,
-    rgba(var(--primary-shadow), var(--orbit-route-tint-opacity)) 0%,
-    rgba(var(--primary-shadow), 0.04) 34%,
-    transparent 68%
-  );
-  pointer-events: none;
-  z-index: 0;
-  opacity: 0.44;
-}
-:root:not(.dark) .ambient-glow::before {
-  background: radial-gradient(
-    ellipse at center,
-    rgba(var(--primary-shadow), 0.02) 0%,
-    transparent 70%
-  );
-}
-
-:root:not(.dark) .ambient-glow::after {
-  opacity: 0.22;
-}
-@media (max-width: 640px) {
-  .ambient-glow::before {
-    background: radial-gradient(
-      ellipse at center,
-      rgba(var(--primary-shadow), 0.03) 0%,
-      transparent 70%
-    );
-  }
-
-  .ambient-glow::after {
-    right: -42%;
-    bottom: 3rem;
-    width: 24rem;
-    height: 24rem;
-    opacity: 0.34;
-  }
-  :root:not(.dark) .ambient-glow::before {
-    background: radial-gradient(
-      ellipse at center,
-      rgba(var(--primary-shadow), 0.015) 0%,
-      transparent 70%
-    );
-  }
-
-  :root:not(.dark) .ambient-glow::after {
-    opacity: 0.16;
-  }
 }
 
 /* ═══════════════════════════════════════════════════════

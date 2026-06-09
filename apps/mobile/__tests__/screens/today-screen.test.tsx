@@ -66,8 +66,6 @@ const createSurfaceLayer = () => ({
 const surfacesMock = {
   screen: {
     backgroundColor: "#111111",
-    ambientStart: "#111111",
-    ambientEnd: "transparent",
   },
   ground: createSurfaceLayer(),
   card: createSurfaceLayer(),

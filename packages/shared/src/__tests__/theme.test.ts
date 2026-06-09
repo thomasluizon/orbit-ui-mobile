@@ -12,7 +12,7 @@ const THEME_VALUE_KEYS: (keyof ThemeValues)[] = [
   'background', 'surfaceGround', 'surface', 'surfaceElevated', 'surfaceOverlay',
   'border', 'borderMuted', 'borderEmphasis',
   'textPrimary', 'textSecondary', 'textMuted', 'textFaded', 'textInverse',
-  'shadowSm', 'shadowMd', 'shadowLg', 'shadowGlow', 'shadowGlowSm', 'shadowGlowLg',
+  'shadowSm', 'shadowMd', 'shadowLg',
   'navGlassBg', 'navGlassBorder',
 ]
 
