@@ -132,9 +132,13 @@ export function createStyles(tokens: AppTokens, bottomInset: number) {
     },
     askAstra: {
       position: 'relative',
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
       paddingLeft: 34,
       paddingRight: 20,
-      paddingVertical: 16,
+      paddingTop: 16,
+      paddingBottom: 24,
       borderTopWidth: StyleSheet.hairlineWidth,
       borderTopColor: tokens.hairline,
       marginTop: 8,
@@ -143,9 +147,12 @@ export function createStyles(tokens: AppTokens, bottomInset: number) {
       position: 'absolute',
       left: 20,
       top: 20,
-      bottom: 20,
+      bottom: 28,
       width: 2,
       borderRadius: 1,
+    },
+    askAstraContent: {
+      flex: 1,
     },
     askAstraEyebrow: {
       flexDirection: 'row',
@@ -167,34 +174,27 @@ export function createStyles(tokens: AppTokens, bottomInset: number) {
       lineHeight: 20,
       color: tokens.fg2,
     },
-    actionsRow: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      justifyContent: 'center',
-      gap: 22,
+    actions: {
+      marginTop: 8,
+    },
+    actionRow: {
       paddingHorizontal: 20,
-      paddingTop: 12,
-      paddingBottom: 8,
-      borderTopWidth: StyleSheet.hairlineWidth,
-      borderTopColor: tokens.hairline,
+      paddingVertical: 14,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: tokens.hairline,
     },
-    actionLink: {
-      paddingVertical: 4,
+    actionRowPressed: {
+      backgroundColor: tokens.bgElev,
     },
-    actionLinkText: {
+    actionRowText: {
       fontFamily: 'Geist',
-      fontSize: 13,
-      fontWeight: '500',
+      fontSize: 15,
+      fontWeight: '400',
       color: tokens.fg1,
     },
-    actionLinkTextMuted: {
+    actionRowTextDestructive: {
       fontFamily: 'Geist',
-      fontSize: 13,
-      color: tokens.fg3,
-    },
-    actionLinkTextDelete: {
-      fontFamily: 'Geist',
-      fontSize: 13,
+      fontSize: 15,
       fontStyle: 'italic',
       color: tokens.fg3,
     },

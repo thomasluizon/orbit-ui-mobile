@@ -1,13 +1,14 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
-import { Text, View } from 'react-native'
-import { Sparkles } from 'lucide-react-native'
+import { Text, TouchableOpacity, View } from 'react-native'
+import { ChevronRight, Sparkles } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
+import { useRouter } from 'expo-router'
+import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { BottomSheetModal } from '@/components/bottom-sheet-modal'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { KeyboardAwareBottomSheetScrollView } from '@/components/ui/keyboard-aware-scroll-view'
 import { SectionLabel } from '@/components/ui/section-label'
-import { SettingsRow } from '@/components/ui/settings-row'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { EditGoalModal } from './edit-goal-modal'
 import { GoalMetricsPanel } from './goal-metrics-panel'
@@ -335,10 +336,17 @@ export function GoalDetailDrawer({
     setShowProgressDiscardDialog(false)
   }, [])
 
+  const router = useRouter()
+  const handleAskAstra = useCallback(() => {
+    if (!goal) return
+    const seed = `${t('goals.detail.askAstraDefault')} (${goal.title})`
+    void AsyncStorage.setItem('orbit-chat-draft', seed)
+    onClose()
+    router.push('/chat')
+  }, [goal, onClose, router, t])
+
   if (!goal) return null
 
-  const isCompleted = goal.status === 'Completed'
-  const isAbandoned = goal.status === 'Abandoned'
   const isActive = goal.status === 'Active'
 
   const progressFillColor = isStreak ? tokens.statusOverdue : tokens.primary
@@ -439,24 +447,6 @@ export function GoalDetailDrawer({
             <Text style={styles.warningText}>{t('goals.detail.loadError')}</Text>
           ) : null}
 
-          <View style={styles.askAstra}>
-            <View
-              style={[
-                styles.askAstraRule,
-                { backgroundColor: tokens.primary },
-              ]}
-            />
-            <View style={styles.askAstraEyebrow}>
-              <Sparkles size={12} color={tokens.primary} strokeWidth={1.7} />
-              <Text style={styles.askAstraEyebrowText}>
-                {t('goals.detail.askAstraEyebrow')}
-              </Text>
-            </View>
-            <Text style={styles.askAstraBody}>
-              {t('goals.detail.askAstraDefault')}
-            </Text>
-          </View>
-
           <GoalActionFooter
             isActive={isActive}
             isUpdatingStatus={isUpdatingStatus}
@@ -467,6 +457,33 @@ export function GoalDetailDrawer({
             onDelete={confirmDelete}
             styles={styles}
           />
+
+          <TouchableOpacity
+            activeOpacity={0.7}
+            onPress={handleAskAstra}
+            accessibilityRole="button"
+            accessibilityLabel={`${t('goals.detail.askAstraEyebrow')}: ${t('goals.detail.askAstraDefault')}`}
+            style={styles.askAstra}
+          >
+            <View
+              style={[
+                styles.askAstraRule,
+                { backgroundColor: tokens.primary },
+              ]}
+            />
+            <View style={styles.askAstraContent}>
+              <View style={styles.askAstraEyebrow}>
+                <Sparkles size={12} color={tokens.primary} strokeWidth={1.7} />
+                <Text style={styles.askAstraEyebrowText}>
+                  {t('goals.detail.askAstraEyebrow')}
+                </Text>
+              </View>
+              <Text style={styles.askAstraBody}>
+                {t('goals.detail.askAstraDefault')}
+              </Text>
+            </View>
+            <ChevronRight size={16} color={tokens.fg3} strokeWidth={1.7} />
+          </TouchableOpacity>
         </KeyboardAwareBottomSheetScrollView>
       </BottomSheetModal>
 

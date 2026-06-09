@@ -327,36 +327,35 @@ export function GoalLinkedHabitsSection({
   )
 }
 
-interface GoalActionButtonProps {
-  icon?: ReactNode
+interface GoalActionRowProps {
   label: string
   onClick: () => void
-  className?: string
   disabled?: boolean
   destructive?: boolean
 }
 
-/** Quiet-link footer action: italic when destructive, otherwise fg-1. */
-export function GoalActionButton({
+/** Full-width hairline action row: hover lift, italic fg-3 label when destructive. */
+export function GoalActionRow({
   label,
   onClick,
   disabled = false,
   destructive = false,
-}: Readonly<GoalActionButtonProps>) {
+}: Readonly<GoalActionRowProps>) {
   return (
     <button
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="appearance-none border-0 bg-transparent cursor-pointer disabled:opacity-50"
+      className="appearance-none w-full bg-transparent cursor-pointer text-left transition-colors duration-150 ease-out hover:bg-[var(--bg-elev)] disabled:opacity-50 disabled:cursor-default"
       style={{
+        padding: '14px 20px',
+        border: 0,
+        borderBottom: '1px solid var(--hairline)',
         fontFamily: 'var(--font-family-sans)',
-        fontSize: 13,
-        fontWeight: 500,
+        fontSize: 15,
+        fontWeight: 400,
         color: destructive ? 'var(--fg-3)' : 'var(--fg-1)',
         fontStyle: destructive ? 'italic' : 'normal',
-        padding: 6,
-        whiteSpace: 'nowrap',
       }}
     >
       {label}

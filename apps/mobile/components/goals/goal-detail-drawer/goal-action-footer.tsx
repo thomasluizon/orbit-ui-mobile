@@ -1,8 +1,44 @@
-import { Text, TouchableOpacity, View } from 'react-native'
+import { Pressable, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import type { createStyles } from './styles'
 
 type GoalDetailStyles = ReturnType<typeof createStyles>
+
+interface GoalActionRowProps {
+  label: string
+  onPress: () => void
+  disabled?: boolean
+  destructive?: boolean
+  styles: GoalDetailStyles
+}
+
+function GoalActionRow({
+  label,
+  onPress,
+  disabled = false,
+  destructive = false,
+  styles,
+}: Readonly<GoalActionRowProps>) {
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={disabled}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      style={({ pressed }) => [
+        styles.actionRow,
+        pressed && !disabled ? styles.actionRowPressed : null,
+        disabled ? { opacity: 0.5 } : null,
+      ]}
+    >
+      <Text
+        style={destructive ? styles.actionRowTextDestructive : styles.actionRowText}
+      >
+        {label}
+      </Text>
+    </Pressable>
+  )
+}
 
 interface GoalActionFooterProps {
   isActive: boolean
@@ -28,68 +64,41 @@ export function GoalActionFooter({
   const { t } = useTranslation()
 
   return (
-    <View style={styles.actionsRow}>
+    <View style={styles.actions}>
       {isActive ? (
         <>
-          <TouchableOpacity
+          <GoalActionRow
+            label={t('goals.detail.markCompleted')}
             onPress={onMarkCompleted}
             disabled={isUpdatingStatus}
-            activeOpacity={0.7}
-            style={styles.actionLink}
-            accessibilityRole="button"
-            accessibilityLabel={t('goals.detail.markCompleted')}
-          >
-            <Text style={styles.actionLinkText}>
-              {t('goals.detail.markCompleted')}
-            </Text>
-          </TouchableOpacity>
-          <TouchableOpacity
+            styles={styles}
+          />
+          <GoalActionRow
+            label={t('goals.detail.markAbandoned')}
             onPress={onMarkAbandoned}
             disabled={isUpdatingStatus}
-            activeOpacity={0.7}
-            style={styles.actionLink}
-            accessibilityRole="button"
-            accessibilityLabel={t('goals.detail.markAbandoned')}
-          >
-            <Text style={styles.actionLinkTextMuted}>
-              {t('goals.detail.markAbandoned')}
-            </Text>
-          </TouchableOpacity>
+            styles={styles}
+          />
         </>
       ) : (
-        <TouchableOpacity
+        <GoalActionRow
+          label={t('goals.detail.reactivate')}
           onPress={onReactivate}
           disabled={isUpdatingStatus}
-          activeOpacity={0.7}
-          style={styles.actionLink}
-          accessibilityRole="button"
-          accessibilityLabel={t('goals.detail.reactivate')}
-        >
-          <Text style={styles.actionLinkText}>
-            {t('goals.detail.reactivate')}
-          </Text>
-        </TouchableOpacity>
+          styles={styles}
+        />
       )}
-      <TouchableOpacity
+      <GoalActionRow
+        label={t('goals.detail.edit')}
         onPress={onEdit}
-        activeOpacity={0.7}
-        style={styles.actionLink}
-        accessibilityRole="button"
-        accessibilityLabel={t('goals.detail.edit')}
-      >
-        <Text style={styles.actionLinkTextMuted}>{t('goals.detail.edit')}</Text>
-      </TouchableOpacity>
-      <TouchableOpacity
+        styles={styles}
+      />
+      <GoalActionRow
+        label={t('goals.detail.delete')}
         onPress={onDelete}
-        activeOpacity={0.7}
-        style={styles.actionLink}
-        accessibilityRole="button"
-        accessibilityLabel={t('goals.detail.delete')}
-      >
-        <Text style={styles.actionLinkTextDelete}>
-          {t('goals.detail.delete')}
-        </Text>
-      </TouchableOpacity>
+        destructive
+        styles={styles}
+      />
     </View>
   )
 }
