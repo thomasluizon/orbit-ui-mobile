@@ -174,7 +174,6 @@ export default function AdvancedPage() {
           style={{
             padding: '14px 20px',
             gap: 12,
-            borderBottom: '1px solid var(--hairline)',
           }}
         >
           <div className="flex items-center min-w-0 flex-1" style={{ gap: 10 }}>
@@ -241,10 +240,8 @@ export default function AdvancedPage() {
             {t('orbitMcp.description')}
           </p>
         </div>
-        <div className="px-5 py-4 space-y-4" style={{ borderBottom: '1px solid var(--hairline)' }}>
-
-          {profile?.hasProAccess && (
-            <>
+        {profile?.hasProAccess && (
+          <div className="px-5 py-4 space-y-4">
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
                   <h4 className="text-xs font-bold uppercase tracking-wider text-[var(--fg-3)]">{t('orbitMcp.apiKeys')}</h4>
@@ -377,7 +374,7 @@ export default function AdvancedPage() {
                 </button>
 
                 {instructionsOpen && (
-                  <div id="mcp-instructions">
+                  <div id="mcp-instructions" className="space-y-3">
                     <div className="flex gap-2">
                       {MCP_CONFIG_TABS.map((tab) => (
                         (() => {
@@ -449,9 +446,9 @@ export default function AdvancedPage() {
                   </div>
                 )}
               </div>
-            </>
-          )}
-        </div>
+          </div>
+        )}
+        <div style={{ height: 24 }} />
       </div>
 
       <AppOverlay

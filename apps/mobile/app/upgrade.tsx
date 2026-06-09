@@ -188,10 +188,9 @@ function UsageBlock({
         valueColor={usageUrgent ? tokens.statusOverdue : tokens.fg3}
         accessory="none"
         mono
+        divider={false}
       />
-      <View
-        style={[styles.usagePad, { borderBottomColor: tokens.hairline }]}
-      >
+      <View style={styles.usagePad}>
         <View
           style={[styles.usageTrack, { backgroundColor: tokens.bgSunk }]}
         >
@@ -275,9 +274,7 @@ function PlanCards({
         pending={checkoutLoading === 'yearly'}
       />
 
-      <View
-        style={[styles.proFeaturesPad, { borderBottomColor: tokens.hairline }]}
-      >
+      <View style={styles.proFeaturesPad}>
         {UPGRADE_PRO_FEATURES.map((feature) => {
           const Icon = upgradeIconMap[feature.iconKey]
           return (
@@ -292,9 +289,7 @@ function PlanCards({
       </View>
 
       <SectionLabel>{t('upgrade.plans.yearly.includesMonthly')}</SectionLabel>
-      <View
-        style={[styles.proFeaturesPad, { borderBottomColor: tokens.hairline }]}
-      >
+      <View style={styles.proFeaturesPad}>
         {UPGRADE_YEARLY_EXTRA_FEATURES.map((feature) => {
           const Icon = upgradeIconMap[feature.iconKey]
           return (
@@ -628,18 +623,14 @@ export default function UpgradeScreen() {
           accessory="none"
         />
         {data.cancelAtPeriodEnd ? (
-          <View
-            style={[styles.italicBlock, { borderBottomColor: tokens.hairline }]}
-          >
+          <View style={styles.italicBlock}>
             <Text style={[styles.italicText, { color: tokens.statusOverdue }]}>
               {t('upgrade.billing.plan.canceledBadge')}
             </Text>
           </View>
         ) : null}
         {data.status === 'past_due' && !data.cancelAtPeriodEnd ? (
-          <View
-            style={[styles.italicBlock, { borderBottomColor: tokens.hairline }]}
-          >
+          <View style={styles.italicBlock}>
             <Text style={[styles.italicText, { color: tokens.statusBad }]}>
               {t('upgrade.billing.plan.pastDue')}
             </Text>
@@ -1066,7 +1057,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 12,
     gap: 8,
-    borderBottomWidth: StyleSheet.hairlineWidth,
   },
   proFeatureRow: {
     flexDirection: 'row',
@@ -1137,7 +1127,6 @@ const styles = StyleSheet.create({
   usagePad: {
     paddingHorizontal: 20,
     paddingVertical: 8,
-    borderBottomWidth: StyleSheet.hairlineWidth,
   },
   usageTrack: {
     height: 4,
@@ -1238,7 +1227,6 @@ const styles = StyleSheet.create({
   italicBlock: {
     paddingHorizontal: 20,
     paddingVertical: 10,
-    borderBottomWidth: StyleSheet.hairlineWidth,
   },
   italicText: {
     fontFamily: 'Geist',

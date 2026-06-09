@@ -11,7 +11,6 @@ export function SettingsDescription({ children }: Readonly<SettingsDescriptionPr
       style={{
         fontFamily: 'var(--font-family-sans)',
         padding: '4px 20px 16px',
-        borderBottom: '1px solid var(--hairline)',
       }}
     >
       {children}

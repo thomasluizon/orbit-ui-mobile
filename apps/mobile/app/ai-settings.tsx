@@ -301,6 +301,7 @@ export default function AiSettingsScreen() {
           <SettingsRow
             label={t('profile.aiMemory.title')}
             accessory="none"
+            divider={false}
           >
             <MonoToggle
               on={aiMemoryEnabled}
@@ -314,6 +315,7 @@ export default function AiSettingsScreen() {
             label={t('profile.aiMemory.title')}
             onPress={() => router.push(buildUpgradeHref('/ai-settings'))}
             accessory="chevron"
+            divider={false}
           >
             <Lock size={14} color={tokens.fg3} strokeWidth={1.4} />
           </SettingsRow>
@@ -325,6 +327,7 @@ export default function AiSettingsScreen() {
           <SettingsRow
             label={t('profile.aiSummary.title')}
             accessory="none"
+            divider={false}
           >
             <MonoToggle
               on={aiSummaryEnabled}
@@ -338,6 +341,7 @@ export default function AiSettingsScreen() {
             label={t('profile.aiSummary.title')}
             onPress={() => router.push(buildUpgradeHref('/ai-settings'))}
             accessory="chevron"
+            divider={false}
           >
             <Lock size={14} color={tokens.fg3} strokeWidth={1.4} />
           </SettingsRow>
@@ -353,9 +357,7 @@ export default function AiSettingsScreen() {
         </SectionLabel>
 
         {!hasProAccess ? (
-          <View
-            style={[styles.italicBlock, { borderBottomColor: tokens.hairline }]}
-          >
+          <View style={styles.italicBlock}>
             <Text style={[styles.italicText, { color: tokens.fg3 }]}>
               {t('profile.facts.lockedHint')}
             </Text>
@@ -540,7 +542,6 @@ function createStyles() {
     italicBlock: {
       paddingHorizontal: 20,
       paddingVertical: 10,
-      borderBottomWidth: StyleSheet.hairlineWidth,
     },
     italicText: {
       fontFamily: 'Geist',

@@ -7,7 +7,7 @@ interface SettingsDescriptionProps {
   children: ReactNode
 }
 
-/** v8 settings description: italic helper text under a SettingsRow, closed by a hairline rule. */
+/** v8 settings description: italic helper text under a SettingsRow, separated by whitespace. */
 export function SettingsDescription({ children }: Readonly<SettingsDescriptionProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
@@ -15,7 +15,7 @@ export function SettingsDescription({ children }: Readonly<SettingsDescriptionPr
     [currentScheme, currentTheme],
   )
   return (
-    <View style={[styles.container, { borderBottomColor: tokens.hairline }]}>
+    <View style={styles.container}>
       <Text style={[styles.text, { color: tokens.fg3 }]}>{children}</Text>
     </View>
   )
@@ -26,7 +26,6 @@ const styles = StyleSheet.create({
     paddingTop: 4,
     paddingHorizontal: 20,
     paddingBottom: 16,
-    borderBottomWidth: StyleSheet.hairlineWidth,
   },
   text: {
     fontFamily: 'Geist',

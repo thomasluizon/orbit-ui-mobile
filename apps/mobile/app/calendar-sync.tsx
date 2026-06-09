@@ -469,6 +469,7 @@ export default function CalendarSyncScreen() {
             <SettingsRow
               label={t('calendar.autoSync.title')}
               accessory="none"
+              divider={false}
             >
               <MonoToggle
                 on={autoSyncState?.enabled ?? false}
@@ -494,15 +495,11 @@ export default function CalendarSyncScreen() {
                 label={t('calendar.autoSync.syncNow')}
                 onPress={handleSyncNow}
                 accessory="chevron"
+                divider={false}
               />
             )}
             {isCalendarAutoSyncStatusReconnectRequired(autoSyncState?.status) ? (
-              <View
-                style={[
-                  styles.italicBlock,
-                  { borderBottomColor: tokens.hairline },
-                ]}
-              >
+              <View style={styles.italicBlock}>
                 <Text
                   style={[styles.italicText, { color: tokens.statusOverdue }]}
                 >
@@ -755,7 +752,6 @@ function createStyles() {
     italicBlock: {
       paddingHorizontal: 20,
       paddingVertical: 12,
-      borderBottomWidth: StyleSheet.hairlineWidth,
       gap: 8,
     },
     italicText: {
