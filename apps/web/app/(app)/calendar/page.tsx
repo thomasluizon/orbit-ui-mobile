@@ -151,8 +151,9 @@ export default function CalendarPage() {
       />
 
       <CalendarLegend
+        todayLabel={t('calendar.legend.today')}
         doneLabel={t('calendar.legend.done')}
-        upcomingLabel={t('calendar.legend.upcoming')}
+        partialLabel={t('calendar.legend.partial')}
         missedLabel={t('calendar.legend.missed')}
       />
 

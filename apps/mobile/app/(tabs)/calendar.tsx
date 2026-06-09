@@ -223,6 +223,29 @@ export default function CalendarScreen() {
     (entry: CalendarDayEntry) => entry.status === "completed",
   ).length;
 
+  const monthSummary = useMemo(() => {
+    if (isLoading || dayMap.size === 0) return null;
+    let daysWithActivity = 0;
+    let daysCompleted = 0;
+    dayMap.forEach((entries: CalendarDayEntry[]) => {
+      if (entries.length === 0) return;
+      daysWithActivity++;
+      const allDone = entries.every(
+        (entry: CalendarDayEntry) => entry.status === "completed",
+      );
+      if (allDone) daysCompleted++;
+    });
+    if (daysWithActivity === 0) return null;
+    const pct = Math.round((daysCompleted / daysWithActivity) * 100);
+    return `${daysCompleted}/${daysWithActivity} ${plural(t("calendar.summary.days"), daysCompleted)} (${pct}%)`;
+  }, [dayMap, isLoading, t]);
+
+  const goToSelectedDay = () => {
+    if (!selectedDay) return;
+    setShowDayDetail(false);
+    router.push(`/?date=${selectedDay}`);
+  };
+
   const monthStats = useMemo(() => {
     const monthDays = gridDays.filter((d) => d.isCurrentMonth);
     const totalLogs = monthDays.reduce(
@@ -253,6 +276,7 @@ export default function CalendarScreen() {
       <CalendarHeader
         title={t("nav.calendar")}
         monthLabel={monthLabel}
+        subtitle={monthSummary}
         previousMonthLabel={t("common.previousMonth")}
         nextMonthLabel={t("common.nextMonth")}
         onPreviousMonth={prevMonth}
@@ -330,9 +354,10 @@ export default function CalendarScreen() {
         </View>
 
         <CalendarLegend
-          fullLabel={t("calendar.legend.done")}
-          partialLabel={t("calendar.legend.upcoming")}
-          noneLabel={t("calendar.legend.missed")}
+          todayLabel={t("calendar.legend.today")}
+          doneLabel={t("calendar.legend.done")}
+          partialLabel={t("calendar.legend.partial")}
+          missedLabel={t("calendar.legend.missed")}
           tokens={tokens}
         />
 
@@ -370,6 +395,12 @@ export default function CalendarScreen() {
             <Text style={[styles.emptyDayText, { color: tokens.fg3 }]}>
               {t("calendar.noHabitsScheduled")}
             </Text>
+            <GoToDayButton
+              label={t("calendar.goToDay")}
+              tokens={tokens}
+              styles={styles}
+              onPress={goToSelectedDay}
+            />
           </View>
         ) : (
           <ScrollView
@@ -427,25 +458,12 @@ export default function CalendarScreen() {
               );
             })}
 
-            <Pressable
-              onPress={() => {
-                if (!selectedDay) return;
-                setShowDayDetail(false);
-                router.push(`/?date=${selectedDay}`);
-              }}
-              style={({ pressed }) => [
-                styles.goToDayButton,
-                {
-                  backgroundColor: pressed ? tokens.primaryPressed : tokens.primary,
-                },
-              ]}
-              accessibilityRole="button"
-              accessibilityLabel={t("calendar.goToDay")}
-            >
-              <Text style={[styles.goToDayButtonText, { color: tokens.fgOnPrimary }]}>
-                {t("calendar.goToDay")}
-              </Text>
-            </Pressable>
+            <GoToDayButton
+              label={t("calendar.goToDay")}
+              tokens={tokens}
+              styles={styles}
+              onPress={goToSelectedDay}
+            />
           </ScrollView>
         )}
       </BottomSheetModal>
@@ -512,6 +530,36 @@ function DayDot({
     );
   }
   return <View style={{ width: 5, height: 5 }} />;
+}
+
+function GoToDayButton({
+  label,
+  tokens,
+  styles,
+  onPress,
+}: Readonly<{
+  label: string;
+  tokens: Tokens;
+  styles: ReturnType<typeof createStyles>;
+  onPress: () => void;
+}>) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.goToDayButton,
+        {
+          backgroundColor: pressed ? tokens.primaryPressed : tokens.primary,
+        },
+      ]}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+    >
+      <Text style={[styles.goToDayButtonText, { color: tokens.fgOnPrimary }]}>
+        {label}
+      </Text>
+    </Pressable>
+  );
 }
 
 function createStyles(tokens: Tokens) {

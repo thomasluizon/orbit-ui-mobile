@@ -55,15 +55,18 @@ export function CalendarHeader({
 }
 
 interface CalendarLegendProps {
+  todayLabel: string
   doneLabel: string
-  upcomingLabel: string
+  partialLabel: string
   missedLabel: string
 }
 
-/** v8 calendar legend — inline row of colored dots + labels, no section header. */
+/** v8 calendar legend — inline row of colored dots + labels, no section header.
+ *  Items mirror the grid's day-dot vocabulary exactly. */
 export function CalendarLegend({
+  todayLabel,
   doneLabel,
-  upcomingLabel,
+  partialLabel,
   missedLabel,
 }: Readonly<CalendarLegendProps>) {
   return (
@@ -72,8 +75,9 @@ export function CalendarLegend({
       className="flex flex-wrap items-center"
       style={{ padding: '12px 20px', gap: 16 }}
     >
+      <LegendItem dotColor="var(--primary)" label={todayLabel} />
       <LegendItem dotColor="var(--fg-1)" label={doneLabel} />
-      <LegendItem dotColor="var(--primary)" label={upcomingLabel} />
+      <LegendItem dotColor="var(--fg-3)" hollow label={partialLabel} />
       <LegendItem dotColor="var(--status-overdue)" label={missedLabel} />
     </div>
   )
@@ -82,15 +86,20 @@ export function CalendarLegend({
 interface LegendItemProps {
   dotColor: string
   label: string
+  hollow?: boolean
 }
 
-function LegendItem({ dotColor, label }: Readonly<LegendItemProps>) {
+function LegendItem({ dotColor, label, hollow = false }: Readonly<LegendItemProps>) {
   return (
     <span className="inline-flex items-center" style={{ gap: 6 }}>
       <span
         aria-hidden="true"
         className="rounded-full shrink-0"
-        style={{ width: 6, height: 6, background: dotColor }}
+        style={
+          hollow
+            ? { width: 6, height: 6, boxShadow: `inset 0 0 0 1px ${dotColor}` }
+            : { width: 6, height: 6, background: dotColor }
+        }
       />
       <span
         style={{

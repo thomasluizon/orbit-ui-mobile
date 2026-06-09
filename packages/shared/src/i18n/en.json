@@ -530,8 +530,9 @@
   },
   "calendar": {
     "legend": {
+      "today": "Today",
       "done": "Done",
-      "upcoming": "Upcoming",
+      "partial": "Partial",
       "missed": "Missed"
     },
     "thisMonth": "This month",
@@ -2026,7 +2027,7 @@
       },
       "legend": {
         "title": "Color Legend",
-        "description": "Green means all habits done, yellow means partial completion, and red means habits were missed. Build a streak of green days!"
+        "description": "Your accent color marks today. A solid dot means every habit was done, a hollow ring means partial completion, and amber marks missed habits. Build a streak of solid days!"
       },
       "monthNav": {
         "title": "Month Navigation",

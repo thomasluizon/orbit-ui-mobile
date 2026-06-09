@@ -530,8 +530,9 @@
   },
   "calendar": {
     "legend": {
+      "today": "Hoje",
       "done": "Feito",
-      "upcoming": "Próximo",
+      "partial": "Parcial",
       "missed": "Perdido"
     },
     "thisMonth": "Este mês",
@@ -2026,7 +2027,7 @@
       },
       "legend": {
         "title": "Legenda de Cores",
-        "description": "Verde significa todos os hábitos feitos, amarelo significa conclusão parcial e vermelho significa hábitos perdidos. Construa uma sequência de dias verdes!"
+        "description": "Sua cor de destaque marca o dia de hoje. Um ponto sólido significa todos os hábitos feitos, um anel vazado significa conclusão parcial e âmbar marca hábitos perdidos. Construa uma sequência de dias sólidos!"
       },
       "monthNav": {
         "title": "Navegação por Mês",

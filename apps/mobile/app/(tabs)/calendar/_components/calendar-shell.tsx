@@ -13,6 +13,7 @@ import { createTokensV2 } from "@/lib/theme";
 interface CalendarHeaderProps {
   title: string;
   monthLabel: string;
+  subtitle?: string | null;
   previousMonthLabel: string;
   nextMonthLabel: string;
   onPreviousMonth: () => void;
@@ -21,9 +22,10 @@ interface CalendarHeaderProps {
 }
 
 interface CalendarLegendProps {
-  fullLabel: string;
+  todayLabel: string;
+  doneLabel: string;
   partialLabel: string;
-  noneLabel: string;
+  missedLabel: string;
   tokens: ReturnType<typeof createTokensV2>;
 }
 
@@ -55,17 +57,24 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       alignItems: "center",
       gap: 6,
     },
-    legendDotFull: {
+    legendDotToday: {
+      width: 6,
+      height: 6,
+      borderRadius: 999,
+      backgroundColor: tokens.primary,
+    },
+    legendDotDone: {
       width: 6,
       height: 6,
       borderRadius: 999,
       backgroundColor: tokens.fg1,
     },
-    legendDotUpcoming: {
+    legendDotPartial: {
       width: 6,
       height: 6,
       borderRadius: 999,
-      backgroundColor: tokens.primary,
+      borderWidth: 1,
+      borderColor: tokens.fg3,
     },
     legendDotMissed: {
       width: 6,
@@ -84,6 +93,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
 export function CalendarHeader({
   title,
   monthLabel,
+  subtitle,
   previousMonthLabel,
   nextMonthLabel,
   onPreviousMonth,
@@ -99,7 +109,7 @@ export function CalendarHeader({
       <AppBar
         LeadingIcon={CalendarDays}
         title={title}
-        subtitle={monthLabel}
+        subtitle={subtitle ? `${monthLabel} · ${subtitle}` : monthLabel}
         trailing={
           <View ref={monthNavRef} collapsable={false} style={styles.monthNavRow}>
             <TouchableOpacity
@@ -126,9 +136,10 @@ export function CalendarHeader({
 }
 
 export function CalendarLegend({
-  fullLabel,
+  todayLabel,
+  doneLabel,
   partialLabel,
-  noneLabel,
+  missedLabel,
   tokens,
 }: CalendarLegendProps) {
   const styles = useMemo(() => createStyles(tokens), [tokens]);
@@ -138,16 +149,20 @@ export function CalendarLegend({
   return (
     <View ref={legendRef} collapsable={false} style={styles.legend}>
       <View style={styles.legendItem}>
-        <View style={styles.legendDotFull} />
-        <Text style={styles.legendLabel}>{fullLabel}</Text>
+        <View style={styles.legendDotToday} />
+        <Text style={styles.legendLabel}>{todayLabel}</Text>
       </View>
       <View style={styles.legendItem}>
-        <View style={styles.legendDotUpcoming} />
+        <View style={styles.legendDotDone} />
+        <Text style={styles.legendLabel}>{doneLabel}</Text>
+      </View>
+      <View style={styles.legendItem}>
+        <View style={styles.legendDotPartial} />
         <Text style={styles.legendLabel}>{partialLabel}</Text>
       </View>
       <View style={styles.legendItem}>
         <View style={styles.legendDotMissed} />
-        <Text style={styles.legendLabel}>{noneLabel}</Text>
+        <Text style={styles.legendLabel}>{missedLabel}</Text>
       </View>
     </View>
   );
