@@ -38,4 +38,10 @@ describe('StatusDot', () => {
     rerender(<StatusDot state="done" ariaLabel="run" />)
     expect(container.querySelector('svg')).toBeNull()
   })
+
+  it('renders read-only dots without button semantics', () => {
+    render(<StatusDot state="done" ariaLabel="On track" />)
+    expect(screen.queryByRole('button')).toBeNull()
+    expect(screen.getByRole('img', { name: 'On track' })).toBeInTheDocument()
+  })
 })

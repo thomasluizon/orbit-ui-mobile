@@ -47,6 +47,7 @@ export function BottomTabBar({
       {fabVisible && (
         <button
           type="button"
+          data-tour="tour-fab-button"
           onClick={fabDisabled ? undefined : onFab}
           aria-label={t('create')}
           aria-disabled={fabDisabled}

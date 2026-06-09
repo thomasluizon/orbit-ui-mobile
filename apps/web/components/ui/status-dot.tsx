@@ -74,6 +74,23 @@ export function StatusDot({
     onToggle?.()
   }
 
+  if (!onToggle || disabled) {
+    return (
+      <span
+        role="img"
+        aria-label={ariaLabel ?? state}
+        className="block rounded-full shrink-0"
+        style={{
+          width: size,
+          height: size,
+          background: isFilled ? color : 'transparent',
+          boxShadow: isFilled ? 'none' : `inset 0 0 0 1.5px ${color}`,
+          opacity: disabled ? 0.4 : 1,
+        }}
+      />
+    )
+  }
+
   return (
     <button
       type="button"
