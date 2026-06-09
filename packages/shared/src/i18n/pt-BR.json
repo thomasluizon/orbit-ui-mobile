@@ -1557,8 +1557,7 @@
       "showAllHistory": "Ver todos",
       "showLessHistory": "Ver menos",
       "askAstraDefault": "Quer um plano de check-in semanal para isto?",
-      "askAstraEyebrow": "PERGUNTE AO ASTRA",
-      "statusLabel": "Status"
+      "askAstraEyebrow": "PERGUNTE AO ASTRA"
     },
     "filters": {
       "all": "Todas",

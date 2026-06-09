@@ -341,17 +341,6 @@ export function GoalDetailDrawer({
   const isAbandoned = goal.status === 'Abandoned'
   const isActive = goal.status === 'Active'
 
-  const statusLabel = isCompleted
-    ? t('goals.status.completed')
-    : isAbandoned
-      ? t('goals.status.abandoned')
-      : t('goals.status.active')
-  const statusColor = isCompleted
-    ? tokens.primary
-    : isAbandoned
-      ? tokens.fg3
-      : tokens.statusDone
-
   const progressFillColor = isStreak ? tokens.statusOverdue : tokens.primary
   const progressPct = Math.min(goal.progressPercentage, 100)
   const headerLine = isStreak
@@ -405,23 +394,12 @@ export function GoalDetailDrawer({
           ) : null}
 
           {isActive ? (
-            <View>
-              <SectionLabel top={8} bottom={0}>
-                {t('goals.metrics.title')}
-              </SectionLabel>
-              <SettingsRow
-                label={t('goals.detail.statusLabel')}
-                accessory="none"
-                leadingDot={statusColor}
-                value={statusLabel}
-              />
-              <GoalMetricsPanel
-                metrics={metrics}
-                unit={goal.unit}
-                isLoading={isLoadingDetail}
-                isStreak={isStreak}
-              />
-            </View>
+            <GoalMetricsPanel
+              metrics={metrics}
+              unit={goal.unit}
+              isLoading={isLoadingDetail}
+              isStreak={isStreak}
+            />
           ) : null}
 
           {(goal.linkedHabits ?? []).length > 0 ? (
