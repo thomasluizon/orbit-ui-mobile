@@ -30,8 +30,7 @@ const COLOR_VAR: Record<StatusDotState, string> = {
   frozen: 'var(--status-frozen)',
 }
 
-const SWEEP_MS = 360
-const FILL_MS = 140
+const SWEEP_MS = 420
 
 function prefersReducedMotion(): boolean {
   return (
@@ -65,7 +64,7 @@ export function StatusDot({
 
   useEffect(() => {
     if (!playing) return
-    const id = setTimeout(() => setPlaying(false), SWEEP_MS + FILL_MS)
+    const id = setTimeout(() => setPlaying(false), SWEEP_MS + 40)
     return () => clearTimeout(id)
   }, [playing])
 
@@ -103,11 +102,13 @@ export function StatusDot({
 }
 
 function CompletionSweep({ size }: Readonly<{ size: number }>) {
-  const stroke = 1.5
-  const r = (size - stroke) / 2
-  const c = 2 * Math.PI * r
+  const trackStroke = 1.5
+  const trackR = (size - trackStroke) / 2
+  const pieR = size / 4
+  const pieStroke = size / 2
+  const c = 2 * Math.PI * pieR
 
-  const arcStyle = {
+  const pieStyle = {
     strokeDashoffset: c,
     animation: `status-sweep ${SWEEP_MS}ms cubic-bezier(0.16, 1, 0.3, 1) forwards`,
     ['--sweep-c']: `${c}`,
@@ -124,34 +125,22 @@ function CompletionSweep({ size }: Readonly<{ size: number }>) {
         <circle
           cx={size / 2}
           cy={size / 2}
-          r={r}
+          r={trackR}
           fill="none"
           stroke="var(--status-empty)"
-          strokeWidth={stroke}
+          strokeWidth={trackStroke}
         />
         <circle
           cx={size / 2}
           cy={size / 2}
-          r={r}
+          r={pieR}
           fill="none"
           stroke="var(--primary)"
-          strokeWidth={stroke}
-          strokeLinecap="round"
+          strokeWidth={pieStroke}
           strokeDasharray={c}
-          style={arcStyle}
+          style={pieStyle}
         />
       </svg>
-      <span
-        className="absolute rounded-full"
-        style={{
-          inset: 0,
-          margin: 'auto',
-          width: size,
-          height: size,
-          background: 'var(--primary)',
-          animation: `status-fill ${FILL_MS}ms cubic-bezier(0.16, 1, 0.3, 1) ${SWEEP_MS}ms both`,
-        }}
-      />
     </span>
   )
 }

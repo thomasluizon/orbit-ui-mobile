@@ -605,15 +605,10 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   animation: tag-pop 150ms var(--ease-spring);
 }
 
-/* Status dot completion sweep (Today log) */
+/* Status dot completion sweep (Today log): primary wedge fills as it sweeps */
 @keyframes status-sweep {
   from { stroke-dashoffset: var(--sweep-c); }
   to { stroke-dashoffset: 0; }
-}
-
-@keyframes status-fill {
-  from { transform: scale(0); }
-  to { transform: scale(1); }
 }
 
 /* ═══════════════════════════════════════════════════════

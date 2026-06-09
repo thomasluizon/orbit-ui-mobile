@@ -6,8 +6,7 @@ import { useAppTheme } from '@/lib/use-app-theme'
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle)
 
-const SWEEP_MS = 360
-const FILL_MS = 140
+const SWEEP_MS = 420
 
 export type StatusDotState =
   | 'done'
@@ -55,7 +54,6 @@ export function StatusDot({
   const color = colorMap[state]
 
   const sweep = useMemo(() => new Animated.Value(0), [])
-  const fillScale = useMemo(() => new Animated.Value(0), [])
 
   const [prevState, setPrevState] = useState(state)
   const [playing, setPlaying] = useState(false)
@@ -67,28 +65,21 @@ export function StatusDot({
   useEffect(() => {
     if (!playing) return
     sweep.setValue(0)
-    fillScale.setValue(0)
-    Animated.sequence([
-      Animated.timing(sweep, {
-        toValue: 1,
-        duration: SWEEP_MS,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: false,
-      }),
-      Animated.timing(fillScale, {
-        toValue: 1,
-        duration: FILL_MS,
-        easing: Easing.out(Easing.cubic),
-        useNativeDriver: true,
-      }),
-    ]).start()
-    const id = setTimeout(() => setPlaying(false), SWEEP_MS + FILL_MS + 60)
+    Animated.timing(sweep, {
+      toValue: 1,
+      duration: SWEEP_MS,
+      easing: Easing.out(Easing.cubic),
+      useNativeDriver: false,
+    }).start()
+    const id = setTimeout(() => setPlaying(false), SWEEP_MS + 40)
     return () => clearTimeout(id)
-  }, [playing, sweep, fillScale])
+  }, [playing, sweep])
 
-  const stroke = 1.5
-  const r = (size - stroke) / 2
-  const c = 2 * Math.PI * r
+  const trackStroke = 1.5
+  const trackR = (size - trackStroke) / 2
+  const pieR = size / 4
+  const pieStroke = size / 2
+  const c = 2 * Math.PI * pieR
   const dashOffset = sweep.interpolate({
     inputRange: [0, 1],
     outputRange: [c, 0],
@@ -104,33 +95,22 @@ export function StatusDot({
         <Circle
           cx={size / 2}
           cy={size / 2}
-          r={r}
+          r={trackR}
           fill="none"
           stroke={tokens.statusEmpty}
-          strokeWidth={stroke}
+          strokeWidth={trackStroke}
         />
         <AnimatedCircle
           cx={size / 2}
           cy={size / 2}
-          r={r}
+          r={pieR}
           fill="none"
           stroke={tokens.primary}
-          strokeWidth={stroke}
-          strokeLinecap="round"
+          strokeWidth={pieStroke}
           strokeDasharray={c}
           strokeDashoffset={dashOffset}
         />
       </Svg>
-      <Animated.View
-        style={{
-          position: 'absolute',
-          width: size,
-          height: size,
-          borderRadius: 999,
-          backgroundColor: tokens.primary,
-          transform: [{ scale: fillScale }],
-        }}
-      />
     </View>
   ) : (
     <View
