@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { render } from '@testing-library/react'
 import React from 'react'
-import { SkeletonLine, SkeletonCard, SkeletonAvatar } from '@/components/ui/skeleton'
+import { SkeletonLine, SkeletonCard } from '@/components/ui/skeleton'
 
 describe('SkeletonLine', () => {
   it('renders with default classes', () => {
@@ -63,30 +63,3 @@ describe('SkeletonCard', () => {
   })
 })
 
-describe('SkeletonAvatar', () => {
-  it('renders with default md size', () => {
-    const { container } = render(<SkeletonAvatar />)
-    const div = container.firstChild as HTMLElement
-    expect(div).toHaveClass('size-10')
-    expect(div).toHaveClass('rounded-full')
-    expect(div).toHaveAttribute('aria-hidden', 'true')
-  })
-
-  it('renders with sm size', () => {
-    const { container } = render(<SkeletonAvatar size="sm" />)
-    const div = container.firstChild as HTMLElement
-    expect(div).toHaveClass('size-8')
-  })
-
-  it('renders with lg size', () => {
-    const { container } = render(<SkeletonAvatar size="lg" />)
-    const div = container.firstChild as HTMLElement
-    expect(div).toHaveClass('size-14')
-  })
-
-  it('applies className', () => {
-    const { container } = render(<SkeletonAvatar className="ml-4" />)
-    const div = container.firstChild as HTMLElement
-    expect(div).toHaveClass('ml-4')
-  })
-})

@@ -9,17 +9,6 @@ interface SkeletonCardProps {
   className?: string
 }
 
-interface SkeletonAvatarProps {
-  size?: 'sm' | 'md' | 'lg'
-  className?: string
-}
-
-const avatarSizeClasses: Record<NonNullable<SkeletonAvatarProps['size']>, string> = {
-  sm: 'size-8',
-  md: 'size-10',
-  lg: 'size-14',
-}
-
 export function SkeletonLine({ width, height, className }: Readonly<SkeletonLineProps>) {
   return (
     <div
@@ -61,13 +50,3 @@ export function SkeletonCard({ lines = 3, className }: Readonly<SkeletonCardProp
   )
 }
 
-export function SkeletonAvatar({ size = 'md', className }: Readonly<SkeletonAvatarProps>) {
-  return (
-    <div
-      className={['skeleton-pulse bg-[var(--bg-elev)] rounded-full', avatarSizeClasses[size], className]
-        .filter(Boolean)
-        .join(' ')}
-      aria-hidden="true"
-    />
-  )
-}
