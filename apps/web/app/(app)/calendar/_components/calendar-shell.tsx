@@ -29,7 +29,7 @@ export function CalendarHeader({
       title={title}
       subtitle={subtitle ? `${monthLabel} · ${subtitle}` : monthLabel}
       trailing={
-        <>
+        <div data-tour="tour-calendar-month-nav" className="flex items-center">
           <button
             type="button"
             aria-label={previousMonthLabel}
@@ -48,7 +48,7 @@ export function CalendarHeader({
           >
             <ChevronRight size={17} strokeWidth={1.6} />
           </button>
-        </>
+        </div>
       }
     />
   )

@@ -87,6 +87,7 @@ export function TodayTabs({
     id: tab.view,
     label: tab.label,
     locked: tab.view === 'goals' && !hasProAccess,
+    dataTour: tab.view === 'goals' ? 'tour-goals-tab' : undefined,
   }))
 
   const handleKeyDown = (event: React.KeyboardEvent<HTMLDivElement>) => {

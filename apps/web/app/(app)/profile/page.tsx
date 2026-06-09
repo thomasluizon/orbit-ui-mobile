@@ -244,6 +244,7 @@ export default function ProfilePage() {
             icon={<Flame size={18} strokeWidth={1.75} color="var(--status-bad)" />}
             label={t('streakDisplay.title')}
             ariaLabel={t('streakDisplay.title')}
+            dataTour="tour-profile-streak"
             onClick={() => router.push('/streak')}
             trailing={
               <span className="flex items-center" style={{ gap: 6 }}>
