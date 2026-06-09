@@ -3,7 +3,8 @@ import { Animated, Pressable, StyleSheet, Text, View } from 'react-native'
 import { Check } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import { useLogHabit } from '@/hooks/use-habits'
-import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
+import { toAnimatedEasing } from '@/lib/motion'
+import { createTokensV2, easings, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 interface OnboardingCompleteHabitProps {
@@ -47,15 +48,16 @@ export function OnboardingCompleteHabit({
     logHabit.mutate({ habitId })
 
     Animated.sequence([
-      Animated.spring(scaleAnim, {
+      Animated.timing(scaleAnim, {
         toValue: 1.2,
-        friction: 4,
-        tension: 200,
+        duration: 100,
+        easing: toAnimatedEasing(easings.out),
         useNativeDriver: true,
       }),
-      Animated.spring(scaleAnim, {
+      Animated.timing(scaleAnim, {
         toValue: 1,
-        friction: 6,
+        duration: 100,
+        easing: toAnimatedEasing(easings.out),
         useNativeDriver: true,
       }),
     ]).start()

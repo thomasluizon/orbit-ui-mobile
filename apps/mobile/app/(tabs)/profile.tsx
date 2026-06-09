@@ -799,7 +799,7 @@ export default function ProfileScreen() {
                     styles.dangerButton,
                     {
                       borderColor: tokens.hairline,
-                      backgroundColor: pressed ? tokens.bgElev : 'transparent',
+                      backgroundColor: pressed ? tokens.bgElevPressed : 'transparent',
                     },
                     deleteLoading && styles.buttonDisabled,
                   ]}
@@ -863,7 +863,7 @@ export default function ProfileScreen() {
                     styles.dangerButton,
                     {
                       borderColor: tokens.hairline,
-                      backgroundColor: pressed ? tokens.bgElev : 'transparent',
+                      backgroundColor: pressed ? tokens.bgElevPressed : 'transparent',
                     },
                     (deleteLoading || deleteCodeDigits.join('').length !== 6) &&
                       styles.buttonDisabled,

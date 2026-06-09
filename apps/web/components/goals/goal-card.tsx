@@ -95,7 +95,7 @@ export function GoalCard({ goal }: Readonly<GoalCardProps>) {
       <motion.button
         type="button"
         data-tour="tour-goal-card"
-        className={`group relative w-full overflow-hidden rounded-[12px] border border-[var(--hairline)] bg-[var(--bg-elev)] p-5 text-left shadow-[var(--shadow-sm)] surface-interactive transition-[background-color,border-color,box-shadow,transform] cursor-pointer hover:bg-[var(--bg-elev)]/80`}
+        className={`group relative w-full overflow-hidden rounded-[12px] border border-[var(--hairline)] bg-[var(--bg-elev)] p-5 text-left shadow-[var(--shadow-sm)] surface-interactive transition-[background-color,border-color,box-shadow,transform] cursor-pointer hover:bg-[var(--bg-elev-pressed)]`}
         whileTap={tapTarget}
         transition={{
           duration: selectionMotion.enterDuration / 1000,

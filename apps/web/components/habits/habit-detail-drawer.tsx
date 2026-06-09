@@ -191,13 +191,11 @@ export function HabitDetailDrawer({
                     key={`${sr.when}-${sr.time}-${idx}`}
                     label={
                       sr.when === 'day_before'
-                        ? t('habits.form.scheduledReminderDayBeforeAt', {
-                            time: displayTime(sr.time),
-                          })
-                        : t('habits.form.scheduledReminderSameDayAt', {
-                            time: displayTime(sr.time),
-                          })
+                        ? t('habits.form.scheduledReminderDayBefore')
+                        : t('habits.form.scheduledReminderSameDay')
                     }
+                    value={displayTime(sr.time)}
+                    mono
                     accessory="none"
                   />
                 ))}

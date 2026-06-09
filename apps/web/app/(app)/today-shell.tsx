@@ -177,10 +177,11 @@ export function TodayDateNavigation({
           type="button"
           key={dateLabel}
           aria-label={isTodaySelected ? dateLabel : todayLabel}
-          className={`appearance-none border-0 bg-transparent cursor-pointer flex-1 inline-flex items-center justify-center transition-opacity duration-150 ease-out hover:opacity-80 animate-slide-date-${slideDirection}`}
+          className={`appearance-none border-0 bg-transparent cursor-pointer flex-1 inline-flex items-center justify-center transition-[background-color] duration-150 ease-out hover:bg-[var(--bg-elev)] animate-slide-date-${slideDirection}`}
           style={{
             height: 36,
             padding: '0 8px',
+            borderRadius: 8,
             fontFamily: 'var(--font-family-sans)',
             fontSize: 14,
             fontWeight: 500,

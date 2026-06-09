@@ -127,7 +127,6 @@ export function OnboardingComplete({
             flexDirection: 'column',
             gap: 4,
             padding: 14,
-            borderTop: '1px solid var(--hairline)',
             borderBottom: '1px solid var(--hairline)',
           }}
         >

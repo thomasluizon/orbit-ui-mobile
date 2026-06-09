@@ -247,6 +247,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
     flexShrink: 0,
   },
   title: {
+    fontFamily: 'Geist',
     fontSize: 14,
     fontWeight: '600',
     color: tokens.fg1,
@@ -266,11 +267,13 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
     borderColor: tokens.hairline,
   },
   statusBadgeText: {
+    fontFamily: 'Geist',
     fontSize: 10,
     fontWeight: '700',
   },
 
   progressLabel: {
+    fontFamily: 'Geist',
     fontSize: 12,
     color: tokens.fg2,
     marginBottom: 8,
@@ -297,6 +300,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
     borderColor: tokens.hairline,
   },
   deadlineBadgeText: {
+    fontFamily: 'Geist',
     fontSize: 10,
     fontWeight: '700',
   },

@@ -335,8 +335,8 @@ describe('HabitDetailDrawer', () => {
         habit={habit}
       />,
     )
-    expect(screen.getByText(/scheduledReminderSameDayAt/)).toBeDefined()
-    expect(screen.getByText(/scheduledReminderDayBeforeAt/)).toBeDefined()
+    expect(screen.getByText('habits.form.scheduledReminderSameDay')).toBeDefined()
+    expect(screen.getByText('habits.form.scheduledReminderDayBefore')).toBeDefined()
   })
 
   it('shows end date when habit has one', () => {

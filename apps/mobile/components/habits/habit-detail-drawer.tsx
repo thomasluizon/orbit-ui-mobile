@@ -72,7 +72,7 @@ export function HabitDetailDrawer({
   const router = useRouter()
   const askPrompt = useMemo(() => {
     if (!habit) return ''
-    return habit.hasSubHabits
+    return (habit.checklistItems?.length ?? 0) > 0
       ? t('habits.detail.askAstraSubHabits')
       : t('habits.detail.askAstraDefault')
   }, [habit, t])

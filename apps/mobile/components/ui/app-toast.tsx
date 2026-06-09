@@ -10,7 +10,8 @@ import {
 import { AlertCircle, CheckCircle2, Clock3, Info } from 'lucide-react-native'
 import type { LucideIcon } from 'lucide-react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { createTokensV2, shadowsV2, type AppTokensV2 } from '@/lib/theme'
+import { toAnimatedEasing } from '@/lib/motion'
+import { createTokensV2, easings, shadowsV2, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useAppToastStore } from '@/stores/app-toast-store'
 
@@ -87,21 +88,22 @@ export function AppToast() {
     }
 
     Animated.parallel([
-      Animated.spring(translateY, {
+      Animated.timing(translateY, {
         toValue: 0,
-        tension: 80,
-        friction: 12,
+        duration: 400,
+        easing: toAnimatedEasing(easings.out),
         useNativeDriver: true,
       }),
       Animated.timing(opacity, {
         toValue: 1,
         duration: 220,
+        easing: toAnimatedEasing(easings.out),
         useNativeDriver: true,
       }),
-      Animated.spring(scale, {
+      Animated.timing(scale, {
         toValue: 1,
-        tension: 80,
-        friction: 12,
+        duration: 400,
+        easing: toAnimatedEasing(easings.out),
         useNativeDriver: true,
       }),
     ]).start()
