@@ -14,6 +14,7 @@
      Concrete values are set per-scheme on :root.dark / :root.light below. */
   --color-bg: var(--bg);
   --color-bg-elev: var(--bg-elev);
+  --color-bg-elev-pressed: var(--bg-elev-pressed);
   --color-bg-sunk: var(--bg-sunk);
   --color-hairline: var(--hairline);
   --color-hairline-strong: var(--hairline-strong);
@@ -175,6 +176,7 @@
 :root.light, .light {
   --bg:                oklch(0.985 var(--chroma-bg) var(--hue));
   --bg-elev:           oklch(0.995 var(--chroma-bg) var(--hue));
+  --bg-elev-pressed:   oklch(0.963 var(--chroma-bg) var(--hue));
   --bg-sunk:           oklch(0.965 var(--chroma-bg) var(--hue));
   --hairline:          oklch(0.905 calc(var(--chroma-bg) * 1.4) var(--hue));
   --hairline-strong:   oklch(0.84  calc(var(--chroma-bg) * 1.6) var(--hue));
@@ -196,6 +198,7 @@
 :root.dark, .dark {
   --bg:                oklch(0.16 0.012 var(--hue));
   --bg-elev:           oklch(0.20 0.014 var(--hue));
+  --bg-elev-pressed:   oklch(0.23 0.014 var(--hue));
   --bg-sunk:           oklch(0.13 0.010 var(--hue));
   --hairline:          oklch(0.27 0.014 var(--hue));
   --hairline-strong:   oklch(0.34 0.016 var(--hue));

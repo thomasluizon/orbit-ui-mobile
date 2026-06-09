@@ -2,7 +2,15 @@
 
 import { useState, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import { ChevronRight, Sparkles } from 'lucide-react'
+import {
+  ArchiveX,
+  CheckCircle2,
+  ChevronRight,
+  PencilLine,
+  RotateCw,
+  Sparkles,
+  Trash2,
+} from 'lucide-react'
 import { useTranslations, useLocale } from 'next-intl'
 import { AppOverlay } from '@/components/ui/app-overlay'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
@@ -272,7 +280,7 @@ export function GoalDetailDrawer({
               type="button"
               onClick={handleAskAstra}
               aria-label={`${t('goals.detail.askAstraEyebrow')}: ${askPrompt}`}
-              className="block w-full text-left appearance-none border-0 bg-transparent cursor-pointer transition-[background-color,transform] duration-150 ease-out hover:bg-[var(--bg-elev)]/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-primary active:scale-[0.99]"
+              className="block w-full text-left appearance-none border-0 bg-transparent cursor-pointer transition-[background-color,transform] duration-150 ease-out hover:bg-[var(--bg-elev-pressed)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-primary active:scale-[0.99]"
               style={{ borderRadius: 8, padding: '8px 10px', margin: '-8px -10px' }}
             >
               <div className="flex items-center gap-3">
@@ -455,16 +463,18 @@ export function GoalDetailDrawer({
               </p>
             )}
 
-            <div style={{ marginTop: 8 }}>
+            <div style={{ marginTop: 16, paddingBottom: 4 }}>
               {goal.status === 'Active' ? (
                 <>
                   <GoalActionRow
                     label={t('goals.detail.markCompleted')}
+                    icon={CheckCircle2}
                     onClick={markCompleted}
                     disabled={isUpdatingStatus}
                   />
                   <GoalActionRow
                     label={t('goals.detail.markAbandoned')}
+                    icon={ArchiveX}
                     onClick={markAbandoned}
                     disabled={isUpdatingStatus}
                   />
@@ -472,16 +482,19 @@ export function GoalDetailDrawer({
               ) : (
                 <GoalActionRow
                   label={t('goals.detail.reactivate')}
+                  icon={RotateCw}
                   onClick={reactivate}
                   disabled={isUpdatingStatus}
                 />
               )}
               <GoalActionRow
                 label={t('goals.detail.edit')}
+                icon={PencilLine}
                 onClick={() => setShowEditModal(true)}
               />
               <GoalActionRow
                 label={t('goals.detail.delete')}
+                icon={Trash2}
                 destructive
                 onClick={() => setShowDeleteConfirm(true)}
               />

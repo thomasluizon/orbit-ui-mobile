@@ -141,7 +141,7 @@ export function HabitDetailDrawer({
             type="button"
             onClick={handleAskAstra}
             aria-label={`${t('habits.detail.askAstraEyebrow')}: ${askPrompt}`}
-            className="block w-full text-left appearance-none border-0 bg-transparent cursor-pointer transition-[background-color,transform] duration-150 ease-out hover:bg-[var(--bg-elev)]/40 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-primary active:scale-[0.99]"
+            className="block w-full text-left appearance-none border-0 bg-transparent cursor-pointer transition-[background-color,transform] duration-150 ease-out hover:bg-[var(--bg-elev-pressed)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-primary active:scale-[0.99]"
             style={{ borderRadius: 8, padding: '8px 10px', margin: '-8px -10px' }}
           >
             <div className="flex items-center gap-3">

@@ -450,6 +450,7 @@ export function GoalDetailDrawer({
           <GoalActionFooter
             isActive={isActive}
             isUpdatingStatus={isUpdatingStatus}
+            iconColor={tokens.fg3}
             onMarkCompleted={markCompleted}
             onMarkAbandoned={markAbandoned}
             onReactivate={reactivate}

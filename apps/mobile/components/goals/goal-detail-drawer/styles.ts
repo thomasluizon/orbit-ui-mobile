@@ -175,16 +175,18 @@ export function createStyles(tokens: AppTokens, bottomInset: number) {
       color: tokens.fg2,
     },
     actions: {
-      marginTop: 8,
+      marginTop: 16,
+      paddingBottom: 4,
     },
     actionRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
       paddingHorizontal: 20,
-      paddingVertical: 14,
-      borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: tokens.hairline,
+      paddingVertical: 12,
     },
     actionRowPressed: {
-      backgroundColor: tokens.bgElev,
+      backgroundColor: tokens.bgElevPressed,
     },
     actionRowText: {
       fontFamily: 'Geist',

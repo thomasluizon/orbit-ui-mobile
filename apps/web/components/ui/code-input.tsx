@@ -36,8 +36,8 @@ export function CodeInput({
 
   return (
     <fieldset
-      className="flex items-center"
-      style={{ gap: 14, border: 0, padding: 0, margin: 0 }}
+      className="flex items-center justify-center"
+      style={{ gap: 14, border: 0, padding: 0, margin: 0, minInlineSize: 0 }}
       aria-labelledby={ariaLabelledBy}
     >
       {digits.map((digit, index) => (
@@ -57,8 +57,8 @@ export function CodeInput({
           onKeyDown={(e) => onKeyDown(index, e)}
           onPaste={onPaste}
           style={{
-            flex: 1,
-            minWidth: 0,
+            width: 44,
+            flex: 'none',
             appearance: 'none',
             border: 0,
             background: 'transparent',
