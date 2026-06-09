@@ -40,7 +40,7 @@ import { AppBar } from '@/components/ui/app-bar'
 import { SectionLabel } from '@/components/ui/section-label'
 import { SettingsRow } from '@/components/ui/settings-row'
 import { Chip } from '@/components/ui/chip'
-import { ConfirmDialogV2 } from '@/components/ui/confirm-dialog-v2'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 
 export default function AdvancedScreen() {
   const { t, i18n } = useTranslation()
@@ -420,23 +420,24 @@ export default function AdvancedScreen() {
         <View style={{ height: 24 }} />
       </ScrollView>
 
-      <ConfirmDialogV2
+      <ConfirmDialog
         open={showWidgetInfo}
-        onClose={() => setShowWidgetInfo(false)}
+        onOpenChange={setShowWidgetInfo}
         title={t('profile.widgetTitle')}
-        body={t('profile.widgetHint')}
-        cancelLabel={t('common.close')}
+        description={t('profile.widgetHint')}
+        variant="info"
       />
 
-      <ConfirmDialogV2
+      <ConfirmDialog
         open={revokingKeyId !== null}
-        onClose={() => setRevokingKeyId(null)}
+        onOpenChange={(open) => {
+          if (!open) setRevokingKeyId(null)
+        }}
         title={t('orbitMcp.revoke')}
-        body={t('orbitMcp.revokeConfirm')}
+        description={t('orbitMcp.revokeConfirm')}
         cancelLabel={t('orbitMcp.cancel')}
-        actionLabel={t('orbitMcp.confirm')}
-        destructive
-        onAction={() => {
+        confirmLabel={t('orbitMcp.confirm')}
+        onConfirm={() => {
           if (revokingKeyId) revokeKeyMutation.mutate(revokingKeyId)
         }}
       />

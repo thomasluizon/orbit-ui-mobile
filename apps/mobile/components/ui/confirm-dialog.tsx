@@ -15,7 +15,7 @@ import { useAppTheme } from '@/lib/use-app-theme'
 
 type AppTokens = ReturnType<typeof createTokensV2>
 
-type Variant = 'danger' | 'warning' | 'success'
+type Variant = 'danger' | 'warning' | 'success' | 'info'
 
 interface ConfirmDialogProps {
   open: boolean
@@ -24,8 +24,10 @@ interface ConfirmDialogProps {
   description: string
   confirmLabel?: string
   cancelLabel?: string
-  onConfirm: () => void
+  onConfirm?: () => void
   onCancel?: () => void
+  /** 'danger' is treated as destructive — italicized action label, no semantic fill.
+   *  'info' renders a single close action and hides the cancel button. */
   variant?: Variant
 }
 
@@ -50,16 +52,8 @@ export function ConfirmDialog({
   const progress = useMemo(() => new Animated.Value(0), [])
   const [visible, setVisible] = useState(open)
 
-  const accentColor = useMemo(() => {
-    switch (variant) {
-      case 'warning':
-        return tokens.statusOverdue
-      case 'success':
-        return tokens.statusDone
-      default:
-        return tokens.statusBad
-    }
-  }, [tokens, variant])
+  const destructive = variant === 'danger'
+  const infoOnly = variant === 'info'
   const styles = useMemo(() => createStyles(tokens), [tokens])
 
   useEffect(() => {
@@ -88,7 +82,7 @@ export function ConfirmDialog({
   }, [dialogMotion.enterDuration, dialogMotion.exitDuration, open, progress])
 
   function handleConfirm() {
-    onConfirm()
+    onConfirm?.()
     onOpenChange(false)
   }
 
@@ -144,33 +138,31 @@ export function ConfirmDialog({
           <Text style={styles.description}>{description}</Text>
 
           <View style={styles.actions}>
+            {!infoOnly ? (
+              <TouchableOpacity
+                style={styles.actionButton}
+                onPress={handleCancel}
+                activeOpacity={0.7}
+              >
+                <Text style={styles.cancelLabel} numberOfLines={1}>
+                  {cancelLabel ?? t('common.cancel')}
+                </Text>
+              </TouchableOpacity>
+            ) : null}
+
             <TouchableOpacity
-              style={styles.cancelButton}
-              onPress={handleCancel}
+              style={styles.actionButton}
+              onPress={handleConfirm}
               activeOpacity={0.7}
             >
               <Text
-                style={styles.cancelLabel}
+                style={[
+                  styles.confirmLabel,
+                  destructive ? styles.confirmLabelDestructive : null,
+                ]}
                 numberOfLines={1}
-                adjustsFontSizeToFit
-                minimumFontScale={0.8}
               >
-                {cancelLabel ?? t('common.cancel')}
-              </Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity
-              style={[styles.confirmButton, { backgroundColor: accentColor }]}
-              onPress={handleConfirm}
-              activeOpacity={0.85}
-            >
-              <Text
-                style={[styles.confirmLabel, { color: tokens.fgOnPrimary }]}
-                numberOfLines={1}
-                adjustsFontSizeToFit
-                minimumFontScale={0.8}
-              >
-                {confirmLabel ?? t('common.confirm')}
+                {confirmLabel ?? (infoOnly ? t('common.close') : t('common.confirm'))}
               </Text>
             </TouchableOpacity>
           </View>
@@ -223,38 +215,27 @@ function createStyles(tokens: AppTokens) {
     },
     actions: {
       flexDirection: 'row',
-      gap: 8,
-    },
-    cancelButton: {
-      flex: 1,
-      paddingVertical: 12,
-      paddingHorizontal: 8,
-      borderRadius: 8,
-      borderWidth: StyleSheet.hairlineWidth,
-      borderColor: tokens.hairlineStrong,
+      justifyContent: 'flex-end',
       alignItems: 'center',
-      justifyContent: 'center',
+      gap: 16,
+    },
+    actionButton: {
+      padding: 6,
     },
     cancelLabel: {
       fontFamily: 'Geist',
-      color: tokens.fg2,
+      color: tokens.fg3,
       fontSize: 14,
       fontWeight: '500',
-      textAlign: 'center',
-    },
-    confirmButton: {
-      flex: 1,
-      paddingVertical: 12,
-      paddingHorizontal: 8,
-      borderRadius: 8,
-      alignItems: 'center',
-      justifyContent: 'center',
     },
     confirmLabel: {
       fontFamily: 'Geist',
+      color: tokens.fg1,
       fontSize: 14,
       fontWeight: '600',
-      textAlign: 'center',
+    },
+    confirmLabelDestructive: {
+      fontStyle: 'italic',
     },
   })
 }

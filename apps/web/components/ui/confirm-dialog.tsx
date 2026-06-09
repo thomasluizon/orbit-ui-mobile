@@ -3,7 +3,7 @@
 import { useTranslations } from 'next-intl'
 import { AppOverlay } from './app-overlay'
 
-type Variant = 'danger' | 'warning' | 'success'
+type Variant = 'danger' | 'warning' | 'success' | 'info'
 
 interface ConfirmDialogProps {
   open: boolean
@@ -12,9 +12,10 @@ interface ConfirmDialogProps {
   description: string
   confirmLabel?: string
   cancelLabel?: string
-  onConfirm: () => void
+  onConfirm?: () => void
   onCancel?: () => void
-  /** 'danger' is treated as destructive — italicized action label, no semantic fill. */
+  /** 'danger' is treated as destructive — italicized action label, no semantic fill.
+   *  'info' renders a single close action and hides the cancel button. */
   variant?: Variant
 }
 
@@ -31,9 +32,10 @@ export function ConfirmDialog({
 }: Readonly<ConfirmDialogProps>) {
   const t = useTranslations()
   const destructive = variant === 'danger'
+  const infoOnly = variant === 'info'
 
   function handleConfirm() {
-    onConfirm()
+    onConfirm?.()
     onOpenChange(false)
   }
 
@@ -49,20 +51,22 @@ export function ConfirmDialog({
       title={title}
       footer={
         <div className="flex justify-end items-center" style={{ gap: 16 }}>
-          <button
-            type="button"
-            onClick={handleCancel}
-            className="appearance-none border-0 bg-transparent cursor-pointer transition-colors duration-150 ease-out hover:text-[var(--fg-1)]"
-            style={{
-              fontFamily: 'var(--font-family-sans)',
-              fontSize: 14,
-              fontWeight: 500,
-              color: 'var(--fg-3)',
-              padding: 6,
-            }}
-          >
-            {cancelLabel || t('common.cancel')}
-          </button>
+          {!infoOnly && (
+            <button
+              type="button"
+              onClick={handleCancel}
+              className="appearance-none border-0 bg-transparent cursor-pointer transition-colors duration-150 ease-out hover:text-[var(--fg-1)]"
+              style={{
+                fontFamily: 'var(--font-family-sans)',
+                fontSize: 14,
+                fontWeight: 500,
+                color: 'var(--fg-3)',
+                padding: 6,
+              }}
+            >
+              {cancelLabel || t('common.cancel')}
+            </button>
+          )}
           <button
             type="button"
             onClick={handleConfirm}
@@ -76,7 +80,7 @@ export function ConfirmDialog({
               padding: 6,
             }}
           >
-            {confirmLabel || t('common.confirm')}
+            {confirmLabel || (infoOnly ? t('common.close') : t('common.confirm'))}
           </button>
         </div>
       }
