@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { Animated, Easing, Pressable, View } from 'react-native'
+import { AccessibilityInfo, Animated, Easing, Pressable, View } from 'react-native'
 import Svg, { Circle } from 'react-native-svg'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -57,10 +57,26 @@ export function StatusDot({
 
   const [prevState, setPrevState] = useState(state)
   const [playing, setPlaying] = useState(false)
+  const [reduceMotion, setReduceMotion] = useState(false)
   if (state !== prevState) {
     setPrevState(state)
-    setPlaying(prevState !== 'done' && state === 'done' && interactive)
+    setPlaying(prevState !== 'done' && state === 'done' && interactive && !reduceMotion)
   }
+
+  useEffect(() => {
+    let active = true
+    AccessibilityInfo.isReduceMotionEnabled().then((enabled) => {
+      if (active) setReduceMotion(enabled)
+    })
+    const subscription = AccessibilityInfo.addEventListener(
+      'reduceMotionChanged',
+      setReduceMotion,
+    )
+    return () => {
+      active = false
+      subscription.remove()
+    }
+  }, [])
 
   useEffect(() => {
     if (!playing) return
