@@ -74,7 +74,7 @@ export function StatusDot({
     onToggle?.()
   }
 
-  if (!onToggle || disabled) {
+  if (!onToggle) {
     return (
       <span
         role="img"

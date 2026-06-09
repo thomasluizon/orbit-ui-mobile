@@ -1095,6 +1095,10 @@
           "title": "AI Chat",
           "desc": "Ask AI to create habits, get insights, or analyze your progress."
         },
+        "subHabits": {
+          "title": "Sub-habits",
+          "desc": "Break big habits into smaller steps nested under a parent."
+        },
         "calendar": {
           "title": "Calendar",
           "desc": "See your completion history with a color-coded heatmap."

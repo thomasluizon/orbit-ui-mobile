@@ -46,10 +46,14 @@ describe('OnboardingWelcome', () => {
     expect(screen.getByText('onboarding.flow.welcome.weekStart')).toBeInTheDocument()
   })
 
-  it('exposes monday and sunday selectors via aria-label', () => {
+  it('renders exactly the monday and sunday week-start choices', () => {
     render(<OnboardingWelcome />, { wrapper: createWrapper() })
-    expect(screen.getByLabelText('settings.weekStartDay.monday')).toBeInTheDocument()
-    expect(screen.getByLabelText('settings.weekStartDay.sunday')).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'settings.weekStartDay.monday' }),
+    ).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'settings.weekStartDay.sunday' }),
+    ).toBeInTheDocument()
   })
 
   it('does not show color scheme for non-pro users', () => {

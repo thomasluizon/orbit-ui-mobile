@@ -142,7 +142,7 @@ export function StatusDot({
     />
   )
 
-  if (!onToggle || disabled) {
+  if (!onToggle) {
     return (
       <View
         accessibilityLabel={accessibilityLabel ?? state}
@@ -157,12 +157,14 @@ export function StatusDot({
   return (
     <Pressable
       onPress={onToggle}
+      disabled={disabled}
       hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? state}
+      accessibilityState={{ disabled }}
       style={({ pressed }) => ({
-        transform: [{ scale: pressed ? 0.9 : 1 }],
-        opacity: pressed ? 0.85 : 1,
+        transform: [{ scale: pressed && !disabled ? 0.9 : 1 }],
+        opacity: disabled ? 0.4 : pressed ? 0.85 : 1,
       })}
     >
       {dot}

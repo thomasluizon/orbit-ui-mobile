@@ -12,11 +12,9 @@ import {
   updateWeekStartDay,
   updateColorScheme as updateColorSchemeAction,
 } from '@/app/actions/profile'
+import type { ReactNode } from 'react'
 import { AppLogo } from '@/components/ui/app-logo'
-import { SectionLabel } from '@/components/ui/section-label'
 import { Chip } from '@/components/ui/chip'
-
-const DAY_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S'] as const
 
 export function OnboardingWelcome() {
   const t = useTranslations()
@@ -59,9 +57,6 @@ export function OnboardingWelcome() {
   }
 
   const weekStartDay = profile?.weekStartDay ?? 1
-  const activeDayIndex = weekStartDay % 7
-  const monday = ONBOARDING_WEEK_START_OPTIONS[0]
-  const sunday = ONBOARDING_WEEK_START_OPTIONS[1]
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24, padding: '16px 0' }}>
@@ -102,43 +97,27 @@ export function OnboardingWelcome() {
       </div>
 
       <div>
-        <SectionLabel top={12} bottom={10}>
+        <OnboardingSectionLabel>
           {t('onboarding.flow.welcome.weekStart')}
-        </SectionLabel>
-        <div className="flex" style={{ justifyContent: 'space-between', padding: '0 4px' }}>
-          {DAY_LABELS.map((label, i) => {
-            const isMondayChip = i === 1
-            const isSundayChip = i === 0
-            const onClick = isMondayChip
-              ? () => handleWeekStartDaySelect(monday.value)
-              : isSundayChip
-                ? () => handleWeekStartDaySelect(sunday.value)
-                : undefined
-            return (
-              <Chip
-                key={`day-${i}`}
-                active={i === activeDayIndex}
-                onClick={onClick}
-                ariaLabel={
-                  isMondayChip
-                    ? t(monday.labelKey)
-                    : isSundayChip
-                      ? t(sunday.labelKey)
-                      : label
-                }
-              >
-                {label}
-              </Chip>
-            )
-          })}
+        </OnboardingSectionLabel>
+        <div className="flex justify-center" style={{ gap: 12 }}>
+          {ONBOARDING_WEEK_START_OPTIONS.map((option) => (
+            <Chip
+              key={option.value}
+              active={weekStartDay === option.value}
+              onClick={() => handleWeekStartDaySelect(option.value)}
+            >
+              {t(option.labelKey)}
+            </Chip>
+          ))}
         </div>
       </div>
 
       {hasProAccess && (
         <div>
-          <SectionLabel top={12} bottom={10}>
+          <OnboardingSectionLabel>
             {t('onboarding.flow.welcome.colorScheme')}
-          </SectionLabel>
+          </OnboardingSectionLabel>
           <div className="flex justify-center" style={{ gap: 12 }}>
             {colorSchemeOptions.map((option) => {
               const isActive = currentScheme === option.value
@@ -167,6 +146,24 @@ export function OnboardingWelcome() {
           </div>
         </div>
       )}
+    </div>
+  )
+}
+
+function OnboardingSectionLabel({ children }: Readonly<{ children: ReactNode }>) {
+  return (
+    <div
+      className="text-center"
+      style={{
+        fontFamily: 'var(--font-family-sans)',
+        fontSize: 13,
+        fontWeight: 600,
+        color: 'var(--fg-3)',
+        paddingTop: 12,
+        paddingBottom: 10,
+      }}
+    >
+      {children}
     </div>
   )
 }

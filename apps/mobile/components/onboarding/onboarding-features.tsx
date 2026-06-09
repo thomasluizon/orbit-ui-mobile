@@ -26,8 +26,8 @@ const features: FeatureItem[] = [
   },
   {
     Icon: ListTree,
-    titleKey: 'features.subHabits',
-    descKey: 'features.subHabits',
+    titleKey: 'onboarding.flow.features.subHabits.title',
+    descKey: 'onboarding.flow.features.subHabits.desc',
   },
   {
     Icon: CalendarDays,

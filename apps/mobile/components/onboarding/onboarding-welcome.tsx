@@ -174,7 +174,8 @@ function createStyles(tokens: AppTokensV2) {
       fontWeight: '600',
       color: tokens.fg3,
       marginTop: 16,
-      alignSelf: 'flex-start',
+      alignSelf: 'center',
+      textAlign: 'center',
     },
     chipsRow: {
       flexDirection: 'row',

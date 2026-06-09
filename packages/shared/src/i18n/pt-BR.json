@@ -1095,6 +1095,10 @@
           "title": "Chat IA",
           "desc": "Peça para a IA criar hábitos, obter insights ou analisar seu progresso."
         },
+        "subHabits": {
+          "title": "Sub-hábitos",
+          "desc": "Divida hábitos grandes em passos menores dentro de um hábito principal."
+        },
         "calendar": {
           "title": "Calendário",
           "desc": "Veja seu histórico com um mapa de calor colorido."

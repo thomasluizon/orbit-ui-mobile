@@ -245,10 +245,10 @@ export function OnboardingFlow() {
         </div>
 
         <div
-          className="flex-1 min-h-0 overflow-y-auto"
-          style={{ padding: '0 28px' }}
+          className="flex-1 min-h-0 overflow-y-auto flex flex-col"
+          style={{ padding: '12px 28px' }}
         >
-          <div className="w-full max-w-sm mx-auto">
+          <div className="w-full max-w-sm mx-auto my-auto">
             {stepContent}
           </div>
         </div>
