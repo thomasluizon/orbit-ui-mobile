@@ -11,6 +11,7 @@ import type { GoalStatus } from "@orbit/shared/types/goal";
 import { useGoals } from "@/hooks/use-goals";
 import { GoalList } from "./goal-list";
 import { AnchoredMenu } from "@/components/ui/anchored-menu";
+import { EmptyState } from "@/components/ui/empty-state";
 import type { MenuAnchorRect } from "@/lib/anchored-menu";
 import { createTokensV2 } from "@/lib/theme";
 import { useAppTheme } from "@/lib/use-app-theme";
@@ -118,13 +119,18 @@ export function GoalsView() {
       ) : filteredGoals.length > 0 ? (
         <GoalList goals={filteredGoals} />
       ) : (
-        <View style={styles.emptyState}>
-          <View style={styles.emptyIconContainer}>
-            <Flag size={32} color={tokens.fg3} />
-          </View>
-          <Text style={styles.emptyTitle}>{t("goals.empty")}</Text>
-          <Text style={styles.emptySubtitle}>{t("goals.emptyHint")}</Text>
-        </View>
+        <EmptyState
+          icon={Flag}
+          title={t("goals.empty")}
+          description={t("goals.emptyHint")}
+          style={{
+            marginHorizontal: 20,
+            borderRadius: 12,
+            backgroundColor: tokens.bgSunk,
+            borderWidth: StyleSheet.hairlineWidth,
+            borderColor: tokens.hairline,
+          }}
+        />
       )}
 
       <AnchoredMenu
@@ -243,42 +249,6 @@ function createStyles(tokens: AppTokens) {
       width: "100%",
       borderRadius: 999,
       backgroundColor: tokens.bgElev,
-    },
-    emptyState: {
-      alignItems: "center",
-      justifyContent: "center",
-      paddingHorizontal: 20,
-      paddingVertical: 56,
-      marginHorizontal: 20,
-      borderRadius: 12,
-      backgroundColor: tokens.bgSunk,
-      borderWidth: StyleSheet.hairlineWidth,
-      borderColor: tokens.hairline,
-    },
-    emptyIconContainer: {
-      width: 64,
-      height: 64,
-      borderRadius: 32,
-      backgroundColor: tokens.bgSunk,
-      borderWidth: StyleSheet.hairlineWidth,
-      borderColor: tokens.hairline,
-      alignItems: "center",
-      justifyContent: "center",
-      marginBottom: 16,
-    },
-    emptyTitle: {
-      fontFamily: "Geist",
-      fontSize: 16,
-      fontWeight: "600",
-      color: tokens.fg2,
-      marginBottom: 4,
-    },
-    emptySubtitle: {
-      fontFamily: "Geist",
-      fontSize: 14,
-      color: tokens.fg3,
-      textAlign: "center",
-      marginBottom: 24,
     },
   });
 }

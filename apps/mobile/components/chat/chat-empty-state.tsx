@@ -1,7 +1,7 @@
 import { forwardRef } from "react";
 import { View, Text } from "react-native";
+import { Sparkles } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
-import { AnimatedSparkle } from "@/components/chat/chat-animations";
 import { SuggestionChips } from "@/components/chat/suggestion-chips";
 import type { ChatStyles, Tokens } from "@/app/chat.styles";
 
@@ -17,8 +17,15 @@ export const ChatEmptyState = forwardRef<View, Readonly<ChatEmptyStateProps>>(
 
     return (
       <View ref={ref} style={styles.emptyState}>
-        <AnimatedSparkle primaryColor={tokens.fg1} styles={styles} />
-        <Text style={[styles.emptyText, { color: tokens.fg2 }]}>
+        <View style={styles.sparkleOuter}>
+          <View style={styles.orbitRing} />
+          <View style={styles.sparkleInnerRing} />
+          <Sparkles size={36} color={tokens.fg1} strokeWidth={1.3} />
+        </View>
+        <Text style={[styles.emptyTitle, { color: tokens.fg1 }]}>
+          {t("chat.empty.title")}
+        </Text>
+        <Text style={[styles.emptyText, { color: tokens.fg3 }]}>
           {t("chat.suggestion.prompt")}
         </Text>
         <SuggestionChips onSelect={onSelectSuggestion} />
