@@ -7,6 +7,7 @@ import { Flame } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { plural } from '@/lib/plural'
 import { StatusDot, type StatusDotState } from '@/components/ui/status-dot'
+import { ParentRing } from '@/components/ui/parent-ring'
 import { GoalDetailDrawer } from './goal-detail-drawer'
 import { resolveMotionPreset } from '@orbit/shared/theme'
 import { isStreakGoal } from '@orbit/shared/utils/goal-form'
@@ -25,12 +26,12 @@ export function GoalCard({ goal }: Readonly<GoalCardProps>) {
 
   const isStreak = isStreakGoal(goal.type)
 
-  const progress = useMemo<{ state: string; className: string }>(() => {
-    if (goal.status === 'Completed') return { state: 'completed', className: 'bg-[var(--status-done)]' }
-    if (goal.status === 'Abandoned') return { state: 'abandoned', className: 'bg-[var(--fg-3)]' }
-    if (isStreak) return { state: 'streak', className: 'bg-[var(--status-overdue)]' }
-    if (goal.progressPercentage >= 75) return { state: 'high', className: 'bg-[var(--status-done)]' }
-    return { state: 'mid', className: 'bg-[var(--primary)]' }
+  const progress = useMemo<{ state: string; color: string }>(() => {
+    if (goal.status === 'Completed') return { state: 'completed', color: 'var(--status-done)' }
+    if (goal.status === 'Abandoned') return { state: 'abandoned', color: 'var(--fg-3)' }
+    if (isStreak) return { state: 'streak', color: 'var(--status-overdue)' }
+    if (goal.progressPercentage >= 75) return { state: 'high', color: 'var(--status-done)' }
+    return { state: 'mid', color: 'var(--primary)' }
   }, [goal.status, goal.progressPercentage, isStreak])
 
   const deadlineInfo = useMemo(() => {
@@ -103,6 +104,25 @@ export function GoalCard({ goal }: Readonly<GoalCardProps>) {
         onClick={() => setShowDetail(true)}
       >
         <div className="relative z-10 flex items-start gap-3">
+          <div
+            className="shrink-0"
+            data-tour="tour-goal-progress"
+            data-progress-state={progress.state}
+            style={{ paddingTop: 2 }}
+          >
+            <progress
+              className="sr-only"
+              value={Math.min(goal.progressPercentage, 100)}
+              max={100}
+              aria-label={t('goals.progressPercentage', { pct: goal.progressPercentage })}
+            />
+            <ParentRing
+              done={Math.min(goal.progressPercentage, 100)}
+              total={100}
+              size={36}
+              color={progress.color}
+            />
+          </div>
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 mb-1">
               {isStreak && (
@@ -141,29 +161,8 @@ export function GoalCard({ goal }: Readonly<GoalCardProps>) {
                   })}
             </p>
 
-            <div className="relative mb-2" data-tour="tour-goal-progress">
-              <progress
-                className="sr-only"
-                value={Math.min(goal.progressPercentage, 100)}
-                max={100}
-                aria-label={t('goals.progressPercentage', { pct: goal.progressPercentage })}
-              />
-              <div
-                className="h-2 bg-[var(--bg-sunk)] rounded-full overflow-hidden"
-                aria-hidden="true"
-              >
-                <div
-                  data-progress-state={progress.state}
-                  className={`h-full rounded-full transition-[width,background-color,transform] duration-500 animate-[progress-fill_0.6s_ease-out] ${progress.className}`}
-                  style={{
-                    width: `${Math.min(goal.progressPercentage, 100)}%`,
-                  }}
-                />
-              </div>
-            </div>
-
             <div className="flex items-center justify-between">
-              <span className="text-[11px] text-[var(--fg-3)] font-medium">
+              <span className="text-[12px] text-[var(--fg-2)] font-[family-name:var(--font-family-mono)] tabular-nums">
                 {t('goals.progressPercentage', {
                   pct: goal.progressPercentage,
                 })}

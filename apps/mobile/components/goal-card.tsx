@@ -11,6 +11,7 @@ import { createTokensV2, radius, shadows } from '@/lib/theme'
 import { useResolvedMotionPreset } from '@/lib/motion'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { StatusDot, type StatusDotState } from '@/components/ui/status-dot'
+import { ParentRing } from '@/components/ui/parent-ring'
 
 interface GoalCardProps {
   goal: Goal
@@ -53,7 +54,7 @@ export function GoalCard({ goal, onPress, tourTargetId }: GoalCardProps) {
     }).start()
   }, [pressScale, selectionMotion.exitDuration])
 
-  const progressBarColor = useMemo(() => {
+  const ringColor = useMemo(() => {
     if (goal.status === 'Completed') return tokens.statusDone
     if (goal.status === 'Abandoned') return tokens.fg3
     if (isStreak) return tokens.statusOverdue
@@ -149,6 +150,19 @@ export function GoalCard({ goal, onPress, tourTargetId }: GoalCardProps) {
         accessibilityRole="button"
         accessibilityLabel={goal.title}
       >
+      <View style={styles.body}>
+        <View
+          ref={tourTargetId ? progressRef : undefined}
+          style={styles.ringWrap}
+          accessibilityRole="progressbar"
+          accessibilityValue={{
+            min: 0,
+            max: 100,
+            now: progress,
+          }}
+        >
+          <ParentRing done={progress} total={100} size={36} color={ringColor} />
+        </View>
       <View style={styles.content}>
         <View style={styles.titleRow}>
           {isStreak && (
@@ -176,27 +190,6 @@ export function GoalCard({ goal, onPress, tourTargetId }: GoalCardProps) {
 
         <Text style={styles.progressLabel}>{progressLabel}</Text>
 
-        <View
-          ref={tourTargetId ? progressRef : undefined}
-          style={styles.progressBar}
-          accessibilityRole="progressbar"
-          accessibilityValue={{
-            min: 0,
-            max: 100,
-            now: progress,
-          }}
-        >
-          <View
-            style={[
-              styles.progressFill,
-              {
-                width: `${progress}%`,
-                backgroundColor: progressBarColor,
-              },
-            ]}
-          />
-        </View>
-
         <View style={styles.footer}>
           <Text style={styles.percentText}>
             {t('goals.progressPercentage', { pct: goal.progressPercentage })}
@@ -210,6 +203,7 @@ export function GoalCard({ goal, onPress, tourTargetId }: GoalCardProps) {
           )}
         </View>
       </View>
+      </View>
       </TouchableOpacity>
     </Animated.View>
   )
@@ -219,7 +213,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
   return StyleSheet.create({
   card: {
     backgroundColor: tokens.bgElev,
-    borderRadius: radius.xl,
+    borderRadius: radius.md,
     padding: 20,
     borderWidth: 1,
     borderColor: tokens.hairline,
@@ -229,6 +223,15 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
     elevation: 5,
   },
 
+  body: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+  },
+  ringWrap: {
+    flexShrink: 0,
+    paddingTop: 2,
+  },
   content: {
     flex: 1,
     minWidth: 0,
@@ -273,27 +276,16 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
     marginBottom: 8,
   },
 
-    progressBar: {
-      height: 8,
-      backgroundColor: tokens.bgSunk,
-    borderRadius: 9999,
-    overflow: 'hidden',
-    marginBottom: 8,
-  },
-  progressFill: {
-    height: '100%',
-    borderRadius: 9999,
-  },
-
   footer: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
   },
   percentText: {
-    fontSize: 11,
-    fontWeight: '500',
-    color: tokens.fg3,
+    fontFamily: 'GeistMono',
+    fontSize: 12,
+    color: tokens.fg2,
+    fontVariant: ['tabular-nums'],
   },
 
   deadlineBadge: {
