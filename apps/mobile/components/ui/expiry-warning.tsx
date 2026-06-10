@@ -117,16 +117,16 @@ function createStyles(tokens: AppTokensV2) {
     },
     text: {
       flex: 1,
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_400Regular',
       fontSize: 13,
       color: tokens.fg2,
     },
     monoCount: {
-      fontFamily: 'GeistMono',
+      fontFamily: 'Roboto_400Regular',
       color: tokens.fg1,
     },
     actionText: {
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_400Regular',
       fontSize: 13,
       color: tokens.fg1,
       textDecorationLine: 'underline',

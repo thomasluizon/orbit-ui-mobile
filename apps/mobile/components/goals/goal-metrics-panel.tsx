@@ -186,7 +186,7 @@ function createStyles(tokens: AppTokens) {
     },
     adherenceTitle: {
       flex: 1,
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_400Regular',
       fontSize: 14,
       color: tokens.fg1,
     },
@@ -202,9 +202,8 @@ function createStyles(tokens: AppTokens) {
       borderRadius: 999,
     },
     adherencePercent: {
-      fontFamily: 'GeistMono',
+      fontFamily: 'Roboto_500Medium',
       fontSize: 11,
-      fontWeight: '500',
       color: tokens.fg1,
       fontVariant: ['tabular-nums'],
       minWidth: 28,

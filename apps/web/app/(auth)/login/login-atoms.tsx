@@ -43,7 +43,7 @@ export function PrimaryButton({
         background: 'var(--primary)',
         color: 'var(--fg-on-primary)',
         borderRadius: 10,
-        fontFamily: 'var(--font-family-sans)',
+        fontFamily: 'var(--font-sans)',
         fontSize: 14,
         fontWeight: 600,
         gap: 8,
@@ -82,7 +82,7 @@ export function SecondaryButton({
         border: 0,
         boxShadow: 'inset 0 0 0 1px var(--hairline-strong)',
         borderRadius: 10,
-        fontFamily: 'var(--font-family-sans)',
+        fontFamily: 'var(--font-sans)',
         fontSize: 14,
         fontWeight: 500,
         gap: 8,
@@ -115,7 +115,7 @@ export function QuietLink({
       className="appearance-none border-0 bg-transparent cursor-pointer disabled:opacity-50 transition-colors duration-150 ease-out hover:text-[var(--fg-1)]"
       style={{
         padding: 6,
-        fontFamily: 'var(--font-family-sans)',
+        fontFamily: 'var(--font-sans)',
         fontSize: 13,
         color: emphasized ? 'var(--fg-1)' : 'var(--fg-3)',
         textDecoration: emphasized ? 'underline' : 'none',

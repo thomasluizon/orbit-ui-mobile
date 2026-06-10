@@ -70,14 +70,13 @@ const styles = StyleSheet.create({
     borderRadius: 1,
   },
   eyebrow: {
-    fontFamily: 'GeistMono',
+    fontFamily: 'Roboto_500Medium',
     fontSize: 10.5,
-    fontWeight: '500',
     letterSpacing: 0.63,
     marginBottom: 6,
   },
   body: {
-    fontFamily: 'Geist',
+    fontFamily: 'Rubik_400Regular',
     fontSize: 15,
     lineHeight: 22,
   },

@@ -1535,7 +1535,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       flex: 1,
       minWidth: 0,
       paddingVertical: 0,
-      fontFamily: "Geist",
+      fontFamily: 'Rubik_400Regular',
       fontSize: 15,
     },
     filtersContent: {
@@ -1573,10 +1573,9 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       borderRadius: 6,
     },
     controlsMenuLabel: {
-      fontFamily: "Geist",
+      fontFamily: 'Rubik_500Medium',
       fontSize: 14,
-      fontWeight: "500",
-    },
+      },
     rotatingIcon: {
       transform: [{ rotate: "180deg" }],
     },

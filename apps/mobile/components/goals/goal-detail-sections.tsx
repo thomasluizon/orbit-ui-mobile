@@ -125,20 +125,19 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       gap: 12,
     },
     historyDate: {
-      fontFamily: 'GeistMono',
+      fontFamily: 'Roboto_400Regular',
       fontSize: 11,
       color: tokens.fg3,
       fontVariant: ['tabular-nums'],
     },
     historyValue: {
-      fontFamily: 'GeistMono',
+      fontFamily: 'Roboto_500Medium',
       fontSize: 12,
-      fontWeight: '500',
       color: tokens.fg1,
       fontVariant: ['tabular-nums'],
     },
     historyNote: {
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_400Regular',
       fontSize: 13,
       fontStyle: 'italic',
       color: tokens.fg2,
@@ -148,9 +147,8 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       paddingVertical: 10,
     },
     toggleAllText: {
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_500Medium',
       fontSize: 13,
-      fontWeight: '500',
       color: tokens.fg1,
     },
     linkedList: {
@@ -166,7 +164,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
     },
     linkedTitle: {
       flex: 1,
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_400Regular',
       fontSize: 14,
       color: tokens.fg1,
     },

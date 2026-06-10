@@ -181,7 +181,7 @@ export default function AdvancedPage() {
             <div className="min-w-0">
               <p
                 style={{
-                  fontFamily: 'var(--font-family-sans)',
+                  fontFamily: 'var(--font-sans)',
                   fontSize: 15,
                   color: 'var(--fg-1)',
                 }}
@@ -190,7 +190,7 @@ export default function AdvancedPage() {
               </p>
               <p
                 style={{
-                  fontFamily: 'var(--font-family-sans)',
+                  fontFamily: 'var(--font-sans)',
                   fontSize: 12,
                   fontStyle: 'italic',
                   color: 'var(--fg-3)',
@@ -213,7 +213,7 @@ export default function AdvancedPage() {
                 className="inline-flex items-center"
                 style={{
                   gap: 6,
-                  fontFamily: 'var(--font-family-sans)',
+                  fontFamily: 'var(--font-sans)',
                   fontSize: 12,
                   fontWeight: 600,
                   color: 'var(--fg-1)',
@@ -230,7 +230,7 @@ export default function AdvancedPage() {
 
           <p
             style={{
-              fontFamily: 'var(--font-family-sans)',
+              fontFamily: 'var(--font-sans)',
               fontSize: 13,
               fontStyle: 'italic',
               color: 'var(--fg-3)',

@@ -9,7 +9,7 @@ export function SettingsDescription({ children }: Readonly<SettingsDescriptionPr
     <p
       className="text-[13px] italic text-[var(--fg-3)] leading-relaxed"
       style={{
-        fontFamily: 'var(--font-family-sans)',
+        fontFamily: 'var(--font-sans)',
         padding: '4px 20px 16px',
       }}
     >

@@ -53,7 +53,7 @@ export function UnderlinedInput({
       {label && (
         <span
           style={{
-            fontFamily: 'var(--font-family-sans)',
+            fontFamily: 'var(--font-sans)',
             fontSize: 11,
             fontWeight: 500,
             color: 'var(--fg-3)',
@@ -81,7 +81,7 @@ export function UnderlinedInput({
           border: 0,
           background: 'transparent',
           outline: 'none',
-          fontFamily: mono ? 'var(--font-family-mono)' : 'var(--font-family-sans)',
+          fontFamily: mono ? 'var(--font-mono)' : 'var(--font-sans)',
           fontSize,
           color: 'var(--fg-1)',
           padding: `${padY}px 0`,

@@ -70,7 +70,7 @@ export function ReferralDrawer({ open, onOpenChange }: Readonly<ReferralDrawerPr
           <div role="alert" style={{ padding: '12px 20px' }}>
             <p
               style={{
-                fontFamily: 'var(--font-family-sans)',
+                fontFamily: 'var(--font-sans)',
                 fontSize: 13,
                 fontStyle: 'italic',
                 color: 'var(--status-overdue)',
@@ -96,7 +96,7 @@ export function ReferralDrawer({ open, onOpenChange }: Readonly<ReferralDrawerPr
                 aria-label={t('referral.drawer.yourLink')}
                 className="flex-1 overflow-hidden whitespace-nowrap text-ellipsis"
                 style={{
-                  fontFamily: 'var(--font-family-mono)',
+                  fontFamily: 'var(--font-mono)',
                   fontSize: 13,
                   color: 'var(--fg-1)',
                 }}
@@ -107,7 +107,7 @@ export function ReferralDrawer({ open, onOpenChange }: Readonly<ReferralDrawerPr
                 type="button"
                 className="appearance-none border-0 bg-transparent cursor-pointer inline-flex items-center transition-opacity duration-150 ease-out hover:opacity-80"
                 style={{
-                  fontFamily: 'var(--font-family-sans)',
+                  fontFamily: 'var(--font-sans)',
                   fontSize: 13,
                   fontWeight: 600,
                   color: 'var(--fg-1)',
@@ -130,7 +130,7 @@ export function ReferralDrawer({ open, onOpenChange }: Readonly<ReferralDrawerPr
                 style={{
                   padding: '14px 20px',
                   borderBottom: '1px solid var(--hairline)',
-                  fontFamily: 'var(--font-family-sans)',
+                  fontFamily: 'var(--font-sans)',
                   fontSize: 13,
                   fontWeight: 600,
                   color: 'var(--fg-1)',
@@ -206,7 +206,7 @@ export function ReferralDrawer({ open, onOpenChange }: Readonly<ReferralDrawerPr
             <p
               style={{
                 padding: '4px 20px 20px',
-                fontFamily: 'var(--font-family-sans)',
+                fontFamily: 'var(--font-sans)',
                 fontSize: 11,
                 color: 'var(--fg-3)',
                 lineHeight: 1.5,

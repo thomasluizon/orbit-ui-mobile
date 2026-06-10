@@ -119,7 +119,7 @@ export default function StreakPage() {
           >
             <span
               style={{
-                fontFamily: 'var(--font-family-mono)',
+                fontFamily: 'var(--font-mono)',
                 fontSize: 11,
                 fontWeight: 500,
                 letterSpacing: '0.06em',
@@ -134,7 +134,7 @@ export default function StreakPage() {
             <span
               className="streak-hero__count"
               style={{
-                fontFamily: 'var(--font-family-mono)',
+                fontFamily: 'var(--font-mono)',
                 fontSize: streak > 100 ? 64 : 80,
                 fontWeight: 500,
                 letterSpacing: '-0.04em',
@@ -147,7 +147,7 @@ export default function StreakPage() {
             </span>
             <span
               style={{
-                fontFamily: 'var(--font-family-sans)',
+                fontFamily: 'var(--font-sans)',
                 fontSize: 13,
                 color: 'var(--fg-3)',
                 fontVariantNumeric: 'tabular-nums',
@@ -158,7 +158,7 @@ export default function StreakPage() {
             {encouragement && (
               <span
                 style={{
-                  fontFamily: 'var(--font-family-sans)',
+                  fontFamily: 'var(--font-sans)',
                   fontSize: 14,
                   fontStyle: 'italic',
                   color: 'var(--fg-3)',

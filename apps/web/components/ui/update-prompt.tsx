@@ -57,7 +57,7 @@ export function UpdatePrompt({
         <div className="flex items-center justify-between">
           <span
             style={{
-              fontFamily: 'var(--font-family-sans)',
+              fontFamily: 'var(--font-sans)',
               fontSize: 12,
               fontWeight: 600,
               color: 'var(--fg-3)',
@@ -77,7 +77,7 @@ export function UpdatePrompt({
         </div>
         <div
           style={{
-            fontFamily: 'var(--font-family-sans)',
+            fontFamily: 'var(--font-sans)',
             fontSize: 22,
             fontWeight: 600,
             color: 'var(--fg-1)',
@@ -89,7 +89,7 @@ export function UpdatePrompt({
         {versionDiff && (
           <div
             style={{
-              fontFamily: 'var(--font-family-mono)',
+              fontFamily: 'var(--font-mono)',
               fontSize: 11,
               fontWeight: 500,
               color: 'var(--fg-3)',
@@ -101,7 +101,7 @@ export function UpdatePrompt({
         )}
         <p
           style={{
-            fontFamily: 'var(--font-family-sans)',
+            fontFamily: 'var(--font-sans)',
             fontSize: 14,
             fontStyle: 'italic',
             color: 'var(--fg-2)',
@@ -121,7 +121,7 @@ export function UpdatePrompt({
               background: 'var(--primary)',
               color: 'var(--fg-on-primary)',
               borderRadius: 10,
-              fontFamily: 'var(--font-family-sans)',
+              fontFamily: 'var(--font-sans)',
               fontSize: 14,
               fontWeight: 600,
             }}
@@ -133,7 +133,7 @@ export function UpdatePrompt({
             className="appearance-none border-0 bg-transparent cursor-pointer text-center"
             onClick={handleDismiss}
             style={{
-              fontFamily: 'var(--font-family-sans)',
+              fontFamily: 'var(--font-sans)',
               fontSize: 13,
               color: 'var(--fg-3)',
               padding: 6,

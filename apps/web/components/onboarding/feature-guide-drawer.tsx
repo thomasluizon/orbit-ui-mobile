@@ -143,7 +143,7 @@ export function FeatureGuideDrawer({ open, onOpenChange }: Readonly<FeatureGuide
                     : 'inset 0 0 0 1px var(--hairline-strong)',
                   border: 0,
                   color: isActive ? 'var(--fg-1)' : 'var(--fg-2)',
-                  fontFamily: 'var(--font-family-sans)',
+                  fontFamily: 'var(--font-sans)',
                   fontSize: 12,
                   fontWeight: isActive ? 600 : 500,
                 }}
@@ -167,7 +167,7 @@ export function FeatureGuideDrawer({ open, onOpenChange }: Readonly<FeatureGuide
           >
             <h3
               style={{
-                fontFamily: 'var(--font-family-sans)',
+                fontFamily: 'var(--font-sans)',
                 fontSize: 14,
                 fontWeight: 600,
                 color: 'var(--fg-1)',
@@ -177,7 +177,7 @@ export function FeatureGuideDrawer({ open, onOpenChange }: Readonly<FeatureGuide
             </h3>
             <p
               style={{
-                fontFamily: 'var(--font-family-sans)',
+                fontFamily: 'var(--font-sans)',
                 fontSize: 13,
                 color: 'var(--fg-3)',
                 lineHeight: 1.55,

@@ -54,14 +54,13 @@ export function createStyles(tokens: Tokens) {
       borderColor: tokens.hairlineStrong,
     },
     emptyTitle: {
-      fontFamily: "Geist",
+      fontFamily: 'Rubik_600SemiBold',
       fontSize: 20,
-      fontWeight: "600",
       letterSpacing: -0.2,
       textAlign: "center",
     },
     emptyText: {
-      fontFamily: "Geist",
+      fontFamily: 'Rubik_400Regular',
       fontSize: 14,
       fontStyle: "italic",
       lineHeight: 21,
@@ -69,7 +68,7 @@ export function createStyles(tokens: Tokens) {
       textAlign: "center",
     },
     aiDisclaimer: {
-      fontFamily: "Geist",
+      fontFamily: 'Rubik_400Regular',
       fontSize: 11,
       lineHeight: 15,
       fontStyle: "italic",
@@ -85,7 +84,7 @@ export function createStyles(tokens: Tokens) {
       paddingTop: 12,
     },
     errorText: {
-      fontFamily: "Geist",
+      fontFamily: 'Rubik_400Regular',
       fontSize: 13,
       textAlign: "center",
       marginBottom: 8,
@@ -96,9 +95,8 @@ export function createStyles(tokens: Tokens) {
       paddingVertical: 4,
     },
     permissionActionText: {
-      fontFamily: "Geist",
+      fontFamily: 'Rubik_500Medium',
       fontSize: 13,
-      fontWeight: "500",
       textDecorationLine: "underline",
     },
     imagePreviewRow: {
@@ -139,7 +137,7 @@ export function createStyles(tokens: Tokens) {
       paddingVertical: 8,
     },
     offlineText: {
-      fontFamily: "Geist",
+      fontFamily: 'Rubik_400Regular',
       fontSize: 13,
       fontStyle: "italic",
     },
@@ -197,13 +195,13 @@ export function createStyles(tokens: Tokens) {
       fontSize: 13,
     },
     languageOptionText: {
-      fontFamily: "Geist",
+      fontFamily: 'Rubik_400Regular',
       fontSize: 12,
     },
     textInput: {
       flex: 1,
       minWidth: 0,
-      fontFamily: "Geist",
+      fontFamily: 'Rubik_400Regular',
       fontSize: 15,
       paddingVertical: 8,
       paddingHorizontal: 8,
@@ -229,9 +227,8 @@ export function createStyles(tokens: Tokens) {
       borderRadius: 4,
     },
     recordingTime: {
-      fontFamily: "GeistMono",
+      fontFamily: 'Roboto_500Medium',
       fontSize: 12,
-      fontWeight: "500",
       fontVariant: ["tabular-nums"],
     },
     visualizer: {
@@ -265,11 +262,10 @@ export function createStyles(tokens: Tokens) {
       justifyContent: "center",
     },
     limitText: {
-      fontFamily: "Geist",
+      fontFamily: 'Rubik_500Medium',
       fontSize: 11,
       textAlign: "center",
-      fontWeight: "500",
-    },
+      },
     rewardCard: {
       marginTop: 8,
       alignItems: "center",
@@ -285,25 +281,23 @@ export function createStyles(tokens: Tokens) {
       opacity: 0.5,
     },
     rewardButtonText: {
-      fontFamily: "Geist",
+      fontFamily: 'Rubik_600SemiBold',
       fontSize: 12,
-      fontWeight: "600",
       textAlign: "center",
     },
     rewardMeta: {
-      fontFamily: "GeistMono",
+      fontFamily: 'Roboto_400Regular',
       fontSize: 10,
       textAlign: "center",
       fontVariant: ["tabular-nums"],
     },
     rewardMessage: {
-      fontFamily: "Geist",
+      fontFamily: 'Rubik_500Medium',
       fontSize: 11,
       textAlign: "center",
-      fontWeight: "500",
-    },
+      },
     usageText: {
-      fontFamily: "GeistMono",
+      fontFamily: 'Roboto_400Regular',
       fontSize: 10,
       textAlign: "center",
       marginTop: 8,

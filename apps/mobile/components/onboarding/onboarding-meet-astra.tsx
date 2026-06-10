@@ -82,15 +82,14 @@ const styles = StyleSheet.create({
     borderWidth: 1.5,
   },
   title: {
-    fontFamily: 'Geist',
+    fontFamily: 'Rubik_600SemiBold',
     fontSize: 24,
-    fontWeight: '600',
     letterSpacing: -0.48,
     lineHeight: 28,
     textAlign: 'center',
   },
   subtitle: {
-    fontFamily: 'Geist',
+    fontFamily: 'Rubik_400Regular',
     fontSize: 14,
     lineHeight: 21,
     textAlign: 'center',

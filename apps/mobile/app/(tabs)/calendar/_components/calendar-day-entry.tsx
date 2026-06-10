@@ -39,7 +39,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       gap: 8,
     },
     title: {
-      fontFamily: "Geist",
+      fontFamily: 'Rubik_400Regular',
       fontSize: 15,
       color: tokens.fg1,
       flexShrink: 1,
@@ -50,13 +50,13 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       textDecorationColor: tokens.hairlineStrong,
     },
     time: {
-      fontFamily: "GeistMono",
+      fontFamily: 'Roboto_400Regular',
       fontSize: 12,
       color: tokens.fg3,
       fontVariant: ["tabular-nums"],
     },
     statusText: {
-      fontFamily: "GeistMono",
+      fontFamily: 'Roboto_400Regular',
       fontSize: 10.5,
       letterSpacing: 0.4,
       color: tokens.fg3,

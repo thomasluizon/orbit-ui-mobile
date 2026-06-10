@@ -86,13 +86,12 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   title: {
-    fontFamily: 'Geist',
+    fontFamily: 'Rubik_400Regular',
     fontSize: 15,
-    fontWeight: '400',
     flexShrink: 1,
   },
   hint: {
-    fontFamily: 'Geist',
+    fontFamily: 'Rubik_400Regular',
     fontSize: 12,
   },
   proBadgeSpacing: {

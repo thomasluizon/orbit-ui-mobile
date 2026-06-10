@@ -441,7 +441,7 @@ const styles = StyleSheet.create({
     flexWrap: 'wrap',
   },
   themeLabel: {
-    fontFamily: 'Geist',
+    fontFamily: 'Rubik_400Regular',
     fontSize: 15,
     flexShrink: 1,
   },
@@ -466,7 +466,7 @@ const styles = StyleSheet.create({
     paddingBottom: 4,
   },
   statusText: {
-    fontFamily: 'Geist',
+    fontFamily: 'Rubik_400Regular',
     fontSize: 13,
     fontStyle: 'italic',
   },
@@ -477,9 +477,8 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   linkText: {
-    fontFamily: 'Geist',
+    fontFamily: 'Rubik_500Medium',
     fontSize: 13,
-    fontWeight: '500',
     textDecorationLine: 'underline',
   },
 })

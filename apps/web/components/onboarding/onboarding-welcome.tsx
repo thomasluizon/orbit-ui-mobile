@@ -70,7 +70,7 @@ export function OnboardingWelcome() {
         <h1
           className="text-center"
           style={{
-            fontFamily: 'var(--font-family-sans)',
+            fontFamily: 'var(--font-sans)',
             fontSize: 24,
             fontWeight: 600,
             letterSpacing: '-0.02em',
@@ -84,7 +84,7 @@ export function OnboardingWelcome() {
         <p
           className="text-center"
           style={{
-            fontFamily: 'var(--font-family-sans)',
+            fontFamily: 'var(--font-sans)',
             fontSize: 14,
             color: 'var(--fg-2)',
             lineHeight: 1.5,
@@ -155,7 +155,7 @@ function OnboardingSectionLabel({ children }: Readonly<{ children: ReactNode }>)
     <div
       className="text-center"
       style={{
-        fontFamily: 'var(--font-family-sans)',
+        fontFamily: 'var(--font-sans)',
         fontSize: 13,
         fontWeight: 600,
         color: 'var(--fg-3)',

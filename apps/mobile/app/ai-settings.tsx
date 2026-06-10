@@ -544,13 +544,13 @@ function createStyles() {
       paddingVertical: 10,
     },
     italicText: {
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_400Regular',
       fontSize: 13,
       fontStyle: 'italic',
     },
     factsTrailing: { display: 'none' },
     factsPageMono: {
-      fontFamily: 'GeistMono',
+      fontFamily: 'Roboto_400Regular',
       fontSize: 11,
     },
     pagingRow: {
@@ -559,7 +559,7 @@ function createStyles() {
       gap: 8,
     },
     pagingText: {
-      fontFamily: 'GeistMono',
+      fontFamily: 'Roboto_400Regular',
       fontSize: 11,
       fontVariant: ['tabular-nums'],
     },
@@ -580,7 +580,7 @@ function createStyles() {
       gap: 12,
     },
     emptyText: {
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_400Regular',
       fontSize: 14,
       fontStyle: 'italic',
       textAlign: 'center',
@@ -603,10 +603,9 @@ function createStyles() {
       borderBottomWidth: StyleSheet.hairlineWidth,
     },
     selectedCount: {
-      fontFamily: 'GeistMono',
+      fontFamily: 'Roboto_500Medium',
       fontSize: 12,
-      fontWeight: '500',
-    },
+      },
     selectActions: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -614,12 +613,11 @@ function createStyles() {
     },
     selectActionPress: { padding: 4 },
     selectActionText: {
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_500Medium',
       fontSize: 13,
-      fontWeight: '500',
-    },
+      },
     selectActionItalic: {
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_400Regular',
       fontSize: 13,
       fontStyle: 'italic',
     },
@@ -646,13 +644,12 @@ function createStyles() {
       borderWidth: StyleSheet.hairlineWidth,
     },
     categoryText: {
-      fontFamily: 'GeistMono',
+      fontFamily: 'Roboto_500Medium',
       fontSize: 10,
-      fontWeight: '600',
       letterSpacing: 0.6,
     },
     factText: {
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_400Regular',
       fontSize: 14,
       lineHeight: 20,
     },

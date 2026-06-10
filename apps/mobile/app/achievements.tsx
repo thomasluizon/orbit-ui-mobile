@@ -231,14 +231,13 @@ function createStyles(_tokens: Tokens) {
       justifyContent: 'center',
     },
     lockedTitle: {
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_600SemiBold',
       fontSize: 17,
-      fontWeight: '600',
       letterSpacing: -0.17,
       textAlign: 'center',
     },
     lockedDescription: {
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_400Regular',
       fontSize: 14,
       lineHeight: 22,
       fontStyle: 'italic',
@@ -251,10 +250,9 @@ function createStyles(_tokens: Tokens) {
       marginTop: 4,
     },
     upgradeButtonText: {
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_600SemiBold',
       fontSize: 14,
-      fontWeight: '600',
-    },
+      },
     levelBlock: {
       paddingHorizontal: 20,
       paddingTop: 24,
@@ -267,15 +265,13 @@ function createStyles(_tokens: Tokens) {
       gap: 16,
     },
     levelEyebrow: {
-      fontFamily: 'GeistMono',
+      fontFamily: 'Roboto_500Medium',
       fontSize: 11,
-      fontWeight: '500',
       letterSpacing: 0.66,
     },
     levelNumber: {
-      fontFamily: 'GeistMono',
+      fontFamily: 'Roboto_500Medium',
       fontSize: 56,
-      fontWeight: '500',
       letterSpacing: -2,
       lineHeight: 56,
       fontVariant: ['tabular-nums'],
@@ -285,13 +281,12 @@ function createStyles(_tokens: Tokens) {
       paddingBottom: 6,
     },
     levelTitle: {
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_600SemiBold',
       fontSize: 17,
-      fontWeight: '600',
       letterSpacing: -0.17,
     },
     levelMeta: {
-      fontFamily: 'GeistMono',
+      fontFamily: 'Roboto_400Regular',
       fontSize: 11,
       fontVariant: ['tabular-nums'],
       marginTop: 4,
@@ -306,7 +301,7 @@ function createStyles(_tokens: Tokens) {
       borderRadius: 999,
     },
     earnedCount: {
-      fontFamily: 'GeistMono',
+      fontFamily: 'Roboto_400Regular',
       fontSize: 11,
       fontVariant: ['tabular-nums'],
     },

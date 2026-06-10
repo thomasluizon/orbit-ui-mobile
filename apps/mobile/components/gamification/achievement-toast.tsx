@@ -222,7 +222,7 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
   glyph: {
-    fontFamily: 'GeistMono',
+    fontFamily: 'Roboto_400Regular',
     fontSize: 16,
   },
   textCol: {
@@ -231,19 +231,17 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   eyebrow: {
-    fontFamily: 'Geist',
+    fontFamily: 'Rubik_600SemiBold',
     fontSize: 10,
-    fontWeight: '600',
     letterSpacing: 1.2,
     textTransform: 'uppercase',
   },
   name: {
-    fontFamily: 'Geist',
+    fontFamily: 'Rubik_500Medium',
     fontSize: 15,
-    fontWeight: '500',
-  },
+    },
   description: {
-    fontFamily: 'Geist',
+    fontFamily: 'Rubik_400Regular',
     fontSize: 13,
   },
 })

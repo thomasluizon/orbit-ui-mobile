@@ -43,7 +43,7 @@ function ProUpgradeLink({ label }: Readonly<{ label: string }>) {
       className="inline-flex items-center"
       style={{
         gap: 6,
-        fontFamily: 'var(--font-family-sans)',
+        fontFamily: 'var(--font-sans)',
         fontSize: 13,
         fontWeight: 600,
         color: 'var(--fg-1)',
@@ -84,7 +84,7 @@ function FactItem({
         {categoryLabel && (
           <span
             style={{
-              fontFamily: 'var(--font-family-mono)',
+              fontFamily: 'var(--font-mono)',
               fontSize: 10,
               fontWeight: 600,
               color: 'var(--fg-2)',
@@ -100,7 +100,7 @@ function FactItem({
         )}
         <span
           style={{
-            fontFamily: 'var(--font-family-sans)',
+            fontFamily: 'var(--font-sans)',
             fontSize: 14,
             color: 'var(--fg-1)',
           }}
@@ -267,7 +267,7 @@ export default function AiSettingsPage() {
         className="inline-flex items-center"
         style={{
           gap: 8,
-          fontFamily: 'var(--font-family-mono)',
+          fontFamily: 'var(--font-mono)',
           fontSize: 11,
           color: 'var(--fg-3)',
           fontVariantNumeric: 'tabular-nums',
@@ -353,7 +353,7 @@ export default function AiSettingsPage() {
           >
             <span
               style={{
-                fontFamily: 'var(--font-family-mono)',
+                fontFamily: 'var(--font-mono)',
                 fontSize: 12,
                 fontWeight: 500,
                 color: selectMode ? 'var(--fg-1)' : 'var(--fg-3)',
@@ -371,7 +371,7 @@ export default function AiSettingsPage() {
                   onClick={toggleSelectAll}
                   className="appearance-none border-0 bg-transparent cursor-pointer"
                   style={{
-                    fontFamily: 'var(--font-family-sans)',
+                    fontFamily: 'var(--font-sans)',
                     fontSize: 13,
                     fontWeight: 600,
                     color: 'var(--fg-1)',
@@ -392,7 +392,7 @@ export default function AiSettingsPage() {
                   disabled={bulkDeleteMutation.isPending}
                   className="appearance-none border-0 bg-transparent cursor-pointer disabled:opacity-40"
                   style={{
-                    fontFamily: 'var(--font-family-sans)',
+                    fontFamily: 'var(--font-sans)',
                     fontSize: 13,
                     fontStyle: 'italic',
                     color: 'var(--status-overdue)',
@@ -406,7 +406,7 @@ export default function AiSettingsPage() {
                 onClick={toggleSelectMode}
                 className="appearance-none border-0 bg-transparent cursor-pointer"
                 style={{
-                  fontFamily: 'var(--font-family-sans)',
+                  fontFamily: 'var(--font-sans)',
                   fontSize: 13,
                   fontWeight: selectMode ? 400 : 600,
                   fontStyle: selectMode ? 'italic' : 'normal',
@@ -437,7 +437,7 @@ export default function AiSettingsPage() {
             <Orbit size={28} strokeWidth={1.4} color="var(--fg-3)" />
             <span
               style={{
-                fontFamily: 'var(--font-family-sans)',
+                fontFamily: 'var(--font-sans)',
                 fontSize: 14,
                 fontStyle: 'italic',
                 color: 'var(--fg-3)',

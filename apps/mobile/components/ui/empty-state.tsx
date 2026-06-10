@@ -88,14 +88,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   title: {
-    fontFamily: 'Geist',
+    fontFamily: 'Rubik_700Bold',
     fontSize: 14,
-    fontWeight: '700',
     marginTop: 16,
     textAlign: 'center',
   },
   description: {
-    fontFamily: 'Geist',
+    fontFamily: 'Rubik_400Regular',
     fontSize: 12,
     lineHeight: 18,
     marginTop: 6,
@@ -109,8 +108,7 @@ const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   actionText: {
-    fontFamily: 'Geist',
+    fontFamily: 'Rubik_600SemiBold',
     fontSize: 12,
-    fontWeight: '600',
-  },
+    },
 })

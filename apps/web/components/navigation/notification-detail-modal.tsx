@@ -69,7 +69,7 @@ export function NotificationDetailModal({
         <div style={{ padding: '10px 20px', borderBottom: '1px solid var(--hairline)' }}>
           <p
             style={{
-              fontFamily: 'var(--font-family-mono)',
+              fontFamily: 'var(--font-mono)',
               fontSize: 11,
               fontWeight: 500,
               color: 'var(--fg-3)',
@@ -86,7 +86,7 @@ export function NotificationDetailModal({
           <p
             className="whitespace-pre-wrap"
             style={{
-              fontFamily: 'var(--font-family-sans)',
+              fontFamily: 'var(--font-sans)',
               fontSize: 14,
               color: 'var(--fg-2)',
               lineHeight: 1.5,
@@ -113,7 +113,7 @@ function QuietLink({ children, onClick, destructive = false }: Readonly<QuietLin
       onClick={onClick}
       className="appearance-none border-0 bg-transparent cursor-pointer"
       style={{
-        fontFamily: 'var(--font-family-sans)',
+        fontFamily: 'var(--font-sans)',
         fontSize: 13,
         fontWeight: 500,
         color: destructive ? 'var(--fg-3)' : 'var(--fg-1)',

@@ -158,7 +158,7 @@ export function EditGoalModal({
             <div
               style={{
                 padding: '10px 20px',
-                fontFamily: 'var(--font-family-mono)',
+                fontFamily: 'var(--font-mono)',
                 fontSize: 12,
                 fontWeight: 500,
                 color: 'var(--fg-3)',
@@ -220,7 +220,7 @@ export function EditGoalModal({
               <div className="flex flex-col" style={{ gap: 4 }}>
                 <span
                   style={{
-                    fontFamily: 'var(--font-family-sans)',
+                    fontFamily: 'var(--font-sans)',
                     fontSize: 11,
                     fontWeight: 500,
                     color: 'var(--fg-3)',
@@ -245,7 +245,7 @@ export function EditGoalModal({
                 {isGoalDeadlinePast(deadline) && (
                   <p
                     style={{
-                      fontFamily: 'var(--font-family-sans)',
+                      fontFamily: 'var(--font-sans)',
                       fontSize: 13,
                       fontStyle: 'italic',
                       color: 'var(--status-overdue)',
@@ -260,7 +260,7 @@ export function EditGoalModal({
                 type="button"
                 className="appearance-none border-0 bg-transparent cursor-pointer inline-flex items-center"
                 style={{
-                  fontFamily: 'var(--font-family-sans)',
+                  fontFamily: 'var(--font-sans)',
                   fontSize: 13,
                   fontWeight: 500,
                   color: 'var(--fg-1)',
@@ -286,7 +286,7 @@ export function EditGoalModal({
               type="button"
               className="appearance-none border-0 bg-transparent cursor-pointer"
               style={{
-                fontFamily: 'var(--font-family-sans)',
+                fontFamily: 'var(--font-sans)',
                 fontSize: 14,
                 fontWeight: 500,
                 color: 'var(--fg-3)',
@@ -303,7 +303,7 @@ export function EditGoalModal({
               style={{
                 background: 'var(--primary)',
                 color: 'var(--fg-on-primary)',
-                fontFamily: 'var(--font-family-sans)',
+                fontFamily: 'var(--font-sans)',
                 fontSize: 14,
                 fontWeight: 600,
                 padding: '10px 18px',
@@ -362,7 +362,7 @@ function UnderlinedField({
       <label
         htmlFor={id}
         style={{
-          fontFamily: 'var(--font-family-sans)',
+          fontFamily: 'var(--font-sans)',
           fontSize: 11,
           fontWeight: 500,
           color: 'var(--fg-3)',
@@ -387,7 +387,7 @@ function UnderlinedField({
           border: 0,
           background: 'transparent',
           outline: 'none',
-          fontFamily: mono ? 'var(--font-family-mono)' : 'var(--font-family-sans)',
+          fontFamily: mono ? 'var(--font-mono)' : 'var(--font-sans)',
           fontSize: 14,
           color: readOnly ? 'var(--fg-3)' : 'var(--fg-1)',
           padding: '6px 0',
@@ -402,7 +402,7 @@ function UnderlinedField({
           id={`${id}-error`}
           role="alert"
           style={{
-            fontFamily: 'var(--font-family-sans)',
+            fontFamily: 'var(--font-sans)',
             fontSize: 12,
             fontStyle: 'italic',
             color: 'var(--status-overdue)',

@@ -72,7 +72,7 @@ export function AllDoneCelebration() {
           anchor={
             <span
               style={{
-                fontFamily: 'var(--font-family-mono)',
+                fontFamily: 'var(--font-mono)',
                 fontSize: 22,
                 fontWeight: 500,
                 color: 'white',

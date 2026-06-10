@@ -97,7 +97,7 @@ export function SettingsGroupRow({
                 : 'min-w-0'
             }
             style={{
-              fontFamily: 'var(--font-family-sans)',
+              fontFamily: 'var(--font-sans)',
               fontSize: 15,
               fontWeight: 400,
               color: 'var(--fg-1)',
@@ -108,7 +108,7 @@ export function SettingsGroupRow({
           {proBadge ? (
             <span
               style={{
-                fontFamily: 'var(--font-family-sans)',
+                fontFamily: 'var(--font-sans)',
                 fontSize: 10,
                 fontWeight: 600,
                 color: 'var(--fg-on-primary)',
@@ -127,7 +127,7 @@ export function SettingsGroupRow({
           <span
             className="overflow-hidden whitespace-nowrap text-ellipsis"
             style={{
-              fontFamily: 'var(--font-family-sans)',
+              fontFamily: 'var(--font-sans)',
               fontSize: 13,
               color: 'var(--fg-3)',
             }}

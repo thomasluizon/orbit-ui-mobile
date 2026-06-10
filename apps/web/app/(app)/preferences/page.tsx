@@ -295,7 +295,7 @@ export default function PreferencesPage() {
             <div
               style={{
                 padding: '0 20px 6px',
-                fontFamily: 'var(--font-family-sans)',
+                fontFamily: 'var(--font-sans)',
                 fontSize: 13,
                 fontStyle: 'italic',
                 color: 'var(--fg-3)',
@@ -307,7 +307,7 @@ export default function PreferencesPage() {
               className={getPushStatusTone(pushStatus)}
               style={{
                 padding: '0 20px 14px',
-                fontFamily: 'var(--font-family-sans)',
+                fontFamily: 'var(--font-sans)',
                 fontSize: 12,
                 fontWeight: 500,
               }}

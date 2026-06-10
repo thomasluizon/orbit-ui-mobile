@@ -83,7 +83,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       backgroundColor: tokens.statusOverdue,
     },
     legendLabel: {
-      fontFamily: "Geist",
+      fontFamily: 'Rubik_400Regular',
       fontSize: 13,
       color: tokens.fg2,
     },

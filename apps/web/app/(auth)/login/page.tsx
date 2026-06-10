@@ -48,7 +48,7 @@ export default function LoginPage() {
           </div>
           <div
             style={{
-              fontFamily: 'var(--font-family-sans)',
+              fontFamily: 'var(--font-sans)',
               fontSize: 28,
               fontWeight: 600,
               letterSpacing: '-0.025em',
@@ -67,7 +67,7 @@ export default function LoginPage() {
         <h2
           className="text-center"
           style={{
-            fontFamily: 'var(--font-family-sans)',
+            fontFamily: 'var(--font-sans)',
             fontSize: 13,
             fontWeight: 600,
             color: 'var(--fg-3)',
@@ -101,7 +101,7 @@ export default function LoginPage() {
           >
             <span
               style={{
-                fontFamily: 'var(--font-family-mono)',
+                fontFamily: 'var(--font-mono)',
                 fontSize: 11,
                 fontWeight: 600,
                 color: 'var(--fg-1)',
@@ -120,7 +120,7 @@ export default function LoginPage() {
             aria-atomic="true"
             className="text-center"
             style={{
-              fontFamily: 'var(--font-family-sans)',
+              fontFamily: 'var(--font-sans)',
               fontSize: 14,
               fontStyle: 'italic',
               color: 'var(--status-overdue)',
@@ -139,7 +139,7 @@ export default function LoginPage() {
               aria-atomic="true"
               className="text-center"
               style={{
-                fontFamily: 'var(--font-family-sans)',
+                fontFamily: 'var(--font-sans)',
                 fontSize: 13,
                 fontStyle: 'italic',
                 color: 'var(--fg-2)',

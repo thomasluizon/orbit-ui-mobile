@@ -124,7 +124,7 @@ function MenuRow({
       style={{
         padding: '10px 12px',
         gap: 12,
-        fontFamily: 'var(--font-family-sans)',
+        fontFamily: 'var(--font-sans)',
         fontSize: 14,
         fontWeight: 500,
         color: destructive ? 'var(--fg-3)' : 'var(--fg-1)',

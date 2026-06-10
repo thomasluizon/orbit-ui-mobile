@@ -28,7 +28,7 @@ export function MonoToggle({
       aria-label={ariaLabel}
       disabled={disabled}
       onClick={onToggle}
-      className="appearance-none cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 shrink-0 font-[family-name:var(--font-family-mono)]"
+      className="appearance-none cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 shrink-0 font-[family-name:var(--font-mono)]"
       style={{
         minWidth: 44,
         padding: '4px 8px',

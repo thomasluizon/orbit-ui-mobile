@@ -28,12 +28,12 @@ export function InfoRow({ label, mono = true, progress }: Readonly<InfoRowProps>
           style={
             mono
               ? {
-                  fontFamily: 'var(--font-family-mono)',
+                  fontFamily: 'var(--font-mono)',
                   fontSize: 12,
                   fontVariantNumeric: 'tabular-nums',
                   letterSpacing: '0.04em',
                 }
-              : { fontFamily: 'var(--font-family-sans)', fontSize: 12 }
+              : { fontFamily: 'var(--font-sans)', fontSize: 12 }
           }
         >
           {label}

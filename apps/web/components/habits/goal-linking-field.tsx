@@ -64,7 +64,7 @@ export function GoalLinkingField({
                     : 'inset 0 0 0 1px var(--hairline-strong)',
                   border: 0,
                   color: isSelected ? 'var(--fg-1)' : 'var(--fg-2)',
-                  fontFamily: 'var(--font-family-sans)',
+                  fontFamily: 'var(--font-sans)',
                   fontSize: 12,
                   fontWeight: isSelected ? 600 : 500,
                   gap: 6,
@@ -74,7 +74,7 @@ export function GoalLinkingField({
                 <span>{goal.title}</span>
                 <span
                   style={{
-                    fontFamily: 'var(--font-family-mono)',
+                    fontFamily: 'var(--font-mono)',
                     fontSize: 11,
                     color: isSelected ? 'var(--fg-2)' : 'var(--fg-3)',
                     fontVariantNumeric: 'tabular-nums',
@@ -90,7 +90,7 @@ export function GoalLinkingField({
         <p
           style={{
             marginTop: 8,
-            fontFamily: 'var(--font-family-sans)',
+            fontFamily: 'var(--font-sans)',
             fontSize: 13,
             fontStyle: 'italic',
             color: 'var(--fg-3)',

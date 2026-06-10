@@ -107,7 +107,7 @@ export function TodayAISummary({ date }: Readonly<TodayAISummaryProps>) {
             />
             <span
               style={{
-                fontFamily: 'var(--font-family-sans)',
+                fontFamily: 'var(--font-sans)',
                 fontSize: 20,
                 fontWeight: 600,
                 color: 'var(--fg-1)',
@@ -119,7 +119,7 @@ export function TodayAISummary({ date }: Readonly<TodayAISummaryProps>) {
             <span
               aria-label={t('aiDisclosure.isAiTooltip')}
               style={{
-                fontFamily: 'var(--font-family-mono)',
+                fontFamily: 'var(--font-mono)',
                 fontSize: 10,
                 fontWeight: 600,
                 letterSpacing: '0.06em',
@@ -134,7 +134,7 @@ export function TodayAISummary({ date }: Readonly<TodayAISummaryProps>) {
           </div>
           <span
             style={{
-              fontFamily: 'var(--font-family-sans)',
+              fontFamily: 'var(--font-sans)',
               fontSize: 14,
               lineHeight: 1.45,
               color: 'var(--fg-2)',
@@ -145,7 +145,7 @@ export function TodayAISummary({ date }: Readonly<TodayAISummaryProps>) {
           {showDisclaimer && (
             <span
               style={{
-                fontFamily: 'var(--font-family-sans)',
+                fontFamily: 'var(--font-sans)',
                 fontSize: 11,
                 lineHeight: 1.4,
                 color: 'var(--fg-3)',

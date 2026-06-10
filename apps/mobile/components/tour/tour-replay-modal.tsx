@@ -248,13 +248,12 @@ function createModalStyles(tokens: AppTokens) {
       gap: 2,
     },
     sectionTitle: {
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_500Medium',
       fontSize: 15,
-      fontWeight: '500',
       color: tokens.fg1,
     },
     sectionSteps: {
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_400Regular',
       fontSize: 13,
       color: tokens.fg3,
     },

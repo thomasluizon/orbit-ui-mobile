@@ -32,7 +32,7 @@ export function OnboardingFeatures() {
       <div
         className="text-center"
         style={{
-          fontFamily: 'var(--font-family-sans)',
+          fontFamily: 'var(--font-sans)',
           fontSize: 22,
           fontWeight: 600,
           letterSpacing: '-0.015em',
@@ -57,7 +57,7 @@ export function OnboardingFeatures() {
           <div className="flex-1 min-w-0">
             <div
               style={{
-                fontFamily: 'var(--font-family-sans)',
+                fontFamily: 'var(--font-sans)',
                 fontSize: 15,
                 fontWeight: 600,
                 color: 'var(--fg-1)',
@@ -67,7 +67,7 @@ export function OnboardingFeatures() {
             </div>
             <div
               style={{
-                fontFamily: 'var(--font-family-sans)',
+                fontFamily: 'var(--font-sans)',
                 fontSize: 13,
                 color: 'var(--fg-3)',
                 fontStyle: 'italic',

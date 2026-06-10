@@ -103,7 +103,7 @@ function LegendItem({ dotColor, label, hollow = false }: Readonly<LegendItemProp
       />
       <span
         style={{
-          fontFamily: 'var(--font-family-sans)',
+          fontFamily: 'var(--font-sans)',
           fontSize: 13,
           color: 'var(--fg-2)',
         }}

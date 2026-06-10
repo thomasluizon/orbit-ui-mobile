@@ -116,7 +116,7 @@ function createStyles(tokens: AppTokensV2) {
       paddingBottom: 8,
     },
     description: {
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_400Regular',
       fontSize: 14,
       lineHeight: 22,
       color: tokens.fg2,
@@ -132,17 +132,16 @@ function createStyles(tokens: AppTokensV2) {
       justifyContent: 'center',
     },
     primaryButtonText: {
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_600SemiBold',
       fontSize: 14,
-      fontWeight: '600',
-    },
+      },
     quietRow: {
       alignItems: 'center',
       paddingVertical: 8,
       paddingBottom: 18,
     },
     quietText: {
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_400Regular',
       fontSize: 13,
       color: tokens.fg3,
     },

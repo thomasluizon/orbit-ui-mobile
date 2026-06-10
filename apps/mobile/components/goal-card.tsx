@@ -247,9 +247,8 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
     flexShrink: 0,
   },
   title: {
-    fontFamily: 'Geist',
+    fontFamily: 'Rubik_600SemiBold',
     fontSize: 14,
-    fontWeight: '600',
     color: tokens.fg1,
     flex: 1,
   },
@@ -267,13 +266,12 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
     borderColor: tokens.hairline,
   },
   statusBadgeText: {
-    fontFamily: 'Geist',
+    fontFamily: 'Rubik_700Bold',
     fontSize: 10,
-    fontWeight: '700',
-  },
+    },
 
   progressLabel: {
-    fontFamily: 'Geist',
+    fontFamily: 'Rubik_400Regular',
     fontSize: 12,
     color: tokens.fg2,
     marginBottom: 8,
@@ -285,7 +283,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
     justifyContent: 'space-between',
   },
   percentText: {
-    fontFamily: 'GeistMono',
+    fontFamily: 'Roboto_400Regular',
     fontSize: 12,
     color: tokens.fg2,
     fontVariant: ['tabular-nums'],
@@ -300,9 +298,8 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
     borderColor: tokens.hairline,
   },
   deadlineBadgeText: {
-    fontFamily: 'Geist',
+    fontFamily: 'Rubik_700Bold',
     fontSize: 10,
-    fontWeight: '700',
-  },
+    },
   })
 }

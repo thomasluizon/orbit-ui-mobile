@@ -105,7 +105,7 @@ export function WelcomeBackToast() {
         <div className="flex-1 flex flex-col" style={{ gap: 4 }}>
           <span
             style={{
-              fontFamily: 'var(--font-family-sans)',
+              fontFamily: 'var(--font-sans)',
               fontSize: 10,
               fontWeight: 600,
               color: 'var(--fg-3)',
@@ -117,7 +117,7 @@ export function WelcomeBackToast() {
           </span>
           <span
             style={{
-              fontFamily: 'var(--font-family-sans)',
+              fontFamily: 'var(--font-sans)',
               fontSize: 14,
               fontStyle: 'italic',
               color: 'var(--fg-2)',

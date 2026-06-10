@@ -52,7 +52,7 @@ export function HabitListDrillContent({
           type="button"
           className="w-full flex items-center justify-center gap-2 py-3 text-[var(--fg-3)] text-sm hover:text-[var(--primary-pressed)] transition-[color] duration-150"
           style={{
-            fontFamily: 'var(--font-family-sans)',
+            fontFamily: 'var(--font-sans)',
             fontSize: 13,
             borderTop: '1px solid var(--hairline)',
           }}

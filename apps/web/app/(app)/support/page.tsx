@@ -39,14 +39,14 @@ function UnderlinedInput({
   multiline = false,
   rows = 4,
 }: Readonly<UnderlinedInputProps>) {
-  const family = mono ? 'var(--font-family-mono)' : 'var(--font-family-sans)'
+  const family = mono ? 'var(--font-mono)' : 'var(--font-sans)'
   const Tag = multiline ? 'textarea' : 'input'
   return (
     <label className="flex flex-col gap-1.5 flex-1 min-w-0">
       {label && (
         <span
           style={{
-            fontFamily: 'var(--font-family-sans)',
+            fontFamily: 'var(--font-sans)',
             fontSize: 11,
             fontWeight: 600,
             color: 'var(--fg-3)',
@@ -76,7 +76,7 @@ function UnderlinedInput({
       {error && (
         <span
           style={{
-            fontFamily: 'var(--font-family-sans)',
+            fontFamily: 'var(--font-sans)',
             fontSize: 12,
             fontStyle: 'italic',
             color: 'var(--status-overdue)',
@@ -219,7 +219,7 @@ export default function SupportPage() {
             <Check size={28} strokeWidth={1.8} color="var(--primary)" />
             <span
               style={{
-                fontFamily: 'var(--font-family-sans)',
+                fontFamily: 'var(--font-sans)',
                 fontSize: 16,
                 color: 'var(--fg-1)',
               }}
@@ -228,7 +228,7 @@ export default function SupportPage() {
             </span>
             <span
               style={{
-                fontFamily: 'var(--font-family-sans)',
+                fontFamily: 'var(--font-sans)',
                 fontSize: 13,
                 color: 'var(--fg-3)',
                 fontStyle: 'italic',
@@ -278,7 +278,7 @@ export default function SupportPage() {
             {error && (
               <div
                 style={{
-                  fontFamily: 'var(--font-family-sans)',
+                  fontFamily: 'var(--font-sans)',
                   fontSize: 14,
                   fontStyle: 'italic',
                   color: 'var(--status-overdue)',
@@ -299,7 +299,7 @@ export default function SupportPage() {
                 borderRadius: 8,
                 background: disabled ? 'var(--bg-elev)' : 'var(--primary)',
                 color: disabled ? 'var(--fg-3)' : 'var(--fg-on-primary)',
-                fontFamily: 'var(--font-family-sans)',
+                fontFamily: 'var(--font-sans)',
                 fontSize: 14,
                 fontWeight: 600,
                 boxShadow: disabled ? 'inset 0 0 0 1px var(--hairline-strong)' : 'none',

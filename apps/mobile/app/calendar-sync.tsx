@@ -755,7 +755,7 @@ function createStyles() {
       gap: 8,
     },
     italicText: {
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_400Regular',
       fontSize: 13,
       fontStyle: 'italic',
     },
@@ -778,11 +778,11 @@ function createStyles() {
       gap: 2,
     },
     eventTitle: {
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_400Regular',
       fontSize: 15,
     },
     eventMeta: {
-      fontFamily: 'GeistMono',
+      fontFamily: 'Roboto_400Regular',
       fontSize: 11,
     },
     selectAllRow: {
@@ -791,9 +791,8 @@ function createStyles() {
     },
     linkPress: { padding: 4 },
     linkText: {
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_500Medium',
       fontSize: 13,
-      fontWeight: '500',
       textDecorationLine: 'underline',
     },
     actionPad: {
@@ -810,10 +809,9 @@ function createStyles() {
       alignSelf: 'stretch',
     },
     primaryBtnText: {
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_600SemiBold',
       fontSize: 14,
-      fontWeight: '600',
-    },
+      },
     progressTrack: {
       width: 200,
       height: 3,

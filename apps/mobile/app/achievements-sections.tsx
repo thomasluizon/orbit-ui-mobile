@@ -116,7 +116,7 @@ const styles = StyleSheet.create({
     minHeight: 56,
   },
   glyph: {
-    fontFamily: 'GeistMono',
+    fontFamily: 'Roboto_400Regular',
     fontSize: 16,
     width: 20,
     textAlign: 'center',
@@ -127,11 +127,11 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   name: {
-    fontFamily: 'Geist',
+    fontFamily: 'Rubik_400Regular',
     fontSize: 15,
   },
   subtitle: {
-    fontFamily: 'Geist',
+    fontFamily: 'Rubik_400Regular',
     fontSize: 12,
     lineHeight: 16,
   },

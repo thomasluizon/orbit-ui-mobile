@@ -243,26 +243,23 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   eyebrow: {
-    fontFamily: 'Geist',
+    fontFamily: 'Rubik_600SemiBold',
     fontSize: 10,
-    fontWeight: '600',
     letterSpacing: 1.2,
     textTransform: 'uppercase',
   },
   message: {
-    fontFamily: 'Geist',
+    fontFamily: 'Rubik_500Medium',
     fontSize: 14,
-    fontWeight: '500',
-  },
+    },
   actionButton: {
     alignSelf: 'flex-start',
     paddingHorizontal: 4,
     paddingTop: 2,
   },
   actionText: {
-    fontFamily: 'Geist',
+    fontFamily: 'Rubik_500Medium',
     fontSize: 13,
-    fontWeight: '500',
     textDecorationLine: 'underline',
   },
 })

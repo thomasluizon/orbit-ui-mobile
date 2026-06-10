@@ -169,9 +169,8 @@ const styles = StyleSheet.create({
     gap: 14,
   },
   eyebrow: {
-    fontFamily: 'GeistMono',
+    fontFamily: 'Roboto_500Medium',
     fontSize: 11,
-    fontWeight: '600',
     color: 'rgba(255,255,255,0.7)',
     letterSpacing: 1.98,
     textTransform: 'uppercase',
@@ -188,14 +187,13 @@ const styles = StyleSheet.create({
     height: 130,
   },
   levelNumber: {
-    fontFamily: 'GeistMono',
+    fontFamily: 'Roboto_500Medium',
     fontSize: 80,
-    fontWeight: '500',
     color: '#fff',
     letterSpacing: -3.2,
   },
   subtitle: {
-    fontFamily: 'Geist',
+    fontFamily: 'Rubik_400Regular',
     fontSize: 16,
     fontStyle: 'italic',
     color: 'rgba(255,255,255,0.85)',

@@ -1,9 +1,8 @@
 import {
-  schemes,
   motionDurations,
-  orbitalMotion,
+  resolveDarkNeutrals,
+  resolveLightNeutrals,
   type ColorScheme,
-  type ColorSchemeDefinition,
   type ThemeMode,
 } from '@orbit/shared'
 
@@ -26,6 +25,13 @@ export function normalizeColorScheme(value: string | null | undefined): ColorSch
     : 'purple'
 }
 
+/** Resolved canvas hex for the scheme/mode (drives meta theme-color). */
+export function canvasColor(scheme: ColorScheme, theme: ThemeMode): string {
+  return theme === 'light'
+    ? resolveLightNeutrals(scheme).bg
+    : resolveDarkNeutrals(scheme).bg
+}
+
 export function applyThemeTokensToDOM(
   scheme: ColorScheme,
   theme: ThemeMode,
@@ -33,8 +39,6 @@ export function applyThemeTokensToDOM(
 ) {
   if (typeof document === 'undefined') return
 
-  const def: ColorSchemeDefinition = schemes[scheme]
-  const colors = def[theme]
   const root = document.documentElement
 
   if (animate) {
@@ -57,35 +61,9 @@ export function applyThemeTokensToDOM(
 
   root.style.setProperty('color-scheme', theme)
 
-  root.style.setProperty('--shadow-sm', colors.shadowSm)
-  root.style.setProperty('--shadow-md', colors.shadowMd)
-  root.style.setProperty('--shadow-lg', colors.shadowLg)
-  root.style.setProperty('--nav-glass-bg', colors.navGlassBg)
-  root.style.setProperty('--nav-glass-border', colors.navGlassBorder)
-  root.style.setProperty('--primary-shadow', def.shadowRgb)
-
-  const tint = theme === 'light'
-    ? { bg: 0.3, bgHover: 0.38, border: 0.5, borderHover: 0.62, iconBg: 0.42, iconBgHover: 0.52 }
-    : { bg: 0.1, bgHover: 0.15, border: 0.2, borderHover: 0.3, iconBg: 0.2, iconBgHover: 0.3 }
-  root.style.setProperty('--primary-tint-bg', `rgba(${def.shadowRgb}, ${tint.bg})`)
-  root.style.setProperty('--primary-tint-bg-hover', `rgba(${def.shadowRgb}, ${tint.bgHover})`)
-  root.style.setProperty('--primary-tint-border', `rgba(${def.shadowRgb}, ${tint.border})`)
-  root.style.setProperty('--primary-tint-border-hover', `rgba(${def.shadowRgb}, ${tint.borderHover})`)
-  root.style.setProperty('--primary-tint-icon-bg', `rgba(${def.shadowRgb}, ${tint.iconBg})`)
-  root.style.setProperty('--primary-tint-icon-bg-hover', `rgba(${def.shadowRgb}, ${tint.iconBgHover})`)
-  root.style.setProperty('--surface-top-highlight', theme === 'dark' ? 'rgba(255, 255, 255, 0.05)' : 'rgba(255, 255, 255, 0.85)')
-  root.style.setProperty('--surface-sheen-start', theme === 'dark' ? 'rgba(255, 255, 255, 0.035)' : 'rgba(255, 255, 255, 0.55)')
-  root.style.setProperty('--surface-sheen-end', 'transparent')
-  root.style.setProperty('--orbit-press-scale', String(orbitalMotion.press.scale))
-  root.style.setProperty('--orbit-press-y', `${orbitalMotion.press.translateY}px`)
-  root.style.setProperty('--orbit-elevated-press-scale', String(orbitalMotion.elevatedPress.scale))
-  root.style.setProperty('--orbit-elevated-press-y', `${orbitalMotion.elevatedPress.translateY}px`)
-  root.style.setProperty('--orbit-list-stagger', `${orbitalMotion.list.staggerMs}ms`)
-  root.style.setProperty('--date-icon-filter', theme === 'dark' ? 'invert(0.6)' : 'none')
-
   const metaThemeColor = document.querySelector('meta[name="theme-color"]')
   if (metaThemeColor) {
-    metaThemeColor.setAttribute('content', colors.background)
+    metaThemeColor.setAttribute('content', canvasColor(scheme, theme))
   }
 
   const metaStatusBar = document.querySelector('meta[name="apple-mobile-web-app-status-bar-style"]')

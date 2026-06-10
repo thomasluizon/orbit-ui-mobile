@@ -43,7 +43,7 @@ export const UnderlinedInput = forwardRef<TextInput, UnderlinedInputProps>(
             styles.input,
             {
               fontSize,
-              fontFamily: mono ? 'GeistMono' : 'Geist',
+              fontFamily: mono ? 'Roboto_400Regular' : 'Rubik_400Regular',
               color: tokens.fg1,
               paddingVertical: padY,
               borderBottomColor: tokens.hairlineStrong,
@@ -61,10 +61,9 @@ const styles = StyleSheet.create({
     width: '100%',
   },
   label: {
-    fontFamily: 'Geist',
+    fontFamily: 'Rubik_500Medium',
     fontSize: 11,
-    fontWeight: '500',
-  },
+    },
   input: {
     width: '100%',
     backgroundColor: 'transparent',

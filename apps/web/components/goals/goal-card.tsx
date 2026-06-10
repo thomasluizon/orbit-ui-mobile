@@ -162,7 +162,7 @@ export function GoalCard({ goal }: Readonly<GoalCardProps>) {
             </p>
 
             <div className="flex items-center justify-between">
-              <span className="text-[12px] text-[var(--fg-2)] font-[family-name:var(--font-family-mono)] tabular-nums">
+              <span className="text-[12px] text-[var(--fg-2)] font-[family-name:var(--font-mono)] tabular-nums">
                 {t('goals.progressPercentage', {
                   pct: goal.progressPercentage,
                 })}

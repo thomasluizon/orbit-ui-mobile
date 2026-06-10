@@ -30,7 +30,7 @@ export function ProfileActionButton({
         border: 0,
         padding: '14px 20px',
         borderBottom: '1px solid var(--hairline)',
-        fontFamily: 'var(--font-family-sans)',
+        fontFamily: 'var(--font-sans)',
         fontSize: compact ? 13 : 15,
         fontWeight: 400,
         color,

@@ -316,7 +316,7 @@ export function GoalDetailDrawer({
               <div
                 style={{
                   padding: '10px 20px',
-                  fontFamily: 'var(--font-family-mono)',
+                  fontFamily: 'var(--font-mono)',
                   fontSize: 12,
                   fontWeight: 500,
                   color: 'var(--fg-3)',
@@ -347,7 +347,7 @@ export function GoalDetailDrawer({
                 className="flex items-center justify-between"
                 style={{
                   marginTop: 10,
-                  fontFamily: 'var(--font-family-mono)',
+                  fontFamily: 'var(--font-mono)',
                   fontSize: 12,
                   color: 'var(--fg-2)',
                   fontVariantNumeric: 'tabular-nums',
@@ -373,7 +373,7 @@ export function GoalDetailDrawer({
                     type="button"
                     className="appearance-none border-0 bg-transparent cursor-pointer text-[var(--fg-1)] transition-colors duration-150 ease-out hover:text-[var(--primary)]"
                     style={{
-                      fontFamily: 'var(--font-family-sans)',
+                      fontFamily: 'var(--font-sans)',
                       fontSize: 13,
                       fontWeight: 500,
                       padding: 0,
@@ -453,7 +453,7 @@ export function GoalDetailDrawer({
               <p
                 style={{
                   padding: '10px 20px',
-                  fontFamily: 'var(--font-family-sans)',
+                  fontFamily: 'var(--font-sans)',
                   fontSize: 13,
                   fontStyle: 'italic',
                   color: 'var(--status-overdue)',

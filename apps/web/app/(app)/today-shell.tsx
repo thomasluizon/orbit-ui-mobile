@@ -183,7 +183,7 @@ export function TodayDateNavigation({
             height: 36,
             padding: '0 8px',
             borderRadius: 8,
-            fontFamily: 'var(--font-family-sans)',
+            fontFamily: 'var(--font-sans)',
             fontSize: 14,
             fontWeight: 500,
             letterSpacing: '-0.005em',
@@ -268,7 +268,7 @@ export function TodayUtilityRow({
             className="appearance-none border-0 bg-transparent flex-1 min-w-0"
             style={{
               outline: 'none',
-              fontFamily: 'var(--font-family-sans)',
+              fontFamily: 'var(--font-sans)',
               fontSize: 14,
               color: 'var(--fg-1)',
             }}
@@ -290,7 +290,7 @@ export function TodayUtilityRow({
             className="appearance-none border-0 bg-transparent cursor-pointer text-[var(--fg-2)] transition-colors duration-150 ease-out hover:text-[var(--fg-1)]"
             style={{
               padding: '6px 8px',
-              fontFamily: 'var(--font-family-sans)',
+              fontFamily: 'var(--font-sans)',
               fontSize: 13,
             }}
           >
@@ -435,7 +435,7 @@ function FrequencyMenuRow({ active, label, onClick }: Readonly<FrequencyMenuRowP
       style={{
         padding: '8px 10px',
         gap: 10,
-        fontFamily: 'var(--font-family-sans)',
+        fontFamily: 'var(--font-sans)',
         fontSize: 14,
         fontWeight: active ? 600 : 500,
         color: active ? 'var(--fg-1)' : 'var(--fg-2)',

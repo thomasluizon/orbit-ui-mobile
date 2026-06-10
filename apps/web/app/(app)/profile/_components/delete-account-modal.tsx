@@ -193,7 +193,7 @@ function DeleteConfirmStep({
     <div className="flex flex-col" style={{ gap: 16 }}>
       <p
         style={{
-          fontFamily: 'var(--font-family-sans)',
+          fontFamily: 'var(--font-sans)',
           fontSize: 14,
           fontStyle: 'italic',
           color: 'var(--fg-2)',
@@ -204,7 +204,7 @@ function DeleteConfirmStep({
       </p>
       <p
         style={{
-          fontFamily: 'var(--font-family-sans)',
+          fontFamily: 'var(--font-sans)',
           fontSize: 13,
           fontStyle: 'italic',
           color: 'var(--fg-3)',
@@ -217,7 +217,7 @@ function DeleteConfirmStep({
         <p
           role="alert"
           style={{
-            fontFamily: 'var(--font-family-sans)',
+            fontFamily: 'var(--font-sans)',
             fontSize: 13,
             fontStyle: 'italic',
             color: 'var(--status-overdue)',
@@ -231,7 +231,7 @@ function DeleteConfirmStep({
           type="button"
           className="appearance-none border-0 bg-transparent cursor-pointer text-[var(--fg-3)] transition-colors duration-150 ease-out hover:text-[var(--fg-1)]"
           style={{
-            fontFamily: 'var(--font-family-sans)',
+            fontFamily: 'var(--font-sans)',
             fontSize: 14,
             padding: 6,
           }}
@@ -249,7 +249,7 @@ function DeleteConfirmStep({
             padding: '10px 18px',
             color: 'var(--fg-on-primary)',
             borderRadius: 10,
-            fontFamily: 'var(--font-family-sans)',
+            fontFamily: 'var(--font-sans)',
             fontSize: 14,
             fontWeight: 600,
           }}
@@ -288,7 +288,7 @@ function DeleteCodeStep({
     <div className="flex flex-col" style={{ gap: 16 }}>
       <p
         style={{
-          fontFamily: 'var(--font-family-sans)',
+          fontFamily: 'var(--font-sans)',
           fontSize: 14,
           fontStyle: 'italic',
           color: 'var(--fg-3)',
@@ -309,7 +309,7 @@ function DeleteCodeStep({
         <p
           role="alert"
           style={{
-            fontFamily: 'var(--font-family-sans)',
+            fontFamily: 'var(--font-sans)',
             fontSize: 13,
             fontStyle: 'italic',
             color: 'var(--status-overdue)',
@@ -323,7 +323,7 @@ function DeleteCodeStep({
           type="button"
           className="appearance-none border-0 bg-transparent cursor-pointer text-[var(--fg-3)] transition-colors duration-150 ease-out hover:text-[var(--fg-1)]"
           style={{
-            fontFamily: 'var(--font-family-sans)',
+            fontFamily: 'var(--font-sans)',
             fontSize: 14,
             padding: 6,
           }}
@@ -338,7 +338,7 @@ function DeleteCodeStep({
           disabled={loading || code.join('').length !== 6}
           onClick={onConfirmDeletion}
           style={{
-            fontFamily: 'var(--font-family-sans)',
+            fontFamily: 'var(--font-sans)',
             fontSize: 14,
             fontWeight: 600,
             color: 'var(--fg-1)',
@@ -366,7 +366,7 @@ function DeleteDeactivatedStep({
     <div className="flex flex-col" style={{ gap: 16 }}>
       <p
         style={{
-          fontFamily: 'var(--font-family-sans)',
+          fontFamily: 'var(--font-sans)',
           fontSize: 14,
           fontStyle: 'italic',
           color: 'var(--fg-2)',
@@ -384,7 +384,7 @@ function DeleteDeactivatedStep({
             padding: '10px 18px',
             color: 'var(--fg-on-primary)',
             borderRadius: 10,
-            fontFamily: 'var(--font-family-sans)',
+            fontFamily: 'var(--font-sans)',
             fontSize: 14,
             fontWeight: 600,
           }}

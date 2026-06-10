@@ -241,15 +241,14 @@ function createStyles(tokens: AppTokens) {
       alignItems: 'center',
     },
     titleText: {
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_700Bold',
       fontSize: 22,
-      fontWeight: '700',
       color: tokens.fg1,
       textAlign: 'center',
       letterSpacing: -0.5,
     },
     subtitleText: {
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_400Regular',
       fontSize: 14,
       color: tokens.fg2,
       textAlign: 'center',

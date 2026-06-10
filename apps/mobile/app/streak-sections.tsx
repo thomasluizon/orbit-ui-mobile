@@ -367,10 +367,9 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
   },
   weekDayLabel: {
-    fontFamily: 'GeistMono',
+    fontFamily: 'Roboto_500Medium',
     fontSize: 11,
-    fontWeight: '500',
-  },
+    },
   dot: {
     width: 7,
     height: 7,
@@ -412,20 +411,20 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   legendLabel: {
-    fontFamily: 'Geist',
+    fontFamily: 'Rubik_400Regular',
     fontSize: 12,
   },
   groupWrap: {
     paddingHorizontal: 20,
   },
   explainer: {
-    fontFamily: 'Geist',
+    fontFamily: 'Rubik_400Regular',
     fontSize: 14,
     lineHeight: 21,
     marginBottom: 14,
   },
   freezeCount: {
-    fontFamily: 'GeistMono',
+    fontFamily: 'Roboto_400Regular',
     fontSize: 13,
     fontVariant: ['tabular-nums'],
   },
@@ -440,11 +439,11 @@ const styles = StyleSheet.create({
     gap: 5,
   },
   upgradeLink: {
-    fontFamily: 'Geist',
+    fontFamily: 'Rubik_400Regular',
     fontSize: 14,
   },
   emptyText: {
-    fontFamily: 'Geist',
+    fontFamily: 'Rubik_400Regular',
     fontSize: 14,
     lineHeight: 21,
   },

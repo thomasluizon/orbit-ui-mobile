@@ -32,7 +32,7 @@ export function HabitListEmptyState({
       <div
         className="text-center"
         style={{
-          fontFamily: 'var(--font-family-sans)',
+          fontFamily: 'var(--font-sans)',
           fontSize: 17,
           color: 'var(--fg-2)',
           fontStyle: 'italic',
@@ -44,7 +44,7 @@ export function HabitListEmptyState({
         <div
           className="text-center"
           style={{
-            fontFamily: 'var(--font-family-sans)',
+            fontFamily: 'var(--font-sans)',
             fontSize: 13,
             color: 'var(--fg-3)',
             maxWidth: 280,
@@ -65,7 +65,7 @@ export function HabitListEmptyState({
               color: 'var(--fg-on-primary)',
               padding: '8px 14px',
               borderRadius: 999,
-              fontFamily: 'var(--font-family-sans)',
+              fontFamily: 'var(--font-sans)',
               fontSize: 13,
               fontWeight: 500,
               gap: 8,
@@ -79,7 +79,7 @@ export function HabitListEmptyState({
             onClick={onAction}
             className="appearance-none border-0 bg-transparent cursor-pointer"
             style={{
-              fontFamily: 'var(--font-family-sans)',
+              fontFamily: 'var(--font-sans)',
               fontSize: 13,
               fontWeight: 500,
               color: 'var(--fg-1)',

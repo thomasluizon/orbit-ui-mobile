@@ -63,7 +63,7 @@ export function SettingsRow({
         <span
           className="overflow-hidden whitespace-nowrap text-ellipsis"
           style={{
-            fontFamily: 'var(--font-family-sans)',
+            fontFamily: 'var(--font-sans)',
             fontSize: 15,
             fontWeight: 400,
             color: 'var(--fg-1)',
@@ -77,7 +77,7 @@ export function SettingsRow({
         style={{
           gap: 8,
           color: 'var(--fg-3)',
-          fontFamily: mono ? 'var(--font-family-mono)' : 'var(--font-family-sans)',
+          fontFamily: mono ? 'var(--font-mono)' : 'var(--font-sans)',
           fontSize: mono ? 13 : 14,
           fontVariantNumeric: mono ? 'tabular-nums' : 'normal',
         }}

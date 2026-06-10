@@ -61,7 +61,7 @@ export function SubscriptionCard({
       <Link
         href="/upgrade"
         style={{
-          fontFamily: 'var(--font-family-sans)',
+          fontFamily: 'var(--font-sans)',
           fontSize: 13,
           fontWeight: 500,
           color: 'var(--fg-1)',
@@ -79,7 +79,7 @@ export function SubscriptionCard({
       <Link
         href="/upgrade"
         style={{
-          fontFamily: 'var(--font-family-sans)',
+          fontFamily: 'var(--font-sans)',
           fontSize: 13,
           fontWeight: 500,
           color: 'var(--fg-1)',

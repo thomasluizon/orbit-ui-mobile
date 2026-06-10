@@ -21,7 +21,7 @@ export function SectionLabel({
     >
       <span
         className="text-[13px] font-semibold text-[var(--fg-3)]"
-        style={{ fontFamily: 'var(--font-family-sans)' }}
+        style={{ fontFamily: 'var(--font-sans)' }}
       >
         {children}
       </span>

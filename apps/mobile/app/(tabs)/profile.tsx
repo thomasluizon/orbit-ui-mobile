@@ -935,7 +935,7 @@ function createStyles(_tokens: Tokens) {
     },
 
     errorText: {
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_400Regular',
       fontSize: 13,
       textAlign: 'center',
       marginVertical: 12,
@@ -962,21 +962,19 @@ function createStyles(_tokens: Tokens) {
       justifyContent: 'center',
     },
     avatarText: {
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_600SemiBold',
       fontSize: 16,
-      fontWeight: '600',
-    },
+      },
     userTexts: {
       flex: 1,
       gap: 2,
     },
     userName: {
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_600SemiBold',
       fontSize: 17,
-      fontWeight: '600',
-    },
+      },
     userEmail: {
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_400Regular',
       fontSize: 13,
     },
     skeleton: {
@@ -989,13 +987,12 @@ function createStyles(_tokens: Tokens) {
       gap: 10,
     },
     streakCount: {
-      fontFamily: 'GeistMono',
+      fontFamily: 'Roboto_500Medium',
       fontSize: 16,
-      fontWeight: '600',
       fontVariant: ['tabular-nums'],
     },
     streakDays: {
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_400Regular',
       fontSize: 13,
     },
 
@@ -1024,13 +1021,12 @@ function createStyles(_tokens: Tokens) {
       marginBottom: 20,
     },
     modalTitle: {
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_600SemiBold',
       fontSize: 17,
-      fontWeight: '600',
       letterSpacing: -0.17,
     },
     modalDescription: {
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_400Regular',
       fontSize: 14,
       lineHeight: 21,
     },
@@ -1042,9 +1038,8 @@ function createStyles(_tokens: Tokens) {
       gap: 8,
     },
     boxLabel: {
-      fontFamily: 'GeistMono',
+      fontFamily: 'Roboto_500Medium',
       fontSize: 11,
-      fontWeight: '600',
       letterSpacing: 0.55,
     },
     boxItem: {
@@ -1053,7 +1048,7 @@ function createStyles(_tokens: Tokens) {
       gap: 8,
     },
     boxItemText: {
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_400Regular',
       fontSize: 13,
       flex: 1,
     },
@@ -1064,10 +1059,9 @@ function createStyles(_tokens: Tokens) {
       alignItems: 'center',
     },
     primaryButtonText: {
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_500Medium',
       fontSize: 14,
-      fontWeight: '500',
-    },
+      },
     dangerButton: {
       borderRadius: 8,
       paddingVertical: 12,
@@ -1075,10 +1069,9 @@ function createStyles(_tokens: Tokens) {
       borderWidth: 1,
     },
     dangerButtonText: {
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_500Medium',
       fontSize: 14,
-      fontWeight: '500',
-    },
+      },
     secondaryButton: {
       borderRadius: 8,
       paddingVertical: 12,
@@ -1086,19 +1079,17 @@ function createStyles(_tokens: Tokens) {
       borderWidth: StyleSheet.hairlineWidth,
     },
     secondaryButtonText: {
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_500Medium',
       fontSize: 14,
-      fontWeight: '500',
-    },
+      },
     buttonDisabled: { opacity: 0.5 },
 
     confirmInput: {
       borderRadius: 8,
       paddingHorizontal: 16,
       paddingVertical: 12,
-      fontFamily: 'GeistMono',
+      fontFamily: 'Roboto_500Medium',
       fontSize: 16,
-      fontWeight: '500',
       borderWidth: StyleSheet.hairlineWidth,
     },
     deleteCodeRow: {
@@ -1111,12 +1102,11 @@ function createStyles(_tokens: Tokens) {
       height: 52,
       borderRadius: 8,
       borderWidth: StyleSheet.hairlineWidth,
-      fontFamily: 'GeistMono',
+      fontFamily: 'Roboto_500Medium',
       fontSize: 18,
-      fontWeight: '500',
-    },
+      },
     errorTextSmall: {
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_400Regular',
       fontSize: 12,
       textAlign: 'center',
     },

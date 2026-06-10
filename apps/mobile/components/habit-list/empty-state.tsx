@@ -106,13 +106,13 @@ const styles = StyleSheet.create({
     gap: 16,
   },
   title: {
-    fontFamily: 'Geist',
+    fontFamily: 'Rubik_400Regular',
     fontSize: 17,
     fontStyle: 'italic',
     textAlign: 'center',
   },
   description: {
-    fontFamily: 'Geist',
+    fontFamily: 'Rubik_400Regular',
     fontSize: 13,
     lineHeight: 20,
     textAlign: 'center',
@@ -124,18 +124,16 @@ const styles = StyleSheet.create({
     borderRadius: 999,
   },
   primaryActionText: {
-    fontFamily: 'Geist',
+    fontFamily: 'Rubik_500Medium',
     fontSize: 13,
-    fontWeight: '500',
-  },
+    },
   linkAction: {
     paddingVertical: 6,
     paddingHorizontal: 8,
   },
   linkActionText: {
-    fontFamily: 'Geist',
+    fontFamily: 'Rubik_500Medium',
     fontSize: 13,
-    fontWeight: '500',
     textDecorationLine: 'underline',
   },
 })

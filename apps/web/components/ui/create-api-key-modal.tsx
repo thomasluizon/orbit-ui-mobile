@@ -259,7 +259,7 @@ function CreateStep(props: Readonly<CreateStepProps>) {
         <p
           role="alert"
           style={{
-            fontFamily: 'var(--font-family-sans)',
+            fontFamily: 'var(--font-sans)',
             fontSize: 13,
             fontStyle: 'italic',
             color: 'var(--status-overdue)',
@@ -296,7 +296,7 @@ function CreateStep(props: Readonly<CreateStepProps>) {
             className="appearance-none border-0 bg-transparent cursor-pointer transition-opacity duration-150 ease-out hover:opacity-80"
             onClick={onSelectAll}
             style={{
-              fontFamily: 'var(--font-family-sans)',
+              fontFamily: 'var(--font-sans)',
               fontSize: 13,
               color: 'var(--fg-1)',
               padding: 6,
@@ -309,7 +309,7 @@ function CreateStep(props: Readonly<CreateStepProps>) {
             className="appearance-none border-0 bg-transparent cursor-pointer transition-colors duration-150 ease-out hover:text-[var(--fg-1)]"
             onClick={onClear}
             style={{
-              fontFamily: 'var(--font-family-sans)',
+              fontFamily: 'var(--font-sans)',
               fontSize: 13,
               color: 'var(--fg-3)',
               padding: 6,
@@ -326,7 +326,7 @@ function CreateStep(props: Readonly<CreateStepProps>) {
       >
         <span
           style={{
-            fontFamily: 'var(--font-family-sans)',
+            fontFamily: 'var(--font-sans)',
             fontSize: 15,
             color: 'var(--fg-1)',
           }}
@@ -345,7 +345,7 @@ function CreateStep(props: Readonly<CreateStepProps>) {
         <label
           htmlFor="api-key-expiry"
           style={{
-            fontFamily: 'var(--font-family-sans)',
+            fontFamily: 'var(--font-sans)',
             fontSize: 11,
             fontWeight: 500,
             color: 'var(--fg-3)',
@@ -363,7 +363,7 @@ function CreateStep(props: Readonly<CreateStepProps>) {
             border: 0,
             background: 'transparent',
             outline: 'none',
-            fontFamily: 'var(--font-family-mono)',
+            fontFamily: 'var(--font-mono)',
             fontSize: 13,
             color: 'var(--fg-1)',
             padding: '6px 0',
@@ -377,7 +377,7 @@ function CreateStep(props: Readonly<CreateStepProps>) {
         <p
           role="alert"
           style={{
-            fontFamily: 'var(--font-family-sans)',
+            fontFamily: 'var(--font-sans)',
             fontSize: 13,
             fontStyle: 'italic',
             color: 'var(--status-overdue)',
@@ -392,7 +392,7 @@ function CreateStep(props: Readonly<CreateStepProps>) {
           type="button"
           className="appearance-none border-0 bg-transparent cursor-pointer transition-colors duration-150 ease-out hover:text-[var(--fg-1)]"
           style={{
-            fontFamily: 'var(--font-family-sans)',
+            fontFamily: 'var(--font-sans)',
             fontSize: 14,
             color: 'var(--fg-3)',
             padding: 6,
@@ -410,7 +410,7 @@ function CreateStep(props: Readonly<CreateStepProps>) {
             background: 'var(--primary)',
             color: 'var(--fg-on-primary)',
             borderRadius: 10,
-            fontFamily: 'var(--font-family-sans)',
+            fontFamily: 'var(--font-sans)',
             fontSize: 14,
             fontWeight: 600,
           }}
@@ -437,7 +437,7 @@ function RevealStep({ createdKey, copied, onCopy, onDone }: Readonly<RevealStepP
     <div className="flex flex-col" style={{ gap: 12 }}>
       <p
         style={{
-          fontFamily: 'var(--font-family-sans)',
+          fontFamily: 'var(--font-sans)',
           fontSize: 14,
           fontStyle: 'italic',
           color: 'var(--status-overdue)',
@@ -452,7 +452,7 @@ function RevealStep({ createdKey, copied, onCopy, onDone }: Readonly<RevealStepP
           borderRadius: 8,
           background: 'var(--bg-sunk)',
           boxShadow: 'inset 0 0 0 1px var(--hairline)',
-          fontFamily: 'var(--font-family-mono)',
+          fontFamily: 'var(--font-mono)',
           fontSize: 13,
           color: 'var(--fg-1)',
           lineHeight: 1.5,
@@ -467,7 +467,7 @@ function RevealStep({ createdKey, copied, onCopy, onDone }: Readonly<RevealStepP
             position: 'absolute',
             top: 8,
             right: 10,
-            fontFamily: 'var(--font-family-sans)',
+            fontFamily: 'var(--font-sans)',
             fontSize: 12,
             color: 'var(--fg-3)',
             textDecoration: 'underline',
@@ -479,7 +479,7 @@ function RevealStep({ createdKey, copied, onCopy, onDone }: Readonly<RevealStepP
       </div>
       <div
         style={{
-          fontFamily: 'var(--font-family-mono)',
+          fontFamily: 'var(--font-mono)',
           fontSize: 11,
           fontWeight: 500,
           color: 'var(--fg-3)',
@@ -503,7 +503,7 @@ function RevealStep({ createdKey, copied, onCopy, onDone }: Readonly<RevealStepP
             background: 'var(--primary)',
             color: 'var(--fg-on-primary)',
             borderRadius: 10,
-            fontFamily: 'var(--font-family-sans)',
+            fontFamily: 'var(--font-sans)',
             fontSize: 14,
             fontWeight: 600,
           }}

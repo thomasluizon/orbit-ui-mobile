@@ -172,7 +172,7 @@ export function EditHabitModal({
             type="button"
             className="appearance-none border-0 bg-transparent cursor-pointer disabled:opacity-50"
             style={{
-              fontFamily: 'var(--font-family-sans)',
+              fontFamily: 'var(--font-sans)',
               fontSize: 14,
               fontWeight: 500,
               color: 'var(--fg-3)',
@@ -189,7 +189,7 @@ export function EditHabitModal({
             style={{
               background: 'var(--primary)',
               color: 'var(--fg-on-primary)',
-              fontFamily: 'var(--font-family-sans)',
+              fontFamily: 'var(--font-sans)',
               fontSize: 14,
               fontWeight: 600,
               padding: '10px 18px',

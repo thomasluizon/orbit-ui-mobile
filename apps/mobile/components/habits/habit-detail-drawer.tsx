@@ -341,7 +341,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
     description: {
       paddingHorizontal: 20,
       paddingVertical: 12,
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_400Regular',
       fontSize: 14,
       lineHeight: 21,
       color: tokens.fg2,
@@ -383,13 +383,12 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       marginBottom: 6,
     },
     askAstraEyebrowText: {
-      fontFamily: 'GeistMono',
+      fontFamily: 'Roboto_500Medium',
       fontSize: 10.5,
-      fontWeight: '500',
       letterSpacing: 0.63,
     },
     askAstraBody: {
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_400Regular',
       fontSize: 14,
       fontStyle: 'italic',
       lineHeight: 20,

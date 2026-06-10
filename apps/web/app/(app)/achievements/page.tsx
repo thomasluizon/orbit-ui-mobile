@@ -52,7 +52,7 @@ export default function AchievementsPage() {
           <div className="flex flex-col items-center text-center" style={{ padding: '40px 24px', gap: 14 }}>
             <span
               style={{
-                fontFamily: 'var(--font-family-sans)',
+                fontFamily: 'var(--font-sans)',
                 fontSize: 16,
                 fontWeight: 600,
                 color: 'var(--fg-1)',
@@ -62,7 +62,7 @@ export default function AchievementsPage() {
             </span>
             <span
               style={{
-                fontFamily: 'var(--font-family-sans)',
+                fontFamily: 'var(--font-sans)',
                 fontSize: 14,
                 fontStyle: 'italic',
                 color: 'var(--fg-3)',
@@ -80,7 +80,7 @@ export default function AchievementsPage() {
                 borderRadius: 8,
                 background: 'var(--primary)',
                 color: 'var(--fg-on-primary)',
-                fontFamily: 'var(--font-family-sans)',
+                fontFamily: 'var(--font-sans)',
                 fontSize: 14,
                 fontWeight: 600,
                 textDecoration: 'none',
@@ -111,7 +111,7 @@ export default function AchievementsPage() {
                       className="flex items-center justify-center shrink-0 size-14 rounded-full"
                       style={{
                         boxShadow: 'inset 0 0 0 1px var(--hairline-strong)',
-                        fontFamily: 'var(--font-family-mono)',
+                        fontFamily: 'var(--font-mono)',
                         fontSize: 22,
                         fontWeight: 500,
                         color: 'var(--fg-1)',
@@ -123,7 +123,7 @@ export default function AchievementsPage() {
                     <div className="flex-1 min-w-0">
                       <div
                         style={{
-                          fontFamily: 'var(--font-family-sans)',
+                          fontFamily: 'var(--font-sans)',
                           fontSize: 16,
                           fontWeight: 600,
                           color: 'var(--fg-1)',
@@ -133,7 +133,7 @@ export default function AchievementsPage() {
                       </div>
                       <div
                         style={{
-                          fontFamily: 'var(--font-family-mono)',
+                          fontFamily: 'var(--font-mono)',
                           fontSize: 11,
                           fontWeight: 500,
                           color: 'var(--fg-3)',
@@ -172,7 +172,7 @@ export default function AchievementsPage() {
                     className="flex items-center justify-between"
                     style={{
                       marginTop: 10,
-                      fontFamily: 'var(--font-family-mono)',
+                      fontFamily: 'var(--font-mono)',
                       fontSize: 11,
                       color: 'var(--fg-3)',
                       fontVariantNumeric: 'tabular-nums',

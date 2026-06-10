@@ -604,9 +604,8 @@ function createStyles(tokens: AppTokensV2) {
       marginBottom: 20,
     },
     referralBannerText: {
-      fontFamily: 'GeistMono',
+      fontFamily: 'Roboto_500Medium',
       fontSize: 11,
-      fontWeight: '600',
       color: tokens.fg1,
       letterSpacing: 0.66,
     },
@@ -623,9 +622,8 @@ function createStyles(tokens: AppTokensV2) {
       paddingBottom: 12,
     },
     wordmark: {
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_600SemiBold',
       fontSize: 28,
-      fontWeight: '600',
       color: tokens.fg1,
       letterSpacing: -0.7,
       lineHeight: 28,
@@ -638,15 +636,14 @@ function createStyles(tokens: AppTokensV2) {
     },
 
     stepSubtitle: {
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_600SemiBold',
       fontSize: 13,
-      fontWeight: '600',
       color: tokens.fg3,
       textAlign: 'center',
     },
 
     inlineError: {
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_400Regular',
       fontSize: 14,
       fontStyle: 'italic',
       color: tokens.statusOverdue,
@@ -654,7 +651,7 @@ function createStyles(tokens: AppTokensV2) {
     },
 
     successText: {
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_400Regular',
       fontSize: 13,
       fontStyle: 'italic',
       color: tokens.fg2,
@@ -671,10 +668,9 @@ function createStyles(tokens: AppTokensV2) {
       gap: 8,
     },
     primaryButtonText: {
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_600SemiBold',
       fontSize: 14,
-      fontWeight: '600',
-    },
+      },
     buttonDisabled: {
       opacity: 0.5,
     },
@@ -691,9 +687,8 @@ function createStyles(tokens: AppTokensV2) {
       backgroundColor: tokens.hairline,
     },
     dividerText: {
-      fontFamily: 'GeistMono',
+      fontFamily: 'Roboto_500Medium',
       fontSize: 11,
-      fontWeight: '500',
       color: tokens.fg3,
       letterSpacing: 0.66,
     },
@@ -709,13 +704,12 @@ function createStyles(tokens: AppTokensV2) {
       gap: 8,
     },
     secondaryButtonText: {
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_500Medium',
       fontSize: 14,
-      fontWeight: '500',
-    },
+      },
 
     legal: {
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_400Regular',
       fontSize: 12,
       fontStyle: 'italic',
       lineHeight: 18,
@@ -729,7 +723,7 @@ function createStyles(tokens: AppTokensV2) {
     },
 
     codeSentText: {
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_400Regular',
       fontSize: 14,
       fontStyle: 'italic',
       lineHeight: 21,
@@ -747,17 +741,15 @@ function createStyles(tokens: AppTokensV2) {
       paddingTop: 4,
     },
     resendActiveText: {
-      fontFamily: 'GeistMono',
+      fontFamily: 'Roboto_500Medium',
       fontSize: 11,
-      fontWeight: '500',
       color: tokens.fg1,
       textDecorationLine: 'underline',
       letterSpacing: 0.44,
     },
     resendCountdownText: {
-      fontFamily: 'GeistMono',
+      fontFamily: 'Roboto_500Medium',
       fontSize: 11,
-      fontWeight: '500',
       color: tokens.fg3,
       letterSpacing: 0.44,
     },
@@ -767,7 +759,7 @@ function createStyles(tokens: AppTokensV2) {
       justifyContent: 'center',
     },
     quietLink: {
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_400Regular',
       fontSize: 13,
       color: tokens.fg3,
       paddingVertical: 6,

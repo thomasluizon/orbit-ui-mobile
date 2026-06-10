@@ -457,7 +457,7 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   italicText: {
-    fontFamily: 'Geist',
+    fontFamily: 'Rubik_400Regular',
     fontSize: 13,
     fontStyle: 'italic',
     flex: 1,
@@ -479,21 +479,21 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   keyName: {
-    fontFamily: 'Geist',
+    fontFamily: 'Rubik_400Regular',
     fontSize: 14,
     flexShrink: 1,
   },
   keyPrefix: {
-    fontFamily: 'GeistMono',
+    fontFamily: 'Roboto_400Regular',
     fontSize: 11,
   },
   keyMeta: {
-    fontFamily: 'Geist',
+    fontFamily: 'Rubik_400Regular',
     fontSize: 12,
     fontStyle: 'italic',
   },
   revokeLink: {
-    fontFamily: 'Geist',
+    fontFamily: 'Rubik_400Regular',
     fontSize: 13,
     fontStyle: 'italic',
     textDecorationLine: 'underline',
@@ -503,10 +503,9 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
   },
   actionLink: {
-    fontFamily: 'Geist',
+    fontFamily: 'Rubik_500Medium',
     fontSize: 13,
-    fontWeight: '500',
-  },
+    },
   linkPress: { padding: 4 },
   lockedRow: {
     flexDirection: 'row',
@@ -516,10 +515,9 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   lockedTitle: {
-    fontFamily: 'Geist',
+    fontFamily: 'Rubik_600SemiBold',
     fontSize: 14,
-    fontWeight: '600',
-  },
+    },
   tabRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -537,7 +535,7 @@ const styles = StyleSheet.create({
     position: 'relative',
   },
   codeText: {
-    fontFamily: 'GeistMono',
+    fontFamily: 'Roboto_400Regular',
     fontSize: 12,
     lineHeight: 18,
   },
@@ -549,7 +547,7 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
   copyBtnText: {
-    fontFamily: 'Geist',
+    fontFamily: 'Rubik_400Regular',
     fontSize: 12,
     textDecorationLine: 'underline',
   },

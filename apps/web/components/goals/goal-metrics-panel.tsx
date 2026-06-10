@@ -145,7 +145,7 @@ export function GoalMetricsPanel({
                 <span
                   className="flex-1 overflow-hidden whitespace-nowrap text-ellipsis"
                   style={{
-                    fontFamily: 'var(--font-family-sans)',
+                    fontFamily: 'var(--font-sans)',
                     fontSize: 14,
                     color: 'var(--fg-1)',
                   }}
@@ -170,7 +170,7 @@ export function GoalMetricsPanel({
                 </div>
                 <span
                   style={{
-                    fontFamily: 'var(--font-family-mono)',
+                    fontFamily: 'var(--font-mono)',
                     fontSize: 11,
                     fontWeight: 500,
                     color: 'var(--fg-1)',

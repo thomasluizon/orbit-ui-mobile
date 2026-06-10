@@ -113,9 +113,8 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.85)',
   },
   streakNumber: {
-    fontFamily: 'GeistMono',
+    fontFamily: 'Roboto_500Medium',
     fontSize: 96,
-    fontWeight: '500',
     color: '#fff',
     letterSpacing: -2.88,
     lineHeight: 86,

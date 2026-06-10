@@ -234,9 +234,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   dateLabel: {
-    fontFamily: 'Geist',
+    fontFamily: 'Rubik_500Medium',
     fontSize: 14,
-    fontWeight: '500',
     letterSpacing: -0.1,
     textAlign: 'center',
   },

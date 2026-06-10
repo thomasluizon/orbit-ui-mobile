@@ -85,7 +85,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
   },
   label: {
-    fontFamily: 'Geist',
+    fontFamily: 'Rubik_400Regular',
     fontSize: 13,
   },
 })

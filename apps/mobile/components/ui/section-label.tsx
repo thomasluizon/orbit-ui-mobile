@@ -45,10 +45,9 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   label: {
-    fontFamily: 'Geist',
+    fontFamily: 'Rubik_600SemiBold',
     fontSize: 13,
-    fontWeight: '600',
-  },
+    },
   trailing: {
     flexDirection: 'row',
     alignItems: 'center',

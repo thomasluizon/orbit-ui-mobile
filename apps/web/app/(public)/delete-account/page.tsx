@@ -39,7 +39,7 @@ export default function DeleteAccountPage() {
             <div
               className="px-5 pb-[18px]"
               style={{
-                fontFamily: 'var(--font-family-sans)',
+                fontFamily: 'var(--font-sans)',
                 fontSize: 14,
                 lineHeight: 1.6,
                 color: 'var(--fg-2)',
@@ -54,7 +54,7 @@ export default function DeleteAccountPage() {
         <div
           className="px-5 pb-[18px]"
           style={{
-            fontFamily: 'var(--font-family-sans)',
+            fontFamily: 'var(--font-sans)',
             fontSize: 14,
             lineHeight: 1.6,
             color: 'var(--fg-2)',
@@ -67,7 +67,7 @@ export default function DeleteAccountPage() {
             href="mailto:contact@useorbit.org?subject=Account%20deletion%20request"
             className="inline-flex items-center underline"
             style={{
-              fontFamily: 'var(--font-family-sans)',
+              fontFamily: 'var(--font-sans)',
               fontSize: 14,
               fontWeight: 600,
               color: 'var(--primary)',

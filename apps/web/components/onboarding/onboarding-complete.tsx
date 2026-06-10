@@ -74,7 +74,7 @@ export function OnboardingComplete({
         <h1
           className="text-center"
           style={{
-            fontFamily: 'var(--font-family-sans)',
+            fontFamily: 'var(--font-sans)',
             fontSize: 24,
             fontWeight: 600,
             letterSpacing: '-0.02em',
@@ -87,7 +87,7 @@ export function OnboardingComplete({
         <p
           className="text-center"
           style={{
-            fontFamily: 'var(--font-family-sans)',
+            fontFamily: 'var(--font-sans)',
             fontSize: 14,
             color: 'var(--fg-2)',
             lineHeight: 1.5,
@@ -108,7 +108,7 @@ export function OnboardingComplete({
           >
             <span
               style={{
-                fontFamily: 'var(--font-family-sans)',
+                fontFamily: 'var(--font-sans)',
                 fontSize: 14,
                 color: 'var(--fg-1)',
               }}
@@ -130,10 +130,10 @@ export function OnboardingComplete({
             borderBottom: '1px solid var(--hairline)',
           }}
         >
-          <span style={{ fontFamily: 'var(--font-family-sans)', fontSize: 13, fontWeight: 600, color: 'var(--fg-1)' }}>
+          <span style={{ fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 600, color: 'var(--fg-1)' }}>
             {t('onboarding.flow.complete.trialTitle')}
           </span>
-          <span style={{ fontFamily: 'var(--font-family-sans)', fontSize: 13, fontStyle: 'italic', color: 'var(--fg-2)', lineHeight: 1.4 }}>
+          <span style={{ fontFamily: 'var(--font-sans)', fontSize: 13, fontStyle: 'italic', color: 'var(--fg-2)', lineHeight: 1.4 }}>
             {t('onboarding.flow.complete.trialDesc', { date: formattedTrialEnd })}
           </span>
         </div>
@@ -149,7 +149,7 @@ export function OnboardingComplete({
           background: 'var(--primary)',
           color: 'var(--fg-on-primary)',
           borderRadius: 10,
-          fontFamily: 'var(--font-family-sans)',
+          fontFamily: 'var(--font-sans)',
           fontSize: 14,
           fontWeight: 600,
         }}

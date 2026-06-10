@@ -103,7 +103,7 @@ export function BulkActionBarV2({
       <div
         className="flex items-center justify-between"
         style={{
-          fontFamily: 'var(--font-family-sans)',
+          fontFamily: 'var(--font-sans)',
           fontSize: 13,
           fontWeight: 500,
           color: 'var(--fg-1)',
@@ -112,7 +112,7 @@ export function BulkActionBarV2({
         <span>
           <span
             style={{
-              fontFamily: 'var(--font-family-mono)',
+              fontFamily: 'var(--font-mono)',
               fontVariantNumeric: 'tabular-nums',
             }}
           >
@@ -126,7 +126,7 @@ export function BulkActionBarV2({
           onClick={allSelected ? onDeselectAll : onSelectAll}
           className="appearance-none border-0 bg-transparent cursor-pointer"
           style={{
-            fontFamily: 'var(--font-family-sans)',
+            fontFamily: 'var(--font-sans)',
             fontSize: 12,
             fontWeight: 500,
             color: 'var(--fg-3)',

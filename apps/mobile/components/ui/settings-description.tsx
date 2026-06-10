@@ -28,7 +28,7 @@ const styles = StyleSheet.create({
     paddingBottom: 16,
   },
   text: {
-    fontFamily: 'Geist',
+    fontFamily: 'Rubik_400Regular',
     fontSize: 13,
     fontStyle: 'italic',
     lineHeight: 20,

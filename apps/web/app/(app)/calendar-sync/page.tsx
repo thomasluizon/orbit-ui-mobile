@@ -122,7 +122,7 @@ function AutoSyncSettingsCard() {
           style={{
             padding: '8px 20px 14px',
             gap: 8,
-            fontFamily: 'var(--font-family-sans)',
+            fontFamily: 'var(--font-sans)',
             fontSize: 13,
             color: 'var(--fg-3)',
           }}
@@ -136,7 +136,7 @@ function AutoSyncSettingsCard() {
         <p
           style={{
             padding: '8px 20px 14px',
-            fontFamily: 'var(--font-family-sans)',
+            fontFamily: 'var(--font-sans)',
             fontSize: 13,
             color: 'var(--fg-3)',
           }}
@@ -155,7 +155,7 @@ function AutoSyncSettingsCard() {
         >
           <p
             style={{
-              fontFamily: 'var(--font-family-sans)',
+              fontFamily: 'var(--font-sans)',
               fontSize: 13,
               color: 'var(--fg-3)',
             }}
@@ -197,7 +197,7 @@ function AutoSyncSettingsCard() {
             <div className="flex-1 min-w-0">
               <p
                 style={{
-                  fontFamily: 'var(--font-family-sans)',
+                  fontFamily: 'var(--font-sans)',
                   fontSize: 14,
                   fontWeight: 600,
                 }}
@@ -206,7 +206,7 @@ function AutoSyncSettingsCard() {
               </p>
               <p
                 style={{
-                  fontFamily: 'var(--font-family-sans)',
+                  fontFamily: 'var(--font-sans)',
                   fontSize: 13,
                   marginTop: 4,
                   color: 'var(--fg-3)',

@@ -1014,17 +1014,16 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   planLabel: {
-    fontFamily: 'Geist',
+    fontFamily: 'Rubik_600SemiBold',
     fontSize: 15,
-    fontWeight: '600',
-  },
+    },
   planPrice: {
-    fontFamily: 'GeistMono',
+    fontFamily: 'Roboto_400Regular',
     fontSize: 15,
     fontVariant: ['tabular-nums'],
   },
   planSub: {
-    fontFamily: 'Geist',
+    fontFamily: 'Rubik_400Regular',
     fontSize: 12,
     fontStyle: 'italic',
   },
@@ -1035,9 +1034,8 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
   },
   currentBadgeText: {
-    fontFamily: 'GeistMono',
+    fontFamily: 'Roboto_500Medium',
     fontSize: 9,
-    fontWeight: '600',
     letterSpacing: 0.54,
     textTransform: 'uppercase',
   },
@@ -1052,7 +1050,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   proFeatureText: {
-    fontFamily: 'Geist',
+    fontFamily: 'Rubik_400Regular',
     fontSize: 13,
     flexShrink: 1,
   },
@@ -1062,9 +1060,8 @@ const styles = StyleSheet.create({
     paddingBottom: 4,
   },
   featureCategoryLabel: {
-    fontFamily: 'GeistMono',
+    fontFamily: 'Roboto_500Medium',
     fontSize: 10,
-    fontWeight: '600',
     letterSpacing: 0.6,
     textTransform: 'uppercase',
   },
@@ -1083,7 +1080,7 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   featureLabel: {
-    fontFamily: 'Geist',
+    fontFamily: 'Rubik_400Regular',
     fontSize: 13,
     flexShrink: 1,
   },
@@ -1093,7 +1090,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   featureCellText: {
-    fontFamily: 'GeistMono',
+    fontFamily: 'Roboto_400Regular',
     fontSize: 11,
     fontVariant: ['tabular-nums'],
     textAlign: 'center',
@@ -1108,7 +1105,7 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   bannerText: {
-    fontFamily: 'Geist',
+    fontFamily: 'Rubik_400Regular',
     fontSize: 13,
     flex: 1,
   },
@@ -1137,13 +1134,12 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   expiredTitle: {
-    fontFamily: 'Geist',
+    fontFamily: 'Rubik_600SemiBold',
     fontSize: 17,
-    fontWeight: '600',
     letterSpacing: -0.17,
   },
   expiredSub: {
-    fontFamily: 'Geist',
+    fontFamily: 'Rubik_400Regular',
     fontSize: 13,
     fontStyle: 'italic',
   },
@@ -1163,20 +1159,19 @@ const styles = StyleSheet.create({
   },
   invoiceMeta: { flex: 1 },
   invoiceDate: {
-    fontFamily: 'Geist',
+    fontFamily: 'Rubik_400Regular',
     fontSize: 14,
   },
   invoiceStatus: {
-    fontFamily: 'GeistMono',
+    fontFamily: 'Roboto_400Regular',
     fontSize: 10,
     letterSpacing: 0.6,
     textTransform: 'uppercase',
     marginTop: 2,
   },
   invoiceAmount: {
-    fontFamily: 'GeistMono',
+    fontFamily: 'Roboto_500Medium',
     fontSize: 14,
-    fontWeight: '600',
     fontVariant: ['tabular-nums'],
   },
   actionPad: {
@@ -1196,19 +1191,17 @@ const styles = StyleSheet.create({
     alignSelf: 'stretch',
   },
   primaryBtnText: {
-    fontFamily: 'Geist',
+    fontFamily: 'Rubik_600SemiBold',
     fontSize: 14,
-    fontWeight: '600',
-  },
+    },
   linkPress: { padding: 6 },
   link: {
-    fontFamily: 'Geist',
+    fontFamily: 'Rubik_600SemiBold',
     fontSize: 14,
-    fontWeight: '600',
     textDecorationLine: 'underline',
   },
   restoreLink: {
-    fontFamily: 'Geist',
+    fontFamily: 'Rubik_400Regular',
     fontSize: 13,
     textDecorationLine: 'underline',
   },
@@ -1217,7 +1210,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
   },
   italicText: {
-    fontFamily: 'Geist',
+    fontFamily: 'Rubik_400Regular',
     fontSize: 12,
     fontStyle: 'italic',
   },
@@ -1233,29 +1226,29 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   text: {
-    fontFamily: 'Geist',
+    fontFamily: 'Rubik_400Regular',
     fontSize: 14,
   },
   muted: {
-    fontFamily: 'Geist',
+    fontFamily: 'Rubik_400Regular',
     fontSize: 12,
   },
   centerMuted: {
-    fontFamily: 'Geist',
+    fontFamily: 'Rubik_400Regular',
     fontSize: 12,
     textAlign: 'center',
   },
   couponNote: {
-    fontFamily: 'GeistMono',
+    fontFamily: 'Roboto_400Regular',
     fontSize: 11,
   },
   equivalent: {
-    fontFamily: 'GeistMono',
+    fontFamily: 'Roboto_400Regular',
     fontSize: 11,
     fontVariant: ['tabular-nums'],
   },
   errorText: {
-    fontFamily: 'Geist',
+    fontFamily: 'Rubik_400Regular',
     fontSize: 12,
     textAlign: 'center',
   },

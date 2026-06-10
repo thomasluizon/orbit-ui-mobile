@@ -115,16 +115,14 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   title: {
-    fontFamily: 'Geist',
+    fontFamily: 'Rubik_600SemiBold',
     fontSize: 17,
-    fontWeight: '600',
     letterSpacing: -0.17,
     lineHeight: 20,
   },
   subtitle: {
-    fontFamily: 'GeistMono',
+    fontFamily: 'Roboto_500Medium',
     fontSize: 11,
-    fontWeight: '500',
     letterSpacing: 0.44,
     fontVariant: ['tabular-nums'],
   },

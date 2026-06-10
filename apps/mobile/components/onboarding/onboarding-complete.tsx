@@ -135,15 +135,14 @@ function createStyles(tokens: AppTokensV2) {
       justifyContent: 'center',
     },
     title: {
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_600SemiBold',
       fontSize: 24,
-      fontWeight: '600',
       letterSpacing: -0.48,
       color: tokens.fg1,
       textAlign: 'center',
     },
     subtitle: {
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_400Regular',
       fontSize: 14,
       lineHeight: 21,
       color: tokens.fg2,
@@ -162,7 +161,7 @@ function createStyles(tokens: AppTokensV2) {
       borderBottomColor: tokens.hairline,
     },
     recapText: {
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_400Regular',
       fontSize: 14,
       color: tokens.fg1,
     },
@@ -174,13 +173,12 @@ function createStyles(tokens: AppTokensV2) {
       gap: 4,
     },
     trialTitle: {
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_600SemiBold',
       fontSize: 13,
-      fontWeight: '600',
       color: tokens.fg1,
     },
     trialDesc: {
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_400Regular',
       fontSize: 13,
       fontStyle: 'italic',
       color: tokens.fg2,
@@ -194,9 +192,8 @@ function createStyles(tokens: AppTokensV2) {
       justifyContent: 'center',
     },
     startBtnText: {
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_600SemiBold',
       fontSize: 14,
-      fontWeight: '600',
-    },
+      },
   })
 }

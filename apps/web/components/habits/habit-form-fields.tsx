@@ -1015,7 +1015,7 @@ export function HabitFormFields({
                   />
                   <span
                     style={{
-                      fontFamily: 'var(--font-family-sans)',
+                      fontFamily: 'var(--font-sans)',
                       fontSize: 13,
                       fontWeight: isActive ? 600 : 500,
                       color: isActive ? 'var(--fg-1)' : 'var(--fg-2)',
@@ -1028,7 +1028,7 @@ export function HabitFormFields({
                   <div style={{ marginTop: 6, paddingLeft: 28 }}>
                     <div
                       style={{
-                        fontFamily: 'var(--font-family-sans)',
+                        fontFamily: 'var(--font-sans)',
                         fontSize: 12,
                         color: 'var(--fg-3)',
                         lineHeight: 1.5,
@@ -1039,7 +1039,7 @@ export function HabitFormFields({
                     <div
                       style={{
                         marginTop: 4,
-                        fontFamily: 'var(--font-family-sans)',
+                        fontFamily: 'var(--font-sans)',
                         fontSize: 11,
                         fontStyle: 'italic',
                         color: 'var(--fg-3)',

@@ -562,18 +562,17 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   title: {
-    fontFamily: 'Geist',
-    fontWeight: '400',
+    fontFamily: 'Rubik_400Regular',
     letterSpacing: -0.08,
     lineHeight: 21,
   },
   meta: {
-    fontFamily: 'Geist',
+    fontFamily: 'Rubik_400Regular',
     fontSize: 13,
     fontVariant: ['tabular-nums'],
   },
   description: {
-    fontFamily: 'Geist',
+    fontFamily: 'Rubik_400Regular',
     fontSize: 13,
     lineHeight: 17,
   },
@@ -588,14 +587,13 @@ const styles = StyleSheet.create({
     borderRadius: 3,
   },
   childProgressText: {
-    fontFamily: 'GeistMono',
+    fontFamily: 'Roboto_400Regular',
     fontSize: 12,
     fontVariant: ['tabular-nums'],
   },
   streak: {
-    fontFamily: 'GeistMono',
+    fontFamily: 'Roboto_500Medium',
     fontSize: 12,
-    fontWeight: '500',
     fontVariant: ['tabular-nums'],
     minWidth: 18,
     textAlign: 'right',
@@ -616,7 +614,7 @@ const styles = StyleSheet.create({
     borderRadius: 6,
   },
   menuItemLabel: {
-    fontFamily: 'Geist',
+    fontFamily: 'Rubik_400Regular',
     fontSize: 14,
   },
   menuDivider: {

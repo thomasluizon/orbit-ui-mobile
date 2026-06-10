@@ -34,7 +34,7 @@ export function TrialBanner() {
       <span
         className="flex-1"
         style={{
-          fontFamily: 'var(--font-family-sans)',
+          fontFamily: 'var(--font-sans)',
           fontSize: 13,
           color: 'var(--fg-2)',
         }}
@@ -57,7 +57,7 @@ export function TrialBanner() {
         href="/upgrade"
         className="transition-opacity duration-150 ease-out hover:opacity-80"
         style={{
-          fontFamily: 'var(--font-family-sans)',
+          fontFamily: 'var(--font-sans)',
           fontSize: 13,
           fontWeight: 600,
           color: 'var(--fg-1)',

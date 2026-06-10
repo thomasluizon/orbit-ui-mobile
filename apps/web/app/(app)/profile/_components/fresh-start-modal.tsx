@@ -109,7 +109,7 @@ function ListBlock({ title, items }: Readonly<{ title: string; items: string[] }
     <div className="flex flex-col" style={{ gap: 6 }}>
       <div
         style={{
-          fontFamily: 'var(--font-family-sans)',
+          fontFamily: 'var(--font-sans)',
           fontSize: 12,
           fontWeight: 600,
           color: 'var(--fg-3)',
@@ -122,7 +122,7 @@ function ListBlock({ title, items }: Readonly<{ title: string; items: string[] }
           <span
             key={item}
             style={{
-              fontFamily: 'var(--font-family-mono)',
+              fontFamily: 'var(--font-mono)',
               fontSize: 12,
               color: 'var(--fg-1)',
             }}
@@ -150,7 +150,7 @@ function FreshStartInfoStep({
     <div className="flex flex-col" style={{ gap: 16 }}>
       <p
         style={{
-          fontFamily: 'var(--font-family-sans)',
+          fontFamily: 'var(--font-sans)',
           fontSize: 14,
           fontStyle: 'italic',
           color: 'var(--fg-2)',
@@ -171,7 +171,7 @@ function FreshStartInfoStep({
           type="button"
           className="appearance-none border-0 bg-transparent cursor-pointer"
           style={{
-            fontFamily: 'var(--font-family-sans)',
+            fontFamily: 'var(--font-sans)',
             fontSize: 14,
             color: 'var(--fg-3)',
             padding: 6,
@@ -189,7 +189,7 @@ function FreshStartInfoStep({
             background: 'var(--primary)',
             color: 'var(--fg-on-primary)',
             borderRadius: 10,
-            fontFamily: 'var(--font-family-sans)',
+            fontFamily: 'var(--font-sans)',
             fontSize: 14,
             fontWeight: 600,
           }}
@@ -222,7 +222,7 @@ function FreshStartConfirmStep({
     <div className="flex flex-col" style={{ gap: 16 }}>
       <p
         style={{
-          fontFamily: 'var(--font-family-sans)',
+          fontFamily: 'var(--font-sans)',
           fontSize: 14,
           fontStyle: 'italic',
           color: 'var(--fg-3)',
@@ -243,7 +243,7 @@ function FreshStartConfirmStep({
         <p
           role="alert"
           style={{
-            fontFamily: 'var(--font-family-sans)',
+            fontFamily: 'var(--font-sans)',
             fontSize: 13,
             fontStyle: 'italic',
             color: 'var(--status-overdue)',
@@ -260,7 +260,7 @@ function FreshStartConfirmStep({
           type="button"
           className="appearance-none border-0 bg-transparent cursor-pointer"
           style={{
-            fontFamily: 'var(--font-family-sans)',
+            fontFamily: 'var(--font-sans)',
             fontSize: 14,
             color: 'var(--fg-3)',
             padding: 6,
@@ -275,7 +275,7 @@ function FreshStartConfirmStep({
           disabled={!isConfirmed || loading}
           onClick={onReset}
           style={{
-            fontFamily: 'var(--font-family-sans)',
+            fontFamily: 'var(--font-sans)',
             fontSize: 14,
             fontWeight: 600,
             color: 'var(--fg-1)',

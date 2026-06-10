@@ -114,7 +114,7 @@ export function OnboardingCreateHabit({ onCreated }: Readonly<OnboardingCreateHa
         <div
           className="text-center"
           style={{
-            fontFamily: 'var(--font-family-sans)',
+            fontFamily: 'var(--font-sans)',
             fontSize: 17,
             fontWeight: 600,
             color: 'var(--fg-1)',
@@ -125,7 +125,7 @@ export function OnboardingCreateHabit({ onCreated }: Readonly<OnboardingCreateHa
         <div
           className="text-center"
           style={{
-            fontFamily: 'var(--font-family-sans)',
+            fontFamily: 'var(--font-sans)',
             fontSize: 13,
             fontStyle: 'italic',
             color: 'var(--fg-3)',
@@ -144,7 +144,7 @@ export function OnboardingCreateHabit({ onCreated }: Readonly<OnboardingCreateHa
       <div
         className="text-center"
         style={{
-          fontFamily: 'var(--font-family-sans)',
+          fontFamily: 'var(--font-sans)',
           fontSize: 22,
           fontWeight: 600,
           letterSpacing: '-0.015em',
@@ -157,7 +157,7 @@ export function OnboardingCreateHabit({ onCreated }: Readonly<OnboardingCreateHa
       <div
         className="text-center"
         style={{
-          fontFamily: 'var(--font-family-sans)',
+          fontFamily: 'var(--font-sans)',
           fontSize: 14,
           color: 'var(--fg-2)',
           lineHeight: 1.5,
@@ -216,7 +216,7 @@ export function OnboardingCreateHabit({ onCreated }: Readonly<OnboardingCreateHa
                     : 'inset 0 0 0 1px var(--hairline-strong)',
                 color:
                   activeFrequency === freq.value ? 'var(--fg-1)' : 'var(--fg-2)',
-                fontFamily: 'var(--font-family-sans)',
+                fontFamily: 'var(--font-sans)',
                 fontSize: 12,
                 fontWeight: 500,
               }}
@@ -253,7 +253,7 @@ export function OnboardingCreateHabit({ onCreated }: Readonly<OnboardingCreateHa
           background: 'var(--primary)',
           color: 'var(--fg-on-primary)',
           borderRadius: 10,
-          fontFamily: 'var(--font-family-sans)',
+          fontFamily: 'var(--font-sans)',
           fontSize: 14,
           fontWeight: 600,
         }}

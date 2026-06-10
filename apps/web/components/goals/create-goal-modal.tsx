@@ -258,7 +258,7 @@ export function CreateGoalModal({ open, onOpenChange }: Readonly<CreateGoalModal
                     />
                     <span
                       style={{
-                        fontFamily: 'var(--font-family-sans)',
+                        fontFamily: 'var(--font-sans)',
                         fontSize: 13,
                         fontWeight: isActive ? 600 : 500,
                         color: isActive ? 'var(--fg-1)' : 'var(--fg-2)',
@@ -271,7 +271,7 @@ export function CreateGoalModal({ open, onOpenChange }: Readonly<CreateGoalModal
                     <div style={{ marginTop: 6, paddingLeft: 28 }}>
                       <div
                         style={{
-                          fontFamily: 'var(--font-family-sans)',
+                          fontFamily: 'var(--font-sans)',
                           fontSize: 12,
                           color: 'var(--fg-3)',
                           lineHeight: 1.5,
@@ -283,7 +283,7 @@ export function CreateGoalModal({ open, onOpenChange }: Readonly<CreateGoalModal
                         <div
                           style={{
                             marginTop: 4,
-                            fontFamily: 'var(--font-family-sans)',
+                            fontFamily: 'var(--font-sans)',
                             fontSize: 11,
                             fontStyle: 'italic',
                             color: 'var(--fg-3)',
@@ -368,7 +368,7 @@ export function CreateGoalModal({ open, onOpenChange }: Readonly<CreateGoalModal
                 type="button"
                 className="appearance-none border-0 bg-transparent cursor-pointer inline-flex items-center"
                 style={{
-                  fontFamily: 'var(--font-family-sans)',
+                  fontFamily: 'var(--font-sans)',
                   fontSize: 13,
                   fontWeight: 500,
                   color: 'var(--fg-1)',
@@ -385,7 +385,7 @@ export function CreateGoalModal({ open, onOpenChange }: Readonly<CreateGoalModal
               <p
                 style={{
                   marginTop: 8,
-                  fontFamily: 'var(--font-family-sans)',
+                  fontFamily: 'var(--font-sans)',
                   fontSize: 13,
                   fontStyle: 'italic',
                   color: 'var(--status-overdue)',
@@ -407,7 +407,7 @@ export function CreateGoalModal({ open, onOpenChange }: Readonly<CreateGoalModal
               type="button"
               className="appearance-none border-0 bg-transparent cursor-pointer"
               style={{
-                fontFamily: 'var(--font-family-sans)',
+                fontFamily: 'var(--font-sans)',
                 fontSize: 14,
                 fontWeight: 500,
                 color: 'var(--fg-3)',
@@ -424,7 +424,7 @@ export function CreateGoalModal({ open, onOpenChange }: Readonly<CreateGoalModal
               style={{
                 background: 'var(--primary)',
                 color: 'var(--fg-on-primary)',
-                fontFamily: 'var(--font-family-sans)',
+                fontFamily: 'var(--font-sans)',
                 fontSize: 14,
                 fontWeight: 600,
                 padding: '10px 18px',
@@ -484,7 +484,7 @@ function UnderlinedField({
         <label
           htmlFor={id}
           style={{
-            fontFamily: 'var(--font-family-sans)',
+            fontFamily: 'var(--font-sans)',
             fontSize: 11,
             fontWeight: 500,
             color: 'var(--fg-3)',
@@ -509,7 +509,7 @@ function UnderlinedField({
           border: 0,
           background: 'transparent',
           outline: 'none',
-          fontFamily: mono ? 'var(--font-family-mono)' : 'var(--font-family-sans)',
+          fontFamily: mono ? 'var(--font-mono)' : 'var(--font-sans)',
           fontSize: 14,
           color: 'var(--fg-1)',
           padding: '6px 0',
@@ -523,7 +523,7 @@ function UnderlinedField({
           id={`${id}-error`}
           role="alert"
           style={{
-            fontFamily: 'var(--font-family-sans)',
+            fontFamily: 'var(--font-sans)',
             fontSize: 12,
             fontStyle: 'italic',
             color: 'var(--status-overdue)',

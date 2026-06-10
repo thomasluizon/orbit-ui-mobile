@@ -74,7 +74,7 @@ export function HabitDetailStatsGrid({
         className="text-center"
         style={{
           padding: '14px 20px',
-          fontFamily: 'var(--font-family-sans)',
+          fontFamily: 'var(--font-sans)',
           fontSize: 13,
           fontStyle: 'italic',
           color: 'var(--fg-3)',
@@ -104,7 +104,7 @@ export function StatTriple({ items }: Readonly<StatTripleProps>) {
         <div key={label} className="flex flex-col" style={{ gap: 4 }}>
           <span
             style={{
-              fontFamily: 'var(--font-family-sans)',
+              fontFamily: 'var(--font-sans)',
               fontSize: 11,
               fontWeight: 500,
               color: 'var(--fg-3)',
@@ -114,7 +114,7 @@ export function StatTriple({ items }: Readonly<StatTripleProps>) {
           </span>
           <span
             style={{
-              fontFamily: 'var(--font-family-mono)',
+              fontFamily: 'var(--font-mono)',
               fontSize: 24,
               fontWeight: 500,
               color: 'var(--fg-1)',

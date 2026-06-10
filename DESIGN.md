@@ -80,7 +80,13 @@ The handoff hardcodes one navy canvas. We keep the existing *behavior*: each sch
 7. **Primary-derived tints** (the kit uses the accent at α = 0.08/0.10/0.12/0.15/0.18/0.28/0.45-glow): web exposes `--primary-rgb` per scheme×mode; mobile gets `tintFromPrimary(tokens, alpha)` in `lib/theme.ts`. Never hardcode violet rgba in components.
 8. **Raw-slate mapping rule** (the kit was authored dark-first with raw `--slate-*` refs): when porting, translate `--slate-200/300→fg-2`, `--slate-400→fg-3`, `--slate-500/600→fg-4`, `rgba(248,250,252,α)→surface/hairline tokens`, literal `#fff` on primary→`fg-on-primary`. **Never copy a raw slate var into app code** — this is what makes light mode and non-purple schemes work.
 
-Hand-tune log (rule 3): *(append one line per scheme when tuned in Phase 1)*
+Hand-tune log (rule 3):
+
+- **Ramp hue drift (all schemes):** the handoff slate ramp is not iso-hue; each neutral token carries its handoff hue offset relative to the canvas hue (fg-1 −17.27° → bg 0°), preserved across schemes so purple stays byte-exact.
+- **green:** Δ-derived hue 121.74° sat in the 50–170° murk band (olive); nudged to 140 with chroma ×0.6 on both groups → cool sage instead of khaki.
+- **orange:** Δ-derived hue 18.36° read rose-tinted; nudged to 32 (warm brown-black canvas).
+- **blue / cyan:** canvas chroma gamut-clamped at the locked L (scaleBg 0.6226 / 0.5167); cyan fg ramp also clamped (scaleFg 0.843). Values are the sRGB gamut ceiling ×0.985 so web CSS and the TS pipeline resolve identical bytes.
+- **Light gradient stops:** purple keeps the handoff's +21.71° lilac rotation from the accent hue (byte-exact `#e9d4ff`); the rotation misreads on rose (peach) and cyan (periwinkle), so all non-purple schemes use their light accent hue directly at the locked L/C, chroma gamut-clamped.
 
 ## Type roles
 

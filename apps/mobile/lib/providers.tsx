@@ -2,21 +2,25 @@ import { type ReactNode, useEffect, useRef, useState } from 'react'
 import { QueryClientProvider } from '@tanstack/react-query'
 import {
   useFonts,
-  Geist_300Light,
-  Geist_400Regular,
-  Geist_500Medium,
-  Geist_600SemiBold,
-  Geist_700Bold,
-} from '@expo-google-fonts/geist'
+  Rubik_400Regular,
+  Rubik_500Medium,
+  Rubik_600SemiBold,
+  Rubik_700Bold,
+} from '@expo-google-fonts/rubik'
 import {
-  GeistMono_400Regular,
-  GeistMono_500Medium,
-  GeistMono_600SemiBold,
-} from '@expo-google-fonts/geist-mono'
+  Inter_500Medium,
+  Inter_600SemiBold,
+  Inter_700Bold,
+} from '@expo-google-fonts/inter'
+import {
+  Roboto_400Regular,
+  Roboto_500Medium,
+  Roboto_700Bold,
+} from '@expo-google-fonts/roboto'
 import { queryClient, restoreQueryCache, persistQueryCache, clearPersistedQueryCache } from './query-client'
 import { useAuthStore } from '@/stores/auth-store'
 import { AppState, type AppStateStatus, View, ActivityIndicator } from 'react-native'
-import { createColors, getRuntimeTheme } from './theme'
+import { createTokensV2, getRuntimeTheme } from './theme'
 import { ThemeProvider } from './theme-provider'
 import { useOffline } from '@/hooks/use-offline'
 import { useAppToast } from '@/hooks/use-app-toast'
@@ -66,16 +70,18 @@ function AuthInitializer({ children }: Readonly<{ children: ReactNode }>) {
   const initialize = useAuthStore((s) => s.initialize)
   const [ready, setReady] = useState(false)
   const runtimeTheme = getRuntimeTheme()
-  const runtimeColors = createColors(runtimeTheme.scheme, runtimeTheme.themeMode)
+  const runtimeTokens = createTokensV2(runtimeTheme.scheme, runtimeTheme.themeMode)
   const [fontsLoaded] = useFonts({
-    Geist_300Light,
-    Geist_400Regular,
-    Geist_500Medium,
-    Geist_600SemiBold,
-    Geist_700Bold,
-    GeistMono_400Regular,
-    GeistMono_500Medium,
-    GeistMono_600SemiBold,
+    Rubik_400Regular,
+    Rubik_500Medium,
+    Rubik_600SemiBold,
+    Rubik_700Bold,
+    Inter_500Medium,
+    Inter_600SemiBold,
+    Inter_700Bold,
+    Roboto_400Regular,
+    Roboto_500Medium,
+    Roboto_700Bold,
   })
 
   useEffect(() => {
@@ -115,8 +121,8 @@ function AuthInitializer({ children }: Readonly<{ children: ReactNode }>) {
 
   if (!ready || !fontsLoaded) {
     return (
-      <View style={{ flex: 1, backgroundColor: runtimeColors.background, justifyContent: 'center', alignItems: 'center' }}>
-        <ActivityIndicator size="large" color={runtimeColors.primary} />
+      <View style={{ flex: 1, backgroundColor: runtimeTokens.bg, justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" color={runtimeTokens.primary} />
       </View>
     )
   }

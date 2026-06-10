@@ -274,7 +274,7 @@ export function TourTooltip({
       <div className="mb-3 flex items-center gap-2">
         {SectionIcon && <SectionIcon className="size-4 text-[var(--primary)]" />}
         <span className="text-xs italic text-[var(--fg-2)]">{sectionName}</span>
-        <span className="font-[var(--font-family-mono)] text-[11px] uppercase tracking-[0.04em] text-[var(--fg-3)]">
+        <span className="font-[var(--font-mono)] text-[11px] uppercase tracking-[0.04em] text-[var(--fg-3)]">
           {t('tour.ui.stepOf', {
             current: sectionProgress.current,
             total: sectionProgress.total,

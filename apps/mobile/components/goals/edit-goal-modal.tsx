@@ -358,9 +358,8 @@ function createStyles(
       gap: 18,
     },
     eyebrow: {
-      fontFamily: 'GeistMono',
+      fontFamily: 'Roboto_500Medium',
       fontSize: 11,
-      fontWeight: '500',
       letterSpacing: 0.66,
       color: tokens.fg3,
       textTransform: 'uppercase',
@@ -371,9 +370,8 @@ function createStyles(
       paddingBottom: 8,
     },
     titleInput: {
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_600SemiBold',
       fontSize: 22,
-      fontWeight: '600',
       letterSpacing: -0.33,
       paddingVertical: 4,
       paddingHorizontal: 0,
@@ -393,13 +391,12 @@ function createStyles(
       gap: 6,
     },
     fieldLabel: {
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_400Regular',
       fontSize: 12,
       color: tokens.fg3,
     },
     labelOptional: {
-      fontFamily: 'Geist',
-      fontWeight: '400',
+      fontFamily: 'Rubik_400Regular',
       color: tokens.fg4,
     },
     input: {
@@ -410,10 +407,10 @@ function createStyles(
       paddingVertical: 8,
       fontSize: 16,
       color: tokens.fg1,
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_400Regular',
     },
     fieldError: {
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_400Regular',
       fontSize: 12,
       fontStyle: 'italic',
       color: tokens.statusOverdue,
@@ -435,7 +432,7 @@ function createStyles(
       justifyContent: 'center',
     },
     warningText: {
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_400Regular',
       fontSize: 13,
       fontStyle: 'italic',
       color: tokens.statusOverdue,
@@ -448,9 +445,8 @@ function createStyles(
       paddingVertical: 4,
     },
     addDeadlineText: {
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_500Medium',
       fontSize: 13,
-      fontWeight: '500',
       color: tokens.fg1,
     },
     footer: {
@@ -468,7 +464,7 @@ function createStyles(
       paddingHorizontal: 6,
     },
     cancelButtonText: {
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_400Regular',
       fontSize: 14,
       color: tokens.fg3,
     },
@@ -484,9 +480,8 @@ function createStyles(
       minWidth: 120,
     },
     submitText: {
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_600SemiBold',
       fontSize: 14,
-      fontWeight: '600',
       color: tokens.fgOnPrimary,
     },
     disabled: {

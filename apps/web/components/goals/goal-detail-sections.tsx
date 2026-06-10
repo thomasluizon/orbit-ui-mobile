@@ -63,7 +63,7 @@ export function GoalProgressHistorySection({
           <div className="flex items-center justify-between">
             <span
               style={{
-                fontFamily: 'var(--font-family-mono)',
+                fontFamily: 'var(--font-mono)',
                 fontSize: 11,
                 color: 'var(--fg-3)',
                 fontVariantNumeric: 'tabular-nums',
@@ -73,7 +73,7 @@ export function GoalProgressHistorySection({
             </span>
             <span
               style={{
-                fontFamily: 'var(--font-family-mono)',
+                fontFamily: 'var(--font-mono)',
                 fontSize: 12,
                 fontWeight: 500,
                 color: 'var(--fg-1)',
@@ -86,7 +86,7 @@ export function GoalProgressHistorySection({
           {entry.note && (
             <div
               style={{
-                fontFamily: 'var(--font-family-sans)',
+                fontFamily: 'var(--font-sans)',
                 fontSize: 13,
                 fontStyle: 'italic',
                 color: 'var(--fg-2)',
@@ -103,7 +103,7 @@ export function GoalProgressHistorySection({
             type="button"
             className="appearance-none border-0 bg-transparent cursor-pointer"
             style={{
-              fontFamily: 'var(--font-family-sans)',
+              fontFamily: 'var(--font-sans)',
               fontSize: 13,
               fontWeight: 500,
               color: 'var(--fg-1)',
@@ -177,7 +177,7 @@ export function GoalProgressForm({
       {progressExceedsTarget && (
         <p
           style={{
-            fontFamily: 'var(--font-family-sans)',
+            fontFamily: 'var(--font-sans)',
             fontSize: 13,
             fontStyle: 'italic',
             color: 'var(--status-overdue)',
@@ -199,7 +199,7 @@ export function GoalProgressForm({
           type="button"
           className="appearance-none border-0 bg-transparent cursor-pointer"
           style={{
-            fontFamily: 'var(--font-family-sans)',
+            fontFamily: 'var(--font-sans)',
             fontSize: 14,
             fontWeight: 500,
             color: 'var(--fg-3)',
@@ -214,7 +214,7 @@ export function GoalProgressForm({
           disabled={progressValue === null || isUpdating}
           className="appearance-none border-0 bg-transparent cursor-pointer disabled:opacity-50"
           style={{
-            fontFamily: 'var(--font-family-sans)',
+            fontFamily: 'var(--font-sans)',
             fontSize: 14,
             fontWeight: 600,
             color: 'var(--fg-1)',
@@ -253,7 +253,7 @@ function UnderlinedInputField({
     <label className="flex flex-col" style={{ gap: 4 }}>
       <span
         style={{
-          fontFamily: 'var(--font-family-sans)',
+          fontFamily: 'var(--font-sans)',
           fontSize: 11,
           fontWeight: 500,
           color: 'var(--fg-3)',
@@ -272,7 +272,7 @@ function UnderlinedInputField({
           border: 0,
           background: 'transparent',
           outline: 'none',
-          fontFamily: mono ? 'var(--font-family-mono)' : 'var(--font-family-sans)',
+          fontFamily: mono ? 'var(--font-mono)' : 'var(--font-sans)',
           fontSize: 14,
           color: 'var(--fg-1)',
           padding: '4px 0',
@@ -314,7 +314,7 @@ export function GoalLinkedHabitsSection({
           <span
             className="flex-1 overflow-hidden whitespace-nowrap text-ellipsis"
             style={{
-              fontFamily: 'var(--font-family-sans)',
+              fontFamily: 'var(--font-sans)',
               fontSize: 14,
               color: 'var(--fg-1)',
             }}
@@ -365,7 +365,7 @@ export function GoalActionRow({
       />
       <span
         style={{
-          fontFamily: 'var(--font-family-sans)',
+          fontFamily: 'var(--font-sans)',
           fontSize: 15,
           fontWeight: 400,
           color: destructive ? 'var(--fg-3)' : 'var(--fg-1)',

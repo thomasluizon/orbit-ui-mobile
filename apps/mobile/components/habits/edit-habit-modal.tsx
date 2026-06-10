@@ -309,7 +309,7 @@ function createStyles(
       paddingHorizontal: 6,
     },
     cancelButtonText: {
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_400Regular',
       fontSize: 14,
       color: tokens.fg3,
     },
@@ -325,9 +325,8 @@ function createStyles(
       minWidth: 132,
     },
     submitButtonText: {
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_600SemiBold',
       fontSize: 14,
-      fontWeight: '600',
       color: tokens.fgOnPrimary,
     },
     disabled: {

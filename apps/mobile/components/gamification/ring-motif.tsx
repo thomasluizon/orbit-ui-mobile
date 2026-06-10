@@ -96,9 +96,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   eyebrow: {
-    fontFamily: 'GeistMono',
+    fontFamily: 'Roboto_500Medium',
     fontSize: 11,
-    fontWeight: '600',
     letterSpacing: 1.98,
     textTransform: 'uppercase',
     zIndex: 1,
@@ -107,7 +106,7 @@ const styles = StyleSheet.create({
     zIndex: 1,
   },
   body: {
-    fontFamily: 'Geist',
+    fontFamily: 'Rubik_400Regular',
     fontSize: 16,
     fontStyle: 'italic',
     color: 'rgba(255,255,255,0.85)',

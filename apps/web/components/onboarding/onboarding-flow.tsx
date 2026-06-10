@@ -217,7 +217,7 @@ export function OnboardingFlow() {
           <span
             id="onboarding-title"
             style={{
-              fontFamily: 'var(--font-family-mono)',
+              fontFamily: 'var(--font-mono)',
               fontSize: 11,
               fontWeight: 500,
               color: 'var(--fg-3)',
@@ -232,7 +232,7 @@ export function OnboardingFlow() {
               type="button"
               className="appearance-none border-0 bg-transparent cursor-pointer transition-colors duration-150 ease-out hover:text-[var(--fg-1)]"
               style={{
-                fontFamily: 'var(--font-family-sans)',
+                fontFamily: 'var(--font-sans)',
                 fontSize: 13,
                 color: 'var(--fg-3)',
                 padding: 0,
@@ -276,7 +276,7 @@ export function OnboardingFlow() {
                     type="button"
                     className="appearance-none border-0 bg-transparent cursor-pointer transition-colors duration-150 ease-out hover:text-[var(--fg-1)]"
                     style={{
-                      fontFamily: 'var(--font-family-sans)',
+                      fontFamily: 'var(--font-sans)',
                       fontSize: 13,
                       color: 'var(--fg-3)',
                       padding: 6,
@@ -297,7 +297,7 @@ export function OnboardingFlow() {
                       background: 'var(--primary)',
                       color: 'var(--fg-on-primary)',
                       borderRadius: 10,
-                      fontFamily: 'var(--font-family-sans)',
+                      fontFamily: 'var(--font-sans)',
                       fontSize: 14,
                       fontWeight: 600,
                     }}

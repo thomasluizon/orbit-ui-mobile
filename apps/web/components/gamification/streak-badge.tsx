@@ -73,7 +73,7 @@ export function StreakBadge({ streak, isFrozen }: Readonly<StreakBadgeProps>) {
       )}
       <span
         style={{
-          fontFamily: 'var(--font-family-mono)',
+          fontFamily: 'var(--font-mono)',
           fontSize: 12,
           fontWeight: 500,
           color: 'var(--fg-1)',

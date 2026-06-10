@@ -275,24 +275,22 @@ function createStyles(_tokens: Tokens) {
       gap: 8,
     },
     heroEyebrow: {
-      fontFamily: 'GeistMono',
+      fontFamily: 'Roboto_500Medium',
       fontSize: 11,
-      fontWeight: '500',
       letterSpacing: 0.66,
     },
     heroNumber: {
-      fontFamily: 'GeistMono',
-      fontWeight: '500',
+      fontFamily: 'Roboto_500Medium',
       letterSpacing: -3.2,
       lineHeight: 72,
       fontVariant: ['tabular-nums'],
     },
     heroDays: {
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_400Regular',
       fontSize: 14,
     },
     heroEncouragement: {
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_400Regular',
       fontSize: 14,
       fontStyle: 'italic',
       textAlign: 'center',
@@ -307,7 +305,7 @@ function createStyles(_tokens: Tokens) {
       paddingVertical: 14,
     },
     statValue: {
-      fontFamily: 'GeistMono',
+      fontFamily: 'Roboto_400Regular',
       fontSize: 13,
       fontVariant: ['tabular-nums'],
     },

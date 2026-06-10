@@ -35,7 +35,7 @@ export function PullQuote({
           <div
             className="inline-flex items-center"
             style={{
-              fontFamily: 'var(--font-family-mono)',
+              fontFamily: 'var(--font-mono)',
               fontSize: 10.5,
               fontWeight: 500,
               letterSpacing: '0.06em',
@@ -49,7 +49,7 @@ export function PullQuote({
         )}
         <div
           style={{
-            fontFamily: 'var(--font-family-sans)',
+            fontFamily: 'var(--font-sans)',
             fontSize: 15,
             lineHeight: 1.5,
             color: 'var(--fg-2)',

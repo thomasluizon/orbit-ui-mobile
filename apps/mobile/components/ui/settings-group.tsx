@@ -146,9 +146,8 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   label: {
-    fontFamily: 'Geist',
+    fontFamily: 'Rubik_400Regular',
     fontSize: 15,
-    fontWeight: '400',
     flexShrink: 1,
   },
   proBadgeSpacing: {
@@ -161,7 +160,7 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
   hint: {
-    fontFamily: 'Geist',
+    fontFamily: 'Rubik_400Regular',
     fontSize: 13,
   },
 })

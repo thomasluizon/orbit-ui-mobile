@@ -167,10 +167,9 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   count: {
-    fontFamily: 'Geist',
+    fontFamily: 'Rubik_500Medium',
     fontSize: 13,
-    fontWeight: '500',
-  },
+    },
   actions: {
     flexDirection: 'row',
     alignItems: 'center',

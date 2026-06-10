@@ -37,7 +37,7 @@ export function Chip({
         boxShadow: active
           ? 'inset 0 0 0 1px var(--fg-3)'
           : 'inset 0 0 0 1px var(--hairline-strong)',
-        fontFamily: 'var(--font-family-sans)',
+        fontFamily: 'var(--font-sans)',
         fontSize: 12,
         fontWeight: active ? 600 : 500,
       }}

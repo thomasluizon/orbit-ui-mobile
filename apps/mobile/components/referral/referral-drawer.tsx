@@ -226,7 +226,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       padding: 14,
     },
     errorText: {
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_400Regular',
       fontSize: 14,
       fontStyle: 'italic',
       color: tokens.statusOverdue,
@@ -247,7 +247,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       justifyContent: 'center',
     },
     linkText: {
-      fontFamily: 'GeistMono',
+      fontFamily: 'Roboto_400Regular',
       fontSize: 13,
       color: tokens.fg1,
     },
@@ -261,9 +261,8 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       minWidth: 72,
     },
     copyBtnText: {
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_600SemiBold',
       fontSize: 13,
-      fontWeight: '600',
       color: tokens.fgOnPrimary,
     },
     shareBtn: {
@@ -275,9 +274,8 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       justifyContent: 'center',
     },
     shareBtnText: {
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_500Medium',
       fontSize: 13,
-      fontWeight: '500',
       color: tokens.fg1,
     },
     progressBlock: {
@@ -309,19 +307,18 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       gap: 4,
     },
     howItWorksTitle: {
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_600SemiBold',
       fontSize: 13,
-      fontWeight: '600',
       color: tokens.fg1,
     },
     howItWorksDesc: {
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_400Regular',
       fontSize: 13,
       color: tokens.fg2,
       lineHeight: 19,
     },
     disclaimer: {
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_400Regular',
       fontSize: 11,
       color: tokens.fg4,
       lineHeight: 15,

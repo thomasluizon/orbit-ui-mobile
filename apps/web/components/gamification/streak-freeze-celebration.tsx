@@ -74,7 +74,7 @@ export const StreakFreezeCelebration = forwardRef<StreakFreezeCelebrationHandle>
             anchor={
               <span
                 style={{
-                  fontFamily: 'var(--font-family-mono)',
+                  fontFamily: 'var(--font-mono)',
                   fontSize: 64,
                   fontWeight: 500,
                   color: 'white',

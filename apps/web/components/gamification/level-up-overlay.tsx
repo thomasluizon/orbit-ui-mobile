@@ -99,7 +99,7 @@ export function LevelUpOverlay({
       >
         <div
           style={{
-            fontFamily: 'var(--font-family-mono)',
+            fontFamily: 'var(--font-mono)',
             fontSize: 11,
             fontWeight: 600,
             color: 'rgba(255,255,255,0.7)',
@@ -137,7 +137,7 @@ export function LevelUpOverlay({
           </svg>
           <span
             style={{
-              fontFamily: 'var(--font-family-mono)',
+              fontFamily: 'var(--font-mono)',
               fontSize: 80,
               fontWeight: 500,
               color: 'white',
@@ -151,7 +151,7 @@ export function LevelUpOverlay({
 
         <div
           style={{
-            fontFamily: 'var(--font-family-sans)',
+            fontFamily: 'var(--font-sans)',
             fontSize: 16,
             fontStyle: 'italic',
             color: 'rgba(255,255,255,0.85)',

@@ -91,9 +91,8 @@ function createStyles(tokens: AppTokensV2) {
       paddingBottom: 12,
     },
     title: {
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_600SemiBold',
       fontSize: 22,
-      fontWeight: '600',
       letterSpacing: -0.33,
       lineHeight: 25,
       color: tokens.fg1,
@@ -116,13 +115,12 @@ function createStyles(tokens: AppTokensV2) {
       gap: 2,
     },
     featureTitle: {
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_600SemiBold',
       fontSize: 15,
-      fontWeight: '600',
       color: tokens.fg1,
     },
     featureDesc: {
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_400Regular',
       fontSize: 13,
       fontStyle: 'italic',
       color: tokens.fg3,

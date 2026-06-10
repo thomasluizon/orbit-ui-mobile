@@ -55,7 +55,7 @@ export function ProfileNavCard({
         <span
           className="overflow-hidden whitespace-nowrap text-ellipsis"
           style={{
-            fontFamily: 'var(--font-family-sans)',
+            fontFamily: 'var(--font-sans)',
             fontSize: 15,
             fontWeight: 400,
             color: 'var(--fg-1)',
@@ -66,7 +66,7 @@ export function ProfileNavCard({
         {proBadge && (
           <span
             style={{
-              fontFamily: 'var(--font-family-sans)',
+              fontFamily: 'var(--font-sans)',
               fontSize: 10,
               fontWeight: 600,
               color: 'var(--fg-on-primary)',
@@ -88,7 +88,7 @@ export function ProfileNavCard({
         <span
           className="overflow-hidden whitespace-nowrap text-ellipsis"
           style={{
-            fontFamily: 'var(--font-family-sans)',
+            fontFamily: 'var(--font-sans)',
             fontSize: 13,
             color: 'var(--fg-3)',
             maxWidth: 200,

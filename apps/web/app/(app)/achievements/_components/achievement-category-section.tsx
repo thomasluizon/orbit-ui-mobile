@@ -77,7 +77,7 @@ function AchievementRow({ achievement, t }: Readonly<AchievementRowProps>) {
       <span
         aria-hidden="true"
         style={{
-          fontFamily: 'var(--font-family-mono)',
+          fontFamily: 'var(--font-mono)',
           fontSize: 16,
           width: 20,
           textAlign: 'center',
@@ -94,7 +94,7 @@ function AchievementRow({ achievement, t }: Readonly<AchievementRowProps>) {
         <span
           className="overflow-hidden whitespace-nowrap text-ellipsis"
           style={{
-            fontFamily: 'var(--font-family-sans)',
+            fontFamily: 'var(--font-sans)',
             fontSize: 15,
             fontWeight: earned ? 500 : 400,
             color: earned ? 'var(--fg-1)' : 'var(--fg-3)',
@@ -104,7 +104,7 @@ function AchievementRow({ achievement, t }: Readonly<AchievementRowProps>) {
         </span>
         <span
           style={{
-            fontFamily: 'var(--font-family-sans)',
+            fontFamily: 'var(--font-sans)',
             fontSize: 12,
             lineHeight: '16px',
             color: 'var(--fg-3)',

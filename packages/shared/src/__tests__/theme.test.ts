@@ -1,22 +1,18 @@
 import { describe, it, expect } from 'vitest'
 import { schemes, colorSchemeOptions } from '../theme/color-schemes'
-import type { ColorScheme, ThemeValues, ColorSchemeDefinition } from '../theme/types'
-
-// ===========================================================================
-// Color schemes
-// ===========================================================================
+import {
+  alphaSurfaces,
+  resolveDarkNeutrals,
+  resolveLightNeutrals,
+  selectionAlpha,
+  statusConstants,
+} from '../theme/neutral-ramp'
+import { typeRoles } from '../theme/type-roles'
+import type { ColorScheme } from '../theme/types'
 
 const ALL_SCHEMES: ColorScheme[] = ['purple', 'blue', 'green', 'rose', 'orange', 'cyan']
 
-const THEME_VALUE_KEYS: (keyof ThemeValues)[] = [
-  'background', 'surfaceGround', 'surface', 'surfaceElevated', 'surfaceOverlay',
-  'border', 'borderMuted', 'borderEmphasis',
-  'textPrimary', 'textSecondary', 'textMuted', 'textFaded', 'textInverse',
-  'shadowSm', 'shadowMd', 'shadowLg',
-  'navGlassBg', 'navGlassBorder',
-]
-
-const SCALE_KEYS = [50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950]
+const HEX = /^#[0-9a-f]{6}$/
 
 describe('color schemes', () => {
   it('has all 6 color schemes', () => {
@@ -26,79 +22,154 @@ describe('color schemes', () => {
     }
   })
 
+  it('has the handoff accent literals (dark)', () => {
+    expect(schemes.purple.accent.dark).toEqual({
+      primary: '#7f46f7', primaryPressed: '#631df2', primaryRgb: '127, 70, 247',
+    })
+    expect(schemes.blue.accent.dark.primary).toBe('#2b7fff')
+    expect(schemes.green.accent.dark.primary).toBe('#00c950')
+    expect(schemes.rose.accent.dark.primary).toBe('#ff2056')
+    expect(schemes.orange.accent.dark.primary).toBe('#ff6900')
+    expect(schemes.cyan.accent.dark.primary).toBe('#00b8db')
+  })
+
+  it('has the handoff accent literals (light)', () => {
+    expect(schemes.purple.accent.light).toEqual({
+      primary: '#631df2', primaryPressed: '#510fd3', primaryRgb: '99, 29, 242',
+    })
+    expect(schemes.blue.accent.light.primary).toBe('#155dfc')
+    expect(schemes.green.accent.light.primary).toBe('#00a63e')
+    expect(schemes.rose.accent.light.primary).toBe('#ec003f')
+    expect(schemes.orange.accent.light.primary).toBe('#f54900')
+    expect(schemes.cyan.accent.light.primary).toBe('#0092b8')
+  })
+
   for (const name of ALL_SCHEMES) {
-    describe(`${name} scheme`, () => {
-      it('has primary and primaryLight colors', () => {
-        const scheme = schemes[name]
-        expect(typeof scheme.primary).toBe('string')
-        expect(typeof scheme.primaryLight).toBe('string')
-        expect(scheme.primary).toMatch(/^#[0-9a-f]{6}$/i)
-        expect(scheme.primaryLight).toMatch(/^#[0-9a-f]{6}$/i)
-      })
+    it(`${name}: primaryRgb matches the primary hex per mode`, () => {
+      for (const mode of ['dark', 'light'] as const) {
+        const { primary, primaryRgb } = schemes[name].accent[mode]
+        const fromRgb = primaryRgb
+          .split(',')
+          .map(part => Number(part.trim()).toString(16).padStart(2, '0'))
+          .join('')
+        expect(`#${fromRgb}`).toBe(primary)
+      }
+    })
 
-      it('has shadowRgb', () => {
-        expect(typeof schemes[name].shadowRgb).toBe('string')
-        expect(schemes[name].shadowRgb.split(',').length).toBe(3)
-      })
-
-      it('has dark theme values', () => {
-        const dark = schemes[name].dark
-        for (const key of THEME_VALUE_KEYS) {
-          expect(typeof dark[key]).toBe('string')
-          expect(dark[key].length).toBeGreaterThan(0)
-        }
-      })
-
-      it('has light theme values', () => {
-        const light = schemes[name].light
-        for (const key of THEME_VALUE_KEYS) {
-          expect(typeof light[key]).toBe('string')
-          expect(light[key].length).toBeGreaterThan(0)
-        }
-      })
-
-      it('has all scale values (50-950)', () => {
-        const scale = schemes[name].scale
-        for (const step of SCALE_KEYS) {
-          expect(typeof scale[step]).toBe('string')
-          expect(scale[step]).toMatch(/^#[0-9a-f]{6}$/i)
-        }
-      })
-
-      it('dark and light backgrounds are different', () => {
-        expect(schemes[name].dark.background).not.toBe(schemes[name].light.background)
-      })
+    it(`${name}: gradient header stops are valid hexes`, () => {
+      expect(schemes[name].gradientHeaderFrom.dark).toMatch(HEX)
+      expect(schemes[name].gradientHeaderFrom.light).toMatch(HEX)
     })
   }
 })
 
+describe('neutral ramp resolution', () => {
+  it('purple dark resolves byte-exact to the handoff slate palette', () => {
+    expect(resolveDarkNeutrals('purple')).toEqual({
+      bg: '#020618',
+      fg1: '#f8fafc',
+      fg2: '#cad5e2',
+      fg3: '#90a1b9',
+      fg4: '#62748e',
+    })
+  })
+
+  it('purple light resolves byte-exact to the handoff light palette', () => {
+    expect(resolveLightNeutrals('purple')).toEqual({
+      bg: '#f8fafc',
+      bgSunk: '#f1f5f9',
+      fg1: '#0f172b',
+      fg2: '#314158',
+      fg3: '#62748e',
+      fg4: '#90a1b9',
+    })
+  })
+
+  it('purple gradient header stops equal the handoff literals', () => {
+    expect(schemes.purple.gradientHeaderFrom.dark).toBe('#22094f')
+    expect(schemes.purple.gradientHeaderFrom.light).toBe('#e9d4ff')
+  })
+
+  for (const name of ALL_SCHEMES) {
+    it(`${name}: all neutrals resolve to valid hexes in both modes`, () => {
+      const dark = resolveDarkNeutrals(name)
+      const light = resolveLightNeutrals(name)
+      for (const value of [...Object.values(dark), ...Object.values(light)]) {
+        expect(value).toMatch(HEX)
+      }
+      expect(dark.bg).not.toBe(light.bg)
+    })
+  }
+})
+
+describe('alpha surfaces and status constants', () => {
+  it('dark alpha surfaces are the handoff white-alpha constants', () => {
+    expect(alphaSurfaces.dark).toEqual({
+      bgElev: 'rgba(248, 250, 252, 0.06)',
+      bgElev2: 'rgba(248, 250, 252, 0.10)',
+      bgSunk: 'rgba(0, 0, 0, 0.28)',
+      hairline: 'rgba(248, 250, 252, 0.10)',
+      hairlineStrong: 'rgba(248, 250, 252, 0.18)',
+      statusEmpty: 'rgba(248, 250, 252, 0.22)',
+    })
+  })
+
+  it('light cards are opaque white with ink-alpha hairlines', () => {
+    expect(alphaSurfaces.light.bgElev).toBe('rgb(255, 255, 255)')
+    expect(alphaSurfaces.light.bgElev2).toBe('rgb(255, 255, 255)')
+    expect(alphaSurfaces.light.hairline).toBe('rgba(2, 6, 24, 0.08)')
+    expect(alphaSurfaces.light.hairlineStrong).toBe('rgba(2, 6, 24, 0.16)')
+    expect(alphaSurfaces.light.statusEmpty).toBe('rgba(2, 6, 24, 0.18)')
+  })
+
+  it('status constants match the handoff per mode', () => {
+    expect(statusConstants.dark).toEqual({ overdue: '#fe9a00', bad: '#fb2c36', frozen: '#00d3f3' })
+    expect(statusConstants.light).toEqual({ overdue: '#e17100', bad: '#e7000b', frozen: '#0092b8' })
+  })
+
+  it('selection alphas match the handoff', () => {
+    expect(selectionAlpha).toEqual({ dark: 0.32, light: 0.18 })
+  })
+})
+
+describe('type roles', () => {
+  it('defines the 11 semantic roles', () => {
+    expect(Object.keys(typeRoles)).toEqual([
+      'eyebrow', 'display', 'hero', 'h1', 'h2', 'row',
+      'body', 'secondary', 'meta', 'num', 'numXl',
+    ])
+  })
+
+  it('families follow the handoff assignments', () => {
+    expect(typeRoles.hero.family).toBe('display')
+    expect(typeRoles.numXl.family).toBe('display')
+    expect(typeRoles.meta.family).toBe('mono')
+    expect(typeRoles.num.family).toBe('mono')
+    expect(typeRoles.body.family).toBe('sans')
+  })
+
+  it('weight scale is squashed to 400-700', () => {
+    for (const role of Object.values(typeRoles)) {
+      expect([400, 500, 600, 700]).toContain(role.weight)
+    }
+  })
+})
+
 describe('colorSchemeOptions', () => {
-  it('has 6 options', () => {
-    expect(colorSchemeOptions).toHaveLength(6)
+  it('has 6 options in canonical order with the new dark primaries', () => {
+    expect(colorSchemeOptions).toEqual([
+      { value: 'purple', color: '#7f46f7' },
+      { value: 'blue', color: '#2b7fff' },
+      { value: 'green', color: '#00c950' },
+      { value: 'rose', color: '#ff2056' },
+      { value: 'orange', color: '#ff6900' },
+      { value: 'cyan', color: '#00b8db' },
+    ])
   })
 
-  it('each option has value and color', () => {
+  it('option colors match scheme dark primaries', () => {
     for (const option of colorSchemeOptions) {
-      expect(typeof option.value).toBe('string')
-      expect(typeof option.color).toBe('string')
-      expect(option.color).toMatch(/^#[0-9a-f]{6}$/i)
+      expect(option.color).toBe(schemes[option.value].accent.dark.primary)
     }
-  })
-
-  it('option values match scheme keys', () => {
-    const optionValues = colorSchemeOptions.map(o => o.value)
-    expect(optionValues).toEqual(ALL_SCHEMES)
-  })
-
-  it('option colors match primary colors', () => {
-    for (const option of colorSchemeOptions) {
-      expect(option.color).toBe(schemes[option.value].primary)
-    }
-  })
-
-  it('has correct order: purple, blue, green, rose, orange, cyan', () => {
-    expect(colorSchemeOptions.map(o => o.value)).toEqual(
-      ['purple', 'blue', 'green', 'rose', 'orange', 'cyan'],
-    )
   })
 })

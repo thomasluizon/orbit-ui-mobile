@@ -109,7 +109,7 @@ export default function RetrospectivePage() {
         <div className="flex flex-col items-center text-center" style={{ padding: '40px 24px', gap: 14 }}>
           <span
             style={{
-              fontFamily: 'var(--font-family-sans)',
+              fontFamily: 'var(--font-sans)',
               fontSize: 16,
               fontWeight: 600,
               color: 'var(--fg-1)',
@@ -119,7 +119,7 @@ export default function RetrospectivePage() {
           </span>
           <span
             style={{
-              fontFamily: 'var(--font-family-sans)',
+              fontFamily: 'var(--font-sans)',
               fontSize: 14,
               fontStyle: 'italic',
               color: 'var(--fg-3)',
@@ -136,7 +136,7 @@ export default function RetrospectivePage() {
               borderRadius: 8,
               background: 'var(--primary)',
               color: 'var(--fg-on-primary)',
-              fontFamily: 'var(--font-family-sans)',
+              fontFamily: 'var(--font-sans)',
               fontSize: 14,
               fontWeight: 600,
               textDecoration: 'none',
@@ -151,7 +151,7 @@ export default function RetrospectivePage() {
         <div className="flex flex-col items-center text-center" style={{ padding: '40px 24px', gap: 14 }}>
           <span
             style={{
-              fontFamily: 'var(--font-family-sans)',
+              fontFamily: 'var(--font-sans)',
               fontSize: 16,
               fontWeight: 600,
               color: 'var(--fg-1)',
@@ -161,7 +161,7 @@ export default function RetrospectivePage() {
           </span>
           <span
             style={{
-              fontFamily: 'var(--font-family-sans)',
+              fontFamily: 'var(--font-sans)',
               fontSize: 14,
               fontStyle: 'italic',
               color: 'var(--fg-3)',
@@ -179,7 +179,7 @@ export default function RetrospectivePage() {
                 borderRadius: 8,
                 background: 'var(--primary)',
                 color: 'var(--fg-on-primary)',
-                fontFamily: 'var(--font-family-sans)',
+                fontFamily: 'var(--font-sans)',
                 fontSize: 14,
                 fontWeight: 600,
                 textDecoration: 'none',
@@ -198,7 +198,7 @@ export default function RetrospectivePage() {
                 borderRadius: 8,
                 background: 'var(--primary)',
                 color: 'var(--fg-on-primary)',
-                fontFamily: 'var(--font-family-sans)',
+                fontFamily: 'var(--font-sans)',
                 fontSize: 14,
                 fontWeight: 600,
               }}
@@ -207,7 +207,7 @@ export default function RetrospectivePage() {
             </button>
           )}
           {portalError && (
-            <p style={{ fontSize: 12, color: 'var(--status-overdue)', fontFamily: 'var(--font-family-sans)' }}>
+            <p style={{ fontSize: 12, color: 'var(--status-overdue)', fontFamily: 'var(--font-sans)' }}>
               {portalError}
             </p>
           )}
@@ -242,7 +242,7 @@ export default function RetrospectivePage() {
               <div style={{ padding: '24px 20px', display: 'flex', flexDirection: 'column', gap: 12 }}>
                 <span
                   style={{
-                    fontFamily: 'var(--font-family-sans)',
+                    fontFamily: 'var(--font-sans)',
                     fontSize: 14,
                     fontStyle: 'italic',
                     color: 'var(--fg-3)',
@@ -261,7 +261,7 @@ export default function RetrospectivePage() {
               <div style={{ padding: '14px 0' }}>
                 <div
                   style={{
-                    fontFamily: 'var(--font-family-mono)',
+                    fontFamily: 'var(--font-mono)',
                     fontSize: 10.5,
                     fontWeight: 500,
                     color: 'var(--fg-3)',
@@ -296,7 +296,7 @@ export default function RetrospectivePage() {
                   />
                   <div
                     style={{
-                      fontFamily: 'var(--font-family-sans)',
+                      fontFamily: 'var(--font-sans)',
                       fontSize: 15,
                       lineHeight: 1.6,
                       color: 'var(--fg-2)',
@@ -307,7 +307,7 @@ export default function RetrospectivePage() {
                   <p
                     style={{
                       marginTop: 16,
-                      fontFamily: 'var(--font-family-sans)',
+                      fontFamily: 'var(--font-sans)',
                       fontSize: 11,
                       lineHeight: 1.4,
                       fontStyle: 'italic',
@@ -320,7 +320,7 @@ export default function RetrospectivePage() {
                     <p
                       style={{
                         marginTop: 16,
-                        fontFamily: 'var(--font-family-sans)',
+                        fontFamily: 'var(--font-sans)',
                         fontSize: 12,
                         fontStyle: 'italic',
                         color: 'var(--fg-4)',
@@ -335,7 +335,7 @@ export default function RetrospectivePage() {
 
             {!isLoading && error && (
               <div style={{ padding: '20px', textAlign: 'center' }}>
-                <p style={{ fontFamily: 'var(--font-family-sans)', fontSize: 14, color: 'var(--status-overdue)' }}>
+                <p style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--status-overdue)' }}>
                   {t('retrospective.error')}
                 </p>
                 <button
@@ -344,7 +344,7 @@ export default function RetrospectivePage() {
                   className="appearance-none border-0 bg-transparent cursor-pointer"
                   style={{
                     marginTop: 8,
-                    fontFamily: 'var(--font-family-sans)',
+                    fontFamily: 'var(--font-sans)',
                     fontSize: 13,
                     fontWeight: 600,
                     color: 'var(--fg-1)',
@@ -391,7 +391,7 @@ export default function RetrospectivePage() {
                       borderRadius: 8,
                       background: 'var(--primary)',
                       color: 'var(--fg-on-primary)',
-                      fontFamily: 'var(--font-family-sans)',
+                      fontFamily: 'var(--font-sans)',
                       fontSize: 14,
                       fontWeight: 600,
                       opacity: !isOnline ? 0.5 : 1,

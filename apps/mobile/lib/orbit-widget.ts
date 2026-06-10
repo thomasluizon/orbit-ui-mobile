@@ -42,17 +42,40 @@ export async function clearWidgetToken(): Promise<void> {
   await getOrbitWidgetModule()?.clearToken()
 }
 
+const RGB_PATTERN = /^rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*(?:,\s*([\d.]+)\s*)?\)$/
+
+function flattenColor(color: string, baseHex: string): string {
+  const match = RGB_PATTERN.exec(color)
+  if (!match) return color
+
+  const overlay = [match[1], match[2], match[3]].map(channel =>
+    Number.parseInt(channel ?? '0', 10),
+  )
+  const alphaGroup = match[4]
+  const overlayAlpha = alphaGroup === undefined ? 1 : Number.parseFloat(alphaGroup)
+  const base = baseHex.replace('#', '')
+  const blend = (index: number) => {
+    const baseChannel = Number.parseInt(base.slice(index * 2, index * 2 + 2), 16)
+    const merged = Math.round(
+      (overlay[index] ?? 0) * overlayAlpha + baseChannel * (1 - overlayAlpha),
+    )
+    return merged.toString(16).padStart(2, '0')
+  }
+
+  return `#${blend(0)}${blend(1)}${blend(2)}`
+}
+
 function toWidgetColors(tokens: AppTokensV2): WidgetThemeColors {
   return {
     primary: tokens.primary,
     primaryScale400: tokens.primaryPressed,
     background: tokens.bg,
-    surface: tokens.bgElev,
-    surfaceGround: tokens.bgSunk,
+    surface: flattenColor(tokens.bgElev, tokens.bg),
+    surfaceGround: flattenColor(tokens.bgSunk, tokens.bg),
     textPrimary: tokens.fg1,
     textMuted: tokens.fg3,
-    border: tokens.hairline,
-    borderMuted: tokens.hairlineStrong,
+    border: flattenColor(tokens.hairline, tokens.bg),
+    borderMuted: flattenColor(tokens.hairlineStrong, tokens.bg),
     overdue: tokens.statusOverdue,
     streak: tokens.statusBad,
   }

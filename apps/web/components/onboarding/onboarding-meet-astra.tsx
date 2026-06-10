@@ -32,7 +32,7 @@ export function OnboardingMeetAstra() {
       <div
         className="text-center"
         style={{
-          fontFamily: 'var(--font-family-sans)',
+          fontFamily: 'var(--font-sans)',
           fontSize: 24,
           fontWeight: 600,
           letterSpacing: '-0.02em',

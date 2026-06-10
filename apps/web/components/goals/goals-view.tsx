@@ -84,7 +84,7 @@ export function GoalsView() {
                     style={{
                       padding: '8px 10px',
                       gap: 10,
-                      fontFamily: 'var(--font-family-sans)',
+                      fontFamily: 'var(--font-sans)',
                       fontSize: 14,
                       fontWeight: active ? 600 : 500,
                       color: active ? 'var(--fg-1)' : 'var(--fg-2)',

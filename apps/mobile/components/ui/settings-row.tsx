@@ -114,9 +114,8 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
   label: {
-    fontFamily: 'Geist',
+    fontFamily: 'Rubik_400Regular',
     fontSize: 15,
-    fontWeight: '400',
     flexShrink: 1,
   },
   trailingBlock: {
@@ -126,12 +125,12 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
   value: {
-    fontFamily: 'Geist',
+    fontFamily: 'Rubik_400Regular',
     fontSize: 14,
     maxWidth: 220,
   },
   valueMono: {
-    fontFamily: 'GeistMono',
+    fontFamily: 'Roboto_400Regular',
     fontSize: 13,
     fontVariant: ['tabular-nums'],
     maxWidth: 220,

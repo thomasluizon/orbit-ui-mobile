@@ -85,9 +85,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   count: {
-    fontFamily: 'GeistMono',
+    fontFamily: 'Roboto_500Medium',
     fontSize: 12,
-    fontWeight: '500',
     fontVariant: ['tabular-nums'],
   },
 })

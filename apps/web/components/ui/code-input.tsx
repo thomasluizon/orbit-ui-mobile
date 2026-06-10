@@ -64,7 +64,7 @@ export function CodeInput({
             background: 'transparent',
             outline: 'none',
             textAlign: 'center',
-            fontFamily: 'var(--font-family-mono)',
+            fontFamily: 'var(--font-mono)',
             fontSize: 28,
             fontWeight: 500,
             color: 'var(--fg-1)',

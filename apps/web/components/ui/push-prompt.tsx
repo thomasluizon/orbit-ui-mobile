@@ -125,7 +125,7 @@ export function PushPrompt() {
         <div className="flex items-center justify-between">
           <span
             style={{
-              fontFamily: 'var(--font-family-sans)',
+              fontFamily: 'var(--font-sans)',
               fontSize: 12,
               fontWeight: 600,
               color: 'var(--fg-3)',
@@ -145,7 +145,7 @@ export function PushPrompt() {
         </div>
         <span
           style={{
-            fontFamily: 'var(--font-family-sans)',
+            fontFamily: 'var(--font-sans)',
             fontSize: 16,
             color: 'var(--fg-1)',
           }}
@@ -154,7 +154,7 @@ export function PushPrompt() {
         </span>
         <span
           style={{
-            fontFamily: 'var(--font-family-sans)',
+            fontFamily: 'var(--font-sans)',
             fontSize: 13,
             fontStyle: 'italic',
             color: 'var(--fg-3)',
@@ -167,7 +167,7 @@ export function PushPrompt() {
           <span
             role="alert"
             style={{
-              fontFamily: 'var(--font-family-sans)',
+              fontFamily: 'var(--font-sans)',
               fontSize: 12,
               color: 'var(--status-overdue)',
             }}
@@ -180,7 +180,7 @@ export function PushPrompt() {
             type="button"
             className="appearance-none border-0 bg-transparent cursor-pointer"
             style={{
-              fontFamily: 'var(--font-family-sans)',
+              fontFamily: 'var(--font-sans)',
               fontSize: 13,
               color: 'var(--fg-3)',
               padding: 6,
@@ -193,7 +193,7 @@ export function PushPrompt() {
             type="button"
             className="appearance-none border-0 bg-transparent cursor-pointer"
             style={{
-              fontFamily: 'var(--font-family-sans)',
+              fontFamily: 'var(--font-sans)',
               fontSize: 13,
               fontWeight: 600,
               color: 'var(--fg-1)',

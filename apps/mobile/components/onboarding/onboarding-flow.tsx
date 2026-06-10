@@ -287,14 +287,13 @@ function createStyles(tokens: AppTokensV2) {
       paddingBottom: 8,
     },
     progressLabel: {
-      fontFamily: 'GeistMono',
+      fontFamily: 'Roboto_500Medium',
       fontSize: 11,
-      fontWeight: '500',
       color: tokens.fg3,
       letterSpacing: 0.44,
     },
     skipText: {
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_400Regular',
       fontSize: 13,
       color: tokens.fg3,
     },
@@ -338,7 +337,7 @@ function createStyles(tokens: AppTokensV2) {
       flex: 2,
     },
     backText: {
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_400Regular',
       fontSize: 13,
       color: tokens.fg3,
       paddingVertical: 6,
@@ -351,9 +350,8 @@ function createStyles(tokens: AppTokensV2) {
       justifyContent: 'center',
     },
     nextBtnText: {
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_600SemiBold',
       fontSize: 14,
-      fontWeight: '600',
-    },
+      },
   })
 }

@@ -39,7 +39,7 @@ export function OnboardingCompleteHabit({
       <div
         className="text-center"
         style={{
-          fontFamily: 'var(--font-family-sans)',
+          fontFamily: 'var(--font-sans)',
           fontSize: 22,
           fontWeight: 600,
           letterSpacing: '-0.015em',
@@ -52,7 +52,7 @@ export function OnboardingCompleteHabit({
       <div
         className="text-center"
         style={{
-          fontFamily: 'var(--font-family-sans)',
+          fontFamily: 'var(--font-sans)',
           fontSize: 14,
           color: 'var(--fg-2)',
           lineHeight: 1.5,
@@ -74,7 +74,7 @@ export function OnboardingCompleteHabit({
           <div
             className="overflow-hidden whitespace-nowrap text-ellipsis"
             style={{
-              fontFamily: 'var(--font-family-sans)',
+              fontFamily: 'var(--font-sans)',
               fontSize: 15,
               fontWeight: 500,
               color: 'var(--fg-1)',
@@ -84,7 +84,7 @@ export function OnboardingCompleteHabit({
           </div>
           <div
             style={{
-              fontFamily: 'var(--font-family-sans)',
+              fontFamily: 'var(--font-sans)',
               fontSize: 12,
               fontStyle: 'italic',
               color: 'var(--fg-3)',
@@ -106,7 +106,7 @@ export function OnboardingCompleteHabit({
         <div
           className="text-center"
           style={{
-            fontFamily: 'var(--font-family-sans)',
+            fontFamily: 'var(--font-sans)',
             fontSize: 14,
             fontStyle: 'italic',
             color: 'var(--primary)',

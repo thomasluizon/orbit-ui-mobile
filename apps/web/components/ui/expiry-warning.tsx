@@ -68,7 +68,7 @@ export function ExpiryWarning() {
         <span
           className="flex-1"
           style={{
-            fontFamily: 'var(--font-family-sans)',
+            fontFamily: 'var(--font-sans)',
             fontSize: 13,
             color: 'var(--fg-2)',
           }}
@@ -83,7 +83,7 @@ export function ExpiryWarning() {
               <span
                 style={{
                   color: 'var(--fg-1)',
-                  fontFamily: 'var(--font-family-mono)',
+                  fontFamily: 'var(--font-mono)',
                   fontVariantNumeric: 'tabular-nums',
                 }}
               >
@@ -97,7 +97,7 @@ export function ExpiryWarning() {
           className="appearance-none border-0 bg-transparent cursor-pointer transition-opacity duration-150 ease-out hover:opacity-80"
           onClick={handleLogin}
           style={{
-            fontFamily: 'var(--font-family-sans)',
+            fontFamily: 'var(--font-sans)',
             fontSize: 13,
             fontWeight: 600,
             color: 'var(--fg-1)',

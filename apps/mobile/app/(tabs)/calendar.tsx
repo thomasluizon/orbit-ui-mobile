@@ -582,9 +582,8 @@ function createStyles(tokens: Tokens) {
       alignItems: "center",
     },
     weekDayText: {
-      fontFamily: "GeistMono",
+      fontFamily: 'Roboto_500Medium',
       fontSize: 11,
-      fontWeight: "500",
       letterSpacing: 0.44,
     },
 
@@ -601,7 +600,7 @@ function createStyles(tokens: Tokens) {
       gap: 3,
     },
     dayText: {
-      fontFamily: "GeistMono",
+      fontFamily: 'Roboto_400Regular',
       fontSize: 13,
       fontVariant: ["tabular-nums"],
     },
@@ -620,7 +619,7 @@ function createStyles(tokens: Tokens) {
       paddingHorizontal: 20,
     },
     emptyDayText: {
-      fontFamily: "Geist",
+      fontFamily: 'Rubik_400Regular',
       fontSize: 14,
       fontStyle: "italic",
       textAlign: "center",
@@ -632,7 +631,7 @@ function createStyles(tokens: Tokens) {
     },
 
     summaryText: {
-      fontFamily: "Geist",
+      fontFamily: 'Rubik_400Regular',
       fontSize: 14,
       flex: 1,
     },
@@ -651,7 +650,7 @@ function createStyles(tokens: Tokens) {
       gap: 8,
     },
     recurringToggleText: {
-      fontFamily: "Geist",
+      fontFamily: 'Rubik_400Regular',
       fontSize: 12,
     },
 
@@ -663,9 +662,8 @@ function createStyles(tokens: Tokens) {
       alignItems: "center",
     },
     goToDayButtonText: {
-      fontFamily: "Geist",
+      fontFamily: 'Rubik_500Medium',
       fontSize: 14,
-      fontWeight: "500",
-    },
+      },
   });
 }

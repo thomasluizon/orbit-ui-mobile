@@ -55,7 +55,7 @@ export function RingMotif({
         <div
           className="relative"
           style={{
-            fontFamily: 'var(--font-family-mono)',
+            fontFamily: 'var(--font-mono)',
             fontSize: 11,
             fontWeight: 600,
             color: eyebrowColor ?? 'rgba(255,255,255,0.7)',
@@ -74,7 +74,7 @@ export function RingMotif({
         <div
           className="relative"
           style={{
-            fontFamily: 'var(--font-family-sans)',
+            fontFamily: 'var(--font-sans)',
             fontSize: 16,
             fontStyle: 'italic',
             color: 'rgba(255,255,255,0.85)',

@@ -48,7 +48,7 @@ export default function TermsPage() {
             <div
               className="px-5 pb-[18px]"
               style={{
-                fontFamily: 'var(--font-family-sans)',
+                fontFamily: 'var(--font-sans)',
                 fontSize: 14,
                 lineHeight: 1.6,
                 color: 'var(--fg-2)',

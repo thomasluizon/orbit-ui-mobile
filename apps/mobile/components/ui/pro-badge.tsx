@@ -57,9 +57,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   text: {
-    fontFamily: 'GeistMono',
+    fontFamily: 'Roboto_500Medium',
     fontSize: 10,
-    fontWeight: '600',
     letterSpacing: 0.4,
   },
 })

@@ -176,7 +176,7 @@ export default function ChatPage() {
             <div
               className="text-center"
               style={{
-                fontFamily: 'var(--font-family-sans)',
+                fontFamily: 'var(--font-sans)',
                 fontSize: 20,
                 fontWeight: 600,
                 color: 'var(--fg-1)',
@@ -188,7 +188,7 @@ export default function ChatPage() {
             <div
               className="text-center"
               style={{
-                fontFamily: 'var(--font-family-sans)',
+                fontFamily: 'var(--font-sans)',
                 fontSize: 14,
                 color: 'var(--fg-3)',
                 maxWidth: 280,
@@ -202,7 +202,7 @@ export default function ChatPage() {
             <div
               className="text-center"
               style={{
-                fontFamily: 'var(--font-family-sans)',
+                fontFamily: 'var(--font-sans)',
                 fontSize: 11,
                 color: 'var(--fg-3)',
                 maxWidth: 300,
@@ -251,7 +251,7 @@ export default function ChatPage() {
               aria-live="assertive"
               style={{
                 paddingBottom: 8,
-                fontFamily: 'var(--font-family-sans)',
+                fontFamily: 'var(--font-sans)',
                 fontSize: 13,
                 color: 'var(--status-bad)',
                 textAlign: 'center',
@@ -316,7 +316,7 @@ export default function ChatPage() {
                       background: 'transparent',
                       boxShadow: 'inset 0 0 0 1px var(--hairline-strong)',
                       color: 'var(--fg-2)',
-                      fontFamily: 'var(--font-family-sans)',
+                      fontFamily: 'var(--font-sans)',
                       fontSize: 12,
                       fontWeight: 500,
                     }}
@@ -367,7 +367,7 @@ export default function ChatPage() {
                 </div>
                 <span
                   style={{
-                    fontFamily: 'var(--font-family-mono)',
+                    fontFamily: 'var(--font-mono)',
                     fontSize: 12,
                     fontWeight: 500,
                     color: 'var(--fg-1)',
@@ -405,7 +405,7 @@ export default function ChatPage() {
                   className="appearance-none border-0 bg-transparent flex-1 min-w-0 resize-none"
                   style={{
                     outline: 'none',
-                    fontFamily: 'var(--font-family-sans)',
+                    fontFamily: 'var(--font-sans)',
                     fontSize: 15,
                     color: 'var(--fg-1)',
                     minHeight: 36,
@@ -477,7 +477,7 @@ export default function ChatPage() {
                             style={{
                               padding: '6px 12px',
                               gap: 8,
-                              fontFamily: 'var(--font-family-sans)',
+                              fontFamily: 'var(--font-sans)',
                               fontSize: 12,
                               color: speechLang === lang.value ? 'var(--primary)' : 'var(--fg-2)',
                               fontWeight: speechLang === lang.value ? 600 : 400,
@@ -525,7 +525,7 @@ export default function ChatPage() {
               className="text-center"
               style={{
                 paddingTop: 8,
-                fontFamily: 'var(--font-family-mono)',
+                fontFamily: 'var(--font-mono)',
                 fontSize: 11,
                 color: 'var(--status-overdue)',
                 fontWeight: 500,
@@ -540,7 +540,7 @@ export default function ChatPage() {
               className="text-center"
               style={{
                 paddingTop: 8,
-                fontFamily: 'var(--font-family-mono)',
+                fontFamily: 'var(--font-mono)',
                 fontSize: 11,
                 color: 'var(--fg-3)',
                 fontVariantNumeric: 'tabular-nums',

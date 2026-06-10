@@ -230,7 +230,7 @@ export function HabitRow({
           <span
             className="overflow-hidden whitespace-nowrap text-ellipsis"
             style={{
-              fontFamily: 'var(--font-family-sans)',
+              fontFamily: 'var(--font-sans)',
               fontSize: 13,
               color: 'var(--fg-3)',
               lineHeight: 1.3,
@@ -263,7 +263,7 @@ export function HabitRow({
                 <span
                   aria-hidden="true"
                   style={{
-                    fontFamily: 'var(--font-family-mono)',
+                    fontFamily: 'var(--font-mono)',
                     fontSize: 12,
                     fontVariantNumeric: 'tabular-nums',
                     color: 'var(--fg-3)',
@@ -318,7 +318,7 @@ export function HabitRow({
           <span
             className="text-right"
             style={{
-              fontFamily: 'var(--font-family-mono)',
+              fontFamily: 'var(--font-mono)',
               fontSize: 12,
               fontWeight: 500,
               color: 'var(--fg-2)',
@@ -456,7 +456,7 @@ function MenuItem({ icon: Icon, label, onClick, tone = 'default' }: Readonly<Men
         gap: 10,
         padding: '8px 12px',
         color,
-        fontFamily: 'var(--font-family-sans)',
+        fontFamily: 'var(--font-sans)',
         fontSize: 14,
         cursor: 'pointer',
       }}
@@ -479,7 +479,7 @@ function TitleText({ title, size, color, strikethrough }: Readonly<TitleTextProp
     <span
       className="flex-shrink min-w-0 overflow-hidden whitespace-nowrap text-ellipsis"
       style={{
-        fontFamily: 'var(--font-family-sans)',
+        fontFamily: 'var(--font-sans)',
         fontSize: size,
         fontWeight: 400,
         color,
@@ -505,7 +505,7 @@ function MetaStrip({ tokens }: Readonly<MetaStripProps>) {
     <span
       className="overflow-hidden whitespace-nowrap text-ellipsis"
       style={{
-        fontFamily: 'var(--font-family-sans)',
+        fontFamily: 'var(--font-sans)',
         fontSize: 13,
         color: 'var(--fg-3)',
         fontVariantNumeric: 'tabular-nums',

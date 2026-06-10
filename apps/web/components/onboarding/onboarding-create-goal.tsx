@@ -140,7 +140,7 @@ export function OnboardingCreateGoal({
         <div
           className="text-center"
           style={{
-            fontFamily: 'var(--font-family-mono)',
+            fontFamily: 'var(--font-mono)',
             fontSize: 17,
             fontWeight: 600,
             color: 'var(--fg-1)',
@@ -153,7 +153,7 @@ export function OnboardingCreateGoal({
           <div
             className="text-center"
             style={{
-              fontFamily: 'var(--font-family-sans)',
+              fontFamily: 'var(--font-sans)',
               fontSize: 13,
               fontStyle: 'italic',
               color: 'var(--fg-3)',
@@ -165,7 +165,7 @@ export function OnboardingCreateGoal({
         <div
           className="text-center"
           style={{
-            fontFamily: 'var(--font-family-sans)',
+            fontFamily: 'var(--font-sans)',
             fontSize: 14,
             fontStyle: 'italic',
             color: 'var(--primary)',
@@ -182,7 +182,7 @@ export function OnboardingCreateGoal({
       <div className="flex justify-center" style={{ paddingTop: 4 }}>
         <span
           style={{
-            fontFamily: 'var(--font-family-sans)',
+            fontFamily: 'var(--font-sans)',
             fontSize: 10,
             fontWeight: 600,
             color: 'var(--fg-on-primary)',
@@ -199,7 +199,7 @@ export function OnboardingCreateGoal({
       <div
         className="text-center"
         style={{
-          fontFamily: 'var(--font-family-sans)',
+          fontFamily: 'var(--font-sans)',
           fontSize: 22,
           fontWeight: 600,
           letterSpacing: '-0.015em',
@@ -268,7 +268,7 @@ export function OnboardingCreateGoal({
           background: 'var(--primary)',
           color: 'var(--fg-on-primary)',
           borderRadius: 10,
-          fontFamily: 'var(--font-family-sans)',
+          fontFamily: 'var(--font-sans)',
           fontSize: 14,
           fontWeight: 600,
         }}
@@ -290,7 +290,7 @@ export function OnboardingCreateGoal({
         onClick={onSkip}
         style={{
           padding: 6,
-          fontFamily: 'var(--font-family-sans)',
+          fontFamily: 'var(--font-sans)',
           fontSize: 13,
           color: 'var(--fg-3)',
         }}

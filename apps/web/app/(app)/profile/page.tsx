@@ -142,7 +142,7 @@ export default function ProfilePage() {
         <p
           style={{
             margin: '12px 20px',
-            fontFamily: 'var(--font-family-sans)',
+            fontFamily: 'var(--font-sans)',
             fontSize: 13,
             color: 'var(--status-bad)',
             textAlign: 'center',
@@ -186,7 +186,7 @@ export default function ProfilePage() {
                 width: 44,
                 height: 44,
                 background: 'var(--bg-elev)',
-                fontFamily: 'var(--font-family-sans)',
+                fontFamily: 'var(--font-sans)',
                 fontSize: 16,
                 fontWeight: 600,
                 color: 'var(--fg-1)',
@@ -198,7 +198,7 @@ export default function ProfilePage() {
               <span
                 className="overflow-hidden whitespace-nowrap text-ellipsis"
                 style={{
-                  fontFamily: 'var(--font-family-sans)',
+                  fontFamily: 'var(--font-sans)',
                   fontSize: 17,
                   fontWeight: 600,
                   color: 'var(--fg-1)',
@@ -209,7 +209,7 @@ export default function ProfilePage() {
               <span
                 className="overflow-hidden whitespace-nowrap text-ellipsis"
                 style={{
-                  fontFamily: 'var(--font-family-sans)',
+                  fontFamily: 'var(--font-sans)',
                   fontSize: 13,
                   color: 'var(--fg-3)',
                 }}
@@ -220,7 +220,7 @@ export default function ProfilePage() {
             {profile?.hasProAccess && (
               <span
                 style={{
-                  fontFamily: 'var(--font-family-sans)',
+                  fontFamily: 'var(--font-sans)',
                   fontSize: 10,
                   fontWeight: 600,
                   color: 'var(--fg-on-primary)',
@@ -250,7 +250,7 @@ export default function ProfilePage() {
               <span className="flex items-center" style={{ gap: 6 }}>
                 <span
                   style={{
-                    fontFamily: 'var(--font-family-mono)',
+                    fontFamily: 'var(--font-mono)',
                     fontSize: 14,
                     fontWeight: 600,
                     color: 'var(--fg-1)',
@@ -261,7 +261,7 @@ export default function ProfilePage() {
                 </span>
                 <span
                   style={{
-                    fontFamily: 'var(--font-family-sans)',
+                    fontFamily: 'var(--font-sans)',
                     fontSize: 13,
                     color: 'var(--fg-3)',
                   }}
@@ -335,7 +335,7 @@ export default function ProfilePage() {
         <p
           style={{
             margin: '0 20px 8px',
-            fontFamily: 'var(--font-family-sans)',
+            fontFamily: 'var(--font-sans)',
             fontSize: 12,
             color: 'var(--status-bad)',
           }}

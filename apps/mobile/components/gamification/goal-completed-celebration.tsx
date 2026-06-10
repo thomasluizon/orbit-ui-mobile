@@ -100,9 +100,8 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0,0,0,0.85)',
   },
   anchorText: {
-    fontFamily: 'GeistMono',
+    fontFamily: 'Roboto_500Medium',
     fontSize: 14,
-    fontWeight: '500',
     color: '#fff',
     letterSpacing: 1.4,
     textTransform: 'uppercase',

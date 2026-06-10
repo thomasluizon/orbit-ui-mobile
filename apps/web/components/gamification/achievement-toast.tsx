@@ -141,7 +141,7 @@ export function AchievementToast() {
           </svg>
           <span
             style={{
-              fontFamily: 'var(--font-family-mono)',
+              fontFamily: 'var(--font-mono)',
               fontSize: 16,
               color: 'var(--fg-1)',
             }}
@@ -152,7 +152,7 @@ export function AchievementToast() {
         <div className="flex-1 min-w-0 flex flex-col" style={{ gap: 2 }}>
           <span
             style={{
-              fontFamily: 'var(--font-family-sans)',
+              fontFamily: 'var(--font-sans)',
               fontSize: 10,
               fontWeight: 600,
               color: 'var(--fg-3)',
@@ -166,7 +166,7 @@ export function AchievementToast() {
           </span>
           <span
             style={{
-              fontFamily: 'var(--font-family-sans)',
+              fontFamily: 'var(--font-sans)',
               fontSize: 15,
               fontWeight: 500,
               color: 'var(--fg-1)',
@@ -176,7 +176,7 @@ export function AchievementToast() {
           </span>
           <span
             style={{
-              fontFamily: 'var(--font-family-sans)',
+              fontFamily: 'var(--font-sans)',
               fontSize: 13,
               color: 'var(--fg-3)',
             }}

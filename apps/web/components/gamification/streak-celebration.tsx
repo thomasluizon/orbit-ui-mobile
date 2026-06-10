@@ -89,7 +89,7 @@ export function StreakCelebration() {
           anchor={
             <span
               style={{
-                fontFamily: 'var(--font-family-mono)',
+                fontFamily: 'var(--font-mono)',
                 fontSize: 96,
                 fontWeight: 500,
                 color: 'white',

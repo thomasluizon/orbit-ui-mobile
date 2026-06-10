@@ -82,7 +82,7 @@ function createStyles(tokens: AppTokensV2) {
     },
     leadText: {
       flex: 1,
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_400Regular',
       fontSize: 13,
       color: tokens.fg2,
     },
@@ -94,7 +94,7 @@ function createStyles(tokens: AppTokensV2) {
       fontStyle: 'italic',
     },
     upgradeText: {
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_400Regular',
       fontSize: 13,
       color: tokens.fg1,
       textDecorationLine: 'underline',

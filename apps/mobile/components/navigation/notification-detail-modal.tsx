@@ -103,7 +103,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       paddingHorizontal: 20,
       paddingTop: 4,
       paddingBottom: 10,
-      fontFamily: 'GeistMono',
+      fontFamily: 'Roboto_400Regular',
       fontSize: 11,
       color: tokens.fg3,
       letterSpacing: 0.44,
@@ -112,7 +112,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
     bodyText: {
       paddingHorizontal: 20,
       paddingBottom: 16,
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_400Regular',
       fontSize: 14,
       color: tokens.fg2,
       lineHeight: 21,

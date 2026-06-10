@@ -56,7 +56,7 @@ export function TrialExpiredModal() {
               background: 'var(--primary)',
               color: 'var(--fg-on-primary)',
               borderRadius: 10,
-              fontFamily: 'var(--font-family-sans)',
+              fontFamily: 'var(--font-sans)',
               fontSize: 14,
               fontWeight: 600,
             }}
@@ -69,7 +69,7 @@ export function TrialExpiredModal() {
             className="appearance-none border-0 bg-transparent cursor-pointer text-center"
             onClick={dismiss}
             style={{
-              fontFamily: 'var(--font-family-sans)',
+              fontFamily: 'var(--font-sans)',
               fontSize: 13,
               color: 'var(--fg-3)',
               padding: 6,
@@ -83,7 +83,7 @@ export function TrialExpiredModal() {
       <div className="flex flex-col" style={{ gap: 14 }}>
         <div
           style={{
-            fontFamily: 'var(--font-family-sans)',
+            fontFamily: 'var(--font-sans)',
             fontSize: 12,
             fontWeight: 600,
             color: 'var(--fg-3)',
@@ -93,7 +93,7 @@ export function TrialExpiredModal() {
         </div>
         <p
           style={{
-            fontFamily: 'var(--font-family-sans)',
+            fontFamily: 'var(--font-sans)',
             fontSize: 14,
             fontStyle: 'italic',
             color: 'var(--fg-2)',
@@ -115,7 +115,7 @@ export function TrialExpiredModal() {
             >
               <span
                 style={{
-                  fontFamily: 'var(--font-family-sans)',
+                  fontFamily: 'var(--font-sans)',
                   fontSize: 15,
                   color: 'var(--fg-1)',
                 }}
@@ -124,7 +124,7 @@ export function TrialExpiredModal() {
               </span>
               <span
                 style={{
-                  fontFamily: 'var(--font-family-mono)',
+                  fontFamily: 'var(--font-mono)',
                   fontSize: 11,
                   fontStyle: 'italic',
                   color: 'var(--fg-3)',

@@ -216,7 +216,7 @@ function createStyles(tokens: AppTokens) {
       justifyContent: "center",
     },
     menuLabel: {
-      fontFamily: "Geist",
+      fontFamily: 'Rubik_400Regular',
       fontSize: 13,
       flex: 1,
     },

@@ -15,9 +15,8 @@ export function createStyles(tokens: AppTokens, bottomInset: number) {
       paddingHorizontal: 20,
       paddingTop: 4,
       paddingBottom: 14,
-      fontFamily: 'GeistMono',
+      fontFamily: 'Roboto_500Medium',
       fontSize: 12,
-      fontWeight: '500',
       color: tokens.fg3,
       letterSpacing: 0.48,
       fontVariant: ['tabular-nums'],
@@ -45,7 +44,7 @@ export function createStyles(tokens: AppTokens, bottomInset: number) {
       gap: 12,
     },
     progressText: {
-      fontFamily: 'GeistMono',
+      fontFamily: 'Roboto_400Regular',
       fontSize: 12,
       color: tokens.fg2,
       fontVariant: ['tabular-nums'],
@@ -55,9 +54,8 @@ export function createStyles(tokens: AppTokens, bottomInset: number) {
       color: tokens.fg3,
     },
     linkAction: {
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_500Medium',
       fontSize: 13,
-      fontWeight: '500',
       color: tokens.fg1,
     },
     progressForm: {
@@ -71,9 +69,8 @@ export function createStyles(tokens: AppTokens, bottomInset: number) {
       borderColor: tokens.hairline,
     },
     formLabel: {
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_600SemiBold',
       fontSize: 11,
-      fontWeight: '600',
       color: tokens.fg3,
       marginBottom: 6,
       textTransform: 'uppercase',
@@ -88,7 +85,7 @@ export function createStyles(tokens: AppTokens, bottomInset: number) {
       paddingVertical: 10,
       fontSize: 14,
       color: tokens.fg1,
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_400Regular',
     },
     progressFormActions: {
       flexDirection: 'row',
@@ -101,7 +98,7 @@ export function createStyles(tokens: AppTokens, bottomInset: number) {
       paddingHorizontal: 4,
     },
     formCancelText: {
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_400Regular',
       fontSize: 14,
       color: tokens.fg3,
     },
@@ -115,9 +112,8 @@ export function createStyles(tokens: AppTokens, bottomInset: number) {
       justifyContent: 'center',
     },
     formSaveText: {
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_600SemiBold',
       fontSize: 14,
-      fontWeight: '600',
       color: tokens.fgOnPrimary,
     },
     disabled: {
@@ -125,7 +121,7 @@ export function createStyles(tokens: AppTokens, bottomInset: number) {
     },
     warningText: {
       paddingHorizontal: 20,
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_400Regular',
       fontSize: 13,
       fontStyle: 'italic',
       color: tokens.statusOverdue,
@@ -161,14 +157,13 @@ export function createStyles(tokens: AppTokens, bottomInset: number) {
       marginBottom: 4,
     },
     askAstraEyebrowText: {
-      fontFamily: 'GeistMono',
+      fontFamily: 'Roboto_500Medium',
       fontSize: 10.5,
-      fontWeight: '500',
       letterSpacing: 0.63,
       color: tokens.fg3,
     },
     askAstraBody: {
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_400Regular',
       fontSize: 14,
       fontStyle: 'italic',
       lineHeight: 20,
@@ -189,13 +184,12 @@ export function createStyles(tokens: AppTokens, bottomInset: number) {
       backgroundColor: tokens.bgElevPressed,
     },
     actionRowText: {
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_400Regular',
       fontSize: 15,
-      fontWeight: '400',
       color: tokens.fg1,
     },
     actionRowTextDestructive: {
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_400Regular',
       fontSize: 15,
       fontStyle: 'italic',
       color: tokens.fg3,

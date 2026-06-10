@@ -57,7 +57,7 @@ export function ConfirmDialog({
               onClick={handleCancel}
               className="appearance-none border-0 bg-transparent cursor-pointer transition-colors duration-150 ease-out hover:text-[var(--fg-1)]"
               style={{
-                fontFamily: 'var(--font-family-sans)',
+                fontFamily: 'var(--font-sans)',
                 fontSize: 14,
                 fontWeight: 500,
                 color: 'var(--fg-3)',
@@ -72,7 +72,7 @@ export function ConfirmDialog({
             onClick={handleConfirm}
             className="appearance-none border-0 bg-transparent cursor-pointer transition-opacity duration-150 ease-out hover:opacity-80"
             style={{
-              fontFamily: 'var(--font-family-sans)',
+              fontFamily: 'var(--font-sans)',
               fontSize: 14,
               fontWeight: 600,
               color: 'var(--fg-1)',
@@ -87,7 +87,7 @@ export function ConfirmDialog({
     >
       <p
         style={{
-          fontFamily: 'var(--font-family-sans)',
+          fontFamily: 'var(--font-sans)',
           fontSize: 14,
           lineHeight: 1.5,
           color: 'var(--fg-2)',

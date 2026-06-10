@@ -121,7 +121,7 @@ export function CalendarGrid({
             key={`${day}-${i}`}
             className="text-center"
             style={{
-              fontFamily: 'var(--font-family-mono)',
+              fontFamily: 'var(--font-mono)',
               fontSize: 11,
               fontWeight: 500,
               color: 'var(--fg-3)',
@@ -168,7 +168,7 @@ export function CalendarGrid({
               <span
                 aria-hidden="true"
                 style={{
-                  fontFamily: 'var(--font-family-mono)',
+                  fontFamily: 'var(--font-mono)',
                   fontSize: 13,
                   fontWeight: cell.isToday ? 600 : 400,
                   color:

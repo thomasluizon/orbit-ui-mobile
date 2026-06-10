@@ -55,7 +55,7 @@ export function StreakTimelineCard({
               >
                 <span
                   style={{
-                    fontFamily: 'var(--font-family-mono)',
+                    fontFamily: 'var(--font-mono)',
                     fontSize: 11,
                     fontWeight: 500,
                     color: day.status === 'today' || day.status === 'frozen' ? 'var(--fg-1)' : 'var(--fg-3)',
@@ -96,7 +96,7 @@ function LegendItem({ children }: Readonly<{ children: React.ReactNode }>) {
       className="inline-flex items-center"
       style={{
         gap: 6,
-        fontFamily: 'var(--font-family-mono)',
+        fontFamily: 'var(--font-mono)',
         fontSize: 11,
         color: 'var(--fg-3)',
         letterSpacing: '0.04em',
@@ -352,7 +352,7 @@ function StatValue({ value }: Readonly<{ value: number | string }>) {
   return (
     <span
       style={{
-        fontFamily: 'var(--font-family-mono)',
+        fontFamily: 'var(--font-mono)',
         fontSize: 13,
         color: 'var(--fg-3)',
         fontVariantNumeric: 'tabular-nums',

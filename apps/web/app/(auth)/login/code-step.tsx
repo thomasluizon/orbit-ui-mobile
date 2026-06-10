@@ -39,7 +39,7 @@ export function CodeStep({
         id="code-sent-to"
         className="text-center"
         style={{
-          fontFamily: 'var(--font-family-sans)',
+          fontFamily: 'var(--font-sans)',
           fontSize: 14,
           lineHeight: 1.5,
           color: 'var(--fg-3)',
@@ -79,7 +79,7 @@ export function CodeStep({
       <div
         className="flex justify-center"
         style={{
-          fontFamily: 'var(--font-family-mono)',
+          fontFamily: 'var(--font-mono)',
           fontSize: 11,
           fontWeight: 500,
           color: 'var(--fg-3)',

@@ -440,9 +440,8 @@ function createStyles(
       gap: 22,
     },
     fieldLabel: {
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_600SemiBold',
       fontSize: 13,
-      fontWeight: '600',
       color: tokens.fg3,
     },
     subHabitsSection: {
@@ -454,7 +453,7 @@ function createStyles(
       gap: 8,
     },
     subHabitsHint: {
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_400Regular',
       fontSize: 13,
       fontStyle: 'italic',
       color: tokens.fg3,
@@ -474,7 +473,7 @@ function createStyles(
     subHabitIndex: {
       width: 16,
       textAlign: 'right',
-      fontFamily: 'GeistMono',
+      fontFamily: 'Roboto_400Regular',
       fontSize: 11,
       color: tokens.fg4,
     },
@@ -482,7 +481,7 @@ function createStyles(
       flex: 1,
       backgroundColor: 'transparent',
       color: tokens.fg1,
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_400Regular',
       fontSize: 14,
       borderWidth: 0,
       paddingVertical: 0,
@@ -495,9 +494,8 @@ function createStyles(
       paddingVertical: 8,
     },
     addSubHabitText: {
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_500Medium',
       fontSize: 13,
-      fontWeight: '500',
       color: tokens.fg1,
     },
     footer: {
@@ -512,7 +510,7 @@ function createStyles(
       paddingHorizontal: 6,
     },
     cancelButtonText: {
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_400Regular',
       fontSize: 14,
       color: tokens.fg3,
     },
@@ -528,9 +526,8 @@ function createStyles(
       minWidth: 132,
     },
     submitButtonText: {
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_600SemiBold',
       fontSize: 14,
-      fontWeight: '600',
       color: tokens.fgOnPrimary,
     },
     disabled: {

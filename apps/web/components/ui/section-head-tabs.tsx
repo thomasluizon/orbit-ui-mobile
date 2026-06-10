@@ -64,7 +64,7 @@ export function SectionHeadTabs<TId extends string>({
               boxShadow: isActive
                 ? 'inset 0 0 0 1px var(--fg-3)'
                 : 'inset 0 0 0 1px var(--hairline-strong)',
-              fontFamily: 'var(--font-family-sans)',
+              fontFamily: 'var(--font-sans)',
               fontSize: 13,
               fontWeight: isActive ? 600 : 500,
             }}

@@ -60,7 +60,7 @@ export function EmailStep({
         <span style={{ flex: 1, height: 1, background: 'var(--hairline)' }} />
         <span
           style={{
-            fontFamily: 'var(--font-family-mono)',
+            fontFamily: 'var(--font-mono)',
             fontSize: 11,
             fontWeight: 500,
             color: 'var(--fg-3)',
@@ -84,7 +84,7 @@ export function EmailStep({
       <p
         className="text-center"
         style={{
-          fontFamily: 'var(--font-family-sans)',
+          fontFamily: 'var(--font-sans)',
           fontSize: 12,
           lineHeight: 1.5,
           color: 'var(--fg-3)',

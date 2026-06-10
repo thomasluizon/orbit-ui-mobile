@@ -68,9 +68,8 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   label: {
-    fontFamily: 'GeistMono',
+    fontFamily: 'Roboto_500Medium',
     fontSize: 10,
-    fontWeight: '600',
     letterSpacing: 0.6,
   },
 })
