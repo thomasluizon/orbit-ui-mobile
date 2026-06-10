@@ -862,7 +862,7 @@
       "couponsEarned": "Cupons ganhos",
       "howItWorks": "Como funciona",
       "explanation": "Compartilhe seu link com amigos. Quando eles entrarem no Orbit e começarem a usar o app, vocês dois ganham um cupom de {discount}% de desconto no Pro. Você pode indicar até 10 amigos!",
-      "disclaimer": "Cada indicação gera um cupom de {discount}% de desconto de uso único. Cupons se aplicam a um único ciclo de cobrança e não acumulam -- uma nova indicação substitui qualquer cupom não utilizado. Se você já é assinante, o desconto é aplicado automaticamente na sua próxima fatura."
+      "disclaimer": "Cada indicação gera um cupom de {discount}% de desconto de uso único. Cupons se aplicam a um único ciclo de cobrança e não acumulam -- uma nova indicação substitui qualquer cupom não utilizado. Se você já é assinante pela web, o desconto é aplicado automaticamente na sua próxima fatura. Assinaturas do Google Play não podem receber desconto no meio do ciclo -- seu cupom fica guardado para a próxima compra ou troca de plano."
     },
     "share": {
       "title": "Entre no Orbit comigo",

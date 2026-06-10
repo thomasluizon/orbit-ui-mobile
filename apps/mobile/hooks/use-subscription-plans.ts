@@ -1,13 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
-import { useCallback } from 'react'
 import { subscriptionKeys, QUERY_STALE_TIMES } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
 import type { SubscriptionPlans } from '@orbit/shared/types/subscription'
-import {
-  applySubscriptionDiscount,
-  formatPrice,
-  monthlyEquivalent,
-} from '@orbit/shared/utils'
+import { formatPrice, monthlyEquivalent } from '@orbit/shared/utils'
 import { apiClient } from '@/lib/api-client'
 
 export function useSubscriptionPlans() {
@@ -20,18 +15,10 @@ export function useSubscriptionPlans() {
 
   const plans = query.data ?? null
 
-  const discountedAmount = useCallback(
-    (unitAmount: number): number => {
-      return applySubscriptionDiscount(unitAmount, plans?.couponPercentOff)
-    },
-    [plans?.couponPercentOff],
-  )
-
   return {
     ...query,
     plans,
     formatPrice,
-    discountedAmount,
     monthlyEquivalent,
   }
 }
