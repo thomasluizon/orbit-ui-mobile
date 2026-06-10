@@ -289,7 +289,7 @@ describe('habit mutation helper builders', () => {
 
     expect(duplicate).toMatchObject({
       id: 'temp-copy',
-      title: 'Morning Run Copy',
+      title: 'Morning Run',
       emoji: '🏃',
       tags: [{ id: 'tag-1', name: 'Fitness', color: '#ef4444' }],
       reminderEnabled: true,
@@ -298,6 +298,30 @@ describe('habit mutation helper builders', () => {
       slipAlertEnabled: true,
     })
     expect(buildOptimisticDuplicateHabit(queryClient, 'missing-habit', 'temp-missing')).toBeNull()
+  })
+
+  it('preserves completion when duplicating a completed one-time task but not a completed recurring habit', () => {
+    const queryClient = createQueryClient()
+    queryClient.setQueryData(habitKeys.lists(), [
+      makeHabit({
+        id: 'one-time-done',
+        frequencyUnit: null,
+        frequencyQuantity: null,
+        isCompleted: true,
+      }),
+      makeHabit({
+        id: 'recurring-done',
+        frequencyUnit: 'Day',
+        isCompleted: true,
+      }),
+    ])
+
+    expect(
+      buildOptimisticDuplicateHabit(queryClient, 'one-time-done', 'temp-one-time'),
+    ).toMatchObject({ isCompleted: true })
+    expect(
+      buildOptimisticDuplicateHabit(queryClient, 'recurring-done', 'temp-recurring'),
+    ).toMatchObject({ isCompleted: false })
   })
 
   it('builds optimistic patches including linked goals and clears schedule fields for general habits', () => {
