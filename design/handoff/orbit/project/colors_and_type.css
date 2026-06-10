@@ -1,0 +1,297 @@
+/* ============================================================
+   Orbit Design System — Colors & Type
+   ------------------------------------------------------------
+   Editorial-minimal habit tracker. Six user-selectable schemes,
+   each with dark + light mode. Neutrals are tinted toward the
+   active scheme (warm with rose/orange, cool with everything
+   else). Primary is a SMALL accent — never a flood.
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500;600&display=swap');
+
+:root {
+  /* ---- Type families ---- */
+  --font-sans: "Geist", ui-sans-serif, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  /* ---- Type scale ----
+     Editorial: hierarchy through weight + color, not size jumps.
+     Body line-height 1.55–1.65. Tight tracking on large type. */
+  --fs-xs:     12px;   /* mono labels, metadata */
+  --fs-sm:     14px;   /* secondary text */
+  --fs-base:   16px;   /* body */
+  --fs-md:     18px;   /* habit row label */
+  --fs-lg:     22px;   /* section title */
+  --fs-xl:     28px;   /* page title */
+  --fs-2xl:    34px;   /* editorial header */
+  --fs-3xl:    44px;   /* streak number, big mono numerals */
+  --fs-4xl:    60px;   /* onboarding hero */
+
+  --lh-tight:  1.15;
+  --lh-snug:   1.3;
+  --lh-body:   1.6;
+  --lh-loose:  1.7;
+
+  --tracking-tight: -0.02em;   /* large type */
+  --tracking-normal: 0em;
+  --tracking-wide: 0.04em;     /* mono caps labels */
+  --tracking-widest: 0.12em;   /* tiny eyebrow labels */
+
+  --fw-light: 300;
+  --fw-regular: 400;
+  --fw-medium: 500;
+  --fw-semibold: 600;
+  --fw-bold: 700;
+
+  /* ---- Spacing ---- */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-8: 32px;
+  --space-10: 40px;
+  --space-12: 48px;
+  --space-16: 64px;
+  --space-20: 80px;
+
+  /* ---- Radii ----
+     Restrained. The single primary button has the most curve.
+     Cards are subtle. No giant pills. */
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 14px;
+  --radius-pill: 999px;
+
+  /* ---- Shadows ----
+     Cool, hairline, layered. NEVER colored or glowing. */
+  --shadow-hairline: 0 0 0 0.5px rgba(15, 16, 22, 0.06);
+  --shadow-1: 0 1px 2px rgba(15, 16, 22, 0.04), 0 1px 0 rgba(15, 16, 22, 0.02);
+  --shadow-2: 0 1px 2px rgba(15, 16, 22, 0.05), 0 4px 12px rgba(15, 16, 22, 0.04);
+  --shadow-3: 0 2px 6px rgba(15, 16, 22, 0.06), 0 12px 32px rgba(15, 16, 22, 0.08);
+
+  /* ---- Motion ----
+     transform + opacity only. 200–280ms. Standard easing. */
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --dur-fast: 160ms;
+  --dur-base: 220ms;
+  --dur-slow: 280ms;
+
+  /* ---- Hit targets (Android) ---- */
+  --hit-min: 44px;
+  --hit-comfortable: 56px;
+
+  /* ---- Default scheme: purple, light ---- */
+  --primary: #7c3aed;
+}
+
+/* ============================================================
+   SCHEMES — six user-selectable. Each declares:
+     --primary           : the accent (small use only)
+     --primary-pressed   : for press state (no shadows!)
+     --hue               : oklch hue used to tint neutrals
+     --chroma-bg         : tiny chroma for backgrounds
+     --chroma-fg         : tiny chroma for text neutrals
+   Light + dark variants live under .scheme-*.light / .dark
+   ============================================================ */
+
+/* PURPLE — cool tint */
+.scheme-purple.light, :root.scheme-purple.light { --primary: #7c3aed; --primary-pressed: #6d28d9; --hue: 286; --chroma-bg: 0.012; --chroma-fg: 0.018; }
+.scheme-purple.dark                              { --primary: #8b5cf6; --primary-pressed: #a78bfa; --hue: 286; --chroma-bg: 0.014; --chroma-fg: 0.020; }
+
+/* BLUE — cool tint */
+.scheme-blue.light                               { --primary: #2563eb; --primary-pressed: #1d4ed8; --hue: 256; --chroma-bg: 0.012; --chroma-fg: 0.018; }
+.scheme-blue.dark                                { --primary: #3b82f6; --primary-pressed: #60a5fa; --hue: 256; --chroma-bg: 0.014; --chroma-fg: 0.020; }
+
+/* GREEN — cool-leaning tint */
+.scheme-green.light                              { --primary: #16a34a; --primary-pressed: #15803d; --hue: 150; --chroma-bg: 0.010; --chroma-fg: 0.016; }
+.scheme-green.dark                               { --primary: #22c55e; --primary-pressed: #4ade80; --hue: 150; --chroma-bg: 0.012; --chroma-fg: 0.018; }
+
+/* ROSE — warm tint */
+.scheme-rose.light                               { --primary: #e11d48; --primary-pressed: #be123c; --hue: 12;  --chroma-bg: 0.012; --chroma-fg: 0.018; }
+.scheme-rose.dark                                { --primary: #f43f5e; --primary-pressed: #fb7185; --hue: 12;  --chroma-bg: 0.014; --chroma-fg: 0.022; }
+
+/* ORANGE — warm tint */
+.scheme-orange.light                             { --primary: #ea580c; --primary-pressed: #c2410c; --hue: 50;  --chroma-bg: 0.013; --chroma-fg: 0.020; }
+.scheme-orange.dark                              { --primary: #f97316; --primary-pressed: #fb923c; --hue: 50;  --chroma-bg: 0.015; --chroma-fg: 0.024; }
+
+/* CYAN — cool tint */
+.scheme-cyan.light                               { --primary: #0891b2; --primary-pressed: #0e7490; --hue: 220; --chroma-bg: 0.012; --chroma-fg: 0.018; }
+.scheme-cyan.dark                                { --primary: #06b6d4; --primary-pressed: #22d3ee; --hue: 220; --chroma-bg: 0.014; --chroma-fg: 0.020; }
+
+/* ============================================================
+   LIGHT MODE neutrals
+   Never pure white, never pure gray. Tinted toward --hue.
+   ============================================================ */
+:root.light, .light {
+  /* Surfaces — bg is the canvas, no card-everywhere */
+  --bg:          oklch(0.985 var(--chroma-bg) var(--hue));   /* app background */
+  --bg-elev:     oklch(0.995 var(--chroma-bg) var(--hue));   /* the ONE card */
+  --bg-sunk:     oklch(0.965 var(--chroma-bg) var(--hue));   /* fields, deep wells */
+
+  /* Hairlines & dividers */
+  --hairline:    oklch(0.905 calc(var(--chroma-bg) * 1.4) var(--hue));
+  --hairline-strong: oklch(0.84 calc(var(--chroma-bg) * 1.6) var(--hue));
+
+  /* Foreground neutrals */
+  --fg-1:        oklch(0.205 var(--chroma-fg) var(--hue));   /* primary text */
+  --fg-2:        oklch(0.40  var(--chroma-fg) var(--hue));   /* secondary */
+  --fg-3:        oklch(0.55  var(--chroma-fg) var(--hue));   /* tertiary / meta */
+  --fg-4:        oklch(0.68  var(--chroma-fg) var(--hue));   /* placeholder */
+  --fg-on-primary: oklch(0.99 0 0);                          /* white-ish on primary */
+
+  /* Status — real-but-desaturated colors (light-mode tuned) */
+  --status-done:    var(--primary);
+  --status-empty:   oklch(0.78 var(--chroma-bg) var(--hue));
+  --status-skip:    oklch(0.62 var(--chroma-fg) var(--hue));
+  --status-overdue: oklch(0.62 0.13 60);
+  --status-bad:     oklch(0.55 0.14 20);
+  --status-frozen:  oklch(0.62 0.09 235);
+
+  /* Selection */
+  --selection-bg: oklch(0.92 calc(var(--chroma-bg) * 1.6) var(--hue));
+
+  color-scheme: light;
+}
+
+/* ============================================================
+   DARK MODE neutrals  — Linear-leaning, blue-cool near-black
+   ============================================================ */
+:root.dark, .dark {
+  --bg:          oklch(0.16 0.012 var(--hue));
+  --bg-elev:     oklch(0.20 0.014 var(--hue));
+  --bg-sunk:     oklch(0.13 0.010 var(--hue));
+
+  --hairline:        oklch(0.27 0.014 var(--hue));
+  --hairline-strong: oklch(0.34 0.016 var(--hue));
+
+  --fg-1:        oklch(0.965 0.014 var(--hue));
+  --fg-2:        oklch(0.74  0.014 var(--hue));
+  --fg-3:        oklch(0.58  0.014 var(--hue));
+  --fg-4:        oklch(0.42  0.012 var(--hue));
+  --fg-on-primary: oklch(0.99 0 0);
+
+  /* Status — real-but-desaturated colors */
+  --status-done:    var(--primary);
+  --status-empty:   oklch(0.42 0.012 var(--hue));
+  --status-skip:    oklch(0.58 0.014 var(--hue));
+  --status-overdue: oklch(0.74 0.10  60);
+  --status-bad:     oklch(0.65 0.12  20);
+  --status-frozen:  oklch(0.72 0.07  235);
+
+  --selection-bg: oklch(0.32 0.018 var(--hue));
+
+  color-scheme: dark;
+}
+
+/* ============================================================
+   SEMANTIC TYPE CLASSES
+   ============================================================ */
+.t-eyebrow {
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-medium);
+  letter-spacing: var(--tracking-widest);
+  text-transform: uppercase;
+  color: var(--fg-3);
+}
+.t-display {
+  font-family: var(--font-sans);
+  font-size: var(--fs-2xl);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--tracking-tight);
+  line-height: var(--lh-tight);
+  color: var(--fg-1);
+}
+.t-hero {
+  font-family: var(--font-sans);
+  font-size: var(--fs-4xl);
+  font-weight: var(--fw-medium);
+  letter-spacing: var(--tracking-tight);
+  line-height: var(--lh-tight);
+  color: var(--fg-1);
+}
+.t-h1 {
+  font-family: var(--font-sans);
+  font-size: var(--fs-xl);
+  font-weight: var(--fw-semibold);
+  letter-spacing: var(--tracking-tight);
+  line-height: var(--lh-snug);
+  color: var(--fg-1);
+}
+.t-h2 {
+  font-family: var(--font-sans);
+  font-size: var(--fs-lg);
+  font-weight: var(--fw-semibold);
+  letter-spacing: -0.01em;
+  line-height: var(--lh-snug);
+  color: var(--fg-1);
+}
+.t-row {
+  font-family: var(--font-sans);
+  font-size: var(--fs-md);
+  font-weight: var(--fw-regular);
+  line-height: var(--lh-snug);
+  color: var(--fg-1);
+}
+.t-body {
+  font-family: var(--font-sans);
+  font-size: var(--fs-base);
+  font-weight: var(--fw-regular);
+  line-height: var(--lh-body);
+  color: var(--fg-1);
+}
+.t-secondary {
+  font-family: var(--font-sans);
+  font-size: var(--fs-sm);
+  font-weight: var(--fw-regular);
+  line-height: var(--lh-body);
+  color: var(--fg-2);
+}
+.t-meta {
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  font-weight: var(--fw-regular);
+  letter-spacing: var(--tracking-wide);
+  color: var(--fg-3);
+  font-variant-numeric: tabular-nums;
+}
+.t-num {
+  font-family: var(--font-mono);
+  font-weight: var(--fw-medium);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: var(--tracking-tight);
+  color: var(--fg-1);
+}
+.t-num-xl {
+  font-family: var(--font-mono);
+  font-weight: var(--fw-medium);
+  font-size: var(--fs-3xl);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.03em;
+  line-height: 1;
+  color: var(--fg-1);
+}
+
+/* ============================================================
+   Base reset for kit pages
+   ============================================================ */
+html, body {
+  background: var(--bg);
+  color: var(--fg-1);
+  font-family: var(--font-sans);
+  font-size: var(--fs-base);
+  line-height: var(--lh-body);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+::selection { background: var(--selection-bg); color: var(--fg-1); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}

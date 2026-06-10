@@ -1,0 +1,153 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<title>Orbit — Figma redesign</title>
+<link rel="stylesheet" href="orbit-fig.css">
+<style>
+  html, body { margin: 0; padding: 0; background: #050310; }
+  body { font-family: var(--font-sans); }
+  .scheme-purple, .scheme-blue, .scheme-rose, .scheme-green, .scheme-orange, .scheme-cyan { scrollbar-width: none; }
+  .scheme-purple ::-webkit-scrollbar, .scheme-blue ::-webkit-scrollbar, .scheme-rose ::-webkit-scrollbar,
+  .scheme-green ::-webkit-scrollbar, .scheme-orange ::-webkit-scrollbar, .scheme-cyan ::-webkit-scrollbar { display: none; }
+</style>
+</head>
+<body>
+
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+
+<script type="text/babel" src="design-canvas.jsx"></script>
+<script type="text/babel" src="orbit-kit.jsx"></script>
+<script type="text/babel" src="orbit-screens-account.jsx"></script>
+<script type="text/babel" src="orbit-fig-subs.jsx"></script>
+<script type="text/babel" src="orbit-fig-core.jsx"></script>
+<script type="text/babel" src="orbit-fig-more.jsx"></script>
+
+<script type="text/babel">
+function App() {
+  React.useEffect(() => {
+    if (window.lucide?.createIcons) {
+      const t = setTimeout(() => window.lucide.createIcons(), 80);
+      return () => clearTimeout(t);
+    }
+  });
+  const W = 412, H = 892;
+  const F = (id, label, children) => (
+    <DCArtboard id={id} label={label} width={W} height={H}>
+      <LazyMount width={W} height={H}>{children}</LazyMount>
+    </DCArtboard>
+  );
+
+  return (
+    <DesignCanvas
+      title="Orbit · Figma redesign"
+      subtitle="Rebuilt from scratch in the Figma design system — navy + violet, gradient headers, flat rows, stat tiles. Portuguese. Figma screens recreated faithfully; the rest designed in the same language."
+    >
+      <DCSection id="core" title="App principal" subtitle="Telas centrais desenhadas do zero na linguagem do Figma.">
+        {F("inicio", "Início", <Inicio />)}
+        {F("inicio-empty", "Início · vazio", <InicioEmpty />)}
+        {F("inicio-load", "Início · carregando", <InicioLoading />)}
+        {F("astra", "Astra · conversa", <AstraChat />)}
+        {F("astra-empty", "Astra · vazio", <AstraEmpty />)}
+        {F("astra-voice", "Astra · voz", <AstraVoice />)}
+        {F("astra-limit", "Astra · limite (grátis)", <AstraLimit />)}
+        {F("astra-offline", "Astra · offline", <AstraOffline />)}
+        {F("agenda", "Agenda", <Agenda />)}
+        {F("habito", "Hábito · detalhe", <HabitoDetalhe />)}
+        {F("habito-check", "Hábito · checklist", <HabitoChecklist />)}
+        {F("habito-bad", "Hábito · mau hábito", <HabitoBad />)}
+        {F("criar", "Criar hábito", <CriarHabito />)}
+        {F("conquistas", "Conquistas", <Conquistas />)}
+      </DCSection>
+
+      <DCSection id="metas" title="Metas" subtitle="Área de metas desenhada na linguagem do Figma.">
+        {F("metas", "Metas · lista", <Metas />)}
+        {F("meta-det", "Meta · detalhe", <MetaDetalhe />)}
+        {F("meta-criar", "Criar meta", <CriarMeta />)}
+      </DCSection>
+
+      <DCSection id="profile" title="Perfil" subtitle="Recriado do Figma — cabeçalho com gradiente, badge, tiles de estatística.">
+        {F("p-premium", "Premium", <ProfilePremium />)}
+        {F("p-starter", "Starter", <ProfileStarter />)}
+        {F("p-newbie", "Newbie", <ProfileNewbie />)}
+      </DCSection>
+
+      <DCSection id="astra-mem" title="Orbit Astra" subtitle="Recriado do Figma.">
+        {F("astra-set", "Configurações da Astra", <AstraSettings />)}
+        {F("memorias", "Memórias · vazio", <Memorias />)}
+        {F("notif-inbox", "Notificações · caixa", <NotificacoesInbox />)}
+      </DCSection>
+
+      <DCSection id="streak" title="Sequência" subtitle="Recriado do Figma — chama + calendário do mês + bloqueios.">
+        {F("seq", "7 dias", <Sequencia />)}
+        {F("seq-rem", "Lembrete de sequência", <SequenciaReminder />)}
+        {F("seq-broken", "Sequência quebrada", <SequenciaBroken />)}
+      </DCSection>
+
+      <DCSection id="settings" title="Configurações" subtitle="Recriado do Figma — linhas planas com ícone, título e descrição.">
+        {F("config", "Configurações", <Configuracoes />)}
+        {F("prefs", "Preferências", <Preferencias />)}
+        {F("prefs-theme", "Preferências · Tema (sheet)", <PreferenciasSheet />)}
+        {F("integr", "Integrações", <Integracoes />)}
+        {F("info", "Informações pessoais", <InformacoesPessoais />)}
+        {F("notif", "Notificações", <Notificacoes />)}
+        {F("sobre", "Sobre o app", <Sobre />)}
+        {F("reset", "Redefinir conta", <RedefinirConta />)}
+        {F("deactivate", "Desativar conta", <DesativarConta />)}
+      </DCSection>
+
+      <DCSection id="subs" title="Assinatura" subtitle="Recriado do Figma — cartões de plano, fluxo de pagamento, gerenciamento.">
+        {F("sub-anual", "Escolhendo anual", <AssinaturaAnual />)}
+        {F("sub-mensal", "Escolhendo mensal", <AssinaturaMensal />)}
+        {F("sub-pay", "Aguardando provedor", <PagamentoNavegador />)}
+        {F("sub-success", "Sucesso · Premium", <AssinaturaSucesso />)}
+        {F("sub-manage", "Gerenciar plano", <GerenciarAssinatura />)}
+        {F("sub-downsell", "Downsell", <Downsell />)}
+        {F("sub-pricing", "Revisão de preço", <PricingReview />)}
+        {F("sub-billing", "Histórico de faturas", <HistoricoFaturas />)}
+      </DCSection>
+
+      <DCSection id="auth" title="Entrar & Onboarding" subtitle="Desenhado do zero na linguagem do Figma.">
+        {F("login-email", "Login · e-mail", <LoginEmail />)}
+        {F("login-code", "Login · código", <LoginCode />)}
+        {F("ob-1", "Onboarding · Bem-vindo", <OnboardingWelcome />)}
+        {F("ob-2", "Onboarding · Astra", <OnboardingAstra />)}
+        {F("ob-3", "Onboarding · Metas", <OnboardingGoals />)}
+        {F("ob-4", "Onboarding · Sequência", <OnboardingStreak />)}
+        {F("allset", "Tudo certo (You're all set)", <TudoCerto />)}
+      </DCSection>
+
+      <DCSection id="feedback" title="Diálogos · Toasts · Celebrações" subtitle="Estados de feedback na linguagem do Figma.">
+        {F("dlg-delete", "Diálogo · excluir", <DialogFrame variant="delete" />)}
+        {F("dlg-signout", "Diálogo · sair", <DialogFrame variant="signout" />)}
+        {F("dlg-bulk", "Diálogo · excluir vários", <DialogFrame variant="bulk" />)}
+        {F("dlg-reset", "Diálogo · redefinir", <DialogFrame variant="reset" />)}
+        {F("toast-success", "Toast · sucesso", <ToastFrame kind="success" />)}
+        {F("toast-error", "Toast · erro", <ToastFrame kind="error" />)}
+        {F("toast-info", "Toast · info", <ToastFrame kind="info" />)}
+        {F("toast-queued", "Toast · na fila", <ToastFrame kind="queued" />)}
+        {F("cel-done", "Celebração · tudo certo", <CelebrationFrame kind="all-done" />)}
+        {F("cel-streak", "Celebração · sequência", <CelebrationFrame kind="streak" />)}
+        {F("cel-level", "Celebração · nível", <CelebrationFrame kind="level" />)}
+        {F("cel-goal", "Celebração · meta", <CelebrationFrame kind="goal" />)}
+      </DCSection>
+
+      <DCSection id="modais" title="Modais" subtitle="Avisos e prompts do sistema.">
+        {F("m-push", "Ativar notificações", <PushPrompt />)}
+        {F("m-trial", "Teste expirado", <TrialExpired />)}
+        {F("m-version", "Atualização disponível", <VersionUpdate />)}
+      </DCSection>
+    </DesignCanvas>
+  );
+}
+const root = ReactDOM.createRoot(document.getElementById("root"));
+root.render(<App />);
+</script>
+
+</body>
+</html>

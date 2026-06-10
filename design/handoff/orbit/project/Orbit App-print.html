@@ -1,0 +1,413 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Orbit — Print</title>
+<link rel="stylesheet" href="colors_and_type.css">
+<style>
+  html, body { margin: 0; padding: 0; background: #ffffff; }
+  body { font-family: var(--font-sans); color: #14141a; }
+  @keyframes orbit-bulk-in { from { opacity: 1; } to { opacity: 1; } }
+  @keyframes orbit-rotate { from { transform: rotate(0deg); } to { transform: rotate(0deg); } }
+  .scheme-purple, .scheme-blue, .scheme-rose, .scheme-green, .scheme-orange, .scheme-cyan { scrollbar-width: none; }
+  .scheme-purple ::-webkit-scrollbar,
+  .scheme-blue ::-webkit-scrollbar,
+  .scheme-rose ::-webkit-scrollbar,
+  .scheme-green ::-webkit-scrollbar,
+  .scheme-orange ::-webkit-scrollbar,
+  .scheme-cyan ::-webkit-scrollbar { display: none; }
+
+  .print-page {
+    page-break-after: always;
+    break-after: page;
+    padding: 32px 36px 40px;
+    box-sizing: border-box;
+    width: 100%;
+    min-height: 100vh;
+  }
+  .print-page:last-child { page-break-after: auto; break-after: auto; }
+  .print-page h1 {
+    font-family: var(--font-sans);
+    font-size: 28px; font-weight: 600;
+    letter-spacing: -0.02em; margin: 0 0 4px;
+    color: #14141a;
+  }
+  .print-page .sub {
+    font-family: var(--font-sans);
+    font-size: 14px; color: #5a5a66;
+    line-height: 1.5; margin-bottom: 22px;
+    font-style: italic;
+  }
+  .print-page hr {
+    border: 0; border-top: 1px solid #e4e2dd; margin: 0 0 22px;
+  }
+  .print-grid {
+    display: grid; gap: 18px 18px;
+    grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+    align-items: start;
+  }
+  .print-card {
+    display: flex; flex-direction: column; gap: 8px;
+    break-inside: avoid;
+  }
+  .print-card .label {
+    font-family: var(--font-sans); font-size: 11px; font-weight: 600;
+    color: #5a5a66; letter-spacing: 0.02em;
+  }
+  /* Each scaled phone sits in a sized box so the page layout is predictable */
+  .phone-scale {
+    width: 100%;
+    aspect-ratio: 412 / 892;
+    overflow: hidden;
+    position: relative;
+    border-radius: 14px;
+  }
+  .phone-scale > .phone-inner {
+    position: absolute; top: 0; left: 0;
+    transform-origin: top left;
+  }
+
+  @page { size: A3 landscape; margin: 14mm; }
+  @media print {
+    html, body { background: #ffffff; }
+    .print-page { min-height: 0; }
+  }
+</style>
+</head>
+<body>
+
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+
+<script type="text/babel" src="orbit-components.jsx"></script>
+<script type="text/babel" src="orbit-app-components.jsx"></script>
+<script type="text/babel" src="orbit-screens-today.jsx"></script>
+<script type="text/babel" src="orbit-screens-chat.jsx"></script>
+<script type="text/babel" src="orbit-screens-cal-profile.jsx"></script>
+<script type="text/babel" src="orbit-screens-detail-create.jsx"></script>
+<script type="text/babel" src="orbit-screens-subs.jsx"></script>
+<script type="text/babel" src="orbit-screens-flows.jsx"></script>
+<script type="text/babel" src="orbit-screens-overlays.jsx"></script>
+<script type="text/babel" src="orbit-screens-extras.jsx"></script>
+<script type="text/babel" src="orbit-screens-subhabits.jsx"></script>
+
+<script type="text/babel">
+function PhoneCard({ label, children }) {
+  const wrapRef = React.useRef(null);
+  const [scale, setScale] = React.useState(1);
+  React.useLayoutEffect(() => {
+    const el = wrapRef.current;
+    if (!el) return;
+    const measure = () => {
+      const w = el.clientWidth;
+      if (w > 0) setScale(w / 412);
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+  return (
+    <div className="print-card">
+      <div ref={wrapRef} className="phone-scale">
+        <div className="phone-inner" style={{
+          transform: `scale(${scale})`,
+          width: 412, height: 892,
+        }}>{children}</div>
+      </div>
+      <div className="label">{label}</div>
+    </div>
+  );
+}
+
+function Page({ title, subtitle, children }) {
+  return (
+    <section className="print-page">
+      <h1>{title}</h1>
+      {subtitle && <div className="sub">{subtitle}</div>}
+      <hr />
+      <div className="print-grid">{children}</div>
+    </section>
+  );
+}
+
+function PrintApp() {
+  React.useEffect(() => {
+    if (window.lucide?.createIcons) {
+      const t = setTimeout(() => window.lucide.createIcons(), 80);
+      return () => clearTimeout(t);
+    }
+  });
+  const P = (label, children) => <PhoneCard key={label} label={label}>{children}</PhoneCard>;
+  return (
+    <>
+      <section className="print-page" style={{ display: "flex", flexDirection: "column", justifyContent: "center", alignItems: "flex-start", padding: "80px 60px" }}>
+        <div style={{ fontFamily: "var(--font-mono)", fontSize: 12, letterSpacing: "0.18em", textTransform: "uppercase", color: "#5a5a66", marginBottom: 14 }}>Orbit · AI-forward habit tracker</div>
+        <h1 style={{ fontSize: 56, margin: 0, letterSpacing: "-0.025em", lineHeight: 1.05, maxWidth: 720 }}>Track habits.<br/>Talk to Astra.<br/>Look at the long arc.</h1>
+        <div style={{ marginTop: 18, fontFamily: "var(--font-sans)", fontSize: 16, color: "#5a5a66", lineHeight: 1.5, maxWidth: 640 }}>Design catalog · ~170 artboards across 23 sections · dark mode default · Linear-tight chrome · Astra as the assistant.</div>
+      </section>
+
+      <Page title="Chat · the headline feature" subtitle="Astra is Orbit's primary interaction model. Conversation, embedded cards, voice, action chips.">
+        {P("a · Active conversation", <ChatA />)}
+        {P("b · Empty · enlarged sparkle", <ChatB />)}
+        {P("c · Pending op · StepUp", <ChatC />)}
+        {P("d · Breakdown suggestion", <ChatD />)}
+        {P("e · Clarification", <ChatE />)}
+        {P("f · Conflict · medium", <ChatF />)}
+        {P("g · Action chips", <ChatG />)}
+        {P("h · Voice recording", <ChatH />)}
+        {P("i · Message limit + ad", <ChatI />)}
+        {P("j · Offline", <ChatJ />)}
+      </Page>
+
+      <Page title="Today" subtitle="Linear-tight rows. Status dot + streak number on the right. AI summary is structural.">
+        {P("a · Default Today", <TodayA />)}
+        {P("a · with banners", <TodayA withBanners />)}
+        {P("b · Loading", <TodayB />)}
+        {P("c · Empty · Tell Astra", <TodayC />)}
+        {P("d · Active search", <TodayD />)}
+        {P("e · Select mode + bulk", <TodayE />)}
+        {P("f · Filtered Weekly+Work", <TodayF />)}
+        {P("g · AI summary (Pro)", <TodayG />)}
+        {P("g · AI summary upgrade (free)", <TodayGFree />)}
+        {P("g · End-of-day Reflect prompt", <TodayReflect />)}
+        {P("AI summary block close-up", <AISummaryCloseup />)}
+        {P("h · Yesterday", <TodayH />)}
+        {P("i · Tomorrow", <TodayI />)}
+        {P("j · Goals tab (Pro)", <TodayJ />)}
+        {P("k · All tab", <TodayK />)}
+        {P("l · General tab", <TodayL />)}
+        {P("m · Broken streak", <TodayM />)}
+      </Page>
+
+      <Page title="Calendar" subtitle="Month grid. Today's date marked with a primary dot.">
+        {P("a · Current month", <CalendarA />)}
+        {P("b · Past month archive", <CalendarB />)}
+        {P("c · Day selected", <CalendarC />)}
+        {P("d · Empty future month", <CalendarD />)}
+        {P("Tour overlay (Today)", <TourOverlay />)}
+      </Page>
+
+      <Page title="Habit row action sheet" subtitle="Opens from the 3-dot icon on a habit row.">
+        {P("Action sheet · parent habit", <HabitRowActionSheet />)}
+      </Page>
+
+      <Page title="Drill · parent → child" subtitle="Tap a child in the All list, land on the child's detail with the parent as the back link.">
+        {P("1 · All list with Spanish focused", <DrillList />)}
+        {P("2 · Spanish detail · back · Languages", <DrillChild />)}
+      </Page>
+
+      <Page title="Profile · You" subtitle="Avatar + name + email. Streak row leads to detail.">
+        {P("a · Free user", <ProfileA />)}
+        {P("b · Pro · dark · blue", <ProfileB />)}
+        {P("c · Trial user", <ProfileC />)}
+        {P("d · Account actions", <ProfileAccountActions />)}
+      </Page>
+
+      <Page title="Scheme retints" subtitle="Verifies tinting across the new chrome.">
+        {P("Purple", <ProfileRetint scheme="purple" />)}
+        {P("Blue", <ProfileRetint scheme="blue" />)}
+        {P("Green", <ProfileRetint scheme="green" />)}
+        {P("Rose", <ProfileRetint scheme="rose" />)}
+        {P("Orange", <ProfileRetint scheme="orange" />)}
+        {P("Cyan", <ProfileRetint scheme="cyan" />)}
+      </Page>
+
+      <Page title="Streak Detail" subtitle="The big mono number, week timeline, freezes, tier, milestones.">
+        {P("All tab · nested sub-habits (3 levels)", <NestedHabits />)}
+        {P("47 · Strong", <StreakDetail />)}
+        {P("Low · 3 days", <StreakDetailLow />)}
+        {P("Frozen today", <StreakDetailFrozen />)}
+        {P("Monthly limit reached", <StreakDetailMonthlyLimit />)}
+        {P("Legendary · 365", <StreakDetailLegendary />)}
+      </Page>
+
+      <Page title="Achievements">
+        {P("Level 7 · 23 of 60", <AchievementsScreen />)}
+        {P("Getting started", <AchievementsCategory />)}
+        {P("Locked · detail expanded", <AchievementsLockedDetail />)}
+        {P("Earned · detail expanded", <AchievementsEarnedDetail />)}
+        {P("Rarity legend", <AchievementsRarityLegend />)}
+      </Page>
+
+      <Page title="Habit Detail drawer" subtitle="Sub-habit parent is promoted as the second variant.">
+        {P("a · Active w/ streak", <HabitDetailA />)}
+        {P("b · Parent + children", <HabitDetailE />)}
+        {P("b · Parent + children · free", <HabitDetailE isPro={false} />)}
+        {P("c · Skipped today", <HabitDetailB />)}
+        {P("d · Checklist", <HabitDetailC />)}
+        {P("e · Bad habit", <HabitDetailD />)}
+        {P("f · Bad + Slip alert", <HabitDetailF />)}
+        {P("g · Linked goal", <HabitDetailG />)}
+      </Page>
+
+      <Page title="Create / Edit Habit sheet">
+        {P("a · New · empty", <CreateHabitSheet mode="new" />)}
+        {P("b · Filled · advanced open", <CreateHabitSheet mode="new" habitName="Read 30 minutes" showAdvanced showWeekDays />)}
+        {P("c · Edit existing", <CreateHabitSheet mode="edit" habitName="Meditate" />)}
+        {P("d · Weekly schedule", <CreateHabitSheet mode="new" habitName="Weekly review" showWeekDays />)}
+        {P("e · Validation error", <CreateHabitSheet mode="new" validationError="Give the habit a name." />)}
+        {P("f · Sub-habit context", <CreateHabitSheet mode="new" subHabitContext="Morning routine" habitName="Drink water" />)}
+        {P("g · Bad + Slip alert (Pro)", <CreateHabitSheet mode="new" habitName="Late-night screen" showAdvanced withSlipAlert isPro />)}
+        {P("h · Free sub-habits locked", <CreateHabitSheet mode="new" habitName="Morning routine" showAdvanced withSubHabits isPro={false} />)}
+        {P("i · Pro sub-habits · 4 filled", <CreateHabitSubHabitsActive />)}
+        {P("End date set", <CreateHabitEndDate />)}
+        {P("Scheduled reminders", <CreateHabitScheduledReminders />)}
+        {P("Checklist templates", <ChecklistTemplatesSheet />)}
+        {P("Tag editor · new", <CreateHabitTagEditor mode="new" />)}
+        {P("Tag editor · edit", <CreateHabitTagEditor mode="edit" />)}
+        {P("Emoji sheet", <EmojiSheet />)}
+      </Page>
+
+      <Page title="Goals · Create + Detail">
+        {P("a · New standard", <CreateGoalSheet mode="new" />)}
+        {P("b · New streak", <CreateGoalSheet mode="new" goalType="Streak" />)}
+        {P("c · Edit standard", <CreateGoalSheet mode="edit" />)}
+        {P("d · Edit streak · immutable", <CreateGoalSheet mode="edit" goalType="Streak" immutable />)}
+        {P("e · Validation error", <CreateGoalSheet mode="new" validationError="Target must be positive." />)}
+        {P("f · Deadline in past", <CreateGoalSheet mode="new" deadlineInPast />)}
+        {P("Detail · Standard on track", <GoalDetail variant="standard-track" />)}
+        {P("Detail · Streak day 12", <GoalDetail variant="streak" />)}
+        {P("Detail · At risk", <GoalDetail variant="at-risk" />)}
+        {P("Detail · Behind", <GoalDetail variant="behind" />)}
+        {P("Detail · Update form", <GoalDetail variant="update" />)}
+        {P("Detail · Completed", <GoalDetail variant="completed" />)}
+        {P("Detail · Abandoned", <GoalDetail variant="abandoned" />)}
+      </Page>
+
+      <Page title="Upgrade to Pro">
+        {P("Upgrade · yearly", <UpgradeScreen />)}
+        {P("In trial · 4 days left", <UpgradeInTrial />)}
+        {P("Trial expired", <UpgradeExpired />)}
+      </Page>
+
+      <Page title="Confirm dialogs">
+        {P("a · Delete habit", <ConfirmFrame variant="delete" />)}
+        {P("b · Bulk delete", <ConfirmFrame variant="bulkDelete" />)}
+        {P("c · Bulk log", <ConfirmFrame variant="bulkLog" />)}
+        {P("d · Bulk skip", <ConfirmFrame variant="bulkSkip" />)}
+        {P("e · Sign out", <ConfirmFrame variant="signOut" />)}
+        {P("f · Force-log parent", <ConfirmFrame variant="forceLog" />)}
+        {P("g · Move parent", <ConfirmFrame variant="moveParent" />)}
+      </Page>
+
+      <Page title="Sub-screens">
+        {P("Preferences", <PreferencesScreen />)}
+        {P("Advanced · Pro w/ keys", <AdvancedScreen isPro />)}
+        {P("Advanced · free", <AdvancedScreen isPro={false} />)}
+        {P("About", <AboutScreen />)}
+        {P("Privacy", <PrivacyScreen />)}
+        {P("Support · form", <SupportScreen />)}
+        {P("Support · sent", <SupportScreen sent />)}
+        {P("AI Settings · free", <AISettingsScreen />)}
+        {P("AI Settings · Pro", <AISettingsScreen isPro />)}
+        {P("AI facts · paginated", <AISettingsFactsPaginated />)}
+        {P("AI facts · select mode", <AISettingsFactsSelect />)}
+        {P("AI facts · empty", <AISettingsFactsEmpty />)}
+        {P("Retrospective · content", <RetrospectiveScreen />)}
+        {P("Retrospective · generate", <RetrospectiveScreen state="generate" />)}
+        {P("Retrospective · loading", <RetrospectiveScreen state="loading" />)}
+        {P("Cal Sync · select", <CalendarSyncScreen state="select" />)}
+        {P("Cal Sync · connected", <CalendarSyncScreen state="idle" />)}
+        {P("Cal Sync · disconnected", <CalendarSyncScreen state="disconnected" />)}
+        {P("Cal Sync · importing", <CalendarSyncScreen state="importing" />)}
+        {P("Cal Sync · done", <CalendarSyncScreen state="done" />)}
+        {P("Cal Sync · error", <CalendarSyncScreen state="error" />)}
+        {P("Cal Sync · offline", <CalendarSyncScreen state="offline" />)}
+      </Page>
+
+      <Page title="Modals & drawers">
+        {P("Notifications · inbox", <NotificationsSheet />)}
+        {P("Fresh start · step 1", <FreshStartModal step={1} />)}
+        {P("Fresh start · step 2", <FreshStartModal step={2} />)}
+        {P("Delete account · step 1", <DeleteAccountModal step={1} />)}
+        {P("Delete account · step 2", <DeleteAccountModal step={2} />)}
+        {P("Delete account · step 3", <DeleteAccountModal step={3} />)}
+        {P("Trial expired", <TrialExpiredModal />)}
+        {P("Push prompt", <PushPrompt />)}
+        {P("Version update", <VersionUpdateDrawer />)}
+        {P("API key · new", <ApiKeyModal step={1} />)}
+        {P("API key · reveal", <ApiKeyModal step={2} />)}
+        {P("Referral drawer", <ReferralDrawer />)}
+        {P("Feature guide", <FeatureGuideDrawer />)}
+      </Page>
+
+      <Page title="Login (email + 6-digit code)">
+        {P("a · Step 1 · email", <LoginScreen step={1} />)}
+        {P("b · Step 1 · with referral", <LoginScreen step={1} referral />)}
+        {P("c · Step 2 · code", <LoginScreen step={2} code="142" countdown="0:54" />)}
+        {P("d · Step 2 · error", <LoginScreen step={2} error="That code didn't match." />)}
+      </Page>
+
+      <Page title="Onboarding · 7 steps" subtitle="Meet Astra is step 2 — AI is introduced before habit creation.">
+        {P("01 · Welcome", <OnboardingStep step={1} />)}
+        {P("02 · Meet Astra", <OnboardingStep step={2} />)}
+        {P("03 · Tell Astra what to track", <OnboardingStep step={3} />)}
+        {P("04 · Complete habit", <OnboardingStep step={4} />)}
+        {P("05 · Add a goal", <OnboardingStep step={5} />)}
+        {P("06 · Features", <OnboardingStep step={6} />)}
+        {P("07 · You're set", <OnboardingStep step={7} />)}
+        {P("Calendar import prompt", <CalendarImportPrompt />)}
+      </Page>
+
+      <Page title="Toasts">
+        {P("Success", <ToastFrame kind="success" />)}
+        {P("Error", <ToastFrame kind="error" />)}
+        {P("Info", <ToastFrame kind="info" />)}
+        {P("Queued · undo", <ToastFrame kind="queued" />)}
+      </Page>
+
+      <Page title="Celebrations">
+        {P("All done", <Celebration kind="all-done" />)}
+        {P("Streak milestone", <Celebration kind="streak" />)}
+        {P("Streak freeze", <Celebration kind="freeze" />)}
+        {P("Goal completed", <Celebration kind="goal" />)}
+        {P("Level up", <Celebration kind="level" />)}
+        {P("Achievement (toast)", <Celebration kind="achievement" />)}
+        {P("Welcome back (toast)", <Celebration kind="welcome" />)}
+      </Page>
+
+      <Page title="Edge banners">
+        {P("Trial", <BannerSpecimen variant="trial" />)}
+        {P("Trial · last day", <BannerSpecimen variant="trialUrgent" />)}
+        {P("Review reminder", <BannerSpecimen variant="review" />)}
+        {P("Session expiring", <BannerSpecimen variant="expiry" />)}
+        {P("Referral applied", <BannerSpecimen variant="referral" />)}
+      </Page>
+
+      <Page title="Shared components appendix">
+        {P("Bottom nav · FAB", <BottomNavSpecimen />)}
+        {P("Specimens", <ComponentAppendix />)}
+        {P("Habit row meta combinations", <HabitMetaSampler />)}
+      </Page>
+
+      <Page title="Light mode reference" subtitle="Three frames for color verification. Light mode is supported but secondary.">
+        {P("Today · light", <TodayA dark={false} />)}
+        {P("Chat · light", <ChatA dark={false} />)}
+        {P("Profile · light", <ProfileA dark={false} />)}
+      </Page>
+    </>
+  );
+}
+
+const root = ReactDOM.createRoot(document.getElementById("root"));
+root.render(<PrintApp />);
+
+// Auto-print once fonts + React + lucide have settled
+(async () => {
+  try { if (document.fonts && document.fonts.ready) await document.fonts.ready; } catch (e) {}
+  // Wait for React + Babel to finish mounting all phones
+  await new Promise(r => setTimeout(r, 2500));
+  // Ensure lucide icons are rendered
+  if (window.lucide?.createIcons) window.lucide.createIcons();
+  await new Promise(r => setTimeout(r, 600));
+  window.print();
+})();
+</script>
+
+</body>
+</html>

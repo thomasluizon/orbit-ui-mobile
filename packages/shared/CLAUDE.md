@@ -26,8 +26,10 @@ src/
     pt-BR.json              - Portuguese (Brazil) locale
     index.ts                - shared i18n config (next-intl + i18next compatible)
   theme/
-    color-schemes.ts        - 6 OKLCH color schemes
-    tokens-v2.ts            - createTokensV2(scheme, mode) — v8 OKLCH semantic tokens
+    color-schemes.ts        - 6 schemes: accents (dark/light), neutral hue, primaryRgb
+    neutral-ramp.ts         - locked OKLCH L/C ramps, alpha constants, status colors, gradient stops
+    type-roles.ts           - the 11 semantic type roles as pure data
+    motion.ts               - motion presets (durations, easings)
     index.ts
   utils/
     *.ts                    - cross-platform utilities (formatAPIDate, etc.)
@@ -101,10 +103,10 @@ export const habitKeys = {
 
 ## Theme
 
-`theme/color-schemes.ts` defines 6 OKLCH schemes (purple, blue, green, rose, orange, cyan). `theme/tokens-v2.ts` exports `createTokensV2(scheme, mode)` which returns the resolved v8 token bag (bg, fg-1..4, primary, hairline, status-*).
+`theme/color-schemes.ts` defines the 6 schemes (purple, blue, green, rose, orange, cyan): per-mode accents, neutral hue, and `primaryRgb`. `theme/neutral-ramp.ts` holds the locked OKLCH L/C ramp shapes, alpha-constant surfaces, status colors, and gradient-header stops. `theme/type-roles.ts` holds the 11 semantic type roles.
 
-- Web reads them via `app/globals.css` `@theme` block + Tailwind tokens.
-- Mobile reads them via `createColors()` in `apps/mobile/lib/theme.ts`.
+- Web reads them via `app/globals.css` (scheme classes + `:root.dark/.light` blocks) + `lib/theme-dom.ts`.
+- Mobile resolves them via `createTokensV2()` in `apps/mobile/lib/theme.ts`.
 
 ## Patterns to mirror
 
