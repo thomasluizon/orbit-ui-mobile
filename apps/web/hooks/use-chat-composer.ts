@@ -65,6 +65,12 @@ type PreparedStepUpExecution =
 type SendChatMessageResult = Awaited<ReturnType<typeof sendChatMessage>>
 type FailedSendChatMessageResult = Extract<SendChatMessageResult, { ok: false }>
 
+interface AttemptedSend {
+  content: string
+  image: File | null
+  preview: string | null
+}
+
 export function useChatComposer() {
   const t = useTranslations()
   const locale = useLocale()
@@ -99,6 +105,7 @@ export function useChatComposer() {
     return globalThis.localStorage.getItem(CHAT_DRAFT_STORAGE_KEY) ?? ''
   })
   const [sendError, setSendError] = useState<string | null>(null)
+  const [lastFailedSend, setLastFailedSend] = useState<AttemptedSend | null>(null)
   const [selectedImage, setSelectedImage] = useState<File | null>(null)
   const [imagePreview, setImagePreview] = useState<string | null>(null)
   const [showLangPicker, setShowLangPicker] = useState(false)
@@ -173,7 +180,7 @@ export function useChatComposer() {
     }
   }, [addMessage, queryClient, router, scrollToBottom, shouldRouteToUpgrade])
 
-  const handleFailedSend = useCallback((result: FailedSendChatMessageResult) => {
+  const handleFailedSend = useCallback((result: FailedSendChatMessageResult, attempted: AttemptedSend) => {
     setIsTyping(false)
     const resolvedError = getErrorMessage(result.error, t('chat.sendError'))
     const failure = classifySendFailure({ status: result.status, reason: resolvedError })
@@ -186,10 +193,12 @@ export function useChatComposer() {
 
     if (failure.kind === 'timeout') {
       setSendError(t('chat.timeoutError'))
+      setLastFailedSend(attempted)
     } else if (failure.kind === 'limit') {
       setSendError(t('chat.limitReachedError'))
     } else {
       setSendError(resolvedError)
+      setLastFailedSend(attempted)
     }
 
     addMessage({
@@ -357,27 +366,20 @@ export function useChatComposer() {
     }
   }
 
-  const sendMessage = useCallback(
-    async (content?: string) => {
-      const messageContent = content || input.trim()
-      if ((!messageContent && !selectedImage) || isTyping) return
-
+  const performSend = useCallback(
+    async (attempted: AttemptedSend, isRetry: boolean) => {
       setSendError(null)
+      setLastFailedSend(null)
 
-      const attachedImage = selectedImage
-      const attachedPreview = imagePreview
-
-      addMessage({
-        id: crypto.randomUUID(),
-        role: 'user',
-        content: messageContent || '(image)',
-        imageUrl: attachedPreview,
-        timestamp: new Date(),
-      })
-
-      setInput('')
-      setSelectedImage(null)
-      setImagePreview(null)
+      if (!isRetry) {
+        addMessage({
+          id: crypto.randomUUID(),
+          role: 'user',
+          content: attempted.content || '(image)',
+          imageUrl: attempted.preview,
+          timestamp: new Date(),
+        })
+      }
 
       scrollToBottom()
       setIsTyping(true)
@@ -385,8 +387,8 @@ export function useChatComposer() {
 
       try {
         const formData = new FormData()
-        if (messageContent) formData.append('message', messageContent)
-        if (attachedImage) formData.append('image', attachedImage)
+        if (attempted.content) formData.append('message', attempted.content)
+        if (attempted.image) formData.append('image', attempted.image)
 
         const currentMessages = useChatStore.getState().messages
         const recentHistory = buildRecentChatHistory(currentMessages)
@@ -400,7 +402,7 @@ export function useChatComposer() {
 
         const result = await sendChatMessage(formData)
         if (!result.ok) {
-          handleFailedSend(result)
+          handleFailedSend(result, attempted)
           return
         }
 
@@ -408,6 +410,7 @@ export function useChatComposer() {
       } catch (error: unknown) {
         setIsTyping(false)
         setSendError(getErrorMessage(error, t('chat.sendError')))
+        setLastFailedSend(attempted)
 
         addMessage({
           id: crypto.randomUUID(),
@@ -420,18 +423,41 @@ export function useChatComposer() {
     },
     [
       addMessage,
-      imagePreview,
-      input,
       handleFailedSend,
       handleSuccessfulSend,
-      isTyping,
       locale,
       scrollToBottom,
-      selectedImage,
       setIsTyping,
       t,
     ],
   )
+
+  const sendMessage = useCallback(
+    async (content?: string) => {
+      const messageContent = content || input.trim()
+      if ((!messageContent && !selectedImage) || isTyping) return
+
+      const attempted: AttemptedSend = {
+        content: messageContent,
+        image: selectedImage,
+        preview: imagePreview,
+      }
+
+      setInput('')
+      setSelectedImage(null)
+      setImagePreview(null)
+
+      await performSend(attempted, false)
+    },
+    [imagePreview, input, isTyping, performSend, selectedImage],
+  )
+
+  const retryLastSend = useCallback(async () => {
+    if (!lastFailedSend || isTyping) return
+    await performSend(lastFailedSend, true)
+  }, [isTyping, lastFailedSend, performSend])
+
+  const canRetryLastSend = lastFailedSend !== null && !isTyping
 
   const confirmAndExecutePendingOperation = useCallback(async (pendingOperationId: string): Promise<PendingExecutionResult> => {
     const confirmation = await confirmPendingOperation(pendingOperationId)
@@ -578,6 +604,8 @@ export function useChatComposer() {
     handlePaste,
     removeImage,
     sendMessage,
+    retryLastSend,
+    canRetryLastSend,
     handleKeyDown,
     handleBreakdownConfirmed,
     confirmAndExecutePendingOperation,

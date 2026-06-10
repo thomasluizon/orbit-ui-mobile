@@ -6,6 +6,7 @@ import { useTranslation } from "react-i18next";
 import { useQueryClient } from "@tanstack/react-query";
 import { API } from "@orbit/shared/api";
 import {
+  CHAT_SEND_TIMEOUT_MS,
   CHAT_STARTER_CHIP_KEYS,
   CHAT_SPEECH_LANGUAGES as SPEECH_LANGUAGES,
   getChatImageValidationError,
@@ -66,6 +67,17 @@ export type PreparedStepUpExecution =
     }
   | { ok: false; error: string };
 
+interface AttemptedSend {
+  content: string;
+  image: ImagePicker.ImagePickerAsset | null;
+  preview: string | null;
+}
+
+function isAbortError(error: unknown): boolean {
+  if (typeof error !== "object" || error === null) return false;
+  return "name" in error && error.name === "AbortError";
+}
+
 function buildImageUpload(asset: ImagePicker.ImagePickerAsset): RNFileUpload {
   const mimeType =
     resolveChatImageMimeType({
@@ -119,6 +131,7 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
   const flatListRef = useRef<FlatList<ChatMessage>>(null);
 
   const [sendError, setSendError] = useState<string | null>(null);
+  const [lastFailedSend, setLastFailedSend] = useState<AttemptedSend | null>(null);
   const [selectedImage, setSelectedImage] =
     useState<ImagePicker.ImagePickerAsset | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
@@ -268,42 +281,34 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
     setImagePreview(null);
   }, []);
 
-  const sendMessage = useCallback(
-    async (content?: string) => {
-      const messageContent = content?.trim() ?? "";
-      if ((!messageContent && !selectedImage) || isTyping) return;
-      if (!isOnline) {
-        setSendError(offlineTitle);
-        return;
+  const performSend = useCallback(
+    async (attempted: AttemptedSend, isRetry: boolean) => {
+      setSendError(null);
+      setLastFailedSend(null);
+
+      if (!isRetry) {
+        const userMessage: ChatMessage = {
+          id: `msg-${Date.now()}`,
+          role: "user",
+          content: attempted.content || "(image)",
+          imageUrl: attempted.preview,
+          timestamp: new Date(),
+        };
+        addMessage(userMessage);
       }
 
-      setSendError(null);
-      setShowLangPicker(false);
-
-      const attachedImage = selectedImage;
-      const attachedPreview = imagePreview;
-
-      const userMessage: ChatMessage = {
-        id: `msg-${Date.now()}`,
-        role: "user",
-        content: messageContent || "(image)",
-        imageUrl: attachedPreview,
-        timestamp: new Date(),
-      };
-
-      addMessage(userMessage);
-      setComposerResetSignal((current) => current + 1);
-      setSelectedImage(null);
-      setImagePreview(null);
       scrollToBottom();
       setIsTyping(true);
       scrollToBottom();
 
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), CHAT_SEND_TIMEOUT_MS);
+
       try {
         const formData = new FormData();
-        if (messageContent) formData.append("message", messageContent);
-        if (attachedImage) {
-          formData.append("image", buildImageUpload(attachedImage));
+        if (attempted.content) formData.append("message", attempted.content);
+        if (attempted.image) {
+          formData.append("image", buildImageUpload(attempted.image));
         }
 
         const currentMessages = useChatStore.getState().messages;
@@ -323,6 +328,7 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
         const response = await apiClient<ChatResponse>(API.chat.send, {
           method: "POST",
           body: formData,
+          signal: controller.signal,
         });
 
         setIsTyping(false);
@@ -382,7 +388,7 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
         setIsTyping(false);
         const resolvedError = getErrorMessage(err, t("chat.sendError"));
         const failure = classifySendFailure({
-          status: extractBackendStatus(err) ?? null,
+          status: isAbortError(err) ? 408 : extractBackendStatus(err) ?? null,
           code: extractBackendErrorCode(err) ?? null,
           reason: extractBackendError(err) ?? resolvedError,
         });
@@ -395,10 +401,12 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
 
         if (failure.kind === "timeout") {
           setSendError(t("chat.timeoutError"));
+          setLastFailedSend(attempted);
         } else if (failure.kind === "limit") {
           setSendError(t("chat.limitReachedError"));
         } else {
           setSendError(resolvedError);
+          setLastFailedSend(attempted);
         }
 
         const errorMessage: ChatMessage = {
@@ -410,25 +418,59 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
 
         addMessage(errorMessage);
         scrollToBottom();
+      } finally {
+        clearTimeout(timeoutId);
       }
     },
     [
       addMessage,
       hasProAccess,
-      imagePreview,
       i18n.language,
-      isOnline,
-      isTyping,
-      offlineTitle,
       queryClient,
       router,
       scrollToBottom,
-      selectedImage,
       setIsTyping,
       shouldRouteToUpgrade,
       t,
     ],
   );
+
+  const sendMessage = useCallback(
+    async (content?: string) => {
+      const messageContent = content?.trim() ?? "";
+      if ((!messageContent && !selectedImage) || isTyping) return;
+      if (!isOnline) {
+        setSendError(offlineTitle);
+        return;
+      }
+
+      setShowLangPicker(false);
+
+      const attempted: AttemptedSend = {
+        content: messageContent,
+        image: selectedImage,
+        preview: imagePreview,
+      };
+
+      setComposerResetSignal((current) => current + 1);
+      setSelectedImage(null);
+      setImagePreview(null);
+
+      await performSend(attempted, false);
+    },
+    [imagePreview, isOnline, isTyping, offlineTitle, performSend, selectedImage],
+  );
+
+  const retryLastSend = useCallback(async () => {
+    if (!lastFailedSend || isTyping) return;
+    if (!isOnline) {
+      setSendError(offlineTitle);
+      return;
+    }
+    await performSend(lastFailedSend, true);
+  }, [isOnline, isTyping, lastFailedSend, offlineTitle, performSend]);
+
+  const canRetryLastSend = lastFailedSend !== null && !isTyping;
 
   const confirmAndExecutePendingOperation = useCallback(
     async (pendingOperationId: string): Promise<PendingExecutionResult> => {
@@ -589,6 +631,8 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
     openFilePicker,
     removeImage,
     sendMessage,
+    retryLastSend,
+    canRetryLastSend,
     scrollToBottom,
     handleBreakdownConfirmed,
     confirmAndExecutePendingOperation,

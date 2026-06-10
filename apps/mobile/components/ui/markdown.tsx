@@ -113,7 +113,11 @@ export function Markdown({ children, tone = "default" }: Readonly<MarkdownProps>
           border: tokens.hairlineStrong,
         },
       }}
-      flatListProps={{ scrollEnabled: false, initialNumToRender: 12 }}
+      flatListProps={{
+        scrollEnabled: false,
+        initialNumToRender: 12,
+        style: { backgroundColor: 'transparent' },
+      }}
     />
   )
 }

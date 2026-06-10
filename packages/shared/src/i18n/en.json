@@ -684,11 +684,6 @@
     "messagesUsed": "messages used this month",
     "senderYou": "You",
     "senderOrbit": "Astra",
-    "trace": {
-      "label": "trace: {id}",
-      "copy": "Copy trace id",
-      "copied": "Copied"
-    },
     "unknownEntity": "Unknown",
     "starterChips": {
       "logHabit": "Log a habit",

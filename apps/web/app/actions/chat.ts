@@ -2,6 +2,7 @@
 
 import { resolveServerSession } from '@/lib/auth-api'
 import { API, MAX_CLARIFICATION_VALUE_LENGTH } from '@orbit/shared/api'
+import { CHAT_SEND_TIMEOUT_MS } from '@orbit/shared/chat'
 import type {
   AgentExecuteOperationResponse,
   AgentStepUpChallenge,
@@ -11,8 +12,6 @@ import type {
 import { serverAuthFetch } from '@/lib/server-fetch'
 
 const API_BASE = process.env.API_BASE ?? 'http://localhost:5000'
-
-const CHAT_TIMEOUT_MS = 60_000
 
 type ActionResult<T> =
   | { ok: true; data: T }
@@ -31,7 +30,7 @@ export type PendingOperationActionResult<T> = ActionResult<T>
  */
 export async function sendChatMessage(formData: FormData): Promise<ChatResult> {
   const controller = new AbortController()
-  const timeoutId = setTimeout(() => controller.abort(), CHAT_TIMEOUT_MS)
+  const timeoutId = setTimeout(() => controller.abort(), CHAT_SEND_TIMEOUT_MS)
 
   try {
     const execute = async (token: string) => fetch(`${API_BASE}/api/chat`, {

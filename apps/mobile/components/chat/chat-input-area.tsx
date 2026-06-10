@@ -27,6 +27,7 @@ interface ChatInputAreaProps {
   offlineTitle: string;
   offlineDescription: string;
   sendError: string | null;
+  canRetry: boolean;
   speechError: string | null;
   imagePreview: string | null;
   starterChips: readonly string[];
@@ -47,6 +48,7 @@ interface ChatInputAreaProps {
   currentLangFlag: string;
   showLangPicker: boolean;
   onRemoveImage: () => void;
+  onRetry: () => void;
   onSendChip: (chip: string) => void;
   onSend: (message: string) => void;
   onToggleRecording: () => void;
@@ -66,6 +68,7 @@ export const ChatInputArea = forwardRef<View, Readonly<ChatInputAreaProps>>(
       offlineTitle,
       offlineDescription,
       sendError,
+      canRetry,
       speechError,
       imagePreview,
       starterChips,
@@ -76,6 +79,7 @@ export const ChatInputArea = forwardRef<View, Readonly<ChatInputAreaProps>>(
       reward,
       voiceRef,
       onRemoveImage,
+      onRetry,
       onSendChip,
     } = props;
 
@@ -95,6 +99,16 @@ export const ChatInputArea = forwardRef<View, Readonly<ChatInputAreaProps>>(
         {sendError && (
           <Text style={[styles.errorText, { color: tokens.statusBad }]} accessibilityRole="alert">
             {sendError}
+            {canRetry ? (
+              <Text
+                onPress={onRetry}
+                accessibilityRole="button"
+                accessibilityLabel={t("common.retry")}
+                style={{ color: tokens.primary, fontWeight: "700" }}
+              >
+                {"  " + t("common.retry")}
+              </Text>
+            ) : null}
           </Text>
         )}
         {!isOnline && (

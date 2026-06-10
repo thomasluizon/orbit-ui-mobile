@@ -100,13 +100,11 @@ The codebase currently expects these variables when you want to override default
 | `npm run lint` | Run lint tasks across workspaces |
 | `npm run type-check` | Run TypeScript checks across workspaces |
 | `npm run test` | Run unit tests across workspaces |
-| `npm run test:e2e` | Run end-to-end tests through Turbo |
 
 Useful workspace commands:
 
 ```bash
 npm --workspace @orbit/web run test
-npm --workspace @orbit/web run test:e2e
 
 npm --workspace @orbit/mobile run android
 npm --workspace @orbit/mobile run ios

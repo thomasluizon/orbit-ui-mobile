@@ -46,19 +46,11 @@ export function MessageBubble({
   const t = useTranslations()
   const router = useRouter()
   const [dismissedBreakdowns, setDismissedBreakdowns] = useState<Set<string>>(new Set())
-  const [traceCopied, setTraceCopied] = useState(false)
 
   const relatedSurfaces = useMemo(
     () => getRelatedSurfaces(message.relatedSurfaces),
     [message.relatedSurfaces],
   )
-
-  async function copyTraceId(correlationId: string) {
-    if (!navigator.clipboard) return
-    await navigator.clipboard.writeText(correlationId)
-    setTraceCopied(true)
-    setTimeout(() => setTraceCopied(false), 2000)
-  }
 
   const suggestionActions = useMemo(
     () =>
@@ -129,19 +121,6 @@ export function MessageBubble({
           )}
           <Markdown content={message.content ?? ''} />
         </div>
-
-        {!isUser && message.correlationId && (
-          <button
-            type="button"
-            onClick={() => copyTraceId(message.correlationId as string)}
-            aria-label={t('chat.trace.copy')}
-            className="mt-1 px-2 py-1 text-[11px] text-[var(--fg-2)] hover:text-[var(--fg-1)] transition-colors"
-          >
-            {traceCopied
-              ? t('chat.trace.copied')
-              : t('chat.trace.label', { id: message.correlationId })}
-          </button>
-        )}
 
         {!isUser && relatedSurfaces.length > 0 && (
           <div className="mt-2 w-full">

@@ -38,10 +38,7 @@ export default [
     ignores: [
       ".next/**",
       "node_modules/**",
-      "e2e/**",
       "coverage/**",
-      "playwright-report/**",
-      "test-results/**",
       "public/**",
       "*.config.{js,mjs,cjs,ts}",
     ],

@@ -78,4 +78,3 @@ export async function createHabit(input: CreateHabitInput) {
 - Vitest + RTL. Config: `vitest.config.ts`.
 - Tests assert on behavior + data attributes (`data-severity`, `data-action-status`), NOT class names or implementation details.
 - Mock `next/navigation` when testing components that use `useRouter`.
-- E2E: Playwright (`playwright.config.ts`). Run with `npm run test:e2e`.

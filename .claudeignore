@@ -22,8 +22,6 @@ apps/mobile/ios/
 
 # Test outputs
 coverage/
-playwright-report/
-test-results/
 
 # Lockfiles (Claude doesn't need to read these)
 package-lock.json

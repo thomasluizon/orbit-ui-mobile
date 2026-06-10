@@ -1,6 +1,5 @@
 import { useState, useMemo, useEffect } from "react";
 import { View, Text, Image, StyleSheet, Animated, Pressable } from "react-native";
-import * as Clipboard from "expo-clipboard";
 import { useRouter } from "expo-router";
 import { Orbit, User, ArrowUpRight } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
@@ -55,13 +54,6 @@ export function MessageBubble({
   const [dismissedBreakdowns, setDismissedBreakdowns] = useState<Set<string>>(
     new Set(),
   );
-  const [traceCopied, setTraceCopied] = useState(false);
-
-  async function copyTraceId(correlationId: string) {
-    await Clipboard.setStringAsync(correlationId);
-    setTraceCopied(true);
-    setTimeout(() => setTraceCopied(false), 2000);
-  }
 
   const isUser = message.role === "user";
 
@@ -137,21 +129,6 @@ export function MessageBubble({
             {message.content ?? ""}
           </Markdown>
         </View>
-
-        {!isUser && message.correlationId ? (
-          <Pressable
-            onPress={() => copyTraceId(message.correlationId as string)}
-            accessibilityRole="button"
-            accessibilityLabel={t("chat.trace.copy")}
-            style={styles.traceFooter}
-          >
-            <Text style={styles.traceText}>
-              {traceCopied
-                ? t("chat.trace.copied")
-                : t("chat.trace.label", { id: message.correlationId })}
-            </Text>
-          </Pressable>
-        ) : null}
 
         {!isUser && relatedSurfaces.length > 0 ? (
           <View style={styles.relatedContainer}>
@@ -388,16 +365,6 @@ function createStyles(tokens: AppTokens) {
       color: tokens.fg2,
       marginBottom: 4,
       paddingHorizontal: 8,
-    },
-
-    traceFooter: {
-      marginTop: 4,
-      paddingHorizontal: 8,
-      paddingVertical: 4,
-    },
-    traceText: {
-      fontSize: 11,
-      color: tokens.fg2,
     },
 
     bubble: {

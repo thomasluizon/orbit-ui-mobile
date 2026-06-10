@@ -23,6 +23,8 @@ export const CHAT_STARTER_CHIP_KEYS = [
   'chat.starterChips.planWeek',
 ] as const
 
+export const CHAT_SEND_TIMEOUT_MS = 60_000
+
 export const MAX_CHAT_IMAGE_SIZE_BYTES = 20 * 1024 * 1024
 
 export const CHAT_IMAGE_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const
