@@ -159,3 +159,26 @@ export const chatResponseSchema = z.object({
 })
 
 export type ChatResponse = z.infer<typeof chatResponseSchema>
+
+/**
+ * One server-sent event on the chat stream, mirroring the backend's
+ * ChatStreamEvent record: started/round keep the connection alive during tool
+ * work, delta/reset drive incremental rendering, final carries the complete
+ * ChatResponse (always authoritative over streamed text), and error carries an
+ * HTTP-equivalent status plus the buffered endpoint's error/code shape.
+ */
+export const chatStreamEventSchema = z.discriminatedUnion('type', [
+  z.object({ type: z.literal('started') }),
+  z.object({ type: z.literal('round'), iteration: z.number() }),
+  z.object({ type: z.literal('delta'), text: z.string() }),
+  z.object({ type: z.literal('reset') }),
+  z.object({ type: z.literal('final'), response: chatResponseSchema }),
+  z.object({
+    type: z.literal('error'),
+    status: z.number(),
+    error: z.string(),
+    code: z.string().optional(),
+  }),
+])
+
+export type ChatStreamEvent = z.infer<typeof chatStreamEventSchema>

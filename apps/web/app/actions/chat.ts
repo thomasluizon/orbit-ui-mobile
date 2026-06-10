@@ -1,79 +1,18 @@
 'use server'
 
-import { resolveServerSession } from '@/lib/auth-api'
 import { API, MAX_CLARIFICATION_VALUE_LENGTH } from '@orbit/shared/api'
-import { CHAT_SEND_TIMEOUT_MS } from '@orbit/shared/chat'
 import type {
   AgentExecuteOperationResponse,
   AgentStepUpChallenge,
-  ChatResponse,
   PendingAgentOperationConfirmation,
 } from '@orbit/shared'
 import { serverAuthFetch } from '@/lib/server-fetch'
-
-const API_BASE = process.env.API_BASE ?? 'http://localhost:5000'
 
 type ActionResult<T> =
   | { ok: true; data: T }
   | { ok: false; error: string; status: number }
 
-export type ChatResult = ActionResult<ChatResponse>
 export type PendingOperationActionResult<T> = ActionResult<T>
-
-/**
- * Send a chat message to the AI assistant.
- * Accepts FormData with fields: message, image (File), history (JSON string).
- * Forwarded as multipart/form-data to the backend.
- *
- * Returns a discriminated union so the caller can inspect the HTTP status
- * (Server Actions cannot propagate custom Error subclasses to the client).
- */
-export async function sendChatMessage(formData: FormData): Promise<ChatResult> {
-  const controller = new AbortController()
-  const timeoutId = setTimeout(() => controller.abort(), CHAT_SEND_TIMEOUT_MS)
-
-  try {
-    const execute = async (token: string) => fetch(`${API_BASE}/api/chat`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token}` },
-      body: formData,
-      signal: controller.signal,
-    })
-
-    let session = await resolveServerSession()
-    if (!session.token) {
-      return { ok: false, error: 'Unauthorized', status: 401 }
-    }
-
-    let res = await execute(session.token)
-
-    if (res.status === 401) {
-      session = await resolveServerSession({ forceRefresh: true })
-      if (!session.token) {
-        return { ok: false, error: 'Unauthorized', status: 401 }
-      }
-
-      res = await execute(session.token)
-    }
-
-    if (!res.ok) {
-      const body = await res.json().catch(() => null)
-      const message = body?.error ?? body?.message ?? `Failed with status ${res.status}`
-      return { ok: false, error: message, status: res.status }
-    }
-
-    const data: ChatResponse = await res.json()
-    return { ok: true, data }
-  } catch (err: unknown) {
-    if (err instanceof DOMException && err.name === 'AbortError') {
-      return { ok: false, error: 'CHAT_TIMEOUT', status: 408 }
-    }
-    const message = err instanceof Error ? err.message : 'CHAT_UNKNOWN_ERROR'
-    return { ok: false, error: message, status: 500 }
-  } finally {
-    clearTimeout(timeoutId)
-  }
-}
 
 async function wrapServerAction<T>(fn: () => Promise<T>): Promise<PendingOperationActionResult<T>> {
   try {

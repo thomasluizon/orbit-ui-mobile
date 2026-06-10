@@ -14,6 +14,8 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useLocale, useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
 import { goalKeys, habitKeys, profileKeys, tagKeys } from '@orbit/shared/query'
+import { API } from '@orbit/shared/api'
+import type { ChatResponse } from '@orbit/shared/types/chat'
 import type { Profile } from '@orbit/shared/types/profile'
 import type {
   AgentExecuteOperationResponse,
@@ -22,6 +24,8 @@ import type {
 import {
   CHAT_SPEECH_LANGUAGES as SPEECH_LANGUAGES,
   CHAT_STARTER_CHIP_KEYS,
+  CHAT_STREAM_IDLE_TIMEOUT_MS,
+  consumeChatSseStream,
   getChatImageValidationError,
 } from '@orbit/shared/chat'
 import {
@@ -46,7 +50,6 @@ import {
   confirmPendingOperation,
   executePendingOperation,
   issuePendingOperationStepUp,
-  sendChatMessage,
   verifyPendingOperationStepUp,
 } from '@/app/actions/chat'
 
@@ -62,13 +65,38 @@ type PreparedStepUpExecution =
     }
   | { ok: false; error: string }
 
-type SendChatMessageResult = Awaited<ReturnType<typeof sendChatMessage>>
-type FailedSendChatMessageResult = Extract<SendChatMessageResult, { ok: false }>
-
 interface AttemptedSend {
   content: string
   image: File | null
   preview: string | null
+}
+
+interface StreamSendFailure {
+  status: number | null
+  error: string
+  code: string | null
+}
+
+function isAbortError(error: unknown): boolean {
+  return error instanceof DOMException && error.name === 'AbortError'
+}
+
+async function* streamTextChunks(
+  body: ReadableStream<Uint8Array>,
+  onActivity: () => void,
+): AsyncGenerator<string> {
+  const reader = body.getReader()
+  const decoder = new TextDecoder()
+  try {
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      onActivity()
+      yield decoder.decode(value, { stream: true })
+    }
+  } finally {
+    reader.releaseLock()
+  }
 }
 
 export function useChatComposer() {
@@ -81,6 +109,8 @@ export function useChatComposer() {
   const messages = useChatStore((s) => s.messages)
   const isTyping = useChatStore((s) => s.isTyping)
   const addMessage = useChatStore((s) => s.addMessage)
+  const updateMessage = useChatStore((s) => s.updateMessage)
+  const appendToMessageContent = useChatStore((s) => s.appendToMessageContent)
   const setIsTyping = useChatStore((s) => s.setIsTyping)
 
   const {
@@ -180,10 +210,18 @@ export function useChatComposer() {
     }
   }, [addMessage, queryClient, router, scrollToBottom, shouldRouteToUpgrade])
 
-  const handleFailedSend = useCallback((result: FailedSendChatMessageResult, attempted: AttemptedSend) => {
+  const handleFailedSend = useCallback((
+    failureInput: StreamSendFailure,
+    attempted: AttemptedSend,
+    draftMessageId: string | null,
+  ) => {
     setIsTyping(false)
-    const resolvedError = getErrorMessage(result.error, t('chat.sendError'))
-    const failure = classifySendFailure({ status: result.status, reason: resolvedError })
+    const resolvedError = failureInput.error.trim() || t('chat.sendError')
+    const failure = classifySendFailure({
+      status: failureInput.status,
+      code: failureInput.code,
+      reason: resolvedError,
+    })
 
     if (failure.kind === 'upgrade' && shouldRouteToUpgrade(failure.upgrade)) {
       setSendError(resolvedError)
@@ -201,34 +239,45 @@ export function useChatComposer() {
       setLastFailedSend(attempted)
     }
 
-    addMessage({
-      id: crypto.randomUUID(),
-      role: 'ai',
-      content: t('chat.aiError'),
-      timestamp: new Date(),
-    })
+    if (draftMessageId) {
+      updateMessage(draftMessageId, { content: t('chat.aiError') })
+    } else {
+      addMessage({
+        id: crypto.randomUUID(),
+        role: 'ai',
+        content: t('chat.aiError'),
+        timestamp: new Date(),
+      })
+    }
     scrollToBottom()
-  }, [addMessage, router, scrollToBottom, setIsTyping, shouldRouteToUpgrade, t])
+  }, [addMessage, router, scrollToBottom, setIsTyping, shouldRouteToUpgrade, t, updateMessage])
 
-  const handleSuccessfulSend = useCallback(async (result: SendChatMessageResult & { ok: true }) => {
+  const applyFinalResponse = useCallback(async (response: ChatResponse, draftMessageId: string | null) => {
     setIsTyping(false)
 
-    addMessage({
-      id: crypto.randomUUID(),
-      role: 'ai',
-      content: result.data.aiMessage || '',
-      actions: result.data.actions,
-      operations: result.data.operations,
-      pendingOperations: result.data.pendingOperations,
-      policyDenials: result.data.policyDenials,
-      correlationId: result.data.correlationId,
-      relatedSurfaces: result.data.relatedSurfaces,
-      timestamp: new Date(),
-    })
+    const finalFields = {
+      content: response.aiMessage || '',
+      actions: response.actions,
+      operations: response.operations,
+      pendingOperations: response.pendingOperations,
+      policyDenials: response.policyDenials,
+      correlationId: response.correlationId,
+      relatedSurfaces: response.relatedSurfaces,
+    }
+    if (draftMessageId) {
+      updateMessage(draftMessageId, finalFields)
+    } else {
+      addMessage({
+        id: crypto.randomUUID(),
+        role: 'ai',
+        timestamp: new Date(),
+        ...finalFields,
+      })
+    }
 
     scrollToBottom()
 
-    const premiumDenial = findPremiumPolicyDenial(result.data.policyDenials)
+    const premiumDenial = findPremiumPolicyDenial(response.policyDenials)
     if (premiumDenial) {
       const upgradeResolution = resolveUpgradeEntitlementFromPolicyDenial(premiumDenial)
       setSendError(premiumDenial.reason)
@@ -243,7 +292,7 @@ export function useChatComposer() {
       )
     }
 
-    const invalidations = selectActionInvalidations(result.data.actions)
+    const invalidations = selectActionInvalidations(response.actions)
     if (invalidations.habits) {
       queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
     }
@@ -254,10 +303,10 @@ export function useChatComposer() {
       queryClient.invalidateQueries({ queryKey: tagKeys.lists() })
     }
 
-    if (result.data.operations?.some((operation) => operation.status === 'Succeeded')) {
+    if (response.operations?.some((operation) => operation.status === 'Succeeded')) {
       await invalidateAgentQueries(queryClient)
     }
-  }, [addMessage, hasProAccess, queryClient, router, scrollToBottom, setIsTyping, shouldRouteToUpgrade])
+  }, [addMessage, hasProAccess, queryClient, router, scrollToBottom, setIsTyping, shouldRouteToUpgrade, updateMessage])
 
   useEffect(() => {
     const textarea = textareaRef.current
@@ -366,6 +415,120 @@ export function useChatComposer() {
     }
   }
 
+  const buildChatFormData = useCallback((attempted: AttemptedSend) => {
+    const formData = new FormData()
+    if (attempted.content) formData.append('message', attempted.content)
+    if (attempted.image) formData.append('image', attempted.image)
+
+    const recentHistory = buildRecentChatHistory(useChatStore.getState().messages)
+    formData.append('history', JSON.stringify(recentHistory))
+    formData.append('clientContext', JSON.stringify({
+      platform: 'web',
+      locale,
+      timeFormat: detectDefaultTimeFormat(locale),
+      currentAppArea: 'chat',
+    }))
+    return formData
+  }, [locale])
+
+  const runStreamingSend = useCallback(async (attempted: AttemptedSend) => {
+    const controller = new AbortController()
+    let idleTimer: ReturnType<typeof setTimeout> | undefined
+    const armIdleTimer = () => {
+      clearTimeout(idleTimer)
+      idleTimer = setTimeout(() => controller.abort(), CHAT_STREAM_IDLE_TIMEOUT_MS)
+    }
+
+    let draftMessageId: string | null = null
+    const ensureDraftMessage = () => {
+      if (draftMessageId) return draftMessageId
+      draftMessageId = crypto.randomUUID()
+      setIsTyping(false)
+      addMessage({ id: draftMessageId, role: 'ai', content: '', timestamp: new Date() })
+      scrollToBottom()
+      return draftMessageId
+    }
+
+    try {
+      armIdleTimer()
+      const response = await fetch(API.chat.stream, {
+        method: 'POST',
+        body: buildChatFormData(attempted),
+        signal: controller.signal,
+      })
+
+      if (!response.ok || !response.body) {
+        const errorBody = (await response.json().catch(() => null)) as
+          | { error?: string; errorCode?: string }
+          | null
+        handleFailedSend(
+          {
+            status: response.status,
+            error: errorBody?.error ?? t('chat.sendError'),
+            code: errorBody?.errorCode ?? null,
+          },
+          attempted,
+          draftMessageId,
+        )
+        return
+      }
+
+      const outcome = await consumeChatSseStream(
+        streamTextChunks(response.body, armIdleTimer),
+        {
+          onDelta: (text) => {
+            appendToMessageContent(ensureDraftMessage(), text)
+            scrollToBottom()
+          },
+          onReset: () => {
+            if (draftMessageId) updateMessage(draftMessageId, { content: '' })
+            setIsTyping(true)
+          },
+        },
+      )
+
+      if (outcome.kind === 'final') {
+        await applyFinalResponse(outcome.response, draftMessageId)
+        return
+      }
+      if (outcome.kind === 'error') {
+        handleFailedSend(
+          { status: outcome.status, error: outcome.error, code: outcome.code },
+          attempted,
+          draftMessageId,
+        )
+        return
+      }
+      handleFailedSend(
+        { status: null, error: t('chat.sendError'), code: null },
+        attempted,
+        draftMessageId,
+      )
+    } catch (error: unknown) {
+      handleFailedSend(
+        {
+          status: isAbortError(error) ? 408 : null,
+          error: getErrorMessage(error, t('chat.sendError')),
+          code: null,
+        },
+        attempted,
+        draftMessageId,
+      )
+    } finally {
+      clearTimeout(idleTimer)
+    }
+  }, [
+    addMessage,
+    appendToMessageContent,
+    applyFinalResponse,
+    buildChatFormData,
+    handleFailedSend,
+    scrollToBottom,
+    setIsTyping,
+    t,
+    updateMessage,
+  ])
+
   const performSend = useCallback(
     async (attempted: AttemptedSend, isRetry: boolean) => {
       setSendError(null)
@@ -385,51 +548,9 @@ export function useChatComposer() {
       setIsTyping(true)
       scrollToBottom()
 
-      try {
-        const formData = new FormData()
-        if (attempted.content) formData.append('message', attempted.content)
-        if (attempted.image) formData.append('image', attempted.image)
-
-        const currentMessages = useChatStore.getState().messages
-        const recentHistory = buildRecentChatHistory(currentMessages)
-        formData.append('history', JSON.stringify(recentHistory))
-        formData.append('clientContext', JSON.stringify({
-          platform: 'web',
-          locale,
-          timeFormat: detectDefaultTimeFormat(locale),
-          currentAppArea: 'chat',
-        }))
-
-        const result = await sendChatMessage(formData)
-        if (!result.ok) {
-          handleFailedSend(result, attempted)
-          return
-        }
-
-        await handleSuccessfulSend(result)
-      } catch (error: unknown) {
-        setIsTyping(false)
-        setSendError(getErrorMessage(error, t('chat.sendError')))
-        setLastFailedSend(attempted)
-
-        addMessage({
-          id: crypto.randomUUID(),
-          role: 'ai',
-          content: t('chat.aiError'),
-          timestamp: new Date(),
-        })
-        scrollToBottom()
-      }
+      await runStreamingSend(attempted)
     },
-    [
-      addMessage,
-      handleFailedSend,
-      handleSuccessfulSend,
-      locale,
-      scrollToBottom,
-      setIsTyping,
-      t,
-    ],
+    [addMessage, runStreamingSend, scrollToBottom, setIsTyping],
   )
 
   const sendMessage = useCallback(

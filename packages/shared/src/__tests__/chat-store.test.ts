@@ -47,4 +47,50 @@ describe('shared chat store', () => {
       ],
     })
   })
+
+  it('appends streamed text to the target message only', () => {
+    const store = createStoreHarness()
+    store.getState().addMessage({
+      id: 'draft-1',
+      role: 'ai',
+      content: '',
+      timestamp: new Date('2026-04-06T00:00:00Z'),
+    })
+    store.getState().addMessage({
+      id: 'other',
+      role: 'user',
+      content: 'question',
+      timestamp: new Date('2026-04-06T00:00:01Z'),
+    })
+
+    store.getState().appendToMessageContent('draft-1', 'Hel')
+    store.getState().appendToMessageContent('draft-1', 'lo!')
+    store.getState().appendToMessageContent('missing-id', 'ignored')
+
+    const [draft, other] = store.getState().messages
+    expect(draft?.content).toBe('Hello!')
+    expect(other?.content).toBe('question')
+  })
+
+  it('patches an existing message without touching other fields', () => {
+    const store = createStoreHarness()
+    store.getState().addMessage({
+      id: 'draft-1',
+      role: 'ai',
+      content: 'streamed text',
+      timestamp: new Date('2026-04-06T00:00:00Z'),
+    })
+
+    store.getState().updateMessage('draft-1', {
+      content: 'final text',
+      correlationId: 'trace-9',
+    })
+
+    expect(store.getState().messages[0]).toMatchObject({
+      id: 'draft-1',
+      role: 'ai',
+      content: 'final text',
+      correlationId: 'trace-9',
+    })
+  })
 })
