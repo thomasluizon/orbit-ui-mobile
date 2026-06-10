@@ -7,7 +7,6 @@ import { useRouter } from 'next/navigation'
 import type { FrequencyUnit, ScheduledReminderWhen } from '@orbit/shared/types/habit'
 import {
   HABIT_REMINDER_PRESETS,
-  DEFAULT_HABIT_EMOJI,
   HABIT_EMOJI_CATEGORIES,
   filterHabitEmojiCategories,
   formatLocaleTime,
@@ -207,7 +206,6 @@ function HabitEmojiSelector({ selectedEmoji, onSelect }: Readonly<HabitEmojiSele
       : searchedCategories,
     [searchedCategories, selectedCategoryId],
   )
-  const selectedDisplayEmoji = selectedEmoji || DEFAULT_HABIT_EMOJI
 
   const closePicker = useCallback(() => {
     setPickerOpen(false)
@@ -248,7 +246,7 @@ function HabitEmojiSelector({ selectedEmoji, onSelect }: Readonly<HabitEmojiSele
           <span className="block text-xs text-[var(--fg-3)]">{t('habits.form.emojiDescription')}</span>
         </span>
         <span className="grid size-12 shrink-0 place-items-center rounded-[10px] border border-[var(--hairline-strong)] bg-[var(--bg-sunk)] text-2xl transition-colors duration-150 group-hover:bg-[var(--bg-elev)]">
-          {selectedDisplayEmoji}
+          {selectedEmoji || <Plus className="size-5 text-[var(--fg-3)]" aria-hidden="true" />}
         </span>
       </button>
 
@@ -267,7 +265,9 @@ function HabitEmojiSelector({ selectedEmoji, onSelect }: Readonly<HabitEmojiSele
           >
             <div className="flex items-center justify-between border-b border-[var(--hairline)] px-4 py-3">
               <div className="flex items-center gap-3">
-                <span className="grid size-10 place-items-center rounded-xl bg-[var(--bg-sunk)] text-2xl">{selectedDisplayEmoji}</span>
+                <span className="grid size-10 place-items-center rounded-xl bg-[var(--bg-sunk)] text-2xl">
+                  {selectedEmoji || <Plus className="size-4 text-[var(--fg-3)]" aria-hidden="true" />}
+                </span>
                 <div>
                   <h3 className="text-sm font-semibold text-[var(--fg-1)]">{t('habits.form.emojiPickerTitle')}</h3>
                   <p className="text-xs text-[var(--fg-3)]">{t('habits.form.emojiDescription')}</p>
@@ -291,6 +291,16 @@ function HabitEmojiSelector({ selectedEmoji, onSelect }: Readonly<HabitEmojiSele
                 placeholder={t('habits.form.emojiSearchPlaceholder')}
                 className="form-input h-11 py-2"
               />
+              {selectedEmoji && (
+                <button
+                  type="button"
+                  className="flex items-center gap-1.5 rounded-lg border border-[var(--hairline)] px-3 py-1.5 text-xs font-medium text-[var(--fg-2)] transition-colors duration-150 hover:border-[var(--hairline-strong)] hover:text-[var(--fg-1)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--primary)]"
+                  onClick={() => handleSelectEmoji('')}
+                >
+                  <X className="size-3.5" aria-hidden="true" />
+                  {t('habits.form.emojiRemove')}
+                </button>
+              )}
               <div className="flex gap-2 overflow-x-auto pb-1" aria-label={t('habits.form.emojiCategories')}>
                 {HABIT_EMOJI_CATEGORIES.map((category) => {
                   const selected = selectedCategoryId === category.id
@@ -302,7 +312,7 @@ function HabitEmojiSelector({ selectedEmoji, onSelect }: Readonly<HabitEmojiSele
                       className={`shrink-0 rounded-lg border px-3 py-1.5 text-xs font-medium transition-colors ${
                         selected
                           ? 'border-[var(--primary)] bg-[var(--bg-elev)] text-[var(--fg-1)]'
-                          : 'border-[var(--hairline)] bg-[var(--bg-elev)]text-[var(--fg-2)] hover:border-[var(--hairline-strong)] hover:text-[var(--fg-1)]'
+                          : 'border-[var(--hairline)] bg-[var(--bg-elev)] text-[var(--fg-2)] hover:border-[var(--hairline-strong)] hover:text-[var(--fg-1)]'
                       }`}
                       onClick={() => handleSelectCategory(category.id)}
                     >
@@ -320,7 +330,7 @@ function HabitEmojiSelector({ selectedEmoji, onSelect }: Readonly<HabitEmojiSele
                     <h4 className="mb-2 text-xs font-semibold text-[var(--fg-3)]">{t(category.labelKey)}</h4>
                     <div className="grid grid-cols-8 gap-1.5 sm:grid-cols-10" role="listbox" aria-label={t(category.labelKey)}>
                       {category.emojis.map((emoji) => {
-                        const isSelected = selectedDisplayEmoji === emoji
+                        const isSelected = selectedEmoji === emoji
                         return (
                           <button
                             key={`${category.id}-${emoji}`}

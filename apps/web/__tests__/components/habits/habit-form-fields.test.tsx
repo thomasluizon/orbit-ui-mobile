@@ -263,6 +263,34 @@ describe('HabitFormFields', () => {
     expect(screen.queryByRole('option', { name: 'habits.form.emoji: 🏃' })).toBeNull()
   })
 
+  it('clears the selected emoji from the picker remove button', () => {
+    const setValue = vi.fn()
+    const formHelpers = createMockFormHelpers()
+    formHelpers.form.setValue = setValue
+    const baseWatch = formHelpers.form.watch as unknown as (field: string) => unknown
+    formHelpers.form.watch = ((field: string) =>
+      field === 'emoji' ? '🏃' : baseWatch(field)) as typeof formHelpers.form.watch
+    const tags = createMockTags()
+
+    renderWithProviders(
+      <HabitFormFields
+        formHelpers={formHelpers}
+        tags={tags}
+        selectedGoalIds={[]}
+        atGoalLimit={false}
+        onToggleGoal={vi.fn()}
+        reminderTimes={[]}
+        onReminderTimesChange={vi.fn()}
+      />,
+    )
+
+    fireEvent.click(screen.getByLabelText('habits.form.emojiOpenPicker'))
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.emojiRemove' }))
+
+    expect(setValue).toHaveBeenCalledWith('emoji', '', { shouldDirty: true })
+    expect(screen.queryByText('habits.form.emojiPickerTitle')).toBeNull()
+  })
+
   it('shows schedule type buttons', () => {
     const formHelpers = createMockFormHelpers()
     const tags = createMockTags()

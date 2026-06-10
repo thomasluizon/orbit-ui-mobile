@@ -528,7 +528,7 @@ export function buildOptimisticDuplicateHabit(
 
   return {
     ...buildOptimisticHabit(queryClient, tempId, {
-      title: `${source.title} Copy`,
+      title: source.title,
       description: source.description ?? undefined,
       emoji: source.emoji ?? undefined,
       frequencyUnit: source.frequencyUnit ?? undefined,
@@ -548,6 +548,7 @@ export function buildOptimisticDuplicateHabit(
       tagIds: source.tags.map((tag) => tag.id),
       endDate: source.endDate ?? undefined,
     }),
+    isCompleted: !source.frequencyUnit && source.isCompleted,
     createdAtUtc: now,
   }
 }

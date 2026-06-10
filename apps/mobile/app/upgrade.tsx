@@ -254,7 +254,6 @@ function PlanCards({
             : plans.monthly.unitAmount,
           plans.currency,
         )}${t('upgrade.plans.monthly.period')}`}
-        sub={t('upgrade.billing.plan.renewsOn', { date: '...' })}
         onPress={() => onCheckout('monthly')}
         pending={checkoutLoading === 'monthly'}
       />

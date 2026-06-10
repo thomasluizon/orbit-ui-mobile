@@ -27,7 +27,6 @@ import {
   computeHabitFrequencyLabel,
   computeHabitFutureHint,
   formatAPIDate,
-  resolveHabitEmoji,
 } from '@orbit/shared/utils'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { useTimeFormat } from '@/hooks/use-time-format'
@@ -150,7 +149,7 @@ export function HabitRow({
         ? 'done'
         : 'empty'
 
-  const emoji = resolveHabitEmoji(habit.emoji)
+  const emoji = habit.emoji
 
   const menuButtonRef = useRef<View>(null)
   const [menuVisible, setMenuVisible] = useState(false)
