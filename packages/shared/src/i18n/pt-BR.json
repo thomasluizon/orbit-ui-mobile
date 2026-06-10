@@ -684,11 +684,6 @@
     "messagesUsed": "mensagens usadas neste mês",
     "senderYou": "Você",
     "senderOrbit": "Astra",
-    "trace": {
-      "label": "rastreio: {id}",
-      "copy": "Copiar ID de rastreio",
-      "copied": "Copiado"
-    },
     "unknownEntity": "Desconhecido",
     "starterChips": {
       "logHabit": "Registrar um hábito",

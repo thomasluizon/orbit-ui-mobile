@@ -28,18 +28,12 @@ npm run type-check
 npm test
 ```
 
-Optional, only on explicit request:
-
-```bash
-npm run test:e2e
-```
-
 ### orbit-api (backend, run from repo root)
 
 ```bash
 cd "C:\Users\thoma\Documents\Programming\Projects\orbit-api"
 dotnet build
-dotnet test tests/Orbit.IntegrationTests
+dotnet test
 ```
 
 ---

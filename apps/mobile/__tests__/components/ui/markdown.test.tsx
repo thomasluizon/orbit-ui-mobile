@@ -84,6 +84,12 @@ describe('mobile Markdown wrapper', () => {
     expect(openURL).not.toHaveBeenCalled()
   })
 
+  it('forces a transparent background on the rendered flat list', () => {
+    const props = renderMarkdown({ children: 'x' })
+    const flatListProps = props.flatListProps as { style?: { backgroundColor?: string } }
+    expect(flatListProps.style?.backgroundColor).toBe('transparent')
+  })
+
   it('themes text with a different color for muted descriptions', () => {
     const defaultProps = renderMarkdown({ children: 'x' })
     const mutedProps = renderMarkdown({ children: 'x', tone: 'muted' })

@@ -156,26 +156,20 @@ npm run type-check
 npm test
 ```
 
-If `--quick` was not requested and any tests changed, also run E2E:
-
-```bash
-npm run test:e2e
-```
-
 ### orbit-api
 
 ```bash
 cd "C:\Users\thoma\Documents\Programming\Projects\orbit-api"
 dotnet build
-dotnet test tests/Orbit.IntegrationTests
+dotnet test
 ```
 
 ### Write Tests
 
-You MUST write tests for new code:
+You MUST write tests for new code (unit tests only — no integration or E2E suites exist):
 
 - **Frontend**: Vitest unit tests for every new function/hook, RTL tests for components, parity test if shared logic
-- **Backend**: unit tests for command/query handlers and validators, integration tests for new endpoints
+- **Backend**: unit tests for command/query handlers, validators, and services
 - Test across boundaries — endpoints return correct shapes, hooks integrate with their consumers
 
 ### REQUIRED: End-to-End Verification

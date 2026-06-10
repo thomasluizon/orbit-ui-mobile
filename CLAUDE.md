@@ -103,11 +103,11 @@ TypeScript LSP is built into Claude Code — works without setup for `apps/web`,
 ## Testing
 
 - **Web unit:** Vitest + React Testing Library. Config: `apps/web/vitest.config.ts`.
-- **Web E2E:** Playwright. Config: `apps/web/playwright.config.ts`.
 - **Mobile unit:** Vitest. Config: `apps/mobile/vitest.config.ts`.
 - **Shared:** Vitest. Config: `packages/shared/vitest.config.ts`.
 - **Factories:** `packages/shared/src/__tests__/factories.ts`.
-- **Run:** `npm test` per workspace, `npm run test:e2e` for Playwright.
+- **Run:** `npm test` per workspace.
+- Unit tests only — the Playwright E2E suite was removed as outdated; don't add E2E or integration suites.
 - Every new feature needs tests. Tests asserting behavior, not implementation details.
 
 ## Path-picking

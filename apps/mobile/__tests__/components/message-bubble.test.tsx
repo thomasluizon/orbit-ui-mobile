@@ -29,12 +29,6 @@ interface TestRendererApi {
 
 const TestRenderer: TestRendererApi = require('react-test-renderer')
 
-const setStringAsync = vi.fn().mockResolvedValue(true)
-
-vi.mock('expo-clipboard', () => ({
-  setStringAsync: (value: string) => setStringAsync(value),
-}))
-
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string, values?: Record<string, unknown>) =>
@@ -102,22 +96,8 @@ function makeMessage(overrides: Partial<ChatMessage> = {}): ChatMessage {
   }
 }
 
-function findTraceFooter(root: TestTreeRoot): TestNode[] {
-  return root.findAll(
-    (node) =>
-      node.props != null &&
-      typeof node.type !== 'string' &&
-      typeof node.props.onPress === 'function' &&
-      node.props.accessibilityLabel === 'chat.trace.copy',
-  )
-}
-
 describe('MessageBubble trace footer (mobile)', () => {
-  beforeEach(() => {
-    setStringAsync.mockClear()
-  })
-
-  it('renders the trace footer for AI messages with a correlationId', async () => {
+  it('never renders a trace footer, even when the AI message has a correlationId', async () => {
     let tree!: TestInstance
     await TestRenderer.act(async () => {
       tree = TestRenderer.create(
@@ -125,46 +105,14 @@ describe('MessageBubble trace footer (mobile)', () => {
       )
     })
 
-    expect(findTraceFooter(tree.root)).toHaveLength(1)
-  })
-
-  it('does not render the trace footer for user messages', async () => {
-    let tree!: TestInstance
-    await TestRenderer.act(async () => {
-      tree = TestRenderer.create(
-        <MessageBubble message={makeMessage({ role: 'user', correlationId: 'req-abc-123' })} />,
-      )
-    })
-
-    expect(findTraceFooter(tree.root)).toHaveLength(0)
-  })
-
-  it('does not render the trace footer when correlationId is null', async () => {
-    let tree!: TestInstance
-    await TestRenderer.act(async () => {
-      tree = TestRenderer.create(
-        <MessageBubble message={makeMessage({ role: 'ai', correlationId: null })} />,
-      )
-    })
-
-    expect(findTraceFooter(tree.root)).toHaveLength(0)
-  })
-
-  it('copies the correlationId to the clipboard when the footer is pressed', async () => {
-    let tree!: TestInstance
-    await TestRenderer.act(async () => {
-      tree = TestRenderer.create(
-        <MessageBubble message={makeMessage({ role: 'ai', correlationId: 'req-abc-123' })} />,
-      )
-    })
-
-    const [footer] = findTraceFooter(tree.root)
-    if (!footer?.props.onPress) throw new Error('trace footer missing onPress')
-    await TestRenderer.act(async () => {
-      await footer.props.onPress!()
-    })
-
-    expect(setStringAsync).toHaveBeenCalledWith('req-abc-123')
+    const traceNodes = tree.root.findAll(
+      (node) =>
+        node.props != null &&
+        (node.props.accessibilityLabel === 'chat.trace.copy' ||
+          (typeof node.props.children === 'string' &&
+            node.props.children.includes('req-abc-123'))),
+    )
+    expect(traceNodes).toHaveLength(0)
   })
 })
 

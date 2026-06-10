@@ -58,6 +58,8 @@ export default function ChatScreen() {
     messages,
     isTyping,
     sendError,
+    retryLastSend,
+    canRetryLastSend,
     selectedImage,
     imagePreview,
     showLangPicker,
@@ -243,6 +245,7 @@ export default function ChatScreen() {
           offlineTitle={offlineTitle}
           offlineDescription={offlineDescription}
           sendError={sendError}
+          canRetry={canRetryLastSend}
           speechError={speechError}
           imagePreview={imagePreview}
           starterChips={starterChips}
@@ -272,6 +275,9 @@ export default function ChatScreen() {
             },
           }}
           onRemoveImage={removeImage}
+          onRetry={() => {
+            void retryLastSend();
+          }}
           onSendChip={(chip) => {
             void sendMessage(chip);
           }}

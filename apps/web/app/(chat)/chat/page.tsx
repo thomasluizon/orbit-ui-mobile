@@ -64,6 +64,8 @@ export default function ChatPage() {
     handlePaste,
     removeImage,
     sendMessage,
+    retryLastSend,
+    canRetryLastSend,
     handleKeyDown,
     handleBreakdownConfirmed,
     confirmAndExecutePendingOperation,
@@ -256,6 +258,15 @@ export default function ChatPage() {
               }}
             >
               {sendError}
+              {canRetryLastSend && (
+                <button
+                  type="button"
+                  onClick={() => retryLastSend()}
+                  className="ml-2 font-semibold text-[var(--primary)] underline underline-offset-2 hover:text-[var(--primary-pressed)] transition-colors"
+                >
+                  {t('common.retry')}
+                </button>
+              )}
             </div>
           )}
 

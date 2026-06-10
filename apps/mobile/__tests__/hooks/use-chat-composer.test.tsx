@@ -1,6 +1,7 @@
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { API } from '@orbit/shared/api'
+import { CHAT_SEND_TIMEOUT_MS } from '@orbit/shared/chat'
 import type { ChatResponse } from '@orbit/shared/types/chat'
 import type { Profile } from '@orbit/shared/types/profile'
 
@@ -193,6 +194,70 @@ describe('mobile useChatComposer', () => {
 
     expect(mocks.apiClient).not.toHaveBeenCalled()
     expect(composer.current.sendError).toBe('You are offline')
+  })
+
+  it('aborts a hung send at the shared timeout and arms retry with the timeout copy', async () => {
+    vi.useFakeTimers()
+    try {
+      mocks.apiClient.mockImplementation(
+        (_path: string, options: { signal?: AbortSignal }) =>
+          new Promise((_resolve, reject) => {
+            options.signal?.addEventListener('abort', () => {
+              reject(Object.assign(new Error('Aborted'), { name: 'AbortError' }))
+            })
+          }),
+      )
+      const composer = await renderComposer()
+
+      await TestRenderer.act(async () => {
+        const sendPromise = composer.current.sendMessage('hello')
+        await vi.advanceTimersByTimeAsync(CHAT_SEND_TIMEOUT_MS)
+        await sendPromise
+      })
+
+      expect(composer.current.sendError).toBe('chat.timeoutError')
+      expect(composer.current.canRetryLastSend).toBe(true)
+      expect(useChatStore.getState().isTyping).toBe(false)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
+  it('retries the failed send without duplicating the user message', async () => {
+    mocks.apiClient
+      .mockRejectedValueOnce({ status: 500, data: { error: 'boom' } })
+      .mockResolvedValueOnce(makeChatResponse({ aiMessage: 'Recovered' }))
+    const composer = await renderComposer()
+
+    await TestRenderer.act(async () => {
+      await composer.current.sendMessage('log water')
+    })
+    expect(composer.current.canRetryLastSend).toBe(true)
+
+    await TestRenderer.act(async () => {
+      await composer.current.retryLastSend()
+    })
+
+    const messages = useChatStore.getState().messages
+    expect(messages.filter((message) => message.role === 'user')).toHaveLength(1)
+    expect(messages.at(-1)).toMatchObject({ role: 'ai', content: 'Recovered' })
+    expect(composer.current.canRetryLastSend).toBe(false)
+    expect(composer.current.sendError).toBeNull()
+  })
+
+  it('does not arm retry when the failure is the monthly message limit', async () => {
+    mocks.apiClient.mockRejectedValue({
+      status: 403,
+      data: { error: 'Daily message limit reached' },
+    })
+    const composer = await renderComposer()
+
+    await TestRenderer.act(async () => {
+      await composer.current.sendMessage('hello')
+    })
+
+    expect(composer.current.sendError).toBe('chat.limitReachedError')
+    expect(composer.current.canRetryLastSend).toBe(false)
   })
 
   it('confirms then executes a pending operation through the API', async () => {
