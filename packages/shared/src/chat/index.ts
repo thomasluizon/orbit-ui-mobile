@@ -1,4 +1,5 @@
 export * from './related-surfaces'
+export * from './sse-stream'
 
 export const CHAT_SPEECH_LANG_KEY = 'orbit:speech-lang'
 
@@ -23,7 +24,12 @@ export const CHAT_STARTER_CHIP_KEYS = [
   'chat.starterChips.planWeek',
 ] as const
 
-export const CHAT_SEND_TIMEOUT_MS = 60_000
+/**
+ * Maximum silence between chat stream events before the client aborts the send
+ * and offers retry. Tool rounds emit keepalive `round` events, so a healthy
+ * request never goes quiet this long.
+ */
+export const CHAT_STREAM_IDLE_TIMEOUT_MS = 60_000
 
 export const MAX_CHAT_IMAGE_SIZE_BYTES = 20 * 1024 * 1024
 

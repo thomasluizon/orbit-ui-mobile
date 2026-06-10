@@ -6,9 +6,10 @@ import { useTranslation } from "react-i18next";
 import { useQueryClient } from "@tanstack/react-query";
 import { API } from "@orbit/shared/api";
 import {
-  CHAT_SEND_TIMEOUT_MS,
   CHAT_STARTER_CHIP_KEYS,
   CHAT_SPEECH_LANGUAGES as SPEECH_LANGUAGES,
+  CHAT_STREAM_IDLE_TIMEOUT_MS,
+  consumeChatSseStream,
   getChatImageValidationError,
   resolveChatImageMimeType,
 } from "@orbit/shared/chat";
@@ -32,13 +33,11 @@ import {
   buildRecentChatHistory,
   canAccessEntitlement,
   detectDefaultTimeFormat,
-  extractBackendError,
-  extractBackendErrorCode,
-  extractBackendStatus,
   getErrorMessage,
   resolveUpgradeEntitlementFromPolicyDenial,
 } from "@orbit/shared/utils";
 import { apiClient } from "@/lib/api-client";
+import { openChatStream } from "@/lib/chat-stream";
 import { useProfile } from "@/hooks/use-profile";
 import { useSpeechToText } from "@/hooks/use-speech-to-text";
 import { useChatStore } from "@/stores/chat-store";
@@ -73,9 +72,42 @@ interface AttemptedSend {
   preview: string | null;
 }
 
+interface StreamSendFailure {
+  status: number | null;
+  error: string;
+  code: string | null;
+}
+
 function isAbortError(error: unknown): boolean {
   if (typeof error !== "object" || error === null) return false;
   return "name" in error && error.name === "AbortError";
+}
+
+interface ByteStreamReader {
+  read(): Promise<{ done: boolean; value?: Uint8Array }>;
+  releaseLock(): void;
+}
+
+interface ByteStream {
+  getReader(): ByteStreamReader;
+}
+
+async function* streamTextChunks(
+  body: ByteStream,
+  onActivity: () => void,
+): AsyncGenerator<string> {
+  const reader = body.getReader();
+  const decoder = new TextDecoder();
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      onActivity();
+      if (value) yield decoder.decode(value, { stream: true });
+    }
+  } finally {
+    reader.releaseLock();
+  }
 }
 
 function buildImageUpload(asset: ImagePicker.ImagePickerAsset): RNFileUpload {
@@ -115,6 +147,8 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
   const messages = useChatStore((s) => s.messages);
   const isTyping = useChatStore((s) => s.isTyping);
   const addMessage = useChatStore((s) => s.addMessage);
+  const updateMessage = useChatStore((s) => s.updateMessage);
+  const appendToMessageContent = useChatStore((s) => s.appendToMessageContent);
   const setIsTyping = useChatStore((s) => s.setIsTyping);
 
   const {
@@ -281,6 +315,252 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
     setImagePreview(null);
   }, []);
 
+  const handleFailedSend = useCallback(
+    (
+      failureInput: StreamSendFailure,
+      attempted: AttemptedSend,
+      draftMessageId: string | null,
+    ) => {
+      setIsTyping(false);
+      const resolvedError = failureInput.error.trim() || t("chat.sendError");
+      const failure = classifySendFailure({
+        status: failureInput.status,
+        code: failureInput.code,
+        reason: resolvedError,
+      });
+
+      if (failure.kind === "upgrade" && shouldRouteToUpgrade(failure.upgrade)) {
+        setSendError(resolvedError);
+        router.push("/upgrade");
+        return;
+      }
+
+      if (failure.kind === "timeout") {
+        setSendError(t("chat.timeoutError"));
+        setLastFailedSend(attempted);
+      } else if (failure.kind === "limit") {
+        setSendError(t("chat.limitReachedError"));
+      } else {
+        setSendError(resolvedError);
+        setLastFailedSend(attempted);
+      }
+
+      if (draftMessageId) {
+        updateMessage(draftMessageId, { content: t("chat.aiError") });
+      } else {
+        addMessage({
+          id: `msg-${Date.now()}-err`,
+          role: "ai",
+          content: t("chat.aiError"),
+          timestamp: new Date(),
+        });
+      }
+      scrollToBottom();
+    },
+    [addMessage, router, scrollToBottom, setIsTyping, shouldRouteToUpgrade, t, updateMessage],
+  );
+
+  const applyFinalResponse = useCallback(
+    async (response: ChatResponse, draftMessageId: string | null) => {
+      setIsTyping(false);
+
+      const finalFields = {
+        content: response.aiMessage || "",
+        actions: response.actions,
+        operations: response.operations,
+        pendingOperations: response.pendingOperations,
+        policyDenials: response.policyDenials,
+        correlationId: response.correlationId,
+        relatedSurfaces: response.relatedSurfaces,
+      };
+      if (draftMessageId) {
+        updateMessage(draftMessageId, finalFields);
+      } else {
+        const aiMessage: ChatMessage = {
+          id: `msg-${Date.now()}-ai`,
+          role: "ai",
+          timestamp: new Date(),
+          ...finalFields,
+        };
+        addMessage(aiMessage);
+      }
+
+      scrollToBottom();
+
+      const premiumDenial = findPremiumPolicyDenial(response.policyDenials);
+      if (premiumDenial) {
+        const upgradeResolution =
+          resolveUpgradeEntitlementFromPolicyDenial(premiumDenial);
+        setSendError(premiumDenial.reason);
+        if (shouldRouteToUpgrade(upgradeResolution)) {
+          router.push("/upgrade");
+        }
+      }
+
+      if (!hasProAccess) {
+        queryClient.setQueryData<Profile>(profileKeys.detail(), (current) =>
+          current
+            ? {
+                ...current,
+                aiMessagesUsed: (current.aiMessagesUsed ?? 0) + 1,
+              }
+            : current,
+        );
+      }
+
+      const invalidations = selectActionInvalidations(response.actions);
+      if (invalidations.habits) {
+        queryClient.invalidateQueries({ queryKey: habitKeys.lists() });
+      }
+      if (invalidations.goals) {
+        queryClient.invalidateQueries({ queryKey: goalKeys.lists() });
+      }
+      if (invalidations.tags) {
+        queryClient.invalidateQueries({ queryKey: tagKeys.lists() });
+      }
+
+      if (response.operations?.some((operation) => operation.status === "Succeeded")) {
+        await invalidateAgentQueries(queryClient);
+      }
+    },
+    [
+      addMessage,
+      hasProAccess,
+      queryClient,
+      router,
+      scrollToBottom,
+      setIsTyping,
+      shouldRouteToUpgrade,
+      updateMessage,
+    ],
+  );
+
+  const buildChatFormData = useCallback(
+    (attempted: AttemptedSend) => {
+      const formData = new FormData();
+      if (attempted.content) formData.append("message", attempted.content);
+      if (attempted.image) {
+        formData.append("image", buildImageUpload(attempted.image));
+      }
+
+      const recentHistory = buildRecentChatHistory(useChatStore.getState().messages);
+      formData.append("history", JSON.stringify(recentHistory));
+      formData.append(
+        "clientContext",
+        JSON.stringify({
+          platform: "mobile",
+          locale: i18n.language,
+          timeFormat: detectDefaultTimeFormat(i18n.language),
+          currentAppArea: "chat",
+        }),
+      );
+      return formData;
+    },
+    [i18n.language],
+  );
+
+  const runStreamingSend = useCallback(
+    async (attempted: AttemptedSend) => {
+      const controller = new AbortController();
+      let idleTimer: ReturnType<typeof setTimeout> | undefined;
+      const armIdleTimer = () => {
+        clearTimeout(idleTimer);
+        idleTimer = setTimeout(() => controller.abort(), CHAT_STREAM_IDLE_TIMEOUT_MS);
+      };
+
+      let draftMessageId: string | null = null;
+      const ensureDraftMessage = () => {
+        if (draftMessageId) return draftMessageId;
+        draftMessageId = `msg-${Date.now()}-ai`;
+        setIsTyping(false);
+        addMessage({
+          id: draftMessageId,
+          role: "ai",
+          content: "",
+          timestamp: new Date(),
+        });
+        scrollToBottom();
+        return draftMessageId;
+      };
+
+      try {
+        armIdleTimer();
+        const response = await openChatStream(buildChatFormData(attempted), controller.signal);
+
+        if (!response.ok || !response.body) {
+          const errorBody = (await response.json().catch(() => null)) as
+            | { error?: string; errorCode?: string }
+            | null;
+          handleFailedSend(
+            {
+              status: response.status,
+              error: errorBody?.error ?? t("chat.sendError"),
+              code: errorBody?.errorCode ?? null,
+            },
+            attempted,
+            draftMessageId,
+          );
+          return;
+        }
+
+        const outcome = await consumeChatSseStream(
+          streamTextChunks(response.body, armIdleTimer),
+          {
+            onDelta: (text) => {
+              appendToMessageContent(ensureDraftMessage(), text);
+              scrollToBottom();
+            },
+            onReset: () => {
+              if (draftMessageId) updateMessage(draftMessageId, { content: "" });
+              setIsTyping(true);
+            },
+          },
+        );
+
+        if (outcome.kind === "final") {
+          await applyFinalResponse(outcome.response, draftMessageId);
+          return;
+        }
+        if (outcome.kind === "error") {
+          handleFailedSend(
+            { status: outcome.status, error: outcome.error, code: outcome.code },
+            attempted,
+            draftMessageId,
+          );
+          return;
+        }
+        handleFailedSend(
+          { status: null, error: t("chat.sendError"), code: null },
+          attempted,
+          draftMessageId,
+        );
+      } catch (err: unknown) {
+        handleFailedSend(
+          {
+            status: isAbortError(err) ? 408 : null,
+            error: getErrorMessage(err, t("chat.sendError")),
+            code: null,
+          },
+          attempted,
+          draftMessageId,
+        );
+      } finally {
+        clearTimeout(idleTimer);
+      }
+    },
+    [
+      addMessage,
+      appendToMessageContent,
+      applyFinalResponse,
+      buildChatFormData,
+      handleFailedSend,
+      scrollToBottom,
+      setIsTyping,
+      t,
+      updateMessage,
+    ],
+  );
+
   const performSend = useCallback(
     async (attempted: AttemptedSend, isRetry: boolean) => {
       setSendError(null);
@@ -301,138 +581,9 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
       setIsTyping(true);
       scrollToBottom();
 
-      const controller = new AbortController();
-      const timeoutId = setTimeout(() => controller.abort(), CHAT_SEND_TIMEOUT_MS);
-
-      try {
-        const formData = new FormData();
-        if (attempted.content) formData.append("message", attempted.content);
-        if (attempted.image) {
-          formData.append("image", buildImageUpload(attempted.image));
-        }
-
-        const currentMessages = useChatStore.getState().messages;
-        const recentHistory = buildRecentChatHistory(currentMessages);
-
-        formData.append("history", JSON.stringify(recentHistory));
-        formData.append(
-          "clientContext",
-          JSON.stringify({
-            platform: "mobile",
-            locale: i18n.language,
-            timeFormat: detectDefaultTimeFormat(i18n.language),
-            currentAppArea: "chat",
-          }),
-        );
-
-        const response = await apiClient<ChatResponse>(API.chat.send, {
-          method: "POST",
-          body: formData,
-          signal: controller.signal,
-        });
-
-        setIsTyping(false);
-
-        const aiMessage: ChatMessage = {
-          id: `msg-${Date.now()}-ai`,
-          role: "ai",
-          content: response.aiMessage || "",
-          actions: response.actions,
-          operations: response.operations,
-          pendingOperations: response.pendingOperations,
-          policyDenials: response.policyDenials,
-          correlationId: response.correlationId,
-          relatedSurfaces: response.relatedSurfaces,
-          timestamp: new Date(),
-        };
-
-        addMessage(aiMessage);
-        scrollToBottom();
-
-        const premiumDenial = findPremiumPolicyDenial(response.policyDenials);
-        if (premiumDenial) {
-          const upgradeResolution =
-            resolveUpgradeEntitlementFromPolicyDenial(premiumDenial);
-          setSendError(premiumDenial.reason);
-          if (shouldRouteToUpgrade(upgradeResolution)) {
-            router.push("/upgrade");
-          }
-        }
-
-        if (!hasProAccess) {
-          queryClient.setQueryData<Profile>(profileKeys.detail(), (current) =>
-            current
-              ? {
-                  ...current,
-                  aiMessagesUsed: (current.aiMessagesUsed ?? 0) + 1,
-                }
-              : current,
-          );
-        }
-
-        const invalidations = selectActionInvalidations(response.actions);
-        if (invalidations.habits) {
-          queryClient.invalidateQueries({ queryKey: habitKeys.lists() });
-        }
-        if (invalidations.goals) {
-          queryClient.invalidateQueries({ queryKey: goalKeys.lists() });
-        }
-        if (invalidations.tags) {
-          queryClient.invalidateQueries({ queryKey: tagKeys.lists() });
-        }
-
-        if (response.operations?.some((operation) => operation.status === "Succeeded")) {
-          await invalidateAgentQueries(queryClient);
-        }
-      } catch (err: unknown) {
-        setIsTyping(false);
-        const resolvedError = getErrorMessage(err, t("chat.sendError"));
-        const failure = classifySendFailure({
-          status: isAbortError(err) ? 408 : extractBackendStatus(err) ?? null,
-          code: extractBackendErrorCode(err) ?? null,
-          reason: extractBackendError(err) ?? resolvedError,
-        });
-
-        if (failure.kind === "upgrade" && shouldRouteToUpgrade(failure.upgrade)) {
-          setSendError(resolvedError);
-          router.push("/upgrade");
-          return;
-        }
-
-        if (failure.kind === "timeout") {
-          setSendError(t("chat.timeoutError"));
-          setLastFailedSend(attempted);
-        } else if (failure.kind === "limit") {
-          setSendError(t("chat.limitReachedError"));
-        } else {
-          setSendError(resolvedError);
-          setLastFailedSend(attempted);
-        }
-
-        const errorMessage: ChatMessage = {
-          id: `msg-${Date.now()}-err`,
-          role: "ai",
-          content: t("chat.aiError"),
-          timestamp: new Date(),
-        };
-
-        addMessage(errorMessage);
-        scrollToBottom();
-      } finally {
-        clearTimeout(timeoutId);
-      }
+      await runStreamingSend(attempted);
     },
-    [
-      addMessage,
-      hasProAccess,
-      i18n.language,
-      queryClient,
-      router,
-      scrollToBottom,
-      setIsTyping,
-      shouldRouteToUpgrade,
-      t,
-    ],
+    [addMessage, runStreamingSend, scrollToBottom, setIsTyping],
   );
 
   const sendMessage = useCallback(
