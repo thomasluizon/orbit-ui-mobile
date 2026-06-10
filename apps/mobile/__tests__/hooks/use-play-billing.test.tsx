@@ -61,12 +61,18 @@ vi.mock('@/stores/auth-store', () => ({
     selector({ user: mocks.state.authUser }),
 }))
 
-import { extractPlayOffers, mapPlayErrorKey, usePlayBilling } from '@/hooks/use-play-billing'
+import {
+  extractPlayOffers,
+  mapPlayErrorKey,
+  selectPlayOffer,
+  usePlayBilling,
+  type PlayOffer,
+} from '@/hooks/use-play-billing'
 
-function renderUsePlayBilling(): ReturnType<typeof usePlayBilling> {
+function renderUsePlayBilling(options?: { preferReferralOffer?: boolean }): ReturnType<typeof usePlayBilling> {
   let value: ReturnType<typeof usePlayBilling> | null = null
   function Harness() {
-    value = usePlayBilling()
+    value = usePlayBilling(options)
     return null
   }
   TestRenderer.act(() => {
@@ -128,6 +134,70 @@ describe('extractPlayOffers', () => {
     ])
 
     expect(offers).toHaveLength(0)
+  })
+
+  it('extracts a referral-tagged offer priced from its first pricing phase alongside the base offer', () => {
+    const offers = extractPlayOffers([
+      {
+        id: 'orbit_pro',
+        subscriptionOffers: [
+          { basePlanIdAndroid: 'monthly', offerTokenAndroid: 'tok_m', displayPrice: 'R$14,90' },
+          {
+            basePlanIdAndroid: 'monthly',
+            offerTokenAndroid: 'tok_m_ref',
+            offerTagsAndroid: ['referral'],
+            displayPrice: 'R$14,90',
+            pricingPhasesAndroid: {
+              pricingPhaseList: [
+                { formattedPrice: 'R$13,41', priceAmountMicros: '13410000', priceCurrencyCode: 'BRL' },
+                { formattedPrice: 'R$14,90', priceAmountMicros: '14900000', priceCurrencyCode: 'BRL' },
+              ],
+            },
+          },
+        ],
+      },
+    ])
+
+    expect(offers).toHaveLength(2)
+    expect(offers.find((offer) => offer.isReferral)).toMatchObject({
+      interval: 'monthly',
+      offerToken: 'tok_m_ref',
+      displayPrice: 'R$13,41',
+      priceAmountMicros: '13410000',
+      currency: 'BRL',
+    })
+    expect(offers.find((offer) => !offer.isReferral)?.offerToken).toBe('tok_m')
+  })
+})
+
+describe('selectPlayOffer', () => {
+  const baseOffer: PlayOffer = {
+    interval: 'monthly',
+    sku: 'orbit_pro',
+    offerToken: 'tok_base',
+    displayPrice: 'R$14,90',
+    isReferral: false,
+    priceAmountMicros: '14900000',
+    currency: 'BRL',
+  }
+  const referralOffer: PlayOffer = {
+    ...baseOffer,
+    offerToken: 'tok_ref',
+    displayPrice: 'R$13,41',
+    isReferral: true,
+    priceAmountMicros: '13410000',
+  }
+
+  it('picks the referral offer when preferred and available', () => {
+    expect(selectPlayOffer([baseOffer, referralOffer], 'monthly', true)?.offerToken).toBe('tok_ref')
+  })
+
+  it('falls back to the base offer when referral is preferred but absent', () => {
+    expect(selectPlayOffer([baseOffer], 'monthly', true)?.offerToken).toBe('tok_base')
+  })
+
+  it('ignores the referral offer when not preferred', () => {
+    expect(selectPlayOffer([baseOffer, referralOffer], 'monthly', false)?.offerToken).toBe('tok_base')
   })
 })
 
@@ -205,6 +275,74 @@ describe('usePlayBilling', () => {
         },
       }),
     )
+  })
+
+  it('purchases the referral offer and reports referral pricing when preferred', async () => {
+    mocks.state.subscriptions = [
+      {
+        id: 'orbit_pro',
+        subscriptionOffers: [
+          { basePlanIdAndroid: 'monthly', offerTokenAndroid: 'tok_m', displayPrice: 'R$14,90' },
+          {
+            basePlanIdAndroid: 'monthly',
+            offerTokenAndroid: 'tok_m_ref',
+            offerTagsAndroid: ['referral'],
+            displayPrice: 'R$14,90',
+            pricingPhasesAndroid: {
+              pricingPhaseList: [
+                { formattedPrice: 'R$13,41', priceAmountMicros: '13410000', priceCurrencyCode: 'BRL' },
+              ],
+            },
+          },
+        ],
+      },
+    ]
+    const result = renderUsePlayBilling({ preferReferralOffer: true })
+
+    expect(result.isReferralPricing).toBe(true)
+    expect(result.monthlyOffer?.displayPrice).toBe('R$13,41')
+
+    await TestRenderer.act(async () => {
+      await result.purchase('monthly')
+    })
+
+    expect(mocks.requestPurchase).toHaveBeenCalledWith(
+      expect.objectContaining({
+        request: {
+          google: expect.objectContaining({
+            subscriptionOffers: [{ sku: 'orbit_pro', offerToken: 'tok_m_ref' }],
+          }),
+        },
+      }),
+    )
+  })
+
+  it('keeps the base offer and reports no referral pricing when not preferred', () => {
+    mocks.state.subscriptions = [
+      {
+        id: 'orbit_pro',
+        subscriptionOffers: [
+          { basePlanIdAndroid: 'monthly', offerTokenAndroid: 'tok_m', displayPrice: 'R$14,90' },
+          {
+            basePlanIdAndroid: 'monthly',
+            offerTokenAndroid: 'tok_m_ref',
+            offerTagsAndroid: ['referral'],
+            displayPrice: 'R$14,90',
+            pricingPhasesAndroid: {
+              pricingPhaseList: [
+                { formattedPrice: 'R$13,41', priceAmountMicros: '13410000', priceCurrencyCode: 'BRL' },
+              ],
+            },
+          },
+        ],
+      },
+    ]
+
+    const result = renderUsePlayBilling()
+
+    expect(result.isReferralPricing).toBe(false)
+    expect(result.monthlyOffer?.offerToken).toBe('tok_m')
+    expect(result.monthlyOffer?.displayPrice).toBe('R$14,90')
   })
 
   it('blocks the purchase and flags sign-in when the user id is missing', async () => {

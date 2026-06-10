@@ -40,7 +40,7 @@ import type {
 } from '@orbit/shared/types/subscription'
 import { apiClient } from '@/lib/api-client'
 import { useBilling } from '@/hooks/use-billing'
-import { usePlayBilling } from '@/hooks/use-play-billing'
+import { usePlayBilling, type PlayOffer } from '@/hooks/use-play-billing'
 import {
   useSubscriptionPlans,
   formatPrice,
@@ -92,6 +92,16 @@ function formatBillingDate(isoDate: string, locale: string) {
 }
 
 type UpgradeTextFn = (key: string, params?: Record<string, unknown>) => string
+
+function monthlyEquivalentPriceLabel(plans: SubscriptionPlans, yearlyOffer: PlayOffer | null): string {
+  if (yearlyOffer?.priceAmountMicros) {
+    return formatPrice(
+      monthlyEquivalent(Math.round(Number(yearlyOffer.priceAmountMicros) / 10_000)),
+      yearlyOffer.currency ?? plans.currency,
+    )
+  }
+  return formatPrice(monthlyEquivalent(plans.yearly.unitAmount), plans.currency)
+}
 
 function PlanRow({
   tokens,
@@ -215,7 +225,6 @@ function PlanCards({
   plans,
   hasProAccess,
   checkoutLoading,
-  discountedAmount,
   onCheckout,
   monthlyPrice,
   yearlyPrice,
@@ -225,7 +234,6 @@ function PlanCards({
   plans: SubscriptionPlans
   hasProAccess: boolean
   checkoutLoading: 'monthly' | 'yearly' | null
-  discountedAmount: (amount: number) => number
   onCheckout: (interval: 'monthly' | 'yearly') => void
   monthlyPrice?: string
   yearlyPrice?: string
@@ -248,12 +256,7 @@ function PlanCards({
       <PlanRow
         tokens={tokens}
         label={t('upgrade.plans.monthly.name')}
-        price={`${monthlyPrice ?? formatPrice(
-          plans.couponPercentOff
-            ? discountedAmount(plans.monthly.unitAmount)
-            : plans.monthly.unitAmount,
-          plans.currency,
-        )}${t('upgrade.plans.monthly.period')}`}
+        price={`${monthlyPrice ?? formatPrice(plans.monthly.unitAmount, plans.currency)}${t('upgrade.plans.monthly.period')}`}
         onPress={() => onCheckout('monthly')}
         pending={checkoutLoading === 'monthly'}
       />
@@ -261,12 +264,7 @@ function PlanCards({
       <PlanRow
         tokens={tokens}
         label={t('upgrade.plans.yearly.name')}
-        price={`${yearlyPrice ?? formatPrice(
-          plans.couponPercentOff
-            ? discountedAmount(plans.yearly.unitAmount)
-            : plans.yearly.unitAmount,
-          plans.currency,
-        )}${t('upgrade.plans.yearly.period')}`}
+        price={`${yearlyPrice ?? formatPrice(plans.yearly.unitAmount, plans.currency)}${t('upgrade.plans.yearly.period')}`}
         sub={t('upgrade.plans.savePercent', { percent: plans.savingsPercent })}
         active
         onPress={() => onCheckout('yearly')}
@@ -399,14 +397,13 @@ export default function UpgradeScreen() {
   const trialExpired = useTrialExpired()
   const trialDaysLeft = useTrialDaysLeft()
   const trialUrgent = useTrialUrgent()
-  const playBilling = usePlayBilling()
   const {
     plans,
     isLoading: isLoadingPlans,
     isError: isPlansError,
     refetch: refetchPlans,
-    discountedAmount,
   } = useSubscriptionPlans()
+  const playBilling = usePlayBilling({ preferReferralOffer: !!plans?.couponPercentOff })
   const isPlaySource = profile?.subscriptionSource === 'play'
   const showBilling = hasProAccess && !profile?.isTrialActive
   const {
@@ -909,7 +906,6 @@ export default function UpgradeScreen() {
                 plans={plans}
                 hasProAccess={hasProAccess}
                 checkoutLoading={checkoutLoading}
-                discountedAmount={discountedAmount}
                 onCheckout={handleCheckout}
                 monthlyPrice={playBilling.monthlyOffer?.displayPrice}
                 yearlyPrice={playBilling.yearlyOffer?.displayPrice}
@@ -920,7 +916,7 @@ export default function UpgradeScreen() {
 
             {plans ? (
               <View style={styles.actionPad}>
-                {plans.couponPercentOff ? (
+                {playBilling.isReferralPricing ? (
                   <Text
                     style={[styles.couponNote, { color: tokens.statusDone }]}
                   >
@@ -929,14 +925,7 @@ export default function UpgradeScreen() {
                 ) : null}
                 <Text style={[styles.equivalent, { color: tokens.fg3 }]}>
                   {t('upgrade.plans.equivalent', {
-                    price: formatPrice(
-                      monthlyEquivalent(
-                        plans.couponPercentOff
-                          ? discountedAmount(plans.yearly.unitAmount)
-                          : plans.yearly.unitAmount,
-                      ),
-                      plans.currency,
-                    ),
+                    price: monthlyEquivalentPriceLabel(plans, playBilling.yearlyOffer),
                   })}
                 </Text>
                 <Pressable

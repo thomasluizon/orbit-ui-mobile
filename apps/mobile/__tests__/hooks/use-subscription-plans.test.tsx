@@ -73,7 +73,7 @@ describe('mobile useSubscriptionPlans', () => {
 
     const result = await renderUseSubscriptionPlans()
 
-    expect(result.discountedAmount(1000)).toBe(800)
+    expect(result.plans?.couponPercentOff).toBe(20)
     expect(result.formatPrice(999, 'usd')).toBe('$9.99')
     expect(result.monthlyEquivalent(7999)).toBe(667)
   })

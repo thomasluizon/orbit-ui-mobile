@@ -10,7 +10,11 @@ import {
 import { API } from '@orbit/shared/api'
 import { profileKeys, subscriptionKeys } from '@orbit/shared/query'
 import type { SubscriptionInterval } from '@orbit/shared/types/profile'
-import { PLAY_SUBSCRIPTION_PRODUCT_ID, playBasePlanToInterval } from '@orbit/shared/utils'
+import {
+  PLAY_REFERRAL_OFFER_TAG,
+  PLAY_SUBSCRIPTION_PRODUCT_ID,
+  playBasePlanToInterval,
+} from '@orbit/shared/utils'
 import { apiClient } from '@/lib/api-client'
 import { useAuthStore } from '@/stores/auth-store'
 
@@ -19,32 +23,70 @@ export interface PlayOffer {
   sku: string
   offerToken: string
   displayPrice: string
+  isReferral: boolean
+  priceAmountMicros: string | null
+  currency: string | null
+}
+
+interface PlayPricingPhaseSource {
+  formattedPrice: string
+  priceAmountMicros: string
+  priceCurrencyCode: string
 }
 
 interface PlayOfferSource {
   id: string
   subscriptionOffers?:
-    | { basePlanIdAndroid?: string | null; offerTokenAndroid?: string | null; displayPrice: string }[]
+    | {
+        basePlanIdAndroid?: string | null
+        offerTokenAndroid?: string | null
+        offerTagsAndroid?: string[] | null
+        displayPrice: string
+        pricingPhasesAndroid?: { pricingPhaseList: PlayPricingPhaseSource[] } | null
+      }[]
     | null
 }
 
-/** Flattens the fetched Play subscription product into one offer per interval (first match wins). */
+/**
+ * Flattens the fetched Play subscription product into at most one base offer and one
+ * referral-tagged offer per interval (first match wins). A referral offer is priced from its
+ * first pricing phase — the discounted cycle — so the displayed price equals the charged price.
+ */
 export function extractPlayOffers(subscriptions: PlayOfferSource[]): PlayOffer[] {
   const offers: PlayOffer[] = []
   for (const subscription of subscriptions) {
     for (const offer of subscription.subscriptionOffers ?? []) {
       const interval = offer.basePlanIdAndroid ? playBasePlanToInterval(offer.basePlanIdAndroid) : null
       if (!interval || !offer.offerTokenAndroid) continue
-      if (offers.some((existing) => existing.interval === interval)) continue
+      const isReferral = offer.offerTagsAndroid?.includes(PLAY_REFERRAL_OFFER_TAG) ?? false
+      if (offers.some((existing) => existing.interval === interval && existing.isReferral === isReferral)) continue
+      const firstPhase = offer.pricingPhasesAndroid?.pricingPhaseList[0] ?? null
       offers.push({
         interval,
         sku: subscription.id,
         offerToken: offer.offerTokenAndroid,
-        displayPrice: offer.displayPrice,
+        displayPrice: isReferral && firstPhase ? firstPhase.formattedPrice : offer.displayPrice,
+        isReferral,
+        priceAmountMicros: firstPhase?.priceAmountMicros ?? null,
+        currency: firstPhase?.priceCurrencyCode ?? null,
       })
     }
   }
   return offers
+}
+
+/** Picks the offer to display and purchase for an interval: the referral offer when preferred and available, else the base offer. */
+export function selectPlayOffer(
+  offers: PlayOffer[],
+  interval: SubscriptionInterval,
+  preferReferral: boolean,
+): PlayOffer | null {
+  const candidates = offers.filter((offer) => offer.interval === interval)
+  if (preferReferral) {
+    const referralOffer = candidates.find((offer) => offer.isReferral)
+    if (referralOffer) return referralOffer
+  }
+  return candidates.find((offer) => !offer.isReferral) ?? null
 }
 
 /** Maps an expo-iap purchase error to a user-facing i18n key, or null when the user cancelled. */
@@ -83,8 +125,11 @@ async function verifyPlayPurchase(purchase: Purchase): Promise<boolean> {
  * Native Google Play subscription purchasing for the mobile app: connects to Play Billing,
  * exposes localized offers per interval, runs the purchase sheet, verifies the purchase
  * server-side, and restores previous purchases. Android-only; the web app uses Stripe.
+ * Pass preferReferralOffer when the backend reports an unused referral coupon so the
+ * referral-tagged discount offer is displayed and purchased instead of the base plan.
  */
-export function usePlayBilling() {
+export function usePlayBilling(options?: { preferReferralOffer?: boolean }) {
+  const preferReferralOffer = options?.preferReferralOffer ?? false
   const queryClient = useQueryClient()
   const userId = useAuthStore((state) => state.user?.userId)
   const [errorKey, setErrorKey] = useState<string | null>(null)
@@ -125,7 +170,7 @@ export function usePlayBilling() {
 
   const purchase = useCallback(
     async (interval: SubscriptionInterval) => {
-      const offer = offers.find((candidate) => candidate.interval === interval)
+      const offer = selectPlayOffer(offers, interval, preferReferralOffer)
       if (!offer) {
         setErrorKey('upgrade.playError.unavailable')
         return
@@ -156,7 +201,7 @@ export function usePlayBilling() {
         )
       }
     },
-    [offers, requestPurchase, userId],
+    [offers, preferReferralOffer, requestPurchase, userId],
   )
 
   const restorePurchases = useCallback(async (): Promise<boolean> => {
@@ -187,11 +232,15 @@ export function usePlayBilling() {
 
   const clearError = useCallback(() => setErrorKey(null), [])
 
+  const monthlyOffer = selectPlayOffer(offers, 'monthly', preferReferralOffer)
+  const yearlyOffer = selectPlayOffer(offers, 'yearly', preferReferralOffer)
+
   return {
     connected,
     offers,
-    monthlyOffer: offers.find((offer) => offer.interval === 'monthly') ?? null,
-    yearlyOffer: offers.find((offer) => offer.interval === 'yearly') ?? null,
+    monthlyOffer,
+    yearlyOffer,
+    isReferralPricing: Boolean(monthlyOffer?.isReferral || yearlyOffer?.isReferral),
     purchase,
     restorePurchases,
     isProcessing,
