@@ -345,6 +345,23 @@ export function createStyles(tokens: AppTokens) {
       paddingHorizontal: 14,
       fontSize: 14,
     },
+    emojiRemoveButton: {
+      flexDirection: "row",
+      alignItems: "center",
+      alignSelf: "flex-start",
+      gap: 6,
+      backgroundColor: tokens.bgElev,
+      borderWidth: 1,
+      borderColor: tokens.hairline,
+      borderRadius: 10,
+      paddingHorizontal: 10,
+      paddingVertical: 6,
+    },
+    emojiRemoveButtonText: {
+      fontSize: 12,
+      fontWeight: "500",
+      color: tokens.fg2,
+    },
     emojiCategoryTabs: {
       gap: 8,
       paddingVertical: 2,

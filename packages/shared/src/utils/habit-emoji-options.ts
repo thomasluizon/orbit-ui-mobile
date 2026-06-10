@@ -1,5 +1,3 @@
-export const DEFAULT_HABIT_EMOJI = '✨'
-
 export interface HabitEmojiCategory {
   readonly id: string
   readonly labelKey: string
@@ -543,9 +541,4 @@ export function filterHabitEmojiCategories(query: string): readonly HabitEmojiCa
       emojis: category.emojis.filter((emojiValue) => emojiMatchesSearch(emojiValue, category, normalizedQuery)),
     }))
     .filter((category) => category.emojis.length > 0)
-}
-
-export function resolveHabitEmoji(emoji: string | null | undefined): string {
-  const normalized = emoji?.trim()
-  return normalized && normalized.length > 0 ? normalized : DEFAULT_HABIT_EMOJI
 }

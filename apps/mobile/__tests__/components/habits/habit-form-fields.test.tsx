@@ -332,6 +332,46 @@ describe('HabitFormFields (mobile)', () => {
     expect(tree.root.findAllByProps({ accessibilityLabel: 'habits.form.emoji: 🏃' })).toHaveLength(0)
   })
 
+  it('clears the selected emoji from the picker remove button', async () => {
+    const formHelpers = createMockFormHelpers({ emoji: '🏃' })
+    const tags = createMockTags()
+    let tree: any
+
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(
+        <HabitFormFields
+          formHelpers={formHelpers}
+          tags={tags}
+          selectedGoalIds={[]}
+          atGoalLimit={false}
+          onToggleGoal={vi.fn()}
+          reminderTimes={[]}
+          onReminderTimesChange={vi.fn()}
+        />,
+      )
+    })
+
+    const emojiTrigger = tree.root.findByProps({ accessibilityLabel: 'habits.form.emojiOpenPicker' })
+
+    await TestRenderer.act(async () => {
+      emojiTrigger.props.onPress()
+    })
+
+    const removeButton = tree.root
+      .findAllByProps({ accessibilityLabel: 'habits.form.emojiRemove' })
+      .find((node: any) => typeof node.props.onPress === 'function')
+
+    expect(removeButton).toBeTruthy()
+
+    await TestRenderer.act(async () => {
+      removeButton!.props.onPress()
+    })
+
+    expect(formHelpers.form.setValue).toHaveBeenCalledWith('emoji', '', {
+      shouldDirty: true,
+    })
+  })
+
   it('hides goal linking for free users', async () => {
     const formHelpers = createMockFormHelpers()
     const tags = createMockTags()

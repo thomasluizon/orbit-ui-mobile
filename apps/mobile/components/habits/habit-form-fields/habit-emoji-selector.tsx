@@ -8,10 +8,9 @@ import {
   ScrollView,
   TextInput,
 } from "react-native";
-import { X } from "lucide-react-native";
+import { Plus, X } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import {
-  DEFAULT_HABIT_EMOJI,
   HABIT_EMOJI_CATEGORIES,
   filterHabitEmojiCategories,
 } from "@orbit/shared/utils";
@@ -41,7 +40,6 @@ export function HabitEmojiSelector({
       : searchedCategories,
     [searchedCategories, selectedCategoryId],
   );
-  const selectedDisplayEmoji = selectedEmoji || DEFAULT_HABIT_EMOJI;
 
   const closePicker = useCallback(() => {
     setPickerOpen(false);
@@ -72,7 +70,11 @@ export function HabitEmojiSelector({
           <Text style={styles.hintText}>{t("habits.form.emojiDescription")}</Text>
         </View>
         <View style={styles.emojiPreview}>
-          <Text style={styles.emojiPreviewText}>{selectedDisplayEmoji}</Text>
+          {selectedEmoji ? (
+            <Text style={styles.emojiPreviewText}>{selectedEmoji}</Text>
+          ) : (
+            <Plus size={20} color={tokens.fg3} />
+          )}
         </View>
       </TouchableOpacity>
 
@@ -88,7 +90,11 @@ export function HabitEmojiSelector({
               <View style={styles.emojiModalHeader}>
                 <View style={styles.emojiModalTitleRow}>
                   <View style={styles.emojiPreviewCompact}>
-                    <Text style={styles.emojiPreviewCompactText}>{selectedDisplayEmoji}</Text>
+                    {selectedEmoji ? (
+                      <Text style={styles.emojiPreviewCompactText}>{selectedEmoji}</Text>
+                    ) : (
+                      <Plus size={16} color={tokens.fg3} />
+                    )}
                   </View>
                   <View style={{ flex: 1 }}>
                     <Text style={styles.emojiModalTitle}>{t("habits.form.emojiPickerTitle")}</Text>
@@ -115,6 +121,19 @@ export function HabitEmojiSelector({
                 autoCorrect={false}
                 accessibilityLabel={t("habits.form.emojiSearchPlaceholder")}
               />
+
+              {selectedEmoji ? (
+                <TouchableOpacity
+                  style={styles.emojiRemoveButton}
+                  onPress={() => handleSelectEmoji("")}
+                  activeOpacity={0.75}
+                  accessibilityRole="button"
+                  accessibilityLabel={t("habits.form.emojiRemove")}
+                >
+                  <X size={14} color={tokens.fg2} />
+                  <Text style={styles.emojiRemoveButtonText}>{t("habits.form.emojiRemove")}</Text>
+                </TouchableOpacity>
+              ) : null}
 
               <ScrollView
                 horizontal
@@ -150,7 +169,7 @@ export function HabitEmojiSelector({
                     <Text style={styles.emojiCategoryTitle}>{t(category.labelKey)}</Text>
                     <View style={styles.emojiGrid} accessibilityRole="list" accessibilityLabel={t(category.labelKey)}>
                       {category.emojis.map((emoji) => {
-                        const selected = selectedDisplayEmoji === emoji;
+                        const selected = selectedEmoji === emoji;
                         return (
                           <TouchableOpacity
                             key={`${category.id}-${emoji}`}
