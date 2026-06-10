@@ -1,6 +1,8 @@
 'use client'
 
 import { getHabitEmptyStateKey } from '@orbit/shared/utils'
+import { PillButton } from '@/components/ui/pill-button'
+import { SatelliteGlyph } from '@/components/ui/satellite-glyph'
 
 interface HabitListEmptyStateProps {
   title: string
@@ -10,7 +12,7 @@ interface HabitListEmptyStateProps {
   variant?: 'primary' | 'secondary'
 }
 
-/** v8 empty state — italic title, optional Astra pill or quiet link.
+/** Kit empty state — satellite glyph, title, optional Astra pill or quiet link.
  *  Description renders only when it's a distinct sentence from the title
  *  (avoids the legacy "title and description share the same key" double-render). */
 export function HabitListEmptyState({
@@ -26,29 +28,30 @@ export function HabitListEmptyState({
 
   return (
     <div
-      className="flex flex-col items-center justify-center"
-      style={{ padding: '60px 24px', gap: 16 }}
+      className="flex flex-col items-center justify-center text-center"
+      style={{ padding: '60px 24px' }}
     >
+      <SatelliteGlyph />
       <div
-        className="text-center"
         style={{
           fontFamily: 'var(--font-sans)',
-          fontSize: 17,
-          color: 'var(--fg-2)',
-          fontStyle: 'italic',
+          fontSize: 20,
+          fontWeight: 500,
+          color: 'var(--fg-1)',
+          marginTop: 18,
         }}
       >
         {title}
       </div>
       {hasDistinctDescription && (
         <div
-          className="text-center"
           style={{
             fontFamily: 'var(--font-sans)',
-            fontSize: 13,
+            fontSize: 14,
             color: 'var(--fg-3)',
             maxWidth: 280,
             lineHeight: 1.5,
+            marginTop: 6,
           }}
         >
           {description}
@@ -56,28 +59,14 @@ export function HabitListEmptyState({
       )}
       {actionLabel && (
         isAstraPrompt ? (
-          <button
-            type="button"
-            onClick={onAction}
-            className="appearance-none border-0 cursor-pointer inline-flex items-center"
-            style={{
-              background: 'var(--primary)',
-              color: 'var(--fg-on-primary)',
-              padding: '8px 14px',
-              borderRadius: 999,
-              fontFamily: 'var(--font-sans)',
-              fontSize: 13,
-              fontWeight: 500,
-              gap: 8,
-            }}
-          >
+          <PillButton onClick={onAction} className="mt-[22px]">
             {actionLabel}
-          </button>
+          </PillButton>
         ) : (
           <button
             type="button"
             onClick={onAction}
-            className="appearance-none border-0 bg-transparent cursor-pointer"
+            className="mt-[22px] appearance-none border-0 bg-transparent cursor-pointer"
             style={{
               fontFamily: 'var(--font-sans)',
               fontSize: 13,

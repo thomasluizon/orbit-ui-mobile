@@ -1,19 +1,21 @@
 'use client'
 
 interface InfoRowProps {
-  /** Mono caption (e.g. "2 of 6 · 33%"). */
+  /** Caption line (Rubik 14 fg-3; Roboto tabular meta when `mono`). */
   label?: string
   /** Render the label in mono with tabular nums (default true). */
   mono?: boolean
-  /** Optional progress 0..1 — renders a hairline bar below the label. */
+  /** Optional value line under the label (Rubik 16 fg-1). */
+  value?: string
+  /** Optional progress 0..1 — renders a hairline bar below the text. */
   progress?: number
 }
 
 /**
- * v8 InfoRow: 1-line stat strip used directly below the AppBar.
- * Optional progress bar renders as a 3px hairline track with primary fill.
+ * Kit ListRow-language info strip: label over optional value, used directly
+ * below the AppBar and for key/value rows. Optional 3px progress bar.
  */
-export function InfoRow({ label, mono = true, progress }: Readonly<InfoRowProps>) {
+export function InfoRow({ label, mono = true, value, progress }: Readonly<InfoRowProps>) {
   const clampedProgress =
     typeof progress === 'number' ? Math.max(0, Math.min(1, progress)) : null
 
@@ -31,12 +33,20 @@ export function InfoRow({ label, mono = true, progress }: Readonly<InfoRowProps>
                   fontFamily: 'var(--font-mono)',
                   fontSize: 12,
                   fontVariantNumeric: 'tabular-nums',
-                  letterSpacing: '0.04em',
+                  letterSpacing: '0.02em',
                 }
-              : { fontFamily: 'var(--font-sans)', fontSize: 12 }
+              : { fontFamily: 'var(--font-sans)', fontSize: 14, fontWeight: 400 }
           }
         >
           {label}
+        </span>
+      ) : null}
+      {value ? (
+        <span
+          className="truncate text-[var(--fg-1)]"
+          style={{ fontFamily: 'var(--font-sans)', fontSize: 16, fontWeight: 400 }}
+        >
+          {value}
         </span>
       ) : null}
       {clampedProgress !== null ? (

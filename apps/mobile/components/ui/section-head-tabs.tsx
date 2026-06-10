@@ -18,7 +18,7 @@ interface SectionHeadTabsProps<T extends string = string> {
 /**
  * Tab bar that spreads each option proportionally across the row (Today /
  * All / General / Goals). Each tab is `flex: 1` so the row fills the canvas
- * width with equal slots. Active tab fills bg-elev with a stronger inset ring.
+ * width with equal slots. Active tab fills bg-elev with an inset primary ring.
  */
 export function SectionHeadTabs<T extends string = string>({
   tabs,
@@ -43,17 +43,14 @@ export function SectionHeadTabs<T extends string = string>({
               styles.tab,
               {
                 backgroundColor: isActive ? tokens.bgElev : 'transparent',
-                borderColor: isActive ? tokens.fg3 : tokens.hairlineStrong,
+                borderColor: isActive ? tokens.primary : tokens.hairline,
               },
             ]}
           >
             <Text
               style={[
                 styles.label,
-                {
-                  color: isActive ? tokens.fg1 : tokens.fg2,
-                  fontWeight: isActive ? '600' : '500',
-                },
+                { color: isActive ? tokens.fg1 : tokens.fg3 },
               ]}
               numberOfLines={1}
             >
@@ -85,7 +82,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
   },
   label: {
-    fontFamily: 'Rubik_400Regular',
-    fontSize: 13,
+    fontFamily: 'Rubik_500Medium',
+    fontSize: 15,
   },
 })

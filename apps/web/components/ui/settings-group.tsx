@@ -9,21 +9,13 @@ interface SettingsGroupProps {
 }
 
 /**
- * Grouped settings card: hairline-bordered surface containing flat
- * SettingsGroupRow children, separated by inset hairlines. One elevated
- * surface per group; rows carry no chrome of their own.
+ * Grouped settings list: rows sit flat on the canvas (no card surface),
+ * separated by full-width hairline dividers drawn by the group.
  */
 export function SettingsGroup({ children }: Readonly<SettingsGroupProps>) {
   const items = React.Children.toArray(children).filter(Boolean)
   return (
-    <div
-      className="overflow-hidden"
-      style={{
-        background: 'var(--bg-elev)',
-        border: '1px solid var(--hairline)',
-        borderRadius: 12,
-      }}
-    >
+    <div>
       {items.map((child, index) => (
         <div key={index}>
           {index > 0 ? (
@@ -32,7 +24,6 @@ export function SettingsGroup({ children }: Readonly<SettingsGroupProps>) {
               style={{
                 height: 1,
                 background: 'var(--hairline)',
-                marginLeft: 16,
               }}
             />
           ) : null}
@@ -82,13 +73,13 @@ export function SettingsGroupRow({
       {icon ? (
         <span
           className="flex items-center justify-center shrink-0"
-          style={{ width: 20 }}
+          style={{ width: 26 }}
           aria-hidden="true"
         >
           {icon}
         </span>
       ) : null}
-      <span className="flex flex-col flex-1 min-w-0" style={{ gap: 2 }}>
+      <span className="flex flex-col flex-1 min-w-0" style={{ gap: 3 }}>
         <span className="flex items-center" style={{ gap: 6 }}>
           <span
             className={
@@ -98,8 +89,9 @@ export function SettingsGroupRow({
             }
             style={{
               fontFamily: 'var(--font-sans)',
-              fontSize: 15,
+              fontSize: 18,
               fontWeight: 400,
+              lineHeight: 1.25,
               color: 'var(--fg-1)',
             }}
           >
@@ -128,7 +120,8 @@ export function SettingsGroupRow({
             className="overflow-hidden whitespace-nowrap text-ellipsis"
             style={{
               fontFamily: 'var(--font-sans)',
-              fontSize: 13,
+              fontSize: 14,
+              lineHeight: 1.35,
               color: 'var(--fg-3)',
             }}
           >
@@ -136,18 +129,18 @@ export function SettingsGroupRow({
           </span>
         ) : null}
       </span>
-      <span className="flex items-center shrink-0" style={{ gap: 8 }}>
+      <span className="flex items-center shrink-0" style={{ gap: 10 }}>
         {trailing}
         {resolvedAccessory === 'chevron' ? (
-          <ChevronRight size={16} strokeWidth={1.5} color="var(--fg-4)" />
+          <ChevronRight size={22} strokeWidth={1.8} color="var(--fg-4)" />
         ) : null}
       </span>
     </>
   )
 
   const sharedStyle: React.CSSProperties = {
-    padding: '14px 16px',
-    gap: 12,
+    padding: '16px 20px',
+    gap: 14,
     minHeight: 48,
   }
 
@@ -159,7 +152,7 @@ export function SettingsGroupRow({
         aria-label={ariaLabel}
         data-tour={dataTour}
         data-testid={dataTestId}
-        className="w-full text-left flex items-center justify-between cursor-pointer bg-transparent transition-[background-color] duration-150 ease-out hover:bg-[var(--bg)]"
+        className="w-full text-left flex items-center justify-between cursor-pointer bg-transparent transition-[background-color] duration-150 ease-out hover:bg-[var(--bg-elev)]"
         style={{
           ...sharedStyle,
           appearance: 'none',

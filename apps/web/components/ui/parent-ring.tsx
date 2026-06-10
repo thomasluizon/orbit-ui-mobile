@@ -36,7 +36,7 @@ export function ParentRing({
           cy={size / 2}
           r={r}
           fill="none"
-          stroke="var(--status-empty)"
+          stroke="var(--hairline-strong)"
           strokeWidth="1.5"
         />
         <circle

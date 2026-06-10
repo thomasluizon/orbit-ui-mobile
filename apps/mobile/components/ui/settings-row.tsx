@@ -1,11 +1,17 @@
-import type { ReactNode } from 'react'
-import { Pressable, StyleSheet, Text, View } from 'react-native'
-import { ChevronRight } from 'lucide-react-native'
-import { createTokensV2 } from '@/lib/theme'
+import { useEffect, useRef } from 'react'
+import type { ComponentType, ReactNode } from 'react'
+import { Animated, Pressable, StyleSheet, Text, View } from 'react-native'
+import { ChevronRight, type LucideProps } from 'lucide-react-native'
+import { createTokensV2, easings, type AppTokensV2 } from '@/lib/theme'
+import { toAnimatedEasing } from '@/lib/motion'
 import { useAppTheme } from '@/lib/use-app-theme'
+
+type LucideIcon = ComponentType<LucideProps>
 
 interface SettingsRowProps {
   label: string
+  /** Secondary line under the label (Rubik 14 fg-3). */
+  desc?: string
   /** Optional right-side value text. */
   value?: string
   /** Override color for the value text. Defaults to fg3. */
@@ -17,29 +23,37 @@ interface SettingsRowProps {
   mono?: boolean
   /** Small leading dot (status color or scheme swatch). */
   leadingDot?: string
-  /** Slot rendered between the value and the chevron (e.g. ProTag, QuietLink). */
+  /** Leading lucide-react-native icon, rendered 22/1.8 centered in a 26px slot. */
+  icon?: LucideIcon
+  /** Destructive row: title and icon render in status-bad. */
+  danger?: boolean
+  /** Slot rendered between the value and the chevron (e.g. Switch, ProTag). */
   children?: ReactNode
   /** Hairline rule below the row; disable when helper text follows. */
   divider?: boolean
 }
 
 /**
- * v8 SettingsRow: hairline-separated row used in profile / streak / about.
- * Composed: leading dot · label · value (optional) · trailing slot · chevron.
+ * Kit ListRow: flat hairline-separated row used in profile / settings / about.
+ * Composed: leading icon/dot · title (+ desc) · value (optional) · trailing slot · chevron.
  */
 export function SettingsRow({
   label,
+  desc,
   value,
   valueColor,
   accessory = 'chevron',
   onPress,
   mono = false,
   leadingDot,
+  icon: LeadingIcon,
+  danger = false,
   children,
   divider = true,
 }: Readonly<SettingsRowProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
+  const titleColor = danger ? tokens.statusBad : tokens.fg1
 
   return (
     <Pressable
@@ -56,18 +70,24 @@ export function SettingsRow({
         },
       ]}
     >
-      <View style={styles.leadingBlock}>
-        {leadingDot ? (
-          <View
-            style={[styles.dot, { backgroundColor: leadingDot }]}
-          />
-        ) : null}
+      {LeadingIcon ? (
+        <View style={styles.iconSlot}>
+          <LeadingIcon size={22} color={titleColor} strokeWidth={1.8} />
+        </View>
+      ) : null}
+      {leadingDot ? (
+        <View style={[styles.dot, { backgroundColor: leadingDot }]} />
+      ) : null}
+      <View style={styles.titleBlock}>
         <Text
-          style={[styles.label, { color: tokens.fg1 }]}
+          style={[styles.title, { color: titleColor }]}
           numberOfLines={1}
         >
           {label}
         </Text>
+        {desc ? (
+          <Text style={[styles.desc, { color: tokens.fg3 }]}>{desc}</Text>
+        ) : null}
       </View>
       <View style={styles.trailingBlock}>
         {value ? (
@@ -83,9 +103,84 @@ export function SettingsRow({
         ) : null}
         {children}
         {accessory === 'chevron' ? (
-          <ChevronRight size={16} color={tokens.fg4} strokeWidth={1.5} />
+          <ChevronRight size={22} color={tokens.fg4} strokeWidth={1.8} />
         ) : null}
       </View>
+    </Pressable>
+  )
+}
+
+const SWITCH_THUMB_TRAVEL = 20
+
+function switchTrackOffColor(appTokens: AppTokensV2): string {
+  const normalized = appTokens.fg1.replace('#', '')
+  const red = Number.parseInt(normalized.slice(0, 2), 16)
+  const green = Number.parseInt(normalized.slice(2, 4), 16)
+  const blue = Number.parseInt(normalized.slice(4, 6), 16)
+  return `rgba(${red}, ${green}, ${blue}, 0.16)`
+}
+
+interface SwitchProps {
+  on: boolean
+  onToggle: () => void
+  accessibilityLabel: string
+}
+
+/** Kit Switch: 48×28 pill, 22px thumb; primary track when on, fg-1 alpha track when off. */
+export function Switch({
+  on,
+  onToggle,
+  accessibilityLabel,
+}: Readonly<SwitchProps>) {
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = createTokensV2(currentScheme, currentTheme)
+  const thumbProgressRef = useRef<Animated.Value | null>(null)
+  if (thumbProgressRef.current === null) {
+    thumbProgressRef.current = new Animated.Value(on ? 1 : 0)
+  }
+  const thumbProgress = thumbProgressRef.current
+
+  useEffect(() => {
+    Animated.timing(thumbProgress, {
+      toValue: on ? 1 : 0,
+      duration: 220,
+      easing: toAnimatedEasing(easings.smooth),
+      useNativeDriver: true,
+    }).start()
+  }, [on, thumbProgress])
+
+  return (
+    <Pressable
+      accessibilityRole="switch"
+      accessibilityLabel={accessibilityLabel}
+      accessibilityState={{ checked: on }}
+      onPress={onToggle}
+      hitSlop={{ top: 8, bottom: 8 }}
+      style={[
+        styles.switchTrack,
+        {
+          backgroundColor: on
+            ? tokens.primary
+            : switchTrackOffColor(tokens),
+        },
+      ]}
+    >
+      <Animated.View
+        style={[
+          styles.switchThumb,
+          {
+            backgroundColor: tokens.fgOnPrimary,
+            transform: [
+              {
+                translateX: thumbProgress.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0, SWITCH_THUMB_TRAVEL],
+                }),
+              },
+            ],
+          },
+        ]}
+      />
     </Pressable>
   )
 }
@@ -94,18 +189,14 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 12,
+    gap: 14,
     paddingHorizontal: 20,
-    paddingVertical: 14,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    paddingVertical: 16,
   },
-  leadingBlock: {
-    flexDirection: 'row',
+  iconSlot: {
+    width: 26,
     alignItems: 'center',
-    gap: 10,
-    flex: 1,
-    minWidth: 0,
+    flexShrink: 0,
   },
   dot: {
     width: 8,
@@ -113,15 +204,25 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     flexShrink: 0,
   },
-  label: {
+  titleBlock: {
+    flex: 1,
+    minWidth: 0,
+    gap: 3,
+  },
+  title: {
     fontFamily: 'Rubik_400Regular',
-    fontSize: 15,
-    flexShrink: 1,
+    fontSize: 18,
+    lineHeight: 22.5,
+  },
+  desc: {
+    fontFamily: 'Rubik_400Regular',
+    fontSize: 14,
+    lineHeight: 18.9,
   },
   trailingBlock: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 10,
     flexShrink: 0,
   },
   value: {
@@ -134,5 +235,23 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontVariant: ['tabular-nums'],
     maxWidth: 220,
+  },
+  switchTrack: {
+    width: 48,
+    height: 28,
+    borderRadius: 999,
+    padding: 3,
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  switchThumb: {
+    width: 22,
+    height: 22,
+    borderRadius: 999,
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.35,
+    shadowRadius: 3,
+    elevation: 2,
   },
 })

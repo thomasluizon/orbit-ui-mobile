@@ -52,25 +52,25 @@ export function SectionHeadTabs<TId extends string>({
             data-tour={tab.dataTour}
             onClick={() => onChange(tab.id)}
             className={
-              'flex-1 appearance-none border-0 cursor-pointer inline-flex items-center justify-center gap-1.5 whitespace-nowrap transition-[background-color,color,box-shadow] duration-150 ease-out ' +
+              'flex-1 appearance-none border-0 cursor-pointer inline-flex items-center justify-center gap-1.5 whitespace-nowrap transition-[background-color,color,box-shadow] duration-[var(--dur-fast)] ease-[var(--ease-standard)] ' +
               (isActive
                 ? 'bg-[var(--bg-elev)] text-[var(--fg-1)]'
-                : 'bg-transparent text-[var(--fg-2)] hover:bg-[var(--bg-elev)] hover:text-[var(--fg-1)]')
+                : 'bg-transparent text-[var(--fg-3)] hover:bg-[var(--bg-elev)] hover:text-[var(--fg-1)]')
             }
             style={{
               height: 38,
               padding: '0 10px',
               borderRadius: 8,
               boxShadow: isActive
-                ? 'inset 0 0 0 1px var(--fg-3)'
-                : 'inset 0 0 0 1px var(--hairline-strong)',
+                ? 'inset 0 0 0 1px var(--primary)'
+                : 'inset 0 0 0 1px var(--hairline)',
               fontFamily: 'var(--font-sans)',
-              fontSize: 13,
-              fontWeight: isActive ? 600 : 500,
+              fontSize: 15,
+              fontWeight: 500,
             }}
           >
             {tab.locked ? (
-              <Lock size={11} strokeWidth={1.6} color="currentColor" />
+              <Lock size={11} strokeWidth={1.8} color="currentColor" />
             ) : null}
             {tab.label}
           </button>

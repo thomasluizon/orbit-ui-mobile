@@ -8,7 +8,7 @@ interface TagChipProps {
   onPress?: () => void
 }
 
-/** v8 chip variant that prepends a 6px color dot from the tag's `color` field. */
+/** Chip variant that prepends a 6px color dot from the tag's user-chosen `color`. */
 export function TagChip({ tag, active = false, onPress }: Readonly<TagChipProps>) {
   return (
     <Chip

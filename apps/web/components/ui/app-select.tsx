@@ -26,19 +26,23 @@ export function AppSelect({
         value={value ?? ''}
         onChange={(e) => onChange(e.target.value)}
         aria-label={label}
-        className="w-full appearance-none bg-[var(--bg-elev)] text-[var(--fg-1)] rounded-md py-3 pr-10 pl-4 text-sm border border-[var(--hairline)] text-left focus:outline-none focus:border-[var(--primary)] transition-colors duration-[var(--duration-fast)]"
+        className="w-full appearance-none bg-none min-h-[44px] bg-[var(--bg-field)] text-[var(--fg-1)] rounded-[14px] py-3 pr-10 pl-4 text-base shadow-[inset_0_0_0_1px_var(--hairline)] text-left focus:outline-none focus:shadow-[inset_0_0_0_2px_var(--primary)] transition-[background-color,box-shadow,color] duration-[var(--dur-fast)]"
       >
         {options.map((option) => (
           <option
             key={option.value}
             value={option.value}
-            className="bg-[var(--bg-elev)] text-[var(--fg-1)]"
+            className="bg-[var(--bg-sheet)] text-[var(--fg-1)]"
           >
             {option.label}
           </option>
         ))}
       </select>
-      <ChevronDown className="pointer-events-none absolute right-4 top-1/2 size-4 -translate-y-1/2 text-[var(--fg-3)]" />
+      <ChevronDown
+        size={20}
+        strokeWidth={1.8}
+        className="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-[var(--fg-4)]"
+      />
     </div>
   )
 }

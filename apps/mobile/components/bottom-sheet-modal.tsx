@@ -23,7 +23,7 @@ interface BottomSheetModalProps {
 
 const DEFAULT_SNAP_POINTS: (string | number)[] = ['50%', '80%']
 const SCREEN_HEIGHT = Dimensions.get('window').height
-const CORNER_RADIUS = 24
+const CORNER_RADIUS = 26
 const MIN_DETENT = 0.1
 
 /**
@@ -47,7 +47,7 @@ export function BottomSheetModal({
   onAttemptDismiss,
   children,
 }: BottomSheetModalProps) {
-  const { currentScheme, currentTheme, surfaces } = useAppTheme()
+  const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
     () => createTokensV2(currentScheme, currentTheme),
     [currentScheme, currentTheme],
@@ -91,8 +91,15 @@ export function BottomSheetModal({
       detents={detents}
       dismissible={dismissible}
       cornerRadius={CORNER_RADIUS}
-      backgroundColor={surfaces.overlay.backgroundColor}
+      backgroundColor={tokens.bgSheet}
       grabber
+      grabberOptions={{
+        width: 44,
+        height: 5,
+        topMargin: 12,
+        color: tokens.hairlineStrong,
+        adaptive: false,
+      }}
       dimmed
       scrollable
       onDidDismiss={handleDidDismiss}
@@ -109,7 +116,7 @@ export function BottomSheetModal({
               accessibilityRole="button"
               accessibilityLabel={title}
             >
-              <X size={18} color={tokens.fg3} />
+              <X size={24} color={tokens.fg2} strokeWidth={1.8} />
             </TouchableOpacity>
           </View>
         ) : null}
@@ -142,14 +149,14 @@ function createStyles(tokens: AppTokens) {
       alignItems: 'center',
       justifyContent: 'space-between',
       gap: 16,
-      paddingHorizontal: 24,
-      paddingTop: 16,
-      paddingBottom: 16,
+      paddingHorizontal: 22,
+      paddingTop: 33,
+      paddingBottom: 8,
     },
     title: {
       flex: 1,
-      fontSize: 18,
-      fontWeight: '700',
+      fontFamily: 'Rubik_500Medium',
+      fontSize: 24,
       color: tokens.fg1,
     },
     closeButton: {

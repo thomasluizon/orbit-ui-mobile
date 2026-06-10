@@ -16,7 +16,7 @@ import {
 import type { FrequencyUnit } from '@orbit/shared/types/habit'
 import { Chip } from '@/components/ui/chip'
 import { SectionLabel } from '@/components/ui/section-label'
-import { UnderlinedInput } from '@/components/ui/underlined-input'
+import { FieldInput } from '@/components/ui/field-input'
 
 interface Suggestion {
   key: string
@@ -166,8 +166,7 @@ export function OnboardingCreateHabit({ onCreated }: Readonly<OnboardingCreateHa
         {t('onboarding.flow.createHabit.subtitle')}
       </div>
 
-      <UnderlinedInput
-        large
+      <FieldInput
         value={title}
         onChange={setTitle}
         placeholder={t('onboarding.flow.createHabit.placeholder')}

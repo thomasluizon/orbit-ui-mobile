@@ -6,7 +6,7 @@ import type { ApiKeyCreateRequest, ApiKeyCreateResponse } from '@orbit/shared/ty
 import { AppOverlay } from '@/components/ui/app-overlay'
 import { Chip } from '@/components/ui/chip'
 import { SectionLabel } from '@/components/ui/section-label'
-import { UnderlinedInput } from '@/components/ui/underlined-input'
+import { FieldInput } from '@/components/ui/field-input'
 
 interface ScopeOption {
   scope: string
@@ -246,9 +246,8 @@ function CreateStep(props: Readonly<CreateStepProps>) {
 
   return (
     <form className="flex flex-col" style={{ gap: 18 }} onSubmit={onSubmit}>
-      <UnderlinedInput
+      <FieldInput
         id="api-key-name"
-        large
         label={t('orbitMcp.keyName')}
         value={keyName}
         onChange={onKeyNameChange}

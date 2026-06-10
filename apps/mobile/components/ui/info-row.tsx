@@ -3,21 +3,24 @@ import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 interface InfoRowProps {
-  /** Mono caption (e.g. "2 of 6 · 33%"). */
+  /** Caption line (Rubik 14 fg-3; Roboto tabular meta when `mono`). */
   label?: string
   /** Render the label in mono with tabular nums (default true). */
   mono?: boolean
-  /** Optional progress 0..1 — renders a hairline bar below the label. */
+  /** Optional value line under the label (Rubik 16 fg-1). */
+  value?: string
+  /** Optional progress 0..1 — renders a hairline bar below the text. */
   progress?: number
 }
 
 /**
- * v8 InfoRow: 1-line stat strip used directly below the AppBar.
- * Optional progress bar renders as a 3px hairline track with primary fill.
+ * Kit ListRow-language info strip: label over optional value, used directly
+ * below the AppBar and for key/value rows. Optional 3px progress bar.
  */
 export function InfoRow({
   label,
   mono = true,
+  value,
   progress,
 }: Readonly<InfoRowProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
@@ -44,6 +47,14 @@ export function InfoRow({
           numberOfLines={1}
         >
           {label}
+        </Text>
+      ) : null}
+      {value ? (
+        <Text
+          style={[styles.value, { color: tokens.fg1 }]}
+          numberOfLines={1}
+        >
+          {value}
         </Text>
       ) : null}
       {clampedProgress !== null ? (
@@ -74,13 +85,17 @@ const styles = StyleSheet.create({
   },
   label: {
     fontFamily: 'Rubik_400Regular',
-    fontSize: 12,
+    fontSize: 14,
   },
   labelMono: {
     fontFamily: 'Roboto_400Regular',
     fontSize: 12,
     fontVariant: ['tabular-nums'],
-    letterSpacing: 0.4,
+    letterSpacing: 0.24,
+  },
+  value: {
+    fontFamily: 'Rubik_400Regular',
+    fontSize: 16,
   },
   track: {
     height: 3,

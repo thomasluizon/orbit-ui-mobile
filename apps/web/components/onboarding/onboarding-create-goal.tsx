@@ -14,7 +14,7 @@ import {
 } from '@orbit/shared/utils'
 import { Chip } from '@/components/ui/chip'
 import { SectionLabel } from '@/components/ui/section-label'
-import { UnderlinedInput } from '@/components/ui/underlined-input'
+import { FieldInput } from '@/components/ui/field-input'
 
 interface GoalSuggestion {
   key: string
@@ -210,8 +210,7 @@ export function OnboardingCreateGoal({
         {t('onboarding.flow.createGoal.title')}
       </div>
 
-      <UnderlinedInput
-        large
+      <FieldInput
         value={description}
         onChange={setDescription}
         placeholder={t('onboarding.flow.createGoal.descriptionPlaceholder')}
@@ -221,7 +220,7 @@ export function OnboardingCreateGoal({
 
       <div className="flex" style={{ gap: 12 }}>
         <div style={{ flex: 1 }}>
-          <UnderlinedInput
+          <FieldInput
             mono
             type="number"
             inputMode="numeric"
@@ -232,7 +231,7 @@ export function OnboardingCreateGoal({
           />
         </div>
         <div style={{ flex: 1 }}>
-          <UnderlinedInput
+          <FieldInput
             value={unit}
             onChange={setUnit}
             placeholder={t('onboarding.flow.createGoal.unitPlaceholder')}

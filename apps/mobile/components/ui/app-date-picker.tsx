@@ -23,7 +23,7 @@ import { Calendar, ChevronLeft, ChevronRight } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import { formatLocaleDate } from '@orbit/shared/utils'
 import { useProfile } from '@/hooks/use-profile'
-import { createTokensV2, radius, type AppShadows } from '@/lib/theme'
+import { createTokensV2, radius, shadowsV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 type AppTokens = ReturnType<typeof createTokensV2>
@@ -41,7 +41,7 @@ export function AppDatePicker({
 }: Readonly<AppDatePickerProps>) {
   const { t, i18n } = useTranslation()
   const { profile } = useProfile()
-  const { currentScheme, currentTheme, shadows } = useAppTheme()
+  const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
     () => createTokensV2(currentScheme, currentTheme),
     [currentScheme, currentTheme],
@@ -63,7 +63,7 @@ export function AppDatePicker({
     month: 'long',
     year: 'numeric',
   })
-  const styles = useMemo(() => createStyles(tokens, shadows), [tokens, shadows])
+  const styles = useMemo(() => createStyles(tokens), [tokens])
 
   const weekDays = useMemo(() => {
     const sundayFirst = [
@@ -135,7 +135,7 @@ export function AppDatePicker({
         >
           {displayValue || placeholder || t('common.selectDate')}
         </Text>
-        <Calendar size={16} color={tokens.fg3} />
+        <Calendar size={20} strokeWidth={1.8} color={tokens.fg4} />
       </TouchableOpacity>
 
       <Modal
@@ -159,7 +159,7 @@ export function AppDatePicker({
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 accessibilityLabel={t('common.previousMonth')}
               >
-                <ChevronLeft size={16} color={tokens.fg3} />
+                <ChevronLeft size={18} strokeWidth={1.8} color={tokens.fg3} />
               </TouchableOpacity>
 
               <Text style={styles.monthLabel}>{monthLabel}</Text>
@@ -169,7 +169,7 @@ export function AppDatePicker({
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
                 accessibilityLabel={t('common.nextMonth')}
               >
-                <ChevronRight size={16} color={tokens.fg3} />
+                <ChevronRight size={18} strokeWidth={1.8} color={tokens.fg3} />
               </TouchableOpacity>
             </View>
 
@@ -228,27 +228,29 @@ export function AppDatePicker({
 
 const DAY_SIZE = 36
 
-function createStyles(tokens: AppTokens, shadows: AppShadows) {
+function createStyles(tokens: AppTokens) {
   return StyleSheet.create({
     trigger: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      backgroundColor: tokens.bgElev,
+      minHeight: 44,
+      backgroundColor: tokens.bgField,
       borderWidth: 1,
       borderColor: tokens.hairline,
-      borderRadius: radius.sm,
-      paddingVertical: 12,
+      borderRadius: 14,
+      paddingVertical: 10,
       paddingHorizontal: 16,
     },
     triggerText: {
       flex: 1,
       color: tokens.fg1,
-      fontSize: 14,
+      fontFamily: 'Rubik_400Regular',
+      fontSize: 16,
       marginRight: 8,
     },
     triggerPlaceholder: {
-      color: tokens.fg3,
+      color: tokens.fg4,
     },
     backdrop: {
       flex: 1,
@@ -260,13 +262,12 @@ function createStyles(tokens: AppTokens, shadows: AppShadows) {
     dialog: {
       width: '100%',
       maxWidth: 320,
-      backgroundColor: tokens.bgElev,
+      backgroundColor: tokens.bgSheet,
       borderRadius: radius.lg,
       borderWidth: 1,
       borderColor: tokens.hairline,
       padding: 10,
-      ...shadows.lg,
-      elevation: 12,
+      ...shadowsV2.shadow2,
     },
     monthNav: {
       flexDirection: 'row',
@@ -277,8 +278,8 @@ function createStyles(tokens: AppTokens, shadows: AppShadows) {
     },
     monthLabel: {
       color: tokens.fg1,
+      fontFamily: 'Rubik_500Medium',
       fontSize: 13,
-      fontWeight: '500',
       textTransform: 'capitalize',
     },
     weekRow: {
@@ -287,14 +288,16 @@ function createStyles(tokens: AppTokens, shadows: AppShadows) {
     },
     weekDayText: {
       color: tokens.fg3,
+      fontFamily: 'Roboto_400Regular',
       fontSize: 12,
-      fontWeight: '400',
+      textTransform: 'uppercase',
+      fontVariant: ['tabular-nums'],
       textAlign: 'center',
     },
     dayCell: {
       width: DAY_SIZE,
       height: DAY_SIZE,
-      borderRadius: radius.sm,
+      borderRadius: radius.full,
       justifyContent: 'center',
       alignItems: 'center',
       margin: 1,
@@ -304,18 +307,19 @@ function createStyles(tokens: AppTokens, shadows: AppShadows) {
     },
     dayCellToday: {
       borderWidth: 1,
-      borderColor: tokens.hairlineStrong,
+      borderColor: tokens.primary,
     },
     dayText: {
       color: tokens.fg1,
+      fontFamily: 'Rubik_400Regular',
       fontSize: 12,
     },
     dayTextOutside: {
-      color: tokens.fg3,
+      color: tokens.fg4,
     },
     dayTextSelected: {
       color: tokens.fgOnPrimary,
-      fontWeight: '600',
+      fontFamily: 'Rubik_500Medium',
     },
   })
 }

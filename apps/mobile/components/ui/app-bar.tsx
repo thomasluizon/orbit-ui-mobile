@@ -1,11 +1,19 @@
 import type { ComponentType, ReactNode } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
-import { ChevronLeft, type LucideProps } from 'lucide-react-native'
+import {
+  ChevronLeft,
+  HelpCircle,
+  Share2,
+  X,
+  type LucideProps,
+} from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 type LucideIcon = ComponentType<LucideProps>
+
+type AppBarRightVariant = 'help' | 'close' | 'share'
 
 interface AppBarProps {
   /** Show a back chevron in the leading slot. Takes precedence over `LeadingIcon`. */
@@ -16,15 +24,18 @@ interface AppBarProps {
   LeadingIcon?: LucideIcon
   title: string
   subtitle?: string
-  /** Right-side cluster (typically icon buttons / streak badge). */
+  /** Arbitrary right-slot cluster; takes precedence over `right`. */
   trailing?: ReactNode
-  /** Bottom hairline divider (default true). */
-  hairline?: boolean
+  /** Standard right-slot action: help (ringed), close, or share. */
+  right?: AppBarRightVariant
+  onRight?: () => void
+  /** Accessibility label for the `right` action. Defaults to the matching common.* key. */
+  rightLabel?: string
   /** Accessibility label for the leading button. Defaults to t('common.back'). */
   backLabel?: string
 }
 
-/** v8 compact 52px app bar: leading button · title (+ optional subtitle) · trailing cluster. */
+/** Kit NavHeader: 56px transparent bar — 40px back slot, centered uppercase title, 40px right slot. */
 export function AppBar({
   back = false,
   onBack,
@@ -32,7 +43,9 @@ export function AppBar({
   title,
   subtitle,
   trailing,
-  hairline = true,
+  right,
+  onRight,
+  rightLabel,
   backLabel,
 }: Readonly<AppBarProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
@@ -40,31 +53,54 @@ export function AppBar({
   const { t } = useTranslation()
   const resolvedBackLabel = backLabel ?? t('common.back')
 
-  return (
-    <View
+  const rightAction = right ? (
+    <Pressable
+      onPress={onRight}
+      accessibilityRole="button"
+      accessibilityLabel={
+        rightLabel ??
+        (right === 'help'
+          ? t('common.help')
+          : right === 'close'
+            ? t('common.close')
+            : t('common.share'))
+      }
       style={[
-        styles.row,
-        {
-          borderBottomColor: hairline ? tokens.hairline : 'transparent',
-          borderBottomWidth: hairline ? StyleSheet.hairlineWidth : 0,
-        },
+        styles.iconBtn,
+        right === 'help'
+          ? { borderWidth: 1.5, borderColor: tokens.hairlineStrong }
+          : null,
       ]}
     >
-      <Pressable
-        onPress={onBack}
-        disabled={!back && !LeadingIcon}
-        accessibilityRole={back || LeadingIcon ? 'button' : 'none'}
-        accessibilityLabel={resolvedBackLabel}
-        style={styles.iconBtn}
-      >
-        {back ? (
-          <ChevronLeft size={18} color={tokens.fg2} strokeWidth={1.7} />
-        ) : LeadingIcon ? (
-          <LeadingIcon size={17} color={tokens.fg2} strokeWidth={1.5} />
-        ) : (
-          <View style={styles.iconPlaceholder} />
-        )}
-      </Pressable>
+      {right === 'help' ? (
+        <HelpCircle size={22} color={tokens.fg1} strokeWidth={1.8} />
+      ) : right === 'close' ? (
+        <X size={24} color={tokens.fg1} strokeWidth={1.8} />
+      ) : (
+        <Share2 size={21} color={tokens.fg1} strokeWidth={1.8} />
+      )}
+    </Pressable>
+  ) : null
+
+  return (
+    <View style={styles.row}>
+      <View style={styles.leadingSlot}>
+        {back || LeadingIcon ? (
+          <Pressable
+            onPress={onBack}
+            disabled={!onBack}
+            accessibilityRole={onBack ? 'button' : 'none'}
+            accessibilityLabel={resolvedBackLabel}
+            style={styles.iconBtn}
+          >
+            {back ? (
+              <ChevronLeft size={26} color={tokens.fg1} strokeWidth={2} />
+            ) : LeadingIcon ? (
+              <LeadingIcon size={22} color={tokens.fg1} strokeWidth={1.8} />
+            ) : null}
+          </Pressable>
+        ) : null}
+      </View>
 
       <View style={styles.titleColumn}>
         <Text
@@ -83,52 +119,59 @@ export function AppBar({
         ) : null}
       </View>
 
-      {trailing ? <View style={styles.trailing}>{trailing}</View> : null}
+      <View style={styles.trailingSlot}>{trailing ?? rightAction}</View>
     </View>
   )
 }
 
 const styles = StyleSheet.create({
   row: {
-    minHeight: 52,
-    paddingLeft: 8,
-    paddingRight: 12,
+    minHeight: 56,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
   },
+  leadingSlot: {
+    width: 40,
+    flexDirection: 'row',
+    justifyContent: 'flex-start',
+    flexShrink: 0,
+  },
   iconBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 8,
+    width: 40,
+    height: 40,
+    borderRadius: 999,
     alignItems: 'center',
     justifyContent: 'center',
-  },
-  iconPlaceholder: {
-    width: 18,
-    height: 18,
   },
   titleColumn: {
     flex: 1,
     minWidth: 0,
-    gap: 1,
+    gap: 2,
     justifyContent: 'center',
   },
   title: {
-    fontFamily: 'Rubik_600SemiBold',
-    fontSize: 17,
-    letterSpacing: -0.17,
-    lineHeight: 20,
+    fontFamily: 'Rubik_500Medium',
+    fontSize: 13,
+    letterSpacing: 1.17,
+    textTransform: 'uppercase',
+    textAlign: 'center',
   },
   subtitle: {
-    fontFamily: 'Roboto_500Medium',
-    fontSize: 11,
-    letterSpacing: 0.44,
+    fontFamily: 'Roboto_400Regular',
+    fontSize: 12,
+    letterSpacing: 0.24,
+    textAlign: 'center',
     fontVariant: ['tabular-nums'],
   },
-  trailing: {
+  trailingSlot: {
+    minWidth: 40,
     flexDirection: 'row',
     alignItems: 'center',
+    justifyContent: 'flex-end',
     gap: 2,
+    flexShrink: 0,
   },
 })

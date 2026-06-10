@@ -2,7 +2,7 @@ import type { ReactNode } from 'react'
 import React from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { ChevronRight } from 'lucide-react-native'
-import { createTokensV2, radius } from '@/lib/theme'
+import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { ProBadge } from '@/components/ui/pro-badge'
 
@@ -11,9 +11,8 @@ interface SettingsGroupProps {
 }
 
 /**
- * Grouped settings card: hairline-bordered surface containing flat
- * SettingsGroupRow children, separated by inset hairlines. One elevated
- * surface per group; rows carry no chrome of their own.
+ * Grouped settings list: rows sit flat on the canvas (no card surface),
+ * separated by full-width hairline dividers drawn by the group.
  */
 export function SettingsGroup({ children }: Readonly<SettingsGroupProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
@@ -21,15 +20,7 @@ export function SettingsGroup({ children }: Readonly<SettingsGroupProps>) {
   const items = React.Children.toArray(children).filter(Boolean)
 
   return (
-    <View
-      style={[
-        styles.group,
-        {
-          backgroundColor: tokens.bgElev,
-          borderColor: tokens.hairline,
-        },
-      ]}
-    >
+    <View>
       {items.map((child, index) => (
         <View key={index} collapsable={false}>
           {index > 0 ? (
@@ -43,7 +34,7 @@ export function SettingsGroup({ children }: Readonly<SettingsGroupProps>) {
 }
 
 interface SettingsGroupRowProps {
-  /** Pre-rendered leading icon (e.g. `<Settings size={18} color={tokens.fg3} />`). */
+  /** Pre-rendered leading icon (e.g. `<Settings size={22} color={tokens.fg1} />`). */
   icon?: ReactNode
   label: string
   /** Optional right-side hint or value text. */
@@ -80,7 +71,7 @@ export function SettingsGroupRow({
       accessibilityLabel={label}
       style={({ pressed }) => [
         styles.row,
-        pressed && onPress ? { backgroundColor: tokens.bg } : null,
+        pressed && onPress ? { backgroundColor: tokens.bgElev } : null,
       ]}
     >
       {icon ? <View style={styles.iconSlot}>{icon}</View> : null}
@@ -105,7 +96,7 @@ export function SettingsGroupRow({
       <View style={styles.trailingBlock}>
         {trailing}
         {resolvedAccessory === 'chevron' ? (
-          <ChevronRight size={16} color={tokens.fg4} strokeWidth={1.5} />
+          <ChevronRight size={22} color={tokens.fg4} strokeWidth={1.8} />
         ) : null}
       </View>
     </Pressable>
@@ -113,25 +104,19 @@ export function SettingsGroupRow({
 }
 
 const styles = StyleSheet.create({
-  group: {
-    borderRadius: radius.md,
-    borderWidth: StyleSheet.hairlineWidth,
-    overflow: 'hidden',
-  },
   divider: {
     height: StyleSheet.hairlineWidth,
-    marginLeft: 16,
   },
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    paddingVertical: 14,
-    paddingHorizontal: 16,
+    gap: 14,
+    paddingVertical: 16,
+    paddingHorizontal: 20,
     minHeight: 48,
   },
   iconSlot: {
-    width: 20,
+    width: 26,
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
@@ -139,7 +124,7 @@ const styles = StyleSheet.create({
   textBlock: {
     flex: 1,
     minWidth: 0,
-    gap: 2,
+    gap: 3,
   },
   titleRow: {
     flexDirection: 'row',
@@ -147,7 +132,8 @@ const styles = StyleSheet.create({
   },
   label: {
     fontFamily: 'Rubik_400Regular',
-    fontSize: 15,
+    fontSize: 18,
+    lineHeight: 22.5,
     flexShrink: 1,
   },
   proBadgeSpacing: {
@@ -156,11 +142,12 @@ const styles = StyleSheet.create({
   trailingBlock: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 10,
     flexShrink: 0,
   },
   hint: {
     fontFamily: 'Rubik_400Regular',
-    fontSize: 13,
+    fontSize: 14,
+    lineHeight: 18.9,
   },
 })

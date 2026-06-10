@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { Text, type TextStyle } from 'react-native'
-import { createTokensV2 } from '@/lib/theme'
+import { createTokensV2, tintFromPrimary } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 interface HighlightTextProps {
@@ -61,7 +61,8 @@ export function HighlightText({ text, query, style }: Readonly<HighlightTextProp
           <Text
             key={`segment-${i}-${seg.text}`}
             style={{
-              backgroundColor: tokens.hairlineStrong,
+              backgroundColor: tintFromPrimary(tokens, 0.18),
+              color: tokens.fg1,
               borderRadius: 2,
               paddingHorizontal: 1,
             }}

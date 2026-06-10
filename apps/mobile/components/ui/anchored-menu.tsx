@@ -13,9 +13,11 @@ import {
   getAnchoredMenuPosition,
   type MenuAnchorRect,
 } from '@/lib/anchored-menu'
-import { easings, radius } from '@/lib/theme'
+import { createTokensV2, easings, radius, shadowsV2 } from '@/lib/theme'
 import { toAnimatedEasing, useResolvedMotionPreset } from '@/lib/motion'
 import { useAppTheme } from '@/lib/use-app-theme'
+
+type AppTokens = ReturnType<typeof createTokensV2>
 
 interface AnchoredMenuProps {
   visible: boolean
@@ -36,9 +38,13 @@ export function AnchoredMenu({
   estimatedHeight = 220,
   panelStyle,
 }: Readonly<AnchoredMenuProps>) {
-  const theme = useAppTheme()
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = useMemo(
+    () => createTokensV2(currentScheme, currentTheme),
+    [currentScheme, currentTheme],
+  )
   const menuMotion = useResolvedMotionPreset('menu')
-  const styles = useMemo(() => createStyles(theme), [theme])
+  const styles = useMemo(() => createStyles(tokens), [tokens])
   const [menuHeight, setMenuHeight] = useState(estimatedHeight)
   const [shouldRender, setShouldRender] = useState(visible)
   const progress = useMemo(() => new Animated.Value(0), [])
@@ -158,9 +164,7 @@ export function AnchoredMenu({
   )
 }
 
-function createStyles(theme: ReturnType<typeof useAppTheme>) {
-  const { surfaces } = theme
-
+function createStyles(tokens: AppTokens) {
   return StyleSheet.create({
     overlay: {
       flex: 1,
@@ -177,11 +181,10 @@ function createStyles(theme: ReturnType<typeof useAppTheme>) {
       minWidth: 176,
       borderRadius: radius.lg,
       borderWidth: 1,
-      borderColor: surfaces.overlay.borderColor,
-      backgroundColor: surfaces.overlay.backgroundColor,
+      borderColor: tokens.hairline,
+      backgroundColor: tokens.bgSheet,
       padding: 6,
-      ...surfaces.overlay.shadow,
-      elevation: Math.max(16, surfaces.overlay.elevation),
+      ...shadowsV2.shadow2,
     },
   })
 }

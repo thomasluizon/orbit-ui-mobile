@@ -171,7 +171,6 @@ export function OnboardingCreateGoal({
       </Text>
 
       <UnderlinedInput
-        large
         value={description}
         onChangeText={setDescription}
         placeholder={t('onboarding.flow.createGoal.descriptionPlaceholder')}

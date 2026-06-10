@@ -202,7 +202,6 @@ export function CreateApiKeyModal({
           ) : (
             <View style={styles.content}>
               <UnderlinedInput
-                large
                 value={keyName}
                 onChangeText={setKeyName}
                 placeholder={t('orbitMcp.keyNamePlaceholder')}

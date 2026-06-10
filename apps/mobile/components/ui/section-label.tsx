@@ -7,17 +7,17 @@ interface SectionLabelProps {
   children: ReactNode
   /** Top padding in px (default 24). */
   top?: number
-  /** Bottom padding in px (default 12). */
+  /** Bottom padding in px (default 14). */
   bottom?: number
   /** Optional trailing slot rendered on the right side of the row. */
   trailing?: ReactNode
 }
 
-/** v8 plain, flush-left 13px/600 muted section label with an optional trailing slot. */
+/** Kit SectionTitle: Rubik 20/500 fg-1 with 24/20/14 padding and an optional trailing slot. */
 export function SectionLabel({
   children,
   top = 24,
-  bottom = 12,
+  bottom = 14,
   trailing,
 }: Readonly<SectionLabelProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
@@ -30,7 +30,7 @@ export function SectionLabel({
         { paddingTop: top, paddingBottom: bottom },
       ]}
     >
-      <Text style={[styles.label, { color: tokens.fg3 }]}>{children}</Text>
+      <Text style={[styles.label, { color: tokens.fg1 }]}>{children}</Text>
       {trailing ? <View style={styles.trailing}>{trailing}</View> : null}
     </View>
   )
@@ -45,9 +45,10 @@ const styles = StyleSheet.create({
     gap: 12,
   },
   label: {
-    fontFamily: 'Rubik_600SemiBold',
-    fontSize: 13,
-    },
+    fontFamily: 'Rubik_500Medium',
+    fontSize: 20,
+    letterSpacing: -0.2,
+  },
   trailing: {
     flexDirection: 'row',
     alignItems: 'center',

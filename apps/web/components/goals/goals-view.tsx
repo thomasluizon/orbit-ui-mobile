@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useCallback, useMemo } from 'react'
-import { Check, Filter, Flag } from 'lucide-react'
+import { Check, Filter } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { GoalList } from './goal-list'
 import { SkeletonCard } from '@/components/ui/skeleton'
@@ -121,10 +121,8 @@ export function GoalsView() {
             <GoalList goals={filteredGoals} />
           ) : (
             <EmptyState
-              icon={Flag}
               title={t('goals.empty')}
               description={t('goals.emptyHint')}
-              className="rounded-[12px] border border-[var(--hairline)] bg-[var(--bg-sunk)] shadow-[var(--shadow-sm)]"
             />
           )}
         </>

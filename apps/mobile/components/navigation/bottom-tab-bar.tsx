@@ -1,5 +1,5 @@
 import { Fragment, type ComponentType } from 'react'
-import { Pressable, StyleSheet, View } from 'react-native'
+import { Pressable, StyleSheet, Text, View } from 'react-native'
 import {
   CalendarDays,
   Home,
@@ -9,7 +9,7 @@ import {
   User,
 } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
-import { createTokensV2 } from '@/lib/theme'
+import { createTokensV2, primaryGlow } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 export type BottomTabId = 'today' | 'chat' | 'calendar' | 'profile'
@@ -23,7 +23,7 @@ interface BottomTabBarProps {
   onFab?: () => void
   /** Dot on the Astra tab indicating an unread thread. */
   astraUnread?: boolean
-  /** Force-hide the FAB (also auto-hidden on Astra/Profile per PRD). */
+  /** Force-hide the FAB (also auto-hidden on the Astra tab). */
   showFab?: boolean
 }
 
@@ -31,18 +31,17 @@ interface TabDef {
   id: BottomTabId
   labelKey: string
   Icon: LucideIcon
-  /** When true the icon turns primary while active (v8 Astra emphasis). */
-  emphasize?: boolean
 }
 
 const TABS: readonly TabDef[] = [
   { id: 'today', labelKey: 'nav.home', Icon: Home },
-  { id: 'chat', labelKey: 'nav.astra', Icon: MessageCircle, emphasize: true },
+  { id: 'chat', labelKey: 'nav.astra', Icon: MessageCircle },
   { id: 'calendar', labelKey: 'nav.calendar', Icon: CalendarDays },
   { id: 'profile', labelKey: 'nav.you', Icon: User },
 ]
 
-/** v8 bottom navigation: 4 tabs + centered Plus FAB; FAB auto-hides on the Astra and Profile tabs. */
+/** Kit bottom navigation: opaque canvas bar with top hairline, 4 labelled tabs
+ *  and a centered 60px Plus FAB ringed by the canvas color plus primary glow. */
 export function BottomTabBar({
   active,
   onTab,
@@ -76,14 +75,8 @@ export function BottomTabBar({
           accessibilityState={{ disabled: fabDisabled }}
           style={[
             styles.fab,
-            {
-              backgroundColor: fabDisabled ? tokens.bgElev : tokens.primary,
-              shadowColor: tokens.bg,
-              shadowOffset: { width: 0, height: 0 },
-              shadowOpacity: 1,
-              shadowRadius: 5,
-              elevation: fabDisabled ? 0 : 6,
-            },
+            { backgroundColor: fabDisabled ? tokens.bgSheet : tokens.primary },
+            fabDisabled ? null : primaryGlow(tokens),
           ]}
         >
           <View
@@ -101,9 +94,9 @@ export function BottomTabBar({
             />
           ) : null}
           <Plus
-            size={24}
+            size={28}
             color={fabDisabled ? tokens.fg3 : tokens.fgOnPrimary}
-            strokeWidth={1.7}
+            strokeWidth={2.2}
           />
         </Pressable>
       ) : null}
@@ -147,8 +140,7 @@ function TabButton({
   onPress: () => void
   showUnread: boolean
 }>) {
-  const tint = isActive ? tokens.fg1 : tokens.fg3
-  const iconColor = tab.emphasize && isActive ? tokens.primary : tint
+  const color = isActive ? tokens.primary : tokens.fg4
 
   return (
     <Pressable
@@ -158,16 +150,8 @@ function TabButton({
       accessibilityState={{ selected: isActive }}
       style={styles.tabBtn}
     >
-      {isActive ? (
-        <View
-          style={[
-            styles.activeIndicator,
-            { backgroundColor: tokens.primary },
-          ]}
-        />
-      ) : null}
       <View style={styles.iconWrap}>
-        <tab.Icon size={24} color={iconColor} strokeWidth={1.6} />
+        <tab.Icon size={24} color={color} strokeWidth={isActive ? 2.2 : 1.8} />
         {showUnread ? (
           <View
             style={[
@@ -180,6 +164,17 @@ function TabButton({
           />
         ) : null}
       </View>
+      <Text
+        style={[
+          styles.tabLabel,
+          {
+            color,
+            fontFamily: isActive ? 'Rubik_500Medium' : 'Rubik_400Regular',
+          },
+        ]}
+      >
+        {label}
+      </Text>
     </Pressable>
   )
 }
@@ -187,28 +182,28 @@ function TabButton({
 const styles = StyleSheet.create({
   container: {
     position: 'relative',
-    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopWidth: 1,
   },
   fab: {
     position: 'absolute',
     left: '50%',
-    top: -14,
-    marginLeft: -28,
-    width: 56,
-    height: 56,
-    borderRadius: 28,
+    top: -30,
+    marginLeft: -30,
+    width: 60,
+    height: 60,
+    borderRadius: 30,
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 2,
   },
   fabRing: {
     position: 'absolute',
-    top: -5,
-    left: -5,
-    right: -5,
-    bottom: -5,
-    borderRadius: 33,
-    borderWidth: 5,
+    top: -6,
+    left: -6,
+    right: -6,
+    bottom: -6,
+    borderRadius: 36,
+    borderWidth: 6,
   },
   fabDisabledInnerRing: {
     position: 'absolute',
@@ -216,36 +211,32 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    borderRadius: 28,
+    borderRadius: 30,
     borderWidth: StyleSheet.hairlineWidth,
   },
   tabsRow: {
     flexDirection: 'row',
-    paddingTop: 14,
-    paddingBottom: 16,
   },
   tabSlot: {
     flex: 1,
     flexDirection: 'row',
   },
   fabGap: {
-    width: 56,
+    width: 84,
   },
   tabBtn: {
     flex: 1,
-    paddingVertical: 8,
     alignItems: 'center',
-    position: 'relative',
-  },
-  activeIndicator: {
-    position: 'absolute',
-    top: -2,
-    width: 16,
-    height: 2,
-    borderRadius: 1,
+    gap: 5,
+    paddingTop: 10,
+    paddingBottom: 12,
   },
   iconWrap: {
     position: 'relative',
+  },
+  tabLabel: {
+    fontSize: 11,
+    lineHeight: 13,
   },
   unreadDot: {
     position: 'absolute',

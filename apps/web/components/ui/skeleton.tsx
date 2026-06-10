@@ -13,7 +13,7 @@ export function SkeletonLine({ width, height, className }: Readonly<SkeletonLine
   return (
     <div
       className={[
-        'skeleton-pulse bg-[var(--bg-elev)] rounded-[var(--radius-sm)]',
+        'skeleton-pulse bg-[color-mix(in_srgb,var(--fg-1)_6%,transparent)] rounded-[var(--radius-md)]',
         height ?? 'h-3',
         width ?? 'w-full',
         className,
@@ -35,7 +35,7 @@ export function SkeletonCard({ lines = 3, className }: Readonly<SkeletonCardProp
   return (
     <div
       className={[
-        'bg-[var(--bg-elev)] rounded-[12px] border border-[var(--hairline)] p-5 space-y-3',
+        'bg-[var(--bg-card)] rounded-[16px] shadow-[inset_0_0_0_1px_var(--hairline)] p-5 space-y-3',
         className,
       ]
         .filter(Boolean)

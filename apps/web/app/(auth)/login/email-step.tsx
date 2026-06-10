@@ -1,6 +1,6 @@
 import Link from 'next/link'
 import type { useTranslations } from 'next-intl'
-import { UnderlinedInput } from '@/components/ui/underlined-input'
+import { FieldInput } from '@/components/ui/field-input'
 import { GoogleIcon, PrimaryButton, SecondaryButton } from './login-atoms'
 
 interface EmailStepProps {
@@ -36,7 +36,7 @@ export function EmailStep({
           onSendCode()
         }}
       >
-        <UnderlinedInput
+        <FieldInput
           id="login-email"
           name="email"
           label={t('auth.email')}

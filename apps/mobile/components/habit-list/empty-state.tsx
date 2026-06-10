@@ -1,5 +1,7 @@
 import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native'
 import { getHabitEmptyStateKey } from '@orbit/shared/utils'
+import { PillButton } from '@/components/ui/pill-button'
+import { SatelliteGlyph } from '@/components/ui/satellite-glyph'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
@@ -12,8 +14,8 @@ interface HabitListEmptyStateProps {
 }
 
 /**
- * v8 empty state: italic title, optional distinct description, optional Astra
- * primary pill or quiet underline link. Mirrors the web habit-list empty state.
+ * Kit empty state: satellite glyph, title, optional distinct description, optional
+ * Astra primary pill or quiet underline link. Mirrors the web habit-list empty state.
  */
 export function HabitListEmptyState({
   title,
@@ -29,25 +31,16 @@ export function HabitListEmptyState({
 
   return (
     <View style={styles.container}>
-      <Text style={[styles.title, { color: tokens.fg2 }]}>{title}</Text>
+      <SatelliteGlyph size={96} />
+      <Text style={[styles.title, { color: tokens.fg1 }]}>{title}</Text>
       {hasDistinctDescription ? (
         <Text style={[styles.description, { color: tokens.fg3 }]}>{description}</Text>
       ) : null}
       {actionLabel ? (
         isAstraPrompt ? (
-          <Pressable
-            onPress={onAction}
-            accessibilityRole="button"
-            accessibilityLabel={actionLabel}
-            style={({ pressed }) => [
-              styles.primaryAction,
-              { backgroundColor: tokens.primary, opacity: pressed ? 0.85 : 1 },
-            ]}
-          >
-            <Text style={[styles.primaryActionText, { color: tokens.fgOnPrimary }]}>
-              {actionLabel}
-            </Text>
-          </Pressable>
+          <PillButton onPress={onAction} style={styles.primaryAction}>
+            {actionLabel}
+          </PillButton>
         ) : (
           <Pressable
             onPress={onAction}
@@ -103,31 +96,26 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     paddingHorizontal: 24,
     paddingVertical: 60,
-    gap: 16,
   },
   title: {
-    fontFamily: 'Rubik_400Regular',
-    fontSize: 17,
-    fontStyle: 'italic',
+    fontFamily: 'Rubik_500Medium',
+    fontSize: 20,
+    marginTop: 18,
     textAlign: 'center',
   },
   description: {
     fontFamily: 'Rubik_400Regular',
-    fontSize: 13,
-    lineHeight: 20,
+    fontSize: 14,
+    lineHeight: 21,
+    marginTop: 6,
     textAlign: 'center',
     maxWidth: 280,
   },
   primaryAction: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 999,
+    marginTop: 22,
   },
-  primaryActionText: {
-    fontFamily: 'Rubik_500Medium',
-    fontSize: 13,
-    },
   linkAction: {
+    marginTop: 22,
     paddingVertical: 6,
     paddingHorizontal: 8,
   },

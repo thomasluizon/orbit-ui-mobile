@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
-import { createTokensV2 } from '@/lib/theme'
+import { createTokensV2, radius } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 interface ChipProps {
@@ -13,10 +13,7 @@ interface ChipProps {
   accessibilityLabel?: string
 }
 
-/**
- * v8 Linear-tactical chip. NOT an underline — active chips fill with the elevated
- * background and gain a fg-3 inset ring; inactive chips show a hairline-strong ring.
- */
+/** Pill filter chip: active fills bg-elev with fg-1 text; inactive is a transparent hairline-ringed ghost. */
 export function Chip({
   children,
   active = false,
@@ -33,23 +30,18 @@ export function Chip({
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
       accessibilityState={{ selected: active }}
+      hitSlop={{ top: 7, bottom: 7 }}
       style={[
         styles.chip,
         {
           backgroundColor: active ? tokens.bgElev : 'transparent',
-          borderColor: active ? tokens.fg3 : tokens.hairlineStrong,
+          borderColor: active ? 'transparent' : tokens.hairline,
         },
       ]}
     >
       {leading ? <View style={styles.leading}>{leading}</View> : null}
       <Text
-        style={[
-          styles.label,
-          {
-            color: active ? tokens.fg1 : tokens.fg2,
-            fontWeight: active ? '600' : '500',
-          },
-        ]}
+        style={[styles.label, { color: active ? tokens.fg1 : tokens.fg3 }]}
         numberOfLines={1}
       >
         {children}
@@ -60,9 +52,9 @@ export function Chip({
 
 const styles = StyleSheet.create({
   chip: {
-    height: 26,
-    paddingHorizontal: 9,
-    borderRadius: 6,
+    height: 30,
+    paddingHorizontal: 14,
+    borderRadius: radius.full,
     borderWidth: 1,
     flexDirection: 'row',
     alignItems: 'center',
@@ -73,7 +65,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
   },
   label: {
-    fontFamily: 'Rubik_400Regular',
-    fontSize: 12,
+    fontFamily: 'Rubik_500Medium',
+    fontSize: 13,
   },
 })

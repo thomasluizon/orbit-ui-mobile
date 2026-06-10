@@ -5,7 +5,7 @@ import {
   Text,
   View,
 } from "react-native";
-import { Check, Filter, Flag } from "lucide-react-native";
+import { Check, Filter } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import type { GoalStatus } from "@orbit/shared/types/goal";
 import { useGoals } from "@/hooks/use-goals";
@@ -120,16 +120,8 @@ export function GoalsView() {
         <GoalList goals={filteredGoals} />
       ) : (
         <EmptyState
-          icon={Flag}
           title={t("goals.empty")}
           description={t("goals.emptyHint")}
-          style={{
-            marginHorizontal: 20,
-            borderRadius: 12,
-            backgroundColor: tokens.bgSunk,
-            borderWidth: StyleSheet.hairlineWidth,
-            borderColor: tokens.hairline,
-          }}
         />
       )}
 

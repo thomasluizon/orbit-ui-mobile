@@ -152,6 +152,8 @@ export function resolveLightNeutrals(scheme: ColorScheme): LightNeutrals {
 }
 
 export interface AlphaSurfaceConstants {
+  readonly bgCard: string
+  readonly bgField?: string
   readonly bgElev: string
   readonly bgElev2: string
   readonly bgSunk?: string
@@ -164,9 +166,14 @@ export interface AlphaSurfaceConstants {
  * Scheme-independent alpha surfaces: white-alpha over the dark canvas,
  * ink-alpha over the light canvas. They inherit tint optically from the
  * canvas beneath and are identical across all 6 schemes (handoff mechanism).
+ * Dark translucency ladder: 0.04 card / 0.05 field / 0.06 well / 0.10 elev-2.
+ * Light cards are opaque white; light fields use the scheme-tinted bgSunk
+ * (resolved in the token factories, not a constant here).
  */
 export const alphaSurfaces: Record<SchemeMode, AlphaSurfaceConstants> = {
   dark: {
+    bgCard: 'rgba(248, 250, 252, 0.04)',
+    bgField: 'rgba(248, 250, 252, 0.05)',
     bgElev: 'rgba(248, 250, 252, 0.06)',
     bgElev2: 'rgba(248, 250, 252, 0.10)',
     bgSunk: 'rgba(0, 0, 0, 0.28)',
@@ -175,6 +182,7 @@ export const alphaSurfaces: Record<SchemeMode, AlphaSurfaceConstants> = {
     statusEmpty: 'rgba(248, 250, 252, 0.22)',
   },
   light: {
+    bgCard: 'rgb(255, 255, 255)',
     bgElev: 'rgb(255, 255, 255)',
     bgElev2: 'rgb(255, 255, 255)',
     hairline: 'rgba(2, 6, 24, 0.08)',

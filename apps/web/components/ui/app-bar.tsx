@@ -1,10 +1,12 @@
 'use client'
 
 import { useTranslations } from 'next-intl'
-import { ChevronLeft } from 'lucide-react'
-import type { ReactNode } from 'react'
+import { ChevronLeft, HelpCircle, Share2, X } from 'lucide-react'
+import type { CSSProperties, ReactNode } from 'react'
 
-/** Compact 52px app bar: back/leading icon, title (+ optional subtitle), trailing cluster. */
+type AppBarRightVariant = 'help' | 'close' | 'share'
+
+/** Kit NavHeader: 56px transparent bar — 40px back slot, centered uppercase title, 40px right slot. */
 interface AppBarProps {
   back?: boolean
   /** Accessibility label for the back/leading button. Defaults to t('common.back'). */
@@ -13,8 +15,23 @@ interface AppBarProps {
   leadingIcon?: ReactNode
   title: string
   subtitle?: string
+  /** Arbitrary right-slot cluster; takes precedence over `right`. */
   trailing?: ReactNode
-  hairline?: boolean
+  /** Standard right-slot action: help (ringed), close, or share. */
+  right?: AppBarRightVariant
+  onRight?: () => void
+  /** Accessibility label for the `right` action. Defaults to the matching common.* key. */
+  rightLabel?: string
+}
+
+const iconButtonClass =
+  'appearance-none border-0 bg-transparent cursor-pointer p-0 inline-flex items-center justify-center'
+
+const iconButtonStyle: CSSProperties = {
+  width: 40,
+  height: 40,
+  borderRadius: 999,
+  color: 'var(--fg-1)',
 }
 
 export function AppBar({
@@ -25,81 +42,86 @@ export function AppBar({
   title,
   subtitle,
   trailing,
-  hairline = true,
+  right,
+  onRight,
+  rightLabel,
 }: Readonly<AppBarProps>) {
   const t = useTranslations('common')
   const resolvedBackLabel = backLabel ?? t('back')
-  const leading = back ? (
-    <ChevronLeft size={18} strokeWidth={1.7} color="var(--fg-2)" />
-  ) : (
-    leadingIcon
-  )
+
+  const rightAction = right ? (
+    <button
+      type="button"
+      aria-label={
+        rightLabel ??
+        (right === 'help' ? t('help') : right === 'close' ? t('close') : t('share'))
+      }
+      onClick={onRight}
+      className={iconButtonClass}
+      style={
+        right === 'help'
+          ? {
+              ...iconButtonStyle,
+              boxShadow: 'inset 0 0 0 1.5px var(--hairline-strong)',
+            }
+          : iconButtonStyle
+      }
+    >
+      {right === 'help' && <HelpCircle size={22} strokeWidth={1.8} />}
+      {right === 'close' && <X size={24} strokeWidth={1.8} />}
+      {right === 'share' && <Share2 size={21} strokeWidth={1.8} />}
+    </button>
+  ) : null
 
   return (
     <div
       className="flex items-center shrink-0"
-      style={{
-        minHeight: 52,
-        padding: '0 12px 0 8px',
-        gap: 4,
-        borderBottom: hairline ? '1px solid var(--hairline)' : 'none',
-      }}
+      style={{ minHeight: 56, padding: '8px 14px', gap: 4 }}
     >
-      {back || onBack ? (
-        <button
-          type="button"
-          aria-label={resolvedBackLabel}
-          onClick={onBack}
-          className="appearance-none border-0 bg-transparent cursor-pointer p-0 inline-flex items-center justify-center"
-          style={{
-            width: 36,
-            height: 36,
-            borderRadius: 8,
-            color: 'var(--fg-2)',
-          }}
-        >
-          {leading ?? <span aria-hidden="true" style={{ width: 18, height: 18 }} />}
-        </button>
-      ) : (
-        <span
-          aria-hidden="true"
-          className="inline-flex items-center justify-center"
-          style={{
-            width: 36,
-            height: 36,
-            color: 'var(--fg-2)',
-          }}
-        >
-          {leading ?? <span style={{ width: 18, height: 18 }} />}
-        </span>
-      )}
+      <div className="flex justify-start shrink-0" style={{ width: 40 }}>
+        {back || onBack ? (
+          <button
+            type="button"
+            aria-label={resolvedBackLabel}
+            onClick={onBack}
+            className={iconButtonClass}
+            style={iconButtonStyle}
+          >
+            {back ? <ChevronLeft size={26} strokeWidth={2} /> : leadingIcon}
+          </button>
+        ) : leadingIcon ? (
+          <span
+            aria-hidden="true"
+            className="inline-flex items-center justify-center"
+            style={{ width: 40, height: 40, color: 'var(--fg-1)' }}
+          >
+            {leadingIcon}
+          </span>
+        ) : null}
+      </div>
 
-      <div
-        className="flex flex-col justify-center min-w-0 flex-1"
-        style={{ gap: 1 }}
-      >
+      <div className="flex flex-col justify-center min-w-0 flex-1" style={{ gap: 2 }}>
         <div
-          className="overflow-hidden whitespace-nowrap text-ellipsis"
+          className="overflow-hidden whitespace-nowrap text-ellipsis text-center"
           style={{
             fontFamily: 'var(--font-sans)',
-            fontSize: 17,
-            fontWeight: 600,
+            fontSize: 13,
+            fontWeight: 500,
+            letterSpacing: '0.09em',
+            textTransform: 'uppercase',
             color: 'var(--fg-1)',
-            letterSpacing: '-0.01em',
-            lineHeight: 1.2,
           }}
         >
           {title}
         </div>
         {subtitle && (
           <div
-            className="overflow-hidden whitespace-nowrap text-ellipsis"
+            className="overflow-hidden whitespace-nowrap text-ellipsis text-center"
             style={{
               fontFamily: 'var(--font-mono)',
-              fontSize: 11,
-              fontWeight: 500,
+              fontSize: 12,
               color: 'var(--fg-3)',
-              letterSpacing: '0.04em',
+              letterSpacing: '0.02em',
               fontVariantNumeric: 'tabular-nums',
             }}
           >
@@ -108,11 +130,12 @@ export function AppBar({
         )}
       </div>
 
-      {trailing && (
-        <div className="flex items-center shrink-0" style={{ gap: 2 }}>
-          {trailing}
-        </div>
-      )}
+      <div
+        className="flex items-center justify-end shrink-0"
+        style={{ minWidth: 40, gap: 2 }}
+      >
+        {trailing ?? rightAction}
+      </div>
     </div>
   )
 }

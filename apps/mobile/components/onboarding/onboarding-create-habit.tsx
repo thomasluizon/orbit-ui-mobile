@@ -158,7 +158,6 @@ export function OnboardingCreateHabit({
       </Text>
 
       <UnderlinedInput
-        large
         value={title}
         onChangeText={setTitle}
         placeholder={t('onboarding.flow.createHabit.placeholder')}

@@ -10,6 +10,7 @@ import {
 import { useTranslation } from 'react-i18next'
 import {
   ArrowRight,
+  Check,
   CheckCircle2,
   ChevronDown,
   ChevronRight,
@@ -36,7 +37,7 @@ import { AnchoredMenu } from '@/components/ui/anchored-menu'
 import type { MenuAnchorRect } from '@/lib/anchored-menu'
 import { ParentRing } from '@/components/ui/parent-ring'
 import { SelectCheck } from '@/components/ui/select-check'
-import { StatusDot, type StatusDotState } from '@/components/ui/status-dot'
+import type { StatusDotState } from '@/components/ui/status-dot'
 
 /**
  * Action callbacks consumed by HabitRow.
@@ -198,8 +199,10 @@ export function HabitRow({
     }
   }
 
-  const titleSize = isChild ? 14 : 17
-  const emojiSize = isChild ? 16 : 18
+  const titleSize = isChild ? 14 : 16
+  const emojiSize = isChild ? 16 : 22
+  const wellSize = isChild ? 36 : 46
+  const wellRadius = isChild ? 12 : 14
 
   const titleColor = isDoneForRange ? tokens.fg3 : tokens.fg1
 
@@ -220,18 +223,15 @@ export function HabitRow({
         style={({ pressed }) => [
           styles.row,
           {
-            paddingTop: 12,
-            paddingBottom: 12,
-            paddingLeft: 16,
             backgroundColor: isSelected
               ? tokens.bgSunk
               : pressed
                 ? tokens.bgElevPressed
-                : tokens.bgElev,
-            borderRadius: 10,
+                : tokens.bgCard,
+            borderColor: tokens.hairline,
             marginLeft: 20 + indentPx,
             marginRight: 20,
-            marginBottom: 6,
+            marginBottom: 10,
           },
         ]}
       >
@@ -255,14 +255,26 @@ export function HabitRow({
               transform: [{ rotate: isExpanded ? '0deg' : '-90deg' }],
             }}
           >
-            <ChevronDown size={14} color={tokens.fg3} strokeWidth={1.5} />
+            <ChevronDown size={14} color={tokens.fg3} strokeWidth={1.8} />
           </Pressable>
         ) : null}
 
         {emoji ? (
-          <Text style={{ fontSize: emojiSize, lineHeight: emojiSize + 2 }}>
-            {emoji}
-          </Text>
+          <View
+            style={[
+              styles.emojiWell,
+              {
+                width: wellSize,
+                height: wellSize,
+                borderRadius: wellRadius,
+                backgroundColor: tokens.bgField,
+              },
+            ]}
+          >
+            <Text style={{ fontSize: emojiSize, lineHeight: emojiSize + 2 }}>
+              {emoji}
+            </Text>
+          </View>
         ) : null}
 
         <View style={styles.titleBlock}>
@@ -274,7 +286,7 @@ export function HabitRow({
                 fontSize: titleSize,
                 color: titleColor,
                 textDecorationLine: isDoneForRange ? 'line-through' : 'none',
-                textDecorationColor: tokens.hairlineStrong,
+                textDecorationColor: tokens.fg4,
               },
             ]}
           >
@@ -290,7 +302,7 @@ export function HabitRow({
             </Text>
           ) : null}
 
-          {metaParts.length > 0 ? (
+          {metaParts.length > 0 || showStreak ? (
             <Text
               numberOfLines={1}
               style={[styles.meta, { color: tokens.fg3 }]}
@@ -303,7 +315,16 @@ export function HabitRow({
                   {typeof part === 'string' ? (
                     part
                   ) : (
-                    <Text style={{ fontStyle: 'italic' }}>
+                    <Text
+                      style={{
+                        fontStyle: 'italic',
+                        ...(part.kind === 'overdue'
+                          ? { color: tokens.statusOverdue }
+                          : part.kind === 'bad'
+                            ? { color: tokens.statusBad }
+                            : {}),
+                      }}
+                    >
                       {(part.kind === 'overdue'
                         ? t('habits.overdue')
                         : part.kind === 'bad'
@@ -314,6 +335,11 @@ export function HabitRow({
                   )}
                 </Fragment>
               ))}
+              {showStreak ? (
+                <Text style={{ color: tokens.statusOverdue }}>
+                  {metaParts.length > 0 ? '  ' : ''}🔥 {streak}
+                </Text>
+              ) : null}
             </Text>
           ) : null}
         </View>
@@ -350,14 +376,13 @@ export function HabitRow({
                   <ParentRing
                     done={childrenDone}
                     total={childrenTotal}
-                    size={22}
+                    size={30}
                   />
                 </Pressable>
               </>
             ) : (
-              <StatusDot
+              <CheckCircle
                 state={dotState}
-                size={22}
                 onToggle={handleToggleStatus}
                 disabled={!canLog && !isDoneForRange}
                 accessibilityLabel={
@@ -365,15 +390,9 @@ export function HabitRow({
                     ? t('habits.actions.unlog')
                     : t('habits.logHabit')
                 }
+                tokens={tokens}
               />
             )
-          ) : null}
-          {showStreak ? (
-            <Text
-              style={[styles.streak, { color: tokens.fg2 }]}
-            >
-              {streak}
-            </Text>
           ) : null}
           {!isSelectMode && hasMenuActions ? (
             <View ref={menuButtonRef} collapsable={false}>
@@ -393,7 +412,7 @@ export function HabitRow({
                 <MoreVertical
                   size={16}
                   color={tokens.fg3}
-                  strokeWidth={1.5}
+                  strokeWidth={1.8}
                 />
               </Pressable>
             </View>
@@ -420,6 +439,64 @@ export function HabitRow({
         </AnchoredMenu>
       ) : null}
     </View>
+  )
+}
+
+const CHECK_FILLED_STATES: ReadonlySet<StatusDotState> = new Set([
+  'done',
+  'skip',
+  'frozen',
+])
+
+interface CheckCircleProps {
+  state: StatusDotState
+  onToggle: () => void
+  disabled: boolean
+  accessibilityLabel: string
+  tokens: ReturnType<typeof createTokensV2>
+}
+
+function CheckCircle({
+  state,
+  onToggle,
+  disabled,
+  accessibilityLabel,
+  tokens,
+}: Readonly<CheckCircleProps>) {
+  const colorMap: Record<StatusDotState, string> = {
+    done: tokens.statusDone,
+    empty: tokens.statusEmpty,
+    skip: tokens.statusSkip,
+    overdue: tokens.statusOverdue,
+    bad: tokens.statusBad,
+    frozen: tokens.statusFrozen,
+  }
+  const filled = CHECK_FILLED_STATES.has(state)
+  const color = colorMap[state]
+
+  return (
+    <Pressable
+      onPress={onToggle}
+      disabled={disabled}
+      hitSlop={{ top: 7, bottom: 7, left: 7, right: 7 }}
+      accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
+      accessibilityState={{ disabled }}
+      style={({ pressed }) => [
+        styles.checkCircle,
+        {
+          backgroundColor: filled ? color : 'transparent',
+          borderWidth: filled ? 0 : 2,
+          borderColor: filled ? 'transparent' : color,
+          opacity: disabled ? 0.4 : pressed ? 0.85 : 1,
+          transform: [{ scale: pressed && !disabled ? 0.9 : 1 }],
+        },
+      ]}
+    >
+      {filled ? (
+        <Check size={17} color={tokens.fgOnPrimary} strokeWidth={3} />
+      ) : null}
+    </Pressable>
   )
 }
 
@@ -542,7 +619,7 @@ function MenuItem({ icon: Icon, label, color, onPress }: Readonly<MenuItemProps>
         { backgroundColor: pressed ? tokens.bgElevPressed : 'transparent' },
       ]}
     >
-      <Icon size={16} color={color} strokeWidth={1.6} />
+      <Icon size={16} color={color} strokeWidth={1.8} />
       <Text style={[styles.menuItemLabel, { color }]}>{label}</Text>
     </Pressable>
   )
@@ -550,11 +627,19 @@ function MenuItem({ icon: Icon, label, color, onPress }: Readonly<MenuItemProps>
 
 const styles = StyleSheet.create({
   row: {
-    paddingRight: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 16,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 14,
+    borderRadius: 18,
+    borderWidth: 1,
     position: 'relative',
+  },
+  emojiWell: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
   },
   titleBlock: {
     flex: 1,
@@ -562,7 +647,7 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   title: {
-    fontFamily: 'Rubik_400Regular',
+    fontFamily: 'Rubik_500Medium',
     letterSpacing: -0.08,
     lineHeight: 21,
   },
@@ -591,12 +676,12 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontVariant: ['tabular-nums'],
   },
-  streak: {
-    fontFamily: 'Roboto_500Medium',
-    fontSize: 12,
-    fontVariant: ['tabular-nums'],
-    minWidth: 18,
-    textAlign: 'right',
+  checkCircle: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   menuButton: {
     width: 28,

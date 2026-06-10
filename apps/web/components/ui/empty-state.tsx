@@ -1,28 +1,23 @@
 'use client'
 
-import type { LucideIcon } from 'lucide-react'
+import { PillButton } from '@/components/ui/pill-button'
+import { SatelliteGlyph } from '@/components/ui/satellite-glyph'
+
+interface EmptyStateAction {
+  label: string
+  onClick: () => void
+  variant?: 'primary' | 'secondary'
+}
 
 interface EmptyStateProps {
-  icon: LucideIcon
-  iconVariant?: 'default' | 'success'
   title?: string
   description: string
-  action?: {
-    label: string
-    onClick: () => void
-    variant?: 'primary' | 'secondary'
-  }
+  action?: EmptyStateAction
   className?: string
 }
 
-const iconVariantClasses: Record<NonNullable<EmptyStateProps['iconVariant']>, string> = {
-  default: 'bg-[var(--bg-sunk)] border border-[var(--hairline)] text-[var(--fg-3)]',
-  success: 'bg-[var(--status-done)]/10 border border-[var(--status-done)]/20 text-[var(--status-done)]',
-}
-
+/** Kit empty state: satellite glyph, optional title, body copy, and optional pill CTA. */
 export function EmptyState({
-  icon: Icon,
-  iconVariant = 'default',
   title,
   description,
   action,
@@ -37,32 +32,50 @@ export function EmptyState({
         .filter(Boolean)
         .join(' ')}
     >
-      <div
-        className={`size-20 rounded-full flex items-center justify-center ${iconVariantClasses[iconVariant]}`}
-        aria-hidden="true"
+      <SatelliteGlyph />
+
+      {title ? (
+        <p
+          style={{
+            fontFamily: 'var(--font-sans)',
+            fontSize: 20,
+            fontWeight: 500,
+            color: 'var(--fg-1)',
+            marginTop: 18,
+          }}
+        >
+          {title}
+        </p>
+      ) : null}
+
+      <p
+        style={{
+          fontFamily: 'var(--font-sans)',
+          fontSize: 14,
+          color: 'var(--fg-3)',
+          lineHeight: 1.5,
+          maxWidth: 280,
+          marginTop: title ? 6 : 14,
+        }}
       >
-        <Icon className="size-8" />
-      </div>
-
-      {title ? <p className="text-sm font-bold text-[var(--fg-1)] mt-4">{title}</p> : null}
-
-      <p className="text-xs text-[var(--fg-3)] mt-1.5 max-w-[240px] mx-auto leading-relaxed">
         {description}
       </p>
 
       {action ? (
-        <button
-          type="button"
-          onClick={action.onClick}
-          className={[
-            'mt-5 inline-flex items-center rounded-[var(--radius-md)] px-4 py-2 text-xs font-semibold transition-colors',
-            action.variant === 'secondary'
-              ? 'text-[var(--primary)] hover:text-[var(--primary-pressed)]'
-              : 'bg-[var(--primary)] text-white hover:bg-[var(--primary-pressed)]',
-          ].join(' ')}
-        >
-          {action.label}
-        </button>
+        action.variant === 'secondary' ? (
+          <button
+            type="button"
+            onClick={action.onClick}
+            className="mt-[22px] inline-flex cursor-pointer items-center border-0 bg-transparent text-[13px] font-medium text-[var(--primary)] hover:text-[var(--primary-pressed)]"
+            style={{ fontFamily: 'var(--font-sans)' }}
+          >
+            {action.label}
+          </button>
+        ) : (
+          <PillButton onClick={action.onClick} className="mt-[22px]">
+            {action.label}
+          </PillButton>
+        )
       ) : null}
     </div>
   )

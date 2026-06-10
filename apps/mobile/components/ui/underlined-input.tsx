@@ -1,4 +1,4 @@
-import { forwardRef, type ReactNode } from 'react'
+import { forwardRef, useState, type ReactNode } from 'react'
 import {
   StyleSheet,
   Text,
@@ -13,41 +13,50 @@ interface UnderlinedInputProps
   extends Omit<TextInputProps, 'style' | 'placeholderTextColor'> {
   label?: ReactNode
   mono?: boolean
-  large?: boolean
 }
 
 /**
- * v8 UnderlinedInput: optional tiny label, bare TextInput with hairline underline.
- * Mirrors `apps/web/components/ui/underlined-input.tsx` for shape parity.
+ * Kit Field: optional Rubik 14/500 label above a 54px filled well (radius 14,
+ * inset hairline ring, primary ring on focus).
+ * Mirrors `apps/web/components/ui/field-input.tsx` for shape parity.
  */
 export const UnderlinedInput = forwardRef<TextInput, UnderlinedInputProps>(
   function UnderlinedInput(
-    { label, mono = false, large = false, ...textInputProps },
+    { label, mono = false, onBlur, onFocus, ...textInputProps },
     ref,
   ) {
     const { currentScheme, currentTheme } = useAppTheme()
     const tokens = createTokensV2(currentScheme, currentTheme)
-    const fontSize = large ? 17 : 14
-    const padY = large ? 8 : 4
+    const [focused, setFocused] = useState(false)
 
     return (
       <View style={styles.root}>
         {label ? (
-          <Text style={[styles.label, { color: tokens.fg3 }]}>{label}</Text>
+          <Text style={[styles.label, { color: tokens.fg2 }]}>{label}</Text>
         ) : null}
         <TextInput
           ref={ref}
-          placeholderTextColor={tokens.fg3}
+          placeholderTextColor={tokens.fg4}
           {...textInputProps}
+          onFocus={(event) => {
+            setFocused(true)
+            onFocus?.(event)
+          }}
+          onBlur={(event) => {
+            setFocused(false)
+            onBlur?.(event)
+          }}
           style={[
             styles.input,
             {
-              fontSize,
               fontFamily: mono ? 'Roboto_400Regular' : 'Rubik_400Regular',
               color: tokens.fg1,
-              paddingVertical: padY,
-              borderBottomColor: tokens.hairlineStrong,
+              backgroundColor: tokens.bgField,
+              borderColor: tokens.hairline,
             },
+            focused
+              ? { borderWidth: 2, borderColor: tokens.primary, paddingHorizontal: 15 }
+              : null,
           ]}
         />
       </View>
@@ -57,17 +66,19 @@ export const UnderlinedInput = forwardRef<TextInput, UnderlinedInputProps>(
 
 const styles = StyleSheet.create({
   root: {
-    gap: 6,
+    gap: 8,
     width: '100%',
   },
   label: {
     fontFamily: 'Rubik_500Medium',
-    fontSize: 11,
-    },
+    fontSize: 14,
+  },
   input: {
     width: '100%',
-    backgroundColor: 'transparent',
-    borderBottomWidth: 1,
-    paddingHorizontal: 0,
+    minHeight: 54,
+    borderRadius: 14,
+    borderWidth: 1,
+    paddingHorizontal: 16,
+    fontSize: 16,
   },
 })

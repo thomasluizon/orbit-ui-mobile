@@ -179,7 +179,6 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
         style={{
           paddingBottom: 'var(--safe-bottom)',
           background: 'var(--bg)',
-          borderTop: '1px solid var(--hairline)',
         }}
       >
         <div className="max-w-[var(--app-max-w)] mx-auto">

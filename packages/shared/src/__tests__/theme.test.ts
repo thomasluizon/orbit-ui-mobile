@@ -105,6 +105,8 @@ describe('neutral ramp resolution', () => {
 describe('alpha surfaces and status constants', () => {
   it('dark alpha surfaces are the handoff white-alpha constants', () => {
     expect(alphaSurfaces.dark).toEqual({
+      bgCard: 'rgba(248, 250, 252, 0.04)',
+      bgField: 'rgba(248, 250, 252, 0.05)',
       bgElev: 'rgba(248, 250, 252, 0.06)',
       bgElev2: 'rgba(248, 250, 252, 0.10)',
       bgSunk: 'rgba(0, 0, 0, 0.28)',
@@ -115,6 +117,7 @@ describe('alpha surfaces and status constants', () => {
   })
 
   it('light cards are opaque white with ink-alpha hairlines', () => {
+    expect(alphaSurfaces.light.bgCard).toBe('rgb(255, 255, 255)')
     expect(alphaSurfaces.light.bgElev).toBe('rgb(255, 255, 255)')
     expect(alphaSurfaces.light.bgElev2).toBe('rgb(255, 255, 255)')
     expect(alphaSurfaces.light.hairline).toBe('rgba(2, 6, 24, 0.08)')

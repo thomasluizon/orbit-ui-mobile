@@ -39,7 +39,7 @@ export function ParentRing({ done, total, size = 12, color }: Readonly<ParentRin
           cy={size / 2}
           r={r}
           fill="none"
-          stroke={tokens.statusEmpty}
+          stroke={tokens.hairlineStrong}
           strokeWidth={1.5}
         />
         <Circle

@@ -1,4 +1,4 @@
-import type { MutableRefObject } from 'react'
+import { useState, type MutableRefObject } from 'react'
 import {
   StyleSheet,
   TextInput,
@@ -22,7 +22,8 @@ interface CodeInputProps {
   autoFocusFirst?: boolean
 }
 
-/** v8 6-digit code input: mono tabular-nums, bare hairline underline per slot. */
+/** Kit OTP: six 48x58 filled boxes (radius 14, inset hairline ring), Roboto
+ *  26/500 digits, primary ring on the focused box. */
 export function CodeInput({
   digits,
   inputRefs,
@@ -34,6 +35,7 @@ export function CodeInput({
 }: Readonly<CodeInputProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
+  const [activeIndex, setActiveIndex] = useState<number | null>(null)
 
   return (
     <View style={styles.row}>
@@ -46,6 +48,10 @@ export function CodeInput({
           value={digit}
           onChangeText={(value) => onChange(index, value)}
           onKeyPress={(event) => onKeyPress(index, event)}
+          onFocus={() => setActiveIndex(index)}
+          onBlur={() =>
+            setActiveIndex((current) => (current === index ? null : current))
+          }
           keyboardType="number-pad"
           textContentType={index === 0 ? 'oneTimeCode' : 'none'}
           autoComplete={index === 0 ? 'one-time-code' : 'off'}
@@ -54,13 +60,16 @@ export function CodeInput({
           editable={!disabled}
           autoFocus={autoFocusFirst && index === 0}
           accessibilityLabel={ariaLabelForIndex(index)}
-          placeholderTextColor={tokens.fg3}
           style={[
-            styles.slot,
+            styles.box,
             {
               color: tokens.fg1,
-              borderBottomColor: tokens.hairlineStrong,
+              backgroundColor: tokens.bgField,
+              borderColor: tokens.hairline,
             },
+            activeIndex === index
+              ? { borderWidth: 2, borderColor: tokens.primary }
+              : null,
           ]}
         />
       ))}
@@ -73,18 +82,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 14,
+    gap: 10,
   },
-  slot: {
-    width: 44,
-    backgroundColor: 'transparent',
-    borderBottomWidth: 1,
-    borderBottomColor: 'transparent',
+  box: {
+    width: 48,
+    height: 58,
+    borderRadius: 14,
+    borderWidth: 1,
     textAlign: 'center',
     fontFamily: 'Roboto_500Medium',
-    fontSize: 28,
-    letterSpacing: 1.68,
-    paddingVertical: 8,
+    fontSize: 26,
+    paddingVertical: 0,
     paddingHorizontal: 0,
   },
 })

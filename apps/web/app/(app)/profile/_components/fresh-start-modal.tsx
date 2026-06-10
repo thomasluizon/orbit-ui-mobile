@@ -10,7 +10,7 @@ import {
 } from '@orbit/shared/utils'
 import { AppOverlay } from '@/components/ui/app-overlay'
 import { FreshStartAnimation } from '@/components/ui/fresh-start-animation'
-import { UnderlinedInput } from '@/components/ui/underlined-input'
+import { FieldInput } from '@/components/ui/field-input'
 import { resetAccount } from '@/app/actions/profile'
 
 interface FreshStartModalProps {
@@ -230,8 +230,7 @@ function FreshStartConfirmStep({
       >
         {t('profile.freshStart.confirmInstruction')}
       </p>
-      <UnderlinedInput
-        large
+      <FieldInput
         mono
         value={confirmText}
         onChange={onConfirmTextChange}

@@ -23,13 +23,21 @@ function usePulseOpacity() {
   return opacity
 }
 
+function skeletonFillFromFg(fg1Hex: string): string {
+  const normalized = fg1Hex.replace('#', '')
+  const red = Number.parseInt(normalized.slice(0, 2), 16)
+  const green = Number.parseInt(normalized.slice(2, 4), 16)
+  const blue = Number.parseInt(normalized.slice(4, 6), 16)
+  return `rgba(${red}, ${green}, ${blue}, 0.06)`
+}
+
 interface SkeletonLineProps {
   width?: DimensionValue
   height?: number
   style?: StyleProp<ViewStyle>
 }
 
-/** v8 loading placeholder line: calm opacity pulse, no gradient shimmer. */
+/** Loading placeholder line: fg-1 6% tint block with a calm opacity pulse, no gradient shimmer. */
 export function SkeletonLine({ width = '100%', height = 12, style }: Readonly<SkeletonLineProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
@@ -40,10 +48,15 @@ export function SkeletonLine({ width = '100%', height = 12, style }: Readonly<Sk
   return (
     <Animated.View
       style={[
-        { width, height, borderRadius: radius.sm, backgroundColor: tokens.bgElev, opacity },
+        {
+          width,
+          height,
+          borderRadius: radius.md,
+          backgroundColor: skeletonFillFromFg(tokens.fg1),
+          opacity,
+        },
         style,
       ]}
     />
   )
 }
-

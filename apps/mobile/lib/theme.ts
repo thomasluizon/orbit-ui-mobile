@@ -92,10 +92,16 @@ export const easings = {
 
 export interface AppTokensV2 {
   bg: string
+  /** Card fill — dark translucency ladder step 0.04; opaque white on light. */
+  bgCard: string
+  /** Field/well fill — dark ladder step 0.05; scheme-tinted sunk on light. */
+  bgField: string
   bgElev: string
   bgElev2: string
   /** Press/active lift from `bgElev` (elev-2 alpha on dark, sunk on light). */
   bgElevPressed: string
+  /** Solid sheet/dialog panel — elev alpha pre-blended over the canvas. */
+  bgSheet: string
   bgSunk: string
   hairline: string
   hairlineStrong: string
@@ -108,6 +114,8 @@ export interface AppTokensV2 {
   primaryPressed: string
   /** "r, g, b" channels of `primary` for alpha tints (never hardcode violet). */
   primaryRgb: string
+  /** Soft accent foreground (lightened primary on dark, primary on light). */
+  primarySoft: string
   gradientHeaderFrom: string
   gradientHeaderTo: string
   statusDone: string
@@ -142,6 +150,14 @@ function hexChannels(hex: string): [number, number, number] {
   ]
 }
 
+function blendWhiteOverHex(baseHex: string, alpha: number): string {
+  const [r, g, b] = hexChannels(baseHex)
+  const blend = (canvas: number, white: number) =>
+    Math.round(canvas * (1 - alpha) + white * alpha)
+  const toHexByte = (channel: number) => channel.toString(16).padStart(2, '0')
+  return `#${toHexByte(blend(r, 248))}${toHexByte(blend(g, 250))}${toHexByte(blend(b, 252))}`
+}
+
 export function createTokensV2(
   colorScheme: ColorScheme = runtimeTheme.scheme,
   themeMode: ThemeMode = runtimeTheme.themeMode,
@@ -156,9 +172,12 @@ export function createTokensV2(
     const [r, g, b] = hexChannels(neutrals.bg)
     return {
       bg: neutrals.bg,
+      bgCard: alpha.bgCard,
+      bgField: neutrals.bgSunk,
       bgElev: alpha.bgElev,
       bgElev2: alpha.bgElev2,
       bgElevPressed: neutrals.bgSunk,
+      bgSheet: '#ffffff',
       bgSunk: neutrals.bgSunk,
       hairline: alpha.hairline,
       hairlineStrong: alpha.hairlineStrong,
@@ -170,6 +189,7 @@ export function createTokensV2(
       primary: accent.primary,
       primaryPressed: accent.primaryPressed,
       primaryRgb: accent.primaryRgb,
+      primarySoft: accent.primary,
       gradientHeaderFrom: gradientFrom,
       gradientHeaderTo: `rgba(${r}, ${g}, ${b}, 0)`,
       statusDone: accent.primary,
@@ -186,9 +206,12 @@ export function createTokensV2(
   const [r, g, b] = hexChannels(neutrals.bg)
   return {
     bg: neutrals.bg,
+    bgCard: alpha.bgCard,
+    bgField: alpha.bgField ?? 'rgba(248, 250, 252, 0.05)',
     bgElev: alpha.bgElev,
     bgElev2: alpha.bgElev2,
     bgElevPressed: alpha.bgElev2,
+    bgSheet: blendWhiteOverHex(neutrals.bg, 0.05),
     bgSunk: alpha.bgSunk ?? 'rgba(0, 0, 0, 0.28)',
     hairline: alpha.hairline,
     hairlineStrong: alpha.hairlineStrong,
@@ -200,6 +223,7 @@ export function createTokensV2(
     primary: accent.primary,
     primaryPressed: accent.primaryPressed,
     primaryRgb: accent.primaryRgb,
+    primarySoft: lightenHex(accent.primary, 0.45),
     gradientHeaderFrom: gradientFrom,
     gradientHeaderTo: `rgba(${r}, ${g}, ${b}, 0)`,
     statusDone: accent.primary,
@@ -241,11 +265,7 @@ export function blendElevOverCanvas(
   appTokens: AppTokensV2,
   alpha: number,
 ): string {
-  const [bgR, bgG, bgB] = hexChannels(appTokens.bg)
-  const blend = (canvas: number, white: number) =>
-    Math.round(canvas * (1 - alpha) + white * alpha)
-  const toHexByte = (channel: number) => channel.toString(16).padStart(2, '0')
-  return `#${toHexByte(blend(bgR, 248))}${toHexByte(blend(bgG, 250))}${toHexByte(blend(bgB, 252))}`
+  return blendWhiteOverHex(appTokens.bg, alpha)
 }
 
 export const shadowsV2: AppShadowsV2 = {
@@ -334,7 +354,7 @@ export function createSurfaces(
         elevation: 4,
       },
       sheet: {
-        backgroundColor: '#ffffff',
+        backgroundColor: appTokens.bgSheet,
         borderColor: appTokens.hairline,
         shadow: shadows.lg,
         elevation: 8,
@@ -357,7 +377,7 @@ export function createSurfaces(
       elevation: 4,
     },
     sheet: {
-      backgroundColor: blendElevOverCanvas(appTokens, 0.05),
+      backgroundColor: appTokens.bgSheet,
       borderColor: appTokens.hairline,
       shadow: shadows.lg,
       elevation: 8,
