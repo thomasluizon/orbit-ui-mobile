@@ -11,6 +11,7 @@ import {
 import { AppOverlay } from '@/components/ui/app-overlay'
 import { FreshStartAnimation } from '@/components/ui/fresh-start-animation'
 import { FieldInput } from '@/components/ui/field-input'
+import { PillButton } from '@/components/ui/pill-button'
 import { resetAccount } from '@/app/actions/profile'
 
 interface FreshStartModalProps {
@@ -85,6 +86,7 @@ export function FreshStartModal({ open, onOpenChange }: Readonly<FreshStartModal
           <FreshStartInfoStep
             deletedItems={deletedItems}
             preservedItems={preservedItems}
+            onCancel={() => onOpenChange(false)}
             onContinue={() => setStep('confirm')}
           />
         ) : (
@@ -94,6 +96,7 @@ export function FreshStartModal({ open, onOpenChange }: Readonly<FreshStartModal
             isConfirmed={isConfirmed}
             loading={loading}
             error={error}
+            onCancel={() => onOpenChange(false)}
             onReset={handleReset}
           />
         )}
@@ -106,25 +109,36 @@ export function FreshStartModal({ open, onOpenChange }: Readonly<FreshStartModal
 
 function ListBlock({ title, items }: Readonly<{ title: string; items: string[] }>) {
   return (
-    <div className="flex flex-col" style={{ gap: 6 }}>
+    <div
+      className="flex flex-col rounded-[16px]"
+      style={{
+        gap: 8,
+        padding: '14px 16px',
+        background: 'var(--bg-card)',
+        boxShadow: 'inset 0 0 0 1px var(--hairline)',
+      }}
+    >
       <div
         style={{
           fontFamily: 'var(--font-sans)',
           fontSize: 12,
-          fontWeight: 600,
+          fontWeight: 500,
+          letterSpacing: '0.08em',
+          textTransform: 'uppercase',
           color: 'var(--fg-3)',
         }}
       >
         {title}
       </div>
-      <div className="flex flex-col" style={{ gap: 3 }}>
+      <div className="flex flex-col" style={{ gap: 4 }}>
         {items.map((item) => (
           <span
             key={item}
             style={{
-              fontFamily: 'var(--font-mono)',
-              fontSize: 12,
-              color: 'var(--fg-1)',
+              fontFamily: 'var(--font-sans)',
+              fontSize: 13,
+              lineHeight: 1.4,
+              color: 'var(--fg-2)',
             }}
           >
             {item}
@@ -138,10 +152,12 @@ function ListBlock({ title, items }: Readonly<{ title: string; items: string[] }
 function FreshStartInfoStep({
   deletedItems,
   preservedItems,
+  onCancel,
   onContinue,
 }: Readonly<{
   deletedItems: string[]
   preservedItems: string[]
+  onCancel: () => void
   onContinue: () => void
 }>) {
   const t = useTranslations()
@@ -151,51 +167,24 @@ function FreshStartInfoStep({
       <p
         style={{
           fontFamily: 'var(--font-sans)',
-          fontSize: 14,
-          fontStyle: 'italic',
+          fontSize: 15,
           color: 'var(--fg-2)',
           lineHeight: 1.55,
         }}
       >
         {t('profile.freshStart.description')}
       </p>
-      <div className="grid" style={{ gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+      <div className="grid" style={{ gridTemplateColumns: '1fr 1fr', gap: 12 }}>
         <ListBlock title={t('profile.freshStart.willDelete')} items={deletedItems} />
         <ListBlock title={t('profile.freshStart.willKeep')} items={preservedItems} />
       </div>
-      <div
-        className="flex items-center justify-end"
-        style={{ gap: 12, paddingTop: 8 }}
-      >
-        <button
-          type="button"
-          className="appearance-none border-0 bg-transparent cursor-pointer"
-          style={{
-            fontFamily: 'var(--font-sans)',
-            fontSize: 14,
-            color: 'var(--fg-3)',
-            padding: 6,
-          }}
-          onClick={() => globalThis.history.back()}
-        >
-          {t('common.cancel')}
-        </button>
-        <button
-          type="button"
-          className="appearance-none border-0 cursor-pointer"
-          onClick={onContinue}
-          style={{
-            padding: '10px 18px',
-            background: 'var(--primary)',
-            color: 'var(--fg-on-primary)',
-            borderRadius: 10,
-            fontFamily: 'var(--font-sans)',
-            fontSize: 14,
-            fontWeight: 600,
-          }}
-        >
+      <div className="flex flex-col" style={{ gap: 12, paddingTop: 8 }}>
+        <PillButton fullWidth onClick={onContinue}>
           {t('common.continue')}
-        </button>
+        </PillButton>
+        <PillButton variant="ghost" fullWidth onClick={onCancel}>
+          {t('common.cancel')}
+        </PillButton>
       </div>
     </div>
   )
@@ -207,6 +196,7 @@ function FreshStartConfirmStep({
   isConfirmed,
   loading,
   error,
+  onCancel,
   onReset,
 }: Readonly<{
   confirmText: string
@@ -214,6 +204,7 @@ function FreshStartConfirmStep({
   isConfirmed: boolean
   loading: boolean
   error: string
+  onCancel: () => void
   onReset: () => void
 }>) {
   const t = useTranslations()
@@ -223,9 +214,9 @@ function FreshStartConfirmStep({
       <p
         style={{
           fontFamily: 'var(--font-sans)',
-          fontSize: 14,
-          fontStyle: 'italic',
-          color: 'var(--fg-3)',
+          fontSize: 15,
+          color: 'var(--fg-2)',
+          lineHeight: 1.55,
         }}
       >
         {t('profile.freshStart.confirmInstruction')}
@@ -244,46 +235,19 @@ function FreshStartConfirmStep({
           style={{
             fontFamily: 'var(--font-sans)',
             fontSize: 13,
-            fontStyle: 'italic',
             color: 'var(--status-overdue)',
           }}
         >
           {error}
         </p>
       )}
-      <div
-        className="flex items-center justify-end"
-        style={{ gap: 12, paddingTop: 8 }}
-      >
-        <button
-          type="button"
-          className="appearance-none border-0 bg-transparent cursor-pointer"
-          style={{
-            fontFamily: 'var(--font-sans)',
-            fontSize: 14,
-            color: 'var(--fg-3)',
-            padding: 6,
-          }}
-          disabled={loading}
-        >
-          {t('common.cancel')}
-        </button>
-        <button
-          type="button"
-          className="appearance-none border-0 bg-transparent cursor-pointer disabled:opacity-50"
-          disabled={!isConfirmed || loading}
-          onClick={onReset}
-          style={{
-            fontFamily: 'var(--font-sans)',
-            fontSize: 14,
-            fontWeight: 600,
-            color: 'var(--fg-1)',
-            fontStyle: 'italic',
-            padding: 6,
-          }}
-        >
+      <div className="flex flex-col" style={{ gap: 12, paddingTop: 8 }}>
+        <PillButton fullWidth disabled={!isConfirmed || loading} onClick={onReset}>
           {loading ? t('profile.freshStart.processing') : t('profile.freshStart.confirmButton')}
-        </button>
+        </PillButton>
+        <PillButton variant="ghost" fullWidth disabled={loading} onClick={onCancel}>
+          {t('common.cancel')}
+        </PillButton>
       </div>
     </div>
   )

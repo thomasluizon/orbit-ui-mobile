@@ -11,19 +11,19 @@ export function ProfileNavIcon({
 }) {
   switch (iconKey) {
     case 'settings':
-      return <Settings size={20} color={color} />
+      return <Settings size={22} color={color} strokeWidth={1.8} />
     case 'orbit':
-      return <Orbit size={20} color={color} />
+      return <Orbit size={22} color={color} strokeWidth={1.8} />
     case 'retrospective':
       return (
-        <Svg viewBox="0 0 24 24" width={20} height={20} fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+        <Svg viewBox="0 0 24 24" width={22} height={22} fill="none" stroke={color} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
           <Path d="M3 3v18h18" />
           <Path d="M18 9l-5 5-4-4-3 3" />
         </Svg>
       )
     case 'achievements':
       return (
-        <Svg viewBox="0 0 24 24" width={20} height={20} fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+        <Svg viewBox="0 0 24 24" width={22} height={22} fill="none" stroke={color} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
           <Path d="M6 9H4.5a2.5 2.5 0 0 1 0-5C7 4 9 8 9 8" />
           <Path d="M18 9h1.5a2.5 2.5 0 0 0 0-5C17 4 15 8 15 8" />
           <Path d="M4 22h16" />
@@ -34,7 +34,7 @@ export function ProfileNavIcon({
       )
     case 'calendar':
       return (
-        <Svg viewBox="0 0 24 24" width={20} height={20} fill="none" stroke={color} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round">
+        <Svg viewBox="0 0 24 24" width={22} height={22} fill="none" stroke={color} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">
           <Path d="M8 2v4" />
           <Path d="M16 2v4" />
           <Rect width={18} height={18} x={3} y={4} rx={2} />
@@ -42,9 +42,9 @@ export function ProfileNavIcon({
         </Svg>
       )
     case 'info':
-      return <Info size={20} color={color} />
+      return <Info size={22} color={color} strokeWidth={1.8} />
     case 'wrench':
-      return <Wrench size={20} color={color} />
+      return <Wrench size={22} color={color} strokeWidth={1.8} />
     default:
       return null
   }

@@ -11,7 +11,7 @@ import { useRouter } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
 import { enUS, ptBR } from 'date-fns/locale'
-import { Lock } from 'lucide-react-native'
+import { Lock, Plus, Smartphone } from 'lucide-react-native'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { buildUpgradeHref } from '@/lib/upgrade-route'
 import { formatDistanceToNow, parseISO } from 'date-fns'
@@ -203,6 +203,8 @@ export default function AdvancedScreen() {
         <SectionLabel>{t('advancedSettings.widgetSection')}</SectionLabel>
         <SettingsRow
           label={t('profile.widgetTitle')}
+          desc={t('profile.widgetHint')}
+          icon={Smartphone}
           onPress={() => setShowWidgetInfo(true)}
           accessory="chevron"
           divider={false}
@@ -215,17 +217,17 @@ export default function AdvancedScreen() {
             {apiKeysQuery.isLoading ? (
               <View style={styles.skelStack}>
                 <View
-                  style={[styles.skelBar, { backgroundColor: tokens.bgSunk }]}
+                  style={[styles.skelBar, { backgroundColor: tokens.bgCard }]}
                 />
                 <View
-                  style={[styles.skelBar, { backgroundColor: tokens.bgSunk }]}
+                  style={[styles.skelBar, { backgroundColor: tokens.bgCard }]}
                 />
               </View>
             ) : null}
 
             {apiKeysQuery.error && !apiKeysQuery.isLoading ? (
-              <View style={styles.errorBlock}>
-                <Text style={[styles.italicText, { color: tokens.statusBad }]}>
+              <View style={styles.messageBlock}>
+                <Text style={[styles.messageText, { color: tokens.statusBad }]}>
                   {t('orbitMcp.apiKeysError')}
                 </Text>
               </View>
@@ -234,8 +236,8 @@ export default function AdvancedScreen() {
             {!apiKeysQuery.isLoading &&
             !apiKeysQuery.error &&
             apiKeys.length === 0 ? (
-              <View style={styles.italicBlock}>
-                <Text style={[styles.italicText, { color: tokens.fg3 }]}>
+              <View style={styles.messageBlock}>
+                <Text style={[styles.messageText, { color: tokens.fg3 }]}>
                   {t('orbitMcp.noKeys')}
                 </Text>
               </View>
@@ -253,8 +255,11 @@ export default function AdvancedScreen() {
                 <View
                   key={key.id}
                   style={[
-                    styles.keyBlock,
-                    { borderBottomColor: tokens.hairline },
+                    styles.keyCard,
+                    {
+                      backgroundColor: tokens.bgCard,
+                      borderColor: tokens.hairline,
+                    },
                   ]}
                 >
                   <View style={styles.keyTopRow}>
@@ -269,21 +274,22 @@ export default function AdvancedScreen() {
                       accessibilityRole="button"
                       accessibilityLabel={t('orbitMcp.revoke')}
                       style={styles.linkPress}
+                      hitSlop={8}
                     >
                       <Text
-                        style={[styles.revokeLink, { color: tokens.fg3 }]}
+                        style={[styles.revokeLink, { color: tokens.statusBad }]}
                       >
                         {t('orbitMcp.revoke')}
                       </Text>
                     </Pressable>
                   </View>
                   <Text
-                    style={[styles.keyPrefix, { color: tokens.fg3 }]}
+                    style={[styles.keyPrefix, { color: tokens.fg2 }]}
                   >
                     {`${key.keyPrefix}…`}
                   </Text>
                   <Text
-                    style={[styles.keyMeta, { color: tokens.fg3 }]}
+                    style={[styles.keyMeta, { color: tokens.fg4 }]}
                     numberOfLines={2}
                   >
                     {meta}
@@ -298,16 +304,20 @@ export default function AdvancedScreen() {
                   onPress={() => setCreateKeyModalOpen(true)}
                   accessibilityRole="button"
                   accessibilityLabel={t('orbitMcp.createKey')}
-                  style={styles.linkPress}
+                  style={styles.createKeyPress}
+                  hitSlop={8}
                 >
-                  <Text style={[styles.actionLink, { color: tokens.fg1 }]}>
-                    {`+ ${t('orbitMcp.createKey')}`}
+                  <Plus size={14} color={tokens.primary} strokeWidth={2.2} />
+                  <Text style={[styles.actionLink, { color: tokens.primary }]}>
+                    {t('orbitMcp.createKey')}
                   </Text>
                 </Pressable>
               </View>
             ) : (
-              <View style={styles.italicBlock}>
-                <Text style={[styles.italicText, { color: tokens.statusOverdue }]}>
+              <View style={styles.messageBlock}>
+                <Text
+                  style={[styles.messageText, { color: tokens.statusOverdue }]}
+                >
                   {t('orbitMcp.maxKeysReached')}
                 </Text>
               </View>
@@ -332,9 +342,9 @@ export default function AdvancedScreen() {
 
             <View
               style={[
-                styles.codeBlock,
+                styles.codeWell,
                 {
-                  backgroundColor: tokens.bgSunk,
+                  backgroundColor: tokens.bgField,
                   borderColor: tokens.hairline,
                 },
               ]}
@@ -346,46 +356,41 @@ export default function AdvancedScreen() {
                 accessibilityRole="button"
                 accessibilityLabel={t('orbitMcp.copyConfig')}
                 style={styles.copyBtn}
+                hitSlop={8}
               >
                 <Text
                   style={[
                     styles.copyBtnText,
-                    { color: codeCopied ? tokens.statusDone : tokens.fg3 },
+                    { color: codeCopied ? tokens.statusDone : tokens.primary },
                   ]}
                 >
                   {codeCopied ? t('orbitMcp.copied') : t('orbitMcp.copyConfig')}
                 </Text>
               </Pressable>
               <Text
-                style={[styles.codeText, { color: tokens.fg1 }]}
+                style={[styles.codeText, { color: tokens.fg2 }]}
                 selectable
               >
                 {codeContent}
               </Text>
             </View>
-            {activeConfigTab === 'web' ? (
-              <View style={styles.hintPad}>
-                <Text style={[styles.italicText, { color: tokens.fg3 }]}>
-                  {t('orbitMcp.webNoApiKey')}
-                </Text>
-              </View>
-            ) : (
-              <View style={styles.hintPad}>
-                <Text style={[styles.italicText, { color: tokens.fg3 }]}>
-                  {t('orbitMcp.replaceKey')}
-                </Text>
-              </View>
-            )}
+            <View style={styles.hintPad}>
+              <Text style={[styles.hintText, { color: tokens.fg4 }]}>
+                {activeConfigTab === 'web'
+                  ? t('orbitMcp.webNoApiKey')
+                  : t('orbitMcp.replaceKey')}
+              </Text>
+            </View>
           </>
         ) : (
           <View style={styles.lockedRow}>
-            <Lock size={16} color={tokens.fg3} strokeWidth={1.4} />
+            <Lock size={16} color={tokens.fg3} strokeWidth={1.8} />
             <View style={{ flex: 1 }}>
               <Text style={[styles.lockedTitle, { color: tokens.fg1 }]}>
                 {t('orbitMcp.title')}
               </Text>
               <Text
-                style={[styles.italicText, { color: tokens.fg3 }]}
+                style={[styles.lockedDesc, { color: tokens.fg3 }]}
                 numberOfLines={3}
               >
                 {t('orbitMcp.description')}
@@ -394,7 +399,9 @@ export default function AdvancedScreen() {
             <Pressable
               onPress={() => router.push(buildUpgradeHref('/advanced'))}
               accessibilityRole="button"
+              accessibilityLabel={t('common.proBadge')}
               style={styles.linkPress}
+              hitSlop={8}
             >
               <Text style={[styles.actionLink, { color: tokens.primary }]}>
                 {t('common.proBadge')}
@@ -449,63 +456,67 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   skelBar: {
-    height: 56,
-    borderRadius: 8,
+    height: 64,
+    borderRadius: 16,
   },
-  italicBlock: {
+  messageBlock: {
     paddingHorizontal: 20,
     paddingVertical: 12,
   },
-  italicText: {
+  messageText: {
     fontFamily: 'Rubik_400Regular',
     fontSize: 13,
-    fontStyle: 'italic',
-    flex: 1,
+    lineHeight: 19,
   },
-  errorBlock: {
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-  },
-  keyBlock: {
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+  keyCard: {
+    marginHorizontal: 20,
+    marginBottom: 8,
+    borderRadius: 16,
+    borderWidth: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
     gap: 4,
   },
   keyTopRow: {
     flexDirection: 'row',
-    alignItems: 'baseline',
+    alignItems: 'center',
     justifyContent: 'space-between',
     gap: 12,
   },
   keyName: {
-    fontFamily: 'Rubik_400Regular',
-    fontSize: 14,
+    fontFamily: 'Rubik_500Medium',
+    fontSize: 15,
     flexShrink: 1,
   },
   keyPrefix: {
     fontFamily: 'Roboto_400Regular',
-    fontSize: 11,
+    fontSize: 13,
+    fontVariant: ['tabular-nums'],
   },
   keyMeta: {
     fontFamily: 'Rubik_400Regular',
     fontSize: 12,
-    fontStyle: 'italic',
+    lineHeight: 17,
   },
   revokeLink: {
-    fontFamily: 'Rubik_400Regular',
+    fontFamily: 'Rubik_500Medium',
     fontSize: 13,
-    fontStyle: 'italic',
-    textDecorationLine: 'underline',
   },
   actionPad: {
     paddingHorizontal: 20,
     paddingVertical: 12,
   },
+  createKeyPress: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 6,
+    paddingVertical: 6,
+  },
   actionLink: {
     fontFamily: 'Rubik_500Medium',
     fontSize: 13,
-    },
+  },
   linkPress: { padding: 4 },
   lockedRow: {
     flexDirection: 'row',
@@ -515,9 +526,14 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   lockedTitle: {
-    fontFamily: 'Rubik_600SemiBold',
+    fontFamily: 'Rubik_500Medium',
     fontSize: 14,
-    },
+  },
+  lockedDesc: {
+    fontFamily: 'Rubik_400Regular',
+    fontSize: 13,
+    lineHeight: 19,
+  },
   tabRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -526,33 +542,39 @@ const styles = StyleSheet.create({
     paddingTop: 4,
     paddingBottom: 12,
   },
-  codeBlock: {
+  codeWell: {
     marginHorizontal: 20,
-    padding: 14,
-    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderRadius: 14,
     borderWidth: 1,
     gap: 10,
     position: 'relative',
   },
   codeText: {
     fontFamily: 'Roboto_400Regular',
-    fontSize: 12,
-    lineHeight: 18,
+    fontSize: 12.5,
+    lineHeight: 20,
+    fontVariant: ['tabular-nums'],
   },
   copyBtn: {
     position: 'absolute',
-    top: 6,
-    right: 8,
+    top: 8,
+    right: 10,
     padding: 6,
     zIndex: 1,
   },
   copyBtnText: {
-    fontFamily: 'Rubik_400Regular',
+    fontFamily: 'Rubik_500Medium',
     fontSize: 12,
-    textDecorationLine: 'underline',
   },
   hintPad: {
     paddingHorizontal: 20,
     paddingVertical: 8,
+  },
+  hintText: {
+    fontFamily: 'Rubik_400Regular',
+    fontSize: 13,
+    lineHeight: 19,
   },
 })

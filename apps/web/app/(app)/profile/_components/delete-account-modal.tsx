@@ -3,10 +3,12 @@
 import { useState, useMemo, useRef } from 'react'
 import { useTranslations } from 'next-intl'
 import { parseISO } from 'date-fns'
+import { TriangleAlert } from 'lucide-react'
 import { getErrorMessage } from '@orbit/shared/utils'
 import type { Profile } from '@orbit/shared/types/profile'
 import { AppOverlay } from '@/components/ui/app-overlay'
 import { CodeInput } from '@/components/ui/code-input'
+import { PillButton } from '@/components/ui/pill-button'
 import { useAuthStore } from '@/stores/auth-store'
 import { useDateFormat } from '@/hooks/use-date-format'
 import { requestDeletion, confirmDeletion } from '@/app/actions/auth'
@@ -174,6 +176,81 @@ export function DeleteAccountModal({
   )
 }
 
+function DangerPillButton({
+  disabled = false,
+  onClick,
+  children,
+}: Readonly<{
+  disabled?: boolean
+  onClick: () => void
+  children: React.ReactNode
+}>) {
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={onClick}
+      className="inline-flex w-full cursor-pointer items-center justify-center gap-[9px] rounded-full border-0 px-[26px] py-[15px] text-[16px] font-medium transition-opacity duration-[var(--dur-fast)] ease-[var(--ease-standard)] enabled:hover:opacity-90 enabled:active:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+      style={{
+        fontFamily: 'var(--font-sans)',
+        background: 'var(--status-bad)',
+        color: 'var(--fg-on-primary)',
+      }}
+    >
+      {children}
+    </button>
+  )
+}
+
+function DeleteWarningCard({
+  title,
+  desc,
+}: Readonly<{ title: string; desc: string }>) {
+  return (
+    <div
+      className="flex items-center rounded-[18px]"
+      style={{
+        padding: '16px 18px',
+        gap: 14,
+        background: 'color-mix(in srgb, var(--status-bad) 8%, transparent)',
+        boxShadow: 'inset 0 0 0 1px color-mix(in srgb, var(--status-bad) 28%, transparent)',
+      }}
+    >
+      <TriangleAlert
+        size={24}
+        strokeWidth={1.9}
+        className="shrink-0"
+        color="var(--status-bad)"
+        aria-hidden="true"
+      />
+      <div className="min-w-0 flex-1">
+        <div
+          style={{
+            fontFamily: 'var(--font-sans)',
+            fontSize: 15,
+            fontWeight: 500,
+            lineHeight: 1.4,
+            color: 'var(--fg-1)',
+          }}
+        >
+          {title}
+        </div>
+        <div
+          style={{
+            fontFamily: 'var(--font-sans)',
+            fontSize: 13.5,
+            color: 'var(--fg-3)',
+            marginTop: 3,
+            lineHeight: 1.4,
+          }}
+        >
+          {desc}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function DeleteConfirmStep({
   warningMessage,
   error,
@@ -191,71 +268,29 @@ function DeleteConfirmStep({
 
   return (
     <div className="flex flex-col" style={{ gap: 16 }}>
-      <p
-        style={{
-          fontFamily: 'var(--font-sans)',
-          fontSize: 14,
-          fontStyle: 'italic',
-          color: 'var(--fg-2)',
-          lineHeight: 1.55,
-        }}
-      >
-        {warningMessage}
-      </p>
-      <p
-        style={{
-          fontFamily: 'var(--font-sans)',
-          fontSize: 13,
-          fontStyle: 'italic',
-          color: 'var(--fg-3)',
-          lineHeight: 1.55,
-        }}
-      >
-        {t('profile.deleteAccount.warningDetail')}
-      </p>
+      <DeleteWarningCard
+        title={warningMessage}
+        desc={t('profile.deleteAccount.warningDetail')}
+      />
       {error && (
         <p
           role="alert"
           style={{
             fontFamily: 'var(--font-sans)',
             fontSize: 13,
-            fontStyle: 'italic',
             color: 'var(--status-overdue)',
           }}
         >
           {error}
         </p>
       )}
-      <div className="flex items-center justify-end" style={{ gap: 12, paddingTop: 8 }}>
-        <button
-          type="button"
-          className="appearance-none border-0 bg-transparent cursor-pointer text-[var(--fg-3)] transition-colors duration-150 ease-out hover:text-[var(--fg-1)]"
-          style={{
-            fontFamily: 'var(--font-sans)',
-            fontSize: 14,
-            padding: 6,
-          }}
-          disabled={loading}
-          onClick={onCancel}
-        >
-          {t('common.cancel')}
-        </button>
-        <button
-          type="button"
-          className="appearance-none border-0 cursor-pointer disabled:opacity-50 bg-[var(--primary)] transition-[background-color] duration-150 ease-out hover:bg-[var(--primary-pressed)]"
-          disabled={loading}
-          onClick={onRequestDeletion}
-          style={{
-            padding: '10px 18px',
-            color: 'var(--fg-on-primary)',
-            borderRadius: 10,
-            fontFamily: 'var(--font-sans)',
-            fontSize: 14,
-            fontWeight: 600,
-          }}
-        >
+      <div className="flex flex-col" style={{ gap: 12, paddingTop: 8 }}>
+        <DangerPillButton disabled={loading} onClick={onRequestDeletion}>
           {loading ? t('profile.deleteAccount.sending') : t('common.continue')}
-        </button>
+        </DangerPillButton>
+        <PillButton variant="ghost" fullWidth disabled={loading} onClick={onCancel}>
+          {t('common.cancel')}
+        </PillButton>
       </div>
     </div>
   )
@@ -289,9 +324,8 @@ function DeleteCodeStep({
       <p
         style={{
           fontFamily: 'var(--font-sans)',
-          fontSize: 14,
-          fontStyle: 'italic',
-          color: 'var(--fg-3)',
+          fontSize: 15,
+          color: 'var(--fg-2)',
           lineHeight: 1.55,
         }}
       >
@@ -311,43 +345,22 @@ function DeleteCodeStep({
           style={{
             fontFamily: 'var(--font-sans)',
             fontSize: 13,
-            fontStyle: 'italic',
             color: 'var(--status-overdue)',
           }}
         >
           {error}
         </p>
       )}
-      <div className="flex items-center justify-end" style={{ gap: 12, paddingTop: 8 }}>
-        <button
-          type="button"
-          className="appearance-none border-0 bg-transparent cursor-pointer text-[var(--fg-3)] transition-colors duration-150 ease-out hover:text-[var(--fg-1)]"
-          style={{
-            fontFamily: 'var(--font-sans)',
-            fontSize: 14,
-            padding: 6,
-          }}
-          disabled={loading}
-          onClick={onBack}
-        >
-          {t('common.back')}
-        </button>
-        <button
-          type="button"
-          className="appearance-none border-0 bg-transparent cursor-pointer disabled:opacity-50 transition-opacity duration-150 ease-out hover:opacity-80"
+      <div className="flex flex-col" style={{ gap: 12, paddingTop: 8 }}>
+        <DangerPillButton
           disabled={loading || code.join('').length !== 6}
           onClick={onConfirmDeletion}
-          style={{
-            fontFamily: 'var(--font-sans)',
-            fontSize: 14,
-            fontWeight: 600,
-            color: 'var(--fg-1)',
-            fontStyle: 'italic',
-            padding: 6,
-          }}
         >
           {loading ? t('profile.deleteAccount.deleting') : t('auth.verify')}
-        </button>
+        </DangerPillButton>
+        <PillButton variant="ghost" fullWidth disabled={loading} onClick={onBack}>
+          {t('common.back')}
+        </PillButton>
       </div>
     </div>
   )
@@ -367,30 +380,17 @@ function DeleteDeactivatedStep({
       <p
         style={{
           fontFamily: 'var(--font-sans)',
-          fontSize: 14,
-          fontStyle: 'italic',
+          fontSize: 15,
           color: 'var(--fg-2)',
           lineHeight: 1.55,
         }}
       >
         {t('profile.deleteAccount.deactivated', { date: formattedDeletionDate })}
       </p>
-      <div className="flex items-center justify-end" style={{ paddingTop: 8 }}>
-        <button
-          type="button"
-          className="appearance-none border-0 cursor-pointer bg-[var(--primary)] transition-[background-color] duration-150 ease-out hover:bg-[var(--primary-pressed)]"
-          onClick={onLogout}
-          style={{
-            padding: '10px 18px',
-            color: 'var(--fg-on-primary)',
-            borderRadius: 10,
-            fontFamily: 'var(--font-sans)',
-            fontSize: 14,
-            fontWeight: 600,
-          }}
-        >
+      <div className="flex flex-col" style={{ paddingTop: 8 }}>
+        <PillButton fullWidth onClick={onLogout}>
           {t('profile.logout')}
-        </button>
+        </PillButton>
       </div>
     </div>
   )

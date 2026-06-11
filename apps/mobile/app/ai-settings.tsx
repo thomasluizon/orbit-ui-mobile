@@ -13,7 +13,6 @@ import {
   ChevronLeft,
   ChevronRight,
   Lock,
-  Orbit,
   Trash2,
   X,
 } from 'lucide-react-native'
@@ -29,15 +28,16 @@ import { useProfile } from '@/hooks/use-profile'
 import { apiClient } from '@/lib/api-client'
 import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
 import { useOffline } from '@/hooks/use-offline'
-import { createTokensV2 } from '@/lib/theme'
+import { createTokensV2, tintFromPrimary } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { AppBar } from '@/components/ui/app-bar'
 import { SectionLabel } from '@/components/ui/section-label'
-import { SettingsRow } from '@/components/ui/settings-row'
+import { SettingsRow, Switch } from '@/components/ui/settings-row'
 import { SettingsDescription } from '@/components/ui/settings-description'
-import { MonoToggle } from '@/components/ui/mono-toggle'
 import { SelectCheck } from '@/components/ui/select-check'
+import { EmptyState } from '@/components/ui/empty-state'
+import { ProBadge } from '@/components/ui/pro-badge'
 
 interface UserFact {
   id: string
@@ -240,14 +240,6 @@ export default function AiSettingsScreen() {
     return t(`profile.facts.${norm}`, { defaultValue: norm }).toUpperCase()
   }
 
-  const factsTrailing = (
-    <View style={styles.factsTrailing}>
-      <Text style={[styles.factsPageMono, { color: tokens.fg3 }]}>
-        {t('profile.facts.title')}
-      </Text>
-    </View>
-  )
-
   const pagingTrailing = (
     <View style={styles.pagingRow}>
       <Text style={[styles.pagingText, { color: tokens.fg3 }]}>
@@ -296,16 +288,18 @@ export default function AiSettingsScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <SectionLabel>{t('profile.aiMemory.title')}</SectionLabel>
+        <SectionLabel bottom={4} trailing={<ProBadge />}>
+          {t('profile.aiMemory.title')}
+        </SectionLabel>
         {hasProAccess ? (
           <SettingsRow
             label={t('profile.aiMemory.title')}
             accessory="none"
             divider={false}
           >
-            <MonoToggle
+            <Switch
               on={aiMemoryEnabled}
-              onPress={() => aiMemoryMutation.mutate(!aiMemoryEnabled)}
+              onToggle={() => aiMemoryMutation.mutate(!aiMemoryEnabled)}
               disabled={aiMemoryMutation.isPending}
               accessibilityLabel={t('profile.aiMemory.title')}
             />
@@ -317,21 +311,23 @@ export default function AiSettingsScreen() {
             accessory="chevron"
             divider={false}
           >
-            <Lock size={14} color={tokens.fg3} strokeWidth={1.4} />
+            <Lock size={14} color={tokens.fg3} strokeWidth={1.8} />
           </SettingsRow>
         )}
         <SettingsDescription>{t('profile.aiMemory.description')}</SettingsDescription>
 
-        <SectionLabel>{t('profile.aiSummary.title')}</SectionLabel>
+        <SectionLabel bottom={4} trailing={<ProBadge />}>
+          {t('profile.aiSummary.title')}
+        </SectionLabel>
         {hasProAccess ? (
           <SettingsRow
             label={t('profile.aiSummary.title')}
             accessory="none"
             divider={false}
           >
-            <MonoToggle
+            <Switch
               on={aiSummaryEnabled}
-              onPress={() => aiSummaryMutation.mutate(!aiSummaryEnabled)}
+              onToggle={() => aiSummaryMutation.mutate(!aiSummaryEnabled)}
               disabled={aiSummaryMutation.isPending}
               accessibilityLabel={t('profile.aiSummary.title')}
             />
@@ -343,15 +339,13 @@ export default function AiSettingsScreen() {
             accessory="chevron"
             divider={false}
           >
-            <Lock size={14} color={tokens.fg3} strokeWidth={1.4} />
+            <Lock size={14} color={tokens.fg3} strokeWidth={1.8} />
           </SettingsRow>
         )}
         <SettingsDescription>{t('profile.aiSummary.description')}</SettingsDescription>
 
         <SectionLabel
-          trailing={
-            hasProAccess && totalFactsPages > 1 ? pagingTrailing : factsTrailing
-          }
+          trailing={hasProAccess && totalFactsPages > 1 ? pagingTrailing : undefined}
         >
           {t('profile.facts.title')}
         </SectionLabel>
@@ -365,30 +359,18 @@ export default function AiSettingsScreen() {
         ) : factsQuery.isLoading ? (
           <View style={styles.skelStack}>
             <View
-              style={[styles.skelBar, { backgroundColor: tokens.bgSunk }]}
+              style={[styles.skelBar, { backgroundColor: tokens.bgElev }]}
             />
             <View
-              style={[styles.skelBar, { backgroundColor: tokens.bgSunk }]}
+              style={[styles.skelBar, { backgroundColor: tokens.bgElev }]}
             />
           </View>
         ) : facts.length === 0 ? (
-          <View style={styles.emptyBlock}>
-            <Orbit size={26} color={tokens.fg3} strokeWidth={1.4} />
-            <Text
-              style={[styles.emptyText, { color: tokens.fg3 }]}
-            >
-              {t('profile.facts.empty')}
-            </Text>
-          </View>
+          <EmptyState description={t('profile.facts.empty')} />
         ) : (
           <>
             {selectMode ? (
-              <View
-                style={[
-                  styles.selectBar,
-                  { borderBottomColor: tokens.hairline },
-                ]}
-              >
+              <View style={styles.selectBar}>
                 <Text
                   style={[styles.selectedCount, { color: tokens.fg1 }]}
                 >
@@ -420,8 +402,8 @@ export default function AiSettingsScreen() {
                   >
                     <Text
                       style={[
-                        styles.selectActionItalic,
-                        { color: tokens.fg3 },
+                        styles.selectActionText,
+                        { color: tokens.statusBad },
                         selectedFactIds.size === 0 && { opacity: 0.45 },
                       ]}
                     >
@@ -431,6 +413,7 @@ export default function AiSettingsScreen() {
                   <Pressable
                     onPress={toggleSelectMode}
                     accessibilityRole="button"
+                    accessibilityLabel={t('profile.facts.cancel')}
                     style={styles.selectActionPress}
                   >
                     <X size={14} color={tokens.fg3} />
@@ -438,12 +421,7 @@ export default function AiSettingsScreen() {
                 </View>
               </View>
             ) : (
-              <View
-                style={[
-                  styles.factsHeader,
-                  { borderBottomColor: tokens.hairline },
-                ]}
-              >
+              <View style={styles.factsHeader}>
                 <Pressable
                   onPress={toggleSelectMode}
                   accessibilityRole="button"
@@ -451,7 +429,7 @@ export default function AiSettingsScreen() {
                   style={styles.selectActionPress}
                 >
                   <Text
-                    style={[styles.selectActionText, { color: tokens.fg3 }]}
+                    style={[styles.selectActionText, { color: tokens.fg2 }]}
                   >
                     {t('profile.facts.select')}
                   </Text>
@@ -459,72 +437,84 @@ export default function AiSettingsScreen() {
               </View>
             )}
 
-            {pagedFacts.map((fact) => {
-              const selected = selectedFactIds.has(fact.id)
-              return (
-                <Pressable
-                  key={fact.id}
-                  onPress={
-                    selectMode ? () => toggleFactSelection(fact.id) : undefined
-                  }
-                  accessibilityRole={selectMode ? 'checkbox' : 'none'}
-                  accessibilityState={
-                    selectMode ? { checked: selected } : undefined
-                  }
-                  style={({ pressed }) => [
-                    styles.factRow,
-                    {
-                      borderBottomColor: tokens.hairline,
-                      backgroundColor:
-                        selected && selectMode
-                          ? tokens.bgSunk
-                          : pressed && selectMode
-                            ? tokens.bgElev
-                            : 'transparent',
-                    },
-                  ]}
-                >
-                  {selectMode ? (
-                    <View style={styles.checkSlot}>
-                      <SelectCheck
-                        selected={selected}
-                        size={16}
-                        onPress={() => toggleFactSelection(fact.id)}
-                      />
-                    </View>
-                  ) : null}
-                  <View style={styles.factBody}>
-                    {fact.category ? (
-                      <View
-                        style={[
-                          styles.categoryPill,
-                          { borderColor: tokens.hairlineStrong },
-                        ]}
-                      >
-                        <Text
-                          style={[styles.categoryText, { color: tokens.fg2 }]}
-                        >
-                          {categoryLabel(fact.category)}
-                        </Text>
+            <View style={styles.factsList}>
+              {pagedFacts.map((fact) => {
+                const selected = selectedFactIds.has(fact.id)
+                return (
+                  <Pressable
+                    key={fact.id}
+                    onPress={
+                      selectMode ? () => toggleFactSelection(fact.id) : undefined
+                    }
+                    accessibilityRole={selectMode ? 'checkbox' : 'none'}
+                    accessibilityState={
+                      selectMode ? { checked: selected } : undefined
+                    }
+                    style={({ pressed }) => [
+                      styles.factCard,
+                      selected && selectMode
+                        ? {
+                            backgroundColor: tintFromPrimary(tokens, 0.08),
+                            borderColor: tintFromPrimary(tokens, 0.28),
+                          }
+                        : {
+                            backgroundColor:
+                              pressed && selectMode
+                                ? tokens.bgElevPressed
+                                : tokens.bgCard,
+                            borderColor: tokens.hairline,
+                          },
+                    ]}
+                  >
+                    {selectMode ? (
+                      <View style={styles.checkSlot}>
+                        <SelectCheck
+                          selected={selected}
+                          size={18}
+                          onPress={() => toggleFactSelection(fact.id)}
+                        />
                       </View>
                     ) : null}
-                    <Text style={[styles.factText, { color: tokens.fg1 }]}>
-                      {fact.factText}
-                    </Text>
-                  </View>
-                  {!selectMode ? (
-                    <Pressable
-                      onPress={() => deleteMutation.mutate(fact.id)}
-                      accessibilityRole="button"
-                      accessibilityLabel={t('profile.facts.delete')}
-                      style={styles.deleteBtn}
-                    >
-                      <Trash2 size={14} color={tokens.fg4} strokeWidth={1.5} />
-                    </Pressable>
-                  ) : null}
-                </Pressable>
-              )
-            })}
+                    <View style={styles.factBody}>
+                      {fact.category ? (
+                        <View
+                          style={[
+                            styles.categoryPill,
+                            { borderColor: tokens.hairlineStrong },
+                          ]}
+                        >
+                          <Text
+                            style={[styles.categoryText, { color: tokens.fg3 }]}
+                          >
+                            {categoryLabel(fact.category)}
+                          </Text>
+                        </View>
+                      ) : null}
+                      <Text style={[styles.factText, { color: tokens.fg1 }]}>
+                        {fact.factText}
+                      </Text>
+                    </View>
+                    {!selectMode ? (
+                      <Pressable
+                        onPress={() => deleteMutation.mutate(fact.id)}
+                        accessibilityRole="button"
+                        accessibilityLabel={t('profile.facts.delete')}
+                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+                        style={styles.deleteBtn}
+                      >
+                        {({ pressed }) => (
+                          <Trash2
+                            size={16}
+                            color={pressed ? tokens.statusBad : tokens.fg4}
+                            strokeWidth={1.8}
+                          />
+                        )}
+                      </Pressable>
+                    ) : null}
+                  </Pressable>
+                )
+              })}
+            </View>
           </>
         )}
 
@@ -548,11 +538,6 @@ function createStyles() {
       fontSize: 13,
       fontStyle: 'italic',
     },
-    factsTrailing: { display: 'none' },
-    factsPageMono: {
-      fontFamily: 'Roboto_400Regular',
-      fontSize: 11,
-    },
     pagingRow: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -563,71 +548,60 @@ function createStyles() {
       fontSize: 11,
       fontVariant: ['tabular-nums'],
     },
-    pageBtn: { padding: 4 },
+    pageBtn: { padding: 6 },
     skelStack: {
       paddingHorizontal: 20,
-      paddingVertical: 12,
-      gap: 8,
+      gap: 10,
     },
     skelBar: {
       height: 56,
-      borderRadius: 8,
-    },
-    emptyBlock: {
-      paddingHorizontal: 24,
-      paddingVertical: 40,
-      alignItems: 'center',
-      gap: 12,
-    },
-    emptyText: {
-      fontFamily: 'Rubik_400Regular',
-      fontSize: 14,
-      fontStyle: 'italic',
-      textAlign: 'center',
-      lineHeight: 22,
+      borderRadius: 16,
     },
     factsHeader: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'flex-end',
       paddingHorizontal: 20,
-      paddingVertical: 8,
-      borderBottomWidth: StyleSheet.hairlineWidth,
+      paddingBottom: 6,
     },
     selectBar: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
       paddingHorizontal: 20,
-      paddingVertical: 10,
-      borderBottomWidth: StyleSheet.hairlineWidth,
+      paddingBottom: 10,
     },
     selectedCount: {
       fontFamily: 'Roboto_500Medium',
       fontSize: 12,
-      },
+      fontVariant: ['tabular-nums'],
+    },
     selectActions: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 12,
+      gap: 10,
     },
-    selectActionPress: { padding: 4 },
+    selectActionPress: {
+      minHeight: 44,
+      paddingHorizontal: 6,
+      justifyContent: 'center',
+    },
     selectActionText: {
       fontFamily: 'Rubik_500Medium',
       fontSize: 13,
-      },
-    selectActionItalic: {
-      fontFamily: 'Rubik_400Regular',
-      fontSize: 13,
-      fontStyle: 'italic',
     },
-    factRow: {
+    factsList: {
+      paddingHorizontal: 20,
+      gap: 10,
+    },
+    factCard: {
       flexDirection: 'row',
       alignItems: 'flex-start',
       gap: 12,
-      paddingHorizontal: 20,
-      paddingVertical: 12,
-      borderBottomWidth: StyleSheet.hairlineWidth,
+      paddingHorizontal: 16,
+      paddingVertical: 14,
+      borderRadius: 16,
+      borderWidth: 1,
     },
     checkSlot: {
       paddingTop: 2,
@@ -638,10 +612,10 @@ function createStyles() {
     },
     categoryPill: {
       alignSelf: 'flex-start',
-      paddingHorizontal: 6,
+      paddingHorizontal: 7,
       paddingVertical: 2,
-      borderRadius: 4,
-      borderWidth: StyleSheet.hairlineWidth,
+      borderRadius: 999,
+      borderWidth: 1,
     },
     categoryText: {
       fontFamily: 'Roboto_500Medium',
@@ -650,12 +624,11 @@ function createStyles() {
     },
     factText: {
       fontFamily: 'Rubik_400Regular',
-      fontSize: 14,
-      lineHeight: 20,
+      fontSize: 15,
+      lineHeight: 21.75,
     },
     deleteBtn: {
       padding: 4,
     },
   })
 }
-

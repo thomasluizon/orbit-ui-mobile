@@ -2,7 +2,8 @@
 
 import type { MouseEvent } from 'react'
 
-function RadioGlyph({ selected, size }: Readonly<{ selected: boolean; size: number }>) {
+/** Kit Radio glyph (visual only) — for rows that manage their own press target. */
+export function RadioGlyph({ selected, size }: Readonly<{ selected: boolean; size: number }>) {
   return (
     <span
       className="inline-flex items-center justify-center rounded-full shrink-0"

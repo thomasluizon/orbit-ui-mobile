@@ -1861,6 +1861,7 @@
   },
   "preferences": {
     "title": "Preferências",
+    "general": "Geral",
     "colorBlue": "Tema azul",
     "colorCyan": "Tema ciano",
     "colorGreen": "Tema verde",
@@ -1875,7 +1876,8 @@
     "title": "Recursos de IA"
   },
   "about": {
-    "title": "Sobre e Ajuda"
+    "title": "Sobre e Ajuda",
+    "version": "Versão {version}"
   },
   "advancedSettings": {
     "title": "Avançado",

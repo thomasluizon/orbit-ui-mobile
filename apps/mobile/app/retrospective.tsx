@@ -36,8 +36,8 @@ import { OfflineUnavailableState } from '@/components/ui/offline-unavailable-sta
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { AppBar } from '@/components/ui/app-bar'
 import { Chip } from '@/components/ui/chip'
-import { SectionLabel } from '@/components/ui/section-label'
-import { PullQuote } from '@/components/chat/pull-quote'
+import { InfoCard } from '@/components/ui/info-card'
+import { PillButton } from '@/components/ui/pill-button'
 
 type Tokens = ReturnType<typeof createTokensV2>
 
@@ -88,11 +88,16 @@ function RetrospectiveBody({
         const headingMatch = /^\*\*(.+?)\*\*$/.exec(line)
         if (headingMatch) {
           return (
-            <View key={`${line}-${index}`} style={styles.bodyHeadingWrap}>
-              <SectionLabel top={14} bottom={6}>
-                {headingMatch[1]}
-              </SectionLabel>
-            </View>
+            <Text
+              key={`${line}-${index}`}
+              style={[
+                styles.bodyHeading,
+                { color: tokens.fg1 },
+                index > 0 ? styles.bodyHeadingSpaced : null,
+              ]}
+            >
+              {headingMatch[1]}
+            </Text>
           )
         }
 
@@ -149,7 +154,7 @@ export default function RetrospectiveScreen() {
 
   useEffect(() => {
     let active = true
-     
+
     setIsCacheLoading(true)
 
     AsyncStorage.getItem(cacheKey)
@@ -242,7 +247,7 @@ export default function RetrospectiveScreen() {
             <View
               style={[
                 styles.lockedIconCircle,
-                { backgroundColor: tokens.bgSunk },
+                { backgroundColor: tokens.bgField },
               ]}
             >
               <Lock size={28} color={tokens.fg3} strokeWidth={1.4} />
@@ -253,24 +258,13 @@ export default function RetrospectiveScreen() {
             <Text style={[styles.lockedDescription, { color: tokens.fg3 }]}>
               {t('retrospective.lockedHint')}
             </Text>
-            <Pressable
+            <PillButton
               onPress={() => router.push(buildUpgradeHref('/retrospective'))}
-              accessibilityRole="button"
-              style={({ pressed }) => [
-                styles.primaryBtn,
-                {
-                  backgroundColor: pressed
-                    ? tokens.primaryPressed
-                    : tokens.primary,
-                },
-              ]}
+              accessibilityLabel={t('upgrade.subscribe')}
+              style={styles.lockedCta}
             >
-              <Text
-                style={[styles.primaryBtnText, { color: tokens.fgOnPrimary }]}
-              >
-                {t('upgrade.subscribe')}
-              </Text>
-            </Pressable>
+              {t('upgrade.subscribe')}
+            </PillButton>
           </View>
         ) : null}
 
@@ -279,7 +273,7 @@ export default function RetrospectiveScreen() {
             <View
               style={[
                 styles.lockedIconCircle,
-                { backgroundColor: tokens.bgSunk },
+                { backgroundColor: tokens.bgField },
               ]}
             >
               <Lock size={28} color={tokens.fg3} strokeWidth={1.4} />
@@ -291,51 +285,24 @@ export default function RetrospectiveScreen() {
               {t('retrospective.lockedYearlyHint')}
             </Text>
             {profile?.isTrialActive ? (
-              <Pressable
+              <PillButton
                 onPress={() => router.push(buildUpgradeHref('/retrospective'))}
-                accessibilityRole="button"
-                style={({ pressed }) => [
-                  styles.primaryBtn,
-                  {
-                    backgroundColor: pressed
-                      ? tokens.primaryPressed
-                      : tokens.primary,
-                  },
-                ]}
+                accessibilityLabel={t('upgrade.subscribe')}
+                style={styles.lockedCta}
               >
-                <Text
-                  style={[
-                    styles.primaryBtnText,
-                    { color: tokens.fgOnPrimary },
-                  ]}
-                >
-                  {t('upgrade.subscribe')}
-                </Text>
-              </Pressable>
+                {t('upgrade.subscribe')}
+              </PillButton>
             ) : (
-              <Pressable
-                onPress={handleOpenPortal}
+              <PillButton
+                onPress={() => {
+                  void handleOpenPortal()
+                }}
                 disabled={!isOnline}
-                accessibilityRole="button"
-                style={({ pressed }) => [
-                  styles.primaryBtn,
-                  {
-                    backgroundColor: pressed
-                      ? tokens.primaryPressed
-                      : tokens.primary,
-                  },
-                  !isOnline && { opacity: 0.5 },
-                ]}
+                accessibilityLabel={t('retrospective.changePlan')}
+                style={styles.lockedCta}
               >
-                <Text
-                  style={[
-                    styles.primaryBtnText,
-                    { color: tokens.fgOnPrimary },
-                  ]}
-                >
-                  {t('retrospective.changePlan')}
-                </Text>
-              </Pressable>
+                {t('retrospective.changePlan')}
+              </PillButton>
             )}
             {!isOnline ? (
               <OfflineUnavailableState
@@ -397,19 +364,19 @@ export default function RetrospectiveScreen() {
                 <View
                   style={[
                     styles.skeletonLine,
-                    { width: '60%', backgroundColor: tokens.bgSunk },
+                    { width: '60%', backgroundColor: tokens.bgCard },
                   ]}
                 />
                 <View
                   style={[
                     styles.skeletonLine,
-                    { width: '80%', backgroundColor: tokens.bgSunk },
+                    { width: '80%', backgroundColor: tokens.bgCard },
                   ]}
                 />
                 <View
                   style={[
                     styles.skeletonLine,
-                    { width: '40%', backgroundColor: tokens.bgSunk },
+                    { width: '40%', backgroundColor: tokens.bgCard },
                   ]}
                 />
               </View>
@@ -417,43 +384,51 @@ export default function RetrospectiveScreen() {
 
             {!isLoading && displayedRetrospective ? (
               <View style={styles.contentWrap}>
-                <View style={styles.astraRow}>
-                  <View style={styles.astraEyebrowGroup}>
-                    <Orbit size={11} color={tokens.primary} strokeWidth={1.7} />
-                    <Text
-                      style={[styles.astraEyebrow, { color: tokens.fg3 }]}
+                <View
+                  style={[
+                    styles.contentCard,
+                    {
+                      backgroundColor: tokens.bgCard,
+                      borderColor: tokens.hairline,
+                    },
+                  ]}
+                >
+                  <View style={styles.astraRow}>
+                    <View style={styles.astraEyebrowGroup}>
+                      <Orbit size={11} color={tokens.primary} strokeWidth={1.7} />
+                      <Text
+                        style={[styles.astraEyebrow, { color: tokens.fg3 }]}
+                      >
+                        {t('retrospective.astraEyebrow').toUpperCase()}
+                      </Text>
+                    </View>
+                    <Pressable
+                      onPress={handleGenerate}
+                      accessibilityRole="button"
+                      style={styles.regenLinkPress}
                     >
-                      {t('retrospective.astraEyebrow')}
-                    </Text>
+                      <Text
+                        style={[styles.regenLink, { color: tokens.fg3 }]}
+                      >
+                        {t('retrospective.regenerate')}
+                      </Text>
+                    </Pressable>
                   </View>
-                  <Pressable
-                    onPress={handleGenerate}
-                    accessibilityRole="button"
-                    style={styles.regenLinkPress}
-                  >
-                    <Text
-                      style={[styles.regenLink, { color: tokens.fg3 }]}
-                    >
-                      {t('retrospective.regenerate')}
-                    </Text>
-                  </Pressable>
-                </View>
-                <RetrospectiveBody
-                  text={displayedRetrospective}
-                  tokens={tokens}
-                />
-                <Text style={[styles.aiDisclaimer, { color: tokens.fg3 }]}>
-                  {t('aiDisclosure.notMedicalAdvice')}
-                </Text>
-                {displayedFromCache ? (
-                  <View style={styles.cachedRow}>
+                  <RetrospectiveBody
+                    text={displayedRetrospective}
+                    tokens={tokens}
+                  />
+                  <Text style={[styles.aiDisclaimer, { color: tokens.fg4 }]}>
+                    {t('aiDisclosure.notMedicalAdvice')}
+                  </Text>
+                  {displayedFromCache ? (
                     <Text
                       style={[styles.cachedText, { color: tokens.fg4 }]}
                     >
                       {t('retrospective.cached')}
                     </Text>
-                  </View>
-                ) : null}
+                  ) : null}
+                </View>
               </View>
             ) : null}
 
@@ -479,38 +454,29 @@ export default function RetrospectiveScreen() {
             !error &&
             !isCacheLoading ? (
               <View style={styles.generateBlock}>
-                <PullQuote eyebrow={t('retrospective.astraEyebrow')}>
-                  {t('retrospective.empty')}
-                </PullQuote>
+                <View style={styles.generateCardWrap}>
+                  <InfoCard
+                    icon={Orbit}
+                    title={t('retrospective.astraEyebrow')}
+                    desc={t('retrospective.empty')}
+                  />
+                </View>
                 <View style={styles.generateBtnWrap}>
-                  <Pressable
+                  <PillButton
                     onPress={handleGenerate}
-                    accessibilityRole="button"
                     disabled={!isOnline}
-                    style={({ pressed }) => [
-                      styles.primaryBtn,
-                      {
-                        backgroundColor: pressed
-                          ? tokens.primaryPressed
-                          : tokens.primary,
-                      },
-                      !isOnline && { opacity: 0.5 },
-                    ]}
+                    fullWidth
+                    accessibilityLabel={t('retrospective.generate')}
+                    leading={
+                      <Orbit
+                        size={16}
+                        color={tokens.fgOnPrimary}
+                        strokeWidth={1.8}
+                      />
+                    }
                   >
-                    <Orbit
-                      size={14}
-                      color={tokens.fgOnPrimary}
-                      strokeWidth={1.7}
-                    />
-                    <Text
-                      style={[
-                        styles.primaryBtnText,
-                        { color: tokens.fgOnPrimary },
-                      ]}
-                    >
-                      {t('retrospective.generate')}
-                    </Text>
-                  </Pressable>
+                    {t('retrospective.generate')}
+                  </PillButton>
                 </View>
               </View>
             ) : null}
@@ -539,17 +505,20 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   lockedTitle: {
-    fontFamily: 'Rubik_600SemiBold',
-    fontSize: 17,
-    letterSpacing: -0.17,
+    fontFamily: 'Rubik_500Medium',
+    fontSize: 20,
+    letterSpacing: -0.2,
     textAlign: 'center',
   },
   lockedDescription: {
     fontFamily: 'Rubik_400Regular',
     fontSize: 14,
     lineHeight: 22,
-    fontStyle: 'italic',
     textAlign: 'center',
+    maxWidth: 320,
+  },
+  lockedCta: {
+    marginTop: 8,
   },
   tabsRow: {
     borderBottomWidth: StyleSheet.hairlineWidth,
@@ -573,7 +542,6 @@ const styles = StyleSheet.create({
   skeletonLabel: {
     fontFamily: 'Rubik_400Regular',
     fontSize: 14,
-    fontStyle: 'italic',
   },
   skeletonLine: {
     height: 7,
@@ -581,16 +549,22 @@ const styles = StyleSheet.create({
     alignSelf: 'stretch',
   },
   contentWrap: {
-    position: 'relative',
-    paddingTop: 8,
+    paddingHorizontal: 20,
+    paddingTop: 16,
+    paddingBottom: 24,
+  },
+  contentCard: {
+    borderRadius: 18,
+    borderWidth: 1,
+    paddingTop: 16,
+    paddingHorizontal: 18,
+    paddingBottom: 18,
   },
   astraRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 8,
+    paddingBottom: 10,
   },
   astraEyebrowGroup: {
     flexDirection: 'row',
@@ -598,18 +572,15 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   astraEyebrow: {
-    fontFamily: 'Roboto_400Regular',
+    fontFamily: 'Roboto_500Medium',
     fontSize: 10.5,
     letterSpacing: 0.63,
-    textTransform: 'uppercase',
   },
   aiDisclaimer: {
     fontFamily: 'Rubik_400Regular',
     fontSize: 11,
     lineHeight: 15,
-    fontStyle: 'italic',
-    marginTop: 12,
-    paddingHorizontal: 20,
+    marginTop: 16,
   },
   regenLinkPress: { padding: 4 },
   regenLink: {
@@ -617,30 +588,35 @@ const styles = StyleSheet.create({
     fontSize: 13,
     textDecorationLine: 'underline',
   },
-  bodyStack: { gap: 4, paddingHorizontal: 22 },
-  bodyHeadingWrap: { marginLeft: -22 },
+  bodyStack: { gap: 6 },
+  bodyHeading: {
+    fontFamily: 'Rubik_500Medium',
+    fontSize: 16,
+    lineHeight: 22,
+  },
+  bodyHeadingSpaced: {
+    marginTop: 10,
+  },
   bodyParagraph: {
     fontFamily: 'Rubik_400Regular',
     fontSize: 15,
     lineHeight: 24,
   },
   bodyStrong: {
-    fontFamily: 'Rubik_600SemiBold',
+    fontFamily: 'Rubik_500Medium',
     fontSize: 15,
-    },
+  },
   bodyInline: {
     fontFamily: 'Rubik_400Regular',
     fontSize: 15,
     lineHeight: 24,
   },
-  cachedRow: {
-    paddingHorizontal: 22,
-    paddingTop: 12,
-  },
   cachedText: {
     fontFamily: 'Roboto_400Regular',
     fontSize: 11,
-    fontStyle: 'italic',
+    letterSpacing: 0.22,
+    fontVariant: ['tabular-nums'],
+    marginTop: 10,
   },
   errorWrap: {
     paddingHorizontal: 20,
@@ -655,31 +631,20 @@ const styles = StyleSheet.create({
   },
   retryLinkPress: { padding: 6 },
   retryLink: {
-    fontFamily: 'Rubik_600SemiBold',
+    fontFamily: 'Rubik_500Medium',
     fontSize: 14,
     textDecorationLine: 'underline',
   },
   generateBlock: {
-    paddingTop: 16,
-    gap: 12,
+    paddingTop: 20,
+  },
+  generateCardWrap: {
+    paddingHorizontal: 20,
   },
   generateBtnWrap: {
     paddingHorizontal: 20,
-    paddingTop: 8,
+    paddingTop: 18,
   },
-  primaryBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 14,
-    paddingHorizontal: 18,
-    borderRadius: 8,
-  },
-  primaryBtnText: {
-    fontFamily: 'Rubik_600SemiBold',
-    fontSize: 14,
-    },
   statusError: {
     fontFamily: 'Rubik_400Regular',
     fontSize: 12,

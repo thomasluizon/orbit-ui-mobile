@@ -9,12 +9,13 @@ import { isValidEmail } from '@orbit/shared/utils/email'
 import { buildSupportRequestBody, getErrorMessage } from '@orbit/shared/utils'
 import { sendSupportMessage } from '@/app/actions/support'
 import { AppBar } from '@/components/ui/app-bar'
+import { PillButton } from '@/components/ui/pill-button'
 import { OfflineUnavailableState } from '@/components/ui/offline-unavailable-state'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 
 const SUPPORT_DRAFT_STORAGE_KEY = 'orbit-support-draft'
 
-interface UnderlinedInputProps {
+interface SupportFieldProps {
   label?: string
   value: string
   onChange: (next: string) => void
@@ -27,7 +28,7 @@ interface UnderlinedInputProps {
   rows?: number
 }
 
-function UnderlinedInput({
+function SupportField({
   label,
   value,
   onChange,
@@ -38,20 +39,17 @@ function UnderlinedInput({
   error,
   multiline = false,
   rows = 4,
-}: Readonly<UnderlinedInputProps>) {
-  const family = mono ? 'var(--font-mono)' : 'var(--font-sans)'
+}: Readonly<SupportFieldProps>) {
   const Tag = multiline ? 'textarea' : 'input'
   return (
-    <label className="flex flex-col gap-1.5 flex-1 min-w-0">
+    <label className="flex min-w-0 flex-1 flex-col" style={{ gap: 8 }}>
       {label && (
         <span
           style={{
             fontFamily: 'var(--font-sans)',
-            fontSize: 11,
-            fontWeight: 600,
-            color: 'var(--fg-3)',
-            letterSpacing: '0.04em',
-            textTransform: 'uppercase',
+            fontSize: 14,
+            fontWeight: 500,
+            color: 'var(--fg-2)',
           }}
         >
           {label}
@@ -64,13 +62,18 @@ function UnderlinedInput({
         placeholder={placeholder}
         aria-label={ariaLabel ?? label}
         rows={multiline ? rows : undefined}
-        className="appearance-none border-0 bg-transparent outline-none resize-none w-full"
+        className="w-full resize-none appearance-none rounded-[14px] border-0 bg-[var(--bg-field)] outline-none placeholder:text-[var(--fg-4)] focus:shadow-[inset_0_0_0_2px_var(--primary)]"
         style={{
-          fontFamily: family,
-          fontSize: 15,
+          minHeight: multiline ? undefined : 54,
+          padding: multiline ? '14px 16px' : '0 16px',
+          boxShadow: error
+            ? 'inset 0 0 0 1px var(--status-bad)'
+            : 'inset 0 0 0 1px var(--hairline)',
+          fontFamily: mono ? 'var(--font-mono)' : 'var(--font-sans)',
+          fontSize: 16,
+          lineHeight: 1.5,
           color: 'var(--fg-1)',
-          padding: '6px 0',
-          borderBottom: `1px solid ${error ? 'var(--status-overdue)' : 'var(--hairline-strong)'}`,
+          fontVariantNumeric: mono ? 'tabular-nums' : 'normal',
         }}
       />
       {error && (
@@ -78,8 +81,7 @@ function UnderlinedInput({
           style={{
             fontFamily: 'var(--font-sans)',
             fontSize: 12,
-            fontStyle: 'italic',
-            color: 'var(--status-overdue)',
+            color: 'var(--status-bad)',
           }}
         >
           {error}
@@ -215,12 +217,20 @@ export default function SupportPage() {
         )}
 
         {success ? (
-          <div className="flex flex-col items-center gap-3.5 py-10">
-            <Check size={28} strokeWidth={1.8} color="var(--primary)" />
+          <div className="flex flex-col items-center text-center" style={{ padding: '48px 24px', gap: 14 }}>
+            <span
+              className="flex items-center justify-center rounded-full bg-[var(--bg-field)]"
+              style={{ width: 56, height: 56, boxShadow: 'inset 0 0 0 1px var(--hairline)' }}
+              aria-hidden="true"
+            >
+              <Check size={28} strokeWidth={1.8} color="var(--primary)" />
+            </span>
             <span
               style={{
                 fontFamily: 'var(--font-sans)',
-                fontSize: 16,
+                fontSize: 20,
+                fontWeight: 500,
+                letterSpacing: '-0.01em',
                 color: 'var(--fg-1)',
               }}
             >
@@ -229,18 +239,19 @@ export default function SupportPage() {
             <span
               style={{
                 fontFamily: 'var(--font-sans)',
-                fontSize: 13,
+                fontSize: 14,
+                lineHeight: 1.55,
                 color: 'var(--fg-3)',
-                fontStyle: 'italic',
+                maxWidth: 320,
               }}
             >
               {t('profile.support.description')}
             </span>
           </div>
         ) : (
-          <div className="flex flex-col gap-4">
-            <div className="flex gap-3">
-              <UnderlinedInput
+          <div className="flex flex-col" style={{ gap: 16 }}>
+            <div className="flex" style={{ gap: 12 }}>
+              <SupportField
                 label={t('profile.support.namePlaceholder')}
                 value={name}
                 onChange={setName}
@@ -248,7 +259,7 @@ export default function SupportPage() {
                 ariaLabel={t('profile.support.namePlaceholder')}
                 error={nameError}
               />
-              <UnderlinedInput
+              <SupportField
                 label={t('profile.support.emailPlaceholder')}
                 value={email}
                 onChange={setEmail}
@@ -259,14 +270,14 @@ export default function SupportPage() {
                 error={emailError}
               />
             </div>
-            <UnderlinedInput
+            <SupportField
               label={t('profile.support.subjectPlaceholder')}
               value={subject}
               onChange={setSubject}
               placeholder={t('profile.support.subjectPlaceholder')}
               ariaLabel={t('profile.support.subjectPlaceholder')}
             />
-            <UnderlinedInput
+            <SupportField
               label={t('profile.support.messagePlaceholder')}
               value={message}
               onChange={setMessage}
@@ -280,34 +291,26 @@ export default function SupportPage() {
                 style={{
                   fontFamily: 'var(--font-sans)',
                   fontSize: 14,
-                  fontStyle: 'italic',
-                  color: 'var(--status-overdue)',
+                  color: 'var(--status-bad)',
                 }}
               >
                 {error}
               </div>
             )}
-            <button
-              type="button"
-              disabled={disabled}
-              onClick={handleSend}
-              aria-label={t('profile.support.send')}
-              className="appearance-none border-0 cursor-pointer disabled:cursor-not-allowed inline-flex items-center justify-center gap-2 w-full"
-              style={{
-                marginTop: 8,
-                height: 44,
-                borderRadius: 8,
-                background: disabled ? 'var(--bg-elev)' : 'var(--primary)',
-                color: disabled ? 'var(--fg-3)' : 'var(--fg-on-primary)',
-                fontFamily: 'var(--font-sans)',
-                fontSize: 14,
-                fontWeight: 600,
-                boxShadow: disabled ? 'inset 0 0 0 1px var(--hairline-strong)' : 'none',
-              }}
-            >
-              {isSending && <Loader2 size={14} className="animate-spin" />}
-              {t('profile.support.send')}
-            </button>
+            <div style={{ paddingTop: 8 }}>
+              <PillButton
+                onClick={handleSend}
+                disabled={disabled}
+                fullWidth
+                leading={
+                  isSending ? (
+                    <Loader2 size={16} strokeWidth={1.8} className="animate-spin" aria-hidden="true" />
+                  ) : undefined
+                }
+              >
+                {t('profile.support.send')}
+              </PillButton>
+            </div>
           </div>
         )}
       </div>

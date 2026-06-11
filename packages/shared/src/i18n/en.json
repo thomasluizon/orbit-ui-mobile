@@ -1861,6 +1861,7 @@
   },
   "preferences": {
     "title": "Preferences",
+    "general": "General",
     "colorBlue": "Blue theme",
     "colorCyan": "Cyan theme",
     "colorGreen": "Green theme",
@@ -1875,7 +1876,8 @@
     "title": "AI Features"
   },
   "about": {
-    "title": "About & Help"
+    "title": "About & Help",
+    "version": "Version {version}"
   },
   "advancedSettings": {
     "title": "Advanced",

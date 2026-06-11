@@ -137,18 +137,20 @@ interface SwitchProps {
   on: boolean
   onToggle: () => void
   ariaLabel: string
+  disabled?: boolean
 }
 
 /** Kit Switch: 48×28 pill, 22px thumb; primary track when on, fg-1 alpha track when off. */
-export function Switch({ on, onToggle, ariaLabel }: Readonly<SwitchProps>) {
+export function Switch({ on, onToggle, ariaLabel, disabled = false }: Readonly<SwitchProps>) {
   return (
     <button
       type="button"
       role="switch"
       aria-checked={on}
       aria-label={ariaLabel}
+      disabled={disabled}
       onClick={onToggle}
-      className="appearance-none border-0 bg-transparent cursor-pointer p-0 shrink-0 inline-flex items-center justify-center"
+      className="appearance-none border-0 bg-transparent cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 p-0 shrink-0 inline-flex items-center justify-center"
       style={{ minHeight: 44 }}
     >
       <span

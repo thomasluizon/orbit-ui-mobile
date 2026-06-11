@@ -98,6 +98,8 @@ vi.mock('@/lib/theme', () => ({
     shadow2: {},
     shadow3: {},
   },
+  tintFromPrimary: () => 'rgba(17, 17, 17, 0.1)',
+  primaryGlow: () => ({}),
 }))
 
 vi.mock('@/lib/api-client', () => ({
@@ -207,6 +209,9 @@ vi.mock('lucide-react-native', () => {
     User: createIcon('User'),
     ChevronLeft: createIcon('ChevronLeft'),
     Flame: createIcon('Flame'),
+    Download: createIcon('Download'),
+    UserX: createIcon('UserX'),
+    TriangleAlert: createIcon('TriangleAlert'),
   }
 })
 

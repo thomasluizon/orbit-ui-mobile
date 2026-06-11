@@ -1,9 +1,11 @@
 import { useMemo, useState } from 'react'
-import { ScrollView, StyleSheet, View } from 'react-native'
+import { ScrollView, StyleSheet, Text, View } from 'react-native'
 import { useRouter } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
-import { createTokensV2 } from '@/lib/theme'
+import Constants from 'expo-constants'
+import { Compass, Mail, Orbit, Shield } from 'lucide-react-native'
+import { createTokensV2, primaryGlow } from '@/lib/theme'
 import { FeatureGuideDrawer } from '@/components/onboarding/feature-guide-drawer'
 import { ReferralCard } from '@/components/referral/referral-card'
 import { ReferralDrawer } from '@/components/referral/referral-drawer'
@@ -23,6 +25,7 @@ export default function AboutScreen() {
   )
   const [showGuide, setShowGuide] = useState(false)
   const [showReferral, setShowReferral] = useState(false)
+  const appVersion = Constants.expoConfig?.version
 
   return (
     <SafeAreaView
@@ -40,16 +43,38 @@ export default function AboutScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
+        <View style={styles.logoBlock}>
+          <View
+            style={[
+              styles.logoTile,
+              { backgroundColor: tokens.primary },
+              primaryGlow(tokens),
+            ]}
+          >
+            <Orbit size={38} color={tokens.fgOnPrimary} strokeWidth={2} />
+          </View>
+          <Text style={[styles.appName, { color: tokens.fg1 }]}>
+            {t('common.appName')}
+          </Text>
+          {appVersion ? (
+            <Text style={[styles.appVersion, { color: tokens.fg3 }]}>
+              {t('about.version', { version: appVersion })}
+            </Text>
+          ) : null}
+        </View>
         <SettingsRow
+          icon={Compass}
           label={t('onboarding.featureGuide.openButton')}
           onPress={() => setShowGuide(true)}
         />
         <ReferralCard onOpen={() => setShowReferral(true)} />
         <SettingsRow
+          icon={Mail}
           label={t('profile.support.title')}
           onPress={() => router.push('/support')}
         />
         <SettingsRow
+          icon={Shield}
           label={t('privacy.title')}
           onPress={() => router.push('/privacy')}
         />
@@ -72,4 +97,26 @@ const styles = StyleSheet.create({
   safeArea: { flex: 1 },
   container: { flex: 1 },
   scrollContent: { paddingBottom: 40 },
+  logoBlock: {
+    alignItems: 'center',
+    gap: 10,
+    paddingTop: 24,
+    paddingBottom: 20,
+  },
+  logoTile: {
+    width: 72,
+    height: 72,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  appName: {
+    fontFamily: 'Rubik_500Medium',
+    fontSize: 22,
+  },
+  appVersion: {
+    fontFamily: 'Roboto_400Regular',
+    fontSize: 13,
+    fontVariant: ['tabular-nums'],
+  },
 })

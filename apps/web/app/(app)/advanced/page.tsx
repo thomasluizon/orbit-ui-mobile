@@ -33,6 +33,7 @@ import { API } from '@orbit/shared/api'
 import { useProfile } from '@/hooks/use-profile'
 import { ProBadge } from '@/components/ui/pro-badge'
 import { AppOverlay } from '@/components/ui/app-overlay'
+import { Chip } from '@/components/ui/chip'
 import { CreateApiKeyModal } from '@/components/ui/create-api-key-modal'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import type {
@@ -61,6 +62,53 @@ async function copyToClipboard(text: string): Promise<void> {
     await navigator.clipboard.writeText(text)
   } catch {
   }
+}
+
+function CodeWell({
+  content,
+  copyButton,
+}: Readonly<{ content: string; copyButton: React.ReactNode }>) {
+  return (
+    <div className="relative">
+      <pre
+        className="overflow-x-auto rounded-[14px] bg-[var(--bg-field)]"
+        style={{
+          padding: '14px 16px',
+          boxShadow: 'inset 0 0 0 1px var(--hairline)',
+          fontFamily: 'var(--font-mono)',
+          fontSize: 12.5,
+          lineHeight: 1.6,
+          color: 'var(--fg-2)',
+          fontVariantNumeric: 'tabular-nums',
+        }}
+      >
+        {content}
+      </pre>
+      {copyButton}
+    </div>
+  )
+}
+
+function CopyIconButton({
+  copied,
+  onClick,
+  ariaLabel,
+}: Readonly<{ copied?: boolean; onClick: () => void; ariaLabel: string }>) {
+  return (
+    <button
+      type="button"
+      aria-label={ariaLabel}
+      className="absolute flex cursor-pointer items-center justify-center rounded-[10px] border-0 bg-[var(--bg-elev-2)] text-[var(--fg-2)] transition-[background-color,color] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:text-[var(--fg-1)]"
+      style={{ top: 8, right: 8, width: 32, height: 32 }}
+      onClick={onClick}
+    >
+      {copied ? (
+        <Check size={16} strokeWidth={1.8} color="var(--status-done)" />
+      ) : (
+        <Clipboard size={16} strokeWidth={1.8} />
+      )}
+    </button>
+  )
 }
 
 export default function AdvancedPage() {
@@ -170,38 +218,41 @@ export default function AdvancedPage() {
           aria-expanded={showWidgetInfo}
           aria-controls="widget-info-dialog"
           aria-label={t('profile.widgetTitle')}
-          className="appearance-none border-0 bg-transparent cursor-pointer w-full text-left flex items-center justify-between"
-          style={{
-            padding: '14px 20px',
-            gap: 12,
-          }}
+          className="flex w-full cursor-pointer items-center justify-between border-0 bg-transparent text-left transition-[background-color] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev)]"
+          style={{ padding: '16px 20px', gap: 14, minHeight: 56 }}
         >
-          <div className="flex items-center min-w-0 flex-1" style={{ gap: 10 }}>
-            <Smartphone size={14} color="var(--fg-3)" />
-            <div className="min-w-0">
-              <p
+          <span className="flex min-w-0 flex-1 items-center" style={{ gap: 14 }}>
+            <span
+              className="flex shrink-0 items-center justify-center"
+              style={{ width: 26 }}
+              aria-hidden="true"
+            >
+              <Smartphone size={22} strokeWidth={1.8} color="var(--fg-1)" />
+            </span>
+            <span className="flex min-w-0 flex-col" style={{ gap: 3 }}>
+              <span
                 style={{
                   fontFamily: 'var(--font-sans)',
-                  fontSize: 15,
+                  fontSize: 18,
+                  lineHeight: 1.25,
                   color: 'var(--fg-1)',
                 }}
               >
                 {t('profile.widgetTitle')}
-              </p>
-              <p
+              </span>
+              <span
                 style={{
                   fontFamily: 'var(--font-sans)',
-                  fontSize: 12,
-                  fontStyle: 'italic',
+                  fontSize: 14,
+                  lineHeight: 1.35,
                   color: 'var(--fg-3)',
-                  marginTop: 2,
                 }}
               >
                 {t('profile.widgetHint')}
-              </p>
-            </div>
-          </div>
-          <ChevronRight size={16} strokeWidth={1.5} color="var(--fg-4)" />
+              </span>
+            </span>
+          </span>
+          <ChevronRight size={22} strokeWidth={1.8} color="var(--fg-4)" />
         </button>
 
         <SectionLabel trailing={<ProBadge />}>{t('orbitMcp.title')}</SectionLabel>
@@ -214,77 +265,101 @@ export default function AdvancedPage() {
                 style={{
                   gap: 6,
                   fontFamily: 'var(--font-sans)',
-                  fontSize: 12,
-                  fontWeight: 600,
-                  color: 'var(--fg-1)',
-                  textDecoration: 'underline',
-                  textUnderlineOffset: 3,
-                  textDecorationColor: 'var(--hairline-strong)',
+                  fontSize: 13,
+                  fontWeight: 500,
+                  color: 'var(--primary)',
                 }}
               >
-                <Lock size={12} />
+                <Lock size={13} strokeWidth={1.8} />
                 {t('common.proBadge')}
               </Link>
             </div>
           )}
 
-          <p
-            style={{
-              fontFamily: 'var(--font-sans)',
-              fontSize: 13,
-              fontStyle: 'italic',
-              color: 'var(--fg-3)',
-              lineHeight: 1.5,
-            }}
-          >
+          <p className="t-secondary" style={{ color: 'var(--fg-3)' }}>
             {t('orbitMcp.description')}
           </p>
         </div>
         {profile?.hasProAccess && (
-          <div className="px-5 py-4 space-y-4">
+          <div className="px-5 space-y-4" style={{ paddingBottom: 8 }}>
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-[var(--fg-3)]">{t('orbitMcp.apiKeys')}</h4>
+                  <h4 className="t-eyebrow">{t('orbitMcp.apiKeys')}</h4>
                   {canCreateKey && (
                     <button
                       type="button"
                       disabled={!canCreateScopedKey}
-                      className="flex items-center gap-1.5 text-xs font-semibold text-[var(--primary)] hover:text-[var(--primary-pressed)] transition-colors disabled:cursor-not-allowed disabled:text-[var(--fg-3)] disabled:hover:text-[var(--fg-3)]"
+                      className="flex cursor-pointer items-center border-0 bg-transparent text-[var(--primary)] transition-[color] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:text-[var(--primary-pressed)] disabled:cursor-not-allowed disabled:text-[var(--fg-4)]"
+                      style={{
+                        gap: 6,
+                        fontFamily: 'var(--font-sans)',
+                        fontSize: 13,
+                        fontWeight: 500,
+                        padding: 6,
+                      }}
                       onClick={() => setCreateKeyModalOpen(true)}
                     >
-                      <Plus className="size-3.5" />
+                      <Plus size={14} strokeWidth={2.2} />
                       {t('orbitMcp.createKey')}
                     </button>
                   )}
                 </div>
 
-                <p className="text-xs text-[var(--fg-3)]">{t('orbitMcp.apiKeysDescription')}</p>
+                <p
+                  style={{
+                    fontFamily: 'var(--font-sans)',
+                    fontSize: 13,
+                    lineHeight: 1.5,
+                    color: 'var(--fg-3)',
+                  }}
+                >
+                  {t('orbitMcp.apiKeysDescription')}
+                </p>
 
                 {!canCreateKey && (
-                  <p className="text-xs text-[var(--status-overdue)] font-medium">
+                  <p
+                    style={{
+                      fontFamily: 'var(--font-sans)',
+                      fontSize: 13,
+                      fontWeight: 500,
+                      color: 'var(--status-overdue)',
+                    }}
+                  >
                     {t('orbitMcp.maxKeysReached')}
                   </p>
                 )}
 
                 {apiKeysQuery.isLoading && (
                   <div className="space-y-2">
-                    <div className="h-14 w-full bg-[var(--bg-elev)] rounded-[12px] animate-pulse" />
-                    <div className="h-14 w-full bg-[var(--bg-elev)] rounded-[12px] animate-pulse" />
+                    <div className="h-16 w-full bg-[var(--bg-card)] rounded-[16px] animate-pulse" />
+                    <div className="h-16 w-full bg-[var(--bg-card)] rounded-[16px] animate-pulse" />
                   </div>
                 )}
 
                 {apiKeysQuery.error && !apiKeysQuery.isLoading && (
-                  <p className="text-xs text-[var(--status-bad)]">{t('orbitMcp.apiKeysError')}</p>
+                  <p style={{ fontFamily: 'var(--font-sans)', fontSize: 13, color: 'var(--status-bad)' }}>
+                    {t('orbitMcp.apiKeysError')}
+                  </p>
                 )}
 
                 {capabilitiesQuery.error && !capabilitiesQuery.isLoading && (
-                  <p className="text-xs text-[var(--status-bad)]">{t('orbitMcp.apiKeysError')}</p>
+                  <p style={{ fontFamily: 'var(--font-sans)', fontSize: 13, color: 'var(--status-bad)' }}>
+                    {t('orbitMcp.apiKeysError')}
+                  </p>
                 )}
 
                 {!apiKeysQuery.isLoading && !apiKeysQuery.error && apiKeys.length === 0 && (
-                  <div className="text-center py-4">
-                    <p className="text-[var(--fg-3)] text-sm">{t('orbitMcp.noKeys')}</p>
-                  </div>
+                  <p
+                    className="text-center"
+                    style={{
+                      padding: '16px 0',
+                      fontFamily: 'var(--font-sans)',
+                      fontSize: 14,
+                      color: 'var(--fg-3)',
+                    }}
+                  >
+                    {t('orbitMcp.noKeys')}
+                  </p>
                 )}
 
                 {apiKeys.length > 0 && (
@@ -295,44 +370,100 @@ export default function AdvancedPage() {
                       const expiresAtUtc = key.expiresAtUtc ?? null
 
                       return (
-                      <div key={key.id} className="rounded-[12px] bg-[var(--bg)] p-3 space-y-2">
+                      <div
+                        key={key.id}
+                        className="rounded-[16px] bg-[var(--bg-card)] space-y-2"
+                        style={{
+                          padding: '14px 16px',
+                          boxShadow: 'inset 0 0 0 1px var(--hairline)',
+                        }}
+                      >
                         <div className="flex items-center justify-between gap-3">
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm font-medium text-[var(--fg-1)] truncate">{key.name}</p>
-                            <p className="text-xs font-mono text-[var(--fg-3)] mt-0.5">{key.keyPrefix}...</p>
-                            <p className="text-[10px] text-[var(--fg-3)] mt-1">
+                            <p
+                              className="truncate"
+                              style={{
+                                fontFamily: 'var(--font-sans)',
+                                fontSize: 15,
+                                fontWeight: 500,
+                                color: 'var(--fg-1)',
+                              }}
+                            >
+                              {key.name}
+                            </p>
+                            <p
+                              style={{
+                                marginTop: 3,
+                                fontFamily: 'var(--font-mono)',
+                                fontSize: 13,
+                                color: 'var(--fg-2)',
+                                fontVariantNumeric: 'tabular-nums',
+                              }}
+                            >
+                              {key.keyPrefix}...
+                            </p>
+                            <p
+                              style={{
+                                marginTop: 4,
+                                fontFamily: 'var(--font-mono)',
+                                fontSize: 11,
+                                letterSpacing: '0.02em',
+                                color: 'var(--fg-4)',
+                              }}
+                            >
                               {scopes.length > 0 ? scopes.join(', ') : t('orbitMcp.noScopes')}
                             </p>
                           </div>
-                          <div className="shrink-0 text-right">
-                            <p className="text-[10px] text-[var(--fg-3)]">{t('orbitMcp.created')} {formatKeyDate(key.createdAtUtc)}</p>
-                            <p className="text-[10px] text-[var(--fg-3)]">
+                          <div
+                            className="shrink-0 text-right"
+                            style={{
+                              fontFamily: 'var(--font-mono)',
+                              fontSize: 11,
+                              lineHeight: 1.6,
+                              letterSpacing: '0.02em',
+                              color: 'var(--fg-4)',
+                              fontVariantNumeric: 'tabular-nums',
+                            }}
+                          >
+                            <p>{t('orbitMcp.created')} {formatKeyDate(key.createdAtUtc)}</p>
+                            <p>
                               {t('orbitMcp.lastUsed')}{' '}
                               {key.lastUsedAtUtc ? formatKeyDate(key.lastUsedAtUtc) : t('orbitMcp.never')}
                             </p>
-                            <p className="text-[10px] text-[var(--fg-3)]">
+                            <p>
                               {isReadOnly ? t('orbitMcp.permReadOnly') : t('orbitMcp.permReadWrite')}
                             </p>
                             {expiresAtUtc && (
-                              <p className="text-[10px] text-[var(--fg-3)]">
-                                {t('orbitMcp.expiresOn', { date: formatKeyDate(expiresAtUtc) })}
-                              </p>
+                              <p>{t('orbitMcp.expiresOn', { date: formatKeyDate(expiresAtUtc) })}</p>
                             )}
                           </div>
                         </div>
 
                         {revokingKeyId === key.id ? (
-                          <div className="flex items-center justify-between rounded-xl bg-[var(--status-bad)]/5 border border-[var(--status-bad)]/20 px-3 py-2">
-                            <p className="text-xs text-[var(--status-bad)]">{t('orbitMcp.revokeConfirm')}</p>
-                            <div className="flex items-center gap-2 shrink-0 ml-3">
+                          <div
+                            className="flex items-center justify-between rounded-[12px]"
+                            style={{
+                              padding: '8px 12px',
+                              background: 'color-mix(in srgb, var(--status-bad) 8%, transparent)',
+                              boxShadow: 'inset 0 0 0 1px color-mix(in srgb, var(--status-bad) 24%, transparent)',
+                            }}
+                          >
+                            <p style={{ fontFamily: 'var(--font-sans)', fontSize: 13, color: 'var(--status-bad)' }}>
+                              {t('orbitMcp.revokeConfirm')}
+                            </p>
+                            <div className="ml-3 flex shrink-0 items-center gap-2">
                               <button
-                                className="text-xs font-semibold text-[var(--fg-3)] hover:text-[var(--fg-1)] transition-colors"
+                                type="button"
+                                className="cursor-pointer border-0 bg-transparent text-[var(--fg-3)] transition-[color] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:text-[var(--fg-1)]"
+                                style={{ fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 500, padding: 6 }}
                                 onClick={() => setRevokingKeyId(null)}
                               >
                                 {t('orbitMcp.cancel')}
                               </button>
                               <button
-                                className="text-xs font-semibold text-[var(--status-bad)] hover:text-[var(--status-bad)]/80 transition-colors"
+                                type="button"
+                                className="cursor-pointer border-0 bg-transparent text-[var(--status-bad)] transition-[opacity] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:opacity-80"
+                                style={{ fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 500, padding: 6 }}
                                 onClick={() => revokeKeyMutation.mutate(key.id)}
                               >
                                 {t('orbitMcp.confirm')}
@@ -342,7 +473,9 @@ export default function AdvancedPage() {
                         ) : (
                           <div className="flex justify-end">
                             <button
-                              className="text-xs font-semibold text-[var(--fg-3)] hover:text-[var(--status-bad)] transition-colors"
+                              type="button"
+                              className="cursor-pointer border-0 bg-transparent text-[var(--status-bad)] transition-[opacity] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:opacity-80"
+                              style={{ fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 500, padding: 6 }}
                               onClick={() => setRevokingKeyId(key.id)}
                             >
                               {t('orbitMcp.revoke')}
@@ -356,18 +489,23 @@ export default function AdvancedPage() {
                 )}
               </div>
 
-              <div className="border-t border-[var(--hairline)] pt-4 space-y-3">
+              <div className="space-y-3" style={{ borderTop: '1px solid var(--hairline)', paddingTop: 16 }}>
                 <button
-                  className="flex items-center justify-between w-full group"
+                  type="button"
+                  className="group flex w-full cursor-pointer items-center justify-between border-0 bg-transparent"
+                  style={{ padding: '4px 0' }}
                   onClick={() => setInstructionsOpen(!instructionsOpen)}
                   aria-expanded={instructionsOpen}
                   aria-controls="mcp-instructions"
                 >
-                  <h4 className="text-xs font-bold uppercase tracking-wider text-[var(--fg-3)] group-hover:text-[var(--fg-2)] transition-colors">
+                  <h4 className="t-eyebrow transition-[color] duration-[var(--dur-fast)] ease-[var(--ease-standard)] group-hover:text-[var(--fg-2)]">
                     {t('orbitMcp.connectionInstructions')}
                   </h4>
                   <ChevronDown
-                    className={`size-4 text-[var(--fg-3)] transition-transform duration-200 ${
+                    size={18}
+                    strokeWidth={1.8}
+                    color="var(--fg-3)"
+                    className={`transition-transform duration-[var(--dur-base)] ease-[var(--ease-standard)] ${
                       instructionsOpen ? 'rotate-180' : ''
                     }`}
                   />
@@ -376,71 +514,73 @@ export default function AdvancedPage() {
                 {instructionsOpen && (
                   <div id="mcp-instructions" className="space-y-3">
                     <div className="flex gap-2">
-                      {MCP_CONFIG_TABS.map((tab) => (
-                        (() => {
-                          let tabLabel = t('orbitMcp.claudeCode')
-                          if (tab === 'web') {
-                            tabLabel = t('orbitMcp.claudeWeb')
-                          } else if (tab === 'desktop') {
-                            tabLabel = t('orbitMcp.claudeDesktop')
-                          }
+                      {MCP_CONFIG_TABS.map((tab) => {
+                        let tabLabel = t('orbitMcp.claudeCode')
+                        if (tab === 'web') {
+                          tabLabel = t('orbitMcp.claudeWeb')
+                        } else if (tab === 'desktop') {
+                          tabLabel = t('orbitMcp.claudeDesktop')
+                        }
 
-                          return (
-                            <button
-                              key={tab}
-                              className={`px-3 py-1.5 rounded-[var(--radius-lg)] text-xs font-semibold transition-[background-color,border-color,color] ${
-                                activeConfigTab === tab
-                                  ? 'bg-[var(--primary)] text-white'
-                                  : 'bg-[var(--bg)] border border-[var(--hairline)] text-[var(--fg-2)] hover:text-[var(--fg-1)]'
-                              }`}
-                              onClick={() => setActiveConfigTab(tab)}
-                            >
-                              {tabLabel}
-                            </button>
-                          )
-                        })()
-                      ))}
+                        return (
+                          <Chip
+                            key={tab}
+                            active={activeConfigTab === tab}
+                            onClick={() => setActiveConfigTab(tab)}
+                          >
+                            {tabLabel}
+                          </Chip>
+                        )
+                      })}
                     </div>
 
                     {activeConfigTab === 'web' ? (
                       <div className="space-y-3">
-                        <p className="text-xs text-[var(--fg-3)]">{t('orbitMcp.webInstructions')}</p>
-                        <ol className="text-xs text-[var(--fg-2)] space-y-2 list-decimal list-inside">
+                        <p style={{ fontFamily: 'var(--font-sans)', fontSize: 13, lineHeight: 1.5, color: 'var(--fg-3)' }}>
+                          {t('orbitMcp.webInstructions')}
+                        </p>
+                        <ol
+                          className="list-decimal list-inside space-y-2"
+                          style={{ fontFamily: 'var(--font-sans)', fontSize: 13, lineHeight: 1.5, color: 'var(--fg-2)' }}
+                        >
                           <li>{t('orbitMcp.webStep1')}</li>
                           <li>{t('orbitMcp.webStep2')}</li>
                           <li>{t('orbitMcp.webStep3')}</li>
                           <li>{t('orbitMcp.webStep4')}</li>
                         </ol>
-                        <div className="relative">
-                          <pre className="rounded-[var(--radius-lg)] bg-[var(--bg)] border border-[var(--hairline)] p-4 text-xs font-mono text-[var(--fg-2)] overflow-x-auto leading-relaxed">{MCP_ENDPOINT_URL}</pre>
-                          <button
-                            className="absolute top-2.5 right-2.5 p-1.5 rounded-[var(--radius-lg)] bg-[var(--bg-elev)] text-[var(--fg-2)] hover:text-[var(--fg-1)] hover:bg-[var(--bg-elev)] transition-colors"
-                            onClick={() => copyToClipboard(MCP_ENDPOINT_URL)}
-                          >
-                            <Clipboard className="size-4" />
-                          </button>
-                        </div>
-                        <p className="text-xs text-[var(--fg-3)] italic">{t('orbitMcp.webNoApiKey')}</p>
+                        <CodeWell
+                          content={MCP_ENDPOINT_URL}
+                          copyButton={
+                            <CopyIconButton
+                              ariaLabel={t('orbitMcp.copy')}
+                              onClick={() => copyToClipboard(MCP_ENDPOINT_URL)}
+                            />
+                          }
+                        />
+                        <p style={{ fontFamily: 'var(--font-sans)', fontSize: 13, lineHeight: 1.5, color: 'var(--fg-4)' }}>
+                          {t('orbitMcp.webNoApiKey')}
+                        </p>
                       </div>
                     ) : (
                       <div className="space-y-3">
-                        <p className="text-xs text-[var(--fg-3)]">{t('orbitMcp.configInstructions')}</p>
-
-                        <div className="relative">
-                          <pre className="rounded-[var(--radius-lg)] bg-[var(--bg)] border border-[var(--hairline)] p-4 text-xs font-mono text-[var(--fg-2)] overflow-x-auto leading-relaxed">{mcpConfigJson}</pre>
-                          <button
-                            className="absolute top-2.5 right-2.5 p-1.5 rounded-[var(--radius-lg)] bg-[var(--bg-elev)] text-[var(--fg-2)] hover:text-[var(--fg-1)] hover:bg-[var(--bg-elev)] transition-colors"
-                            onClick={copyConfig}
-                          >
-                            {configCopied ? (
-                              <Check className="size-4 text-[var(--status-done)]" />
-                            ) : (
-                              <Clipboard className="size-4" />
-                            )}
-                          </button>
-                        </div>
-
-                        <p className="text-xs text-[var(--fg-3)] italic">{t('orbitMcp.replaceKey')}</p>
+                        <p style={{ fontFamily: 'var(--font-sans)', fontSize: 13, lineHeight: 1.5, color: 'var(--fg-3)' }}>
+                          {t('orbitMcp.configInstructions')}
+                        </p>
+                        <CodeWell
+                          content={mcpConfigJson}
+                          copyButton={
+                            <CopyIconButton
+                              ariaLabel={t('orbitMcp.copyConfig')}
+                              copied={configCopied}
+                              onClick={() => {
+                                void copyConfig()
+                              }}
+                            />
+                          }
+                        />
+                        <p style={{ fontFamily: 'var(--font-sans)', fontSize: 13, lineHeight: 1.5, color: 'var(--fg-4)' }}>
+                          {t('orbitMcp.replaceKey')}
+                        </p>
                       </div>
                     )}
                   </div>
@@ -456,31 +596,61 @@ export default function AdvancedPage() {
         onOpenChange={setShowWidgetInfo}
         title={t('profile.widgetTitle')}
       >
-        <div id="widget-info-dialog" className="space-y-5">
+        <div id="widget-info-dialog" className="space-y-5" style={{ paddingBottom: 8 }}>
           <div>
-            <h3 className="text-sm font-bold text-[var(--fg-1)] mb-1.5">{t('profile.widgetHow.title')}</h3>
-            <ol className="text-sm text-[var(--fg-2)] leading-relaxed space-y-2">
+            <h3
+              style={{
+                marginBottom: 8,
+                fontFamily: 'var(--font-sans)',
+                fontSize: 15,
+                fontWeight: 500,
+                color: 'var(--fg-1)',
+              }}
+            >
+              {t('profile.widgetHow.title')}
+            </h3>
+            <ol className="space-y-2" style={{ fontFamily: 'var(--font-sans)', fontSize: 14, lineHeight: 1.55, color: 'var(--fg-2)' }}>
               {WIDGET_STEP_KEYS.map((stepKey, index) => (
                 <li key={stepKey} className="flex gap-2">
-                  <span className="text-[var(--primary)] font-bold shrink-0">{index + 1}.</span>
+                  <span
+                    className="shrink-0"
+                    style={{
+                      fontFamily: 'var(--font-mono)',
+                      fontWeight: 500,
+                      color: 'var(--primary)',
+                      fontVariantNumeric: 'tabular-nums',
+                    }}
+                  >
+                    {index + 1}.
+                  </span>
                   <span>{t(stepKey)}</span>
                 </li>
               ))}
             </ol>
           </div>
           <div>
-            <h3 className="text-sm font-bold text-[var(--fg-1)] mb-1.5">{t('profile.widgetHow.featuresTitle')}</h3>
-            <ul className="text-sm text-[var(--fg-2)] leading-relaxed space-y-1.5">
+            <h3
+              style={{
+                marginBottom: 8,
+                fontFamily: 'var(--font-sans)',
+                fontSize: 15,
+                fontWeight: 500,
+                color: 'var(--fg-1)',
+              }}
+            >
+              {t('profile.widgetHow.featuresTitle')}
+            </h3>
+            <ul className="space-y-2" style={{ fontFamily: 'var(--font-sans)', fontSize: 14, lineHeight: 1.55, color: 'var(--fg-2)' }}>
               {WIDGET_FEATURES.map((feature) => {
                 const icon = {
-                  checkCircle: <CheckCircle className="size-4 text-[var(--primary)] shrink-0 mt-0.5" />,
-                  clock: <Clock className="size-4 text-[var(--primary)] shrink-0 mt-0.5" />,
-                  list: <List className="size-4 text-[var(--primary)] shrink-0 mt-0.5" />,
-                  rotateCcw: <RotateCcw className="size-4 text-[var(--primary)] shrink-0 mt-0.5" />,
+                  checkCircle: <CheckCircle size={16} strokeWidth={1.8} className="mt-0.5 shrink-0 text-[var(--primary)]" />,
+                  clock: <Clock size={16} strokeWidth={1.8} className="mt-0.5 shrink-0 text-[var(--primary)]" />,
+                  list: <List size={16} strokeWidth={1.8} className="mt-0.5 shrink-0 text-[var(--primary)]" />,
+                  rotateCcw: <RotateCcw size={16} strokeWidth={1.8} className="mt-0.5 shrink-0 text-[var(--primary)]" />,
                 }[feature.iconKey]
 
                 return (
-                  <li key={feature.textKey} className="flex gap-2 items-start">
+                  <li key={feature.textKey} className="flex items-start gap-2">
                     {icon}
                     <span>{t(feature.textKey)}</span>
                   </li>

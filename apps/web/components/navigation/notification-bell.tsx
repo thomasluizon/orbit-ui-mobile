@@ -96,20 +96,25 @@ export function NotificationBell() {
       aria-label={visibleUnreadCount > 0 ? plural(t('notifications.bellWithCount', { count: visibleUnreadCount }), visibleUnreadCount) : t('notifications.bell')}
       aria-expanded={isOpen}
       aria-controls="notification-dropdown"
-      className="relative appearance-none border-0 bg-transparent cursor-pointer inline-flex items-center justify-center text-[var(--fg-2)] transition-[background-color,color] duration-150 ease-out hover:bg-[var(--bg-elev)] hover:text-[var(--fg-1)]"
-      style={{ width: 36, height: 36, borderRadius: 8 }}
+      className="relative appearance-none border-0 bg-transparent cursor-pointer inline-flex items-center justify-center text-[var(--fg-1)] transition-[background-color] duration-150 ease-out hover:bg-[var(--bg-elev)]"
+      style={{
+        width: 40,
+        height: 40,
+        borderRadius: 999,
+        boxShadow: 'inset 0 0 0 1.5px var(--hairline-strong)',
+      }}
       onClick={() => setIsOpen((prev) => !prev)}
     >
-      <Bell size={17} strokeWidth={1.5} aria-hidden="true" />
+      <Bell size={22} strokeWidth={1.8} aria-hidden="true" />
       {visibleUnreadCount > 0 && (
         <span
           aria-hidden="true"
           className="absolute"
           style={{
-            top: 8,
-            right: 8,
-            width: 6,
-            height: 6,
+            top: 7,
+            right: 7,
+            width: 8,
+            height: 8,
             borderRadius: 999,
             background: 'var(--primary)',
             boxShadow: '0 0 0 2px var(--bg)',
@@ -128,12 +133,35 @@ export function NotificationBell() {
         placement="bottom-end"
         className="w-80 max-h-96 flex flex-col overflow-hidden"
       >
-        <div className="flex items-center justify-between px-4 py-3 border-b border-[var(--hairline)]">
-          <h3 className="text-sm font-semibold text-[var(--fg-1)]">{t('notifications.title')}</h3>
+        <div
+          className="flex items-center justify-between"
+          style={{
+            padding: '12px 16px',
+            borderBottom: '1px solid var(--hairline)',
+          }}
+        >
+          <h3
+            style={{
+              fontFamily: 'var(--font-sans)',
+              fontSize: 15,
+              fontWeight: 500,
+              color: 'var(--fg-1)',
+            }}
+          >
+            {t('notifications.title')}
+          </h3>
           <div className="flex items-center gap-2">
             {visibleUnreadCount > 0 && (
               <button
-                className="text-xs font-semibold text-[var(--primary)] hover:text-[var(--primary-pressed)] transition-colors"
+                type="button"
+                className="appearance-none border-0 bg-transparent cursor-pointer transition-opacity duration-150 hover:opacity-80"
+                style={{
+                  fontFamily: 'var(--font-sans)',
+                  fontSize: 12,
+                  fontWeight: 500,
+                  padding: '6px 4px',
+                  color: 'var(--fg-2)',
+                }}
                 onClick={() => markAllAsRead.mutate()}
               >
                 {t('notifications.markAllRead')}
@@ -141,8 +169,10 @@ export function NotificationBell() {
             )}
             {visibleNotifications.length > 0 && (
               <button
+                type="button"
                 aria-label={t('notifications.deleteAll')}
-                className="p-1 text-[var(--fg-3)] hover:text-[var(--status-bad)] transition-colors rounded-full"
+                className="appearance-none border-0 bg-transparent cursor-pointer rounded-full text-[var(--fg-3)] hover:text-[var(--status-bad)] transition-colors duration-150"
+                style={{ padding: 6 }}
                 onClick={() => setShowDeleteAllConfirm(true)}
               >
                 <Trash2 className="size-3.5" aria-hidden="true" />
@@ -158,44 +188,99 @@ export function NotificationBell() {
         >
           {isLoading && visibleNotifications.length === 0 && (
             <li className="p-4 space-y-3" aria-label={t('common.loading')}>
-              <div className="h-12 bg-[var(--bg-elev)] rounded-xl animate-pulse" />
-              <div className="h-12 bg-[var(--bg-elev)] rounded-xl animate-pulse" />
+              <div
+                className="animate-pulse"
+                style={{ height: 48, borderRadius: 12, background: 'var(--bg-elev)' }}
+              />
+              <div
+                className="animate-pulse"
+                style={{ height: 48, borderRadius: 12, background: 'var(--bg-elev)' }}
+              />
             </li>
           )}
           {!isLoading && visibleNotifications.length === 0 && (
             <li className="p-6 text-center">
-              <BellOff className="size-8 text-[var(--fg-3)] mx-auto mb-2" aria-hidden="true" />
-              <p className="text-sm text-[var(--fg-3)]">{t('notifications.empty')}</p>
+              <BellOff
+                className="size-8 mx-auto mb-2"
+                strokeWidth={1.4}
+                color="var(--fg-3)"
+                aria-hidden="true"
+              />
+              <p
+                style={{
+                  fontFamily: 'var(--font-sans)',
+                  fontSize: 14,
+                  color: 'var(--fg-3)',
+                }}
+              >
+                {t('notifications.empty')}
+              </p>
             </li>
           )}
           {visibleNotifications.length > 0 &&
             visibleNotifications.map((item) => (
               <li
                 key={item.id}
-                className="px-4 py-3 flex items-start gap-3 transition-[background-color] duration-150 hover:bg-[var(--bg-elev)]"
+                className="flex items-start transition-[background-color] duration-150 hover:bg-[var(--bg-elev)]"
+                style={{
+                  gap: 10,
+                  padding: '12px 16px',
+                  borderBottom: '1px solid var(--hairline)',
+                  background: item.isRead
+                    ? 'transparent'
+                    : 'rgba(var(--primary-rgb), 0.08)',
+                }}
               >
-                <div
-                  aria-hidden="true"
-                  className={`shrink-0 mt-1 size-2 rounded-full ${
-                    item.isRead ? 'bg-transparent' : 'bg-[var(--primary)]'
-                  }`}
-                />
                 <button
-                  className="flex-1 min-w-0 text-left"
+                  type="button"
+                  className="flex-1 min-w-0 text-left appearance-none border-0 bg-transparent cursor-pointer p-0"
                   aria-label={item.title}
                   onClick={() => handleClick(item)}
                 >
-                  <p className={`text-sm truncate text-[var(--fg-1)] ${item.isRead ? 'font-normal' : 'font-semibold'}`}>{item.title}</p>
-                  <p className="text-xs text-[var(--fg-2)]">{item.body}</p>
-                  <p className="text-[10px] text-[var(--fg-3)] mt-0.5">
-                    {formatNotificationRelativeTime(item.createdAtUtc, (key, values) =>
-                      t(`notifications.${key}`, values),
-                    )}
-                  </p>
+                  <span className="flex items-baseline justify-between" style={{ gap: 8 }}>
+                    <span
+                      className="truncate"
+                      style={{
+                        fontFamily: 'var(--font-sans)',
+                        fontSize: 15,
+                        fontWeight: item.isRead ? 400 : 500,
+                        color: 'var(--fg-1)',
+                      }}
+                    >
+                      {item.title}
+                    </span>
+                    <span
+                      className="shrink-0"
+                      style={{
+                        fontFamily: 'var(--font-mono)',
+                        fontSize: 12,
+                        color: 'var(--fg-4)',
+                        fontVariantNumeric: 'tabular-nums',
+                      }}
+                    >
+                      {formatNotificationRelativeTime(item.createdAtUtc, (key, values) =>
+                        t(`notifications.${key}`, values),
+                      )}
+                    </span>
+                  </span>
+                  <span
+                    className="block"
+                    style={{
+                      fontFamily: 'var(--font-sans)',
+                      fontSize: 13,
+                      lineHeight: 1.4,
+                      color: 'var(--fg-3)',
+                      marginTop: 2,
+                    }}
+                  >
+                    {item.body}
+                  </span>
                 </button>
                 <button
+                  type="button"
                   aria-label={t('notifications.deleteNotification')}
-                  className="shrink-0 p-1 text-[var(--fg-3)] hover:text-[var(--status-bad)] transition-colors rounded-full"
+                  className="shrink-0 appearance-none border-0 bg-transparent cursor-pointer rounded-full text-[var(--fg-4)] hover:text-[var(--status-bad)] transition-colors duration-150"
+                  style={{ padding: 8, margin: -4 }}
                   onClick={(e) => {
                     e.stopPropagation()
                     requestDeleteNotification(item)

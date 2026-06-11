@@ -9,7 +9,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { subDays, isToday, format, parseISO } from 'date-fns'
-import { getStreakTierLabelKey } from '@orbit/shared/utils'
+import { Snowflake } from 'lucide-react-native'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useProfile } from '@/hooks/use-profile'
@@ -21,10 +21,8 @@ import {
 } from '@/components/gamification/streak-freeze-celebration'
 import { plural } from '@/lib/plural'
 import { AppBar } from '@/components/ui/app-bar'
-import { SectionLabel } from '@/components/ui/section-label'
-import { SettingsGroup, SettingsGroupRow } from '@/components/ui/settings-group'
 import { buildUpgradeHref } from '@/lib/upgrade-route'
-import { StreakWeekTimeline, FreezeSection } from './streak-sections'
+import { StreakTimelineCard, FreezeProgressCard } from './streak-sections'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 
 type Tokens = ReturnType<typeof createTokensV2>
@@ -82,9 +80,7 @@ export default function StreakScreen() {
     return Array.from({ length: 7 }, (_, i) => {
       const date = subDays(today, 6 - i)
       const dateStr = format(date, 'yyyy-MM-dd')
-      const dayLabel = displayDate(date, { weekday: 'short' })
-        .slice(0, 1)
-        .toUpperCase()
+      const dayLabel = displayDate(date, { weekday: 'short' }).slice(0, 3)
       const dayNum = String(date.getDate())
       const isTodayDate = isToday(date)
 
@@ -117,8 +113,6 @@ export default function StreakScreen() {
     ? t('streakDisplay.freeze.activeToday')
     : t('streakDisplay.detail.currentStreak')
 
-  const tier = t(getStreakTierLabelKey(streak))
-
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: tokens.bg }]} edges={['top']}>
       <AppBar
@@ -133,13 +127,32 @@ export default function StreakScreen() {
         showsVerticalScrollIndicator={false}
       >
         {streakQuery.isLoading && !streakInfo ? (
-          <View style={{ gap: 24, padding: 20 }}>
-            <View style={[styles.skeletonBlock, { height: 128, backgroundColor: tokens.bgSunk }]} />
-            <View style={[styles.skeletonBlock, { height: 80, backgroundColor: tokens.bgSunk }]} />
-            <View style={[styles.skeletonBlock, { height: 96, backgroundColor: tokens.bgSunk }]} />
+          <View style={styles.skeletonStack}>
+            <View style={[styles.skeletonBlock, { height: 128, backgroundColor: tokens.bgCard }]} />
+            <View style={[styles.skeletonBlock, { height: 80, backgroundColor: tokens.bgCard }]} />
+            <View style={[styles.skeletonBlock, { height: 96, backgroundColor: tokens.bgCard }]} />
           </View>
         ) : (
           <>
+            {isFrozenToday ? (
+              <View style={styles.frozenBannerWrap}>
+                <View
+                  style={[
+                    styles.frozenBanner,
+                    {
+                      backgroundColor: frozenTint(tokens, 0.1),
+                      borderColor: frozenTint(tokens, 0.28),
+                    },
+                  ]}
+                >
+                  <Snowflake size={24} strokeWidth={1.9} color={tokens.statusFrozen} />
+                  <Text style={[styles.frozenBannerTitle, { color: tokens.fg1 }]}>
+                    {t('streakDisplay.freeze.activeToday')}
+                  </Text>
+                </View>
+              </View>
+            ) : null}
+
             <View style={styles.hero}>
               <Text
                 style={[
@@ -151,96 +164,32 @@ export default function StreakScreen() {
               >
                 {heroEyebrow.toUpperCase()}
               </Text>
-              <Text
-                style={[
-                  styles.heroNumber,
-                  {
-                    color: tokens.fg1,
-                    fontSize: streak > 100 ? 64 : 80,
-                  },
-                ]}
-              >
-                {streak}
-              </Text>
-              <Text style={[styles.heroDays, { color: tokens.fg3 }]}>
-                {plural(t('streakDisplay.detail.daysUnit'), streak)}
-              </Text>
+              <View style={styles.heroCountRow}>
+                <Text style={styles.heroEmoji} accessibilityElementsHidden>
+                  {streak === 0 ? '🌑' : '🔥'}
+                </Text>
+                <Text style={[styles.heroNumber, { color: tokens.fg1 }]}>
+                  {`${streak} ${plural(t('streakDisplay.detail.daysUnit'), streak)}`}
+                </Text>
+              </View>
               {encouragement ? (
-                <Text style={[styles.heroEncouragement, { color: tokens.fg3 }]}>
+                <Text style={[styles.heroEncouragement, { color: tokens.fg2 }]}>
                   {encouragement}
                 </Text>
               ) : null}
             </View>
 
-            <SectionLabel>{t('streakDisplay.detail.thisWeek')}</SectionLabel>
-            <View style={styles.groupWrap}>
-              <View
-                style={[
-                  styles.weekCard,
-                  {
-                    backgroundColor: tokens.bgElev,
-                    borderColor: tokens.hairline,
-                  },
-                ]}
-              >
-                <StreakWeekTimeline
-                  weekDays={weekDays}
-                  tokens={tokens}
-                  legend={{
-                    active: t('streakDisplay.detail.dayActive'),
-                    frozen: t('streakDisplay.detail.dayFrozen'),
-                    missed: t('streakDisplay.detail.dayMissed'),
-                  }}
-                />
-              </View>
-            </View>
+            <StreakTimelineCard t={t} weekDays={weekDays} />
 
-            <SectionLabel>{t('streakDisplay.detail.stats')}</SectionLabel>
-            <View style={styles.groupWrap}>
-              <SettingsGroup>
-                <SettingsGroupRow
-                  label={t('streakDisplay.detail.currentStreak')}
-                  accessory="none"
-                  trailing={
-                    <Text style={[styles.statValue, { color: tokens.fg3 }]}>
-                      {streak}
-                    </Text>
-                  }
-                />
-                <SettingsGroupRow
-                  label={t('streakDisplay.detail.longestStreak')}
-                  accessory="none"
-                  trailing={
-                    <Text style={[styles.statValue, { color: tokens.fg3 }]}>
-                      {streakInfo?.longestStreak ?? 0}
-                    </Text>
-                  }
-                />
-                <SettingsGroupRow
-                  label={tier}
-                  accessory="none"
-                  trailing={
-                    <View
-                      style={[
-                        styles.tierDot,
-                        { backgroundColor: tokens.primary },
-                      ]}
-                    />
-                  }
-                />
-              </SettingsGroup>
-            </View>
-
-            <SectionLabel>{t('streakDisplay.freeze.title')}</SectionLabel>
-            <FreezeSection
+            <FreezeProgressCard
               t={t}
-              tokens={tokens}
               isPro={isPro}
               streak={streak}
-              freezesUsedThisMonth={freezesUsedThisMonth}
-              maxFreezesPerMonth={maxFreezesPerMonth}
+              longestStreak={streakInfo?.longestStreak ?? 0}
               streakFreezesAccumulated={streakFreezesAccumulated}
               maxStreakFreezesAccumulated={maxStreakFreezesAccumulated}
+              freezesUsedThisMonth={freezesUsedThisMonth}
+              maxFreezesPerMonth={maxFreezesPerMonth}
               isFrozenToday={isFrozenToday}
               protectedDates={streakInfo?.recentFreezeDates ?? []}
               onUpgrade={() => router.push(buildUpgradeHref('/streak'))}
@@ -257,6 +206,14 @@ export default function StreakScreen() {
   )
 }
 
+function frozenTint(tokens: Tokens, alpha: number): string {
+  const normalized = tokens.statusFrozen.replace('#', '')
+  const red = Number.parseInt(normalized.slice(0, 2), 16)
+  const green = Number.parseInt(normalized.slice(2, 4), 16)
+  const blue = Number.parseInt(normalized.slice(4, 6), 16)
+  return `rgba(${red}, ${green}, ${blue}, ${alpha})`
+}
+
 function createStyles(_tokens: Tokens) {
   return StyleSheet.create({
     safeArea: { flex: 1 },
@@ -264,55 +221,64 @@ function createStyles(_tokens: Tokens) {
     scrollContent: {
       paddingBottom: 40,
     },
+    skeletonStack: {
+      gap: 24,
+      padding: 20,
+    },
     skeletonBlock: {
-      borderRadius: 8,
+      borderRadius: 18,
+    },
+    frozenBannerWrap: {
+      paddingHorizontal: 20,
+      paddingTop: 16,
+    },
+    frozenBanner: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 14,
+      borderRadius: 18,
+      borderWidth: 1,
+      paddingVertical: 16,
+      paddingHorizontal: 18,
+    },
+    frozenBannerTitle: {
+      fontFamily: 'Rubik_500Medium',
+      fontSize: 16,
+      flexShrink: 1,
     },
     hero: {
       paddingHorizontal: 20,
-      paddingTop: 32,
-      paddingBottom: 28,
+      paddingTop: 28,
+      paddingBottom: 22,
       alignItems: 'center',
-      gap: 8,
+      gap: 10,
     },
     heroEyebrow: {
-      fontFamily: 'Roboto_500Medium',
-      fontSize: 11,
-      letterSpacing: 0.66,
+      fontFamily: 'Rubik_500Medium',
+      fontSize: 12,
+      letterSpacing: 0.96,
+    },
+    heroCountRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 12,
+    },
+    heroEmoji: {
+      fontSize: 36,
+      lineHeight: 44,
     },
     heroNumber: {
-      fontFamily: 'Roboto_500Medium',
-      letterSpacing: -3.2,
-      lineHeight: 72,
+      fontFamily: 'Inter_700Bold',
+      fontSize: 44,
+      letterSpacing: -0.88,
+      lineHeight: 52,
       fontVariant: ['tabular-nums'],
-    },
-    heroDays: {
-      fontFamily: 'Rubik_400Regular',
-      fontSize: 14,
     },
     heroEncouragement: {
       fontFamily: 'Rubik_400Regular',
-      fontSize: 14,
-      fontStyle: 'italic',
+      fontSize: 15,
       textAlign: 'center',
-      marginTop: 4,
-    },
-    groupWrap: {
-      paddingHorizontal: 20,
-    },
-    weekCard: {
-      borderRadius: 12,
-      borderWidth: StyleSheet.hairlineWidth,
-      paddingVertical: 14,
-    },
-    statValue: {
-      fontFamily: 'Roboto_400Regular',
-      fontSize: 13,
-      fontVariant: ['tabular-nums'],
-    },
-    tierDot: {
-      width: 8,
-      height: 8,
-      borderRadius: 999,
     },
   })
 }

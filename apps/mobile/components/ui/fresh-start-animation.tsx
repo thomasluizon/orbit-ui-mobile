@@ -10,7 +10,7 @@ import {
 import { RefreshCw } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import { toAnimatedEasing } from '@/lib/motion'
-import { createTokensV2, easings } from '@/lib/theme'
+import { createTokensV2, easings, tintFromPrimary } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 type AppTokens = ReturnType<typeof createTokensV2>
@@ -224,32 +224,33 @@ function createStyles(tokens: AppTokens) {
       height: 80,
       borderRadius: 40,
       borderWidth: 1,
-      borderColor: tokens.hairlineStrong,
+      borderColor: tintFromPrimary(tokens, 0.45),
     },
     orb: {
       width: 80,
       height: 80,
       borderRadius: 40,
-      backgroundColor: tokens.bgElev,
+      backgroundColor: tintFromPrimary(tokens, 0.15),
       alignItems: 'center',
       justifyContent: 'center',
       borderWidth: 1,
-      borderColor: tokens.hairlineStrong,
+      borderColor: tintFromPrimary(tokens, 0.28),
     },
     textContainer: {
       marginTop: 40,
       alignItems: 'center',
     },
     titleText: {
-      fontFamily: 'Rubik_700Bold',
-      fontSize: 22,
+      fontFamily: 'Rubik_500Medium',
+      fontSize: 24,
       color: tokens.fg1,
       textAlign: 'center',
-      letterSpacing: -0.5,
+      letterSpacing: -0.24,
     },
     subtitleText: {
       fontFamily: 'Rubik_400Regular',
-      fontSize: 14,
+      fontSize: 15,
+      lineHeight: 23,
       color: tokens.fg2,
       textAlign: 'center',
       marginTop: 8,

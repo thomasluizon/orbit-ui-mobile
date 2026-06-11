@@ -18,8 +18,7 @@ interface NotificationDetailModalProps {
   onDelete: (id: string) => void
 }
 
-/** v8 chrome: flush body with mono timestamp eyebrow, and footer with quiet-link actions.
- *  Destructive Delete uses italic style instead of red. */
+/** Sheet chrome with a mono timestamp eyebrow, body copy, and quiet text-button actions. */
 export function NotificationDetailModal({
   open,
   onOpenChange,
@@ -50,7 +49,7 @@ export function NotificationDetailModal({
       onOpenChange={onOpenChange}
       title={notification.title}
       footer={
-        <div className="flex items-center justify-end" style={{ gap: 22 }}>
+        <div className="flex items-center justify-end" style={{ gap: 16 }}>
           {canView && (
             <QuietLink onClick={handleView}>{t('notifications.view')}</QuietLink>
           )}
@@ -70,10 +69,9 @@ export function NotificationDetailModal({
           <p
             style={{
               fontFamily: 'var(--font-mono)',
-              fontSize: 11,
-              fontWeight: 500,
-              color: 'var(--fg-3)',
-              letterSpacing: '0.04em',
+              fontSize: 12,
+              color: 'var(--fg-4)',
+              letterSpacing: '0.02em',
               fontVariantNumeric: 'tabular-nums',
             }}
           >
@@ -87,9 +85,9 @@ export function NotificationDetailModal({
             className="whitespace-pre-wrap"
             style={{
               fontFamily: 'var(--font-sans)',
-              fontSize: 14,
+              fontSize: 15,
               color: 'var(--fg-2)',
-              lineHeight: 1.5,
+              lineHeight: 1.55,
             }}
           >
             {notification.body}
@@ -111,14 +109,14 @@ function QuietLink({ children, onClick, destructive = false }: Readonly<QuietLin
     <button
       type="button"
       onClick={onClick}
-      className="appearance-none border-0 bg-transparent cursor-pointer"
+      className="appearance-none border-0 bg-transparent cursor-pointer transition-opacity duration-150 hover:opacity-80"
       style={{
         fontFamily: 'var(--font-sans)',
         fontSize: 13,
         fontWeight: 500,
-        color: destructive ? 'var(--fg-3)' : 'var(--fg-1)',
-        fontStyle: destructive ? 'italic' : 'normal',
-        padding: 6,
+        color: destructive ? 'var(--status-bad)' : 'var(--fg-2)',
+        minHeight: 44,
+        padding: '0 6px',
       }}
     >
       {children}

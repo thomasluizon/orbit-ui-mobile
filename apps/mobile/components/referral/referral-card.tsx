@@ -1,4 +1,5 @@
 import { useTranslation } from 'react-i18next'
+import { UserPlus } from 'lucide-react-native'
 import { useReferral } from '@/hooks/use-referral'
 import { SettingsRow } from '@/components/ui/settings-row'
 
@@ -21,6 +22,7 @@ export function ReferralCard({ onOpen }: Readonly<ReferralCardProps>) {
 
   return (
     <SettingsRow
+      icon={UserPlus}
       label={t('referral.card.title')}
       onPress={onOpen}
       value={value}

@@ -53,10 +53,27 @@ export function FreshStartAnimation({ onComplete }: Readonly<FreshStartAnimation
         </div>
 
         <div className="fresh-start-text mt-10 text-center">
-          <p className="text-[length:var(--text-fluid-xl)] font-bold text-[var(--fg-1)] tracking-tight">
+          <p
+            style={{
+              fontFamily: 'var(--font-sans)',
+              fontSize: 24,
+              fontWeight: 500,
+              letterSpacing: '-0.01em',
+              lineHeight: 1.3,
+              color: 'var(--fg-1)',
+            }}
+          >
             {t('profile.freshStart.successTitle')}
           </p>
-          <p className="text-[length:var(--text-fluid-sm)] text-[var(--fg-2)] mt-2">
+          <p
+            className="mt-2"
+            style={{
+              fontFamily: 'var(--font-sans)',
+              fontSize: 15,
+              lineHeight: 1.55,
+              color: 'var(--fg-2)',
+            }}
+          >
             {t('profile.freshStart.successSubtitle')}
           </p>
         </div>

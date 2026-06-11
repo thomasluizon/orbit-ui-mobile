@@ -4,16 +4,16 @@ import type { ProfileNavIconKey } from '@orbit/shared/utils/profile-navigation'
 
 interface ProfileNavIconProps {
   iconKey: ProfileNavIconKey
-  /** CSS color value used for stroke. Defaults to `var(--fg-3)`. */
+  /** CSS color value used for stroke. Defaults to `var(--fg-1)`. */
   color?: string
-  /** Pixel size. Defaults to 18. */
+  /** Pixel size. Defaults to the kit ListRow icon size, 22. */
   size?: number
 }
 
 export function ProfileNavIcon({
   iconKey,
-  color = 'var(--fg-3)',
-  size = 18,
+  color = 'var(--fg-1)',
+  size = 22,
 }: Readonly<ProfileNavIconProps>) {
   const sharedProps = {
     width: size,
@@ -21,7 +21,7 @@ export function ProfileNavIcon({
     viewBox: '0 0 24 24',
     fill: 'none',
     stroke: color,
-    strokeWidth: 1.75,
+    strokeWidth: 1.8,
     strokeLinecap: 'round' as const,
     strokeLinejoin: 'round' as const,
   }

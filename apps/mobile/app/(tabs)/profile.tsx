@@ -31,7 +31,16 @@ import {
   shouldRedirectProfileNavItem,
   type ProfileNavItem,
 } from '@orbit/shared/utils/profile-navigation'
-import { Flame, User as UserIcon, X, Check } from 'lucide-react-native'
+import {
+  Check,
+  Download,
+  LogOut,
+  RotateCcw,
+  TriangleAlert,
+  User as UserIcon,
+  UserX,
+  X,
+} from 'lucide-react-native'
 import {
   useProfile,
   useTrialDaysLeft,
@@ -55,13 +64,17 @@ import { OfflineUnavailableState } from '@/components/ui/offline-unavailable-sta
 import { AppTextInput } from '@/components/ui/app-text-input'
 import { KeyboardAwareScrollView } from '@/components/ui/keyboard-aware-scroll-view'
 import { AppBar } from '@/components/ui/app-bar'
+import { Badge, type BadgeTone } from '@/components/ui/badge'
+import { GradientTop } from '@/components/ui/gradient-top'
+import { PillButton } from '@/components/ui/pill-button'
 import { SectionLabel } from '@/components/ui/section-label'
 import { SettingsGroup, SettingsGroupRow } from '@/components/ui/settings-group'
+import { StatTile } from '@/components/ui/stat-tile'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
 import { StreakBadge } from '@/components/gamification/streak-badge'
 import { NotificationBell } from '@/components/navigation/notification-bell'
 import { useAppTheme } from '@/lib/use-app-theme'
-import { createTokensV2 } from '@/lib/theme'
+import { createTokensV2, tintFromPrimary } from '@/lib/theme'
 import { buildUpgradeHref } from '@/lib/upgrade-route'
 import { FreshStartAnimation } from '@/components/ui/fresh-start-animation'
 import { plural } from '@/lib/plural'
@@ -70,6 +83,62 @@ import { ProfileActionButton } from './profile/_components/profile-action-button
 import { TourReplayModal } from '@/components/tour/tour-replay-modal'
 
 type Tokens = ReturnType<typeof createTokensV2>
+
+function DangerPillButton({
+  label,
+  onPress,
+  disabled = false,
+}: Readonly<{
+  label: string
+  onPress: () => void
+  disabled?: boolean
+}>) {
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = createTokensV2(currentScheme, currentTheme)
+
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={disabled}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ disabled }}
+      style={({ pressed }) => [
+        dangerPillStyles.base,
+        { backgroundColor: tokens.statusBad },
+        disabled ? dangerPillStyles.disabled : null,
+        pressed && !disabled ? dangerPillStyles.pressed : null,
+      ]}
+    >
+      <Text style={[dangerPillStyles.label, { color: tokens.fgOnPrimary }]}>
+        {label}
+      </Text>
+    </Pressable>
+  )
+}
+
+const dangerPillStyles = StyleSheet.create({
+  base: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 9,
+    borderRadius: 999,
+    paddingVertical: 15,
+    paddingHorizontal: 26,
+    width: '100%',
+  },
+  disabled: {
+    opacity: 0.4,
+  },
+  pressed: {
+    opacity: 0.85,
+  },
+  label: {
+    fontFamily: 'Rubik_500Medium',
+    fontSize: 16,
+  },
+})
 
 export default function ProfileScreen() {
   const { t } = useTranslation()
@@ -250,6 +319,12 @@ export default function ProfileScreen() {
     setShowDeleteModal(true)
   }
 
+  function backToDeleteConfirmStep() {
+    setDeleteStep('confirm')
+    setDeleteCodeDigits(['', '', '', '', '', ''])
+    setDeleteError('')
+  }
+
   async function handleRequestDeletion() {
     if (!isOnline) {
       setDeleteError(t('calendarSync.notConnected'))
@@ -383,8 +458,29 @@ export default function ProfileScreen() {
         ? t('profile.subscription.trialEndedHint')
         : t('profile.subscription.freeHint')
 
+  const userInitials = profile?.name
+    ? profile.name
+        .split(' ')
+        .slice(0, 2)
+        .map((n) => n[0])
+        .join('')
+        .toUpperCase()
+    : '?'
+
+  const planBadgeTone: BadgeTone = profile?.isTrialActive
+    ? 'soft'
+    : profile?.hasProAccess
+      ? 'violet'
+      : 'outline'
+  const planBadgeLabel = profile?.isTrialActive
+    ? t('trial.proBadge')
+    : profile?.hasProAccess
+      ? t('common.proBadge')
+      : t('profile.subscription.free')
+
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: tokens.bg }]}>
+      <GradientTop height={280} />
       <AppBar
         LeadingIcon={UserIcon}
         title={t('profile.title')}
@@ -410,60 +506,66 @@ export default function ProfileScreen() {
           </Text>
         ) : null}
 
-        <View style={styles.userBlock}>
+        <View style={styles.identityBlock}>
           {isLoading ? (
             <>
               <View
-                style={[styles.skeleton, { width: 200, height: 22, backgroundColor: tokens.bgElev }]}
+                style={[
+                  styles.skeleton,
+                  { width: 88, height: 88, borderRadius: 999, backgroundColor: tokens.bgElev },
+                ]}
               />
               <View
-                style={[styles.skeleton, { width: 260, height: 14, backgroundColor: tokens.bgElev }]}
+                style={[
+                  styles.skeleton,
+                  { width: 140, height: 18, marginTop: 8, backgroundColor: tokens.bgElev },
+                ]}
+              />
+              <View
+                style={[styles.skeleton, { width: 200, height: 12, backgroundColor: tokens.bgElev }]}
               />
             </>
           ) : (
-            <View style={styles.userRow}>
-              <View style={[styles.avatar, { backgroundColor: tokens.bgElev }]}>
-                <Text style={[styles.avatarText, { color: tokens.fg1 }]}>
-                  {profile?.name
-                    ? profile.name
-                        .split(' ')
-                        .slice(0, 2)
-                        .map((n) => n[0])
-                        .join('')
-                        .toUpperCase()
-                    : '?'}
+            <>
+              <View
+                style={[styles.avatar, { backgroundColor: tintFromPrimary(tokens, 0.15) }]}
+              >
+                <Text style={[styles.avatarInitials, { color: tokens.primarySoft }]}>
+                  {userInitials}
                 </Text>
               </View>
-              <View style={styles.userTexts}>
-                <Text style={[styles.userName, { color: tokens.fg1 }]}>
-                  {profile?.name}
-                </Text>
-                <Text style={[styles.userEmail, { color: tokens.fg3 }]}>
-                  {profile?.email}
-                </Text>
-              </View>
-            </View>
+              <Badge tone={planBadgeTone} style={styles.planBadge}>
+                {planBadgeLabel}
+              </Badge>
+              <Text
+                style={[styles.identityName, { color: tokens.fg1 }]}
+                numberOfLines={1}
+              >
+                {profile?.name}
+              </Text>
+              <Text
+                style={[styles.identityEmail, { color: tokens.fg3 }]}
+                numberOfLines={1}
+              >
+                {profile?.email}
+              </Text>
+            </>
           )}
         </View>
 
-        <View ref={streakRef} collapsable={false} style={styles.groupWrap}>
-          <SettingsGroup>
-            <SettingsGroupRow
-              icon={<Flame size={18} color={tokens.statusBad} strokeWidth={1.75} />}
+        <View ref={streakRef} collapsable={false} style={styles.statRow}>
+          <Pressable
+            onPress={handleStreakPress}
+            accessibilityRole="button"
+            accessibilityLabel={t('streakDisplay.title')}
+            style={styles.statPressable}
+          >
+            <StatTile
+              emoji="🔥"
+              value={`${streak} ${plural(t('streakDisplay.daysSuffix'), streak)}`}
               label={t('streakDisplay.title')}
-              onPress={handleStreakPress}
-              trailing={
-                <View style={styles.streakTrailing}>
-                  <Text style={[styles.streakCount, { color: tokens.fg1 }]}>
-                    {streak}
-                  </Text>
-                  <Text style={[styles.streakDays, { color: tokens.fg3 }]}>
-                    {plural(t('streakDisplay.daysSuffix'), streak)}
-                  </Text>
-                </View>
-              }
             />
-          </SettingsGroup>
+          </Pressable>
         </View>
 
         <SectionLabel>{t('profile.sections.account')}</SectionLabel>
@@ -476,7 +578,7 @@ export default function ProfileScreen() {
                 collapsable={false}
               >
                 <SettingsGroupRow
-                  icon={<ProfileNavIcon iconKey={item.iconKey} color={tokens.fg3} />}
+                  icon={<ProfileNavIcon iconKey={item.iconKey} color={tokens.fg1} />}
                   label={t(item.titleKey)}
                   hint={getNavHint(item)}
                   onPress={() => handleNavPress(item)}
@@ -509,7 +611,7 @@ export default function ProfileScreen() {
                 collapsable={false}
               >
                 <SettingsGroupRow
-                  icon={<ProfileNavIcon iconKey={item.iconKey} color={tokens.fg3} />}
+                  icon={<ProfileNavIcon iconKey={item.iconKey} color={tokens.fg1} />}
                   label={t(item.titleKey)}
                   hint={getNavHint(item)}
                   onPress={() => handleNavPress(item)}
@@ -534,6 +636,7 @@ export default function ProfileScreen() {
 
         <SectionLabel>{t('profile.sections.accountActions')}</SectionLabel>
         <ProfileActionButton
+          icon={Download}
           onPress={() => {
             void handleExportData()
           }}
@@ -545,16 +648,19 @@ export default function ProfileScreen() {
           </Text>
         ) : null}
         <ProfileActionButton
+          icon={LogOut}
           onPress={() => logout()}
           label={t('profile.logout')}
           tone="danger"
         />
         <ProfileActionButton
+          icon={RotateCcw}
           onPress={openResetModal}
           label={t('profile.freshStart.button')}
           tone="primary"
         />
         <ProfileActionButton
+          icon={UserX}
           onPress={openDeleteModal}
           label={t('profile.deleteAccount.button')}
           tone="danger"
@@ -576,21 +682,19 @@ export default function ProfileScreen() {
           keyboardVerticalOffset={12}
           showsVerticalScrollIndicator={false}
         >
-          <View
-            style={[
-              styles.modalContent,
-              {
-                backgroundColor: tokens.bgElev,
-                borderTopColor: tokens.hairlineStrong,
-              },
-            ]}
-          >
+          <View style={[styles.modalContent, { backgroundColor: tokens.bgSheet }]}>
+            <View style={[styles.grabber, { backgroundColor: tokens.hairlineStrong }]} />
             <View style={styles.modalHeader}>
               <Text style={[styles.modalTitle, { color: tokens.fg1 }]}>
                 {t('profile.freshStart.title')}
               </Text>
-              <Pressable onPress={() => setShowResetModal(false)} hitSlop={8}>
-                <X size={20} color={tokens.fg3} />
+              <Pressable
+                onPress={() => setShowResetModal(false)}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel={t('common.close')}
+              >
+                <X size={24} color={tokens.fg2} strokeWidth={1.8} />
               </Pressable>
             </View>
 
@@ -603,7 +707,7 @@ export default function ProfileScreen() {
                 <View
                   style={[
                     styles.freshStartBox,
-                    { borderColor: tokens.hairlineStrong },
+                    { backgroundColor: tokens.bgCard, borderColor: tokens.hairline },
                   ]}
                 >
                   <Text style={[styles.boxLabel, { color: tokens.fg3 }]}>
@@ -611,7 +715,7 @@ export default function ProfileScreen() {
                   </Text>
                   {deletedItems.map((item) => (
                     <View key={item} style={styles.boxItem}>
-                      <X size={14} color={tokens.statusBad} />
+                      <X size={14} color={tokens.statusBad} strokeWidth={1.8} />
                       <Text style={[styles.boxItemText, { color: tokens.fg2 }]}>
                         {item}
                       </Text>
@@ -622,7 +726,7 @@ export default function ProfileScreen() {
                 <View
                   style={[
                     styles.freshStartBox,
-                    { borderColor: tokens.hairlineStrong },
+                    { backgroundColor: tokens.bgCard, borderColor: tokens.hairline },
                   ]}
                 >
                   <Text style={[styles.boxLabel, { color: tokens.fg3 }]}>
@@ -630,7 +734,7 @@ export default function ProfileScreen() {
                   </Text>
                   {preservedItems.map((item) => (
                     <View key={item} style={styles.boxItem}>
-                      <Check size={14} color={tokens.statusDone} />
+                      <Check size={14} color={tokens.statusDone} strokeWidth={1.8} />
                       <Text style={[styles.boxItemText, { color: tokens.fg2 }]}>
                         {item}
                       </Text>
@@ -638,26 +742,18 @@ export default function ProfileScreen() {
                   ))}
                 </View>
 
-                <Pressable
-                  onPress={() => setResetStep('confirm')}
-                  style={({ pressed }) => [
-                    styles.primaryButton,
-                    {
-                      backgroundColor: pressed
-                        ? tokens.primaryPressed
-                        : tokens.primary,
-                    },
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.primaryButtonText,
-                      { color: tokens.fgOnPrimary },
-                    ]}
-                  >
+                <View style={styles.modalActions}>
+                  <PillButton fullWidth onPress={() => setResetStep('confirm')}>
                     {t('common.continue')}
-                  </Text>
-                </Pressable>
+                  </PillButton>
+                  <PillButton
+                    variant="ghost"
+                    fullWidth
+                    onPress={() => setShowResetModal(false)}
+                  >
+                    {t('common.cancel')}
+                  </PillButton>
+                </View>
               </View>
             ) : (
               <View style={{ gap: 16 }}>
@@ -670,18 +766,11 @@ export default function ProfileScreen() {
                   {t('profile.freshStart.confirmInstruction')}
                 </Text>
                 <AppTextInput
-                  style={[
-                    styles.confirmInput,
-                    {
-                      backgroundColor: tokens.bgSunk,
-                      color: tokens.fg1,
-                      borderColor: tokens.hairlineStrong,
-                    },
-                  ]}
+                  style={styles.confirmInput}
                   value={resetConfirmText}
                   onChangeText={setResetConfirmText}
                   placeholder={t('profile.freshStart.confirmPlaceholder')}
-                  placeholderTextColor={tokens.fg3}
+                  placeholderTextColor={tokens.fg4}
                   autoCapitalize="characters"
                   autoCorrect={false}
                   textAlign="center"
@@ -691,30 +780,27 @@ export default function ProfileScreen() {
                     {resetError}
                   </Text>
                 ) : null}
-                <Pressable
-                  onPress={handleResetAccount}
-                  disabled={!isResetConfirmed || resetLoading}
-                  style={({ pressed }) => [
-                    styles.primaryButton,
-                    {
-                      backgroundColor: pressed
-                        ? tokens.primaryPressed
-                        : tokens.primary,
-                    },
-                    (!isResetConfirmed || resetLoading) && styles.buttonDisabled,
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.primaryButtonText,
-                      { color: tokens.fgOnPrimary },
-                    ]}
+                <View style={styles.modalActions}>
+                  <PillButton
+                    fullWidth
+                    disabled={!isResetConfirmed || resetLoading}
+                    onPress={() => {
+                      void handleResetAccount()
+                    }}
                   >
                     {resetLoading
                       ? t('profile.freshStart.processing')
                       : t('profile.freshStart.confirmButton')}
-                  </Text>
-                </Pressable>
+                  </PillButton>
+                  <PillButton
+                    variant="ghost"
+                    fullWidth
+                    disabled={resetLoading}
+                    onPress={() => setShowResetModal(false)}
+                  >
+                    {t('common.cancel')}
+                  </PillButton>
+                </View>
               </View>
             )}
           </View>
@@ -742,21 +828,19 @@ export default function ProfileScreen() {
           keyboardVerticalOffset={12}
           showsVerticalScrollIndicator={false}
         >
-          <View
-            style={[
-              styles.modalContent,
-              {
-                backgroundColor: tokens.bgElev,
-                borderTopColor: tokens.hairlineStrong,
-              },
-            ]}
-          >
+          <View style={[styles.modalContent, { backgroundColor: tokens.bgSheet }]}>
+            <View style={[styles.grabber, { backgroundColor: tokens.hairlineStrong }]} />
             <View style={styles.modalHeader}>
               <Text style={[styles.modalTitle, { color: tokens.fg1 }]}>
                 {t('profile.deleteAccount.title')}
               </Text>
-              <Pressable onPress={() => setShowDeleteModal(false)} hitSlop={8}>
-                <X size={20} color={tokens.fg3} />
+              <Pressable
+                onPress={() => setShowDeleteModal(false)}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel={t('common.close')}
+              >
+                <X size={24} color={tokens.fg2} strokeWidth={1.8} />
               </Pressable>
             </View>
 
@@ -770,46 +854,55 @@ export default function ProfileScreen() {
               <View style={{ gap: 16 }}>
                 <View
                   style={[
-                    styles.freshStartBox,
-                    { borderColor: tokens.hairlineStrong },
+                    styles.deleteWarningCard,
+                    {
+                      backgroundColor: `${tokens.statusBad}14`,
+                      borderColor: `${tokens.statusBad}47`,
+                    },
                   ]}
                 >
-                  <Text style={[styles.boxLabel, { color: tokens.statusBad }]}>
-                    {profile?.hasProAccess
-                      ? t('profile.deleteAccount.warningPro', {
-                          date: profile.planExpiresAt
-                            ? displayDate(parseISO(profile.planExpiresAt))
-                            : '',
-                        })
-                      : t('profile.deleteAccount.warningFree')}
-                  </Text>
-                  <Text style={[styles.boxItemText, { color: tokens.fg3 }]}>
-                    {t('profile.deleteAccount.warningDetail')}
-                  </Text>
+                  <TriangleAlert size={24} color={tokens.statusBad} strokeWidth={1.9} />
+                  <View style={styles.deleteWarningBody}>
+                    <Text style={[styles.deleteWarningTitle, { color: tokens.fg1 }]}>
+                      {profile?.hasProAccess
+                        ? t('profile.deleteAccount.warningPro', {
+                            date: profile.planExpiresAt
+                              ? displayDate(parseISO(profile.planExpiresAt))
+                              : '',
+                          })
+                        : t('profile.deleteAccount.warningFree')}
+                    </Text>
+                    <Text style={[styles.deleteWarningDetail, { color: tokens.fg3 }]}>
+                      {t('profile.deleteAccount.warningDetail')}
+                    </Text>
+                  </View>
                 </View>
                 {deleteError ? (
                   <Text style={[styles.errorTextSmall, { color: tokens.statusBad }]}>
                     {deleteError}
                   </Text>
                 ) : null}
-                <Pressable
-                  onPress={handleRequestDeletion}
-                  disabled={deleteLoading}
-                  style={({ pressed }) => [
-                    styles.dangerButton,
-                    {
-                      borderColor: tokens.hairline,
-                      backgroundColor: pressed ? tokens.bgElevPressed : 'transparent',
-                    },
-                    deleteLoading && styles.buttonDisabled,
-                  ]}
-                >
-                  <Text style={[styles.dangerButtonText, { color: tokens.statusBad }]}>
-                    {deleteLoading
-                      ? t('profile.deleteAccount.sending')
-                      : t('profile.deleteAccount.sendCode')}
-                  </Text>
-                </Pressable>
+                <View style={styles.modalActions}>
+                  <DangerPillButton
+                    label={
+                      deleteLoading
+                        ? t('profile.deleteAccount.sending')
+                        : t('profile.deleteAccount.sendCode')
+                    }
+                    disabled={deleteLoading}
+                    onPress={() => {
+                      void handleRequestDeletion()
+                    }}
+                  />
+                  <PillButton
+                    variant="ghost"
+                    fullWidth
+                    disabled={deleteLoading}
+                    onPress={() => setShowDeleteModal(false)}
+                  >
+                    {t('common.cancel')}
+                  </PillButton>
+                </View>
               </View>
             ) : deleteStep === 'code' ? (
               <View style={{ gap: 16 }}>
@@ -828,14 +921,7 @@ export default function ProfileScreen() {
                       ref={(node) => {
                         deleteCodeRefs.current[index] = node
                       }}
-                      style={[
-                        styles.deleteCodeInput,
-                        {
-                          backgroundColor: tokens.bgSunk,
-                          color: tokens.fg1,
-                          borderColor: tokens.hairlineStrong,
-                        },
-                      ]}
+                      style={styles.deleteCodeInput}
                       value={digit}
                       onChangeText={(text) => setDeleteCodeValue(index, text)}
                       onKeyPress={({ nativeEvent }) =>
@@ -846,7 +932,7 @@ export default function ProfileScreen() {
                       autoComplete="one-time-code"
                       maxLength={1}
                       placeholder="0"
-                      placeholderTextColor={tokens.fg3}
+                      placeholderTextColor={tokens.fg4}
                       textAlign="center"
                     />
                   ))}
@@ -856,25 +942,27 @@ export default function ProfileScreen() {
                     {deleteError}
                   </Text>
                 ) : null}
-                <Pressable
-                  onPress={handleConfirmDeletion}
-                  disabled={deleteLoading || deleteCodeDigits.join('').length !== 6}
-                  style={({ pressed }) => [
-                    styles.dangerButton,
-                    {
-                      borderColor: tokens.hairline,
-                      backgroundColor: pressed ? tokens.bgElevPressed : 'transparent',
-                    },
-                    (deleteLoading || deleteCodeDigits.join('').length !== 6) &&
-                      styles.buttonDisabled,
-                  ]}
-                >
-                  <Text style={[styles.dangerButtonText, { color: tokens.statusBad }]}>
-                    {deleteLoading
-                      ? t('profile.deleteAccount.deleting')
-                      : t('profile.deleteAccount.confirmDelete')}
-                  </Text>
-                </Pressable>
+                <View style={styles.modalActions}>
+                  <DangerPillButton
+                    label={
+                      deleteLoading
+                        ? t('profile.deleteAccount.deleting')
+                        : t('profile.deleteAccount.confirmDelete')
+                    }
+                    disabled={deleteLoading || deleteCodeDigits.join('').length !== 6}
+                    onPress={() => {
+                      void handleConfirmDeletion()
+                    }}
+                  />
+                  <PillButton
+                    variant="ghost"
+                    fullWidth
+                    disabled={deleteLoading}
+                    onPress={backToDeleteConfirmStep}
+                  >
+                    {t('common.back')}
+                  </PillButton>
+                </View>
               </View>
             ) : (
               <View style={{ gap: 16 }}>
@@ -882,7 +970,8 @@ export default function ProfileScreen() {
                   style={[
                     styles.freshStartBox,
                     {
-                      borderColor: tokens.hairlineStrong,
+                      backgroundColor: tokens.bgCard,
+                      borderColor: tokens.hairline,
                       alignItems: 'center',
                     },
                   ]}
@@ -903,20 +992,11 @@ export default function ProfileScreen() {
                     })}
                   </Text>
                 </View>
-                <Pressable
-                  onPress={() => logout()}
-                  style={({ pressed }) => [
-                    styles.secondaryButton,
-                    {
-                      backgroundColor: pressed ? tokens.bgSunk : tokens.bgElev,
-                      borderColor: tokens.hairlineStrong,
-                    },
-                  ]}
-                >
-                  <Text style={[styles.secondaryButtonText, { color: tokens.fg1 }]}>
+                <View style={styles.modalActions}>
+                  <PillButton fullWidth onPress={() => logout()}>
                     {t('profile.logout')}
-                  </Text>
-                </Pressable>
+                  </PillButton>
+                </View>
               </View>
             )}
           </View>
@@ -941,64 +1021,58 @@ function createStyles(_tokens: Tokens) {
       marginVertical: 12,
     },
 
-    userBlock: {
-      paddingHorizontal: 20,
-      paddingVertical: 18,
-      gap: 8,
-    },
-    groupWrap: {
-      paddingHorizontal: 20,
-    },
-    userRow: {
-      flexDirection: 'row',
+    identityBlock: {
       alignItems: 'center',
-      gap: 14,
+      paddingHorizontal: 20,
+      paddingTop: 14,
+      gap: 6,
     },
     avatar: {
-      width: 44,
-      height: 44,
+      width: 88,
+      height: 88,
       borderRadius: 999,
       alignItems: 'center',
       justifyContent: 'center',
+      marginBottom: 6,
     },
-    avatarText: {
-      fontFamily: 'Rubik_600SemiBold',
-      fontSize: 16,
-      },
-    userTexts: {
-      flex: 1,
-      gap: 2,
+    avatarInitials: {
+      fontFamily: 'Inter_700Bold',
+      fontSize: 32,
     },
-    userName: {
-      fontFamily: 'Rubik_600SemiBold',
-      fontSize: 17,
-      },
-    userEmail: {
-      fontFamily: 'Rubik_400Regular',
+    planBadge: {
+      alignSelf: 'center',
+    },
+    identityName: {
+      fontFamily: 'Rubik_500Medium',
+      fontSize: 24,
+      letterSpacing: -0.24,
+      lineHeight: 29,
+      maxWidth: '100%',
+    },
+    identityEmail: {
+      fontFamily: 'Roboto_400Regular',
       fontSize: 13,
+      maxWidth: '100%',
     },
     skeleton: {
       borderRadius: 4,
     },
 
-    streakTrailing: {
+    statRow: {
+      paddingHorizontal: 20,
+      marginTop: 24,
+    },
+    statPressable: {
       flexDirection: 'row',
-      alignItems: 'center',
-      gap: 10,
     },
-    streakCount: {
-      fontFamily: 'Roboto_500Medium',
-      fontSize: 16,
-      fontVariant: ['tabular-nums'],
-    },
-    streakDays: {
-      fontFamily: 'Rubik_400Regular',
-      fontSize: 13,
+
+    groupWrap: {
+      paddingHorizontal: 20,
     },
 
     modalOverlay: {
       flex: 1,
-      backgroundColor: 'rgba(0,0,0,0.58)',
+      backgroundColor: 'rgba(0,0,0,0.55)',
       justifyContent: 'flex-end',
     },
     modalScrollContent: {
@@ -1007,40 +1081,53 @@ function createStyles(_tokens: Tokens) {
       paddingTop: 24,
     },
     modalContent: {
-      borderTopLeftRadius: 18,
-      borderTopRightRadius: 18,
-      borderTopWidth: StyleSheet.hairlineWidth,
-      padding: 24,
+      borderTopLeftRadius: 26,
+      borderTopRightRadius: 26,
+      paddingHorizontal: 22,
+      paddingTop: 12,
       paddingBottom: 40,
       maxHeight: '88%',
+    },
+    grabber: {
+      alignSelf: 'center',
+      width: 44,
+      height: 5,
+      borderRadius: 999,
+      marginBottom: 14,
     },
     modalHeader: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
+      gap: 16,
       marginBottom: 20,
     },
     modalTitle: {
-      fontFamily: 'Rubik_600SemiBold',
-      fontSize: 17,
-      letterSpacing: -0.17,
+      flex: 1,
+      fontFamily: 'Rubik_500Medium',
+      fontSize: 24,
     },
     modalDescription: {
       fontFamily: 'Rubik_400Regular',
-      fontSize: 14,
-      lineHeight: 21,
+      fontSize: 15,
+      lineHeight: 23,
+    },
+    modalActions: {
+      gap: 12,
+      paddingTop: 8,
     },
 
     freshStartBox: {
-      borderWidth: StyleSheet.hairlineWidth,
-      borderRadius: 8,
+      borderWidth: 1,
+      borderRadius: 16,
       padding: 16,
       gap: 8,
     },
     boxLabel: {
-      fontFamily: 'Roboto_500Medium',
-      fontSize: 11,
-      letterSpacing: 0.55,
+      fontFamily: 'Rubik_500Medium',
+      fontSize: 12,
+      letterSpacing: 0.96,
+      textTransform: 'uppercase',
     },
     boxItem: {
       flexDirection: 'row',
@@ -1050,61 +1137,53 @@ function createStyles(_tokens: Tokens) {
     boxItemText: {
       fontFamily: 'Rubik_400Regular',
       fontSize: 13,
+      lineHeight: 18,
       flex: 1,
     },
 
-    primaryButton: {
-      borderRadius: 8,
-      paddingVertical: 12,
+    deleteWarningCard: {
+      flexDirection: 'row',
       alignItems: 'center',
-    },
-    primaryButtonText: {
-      fontFamily: 'Rubik_500Medium',
-      fontSize: 14,
-      },
-    dangerButton: {
-      borderRadius: 8,
-      paddingVertical: 12,
-      alignItems: 'center',
+      gap: 14,
+      borderRadius: 18,
       borderWidth: 1,
+      paddingVertical: 16,
+      paddingHorizontal: 18,
     },
-    dangerButtonText: {
-      fontFamily: 'Rubik_500Medium',
-      fontSize: 14,
-      },
-    secondaryButton: {
-      borderRadius: 8,
-      paddingVertical: 12,
-      alignItems: 'center',
-      borderWidth: StyleSheet.hairlineWidth,
+    deleteWarningBody: {
+      flex: 1,
+      minWidth: 0,
     },
-    secondaryButtonText: {
+    deleteWarningTitle: {
       fontFamily: 'Rubik_500Medium',
-      fontSize: 14,
-      },
-    buttonDisabled: { opacity: 0.5 },
+      fontSize: 15,
+      lineHeight: 21,
+    },
+    deleteWarningDetail: {
+      fontFamily: 'Rubik_400Regular',
+      fontSize: 13.5,
+      lineHeight: 19,
+      marginTop: 3,
+    },
 
     confirmInput: {
-      borderRadius: 8,
-      paddingHorizontal: 16,
-      paddingVertical: 12,
       fontFamily: 'Roboto_500Medium',
       fontSize: 16,
-      borderWidth: StyleSheet.hairlineWidth,
     },
     deleteCodeRow: {
       flexDirection: 'row',
       justifyContent: 'center',
-      gap: 8,
+      gap: 10,
     },
     deleteCodeInput: {
-      width: 44,
-      height: 52,
-      borderRadius: 8,
-      borderWidth: StyleSheet.hairlineWidth,
+      width: 48,
+      height: 58,
+      borderRadius: 14,
+      paddingHorizontal: 0,
+      paddingVertical: 0,
       fontFamily: 'Roboto_500Medium',
-      fontSize: 18,
-      },
+      fontSize: 26,
+    },
     errorTextSmall: {
       fontFamily: 'Rubik_400Regular',
       fontSize: 12,

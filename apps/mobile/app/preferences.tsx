@@ -12,7 +12,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useRouter } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
-import { Lock } from 'lucide-react-native'
+import { Calendar, Languages, Moon, Palette } from 'lucide-react-native'
 import { useMutation } from '@tanstack/react-query'
 import { API } from '@orbit/shared/api'
 import { colorSchemeOptions, type ColorScheme } from '@orbit/shared/theme'
@@ -31,64 +31,17 @@ import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { AppBar } from '@/components/ui/app-bar'
+import { BottomSheetModal } from '@/components/bottom-sheet-modal'
 import { SectionLabel } from '@/components/ui/section-label'
-import { SettingsDescription } from '@/components/ui/settings-description'
-import { SettingsGroup, SettingsGroupRow } from '@/components/ui/settings-group'
-import { Chip } from '@/components/ui/chip'
-import { MonoToggle } from '@/components/ui/mono-toggle'
+import { SettingsRow, Switch } from '@/components/ui/settings-row'
+import { RadioRow } from '@/components/ui/select-check'
+import { ProBadge } from '@/components/ui/pro-badge'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 
-type Tokens = ReturnType<typeof createTokensV2>
+type PreferencePicker = 'language' | 'theme' | 'scheme' | 'weekStart'
 
-interface SchemeSwatchesProps {
-  active: ColorScheme
-  hasProAccess: boolean
-  tokens: Tokens
-  onSelect: (scheme: ColorScheme) => void
-}
-
-function SchemeSwatches({
-  active,
-  hasProAccess,
-  tokens,
-  onSelect,
-}: Readonly<SchemeSwatchesProps>) {
-  return (
-    <View style={styles.swatchRow}>
-      {colorSchemeOptions.map((option) => {
-        const isActive = option.value === active
-        const locked = !hasProAccess && option.value !== 'purple'
-        return (
-          <Pressable
-            key={option.value}
-            onPress={() => onSelect(option.value)}
-            accessibilityRole="button"
-            accessibilityLabel={option.value}
-            accessibilityState={{ selected: isActive }}
-            style={({ pressed }) => [
-              styles.swatchPress,
-              pressed && !locked && { opacity: 0.7 },
-            ]}
-          >
-            <View
-              style={[
-                styles.swatchDot,
-                {
-                  backgroundColor: option.color,
-                  borderColor: isActive ? tokens.fg1 : 'transparent',
-                  borderWidth: isActive ? 2 : 0,
-                },
-              ]}
-            >
-              {locked ? (
-                <Lock size={9} color="rgba(255,255,255,0.85)" strokeWidth={2} />
-              ) : null}
-            </View>
-          </Pressable>
-        )
-      })}
-    </View>
-  )
+function capitalize(value: string): string {
+  return value.charAt(0).toUpperCase() + value.slice(1)
 }
 
 export default function PreferencesScreen() {
@@ -117,6 +70,8 @@ export default function PreferencesScreen() {
     requestPermission,
     refreshPermissionStatus,
   } = usePushNotifications()
+
+  const [activePicker, setActivePicker] = useState<PreferencePicker | null>(null)
 
   const [selectedLanguage, setSelectedLanguage] = useState<'en' | 'pt-BR'>('en')
   const [previousProfileLanguage, setPreviousProfileLanguage] = useState(
@@ -245,6 +200,38 @@ export default function PreferencesScreen() {
         ? tokens.primary
         : tokens.fg3
 
+  const themeModeOptions: { value: ThemeMode; label: string }[] = [
+    { value: 'dark', label: t('preferences.themeModeDark') },
+    { value: 'light', label: t('preferences.themeModeLight') },
+  ]
+
+  const languageLabel = LANGUAGE_OPTIONS.find(
+    (lang) => lang.value === selectedLanguage,
+  )?.label
+  const themeLabel = themeModeOptions.find(
+    (mode) => mode.value === currentTheme,
+  )?.label
+  const schemeOption = colorSchemeOptions.find(
+    (option) => option.value === currentScheme,
+  )
+  const schemeLabel = schemeOption
+    ? t(`preferences.color${capitalize(schemeOption.value)}`)
+    : undefined
+  const weekStartLabel = weekStartOptions.find(
+    (option) => option.value === profile?.weekStartDay,
+  )?.label
+
+  const pickerTitles: Record<PreferencePicker, string> = {
+    language: t('profile.language.title'),
+    theme: t('preferences.themeMode'),
+    scheme: t('profile.colorScheme.title'),
+    weekStart: t('settings.weekStartDay.title'),
+  }
+
+  function closePicker() {
+    setActivePicker(null)
+  }
+
   return (
     <SafeAreaView
       style={[styles.safeArea, { backgroundColor: tokens.bg }]}
@@ -263,87 +250,77 @@ export default function PreferencesScreen() {
       >
         <TrialBanner />
 
-        <SectionLabel>{t('profile.language.title')}</SectionLabel>
-        <View style={styles.chipsRow}>
-          {LANGUAGE_OPTIONS.map((lang) => (
-            <Chip
-              key={lang.value}
-              active={selectedLanguage === lang.value}
-              onPress={() => handleLanguageChange(lang.value)}
-            >
-              {lang.label}
-            </Chip>
-          ))}
-        </View>
-        <SettingsDescription>{t('profile.language.description')}</SettingsDescription>
+        <SectionLabel bottom={4}>{t('preferences.general')}</SectionLabel>
+        <SettingsRow
+          icon={Languages}
+          label={t('profile.language.title')}
+          desc={t('profile.language.description')}
+          value={languageLabel}
+          onPress={() => setActivePicker('language')}
+          divider={false}
+        />
+        <SettingsRow
+          icon={Moon}
+          label={t('preferences.themeMode')}
+          value={themeLabel}
+          onPress={() => setActivePicker('theme')}
+          divider={false}
+        />
+        <SettingsRow
+          icon={Palette}
+          label={t('profile.colorScheme.title')}
+          desc={t('profile.colorScheme.description')}
+          value={schemeLabel}
+          onPress={() => setActivePicker('scheme')}
+          divider={false}
+        >
+          {schemeOption ? (
+            <View style={[styles.schemeDot, { backgroundColor: schemeOption.color }]} />
+          ) : null}
+          <ProBadge />
+        </SettingsRow>
+        <SettingsRow
+          icon={Calendar}
+          label={t('settings.weekStartDay.title')}
+          desc={t('settings.weekStartDay.description')}
+          value={weekStartLabel}
+          onPress={() => setActivePicker('weekStart')}
+          divider={false}
+        />
 
-        <SectionLabel>{t('preferences.themeMode')}</SectionLabel>
-        <View style={styles.themeRow}>
-          <Text style={[styles.themeLabel, { color: tokens.fg1 }]}>
-            {t('preferences.themeMode')}
-          </Text>
-          <MonoToggle
-            on={currentTheme === 'dark'}
-            onLabel={t('preferences.themeModeDark').toUpperCase()}
-            offLabel={t('preferences.themeModeLight').toUpperCase()}
-            onPress={() => {
-              handleThemeModeChange(currentTheme === 'dark' ? 'light' : 'dark')
+        <SectionLabel bottom={4}>{t('settings.homeScreen.title')}</SectionLabel>
+        <SettingsRow
+          label={t('settings.homeScreen.showGeneral')}
+          desc={t('settings.homeScreen.showGeneralDesc')}
+          accessory="none"
+          divider={false}
+        >
+          <Switch
+            on={showGeneralOnToday}
+            onToggle={() => {
+              void handleShowGeneralToggle(!showGeneralOnToday)
             }}
-            accessibilityLabel={t('preferences.themeMode')}
+            accessibilityLabel={t('settings.homeScreen.showGeneral')}
           />
-        </View>
+        </SettingsRow>
 
-        <View style={styles.schemeRow}>
-          <Text style={[styles.themeLabel, { color: tokens.fg1 }]}>
-            {t('profile.colorScheme.title')}
-          </Text>
-          <SchemeSwatches
-            active={currentScheme}
-            hasProAccess={profile?.hasProAccess ?? false}
-            tokens={tokens}
-            onSelect={handleSchemeChange}
-          />
-        </View>
-        <SettingsDescription>{t('profile.colorScheme.description')}</SettingsDescription>
-
-        <SectionLabel>{t('settings.weekStartDay.title')}</SectionLabel>
-        <View style={styles.weekRow}>
-          <Text style={[styles.themeLabel, { color: tokens.fg1 }]}>
-            {t('settings.weekStartDay.title')}
-          </Text>
-          <View style={styles.weekChips}>
-            {weekStartOptions.map((opt) => (
-              <Chip
-                key={opt.value}
-                active={profile?.weekStartDay === opt.value}
-                onPress={() => weekStartMutation.mutate(opt.value)}
-              >
-                {opt.label}
-              </Chip>
-            ))}
-          </View>
-        </View>
-        <SettingsDescription>{t('settings.weekStartDay.description')}</SettingsDescription>
-
-        <SectionLabel>{t('settings.notifications.title')}</SectionLabel>
+        <SectionLabel bottom={4}>{t('settings.notifications.title')}</SectionLabel>
         {pushSupported ? (
-          <View style={styles.groupWrap}>
-            <SettingsGroup>
-              <SettingsGroupRow
-                label={t('settings.notifications.title')}
-                trailing={
-                  <MonoToggle
-                    on={pushEnabled}
-                    onPress={() => {
-                      void handlePushToggle()
-                    }}
-                    disabled={pushLoading}
-                    accessibilityLabel={t('settings.notifications.title')}
-                  />
-                }
-                accessory="none"
+          <>
+            <SettingsRow
+              label={t('settings.notifications.allowed')}
+              accessory="none"
+              divider={false}
+            >
+              <Switch
+                on={pushEnabled}
+                onToggle={() => {
+                  void handlePushToggle()
+                }}
+                disabled={pushLoading}
+                accessibilityLabel={t('settings.notifications.title')}
               />
-            </SettingsGroup>
+            </SettingsRow>
             <View style={styles.statusBlock}>
               <Text style={[styles.statusText, { color: pushStatusColor }]}>
                 {pushStatusText}
@@ -357,12 +334,12 @@ export default function PreferencesScreen() {
                 accessibilityRole="button"
                 style={styles.linkPress}
               >
-                <Text style={[styles.linkText, { color: tokens.fg1 }]}>
+                <Text style={[styles.linkText, { color: tokens.fg2 }]}>
                   {t('settings.notifications.openSettings')}
                 </Text>
               </Pressable>
             ) : null}
-          </View>
+          </>
         ) : (
           <View style={styles.statusBlock}>
             <Text style={[styles.statusText, { color: tokens.fg3 }]}>
@@ -371,27 +348,76 @@ export default function PreferencesScreen() {
           </View>
         )}
 
-        <SectionLabel>{t('settings.homeScreen.title')}</SectionLabel>
-        <View style={styles.groupWrap}>
-          <SettingsGroup>
-            <SettingsGroupRow
-              label={t('settings.homeScreen.showGeneralDesc')}
-              trailing={
-                <MonoToggle
-                  on={showGeneralOnToday}
-                  onPress={() => {
-                    void handleShowGeneralToggle(!showGeneralOnToday)
-                  }}
-                  accessibilityLabel={t('settings.homeScreen.showGeneralDesc')}
-                />
-              }
-              accessory="none"
-            />
-          </SettingsGroup>
-        </View>
-
         <View style={{ height: 24 }} />
       </ScrollView>
+
+      <BottomSheetModal
+        open={activePicker !== null}
+        onClose={closePicker}
+        title={activePicker ? pickerTitles[activePicker] : undefined}
+        contentKey={activePicker ?? 'none'}
+        snapPoints={['55%']}
+      >
+        <ScrollView
+          style={styles.sheetScroll}
+          contentContainerStyle={styles.sheetContent}
+          showsVerticalScrollIndicator={false}
+        >
+          {activePicker === 'language' &&
+            LANGUAGE_OPTIONS.map((lang, index) => (
+              <RadioRow
+                key={lang.value}
+                label={lang.label}
+                selected={selectedLanguage === lang.value}
+                divider={index < LANGUAGE_OPTIONS.length - 1}
+                onPress={() => {
+                  closePicker()
+                  void handleLanguageChange(lang.value)
+                }}
+              />
+            ))}
+          {activePicker === 'theme' &&
+            themeModeOptions.map((mode, index) => (
+              <RadioRow
+                key={mode.value}
+                label={mode.label}
+                selected={currentTheme === mode.value}
+                divider={index < themeModeOptions.length - 1}
+                onPress={() => {
+                  closePicker()
+                  handleThemeModeChange(mode.value)
+                }}
+              />
+            ))}
+          {activePicker === 'scheme' &&
+            colorSchemeOptions.map((option, index) => (
+              <RadioRow
+                key={option.value}
+                label={t(`preferences.color${capitalize(option.value)}`)}
+                selected={currentScheme === option.value}
+                dot={option.color}
+                divider={index < colorSchemeOptions.length - 1}
+                onPress={() => {
+                  closePicker()
+                  handleSchemeChange(option.value)
+                }}
+              />
+            ))}
+          {activePicker === 'weekStart' &&
+            weekStartOptions.map((option, index) => (
+              <RadioRow
+                key={option.value}
+                label={option.label}
+                selected={profile?.weekStartDay === option.value}
+                divider={index < weekStartOptions.length - 1}
+                onPress={() => {
+                  closePicker()
+                  weekStartMutation.mutate(option.value)
+                }}
+              />
+            ))}
+        </ScrollView>
+      </BottomSheetModal>
     </SafeAreaView>
   )
 }
@@ -400,65 +426,11 @@ const styles = StyleSheet.create({
   safeArea: { flex: 1 },
   container: { flex: 1 },
   scrollContent: { paddingBottom: 40 },
-  groupWrap: {
-    paddingHorizontal: 20,
-  },
-  chipsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-    paddingHorizontal: 20,
-    paddingVertical: 6,
-  },
-  themeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    gap: 12,
-  },
-  schemeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    gap: 12,
-  },
-  weekRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    gap: 12,
-    flexWrap: 'wrap',
-  },
-  weekChips: {
-    flexDirection: 'row',
-    gap: 4,
-    flexWrap: 'wrap',
-  },
-  themeLabel: {
-    fontFamily: 'Rubik_400Regular',
-    fontSize: 15,
-    flexShrink: 1,
-  },
-  swatchRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  swatchPress: {
-    padding: 2,
-  },
-  swatchDot: {
-    width: 22,
-    height: 22,
+  schemeDot: {
+    width: 12,
+    height: 12,
     borderRadius: 999,
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexShrink: 0,
   },
   statusBlock: {
     paddingHorizontal: 20,
@@ -471,14 +443,21 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
   },
   linkPress: {
-    padding: 4,
     alignSelf: 'flex-start',
     paddingHorizontal: 20,
-    paddingVertical: 8,
+    paddingVertical: 12,
+    minHeight: 44,
+    justifyContent: 'center',
   },
   linkText: {
     fontFamily: 'Rubik_500Medium',
     fontSize: 13,
-    textDecorationLine: 'underline',
+  },
+  sheetScroll: {
+    flexGrow: 0,
+  },
+  sheetContent: {
+    paddingHorizontal: 22,
+    paddingBottom: 24,
   },
 })

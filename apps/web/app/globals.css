@@ -697,8 +697,8 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   width: 5rem;
   height: 5rem;
   border-radius: 9999px;
-  border: 1px solid var(--hairline-strong);
-  background: var(--bg-elev);
+  border: 1px solid rgba(var(--primary-rgb), 0.28);
+  background: rgba(var(--primary-rgb), 0.15);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -720,7 +720,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   margin-top: -2.5rem;
   margin-left: -2.5rem;
   border-radius: 9999px;
-  border: 1px solid var(--hairline-strong);
+  border: 1px solid rgba(var(--primary-rgb), 0.45);
   opacity: 0;
   transform: scale(0.5);
   pointer-events: none;

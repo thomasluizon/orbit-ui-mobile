@@ -2,6 +2,7 @@
 
 import { useMemo, useRef, useEffect } from 'react'
 import { subDays, isToday, format, parseISO } from 'date-fns'
+import { Snowflake } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { plural } from '@/lib/plural'
 import { useProfile } from '@/hooks/use-profile'
@@ -96,33 +97,53 @@ export default function StreakPage() {
 
       {isLoading ? (
         <div className="flex-1 px-5 py-8 space-y-4">
-          <div className="h-32 bg-[var(--bg-elev)] rounded-md animate-pulse" />
-          <div className="h-20 bg-[var(--bg-elev)] rounded-md animate-pulse" />
-          <div className="h-40 bg-[var(--bg-elev)] rounded-md animate-pulse" />
+          <div className="h-32 bg-[var(--bg-card)] rounded-[18px] animate-pulse" />
+          <div className="h-20 bg-[var(--bg-card)] rounded-[18px] animate-pulse" />
+          <div className="h-40 bg-[var(--bg-card)] rounded-[18px] animate-pulse" />
         </div>
       ) : (
         <div className="flex-1 min-h-0 overflow-y-auto">
+          {isFrozenToday && (
+            <div className="px-5" style={{ paddingTop: 16 }}>
+              <div
+                className="flex items-center rounded-[18px]"
+                style={{
+                  padding: '16px 18px',
+                  gap: 14,
+                  background: 'color-mix(in srgb, var(--status-frozen) 10%, transparent)',
+                  boxShadow: 'inset 0 0 0 1px color-mix(in srgb, var(--status-frozen) 28%, transparent)',
+                }}
+              >
+                <Snowflake
+                  size={24}
+                  strokeWidth={1.9}
+                  color="var(--status-frozen)"
+                  aria-hidden="true"
+                />
+                <span
+                  style={{
+                    fontFamily: 'var(--font-sans)',
+                    fontSize: 16,
+                    fontWeight: 500,
+                    color: 'var(--fg-1)',
+                  }}
+                >
+                  {t('streakDisplay.freeze.activeToday')}
+                </span>
+              </div>
+            </div>
+          )}
+
           <div
             className="streak-hero flex flex-col items-center text-center"
-            style={{
-              padding: '32px 20px 28px',
-              gap: 10,
-              borderBottom: '1px solid var(--hairline)',
-              borderRadius: 0,
-              border: 0,
-              borderBottomWidth: 1,
-              borderBottomStyle: 'solid',
-              borderBottomColor: 'var(--hairline)',
-              boxShadow: 'none',
-              background: 'transparent',
-            }}
+            style={{ padding: '28px 20px 22px', gap: 10 }}
           >
             <span
               style={{
-                fontFamily: 'var(--font-mono)',
-                fontSize: 11,
+                fontFamily: 'var(--font-sans)',
+                fontSize: 12,
                 fontWeight: 500,
-                letterSpacing: '0.06em',
+                letterSpacing: '0.08em',
                 color: isFrozenToday ? 'var(--status-frozen)' : 'var(--fg-3)',
                 textTransform: 'uppercase',
               }}
@@ -131,37 +152,32 @@ export default function StreakPage() {
                 ? t('streakDisplay.freeze.activeToday')
                 : t('streakDisplay.detail.currentStreak')}
             </span>
-            <span
-              className="streak-hero__count"
-              style={{
-                fontFamily: 'var(--font-mono)',
-                fontSize: streak > 100 ? 64 : 80,
-                fontWeight: 500,
-                letterSpacing: '-0.04em',
-                lineHeight: 0.9,
-                color: 'var(--fg-1)',
-                fontVariantNumeric: 'tabular-nums',
-              }}
-            >
-              {streak}
-            </span>
-            <span
-              style={{
-                fontFamily: 'var(--font-sans)',
-                fontSize: 13,
-                color: 'var(--fg-3)',
-                fontVariantNumeric: 'tabular-nums',
-              }}
-            >
-              {plural(t('streakDisplay.detail.daysUnit', { count: streak }), streak)}
+            <span className="flex items-center justify-center" style={{ gap: 12 }}>
+              <span style={{ fontSize: 36, lineHeight: 1 }} aria-hidden="true">
+                {streak === 0 ? '🌑' : '🔥'}
+              </span>
+              <span
+                style={{
+                  fontFamily: 'var(--font-display)',
+                  fontSize: 44,
+                  fontWeight: 700,
+                  letterSpacing: '-0.02em',
+                  lineHeight: 1,
+                  color: 'var(--fg-1)',
+                }}
+              >
+                <span className="streak-hero__count" style={{ fontVariantNumeric: 'tabular-nums' }}>
+                  {streak}
+                </span>{' '}
+                {plural(t('streakDisplay.detail.daysUnit', { count: streak }), streak)}
+              </span>
             </span>
             {encouragement && (
               <span
                 style={{
                   fontFamily: 'var(--font-sans)',
-                  fontSize: 14,
-                  fontStyle: 'italic',
-                  color: 'var(--fg-3)',
+                  fontSize: 15,
+                  color: 'var(--fg-2)',
                 }}
               >
                 {encouragement}

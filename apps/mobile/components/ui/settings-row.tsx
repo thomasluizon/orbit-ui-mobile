@@ -124,6 +124,7 @@ interface SwitchProps {
   on: boolean
   onToggle: () => void
   accessibilityLabel: string
+  disabled?: boolean
 }
 
 /** Kit Switch: 48×28 pill, 22px thumb; primary track when on, fg-1 alpha track when off. */
@@ -131,6 +132,7 @@ export function Switch({
   on,
   onToggle,
   accessibilityLabel,
+  disabled = false,
 }: Readonly<SwitchProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
@@ -153,7 +155,8 @@ export function Switch({
     <Pressable
       accessibilityRole="switch"
       accessibilityLabel={accessibilityLabel}
-      accessibilityState={{ checked: on }}
+      accessibilityState={{ checked: on, disabled }}
+      disabled={disabled}
       onPress={onToggle}
       hitSlop={{ top: 8, bottom: 8 }}
       style={[
@@ -162,6 +165,7 @@ export function Switch({
           backgroundColor: on
             ? tokens.primary
             : switchTrackOffColor(tokens),
+          opacity: disabled ? 0.5 : 1,
         },
       ]}
     >

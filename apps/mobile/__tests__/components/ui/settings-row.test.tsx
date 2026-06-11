@@ -20,7 +20,7 @@ describe('Switch', () => {
       (node: any) => node.props.accessibilityRole === 'switch',
     )
     expect(control.props.accessibilityLabel).toBe('Dark theme')
-    expect(control.props.accessibilityState).toEqual({ checked: false })
+    expect(control.props.accessibilityState).toEqual({ checked: false, disabled: false })
 
     TestRenderer.act(() => {
       control.props.onPress()
@@ -41,6 +41,6 @@ describe('Switch', () => {
     const control = tree.root.find(
       (node: any) => node.props.accessibilityRole === 'switch',
     )
-    expect(control.props.accessibilityState).toEqual({ checked: true })
+    expect(control.props.accessibilityState).toEqual({ checked: true, disabled: false })
   })
 })

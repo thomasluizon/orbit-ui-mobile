@@ -4,6 +4,7 @@ import { useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { AppOverlay } from '@/components/ui/app-overlay'
+import { PillButton } from '@/components/ui/pill-button'
 import { useTourStore } from '@/stores/tour-store'
 import { resetTour } from '@/app/actions/profile'
 import { useQueryClient } from '@tanstack/react-query'
@@ -97,14 +98,15 @@ export function TourReplayModal({ open, onOpenChange }: Readonly<TourReplayModal
       title={t('tour.replay.modalTitle')}
     >
       <div className="space-y-5">
-        <button
-          type="button"
-          onClick={handleReplayAll}
-          className="w-full flex items-center justify-center gap-2 rounded-lg bg-[var(--primary)] px-4 py-3 text-sm font-semibold text-primary-foreground transition-colors hover:bg-[var(--primary-pressed)]"
+        <PillButton
+          fullWidth
+          onClick={() => {
+            void handleReplayAll()
+          }}
+          leading={<RotateCcw size={18} strokeWidth={1.8} aria-hidden="true" />}
         >
-          <RotateCcw className="size-4" />
           {t('tour.replay.replayAll')}
-        </button>
+        </PillButton>
 
         <div>
           {availableSections.map((section, index) => {
@@ -121,26 +123,61 @@ export function TourReplayModal({ open, onOpenChange }: Readonly<TourReplayModal
                 <button
                   type="button"
                   onClick={() => handleReplaySection(section)}
-                  className="w-full flex items-center gap-3.5 py-3.5 text-left transition-opacity hover:opacity-70"
+                  className="w-full flex items-center text-left cursor-pointer bg-transparent transition-colors duration-150 ease-out hover:bg-[var(--bg-elev)]"
+                  style={{
+                    appearance: 'none',
+                    border: 0,
+                    padding: '14px 0',
+                    gap: 14,
+                  }}
                 >
                   {Icon && (
-                    <Icon
-                      className="size-[18px] shrink-0 text-[var(--fg-3)]"
-                      strokeWidth={1.6}
-                    />
+                    <span
+                      aria-hidden="true"
+                      className="inline-flex shrink-0 justify-center"
+                      style={{ width: 26 }}
+                    >
+                      <Icon size={22} strokeWidth={1.8} color="var(--fg-1)" />
+                    </span>
                   )}
                   <div className="flex-1 min-w-0">
-                    <p className="text-[15px] font-medium text-[var(--fg-1)]">
+                    <p
+                      style={{
+                        fontFamily: 'var(--font-sans)',
+                        fontSize: 16,
+                        fontWeight: 400,
+                        lineHeight: 1.25,
+                        color: 'var(--fg-1)',
+                      }}
+                    >
                       {t(`tour.sections.${section}`)}
                     </p>
-                    <p className="text-[13px] text-[var(--fg-3)] mt-0.5">
+                    <p
+                      style={{
+                        fontFamily: 'var(--font-sans)',
+                        fontSize: 13,
+                        lineHeight: 1.35,
+                        color: 'var(--fg-3)',
+                        marginTop: 2,
+                      }}
+                    >
                       {t('tour.replay.steps', { count: stepCount })}
                     </p>
                   </div>
                   {completed ? (
-                    <CheckCircle className="size-4 text-[var(--status-done)] shrink-0" />
+                    <CheckCircle
+                      size={18}
+                      strokeWidth={1.8}
+                      className="shrink-0"
+                      color="var(--status-done)"
+                    />
                   ) : (
-                    <Play className="size-4 text-[var(--fg-3)] shrink-0" />
+                    <Play
+                      size={18}
+                      strokeWidth={1.8}
+                      className="shrink-0"
+                      color="var(--fg-3)"
+                    />
                   )}
                 </button>
               </div>

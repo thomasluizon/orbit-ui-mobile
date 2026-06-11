@@ -1,7 +1,15 @@
 'use client'
 
+import React, { type ReactNode } from 'react'
+import {
+  CalendarDays,
+  Clock,
+  Flame,
+  Medal,
+  Snowflake,
+  Trophy,
+} from 'lucide-react'
 import { SectionLabel } from '@/components/ui/section-label'
-import { SettingsGroup, SettingsGroupRow } from '@/components/ui/settings-group'
 import { getStreakTierLabelKey } from '@orbit/shared/utils'
 
 type StreakDayView = {
@@ -22,6 +30,10 @@ interface StreakTimelineCardProps {
   weekDays: StreakDayView[]
 }
 
+function isInRun(status: StreakDayView['status']): boolean {
+  return status === 'active' || status === 'frozen'
+}
+
 export function StreakTimelineCard({
   t,
   weekDays,
@@ -31,57 +43,55 @@ export function StreakTimelineCard({
       <SectionLabel>{t('streakDisplay.detail.thisWeek')}</SectionLabel>
       <div className="px-5">
         <div
-          className="overflow-hidden"
+          className="rounded-[18px] bg-[var(--bg-card)]"
           style={{
-            background: 'var(--bg-elev)',
-            border: '1px solid var(--hairline)',
-            borderRadius: 12,
-            padding: '14px 12px 12px',
+            padding: '16px 14px 14px',
+            boxShadow: 'inset 0 0 0 1px var(--hairline)',
           }}
         >
           <div
             className="grid"
-            style={{
-              gridTemplateColumns: 'repeat(7, 1fr)',
-              gap: 6,
-              marginBottom: 10,
-            }}
+            style={{ gridTemplateColumns: 'repeat(7, 1fr)', marginBottom: 8 }}
           >
             {weekDays.map((day) => (
-              <div
+              <span
                 key={day.dateStr}
-                className="flex flex-col items-center"
-                style={{ gap: 6, padding: '6px 0' }}
+                className="text-center uppercase"
+                style={{
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: 11,
+                  fontWeight: 500,
+                  letterSpacing: '0.04em',
+                  color: 'var(--fg-4)',
+                  fontVariantNumeric: 'tabular-nums',
+                }}
               >
-                <span
-                  style={{
-                    fontFamily: 'var(--font-mono)',
-                    fontSize: 11,
-                    fontWeight: 500,
-                    color: day.status === 'today' || day.status === 'frozen' ? 'var(--fg-1)' : 'var(--fg-3)',
-                  }}
-                >
-                  {day.dayLabel} {day.dayNum}
-                </span>
-                <StreakDot status={day.status} />
-              </div>
+                {day.dayLabel}
+              </span>
+            ))}
+          </div>
+          <div className="grid" style={{ gridTemplateColumns: 'repeat(7, 1fr)' }}>
+            {weekDays.map((day, index) => (
+              <StreakDayCell
+                key={day.dateStr}
+                day={day}
+                runStart={isInRun(day.status) && (index === 0 || !isInRun(weekDays[index - 1]!.status))}
+                runEnd={isInRun(day.status) && (index === weekDays.length - 1 || !isInRun(weekDays[index + 1]!.status))}
+              />
             ))}
           </div>
           <div
             className="flex flex-wrap items-center justify-center"
-            style={{ gap: 16, paddingTop: 6 }}
+            style={{ gap: 16, paddingTop: 12 }}
           >
-            <LegendItem>
-              <span aria-hidden="true" className="rounded-full" style={{ width: 6, height: 6, background: 'var(--fg-1)' }} />
-              <span>{t('streakDisplay.detail.dayActive')}</span>
+            <LegendItem swatch={<span aria-hidden="true" className="rounded-full" style={{ width: 8, height: 8, background: 'var(--status-overdue)' }} />}>
+              {t('streakDisplay.detail.dayActive')}
             </LegendItem>
-            <LegendItem>
-              <span aria-hidden="true" className="rounded-full" style={{ width: 6, height: 6, background: 'var(--status-frozen)' }} />
-              <span>{t('streakDisplay.detail.dayFrozen')}</span>
+            <LegendItem swatch={<span aria-hidden="true" className="rounded-full" style={{ width: 8, height: 8, background: 'var(--status-frozen)' }} />}>
+              {t('streakDisplay.detail.dayFrozen')}
             </LegendItem>
-            <LegendItem>
-              <span aria-hidden="true" className="rounded-full" style={{ width: 6, height: 6, boxShadow: 'inset 0 0 0 1.2px var(--fg-4)' }} />
-              <span>{t('streakDisplay.detail.dayMissed')}</span>
+            <LegendItem swatch={<span aria-hidden="true" className="rounded-full" style={{ width: 8, height: 8, boxShadow: 'inset 0 0 0 1px var(--status-empty)' }} />}>
+              {t('streakDisplay.detail.dayMissed')}
             </LegendItem>
           </div>
         </div>
@@ -90,7 +100,96 @@ export function StreakTimelineCard({
   )
 }
 
-function LegendItem({ children }: Readonly<{ children: React.ReactNode }>) {
+function StreakDayCell({
+  day,
+  runStart,
+  runEnd,
+}: Readonly<{ day: StreakDayView; runStart: boolean; runEnd: boolean }>) {
+  const inRun = isInRun(day.status)
+
+  let numeralColor = 'var(--fg-4)'
+  if (day.status === 'active') numeralColor = 'var(--status-overdue)'
+  if (day.status === 'frozen' || day.status === 'today') numeralColor = 'var(--fg-1)'
+
+  let discStyle: React.CSSProperties = {}
+  if (day.status === 'today') {
+    discStyle = {
+      background: 'var(--bg-elev-2)',
+      boxShadow: 'inset 0 0 0 1.5px var(--fg-4)',
+    }
+  } else if (day.status === 'missed') {
+    discStyle = { boxShadow: 'inset 0 0 0 1px var(--status-empty)' }
+  }
+
+  return (
+    <div
+      className="relative flex items-center justify-center"
+      style={{ height: 42 }}
+    >
+      {inRun && (
+        <span
+          aria-hidden="true"
+          className="absolute"
+          style={{
+            top: 7,
+            bottom: 7,
+            left: runStart ? 5 : 0,
+            right: runEnd ? 5 : 0,
+            background: 'color-mix(in srgb, var(--status-overdue) 16%, transparent)',
+            borderTopLeftRadius: runStart ? 999 : 0,
+            borderBottomLeftRadius: runStart ? 999 : 0,
+            borderTopRightRadius: runEnd ? 999 : 0,
+            borderBottomRightRadius: runEnd ? 999 : 0,
+          }}
+        />
+      )}
+      <span
+        className="relative inline-flex items-center justify-center rounded-full"
+        style={{
+          zIndex: 1,
+          width: 28,
+          height: 28,
+          fontFamily: 'var(--font-mono)',
+          fontSize: 14,
+          fontWeight: day.status === 'today' ? 700 : 500,
+          fontVariantNumeric: 'tabular-nums',
+          color: numeralColor,
+          ...discStyle,
+        }}
+      >
+        {day.dayNum}
+      </span>
+      {day.status === 'frozen' && (
+        <span
+          aria-hidden="true"
+          className="absolute inline-flex items-center justify-center"
+          style={{
+            top: 1,
+            zIndex: 2,
+            width: 17,
+            height: 17,
+            borderRadius: '50% 50% 50% 0',
+            transform: 'rotate(45deg)',
+            background: 'var(--status-frozen)',
+            boxShadow: '0 1px 4px rgba(0,0,0,0.4)',
+          }}
+        >
+          <Snowflake
+            size={10}
+            strokeWidth={2.2}
+            color="var(--bg)"
+            style={{ transform: 'rotate(-45deg)' }}
+          />
+        </span>
+      )}
+    </div>
+  )
+}
+
+function LegendItem({
+  swatch,
+  children,
+}: Readonly<{ swatch: ReactNode; children: ReactNode }>) {
   return (
     <span
       className="inline-flex items-center"
@@ -102,53 +201,77 @@ function LegendItem({ children }: Readonly<{ children: React.ReactNode }>) {
         letterSpacing: '0.04em',
       }}
     >
-      {children}
+      {swatch}
+      <span>{children}</span>
     </span>
   )
 }
 
-function StreakDot({ status }: Readonly<{ status: StreakDayView['status'] }>) {
-  if (status === 'active') {
-    return (
-      <span
-        aria-hidden="true"
-        className="rounded-full"
-        style={{ width: 7, height: 7, background: 'var(--fg-1)' }}
-      />
-    )
-  }
-  if (status === 'today') {
-    return (
-      <span
-        aria-hidden="true"
-        className="rounded-full"
-        style={{ width: 7, height: 7, background: 'var(--primary)' }}
-      />
-    )
-  }
-  if (status === 'frozen') {
-    return (
-      <svg width="9" height="9" viewBox="0 0 10 10" fill="none" stroke="var(--status-frozen)" strokeWidth="1.2" aria-hidden="true">
-        <circle cx="5" cy="5" r="4" />
-        <line x1="5" y1="2" x2="5" y2="8" />
-        <line x1="2" y1="5" x2="8" y2="5" />
-      </svg>
-    )
-  }
-  if (status === 'missed') {
-    return (
-      <span
-        aria-hidden="true"
-        className="rounded-full"
-        style={{
-          width: 7,
-          height: 7,
-          boxShadow: 'inset 0 0 0 1.2px var(--fg-4)',
-        }}
-      />
-    )
-  }
-  return <span aria-hidden="true" style={{ width: 7, height: 7 }} />
+function CardGroup({ children }: Readonly<{ children: ReactNode }>) {
+  const rows = React.Children.toArray(children).filter(Boolean)
+  return (
+    <div
+      className="overflow-hidden rounded-[18px] bg-[var(--bg-card)]"
+      style={{ boxShadow: 'inset 0 0 0 1px var(--hairline)' }}
+    >
+      {rows.map((row, index) => (
+        <div key={index}>
+          {index > 0 ? (
+            <div aria-hidden="true" style={{ height: 1, background: 'var(--hairline)' }} />
+          ) : null}
+          {row}
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function CardRow({
+  icon,
+  label,
+  trailing,
+}: Readonly<{ icon?: ReactNode; label: ReactNode; trailing?: ReactNode }>) {
+  return (
+    <div
+      className="flex items-center justify-between"
+      style={{ padding: '15px 18px', gap: 12, minHeight: 52 }}
+    >
+      <span className="flex min-w-0 items-center" style={{ gap: 12 }}>
+        {icon ? (
+          <span aria-hidden="true" className="flex shrink-0 items-center justify-center" style={{ width: 22 }}>
+            {icon}
+          </span>
+        ) : null}
+        <span
+          style={{
+            fontFamily: 'var(--font-sans)',
+            fontSize: 16,
+            color: 'var(--fg-1)',
+          }}
+        >
+          {label}
+        </span>
+      </span>
+      <span className="flex shrink-0 items-center" style={{ gap: 10 }}>
+        {trailing}
+      </span>
+    </div>
+  )
+}
+
+function StatValue({ value }: Readonly<{ value: number | string }>) {
+  return (
+    <span
+      style={{
+        fontFamily: 'var(--font-sans)',
+        fontSize: 15,
+        color: 'var(--fg-2)',
+        fontVariantNumeric: 'tabular-nums',
+      }}
+    >
+      {value}
+    </span>
+  )
 }
 
 const STREAK_DAYS_PER_FREEZE = 7
@@ -190,16 +313,19 @@ export function FreezeProgressCard(props: Readonly<FreezeProgressCardProps>) {
     <div>
       <SectionLabel>{t('streakDisplay.detail.stats')}</SectionLabel>
       <div className="px-5">
-        <SettingsGroup>
-          <SettingsGroupRow
+        <CardGroup>
+          <CardRow
+            icon={<Flame size={20} strokeWidth={1.8} color="var(--status-overdue)" />}
             label={t('streakDisplay.detail.currentStreak')}
             trailing={<StatValue value={streak} />}
           />
-          <SettingsGroupRow
+          <CardRow
+            icon={<Trophy size={20} strokeWidth={1.8} color="var(--fg-3)" />}
             label={t('streakDisplay.detail.longestStreak')}
             trailing={<StatValue value={longestStreak} />}
           />
-          <SettingsGroupRow
+          <CardRow
+            icon={<Medal size={20} strokeWidth={1.8} color="var(--fg-3)" />}
             label={t(getStreakTierLabelKey(streak))}
             trailing={
               <span
@@ -208,7 +334,7 @@ export function FreezeProgressCard(props: Readonly<FreezeProgressCardProps>) {
               />
             }
           />
-        </SettingsGroup>
+        </CardGroup>
       </div>
 
       <SectionLabel>{t('streakDisplay.freeze.title')}</SectionLabel>
@@ -219,11 +345,12 @@ export function FreezeProgressCard(props: Readonly<FreezeProgressCardProps>) {
             <p className="t-secondary" style={{ marginBottom: 14 }}>
               {t('streakDisplay.freeze.auto.explainer')}
             </p>
-            <SettingsGroup>
-              <SettingsGroupRow
+            <CardGroup>
+              <CardRow
+                icon={<Snowflake size={20} strokeWidth={1.8} color="var(--status-frozen)" />}
                 label={t('streakDisplay.freeze.banked.label')}
                 trailing={
-                  <span className="flex items-center" style={{ gap: 10 }}>
+                  <>
                     <ChargeGauge
                       banked={streakFreezesAccumulated}
                       max={maxStreakFreezesAccumulated}
@@ -231,16 +358,18 @@ export function FreezeProgressCard(props: Readonly<FreezeProgressCardProps>) {
                     <StatValue
                       value={`${streakFreezesAccumulated}/${maxStreakFreezesAccumulated}`}
                     />
-                  </span>
+                  </>
                 }
               />
-              <SettingsGroupRow
+              <CardRow
+                icon={<CalendarDays size={20} strokeWidth={1.8} color="var(--fg-3)" />}
                 label={t('streakDisplay.freeze.usedThisMonth.label')}
                 trailing={
                   <StatValue value={`${freezesUsedThisMonth}/${maxFreezesPerMonth}`} />
                 }
               />
-              <SettingsGroupRow
+              <CardRow
+                icon={<Clock size={20} strokeWidth={1.8} color="var(--fg-3)" />}
                 label={t('streakDisplay.freeze.nextFreeze.label')}
                 trailing={
                   <StatValue
@@ -254,13 +383,13 @@ export function FreezeProgressCard(props: Readonly<FreezeProgressCardProps>) {
                   />
                 }
               />
-            </SettingsGroup>
+            </CardGroup>
           </div>
 
           <SectionLabel>{t('streakDisplay.freeze.protected.label')}</SectionLabel>
           <div className="px-5" style={{ paddingBottom: 14 }}>
             {isFrozenToday || protectedDates.length > 0 ? (
-              <SettingsGroup>
+              <CardGroup>
                 {isFrozenToday && (
                   <ProtectedRow
                     label={t('streakDisplay.freeze.protected.today')}
@@ -273,7 +402,7 @@ export function FreezeProgressCard(props: Readonly<FreezeProgressCardProps>) {
                     label={displayDate(date, { month: 'short', day: 'numeric' })}
                   />
                 ))}
-              </SettingsGroup>
+              </CardGroup>
             ) : (
               <p className="t-secondary">
                 {t('streakDisplay.freeze.protected.empty')}
@@ -283,20 +412,25 @@ export function FreezeProgressCard(props: Readonly<FreezeProgressCardProps>) {
         </>
       ) : (
         <div className="px-5" style={{ paddingBottom: 14 }}>
-          <SettingsGroup>
-            <SettingsGroupRow
+          <CardGroup>
+            <CardRow
+              icon={<Snowflake size={20} strokeWidth={1.8} color="var(--status-frozen)" />}
               label={t('streakDisplay.freeze.pro.gate')}
               trailing={
                 <a
                   href="/upgrade"
-                  className="t-secondary"
-                  style={{ color: 'var(--primary)' }}
+                  style={{
+                    fontFamily: 'var(--font-sans)',
+                    fontSize: 14,
+                    fontWeight: 500,
+                    color: 'var(--primary)',
+                  }}
                 >
                   {t('common.upgrade')}
                 </a>
               }
             />
-          </SettingsGroup>
+          </CardGroup>
         </div>
       )}
     </div>
@@ -335,30 +469,15 @@ function ProtectedRow({
   value,
 }: Readonly<{ label: string; value?: string }>) {
   return (
-    <SettingsGroupRow
-      label={label}
+    <CardRow
       icon={
         <span
           className="block rounded-full"
           style={{ width: 8, height: 8, background: 'var(--status-frozen)' }}
         />
       }
+      label={label}
       trailing={value ? <StatValue value={value} /> : undefined}
     />
-  )
-}
-
-function StatValue({ value }: Readonly<{ value: number | string }>) {
-  return (
-    <span
-      style={{
-        fontFamily: 'var(--font-mono)',
-        fontSize: 13,
-        color: 'var(--fg-3)',
-        fontVariantNumeric: 'tabular-nums',
-      }}
-    >
-      {value}
-    </span>
   )
 }

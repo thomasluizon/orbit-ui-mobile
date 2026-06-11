@@ -107,6 +107,8 @@ const tokensV2Proxy: any = new Proxy(
 vi.mock("@/lib/theme", () => ({
   createColors: () => colorProxy,
   createTokensV2: () => tokensV2Proxy,
+  primaryGlow: () => ({}),
+  tintFromPrimary: () => "rgba(17, 17, 17, 0.1)",
   shadowsV2: {
     shadow1: { elevation: 1 },
     shadow2: { elevation: 4 },
@@ -165,10 +167,6 @@ vi.mock("@/components/ui/section-label", () => ({
 
 vi.mock("@/components/ui/section-head-tabs", () => ({
   SectionHeadTabs: () => null,
-}));
-
-vi.mock("@/components/chat/pull-quote", () => ({
-  PullQuote: () => null,
 }));
 
 describe("mobile upgrade guard redirects", () => {

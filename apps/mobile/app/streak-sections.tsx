@@ -1,12 +1,19 @@
-import { useEffect, useRef } from 'react'
+import React, { useEffect, useMemo, useRef, type ReactNode } from 'react'
 import { Animated, Pressable, StyleSheet, Text, View } from 'react-native'
-import Svg, { Circle, Line } from 'react-native-svg'
-import type { createTokensV2 } from '@/lib/theme'
+import {
+  CalendarDays,
+  Clock,
+  Flame,
+  Medal,
+  Snowflake,
+  Trophy,
+} from 'lucide-react-native'
+import { getStreakTierLabelKey } from '@orbit/shared/utils'
+import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
+import { useAppTheme } from '@/lib/use-app-theme'
 import { SectionLabel } from '@/components/ui/section-label'
-import { SettingsGroup, SettingsGroupRow } from '@/components/ui/settings-group'
 import { StatusDot } from '@/components/ui/status-dot'
 
-type Tokens = ReturnType<typeof createTokensV2>
 type TranslationFn = (key: string, params?: Record<string, unknown>) => string
 
 export type StreakDayView = {
@@ -16,143 +23,256 @@ export type StreakDayView = {
   status: 'active' | 'frozen' | 'missed' | 'today' | 'future'
 }
 
-interface StreakWeekTimelineProps {
-  weekDays: StreakDayView[]
-  tokens: Tokens
+function useTokens(): AppTokensV2 {
+  const { currentScheme, currentTheme } = useAppTheme()
+  return useMemo(
+    () => createTokensV2(currentScheme, currentTheme),
+    [currentScheme, currentTheme],
+  )
 }
 
-/** 7-column day grid with inline legend below: dot/glyph by status. */
-export function StreakWeekTimeline({
+function rgbaFromHex(hex: string, alpha: number): string {
+  const normalized = hex.replace('#', '')
+  const red = Number.parseInt(normalized.slice(0, 2), 16)
+  const green = Number.parseInt(normalized.slice(2, 4), 16)
+  const blue = Number.parseInt(normalized.slice(4, 6), 16)
+  return `rgba(${red}, ${green}, ${blue}, ${alpha})`
+}
+
+function isInRun(status: StreakDayView['status']): boolean {
+  return status === 'active' || status === 'frozen'
+}
+
+interface StreakTimelineCardProps {
+  t: TranslationFn
+  weekDays: StreakDayView[]
+}
+
+/** Week strip in the streak-calendar language: weekday header, amber run band,
+ *  cyan freeze teardrops, neutral today ring, and the status legend. */
+export function StreakTimelineCard({
+  t,
   weekDays,
-  tokens,
-  legend,
-}: Readonly<StreakWeekTimelineProps & { legend?: { active: string; frozen: string; missed: string } }>) {
+}: Readonly<StreakTimelineCardProps>) {
+  const tokens = useTokens()
+
   return (
-    <>
-      <View style={styles.weekGrid}>
-        {weekDays.map((day) => {
-          const isEmphasized = day.status === 'today' || day.status === 'frozen'
-          return (
-            <View key={day.dateStr} style={styles.weekDayCol}>
+    <View>
+      <SectionLabel>{t('streakDisplay.detail.thisWeek')}</SectionLabel>
+      <View style={styles.groupWrap}>
+        <View
+          style={[
+            styles.weekCard,
+            { backgroundColor: tokens.bgCard, borderColor: tokens.hairline },
+          ]}
+        >
+          <View style={styles.weekHeaderRow}>
+            {weekDays.map((day) => (
               <Text
-                style={[
-                  styles.weekDayLabel,
-                  { color: isEmphasized ? tokens.fg1 : tokens.fg3 },
-                ]}
+                key={day.dateStr}
+                style={[styles.weekHeaderLabel, { color: tokens.fg4 }]}
               >
-                {`${day.dayLabel} ${day.dayNum}`}
+                {day.dayLabel.toUpperCase()}
               </Text>
-              {day.status === 'active' ? (
-                <View style={[styles.dot, { backgroundColor: tokens.fg1 }]} />
-              ) : null}
-              {day.status === 'today' ? (
+            ))}
+          </View>
+          <View style={styles.weekCellsRow}>
+            {weekDays.map((day, index) => (
+              <StreakDayCell
+                key={day.dateStr}
+                day={day}
+                tokens={tokens}
+                runStart={isInRun(day.status) && (index === 0 || !isInRun(weekDays[index - 1]!.status))}
+                runEnd={isInRun(day.status) && (index === weekDays.length - 1 || !isInRun(weekDays[index + 1]!.status))}
+              />
+            ))}
+          </View>
+          <View style={styles.legendRow}>
+            <LegendItem
+              tokens={tokens}
+              label={t('streakDisplay.detail.dayActive')}
+              swatch={
                 <View
-                  style={[styles.dot, { backgroundColor: tokens.primary }]}
+                  style={[styles.legendDot, { backgroundColor: tokens.statusOverdue }]}
                 />
-              ) : null}
-              {day.status === 'frozen' ? (
-                <Svg width={9} height={9} viewBox="0 0 10 10" fill="none">
-                  <Circle
-                    cx={5}
-                    cy={5}
-                    r={4}
-                    stroke={tokens.statusFrozen}
-                    strokeWidth={1.2}
-                  />
-                  <Line
-                    x1={5}
-                    y1={2}
-                    x2={5}
-                    y2={8}
-                    stroke={tokens.statusFrozen}
-                    strokeWidth={1.2}
-                  />
-                  <Line
-                    x1={2}
-                    y1={5}
-                    x2={8}
-                    y2={5}
-                    stroke={tokens.statusFrozen}
-                    strokeWidth={1.2}
-                  />
-                </Svg>
-              ) : null}
-              {day.status === 'missed' ? (
+              }
+            />
+            <LegendItem
+              tokens={tokens}
+              label={t('streakDisplay.detail.dayFrozen')}
+              swatch={
                 <View
-                  style={[
-                    styles.dotHollow,
-                    { borderColor: tokens.statusEmpty },
-                  ]}
+                  style={[styles.legendDot, { backgroundColor: tokens.statusFrozen }]}
                 />
-              ) : null}
-              {day.status === 'future' ? (
-                <View style={styles.dotSpace} />
-              ) : null}
-            </View>
-          )
-        })}
+              }
+            />
+            <LegendItem
+              tokens={tokens}
+              label={t('streakDisplay.detail.dayMissed')}
+              swatch={
+                <View
+                  style={[styles.legendDotHollow, { borderColor: tokens.statusEmpty }]}
+                />
+              }
+            />
+          </View>
+        </View>
       </View>
-      {legend ? (
-        <View style={styles.legendRow}>
-          <LegendItem
-            label={legend.active}
-            color={tokens.fg2}
-            dot={<View style={[styles.legendDot, { backgroundColor: tokens.fg1 }]} />}
-          />
-          <LegendItem
-            label={legend.frozen}
-            color={tokens.fg2}
-            dot={
-              <View
-                style={[
-                  styles.legendDotHollow,
-                  { borderColor: tokens.statusFrozen },
-                ]}
-              />
-            }
-          />
-          <LegendItem
-            label={legend.missed}
-            color={tokens.fg2}
-            dot={
-              <View
-                style={[
-                  styles.legendDotHollow,
-                  { borderColor: tokens.statusEmpty },
-                ]}
-              />
-            }
-          />
+    </View>
+  )
+}
+
+interface StreakDayCellProps {
+  day: StreakDayView
+  tokens: AppTokensV2
+  runStart: boolean
+  runEnd: boolean
+}
+
+function StreakDayCell({
+  day,
+  tokens,
+  runStart,
+  runEnd,
+}: Readonly<StreakDayCellProps>) {
+  const inRun = isInRun(day.status)
+
+  let numeralColor = tokens.fg4
+  if (day.status === 'active') numeralColor = tokens.statusOverdue
+  if (day.status === 'frozen' || day.status === 'today') numeralColor = tokens.fg1
+
+  return (
+    <View style={styles.dayCell}>
+      {inRun ? (
+        <View
+          style={[
+            styles.runBand,
+            {
+              backgroundColor: rgbaFromHex(tokens.statusOverdue, 0.16),
+              left: runStart ? 5 : 0,
+              right: runEnd ? 5 : 0,
+              borderTopLeftRadius: runStart ? 999 : 0,
+              borderBottomLeftRadius: runStart ? 999 : 0,
+              borderTopRightRadius: runEnd ? 999 : 0,
+              borderBottomRightRadius: runEnd ? 999 : 0,
+            },
+          ]}
+        />
+      ) : null}
+      <View
+        style={[
+          styles.dayDisc,
+          day.status === 'today'
+            ? {
+                backgroundColor: tokens.bgElev2,
+                borderWidth: 1.5,
+                borderColor: tokens.fg4,
+              }
+            : null,
+          day.status === 'missed'
+            ? { borderWidth: 1, borderColor: tokens.statusEmpty }
+            : null,
+        ]}
+      >
+        <Text
+          style={[
+            day.status === 'today' ? styles.dayNumeralToday : styles.dayNumeral,
+            { color: numeralColor },
+          ]}
+        >
+          {day.dayNum}
+        </Text>
+      </View>
+      {day.status === 'frozen' ? (
+        <View
+          style={[styles.freezeDrop, { backgroundColor: tokens.statusFrozen }]}
+        >
+          <View style={styles.freezeDropIcon}>
+            <Snowflake size={10} strokeWidth={2.2} color={tokens.bg} />
+          </View>
         </View>
       ) : null}
-    </>
+    </View>
   )
 }
 
 function LegendItem({
+  tokens,
   label,
-  color,
-  dot,
-}: Readonly<{ label: string; color: string; dot: React.ReactNode }>) {
+  swatch,
+}: Readonly<{ tokens: AppTokensV2; label: string; swatch: ReactNode }>) {
   return (
     <View style={styles.legendItem}>
-      {dot}
-      <Text style={[styles.legendLabel, { color }]}>{label}</Text>
+      {swatch}
+      <Text style={[styles.legendLabel, { color: tokens.fg3 }]}>{label}</Text>
     </View>
+  )
+}
+
+function CardGroup({ children }: Readonly<{ children: ReactNode }>) {
+  const tokens = useTokens()
+  const rows = React.Children.toArray(children).filter(Boolean)
+
+  return (
+    <View
+      style={[
+        styles.cardGroup,
+        { backgroundColor: tokens.bgCard, borderColor: tokens.hairline },
+      ]}
+    >
+      {rows.map((row, index) => (
+        <View key={index} collapsable={false}>
+          {index > 0 ? (
+            <View style={[styles.cardDivider, { backgroundColor: tokens.hairline }]} />
+          ) : null}
+          {row}
+        </View>
+      ))}
+    </View>
+  )
+}
+
+function CardRow({
+  icon,
+  label,
+  trailing,
+}: Readonly<{ icon?: ReactNode; label: string; trailing?: ReactNode }>) {
+  const tokens = useTokens()
+
+  return (
+    <View style={styles.cardRow}>
+      <View style={styles.cardRowLead}>
+        {icon ? <View style={styles.cardRowIcon}>{icon}</View> : null}
+        <Text
+          style={[styles.cardRowLabel, { color: tokens.fg1 }]}
+          numberOfLines={1}
+        >
+          {label}
+        </Text>
+      </View>
+      <View style={styles.cardRowTrailing}>{trailing}</View>
+    </View>
+  )
+}
+
+function StatValue({ value }: Readonly<{ value: number | string }>) {
+  const tokens = useTokens()
+  return (
+    <Text style={[styles.statValue, { color: tokens.fg2 }]}>{value}</Text>
   )
 }
 
 const STREAK_DAYS_PER_FREEZE = 7
 
-interface FreezeSectionProps {
+interface FreezeProgressCardProps {
   t: TranslationFn
-  tokens: Tokens
   isPro: boolean
   streak: number
-  freezesUsedThisMonth: number
-  maxFreezesPerMonth: number
+  longestStreak: number
   streakFreezesAccumulated: number
   maxStreakFreezesAccumulated: number
+  freezesUsedThisMonth: number
+  maxFreezesPerMonth: number
   isFrozenToday: boolean
   protectedDates: string[]
   onUpgrade: () => void
@@ -160,139 +280,164 @@ interface FreezeSectionProps {
 }
 
 /**
- * Auto-freeze status section: explainer, a charge gauge of banked freezes,
- * monthly usage, next-freeze countdown, and the auto-protected days list.
- * Free users see a quiet Pro gate instead of the gauge.
+ * Streak stats and auto-freeze status in the artboard card language: a stats
+ * card (current, longest, tier), the banked-freeze gauge card, and the
+ * protected-days list. Free users see a quiet Pro gate instead of the gauge.
  */
-export function FreezeSection({
+export function FreezeProgressCard({
   t,
-  tokens,
   isPro,
   streak,
-  freezesUsedThisMonth,
-  maxFreezesPerMonth,
+  longestStreak,
   streakFreezesAccumulated,
   maxStreakFreezesAccumulated,
+  freezesUsedThisMonth,
+  maxFreezesPerMonth,
   isFrozenToday,
   protectedDates,
   onUpgrade,
   displayDate,
-}: Readonly<FreezeSectionProps>) {
-  if (!isPro) {
-    return (
-      <View style={styles.groupWrap}>
-        <SettingsGroup>
-          <SettingsGroupRow
-            label={t('streakDisplay.freeze.pro.gate')}
-            accessory="none"
-            trailing={
-              <Pressable
-                onPress={onUpgrade}
-                accessibilityRole="button"
-                accessibilityLabel={t('common.upgrade')}
-              >
-                <Text style={[styles.upgradeLink, { color: tokens.primary }]}>
-                  {t('common.upgrade')}
-                </Text>
-              </Pressable>
-            }
-          />
-        </SettingsGroup>
-      </View>
-    )
-  }
-
+}: Readonly<FreezeProgressCardProps>) {
+  const tokens = useTokens()
   const isBankedFull = streakFreezesAccumulated >= maxStreakFreezesAccumulated
   const nextFreezeDays = STREAK_DAYS_PER_FREEZE - (streak % STREAK_DAYS_PER_FREEZE)
   const dates = protectedDates.slice(0, 5)
 
   return (
-    <>
+    <View>
+      <SectionLabel>{t('streakDisplay.detail.stats')}</SectionLabel>
       <View style={styles.groupWrap}>
-        <Text style={[styles.explainer, { color: tokens.fg2 }]}>
-          {t('streakDisplay.freeze.auto.explainer')}
-        </Text>
-        <SettingsGroup>
-          <SettingsGroupRow
-            label={t('streakDisplay.freeze.banked.label')}
-            accessory="none"
+        <CardGroup>
+          <CardRow
+            icon={<Flame size={20} strokeWidth={1.8} color={tokens.statusOverdue} />}
+            label={t('streakDisplay.detail.currentStreak')}
+            trailing={<StatValue value={streak} />}
+          />
+          <CardRow
+            icon={<Trophy size={20} strokeWidth={1.8} color={tokens.fg3} />}
+            label={t('streakDisplay.detail.longestStreak')}
+            trailing={<StatValue value={longestStreak} />}
+          />
+          <CardRow
+            icon={<Medal size={20} strokeWidth={1.8} color={tokens.fg3} />}
+            label={t(getStreakTierLabelKey(streak))}
             trailing={
-              <View style={styles.gaugeTrailing}>
-                <ChargeGauge
-                  banked={streakFreezesAccumulated}
-                  max={maxStreakFreezesAccumulated}
-                  tokens={tokens}
-                />
-                <Text style={[styles.freezeCount, { color: tokens.fg3 }]}>
-                  {`${streakFreezesAccumulated}/${maxStreakFreezesAccumulated}`}
-                </Text>
-              </View>
+              <View style={[styles.tierDot, { backgroundColor: tokens.primary }]} />
             }
           />
-          <SettingsGroupRow
-            label={t('streakDisplay.freeze.usedThisMonth.label')}
-            accessory="none"
-            trailing={
-              <Text style={[styles.freezeCount, { color: tokens.fg3 }]}>
-                {`${freezesUsedThisMonth}/${maxFreezesPerMonth}`}
-              </Text>
-            }
-          />
-          <SettingsGroupRow
-            label={t('streakDisplay.freeze.nextFreeze.label')}
-            accessory="none"
-            trailing={
-              <Text style={[styles.freezeCount, { color: tokens.fg3 }]}>
-                {isBankedFull
-                  ? t('streakDisplay.freeze.nextFreeze.full')
-                  : t('streakDisplay.freeze.nextFreeze.inDays', {
-                      days: nextFreezeDays,
-                    })}
-              </Text>
-            }
-          />
-        </SettingsGroup>
+        </CardGroup>
       </View>
 
-      <SectionLabel>{t('streakDisplay.freeze.protected.label')}</SectionLabel>
-      <View style={styles.groupWrap}>
-        {isFrozenToday || dates.length > 0 ? (
-          <SettingsGroup>
-            {isFrozenToday ? (
-              <SettingsGroupRow
-                label={t('streakDisplay.freeze.protected.today')}
-                accessory="none"
-                icon={<StatusDot state="frozen" size={8} />}
+      <SectionLabel>{t('streakDisplay.freeze.title')}</SectionLabel>
+
+      {isPro ? (
+        <>
+          <View style={styles.groupWrap}>
+            <Text style={[styles.explainer, { color: tokens.fg2 }]}>
+              {t('streakDisplay.freeze.auto.explainer')}
+            </Text>
+            <CardGroup>
+              <CardRow
+                icon={<Snowflake size={20} strokeWidth={1.8} color={tokens.statusFrozen} />}
+                label={t('streakDisplay.freeze.banked.label')}
                 trailing={
-                  <Text style={[styles.freezeCount, { color: tokens.fg3 }]}>
-                    {t('streakDisplay.freeze.protected.todayValue')}
-                  </Text>
+                  <View style={styles.gaugeTrailing}>
+                    <ChargeGauge
+                      banked={streakFreezesAccumulated}
+                      max={maxStreakFreezesAccumulated}
+                      tokens={tokens}
+                    />
+                    <StatValue
+                      value={`${streakFreezesAccumulated}/${maxStreakFreezesAccumulated}`}
+                    />
+                  </View>
                 }
               />
-            ) : null}
-            {dates.map((date) => (
-              <SettingsGroupRow
-                key={date}
-                label={displayDate(date, { month: 'short', day: 'numeric' })}
-                accessory="none"
-                icon={<StatusDot state="frozen" size={8} />}
+              <CardRow
+                icon={<CalendarDays size={20} strokeWidth={1.8} color={tokens.fg3} />}
+                label={t('streakDisplay.freeze.usedThisMonth.label')}
+                trailing={
+                  <StatValue value={`${freezesUsedThisMonth}/${maxFreezesPerMonth}`} />
+                }
               />
-            ))}
-          </SettingsGroup>
-        ) : (
-          <Text style={[styles.emptyText, { color: tokens.fg2 }]}>
-            {t('streakDisplay.freeze.protected.empty')}
-          </Text>
-        )}
-      </View>
-    </>
+              <CardRow
+                icon={<Clock size={20} strokeWidth={1.8} color={tokens.fg3} />}
+                label={t('streakDisplay.freeze.nextFreeze.label')}
+                trailing={
+                  <StatValue
+                    value={
+                      isBankedFull
+                        ? t('streakDisplay.freeze.nextFreeze.full')
+                        : t('streakDisplay.freeze.nextFreeze.inDays', {
+                            days: nextFreezeDays,
+                          })
+                    }
+                  />
+                }
+              />
+            </CardGroup>
+          </View>
+
+          <SectionLabel>{t('streakDisplay.freeze.protected.label')}</SectionLabel>
+          <View style={[styles.groupWrap, styles.sectionBottomPad]}>
+            {isFrozenToday || dates.length > 0 ? (
+              <CardGroup>
+                {isFrozenToday ? (
+                  <CardRow
+                    icon={<StatusDot state="frozen" size={8} />}
+                    label={t('streakDisplay.freeze.protected.today')}
+                    trailing={
+                      <StatValue
+                        value={t('streakDisplay.freeze.protected.todayValue')}
+                      />
+                    }
+                  />
+                ) : null}
+                {dates.map((date) => (
+                  <CardRow
+                    key={date}
+                    icon={<StatusDot state="frozen" size={8} />}
+                    label={displayDate(date, { month: 'short', day: 'numeric' })}
+                  />
+                ))}
+              </CardGroup>
+            ) : (
+              <Text style={[styles.emptyText, { color: tokens.fg2 }]}>
+                {t('streakDisplay.freeze.protected.empty')}
+              </Text>
+            )}
+          </View>
+        </>
+      ) : (
+        <View style={[styles.groupWrap, styles.sectionBottomPad]}>
+          <CardGroup>
+            <CardRow
+              icon={<Snowflake size={20} strokeWidth={1.8} color={tokens.statusFrozen} />}
+              label={t('streakDisplay.freeze.pro.gate')}
+              trailing={
+                <Pressable
+                  onPress={onUpgrade}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('common.upgrade')}
+                  hitSlop={{ top: 12, bottom: 12, left: 8, right: 8 }}
+                >
+                  <Text style={[styles.upgradeLink, { color: tokens.primary }]}>
+                    {t('common.upgrade')}
+                  </Text>
+                </Pressable>
+              }
+            />
+          </CardGroup>
+        </View>
+      )}
+    </View>
   )
 }
 
 interface ChargeGaugeProps {
   banked: number
   max: number
-  tokens: Tokens
+  tokens: AppTokensV2
 }
 
 function ChargeGauge({ banked, max, tokens }: Readonly<ChargeGaugeProps>) {
@@ -313,7 +458,7 @@ function ChargeGauge({ banked, max, tokens }: Readonly<ChargeGaugeProps>) {
 interface ChargePipProps {
   filled: boolean
   delay: number
-  tokens: Tokens
+  tokens: AppTokensV2
 }
 
 function ChargePip({ filled, delay, tokens }: Readonly<ChargePipProps>) {
@@ -354,36 +499,77 @@ function ChargePip({ filled, delay, tokens }: Readonly<ChargePipProps>) {
 }
 
 const styles = StyleSheet.create({
-  weekGrid: {
-    flexDirection: 'row',
+  groupWrap: {
     paddingHorizontal: 20,
+  },
+  sectionBottomPad: {
     paddingBottom: 14,
-    gap: 6,
   },
-  weekDayCol: {
+  weekCard: {
+    borderRadius: 18,
+    borderWidth: 1,
+    paddingTop: 16,
+    paddingHorizontal: 14,
+    paddingBottom: 14,
+  },
+  weekHeaderRow: {
+    flexDirection: 'row',
+    marginBottom: 8,
+  },
+  weekHeaderLabel: {
     flex: 1,
-    alignItems: 'center',
-    gap: 6,
-    paddingVertical: 6,
-  },
-  weekDayLabel: {
+    textAlign: 'center',
     fontFamily: 'Roboto_500Medium',
     fontSize: 11,
-    },
-  dot: {
-    width: 7,
-    height: 7,
-    borderRadius: 999,
+    letterSpacing: 0.44,
+    fontVariant: ['tabular-nums'],
   },
-  dotHollow: {
-    width: 7,
-    height: 7,
-    borderRadius: 999,
-    borderWidth: 1,
+  weekCellsRow: {
+    flexDirection: 'row',
   },
-  dotSpace: {
-    width: 7,
-    height: 7,
+  dayCell: {
+    flex: 1,
+    height: 42,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  runBand: {
+    position: 'absolute',
+    top: 7,
+    bottom: 7,
+  },
+  dayDisc: {
+    width: 28,
+    height: 28,
+    borderRadius: 999,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  dayNumeral: {
+    fontFamily: 'Roboto_500Medium',
+    fontSize: 14,
+    fontVariant: ['tabular-nums'],
+  },
+  dayNumeralToday: {
+    fontFamily: 'Roboto_700Bold',
+    fontSize: 14,
+    fontVariant: ['tabular-nums'],
+  },
+  freezeDrop: {
+    position: 'absolute',
+    top: 1,
+    width: 17,
+    height: 17,
+    borderTopLeftRadius: 8.5,
+    borderTopRightRadius: 8.5,
+    borderBottomRightRadius: 8.5,
+    borderBottomLeftRadius: 0,
+    transform: [{ rotate: '45deg' }],
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  freezeDropIcon: {
+    transform: [{ rotate: '-45deg' }],
   },
   legendRow: {
     flexDirection: 'row',
@@ -391,8 +577,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     flexWrap: 'wrap',
     gap: 16,
-    paddingHorizontal: 14,
-    paddingBottom: 12,
+    paddingTop: 12,
   },
   legendItem: {
     flexDirection: 'row',
@@ -400,33 +585,76 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   legendDot: {
-    width: 6,
-    height: 6,
+    width: 8,
+    height: 8,
     borderRadius: 999,
   },
   legendDotHollow: {
-    width: 6,
-    height: 6,
+    width: 8,
+    height: 8,
     borderRadius: 999,
     borderWidth: 1,
   },
   legendLabel: {
-    fontFamily: 'Rubik_400Regular',
-    fontSize: 12,
+    fontFamily: 'Roboto_400Regular',
+    fontSize: 11,
+    letterSpacing: 0.44,
   },
-  groupWrap: {
-    paddingHorizontal: 20,
+  cardGroup: {
+    borderRadius: 18,
+    borderWidth: 1,
+    overflow: 'hidden',
+  },
+  cardDivider: {
+    height: StyleSheet.hairlineWidth,
+  },
+  cardRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    paddingVertical: 15,
+    paddingHorizontal: 18,
+    minHeight: 52,
+  },
+  cardRowLead: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    flexShrink: 1,
+    minWidth: 0,
+  },
+  cardRowIcon: {
+    width: 22,
+    alignItems: 'center',
+    flexShrink: 0,
+  },
+  cardRowLabel: {
+    fontFamily: 'Rubik_400Regular',
+    fontSize: 16,
+    flexShrink: 1,
+  },
+  cardRowTrailing: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    flexShrink: 0,
+  },
+  statValue: {
+    fontFamily: 'Rubik_400Regular',
+    fontSize: 15,
+    fontVariant: ['tabular-nums'],
+  },
+  tierDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 999,
   },
   explainer: {
     fontFamily: 'Rubik_400Regular',
     fontSize: 14,
     lineHeight: 21,
     marginBottom: 14,
-  },
-  freezeCount: {
-    fontFamily: 'Roboto_400Regular',
-    fontSize: 13,
-    fontVariant: ['tabular-nums'],
   },
   gaugeTrailing: {
     flexDirection: 'row',
@@ -439,7 +667,7 @@ const styles = StyleSheet.create({
     gap: 5,
   },
   upgradeLink: {
-    fontFamily: 'Rubik_400Regular',
+    fontFamily: 'Rubik_500Medium',
     fontSize: 14,
   },
   emptyText: {

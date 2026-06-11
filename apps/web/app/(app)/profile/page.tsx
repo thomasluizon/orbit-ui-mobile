@@ -10,7 +10,7 @@ import {
   type ProfileNavItem,
 } from '@orbit/shared/utils/profile-navigation'
 import { useTranslations } from 'next-intl'
-import { User, Flame } from 'lucide-react'
+import { User, Download, LogOut, RotateCcw, UserX } from 'lucide-react'
 import {
   useProfile,
   useTrialDaysLeft,
@@ -19,8 +19,11 @@ import {
 import { useAuthStore } from '@/stores/auth-store'
 import { useGamificationProfile, useStreakInfo } from '@/hooks/use-gamification'
 import { AppBar } from '@/components/ui/app-bar'
+import { Badge, type BadgeTone } from '@/components/ui/badge'
+import { GradientTop } from '@/components/ui/gradient-top'
 import { SectionLabel } from '@/components/ui/section-label'
 import { SettingsGroup, SettingsGroupRow } from '@/components/ui/settings-group'
+import { StatTile } from '@/components/ui/stat-tile'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
 import { StreakBadge } from '@/components/gamification/streak-badge'
 import { NotificationBell } from '@/components/navigation/notification-bell'
@@ -46,6 +49,7 @@ export default function ProfilePage() {
     profile?.hasProAccess ?? false,
   )
   const { data: streakInfo } = useStreakInfo(profile?.hasProAccess ?? false)
+  const streak = streakInfo?.currentStreak ?? 0
   const accountNavItems = PROFILE_NAV_ITEMS.filter(
     (item) => item.section === 'account',
   )
@@ -122,8 +126,30 @@ export default function ProfilePage() {
         .toUpperCase()
     : '?'
 
+  const planBadgeTone: BadgeTone = profile?.isTrialActive
+    ? 'soft'
+    : profile?.hasProAccess
+      ? 'violet'
+      : 'outline'
+  const planBadgeLabel = profile?.isTrialActive
+    ? t('trial.proBadge')
+    : profile?.hasProAccess
+      ? t('common.proBadge')
+      : t('profile.subscription.free')
+
   return (
-    <div>
+    <div className="relative">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-y-0 -z-10"
+        style={{
+          left: 'calc(var(--app-px) * -1)',
+          right: 'calc(var(--app-px) * -1)',
+        }}
+      >
+        <GradientTop height={280} />
+      </div>
+
       <AppBar
         leadingIcon={<User size={17} strokeWidth={1.5} color="var(--fg-2)" />}
         title={t('profile.title')}
@@ -131,7 +157,7 @@ export default function ProfilePage() {
           <>
             <ThemeToggle />
             <span data-tour="tour-streak-badge">
-              <StreakBadge streak={streakInfo?.currentStreak ?? 0} />
+              <StreakBadge streak={streak} />
             </span>
             <NotificationBell />
           </>
@@ -155,123 +181,83 @@ export default function ProfilePage() {
       )}
 
       <div
-        className="flex items-center"
-        style={{
-          padding: '20px 20px 18px',
-          gap: 14,
-        }}
+        className="flex flex-col items-center text-center"
+        style={{ padding: '14px 20px 0', gap: 6 }}
       >
         {isLoading ? (
           <>
             <div
               className="animate-pulse rounded-full shrink-0"
-              style={{ width: 44, height: 44, background: 'var(--bg-elev)' }}
+              style={{ width: 88, height: 88, background: 'var(--bg-elev)' }}
             />
-            <div className="flex-1 flex flex-col" style={{ gap: 6 }}>
-              <div
-                className="animate-pulse rounded-sm"
-                style={{ width: 140, height: 14, background: 'var(--bg-elev)' }}
-              />
-              <div
-                className="animate-pulse rounded-sm"
-                style={{ width: 200, height: 11, background: 'var(--bg-elev)' }}
-              />
-            </div>
+            <div
+              className="animate-pulse rounded-sm"
+              style={{ width: 140, height: 18, background: 'var(--bg-elev)', marginTop: 8 }}
+            />
+            <div
+              className="animate-pulse rounded-sm"
+              style={{ width: 200, height: 12, background: 'var(--bg-elev)' }}
+            />
           </>
         ) : (
           <>
             <div
               className="flex items-center justify-center rounded-full shrink-0"
               style={{
-                width: 44,
-                height: 44,
-                background: 'var(--bg-elev)',
-                fontFamily: 'var(--font-sans)',
-                fontSize: 16,
-                fontWeight: 600,
-                color: 'var(--fg-1)',
+                width: 88,
+                height: 88,
+                background: 'rgba(var(--primary-rgb), 0.15)',
+                fontFamily: 'var(--font-display)',
+                fontSize: 32,
+                fontWeight: 700,
+                color: 'var(--primary-soft)',
+                marginBottom: 6,
               }}
             >
               {userInitials}
             </div>
-            <div className="flex-1 min-w-0 flex flex-col" style={{ gap: 2 }}>
-              <span
-                className="overflow-hidden whitespace-nowrap text-ellipsis"
-                style={{
-                  fontFamily: 'var(--font-sans)',
-                  fontSize: 17,
-                  fontWeight: 600,
-                  color: 'var(--fg-1)',
-                }}
-              >
-                {profile?.name}
-              </span>
-              <span
-                className="overflow-hidden whitespace-nowrap text-ellipsis"
-                style={{
-                  fontFamily: 'var(--font-sans)',
-                  fontSize: 13,
-                  color: 'var(--fg-3)',
-                }}
-              >
-                {profile?.email}
-              </span>
-            </div>
-            {profile?.hasProAccess && (
-              <span
-                style={{
-                  fontFamily: 'var(--font-sans)',
-                  fontSize: 10,
-                  fontWeight: 600,
-                  color: 'var(--fg-on-primary)',
-                  background: 'var(--primary)',
-                  padding: '2px 6px',
-                  borderRadius: 4,
-                  letterSpacing: '0.04em',
-                  textTransform: 'uppercase',
-                }}
-              >
-                {t('common.proBadge')}
-              </span>
-            )}
+            <Badge tone={planBadgeTone}>{planBadgeLabel}</Badge>
+            <span
+              className="max-w-full overflow-hidden whitespace-nowrap text-ellipsis"
+              style={{
+                fontFamily: 'var(--font-sans)',
+                fontSize: 24,
+                fontWeight: 500,
+                letterSpacing: '-0.01em',
+                lineHeight: 1.2,
+                color: 'var(--fg-1)',
+              }}
+            >
+              {profile?.name}
+            </span>
+            <span
+              className="max-w-full overflow-hidden whitespace-nowrap text-ellipsis"
+              style={{
+                fontFamily: 'var(--font-mono)',
+                fontSize: 13,
+                color: 'var(--fg-3)',
+              }}
+            >
+              {profile?.email}
+            </span>
           </>
         )}
       </div>
 
-      <div className="px-5">
-        <SettingsGroup>
-          <SettingsGroupRow
-            icon={<Flame size={18} strokeWidth={1.75} color="var(--status-bad)" />}
+      <div className="px-5" style={{ marginTop: 24 }}>
+        <button
+          type="button"
+          data-tour="tour-profile-streak"
+          aria-label={t('streakDisplay.title')}
+          onClick={() => router.push('/streak')}
+          className="flex w-full cursor-pointer appearance-none border-0 bg-transparent p-0 text-left"
+        >
+          <StatTile
+            emoji="🔥"
+            value={`${streak} ${plural(t('streakDisplay.daysSuffix'), streak)}`}
             label={t('streakDisplay.title')}
-            ariaLabel={t('streakDisplay.title')}
-            dataTour="tour-profile-streak"
-            onClick={() => router.push('/streak')}
-            trailing={
-              <span className="flex items-center" style={{ gap: 6 }}>
-                <span
-                  style={{
-                    fontFamily: 'var(--font-mono)',
-                    fontSize: 14,
-                    fontWeight: 600,
-                    color: 'var(--fg-1)',
-                    fontVariantNumeric: 'tabular-nums',
-                  }}
-                >
-                  {streakInfo?.currentStreak ?? 0}
-                </span>
-                <span
-                  style={{
-                    fontFamily: 'var(--font-sans)',
-                    fontSize: 13,
-                    color: 'var(--fg-3)',
-                  }}
-                >
-                  {plural(t('streakDisplay.daysSuffix'), streakInfo?.currentStreak ?? 0)}
-                </span>
-              </span>
-            }
           />
-        </SettingsGroup>
+        </button>
       </div>
 
       <SectionLabel>{t('profile.sections.account')}</SectionLabel>
@@ -326,6 +312,7 @@ export default function ProfilePage() {
 
       <SectionLabel>{t('profile.sections.accountActions')}</SectionLabel>
       <ProfileActionButton
+        icon={Download}
         onClick={() => {
           void handleExportData()
         }}
@@ -344,16 +331,19 @@ export default function ProfilePage() {
         </p>
       )}
       <ProfileActionButton
+        icon={LogOut}
         onClick={() => logout()}
         label={t('profile.logout')}
         tone="danger"
       />
       <ProfileActionButton
+        icon={RotateCcw}
         onClick={() => setShowResetModal(true)}
         label={t('profile.freshStart.button')}
         tone="primary"
       />
       <ProfileActionButton
+        icon={UserX}
         onClick={() => setShowDeleteModal(true)}
         label={t('profile.deleteAccount.button')}
         tone="danger"
