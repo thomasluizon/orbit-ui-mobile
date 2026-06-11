@@ -1,4 +1,5 @@
 import type { useTranslations } from 'next-intl'
+import { motion, useReducedMotion } from 'motion/react'
 import { CodeInput } from '@/components/ui/code-input'
 import { PillButton } from '@/components/ui/pill-button'
 import { QuietLink, Spinner } from './login-atoms'
@@ -10,6 +11,7 @@ interface CodeStepProps {
   canResend: boolean
   resendCountdown: number
   codeInputRefs: React.RefObject<(HTMLInputElement | null)[]>
+  errorSignal?: string | null
   onVerifyCode: () => void
   onCodeInput: (index: number, value: string) => void
   onCodeKeydown: (index: number, event: React.KeyboardEvent<HTMLInputElement>) => void
@@ -26,6 +28,7 @@ export function CodeStep({
   canResend,
   resendCountdown,
   codeInputRefs,
+  errorSignal = null,
   onVerifyCode,
   onCodeInput,
   onCodeKeydown,
@@ -34,6 +37,9 @@ export function CodeStep({
   onResendCode,
   t,
 }: Readonly<CodeStepProps>) {
+  const prefersReducedMotion = useReducedMotion()
+  const shake = Boolean(errorSignal) && !prefersReducedMotion
+
   return (
     <div className="flex flex-col" style={{ gap: 16 }}>
       <p
@@ -41,9 +47,9 @@ export function CodeStep({
         className="text-center"
         style={{
           fontFamily: 'var(--font-sans)',
-          fontSize: 14,
+          fontSize: 15,
           lineHeight: 1.55,
-          color: 'var(--fg-3)',
+          color: 'var(--fg-2)',
           margin: 0,
         }}
       >
@@ -58,15 +64,21 @@ export function CodeStep({
           onVerifyCode()
         }}
       >
-        <CodeInput
-          digits={codeDigits}
-          inputRefs={codeInputRefs}
-          onChange={onCodeInput}
-          onKeyDown={onCodeKeydown}
-          onPaste={onCodePaste}
-          ariaLabelForIndex={(n) => t('auth.codeDigit', { n: n + 1 })}
-          ariaLabelledBy="code-sent-to"
-        />
+        <motion.div
+          key={errorSignal || 'code-steady'}
+          animate={shake ? { x: [0, -4, 4, -4, 4, 0] } : { x: 0 }}
+          transition={{ duration: 0.28, ease: 'easeInOut' }}
+        >
+          <CodeInput
+            digits={codeDigits}
+            inputRefs={codeInputRefs}
+            onChange={onCodeInput}
+            onKeyDown={onCodeKeydown}
+            onPaste={onCodePaste}
+            ariaLabelForIndex={(n) => t('auth.codeDigit', { n: n + 1 })}
+            ariaLabelledBy="code-sent-to"
+          />
+        </motion.div>
 
         <PillButton
           type="submit"
@@ -90,10 +102,9 @@ export function CodeStep({
             style={{
               minHeight: 44,
               padding: '6px 12px',
-              fontFamily: 'var(--font-mono)',
-              fontSize: 12,
+              fontFamily: 'var(--font-sans)',
+              fontSize: 14,
               color: 'var(--fg-3)',
-              letterSpacing: '0.02em',
               fontVariantNumeric: 'tabular-nums',
             }}
           >

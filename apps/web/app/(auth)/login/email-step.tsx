@@ -62,10 +62,9 @@ export function EmailStep({
         <span aria-hidden style={{ flex: 1, height: 1, background: 'var(--hairline)' }} />
         <span
           style={{
-            fontFamily: 'var(--font-mono)',
-            fontSize: 12,
+            fontFamily: 'var(--font-sans)',
+            fontSize: 13,
             color: 'var(--fg-4)',
-            letterSpacing: '0.02em',
           }}
         >
           {t('auth.orContinueWith')}
@@ -74,7 +73,7 @@ export function EmailStep({
       </div>
 
       <PillButton
-        variant="white"
+        variant="ghost"
         fullWidth
         disabled={isGoogleLoading}
         busy={isGoogleLoading}

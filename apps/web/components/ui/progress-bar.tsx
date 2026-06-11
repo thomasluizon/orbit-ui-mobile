@@ -18,8 +18,12 @@ export function ProgressBar({ progress, label, color, className }: Readonly<Prog
       aria-valuemax={100}
       aria-valuenow={Math.round(clamped * 100)}
       aria-label={label}
-      className={['h-2 overflow-hidden rounded-full', className].filter(Boolean).join(' ')}
-      style={{ background: 'color-mix(in srgb, var(--fg-1) 8%, transparent)' }}
+      className={['h-2 overflow-hidden rounded-full transition-opacity duration-[var(--dur-base)]', className].filter(Boolean).join(' ')}
+      style={{
+        background: 'color-mix(in srgb, var(--fg-1) 6%, transparent)',
+        boxShadow: 'inset 0 0 0 1px var(--hairline)',
+        opacity: clamped === 0 ? 0.45 : 1,
+      }}
     >
       <div
         className="h-full w-full origin-left rounded-full transition-transform duration-[var(--dur-base)] ease-[var(--ease-standard)] motion-reduce:transition-none"

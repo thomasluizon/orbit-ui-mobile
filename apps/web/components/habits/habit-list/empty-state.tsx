@@ -1,5 +1,6 @@
 'use client'
 
+import { Plus, Sparkles } from 'lucide-react'
 import { getHabitEmptyStateKey } from '@orbit/shared/utils'
 import { PillButton } from '@/components/ui/pill-button'
 import { SatelliteGlyph } from '@/components/ui/satellite-glyph'
@@ -9,36 +10,42 @@ interface HabitListEmptyStateProps {
   description: string
   actionLabel?: string
   onAction?: () => void
+  askAstraLabel?: string
+  onAskAstra?: () => void
   variant?: 'primary' | 'secondary'
 }
 
-/** Kit empty state — satellite glyph, title, optional Astra pill or quiet link.
- *  Description renders only when it's a distinct sentence from the title
- *  (avoids the legacy "title and description share the same key" double-render). */
+/** InicioEmpty kit state — 104px satellite glyph, 22/500 title, 15 fg-2 body,
+ *  then a stacked full-width Astra pill + ghost create pill. Description
+ *  renders only when it's a distinct sentence from the title (avoids the
+ *  legacy "title and description share the same key" double-render). */
 export function HabitListEmptyState({
   title,
   description,
   actionLabel,
   onAction,
+  askAstraLabel,
+  onAskAstra,
   variant = 'primary',
 }: Readonly<HabitListEmptyStateProps>) {
   const isAstraPrompt = variant === 'primary'
   const hasDistinctDescription =
     Boolean(description) && description !== title
+  const showAstraAction = isAstraPrompt && Boolean(askAstraLabel) && Boolean(onAskAstra)
+  const showStackedActions = showAstraAction || (isAstraPrompt && Boolean(actionLabel))
 
   return (
     <div
       className="flex flex-col items-center justify-center text-center"
-      style={{ padding: '60px 24px' }}
+      style={{ padding: '64px 36px', gap: 16 }}
     >
-      <SatelliteGlyph />
+      <SatelliteGlyph size={104} />
       <div
         style={{
           fontFamily: 'var(--font-sans)',
-          fontSize: 20,
+          fontSize: 22,
           fontWeight: 500,
           color: 'var(--fg-1)',
-          marginTop: 18,
         }}
       >
         {title}
@@ -47,31 +54,52 @@ export function HabitListEmptyState({
         <div
           style={{
             fontFamily: 'var(--font-sans)',
-            fontSize: 14,
-            color: 'var(--fg-3)',
-            maxWidth: 280,
+            fontSize: 15,
+            color: 'var(--fg-2)',
+            maxWidth: 300,
             lineHeight: 1.5,
-            marginTop: 6,
+            textWrap: 'pretty',
           }}
         >
           {description}
         </div>
       )}
-      {actionLabel && (
-        isAstraPrompt ? (
-          <PillButton onClick={onAction} className="mt-[22px]">
-            {actionLabel}
-          </PillButton>
-        ) : (
+      {showStackedActions ? (
+        <div
+          className="flex flex-col self-stretch"
+          style={{ marginTop: 8, gap: 12 }}
+        >
+          {showAstraAction && (
+            <PillButton
+              fullWidth
+              onClick={onAskAstra}
+              leading={<Sparkles size={18} strokeWidth={1.8} aria-hidden="true" />}
+            >
+              {askAstraLabel}
+            </PillButton>
+          )}
+          {actionLabel && (
+            <PillButton
+              variant="ghost"
+              fullWidth
+              onClick={onAction}
+              leading={<Plus size={18} strokeWidth={1.8} aria-hidden="true" />}
+            >
+              {actionLabel}
+            </PillButton>
+          )}
+        </div>
+      ) : (
+        actionLabel && (
           <button
             type="button"
             onClick={onAction}
-            className="mt-[22px] appearance-none border-0 bg-transparent cursor-pointer"
+            className="appearance-none border-0 bg-transparent cursor-pointer text-[var(--fg-1)] hover:text-[var(--primary)] transition-[color] duration-[var(--dur-fast)] ease-[var(--ease-standard)]"
             style={{
+              marginTop: 6,
               fontFamily: 'var(--font-sans)',
               fontSize: 13,
               fontWeight: 500,
-              color: 'var(--fg-1)',
               padding: 0,
               textDecoration: 'underline',
               textUnderlineOffset: 4,

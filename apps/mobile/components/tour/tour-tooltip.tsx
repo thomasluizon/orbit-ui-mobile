@@ -1,5 +1,5 @@
-import { useMemo } from 'react'
-import { View, Text, Pressable, StyleSheet, Dimensions } from 'react-native'
+import { useEffect, useMemo } from 'react'
+import { Animated, View, Text, Pressable, StyleSheet, Dimensions } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
 import {
@@ -15,7 +15,15 @@ import type { TourStep, TourSection } from '@orbit/shared/types'
 import type { TourTargetRect } from '@orbit/shared/stores'
 import { TOUR_SECTION_ICONS } from '@orbit/shared/types'
 import { useAppTheme } from '@/lib/use-app-theme'
-import { createTokensV2, radius, shadowsV2, tintFromPrimary } from '@/lib/theme'
+import { toAnimatedEasing, usePrefersReducedMotion } from '@/lib/motion'
+import {
+  createTokensV2,
+  easings,
+  primaryGlow,
+  radius,
+  shadowsV2,
+  tintFromPrimary,
+} from '@/lib/theme'
 import { ProBadge } from '@/components/ui/pro-badge'
 
 type AppTokens = ReturnType<typeof createTokensV2>
@@ -57,6 +65,24 @@ export function TourTooltip({
   )
   const insets = useSafeAreaInsets()
   const styles = useMemo(() => createTooltipStyles(tokens), [tokens])
+  const prefersReducedMotion = usePrefersReducedMotion()
+  const entrance = useMemo(() => new Animated.Value(0), [])
+
+  useEffect(() => {
+    if (prefersReducedMotion) {
+      entrance.setValue(1)
+      return
+    }
+    entrance.setValue(0)
+    const animation = Animated.timing(entrance, {
+      toValue: 1,
+      duration: 280,
+      easing: toAnimatedEasing(easings.out),
+      useNativeDriver: true,
+    })
+    animation.start()
+    return () => animation.stop()
+  }, [entrance, prefersReducedMotion, step.id])
 
   const iconKey = step.section ? TOUR_SECTION_ICONS[step.section] : undefined
   const SectionIcon = iconKey
@@ -76,9 +102,21 @@ export function TourTooltip({
     ? [styles.tooltip, styles.tooltipTop, { paddingTop: insets.top + 12 }]
     : [styles.tooltip, styles.tooltipBottom]
 
+  const entranceStyle = {
+    opacity: entrance,
+    transform: [
+      {
+        translateY: entrance.interpolate({
+          inputRange: [0, 1],
+          outputRange: [mode === 'sheet-top' ? -12 : 12, 0],
+        }),
+      },
+    ],
+  }
+
   return (
     <View style={containerStyle}>
-      <View style={tooltipStyle}>
+      <Animated.View style={[...tooltipStyle, entranceStyle]}>
         <View style={styles.handle} />
 
         <View style={styles.header}>
@@ -127,7 +165,14 @@ export function TourTooltip({
 
           <View style={{ flex: 1 }} />
 
-          <Pressable style={styles.nextButton} onPress={onNext}>
+          <Pressable
+            style={({ pressed }) => [
+              styles.nextButton,
+              primaryGlow(tokens),
+              pressed ? styles.nextButtonPressed : null,
+            ]}
+            onPress={onNext}
+          >
             <Text style={styles.nextButtonText}>
               {isLastStep ? t('tour.ui.finish') : t('tour.ui.next')}
             </Text>
@@ -138,7 +183,7 @@ export function TourTooltip({
         <Pressable style={styles.skipButton} onPress={onSkip}>
           <Text style={styles.skipButtonText}>{t('tour.ui.skip')}</Text>
         </Pressable>
-      </View>
+      </Animated.View>
     </View>
   )
 }
@@ -162,11 +207,11 @@ function createTooltipStyles(tokens: AppTokens) {
     tooltip: {
       backgroundColor: tokens.bgSheet,
       paddingHorizontal: 24,
-      ...shadowsV2.shadow2,
+      ...shadowsV2.shadow3,
     },
     tooltipBottom: {
-      borderTopLeftRadius: 16,
-      borderTopRightRadius: 16,
+      borderTopLeftRadius: 18,
+      borderTopRightRadius: 18,
       borderTopWidth: 1,
       borderColor: tokens.hairline,
       paddingTop: 12,
@@ -174,8 +219,8 @@ function createTooltipStyles(tokens: AppTokens) {
       shadowOffset: { width: 0, height: -4 },
     },
     tooltipTop: {
-      borderBottomLeftRadius: 16,
-      borderBottomRightRadius: 16,
+      borderBottomLeftRadius: 18,
+      borderBottomRightRadius: 18,
       borderBottomWidth: 1,
       borderColor: tokens.hairline,
       paddingBottom: 20,
@@ -205,8 +250,8 @@ function createTooltipStyles(tokens: AppTokens) {
     stepCount: {
       fontFamily: 'Roboto_400Regular',
       fontVariant: ['tabular-nums'],
-      fontSize: 11,
-      letterSpacing: 0.44,
+      fontSize: 12,
+      letterSpacing: 0.48,
       textTransform: 'uppercase',
       color: tokens.fg3,
     },
@@ -277,6 +322,10 @@ function createTooltipStyles(tokens: AppTokens) {
       minHeight: 44,
       borderRadius: radius.full,
       backgroundColor: tokens.primary,
+    },
+    nextButtonPressed: {
+      backgroundColor: tokens.primaryPressed,
+      transform: [{ scale: 0.97 }],
     },
     nextButtonText: {
       fontFamily: 'Rubik_500Medium',

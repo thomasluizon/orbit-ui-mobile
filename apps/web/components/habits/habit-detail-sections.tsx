@@ -15,6 +15,7 @@ export interface HabitDetailMetrics {
 interface HabitDetailStatsGridProps {
   metrics: HabitDetailMetrics | null
   loading: boolean
+  isBadHabit?: boolean
   t: TranslationFn
 }
 
@@ -22,6 +23,7 @@ interface HabitDetailStatsGridProps {
 export function HabitDetailStatsGrid({
   metrics,
   loading,
+  isBadHabit = false,
   t,
 }: Readonly<HabitDetailStatsGridProps>) {
   if (metrics) {
@@ -30,9 +32,13 @@ export function HabitDetailStatsGrid({
         <SectionLabel>{t('habits.detail.stats')}</SectionLabel>
         <div className="flex" style={{ gap: 12, padding: '0 20px 12px' }}>
           <StatTile
-            emoji="🔥"
+            emoji={isBadHabit ? '🛡️' : '🔥'}
             value={String(metrics.currentStreak)}
-            label={t('habits.detail.currentStreak')}
+            label={
+              isBadHabit
+                ? t('habits.detail.daysFree')
+                : t('habits.detail.currentStreak')
+            }
           />
           <StatTile
             emoji="🏆"
@@ -80,7 +86,6 @@ export function HabitDetailStatsGrid({
           padding: '14px 20px',
           fontFamily: 'var(--font-sans)',
           fontSize: 13,
-          fontStyle: 'italic',
           color: 'var(--fg-3)',
         }}
       >

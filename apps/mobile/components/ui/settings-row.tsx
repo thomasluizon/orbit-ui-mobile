@@ -64,7 +64,8 @@ export function SettingsRow({
       style={({ pressed }) => [
         styles.row,
         {
-          backgroundColor: pressed && onPress ? tokens.bgElev : 'transparent',
+          backgroundColor:
+            pressed && onPress ? tokens.bgElevPressed : 'transparent',
           borderBottomColor: tokens.hairline,
           borderBottomWidth: divider ? StyleSheet.hairlineWidth : 0,
         },

@@ -206,6 +206,7 @@ vi.mock('lucide-react-native', () => {
     X: createIcon('X'),
     Check: createIcon('Check'),
     Compass: createIcon('Compass'),
+    CreditCard: createIcon('CreditCard'),
     User: createIcon('User'),
     ChevronLeft: createIcon('ChevronLeft'),
     Flame: createIcon('Flame'),

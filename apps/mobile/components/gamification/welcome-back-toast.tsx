@@ -212,10 +212,10 @@ const styles = StyleSheet.create({
   },
   toast: {
     borderWidth: 1,
-    borderRadius: 16,
+    borderRadius: 18,
     paddingHorizontal: 16,
     paddingVertical: 14,
-    ...shadowsV2.shadow2,
+    ...shadowsV2.shadow3,
   },
   row: {
     flexDirection: 'row',

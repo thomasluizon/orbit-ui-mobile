@@ -1,5 +1,5 @@
-import { useMemo } from 'react'
-import { StyleSheet, Text, View } from 'react-native'
+import { useEffect, useMemo } from 'react'
+import { Animated, StyleSheet, Text, View } from 'react-native'
 import {
   BellRing,
   CalendarDays,
@@ -9,7 +9,8 @@ import {
 } from 'lucide-react-native'
 import type { LucideIcon } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
-import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
+import { createTokensV2, easings, type AppTokensV2 } from '@/lib/theme'
+import { toAnimatedEasing, usePrefersReducedMotion } from '@/lib/motion'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 interface FeatureItem {
@@ -58,6 +59,31 @@ export function OnboardingFeatures() {
     [currentScheme, currentTheme],
   )
   const styles = useMemo(() => createStyles(tokens), [tokens])
+  const prefersReducedMotion = usePrefersReducedMotion()
+  const stagger = useMemo(
+    () => features.map(() => new Animated.Value(0)),
+    [],
+  )
+
+  useEffect(() => {
+    if (prefersReducedMotion) {
+      for (const value of stagger) value.setValue(1)
+      return
+    }
+    const animation = Animated.stagger(
+      40,
+      stagger.map((value) =>
+        Animated.timing(value, {
+          toValue: 1,
+          duration: 280,
+          easing: toAnimatedEasing(easings.out),
+          useNativeDriver: true,
+        }),
+      ),
+    )
+    animation.start()
+    return () => animation.stop()
+  }, [prefersReducedMotion, stagger])
 
   return (
     <View style={styles.container}>
@@ -66,8 +92,24 @@ export function OnboardingFeatures() {
       </Text>
 
       <View style={styles.list}>
-        {features.map((feature) => (
-          <View key={feature.titleKey} style={styles.row}>
+        {features.map((feature, index) => (
+          <Animated.View
+            key={feature.titleKey}
+            style={[
+              styles.row,
+              {
+                opacity: stagger[index],
+                transform: [
+                  {
+                    translateY: stagger[index]!.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [12, 0],
+                    }),
+                  },
+                ],
+              },
+            ]}
+          >
             <View style={styles.iconSlot}>
               <feature.Icon size={22} color={tokens.fg2} strokeWidth={1.8} />
             </View>
@@ -79,7 +121,7 @@ export function OnboardingFeatures() {
                 {t(feature.descKey, { defaultValue: feature.descKey })}
               </Text>
             </View>
-          </View>
+          </Animated.View>
         ))}
       </View>
     </View>

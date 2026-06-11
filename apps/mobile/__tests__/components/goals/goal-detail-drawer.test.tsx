@@ -176,7 +176,7 @@ describe('GoalDetailDrawer', () => {
     const textContent = collectText(tree.toJSON())
 
     expect(textContent).toContain('goals.progress')
-    expect(textContent).toContain('25%')
+    expect(textContent).toContain('goals.progressPercentage:{"pct":25}')
   })
 
   it('opens the progress form when the edit affordance is tapped', () => {

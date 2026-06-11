@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import { ActivityIndicator, StyleSheet, View } from 'react-native'
+import { Check } from 'lucide-react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
 import { BottomSheetModal } from '@/components/bottom-sheet-modal'
@@ -242,7 +243,9 @@ export function EditHabitModal({
               leading={
                 updateHabit.isPending ? (
                   <ActivityIndicator size="small" color={tokens.fgOnPrimary} />
-                ) : undefined
+                ) : (
+                  <Check size={18} color={tokens.fgOnPrimary} strokeWidth={2.2} />
+                )
               }
             >
               {t('habits.saveChanges')}

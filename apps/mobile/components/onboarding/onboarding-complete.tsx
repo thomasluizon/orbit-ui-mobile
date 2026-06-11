@@ -1,11 +1,12 @@
-import { useMemo } from 'react'
-import { StyleSheet, Text, View } from 'react-native'
+import { useEffect, useMemo } from 'react'
+import { Animated, StyleSheet, Text, View } from 'react-native'
 import { parseISO } from 'date-fns'
 import { Check } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import { useProfile, useHasProAccess } from '@/hooks/use-profile'
 import { useDateFormat } from '@/hooks/use-date-format'
-import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
+import { createTokensV2, easings, type AppTokensV2 } from '@/lib/theme'
+import { toAnimatedEasing, usePrefersReducedMotion } from '@/lib/motion'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { InfoCard } from '@/components/ui/info-card'
 import { PillButton } from '@/components/ui/pill-button'
@@ -36,6 +37,69 @@ export function OnboardingComplete({
     [currentScheme, currentTheme],
   )
   const styles = useMemo(() => createStyles(tokens), [tokens])
+  const prefersReducedMotion = usePrefersReducedMotion()
+  const badgeScale = useMemo(() => new Animated.Value(0), [])
+  const badgePop = useMemo(() => new Animated.Value(0), [])
+  const rise = useMemo(() => new Animated.Value(0), [])
+
+  useEffect(() => {
+    if (prefersReducedMotion) {
+      badgeScale.setValue(1)
+      rise.setValue(1)
+      return
+    }
+    const animation = Animated.parallel([
+      Animated.sequence([
+        Animated.spring(badgeScale, {
+          toValue: 1,
+          stiffness: 220,
+          damping: 22,
+          mass: 1,
+          useNativeDriver: true,
+        }),
+        Animated.sequence([
+          Animated.timing(badgePop, {
+            toValue: 1,
+            duration: 100,
+            easing: toAnimatedEasing(easings.out),
+            useNativeDriver: true,
+          }),
+          Animated.timing(badgePop, {
+            toValue: 0,
+            duration: 100,
+            easing: toAnimatedEasing(easings.out),
+            useNativeDriver: true,
+          }),
+        ]),
+      ]),
+      Animated.timing(rise, {
+        toValue: 1,
+        duration: 560,
+        delay: 160,
+        easing: toAnimatedEasing(easings.out),
+        useNativeDriver: true,
+      }),
+    ])
+    animation.start()
+    return () => animation.stop()
+  }, [badgePop, badgeScale, prefersReducedMotion, rise])
+
+  const riseSlot = (from: number, to: number) => ({
+    opacity: rise.interpolate({
+      inputRange: [from, to],
+      outputRange: [0, 1],
+      extrapolate: 'clamp' as const,
+    }),
+    transform: [
+      {
+        translateY: rise.interpolate({
+          inputRange: [from, to],
+          outputRange: [12, 0],
+          extrapolate: 'clamp' as const,
+        }),
+      },
+    ],
+  })
 
   const formattedTrialEnd = useMemo(() => {
     if (!profile?.trialEndsAt) return ''
@@ -71,38 +135,60 @@ export function OnboardingComplete({
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <VerifiedBadge size={96} />
-        <Text style={styles.title}>
+        <Animated.View
+          style={{
+            opacity: badgeScale,
+            transform: [
+              {
+                scale: Animated.multiply(
+                  badgeScale.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [0.3, 1],
+                  }),
+                  badgePop.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [1, 1.12],
+                  }),
+                ),
+              },
+            ],
+          }}
+        >
+          <VerifiedBadge size={96} />
+        </Animated.View>
+        <Animated.Text style={[styles.title, riseSlot(0, 0.45)]}>
           {t('onboarding.flow.complete.title')}
-        </Text>
-        <Text style={styles.subtitle}>
+        </Animated.Text>
+        <Animated.Text style={[styles.subtitle, riseSlot(0.1, 0.55)]}>
           {t('onboarding.flow.complete.subtitle')}
-        </Text>
+        </Animated.Text>
       </View>
 
-      <View style={styles.recapList}>
+      <Animated.View style={[styles.recapList, riseSlot(0.25, 0.7)]}>
         {recapItems.map((item) => (
           <View key={item.key} style={styles.recapRow}>
             <Text style={styles.recapText}>{item.label}</Text>
             <Check size={18} color={tokens.primary} strokeWidth={1.8} />
           </View>
         ))}
-      </View>
+      </Animated.View>
 
       {profile?.isTrialActive && (
-        <InfoCard
-          title={t('onboarding.flow.complete.trialTitle')}
-          desc={t('onboarding.flow.complete.trialDesc', {
-            date: formattedTrialEnd,
-          })}
-        />
+        <Animated.View style={riseSlot(0.4, 0.85)}>
+          <InfoCard
+            title={t('onboarding.flow.complete.trialTitle')}
+            desc={t('onboarding.flow.complete.trialDesc', {
+              date: formattedTrialEnd,
+            })}
+          />
+        </Animated.View>
       )}
 
-      <View style={styles.startBtnWrap}>
+      <Animated.View style={[styles.startBtnWrap, riseSlot(0.55, 1)]}>
         <PillButton fullWidth onPress={onFinish}>
           {t('onboarding.flow.complete.start')}
         </PillButton>
-      </View>
+      </Animated.View>
     </View>
   )
 }
@@ -130,8 +216,8 @@ function createStyles(tokens: AppTokensV2) {
     },
     subtitle: {
       fontFamily: 'Rubik_400Regular',
-      fontSize: 15,
-      lineHeight: 22,
+      fontSize: 16,
+      lineHeight: 24,
       color: tokens.fg2,
       textAlign: 'center',
       maxWidth: 280,
@@ -149,7 +235,7 @@ function createStyles(tokens: AppTokensV2) {
     },
     recapText: {
       fontFamily: 'Rubik_400Regular',
-      fontSize: 15,
+      fontSize: 16,
       color: tokens.fg2,
     },
     startBtnWrap: {

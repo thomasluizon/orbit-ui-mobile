@@ -1,5 +1,6 @@
 import { useState, useMemo } from "react";
 import { View, Text, Image, StyleSheet, Pressable } from "react-native";
+import Animated, { FadeInUp, ReduceMotion } from "react-native-reanimated";
 import { useRouter } from "expo-router";
 import { Sparkles, ArrowUpRight } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
@@ -91,7 +92,8 @@ export function MessageBubble({
   }
 
   return (
-    <View
+    <Animated.View
+      entering={FadeInUp.duration(220).reduceMotion(ReduceMotion.System)}
       style={[
         styles.container,
         isUser ? styles.userContainer : styles.aiContainer,
@@ -230,7 +232,7 @@ export function MessageBubble({
           </View>
         )}
       </View>
-    </View>
+    </Animated.View>
   );
 }
 

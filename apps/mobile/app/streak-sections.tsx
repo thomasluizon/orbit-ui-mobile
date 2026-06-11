@@ -1,17 +1,12 @@
 import React, { useEffect, useMemo, useRef, type ReactNode } from 'react'
 import { Animated, Pressable, StyleSheet, Text, View } from 'react-native'
-import {
-  CalendarDays,
-  Clock,
-  Flame,
-  Medal,
-  Snowflake,
-  Trophy,
-} from 'lucide-react-native'
+import { CalendarDays, Snowflake } from 'lucide-react-native'
 import { getStreakTierLabelKey } from '@orbit/shared/utils'
-import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
+import { createTokensV2, primaryGlow, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { SectionLabel } from '@/components/ui/section-label'
+import { StatTile } from '@/components/ui/stat-tile'
+import { ProgressBar } from '@/components/ui/progress-bar'
 import { StatusDot } from '@/components/ui/status-dot'
 
 type TranslationFn = (key: string, params?: Record<string, unknown>) => string
@@ -43,13 +38,63 @@ function isInRun(status: StreakDayView['status']): boolean {
   return status === 'active' || status === 'frozen'
 }
 
+interface StreakStatsRowProps {
+  t: TranslationFn
+  streak: number
+  longestStreak: number
+}
+
+/** Kit StatTile row for the streak detail: current, longest, and tier. */
+export function StreakStatsRow({
+  t,
+  streak,
+  longestStreak,
+}: Readonly<StreakStatsRowProps>) {
+  const tokens = useTokens()
+
+  return (
+    <View>
+      <SectionLabel>{t('streakDisplay.detail.stats')}</SectionLabel>
+      <View style={styles.statsRow}>
+        <StatTile
+          emoji="🔥"
+          value={streak}
+          label={t('streakDisplay.detail.currentStreak')}
+        />
+        <StatTile
+          emoji="🏆"
+          value={longestStreak}
+          label={t('streakDisplay.detail.longestStreak')}
+        />
+        <View
+          style={[
+            styles.tierTile,
+            { backgroundColor: tokens.bgField, borderColor: tokens.hairline },
+          ]}
+        >
+          <Text
+            style={styles.tierEmoji}
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
+          >
+            🎖️
+          </Text>
+          <Text style={[styles.tierLabel, { color: tokens.fg1 }]}>
+            {t(getStreakTierLabelKey(streak))}
+          </Text>
+        </View>
+      </View>
+    </View>
+  )
+}
+
 interface StreakTimelineCardProps {
   t: TranslationFn
   weekDays: StreakDayView[]
 }
 
 /** Week strip in the streak-calendar language: weekday header, amber run band,
- *  cyan freeze teardrops, neutral today ring, and the status legend. */
+ *  cyan freeze teardrops, primary today ring, and the status legend. */
 export function StreakTimelineCard({
   t,
   weekDays,
@@ -138,8 +183,9 @@ function StreakDayCell({
   const inRun = isInRun(day.status)
 
   let numeralColor = tokens.fg4
-  if (day.status === 'active') numeralColor = tokens.statusOverdue
-  if (day.status === 'frozen' || day.status === 'today') numeralColor = tokens.fg1
+  if (day.status === 'active' || day.status === 'frozen' || day.status === 'today') {
+    numeralColor = tokens.fg1
+  }
 
   return (
     <View style={styles.dayCell}>
@@ -163,14 +209,7 @@ function StreakDayCell({
         style={[
           styles.dayDisc,
           day.status === 'today'
-            ? {
-                backgroundColor: tokens.bgElev2,
-                borderWidth: 1.5,
-                borderColor: tokens.fg4,
-              }
-            : null,
-          day.status === 'missed'
-            ? { borderWidth: 1, borderColor: tokens.statusEmpty }
+            ? { borderWidth: 1.5, borderColor: tokens.primary }
             : null,
         ]}
       >
@@ -268,7 +307,6 @@ interface FreezeProgressCardProps {
   t: TranslationFn
   isPro: boolean
   streak: number
-  longestStreak: number
   streakFreezesAccumulated: number
   maxStreakFreezesAccumulated: number
   freezesUsedThisMonth: number
@@ -280,15 +318,14 @@ interface FreezeProgressCardProps {
 }
 
 /**
- * Streak stats and auto-freeze status in the artboard card language: a stats
- * card (current, longest, tier), the banked-freeze gauge card, and the
- * protected-days list. Free users see a quiet Pro gate instead of the gauge.
+ * Auto-freeze status in the artboard card language: one card with the banked
+ * gauge, monthly usage, and progress toward the next freeze, then the
+ * protected-days list. Free users see a violet-tinted Pro gate card instead.
  */
 export function FreezeProgressCard({
   t,
   isPro,
   streak,
-  longestStreak,
   streakFreezesAccumulated,
   maxStreakFreezesAccumulated,
   freezesUsedThisMonth,
@@ -301,69 +338,74 @@ export function FreezeProgressCard({
   const tokens = useTokens()
   const isBankedFull = streakFreezesAccumulated >= maxStreakFreezesAccumulated
   const nextFreezeDays = STREAK_DAYS_PER_FREEZE - (streak % STREAK_DAYS_PER_FREEZE)
+  const nextFreezeProgress = isBankedFull
+    ? 1
+    : (STREAK_DAYS_PER_FREEZE - nextFreezeDays) / STREAK_DAYS_PER_FREEZE
   const dates = protectedDates.slice(0, 5)
 
   return (
     <View>
-      <SectionLabel>{t('streakDisplay.detail.stats')}</SectionLabel>
-      <View style={styles.groupWrap}>
-        <CardGroup>
-          <CardRow
-            icon={<Flame size={20} strokeWidth={1.8} color={tokens.statusOverdue} />}
-            label={t('streakDisplay.detail.currentStreak')}
-            trailing={<StatValue value={streak} />}
-          />
-          <CardRow
-            icon={<Trophy size={20} strokeWidth={1.8} color={tokens.fg3} />}
-            label={t('streakDisplay.detail.longestStreak')}
-            trailing={<StatValue value={longestStreak} />}
-          />
-          <CardRow
-            icon={<Medal size={20} strokeWidth={1.8} color={tokens.fg3} />}
-            label={t(getStreakTierLabelKey(streak))}
-            trailing={
-              <View style={[styles.tierDot, { backgroundColor: tokens.primary }]} />
-            }
-          />
-        </CardGroup>
-      </View>
-
       <SectionLabel>{t('streakDisplay.freeze.title')}</SectionLabel>
 
       {isPro ? (
         <>
           <View style={styles.groupWrap}>
-            <Text style={[styles.explainer, { color: tokens.fg2 }]}>
+            <Text style={[styles.explainer, { color: tokens.fg3 }]}>
               {t('streakDisplay.freeze.auto.explainer')}
             </Text>
-            <CardGroup>
-              <CardRow
-                icon={<Snowflake size={20} strokeWidth={1.8} color={tokens.statusFrozen} />}
-                label={t('streakDisplay.freeze.banked.label')}
-                trailing={
-                  <View style={styles.gaugeTrailing}>
-                    <ChargeGauge
-                      banked={streakFreezesAccumulated}
-                      max={maxStreakFreezesAccumulated}
-                      tokens={tokens}
-                    />
-                    <StatValue
-                      value={`${streakFreezesAccumulated}/${maxStreakFreezesAccumulated}`}
-                    />
+            <View
+              style={[
+                styles.freezeCard,
+                { backgroundColor: tokens.bgCard, borderColor: tokens.hairline },
+              ]}
+            >
+              <View style={styles.freezeRow}>
+                <View style={styles.cardRowLead}>
+                  <View style={styles.cardRowIcon}>
+                    <Snowflake size={20} strokeWidth={1.8} color={tokens.statusFrozen} />
                   </View>
-                }
-              />
-              <CardRow
-                icon={<CalendarDays size={20} strokeWidth={1.8} color={tokens.fg3} />}
-                label={t('streakDisplay.freeze.usedThisMonth.label')}
-                trailing={
-                  <StatValue value={`${freezesUsedThisMonth}/${maxFreezesPerMonth}`} />
-                }
-              />
-              <CardRow
-                icon={<Clock size={20} strokeWidth={1.8} color={tokens.fg3} />}
-                label={t('streakDisplay.freeze.nextFreeze.label')}
-                trailing={
+                  <Text
+                    style={[styles.cardRowLabel, { color: tokens.fg1 }]}
+                    numberOfLines={1}
+                  >
+                    {t('streakDisplay.freeze.banked.label')}
+                  </Text>
+                </View>
+                <View style={styles.gaugeTrailing}>
+                  <ChargeGauge
+                    banked={streakFreezesAccumulated}
+                    max={maxStreakFreezesAccumulated}
+                    tokens={tokens}
+                  />
+                  <StatValue
+                    value={`${streakFreezesAccumulated}/${maxStreakFreezesAccumulated}`}
+                  />
+                </View>
+              </View>
+
+              <View style={styles.freezeRow}>
+                <View style={styles.cardRowLead}>
+                  <View style={styles.cardRowIcon}>
+                    <CalendarDays size={20} strokeWidth={1.8} color={tokens.fg3} />
+                  </View>
+                  <Text
+                    style={[styles.cardRowLabel, { color: tokens.fg1 }]}
+                    numberOfLines={1}
+                  >
+                    {t('streakDisplay.freeze.usedThisMonth.label')}
+                  </Text>
+                </View>
+                <StatValue value={`${freezesUsedThisMonth}/${maxFreezesPerMonth}`} />
+              </View>
+
+              <View style={styles.nextFreezeBlock}>
+                <View style={styles.freezeRow}>
+                  <Text
+                    style={[styles.cardRowLabel, { color: tokens.fg1 }]}
+                    numberOfLines={1}
+                  >
+                    {t('streakDisplay.freeze.nextFreeze.label')}
+                  </Text>
                   <StatValue
                     value={
                       isBankedFull
@@ -373,9 +415,14 @@ export function FreezeProgressCard({
                           })
                     }
                   />
-                }
-              />
-            </CardGroup>
+                </View>
+                <ProgressBar
+                  progress={nextFreezeProgress}
+                  label={t('streakDisplay.freeze.nextFreeze.label')}
+                  color={tokens.statusFrozen}
+                />
+              </View>
+            </View>
           </View>
 
           <SectionLabel>{t('streakDisplay.freeze.protected.label')}</SectionLabel>
@@ -402,7 +449,7 @@ export function FreezeProgressCard({
                 ))}
               </CardGroup>
             ) : (
-              <Text style={[styles.emptyText, { color: tokens.fg2 }]}>
+              <Text style={[styles.emptyText, { color: tokens.fg3 }]}>
                 {t('streakDisplay.freeze.protected.empty')}
               </Text>
             )}
@@ -410,24 +457,38 @@ export function FreezeProgressCard({
         </>
       ) : (
         <View style={[styles.groupWrap, styles.sectionBottomPad]}>
-          <CardGroup>
-            <CardRow
-              icon={<Snowflake size={20} strokeWidth={1.8} color={tokens.statusFrozen} />}
-              label={t('streakDisplay.freeze.pro.gate')}
-              trailing={
-                <Pressable
-                  onPress={onUpgrade}
-                  accessibilityRole="button"
-                  accessibilityLabel={t('common.upgrade')}
-                  hitSlop={{ top: 12, bottom: 12, left: 8, right: 8 }}
-                >
-                  <Text style={[styles.upgradeLink, { color: tokens.primary }]}>
-                    {t('common.upgrade')}
-                  </Text>
-                </Pressable>
-              }
-            />
-          </CardGroup>
+          <View
+            style={[
+              styles.proGateCard,
+              {
+                backgroundColor: `rgba(${tokens.primaryRgb}, 0.08)`,
+                borderColor: `rgba(${tokens.primaryRgb}, 0.28)`,
+              },
+            ]}
+          >
+            <Snowflake size={24} strokeWidth={1.9} color={tokens.statusFrozen} />
+            <Text style={[styles.proGateCopy, { color: tokens.fg1 }]}>
+              {t('streakDisplay.freeze.pro.gate')}
+            </Text>
+            <Pressable
+              onPress={onUpgrade}
+              accessibilityRole="button"
+              accessibilityLabel={t('common.upgrade')}
+              hitSlop={{ top: 10, bottom: 10, left: 6, right: 6 }}
+              style={({ pressed }) => [
+                styles.proGatePill,
+                primaryGlow(tokens),
+                {
+                  backgroundColor: pressed ? tokens.primaryPressed : tokens.primary,
+                  transform: [{ scale: pressed ? 0.96 : 1 }],
+                },
+              ]}
+            >
+              <Text style={[styles.proGatePillLabel, { color: tokens.fgOnPrimary }]}>
+                {t('common.upgrade')}
+              </Text>
+            </Pressable>
+          </View>
         </View>
       )}
     </View>
@@ -504,6 +565,32 @@ const styles = StyleSheet.create({
   },
   sectionBottomPad: {
     paddingBottom: 14,
+  },
+  statsRow: {
+    flexDirection: 'row',
+    gap: 12,
+    paddingHorizontal: 20,
+  },
+  tierTile: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    borderRadius: 18,
+    borderWidth: 1,
+    paddingTop: 18,
+    paddingHorizontal: 12,
+    paddingBottom: 16,
+  },
+  tierEmoji: {
+    fontSize: 28,
+    lineHeight: 28,
+  },
+  tierLabel: {
+    fontFamily: 'Rubik_500Medium',
+    fontSize: 16,
+    lineHeight: 21,
+    textAlign: 'center',
   },
   weekCard: {
     borderRadius: 18,
@@ -641,20 +728,31 @@ const styles = StyleSheet.create({
     flexShrink: 0,
   },
   statValue: {
-    fontFamily: 'Rubik_400Regular',
-    fontSize: 15,
+    fontFamily: 'Roboto_500Medium',
+    fontSize: 14,
     fontVariant: ['tabular-nums'],
-  },
-  tierDot: {
-    width: 8,
-    height: 8,
-    borderRadius: 999,
   },
   explainer: {
     fontFamily: 'Rubik_400Regular',
     fontSize: 14,
     lineHeight: 21,
     marginBottom: 14,
+  },
+  freezeCard: {
+    borderRadius: 18,
+    borderWidth: 1,
+    paddingVertical: 16,
+    paddingHorizontal: 18,
+    gap: 16,
+  },
+  freezeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  nextFreezeBlock: {
+    gap: 10,
   },
   gaugeTrailing: {
     flexDirection: 'row',
@@ -666,9 +764,31 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 5,
   },
-  upgradeLink: {
+  proGateCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 14,
+    borderRadius: 18,
+    borderWidth: 1,
+    paddingVertical: 16,
+    paddingHorizontal: 18,
+  },
+  proGateCopy: {
+    flex: 1,
+    minWidth: 0,
     fontFamily: 'Rubik_500Medium',
-    fontSize: 14,
+    fontSize: 16,
+    lineHeight: 22,
+  },
+  proGatePill: {
+    borderRadius: 999,
+    paddingVertical: 9,
+    paddingHorizontal: 16,
+    flexShrink: 0,
+  },
+  proGatePillLabel: {
+    fontFamily: 'Rubik_500Medium',
+    fontSize: 13,
   },
   emptyText: {
     fontFamily: 'Rubik_400Regular',

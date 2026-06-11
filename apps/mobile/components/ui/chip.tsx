@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
-import { createTokensV2, radius } from '@/lib/theme'
+import { createTokensV2, radius, tintFromPrimary } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 interface ChipProps {
@@ -13,7 +13,8 @@ interface ChipProps {
   accessibilityLabel?: string
 }
 
-/** Pill filter chip: active fills bg-elev with fg-1 text; inactive is a transparent hairline-ringed ghost. */
+/** Kit pill chip: bg-elev well with a hairline ring; active fills selection-bg
+ *  with a primary ring and primary text. */
 export function Chip({
   children,
   active = false,
@@ -30,18 +31,23 @@ export function Chip({
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
       accessibilityState={{ selected: active }}
-      hitSlop={{ top: 7, bottom: 7 }}
-      style={[
+      hitSlop={{ top: 6, bottom: 6 }}
+      style={({ pressed }) => [
         styles.chip,
         {
-          backgroundColor: active ? tokens.bgElev : 'transparent',
-          borderColor: active ? 'transparent' : tokens.hairline,
+          backgroundColor: active
+            ? tokens.selectionBg
+            : pressed
+              ? tokens.bgElev2
+              : tokens.bgElev,
+          borderColor: active ? tintFromPrimary(tokens, 0.45) : tokens.hairline,
         },
+        pressed && !active ? styles.chipPressed : null,
       ]}
     >
       {leading ? <View style={styles.leading}>{leading}</View> : null}
       <Text
-        style={[styles.label, { color: active ? tokens.fg1 : tokens.fg3 }]}
+        style={[styles.label, { color: active ? tokens.primary : tokens.fg2 }]}
         numberOfLines={1}
       >
         {children}
@@ -52,13 +58,16 @@ export function Chip({
 
 const styles = StyleSheet.create({
   chip: {
-    height: 30,
-    paddingHorizontal: 14,
+    paddingVertical: 9,
+    paddingHorizontal: 16,
     borderRadius: radius.full,
     borderWidth: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 7,
+  },
+  chipPressed: {
+    transform: [{ scale: 0.96 }],
   },
   leading: {
     flexDirection: 'row',

@@ -28,7 +28,10 @@ export function OnboardingFeatures() {
   const t = useTranslations()
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '12px 0' }}>
+    <div
+      className="stagger-enter"
+      style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '12px 0' }}
+    >
       <div
         className="text-center"
         style={{

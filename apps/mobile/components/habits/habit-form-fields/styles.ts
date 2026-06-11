@@ -3,6 +3,14 @@ import { createTokensV2, radius, tintFromPrimary } from "@/lib/theme";
 
 export type AppTokens = ReturnType<typeof createTokensV2>;
 
+function fgTint(tokens: AppTokens, alpha: number): string {
+  const normalized = tokens.fg1.replace("#", "");
+  const red = Number.parseInt(normalized.slice(0, 2), 16);
+  const green = Number.parseInt(normalized.slice(2, 4), 16);
+  const blue = Number.parseInt(normalized.slice(4, 6), 16);
+  return `rgba(${red}, ${green}, ${blue}, ${alpha})`;
+}
+
 export function createSectionStyles(tokens: AppTokens) {
   return StyleSheet.create({
     container: {
@@ -54,13 +62,19 @@ export function createSectionStyles(tokens: AppTokens) {
     addButton: {
       flexDirection: "row",
       alignItems: "center",
-      gap: 8,
-      paddingVertical: 6,
+      alignSelf: "flex-start",
+      gap: 7,
+      paddingHorizontal: 14,
+      paddingVertical: 9,
+      borderRadius: radius.full,
+      backgroundColor: tokens.bgElev,
+      borderWidth: 1,
+      borderColor: tokens.hairline,
     },
     addButtonText: {
       fontFamily: "Rubik_500Medium",
       fontSize: 13,
-      color: tokens.primary,
+      color: tokens.fg2,
     },
     dropdown: {
       borderRadius: 14,
@@ -249,27 +263,26 @@ export function createStyles(tokens: AppTokens) {
       fontSize: 13,
       color: tokens.fg3,
     },
-    emojiTrigger: {
+    titleRow: {
       flexDirection: "row",
-      alignItems: "center",
+      alignItems: "flex-end",
       gap: 12,
-      borderRadius: 14,
-      borderWidth: 1,
-      borderColor: tokens.hairline,
-      backgroundColor: tokens.bgField,
-      padding: 14,
     },
-    emojiPreview: {
-      width: 46,
-      height: 46,
-      borderRadius: 14,
+    titleInputWrap: {
+      flex: 1,
+      minWidth: 0,
+    },
+    emojiWell: {
+      width: 56,
+      height: 56,
+      borderRadius: 16,
       alignItems: "center",
       justifyContent: "center",
-      backgroundColor: tokens.bgElev,
+      backgroundColor: fgTint(tokens, 0.06),
     },
-    emojiPreviewText: {
-      fontSize: 22,
-      lineHeight: 28,
+    emojiWellText: {
+      fontSize: 26,
+      lineHeight: 32,
     },
     emojiModalBackdrop: {
       flex: 1,
@@ -442,20 +455,24 @@ export function createStyles(tokens: AppTokens) {
       alignItems: "center",
       gap: 12,
     },
-    frequencyCardBody: {
-      marginTop: 6,
-      paddingLeft: 32,
+    frequencyCardIconWell: {
+      width: 40,
+      height: 40,
+      borderRadius: 12,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: fgTint(tokens, 0.06),
+      flexShrink: 0,
+    },
+    frequencyCardTexts: {
+      flex: 1,
+      minWidth: 0,
+      gap: 3,
     },
     frequencyCardTitle: {
       fontFamily: "Rubik_500Medium",
       fontSize: 16,
-      flex: 1,
-    },
-    frequencyCardTitleActive: {
       color: tokens.fg1,
-    },
-    frequencyCardTitleInactive: {
-      color: tokens.fg2,
     },
     frequencyCardDesc: {
       fontFamily: "Rubik_400Regular",
@@ -466,11 +483,8 @@ export function createStyles(tokens: AppTokens) {
     frequencyCardExample: {
       fontFamily: "Rubik_400Regular",
       fontSize: 12,
-      color: tokens.fg3,
-      lineHeight: 16,
-      marginTop: 4,
-      fontStyle: "italic",
-      opacity: 0.7,
+      color: tokens.fg4,
+      lineHeight: 17,
     },
     frequencyRow: {
       flexDirection: "row",
@@ -482,11 +496,11 @@ export function createStyles(tokens: AppTokens) {
     },
     daysRow: {
       flexDirection: "row",
-      gap: 6,
+      gap: 8,
     },
     dayButton: {
       flex: 1,
-      height: 44,
+      height: 42,
       borderRadius: 12,
       backgroundColor: tokens.bgField,
       alignItems: "center",
@@ -533,7 +547,7 @@ export function createStyles(tokens: AppTokens) {
       borderRadius: radius.full,
     },
     tagChipInactive: {
-      backgroundColor: tokens.bgField,
+      backgroundColor: tokens.bgElev,
       borderWidth: 1,
       borderColor: tokens.hairline,
     },
@@ -560,17 +574,20 @@ export function createStyles(tokens: AppTokens) {
       paddingVertical: 8,
     },
     newTagButton: {
-      paddingHorizontal: 12,
-      paddingVertical: 8,
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+      paddingHorizontal: 14,
+      paddingVertical: 9,
       borderRadius: radius.full,
-      backgroundColor: "transparent",
+      backgroundColor: tokens.bgElev,
       borderWidth: 1,
-      borderColor: tokens.hairlineStrong,
+      borderColor: tokens.hairline,
     },
     newTagButtonText: {
       fontFamily: "Rubik_500Medium",
       fontSize: 13,
-      color: tokens.fg3,
+      color: tokens.fg2,
     },
     tagEditSection: {
       gap: 12,

@@ -6,6 +6,7 @@ import {
   StyleSheet,
   ScrollView,
 } from 'react-native'
+import Animated, { FadeInDown, ReduceMotion } from 'react-native-reanimated'
 import * as Clipboard from 'expo-clipboard'
 import { useRouter } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
@@ -34,13 +35,19 @@ import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
 import { useOffline } from '@/hooks/use-offline'
 import { CreateApiKeyModal } from '@/components/ui/create-api-key-modal'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
-import { createTokensV2 } from '@/lib/theme'
+import { createTokensV2, tintFromPrimary } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { AppBar } from '@/components/ui/app-bar'
 import { SectionLabel } from '@/components/ui/section-label'
 import { SettingsRow } from '@/components/ui/settings-row'
 import { Chip } from '@/components/ui/chip'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+
+function rowEntrance(index: number) {
+  return FadeInDown.duration(280)
+    .delay(Math.min(index, 8) * 40)
+    .reduceMotion(ReduceMotion.System)
+}
 
 export default function AdvancedScreen() {
   const { t, i18n } = useTranslation()
@@ -243,7 +250,7 @@ export default function AdvancedScreen() {
               </View>
             ) : null}
 
-            {apiKeys.map((key) => {
+            {apiKeys.map((key, index) => {
               const lastUsed = key.lastUsedAtUtc
                 ? `${t('orbitMcp.lastUsed')} ${formatKeyDate(key.lastUsedAtUtc)}`
                 : t('orbitMcp.never')
@@ -252,8 +259,9 @@ export default function AdvancedScreen() {
                 : t('orbitMcp.permReadWrite')
               const meta = `${perm} · ${lastUsed} · ${t('orbitMcp.created')} ${formatKeyDate(key.createdAtUtc)}`
               return (
-                <View
+                <Animated.View
                   key={key.id}
+                  entering={rowEntrance(index)}
                   style={[
                     styles.keyCard,
                     {
@@ -273,7 +281,14 @@ export default function AdvancedScreen() {
                       onPress={() => setRevokingKeyId(key.id)}
                       accessibilityRole="button"
                       accessibilityLabel={t('orbitMcp.revoke')}
-                      style={styles.linkPress}
+                      style={({ pressed }) => [
+                        styles.actionChip,
+                        {
+                          backgroundColor: pressed ? tokens.bgElev2 : tokens.bgElev,
+                          borderColor: tokens.hairline,
+                        },
+                        pressed ? styles.actionChipPressed : null,
+                      ]}
                       hitSlop={8}
                     >
                       <Text
@@ -294,7 +309,7 @@ export default function AdvancedScreen() {
                   >
                     {meta}
                   </Text>
-                </View>
+                </Animated.View>
               )
             })}
 
@@ -304,7 +319,14 @@ export default function AdvancedScreen() {
                   onPress={() => setCreateKeyModalOpen(true)}
                   accessibilityRole="button"
                   accessibilityLabel={t('orbitMcp.createKey')}
-                  style={styles.createKeyPress}
+                  style={({ pressed }) => [
+                    styles.createKeyChip,
+                    {
+                      backgroundColor: tokens.selectionBg,
+                      borderColor: tintFromPrimary(tokens, 0.45),
+                    },
+                    pressed ? styles.actionChipPressed : null,
+                  ]}
                   hitSlop={8}
                 >
                   <Plus size={14} color={tokens.primary} strokeWidth={2.2} />
@@ -355,13 +377,20 @@ export default function AdvancedScreen() {
                 }}
                 accessibilityRole="button"
                 accessibilityLabel={t('orbitMcp.copyConfig')}
-                style={styles.copyBtn}
+                style={({ pressed }) => [
+                  styles.copyBtn,
+                  {
+                    backgroundColor: pressed ? tokens.bgElev2 : tokens.bgElev,
+                    borderColor: tokens.hairline,
+                  },
+                  pressed ? styles.actionChipPressed : null,
+                ]}
                 hitSlop={8}
               >
                 <Text
                   style={[
                     styles.copyBtnText,
-                    { color: codeCopied ? tokens.statusDone : tokens.primary },
+                    { color: codeCopied ? tokens.statusDone : tokens.fg2 },
                   ]}
                 >
                   {codeCopied ? t('orbitMcp.copied') : t('orbitMcp.copyConfig')}
@@ -400,7 +429,14 @@ export default function AdvancedScreen() {
               onPress={() => router.push(buildUpgradeHref('/advanced'))}
               accessibilityRole="button"
               accessibilityLabel={t('common.proBadge')}
-              style={styles.linkPress}
+              style={({ pressed }) => [
+                styles.actionChip,
+                {
+                  backgroundColor: tokens.selectionBg,
+                  borderColor: tintFromPrimary(tokens, 0.45),
+                },
+                pressed ? styles.actionChipPressed : null,
+              ]}
               hitSlop={8}
             >
               <Text style={[styles.actionLink, { color: tokens.primary }]}>
@@ -506,18 +542,31 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 12,
   },
-  createKeyPress: {
+  createKeyChip: {
     flexDirection: 'row',
     alignItems: 'center',
     alignSelf: 'flex-start',
     gap: 6,
-    paddingVertical: 6,
+    borderRadius: 999,
+    borderWidth: 1,
+    paddingVertical: 9,
+    paddingHorizontal: 16,
+  },
+  actionChip: {
+    borderRadius: 999,
+    borderWidth: 1,
+    paddingVertical: 9,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  actionChipPressed: {
+    transform: [{ scale: 0.96 }],
   },
   actionLink: {
     fontFamily: 'Rubik_500Medium',
     fontSize: 13,
   },
-  linkPress: { padding: 4 },
   lockedRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -561,7 +610,10 @@ const styles = StyleSheet.create({
     position: 'absolute',
     top: 8,
     right: 10,
-    padding: 6,
+    borderRadius: 999,
+    borderWidth: 1,
+    paddingVertical: 7,
+    paddingHorizontal: 12,
     zIndex: 1,
   },
   copyBtnText: {

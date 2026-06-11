@@ -1,17 +1,15 @@
 import { useMemo, useRef } from "react";
-import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react-native";
+import { ChevronLeft, ChevronRight } from "lucide-react-native";
 import {
+  Pressable,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
 } from "react-native";
 import { useTourTarget } from "@/hooks/use-tour-target";
-import { AppBar } from "@/components/ui/app-bar";
 import { createTokensV2 } from "@/lib/theme";
 
 interface CalendarHeaderProps {
-  title: string;
   monthLabel: string;
   subtitle?: string | null;
   previousMonthLabel: string;
@@ -32,10 +30,36 @@ interface CalendarLegendProps {
 function createStyles(tokens: ReturnType<typeof createTokensV2>) {
   return StyleSheet.create({
     headerWrap: {
+      flexDirection: "row",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: 12,
+      paddingHorizontal: 20,
+      paddingTop: 14,
+    },
+    headerTitleCol: {
+      flex: 1,
+      minWidth: 0,
+    },
+    monthTitle: {
+      fontFamily: 'Rubik_500Medium',
+      fontSize: 24,
+      letterSpacing: -0.24,
+      color: tokens.fg1,
+      textTransform: "capitalize",
+    },
+    monthSubtitle: {
+      marginTop: 2,
+      fontFamily: 'Roboto_400Regular',
+      fontSize: 12,
+      color: tokens.fg3,
+      fontVariant: ["tabular-nums"],
     },
     monthNavRow: {
       flexDirection: "row",
       alignItems: "center",
+      gap: 4,
+      flexShrink: 0,
     },
     monthNavButton: {
       width: 40,
@@ -43,6 +67,10 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       borderRadius: 999,
       alignItems: "center",
       justifyContent: "center",
+    },
+    monthNavButtonPressed: {
+      backgroundColor: tokens.bgElev,
+      transform: [{ scale: 0.92 }],
     },
     legend: {
       flexDirection: "row",
@@ -92,7 +120,6 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
 }
 
 export function CalendarHeader({
-  title,
   monthLabel,
   subtitle,
   previousMonthLabel,
@@ -107,33 +134,46 @@ export function CalendarHeader({
 
   return (
     <View style={styles.headerWrap}>
-      <AppBar
-        LeadingIcon={CalendarDays}
-        title={title}
-        subtitle={subtitle ? `${monthLabel} · ${subtitle}` : monthLabel}
-        trailing={
-          <View ref={monthNavRef} collapsable={false} style={styles.monthNavRow}>
-            <TouchableOpacity
-              accessibilityLabel={previousMonthLabel}
-              style={styles.monthNavButton}
-              onPress={onPreviousMonth}
-              activeOpacity={0.7}
-              hitSlop={4}
-            >
-              <ChevronLeft size={22} color={tokens.fg2} strokeWidth={1.8} />
-            </TouchableOpacity>
-            <TouchableOpacity
-              accessibilityLabel={nextMonthLabel}
-              style={styles.monthNavButton}
-              onPress={onNextMonth}
-              activeOpacity={0.7}
-              hitSlop={4}
-            >
-              <ChevronRight size={22} color={tokens.fg2} strokeWidth={1.8} />
-            </TouchableOpacity>
-          </View>
-        }
-      />
+      <View style={styles.headerTitleCol}>
+        <Text
+          style={styles.monthTitle}
+          numberOfLines={1}
+          accessibilityRole="header"
+        >
+          {monthLabel}
+        </Text>
+        {subtitle ? (
+          <Text style={styles.monthSubtitle} numberOfLines={1}>
+            {subtitle}
+          </Text>
+        ) : null}
+      </View>
+      <View ref={monthNavRef} collapsable={false} style={styles.monthNavRow}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={previousMonthLabel}
+          onPress={onPreviousMonth}
+          hitSlop={4}
+          style={({ pressed }) => [
+            styles.monthNavButton,
+            pressed && styles.monthNavButtonPressed,
+          ]}
+        >
+          <ChevronLeft size={22} color={tokens.fg2} strokeWidth={1.8} />
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={nextMonthLabel}
+          onPress={onNextMonth}
+          hitSlop={4}
+          style={({ pressed }) => [
+            styles.monthNavButton,
+            pressed && styles.monthNavButtonPressed,
+          ]}
+        >
+          <ChevronRight size={22} color={tokens.fg2} strokeWidth={1.8} />
+        </Pressable>
+      </View>
     </View>
   );
 }

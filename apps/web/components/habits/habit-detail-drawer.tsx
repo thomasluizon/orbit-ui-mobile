@@ -2,10 +2,11 @@
 
 import { useState, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import { Orbit, ChevronRight } from 'lucide-react'
+import { Orbit, ChevronRight, Check, Pencil } from 'lucide-react'
 import { useTranslations, useLocale } from 'next-intl'
 import { AppOverlay } from '@/components/ui/app-overlay'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import { PillButton } from '@/components/ui/pill-button'
 import { SectionLabel } from '@/components/ui/section-label'
 import { SettingsRow } from '@/components/ui/settings-row'
 import { HabitChecklist } from './habit-checklist'
@@ -25,6 +26,7 @@ interface HabitDetailDrawerProps {
   onOpenChange: (open: boolean) => void
   habit: NormalizedHabit | null
   onLogged?: (habitId: string) => void
+  onEdit?: () => void
 }
 
 export function HabitDetailDrawer({
@@ -32,6 +34,7 @@ export function HabitDetailDrawer({
   onOpenChange,
   habit,
   onLogged,
+  onEdit,
 }: Readonly<HabitDetailDrawerProps>) {
   const t = useTranslations()
   const locale = useLocale()
@@ -91,6 +94,15 @@ export function HabitDetailDrawer({
     }
   }, [habit, logHabit, onLogged])
 
+  const handleLogToday = useCallback(async () => {
+    if (!habit) return
+    try {
+      await logHabit.mutateAsync({ habitId: habit.id })
+      onLogged?.(habit.id)
+    } catch {
+    }
+  }, [habit, logHabit, onLogged])
+
   const handleChecklistReset = useCallback(() => {
     if (!habit) return
     const items = liveChecklist.map((i) => ({ ...i, isChecked: false }))
@@ -133,51 +145,50 @@ export function HabitDetailDrawer({
         title={habit?.title}
         titleContent={
           habit ? (
-            <span className="flex items-center gap-3">
+            <span
+              className="flex w-full flex-col items-center text-center"
+              style={{ gap: 10, paddingTop: 8 }}
+            >
               {habit.emoji ? (
                 <span
                   aria-hidden="true"
                   className="inline-flex shrink-0 items-center justify-center"
                   style={{
-                    width: 46,
-                    height: 46,
-                    borderRadius: 14,
-                    fontSize: 22,
+                    width: 76,
+                    height: 76,
+                    borderRadius: 22,
+                    fontSize: 38,
                     background: habit.isBadHabit
                       ? 'color-mix(in srgb, var(--status-bad) 12%, transparent)'
-                      : 'var(--bg-elev)',
+                      : 'color-mix(in srgb, var(--fg-1) 6%, transparent)',
                   }}
                 >
                   {habit.emoji}
                 </span>
               ) : null}
-              <span className="flex min-w-0 flex-col" style={{ gap: 2 }}>
+              <span
+                style={{
+                  fontFamily: 'var(--font-sans)',
+                  fontSize: 24,
+                  fontWeight: 500,
+                  lineHeight: 1.3,
+                  color: 'var(--fg-1)',
+                }}
+              >
+                {habit.title}
+              </span>
+              {summaryStrip ? (
                 <span
-                  className="truncate"
                   style={{
                     fontFamily: 'var(--font-sans)',
-                    fontSize: 22,
-                    fontWeight: 500,
-                    lineHeight: 1.3,
-                    color: 'var(--fg-1)',
+                    fontSize: 14,
+                    fontWeight: 400,
+                    color: habit.isBadHabit ? 'var(--status-bad)' : 'var(--fg-3)',
                   }}
                 >
-                  {habit.title}
+                  {summaryStrip}
                 </span>
-                {summaryStrip ? (
-                  <span
-                    className="truncate"
-                    style={{
-                      fontFamily: 'var(--font-sans)',
-                      fontSize: 13,
-                      fontWeight: 400,
-                      color: habit.isBadHabit ? 'var(--status-bad)' : 'var(--fg-3)',
-                    }}
-                  >
-                    {summaryStrip}
-                  </span>
-                ) : null}
-              </span>
+              ) : null}
             </span>
           ) : undefined
         }
@@ -217,7 +228,6 @@ export function HabitDetailDrawer({
                   style={{
                     fontFamily: 'var(--font-sans)',
                     fontSize: 15,
-                    fontStyle: 'italic',
                     lineHeight: 1.5,
                     color: 'var(--fg-2)',
                     textWrap: 'pretty',
@@ -238,7 +248,7 @@ export function HabitDetailDrawer({
         }
       >
         {habit && (
-          <div className="-mx-6">
+          <div className="overlay-bleed">
             {habit.dueTime && (
               <SettingsRow
                 label={t('habits.form.dueTime')}
@@ -284,6 +294,7 @@ export function HabitDetailDrawer({
               <HabitDetailStatsGrid
                 metrics={metrics}
                 loading={metricsLoading}
+                isBadHabit={habit.isBadHabit}
                 t={t as TranslationFn}
               />
             ) : null}
@@ -303,6 +314,56 @@ export function HabitDetailDrawer({
             <SectionLabel>{t('habits.detail.activity')}</SectionLabel>
             <div style={{ padding: '0 20px 12px' }}>
               <HabitCalendar habitId={habit.id} logs={logs} />
+            </div>
+
+            <div className="flex items-center" style={{ gap: 12, padding: '8px 20px 14px' }}>
+              {habit.isBadHabit ? (
+                <button
+                  type="button"
+                  disabled={logHabit.isPending}
+                  onClick={handleLogToday}
+                  className="flex-1 inline-flex cursor-pointer items-center justify-center rounded-full bg-transparent transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] enabled:hover:bg-[color-mix(in_srgb,var(--status-bad)_8%,transparent)] enabled:active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
+                  style={{
+                    gap: 9,
+                    padding: '14px 26px',
+                    border: 0,
+                    boxShadow:
+                      'inset 0 0 0 1.5px color-mix(in srgb, var(--status-bad) 40%, transparent)',
+                    fontFamily: 'var(--font-sans)',
+                    fontSize: 16,
+                    fontWeight: 500,
+                    color: 'var(--status-bad)',
+                  }}
+                >
+                  {t('habits.detail.logSlip')}
+                </button>
+              ) : (
+                <PillButton
+                  className="flex-1"
+                  disabled={logHabit.isPending || habit.isCompleted}
+                  busy={logHabit.isPending}
+                  leading={<Check size={18} strokeWidth={2.2} aria-hidden="true" />}
+                  onClick={handleLogToday}
+                >
+                  {t('habits.detail.completeToday')}
+                </PillButton>
+              )}
+              {onEdit ? (
+                <button
+                  type="button"
+                  aria-label={t('habits.editHabit')}
+                  onClick={onEdit}
+                  className="inline-flex shrink-0 cursor-pointer items-center justify-center rounded-full bg-transparent transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-card)] active:scale-[0.96]"
+                  style={{
+                    width: 56,
+                    height: 52,
+                    border: 0,
+                    boxShadow: 'inset 0 0 0 1.5px var(--hairline-strong)',
+                  }}
+                >
+                  <Pencil size={20} strokeWidth={1.8} color="var(--fg-1)" aria-hidden="true" />
+                </button>
+              ) : null}
             </div>
           </div>
         )}

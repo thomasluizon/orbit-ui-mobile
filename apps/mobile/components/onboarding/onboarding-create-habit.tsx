@@ -1,5 +1,5 @@
-import { useState, useMemo, useCallback } from 'react'
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native'
+import { useEffect, useState, useMemo, useCallback } from 'react'
+import { ActivityIndicator, Animated, StyleSheet, Text, View } from 'react-native'
 import { Check } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import { useAppToast } from '@/hooks/use-app-toast'
@@ -18,7 +18,8 @@ import {
   ONBOARDING_HABIT_SUGGESTIONS,
   type OnboardingFrequencyUnit,
 } from '@orbit/shared/utils/onboarding'
-import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
+import { createTokensV2, primaryGlow, type AppTokensV2 } from '@/lib/theme'
+import { usePrefersReducedMotion } from '@/lib/motion'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 interface Suggestion {
@@ -57,6 +58,25 @@ export function OnboardingCreateHabit({
     null,
   )
   const { showError } = useAppToast()
+  const prefersReducedMotion = usePrefersReducedMotion()
+  const successScale = useMemo(() => new Animated.Value(0), [])
+
+  useEffect(() => {
+    if (!isCreated) return
+    if (prefersReducedMotion) {
+      successScale.setValue(1)
+      return
+    }
+    const animation = Animated.spring(successScale, {
+      toValue: 1,
+      stiffness: 260,
+      damping: 20,
+      mass: 0.9,
+      useNativeDriver: true,
+    })
+    animation.start()
+    return () => animation.stop()
+  }, [isCreated, prefersReducedMotion, successScale])
 
   const createHabit = useCreateHabit()
   const isCreating = createHabit.isPending
@@ -128,9 +148,25 @@ export function OnboardingCreateHabit({
     return (
       <View style={styles.container}>
         <View style={styles.successCard}>
-          <View style={styles.successIcon}>
+          <Animated.View
+            style={[
+              styles.successIcon,
+              primaryGlow(tokens),
+              {
+                opacity: successScale,
+                transform: [
+                  {
+                    scale: successScale.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [0.3, 1],
+                    }),
+                  },
+                ],
+              },
+            ]}
+          >
             <Check size={26} color={tokens.fgOnPrimary} strokeWidth={2.4} />
-          </View>
+          </Animated.View>
           <Text style={styles.successTitle}>{title}</Text>
           <Text style={styles.successFreq}>
             {t(getOnboardingHabitFrequencyLabelKey(frequencyUnit))}

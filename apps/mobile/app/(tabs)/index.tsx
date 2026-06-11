@@ -76,7 +76,7 @@ import type { MenuAnchorRect } from "@/lib/anchored-menu";
 import { useBulkActions } from "@/hooks/use-bulk-actions";
 import { shouldResetSelectionForViewChange } from "@/lib/habit-selection-state";
 import { toAnimatedEasing, useResolvedMotionPreset } from "@/lib/motion";
-import { createTokensV2, easings } from "@/lib/theme";
+import { createTokensV2, easings, tintFromPrimary } from "@/lib/theme";
 import { useAppTheme } from "@/lib/use-app-theme";
 import { useReviewReminder } from "@/hooks/use-review-reminder";
 import { useTourScrollContainer } from "@/hooks/use-tour-scroll-container";
@@ -191,8 +191,14 @@ const TodaySearchBar = memo(function TodaySearchBar({
   );
 
   return (
-    <Animated.View style={[styles.searchWrap, focusAnimatedStyle]}>
-      <Search size={15} color={tokens.fg3} />
+    <Animated.View
+      style={[
+        styles.searchWrap,
+        { borderColor: focused ? tokens.hairlineStrong : tokens.hairline },
+        focusAnimatedStyle,
+      ]}
+    >
+      <Search size={18} color={tokens.fg3} strokeWidth={1.8} />
       <AppTextInput
         style={[styles.searchInput, { color: tokens.fg1 }]}
         value={draft}
@@ -210,8 +216,12 @@ const TodaySearchBar = memo(function TodaySearchBar({
           accessibilityRole="button"
           accessibilityLabel={clearLabel}
           hitSlop={6}
+          style={({ pressed }) => [
+            styles.searchClear,
+            pressed ? { backgroundColor: tokens.bgSunk } : null,
+          ]}
         >
-          <X size={15} color={tokens.fg3} />
+          <X size={16} color={tokens.fg3} strokeWidth={1.8} />
         </Pressable>
       ) : null}
     </Animated.View>
@@ -1011,6 +1021,7 @@ export default function TodayScreen() {
         <TodayTabs
           tabs={tabItems}
           activeView={currentActiveView}
+          hasProAccess={hasProAccess}
           onChangeView={handleChangeView}
           viewsLabel={t("habits.viewsLabel")}
         />
@@ -1020,6 +1031,7 @@ export default function TodayScreen() {
       currentActiveView,
       currentStreak,
       greeting,
+      hasProAccess,
       headerSubtitle,
       insets.top,
       goToToday,
@@ -1060,7 +1072,7 @@ export default function TodayScreen() {
           trailing={
             <View style={styles.sectionTrailing}>
               {showDayProgress ? (
-                <Text style={[styles.dayProgressCount, { color: tokens.fg3 }]}>
+                <Text style={[styles.dayProgressCount, { color: tokens.fg2 }]}>
                   {dayProgress.done}/{dayProgress.total}
                 </Text>
               ) : null}
@@ -1069,12 +1081,20 @@ export default function TodayScreen() {
                 accessibilityRole="button"
                 accessibilityLabel={t("habits.searchPlaceholder")}
                 hitSlop={6}
-                style={styles.iconBtn}
+                style={({ pressed }) => [
+                  styles.iconBtn,
+                  pressed
+                    ? [
+                        styles.iconBtnPressed,
+                        { backgroundColor: tokens.bgElev },
+                      ]
+                    : null,
+                ]}
               >
                 <Search
-                  size={15}
-                  color={isSearchOpen ? tokens.fg1 : tokens.fg3}
-                  strokeWidth={1.6}
+                  size={18}
+                  color={isSearchOpen ? tokens.fg1 : tokens.fg2}
+                  strokeWidth={1.8}
                 />
               </Pressable>
               {currentActiveView !== "general" ? (
@@ -1085,21 +1105,26 @@ export default function TodayScreen() {
                     accessibilityLabel={t("habits.frequencyFilter")}
                     accessibilityState={{ selected: selectedFrequency != null }}
                     hitSlop={6}
-                    style={[
+                    style={({ pressed }) => [
                       styles.iconBtn,
-                      selectedFrequency != null && {
-                        backgroundColor: tokens.bgElev,
-                        borderWidth: 1,
-                        borderColor: tokens.hairlineStrong,
-                      },
+                      selectedFrequency != null
+                        ? {
+                            backgroundColor: tokens.selectionBg,
+                            borderWidth: 1,
+                            borderColor: tintFromPrimary(tokens, 0.45),
+                          }
+                        : pressed
+                          ? { backgroundColor: tokens.bgElev }
+                          : null,
+                      pressed ? styles.iconBtnPressed : null,
                     ]}
                   >
                     <Filter
-                      size={15}
+                      size={18}
                       color={
-                        selectedFrequency != null ? tokens.fg1 : tokens.fg3
+                        selectedFrequency != null ? tokens.primary : tokens.fg2
                       }
-                      strokeWidth={1.6}
+                      strokeWidth={1.8}
                     />
                   </Pressable>
                 </View>
@@ -1110,12 +1135,20 @@ export default function TodayScreen() {
                   accessibilityRole="button"
                   accessibilityLabel={t("habits.actions.more")}
                   hitSlop={6}
-                  style={styles.iconBtn}
+                  style={({ pressed }) => [
+                    styles.iconBtn,
+                    pressed
+                      ? [
+                          styles.iconBtnPressed,
+                          { backgroundColor: tokens.bgElev },
+                        ]
+                      : null,
+                  ]}
                 >
                   <MoreVertical
-                    size={15}
-                    color={tokens.fg3}
-                    strokeWidth={1.6}
+                    size={18}
+                    color={tokens.fg2}
+                    strokeWidth={1.8}
                   />
                 </Pressable>
               </View>
@@ -1183,12 +1216,12 @@ export default function TodayScreen() {
               onPress={handleToggleSelectMode}
             >
               {isSelectMode ? (
-                <X size={15} color={tokens.fg2} strokeWidth={1.6} />
+                <X size={16} color={tokens.fg2} strokeWidth={1.8} />
               ) : (
                 <CheckCircle2
-                  size={15}
+                  size={16}
                   color={tokens.fg2}
-                  strokeWidth={1.6}
+                  strokeWidth={1.8}
                 />
               )}
               <Text style={[styles.controlsMenuLabel, { color: tokens.fg1 }]}>
@@ -1207,15 +1240,15 @@ export default function TodayScreen() {
             >
               {habitListAllCollapsed ? (
                 <ChevronsUpDown
-                  size={15}
+                  size={16}
                   color={tokens.fg2}
-                  strokeWidth={1.6}
+                  strokeWidth={1.8}
                 />
               ) : (
                 <ChevronsDownUp
-                  size={15}
+                  size={16}
                   color={tokens.fg2}
-                  strokeWidth={1.6}
+                  strokeWidth={1.8}
                 />
               )}
               <Text style={[styles.controlsMenuLabel, { color: tokens.fg1 }]}>
@@ -1235,9 +1268,9 @@ export default function TodayScreen() {
               onPress={handleRefresh}
             >
               <RefreshCw
-                size={15}
+                size={16}
                 color={tokens.fg2}
-                strokeWidth={1.6}
+                strokeWidth={1.8}
                 style={habitsQuery.isFetching ? styles.rotatingIcon : undefined}
               />
               <Text style={[styles.controlsMenuLabel, { color: tokens.fg1 }]}>
@@ -1255,9 +1288,9 @@ export default function TodayScreen() {
               onPress={handleToggleCompleted}
             >
               {showCompleted ? (
-                <Check size={15} color={tokens.fg2} strokeWidth={1.6} />
+                <Check size={16} color={tokens.fg2} strokeWidth={1.8} />
               ) : (
-                <Eye size={15} color={tokens.fg2} strokeWidth={1.6} />
+                <Eye size={16} color={tokens.fg2} strokeWidth={1.8} />
               )}
               <Text style={[styles.controlsMenuLabel, { color: tokens.fg1 }]}>
                 {t("habits.showCompleted")}
@@ -1285,7 +1318,7 @@ export default function TodayScreen() {
             >
               <View style={styles.freqMenuCheck}>
                 {!selectedFrequency ? (
-                  <Check size={14} color={tokens.primary} strokeWidth={2} />
+                  <Check size={16} color={tokens.primary} strokeWidth={2} />
                 ) : null}
               </View>
               <Text
@@ -1293,7 +1326,9 @@ export default function TodayScreen() {
                   styles.controlsMenuLabel,
                   {
                     color: !selectedFrequency ? tokens.fg1 : tokens.fg2,
-                    fontWeight: !selectedFrequency ? "600" : "500",
+                    fontFamily: !selectedFrequency
+                      ? "Rubik_600SemiBold"
+                      : "Rubik_500Medium",
                   },
                 ]}
               >
@@ -1317,7 +1352,7 @@ export default function TodayScreen() {
                 >
                   <View style={styles.freqMenuCheck}>
                     {active ? (
-                      <Check size={14} color={tokens.primary} strokeWidth={2} />
+                      <Check size={16} color={tokens.primary} strokeWidth={2} />
                     ) : null}
                   </View>
                   <Text
@@ -1325,7 +1360,9 @@ export default function TodayScreen() {
                       styles.controlsMenuLabel,
                       {
                         color: active ? tokens.fg1 : tokens.fg2,
-                        fontWeight: active ? "600" : "500",
+                        fontFamily: active
+                          ? "Rubik_600SemiBold"
+                          : "Rubik_500Medium",
                       },
                     ]}
                   >
@@ -1481,6 +1518,11 @@ export default function TodayScreen() {
         onClose={() => setDetailHabit(null)}
         habit={detailHabit}
         onLogged={handleHabitLogged}
+        onEdit={() => {
+          if (!detailHabit) return;
+          setDetailHabit(null);
+          setEditHabit(detailHabit);
+        }}
       />
 
       <EditHabitModal
@@ -1576,8 +1618,21 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       flexDirection: "row",
       alignItems: "center",
       gap: 10,
-      paddingHorizontal: 20,
-      paddingVertical: 8,
+      marginHorizontal: 20,
+      marginVertical: 8,
+      minHeight: 44,
+      borderRadius: 999,
+      borderWidth: 1,
+      backgroundColor: tokens.bgElev,
+      paddingLeft: 16,
+      paddingRight: 8,
+    },
+    searchClear: {
+      width: 28,
+      height: 28,
+      borderRadius: 999,
+      alignItems: "center",
+      justifyContent: "center",
     },
     searchInput: {
       flex: 1,
@@ -1589,7 +1644,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
     filtersContent: {
       flexDirection: "row",
       alignItems: "center",
-      gap: 14,
+      gap: 8,
       paddingHorizontal: 20,
       paddingVertical: 4,
     },
@@ -1615,11 +1670,14 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       paddingBottom: 6,
     },
     iconBtn: {
-      width: 32,
-      height: 32,
-      borderRadius: 8,
+      width: 36,
+      height: 36,
+      borderRadius: 999,
       alignItems: "center",
       justifyContent: "center",
+    },
+    iconBtnPressed: {
+      transform: [{ scale: 0.92 }],
     },
 
     controlsMenuItem: {
@@ -1628,7 +1686,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       gap: 10,
       paddingHorizontal: 12,
       paddingVertical: 10,
-      borderRadius: 6,
+      borderRadius: 8,
     },
     controlsMenuLabel: {
       fontFamily: 'Rubik_500Medium',

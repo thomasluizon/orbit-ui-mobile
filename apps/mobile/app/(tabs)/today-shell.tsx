@@ -79,15 +79,17 @@ export function TodayHeader({
   )
 }
 
-/** v8 chip strip used as the Today/All/General/Goals view switcher. */
+/** Kit pill-chip strip used as the Today/All/General/Goals view switcher. */
 export function TodayTabs({
   tabs,
   activeView,
+  hasProAccess,
   onChangeView,
   viewsLabel: _viewsLabel,
 }: Readonly<{
   tabs: TodayTabItem[]
   activeView: TodayTabView
+  hasProAccess: boolean
   onChangeView: (view: TodayTabView) => void
   viewsLabel: string
 }>) {
@@ -101,8 +103,9 @@ export function TodayTabs({
       tabs.map((tab) => ({
         id: tab.view,
         label: tab.label,
+        locked: tab.view === 'goals' && !hasProAccess,
       })),
-    [tabs],
+    [tabs, hasProAccess],
   )
 
   return (
@@ -168,27 +171,37 @@ export function TodayDateNavigation({
       collapsable={false}
       {...panHandlers}
     >
-      <View style={[styles.datePill, { borderColor: tokens.hairlineStrong }]}>
+      <View style={styles.datePill}>
         <Pressable
           onPress={onGoToPreviousDay}
           accessibilityRole="button"
           accessibilityLabel={previousLabel}
           hitSlop={8}
-          style={styles.dateChevron}
+          style={({ pressed }) => [
+            styles.dateChevron,
+            pressed
+              ? [styles.dateChevronPressed, { backgroundColor: tokens.bgElev }]
+              : null,
+          ]}
         >
-          <ChevronLeft size={16} color={tokens.fg2} strokeWidth={1.6} />
+          <ChevronLeft size={18} color={tokens.fg2} strokeWidth={1.8} />
         </Pressable>
         <Pressable
           onPress={onGoToToday}
           accessibilityRole="button"
           accessibilityLabel={isTodaySelected ? dateLabel : todayLabel}
-          style={styles.dateLabelPress}
+          style={({ pressed }) => [
+            styles.dateLabelPress,
+            pressed
+              ? [styles.dateLabelPressed, { backgroundColor: tokens.bgElev }]
+              : null,
+          ]}
         >
           <Animated.Text
             style={[
               styles.dateLabel,
               {
-                color: isTodaySelected ? tokens.primary : tokens.fg1,
+                color: tokens.primary,
                 opacity: dateLabelAnim,
                 transform: [
                   {
@@ -209,9 +222,14 @@ export function TodayDateNavigation({
           accessibilityRole="button"
           accessibilityLabel={nextLabel}
           hitSlop={8}
-          style={styles.dateChevron}
+          style={({ pressed }) => [
+            styles.dateChevron,
+            pressed
+              ? [styles.dateChevronPressed, { backgroundColor: tokens.bgElev }]
+              : null,
+          ]}
         >
-          <ChevronRight size={16} color={tokens.fg2} strokeWidth={1.6} />
+          <ChevronRight size={18} color={tokens.fg2} strokeWidth={1.8} />
         </Pressable>
       </View>
     </View>
@@ -258,22 +276,29 @@ const styles = StyleSheet.create({
     paddingHorizontal: 4,
   },
   dateChevron: {
-    width: 32,
+    width: 36,
     height: 36,
+    borderRadius: 999,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  dateChevronPressed: {
+    transform: [{ scale: 0.92 }],
   },
   dateLabelPress: {
     flex: 1,
-    paddingHorizontal: 8,
-    paddingVertical: 4,
+    height: 36,
+    paddingHorizontal: 12,
+    borderRadius: 999,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  dateLabelPressed: {
+    transform: [{ scale: 0.98 }],
+  },
   dateLabel: {
     fontFamily: 'Rubik_500Medium',
-    fontSize: 14,
-    letterSpacing: -0.1,
+    fontSize: 15,
     textAlign: 'center',
   },
 })

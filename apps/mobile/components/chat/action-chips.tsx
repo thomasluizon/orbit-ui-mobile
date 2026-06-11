@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { View, Text, StyleSheet, Pressable } from "react-native";
+import Animated, { FadeInLeft, ReduceMotion } from "react-native-reanimated";
 import { CheckCircle, XCircle, Info } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import type { ActionResult } from "@orbit/shared/types/chat";
@@ -111,7 +112,12 @@ export function ActionChips({ actions, onChipClick }: Readonly<ActionChipsProps>
         const label = actionLabel(action);
 
         return (
-          <View key={`${action.type}-${action.entityId || index}`}>
+          <Animated.View
+            key={`${action.type}-${action.entityId || index}`}
+            entering={FadeInLeft.duration(280)
+              .delay(index * 80)
+              .reduceMotion(ReduceMotion.System)}
+          >
             {navigable ? (
               <Pressable
                 accessibilityRole="button"
@@ -152,7 +158,7 @@ export function ActionChips({ actions, onChipClick }: Readonly<ActionChipsProps>
             {action.conflictWarning?.hasConflict && (
               <ConflictWarning warning={action.conflictWarning} />
             )}
-          </View>
+          </Animated.View>
         );
       })}
     </View>

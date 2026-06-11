@@ -18,22 +18,20 @@ interface StreakBadgeProps {
 export function StreakBadge({ streak, isFrozen }: Readonly<StreakBadgeProps>) {
   const t = useTranslations()
   const router = useRouter()
-
-  if (streak <= 0) return null
+  const dormant = streak <= 0 && !isFrozen
 
   return (
     <button
       type="button"
       aria-label={plural(t('streakDisplay.badge.tooltip', { count: streak }), streak)}
       onClick={() => router.push('/streak')}
-      className="appearance-none border-0 cursor-pointer inline-flex items-center justify-center"
+      className="appearance-none border-0 cursor-pointer inline-flex items-center justify-center bg-[var(--bg-elev)] hover:bg-[var(--bg-elev-2)] active:scale-[0.92] transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)]"
       style={{
         minWidth: 40,
         height: 40,
         borderRadius: 999,
         padding: '0 9px',
         gap: 4,
-        background: 'var(--bg-field)',
         boxShadow: 'inset 0 0 0 1.5px var(--hairline-strong)',
       }}
     >
@@ -52,7 +50,10 @@ export function StreakBadge({ streak, isFrozen }: Readonly<StreakBadgeProps>) {
           <path d="M6 0v14M2 2l4 4 4-4M2 12l4-4 4 4M0 7h12" />
         </svg>
       ) : (
-        <span aria-hidden="true" style={{ fontSize: 15, lineHeight: 1 }}>
+        <span
+          aria-hidden="true"
+          style={{ fontSize: 15, lineHeight: 1, opacity: dormant ? 0.45 : 1 }}
+        >
           🔥
         </span>
       )}
@@ -61,7 +62,7 @@ export function StreakBadge({ streak, isFrozen }: Readonly<StreakBadgeProps>) {
           fontFamily: 'var(--font-mono)',
           fontSize: 12,
           fontWeight: 500,
-          color: 'var(--fg-1)',
+          color: dormant ? 'var(--fg-3)' : 'var(--fg-1)',
           fontVariantNumeric: 'tabular-nums',
         }}
       >

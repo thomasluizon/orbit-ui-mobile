@@ -2,10 +2,14 @@
 
 import { useState, useMemo } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import {
+  Brain,
   ChevronLeft,
   ChevronRight,
   Lock,
+  Satellite,
+  Sparkles,
   X,
 } from 'lucide-react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -19,10 +23,10 @@ import {
 import { useProfile } from '@/hooks/use-profile'
 import { AppBar } from '@/components/ui/app-bar'
 import { SectionLabel } from '@/components/ui/section-label'
-import { SettingsDescription } from '@/components/ui/settings-description'
 import { SettingsRow, Switch } from '@/components/ui/settings-row'
 import { RadioGlyph } from '@/components/ui/select-check'
-import { EmptyState } from '@/components/ui/empty-state'
+import { SatelliteGlyph } from '@/components/ui/satellite-glyph'
+import { PillButton } from '@/components/ui/pill-button'
 import { ProBadge } from '@/components/ui/pro-badge'
 import { updateAiMemory, updateAiSummary } from '@/app/actions/profile'
 import { bulkDeleteUserFacts, deleteUserFact } from '@/app/actions/user-facts'
@@ -37,53 +41,31 @@ async function fetchUserFacts(): Promise<UserFact[]> {
 
 function ProUpgradeLink({ label }: Readonly<{ label: string }>) {
   return (
-    <Link
-      href="/upgrade"
-      className="inline-flex items-center hover:opacity-80 transition-opacity duration-150"
-      style={{
-        gap: 6,
-        fontFamily: 'var(--font-sans)',
-        fontSize: 13,
-        fontWeight: 500,
-        color: 'var(--fg-2)',
-      }}
-    >
-      <Lock size={12} strokeWidth={2} />
+    <Link href="/upgrade" className="chip">
+      <Lock size={14} strokeWidth={1.8} aria-hidden="true" />
       {label}
     </Link>
   )
 }
 
-function TextActionButton({
+function ChipActionButton({
   onClick,
   disabled = false,
-  emphasis = false,
   destructive = false,
   children,
 }: Readonly<{
   onClick: () => void
   disabled?: boolean
-  emphasis?: boolean
   destructive?: boolean
   children: React.ReactNode
 }>) {
-  let color = 'var(--fg-2)'
-  if (destructive) color = 'var(--status-bad)'
-  else if (emphasis) color = 'var(--fg-1)'
   return (
     <button
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="appearance-none border-0 bg-transparent cursor-pointer transition-opacity duration-150 hover:opacity-80 disabled:opacity-40 disabled:cursor-not-allowed"
-      style={{
-        fontFamily: 'var(--font-sans)',
-        fontSize: 13,
-        fontWeight: 500,
-        minHeight: 44,
-        padding: '0 6px',
-        color,
-      }}
+      className="chip disabled:opacity-40 disabled:cursor-not-allowed"
+      style={destructive ? { color: 'var(--status-bad)' } : undefined}
     >
       {children}
     </button>
@@ -158,10 +140,10 @@ function FactItem({
           type="button"
           onClick={onDelete}
           aria-label={t('common.delete')}
-          className="appearance-none border-0 bg-transparent cursor-pointer shrink-0 rounded-full text-[var(--fg-4)] hover:text-[var(--status-bad)] transition-colors duration-150"
-          style={{ padding: 10, margin: -6 }}
+          className="icon-btn shrink-0 hover:text-[var(--status-bad)]"
+          style={{ width: 36, height: 36, margin: -6, color: 'var(--fg-4)' }}
         >
-          <X size={16} strokeWidth={1.8} />
+          <X size={18} strokeWidth={1.8} />
         </button>
       )}
     </>
@@ -173,7 +155,7 @@ function FactItem({
         type="button"
         onClick={onToggleSelection}
         aria-pressed={isSelected}
-        className="appearance-none border-0 cursor-pointer w-full text-left flex items-center"
+        className="appearance-none border-0 cursor-pointer w-full text-left flex items-center transition-[background-color,box-shadow,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:-translate-y-px active:translate-y-0 active:scale-[0.99]"
         style={cardStyle}
       >
         {Inner}
@@ -190,6 +172,7 @@ function FactItem({
 
 export default function AiSettingsPage() {
   const t = useTranslations()
+  const router = useRouter()
   const goBackOrFallback = useGoBackOrFallback()
   const { profile, patchProfile } = useProfile()
   const queryClient = useQueryClient()
@@ -313,20 +296,20 @@ export default function AiSettingsPage() {
           disabled={factsPage === 1}
           onClick={() => setFactsPage((p) => p - 1)}
           aria-label={t('common.previousPage')}
-          className="appearance-none border-0 bg-transparent cursor-pointer disabled:opacity-40"
-          style={{ padding: 6 }}
+          className="icon-btn disabled:opacity-40 disabled:cursor-not-allowed"
+          style={{ width: 36, height: 36, color: 'var(--fg-3)' }}
         >
-          <ChevronLeft size={14} color="var(--fg-3)" />
+          <ChevronLeft size={18} strokeWidth={1.8} />
         </button>
         <button
           type="button"
           disabled={factsPage === totalFactsPages}
           onClick={() => setFactsPage((p) => p + 1)}
           aria-label={t('common.nextPage')}
-          className="appearance-none border-0 bg-transparent cursor-pointer disabled:opacity-40"
-          style={{ padding: 6 }}
+          className="icon-btn disabled:opacity-40 disabled:cursor-not-allowed"
+          style={{ width: 36, height: 36, color: 'var(--fg-3)' }}
         >
-          <ChevronRight size={14} color="var(--fg-3)" />
+          <ChevronRight size={18} strokeWidth={1.8} />
         </button>
       </span>
     ) : undefined
@@ -340,11 +323,17 @@ export default function AiSettingsPage() {
         onBack={() => goBackOrFallback('/profile')}
         title={t('aiSettings.title')}
       />
-      <div className="flex-1 min-h-0 overflow-y-auto">
+      <div className="flex-1 min-h-0 overflow-y-auto stagger-enter">
         <SectionLabel bottom={4} trailing={<ProBadge />}>
-          {t('profile.aiMemory.title')}
+          {t('profile.sections.aiFeatures')}
         </SectionLabel>
-        <SettingsRow label={t('profile.aiMemory.title')} accessory="none" divider={false}>
+        <SettingsRow
+          icon={Brain}
+          label={t('profile.aiMemory.title')}
+          desc={t('profile.aiMemory.description')}
+          accessory="none"
+          divider={false}
+        >
           {hasProAccess ? (
             <Switch
               on={aiMemoryEnabled}
@@ -356,12 +345,13 @@ export default function AiSettingsPage() {
             <ProUpgradeLink label={t('common.proBadge')} />
           )}
         </SettingsRow>
-        <SettingsDescription>{t('profile.aiMemory.description')}</SettingsDescription>
-
-        <SectionLabel bottom={4} trailing={<ProBadge />}>
-          {t('profile.aiSummary.title')}
-        </SectionLabel>
-        <SettingsRow label={t('profile.aiSummary.title')} accessory="none" divider={false}>
+        <SettingsRow
+          icon={Satellite}
+          label={t('profile.aiSummary.title')}
+          desc={t('profile.aiSummary.description')}
+          accessory="none"
+          divider={false}
+        >
           {hasProAccess ? (
             <Switch
               on={aiSummaryEnabled}
@@ -373,7 +363,6 @@ export default function AiSettingsPage() {
             <ProUpgradeLink label={t('common.proBadge')} />
           )}
         </SettingsRow>
-        <SettingsDescription>{t('profile.aiSummary.description')}</SettingsDescription>
 
         <SectionLabel trailing={factsTrailing}>{t('profile.facts.title')}</SectionLabel>
 
@@ -401,26 +390,26 @@ export default function AiSettingsPage() {
                 ? `${selectedFactIds.size} ${t('profile.facts.select').toLowerCase()}`
                 : `${facts.length}`}
             </span>
-            <div className="inline-flex items-center" style={{ gap: 10 }}>
+            <div className="inline-flex items-center" style={{ gap: 8 }}>
               {selectMode && (
-                <TextActionButton emphasis onClick={toggleSelectAll}>
+                <ChipActionButton onClick={toggleSelectAll}>
                   {selectedFactIds.size === facts.length
                     ? t('profile.facts.deselectAll')
                     : t('profile.facts.selectAll')}
-                </TextActionButton>
+                </ChipActionButton>
               )}
               {selectMode && selectedFactIds.size > 0 && (
-                <TextActionButton
+                <ChipActionButton
                   destructive
                   disabled={bulkDeleteMutation.isPending}
                   onClick={() => bulkDeleteMutation.mutate([...selectedFactIds])}
                 >
                   {t('profile.facts.deleteSelected', { n: selectedFactIds.size })}
-                </TextActionButton>
+                </ChipActionButton>
               )}
-              <TextActionButton emphasis={!selectMode} onClick={toggleSelectMode}>
+              <ChipActionButton onClick={toggleSelectMode}>
                 {selectMode ? t('profile.facts.cancel') : t('profile.facts.select')}
-              </TextActionButton>
+              </ChipActionButton>
             </div>
           </div>
         )}
@@ -439,11 +428,36 @@ export default function AiSettingsPage() {
         )}
 
         {hasProAccess && !factsQuery.isLoading && facts.length === 0 && (
-          <EmptyState description={t('profile.facts.empty')} />
+          <div
+            className="flex flex-col items-center text-center animate-scale-in"
+            style={{ padding: '40px 36px', gap: 18 }}
+          >
+            <SatelliteGlyph size={104} />
+            <span
+              style={{
+                fontFamily: 'var(--font-sans)',
+                fontSize: 15,
+                color: 'var(--fg-2)',
+                lineHeight: 1.5,
+                maxWidth: 320,
+                textWrap: 'pretty',
+              }}
+            >
+              {t('profile.facts.empty')}
+            </span>
+            <PillButton
+              fullWidth
+              onClick={() => router.push('/chat')}
+              leading={<Sparkles size={18} strokeWidth={1.8} aria-hidden="true" />}
+              className="mt-2"
+            >
+              {t('summary.askAstra')}
+            </PillButton>
+          </div>
         )}
 
         {hasProAccess && !factsQuery.isLoading && facts.length > 0 && (
-          <div className="flex flex-col px-5" style={{ gap: 10 }}>
+          <div className="flex flex-col px-5 stagger-enter" style={{ gap: 10 }}>
             {pagedFacts.map((fact) => (
               <FactItem
                 key={fact.id}

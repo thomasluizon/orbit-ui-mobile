@@ -246,6 +246,8 @@
       "matchDescription": "na descrição"
     },
     "createHabit": "Criar Hábito",
+    "askAstra": "Pedir à Astra",
+    "createManually": "Criar manualmente",
     "createSubHabit": "Criar Sub-Hábito",
     "editHabit": "Editar Hábito",
     "deleteHabit": "Excluir Hábito",
@@ -496,6 +498,9 @@
       "streakDays": "{n}d",
       "stats": "Estatísticas",
       "noDataYet": "Nenhum dado ainda",
+      "completeToday": "Concluir hoje",
+      "logSlip": "Registrar recaída",
+      "daysFree": "Dias livre",
       "reminders": "Lembretes",
       "linkedGoal": "Meta vinculada",
       "askAstraEyebrow": "PERGUNTE AO ASTRA",
@@ -1610,6 +1615,7 @@
     "title": "Conquistas & Nível",
     "profileCard": {
       "title": "Conquistas & Nível",
+      "tileLabel": "Conquistas",
       "hint": "Acompanhe seu progresso e desbloqueie conquistas",
       "level": "Nível {level}",
       "xp": "{current} / {next} XP",

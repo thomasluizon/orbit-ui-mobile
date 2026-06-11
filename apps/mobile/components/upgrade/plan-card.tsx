@@ -32,7 +32,7 @@ export function PlanCard({
       onPress={onSelect}
       accessibilityRole="radio"
       accessibilityState={{ checked: selected }}
-      style={[
+      style={({ pressed }) => [
         styles.card,
         selected
           ? {
@@ -41,10 +41,11 @@ export function PlanCard({
               borderColor: tokens.primary,
             }
           : {
-              backgroundColor: tokens.bgCard,
+              backgroundColor: pressed ? tokens.bgElev : tokens.bgCard,
               borderWidth: 1,
-              borderColor: tokens.hairline,
+              borderColor: pressed ? tokens.hairlineStrong : tokens.hairline,
             },
+        pressed ? styles.cardPressed : null,
       ]}
     >
       <View style={styles.headerRow}>
@@ -89,6 +90,9 @@ const styles = StyleSheet.create({
     paddingTop: 18,
     paddingHorizontal: 18,
     paddingBottom: 20,
+  },
+  cardPressed: {
+    transform: [{ scale: 0.99 }],
   },
   headerRow: {
     flexDirection: 'row',

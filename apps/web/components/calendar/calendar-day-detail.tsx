@@ -9,11 +9,8 @@ import { useTimeFormat } from '@/hooks/use-time-format'
 import { useDateFormat } from '@/hooks/use-date-format'
 import { parseAPIDate } from '@orbit/shared/utils'
 import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
-import { AppOverlay } from '@/components/ui/app-overlay'
 
 interface CalendarDayDetailProps {
-  open: boolean
-  onOpenChange: (open: boolean) => void
   dateStr: string | null
   entries: CalendarDayEntry[]
 }
@@ -37,9 +34,9 @@ function statusCircleStyle(entry: CalendarDayEntry): React.CSSProperties {
   return { boxShadow: 'inset 0 0 0 2px var(--status-empty)' }
 }
 
+/** Inline selected-day section under the Agenda grid: date heading 20/500,
+ *  the day's entries in a kit card, and the go-to-day ghost pill. */
 export function CalendarDayDetail({
-  open,
-  onOpenChange,
   dateStr,
   entries,
 }: Readonly<CalendarDayDetailProps>) {
@@ -72,61 +69,84 @@ export function CalendarDayDetail({
     return null
   }, [t])
 
+  if (!dateStr) return null
+
   return (
-    <AppOverlay
-      open={open}
-      onOpenChange={onOpenChange}
-      title={formattedDate}
-      footer={
-        <Link
-          href={`/?date=${dateStr ?? ''}`}
-          className="flex w-full items-center justify-center gap-[9px] rounded-full bg-[var(--primary)] text-[var(--fg-on-primary)] hover:bg-[var(--primary-pressed)] transition-[background-color,transform] duration-[var(--dur-fast)] active:scale-[0.98]"
+    <section aria-label={formattedDate} style={{ padding: '6px 20px 8px' }}>
+      <div
+        className="flex items-end justify-between"
+        style={{ gap: 12, marginBottom: 10 }}
+      >
+        <h2
+          className="capitalize min-w-0 truncate"
           style={{
-            padding: '15px 26px',
+            margin: 0,
             fontFamily: 'var(--font-sans)',
-            fontSize: 16,
+            fontSize: 20,
             fontWeight: 500,
-            boxShadow: 'var(--primary-glow)',
+            color: 'var(--fg-1)',
           }}
-          onClick={() => onOpenChange(false)}
         >
-          <ArrowRight size={18} strokeWidth={1.8} aria-hidden="true" />
-          {t('calendar.goToDay')}
-        </Link>
-      }
-    >
-      {entries.length === 0 ? (
-        <div className="text-[var(--fg-3)] text-sm text-center py-8">
+          {formattedDate}
+        </h2>
+        {entries.length > 0 && (
+          <label
+            className="flex shrink-0 items-center gap-2 text-sm text-[var(--fg-2)] cursor-pointer"
+          >
+            <input
+              type="checkbox"
+              checked={showRecurring}
+              onChange={(e) => setShowRecurring(e.target.checked)}
+              className="accent-[var(--primary)]"
+            />
+            {t('calendar.showRecurring')}
+          </label>
+        )}
+      </div>
+
+      {entries.length === 0 && (
+        <div
+          className="text-[var(--fg-3)] text-sm text-center"
+          style={{
+            padding: '24px 18px',
+            borderRadius: 18,
+            background: 'var(--bg-card)',
+            boxShadow: 'inset 0 0 0 1px var(--hairline)',
+          }}
+        >
           {t('calendar.noHabitsScheduled')}
         </div>
-      ) : (
-        <div className="space-y-3">
-          <div className="flex items-center justify-between">
-            <p className="text-sm text-[var(--fg-3)]">
-              {plural(t('calendar.dayDetail.completionSummary', {
-                done: completedCount,
-                total: filteredEntries.length,
-              }), filteredEntries.length)}
-            </p>
-            <label className="flex items-center gap-2 text-sm text-[var(--fg-2)] cursor-pointer">
-              <input
-                type="checkbox"
-                checked={showRecurring}
-                onChange={(e) => setShowRecurring(e.target.checked)}
-                className="accent-[var(--primary)]"
-              />
-              {t('calendar.showRecurring')}
-            </label>
-          </div>
+      )}
+
+      {entries.length > 0 && (
+        <div className="flex flex-col" style={{ gap: 10 }}>
+          <p
+            className="text-sm text-[var(--fg-3)]"
+            style={{ margin: 0 }}
+          >
+            {plural(t('calendar.dayDetail.completionSummary', {
+              done: completedCount,
+              total: filteredEntries.length,
+            }), filteredEntries.length)}
+          </p>
 
           {filteredEntries.length === 0 && (
-            <div className="text-[var(--fg-3)] text-sm text-center py-6">
+            <div
+              className="text-[var(--fg-3)] text-sm text-center"
+              style={{
+                padding: '24px 18px',
+                borderRadius: 18,
+                background: 'var(--bg-card)',
+                boxShadow: 'inset 0 0 0 1px var(--hairline)',
+              }}
+            >
               {t('calendar.noHabitsScheduled')}
             </div>
           )}
 
           {filteredEntries.length > 0 && (
             <div
+              className="stagger-enter"
               style={{
                 borderRadius: 18,
                 background: 'var(--bg-card)',
@@ -212,6 +232,22 @@ export function CalendarDayDetail({
           )}
         </div>
       )}
-    </AppOverlay>
+
+      <Link
+        href={`/?date=${dateStr}`}
+        className="flex w-full items-center justify-center gap-[9px] rounded-full bg-transparent text-[var(--fg-1)] transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev)] active:scale-[0.98]"
+        style={{
+          marginTop: 12,
+          padding: '14px 26px',
+          fontFamily: 'var(--font-sans)',
+          fontSize: 16,
+          fontWeight: 500,
+          boxShadow: 'inset 0 0 0 1.5px var(--hairline-strong)',
+        }}
+      >
+        <ArrowRight size={18} strokeWidth={1.8} aria-hidden="true" />
+        {t('calendar.goToDay')}
+      </Link>
+    </section>
   )
 }

@@ -98,16 +98,32 @@ function CopyIconButton({
     <button
       type="button"
       aria-label={ariaLabel}
-      className="absolute flex cursor-pointer items-center justify-center rounded-[10px] border-0 bg-[var(--bg-elev-2)] text-[var(--fg-2)] transition-[background-color,color] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:text-[var(--fg-1)]"
-      style={{ top: 8, right: 8, width: 32, height: 32 }}
+      className="icon-btn icon-btn-well absolute"
+      style={{ top: 8, right: 8, width: 36, height: 36, color: 'var(--fg-2)' }}
       onClick={onClick}
     >
       {copied ? (
-        <Check size={16} strokeWidth={1.8} color="var(--status-done)" />
+        <Check size={18} strokeWidth={1.8} color="var(--status-done)" />
       ) : (
-        <Clipboard size={16} strokeWidth={1.8} />
+        <Clipboard size={18} strokeWidth={1.8} />
       )}
     </button>
+  )
+}
+
+function SubsectionTitle({ children }: Readonly<{ children: React.ReactNode }>) {
+  return (
+    <h4
+      style={{
+        fontFamily: 'var(--font-sans)',
+        fontSize: 16,
+        fontWeight: 500,
+        letterSpacing: '-0.01em',
+        color: 'var(--fg-1)',
+      }}
+    >
+      {children}
+    </h4>
   )
 }
 
@@ -218,7 +234,7 @@ export default function AdvancedPage() {
           aria-expanded={showWidgetInfo}
           aria-controls="widget-info-dialog"
           aria-label={t('profile.widgetTitle')}
-          className="flex w-full cursor-pointer items-center justify-between border-0 bg-transparent text-left transition-[background-color] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev)]"
+          className="flex w-full cursor-pointer items-center justify-between border-0 bg-transparent text-left transition-[background-color] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev)] active:bg-[var(--bg-elev-pressed)]"
           style={{ padding: '16px 20px', gap: 14, minHeight: 56 }}
         >
           <span className="flex min-w-0 flex-1 items-center" style={{ gap: 14 }}>
@@ -259,18 +275,8 @@ export default function AdvancedPage() {
         <div style={{ padding: '0 20px 14px' }}>
           {!profile?.hasProAccess && (
             <div className="flex items-center justify-end" style={{ marginBottom: 8 }}>
-              <Link
-                href="/upgrade"
-                className="inline-flex items-center"
-                style={{
-                  gap: 6,
-                  fontFamily: 'var(--font-sans)',
-                  fontSize: 13,
-                  fontWeight: 500,
-                  color: 'var(--primary)',
-                }}
-              >
-                <Lock size={13} strokeWidth={1.8} />
+              <Link href="/upgrade" className="chip">
+                <Lock size={14} strokeWidth={1.8} aria-hidden="true" />
                 {t('common.proBadge')}
               </Link>
             </div>
@@ -284,22 +290,15 @@ export default function AdvancedPage() {
           <div className="px-5 space-y-4" style={{ paddingBottom: 8 }}>
               <div className="space-y-3">
                 <div className="flex items-center justify-between">
-                  <h4 className="t-eyebrow">{t('orbitMcp.apiKeys')}</h4>
+                  <SubsectionTitle>{t('orbitMcp.apiKeys')}</SubsectionTitle>
                   {canCreateKey && (
                     <button
                       type="button"
                       disabled={!canCreateScopedKey}
-                      className="flex cursor-pointer items-center border-0 bg-transparent text-[var(--primary)] transition-[color] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:text-[var(--primary-pressed)] disabled:cursor-not-allowed disabled:text-[var(--fg-4)]"
-                      style={{
-                        gap: 6,
-                        fontFamily: 'var(--font-sans)',
-                        fontSize: 13,
-                        fontWeight: 500,
-                        padding: 6,
-                      }}
+                      className="chip chip-active disabled:cursor-not-allowed disabled:opacity-40"
                       onClick={() => setCreateKeyModalOpen(true)}
                     >
-                      <Plus size={14} strokeWidth={2.2} />
+                      <Plus size={14} strokeWidth={2.2} aria-hidden="true" />
                       {t('orbitMcp.createKey')}
                     </button>
                   )}
@@ -363,7 +362,7 @@ export default function AdvancedPage() {
                 )}
 
                 {apiKeys.length > 0 && (
-                  <div className="space-y-2">
+                  <div className="space-y-2 stagger-enter">
                     {apiKeys.map((key) => {
                       const scopes = Array.isArray(key.scopes) ? key.scopes : []
                       const isReadOnly = key.isReadOnly ?? false
@@ -454,16 +453,15 @@ export default function AdvancedPage() {
                             <div className="ml-3 flex shrink-0 items-center gap-2">
                               <button
                                 type="button"
-                                className="cursor-pointer border-0 bg-transparent text-[var(--fg-3)] transition-[color] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:text-[var(--fg-1)]"
-                                style={{ fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 500, padding: 6 }}
+                                className="chip"
                                 onClick={() => setRevokingKeyId(null)}
                               >
                                 {t('orbitMcp.cancel')}
                               </button>
                               <button
                                 type="button"
-                                className="cursor-pointer border-0 bg-transparent text-[var(--status-bad)] transition-[opacity] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:opacity-80"
-                                style={{ fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 500, padding: 6 }}
+                                className="chip"
+                                style={{ color: 'var(--status-bad)' }}
                                 onClick={() => revokeKeyMutation.mutate(key.id)}
                               >
                                 {t('orbitMcp.confirm')}
@@ -474,8 +472,8 @@ export default function AdvancedPage() {
                           <div className="flex justify-end">
                             <button
                               type="button"
-                              className="cursor-pointer border-0 bg-transparent text-[var(--status-bad)] transition-[opacity] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:opacity-80"
-                              style={{ fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 500, padding: 6 }}
+                              className="chip"
+                              style={{ color: 'var(--status-bad)' }}
                               onClick={() => setRevokingKeyId(key.id)}
                             >
                               {t('orbitMcp.revoke')}
@@ -492,17 +490,15 @@ export default function AdvancedPage() {
               <div className="space-y-3" style={{ borderTop: '1px solid var(--hairline)', paddingTop: 16 }}>
                 <button
                   type="button"
-                  className="group flex w-full cursor-pointer items-center justify-between border-0 bg-transparent"
+                  className="group flex w-full cursor-pointer items-center justify-between border-0 bg-transparent transition-opacity duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:opacity-80 active:opacity-70"
                   style={{ padding: '4px 0' }}
                   onClick={() => setInstructionsOpen(!instructionsOpen)}
                   aria-expanded={instructionsOpen}
                   aria-controls="mcp-instructions"
                 >
-                  <h4 className="t-eyebrow transition-[color] duration-[var(--dur-fast)] ease-[var(--ease-standard)] group-hover:text-[var(--fg-2)]">
-                    {t('orbitMcp.connectionInstructions')}
-                  </h4>
+                  <SubsectionTitle>{t('orbitMcp.connectionInstructions')}</SubsectionTitle>
                   <ChevronDown
-                    size={18}
+                    size={20}
                     strokeWidth={1.8}
                     color="var(--fg-3)"
                     className={`transition-transform duration-[var(--dur-base)] ease-[var(--ease-standard)] ${

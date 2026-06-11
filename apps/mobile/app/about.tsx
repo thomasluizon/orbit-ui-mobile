@@ -1,10 +1,11 @@
 import { useMemo, useState } from 'react'
 import { ScrollView, StyleSheet, Text, View } from 'react-native'
+import Animated, { FadeInDown, ReduceMotion } from 'react-native-reanimated'
 import { useRouter } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
 import Constants from 'expo-constants'
-import { Compass, Mail, Orbit, Shield } from 'lucide-react-native'
+import { Compass, FileText, Mail, Orbit, Shield } from 'lucide-react-native'
 import { createTokensV2, primaryGlow } from '@/lib/theme'
 import { FeatureGuideDrawer } from '@/components/onboarding/feature-guide-drawer'
 import { ReferralCard } from '@/components/referral/referral-card'
@@ -13,6 +14,12 @@ import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { AppBar } from '@/components/ui/app-bar'
 import { SettingsRow } from '@/components/ui/settings-row'
+
+function sectionEntrance(index: number) {
+  return FadeInDown.duration(280)
+    .delay(index * 50)
+    .reduceMotion(ReduceMotion.System)
+}
 
 export default function AboutScreen() {
   const { t } = useTranslation()
@@ -43,7 +50,7 @@ export default function AboutScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <View style={styles.logoBlock}>
+        <Animated.View entering={sectionEntrance(0)} style={styles.logoBlock}>
           <View
             style={[
               styles.logoTile,
@@ -61,23 +68,30 @@ export default function AboutScreen() {
               {t('about.version', { version: appVersion })}
             </Text>
           ) : null}
-        </View>
-        <SettingsRow
-          icon={Compass}
-          label={t('onboarding.featureGuide.openButton')}
-          onPress={() => setShowGuide(true)}
-        />
-        <ReferralCard onOpen={() => setShowReferral(true)} />
-        <SettingsRow
-          icon={Mail}
-          label={t('profile.support.title')}
-          onPress={() => router.push('/support')}
-        />
-        <SettingsRow
-          icon={Shield}
-          label={t('privacy.title')}
-          onPress={() => router.push('/privacy')}
-        />
+        </Animated.View>
+        <Animated.View entering={sectionEntrance(1)}>
+          <SettingsRow
+            icon={Compass}
+            label={t('onboarding.featureGuide.openButton')}
+            onPress={() => setShowGuide(true)}
+          />
+          <ReferralCard onOpen={() => setShowReferral(true)} />
+          <SettingsRow
+            icon={Mail}
+            label={t('profile.support.title')}
+            onPress={() => router.push('/support')}
+          />
+          <SettingsRow
+            icon={FileText}
+            label={t('terms.title')}
+            onPress={() => router.push('/terms')}
+          />
+          <SettingsRow
+            icon={Shield}
+            label={t('privacy.title')}
+            onPress={() => router.push('/privacy')}
+          />
+        </Animated.View>
         <View style={{ height: 24 }} />
       </ScrollView>
 

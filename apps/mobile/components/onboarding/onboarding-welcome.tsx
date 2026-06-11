@@ -1,5 +1,5 @@
-import { useMemo } from 'react'
-import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { useEffect, useMemo } from 'react'
+import { Animated, Pressable, StyleSheet, Text, View } from 'react-native'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { profileKeys } from '@orbit/shared/query'
@@ -9,6 +9,7 @@ import { useProfile, useHasProAccess } from '@/hooks/use-profile'
 import { API } from '@orbit/shared/api'
 import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
 import { createTokensV2, tintFromPrimary, type AppTokensV2 } from '@/lib/theme'
+import { usePrefersReducedMotion } from '@/lib/motion'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { Chip } from '@/components/ui/chip'
 import { AppLogo } from '@/components/ui/app-logo'
@@ -33,6 +34,24 @@ export function OnboardingWelcome() {
     [currentScheme, currentTheme],
   )
   const styles = useMemo(() => createStyles(tokens), [tokens])
+  const prefersReducedMotion = usePrefersReducedMotion()
+  const heroScale = useMemo(() => new Animated.Value(0), [])
+
+  useEffect(() => {
+    if (prefersReducedMotion) {
+      heroScale.setValue(1)
+      return
+    }
+    const animation = Animated.spring(heroScale, {
+      toValue: 1,
+      stiffness: 220,
+      damping: 22,
+      mass: 1,
+      useNativeDriver: true,
+    })
+    animation.start()
+    return () => animation.stop()
+  }, [heroScale, prefersReducedMotion])
 
   const selectedScheme =
     (profile as OnboardingProfileState | null)?.colorScheme ?? 'purple'
@@ -83,9 +102,24 @@ export function OnboardingWelcome() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.heroDisc}>
+      <Animated.View
+        style={[
+          styles.heroDisc,
+          {
+            opacity: heroScale,
+            transform: [
+              {
+                scale: heroScale.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0.3, 1],
+                }),
+              },
+            ],
+          },
+        ]}
+      >
         <AppLogo size={56} />
-      </View>
+      </Animated.View>
 
       <Text style={styles.title}>{t('onboarding.flow.welcome.title')}</Text>
       <Text style={styles.subtitle}>
@@ -165,8 +199,8 @@ function createStyles(tokens: AppTokensV2) {
     },
     subtitle: {
       fontFamily: 'Rubik_400Regular',
-      fontSize: 15,
-      lineHeight: 23,
+      fontSize: 16,
+      lineHeight: 25,
       color: tokens.fg2,
       textAlign: 'center',
       paddingHorizontal: 12,

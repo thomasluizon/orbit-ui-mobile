@@ -107,7 +107,7 @@ export function ReminderSection({
             }}
             activeOpacity={0.7}
           >
-            <Plus size={16} color={tokens.primary} strokeWidth={1.8} />
+            <Plus size={14} color={tokens.fg2} strokeWidth={2} />
             <Text style={sectionStyles.addButtonText}>
               {t("habits.form.reminderAdd")}
             </Text>

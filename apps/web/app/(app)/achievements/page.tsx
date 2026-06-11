@@ -65,7 +65,6 @@ export default function AchievementsPage() {
               style={{
                 fontFamily: 'var(--font-sans)',
                 fontSize: 14,
-                fontStyle: 'italic',
                 color: 'var(--fg-3)',
                 lineHeight: 1.55,
               }}
@@ -116,7 +115,7 @@ export default function AchievementsPage() {
                       <span
                         style={{
                           fontFamily: 'var(--font-display)',
-                          fontSize: 34,
+                          fontSize: 36,
                           fontWeight: 700,
                           letterSpacing: '-0.02em',
                           color: 'var(--fg-1)',

@@ -1,9 +1,13 @@
 'use client'
 
 import { useCallback, useMemo, useState, useSyncExternalStore } from 'react'
-import { Bell, BellOff, Trash2, X } from 'lucide-react'
+import { Bell, BellOff, Flame, Sparkles, Trash2, Trophy, X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
-import { formatNotificationRelativeTime } from '@orbit/shared/utils'
+import {
+  formatNotificationRelativeTime,
+  getNotificationGlyph,
+  type NotificationGlyph,
+} from '@orbit/shared/utils'
 import { plural } from '@/lib/plural'
 import type { NotificationItem } from '@orbit/shared/types/notification'
 import {
@@ -23,6 +27,36 @@ import {
   queuePendingNotificationDelete,
   subscribePendingNotificationDeleteIds,
 } from '@/lib/pending-notification-deletes'
+
+const glyphIconMap = {
+  streak: Flame,
+  celebration: Trophy,
+  astra: Sparkles,
+  reminder: Bell,
+} as const
+
+const glyphColorMap: Record<NotificationGlyph, string> = {
+  streak: 'var(--status-overdue)',
+  celebration: 'var(--primary-soft)',
+  astra: 'var(--primary-soft)',
+  reminder: 'var(--fg-3)',
+}
+
+function NotificationGlyphCircle({
+  notification,
+}: Readonly<{ notification: NotificationItem }>) {
+  const glyph = getNotificationGlyph(notification)
+  const GlyphIcon = glyphIconMap[glyph]
+  return (
+    <span
+      aria-hidden="true"
+      className="inline-flex shrink-0 items-center justify-center rounded-full bg-[var(--bg-elev)]"
+      style={{ width: 42, height: 42 }}
+    >
+      <GlyphIcon size={20} strokeWidth={1.8} color={glyphColorMap[glyph]} />
+    </span>
+  )
+}
 
 export function NotificationBell() {
   const t = useTranslations()
@@ -96,13 +130,7 @@ export function NotificationBell() {
       aria-label={visibleUnreadCount > 0 ? plural(t('notifications.bellWithCount', { count: visibleUnreadCount }), visibleUnreadCount) : t('notifications.bell')}
       aria-expanded={isOpen}
       aria-controls="notification-dropdown"
-      className="relative appearance-none border-0 bg-transparent cursor-pointer inline-flex items-center justify-center text-[var(--fg-1)] transition-[background-color] duration-150 ease-out hover:bg-[var(--bg-elev)]"
-      style={{
-        width: 40,
-        height: 40,
-        borderRadius: 999,
-        boxShadow: 'inset 0 0 0 1.5px var(--hairline-strong)',
-      }}
+      className="icon-btn icon-btn-ring icon-btn-well relative"
       onClick={() => setIsOpen((prev) => !prev)}
     >
       <Bell size={22} strokeWidth={1.8} aria-hidden="true" />
@@ -154,14 +182,8 @@ export function NotificationBell() {
             {visibleUnreadCount > 0 && (
               <button
                 type="button"
-                className="appearance-none border-0 bg-transparent cursor-pointer transition-opacity duration-150 hover:opacity-80"
-                style={{
-                  fontFamily: 'var(--font-sans)',
-                  fontSize: 12,
-                  fontWeight: 500,
-                  padding: '6px 4px',
-                  color: 'var(--fg-2)',
-                }}
+                className="chip"
+                style={{ padding: '7px 12px' }}
                 onClick={() => markAllAsRead.mutate()}
               >
                 {t('notifications.markAllRead')}
@@ -171,11 +193,11 @@ export function NotificationBell() {
               <button
                 type="button"
                 aria-label={t('notifications.deleteAll')}
-                className="appearance-none border-0 bg-transparent cursor-pointer rounded-full text-[var(--fg-3)] hover:text-[var(--status-bad)] transition-colors duration-150"
-                style={{ padding: 6 }}
+                className="icon-btn hover:text-[var(--status-bad)]"
+                style={{ width: 36, height: 36, color: 'var(--fg-3)' }}
                 onClick={() => setShowDeleteAllConfirm(true)}
               >
-                <Trash2 className="size-3.5" aria-hidden="true" />
+                <Trash2 size={18} strokeWidth={1.8} aria-hidden="true" />
               </button>
             )}
           </div>
@@ -183,7 +205,7 @@ export function NotificationBell() {
 
         <ul
           id="notification-dropdown"
-          className="flex-1 overflow-y-auto list-none m-0 p-0"
+          className="stagger-enter flex-1 overflow-y-auto list-none m-0 p-0"
           aria-label={t('notifications.title')}
         >
           {isLoading && visibleNotifications.length === 0 && (
@@ -199,13 +221,14 @@ export function NotificationBell() {
             </li>
           )}
           {!isLoading && visibleNotifications.length === 0 && (
-            <li className="p-6 text-center">
-              <BellOff
-                className="size-8 mx-auto mb-2"
-                strokeWidth={1.4}
-                color="var(--fg-3)"
+            <li className="flex flex-col items-center p-6 text-center" style={{ gap: 10 }}>
+              <span
                 aria-hidden="true"
-              />
+                className="inline-flex items-center justify-center rounded-full bg-[var(--bg-elev)]"
+                style={{ width: 42, height: 42 }}
+              >
+                <BellOff size={20} strokeWidth={1.8} color="var(--fg-3)" />
+              </span>
               <p
                 style={{
                   fontFamily: 'var(--font-sans)',
@@ -221,16 +244,17 @@ export function NotificationBell() {
             visibleNotifications.map((item) => (
               <li
                 key={item.id}
-                className="flex items-start transition-[background-color] duration-150 hover:bg-[var(--bg-elev)]"
+                className="flex items-start transition-[background-color] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev)] active:bg-[var(--bg-elev-pressed)]"
                 style={{
-                  gap: 10,
-                  padding: '12px 16px',
+                  gap: 12,
+                  padding: '14px 16px',
                   borderBottom: '1px solid var(--hairline)',
                   background: item.isRead
                     ? 'transparent'
-                    : 'rgba(var(--primary-rgb), 0.08)',
+                    : 'rgba(var(--primary-rgb), 0.06)',
                 }}
               >
+                <NotificationGlyphCircle notification={item} />
                 <button
                   type="button"
                   className="flex-1 min-w-0 text-left appearance-none border-0 bg-transparent cursor-pointer p-0"
@@ -243,7 +267,7 @@ export function NotificationBell() {
                       style={{
                         fontFamily: 'var(--font-sans)',
                         fontSize: 15,
-                        fontWeight: item.isRead ? 400 : 500,
+                        fontWeight: 500,
                         color: 'var(--fg-1)',
                       }}
                     >
@@ -252,10 +276,9 @@ export function NotificationBell() {
                     <span
                       className="shrink-0"
                       style={{
-                        fontFamily: 'var(--font-mono)',
+                        fontFamily: 'var(--font-sans)',
                         fontSize: 12,
                         color: 'var(--fg-4)',
-                        fontVariantNumeric: 'tabular-nums',
                       }}
                     >
                       {formatNotificationRelativeTime(item.createdAtUtc, (key, values) =>
@@ -267,10 +290,10 @@ export function NotificationBell() {
                     className="block"
                     style={{
                       fontFamily: 'var(--font-sans)',
-                      fontSize: 13,
+                      fontSize: 14,
                       lineHeight: 1.4,
                       color: 'var(--fg-3)',
-                      marginTop: 2,
+                      marginTop: 3,
                     }}
                   >
                     {item.body}
@@ -279,14 +302,14 @@ export function NotificationBell() {
                 <button
                   type="button"
                   aria-label={t('notifications.deleteNotification')}
-                  className="shrink-0 appearance-none border-0 bg-transparent cursor-pointer rounded-full text-[var(--fg-4)] hover:text-[var(--status-bad)] transition-colors duration-150"
-                  style={{ padding: 8, margin: -4 }}
+                  className="icon-btn icon-btn-well shrink-0 hover:text-[var(--status-bad)]"
+                  style={{ width: 36, height: 36, margin: -2, color: 'var(--fg-4)' }}
                   onClick={(e) => {
                     e.stopPropagation()
                     requestDeleteNotification(item)
                   }}
                 >
-                  <X className="size-3.5" aria-hidden="true" />
+                  <X size={18} strokeWidth={1.8} aria-hidden="true" />
                 </button>
               </li>
             ))}

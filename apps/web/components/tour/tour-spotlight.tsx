@@ -60,6 +60,18 @@ export function TourSpotlight({ targetRect, padding = 8 }: Readonly<TourSpotligh
           fill="rgba(0, 0, 0, 0.6)"
           mask="url(#tour-spotlight-mask)"
         />
+        <rect
+          x={x}
+          y={y}
+          width={Math.max(w, 0)}
+          height={Math.max(h, 0)}
+          rx={BORDER_RADIUS}
+          ry={BORDER_RADIUS}
+          fill="none"
+          stroke="rgba(var(--primary-rgb), 0.7)"
+          strokeWidth={1.5}
+          style={{ filter: 'drop-shadow(0 0 12px rgba(var(--primary-rgb), 0.45))' }}
+        />
       </svg>
     </div>
   )

@@ -43,18 +43,19 @@ export default function LoginPage() {
           className="flex flex-col items-center"
           style={{ gap: 14, paddingBottom: 4 }}
         >
-          <AppLogo size={64} />
           <div
+            className="flex items-center justify-center"
             style={{
-              fontFamily: 'var(--font-sans)',
-              fontSize: 28,
-              fontWeight: 500,
-              letterSpacing: '-0.01em',
-              lineHeight: 1,
-              color: 'var(--fg-1)',
+              width: 64,
+              height: 64,
+              borderRadius: 18,
+              background: 'rgba(var(--primary-rgb), 0.16)',
+              boxShadow:
+                '0 10px 30px rgba(var(--primary-rgb), 0.45), inset 0 0 0 1px rgba(var(--primary-rgb), 0.28)',
+              animation: 'fresh-start-orb 0.6s var(--ease-out) both',
             }}
           >
-            Orbit
+            <AppLogo size={40} />
           </div>
         </div>
 
@@ -62,7 +63,7 @@ export default function LoginPage() {
           <h2
             style={{
               fontFamily: 'var(--font-sans)',
-              fontSize: 24,
+              fontSize: 26,
               fontWeight: 500,
               letterSpacing: '-0.01em',
               lineHeight: 1.3,
@@ -227,6 +228,7 @@ export default function LoginPage() {
                 canResend={canResend}
                 resendCountdown={resendCountdown}
                 codeInputRefs={codeInputRefs}
+                errorSignal={errorMessage}
                 onVerifyCode={verifyCode}
                 onCodeInput={onCodeInput}
                 onCodeKeydown={onCodeKeydown}

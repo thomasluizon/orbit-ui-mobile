@@ -6,6 +6,7 @@ import {
   Text,
   View,
 } from 'react-native'
+import Animated, { FadeInDown, ReduceMotion } from 'react-native-reanimated'
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
@@ -55,6 +56,12 @@ type Step =
   | 'not-connected'
   | 'offline'
 
+function rowEntrance(index: number) {
+  return FadeInDown.duration(280)
+    .delay(Math.min(index, 8) * 40)
+    .reduceMotion(ReduceMotion.System)
+}
+
 type CalendarEvent = CalendarSyncEvent
 
 interface ImportResult {
@@ -92,6 +99,10 @@ export default function CalendarSyncScreen() {
   )
   const { isOnline } = useOffline()
   const styles = useMemo(() => createStyles(), [])
+  const chipTint = useMemo(
+    () => ({ backgroundColor: tokens.bgElev, borderColor: tokens.hairline }),
+    [tokens],
+  )
   const bulkCreateHabits = useBulkCreateHabits()
   const queryClient = useQueryClient()
   const { showError } = useAppToast()
@@ -392,7 +403,7 @@ export default function CalendarSyncScreen() {
     void fetchManualEvents()
   }, [fetchManualEvents, isOnline, isReviewMode, queryClient])
 
-  function renderEventRow(event: CalendarEvent) {
+  function renderEventRow(event: CalendarEvent, index: number) {
     const selected = selectedIds.has(event.id)
     const recurrenceLabel = formatCalendarSyncRecurrenceLabel(
       event.recurrenceRule,
@@ -410,35 +421,36 @@ export default function CalendarSyncScreen() {
       .join(' · ')
 
     return (
-      <Pressable
-        key={event.id}
-        onPress={() => toggleEvent(event.id)}
-        accessibilityRole="checkbox"
-        accessibilityState={{ checked: selected }}
-        style={({ pressed }) => [
-          styles.eventRow,
-          {
-            borderBottomColor: tokens.hairline,
-            backgroundColor: pressed
-              ? tokens.bgElev
-              : selected
-                ? tintFromPrimary(tokens, 0.06)
-                : 'transparent',
-          },
-        ]}
-      >
-        <View style={styles.eventBody}>
-          <Text style={[styles.eventTitle, { color: tokens.fg1 }]} numberOfLines={1}>
-            {event.title}
-          </Text>
-          {meta ? (
-            <Text style={[styles.eventMeta, { color: tokens.fg3 }]} numberOfLines={1}>
-              {meta}
+      <Animated.View key={event.id} entering={rowEntrance(index)}>
+        <Pressable
+          onPress={() => toggleEvent(event.id)}
+          accessibilityRole="checkbox"
+          accessibilityState={{ checked: selected }}
+          style={({ pressed }) => [
+            styles.eventRow,
+            {
+              borderBottomColor: tokens.hairline,
+              backgroundColor: pressed
+                ? tokens.bgElev
+                : selected
+                  ? tintFromPrimary(tokens, 0.06)
+                  : 'transparent',
+            },
+          ]}
+        >
+          <View style={styles.eventBody}>
+            <Text style={[styles.eventTitle, { color: tokens.fg1 }]} numberOfLines={1}>
+              {event.title}
             </Text>
-          ) : null}
-        </View>
-        <SelectCheck selected={selected} onPress={() => toggleEvent(event.id)} />
-      </Pressable>
+            {meta ? (
+              <Text style={[styles.eventMeta, { color: tokens.fg3 }]} numberOfLines={1}>
+                {meta}
+              </Text>
+            ) : null}
+          </View>
+          <SelectCheck selected={selected} onPress={() => toggleEvent(event.id)} />
+        </Pressable>
+      </Animated.View>
     )
   }
 
@@ -521,6 +533,7 @@ export default function CalendarSyncScreen() {
                   accessibilityLabel={t('calendar.autoSync.syncNow')}
                   style={({ pressed }) => [
                     styles.quietAction,
+                    chipTint,
                     (pressed || runSyncNowMutation.isPending) && styles.quietActionDim,
                   ]}
                 >
@@ -534,9 +547,9 @@ export default function CalendarSyncScreen() {
               </View>
             ) : null}
             {isCalendarAutoSyncStatusReconnectRequired(autoSyncState?.status) ? (
-              <View style={styles.italicBlock}>
+              <View style={styles.reconnectBlock}>
                 <Text
-                  style={[styles.italicText, { color: tokens.statusOverdue }]}
+                  style={[styles.stateText, { color: tokens.statusOverdue }]}
                 >
                   {t('calendar.autoSync.reconnectBody')}
                 </Text>
@@ -546,6 +559,7 @@ export default function CalendarSyncScreen() {
                   accessibilityRole="button"
                   style={({ pressed }) => [
                     styles.quietAction,
+                    chipTint,
                     (pressed || isConnecting) && styles.quietActionDim,
                   ]}
                 >
@@ -566,7 +580,7 @@ export default function CalendarSyncScreen() {
             accessibilityLiveRegion="polite"
             accessibilityLabel={t('calendar.fetchingEvents')}
           >
-            <Text style={[styles.italicText, { color: tokens.fg3 }]}>
+            <Text style={[styles.stateText, { color: tokens.fg3 }]}>
               {t('calendar.fetchingEvents')}
             </Text>
           </View>
@@ -578,7 +592,7 @@ export default function CalendarSyncScreen() {
             accessibilityLiveRegion="polite"
             accessibilityLabel={t('calendar.notConnectedTitle')}
           >
-            <Text style={[styles.italicText, { color: tokens.fg3 }]}>
+            <Text style={[styles.stateText, { color: tokens.fg3 }]}>
               {t('calendar.notConnectedDesc')}
             </Text>
             <PillButton
@@ -599,7 +613,7 @@ export default function CalendarSyncScreen() {
             accessibilityLabel={t('calendarSync.notConnected')}
           >
             <WifiOff size={28} color={tokens.fg3} strokeWidth={1.4} />
-            <Text style={[styles.italicText, { color: tokens.fg2 }]}>
+            <Text style={[styles.stateText, { color: tokens.fg2 }]}>
               {t('calendarSync.notConnected')}
             </Text>
             <Pressable
@@ -607,6 +621,7 @@ export default function CalendarSyncScreen() {
               accessibilityRole="button"
               style={({ pressed }) => [
                 styles.quietAction,
+                chipTint,
                 pressed && styles.quietActionDim,
               ]}
             >
@@ -621,7 +636,7 @@ export default function CalendarSyncScreen() {
           <>
             {events.length === 0 ? (
               <View style={styles.centerBlock}>
-                <Text style={[styles.italicText, { color: tokens.fg3 }]}>
+                <Text style={[styles.stateText, { color: tokens.fg3 }]}>
                   {isReviewMode
                     ? t('calendar.autoSync.reviewModeEmpty')
                     : t('calendar.noEvents')}
@@ -636,6 +651,7 @@ export default function CalendarSyncScreen() {
                       accessibilityRole="button"
                       style={({ pressed }) => [
                         styles.quietAction,
+                        chipTint,
                         pressed && styles.quietActionDim,
                       ]}
                     >
@@ -678,7 +694,7 @@ export default function CalendarSyncScreen() {
             accessibilityLiveRegion="polite"
             accessibilityLabel={t('calendar.importing')}
           >
-            <Text style={[styles.italicText, { color: tokens.fg3 }]}>
+            <Text style={[styles.stateText, { color: tokens.fg3 }]}>
               {t('calendar.importing')}
             </Text>
             <View
@@ -723,7 +739,7 @@ export default function CalendarSyncScreen() {
             accessibilityRole="alert"
             accessibilityLiveRegion="assertive"
           >
-            <Text style={[styles.italicText, { color: tokens.statusOverdue }]}>
+            <Text style={[styles.stateText, { color: tokens.statusOverdue }]}>
               {errorMessage || t('calendar.errorTitle')}
             </Text>
             <Pressable
@@ -731,6 +747,7 @@ export default function CalendarSyncScreen() {
               accessibilityRole="button"
               style={({ pressed }) => [
                 styles.quietAction,
+                chipTint,
                 pressed && styles.quietActionDim,
               ]}
             >
@@ -789,15 +806,17 @@ function createStyles() {
       justifyContent: 'flex-end',
       paddingHorizontal: 20,
     },
-    italicBlock: {
+    reconnectBlock: {
       paddingHorizontal: 20,
       paddingVertical: 12,
-      gap: 4,
+      gap: 8,
+      alignItems: 'flex-start',
     },
-    italicText: {
+    stateText: {
       fontFamily: 'Rubik_400Regular',
-      fontSize: 13,
-      fontStyle: 'italic',
+      fontSize: 14,
+      lineHeight: 19.6,
+      textAlign: 'center',
     },
     centerBlock: {
       paddingHorizontal: 24,
@@ -829,12 +848,16 @@ function createStyles() {
     quietAction: {
       flexDirection: 'row',
       alignItems: 'center',
+      justifyContent: 'center',
       gap: 7,
-      minHeight: 44,
-      paddingHorizontal: 6,
+      borderRadius: 999,
+      borderWidth: 1,
+      paddingVertical: 9,
+      paddingHorizontal: 16,
     },
     quietActionDim: {
       opacity: 0.6,
+      transform: [{ scale: 0.96 }],
     },
     quietActionText: {
       fontFamily: 'Rubik_500Medium',
@@ -846,7 +869,7 @@ function createStyles() {
     },
     progressTrack: {
       width: 200,
-      height: 3,
+      height: 8,
       borderRadius: 999,
       overflow: 'hidden',
     },

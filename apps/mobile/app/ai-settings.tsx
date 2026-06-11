@@ -6,13 +6,17 @@ import {
   StyleSheet,
   ScrollView,
 } from 'react-native'
+import Animated, { FadeInDown, ReduceMotion } from 'react-native-reanimated'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import {
+  Brain,
   ChevronLeft,
   ChevronRight,
   Lock,
+  Satellite,
+  Sparkles,
   Trash2,
   X,
 } from 'lucide-react-native'
@@ -32,17 +36,23 @@ import { createTokensV2, tintFromPrimary } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { AppBar } from '@/components/ui/app-bar'
+import { PillButton } from '@/components/ui/pill-button'
+import { SatelliteGlyph } from '@/components/ui/satellite-glyph'
 import { SectionLabel } from '@/components/ui/section-label'
 import { SettingsRow, Switch } from '@/components/ui/settings-row'
-import { SettingsDescription } from '@/components/ui/settings-description'
 import { SelectCheck } from '@/components/ui/select-check'
-import { EmptyState } from '@/components/ui/empty-state'
 import { ProBadge } from '@/components/ui/pro-badge'
 
 interface UserFact {
   id: string
   factText: string
   category: string | null
+}
+
+function rowEntrance(index: number) {
+  return FadeInDown.duration(280)
+    .delay(Math.min(index, 8) * 40)
+    .reduceMotion(ReduceMotion.System)
 }
 
 export default function AiSettingsScreen() {
@@ -250,11 +260,16 @@ export default function AiSettingsScreen() {
         disabled={factsPage === 1}
         accessibilityRole="button"
         accessibilityLabel={t('common.previous')}
-        style={styles.pageBtn}
+        style={({ pressed }) => [
+          styles.pageBtn,
+          { backgroundColor: pressed ? tokens.bgElev2 : tokens.bgElev },
+          pressed ? styles.pageBtnPressed : null,
+        ]}
       >
         <ChevronLeft
-          size={14}
-          color={factsPage === 1 ? tokens.fg4 : tokens.fg3}
+          size={18}
+          strokeWidth={1.8}
+          color={factsPage === 1 ? tokens.fg4 : tokens.fg2}
         />
       </Pressable>
       <Pressable
@@ -262,11 +277,16 @@ export default function AiSettingsScreen() {
         disabled={factsPage === totalFactsPages}
         accessibilityRole="button"
         accessibilityLabel={t('common.next')}
-        style={styles.pageBtn}
+        style={({ pressed }) => [
+          styles.pageBtn,
+          { backgroundColor: pressed ? tokens.bgElev2 : tokens.bgElev },
+          pressed ? styles.pageBtnPressed : null,
+        ]}
       >
         <ChevronRight
-          size={14}
-          color={factsPage === totalFactsPages ? tokens.fg4 : tokens.fg3}
+          size={18}
+          strokeWidth={1.8}
+          color={factsPage === totalFactsPages ? tokens.fg4 : tokens.fg2}
         />
       </Pressable>
     </View>
@@ -289,11 +309,13 @@ export default function AiSettingsScreen() {
         showsVerticalScrollIndicator={false}
       >
         <SectionLabel bottom={4} trailing={<ProBadge />}>
-          {t('profile.aiMemory.title')}
+          {t('profile.sections.aiFeatures')}
         </SectionLabel>
         {hasProAccess ? (
           <SettingsRow
+            icon={Brain}
             label={t('profile.aiMemory.title')}
+            desc={t('profile.aiMemory.description')}
             accessory="none"
             divider={false}
           >
@@ -306,22 +328,21 @@ export default function AiSettingsScreen() {
           </SettingsRow>
         ) : (
           <SettingsRow
+            icon={Brain}
             label={t('profile.aiMemory.title')}
+            desc={t('profile.aiMemory.description')}
             onPress={() => router.push(buildUpgradeHref('/ai-settings'))}
             accessory="chevron"
             divider={false}
           >
-            <Lock size={14} color={tokens.fg3} strokeWidth={1.8} />
+            <Lock size={18} color={tokens.fg3} strokeWidth={1.8} />
           </SettingsRow>
         )}
-        <SettingsDescription>{t('profile.aiMemory.description')}</SettingsDescription>
-
-        <SectionLabel bottom={4} trailing={<ProBadge />}>
-          {t('profile.aiSummary.title')}
-        </SectionLabel>
         {hasProAccess ? (
           <SettingsRow
+            icon={Satellite}
             label={t('profile.aiSummary.title')}
+            desc={t('profile.aiSummary.description')}
             accessory="none"
             divider={false}
           >
@@ -334,15 +355,16 @@ export default function AiSettingsScreen() {
           </SettingsRow>
         ) : (
           <SettingsRow
+            icon={Satellite}
             label={t('profile.aiSummary.title')}
+            desc={t('profile.aiSummary.description')}
             onPress={() => router.push(buildUpgradeHref('/ai-settings'))}
             accessory="chevron"
             divider={false}
           >
-            <Lock size={14} color={tokens.fg3} strokeWidth={1.8} />
+            <Lock size={18} color={tokens.fg3} strokeWidth={1.8} />
           </SettingsRow>
         )}
-        <SettingsDescription>{t('profile.aiSummary.description')}</SettingsDescription>
 
         <SectionLabel
           trailing={hasProAccess && totalFactsPages > 1 ? pagingTrailing : undefined}
@@ -351,8 +373,8 @@ export default function AiSettingsScreen() {
         </SectionLabel>
 
         {!hasProAccess ? (
-          <View style={styles.italicBlock}>
-            <Text style={[styles.italicText, { color: tokens.fg3 }]}>
+          <View style={styles.lockedBlock}>
+            <Text style={[styles.lockedText, { color: tokens.fg3 }]}>
               {t('profile.facts.lockedHint')}
             </Text>
           </View>
@@ -366,7 +388,21 @@ export default function AiSettingsScreen() {
             />
           </View>
         ) : facts.length === 0 ? (
-          <EmptyState description={t('profile.facts.empty')} />
+          <View style={styles.emptyBlock}>
+            <SatelliteGlyph size={104} />
+            <Text style={[styles.emptyBody, { color: tokens.fg2 }]}>
+              {t('profile.facts.empty')}
+            </Text>
+            <PillButton
+              fullWidth
+              onPress={() => router.push('/chat')}
+              leading={
+                <Sparkles size={18} color={tokens.fgOnPrimary} strokeWidth={1.8} />
+              }
+            >
+              {t('summary.askAstra')}
+            </PillButton>
+          </View>
         ) : (
           <>
             {selectMode ? (
@@ -382,10 +418,17 @@ export default function AiSettingsScreen() {
                   <Pressable
                     onPress={toggleSelectAll}
                     accessibilityRole="button"
-                    style={styles.selectActionPress}
+                    style={({ pressed }) => [
+                      styles.actionChip,
+                      {
+                        backgroundColor: pressed ? tokens.bgElev2 : tokens.bgElev,
+                        borderColor: tokens.hairline,
+                      },
+                      pressed ? styles.actionChipPressed : null,
+                    ]}
                   >
                     <Text
-                      style={[styles.selectActionText, { color: tokens.fg1 }]}
+                      style={[styles.selectActionText, { color: tokens.fg2 }]}
                     >
                       {selectedFactIds.size === facts.length
                         ? t('profile.facts.deselectAll')
@@ -398,13 +441,20 @@ export default function AiSettingsScreen() {
                     }
                     disabled={selectedFactIds.size === 0}
                     accessibilityRole="button"
-                    style={styles.selectActionPress}
+                    style={({ pressed }) => [
+                      styles.actionChip,
+                      {
+                        backgroundColor: pressed ? tokens.bgElev2 : tokens.bgElev,
+                        borderColor: tokens.hairline,
+                      },
+                      pressed ? styles.actionChipPressed : null,
+                      selectedFactIds.size === 0 && { opacity: 0.45 },
+                    ]}
                   >
                     <Text
                       style={[
                         styles.selectActionText,
                         { color: tokens.statusBad },
-                        selectedFactIds.size === 0 && { opacity: 0.45 },
                       ]}
                     >
                       {t('profile.facts.deleteSelectedShort')}
@@ -414,9 +464,13 @@ export default function AiSettingsScreen() {
                     onPress={toggleSelectMode}
                     accessibilityRole="button"
                     accessibilityLabel={t('profile.facts.cancel')}
-                    style={styles.selectActionPress}
+                    style={({ pressed }) => [
+                      styles.cancelBtn,
+                      { backgroundColor: pressed ? tokens.bgElev2 : tokens.bgElev },
+                      pressed ? styles.actionChipPressed : null,
+                    ]}
                   >
-                    <X size={14} color={tokens.fg3} />
+                    <X size={18} color={tokens.fg3} strokeWidth={1.8} />
                   </Pressable>
                 </View>
               </View>
@@ -426,7 +480,14 @@ export default function AiSettingsScreen() {
                   onPress={toggleSelectMode}
                   accessibilityRole="button"
                   accessibilityLabel={t('profile.facts.select')}
-                  style={styles.selectActionPress}
+                  style={({ pressed }) => [
+                    styles.actionChip,
+                    {
+                      backgroundColor: pressed ? tokens.bgElev2 : tokens.bgElev,
+                      borderColor: tokens.hairline,
+                    },
+                    pressed ? styles.actionChipPressed : null,
+                  ]}
                 >
                   <Text
                     style={[styles.selectActionText, { color: tokens.fg2 }]}
@@ -438,11 +499,11 @@ export default function AiSettingsScreen() {
             )}
 
             <View style={styles.factsList}>
-              {pagedFacts.map((fact) => {
+              {pagedFacts.map((fact, index) => {
                 const selected = selectedFactIds.has(fact.id)
                 return (
+                  <Animated.View key={fact.id} entering={rowEntrance(index)}>
                   <Pressable
-                    key={fact.id}
                     onPress={
                       selectMode ? () => toggleFactSelection(fact.id) : undefined
                     }
@@ -464,6 +525,7 @@ export default function AiSettingsScreen() {
                                 : tokens.bgCard,
                             borderColor: tokens.hairline,
                           },
+                      pressed && selectMode ? styles.factCardPressed : null,
                     ]}
                   >
                     {selectMode ? (
@@ -499,12 +561,16 @@ export default function AiSettingsScreen() {
                         onPress={() => deleteMutation.mutate(fact.id)}
                         accessibilityRole="button"
                         accessibilityLabel={t('profile.facts.delete')}
-                        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-                        style={styles.deleteBtn}
+                        hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                        style={({ pressed }) => [
+                          styles.deleteBtn,
+                          { backgroundColor: pressed ? tokens.bgElev2 : tokens.bgElev },
+                          pressed ? styles.actionChipPressed : null,
+                        ]}
                       >
                         {({ pressed }) => (
                           <Trash2
-                            size={16}
+                            size={18}
                             color={pressed ? tokens.statusBad : tokens.fg4}
                             strokeWidth={1.8}
                           />
@@ -512,6 +578,7 @@ export default function AiSettingsScreen() {
                       </Pressable>
                     ) : null}
                   </Pressable>
+                  </Animated.View>
                 )
               })}
             </View>
@@ -529,14 +596,26 @@ function createStyles() {
     safeArea: { flex: 1 },
     container: { flex: 1 },
     scrollContent: { paddingBottom: 40 },
-    italicBlock: {
+    lockedBlock: {
       paddingHorizontal: 20,
       paddingVertical: 10,
     },
-    italicText: {
+    lockedText: {
       fontFamily: 'Rubik_400Regular',
       fontSize: 13,
-      fontStyle: 'italic',
+    },
+    emptyBlock: {
+      alignItems: 'center',
+      paddingHorizontal: 36,
+      paddingVertical: 40,
+      gap: 18,
+    },
+    emptyBody: {
+      fontFamily: 'Rubik_400Regular',
+      fontSize: 15,
+      lineHeight: 22.5,
+      textAlign: 'center',
+      maxWidth: 320,
     },
     pagingRow: {
       flexDirection: 'row',
@@ -548,7 +627,16 @@ function createStyles() {
       fontSize: 11,
       fontVariant: ['tabular-nums'],
     },
-    pageBtn: { padding: 6 },
+    pageBtn: {
+      width: 36,
+      height: 36,
+      borderRadius: 999,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    pageBtnPressed: {
+      transform: [{ scale: 0.92 }],
+    },
     skelStack: {
       paddingHorizontal: 20,
       gap: 10,
@@ -579,11 +667,24 @@ function createStyles() {
     selectActions: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 10,
+      gap: 8,
     },
-    selectActionPress: {
-      minHeight: 44,
-      paddingHorizontal: 6,
+    actionChip: {
+      borderRadius: 999,
+      borderWidth: 1,
+      paddingVertical: 9,
+      paddingHorizontal: 16,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    actionChipPressed: {
+      transform: [{ scale: 0.96 }],
+    },
+    cancelBtn: {
+      width: 36,
+      height: 36,
+      borderRadius: 999,
+      alignItems: 'center',
       justifyContent: 'center',
     },
     selectActionText: {
@@ -602,6 +703,9 @@ function createStyles() {
       paddingVertical: 14,
       borderRadius: 16,
       borderWidth: 1,
+    },
+    factCardPressed: {
+      transform: [{ scale: 0.99 }],
     },
     checkSlot: {
       paddingTop: 2,
@@ -628,7 +732,11 @@ function createStyles() {
       lineHeight: 21.75,
     },
     deleteBtn: {
-      padding: 4,
+      width: 36,
+      height: 36,
+      borderRadius: 999,
+      alignItems: 'center',
+      justifyContent: 'center',
     },
   })
 }

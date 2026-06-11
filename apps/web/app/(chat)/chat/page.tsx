@@ -9,6 +9,8 @@ import {
   Square,
   ArrowUp,
   X,
+  Crown,
+  Lock,
   Image as ImageIcon,
 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
@@ -77,6 +79,8 @@ export default function ChatPage() {
     verifyStepUpForBubble,
   } = useChatComposer()
 
+  const limitLocked = !hasProAccess && atMessageLimit
+
   const [selectedHabitId, setSelectedHabitId] = useState<string | null>(null)
   const [selectedGoalId, setSelectedGoalId] = useState<string | null>(null)
   const habitDetailQuery = useHabitDetail(selectedHabitId)
@@ -133,19 +137,22 @@ export default function ChatPage() {
   }, [goBackOrFallback])
 
   return (
-    <div className="flex flex-col h-full">
-      <AppBar
-        back
-        backLabel={t('common.goBack')}
-        onBack={() => goBackOrFallback('/')}
-        leadingIcon={<Orbit size={17} strokeWidth={1.5} color="var(--primary)" />}
-        title={t('chat.title')}
-      />
+    <div className="relative flex flex-col h-full">
+      {showSuggestions && <GradientTop height={420} />}
+      <div className="relative z-10 shrink-0">
+        <AppBar
+          back
+          backLabel={t('common.goBack')}
+          onBack={() => goBackOrFallback('/')}
+          leadingIcon={<Orbit size={17} strokeWidth={1.5} color="var(--primary)" />}
+          title={t('chat.title')}
+        />
+      </div>
 
       <div
         data-tour="tour-chat-area"
         ref={chatContainerRef}
-        className="flex-1 overflow-y-auto"
+        className="relative z-10 flex-1 overflow-y-auto overflow-x-hidden"
         style={{ paddingTop: 8 }}
         role="log"
         aria-live="polite"
@@ -159,7 +166,6 @@ export default function ChatPage() {
             className="relative flex flex-col items-center justify-center h-full"
             style={{ gap: 16, padding: '32px' }}
           >
-            <GradientTop height={420} />
             <div className="relative z-10 flex flex-col items-center" style={{ gap: 16 }}>
               <div
                 className="rounded-full flex items-center justify-center"
@@ -176,7 +182,7 @@ export default function ChatPage() {
                 className="text-center"
                 style={{
                   fontFamily: 'var(--font-sans)',
-                  fontSize: 22,
+                  fontSize: 24,
                   fontWeight: 500,
                   letterSpacing: '-0.01em',
                   color: 'var(--fg-1)',
@@ -188,8 +194,8 @@ export default function ChatPage() {
                 className="text-center"
                 style={{
                   fontFamily: 'var(--font-sans)',
-                  fontSize: 14,
-                  color: 'var(--fg-3)',
+                  fontSize: 15,
+                  color: 'var(--fg-2)',
                   maxWidth: 280,
                   lineHeight: 1.5,
                 }}
@@ -301,20 +307,13 @@ export default function ChatPage() {
               style={{ paddingBottom: 10 }}
             >
               <div className="flex" style={{ gap: 8, minWidth: 'max-content' }}>
-                {starterChips.map((chip) => (
+                {starterChips.map((chip, index) => (
                   <button
                     key={chip}
                     type="button"
                     onClick={() => sendMessage(chip)}
-                    className="appearance-none border-0 cursor-pointer whitespace-nowrap rounded-full inline-flex items-center bg-[var(--bg-elev)] text-[var(--fg-1)] transition-[background-color] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev-pressed)]"
-                    style={{
-                      minHeight: 36,
-                      padding: '0 14px',
-                      boxShadow: 'inset 0 0 0 1px var(--hairline)',
-                      fontFamily: 'var(--font-sans)',
-                      fontSize: 13,
-                      fontWeight: 500,
-                    }}
+                    className="chip animate-chip-in"
+                    style={{ animationDelay: `${index * 60}ms` }}
                   >
                     {chip}
                   </button>
@@ -404,12 +403,14 @@ export default function ChatPage() {
                     padding: '0 8px 0 18px',
                     background: 'var(--bg-field)',
                     boxShadow: 'inset 0 0 0 1px var(--hairline)',
+                    opacity: limitLocked ? 0.45 : 1,
                   }}
                 >
                   <textarea
                     ref={textareaRef}
                     rows={1}
-                    placeholder={t('chat.placeholder')}
+                    disabled={limitLocked}
+                    placeholder={limitLocked ? t('chat.limitReachedError') : t('chat.placeholder')}
                     aria-label={t('chat.placeholder')}
                     value={input}
                     onChange={(e) => setInput(e.target.value)}
@@ -425,16 +426,27 @@ export default function ChatPage() {
                       padding: '13px 0',
                     }}
                   />
-                  <button
-                    type="button"
-                    aria-label={t('chat.attachImage')}
-                    onClick={openFilePicker}
-                    className="appearance-none border-0 bg-transparent cursor-pointer inline-flex items-center justify-center shrink-0 rounded-full text-[var(--fg-3)] transition-[background-color,color] duration-150 ease-out hover:bg-[var(--bg-elev)] hover:text-[var(--fg-1)]"
-                    style={{ width: 36, height: 36 }}
-                  >
-                    <ImageIcon size={18} strokeWidth={1.8} />
-                  </button>
-                  {speechSupported && (
+                  {limitLocked && (
+                    <span
+                      aria-hidden="true"
+                      className="inline-flex items-center justify-center shrink-0"
+                      style={{ width: 34, height: 34, color: 'var(--fg-4)' }}
+                    >
+                      <Lock size={18} strokeWidth={1.8} />
+                    </span>
+                  )}
+                  {!limitLocked && (
+                    <button
+                      type="button"
+                      aria-label={t('chat.attachImage')}
+                      onClick={openFilePicker}
+                      className="icon-btn shrink-0 text-[var(--fg-3)] hover:text-[var(--fg-1)]"
+                      style={{ width: 34, height: 34 }}
+                    >
+                      <ImageIcon size={18} strokeWidth={1.8} />
+                    </button>
+                  )}
+                  {!limitLocked && speechSupported && (
                     <div ref={langPickerRef} className="relative shrink-0 flex items-center">
                       <button
                         type="button"
@@ -442,8 +454,8 @@ export default function ChatPage() {
                         aria-label={t('chat.toggleMic')}
                         disabled={isTyping}
                         onClick={toggleRecording}
-                        className="appearance-none border-0 bg-transparent cursor-pointer inline-flex items-center justify-center shrink-0 rounded-full text-[var(--fg-3)] transition-[background-color,color] duration-150 ease-out hover:bg-[var(--bg-elev)] hover:text-[var(--fg-1)] disabled:opacity-50"
-                        style={{ width: 36, height: 36 }}
+                        className="icon-btn shrink-0 text-[var(--fg-3)] hover:text-[var(--fg-1)] disabled:opacity-50"
+                        style={{ width: 34, height: 34 }}
                       >
                         <Mic size={18} strokeWidth={1.8} />
                       </button>
@@ -511,13 +523,13 @@ export default function ChatPage() {
                   disabled={!canSend}
                   aria-label={t('chat.send')}
                   onClick={() => sendMessage()}
-                  className="appearance-none border-0 cursor-pointer inline-flex items-center justify-center shrink-0 rounded-full bg-[var(--primary)] enabled:hover:bg-[var(--primary-pressed)] enabled:active:scale-95 transition-[background-color,box-shadow,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] disabled:cursor-not-allowed"
+                  className="appearance-none border-0 cursor-pointer inline-flex items-center justify-center shrink-0 rounded-full bg-[var(--primary)] enabled:hover:bg-[var(--primary-pressed)] enabled:hover:scale-105 enabled:hover:shadow-[var(--primary-glow-hover)] enabled:active:scale-95 transition-[background-color,box-shadow,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] disabled:cursor-not-allowed"
                   style={{
                     width: 50,
                     height: 50,
                     color: 'var(--fg-on-primary)',
                     boxShadow: canSend ? 'var(--primary-glow)' : 'none',
-                    opacity: canSend ? 1 : 0.4,
+                    opacity: canSend ? 1 : 0.45,
                   }}
                 >
                   <ArrowUp size={22} strokeWidth={2.4} color="var(--fg-on-primary)" />
@@ -526,7 +538,7 @@ export default function ChatPage() {
             )}
           </div>
 
-          {!hasProAccess && atMessageLimit && (
+          {limitLocked && (
             <div
               role="status"
               aria-live="polite"
@@ -534,7 +546,11 @@ export default function ChatPage() {
               style={{ paddingTop: 12, gap: 12 }}
             >
               <InfoCard title={t('chat.limitReachedError')} />
-              <PillButton fullWidth onClick={() => router.push('/upgrade')}>
+              <PillButton
+                fullWidth
+                leading={<Crown size={18} strokeWidth={1.8} aria-hidden="true" />}
+                onClick={() => router.push('/upgrade')}
+              >
                 {t('upgrade.subscribe')}
               </PillButton>
             </div>

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import {
   Animated,
   Modal,
+  Pressable,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -138,29 +139,34 @@ export function ConfirmDialog({
 
           <View style={styles.actions}>
             {!infoOnly ? (
-              <TouchableOpacity
-                style={[styles.actionPill, styles.cancelPill]}
+              <Pressable
+                style={({ pressed }) => [
+                  styles.actionPill,
+                  pressed ? styles.cancelPillPressed : styles.cancelPill,
+                  pressed ? styles.pillPressedScale : null,
+                ]}
                 onPress={handleCancel}
-                activeOpacity={0.8}
               >
                 <Text style={styles.cancelLabel} numberOfLines={1}>
                   {cancelLabel ?? t('common.cancel')}
                 </Text>
-              </TouchableOpacity>
+              </Pressable>
             ) : null}
 
-            <TouchableOpacity
-              style={[
+            <Pressable
+              style={({ pressed }) => [
                 styles.actionPill,
-                destructive ? styles.confirmPillDestructive : styles.confirmPill,
+                destructive ? styles.confirmPillDestructive : null,
+                !destructive && (pressed ? styles.confirmPillPressed : styles.confirmPill),
+                pressed ? styles.pillPressedScale : null,
+                destructive && pressed ? styles.destructivePressed : null,
               ]}
               onPress={handleConfirm}
-              activeOpacity={0.8}
             >
               <Text style={styles.confirmLabel} numberOfLines={1}>
                 {confirmLabel ?? (infoOnly ? t('common.close') : t('common.confirm'))}
               </Text>
-            </TouchableOpacity>
+            </Pressable>
           </View>
         </Animated.View>
       </TouchableOpacity>
@@ -178,7 +184,7 @@ function createStyles(tokens: AppTokens) {
     },
     backdrop: {
       ...StyleSheet.absoluteFillObject,
-      backgroundColor: 'rgba(0,0,0,0.58)',
+      backgroundColor: 'rgba(0,0,0,0.6)',
     },
     dialog: {
       width: '100%',
@@ -221,11 +227,23 @@ function createStyles(tokens: AppTokens) {
     cancelPill: {
       backgroundColor: tokens.bgField,
     },
+    cancelPillPressed: {
+      backgroundColor: tokens.bgElev2,
+    },
     confirmPill: {
       backgroundColor: tokens.primary,
     },
+    confirmPillPressed: {
+      backgroundColor: tokens.primaryPressed,
+    },
     confirmPillDestructive: {
       backgroundColor: tokens.statusBad,
+    },
+    destructivePressed: {
+      opacity: 0.85,
+    },
+    pillPressedScale: {
+      transform: [{ scale: 0.97 }],
     },
     cancelLabel: {
       fontFamily: 'Rubik_500Medium',

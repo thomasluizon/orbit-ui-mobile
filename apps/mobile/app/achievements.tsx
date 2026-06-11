@@ -226,7 +226,6 @@ function createStyles(_tokens: Tokens) {
       fontFamily: 'Rubik_400Regular',
       fontSize: 14,
       lineHeight: 22,
-      fontStyle: 'italic',
       textAlign: 'center',
     },
     upgradeButton: {
@@ -250,8 +249,8 @@ function createStyles(_tokens: Tokens) {
     },
     levelDisplay: {
       fontFamily: 'Inter_700Bold',
-      fontSize: 34,
-      letterSpacing: -0.68,
+      fontSize: 36,
+      letterSpacing: -0.72,
       fontVariant: ['tabular-nums'],
     },
     levelMetaCol: {

@@ -25,7 +25,7 @@ export function AchievementCategorySection({
       <SectionLabel>
         {t(`gamification.categories.${category.key}`)}
       </SectionLabel>
-      <div className="grid grid-cols-3 gap-3 px-5">
+      <div className="stagger-enter grid grid-cols-3 gap-3 px-5">
         {category.items.map((achievement) => (
           <AchievementTile
             key={achievement.id}
@@ -48,24 +48,32 @@ function AchievementTile({ achievement, t }: Readonly<AchievementTileProps>) {
   const name = t(`gamification.achievements.${achievement.id}.name`)
   const description = t(`gamification.achievements.${achievement.id}.description`)
 
+  const lockedSurface = earned
+    ? undefined
+    : {
+        background: 'var(--bg-card)',
+        boxShadow: 'inset 0 0 0 1px var(--hairline)',
+        opacity: 0.45,
+      }
+
   return (
     <div
       data-testid={`achievement-${achievement.id}`}
       title={description}
-      className="flex flex-col items-center rounded-[18px] text-center"
+      className={`flex flex-col items-center text-center ${earned ? 'card-int' : ''}`}
       style={{
         padding: '18px 8px 14px',
-        background: earned ? 'var(--bg-field)' : 'var(--bg-card)',
-        boxShadow: 'inset 0 0 0 1px var(--hairline)',
+        borderRadius: 16,
+        cursor: 'default',
+        ...lockedSurface,
       }}
     >
       <span
         aria-hidden="true"
         style={{
-          fontSize: 28,
+          fontSize: 30,
           lineHeight: 1,
           marginBottom: 8,
-          opacity: earned ? 1 : 0.5,
           filter: earned ? 'none' : 'grayscale(1)',
         }}
       >
@@ -74,10 +82,9 @@ function AchievementTile({ achievement, t }: Readonly<AchievementTileProps>) {
       <span
         style={{
           fontFamily: 'var(--font-sans)',
-          fontSize: 13,
-          fontWeight: 500,
+          fontSize: 12,
           lineHeight: 1.25,
-          color: earned ? 'var(--fg-1)' : 'var(--fg-4)',
+          color: earned ? 'var(--fg-1)' : 'var(--fg-2)',
         }}
       >
         {name}

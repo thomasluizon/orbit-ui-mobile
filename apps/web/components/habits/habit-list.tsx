@@ -1126,7 +1126,9 @@ const isPostponeAction = useMemo(() => {
         <HabitListEmptyState
           title={t(getHabitEmptyStateKey(view))}
           description={getEmptyHabitsMessage(view, t)}
-          actionLabel={view === 'all' || view === 'general' ? t('habits.createHabit') : undefined}
+          askAstraLabel={t('habits.askAstra')}
+          onAskAstra={() => router.push('/chat')}
+          actionLabel={t('habits.createManually')}
           onAction={onCreate}
         />
       )
@@ -1209,6 +1211,12 @@ const isPostponeAction = useMemo(() => {
         onOpenChange={setShowDetailDrawer}
         habit={selectedHabit}
         onLogged={handleLogged}
+        onEdit={() => {
+          if (!selectedHabit) return
+          setShowDetailDrawer(false)
+          setHabitToEdit(selectedHabit)
+          setShowEditModal(true)
+        }}
       />
 
       <EditHabitModal

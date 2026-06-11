@@ -37,7 +37,7 @@ function renderMarkdown(text: string): string {
 }
 
 const pillLinkClassName =
-  'inline-flex items-center justify-center gap-[9px] rounded-full bg-[var(--primary)] px-[26px] py-[15px] text-[16px] font-medium text-[var(--fg-on-primary)] no-underline shadow-[var(--primary-glow)] transition-[background-color] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--primary-pressed)]'
+  'inline-flex items-center justify-center gap-[9px] rounded-full bg-[var(--primary)] px-[26px] py-[15px] text-[16px] font-medium text-[var(--fg-on-primary)] no-underline shadow-[var(--primary-glow)] transition-[background-color,box-shadow,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:-translate-y-px hover:bg-[var(--primary-pressed)] hover:shadow-[var(--primary-glow-hover)] active:translate-y-0 active:scale-[0.98]'
 
 function LockedBlock({
   title,
@@ -203,7 +203,7 @@ export default function RetrospectivePage() {
             {!isLoading && retrospective && (
               <div className="px-5" style={{ padding: '16px 20px 24px' }}>
                 <div
-                  className="rounded-[18px] bg-[var(--bg-card)]"
+                  className="rounded-[18px] bg-[var(--bg-card)] animate-scale-in"
                   style={{
                     padding: '16px 18px 18px',
                     boxShadow: 'inset 0 0 0 1px var(--hairline)',
@@ -271,18 +271,8 @@ export default function RetrospectivePage() {
                 <button
                   type="button"
                   onClick={generate}
-                  className="appearance-none border-0 bg-transparent cursor-pointer"
-                  style={{
-                    marginTop: 10,
-                    fontFamily: 'var(--font-sans)',
-                    fontSize: 14,
-                    fontWeight: 500,
-                    color: 'var(--fg-1)',
-                    textDecoration: 'underline',
-                    textUnderlineOffset: 3,
-                    textDecorationColor: 'var(--hairline-strong)',
-                    padding: 6,
-                  }}
+                  className="chip"
+                  style={{ marginTop: 10 }}
                 >
                   {t('common.retry')}
                 </button>

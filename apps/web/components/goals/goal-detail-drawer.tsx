@@ -16,7 +16,6 @@ import { useTranslations, useLocale } from 'next-intl'
 import { AppOverlay } from '@/components/ui/app-overlay'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { PillButton } from '@/components/ui/pill-button'
-import { ProgressBar } from '@/components/ui/progress-bar'
 import { SectionLabel } from '@/components/ui/section-label'
 import { EditGoalModal } from './edit-goal-modal'
 import { GoalMetricsPanel } from './goal-metrics-panel'
@@ -49,6 +48,95 @@ interface GoalDetailDrawerProps {
 }
 
 type ProgressDismissTarget = 'drawer' | 'form'
+
+const RING_SIZE = 180
+const RING_RADIUS = 70
+const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS
+
+interface GoalProgressRingProps {
+  progressPercentage: number
+  percentLabel: string
+  progressOfLabel: string
+  color: string
+}
+
+/** MetaDetalhe progress ring: 12px stroke, round caps, dashoffset animated 280ms. */
+function GoalProgressRing({
+  progressPercentage,
+  percentLabel,
+  progressOfLabel,
+  color,
+}: Readonly<GoalProgressRingProps>) {
+  const clamped = Math.min(100, Math.max(0, progressPercentage))
+  const dashOffset = RING_CIRCUMFERENCE * (1 - clamped / 100)
+
+  return (
+    <div className="flex justify-center" style={{ paddingBottom: 4 }}>
+      <div
+        role="progressbar"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={Math.round(clamped)}
+        aria-label={percentLabel}
+        className="relative flex items-center justify-center"
+        style={{ width: RING_SIZE, height: RING_SIZE }}
+      >
+        <svg
+          width={RING_SIZE}
+          height={RING_SIZE}
+          style={{ transform: 'rotate(-90deg)' }}
+          aria-hidden="true"
+        >
+          <circle
+            cx={RING_SIZE / 2}
+            cy={RING_SIZE / 2}
+            r={RING_RADIUS}
+            fill="none"
+            stroke="color-mix(in srgb, var(--fg-1) 8%, transparent)"
+            strokeWidth={12}
+          />
+          <circle
+            cx={RING_SIZE / 2}
+            cy={RING_SIZE / 2}
+            r={RING_RADIUS}
+            fill="none"
+            stroke={color}
+            strokeWidth={12}
+            strokeLinecap="round"
+            strokeDasharray={RING_CIRCUMFERENCE}
+            strokeDashoffset={dashOffset}
+            style={{ transition: 'stroke-dashoffset 280ms var(--ease-out)' }}
+          />
+        </svg>
+        <div className="absolute text-center">
+          <div
+            style={{
+              fontFamily: 'var(--font-display)',
+              fontSize: 40,
+              fontWeight: 700,
+              letterSpacing: '-0.02em',
+              lineHeight: 1.1,
+              color: 'var(--fg-1)',
+              fontVariantNumeric: 'tabular-nums',
+            }}
+          >
+            {percentLabel}
+          </div>
+          <div
+            style={{
+              marginTop: 2,
+              fontFamily: 'var(--font-sans)',
+              fontSize: 14,
+              color: 'var(--fg-3)',
+            }}
+          >
+            {progressOfLabel}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 export function GoalDetailDrawer({
   open,
@@ -310,7 +398,6 @@ export function GoalDetailDrawer({
                     style={{
                       fontFamily: 'var(--font-sans)',
                       fontSize: 15,
-                      fontStyle: 'italic',
                       lineHeight: 1.5,
                       color: 'var(--fg-2)',
                       textWrap: 'pretty',
@@ -332,7 +419,7 @@ export function GoalDetailDrawer({
         }
       >
         {goal && (
-          <div className="-mx-6">
+          <div className="overlay-bleed">
             {isStreak && (
               <div
                 style={{
@@ -352,45 +439,23 @@ export function GoalDetailDrawer({
 
             <SectionLabel>{t('goals.progress')}</SectionLabel>
             <div style={{ padding: '2px 20px 16px' }}>
-              <div
-                style={{
-                  fontFamily: 'var(--font-display)',
-                  fontSize: 34,
-                  fontWeight: 700,
-                  letterSpacing: '-0.02em',
-                  lineHeight: 1,
-                  color: 'var(--fg-1)',
-                  fontVariantNumeric: 'tabular-nums',
-                  marginBottom: 12,
-                }}
-              >
-                {goal.progressPercentage}%
-              </div>
-              <ProgressBar
-                progress={Math.min(goal.progressPercentage, 100) / 100}
-                label={t('goals.progressPercentage', { pct: goal.progressPercentage })}
-                color={isStreak ? 'var(--status-overdue)' : undefined}
+              <GoalProgressRing
+                progressPercentage={goal.progressPercentage}
+                percentLabel={t('goals.progressPercentage', { pct: goal.progressPercentage })}
+                progressOfLabel={
+                  isStreak
+                    ? t('goals.streak.ofTarget', {
+                        current: goal.currentValue,
+                        target: goal.targetValue,
+                      })
+                    : t('goals.progressOf', {
+                        current: goal.currentValue,
+                        target: goal.targetValue,
+                        unit: goal.unit,
+                      })
+                }
+                color={isStreak ? 'var(--status-overdue)' : 'var(--primary)'}
               />
-              <div
-                style={{
-                  marginTop: 10,
-                  fontFamily: 'var(--font-mono)',
-                  fontSize: 12,
-                  color: 'var(--fg-3)',
-                  fontVariantNumeric: 'tabular-nums',
-                }}
-              >
-                {isStreak
-                  ? t('goals.streak.ofTarget', {
-                      current: goal.currentValue,
-                      target: goal.targetValue,
-                    })
-                  : t('goals.progressOf', {
-                      current: goal.currentValue,
-                      target: goal.targetValue,
-                      unit: goal.unit,
-                    })}
-              </div>
               {goal.status === 'Active' && !showProgressForm && (
                 <PillButton
                   fullWidth
@@ -479,7 +544,6 @@ export function GoalDetailDrawer({
                   padding: '10px 20px',
                   fontFamily: 'var(--font-sans)',
                   fontSize: 13,
-                  fontStyle: 'italic',
                   color: 'var(--status-overdue)',
                 }}
               >

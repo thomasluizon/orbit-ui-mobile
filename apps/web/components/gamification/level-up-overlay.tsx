@@ -112,6 +112,8 @@ export function LevelUpOverlay({
             letterSpacing: '0.08em',
             textTransform: 'uppercase',
             color: 'var(--fg-3)',
+            animation: 'slide-up-fade 0.28s var(--ease-out) backwards',
+            animationDelay: '160ms',
           }}
         >
           {t('gamification.levelUp.title')}
@@ -119,21 +121,31 @@ export function LevelUpOverlay({
 
         <span
           aria-hidden="true"
-          className="flex items-center justify-center rounded-full"
+          className="relative flex items-center justify-center rounded-full"
           style={{
             width: 120,
             height: 120,
             fontSize: 60,
             background: 'rgba(var(--primary-rgb), 0.16)',
-            boxShadow: '0 0 60px rgba(var(--primary-rgb), 0.4)',
+            animation: 'fresh-start-orb 0.7s var(--ease-out) both',
           }}
         >
+          <span
+            aria-hidden="true"
+            className="animate-orbit-pulse absolute inset-0 rounded-full"
+            style={{ boxShadow: '0 0 60px rgba(var(--primary-rgb), 0.4)' }}
+          />
           {'⭐'}
         </span>
 
         <div
           className="relative flex items-center justify-center"
-          style={{ width: 150, height: 150 }}
+          style={{
+            width: 150,
+            height: 150,
+            animation: 'scale-in 0.5s var(--ease-out) backwards',
+            animationDelay: '200ms',
+          }}
         >
           <svg
             width={150}
@@ -175,6 +187,8 @@ export function LevelUpOverlay({
             fontSize: 16,
             lineHeight: 1.5,
             color: 'var(--fg-2)',
+            animation: 'slide-up-fade 0.28s var(--ease-out) backwards',
+            animationDelay: '300ms',
           }}
         >
           {t('gamification.levelUp.steadyHand')}
@@ -182,7 +196,11 @@ export function LevelUpOverlay({
       </div>
       <div
         className="relative z-[1]"
-        style={{ padding: '0 24px calc(24px + var(--safe-bottom, 0px))' }}
+        style={{
+          padding: '0 24px calc(24px + var(--safe-bottom, 0px))',
+          animation: 'slide-up-fade 0.28s var(--ease-out) backwards',
+          animationDelay: '380ms',
+        }}
       >
         <PillButton fullWidth onClick={() => dismiss(activeLevelUp?.id)}>
           {t('common.continue')}

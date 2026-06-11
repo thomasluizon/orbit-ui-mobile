@@ -8,7 +8,7 @@ export function TypingIndicator() {
 
   return (
     <div
-      className="flex items-start"
+      className="animate-msg-in flex items-start"
       style={{ gap: 10, padding: '0 16px', marginBottom: 16 }}
       role="status"
       aria-live="polite"

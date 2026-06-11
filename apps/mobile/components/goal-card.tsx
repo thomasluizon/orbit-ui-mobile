@@ -2,7 +2,6 @@ import { useCallback, useMemo, useRef } from 'react'
 import { Animated, View, Text, TouchableOpacity, StyleSheet } from 'react-native'
 import { useTourTarget } from '@/hooks/use-tour-target'
 import { differenceInDays, parseISO } from 'date-fns'
-import { Flame } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import type { Goal } from '@orbit/shared/types/goal'
 import { isStreakGoal } from '@orbit/shared/utils/goal-form'
@@ -154,44 +153,49 @@ export function GoalCard({ goal, onPress, tourTargetId }: GoalCardProps) {
         accessibilityRole="button"
         accessibilityLabel={goal.title}
       >
-        <View style={styles.titleRow}>
-          {isStreak && (
-            <Flame
-              size={16}
-              strokeWidth={1.8}
-              color={tokens.statusOverdue}
-              style={styles.flameIcon}
-            />
-          )}
-          <Text
-            style={[
-              styles.title,
-              goal.status === 'Abandoned' && styles.titleAbandoned,
-            ]}
-            numberOfLines={1}
-          >
-            {goal.title}
-          </Text>
-          {statusBadge ? (
-            <View style={styles.badge}>
-              <Text style={[styles.badgeText, { color: statusBadge.textColor }]}>
-                {statusBadge.text}
-              </Text>
-            </View>
-          ) : trackingDot ? (
-            <StatusDot state={trackingDot.state} accessibilityLabel={trackingDot.label} />
-          ) : null}
-        </View>
+        <View style={styles.headerRow}>
+          <View style={styles.emojiWell}>
+            <Text style={styles.emojiWellText}>{isStreak ? '🔥' : '🎯'}</Text>
+          </View>
 
-        <View style={styles.metaRow}>
-          <Text style={styles.progressLabel}>{progressLabel}</Text>
-          {deadlineInfo && (
-            <View style={styles.badge}>
-              <Text style={[styles.badgeText, { color: deadlineInfo.textColor }]}>
-                {deadlineInfo.text}
+          <View style={styles.headerContent}>
+            <View style={styles.titleRow}>
+              <Text
+                style={[
+                  styles.title,
+                  goal.status === 'Abandoned' && styles.titleAbandoned,
+                ]}
+                numberOfLines={1}
+              >
+                {goal.title}
               </Text>
+              {statusBadge ? (
+                <View style={styles.badge}>
+                  <Text style={[styles.badgeText, { color: statusBadge.textColor }]}>
+                    {statusBadge.text}
+                  </Text>
+                </View>
+              ) : trackingDot ? (
+                <StatusDot state={trackingDot.state} accessibilityLabel={trackingDot.label} />
+              ) : null}
             </View>
-          )}
+            <View style={styles.metaRow}>
+              <Text style={styles.progressLabel} numberOfLines={1}>
+                {progressLabel}
+              </Text>
+              {deadlineInfo && (
+                <View style={styles.badge}>
+                  <Text style={[styles.badgeText, { color: deadlineInfo.textColor }]}>
+                    {deadlineInfo.text}
+                  </Text>
+                </View>
+              )}
+            </View>
+          </View>
+
+          <Text style={[styles.percentText, { color: progressColor }]}>
+            {percentLabel}
+          </Text>
         </View>
 
         <View
@@ -204,7 +208,6 @@ export function GoalCard({ goal, onPress, tourTargetId }: GoalCardProps) {
             label={percentLabel}
             color={progressColor}
           />
-          <Text style={styles.percentText}>{percentLabel}</Text>
         </View>
       </TouchableOpacity>
     </Animated.View>
@@ -223,14 +226,33 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       overflow: 'hidden',
     },
 
+    headerRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      marginBottom: 12,
+    },
+    emojiWell: {
+      width: 42,
+      height: 42,
+      borderRadius: 12,
+      backgroundColor: tokens.bgElev,
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexShrink: 0,
+    },
+    emojiWellText: {
+      fontSize: 20,
+      lineHeight: 26,
+    },
+    headerContent: {
+      flex: 1,
+      minWidth: 0,
+    },
     titleRow: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 8,
-      marginBottom: 4,
-    },
-    flameIcon: {
-      flexShrink: 0,
     },
     title: {
       fontFamily: 'Rubik_500Medium',
@@ -260,9 +282,8 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
     metaRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      justifyContent: 'space-between',
       gap: 8,
-      marginBottom: 12,
+      marginTop: 2,
     },
     progressLabel: {
       fontFamily: 'Roboto_400Regular',
@@ -275,15 +296,14 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
     progressRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 12,
     },
     progressBar: {
       flex: 1,
     },
     percentText: {
-      fontFamily: 'Roboto_500Medium',
-      fontSize: 13,
-      color: tokens.fg2,
+      fontFamily: 'Inter_700Bold',
+      fontSize: 18,
+      letterSpacing: -0.18,
       fontVariant: ['tabular-nums'],
       flexShrink: 0,
     },

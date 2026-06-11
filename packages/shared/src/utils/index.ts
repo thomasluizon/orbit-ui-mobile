@@ -209,8 +209,10 @@ export {
 } from './notification-cache'
 export type { NotificationTimeTranslationAdapter } from './notification-time'
 export { formatNotificationRelativeTime } from './notification-time'
+export type { NotificationGlyph } from './notification-actions'
 export {
   getNotificationDetailActionVisibility,
+  getNotificationGlyph,
   isViewableNotificationUrl,
 } from './notification-actions'
 export {

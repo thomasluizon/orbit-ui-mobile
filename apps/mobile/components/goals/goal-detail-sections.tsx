@@ -143,7 +143,6 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
     historyNote: {
       fontFamily: 'Rubik_400Regular',
       fontSize: 13,
-      fontStyle: 'italic',
       color: tokens.fg2,
     },
     toggleAll: {

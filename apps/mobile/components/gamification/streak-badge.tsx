@@ -23,8 +23,7 @@ export function StreakBadge({ streak, isFrozen }: Readonly<StreakBadgeProps>) {
   const router = useRouter()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
-
-  if (streak <= 0) return null
+  const dormant = streak <= 0 && !isFrozen
 
   const handlePress = (event: GestureResponderEvent) => {
     event.stopPropagation()
@@ -39,12 +38,13 @@ export function StreakBadge({ streak, isFrozen }: Readonly<StreakBadgeProps>) {
         streak,
       )}
       onPress={handlePress}
-      style={[
+      style={({ pressed }) => [
         styles.badge,
         {
           borderColor: tokens.hairlineStrong,
-          backgroundColor: tokens.bgField,
+          backgroundColor: pressed ? tokens.bgElev2 : tokens.bgElev,
         },
+        pressed ? styles.pressed : null,
       ]}
     >
       {isFrozen ? (
@@ -57,12 +57,17 @@ export function StreakBadge({ streak, isFrozen }: Readonly<StreakBadgeProps>) {
           <Line x1={0} y1={7} x2={12} y2={7} stroke={tokens.statusFrozen} strokeWidth={1.6} strokeLinecap="round" />
         </Svg>
       ) : (
-        <Text style={styles.flame} accessibilityElementsHidden>
+        <Text
+          style={[styles.flame, dormant ? styles.flameDormant : null]}
+          accessibilityElementsHidden
+        >
           🔥
         </Text>
       )}
 
-      <Text style={[styles.count, { color: tokens.fg1 }]}>{streak}</Text>
+      <Text style={[styles.count, { color: dormant ? tokens.fg3 : tokens.fg1 }]}>
+        {streak}
+      </Text>
     </Pressable>
   )
 }
@@ -79,9 +84,15 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     borderWidth: 1.5,
   },
+  pressed: {
+    transform: [{ scale: 0.96 }],
+  },
   flame: {
     fontSize: 15,
     lineHeight: 18,
+  },
+  flameDormant: {
+    opacity: 0.45,
   },
   count: {
     fontFamily: 'Roboto_500Medium',

@@ -154,11 +154,11 @@ export function EditGoalModal({
         isDirty={isDirty}
         onAttemptDismiss={dismissGuard.requestDismiss}
       >
-        <form className="-mx-6" onSubmit={onSubmit}>
+        <form onSubmit={onSubmit}>
           {isStreak && (
             <div
               style={{
-                padding: '10px 20px',
+                padding: '10px 0',
                 fontFamily: 'var(--font-mono)',
                 fontSize: 12,
                 fontWeight: 500,
@@ -171,7 +171,7 @@ export function EditGoalModal({
             </div>
           )}
 
-          <div className={isStreak ? '' : 'grid grid-cols-2'} style={{ padding: '16px 20px 0', gap: 14 }}>
+          <div className={isStreak ? '' : 'grid grid-cols-2'} style={{ padding: '16px 0 0', gap: 12 }}>
             <FieldWell
               label={isStreak ? t('goals.form.streakTarget') : t('goals.form.targetValue')}
               id="edit-goal-target"
@@ -203,7 +203,7 @@ export function EditGoalModal({
             )}
           </div>
 
-          <div style={{ padding: '16px 20px 0' }}>
+          <div style={{ padding: '16px 0 0' }}>
             <FieldWell
               label={t('goals.form.description')}
               id="edit-goal-description"
@@ -216,7 +216,7 @@ export function EditGoalModal({
             />
           </div>
 
-          <div style={{ padding: '16px 20px 16px' }}>
+          <div style={{ padding: '16px 0 16px' }}>
             {deadline ? (
               <div className="flex flex-col" style={{ gap: 8 }}>
                 <span
@@ -248,7 +248,6 @@ export function EditGoalModal({
                     style={{
                       fontFamily: 'var(--font-sans)',
                       fontSize: 13,
-                      fontStyle: 'italic',
                       color: 'var(--status-overdue)',
                     }}
                   >
@@ -280,8 +279,7 @@ export function EditGoalModal({
             className="flex items-center"
             style={{
               gap: 12,
-              padding: '14px 20px 16px',
-              borderTop: '1px solid var(--hairline)',
+              padding: '18px 0 8px',
             }}
           >
             <PillButton
@@ -294,7 +292,7 @@ export function EditGoalModal({
             <button
               type="submit"
               disabled={isSubmitting}
-              className="flex-1 inline-flex cursor-pointer items-center justify-center rounded-full border-0 bg-[var(--primary)] text-[var(--fg-on-primary)] transition-[background-color,opacity] duration-[var(--dur-fast)] ease-[var(--ease-standard)] enabled:hover:bg-[var(--primary-pressed)] disabled:cursor-not-allowed disabled:opacity-40"
+              className="flex-1 inline-flex cursor-pointer items-center justify-center rounded-full border-0 bg-[var(--primary)] text-[var(--fg-on-primary)] transition-[background-color,box-shadow,transform,opacity] duration-[var(--dur-fast)] ease-[var(--ease-standard)] enabled:hover:bg-[var(--primary-pressed)] enabled:hover:-translate-y-px enabled:hover:shadow-[var(--primary-glow-hover)] enabled:active:translate-y-0 enabled:active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
               style={{
                 fontFamily: 'var(--font-sans)',
                 fontSize: 16,
@@ -394,7 +392,6 @@ function FieldWell({
           style={{
             fontFamily: 'var(--font-sans)',
             fontSize: 12,
-            fontStyle: 'italic',
             color: 'var(--status-overdue)',
           }}
         >

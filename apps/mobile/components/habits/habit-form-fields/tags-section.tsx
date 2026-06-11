@@ -1,5 +1,6 @@
 import { useCallback } from "react";
 import { View, Text, TouchableOpacity } from "react-native";
+import { Plus } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import { getFriendlyErrorMessage } from "@orbit/shared/utils";
 import { validateTagForm } from "@orbit/shared/validation";
@@ -86,8 +87,9 @@ export function TagsSection({
             onPress={() => tags.setShowNewTag(true)}
             activeOpacity={0.7}
           >
+            <Plus size={14} color={tokens.fg2} strokeWidth={2} />
             <Text style={styles.newTagButtonText}>
-              + {t("habits.form.newTag")}
+              {t("habits.form.newTag")}
             </Text>
           </TouchableOpacity>
         )}

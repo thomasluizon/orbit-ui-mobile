@@ -92,26 +92,33 @@ export function StreakCelebration() {
           className="pointer-events-none relative z-[1] flex flex-1 flex-col items-center justify-center"
           style={{ gap: 12, padding: '0 32px' }}
         >
-          <RingMotif
-            ringCount={4}
-            ringSize={280}
-            eyebrow={t('streakDisplay.celebration.eyebrow')}
-            anchor={
-              <span
-                aria-hidden="true"
-                className="flex items-center justify-center rounded-full"
-                style={{
-                  width: 120,
-                  height: 120,
-                  fontSize: 60,
-                  background: 'rgba(var(--primary-rgb), 0.16)',
-                  boxShadow: '0 0 60px rgba(var(--primary-rgb), 0.4)',
-                }}
-              >
-                {'🔥'}
-              </span>
-            }
-          />
+          <div style={{ animation: 'scale-in 0.5s var(--ease-out) both' }}>
+            <RingMotif
+              ringCount={4}
+              ringSize={280}
+              eyebrow={t('streakDisplay.celebration.eyebrow')}
+              anchor={
+                <span
+                  aria-hidden="true"
+                  className="relative flex items-center justify-center rounded-full"
+                  style={{
+                    width: 120,
+                    height: 120,
+                    fontSize: 60,
+                    background: 'rgba(var(--primary-rgb), 0.16)',
+                    animation: 'fresh-start-orb 0.7s var(--ease-out) both',
+                  }}
+                >
+                  <span
+                    aria-hidden="true"
+                    className="animate-orbit-pulse absolute inset-0 rounded-full"
+                    style={{ boxShadow: '0 0 60px rgba(var(--primary-rgb), 0.4)' }}
+                  />
+                  {'🔥'}
+                </span>
+              }
+            />
+          </div>
           <div
             style={{
               marginTop: 12,
@@ -122,6 +129,8 @@ export function StreakCelebration() {
               lineHeight: 1,
               fontVariantNumeric: 'tabular-nums',
               color: 'var(--fg-1)',
+              animation: 'slide-up-fade 0.28s var(--ease-out) backwards',
+              animationDelay: '220ms',
             }}
           >
             {streakCount}
@@ -134,6 +143,8 @@ export function StreakCelebration() {
               fontSize: 16,
               lineHeight: 1.5,
               color: 'var(--fg-2)',
+              animation: 'slide-up-fade 0.28s var(--ease-out) backwards',
+              animationDelay: '300ms',
             }}
           >
             {plural(
@@ -150,7 +161,11 @@ export function StreakCelebration() {
         </div>
         <div
           className="pointer-events-auto relative z-[1]"
-          style={{ padding: '0 24px calc(24px + var(--safe-bottom, 0px))' }}
+          style={{
+            padding: '0 24px calc(24px + var(--safe-bottom, 0px))',
+            animation: 'slide-up-fade 0.28s var(--ease-out) backwards',
+            animationDelay: '380ms',
+          }}
         >
           <PillButton fullWidth onClick={dismiss}>
             {t('common.continue')}

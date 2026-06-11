@@ -1,5 +1,6 @@
-import { useState, useMemo, useCallback } from 'react'
+import { useEffect, useState, useMemo, useCallback } from 'react'
 import {
+  Animated,
   Modal,
   Pressable,
   StyleSheet,
@@ -32,10 +33,48 @@ import { OnboardingComplete } from './onboarding-complete'
 import { KeyboardAwareScrollView } from '@/components/ui/keyboard-aware-scroll-view'
 import { GradientTop } from '@/components/ui/gradient-top'
 import { PillButton } from '@/components/ui/pill-button'
-import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
+import { createTokensV2, easings, type AppTokensV2 } from '@/lib/theme'
+import { toAnimatedEasing, usePrefersReducedMotion } from '@/lib/motion'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 const MOBILE_ASTRA_OFFSET = 1
+
+interface ProgressDotProps {
+  active: boolean
+  activeColor: string
+  inactiveColor: string
+  reducedMotion: boolean
+}
+
+function ProgressDot({ active, activeColor, inactiveColor, reducedMotion }: Readonly<ProgressDotProps>) {
+  const width = useMemo(() => new Animated.Value(7), [])
+
+  useEffect(() => {
+    if (reducedMotion) {
+      width.setValue(active ? 24 : 7)
+      return
+    }
+    const animation = Animated.timing(width, {
+      toValue: active ? 24 : 7,
+      duration: 220,
+      easing: toAnimatedEasing(easings.smooth),
+      useNativeDriver: false,
+    })
+    animation.start()
+    return () => animation.stop()
+  }, [active, reducedMotion, width])
+
+  return (
+    <Animated.View
+      style={{
+        width,
+        height: 7,
+        borderRadius: 999,
+        backgroundColor: active ? activeColor : inactiveColor,
+      }}
+    />
+  )
+}
 
 export function OnboardingFlow() {
   const { t } = useTranslation()
@@ -55,6 +94,9 @@ export function OnboardingFlow() {
   const [createdHabitId, setCreatedHabitId] = useState<string | null>(null)
   const [createdHabitTitle, setCreatedHabitTitle] = useState('')
   const [createdGoal, setCreatedGoal] = useState(false)
+  const [stepDirection, setStepDirection] = useState<'forward' | 'back'>('forward')
+  const prefersReducedMotion = usePrefersReducedMotion()
+  const stepEntrance = useMemo(() => new Animated.Value(1), [])
 
   const sharedDisplayTotal = getOnboardingDisplayTotal(hasProAccess)
   const displayTotal = sharedDisplayTotal + MOBILE_ASTRA_OFFSET
@@ -71,6 +113,7 @@ export function OnboardingFlow() {
   const isStarter = sharedStep === 0 && !viewingAstra && !astraStepShown
 
   const goNext = useCallback(() => {
+    setStepDirection('forward')
     if (sharedStep === 0 && !astraStepShown) {
       setViewingAstra(true)
       setAstraStepShown(true)
@@ -85,6 +128,7 @@ export function OnboardingFlow() {
   }, [sharedStep, astraStepShown, viewingAstra, hasProAccess])
 
   const goPrev = useCallback(() => {
+    setStepDirection('back')
     if (viewingAstra) {
       setViewingAstra(false)
       return
@@ -96,6 +140,22 @@ export function OnboardingFlow() {
     }
     setSharedStep((s) => getOnboardingPreviousStep(s, hasProAccess))
   }, [sharedStep, astraStepShown, viewingAstra, hasProAccess])
+
+  useEffect(() => {
+    if (prefersReducedMotion) {
+      stepEntrance.setValue(1)
+      return
+    }
+    stepEntrance.setValue(0)
+    const animation = Animated.timing(stepEntrance, {
+      toValue: 1,
+      duration: 280,
+      easing: toAnimatedEasing(easings.out),
+      useNativeDriver: true,
+    })
+    animation.start()
+    return () => animation.stop()
+  }, [prefersReducedMotion, sharedStep, stepEntrance, viewingAstra])
 
   function handleHabitCreated(habitId: string, title: string) {
     setCreatedHabitId(habitId)
@@ -208,23 +268,36 @@ export function OnboardingFlow() {
           showsVerticalScrollIndicator={false}
           keyboardVerticalOffset={12}
         >
-          <View style={styles.stepWrapper}>{stepContent}</View>
+          <Animated.View
+            style={[
+              styles.stepWrapper,
+              {
+                opacity: stepEntrance,
+                transform: [
+                  {
+                    translateX: stepEntrance.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [stepDirection === 'forward' ? 30 : -30, 0],
+                    }),
+                  },
+                ],
+              },
+            ]}
+          >
+            {stepContent}
+          </Animated.View>
         </KeyboardAwareScrollView>
 
         {!hideFooter && (
           <View style={styles.footer}>
             <View style={styles.dotsRow}>
               {Array.from({ length: displayTotal }).map((_, i) => (
-                <View
+                <ProgressDot
                   key={`progress-dot-${i}`}
-                  style={[
-                    styles.dot,
-                    i === displayStep - 1 ? styles.dotActive : null,
-                    {
-                      backgroundColor:
-                        i === displayStep - 1 ? tokens.primary : tokens.fg4,
-                    },
-                  ]}
+                  active={i === displayStep - 1}
+                  activeColor={tokens.primary}
+                  inactiveColor={`${tokens.fg1}2E`}
+                  reducedMotion={prefersReducedMotion}
                 />
               ))}
             </View>
@@ -309,14 +382,6 @@ function createStyles(tokens: AppTokensV2) {
     dotsRow: {
       flexDirection: 'row',
       gap: 8,
-    },
-    dot: {
-      width: 8,
-      height: 8,
-      borderRadius: 999,
-    },
-    dotActive: {
-      width: 24,
     },
     footerActions: {
       width: '100%',

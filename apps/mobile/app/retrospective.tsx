@@ -7,6 +7,7 @@ import {
   ScrollView,
   Linking,
 } from 'react-native'
+import Animated, { FadeInDown, ReduceMotion } from 'react-native-reanimated'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useRouter } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
@@ -28,7 +29,7 @@ import {
   type RetrospectivePeriod,
 } from '@/hooks/use-retrospective'
 import { apiClient } from '@/lib/api-client'
-import { createTokensV2 } from '@/lib/theme'
+import { createTokensV2, tintFromPrimary } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { buildUpgradeHref } from '@/lib/upgrade-route'
 import { useOffline } from '@/hooks/use-offline'
@@ -247,10 +248,10 @@ export default function RetrospectiveScreen() {
             <View
               style={[
                 styles.lockedIconCircle,
-                { backgroundColor: tokens.bgField },
+                { backgroundColor: tintFromPrimary(tokens, 0.16) },
               ]}
             >
-              <Lock size={28} color={tokens.fg3} strokeWidth={1.4} />
+              <Lock size={30} color={tokens.primarySoft} strokeWidth={1.8} />
             </View>
             <Text style={[styles.lockedTitle, { color: tokens.fg1 }]}>
               {t('retrospective.locked')}
@@ -273,10 +274,10 @@ export default function RetrospectiveScreen() {
             <View
               style={[
                 styles.lockedIconCircle,
-                { backgroundColor: tokens.bgField },
+                { backgroundColor: tintFromPrimary(tokens, 0.16) },
               ]}
             >
-              <Lock size={28} color={tokens.fg3} strokeWidth={1.4} />
+              <Lock size={30} color={tokens.primarySoft} strokeWidth={1.8} />
             </View>
             <Text style={[styles.lockedTitle, { color: tokens.fg1 }]}>
               {t('retrospective.lockedYearly')}
@@ -384,7 +385,8 @@ export default function RetrospectiveScreen() {
 
             {!isLoading && displayedRetrospective ? (
               <View style={styles.contentWrap}>
-                <View
+                <Animated.View
+                  entering={FadeInDown.duration(280).reduceMotion(ReduceMotion.System)}
                   style={[
                     styles.contentCard,
                     {
@@ -405,10 +407,17 @@ export default function RetrospectiveScreen() {
                     <Pressable
                       onPress={handleGenerate}
                       accessibilityRole="button"
-                      style={styles.regenLinkPress}
+                      style={({ pressed }) => [
+                        styles.actionChip,
+                        {
+                          backgroundColor: pressed ? tokens.bgElev2 : tokens.bgElev,
+                          borderColor: tokens.hairline,
+                        },
+                        pressed ? styles.actionChipPressed : null,
+                      ]}
                     >
                       <Text
-                        style={[styles.regenLink, { color: tokens.fg3 }]}
+                        style={[styles.actionChipText, { color: tokens.fg2 }]}
                       >
                         {t('retrospective.regenerate')}
                       </Text>
@@ -428,7 +437,7 @@ export default function RetrospectiveScreen() {
                       {t('retrospective.cached')}
                     </Text>
                   ) : null}
-                </View>
+                </Animated.View>
               </View>
             ) : null}
 
@@ -440,9 +449,16 @@ export default function RetrospectiveScreen() {
                 <Pressable
                   onPress={handleGenerate}
                   accessibilityRole="button"
-                  style={styles.retryLinkPress}
+                  style={({ pressed }) => [
+                    styles.actionChip,
+                    {
+                      backgroundColor: pressed ? tokens.bgElev2 : tokens.bgElev,
+                      borderColor: tokens.hairline,
+                    },
+                    pressed ? styles.actionChipPressed : null,
+                  ]}
                 >
-                  <Text style={[styles.retryLink, { color: tokens.fg1 }]}>
+                  <Text style={[styles.actionChipText, { color: tokens.fg1 }]}>
                     {t('common.retry')}
                   </Text>
                 </Pressable>
@@ -582,11 +598,20 @@ const styles = StyleSheet.create({
     lineHeight: 15,
     marginTop: 16,
   },
-  regenLinkPress: { padding: 4 },
-  regenLink: {
-    fontFamily: 'Rubik_400Regular',
+  actionChip: {
+    borderRadius: 999,
+    borderWidth: 1,
+    paddingVertical: 9,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  actionChipPressed: {
+    transform: [{ scale: 0.96 }],
+  },
+  actionChipText: {
+    fontFamily: 'Rubik_500Medium',
     fontSize: 13,
-    textDecorationLine: 'underline',
   },
   bodyStack: { gap: 6 },
   bodyHeading: {
@@ -628,12 +653,6 @@ const styles = StyleSheet.create({
     fontFamily: 'Rubik_400Regular',
     fontSize: 14,
     textAlign: 'center',
-  },
-  retryLinkPress: { padding: 6 },
-  retryLink: {
-    fontFamily: 'Rubik_500Medium',
-    fontSize: 14,
-    textDecorationLine: 'underline',
   },
   generateBlock: {
     paddingTop: 20,

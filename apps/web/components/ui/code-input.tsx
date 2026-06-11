@@ -84,6 +84,7 @@ export function CodeInput({
             color: 'var(--fg-1)',
             padding: 0,
             fontVariantNumeric: 'tabular-nums',
+            transition: 'box-shadow var(--dur-fast) var(--ease-standard)',
           }}
         />
       ))}

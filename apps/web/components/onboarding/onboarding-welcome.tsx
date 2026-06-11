@@ -70,6 +70,7 @@ export function OnboardingWelcome() {
             width: 116,
             height: 116,
             background: 'rgba(var(--primary-rgb), 0.14)',
+            animation: 'fresh-start-orb 0.6s var(--ease-out) both',
           }}
         >
           <AppLogo size={56} />
@@ -92,7 +93,7 @@ export function OnboardingWelcome() {
           className="text-center"
           style={{
             fontFamily: 'var(--font-sans)',
-            fontSize: 15,
+            fontSize: 16,
             color: 'var(--fg-2)',
             lineHeight: 1.55,
             margin: 0,

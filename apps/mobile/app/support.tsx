@@ -11,7 +11,7 @@ import { useTranslation } from 'react-i18next'
 import { API } from '@orbit/shared/api'
 import { isValidEmail } from '@orbit/shared/utils/email'
 import { buildSupportRequestBody, getErrorMessage } from '@orbit/shared/utils'
-import { createTokensV2 } from '@/lib/theme'
+import { createTokensV2, tintFromPrimary } from '@/lib/theme'
 import { useProfile } from '@/hooks/use-profile'
 import { apiClient } from '@/lib/api-client'
 import { AppTextInput } from '@/components/ui/app-text-input'
@@ -224,18 +224,15 @@ export default function SupportScreen() {
             <View
               style={[
                 styles.successIconCircle,
-                {
-                  backgroundColor: tokens.bgField,
-                  borderColor: tokens.hairline,
-                },
+                { backgroundColor: tintFromPrimary(tokens, 0.15) },
               ]}
             >
-              <Check size={28} color={tokens.primary} strokeWidth={1.8} />
+              <Check size={34} color={tokens.primarySoft} strokeWidth={1.8} />
             </View>
             <Text style={[styles.successTitle, { color: tokens.fg1 }]}>
               {t('profile.support.success')}
             </Text>
-            <Text style={[styles.successHint, { color: tokens.fg3 }]}>
+            <Text style={[styles.successHint, { color: tokens.fg2 }]}>
               {t('profile.support.successHint')}
             </Text>
           </View>
@@ -362,23 +359,22 @@ const styles = StyleSheet.create({
     gap: 14,
   },
   successIconCircle: {
-    width: 56,
-    height: 56,
+    width: 80,
+    height: 80,
     borderRadius: 999,
-    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
   },
   successTitle: {
     fontFamily: 'Rubik_500Medium',
-    fontSize: 20,
-    letterSpacing: -0.2,
+    fontSize: 22,
+    letterSpacing: -0.22,
     textAlign: 'center',
   },
   successHint: {
     fontFamily: 'Rubik_400Regular',
-    fontSize: 14,
-    lineHeight: 22,
+    fontSize: 15,
+    lineHeight: 22.5,
     textAlign: 'center',
     maxWidth: 320,
   },

@@ -2,7 +2,8 @@ import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
-function RadioGlyph({
+/** Kit Radio glyph (visual only) — for rows that manage their own press target. */
+export function RadioGlyph({
   selected,
   size,
   tokens,

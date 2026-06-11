@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useCallback, useEffect } from 'react'
-import { Loader2 } from 'lucide-react'
+import { Check, Loader2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { AppOverlay } from '@/components/ui/app-overlay'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
@@ -150,7 +150,7 @@ export function EditHabitModal({
         isDirty={isDirty}
         onAttemptDismiss={dismissGuard.requestDismiss}
       >
-        <form className="space-y-10" onSubmit={handleSubmit}>
+        <form className="stagger-enter space-y-10" onSubmit={handleSubmit}>
         <HabitFormFields
           formHelpers={formHelpers}
           tags={tags}
@@ -182,7 +182,11 @@ export function EditHabitModal({
             className="flex-1"
             disabled={updateHabit.isPending || !formHelpers.form.formState.isValid}
             leading={
-              updateHabit.isPending ? <Loader2 className="size-[18px] animate-spin" /> : undefined
+              updateHabit.isPending ? (
+                <Loader2 className="size-[18px] animate-spin" />
+              ) : (
+                <Check size={18} strokeWidth={2.2} aria-hidden="true" />
+              )
             }
           >
             {t('habits.saveChanges')}

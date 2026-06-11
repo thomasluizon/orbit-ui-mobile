@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import { ActivityIndicator, StyleSheet, View } from 'react-native'
+import { Check } from 'lucide-react-native'
 import { useRouter } from 'expo-router'
 import { useWatch } from 'react-hook-form'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -384,7 +385,9 @@ export function CreateHabitModal({
               leading={
                 isPending ? (
                   <ActivityIndicator size="small" color={tokens.fgOnPrimary} />
-                ) : undefined
+                ) : (
+                  <Check size={18} color={tokens.fgOnPrimary} strokeWidth={2.2} />
+                )
               }
             >
               {isSubHabitMode
@@ -440,7 +443,6 @@ function createStyles(
     subHabitsHint: {
       fontFamily: 'Rubik_400Regular',
       fontSize: 13,
-      fontStyle: 'italic',
       color: tokens.fg3,
       lineHeight: 19,
     },
@@ -487,13 +489,19 @@ function createStyles(
     addSubHabitButton: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 8,
-      paddingVertical: 10,
+      alignSelf: 'flex-start',
+      gap: 7,
+      paddingHorizontal: 14,
+      paddingVertical: 9,
+      borderRadius: 999,
+      borderWidth: 1,
+      borderColor: tokens.hairline,
+      backgroundColor: tokens.bgElev,
     },
     addSubHabitText: {
       fontFamily: 'Rubik_500Medium',
       fontSize: 13,
-      color: tokens.fg3,
+      color: tokens.fg2,
     },
     footer: {
       flexDirection: 'row',

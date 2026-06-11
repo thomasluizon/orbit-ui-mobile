@@ -5,7 +5,7 @@ import {
   Loader2, Sparkles, CreditCard, Settings,
   Flame, MessageSquare, Palette, ShieldCheck, BarChart3,
   AlertTriangle, Download, Clock, Check, X as XIcon,
-  Tag, Info,
+  Tag, Info, Receipt,
 } from 'lucide-react'
 import { useTranslations, useLocale } from 'next-intl'
 import { AppBar } from '@/components/ui/app-bar'
@@ -64,7 +64,7 @@ const metaTextStyle: React.CSSProperties = {
 }
 
 const whitePillLinkClassName =
-  'inline-flex w-full cursor-pointer items-center justify-center gap-[9px] rounded-full bg-[var(--fg-1)] px-[26px] py-[14px] text-[16px] font-medium text-[var(--bg)] transition-opacity duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:opacity-85'
+  'inline-flex w-full cursor-pointer items-center justify-center gap-[9px] rounded-full bg-[var(--fg-1)] px-[26px] py-[14px] text-[16px] font-medium text-[var(--bg)] transition-[opacity,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:-translate-y-px hover:opacity-90 active:translate-y-0 active:scale-[0.98]'
 
 function formatCardBrand(brand: string): string {
   return brand.charAt(0).toUpperCase() + brand.slice(1)
@@ -129,7 +129,8 @@ function FeatureTooltip({ text }: Readonly<{ text: string }>) {
   return (
     <div className="relative shrink-0" ref={ref}>
       <button
-        className="-m-[11px] shrink-0 cursor-pointer appearance-none rounded-full border-0 bg-transparent p-[15px] text-[var(--fg-4)] transition-colors duration-150 ease-out hover:text-[var(--fg-2)]"
+        className="icon-btn -m-2 shrink-0 hover:text-[var(--fg-2)]"
+        style={{ width: 36, height: 36, color: 'var(--fg-4)' }}
         onClick={() => setOpen((v) => !v)}
         type="button"
         aria-label={text}
@@ -137,7 +138,7 @@ function FeatureTooltip({ text }: Readonly<{ text: string }>) {
         aria-haspopup="dialog"
         aria-controls={tooltipId}
       >
-        <Info size={14} strokeWidth={1.8} aria-hidden="true" />
+        <Info size={18} strokeWidth={1.8} aria-hidden="true" />
       </button>
       {open && (
         <div
@@ -230,8 +231,16 @@ function FeatureComparisonTable({ t }: Readonly<{ t: ReturnType<typeof useTransl
 
       {UPGRADE_FEATURE_CATEGORIES.map((group) => (
         <div key={group.category}>
-          <div style={{ padding: '16px 4px 4px' }}>
-            <span style={{ ...comparisonEyebrowStyle, color: 'var(--fg-4)' }}>
+          <div style={{ padding: '18px 4px 4px' }}>
+            <span
+              style={{
+                fontFamily: 'var(--font-sans)',
+                fontSize: 15,
+                fontWeight: 500,
+                letterSpacing: '-0.01em',
+                color: 'var(--fg-1)',
+              }}
+            >
               {t(`upgrade.categories.${group.category}`)}
             </span>
           </div>
@@ -300,7 +309,7 @@ function PlanSelection({ plans, selectedInterval, onSelectInterval, discountedAm
     : ''
 
   return (
-    <div role="radiogroup" aria-label={t('upgrade.plan')} className="flex flex-col" style={{ gap: 14 }}>
+    <div role="radiogroup" aria-label={t('upgrade.plan')} className="flex flex-col stagger-enter" style={{ gap: 14 }}>
       <PlanCard
         name={t('upgrade.plans.yearly.name')}
         badge={t('upgrade.plans.savePercent', { percent: plans.savingsPercent })}
@@ -348,7 +357,7 @@ function BillingDashboard({
   usagePercent, usageUrgent, portalError, onOpenPortal, onRetryBilling, t,
 }: Readonly<BillingDashboardProps>) {
   return (
-    <div className="space-y-3">
+    <div className="space-y-3 stagger-enter">
       {isBillingLoading && (
         <>
           <div className="rounded-[18px]" style={{ padding: '16px 18px', ...cardSurface }}>
@@ -375,8 +384,8 @@ function BillingDashboard({
           </p>
           <button
             type="button"
-            className="inline-flex cursor-pointer appearance-none items-center justify-center border-0 bg-transparent underline transition-opacity duration-150 ease-out hover:opacity-80"
-            style={{ marginTop: 4, minHeight: 44, padding: '0 16px', fontFamily: 'var(--font-sans)', fontSize: 14, fontWeight: 500, color: 'var(--fg-1)' }}
+            className="chip"
+            style={{ marginTop: 10 }}
             onClick={onRetryBilling}
           >
             {t('upgrade.billing.retry')}
@@ -449,7 +458,7 @@ function BillingDashboard({
               </div>
               <button
                 type="button"
-                className="inline-flex shrink-0 cursor-pointer appearance-none items-center justify-center rounded-full border-0 bg-transparent transition-opacity duration-150 ease-out hover:opacity-80"
+                className="inline-flex shrink-0 cursor-pointer appearance-none items-center justify-center rounded-full border-0 bg-transparent transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev)] active:scale-[0.97]"
                 style={{
                   minHeight: 44,
                   padding: '0 16px',
@@ -478,44 +487,49 @@ function BillingDashboard({
                   key={invoice.id}
                   className="flex items-center"
                   style={{
-                    padding: '12px 18px',
-                    gap: 12,
+                    padding: '14px 18px',
+                    gap: 14,
                     borderTop: index > 0 ? '1px solid var(--hairline)' : undefined,
                   }}
                 >
+                  <span
+                    aria-hidden="true"
+                    className="inline-flex shrink-0 justify-center"
+                    style={{ width: 26 }}
+                  >
+                    <Receipt size={22} strokeWidth={1.8} color="var(--fg-1)" />
+                  </span>
                   <div className="min-w-0 flex-1">
-                    <div style={{ fontFamily: 'var(--font-sans)', fontSize: 15, color: 'var(--fg-1)' }}>
-                      {formatBillingDate(invoice.date, locale)}
+                    <div style={{ fontFamily: 'var(--font-sans)', fontSize: 16, color: 'var(--fg-1)' }}>
+                      {formatPrice(invoice.amountPaid, invoice.currency)}
                     </div>
-                    <div className="flex items-center" style={{ gap: 6, marginTop: 2 }}>
-                      <span
-                        style={{
-                          fontFamily: 'var(--font-mono)',
-                          fontSize: 11,
-                          letterSpacing: '0.04em',
-                          textTransform: 'uppercase',
-                          color: invoiceStatusColor(invoice.status),
-                        }}
-                      >
-                        {invoiceStatusLabelFn(invoice.status, t)}
-                      </span>
-                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--fg-4)' }}>
-                        · {invoiceReasonLabelFn(invoice.billingReason, t)}
+                    <div className="flex flex-wrap items-center" style={{ gap: 6, marginTop: 3 }}>
+                      <span style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--fg-3)' }}>
+                        {formatBillingDate(invoice.date, locale)} · {invoiceReasonLabelFn(invoice.billingReason, t)}
                       </span>
                     </div>
                   </div>
-                  <span style={{ ...metaTextStyle, fontSize: 14, color: 'var(--fg-1)' }}>
-                    {formatPrice(invoice.amountPaid, invoice.currency)}
+                  <span
+                    className="shrink-0 uppercase"
+                    style={{
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: 11,
+                      letterSpacing: '0.04em',
+                      color: invoiceStatusColor(invoice.status),
+                    }}
+                  >
+                    {invoiceStatusLabelFn(invoice.status, t)}
                   </span>
                   {(invoice.invoicePdf ?? invoice.hostedInvoiceUrl) && (
                     <a
                       href={invoice.invoicePdf ?? invoice.hostedInvoiceUrl ?? undefined}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="inline-flex size-11 shrink-0 items-center justify-center rounded-full text-[var(--fg-3)] transition-colors duration-150 ease-out hover:text-[var(--fg-1)]"
+                      className="icon-btn shrink-0"
+                      style={{ width: 40, height: 40, color: 'var(--fg-3)' }}
                       title={t('upgrade.billing.invoices.download')}
                     >
-                      <Download size={18} strokeWidth={1.8} />
+                      <Download size={20} strokeWidth={1.8} />
                     </a>
                   )}
                 </div>
@@ -588,7 +602,7 @@ interface PlayBillingDashboardProps {
 
 function PlayBillingDashboard({ profile, locale, usagePercent, usageUrgent, t }: Readonly<PlayBillingDashboardProps>) {
   return (
-    <div className="space-y-3">
+    <div className="space-y-3 stagger-enter">
       <div className="overflow-hidden rounded-[18px]" style={cardSurface}>
         <div style={{ padding: '16px 18px' }}>
           <div style={cardLabelStyle}>{t('upgrade.billing.plan.title')}</div>
@@ -751,8 +765,8 @@ function PricingSection({
           </p>
           <button
             type="button"
-            className="inline-flex cursor-pointer appearance-none items-center justify-center border-0 bg-transparent underline transition-opacity duration-150 ease-out hover:opacity-80"
-            style={{ marginTop: 4, minHeight: 44, padding: '0 16px', fontFamily: 'var(--font-sans)', fontSize: 14, fontWeight: 500, color: 'var(--fg-1)' }}
+            className="chip"
+            style={{ marginTop: 10 }}
             onClick={onRetryPlans}
           >
             {t('upgrade.plans.retry')}

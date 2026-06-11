@@ -90,8 +90,8 @@ export function WelcomeBackToast() {
         width: 'calc(100% - 32px)',
         padding: '14px 16px',
         background: 'var(--bg-sheet)',
-        borderRadius: 16,
-        boxShadow: 'var(--shadow-2), inset 0 0 0 1px var(--hairline)',
+        borderRadius: 18,
+        boxShadow: '0 14px 36px rgba(0, 0, 0, 0.5), inset 0 0 0 1px var(--hairline)',
         transition: 'opacity 400ms var(--ease-out), transform 400ms var(--ease-out)',
         opacity: isVisible ? 1 : 0,
         transform: isVisible

@@ -1,4 +1,5 @@
 import { View, Text, StyleSheet, useWindowDimensions } from 'react-native'
+import Animated, { FadeInDown, ReduceMotion } from 'react-native-reanimated'
 import type { Achievement } from '@orbit/shared/types/gamification'
 import { achievementEmoji } from '@orbit/shared/utils'
 import { createTokensV2 } from '@/lib/theme'
@@ -35,14 +36,24 @@ export function AchievementCategorySection({
     <>
       <SectionLabel>{t(`gamification.categories.${category.key}`)}</SectionLabel>
       <View style={styles.grid}>
-        {category.items.map((achievement) => (
-          <AchievementTile
+        {category.items.map((achievement, index) => (
+          <Animated.View
             key={achievement.id}
-            achievement={achievement}
-            t={t}
-            tokens={tokens}
-            width={tileWidth}
-          />
+            entering={
+              index < 8
+                ? FadeInDown.duration(280)
+                    .delay(index * 40)
+                    .reduceMotion(ReduceMotion.System)
+                : undefined
+            }
+          >
+            <AchievementTile
+              achievement={achievement}
+              t={t}
+              tokens={tokens}
+              width={tileWidth}
+            />
+          </Animated.View>
         ))}
       </View>
     </>
@@ -73,18 +84,19 @@ function AchievementTile({
       testID={`achievement-${achievement.id}`}
       style={[
         styles.tile,
+        !earned && styles.tileLocked,
         {
           width,
-          backgroundColor: earned ? tokens.bgField : tokens.bgCard,
+          backgroundColor: tokens.bgCard,
           borderColor: tokens.hairline,
         },
       ]}
     >
-      <Text style={[styles.emoji, !earned && styles.emojiLocked]}>
+      <Text style={styles.emoji}>
         {achievementEmoji(achievement.iconKey)}
       </Text>
       <Text
-        style={[styles.name, { color: earned ? tokens.fg1 : tokens.fg4 }]}
+        style={[styles.name, { color: earned ? tokens.fg1 : tokens.fg2 }]}
       >
         {name}
       </Text>
@@ -100,25 +112,25 @@ const styles = StyleSheet.create({
     paddingHorizontal: GRID_PADDING,
   },
   tile: {
-    borderRadius: 18,
+    borderRadius: 16,
     borderWidth: 1,
     paddingTop: 18,
     paddingBottom: 14,
     paddingHorizontal: 8,
     alignItems: 'center',
   },
+  tileLocked: {
+    opacity: 0.45,
+  },
   emoji: {
-    fontSize: 28,
-    lineHeight: 32,
+    fontSize: 30,
+    lineHeight: 34,
     marginBottom: 8,
   },
-  emojiLocked: {
-    opacity: 0.5,
-  },
   name: {
-    fontFamily: 'Rubik_500Medium',
-    fontSize: 13,
-    lineHeight: 16,
+    fontFamily: 'Rubik_400Regular',
+    fontSize: 12,
+    lineHeight: 15,
     textAlign: 'center',
   },
 })

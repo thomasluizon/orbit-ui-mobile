@@ -18,6 +18,7 @@ import {
   ActivityIndicator,
 } from 'react-native'
 import { usePathname, useRouter } from 'expo-router'
+import Animated, { FadeInDown } from 'react-native-reanimated'
 import DraggableFlatList, {
   type RenderItemParams,
 } from 'react-native-draggable-flatlist'
@@ -54,6 +55,7 @@ import { useDrillNavigation } from '@/hooks/use-drill-navigation'
 import { useConfig } from '@/hooks/use-config'
 import { useHabitVisibility } from '@/hooks/use-habit-visibility'
 import { getHabitListExtraData } from '@/lib/habit-selection-state'
+import { usePrefersReducedMotion } from '@/lib/motion'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useUIStore } from '@/stores/ui-store'
@@ -172,6 +174,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     const deviceLocale = i18n.language
     const router = useRouter()
     const pathname = usePathname()
+    const prefersReducedMotion = usePrefersReducedMotion()
     const { profile } = useProfile()
     const { currentScheme, currentTheme } = useAppTheme()
     const tokens = useMemo(
@@ -1372,8 +1375,17 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     )
 
     const renderItem = useCallback(
-      ({ item, drag }: RenderItemParams<DragItem>) => (
-        <View style={styles.sectionInset}>
+      ({ item, drag, getIndex }: RenderItemParams<DragItem>) => (
+        <Animated.View
+          style={styles.sectionInset}
+          entering={
+            prefersReducedMotion
+              ? undefined
+              : FadeInDown.duration(280).delay(
+                  Math.min(getIndex() ?? 0, 8) * 40,
+                )
+          }
+        >
           {renderHabitCard(
             item.habit,
             item.depth,
@@ -1389,9 +1401,16 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
                   : undefined,
             },
           )}
-        </View>
+        </Animated.View>
       ),
-      [isDndEnabled, prepareDrag, renderHabitCard, styles.sectionInset, tourCardHabitId],
+      [
+        isDndEnabled,
+        prefersReducedMotion,
+        prepareDrag,
+        renderHabitCard,
+        styles.sectionInset,
+        tourCardHabitId,
+      ],
     )
 
     const keyExtractor = useCallback((item: DragItem) => item.id, [])
@@ -1401,16 +1420,14 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         <HabitListEmptyState
           title={t(getHabitEmptyStateKey(currentView))}
           description={getEmptyHabitsMessage(currentView, t)}
-          actionLabel={
-            currentView === 'all' || currentView === 'general'
-              ? t('habits.createHabit')
-              : undefined
-          }
+          askAstraLabel={t('habits.askAstra')}
+          onAskAstra={() => router.push('/chat')}
+          actionLabel={t('habits.createManually')}
           onAction={onCreatePress}
           variant="primary"
         />
       ),
-      [onCreatePress, t],
+      [onCreatePress, router, t],
     )
 
     const listHeaderComponent = useMemo(

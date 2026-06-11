@@ -25,14 +25,12 @@ describe('StreakBadge', () => {
     pushMock.mockClear()
   })
 
-  it('renders nothing when streak is 0', () => {
-    const { container } = render(<StreakBadge streak={0} />)
-    expect(container.innerHTML).toBe('')
-  })
-
-  it('renders nothing when streak is negative', () => {
-    const { container } = render(<StreakBadge streak={-1} />)
-    expect(container.innerHTML).toBe('')
+  it('stays visible at streak 0 and still routes to the streak page', () => {
+    render(<StreakBadge streak={0} />)
+    const button = screen.getByRole('button')
+    expect(button).toBeInTheDocument()
+    fireEvent.click(button)
+    expect(pushMock).toHaveBeenCalledWith('/streak')
   })
 
   it('renders badge as a button for positive streak', () => {

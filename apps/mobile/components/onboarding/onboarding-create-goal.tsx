@@ -1,6 +1,7 @@
-import { useState, useMemo, useCallback } from 'react'
+import { useEffect, useState, useMemo, useCallback } from 'react'
 import {
   ActivityIndicator,
+  Animated,
   Pressable,
   StyleSheet,
   Text,
@@ -21,7 +22,8 @@ import {
   translateErrorKey,
   validateGoalDraftInput,
 } from '@orbit/shared/utils'
-import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
+import { createTokensV2, primaryGlow, type AppTokensV2 } from '@/lib/theme'
+import { usePrefersReducedMotion } from '@/lib/motion'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 interface GoalSuggestion {
@@ -63,6 +65,25 @@ export function OnboardingCreateGoal({
     null,
   )
   const { showError } = useAppToast()
+  const prefersReducedMotion = usePrefersReducedMotion()
+  const successScale = useMemo(() => new Animated.Value(0), [])
+
+  useEffect(() => {
+    if (!isCreated) return
+    if (prefersReducedMotion) {
+      successScale.setValue(1)
+      return
+    }
+    const animation = Animated.spring(successScale, {
+      toValue: 1,
+      stiffness: 260,
+      damping: 20,
+      mass: 0.9,
+      useNativeDriver: true,
+    })
+    animation.start()
+    return () => animation.stop()
+  }, [isCreated, prefersReducedMotion, successScale])
 
   const createGoal = useCreateGoal()
   const isCreating = createGoal.isPending
@@ -141,9 +162,25 @@ export function OnboardingCreateGoal({
     return (
       <View style={styles.container}>
         <View style={styles.successCard}>
-          <View style={styles.successIcon}>
+          <Animated.View
+            style={[
+              styles.successIcon,
+              primaryGlow(tokens),
+              {
+                opacity: successScale,
+                transform: [
+                  {
+                    scale: successScale.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [0.3, 1],
+                    }),
+                  },
+                ],
+              },
+            ]}
+          >
             <Check size={26} color={tokens.fgOnPrimary} strokeWidth={2.4} />
-          </View>
+          </Animated.View>
           <Text style={styles.successTitle}>
             {targetValue} {unit}
           </Text>

@@ -8,11 +8,12 @@ import {
   Linking,
   AppState,
 } from 'react-native'
+import Animated, { FadeInDown, ReduceMotion } from 'react-native-reanimated'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useRouter } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
-import { Calendar, Languages, Moon, Palette } from 'lucide-react-native'
+import { Calendar, Check, Languages, Moon, Palette } from 'lucide-react-native'
 import { useMutation } from '@tanstack/react-query'
 import { API } from '@orbit/shared/api'
 import { colorSchemeOptions, type ColorScheme } from '@orbit/shared/theme'
@@ -32,6 +33,7 @@ import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { AppBar } from '@/components/ui/app-bar'
 import { BottomSheetModal } from '@/components/bottom-sheet-modal'
+import { PillButton } from '@/components/ui/pill-button'
 import { SectionLabel } from '@/components/ui/section-label'
 import { SettingsRow, Switch } from '@/components/ui/settings-row'
 import { RadioRow } from '@/components/ui/select-check'
@@ -42,6 +44,12 @@ type PreferencePicker = 'language' | 'theme' | 'scheme' | 'weekStart'
 
 function capitalize(value: string): string {
   return value.charAt(0).toUpperCase() + value.slice(1)
+}
+
+function sectionEntrance(index: number) {
+  return FadeInDown.duration(280)
+    .delay(index * 50)
+    .reduceMotion(ReduceMotion.System)
 }
 
 export default function PreferencesScreen() {
@@ -127,6 +135,7 @@ export default function PreferencesScreen() {
 
   function handleSchemeChange(scheme: ColorScheme) {
     if (!profile?.hasProAccess && scheme !== 'purple') {
+      setActivePicker(null)
       router.push(buildUpgradeHref('/preferences'))
       return
     }
@@ -250,103 +259,116 @@ export default function PreferencesScreen() {
       >
         <TrialBanner />
 
-        <SectionLabel bottom={4}>{t('preferences.general')}</SectionLabel>
-        <SettingsRow
-          icon={Languages}
-          label={t('profile.language.title')}
-          desc={t('profile.language.description')}
-          value={languageLabel}
-          onPress={() => setActivePicker('language')}
-          divider={false}
-        />
-        <SettingsRow
-          icon={Moon}
-          label={t('preferences.themeMode')}
-          value={themeLabel}
-          onPress={() => setActivePicker('theme')}
-          divider={false}
-        />
-        <SettingsRow
-          icon={Palette}
-          label={t('profile.colorScheme.title')}
-          desc={t('profile.colorScheme.description')}
-          value={schemeLabel}
-          onPress={() => setActivePicker('scheme')}
-          divider={false}
-        >
-          {schemeOption ? (
-            <View style={[styles.schemeDot, { backgroundColor: schemeOption.color }]} />
-          ) : null}
-          <ProBadge />
-        </SettingsRow>
-        <SettingsRow
-          icon={Calendar}
-          label={t('settings.weekStartDay.title')}
-          desc={t('settings.weekStartDay.description')}
-          value={weekStartLabel}
-          onPress={() => setActivePicker('weekStart')}
-          divider={false}
-        />
-
-        <SectionLabel bottom={4}>{t('settings.homeScreen.title')}</SectionLabel>
-        <SettingsRow
-          label={t('settings.homeScreen.showGeneral')}
-          desc={t('settings.homeScreen.showGeneralDesc')}
-          accessory="none"
-          divider={false}
-        >
-          <Switch
-            on={showGeneralOnToday}
-            onToggle={() => {
-              void handleShowGeneralToggle(!showGeneralOnToday)
-            }}
-            accessibilityLabel={t('settings.homeScreen.showGeneral')}
+        <Animated.View entering={sectionEntrance(0)}>
+          <SectionLabel bottom={4}>{t('preferences.general')}</SectionLabel>
+          <SettingsRow
+            icon={Languages}
+            label={t('profile.language.title')}
+            desc={t('profile.language.description')}
+            value={languageLabel}
+            onPress={() => setActivePicker('language')}
+            divider={false}
           />
-        </SettingsRow>
+          <SettingsRow
+            icon={Moon}
+            label={t('preferences.themeMode')}
+            value={themeLabel}
+            onPress={() => setActivePicker('theme')}
+            divider={false}
+          />
+          <SettingsRow
+            icon={Palette}
+            label={t('profile.colorScheme.title')}
+            desc={t('profile.colorScheme.description')}
+            value={schemeLabel}
+            onPress={() => setActivePicker('scheme')}
+            divider={false}
+          >
+            {schemeOption ? (
+              <View style={[styles.schemeDot, { backgroundColor: schemeOption.color }]} />
+            ) : null}
+            <ProBadge />
+          </SettingsRow>
+          <SettingsRow
+            icon={Calendar}
+            label={t('settings.weekStartDay.title')}
+            desc={t('settings.weekStartDay.description')}
+            value={weekStartLabel}
+            onPress={() => setActivePicker('weekStart')}
+            divider={false}
+          />
+        </Animated.View>
 
-        <SectionLabel bottom={4}>{t('settings.notifications.title')}</SectionLabel>
-        {pushSupported ? (
-          <>
-            <SettingsRow
-              label={t('settings.notifications.allowed')}
-              accessory="none"
-              divider={false}
-            >
-              <Switch
-                on={pushEnabled}
-                onToggle={() => {
-                  void handlePushToggle()
-                }}
-                disabled={pushLoading}
-                accessibilityLabel={t('settings.notifications.title')}
-              />
-            </SettingsRow>
+        <Animated.View entering={sectionEntrance(1)}>
+          <SectionLabel bottom={4}>{t('settings.homeScreen.title')}</SectionLabel>
+          <SettingsRow
+            label={t('settings.homeScreen.showGeneral')}
+            desc={t('settings.homeScreen.showGeneralDesc')}
+            accessory="none"
+            divider={false}
+          >
+            <Switch
+              on={showGeneralOnToday}
+              onToggle={() => {
+                void handleShowGeneralToggle(!showGeneralOnToday)
+              }}
+              accessibilityLabel={t('settings.homeScreen.showGeneral')}
+            />
+          </SettingsRow>
+        </Animated.View>
+
+        <Animated.View entering={sectionEntrance(2)}>
+          <SectionLabel bottom={4}>{t('settings.notifications.title')}</SectionLabel>
+          {pushSupported ? (
+            <>
+              <SettingsRow
+                label={t('settings.notifications.allowed')}
+                accessory="none"
+                divider={false}
+              >
+                <Switch
+                  on={pushEnabled}
+                  onToggle={() => {
+                    void handlePushToggle()
+                  }}
+                  disabled={pushLoading}
+                  accessibilityLabel={t('settings.notifications.title')}
+                />
+              </SettingsRow>
+              <View style={styles.statusBlock}>
+                <Text style={[styles.statusText, { color: pushStatusColor }]}>
+                  {pushStatusText}
+                </Text>
+              </View>
+              {permissionStatus === 'denied' ? (
+                <Pressable
+                  onPress={() => {
+                    void Linking.openSettings().catch(() => {})
+                  }}
+                  accessibilityRole="button"
+                  style={({ pressed }) => [
+                    styles.linkChip,
+                    {
+                      backgroundColor: pressed ? tokens.bgElev2 : tokens.bgElev,
+                      borderColor: tokens.hairline,
+                    },
+                    pressed ? styles.linkChipPressed : null,
+                  ]}
+                >
+                  <Text style={[styles.linkText, { color: tokens.fg2 }]}>
+                    {t('settings.notifications.openSettings')}
+                  </Text>
+                </Pressable>
+              ) : null}
+            </>
+          ) : (
             <View style={styles.statusBlock}>
-              <Text style={[styles.statusText, { color: pushStatusColor }]}>
-                {pushStatusText}
+              <Text style={[styles.statusText, { color: tokens.fg3 }]}>
+                {t('settings.notifications.unsupportedNative')}
               </Text>
             </View>
-            {permissionStatus === 'denied' ? (
-              <Pressable
-                onPress={() => {
-                  void Linking.openSettings().catch(() => {})
-                }}
-                accessibilityRole="button"
-                style={styles.linkPress}
-              >
-                <Text style={[styles.linkText, { color: tokens.fg2 }]}>
-                  {t('settings.notifications.openSettings')}
-                </Text>
-              </Pressable>
-            ) : null}
-          </>
-        ) : (
-          <View style={styles.statusBlock}>
-            <Text style={[styles.statusText, { color: tokens.fg3 }]}>
-              {t('settings.notifications.unsupportedNative')}
-            </Text>
-          </View>
-        )}
+          )}
+        </Animated.View>
 
         <View style={{ height: 24 }} />
       </ScrollView>
@@ -389,20 +411,32 @@ export default function PreferencesScreen() {
                 }}
               />
             ))}
-          {activePicker === 'scheme' &&
-            colorSchemeOptions.map((option, index) => (
-              <RadioRow
-                key={option.value}
-                label={t(`preferences.color${capitalize(option.value)}`)}
-                selected={currentScheme === option.value}
-                dot={option.color}
-                divider={index < colorSchemeOptions.length - 1}
-                onPress={() => {
-                  closePicker()
-                  handleSchemeChange(option.value)
-                }}
-              />
-            ))}
+          {activePicker === 'scheme' && (
+            <>
+              {colorSchemeOptions.map((option, index) => (
+                <RadioRow
+                  key={option.value}
+                  label={t(`preferences.color${capitalize(option.value)}`)}
+                  selected={currentScheme === option.value}
+                  dot={option.color}
+                  divider={index < colorSchemeOptions.length - 1}
+                  onPress={() => {
+                    handleSchemeChange(option.value)
+                  }}
+                />
+              ))}
+              <View style={styles.sheetFooter}>
+                <PillButton
+                  variant="white"
+                  fullWidth
+                  onPress={closePicker}
+                  leading={<Check size={18} color={tokens.bg} strokeWidth={2} />}
+                >
+                  {t('common.save')}
+                </PillButton>
+              </View>
+            </>
+          )}
           {activePicker === 'weekStart' &&
             weekStartOptions.map((option, index) => (
               <RadioRow
@@ -440,14 +474,20 @@ const styles = StyleSheet.create({
   statusText: {
     fontFamily: 'Rubik_400Regular',
     fontSize: 13,
-    fontStyle: 'italic',
   },
-  linkPress: {
+  linkChip: {
     alignSelf: 'flex-start',
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    minHeight: 44,
+    marginHorizontal: 20,
+    marginTop: 6,
+    borderRadius: 999,
+    borderWidth: 1,
+    paddingVertical: 9,
+    paddingHorizontal: 16,
+    alignItems: 'center',
     justifyContent: 'center',
+  },
+  linkChipPressed: {
+    transform: [{ scale: 0.96 }],
   },
   linkText: {
     fontFamily: 'Rubik_500Medium',
@@ -459,5 +499,9 @@ const styles = StyleSheet.create({
   sheetContent: {
     paddingHorizontal: 22,
     paddingBottom: 24,
+  },
+  sheetFooter: {
+    paddingTop: 16,
+    paddingBottom: 4,
   },
 })

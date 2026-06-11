@@ -53,24 +53,9 @@ export function GoalLinkingField({
                 type="button"
                 aria-pressed={isSelected}
                 disabled={isDimmed}
-                className="appearance-none cursor-pointer inline-flex items-center whitespace-nowrap shrink-0 transition-[background-color,box-shadow,color] duration-[var(--dur-fast)] ease-[var(--ease-standard)] disabled:opacity-30 disabled:pointer-events-none"
-                style={{
-                  height: 32,
-                  padding: '0 12px',
-                  borderRadius: 999,
-                  background: isSelected
-                    ? 'rgba(var(--primary-rgb), 0.12)'
-                    : 'var(--bg-field)',
-                  boxShadow: isSelected
-                    ? 'inset 0 0 0 1px var(--primary)'
-                    : undefined,
-                  border: 0,
-                  color: isSelected ? 'var(--primary)' : 'var(--fg-3)',
-                  fontFamily: 'var(--font-sans)',
-                  fontSize: 13,
-                  fontWeight: 500,
-                  gap: 6,
-                }}
+                className={`chip disabled:opacity-30 disabled:pointer-events-none ${
+                  isSelected ? 'chip-active' : ''
+                }`}
                 onClick={() => onToggleGoal(goal.id)}
               >
                 <span>{goal.title}</span>
@@ -94,7 +79,6 @@ export function GoalLinkingField({
             marginTop: 8,
             fontFamily: 'var(--font-sans)',
             fontSize: 13,
-            fontStyle: 'italic',
             color: 'var(--fg-3)',
           }}
         >

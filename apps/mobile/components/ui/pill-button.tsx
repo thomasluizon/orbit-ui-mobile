@@ -52,7 +52,7 @@ export function PillButton({
     }
     if (variant === 'ghost') {
       return {
-        backgroundColor: 'transparent',
+        backgroundColor: pressed ? tokens.bgCard : 'transparent',
         borderWidth: 1.5,
         borderColor: tokens.hairlineStrong,
         paddingVertical: 14,
@@ -77,7 +77,8 @@ export function PillButton({
         variant === 'primary' && glow && !disabled ? primaryGlow(tokens) : null,
         fullWidth ? styles.fullWidth : null,
         disabled ? styles.disabled : null,
-        pressed && variant !== 'primary' ? styles.pressedQuiet : null,
+        pressed && variant === 'white' ? styles.pressedQuiet : null,
+        pressed ? styles.pressedScale : null,
         style,
       ]}
     >
@@ -109,6 +110,9 @@ const styles = StyleSheet.create({
   },
   pressedQuiet: {
     opacity: 0.85,
+  },
+  pressedScale: {
+    transform: [{ scale: 0.98 }],
   },
   label: {
     fontFamily: 'Rubik_500Medium',

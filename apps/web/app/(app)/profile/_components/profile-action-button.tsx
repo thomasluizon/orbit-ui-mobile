@@ -7,29 +7,22 @@ interface ProfileActionButtonProps {
   onClick: () => void
   /** Leading lucide icon rendered 22/1.8 in the kit ListRow 26px slot. */
   icon?: LucideIcon
-  tone?: 'default' | 'primary' | 'danger'
-  compact?: boolean
+  tone?: 'default' | 'danger'
 }
 
-/** Kit ListRow action — `tone` colors icon and label (`primary` → accent, `danger` → status-bad); `compact` renders a quieter smaller row. */
+/** Kit ListRow action — `tone="danger"` colors icon and label in status-bad. */
 export function ProfileActionButton({
   label,
   onClick,
   icon: LeadingIcon,
   tone = 'default',
-  compact = false,
 }: Readonly<ProfileActionButtonProps>) {
-  const color =
-    tone === 'danger'
-      ? 'var(--status-bad)'
-      : tone === 'primary'
-        ? 'var(--primary)'
-        : 'var(--fg-1)'
+  const color = tone === 'danger' ? 'var(--status-bad)' : 'var(--fg-1)'
   return (
     <button
       type="button"
       onClick={onClick}
-      className="flex w-full cursor-pointer items-center bg-transparent text-left transition-colors duration-150 ease-out hover:bg-[var(--bg-elev)]"
+      className="flex w-full cursor-pointer items-center bg-transparent text-left transition-colors duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev)] active:bg-[var(--bg-elev-pressed)]"
       style={{
         appearance: 'none',
         border: 0,
@@ -50,7 +43,7 @@ export function ProfileActionButton({
       <span
         style={{
           fontFamily: 'var(--font-sans)',
-          fontSize: compact ? 15 : 18,
+          fontSize: 18,
           fontWeight: 400,
           lineHeight: 1.25,
           color,

@@ -94,7 +94,7 @@ export function SubHabitEditor({
         accessibilityRole="button"
         accessibilityLabel={t('habits.form.addSubHabit')}
       >
-        <Plus size={16} color={tokens.fg3} strokeWidth={1.8} />
+        <Plus size={14} color={tokens.fg2} strokeWidth={2} />
         <Text style={styles.addSubHabitText}>{t('habits.form.addSubHabit')}</Text>
       </TouchableOpacity>
     </View>

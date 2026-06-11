@@ -64,7 +64,11 @@ export function OnboardingComplete({
         className="flex flex-col items-center"
         style={{ gap: 14, paddingTop: 14 }}
       >
-        <VerifiedBadge size={96} />
+        <div style={{ animation: 'fresh-start-orb 0.6s var(--ease-out) both' }}>
+          <div className="animate-check-pop" style={{ animationDelay: '420ms' }}>
+            <VerifiedBadge size={96} />
+          </div>
+        </div>
         <h1
           className="text-center"
           style={{
@@ -75,6 +79,8 @@ export function OnboardingComplete({
             lineHeight: 1.15,
             color: 'var(--fg-1)',
             margin: '6px 0 0',
+            animation: 'slide-up-fade 0.28s var(--ease-out) backwards',
+            animationDelay: '180ms',
           }}
         >
           {t('onboarding.flow.complete.title')}
@@ -83,18 +89,23 @@ export function OnboardingComplete({
           className="text-center"
           style={{
             fontFamily: 'var(--font-sans)',
-            fontSize: 15,
+            fontSize: 16,
             color: 'var(--fg-2)',
             lineHeight: 1.5,
             maxWidth: 280,
             margin: 0,
+            animation: 'slide-up-fade 0.28s var(--ease-out) backwards',
+            animationDelay: '240ms',
           }}
         >
           {t('onboarding.flow.complete.subtitle')}
         </p>
       </div>
 
-      <div>
+      <div
+        className="stagger-enter"
+        style={{ animation: 'slide-up-fade 0.28s var(--ease-out) backwards', animationDelay: '300ms' }}
+      >
         {recapItems.map((item) => (
           <div
             key={item.key}
@@ -104,7 +115,7 @@ export function OnboardingComplete({
             <span
               style={{
                 fontFamily: 'var(--font-sans)',
-                fontSize: 15,
+                fontSize: 16,
                 color: 'var(--fg-2)',
               }}
             >
@@ -116,13 +127,26 @@ export function OnboardingComplete({
       </div>
 
       {profile?.isTrialActive && (
-        <InfoCard
-          title={t('onboarding.flow.complete.trialTitle')}
-          desc={t('onboarding.flow.complete.trialDesc', { date: formattedTrialEnd })}
-        />
+        <div
+          style={{
+            animation: 'slide-up-fade 0.28s var(--ease-out) backwards',
+            animationDelay: '380ms',
+          }}
+        >
+          <InfoCard
+            title={t('onboarding.flow.complete.trialTitle')}
+            desc={t('onboarding.flow.complete.trialDesc', { date: formattedTrialEnd })}
+          />
+        </div>
       )}
 
-      <div style={{ marginTop: 8 }}>
+      <div
+        style={{
+          marginTop: 8,
+          animation: 'slide-up-fade 0.28s var(--ease-out) backwards',
+          animationDelay: '440ms',
+        }}
+      >
         <PillButton fullWidth onClick={onFinish}>
           {t('onboarding.flow.complete.start')}
         </PillButton>

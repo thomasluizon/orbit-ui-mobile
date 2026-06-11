@@ -13,9 +13,9 @@ export function createStyles(tokens: Tokens) {
       flex: 1,
     },
     iconBtn: {
-      width: 36,
-      height: 36,
-      borderRadius: 8,
+      width: 40,
+      height: 40,
+      borderRadius: 999,
       alignItems: "center",
       justifyContent: "center",
     },
@@ -42,18 +42,18 @@ export function createStyles(tokens: Tokens) {
     },
     emptyTitle: {
       fontFamily: 'Rubik_500Medium',
-      fontSize: 22,
-      letterSpacing: -0.22,
+      fontSize: 24,
+      letterSpacing: -0.24,
       textAlign: "center",
       color: tokens.fg1,
     },
     emptyText: {
       fontFamily: 'Rubik_400Regular',
-      fontSize: 14,
-      lineHeight: 21,
+      fontSize: 15,
+      lineHeight: 22,
       maxWidth: 280,
       textAlign: "center",
-      color: tokens.fg3,
+      color: tokens.fg2,
     },
     aiDisclaimer: {
       fontFamily: 'Rubik_400Regular',
@@ -127,16 +127,20 @@ export function createStyles(tokens: Tokens) {
       flexDirection: "row",
       alignItems: "center",
       minHeight: 36,
-      paddingHorizontal: 14,
+      paddingHorizontal: 16,
       borderRadius: 999,
       backgroundColor: tokens.bgElev,
       borderWidth: 1,
       borderColor: tokens.hairline,
     },
+    quickChipPressed: {
+      backgroundColor: tokens.bgElev2,
+      transform: [{ scale: 0.96 }],
+    },
     quickChipText: {
       fontFamily: 'Rubik_500Medium',
       fontSize: 13,
-      color: tokens.fg1,
+      color: tokens.fg2,
     },
     offlineNotice: {
       flexDirection: "row",
@@ -147,7 +151,6 @@ export function createStyles(tokens: Tokens) {
     offlineText: {
       fontFamily: 'Rubik_400Regular',
       fontSize: 13,
-      fontStyle: "italic",
     },
     inputBar: {
       flexDirection: "row",
@@ -182,11 +185,14 @@ export function createStyles(tokens: Tokens) {
       maxHeight: 120,
     },
     fieldIconButton: {
-      width: 36,
-      height: 36,
+      width: 34,
+      height: 34,
       borderRadius: 999,
       alignItems: "center",
       justifyContent: "center",
+    },
+    composerFieldLocked: {
+      opacity: 0.45,
     },
     languageControl: {
       position: "relative",
@@ -284,7 +290,10 @@ export function createStyles(tokens: Tokens) {
       ...primaryGlow(tokens),
     },
     sendButtonDisabled: {
-      opacity: 0.4,
+      opacity: 0.45,
+    },
+    sendButtonPressed: {
+      transform: [{ scale: 0.94 }],
     },
     stopButton: {
       width: 50,

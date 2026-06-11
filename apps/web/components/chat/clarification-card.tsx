@@ -58,7 +58,7 @@ export function ClarificationCard({
 
   if (resolved) {
     return (
-      <div className="rounded-[16px] bg-[var(--bg-card)] p-4 shadow-[inset_0_0_0_1px_var(--hairline)]">
+      <div className="rounded-[16px] bg-[var(--bg-field)] p-4 shadow-[inset_0_0_0_1px_var(--hairline)]">
         <div className="flex items-center gap-2 py-1">
           <div className="size-6 rounded-full bg-[var(--status-done)]/20 flex items-center justify-center">
             <Check className="size-3.5 text-[var(--status-done)]" />
@@ -72,7 +72,7 @@ export function ClarificationCard({
   }
 
   return (
-    <div className="rounded-[16px] bg-[var(--bg-card)] p-4 space-y-3 shadow-[inset_0_0_0_1px_var(--hairline)]">
+    <div className="rounded-[16px] bg-[var(--bg-field)] p-4 space-y-3 shadow-[inset_0_0_0_1px_var(--hairline)]">
       <p
         style={{
           fontFamily: 'var(--font-sans)',
@@ -95,15 +95,7 @@ export function ClarificationCard({
               type="button"
               disabled={disabled}
               onClick={() => handleSelect(label, action.value)}
-              className="inline-flex items-center rounded-full border-0 cursor-pointer bg-[var(--bg-elev)] text-[var(--fg-1)] shadow-[inset_0_0_0_1px_var(--hairline)] transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev-pressed)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]/60 disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]"
-              style={{
-                gap: 6,
-                minHeight: 36,
-                padding: '0 14px',
-                fontFamily: 'var(--font-sans)',
-                fontSize: 13,
-                fontWeight: 500,
-              }}
+              className="chip focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]/60 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isActive && <Loader2 className="size-3 animate-spin" />}
               {label}

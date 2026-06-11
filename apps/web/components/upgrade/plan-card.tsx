@@ -29,14 +29,13 @@ export function PlanCard({
       role="radio"
       aria-checked={selected}
       onClick={onSelect}
-      className="block w-full cursor-pointer appearance-none rounded-[18px] border-0 text-left"
-      style={{
-        padding: '18px 18px 20px',
-        background: selected ? 'rgba(var(--primary-rgb), 0.10)' : 'var(--bg-card)',
-        boxShadow: selected
-          ? 'inset 0 0 0 1.5px var(--primary)'
-          : 'inset 0 0 0 1px var(--hairline)',
-      }}
+      className={[
+        'block w-full cursor-pointer appearance-none rounded-[18px] border-0 text-left transition-[background-color,box-shadow,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:-translate-y-px active:translate-y-0 active:scale-[0.99]',
+        selected
+          ? 'bg-[rgba(var(--primary-rgb),0.10)] shadow-[inset_0_0_0_1.5px_var(--primary)] hover:shadow-[inset_0_0_0_1.5px_var(--primary),var(--shadow-1)]'
+          : 'bg-[var(--bg-card)] shadow-[inset_0_0_0_1px_var(--hairline)] hover:bg-[var(--bg-elev)] hover:shadow-[inset_0_0_0_1px_var(--hairline-strong),var(--shadow-1)]',
+      ].join(' ')}
+      style={{ padding: '18px 18px 20px' }}
     >
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1">

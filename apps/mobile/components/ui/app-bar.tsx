@@ -65,10 +65,13 @@ export function AppBar({
             ? t('common.close')
             : t('common.share'))
       }
-      style={[
+      style={({ pressed }) => [
         styles.iconBtn,
         right === 'help'
           ? { borderWidth: 1.5, borderColor: tokens.hairlineStrong }
+          : null,
+        pressed
+          ? [styles.iconBtnPressed, { backgroundColor: tokens.bgElev }]
           : null,
       ]}
     >
@@ -91,7 +94,12 @@ export function AppBar({
             disabled={!onBack}
             accessibilityRole={onBack ? 'button' : 'none'}
             accessibilityLabel={resolvedBackLabel}
-            style={styles.iconBtn}
+            style={({ pressed }) => [
+              styles.iconBtn,
+              pressed
+                ? [styles.iconBtnPressed, { backgroundColor: tokens.bgElev }]
+                : null,
+            ]}
           >
             {back ? (
               <ChevronLeft size={26} color={tokens.fg1} strokeWidth={2} />
@@ -145,6 +153,9 @@ const styles = StyleSheet.create({
     borderRadius: 999,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  iconBtnPressed: {
+    transform: [{ scale: 0.92 }],
   },
   titleColumn: {
     flex: 1,

@@ -27,7 +27,7 @@ interface GoalProgressHistorySectionProps {
 const HISTORY_PREVIEW_COUNT = 3
 
 /** Flush list of progress history entries: mono date right-aligned, change label
- *  in mono, optional italic note. */
+ *  in mono, optional note. */
 export function GoalProgressHistorySection({
   title,
   entries,
@@ -90,7 +90,6 @@ export function GoalProgressHistorySection({
               style={{
                 fontFamily: 'var(--font-sans)',
                 fontSize: 13,
-                fontStyle: 'italic',
                 color: 'var(--fg-2)',
               }}
             >
@@ -182,7 +181,6 @@ export function GoalProgressForm({
           style={{
             fontFamily: 'var(--font-sans)',
             fontSize: 13,
-            fontStyle: 'italic',
             color: 'var(--status-overdue)',
           }}
         >
@@ -271,7 +269,7 @@ interface GoalActionRowProps {
 }
 
 /** Menu-item action row: leading icon + label, pressed-token hover,
- *  italic fg-3 label when destructive. No dividers — spacing groups the cluster. */
+ *  status-bad label + icon when destructive. No dividers — spacing groups the cluster. */
 export function GoalActionRow({
   label,
   icon: Icon,
@@ -284,7 +282,7 @@ export function GoalActionRow({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="appearance-none w-full bg-transparent cursor-pointer text-left flex items-center transition-colors duration-150 ease-out hover:bg-[var(--bg-elev-pressed)] disabled:opacity-50 disabled:cursor-default disabled:hover:bg-transparent"
+      className="appearance-none w-full bg-transparent cursor-pointer text-left flex items-center transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev-pressed)] active:scale-[0.99] disabled:opacity-50 disabled:cursor-default disabled:hover:bg-transparent"
       style={{
         padding: '12px 20px',
         gap: 12,
@@ -292,9 +290,9 @@ export function GoalActionRow({
       }}
     >
       <Icon
-        size={16}
-        strokeWidth={1.7}
-        color="var(--fg-3)"
+        size={18}
+        strokeWidth={1.8}
+        color={destructive ? 'var(--status-bad)' : 'var(--fg-3)'}
         aria-hidden="true"
         className="shrink-0"
       />
@@ -303,8 +301,7 @@ export function GoalActionRow({
           fontFamily: 'var(--font-sans)',
           fontSize: 15,
           fontWeight: 400,
-          color: destructive ? 'var(--fg-3)' : 'var(--fg-1)',
-          fontStyle: destructive ? 'italic' : 'normal',
+          color: destructive ? 'var(--status-bad)' : 'var(--fg-1)',
         }}
       >
         {label}

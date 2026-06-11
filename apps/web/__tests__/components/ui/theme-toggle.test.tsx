@@ -18,10 +18,10 @@ vi.mock('@/hooks/use-color-scheme', () => ({
 import { ThemeToggle } from '@/components/ui/theme-toggle'
 
 describe('ThemeToggle', () => {
-  it('renders the theme switch', () => {
+  it('renders the theme toggle button', () => {
     mockTheme = 'dark'
     render(<ThemeToggle />)
-    expect(screen.getByRole('switch')).toBeInTheDocument()
+    expect(screen.getByRole('button')).toBeInTheDocument()
   })
 
   it('shows switch-to-light label in dark mode', () => {
@@ -40,18 +40,7 @@ describe('ThemeToggle', () => {
     mockTheme = 'dark'
     mockToggle.mockClear()
     render(<ThemeToggle />)
-    fireEvent.click(screen.getByRole('switch'))
+    fireEvent.click(screen.getByRole('button'))
     expect(mockToggle).toHaveBeenCalled()
-  })
-
-  it('is checked in dark mode and unchecked in light mode', () => {
-    mockTheme = 'dark'
-    const { unmount } = render(<ThemeToggle />)
-    expect(screen.getByRole('switch')).toHaveAttribute('aria-checked', 'true')
-    unmount()
-
-    mockTheme = 'light'
-    render(<ThemeToggle />)
-    expect(screen.getByRole('switch')).toHaveAttribute('aria-checked', 'false')
   })
 })

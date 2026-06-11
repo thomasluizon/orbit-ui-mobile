@@ -1,4 +1,4 @@
-import { Fragment, useCallback, useMemo, useRef, useState } from 'react'
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
   Pressable,
   StyleSheet,
@@ -7,6 +7,12 @@ import {
   type StyleProp,
   type ViewStyle,
 } from 'react-native'
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSequence,
+  withSpring,
+} from 'react-native-reanimated'
 import { useTranslation } from 'react-i18next'
 import {
   ArrowRight,
@@ -228,11 +234,12 @@ export function HabitRow({
               : pressed
                 ? tokens.bgElevPressed
                 : tokens.bgCard,
-            borderColor: tokens.hairline,
+            borderColor: pressed ? tokens.hairlineStrong : tokens.hairline,
             marginLeft: 20 + indentPx,
             marginRight: 20,
             marginBottom: 10,
           },
+          pressed ? styles.rowPressed : null,
         ]}
       >
         {isSelectMode ? (
@@ -259,23 +266,34 @@ export function HabitRow({
           </Pressable>
         ) : null}
 
-        {emoji ? (
-          <View
-            style={[
-              styles.emojiWell,
-              {
-                width: wellSize,
-                height: wellSize,
-                borderRadius: wellRadius,
-                backgroundColor: tokens.bgField,
-              },
-            ]}
-          >
+        <View
+          style={[
+            styles.emojiWell,
+            {
+              width: wellSize,
+              height: wellSize,
+              borderRadius: wellRadius,
+              backgroundColor: tokens.bgField,
+            },
+          ]}
+        >
+          {emoji ? (
             <Text style={{ fontSize: emojiSize, lineHeight: emojiSize + 2 }}>
               {emoji}
             </Text>
-          </View>
-        ) : null}
+          ) : (
+            <Text
+              style={{
+                fontSize: emojiSize - 4,
+                lineHeight: emojiSize + 2,
+                color: tokens.fg3,
+                fontFamily: 'Rubik_500Medium',
+              }}
+            >
+              {[...habit.title.trim().toUpperCase()][0]}
+            </Text>
+          )}
+        </View>
 
         <View style={styles.titleBlock}>
           <Text
@@ -314,23 +332,21 @@ export function HabitRow({
                   ) : null}
                   {typeof part === 'string' ? (
                     part
+                  ) : part.kind === 'future' ? (
+                    part.label
                   ) : (
                     <Text
                       style={{
-                        fontStyle: 'italic',
-                        ...(part.kind === 'overdue'
-                          ? { color: tokens.statusOverdue }
-                          : part.kind === 'bad'
-                            ? { color: tokens.statusBad }
-                            : {}),
+                        fontFamily: 'Rubik_500Medium',
+                        color:
+                          part.kind === 'overdue'
+                            ? tokens.statusOverdue
+                            : tokens.statusBad,
                       }}
                     >
-                      {(part.kind === 'overdue'
+                      {part.kind === 'overdue'
                         ? t('habits.overdue')
-                        : part.kind === 'bad'
-                          ? t('habits.badHabit')
-                          : part.label
-                      ).toLowerCase()}
+                        : t('habits.badHabit')}
                     </Text>
                   )}
                 </Fragment>
@@ -410,7 +426,7 @@ export function HabitRow({
                 ]}
               >
                 <MoreVertical
-                  size={16}
+                  size={18}
                   color={tokens.fg3}
                   strokeWidth={1.8}
                 />
@@ -474,6 +490,23 @@ function CheckCircle({
   const filled = CHECK_FILLED_STATES.has(state)
   const color = colorMap[state]
 
+  const popScale = useSharedValue(1)
+  const previousFilled = useRef(filled)
+
+  useEffect(() => {
+    if (filled && !previousFilled.current) {
+      popScale.value = withSequence(
+        withSpring(1.18, { damping: 14 }),
+        withSpring(1),
+      )
+    }
+    previousFilled.current = filled
+  }, [filled, popScale])
+
+  const popStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: popScale.value }],
+  }))
+
   return (
     <Pressable
       onPress={onToggle}
@@ -482,20 +515,35 @@ function CheckCircle({
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
       accessibilityState={{ disabled }}
-      style={({ pressed }) => [
-        styles.checkCircle,
-        {
-          backgroundColor: filled ? color : 'transparent',
-          borderWidth: filled ? 0 : 2,
-          borderColor: filled ? 'transparent' : color,
-          opacity: disabled ? 0.4 : pressed ? 0.85 : 1,
-          transform: [{ scale: pressed && !disabled ? 0.9 : 1 }],
-        },
-      ]}
+      style={({ pressed }) => ({
+        opacity: disabled ? 0.4 : pressed ? 0.85 : 1,
+        transform: [{ scale: pressed && !disabled ? 0.9 : 1 }],
+      })}
     >
-      {filled ? (
-        <Check size={17} color={tokens.fgOnPrimary} strokeWidth={3} />
-      ) : null}
+      <Animated.View
+        style={[
+          styles.checkCircle,
+          {
+            backgroundColor: filled ? color : 'transparent',
+            borderWidth: filled ? 0 : 2,
+            borderColor: filled ? 'transparent' : color,
+          },
+          filled && state === 'done'
+            ? {
+                shadowColor: tokens.primary,
+                shadowOpacity: 0.35,
+                shadowRadius: 7,
+                shadowOffset: { width: 0, height: 3 },
+                elevation: 3,
+              }
+            : null,
+          popStyle,
+        ]}
+      >
+        {filled ? (
+          <Check size={17} color={tokens.fgOnPrimary} strokeWidth={3} />
+        ) : null}
+      </Animated.View>
     </Pressable>
   )
 }
@@ -636,6 +684,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     position: 'relative',
   },
+  rowPressed: {
+    transform: [{ scale: 0.99 }],
+  },
   emojiWell: {
     alignItems: 'center',
     justifyContent: 'center',
@@ -684,9 +735,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   menuButton: {
-    width: 28,
-    height: 28,
-    borderRadius: 6,
+    width: 34,
+    height: 34,
+    borderRadius: 999,
+    margin: -3,
     alignItems: 'center',
     justifyContent: 'center',
   },

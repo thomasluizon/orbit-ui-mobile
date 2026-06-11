@@ -51,12 +51,10 @@ export function TrialExpiredModal() {
         <div className="flex flex-col" style={{ gap: 10 }}>
           <Link
             href="/upgrade"
-            className="inline-flex w-full cursor-pointer items-center justify-center gap-[9px] rounded-full text-center transition-[background-color,opacity] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--primary-pressed)]"
+            className="inline-flex w-full cursor-pointer items-center justify-center gap-[9px] rounded-full bg-[var(--primary)] text-center shadow-[var(--primary-glow)] transition-[background-color,box-shadow,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:-translate-y-px hover:bg-[var(--primary-pressed)] hover:shadow-[var(--primary-glow-hover)] active:translate-y-0 active:scale-[0.98]"
             style={{
               padding: '15px 26px',
-              background: 'var(--primary)',
               color: 'var(--fg-on-primary)',
-              boxShadow: 'var(--primary-glow)',
               fontFamily: 'var(--font-sans)',
               fontSize: 16,
               fontWeight: 500,
@@ -67,7 +65,7 @@ export function TrialExpiredModal() {
           </Link>
           <button
             type="button"
-            className="inline-flex w-full cursor-pointer appearance-none items-center justify-center rounded-full border-0 bg-transparent text-center transition-opacity duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:opacity-85"
+            className="inline-flex w-full cursor-pointer appearance-none items-center justify-center rounded-full border-0 bg-transparent text-center transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-card)] active:scale-[0.98]"
             onClick={dismiss}
             style={{
               padding: '14px 26px',
@@ -91,7 +89,7 @@ export function TrialExpiredModal() {
             width: 64,
             height: 64,
             marginTop: 2,
-            background: 'rgba(var(--primary-rgb), 0.15)',
+            background: 'rgba(var(--primary-rgb), 0.16)',
           }}
         >
           <Crown size={30} strokeWidth={1.8} className="text-[var(--primary-soft)]" />
@@ -99,11 +97,12 @@ export function TrialExpiredModal() {
         <p
           style={{
             fontFamily: 'var(--font-sans)',
-            fontSize: 14,
+            fontSize: 15,
             color: 'var(--fg-2)',
-            lineHeight: 1.55,
+            lineHeight: 1.5,
             margin: 0,
             textAlign: 'center',
+            textWrap: 'pretty',
           }}
         >
           {t('trial.expired.subtitleQuiet')}

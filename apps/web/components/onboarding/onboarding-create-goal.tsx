@@ -131,11 +131,13 @@ export function OnboardingCreateGoal({
             width: 56,
             height: 56,
             background: 'var(--primary)',
+            boxShadow: '0 8px 28px rgba(var(--primary-rgb), 0.45)',
+            animation: 'fresh-start-orb 0.5s var(--ease-out) both',
           }}
         >
           <Check
-            className="size-7"
-            style={{ color: 'var(--fg-on-primary)' }}
+            className="animate-check-pop size-7"
+            style={{ color: 'var(--fg-on-primary)', animationDelay: '300ms' }}
             strokeWidth={2.4}
           />
         </div>
@@ -178,7 +180,10 @@ export function OnboardingCreateGoal({
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 18, padding: '16px 0' }}>
+    <div
+      className="stagger-enter"
+      style={{ display: 'flex', flexDirection: 'column', gap: 18, padding: '16px 0' }}
+    >
       <div className="flex justify-center" style={{ paddingTop: 4 }}>
         <Badge>{t('onboarding.flow.createGoal.proTag')}</Badge>
       </div>

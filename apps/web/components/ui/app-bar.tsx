@@ -25,7 +25,7 @@ interface AppBarProps {
 }
 
 const iconButtonClass =
-  'appearance-none border-0 bg-transparent cursor-pointer p-0 inline-flex items-center justify-center'
+  'appearance-none border-0 bg-transparent cursor-pointer p-0 inline-flex items-center justify-center transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev)] active:scale-[0.92]'
 
 const iconButtonStyle: CSSProperties = {
   width: 40,

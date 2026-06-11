@@ -51,9 +51,8 @@ function dayStatus(cell: GridDay): DayStatus {
 }
 
 function dayNumberColor(cell: GridDay, selected: boolean): string {
-  if (selected) return 'var(--fg-on-primary)'
+  if (selected || cell.isToday) return 'var(--fg-1)'
   if (!cell.isCurrentMonth) return 'var(--fg-4)'
-  if (cell.isToday) return 'var(--fg-1)'
   return 'var(--fg-2)'
 }
 
@@ -171,15 +170,15 @@ export function CalendarGrid({
                 aria-disabled={!canSelect}
                 onClick={() => canSelect && onSelectDay(cell.dateStr)}
                 className={
-                  'relative flex flex-col items-center justify-center bg-transparent transition-colors duration-150 ease-out ' +
-                  (canSelect ? 'hover:bg-[var(--bg-elev)]' : '')
+                  'relative flex flex-col items-center justify-center bg-transparent transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] ' +
+                  (canSelect ? 'hover:bg-[var(--bg-elev)] active:scale-[0.92]' : '')
                 }
                 style={{
                   appearance: 'none',
                   border: 0,
                   height: 44,
                   gap: 4,
-                  borderRadius: 12,
+                  borderRadius: 999,
                   cursor: canSelect ? 'pointer' : 'default',
                   opacity: cell.isCurrentMonth ? 1 : 0.5,
                 }}
@@ -189,13 +188,13 @@ export function CalendarGrid({
                   className="inline-flex items-center justify-center rounded-full"
                   style={{
                     width: 28,
-                    height: 24,
+                    height: 28,
                     fontFamily: 'var(--font-mono)',
                     fontSize: 14,
                     fontWeight: cell.isToday ? 700 : 500,
                     color: dayNumberColor(cell, selected),
                     fontVariantNumeric: 'tabular-nums',
-                    background: selected ? 'var(--primary)' : 'transparent',
+                    background: selected ? 'var(--selection-bg)' : 'transparent',
                     boxShadow:
                       cell.isToday && !selected
                         ? 'inset 0 0 0 1.5px var(--primary)'

@@ -137,7 +137,7 @@ function createStyles(tokens: AppTokensV2) {
       alignSelf: 'center',
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: tintFromPrimary(tokens, 0.15),
+      backgroundColor: tintFromPrimary(tokens, 0.16),
     },
     heading: {
       fontFamily: 'Rubik_500Medium',
@@ -149,8 +149,8 @@ function createStyles(tokens: AppTokensV2) {
     },
     subtitle: {
       fontFamily: 'Rubik_400Regular',
-      fontSize: 14,
-      lineHeight: 21,
+      fontSize: 15,
+      lineHeight: 22.5,
       textAlign: 'center',
       color: tokens.fg2,
     },

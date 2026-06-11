@@ -483,7 +483,7 @@ export default function TodayPage() {
                   style={{
                     fontFamily: 'var(--font-mono)',
                     fontSize: 14,
-                    color: 'var(--fg-3)',
+                    color: 'var(--fg-2)',
                     fontVariantNumeric: 'tabular-nums',
                   }}
                 >
@@ -604,7 +604,7 @@ export default function TodayPage() {
             {isRefetching ? (
               <motion.div
                 key="today-refetch-indicator"
-                className="overflow-hidden pt-1"
+                className="overflow-hidden px-5 pt-1"
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: 8 }}
                 exit={{ opacity: 0, height: 0 }}

@@ -3,6 +3,8 @@ import { StyleSheet, Dimensions } from 'react-native'
 import Svg, { Rect, Defs, Mask } from 'react-native-svg'
 import Animated, { useAnimatedProps, withTiming, Easing } from 'react-native-reanimated'
 import type { TourTargetRect } from '@orbit/shared/stores'
+import { createTokensV2, tintFromPrimary } from '@/lib/theme'
+import { useAppTheme } from '@/lib/use-app-theme'
 
 const AnimatedRect = Animated.createAnimatedComponent(Rect)
 
@@ -15,8 +17,20 @@ interface TourSpotlightProps {
 
 export function TourSpotlight({ targetRect }: TourSpotlightProps) {
   const { width: screenWidth, height: screenHeight } = Dimensions.get('window')
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = useMemo(
+    () => createTokensV2(currentScheme, currentTheme),
+    [currentScheme, currentTheme],
+  )
 
   const animatedProps = useAnimatedProps(() => ({
+    x: withTiming(targetRect.x - PADDING, { duration: 400, easing: Easing.bezier(0.4, 0, 0.2, 1) }),
+    y: withTiming(targetRect.y - PADDING, { duration: 400, easing: Easing.bezier(0.4, 0, 0.2, 1) }),
+    width: withTiming(targetRect.width + PADDING * 2, { duration: 400, easing: Easing.bezier(0.4, 0, 0.2, 1) }),
+    height: withTiming(targetRect.height + PADDING * 2, { duration: 400, easing: Easing.bezier(0.4, 0, 0.2, 1) }),
+  }))
+
+  const ringProps = useAnimatedProps(() => ({
     x: withTiming(targetRect.x - PADDING, { duration: 400, easing: Easing.bezier(0.4, 0, 0.2, 1) }),
     y: withTiming(targetRect.y - PADDING, { duration: 400, easing: Easing.bezier(0.4, 0, 0.2, 1) }),
     width: withTiming(targetRect.width + PADDING * 2, { duration: 400, easing: Easing.bezier(0.4, 0, 0.2, 1) }),
@@ -53,6 +67,14 @@ export function TourSpotlight({ targetRect }: TourSpotlightProps) {
           height={screenHeight}
           fill="rgba(0, 0, 0, 0.6)"
           mask="url(#tourMask)"
+        />
+        <AnimatedRect
+          rx={BORDER_RADIUS}
+          ry={BORDER_RADIUS}
+          fill="none"
+          stroke={tintFromPrimary(tokens, 0.7)}
+          strokeWidth={1.5}
+          animatedProps={ringProps}
         />
       </Svg>
     </Animated.View>

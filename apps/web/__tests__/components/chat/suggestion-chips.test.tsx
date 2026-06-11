@@ -37,10 +37,10 @@ describe('SuggestionChips', () => {
     expect(onSelect).toHaveBeenCalledWith('chat.suggestion.groceries')
   })
 
-  it('chips have rounded-full styling', () => {
+  it('chips render as kit chip buttons', () => {
     render(<SuggestionChips onSelect={vi.fn()} />)
     const button = screen.getByText('chat.suggestion.meditated')
-    expect(button.className).toContain('rounded-full')
+    expect(button.className).toContain('chip')
     expect(button).toHaveAttribute('type', 'button')
   })
 })

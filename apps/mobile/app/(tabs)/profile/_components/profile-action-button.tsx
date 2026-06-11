@@ -11,28 +11,20 @@ interface ProfileActionButtonProps {
   onPress: () => void
   /** Leading lucide icon rendered 22/1.8 in the kit ListRow 26px slot. */
   icon?: LucideIcon
-  tone?: 'default' | 'primary' | 'danger'
-  /** Render a quieter, smaller row (small destructive actions). */
-  compact?: boolean
+  tone?: 'default' | 'danger'
 }
 
-/** Kit ListRow action — `tone` colors icon and label (`primary` → accent, `danger` → status-bad); `compact` renders a quieter smaller row. */
+/** Kit ListRow action — `tone="danger"` colors icon and label in status-bad. */
 export function ProfileActionButton({
   label,
   onPress,
   icon: LeadingIcon,
   tone = 'default',
-  compact = false,
 }: Readonly<ProfileActionButtonProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
 
-  const labelColor =
-    tone === 'danger'
-      ? tokens.statusBad
-      : tone === 'primary'
-        ? tokens.primary
-        : tokens.fg1
+  const labelColor = tone === 'danger' ? tokens.statusBad : tokens.fg1
 
   return (
     <Pressable
@@ -52,14 +44,7 @@ export function ProfileActionButton({
           <LeadingIcon size={22} color={labelColor} strokeWidth={1.8} />
         </View>
       ) : null}
-      <Text
-        style={[
-          compact ? styles.labelCompact : styles.label,
-          { color: labelColor },
-        ]}
-      >
-        {label}
-      </Text>
+      <Text style={[styles.label, { color: labelColor }]}>{label}</Text>
     </Pressable>
   )
 }
@@ -83,10 +68,5 @@ const styles = StyleSheet.create({
     fontFamily: 'Rubik_400Regular',
     fontSize: 18,
     lineHeight: 22.5,
-  },
-  labelCompact: {
-    fontFamily: 'Rubik_400Regular',
-    fontSize: 15,
-    lineHeight: 19,
   },
 })

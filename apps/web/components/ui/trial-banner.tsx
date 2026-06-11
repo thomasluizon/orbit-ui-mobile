@@ -82,16 +82,16 @@ export function TrialBanner() {
       <button
         type="button"
         aria-label={t('common.dismiss')}
-        className="inline-flex cursor-pointer appearance-none items-center justify-center border-0 bg-transparent transition-colors duration-150 ease-out hover:text-[var(--fg-1)]"
+        className="icon-btn hover:text-[var(--fg-1)]"
         style={{
-          width: 44,
-          height: 44,
-          margin: '-12px -10px',
+          width: 40,
+          height: 40,
+          margin: '-10px -8px',
           color: trialUrgent ? 'var(--status-overdue)' : 'var(--fg-3)',
         }}
         onClick={() => setDismissed(true)}
       >
-        <X size={14} strokeWidth={1.8} aria-hidden="true" />
+        <X size={18} strokeWidth={1.8} aria-hidden="true" />
       </button>
     </div>
   )

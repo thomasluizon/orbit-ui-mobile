@@ -85,16 +85,8 @@ function QuietActionButton({
       onClick={onClick}
       disabled={disabled}
       aria-label={ariaLabel}
-      className="inline-flex items-center appearance-none border-0 bg-transparent cursor-pointer transition-[color,opacity] duration-150 ease-out hover:opacity-80 disabled:opacity-50 disabled:cursor-not-allowed"
-      style={{
-        gap: 7,
-        minHeight: 44,
-        padding: '0 6px',
-        fontFamily: 'var(--font-sans)',
-        fontSize: 13,
-        fontWeight: 500,
-        color: tone === 'warning' ? 'var(--status-overdue)' : 'var(--fg-2)',
-      }}
+      className="chip disabled:opacity-50 disabled:cursor-not-allowed"
+      style={tone === 'warning' ? { color: 'var(--status-overdue)' } : undefined}
     >
       {children}
     </button>
@@ -437,14 +429,7 @@ export default function CalendarSyncPage() {
         </p>
         <button
           type="button"
-          className="inline-block mt-4 appearance-none border-0 bg-transparent cursor-pointer hover:opacity-80 transition-opacity duration-150"
-          style={{
-            fontFamily: 'var(--font-sans)',
-            fontSize: 13,
-            fontWeight: 500,
-            minHeight: 44,
-            color: 'var(--fg-2)',
-          }}
+          className="chip mt-4"
           onClick={() => goBackOrFallback('/profile')}
         >
           {t('common.goBack')}
@@ -547,14 +532,7 @@ export default function CalendarSyncPage() {
                 </p>
                 <button
                   type="button"
-                  className="appearance-none border-0 bg-transparent cursor-pointer hover:opacity-80 transition-opacity duration-150"
-                  style={{
-                    fontFamily: 'var(--font-sans)',
-                    fontSize: 13,
-                    fontWeight: 500,
-                    minHeight: 44,
-                    color: 'var(--fg-2)',
-                  }}
+                  className="chip"
                   onClick={toggleAll}
                   aria-pressed={allSelected}
                 >
@@ -562,21 +540,21 @@ export default function CalendarSyncPage() {
                 </button>
               </div>
 
-              <div className="max-h-[60vh] overflow-y-auto">
+              <div className="max-h-[60vh] overflow-y-auto stagger-enter">
                 {events.map((event) => {
                   const suggestionId = isReviewMode ? findSuggestionIdForEvent(event.id) : null
                   const selected = selectedIds.has(event.id)
                   return (
                     <div
                       key={event.id}
-                      className="flex items-start"
+                      className="flex items-start transition-[background-color] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev)]"
                       style={{
                         gap: 12,
                         padding: '0 20px',
                         borderBottom: '1px solid var(--hairline)',
                         background: selected
                           ? 'rgba(var(--primary-rgb), 0.06)'
-                          : 'transparent',
+                          : undefined,
                       }}
                     >
                       <button
@@ -675,10 +653,10 @@ export default function CalendarSyncPage() {
                           onClick={() => handleDismissSuggestion(suggestionId)}
                           disabled={dismissSuggestion.isPending}
                           aria-label={t('calendar.autoSync.dismissSuggestion')}
-                          className="shrink-0 appearance-none border-0 bg-transparent cursor-pointer rounded-full text-[var(--fg-4)] hover:text-[var(--status-bad)] transition-colors duration-150 disabled:opacity-50"
-                          style={{ padding: 10, marginTop: 6 }}
+                          className="icon-btn shrink-0 hover:text-[var(--status-bad)] disabled:opacity-50"
+                          style={{ width: 36, height: 36, marginTop: 8, color: 'var(--fg-4)' }}
                         >
-                          <X className="size-4" aria-hidden />
+                          <X size={18} strokeWidth={1.8} aria-hidden />
                         </button>
                       )}
                     </div>
@@ -751,15 +729,12 @@ export default function CalendarSyncPage() {
           </div>
           <Link
             href="/"
-            className="inline-flex items-center justify-center rounded-full transition-[background-color] duration-150"
+            className="inline-flex items-center justify-center rounded-full bg-[var(--primary)] text-[var(--fg-on-primary)] shadow-[var(--primary-glow)] transition-[background-color,box-shadow,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:-translate-y-px hover:bg-[var(--primary-pressed)] hover:shadow-[var(--primary-glow-hover)] active:translate-y-0 active:scale-[0.98]"
             style={{
               fontFamily: 'var(--font-sans)',
               fontSize: 16,
               fontWeight: 500,
               padding: '15px 26px',
-              background: 'var(--primary)',
-              color: 'var(--fg-on-primary)',
-              boxShadow: 'var(--primary-glow)',
             }}
           >
             {t('calendar.goToHabits')}

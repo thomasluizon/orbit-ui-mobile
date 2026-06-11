@@ -11,6 +11,7 @@ import {
   Share,
   type TextInput,
 } from 'react-native'
+import Animated, { FadeInDown, ReduceMotion } from 'react-native-reanimated'
 import { File, Paths } from 'expo-file-system'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useLocalSearchParams, useRouter, type Href } from 'expo-router'
@@ -33,6 +34,7 @@ import {
 } from '@orbit/shared/utils/profile-navigation'
 import {
   Check,
+  CreditCard,
   Download,
   LogOut,
   RotateCcw,
@@ -74,7 +76,7 @@ import { ThemeToggle } from '@/components/ui/theme-toggle'
 import { StreakBadge } from '@/components/gamification/streak-badge'
 import { NotificationBell } from '@/components/navigation/notification-bell'
 import { useAppTheme } from '@/lib/use-app-theme'
-import { createTokensV2, tintFromPrimary } from '@/lib/theme'
+import { createTokensV2 } from '@/lib/theme'
 import { buildUpgradeHref } from '@/lib/upgrade-route'
 import { FreshStartAnimation } from '@/components/ui/fresh-start-animation'
 import { plural } from '@/lib/plural'
@@ -83,6 +85,45 @@ import { ProfileActionButton } from './profile/_components/profile-action-button
 import { TourReplayModal } from '@/components/tour/tour-replay-modal'
 
 type Tokens = ReturnType<typeof createTokensV2>
+
+function sectionEntrance(index: number) {
+  return FadeInDown.duration(280)
+    .delay(index * 50)
+    .reduceMotion(ReduceMotion.System)
+}
+
+function AmberPillButton({
+  label,
+  onPress,
+  disabled = false,
+}: Readonly<{
+  label: string
+  onPress: () => void
+  disabled?: boolean
+}>) {
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = createTokensV2(currentScheme, currentTheme)
+
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={disabled}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ disabled }}
+      style={({ pressed }) => [
+        dangerPillStyles.base,
+        { backgroundColor: tokens.statusOverdue },
+        disabled ? dangerPillStyles.disabled : null,
+        pressed && !disabled ? dangerPillStyles.pressed : null,
+      ]}
+    >
+      <Text style={[dangerPillStyles.label, { color: tokens.fgOnPrimary }]}>
+        {label}
+      </Text>
+    </Pressable>
+  )
+}
 
 function DangerPillButton({
   label,
@@ -187,8 +228,11 @@ export default function ProfileScreen() {
   const accountNavItems = PROFILE_NAV_ITEMS.filter(
     (item) => item.section === 'account',
   )
+  const achievementsNavItem = PROFILE_NAV_ITEMS.find(
+    (item) => item.id === 'achievements',
+  )
   const featureNavItems = PROFILE_NAV_ITEMS.filter(
-    (item) => item.section === 'features',
+    (item) => item.section === 'features' && item.id !== 'achievements',
   )
 
   const getNavHint = useCallback(
@@ -458,29 +502,20 @@ export default function ProfileScreen() {
         ? t('profile.subscription.trialEndedHint')
         : t('profile.subscription.freeHint')
 
-  const userInitials = profile?.name
-    ? profile.name
-        .split(' ')
-        .slice(0, 2)
-        .map((n) => n[0])
-        .join('')
-        .toUpperCase()
-    : '?'
-
-  const planBadgeTone: BadgeTone = profile?.isTrialActive
-    ? 'soft'
-    : profile?.hasProAccess
-      ? 'violet'
-      : 'outline'
+  const showPlanBadge = profile?.isTrialActive || profile?.hasProAccess
+  const planBadgeTone: BadgeTone = profile?.isTrialActive ? 'soft' : 'violet'
   const planBadgeLabel = profile?.isTrialActive
     ? t('trial.proBadge')
-    : profile?.hasProAccess
-      ? t('common.proBadge')
-      : t('profile.subscription.free')
+    : t('common.proBadge')
+
+  const identityLine =
+    profile?.hasProAccess && gamificationProfile
+      ? t('gamification.profileCard.level', { level: gamificationProfile.level })
+      : profile?.email
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: tokens.bg }]}>
-      <GradientTop height={280} />
+      <GradientTop height={300} />
       <AppBar
         LeadingIcon={UserIcon}
         title={t('profile.title')}
@@ -506,37 +541,32 @@ export default function ProfileScreen() {
           </Text>
         ) : null}
 
-        <View style={styles.identityBlock}>
+        <Animated.View entering={sectionEntrance(0)} style={styles.identityBlock}>
           {isLoading ? (
             <>
               <View
                 style={[
                   styles.skeleton,
-                  { width: 88, height: 88, borderRadius: 999, backgroundColor: tokens.bgElev },
+                  { width: 76, height: 22, borderRadius: 999, backgroundColor: tokens.bgElev },
                 ]}
               />
               <View
                 style={[
                   styles.skeleton,
-                  { width: 140, height: 18, marginTop: 8, backgroundColor: tokens.bgElev },
+                  { width: 160, height: 30, marginTop: 4, backgroundColor: tokens.bgElev },
                 ]}
               />
               <View
-                style={[styles.skeleton, { width: 200, height: 12, backgroundColor: tokens.bgElev }]}
+                style={[styles.skeleton, { width: 120, height: 14, backgroundColor: tokens.bgElev }]}
               />
             </>
           ) : (
             <>
-              <View
-                style={[styles.avatar, { backgroundColor: tintFromPrimary(tokens, 0.15) }]}
-              >
-                <Text style={[styles.avatarInitials, { color: tokens.primarySoft }]}>
-                  {userInitials}
-                </Text>
-              </View>
-              <Badge tone={planBadgeTone} style={styles.planBadge}>
-                {planBadgeLabel}
-              </Badge>
+              {showPlanBadge ? (
+                <Badge tone={planBadgeTone} style={styles.planBadge}>
+                  {planBadgeLabel}
+                </Badge>
+              ) : null}
               <Text
                 style={[styles.identityName, { color: tokens.fg1 }]}
                 numberOfLines={1}
@@ -544,128 +574,152 @@ export default function ProfileScreen() {
                 {profile?.name}
               </Text>
               <Text
-                style={[styles.identityEmail, { color: tokens.fg3 }]}
+                style={[styles.identityLine, { color: tokens.fg2 }]}
                 numberOfLines={1}
               >
-                {profile?.email}
+                {identityLine}
               </Text>
             </>
           )}
-        </View>
+        </Animated.View>
 
-        <View ref={streakRef} collapsable={false} style={styles.statRow}>
-          <Pressable
-            onPress={handleStreakPress}
-            accessibilityRole="button"
-            accessibilityLabel={t('streakDisplay.title')}
-            style={styles.statPressable}
-          >
-            <StatTile
-              emoji="🔥"
-              value={`${streak} ${plural(t('streakDisplay.daysSuffix'), streak)}`}
-              label={t('streakDisplay.title')}
-            />
-          </Pressable>
-        </View>
-
-        <SectionLabel>{t('profile.sections.account')}</SectionLabel>
-        <View style={styles.groupWrap}>
-          <SettingsGroup>
-            {accountNavItems.map((item) => (
-              <View
-                key={item.id}
-                ref={item.id === 'preferences' ? preferencesRef : undefined}
-                collapsable={false}
+        <Animated.View entering={sectionEntrance(1)} style={styles.statRow}>
+          <View ref={streakRef} collapsable={false} style={styles.statTileWrap}>
+            <Pressable
+              onPress={handleStreakPress}
+              accessibilityRole="button"
+              accessibilityLabel={t('streakDisplay.title')}
+              style={({ pressed }) => [
+                styles.statPressable,
+                pressed ? styles.statPressed : null,
+              ]}
+            >
+              <StatTile
+                emoji="🔥"
+                value={`${streak} ${plural(t('streakDisplay.daysSuffix'), streak)}`}
+                label={t('streakDisplay.title')}
+              />
+            </Pressable>
+          </View>
+          {achievementsNavItem ? (
+            <View ref={achievementsRef} collapsable={false} style={styles.statTileWrap}>
+              <Pressable
+                onPress={() => handleNavPress(achievementsNavItem)}
+                accessibilityRole="button"
+                accessibilityLabel={t('gamification.profileCard.tileLabel')}
+                style={({ pressed }) => [
+                  styles.statPressable,
+                  pressed ? styles.statPressed : null,
+                ]}
               >
-                <SettingsGroupRow
-                  icon={<ProfileNavIcon iconKey={item.iconKey} color={tokens.fg1} />}
-                  label={t(item.titleKey)}
-                  hint={getNavHint(item)}
-                  onPress={() => handleNavPress(item)}
-                  proBadge={item.proBadge}
-                  proBadgeLabel={t('common.proBadge')}
+                <StatTile
+                  emoji="🏆"
+                  value={gamificationProfile?.achievementsEarned ?? 0}
+                  label={t('gamification.profileCard.tileLabel')}
                 />
-              </View>
-            ))}
-          </SettingsGroup>
-        </View>
+              </Pressable>
+            </View>
+          ) : null}
+        </Animated.View>
 
-        <SectionLabel>{t('profile.sections.features')}</SectionLabel>
-        <View style={styles.groupWrap}>
-          <SettingsGroup>
-            <SettingsGroupRow
-              label={t('tour.replay.title')}
-              hint={t('tour.replay.hint')}
-              onPress={() => setShowTourReplay(true)}
-            />
-            {featureNavItems.map((item) => (
-              <View
-                key={item.id}
-                ref={
-                  item.id === 'retrospective'
-                    ? retroRef
-                    : item.id === 'achievements'
-                      ? achievementsRef
-                      : undefined
-                }
-                collapsable={false}
-              >
-                <SettingsGroupRow
-                  icon={<ProfileNavIcon iconKey={item.iconKey} color={tokens.fg1} />}
-                  label={t(item.titleKey)}
-                  hint={getNavHint(item)}
-                  onPress={() => handleNavPress(item)}
-                  proBadge={item.proBadge}
-                  proBadgeLabel={t('common.proBadge')}
-                />
-              </View>
-            ))}
-          </SettingsGroup>
-        </View>
+        <Animated.View entering={sectionEntrance(2)}>
+          <SectionLabel>{t('profile.sections.account')}</SectionLabel>
+          <View style={styles.groupWrap}>
+            <SettingsGroup>
+              {accountNavItems.map((item) => (
+                <View
+                  key={item.id}
+                  ref={item.id === 'preferences' ? preferencesRef : undefined}
+                  collapsable={false}
+                >
+                  <SettingsGroupRow
+                    icon={<ProfileNavIcon iconKey={item.iconKey} color={tokens.fg1} />}
+                    label={t(item.titleKey)}
+                    hint={getNavHint(item)}
+                    onPress={() => handleNavPress(item)}
+                    proBadge={item.proBadge}
+                    proBadgeLabel={t('common.proBadge')}
+                  />
+                </View>
+              ))}
+            </SettingsGroup>
+          </View>
+        </Animated.View>
 
-        <SectionLabel>{t('profile.sections.subscription')}</SectionLabel>
-        <View ref={subscriptionRef} collapsable={false} style={styles.groupWrap}>
-          <SettingsGroup>
-            <SettingsGroupRow
-              label={subscriptionLabel}
-              hint={subscriptionHint}
-              onPress={() => router.push(buildUpgradeHref('/profile'))}
-            />
-          </SettingsGroup>
-        </View>
+        <Animated.View entering={sectionEntrance(3)}>
+          <SectionLabel>{t('profile.sections.features')}</SectionLabel>
+          <View style={styles.groupWrap}>
+            <SettingsGroup>
+              <SettingsGroupRow
+                label={t('tour.replay.title')}
+                hint={t('tour.replay.hint')}
+                onPress={() => setShowTourReplay(true)}
+              />
+              {featureNavItems.map((item) => (
+                <View
+                  key={item.id}
+                  ref={item.id === 'retrospective' ? retroRef : undefined}
+                  collapsable={false}
+                >
+                  <SettingsGroupRow
+                    icon={<ProfileNavIcon iconKey={item.iconKey} color={tokens.fg1} />}
+                    label={t(item.titleKey)}
+                    hint={getNavHint(item)}
+                    onPress={() => handleNavPress(item)}
+                    proBadge={item.proBadge}
+                    proBadgeLabel={t('common.proBadge')}
+                  />
+                </View>
+              ))}
+            </SettingsGroup>
+          </View>
+        </Animated.View>
 
-        <SectionLabel>{t('profile.sections.accountActions')}</SectionLabel>
-        <ProfileActionButton
-          icon={Download}
-          onPress={() => {
-            void handleExportData()
-          }}
-          label={isExporting ? t('dataExport.preparing') : t('dataExport.button')}
-        />
-        {exportError ? (
-          <Text style={[styles.errorText, { color: tokens.statusBad }]}>
-            {exportError}
-          </Text>
-        ) : null}
-        <ProfileActionButton
-          icon={LogOut}
-          onPress={() => logout()}
-          label={t('profile.logout')}
-          tone="danger"
-        />
-        <ProfileActionButton
-          icon={RotateCcw}
-          onPress={openResetModal}
-          label={t('profile.freshStart.button')}
-          tone="primary"
-        />
-        <ProfileActionButton
-          icon={UserX}
-          onPress={openDeleteModal}
-          label={t('profile.deleteAccount.button')}
-          tone="danger"
-          compact
-        />
+        <Animated.View entering={sectionEntrance(4)}>
+          <SectionLabel>{t('profile.sections.subscription')}</SectionLabel>
+          <View ref={subscriptionRef} collapsable={false} style={styles.groupWrap}>
+            <SettingsGroup>
+              <SettingsGroupRow
+                icon={<CreditCard size={22} color={tokens.fg1} strokeWidth={1.8} />}
+                label={t('profile.subscription.plan')}
+                hint={`${subscriptionLabel} · ${subscriptionHint}`}
+                onPress={() => router.push(buildUpgradeHref('/profile'))}
+              />
+            </SettingsGroup>
+          </View>
+        </Animated.View>
+
+        <Animated.View entering={sectionEntrance(5)}>
+          <SectionLabel>{t('profile.sections.accountActions')}</SectionLabel>
+          <ProfileActionButton
+            icon={Download}
+            onPress={() => {
+              void handleExportData()
+            }}
+            label={isExporting ? t('dataExport.preparing') : t('dataExport.button')}
+          />
+          {exportError ? (
+            <Text style={[styles.errorText, { color: tokens.statusBad }]}>
+              {exportError}
+            </Text>
+          ) : null}
+          <ProfileActionButton
+            icon={RotateCcw}
+            onPress={openResetModal}
+            label={t('profile.freshStart.button')}
+          />
+          <ProfileActionButton
+            icon={UserX}
+            onPress={openDeleteModal}
+            label={t('profile.deleteAccount.button')}
+            tone="danger"
+          />
+          <ProfileActionButton
+            icon={LogOut}
+            onPress={() => logout()}
+            label={t('profile.logout')}
+          />
+        </Animated.View>
 
         <View style={{ height: 24 }} />
       </ScrollView>
@@ -700,9 +754,24 @@ export default function ProfileScreen() {
 
             {resetStep === 'info' ? (
               <View style={{ gap: 16 }}>
-                <Text style={[styles.modalDescription, { color: tokens.fg2 }]}>
-                  {t('profile.freshStart.description')}
-                </Text>
+                <View style={styles.destructiveHero}>
+                  <View
+                    style={[
+                      styles.destructiveHeroCircle,
+                      { backgroundColor: `${tokens.statusOverdue}24` },
+                    ]}
+                  >
+                    <RotateCcw size={34} color={tokens.statusOverdue} strokeWidth={1.8} />
+                  </View>
+                  <Text
+                    style={[
+                      styles.modalDescription,
+                      { color: tokens.fg2, textAlign: 'center' },
+                    ]}
+                  >
+                    {t('profile.freshStart.description')}
+                  </Text>
+                </View>
 
                 <View
                   style={[
@@ -743,9 +812,10 @@ export default function ProfileScreen() {
                 </View>
 
                 <View style={styles.modalActions}>
-                  <PillButton fullWidth onPress={() => setResetStep('confirm')}>
-                    {t('common.continue')}
-                  </PillButton>
+                  <AmberPillButton
+                    label={t('common.continue')}
+                    onPress={() => setResetStep('confirm')}
+                  />
                   <PillButton
                     variant="ghost"
                     fullWidth
@@ -781,17 +851,17 @@ export default function ProfileScreen() {
                   </Text>
                 ) : null}
                 <View style={styles.modalActions}>
-                  <PillButton
-                    fullWidth
+                  <AmberPillButton
+                    label={
+                      resetLoading
+                        ? t('profile.freshStart.processing')
+                        : t('profile.freshStart.confirmButton')
+                    }
                     disabled={!isResetConfirmed || resetLoading}
                     onPress={() => {
                       void handleResetAccount()
                     }}
-                  >
-                    {resetLoading
-                      ? t('profile.freshStart.processing')
-                      : t('profile.freshStart.confirmButton')}
-                  </PillButton>
+                  />
                   <PillButton
                     variant="ghost"
                     fullWidth
@@ -852,17 +922,16 @@ export default function ProfileScreen() {
               />
             ) : deleteStep === 'confirm' ? (
               <View style={{ gap: 16 }}>
-                <View
-                  style={[
-                    styles.deleteWarningCard,
-                    {
-                      backgroundColor: `${tokens.statusBad}14`,
-                      borderColor: `${tokens.statusBad}47`,
-                    },
-                  ]}
-                >
-                  <TriangleAlert size={24} color={tokens.statusBad} strokeWidth={1.9} />
-                  <View style={styles.deleteWarningBody}>
+                <View style={styles.destructiveHero}>
+                  <View
+                    style={[
+                      styles.destructiveHeroCircle,
+                      { backgroundColor: `${tokens.statusBad}24` },
+                    ]}
+                  >
+                    <TriangleAlert size={34} color={tokens.statusBad} strokeWidth={1.8} />
+                  </View>
+                  <View style={styles.destructiveHeroBody}>
                     <Text style={[styles.deleteWarningTitle, { color: tokens.fg1 }]}>
                       {profile?.hasProAccess
                         ? t('profile.deleteAccount.warningPro', {
@@ -872,7 +941,7 @@ export default function ProfileScreen() {
                           })
                         : t('profile.deleteAccount.warningFree')}
                     </Text>
-                    <Text style={[styles.deleteWarningDetail, { color: tokens.fg3 }]}>
+                    <Text style={[styles.deleteWarningDetail, { color: tokens.fg2 }]}>
                       {t('profile.deleteAccount.warningDetail')}
                     </Text>
                   </View>
@@ -1024,34 +1093,22 @@ function createStyles(_tokens: Tokens) {
     identityBlock: {
       alignItems: 'center',
       paddingHorizontal: 20,
-      paddingTop: 14,
+      paddingTop: 18,
       gap: 6,
-    },
-    avatar: {
-      width: 88,
-      height: 88,
-      borderRadius: 999,
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginBottom: 6,
-    },
-    avatarInitials: {
-      fontFamily: 'Inter_700Bold',
-      fontSize: 32,
     },
     planBadge: {
       alignSelf: 'center',
     },
     identityName: {
       fontFamily: 'Rubik_500Medium',
-      fontSize: 24,
-      letterSpacing: -0.24,
-      lineHeight: 29,
+      fontSize: 32,
+      letterSpacing: -0.32,
+      lineHeight: 38,
       maxWidth: '100%',
     },
-    identityEmail: {
-      fontFamily: 'Roboto_400Regular',
-      fontSize: 13,
+    identityLine: {
+      fontFamily: 'Rubik_400Regular',
+      fontSize: 16,
       maxWidth: '100%',
     },
     skeleton: {
@@ -1059,11 +1116,20 @@ function createStyles(_tokens: Tokens) {
     },
 
     statRow: {
+      flexDirection: 'row',
+      gap: 14,
       paddingHorizontal: 20,
       marginTop: 24,
     },
+    statTileWrap: {
+      flex: 1,
+    },
     statPressable: {
       flexDirection: 'row',
+    },
+    statPressed: {
+      transform: [{ scale: 0.99 }],
+      opacity: 0.92,
     },
 
     groupWrap: {
@@ -1141,29 +1207,33 @@ function createStyles(_tokens: Tokens) {
       flex: 1,
     },
 
-    deleteWarningCard: {
-      flexDirection: 'row',
+    destructiveHero: {
       alignItems: 'center',
-      gap: 14,
-      borderRadius: 18,
-      borderWidth: 1,
-      paddingVertical: 16,
-      paddingHorizontal: 18,
+      gap: 16,
+      paddingTop: 4,
     },
-    deleteWarningBody: {
-      flex: 1,
-      minWidth: 0,
+    destructiveHeroCircle: {
+      width: 80,
+      height: 80,
+      borderRadius: 999,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    destructiveHeroBody: {
+      alignItems: 'center',
     },
     deleteWarningTitle: {
       fontFamily: 'Rubik_500Medium',
       fontSize: 15,
-      lineHeight: 21,
+      lineHeight: 22,
+      textAlign: 'center',
     },
     deleteWarningDetail: {
       fontFamily: 'Rubik_400Regular',
-      fontSize: 13.5,
-      lineHeight: 19,
-      marginTop: 3,
+      fontSize: 15,
+      lineHeight: 22,
+      marginTop: 6,
+      textAlign: 'center',
     },
 
     confirmInput: {

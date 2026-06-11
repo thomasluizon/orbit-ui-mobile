@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { View, Text, TouchableOpacity } from "react-native";
+import { View, Text, Pressable } from "react-native";
 import {
   CalendarCheck,
   Repeat,
@@ -7,6 +7,7 @@ import {
   Infinity,
 } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
+import { RadioGlyph } from "@/components/ui/select-check";
 import type { AppTokens } from "./styles";
 import type { HabitFormStyles } from "./types";
 
@@ -92,38 +93,34 @@ export function FrequencyTypeCards({
           const isActive = activeFrequencyKey === card.key;
           const CardIcon = card.icon;
           return (
-            <TouchableOpacity
+            <Pressable
               key={card.key}
-              style={[
+              style={({ pressed }) => [
                 styles.frequencyCard,
                 isActive
                   ? styles.frequencyCardActive
                   : styles.frequencyCardInactive,
+                !isActive && pressed
+                  ? { backgroundColor: tokens.bgElev }
+                  : null,
+                pressed ? { transform: [{ scale: 0.99 }] } : null,
               ]}
               onPress={frequencyHandlers[card.key]}
-              activeOpacity={0.7}
               accessibilityRole="button"
               accessibilityState={{ selected: isActive }}
             >
               <View style={styles.frequencyCardHeader}>
-                <CardIcon
-                  size={20}
-                  strokeWidth={isActive ? 2.2 : 1.8}
-                  color={isActive ? tokens.primary : tokens.fg3}
-                />
-                <Text
-                  style={[
-                    styles.frequencyCardTitle,
-                    isActive
-                      ? styles.frequencyCardTitleActive
-                      : styles.frequencyCardTitleInactive,
-                  ]}
-                >
-                  {t(card.titleKey)}
-                </Text>
-              </View>
-              {isActive && (
-                <View style={styles.frequencyCardBody}>
+                <View style={styles.frequencyCardIconWell}>
+                  <CardIcon
+                    size={22}
+                    strokeWidth={isActive ? 2.2 : 1.8}
+                    color={isActive ? tokens.primary : tokens.fg2}
+                  />
+                </View>
+                <View style={styles.frequencyCardTexts}>
+                  <Text style={styles.frequencyCardTitle}>
+                    {t(card.titleKey)}
+                  </Text>
                   <Text style={styles.frequencyCardDesc}>
                     {t(card.descKey)}
                   </Text>
@@ -131,8 +128,9 @@ export function FrequencyTypeCards({
                     {t(card.exampleKey)}
                   </Text>
                 </View>
-              )}
-            </TouchableOpacity>
+                <RadioGlyph selected={isActive} size={24} tokens={tokens} />
+              </View>
+            </Pressable>
           );
         })}
       </View>

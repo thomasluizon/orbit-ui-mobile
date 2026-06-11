@@ -1,7 +1,8 @@
 import { forwardRef } from "react";
-import { View, Text, TouchableOpacity, ScrollView, Image, Linking } from "react-native";
-import { X, WifiOff } from "lucide-react-native";
+import { View, Text, TouchableOpacity, Pressable, ScrollView, Image, Linking } from "react-native";
+import { Crown, X, WifiOff } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
+import Animated, { FadeInLeft, ReduceMotion } from "react-native-reanimated";
 import { InfoCard } from "@/components/ui/info-card";
 import { PillButton } from "@/components/ui/pill-button";
 import { ChatInputBar } from "@/components/chat/chat-input-bar";
@@ -172,18 +173,26 @@ export const ChatInputArea = forwardRef<View, Readonly<ChatInputAreaProps>>(
             contentContainerStyle={styles.quickChipsContent}
             style={styles.quickChipsScroll}
           >
-            {starterChips.map((chip) => (
-              <TouchableOpacity
+            {starterChips.map((chip, index) => (
+              <Animated.View
                 key={chip}
-                accessibilityRole="button"
-                accessibilityLabel={chip}
-                activeOpacity={0.7}
-                onPress={() => onSendChip(chip)}
-                style={styles.quickChip}
-                hitSlop={{ top: 4, bottom: 4 }}
+                entering={FadeInLeft.duration(280)
+                  .delay(index * 60)
+                  .reduceMotion(ReduceMotion.System)}
               >
-                <Text style={styles.quickChipText}>{chip}</Text>
-              </TouchableOpacity>
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel={chip}
+                  onPress={() => onSendChip(chip)}
+                  style={({ pressed }) => [
+                    styles.quickChip,
+                    pressed && styles.quickChipPressed,
+                  ]}
+                  hitSlop={{ top: 4, bottom: 4 }}
+                >
+                  <Text style={styles.quickChipText}>{chip}</Text>
+                </Pressable>
+              </Animated.View>
             ))}
           </ScrollView>
         )}
@@ -196,6 +205,7 @@ export const ChatInputArea = forwardRef<View, Readonly<ChatInputAreaProps>>(
           isTyping={props.isTyping}
           isOnline={isOnline}
           atMessageLimit={atMessageLimit}
+          limitLocked={!hasProAccess && atMessageLimit}
           selectedImagePresent={props.selectedImagePresent}
           transcript={props.transcript}
           composerResetSignal={props.composerResetSignal}
@@ -214,7 +224,11 @@ export const ChatInputArea = forwardRef<View, Readonly<ChatInputAreaProps>>(
         {!hasProAccess && atMessageLimit && (
           <View style={styles.limitBlock} accessibilityLiveRegion="polite">
             <InfoCard title={t("chat.limitReachedError")} />
-            <PillButton fullWidth onPress={onUpgrade}>
+            <PillButton
+              fullWidth
+              leading={<Crown size={18} strokeWidth={1.8} color={tokens.fgOnPrimary} />}
+              onPress={onUpgrade}
+            >
               {t("upgrade.subscribe")}
             </PillButton>
             {reward.adsEnabledForUser ? (

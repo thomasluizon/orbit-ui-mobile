@@ -227,8 +227,8 @@ export function AppOverlay({
   const hasTitle = !!(title || titleContent)
   const linkedDescription = description ? linkifyText(description) : ''
   const bodyPaddingClass = footer
-    ? 'px-[22px] pt-1 pb-2'
-    : 'px-[22px] pt-1 pb-[calc(0.5rem+var(--safe-bottom))] sm:pb-2'
+    ? 'px-[22px] sm:px-7 pt-2 pb-3'
+    : 'px-[22px] sm:px-7 pt-2 pb-[calc(0.75rem+var(--safe-bottom))] sm:pb-4'
 
   const overlay = (
     <AnimatePresence>
@@ -296,7 +296,7 @@ export function AppOverlay({
             </div>
 
             {hasTitle && (
-              <div className="flex items-start justify-between px-[22px] pt-3 pb-2">
+              <div className="flex items-start justify-between px-[22px] sm:px-7 pt-4 pb-2">
                 <div className="flex-1 min-w-0">
                   <h2
                     id={titleId}
@@ -338,7 +338,7 @@ export function AppOverlay({
             {children && (
               <div
                 data-slot="overlay-body"
-                className={`flex-1 overflow-y-auto overscroll-contain ${bodyPaddingClass}`}
+                className={`flex-1 overflow-y-auto overflow-x-hidden overscroll-contain ${bodyPaddingClass}`}
               >
                 {children}
               </div>
@@ -347,7 +347,7 @@ export function AppOverlay({
             {footer && (
               <div
                 data-slot="overlay-footer"
-                className="shrink-0 px-[18px] pt-3 pb-[calc(1.25rem+var(--safe-bottom))] sm:pb-5"
+                className="shrink-0 px-[18px] sm:px-7 pt-3 pb-[calc(1.25rem+var(--safe-bottom))] sm:pb-6"
               >
                 {footer}
               </div>

@@ -116,7 +116,7 @@ export function HabitCalendar({
           activeOpacity={0.7}
           hitSlop={4}
         >
-          <ChevronLeft size={18} color={tokens.fg2} strokeWidth={1.8} />
+          <ChevronLeft size={20} color={tokens.fg2} strokeWidth={1.8} />
         </TouchableOpacity>
 
         <TouchableOpacity
@@ -135,7 +135,7 @@ export function HabitCalendar({
           activeOpacity={0.7}
           hitSlop={4}
         >
-          <ChevronRight size={18} color={tokens.fg2} strokeWidth={1.8} />
+          <ChevronRight size={20} color={tokens.fg2} strokeWidth={1.8} />
         </TouchableOpacity>
       </View>
 
@@ -197,7 +197,7 @@ export function HabitCalendar({
               activeOpacity={0.7}
               hitSlop={8}
             >
-              <X size={14} color={tokens.fg3} strokeWidth={1.8} />
+              <X size={16} color={tokens.fg3} strokeWidth={1.8} />
             </TouchableOpacity>
           </View>
 
@@ -355,8 +355,8 @@ function createStyles(tokens: AppTokens) {
       color: tokens.fg1,
     },
     closeSelectionButton: {
-      width: 28,
-      height: 28,
+      width: 34,
+      height: 34,
       borderRadius: 999,
       alignItems: "center",
       justifyContent: "center",

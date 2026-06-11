@@ -1,6 +1,6 @@
 'use client'
 
-import { Fragment, type MouseEvent, type ReactNode } from 'react'
+import { Fragment, useState, type MouseEvent, type ReactNode } from 'react'
 import {
   ArrowRight,
   Check,
@@ -170,17 +170,16 @@ export function HabitRow({
       }}
       data-tour={tourTargetId}
       className={
-        `relative flex items-center cursor-pointer transition-[background-color] duration-[160ms] ease-[var(--ease-standard)] ${
+        `relative flex items-center cursor-pointer shadow-[inset_0_0_0_1px_var(--hairline)] transition-[background-color,transform,box-shadow] duration-[160ms] ease-[var(--ease-standard)] active:scale-[0.99] ${
           selected
             ? 'bg-[var(--bg-sunk)]'
-            : 'bg-[var(--bg-card)] hover:bg-[var(--bg-elev-pressed)]'
+            : 'bg-[var(--bg-card)] hover:bg-[var(--bg-elev-pressed)] hover:shadow-[inset_0_0_0_1px_var(--hairline-strong)]'
         }`
       }
       style={{
         gap: 14,
         padding: '14px 16px',
         borderRadius: 18,
-        boxShadow: 'inset 0 0 0 1px var(--hairline)',
         marginLeft: 20 + indentPx,
         marginRight: 20,
         marginBottom: 10,
@@ -210,22 +209,27 @@ export function HabitRow({
         </button>
       )}
 
-      {habit.emoji && (
-        <span
-          aria-hidden="true"
-          className="shrink-0 inline-flex items-center justify-center"
-          style={{
-            width: wellSize,
-            height: wellSize,
-            borderRadius: wellRadius,
-            background: 'var(--bg-field)',
-            fontSize: emojiSize,
-            lineHeight: 1,
-          }}
-        >
-          {habit.emoji}
-        </span>
-      )}
+      <span
+        aria-hidden="true"
+        className="shrink-0 inline-flex items-center justify-center"
+        style={{
+          width: wellSize,
+          height: wellSize,
+          borderRadius: wellRadius,
+          background: 'var(--bg-field)',
+          fontSize: habit.emoji ? emojiSize : emojiSize - 4,
+          lineHeight: 1,
+          ...(habit.emoji
+            ? {}
+            : {
+                fontFamily: 'var(--font-sans)',
+                fontWeight: 500,
+                color: 'var(--fg-3)',
+              }),
+        }}
+      >
+        {habit.emoji ?? [...habit.title.trim().toUpperCase()][0]}
+      </span>
 
       <div
         className="flex-1 min-w-0 flex flex-col"
@@ -348,15 +352,15 @@ export function HabitRow({
                 type="button"
                 aria-label={t('habits.actions.more')}
                 onClick={(event) => event.stopPropagation()}
-                className="appearance-none border-0 bg-transparent flex items-center justify-center text-[var(--fg-3)] transition-[background-color,color] duration-[160ms] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev-pressed)] hover:text-[var(--fg-1)]"
+                className="appearance-none border-0 bg-transparent flex items-center justify-center rounded-full text-[var(--fg-3)] transition-[background-color,color,transform] duration-[160ms] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev-pressed)] hover:text-[var(--fg-1)] active:scale-90"
                 style={{
-                  width: 28,
-                  height: 28,
-                  borderRadius: 6,
+                  width: 34,
+                  height: 34,
+                  margin: '-3px',
                   cursor: 'pointer',
                 }}
               >
-                <MoreVertical size={16} strokeWidth={1.8} />
+                <MoreVertical size={18} strokeWidth={1.8} />
               </button>
             }
           >
@@ -527,6 +531,12 @@ interface CheckCircleProps {
 function CheckCircle({ state, onToggle, disabled, ariaLabel }: Readonly<CheckCircleProps>) {
   const filled = CHECK_FILLED_STATES.has(state)
   const color = CHECK_COLOR_VAR[state]
+  const [previousFilled, setPreviousFilled] = useState(filled)
+  const [justCompleted, setJustCompleted] = useState(false)
+  if (filled !== previousFilled) {
+    setPreviousFilled(filled)
+    setJustCompleted(filled)
+  }
 
   return (
     <button
@@ -543,12 +553,16 @@ function CheckCircle({ state, onToggle, disabled, ariaLabel }: Readonly<CheckCir
       style={{ padding: 7, margin: -7, opacity: disabled ? 0.4 : 1 }}
     >
       <span
-        className={`flex items-center justify-center rounded-full transition-transform duration-[160ms] ease-[var(--ease-standard)] ${disabled ? '' : 'hover:scale-105 active:scale-95'}`}
+        className={`flex items-center justify-center rounded-full transition-transform duration-[160ms] ease-[var(--ease-standard)] ${disabled ? '' : 'hover:scale-105 active:scale-95'} ${justCompleted ? 'animate-check-pop' : ''}`}
         style={{
           width: 30,
           height: 30,
           background: filled ? color : 'transparent',
-          boxShadow: filled ? 'none' : `inset 0 0 0 2px ${color}`,
+          boxShadow: filled
+            ? state === 'done'
+              ? '0 4px 14px rgba(var(--primary-rgb), 0.35)'
+              : 'none'
+            : `inset 0 0 0 2px ${color}`,
         }}
       >
         {filled && <Check size={17} strokeWidth={3} color="var(--fg-on-primary)" aria-hidden="true" />}
@@ -595,9 +609,5 @@ function renderMetaToken(token: HabitRowMetaToken): ReactNode {
       : token.kind === 'bad'
         ? 'var(--status-bad)'
         : undefined
-  return (
-    <span style={{ fontStyle: 'italic', ...(color ? { color } : {}) }}>
-      {token.label.toLowerCase()}
-    </span>
-  )
+  return <span style={color ? { color, fontWeight: 500 } : {}}>{token.label}</span>
 }

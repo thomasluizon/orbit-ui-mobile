@@ -26,12 +26,8 @@ export function ReferralCard({ onOpen }: Readonly<ReferralCardProps>) {
       <button
         type="button"
         onClick={onOpen}
-        className="flex w-full cursor-pointer items-center appearance-none border-0 text-left rounded-[18px] bg-[var(--bg-card)] transition-[background-color] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev)]"
-        style={{
-          padding: '14px 16px',
-          gap: 14,
-          boxShadow: 'inset 0 0 0 1px var(--hairline)',
-        }}
+        className="card-int flex w-full appearance-none items-center border-0 text-left"
+        style={{ padding: '14px 16px', gap: 14 }}
       >
         <span
           aria-hidden="true"

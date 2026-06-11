@@ -190,7 +190,7 @@ function DangerPillButton({
       type="button"
       disabled={disabled}
       onClick={onClick}
-      className="inline-flex w-full cursor-pointer items-center justify-center gap-[9px] rounded-full border-0 px-[26px] py-[15px] text-[16px] font-medium transition-opacity duration-[var(--dur-fast)] ease-[var(--ease-standard)] enabled:hover:opacity-90 enabled:active:opacity-90 disabled:cursor-not-allowed disabled:opacity-40"
+      className="inline-flex w-full cursor-pointer items-center justify-center gap-[9px] rounded-full border-0 px-[26px] py-[15px] text-[16px] font-medium transition-[opacity,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] enabled:hover:opacity-90 enabled:active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
       style={{
         fontFamily: 'var(--font-sans)',
         background: 'var(--status-bad)',
@@ -207,30 +207,27 @@ function DeleteWarningCard({
   desc,
 }: Readonly<{ title: string; desc: string }>) {
   return (
-    <div
-      className="flex items-center rounded-[18px]"
-      style={{
-        padding: '16px 18px',
-        gap: 14,
-        background: 'color-mix(in srgb, var(--status-bad) 8%, transparent)',
-        boxShadow: 'inset 0 0 0 1px color-mix(in srgb, var(--status-bad) 28%, transparent)',
-      }}
-    >
-      <TriangleAlert
-        size={24}
-        strokeWidth={1.9}
-        className="shrink-0"
-        color="var(--status-bad)"
+    <div className="flex flex-col items-center text-center" style={{ gap: 16, paddingTop: 4 }}>
+      <div
         aria-hidden="true"
-      />
-      <div className="min-w-0 flex-1">
+        className="flex items-center justify-center rounded-full"
+        style={{
+          width: 80,
+          height: 80,
+          background: 'color-mix(in srgb, var(--status-bad) 14%, transparent)',
+        }}
+      >
+        <TriangleAlert size={34} strokeWidth={1.8} color="var(--status-bad)" />
+      </div>
+      <div className="min-w-0">
         <div
           style={{
             fontFamily: 'var(--font-sans)',
             fontSize: 15,
             fontWeight: 500,
-            lineHeight: 1.4,
+            lineHeight: 1.5,
             color: 'var(--fg-1)',
+            textWrap: 'pretty',
           }}
         >
           {title}
@@ -238,10 +235,11 @@ function DeleteWarningCard({
         <div
           style={{
             fontFamily: 'var(--font-sans)',
-            fontSize: 13.5,
-            color: 'var(--fg-3)',
-            marginTop: 3,
-            lineHeight: 1.4,
+            fontSize: 15,
+            color: 'var(--fg-2)',
+            marginTop: 6,
+            lineHeight: 1.5,
+            textWrap: 'pretty',
           }}
         >
           {desc}

@@ -434,7 +434,7 @@ function createStyles(
     },
     row: {
       flexDirection: 'row',
-      gap: 14,
+      gap: 12,
     },
     halfField: {
       flex: 1,
@@ -455,7 +455,6 @@ function createStyles(
     fieldError: {
       fontFamily: 'Rubik_400Regular',
       fontSize: 12,
-      fontStyle: 'italic',
       color: tokens.statusOverdue,
       marginTop: 6,
     },
@@ -476,7 +475,7 @@ function createStyles(
       backgroundColor: tokens.primary,
     },
     typeOptionInactive: {
-      backgroundColor: tokens.bgField,
+      backgroundColor: tokens.bgElev,
       borderWidth: 1,
       borderColor: tokens.hairline,
     },
@@ -499,7 +498,6 @@ function createStyles(
       color: tokens.fg4,
       lineHeight: 16,
       marginTop: 4,
-      fontStyle: 'italic',
     },
     deadlineRow: {
       flexDirection: 'row',
@@ -519,7 +517,6 @@ function createStyles(
     warningText: {
       fontFamily: 'Rubik_400Regular',
       fontSize: 13,
-      fontStyle: 'italic',
       color: tokens.statusOverdue,
       marginTop: 8,
     },

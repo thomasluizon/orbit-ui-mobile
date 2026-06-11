@@ -451,6 +451,7 @@ export function GoalDetailDrawer({
             isActive={isActive}
             isUpdatingStatus={isUpdatingStatus}
             iconColor={tokens.fg3}
+            dangerColor={tokens.statusBad}
             onMarkCompleted={markCompleted}
             onMarkAbandoned={markAbandoned}
             onReactivate={reactivate}

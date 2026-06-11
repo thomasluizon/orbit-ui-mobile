@@ -1,10 +1,8 @@
 'use client'
 
-import { ChevronLeft, ChevronRight, CalendarDays } from 'lucide-react'
-import { AppBar } from '@/components/ui/app-bar'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 
 interface CalendarHeaderProps {
-  title: string
   monthLabel: string
   subtitle?: string | null
   previousMonthLabel: string
@@ -13,9 +11,8 @@ interface CalendarHeaderProps {
   onNextMonth: () => void
 }
 
-/** Calendar AppBar — leading CalendarDays glyph, month subtitle, prev/next trailing. */
+/** Agenda header — the month itself is the title (24/500), prev/next as icon-btn circles. */
 export function CalendarHeader({
-  title,
   monthLabel,
   subtitle,
   previousMonthLabel,
@@ -24,33 +21,61 @@ export function CalendarHeader({
   onNextMonth,
 }: Readonly<CalendarHeaderProps>) {
   return (
-    <AppBar
-      leadingIcon={<CalendarDays size={17} strokeWidth={1.5} color="var(--fg-2)" />}
-      title={title}
-      subtitle={subtitle ? `${monthLabel} · ${subtitle}` : monthLabel}
-      trailing={
-        <div data-tour="tour-calendar-month-nav" className="flex items-center">
-          <button
-            type="button"
-            aria-label={previousMonthLabel}
-            onClick={onPreviousMonth}
-            className="appearance-none border-0 bg-transparent cursor-pointer inline-flex items-center justify-center text-[var(--fg-2)] transition-[background-color,color] duration-150 ease-out hover:bg-[var(--bg-elev)] hover:text-[var(--fg-1)]"
-            style={{ width: 40, height: 40, borderRadius: 999 }}
+    <div
+      className="flex items-center justify-between"
+      style={{ padding: '14px 20px 0', gap: 12 }}
+    >
+      <div className="min-w-0 flex-1">
+        <h1
+          className="capitalize truncate"
+          style={{
+            margin: 0,
+            fontFamily: 'var(--font-sans)',
+            fontSize: 24,
+            fontWeight: 500,
+            letterSpacing: '-0.01em',
+            color: 'var(--fg-1)',
+          }}
+        >
+          {monthLabel}
+        </h1>
+        {subtitle && (
+          <div
+            style={{
+              marginTop: 2,
+              fontFamily: 'var(--font-mono)',
+              fontSize: 12,
+              color: 'var(--fg-3)',
+              fontVariantNumeric: 'tabular-nums',
+            }}
           >
-            <ChevronLeft size={22} strokeWidth={1.8} />
-          </button>
-          <button
-            type="button"
-            aria-label={nextMonthLabel}
-            onClick={onNextMonth}
-            className="appearance-none border-0 bg-transparent cursor-pointer inline-flex items-center justify-center text-[var(--fg-2)] transition-[background-color,color] duration-150 ease-out hover:bg-[var(--bg-elev)] hover:text-[var(--fg-1)]"
-            style={{ width: 40, height: 40, borderRadius: 999 }}
-          >
-            <ChevronRight size={22} strokeWidth={1.8} />
-          </button>
-        </div>
-      }
-    />
+            {subtitle}
+          </div>
+        )}
+      </div>
+      <div
+        data-tour="tour-calendar-month-nav"
+        className="flex items-center shrink-0"
+        style={{ gap: 4 }}
+      >
+        <button
+          type="button"
+          aria-label={previousMonthLabel}
+          onClick={onPreviousMonth}
+          className="icon-btn"
+        >
+          <ChevronLeft size={22} strokeWidth={1.8} color="var(--fg-2)" />
+        </button>
+        <button
+          type="button"
+          aria-label={nextMonthLabel}
+          onClick={onNextMonth}
+          className="icon-btn"
+        >
+          <ChevronRight size={22} strokeWidth={1.8} color="var(--fg-2)" />
+        </button>
+      </div>
+    </div>
   )
 }
 

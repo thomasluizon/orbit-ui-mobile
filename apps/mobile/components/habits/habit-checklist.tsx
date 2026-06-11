@@ -1,10 +1,16 @@
-import { useState, useCallback, useEffect, useRef, useMemo } from 'react'
+import { useState, useCallback, useMemo } from 'react'
 import {
   View,
   Text,
   TouchableOpacity,
   StyleSheet,
 } from 'react-native'
+import Animated, {
+  useAnimatedStyle,
+  useSharedValue,
+  withSequence,
+  withSpring,
+} from 'react-native-reanimated'
 import { ChevronUp, ChevronDown, X, Copy, Check } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import type { ChecklistItem } from '@orbit/shared/types/habit'
@@ -26,6 +32,60 @@ interface HabitChecklistProps {
 }
 
 type AppTokens = ReturnType<typeof createTokensV2>
+
+interface ChecklistCheckboxProps {
+  checked: boolean
+  label: string
+  onPress: () => void
+  styles: ReturnType<typeof createStyles>
+  tokens: AppTokens
+}
+
+function ChecklistCheckbox({
+  checked,
+  label,
+  onPress,
+  styles,
+  tokens,
+}: Readonly<ChecklistCheckboxProps>) {
+  const scale = useSharedValue(1)
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }))
+
+  function handlePress() {
+    if (!checked) {
+      scale.value = withSequence(
+        withSpring(1.2, { damping: 12, stiffness: 320 }),
+        withSpring(1, { damping: 15, stiffness: 280 }),
+      )
+    }
+    onPress()
+  }
+
+  return (
+    <TouchableOpacity
+      onPress={handlePress}
+      activeOpacity={0.7}
+      hitSlop={9}
+      accessibilityRole="checkbox"
+      accessibilityState={{ checked }}
+      accessibilityLabel={label}
+    >
+      <Animated.View
+        style={[
+          styles.checkbox,
+          checked ? styles.checkboxChecked : styles.checkboxUnchecked,
+          animatedStyle,
+        ]}
+      >
+        {checked && (
+          <Check size={15} color={tokens.fgOnPrimary} strokeWidth={3} />
+        )}
+      </Animated.View>
+    </TouchableOpacity>
+  )
+}
 
 interface EditableChecklistItemProps {
   text: string
@@ -113,14 +173,14 @@ function EditableChecklistItem({
         onPress={handleDuplicate}
         activeOpacity={0.7}
       >
-        <Copy size={14} color={tokens.fg3} />
+        <Copy size={16} color={tokens.fg3} strokeWidth={1.8} />
       </TouchableOpacity>
       <TouchableOpacity
         style={styles.itemAction}
         onPress={handleRemove}
         activeOpacity={0.7}
       >
-        <X size={14} color={tokens.fg3} />
+        <X size={16} color={tokens.fg3} strokeWidth={1.8} />
       </TouchableOpacity>
     </View>
   )
@@ -142,17 +202,9 @@ export function HabitChecklist({
     [currentScheme, currentTheme],
   )
   const [newItemText, setNewItemText] = useState('')
-  const [, setJustCheckedIndex] = useState(-1)
-  const checkPopTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined)
   const styles = useMemo(() => createStyles(tokens), [tokens])
 
   const checkedCount = items.filter((i) => i.isChecked).length
-
-  useEffect(() => {
-    return () => {
-      if (checkPopTimer.current) clearTimeout(checkPopTimer.current)
-    }
-  }, [])
 
   const addItem = useCallback(() => {
     const text = newItemText.trim()
@@ -209,14 +261,9 @@ export function HabitChecklist({
 
   const handleToggle = useCallback(
     (index: number) => {
-      if (!items[index]?.isChecked) {
-        if (checkPopTimer.current) clearTimeout(checkPopTimer.current)
-        setJustCheckedIndex(index)
-        checkPopTimer.current = setTimeout(() => setJustCheckedIndex(-1), 250)
-      }
       onToggle?.(index)
     },
-    [items, onToggle],
+    [onToggle],
   )
 
   return (
@@ -275,24 +322,13 @@ export function HabitChecklist({
                 ]}
               >
                 {interactive && (
-                  <TouchableOpacity
+                  <ChecklistCheckbox
+                    checked={item.isChecked}
+                    label={item.text}
                     onPress={() => handleToggle(index)}
-                    activeOpacity={0.7}
-                    hitSlop={9}
-                  >
-                    <View
-                      style={[
-                        styles.checkbox,
-                        item.isChecked
-                          ? styles.checkboxChecked
-                          : styles.checkboxUnchecked,
-                      ]}
-                    >
-                      {item.isChecked && (
-                        <Check size={15} color={tokens.fgOnPrimary} strokeWidth={3} />
-                      )}
-                    </View>
-                  </TouchableOpacity>
+                    styles={styles}
+                    tokens={tokens}
+                  />
                 )}
                 <Text
                   style={[
@@ -394,14 +430,14 @@ function createStyles(tokens: AppTokens) {
     paddingVertical: 2,
   },
   moveButtons: {
-    width: 20,
+    width: 24,
     alignItems: 'center',
     justifyContent: 'center',
     gap: 2,
   },
   moveButton: {
-    width: 20,
-    height: 20,
+    width: 24,
+    height: 22,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -423,7 +459,11 @@ function createStyles(tokens: AppTokens) {
     borderBottomColor: 'transparent',
   },
   itemAction: {
-    padding: 4,
+    width: 36,
+    height: 36,
+    borderRadius: 999,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   interactiveItem: {
     flexDirection: 'row',

@@ -73,10 +73,11 @@ export function BottomTabBar({
           accessibilityRole="button"
           accessibilityLabel={t('nav.create')}
           accessibilityState={{ disabled: fabDisabled }}
-          style={[
+          style={({ pressed }) => [
             styles.fab,
             { backgroundColor: fabDisabled ? tokens.bgSheet : tokens.primary },
             fabDisabled ? null : primaryGlow(tokens),
+            pressed && !fabDisabled ? styles.fabPressed : null,
           ]}
         >
           <View
@@ -148,7 +149,10 @@ function TabButton({
       accessibilityRole="tab"
       accessibilityLabel={label}
       accessibilityState={{ selected: isActive }}
-      style={styles.tabBtn}
+      style={({ pressed }) => [
+        styles.tabBtn,
+        pressed ? styles.tabBtnPressed : null,
+      ]}
     >
       <View style={styles.iconWrap}>
         <tab.Icon size={24} color={color} strokeWidth={isActive ? 2.2 : 1.8} />
@@ -196,6 +200,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     zIndex: 2,
   },
+  fabPressed: {
+    transform: [{ scale: 0.94 }],
+  },
   fabRing: {
     position: 'absolute',
     top: -6,
@@ -230,6 +237,9 @@ const styles = StyleSheet.create({
     gap: 5,
     paddingTop: 10,
     paddingBottom: 12,
+  },
+  tabBtnPressed: {
+    opacity: 0.7,
   },
   iconWrap: {
     position: 'relative',

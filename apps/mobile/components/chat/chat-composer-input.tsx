@@ -1,5 +1,5 @@
 import { memo, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
-import { TouchableOpacity, View } from "react-native";
+import { Pressable, View } from "react-native";
 import { ArrowUp } from "lucide-react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { CHAT_DRAFT_STORAGE_KEY } from "@orbit/shared/hooks";
@@ -12,6 +12,7 @@ interface ChatComposerInputProps {
   isRecording: boolean;
   isTyping: boolean;
   atMessageLimit: boolean;
+  limitLocked: boolean;
   isOnline: boolean;
   selectedImagePresent: boolean;
   placeholder: string;
@@ -27,6 +28,7 @@ export const ChatComposerInput = memo(function ChatComposerInput({
   isRecording,
   isTyping,
   atMessageLimit,
+  limitLocked,
   isOnline,
   selectedImagePresent,
   placeholder,
@@ -94,7 +96,7 @@ export const ChatComposerInput = memo(function ChatComposerInput({
 
   return (
     <>
-      <View style={styles.composerField}>
+      <View style={[styles.composerField, limitLocked && styles.composerFieldLocked]}>
         <AppTextInput
           style={[styles.textInput, { color: tokens.fg1 }]}
           value={draft}
@@ -103,7 +105,7 @@ export const ChatComposerInput = memo(function ChatComposerInput({
           placeholderTextColor={tokens.fg3}
           multiline
           maxLength={2000}
-          editable={isOnline}
+          editable={isOnline && !limitLocked}
           returnKeyType="default"
           blurOnSubmit={false}
           onSubmitEditing={handleSend}
@@ -111,19 +113,19 @@ export const ChatComposerInput = memo(function ChatComposerInput({
         {fieldAccessories}
       </View>
 
-      <TouchableOpacity
-        style={[
+      <Pressable
+        style={({ pressed }) => [
           styles.sendButton,
           canSend && isOnline ? styles.sendButtonGlow : styles.sendButtonDisabled,
+          pressed && canSend && isOnline && styles.sendButtonPressed,
         ]}
         onPress={handleSend}
         disabled={!canSend || !isOnline}
         accessibilityRole="button"
         accessibilityState={{ disabled: !canSend || !isOnline }}
-        activeOpacity={0.7}
       >
         <ArrowUp size={22} color={tokens.fgOnPrimary} strokeWidth={2.4} />
-      </TouchableOpacity>
+      </Pressable>
     </>
   );
 });

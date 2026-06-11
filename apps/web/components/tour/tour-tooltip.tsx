@@ -247,13 +247,13 @@ export function TourTooltip({
     : ''
 
   const modeClassName = (() => {
-    if (mode === 'float') return 'fixed z-[9999] w-[360px] rounded-[16px] bg-[var(--bg-sheet)] px-6 py-5'
-    if (mode === 'sheet-top') return 'fixed top-0 left-0 right-0 z-[9999] rounded-b-[16px] bg-[var(--bg-sheet)] px-6 pt-3 pb-5'
-    return 'fixed bottom-0 left-0 right-0 z-[9999] rounded-t-[16px] bg-[var(--bg-sheet)] px-6 pt-3 pb-[calc(1.75rem+var(--safe-bottom))]'
+    if (mode === 'float') return 'fixed z-[9999] w-[360px] rounded-[18px] bg-[var(--bg-sheet)] px-6 py-5'
+    if (mode === 'sheet-top') return 'fixed top-0 left-0 right-0 z-[9999] rounded-b-[18px] bg-[var(--bg-sheet)] px-6 pt-3 pb-5'
+    return 'fixed bottom-0 left-0 right-0 z-[9999] rounded-t-[18px] bg-[var(--bg-sheet)] px-6 pt-3 pb-[calc(1.75rem+var(--safe-bottom))]'
   })()
 
   const surfaceStyle = {
-    boxShadow: 'var(--shadow-2), inset 0 0 0 1px var(--hairline)',
+    boxShadow: 'var(--shadow-3), inset 0 0 0 1px var(--hairline)',
   }
 
   const floatStyle = (() => {
@@ -262,12 +262,20 @@ export function TourTooltip({
     return { top: pos.top, left: pos.left }
   })()
 
+  const entranceStyle = (() => {
+    if (mode === 'float' && !pos) return undefined
+    if (mode === 'sheet-top' || mode === 'sheet-bottom') {
+      return { animation: 'slide-up-fade 0.28s var(--ease-out) backwards' }
+    }
+    return { animation: 'scale-in 0.22s var(--ease-out) backwards' }
+  })()
+
   const content = (
     <dialog
       open
       ref={tooltipRef}
       className={modeClassName}
-      style={{ ...surfaceStyle, ...floatStyle }}
+      style={{ ...surfaceStyle, ...floatStyle, ...entranceStyle }}
       aria-modal="true"
       aria-label={t(step.titleKey)}
     >
@@ -280,7 +288,7 @@ export function TourTooltip({
         <span className="text-[12px] font-medium uppercase tracking-[0.08em] text-[var(--fg-3)]">
           {sectionName}
         </span>
-        <span className="font-[var(--font-mono)] text-[11px] uppercase tracking-[0.04em] text-[var(--fg-3)] [font-variant-numeric:tabular-nums]">
+        <span className="font-[var(--font-mono)] text-[12px] uppercase tracking-[0.04em] text-[var(--fg-3)] [font-variant-numeric:tabular-nums]">
           {t('tour.ui.stepOf', {
             current: sectionProgress.current,
             total: sectionProgress.total,
@@ -317,7 +325,7 @@ export function TourTooltip({
           return (
             <div
               key={`progress-dot-${sectionProgress.section}-${i}`}
-              className="h-2 rounded-full"
+              className="h-2 rounded-full transition-[width,background-color] duration-[var(--dur-base)] ease-[var(--ease-standard)]"
               style={dotStyle}
             />
           )
@@ -342,7 +350,7 @@ export function TourTooltip({
           ref={nextButtonRef}
           type="button"
           onClick={onNext}
-          className="flex min-h-[44px] items-center gap-1 rounded-full bg-[var(--primary)] px-[18px] text-[15px] font-medium text-[var(--fg-on-primary)] transition-[background-color] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--primary-pressed)]"
+          className="flex min-h-[44px] items-center gap-1 rounded-full bg-[var(--primary)] px-[18px] text-[15px] font-medium text-[var(--fg-on-primary)] shadow-[0_6px_18px_rgba(var(--primary-rgb),0.35)] transition-[background-color,box-shadow,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:-translate-y-px hover:bg-[var(--primary-pressed)] hover:shadow-[0_8px_22px_rgba(var(--primary-rgb),0.45)] active:translate-y-0 active:scale-[0.97]"
         >
           {isLastStep ? t('tour.ui.finish') : t('tour.ui.next')}
           {!isLastStep && <ChevronRight className="size-4" strokeWidth={1.8} />}

@@ -1,8 +1,9 @@
-import { useMemo } from 'react'
-import { StyleSheet, Text, View } from 'react-native'
+import { useEffect, useMemo } from 'react'
+import { Animated, StyleSheet, Text, View } from 'react-native'
 import { Sparkles } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
-import { createTokensV2, tintFromPrimary, type AppTokensV2 } from '@/lib/theme'
+import { createTokensV2, easings, tintFromPrimary, type AppTokensV2 } from '@/lib/theme'
+import { toAnimatedEasing, usePrefersReducedMotion } from '@/lib/motion'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 /** ob-2 onboarding step: tinted hero disc + Astra intro in the kit chat-bubble language. */
@@ -14,16 +15,75 @@ export function OnboardingMeetAstra() {
     [currentScheme, currentTheme],
   )
   const styles = useMemo(() => createStyles(tokens), [tokens])
+  const prefersReducedMotion = usePrefersReducedMotion()
+  const heroScale = useMemo(() => new Animated.Value(0), [])
+  const bubbleRise = useMemo(() => new Animated.Value(0), [])
+
+  useEffect(() => {
+    if (prefersReducedMotion) {
+      heroScale.setValue(1)
+      bubbleRise.setValue(1)
+      return
+    }
+    const animation = Animated.parallel([
+      Animated.spring(heroScale, {
+        toValue: 1,
+        stiffness: 220,
+        damping: 22,
+        mass: 1,
+        useNativeDriver: true,
+      }),
+      Animated.timing(bubbleRise, {
+        toValue: 1,
+        duration: 280,
+        delay: 200,
+        easing: toAnimatedEasing(easings.out),
+        useNativeDriver: true,
+      }),
+    ])
+    animation.start()
+    return () => animation.stop()
+  }, [bubbleRise, heroScale, prefersReducedMotion])
 
   return (
     <View style={styles.root}>
-      <View style={styles.heroDisc}>
+      <Animated.View
+        style={[
+          styles.heroDisc,
+          {
+            opacity: heroScale,
+            transform: [
+              {
+                scale: heroScale.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0.3, 1],
+                }),
+              },
+            ],
+          },
+        ]}
+      >
         <Sparkles size={54} strokeWidth={1.8} color={tokens.primarySoft} />
-      </View>
+      </Animated.View>
 
       <Text style={styles.title}>{t('onboarding.flow.meetAstra.title')}</Text>
 
-      <View style={styles.bubbleRow}>
+      <Animated.View
+        style={[
+          styles.bubbleRow,
+          {
+            opacity: bubbleRise,
+            transform: [
+              {
+                translateY: bubbleRise.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [8, 0],
+                }),
+              },
+            ],
+          },
+        ]}
+      >
         <View style={styles.avatarDisc}>
           <Sparkles size={16} color={tokens.primarySoft} />
         </View>
@@ -32,7 +92,7 @@ export function OnboardingMeetAstra() {
             {t('onboarding.flow.meetAstra.subtitle')}
           </Text>
         </View>
-      </View>
+      </Animated.View>
     </View>
   )
 }

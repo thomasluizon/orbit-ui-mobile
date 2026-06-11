@@ -15,6 +15,7 @@ import { useAppTheme } from '@/lib/use-app-theme'
 import { useUIStore } from '@/stores/ui-store'
 import { GradientTop } from '@/components/ui/gradient-top'
 import { PillButton } from '@/components/ui/pill-button'
+import { useCelebrationEntrance } from './celebration-motion'
 
 interface LevelUpOverlayProps {
   leveledUp: boolean
@@ -51,6 +52,8 @@ export function LevelUpOverlay({
   const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
   const activeLevelUp =
     activeCelebration?.kind === 'level-up' ? activeCelebration : null
+  const { orbStyle, titleStyle, subtitleStyle, footerStyle } =
+    useCelebrationEntrance(Boolean(activeLevelUp))
 
   useEffect(() => {
     if (prefersReducedMotion) return
@@ -135,19 +138,20 @@ export function LevelUpOverlay({
           {t('gamification.levelUp.title')}
         </Text>
 
-        <View
+        <Animated.View
           style={[
             styles.heroDisc,
             {
               backgroundColor: tintFromPrimary(tokens, 0.16),
               shadowColor: tokens.primary,
             },
+            orbStyle,
           ]}
         >
           <Text style={styles.heroEmoji}>⭐</Text>
-        </View>
+        </Animated.View>
 
-        <View style={styles.ringWrapper}>
+        <Animated.View style={[styles.ringWrapper, titleStyle]}>
           <Animated.View
             style={[
               styles.ringContainer,
@@ -170,17 +174,19 @@ export function LevelUpOverlay({
           <Text style={[styles.levelNumber, { color: tokens.fg1 }]}>
             {String(level).padStart(2, '0')}
           </Text>
-        </View>
+        </Animated.View>
 
-        <Text style={[styles.subtitle, { color: tokens.fg2 }]}>
+        <Animated.Text style={[styles.subtitle, { color: tokens.fg2 }, subtitleStyle]}>
           {t('gamification.levelUp.steadyHand')}
-        </Text>
+        </Animated.Text>
       </View>
-      <View style={[styles.footer, { paddingBottom: insets.bottom + 24 }]}>
+      <Animated.View
+        style={[styles.footer, { paddingBottom: insets.bottom + 24 }, footerStyle]}
+      >
         <PillButton fullWidth onPress={() => dismiss(activeLevelUp?.id)}>
           {t('common.continue')}
         </PillButton>
-      </View>
+      </Animated.View>
     </Animated.View>
   )
 }

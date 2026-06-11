@@ -27,13 +27,17 @@ import {
 
 const SWIPE_THRESHOLD = 50
 
+type MonthSlide = 'left' | 'right' | null
+
 export default function CalendarPage() {
   const t = useTranslations()
   const locale = useLocale()
   const dateFnsLocale = locale === 'pt-BR' ? ptBR : enUS
   const [currentMonth, setCurrentMonth] = useState(() => startOfMonth(new Date()))
-  const [selectedDay, setSelectedDay] = useState<string | null>(null)
-  const [showDayDetail, setShowDayDetail] = useState(false)
+  const [monthSlide, setMonthSlide] = useState<MonthSlide>(null)
+  const [selectedDay, setSelectedDay] = useState<string | null>(() =>
+    formatAPIDate(new Date()),
+  )
 
   const { dayMap, isLoading, isFetching } = useCalendarData(currentMonth)
 
@@ -58,16 +62,17 @@ export default function CalendarPage() {
   }, [dayMap, isLoading, t])
 
   const prevMonth = useCallback(() => {
+    setMonthSlide('left')
     setCurrentMonth((m) => subMonths(m, 1))
   }, [])
 
   const nextMonth = useCallback(() => {
+    setMonthSlide('right')
     setCurrentMonth((m) => addMonths(m, 1))
   }, [])
 
   const onSelectDay = useCallback((dateStr: string) => {
     setSelectedDay(dateStr)
-    setShowDayDetail(true)
   }, [])
 
   const selectedEntries = useMemo(() => {
@@ -117,11 +122,20 @@ export default function CalendarPage() {
     touchStartX.current = null
     if (Math.abs(deltaX) < SWIPE_THRESHOLD) return
     if (deltaX < 0) {
+      setMonthSlide('right')
       setCurrentMonth((m) => addMonths(m, 1))
     } else {
+      setMonthSlide('left')
       setCurrentMonth((m) => subMonths(m, 1))
     }
   }, [])
+
+  const monthSlideClass =
+    monthSlide === 'right'
+      ? 'animate-slide-date-right'
+      : monthSlide === 'left'
+        ? 'animate-slide-date-left'
+        : ''
 
   return (
     <div
@@ -132,7 +146,6 @@ export default function CalendarPage() {
       <GradientTop height={180} />
       <div className="relative z-[1]">
         <CalendarHeader
-          title={t('nav.calendar')}
           monthLabel={monthLabel}
           subtitle={monthSummary}
           previousMonthLabel={t('common.previousMonth')}
@@ -147,13 +160,15 @@ export default function CalendarPage() {
           }`}
         />
 
-        <CalendarGrid
-          currentMonth={currentMonth}
-          dayMap={dayMap}
-          onSelectDay={onSelectDay}
-          selectedDateStr={showDayDetail ? selectedDay : null}
-          isLoading={isLoading}
-        />
+        <div key={format(currentMonth, 'yyyy-MM')} className={monthSlideClass}>
+          <CalendarGrid
+            currentMonth={currentMonth}
+            dayMap={dayMap}
+            onSelectDay={onSelectDay}
+            selectedDateStr={selectedDay}
+            isLoading={isLoading}
+          />
+        </div>
 
         <CalendarLegend
           todayLabel={t('calendar.legend.today')}
@@ -161,6 +176,8 @@ export default function CalendarPage() {
           partialLabel={t('calendar.legend.partial')}
           missedLabel={t('calendar.legend.missed')}
         />
+
+        <CalendarDayDetail dateStr={selectedDay} entries={selectedEntries} />
 
         <SectionLabel>{t('calendar.thisMonth')}</SectionLabel>
         <SettingsRow
@@ -183,13 +200,6 @@ export default function CalendarPage() {
           divider={false}
         />
       </div>
-
-      <CalendarDayDetail
-        open={showDayDetail}
-        onOpenChange={setShowDayDetail}
-        dateStr={selectedDay}
-        entries={selectedEntries}
-      />
     </div>
   )
 }

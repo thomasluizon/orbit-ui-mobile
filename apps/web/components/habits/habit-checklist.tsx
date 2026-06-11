@@ -338,16 +338,17 @@ function SortableChecklistItem({
     <div
       ref={setNodeRef}
       style={style}
-      className="flex items-center gap-2 group py-0.5"
+      className="flex items-center gap-1.5 group py-0.5"
       {...attributes}
     >
       <div
         ref={setActivatorNodeRef}
         {...listeners}
         aria-hidden="true"
-        className="checklist-drag-handle shrink-0 cursor-grab active:cursor-grabbing text-[var(--fg-3)] hover:text-[var(--fg-2)] transition-colors touch-none"
+        className="checklist-drag-handle shrink-0 inline-flex items-center justify-center rounded-full cursor-grab active:cursor-grabbing text-[var(--fg-3)] hover:text-[var(--fg-2)] hover:bg-[var(--bg-elev)] transition-[color,background-color] duration-[var(--dur-fast)] touch-none"
+        style={{ width: 36, height: 36 }}
       >
-        <GripHorizontal className="size-3.5" />
+        <GripHorizontal size={16} strokeWidth={1.8} />
       </div>
 
       <div
@@ -365,26 +366,28 @@ function SortableChecklistItem({
         value={item.text}
         type="text"
         aria-label={t('habits.form.checklistItemLabel', { n: index + 1 })}
-        className="flex-1 min-w-0 bg-transparent text-sm text-[var(--fg-1)] py-1 px-0 border-0 border-b border-transparent focus:border-[var(--hairline)] focus:outline-none"
+        className="flex-1 min-w-0 bg-transparent text-sm text-[var(--fg-1)] py-1 px-2 border-0 border-b border-transparent focus:border-[var(--hairline)] focus:outline-none"
         onChange={(e) => onUpdateText(index, e.target.value)}
       />
 
       <button
         type="button"
         aria-label={t('habits.form.duplicateChecklistItem')}
-        className="shrink-0 p-1 text-[var(--fg-3)] hover:text-[var(--primary-pressed)] sm:opacity-0 sm:group-hover:opacity-100 transition-[color,opacity]"
+        className="shrink-0 inline-flex items-center justify-center rounded-full text-[var(--fg-3)] hover:text-[var(--primary-pressed)] hover:bg-[var(--bg-elev)] active:scale-[0.92] sm:opacity-0 sm:group-hover:opacity-100 transition-[color,background-color,opacity,transform] duration-[var(--dur-fast)]"
+        style={{ width: 36, height: 36 }}
         onClick={() => onDuplicate(index)}
       >
-        <Copy className="size-3.5" aria-hidden="true" />
+        <Copy size={16} strokeWidth={1.8} aria-hidden="true" />
       </button>
 
       <button
         type="button"
         aria-label={t('habits.form.removeChecklistItem')}
-        className="shrink-0 p-1 text-[var(--fg-3)] hover:text-[var(--status-bad)] sm:opacity-0 sm:group-hover:opacity-100 transition-[color,opacity]"
+        className="shrink-0 inline-flex items-center justify-center rounded-full text-[var(--fg-3)] hover:text-[var(--status-bad)] hover:bg-[var(--bg-elev)] active:scale-[0.92] sm:opacity-0 sm:group-hover:opacity-100 transition-[color,background-color,opacity,transform] duration-[var(--dur-fast)]"
+        style={{ width: 36, height: 36 }}
         onClick={() => onRemove(index)}
       >
-        <X className="size-3.5" aria-hidden="true" />
+        <X size={16} strokeWidth={1.8} aria-hidden="true" />
       </button>
     </div>
   )

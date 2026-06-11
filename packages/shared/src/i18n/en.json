@@ -246,6 +246,8 @@
       "matchDescription": "in description"
     },
     "createHabit": "Create Habit",
+    "askAstra": "Ask Astra",
+    "createManually": "Create manually",
     "createSubHabit": "Create Sub-Habit",
     "editHabit": "Edit Habit",
     "deleteHabit": "Delete Habit",
@@ -496,6 +498,9 @@
       "streakDays": "{n}d",
       "stats": "Stats",
       "noDataYet": "No data yet",
+      "completeToday": "Complete today",
+      "logSlip": "Log a slip",
+      "daysFree": "Days free",
       "reminders": "Reminders",
       "linkedGoal": "Linked goal",
       "askAstraEyebrow": "ASK ASTRA",
@@ -1610,6 +1615,7 @@
     "title": "Achievements & Level",
     "profileCard": {
       "title": "Achievements & Level",
+      "tileLabel": "Achievements",
       "hint": "Track your progress and unlock achievements",
       "level": "Level {level}",
       "xp": "{current} / {next} XP",

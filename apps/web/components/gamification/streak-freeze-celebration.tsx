@@ -74,31 +74,40 @@ export const StreakFreezeCelebration = forwardRef<StreakFreezeCelebrationHandle>
             className="pointer-events-none relative z-[1] flex flex-1 flex-col items-center justify-center"
             style={{ gap: 12, padding: '0 32px' }}
           >
-            <RingMotif
-              ringCount={3}
-              ringSize={280}
-              dashed
-              ringColor="var(--status-frozen)"
-              eyebrow={t('streakDisplay.freeze.eyebrow', { date: today })}
-              eyebrowColor="var(--status-frozen)"
-              anchor={
-                <span
-                  aria-hidden="true"
-                  className="flex items-center justify-center rounded-full"
-                  style={{
-                    width: 120,
-                    height: 120,
-                    fontSize: 60,
-                    background:
-                      'color-mix(in srgb, var(--status-frozen) 16%, transparent)',
-                    boxShadow:
-                      '0 0 60px color-mix(in srgb, var(--status-frozen) 40%, transparent)',
-                  }}
-                >
-                  {'❄️'}
-                </span>
-              }
-            />
+            <div style={{ animation: 'scale-in 0.5s var(--ease-out) both' }}>
+              <RingMotif
+                ringCount={3}
+                ringSize={280}
+                dashed
+                ringColor="var(--status-frozen)"
+                eyebrow={t('streakDisplay.freeze.eyebrow', { date: today })}
+                eyebrowColor="var(--status-frozen)"
+                anchor={
+                  <span
+                    aria-hidden="true"
+                    className="relative flex items-center justify-center rounded-full"
+                    style={{
+                      width: 120,
+                      height: 120,
+                      fontSize: 60,
+                      background:
+                        'color-mix(in srgb, var(--status-frozen) 16%, transparent)',
+                      animation: 'fresh-start-orb 0.7s var(--ease-out) both',
+                    }}
+                  >
+                    <span
+                      aria-hidden="true"
+                      className="animate-orbit-pulse absolute inset-0 rounded-full"
+                      style={{
+                        boxShadow:
+                          '0 0 60px color-mix(in srgb, var(--status-frozen) 40%, transparent)',
+                      }}
+                    />
+                    {'❄️'}
+                  </span>
+                }
+              />
+            </div>
             <div
               style={{
                 marginTop: 12,
@@ -109,6 +118,8 @@ export const StreakFreezeCelebration = forwardRef<StreakFreezeCelebrationHandle>
                 lineHeight: 1,
                 fontVariantNumeric: 'tabular-nums',
                 color: 'var(--fg-1)',
+                animation: 'slide-up-fade 0.28s var(--ease-out) backwards',
+                animationDelay: '220ms',
               }}
             >
               {streak}
@@ -121,6 +132,8 @@ export const StreakFreezeCelebration = forwardRef<StreakFreezeCelebrationHandle>
                 fontSize: 16,
                 lineHeight: 1.5,
                 color: 'var(--fg-2)',
+                animation: 'slide-up-fade 0.28s var(--ease-out) backwards',
+                animationDelay: '300ms',
               }}
             >
               {t('streakDisplay.freeze.celebrationSubtitle')}
@@ -128,7 +141,11 @@ export const StreakFreezeCelebration = forwardRef<StreakFreezeCelebrationHandle>
           </div>
           <div
             className="pointer-events-auto relative z-[1]"
-            style={{ padding: '0 24px calc(24px + var(--safe-bottom, 0px))' }}
+            style={{
+              padding: '0 24px calc(24px + var(--safe-bottom, 0px))',
+              animation: 'slide-up-fade 0.28s var(--ease-out) backwards',
+              animationDelay: '380ms',
+            }}
           >
             <PillButton fullWidth onClick={dismiss}>
               {t('common.continue')}

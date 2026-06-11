@@ -7,6 +7,7 @@ import { GoalList } from './goal-list'
 import { SkeletonCard } from '@/components/ui/skeleton'
 import { EmptyState } from '@/components/ui/empty-state'
 import { Popover } from '@/components/ui/popover'
+import { SectionLabel } from '@/components/ui/section-label'
 import { useGoals } from '@/hooks/use-goals'
 import type { GoalStatus } from '@orbit/shared/types/goal'
 
@@ -42,91 +43,95 @@ export function GoalsView() {
   }, [])
 
   return (
-    <div className="pt-4 px-5">
-      <div className="flex justify-end pb-3">
-        <Popover
-          placement="bottom-end"
-          className="min-w-[180px]"
-          trigger={
-            <button
-              type="button"
-              aria-label={t('goals.filters.statusFilter')}
-              aria-pressed={activeFilter != null}
-              className="appearance-none border-0 cursor-pointer inline-flex items-center justify-center shrink-0 transition-[background-color,color] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:text-[var(--fg-1)]"
-              style={{
-                width: 44,
-                height: 44,
-                borderRadius: 999,
-                color: activeFilter ? 'var(--fg-1)' : 'var(--fg-3)',
-                background: activeFilter ? 'var(--bg-elev)' : 'transparent',
-                boxShadow: activeFilter ? 'inset 0 0 0 1px var(--hairline-strong)' : 'none',
-              }}
+    <div className="pt-1">
+      <SectionLabel
+        top={16}
+        bottom={12}
+        trailing={
+          <div className="flex items-center" style={{ gap: 8 }}>
+            <Popover
+              placement="bottom-end"
+              className="min-w-[180px]"
+              trigger={
+                <button
+                  type="button"
+                  aria-label={t('goals.filters.statusFilter')}
+                  aria-pressed={activeFilter != null}
+                  className={`icon-btn text-[var(--fg-3)] hover:text-[var(--fg-1)] ${
+                    activeFilter ? 'icon-btn-ring bg-[var(--bg-elev)] text-[var(--fg-1)]' : ''
+                  }`}
+                >
+                  <Filter size={18} strokeWidth={1.8} />
+                </button>
+              }
             >
-              <Filter size={18} strokeWidth={1.8} />
-            </button>
-          }
-        >
-          {(close) => (
-            <>
-              {statusFilters.map((filter) => {
-                const active = activeFilter === filter.key
-                return (
-                  <button
-                    key={filter.key ?? 'all'}
-                    type="button"
-                    role="menuitemradio"
-                    aria-checked={active}
-                    onClick={() => {
-                      handleFilterChange(filter.key)
-                      close()
-                    }}
-                    className="w-full appearance-none border-0 bg-transparent cursor-pointer flex items-center transition-colors hover:bg-[var(--bg-sunk)]"
-                    style={{
-                      padding: '8px 10px',
-                      gap: 10,
-                      fontFamily: 'var(--font-sans)',
-                      fontSize: 14,
-                      fontWeight: active ? 600 : 500,
-                      color: active ? 'var(--fg-1)' : 'var(--fg-2)',
-                      textAlign: 'left',
-                      borderRadius: 6,
-                    }}
-                  >
-                    <span
-                      className="inline-flex shrink-0 items-center justify-center"
-                      style={{ width: 14, color: 'var(--primary)' }}
-                    >
-                      {active ? <Check size={14} strokeWidth={2} /> : null}
-                    </span>
-                    {filter.label}
-                  </button>
-                )
-              })}
-            </>
-          )}
-        </Popover>
+              {(close) => (
+                <>
+                  {statusFilters.map((filter) => {
+                    const active = activeFilter === filter.key
+                    return (
+                      <button
+                        key={filter.key ?? 'all'}
+                        type="button"
+                        role="menuitemradio"
+                        aria-checked={active}
+                        onClick={() => {
+                          handleFilterChange(filter.key)
+                          close()
+                        }}
+                        className="w-full appearance-none border-0 bg-transparent cursor-pointer flex items-center transition-colors hover:bg-[var(--bg-sunk)]"
+                        style={{
+                          padding: '8px 10px',
+                          gap: 10,
+                          fontFamily: 'var(--font-sans)',
+                          fontSize: 14,
+                          fontWeight: active ? 600 : 500,
+                          color: active ? 'var(--fg-1)' : 'var(--fg-2)',
+                          textAlign: 'left',
+                          borderRadius: 6,
+                        }}
+                      >
+                        <span
+                          className="inline-flex shrink-0 items-center justify-center"
+                          style={{ width: 14, color: 'var(--primary)' }}
+                        >
+                          {active ? <Check size={14} strokeWidth={2} /> : null}
+                        </span>
+                        {filter.label}
+                      </button>
+                    )
+                  })}
+                </>
+              )}
+            </Popover>
+          </div>
+        }
+      >
+        {t('goals.tab')}
+      </SectionLabel>
+
+      <div className="px-5">
+        {!isFetched && (
+          <div className="space-y-3">
+            {[1, 2, 3].map((i) => (
+              <SkeletonCard key={`skeleton-${i}`} lines={3} className="rounded-[18px]" />
+            ))}
+          </div>
+        )}
+
+        {isFetched && (
+          <>
+            {filteredGoals.length > 0 ? (
+              <GoalList goals={filteredGoals} />
+            ) : (
+              <EmptyState
+                title={t('goals.empty')}
+                description={t('goals.emptyHint')}
+              />
+            )}
+          </>
+        )}
       </div>
-
-      {!isFetched && (
-        <div className="space-y-3">
-          {[1, 2, 3].map((i) => (
-            <SkeletonCard key={`skeleton-${i}`} lines={3} className="rounded-[18px]" />
-          ))}
-        </div>
-      )}
-
-      {isFetched && (
-        <>
-          {filteredGoals.length > 0 ? (
-            <GoalList goals={filteredGoals} />
-          ) : (
-            <EmptyState
-              title={t('goals.empty')}
-              description={t('goals.emptyHint')}
-            />
-          )}
-        </>
-      )}
     </div>
   )
 }

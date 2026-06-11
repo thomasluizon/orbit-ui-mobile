@@ -11,7 +11,7 @@ interface TodayAISummaryProps {
 }
 
 /**
- * Today screen "Astra" summary card on the kit InfoCard chrome: primary 0.08
+ * Today screen "Astra" summary card on the kit InfoCard chrome: primary 0.10
  * tint, 0.28 inset ring, radius 18, sparkles + ASTRA eyebrow over the message.
  * Whole card is tappable; tap destination depends on state (pro → /chat,
  * free → /upgrade, error → refetch).
@@ -83,15 +83,14 @@ export function TodayAISummary({ date }: Readonly<TodayAISummaryProps>) {
       type="button"
       onClick={resolved.onClick}
       aria-label={resolved.label}
-      className="relative z-[1] w-full text-left appearance-none border-0 bg-transparent cursor-pointer transition-[opacity] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:opacity-90"
+      className="group relative z-[1] w-full text-left appearance-none border-0 bg-transparent cursor-pointer"
       style={{ padding: '14px 20px 6px' }}
     >
       <div
+        className="bg-[rgba(var(--primary-rgb),0.10)] shadow-[inset_0_0_0_1px_rgba(var(--primary-rgb),0.28)] group-hover:shadow-[inset_0_0_0_1px_rgba(var(--primary-rgb),0.45)] group-hover:-translate-y-px group-active:translate-y-0 group-active:scale-[0.99] transition-[box-shadow,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)]"
         style={{
           borderRadius: 18,
           padding: '16px 18px',
-          background: 'rgba(var(--primary-rgb), 0.08)',
-          boxShadow: 'inset 0 0 0 1px rgba(var(--primary-rgb), 0.28)',
         }}
       >
         <div className="flex items-center" style={{ gap: 8, marginBottom: 8 }}>
@@ -144,10 +143,9 @@ export function TodayAISummary({ date }: Readonly<TodayAISummaryProps>) {
           <div
             style={{
               fontFamily: 'var(--font-sans)',
-              fontSize: 11,
+              fontSize: 12,
               lineHeight: 1.4,
-              color: 'var(--fg-3)',
-              fontStyle: 'italic',
+              color: 'var(--fg-4)',
               marginTop: 8,
             }}
           >

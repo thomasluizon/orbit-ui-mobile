@@ -7,7 +7,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native'
-import { createTokensV2, tintFromPrimary } from '@/lib/theme'
+import { createTokensV2, shadowsV2, tintFromPrimary } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 export interface MoveParentOption {
@@ -170,7 +170,7 @@ function createStyles(tokens: AppTokens) {
   return StyleSheet.create({
     dialogBackdrop: {
       flex: 1,
-      backgroundColor: 'rgba(0,0,0,0.55)',
+      backgroundColor: 'rgba(0,0,0,0.6)',
       justifyContent: 'center',
       alignItems: 'center',
       padding: 24,
@@ -182,8 +182,11 @@ function createStyles(tokens: AppTokens) {
       backgroundColor: tokens.bgSheet,
       borderWidth: 1,
       borderColor: tokens.hairline,
-      borderRadius: 16,
-      padding: 20,
+      borderRadius: 24,
+      paddingTop: 24,
+      paddingHorizontal: 22,
+      paddingBottom: 18,
+      ...shadowsV2.shadow3,
     },
     moveDialogTitle: {
       fontFamily: 'Rubik_500Medium',
@@ -192,8 +195,8 @@ function createStyles(tokens: AppTokens) {
     },
     moveDialogDescription: {
       fontFamily: 'Rubik_400Regular',
-      fontSize: 14,
-      lineHeight: 20,
+      fontSize: 15,
+      lineHeight: 22,
       color: tokens.fg2,
       marginTop: 8,
       marginBottom: 16,

@@ -32,6 +32,14 @@ export function useAnimatedStyle<T>(updater: () => T): T {
   }
 }
 
+export function useAnimatedProps<T>(updater: () => T): T {
+  try {
+    return updater()
+  } catch {
+    return {} as T
+  }
+}
+
 export function useDerivedValue<Value>(updater: () => Value) {
   const value = updater()
   return { value }
@@ -69,9 +77,7 @@ export function interpolate(
   return outputRange[0] ?? 0
 }
 
-export function cancelAnimation(_sharedValue: unknown) {
-  // no-op
-}
+export function cancelAnimation(_sharedValue: unknown) {}
 
 export const Easing = {
   bezier: (_a: number, _b: number, _c: number, _d: number) => (t: number) => t,
@@ -87,6 +93,31 @@ export const ReduceMotion = {
   Always: 'always',
   Never: 'never',
 }
+
+interface ChainableEntering {
+  duration: (ms: number) => ChainableEntering
+  delay: (ms: number) => ChainableEntering
+  springify: () => ChainableEntering
+  easing: (easing: unknown) => ChainableEntering
+  reduceMotion: (mode: unknown) => ChainableEntering
+}
+
+function makeChainableEntering(): ChainableEntering {
+  const chain: ChainableEntering = {
+    duration: () => chain,
+    delay: () => chain,
+    springify: () => chain,
+    easing: () => chain,
+    reduceMotion: () => chain,
+  }
+  return chain
+}
+
+export const FadeInDown = makeChainableEntering()
+export const FadeIn = makeChainableEntering()
+export const FadeInUp = makeChainableEntering()
+export const FadeInLeft = makeChainableEntering()
+export const FadeInRight = makeChainableEntering()
 
 export function runOnJS<Args extends unknown[], Return>(
   callback: (...args: Args) => Return,

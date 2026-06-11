@@ -20,8 +20,7 @@ interface HabitCalendarProps {
   logs?: HabitLog[] | null
 }
 
-const navButtonClass =
-  'inline-flex items-center justify-center appearance-none border-0 bg-transparent cursor-pointer rounded-full text-[var(--fg-2)] transition-[background-color,color] duration-150 hover:bg-[var(--bg-elev)] hover:text-[var(--fg-1)]'
+const navButtonClass = 'icon-btn text-[var(--fg-2)] hover:text-[var(--fg-1)]'
 
 export function HabitCalendar({ habitId, logs: externalLogs }: Readonly<HabitCalendarProps>) {
   const t = useTranslations()
@@ -106,10 +105,9 @@ export function HabitCalendar({ habitId, logs: externalLogs }: Readonly<HabitCal
         <button
           type="button"
           className={navButtonClass}
-          style={{ width: 40, height: 40 }}
           onClick={prevMonth}
         >
-          <ChevronLeft size={18} strokeWidth={1.8} />
+          <ChevronLeft size={20} strokeWidth={1.8} />
         </button>
         <button
           type="button"
@@ -122,10 +120,9 @@ export function HabitCalendar({ habitId, logs: externalLogs }: Readonly<HabitCal
         <button
           type="button"
           className={navButtonClass}
-          style={{ width: 40, height: 40 }}
           onClick={nextMonth}
         >
-          <ChevronRight size={18} strokeWidth={1.8} />
+          <ChevronRight size={20} strokeWidth={1.8} />
         </button>
       </div>
 
@@ -156,7 +153,7 @@ export function HabitCalendar({ habitId, logs: externalLogs }: Readonly<HabitCal
             {day.isCurrentMonth && day.isCompleted ? (
               <button
                 type="button"
-                className={`flex size-9 cursor-pointer items-center justify-center rounded-full bg-[var(--status-done)] text-[var(--fg-on-primary)] transition-[filter,box-shadow] hover:brightness-110 ${
+                className={`flex size-9 cursor-pointer items-center justify-center rounded-full bg-[var(--status-done)] text-[var(--fg-on-primary)] transition-[transform,box-shadow] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:scale-105 active:scale-95 ${
                   selectedDate === day.dateStr
                     ? 'ring-2 ring-[var(--primary)]/50 ring-offset-2 ring-offset-[var(--bg)]'
                     : ''
@@ -217,11 +214,11 @@ export function HabitCalendar({ habitId, logs: externalLogs }: Readonly<HabitCal
             </span>
             <button
               type="button"
-              className="inline-flex items-center justify-center appearance-none border-0 bg-transparent cursor-pointer rounded-full text-[var(--fg-3)] hover:text-[var(--fg-1)] transition-colors duration-150"
-              style={{ width: 28, height: 28 }}
+              className="icon-btn text-[var(--fg-3)] hover:text-[var(--fg-1)]"
+              style={{ width: 34, height: 34 }}
               onClick={() => setSelectedDate(null)}
             >
-              <X size={14} strokeWidth={1.8} />
+              <X size={16} strokeWidth={1.8} />
             </button>
           </div>
           <div className="space-y-2">

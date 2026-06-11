@@ -3,6 +3,7 @@
 import { useState, useCallback } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
+import { RotateCcw } from 'lucide-react'
 import {
   buildFreshStartDeletedItems,
   buildFreshStartPreservedItems,
@@ -13,6 +14,62 @@ import { FreshStartAnimation } from '@/components/ui/fresh-start-animation'
 import { FieldInput } from '@/components/ui/field-input'
 import { PillButton } from '@/components/ui/pill-button'
 import { resetAccount } from '@/app/actions/profile'
+
+function AmberPillButton({
+  disabled = false,
+  onClick,
+  children,
+}: Readonly<{
+  disabled?: boolean
+  onClick: () => void
+  children: React.ReactNode
+}>) {
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={onClick}
+      className="inline-flex w-full cursor-pointer items-center justify-center gap-[9px] rounded-full border-0 px-[26px] py-[15px] text-[16px] font-medium transition-[opacity,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] enabled:hover:opacity-90 enabled:active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
+      style={{
+        fontFamily: 'var(--font-sans)',
+        background: 'var(--status-overdue)',
+        color: 'var(--fg-on-primary)',
+      }}
+    >
+      {children}
+    </button>
+  )
+}
+
+function FreshStartHero({ body }: Readonly<{ body: string }>) {
+  return (
+    <div className="flex flex-col items-center text-center" style={{ gap: 16 }}>
+      <div
+        aria-hidden="true"
+        className="flex items-center justify-center rounded-full"
+        style={{
+          width: 80,
+          height: 80,
+          background: 'color-mix(in srgb, var(--status-overdue) 14%, transparent)',
+        }}
+      >
+        <RotateCcw size={34} strokeWidth={1.8} color="var(--status-overdue)" />
+      </div>
+      <p
+        style={{
+          fontFamily: 'var(--font-sans)',
+          fontSize: 15,
+          color: 'var(--fg-2)',
+          lineHeight: 1.5,
+          margin: 0,
+          textWrap: 'pretty',
+        }}
+      >
+        {body}
+      </p>
+    </div>
+  )
+}
 
 interface FreshStartModalProps {
   open: boolean
@@ -164,24 +221,15 @@ function FreshStartInfoStep({
 
   return (
     <div className="flex flex-col" style={{ gap: 16 }}>
-      <p
-        style={{
-          fontFamily: 'var(--font-sans)',
-          fontSize: 15,
-          color: 'var(--fg-2)',
-          lineHeight: 1.55,
-        }}
-      >
-        {t('profile.freshStart.description')}
-      </p>
+      <FreshStartHero body={t('profile.freshStart.description')} />
       <div className="grid" style={{ gridTemplateColumns: '1fr 1fr', gap: 12 }}>
         <ListBlock title={t('profile.freshStart.willDelete')} items={deletedItems} />
         <ListBlock title={t('profile.freshStart.willKeep')} items={preservedItems} />
       </div>
       <div className="flex flex-col" style={{ gap: 12, paddingTop: 8 }}>
-        <PillButton fullWidth onClick={onContinue}>
+        <AmberPillButton onClick={onContinue}>
           {t('common.continue')}
-        </PillButton>
+        </AmberPillButton>
         <PillButton variant="ghost" fullWidth onClick={onCancel}>
           {t('common.cancel')}
         </PillButton>
@@ -242,9 +290,9 @@ function FreshStartConfirmStep({
         </p>
       )}
       <div className="flex flex-col" style={{ gap: 12, paddingTop: 8 }}>
-        <PillButton fullWidth disabled={!isConfirmed || loading} onClick={onReset}>
+        <AmberPillButton disabled={!isConfirmed || loading} onClick={onReset}>
           {loading ? t('profile.freshStart.processing') : t('profile.freshStart.confirmButton')}
-        </PillButton>
+        </AmberPillButton>
         <PillButton variant="ghost" fullWidth disabled={loading} onClick={onCancel}>
           {t('common.cancel')}
         </PillButton>

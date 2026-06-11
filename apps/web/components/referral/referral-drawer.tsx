@@ -58,7 +58,7 @@ export function ReferralDrawer({ open, onOpenChange }: Readonly<ReferralDrawerPr
 
   return (
     <AppOverlay open={open} onOpenChange={onOpenChange} title={t('referral.drawer.title')}>
-      <div className="-mx-6">
+      <div className="overlay-bleed">
         {isLoading && (
           <div style={{ padding: '16px 20px' }}>
             <div
@@ -91,7 +91,7 @@ export function ReferralDrawer({ open, onOpenChange }: Readonly<ReferralDrawerPr
                 style={{
                   width: 64,
                   height: 64,
-                  background: 'rgba(var(--primary-rgb), 0.15)',
+                  background: 'rgba(var(--primary-rgb), 0.16)',
                 }}
               >
                 <Gift size={30} strokeWidth={1.8} color="var(--primary-soft)" />
@@ -123,19 +123,14 @@ export function ReferralDrawer({ open, onOpenChange }: Readonly<ReferralDrawerPr
                 </div>
                 <button
                   type="button"
-                  className="appearance-none border-0 bg-transparent cursor-pointer inline-flex items-center justify-center transition-opacity duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:opacity-80"
-                  style={{
-                    fontFamily: 'var(--font-sans)',
-                    fontSize: 13,
-                    fontWeight: 500,
-                    color: 'var(--fg-1)',
-                    minHeight: 44,
-                    padding: '0 10px',
-                    gap: 6,
-                  }}
+                  className="chip"
                   onClick={copyLink}
                 >
-                  {copied ? <Check size={14} strokeWidth={1.8} /> : <Clipboard size={14} strokeWidth={1.8} />}
+                  {copied ? (
+                    <Check size={14} strokeWidth={1.8} color="var(--status-done)" aria-hidden="true" />
+                  ) : (
+                    <Clipboard size={14} strokeWidth={1.8} aria-hidden="true" />
+                  )}
                   <span>
                     {copied ? t('referral.drawer.copied') : t('referral.drawer.copy')}
                   </span>

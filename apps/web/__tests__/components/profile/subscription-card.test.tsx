@@ -1,5 +1,5 @@
-import { describe, it, expect, vi } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { render, screen, fireEvent } from '@testing-library/react'
 
 
 vi.mock('next-intl', () => ({
@@ -9,20 +9,10 @@ vi.mock('next-intl', () => ({
   },
 }))
 
-vi.mock('next/link', () => ({
-  default: ({
-    children,
-    href,
-    ...props
-  }: {
-    children: React.ReactNode
-    href: string
-    [k: string]: unknown
-  }) => (
-    <a href={href} {...props}>
-      {children}
-    </a>
-  ),
+const pushMock = vi.fn()
+
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({ push: pushMock }),
 }))
 
 vi.mock('@/lib/plural', () => ({
@@ -70,13 +60,16 @@ const baseProfile = {
 
 
 describe('SubscriptionCard', () => {
-  it('renders an upgrade link to /upgrade for free users', () => {
+  beforeEach(() => {
+    pushMock.mockClear()
+  })
+
+  it('navigates to /upgrade when the row is pressed', () => {
     render(
       <SubscriptionCard profile={baseProfile} trialDaysLeft={null} trialExpired={false} />,
     )
-    const link = screen.getByRole('link')
-    expect(link).toHaveAttribute('href', '/upgrade')
-    expect(link).toHaveTextContent('common.upgrade')
+    fireEvent.click(screen.getByRole('button'))
+    expect(pushMock).toHaveBeenCalledWith('/upgrade')
   })
 
   it('renders free label and hint for free user', () => {
@@ -99,7 +92,7 @@ describe('SubscriptionCard', () => {
     expect(document.body.textContent).toContain('profile.subscription.trialDaysLeft')
   })
 
-  it('renders pro label and "Manage" link for pro user', () => {
+  it('labels the row as Manage for pro users', () => {
     const proProfile = {
       ...baseProfile,
       plan: 'pro' as const,
@@ -110,7 +103,9 @@ describe('SubscriptionCard', () => {
       <SubscriptionCard profile={proProfile} trialDaysLeft={null} trialExpired={false} />,
     )
     expect(document.body.textContent).toContain('profile.subscription.pro')
-    expect(screen.getByRole('link')).toHaveTextContent('profile.subscription.manage')
+    expect(
+      screen.getByRole('button', { name: 'profile.subscription.manage' }),
+    ).toBeInTheDocument()
   })
 
   it('renders trial-ended label and hint when trial expired', () => {

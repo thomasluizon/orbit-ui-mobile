@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useCallback, useEffect, useRef } from 'react'
-import { Loader2, Trash2, Plus } from 'lucide-react'
+import { Check, Loader2, Trash2, Plus } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
 import { AppOverlay } from '@/components/ui/app-overlay'
@@ -256,7 +256,7 @@ export function CreateHabitModal({
         onAttemptDismiss={dismissGuard.requestDismiss}
         initialFocusRef={titleInputRef}
       >
-        <form className="space-y-10" onSubmit={handleSubmit}>
+        <form className="stagger-enter space-y-10" onSubmit={handleSubmit}>
         <HabitFormFields
           formHelpers={formHelpers}
           titleInputRef={titleInputRef}
@@ -303,17 +303,11 @@ export function CreateHabitModal({
                 )}
                 <button
                   type="button"
-                  className="flex items-center gap-2 text-[var(--fg-3)] hover:text-[var(--primary-pressed)] transition-[color] duration-[var(--dur-fast)] ease-[var(--ease-standard)] disabled:opacity-40"
-                  style={{
-                    padding: '10px 2px',
-                    fontFamily: 'var(--font-sans)',
-                    fontSize: 13,
-                    fontWeight: 500,
-                  }}
+                  className="chip disabled:opacity-40"
                   disabled={subHabits.length >= 20}
                   onClick={() => setSubHabits((prev) => [...prev, createSubHabitEntry()])}
                 >
-                  <Plus size={16} strokeWidth={1.8} aria-hidden="true" />
+                  <Plus size={14} strokeWidth={2} aria-hidden="true" />
                   {t('habits.form.addSubHabit')}
                 </button>
               </div>
@@ -364,7 +358,13 @@ export function CreateHabitModal({
             type="submit"
             className="flex-1"
             disabled={isPending || !formHelpers.form.formState.isValid}
-            leading={isPending ? <Loader2 className="size-[18px] animate-spin" /> : undefined}
+            leading={
+              isPending ? (
+                <Loader2 className="size-[18px] animate-spin" />
+              ) : (
+                <Check size={18} strokeWidth={2.2} aria-hidden="true" />
+              )
+            }
           >
             {isSubHabitMode
               ? t('habits.createSubHabit')

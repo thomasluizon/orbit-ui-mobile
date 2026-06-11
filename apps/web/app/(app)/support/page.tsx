@@ -217,18 +217,25 @@ export default function SupportPage() {
         )}
 
         {success ? (
-          <div className="flex flex-col items-center text-center" style={{ padding: '48px 24px', gap: 14 }}>
+          <div
+            className="flex flex-col items-center text-center animate-scale-in"
+            style={{ padding: '48px 24px', gap: 16 }}
+          >
             <span
-              className="flex items-center justify-center rounded-full bg-[var(--bg-field)]"
-              style={{ width: 56, height: 56, boxShadow: 'inset 0 0 0 1px var(--hairline)' }}
+              className="flex items-center justify-center rounded-full"
+              style={{
+                width: 80,
+                height: 80,
+                background: 'rgba(var(--primary-rgb), 0.15)',
+              }}
               aria-hidden="true"
             >
-              <Check size={28} strokeWidth={1.8} color="var(--primary)" />
+              <Check size={34} strokeWidth={1.8} color="var(--primary-soft)" />
             </span>
             <span
               style={{
                 fontFamily: 'var(--font-sans)',
-                fontSize: 20,
+                fontSize: 22,
                 fontWeight: 500,
                 letterSpacing: '-0.01em',
                 color: 'var(--fg-1)',
@@ -239,17 +246,18 @@ export default function SupportPage() {
             <span
               style={{
                 fontFamily: 'var(--font-sans)',
-                fontSize: 14,
-                lineHeight: 1.55,
-                color: 'var(--fg-3)',
+                fontSize: 15,
+                lineHeight: 1.5,
+                color: 'var(--fg-2)',
                 maxWidth: 320,
+                textWrap: 'pretty',
               }}
             >
               {t('profile.support.description')}
             </span>
           </div>
         ) : (
-          <div className="flex flex-col" style={{ gap: 16 }}>
+          <div className="flex flex-col stagger-enter" style={{ gap: 16 }}>
             <div className="flex" style={{ gap: 12 }}>
               <SupportField
                 label={t('profile.support.namePlaceholder')}

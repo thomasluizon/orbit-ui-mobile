@@ -10,7 +10,8 @@ interface ChipProps {
   ariaLabel?: string
 }
 
-/** Pill filter chip: active fills bg-elev with fg-1 text; inactive is a transparent hairline-ringed ghost. */
+/** Kit pill chip: bg-elev well with a hairline ring; active fills selection-bg
+ *  with a primary ring and primary text. */
 export function Chip({
   children,
   active = false,
@@ -24,21 +25,7 @@ export function Chip({
       onClick={onClick}
       aria-label={ariaLabel}
       aria-pressed={active}
-      className={
-        'appearance-none border-0 cursor-pointer inline-flex items-center gap-1.5 whitespace-nowrap shrink-0 transition-[background-color,color,box-shadow] duration-[var(--dur-fast)] ease-[var(--ease-standard)] ' +
-        (active
-          ? 'bg-[var(--bg-elev)] text-[var(--fg-1)]'
-          : 'bg-transparent text-[var(--fg-3)] hover:bg-[var(--bg-elev)] hover:text-[var(--fg-1)]')
-      }
-      style={{
-        height: 30,
-        padding: '0 14px',
-        borderRadius: 999,
-        boxShadow: active ? undefined : 'inset 0 0 0 1px var(--hairline)',
-        fontFamily: 'var(--font-sans)',
-        fontSize: 13,
-        fontWeight: 500,
-      }}
+      className={active ? 'chip chip-active' : 'chip'}
     >
       {leading}
       {children}

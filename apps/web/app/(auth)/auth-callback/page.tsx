@@ -4,7 +4,6 @@ import { useEffect, useState, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useTranslations, useLocale } from 'next-intl'
 import { TriangleAlert } from 'lucide-react'
-import { InfoCard } from '@/components/ui/info-card'
 import { PillButton } from '@/components/ui/pill-button'
 import {
   extractAuthBackendMessage,
@@ -207,20 +206,55 @@ export default function AuthCallbackPage() {
       <div className="flex flex-col items-center" style={{ gap: 20 }}>
         {errorState ? (
           <>
-            <div className="w-full">
-              <InfoCard
-                icon={TriangleAlert}
-                title={errorState.message}
-                desc={
-                  errorState.requestId
-                    ? t('auth.errorReference', { requestId: errorState.requestId })
-                    : undefined
-                }
-              />
+            <div
+              className="flex items-center justify-center rounded-full"
+              style={{
+                width: 80,
+                height: 80,
+                background: 'var(--bg-field)',
+                boxShadow: 'inset 0 0 0 1px var(--hairline)',
+                animation: 'fresh-start-orb 0.6s var(--ease-out) both',
+              }}
+            >
+              <TriangleAlert size={34} strokeWidth={1.8} className="text-[var(--fg-3)]" />
             </div>
-            <PillButton onClick={() => router.push('/login')}>
-              {t('auth.backToLogin')}
-            </PillButton>
+            <p
+              className="text-center"
+              style={{
+                margin: 0,
+                fontFamily: 'var(--font-sans)',
+                fontSize: 22,
+                fontWeight: 500,
+                lineHeight: 1.3,
+                color: 'var(--fg-1)',
+                animation: 'slide-up-fade 0.28s var(--ease-out) backwards',
+                animationDelay: '160ms',
+              }}
+            >
+              {errorState.message}
+            </p>
+            {errorState.requestId && (
+              <p
+                className="t-meta text-center"
+                style={{
+                  margin: 0,
+                  animation: 'slide-up-fade 0.28s var(--ease-out) backwards',
+                  animationDelay: '200ms',
+                }}
+              >
+                {t('auth.errorReference', { requestId: errorState.requestId })}
+              </p>
+            )}
+            <div
+              style={{
+                animation: 'slide-up-fade 0.28s var(--ease-out) backwards',
+                animationDelay: '240ms',
+              }}
+            >
+              <PillButton onClick={() => router.push('/login')}>
+                {t('auth.backToLogin')}
+              </PillButton>
+            </div>
           </>
         ) : (
           <>

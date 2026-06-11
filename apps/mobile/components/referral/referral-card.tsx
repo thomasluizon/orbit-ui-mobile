@@ -34,8 +34,9 @@ export function ReferralCard({ onOpen }: Readonly<ReferralCardProps>) {
           styles.card,
           {
             backgroundColor: pressed ? tokens.bgElev : tokens.bgCard,
-            borderColor: tokens.hairline,
+            borderColor: pressed ? tokens.hairlineStrong : tokens.hairline,
           },
+          pressed ? styles.cardPressed : null,
         ]}
       >
         <View
@@ -71,6 +72,9 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     paddingVertical: 14,
     paddingHorizontal: 16,
+  },
+  cardPressed: {
+    transform: [{ scale: 0.99 }],
   },
   iconDisc: {
     width: 44,

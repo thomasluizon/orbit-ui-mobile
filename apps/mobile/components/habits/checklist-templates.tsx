@@ -5,7 +5,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native'
-import { X } from 'lucide-react-native'
+import { Plus, X } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import type { ChecklistItem } from '@orbit/shared/types/habit'
 import { applyChecklistTemplate } from '@orbit/shared/utils'
@@ -90,13 +90,15 @@ export function ChecklistTemplates({
       <View style={styles.actionsRow}>
         {items.length > 0 && !showSave ? (
           <TouchableOpacity
+            style={styles.saveChip}
             onPress={() => setShowSave(true)}
             activeOpacity={0.8}
             accessibilityRole="button"
             accessibilityLabel={t('habits.form.saveAsTemplate')}
             accessibilityHint={t('habits.form.templateNamePlaceholder')}
           >
-            <Text style={styles.saveLink}>{t('habits.form.saveAsTemplate')}</Text>
+            <Plus size={14} color={tokens.fg2} strokeWidth={2} />
+            <Text style={styles.saveChipText}>{t('habits.form.saveAsTemplate')}</Text>
           </TouchableOpacity>
         ) : null}
 
@@ -190,10 +192,22 @@ function createStyles(tokens: AppTokens) {
     actionsRow: {
       gap: 8,
     },
-    saveLink: {
+    saveChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      alignSelf: 'flex-start',
+      gap: 7,
+      paddingHorizontal: 14,
+      paddingVertical: 9,
+      borderRadius: 999,
+      borderWidth: 1,
+      borderColor: tokens.hairline,
+      backgroundColor: tokens.bgElev,
+    },
+    saveChipText: {
       fontFamily: 'Rubik_500Medium',
       fontSize: 13,
-      color: tokens.primary,
+      color: tokens.fg2,
     },
     templatesWrap: {
       gap: 6,
@@ -216,7 +230,7 @@ function createStyles(tokens: AppTokens) {
       borderRadius: 999,
       borderWidth: 1,
       borderColor: tokens.hairline,
-      backgroundColor: tokens.bgField,
+      backgroundColor: tokens.bgElev,
       overflow: 'hidden',
     },
     chipLoadButton: {

@@ -20,6 +20,7 @@ import { AppDatePicker } from '@/components/ui/app-date-picker'
 import { AppTimePicker } from '@/components/ui/app-time-picker'
 import { AppSelect } from '@/components/ui/app-select'
 import { Badge } from '@/components/ui/badge'
+import { RadioGlyph } from '@/components/ui/select-check'
 import { Switch } from '@/components/ui/settings-row'
 import { useAppToast } from '@/hooks/use-app-toast'
 import type { TagSelectionState } from '@/hooks/use-tag-selection'
@@ -240,25 +241,23 @@ function HabitEmojiSelector({ selectedEmoji, onSelect }: Readonly<HabitEmojiSele
   }
 
   return (
-    <div className="space-y-2">
+    <>
       <button
         type="button"
-        className="flex w-full items-center justify-between gap-4 rounded-[14px] bg-[var(--bg-field)] p-4 text-left shadow-[inset_0_0_0_1px_var(--hairline)] transition-[box-shadow] duration-[var(--dur-fast)] hover:shadow-[inset_0_0_0_1px_var(--hairline-strong)] focus-visible:outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--primary)]"
+        className="grid shrink-0 cursor-pointer place-items-center border-0 transition-[box-shadow,background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:shadow-[inset_0_0_0_1px_var(--hairline-strong)] active:scale-[0.96] focus-visible:outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--primary)]"
+        style={{
+          width: 56,
+          height: 56,
+          borderRadius: 16,
+          fontSize: 26,
+          background: 'color-mix(in srgb, var(--fg-1) 6%, transparent)',
+        }}
         onClick={() => setPickerOpen(true)}
         aria-haspopup="dialog"
         aria-expanded={pickerOpen}
         aria-label={t('habits.form.emojiOpenPicker')}
       >
-        <span>
-          <span className="form-label mb-1">{t('habits.form.emoji')}</span>
-          <span className="block text-[13px] text-[var(--fg-3)]">{t('habits.form.emojiDescription')}</span>
-        </span>
-        <span
-          className="grid shrink-0 place-items-center rounded-[14px] bg-[var(--bg-elev)] text-[22px]"
-          style={{ width: 46, height: 46 }}
-        >
-          {selectedEmoji || <Plus size={20} strokeWidth={1.8} className="text-[var(--fg-3)]" aria-hidden="true" />}
-        </span>
+        {selectedEmoji || <Plus size={22} strokeWidth={1.8} className="text-[var(--fg-3)]" aria-hidden="true" />}
       </button>
 
       {pickerOpen && (
@@ -313,7 +312,7 @@ function HabitEmojiSelector({ selectedEmoji, onSelect }: Readonly<HabitEmojiSele
               {selectedEmoji && (
                 <button
                   type="button"
-                  className="flex items-center gap-1.5 rounded-full bg-[var(--bg-field)] px-3.5 py-1.5 text-[13px] font-medium text-[var(--fg-2)] shadow-[inset_0_0_0_1px_var(--hairline)] transition-[box-shadow,color] duration-150 hover:shadow-[inset_0_0_0_1px_var(--hairline-strong)] hover:text-[var(--fg-1)] focus-visible:outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--primary)]"
+                  className="chip"
                   onClick={() => handleSelectEmoji('')}
                 >
                   <X size={14} strokeWidth={1.8} aria-hidden="true" />
@@ -328,11 +327,7 @@ function HabitEmojiSelector({ selectedEmoji, onSelect }: Readonly<HabitEmojiSele
                       key={category.id}
                       type="button"
                       aria-pressed={selected}
-                      className={`shrink-0 rounded-full px-3.5 py-1.5 text-[13px] font-medium transition-[background-color,box-shadow,color] duration-150 ${
-                        selected
-                          ? 'bg-[rgba(var(--primary-rgb),0.12)] text-[var(--primary)] shadow-[inset_0_0_0_1px_var(--primary)]'
-                          : 'bg-[var(--bg-field)] text-[var(--fg-3)] hover:text-[var(--fg-1)]'
-                      }`}
+                      className={`chip ${selected ? 'chip-active' : ''}`}
                       onClick={() => handleSelectCategory(category.id)}
                     >
                       {t(category.labelKey)}
@@ -382,7 +377,7 @@ function HabitEmojiSelector({ selectedEmoji, onSelect }: Readonly<HabitEmojiSele
           </div>
         </div>
       )}
-    </div>
+    </>
   )
 }
 
@@ -400,10 +395,10 @@ function HabitTagChip({
 }: Readonly<HabitTagChipProps>) {
   return (
     <div
-      className={`flex items-center rounded-full transition-[background-color,box-shadow,color,opacity] ${
+      className={`flex items-center rounded-full transition-[background-color,box-shadow,color,opacity,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] ${
         selected
           ? 'text-white'
-          : 'bg-[var(--bg-field)] shadow-[inset_0_0_0_1px_var(--hairline)] text-[var(--fg-2)]'
+          : 'bg-[var(--bg-elev)] shadow-[inset_0_0_0_1px_var(--hairline)] text-[var(--fg-2)] hover:bg-[var(--bg-elev-2)] hover:text-[var(--fg-1)]'
       } ${
         !selected && atLimit
           ? 'opacity-30 pointer-events-none'
@@ -551,11 +546,11 @@ function ReminderSection({
           <div className="relative">
             <button
               type="button"
-              className="flex items-center gap-2 text-[var(--primary)] hover:text-[var(--primary-pressed)] transition-colors duration-150"
-              style={{ padding: '6px 0', fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 500 }}
+              aria-expanded={showAddReminder}
+              className="chip"
               onClick={() => { setShowAddReminder(!showAddReminder); setShowCustomInput(false) }}
             >
-              <Plus size={16} strokeWidth={1.8} aria-hidden="true" />
+              <Plus size={14} strokeWidth={2} aria-hidden="true" />
               {t('habits.form.reminderAdd')}
             </button>
 
@@ -710,11 +705,10 @@ function ScheduledReminderSection({
             {!showForm && !atLimit && (
               <button
                 type="button"
-                className="flex items-center gap-2 text-[var(--primary)] hover:text-[var(--primary-pressed)] transition-colors duration-150"
-                style={{ padding: '6px 0', fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 500 }}
+                className="chip"
                 onClick={() => setShowForm(true)}
               >
-                <Plus size={16} strokeWidth={1.8} aria-hidden="true" />
+                <Plus size={14} strokeWidth={2} aria-hidden="true" />
                 {t('habits.form.scheduledReminderAdd')}
               </button>
             )}
@@ -728,24 +722,16 @@ function ScheduledReminderSection({
                 <div className="flex gap-2">
                   <button
                     type="button"
-                    className={`flex-1 rounded-full px-3 py-2 transition-[background-color,box-shadow,color] duration-150 ${
-                      when === 'day_before'
-                        ? 'bg-[rgba(var(--primary-rgb),0.12)] text-[var(--primary)] shadow-[inset_0_0_0_1px_var(--primary)]'
-                        : 'bg-[var(--bg-field)] text-[var(--fg-3)] hover:text-[var(--fg-1)]'
-                    }`}
-                    style={{ fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 500 }}
+                    aria-pressed={when === 'day_before'}
+                    className={`chip flex-1 justify-center ${when === 'day_before' ? 'chip-active' : ''}`}
                     onClick={() => setWhen('day_before')}
                   >
                     {t('habits.form.scheduledReminderDayBefore')}
                   </button>
                   <button
                     type="button"
-                    className={`flex-1 rounded-full px-3 py-2 transition-[background-color,box-shadow,color] duration-150 ${
-                      when === 'same_day'
-                        ? 'bg-[rgba(var(--primary-rgb),0.12)] text-[var(--primary)] shadow-[inset_0_0_0_1px_var(--primary)]'
-                        : 'bg-[var(--bg-field)] text-[var(--fg-3)] hover:text-[var(--fg-1)]'
-                    }`}
-                    style={{ fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 500 }}
+                    aria-pressed={when === 'same_day'}
+                    className={`chip flex-1 justify-center ${when === 'same_day' ? 'chip-active' : ''}`}
                     onClick={() => setWhen('same_day')}
                   >
                     {t('habits.form.scheduledReminderSameDay')}
@@ -1014,33 +1000,34 @@ export function HabitFormFields({
         <label htmlFor="habit-form-title" className="form-label">
           {t('habits.form.title')}
         </label>
-        <input
-          id="habit-form-title"
-          type="text"
-          maxLength={200}
-          placeholder={t('habits.form.titlePlaceholder')}
-          className="form-input"
-          aria-invalid={!!errors.title}
-          aria-describedby={errors.title ? 'habit-form-title-error' : undefined}
-          {...titleRegister}
-          ref={(element) => {
-            titleRegister.ref(element)
-            if (titleInputRef) {
-              titleInputRef.current = element
-            }
-          }}
-        />
+        <div className="flex items-end" style={{ gap: 12 }}>
+          <HabitEmojiSelector
+            selectedEmoji={watchedEmoji}
+            onSelect={(emoji) => setValue('emoji', emoji, { shouldDirty: true })}
+          />
+          <input
+            id="habit-form-title"
+            type="text"
+            maxLength={200}
+            placeholder={t('habits.form.titlePlaceholder')}
+            className="form-input flex-1 min-w-0"
+            aria-invalid={!!errors.title}
+            aria-describedby={errors.title ? 'habit-form-title-error' : undefined}
+            {...titleRegister}
+            ref={(element) => {
+              titleRegister.ref(element)
+              if (titleInputRef) {
+                titleInputRef.current = element
+              }
+            }}
+          />
+        </div>
         {errors.title && (
           <p id="habit-form-title-error" className="text-xs text-[var(--status-bad)] mt-1" role="alert">
             {errors.title.message}
           </p>
         )}
       </div>
-
-      <HabitEmojiSelector
-        selectedEmoji={watchedEmoji}
-        onSelect={(emoji) => setValue('emoji', emoji, { shouldDirty: true })}
-      />
 
       <div className="space-y-2" role="radiogroup" aria-labelledby="habit-form-frequency-label">
         <span id="habit-form-frequency-label" className="form-label">
@@ -1056,64 +1043,64 @@ export function HabitFormFields({
                 type="button"
                 aria-pressed={isActive}
                 onClick={frequencyHandlers[card.key]}
-                className="appearance-none cursor-pointer text-left w-full transition-[background-color,box-shadow] duration-[var(--dur-fast)] ease-[var(--ease-standard)]"
-                style={{
-                  padding: '14px 16px',
-                  borderRadius: 18,
-                  background: isActive
-                    ? 'rgba(var(--primary-rgb), 0.10)'
-                    : 'var(--bg-card)',
-                  boxShadow: isActive
-                    ? 'inset 0 0 0 1.5px var(--primary)'
-                    : 'inset 0 0 0 1px var(--hairline)',
-                  border: 0,
-                }}
+                className={`appearance-none cursor-pointer text-left w-full rounded-[18px] border-0 transition-[background-color,box-shadow,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] active:scale-[0.99] ${
+                  isActive
+                    ? 'bg-[rgba(var(--primary-rgb),0.10)] shadow-[inset_0_0_0_1.5px_var(--primary)]'
+                    : 'bg-[var(--bg-card)] shadow-[inset_0_0_0_1px_var(--hairline)] hover:bg-[var(--bg-elev)]'
+                }`}
+                style={{ padding: '14px 16px' }}
               >
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <Icon
-                    size={20}
-                    strokeWidth={isActive ? 2.2 : 1.8}
-                    aria-hidden="true"
-                    style={{ color: isActive ? 'var(--primary)' : 'var(--fg-3)', flexShrink: 0 }}
-                  />
                   <span
+                    className="grid shrink-0 place-items-center"
                     style={{
-                      fontFamily: 'var(--font-sans)',
-                      fontSize: 16,
-                      fontWeight: 500,
-                      color: isActive ? 'var(--fg-1)' : 'var(--fg-2)',
+                      width: 40,
+                      height: 40,
+                      borderRadius: 12,
+                      background: 'color-mix(in srgb, var(--fg-1) 6%, transparent)',
                     }}
                   >
-                    {t(card.titleKey as Parameters<typeof t>[0])}
+                    <Icon
+                      size={22}
+                      strokeWidth={isActive ? 2.2 : 1.8}
+                      aria-hidden="true"
+                      style={{ color: isActive ? 'var(--primary)' : 'var(--fg-2)' }}
+                    />
                   </span>
-                </div>
-                {isActive && (
-                  <div style={{ marginTop: 6, paddingLeft: 32 }}>
-                    <div
+                  <span className="flex min-w-0 flex-1 flex-col" style={{ gap: 3 }}>
+                    <span
+                      style={{
+                        fontFamily: 'var(--font-sans)',
+                        fontSize: 16,
+                        fontWeight: 500,
+                        color: 'var(--fg-1)',
+                      }}
+                    >
+                      {t(card.titleKey as Parameters<typeof t>[0])}
+                    </span>
+                    <span
                       style={{
                         fontFamily: 'var(--font-sans)',
                         fontSize: 13,
                         color: 'var(--fg-3)',
-                        lineHeight: 1.5,
+                        lineHeight: 1.45,
                       }}
                     >
                       {t(card.descKey as Parameters<typeof t>[0])}
-                    </div>
-                    <div
+                    </span>
+                    <span
                       style={{
-                        marginTop: 4,
                         fontFamily: 'var(--font-sans)',
                         fontSize: 12,
-                        fontStyle: 'italic',
-                        color: 'var(--fg-3)',
-                        opacity: 0.7,
+                        color: 'var(--fg-4)',
                         lineHeight: 1.4,
                       }}
                     >
                       {t(card.exampleKey as Parameters<typeof t>[0])}
-                    </div>
-                  </div>
-                )}
+                    </span>
+                  </span>
+                  <RadioGlyph selected={isActive} size={24} />
+                </div>
               </button>
             )
           })}
@@ -1175,10 +1162,10 @@ export function HabitFormFields({
             {t('habits.form.activeDays')}
           </span>
           <PillToggleRow
-            containerClassName="flex gap-1.5"
-            buttonClassName="flex-1 inline-flex items-center justify-center rounded-[12px] text-[14px] font-medium transition-[background-color,color] duration-[var(--dur-fast)] ease-[var(--ease-standard)]"
-            activeClassName="bg-[var(--primary)] text-[var(--fg-on-primary)] h-11"
-            inactiveClassName="bg-[var(--bg-field)] text-[var(--fg-3)] hover:text-[var(--fg-1)] h-11"
+            containerClassName="flex gap-2"
+            buttonClassName="flex-1 inline-flex h-[42px] items-center justify-center rounded-[12px] text-[14px] font-medium transition-[background-color,color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] active:scale-[0.96]"
+            activeClassName="bg-[var(--primary)] text-[var(--fg-on-primary)]"
+            inactiveClassName="bg-[var(--bg-field)] text-[var(--fg-3)] hover:bg-[var(--bg-elev-2)] hover:text-[var(--fg-1)]"
             options={daysList.map((day) => ({
               key: day.value,
               label: day.label,
@@ -1253,12 +1240,12 @@ export function HabitFormFields({
           {!tags.showNewTag && !tags.atTagLimit && (
             <button
               type="button"
-              className="rounded-full bg-transparent px-3 py-2 text-[var(--fg-3)] shadow-[inset_0_0_0_1px_var(--hairline-strong)] hover:text-[var(--fg-1)] transition-[box-shadow,color] duration-150"
-              style={{ fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 500 }}
+              className="chip"
               disabled={isTagMutationPending}
               onClick={() => tags.setShowNewTag(true)}
             >
-              + {t('habits.form.newTag')}
+              <Plus size={14} strokeWidth={2} aria-hidden="true" />
+              {t('habits.form.newTag')}
             </button>
           )}
         </div>
@@ -1349,11 +1336,7 @@ export function HabitFormFields({
         </button>
       </div>
 
-      <div
-        className={`overflow-hidden transition-[max-height,opacity] duration-300 ease-out ${
-          showAdvanced ? 'max-h-[3000px] opacity-100' : 'max-h-0 opacity-0'
-        }`}
-      >
+      <div className={`collapsible ${showAdvanced ? 'is-open' : ''}`}>
         <div className="space-y-6 pt-2">
           <div className="space-y-2">
             <label htmlFor="habit-form-description" className="form-label">
@@ -1430,15 +1413,14 @@ export function HabitFormFields({
               ) : (
                 <button
                   type="button"
-                  className="flex items-center gap-2 text-[var(--primary)] hover:text-[var(--primary-pressed)] transition-colors duration-150"
-                  style={{ padding: '6px 0', fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 500 }}
+                  className="chip"
                   onClick={() =>
                     setValue('endDate', watchedDueDate || '', {
                       shouldDirty: true,
                     })
                   }
                 >
-                  <Plus size={16} strokeWidth={1.8} aria-hidden="true" />
+                  <Plus size={14} strokeWidth={2} aria-hidden="true" />
                   {t('habits.form.addEndDate')}
                 </button>
               )}

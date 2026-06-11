@@ -2,6 +2,7 @@ import { forwardRef } from "react";
 import { View, Text, TouchableOpacity } from "react-native";
 import {
   Image as ImageIcon,
+  Lock,
   Mic,
   Square,
 } from "lucide-react-native";
@@ -18,6 +19,7 @@ interface ChatInputBarProps {
   isTyping: boolean;
   isOnline: boolean;
   atMessageLimit: boolean;
+  limitLocked: boolean;
   selectedImagePresent: boolean;
   transcript: string;
   composerResetSignal: number;
@@ -42,6 +44,7 @@ export const ChatInputBar = forwardRef<View, Readonly<ChatInputBarProps>>(
       isTyping,
       isOnline,
       atMessageLimit,
+      limitLocked,
       selectedImagePresent,
       transcript,
       composerResetSignal,
@@ -95,13 +98,19 @@ export const ChatInputBar = forwardRef<View, Readonly<ChatInputBarProps>>(
             isRecording={isRecording}
             isTyping={isTyping}
             atMessageLimit={atMessageLimit}
+            limitLocked={limitLocked}
             isOnline={isOnline}
             selectedImagePresent={selectedImagePresent}
-            placeholder={t("chat.placeholder")}
+            placeholder={limitLocked ? t("chat.limitReachedError") : t("chat.placeholder")}
             tokens={tokens}
             styles={styles}
             onSend={onSend}
             fieldAccessories={
+              limitLocked ? (
+                <View style={styles.fieldIconButton}>
+                  <Lock size={18} color={tokens.fg4} strokeWidth={1.8} />
+                </View>
+              ) : (
               <>
                 <TouchableOpacity
                   accessibilityRole="button"
@@ -172,6 +181,7 @@ export const ChatInputBar = forwardRef<View, Readonly<ChatInputBarProps>>(
                   </View>
                 )}
               </>
+              )
             }
           />
         )}

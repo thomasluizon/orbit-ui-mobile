@@ -15,6 +15,7 @@ export function OnboardingMeetAstra() {
           width: 116,
           height: 116,
           background: 'rgba(var(--primary-rgb), 0.14)',
+          animation: 'fresh-start-orb 0.6s var(--ease-out) both',
         }}
       >
         <Sparkles
@@ -39,7 +40,10 @@ export function OnboardingMeetAstra() {
         {t('onboarding.flow.meetAstra.title')}
       </div>
 
-      <div className="flex w-full items-start" style={{ gap: 10, maxWidth: 340 }}>
+      <div
+        className="animate-msg-in flex w-full items-start"
+        style={{ gap: 10, maxWidth: 340, animationDelay: '200ms' }}
+      >
         <span
           className="inline-flex shrink-0 items-center justify-center rounded-full"
           style={{

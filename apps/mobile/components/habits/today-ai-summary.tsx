@@ -13,7 +13,7 @@ interface TodayAISummaryProps {
 }
 
 /**
- * Today screen "Astra" summary card on the kit InfoCard chrome: primary 0.08
+ * Today screen "Astra" summary card on the kit InfoCard chrome: primary 0.10
  * tint, 0.28 ring, radius 18, sparkles + ASTRA eyebrow over the message.
  * Whole card is tappable; tap destination depends on state (pro → /chat,
  * free → /upgrade, error → refetch).
@@ -85,24 +85,33 @@ export function TodayAISummary({ date }: Readonly<TodayAISummaryProps>) {
       onPress={resolved.onPress}
       accessibilityRole="button"
       accessibilityLabel={resolved.label}
-      style={({ pressed }) => [
-        styles.wrap,
-        pressed ? styles.wrapPressed : null,
-      ]}
+      style={styles.wrap}
     >
-      <View style={styles.card}>
-        <View style={styles.headerRow}>
-          <Sparkles size={16} color={tokens.primarySoft} strokeWidth={1.9} />
-          <Text style={styles.eyebrow}>Astra</Text>
-          <Text style={styles.aiBadge}>{t('aiDisclosure.isAiLabel')}</Text>
+      {({ pressed }) => (
+        <View
+          style={[
+            styles.card,
+            pressed
+              ? [
+                  styles.cardPressed,
+                  { borderColor: tintFromPrimary(tokens, 0.45) },
+                ]
+              : null,
+          ]}
+        >
+          <View style={styles.headerRow}>
+            <Sparkles size={16} color={tokens.primarySoft} strokeWidth={1.9} />
+            <Text style={styles.eyebrow}>Astra</Text>
+            <Text style={styles.aiBadge}>{t('aiDisclosure.isAiLabel')}</Text>
+          </View>
+          <Text style={styles.message}>{resolved.text}</Text>
+          {showDisclaimer ? (
+            <Text style={styles.disclaimer}>
+              {t('aiDisclosure.notMedicalAdvice')}
+            </Text>
+          ) : null}
         </View>
-        <Text style={styles.message}>{resolved.text}</Text>
-        {showDisclaimer ? (
-          <Text style={styles.disclaimer}>
-            {t('aiDisclosure.notMedicalAdvice')}
-          </Text>
-        ) : null}
-      </View>
+      )}
     </Pressable>
   )
 }
@@ -114,16 +123,16 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       paddingTop: 14,
       paddingBottom: 6,
     },
-    wrapPressed: {
-      opacity: 0.9,
-    },
     card: {
       borderRadius: 18,
       paddingVertical: 16,
       paddingHorizontal: 18,
-      backgroundColor: tintFromPrimary(tokens, 0.08),
+      backgroundColor: tintFromPrimary(tokens, 0.10),
       borderWidth: 1,
       borderColor: tintFromPrimary(tokens, 0.28),
+    },
+    cardPressed: {
+      transform: [{ scale: 0.99 }],
     },
     headerRow: {
       flexDirection: 'row',
@@ -158,10 +167,9 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
     },
     disclaimer: {
       fontFamily: 'Rubik_400Regular',
-      fontSize: 11,
-      lineHeight: 15,
-      color: tokens.fg3,
-      fontStyle: 'italic',
+      fontSize: 12,
+      lineHeight: 17,
+      color: tokens.fg4,
       marginTop: 8,
     },
   })

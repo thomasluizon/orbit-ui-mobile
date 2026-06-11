@@ -27,21 +27,33 @@ export function createStyles(tokens: AppTokens, bottomInset: number) {
       paddingHorizontal: 20,
       paddingBottom: 14,
     },
-    heroPercent: {
+    ringWrap: {
+      alignSelf: 'center',
+      width: 180,
+      height: 180,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginBottom: 4,
+    },
+    ringCenter: {
+      position: 'absolute',
+      alignItems: 'center',
+      paddingHorizontal: 24,
+    },
+    ringValue: {
       fontFamily: 'Inter_700Bold',
-      fontSize: 34,
-      letterSpacing: -0.68,
-      lineHeight: 36,
+      fontSize: 40,
+      letterSpacing: -0.8,
+      lineHeight: 44,
       color: tokens.fg1,
       fontVariant: ['tabular-nums'],
-      marginBottom: 12,
     },
-    progressMeta: {
-      marginTop: 10,
-      fontFamily: 'Roboto_400Regular',
-      fontSize: 12,
+    ringMeta: {
+      marginTop: 2,
+      fontFamily: 'Rubik_400Regular',
+      fontSize: 14,
       color: tokens.fg3,
-      fontVariant: ['tabular-nums'],
+      textAlign: 'center',
     },
     progressCta: {
       marginTop: 14,
@@ -69,7 +81,6 @@ export function createStyles(tokens: AppTokens, bottomInset: number) {
       paddingHorizontal: 20,
       fontFamily: 'Rubik_400Regular',
       fontSize: 13,
-      fontStyle: 'italic',
       color: tokens.statusOverdue,
     },
     askAstra: {
@@ -111,7 +122,6 @@ export function createStyles(tokens: AppTokens, bottomInset: number) {
     askAstraBody: {
       fontFamily: 'Rubik_400Regular',
       fontSize: 14,
-      fontStyle: 'italic',
       lineHeight: 20,
       color: tokens.fg2,
     },
@@ -137,8 +147,7 @@ export function createStyles(tokens: AppTokens, bottomInset: number) {
     actionRowTextDestructive: {
       fontFamily: 'Rubik_400Regular',
       fontSize: 15,
-      fontStyle: 'italic',
-      color: tokens.fg3,
+      color: tokens.statusBad,
     },
   })
 }

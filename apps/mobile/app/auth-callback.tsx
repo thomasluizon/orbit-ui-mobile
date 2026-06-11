@@ -29,7 +29,6 @@ import { useAuthStore } from '@/stores/auth-store'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { GradientTop } from '@/components/ui/gradient-top'
-import { InfoCard } from '@/components/ui/info-card'
 import { PillButton } from '@/components/ui/pill-button'
 
 type AppTokens = ReturnType<typeof createTokensV2>
@@ -178,17 +177,15 @@ export default function AuthCallbackScreen() {
       <GradientTop height={320} />
       {errorState ? (
         <>
-          <View style={styles.errorCard}>
-            <InfoCard
-              icon={TriangleAlert}
-              title={errorState.message}
-              desc={
-                errorState.requestId
-                  ? t('auth.errorReference', { requestId: errorState.requestId })
-                  : undefined
-              }
-            />
+          <View style={styles.errorWell}>
+            <TriangleAlert size={34} color={tokens.fg3} strokeWidth={1.8} />
           </View>
+          <Text style={styles.errorTitle}>{errorState.message}</Text>
+          {errorState.requestId ? (
+            <Text style={styles.errorMeta}>
+              {t('auth.errorReference', { requestId: errorState.requestId })}
+            </Text>
+          ) : null}
           <PillButton onPress={() => router.replace('/login' as Href)}>
             {t('auth.backToLogin')}
           </PillButton>
@@ -219,9 +216,30 @@ function createStyles(tokens: AppTokens) {
       letterSpacing: 0.24,
       color: tokens.fg3,
     },
-    errorCard: {
-      width: '100%',
-      maxWidth: 360,
+    errorWell: {
+      width: 80,
+      height: 80,
+      borderRadius: 999,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: tokens.bgField,
+      borderWidth: 1,
+      borderColor: tokens.hairline,
+    },
+    errorTitle: {
+      fontFamily: 'Rubik_500Medium',
+      fontSize: 22,
+      lineHeight: 29,
+      color: tokens.fg1,
+      textAlign: 'center',
+      maxWidth: 320,
+    },
+    errorMeta: {
+      fontFamily: 'Roboto_400Regular',
+      fontSize: 12,
+      color: tokens.fg3,
+      textAlign: 'center',
+      fontVariant: ['tabular-nums'],
     },
   })
 }

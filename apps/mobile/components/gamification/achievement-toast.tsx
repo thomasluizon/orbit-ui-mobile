@@ -202,13 +202,13 @@ const styles = StyleSheet.create({
   },
   inner: {
     borderWidth: 1,
-    borderRadius: 16,
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    borderRadius: 18,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
     flexDirection: 'row',
     alignItems: 'flex-start',
     gap: 12,
-    ...shadowsV2.shadow2,
+    ...shadowsV2.shadow3,
   },
   iconDisc: {
     width: 32,

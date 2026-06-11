@@ -144,7 +144,7 @@ export function PendingOperationCard({
 
   return (
     <div
-      className="rounded-[16px] bg-[var(--bg-card)]"
+      className="rounded-[16px] bg-[var(--bg-field)]"
       style={{
         padding: '14px 16px',
         boxShadow: 'inset 0 0 0 1px var(--hairline)',

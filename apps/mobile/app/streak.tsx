@@ -5,6 +5,7 @@ import {
   StyleSheet,
   ScrollView,
 } from 'react-native'
+import Animated, { FadeInDown, ReduceMotion } from 'react-native-reanimated'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
@@ -21,9 +22,16 @@ import {
 } from '@/components/gamification/streak-freeze-celebration'
 import { plural } from '@/lib/plural'
 import { AppBar } from '@/components/ui/app-bar'
+import { SatelliteGlyph } from '@/components/ui/satellite-glyph'
 import { buildUpgradeHref } from '@/lib/upgrade-route'
-import { StreakTimelineCard, FreezeProgressCard } from './streak-sections'
+import { StreakStatsRow, StreakTimelineCard, FreezeProgressCard } from './streak-sections'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
+
+function sectionEntrance(index: number) {
+  return FadeInDown.duration(280)
+    .delay(index * 50)
+    .reduceMotion(ReduceMotion.System)
+}
 
 type Tokens = ReturnType<typeof createTokensV2>
 
@@ -153,7 +161,7 @@ export default function StreakScreen() {
               </View>
             ) : null}
 
-            <View style={styles.hero}>
+            <Animated.View entering={sectionEntrance(0)} style={styles.hero}>
               <Text
                 style={[
                   styles.heroEyebrow,
@@ -164,37 +172,61 @@ export default function StreakScreen() {
               >
                 {heroEyebrow.toUpperCase()}
               </Text>
+              <View
+                style={[
+                  styles.heroWell,
+                  { backgroundColor: heroWellTint(tokens.fg1) },
+                ]}
+                accessibilityElementsHidden
+              >
+                {streak === 0 ? (
+                  <SatelliteGlyph size={56} />
+                ) : (
+                  <Text style={styles.heroEmoji}>🔥</Text>
+                )}
+              </View>
               <View style={styles.heroCountRow}>
-                <Text style={styles.heroEmoji} accessibilityElementsHidden>
-                  {streak === 0 ? '🌑' : '🔥'}
-                </Text>
                 <Text style={[styles.heroNumber, { color: tokens.fg1 }]}>
-                  {`${streak} ${plural(t('streakDisplay.detail.daysUnit'), streak)}`}
+                  {streak}
+                </Text>
+                <Text style={[styles.heroUnit, { color: tokens.fg2 }]}>
+                  {plural(t('streakDisplay.detail.daysUnit'), streak)}
                 </Text>
               </View>
               {encouragement ? (
-                <Text style={[styles.heroEncouragement, { color: tokens.fg2 }]}>
+                <Text style={[styles.heroEncouragement, { color: tokens.fg3 }]}>
                   {encouragement}
                 </Text>
               ) : null}
-            </View>
+            </Animated.View>
 
-            <StreakTimelineCard t={t} weekDays={weekDays} />
+            <Animated.View entering={sectionEntrance(1)}>
+              <StreakStatsRow
+                t={t}
+                streak={streak}
+                longestStreak={streakInfo?.longestStreak ?? 0}
+              />
+            </Animated.View>
 
-            <FreezeProgressCard
-              t={t}
-              isPro={isPro}
-              streak={streak}
-              longestStreak={streakInfo?.longestStreak ?? 0}
-              streakFreezesAccumulated={streakFreezesAccumulated}
-              maxStreakFreezesAccumulated={maxStreakFreezesAccumulated}
-              freezesUsedThisMonth={freezesUsedThisMonth}
-              maxFreezesPerMonth={maxFreezesPerMonth}
-              isFrozenToday={isFrozenToday}
-              protectedDates={streakInfo?.recentFreezeDates ?? []}
-              onUpgrade={() => router.push(buildUpgradeHref('/streak'))}
-              displayDate={displayDate}
-            />
+            <Animated.View entering={sectionEntrance(2)}>
+              <StreakTimelineCard t={t} weekDays={weekDays} />
+            </Animated.View>
+
+            <Animated.View entering={sectionEntrance(3)}>
+              <FreezeProgressCard
+                t={t}
+                isPro={isPro}
+                streak={streak}
+                streakFreezesAccumulated={streakFreezesAccumulated}
+                maxStreakFreezesAccumulated={maxStreakFreezesAccumulated}
+                freezesUsedThisMonth={freezesUsedThisMonth}
+                maxFreezesPerMonth={maxFreezesPerMonth}
+                isFrozenToday={isFrozenToday}
+                protectedDates={streakInfo?.recentFreezeDates ?? []}
+                onUpgrade={() => router.push(buildUpgradeHref('/streak'))}
+                displayDate={displayDate}
+              />
+            </Animated.View>
 
             <View style={{ height: 24 }} />
           </>
@@ -212,6 +244,14 @@ function frozenTint(tokens: Tokens, alpha: number): string {
   const green = Number.parseInt(normalized.slice(2, 4), 16)
   const blue = Number.parseInt(normalized.slice(4, 6), 16)
   return `rgba(${red}, ${green}, ${blue}, ${alpha})`
+}
+
+function heroWellTint(fg1Hex: string): string {
+  const normalized = fg1Hex.replace('#', '')
+  const red = Number.parseInt(normalized.slice(0, 2), 16)
+  const green = Number.parseInt(normalized.slice(2, 4), 16)
+  const blue = Number.parseInt(normalized.slice(4, 6), 16)
+  return `rgba(${red}, ${green}, ${blue}, 0.06)`
 }
 
 function createStyles(_tokens: Tokens) {
@@ -249,35 +289,47 @@ function createStyles(_tokens: Tokens) {
     hero: {
       paddingHorizontal: 20,
       paddingTop: 28,
-      paddingBottom: 22,
+      paddingBottom: 24,
       alignItems: 'center',
-      gap: 10,
+      gap: 14,
     },
     heroEyebrow: {
       fontFamily: 'Rubik_500Medium',
       fontSize: 12,
       letterSpacing: 0.96,
     },
-    heroCountRow: {
-      flexDirection: 'row',
+    heroWell: {
+      width: 64,
+      height: 64,
+      borderRadius: 999,
       alignItems: 'center',
       justifyContent: 'center',
-      gap: 12,
+    },
+    heroCountRow: {
+      flexDirection: 'row',
+      alignItems: 'baseline',
+      justifyContent: 'center',
+      gap: 10,
     },
     heroEmoji: {
-      fontSize: 36,
-      lineHeight: 44,
+      fontSize: 30,
+      lineHeight: 36,
     },
     heroNumber: {
       fontFamily: 'Inter_700Bold',
-      fontSize: 44,
-      letterSpacing: -0.88,
-      lineHeight: 52,
+      fontSize: 64,
+      letterSpacing: -1.28,
+      lineHeight: 68,
       fontVariant: ['tabular-nums'],
+    },
+    heroUnit: {
+      fontFamily: 'Rubik_500Medium',
+      fontSize: 20,
+      lineHeight: 26,
     },
     heroEncouragement: {
       fontFamily: 'Rubik_400Regular',
-      fontSize: 15,
+      fontSize: 14,
       textAlign: 'center',
     },
   })

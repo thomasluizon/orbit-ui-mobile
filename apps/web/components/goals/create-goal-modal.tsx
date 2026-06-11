@@ -228,13 +228,13 @@ export function CreateGoalModal({ open, onOpenChange }: Readonly<CreateGoalModal
         isDirty={isDirty}
         onAttemptDismiss={dismissGuard.requestDismiss}
       >
-        <form id="create-goal-form" className="-mx-6" onSubmit={onSubmit}>
+        <form id="create-goal-form" onSubmit={onSubmit}>
           <GoalGroupLabel>{t('goals.form.type')}</GoalGroupLabel>
           <div
             className="flex"
             role="radiogroup"
             aria-label={t('goals.form.type')}
-            style={{ padding: '0 20px', gap: 10 }}
+            style={{ gap: 10 }}
           >
             {goalTypeOptions.map((option) => {
               const isActive = goalType === option.key
@@ -251,7 +251,7 @@ export function CreateGoalModal({ open, onOpenChange }: Readonly<CreateGoalModal
                     minHeight: 46,
                     borderRadius: 14,
                     border: 0,
-                    background: isActive ? 'var(--primary)' : 'var(--bg-field)',
+                    background: isActive ? 'var(--primary)' : 'var(--bg-elev)',
                     boxShadow: isActive ? 'none' : 'inset 0 0 0 1px var(--hairline)',
                     fontFamily: 'var(--font-sans)',
                     fontSize: 15,
@@ -265,7 +265,7 @@ export function CreateGoalModal({ open, onOpenChange }: Readonly<CreateGoalModal
               )
             })}
           </div>
-          <div style={{ padding: '10px 20px 12px' }}>
+          <div style={{ padding: '10px 0 12px' }}>
             <div
               style={{
                 fontFamily: 'var(--font-sans)',
@@ -282,7 +282,6 @@ export function CreateGoalModal({ open, onOpenChange }: Readonly<CreateGoalModal
                   marginTop: 4,
                   fontFamily: 'var(--font-sans)',
                   fontSize: 11,
-                  fontStyle: 'italic',
                   color: 'var(--fg-4)',
                   lineHeight: 1.4,
                 }}
@@ -292,7 +291,7 @@ export function CreateGoalModal({ open, onOpenChange }: Readonly<CreateGoalModal
             )}
           </div>
 
-          <div className={isStreak ? '' : 'grid grid-cols-2'} style={{ padding: '8px 20px 0', gap: 14 }}>
+          <div className={isStreak ? '' : 'grid grid-cols-2'} style={{ padding: '8px 0 0', gap: 12 }}>
             <FieldWell
               label={isStreak ? t('goals.form.streakTarget') : t('goals.form.targetValue')}
               id="create-goal-target"
@@ -317,7 +316,7 @@ export function CreateGoalModal({ open, onOpenChange }: Readonly<CreateGoalModal
             )}
           </div>
 
-          <div style={{ padding: '16px 20px 0' }}>
+          <div style={{ padding: '16px 0 0' }}>
             <FieldWell
               label={t('goals.form.description')}
               id="create-goal-description"
@@ -335,7 +334,7 @@ export function CreateGoalModal({ open, onOpenChange }: Readonly<CreateGoalModal
           </div>
 
           <GoalGroupLabel top={18}>{t('goals.form.deadline')}</GoalGroupLabel>
-          <div style={{ padding: '0 20px 16px' }}>
+          <div style={{ padding: '0 0 16px' }}>
             {deadline ? (
               <div className="flex items-center" style={{ gap: 8 }}>
                 <div className="flex-1">
@@ -379,7 +378,6 @@ export function CreateGoalModal({ open, onOpenChange }: Readonly<CreateGoalModal
                   marginTop: 8,
                   fontFamily: 'var(--font-sans)',
                   fontSize: 13,
-                  fontStyle: 'italic',
                   color: 'var(--status-overdue)',
                 }}
               >
@@ -392,8 +390,7 @@ export function CreateGoalModal({ open, onOpenChange }: Readonly<CreateGoalModal
             className="flex items-center"
             style={{
               gap: 12,
-              padding: '14px 20px 16px',
-              borderTop: '1px solid var(--hairline)',
+              padding: '18px 0 8px',
             }}
           >
             <PillButton
@@ -406,7 +403,7 @@ export function CreateGoalModal({ open, onOpenChange }: Readonly<CreateGoalModal
             <button
               type="submit"
               disabled={isSubmitting}
-              className="flex-1 inline-flex cursor-pointer items-center justify-center rounded-full border-0 bg-[var(--primary)] text-[var(--fg-on-primary)] transition-[background-color,opacity] duration-[var(--dur-fast)] ease-[var(--ease-standard)] enabled:hover:bg-[var(--primary-pressed)] disabled:cursor-not-allowed disabled:opacity-40"
+              className="flex-1 inline-flex cursor-pointer items-center justify-center rounded-full border-0 bg-[var(--primary)] text-[var(--fg-on-primary)] transition-[background-color,box-shadow,transform,opacity] duration-[var(--dur-fast)] ease-[var(--ease-standard)] enabled:hover:bg-[var(--primary-pressed)] enabled:hover:-translate-y-px enabled:hover:shadow-[var(--primary-glow-hover)] enabled:active:translate-y-0 enabled:active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
               style={{
                 fontFamily: 'var(--font-sans)',
                 fontSize: 16,
@@ -447,7 +444,7 @@ function GoalGroupLabel({ children, top = 4 }: Readonly<GoalGroupLabelProps>) {
   return (
     <div
       style={{
-        padding: `${top}px 20px 8px`,
+        padding: `${top}px 0 8px`,
         fontFamily: 'var(--font-sans)',
         fontSize: 14,
         fontWeight: 500,
@@ -523,7 +520,6 @@ function FieldWell({
           style={{
             fontFamily: 'var(--font-sans)',
             fontSize: 12,
-            fontStyle: 'italic',
             color: 'var(--status-overdue)',
           }}
         >

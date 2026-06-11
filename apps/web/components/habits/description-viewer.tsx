@@ -33,7 +33,7 @@ export function DescriptionViewer({
         <button
           type="button"
           aria-label={t('common.back')}
-          className="inline-flex shrink-0 items-center justify-center rounded-full appearance-none border-0 bg-transparent cursor-pointer text-[var(--fg-1)] transition-[background-color] duration-150 hover:bg-[var(--bg-elev)]"
+          className="icon-btn shrink-0"
           style={{ width: 44, height: 44 }}
           onClick={() => onOpenChange(false)}
         >
@@ -52,8 +52,16 @@ export function DescriptionViewer({
         </h1>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-6 py-6">
-        <Markdown content={description} />
+      <div className="flex-1 overflow-y-auto px-5 py-5">
+        <div
+          className="rounded-[18px] bg-[var(--bg-card)]"
+          style={{
+            padding: '18px 20px',
+            boxShadow: 'inset 0 0 0 1px var(--hairline)',
+          }}
+        >
+          <Markdown content={description} />
+        </div>
       </div>
     </div>,
     document.body,

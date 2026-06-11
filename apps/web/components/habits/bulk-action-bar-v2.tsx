@@ -37,7 +37,7 @@ function BulkBtn({ icon: Icon, label, onClick }: Readonly<BulkBtnProps>) {
       type="button"
       onClick={onClick}
       aria-label={label}
-      className="appearance-none border-0 cursor-pointer flex items-center justify-center transition-[background-color] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev)]"
+      className="appearance-none border-0 cursor-pointer flex items-center justify-center transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev)] active:scale-[0.92]"
       style={{
         width: 40,
         height: 40,
@@ -123,12 +123,11 @@ export function BulkActionBarV2({
         <button
           type="button"
           onClick={allSelected ? onDeselectAll : onSelectAll}
-          className="appearance-none border-0 bg-transparent cursor-pointer"
+          className="appearance-none border-0 bg-transparent cursor-pointer text-[var(--fg-3)] hover:text-[var(--fg-1)] transition-[color] duration-[var(--dur-fast)] ease-[var(--ease-standard)]"
           style={{
             fontFamily: 'var(--font-sans)',
             fontSize: 12,
             fontWeight: 500,
-            color: 'var(--fg-3)',
             padding: '4px 6px',
             textDecoration: 'underline',
             textUnderlineOffset: 3,

@@ -42,7 +42,7 @@ export function BottomTabBar({
   const fabDisabled = active !== 'today'
 
   return (
-    <div className="relative shrink-0 border-t border-[var(--hairline)] bg-[var(--bg)]">
+    <div className="relative shrink-0">
       {fabVisible && (
         <button
           type="button"

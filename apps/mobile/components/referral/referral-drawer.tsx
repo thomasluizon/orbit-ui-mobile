@@ -1,14 +1,14 @@
 import { useMemo, useState, useEffect, useCallback } from 'react'
 import {
   ActivityIndicator,
+  Pressable,
   ScrollView,
   Share,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
 } from 'react-native'
-import { Check, Gift, Share2 } from 'lucide-react-native'
+import { Check, Copy, Gift, Share2 } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import { useReferral } from '@/hooks/use-referral'
 import { BottomSheetModal } from '@/components/bottom-sheet-modal'
@@ -94,7 +94,7 @@ export function ReferralDrawer({ open, onClose }: Readonly<ReferralDrawerProps>)
               <View
                 style={[
                   styles.heroDisc,
-                  { backgroundColor: tintFromPrimary(tokens, 0.15) },
+                  { backgroundColor: tintFromPrimary(tokens, 0.16) },
                 ]}
               >
                 <Gift size={30} strokeWidth={1.8} color={tokens.primarySoft} />
@@ -109,21 +109,25 @@ export function ReferralDrawer({ open, onClose }: Readonly<ReferralDrawerProps>)
                 <Text style={styles.linkText} numberOfLines={1}>
                   {referralUrl}
                 </Text>
-                <TouchableOpacity
-                  style={styles.copyBtn}
-                  activeOpacity={0.7}
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.copyChip,
+                    { backgroundColor: pressed ? tokens.bgElev2 : tokens.bgElev },
+                    pressed ? styles.copyChipPressed : null,
+                  ]}
                   onPress={copyLink}
                   accessibilityRole="button"
                   accessibilityLabel={t('referral.drawer.copy')}
                 >
                   {copied ? (
-                    <Check size={16} color={tokens.fgOnPrimary} strokeWidth={1.8} />
+                    <Check size={14} color={tokens.statusDone} strokeWidth={1.8} />
                   ) : (
-                    <Text style={styles.copyBtnText}>
-                      {t('referral.drawer.copy')}
-                    </Text>
+                    <Copy size={14} color={tokens.fg2} strokeWidth={1.8} />
                   )}
-                </TouchableOpacity>
+                  <Text style={styles.copyChipText}>
+                    {copied ? t('referral.drawer.copied') : t('referral.drawer.copy')}
+                  </Text>
+                </Pressable>
               </View>
             </View>
 
@@ -242,19 +246,24 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       fontVariant: ['tabular-nums'],
       color: tokens.fg1,
     },
-    copyBtn: {
-      backgroundColor: tokens.primary,
-      borderRadius: radius.full,
-      paddingHorizontal: 18,
-      minHeight: 44,
+    copyChip: {
+      flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
-      minWidth: 72,
+      gap: 7,
+      borderRadius: radius.full,
+      borderWidth: 1,
+      borderColor: tokens.hairline,
+      paddingHorizontal: 16,
+      minHeight: 40,
     },
-    copyBtnText: {
+    copyChipPressed: {
+      transform: [{ scale: 0.96 }],
+    },
+    copyChipText: {
       fontFamily: 'Rubik_500Medium',
       fontSize: 13,
-      color: tokens.fgOnPrimary,
+      color: tokens.fg2,
     },
     progressBlock: {
       paddingHorizontal: 20,

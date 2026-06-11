@@ -17,7 +17,6 @@ describe('Calendar shell helpers', () => {
 
     render(
       <CalendarHeader
-        title="nav.calendar"
         monthLabel="April 2026"
         previousMonthLabel="common.previousMonth"
         nextMonthLabel="common.nextMonth"
@@ -26,7 +25,6 @@ describe('Calendar shell helpers', () => {
       />,
     )
 
-    expect(screen.getByText('nav.calendar')).toBeInTheDocument()
     expect(screen.getByText('April 2026')).toBeInTheDocument()
 
     fireEvent.click(screen.getByLabelText('common.previousMonth'))

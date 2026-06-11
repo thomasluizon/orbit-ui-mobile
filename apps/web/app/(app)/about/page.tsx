@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { Compass, Mail, Orbit, Shield } from 'lucide-react'
+import { Compass, FileText, Mail, Orbit, Shield } from 'lucide-react'
 import { AppBar } from '@/components/ui/app-bar'
 import { SettingsRow } from '@/components/ui/settings-row'
 import { ReferralCard } from '@/components/referral/referral-card'
@@ -27,7 +27,7 @@ export default function AboutPage() {
         onBack={() => goBackOrFallback('/profile')}
         title={t('about.title')}
       />
-      <div className="flex-1 min-h-0 overflow-y-auto">
+      <div className="flex-1 min-h-0 overflow-y-auto stagger-enter">
         <div
           className="flex flex-col items-center"
           style={{ gap: 10, padding: '24px 0 20px' }}
@@ -82,6 +82,12 @@ export default function AboutPage() {
           label={t('profile.support.title')}
           onClick={() => router.push('/support')}
           ariaLabel={t('profile.support.title')}
+        />
+        <SettingsRow
+          icon={FileText}
+          label={t('terms.title')}
+          onClick={() => router.push('/terms')}
+          ariaLabel={t('terms.title')}
         />
         <SettingsRow
           icon={Shield}

@@ -44,6 +44,7 @@ export function UpdatePrompt({
       style={{
         bottom: 0,
         maxWidth: 'var(--app-max-w)',
+        animation: 'slide-up-fade 0.28s var(--ease-out) both',
       }}
     >
       <div

@@ -21,6 +21,7 @@ import {
   Flame,
   MessageSquare,
   Palette,
+  Receipt,
   Settings,
   ShieldCheck,
   Sparkles,
@@ -271,7 +272,7 @@ function FeatureComparisonTable({
       </View>
       {UPGRADE_FEATURE_CATEGORIES.map((group) => (
         <View key={group.category}>
-          <Text style={[styles.comparisonEyebrow, styles.comparisonCategory, { color: tokens.fg4 }]}>
+          <Text style={[styles.comparisonCategory, { color: tokens.fg1 }]}>
             {t(`upgrade.categories.${group.category}`)}
           </Text>
           {group.features.map((row) => {
@@ -529,32 +530,39 @@ export default function UpgradeScreen() {
               key={invoice.id}
               style={[styles.invoiceRow, { borderBottomColor: tokens.hairline }]}
             >
+              <View style={styles.invoiceIconSlot}>
+                <Receipt size={22} strokeWidth={1.8} color={tokens.fg1} />
+              </View>
               <View style={styles.invoiceMeta}>
-                <Text style={[styles.invoiceDate, { color: tokens.fg1 }]}>
+                <Text style={[styles.invoiceAmount, { color: tokens.fg1 }]}>
+                  {formatPrice(invoice.amountPaid, invoice.currency)}
+                </Text>
+                <Text style={[styles.invoiceDate, { color: tokens.fg3 }]}>
                   {formatBillingDate(invoice.date, locale)}
                 </Text>
-                <Text
-                  style={[
-                    styles.invoiceStatus,
-                    { color: invoiceStatusColor(invoice.status, tokens) },
-                  ]}
-                >
-                  {statusLabel}
-                </Text>
               </View>
-              <Text style={[styles.invoiceAmount, { color: tokens.fg1 }]}>
-                {formatPrice(invoice.amountPaid, invoice.currency)}
+              <Text
+                style={[
+                  styles.invoiceStatus,
+                  { color: invoiceStatusColor(invoice.status, tokens) },
+                ]}
+              >
+                {statusLabel}
               </Text>
               {url ? (
                 <Pressable
                   onPress={() => {
                     Linking.openURL(url).catch(() => {})
                   }}
-                  style={styles.iconPress}
+                  style={({ pressed }) => [
+                    styles.iconWell,
+                    { backgroundColor: pressed ? tokens.bgElev2 : tokens.bgElev },
+                    pressed ? styles.pressedScale : null,
+                  ]}
                   accessibilityRole="button"
                   accessibilityLabel={t('upgrade.billing.invoices.download')}
                 >
-                  <Download size={18} strokeWidth={1.8} color={tokens.fg3} />
+                  <Download size={20} strokeWidth={1.8} color={tokens.fg3} />
                 </Pressable>
               ) : null}
             </View>
@@ -597,7 +605,14 @@ export default function UpgradeScreen() {
             onPress={() => {
               refetchBilling().catch(() => {})
             }}
-            style={styles.linkPress}
+            style={({ pressed }) => [
+              styles.actionChip,
+              {
+                backgroundColor: pressed ? tokens.bgElev2 : tokens.bgElev,
+                borderColor: tokens.hairline,
+              },
+              pressed ? styles.pressedScale : null,
+            ]}
           >
             <Text style={[styles.link, { color: tokens.fg1 }]}>
               {t('upgrade.billing.retry')}
@@ -764,7 +779,14 @@ export default function UpgradeScreen() {
               onPress={() => {
                 refetchPlans().catch(() => {})
               }}
-              style={styles.linkPress}
+              style={({ pressed }) => [
+                styles.actionChip,
+                {
+                  backgroundColor: pressed ? tokens.bgElev2 : tokens.bgElev,
+                  borderColor: tokens.hairline,
+                },
+                pressed ? styles.pressedScale : null,
+              ]}
             >
               <Text style={[styles.link, { color: tokens.fg1 }]}>
                 {t('upgrade.plans.retry')}
@@ -828,12 +850,19 @@ export default function UpgradeScreen() {
                 }}
                 disabled={playBilling.isRestoring}
                 accessibilityRole="button"
-                style={styles.linkPress}
+                style={({ pressed }) => [
+                  styles.actionChip,
+                  {
+                    backgroundColor: pressed ? tokens.bgElev2 : tokens.bgElev,
+                    borderColor: tokens.hairline,
+                  },
+                  pressed ? styles.pressedScale : null,
+                ]}
               >
                 {playBilling.isRestoring ? (
                   <ActivityIndicator size="small" color={tokens.fg3} />
                 ) : (
-                  <Text style={[styles.restoreLink, { color: tokens.fg4 }]}>
+                  <Text style={[styles.restoreLink, { color: tokens.fg3 }]}>
                     {t('upgrade.restorePurchase')}
                   </Text>
                 )}
@@ -1061,23 +1090,30 @@ const styles = StyleSheet.create({
     marginHorizontal: 4,
   },
   restoreLink: {
-    fontFamily: 'Rubik_400Regular',
+    fontFamily: 'Rubik_500Medium',
     fontSize: 13,
-    textDecorationLine: 'underline',
   },
-  linkPress: {
-    minHeight: 44,
+  actionChip: {
+    borderRadius: 999,
+    borderWidth: 1,
+    paddingVertical: 9,
+    paddingHorizontal: 16,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 8,
   },
-  iconPress: {
-    padding: 13,
+  pressedScale: {
+    transform: [{ scale: 0.96 }],
+  },
+  iconWell: {
+    width: 40,
+    height: 40,
+    borderRadius: 999,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   link: {
     fontFamily: 'Rubik_500Medium',
-    fontSize: 14,
-    textDecorationLine: 'underline',
+    fontSize: 13,
   },
   padBlock: {
     paddingHorizontal: 20,
@@ -1110,26 +1146,31 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingVertical: 12,
-    gap: 10,
+    paddingVertical: 14,
+    gap: 14,
     borderBottomWidth: StyleSheet.hairlineWidth,
+  },
+  invoiceIconSlot: {
+    width: 26,
+    alignItems: 'center',
+    flexShrink: 0,
   },
   invoiceMeta: { flex: 1 },
   invoiceDate: {
     fontFamily: 'Rubik_400Regular',
-    fontSize: 15,
+    fontSize: 14,
+    marginTop: 3,
   },
   invoiceStatus: {
     fontFamily: 'Roboto_400Regular',
     fontSize: 11,
     letterSpacing: 0.44,
     textTransform: 'uppercase',
-    marginTop: 2,
+    flexShrink: 0,
   },
   invoiceAmount: {
-    fontFamily: 'Roboto_500Medium',
-    fontSize: 14,
-    fontVariant: ['tabular-nums'],
+    fontFamily: 'Rubik_400Regular',
+    fontSize: 16,
   },
   comparisonPad: {
     paddingHorizontal: 20,
@@ -1148,7 +1189,10 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
   },
   comparisonCategory: {
-    paddingTop: 16,
+    fontFamily: 'Rubik_500Medium',
+    fontSize: 15,
+    letterSpacing: -0.15,
+    paddingTop: 18,
     paddingBottom: 4,
   },
   comparisonLabelCell: {

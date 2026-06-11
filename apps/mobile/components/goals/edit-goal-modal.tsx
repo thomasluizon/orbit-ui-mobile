@@ -356,7 +356,7 @@ function createStyles(
     },
     row: {
       flexDirection: 'row',
-      gap: 14,
+      gap: 12,
     },
     halfField: {
       flex: 1,
@@ -377,7 +377,6 @@ function createStyles(
     fieldError: {
       fontFamily: 'Rubik_400Regular',
       fontSize: 12,
-      fontStyle: 'italic',
       color: tokens.statusOverdue,
       marginTop: 6,
     },
@@ -399,7 +398,6 @@ function createStyles(
     warningText: {
       fontFamily: 'Rubik_400Regular',
       fontSize: 13,
-      fontStyle: 'italic',
       color: tokens.statusOverdue,
       marginTop: 8,
     },

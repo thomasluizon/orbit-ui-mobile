@@ -108,9 +108,15 @@ export function OnboardingCreateHabit({ onCreated }: Readonly<OnboardingCreateHa
             width: 56,
             height: 56,
             background: 'var(--primary)',
+            boxShadow: '0 8px 28px rgba(var(--primary-rgb), 0.45)',
+            animation: 'fresh-start-orb 0.5s var(--ease-out) both',
           }}
         >
-          <Check className="size-7" style={{ color: 'var(--fg-on-primary)' }} strokeWidth={2.4} />
+          <Check
+            className="animate-check-pop size-7"
+            style={{ color: 'var(--fg-on-primary)', animationDelay: '300ms' }}
+            strokeWidth={2.4}
+          />
         </div>
         <div
           className="text-center"
@@ -140,7 +146,10 @@ export function OnboardingCreateHabit({ onCreated }: Readonly<OnboardingCreateHa
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 20, padding: '16px 0' }}>
+    <div
+      className="stagger-enter"
+      style={{ display: 'flex', flexDirection: 'column', gap: 20, padding: '16px 0' }}
+    >
       <div
         className="text-center"
         style={{

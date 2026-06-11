@@ -12,6 +12,7 @@ import { useGoals } from "@/hooks/use-goals";
 import { GoalList } from "./goal-list";
 import { AnchoredMenu } from "@/components/ui/anchored-menu";
 import { EmptyState } from "@/components/ui/empty-state";
+import { SectionLabel } from "@/components/ui/section-label";
 import type { MenuAnchorRect } from "@/lib/anchored-menu";
 import { createTokensV2 } from "@/lib/theme";
 import { useAppTheme } from "@/lib/use-app-theme";
@@ -88,27 +89,36 @@ export function GoalsView() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.toolbar}>
-        <View ref={filterMenuButtonRef} collapsable={false}>
-          <Pressable
-            onPress={handleToggleFilterMenu}
-            accessibilityRole="button"
-            accessibilityLabel={t("goals.filters.statusFilter")}
-            accessibilityState={{ selected: activeFilter != null }}
-            hitSlop={4}
-            style={[
-              styles.iconBtn,
-              activeFilter != null && styles.iconBtnActive,
-            ]}
-          >
-            <Filter
-              size={18}
-              color={activeFilter != null ? tokens.fg1 : tokens.fg3}
-              strokeWidth={1.8}
-            />
-          </Pressable>
-        </View>
-      </View>
+      <SectionLabel
+        top={16}
+        bottom={12}
+        trailing={
+          <View style={styles.headerActions}>
+            <View ref={filterMenuButtonRef} collapsable={false}>
+              <Pressable
+                onPress={handleToggleFilterMenu}
+                accessibilityRole="button"
+                accessibilityLabel={t("goals.filters.statusFilter")}
+                accessibilityState={{ selected: activeFilter != null }}
+                hitSlop={4}
+                style={({ pressed }) => [
+                  styles.iconBtn,
+                  activeFilter != null && styles.iconBtnActive,
+                  pressed && styles.iconBtnPressed,
+                ]}
+              >
+                <Filter
+                  size={18}
+                  color={activeFilter != null ? tokens.fg1 : tokens.fg3}
+                  strokeWidth={1.8}
+                />
+              </Pressable>
+            </View>
+          </View>
+        }
+      >
+        {t("goals.tab")}
+      </SectionLabel>
 
       {!isFetched ? (
         <View style={styles.skeletonContainer}>
@@ -172,13 +182,12 @@ export function GoalsView() {
 function createStyles(tokens: AppTokens) {
   return StyleSheet.create({
     container: {
-      paddingTop: 8,
+      paddingTop: 0,
     },
-    toolbar: {
+    headerActions: {
       flexDirection: "row",
-      justifyContent: "flex-end",
-      paddingHorizontal: 20,
-      paddingBottom: 12,
+      alignItems: "center",
+      gap: 8,
     },
     iconBtn: {
       width: 40,
@@ -189,8 +198,12 @@ function createStyles(tokens: AppTokens) {
     },
     iconBtnActive: {
       backgroundColor: tokens.bgElev,
-      borderWidth: 1,
+      borderWidth: 1.5,
       borderColor: tokens.hairlineStrong,
+    },
+    iconBtnPressed: {
+      backgroundColor: tokens.bgElev,
+      transform: [{ scale: 0.92 }],
     },
     menuItem: {
       flexDirection: "row",

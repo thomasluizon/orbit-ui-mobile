@@ -97,13 +97,19 @@ function QuietAction({
   color,
   onPress,
 }: Readonly<{ label: string; color: string; onPress: () => void }>) {
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = createTokensV2(currentScheme, currentTheme)
   return (
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={label}
       style={({ pressed }) => [
-        quietActionStyles.press,
+        quietActionStyles.chip,
+        {
+          backgroundColor: pressed ? tokens.bgElev2 : tokens.bgElev,
+          borderColor: tokens.hairline,
+        },
         pressed && quietActionStyles.pressed,
       ]}
     >
@@ -113,13 +119,16 @@ function QuietAction({
 }
 
 const quietActionStyles = StyleSheet.create({
-  press: {
-    minHeight: 44,
+  chip: {
+    borderRadius: 999,
+    borderWidth: 1,
+    paddingVertical: 9,
+    paddingHorizontal: 16,
+    alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 6,
   },
   pressed: {
-    opacity: 0.7,
+    transform: [{ scale: 0.96 }],
   },
   label: {
     fontFamily: 'Rubik_500Medium',
@@ -156,6 +165,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
     },
     actions: {
       flexDirection: 'row',
+      flexWrap: 'wrap',
       alignItems: 'center',
       justifyContent: 'flex-end',
       gap: 10,

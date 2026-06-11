@@ -61,7 +61,7 @@ export function ControlsMenu({
       onKeyDown={(e) => { if (e.key === 'Escape') onClose() }}
     >
       <MenuRow
-        icon={isSelectMode ? <X size={14} /> : <CheckCircle size={14} />}
+        icon={isSelectMode ? <X size={16} strokeWidth={1.8} /> : <CheckCircle size={16} strokeWidth={1.8} />}
         label={isSelectMode ? t('common.cancel') : t('common.select')}
         onClick={() => {
           onToggleSelect()
@@ -69,7 +69,7 @@ export function ControlsMenu({
         }}
       />
       <MenuRow
-        icon={allCollapsed ? <ChevronsUpDown size={14} /> : <ChevronsDownUp size={14} />}
+        icon={allCollapsed ? <ChevronsUpDown size={16} strokeWidth={1.8} /> : <ChevronsDownUp size={16} strokeWidth={1.8} />}
         label={allCollapsed ? t('habits.expandAll') : t('habits.collapseAll')}
         onClick={() => {
           onToggleCollapse()
@@ -77,7 +77,7 @@ export function ControlsMenu({
         }}
       />
       <MenuRow
-        icon={<RefreshCw size={14} className={isFetching ? 'animate-spin' : ''} />}
+        icon={<RefreshCw size={16} strokeWidth={1.8} className={isFetching ? 'animate-spin' : ''} />}
         label={t('habits.refresh')}
         disabled={isFetching}
         onClick={() => {
@@ -86,7 +86,7 @@ export function ControlsMenu({
         }}
       />
       <MenuRow
-        icon={showCompleted ? <Check size={14} /> : <Eye size={14} />}
+        icon={showCompleted ? <Check size={16} strokeWidth={1.8} /> : <Eye size={16} strokeWidth={1.8} />}
         label={t('habits.showCompleted')}
         onClick={() => {
           onToggleCompleted()

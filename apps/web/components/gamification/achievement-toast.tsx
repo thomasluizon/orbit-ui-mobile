@@ -113,10 +113,10 @@ export function AchievementToast() {
       <div
         className="flex items-start"
         style={{
-          padding: '12px 14px',
+          padding: '14px 16px',
           background: 'var(--bg-sheet)',
-          borderRadius: 16,
-          boxShadow: 'var(--shadow-2), inset 0 0 0 1px var(--hairline)',
+          borderRadius: 18,
+          boxShadow: '0 14px 36px rgba(0, 0, 0, 0.5), inset 0 0 0 1px var(--hairline)',
           gap: 12,
         }}
       >

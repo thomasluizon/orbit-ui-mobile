@@ -35,7 +35,10 @@ export function OnboardingCompleteHabit({
   }, [habitId, isCompleted, logHabit, onCompleted])
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 22, padding: '16px 0' }}>
+    <div
+      className="stagger-enter"
+      style={{ display: 'flex', flexDirection: 'column', gap: 22, padding: '16px 0' }}
+    >
       <div
         className="text-center"
         style={{

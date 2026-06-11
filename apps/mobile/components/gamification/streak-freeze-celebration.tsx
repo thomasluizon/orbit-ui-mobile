@@ -3,6 +3,7 @@ import {
   useImperativeHandle,
   useMemo,
   useRef,
+  useState,
   forwardRef,
   useCallback,
 } from 'react'
@@ -21,6 +22,7 @@ import { useDateFormat } from '@/hooks/use-date-format'
 import { useProfile } from '@/hooks/use-profile'
 import { GradientTop } from '@/components/ui/gradient-top'
 import { PillButton } from '@/components/ui/pill-button'
+import { useCelebrationEntrance } from './celebration-motion'
 import { RingMotif } from './ring-motif'
 
 export interface StreakFreezeCelebrationHandle {
@@ -47,6 +49,9 @@ export const StreakFreezeCelebration = forwardRef<StreakFreezeCelebrationHandle>
     const overlayOpacity = useRef(new Animated.Value(0)).current
     const dismissTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
     const isShowingRef = useRef(false)
+    const [celebrationActive, setCelebrationActive] = useState(false)
+    const { orbStyle, titleStyle, subtitleStyle, footerStyle } =
+      useCelebrationEntrance(celebrationActive)
 
     const dismiss = useCallback(() => {
       if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current)
@@ -56,12 +61,14 @@ export const StreakFreezeCelebration = forwardRef<StreakFreezeCelebrationHandle>
         useNativeDriver: true,
       }).start(() => {
         isShowingRef.current = false
+        setCelebrationActive(false)
       })
     }, [overlayOpacity])
 
     function show() {
       if (isShowingRef.current) return
       isShowingRef.current = true
+      setCelebrationActive(true)
 
       overlayOpacity.setValue(0)
       Animated.timing(overlayOpacity, {
@@ -88,7 +95,7 @@ export const StreakFreezeCelebration = forwardRef<StreakFreezeCelebrationHandle>
     return (
       <Animated.View
         style={[styles.overlay, { opacity: overlayOpacity }]}
-        pointerEvents={isShowingRef.current ? 'auto' : 'none'}
+        pointerEvents={celebrationActive ? 'auto' : 'none'}
         accessibilityRole="alert"
         accessibilityLiveRegion="polite"
       >
@@ -108,31 +115,34 @@ export const StreakFreezeCelebration = forwardRef<StreakFreezeCelebrationHandle>
               eyebrow={t('streakDisplay.freeze.eyebrow', { date: today })}
               eyebrowColor={tokens.statusFrozen}
               anchor={
-                <View
+                <Animated.View
                   style={[
                     styles.heroDisc,
                     {
                       backgroundColor: `${tokens.statusFrozen}29`,
                       shadowColor: tokens.statusFrozen,
                     },
+                    orbStyle,
                   ]}
                 >
                   <Text style={styles.heroEmoji}>❄️</Text>
-                </View>
+                </Animated.View>
               }
             />
-            <Text style={[styles.streakNumber, { color: tokens.fg1 }]}>
+            <Animated.Text style={[styles.streakNumber, { color: tokens.fg1 }, titleStyle]}>
               {streak}
-            </Text>
-            <Text style={[styles.subtitle, { color: tokens.fg2 }]}>
+            </Animated.Text>
+            <Animated.Text style={[styles.subtitle, { color: tokens.fg2 }, subtitleStyle]}>
               {t('streakDisplay.freeze.celebrationSubtitle')}
-            </Text>
+            </Animated.Text>
           </View>
-          <View style={[styles.footer, { paddingBottom: insets.bottom + 24 }]}>
+          <Animated.View
+            style={[styles.footer, { paddingBottom: insets.bottom + 24 }, footerStyle]}
+          >
             <PillButton fullWidth onPress={dismiss}>
               {t('common.continue')}
             </PillButton>
-          </View>
+          </Animated.View>
         </Pressable>
       </Animated.View>
     )

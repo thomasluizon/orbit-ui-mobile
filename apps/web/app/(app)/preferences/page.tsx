@@ -4,7 +4,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useMutation } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
-import { Calendar, Languages, Moon, Palette } from 'lucide-react'
+import { Calendar, Check, Languages, Moon, Palette } from 'lucide-react'
 import { colorSchemeOptions, type ColorScheme } from '@orbit/shared/theme'
 import {
   buildWeekStartOptions,
@@ -28,6 +28,7 @@ import { SectionLabel } from '@/components/ui/section-label'
 import { SettingsDescription } from '@/components/ui/settings-description'
 import { SettingsRow, Switch } from '@/components/ui/settings-row'
 import { RadioRow } from '@/components/ui/select-check'
+import { PillButton } from '@/components/ui/pill-button'
 import { ProBadge } from '@/components/ui/pro-badge'
 import {
   updateWeekStartDay,
@@ -134,6 +135,7 @@ export default function PreferencesPage() {
 
   function handleSchemeChange(scheme: ColorScheme) {
     if (!profile?.hasProAccess && scheme !== 'purple') {
+      setActivePicker(null)
       router.push('/upgrade')
       return
     }
@@ -197,7 +199,7 @@ export default function PreferencesPage() {
         onBack={() => goBackOrFallback('/profile')}
         title={t('preferences.title')}
       />
-      <div className="flex-1 min-h-0 overflow-y-auto">
+      <div className="flex-1 min-h-0 overflow-y-auto stagger-enter">
         <SectionLabel bottom={4}>{t('preferences.general')}</SectionLabel>
         <SettingsRow
           icon={Languages}
@@ -290,6 +292,18 @@ export default function PreferencesPage() {
           if (!open) closePicker()
         }}
         title={activePicker ? pickerTitles[activePicker] : undefined}
+        footer={
+          activePicker === 'scheme' ? (
+            <PillButton
+              variant="white"
+              fullWidth
+              onClick={closePicker}
+              leading={<Check size={18} strokeWidth={2} aria-hidden="true" />}
+            >
+              {t('common.save')}
+            </PillButton>
+          ) : undefined
+        }
       >
         {activePicker === 'language' &&
           LANGUAGE_OPTIONS.map((lang, index) => (
@@ -328,7 +342,6 @@ export default function PreferencesPage() {
               dot={option.color}
               divider={index < colorSchemeOptions.length - 1}
               onClick={() => {
-                closePicker()
                 handleSchemeChange(option.value)
               }}
             />

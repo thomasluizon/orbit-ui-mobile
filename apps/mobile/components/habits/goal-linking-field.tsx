@@ -119,12 +119,12 @@ function createStyles(tokens: AppTokens) {
       borderWidth: 1,
     },
     chipDefault: {
-      backgroundColor: tokens.bgField,
-      borderColor: 'transparent',
+      backgroundColor: tokens.bgElev,
+      borderColor: tokens.hairline,
     },
     chipSelected: {
-      backgroundColor: tintFromPrimary(tokens, 0.12),
-      borderColor: tokens.primary,
+      backgroundColor: tokens.selectionBg,
+      borderColor: tintFromPrimary(tokens, 0.45),
     },
     chipDisabled: {
       opacity: 0.35,
@@ -134,7 +134,7 @@ function createStyles(tokens: AppTokens) {
       fontSize: 13,
     },
     chipTextDefault: {
-      color: tokens.fg3,
+      color: tokens.fg2,
     },
     chipTextSelected: {
       color: tokens.primary,
@@ -153,7 +153,6 @@ function createStyles(tokens: AppTokens) {
     emptyText: {
       fontFamily: 'Rubik_400Regular',
       fontSize: 13,
-      fontStyle: 'italic',
       color: tokens.fg3,
     },
   })

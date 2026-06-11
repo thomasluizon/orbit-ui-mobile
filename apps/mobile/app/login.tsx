@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
+  Animated,
   View,
   Text,
   Pressable,
@@ -22,7 +23,8 @@ import {
   resolveAuthLoginErrorKey,
 } from '@orbit/shared/utils'
 import { useAppToast } from '@/hooks/use-app-toast'
-import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
+import { createTokensV2, easings, tintFromPrimary, type AppTokensV2 } from '@/lib/theme'
+import { toAnimatedEasing, usePrefersReducedMotion } from '@/lib/motion'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useAuthStore } from '@/stores/auth-store'
 import { apiClient } from '@/lib/api-client'
@@ -112,6 +114,45 @@ export default function LoginScreen() {
   const [keyboardVisible, setKeyboardVisible] = useState(false)
   const isCodeStep = step === 'code'
   const isAndroidKeyboardOpen = Platform.OS === 'android' && keyboardVisible
+  const prefersReducedMotion = usePrefersReducedMotion()
+  const stepEntrance = useMemo(() => new Animated.Value(1), [])
+  const shakeOffset = useMemo(() => new Animated.Value(0), [])
+
+  useEffect(() => {
+    if (prefersReducedMotion) {
+      stepEntrance.setValue(1)
+      return
+    }
+    stepEntrance.setValue(0)
+    const animation = Animated.timing(stepEntrance, {
+      toValue: 1,
+      duration: 280,
+      easing: toAnimatedEasing(easings.out),
+      useNativeDriver: true,
+    })
+    animation.start()
+    return () => animation.stop()
+  }, [prefersReducedMotion, step, stepEntrance])
+
+  useEffect(() => {
+    if (!errorMessage || step !== 'code' || prefersReducedMotion) return
+    shakeOffset.setValue(0)
+    const shakeFrame = (toValue: number) =>
+      Animated.timing(shakeOffset, {
+        toValue,
+        duration: 56,
+        useNativeDriver: true,
+      })
+    const animation = Animated.sequence([
+      shakeFrame(-4),
+      shakeFrame(4),
+      shakeFrame(-4),
+      shakeFrame(4),
+      shakeFrame(0),
+    ])
+    animation.start()
+    return () => animation.stop()
+  }, [errorMessage, prefersReducedMotion, shakeOffset, step])
 
   const {
     codeDigits,
@@ -386,10 +427,26 @@ export default function LoginScreen() {
           </View>
         )}
 
-        <View style={styles.formColumn}>
+        <Animated.View
+          style={[
+            styles.formColumn,
+            {
+              opacity: stepEntrance,
+              transform: [
+                {
+                  translateX: stepEntrance.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [isCodeStep ? 24 : -24, 0],
+                  }),
+                },
+              ],
+            },
+          ]}
+        >
           <View style={styles.brandingHeader}>
-            <AppLogo size={64} />
-            <Text style={styles.wordmark}>Orbit</Text>
+            <View style={styles.logoTile}>
+              <AppLogo size={40} />
+            </View>
           </View>
 
           <View style={styles.titleBlock}>
@@ -456,14 +513,14 @@ export default function LoginScreen() {
               </View>
 
               <PillButton
-                variant="white"
+                variant="ghost"
                 fullWidth
                 onPress={signInWithGoogle}
                 disabled={isGoogleLoading || !isOnline}
                 busy={isGoogleLoading}
                 leading={
                   isGoogleLoading ? (
-                    <Spinner size={20} color={tokens.bg} />
+                    <Spinner size={20} color={tokens.fg1} />
                   ) : (
                     <GoogleIcon />
                   )
@@ -491,15 +548,17 @@ export default function LoginScreen() {
                 <Text style={styles.codeSentEmail}>{email}</Text>.
               </Text>
 
-              <CodeInput
-                digits={codeDigits}
-                inputRefs={codeInputRefs}
-                onChange={onCodeInput}
-                onKeyPress={onCodeKeyPress}
-                ariaLabelForIndex={(n) => t('auth.codeDigit', { n: n + 1 })}
-                disabled={isSubmitting}
-                autoFocusFirst
-              />
+              <Animated.View style={{ transform: [{ translateX: shakeOffset }] }}>
+                <CodeInput
+                  digits={codeDigits}
+                  inputRefs={codeInputRefs}
+                  onChange={onCodeInput}
+                  onKeyPress={onCodeKeyPress}
+                  ariaLabelForIndex={(n) => t('auth.codeDigit', { n: n + 1 })}
+                  disabled={isSubmitting}
+                  autoFocusFirst
+                />
+              </Animated.View>
 
               <PillButton
                 fullWidth
@@ -545,7 +604,7 @@ export default function LoginScreen() {
               </View>
             </>
           )}
-        </View>
+        </Animated.View>
       </KeyboardAwareScrollView>
     </View>
   )
@@ -607,12 +666,20 @@ function createStyles(tokens: AppTokensV2) {
       gap: 14,
       paddingBottom: 4,
     },
-    wordmark: {
-      fontFamily: 'Rubik_500Medium',
-      fontSize: 28,
-      color: tokens.fg1,
-      letterSpacing: -0.28,
-      lineHeight: 30,
+    logoTile: {
+      width: 64,
+      height: 64,
+      borderRadius: 18,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: tintFromPrimary(tokens, 0.16),
+      borderWidth: 1,
+      borderColor: tintFromPrimary(tokens, 0.28),
+      shadowColor: tokens.primary,
+      shadowOffset: { width: 0, height: 10 },
+      shadowOpacity: 0.45,
+      shadowRadius: 30,
+      elevation: 10,
     },
 
     titleBlock: {
@@ -621,9 +688,9 @@ function createStyles(tokens: AppTokensV2) {
     },
     stepTitle: {
       fontFamily: 'Rubik_500Medium',
-      fontSize: 24,
-      lineHeight: 31,
-      letterSpacing: -0.24,
+      fontSize: 26,
+      lineHeight: 34,
+      letterSpacing: -0.26,
       color: tokens.fg1,
       textAlign: 'center',
     },
@@ -663,10 +730,9 @@ function createStyles(tokens: AppTokensV2) {
       backgroundColor: tokens.hairline,
     },
     dividerText: {
-      fontFamily: 'Roboto_400Regular',
-      fontSize: 12,
+      fontFamily: 'Rubik_400Regular',
+      fontSize: 13,
       color: tokens.fg4,
-      letterSpacing: 0.24,
     },
 
     legal: {
@@ -684,9 +750,9 @@ function createStyles(tokens: AppTokensV2) {
 
     codeSentText: {
       fontFamily: 'Rubik_400Regular',
-      fontSize: 14,
-      lineHeight: 22,
-      color: tokens.fg3,
+      fontSize: 15,
+      lineHeight: 23,
+      color: tokens.fg2,
       textAlign: 'center',
     },
     codeSentEmail: {
@@ -714,10 +780,9 @@ function createStyles(tokens: AppTokensV2) {
       color: tokens.fg2,
     },
     resendCountdownText: {
-      fontFamily: 'Roboto_400Regular',
-      fontSize: 12,
+      fontFamily: 'Rubik_400Regular',
+      fontSize: 14,
       color: tokens.fg3,
-      letterSpacing: 0.24,
       fontVariant: ['tabular-nums'],
     },
     quietLink: {

@@ -13,6 +13,7 @@ export interface HabitDetailMetrics {
 interface HabitDetailStatsRowProps {
   metrics: HabitDetailMetrics | null
   loading: boolean
+  isBadHabit?: boolean
   t: TranslationFn
   tokens: ReturnType<typeof createTokensV2>
 }
@@ -21,6 +22,7 @@ interface HabitDetailStatsRowProps {
 export function HabitDetailStatsRow({
   metrics,
   loading,
+  isBadHabit = false,
   t,
   tokens,
 }: Readonly<HabitDetailStatsRowProps>) {
@@ -28,9 +30,13 @@ export function HabitDetailStatsRow({
     return (
       <View style={rowStyles.tilesRow}>
         <StatTile
-          emoji="🔥"
+          emoji={isBadHabit ? '🛡️' : '🔥'}
           value={String(metrics.currentStreak)}
-          label={t('habits.detail.currentStreak')}
+          label={
+            isBadHabit
+              ? t('habits.detail.daysFree')
+              : t('habits.detail.currentStreak')
+          }
         />
         <StatTile
           emoji="🏆"
@@ -97,7 +103,6 @@ const rowStyles = StyleSheet.create({
     textAlign: 'center',
     fontFamily: 'Rubik_400Regular',
     fontSize: 13,
-    fontStyle: 'italic',
     borderBottomWidth: StyleSheet.hairlineWidth,
   },
 })

@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useState } from 'react'
-import { X } from 'lucide-react'
+import { Plus, X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import type { ChecklistItem } from '@orbit/shared/types/habit'
 import { applyChecklistTemplate } from '@orbit/shared/utils'
@@ -69,10 +69,10 @@ export function ChecklistTemplates({ items, onLoad }: Readonly<ChecklistTemplate
         {items.length > 0 && !showSave && (
           <button
             type="button"
-            className="text-[var(--primary)] hover:text-[var(--primary-pressed)] transition-colors duration-150"
-            style={{ fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 500 }}
+            className="chip"
             onClick={() => setShowSave(true)}
           >
+            <Plus size={14} strokeWidth={2} aria-hidden="true" />
             {t('habits.form.saveAsTemplate')}
           </button>
         )}
@@ -96,12 +96,12 @@ export function ChecklistTemplates({ items, onLoad }: Readonly<ChecklistTemplate
               {templates.map((tmpl) => (
                 <span
                   key={tmpl.id}
-                  className="inline-flex items-center rounded-full bg-[var(--bg-field)] shadow-[inset_0_0_0_1px_var(--hairline)]"
+                  className="inline-flex items-center rounded-full bg-[var(--bg-elev)] shadow-[inset_0_0_0_1px_var(--hairline)] transition-[background-color] duration-[var(--dur-fast)] hover:bg-[var(--bg-elev-2)]"
                   style={{ fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 500 }}
                 >
                   <button
                     type="button"
-                    className="pl-3 pr-1.5 py-1.5 text-[var(--fg-2)] hover:text-[var(--fg-1)] transition-colors duration-150"
+                    className="pl-3.5 pr-1.5 py-2 text-[var(--fg-2)] hover:text-[var(--fg-1)] transition-colors duration-150"
                     onClick={() => handleLoad(tmpl.id)}
                     aria-label={`${t('habits.form.templates')}: ${tmpl.name}`}
                   >
@@ -110,7 +110,7 @@ export function ChecklistTemplates({ items, onLoad }: Readonly<ChecklistTemplate
                   <button
                     type="button"
                     aria-label={`${t('common.delete')}: ${tmpl.name}`}
-                    className="pl-0.5 pr-2.5 py-1.5 text-[var(--fg-3)] hover:text-[var(--status-bad)] transition-colors disabled:opacity-50"
+                    className="pl-0.5 pr-3 py-2 text-[var(--fg-3)] hover:text-[var(--status-bad)] transition-colors disabled:opacity-50"
                     onClick={() => handleDelete(tmpl.id)}
                     disabled={deleteTemplate.isPending && deleteTemplate.variables === tmpl.id}
                   >

@@ -85,7 +85,7 @@ export function MessageBubble({
 
   return (
     <div
-      className={`flex ${isUser ? 'justify-end' : 'justify-start'}`}
+      className={`animate-msg-in flex ${isUser ? 'justify-end' : 'justify-start'}`}
       style={{ gap: 10, padding: '0 16px', marginBottom: 16 }}
       aria-label={isUser ? t('chat.senderYou') : t('chat.senderOrbit')}
     >
@@ -158,16 +158,7 @@ export function MessageBubble({
                   key={surface.id}
                   type="button"
                   onClick={() => router.push(surface.webRoute)}
-                  className="inline-flex items-center cursor-pointer rounded-full border-0 bg-[var(--bg-elev)] text-[var(--fg-1)] transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev-pressed)] active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]/60"
-                  style={{
-                    gap: 6,
-                    minHeight: 36,
-                    padding: '0 14px',
-                    boxShadow: 'inset 0 0 0 1px var(--hairline)',
-                    fontFamily: 'var(--font-sans)',
-                    fontSize: 13,
-                    fontWeight: 500,
-                  }}
+                  className="chip focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]/60"
                 >
                   {t(surface.labelKey)}
                   <ArrowUpRight size={16} strokeWidth={1.8} color="var(--fg-3)" />

@@ -81,7 +81,10 @@ export function TrialBanner() {
         onLongPress={() => setDismissed(true)}
         accessibilityRole="button"
         accessibilityLabel={t('trial.banner.upgrade')}
-        style={styles.upgradePress}
+        style={({ pressed }) => [
+          styles.upgradePress,
+          pressed ? styles.upgradePressed : null,
+        ]}
       >
         <Text
           style={[
@@ -132,6 +135,10 @@ function createStyles(tokens: AppTokensV2) {
       gap: 2,
       paddingVertical: 8,
       paddingHorizontal: 4,
+    },
+    upgradePressed: {
+      opacity: 0.7,
+      transform: [{ scale: 0.97 }],
     },
     upgradeText: {
       fontFamily: 'Rubik_500Medium',

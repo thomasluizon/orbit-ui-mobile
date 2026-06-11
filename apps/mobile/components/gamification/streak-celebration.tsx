@@ -14,6 +14,7 @@ import { useAppTheme } from '@/lib/use-app-theme'
 import { useUIStore } from '@/stores/ui-store'
 import { GradientTop } from '@/components/ui/gradient-top'
 import { PillButton } from '@/components/ui/pill-button'
+import { useCelebrationEntrance } from './celebration-motion'
 import { RingMotif } from './ring-motif'
 
 const MILESTONE_VALUES = [7, 14, 30, 100, 365] as const
@@ -33,6 +34,8 @@ export function StreakCelebration() {
 
   const overlayOpacity = useMemo(() => new Animated.Value(0), [])
   const dismissTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
+  const { orbStyle, titleStyle, subtitleStyle, footerStyle } =
+    useCelebrationEntrance(Boolean(streakCelebration))
 
   const isMilestone = useMemo(
     () => (MILESTONE_VALUES as readonly number[]).includes(streakCount),
@@ -98,34 +101,37 @@ export function StreakCelebration() {
             ringSize={280}
             eyebrow={t('streakDisplay.celebration.eyebrow')}
             anchor={
-              <View
+              <Animated.View
                 style={[
                   styles.heroDisc,
                   {
                     backgroundColor: tintFromPrimary(tokens, 0.16),
                     shadowColor: tokens.primary,
                   },
+                  orbStyle,
                 ]}
               >
                 <Text style={styles.heroEmoji}>🔥</Text>
-              </View>
+              </Animated.View>
             }
           />
-          <Text style={[styles.streakNumber, { color: tokens.fg1 }]}>
+          <Animated.Text style={[styles.streakNumber, { color: tokens.fg1 }, titleStyle]}>
             {streakCount}
-          </Text>
-          <Text style={[styles.subtitle, { color: tokens.fg2 }]}>
+          </Animated.Text>
+          <Animated.Text style={[styles.subtitle, { color: tokens.fg2 }, subtitleStyle]}>
             {subtitle}
             {isMilestone ? (
               <Text style={{ color: tokens.fg3 }}>{`  ·  ${encouragement}`}</Text>
             ) : null}
-          </Text>
+          </Animated.Text>
         </View>
-        <View style={[styles.footer, { paddingBottom: insets.bottom + 24 }]}>
+        <Animated.View
+          style={[styles.footer, { paddingBottom: insets.bottom + 24 }, footerStyle]}
+        >
           <PillButton fullWidth onPress={dismiss}>
             {t('common.continue')}
           </PillButton>
-        </View>
+        </Animated.View>
       </Pressable>
     </Animated.View>
   )

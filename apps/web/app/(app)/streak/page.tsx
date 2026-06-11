@@ -10,7 +10,8 @@ import { useStreakFreeze } from '@/hooks/use-gamification'
 import { useDateFormat } from '@/hooks/use-date-format'
 import { StreakFreezeCelebration, type StreakFreezeCelebrationHandle } from '@/components/gamification/streak-freeze-celebration'
 import { AppBar } from '@/components/ui/app-bar'
-import { FreezeProgressCard, StreakTimelineCard } from './_components/streak-sections'
+import { SatelliteGlyph } from '@/components/ui/satellite-glyph'
+import { FreezeProgressCard, StreakStatsRow, StreakTimelineCard } from './_components/streak-sections'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import './streak.css'
 
@@ -97,12 +98,12 @@ export default function StreakPage() {
 
       {isLoading ? (
         <div className="flex-1 px-5 py-8 space-y-4">
-          <div className="h-32 bg-[var(--bg-card)] rounded-[18px] animate-pulse" />
-          <div className="h-20 bg-[var(--bg-card)] rounded-[18px] animate-pulse" />
+          <div className="h-48 bg-[var(--bg-card)] rounded-[18px] animate-pulse" />
+          <div className="h-28 bg-[var(--bg-card)] rounded-[18px] animate-pulse" />
           <div className="h-40 bg-[var(--bg-card)] rounded-[18px] animate-pulse" />
         </div>
       ) : (
-        <div className="flex-1 min-h-0 overflow-y-auto">
+        <div className="stagger-enter flex-1 min-h-0 overflow-y-auto">
           {isFrozenToday && (
             <div className="px-5" style={{ paddingTop: 16 }}>
               <div
@@ -136,7 +137,7 @@ export default function StreakPage() {
 
           <div
             className="streak-hero flex flex-col items-center text-center"
-            style={{ padding: '28px 20px 22px', gap: 10 }}
+            style={{ padding: '28px 20px 24px', gap: 14 }}
           >
             <span
               style={{
@@ -152,23 +153,44 @@ export default function StreakPage() {
                 ? t('streakDisplay.freeze.activeToday')
                 : t('streakDisplay.detail.currentStreak')}
             </span>
-            <span className="flex items-center justify-center" style={{ gap: 12 }}>
-              <span style={{ fontSize: 36, lineHeight: 1 }} aria-hidden="true">
-                {streak === 0 ? '🌑' : '🔥'}
-              </span>
+            <span
+              aria-hidden="true"
+              className="flex items-center justify-center rounded-full"
+              style={{
+                width: 64,
+                height: 64,
+                background: 'color-mix(in srgb, var(--fg-1) 6%, transparent)',
+              }}
+            >
+              {streak === 0 ? (
+                <SatelliteGlyph size={56} />
+              ) : (
+                <span style={{ fontSize: 30, lineHeight: 1 }}>🔥</span>
+              )}
+            </span>
+            <span className="flex items-baseline justify-center" style={{ gap: 10 }}>
               <span
+                className="streak-hero__count"
                 style={{
                   fontFamily: 'var(--font-display)',
-                  fontSize: 44,
+                  fontSize: 64,
                   fontWeight: 700,
                   letterSpacing: '-0.02em',
                   lineHeight: 1,
                   color: 'var(--fg-1)',
+                  fontVariantNumeric: 'tabular-nums',
                 }}
               >
-                <span className="streak-hero__count" style={{ fontVariantNumeric: 'tabular-nums' }}>
-                  {streak}
-                </span>{' '}
+                {streak}
+              </span>
+              <span
+                style={{
+                  fontFamily: 'var(--font-sans)',
+                  fontSize: 20,
+                  fontWeight: 500,
+                  color: 'var(--fg-2)',
+                }}
+              >
                 {plural(t('streakDisplay.detail.daysUnit', { count: streak }), streak)}
               </span>
             </span>
@@ -176,8 +198,8 @@ export default function StreakPage() {
               <span
                 style={{
                   fontFamily: 'var(--font-sans)',
-                  fontSize: 15,
-                  color: 'var(--fg-2)',
+                  fontSize: 14,
+                  color: 'var(--fg-3)',
                 }}
               >
                 {encouragement}
@@ -185,13 +207,18 @@ export default function StreakPage() {
             )}
           </div>
 
+          <StreakStatsRow
+            t={t}
+            streak={streak}
+            longestStreak={streakInfo?.longestStreak ?? 0}
+          />
+
           <StreakTimelineCard t={t} weekDays={weekDays} />
 
           <FreezeProgressCard
             t={t}
             isPro={isPro}
             streak={streak}
-            longestStreak={streakInfo?.longestStreak ?? 0}
             streakFreezesAccumulated={streakFreezesAccumulated}
             maxStreakFreezesAccumulated={maxStreakFreezesAccumulated}
             freezesUsedThisMonth={freezesUsedThisMonth}

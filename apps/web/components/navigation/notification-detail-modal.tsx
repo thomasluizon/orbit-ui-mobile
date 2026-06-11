@@ -49,7 +49,7 @@ export function NotificationDetailModal({
       onOpenChange={onOpenChange}
       title={notification.title}
       footer={
-        <div className="flex items-center justify-end" style={{ gap: 16 }}>
+        <div className="flex flex-wrap items-center justify-end" style={{ gap: 10 }}>
           {canView && (
             <QuietLink onClick={handleView}>{t('notifications.view')}</QuietLink>
           )}
@@ -64,7 +64,7 @@ export function NotificationDetailModal({
         </div>
       }
     >
-      <div className="-mx-6">
+      <div className="overlay-bleed">
         <div style={{ padding: '10px 20px', borderBottom: '1px solid var(--hairline)' }}>
           <p
             style={{
@@ -109,15 +109,8 @@ function QuietLink({ children, onClick, destructive = false }: Readonly<QuietLin
     <button
       type="button"
       onClick={onClick}
-      className="appearance-none border-0 bg-transparent cursor-pointer transition-opacity duration-150 hover:opacity-80"
-      style={{
-        fontFamily: 'var(--font-sans)',
-        fontSize: 13,
-        fontWeight: 500,
-        color: destructive ? 'var(--status-bad)' : 'var(--fg-2)',
-        minHeight: 44,
-        padding: '0 6px',
-      }}
+      className="chip"
+      style={destructive ? { color: 'var(--status-bad)' } : undefined}
     >
       {children}
     </button>

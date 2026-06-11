@@ -1,5 +1,6 @@
 import { useEffect, useMemo } from "react";
 import { View, StyleSheet, Animated } from "react-native";
+import Reanimated, { FadeInUp, ReduceMotion } from "react-native-reanimated";
 import { Sparkles } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import { createTokensV2, tintFromPrimary } from '@/lib/theme'
@@ -42,7 +43,8 @@ export function TypingIndicator() {
   );
 
   return (
-    <View
+    <Reanimated.View
+      entering={FadeInUp.duration(220).reduceMotion(ReduceMotion.System)}
       style={styles.container}
       accessibilityLiveRegion="polite"
       accessibilityLabel={t("chat.senderOrbit")}
@@ -62,7 +64,7 @@ export function TypingIndicator() {
           <AnimatedDot delay={400} color={tokens.fg4} />
         </View>
       </View>
-    </View>
+    </Reanimated.View>
   );
 }
 

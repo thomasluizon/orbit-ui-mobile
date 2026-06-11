@@ -40,6 +40,7 @@ export function OnboardingFlow() {
   const [createdHabitId, setCreatedHabitId] = useState<string | null>(null)
   const [createdHabitTitle, setCreatedHabitTitle] = useState('')
   const [createdGoal, setCreatedGoal] = useState(false)
+  const [stepDirection, setStepDirection] = useState<'forward' | 'back'>('forward')
   const [mounted, setMounted] = useState(false)
 
   if (typeof globalThis !== 'undefined' && typeof globalThis.document !== 'undefined' && !mounted) {
@@ -60,6 +61,7 @@ export function OnboardingFlow() {
   const canAdvance = sharedStep !== ONBOARDING_COMPLETE_STEP
 
   const goNext = useCallback(() => {
+    setStepDirection('forward')
     if (sharedStep === 0 && !astraStepShown) {
       setViewingAstra(true)
       setAstraStepShown(true)
@@ -74,6 +76,7 @@ export function OnboardingFlow() {
   }, [sharedStep, astraStepShown, viewingAstra, hasProAccess])
 
   const goPrev = useCallback(() => {
+    setStepDirection('back')
     if (viewingAstra) {
       setViewingAstra(false)
       return
@@ -117,6 +120,7 @@ export function OnboardingFlow() {
   }
 
   function handleSkip() {
+    setStepDirection('forward')
     setViewingAstra(false)
     setSharedStep(ONBOARDING_COMPLETE_STEP)
   }
@@ -252,7 +256,12 @@ export function OnboardingFlow() {
           className="relative z-[1] flex-1 min-h-0 overflow-y-auto flex flex-col"
           style={{ padding: '12px 28px' }}
         >
-          <div className="w-full max-w-sm mx-auto my-auto">
+          <div
+            key={viewingAstra ? 'astra' : `step-${sharedStep}`}
+            className={`w-full max-w-sm mx-auto my-auto ${
+              stepDirection === 'forward' ? 'animate-slide-date-right' : 'animate-slide-date-left'
+            }`}
+          >
             {stepContent}
           </div>
         </div>
@@ -313,11 +322,15 @@ function ProgressDots({ active, total }: Readonly<ProgressDotsProps>) {
       {Array.from({ length: total }).map((_, i) => (
         <span
           key={`progress-dot-${i}`}
+          className="transition-[width,background-color] duration-[var(--dur-base)] ease-[var(--ease-standard)]"
           style={{
-            width: i === active ? 24 : 8,
-            height: 8,
+            width: i === active ? 24 : 7,
+            height: 7,
             borderRadius: 999,
-            background: i === active ? 'var(--primary)' : 'var(--fg-4)',
+            background:
+              i === active
+                ? 'var(--primary)'
+                : 'color-mix(in srgb, var(--fg-1) 18%, transparent)',
           }}
         />
       ))}
