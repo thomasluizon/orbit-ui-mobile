@@ -232,7 +232,6 @@
     "overdue": "Overdue",
     "oneTimeTask": "One-time task",
     "generalHabit": "General",
-    "badHabit": "Bad Habit",
     "schedule": {
       "dueInDays": "in {count}d",
       "scheduledOn": "scheduled {date}"
@@ -707,7 +706,6 @@
     }
   },
   "profile": {
-    "title": "Profile",
     "sections": {
       "account": "Account",
       "preferences": "Preferences",

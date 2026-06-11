@@ -232,7 +232,6 @@
     "overdue": "Atrasado",
     "oneTimeTask": "Tarefa única",
     "generalHabit": "Geral",
-    "badHabit": "Mau Hábito",
     "schedule": {
       "dueInDays": "em {count}d",
       "scheduledOn": "agendado {date}"
@@ -707,7 +706,6 @@
     }
   },
   "profile": {
-    "title": "Perfil",
     "sections": {
       "account": "Conta",
       "preferences": "Preferências",

@@ -170,7 +170,6 @@ export default function ProfilePage() {
 
       <AppBar
         leadingIcon={<User size={17} strokeWidth={1.5} color="var(--fg-2)" />}
-        title={t('profile.title')}
         trailing={
           <>
             <ThemeToggle />

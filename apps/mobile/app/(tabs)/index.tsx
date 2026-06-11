@@ -34,6 +34,7 @@ import {
 import { addDays, subDays, isToday, isYesterday, isTomorrow } from "date-fns";
 import { useTranslation } from "react-i18next";
 import {
+  computeDayProgress,
   formatAPIDate,
   formatLocaleDate,
   isHabitVisibleInAllView,
@@ -657,14 +658,7 @@ export default function TodayScreen() {
     return ids;
   }, [habitsQuery, visibleTopLevelHabits]);
 
-  const dayProgress = useMemo(() => {
-    const habits = habitsQuery.data?.topLevelHabits ?? EMPTY_NORMALIZED_HABITS;
-    const total = habits.length;
-    const done = habits.filter(
-      (habit) => habit.isCompleted || habit.isLoggedInRange,
-    ).length;
-    return { done, total };
-  }, [habitsQuery.data?.topLevelHabits]);
+  const dayProgress = useMemo(() => computeDayProgress(habitsById), [habitsById]);
   const showDayProgress = currentActiveView === "today" && dayProgress.total > 0;
 
   useEffect(() => {

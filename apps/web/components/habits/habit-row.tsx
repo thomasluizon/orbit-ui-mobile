@@ -47,7 +47,6 @@ export interface HabitRowActions {
 export type HabitRowMetaToken =
   | string
   | { kind: 'overdue'; label: string }
-  | { kind: 'bad'; label: string }
   | { kind: 'future'; label: string }
 
 /** Linear-tight habit row: emoji / chevron / title (wraps to two lines) / inline meta / status dot / streak.
@@ -332,6 +331,12 @@ export function HabitRow({
                   total={childProgress?.total ?? 0}
                   size={30}
                   ariaLabel={t('goals.progress')}
+                  color={habit.isBadHabit ? 'var(--status-bad)' : undefined}
+                  trackColor={
+                    habit.isBadHabit
+                      ? 'color-mix(in srgb, var(--status-bad) 40%, transparent)'
+                      : undefined
+                  }
                 />
               </button>
             </>
@@ -605,11 +610,6 @@ function metaTokenKey(token: HabitRowMetaToken, index: number): string {
 
 function renderMetaToken(token: HabitRowMetaToken): ReactNode {
   if (typeof token === 'string') return token
-  const color =
-    token.kind === 'overdue'
-      ? 'var(--status-overdue)'
-      : token.kind === 'bad'
-        ? 'var(--status-bad)'
-        : undefined
+  const color = token.kind === 'overdue' ? 'var(--status-overdue)' : undefined
   return <span style={color ? { color, fontWeight: 500 } : {}}>{token.label}</span>
 }

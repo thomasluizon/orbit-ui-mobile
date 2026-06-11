@@ -518,7 +518,6 @@ export default function ProfileScreen() {
       <GradientTop height={300} />
       <AppBar
         LeadingIcon={UserIcon}
-        title={t('profile.title')}
         trailing={
           <>
             <ThemeToggle />

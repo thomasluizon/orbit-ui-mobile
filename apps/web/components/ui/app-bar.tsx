@@ -14,7 +14,8 @@ interface AppBarProps {
   backLabel?: string
   onBack?: () => void
   leadingIcon?: ReactNode
-  title: string
+  /** Centered uppercase label. Omit for bars whose content carries its own heading. */
+  title?: string
   subtitle?: string
   /** Arbitrary right-slot cluster; takes precedence over `right`. */
   trailing?: ReactNode
@@ -101,35 +102,37 @@ export function AppBar({
         ) : null}
       </div>
 
-      <div className="flex flex-col justify-center min-w-0" style={{ gap: 2 }}>
-        <div
-          className="overflow-hidden whitespace-nowrap text-ellipsis text-center"
-          style={{
-            fontFamily: 'var(--font-sans)',
-            fontSize: 13,
-            fontWeight: 500,
-            letterSpacing: '0.09em',
-            textTransform: 'uppercase',
-            color: 'var(--fg-1)',
-          }}
-        >
-          {title}
-        </div>
-        {subtitle && (
+      {title && (
+        <div className="flex flex-col justify-center min-w-0" style={{ gap: 2 }}>
           <div
             className="overflow-hidden whitespace-nowrap text-ellipsis text-center"
             style={{
-              fontFamily: 'var(--font-mono)',
-              fontSize: 12,
-              color: 'var(--fg-3)',
-              letterSpacing: '0.02em',
-              fontVariantNumeric: 'tabular-nums',
+              fontFamily: 'var(--font-sans)',
+              fontSize: 13,
+              fontWeight: 500,
+              letterSpacing: '0.09em',
+              textTransform: 'uppercase',
+              color: 'var(--fg-1)',
             }}
           >
-            {subtitle}
+            {title}
           </div>
-        )}
-      </div>
+          {subtitle && (
+            <div
+              className="overflow-hidden whitespace-nowrap text-ellipsis text-center"
+              style={{
+                fontFamily: 'var(--font-mono)',
+                fontSize: 12,
+                color: 'var(--fg-3)',
+                letterSpacing: '0.02em',
+                fontVariantNumeric: 'tabular-nums',
+              }}
+            >
+              {subtitle}
+            </div>
+          )}
+        </div>
+      )}
 
       <div
         className="flex items-center justify-end"

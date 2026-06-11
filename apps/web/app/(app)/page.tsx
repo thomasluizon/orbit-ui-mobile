@@ -16,6 +16,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { habitKeys } from '@orbit/shared/query'
 import {
   collectSelectableDescendantIds,
+  computeDayProgress,
   formatAPIDate,
   formatLocaleDate,
   parseShowGeneralOnTodayPreference,
@@ -36,7 +37,6 @@ import { useStreakInfo } from '@/hooks/use-gamification'
 import {
   EMPTY_CHILDREN_BY_PARENT,
   EMPTY_HABITS_BY_ID,
-  EMPTY_NORMALIZED_HABITS,
   useHabits,
 } from '@/hooks/use-habits'
 import { useTags } from '@/hooks/use-tags'
@@ -314,14 +314,7 @@ export default function TodayPage() {
   const hasFetched = habitsQuery.dataUpdatedAt > 0
   const isRefetching = habitsQuery.isFetching && hasFetched
 
-  const topLevelHabits = habitsQuery.data?.topLevelHabits ?? EMPTY_NORMALIZED_HABITS
-  const dayProgress = useMemo(() => {
-    const total = topLevelHabits.length
-    const done = topLevelHabits.filter(
-      (habit) => habit.isCompleted || habit.isLoggedInRange,
-    ).length
-    return { done, total }
-  }, [topLevelHabits])
+  const dayProgress = useMemo(() => computeDayProgress(habitsById), [habitsById])
   const showDayProgress = currentActiveView === 'today' && dayProgress.total > 0
 
   const getDescendantIds = useCallback(

@@ -3,11 +3,13 @@ import type { HabitDetail, HabitScheduleItem } from '../types/habit'
 import type { Goal } from '../types/goal'
 import {
   applyLinkedGoalUpdates,
+  computeDayProgress,
   habitDetailToNormalized,
   normalizeHabitQueryData,
   normalizeHabits,
   sortNormalizedHabits,
 } from '../utils/habit-normalization'
+import { createMockHabit } from './factories'
 
 function makeScheduleItem(overrides: Partial<HabitScheduleItem> = {}): HabitScheduleItem {
   return {
@@ -264,5 +266,24 @@ describe('habitDetailToNormalized', () => {
   it('does not include the children property on the result', () => {
     const result = habitDetailToNormalized(makeHabitDetail())
     expect('children' in result).toBe(false)
+  })
+})
+
+describe('computeDayProgress', () => {
+  it('counts parents and sub-habits alike', () => {
+    const habitsById = new Map(
+      [
+        createMockHabit({ id: 'parent', isCompleted: false }),
+        createMockHabit({ id: 'child-1', parentId: 'parent', isCompleted: true }),
+        createMockHabit({ id: 'child-2', parentId: 'parent', isCompleted: false }),
+        createMockHabit({ id: 'solo', isLoggedInRange: true }),
+      ].map((habit) => [habit.id, habit]),
+    )
+
+    expect(computeDayProgress(habitsById)).toEqual({ done: 2, total: 4 })
+  })
+
+  it('returns zeros for an empty map', () => {
+    expect(computeDayProgress(new Map())).toEqual({ done: 0, total: 0 })
   })
 })

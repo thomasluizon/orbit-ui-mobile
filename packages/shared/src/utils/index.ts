@@ -187,6 +187,7 @@ export {
 export {
   applyLinkedGoalUpdates,
   buildChildrenIndex,
+  computeDayProgress,
   habitDetailToNormalized,
   normalizeHabitQueryData,
   normalizeHabits,

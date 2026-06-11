@@ -125,10 +125,8 @@ export function HabitRow({
   const metaParts: (
     | string
     | { kind: 'overdue' }
-    | { kind: 'bad' }
     | { kind: 'future'; label: string }
   )[] = []
-  if (habit.isBadHabit && hasChildren) metaParts.push({ kind: 'bad' })
   if (!habit.isGeneral && frequencyLabel) metaParts.push(frequencyLabel)
   if (habit.dueTime) {
     const due = displayTime(habit.dueTime)
@@ -339,15 +337,10 @@ export function HabitRow({
                     <Text
                       style={{
                         fontFamily: 'Rubik_500Medium',
-                        color:
-                          part.kind === 'overdue'
-                            ? tokens.statusOverdue
-                            : tokens.statusBad,
+                        color: tokens.statusOverdue,
                       }}
                     >
-                      {part.kind === 'overdue'
-                        ? t('habits.overdue')
-                        : t('habits.badHabit')}
+                      {t('habits.overdue')}
                     </Text>
                   )}
                 </Fragment>
@@ -394,6 +387,10 @@ export function HabitRow({
                     done={childrenDone}
                     total={childrenTotal}
                     size={30}
+                    color={habit.isBadHabit ? tokens.statusBad : undefined}
+                    trackColor={
+                      habit.isBadHabit ? `${tokens.statusBad}66` : undefined
+                    }
                   />
                 </Pressable>
               </>

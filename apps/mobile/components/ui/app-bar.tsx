@@ -22,7 +22,8 @@ interface AppBarProps {
   onBack?: () => void
   /** Leading lucide-react-native icon (ignored when `back` is true). */
   LeadingIcon?: LucideIcon
-  title: string
+  /** Centered uppercase label. Omit for bars whose content carries its own heading. */
+  title?: string
   subtitle?: string
   /** Arbitrary right-slot cluster; takes precedence over `right`. */
   trailing?: ReactNode
@@ -111,22 +112,24 @@ export function AppBar({
         ) : null}
       </View>
 
-      <View style={styles.titleColumn}>
-        <Text
-          style={[styles.title, { color: tokens.fg1 }]}
-          numberOfLines={1}
-        >
-          {title}
-        </Text>
-        {subtitle ? (
+      {title ? (
+        <View style={styles.titleColumn}>
           <Text
-            style={[styles.subtitle, { color: tokens.fg3 }]}
+            style={[styles.title, { color: tokens.fg1 }]}
             numberOfLines={1}
           >
-            {subtitle}
+            {title}
           </Text>
-        ) : null}
-      </View>
+          {subtitle ? (
+            <Text
+              style={[styles.subtitle, { color: tokens.fg3 }]}
+              numberOfLines={1}
+            >
+              {subtitle}
+            </Text>
+          ) : null}
+        </View>
+      ) : null}
 
       <View style={styles.trailingSlot}>{trailing ?? rightAction}</View>
     </View>
