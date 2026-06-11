@@ -1,8 +1,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { Linking, Platform, Pressable, StyleSheet, Text, View } from 'react-native'
+import { Linking, Platform, StyleSheet, Text, View } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
+import { Download } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import { BottomSheetModal } from '@/components/bottom-sheet-modal'
+import { PillButton } from '@/components/ui/pill-button'
 import { startAndroidUpdate, useVersionCheck } from '@/hooks/use-version-check'
 import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -11,8 +13,9 @@ const SNOOZE_STORAGE_KEY = 'orbit:version-update-snoozed-until'
 const SNOOZE_DURATION_MS = 1000 * 60 * 60 * 24
 
 /**
- * v8 version-update drawer (iOS path): quiet eyebrow + version title + mono
- * delta line + italic patch notes + primary CTA + Later link.
+ * Version-update sheet (iOS path) per the m-version artboard: sheet title,
+ * Rubik version highlight, Roboto tabular delta, fg-2 body, then a primary
+ * update pill with download glyph and a ghost Later pill.
  * Android path defers to native Play Core flow.
  */
 export function VersionUpdateDrawer() {
@@ -117,7 +120,6 @@ export function VersionUpdateDrawer() {
       snapPoints={['55%']}
     >
       <View style={styles.container}>
-        <Text style={styles.eyebrow}>{t('updatePrompt.title')}</Text>
         <Text style={styles.title}>
           {latestVersion ? `Orbit ${latestVersion}` : t('versionUpdate.title')}
         </Text>
@@ -132,30 +134,18 @@ export function VersionUpdateDrawer() {
 
         <View style={styles.spacer} />
 
-        <Pressable
-          style={({ pressed }) => [
-            styles.primaryButton,
-            {
-              backgroundColor: pressed
-                ? tokens.primaryPressed
-                : tokens.primary,
-            },
-          ]}
-          onPress={handleIosUpdate}
-        >
-          <Text style={[styles.primaryButtonLabel, { color: tokens.fgOnPrimary }]}>
+        <View style={styles.buttons}>
+          <PillButton
+            fullWidth
+            onPress={handleIosUpdate}
+            leading={<Download size={18} color={tokens.fgOnPrimary} strokeWidth={1.8} />}
+          >
             {t('versionUpdate.updateCta')}
-          </Text>
-        </Pressable>
-
-        <Pressable
-          style={styles.secondaryButton}
-          onPress={handleIosLater}
-        >
-          <Text style={styles.secondaryButtonLabel}>
+          </PillButton>
+          <PillButton variant="ghost" fullWidth onPress={handleIosLater}>
             {t('versionUpdate.laterCta')}
-          </Text>
-        </Pressable>
+          </PillButton>
+        </View>
       </View>
     </BottomSheetModal>
   )
@@ -169,27 +159,20 @@ function createStyles(tokens: AppTokensV2) {
       paddingBottom: 22,
       gap: 12,
     },
-    eyebrow: {
-      fontFamily: 'Rubik_600SemiBold',
-      fontSize: 12,
-      color: tokens.fg3,
-    },
     title: {
-      fontFamily: 'Rubik_600SemiBold',
-      fontSize: 22,
-      letterSpacing: -0.33,
+      fontFamily: 'Rubik_500Medium',
+      fontSize: 20,
       color: tokens.fg1,
     },
     delta: {
       fontFamily: 'Roboto_500Medium',
-      fontSize: 11,
+      fontSize: 12,
       color: tokens.fg3,
-      letterSpacing: 0.44,
+      fontVariant: ['tabular-nums'],
     },
     description: {
       fontFamily: 'Rubik_400Regular',
-      fontSize: 14,
-      fontStyle: 'italic',
+      fontSize: 15,
       lineHeight: 22,
       color: tokens.fg2,
       marginTop: 4,
@@ -198,26 +181,10 @@ function createStyles(tokens: AppTokensV2) {
       flex: 1,
       minHeight: 12,
     },
-    primaryButton: {
-      marginTop: 12,
-      borderRadius: 10,
-      paddingVertical: 12,
-      paddingHorizontal: 18,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    primaryButtonLabel: {
-      fontFamily: 'Rubik_600SemiBold',
-      fontSize: 14,
-      },
-    secondaryButton: {
-      paddingVertical: 6,
-      alignItems: 'center',
-    },
-    secondaryButtonLabel: {
-      fontFamily: 'Rubik_400Regular',
-      fontSize: 13,
-      color: tokens.fg3,
+    buttons: {
+      flexDirection: 'column',
+      gap: 10,
+      paddingTop: 10,
     },
   })
 }

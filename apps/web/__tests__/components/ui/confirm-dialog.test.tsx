@@ -123,7 +123,7 @@ describe('ConfirmDialog', () => {
     expect(onOpenChange).toHaveBeenCalledWith(false)
   })
 
-  it('renders the destructive (danger) confirm label in italic — v8 spec, no semantic fill', () => {
+  it('renders the destructive (danger) confirm action as a status-bad fill pill — dlg-delete artboard', () => {
     render(
       <ConfirmDialog
         open={true}
@@ -134,10 +134,10 @@ describe('ConfirmDialog', () => {
       />,
     )
     const confirmBtn = screen.getByText('common.confirm') as HTMLElement
-    expect(confirmBtn.style.fontStyle).toBe('italic')
+    expect(confirmBtn.style.background).toBe('var(--status-bad)')
   })
 
-  it('renders non-destructive variants without italic emphasis', () => {
+  it('renders non-destructive variants as a primary fill pill', () => {
     render(
       <ConfirmDialog
         open={true}
@@ -149,6 +149,6 @@ describe('ConfirmDialog', () => {
       />,
     )
     const confirmBtn = screen.getByText('common.confirm') as HTMLElement
-    expect(confirmBtn.style.fontStyle).toBe('normal')
+    expect(confirmBtn.style.background).toBe('var(--primary)')
   })
 })

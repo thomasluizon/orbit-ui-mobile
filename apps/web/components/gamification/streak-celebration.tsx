@@ -6,6 +6,8 @@ import { useTranslations } from 'next-intl'
 import { plural } from '@/lib/plural'
 import { useIsClient } from '@/hooks/use-is-client'
 import { useUIStore } from '@/stores/ui-store'
+import { GradientTop } from '@/components/ui/gradient-top'
+import { PillButton } from '@/components/ui/pill-button'
 import { RingMotif } from './ring-motif'
 
 const MILESTONE_VALUES = [7, 14, 30, 100, 365] as const
@@ -71,52 +73,90 @@ export function StreakCelebration() {
 
   return createPortal(
     <div role="status" aria-live="polite">
-      <button
-        type="button"
-        aria-label={t('streakDisplay.celebration.subtitle', { count: streakCount })}
-        className="fixed inset-0 z-[10002] flex items-center justify-center cursor-pointer appearance-none border-none p-0 w-full"
+      <div
+        className="fixed inset-0 z-[10002] flex flex-col"
         style={{
-          background: 'rgba(0,0,0,0.85)',
-          transition: 'opacity 300ms ease-out',
+          transition: 'opacity 300ms var(--ease-out)',
           opacity: isVisible ? 1 : 0,
         }}
-        onClick={dismiss}
       >
-        <RingMotif
-          ringCount={4}
-          ringSize={180}
-          eyebrow={t('streakDisplay.celebration.eyebrow')}
-          anchor={
-            <span
-              style={{
-                fontFamily: 'var(--font-mono)',
-                fontSize: 96,
-                fontWeight: 500,
-                color: 'white',
-                fontVariantNumeric: 'tabular-nums',
-                letterSpacing: '-0.03em',
-                lineHeight: 0.9,
-              }}
-            >
-              {streakCount}
-            </span>
-          }
-          body={
-            <span>
-              {plural(
-                t('streakDisplay.celebration.subtitle', { count: streakCount }),
-                streakCount,
-              )}
-              {isMilestone && (
-                <>
-                  {' '}
-                  <span style={{ opacity: 0.7 }}>· {encouragement}</span>
-                </>
-              )}
-            </span>
-          }
+        <button
+          type="button"
+          aria-label={t('streakDisplay.celebration.subtitle', { count: streakCount })}
+          className="absolute inset-0 w-full cursor-pointer appearance-none border-none p-0"
+          style={{ background: 'var(--bg)', opacity: 0.96 }}
+          onClick={dismiss}
         />
-      </button>
+        <GradientTop height={520} />
+        <div
+          className="pointer-events-none relative z-[1] flex flex-1 flex-col items-center justify-center"
+          style={{ gap: 12, padding: '0 32px' }}
+        >
+          <RingMotif
+            ringCount={4}
+            ringSize={280}
+            eyebrow={t('streakDisplay.celebration.eyebrow')}
+            anchor={
+              <span
+                aria-hidden="true"
+                className="flex items-center justify-center rounded-full"
+                style={{
+                  width: 120,
+                  height: 120,
+                  fontSize: 60,
+                  background: 'rgba(var(--primary-rgb), 0.16)',
+                  boxShadow: '0 0 60px rgba(var(--primary-rgb), 0.4)',
+                }}
+              >
+                {'🔥'}
+              </span>
+            }
+          />
+          <div
+            style={{
+              marginTop: 12,
+              fontFamily: 'var(--font-display)',
+              fontSize: 60,
+              fontWeight: 700,
+              letterSpacing: '-0.02em',
+              lineHeight: 1,
+              fontVariantNumeric: 'tabular-nums',
+              color: 'var(--fg-1)',
+            }}
+          >
+            {streakCount}
+          </div>
+          <p
+            className="text-center"
+            style={{
+              margin: 0,
+              fontFamily: 'var(--font-sans)',
+              fontSize: 16,
+              lineHeight: 1.5,
+              color: 'var(--fg-2)',
+            }}
+          >
+            {plural(
+              t('streakDisplay.celebration.subtitle', { count: streakCount }),
+              streakCount,
+            )}
+            {isMilestone && (
+              <>
+                {' '}
+                <span style={{ color: 'var(--fg-3)' }}>· {encouragement}</span>
+              </>
+            )}
+          </p>
+        </div>
+        <div
+          className="pointer-events-auto relative z-[1]"
+          style={{ padding: '0 24px calc(24px + var(--safe-bottom, 0px))' }}
+        >
+          <PillButton fullWidth onClick={dismiss}>
+            {t('common.continue')}
+          </PillButton>
+        </div>
+      </div>
     </div>,
     document.body,
   )

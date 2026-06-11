@@ -7,13 +7,13 @@ import {
   Text,
   View,
 } from 'react-native'
-import Svg, { Circle } from 'react-native-svg'
+import { Gift } from 'lucide-react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useTranslation } from 'react-i18next'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useProfile } from '@/hooks/use-profile'
 import { toAnimatedEasing } from '@/lib/motion'
-import { createTokensV2, easings, shadowsV2 } from '@/lib/theme'
+import { createTokensV2, easings, shadowsV2, tintFromPrimary } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window')
@@ -24,7 +24,8 @@ const STORAGE_REFERRAL_APPLIED = 'orbit_referral_applied'
 type ToastVariant = 'welcome' | 'referral'
 
 /**
- * v8 Welcome-back toast: hairline-ringed orbit dot + uppercase eyebrow + italic body.
+ * Welcome-back toast: kit toast surface with a streak-flame or gift disc,
+ * uppercase eyebrow, and message line.
  * Preserves the AsyncStorage gating + lifecycle.
  */
 export function WelcomeBackToast() {
@@ -168,7 +169,7 @@ export function WelcomeBackToast() {
         style={[
           styles.toast,
           {
-            backgroundColor: tokens.bgElev,
+            backgroundColor: tokens.bgSheet,
             borderColor: tokens.hairline,
           },
         ]}
@@ -176,6 +177,18 @@ export function WelcomeBackToast() {
         accessibilityLabel={message}
       >
         <View style={styles.row}>
+          <View
+            style={[
+              styles.iconDisc,
+              { backgroundColor: tintFromPrimary(tokens, 0.16) },
+            ]}
+          >
+            {variant === 'welcome' ? (
+              <Text style={styles.iconEmoji}>🔥</Text>
+            ) : (
+              <Gift size={17} strokeWidth={2.2} color={tokens.primarySoft} />
+            )}
+          </View>
           <View style={styles.textCol}>
             <Text style={[styles.eyebrow, { color: tokens.fg3 }]}>
               {eyebrow}
@@ -184,16 +197,6 @@ export function WelcomeBackToast() {
               {message}
             </Text>
           </View>
-          <Svg width={24} height={24} style={styles.dot}>
-            <Circle
-              cx={12}
-              cy={12}
-              r={10.5}
-              fill="none"
-              stroke={tokens.primary}
-              strokeWidth={1}
-            />
-          </Svg>
         </View>
       </Pressable>
     </Animated.View>
@@ -209,7 +212,7 @@ const styles = StyleSheet.create({
   },
   toast: {
     borderWidth: 1,
-    borderRadius: 10,
+    borderRadius: 16,
     paddingHorizontal: 16,
     paddingVertical: 14,
     ...shadowsV2.shadow2,
@@ -217,25 +220,33 @@ const styles = StyleSheet.create({
   row: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 14,
+    gap: 12,
+  },
+  iconDisc: {
+    width: 32,
+    height: 32,
+    borderRadius: 999,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  iconEmoji: {
+    fontSize: 16,
+    lineHeight: 20,
   },
   textCol: {
     flex: 1,
-    gap: 4,
+    gap: 3,
   },
   eyebrow: {
-    fontFamily: 'Rubik_600SemiBold',
-    fontSize: 10,
-    letterSpacing: 1.2,
+    fontFamily: 'Rubik_500Medium',
+    fontSize: 11,
+    letterSpacing: 0.88,
     textTransform: 'uppercase',
   },
   message: {
     fontFamily: 'Rubik_400Regular',
     fontSize: 14,
-    fontStyle: 'italic',
     lineHeight: 21,
-  },
-  dot: {
-    flexShrink: 0,
   },
 })

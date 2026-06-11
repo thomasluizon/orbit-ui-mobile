@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslations } from 'next-intl'
+import { Trophy } from 'lucide-react'
 import { useGamificationProfile } from '@/hooks/use-gamification'
 import { useIsClient } from '@/hooks/use-is-client'
 import { useUIStore } from '@/stores/ui-store'
@@ -113,51 +114,34 @@ export function AchievementToast() {
         className="flex items-start"
         style={{
           padding: '12px 14px',
-          background: 'var(--bg-elev)',
-          borderRadius: 10,
-          boxShadow:
-            '0 8px 24px rgba(0,0,0,0.30), inset 0 0 0 1px var(--hairline)',
+          background: 'var(--bg-sheet)',
+          borderRadius: 16,
+          boxShadow: 'var(--shadow-2), inset 0 0 0 1px var(--hairline)',
           gap: 12,
         }}
       >
         <div
-          className="relative flex items-center justify-center"
-          style={{ width: 32, height: 32, flexShrink: 0 }}
+          aria-hidden="true"
+          className="flex items-center justify-center rounded-full"
+          style={{
+            width: 32,
+            height: 32,
+            flexShrink: 0,
+            background: 'rgba(var(--primary-rgb), 0.16)',
+          }}
         >
-          <svg
-            width={32}
-            height={32}
-            aria-hidden="true"
-            style={{ position: 'absolute', inset: 0 }}
-          >
-            <circle
-              cx={16}
-              cy={16}
-              r={14}
-              fill="none"
-              stroke="var(--primary)"
-              strokeWidth={1}
-            />
-          </svg>
-          <span
-            style={{
-              fontFamily: 'var(--font-mono)',
-              fontSize: 16,
-              color: 'var(--fg-1)',
-            }}
-          >
-            {'◆'}
-          </span>
+          <Trophy size={17} strokeWidth={2.2} color="var(--primary-soft)" />
         </div>
         <div className="flex-1 min-w-0 flex flex-col" style={{ gap: 2 }}>
           <span
             style={{
-              fontFamily: 'var(--font-sans)',
-              fontSize: 10,
-              fontWeight: 600,
-              color: 'var(--fg-3)',
-              letterSpacing: '0.12em',
+              fontFamily: 'var(--font-mono)',
+              fontSize: 11,
+              fontWeight: 500,
+              color: 'var(--primary-soft)',
+              letterSpacing: '0.06em',
               textTransform: 'uppercase',
+              fontVariantNumeric: 'tabular-nums',
             }}
           >
             {t('gamification.toast.achievementEyebrow', {

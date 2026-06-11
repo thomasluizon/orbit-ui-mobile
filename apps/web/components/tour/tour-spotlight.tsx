@@ -57,7 +57,7 @@ export function TourSpotlight({ targetRect, padding = 8 }: Readonly<TourSpotligh
           y="0"
           width={viewport.w}
           height={viewport.h}
-          fill="rgba(0, 0, 0, 0.65)"
+          fill="rgba(0, 0, 0, 0.6)"
           mask="url(#tour-spotlight-mask)"
         />
       </svg>

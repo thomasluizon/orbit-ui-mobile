@@ -1,8 +1,8 @@
 'use client'
 
-import { useEffect } from 'react'
 import { AlertTriangle } from 'lucide-react'
 import { useTranslations } from 'next-intl'
+import { PillButton } from '@/components/ui/pill-button'
 
 export default function AppError({
   error,
@@ -13,21 +13,25 @@ export default function AppError({
 }>) {
   const t = useTranslations()
 
-  useEffect(() => {
-  }, [error])
-
   return (
-    <div className="flex flex-col items-center justify-center py-16 gap-4 text-center">
-      <AlertTriangle className="size-10 text-[var(--fg-3)]" />
-      <p className="text-sm text-[var(--fg-2)]">
+    <div className="flex flex-col items-center justify-center py-16 px-9 gap-4 text-center">
+      <div
+        className="flex items-center justify-center rounded-full"
+        style={{
+          width: 80,
+          height: 80,
+          background: 'var(--bg-field)',
+          boxShadow: 'inset 0 0 0 1px var(--hairline)',
+        }}
+      >
+        <AlertTriangle size={34} strokeWidth={1.8} className="text-[var(--fg-3)]" />
+      </div>
+      <p className="t-h2">
         {process.env.NODE_ENV === 'development' ? error.message : t('auth.genericError')}
       </p>
-      <button
-        className="px-5 py-2.5 rounded-[12px] bg-[var(--primary)] text-white font-semibold text-sm hover:bg-[var(--primary-pressed)] transition-colors"
-        onClick={reset}
-      >
+      <PillButton onClick={reset} className="mt-1.5">
         {t('common.retry')}
-      </button>
+      </PillButton>
     </div>
   )
 }

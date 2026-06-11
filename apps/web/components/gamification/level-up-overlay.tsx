@@ -5,6 +5,8 @@ import { createPortal } from 'react-dom'
 import { useTranslations } from 'next-intl'
 import { useIsClient } from '@/hooks/use-is-client'
 import { useUIStore } from '@/stores/ui-store'
+import { GradientTop } from '@/components/ui/gradient-top'
+import { PillButton } from '@/components/ui/pill-button'
 
 interface LevelUpOverlayProps {
   leveledUp: boolean
@@ -86,50 +88,65 @@ export function LevelUpOverlay({
     <div
       role="alert"
       aria-atomic="true"
-      className="fixed inset-0 z-[10001] flex items-center justify-center"
+      className="fixed inset-0 z-[10001] flex flex-col"
       style={{
-        background: 'rgba(0,0,0,0.85)',
-        transition: 'opacity 300ms ease-out',
+        transition: 'opacity 300ms var(--ease-out)',
         opacity: isVisible ? 1 : 0,
       }}
     >
       <div
-        className="flex flex-col items-center"
-        style={{ gap: 14 }}
+        aria-hidden="true"
+        className="absolute inset-0"
+        style={{ background: 'var(--bg)', opacity: 0.96 }}
+      />
+      <GradientTop height={520} />
+      <div
+        className="relative z-[1] flex flex-1 flex-col items-center justify-center"
+        style={{ gap: 12, padding: '0 32px' }}
       >
         <div
           style={{
-            fontFamily: 'var(--font-mono)',
-            fontSize: 11,
-            fontWeight: 600,
-            color: 'rgba(255,255,255,0.7)',
-            letterSpacing: '0.18em',
+            fontFamily: 'var(--font-sans)',
+            fontSize: 12,
+            fontWeight: 500,
+            letterSpacing: '0.08em',
             textTransform: 'uppercase',
+            color: 'var(--fg-3)',
           }}
         >
           {t('gamification.levelUp.title')}
         </div>
 
+        <span
+          aria-hidden="true"
+          className="flex items-center justify-center rounded-full"
+          style={{
+            width: 120,
+            height: 120,
+            fontSize: 60,
+            background: 'rgba(var(--primary-rgb), 0.16)',
+            boxShadow: '0 0 60px rgba(var(--primary-rgb), 0.4)',
+          }}
+        >
+          {'⭐'}
+        </span>
+
         <div
           className="relative flex items-center justify-center"
-          style={{ width: 130, height: 130 }}
+          style={{ width: 150, height: 150 }}
         >
           <svg
-            width={130}
-            height={130}
+            width={150}
+            height={150}
             aria-hidden="true"
-            style={{
-              position: 'absolute',
-              inset: 0,
-              animation: 'spin 8s linear infinite',
-              transform: 'rotate(-18deg)',
-            }}
+            className="absolute inset-0 animate-spin-slow"
+            style={{ transform: 'rotate(-18deg)' }}
           >
             <ellipse
-              cx={65}
-              cy={65}
-              rx={62}
-              ry={22}
+              cx={75}
+              cy={75}
+              rx={72}
+              ry={26}
               fill="none"
               stroke="var(--primary)"
               strokeWidth={1.5}
@@ -137,28 +154,39 @@ export function LevelUpOverlay({
           </svg>
           <span
             style={{
-              fontFamily: 'var(--font-mono)',
-              fontSize: 80,
-              fontWeight: 500,
-              color: 'white',
+              fontFamily: 'var(--font-display)',
+              fontSize: 56,
+              fontWeight: 700,
+              letterSpacing: '-0.02em',
+              lineHeight: 1,
               fontVariantNumeric: 'tabular-nums',
-              letterSpacing: '-0.04em',
+              color: 'var(--fg-1)',
             }}
           >
             {String(level).padStart(2, '0')}
           </span>
         </div>
 
-        <div
+        <p
+          className="text-center"
           style={{
+            margin: 0,
             fontFamily: 'var(--font-sans)',
             fontSize: 16,
-            fontStyle: 'italic',
-            color: 'rgba(255,255,255,0.85)',
+            lineHeight: 1.5,
+            color: 'var(--fg-2)',
           }}
         >
           {t('gamification.levelUp.steadyHand')}
-        </div>
+        </p>
+      </div>
+      <div
+        className="relative z-[1]"
+        style={{ padding: '0 24px calc(24px + var(--safe-bottom, 0px))' }}
+      >
+        <PillButton fullWidth onClick={() => dismiss(activeLevelUp?.id)}>
+          {t('common.continue')}
+        </PillButton>
       </div>
     </div>,
     document.body,

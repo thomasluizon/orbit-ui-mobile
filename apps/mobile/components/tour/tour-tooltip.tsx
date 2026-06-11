@@ -15,7 +15,7 @@ import type { TourStep, TourSection } from '@orbit/shared/types'
 import type { TourTargetRect } from '@orbit/shared/stores'
 import { TOUR_SECTION_ICONS } from '@orbit/shared/types'
 import { useAppTheme } from '@/lib/use-app-theme'
-import { createTokensV2 } from '@/lib/theme'
+import { createTokensV2, radius, shadowsV2, tintFromPrimary } from '@/lib/theme'
 import { ProBadge } from '@/components/ui/pro-badge'
 
 type AppTokens = ReturnType<typeof createTokensV2>
@@ -82,7 +82,7 @@ export function TourTooltip({
         <View style={styles.handle} />
 
         <View style={styles.header}>
-          {SectionIcon && <SectionIcon size={16} color={tokens.primary} />}
+          {SectionIcon && <SectionIcon size={16} color={tokens.primary} strokeWidth={1.8} />}
           <Text style={styles.sectionName}>{sectionName}</Text>
           <Text style={styles.stepCount}>
             {t('tour.ui.stepOf', {
@@ -118,7 +118,7 @@ export function TourTooltip({
         <View style={styles.navRow}>
           {!isFirstStep ? (
             <Pressable style={styles.backButton} onPress={onPrev}>
-              <ChevronLeft size={16} color={tokens.fg2} />
+              <ChevronLeft size={16} color={tokens.fg2} strokeWidth={1.8} />
               <Text style={styles.backButtonText}>{t('tour.ui.back')}</Text>
             </Pressable>
           ) : (
@@ -131,7 +131,7 @@ export function TourTooltip({
             <Text style={styles.nextButtonText}>
               {isLastStep ? t('tour.ui.finish') : t('tour.ui.next')}
             </Text>
-            {!isLastStep && <ChevronRight size={16} color={tokens.fgOnPrimary} />}
+            {!isLastStep && <ChevronRight size={16} color={tokens.fgOnPrimary} strokeWidth={1.8} />}
           </Pressable>
         </View>
 
@@ -160,16 +160,13 @@ function createTooltipStyles(tokens: AppTokens) {
       zIndex: 9999,
     },
     tooltip: {
-      backgroundColor: tokens.bgElev,
+      backgroundColor: tokens.bgSheet,
       paddingHorizontal: 24,
-      shadowColor: '#000',
-      shadowOpacity: 0.35,
-      shadowRadius: 40,
-      elevation: 12,
+      ...shadowsV2.shadow2,
     },
     tooltipBottom: {
-      borderTopLeftRadius: 12,
-      borderTopRightRadius: 12,
+      borderTopLeftRadius: 16,
+      borderTopRightRadius: 16,
       borderTopWidth: 1,
       borderColor: tokens.hairline,
       paddingTop: 12,
@@ -177,17 +174,17 @@ function createTooltipStyles(tokens: AppTokens) {
       shadowOffset: { width: 0, height: -4 },
     },
     tooltipTop: {
-      borderBottomLeftRadius: 12,
-      borderBottomRightRadius: 12,
+      borderBottomLeftRadius: 16,
+      borderBottomRightRadius: 16,
       borderBottomWidth: 1,
       borderColor: tokens.hairline,
       paddingBottom: 20,
       shadowOffset: { width: 0, height: 4 },
     },
     handle: {
-      width: 40,
-      height: 4,
-      borderRadius: 2,
+      width: 44,
+      height: 5,
+      borderRadius: 999,
       backgroundColor: tokens.hairlineStrong,
       alignSelf: 'center',
       marginBottom: 16,
@@ -199,11 +196,14 @@ function createTooltipStyles(tokens: AppTokens) {
       marginBottom: 12,
     },
     sectionName: {
+      fontFamily: 'Rubik_500Medium',
       fontSize: 12,
-      fontStyle: 'italic',
-      color: tokens.fg2,
+      letterSpacing: 0.96,
+      textTransform: 'uppercase',
+      color: tokens.fg3,
     },
     stepCount: {
+      fontFamily: 'Roboto_400Regular',
       fontVariant: ['tabular-nums'],
       fontSize: 11,
       letterSpacing: 0.44,
@@ -214,16 +214,16 @@ function createTooltipStyles(tokens: AppTokens) {
       marginLeft: 'auto' as const,
     },
     title: {
-      fontSize: 20,
-      fontWeight: '800',
-      letterSpacing: -0.3,
+      fontFamily: 'Rubik_500Medium',
+      fontSize: 16,
+      letterSpacing: -0.16,
       color: tokens.fg1,
       marginBottom: 6,
     },
     description: {
-      fontSize: 14,
-      fontStyle: 'italic',
-      lineHeight: 22,
+      fontFamily: 'Rubik_400Regular',
+      fontSize: 13.5,
+      lineHeight: 21,
       color: tokens.fg2,
       marginBottom: 16,
     },
@@ -231,24 +231,24 @@ function createTooltipStyles(tokens: AppTokens) {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
-      gap: 4,
+      gap: 6,
       marginBottom: 16,
     },
     dot: {
-      height: 6,
-      borderRadius: 3,
+      height: 8,
+      borderRadius: 999,
     },
     dotActive: {
       width: 16,
       backgroundColor: tokens.primary,
     },
     dotCompleted: {
-      width: 6,
-      backgroundColor: tokens.hairlineStrong,
+      width: 8,
+      backgroundColor: tintFromPrimary(tokens, 0.4),
     },
     dotInactive: {
-      width: 6,
-      backgroundColor: tokens.hairline,
+      width: 8,
+      backgroundColor: tokens.fg4,
     },
     navRow: {
       flexDirection: 'row',
@@ -260,36 +260,38 @@ function createTooltipStyles(tokens: AppTokens) {
       alignItems: 'center',
       gap: 4,
       paddingHorizontal: 12,
-      paddingVertical: 10,
-      borderRadius: 10,
+      minHeight: 44,
+      borderRadius: radius.full,
     },
     backButtonText: {
+      fontFamily: 'Rubik_400Regular',
       fontSize: 14,
-      fontStyle: 'italic',
       color: tokens.fg2,
     },
     nextButton: {
       flexDirection: 'row',
       alignItems: 'center',
+      justifyContent: 'center',
       gap: 4,
-      paddingHorizontal: 20,
-      paddingVertical: 10,
-      borderRadius: 10,
+      paddingHorizontal: 18,
+      minHeight: 44,
+      borderRadius: radius.full,
       backgroundColor: tokens.primary,
     },
     nextButtonText: {
-      fontSize: 14,
-      fontWeight: '600',
+      fontFamily: 'Rubik_500Medium',
+      fontSize: 15,
       color: tokens.fgOnPrimary,
     },
     skipButton: {
       alignItems: 'center',
-      marginTop: 12,
-      paddingVertical: 4,
+      justifyContent: 'center',
+      marginTop: 8,
+      minHeight: 44,
     },
     skipButtonText: {
-      fontSize: 12,
-      fontStyle: 'italic',
+      fontFamily: 'Rubik_400Regular',
+      fontSize: 13,
       color: tokens.fg3,
     },
   })

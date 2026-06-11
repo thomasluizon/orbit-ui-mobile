@@ -3,13 +3,13 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { Compass, Mail, Orbit, Shield, UserPlus } from 'lucide-react'
+import { Compass, Mail, Orbit, Shield } from 'lucide-react'
 import { AppBar } from '@/components/ui/app-bar'
 import { SettingsRow } from '@/components/ui/settings-row'
+import { ReferralCard } from '@/components/referral/referral-card'
 import { ReferralDrawer } from '@/components/referral/referral-drawer'
 import { FeatureGuideDrawer } from '@/components/onboarding/feature-guide-drawer'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
-import { useReferral } from '@/hooks/use-referral'
 import packageJson from '@/package.json'
 
 export default function AboutPage() {
@@ -18,14 +18,6 @@ export default function AboutPage() {
   const goBackOrFallback = useGoBackOrFallback()
   const [showGuide, setShowGuide] = useState(false)
   const [showReferral, setShowReferral] = useState(false)
-  const { stats } = useReferral()
-
-  const referralValue = stats
-    ? t('referral.card.progress', {
-        count: stats.successfulReferrals,
-        max: stats.maxReferrals,
-      })
-    : undefined
 
   return (
     <div className="flex flex-col min-h-[100dvh]">
@@ -84,14 +76,7 @@ export default function AboutPage() {
           onClick={() => setShowGuide(true)}
           ariaLabel={t('onboarding.featureGuide.openButton')}
         />
-        <SettingsRow
-          icon={UserPlus}
-          label={t('referral.card.title')}
-          value={referralValue}
-          mono
-          onClick={() => setShowReferral(true)}
-          ariaLabel={t('referral.card.title')}
-        />
+        <ReferralCard onOpen={() => setShowReferral(true)} />
         <SettingsRow
           icon={Mail}
           label={t('profile.support.title')}

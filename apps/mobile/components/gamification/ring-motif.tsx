@@ -4,13 +4,11 @@ import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 interface RingMotifProps {
-  /** The centered visual anchor (typically a number, glyph, or small composition). */
+  /** The centered visual anchor (typically the emoji hero disc). */
   anchor: ReactNode
-  /** Optional italic body line below the anchor. */
-  body?: ReactNode
-  /** Optional uppercase mono eyebrow above the anchor. */
+  /** Optional uppercase eyebrow above the anchor. */
   eyebrow?: ReactNode
-  /** Override for the eyebrow color (default: 70% white). */
+  /** Override for the eyebrow color (default: fg-3). */
   eyebrowColor?: string
   /** Number of concentric rings (default 3). */
   ringCount?: number
@@ -22,10 +20,9 @@ interface RingMotifProps {
   dashed?: boolean
 }
 
-/** v8 Saturn-ring celebration primitive — concentric hairline rings around an anchor. */
+/** Saturn-ring celebration primitive — concentric hairline rings around an anchor. */
 export function RingMotif({
   anchor,
-  body,
   eyebrow,
   eyebrowColor,
   ringCount = 3,
@@ -67,18 +64,13 @@ export function RingMotif({
         <Text
           style={[
             styles.eyebrow,
-            { color: eyebrowColor ?? 'rgba(255,255,255,0.7)' },
+            { color: eyebrowColor ?? tokens.fg3 },
           ]}
         >
           {eyebrow}
         </Text>
       ) : null}
       <View style={styles.anchor}>{anchor}</View>
-      {body ? (
-        <Text style={styles.body}>
-          {body}
-        </Text>
-      ) : null}
     </View>
   )
 }
@@ -96,20 +88,13 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   eyebrow: {
-    fontFamily: 'Roboto_500Medium',
-    fontSize: 11,
-    letterSpacing: 1.98,
+    fontFamily: 'Rubik_500Medium',
+    fontSize: 12,
+    letterSpacing: 0.96,
     textTransform: 'uppercase',
     zIndex: 1,
   },
   anchor: {
-    zIndex: 1,
-  },
-  body: {
-    fontFamily: 'Rubik_400Regular',
-    fontSize: 16,
-    fontStyle: 'italic',
-    color: 'rgba(255,255,255,0.85)',
     zIndex: 1,
   },
 })

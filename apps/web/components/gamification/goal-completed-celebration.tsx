@@ -5,6 +5,8 @@ import { createPortal } from 'react-dom'
 import { useTranslations } from 'next-intl'
 import { useIsClient } from '@/hooks/use-is-client'
 import { useUIStore } from '@/stores/ui-store'
+import { GradientTop } from '@/components/ui/gradient-top'
+import { PillButton } from '@/components/ui/pill-button'
 import { RingMotif } from './ring-motif'
 
 export function GoalCompletedCelebration() {
@@ -55,37 +57,90 @@ export function GoalCompletedCelebration() {
 
   return createPortal(
     <div role="status" aria-live="polite">
-      <button
-        type="button"
-        aria-label={t('goals.completedCelebrationTitle')}
-        className="fixed inset-0 z-[10003] flex items-center justify-center cursor-pointer appearance-none border-none p-0 w-full"
+      <div
+        className="fixed inset-0 z-[10003] flex flex-col"
         style={{
-          background: 'rgba(0,0,0,0.85)',
-          transition: 'opacity 300ms ease-out',
+          transition: 'opacity 300ms var(--ease-out)',
           opacity: isVisible ? 1 : 0,
         }}
-        onClick={dismiss}
       >
-        <RingMotif
-          ringCount={4}
-          ringSize={130}
-          body={t('goals.completedCelebrationFiled')}
-          anchor={
-            <span
-              style={{
-                fontFamily: 'var(--font-mono)',
-                fontSize: 14,
-                fontWeight: 500,
-                color: 'white',
-                letterSpacing: '0.10em',
-                textTransform: 'uppercase',
-              }}
-            >
-              {t('goals.completedCelebrationLabel', { name: goalName })}
-            </span>
-          }
+        <button
+          type="button"
+          aria-label={t('goals.completedCelebrationTitle')}
+          className="absolute inset-0 w-full cursor-pointer appearance-none border-none p-0"
+          style={{ background: 'var(--bg)', opacity: 0.96 }}
+          onClick={dismiss}
         />
-      </button>
+        <GradientTop height={520} />
+        <div
+          className="pointer-events-none relative z-[1] flex flex-1 flex-col items-center justify-center"
+          style={{ gap: 12, padding: '0 32px' }}
+        >
+          <RingMotif
+            ringCount={4}
+            ringSize={280}
+            anchor={
+              <span
+                aria-hidden="true"
+                className="flex items-center justify-center rounded-full"
+                style={{
+                  width: 120,
+                  height: 120,
+                  fontSize: 60,
+                  background: 'rgba(var(--primary-rgb), 0.16)',
+                  boxShadow: '0 0 60px rgba(var(--primary-rgb), 0.4)',
+                }}
+              >
+                {'🏆'}
+              </span>
+            }
+          />
+          <h1
+            className="text-center"
+            style={{
+              margin: '12px 0 0',
+              fontFamily: 'var(--font-sans)',
+              fontSize: 28,
+              fontWeight: 500,
+              letterSpacing: '-0.01em',
+              color: 'var(--fg-1)',
+            }}
+          >
+            {t('goals.completedCelebrationTitle')}
+          </h1>
+          <p
+            className="text-center"
+            style={{
+              margin: 0,
+              fontFamily: 'var(--font-sans)',
+              fontSize: 16,
+              lineHeight: 1.5,
+              color: 'var(--fg-2)',
+            }}
+          >
+            {t('goals.completedCelebrationLabel', { name: goalName })}
+          </p>
+          <p
+            className="text-center"
+            style={{
+              margin: 0,
+              fontFamily: 'var(--font-sans)',
+              fontSize: 14,
+              color: 'var(--fg-3)',
+            }}
+          >
+            {t('goals.completedCelebrationFiled')}
+          </p>
+        </div>
+        <div
+          className="pointer-events-auto relative z-[1]"
+          style={{ padding: '0 24px calc(24px + var(--safe-bottom, 0px))' }}
+        >
+          <PillButton fullWidth onClick={dismiss}>
+            {t('common.continue')}
+          </PillButton>
+        </div>
+      </div>
     </div>,
     document.body,
   )

@@ -1,20 +1,21 @@
 import { useMemo, useState, useEffect, useRef, useCallback } from 'react'
 import { Animated, Dimensions, StyleSheet, Text, View } from 'react-native'
-import Svg, { Circle } from 'react-native-svg'
+import { Trophy } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useGamificationProfile } from '@/hooks/use-gamification'
 import { useUIStore } from '@/stores/ui-store'
 import { toAnimatedEasing } from '@/lib/motion'
-import { createTokensV2, easings, shadowsV2 } from '@/lib/theme'
+import { createTokensV2, easings, shadowsV2, tintFromPrimary } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window')
 const TOAST_WIDTH = Math.min(SCREEN_WIDTH - 32, 380)
 
 /**
- * v8 Achievement toast: hairline-ringed diamond glyph + mono eyebrow.
- * Preserves the queue contract (enqueue + completeActiveCelebration).
+ * Achievement toast: kit toast surface with a primary-tinted trophy disc and
+ * a tabular XP eyebrow. Preserves the queue contract
+ * (enqueue + completeActiveCelebration).
  */
 export function AchievementToast() {
   const { t } = useTranslation()
@@ -151,26 +152,21 @@ export function AchievementToast() {
         style={[
           styles.inner,
           {
-            backgroundColor: tokens.bgElev,
+            backgroundColor: tokens.bgSheet,
             borderColor: tokens.hairline,
           },
         ]}
       >
-        <View style={styles.glyphWrap}>
-          <Svg width={32} height={32} style={StyleSheet.absoluteFillObject}>
-            <Circle
-              cx={16}
-              cy={16}
-              r={14}
-              fill="none"
-              stroke={tokens.primary}
-              strokeWidth={1}
-            />
-          </Svg>
-          <Text style={[styles.glyph, { color: tokens.fg1 }]}>{'◆'}</Text>
+        <View
+          style={[
+            styles.iconDisc,
+            { backgroundColor: tintFromPrimary(tokens, 0.16) },
+          ]}
+        >
+          <Trophy size={17} strokeWidth={2.2} color={tokens.primarySoft} />
         </View>
         <View style={styles.textCol}>
-          <Text style={[styles.eyebrow, { color: tokens.fg3 }]}>
+          <Text style={[styles.eyebrow, { color: tokens.primarySoft }]}>
             {t('gamification.toast.achievementEyebrow', {
               xp: currentAchievement.xpReward,
             })}
@@ -206,7 +202,7 @@ const styles = StyleSheet.create({
   },
   inner: {
     borderWidth: 1,
-    borderRadius: 10,
+    borderRadius: 16,
     paddingHorizontal: 14,
     paddingVertical: 12,
     flexDirection: 'row',
@@ -214,16 +210,13 @@ const styles = StyleSheet.create({
     gap: 12,
     ...shadowsV2.shadow2,
   },
-  glyphWrap: {
+  iconDisc: {
     width: 32,
     height: 32,
+    borderRadius: 999,
     alignItems: 'center',
     justifyContent: 'center',
     flexShrink: 0,
-  },
-  glyph: {
-    fontFamily: 'Roboto_400Regular',
-    fontSize: 16,
   },
   textCol: {
     flex: 1,
@@ -231,15 +224,16 @@ const styles = StyleSheet.create({
     gap: 2,
   },
   eyebrow: {
-    fontFamily: 'Rubik_600SemiBold',
-    fontSize: 10,
-    letterSpacing: 1.2,
+    fontFamily: 'Roboto_500Medium',
+    fontSize: 11,
+    letterSpacing: 0.66,
     textTransform: 'uppercase',
+    fontVariant: ['tabular-nums'],
   },
   name: {
     fontFamily: 'Rubik_500Medium',
     fontSize: 15,
-    },
+  },
   description: {
     fontFamily: 'Rubik_400Regular',
     fontSize: 13,

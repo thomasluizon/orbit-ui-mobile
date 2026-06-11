@@ -1,13 +1,20 @@
-import { cookies } from 'next/headers'
-import { redirect } from 'next/navigation'
+'use client'
 
-export default async function NotFound() {
-  const cookieStore = await cookies()
-  const token = cookieStore.get('auth_token')?.value
+import { useRouter } from 'next/navigation'
+import { useTranslations } from 'next-intl'
+import { EmptyState } from '@/components/ui/empty-state'
 
-  if (!token) {
-    redirect('/login')
-  }
+export default function NotFound() {
+  const t = useTranslations()
+  const router = useRouter()
 
-  redirect('/')
+  return (
+    <main className="flex min-h-dvh items-center justify-center bg-[var(--bg)]">
+      <EmptyState
+        title={t('notFoundPage.title')}
+        description={t('notFoundPage.description')}
+        action={{ label: t('notFoundPage.home'), onClick: () => router.push('/') }}
+      />
+    </main>
+  )
 }

@@ -5,6 +5,8 @@ import { createPortal } from 'react-dom'
 import { useTranslations } from 'next-intl'
 import { useProfile } from '@/hooks/use-profile'
 import { useDateFormat } from '@/hooks/use-date-format'
+import { GradientTop } from '@/components/ui/gradient-top'
+import { PillButton } from '@/components/ui/pill-button'
 import { RingMotif } from './ring-motif'
 
 export interface StreakFreezeCelebrationHandle {
@@ -53,41 +55,86 @@ export const StreakFreezeCelebration = forwardRef<StreakFreezeCelebrationHandle>
 
     return createPortal(
       <div role="status" aria-live="polite">
-        <button
-          type="button"
-          aria-label={t('streakDisplay.freeze.celebrationTitle')}
-          className="fixed inset-0 z-[10003] flex items-center justify-center cursor-pointer appearance-none border-none p-0 w-full"
+        <div
+          className="fixed inset-0 z-[10003] flex flex-col"
           style={{
-            background: 'rgba(0,0,0,0.85)',
-            transition: 'opacity 300ms ease-out',
+            transition: 'opacity 300ms var(--ease-out)',
             opacity: isVisible ? 1 : 0,
           }}
-          onClick={dismiss}
         >
-          <RingMotif
-            ringCount={3}
-            ringSize={220}
-            dashed
-            ringColor="var(--status-frozen)"
-            eyebrow={t('streakDisplay.freeze.eyebrow', { date: today })}
-            eyebrowColor="var(--status-frozen)"
-            anchor={
-              <span
-                style={{
-                  fontFamily: 'var(--font-mono)',
-                  fontSize: 64,
-                  fontWeight: 500,
-                  color: 'white',
-                  fontVariantNumeric: 'tabular-nums',
-                  letterSpacing: '-0.03em',
-                }}
-              >
-                {streak}
-              </span>
-            }
-            body={t('streakDisplay.freeze.celebrationSubtitle')}
+          <button
+            type="button"
+            aria-label={t('streakDisplay.freeze.celebrationTitle')}
+            className="absolute inset-0 w-full cursor-pointer appearance-none border-none p-0"
+            style={{ background: 'var(--bg)', opacity: 0.96 }}
+            onClick={dismiss}
           />
-        </button>
+          <GradientTop height={520} />
+          <div
+            className="pointer-events-none relative z-[1] flex flex-1 flex-col items-center justify-center"
+            style={{ gap: 12, padding: '0 32px' }}
+          >
+            <RingMotif
+              ringCount={3}
+              ringSize={280}
+              dashed
+              ringColor="var(--status-frozen)"
+              eyebrow={t('streakDisplay.freeze.eyebrow', { date: today })}
+              eyebrowColor="var(--status-frozen)"
+              anchor={
+                <span
+                  aria-hidden="true"
+                  className="flex items-center justify-center rounded-full"
+                  style={{
+                    width: 120,
+                    height: 120,
+                    fontSize: 60,
+                    background:
+                      'color-mix(in srgb, var(--status-frozen) 16%, transparent)',
+                    boxShadow:
+                      '0 0 60px color-mix(in srgb, var(--status-frozen) 40%, transparent)',
+                  }}
+                >
+                  {'❄️'}
+                </span>
+              }
+            />
+            <div
+              style={{
+                marginTop: 12,
+                fontFamily: 'var(--font-display)',
+                fontSize: 56,
+                fontWeight: 700,
+                letterSpacing: '-0.02em',
+                lineHeight: 1,
+                fontVariantNumeric: 'tabular-nums',
+                color: 'var(--fg-1)',
+              }}
+            >
+              {streak}
+            </div>
+            <p
+              className="text-center"
+              style={{
+                margin: 0,
+                fontFamily: 'var(--font-sans)',
+                fontSize: 16,
+                lineHeight: 1.5,
+                color: 'var(--fg-2)',
+              }}
+            >
+              {t('streakDisplay.freeze.celebrationSubtitle')}
+            </p>
+          </div>
+          <div
+            className="pointer-events-auto relative z-[1]"
+            style={{ padding: '0 24px calc(24px + var(--safe-bottom, 0px))' }}
+          >
+            <PillButton fullWidth onClick={dismiss}>
+              {t('common.continue')}
+            </PillButton>
+          </div>
+        </div>
       </div>,
       document.body,
     )

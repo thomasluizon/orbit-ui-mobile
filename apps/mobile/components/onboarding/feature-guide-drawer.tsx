@@ -192,16 +192,15 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       gap: 4,
     },
     sectionTitle: {
-      fontFamily: 'Rubik_600SemiBold',
-      fontSize: 15,
+      fontFamily: 'Rubik_500Medium',
+      fontSize: 16,
       color: tokens.fg1,
-      letterSpacing: -0.15,
     },
     sectionDesc: {
       fontFamily: 'Rubik_400Regular',
-      fontSize: 13,
-      color: tokens.fg2,
-      lineHeight: 19,
+      fontSize: 13.5,
+      color: tokens.fg3,
+      lineHeight: 21,
     },
   })
 }

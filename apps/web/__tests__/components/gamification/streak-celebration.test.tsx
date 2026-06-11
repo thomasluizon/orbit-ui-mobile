@@ -64,8 +64,8 @@ describe('StreakCelebration', () => {
   it('renders Saturn-ring concentric rings via RingMotif', () => {
     mockStreakCelebration = { streak: 7 }
     render(<StreakCelebration />)
-    const aria = document.querySelector('[aria-hidden="true"]')
-    expect(aria?.querySelectorAll('span').length).toBe(4)
+    const rings = document.querySelector('[data-slot="celebration-rings"]')
+    expect(rings?.querySelectorAll('span').length).toBe(4)
   })
 
   it('renders the Streak eyebrow label', () => {

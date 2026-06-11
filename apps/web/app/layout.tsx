@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next'
 import { Rubik, Inter, Roboto } from 'next/font/google'
 import { NextIntlClientProvider } from 'next-intl'
 import { getLocale, getMessages, getTranslations } from 'next-intl/server'
+import { Bell, Check, X } from 'lucide-react'
 import { Toaster } from 'sonner'
 import { Analytics } from '@vercel/analytics/next'
 import { SpeedInsights } from '@vercel/speed-insights/next'
@@ -105,14 +106,22 @@ export default async function RootLayout({
           <Toaster
             theme="dark"
             position="top-center"
+            icons={{
+              success: <Check size={17} strokeWidth={2.4} />,
+              error: <X size={17} strokeWidth={2.4} />,
+              info: <Bell size={17} strokeWidth={2.4} />,
+            }}
             toastOptions={{
               style: {
-                background: 'var(--bg-elev-2)',
+                background: 'var(--bg-sheet)',
                 boxShadow:
-                  'var(--shadow-md), inset 0 0 0 1px var(--hairline)',
+                  'var(--shadow-3), inset 0 0 0 1px var(--hairline)',
                 border: 'none',
                 color: 'var(--fg-1)',
-                borderRadius: 16,
+                borderRadius: 18,
+                padding: '14px 16px',
+                gap: 12,
+                alignItems: 'center',
                 fontFamily: 'var(--font-sans)',
               },
             }}

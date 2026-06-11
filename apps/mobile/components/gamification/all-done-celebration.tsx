@@ -7,15 +7,24 @@ import {
   View,
 } from 'react-native'
 import { useTranslation } from 'react-i18next'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { createTokensV2, tintFromPrimary } from '@/lib/theme'
+import { useAppTheme } from '@/lib/use-app-theme'
 import { useUIStore } from '@/stores/ui-store'
+import { GradientTop } from '@/components/ui/gradient-top'
+import { PillButton } from '@/components/ui/pill-button'
 import { RingMotif } from './ring-motif'
 
 /**
- * v8 All-done celebration: Saturn-ring motif with mono uppercase title.
- * Pure presentation -- visual layer only. Preserves dismiss + auto-close behavior.
+ * All-done celebration: full-screen canvas takeover with gradient header,
+ * emoji hero disc inside the Saturn-ring motif, and a continue pill.
+ * Pure presentation -- preserves dismiss + auto-close behavior.
  */
 export function AllDoneCelebration() {
   const { t } = useTranslation()
+  const insets = useSafeAreaInsets()
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = createTokensV2(currentScheme, currentTheme)
   const allDoneCelebration = useUIStore((s) => s.allDoneCelebration)
   const setAllDoneCelebration = useUIStore((s) => s.setAllDoneCelebration)
 
@@ -64,17 +73,40 @@ export function AllDoneCelebration() {
         onPress={dismiss}
         accessibilityLabel={t('habits.allDoneCelebrationTitle')}
       >
-        <View style={styles.backdrop} />
-        <RingMotif
-          ringCount={3}
-          ringSize={280}
-          body={t('habits.allDoneCelebrationSubtitle')}
-          anchor={
-            <Text style={styles.anchorText}>
-              {t('habits.allDoneCelebrationTitle')}
-            </Text>
-          }
+        <View
+          style={[styles.backdrop, { backgroundColor: tokens.bg }]}
         />
+        <GradientTop height={520} />
+        <View style={styles.content} pointerEvents="none">
+          <RingMotif
+            ringCount={3}
+            ringSize={280}
+            anchor={
+              <View
+                style={[
+                  styles.heroDisc,
+                  {
+                    backgroundColor: tintFromPrimary(tokens, 0.16),
+                    shadowColor: tokens.primary,
+                  },
+                ]}
+              >
+                <Text style={styles.heroEmoji}>🎉</Text>
+              </View>
+            }
+          />
+          <Text style={[styles.title, { color: tokens.fg1 }]}>
+            {t('habits.allDoneCelebrationTitle')}
+          </Text>
+          <Text style={[styles.subtitle, { color: tokens.fg2 }]}>
+            {t('habits.allDoneCelebrationSubtitle')}
+          </Text>
+        </View>
+        <View style={[styles.footer, { paddingBottom: insets.bottom + 24 }]}>
+          <PillButton fullWidth onPress={dismiss}>
+            {t('common.continue')}
+          </PillButton>
+        </View>
       </Pressable>
     </Animated.View>
   )
@@ -87,18 +119,47 @@ const styles = StyleSheet.create({
   },
   pressable: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   backdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.85)',
+    opacity: 0.96,
   },
-  anchorText: {
-    fontFamily: 'Roboto_500Medium',
-    fontSize: 22,
-    color: '#fff',
-    letterSpacing: 1.32,
-    textTransform: 'uppercase',
+  content: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+    paddingHorizontal: 32,
+  },
+  heroDisc: {
+    width: 120,
+    height: 120,
+    borderRadius: 999,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.4,
+    shadowRadius: 60,
+    elevation: 8,
+  },
+  heroEmoji: {
+    fontSize: 60,
+    lineHeight: 72,
+  },
+  title: {
+    marginTop: 12,
+    fontFamily: 'Rubik_500Medium',
+    fontSize: 28,
+    letterSpacing: -0.28,
+    textAlign: 'center',
+  },
+  subtitle: {
+    fontFamily: 'Rubik_400Regular',
+    fontSize: 16,
+    lineHeight: 24,
+    textAlign: 'center',
+  },
+  footer: {
+    paddingHorizontal: 24,
   },
 })

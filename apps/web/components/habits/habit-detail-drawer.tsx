@@ -8,7 +8,6 @@ import { AppOverlay } from '@/components/ui/app-overlay'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { SectionLabel } from '@/components/ui/section-label'
 import { SettingsRow } from '@/components/ui/settings-row'
-import { PullQuote } from '@/components/chat/pull-quote'
 import { HabitChecklist } from './habit-checklist'
 import { HabitCalendar } from './habit-calendar'
 import {
@@ -194,19 +193,38 @@ export function HabitDetailDrawer({
             style={{ borderRadius: 8, padding: '8px 10px', margin: '-8px -10px' }}
           >
             <div className="flex items-center gap-3">
-              <div className="flex-1 min-w-0">
-                <PullQuote
-                  paddingX={0}
-                  paddingY={0}
-                  eyebrow={
-                    <>
-                      <Orbit size={12} strokeWidth={1.7} color="var(--primary)" />
-                      <span>{t('habits.detail.askAstraEyebrow')}</span>
-                    </>
-                  }
+              <div className="relative flex-1 min-w-0" style={{ paddingLeft: 14 }}>
+                <span
+                  aria-hidden="true"
+                  className="absolute rounded-[1px]"
+                  style={{ left: 0, top: 4, bottom: 4, width: 2, background: 'var(--primary)' }}
+                />
+                <div className="inline-flex items-center" style={{ gap: 6, marginBottom: 6 }}>
+                  <Orbit size={12} strokeWidth={1.7} color="var(--primary)" />
+                  <span
+                    style={{
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: 10.5,
+                      fontWeight: 500,
+                      letterSpacing: '0.06em',
+                      color: 'var(--fg-3)',
+                    }}
+                  >
+                    {t('habits.detail.askAstraEyebrow')}
+                  </span>
+                </div>
+                <div
+                  style={{
+                    fontFamily: 'var(--font-sans)',
+                    fontSize: 15,
+                    fontStyle: 'italic',
+                    lineHeight: 1.5,
+                    color: 'var(--fg-2)',
+                    textWrap: 'pretty',
+                  }}
                 >
                   {askPrompt}
-                </PullQuote>
+                </div>
               </div>
               <ChevronRight
                 size={16}

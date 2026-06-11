@@ -38,12 +38,16 @@
     }
   },
   "pushPrompt": {
-    "eyebrow": "Notificações",
     "title": "Mantenha o foco",
     "description": "Ative notificações para receber lembretes dos seus hábitos",
     "enable": "Ativar",
     "later": "Agora não",
     "retryHint": "Falha ao configurar notificações. Toque em Ativar para tentar novamente."
+  },
+  "notFoundPage": {
+    "title": "Página não encontrada",
+    "description": "Esta página não existe ou foi movida.",
+    "home": "Voltar ao início"
   },
   "updatePrompt": {
     "eyebrow": "Atualização disponível",

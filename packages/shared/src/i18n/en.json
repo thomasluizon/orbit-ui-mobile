@@ -38,12 +38,16 @@
     }
   },
   "pushPrompt": {
-    "eyebrow": "Notifications",
     "title": "Stay on track",
     "description": "Enable notifications to get reminders for your habits",
     "enable": "Enable",
     "later": "Not now",
     "retryHint": "Notification setup failed. Tap Enable to retry."
+  },
+  "notFoundPage": {
+    "title": "Page not found",
+    "description": "This page doesn't exist or has moved.",
+    "home": "Back to home"
   },
   "updatePrompt": {
     "eyebrow": "Update available",

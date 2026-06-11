@@ -7,15 +7,23 @@ import {
   View,
 } from 'react-native'
 import { useTranslation } from 'react-i18next'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { createTokensV2, tintFromPrimary } from '@/lib/theme'
+import { useAppTheme } from '@/lib/use-app-theme'
 import { useUIStore } from '@/stores/ui-store'
+import { GradientTop } from '@/components/ui/gradient-top'
+import { PillButton } from '@/components/ui/pill-button'
 import { RingMotif } from './ring-motif'
 
 /**
- * v8 Goal-completed celebration: Saturn-ring motif with mono uppercase goal label.
+ * Goal-completed celebration: trophy hero disc inside the Saturn-ring motif.
  * Pure visual layer -- preserves dismiss + store-driven trigger.
  */
 export function GoalCompletedCelebration() {
   const { t } = useTranslation()
+  const insets = useSafeAreaInsets()
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = createTokensV2(currentScheme, currentTheme)
   const goalCompletedCelebration = useUIStore((s) => s.goalCompletedCelebration)
   const setGoalCompletedCelebration = useUIStore(
     (s) => s.setGoalCompletedCelebration,
@@ -39,7 +47,6 @@ export function GoalCompletedCelebration() {
   useEffect(() => {
     if (!goalCompletedCelebration) return
 
-     
     setGoalName(goalCompletedCelebration.name)
     overlayOpacity.setValue(0)
 
@@ -69,17 +76,41 @@ export function GoalCompletedCelebration() {
         onPress={dismiss}
         accessibilityLabel={t('goals.completedCelebrationTitle')}
       >
-        <View style={styles.backdrop} />
-        <RingMotif
-          ringCount={4}
-          ringSize={130}
-          body={t('goals.completedCelebrationFiled')}
-          anchor={
-            <Text style={styles.anchorText}>
-              {t('goals.completedCelebrationLabel', { name: goalName })}
-            </Text>
-          }
-        />
+        <View style={[styles.backdrop, { backgroundColor: tokens.bg }]} />
+        <GradientTop height={520} />
+        <View style={styles.content} pointerEvents="none">
+          <RingMotif
+            ringCount={4}
+            ringSize={280}
+            anchor={
+              <View
+                style={[
+                  styles.heroDisc,
+                  {
+                    backgroundColor: tintFromPrimary(tokens, 0.16),
+                    shadowColor: tokens.primary,
+                  },
+                ]}
+              >
+                <Text style={styles.heroEmoji}>🏆</Text>
+              </View>
+            }
+          />
+          <Text style={[styles.title, { color: tokens.fg1 }]}>
+            {t('goals.completedCelebrationTitle')}
+          </Text>
+          <Text style={[styles.subtitle, { color: tokens.fg2 }]}>
+            {t('goals.completedCelebrationLabel', { name: goalName })}
+          </Text>
+          <Text style={[styles.meta, { color: tokens.fg3 }]}>
+            {t('goals.completedCelebrationFiled')}
+          </Text>
+        </View>
+        <View style={[styles.footer, { paddingBottom: insets.bottom + 24 }]}>
+          <PillButton fullWidth onPress={dismiss}>
+            {t('common.continue')}
+          </PillButton>
+        </View>
       </Pressable>
     </Animated.View>
   )
@@ -92,19 +123,52 @@ const styles = StyleSheet.create({
   },
   pressable: {
     flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   backdrop: {
     ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0,0,0,0.85)',
+    opacity: 0.96,
   },
-  anchorText: {
-    fontFamily: 'Roboto_500Medium',
-    fontSize: 14,
-    color: '#fff',
-    letterSpacing: 1.4,
-    textTransform: 'uppercase',
+  content: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 12,
+    paddingHorizontal: 32,
+  },
+  heroDisc: {
+    width: 120,
+    height: 120,
+    borderRadius: 999,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.4,
+    shadowRadius: 60,
+    elevation: 8,
+  },
+  heroEmoji: {
+    fontSize: 60,
+    lineHeight: 72,
+  },
+  title: {
+    marginTop: 12,
+    fontFamily: 'Rubik_500Medium',
+    fontSize: 28,
+    letterSpacing: -0.28,
     textAlign: 'center',
+  },
+  subtitle: {
+    fontFamily: 'Rubik_400Regular',
+    fontSize: 16,
+    lineHeight: 24,
+    textAlign: 'center',
+  },
+  meta: {
+    fontFamily: 'Rubik_400Regular',
+    fontSize: 14,
+    textAlign: 'center',
+  },
+  footer: {
+    paddingHorizontal: 24,
   },
 })

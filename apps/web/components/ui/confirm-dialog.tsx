@@ -14,8 +14,8 @@ interface ConfirmDialogProps {
   cancelLabel?: string
   onConfirm?: () => void
   onCancel?: () => void
-  /** 'danger' is treated as destructive — italicized action label, no semantic fill.
-   *  'info' renders a single close action and hides the cancel button. */
+  /** 'danger' renders the confirm action as a status-bad fill pill (dlg-delete
+   *  artboard). 'info' renders a single close action and hides the cancel button. */
   variant?: Variant
 }
 
@@ -50,18 +50,20 @@ export function ConfirmDialog({
       onOpenChange={onOpenChange}
       title={title}
       footer={
-        <div className="flex justify-end items-center" style={{ gap: 16 }}>
+        <div className="flex items-center" style={{ gap: 10 }}>
           {!infoOnly && (
             <button
               type="button"
               onClick={handleCancel}
-              className="appearance-none border-0 bg-transparent cursor-pointer transition-colors duration-150 ease-out hover:text-[var(--fg-1)]"
+              className="flex-1 appearance-none border-0 cursor-pointer rounded-full transition-opacity duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:opacity-85 active:opacity-75"
               style={{
                 fontFamily: 'var(--font-sans)',
-                fontSize: 14,
+                fontSize: 15,
                 fontWeight: 500,
-                color: 'var(--fg-3)',
-                padding: 6,
+                color: 'var(--fg-1)',
+                background: 'var(--bg-field)',
+                padding: '13px 0',
+                minHeight: 44,
               }}
             >
               {cancelLabel || t('common.cancel')}
@@ -70,14 +72,15 @@ export function ConfirmDialog({
           <button
             type="button"
             onClick={handleConfirm}
-            className="appearance-none border-0 bg-transparent cursor-pointer transition-opacity duration-150 ease-out hover:opacity-80"
+            className="flex-1 appearance-none border-0 cursor-pointer rounded-full transition-opacity duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:opacity-90 active:opacity-80"
             style={{
               fontFamily: 'var(--font-sans)',
-              fontSize: 14,
-              fontWeight: 600,
-              color: 'var(--fg-1)',
-              fontStyle: destructive ? 'italic' : 'normal',
-              padding: 6,
+              fontSize: 15,
+              fontWeight: 500,
+              color: 'var(--fg-on-primary)',
+              background: destructive ? 'var(--status-bad)' : 'var(--primary)',
+              padding: '13px 0',
+              minHeight: 44,
             }}
           >
             {confirmLabel || (infoOnly ? t('common.close') : t('common.confirm'))}
@@ -88,7 +91,7 @@ export function ConfirmDialog({
       <p
         style={{
           fontFamily: 'var(--font-sans)',
-          fontSize: 14,
+          fontSize: 15,
           lineHeight: 1.5,
           color: 'var(--fg-2)',
           paddingBottom: 16,

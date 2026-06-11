@@ -1,32 +1,72 @@
 'use client'
 
 import { useTranslations } from 'next-intl'
+import { ChevronRight, UserPlus } from 'lucide-react'
 import { useReferral } from '@/hooks/use-referral'
-import { SettingsRow } from '@/components/ui/settings-row'
 
 interface ReferralCardProps {
   onOpen: () => void
 }
 
-/** v8 chrome: flush SettingsRow with title left, mono progress value right. */
+/** Kit referral entry card: primary-tinted icon disc, title, progress line, chevron. */
 export function ReferralCard({ onOpen }: Readonly<ReferralCardProps>) {
   const t = useTranslations()
   const { stats, isLoading } = useReferral()
 
-  let value = t('referral.card.hint')
+  let desc = t('referral.card.hint')
   if (!isLoading && stats) {
-    value = t('referral.card.progress', {
+    desc = t('referral.card.progress', {
       count: stats.successfulReferrals,
       max: stats.maxReferrals,
     })
   }
 
   return (
-    <SettingsRow
-      label={t('referral.card.title')}
-      onClick={onOpen}
-      value={value}
-      mono={!isLoading && !!stats}
-    />
+    <div style={{ padding: '6px 20px' }}>
+      <button
+        type="button"
+        onClick={onOpen}
+        className="flex w-full cursor-pointer items-center appearance-none border-0 text-left rounded-[18px] bg-[var(--bg-card)] transition-[background-color] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev)]"
+        style={{
+          padding: '14px 16px',
+          gap: 14,
+          boxShadow: 'inset 0 0 0 1px var(--hairline)',
+        }}
+      >
+        <span
+          aria-hidden="true"
+          className="flex shrink-0 items-center justify-center rounded-full"
+          style={{
+            width: 44,
+            height: 44,
+            background: 'rgba(var(--primary-rgb), 0.15)',
+          }}
+        >
+          <UserPlus size={22} strokeWidth={1.8} color="var(--primary-soft)" />
+        </span>
+        <span className="flex min-w-0 flex-1 flex-col" style={{ gap: 3 }}>
+          <span
+            style={{
+              fontFamily: 'var(--font-sans)',
+              fontSize: 16,
+              fontWeight: 500,
+              color: 'var(--fg-1)',
+            }}
+          >
+            {t('referral.card.title')}
+          </span>
+          <span
+            style={{
+              fontFamily: 'var(--font-sans)',
+              fontSize: 13,
+              color: 'var(--fg-3)',
+            }}
+          >
+            {desc}
+          </span>
+        </span>
+        <ChevronRight size={22} strokeWidth={1.8} color="var(--fg-4)" />
+      </button>
+    </div>
   )
 }
