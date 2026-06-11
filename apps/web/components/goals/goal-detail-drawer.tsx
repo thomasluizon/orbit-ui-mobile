@@ -120,7 +120,7 @@ function GoalProgressRing({
               fontVariantNumeric: 'tabular-nums',
             }}
           >
-            {percentLabel}
+            {Math.round(clamped)}%
           </div>
           <div
             style={{

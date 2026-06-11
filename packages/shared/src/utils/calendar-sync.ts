@@ -1,5 +1,6 @@
 import type { BulkCreateRequest, FrequencyUnit } from '../types/habit'
 import type { CalendarAutoSyncStatus, CalendarSyncSuggestion } from '../types/calendar'
+import { plural } from './plural'
 
 export interface CalendarSyncEvent {
   id: string
@@ -236,12 +237,6 @@ export function isCalendarAutoSyncStatusReconnectRequired(
  * The translate function must handle the 'calendar.autoSync.lastSyncedNever'
  * and relative-time keys.
  */
-function pickAutoSyncPluralForm(text: string, n: number): string {
-  const forms = text.split('|')
-  if (forms.length < 2) return text.trim()
-  return (n === 1 ? forms[0]! : forms[1]!).trim()
-}
-
 export function formatCalendarAutoSyncLastSynced(
   isoTimestamp: string | null,
   translate: (key: string, values?: Record<string, unknown>) => string,
@@ -257,21 +252,21 @@ export function formatCalendarAutoSyncLastSynced(
 
   if (deltaMinutes < 1) return translate('calendar.autoSync.lastSyncedJustNow')
   if (deltaMinutes < 60)
-    return pickAutoSyncPluralForm(
+    return plural(
       translate('calendar.autoSync.lastSyncedMinutesAgo', { n: deltaMinutes }),
       deltaMinutes,
     )
 
   const deltaHours = Math.floor(deltaMinutes / 60)
   if (deltaHours < 24)
-    return pickAutoSyncPluralForm(
+    return plural(
       translate('calendar.autoSync.lastSyncedHoursAgo', { n: deltaHours }),
       deltaHours,
     )
 
   const deltaDays = Math.floor(deltaHours / 24)
   if (deltaDays === 1) return translate('calendar.autoSync.lastSyncedYesterday')
-  return pickAutoSyncPluralForm(
+  return plural(
     translate('calendar.autoSync.lastSyncedDaysAgo', { n: deltaDays }),
     deltaDays,
   )

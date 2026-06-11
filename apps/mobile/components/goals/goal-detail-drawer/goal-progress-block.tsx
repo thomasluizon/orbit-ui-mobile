@@ -100,7 +100,7 @@ export function GoalProgressBlock({
             />
           </Svg>
           <View style={styles.ringCenter}>
-            <Text style={styles.ringValue}>{percentLabel}</Text>
+            <Text style={styles.ringValue}>{Math.round(clamped)}%</Text>
             <Text style={styles.ringMeta}>{progressText}</Text>
           </View>
         </View>

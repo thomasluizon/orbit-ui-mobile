@@ -1520,7 +1520,7 @@
       "streakDescriptionPlaceholder": "ex: Dias na academia",
       "targetValue": "Quantidade",
       "unit": "Unidade",
-      "unitPlaceholder": "ex: livros, músicas, kg",
+      "unitPlaceholder": "ex: livros",
       "deadline": "Prazo",
       "deadlineOptional": "Opcional",
       "addDeadline": "Adicionar prazo",
@@ -1603,7 +1603,7 @@
       "velocity": "Ritmo de Progresso",
       "daysToDeadline": "Dias para o Prazo",
       "habitAdherence": "Desempenho dos Hábitos Vinculados",
-      "noData": "Dados insuficientes",
+      "noData": "Sem dados",
       "perDay": "dia"
     }
   },
@@ -1812,6 +1812,7 @@
       "tierStrong": "Forte",
       "tierSteady": "Constante",
       "tierNormal": "Normal",
+      "tierTileLabel": "Nível",
       "dayActive": "Ativo",
       "dayFrozen": "Congelado",
       "dayMissed": "Perdido",

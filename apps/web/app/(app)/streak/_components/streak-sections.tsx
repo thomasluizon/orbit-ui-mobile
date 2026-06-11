@@ -45,37 +45,13 @@ export function StreakStatsRow({
           value={longestStreak}
           label={t('streakDisplay.detail.longestStreak')}
         />
-        <TierTile label={t(getStreakTierLabelKey(streak))} />
+        <StatTile
+          emoji="🎖️"
+          value={t(getStreakTierLabelKey(streak))}
+          label={t('streakDisplay.detail.tierTileLabel')}
+          phraseValue
+        />
       </div>
-    </div>
-  )
-}
-
-function TierTile({ label }: Readonly<{ label: string }>) {
-  return (
-    <div
-      className="flex flex-1 flex-col items-center justify-center rounded-[18px] bg-[var(--bg-field)]"
-      style={{
-        gap: 8,
-        padding: '18px 12px 16px',
-        boxShadow: 'inset 0 0 0 1px var(--hairline)',
-      }}
-    >
-      <span style={{ fontSize: 28, lineHeight: 1 }} aria-hidden="true">
-        🎖️
-      </span>
-      <span
-        className="text-center"
-        style={{
-          fontFamily: 'var(--font-sans)',
-          fontSize: 16,
-          fontWeight: 500,
-          lineHeight: 1.3,
-          color: 'var(--fg-1)',
-        }}
-      >
-        {label}
-      </span>
     </div>
   )
 }

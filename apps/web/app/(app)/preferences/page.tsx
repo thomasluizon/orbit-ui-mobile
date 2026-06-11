@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useMutation } from '@tanstack/react-query'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import { Calendar, Check, Languages, Moon, Palette } from 'lucide-react'
 import { colorSchemeOptions, type ColorScheme } from '@orbit/shared/theme'
 import {
@@ -77,11 +77,8 @@ export default function PreferencesPage() {
     document.cookie = 'orbit_time_format=;max-age=0;path=/;samesite=strict'
   }, [])
 
-  const [selectedLanguage, setSelectedLanguage] = useState<string>(() => {
-    if (typeof document === 'undefined') return 'en'
-    const match = /(?:^|; )i18n_locale=([^;]*)/.exec(document.cookie)
-    return match?.[1] ? decodeURIComponent(match[1]) : 'en'
-  })
+  const locale = useLocale()
+  const [selectedLanguage, setSelectedLanguage] = useState<string>(locale)
 
   const handleLanguageChange = useCallback(
     async (locale: SupportedLocale) => {

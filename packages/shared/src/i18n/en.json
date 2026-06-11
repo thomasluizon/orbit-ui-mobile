@@ -1520,7 +1520,7 @@
       "streakDescriptionPlaceholder": "e.g., Days at the gym",
       "targetValue": "Quantity",
       "unit": "Unit",
-      "unitPlaceholder": "e.g., books, songs, kg",
+      "unitPlaceholder": "e.g. books",
       "deadline": "Deadline",
       "deadlineOptional": "Optional",
       "addDeadline": "Add deadline",
@@ -1603,7 +1603,7 @@
       "velocity": "Progress Rate",
       "daysToDeadline": "Days to Deadline",
       "habitAdherence": "Linked Habit Performance",
-      "noData": "Not enough data",
+      "noData": "No data",
       "perDay": "day"
     }
   },
@@ -1812,6 +1812,7 @@
       "tierStrong": "Strong",
       "tierSteady": "Steady",
       "tierNormal": "Normal",
+      "tierTileLabel": "Level",
       "dayActive": "Active",
       "dayFrozen": "Frozen",
       "dayMissed": "Missed",

@@ -105,8 +105,14 @@ export function GoalMetricsPanel({
           emoji="📅"
           value={projectedValue}
           label={t('goals.metrics.projectedCompletion')}
+          phraseValue
         />
-        <StatTile emoji="⚡" value={paceTile.value} label={paceTile.label} />
+        <StatTile
+          emoji="⚡"
+          value={paceTile.value}
+          label={paceTile.label}
+          phraseValue={typeof paceTile.value === 'string'}
+        />
       </div>
 
       {metrics.habitAdherence.length > 0 && (

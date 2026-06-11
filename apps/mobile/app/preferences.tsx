@@ -23,6 +23,7 @@ import {
   getNativePushStatusPresentation,
   LANGUAGE_OPTIONS,
   parseShowGeneralOnTodayPreference,
+  resolveSystemLocale,
 } from '@orbit/shared/utils'
 import { buildUpgradeHref } from '@/lib/upgrade-route'
 import { useProfile } from '@/hooks/use-profile'
@@ -81,13 +82,17 @@ export default function PreferencesScreen() {
 
   const [activePicker, setActivePicker] = useState<PreferencePicker | null>(null)
 
-  const [selectedLanguage, setSelectedLanguage] = useState<'en' | 'pt-BR'>('en')
+  const [selectedLanguage, setSelectedLanguage] = useState<'en' | 'pt-BR'>(() =>
+    resolveSystemLocale(i18n.language),
+  )
   const [previousProfileLanguage, setPreviousProfileLanguage] = useState(
     profile?.language,
   )
   if (profile?.language !== previousProfileLanguage) {
     setPreviousProfileLanguage(profile?.language)
-    setSelectedLanguage(profile?.language === 'pt-BR' ? 'pt-BR' : 'en')
+    if (profile?.language) {
+      setSelectedLanguage(profile.language === 'pt-BR' ? 'pt-BR' : 'en')
+    }
   }
 
   async function handleLanguageChange(locale: 'en' | 'pt-BR') {

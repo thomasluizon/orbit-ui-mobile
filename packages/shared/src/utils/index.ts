@@ -31,6 +31,7 @@ export {
 export type { FriendlyErrorContext } from './error-utils'
 export { isFeatureEnabled } from './config'
 export { stripInlineMarkdown } from './markdown'
+export { plural } from './plural'
 export { buildRecentChatHistory } from './chat-history'
 export {
   buildCalendarAutoSyncImportRequest,

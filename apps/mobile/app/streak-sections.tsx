@@ -50,8 +50,6 @@ export function StreakStatsRow({
   streak,
   longestStreak,
 }: Readonly<StreakStatsRowProps>) {
-  const tokens = useTokens()
-
   return (
     <View>
       <SectionLabel>{t('streakDisplay.detail.stats')}</SectionLabel>
@@ -66,23 +64,12 @@ export function StreakStatsRow({
           value={longestStreak}
           label={t('streakDisplay.detail.longestStreak')}
         />
-        <View
-          style={[
-            styles.tierTile,
-            { backgroundColor: tokens.bgField, borderColor: tokens.hairline },
-          ]}
-        >
-          <Text
-            style={styles.tierEmoji}
-            accessibilityElementsHidden
-            importantForAccessibility="no-hide-descendants"
-          >
-            🎖️
-          </Text>
-          <Text style={[styles.tierLabel, { color: tokens.fg1 }]}>
-            {t(getStreakTierLabelKey(streak))}
-          </Text>
-        </View>
+        <StatTile
+          emoji="🎖️"
+          value={t(getStreakTierLabelKey(streak))}
+          label={t('streakDisplay.detail.tierTileLabel')}
+          phraseValue
+        />
       </View>
     </View>
   )
@@ -570,27 +557,6 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     gap: 12,
     paddingHorizontal: 20,
-  },
-  tierTile: {
-    flex: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    borderRadius: 18,
-    borderWidth: 1,
-    paddingTop: 18,
-    paddingHorizontal: 12,
-    paddingBottom: 16,
-  },
-  tierEmoji: {
-    fontSize: 28,
-    lineHeight: 28,
-  },
-  tierLabel: {
-    fontFamily: 'Rubik_500Medium',
-    fontSize: 16,
-    lineHeight: 21,
-    textAlign: 'center',
   },
   weekCard: {
     borderRadius: 18,
