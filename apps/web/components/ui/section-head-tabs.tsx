@@ -33,7 +33,7 @@ export function SectionHeadTabs<TId extends string>({
       tabIndex={0}
       aria-label={ariaLabel}
       onKeyDown={onKeyDown}
-      className="flex items-center shrink-0"
+      className="flex items-center justify-center shrink-0"
       style={{
         padding: '12px 20px 16px',
         gap: 8,
