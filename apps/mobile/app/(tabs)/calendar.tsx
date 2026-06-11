@@ -569,12 +569,12 @@ function createStyles(tokens: Tokens) {
 
     calendarGrid: {
       paddingHorizontal: 20,
-      paddingTop: 16,
-      paddingBottom: 8,
+      paddingTop: 20,
+      paddingBottom: 10,
     },
     gridCard: {
       borderRadius: 18,
-      paddingVertical: 16,
+      paddingVertical: 18,
       paddingHorizontal: 14,
       backgroundColor: tokens.bgCard,
       borderWidth: 1,
@@ -583,7 +583,7 @@ function createStyles(tokens: Tokens) {
 
     weekDayRow: {
       flexDirection: "row",
-      marginBottom: 8,
+      marginBottom: 12,
     },
     weekDayCell: {
       flex: 1,
@@ -600,7 +600,7 @@ function createStyles(tokens: Tokens) {
     daysGrid: {
       flexDirection: "row",
       flexWrap: "wrap",
-      rowGap: 4,
+      rowGap: 8,
     },
     dayCell: {
       width: "14.2857%",
@@ -641,9 +641,9 @@ function createStyles(tokens: Tokens) {
 
     daySection: {
       paddingHorizontal: 20,
-      paddingTop: 6,
-      paddingBottom: 8,
-      gap: 10,
+      paddingTop: 12,
+      paddingBottom: 12,
+      gap: 12,
     },
     daySectionHeader: {
       flexDirection: "row",
@@ -699,7 +699,7 @@ function createStyles(tokens: Tokens) {
     },
 
     goToDayButton: {
-      marginTop: 2,
+      marginTop: 6,
       alignSelf: "stretch",
     },
   });

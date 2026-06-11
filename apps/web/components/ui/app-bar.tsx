@@ -6,7 +6,8 @@ import type { CSSProperties, ReactNode } from 'react'
 
 type AppBarRightVariant = 'help' | 'close' | 'share'
 
-/** Kit NavHeader: 56px transparent bar — 40px back slot, centered uppercase title, 40px right slot. */
+/** Kit NavHeader: 56px transparent bar — equal flexible side slots (min 40px)
+ *  keep the uppercase title truly centered regardless of trailing cluster width. */
 interface AppBarProps {
   back?: boolean
   /** Accessibility label for the back/leading button. Defaults to t('common.back'). */
@@ -78,7 +79,7 @@ export function AppBar({
       className="flex items-center shrink-0"
       style={{ minHeight: 56, padding: '8px 14px', gap: 4 }}
     >
-      <div className="flex justify-start shrink-0" style={{ width: 40 }}>
+      <div className="flex justify-start" style={{ flex: '1 0 0%', minWidth: 40 }}>
         {back || onBack ? (
           <button
             type="button"
@@ -100,7 +101,7 @@ export function AppBar({
         ) : null}
       </div>
 
-      <div className="flex flex-col justify-center min-w-0 flex-1" style={{ gap: 2 }}>
+      <div className="flex flex-col justify-center min-w-0" style={{ gap: 2 }}>
         <div
           className="overflow-hidden whitespace-nowrap text-ellipsis text-center"
           style={{
@@ -131,8 +132,8 @@ export function AppBar({
       </div>
 
       <div
-        className="flex items-center justify-end shrink-0"
-        style={{ minWidth: 40, gap: 2 }}
+        className="flex items-center justify-end"
+        style={{ flex: '1 0 0%', minWidth: 40, gap: 10 }}
       >
         {trailing ?? rightAction}
       </div>

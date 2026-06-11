@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useMemo, useState, useSyncExternalStore } from 'react'
-import { Bell, BellOff, Flame, Sparkles, Trash2, Trophy, X } from 'lucide-react'
+import { Bell, BellOff, CheckCheck, Flame, Sparkles, Trash2, Trophy, X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import {
   formatNotificationRelativeTime,
@@ -184,11 +184,13 @@ export function NotificationBell() {
             {visibleUnreadCount > 0 && (
               <button
                 type="button"
-                className="chip"
-                style={{ padding: '7px 12px' }}
+                aria-label={t('notifications.markAllRead')}
+                title={t('notifications.markAllRead')}
+                className="icon-btn hover:text-[var(--primary-soft)]"
+                style={{ width: 36, height: 36, color: 'var(--fg-3)' }}
                 onClick={() => markAllAsRead.mutate()}
               >
-                {t('notifications.markAllRead')}
+                <CheckCheck size={18} strokeWidth={1.8} aria-hidden="true" />
               </button>
             )}
             {visibleNotifications.length > 0 && (

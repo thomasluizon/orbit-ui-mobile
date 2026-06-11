@@ -35,7 +35,8 @@ interface AppBarProps {
   backLabel?: string
 }
 
-/** Kit NavHeader: 56px transparent bar — 40px back slot, centered uppercase title, 40px right slot. */
+/** Kit NavHeader: 56px transparent bar — equal flexible side slots (min 40px)
+ *  keep the uppercase title truly centered regardless of trailing cluster width. */
 export function AppBar({
   back = false,
   onBack,
@@ -142,7 +143,9 @@ const styles = StyleSheet.create({
     gap: 4,
   },
   leadingSlot: {
-    width: 40,
+    flexGrow: 1,
+    flexBasis: 0,
+    minWidth: 40,
     flexDirection: 'row',
     justifyContent: 'flex-start',
     flexShrink: 0,
@@ -158,7 +161,7 @@ const styles = StyleSheet.create({
     transform: [{ scale: 0.92 }],
   },
   titleColumn: {
-    flex: 1,
+    flexShrink: 1,
     minWidth: 0,
     gap: 2,
     justifyContent: 'center',
@@ -178,11 +181,13 @@ const styles = StyleSheet.create({
     fontVariant: ['tabular-nums'],
   },
   trailingSlot: {
+    flexGrow: 1,
+    flexBasis: 0,
     minWidth: 40,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'flex-end',
-    gap: 2,
+    gap: 10,
     flexShrink: 0,
   },
 })

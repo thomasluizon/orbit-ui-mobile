@@ -251,7 +251,7 @@ const styles = StyleSheet.create({
   greetingActions: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 10,
     paddingTop: 4,
   },
   dateNavWrap: {

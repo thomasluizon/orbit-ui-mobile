@@ -23,7 +23,7 @@ export function CalendarHeader({
   return (
     <div
       className="flex items-center justify-between"
-      style={{ padding: '14px 20px 0', gap: 12 }}
+      style={{ padding: '20px 20px 0', gap: 12 }}
     >
       <div className="min-w-0 flex-1">
         <h1
@@ -42,7 +42,7 @@ export function CalendarHeader({
         {subtitle && (
           <div
             style={{
-              marginTop: 2,
+              marginTop: 6,
               fontFamily: 'var(--font-mono)',
               fontSize: 12,
               color: 'var(--fg-3)',
@@ -98,7 +98,7 @@ export function CalendarLegend({
     <div
       data-tour="tour-calendar-legend"
       className="flex flex-wrap items-center"
-      style={{ padding: '12px 20px', gap: 16 }}
+      style={{ padding: '14px 20px', gap: 16 }}
     >
       <LegendItem dotColor="var(--primary)" hollow label={todayLabel} />
       <LegendItem dotColor="var(--primary)" label={doneLabel} />

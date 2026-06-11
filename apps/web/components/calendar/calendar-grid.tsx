@@ -116,12 +116,12 @@ export function CalendarGrid({
   return (
     <div
       data-tour="tour-calendar-grid"
-      style={{ padding: '16px 20px 8px' }}
+      style={{ padding: '20px 20px 10px' }}
     >
       <div
         style={{
           borderRadius: 18,
-          padding: '16px 14px',
+          padding: '18px 14px',
           background: 'var(--bg-card)',
           boxShadow: 'inset 0 0 0 1px var(--hairline)',
         }}
@@ -130,7 +130,7 @@ export function CalendarGrid({
           className="grid"
           style={{
             gridTemplateColumns: 'repeat(7, 1fr)',
-            marginBottom: 8,
+            marginBottom: 12,
           }}
         >
           {weekdayHeaders.map((day, i) => (
@@ -153,7 +153,7 @@ export function CalendarGrid({
 
         <div
           className="grid"
-          style={{ gridTemplateColumns: 'repeat(7, 1fr)', rowGap: 4 }}
+          style={{ gridTemplateColumns: 'repeat(7, 1fr)', rowGap: 8 }}
         >
           {gridDays.map((cell, index) => {
             const canSelect = cell.isCurrentMonth

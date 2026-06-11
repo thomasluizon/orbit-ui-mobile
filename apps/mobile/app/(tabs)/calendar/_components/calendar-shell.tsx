@@ -35,7 +35,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       justifyContent: "space-between",
       gap: 12,
       paddingHorizontal: 20,
-      paddingTop: 14,
+      paddingTop: 20,
     },
     headerTitleCol: {
       flex: 1,
@@ -49,7 +49,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       textTransform: "capitalize",
     },
     monthSubtitle: {
-      marginTop: 2,
+      marginTop: 6,
       fontFamily: 'Roboto_400Regular',
       fontSize: 12,
       color: tokens.fg3,
@@ -77,7 +77,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       alignItems: "center",
       flexWrap: "wrap",
       paddingHorizontal: 20,
-      paddingVertical: 12,
+      paddingVertical: 14,
       gap: 16,
     },
     legendItem: {

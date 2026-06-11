@@ -72,10 +72,10 @@ export function CalendarDayDetail({
   if (!dateStr) return null
 
   return (
-    <section aria-label={formattedDate} style={{ padding: '6px 20px 8px' }}>
+    <section aria-label={formattedDate} style={{ padding: '12px 20px 12px' }}>
       <div
         className="flex items-end justify-between"
-        style={{ gap: 12, marginBottom: 10 }}
+        style={{ gap: 12, marginBottom: 12 }}
       >
         <h2
           className="capitalize min-w-0 truncate"
@@ -119,7 +119,7 @@ export function CalendarDayDetail({
       )}
 
       {entries.length > 0 && (
-        <div className="flex flex-col" style={{ gap: 10 }}>
+        <div className="flex flex-col" style={{ gap: 12 }}>
           <p
             className="text-sm text-[var(--fg-3)]"
             style={{ margin: 0 }}
@@ -237,7 +237,7 @@ export function CalendarDayDetail({
         href={`/?date=${dateStr}`}
         className="flex w-full items-center justify-center gap-[9px] rounded-full bg-transparent text-[var(--fg-1)] transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev)] active:scale-[0.98]"
         style={{
-          marginTop: 12,
+          marginTop: 16,
           padding: '14px 26px',
           fontFamily: 'var(--font-sans)',
           fontSize: 16,

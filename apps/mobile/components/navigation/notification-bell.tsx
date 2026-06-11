@@ -9,7 +9,7 @@ import {
   StyleSheet,
 } from 'react-native'
 import Animated, { FadeInDown, ReduceMotion } from 'react-native-reanimated'
-import { Bell, BellOff, Flame, Sparkles, Trash2, Trophy, X } from 'lucide-react-native'
+import { Bell, BellOff, CheckCheck, Flame, Sparkles, Trash2, Trophy, X } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import {
   formatNotificationRelativeTime,
@@ -236,22 +236,26 @@ export function NotificationBell() {
           {visibleUnreadCount > 0 && (
             <Pressable
               style={({ pressed }) => [
-                styles.markAllChip,
-                pressed ? styles.chipPressed : null,
+                styles.sheetActionBtn,
+                pressed ? styles.deleteBtnPressed : null,
               ]}
               onPress={() => markAllAsRead.mutate()}
               accessibilityRole="button"
               accessibilityLabel={t('notifications.markAllRead')}
             >
-              <Text style={styles.markAllText}>
-                {t('notifications.markAllRead')}
-              </Text>
+              {({ pressed }) => (
+                <CheckCheck
+                  size={18}
+                  color={pressed ? tokens.primarySoft : tokens.fg3}
+                  strokeWidth={1.8}
+                />
+              )}
             </Pressable>
           )}
           {visibleNotifications.length > 0 && (
             <Pressable
               style={({ pressed }) => [
-                styles.deleteAllBtn,
+                styles.sheetActionBtn,
                 pressed ? styles.deleteBtnPressed : null,
               ]}
               onPress={() => setShowDeleteAllConfirm(true)}
@@ -343,26 +347,7 @@ function createStyles(tokens: AppTokens) {
       paddingHorizontal: 20,
       marginBottom: 4,
     },
-    markAllChip: {
-      backgroundColor: tokens.bgElev,
-      borderWidth: 1,
-      borderColor: tokens.hairline,
-      borderRadius: 999,
-      paddingVertical: 9,
-      paddingHorizontal: 16,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    chipPressed: {
-      transform: [{ scale: 0.96 }],
-      backgroundColor: tokens.bgElev2,
-    },
-    markAllText: {
-      fontFamily: 'Rubik_500Medium',
-      fontSize: 13,
-      color: tokens.fg2,
-    },
-    deleteAllBtn: {
+    sheetActionBtn: {
       width: 40,
       height: 40,
       borderRadius: 999,

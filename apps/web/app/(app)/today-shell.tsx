@@ -60,7 +60,7 @@ export function TodayHeader({ dateLine, streak }: Readonly<TodayHeaderProps>) {
       >
         {dateLine}
       </h1>
-      <div className="flex shrink-0 items-center" style={{ gap: 8 }}>
+      <div className="flex shrink-0 items-center" style={{ gap: 10 }}>
         <ThemeToggle />
         <span data-tour="tour-streak-badge">
           <StreakBadge streak={streak} />

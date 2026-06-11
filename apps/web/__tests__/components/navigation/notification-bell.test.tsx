@@ -169,7 +169,9 @@ describe('NotificationBell', () => {
     ]
     render(<NotificationBell />)
     fireEvent.click(screen.getByLabelText(/notifications.bellWithCount/))
-    expect(screen.getByText('notifications.markAllRead')).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'notifications.markAllRead' }),
+    ).toBeInTheDocument()
   })
 
   it('has aria-expanded attribute', () => {
