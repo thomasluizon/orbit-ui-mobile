@@ -91,14 +91,29 @@ export function CalendarDayDetail({
         </h2>
         {entries.length > 0 && (
           <label
-            className="flex shrink-0 items-center gap-2 text-sm text-[var(--fg-2)] cursor-pointer"
+            className="flex shrink-0 items-center gap-2 text-sm text-[var(--fg-2)] cursor-pointer select-none"
           >
             <input
               type="checkbox"
               checked={showRecurring}
               onChange={(e) => setShowRecurring(e.target.checked)}
-              className="accent-[var(--primary)]"
+              className="sr-only"
             />
+            <span
+              aria-hidden="true"
+              className="flex items-center justify-center shrink-0 transition-[background-color,box-shadow] duration-[var(--dur-fast)]"
+              style={{
+                width: 20,
+                height: 20,
+                borderRadius: 6,
+                background: showRecurring ? 'var(--primary)' : 'transparent',
+                boxShadow: showRecurring ? 'none' : 'inset 0 0 0 2px var(--fg-4)',
+              }}
+            >
+              {showRecurring && (
+                <Check size={13} strokeWidth={3} color="var(--fg-on-primary)" />
+              )}
+            </span>
             {t('calendar.showRecurring')}
           </label>
         )}
