@@ -494,14 +494,14 @@
       "streakDays": "{n}d",
       "stats": "Estatísticas",
       "noDataYet": "Nenhum dado ainda",
-      "completeToday": "Concluir hoje",
-      "logSlip": "Registrar recaída",
       "daysFree": "Dias livre",
       "reminders": "Lembretes",
       "linkedGoal": "Meta vinculada",
       "askAstraEyebrow": "PERGUNTE AO ASTRA",
       "askAstraSubHabits": "Quer dividir isto em passos menores?",
-      "askAstraDefault": "Quer uma perspectiva sobre este hábito?"
+      "askAstraDefault": "Quer uma perspectiva sobre este hábito?",
+      "askAstraSeedSubHabits": "Me ajude a dividir o hábito \"{title}\" em sub-hábitos menores.",
+      "askAstraSeedDefault": "Como estou indo com o hábito \"{title}\"? Me dê sua análise e uma dica para melhorar."
     },
     "filter": {
       "daily": "Diário",
@@ -1571,6 +1571,7 @@
       "showAllHistory": "Ver todos",
       "showLessHistory": "Ver menos",
       "askAstraDefault": "Quer um plano de check-in semanal para isto?",
+      "askAstraSeedDefault": "Me ajude a montar um plano de check-in semanal para a meta \"{title}\".",
       "askAstraEyebrow": "PERGUNTE AO ASTRA",
       "statusLabel": "Status"
     },

@@ -1208,12 +1208,6 @@ const isPostponeAction = useMemo(() => {
         onOpenChange={setShowDetailDrawer}
         habit={selectedHabit}
         onLogged={handleLogged}
-        onEdit={() => {
-          if (!selectedHabit) return
-          setShowDetailDrawer(false)
-          setHabitToEdit(selectedHabit)
-          setShowEditModal(true)
-        }}
       />
 
       <EditHabitModal

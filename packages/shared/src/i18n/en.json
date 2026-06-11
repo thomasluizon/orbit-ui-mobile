@@ -494,14 +494,14 @@
       "streakDays": "{n}d",
       "stats": "Stats",
       "noDataYet": "No data yet",
-      "completeToday": "Complete today",
-      "logSlip": "Log a slip",
       "daysFree": "Days free",
       "reminders": "Reminders",
       "linkedGoal": "Linked goal",
       "askAstraEyebrow": "ASK ASTRA",
       "askAstraSubHabits": "Want to break this into smaller steps?",
-      "askAstraDefault": "Want a perspective on this habit?"
+      "askAstraDefault": "Want a perspective on this habit?",
+      "askAstraSeedSubHabits": "Help me break my habit \"{title}\" into smaller sub-habits.",
+      "askAstraSeedDefault": "How am I doing with my habit \"{title}\"? Give me your read and one tip to improve."
     },
     "filter": {
       "daily": "Daily",
@@ -1571,6 +1571,7 @@
       "showAllHistory": "Show all",
       "showLessHistory": "Show less",
       "askAstraDefault": "Want a weekly check-in plan for this?",
+      "askAstraSeedDefault": "Help me set up a weekly check-in plan for my goal \"{title}\".",
       "askAstraEyebrow": "ASK ASTRA",
       "statusLabel": "Status"
     },

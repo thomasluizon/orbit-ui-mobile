@@ -1498,11 +1498,6 @@ export default function TodayScreen() {
         onClose={() => setDetailHabit(null)}
         habit={detailHabit}
         onLogged={handleHabitLogged}
-        onEdit={() => {
-          if (!detailHabit) return;
-          setDetailHabit(null);
-          setEditHabit(detailHabit);
-        }}
       />
 
       <EditHabitModal

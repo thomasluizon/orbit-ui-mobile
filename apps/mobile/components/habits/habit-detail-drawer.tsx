@@ -1,7 +1,5 @@
 import { useState, useCallback, useMemo } from 'react'
 import {
-  ActivityIndicator,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -9,13 +7,12 @@ import {
   View,
 } from 'react-native'
 import { useTranslation } from 'react-i18next'
-import { Check, ChevronRight, Orbit, Pencil } from 'lucide-react-native'
+import { ChevronRight, Orbit } from 'lucide-react-native'
 import { useRouter } from 'expo-router'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { BottomSheetModal } from '@/components/bottom-sheet-modal'
 import { withDrawerContentInset } from '@/components/ui/drawer-content-inset'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
-import { PillButton } from '@/components/ui/pill-button'
 import { SectionLabel } from '@/components/ui/section-label'
 import { SettingsRow } from '@/components/ui/settings-row'
 import { HabitChecklist } from './habit-checklist'
@@ -38,7 +35,6 @@ interface HabitDetailDrawerProps {
   onClose: () => void
   habit: NormalizedHabit | null
   onLogged?: (habitId: string) => void
-  onEdit?: () => void
 }
 
 /**
@@ -51,7 +47,6 @@ export function HabitDetailDrawer({
   onClose,
   habit,
   onLogged,
-  onEdit,
 }: Readonly<HabitDetailDrawerProps>) {
   const { t, i18n } = useTranslation()
   const locale = i18n.language
@@ -89,11 +84,14 @@ export function HabitDetailDrawer({
 
   const handleAskAstra = useCallback(() => {
     if (!habit) return
-    const seed = `${askPrompt} (${habit.title})`
+    const seed =
+      (habit.checklistItems?.length ?? 0) > 0
+        ? t('habits.detail.askAstraSeedSubHabits', { title: habit.title })
+        : t('habits.detail.askAstraSeedDefault', { title: habit.title })
     void AsyncStorage.setItem('orbit-chat-draft', seed)
     onClose()
     router.push('/chat')
-  }, [askPrompt, habit, onClose, router])
+  }, [habit, onClose, router, t])
 
   const handleChecklistToggle = useCallback(
     (index: number) => {
@@ -124,15 +122,6 @@ export function HabitDetailDrawer({
     if (!habit) return
     updateChecklist.mutate({ habitId: habit.id, items: [] })
   }, [habit, updateChecklist])
-
-  const handleLogToday = useCallback(async () => {
-    if (!habit) return
-    try {
-      await logHabit.mutateAsync({ habitId: habit.id })
-      onLogged?.(habit.id)
-    } catch {
-    }
-  }, [habit, logHabit, onLogged])
 
   const summaryStrip = useMemo(() => {
     if (!habit) return ''
@@ -329,67 +318,6 @@ export function HabitDetailDrawer({
               </View>
             </View>
 
-            <View style={styles.actionRow}>
-              {habit.isBadHabit ? (
-                <Pressable
-                  disabled={logHabit.isPending}
-                  onPress={handleLogToday}
-                  accessibilityRole="button"
-                  accessibilityLabel={t('habits.detail.logSlip')}
-                  style={({ pressed }) => [
-                    styles.slipButton,
-                    {
-                      borderColor: `${tokens.statusBad}66`,
-                      backgroundColor: pressed
-                        ? `${tokens.statusBad}14`
-                        : 'transparent',
-                      opacity: logHabit.isPending ? 0.4 : 1,
-                      transform: [{ scale: pressed ? 0.98 : 1 }],
-                    },
-                  ]}
-                >
-                  {logHabit.isPending ? (
-                    <ActivityIndicator size="small" color={tokens.statusBad} />
-                  ) : null}
-                  <Text style={[styles.slipButtonLabel, { color: tokens.statusBad }]}>
-                    {t('habits.detail.logSlip')}
-                  </Text>
-                </Pressable>
-              ) : (
-                <PillButton
-                  style={styles.completeButton}
-                  disabled={logHabit.isPending || habit.isCompleted}
-                  onPress={handleLogToday}
-                  leading={
-                    logHabit.isPending ? (
-                      <ActivityIndicator size="small" color={tokens.fgOnPrimary} />
-                    ) : (
-                      <Check size={18} color={tokens.fgOnPrimary} strokeWidth={2.2} />
-                    )
-                  }
-                >
-                  {t('habits.detail.completeToday')}
-                </PillButton>
-              )}
-              {onEdit ? (
-                <Pressable
-                  onPress={onEdit}
-                  accessibilityRole="button"
-                  accessibilityLabel={t('habits.editHabit')}
-                  style={({ pressed }) => [
-                    styles.editButton,
-                    {
-                      borderColor: tokens.hairlineStrong,
-                      backgroundColor: pressed ? tokens.bgElevPressed : 'transparent',
-                      transform: [{ scale: pressed ? 0.96 : 1 }],
-                    },
-                  ]}
-                >
-                  <Pencil size={20} color={tokens.fg1} strokeWidth={1.8} />
-                </Pressable>
-              ) : null}
-            </View>
-
             <TouchableOpacity
               activeOpacity={0.7}
               onPress={handleAskAstra}
@@ -523,41 +451,6 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       fontFamily: 'Rubik_400Regular',
       fontSize: 14,
       lineHeight: 20,
-    },
-    actionRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 12,
-      paddingHorizontal: 20,
-      paddingTop: 12,
-      paddingBottom: 4,
-    },
-    completeButton: {
-      flex: 1,
-    },
-    slipButton: {
-      flex: 1,
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 9,
-      minHeight: 52,
-      paddingHorizontal: 26,
-      borderRadius: 999,
-      borderWidth: 1.5,
-    },
-    slipButtonLabel: {
-      fontFamily: 'Rubik_500Medium',
-      fontSize: 16,
-    },
-    editButton: {
-      width: 56,
-      height: 52,
-      borderRadius: 999,
-      borderWidth: 1.5,
-      alignItems: 'center',
-      justifyContent: 'center',
-      flexShrink: 0,
     },
   })
 }

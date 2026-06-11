@@ -198,7 +198,8 @@ export function GoalDetailDrawer({
   const router = useRouter()
   const askPrompt = t('goals.detail.askAstraDefault')
   function handleAskAstra() {
-    const seed = goal?.title ? `${askPrompt} (${goal.title})` : askPrompt
+    if (!goal) return
+    const seed = t('goals.detail.askAstraSeedDefault', { title: goal.title })
     if (typeof globalThis !== 'undefined' && typeof globalThis.localStorage !== 'undefined') {
       globalThis.localStorage.setItem('orbit-chat-draft', seed)
     }

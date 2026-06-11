@@ -2,11 +2,10 @@
 
 import { useState, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import { Orbit, ChevronRight, Check, Pencil } from 'lucide-react'
+import { Orbit, ChevronRight } from 'lucide-react'
 import { useTranslations, useLocale } from 'next-intl'
 import { AppOverlay } from '@/components/ui/app-overlay'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
-import { PillButton } from '@/components/ui/pill-button'
 import { SectionLabel } from '@/components/ui/section-label'
 import { SettingsRow } from '@/components/ui/settings-row'
 import { HabitChecklist } from './habit-checklist'
@@ -26,7 +25,6 @@ interface HabitDetailDrawerProps {
   onOpenChange: (open: boolean) => void
   habit: NormalizedHabit | null
   onLogged?: (habitId: string) => void
-  onEdit?: () => void
 }
 
 export function HabitDetailDrawer({
@@ -34,7 +32,6 @@ export function HabitDetailDrawer({
   onOpenChange,
   habit,
   onLogged,
-  onEdit,
 }: Readonly<HabitDetailDrawerProps>) {
   const t = useTranslations()
   const locale = useLocale()
@@ -94,15 +91,6 @@ export function HabitDetailDrawer({
     }
   }, [habit, logHabit, onLogged])
 
-  const handleLogToday = useCallback(async () => {
-    if (!habit) return
-    try {
-      await logHabit.mutateAsync({ habitId: habit.id })
-      onLogged?.(habit.id)
-    } catch {
-    }
-  }, [habit, logHabit, onLogged])
-
   const handleChecklistReset = useCallback(() => {
     if (!habit) return
     const items = liveChecklist.map((i) => ({ ...i, isChecked: false }))
@@ -120,7 +108,11 @@ export function HabitDetailDrawer({
 
   const router = useRouter()
   function handleAskAstra() {
-    const seed = habit?.title ? `${askPrompt} (${habit.title})` : askPrompt
+    if (!habit) return
+    const seed =
+      habit.checklistItems && habit.checklistItems.length > 0
+        ? t('habits.detail.askAstraSeedSubHabits', { title: habit.title })
+        : t('habits.detail.askAstraSeedDefault', { title: habit.title })
     if (typeof globalThis !== 'undefined' && typeof globalThis.localStorage !== 'undefined') {
       globalThis.localStorage.setItem('orbit-chat-draft', seed)
     }
@@ -314,56 +306,6 @@ export function HabitDetailDrawer({
             <SectionLabel>{t('habits.detail.activity')}</SectionLabel>
             <div style={{ padding: '0 20px 12px' }}>
               <HabitCalendar habitId={habit.id} logs={logs} />
-            </div>
-
-            <div className="flex items-center" style={{ gap: 12, padding: '8px 20px 14px' }}>
-              {habit.isBadHabit ? (
-                <button
-                  type="button"
-                  disabled={logHabit.isPending}
-                  onClick={handleLogToday}
-                  className="flex-1 inline-flex cursor-pointer items-center justify-center rounded-full bg-transparent transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] enabled:hover:bg-[color-mix(in_srgb,var(--status-bad)_8%,transparent)] enabled:active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
-                  style={{
-                    gap: 9,
-                    padding: '14px 26px',
-                    border: 0,
-                    boxShadow:
-                      'inset 0 0 0 1.5px color-mix(in srgb, var(--status-bad) 40%, transparent)',
-                    fontFamily: 'var(--font-sans)',
-                    fontSize: 16,
-                    fontWeight: 500,
-                    color: 'var(--status-bad)',
-                  }}
-                >
-                  {t('habits.detail.logSlip')}
-                </button>
-              ) : (
-                <PillButton
-                  className="flex-1"
-                  disabled={logHabit.isPending || habit.isCompleted}
-                  busy={logHabit.isPending}
-                  leading={<Check size={18} strokeWidth={2.2} aria-hidden="true" />}
-                  onClick={handleLogToday}
-                >
-                  {t('habits.detail.completeToday')}
-                </PillButton>
-              )}
-              {onEdit ? (
-                <button
-                  type="button"
-                  aria-label={t('habits.editHabit')}
-                  onClick={onEdit}
-                  className="inline-flex shrink-0 cursor-pointer items-center justify-center rounded-full bg-transparent transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-card)] active:scale-[0.96]"
-                  style={{
-                    width: 56,
-                    height: 52,
-                    border: 0,
-                    boxShadow: 'inset 0 0 0 1.5px var(--hairline-strong)',
-                  }}
-                >
-                  <Pencil size={20} strokeWidth={1.8} color="var(--fg-1)" aria-hidden="true" />
-                </button>
-              ) : null}
             </div>
           </div>
         )}
