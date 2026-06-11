@@ -231,7 +231,7 @@ describe('mobile useChatComposer', () => {
     })
 
     expect(mocks.routerPush).toHaveBeenCalledWith('/upgrade')
-    expect(composer.current.sendError).toBe('Premium plan required to use AI chat')
+    expect(composer.current.sendError).toBe('chat.proGate.body')
   })
 
   it('surfaces the limit error without routing when the stream reports a non-upgrade 403', async () => {

@@ -230,8 +230,12 @@ export function MessageBubble({
                       'inset 0 0 0 1px color-mix(in srgb, var(--status-bad) 20%, transparent)',
                   }}
                 >
-                  <p className="text-xs font-medium text-[var(--status-bad)]">{denial.sourceName}</p>
-                  <p className="mt-1 text-[11px] text-[var(--status-bad)]/90">{denial.reason}</p>
+                  <p className="text-xs font-medium text-[var(--status-bad)]">
+                    {upgradeResolution.shouldUpgrade ? t('chat.proGate.title') : denial.sourceName}
+                  </p>
+                  <p className="mt-1 text-[11px] text-[var(--status-bad)]/90">
+                    {upgradeResolution.shouldUpgrade ? t('chat.proGate.body') : denial.reason}
+                  </p>
                   {upgradeResolution.shouldUpgrade && onUpgradeClick && (
                     <button
                       type="button"

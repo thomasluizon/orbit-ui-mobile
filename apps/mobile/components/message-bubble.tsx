@@ -215,8 +215,16 @@ export function MessageBubble({
                   key={`${denial.operationId}-${denial.pendingOperationId ?? denial.reason}`}
                   style={styles.denialCard}
                 >
-                  <Text style={styles.denialTitle}>{denial.sourceName}</Text>
-                  <Text style={styles.denialReason}>{denial.reason}</Text>
+                  <Text style={styles.denialTitle}>
+                    {upgradeResolution.shouldUpgrade
+                      ? t("chat.proGate.title")
+                      : denial.sourceName}
+                  </Text>
+                  <Text style={styles.denialReason}>
+                    {upgradeResolution.shouldUpgrade
+                      ? t("chat.proGate.body")
+                      : denial.reason}
+                  </Text>
                   {upgradeResolution.shouldUpgrade && onUpgradeClick ? (
                     <Text
                       style={styles.denialUpgrade}

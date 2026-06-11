@@ -650,6 +650,10 @@
     "timeoutError": "The request timed out. Please try again.",
     "limitReachedError": "You've reached your monthly AI message limit.",
     "aiError": "Sorry, something went wrong. Please try again.",
+    "proGate": {
+      "title": "Pro feature",
+      "body": "This action needs Orbit Pro. Upgrade to unlock it."
+    },
     "suggestion": {
       "prompt": "I can recap, plan, or help you adjust a habit.",
       "meditated": "I meditated today",

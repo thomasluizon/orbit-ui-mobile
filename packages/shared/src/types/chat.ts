@@ -38,8 +38,7 @@ export const quickActionSchema = z.object({
   // `value` is what the client echoes back verbatim to the resolve endpoint; empty
   // strings would be meaningless and the backend rejects them anyway.
   value: z.string().min(1),
-  // Backend always emits the field; serializes as `null` when unset, not omitted.
-  description: z.string().nullable(),
+  description: z.string().nullable().optional(),
 })
 
 export type QuickAction = z.infer<typeof quickActionSchema>
@@ -65,7 +64,7 @@ export const conflictWarningSchema = z.object({
   hasConflict: z.boolean(),
   conflictingHabits: z.array(conflictingHabitSchema),
   severity: z.enum(['HIGH', 'MEDIUM', 'LOW']),
-  recommendation: z.string().nullable(),
+  recommendation: z.string().nullable().optional(),
 })
 
 export type ConflictWarning = z.infer<typeof conflictWarningSchema>
@@ -104,16 +103,15 @@ export const actionResultSchema = z
     // ever calling .parse() — so a plain string keeps the type honest about the wire.
     type: z.string(),
     status: actionStatusSchema,
-    entityId: z.string().nullable(),
-    entityName: z.string().nullable(),
-    error: z.string().nullable(),
-    field: z.string().nullable(),
-    suggestedSubHabits: z.array(suggestedSubHabitSchema).nullable(),
-    conflictWarning: conflictWarningSchema.nullable(),
-    // Backend serializes the field as null when absent (System.Text.Json default), so
-    // .nullable() covers the wire format. .optional() is the cheap belt for callers
-    // that build ActionResults without explicitly setting this field (existing tests +
-    // any future code) — the superRefine below guards the real invariant.
+    // The buffered endpoint writes null for unset fields while the SSE stream omits
+    // them entirely (WhenWritingNull serializer), so every nullable field must also
+    // be optional or the final stream event fails parsing and the send looks failed.
+    entityId: z.string().nullable().optional(),
+    entityName: z.string().nullable().optional(),
+    error: z.string().nullable().optional(),
+    field: z.string().nullable().optional(),
+    suggestedSubHabits: z.array(suggestedSubHabitSchema).nullable().optional(),
+    conflictWarning: conflictWarningSchema.nullable().optional(),
     clarificationRequest: clarificationRequestSchema.nullable().optional(),
   })
   .superRefine((value, ctx) => {
@@ -135,27 +133,27 @@ export const chatMessageSchema = z.object({
   role: z.enum(['user', 'ai']),
   content: z.string(),
   actions: z.array(actionResultSchema).optional(),
-  operations: z.array(agentOperationResultSchema).optional(),
-  pendingOperations: z.array(pendingAgentOperationSchema).optional(),
-  policyDenials: z.array(agentPolicyDenialSchema).optional(),
+  operations: z.array(agentOperationResultSchema).nullable().optional(),
+  pendingOperations: z.array(pendingAgentOperationSchema).nullable().optional(),
+  policyDenials: z.array(agentPolicyDenialSchema).nullable().optional(),
   imageUrl: z.string().nullable().optional(),
   correlationId: z.string().nullable().optional(),
   // App surface IDs (e.g. "today", "gamification") the assistant linked to via a
   // describe_feature reply; rendered as a deep-link footer when present.
-  relatedSurfaces: z.array(z.string()).optional(),
+  relatedSurfaces: z.array(z.string()).nullable().optional(),
   timestamp: z.date(),
 })
 
 export type ChatMessage = z.infer<typeof chatMessageSchema>
 
 export const chatResponseSchema = z.object({
-  aiMessage: z.string().nullable(),
+  aiMessage: z.string().nullable().optional(),
   actions: z.array(actionResultSchema),
-  operations: z.array(agentOperationResultSchema).optional(),
-  pendingOperations: z.array(pendingAgentOperationSchema).optional(),
-  policyDenials: z.array(agentPolicyDenialSchema).optional(),
+  operations: z.array(agentOperationResultSchema).nullable().optional(),
+  pendingOperations: z.array(pendingAgentOperationSchema).nullable().optional(),
+  policyDenials: z.array(agentPolicyDenialSchema).nullable().optional(),
   correlationId: z.string().nullable().optional(),
-  relatedSurfaces: z.array(z.string()).optional(),
+  relatedSurfaces: z.array(z.string()).nullable().optional(),
 })
 
 export type ChatResponse = z.infer<typeof chatResponseSchema>

@@ -650,6 +650,10 @@
     "timeoutError": "A requisição expirou. Tente novamente.",
     "limitReachedError": "Você atingiu o limite mensal de mensagens de IA.",
     "aiError": "Desculpe, algo deu errado. Tente novamente.",
+    "proGate": {
+      "title": "Recurso Pro",
+      "body": "Esta ação precisa do Orbit Pro. Faça upgrade para desbloquear."
+    },
     "suggestion": {
       "prompt": "Posso resumir, planejar ou ajudar você a ajustar um hábito.",
       "meditated": "Eu meditei hoje",
