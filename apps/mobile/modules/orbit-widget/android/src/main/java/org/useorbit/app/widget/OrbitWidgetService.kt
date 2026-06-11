@@ -65,7 +65,6 @@ data class HabitWidgetResponse(
 /** Resolved v8 token colors for the active scheme + mode, synced from JS. */
 data class WidgetColors(
     val primary: Int,
-    val primaryScale400: Int,
     val background: Int,
     val surface: Int,
     val surfaceGround: Int,
@@ -74,7 +73,8 @@ data class WidgetColors(
     val border: Int,
     val borderMuted: Int,
     val overdue: Int,
-    val streak: Int
+    val streak: Int,
+    val statusEmpty: Int
 )
 
 class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.RemoteViewsFactory {
@@ -90,19 +90,20 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
 
         // Bootstrap fallback (purple dark) for the first paint before JS syncs the
         // active scheme into SharedPreferences. The full per-scheme palette lives
-        // in the app's createTokensV2 and arrives via OrbitWidgetModule.syncTheme.
+        // in the app's createTokensV2 and arrives via OrbitWidgetModule.syncTheme;
+        // alpha tokens arrive pre-flattened over the canvas, mirrored here.
         private val FALLBACK_COLORS = mapOf(
-            "primary" to "#8b5cf6",
-            "primaryScale400" to "#a78bfa",
-            "background" to "#07060e",
-            "surface" to "#13111f",
-            "surfaceGround" to "#0d0b16",
-            "textPrimary" to "#f0eef6",
-            "textMuted" to "#7a7490",
-            "border" to "#12FFFFFF",
-            "borderMuted" to "#0AFFFFFF",
-            "overdue" to "#f0b35c",
-            "streak" to "#d6645d"
+            "primary" to "#7f46f7",
+            "background" to "#020618",
+            "surface" to "#111526",
+            "surfaceGround" to "#010411",
+            "textPrimary" to "#f8fafc",
+            "textMuted" to "#90a1b9",
+            "border" to "#1b1e2f",
+            "borderMuted" to "#2e3241",
+            "overdue" to "#fe9a00",
+            "streak" to "#fe9a00",
+            "statusEmpty" to "#383c4a"
         )
 
         // i18n strings
@@ -138,26 +139,30 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
             return parseColor(value, fallback)
         }
 
+        private fun fallbackColor(token: String): Int {
+            val value = FALLBACK_COLORS.getValue(token)
+            return parseColor(value, value)
+        }
+
         /** Purple-dark bootstrap colors for the first paint before JS syncs the active scheme. */
         fun defaultColors(): WidgetColors = WidgetColors(
-            primary = parseColor(FALLBACK_COLORS.getValue("primary"), "#8b5cf6"),
-            primaryScale400 = parseColor(FALLBACK_COLORS.getValue("primaryScale400"), "#a78bfa"),
-            background = parseColor(FALLBACK_COLORS.getValue("background"), "#07060e"),
-            surface = parseColor(FALLBACK_COLORS.getValue("surface"), "#13111f"),
-            surfaceGround = parseColor(FALLBACK_COLORS.getValue("surfaceGround"), "#0d0b16"),
-            textPrimary = parseColor(FALLBACK_COLORS.getValue("textPrimary"), "#f0eef6"),
-            textMuted = parseColor(FALLBACK_COLORS.getValue("textMuted"), "#7a7490"),
-            border = parseColor(FALLBACK_COLORS.getValue("border"), "#12FFFFFF"),
-            borderMuted = parseColor(FALLBACK_COLORS.getValue("borderMuted"), "#0AFFFFFF"),
-            overdue = parseColor(FALLBACK_COLORS.getValue("overdue"), "#f0b35c"),
-            streak = parseColor(FALLBACK_COLORS.getValue("streak"), "#d6645d")
+            primary = fallbackColor("primary"),
+            background = fallbackColor("background"),
+            surface = fallbackColor("surface"),
+            surfaceGround = fallbackColor("surfaceGround"),
+            textPrimary = fallbackColor("textPrimary"),
+            textMuted = fallbackColor("textMuted"),
+            border = fallbackColor("border"),
+            borderMuted = fallbackColor("borderMuted"),
+            overdue = fallbackColor("overdue"),
+            streak = fallbackColor("streak"),
+            statusEmpty = fallbackColor("statusEmpty")
         )
 
         fun getThemeColors(context: Context): WidgetColors {
             val prefs = context.getSharedPreferences("orbit_widget_cache", Context.MODE_PRIVATE)
             return WidgetColors(
                 primary = readColor(prefs, "primary"),
-                primaryScale400 = readColor(prefs, "primaryScale400"),
                 background = readColor(prefs, "background"),
                 surface = readColor(prefs, "surface"),
                 surfaceGround = readColor(prefs, "surfaceGround"),
@@ -166,7 +171,8 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
                 border = readColor(prefs, "border"),
                 borderMuted = readColor(prefs, "borderMuted"),
                 overdue = readColor(prefs, "overdue"),
-                streak = readColor(prefs, "streak")
+                streak = readColor(prefs, "streak"),
+                statusEmpty = readColor(prefs, "statusEmpty")
             )
         }
 
@@ -443,7 +449,7 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
         // Item background (programmatic rounded rect bitmap)
         val bgWidth = (context.resources.displayMetrics.widthPixels * 0.9f).toInt()
         val bgHeight = (if (isChild) 40 else 44) * density
-        val cornerRadius = 14f * density
+        val cornerRadius = 16f * density
         val strokeWidth = 1f * density
 
         val baseSurface = Color.argb(0xDD, Color.red(colors.surface), Color.green(colors.surface), Color.blue(colors.surface))
@@ -451,7 +457,7 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
             isChild -> createRoundedBitmap(
                 bgWidth, bgHeight.toInt(),
                 colors.surfaceGround,
-                10f * density
+                12f * density
             )
             habit.isCompleted -> createRoundedBitmap(
                 bgWidth, bgHeight.toInt(),
@@ -498,7 +504,7 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
             views.setViewVisibility(R.id.item_status_icon, android.view.View.INVISIBLE)
             views.setViewVisibility(R.id.item_progress_badge, android.view.View.VISIBLE)
             views.setTextViewText(R.id.item_progress_badge, "${habit.childrenDone}/${habit.childrenTotal}")
-            views.setTextColor(R.id.item_progress_badge, colors.primaryScale400)
+            views.setTextColor(R.id.item_progress_badge, colors.textMuted)
         } else {
             views.setViewVisibility(R.id.item_status_icon, android.view.View.VISIBLE)
             views.setViewVisibility(R.id.item_progress_badge, android.view.View.GONE)
@@ -514,7 +520,7 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
                 }
                 else -> {
                     views.setImageViewResource(R.id.item_status_icon, R.drawable.widget_circle_empty)
-                    views.setInt(R.id.item_status_icon, "setColorFilter", colors.textPrimary)
+                    views.setInt(R.id.item_status_icon, "setColorFilter", colors.statusEmpty)
                 }
             }
 

@@ -48,10 +48,9 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:layout_gravity="center"
-                android:textColor="#FFFFFFFF"
                 android:textSize="10sp"
-                android:textStyle="bold"
-                android:fontFamily="sans-serif-medium"
+                android:fontFamily="@font/roboto_medium"
+                android:fontFeatureSettings="tnum"
                 android:paddingStart="6dp"
                 android:paddingEnd="6dp"
                 android:paddingTop="3dp"
@@ -67,9 +66,9 @@
             android:layout_height="wrap_content"
             android:layout_alignParentEnd="true"
             android:layout_centerVertical="true"
-            android:textColor="#FFFFFFFF"
             android:textSize="11sp"
-            android:fontFamily="sans-serif-medium"
+            android:fontFamily="@font/roboto_medium"
+            android:fontFeatureSettings="tnum"
             android:paddingStart="7dp"
             android:paddingEnd="7dp"
             android:paddingTop="2dp"
@@ -93,20 +92,20 @@
                 android:id="@+id/item_title"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:textColor="#FFf0eef6"
                 android:textSize="14sp"
                 android:maxLines="1"
                 android:ellipsize="end"
-                android:fontFamily="sans-serif-medium" />
+                android:fontFamily="@font/rubik_medium" />
 
             <!-- Due time (below title, plain text) -->
             <TextView
                 android:id="@+id/item_time"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:textColor="#997a7490"
                 android:textSize="11sp"
-                android:fontFamily="sans-serif-medium"
+                android:fontFamily="@font/roboto_regular"
+                android:letterSpacing="0.02"
+                android:fontFeatureSettings="tnum"
                 android:paddingTop="1dp"
                 android:visibility="gone" />
 

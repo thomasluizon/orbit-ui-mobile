@@ -68,7 +68,6 @@ function flattenColor(color: string, baseHex: string): string {
 function toWidgetColors(tokens: AppTokensV2): WidgetThemeColors {
   return {
     primary: tokens.primary,
-    primaryScale400: tokens.primaryPressed,
     background: tokens.bg,
     surface: flattenColor(tokens.bgElev, tokens.bg),
     surfaceGround: flattenColor(tokens.bgSunk, tokens.bg),
@@ -77,7 +76,8 @@ function toWidgetColors(tokens: AppTokensV2): WidgetThemeColors {
     border: flattenColor(tokens.hairline, tokens.bg),
     borderMuted: flattenColor(tokens.hairlineStrong, tokens.bg),
     overdue: tokens.statusOverdue,
-    streak: tokens.statusBad,
+    streak: tokens.statusOverdue,
+    statusEmpty: flattenColor(tokens.statusEmpty, tokens.bg),
   }
 }
 

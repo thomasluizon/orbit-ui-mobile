@@ -7,7 +7,6 @@ import type { StyleProp, ViewStyle } from 'react-native'
  */
 export interface WidgetThemeColors {
   primary: string
-  primaryScale400: string
   background: string
   surface: string
   surfaceGround: string
@@ -17,6 +16,7 @@ export interface WidgetThemeColors {
   borderMuted: string
   overdue: string
   streak: string
+  statusEmpty: string
 }
 
 export interface OrbitWidgetModuleType {
