@@ -3,8 +3,9 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { Compass, FileText, Mail, Orbit, Shield } from 'lucide-react'
+import { Compass, FileText, Mail, Shield } from 'lucide-react'
 import { AppBar } from '@/components/ui/app-bar'
+import { AppLogo } from '@/components/ui/app-logo'
 import { SettingsRow } from '@/components/ui/settings-row'
 import { ReferralCard } from '@/components/referral/referral-card'
 import { ReferralDrawer } from '@/components/referral/referral-drawer'
@@ -32,23 +33,7 @@ export default function AboutPage() {
           className="flex flex-col items-center"
           style={{ gap: 10, padding: '24px 0 20px' }}
         >
-          <div
-            className="flex items-center justify-center"
-            style={{
-              width: 72,
-              height: 72,
-              borderRadius: 20,
-              background: 'var(--primary)',
-              boxShadow: 'var(--primary-glow)',
-            }}
-          >
-            <Orbit
-              size={38}
-              strokeWidth={2}
-              color="var(--fg-on-primary)"
-              aria-hidden="true"
-            />
-          </div>
+          <AppLogo size={72} />
           <span
             style={{
               fontFamily: 'var(--font-sans)',

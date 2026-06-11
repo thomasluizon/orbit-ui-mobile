@@ -126,7 +126,7 @@ function TabBtn({ tab, label, active, onClick, unread = false }: Readonly<TabBtn
           : 'text-[var(--fg-4)] hover:text-[var(--fg-2)]')
       }
       style={{
-        padding: '14px 0 16px',
+        padding: '18px 0 20px',
       }}
     >
       <span className="relative">

@@ -45,17 +45,9 @@ export default function LoginPage() {
         >
           <div
             className="flex items-center justify-center"
-            style={{
-              width: 64,
-              height: 64,
-              borderRadius: 18,
-              background: 'rgba(var(--primary-rgb), 0.16)',
-              boxShadow:
-                '0 10px 30px rgba(var(--primary-rgb), 0.45), inset 0 0 0 1px rgba(var(--primary-rgb), 0.28)',
-              animation: 'fresh-start-orb 0.6s var(--ease-out) both',
-            }}
+            style={{ animation: 'fresh-start-orb 0.6s var(--ease-out) both' }}
           >
-            <AppLogo size={40} />
+            <AppLogo size={64} />
           </div>
         </div>
 

@@ -8,6 +8,7 @@ import {
   type GestureResponderHandlers,
 } from 'react-native'
 import { ChevronLeft, ChevronRight } from 'lucide-react-native'
+import { AppLogo } from '@/components/ui/app-logo'
 import { SectionHeadTabs, type SectionHeadTab } from '@/components/ui/section-head-tabs'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
 import { StreakBadge } from '@/components/gamification/streak-badge'
@@ -54,6 +55,7 @@ export function TodayHeader({
       style={[styles.greetingRow, { paddingTop: topInset + 12 }]}
     >
       <View style={styles.greetingBlock}>
+        <AppLogo size={28} />
         <Text
           style={[styles.greetingDate, { color: tokens.fg1 }]}
           numberOfLines={1}
@@ -242,11 +244,15 @@ const styles = StyleSheet.create({
   greetingBlock: {
     flex: 1,
     minWidth: 0,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
   },
   greetingDate: {
     fontFamily: 'Rubik_500Medium',
     fontSize: 18,
     letterSpacing: -0.18,
+    flexShrink: 1,
   },
   greetingActions: {
     flexDirection: 'row',

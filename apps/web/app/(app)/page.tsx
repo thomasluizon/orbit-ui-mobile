@@ -217,16 +217,15 @@ export default function TodayPage() {
     })
   }, [selectedDate, t, locale])
 
-  const headerSubtitle = useMemo(() => {
-    if (currentActiveView === 'all') return t('habits.viewAll')
-    if (currentActiveView === 'general') return t('habits.viewGeneral')
-    if (currentActiveView === 'goals') return t('goals.tab')
-    return formatLocaleDate(selectedDate, locale, {
-      weekday: 'short',
-      month: 'short',
-      day: 'numeric',
-    })
-  }, [currentActiveView, selectedDate, locale, t])
+  const headerDateLine = useMemo(
+    () =>
+      formatLocaleDate(currentActiveView === 'today' ? selectedDate : new Date(), locale, {
+        weekday: 'short',
+        month: 'short',
+        day: 'numeric',
+      }),
+    [currentActiveView, selectedDate, locale],
+  )
 
   const tabItems = useMemo<TodayTabItem[]>(
     () =>
@@ -411,7 +410,7 @@ export default function TodayPage() {
       </div>
 
       <TodayHeader
-        dateLine={headerSubtitle}
+        dateLine={headerDateLine}
         streak={streakInfo?.currentStreak ?? 0}
       />
 

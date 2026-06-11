@@ -492,12 +492,14 @@ export default function TodayScreen() {
     [selectedDate, locale],
   );
 
-  const headerSubtitle = useMemo(() => {
-    if (currentActiveView === "all") return t("habits.viewAll");
-    if (currentActiveView === "general") return t("habits.viewGeneral");
-    if (currentActiveView === "goals") return t("goals.tab");
-    return dateLong;
-  }, [currentActiveView, dateLong, t]);
+  const headerDateLine = useMemo(() => {
+    if (currentActiveView === "today") return dateLong;
+    return formatLocaleDate(new Date(), locale, {
+      weekday: "short",
+      month: "short",
+      day: "numeric",
+    });
+  }, [currentActiveView, dateLong, locale]);
 
   useEffect(() => {
     dateLabelAnim.setValue(0);
@@ -984,7 +986,7 @@ export default function TodayScreen() {
           currentStreak={currentStreak}
           onGoToToday={goToToday}
           goToTodayLabel={t("dates.goToToday")}
-          dateLine={headerSubtitle}
+          dateLine={headerDateLine}
           topInset={insets.top}
         />
 
@@ -1012,7 +1014,7 @@ export default function TodayScreen() {
       currentActiveView,
       currentStreak,
       hasProAccess,
-      headerSubtitle,
+      headerDateLine,
       insets.top,
       goToToday,
       handleChangeView,
