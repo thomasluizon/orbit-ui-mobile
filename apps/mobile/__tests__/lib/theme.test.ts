@@ -29,7 +29,7 @@ describe('mobile theme runtime', () => {
     expect(dark.gradientHeaderTo).toBe('rgba(2, 6, 24, 0)')
   })
 
-  it('purple light uses the slate-50 canvas with opaque white cards', () => {
+  it('purple light uses the pale handoff canvas with opaque white cards', () => {
     const light = createTokensV2('purple', 'light')
 
     expect(light.bg).toBe('#f8fafc')

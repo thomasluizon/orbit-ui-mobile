@@ -10,7 +10,7 @@ import { Check } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useCreateGoal } from '@/hooks/use-goals'
-import { UnderlinedInput } from '@/components/ui/underlined-input'
+import { FieldInput } from '@/components/ui/field-input'
 import { Chip } from '@/components/ui/chip'
 import { PillButton } from '@/components/ui/pill-button'
 import { ProBadge } from '@/components/ui/pro-badge'
@@ -171,7 +171,7 @@ export function OnboardingCreateGoal({
         {t('onboarding.flow.createGoal.subtitle')}
       </Text>
 
-      <UnderlinedInput
+      <FieldInput
         value={description}
         onChangeText={setDescription}
         placeholder={t('onboarding.flow.createGoal.descriptionPlaceholder')}
@@ -181,7 +181,7 @@ export function OnboardingCreateGoal({
 
       <View style={styles.formRow}>
         <View style={styles.formCol}>
-          <UnderlinedInput
+          <FieldInput
             mono
             value={targetValue}
             onChangeText={setTargetValue}
@@ -191,7 +191,7 @@ export function OnboardingCreateGoal({
           />
         </View>
         <View style={styles.formCol}>
-          <UnderlinedInput
+          <FieldInput
             value={unit}
             onChangeText={setUnit}
             placeholder={t('onboarding.flow.createGoal.unitPlaceholder')}

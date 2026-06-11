@@ -55,20 +55,8 @@
   background-color: var(--bg);
   color: var(--fg-1);
 
-  /* Primary-derived tints (handoff alpha ladder over --primary-rgb) */
-  --primary-tint-bg: rgba(var(--primary-rgb), 0.08);
-  --primary-tint-bg-hover: rgba(var(--primary-rgb), 0.12);
-  --primary-tint-border: rgba(var(--primary-rgb), 0.28);
-  --primary-tint-border-hover: rgba(var(--primary-rgb), 0.28);
-  --primary-tint-icon-bg: rgba(var(--primary-rgb), 0.15);
-  --primary-tint-icon-bg-hover: rgba(var(--primary-rgb), 0.18);
   --primary-glow: 0 8px 28px rgba(var(--primary-rgb), 0.45);
 
-  /* Orbital press/motion tokens shared with mobile theme utilities */
-  --orbit-press-scale: 0.985;
-  --orbit-press-y: -1px;
-  --orbit-elevated-press-scale: 0.98;
-  --orbit-elevated-press-y: -2px;
   --orbit-list-stagger: 40ms;
 
   /* Motion tokens */
@@ -170,7 +158,7 @@
 .scheme-cyan.light  { --primary: #0092b8; --primary-pressed: #007595; --primary-rgb: 0, 146, 184;  --hue: 191.8735; --chroma-scale-bg: 0.5167; --chroma-scale-fg: 0.843; --gradient-header-from: #b2e8fd; }
 
 /* ═══════════════════════════════════════════════════════
-   DARK MODE — slate-950 navy canvas, translucent surfaces.
+   DARK MODE — navy canvas (handoff slate ramp), translucent surfaces.
    Opaque neutrals derive via the locked OKLCH ramp (L/C fixed
    per token, per-token hue drift from the canvas hue).
    Alpha surfaces are scheme-independent constants.
@@ -209,16 +197,13 @@
   --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.28);
   --shadow-lg: 0 12px 40px rgba(0, 0, 0, 0.45);
 
-  --surface-top-highlight: rgba(255, 255, 255, 0.05);
-  --surface-sheen-start: rgba(255, 255, 255, 0.035);
-  --surface-sheen-end: transparent;
   --date-icon-filter: invert(0.6);
 
   color-scheme: dark;
 }
 
 /* ═══════════════════════════════════════════════════════
-   LIGHT MODE — slate-50 canvas, opaque white cards,
+   LIGHT MODE — pale canvas (handoff slate ramp), opaque white cards,
    ink-alpha hairlines. Ships with every phase.
    ═══════════════════════════════════════════════════════ */
 :root.light, .light {
@@ -255,9 +240,6 @@
   --shadow-md: 0 4px 16px rgba(2, 6, 24, 0.08);
   --shadow-lg: 0 12px 40px rgba(2, 6, 24, 0.12);
 
-  --surface-top-highlight: rgba(255, 255, 255, 0.85);
-  --surface-sheen-start: rgba(255, 255, 255, 0.55);
-  --surface-sheen-end: transparent;
   --date-icon-filter: none;
 
   color-scheme: light;
@@ -812,12 +794,6 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     transform: translateY(0);
   }
 
-  .surface-interactive:hover {
-    transform: none;
-  }
-  .surface-interactive:active {
-    transform: none;
-  }
   .stagger-enter > * {
     animation: none !important;
   }
@@ -893,21 +869,6 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 /* ═══════════════════════════════════════════════════════
    UTILITY CLASSES
    ═══════════════════════════════════════════════════════ */
-
-/* Interactive surface -- lift on hover, sink on press */
-.surface-interactive {
-  transition: transform var(--dur-fast) var(--ease-out),
-              box-shadow var(--dur-fast) var(--ease-out),
-              border-color var(--dur-fast) ease;
-}
-.surface-interactive:hover {
-  transform: translateY(-2px);
-  box-shadow: var(--shadow-md);
-}
-.surface-interactive:active {
-  transform: translateY(var(--orbit-press-y)) scale(var(--orbit-elevated-press-scale));
-  transition-duration: 80ms;
-}
 
 /* Stagger entrance animation for lists.
    fill-mode is `backwards` (not `both`) so the keyframe's end-state transform

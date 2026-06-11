@@ -47,7 +47,7 @@ import { KeyboardAwareScrollView } from '@/components/ui/keyboard-aware-scroll-v
 import { AppLogo } from '@/components/ui/app-logo'
 import { GradientTop } from '@/components/ui/gradient-top'
 import { PillButton } from '@/components/ui/pill-button'
-import { UnderlinedInput } from '@/components/ui/underlined-input'
+import { FieldInput } from '@/components/ui/field-input'
 import { CodeInput } from '@/components/ui/code-input'
 
 interface AuthErrorState {
@@ -419,7 +419,7 @@ export default function LoginScreen() {
 
           {step === 'email' ? (
             <>
-              <UnderlinedInput
+              <FieldInput
                 label={t('auth.email')}
                 value={email}
                 onChangeText={setEmail}

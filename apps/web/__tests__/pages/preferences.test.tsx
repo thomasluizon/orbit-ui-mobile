@@ -99,7 +99,7 @@ vi.mock('@/components/ui/pro-badge', () => ({
 
 vi.mock('@orbit/shared/theme', () => ({
   colorSchemeOptions: [
-    { value: 'purple', color: '#8b5cf6' },
+    { value: 'purple', color: '#7f46f7' },
     { value: 'blue', color: '#3b82f6' },
     { value: 'green', color: '#22c55e' },
   ],

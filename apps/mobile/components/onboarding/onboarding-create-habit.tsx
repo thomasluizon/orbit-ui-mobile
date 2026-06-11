@@ -4,7 +4,7 @@ import { Check } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useCreateHabit } from '@/hooks/use-habits'
-import { UnderlinedInput } from '@/components/ui/underlined-input'
+import { FieldInput } from '@/components/ui/field-input'
 import { Chip } from '@/components/ui/chip'
 import { PillButton } from '@/components/ui/pill-button'
 import {
@@ -152,7 +152,7 @@ export function OnboardingCreateHabit({
         {t('onboarding.flow.createHabit.subtitle')}
       </Text>
 
-      <UnderlinedInput
+      <FieldInput
         value={title}
         onChangeText={setTitle}
         placeholder={t('onboarding.flow.createHabit.placeholder')}

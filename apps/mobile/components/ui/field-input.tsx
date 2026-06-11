@@ -9,7 +9,7 @@ import {
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
-interface UnderlinedInputProps
+interface FieldInputProps
   extends Omit<TextInputProps, 'style' | 'placeholderTextColor'> {
   label?: ReactNode
   mono?: boolean
@@ -20,8 +20,8 @@ interface UnderlinedInputProps
  * inset hairline ring, primary ring on focus).
  * Mirrors `apps/web/components/ui/field-input.tsx` for shape parity.
  */
-export const UnderlinedInput = forwardRef<TextInput, UnderlinedInputProps>(
-  function UnderlinedInput(
+export const FieldInput = forwardRef<TextInput, FieldInputProps>(
+  function FieldInput(
     { label, mono = false, onBlur, onFocus, ...textInputProps },
     ref,
   ) {

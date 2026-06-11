@@ -5,7 +5,7 @@ import { toggleSelectedId } from '@orbit/shared/utils'
 import { MAX_TAGS_PER_HABIT, validateTagForm } from '@orbit/shared/validation'
 
 const TAG_COLORS = [
-  '#7c3aed',
+  '#7f46f7',
   '#dc2626',
   '#b45309',
   '#047857',
