@@ -771,6 +771,7 @@ function createStyles() {
     scrollContent: { paddingBottom: 40 },
     cardPad: {
       paddingHorizontal: 20,
+      paddingBottom: 14,
     },
     connectionCard: {
       flexDirection: 'row',
@@ -805,6 +806,8 @@ function createStyles() {
       flexDirection: 'row',
       justifyContent: 'flex-end',
       paddingHorizontal: 20,
+      paddingTop: 16,
+      paddingBottom: 6,
     },
     reconnectBlock: {
       paddingHorizontal: 20,

@@ -5,8 +5,9 @@ import { useRouter } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
 import Constants from 'expo-constants'
-import { Compass, FileText, Mail, Orbit, Shield } from 'lucide-react-native'
-import { createTokensV2, primaryGlow } from '@/lib/theme'
+import { Compass, FileText, Mail, Shield } from 'lucide-react-native'
+import { createTokensV2, primaryGlow, solidTintFromPrimary } from '@/lib/theme'
+import { AppLogo } from '@/components/ui/app-logo'
 import { FeatureGuideDrawer } from '@/components/onboarding/feature-guide-drawer'
 import { ReferralCard } from '@/components/referral/referral-card'
 import { ReferralDrawer } from '@/components/referral/referral-drawer'
@@ -54,11 +55,11 @@ export default function AboutScreen() {
           <View
             style={[
               styles.logoTile,
-              { backgroundColor: tokens.primary },
+              { backgroundColor: solidTintFromPrimary(tokens, 0.16) },
               primaryGlow(tokens),
             ]}
           >
-            <Orbit size={38} color={tokens.fgOnPrimary} strokeWidth={2} />
+            <AppLogo size={44} />
           </View>
           <Text style={[styles.appName, { color: tokens.fg1 }]}>
             {t('common.appName')}

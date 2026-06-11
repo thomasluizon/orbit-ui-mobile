@@ -343,6 +343,7 @@ export function HabitRow({
           ) : (
             <CheckCircle
               state={state}
+              tone={habit.isBadHabit ? 'bad' : 'default'}
               onToggle={handleToggleStatus}
               disabled={!canLog && !isDone}
               ariaLabel={t(`habits.statusDot.${state}` as Parameters<typeof t>[0])}
@@ -530,14 +531,17 @@ const CHECK_COLOR_VAR: Record<StatusDotState, string> = {
 
 interface CheckCircleProps {
   state: StatusDotState
+  /** 'bad' fills the logged circle in status-bad instead of status-done. */
+  tone?: 'default' | 'bad'
   onToggle: () => void
   disabled: boolean
   ariaLabel: string
 }
 
-function CheckCircle({ state, onToggle, disabled, ariaLabel }: Readonly<CheckCircleProps>) {
+function CheckCircle({ state, tone = 'default', onToggle, disabled, ariaLabel }: Readonly<CheckCircleProps>) {
   const filled = CHECK_FILLED_STATES.has(state)
-  const color = CHECK_COLOR_VAR[state]
+  const color =
+    tone === 'bad' && state === 'done' ? 'var(--status-bad)' : CHECK_COLOR_VAR[state]
   const [previousFilled, setPreviousFilled] = useState(filled)
   const [justCompleted, setJustCompleted] = useState(false)
   if (filled !== previousFilled) {
@@ -567,7 +571,9 @@ function CheckCircle({ state, onToggle, disabled, ariaLabel }: Readonly<CheckCir
           background: filled ? color : 'transparent',
           boxShadow: filled
             ? state === 'done'
-              ? '0 4px 14px rgba(var(--primary-rgb), 0.35)'
+              ? tone === 'bad'
+                ? '0 4px 14px color-mix(in srgb, var(--status-bad) 35%, transparent)'
+                : '0 4px 14px rgba(var(--primary-rgb), 0.35)'
               : 'none'
             : `inset 0 0 0 2px ${color}`,
         }}

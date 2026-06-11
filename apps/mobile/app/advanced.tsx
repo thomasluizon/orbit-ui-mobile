@@ -453,7 +453,7 @@ export default function AdvancedScreen() {
         open={showWidgetInfo}
         onOpenChange={setShowWidgetInfo}
         title={t('profile.widgetTitle')}
-        description={t('profile.widgetHint')}
+        description={`1. ${t('profile.widgetHow.step1')}\n\n2. ${t('profile.widgetHow.step2')}\n\n3. ${t('profile.widgetHow.step3')}`}
         variant="info"
       />
 

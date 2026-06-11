@@ -933,11 +933,9 @@ export default function ProfileScreen() {
                   </View>
                   <View style={styles.destructiveHeroBody}>
                     <Text style={[styles.deleteWarningTitle, { color: tokens.fg1 }]}>
-                      {profile?.hasProAccess
+                      {profile?.hasProAccess && profile.planExpiresAt
                         ? t('profile.deleteAccount.warningPro', {
-                            date: profile.planExpiresAt
-                              ? displayDate(parseISO(profile.planExpiresAt))
-                              : '',
+                            date: displayDate(parseISO(profile.planExpiresAt)),
                           })
                         : t('profile.deleteAccount.warningFree')}
                     </Text>
@@ -1152,7 +1150,6 @@ function createStyles(_tokens: Tokens) {
       paddingHorizontal: 22,
       paddingTop: 12,
       paddingBottom: 40,
-      maxHeight: '88%',
     },
     grabber: {
       alignSelf: 'center',

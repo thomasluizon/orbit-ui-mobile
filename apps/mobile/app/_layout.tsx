@@ -429,7 +429,6 @@ function AppBottomTabBar({
       router.navigate('/')
       return
     }
-    if (id === active) return
     if (id === 'chat') router.navigate('/chat')
     else if (id === 'calendar') router.navigate('/calendar')
     else if (id === 'profile') router.navigate('/profile')

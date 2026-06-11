@@ -2,7 +2,6 @@ import { useState, useRef, useCallback, useEffect, useMemo } from "react";
 import { useTourTarget } from "@/hooks/use-tour-target";
 import {
   View,
-  TouchableOpacity,
   KeyboardAvoidingView,
   Keyboard,
   Platform,
@@ -10,7 +9,7 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
-import { Orbit, MoreHorizontal } from "lucide-react-native";
+import { Orbit } from "lucide-react-native";
 import type { ChatMessage } from "@orbit/shared/types";
 import { CHAT_GOAL_ACTION_TYPES } from "@orbit/shared/hooks";
 import { habitDetailToNormalized } from "@orbit/shared/utils";
@@ -197,16 +196,6 @@ export default function ChatScreen() {
           backLabel={t("common.goBack")}
           LeadingIcon={Orbit}
           title={t("chat.title")}
-          trailing={
-            <TouchableOpacity
-              accessibilityRole="button"
-              accessibilityLabel={t("habits.actions.more")}
-              activeOpacity={0.7}
-              style={styles.iconBtn}
-            >
-              <MoreHorizontal size={17} color={tokens.fg2} strokeWidth={1.5} />
-            </TouchableOpacity>
-          }
         />
 
         {showSuggestions ? (
@@ -241,7 +230,11 @@ export default function ChatScreen() {
           tokens={tokens}
           styles={styles}
           paddingBottom={Math.max(16, insets.bottom + 12)}
-          marginBottom={Platform.OS === "android" ? keyboardInset : 0}
+          marginBottom={
+            Platform.OS === "android" && keyboardInset > 0
+              ? keyboardInset + 10
+              : 0
+          }
           hasMessages={messages.length > 0}
           isOnline={isOnline}
           offlineTitle={offlineTitle}

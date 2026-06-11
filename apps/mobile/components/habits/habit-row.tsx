@@ -149,10 +149,10 @@ export function HabitRow({
 
   const dotState: StatusDotState = isOverdue
     ? 'overdue'
-    : habit.isBadHabit
-      ? 'bad'
-      : isDoneForRange
-        ? 'done'
+    : isDoneForRange
+      ? 'done'
+      : habit.isBadHabit
+        ? 'bad'
         : 'empty'
 
   const emoji = habit.emoji
@@ -397,6 +397,7 @@ export function HabitRow({
             ) : (
               <CheckCircle
                 state={dotState}
+                tone={habit.isBadHabit ? 'bad' : 'default'}
                 onToggle={handleToggleStatus}
                 disabled={!canLog && !isDoneForRange}
                 accessibilityLabel={
@@ -464,6 +465,8 @@ const CHECK_FILLED_STATES: ReadonlySet<StatusDotState> = new Set([
 
 interface CheckCircleProps {
   state: StatusDotState
+  /** 'bad' fills the logged circle in statusBad instead of statusDone. */
+  tone?: 'default' | 'bad'
   onToggle: () => void
   disabled: boolean
   accessibilityLabel: string
@@ -472,6 +475,7 @@ interface CheckCircleProps {
 
 function CheckCircle({
   state,
+  tone = 'default',
   onToggle,
   disabled,
   accessibilityLabel,
@@ -486,7 +490,8 @@ function CheckCircle({
     frozen: tokens.statusFrozen,
   }
   const filled = CHECK_FILLED_STATES.has(state)
-  const color = colorMap[state]
+  const color =
+    tone === 'bad' && state === 'done' ? tokens.statusBad : colorMap[state]
 
   const popScale = useSharedValue(1)
   const previousFilled = useRef(filled)
@@ -528,7 +533,7 @@ function CheckCircle({
           },
           filled && state === 'done'
             ? {
-                shadowColor: tokens.primary,
+                shadowColor: tone === 'bad' ? tokens.statusBad : tokens.primary,
                 shadowOpacity: 0.35,
                 shadowRadius: 7,
                 shadowOffset: { width: 0, height: 3 },
