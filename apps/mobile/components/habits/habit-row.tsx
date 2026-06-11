@@ -34,6 +34,7 @@ import {
   computeHabitFrequencyLabel,
   computeHabitFutureHint,
   formatAPIDate,
+  stripInlineMarkdown,
 } from '@orbit/shared/utils'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { useTimeFormat } from '@/hooks/use-time-format'
@@ -127,6 +128,7 @@ export function HabitRow({
     | { kind: 'bad' }
     | { kind: 'future'; label: string }
   )[] = []
+  if (habit.isBadHabit && hasChildren) metaParts.push({ kind: 'bad' })
   if (!habit.isGeneral && frequencyLabel) metaParts.push(frequencyLabel)
   if (habit.dueTime) {
     const due = displayTime(habit.dueTime)
@@ -139,7 +141,6 @@ export function HabitRow({
     metaParts.push(`${checked}/${habit.checklistItems.length}`)
   }
   if (isOverdue) metaParts.push({ kind: 'overdue' })
-  if (habit.isBadHabit && !isChild) metaParts.push({ kind: 'bad' })
   if (!habit.isCompleted && selectedDateStr === todayStr) {
     const futureHint = computeHabitFutureHint(habit, todayStr, t, locale)
     if (futureHint) metaParts.push({ kind: 'future', label: futureHint })
@@ -297,7 +298,7 @@ export function HabitRow({
 
         <View style={styles.titleBlock}>
           <Text
-            numberOfLines={1}
+            numberOfLines={2}
             style={[
               styles.title,
               {
@@ -316,7 +317,7 @@ export function HabitRow({
               numberOfLines={1}
               style={[styles.description, { color: tokens.fg3 }]}
             >
-              {habit.description}
+              {stripInlineMarkdown(habit.description)}
             </Text>
           ) : null}
 

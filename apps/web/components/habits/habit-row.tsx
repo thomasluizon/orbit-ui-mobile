@@ -16,6 +16,7 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
+import { stripInlineMarkdown } from '@orbit/shared/utils'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { ParentRing } from '@/components/ui/parent-ring'
 import { Popover } from '@/components/ui/popover'
@@ -49,7 +50,7 @@ export type HabitRowMetaToken =
   | { kind: 'bad'; label: string }
   | { kind: 'future'; label: string }
 
-/** Linear-tight habit row. Single line: emoji / chevron / title / inline meta / status dot / streak.
+/** Linear-tight habit row: emoji / chevron / title (wraps to two lines) / inline meta / status dot / streak.
  *  Sub-habit rows ("child") render a tree-line connector to the parent column. */
 interface HabitRowProps {
   habit: NormalizedHabit
@@ -251,7 +252,7 @@ export function HabitRow({
               lineHeight: 1.3,
             }}
           >
-            {habit.description}
+            {stripInlineMarkdown(habit.description)}
           </span>
         )}
         {(meta.length > 0 || showStreak) && (
@@ -491,7 +492,7 @@ interface TitleTextProps {
 function TitleText({ title, size, color, strikethrough }: Readonly<TitleTextProps>) {
   return (
     <span
-      className="flex-shrink min-w-0 overflow-hidden whitespace-nowrap text-ellipsis"
+      className="flex-shrink min-w-0 overflow-hidden line-clamp-2"
       style={{
         fontFamily: 'var(--font-sans)',
         fontSize: size,
@@ -503,6 +504,7 @@ function TitleText({ title, size, color, strikethrough }: Readonly<TitleTextProp
         textDecorationThickness: 1,
         lineHeight: 1.25,
         letterSpacing: '-0.005em',
+        overflowWrap: 'anywhere',
       }}
     >
       {title}

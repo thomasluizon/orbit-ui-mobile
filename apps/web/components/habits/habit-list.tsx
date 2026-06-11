@@ -922,8 +922,11 @@ const isPostponeAction = useMemo(() => {
     return 'empty'
   }
 
-  function buildMetaTokens(habit: NormalizedHabit, isChild: boolean): HabitRowMetaToken[] {
+  function buildMetaTokens(habit: NormalizedHabit, hasChildren: boolean): HabitRowMetaToken[] {
     const tokens: HabitRowMetaToken[] = []
+    if (habit.isBadHabit && hasChildren) {
+      tokens.push({ kind: 'bad', label: t('habits.badHabit') })
+    }
     const freqLabel = computeHabitFrequencyLabel(habit, t)
     if (freqLabel) tokens.push(freqLabel)
     if (habit.dueTime) tokens.push(displayTime(habit.dueTime))
@@ -933,9 +936,6 @@ const isPostponeAction = useMemo(() => {
     }
     if (habit.isOverdue && !habit.isCompleted) {
       tokens.push({ kind: 'overdue', label: t('habits.overdue') })
-    }
-    if (habit.isBadHabit && !isChild) {
-      tokens.push({ kind: 'bad', label: t('habits.badHabit') })
     }
     if (!habit.isCompleted && selectedDateStr === todayStr) {
       const futureHint = computeHabitFutureHint(habit, todayStr, t, locale)
@@ -958,7 +958,7 @@ const isPostponeAction = useMemo(() => {
     const isChild = depth > 0
     const recentlyCompleted = recentlyCompletedIds.has(habit.id)
     const state = deriveRowState(habit, isChild, recentlyCompleted)
-    const meta = buildMetaTokens(habit, isChild)
+    const meta = buildMetaTokens(habit, hasChildren)
     const canLog = canLogHabitOnDate(habit, selectedDateStr, todayStr)
     const hasLinkedGoal = (habit.linkedGoals?.length ?? 0) > 0
     const tourTargetId =
