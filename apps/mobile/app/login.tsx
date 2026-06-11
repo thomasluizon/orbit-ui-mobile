@@ -23,7 +23,7 @@ import {
   resolveAuthLoginErrorKey,
 } from '@orbit/shared/utils'
 import { useAppToast } from '@/hooks/use-app-toast'
-import { createTokensV2, easings, tintFromPrimary, type AppTokensV2 } from '@/lib/theme'
+import { createTokensV2, easings, solidTintFromPrimary, tintFromPrimary, type AppTokensV2 } from '@/lib/theme'
 import { toAnimatedEasing, usePrefersReducedMotion } from '@/lib/motion'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useAuthStore } from '@/stores/auth-store'
@@ -672,7 +672,7 @@ function createStyles(tokens: AppTokensV2) {
       borderRadius: 18,
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: tintFromPrimary(tokens, 0.16),
+      backgroundColor: solidTintFromPrimary(tokens, 0.16),
       borderWidth: 1,
       borderColor: tintFromPrimary(tokens, 0.28),
       shadowColor: tokens.primary,

@@ -1,5 +1,5 @@
 import { StyleSheet } from "react-native";
-import { createTokensV2, primaryGlow, shadowsV2, tintFromPrimary } from "@/lib/theme";
+import { createTokensV2, primaryGlow, shadowsV2, solidTintFromPrimary } from "@/lib/theme";
 
 export type Tokens = ReturnType<typeof createTokensV2>;
 export type ChatStyles = ReturnType<typeof createStyles>;
@@ -37,7 +37,7 @@ export function createStyles(tokens: Tokens) {
       borderRadius: 999,
       alignItems: "center",
       justifyContent: "center",
-      backgroundColor: tintFromPrimary(tokens, 0.16),
+      backgroundColor: solidTintFromPrimary(tokens, 0.16),
       ...primaryGlow(tokens),
     },
     emptyTitle: {

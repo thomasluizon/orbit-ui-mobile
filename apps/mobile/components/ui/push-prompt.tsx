@@ -1,5 +1,6 @@
 import { useMemo, useState, useEffect, useCallback } from 'react'
-import { Animated, Pressable, StyleSheet, Text, View } from 'react-native'
+import { Animated, Modal, Pressable, StyleSheet, Text, View } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { Bell, X } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
@@ -12,13 +13,15 @@ import { useAppTheme } from '@/lib/use-app-theme'
 const STORAGE_KEY = 'orbit_push_prompted'
 
 /**
- * Push prompt per the m-push artboard: sheet-style card docked above the tab
- * bar with a primary-tinted bell disc, Rubik 20/500 title, fg-2 body, and
- * stacked primary/ghost pill actions. Permission flow unchanged.
+ * Push prompt per the PushPrompt artboard: a bottom sheet in its own Modal
+ * (dimmed backdrop, docked over the tab bar) with a primary-tinted bell disc,
+ * Rubik 20/500 title, fg-2 body, and stacked primary/ghost pill actions.
+ * Permission flow unchanged.
  */
 export function PushPrompt() {
   const { t } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
+  const insets = useSafeAreaInsets()
   const tokens = useMemo(
     () => createTokensV2(currentScheme, currentTheme),
     [currentScheme, currentTheme],
@@ -121,15 +124,31 @@ export function PushPrompt() {
   if (!show) return null
 
   return (
-    <Animated.View
-      style={[
-        styles.wrapper,
-        {
-          opacity: fadeAnim,
-          transform: [{ translateY: slideAnim }],
-        },
-      ]}
+    <Modal
+      transparent
+      visible
+      statusBarTranslucent
+      animationType="none"
+      onRequestClose={dismiss}
     >
+      <Animated.View style={[styles.backdrop, { opacity: fadeAnim }]}>
+        <Pressable
+          style={StyleSheet.absoluteFill}
+          onPress={dismiss}
+          accessibilityRole="button"
+          accessibilityLabel={t('common.dismiss')}
+        />
+      </Animated.View>
+      <Animated.View
+        style={[
+          styles.wrapper,
+          { paddingBottom: 20 + insets.bottom },
+          {
+            opacity: fadeAnim,
+            transform: [{ translateY: slideAnim }],
+          },
+        ]}
+      >
       <View style={styles.headerRow}>
         <View style={styles.bellDisc}>
           <Bell size={22} color={tokens.primarySoft} strokeWidth={1.8} />
@@ -157,21 +176,24 @@ export function PushPrompt() {
           {t('pushPrompt.later')}
         </PillButton>
       </View>
-    </Animated.View>
+      </Animated.View>
+    </Modal>
   )
 }
 
 function createStyles(tokens: AppTokensV2) {
   return StyleSheet.create({
+    backdrop: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: 'rgba(0, 0, 0, 0.55)',
+    },
     wrapper: {
       position: 'absolute',
-      bottom: 80,
+      bottom: 0,
       left: 0,
       right: 0,
-      zIndex: 50,
       paddingHorizontal: 22,
       paddingTop: 20,
-      paddingBottom: 20,
       gap: 8,
       backgroundColor: tokens.bgSheet,
       borderTopLeftRadius: 26,

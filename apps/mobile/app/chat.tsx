@@ -25,6 +25,7 @@ import { ChatEmptyState } from "@/components/chat/chat-empty-state";
 import { GoalDetailDrawer } from "@/components/goals/goal-detail-drawer";
 import { HabitDetailDrawer } from "@/components/habits/habit-detail-drawer";
 import { AppBar } from "@/components/ui/app-bar";
+import { GradientTop } from "@/components/ui/gradient-top";
 import { KeyboardAwareFlatList } from "@/components/ui/keyboard-aware-scroll-view";
 import { createStyles } from "@/app/chat.styles";
 import { createTokensV2 } from "@/lib/theme";
@@ -184,6 +185,7 @@ export default function ChatScreen() {
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: tokens.bg }]} edges={["top"]}>
+      {showSuggestions ? <GradientTop height={420} /> : null}
       <KeyboardAvoidingView
         style={styles.keyboardAvoid}
         behavior={Platform.OS === "ios" ? "padding" : undefined}

@@ -245,6 +245,23 @@ export function tintFromPrimary(appTokens: AppTokensV2, alpha: number): string {
   return `rgba(${appTokens.primaryRgb}, ${alpha})`
 }
 
+/**
+ * Solid hex equal to the primary tint alpha-composited over the canvas.
+ * Required under elevation glows: Android renders the native shadow through
+ * translucent fills as a dark plate, so glowing wells need opaque pixels.
+ */
+export function solidTintFromPrimary(
+  appTokens: AppTokensV2,
+  alpha: number,
+): string {
+  const [pr, pg, pb] = hexChannels(appTokens.primary)
+  const [br, bgC, bb] = hexChannels(appTokens.bg)
+  const mix = (top: number, base: number) =>
+    Math.round(top * alpha + base * (1 - alpha))
+  const channel = (value: number) => value.toString(16).padStart(2, '0')
+  return `#${channel(mix(pr, br))}${channel(mix(pg, bgC))}${channel(mix(pb, bb))}`
+}
+
 /** RN shadow props for the handoff primary glow (0 8px 28px primary @ .45). */
 export function primaryGlow(appTokens: AppTokensV2): AppShadowV2 {
   return {
