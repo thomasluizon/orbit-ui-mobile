@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { StyleSheet, Text, View } from 'react-native'
 import { parseISO } from 'date-fns'
 import { Check } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
@@ -7,6 +7,9 @@ import { useProfile, useHasProAccess } from '@/hooks/use-profile'
 import { useDateFormat } from '@/hooks/use-date-format'
 import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
+import { InfoCard } from '@/components/ui/info-card'
+import { PillButton } from '@/components/ui/pill-button'
+import { VerifiedBadge } from '@/components/ui/verified-badge'
 
 interface OnboardingCompleteProps {
   createdHabit: string
@@ -15,8 +18,8 @@ interface OnboardingCompleteProps {
 }
 
 /**
- * v8 final step: filled primary check disc, "You're set." heading, italic
- * subtitle, hairline-divided recap rows. Preserves trial info + onFinish.
+ * Tudo certo (allset) step: VerifiedBadge hero, display title, recap rows,
+ * trial InfoCard. Preserves trial info + onFinish.
  */
 export function OnboardingComplete({
   createdHabit,
@@ -56,6 +59,11 @@ export function OnboardingComplete({
         label: t('onboarding.flow.complete.recap.theme'),
         show: hasProAccess,
       },
+      {
+        key: 'astra',
+        label: t('onboarding.flow.complete.recap.astra'),
+        show: true,
+      },
     ]
     return items.filter((item) => item.show)
   }, [createdHabit, createdGoal, hasProAccess, t])
@@ -63,11 +71,7 @@ export function OnboardingComplete({
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <View
-          style={[styles.checkDisc, { backgroundColor: tokens.primary }]}
-        >
-          <Check size={30} color={tokens.fgOnPrimary} strokeWidth={2.4} />
-        </View>
+        <VerifiedBadge size={96} />
         <Text style={styles.title}>
           {t('onboarding.flow.complete.title')}
         </Text>
@@ -80,37 +84,25 @@ export function OnboardingComplete({
         {recapItems.map((item) => (
           <View key={item.key} style={styles.recapRow}>
             <Text style={styles.recapText}>{item.label}</Text>
-            <Check size={15} color={tokens.primary} strokeWidth={1.8} />
+            <Check size={18} color={tokens.primary} strokeWidth={1.8} />
           </View>
         ))}
       </View>
 
       {profile?.isTrialActive && (
-        <View style={styles.trialCard}>
-          <Text style={styles.trialTitle}>
-            {t('onboarding.flow.complete.trialTitle')}
-          </Text>
-          <Text style={styles.trialDesc}>
-            {t('onboarding.flow.complete.trialDesc', {
-              date: formattedTrialEnd,
-            })}
-          </Text>
-        </View>
+        <InfoCard
+          title={t('onboarding.flow.complete.trialTitle')}
+          desc={t('onboarding.flow.complete.trialDesc', {
+            date: formattedTrialEnd,
+          })}
+        />
       )}
 
-      <Pressable
-        style={({ pressed }) => [
-          styles.startBtn,
-          {
-            backgroundColor: pressed ? tokens.primaryPressed : tokens.primary,
-          },
-        ]}
-        onPress={onFinish}
-      >
-        <Text style={[styles.startBtnText, { color: tokens.fgOnPrimary }]}>
+      <View style={styles.startBtnWrap}>
+        <PillButton fullWidth onPress={onFinish}>
           {t('onboarding.flow.complete.start')}
-        </Text>
-      </Pressable>
+        </PillButton>
+      </View>
     </View>
   )
 }
@@ -127,24 +119,19 @@ function createStyles(tokens: AppTokensV2) {
       gap: 14,
       paddingTop: 14,
     },
-    checkDisc: {
-      width: 64,
-      height: 64,
-      borderRadius: 32,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
     title: {
-      fontFamily: 'Rubik_600SemiBold',
-      fontSize: 24,
-      letterSpacing: -0.48,
+      fontFamily: 'Inter_700Bold',
+      fontSize: 34,
+      letterSpacing: -0.34,
+      lineHeight: 39,
       color: tokens.fg1,
       textAlign: 'center',
+      marginTop: 6,
     },
     subtitle: {
       fontFamily: 'Rubik_400Regular',
-      fontSize: 14,
-      lineHeight: 21,
+      fontSize: 15,
+      lineHeight: 22,
       color: tokens.fg2,
       textAlign: 'center',
       maxWidth: 280,
@@ -162,38 +149,11 @@ function createStyles(tokens: AppTokensV2) {
     },
     recapText: {
       fontFamily: 'Rubik_400Regular',
-      fontSize: 14,
-      color: tokens.fg1,
-    },
-    trialCard: {
-      paddingVertical: 14,
-      paddingHorizontal: 14,
-      borderBottomWidth: 1,
-      borderColor: tokens.hairline,
-      gap: 4,
-    },
-    trialTitle: {
-      fontFamily: 'Rubik_600SemiBold',
-      fontSize: 13,
-      color: tokens.fg1,
-    },
-    trialDesc: {
-      fontFamily: 'Rubik_400Regular',
-      fontSize: 13,
-      fontStyle: 'italic',
+      fontSize: 15,
       color: tokens.fg2,
-      lineHeight: 18,
     },
-    startBtn: {
-      borderRadius: 10,
-      paddingHorizontal: 18,
-      paddingVertical: 12,
-      alignItems: 'center',
-      justifyContent: 'center',
+    startBtnWrap: {
+      marginTop: 8,
     },
-    startBtnText: {
-      fontFamily: 'Rubik_600SemiBold',
-      fontSize: 14,
-      },
   })
 }

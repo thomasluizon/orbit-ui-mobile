@@ -9,6 +9,7 @@ interface PillButtonProps {
   type?: 'button' | 'submit'
   onClick?: () => void
   disabled?: boolean
+  busy?: boolean
   fullWidth?: boolean
   glow?: boolean
   leading?: ReactNode
@@ -31,6 +32,7 @@ export function PillButton({
   type = 'button',
   onClick,
   disabled = false,
+  busy = false,
   fullWidth = false,
   glow = true,
   leading,
@@ -49,6 +51,7 @@ export function PillButton({
       type={type}
       onClick={onClick}
       disabled={disabled}
+      aria-busy={busy || undefined}
       className={[
         'inline-flex cursor-pointer items-center justify-center gap-[9px] rounded-full border-0 px-[26px] text-[16px] font-medium transition-[background-color,opacity] duration-[var(--dur-fast)] ease-[var(--ease-standard)] disabled:cursor-not-allowed disabled:opacity-40',
         variantClasses[variant],

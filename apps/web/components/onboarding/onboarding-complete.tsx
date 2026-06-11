@@ -6,6 +6,9 @@ import { Check } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useProfile, useHasProAccess } from '@/hooks/use-profile'
 import { useDateFormat } from '@/hooks/use-date-format'
+import { InfoCard } from '@/components/ui/info-card'
+import { PillButton } from '@/components/ui/pill-button'
+import { VerifiedBadge } from '@/components/ui/verified-badge'
 
 interface OnboardingCompleteProps {
   createdHabit: string
@@ -61,25 +64,17 @@ export function OnboardingComplete({
         className="flex flex-col items-center"
         style={{ gap: 14, paddingTop: 14 }}
       >
-        <div
-          className="flex items-center justify-center rounded-full"
-          style={{ width: 64, height: 64, background: 'var(--primary)' }}
-        >
-          <Check
-            className="size-7"
-            style={{ color: 'var(--fg-on-primary)' }}
-            strokeWidth={2.4}
-          />
-        </div>
+        <VerifiedBadge size={96} />
         <h1
           className="text-center"
           style={{
-            fontFamily: 'var(--font-sans)',
-            fontSize: 24,
-            fontWeight: 600,
-            letterSpacing: '-0.02em',
+            fontFamily: 'var(--font-display)',
+            fontSize: 34,
+            fontWeight: 700,
+            letterSpacing: '-0.01em',
+            lineHeight: 1.15,
             color: 'var(--fg-1)',
-            margin: 0,
+            margin: '6px 0 0',
           }}
         >
           {t('onboarding.flow.complete.title')}
@@ -88,7 +83,7 @@ export function OnboardingComplete({
           className="text-center"
           style={{
             fontFamily: 'var(--font-sans)',
-            fontSize: 14,
+            fontSize: 15,
             color: 'var(--fg-2)',
             lineHeight: 1.5,
             maxWidth: 280,
@@ -109,53 +104,29 @@ export function OnboardingComplete({
             <span
               style={{
                 fontFamily: 'var(--font-sans)',
-                fontSize: 14,
-                color: 'var(--fg-1)',
+                fontSize: 15,
+                color: 'var(--fg-2)',
               }}
             >
               {item.label}
             </span>
-            <Check size={15} strokeWidth={1.8} color="var(--primary)" />
+            <Check size={18} strokeWidth={1.8} color="var(--primary)" />
           </div>
         ))}
       </div>
 
       {profile?.isTrialActive && (
-        <div
-          style={{
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 4,
-            padding: 14,
-            borderBottom: '1px solid var(--hairline)',
-          }}
-        >
-          <span style={{ fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 600, color: 'var(--fg-1)' }}>
-            {t('onboarding.flow.complete.trialTitle')}
-          </span>
-          <span style={{ fontFamily: 'var(--font-sans)', fontSize: 13, fontStyle: 'italic', color: 'var(--fg-2)', lineHeight: 1.4 }}>
-            {t('onboarding.flow.complete.trialDesc', { date: formattedTrialEnd })}
-          </span>
-        </div>
+        <InfoCard
+          title={t('onboarding.flow.complete.trialTitle')}
+          desc={t('onboarding.flow.complete.trialDesc', { date: formattedTrialEnd })}
+        />
       )}
 
-      <button
-        type="button"
-        className="appearance-none border-0 cursor-pointer transition-[background-color] duration-150 ease-out hover:bg-[var(--primary-pressed)]"
-        onClick={onFinish}
-        style={{
-          padding: '12px 18px',
-          marginTop: 8,
-          background: 'var(--primary)',
-          color: 'var(--fg-on-primary)',
-          borderRadius: 10,
-          fontFamily: 'var(--font-sans)',
-          fontSize: 14,
-          fontWeight: 600,
-        }}
-      >
-        {t('onboarding.flow.complete.start')}
-      </button>
+      <div style={{ marginTop: 8 }}>
+        <PillButton fullWidth onClick={onFinish}>
+          {t('onboarding.flow.complete.start')}
+        </PillButton>
+      </div>
     </div>
   )
 }

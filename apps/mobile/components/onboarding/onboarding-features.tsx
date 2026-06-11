@@ -47,8 +47,8 @@ const features: FeatureItem[] = [
 ]
 
 /**
- * v8 step 6: "What else Orbit does." Hairline-divided rows; each row is
- * Icon + bold title + italic muted description.
+ * Features step: "What else Orbit does." Hairline-divided kit list rows with
+ * 22px icons, Rubik titles, and muted descriptions.
  */
 export function OnboardingFeatures() {
   const { t } = useTranslation()
@@ -68,7 +68,9 @@ export function OnboardingFeatures() {
       <View style={styles.list}>
         {features.map((feature) => (
           <View key={feature.titleKey} style={styles.row}>
-            <feature.Icon size={18} color={tokens.fg2} strokeWidth={1.5} />
+            <View style={styles.iconSlot}>
+              <feature.Icon size={22} color={tokens.fg2} strokeWidth={1.8} />
+            </View>
             <View style={styles.text}>
               <Text style={styles.featureTitle}>
                 {t(feature.titleKey, { defaultValue: feature.titleKey })}
@@ -91,10 +93,10 @@ function createStyles(tokens: AppTokensV2) {
       paddingBottom: 12,
     },
     title: {
-      fontFamily: 'Rubik_600SemiBold',
-      fontSize: 22,
-      letterSpacing: -0.33,
-      lineHeight: 25,
+      fontFamily: 'Rubik_500Medium',
+      fontSize: 24,
+      letterSpacing: -0.24,
+      lineHeight: 31,
       color: tokens.fg1,
       textAlign: 'center',
       marginBottom: 14,
@@ -105,24 +107,29 @@ function createStyles(tokens: AppTokensV2) {
     row: {
       flexDirection: 'row',
       alignItems: 'flex-start',
-      gap: 12,
-      paddingVertical: 12,
+      gap: 14,
+      paddingVertical: 14,
       borderBottomWidth: 1,
       borderBottomColor: tokens.hairline,
     },
+    iconSlot: {
+      width: 26,
+      alignItems: 'center',
+      paddingTop: 1,
+    },
     text: {
       flex: 1,
-      gap: 2,
+      gap: 3,
     },
     featureTitle: {
-      fontFamily: 'Rubik_600SemiBold',
-      fontSize: 15,
+      fontFamily: 'Rubik_500Medium',
+      fontSize: 16,
       color: tokens.fg1,
     },
     featureDesc: {
       fontFamily: 'Rubik_400Regular',
-      fontSize: 13,
-      fontStyle: 'italic',
+      fontSize: 13.5,
+      lineHeight: 19,
       color: tokens.fg3,
     },
   })

@@ -30,6 +30,8 @@ import { OnboardingCreateGoal } from './onboarding-create-goal'
 import { OnboardingFeatures } from './onboarding-features'
 import { OnboardingComplete } from './onboarding-complete'
 import { KeyboardAwareScrollView } from '@/components/ui/keyboard-aware-scroll-view'
+import { GradientTop } from '@/components/ui/gradient-top'
+import { PillButton } from '@/components/ui/pill-button'
 import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
@@ -189,10 +191,11 @@ export function OnboardingFlow() {
   return (
     <Modal visible transparent animationType="fade">
       <View style={styles.container}>
+        <GradientTop height={520} />
         <View style={styles.header}>
           <Text style={styles.progressLabel}>{progressLabel}</Text>
           {!isFinalStep && (
-            <Pressable onPress={handleSkip} hitSlop={8}>
+            <Pressable onPress={handleSkip} hitSlop={8} style={styles.skipButton}>
               <Text style={styles.skipText}>
                 {t('onboarding.flow.skip')}
               </Text>
@@ -216,54 +219,35 @@ export function OnboardingFlow() {
                   key={`progress-dot-${i}`}
                   style={[
                     styles.dot,
+                    i === displayStep - 1 ? styles.dotActive : null,
                     {
                       backgroundColor:
-                        i <= displayStep - 1
-                          ? tokens.primary
-                          : tokens.hairlineStrong,
+                        i === displayStep - 1 ? tokens.primary : tokens.fg4,
                     },
                   ]}
                 />
               ))}
             </View>
 
-            <View style={styles.footerRow}>
-              <View style={styles.footerSide}>
-                {hasPrev && (
-                  <Pressable onPress={goPrev} hitSlop={8}>
-                    <Text style={styles.backText}>
-                      {t('onboarding.flow.back')}
-                    </Text>
-                  </Pressable>
-                )}
-              </View>
-              <View style={styles.footerCenter}>
-                {canAdvance && (
-                  <Pressable
-                    onPress={goNext}
-                    style={({ pressed }) => [
-                      styles.nextBtn,
-                      {
-                        backgroundColor: pressed
-                          ? tokens.primaryPressed
-                          : tokens.primary,
-                      },
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.nextBtnText,
-                        { color: tokens.fgOnPrimary },
-                      ]}
-                    >
-                      {isStarter
-                        ? t('onboarding.flow.begin')
-                        : t('onboarding.flow.next')}
-                    </Text>
-                  </Pressable>
-                )}
-              </View>
-              <View style={styles.footerSide} />
+            <View style={styles.footerActions}>
+              {canAdvance && (
+                <PillButton fullWidth onPress={goNext}>
+                  {isStarter
+                    ? t('onboarding.flow.begin')
+                    : t('onboarding.flow.next')}
+                </PillButton>
+              )}
+              {hasPrev && (
+                <Pressable
+                  onPress={goPrev}
+                  style={styles.backButton}
+                  accessibilityRole="button"
+                >
+                  <Text style={styles.backText}>
+                    {t('onboarding.flow.back')}
+                  </Text>
+                </Pressable>
+              )}
             </View>
           </View>
         )}
@@ -283,14 +267,21 @@ function createStyles(tokens: AppTokensV2) {
       alignItems: 'center',
       justifyContent: 'space-between',
       paddingHorizontal: 20,
-      paddingTop: 56,
-      paddingBottom: 8,
+      paddingTop: 48,
+      paddingBottom: 0,
+      minHeight: 56,
     },
     progressLabel: {
       fontFamily: 'Roboto_500Medium',
       fontSize: 11,
       color: tokens.fg3,
       letterSpacing: 0.44,
+      fontVariant: ['tabular-nums'],
+    },
+    skipButton: {
+      minHeight: 44,
+      justifyContent: 'center',
+      paddingHorizontal: 4,
     },
     skipText: {
       fontFamily: 'Rubik_400Regular',
@@ -305,53 +296,43 @@ function createStyles(tokens: AppTokensV2) {
       width: '100%',
       maxWidth: 400,
       alignSelf: 'center',
+      flexGrow: 1,
+      justifyContent: 'center',
     },
     footer: {
-      paddingHorizontal: 22,
+      paddingHorizontal: 28,
       paddingTop: 12,
-      paddingBottom: 40,
-      gap: 14,
+      paddingBottom: 32,
+      gap: 22,
       alignItems: 'center',
     },
     dotsRow: {
       flexDirection: 'row',
-      gap: 6,
+      gap: 8,
     },
     dot: {
-      width: 5,
-      height: 5,
+      width: 8,
+      height: 8,
       borderRadius: 999,
     },
-    footerRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
+    dotActive: {
+      width: 24,
+    },
+    footerActions: {
       width: '100%',
-      gap: 12,
+      gap: 4,
+      alignItems: 'center',
     },
-    footerSide: {
-      flex: 1,
-      alignItems: 'flex-start',
-    },
-    footerCenter: {
-      flex: 2,
+    backButton: {
+      minHeight: 44,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: 12,
     },
     backText: {
       fontFamily: 'Rubik_400Regular',
       fontSize: 13,
       color: tokens.fg3,
-      paddingVertical: 6,
     },
-    nextBtn: {
-      borderRadius: 10,
-      paddingHorizontal: 18,
-      paddingVertical: 10,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    nextBtnText: {
-      fontFamily: 'Rubik_600SemiBold',
-      fontSize: 14,
-      },
   })
 }

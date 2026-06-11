@@ -178,6 +178,7 @@
   },
   "auth": {
     "signIn": "Entrar",
+    "signInSubtitle": "Enviaremos um código de acesso por e-mail.",
     "enterCode": "Digite o código",
     "email": "E-mail",
     "emailPlaceholder": "você@exemplo.com",
@@ -1279,6 +1280,7 @@
   },
   "upgrade": {
     "title": "Upgrade para Pro",
+    "heroTitle": "Desbloqueie todo o potencial dos seus hábitos com o Pro",
     "alreadyPro": "Você está no plano Pro!",
     "manageHint": "Gerencie sua assinatura, atualize pagamento ou cancele quando quiser",
     "feature": "Recurso",
@@ -1421,6 +1423,7 @@
         "appliedNote": "Desconto de indicação aplicado"
       },
       "equivalent": "{price}/mês",
+      "renewalNote": "A assinatura é renovada automaticamente. Cancele quando quiser com 24h de antecedência para evitar cobranças futuras.",
       "error": "Não foi possível carregar preços",
       "retry": "Tentar novamente"
     },

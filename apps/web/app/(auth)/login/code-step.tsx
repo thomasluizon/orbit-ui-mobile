@@ -1,6 +1,7 @@
 import type { useTranslations } from 'next-intl'
 import { CodeInput } from '@/components/ui/code-input'
-import { PrimaryButton, QuietLink } from './login-atoms'
+import { PillButton } from '@/components/ui/pill-button'
+import { QuietLink, Spinner } from './login-atoms'
 
 interface CodeStepProps {
   email: string
@@ -41,9 +42,9 @@ export function CodeStep({
         style={{
           fontFamily: 'var(--font-sans)',
           fontSize: 14,
-          lineHeight: 1.5,
+          lineHeight: 1.55,
           color: 'var(--fg-3)',
-          fontStyle: 'italic',
+          margin: 0,
         }}
       >
         {t('auth.codeSentTo')} <span style={{ color: 'var(--fg-1)' }}>{email}</span>.
@@ -51,7 +52,7 @@ export function CodeStep({
 
       <form
         className="flex flex-col"
-        style={{ gap: 18 }}
+        style={{ gap: 24 }}
         onSubmit={(e) => {
           e.preventDefault()
           onVerifyCode()
@@ -67,31 +68,37 @@ export function CodeStep({
           ariaLabelledBy="code-sent-to"
         />
 
-        <PrimaryButton
+        <PillButton
           type="submit"
-          loading={isSubmitting}
+          fullWidth
           disabled={isSubmitting || codeDigits.join('').length !== 6}
+          busy={isSubmitting}
+          leading={isSubmitting ? <Spinner /> : undefined}
         >
           {t('auth.verify')}
-        </PrimaryButton>
+        </PillButton>
       </form>
 
-      <div
-        className="flex justify-center"
-        style={{
-          fontFamily: 'var(--font-mono)',
-          fontSize: 11,
-          fontWeight: 500,
-          color: 'var(--fg-3)',
-          fontVariantNumeric: 'tabular-nums',
-        }}
-      >
+      <div className="flex justify-center">
         {canResend ? (
           <QuietLink emphasized onClick={onResendCode}>
             {t('auth.resendCode')}
           </QuietLink>
         ) : (
-          <span style={{ padding: 6 }}>{t('auth.resendIn', { seconds: resendCountdown })}</span>
+          <span
+            className="inline-flex items-center"
+            style={{
+              minHeight: 44,
+              padding: '6px 12px',
+              fontFamily: 'var(--font-mono)',
+              fontSize: 12,
+              color: 'var(--fg-3)',
+              letterSpacing: '0.02em',
+              fontVariantNumeric: 'tabular-nums',
+            }}
+          >
+            {t('auth.resendIn', { seconds: resendCountdown })}
+          </span>
         )}
       </div>
 

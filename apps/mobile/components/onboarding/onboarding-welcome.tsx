@@ -8,7 +8,7 @@ import { ONBOARDING_WEEK_START_OPTIONS } from '@orbit/shared/utils/onboarding'
 import { useProfile, useHasProAccess } from '@/hooks/use-profile'
 import { API } from '@orbit/shared/api'
 import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
-import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
+import { createTokensV2, tintFromPrimary, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { Chip } from '@/components/ui/chip'
 import { AppLogo } from '@/components/ui/app-logo'
@@ -19,8 +19,8 @@ interface OnboardingProfileState {
 }
 
 /**
- * v8 Welcome step: Saturn dropcap + 3-line manifesto, week-start chips,
- * scheme swatches. Pure visual rewrite -- preserves the week-start mutation.
+ * ob-1 Welcome step: tinted hero disc + logo, week-start chips, scheme
+ * swatches. Pure visual rewrite -- preserves the week-start mutation.
  */
 export function OnboardingWelcome() {
   const { t } = useTranslation()
@@ -83,8 +83,8 @@ export function OnboardingWelcome() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.brandingHeader}>
-        <AppLogo size={48} />
+      <View style={styles.heroDisc}>
+        <AppLogo size={56} />
       </View>
 
       <Text style={styles.title}>{t('onboarding.flow.welcome.title')}</Text>
@@ -146,30 +146,37 @@ function createStyles(tokens: AppTokensV2) {
       paddingTop: 14,
       paddingBottom: 24,
     },
-    brandingHeader: {
+    heroDisc: {
+      width: 116,
+      height: 116,
+      borderRadius: 999,
+      backgroundColor: tintFromPrimary(tokens, 0.14),
       alignItems: 'center',
-      paddingTop: 14,
-      paddingBottom: 8,
+      justifyContent: 'center',
+      marginBottom: 6,
     },
     title: {
-      fontFamily: 'Rubik_600SemiBold',
-      fontSize: 24,
-      letterSpacing: -0.48,
-      lineHeight: 28,
+      fontFamily: 'Rubik_500Medium',
+      fontSize: 28,
+      letterSpacing: -0.28,
+      lineHeight: 32,
       color: tokens.fg1,
       textAlign: 'center',
     },
     subtitle: {
       fontFamily: 'Rubik_400Regular',
-      fontSize: 14,
-      lineHeight: 21,
+      fontSize: 15,
+      lineHeight: 23,
       color: tokens.fg2,
       textAlign: 'center',
       paddingHorizontal: 12,
+      maxWidth: 300,
     },
     sectionLabel: {
-      fontFamily: 'Rubik_600SemiBold',
-      fontSize: 13,
+      fontFamily: 'Rubik_500Medium',
+      fontSize: 12,
+      letterSpacing: 0.96,
+      textTransform: 'uppercase',
       color: tokens.fg3,
       marginTop: 16,
       alignSelf: 'center',

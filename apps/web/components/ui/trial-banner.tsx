@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import Link from 'next/link'
-import { X } from 'lucide-react'
+import { ChevronRight, X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { plural } from '@/lib/plural'
 import { useProfile, useTrialDaysLeft, useTrialUrgent } from '@/hooks/use-profile'
@@ -24,11 +24,14 @@ export function TrialBanner() {
       aria-live="polite"
       className="flex items-center"
       style={{
-        padding: '8px 14px',
-        background: 'transparent',
-        borderTop: '1px solid var(--hairline)',
-        borderBottom: '1px solid var(--hairline)',
+        padding: '9px 14px',
         gap: 12,
+        background: trialUrgent
+          ? 'color-mix(in srgb, var(--status-overdue) 10%, transparent)'
+          : 'rgba(var(--primary-rgb), 0.08)',
+        boxShadow: trialUrgent
+          ? 'inset 0 0 0 1px color-mix(in srgb, var(--status-overdue) 28%, transparent)'
+          : 'inset 0 0 0 1px rgba(var(--primary-rgb), 0.18)',
       }}
     >
       <span
@@ -41,11 +44,17 @@ export function TrialBanner() {
       >
         {t('trial.banner.trialEyebrow')}{' '}
         {trialDaysLeft === 0 ? (
-          <span style={{ color: 'var(--status-overdue)', fontStyle: 'italic' }}>
+          <span style={{ color: 'var(--status-overdue)' }}>
             {t('trial.banner.lastDay')}
           </span>
         ) : (
-          <span style={{ color: 'var(--fg-1)' }}>
+          <span
+            style={{
+              fontFamily: 'var(--font-mono)',
+              fontVariantNumeric: 'tabular-nums',
+              color: 'var(--fg-1)',
+            }}
+          >
             {plural(
               t('trial.banner.daysLeft', { days: trialDaysLeft ?? 0 }),
               trialDaysLeft ?? 0,
@@ -55,25 +64,34 @@ export function TrialBanner() {
       </span>
       <Link
         href="/upgrade"
-        className="transition-opacity duration-150 ease-out hover:opacity-80"
+        className="inline-flex items-center transition-opacity duration-150 ease-out hover:opacity-80"
         style={{
+          gap: 2,
+          minHeight: 44,
+          margin: '-12px 0',
           fontFamily: 'var(--font-sans)',
           fontSize: 13,
-          fontWeight: 600,
-          color: 'var(--fg-1)',
-          padding: 4,
+          fontWeight: 500,
+          color: trialUrgent ? 'var(--status-overdue)' : 'var(--primary-soft)',
+          padding: '0 4px',
         }}
       >
         {t('trial.banner.upgrade')}
+        <ChevronRight size={14} strokeWidth={2.2} aria-hidden="true" />
       </Link>
       <button
         type="button"
         aria-label={t('common.dismiss')}
-        className="appearance-none border-0 bg-transparent cursor-pointer transition-colors duration-150 ease-out hover:text-[var(--fg-1)]"
-        style={{ padding: 4, color: trialUrgent ? 'var(--status-overdue)' : 'var(--fg-3)' }}
+        className="inline-flex cursor-pointer appearance-none items-center justify-center border-0 bg-transparent transition-colors duration-150 ease-out hover:text-[var(--fg-1)]"
+        style={{
+          width: 44,
+          height: 44,
+          margin: '-12px -10px',
+          color: trialUrgent ? 'var(--status-overdue)' : 'var(--fg-3)',
+        }}
         onClick={() => setDismissed(true)}
       >
-        <X size={14} strokeWidth={1.6} aria-hidden="true" />
+        <X size={14} strokeWidth={1.8} aria-hidden="true" />
       </button>
     </div>
   )

@@ -41,41 +41,51 @@ export default function LoginPage() {
       >
         <div
           className="flex flex-col items-center"
-          style={{ gap: 14, paddingBottom: 12 }}
+          style={{ gap: 14, paddingBottom: 4 }}
         >
-          <div style={{ color: 'var(--fg-1)' }}>
-            <AppLogo size={32} />
-          </div>
+          <AppLogo size={64} />
           <div
             style={{
               fontFamily: 'var(--font-sans)',
               fontSize: 28,
-              fontWeight: 600,
-              letterSpacing: '-0.025em',
+              fontWeight: 500,
+              letterSpacing: '-0.01em',
               lineHeight: 1,
               color: 'var(--fg-1)',
             }}
           >
             Orbit
           </div>
-          <div
-            aria-hidden="true"
-            style={{ width: 60, height: 1, background: 'var(--hairline-strong)', marginTop: 6 }}
-          />
         </div>
 
-        <h2
-          className="text-center"
-          style={{
-            fontFamily: 'var(--font-sans)',
-            fontSize: 13,
-            fontWeight: 600,
-            color: 'var(--fg-3)',
-            margin: 0,
-          }}
-        >
-          {step === 'email' ? t('auth.signIn') : t('auth.enterCode')}
-        </h2>
+        <div className="flex flex-col text-center" style={{ gap: 6 }}>
+          <h2
+            style={{
+              fontFamily: 'var(--font-sans)',
+              fontSize: 24,
+              fontWeight: 500,
+              letterSpacing: '-0.01em',
+              lineHeight: 1.3,
+              color: 'var(--fg-1)',
+              margin: 0,
+            }}
+          >
+            {step === 'email' ? t('auth.signIn') : t('auth.enterCode')}
+          </h2>
+          {step === 'email' && (
+            <p
+              style={{
+                fontFamily: 'var(--font-sans)',
+                fontSize: 15,
+                lineHeight: 1.55,
+                color: 'var(--fg-2)',
+                margin: 0,
+              }}
+            >
+              {t('auth.signInSubtitle')}
+            </p>
+          )}
+        </div>
 
         {referralCode && (
           <motion.div
@@ -122,7 +132,7 @@ export default function LoginPage() {
             style={{
               fontFamily: 'var(--font-sans)',
               fontSize: 14,
-              fontStyle: 'italic',
+              lineHeight: 1.55,
               color: 'var(--status-overdue)',
             }}
           >
@@ -141,7 +151,7 @@ export default function LoginPage() {
               style={{
                 fontFamily: 'var(--font-sans)',
                 fontSize: 13,
-                fontStyle: 'italic',
+                lineHeight: 1.55,
                 color: 'var(--fg-2)',
               }}
               initial={{ opacity: 0, y: 8, scale: 0.98 }}

@@ -1,6 +1,9 @@
 'use client'
 
 import { useTranslations } from 'next-intl'
+import { TriangleAlert } from 'lucide-react'
+import { InfoCard } from '@/components/ui/info-card'
+import { PillButton } from '@/components/ui/pill-button'
 
 /**
  * Error boundary for auth pages (login, auth-callback).
@@ -16,29 +19,12 @@ export default function AuthError({
   const t = useTranslations()
 
   return (
-    <div className="flex flex-col items-center gap-4 text-center w-full max-w-sm">
-      <svg
-        className="size-10 text-[var(--fg-3)]"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
-        <line x1="12" y1="9" x2="12" y2="13" />
-        <line x1="12" y1="17" x2="12.01" y2="17" />
-      </svg>
-      <p className="text-sm text-[var(--fg-2)]">
-        {process.env.NODE_ENV === 'development' ? error.message : t('auth.genericError')}
-      </p>
-      <button
-        onClick={reset}
-        className="px-5 py-2.5 rounded-[12px] bg-[var(--primary)] text-white font-semibold text-sm hover:bg-[var(--primary-pressed)] transition-colors"
-      >
-        {t('common.retry')}
-      </button>
+    <div className="flex w-full max-w-sm flex-col items-center" style={{ gap: 20 }}>
+      <InfoCard
+        icon={TriangleAlert}
+        title={process.env.NODE_ENV === 'development' ? error.message : t('auth.genericError')}
+      />
+      <PillButton onClick={reset}>{t('common.retry')}</PillButton>
     </div>
   )
 }

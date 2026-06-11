@@ -178,6 +178,7 @@
   },
   "auth": {
     "signIn": "Sign in",
+    "signInSubtitle": "We'll email you a sign-in code.",
     "enterCode": "Enter code",
     "email": "Email",
     "emailPlaceholder": "you@example.com",
@@ -1279,6 +1280,7 @@
   },
   "upgrade": {
     "title": "Upgrade to Pro",
+    "heroTitle": "Unlock the full potential of your habits with Pro",
     "alreadyPro": "You're on the Pro plan!",
     "manageHint": "Manage your subscription, update payment, or cancel anytime",
     "feature": "Feature",
@@ -1421,6 +1423,7 @@
         "appliedNote": "Referral discount applied"
       },
       "equivalent": "{price}/mo",
+      "renewalNote": "Your subscription renews automatically. Cancel anytime, at least 24 hours before renewal, to avoid future charges.",
       "error": "Couldn't load pricing",
       "retry": "Try again"
     },

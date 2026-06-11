@@ -45,6 +45,8 @@ import { useOffline } from '@/hooks/use-offline'
 import { OfflineUnavailableState } from '@/components/ui/offline-unavailable-state'
 import { KeyboardAwareScrollView } from '@/components/ui/keyboard-aware-scroll-view'
 import { AppLogo } from '@/components/ui/app-logo'
+import { GradientTop } from '@/components/ui/gradient-top'
+import { PillButton } from '@/components/ui/pill-button'
 import { UnderlinedInput } from '@/components/ui/underlined-input'
 import { CodeInput } from '@/components/ui/code-input'
 
@@ -360,226 +362,210 @@ export default function LoginScreen() {
     codeDigits.join('').length === 6 && !isSubmitting && isOnline
 
   return (
-    <KeyboardAwareScrollView
-      containerStyle={[
-        styles.container,
-        { paddingTop: insets.top, paddingBottom: insets.bottom },
-      ]}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 12 : 0}
-      contentContainerStyle={[
-        styles.scrollContent,
-        isCodeStep && styles.scrollContentCode,
-        isAndroidKeyboardOpen && styles.scrollContentKeyboard,
-      ]}
-      keyboardShouldPersistTaps="always"
-      showsVerticalScrollIndicator={false}
-    >
-      {showReferralBanner && (
-        <View style={styles.referralBanner}>
-          <Text style={styles.referralBannerText}>
-            {t('referral.loginBanner')}
-          </Text>
-        </View>
-      )}
-
-      <View style={styles.formColumn}>
-        <View style={styles.brandingHeader}>
-          <AppLogo size={32} />
-          <Text style={styles.wordmark}>Orbit</Text>
-          <View style={styles.brandingRule} />
-        </View>
-
-        <Text style={styles.stepSubtitle}>
-          {step === 'email' ? t('auth.signIn') : t('auth.enterCode')}
-        </Text>
-
-        {errorMessage && (
-          <Text style={styles.inlineError}>{errorMessage}</Text>
+    <View style={styles.root}>
+      <GradientTop height={320} />
+      <KeyboardAwareScrollView
+        containerStyle={[
+          styles.container,
+          { paddingTop: insets.top, paddingBottom: insets.bottom },
+        ]}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 12 : 0}
+        contentContainerStyle={[
+          styles.scrollContent,
+          isCodeStep && styles.scrollContentCode,
+          isAndroidKeyboardOpen && styles.scrollContentKeyboard,
+        ]}
+        keyboardShouldPersistTaps="always"
+        showsVerticalScrollIndicator={false}
+      >
+        {showReferralBanner && (
+          <View style={styles.referralBanner}>
+            <Text style={styles.referralBannerText}>
+              {t('referral.loginBanner')}
+            </Text>
+          </View>
         )}
 
-        {successMessage && (
-          <Text style={styles.successText}>{successMessage}</Text>
-        )}
+        <View style={styles.formColumn}>
+          <View style={styles.brandingHeader}>
+            <AppLogo size={64} />
+            <Text style={styles.wordmark}>Orbit</Text>
+          </View>
 
-        {!isOnline && (
-          <OfflineUnavailableState
-            title={offlineTitle}
-            description={offlineDescription}
-            compact
-          />
-        )}
+          <View style={styles.titleBlock}>
+            <Text style={styles.stepTitle}>
+              {step === 'email' ? t('auth.signIn') : t('auth.enterCode')}
+            </Text>
+            {step === 'email' && (
+              <Text style={styles.stepSubtitle}>{t('auth.signInSubtitle')}</Text>
+            )}
+          </View>
 
-        {step === 'email' ? (
-          <>
-            <UnderlinedInput
-              label={t('auth.email')}
-              mono
-              value={email}
-              onChangeText={setEmail}
-              placeholder={t('auth.emailPlaceholder')}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoCorrect={false}
-              autoComplete="email"
-              textContentType="emailAddress"
-              editable={!isSubmitting}
-              onSubmitEditing={sendCode}
-              returnKeyType="send"
-              accessibilityLabel={t('auth.email')}
+          {errorMessage && (
+            <Text style={styles.inlineError}>{errorMessage}</Text>
+          )}
+
+          {successMessage && (
+            <Text style={styles.successText}>{successMessage}</Text>
+          )}
+
+          {!isOnline && (
+            <OfflineUnavailableState
+              title={offlineTitle}
+              description={offlineDescription}
+              compact
             />
+          )}
 
-            <Pressable
-              style={({ pressed }) => [
-                styles.primaryButton,
-                {
-                  backgroundColor: pressed
-                    ? tokens.primaryPressed
-                    : tokens.primary,
-                },
-                !canSubmitEmail && styles.buttonDisabled,
-              ]}
-              onPress={sendCode}
-              disabled={!canSubmitEmail}
-              accessibilityState={{
-                disabled: !canSubmitEmail,
-                busy: isSubmitting,
-              }}
-            >
-              {isSubmitting && <Spinner color={tokens.fgOnPrimary} />}
-              <Text
-                style={[
-                  styles.primaryButtonText,
-                  { color: tokens.fgOnPrimary },
-                ]}
+          {step === 'email' ? (
+            <>
+              <UnderlinedInput
+                label={t('auth.email')}
+                value={email}
+                onChangeText={setEmail}
+                placeholder={t('auth.emailPlaceholder')}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoCorrect={false}
+                autoComplete="email"
+                textContentType="emailAddress"
+                editable={!isSubmitting}
+                onSubmitEditing={sendCode}
+                returnKeyType="send"
+                accessibilityLabel={t('auth.email')}
+              />
+
+              <PillButton
+                fullWidth
+                onPress={sendCode}
+                disabled={!canSubmitEmail}
+                busy={isSubmitting}
+                leading={
+                  isSubmitting ? <Spinner color={tokens.fgOnPrimary} /> : undefined
+                }
               >
                 {t('auth.sendCode')}
-              </Text>
-            </Pressable>
+              </PillButton>
 
-            <View style={styles.divider}>
-              <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>
-                {t('auth.orContinueWith')}
-              </Text>
-              <View style={styles.dividerLine} />
-            </View>
+              <View style={styles.divider}>
+                <View style={styles.dividerLine} />
+                <Text style={styles.dividerText}>
+                  {t('auth.orContinueWith')}
+                </Text>
+                <View style={styles.dividerLine} />
+              </View>
 
-            <Pressable
-              style={({ pressed }) => [
-                styles.secondaryButton,
-                {
-                  borderColor: tokens.hairlineStrong,
-                  backgroundColor: pressed ? tokens.bgSunk : 'transparent',
-                },
-                (isGoogleLoading || !isOnline) && styles.buttonDisabled,
-              ]}
-              onPress={signInWithGoogle}
-              disabled={isGoogleLoading || !isOnline}
-            >
-              {isGoogleLoading ? (
-                <Spinner size={20} color={tokens.fg1} />
-              ) : (
-                <GoogleIcon />
-              )}
-              <Text style={[styles.secondaryButtonText, { color: tokens.fg1 }]}>
+              <PillButton
+                variant="white"
+                fullWidth
+                onPress={signInWithGoogle}
+                disabled={isGoogleLoading || !isOnline}
+                busy={isGoogleLoading}
+                leading={
+                  isGoogleLoading ? (
+                    <Spinner size={20} color={tokens.bg} />
+                  ) : (
+                    <GoogleIcon />
+                  )
+                }
+              >
                 {t('auth.signInWithGoogle')}
+              </PillButton>
+
+              <Text style={styles.legal}>
+                {t('auth.legalPrefix')}{' '}
+                <Text style={styles.legalLink} onPress={openTerms}>
+                  {t('auth.terms')}
+                </Text>{' '}
+                {t('auth.legalConjunction')}{' '}
+                <Text style={styles.legalLink} onPress={openPrivacyPolicy}>
+                  {t('auth.privacy')}
+                </Text>
+                .
               </Text>
-            </Pressable>
-
-            <Text style={styles.legal}>
-              {t('auth.legalPrefix')}{' '}
-              <Text style={styles.legalLink} onPress={openTerms}>
-                {t('auth.terms')}
-              </Text>{' '}
-              {t('auth.legalConjunction')}{' '}
-              <Text style={styles.legalLink} onPress={openPrivacyPolicy}>
-                {t('auth.privacy')}
+            </>
+          ) : (
+            <>
+              <Text style={styles.codeSentText}>
+                {t('auth.codeSentTo')}{' '}
+                <Text style={styles.codeSentEmail}>{email}</Text>.
               </Text>
-              .
-            </Text>
-          </>
-        ) : (
-          <>
-            <Text style={styles.codeSentText}>
-              {t('auth.codeSentTo')}{' '}
-              <Text style={styles.codeSentEmail}>{email}</Text>.
-            </Text>
 
-            <CodeInput
-              digits={codeDigits}
-              inputRefs={codeInputRefs}
-              onChange={onCodeInput}
-              onKeyPress={onCodeKeyPress}
-              ariaLabelForIndex={(n) => t('auth.codeDigit', { n: n + 1 })}
-              disabled={isSubmitting}
-              autoFocusFirst
-            />
+              <CodeInput
+                digits={codeDigits}
+                inputRefs={codeInputRefs}
+                onChange={onCodeInput}
+                onKeyPress={onCodeKeyPress}
+                ariaLabelForIndex={(n) => t('auth.codeDigit', { n: n + 1 })}
+                disabled={isSubmitting}
+                autoFocusFirst
+              />
 
-            <Pressable
-              style={({ pressed }) => [
-                styles.primaryButton,
-                {
-                  backgroundColor: pressed
-                    ? tokens.primaryPressed
-                    : tokens.primary,
-                },
-                !canSubmitCode && styles.buttonDisabled,
-              ]}
-              onPress={verifyCode}
-              disabled={!canSubmitCode}
-              accessibilityState={{
-                disabled: !canSubmitCode,
-                busy: isSubmitting,
-              }}
-            >
-              {isSubmitting && <Spinner color={tokens.fgOnPrimary} />}
-              <Text
-                style={[
-                  styles.primaryButtonText,
-                  { color: tokens.fgOnPrimary },
-                ]}
+              <PillButton
+                fullWidth
+                onPress={verifyCode}
+                disabled={!canSubmitCode}
+                busy={isSubmitting}
+                leading={
+                  isSubmitting ? <Spinner color={tokens.fgOnPrimary} /> : undefined
+                }
               >
                 {t('auth.verify')}
-              </Text>
-            </Pressable>
+              </PillButton>
 
-            <View style={styles.resendRow}>
-              {canResend ? (
-                <Pressable onPress={resendCode} disabled={!isOnline}>
-                  <Text style={styles.resendActiveText}>
-                    {t('auth.resendCode')}
-                  </Text>
+              <View style={styles.resendRow}>
+                {canResend ? (
+                  <Pressable
+                    onPress={resendCode}
+                    disabled={!isOnline}
+                    style={styles.textButton}
+                    accessibilityRole="button"
+                  >
+                    <Text style={styles.resendActiveText}>
+                      {t('auth.resendCode')}
+                    </Text>
+                  </Pressable>
+                ) : (
+                  <View style={styles.textButton}>
+                    <Text style={styles.resendCountdownText}>
+                      {t('auth.resendIn', { seconds: resendCountdown })}
+                    </Text>
+                  </View>
+                )}
+              </View>
+
+              <View style={styles.changeEmailRow}>
+                <Pressable
+                  onPress={backToEmail}
+                  style={styles.textButton}
+                  accessibilityRole="button"
+                >
+                  <Text style={styles.quietLink}>{t('auth.changeEmail')}</Text>
                 </Pressable>
-              ) : (
-                <Text style={styles.resendCountdownText}>
-                  {t('auth.resendIn', { seconds: resendCountdown })}
-                </Text>
-              )}
-            </View>
-
-            <View style={styles.changeEmailRow}>
-              <Pressable onPress={backToEmail}>
-                <Text style={styles.quietLink}>{t('auth.changeEmail')}</Text>
-              </Pressable>
-            </View>
-          </>
-        )}
-      </View>
-    </KeyboardAwareScrollView>
+              </View>
+            </>
+          )}
+        </View>
+      </KeyboardAwareScrollView>
+    </View>
   )
 }
 
 function createStyles(tokens: AppTokensV2) {
   return StyleSheet.create({
-    container: {
+    root: {
       flex: 1,
       backgroundColor: tokens.bg,
+    },
+    container: {
+      flex: 1,
+      backgroundColor: 'transparent',
     },
     scrollContent: {
       flexGrow: 1,
       justifyContent: 'center',
       alignItems: 'center',
-      paddingHorizontal: 28,
+      paddingHorizontal: 24,
       paddingVertical: 24,
     },
     scrollContentCode: {
@@ -619,33 +605,40 @@ function createStyles(tokens: AppTokensV2) {
     brandingHeader: {
       alignItems: 'center',
       gap: 14,
-      paddingBottom: 12,
+      paddingBottom: 4,
     },
     wordmark: {
-      fontFamily: 'Rubik_600SemiBold',
+      fontFamily: 'Rubik_500Medium',
       fontSize: 28,
       color: tokens.fg1,
-      letterSpacing: -0.7,
-      lineHeight: 28,
-    },
-    brandingRule: {
-      width: 60,
-      height: 1,
-      backgroundColor: tokens.hairlineStrong,
-      marginTop: 6,
+      letterSpacing: -0.28,
+      lineHeight: 30,
     },
 
+    titleBlock: {
+      alignItems: 'center',
+      gap: 6,
+    },
+    stepTitle: {
+      fontFamily: 'Rubik_500Medium',
+      fontSize: 24,
+      lineHeight: 31,
+      letterSpacing: -0.24,
+      color: tokens.fg1,
+      textAlign: 'center',
+    },
     stepSubtitle: {
-      fontFamily: 'Rubik_600SemiBold',
-      fontSize: 13,
-      color: tokens.fg3,
+      fontFamily: 'Rubik_400Regular',
+      fontSize: 15,
+      lineHeight: 23,
+      color: tokens.fg2,
       textAlign: 'center',
     },
 
     inlineError: {
       fontFamily: 'Rubik_400Regular',
       fontSize: 14,
-      fontStyle: 'italic',
+      lineHeight: 22,
       color: tokens.statusOverdue,
       textAlign: 'center',
     },
@@ -653,26 +646,9 @@ function createStyles(tokens: AppTokensV2) {
     successText: {
       fontFamily: 'Rubik_400Regular',
       fontSize: 13,
-      fontStyle: 'italic',
+      lineHeight: 20,
       color: tokens.fg2,
       textAlign: 'center',
-    },
-
-    primaryButton: {
-      paddingHorizontal: 18,
-      paddingVertical: 12,
-      borderRadius: 10,
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 8,
-    },
-    primaryButtonText: {
-      fontFamily: 'Rubik_600SemiBold',
-      fontSize: 14,
-      },
-    buttonDisabled: {
-      opacity: 0.5,
     },
 
     divider: {
@@ -687,33 +663,17 @@ function createStyles(tokens: AppTokensV2) {
       backgroundColor: tokens.hairline,
     },
     dividerText: {
-      fontFamily: 'Roboto_500Medium',
-      fontSize: 11,
-      color: tokens.fg3,
-      letterSpacing: 0.66,
+      fontFamily: 'Roboto_400Regular',
+      fontSize: 12,
+      color: tokens.fg4,
+      letterSpacing: 0.24,
     },
-
-    secondaryButton: {
-      paddingHorizontal: 18,
-      paddingVertical: 11,
-      borderRadius: 10,
-      borderWidth: 1,
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 8,
-    },
-    secondaryButtonText: {
-      fontFamily: 'Rubik_500Medium',
-      fontSize: 14,
-      },
 
     legal: {
       fontFamily: 'Rubik_400Regular',
       fontSize: 12,
-      fontStyle: 'italic',
       lineHeight: 18,
-      color: tokens.fg3,
+      color: tokens.fg4,
       textAlign: 'center',
       marginTop: 8,
     },
@@ -725,14 +685,12 @@ function createStyles(tokens: AppTokensV2) {
     codeSentText: {
       fontFamily: 'Rubik_400Regular',
       fontSize: 14,
-      fontStyle: 'italic',
-      lineHeight: 21,
+      lineHeight: 22,
       color: tokens.fg3,
       textAlign: 'center',
     },
     codeSentEmail: {
       color: tokens.fg1,
-      fontStyle: 'normal',
     },
 
     resendRow: {
@@ -740,29 +698,32 @@ function createStyles(tokens: AppTokensV2) {
       justifyContent: 'center',
       paddingTop: 4,
     },
-    resendActiveText: {
-      fontFamily: 'Roboto_500Medium',
-      fontSize: 11,
-      color: tokens.fg1,
-      textDecorationLine: 'underline',
-      letterSpacing: 0.44,
-    },
-    resendCountdownText: {
-      fontFamily: 'Roboto_500Medium',
-      fontSize: 11,
-      color: tokens.fg3,
-      letterSpacing: 0.44,
-    },
-
     changeEmailRow: {
       flexDirection: 'row',
       justifyContent: 'center',
+    },
+    textButton: {
+      minHeight: 44,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: 12,
+    },
+    resendActiveText: {
+      fontFamily: 'Rubik_500Medium',
+      fontSize: 14,
+      color: tokens.fg2,
+    },
+    resendCountdownText: {
+      fontFamily: 'Roboto_400Regular',
+      fontSize: 12,
+      color: tokens.fg3,
+      letterSpacing: 0.24,
+      fontVariant: ['tabular-nums'],
     },
     quietLink: {
       fontFamily: 'Rubik_400Regular',
       fontSize: 13,
       color: tokens.fg3,
-      paddingVertical: 6,
     },
   })
 }

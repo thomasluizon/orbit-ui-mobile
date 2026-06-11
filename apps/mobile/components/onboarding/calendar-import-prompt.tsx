@@ -6,6 +6,7 @@ import { API } from '@orbit/shared/api'
 import { useProfile } from '@/hooks/use-profile'
 import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
 import { BottomSheetModal } from '@/components/bottom-sheet-modal'
+import { PillButton } from '@/components/ui/pill-button'
 import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
@@ -79,26 +80,15 @@ export function CalendarImportPrompt() {
           {t('onboarding.wizard.calendarDescription')}
         </Text>
         <View style={styles.spacer} />
-        <Pressable
-          style={({ pressed }) => [
-            styles.primaryButton,
-            {
-              backgroundColor: pressed
-                ? tokens.primaryPressed
-                : tokens.primary,
-            },
-          ]}
-          onPress={handleImport}
-        >
-          <Text style={[styles.primaryButtonText, { color: tokens.fgOnPrimary }]}>
-            {t('onboarding.wizard.calendarButton')}
-          </Text>
-        </Pressable>
+        <PillButton fullWidth onPress={handleImport}>
+          {t('onboarding.wizard.calendarButton')}
+        </PillButton>
         <Pressable
           style={styles.quietRow}
           onPress={() => {
             void dismissPrompt()
           }}
+          accessibilityRole="button"
         >
           <Text style={styles.quietText}>{t('common.later')}</Text>
         </Pressable>
@@ -117,28 +107,18 @@ function createStyles(tokens: AppTokensV2) {
     },
     description: {
       fontFamily: 'Rubik_400Regular',
-      fontSize: 14,
-      lineHeight: 22,
+      fontSize: 15,
+      lineHeight: 23,
       color: tokens.fg2,
     },
     spacer: {
       height: 16,
     },
-    primaryButton: {
-      borderRadius: 10,
-      paddingVertical: 12,
-      paddingHorizontal: 18,
+    quietRow: {
+      minHeight: 44,
       alignItems: 'center',
       justifyContent: 'center',
-    },
-    primaryButtonText: {
-      fontFamily: 'Rubik_600SemiBold',
-      fontSize: 14,
-      },
-    quietRow: {
-      alignItems: 'center',
-      paddingVertical: 8,
-      paddingBottom: 18,
+      paddingBottom: 10,
     },
     quietText: {
       fontFamily: 'Rubik_400Regular',

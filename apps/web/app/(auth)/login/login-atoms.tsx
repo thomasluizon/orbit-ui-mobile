@@ -18,82 +18,6 @@ export function GoogleIcon() {
   )
 }
 
-export function PrimaryButton({
-  children,
-  disabled = false,
-  loading = false,
-  type = 'button',
-  onClick,
-}: Readonly<{
-  children: React.ReactNode
-  disabled?: boolean
-  loading?: boolean
-  type?: 'button' | 'submit'
-  onClick?: () => void
-}>) {
-  return (
-    <button
-      type={type}
-      onClick={onClick}
-      disabled={disabled}
-      aria-busy={loading}
-      className="w-full appearance-none border-0 cursor-pointer disabled:opacity-50 inline-flex items-center justify-center transition-[background-color] duration-150 ease-out hover:bg-[var(--primary-pressed)]"
-      style={{
-        padding: '12px 18px',
-        background: 'var(--primary)',
-        color: 'var(--fg-on-primary)',
-        borderRadius: 10,
-        fontFamily: 'var(--font-sans)',
-        fontSize: 14,
-        fontWeight: 600,
-        gap: 8,
-      }}
-    >
-      {loading && <Spinner />}
-      {children}
-    </button>
-  )
-}
-
-export function SecondaryButton({
-  children,
-  disabled = false,
-  loading = false,
-  onClick,
-  leading,
-}: Readonly<{
-  children: React.ReactNode
-  disabled?: boolean
-  loading?: boolean
-  onClick?: () => void
-  leading?: React.ReactNode
-}>) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      aria-busy={loading}
-      className="w-full appearance-none cursor-pointer disabled:opacity-50 inline-flex items-center justify-center transition-[background-color] duration-150 ease-out hover:bg-[var(--bg-elev)]"
-      style={{
-        padding: '11px 18px',
-        background: 'transparent',
-        color: 'var(--fg-1)',
-        border: 0,
-        boxShadow: 'inset 0 0 0 1px var(--hairline-strong)',
-        borderRadius: 10,
-        fontFamily: 'var(--font-sans)',
-        fontSize: 14,
-        fontWeight: 500,
-        gap: 8,
-      }}
-    >
-      {loading ? <Spinner size={5} /> : leading}
-      {children}
-    </button>
-  )
-}
-
 export function QuietLink({
   children,
   onClick,
@@ -112,14 +36,14 @@ export function QuietLink({
       type={type}
       onClick={onClick}
       disabled={disabled}
-      className="appearance-none border-0 bg-transparent cursor-pointer disabled:opacity-50 transition-colors duration-150 ease-out hover:text-[var(--fg-1)]"
+      className="inline-flex appearance-none items-center justify-center border-0 bg-transparent cursor-pointer disabled:opacity-50 transition-[color] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:text-[var(--fg-1)]"
       style={{
-        padding: 6,
+        minHeight: 44,
+        padding: '6px 12px',
         fontFamily: 'var(--font-sans)',
-        fontSize: 13,
-        color: emphasized ? 'var(--fg-1)' : 'var(--fg-3)',
-        textDecoration: emphasized ? 'underline' : 'none',
-        textUnderlineOffset: 4,
+        fontSize: emphasized ? 14 : 13,
+        fontWeight: emphasized ? 500 : 400,
+        color: emphasized ? 'var(--fg-2)' : 'var(--fg-3)',
       }}
     >
       {children}

@@ -12,6 +12,7 @@ import { useAppToast } from '@/hooks/use-app-toast'
 import { useCreateGoal } from '@/hooks/use-goals'
 import { UnderlinedInput } from '@/components/ui/underlined-input'
 import { Chip } from '@/components/ui/chip'
+import { PillButton } from '@/components/ui/pill-button'
 import { ProBadge } from '@/components/ui/pro-badge'
 import {
   getFriendlyErrorMessage,
@@ -36,8 +37,8 @@ interface OnboardingCreateGoalProps {
 }
 
 /**
- * v8 step 5: "Add a longer arc." Pro badge, underlined inputs, suggestion
- * chips, primary CTA. Pure visual rewrite -- preserves goal-creation flow.
+ * Goal step: Pro badge, kit field wells, suggestion chips, pill CTA. Pure
+ * visual rewrite -- preserves goal-creation flow.
  */
 export function OnboardingCreateGoal({
   onCreated,
@@ -141,7 +142,7 @@ export function OnboardingCreateGoal({
       <View style={styles.container}>
         <View style={styles.successCard}>
           <View style={styles.successIcon}>
-            <Check size={22} color={tokens.primary} strokeWidth={2} />
+            <Check size={26} color={tokens.fgOnPrimary} strokeWidth={2.4} />
           </View>
           <Text style={styles.successTitle}>
             {targetValue} {unit}
@@ -201,7 +202,7 @@ export function OnboardingCreateGoal({
       </View>
 
       <Text style={styles.sectionLabel}>
-        {t('onboarding.flow.createHabit.title')}
+        {t('onboarding.flow.createGoal.starters')}
       </Text>
       <View style={styles.chipsRow}>
         {suggestions.map((suggestion) => (
@@ -215,30 +216,29 @@ export function OnboardingCreateGoal({
         ))}
       </View>
 
-      <Pressable
-        style={({ pressed }) => [
-          styles.createBtn,
-          {
-            backgroundColor: pressed ? tokens.primaryPressed : tokens.primary,
-          },
-          !canCreate && styles.createBtnDisabled,
-        ]}
-        disabled={!canCreate || isCreating}
-        onPress={handleCreate}
-      >
-        {isCreating ? (
-          <ActivityIndicator size="small" color={tokens.fgOnPrimary} />
-        ) : (
-          <Text style={[styles.createBtnText, { color: tokens.fgOnPrimary }]}>
-            {t('onboarding.flow.createGoal.create')}
-          </Text>
-        )}
-      </Pressable>
+      <View style={styles.createBtnWrap}>
+        <PillButton
+          fullWidth
+          disabled={!canCreate || isCreating}
+          busy={isCreating}
+          onPress={handleCreate}
+          leading={
+            isCreating ? (
+              <ActivityIndicator size="small" color={tokens.fgOnPrimary} />
+            ) : undefined
+          }
+        >
+          {isCreating
+            ? t('onboarding.flow.createGoal.creating')
+            : t('onboarding.flow.createGoal.create')}
+        </PillButton>
+      </View>
 
       <Pressable
         disabled={isCreating}
         onPress={onSkip}
         style={styles.skipBtn}
+        accessibilityRole="button"
       >
         <Text style={styles.skipBtnText}>
           {t('onboarding.flow.createGoal.skipStep')}
@@ -260,17 +260,17 @@ function createStyles(tokens: AppTokensV2) {
       paddingTop: 4,
     },
     title: {
-      fontFamily: 'Rubik_600SemiBold',
-      fontSize: 22,
-      letterSpacing: -0.33,
-      lineHeight: 25,
+      fontFamily: 'Rubik_500Medium',
+      fontSize: 24,
+      letterSpacing: -0.24,
+      lineHeight: 31,
       color: tokens.fg1,
       textAlign: 'center',
     },
     subtitle: {
       fontFamily: 'Rubik_400Regular',
-      fontSize: 14,
-      lineHeight: 21,
+      fontSize: 15,
+      lineHeight: 23,
       color: tokens.fg2,
       textAlign: 'center',
     },
@@ -282,8 +282,10 @@ function createStyles(tokens: AppTokensV2) {
       flex: 1,
     },
     sectionLabel: {
-      fontFamily: 'Rubik_600SemiBold',
-      fontSize: 13,
+      fontFamily: 'Rubik_500Medium',
+      fontSize: 12,
+      letterSpacing: 0.96,
+      textTransform: 'uppercase',
       color: tokens.fg3,
       marginTop: 4,
     },
@@ -292,24 +294,13 @@ function createStyles(tokens: AppTokensV2) {
       flexWrap: 'wrap',
       gap: 6,
     },
-    createBtn: {
+    createBtnWrap: {
       marginTop: 8,
-      paddingVertical: 12,
-      paddingHorizontal: 18,
-      borderRadius: 10,
+    },
+    skipBtn: {
+      minHeight: 44,
       alignItems: 'center',
       justifyContent: 'center',
-    },
-    createBtnDisabled: {
-      opacity: 0.5,
-    },
-    createBtnText: {
-      fontFamily: 'Rubik_600SemiBold',
-      fontSize: 14,
-      },
-    skipBtn: {
-      paddingVertical: 12,
-      alignItems: 'center',
     },
     skipBtnText: {
       fontFamily: 'Rubik_400Regular',
@@ -317,38 +308,34 @@ function createStyles(tokens: AppTokensV2) {
       color: tokens.fg3,
     },
     successCard: {
-      borderTopWidth: 1,
-      borderBottomWidth: 1,
-      borderColor: tokens.hairline,
       paddingVertical: 24,
       alignItems: 'center',
       gap: 6,
     },
     successIcon: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
-      borderWidth: 1,
-      borderColor: tokens.primary,
+      width: 56,
+      height: 56,
+      borderRadius: 999,
+      backgroundColor: tokens.primary,
       alignItems: 'center',
       justifyContent: 'center',
       marginBottom: 8,
     },
     successTitle: {
-      fontFamily: 'Rubik_600SemiBold',
-      fontSize: 17,
+      fontFamily: 'Roboto_500Medium',
+      fontSize: 20,
       color: tokens.fg1,
+      fontVariant: ['tabular-nums'],
     },
     successDesc: {
       fontFamily: 'Rubik_400Regular',
-      fontSize: 12,
+      fontSize: 13,
       color: tokens.fg3,
     },
     successMessage: {
       fontFamily: 'Rubik_400Regular',
-      fontSize: 13,
-      fontStyle: 'italic',
-      color: tokens.fg2,
+      fontSize: 14,
+      color: tokens.primary,
       marginTop: 8,
     },
   })

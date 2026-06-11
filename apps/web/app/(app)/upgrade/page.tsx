@@ -2,13 +2,19 @@
 
 import { useState, useMemo, useCallback, useRef, useEffect, useId } from 'react'
 import {
-  Loader2, BadgeCheck, Sparkles, CreditCard,
+  Loader2, Sparkles, CreditCard, Settings,
   Flame, MessageSquare, Palette, ShieldCheck, BarChart3,
-  AlertTriangle, Download, CheckCircle2, Clock, Check, X as XIcon,
-  Megaphone, Tag, Info,
+  AlertTriangle, Download, Clock, Check, X as XIcon,
+  Tag, Info,
 } from 'lucide-react'
 import { useTranslations, useLocale } from 'next-intl'
 import { AppBar } from '@/components/ui/app-bar'
+import { Badge } from '@/components/ui/badge'
+import { GradientTop } from '@/components/ui/gradient-top'
+import { PillButton } from '@/components/ui/pill-button'
+import { ProgressBar } from '@/components/ui/progress-bar'
+import { VerifiedBadge } from '@/components/ui/verified-badge'
+import { PlanCard } from '@/components/upgrade/plan-card'
 import {
   TRIAL_EXPIRED_FEATURE_KEYS,
   UPGRADE_FEATURE_CATEGORIES,
@@ -29,27 +35,45 @@ import {
 import { createCheckoutSession, openCustomerPortal } from '@/app/actions/subscription'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 
+type SubscriptionInterval = 'monthly' | 'yearly'
+
 const upgradeIconMap = {
   flame: Flame,
   messageSquare: MessageSquare,
   palette: Palette,
   shieldCheck: ShieldCheck,
   barChart3: BarChart3,
-} satisfies Record<UpgradeIconKey, React.ComponentType<{ className?: string }>>
+} satisfies Record<UpgradeIconKey, React.ComponentType<{ className?: string; size?: number; strokeWidth?: number }>>
+
+const cardSurface: React.CSSProperties = {
+  background: 'var(--bg-card)',
+  boxShadow: 'inset 0 0 0 1px var(--hairline)',
+}
+
+const cardLabelStyle: React.CSSProperties = {
+  fontFamily: 'var(--font-sans)',
+  fontSize: 14,
+  color: 'var(--fg-3)',
+}
+
+const metaTextStyle: React.CSSProperties = {
+  fontFamily: 'var(--font-mono)',
+  fontSize: 13,
+  fontVariantNumeric: 'tabular-nums',
+  color: 'var(--fg-3)',
+}
+
+const whitePillLinkClassName =
+  'inline-flex w-full cursor-pointer items-center justify-center gap-[9px] rounded-full bg-[var(--fg-1)] px-[26px] py-[14px] text-[16px] font-medium text-[var(--bg)] transition-opacity duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:opacity-85'
 
 function formatCardBrand(brand: string): string {
   return brand.charAt(0).toUpperCase() + brand.slice(1)
 }
 
-function invoiceStatusClassName(status: string): string {
-  if (status === 'paid') return 'bg-[var(--status-done)]/15 text-[var(--status-done)] border border-[var(--status-done)]/20'
-  if (status === 'open') return 'bg-[var(--status-overdue)]/15 text-[var(--status-overdue)] border border-[var(--status-overdue)]/20'
-  return 'bg-[var(--bg-elev)] text-[var(--fg-3)] border border-[var(--hairline)]'
-}
-
-function FeatureBooleanCell({ enabled, className }: Readonly<{ enabled: boolean | undefined; className: string }>) {
-  if (enabled) return <Check className={`size-4 ${className}`} />
-  return <XIcon className="size-4 text-[var(--fg-3)]/40" />
+function invoiceStatusColor(status: string): string {
+  if (status === 'paid') return 'var(--status-done)'
+  if (status === 'open') return 'var(--status-overdue)'
+  return 'var(--fg-3)'
 }
 
 function UsageStats({ usagePercent, usageUrgent, profile, t }: Readonly<{
@@ -59,25 +83,29 @@ function UsageStats({ usagePercent, usageUrgent, profile, t }: Readonly<{
   t: ReturnType<typeof useTranslations>
 }>) {
   return (
-    <div className="bg-[var(--bg-elev)] rounded-[var(--radius-md)] p-5 space-y-3">
-      <h3 className="form-label">{t('upgrade.billing.usage.title')}</h3>
-      <div>
-        <div className="flex items-center justify-between mb-2">
-          <span className="text-sm text-[var(--fg-1)]">{t('upgrade.billing.usage.aiMessages')}</span>
-          <span className={`text-sm font-semibold ${usageUrgent ? 'text-[var(--status-overdue)]' : 'text-[var(--fg-1)]'}`}>
-            {t('upgrade.billing.usage.aiMessagesOf', {
-              used: profile?.aiMessagesUsed ?? 0,
-              limit: profile?.aiMessagesLimit ?? 0,
-            })}
-          </span>
-        </div>
-        <div className="w-full h-1.5 rounded-full bg-[var(--bg-elev)]">
-          <div
-            className={`h-1.5 rounded-full transition-[width,background-color] duration-500 ${usageUrgent ? 'bg-[var(--status-overdue)]' : 'bg-[var(--primary)]'}`}
-            style={{ width: `${usagePercent}%` }}
-          />
-        </div>
+    <div className="rounded-[18px]" style={{ padding: '16px 18px', ...cardSurface }}>
+      <div style={cardLabelStyle}>{t('upgrade.billing.usage.title')}</div>
+      <div className="flex items-baseline justify-between" style={{ marginTop: 8, marginBottom: 10 }}>
+        <span style={{ fontFamily: 'var(--font-sans)', fontSize: 15, color: 'var(--fg-1)' }}>
+          {t('upgrade.billing.usage.aiMessages')}
+        </span>
+        <span
+          style={{
+            ...metaTextStyle,
+            color: usageUrgent ? 'var(--status-overdue)' : 'var(--fg-2)',
+          }}
+        >
+          {t('upgrade.billing.usage.aiMessagesOf', {
+            used: profile?.aiMessagesUsed ?? 0,
+            limit: profile?.aiMessagesLimit ?? 0,
+          })}
+        </span>
       </div>
+      <ProgressBar
+        progress={usagePercent / 100}
+        label={t('upgrade.billing.usage.aiMessages')}
+        color={usageUrgent ? 'var(--status-overdue)' : undefined}
+      />
     </div>
   )
 }
@@ -101,7 +129,7 @@ function FeatureTooltip({ text }: Readonly<{ text: string }>) {
   return (
     <div className="relative shrink-0" ref={ref}>
       <button
-        className="shrink-0 p-0.5 rounded-full text-[var(--fg-3)]/60 hover:text-[var(--fg-2)] transition-colors"
+        className="-m-[11px] shrink-0 cursor-pointer appearance-none rounded-full border-0 bg-transparent p-[15px] text-[var(--fg-4)] transition-colors duration-150 ease-out hover:text-[var(--fg-2)]"
         onClick={() => setOpen((v) => !v)}
         type="button"
         aria-label={text}
@@ -109,11 +137,30 @@ function FeatureTooltip({ text }: Readonly<{ text: string }>) {
         aria-haspopup="dialog"
         aria-controls={tooltipId}
       >
-        <Info className="size-3.5" />
+        <Info size={14} strokeWidth={1.8} aria-hidden="true" />
       </button>
       {open && (
-        <div id={tooltipId} role="tooltip" className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-50 px-3 py-2.5 max-w-[260px] bg-[var(--bg-elev)] border border-[var(--hairline)] rounded-xl shadow-lg">
-          <p className="text-xs text-[var(--fg-2)] leading-relaxed">{text}</p>
+        <div
+          id={tooltipId}
+          role="tooltip"
+          className="absolute bottom-full left-1/2 z-50 mb-2 max-w-[260px] -translate-x-1/2 rounded-[12px]"
+          style={{
+            padding: '10px 12px',
+            background: 'var(--bg-sheet)',
+            boxShadow: 'inset 0 0 0 1px var(--hairline), var(--shadow-2)',
+          }}
+        >
+          <p
+            style={{
+              margin: 0,
+              fontFamily: 'var(--font-sans)',
+              fontSize: 12,
+              lineHeight: 1.55,
+              color: 'var(--fg-2)',
+            }}
+          >
+            {text}
+          </p>
         </div>
       )}
     </div>
@@ -147,19 +194,44 @@ function invoiceStatusLabelFn(status: string, t: ReturnType<typeof useTranslatio
   return statuses[status] ?? status
 }
 
+const comparisonEyebrowStyle: React.CSSProperties = {
+  fontFamily: 'var(--font-sans)',
+  fontSize: 12,
+  fontWeight: 500,
+  letterSpacing: '0.08em',
+  textTransform: 'uppercase',
+  color: 'var(--fg-3)',
+}
+
+function FeatureBooleanCell({ enabled, pro }: Readonly<{ enabled: boolean | undefined; pro: boolean }>) {
+  if (enabled) {
+    return (
+      <Check
+        size={16}
+        strokeWidth={2.4}
+        className={pro ? 'text-[var(--primary-soft)]' : 'text-[var(--fg-3)]'}
+        aria-hidden="true"
+      />
+    )
+  }
+  return <XIcon size={16} strokeWidth={1.8} className="text-[var(--fg-4)]" aria-hidden="true" />
+}
+
 function FeatureComparisonTable({ t }: Readonly<{ t: ReturnType<typeof useTranslations> }>) {
   return (
-    <div className="space-y-4 mb-6">
-      <div className="grid grid-cols-[1fr_auto_auto] gap-3 px-4">
-        <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--fg-3)]">{t('upgrade.feature')}</span>
-        <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--fg-3)] text-center w-16">{t('upgrade.free')}</span>
-        <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--primary)] text-center w-16">{t('common.proBadge')}</span>
+    <div style={{ marginTop: 28 }}>
+      <div className="grid grid-cols-[1fr_auto_auto] items-center" style={{ gap: 12, padding: '0 4px 6px' }}>
+        <span style={comparisonEyebrowStyle}>{t('upgrade.feature')}</span>
+        <span className="w-14 text-center" style={comparisonEyebrowStyle}>{t('upgrade.free')}</span>
+        <span className="w-14 text-center" style={{ ...comparisonEyebrowStyle, color: 'var(--primary-soft)' }}>
+          {t('common.proBadge')}
+        </span>
       </div>
 
       {UPGRADE_FEATURE_CATEGORIES.map((group) => (
-        <div key={group.category} className="space-y-1.5">
-          <div className="px-4 pt-2 pb-1">
-            <span className="text-[10px] font-bold uppercase tracking-widest text-[var(--primary)]/70">
+        <div key={group.category}>
+          <div style={{ padding: '16px 4px 4px' }}>
+            <span style={{ ...comparisonEyebrowStyle, color: 'var(--fg-4)' }}>
               {t(`upgrade.categories.${group.category}`)}
             </span>
           </div>
@@ -170,24 +242,38 @@ function FeatureComparisonTable({ t }: Readonly<{ t: ReturnType<typeof useTransl
             return (
               <div
                 key={feat.key}
-                className="grid grid-cols-[1fr_auto_auto] gap-3 bg-[var(--bg-elev)] rounded-[var(--radius-lg)] py-3 px-4 items-center"
+                className="grid grid-cols-[1fr_auto_auto] items-center"
+                style={{ gap: 12, padding: '11px 4px', borderBottom: '1px solid var(--hairline)' }}
               >
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <Icon className="size-4 text-[var(--fg-3)] shrink-0" />
-                  <span className="text-sm text-[var(--fg-1)] truncate">{t(`upgrade.features.${feat.key}.label`)}</span>
+                <div className="flex min-w-0 items-center" style={{ gap: 10 }}>
+                  <Icon size={16} strokeWidth={1.8} className="shrink-0 text-[var(--fg-3)]" />
+                  <span
+                    className="truncate"
+                    style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--fg-2)' }}
+                  >
+                    {t(`upgrade.features.${feat.key}.label`)}
+                  </span>
                   <FeatureTooltip text={t(`upgrade.features.${feat.key}.tooltip`)} />
                 </div>
 
-                <div className="w-16 flex justify-center">
+                <div className="flex w-14 justify-center">
                   {feat.type === 'boolean'
-                    ? <FeatureBooleanCell enabled={feat.freeEnabled} className="text-[var(--fg-3)]" />
-                    : <span className="text-xs text-[var(--fg-3)] text-center">{t(`upgrade.features.${feat.key}.free`)}</span>}
+                    ? <FeatureBooleanCell enabled={feat.freeEnabled} pro={false} />
+                    : (
+                      <span className="text-center" style={{ ...metaTextStyle, fontSize: 11.5 }}>
+                        {t(`upgrade.features.${feat.key}.free`)}
+                      </span>
+                    )}
                 </div>
 
-                <div className="w-16 flex justify-center">
+                <div className="flex w-14 justify-center">
                   {feat.type === 'boolean'
-                    ? <FeatureBooleanCell enabled={feat.proEnabled} className="text-[var(--primary)]" />
-                    : <span className="text-xs text-[var(--primary)] font-semibold text-center">{t(`upgrade.features.${feat.key}.pro`)}</span>}
+                    ? <FeatureBooleanCell enabled={feat.proEnabled} pro />
+                    : (
+                      <span className="text-center" style={{ ...metaTextStyle, fontSize: 11.5, color: 'var(--fg-1)' }}>
+                        {t(`upgrade.features.${feat.key}.pro`)}
+                      </span>
+                    )}
                 </div>
               </div>
             )
@@ -198,179 +284,47 @@ function FeatureComparisonTable({ t }: Readonly<{ t: ReturnType<typeof useTransl
   )
 }
 
-interface PlanCardsProps {
+interface PlanSelectionProps {
   plans: NonNullable<ReturnType<typeof useSubscriptionPlans>['plans']>
-  hasProAccess: boolean
-  checkoutLoading: string | null
+  selectedInterval: SubscriptionInterval
+  onSelectInterval: (interval: SubscriptionInterval) => void
   discountedAmount: (amount: number) => number
-  onCheckout: (interval: 'monthly' | 'yearly') => void
   t: ReturnType<typeof useTranslations>
 }
 
-function PlanCards({ plans, hasProAccess, checkoutLoading, discountedAmount, onCheckout, t }: Readonly<PlanCardsProps>) {
+function PlanSelection({ plans, selectedInterval, onSelectInterval, discountedAmount, t }: Readonly<PlanSelectionProps>) {
+  const yearlyAmount = discountedAmount(plans.yearly.unitAmount)
+  const monthlyAmount = discountedAmount(plans.monthly.unitAmount)
+  const discountSuffix = plans.couponPercentOff
+    ? ` · ${t('upgrade.plans.coupon.discountBadge', { percent: plans.couponPercentOff })}`
+    : ''
+
   return (
-    <div className="space-y-3 mb-6">
-      <div className="rounded-[var(--radius-md)] border border-dashed border-[var(--hairline-strong)] bg-[var(--bg-sunk)] p-5">
-        <div className="flex items-center justify-between mb-3">
-          <h3 className="text-sm font-bold text-[var(--fg-3)] uppercase tracking-wider">
-            {t('upgrade.plans.free.name')}
-          </h3>
-          <span className="text-lg font-bold text-[var(--fg-3)]">
-            {formatPrice(0, plans.currency)}
-          </span>
-        </div>
-        <ul className="space-y-2 mb-4">
-          <li className="flex items-center gap-2.5">
-            <Flame className="size-3.5 text-[var(--fg-3)]/60 shrink-0" />
-            <span className="text-xs text-[var(--fg-3)]">{t('upgrade.plans.free.features.habits')}</span>
-          </li>
-          <li className="flex items-center gap-2.5">
-            <MessageSquare className="size-3.5 text-[var(--fg-3)]/60 shrink-0" />
-            <span className="text-xs text-[var(--fg-3)]">{t('upgrade.plans.free.features.ai')}</span>
-          </li>
-          <li className="flex items-center gap-2.5">
-            <Palette className="size-3.5 text-[var(--fg-3)]/60 shrink-0" />
-            <span className="text-xs text-[var(--fg-3)]">{t('upgrade.plans.free.features.theme')}</span>
-          </li>
-          <li className="flex items-center gap-2.5">
-            <Megaphone className="size-3.5 text-[var(--status-overdue)]/80 shrink-0" />
-            <span className="text-xs text-[var(--status-overdue)]/80 font-medium">{t('upgrade.plans.free.features.ads')}</span>
-          </li>
-        </ul>
-        {!hasProAccess && (
-          <button
-            disabled
-            className="w-full py-2.5 rounded-[var(--radius-lg)] bg-[var(--bg-elev)] text-[var(--fg-3)] text-xs font-semibold border border-[var(--hairline)] cursor-default opacity-60"
-          >
-            {t('upgrade.plans.free.cta')}
-          </button>
-        )}
-      </div>
-
-      <div className="rounded-[var(--radius-md)] border border-[var(--hairline)] bg-[var(--bg-elev)] p-5">
-        <div className="flex items-center justify-between mb-1">
-          <h3 className="text-sm font-bold text-[var(--fg-1)]">
-            {t('upgrade.plans.monthly.name')}
-          </h3>
-        </div>
-        <div className="mb-4">
-          {plans.couponPercentOff ? (
-            <div className="flex items-baseline gap-2">
-              <span className="text-2xl font-extrabold text-[var(--fg-1)]">
-                {formatPrice(discountedAmount(plans.monthly.unitAmount), plans.currency)}
-                <span className="text-sm font-semibold text-[var(--fg-2)]">{t('upgrade.plans.monthly.period')}</span>
-              </span>
-              <span className="text-sm text-[var(--fg-3)] line-through">
-                {formatPrice(plans.monthly.unitAmount, plans.currency)}
-              </span>
-              <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded-full bg-[var(--status-done)]/15 text-[var(--status-done)] border border-[var(--status-done)]/20">
-                {t('upgrade.plans.coupon.discountBadge', { percent: plans.couponPercentOff })}
-              </span>
-            </div>
-          ) : (
-            <div className="flex items-baseline">
-              <span className="text-2xl font-extrabold text-[var(--fg-1)]">
-                {formatPrice(plans.monthly.unitAmount, plans.currency)}
-                <span className="text-sm font-semibold text-[var(--fg-2)]">{t('upgrade.plans.monthly.period')}</span>
-              </span>
-            </div>
-          )}
-        </div>
-        <ul className="space-y-2 mb-4">
-          {UPGRADE_PRO_FEATURES.map((feat) => {
-            const Icon = upgradeIconMap[feat.iconKey]
-
-            return (
-              <li key={feat.key} className="flex items-center gap-2.5">
-                <Icon className="size-3.5 text-[var(--primary)]/70 shrink-0" />
-                <span className="text-xs text-[var(--fg-2)]">{t(`upgrade.plans.proFeatures.${feat.key}`)}</span>
-              </li>
-            )
-          })}
-        </ul>
-        <button
-          className="w-full py-3 rounded-[var(--radius-lg)] bg-[var(--bg-elev)] text-[var(--fg-1)] text-sm font-semibold border border-[var(--hairline)] hover:bg-[var(--bg-elev)] transition-[background-color,border-color,color,transform,opacity] duration-200 active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2"
-          disabled={!!checkoutLoading}
-          onClick={() => onCheckout('monthly')}
-        >
-          {checkoutLoading === 'monthly' && <Loader2 className="size-4 animate-spin" />}
-          {t('upgrade.plans.monthly.cta')}
-        </button>
-      </div>
-
-      <div className="relative rounded-[var(--radius-md)] border border-[var(--hairline-strong)] bg-[var(--bg-elev)] p-5">
-        <div className="flex items-center gap-1.5 mb-3">
-          <span className="text-[10px] font-bold uppercase px-2 py-1 rounded-full bg-[var(--bg-elev)] text-[var(--primary)] border border-[var(--hairline-strong)]">
-            {t('upgrade.plans.yearly.recommended')}
-          </span>
-          <span className="text-[10px] font-bold uppercase px-2 py-1 rounded-full bg-[var(--status-done)]/15 text-[var(--status-done)] border border-[var(--status-done)]/20">
-            {t('upgrade.plans.savePercent', { percent: plans.savingsPercent })}
-          </span>
-        </div>
-        <h3 className="text-sm font-bold text-[var(--fg-1)] mb-1">
-          {t('upgrade.plans.yearly.name')}
-        </h3>
-        <div className="mb-1">
-          {plans.couponPercentOff ? (
-            <div className="flex items-baseline gap-2 flex-wrap">
-              <span className="text-2xl font-extrabold text-[var(--fg-1)]">
-                {formatPrice(discountedAmount(plans.yearly.unitAmount), plans.currency)}
-                <span className="text-sm font-semibold text-[var(--fg-2)]">{t('upgrade.plans.yearly.period')}</span>
-              </span>
-              <span className="text-sm text-[var(--fg-3)] line-through">
-                {formatPrice(plans.yearly.unitAmount, plans.currency)}
-              </span>
-              <span className="text-[10px] font-bold uppercase px-1.5 py-0.5 rounded-full bg-[var(--status-done)]/15 text-[var(--status-done)] border border-[var(--status-done)]/20">
-                {t('upgrade.plans.coupon.discountBadge', { percent: plans.couponPercentOff })}
-              </span>
-            </div>
-          ) : (
-            <div className="flex items-baseline">
-              <span className="text-2xl font-extrabold text-[var(--fg-1)]">
-                {formatPrice(plans.yearly.unitAmount, plans.currency)}
-                <span className="text-sm font-semibold text-[var(--fg-2)]">{t('upgrade.plans.yearly.period')}</span>
-              </span>
-            </div>
-          )}
-        </div>
-        <p className="text-xs text-[var(--fg-3)] mb-4">
-          {plans.couponPercentOff
-            ? t('upgrade.plans.equivalent', { price: formatPrice(monthlyEquivalent(discountedAmount(plans.yearly.unitAmount)), plans.currency) })
-            : t('upgrade.plans.equivalent', { price: formatPrice(monthlyEquivalent(plans.yearly.unitAmount), plans.currency) })}
-        </p>
-        <div className="space-y-3 mb-4">
-          <div className="flex items-center gap-2.5 rounded-[var(--radius-lg)] bg-[var(--primary)]/[0.04] border border-[var(--primary)]/10 px-3 py-2">
-            <BadgeCheck className="size-4 text-[var(--primary)]/50 shrink-0" />
-            <span className="text-xs text-[var(--fg-2)]">{t('upgrade.plans.yearly.includesMonthly')}</span>
-          </div>
-          <ul className="space-y-2">
-            {UPGRADE_YEARLY_EXTRA_FEATURES.map((feat) => {
-              const Icon = upgradeIconMap[feat.iconKey]
-
-              return (
-                <li key={feat.key} className="flex items-center gap-2.5">
-                  <Icon className="size-3.5 text-[var(--primary)]/70 shrink-0" />
-                  <span className="text-xs text-[var(--fg-2)]">{t(`upgrade.plans.proFeatures.${feat.key}`)}</span>
-                </li>
-              )
-            })}
-          </ul>
-        </div>
-        {plans.couponPercentOff && (
-          <p className="text-[10px] text-[var(--status-done)]/70 mb-3 flex items-center gap-1.5">
-            <Tag className="size-3 shrink-0" />
-            {t('upgrade.plans.coupon.appliedNote')}
-          </p>
-        )}
-        <button
-          className="w-full py-3.5 rounded-[var(--radius-md)] bg-[var(--primary)] text-white text-sm font-bold hover:bg-[var(--primary-pressed)] transition-[background-color,border-color,color,transform,opacity] duration-200 active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-2"
-          disabled={!!checkoutLoading}
-          onClick={() => onCheckout('yearly')}
-        >
-          {checkoutLoading === 'yearly' && <Loader2 className="size-4 animate-spin" />}
-          {t('upgrade.plans.yearly.cta')}
-        </button>
-      </div>
+    <div role="radiogroup" aria-label={t('upgrade.plan')} className="flex flex-col" style={{ gap: 14 }}>
+      <PlanCard
+        name={t('upgrade.plans.yearly.name')}
+        badge={t('upgrade.plans.savePercent', { percent: plans.savingsPercent })}
+        price={t('upgrade.plans.equivalent', {
+          price: formatPrice(monthlyEquivalent(yearlyAmount), plans.currency),
+        })}
+        sub={`${formatPrice(yearlyAmount, plans.currency)}${t('upgrade.plans.yearly.period')}${discountSuffix}`}
+        features={[
+          t('upgrade.plans.yearly.includesMonthly'),
+          ...UPGRADE_YEARLY_EXTRA_FEATURES.map((feature) => t(`upgrade.plans.proFeatures.${feature.key}`)),
+        ]}
+        selected={selectedInterval === 'yearly'}
+        onSelect={() => onSelectInterval('yearly')}
+      />
+      <PlanCard
+        name={t('upgrade.plans.monthly.name')}
+        price={`${formatPrice(monthlyAmount, plans.currency)}${t('upgrade.plans.monthly.period')}`}
+        sub={plans.couponPercentOff
+          ? `${t('upgrade.plans.coupon.discountBadge', { percent: plans.couponPercentOff })}`
+          : undefined}
+        features={UPGRADE_PRO_FEATURES.map((feature) => t(`upgrade.plans.proFeatures.${feature.key}`))}
+        selected={selectedInterval === 'monthly'}
+        onSelect={() => onSelectInterval('monthly')}
+      />
     </div>
   )
 }
@@ -397,33 +351,34 @@ function BillingDashboard({
     <div className="space-y-3">
       {isBillingLoading && (
         <>
-          <div className="bg-[var(--bg-elev)] rounded-[var(--radius-md)] p-5">
-            <div className="flex items-center gap-4">
-              <div className="size-12 rounded-full bg-[var(--bg-elev)] skeleton-pulse shrink-0" />
-              <div className="space-y-2 flex-1">
-                <div className="h-4 w-28 bg-[var(--bg-elev)] rounded skeleton-pulse" />
-                <div className="h-3 w-44 bg-[var(--bg-elev)] rounded skeleton-pulse" />
-              </div>
-            </div>
+          <div className="rounded-[18px]" style={{ padding: '16px 18px', ...cardSurface }}>
+            <div className="skeleton-pulse h-3.5 w-20 rounded" style={{ background: 'var(--bg-elev-2)' }} />
+            <div className="skeleton-pulse mt-2.5 h-4 w-36 rounded" style={{ background: 'var(--bg-elev-2)' }} />
+            <div className="skeleton-pulse mt-2 h-3 w-44 rounded" style={{ background: 'var(--bg-elev-2)' }} />
           </div>
-          <div className="bg-[var(--bg-elev)] rounded-[var(--radius-md)] p-5 space-y-3">
-            <div className="h-3 w-20 bg-[var(--bg-elev)] rounded skeleton-pulse" />
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <div className="h-3.5 w-24 bg-[var(--bg-elev)] rounded skeleton-pulse" />
-                <div className="h-3.5 w-16 bg-[var(--bg-elev)] rounded skeleton-pulse" />
-              </div>
-              <div className="h-1.5 w-full bg-[var(--bg-elev)] rounded-full skeleton-pulse" />
+          <div className="rounded-[18px]" style={{ padding: '16px 18px', ...cardSurface }}>
+            <div className="skeleton-pulse h-3.5 w-20 rounded" style={{ background: 'var(--bg-elev-2)' }} />
+            <div className="mt-3 flex items-center justify-between">
+              <div className="skeleton-pulse h-3.5 w-24 rounded" style={{ background: 'var(--bg-elev-2)' }} />
+              <div className="skeleton-pulse h-3.5 w-16 rounded" style={{ background: 'var(--bg-elev-2)' }} />
             </div>
+            <div className="skeleton-pulse mt-3 h-2 w-full rounded-full" style={{ background: 'var(--bg-elev-2)' }} />
           </div>
         </>
       )}
 
       {isBillingError && !billing && !isBillingLoading && (
-        <div className="bg-[var(--bg-elev)] rounded-[var(--radius-md)] border border-[var(--hairline)] p-8 text-center space-y-3">
-          <AlertTriangle className="size-8 text-[var(--fg-3)] mx-auto" />
-          <p className="text-sm text-[var(--fg-2)]">{t('upgrade.billing.error')}</p>
-          <button className="text-[var(--primary)] text-sm font-semibold hover:underline" onClick={onRetryBilling}>
+        <div className="rounded-[18px] text-center" style={{ padding: '28px 18px', ...cardSurface }}>
+          <AlertTriangle size={26} strokeWidth={1.8} className="mx-auto text-[var(--fg-3)]" />
+          <p style={{ margin: '10px 0 0', fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--fg-2)' }}>
+            {t('upgrade.billing.error')}
+          </p>
+          <button
+            type="button"
+            className="inline-flex cursor-pointer appearance-none items-center justify-center border-0 bg-transparent underline transition-opacity duration-150 ease-out hover:opacity-80"
+            style={{ marginTop: 4, minHeight: 44, padding: '0 16px', fontFamily: 'var(--font-sans)', fontSize: 14, fontWeight: 500, color: 'var(--fg-1)' }}
+            onClick={onRetryBilling}
+          >
             {t('upgrade.billing.retry')}
           </button>
         </div>
@@ -431,148 +386,184 @@ function BillingDashboard({
 
       {billing && (
         <>
-          <div className="bg-[var(--bg-elev)] rounded-[var(--radius-md)] p-5">
-            <div className="flex items-center gap-4">
-              <div className="bg-[var(--bg-elev)] rounded-full size-12 flex items-center justify-center shrink-0">
-                <BadgeCheck className="size-6 text-[var(--primary)]" />
+          <div className="overflow-hidden rounded-[18px]" style={cardSurface}>
+            <div style={{ padding: '16px 18px', borderBottom: '1px solid var(--hairline)' }}>
+              <div style={cardLabelStyle}>{t('upgrade.billing.plan.title')}</div>
+              <div className="flex flex-wrap items-center" style={{ gap: 8, marginTop: 3 }}>
+                <span style={{ fontFamily: 'var(--font-sans)', fontSize: 17, color: 'var(--fg-1)' }}>
+                  {billing.interval === 'yearly' ? t('upgrade.billing.plan.yearly') : t('upgrade.billing.plan.monthly')}
+                </span>
+                {billing.cancelAtPeriodEnd && (
+                  <Badge tone="amber">{t('upgrade.billing.plan.canceledBadge')}</Badge>
+                )}
+                {!billing.cancelAtPeriodEnd && billing.status === 'past_due' && (
+                  <span
+                    className="inline-flex items-center rounded-full uppercase"
+                    style={{
+                      fontFamily: 'var(--font-sans)',
+                      fontSize: 10.5,
+                      fontWeight: 600,
+                      letterSpacing: '0.06em',
+                      padding: '3px 9px',
+                      background: 'color-mix(in srgb, var(--status-bad) 18%, transparent)',
+                      color: 'var(--status-bad)',
+                    }}
+                  >
+                    {t('upgrade.billing.plan.pastDue')}
+                  </span>
+                )}
               </div>
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-2">
-                  <h2 className="text-base font-bold text-[var(--fg-1)]">
-                    {billing.interval === 'yearly' ? t('upgrade.billing.plan.yearly') : t('upgrade.billing.plan.monthly')}
-                  </h2>
-                  {billing.cancelAtPeriodEnd && (
-                    <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-[var(--status-overdue)]/15 text-[var(--status-overdue)] border border-[var(--status-overdue)]/20">
-                      {t('upgrade.billing.plan.canceledBadge')}
-                    </span>
-                  )}
-                  {!billing.cancelAtPeriodEnd && billing.status === 'past_due' && (
-                    <span className="text-[10px] font-bold uppercase px-2 py-0.5 rounded-full bg-[var(--status-bad)]/15 text-[var(--status-bad)] border border-[var(--status-bad)]/20">
-                      {t('upgrade.billing.plan.pastDue')}
-                    </span>
-                  )}
-                </div>
-                <p className="text-sm text-[var(--fg-2)] mt-0.5">
-                  {billing.cancelAtPeriodEnd
-                    ? t('upgrade.billing.plan.canceledHint', { date: formatBillingDate(billing.currentPeriodEnd, locale) })
-                    : t('upgrade.billing.plan.renewsOn', { date: formatBillingDate(billing.currentPeriodEnd, locale) })}
-                  {billing.amountPerPeriod > 0 && (
-                    <span className="text-[var(--fg-3)]">
-                      {' '}&middot;{' '}{formatPrice(billing.amountPerPeriod, billing.currency)}
-                      {billing.interval === 'yearly' ? t('upgrade.plans.yearly.period') : t('upgrade.plans.monthly.period')}
-                    </span>
-                  )}
-                </p>
-              </div>
+            </div>
+            <div style={{ padding: '14px 18px' }}>
+              <span style={metaTextStyle}>
+                {billing.cancelAtPeriodEnd
+                  ? t('upgrade.billing.plan.canceledHint', { date: formatBillingDate(billing.currentPeriodEnd, locale) })
+                  : t('upgrade.billing.plan.renewsOn', { date: formatBillingDate(billing.currentPeriodEnd, locale) })}
+                {billing.amountPerPeriod > 0 && (
+                  <>
+                    {' · '}
+                    {formatPrice(billing.amountPerPeriod, billing.currency)}
+                    {billing.interval === 'yearly' ? t('upgrade.plans.yearly.period') : t('upgrade.plans.monthly.period')}
+                  </>
+                )}
+              </span>
             </div>
           </div>
 
           {billing.paymentMethod && (
-            <div className="bg-[var(--bg-elev)] rounded-[var(--radius-md)] p-5">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3 min-w-0">
-                  <CreditCard className="size-8 text-[var(--fg-3)] shrink-0" />
-                  <div className="min-w-0">
-                    <p className="text-sm font-medium text-[var(--fg-1)]">
-                      {t('upgrade.billing.payment.card', {
-                        brand: formatCardBrand(billing.paymentMethod.brand),
-                        last4: billing.paymentMethod.last4,
-                      })}
-                    </p>
-                    <p className="text-xs text-[var(--fg-3)] mt-0.5">
-                      {t('upgrade.billing.payment.expires', {
-                        month: String(billing.paymentMethod.expMonth).padStart(2, '0'),
-                        year: billing.paymentMethod.expYear,
-                      })}
-                    </p>
-                  </div>
-                </div>
-                <button
-                  className="px-3 py-1.5 rounded-[var(--radius-lg)] text-xs font-semibold text-[var(--fg-2)] bg-[var(--bg-elev)] border border-[var(--hairline)] hover:bg-[var(--bg-elev)] transition-colors shrink-0"
-                  onClick={onOpenPortal}
-                >
-                  {t('upgrade.billing.payment.change')}
-                </button>
+            <div className="flex items-center rounded-[18px]" style={{ padding: '16px 18px', gap: 14, ...cardSurface }}>
+              <CreditCard size={24} strokeWidth={1.8} className="shrink-0 text-[var(--fg-3)]" />
+              <div className="min-w-0 flex-1">
+                <p style={{ margin: 0, fontFamily: 'var(--font-sans)', fontSize: 15, color: 'var(--fg-1)' }}>
+                  {t('upgrade.billing.payment.card', {
+                    brand: formatCardBrand(billing.paymentMethod.brand),
+                    last4: billing.paymentMethod.last4,
+                  })}
+                </p>
+                <p style={{ margin: '2px 0 0', ...metaTextStyle, fontSize: 12.5 }}>
+                  {t('upgrade.billing.payment.expires', {
+                    month: String(billing.paymentMethod.expMonth).padStart(2, '0'),
+                    year: billing.paymentMethod.expYear,
+                  })}
+                </p>
               </div>
+              <button
+                type="button"
+                className="inline-flex shrink-0 cursor-pointer appearance-none items-center justify-center rounded-full border-0 bg-transparent transition-opacity duration-150 ease-out hover:opacity-80"
+                style={{
+                  minHeight: 44,
+                  padding: '0 16px',
+                  boxShadow: 'inset 0 0 0 1.5px var(--hairline-strong)',
+                  fontFamily: 'var(--font-sans)',
+                  fontSize: 13,
+                  fontWeight: 500,
+                  color: 'var(--fg-1)',
+                }}
+                onClick={onOpenPortal}
+              >
+                {t('upgrade.billing.payment.change')}
+              </button>
             </div>
           )}
 
           <UsageStats usagePercent={usagePercent} usageUrgent={usageUrgent} profile={profile} t={t} />
 
           {billing.recentInvoices.length > 0 && (
-            <div className="bg-[var(--bg-elev)] rounded-[var(--radius-md)] overflow-hidden">
-              <div className="p-5 pb-3">
-                <h3 className="form-label">{t('upgrade.billing.invoices.title')}</h3>
+            <div className="overflow-hidden rounded-[18px]" style={cardSurface}>
+              <div style={{ padding: '14px 18px 2px', ...cardLabelStyle }}>
+                {t('upgrade.billing.invoices.title')}
               </div>
-              <div className="divide-y divide-border-muted">
-                {billing.recentInvoices.map((invoice) => (
-                  <div key={invoice.id} className="px-5 py-3 flex items-center justify-between gap-2">
-                    <div className="min-w-0">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-sm text-[var(--fg-1)] font-medium">
-                          {formatBillingDate(invoice.date, locale)}
-                        </span>
-                        <span className="text-[10px] font-medium uppercase px-1.5 py-0.5 rounded-full bg-[var(--bg-elev)] text-[var(--fg-3)] border border-[var(--hairline)]">
-                          {invoiceReasonLabelFn(invoice.billingReason, t)}
-                        </span>
-                      </div>
+              {billing.recentInvoices.map((invoice, index) => (
+                <div
+                  key={invoice.id}
+                  className="flex items-center"
+                  style={{
+                    padding: '12px 18px',
+                    gap: 12,
+                    borderTop: index > 0 ? '1px solid var(--hairline)' : undefined,
+                  }}
+                >
+                  <div className="min-w-0 flex-1">
+                    <div style={{ fontFamily: 'var(--font-sans)', fontSize: 15, color: 'var(--fg-1)' }}>
+                      {formatBillingDate(invoice.date, locale)}
+                    </div>
+                    <div className="flex items-center" style={{ gap: 6, marginTop: 2 }}>
                       <span
-                        className={`text-[10px] font-bold uppercase px-1.5 py-0.5 rounded-full ${invoiceStatusClassName(invoice.status)}`}
+                        style={{
+                          fontFamily: 'var(--font-mono)',
+                          fontSize: 11,
+                          letterSpacing: '0.04em',
+                          textTransform: 'uppercase',
+                          color: invoiceStatusColor(invoice.status),
+                        }}
                       >
                         {invoiceStatusLabelFn(invoice.status, t)}
                       </span>
-                    </div>
-                    <div className="flex items-center gap-2 shrink-0">
-                      <span className="text-sm font-semibold text-[var(--fg-1)]">
-                        {formatPrice(invoice.amountPaid, invoice.currency)}
+                      <span style={{ fontFamily: 'var(--font-mono)', fontSize: 11, color: 'var(--fg-4)' }}>
+                        · {invoiceReasonLabelFn(invoice.billingReason, t)}
                       </span>
-                      {(invoice.invoicePdf ?? invoice.hostedInvoiceUrl) && (
-                        <a
-                          href={invoice.invoicePdf ?? invoice.hostedInvoiceUrl ?? undefined}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-[var(--fg-3)] hover:text-[var(--fg-1)] transition-colors"
-                          title={t('upgrade.billing.invoices.download')}
-                        >
-                          <Download className="size-4" />
-                        </a>
-                      )}
                     </div>
                   </div>
-                ))}
-              </div>
+                  <span style={{ ...metaTextStyle, fontSize: 14, color: 'var(--fg-1)' }}>
+                    {formatPrice(invoice.amountPaid, invoice.currency)}
+                  </span>
+                  {(invoice.invoicePdf ?? invoice.hostedInvoiceUrl) && (
+                    <a
+                      href={invoice.invoicePdf ?? invoice.hostedInvoiceUrl ?? undefined}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex size-11 shrink-0 items-center justify-center rounded-full text-[var(--fg-3)] transition-colors duration-150 ease-out hover:text-[var(--fg-1)]"
+                      title={t('upgrade.billing.invoices.download')}
+                    >
+                      <Download size={18} strokeWidth={1.8} />
+                    </a>
+                  )}
+                </div>
+              ))}
             </div>
           )}
 
-          <div className="space-y-2 pt-1">
-            <button
-              className="w-full py-3 rounded-[var(--radius-md)] bg-[var(--bg-elev)] text-[var(--fg-1)] text-sm font-semibold border border-[var(--hairline)] hover:bg-[var(--bg-elev)] transition-[background-color,border-color,color,transform,opacity] duration-200 active:scale-[0.98]"
+          <div className="flex flex-col items-stretch" style={{ gap: 10, paddingTop: 6 }}>
+            <PillButton
+              variant="white"
+              fullWidth
               onClick={onOpenPortal}
+              leading={<Settings size={18} strokeWidth={1.8} aria-hidden="true" />}
             >
               {t('upgrade.billing.actions.manage')}
-            </button>
-            <p className="text-xs text-[var(--fg-3)] text-center">{t('upgrade.billing.actions.manageHint')}</p>
-            {portalError && <p className="text-xs text-[var(--status-bad)] text-center">{portalError}</p>}
+            </PillButton>
+            <p className="text-center" style={{ margin: 0, fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--fg-4)' }}>
+              {t('upgrade.billing.actions.manageHint')}
+            </p>
+            {portalError && (
+              <p className="text-center" style={{ margin: 0, fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--status-bad)' }}>
+                {portalError}
+              </p>
+            )}
           </div>
         </>
       )}
 
       {!isBillingLoading && !isBillingError && !billing && (
         <>
-          <div className="bg-[var(--bg-elev)] rounded-[var(--radius-md)] p-5">
-            <div className="flex items-center gap-4">
-              <div className="bg-[var(--bg-elev)] rounded-full size-12 flex items-center justify-center shrink-0">
-                <Sparkles className="size-6 text-[var(--primary)]" />
-              </div>
-              <div className="min-w-0">
-                <h2 className="text-base font-bold text-[var(--fg-1)]">
-                  {profile?.isLifetimePro ? t('upgrade.billing.plan.lifetime') : t('upgrade.alreadyPro')}
-                </h2>
-                <p className="text-sm text-[var(--fg-2)] mt-0.5">
-                  {profile?.isLifetimePro ? t('upgrade.billing.plan.lifetimeHint') : t('upgrade.manageHint')}
-                </p>
-              </div>
-            </div>
+          <div className="flex flex-col items-center text-center" style={{ padding: '26px 20px 10px', gap: 10 }}>
+            <VerifiedBadge size={84} />
+            <h2
+              style={{
+                margin: '8px 0 0',
+                fontFamily: 'var(--font-sans)',
+                fontSize: 24,
+                fontWeight: 500,
+                letterSpacing: '-0.01em',
+                lineHeight: 1.3,
+                color: 'var(--fg-1)',
+              }}
+            >
+              {profile?.isLifetimePro ? t('upgrade.billing.plan.lifetime') : t('upgrade.alreadyPro')}
+            </h2>
+            <p style={{ margin: 0, maxWidth: 320, fontFamily: 'var(--font-sans)', fontSize: 14, lineHeight: 1.55, color: 'var(--fg-3)' }}>
+              {profile?.isLifetimePro ? t('upgrade.billing.plan.lifetimeHint') : t('upgrade.manageHint')}
+            </p>
           </div>
 
           <UsageStats usagePercent={usagePercent} usageUrgent={usageUrgent} profile={profile} t={t} />
@@ -598,36 +589,38 @@ interface PlayBillingDashboardProps {
 function PlayBillingDashboard({ profile, locale, usagePercent, usageUrgent, t }: Readonly<PlayBillingDashboardProps>) {
   return (
     <div className="space-y-3">
-      <div className="bg-[var(--bg-elev)] rounded-[var(--radius-md)] p-5">
-        <div className="flex items-center gap-4">
-          <div className="bg-[var(--bg-elev)] rounded-full size-12 flex items-center justify-center shrink-0">
-            <BadgeCheck className="size-6 text-[var(--primary)]" />
+      <div className="overflow-hidden rounded-[18px]" style={cardSurface}>
+        <div style={{ padding: '16px 18px' }}>
+          <div style={cardLabelStyle}>{t('upgrade.billing.plan.title')}</div>
+          <div style={{ marginTop: 3, fontFamily: 'var(--font-sans)', fontSize: 17, color: 'var(--fg-1)' }}>
+            {profile?.subscriptionInterval === 'yearly' ? t('upgrade.billing.plan.yearly') : t('upgrade.billing.plan.monthly')}
           </div>
-          <div className="min-w-0 flex-1">
-            <h2 className="text-base font-bold text-[var(--fg-1)]">
-              {profile?.subscriptionInterval === 'yearly' ? t('upgrade.billing.plan.yearly') : t('upgrade.billing.plan.monthly')}
-            </h2>
-            {profile?.planExpiresAt && (
-              <p className="text-sm text-[var(--fg-2)] mt-0.5">
+          {profile?.planExpiresAt && (
+            <div style={{ marginTop: 6 }}>
+              <span style={metaTextStyle}>
                 {t('upgrade.billing.plan.renewsOn', { date: formatBillingDate(profile.planExpiresAt, locale) })}
-              </p>
-            )}
-          </div>
+              </span>
+            </div>
+          )}
         </div>
       </div>
 
       <UsageStats usagePercent={usagePercent} usageUrgent={usageUrgent} profile={profile} t={t} />
 
-      <div className="space-y-2 pt-1">
+      <div className="flex flex-col items-stretch" style={{ gap: 10, paddingTop: 6 }}>
         <a
           href={playManageSubscriptionUrl()}
           target="_blank"
           rel="noopener noreferrer"
-          className="w-full py-3 rounded-[var(--radius-md)] bg-[var(--bg-elev)] text-[var(--fg-1)] text-sm font-semibold border border-[var(--hairline)] hover:bg-[var(--bg-elev)] transition-[background-color,border-color,color,transform,opacity] duration-200 active:scale-[0.98] flex items-center justify-center"
+          className={whitePillLinkClassName}
+          style={{ fontFamily: 'var(--font-sans)' }}
         >
+          <Settings size={18} strokeWidth={1.8} aria-hidden="true" />
           {t('upgrade.billing.actions.managePlay')}
         </a>
-        <p className="text-xs text-[var(--fg-3)] text-center">{t('upgrade.billing.actions.managePlayHint')}</p>
+        <p className="text-center" style={{ margin: 0, fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--fg-4)' }}>
+          {t('upgrade.billing.actions.managePlayHint')}
+        </p>
       </div>
     </div>
   )
@@ -641,31 +634,66 @@ interface PricingSectionProps {
   trialExpired: boolean
   trialDaysLeft: number | null
   trialUrgent: boolean
-  hasProAccess: boolean
+  selectedInterval: SubscriptionInterval
+  onSelectInterval: (interval: SubscriptionInterval) => void
   checkoutLoading: string | null
   checkoutError: string
   discountedAmount: (amount: number) => number
-  onCheckout: (interval: 'monthly' | 'yearly') => void
+  onCheckout: (interval: SubscriptionInterval) => void
   onRetryPlans: () => void
   t: ReturnType<typeof useTranslations>
 }
 
 function PricingSection({
   profile, plans, isLoadingPlans, isPlansError, trialExpired, trialDaysLeft, trialUrgent,
-  hasProAccess, checkoutLoading, checkoutError, discountedAmount, onCheckout, onRetryPlans, t,
+  selectedInterval, onSelectInterval, checkoutLoading, checkoutError, discountedAmount,
+  onCheckout, onRetryPlans, t,
 }: Readonly<PricingSectionProps>) {
   return (
     <>
+      <h1
+        style={{
+          margin: '0 0 22px',
+          fontFamily: 'var(--font-sans)',
+          fontSize: 24,
+          fontWeight: 500,
+          lineHeight: 1.3,
+          letterSpacing: '-0.01em',
+          color: 'var(--fg-1)',
+          textWrap: 'balance',
+        }}
+      >
+        {t('upgrade.heroTitle')}
+      </h1>
+
       {profile?.isTrialActive && (
         <div
-          className={`rounded-[var(--radius-md)] p-4 mb-4 flex items-center gap-3 border ${
-            trialUrgent
-              ? 'bg-[var(--status-overdue)]/10 border-[var(--status-overdue)]/20'
-              : 'bg-[var(--bg-sunk)] border-[var(--hairline-strong)]'
-          }`}
+          className="flex items-center rounded-[14px]"
+          style={{
+            padding: '12px 16px',
+            gap: 10,
+            marginBottom: 16,
+            background: trialUrgent
+              ? 'color-mix(in srgb, var(--status-overdue) 10%, transparent)'
+              : 'rgba(var(--primary-rgb), 0.08)',
+            boxShadow: trialUrgent
+              ? 'inset 0 0 0 1px color-mix(in srgb, var(--status-overdue) 28%, transparent)'
+              : 'inset 0 0 0 1px rgba(var(--primary-rgb), 0.18)',
+          }}
         >
-          <Clock className={`size-5 shrink-0 ${trialUrgent ? 'text-[var(--status-overdue)]' : 'text-[var(--primary)]'}`} />
-          <p className={`text-sm font-medium ${trialUrgent ? 'text-[var(--status-overdue)]' : 'text-[var(--fg-1)]'}`}>
+          <Clock
+            size={16}
+            strokeWidth={1.8}
+            className={`shrink-0 ${trialUrgent ? 'text-[var(--status-overdue)]' : 'text-[var(--primary-soft)]'}`}
+          />
+          <p
+            style={{
+              margin: 0,
+              fontFamily: 'var(--font-sans)',
+              fontSize: 13,
+              color: trialUrgent ? 'var(--status-overdue)' : 'var(--fg-1)',
+            }}
+          >
             {trialDaysLeft === 0
               ? t('trial.banner.lastDay')
               : plural(t('trial.banner.daysLeft', { days: trialDaysLeft ?? 0 }), trialDaysLeft ?? 0)}
@@ -674,67 +702,112 @@ function PricingSection({
       )}
 
       {trialExpired && (
-        <div className="bg-[var(--bg-elev)] rounded-[var(--radius-md)] p-5 mb-4 space-y-3">
-          <div className="flex items-center gap-2">
-            <Sparkles className="size-5 text-[var(--primary)]" />
-            <span className="text-sm font-bold text-[var(--fg-1)]">{t('trial.expired.title')}</span>
+        <div className="rounded-[18px]" style={{ padding: 18, marginBottom: 16, ...cardSurface }}>
+          <div className="flex items-center" style={{ gap: 9 }}>
+            <Sparkles size={18} strokeWidth={1.8} className="shrink-0 text-[var(--primary-soft)]" />
+            <span style={{ fontFamily: 'var(--font-sans)', fontSize: 16, fontWeight: 500, color: 'var(--fg-1)' }}>
+              {t('trial.expired.title')}
+            </span>
           </div>
-          <p className="form-label">
+          <p style={{ margin: '6px 0 0', fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--fg-3)' }}>
             {t('trial.expired.dontLose')}
           </p>
-          <ul className="space-y-2">
+          <div className="flex flex-col" style={{ gap: 9, marginTop: 12 }}>
             {TRIAL_EXPIRED_FEATURE_KEYS.map((feature) => (
-              <li key={feature} className="flex items-center gap-2.5">
-                <CheckCircle2 className="size-4 text-[var(--primary)] shrink-0" />
-                <span className="text-sm text-[var(--fg-2)]">{t(feature)}</span>
-              </li>
+              <div key={feature} className="flex items-center" style={{ gap: 10 }}>
+                <Check size={16} strokeWidth={2.4} className="shrink-0 text-[var(--primary-soft)]" aria-hidden="true" />
+                <span style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--fg-2)' }}>
+                  {t(feature)}
+                </span>
+              </div>
             ))}
-          </ul>
+          </div>
         </div>
       )}
 
       {isLoadingPlans && (
-        <div className="space-y-3 mb-6">
-          {[1, 2, 3].map((i) => (
-            <div key={i} className="rounded-[var(--radius-md)] p-5 border border-[var(--hairline)]">
-              <div className="flex items-center justify-between mb-4">
-                <div className="h-4 w-20 bg-[var(--bg-elev)] rounded skeleton-pulse" />
-                <div className="h-6 w-16 bg-[var(--bg-elev)] rounded-full skeleton-pulse" />
+        <div className="flex flex-col" style={{ gap: 14, marginBottom: 22 }}>
+          {[1, 2].map((i) => (
+            <div key={i} className="rounded-[18px]" style={{ padding: '18px 18px 20px', ...cardSurface }}>
+              <div className="flex items-center justify-between">
+                <div className="skeleton-pulse h-4 w-24 rounded" style={{ background: 'var(--bg-elev-2)' }} />
+                <div className="skeleton-pulse size-6 rounded-full" style={{ background: 'var(--bg-elev-2)' }} />
               </div>
-              <div className="space-y-2.5 mb-4">
-                <div className="h-3 w-3/4 bg-[var(--bg-elev)] rounded skeleton-pulse" />
-                <div className="h-3 w-1/2 bg-[var(--bg-elev)] rounded skeleton-pulse" />
-                <div className="h-3 w-2/3 bg-[var(--bg-elev)] rounded skeleton-pulse" />
+              <div className="skeleton-pulse mt-3 h-5 w-28 rounded" style={{ background: 'var(--bg-elev-2)' }} />
+              <div className="mt-4 space-y-2.5">
+                <div className="skeleton-pulse h-3 w-3/4 rounded" style={{ background: 'var(--bg-elev-2)' }} />
+                <div className="skeleton-pulse h-3 w-1/2 rounded" style={{ background: 'var(--bg-elev-2)' }} />
               </div>
-              <div className="h-10 w-full bg-[var(--bg-elev)] rounded-[var(--radius-lg)] skeleton-pulse" />
             </div>
           ))}
         </div>
       )}
 
       {isPlansError && !plans && !isLoadingPlans && (
-        <div className="bg-[var(--bg-elev)] rounded-[var(--radius-md)] border border-[var(--hairline)] p-8 text-center space-y-3 mb-6">
-          <AlertTriangle className="size-8 text-[var(--fg-3)] mx-auto" />
-          <p className="text-sm text-[var(--fg-2)]">{t('upgrade.plans.error')}</p>
-          <button className="text-[var(--primary)] text-sm font-semibold hover:underline" onClick={onRetryPlans}>
+        <div className="rounded-[18px] text-center" style={{ padding: '28px 18px', marginBottom: 22, ...cardSurface }}>
+          <AlertTriangle size={26} strokeWidth={1.8} className="mx-auto text-[var(--fg-3)]" />
+          <p style={{ margin: '10px 0 0', fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--fg-2)' }}>
+            {t('upgrade.plans.error')}
+          </p>
+          <button
+            type="button"
+            className="inline-flex cursor-pointer appearance-none items-center justify-center border-0 bg-transparent underline transition-opacity duration-150 ease-out hover:opacity-80"
+            style={{ marginTop: 4, minHeight: 44, padding: '0 16px', fontFamily: 'var(--font-sans)', fontSize: 14, fontWeight: 500, color: 'var(--fg-1)' }}
+            onClick={onRetryPlans}
+          >
             {t('upgrade.plans.retry')}
           </button>
         </div>
       )}
 
       {plans && (
-        <PlanCards
-          plans={plans}
-          hasProAccess={hasProAccess}
-          checkoutLoading={checkoutLoading}
-          discountedAmount={discountedAmount}
-          onCheckout={onCheckout}
-          t={t}
-        />
-      )}
+        <>
+          <PlanSelection
+            plans={plans}
+            selectedInterval={selectedInterval}
+            onSelectInterval={onSelectInterval}
+            discountedAmount={discountedAmount}
+            t={t}
+          />
 
-      {checkoutError && (
-        <p className="text-xs text-[var(--status-bad)] text-center">{checkoutError}</p>
+          <div className="flex flex-col items-stretch" style={{ gap: 12, marginTop: 22 }}>
+            {plans.couponPercentOff ? (
+              <p
+                className="flex items-center justify-center"
+                style={{ gap: 6, margin: 0, fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--status-done)' }}
+              >
+                <Tag size={13} strokeWidth={1.8} aria-hidden="true" />
+                {t('upgrade.plans.coupon.appliedNote')}
+              </p>
+            ) : null}
+            <PillButton
+              fullWidth
+              disabled={!!checkoutLoading}
+              onClick={() => onCheckout(selectedInterval)}
+              leading={checkoutLoading
+                ? <Loader2 size={18} className="animate-spin" aria-hidden="true" />
+                : <Sparkles size={18} strokeWidth={1.8} aria-hidden="true" />}
+            >
+              {selectedInterval === 'yearly' ? t('upgrade.plans.yearly.cta') : t('upgrade.plans.monthly.cta')}
+            </PillButton>
+            {checkoutLoading ? (
+              <p className="text-center" style={{ margin: 0, fontFamily: 'var(--font-mono)', fontSize: 12, color: 'var(--fg-3)' }}>
+                {t('common.loading')}
+              </p>
+            ) : null}
+            {checkoutError && (
+              <p className="text-center" style={{ margin: 0, fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--status-bad)' }}>
+                {checkoutError}
+              </p>
+            )}
+            <p
+              className="text-center"
+              style={{ margin: '4px 4px 0', fontFamily: 'var(--font-sans)', fontSize: 12, lineHeight: 1.5, color: 'var(--fg-4)' }}
+            >
+              {t('upgrade.plans.renewalNote')}
+            </p>
+          </div>
+        </>
       )}
 
       <FeatureComparisonTable t={t} />
@@ -758,6 +831,7 @@ export default function UpgradePage() {
   const isBillingEnabled = hasProAccess && !profile?.isTrialActive && !isPlaySource && !profile?.isLifetimePro
   const { billing, isLoading: isBillingLoading, isError: isBillingError, refetch: refetchBilling } = useBilling(isBillingEnabled)
 
+  const [selectedInterval, setSelectedInterval] = useState<SubscriptionInterval>('yearly')
   const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null)
   const [checkoutError, setCheckoutError] = useState('')
   const [portalError, setPortalError] = useState('')
@@ -768,8 +842,11 @@ export default function UpgradePage() {
   }, [profile])
   const usageUrgent = usagePercent > 80
 
+  const isManageView = hasProAccess && !profile?.isTrialActive
+  const showsProPanel = isManageView && !isPlaySource && !billing && !isBillingLoading && !isBillingError
+  const showGradient = !isManageView || showsProPanel
 
-  const handleCheckout = useCallback(async (interval: 'monthly' | 'yearly') => {
+  const handleCheckout = useCallback(async (interval: SubscriptionInterval) => {
     setCheckoutLoading(interval)
     setCheckoutError('')
     try {
@@ -798,57 +875,61 @@ export default function UpgradePage() {
   }, [t])
 
   return (
-    <div className="flex flex-col min-h-[100dvh]">
-      <AppBar
-        back
-        backLabel={t('common.backToProfile')}
-        onBack={() => goBackOrFallback('/profile')}
-        title={t('upgrade.title')}
-      />
-      <div className="flex-1 min-h-0 overflow-y-auto px-5 py-5 space-y-4">
-
-      {hasProAccess && !profile?.isTrialActive ? (
-        isPlaySource ? (
-          <PlayBillingDashboard
-            profile={profile ?? null}
-            locale={locale}
-            usagePercent={usagePercent}
-            usageUrgent={usageUrgent}
-            t={t}
-          />
-        ) : (
-          <BillingDashboard
-            billing={billing}
-            isBillingLoading={isBillingLoading}
-            isBillingError={isBillingError}
-            profile={profile ?? null}
-            locale={locale}
-            usagePercent={usagePercent}
-            usageUrgent={usageUrgent}
-            portalError={portalError}
-            onOpenPortal={handleOpenPortal}
-            onRetryBilling={() => refetchBilling()}
-            t={t}
-          />
-        )
-      ) : (
-        <PricingSection
-          profile={profile ?? null}
-          plans={plans}
-          isLoadingPlans={isLoadingPlans}
-          isPlansError={isPlansError}
-          trialExpired={trialExpired}
-          trialDaysLeft={trialDaysLeft}
-          trialUrgent={trialUrgent}
-          hasProAccess={hasProAccess}
-          checkoutLoading={checkoutLoading}
-          checkoutError={checkoutError}
-          discountedAmount={discountedAmount}
-          onCheckout={handleCheckout}
-          onRetryPlans={() => refetchPlans()}
-          t={t}
+    <div className="relative flex min-h-[100dvh] flex-col">
+      {showGradient && <GradientTop height={260} />}
+      <div className="relative z-[1] flex min-h-0 flex-1 flex-col">
+        <AppBar
+          back
+          backLabel={t('common.backToProfile')}
+          onBack={() => goBackOrFallback('/profile')}
+          title={t('upgrade.title')}
         />
-      )}
+        <div className="min-h-0 flex-1 space-y-4 overflow-y-auto px-5 py-5">
+
+        {isManageView ? (
+          isPlaySource ? (
+            <PlayBillingDashboard
+              profile={profile ?? null}
+              locale={locale}
+              usagePercent={usagePercent}
+              usageUrgent={usageUrgent}
+              t={t}
+            />
+          ) : (
+            <BillingDashboard
+              billing={billing}
+              isBillingLoading={isBillingLoading}
+              isBillingError={isBillingError}
+              profile={profile ?? null}
+              locale={locale}
+              usagePercent={usagePercent}
+              usageUrgent={usageUrgent}
+              portalError={portalError}
+              onOpenPortal={handleOpenPortal}
+              onRetryBilling={() => refetchBilling()}
+              t={t}
+            />
+          )
+        ) : (
+          <PricingSection
+            profile={profile ?? null}
+            plans={plans}
+            isLoadingPlans={isLoadingPlans}
+            isPlansError={isPlansError}
+            trialExpired={trialExpired}
+            trialDaysLeft={trialDaysLeft}
+            trialUrgent={trialUrgent}
+            selectedInterval={selectedInterval}
+            onSelectInterval={setSelectedInterval}
+            checkoutLoading={checkoutLoading}
+            checkoutError={checkoutError}
+            discountedAmount={discountedAmount}
+            onCheckout={handleCheckout}
+            onRetryPlans={() => refetchPlans()}
+            t={t}
+          />
+        )}
+        </div>
       </div>
     </div>
   )

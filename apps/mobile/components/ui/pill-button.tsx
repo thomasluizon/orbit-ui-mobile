@@ -15,6 +15,7 @@ interface PillButtonProps {
   variant?: PillButtonVariant
   onPress?: () => void
   disabled?: boolean
+  busy?: boolean
   fullWidth?: boolean
   glow?: boolean
   leading?: ReactNode
@@ -28,6 +29,7 @@ export function PillButton({
   variant = 'primary',
   onPress,
   disabled = false,
+  busy = false,
   fullWidth = false,
   glow = true,
   leading,
@@ -68,7 +70,7 @@ export function PillButton({
       disabled={disabled}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
-      accessibilityState={{ disabled }}
+      accessibilityState={{ disabled, busy }}
       style={({ pressed }) => [
         styles.base,
         variantStyle(pressed),

@@ -1,31 +1,27 @@
 'use client'
 
-import { Orbit } from 'lucide-react'
+import { Sparkles } from 'lucide-react'
 import { useTranslations } from 'next-intl'
-import { PullQuote } from '@/components/chat/pull-quote'
 
-/** v8 onboarding step: rotating orbit ring + Orbit icon, italic Astra prose. */
+/** ob-2 onboarding step: tinted hero disc + Astra intro in the kit chat-bubble language. */
 export function OnboardingMeetAstra() {
   const t = useTranslations()
 
   return (
-    <div className="flex flex-col items-center" style={{ gap: 22, padding: '32px 0 0' }}>
+    <div className="flex flex-col items-center" style={{ gap: 22, padding: '24px 0 0' }}>
       <div
-        className="relative flex items-center justify-center"
-        style={{ width: 92, height: 92 }}
+        className="flex items-center justify-center rounded-full"
+        style={{
+          width: 116,
+          height: 116,
+          background: 'rgba(var(--primary-rgb), 0.14)',
+        }}
       >
-        <span
+        <Sparkles
+          size={54}
+          strokeWidth={1.8}
+          style={{ color: 'var(--primary-soft)' }}
           aria-hidden="true"
-          className="absolute inset-0 rounded-full"
-          style={{
-            boxShadow: 'inset 0 0 0 1.5px var(--primary)',
-            animation: 'spin 3.6s linear infinite',
-          }}
-        />
-        <Orbit
-          size={32}
-          strokeWidth={1.4}
-          style={{ color: 'var(--fg-1)' }}
         />
       </div>
 
@@ -33,9 +29,9 @@ export function OnboardingMeetAstra() {
         className="text-center"
         style={{
           fontFamily: 'var(--font-sans)',
-          fontSize: 24,
-          fontWeight: 600,
-          letterSpacing: '-0.02em',
+          fontSize: 28,
+          fontWeight: 500,
+          letterSpacing: '-0.01em',
           lineHeight: 1.15,
           color: 'var(--fg-1)',
         }}
@@ -43,10 +39,31 @@ export function OnboardingMeetAstra() {
         {t('onboarding.flow.meetAstra.title')}
       </div>
 
-      <div style={{ maxWidth: 340 }}>
-        <PullQuote eyebrow={t('chat.title')} italic paddingX={4} paddingY={0}>
+      <div className="flex w-full items-start" style={{ gap: 10, maxWidth: 340 }}>
+        <span
+          className="inline-flex shrink-0 items-center justify-center rounded-full"
+          style={{
+            width: 30,
+            height: 30,
+            background: 'rgba(var(--primary-rgb), 0.18)',
+          }}
+          aria-hidden="true"
+        >
+          <Sparkles size={16} style={{ color: 'var(--primary-soft)' }} />
+        </span>
+        <div
+          style={{
+            background: 'var(--bg-elev)',
+            borderRadius: '4px 18px 18px 18px',
+            padding: '12px 15px',
+            fontFamily: 'var(--font-sans)',
+            fontSize: 15,
+            lineHeight: 1.5,
+            color: 'var(--fg-1)',
+          }}
+        >
           {t('onboarding.flow.meetAstra.subtitle')}
-        </PullQuote>
+        </div>
       </div>
     </div>
   )

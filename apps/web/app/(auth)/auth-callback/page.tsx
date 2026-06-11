@@ -2,8 +2,10 @@
 
 import { useEffect, useState, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import Link from 'next/link'
 import { useTranslations, useLocale } from 'next-intl'
+import { TriangleAlert } from 'lucide-react'
+import { InfoCard } from '@/components/ui/info-card'
+import { PillButton } from '@/components/ui/pill-button'
 import {
   extractAuthBackendMessage,
   extractBackendRequestId,
@@ -202,31 +204,41 @@ export default function AuthCallbackPage() {
 
   return (
     <div className="w-full max-w-sm">
-      <div className="bg-[var(--bg-elev)] rounded-[12px] shadow-[var(--shadow-sm)] p-6 space-y-6 border border-[var(--hairline)] text-center">
+      <div className="flex flex-col items-center" style={{ gap: 20 }}>
         {errorState ? (
           <>
-            <div className="bg-[var(--status-bad)]/10 border border-[var(--status-bad)]/30 rounded-[12px] px-4 py-3 text-sm text-[var(--status-bad)]">
-              <p>{errorState.message}</p>
-              {errorState.requestId ? (
-                <p className="mt-2 text-xs text-[var(--status-bad)]">
-                  {t('auth.errorReference', { requestId: errorState.requestId })}
-                </p>
-              ) : null}
+            <div className="w-full">
+              <InfoCard
+                icon={TriangleAlert}
+                title={errorState.message}
+                desc={
+                  errorState.requestId
+                    ? t('auth.errorReference', { requestId: errorState.requestId })
+                    : undefined
+                }
+              />
             </div>
-            <Link
-              href="/login"
-              className="text-[var(--primary)] hover:underline font-semibold text-sm"
-            >
+            <PillButton onClick={() => router.push('/login')}>
               {t('auth.backToLogin')}
-            </Link>
+            </PillButton>
           </>
         ) : (
           <>
-            <svg className="size-8 animate-spin text-[var(--primary)] mx-auto" viewBox="0 0 24 24" fill="none">
+            <svg className="size-8 animate-spin text-[var(--primary)]" viewBox="0 0 24 24" fill="none">
               <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
               <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
             </svg>
-            <p className="text-[var(--fg-2)] text-sm">{t('auth.signingIn')}</p>
+            <p
+              style={{
+                fontFamily: 'var(--font-mono)',
+                fontSize: 12,
+                letterSpacing: '0.02em',
+                color: 'var(--fg-3)',
+                margin: 0,
+              }}
+            >
+              {t('auth.signingIn')}
+            </p>
           </>
         )}
       </div>

@@ -41,7 +41,7 @@ describe('PillButton (mobile)', () => {
     )
     const button = tree.root.findByType('Pressable')
     expect(button.props.disabled).toBe(true)
-    expect(button.props.accessibilityState).toEqual({ disabled: true })
+    expect(button.props.accessibilityState).toEqual({ disabled: true, busy: false })
   })
 
   it('renders white and ghost variants with a leading node', () => {

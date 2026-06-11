@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { usePathname } from 'next/navigation'
 import Link from 'next/link'
+import { Crown } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useIsClient } from '@/hooks/use-is-client'
 import { useTrialExpired } from '@/hooks/use-profile'
@@ -50,15 +51,15 @@ export function TrialExpiredModal() {
         <div className="flex flex-col" style={{ gap: 10 }}>
           <Link
             href="/upgrade"
-            className="appearance-none cursor-pointer text-center"
+            className="inline-flex w-full cursor-pointer items-center justify-center gap-[9px] rounded-full text-center transition-[background-color,opacity] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--primary-pressed)]"
             style={{
-              padding: '12px 18px',
+              padding: '15px 26px',
               background: 'var(--primary)',
               color: 'var(--fg-on-primary)',
-              borderRadius: 10,
+              boxShadow: 'var(--primary-glow)',
               fontFamily: 'var(--font-sans)',
-              fontSize: 14,
-              fontWeight: 600,
+              fontSize: 16,
+              fontWeight: 500,
             }}
             onClick={dismiss}
           >
@@ -66,13 +67,15 @@ export function TrialExpiredModal() {
           </Link>
           <button
             type="button"
-            className="appearance-none border-0 bg-transparent cursor-pointer text-center"
+            className="inline-flex w-full cursor-pointer appearance-none items-center justify-center rounded-full border-0 bg-transparent text-center transition-opacity duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:opacity-85"
             onClick={dismiss}
             style={{
+              padding: '14px 26px',
+              boxShadow: 'inset 0 0 0 1.5px var(--hairline-strong)',
               fontFamily: 'var(--font-sans)',
-              fontSize: 13,
-              color: 'var(--fg-3)',
-              padding: 6,
+              fontSize: 16,
+              fontWeight: 500,
+              color: 'var(--fg-1)',
             }}
           >
             {t('trial.expired.continueFree')}
@@ -82,23 +85,25 @@ export function TrialExpiredModal() {
     >
       <div className="flex flex-col" style={{ gap: 14 }}>
         <div
+          aria-hidden="true"
+          className="flex items-center justify-center self-center rounded-full"
           style={{
-            fontFamily: 'var(--font-sans)',
-            fontSize: 12,
-            fontWeight: 600,
-            color: 'var(--fg-3)',
+            width: 64,
+            height: 64,
+            marginTop: 2,
+            background: 'rgba(var(--primary-rgb), 0.15)',
           }}
         >
-          {t('trial.expired.eyebrow')}
+          <Crown size={30} strokeWidth={1.8} className="text-[var(--primary-soft)]" />
         </div>
         <p
           style={{
             fontFamily: 'var(--font-sans)',
             fontSize: 14,
-            fontStyle: 'italic',
             color: 'var(--fg-2)',
             lineHeight: 1.55,
             margin: 0,
+            textAlign: 'center',
           }}
         >
           {t('trial.expired.subtitleQuiet')}
@@ -126,7 +131,8 @@ export function TrialExpiredModal() {
                 style={{
                   fontFamily: 'var(--font-mono)',
                   fontSize: 11,
-                  fontStyle: 'italic',
+                  letterSpacing: '0.04em',
+                  textTransform: 'uppercase',
                   color: 'var(--fg-3)',
                 }}
               >

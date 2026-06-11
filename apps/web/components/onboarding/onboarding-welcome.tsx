@@ -62,18 +62,25 @@ export function OnboardingWelcome() {
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24, padding: '16px 0' }}>
       <div
         className="flex flex-col items-center"
-        style={{ gap: 14, paddingTop: 14 }}
+        style={{ gap: 20, paddingTop: 14 }}
       >
-        <div style={{ color: 'var(--fg-1)' }}>
-          <AppLogo size={48} />
+        <div
+          className="flex items-center justify-center rounded-full"
+          style={{
+            width: 116,
+            height: 116,
+            background: 'rgba(var(--primary-rgb), 0.14)',
+          }}
+        >
+          <AppLogo size={56} />
         </div>
         <h1
           className="text-center"
           style={{
             fontFamily: 'var(--font-sans)',
-            fontSize: 24,
-            fontWeight: 600,
-            letterSpacing: '-0.02em',
+            fontSize: 28,
+            fontWeight: 500,
+            letterSpacing: '-0.01em',
             lineHeight: 1.15,
             color: 'var(--fg-1)',
             margin: 0,
@@ -85,11 +92,11 @@ export function OnboardingWelcome() {
           className="text-center"
           style={{
             fontFamily: 'var(--font-sans)',
-            fontSize: 14,
+            fontSize: 15,
             color: 'var(--fg-2)',
-            lineHeight: 1.5,
+            lineHeight: 1.55,
             margin: 0,
-            maxWidth: 320,
+            maxWidth: 300,
           }}
         >
           {t('onboarding.flow.welcome.subtitle')}
@@ -153,11 +160,12 @@ export function OnboardingWelcome() {
 function OnboardingSectionLabel({ children }: Readonly<{ children: ReactNode }>) {
   return (
     <div
-      className="text-center"
+      className="text-center uppercase"
       style={{
         fontFamily: 'var(--font-sans)',
-        fontSize: 13,
-        fontWeight: 600,
+        fontSize: 12,
+        fontWeight: 500,
+        letterSpacing: '0.08em',
         color: 'var(--fg-3)',
         paddingTop: 12,
         paddingBottom: 10,

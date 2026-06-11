@@ -55,14 +55,14 @@ export function ExpiryWarning() {
       style={{ top: 0, maxWidth: 'var(--app-max-w)' }}
     >
       <div
-        className="flex items-center"
+        className="flex items-center rounded-[14px]"
         style={{
-          padding: '8px 14px',
-          marginTop: 'calc(var(--safe-top) + 0.25rem)',
-          background: 'var(--bg-elev)',
-          borderTop: '1px solid var(--hairline)',
-          borderBottom: '1px solid var(--hairline)',
+          padding: '10px 14px',
+          margin: 'calc(var(--safe-top) + 0.25rem) 10px 0',
           gap: 12,
+          background: 'color-mix(in srgb, var(--status-overdue) 10%, var(--bg))',
+          boxShadow:
+            'inset 0 0 0 1px color-mix(in srgb, var(--status-overdue) 28%, transparent), var(--shadow-2)',
         }}
       >
         <span
@@ -74,7 +74,7 @@ export function ExpiryWarning() {
           }}
         >
           {isExpired ? (
-            <span style={{ color: 'var(--status-overdue)', fontStyle: 'italic' }}>
+            <span style={{ color: 'var(--status-overdue)' }}>
               {t('auth.sessionExpired')}
             </span>
           ) : (
@@ -82,7 +82,7 @@ export function ExpiryWarning() {
               {t('auth.sessionExpiringPrefix')}{' '}
               <span
                 style={{
-                  color: 'var(--fg-1)',
+                  color: 'var(--status-overdue)',
                   fontFamily: 'var(--font-mono)',
                   fontVariantNumeric: 'tabular-nums',
                 }}
@@ -94,14 +94,18 @@ export function ExpiryWarning() {
         </span>
         <button
           type="button"
-          className="appearance-none border-0 bg-transparent cursor-pointer transition-opacity duration-150 ease-out hover:opacity-80"
+          className="inline-flex appearance-none items-center justify-center border-0 bg-transparent cursor-pointer transition-opacity duration-150 ease-out hover:opacity-80"
           onClick={handleLogin}
           style={{
+            minHeight: 44,
+            margin: '-12px 0',
             fontFamily: 'var(--font-sans)',
             fontSize: 13,
-            fontWeight: 600,
+            fontWeight: 500,
             color: 'var(--fg-1)',
-            padding: 4,
+            padding: '0 4px',
+            textDecoration: 'underline',
+            textUnderlineOffset: 3,
           }}
         >
           {isExpired ? t('auth.login') : t('auth.refresh')}

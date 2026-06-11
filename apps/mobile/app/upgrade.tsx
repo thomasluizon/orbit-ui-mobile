@@ -1,4 +1,4 @@
-import { useMemo, useState, type ComponentType } from 'react'
+import { useMemo, useState, type ComponentType, type ReactNode } from 'react'
 import {
   ActivityIndicator,
   Linking,
@@ -15,14 +15,16 @@ import {
   AlertTriangle,
   BarChart3,
   Check,
-  CheckCircle2,
   Clock,
+  CreditCard,
   Download,
   Flame,
   MessageSquare,
   Palette,
+  Settings,
   ShieldCheck,
   Sparkles,
+  Tag,
   X as XIcon,
 } from 'lucide-react-native'
 import { API } from '@orbit/shared/api'
@@ -54,18 +56,26 @@ import {
   useTrialUrgent,
 } from '@/hooks/use-profile'
 import { plural } from '@/lib/plural'
-import { createTokensV2 } from '@/lib/theme'
+import { createTokensV2, tintFromPrimary } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useOffline } from '@/hooks/use-offline'
 import { OfflineUnavailableState } from '@/components/ui/offline-unavailable-state'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { getUpgradeFallbackRoute } from '@/lib/upgrade-route'
 import { AppBar } from '@/components/ui/app-bar'
+import { Badge } from '@/components/ui/badge'
+import { GradientTop } from '@/components/ui/gradient-top'
+import { PillButton } from '@/components/ui/pill-button'
+import { PlanCard } from '@/components/upgrade/plan-card'
+import { ProgressBar } from '@/components/ui/progress-bar'
 import { SectionLabel } from '@/components/ui/section-label'
 import { SettingsRow } from '@/components/ui/settings-row'
+import { VerifiedBadge } from '@/components/ui/verified-badge'
 
 type Tokens = ReturnType<typeof createTokensV2>
-type IconType = ComponentType<{ size?: number; color?: string }>
+type IconType = ComponentType<{ size?: number; color?: string; strokeWidth?: number }>
+type SubscriptionInterval = 'monthly' | 'yearly'
+type UpgradeTextFn = (key: string, params?: Record<string, unknown>) => string
 
 const upgradeIconMap = {
   flame: Flame,
@@ -75,12 +85,18 @@ const upgradeIconMap = {
   barChart3: BarChart3,
 } satisfies Record<UpgradeIconKey, IconType>
 
-function invoiceStatusColors(status: string, tokens: Tokens) {
-  if (status === 'paid')
-    return { text: tokens.statusDone }
-  if (status === 'open')
-    return { text: tokens.statusOverdue }
-  return { text: tokens.fg3 }
+function rgbaFromHex(hex: string, alpha: number): string {
+  const normalized = hex.replace('#', '')
+  const r = Number.parseInt(normalized.slice(0, 2), 16)
+  const g = Number.parseInt(normalized.slice(2, 4), 16)
+  const b = Number.parseInt(normalized.slice(4, 6), 16)
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`
+}
+
+function invoiceStatusColor(status: string, tokens: Tokens): string {
+  if (status === 'paid') return tokens.statusDone
+  if (status === 'open') return tokens.statusOverdue
+  return tokens.fg3
 }
 
 function formatBillingDate(isoDate: string, locale: string) {
@@ -90,8 +106,6 @@ function formatBillingDate(isoDate: string, locale: string) {
     year: 'numeric',
   })
 }
-
-type UpgradeTextFn = (key: string, params?: Record<string, unknown>) => string
 
 function monthlyEquivalentPriceLabel(plans: SubscriptionPlans, yearlyOffer: PlayOffer | null): string {
   if (yearlyOffer?.priceAmountMicros) {
@@ -103,77 +117,7 @@ function monthlyEquivalentPriceLabel(plans: SubscriptionPlans, yearlyOffer: Play
   return formatPrice(monthlyEquivalent(plans.yearly.unitAmount), plans.currency)
 }
 
-function PlanRow({
-  tokens,
-  label,
-  price,
-  sub,
-  active,
-  current,
-  onPress,
-  pending,
-  badge,
-}: Readonly<{
-  tokens: Tokens
-  label: string
-  price: string
-  sub?: string
-  active?: boolean
-  current?: boolean
-  onPress?: () => void
-  pending?: boolean
-  badge?: string
-}>) {
-  return (
-    <Pressable
-      onPress={onPress}
-      disabled={!onPress || pending}
-      accessibilityRole={onPress ? 'button' : 'none'}
-      accessibilityLabel={label}
-      accessibilityState={{ selected: !!active }}
-      style={[
-        styles.planRow,
-        {
-          borderColor: active ? tokens.fg3 : tokens.hairlineStrong,
-          backgroundColor: active ? tokens.bgElev : 'transparent',
-        },
-      ]}
-    >
-      <View style={styles.planTop}>
-        <View style={styles.planLabelGroup}>
-          <Text style={[styles.planLabel, { color: tokens.fg1 }]}>
-            {label}
-          </Text>
-          {current ? (
-            <View
-              style={[
-                styles.currentBadge,
-                { borderColor: tokens.hairlineStrong },
-              ]}
-            >
-              <Text
-                style={[styles.currentBadgeText, { color: tokens.fg3 }]}
-              >
-                {badge}
-              </Text>
-            </View>
-          ) : null}
-        </View>
-        <Text style={[styles.planPrice, { color: tokens.fg1 }]}>
-          {price}
-        </Text>
-      </View>
-      {sub ? (
-        <Text style={[styles.planSub, { color: tokens.fg3 }]}>{sub}</Text>
-      ) : null}
-      {pending ? (
-        <ActivityIndicator size="small" color={tokens.primary} />
-      ) : null}
-    </Pressable>
-  )
-}
-
-function UsageBlock({
+function UsageCard({
   usagePercent,
   usageUrgent,
   profile,
@@ -187,119 +131,121 @@ function UsageBlock({
   tokens: Tokens
 }>) {
   return (
-    <>
-      <SectionLabel>{t('upgrade.billing.usage.title')}</SectionLabel>
-      <SettingsRow
-        label={t('upgrade.billing.usage.aiMessages')}
-        value={t('upgrade.billing.usage.aiMessagesOf', {
-          used: profile?.aiMessagesUsed ?? 0,
-          limit: profile?.aiMessagesLimit ?? 0,
-        })}
-        valueColor={usageUrgent ? tokens.statusOverdue : tokens.fg3}
-        accessory="none"
-        mono
-        divider={false}
-      />
-      <View style={styles.usagePad}>
-        <View
-          style={[styles.usageTrack, { backgroundColor: tokens.bgSunk }]}
+    <View style={[styles.card, { backgroundColor: tokens.bgCard, borderColor: tokens.hairline }]}>
+      <Text style={[styles.cardLabel, { color: tokens.fg3 }]}>
+        {t('upgrade.billing.usage.title')}
+      </Text>
+      <View style={styles.usageRow}>
+        <Text style={[styles.usageLabel, { color: tokens.fg1 }]}>
+          {t('upgrade.billing.usage.aiMessages')}
+        </Text>
+        <Text
+          style={[
+            styles.usageValue,
+            { color: usageUrgent ? tokens.statusOverdue : tokens.fg2 },
+          ]}
         >
-          <View
-            style={[
-              styles.usageFill,
-              {
-                width: `${Math.min(100, Math.max(0, usagePercent))}%`,
-                backgroundColor: usageUrgent
-                  ? tokens.statusOverdue
-                  : tokens.primary,
-              },
-            ]}
-          />
-        </View>
+          {t('upgrade.billing.usage.aiMessagesOf', {
+            used: profile?.aiMessagesUsed ?? 0,
+            limit: profile?.aiMessagesLimit ?? 0,
+          })}
+        </Text>
       </View>
-    </>
+      <ProgressBar
+        progress={usagePercent / 100}
+        label={t('upgrade.billing.usage.aiMessages')}
+        color={usageUrgent ? tokens.statusOverdue : undefined}
+      />
+    </View>
   )
 }
 
-function PlanCards({
+function PlanSelection({
   plans,
-  hasProAccess,
-  checkoutLoading,
-  onCheckout,
+  yearlyOffer,
   monthlyPrice,
   yearlyPrice,
+  selectedInterval,
+  onSelectInterval,
+  t,
+}: Readonly<{
+  plans: SubscriptionPlans
+  yearlyOffer: PlayOffer | null
+  monthlyPrice?: string
+  yearlyPrice?: string
+  selectedInterval: SubscriptionInterval
+  onSelectInterval: (interval: SubscriptionInterval) => void
+  t: UpgradeTextFn
+}>) {
+  const yearlyCharge = yearlyPrice ?? formatPrice(plans.yearly.unitAmount, plans.currency)
+  const monthlyCharge = monthlyPrice ?? formatPrice(plans.monthly.unitAmount, plans.currency)
+
+  return (
+    <View accessibilityRole="radiogroup" style={styles.planGroup}>
+      <PlanCard
+        name={t('upgrade.plans.yearly.name')}
+        badge={t('upgrade.plans.savePercent', { percent: plans.savingsPercent })}
+        price={t('upgrade.plans.equivalent', {
+          price: monthlyEquivalentPriceLabel(plans, yearlyOffer),
+        })}
+        sub={`${yearlyCharge}${t('upgrade.plans.yearly.period')}`}
+        features={[
+          t('upgrade.plans.yearly.includesMonthly'),
+          ...UPGRADE_YEARLY_EXTRA_FEATURES.map((feature) =>
+            t(`upgrade.plans.proFeatures.${feature.key}`),
+          ),
+        ]}
+        selected={selectedInterval === 'yearly'}
+        onSelect={() => onSelectInterval('yearly')}
+      />
+      <PlanCard
+        name={t('upgrade.plans.monthly.name')}
+        price={`${monthlyCharge}${t('upgrade.plans.monthly.period')}`}
+        features={UPGRADE_PRO_FEATURES.map((feature) =>
+          t(`upgrade.plans.proFeatures.${feature.key}`),
+        )}
+        selected={selectedInterval === 'monthly'}
+        onSelect={() => onSelectInterval('monthly')}
+      />
+    </View>
+  )
+}
+
+function TrialExpiredCard({
   t,
   tokens,
 }: Readonly<{
-  plans: SubscriptionPlans
-  hasProAccess: boolean
-  checkoutLoading: 'monthly' | 'yearly' | null
-  onCheckout: (interval: 'monthly' | 'yearly') => void
-  monthlyPrice?: string
-  yearlyPrice?: string
   t: UpgradeTextFn
   tokens: Tokens
 }>) {
   return (
-    <>
-      <SectionLabel>{t('upgrade.plan')}</SectionLabel>
-
-      <PlanRow
-        tokens={tokens}
-        label={t('upgrade.plans.free.name')}
-        price={formatPrice(0, plans.currency)}
-        sub={t('upgrade.plans.free.features.habits')}
-        current={!hasProAccess}
-        badge={t('upgrade.currentPlan')}
-      />
-
-      <PlanRow
-        tokens={tokens}
-        label={t('upgrade.plans.monthly.name')}
-        price={`${monthlyPrice ?? formatPrice(plans.monthly.unitAmount, plans.currency)}${t('upgrade.plans.monthly.period')}`}
-        onPress={() => onCheckout('monthly')}
-        pending={checkoutLoading === 'monthly'}
-      />
-
-      <PlanRow
-        tokens={tokens}
-        label={t('upgrade.plans.yearly.name')}
-        price={`${yearlyPrice ?? formatPrice(plans.yearly.unitAmount, plans.currency)}${t('upgrade.plans.yearly.period')}`}
-        sub={t('upgrade.plans.savePercent', { percent: plans.savingsPercent })}
-        active
-        onPress={() => onCheckout('yearly')}
-        pending={checkoutLoading === 'yearly'}
-      />
-
-      <View style={styles.proFeaturesPad}>
-        {UPGRADE_PRO_FEATURES.map((feature) => {
-          const Icon = upgradeIconMap[feature.iconKey]
-          return (
-            <View key={feature.key} style={styles.proFeatureRow}>
-              <Icon size={14} color={tokens.primary} />
-              <Text style={[styles.proFeatureText, { color: tokens.fg2 }]}>
-                {t(`upgrade.plans.proFeatures.${feature.key}`)}
-              </Text>
-            </View>
-          )
-        })}
+    <View
+      style={[
+        styles.card,
+        styles.expiredCard,
+        { backgroundColor: tokens.bgCard, borderColor: tokens.hairline },
+      ]}
+    >
+      <View style={styles.expiredHeader}>
+        <Sparkles size={18} strokeWidth={1.8} color={tokens.primarySoft} />
+        <Text style={[styles.expiredTitle, { color: tokens.fg1 }]}>
+          {t('trial.expired.title')}
+        </Text>
       </View>
-
-      <SectionLabel>{t('upgrade.plans.yearly.includesMonthly')}</SectionLabel>
-      <View style={styles.proFeaturesPad}>
-        {UPGRADE_YEARLY_EXTRA_FEATURES.map((feature) => {
-          const Icon = upgradeIconMap[feature.iconKey]
-          return (
-            <View key={feature.key} style={styles.proFeatureRow}>
-              <Icon size={14} color={tokens.primary} />
-              <Text style={[styles.proFeatureText, { color: tokens.fg2 }]}>
-                {t(`upgrade.plans.proFeatures.${feature.key}`)}
-              </Text>
-            </View>
-          )
-        })}
+      <Text style={[styles.expiredSub, { color: tokens.fg3 }]}>
+        {t('trial.expired.dontLose')}
+      </Text>
+      <View style={styles.expiredList}>
+        {TRIAL_EXPIRED_FEATURE_KEYS.map((feature) => (
+          <View key={feature} style={styles.featureCheckRow}>
+            <Check size={16} strokeWidth={2.4} color={tokens.primarySoft} />
+            <Text style={[styles.featureCheckText, { color: tokens.fg2 }]}>
+              {t(feature)}
+            </Text>
+          </View>
+        ))}
       </View>
-    </>
+    </View>
   )
 }
 
@@ -311,62 +257,61 @@ function FeatureComparisonTable({
   tokens: Tokens
 }>) {
   return (
-    <>
-      <SectionLabel>{t('upgrade.feature')}</SectionLabel>
+    <View style={styles.comparisonPad}>
+      <View style={styles.comparisonHeader}>
+        <Text style={[styles.comparisonEyebrow, styles.comparisonLabelCell, { color: tokens.fg3 }]}>
+          {t('upgrade.feature')}
+        </Text>
+        <Text style={[styles.comparisonEyebrow, styles.comparisonCell, { color: tokens.fg3 }]}>
+          {t('upgrade.free')}
+        </Text>
+        <Text style={[styles.comparisonEyebrow, styles.comparisonCell, { color: tokens.primarySoft }]}>
+          {t('common.proBadge')}
+        </Text>
+      </View>
       {UPGRADE_FEATURE_CATEGORIES.map((group) => (
         <View key={group.category}>
-          <View style={styles.featureCategoryRow}>
-            <Text
-              style={[styles.featureCategoryLabel, { color: tokens.fg3 }]}
-            >
-              {t(`upgrade.categories.${group.category}`)}
-            </Text>
-          </View>
+          <Text style={[styles.comparisonEyebrow, styles.comparisonCategory, { color: tokens.fg4 }]}>
+            {t(`upgrade.categories.${group.category}`)}
+          </Text>
           {group.features.map((row) => {
             const Icon = upgradeIconMap[row.iconKey]
             return (
               <View
                 key={row.key}
-                style={[
-                  styles.featureRow,
-                  { borderBottomColor: tokens.hairline },
-                ]}
+                style={[styles.comparisonRow, { borderBottomColor: tokens.hairline }]}
               >
-                <View style={styles.featureLabelGroup}>
-                  <Icon size={15} color={tokens.fg3} />
+                <View style={styles.comparisonLabelGroup}>
+                  <Icon size={16} strokeWidth={1.8} color={tokens.fg3} />
                   <Text
-                    style={[styles.featureLabel, { color: tokens.fg2 }]}
+                    style={[styles.comparisonLabel, { color: tokens.fg2 }]}
                     numberOfLines={1}
                   >
                     {t(`upgrade.features.${row.key}.label`)}
                   </Text>
                 </View>
-                <View style={styles.featureCell}>
+                <View style={styles.comparisonCell}>
                   {row.type === 'boolean' ? (
                     row.freeEnabled ? (
-                      <Check size={14} color={tokens.fg3} />
+                      <Check size={16} strokeWidth={2.4} color={tokens.fg3} />
                     ) : (
-                      <XIcon size={14} color={tokens.fg4} />
+                      <XIcon size={16} strokeWidth={1.8} color={tokens.fg4} />
                     )
                   ) : (
-                    <Text
-                      style={[styles.featureCellText, { color: tokens.fg3 }]}
-                    >
+                    <Text style={[styles.comparisonCellText, { color: tokens.fg3 }]}>
                       {t(`upgrade.features.${row.key}.free`)}
                     </Text>
                   )}
                 </View>
-                <View style={styles.featureCell}>
+                <View style={styles.comparisonCell}>
                   {row.type === 'boolean' ? (
                     row.proEnabled ? (
-                      <Check size={14} color={tokens.fg1} />
+                      <Check size={16} strokeWidth={2.4} color={tokens.primarySoft} />
                     ) : (
-                      <XIcon size={14} color={tokens.fg4} />
+                      <XIcon size={16} strokeWidth={1.8} color={tokens.fg4} />
                     )
                   ) : (
-                    <Text
-                      style={[styles.featureCellText, { color: tokens.fg1 }]}
-                    >
+                    <Text style={[styles.comparisonCellText, { color: tokens.fg1 }]}>
                       {t(`upgrade.features.${row.key}.pro`)}
                     </Text>
                   )}
@@ -376,7 +321,7 @@ function FeatureComparisonTable({
           })}
         </View>
       ))}
-    </>
+    </View>
   )
 }
 
@@ -391,7 +336,6 @@ export default function UpgradeScreen() {
   )
   const { isOnline } = useOffline()
   const locale = i18n.language
-  const styles = useMemo(() => createStyles(tokens), [tokens])
   const { profile } = useProfile()
   const hasProAccess = useHasProAccess()
   const trialExpired = useTrialExpired()
@@ -412,9 +356,8 @@ export default function UpgradeScreen() {
     isError: isBillingError,
     refetch: refetchBilling,
   } = useBilling(showBilling && !isPlaySource && !profile?.isLifetimePro)
-  const [checkoutLoading, setCheckoutLoading] = useState<
-    'monthly' | 'yearly' | null
-  >(null)
+  const [selectedInterval, setSelectedInterval] = useState<SubscriptionInterval>('yearly')
+  const [checkoutLoading, setCheckoutLoading] = useState<SubscriptionInterval | null>(null)
   const [portalLoading, setPortalLoading] = useState(false)
   const [portalError, setPortalError] = useState('')
   const [prevProcessing, setPrevProcessing] = useState(false)
@@ -435,7 +378,18 @@ export default function UpgradeScreen() {
     )
   }, [profile])
 
-  function handleCheckout(interval: 'monthly' | 'yearly') {
+  const usageProfile = profile
+    ? {
+        aiMessagesUsed: profile.aiMessagesUsed,
+        aiMessagesLimit: profile.aiMessagesLimit,
+      }
+    : null
+
+  const showsProPanel =
+    showBilling && !isPlaySource && !billing && !isBillingLoading && !isBillingError
+  const showGradient = !showBilling || showsProPanel
+
+  function handleCheckout(interval: SubscriptionInterval) {
     if (!isOnline) return
     playBilling.clearError()
     setCheckoutLoading(interval)
@@ -469,59 +423,143 @@ export default function UpgradeScreen() {
     }
   }
 
+  function renderPlanSummaryCard(planLabel: string, meta?: string, badges?: ReactNode) {
+    return (
+      <View style={[styles.card, { backgroundColor: tokens.bgCard, borderColor: tokens.hairline }]}>
+        <Text style={[styles.cardLabel, { color: tokens.fg3 }]}>
+          {t('upgrade.billing.plan.title')}
+        </Text>
+        <View style={styles.cardValueRow}>
+          <Text style={[styles.cardValue, { color: tokens.fg1 }]}>{planLabel}</Text>
+          {badges}
+        </View>
+        {meta ? (
+          <Text style={[styles.cardMeta, { color: tokens.fg3 }]}>{meta}</Text>
+        ) : null}
+      </View>
+    )
+  }
+
   function renderPlayBillingDashboard() {
     return (
       <>
-        <SectionLabel>{t('upgrade.billing.plan.title')}</SectionLabel>
-        <SettingsRow
-          label={
-            profile?.subscriptionInterval === 'yearly'
-              ? t('upgrade.billing.plan.yearly')
-              : t('upgrade.billing.plan.monthly')
-          }
-          value={
-            profile?.planExpiresAt
-              ? t('upgrade.billing.plan.renewsOn', {
-                  date: formatBillingDate(profile.planExpiresAt, locale),
-                })
-              : undefined
-          }
-          mono
-          accessory="none"
-        />
-        <UsageBlock
+        {renderPlanSummaryCard(
+          profile?.subscriptionInterval === 'yearly'
+            ? t('upgrade.billing.plan.yearly')
+            : t('upgrade.billing.plan.monthly'),
+          profile?.planExpiresAt
+            ? t('upgrade.billing.plan.renewsOn', {
+                date: formatBillingDate(profile.planExpiresAt, locale),
+              })
+            : undefined,
+        )}
+        <UsageCard
           usagePercent={usagePercent}
           usageUrgent={usagePercent > 80}
-          profile={
-            profile
-              ? {
-                  aiMessagesUsed: profile.aiMessagesUsed,
-                  aiMessagesLimit: profile.aiMessagesLimit,
-                }
-              : null
-          }
+          profile={usageProfile}
           t={t}
           tokens={tokens}
         />
         <View style={styles.actionPad}>
-          <Pressable
+          <PillButton
+            variant="white"
+            fullWidth
             onPress={handleManagePlay}
-            accessibilityRole="button"
-            style={({ pressed }) => [
-              styles.primaryBtn,
-              {
-                backgroundColor: pressed ? tokens.primaryPressed : tokens.primary,
-              },
-            ]}
+            leading={<Settings size={18} strokeWidth={1.8} color={tokens.bg} />}
           >
-            <Text style={[styles.primaryBtnText, { color: tokens.fgOnPrimary }]}>
-              {t('upgrade.billing.actions.managePlay')}
-            </Text>
-          </Pressable>
+            {t('upgrade.billing.actions.managePlay')}
+          </PillButton>
           <Text style={[styles.centerMuted, { color: tokens.fg4 }]}>
             {t('upgrade.billing.actions.managePlayHint')}
           </Text>
+          {portalError ? (
+            <Text style={[styles.errorText, { color: tokens.statusBad }]}>
+              {portalError}
+            </Text>
+          ) : null}
         </View>
+      </>
+    )
+  }
+
+  function renderProActivePanel() {
+    return (
+      <>
+        <View style={styles.proPanel}>
+          <VerifiedBadge size={84} />
+          <Text style={[styles.proPanelTitle, { color: tokens.fg1 }]}>
+            {profile?.isLifetimePro
+              ? t('upgrade.billing.plan.lifetime')
+              : t('upgrade.alreadyPro')}
+          </Text>
+          <Text style={[styles.proPanelHint, { color: tokens.fg3 }]}>
+            {profile?.isLifetimePro
+              ? t('upgrade.billing.plan.lifetimeHint')
+              : t('upgrade.manageHint')}
+          </Text>
+        </View>
+        <UsageCard
+          usagePercent={usagePercent}
+          usageUrgent={usagePercent > 80}
+          profile={usageProfile}
+          t={t}
+          tokens={tokens}
+        />
+      </>
+    )
+  }
+
+  function renderInvoices(data: BillingDetails) {
+    if (data.recentInvoices.length === 0) return null
+    return (
+      <>
+        <SectionLabel>{t('upgrade.billing.invoices.title')}</SectionLabel>
+        {data.recentInvoices.map((invoice) => {
+          const url = invoice.invoicePdf ?? invoice.hostedInvoiceUrl
+          const statusLabel =
+            (
+              {
+                paid: t('upgrade.billing.invoices.statusPaid'),
+                open: t('upgrade.billing.invoices.statusOpen'),
+                void: t('upgrade.billing.invoices.statusVoid'),
+              } as Record<string, string>
+            )[invoice.status] ?? invoice.status
+          return (
+            <View
+              key={invoice.id}
+              style={[styles.invoiceRow, { borderBottomColor: tokens.hairline }]}
+            >
+              <View style={styles.invoiceMeta}>
+                <Text style={[styles.invoiceDate, { color: tokens.fg1 }]}>
+                  {formatBillingDate(invoice.date, locale)}
+                </Text>
+                <Text
+                  style={[
+                    styles.invoiceStatus,
+                    { color: invoiceStatusColor(invoice.status, tokens) },
+                  ]}
+                >
+                  {statusLabel}
+                </Text>
+              </View>
+              <Text style={[styles.invoiceAmount, { color: tokens.fg1 }]}>
+                {formatPrice(invoice.amountPaid, invoice.currency)}
+              </Text>
+              {url ? (
+                <Pressable
+                  onPress={() => {
+                    Linking.openURL(url).catch(() => {})
+                  }}
+                  style={styles.iconPress}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('upgrade.billing.invoices.download')}
+                >
+                  <Download size={18} strokeWidth={1.8} color={tokens.fg3} />
+                </Pressable>
+              ) : null}
+            </View>
+          )
+        })}
       </>
     )
   }
@@ -531,7 +569,7 @@ export default function UpgradeScreen() {
       return (
         <View style={styles.padBlock}>
           <ActivityIndicator size="small" color={tokens.primary} />
-          <Text style={[styles.muted, { color: tokens.fg3 }]}>
+          <Text style={[styles.mutedMeta, { color: tokens.fg3 }]}>
             {t('common.loading')}
           </Text>
         </View>
@@ -551,8 +589,8 @@ export default function UpgradeScreen() {
       }
       return (
         <View style={styles.padBlock}>
-          <AlertTriangle size={20} color={tokens.fg3} />
-          <Text style={[styles.text, { color: tokens.fg2 }]}>
+          <AlertTriangle size={26} strokeWidth={1.8} color={tokens.fg3} />
+          <Text style={[styles.noticeText, { color: tokens.fg2 }]}>
             {t('upgrade.billing.error')}
           </Text>
           <Pressable
@@ -569,74 +607,45 @@ export default function UpgradeScreen() {
       )
     }
     if (!data) {
-      return (
-        <>
-          <SectionLabel>{t('upgrade.billing.plan.title')}</SectionLabel>
-          <SettingsRow
-            label={
-              profile?.isLifetimePro
-                ? t('upgrade.billing.plan.lifetime')
-                : t('upgrade.alreadyPro')
-            }
-            accessory="none"
-          />
-          <UsageBlock
-            usagePercent={usagePercent}
-            usageUrgent={usagePercent > 80}
-            profile={
-              profile
-                ? {
-                    aiMessagesUsed: profile.aiMessagesUsed,
-                    aiMessagesLimit: profile.aiMessagesLimit,
-                  }
-                : null
-            }
-            t={t}
-            tokens={tokens}
-          />
-        </>
-      )
+      return renderProActivePanel()
     }
     return (
       <>
-        <SectionLabel>{t('upgrade.billing.plan.title')}</SectionLabel>
-        <SettingsRow
-          label={
-            data.interval === 'yearly'
-              ? t('upgrade.billing.plan.yearly')
-              : t('upgrade.billing.plan.monthly')
-          }
-          value={
-            data.cancelAtPeriodEnd
-              ? t('upgrade.billing.plan.canceledHint', {
-                  date: formatBillingDate(data.currentPeriodEnd, locale),
-                })
-              : t('upgrade.billing.plan.renewsOn', {
-                  date: formatBillingDate(data.currentPeriodEnd, locale),
-                })
-          }
-          mono
-          accessory="none"
-        />
-        {data.cancelAtPeriodEnd ? (
-          <View style={styles.italicBlock}>
-            <Text style={[styles.italicText, { color: tokens.statusOverdue }]}>
-              {t('upgrade.billing.plan.canceledBadge')}
-            </Text>
-          </View>
-        ) : null}
-        {data.status === 'past_due' && !data.cancelAtPeriodEnd ? (
-          <View style={styles.italicBlock}>
-            <Text style={[styles.italicText, { color: tokens.statusBad }]}>
-              {t('upgrade.billing.plan.pastDue')}
-            </Text>
-          </View>
-        ) : null}
+        {renderPlanSummaryCard(
+          data.interval === 'yearly'
+            ? t('upgrade.billing.plan.yearly')
+            : t('upgrade.billing.plan.monthly'),
+          data.cancelAtPeriodEnd
+            ? t('upgrade.billing.plan.canceledHint', {
+                date: formatBillingDate(data.currentPeriodEnd, locale),
+              })
+            : t('upgrade.billing.plan.renewsOn', {
+                date: formatBillingDate(data.currentPeriodEnd, locale),
+              }),
+          <>
+            {data.cancelAtPeriodEnd ? (
+              <Badge tone="amber">{t('upgrade.billing.plan.canceledBadge')}</Badge>
+            ) : null}
+            {data.status === 'past_due' && !data.cancelAtPeriodEnd ? (
+              <View
+                style={[
+                  styles.badBadge,
+                  { backgroundColor: rgbaFromHex(tokens.statusBad, 0.18) },
+                ]}
+              >
+                <Text style={[styles.badBadgeText, { color: tokens.statusBad }]}>
+                  {t('upgrade.billing.plan.pastDue')}
+                </Text>
+              </View>
+            ) : null}
+          </>,
+        )}
 
         {data.paymentMethod ? (
           <>
             <SectionLabel>{t('upgrade.billing.payment.title')}</SectionLabel>
             <SettingsRow
+              icon={CreditCard}
               label={t('upgrade.billing.payment.card', {
                 brand:
                   data.paymentMethod.brand.charAt(0).toUpperCase() +
@@ -658,98 +667,26 @@ export default function UpgradeScreen() {
           </>
         ) : null}
 
-        <UsageBlock
+        <UsageCard
           usagePercent={usagePercent}
           usageUrgent={usagePercent > 80}
-          profile={
-            profile
-              ? {
-                  aiMessagesUsed: profile.aiMessagesUsed,
-                  aiMessagesLimit: profile.aiMessagesLimit,
-                }
-              : null
-          }
+          profile={usageProfile}
           t={t}
           tokens={tokens}
         />
 
-        {data.recentInvoices.length > 0 ? (
-          <>
-            <SectionLabel>{t('upgrade.billing.invoices.title')}</SectionLabel>
-            {data.recentInvoices.map((invoice) => {
-              const state = invoiceStatusColors(invoice.status, tokens)
-              const url = invoice.invoicePdf ?? invoice.hostedInvoiceUrl
-              const dateLabel = formatBillingDate(invoice.date, locale)
-              return (
-                <View
-                  key={invoice.id}
-                  style={[
-                    styles.invoiceRow,
-                    { borderBottomColor: tokens.hairline },
-                  ]}
-                >
-                  <View style={styles.invoiceMeta}>
-                    <Text
-                      style={[styles.invoiceDate, { color: tokens.fg1 }]}
-                    >
-                      {dateLabel}
-                    </Text>
-                    <Text
-                      style={[styles.invoiceStatus, { color: state.text }]}
-                    >
-                      {(
-                        {
-                          paid: t('upgrade.billing.invoices.statusPaid'),
-                          open: t('upgrade.billing.invoices.statusOpen'),
-                          void: t('upgrade.billing.invoices.statusVoid'),
-                        } as Record<string, string>
-                      )[invoice.status] ?? invoice.status}
-                    </Text>
-                  </View>
-                  <Text
-                    style={[styles.invoiceAmount, { color: tokens.fg1 }]}
-                  >
-                    {formatPrice(invoice.amountPaid, invoice.currency)}
-                  </Text>
-                  {url ? (
-                    <Pressable
-                      onPress={() => {
-                        Linking.openURL(url).catch(() => {})
-                      }}
-                      style={styles.linkPress}
-                      accessibilityRole="button"
-                      accessibilityLabel={t(
-                        'upgrade.billing.invoices.download',
-                      )}
-                    >
-                      <Download size={14} color={tokens.fg3} />
-                    </Pressable>
-                  ) : null}
-                </View>
-              )
-            })}
-          </>
-        ) : null}
+        {renderInvoices(data)}
 
         <View style={styles.actionPad}>
-          <Pressable
+          <PillButton
+            variant="white"
+            fullWidth
             onPress={handlePortal}
             disabled={portalLoading || !isOnline}
-            accessibilityRole="button"
-            style={({ pressed }) => [
-              styles.primaryBtn,
-              {
-                backgroundColor: pressed
-                  ? tokens.primaryPressed
-                  : tokens.primary,
-              },
-              (portalLoading || !isOnline) && { opacity: 0.55 },
-            ]}
+            leading={<Settings size={18} strokeWidth={1.8} color={tokens.bg} />}
           >
-            <Text style={[styles.primaryBtnText, { color: tokens.fgOnPrimary }]}>
-              {t('upgrade.billing.actions.manage')}
-            </Text>
-          </Pressable>
+            {t('upgrade.billing.actions.manage')}
+          </PillButton>
           <Text style={[styles.centerMuted, { color: tokens.fg4 }]}>
             {t('upgrade.billing.actions.manageHint')}
           </Text>
@@ -763,62 +700,168 @@ export default function UpgradeScreen() {
     )
   }
 
+  function renderPricingSection() {
+    return (
+      <>
+        <Text style={[styles.heroTitle, { color: tokens.fg1 }]}>
+          {t('upgrade.heroTitle')}
+        </Text>
+
+        {profile?.isTrialActive ? (
+          <View
+            style={[
+              styles.trialStrip,
+              trialUrgent
+                ? {
+                    backgroundColor: rgbaFromHex(tokens.statusOverdue, 0.1),
+                    borderColor: rgbaFromHex(tokens.statusOverdue, 0.28),
+                  }
+                : {
+                    backgroundColor: tintFromPrimary(tokens, 0.08),
+                    borderColor: tintFromPrimary(tokens, 0.18),
+                  },
+            ]}
+          >
+            <Clock
+              size={16}
+              strokeWidth={1.8}
+              color={trialUrgent ? tokens.statusOverdue : tokens.primarySoft}
+            />
+            <Text
+              style={[
+                styles.trialStripText,
+                { color: trialUrgent ? tokens.statusOverdue : tokens.fg1 },
+              ]}
+            >
+              {trialDaysLeft === 0
+                ? t('trial.banner.lastDay')
+                : plural(
+                    t('trial.banner.daysLeft', { days: trialDaysLeft ?? 0 }),
+                    trialDaysLeft ?? 0,
+                  )}
+            </Text>
+          </View>
+        ) : null}
+
+        {trialExpired ? <TrialExpiredCard t={t} tokens={tokens} /> : null}
+
+        {isLoadingPlans ? (
+          <View style={styles.padBlock}>
+            <ActivityIndicator size="small" color={tokens.primary} />
+            <Text style={[styles.mutedMeta, { color: tokens.fg3 }]}>
+              {t('common.loading')}
+            </Text>
+          </View>
+        ) : null}
+
+        {isPlansError && !plans && !isLoadingPlans && isOnline ? (
+          <View style={styles.padBlock}>
+            <AlertTriangle size={26} strokeWidth={1.8} color={tokens.fg3} />
+            <Text style={[styles.noticeText, { color: tokens.fg2 }]}>
+              {t('upgrade.plans.error')}
+            </Text>
+            <Pressable
+              onPress={() => {
+                refetchPlans().catch(() => {})
+              }}
+              style={styles.linkPress}
+            >
+              <Text style={[styles.link, { color: tokens.fg1 }]}>
+                {t('upgrade.plans.retry')}
+              </Text>
+            </Pressable>
+          </View>
+        ) : null}
+
+        {plans ? (
+          <>
+            <PlanSelection
+              plans={plans}
+              yearlyOffer={playBilling.yearlyOffer}
+              monthlyPrice={playBilling.monthlyOffer?.displayPrice}
+              yearlyPrice={playBilling.yearlyOffer?.displayPrice}
+              selectedInterval={selectedInterval}
+              onSelectInterval={setSelectedInterval}
+              t={t}
+            />
+
+            <View style={styles.actionPad}>
+              {playBilling.isReferralPricing ? (
+                <View style={styles.couponRow}>
+                  <Tag size={13} strokeWidth={1.8} color={tokens.statusDone} />
+                  <Text style={[styles.couponNote, { color: tokens.statusDone }]}>
+                    {t('upgrade.plans.coupon.appliedNote')}
+                  </Text>
+                </View>
+              ) : null}
+              <PillButton
+                fullWidth
+                disabled={checkoutLoading !== null}
+                onPress={() => handleCheckout(selectedInterval)}
+                leading={
+                  checkoutLoading ? (
+                    <ActivityIndicator size="small" color={tokens.fgOnPrimary} />
+                  ) : (
+                    <Sparkles size={18} strokeWidth={1.8} color={tokens.fgOnPrimary} />
+                  )
+                }
+              >
+                {trialExpired
+                  ? t('trial.expired.subscribe')
+                  : selectedInterval === 'yearly'
+                    ? t('upgrade.plans.yearly.cta')
+                    : t('upgrade.plans.monthly.cta')}
+              </PillButton>
+              {checkoutLoading ? (
+                <Text style={[styles.mutedMeta, { color: tokens.fg3 }]}>
+                  {t('common.loading')}
+                </Text>
+              ) : null}
+              {checkoutError ? (
+                <Text style={[styles.errorText, { color: tokens.statusBad }]}>
+                  {checkoutError}
+                </Text>
+              ) : null}
+              <Pressable
+                onPress={() => {
+                  void playBilling.restorePurchases()
+                }}
+                disabled={playBilling.isRestoring}
+                accessibilityRole="button"
+                style={styles.linkPress}
+              >
+                {playBilling.isRestoring ? (
+                  <ActivityIndicator size="small" color={tokens.fg3} />
+                ) : (
+                  <Text style={[styles.restoreLink, { color: tokens.fg4 }]}>
+                    {t('upgrade.restorePurchase')}
+                  </Text>
+                )}
+              </Pressable>
+              <Text style={[styles.renewalNote, { color: tokens.fg4 }]}>
+                {t('upgrade.plans.renewalNote')}
+              </Text>
+            </View>
+          </>
+        ) : null}
+
+        <FeatureComparisonTable t={t} tokens={tokens} />
+      </>
+    )
+  }
+
   return (
     <SafeAreaView
       style={[styles.safe, { backgroundColor: tokens.bg }]}
       edges={['top']}
     >
+      {showGradient ? <GradientTop height={260} /> : null}
       <AppBar
         back
         onBack={() => goBackOrFallback(fallbackRoute)}
         title={t('upgrade.title')}
         backLabel={t('common.goBack')}
       />
-
-      {profile?.isTrialActive ? (
-        <View
-          style={[
-            styles.edgeBanner,
-            { borderBottomColor: tokens.hairline },
-          ]}
-        >
-          <Clock
-            size={13}
-            color={trialUrgent ? tokens.statusOverdue : tokens.fg2}
-            strokeWidth={1.7}
-          />
-          <Text
-            style={[
-              styles.bannerText,
-              {
-                color: trialUrgent ? tokens.statusOverdue : tokens.fg2,
-              },
-            ]}
-          >
-            {trialDaysLeft === 0
-              ? t('trial.banner.lastDay')
-              : plural(
-                  t('trial.banner.daysLeft', { days: trialDaysLeft ?? 0 }),
-                  trialDaysLeft ?? 0,
-                )}
-          </Text>
-        </View>
-      ) : null}
-
-      {trialExpired ? (
-        <View
-          style={[
-            styles.edgeBanner,
-            { borderBottomColor: tokens.hairline },
-          ]}
-        >
-          <Text
-            style={[styles.bannerText, { color: tokens.statusOverdue }]}
-          >
-            {t('trial.expired.title')}
-          </Text>
-        </View>
-      ) : null}
 
       <ScrollView
         style={styles.container}
@@ -835,319 +878,233 @@ export default function UpgradeScreen() {
           </View>
         ) : null}
 
-        {showBilling ? (
-          isPlaySource ? renderPlayBillingDashboard() : renderBillingDashboard(billing)
-        ) : (
-          <>
-            {trialExpired ? (
-              <View style={styles.expiredBlock}>
-                <View style={styles.expiredHeader}>
-                  <Sparkles size={16} color={tokens.primary} />
-                  <Text
-                    style={[styles.expiredTitle, { color: tokens.fg1 }]}
-                  >
-                    {t('trial.expired.title')}
-                  </Text>
-                </View>
-                <Text style={[styles.expiredSub, { color: tokens.fg3 }]}>
-                  {t('trial.expired.dontLose')}
-                </Text>
-                <View style={styles.expiredList}>
-                  {TRIAL_EXPIRED_FEATURE_KEYS.map((feature) => (
-                    <View key={feature} style={styles.expiredFeatureRow}>
-                      <CheckCircle2
-                        size={14}
-                        color={tokens.primary}
-                        strokeWidth={1.7}
-                      />
-                      <Text
-                        style={[styles.featureLabel, { color: tokens.fg2 }]}
-                      >
-                        {t(feature)}
-                      </Text>
-                    </View>
-                  ))}
-                </View>
-              </View>
-            ) : null}
+        {showBilling
+          ? isPlaySource
+            ? renderPlayBillingDashboard()
+            : renderBillingDashboard(billing)
+          : renderPricingSection()}
 
-            {isLoadingPlans ? (
-              <View style={styles.padBlock}>
-                <ActivityIndicator size="small" color={tokens.primary} />
-                <Text style={[styles.muted, { color: tokens.fg3 }]}>
-                  {t('common.loading')}
-                </Text>
-              </View>
-            ) : null}
-
-            {isPlansError && !plans && !isLoadingPlans ? (
-              isOnline ? (
-                <View style={styles.padBlock}>
-                  <AlertTriangle size={20} color={tokens.fg3} />
-                  <Text style={[styles.text, { color: tokens.fg2 }]}>
-                    {t('upgrade.plans.error')}
-                  </Text>
-                  <Pressable
-                    onPress={() => {
-                      refetchPlans().catch(() => {})
-                    }}
-                    style={styles.linkPress}
-                  >
-                    <Text style={[styles.link, { color: tokens.fg1 }]}>
-                      {t('upgrade.plans.retry')}
-                    </Text>
-                  </Pressable>
-                </View>
-              ) : null
-            ) : null}
-
-            {plans ? (
-              <PlanCards
-                plans={plans}
-                hasProAccess={hasProAccess}
-                checkoutLoading={checkoutLoading}
-                onCheckout={handleCheckout}
-                monthlyPrice={playBilling.monthlyOffer?.displayPrice}
-                yearlyPrice={playBilling.yearlyOffer?.displayPrice}
-                t={t}
-                tokens={tokens}
-              />
-            ) : null}
-
-            {plans ? (
-              <View style={styles.actionPad}>
-                {playBilling.isReferralPricing ? (
-                  <Text
-                    style={[styles.couponNote, { color: tokens.statusDone }]}
-                  >
-                    {t('upgrade.plans.coupon.appliedNote')}
-                  </Text>
-                ) : null}
-                <Text style={[styles.equivalent, { color: tokens.fg3 }]}>
-                  {t('upgrade.plans.equivalent', {
-                    price: monthlyEquivalentPriceLabel(plans, playBilling.yearlyOffer),
-                  })}
-                </Text>
-                <Pressable
-                  onPress={() => handleCheckout('yearly')}
-                  disabled={checkoutLoading !== null}
-                  accessibilityRole="button"
-                  style={({ pressed }) => [
-                    styles.primaryBtn,
-                    {
-                      backgroundColor: pressed
-                        ? tokens.primaryPressed
-                        : tokens.primary,
-                    },
-                    checkoutLoading !== null && { opacity: 0.55 },
-                  ]}
-                >
-                  {checkoutLoading === 'yearly' ? (
-                    <ActivityIndicator size="small" color={tokens.fgOnPrimary} />
-                  ) : null}
-                  <Text
-                    style={[
-                      styles.primaryBtnText,
-                      { color: tokens.fgOnPrimary },
-                    ]}
-                  >
-                    {trialExpired
-                      ? t('trial.expired.subscribe')
-                      : t('upgrade.plans.yearly.cta')}
-                  </Text>
-                </Pressable>
-                <Pressable
-                  onPress={() => {
-                    void playBilling.restorePurchases()
-                  }}
-                  disabled={playBilling.isRestoring}
-                  accessibilityRole="button"
-                  style={styles.linkPress}
-                >
-                  {playBilling.isRestoring ? (
-                    <ActivityIndicator size="small" color={tokens.fg3} />
-                  ) : (
-                    <Text style={[styles.restoreLink, { color: tokens.fg3 }]}>
-                      {t('upgrade.restorePurchase')}
-                    </Text>
-                  )}
-                </Pressable>
-              </View>
-            ) : null}
-
-            {checkoutError ? (
-              <View style={styles.padBlock}>
-                <Text style={[styles.errorText, { color: tokens.statusBad }]}>
-                  {checkoutError}
-                </Text>
-              </View>
-            ) : null}
-
-            <FeatureComparisonTable t={t} tokens={tokens} />
-          </>
-        )}
-
-        <View style={{ height: 24 }} />
+        <View style={styles.bottomSpace} />
       </ScrollView>
     </SafeAreaView>
   )
 }
 
 const styles = StyleSheet.create({
-  planRow: {
+  safe: { flex: 1 },
+  container: { flex: 1 },
+  scrollContent: {
+    paddingTop: 8,
+    paddingBottom: 40,
+  },
+  bottomSpace: { height: 24 },
+  heroTitle: {
+    fontFamily: 'Rubik_500Medium',
+    fontSize: 24,
+    lineHeight: 31,
+    letterSpacing: -0.24,
     marginHorizontal: 20,
-    marginVertical: 6,
-    borderWidth: 1,
-    borderRadius: 8,
-    paddingHorizontal: 14,
-    paddingVertical: 14,
-    gap: 6,
+    marginBottom: 22,
   },
-  planTop: {
+  trialStrip: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  planLabelGroup: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  planLabel: {
-    fontFamily: 'Rubik_600SemiBold',
-    fontSize: 15,
-    },
-  planPrice: {
-    fontFamily: 'Roboto_400Regular',
-    fontSize: 15,
-    fontVariant: ['tabular-nums'],
-  },
-  planSub: {
-    fontFamily: 'Rubik_400Regular',
-    fontSize: 12,
-    fontStyle: 'italic',
-  },
-  currentBadge: {
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderRadius: 4,
-    borderWidth: StyleSheet.hairlineWidth,
-  },
-  currentBadgeText: {
-    fontFamily: 'Roboto_500Medium',
-    fontSize: 9,
-    letterSpacing: 0.54,
-    textTransform: 'uppercase',
-  },
-  proFeaturesPad: {
-    paddingHorizontal: 20,
+    gap: 10,
+    marginHorizontal: 20,
+    marginBottom: 16,
+    paddingHorizontal: 16,
     paddingVertical: 12,
-    gap: 8,
+    borderRadius: 14,
+    borderWidth: 1,
   },
-  proFeatureRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  proFeatureText: {
+  trialStripText: {
+    flex: 1,
     fontFamily: 'Rubik_400Regular',
     fontSize: 13,
-    flexShrink: 1,
   },
-  featureCategoryRow: {
-    paddingHorizontal: 20,
-    paddingTop: 16,
-    paddingBottom: 4,
+  card: {
+    marginHorizontal: 20,
+    marginBottom: 12,
+    borderRadius: 18,
+    borderWidth: 1,
+    paddingVertical: 16,
+    paddingHorizontal: 18,
   },
-  featureCategoryLabel: {
-    fontFamily: 'Roboto_500Medium',
-    fontSize: 10,
-    letterSpacing: 0.6,
+  cardLabel: {
+    fontFamily: 'Rubik_400Regular',
+    fontSize: 14,
+  },
+  cardValueRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginTop: 3,
+  },
+  cardValue: {
+    fontFamily: 'Rubik_400Regular',
+    fontSize: 17,
+  },
+  cardMeta: {
+    fontFamily: 'Roboto_400Regular',
+    fontSize: 13,
+    fontVariant: ['tabular-nums'],
+    marginTop: 8,
+  },
+  badBadge: {
+    borderRadius: 999,
+    paddingHorizontal: 9,
+    paddingVertical: 3,
+  },
+  badBadgeText: {
+    fontFamily: 'Rubik_600SemiBold',
+    fontSize: 10.5,
+    letterSpacing: 0.63,
     textTransform: 'uppercase',
   },
-  featureRow: {
+  usageRow: {
     flexDirection: 'row',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    gap: 12,
+    marginTop: 8,
+    marginBottom: 10,
+  },
+  usageLabel: {
+    fontFamily: 'Rubik_400Regular',
+    fontSize: 15,
+  },
+  usageValue: {
+    fontFamily: 'Roboto_400Regular',
+    fontSize: 13,
+    fontVariant: ['tabular-nums'],
+  },
+  proPanel: {
     alignItems: 'center',
     paddingHorizontal: 20,
-    paddingVertical: 10,
-    gap: 8,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    paddingTop: 26,
+    paddingBottom: 16,
+    gap: 10,
   },
-  featureLabelGroup: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  featureLabel: {
-    fontFamily: 'Rubik_400Regular',
-    fontSize: 13,
-    flexShrink: 1,
-  },
-  featureCell: {
-    width: 48,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  featureCellText: {
-    fontFamily: 'Roboto_400Regular',
-    fontSize: 11,
-    fontVariant: ['tabular-nums'],
+  proPanelTitle: {
+    fontFamily: 'Rubik_500Medium',
+    fontSize: 24,
+    letterSpacing: -0.24,
+    lineHeight: 31,
+    marginTop: 8,
     textAlign: 'center',
   },
-  edgeBanner: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    gap: 12,
-  },
-  bannerText: {
+  proPanelHint: {
     fontFamily: 'Rubik_400Regular',
-    fontSize: 13,
-    flex: 1,
+    fontSize: 14,
+    lineHeight: 21,
+    maxWidth: 320,
+    textAlign: 'center',
   },
-  usagePad: {
-    paddingHorizontal: 20,
-    paddingVertical: 8,
-  },
-  usageTrack: {
-    height: 4,
-    borderRadius: 999,
-    overflow: 'hidden',
-  },
-  usageFill: {
-    height: '100%',
-    borderRadius: 999,
-  },
-  expiredBlock: {
-    paddingHorizontal: 20,
-    paddingTop: 24,
-    paddingBottom: 12,
-    gap: 10,
+  expiredCard: {
+    marginBottom: 16,
+    paddingVertical: 18,
   },
   expiredHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
+    gap: 9,
   },
   expiredTitle: {
-    fontFamily: 'Rubik_600SemiBold',
-    fontSize: 17,
-    letterSpacing: -0.17,
+    fontFamily: 'Rubik_500Medium',
+    fontSize: 16,
   },
   expiredSub: {
     fontFamily: 'Rubik_400Regular',
-    fontSize: 13,
-    fontStyle: 'italic',
+    fontSize: 14,
+    marginTop: 6,
   },
-  expiredList: { gap: 6 },
-  expiredFeatureRow: {
+  expiredList: {
+    gap: 9,
+    marginTop: 12,
+  },
+  featureCheckRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    gap: 10,
+  },
+  featureCheckText: {
+    fontFamily: 'Rubik_400Regular',
+    fontSize: 14,
+    flexShrink: 1,
+  },
+  planGroup: {
+    paddingHorizontal: 20,
+    gap: 14,
+  },
+  actionPad: {
+    paddingHorizontal: 20,
+    paddingTop: 22,
+    paddingBottom: 4,
+    gap: 12,
+    alignItems: 'center',
+  },
+  couponRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  couponNote: {
+    fontFamily: 'Roboto_400Regular',
+    fontSize: 12,
+  },
+  renewalNote: {
+    fontFamily: 'Rubik_400Regular',
+    fontSize: 12,
+    lineHeight: 18,
+    textAlign: 'center',
+    marginHorizontal: 4,
+  },
+  restoreLink: {
+    fontFamily: 'Rubik_400Regular',
+    fontSize: 13,
+    textDecorationLine: 'underline',
+  },
+  linkPress: {
+    minHeight: 44,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 8,
+  },
+  iconPress: {
+    padding: 13,
+  },
+  link: {
+    fontFamily: 'Rubik_500Medium',
+    fontSize: 14,
+    textDecorationLine: 'underline',
+  },
+  padBlock: {
+    paddingHorizontal: 20,
+    paddingVertical: 16,
     gap: 8,
+    alignItems: 'center',
+  },
+  noticeText: {
+    fontFamily: 'Rubik_400Regular',
+    fontSize: 14,
+    textAlign: 'center',
+  },
+  mutedMeta: {
+    fontFamily: 'Roboto_400Regular',
+    fontSize: 12,
+    textAlign: 'center',
+  },
+  centerMuted: {
+    fontFamily: 'Rubik_400Regular',
+    fontSize: 12,
+    lineHeight: 18,
+    textAlign: 'center',
+  },
+  errorText: {
+    fontFamily: 'Rubik_400Regular',
+    fontSize: 12,
+    textAlign: 'center',
   },
   invoiceRow: {
     flexDirection: 'row',
@@ -1160,12 +1117,12 @@ const styles = StyleSheet.create({
   invoiceMeta: { flex: 1 },
   invoiceDate: {
     fontFamily: 'Rubik_400Regular',
-    fontSize: 14,
+    fontSize: 15,
   },
   invoiceStatus: {
     fontFamily: 'Roboto_400Regular',
-    fontSize: 10,
-    letterSpacing: 0.6,
+    fontSize: 11,
+    letterSpacing: 0.44,
     textTransform: 'uppercase',
     marginTop: 2,
   },
@@ -1174,86 +1131,56 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontVariant: ['tabular-nums'],
   },
-  actionPad: {
+  comparisonPad: {
     paddingHorizontal: 20,
-    paddingVertical: 16,
-    gap: 10,
-    alignItems: 'center',
+    paddingTop: 28,
   },
-  primaryBtn: {
+  comparisonHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    borderRadius: 8,
-    alignSelf: 'stretch',
+    gap: 12,
+    paddingBottom: 6,
   },
-  primaryBtnText: {
-    fontFamily: 'Rubik_600SemiBold',
-    fontSize: 14,
-    },
-  linkPress: { padding: 6 },
-  link: {
-    fontFamily: 'Rubik_600SemiBold',
-    fontSize: 14,
-    textDecorationLine: 'underline',
-  },
-  restoreLink: {
-    fontFamily: 'Rubik_400Regular',
-    fontSize: 13,
-    textDecorationLine: 'underline',
-  },
-  italicBlock: {
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-  },
-  italicText: {
-    fontFamily: 'Rubik_400Regular',
+  comparisonEyebrow: {
+    fontFamily: 'Rubik_500Medium',
     fontSize: 12,
-    fontStyle: 'italic',
+    letterSpacing: 0.96,
+    textTransform: 'uppercase',
   },
-  safe: { flex: 1 },
-  container: { flex: 1 },
-  scrollContent: {
-    paddingBottom: 40,
+  comparisonCategory: {
+    paddingTop: 16,
+    paddingBottom: 4,
   },
-  padBlock: {
-    paddingHorizontal: 20,
-    paddingVertical: 16,
-    gap: 8,
+  comparisonLabelCell: {
+    flex: 1,
+  },
+  comparisonRow: {
+    flexDirection: 'row',
     alignItems: 'center',
+    paddingVertical: 11,
+    gap: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
   },
-  text: {
+  comparisonLabelGroup: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  comparisonLabel: {
     fontFamily: 'Rubik_400Regular',
     fontSize: 14,
+    flexShrink: 1,
   },
-  muted: {
-    fontFamily: 'Rubik_400Regular',
-    fontSize: 12,
+  comparisonCell: {
+    width: 56,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  centerMuted: {
-    fontFamily: 'Rubik_400Regular',
-    fontSize: 12,
-    textAlign: 'center',
-  },
-  couponNote: {
+  comparisonCellText: {
     fontFamily: 'Roboto_400Regular',
-    fontSize: 11,
-  },
-  equivalent: {
-    fontFamily: 'Roboto_400Regular',
-    fontSize: 11,
+    fontSize: 11.5,
     fontVariant: ['tabular-nums'],
-  },
-  errorText: {
-    fontFamily: 'Rubik_400Regular',
-    fontSize: 12,
     textAlign: 'center',
   },
 })
-
-function createStyles(_tokens: Tokens) {
-  return styles
-}
