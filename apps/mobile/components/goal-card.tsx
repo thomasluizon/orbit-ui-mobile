@@ -165,7 +165,7 @@ export function GoalCard({ goal, onPress, tourTargetId }: GoalCardProps) {
                   styles.title,
                   goal.status === 'Abandoned' && styles.titleAbandoned,
                 ]}
-                numberOfLines={1}
+                numberOfLines={2}
               >
                 {goal.title}
               </Text>
@@ -194,7 +194,7 @@ export function GoalCard({ goal, onPress, tourTargetId }: GoalCardProps) {
           </View>
 
           <Text style={[styles.percentText, { color: progressColor }]}>
-            {percentLabel}
+            {progress}%
           </Text>
         </View>
 

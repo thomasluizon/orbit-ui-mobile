@@ -78,13 +78,14 @@ export function SettingsRow({
       )}
       <span className="flex flex-col min-w-0 flex-1" style={{ gap: 3 }}>
         <span
-          className="overflow-hidden whitespace-nowrap text-ellipsis"
+          className="overflow-hidden line-clamp-2"
           style={{
             fontFamily: 'var(--font-sans)',
             fontSize: 18,
             fontWeight: 400,
             lineHeight: 1.25,
             color: titleColor,
+            overflowWrap: 'anywhere',
           }}
         >
           {label}

@@ -126,7 +126,7 @@ export function GoalCard({ goal }: Readonly<GoalCardProps>) {
           <div className="min-w-0 flex-1">
             <div className="flex items-center" style={{ gap: 8 }}>
               <h3
-                className={`min-w-0 flex-1 truncate ${
+                className={`min-w-0 flex-1 overflow-hidden line-clamp-2 ${
                   goal.status === 'Abandoned' ? 'line-through text-[var(--fg-3)]' : ''
                 }`}
                 style={{
@@ -134,6 +134,7 @@ export function GoalCard({ goal }: Readonly<GoalCardProps>) {
                   fontSize: 16,
                   fontWeight: 500,
                   color: goal.status === 'Abandoned' ? undefined : 'var(--fg-1)',
+                  overflowWrap: 'anywhere',
                 }}
               >
                 {goal.title}
@@ -189,7 +190,7 @@ export function GoalCard({ goal }: Readonly<GoalCardProps>) {
               fontVariantNumeric: 'tabular-nums',
             }}
           >
-            {percentLabel}
+            {Math.min(100, Math.round(goal.progressPercentage))}%
           </span>
         </div>
 

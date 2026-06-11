@@ -79,7 +79,7 @@ export function SettingsGroupRow({
         <View style={styles.titleRow}>
           <Text
             style={[styles.label, { color: tokens.fg1 }]}
-            numberOfLines={hint ? 1 : 2}
+            numberOfLines={2}
           >
             {label}
           </Text>

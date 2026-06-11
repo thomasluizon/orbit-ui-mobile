@@ -82,7 +82,7 @@ export function SettingsRow({
       <View style={styles.titleBlock}>
         <Text
           style={[styles.title, { color: titleColor }]}
-          numberOfLines={1}
+          numberOfLines={2}
         >
           {label}
         </Text>

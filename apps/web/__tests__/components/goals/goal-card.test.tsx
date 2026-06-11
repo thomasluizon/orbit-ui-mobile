@@ -58,7 +58,7 @@ describe('GoalCard', () => {
 
   it('renders percentage', () => {
     render(<GoalCard goal={makeGoal()} />)
-    expect(document.body.textContent).toContain('goals.progressPercentage')
+    expect(document.body.textContent).toContain('25%')
   })
 
   it('shows completed badge for completed goals', () => {

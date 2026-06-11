@@ -82,17 +82,14 @@ export function SettingsGroupRow({
       <span className="flex flex-col flex-1 min-w-0" style={{ gap: 3 }}>
         <span className="flex items-center" style={{ gap: 6 }}>
           <span
-            className={
-              hint
-                ? 'overflow-hidden whitespace-nowrap text-ellipsis'
-                : 'min-w-0'
-            }
+            className="min-w-0 overflow-hidden line-clamp-2"
             style={{
               fontFamily: 'var(--font-sans)',
               fontSize: 18,
               fontWeight: 400,
               lineHeight: 1.25,
               color: 'var(--fg-1)',
+              overflowWrap: 'anywhere',
             }}
           >
             {label}
