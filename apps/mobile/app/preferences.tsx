@@ -8,11 +8,12 @@ import {
   Linking,
   AppState,
 } from 'react-native'
+import Animated, { FadeInDown, ReduceMotion } from 'react-native-reanimated'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useRouter } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
-import { Lock } from 'lucide-react-native'
+import { Calendar, Check, Languages, Moon, Palette } from 'lucide-react-native'
 import { useMutation } from '@tanstack/react-query'
 import { API } from '@orbit/shared/api'
 import { colorSchemeOptions, type ColorScheme } from '@orbit/shared/theme'
@@ -22,6 +23,7 @@ import {
   getNativePushStatusPresentation,
   LANGUAGE_OPTIONS,
   parseShowGeneralOnTodayPreference,
+  resolveSystemLocale,
 } from '@orbit/shared/utils'
 import { buildUpgradeHref } from '@/lib/upgrade-route'
 import { useProfile } from '@/hooks/use-profile'
@@ -31,64 +33,24 @@ import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { AppBar } from '@/components/ui/app-bar'
+import { BottomSheetModal } from '@/components/bottom-sheet-modal'
+import { PillButton } from '@/components/ui/pill-button'
 import { SectionLabel } from '@/components/ui/section-label'
-import { SettingsDescription } from '@/components/ui/settings-description'
-import { SettingsGroup, SettingsGroupRow } from '@/components/ui/settings-group'
-import { Chip } from '@/components/ui/chip'
-import { MonoToggle } from '@/components/ui/mono-toggle'
+import { SettingsRow, Switch } from '@/components/ui/settings-row'
+import { RadioRow } from '@/components/ui/select-check'
+import { ProBadge } from '@/components/ui/pro-badge'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 
-type Tokens = ReturnType<typeof createTokensV2>
+type PreferencePicker = 'language' | 'theme' | 'scheme' | 'weekStart'
 
-interface SchemeSwatchesProps {
-  active: ColorScheme
-  hasProAccess: boolean
-  tokens: Tokens
-  onSelect: (scheme: ColorScheme) => void
+function capitalize(value: string): string {
+  return value.charAt(0).toUpperCase() + value.slice(1)
 }
 
-function SchemeSwatches({
-  active,
-  hasProAccess,
-  tokens,
-  onSelect,
-}: Readonly<SchemeSwatchesProps>) {
-  return (
-    <View style={styles.swatchRow}>
-      {colorSchemeOptions.map((option) => {
-        const isActive = option.value === active
-        const locked = !hasProAccess && option.value !== 'purple'
-        return (
-          <Pressable
-            key={option.value}
-            onPress={() => onSelect(option.value)}
-            accessibilityRole="button"
-            accessibilityLabel={option.value}
-            accessibilityState={{ selected: isActive }}
-            style={({ pressed }) => [
-              styles.swatchPress,
-              pressed && !locked && { opacity: 0.7 },
-            ]}
-          >
-            <View
-              style={[
-                styles.swatchDot,
-                {
-                  backgroundColor: option.color,
-                  borderColor: isActive ? tokens.fg1 : 'transparent',
-                  borderWidth: isActive ? 2 : 0,
-                },
-              ]}
-            >
-              {locked ? (
-                <Lock size={9} color="rgba(255,255,255,0.85)" strokeWidth={2} />
-              ) : null}
-            </View>
-          </Pressable>
-        )
-      })}
-    </View>
-  )
+function sectionEntrance(index: number) {
+  return FadeInDown.duration(280)
+    .delay(index * 50)
+    .reduceMotion(ReduceMotion.System)
 }
 
 export default function PreferencesScreen() {
@@ -118,13 +80,19 @@ export default function PreferencesScreen() {
     refreshPermissionStatus,
   } = usePushNotifications()
 
-  const [selectedLanguage, setSelectedLanguage] = useState<'en' | 'pt-BR'>('en')
+  const [activePicker, setActivePicker] = useState<PreferencePicker | null>(null)
+
+  const [selectedLanguage, setSelectedLanguage] = useState<'en' | 'pt-BR'>(() =>
+    resolveSystemLocale(i18n.language),
+  )
   const [previousProfileLanguage, setPreviousProfileLanguage] = useState(
     profile?.language,
   )
   if (profile?.language !== previousProfileLanguage) {
     setPreviousProfileLanguage(profile?.language)
-    setSelectedLanguage(profile?.language === 'pt-BR' ? 'pt-BR' : 'en')
+    if (profile?.language) {
+      setSelectedLanguage(profile.language === 'pt-BR' ? 'pt-BR' : 'en')
+    }
   }
 
   async function handleLanguageChange(locale: 'en' | 'pt-BR') {
@@ -172,6 +140,7 @@ export default function PreferencesScreen() {
 
   function handleSchemeChange(scheme: ColorScheme) {
     if (!profile?.hasProAccess && scheme !== 'purple') {
+      setActivePicker(null)
       router.push(buildUpgradeHref('/preferences'))
       return
     }
@@ -245,6 +214,38 @@ export default function PreferencesScreen() {
         ? tokens.primary
         : tokens.fg3
 
+  const themeModeOptions: { value: ThemeMode; label: string }[] = [
+    { value: 'dark', label: t('preferences.themeModeDark') },
+    { value: 'light', label: t('preferences.themeModeLight') },
+  ]
+
+  const languageLabel = LANGUAGE_OPTIONS.find(
+    (lang) => lang.value === selectedLanguage,
+  )?.label
+  const themeLabel = themeModeOptions.find(
+    (mode) => mode.value === currentTheme,
+  )?.label
+  const schemeOption = colorSchemeOptions.find(
+    (option) => option.value === currentScheme,
+  )
+  const schemeLabel = schemeOption
+    ? t(`preferences.color${capitalize(schemeOption.value)}`)
+    : undefined
+  const weekStartLabel = weekStartOptions.find(
+    (option) => option.value === profile?.weekStartDay,
+  )?.label
+
+  const pickerTitles: Record<PreferencePicker, string> = {
+    language: t('profile.language.title'),
+    theme: t('preferences.themeMode'),
+    scheme: t('profile.colorScheme.title'),
+    weekStart: t('settings.weekStartDay.title'),
+  }
+
+  function closePicker() {
+    setActivePicker(null)
+  }
+
   return (
     <SafeAreaView
       style={[styles.safeArea, { backgroundColor: tokens.bg }]}
@@ -263,135 +264,199 @@ export default function PreferencesScreen() {
       >
         <TrialBanner />
 
-        <SectionLabel>{t('profile.language.title')}</SectionLabel>
-        <View style={styles.chipsRow}>
-          {LANGUAGE_OPTIONS.map((lang) => (
-            <Chip
-              key={lang.value}
-              active={selectedLanguage === lang.value}
-              onPress={() => handleLanguageChange(lang.value)}
-            >
-              {lang.label}
-            </Chip>
-          ))}
-        </View>
-        <SettingsDescription>{t('profile.language.description')}</SettingsDescription>
-
-        <SectionLabel>{t('preferences.themeMode')}</SectionLabel>
-        <View style={styles.themeRow}>
-          <Text style={[styles.themeLabel, { color: tokens.fg1 }]}>
-            {t('preferences.themeMode')}
-          </Text>
-          <MonoToggle
-            on={currentTheme === 'dark'}
-            onLabel={t('preferences.themeModeDark').toUpperCase()}
-            offLabel={t('preferences.themeModeLight').toUpperCase()}
-            onPress={() => {
-              handleThemeModeChange(currentTheme === 'dark' ? 'light' : 'dark')
-            }}
-            accessibilityLabel={t('preferences.themeMode')}
+        <Animated.View entering={sectionEntrance(0)}>
+          <SectionLabel bottom={4}>{t('preferences.general')}</SectionLabel>
+          <SettingsRow
+            icon={Languages}
+            label={t('profile.language.title')}
+            desc={t('profile.language.description')}
+            value={languageLabel}
+            onPress={() => setActivePicker('language')}
+            divider={false}
           />
-        </View>
-
-        <View style={styles.schemeRow}>
-          <Text style={[styles.themeLabel, { color: tokens.fg1 }]}>
-            {t('profile.colorScheme.title')}
-          </Text>
-          <SchemeSwatches
-            active={currentScheme}
-            hasProAccess={profile?.hasProAccess ?? false}
-            tokens={tokens}
-            onSelect={handleSchemeChange}
+          <SettingsRow
+            icon={Moon}
+            label={t('preferences.themeMode')}
+            value={themeLabel}
+            onPress={() => setActivePicker('theme')}
+            divider={false}
           />
-        </View>
-        <SettingsDescription>{t('profile.colorScheme.description')}</SettingsDescription>
+          <SettingsRow
+            icon={Palette}
+            label={t('profile.colorScheme.title')}
+            desc={t('profile.colorScheme.description')}
+            value={schemeLabel}
+            onPress={() => setActivePicker('scheme')}
+            divider={false}
+          >
+            {schemeOption ? (
+              <View style={[styles.schemeDot, { backgroundColor: schemeOption.color }]} />
+            ) : null}
+            <ProBadge />
+          </SettingsRow>
+          <SettingsRow
+            icon={Calendar}
+            label={t('settings.weekStartDay.title')}
+            desc={t('settings.weekStartDay.description')}
+            value={weekStartLabel}
+            onPress={() => setActivePicker('weekStart')}
+            divider={false}
+          />
+        </Animated.View>
 
-        <SectionLabel>{t('settings.weekStartDay.title')}</SectionLabel>
-        <View style={styles.weekRow}>
-          <Text style={[styles.themeLabel, { color: tokens.fg1 }]}>
-            {t('settings.weekStartDay.title')}
-          </Text>
-          <View style={styles.weekChips}>
-            {weekStartOptions.map((opt) => (
-              <Chip
-                key={opt.value}
-                active={profile?.weekStartDay === opt.value}
-                onPress={() => weekStartMutation.mutate(opt.value)}
-              >
-                {opt.label}
-              </Chip>
-            ))}
-          </View>
-        </View>
-        <SettingsDescription>{t('settings.weekStartDay.description')}</SettingsDescription>
+        <Animated.View entering={sectionEntrance(1)}>
+          <SectionLabel bottom={4}>{t('settings.homeScreen.title')}</SectionLabel>
+          <SettingsRow
+            label={t('settings.homeScreen.showGeneral')}
+            desc={t('settings.homeScreen.showGeneralDesc')}
+            accessory="none"
+            divider={false}
+          >
+            <Switch
+              on={showGeneralOnToday}
+              onToggle={() => {
+                void handleShowGeneralToggle(!showGeneralOnToday)
+              }}
+              accessibilityLabel={t('settings.homeScreen.showGeneral')}
+            />
+          </SettingsRow>
+        </Animated.View>
 
-        <SectionLabel>{t('settings.notifications.title')}</SectionLabel>
-        {pushSupported ? (
-          <View style={styles.groupWrap}>
-            <SettingsGroup>
-              <SettingsGroupRow
-                label={t('settings.notifications.title')}
-                trailing={
-                  <MonoToggle
-                    on={pushEnabled}
-                    onPress={() => {
-                      void handlePushToggle()
-                    }}
-                    disabled={pushLoading}
-                    accessibilityLabel={t('settings.notifications.title')}
-                  />
-                }
+        <Animated.View entering={sectionEntrance(2)}>
+          <SectionLabel bottom={4}>{t('settings.notifications.title')}</SectionLabel>
+          {pushSupported ? (
+            <>
+              <SettingsRow
+                label={t('settings.notifications.allowed')}
                 accessory="none"
-              />
-            </SettingsGroup>
+                divider={false}
+              >
+                <Switch
+                  on={pushEnabled}
+                  onToggle={() => {
+                    void handlePushToggle()
+                  }}
+                  disabled={pushLoading}
+                  accessibilityLabel={t('settings.notifications.title')}
+                />
+              </SettingsRow>
+              <View style={styles.statusBlock}>
+                <Text style={[styles.statusText, { color: pushStatusColor }]}>
+                  {pushStatusText}
+                </Text>
+              </View>
+              {permissionStatus === 'denied' ? (
+                <Pressable
+                  onPress={() => {
+                    void Linking.openSettings().catch(() => {})
+                  }}
+                  accessibilityRole="button"
+                  style={({ pressed }) => [
+                    styles.linkChip,
+                    {
+                      backgroundColor: pressed ? tokens.bgElev2 : tokens.bgElev,
+                      borderColor: tokens.hairline,
+                    },
+                    pressed ? styles.linkChipPressed : null,
+                  ]}
+                >
+                  <Text style={[styles.linkText, { color: tokens.fg2 }]}>
+                    {t('settings.notifications.openSettings')}
+                  </Text>
+                </Pressable>
+              ) : null}
+            </>
+          ) : (
             <View style={styles.statusBlock}>
-              <Text style={[styles.statusText, { color: pushStatusColor }]}>
-                {pushStatusText}
+              <Text style={[styles.statusText, { color: tokens.fg3 }]}>
+                {t('settings.notifications.unsupportedNative')}
               </Text>
             </View>
-            {permissionStatus === 'denied' ? (
-              <Pressable
-                onPress={() => {
-                  void Linking.openSettings().catch(() => {})
-                }}
-                accessibilityRole="button"
-                style={styles.linkPress}
-              >
-                <Text style={[styles.linkText, { color: tokens.fg1 }]}>
-                  {t('settings.notifications.openSettings')}
-                </Text>
-              </Pressable>
-            ) : null}
-          </View>
-        ) : (
-          <View style={styles.statusBlock}>
-            <Text style={[styles.statusText, { color: tokens.fg3 }]}>
-              {t('settings.notifications.unsupportedNative')}
-            </Text>
-          </View>
-        )}
-
-        <SectionLabel>{t('settings.homeScreen.title')}</SectionLabel>
-        <View style={styles.groupWrap}>
-          <SettingsGroup>
-            <SettingsGroupRow
-              label={t('settings.homeScreen.showGeneralDesc')}
-              trailing={
-                <MonoToggle
-                  on={showGeneralOnToday}
-                  onPress={() => {
-                    void handleShowGeneralToggle(!showGeneralOnToday)
-                  }}
-                  accessibilityLabel={t('settings.homeScreen.showGeneralDesc')}
-                />
-              }
-              accessory="none"
-            />
-          </SettingsGroup>
-        </View>
+          )}
+        </Animated.View>
 
         <View style={{ height: 24 }} />
       </ScrollView>
+
+      <BottomSheetModal
+        open={activePicker !== null}
+        onClose={closePicker}
+        title={activePicker ? pickerTitles[activePicker] : undefined}
+        contentKey={activePicker ?? 'none'}
+        snapPoints={['55%']}
+      >
+        <ScrollView
+          style={styles.sheetScroll}
+          contentContainerStyle={styles.sheetContent}
+          showsVerticalScrollIndicator={false}
+        >
+          {activePicker === 'language' &&
+            LANGUAGE_OPTIONS.map((lang, index) => (
+              <RadioRow
+                key={lang.value}
+                label={lang.label}
+                selected={selectedLanguage === lang.value}
+                divider={index < LANGUAGE_OPTIONS.length - 1}
+                onPress={() => {
+                  closePicker()
+                  void handleLanguageChange(lang.value)
+                }}
+              />
+            ))}
+          {activePicker === 'theme' &&
+            themeModeOptions.map((mode, index) => (
+              <RadioRow
+                key={mode.value}
+                label={mode.label}
+                selected={currentTheme === mode.value}
+                divider={index < themeModeOptions.length - 1}
+                onPress={() => {
+                  closePicker()
+                  handleThemeModeChange(mode.value)
+                }}
+              />
+            ))}
+          {activePicker === 'scheme' && (
+            <>
+              {colorSchemeOptions.map((option, index) => (
+                <RadioRow
+                  key={option.value}
+                  label={t(`preferences.color${capitalize(option.value)}`)}
+                  selected={currentScheme === option.value}
+                  dot={option.color}
+                  divider={index < colorSchemeOptions.length - 1}
+                  onPress={() => {
+                    handleSchemeChange(option.value)
+                  }}
+                />
+              ))}
+              <View style={styles.sheetFooter}>
+                <PillButton
+                  variant="white"
+                  fullWidth
+                  onPress={closePicker}
+                  leading={<Check size={18} color={tokens.bg} strokeWidth={2} />}
+                >
+                  {t('common.save')}
+                </PillButton>
+              </View>
+            </>
+          )}
+          {activePicker === 'weekStart' &&
+            weekStartOptions.map((option, index) => (
+              <RadioRow
+                key={option.value}
+                label={option.label}
+                selected={profile?.weekStartDay === option.value}
+                divider={index < weekStartOptions.length - 1}
+                onPress={() => {
+                  closePicker()
+                  weekStartMutation.mutate(option.value)
+                }}
+              />
+            ))}
+        </ScrollView>
+      </BottomSheetModal>
     </SafeAreaView>
   )
 }
@@ -400,65 +465,11 @@ const styles = StyleSheet.create({
   safeArea: { flex: 1 },
   container: { flex: 1 },
   scrollContent: { paddingBottom: 40 },
-  groupWrap: {
-    paddingHorizontal: 20,
-  },
-  chipsRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-    paddingHorizontal: 20,
-    paddingVertical: 6,
-  },
-  themeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    gap: 12,
-  },
-  schemeRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    gap: 12,
-  },
-  weekRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    gap: 12,
-    flexWrap: 'wrap',
-  },
-  weekChips: {
-    flexDirection: 'row',
-    gap: 4,
-    flexWrap: 'wrap',
-  },
-  themeLabel: {
-    fontFamily: 'Geist',
-    fontSize: 15,
-    flexShrink: 1,
-  },
-  swatchRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  swatchPress: {
-    padding: 2,
-  },
-  swatchDot: {
-    width: 22,
-    height: 22,
+  schemeDot: {
+    width: 12,
+    height: 12,
     borderRadius: 999,
-    alignItems: 'center',
-    justifyContent: 'center',
+    flexShrink: 0,
   },
   statusBlock: {
     paddingHorizontal: 20,
@@ -466,20 +477,36 @@ const styles = StyleSheet.create({
     paddingBottom: 4,
   },
   statusText: {
-    fontFamily: 'Geist',
+    fontFamily: 'Rubik_400Regular',
     fontSize: 13,
-    fontStyle: 'italic',
   },
-  linkPress: {
-    padding: 4,
+  linkChip: {
     alignSelf: 'flex-start',
-    paddingHorizontal: 20,
-    paddingVertical: 8,
+    marginHorizontal: 20,
+    marginTop: 6,
+    borderRadius: 999,
+    borderWidth: 1,
+    paddingVertical: 9,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  linkChipPressed: {
+    transform: [{ scale: 0.96 }],
   },
   linkText: {
-    fontFamily: 'Geist',
+    fontFamily: 'Rubik_500Medium',
     fontSize: 13,
-    fontWeight: '500',
-    textDecorationLine: 'underline',
+  },
+  sheetScroll: {
+    flexGrow: 0,
+  },
+  sheetContent: {
+    paddingHorizontal: 22,
+    paddingBottom: 24,
+  },
+  sheetFooter: {
+    paddingTop: 16,
+    paddingBottom: 4,
   },
 })

@@ -4,16 +4,16 @@ import type { ProfileNavIconKey } from '@orbit/shared/utils/profile-navigation'
 
 interface ProfileNavIconProps {
   iconKey: ProfileNavIconKey
-  /** CSS color value used for stroke. Defaults to `var(--fg-3)`. */
+  /** CSS color value used for stroke. Defaults to `var(--fg-1)`. */
   color?: string
-  /** Pixel size. Defaults to 18. */
+  /** Pixel size. Defaults to the kit ListRow icon size, 22. */
   size?: number
 }
 
 export function ProfileNavIcon({
   iconKey,
-  color = 'var(--fg-3)',
-  size = 18,
+  color = 'var(--fg-1)',
+  size = 22,
 }: Readonly<ProfileNavIconProps>) {
   const sharedProps = {
     width: size,
@@ -21,7 +21,7 @@ export function ProfileNavIcon({
     viewBox: '0 0 24 24',
     fill: 'none',
     stroke: color,
-    strokeWidth: 1.75,
+    strokeWidth: 1.8,
     strokeLinecap: 'round' as const,
     strokeLinejoin: 'round' as const,
   }
@@ -37,11 +37,11 @@ export function ProfileNavIcon({
     case 'orbit':
       return (
         <svg {...sharedProps}>
-          <circle cx="12" cy="12" r="3" />
-          <circle cx="19" cy="5" r="2" />
-          <circle cx="5" cy="19" r="2" />
-          <path d="M10.4 21.9a10 10 0 0 0 9.941-15.416" />
-          <path d="M13.5 2.1a10 10 0 0 0-9.841 15.416" />
+          <path d="M9.937 15.5A2 2 0 0 0 8.5 14.063l-6.135-1.582a.5.5 0 0 1 0-.962L8.5 9.936A2 2 0 0 0 9.937 8.5l1.582-6.135a.5.5 0 0 1 .963 0L14.063 8.5A2 2 0 0 0 15.5 9.937l6.135 1.581a.5.5 0 0 1 0 .964L15.5 14.063a2 2 0 0 0-1.437 1.437l-1.582 6.135a.5.5 0 0 1-.963 0z" />
+          <path d="M20 3v4" />
+          <path d="M22 5h-4" />
+          <path d="M4 17v2" />
+          <path d="M5 18H3" />
         </svg>
       )
     case 'retrospective':
@@ -75,14 +75,21 @@ export function ProfileNavIcon({
       return (
         <svg {...sharedProps}>
           <circle cx="12" cy="12" r="10" />
-          <path d="M12 16v-4" />
-          <path d="M12 8h.01" />
+          <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3" />
+          <path d="M12 17h.01" />
         </svg>
       )
     case 'wrench':
       return (
         <svg {...sharedProps}>
           <path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18v3h3l6.3-6.3a4 4 0 0 0 5.4-5.4l-2 2-3-1 1-3 2-2Z" />
+        </svg>
+      )
+    case 'compass':
+      return (
+        <svg {...sharedProps}>
+          <circle cx="12" cy="12" r="10" />
+          <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" />
         </svg>
       )
     default:

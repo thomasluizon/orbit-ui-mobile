@@ -2,8 +2,9 @@
 
 import { Lock } from 'lucide-react'
 
-/** Tab bar that spreads its children proportionally across the row.
- *  Used for the Today / All / General / Goals view switcher. */
+/** Kit pill-chip row used as the Today / All / General / Goals view switcher:
+ *  inactive chips sit on the bg-elev well, the active chip fills selection-bg
+ *  with a primary ring and primary text. */
 export interface SectionHeadTabItem<TId extends string> {
   id: TId
   label: string
@@ -32,10 +33,10 @@ export function SectionHeadTabs<TId extends string>({
       tabIndex={0}
       aria-label={ariaLabel}
       onKeyDown={onKeyDown}
-      className="flex items-stretch shrink-0"
+      className="flex items-center justify-center shrink-0"
       style={{
         padding: '12px 20px 16px',
-        gap: 6,
+        gap: 8,
         outline: 'none',
       }}
     >
@@ -51,26 +52,10 @@ export function SectionHeadTabs<TId extends string>({
             aria-label={tab.label}
             data-tour={tab.dataTour}
             onClick={() => onChange(tab.id)}
-            className={
-              'flex-1 appearance-none border-0 cursor-pointer inline-flex items-center justify-center gap-1.5 whitespace-nowrap transition-[background-color,color,box-shadow] duration-150 ease-out ' +
-              (isActive
-                ? 'bg-[var(--bg-elev)] text-[var(--fg-1)]'
-                : 'bg-transparent text-[var(--fg-2)] hover:bg-[var(--bg-elev)] hover:text-[var(--fg-1)]')
-            }
-            style={{
-              height: 38,
-              padding: '0 10px',
-              borderRadius: 8,
-              boxShadow: isActive
-                ? 'inset 0 0 0 1px var(--fg-3)'
-                : 'inset 0 0 0 1px var(--hairline-strong)',
-              fontFamily: 'var(--font-family-sans)',
-              fontSize: 13,
-              fontWeight: isActive ? 600 : 500,
-            }}
+            className={isActive ? 'chip chip-active' : 'chip'}
           >
             {tab.locked ? (
-              <Lock size={11} strokeWidth={1.6} color="currentColor" />
+              <Lock size={14} strokeWidth={1.8} color="currentColor" aria-hidden="true" />
             ) : null}
             {tab.label}
           </button>

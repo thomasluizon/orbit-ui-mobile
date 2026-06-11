@@ -1,8 +1,9 @@
 'use client'
 
 import { useState, useCallback } from 'react'
-import { X } from 'lucide-react'
+import { Download, X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
+import { PillButton } from '@/components/ui/pill-button'
 
 interface UpdatePromptProps {
   show: boolean
@@ -43,104 +44,63 @@ export function UpdatePrompt({
       style={{
         bottom: 0,
         maxWidth: 'var(--app-max-w)',
+        animation: 'slide-up-fade 0.28s var(--ease-out) both',
       }}
     >
       <div
-        className="flex flex-col"
+        className="flex flex-col rounded-t-[26px]"
         style={{
-          padding: '14px 22px 22px',
-          background: 'var(--bg-elev)',
-          borderTop: '1px solid var(--hairline)',
+          padding: '20px 22px calc(20px + var(--safe-bottom))',
+          background: 'var(--bg-sheet)',
+          boxShadow: 'var(--shadow-3), inset 0 0 0 1px var(--hairline)',
           gap: 10,
         }}
       >
         <div className="flex items-center justify-between">
-          <span
-            style={{
-              fontFamily: 'var(--font-family-sans)',
-              fontSize: 12,
-              fontWeight: 600,
-              color: 'var(--fg-3)',
-            }}
-          >
-            {t('updatePrompt.eyebrow')}
-          </span>
+          <span className="t-eyebrow">{t('updatePrompt.eyebrow')}</span>
           <button
             type="button"
-            className="appearance-none border-0 bg-transparent cursor-pointer"
-            style={{ padding: 0, color: 'var(--fg-3)' }}
+            className="appearance-none border-0 bg-transparent cursor-pointer flex items-center justify-center -mr-2"
+            style={{ width: 44, height: 44, color: 'var(--fg-3)' }}
             aria-label={t('common.dismiss')}
             onClick={handleDismiss}
           >
-            <X size={14} strokeWidth={1.6} />
+            <X size={18} strokeWidth={1.8} />
           </button>
         </div>
         <div
           style={{
-            fontFamily: 'var(--font-family-sans)',
-            fontSize: 22,
-            fontWeight: 600,
+            fontFamily: 'var(--font-sans)',
+            fontSize: 20,
+            fontWeight: 500,
             color: 'var(--fg-1)',
-            letterSpacing: '-0.015em',
           }}
         >
           {versionLabel}
         </div>
-        {versionDiff && (
-          <div
-            style={{
-              fontFamily: 'var(--font-family-mono)',
-              fontSize: 11,
-              fontWeight: 500,
-              color: 'var(--fg-3)',
-              fontVariantNumeric: 'tabular-nums',
-            }}
-          >
-            {versionDiff}
-          </div>
-        )}
+        {versionDiff && <div className="t-meta">{versionDiff}</div>}
         <p
           style={{
-            fontFamily: 'var(--font-family-sans)',
-            fontSize: 14,
-            fontStyle: 'italic',
+            fontFamily: 'var(--font-sans)',
+            fontSize: 15,
             color: 'var(--fg-2)',
-            lineHeight: 1.55,
+            lineHeight: 1.5,
             margin: 0,
           }}
         >
           {t('updatePrompt.description')}
         </p>
-        <div className="flex flex-col" style={{ gap: 8, paddingTop: 8 }}>
-          <button
-            type="button"
-            className="appearance-none border-0 cursor-pointer"
+        <div className="flex flex-col" style={{ gap: 10, paddingTop: 10 }}>
+          <PillButton
+            fullWidth
             onClick={onUpdate}
-            style={{
-              padding: '12px 18px',
-              background: 'var(--primary)',
-              color: 'var(--fg-on-primary)',
-              borderRadius: 10,
-              fontFamily: 'var(--font-family-sans)',
-              fontSize: 14,
-              fontWeight: 600,
-            }}
+            leading={<Download size={18} strokeWidth={1.8} />}
           >
             {t('updatePrompt.update')}
-          </button>
-          <button
-            type="button"
-            className="appearance-none border-0 bg-transparent cursor-pointer text-center"
-            onClick={handleDismiss}
-            style={{
-              fontFamily: 'var(--font-family-sans)',
-              fontSize: 13,
-              color: 'var(--fg-3)',
-              padding: 6,
-            }}
-          >
+          </PillButton>
+          <PillButton variant="ghost" fullWidth onClick={handleDismiss}>
             {t('updatePrompt.later')}
-          </button>
+          </PillButton>
         </div>
       </div>
     </div>

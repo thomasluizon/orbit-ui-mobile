@@ -3,15 +3,14 @@
 import { useTranslations } from 'next-intl'
 import { Home, MessageCircle, CalendarDays, User, Plus, type LucideIcon } from 'lucide-react'
 
-/** Mobile-style 4-tab bar (Home / Astra / Calendar / You) + centered Plus FAB.
- *  FAB hidden on Astra (has its own composer); rendered disabled on Profile. */
+/** Kit 4-tab bar (Home / Astra / Calendar / You) + centered 60px Plus FAB.
+ *  FAB hidden on Astra (has its own composer); rendered disabled off Today. */
 export type BottomTab = 'today' | 'chat' | 'calendar' | 'profile'
 
 interface TabDef {
   id: BottomTab
   labelKey: string
   icon: LucideIcon
-  emphasize?: boolean
 }
 
 interface BottomTabBarProps {
@@ -25,7 +24,7 @@ interface BottomTabBarProps {
 
 const DEFAULT_TABS: TabDef[] = [
   { id: 'today', labelKey: 'home', icon: Home },
-  { id: 'chat', labelKey: 'astra', icon: MessageCircle, emphasize: true },
+  { id: 'chat', labelKey: 'astra', icon: MessageCircle },
   { id: 'calendar', labelKey: 'calendar', icon: CalendarDays },
   { id: 'profile', labelKey: 'you', icon: User },
 ]
@@ -53,33 +52,30 @@ export function BottomTabBar({
           aria-disabled={fabDisabled}
           disabled={fabDisabled}
           className={
-            'absolute appearance-none border-0 flex items-center justify-center -translate-x-1/2 transition-[background-color,opacity,transform] duration-200 ease-out ' +
+            'absolute appearance-none border-0 flex items-center justify-center -translate-x-1/2 transition-[background-color,transform] duration-[160ms] ease-[var(--ease-standard)] ' +
             (fabDisabled
-              ? 'bg-[var(--bg-elev)] text-[var(--fg-3)]'
-              : 'bg-[var(--primary)] text-[var(--fg-on-primary)] hover:bg-[var(--primary-pressed)] hover:scale-110 active:scale-95')
+              ? 'bg-[var(--bg-sheet)] text-[var(--fg-3)]'
+              : 'bg-[var(--primary)] text-[var(--fg-on-primary)] hover:bg-[var(--primary-pressed)] active:scale-95')
           }
           style={{
             left: '50%',
-            top: -14,
-            width: 56,
-            height: 56,
+            top: -30,
+            width: 60,
+            height: 60,
             borderRadius: 999,
             boxShadow: fabDisabled
-              ? '0 0 0 5px var(--bg), inset 0 0 0 1px var(--hairline)'
-              : '0 0 0 5px var(--bg), 0 4px 14px rgba(0,0,0,0.35)',
+              ? '0 0 0 6px var(--bg), inset 0 0 0 1px var(--hairline)'
+              : '0 0 0 6px var(--bg), var(--primary-glow)',
             cursor: fabDisabled ? 'not-allowed' : 'pointer',
             zIndex: 2,
           }}
         >
-          <Plus size={24} strokeWidth={1.7} color={fabDisabled ? 'var(--fg-3)' : 'var(--fg-on-primary)'} />
+          <Plus size={28} strokeWidth={2.2} color={fabDisabled ? 'var(--fg-3)' : 'var(--fg-on-primary)'} />
         </button>
       )}
       <div
         className="grid"
-        style={{
-          gridTemplateColumns: '1fr 1fr 80px 1fr 1fr',
-          padding: '14px 0 16px',
-        }}
+        style={{ gridTemplateColumns: '1fr 1fr 84px 1fr 1fr' }}
       >
         {tabs.slice(0, 2).map((tab) => (
           <TabBtn
@@ -116,7 +112,6 @@ interface TabBtnProps {
 
 function TabBtn({ tab, label, active, onClick, unread = false }: Readonly<TabBtnProps>) {
   const Icon = tab.icon
-  const iconColor = tab.emphasize && active ? 'var(--primary)' : 'currentColor'
 
   return (
     <button
@@ -125,32 +120,17 @@ function TabBtn({ tab, label, active, onClick, unread = false }: Readonly<TabBtn
       aria-label={label}
       aria-current={active ? 'page' : undefined}
       className={
-        'relative appearance-none border-0 bg-transparent cursor-pointer flex flex-col items-center transition-colors duration-150 ease-out ' +
+        'appearance-none border-0 bg-transparent cursor-pointer flex flex-col items-center transition-colors duration-[160ms] ease-[var(--ease-standard)] ' +
         (active
-          ? 'text-[var(--fg-1)]'
-          : 'text-[var(--fg-3)] hover:text-[var(--fg-1)]')
+          ? 'text-[var(--primary)]'
+          : 'text-[var(--fg-4)] hover:text-[var(--fg-2)]')
       }
       style={{
-        padding: '8px 0',
+        padding: '14px 0 16px',
       }}
     >
-      {active && (
-        <span
-          aria-hidden="true"
-          className="absolute"
-          style={{
-            top: -2,
-            left: '50%',
-            transform: 'translateX(-50%)',
-            width: 16,
-            height: 2,
-            background: 'var(--primary)',
-            borderRadius: 1,
-          }}
-        />
-      )}
       <span className="relative">
-        <Icon size={24} strokeWidth={1.6} color={iconColor} />
+        <Icon size={24} strokeWidth={active ? 2.2 : 1.8} color="currentColor" />
         {unread && (
           <span
             aria-hidden="true"

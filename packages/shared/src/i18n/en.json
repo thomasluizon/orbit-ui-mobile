@@ -38,12 +38,16 @@
     }
   },
   "pushPrompt": {
-    "eyebrow": "Notifications",
     "title": "Stay on track",
     "description": "Enable notifications to get reminders for your habits",
     "enable": "Enable",
     "later": "Not now",
     "retryHint": "Notification setup failed. Tap Enable to retry."
+  },
+  "notFoundPage": {
+    "title": "Page not found",
+    "description": "This page doesn't exist or has moved.",
+    "home": "Back to home"
   },
   "updatePrompt": {
     "eyebrow": "Update available",
@@ -89,12 +93,16 @@
     "dismiss": "Dismiss",
     "confirm": "Confirm",
     "discard": "Discard",
-    "keepEditing": "Keep editing",
+    "keepEditing": "Continue",
+    "seeMore": "See more",
+    "seeLess": "See less",
     "discardChangesTitle": "Discard changes?",
     "discardChangesDescription": "You have unsaved changes. Closing now will lose them.",
     "openSettings": "Open settings",
     "loading": "Loading...",
     "close": "Close",
+    "help": "Help",
+    "share": "Share",
     "expandDescription": "Expand description",
     "edit": "Edit",
     "create": "Create",
@@ -171,6 +179,7 @@
   },
   "auth": {
     "signIn": "Sign in",
+    "signInSubtitle": "We'll email you a sign-in code.",
     "enterCode": "Enter code",
     "email": "Email",
     "emailPlaceholder": "you@example.com",
@@ -223,7 +232,6 @@
     "overdue": "Overdue",
     "oneTimeTask": "One-time task",
     "generalHabit": "General",
-    "badHabit": "Bad Habit",
     "schedule": {
       "dueInDays": "in {count}d",
       "scheduledOn": "scheduled {date}"
@@ -234,6 +242,8 @@
       "matchDescription": "in description"
     },
     "createHabit": "Create Habit",
+    "askAstra": "Ask Astra",
+    "createManually": "Create manually",
     "createSubHabit": "Create Sub-Habit",
     "editHabit": "Edit Habit",
     "deleteHabit": "Delete Habit",
@@ -295,7 +305,7 @@
     "duplicateConfirm": "Duplicate",
     "forceLogTitle": "Log with incomplete sub-habits",
     "forceLogMessage": "Some sub-habits haven't been completed yet. Are you sure you want to log this habit anyway?",
-    "forceLogConfirm": "Log anyway",
+    "forceLogConfirm": "Log",
     "autoLogParentTitle": "All sub-habits complete!",
     "autoLogParentMessage": "Would you like to log \"{name}\" as complete?",
     "autoLogParentConfirm": "Log parent",
@@ -304,13 +314,13 @@
     "checklistCompleteConfirm": "Log habit",
     "bulkDeleteTitle": "Delete Habits",
     "bulkDeleteMessage": "Are you sure you want to delete {count} habit? This action cannot be undone. | Are you sure you want to delete {count} habits? This action cannot be undone.",
-    "bulkDeleteConfirm": "Delete All",
+    "bulkDeleteConfirm": "Delete all",
     "bulkLogTitle": "Log Habits",
     "bulkLogMessage": "Log {count} selected habit as complete? Already completed habits will be skipped. | Log {count} selected habits as complete? Already completed habits will be skipped.",
-    "bulkLogConfirm": "Log All",
+    "bulkLogConfirm": "Log all",
     "bulkSkipTitle": "Skip Habits",
     "bulkSkipMessage": "Skip/postpone {count} selected habit? Recurring habits advance to next date, one-time tasks move to tomorrow. | Skip/postpone {count} selected habits? Recurring habits advance to next date, one-time tasks move to tomorrow.",
-    "bulkSkipConfirm": "Skip All",
+    "bulkSkipConfirm": "Skip all",
     "skipHabit": "Skip",
     "frequency": {
       "everyDay": "Every day",
@@ -484,11 +494,14 @@
       "streakDays": "{n}d",
       "stats": "Stats",
       "noDataYet": "No data yet",
+      "daysFree": "Days free",
       "reminders": "Reminders",
       "linkedGoal": "Linked goal",
       "askAstraEyebrow": "ASK ASTRA",
       "askAstraSubHabits": "Want to break this into smaller steps?",
-      "askAstraDefault": "Want a perspective on this habit?"
+      "askAstraDefault": "Want a perspective on this habit?",
+      "askAstraSeedSubHabits": "Help me break my habit \"{title}\" into smaller sub-habits.",
+      "askAstraSeedDefault": "How am I doing with my habit \"{title}\"? Give me your read and one tip to improve."
     },
     "filter": {
       "daily": "Daily",
@@ -637,6 +650,10 @@
     "timeoutError": "The request timed out. Please try again.",
     "limitReachedError": "You've reached your monthly AI message limit.",
     "aiError": "Sorry, something went wrong. Please try again.",
+    "proGate": {
+      "title": "Pro feature",
+      "body": "This action needs Orbit Pro. Upgrade to unlock it."
+    },
     "suggestion": {
       "prompt": "I can recap, plan, or help you adjust a habit.",
       "meditated": "I meditated today",
@@ -693,7 +710,6 @@
     }
   },
   "profile": {
-    "title": "Profile",
     "sections": {
       "account": "Account",
       "preferences": "Preferences",
@@ -832,8 +848,8 @@
       "warning": "This action is irreversible.",
       "warningFree": "Your account will be deactivated and permanently deleted after 7 days. Log back in anytime before then to cancel.",
       "warningPro": "Your account will be deactivated and permanently deleted 7 days after your plan expires on {date}. Log back in anytime before then to cancel.",
-      "warningDetail": "All your data will be permanently deleted, including your habits, completion history, AI conversations, user facts, and settings.",
-      "sendCode": "Send confirmation code to my email",
+      "warningDetail": "All your data will be permanently deleted, including your habits, completion history, AI conversations, user facts, and settings. We'll email you a confirmation code to continue.",
+      "sendCode": "Send code",
       "sending": "Sending...",
       "codeInstructions": "Enter the 6-digit code sent to your email to confirm account deactivation.",
       "confirmDelete": "Deactivate my account",
@@ -1272,6 +1288,7 @@
   },
   "upgrade": {
     "title": "Upgrade to Pro",
+    "heroTitle": "Unlock the full potential of your habits with Pro",
     "alreadyPro": "You're on the Pro plan!",
     "manageHint": "Manage your subscription, update payment, or cancel anytime",
     "feature": "Feature",
@@ -1414,6 +1431,7 @@
         "appliedNote": "Referral discount applied"
       },
       "equivalent": "{price}/mo",
+      "renewalNote": "Your subscription renews automatically. Cancel anytime, at least 24 hours before renewal, to avoid future charges.",
       "error": "Couldn't load pricing",
       "retry": "Try again"
     },
@@ -1506,7 +1524,7 @@
       "streakDescriptionPlaceholder": "e.g., Days at the gym",
       "targetValue": "Quantity",
       "unit": "Unit",
-      "unitPlaceholder": "e.g., books, songs, kg",
+      "unitPlaceholder": "e.g. books",
       "deadline": "Deadline",
       "deadlineOptional": "Optional",
       "addDeadline": "Add deadline",
@@ -1557,6 +1575,7 @@
       "showAllHistory": "Show all",
       "showLessHistory": "Show less",
       "askAstraDefault": "Want a weekly check-in plan for this?",
+      "askAstraSeedDefault": "Help me set up a weekly check-in plan for my goal \"{title}\".",
       "askAstraEyebrow": "ASK ASTRA",
       "statusLabel": "Status"
     },
@@ -1588,7 +1607,7 @@
       "velocity": "Progress Rate",
       "daysToDeadline": "Days to Deadline",
       "habitAdherence": "Linked Habit Performance",
-      "noData": "Not enough data",
+      "noData": "No data",
       "perDay": "day"
     }
   },
@@ -1596,6 +1615,7 @@
     "title": "Achievements & Level",
     "profileCard": {
       "title": "Achievements & Level",
+      "tileLabel": "Achievements",
       "hint": "Track your progress and unlock achievements",
       "level": "Level {level}",
       "xp": "{current} / {next} XP",
@@ -1796,6 +1816,7 @@
       "tierStrong": "Strong",
       "tierSteady": "Steady",
       "tierNormal": "Normal",
+      "tierTileLabel": "Level",
       "dayActive": "Active",
       "dayFrozen": "Frozen",
       "dayMissed": "Missed",
@@ -1854,6 +1875,7 @@
   },
   "preferences": {
     "title": "Preferences",
+    "general": "General",
     "colorBlue": "Blue theme",
     "colorCyan": "Cyan theme",
     "colorGreen": "Green theme",
@@ -1868,7 +1890,8 @@
     "title": "AI Features"
   },
   "about": {
-    "title": "About & Help"
+    "title": "About & Help",
+    "version": "Version {version}"
   },
   "advancedSettings": {
     "title": "Advanced",

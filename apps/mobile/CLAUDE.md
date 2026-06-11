@@ -16,7 +16,7 @@ Mobile client (Android only — no iOS app exists). Direct calls to `orbit-api` 
 | What | Where |
 |---|---|
 | App shell + nav | `app/_layout.tsx` + `components/navigation/bottom-tab-bar.tsx` |
-| Design tokens (v8 via createTokensV2) | `lib/theme.ts` (consumes `@orbit/shared/theme`) |
+| Design tokens (navy+violet via createTokensV2) | `lib/theme.ts` (consumes `@orbit/shared/theme`) |
 | Theme provider | `lib/theme-provider.tsx` |
 | API client | `lib/api-client.ts` |
 | Offline queue (SQLite) | `lib/queued-api-mutation.ts` |
@@ -28,7 +28,7 @@ Mobile client (Android only — no iOS app exists). Direct calls to `orbit-api` 
 ## Platform reality
 
 - **Android only.** No iOS app ships. Don't write iOS-specific branches in new code; if you see one in pre-existing code, leave it unless explicitly tasked with iOS removal.
-- **Bottom-sheet modals use RN `Modal` + `Animated`, NOT `@gorhom/bottom-sheet`.** gorhom's `present()` + portal silently no-op on the New Architecture (Fabric/Bridgeless) in release builds (rAF-gated mount never flushes). The shared wrapper is `components/bottom-sheet-modal.tsx`; sheet content uses core `ScrollView`/`TextInput`. Don't reintroduce gorhom.
+- **Bottom-sheet modals use TrueSheet (`@lodev09/react-native-true-sheet`), NOT `@gorhom/bottom-sheet`.** gorhom's `present()` + portal silently no-op on the New Architecture (Fabric/Bridgeless) in release builds (rAF-gated mount never flushes). The shared wrapper is `components/bottom-sheet-modal.tsx` — the single styling seam for all sheets; sheet content uses core `ScrollView`/`TextInput`. Don't reintroduce gorhom.
 - **Android elevation + `overflow: 'hidden'`** is a documented React Native bug: elevated children inside `overflow: 'hidden'` parents disappear on Android. Use `elevation: 0` on the child, or shadow the parent.
 
 ## State management
@@ -51,9 +51,9 @@ const habit = await apiClient<Habit>(API.habits.get(id))
 
 ## Styling
 
-- **NativeWind** for class-based styles, OR `StyleSheet.create` for performance-critical surfaces.
-- **Tokens via `useTheme()` from `lib/theme-provider.tsx`** — returns v8 OKLCH values resolved for the current scheme + theme mode.
-- **`createColors(scheme, mode)`** in `lib/theme.ts` is the source of truth; consumes `@orbit/shared/theme/color-schemes.ts`.
+- **`StyleSheet.create` / inline styles** consuming the token bag — NativeWind classes are unused in practice (`tailwind.config.js` is scaffolding).
+- **Tokens via `useAppTheme()` from `lib/use-app-theme.ts`** — returns the navy+violet token bag resolved for the current scheme + theme mode.
+- **`createTokensV2(scheme, mode)`** in `lib/theme.ts` is the source of truth; consumes `@orbit/shared/theme` (color-schemes + neutral-ramp).
 
 ## React 19 / React Compiler rules
 

@@ -11,6 +11,7 @@ import {
   Share,
   type TextInput,
 } from 'react-native'
+import Animated, { FadeInDown, ReduceMotion } from 'react-native-reanimated'
 import { File, Paths } from 'expo-file-system'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useLocalSearchParams, useRouter, type Href } from 'expo-router'
@@ -31,7 +32,17 @@ import {
   shouldRedirectProfileNavItem,
   type ProfileNavItem,
 } from '@orbit/shared/utils/profile-navigation'
-import { Flame, User as UserIcon, X, Check } from 'lucide-react-native'
+import {
+  Check,
+  CreditCard,
+  Download,
+  LogOut,
+  RotateCcw,
+  TriangleAlert,
+  User as UserIcon,
+  UserX,
+  X,
+} from 'lucide-react-native'
 import {
   useProfile,
   useTrialDaysLeft,
@@ -55,8 +66,12 @@ import { OfflineUnavailableState } from '@/components/ui/offline-unavailable-sta
 import { AppTextInput } from '@/components/ui/app-text-input'
 import { KeyboardAwareScrollView } from '@/components/ui/keyboard-aware-scroll-view'
 import { AppBar } from '@/components/ui/app-bar'
+import { Badge, type BadgeTone } from '@/components/ui/badge'
+import { GradientTop } from '@/components/ui/gradient-top'
+import { PillButton } from '@/components/ui/pill-button'
 import { SectionLabel } from '@/components/ui/section-label'
 import { SettingsGroup, SettingsGroupRow } from '@/components/ui/settings-group'
+import { StatTile } from '@/components/ui/stat-tile'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
 import { StreakBadge } from '@/components/gamification/streak-badge'
 import { NotificationBell } from '@/components/navigation/notification-bell'
@@ -70,6 +85,101 @@ import { ProfileActionButton } from './profile/_components/profile-action-button
 import { TourReplayModal } from '@/components/tour/tour-replay-modal'
 
 type Tokens = ReturnType<typeof createTokensV2>
+
+function sectionEntrance(index: number) {
+  return FadeInDown.duration(280)
+    .delay(index * 50)
+    .reduceMotion(ReduceMotion.System)
+}
+
+function AmberPillButton({
+  label,
+  onPress,
+  disabled = false,
+}: Readonly<{
+  label: string
+  onPress: () => void
+  disabled?: boolean
+}>) {
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = createTokensV2(currentScheme, currentTheme)
+
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={disabled}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ disabled }}
+      style={({ pressed }) => [
+        dangerPillStyles.base,
+        { backgroundColor: tokens.statusOverdue },
+        disabled ? dangerPillStyles.disabled : null,
+        pressed && !disabled ? dangerPillStyles.pressed : null,
+      ]}
+    >
+      <Text style={[dangerPillStyles.label, { color: tokens.fgOnPrimary }]}>
+        {label}
+      </Text>
+    </Pressable>
+  )
+}
+
+function DangerPillButton({
+  label,
+  onPress,
+  disabled = false,
+}: Readonly<{
+  label: string
+  onPress: () => void
+  disabled?: boolean
+}>) {
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = createTokensV2(currentScheme, currentTheme)
+
+  return (
+    <Pressable
+      onPress={onPress}
+      disabled={disabled}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ disabled }}
+      style={({ pressed }) => [
+        dangerPillStyles.base,
+        { backgroundColor: tokens.statusBad },
+        disabled ? dangerPillStyles.disabled : null,
+        pressed && !disabled ? dangerPillStyles.pressed : null,
+      ]}
+    >
+      <Text style={[dangerPillStyles.label, { color: tokens.fgOnPrimary }]}>
+        {label}
+      </Text>
+    </Pressable>
+  )
+}
+
+const dangerPillStyles = StyleSheet.create({
+  base: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 9,
+    borderRadius: 999,
+    paddingVertical: 15,
+    paddingHorizontal: 26,
+    width: '100%',
+  },
+  disabled: {
+    opacity: 0.4,
+  },
+  pressed: {
+    opacity: 0.85,
+  },
+  label: {
+    fontFamily: 'Rubik_500Medium',
+    fontSize: 16,
+  },
+})
 
 export default function ProfileScreen() {
   const { t } = useTranslation()
@@ -118,8 +228,11 @@ export default function ProfileScreen() {
   const accountNavItems = PROFILE_NAV_ITEMS.filter(
     (item) => item.section === 'account',
   )
+  const achievementsNavItem = PROFILE_NAV_ITEMS.find(
+    (item) => item.id === 'achievements',
+  )
   const featureNavItems = PROFILE_NAV_ITEMS.filter(
-    (item) => item.section === 'features',
+    (item) => item.section === 'features' && item.id !== 'achievements',
   )
 
   const getNavHint = useCallback(
@@ -248,6 +361,12 @@ export default function ProfileScreen() {
     setDeleteLoading(false)
     setScheduledDeletionDate(null)
     setShowDeleteModal(true)
+  }
+
+  function backToDeleteConfirmStep() {
+    setDeleteStep('confirm')
+    setDeleteCodeDigits(['', '', '', '', '', ''])
+    setDeleteError('')
   }
 
   async function handleRequestDeletion() {
@@ -383,11 +502,22 @@ export default function ProfileScreen() {
         ? t('profile.subscription.trialEndedHint')
         : t('profile.subscription.freeHint')
 
+  const showPlanBadge = profile?.isTrialActive || profile?.hasProAccess
+  const planBadgeTone: BadgeTone = profile?.isTrialActive ? 'soft' : 'violet'
+  const planBadgeLabel = profile?.isTrialActive
+    ? t('trial.proBadge')
+    : t('common.proBadge')
+
+  const identityLine =
+    profile?.hasProAccess && gamificationProfile
+      ? t('gamification.profileCard.level', { level: gamificationProfile.level })
+      : profile?.email
+
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: tokens.bg }]}>
+      <GradientTop height={300} />
       <AppBar
         LeadingIcon={UserIcon}
-        title={t('profile.title')}
         trailing={
           <>
             <ThemeToggle />
@@ -410,156 +540,186 @@ export default function ProfileScreen() {
           </Text>
         ) : null}
 
-        <View style={styles.userBlock}>
+        <Animated.View entering={sectionEntrance(0)} style={styles.identityBlock}>
           {isLoading ? (
             <>
               <View
-                style={[styles.skeleton, { width: 200, height: 22, backgroundColor: tokens.bgElev }]}
+                style={[
+                  styles.skeleton,
+                  { width: 76, height: 22, borderRadius: 999, backgroundColor: tokens.bgElev },
+                ]}
               />
               <View
-                style={[styles.skeleton, { width: 260, height: 14, backgroundColor: tokens.bgElev }]}
+                style={[
+                  styles.skeleton,
+                  { width: 160, height: 30, marginTop: 4, backgroundColor: tokens.bgElev },
+                ]}
+              />
+              <View
+                style={[styles.skeleton, { width: 120, height: 14, backgroundColor: tokens.bgElev }]}
               />
             </>
           ) : (
-            <View style={styles.userRow}>
-              <View style={[styles.avatar, { backgroundColor: tokens.bgElev }]}>
-                <Text style={[styles.avatarText, { color: tokens.fg1 }]}>
-                  {profile?.name
-                    ? profile.name
-                        .split(' ')
-                        .slice(0, 2)
-                        .map((n) => n[0])
-                        .join('')
-                        .toUpperCase()
-                    : '?'}
-                </Text>
-              </View>
-              <View style={styles.userTexts}>
-                <Text style={[styles.userName, { color: tokens.fg1 }]}>
-                  {profile?.name}
-                </Text>
-                <Text style={[styles.userEmail, { color: tokens.fg3 }]}>
-                  {profile?.email}
-                </Text>
-              </View>
-            </View>
+            <>
+              {showPlanBadge ? (
+                <Badge tone={planBadgeTone} style={styles.planBadge}>
+                  {planBadgeLabel}
+                </Badge>
+              ) : null}
+              <Text
+                style={[styles.identityName, { color: tokens.fg1 }]}
+                numberOfLines={1}
+              >
+                {profile?.name}
+              </Text>
+              <Text
+                style={[styles.identityLine, { color: tokens.fg2 }]}
+                numberOfLines={1}
+              >
+                {identityLine}
+              </Text>
+            </>
           )}
-        </View>
+        </Animated.View>
 
-        <View ref={streakRef} collapsable={false} style={styles.groupWrap}>
-          <SettingsGroup>
-            <SettingsGroupRow
-              icon={<Flame size={18} color={tokens.statusBad} strokeWidth={1.75} />}
-              label={t('streakDisplay.title')}
+        <Animated.View entering={sectionEntrance(1)} style={styles.statRow}>
+          <View ref={streakRef} collapsable={false} style={styles.statTileWrap}>
+            <Pressable
               onPress={handleStreakPress}
-              trailing={
-                <View style={styles.streakTrailing}>
-                  <Text style={[styles.streakCount, { color: tokens.fg1 }]}>
-                    {streak}
-                  </Text>
-                  <Text style={[styles.streakDays, { color: tokens.fg3 }]}>
-                    {plural(t('streakDisplay.daysSuffix'), streak)}
-                  </Text>
+              accessibilityRole="button"
+              accessibilityLabel={t('streakDisplay.title')}
+              style={({ pressed }) => [
+                styles.statPressable,
+                pressed ? styles.statPressed : null,
+              ]}
+            >
+              <StatTile
+                emoji="🔥"
+                value={`${streak} ${plural(t('streakDisplay.daysSuffix'), streak)}`}
+                label={t('streakDisplay.title')}
+              />
+            </Pressable>
+          </View>
+          {achievementsNavItem ? (
+            <View ref={achievementsRef} collapsable={false} style={styles.statTileWrap}>
+              <Pressable
+                onPress={() => handleNavPress(achievementsNavItem)}
+                accessibilityRole="button"
+                accessibilityLabel={t('gamification.profileCard.tileLabel')}
+                style={({ pressed }) => [
+                  styles.statPressable,
+                  pressed ? styles.statPressed : null,
+                ]}
+              >
+                <StatTile
+                  emoji="🏆"
+                  value={gamificationProfile?.achievementsEarned ?? 0}
+                  label={t('gamification.profileCard.tileLabel')}
+                />
+              </Pressable>
+            </View>
+          ) : null}
+        </Animated.View>
+
+        <Animated.View entering={sectionEntrance(2)}>
+          <SectionLabel>{t('profile.sections.account')}</SectionLabel>
+          <View style={styles.groupWrap}>
+            <SettingsGroup>
+              {accountNavItems.map((item) => (
+                <View
+                  key={item.id}
+                  ref={item.id === 'preferences' ? preferencesRef : undefined}
+                  collapsable={false}
+                >
+                  <SettingsGroupRow
+                    icon={<ProfileNavIcon iconKey={item.iconKey} color={tokens.fg1} />}
+                    label={t(item.titleKey)}
+                    hint={getNavHint(item)}
+                    onPress={() => handleNavPress(item)}
+                    proBadge={item.proBadge}
+                    proBadgeLabel={t('common.proBadge')}
+                  />
                 </View>
-              }
-            />
-          </SettingsGroup>
-        </View>
+              ))}
+            </SettingsGroup>
+          </View>
+        </Animated.View>
 
-        <SectionLabel>{t('profile.sections.account')}</SectionLabel>
-        <View style={styles.groupWrap}>
-          <SettingsGroup>
-            {accountNavItems.map((item) => (
-              <View
-                key={item.id}
-                ref={item.id === 'preferences' ? preferencesRef : undefined}
-                collapsable={false}
-              >
-                <SettingsGroupRow
-                  icon={<ProfileNavIcon iconKey={item.iconKey} color={tokens.fg3} />}
-                  label={t(item.titleKey)}
-                  hint={getNavHint(item)}
-                  onPress={() => handleNavPress(item)}
-                  proBadge={item.proBadge}
-                  proBadgeLabel={t('common.proBadge')}
-                />
-              </View>
-            ))}
-          </SettingsGroup>
-        </View>
+        <Animated.View entering={sectionEntrance(3)}>
+          <SectionLabel>{t('profile.sections.features')}</SectionLabel>
+          <View style={styles.groupWrap}>
+            <SettingsGroup>
+              <SettingsGroupRow
+                icon={<ProfileNavIcon iconKey="compass" color={tokens.fg1} />}
+                label={t('tour.replay.title')}
+                hint={t('tour.replay.hint')}
+                onPress={() => setShowTourReplay(true)}
+              />
+              {featureNavItems.map((item) => (
+                <View
+                  key={item.id}
+                  ref={item.id === 'retrospective' ? retroRef : undefined}
+                  collapsable={false}
+                >
+                  <SettingsGroupRow
+                    icon={<ProfileNavIcon iconKey={item.iconKey} color={tokens.fg1} />}
+                    label={t(item.titleKey)}
+                    hint={getNavHint(item)}
+                    onPress={() => handleNavPress(item)}
+                    proBadge={item.proBadge}
+                    proBadgeLabel={t('common.proBadge')}
+                  />
+                </View>
+              ))}
+            </SettingsGroup>
+          </View>
+        </Animated.View>
 
-        <SectionLabel>{t('profile.sections.features')}</SectionLabel>
-        <View style={styles.groupWrap}>
-          <SettingsGroup>
-            <SettingsGroupRow
-              label={t('tour.replay.title')}
-              hint={t('tour.replay.hint')}
-              onPress={() => setShowTourReplay(true)}
-            />
-            {featureNavItems.map((item) => (
-              <View
-                key={item.id}
-                ref={
-                  item.id === 'retrospective'
-                    ? retroRef
-                    : item.id === 'achievements'
-                      ? achievementsRef
-                      : undefined
-                }
-                collapsable={false}
-              >
-                <SettingsGroupRow
-                  icon={<ProfileNavIcon iconKey={item.iconKey} color={tokens.fg3} />}
-                  label={t(item.titleKey)}
-                  hint={getNavHint(item)}
-                  onPress={() => handleNavPress(item)}
-                  proBadge={item.proBadge}
-                  proBadgeLabel={t('common.proBadge')}
-                />
-              </View>
-            ))}
-          </SettingsGroup>
-        </View>
+        <Animated.View entering={sectionEntrance(4)}>
+          <SectionLabel>{t('profile.sections.subscription')}</SectionLabel>
+          <View ref={subscriptionRef} collapsable={false} style={styles.groupWrap}>
+            <SettingsGroup>
+              <SettingsGroupRow
+                icon={<CreditCard size={22} color={tokens.fg1} strokeWidth={1.8} />}
+                label={t('profile.subscription.plan')}
+                hint={`${subscriptionLabel} · ${subscriptionHint}`}
+                onPress={() => router.push(buildUpgradeHref('/profile'))}
+              />
+            </SettingsGroup>
+          </View>
+        </Animated.View>
 
-        <SectionLabel>{t('profile.sections.subscription')}</SectionLabel>
-        <View ref={subscriptionRef} collapsable={false} style={styles.groupWrap}>
-          <SettingsGroup>
-            <SettingsGroupRow
-              label={subscriptionLabel}
-              hint={subscriptionHint}
-              onPress={() => router.push(buildUpgradeHref('/profile'))}
-            />
-          </SettingsGroup>
-        </View>
-
-        <SectionLabel>{t('profile.sections.accountActions')}</SectionLabel>
-        <ProfileActionButton
-          onPress={() => {
-            void handleExportData()
-          }}
-          label={isExporting ? t('dataExport.preparing') : t('dataExport.button')}
-        />
-        {exportError ? (
-          <Text style={[styles.errorText, { color: tokens.statusBad }]}>
-            {exportError}
-          </Text>
-        ) : null}
-        <ProfileActionButton
-          onPress={() => logout()}
-          label={t('profile.logout')}
-          tone="danger"
-        />
-        <ProfileActionButton
-          onPress={openResetModal}
-          label={t('profile.freshStart.button')}
-          tone="primary"
-        />
-        <ProfileActionButton
-          onPress={openDeleteModal}
-          label={t('profile.deleteAccount.button')}
-          tone="danger"
-          compact
-        />
+        <Animated.View entering={sectionEntrance(5)}>
+          <SectionLabel>{t('profile.sections.accountActions')}</SectionLabel>
+          <ProfileActionButton
+            icon={Download}
+            onPress={() => {
+              void handleExportData()
+            }}
+            label={isExporting ? t('dataExport.preparing') : t('dataExport.button')}
+          />
+          {exportError ? (
+            <Text style={[styles.errorText, { color: tokens.statusBad }]}>
+              {exportError}
+            </Text>
+          ) : null}
+          <ProfileActionButton
+            icon={RotateCcw}
+            onPress={openResetModal}
+            label={t('profile.freshStart.button')}
+          />
+          <ProfileActionButton
+            icon={UserX}
+            onPress={openDeleteModal}
+            label={t('profile.deleteAccount.button')}
+            tone="danger"
+          />
+          <ProfileActionButton
+            icon={LogOut}
+            onPress={() => logout()}
+            label={t('profile.logout')}
+          />
+        </Animated.View>
 
         <View style={{ height: 24 }} />
       </ScrollView>
@@ -576,34 +736,47 @@ export default function ProfileScreen() {
           keyboardVerticalOffset={12}
           showsVerticalScrollIndicator={false}
         >
-          <View
-            style={[
-              styles.modalContent,
-              {
-                backgroundColor: tokens.bgElev,
-                borderTopColor: tokens.hairlineStrong,
-              },
-            ]}
-          >
+          <View style={[styles.modalContent, { backgroundColor: tokens.bgSheet }]}>
+            <View style={[styles.grabber, { backgroundColor: tokens.hairlineStrong }]} />
             <View style={styles.modalHeader}>
               <Text style={[styles.modalTitle, { color: tokens.fg1 }]}>
                 {t('profile.freshStart.title')}
               </Text>
-              <Pressable onPress={() => setShowResetModal(false)} hitSlop={8}>
-                <X size={20} color={tokens.fg3} />
+              <Pressable
+                onPress={() => setShowResetModal(false)}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel={t('common.close')}
+              >
+                <X size={24} color={tokens.fg2} strokeWidth={1.8} />
               </Pressable>
             </View>
 
             {resetStep === 'info' ? (
               <View style={{ gap: 16 }}>
-                <Text style={[styles.modalDescription, { color: tokens.fg2 }]}>
-                  {t('profile.freshStart.description')}
-                </Text>
+                <View style={styles.destructiveHero}>
+                  <View
+                    style={[
+                      styles.destructiveHeroCircle,
+                      { backgroundColor: `${tokens.statusOverdue}24` },
+                    ]}
+                  >
+                    <RotateCcw size={34} color={tokens.statusOverdue} strokeWidth={1.8} />
+                  </View>
+                  <Text
+                    style={[
+                      styles.modalDescription,
+                      { color: tokens.fg2, textAlign: 'center' },
+                    ]}
+                  >
+                    {t('profile.freshStart.description')}
+                  </Text>
+                </View>
 
                 <View
                   style={[
                     styles.freshStartBox,
-                    { borderColor: tokens.hairlineStrong },
+                    { backgroundColor: tokens.bgCard, borderColor: tokens.hairline },
                   ]}
                 >
                   <Text style={[styles.boxLabel, { color: tokens.fg3 }]}>
@@ -611,7 +784,7 @@ export default function ProfileScreen() {
                   </Text>
                   {deletedItems.map((item) => (
                     <View key={item} style={styles.boxItem}>
-                      <X size={14} color={tokens.statusBad} />
+                      <X size={14} color={tokens.statusBad} strokeWidth={1.8} />
                       <Text style={[styles.boxItemText, { color: tokens.fg2 }]}>
                         {item}
                       </Text>
@@ -622,7 +795,7 @@ export default function ProfileScreen() {
                 <View
                   style={[
                     styles.freshStartBox,
-                    { borderColor: tokens.hairlineStrong },
+                    { backgroundColor: tokens.bgCard, borderColor: tokens.hairline },
                   ]}
                 >
                   <Text style={[styles.boxLabel, { color: tokens.fg3 }]}>
@@ -630,7 +803,7 @@ export default function ProfileScreen() {
                   </Text>
                   {preservedItems.map((item) => (
                     <View key={item} style={styles.boxItem}>
-                      <Check size={14} color={tokens.statusDone} />
+                      <Check size={14} color={tokens.statusDone} strokeWidth={1.8} />
                       <Text style={[styles.boxItemText, { color: tokens.fg2 }]}>
                         {item}
                       </Text>
@@ -638,26 +811,19 @@ export default function ProfileScreen() {
                   ))}
                 </View>
 
-                <Pressable
-                  onPress={() => setResetStep('confirm')}
-                  style={({ pressed }) => [
-                    styles.primaryButton,
-                    {
-                      backgroundColor: pressed
-                        ? tokens.primaryPressed
-                        : tokens.primary,
-                    },
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.primaryButtonText,
-                      { color: tokens.fgOnPrimary },
-                    ]}
+                <View style={styles.modalActions}>
+                  <AmberPillButton
+                    label={t('common.continue')}
+                    onPress={() => setResetStep('confirm')}
+                  />
+                  <PillButton
+                    variant="ghost"
+                    fullWidth
+                    onPress={() => setShowResetModal(false)}
                   >
-                    {t('common.continue')}
-                  </Text>
-                </Pressable>
+                    {t('common.cancel')}
+                  </PillButton>
+                </View>
               </View>
             ) : (
               <View style={{ gap: 16 }}>
@@ -670,18 +836,11 @@ export default function ProfileScreen() {
                   {t('profile.freshStart.confirmInstruction')}
                 </Text>
                 <AppTextInput
-                  style={[
-                    styles.confirmInput,
-                    {
-                      backgroundColor: tokens.bgSunk,
-                      color: tokens.fg1,
-                      borderColor: tokens.hairlineStrong,
-                    },
-                  ]}
+                  style={styles.confirmInput}
                   value={resetConfirmText}
                   onChangeText={setResetConfirmText}
                   placeholder={t('profile.freshStart.confirmPlaceholder')}
-                  placeholderTextColor={tokens.fg3}
+                  placeholderTextColor={tokens.fg4}
                   autoCapitalize="characters"
                   autoCorrect={false}
                   textAlign="center"
@@ -691,30 +850,27 @@ export default function ProfileScreen() {
                     {resetError}
                   </Text>
                 ) : null}
-                <Pressable
-                  onPress={handleResetAccount}
-                  disabled={!isResetConfirmed || resetLoading}
-                  style={({ pressed }) => [
-                    styles.primaryButton,
-                    {
-                      backgroundColor: pressed
-                        ? tokens.primaryPressed
-                        : tokens.primary,
-                    },
-                    (!isResetConfirmed || resetLoading) && styles.buttonDisabled,
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.primaryButtonText,
-                      { color: tokens.fgOnPrimary },
-                    ]}
+                <View style={styles.modalActions}>
+                  <AmberPillButton
+                    label={
+                      resetLoading
+                        ? t('profile.freshStart.processing')
+                        : t('profile.freshStart.confirmButton')
+                    }
+                    disabled={!isResetConfirmed || resetLoading}
+                    onPress={() => {
+                      void handleResetAccount()
+                    }}
+                  />
+                  <PillButton
+                    variant="ghost"
+                    fullWidth
+                    disabled={resetLoading}
+                    onPress={() => setShowResetModal(false)}
                   >
-                    {resetLoading
-                      ? t('profile.freshStart.processing')
-                      : t('profile.freshStart.confirmButton')}
-                  </Text>
-                </Pressable>
+                    {t('common.cancel')}
+                  </PillButton>
+                </View>
               </View>
             )}
           </View>
@@ -742,21 +898,19 @@ export default function ProfileScreen() {
           keyboardVerticalOffset={12}
           showsVerticalScrollIndicator={false}
         >
-          <View
-            style={[
-              styles.modalContent,
-              {
-                backgroundColor: tokens.bgElev,
-                borderTopColor: tokens.hairlineStrong,
-              },
-            ]}
-          >
+          <View style={[styles.modalContent, { backgroundColor: tokens.bgSheet }]}>
+            <View style={[styles.grabber, { backgroundColor: tokens.hairlineStrong }]} />
             <View style={styles.modalHeader}>
               <Text style={[styles.modalTitle, { color: tokens.fg1 }]}>
                 {t('profile.deleteAccount.title')}
               </Text>
-              <Pressable onPress={() => setShowDeleteModal(false)} hitSlop={8}>
-                <X size={20} color={tokens.fg3} />
+              <Pressable
+                onPress={() => setShowDeleteModal(false)}
+                hitSlop={8}
+                accessibilityRole="button"
+                accessibilityLabel={t('common.close')}
+              >
+                <X size={24} color={tokens.fg2} strokeWidth={1.8} />
               </Pressable>
             </View>
 
@@ -768,48 +922,54 @@ export default function ProfileScreen() {
               />
             ) : deleteStep === 'confirm' ? (
               <View style={{ gap: 16 }}>
-                <View
-                  style={[
-                    styles.freshStartBox,
-                    { borderColor: tokens.hairlineStrong },
-                  ]}
-                >
-                  <Text style={[styles.boxLabel, { color: tokens.statusBad }]}>
-                    {profile?.hasProAccess
-                      ? t('profile.deleteAccount.warningPro', {
-                          date: profile.planExpiresAt
-                            ? displayDate(parseISO(profile.planExpiresAt))
-                            : '',
-                        })
-                      : t('profile.deleteAccount.warningFree')}
-                  </Text>
-                  <Text style={[styles.boxItemText, { color: tokens.fg3 }]}>
-                    {t('profile.deleteAccount.warningDetail')}
-                  </Text>
+                <View style={styles.destructiveHero}>
+                  <View
+                    style={[
+                      styles.destructiveHeroCircle,
+                      { backgroundColor: `${tokens.statusBad}24` },
+                    ]}
+                  >
+                    <TriangleAlert size={34} color={tokens.statusBad} strokeWidth={1.8} />
+                  </View>
+                  <View style={styles.destructiveHeroBody}>
+                    <Text style={[styles.deleteWarningTitle, { color: tokens.fg1 }]}>
+                      {profile?.hasProAccess && profile.planExpiresAt
+                        ? t('profile.deleteAccount.warningPro', {
+                            date: displayDate(parseISO(profile.planExpiresAt)),
+                          })
+                        : t('profile.deleteAccount.warningFree')}
+                    </Text>
+                    <Text style={[styles.deleteWarningDetail, { color: tokens.fg2 }]}>
+                      {t('profile.deleteAccount.warningDetail')}
+                    </Text>
+                  </View>
                 </View>
                 {deleteError ? (
                   <Text style={[styles.errorTextSmall, { color: tokens.statusBad }]}>
                     {deleteError}
                   </Text>
                 ) : null}
-                <Pressable
-                  onPress={handleRequestDeletion}
-                  disabled={deleteLoading}
-                  style={({ pressed }) => [
-                    styles.dangerButton,
-                    {
-                      borderColor: tokens.hairline,
-                      backgroundColor: pressed ? tokens.bgElevPressed : 'transparent',
-                    },
-                    deleteLoading && styles.buttonDisabled,
-                  ]}
-                >
-                  <Text style={[styles.dangerButtonText, { color: tokens.statusBad }]}>
-                    {deleteLoading
-                      ? t('profile.deleteAccount.sending')
-                      : t('profile.deleteAccount.sendCode')}
-                  </Text>
-                </Pressable>
+                <View style={styles.modalActions}>
+                  <DangerPillButton
+                    label={
+                      deleteLoading
+                        ? t('profile.deleteAccount.sending')
+                        : t('profile.deleteAccount.sendCode')
+                    }
+                    disabled={deleteLoading}
+                    onPress={() => {
+                      void handleRequestDeletion()
+                    }}
+                  />
+                  <PillButton
+                    variant="ghost"
+                    fullWidth
+                    disabled={deleteLoading}
+                    onPress={() => setShowDeleteModal(false)}
+                  >
+                    {t('common.cancel')}
+                  </PillButton>
+                </View>
               </View>
             ) : deleteStep === 'code' ? (
               <View style={{ gap: 16 }}>
@@ -828,14 +988,7 @@ export default function ProfileScreen() {
                       ref={(node) => {
                         deleteCodeRefs.current[index] = node
                       }}
-                      style={[
-                        styles.deleteCodeInput,
-                        {
-                          backgroundColor: tokens.bgSunk,
-                          color: tokens.fg1,
-                          borderColor: tokens.hairlineStrong,
-                        },
-                      ]}
+                      style={styles.deleteCodeInput}
                       value={digit}
                       onChangeText={(text) => setDeleteCodeValue(index, text)}
                       onKeyPress={({ nativeEvent }) =>
@@ -846,7 +999,7 @@ export default function ProfileScreen() {
                       autoComplete="one-time-code"
                       maxLength={1}
                       placeholder="0"
-                      placeholderTextColor={tokens.fg3}
+                      placeholderTextColor={tokens.fg4}
                       textAlign="center"
                     />
                   ))}
@@ -856,25 +1009,27 @@ export default function ProfileScreen() {
                     {deleteError}
                   </Text>
                 ) : null}
-                <Pressable
-                  onPress={handleConfirmDeletion}
-                  disabled={deleteLoading || deleteCodeDigits.join('').length !== 6}
-                  style={({ pressed }) => [
-                    styles.dangerButton,
-                    {
-                      borderColor: tokens.hairline,
-                      backgroundColor: pressed ? tokens.bgElevPressed : 'transparent',
-                    },
-                    (deleteLoading || deleteCodeDigits.join('').length !== 6) &&
-                      styles.buttonDisabled,
-                  ]}
-                >
-                  <Text style={[styles.dangerButtonText, { color: tokens.statusBad }]}>
-                    {deleteLoading
-                      ? t('profile.deleteAccount.deleting')
-                      : t('profile.deleteAccount.confirmDelete')}
-                  </Text>
-                </Pressable>
+                <View style={styles.modalActions}>
+                  <DangerPillButton
+                    label={
+                      deleteLoading
+                        ? t('profile.deleteAccount.deleting')
+                        : t('profile.deleteAccount.confirmDelete')
+                    }
+                    disabled={deleteLoading || deleteCodeDigits.join('').length !== 6}
+                    onPress={() => {
+                      void handleConfirmDeletion()
+                    }}
+                  />
+                  <PillButton
+                    variant="ghost"
+                    fullWidth
+                    disabled={deleteLoading}
+                    onPress={backToDeleteConfirmStep}
+                  >
+                    {t('common.back')}
+                  </PillButton>
+                </View>
               </View>
             ) : (
               <View style={{ gap: 16 }}>
@@ -882,7 +1037,8 @@ export default function ProfileScreen() {
                   style={[
                     styles.freshStartBox,
                     {
-                      borderColor: tokens.hairlineStrong,
+                      backgroundColor: tokens.bgCard,
+                      borderColor: tokens.hairline,
                       alignItems: 'center',
                     },
                   ]}
@@ -903,20 +1059,11 @@ export default function ProfileScreen() {
                     })}
                   </Text>
                 </View>
-                <Pressable
-                  onPress={() => logout()}
-                  style={({ pressed }) => [
-                    styles.secondaryButton,
-                    {
-                      backgroundColor: pressed ? tokens.bgSunk : tokens.bgElev,
-                      borderColor: tokens.hairlineStrong,
-                    },
-                  ]}
-                >
-                  <Text style={[styles.secondaryButtonText, { color: tokens.fg1 }]}>
+                <View style={styles.modalActions}>
+                  <PillButton fullWidth onPress={() => logout()}>
                     {t('profile.logout')}
-                  </Text>
-                </Pressable>
+                  </PillButton>
+                </View>
               </View>
             )}
           </View>
@@ -935,73 +1082,61 @@ function createStyles(_tokens: Tokens) {
     },
 
     errorText: {
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_400Regular',
       fontSize: 13,
       textAlign: 'center',
       marginVertical: 12,
     },
 
-    userBlock: {
-      paddingHorizontal: 20,
-      paddingVertical: 18,
-      gap: 8,
-    },
-    groupWrap: {
-      paddingHorizontal: 20,
-    },
-    userRow: {
-      flexDirection: 'row',
+    identityBlock: {
       alignItems: 'center',
-      gap: 14,
+      paddingHorizontal: 20,
+      paddingTop: 18,
+      gap: 6,
     },
-    avatar: {
-      width: 44,
-      height: 44,
-      borderRadius: 999,
-      alignItems: 'center',
-      justifyContent: 'center',
+    planBadge: {
+      alignSelf: 'center',
     },
-    avatarText: {
-      fontFamily: 'Geist',
+    identityName: {
+      fontFamily: 'Rubik_500Medium',
+      fontSize: 32,
+      letterSpacing: -0.32,
+      lineHeight: 38,
+      maxWidth: '100%',
+    },
+    identityLine: {
+      fontFamily: 'Rubik_400Regular',
       fontSize: 16,
-      fontWeight: '600',
-    },
-    userTexts: {
-      flex: 1,
-      gap: 2,
-    },
-    userName: {
-      fontFamily: 'Geist',
-      fontSize: 17,
-      fontWeight: '600',
-    },
-    userEmail: {
-      fontFamily: 'Geist',
-      fontSize: 13,
+      maxWidth: '100%',
     },
     skeleton: {
       borderRadius: 4,
     },
 
-    streakTrailing: {
+    statRow: {
       flexDirection: 'row',
-      alignItems: 'center',
-      gap: 10,
+      gap: 14,
+      paddingHorizontal: 20,
+      marginTop: 24,
     },
-    streakCount: {
-      fontFamily: 'GeistMono',
-      fontSize: 16,
-      fontWeight: '600',
-      fontVariant: ['tabular-nums'],
+    statTileWrap: {
+      flex: 1,
     },
-    streakDays: {
-      fontFamily: 'Geist',
-      fontSize: 13,
+    statPressable: {
+      flexDirection: 'row',
+    },
+    statPressed: {
+      transform: [{ scale: 0.99 }],
+      opacity: 0.92,
+    },
+
+    groupWrap: {
+      paddingHorizontal: 20,
     },
 
     modalOverlay: {
       flex: 1,
-      backgroundColor: 'rgba(0,0,0,0.58)',
+      backgroundColor: 'rgba(0,0,0,0.55)',
       justifyContent: 'flex-end',
     },
     modalScrollContent: {
@@ -1010,42 +1145,52 @@ function createStyles(_tokens: Tokens) {
       paddingTop: 24,
     },
     modalContent: {
-      borderTopLeftRadius: 18,
-      borderTopRightRadius: 18,
-      borderTopWidth: StyleSheet.hairlineWidth,
-      padding: 24,
+      borderTopLeftRadius: 26,
+      borderTopRightRadius: 26,
+      paddingHorizontal: 22,
+      paddingTop: 12,
       paddingBottom: 40,
-      maxHeight: '88%',
+    },
+    grabber: {
+      alignSelf: 'center',
+      width: 44,
+      height: 5,
+      borderRadius: 999,
+      marginBottom: 14,
     },
     modalHeader: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
+      gap: 16,
       marginBottom: 20,
     },
     modalTitle: {
-      fontFamily: 'Geist',
-      fontSize: 17,
-      fontWeight: '600',
-      letterSpacing: -0.17,
+      flex: 1,
+      fontFamily: 'Rubik_500Medium',
+      fontSize: 24,
     },
     modalDescription: {
-      fontFamily: 'Geist',
-      fontSize: 14,
-      lineHeight: 21,
+      fontFamily: 'Rubik_400Regular',
+      fontSize: 15,
+      lineHeight: 23,
+    },
+    modalActions: {
+      gap: 12,
+      paddingTop: 8,
     },
 
     freshStartBox: {
-      borderWidth: StyleSheet.hairlineWidth,
-      borderRadius: 8,
+      borderWidth: 1,
+      borderRadius: 16,
       padding: 16,
       gap: 8,
     },
     boxLabel: {
-      fontFamily: 'GeistMono',
-      fontSize: 11,
-      fontWeight: '600',
-      letterSpacing: 0.55,
+      fontFamily: 'Rubik_500Medium',
+      fontSize: 12,
+      letterSpacing: 0.96,
+      textTransform: 'uppercase',
     },
     boxItem: {
       flexDirection: 'row',
@@ -1053,70 +1198,61 @@ function createStyles(_tokens: Tokens) {
       gap: 8,
     },
     boxItemText: {
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_400Regular',
       fontSize: 13,
+      lineHeight: 18,
       flex: 1,
     },
 
-    primaryButton: {
-      borderRadius: 8,
-      paddingVertical: 12,
+    destructiveHero: {
+      alignItems: 'center',
+      gap: 16,
+      paddingTop: 4,
+    },
+    destructiveHeroCircle: {
+      width: 80,
+      height: 80,
+      borderRadius: 999,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    destructiveHeroBody: {
       alignItems: 'center',
     },
-    primaryButtonText: {
-      fontFamily: 'Geist',
-      fontSize: 14,
-      fontWeight: '500',
+    deleteWarningTitle: {
+      fontFamily: 'Rubik_500Medium',
+      fontSize: 15,
+      lineHeight: 22,
+      textAlign: 'center',
     },
-    dangerButton: {
-      borderRadius: 8,
-      paddingVertical: 12,
-      alignItems: 'center',
-      borderWidth: 1,
+    deleteWarningDetail: {
+      fontFamily: 'Rubik_400Regular',
+      fontSize: 15,
+      lineHeight: 22,
+      marginTop: 6,
+      textAlign: 'center',
     },
-    dangerButtonText: {
-      fontFamily: 'Geist',
-      fontSize: 14,
-      fontWeight: '500',
-    },
-    secondaryButton: {
-      borderRadius: 8,
-      paddingVertical: 12,
-      alignItems: 'center',
-      borderWidth: StyleSheet.hairlineWidth,
-    },
-    secondaryButtonText: {
-      fontFamily: 'Geist',
-      fontSize: 14,
-      fontWeight: '500',
-    },
-    buttonDisabled: { opacity: 0.5 },
 
     confirmInput: {
-      borderRadius: 8,
-      paddingHorizontal: 16,
-      paddingVertical: 12,
-      fontFamily: 'GeistMono',
+      fontFamily: 'Roboto_500Medium',
       fontSize: 16,
-      fontWeight: '500',
-      borderWidth: StyleSheet.hairlineWidth,
     },
     deleteCodeRow: {
       flexDirection: 'row',
       justifyContent: 'center',
-      gap: 8,
+      gap: 10,
     },
     deleteCodeInput: {
-      width: 44,
-      height: 52,
-      borderRadius: 8,
-      borderWidth: StyleSheet.hairlineWidth,
-      fontFamily: 'GeistMono',
-      fontSize: 18,
-      fontWeight: '500',
+      width: 48,
+      height: 58,
+      borderRadius: 14,
+      paddingHorizontal: 0,
+      paddingVertical: 0,
+      fontFamily: 'Roboto_500Medium',
+      fontSize: 26,
     },
     errorTextSmall: {
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_400Regular',
       fontSize: 12,
       textAlign: 'center',
     },

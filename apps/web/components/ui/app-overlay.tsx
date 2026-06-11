@@ -227,8 +227,8 @@ export function AppOverlay({
   const hasTitle = !!(title || titleContent)
   const linkedDescription = description ? linkifyText(description) : ''
   const bodyPaddingClass = footer
-    ? 'px-6 pb-0'
-    : 'px-6 pb-[calc(1rem+var(--safe-bottom))] sm:pb-4'
+    ? 'px-[22px] sm:px-7 pt-2 pb-3'
+    : 'px-[22px] sm:px-7 pt-2 pb-[calc(0.75rem+var(--safe-bottom))] sm:pb-4'
 
   const overlay = (
     <AnimatePresence>
@@ -238,7 +238,7 @@ export function AppOverlay({
         >
           <motion.button
             type="button"
-            className="absolute inset-0 bg-black/65 cursor-default"
+            className="absolute inset-0 bg-black/55 cursor-default"
             aria-label={t('common.close')}
             tabIndex={-1}
             onPointerDown={handlePointerDown}
@@ -266,7 +266,7 @@ export function AppOverlay({
             aria-modal="true"
             aria-labelledby={hasTitle ? titleId : undefined}
             aria-describedby={description ? descriptionId : undefined}
-            className="relative w-full sm:max-w-lg max-h-[90dvh] overflow-clip rounded-t-[12px] border-t border-[var(--hairline)] bg-[var(--bg-elev)] shadow-[0_12px_40px_rgba(0,0,0,0.35)] sm:rounded-[12px] sm:border sm:border-[var(--hairline)] flex flex-col overscroll-contain"
+            className="relative w-full sm:max-w-lg max-h-[82dvh] overflow-clip rounded-t-[26px] bg-[var(--bg-sheet)] shadow-[0_-16px_44px_rgba(0,0,0,0.5)] sm:rounded-[20px] sm:shadow-[var(--shadow-3)] flex flex-col overscroll-contain"
             initial={{
               opacity: 0,
               y: motionPreset.shift,
@@ -291,16 +291,16 @@ export function AppOverlay({
               },
             }}
           >
-            <div className="flex justify-center pt-3 pb-2 sm:hidden">
-              <div className="h-1 w-10 rounded-full bg-[var(--hairline-strong)]" />
+            <div className="flex justify-center pt-3 pb-1 sm:hidden">
+              <div className="h-[5px] w-11 rounded-full bg-[var(--hairline-strong)]" />
             </div>
 
             {hasTitle && (
-              <div className="flex items-start justify-between px-6 py-4">
+              <div className="flex items-start justify-between px-[22px] sm:px-7 pt-4 pb-2">
                 <div className="flex-1 min-w-0">
                   <h2
                     id={titleId}
-                    className="font-extrabold text-[length:var(--text-fluid-2xl)] text-[var(--fg-1)] tracking-tight"
+                    className="text-[24px] font-medium leading-snug text-[var(--fg-1)]"
                   >
                     {titleContent || title}
                   </h2>
@@ -325,11 +325,11 @@ export function AppOverlay({
                 </div>
                 {dismissible && (
                   <button
-                    className="shrink-0 size-9 rounded-full border border-[var(--hairline)] bg-[var(--bg-sunk)] flex items-center justify-center text-[var(--fg-2)] hover:text-[var(--fg-1)] transition-[background-color,border-color,color,transform] duration-150 ml-4 active:scale-[var(--orbit-press-scale)]"
+                    className="shrink-0 size-11 rounded-full flex items-center justify-center text-[var(--fg-2)] hover:text-[var(--fg-1)] ml-2 -mr-2.5 -mt-2"
                     aria-label={t('common.close')}
                     onClick={() => requestClose('close-button')}
                   >
-                    <X className="size-3" />
+                    <X className="size-6" strokeWidth={1.8} />
                   </button>
                 )}
               </div>
@@ -338,7 +338,7 @@ export function AppOverlay({
             {children && (
               <div
                 data-slot="overlay-body"
-                className={`flex-1 overflow-y-auto overscroll-contain ${bodyPaddingClass}`}
+                className={`flex-1 overflow-y-auto overflow-x-hidden overscroll-contain ${bodyPaddingClass}`}
               >
                 {children}
               </div>
@@ -347,7 +347,7 @@ export function AppOverlay({
             {footer && (
               <div
                 data-slot="overlay-footer"
-                className="px-6 pt-5 pb-[calc(1.25rem+var(--safe-bottom))] sm:pb-6 border-t border-[var(--hairline)] bg-[var(--bg-elev)]"
+                className="shrink-0 px-[18px] sm:px-7 pt-3 pb-[calc(1.25rem+var(--safe-bottom))] sm:pb-6"
               >
                 {footer}
               </div>

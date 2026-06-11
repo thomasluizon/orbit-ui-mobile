@@ -1,31 +1,38 @@
 import { Pressable, StyleSheet } from 'react-native'
-import { Sun, Moon } from 'lucide-react-native'
+import { Moon, Sun } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
-/** v8 icon button: 36x36, transparent, fg-2 icon. */
+/** Header circle button bound to the theme mode: moon in dark, sun in light. */
 export function ThemeToggle() {
   const { t } = useTranslation()
-  const { currentTheme, toggleTheme, currentScheme } = useAppTheme()
+  const { currentScheme, currentTheme, toggleTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const isDark = currentTheme === 'dark'
 
   return (
     <Pressable
+      onPress={toggleTheme}
       accessibilityRole="button"
       accessibilityLabel={
         isDark
           ? t('settings.theme.switchToLight')
           : t('settings.theme.switchToDark')
       }
-      onPress={toggleTheme}
-      style={styles.button}
+      style={({ pressed }) => [
+        styles.button,
+        {
+          backgroundColor: pressed ? tokens.bgElev2 : tokens.bgElev,
+          borderColor: tokens.hairlineStrong,
+        },
+        pressed ? styles.pressed : null,
+      ]}
     >
       {isDark ? (
-        <Sun size={17} color={tokens.fg2} strokeWidth={1.5} />
+        <Moon size={20} color={tokens.fg1} strokeWidth={1.8} />
       ) : (
-        <Moon size={17} color={tokens.fg2} strokeWidth={1.5} />
+        <Sun size={20} color={tokens.fg1} strokeWidth={1.8} />
       )}
     </Pressable>
   )
@@ -33,10 +40,14 @@ export function ThemeToggle() {
 
 const styles = StyleSheet.create({
   button: {
-    width: 36,
-    height: 36,
-    borderRadius: 8,
+    width: 40,
+    height: 40,
+    borderRadius: 999,
+    borderWidth: 1.5,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  pressed: {
+    transform: [{ scale: 0.92 }],
   },
 })

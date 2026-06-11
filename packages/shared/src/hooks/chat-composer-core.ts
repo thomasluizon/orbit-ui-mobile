@@ -147,7 +147,7 @@ export function classifySendFailure(input: SendFailureInput): SendFailureClassif
  * surface its reason and route the user to the upgrade screen.
  */
 export function findPremiumPolicyDenial(
-  denials: readonly AgentPolicyDenial[] | undefined,
+  denials: readonly AgentPolicyDenial[] | null | undefined,
 ): AgentPolicyDenial | undefined {
   return denials?.find((denial) => resolveUpgradeEntitlementFromPolicyDenial(denial).shouldUpgrade)
 }

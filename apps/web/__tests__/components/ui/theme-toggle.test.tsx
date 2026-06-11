@@ -18,7 +18,7 @@ vi.mock('@/hooks/use-color-scheme', () => ({
 import { ThemeToggle } from '@/components/ui/theme-toggle'
 
 describe('ThemeToggle', () => {
-  it('renders the toggle button', () => {
+  it('renders the theme toggle button', () => {
     mockTheme = 'dark'
     render(<ThemeToggle />)
     expect(screen.getByRole('button')).toBeInTheDocument()
@@ -42,11 +42,5 @@ describe('ThemeToggle', () => {
     render(<ThemeToggle />)
     fireEvent.click(screen.getByRole('button'))
     expect(mockToggle).toHaveBeenCalled()
-  })
-
-  it('renders exactly one icon for the current theme', () => {
-    mockTheme = 'dark'
-    const { container } = render(<ThemeToggle />)
-    expect(container.querySelectorAll('svg').length).toBe(1)
   })
 })

@@ -1,5 +1,5 @@
-import { useMemo } from 'react'
-import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { useEffect, useMemo } from 'react'
+import { Animated, Pressable, StyleSheet, Text, View } from 'react-native'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { profileKeys } from '@orbit/shared/query'
@@ -8,7 +8,8 @@ import { ONBOARDING_WEEK_START_OPTIONS } from '@orbit/shared/utils/onboarding'
 import { useProfile, useHasProAccess } from '@/hooks/use-profile'
 import { API } from '@orbit/shared/api'
 import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
-import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
+import { createTokensV2, tintFromPrimary, type AppTokensV2 } from '@/lib/theme'
+import { usePrefersReducedMotion } from '@/lib/motion'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { Chip } from '@/components/ui/chip'
 import { AppLogo } from '@/components/ui/app-logo'
@@ -19,8 +20,8 @@ interface OnboardingProfileState {
 }
 
 /**
- * v8 Welcome step: Saturn dropcap + 3-line manifesto, week-start chips,
- * scheme swatches. Pure visual rewrite -- preserves the week-start mutation.
+ * ob-1 Welcome step: tinted hero disc + logo, week-start chips, scheme
+ * swatches. Pure visual rewrite -- preserves the week-start mutation.
  */
 export function OnboardingWelcome() {
   const { t } = useTranslation()
@@ -33,6 +34,24 @@ export function OnboardingWelcome() {
     [currentScheme, currentTheme],
   )
   const styles = useMemo(() => createStyles(tokens), [tokens])
+  const prefersReducedMotion = usePrefersReducedMotion()
+  const heroScale = useMemo(() => new Animated.Value(0), [])
+
+  useEffect(() => {
+    if (prefersReducedMotion) {
+      heroScale.setValue(1)
+      return
+    }
+    const animation = Animated.spring(heroScale, {
+      toValue: 1,
+      stiffness: 220,
+      damping: 22,
+      mass: 1,
+      useNativeDriver: true,
+    })
+    animation.start()
+    return () => animation.stop()
+  }, [heroScale, prefersReducedMotion])
 
   const selectedScheme =
     (profile as OnboardingProfileState | null)?.colorScheme ?? 'purple'
@@ -83,9 +102,24 @@ export function OnboardingWelcome() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.brandingHeader}>
-        <AppLogo size={48} />
-      </View>
+      <Animated.View
+        style={[
+          styles.heroDisc,
+          {
+            opacity: heroScale,
+            transform: [
+              {
+                scale: heroScale.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0.3, 1],
+                }),
+              },
+            ],
+          },
+        ]}
+      >
+        <AppLogo size={56} />
+      </Animated.View>
 
       <Text style={styles.title}>{t('onboarding.flow.welcome.title')}</Text>
       <Text style={styles.subtitle}>
@@ -146,32 +180,37 @@ function createStyles(tokens: AppTokensV2) {
       paddingTop: 14,
       paddingBottom: 24,
     },
-    brandingHeader: {
+    heroDisc: {
+      width: 116,
+      height: 116,
+      borderRadius: 999,
+      backgroundColor: tintFromPrimary(tokens, 0.14),
       alignItems: 'center',
-      paddingTop: 14,
-      paddingBottom: 8,
+      justifyContent: 'center',
+      marginBottom: 6,
     },
     title: {
-      fontFamily: 'Geist',
-      fontSize: 24,
-      fontWeight: '600',
-      letterSpacing: -0.48,
-      lineHeight: 28,
+      fontFamily: 'Rubik_500Medium',
+      fontSize: 28,
+      letterSpacing: -0.28,
+      lineHeight: 32,
       color: tokens.fg1,
       textAlign: 'center',
     },
     subtitle: {
-      fontFamily: 'Geist',
-      fontSize: 14,
-      lineHeight: 21,
+      fontFamily: 'Rubik_400Regular',
+      fontSize: 16,
+      lineHeight: 25,
       color: tokens.fg2,
       textAlign: 'center',
       paddingHorizontal: 12,
+      maxWidth: 300,
     },
     sectionLabel: {
-      fontFamily: 'Geist',
-      fontSize: 13,
-      fontWeight: '600',
+      fontFamily: 'Rubik_500Medium',
+      fontSize: 12,
+      letterSpacing: 0.96,
+      textTransform: 'uppercase',
       color: tokens.fg3,
       marginTop: 16,
       alignSelf: 'center',

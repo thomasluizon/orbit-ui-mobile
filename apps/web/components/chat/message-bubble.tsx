@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { Orbit, User, ArrowUpRight } from 'lucide-react'
+import { Sparkles, ArrowUpRight } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
 import type { ChatMessage } from '@orbit/shared/types/chat'
@@ -85,38 +85,53 @@ export function MessageBubble({
 
   return (
     <div
-      className={`flex gap-3 ${isUser ? 'justify-end' : 'justify-start'}`}
+      className={`animate-msg-in flex ${isUser ? 'justify-end' : 'justify-start'}`}
+      style={{ gap: 10, padding: '0 16px', marginBottom: 16 }}
       aria-label={isUser ? t('chat.senderYou') : t('chat.senderOrbit')}
     >
       {!isUser && (
         <div
-          className="shrink-0 size-10 rounded-full bg-[var(--bg-elev)] border border-[var(--hairline-strong)] flex items-center justify-center self-end"
+          data-slot="ai-avatar"
+          className="shrink-0 rounded-full flex items-center justify-center self-start"
+          style={{
+            width: 30,
+            height: 30,
+            background: 'rgba(var(--primary-rgb), 0.18)',
+          }}
           aria-hidden="true"
         >
-          <Orbit className="size-5 text-[var(--primary)]" />
+          <Sparkles size={16} strokeWidth={1.8} color="var(--primary-soft)" />
         </div>
       )}
 
       <div
-        className={`max-w-[70%] flex flex-col ${isUser ? 'items-end' : 'items-start'}`}
+        className={
+          isUser
+            ? 'max-w-[82%] flex flex-col items-end'
+            : 'flex-1 min-w-0 flex flex-col items-start'
+        }
       >
-        <span className="text-[11px] font-medium text-[var(--fg-2)] mb-1 px-2">
+        <span className="sr-only">
           {isUser ? t('chat.senderYou') : t('chat.senderOrbit')}
         </span>
 
         <div
           data-bubble-role={isUser ? 'user' : 'ai'}
-          className={`px-4 py-3 text-sm ${
+          className={
             isUser
-              ? 'bg-[var(--primary)] text-[var(--fg-on-primary)] rounded-[12px] rounded-br-[4px]'
-              : 'bg-[var(--bg-elev)] text-[var(--fg-1)] rounded-[12px] rounded-bl-[4px]'
-          }`}
+              ? 'bg-[var(--primary)] text-[var(--fg-on-primary)]'
+              : 'inline-block max-w-full bg-[var(--bg-elev)] text-[var(--fg-1)]'
+          }
+          style={{
+            padding: '12px 15px',
+            borderRadius: isUser ? '18px 4px 18px 18px' : '4px 18px 18px 18px',
+          }}
         >
           {message.imageUrl && (
             <LocalImage
               src={message.imageUrl}
               alt={t('chat.attachmentPreview')}
-              className="rounded-xl max-h-48 mb-2"
+              className="rounded-[12px] max-h-48 mb-2"
             />
           )}
           <Markdown content={message.content ?? ''} />
@@ -124,7 +139,17 @@ export function MessageBubble({
 
         {!isUser && relatedSurfaces.length > 0 && (
           <div className="mt-2 w-full">
-            <span className="block text-[11px] font-medium text-[var(--fg-2)] mb-1.5 px-1">
+            <span
+              className="block"
+              style={{
+                fontFamily: 'var(--font-sans)',
+                fontSize: 11,
+                fontWeight: 500,
+                color: 'var(--fg-3)',
+                marginBottom: 6,
+                paddingLeft: 4,
+              }}
+            >
               {t('chat.related.title')}
             </span>
             <div className="flex flex-wrap gap-2">
@@ -133,10 +158,10 @@ export function MessageBubble({
                   key={surface.id}
                   type="button"
                   onClick={() => router.push(surface.webRoute)}
-                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-semibold border border-[var(--hairline)] bg-[var(--bg-elev)] text-[var(--fg-2)] hover:text-[var(--fg-1)] hover:scale-[1.02] transition-[background-color,border-color,color,transform] duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60"
+                  className="chip focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]/60"
                 >
                   {t(surface.labelKey)}
-                  <ArrowUpRight className="size-2.5" />
+                  <ArrowUpRight size={16} strokeWidth={1.8} color="var(--fg-3)" />
                 </button>
               ))}
             </div>
@@ -198,15 +223,24 @@ export function MessageBubble({
               return (
                 <div
                   key={`${denial.operationId}-${denial.pendingOperationId ?? denial.reason}`}
-                  className="rounded-[12px] border border-[var(--status-bad)]/20 bg-[var(--status-bad)]/8 px-3 py-2"
+                  className="rounded-[16px] px-3 py-2"
+                  style={{
+                    background: 'color-mix(in srgb, var(--status-bad) 8%, transparent)',
+                    boxShadow:
+                      'inset 0 0 0 1px color-mix(in srgb, var(--status-bad) 20%, transparent)',
+                  }}
                 >
-                  <p className="text-xs font-medium text-[var(--status-bad)]">{denial.sourceName}</p>
-                  <p className="mt-1 text-[11px] text-[var(--status-bad)]/90">{denial.reason}</p>
+                  <p className="text-xs font-medium text-[var(--status-bad)]">
+                    {upgradeResolution.shouldUpgrade ? t('chat.proGate.title') : denial.sourceName}
+                  </p>
+                  <p className="mt-1 text-[11px] text-[var(--status-bad)]/90">
+                    {upgradeResolution.shouldUpgrade ? t('chat.proGate.body') : denial.reason}
+                  </p>
                   {upgradeResolution.shouldUpgrade && onUpgradeClick && (
                     <button
                       type="button"
                       onClick={onUpgradeClick}
-                      className="mt-3 inline-flex items-center rounded-full bg-[var(--primary)] px-3 py-1.5 text-[11px] font-semibold text-white transition-colors hover:bg-[var(--primary-pressed)]"
+                      className="mt-3 inline-flex items-center rounded-full bg-[var(--primary)] px-3 py-1.5 text-[11px] font-semibold text-[var(--fg-on-primary)] transition-colors hover:bg-[var(--primary-pressed)]"
                     >
                       {t('upgrade.subscribe')}
                     </button>
@@ -217,15 +251,6 @@ export function MessageBubble({
           </div>
         )}
       </div>
-
-      {isUser && (
-        <div
-          className="shrink-0 size-10 rounded-full border-2 border-[var(--hairline-strong)] bg-[var(--bg-elev)] flex items-center justify-center self-end"
-          aria-hidden="true"
-        >
-          <User className="size-5 text-[var(--fg-2)]" />
-        </div>
-      )}
     </div>
   )
 }

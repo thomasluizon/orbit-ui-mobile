@@ -1,8 +1,10 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import type { LucideIcon } from 'lucide-react'
+import { Repeat, type LucideIcon } from 'lucide-react'
 import type { Goal } from '@orbit/shared/types/goal'
+import { FieldInput } from '@/components/ui/field-input'
+import { PillButton } from '@/components/ui/pill-button'
 import { SectionLabel } from '@/components/ui/section-label'
 
 interface GoalProgressHistoryEntry {
@@ -25,7 +27,7 @@ interface GoalProgressHistorySectionProps {
 const HISTORY_PREVIEW_COUNT = 3
 
 /** Flush list of progress history entries: mono date right-aligned, change label
- *  in mono, optional italic note. */
+ *  in mono, optional note. */
 export function GoalProgressHistorySection({
   title,
   entries,
@@ -63,7 +65,7 @@ export function GoalProgressHistorySection({
           <div className="flex items-center justify-between">
             <span
               style={{
-                fontFamily: 'var(--font-family-mono)',
+                fontFamily: 'var(--font-mono)',
                 fontSize: 11,
                 color: 'var(--fg-3)',
                 fontVariantNumeric: 'tabular-nums',
@@ -73,7 +75,7 @@ export function GoalProgressHistorySection({
             </span>
             <span
               style={{
-                fontFamily: 'var(--font-family-mono)',
+                fontFamily: 'var(--font-mono)',
                 fontSize: 12,
                 fontWeight: 500,
                 color: 'var(--fg-1)',
@@ -86,9 +88,8 @@ export function GoalProgressHistorySection({
           {entry.note && (
             <div
               style={{
-                fontFamily: 'var(--font-family-sans)',
+                fontFamily: 'var(--font-sans)',
                 fontSize: 13,
-                fontStyle: 'italic',
                 color: 'var(--fg-2)',
               }}
             >
@@ -103,7 +104,7 @@ export function GoalProgressHistorySection({
             type="button"
             className="appearance-none border-0 bg-transparent cursor-pointer"
             style={{
-              fontFamily: 'var(--font-family-sans)',
+              fontFamily: 'var(--font-sans)',
               fontSize: 13,
               fontWeight: 500,
               color: 'var(--fg-1)',
@@ -139,7 +140,7 @@ interface GoalProgressFormProps {
 }
 
 /** Inline progress-update form rendered in-place inside the GoalDetailDrawer.
- *  Underlined inputs with mono numerals. */
+ *  Kit field wells with a pill footer. */
 export function GoalProgressForm({
   progressValue,
   progressNote,
@@ -160,16 +161,17 @@ export function GoalProgressForm({
     <div
       className="flex flex-col"
       style={{
-        padding: '12px 20px',
+        padding: '12px 20px 16px',
         borderBottom: '1px solid var(--hairline)',
-        gap: 10,
+        gap: 14,
       }}
     >
-      <UnderlinedInputField
+      <FieldInput
         label={labelValue}
         type="number"
+        inputMode="decimal"
         mono
-        value={progressValue ?? ''}
+        value={progressValue === null ? '' : String(progressValue)}
         onChange={(raw) =>
           onProgressValueChange(raw === '' ? null : Number(raw))
         }
@@ -177,110 +179,34 @@ export function GoalProgressForm({
       {progressExceedsTarget && (
         <p
           style={{
-            fontFamily: 'var(--font-family-sans)',
+            fontFamily: 'var(--font-sans)',
             fontSize: 13,
-            fontStyle: 'italic',
             color: 'var(--status-overdue)',
           }}
         >
           {labelExceedsTarget}
         </p>
       )}
-      <UnderlinedInputField
+      <FieldInput
         label={labelNote}
-        type="text"
         value={progressNote}
         onChange={onProgressNoteChange}
         placeholder={labelNote}
         maxLength={500}
       />
-      <div className="flex items-center justify-end" style={{ gap: 14 }}>
-        <button
-          type="button"
-          className="appearance-none border-0 bg-transparent cursor-pointer"
-          style={{
-            fontFamily: 'var(--font-family-sans)',
-            fontSize: 14,
-            fontWeight: 500,
-            color: 'var(--fg-3)',
-            padding: 6,
-          }}
-          onClick={onCancel}
-        >
+      <div className="flex items-center" style={{ gap: 12, marginTop: 2 }}>
+        <PillButton variant="ghost" className="flex-1" onClick={onCancel}>
           {labelCancel}
-        </button>
-        <button
-          type="button"
+        </PillButton>
+        <PillButton
+          className="flex-1"
           disabled={progressValue === null || isUpdating}
-          className="appearance-none border-0 bg-transparent cursor-pointer disabled:opacity-50"
-          style={{
-            fontFamily: 'var(--font-family-sans)',
-            fontSize: 14,
-            fontWeight: 600,
-            color: 'var(--fg-1)',
-            padding: 6,
-          }}
           onClick={onSubmit}
         >
           {isUpdating ? '...' : labelSave}
-        </button>
+        </PillButton>
       </div>
     </div>
-  )
-}
-
-interface UnderlinedInputFieldProps {
-  label: string
-  value: string | number
-  type?: 'text' | 'number'
-  placeholder?: string
-  maxLength?: number
-  mono?: boolean
-  onChange: (next: string) => void
-}
-
-/** UnderlinedInput: tiny label, bare input with hairline underline. */
-function UnderlinedInputField({
-  label,
-  value,
-  type = 'text',
-  placeholder,
-  maxLength,
-  mono = false,
-  onChange,
-}: Readonly<UnderlinedInputFieldProps>) {
-  return (
-    <label className="flex flex-col" style={{ gap: 4 }}>
-      <span
-        style={{
-          fontFamily: 'var(--font-family-sans)',
-          fontSize: 11,
-          fontWeight: 500,
-          color: 'var(--fg-3)',
-        }}
-      >
-        {label}
-      </span>
-      <input
-        type={type}
-        value={value}
-        placeholder={placeholder}
-        maxLength={maxLength}
-        onChange={(e) => onChange(e.target.value)}
-        style={{
-          appearance: 'none',
-          border: 0,
-          background: 'transparent',
-          outline: 'none',
-          fontFamily: mono ? 'var(--font-family-mono)' : 'var(--font-family-sans)',
-          fontSize: 14,
-          color: 'var(--fg-1)',
-          padding: '4px 0',
-          borderBottom: '1px solid var(--hairline-strong)',
-          fontVariantNumeric: mono ? 'tabular-nums' : 'normal',
-        }}
-      />
-    </label>
   )
 }
 
@@ -289,7 +215,7 @@ interface GoalLinkedHabitsSectionProps {
   linkedHabits: NonNullable<Goal['linkedHabits']>
 }
 
-/** Linked-habits list: each habit is a single row with progress bar and percent. */
+/** Linked-habits list: ListRow language — icon well, Rubik 16 title, hairline dividers. */
 export function GoalLinkedHabitsSection({
   title,
   linkedHabits,
@@ -306,16 +232,23 @@ export function GoalLinkedHabitsSection({
           key={habit.id}
           className="flex items-center"
           style={{
-            padding: '12px 20px',
+            padding: '10px 20px',
             borderBottom: '1px solid var(--hairline)',
-            gap: 12,
+            gap: 14,
           }}
         >
           <span
+            className="inline-flex shrink-0 items-center justify-center rounded-[12px] bg-[var(--bg-field)]"
+            style={{ width: 36, height: 36, boxShadow: 'inset 0 0 0 1px var(--hairline)' }}
+            aria-hidden="true"
+          >
+            <Repeat size={18} strokeWidth={1.8} color="var(--fg-2)" />
+          </span>
+          <span
             className="flex-1 overflow-hidden whitespace-nowrap text-ellipsis"
             style={{
-              fontFamily: 'var(--font-family-sans)',
-              fontSize: 14,
+              fontFamily: 'var(--font-sans)',
+              fontSize: 16,
               color: 'var(--fg-1)',
             }}
           >
@@ -336,7 +269,7 @@ interface GoalActionRowProps {
 }
 
 /** Menu-item action row: leading icon + label, pressed-token hover,
- *  italic fg-3 label when destructive. No dividers — spacing groups the cluster. */
+ *  status-bad label + icon when destructive. No dividers — spacing groups the cluster. */
 export function GoalActionRow({
   label,
   icon: Icon,
@@ -349,7 +282,7 @@ export function GoalActionRow({
       type="button"
       onClick={onClick}
       disabled={disabled}
-      className="appearance-none w-full bg-transparent cursor-pointer text-left flex items-center transition-colors duration-150 ease-out hover:bg-[var(--bg-elev-pressed)] disabled:opacity-50 disabled:cursor-default disabled:hover:bg-transparent"
+      className="appearance-none w-full bg-transparent cursor-pointer text-left flex items-center transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev-pressed)] active:scale-[0.99] disabled:opacity-50 disabled:cursor-default disabled:hover:bg-transparent"
       style={{
         padding: '12px 20px',
         gap: 12,
@@ -357,19 +290,18 @@ export function GoalActionRow({
       }}
     >
       <Icon
-        size={16}
-        strokeWidth={1.7}
-        color="var(--fg-3)"
+        size={18}
+        strokeWidth={1.8}
+        color={destructive ? 'var(--status-bad)' : 'var(--fg-3)'}
         aria-hidden="true"
         className="shrink-0"
       />
       <span
         style={{
-          fontFamily: 'var(--font-family-sans)',
+          fontFamily: 'var(--font-sans)',
           fontSize: 15,
           fontWeight: 400,
-          color: destructive ? 'var(--fg-3)' : 'var(--fg-1)',
-          fontStyle: destructive ? 'italic' : 'normal',
+          color: destructive ? 'var(--status-bad)' : 'var(--fg-1)',
         }}
       >
         {label}

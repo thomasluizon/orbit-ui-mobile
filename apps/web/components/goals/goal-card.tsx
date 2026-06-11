@@ -2,14 +2,11 @@
 
 import { useState, useMemo } from 'react'
 import { differenceInDays, parseISO } from 'date-fns'
-import { motion, useReducedMotion } from 'motion/react'
-import { Flame } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { plural } from '@/lib/plural'
 import { StatusDot, type StatusDotState } from '@/components/ui/status-dot'
-import { ParentRing } from '@/components/ui/parent-ring'
+import { ProgressBar } from '@/components/ui/progress-bar'
 import { GoalDetailDrawer } from './goal-detail-drawer'
-import { resolveMotionPreset } from '@orbit/shared/theme'
 import { isStreakGoal } from '@orbit/shared/utils/goal-form'
 import type { Goal } from '@orbit/shared/types/goal'
 
@@ -17,12 +14,21 @@ interface GoalCardProps {
   goal: Goal
 }
 
+const badgeClassName =
+  'inline-flex shrink-0 items-center rounded-full uppercase'
+
+const badgeStyle = {
+  fontFamily: 'var(--font-sans)',
+  fontSize: 10.5,
+  fontWeight: 600,
+  letterSpacing: '0.06em',
+  padding: '3px 9px',
+  boxShadow: 'inset 0 0 0 1px var(--hairline)',
+} as const
+
 export function GoalCard({ goal }: Readonly<GoalCardProps>) {
   const t = useTranslations()
-  const prefersReducedMotion = useReducedMotion()
   const [showDetail, setShowDetail] = useState(false)
-  const selectionMotion = resolveMotionPreset('selection', Boolean(prefersReducedMotion))
-  const tapTarget = prefersReducedMotion ? undefined : { scale: 0.985 }
 
   const isStreak = isStreakGoal(goal.type)
 
@@ -45,18 +51,18 @@ export function GoalCard({ goal }: Readonly<GoalCardProps>) {
     if (daysLeft < 0) {
       return {
         text: t('goals.deadline.overdue'),
-        className: 'text-[var(--status-bad)] bg-[var(--bg-elev)] border border-[var(--hairline)]',
+        color: 'var(--status-bad)',
       }
     }
     if (daysLeft <= 7) {
       return {
         text: plural(t('goals.deadline.daysLeft', { n: daysLeft }), daysLeft),
-        className: 'text-[var(--status-overdue)] bg-[var(--bg-elev)] border border-[var(--hairline)]',
+        color: 'var(--status-overdue)',
       }
     }
     return {
       text: plural(t('goals.deadline.daysLeft', { n: daysLeft }), daysLeft),
-      className: 'text-[var(--fg-3)] bg-[var(--bg-elev)] border border-[var(--hairline)]',
+      color: 'var(--fg-3)',
     }
   }, [goal.deadline, goal.status, t])
 
@@ -64,13 +70,13 @@ export function GoalCard({ goal }: Readonly<GoalCardProps>) {
     if (goal.status === 'Completed') {
       return {
         text: t('goals.status.completed'),
-        className: 'text-[var(--status-done)] bg-[var(--bg-elev)] border border-[var(--hairline)]',
+        color: 'var(--status-done)',
       }
     }
     if (goal.status === 'Abandoned') {
       return {
         text: t('goals.status.abandoned'),
-        className: 'text-[var(--fg-3)] bg-[var(--bg-elev)] border border-[var(--hairline)]',
+        color: 'var(--fg-3)',
       }
     }
     return null
@@ -90,94 +96,115 @@ export function GoalCard({ goal }: Readonly<GoalCardProps>) {
     }
   }, [goal.status, goal.trackingStatus, t])
 
+  const percentLabel = t('goals.progressPercentage', { pct: goal.progressPercentage })
+
   return (
     <>
-      <motion.button
+      <button
         type="button"
         data-tour="tour-goal-card"
-        className={`group relative w-full overflow-hidden rounded-[12px] border border-[var(--hairline)] bg-[var(--bg-elev)] p-5 text-left shadow-[var(--shadow-sm)] surface-interactive transition-[background-color,border-color,box-shadow,transform] cursor-pointer hover:bg-[var(--bg-elev-pressed)]`}
-        whileTap={tapTarget}
-        transition={{
-          duration: selectionMotion.enterDuration / 1000,
-          ease: selectionMotion.enterEasing,
-        }}
+        className="card-int group relative w-full appearance-none overflow-hidden border-0 text-left"
+        style={{ padding: '16px 18px' }}
         onClick={() => setShowDetail(true)}
       >
-        <div className="relative z-10 flex items-start gap-3">
-          <div
-            className="shrink-0"
-            data-tour="tour-goal-progress"
-            data-progress-state={progress.state}
-            style={{ paddingTop: 2 }}
+        <div className="flex items-center" style={{ gap: 12, marginBottom: 12 }}>
+          <span
+            aria-hidden="true"
+            className="inline-flex shrink-0 items-center justify-center"
+            style={{
+              width: 42,
+              height: 42,
+              borderRadius: 12,
+              background: 'var(--bg-elev)',
+              fontSize: 20,
+              lineHeight: 1,
+            }}
           >
-            <progress
-              className="sr-only"
-              value={Math.min(goal.progressPercentage, 100)}
-              max={100}
-              aria-label={t('goals.progressPercentage', { pct: goal.progressPercentage })}
-            />
-            <ParentRing
-              done={Math.min(goal.progressPercentage, 100)}
-              total={100}
-              size={36}
-              color={progress.color}
-            />
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1">
-              {isStreak && (
-                <Flame className="size-3.5 text-[var(--status-overdue)] shrink-0" aria-hidden="true" />
-              )}
+            {isStreak ? '🔥' : '🎯'}
+          </span>
+
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center" style={{ gap: 8 }}>
               <h3
-                className={`text-sm font-semibold text-[var(--fg-1)] truncate ${
-                  goal.status === 'Abandoned'
-                    ? 'line-through text-[var(--fg-3)]'
-                    : ''
+                className={`min-w-0 flex-1 overflow-hidden line-clamp-2 ${
+                  goal.status === 'Abandoned' ? 'line-through text-[var(--fg-3)]' : ''
                 }`}
+                style={{
+                  fontFamily: 'var(--font-sans)',
+                  fontSize: 16,
+                  fontWeight: 500,
+                  color: goal.status === 'Abandoned' ? undefined : 'var(--fg-1)',
+                  overflowWrap: 'anywhere',
+                }}
               >
                 {goal.title}
               </h3>
               {statusBadge ? (
-                <span
-                  className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${statusBadge.className}`}
-                >
+                <span className={badgeClassName} style={{ ...badgeStyle, color: statusBadge.color }}>
                   {statusBadge.text}
                 </span>
               ) : trackingDot ? (
                 <StatusDot state={trackingDot.state} ariaLabel={trackingDot.label} />
               ) : null}
             </div>
-
-            <p className="text-xs text-[var(--fg-2)] mb-2">
-              {isStreak
-                ? t('goals.streak.ofTarget', {
-                    current: goal.currentValue,
-                    target: goal.targetValue,
-                  })
-                : t('goals.progressOf', {
-                    current: goal.currentValue,
-                    target: goal.targetValue,
-                    unit: goal.unit,
-                  })}
-            </p>
-
-            <div className="flex items-center justify-between">
-              <span className="text-[12px] text-[var(--fg-2)] font-[family-name:var(--font-family-mono)] tabular-nums">
-                {t('goals.progressPercentage', {
-                  pct: goal.progressPercentage,
-                })}
+            <div
+              className="flex items-center"
+              style={{ gap: 8, marginTop: 2 }}
+            >
+              <span
+                className="min-w-0 truncate"
+                style={{
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: 13,
+                  color: 'var(--fg-3)',
+                  fontVariantNumeric: 'tabular-nums',
+                }}
+              >
+                {isStreak
+                  ? t('goals.streak.ofTarget', {
+                      current: goal.currentValue,
+                      target: goal.targetValue,
+                    })
+                  : t('goals.progressOf', {
+                      current: goal.currentValue,
+                      target: goal.targetValue,
+                      unit: goal.unit,
+                    })}
               </span>
               {deadlineInfo && (
-                <span
-                  className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${deadlineInfo.className}`}
-                >
+                <span className={badgeClassName} style={{ ...badgeStyle, color: deadlineInfo.color }}>
                   {deadlineInfo.text}
                 </span>
               )}
             </div>
           </div>
+
+          <span
+            className="shrink-0"
+            style={{
+              fontFamily: 'var(--font-display)',
+              fontSize: 18,
+              fontWeight: 700,
+              letterSpacing: '-0.01em',
+              color: progress.color,
+              fontVariantNumeric: 'tabular-nums',
+            }}
+          >
+            {Math.min(100, Math.round(goal.progressPercentage))}%
+          </span>
         </div>
-      </motion.button>
+
+        <div
+          data-tour="tour-goal-progress"
+          data-progress-state={progress.state}
+        >
+          <ProgressBar
+            progress={Math.min(goal.progressPercentage, 100) / 100}
+            label={percentLabel}
+            color={progress.color}
+          />
+        </div>
+      </button>
 
       <GoalDetailDrawer
         open={showDetail}

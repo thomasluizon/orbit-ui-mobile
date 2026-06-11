@@ -1,5 +1,5 @@
-import { useMemo } from 'react'
-import { View, Text, Pressable, StyleSheet, Dimensions } from 'react-native'
+import { useEffect, useMemo } from 'react'
+import { Animated, View, Text, Pressable, StyleSheet, Dimensions } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
 import {
@@ -15,7 +15,15 @@ import type { TourStep, TourSection } from '@orbit/shared/types'
 import type { TourTargetRect } from '@orbit/shared/stores'
 import { TOUR_SECTION_ICONS } from '@orbit/shared/types'
 import { useAppTheme } from '@/lib/use-app-theme'
-import { createTokensV2 } from '@/lib/theme'
+import { toAnimatedEasing, usePrefersReducedMotion } from '@/lib/motion'
+import {
+  createTokensV2,
+  easings,
+  primaryGlow,
+  radius,
+  shadowsV2,
+  tintFromPrimary,
+} from '@/lib/theme'
 import { ProBadge } from '@/components/ui/pro-badge'
 
 type AppTokens = ReturnType<typeof createTokensV2>
@@ -57,6 +65,24 @@ export function TourTooltip({
   )
   const insets = useSafeAreaInsets()
   const styles = useMemo(() => createTooltipStyles(tokens), [tokens])
+  const prefersReducedMotion = usePrefersReducedMotion()
+  const entrance = useMemo(() => new Animated.Value(0), [])
+
+  useEffect(() => {
+    if (prefersReducedMotion) {
+      entrance.setValue(1)
+      return
+    }
+    entrance.setValue(0)
+    const animation = Animated.timing(entrance, {
+      toValue: 1,
+      duration: 280,
+      easing: toAnimatedEasing(easings.out),
+      useNativeDriver: true,
+    })
+    animation.start()
+    return () => animation.stop()
+  }, [entrance, prefersReducedMotion, step.id])
 
   const iconKey = step.section ? TOUR_SECTION_ICONS[step.section] : undefined
   const SectionIcon = iconKey
@@ -76,13 +102,25 @@ export function TourTooltip({
     ? [styles.tooltip, styles.tooltipTop, { paddingTop: insets.top + 12 }]
     : [styles.tooltip, styles.tooltipBottom]
 
+  const entranceStyle = {
+    opacity: entrance,
+    transform: [
+      {
+        translateY: entrance.interpolate({
+          inputRange: [0, 1],
+          outputRange: [mode === 'sheet-top' ? -12 : 12, 0],
+        }),
+      },
+    ],
+  }
+
   return (
     <View style={containerStyle}>
-      <View style={tooltipStyle}>
+      <Animated.View style={[...tooltipStyle, entranceStyle]}>
         <View style={styles.handle} />
 
         <View style={styles.header}>
-          {SectionIcon && <SectionIcon size={16} color={tokens.primary} />}
+          {SectionIcon && <SectionIcon size={16} color={tokens.primary} strokeWidth={1.8} />}
           <Text style={styles.sectionName}>{sectionName}</Text>
           <Text style={styles.stepCount}>
             {t('tour.ui.stepOf', {
@@ -118,7 +156,7 @@ export function TourTooltip({
         <View style={styles.navRow}>
           {!isFirstStep ? (
             <Pressable style={styles.backButton} onPress={onPrev}>
-              <ChevronLeft size={16} color={tokens.fg2} />
+              <ChevronLeft size={16} color={tokens.fg2} strokeWidth={1.8} />
               <Text style={styles.backButtonText}>{t('tour.ui.back')}</Text>
             </Pressable>
           ) : (
@@ -127,18 +165,25 @@ export function TourTooltip({
 
           <View style={{ flex: 1 }} />
 
-          <Pressable style={styles.nextButton} onPress={onNext}>
+          <Pressable
+            style={({ pressed }) => [
+              styles.nextButton,
+              primaryGlow(tokens),
+              pressed ? styles.nextButtonPressed : null,
+            ]}
+            onPress={onNext}
+          >
             <Text style={styles.nextButtonText}>
               {isLastStep ? t('tour.ui.finish') : t('tour.ui.next')}
             </Text>
-            {!isLastStep && <ChevronRight size={16} color={tokens.fgOnPrimary} />}
+            {!isLastStep && <ChevronRight size={16} color={tokens.fgOnPrimary} strokeWidth={1.8} />}
           </Pressable>
         </View>
 
         <Pressable style={styles.skipButton} onPress={onSkip}>
           <Text style={styles.skipButtonText}>{t('tour.ui.skip')}</Text>
         </Pressable>
-      </View>
+      </Animated.View>
     </View>
   )
 }
@@ -160,16 +205,13 @@ function createTooltipStyles(tokens: AppTokens) {
       zIndex: 9999,
     },
     tooltip: {
-      backgroundColor: tokens.bgElev,
+      backgroundColor: tokens.bgSheet,
       paddingHorizontal: 24,
-      shadowColor: '#000',
-      shadowOpacity: 0.35,
-      shadowRadius: 40,
-      elevation: 12,
+      ...shadowsV2.shadow3,
     },
     tooltipBottom: {
-      borderTopLeftRadius: 12,
-      borderTopRightRadius: 12,
+      borderTopLeftRadius: 18,
+      borderTopRightRadius: 18,
       borderTopWidth: 1,
       borderColor: tokens.hairline,
       paddingTop: 12,
@@ -177,17 +219,17 @@ function createTooltipStyles(tokens: AppTokens) {
       shadowOffset: { width: 0, height: -4 },
     },
     tooltipTop: {
-      borderBottomLeftRadius: 12,
-      borderBottomRightRadius: 12,
+      borderBottomLeftRadius: 18,
+      borderBottomRightRadius: 18,
       borderBottomWidth: 1,
       borderColor: tokens.hairline,
       paddingBottom: 20,
       shadowOffset: { width: 0, height: 4 },
     },
     handle: {
-      width: 40,
-      height: 4,
-      borderRadius: 2,
+      width: 44,
+      height: 5,
+      borderRadius: 999,
       backgroundColor: tokens.hairlineStrong,
       alignSelf: 'center',
       marginBottom: 16,
@@ -199,14 +241,17 @@ function createTooltipStyles(tokens: AppTokens) {
       marginBottom: 12,
     },
     sectionName: {
+      fontFamily: 'Rubik_500Medium',
       fontSize: 12,
-      fontStyle: 'italic',
-      color: tokens.fg2,
+      letterSpacing: 0.96,
+      textTransform: 'uppercase',
+      color: tokens.fg3,
     },
     stepCount: {
+      fontFamily: 'Roboto_400Regular',
       fontVariant: ['tabular-nums'],
-      fontSize: 11,
-      letterSpacing: 0.44,
+      fontSize: 12,
+      letterSpacing: 0.48,
       textTransform: 'uppercase',
       color: tokens.fg3,
     },
@@ -214,16 +259,16 @@ function createTooltipStyles(tokens: AppTokens) {
       marginLeft: 'auto' as const,
     },
     title: {
-      fontSize: 20,
-      fontWeight: '800',
-      letterSpacing: -0.3,
+      fontFamily: 'Rubik_500Medium',
+      fontSize: 16,
+      letterSpacing: -0.16,
       color: tokens.fg1,
       marginBottom: 6,
     },
     description: {
-      fontSize: 14,
-      fontStyle: 'italic',
-      lineHeight: 22,
+      fontFamily: 'Rubik_400Regular',
+      fontSize: 13.5,
+      lineHeight: 21,
       color: tokens.fg2,
       marginBottom: 16,
     },
@@ -231,24 +276,24 @@ function createTooltipStyles(tokens: AppTokens) {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
-      gap: 4,
+      gap: 6,
       marginBottom: 16,
     },
     dot: {
-      height: 6,
-      borderRadius: 3,
+      height: 8,
+      borderRadius: 999,
     },
     dotActive: {
       width: 16,
       backgroundColor: tokens.primary,
     },
     dotCompleted: {
-      width: 6,
-      backgroundColor: tokens.hairlineStrong,
+      width: 8,
+      backgroundColor: tintFromPrimary(tokens, 0.4),
     },
     dotInactive: {
-      width: 6,
-      backgroundColor: tokens.hairline,
+      width: 8,
+      backgroundColor: tokens.fg4,
     },
     navRow: {
       flexDirection: 'row',
@@ -260,36 +305,42 @@ function createTooltipStyles(tokens: AppTokens) {
       alignItems: 'center',
       gap: 4,
       paddingHorizontal: 12,
-      paddingVertical: 10,
-      borderRadius: 10,
+      minHeight: 44,
+      borderRadius: radius.full,
     },
     backButtonText: {
+      fontFamily: 'Rubik_400Regular',
       fontSize: 14,
-      fontStyle: 'italic',
       color: tokens.fg2,
     },
     nextButton: {
       flexDirection: 'row',
       alignItems: 'center',
+      justifyContent: 'center',
       gap: 4,
-      paddingHorizontal: 20,
-      paddingVertical: 10,
-      borderRadius: 10,
+      paddingHorizontal: 18,
+      minHeight: 44,
+      borderRadius: radius.full,
       backgroundColor: tokens.primary,
     },
+    nextButtonPressed: {
+      backgroundColor: tokens.primaryPressed,
+      transform: [{ scale: 0.97 }],
+    },
     nextButtonText: {
-      fontSize: 14,
-      fontWeight: '600',
+      fontFamily: 'Rubik_500Medium',
+      fontSize: 15,
       color: tokens.fgOnPrimary,
     },
     skipButton: {
       alignItems: 'center',
-      marginTop: 12,
-      paddingVertical: 4,
+      justifyContent: 'center',
+      marginTop: 8,
+      minHeight: 44,
     },
     skipButtonText: {
-      fontSize: 12,
-      fontStyle: 'italic',
+      fontFamily: 'Rubik_400Regular',
+      fontSize: 13,
       color: tokens.fg3,
     },
   })

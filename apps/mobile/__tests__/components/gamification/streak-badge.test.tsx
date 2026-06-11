@@ -64,14 +64,14 @@ describe('StreakBadge (mobile)', () => {
     pushMock.mockClear()
   })
 
-  it('renders nothing when streak is 0', () => {
+  it('stays visible at streak 0 and still routes to the streak page', () => {
     const tree = renderBadge({ streak: 0 })
-    expect(tree.toJSON()).toBeNull()
-  })
-
-  it('renders nothing when streak is negative', () => {
-    const tree = renderBadge({ streak: -1 })
-    expect(tree.toJSON()).toBeNull()
+    const [button] = findButton(tree.root)
+    expect(button).toBeTruthy()
+    TestRenderer.act(() => {
+      button?.props.onPress?.({ stopPropagation: () => {} })
+    })
+    expect(pushMock).toHaveBeenCalledWith('/streak')
   })
 
   it('renders the badge as a button with an accessible label', () => {

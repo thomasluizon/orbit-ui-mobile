@@ -1,5 +1,6 @@
 import { useMemo } from "react";
 import { View, Text, StyleSheet, Pressable } from "react-native";
+import Animated, { FadeInLeft, ReduceMotion } from "react-native-reanimated";
 import { CheckCircle, XCircle, Info } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import type { ActionResult } from "@orbit/shared/types/chat";
@@ -111,12 +112,18 @@ export function ActionChips({ actions, onChipClick }: Readonly<ActionChipsProps>
         const label = actionLabel(action);
 
         return (
-          <View key={`${action.type}-${action.entityId || index}`}>
+          <Animated.View
+            key={`${action.type}-${action.entityId || index}`}
+            entering={FadeInLeft.duration(280)
+              .delay(index * 80)
+              .reduceMotion(ReduceMotion.System)}
+          >
             {navigable ? (
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel={t("chat.action.openEntity", { name: label })}
                 onPress={() => onChipClick!(action.entityId!, action.type)}
+                hitSlop={{ top: 4, bottom: 4 }}
                 style={({ pressed }) => [
                   styles.chip,
                   {
@@ -126,7 +133,7 @@ export function ActionChips({ actions, onChipClick }: Readonly<ActionChipsProps>
                   },
                 ]}
               >
-                <IconComponent size={10} color={style.text} />
+                <IconComponent size={16} color={style.text} strokeWidth={1.8} />
                 <Text style={[styles.chipText, { color: style.text }]}>{label}</Text>
               </Pressable>
             ) : (
@@ -139,7 +146,7 @@ export function ActionChips({ actions, onChipClick }: Readonly<ActionChipsProps>
                   },
                 ]}
               >
-                <IconComponent size={10} color={style.text} />
+                <IconComponent size={16} color={style.text} strokeWidth={1.8} />
                 <Text style={[styles.chipText, { color: style.text }]}>{label}</Text>
               </View>
             )}
@@ -151,7 +158,7 @@ export function ActionChips({ actions, onChipClick }: Readonly<ActionChipsProps>
             {action.conflictWarning?.hasConflict && (
               <ConflictWarning warning={action.conflictWarning} />
             )}
-          </View>
+          </Animated.View>
         );
       })}
     </View>
@@ -167,21 +174,21 @@ function chipStyle(
       return {
         text: tokens.statusDone,
         bg: tokens.bgElev,
-        border: tokens.hairlineStrong,
+        border: tokens.hairline,
         Icon: CheckCircle,
       };
     case "Failed":
       return {
         text: tokens.statusBad,
-        bg: tokens.statusBad,
-        border: tokens.statusBad,
+        bg: `${tokens.statusBad}1A`,
+        border: `${tokens.statusBad}4D`,
         Icon: XCircle,
       };
     default:
       return {
-        text: tokens.primary,
-        bg: "rgba(59,130,246,0.10)",
-        border: "rgba(59,130,246,0.30)",
+        text: tokens.fg2,
+        bg: tokens.bgElev,
+        border: tokens.hairline,
         Icon: Info,
       };
   }
@@ -197,17 +204,18 @@ function createStyles(tokens: AppTokens) {
       flexDirection: "row",
       alignItems: "center",
       gap: 6,
-      paddingHorizontal: 12,
-      paddingVertical: 4,
+      minHeight: 36,
+      paddingHorizontal: 14,
       borderRadius: radius.full,
       borderWidth: 1,
       alignSelf: "flex-start",
     },
     chipText: {
-      fontSize: 10,
-      fontWeight: "600",
+      fontFamily: 'Rubik_500Medium',
+      fontSize: 13,
     },
     errorText: {
+      fontFamily: 'Rubik_400Regular',
       fontSize: 12,
       color: tokens.statusBad,
       marginTop: 4,

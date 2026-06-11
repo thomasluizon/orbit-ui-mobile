@@ -1,43 +1,56 @@
 'use client'
 
+import type { LucideIcon } from 'lucide-react'
+
 interface ProfileActionButtonProps {
   label: string
   onClick: () => void
-  tone?: 'default' | 'primary' | 'danger'
-  compact?: boolean
+  /** Leading lucide icon rendered 22/1.8 in the kit ListRow 26px slot. */
+  icon?: LucideIcon
+  tone?: 'default' | 'danger'
 }
 
-/** v8 flush row action — `tone` colors the label (`primary` → accent, `danger` → red); `compact` renders smaller italic for quieter destructive actions. */
+/** Kit ListRow action — `tone="danger"` colors icon and label in status-bad. */
 export function ProfileActionButton({
   label,
   onClick,
+  icon: LeadingIcon,
   tone = 'default',
-  compact = false,
 }: Readonly<ProfileActionButtonProps>) {
-  const color =
-    tone === 'danger'
-      ? 'var(--status-bad)'
-      : tone === 'primary'
-        ? 'var(--primary)'
-        : 'var(--fg-1)'
+  const color = tone === 'danger' ? 'var(--status-bad)' : 'var(--fg-1)'
   return (
     <button
       type="button"
       onClick={onClick}
-      className="w-full text-left cursor-pointer bg-transparent transition-colors duration-150 ease-out hover:bg-[var(--bg-elev)]"
+      className="flex w-full cursor-pointer items-center bg-transparent text-left transition-colors duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev)] active:bg-[var(--bg-elev-pressed)]"
       style={{
         appearance: 'none',
         border: 0,
-        padding: '14px 20px',
+        padding: '16px 20px',
+        gap: 14,
         borderBottom: '1px solid var(--hairline)',
-        fontFamily: 'var(--font-family-sans)',
-        fontSize: compact ? 13 : 15,
-        fontWeight: 400,
-        color,
-        fontStyle: compact ? 'italic' : 'normal',
       }}
     >
-      {label}
+      {LeadingIcon && (
+        <span
+          aria-hidden="true"
+          className="inline-flex shrink-0 justify-center"
+          style={{ width: 26 }}
+        >
+          <LeadingIcon size={22} strokeWidth={1.8} color={color} />
+        </span>
+      )}
+      <span
+        style={{
+          fontFamily: 'var(--font-sans)',
+          fontSize: 18,
+          fontWeight: 400,
+          lineHeight: 1.25,
+          color,
+        }}
+      >
+        {label}
+      </span>
     </button>
   )
 }

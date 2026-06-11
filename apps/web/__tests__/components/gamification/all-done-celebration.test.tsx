@@ -57,10 +57,9 @@ describe('AllDoneCelebration', () => {
   it('renders Saturn-ring concentric rings via RingMotif', () => {
     mockAllDoneCelebration = true
     render(<AllDoneCelebration />)
-    // v8 RingMotif draws 3 concentric hairline rings as aria-hidden spans.
-    const aria = document.querySelector('[aria-hidden="true"]')
-    expect(aria).toBeInTheDocument()
-    expect(aria?.querySelectorAll('span').length).toBe(3)
+    const rings = document.querySelector('[data-slot="celebration-rings"]')
+    expect(rings).toBeInTheDocument()
+    expect(rings?.querySelectorAll('span').length).toBe(3)
   })
 
   it('dismisses on click', () => {

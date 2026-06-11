@@ -1,9 +1,10 @@
 import { useState, useMemo } from "react";
-import { View, Text, TouchableOpacity, Switch } from "react-native";
+import { View, Text, TouchableOpacity } from "react-native";
 import { X, Plus, Bell } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import { HABIT_REMINDER_PRESETS } from "@orbit/shared/utils";
 import { BottomSheetAppTextInput } from "@/components/ui/bottom-sheet-app-text-input";
+import { Switch } from "@/components/ui/settings-row";
 import { type AppTokens, createSectionStyles } from "./styles";
 
 interface ReminderSectionProps {
@@ -65,16 +66,15 @@ export function ReminderSection({
     <View style={sectionStyles.container}>
       <View style={sectionStyles.headerRow}>
         <View style={sectionStyles.headerLeft}>
-          <Bell size={16} color={tokens.primary} />
+          <Bell size={20} color={tokens.fg2} strokeWidth={1.8} />
           <Text style={sectionStyles.headerLabel}>
             {t("habits.form.reminder")}
           </Text>
         </View>
         <Switch
-          value={reminderEnabled}
-          onValueChange={onToggleReminder}
-          trackColor={{ false: tokens.bgElev, true: tokens.primary }}
-          thumbColor={tokens.fgOnPrimary}
+          on={reminderEnabled}
+          onToggle={onToggleReminder}
+          accessibilityLabel={t("habits.form.reminder")}
         />
       </View>
       {reminderEnabled && (
@@ -93,7 +93,7 @@ export function ReminderSection({
                   onPress={() => removeReminder(time)}
                   activeOpacity={0.7}
                 >
-                  <X size={12} color={tokens.primary} />
+                  <X size={13} color={tokens.primary} strokeWidth={2.2} />
                 </TouchableOpacity>
               </View>
             ))}
@@ -107,7 +107,7 @@ export function ReminderSection({
             }}
             activeOpacity={0.7}
           >
-            <Plus size={14} color={tokens.primary} />
+            <Plus size={14} color={tokens.fg2} strokeWidth={2} />
             <Text style={sectionStyles.addButtonText}>
               {t("habits.form.reminderAdd")}
             </Text>
@@ -132,7 +132,6 @@ export function ReminderSection({
                   <BottomSheetAppTextInput
                     value={customValue}
                     placeholder={t("habits.form.reminderCustomPlaceholder")}
-                    placeholderTextColor={tokens.fg3}
                     keyboardType="number-pad"
                     style={sectionStyles.customInput}
                     onChangeText={setCustomValue}
@@ -168,7 +167,7 @@ export function ReminderSection({
                     onPress={addCustomReminder}
                     activeOpacity={0.7}
                   >
-                    <Plus size={14} color={tokens.fgOnPrimary} />
+                    <Plus size={16} color={tokens.fgOnPrimary} strokeWidth={2.2} />
                   </TouchableOpacity>
                 </View>
               )}
@@ -177,12 +176,7 @@ export function ReminderSection({
                 onPress={() => setShowCustomInput(!showCustomInput)}
                 activeOpacity={0.7}
               >
-                <Text
-                  style={[
-                    sectionStyles.dropdownItemText,
-                    { color: tokens.primary, fontWeight: "500" },
-                  ]}
-                >
+                <Text style={sectionStyles.dropdownItemTextAccent}>
                   {t("habits.form.reminderCustom")}
                 </Text>
               </TouchableOpacity>

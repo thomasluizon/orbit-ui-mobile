@@ -1,0 +1,28 @@
+import { describe, it, expect } from 'vitest'
+import { render, screen } from '@testing-library/react'
+import { Zap } from 'lucide-react'
+import { InfoCard } from '@/components/ui/info-card'
+
+describe('InfoCard', () => {
+  it('renders title and description', () => {
+    render(<InfoCard title="Astra" desc="Sua assistente de hábitos" />)
+    expect(screen.getByText('Astra')).toBeInTheDocument()
+    expect(screen.getByText('Sua assistente de hábitos')).toBeInTheDocument()
+  })
+
+  it('renders without a description', () => {
+    render(<InfoCard title="Astra" />)
+    expect(screen.getByText('Astra')).toBeInTheDocument()
+  })
+
+  it('renders a custom icon and trailing slot', () => {
+    render(
+      <InfoCard
+        icon={Zap}
+        title="Astra"
+        trailing={<span data-testid="trailing-node" />}
+      />,
+    )
+    expect(screen.getByTestId('trailing-node')).toBeInTheDocument()
+  })
+})

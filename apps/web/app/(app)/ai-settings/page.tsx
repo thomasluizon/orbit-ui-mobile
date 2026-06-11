@@ -2,11 +2,14 @@
 
 import { useState, useMemo } from 'react'
 import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import {
+  Brain,
   ChevronLeft,
   ChevronRight,
   Lock,
-  Orbit,
+  Satellite,
+  Sparkles,
   X,
 } from 'lucide-react'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
@@ -20,10 +23,10 @@ import {
 import { useProfile } from '@/hooks/use-profile'
 import { AppBar } from '@/components/ui/app-bar'
 import { SectionLabel } from '@/components/ui/section-label'
-import { SettingsDescription } from '@/components/ui/settings-description'
-import { SettingsRow } from '@/components/ui/settings-row'
-import { SelectCheck } from '@/components/ui/select-check'
-import { MonoToggle } from '@/components/ui/mono-toggle'
+import { SettingsRow, Switch } from '@/components/ui/settings-row'
+import { RadioGlyph } from '@/components/ui/select-check'
+import { SatelliteGlyph } from '@/components/ui/satellite-glyph'
+import { PillButton } from '@/components/ui/pill-button'
 import { ProBadge } from '@/components/ui/pro-badge'
 import { updateAiMemory, updateAiSummary } from '@/app/actions/profile'
 import { bulkDeleteUserFacts, deleteUserFact } from '@/app/actions/user-facts'
@@ -38,23 +41,34 @@ async function fetchUserFacts(): Promise<UserFact[]> {
 
 function ProUpgradeLink({ label }: Readonly<{ label: string }>) {
   return (
-    <Link
-      href="/upgrade"
-      className="inline-flex items-center"
-      style={{
-        gap: 6,
-        fontFamily: 'var(--font-family-sans)',
-        fontSize: 13,
-        fontWeight: 600,
-        color: 'var(--fg-1)',
-        textDecoration: 'underline',
-        textUnderlineOffset: 3,
-        textDecorationColor: 'var(--hairline-strong)',
-      }}
-    >
-      <Lock size={12} />
+    <Link href="/upgrade" className="chip">
+      <Lock size={14} strokeWidth={1.8} aria-hidden="true" />
       {label}
     </Link>
+  )
+}
+
+function ChipActionButton({
+  onClick,
+  disabled = false,
+  destructive = false,
+  children,
+}: Readonly<{
+  onClick: () => void
+  disabled?: boolean
+  destructive?: boolean
+  children: React.ReactNode
+}>) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className="chip disabled:opacity-40 disabled:cursor-not-allowed"
+      style={destructive ? { color: 'var(--status-bad)' } : undefined}
+    >
+      {children}
+    </button>
   )
 }
 
@@ -77,20 +91,32 @@ function FactItem({
   const category = fact.category ? normalizeUserFactCategory(fact.category) : null
   const categoryLabel = category ? category.toUpperCase() : null
 
+  const cardStyle: React.CSSProperties = {
+    padding: '14px 16px',
+    gap: 12,
+    borderRadius: 16,
+    background: isSelected
+      ? 'rgba(var(--primary-rgb), 0.08)'
+      : 'var(--bg-card)',
+    boxShadow: isSelected
+      ? 'inset 0 0 0 1px rgba(var(--primary-rgb), 0.28)'
+      : 'inset 0 0 0 1px var(--hairline)',
+  }
+
   const Inner = (
     <>
-      {selectMode && <SelectCheck selected={isSelected} size={16} />}
-      <div className="flex-1 min-w-0" style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+      {selectMode && <RadioGlyph selected={isSelected} size={18} />}
+      <div className="flex-1 min-w-0" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         {categoryLabel && (
           <span
             style={{
-              fontFamily: 'var(--font-family-mono)',
+              fontFamily: 'var(--font-mono)',
               fontSize: 10,
-              fontWeight: 600,
-              color: 'var(--fg-2)',
+              fontWeight: 500,
+              color: 'var(--fg-3)',
               letterSpacing: '0.06em',
-              padding: '2px 6px',
-              borderRadius: 4,
+              padding: '2px 7px',
+              borderRadius: 999,
               alignSelf: 'flex-start',
               boxShadow: 'inset 0 0 0 1px var(--hairline-strong)',
             }}
@@ -100,8 +126,9 @@ function FactItem({
         )}
         <span
           style={{
-            fontFamily: 'var(--font-family-sans)',
-            fontSize: 14,
+            fontFamily: 'var(--font-sans)',
+            fontSize: 15,
+            lineHeight: 1.45,
             color: 'var(--fg-1)',
           }}
         >
@@ -113,10 +140,10 @@ function FactItem({
           type="button"
           onClick={onDelete}
           aria-label={t('common.delete')}
-          className="appearance-none border-0 bg-transparent cursor-pointer shrink-0"
-          style={{ padding: 4 }}
+          className="icon-btn shrink-0 hover:text-[var(--status-bad)]"
+          style={{ width: 36, height: 36, margin: -6, color: 'var(--fg-4)' }}
         >
-          <X size={14} strokeWidth={1.6} color="var(--fg-4)" />
+          <X size={18} strokeWidth={1.8} />
         </button>
       )}
     </>
@@ -127,13 +154,9 @@ function FactItem({
       <button
         type="button"
         onClick={onToggleSelection}
-        className="appearance-none border-0 cursor-pointer w-full text-left flex items-center"
-        style={{
-          padding: '12px 20px',
-          gap: 12,
-          borderBottom: '1px solid var(--hairline)',
-          background: isSelected ? 'var(--bg-sunk)' : 'transparent',
-        }}
+        aria-pressed={isSelected}
+        className="appearance-none border-0 cursor-pointer w-full text-left flex items-center transition-[background-color,box-shadow,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:-translate-y-px active:translate-y-0 active:scale-[0.99]"
+        style={cardStyle}
       >
         {Inner}
       </button>
@@ -141,14 +164,7 @@ function FactItem({
   }
 
   return (
-    <div
-      className="flex items-center"
-      style={{
-        padding: '12px 20px',
-        gap: 12,
-        borderBottom: '1px solid var(--hairline)',
-      }}
-    >
+    <div className="flex items-center" style={cardStyle}>
       {Inner}
     </div>
   )
@@ -156,6 +172,7 @@ function FactItem({
 
 export default function AiSettingsPage() {
   const t = useTranslations()
+  const router = useRouter()
   const goBackOrFallback = useGoBackOrFallback()
   const { profile, patchProfile } = useProfile()
   const queryClient = useQueryClient()
@@ -267,7 +284,7 @@ export default function AiSettingsPage() {
         className="inline-flex items-center"
         style={{
           gap: 8,
-          fontFamily: 'var(--font-family-mono)',
+          fontFamily: 'var(--font-mono)',
           fontSize: 11,
           color: 'var(--fg-3)',
           fontVariantNumeric: 'tabular-nums',
@@ -279,18 +296,20 @@ export default function AiSettingsPage() {
           disabled={factsPage === 1}
           onClick={() => setFactsPage((p) => p - 1)}
           aria-label={t('common.previousPage')}
-          className="appearance-none border-0 bg-transparent cursor-pointer disabled:opacity-40"
+          className="icon-btn disabled:opacity-40 disabled:cursor-not-allowed"
+          style={{ width: 36, height: 36, color: 'var(--fg-3)' }}
         >
-          <ChevronLeft size={12} color="var(--fg-3)" />
+          <ChevronLeft size={18} strokeWidth={1.8} />
         </button>
         <button
           type="button"
           disabled={factsPage === totalFactsPages}
           onClick={() => setFactsPage((p) => p + 1)}
           aria-label={t('common.nextPage')}
-          className="appearance-none border-0 bg-transparent cursor-pointer disabled:opacity-40"
+          className="icon-btn disabled:opacity-40 disabled:cursor-not-allowed"
+          style={{ width: 36, height: 36, color: 'var(--fg-3)' }}
         >
-          <ChevronRight size={12} color="var(--fg-3)" />
+          <ChevronRight size={18} strokeWidth={1.8} />
         </button>
       </span>
     ) : undefined
@@ -304,11 +323,19 @@ export default function AiSettingsPage() {
         onBack={() => goBackOrFallback('/profile')}
         title={t('aiSettings.title')}
       />
-      <div className="flex-1 min-h-0 overflow-y-auto">
-        <SectionLabel trailing={<ProBadge />}>{t('profile.aiMemory.title')}</SectionLabel>
-        <SettingsRow label={t('profile.aiMemory.title')} accessory="none" divider={false}>
+      <div className="flex-1 min-h-0 overflow-y-auto stagger-enter">
+        <SectionLabel bottom={4} trailing={<ProBadge />}>
+          {t('profile.sections.aiFeatures')}
+        </SectionLabel>
+        <SettingsRow
+          icon={Brain}
+          label={t('profile.aiMemory.title')}
+          desc={t('profile.aiMemory.description')}
+          accessory="none"
+          divider={false}
+        >
           {hasProAccess ? (
-            <MonoToggle
+            <Switch
               on={aiMemoryEnabled}
               onToggle={() => aiMemoryMutation.mutate(!aiMemoryEnabled)}
               ariaLabel={t('profile.aiMemory.title')}
@@ -318,12 +345,15 @@ export default function AiSettingsPage() {
             <ProUpgradeLink label={t('common.proBadge')} />
           )}
         </SettingsRow>
-        <SettingsDescription>{t('profile.aiMemory.description')}</SettingsDescription>
-
-        <SectionLabel trailing={<ProBadge />}>{t('profile.aiSummary.title')}</SectionLabel>
-        <SettingsRow label={t('profile.aiSummary.title')} accessory="none" divider={false}>
+        <SettingsRow
+          icon={Satellite}
+          label={t('profile.aiSummary.title')}
+          desc={t('profile.aiSummary.description')}
+          accessory="none"
+          divider={false}
+        >
           {hasProAccess ? (
-            <MonoToggle
+            <Switch
               on={aiSummaryEnabled}
               onToggle={() => aiSummaryMutation.mutate(!aiSummaryEnabled)}
               ariaLabel={t('profile.aiSummary.title')}
@@ -333,12 +363,11 @@ export default function AiSettingsPage() {
             <ProUpgradeLink label={t('common.proBadge')} />
           )}
         </SettingsRow>
-        <SettingsDescription>{t('profile.aiSummary.description')}</SettingsDescription>
 
         <SectionLabel trailing={factsTrailing}>{t('profile.facts.title')}</SectionLabel>
 
         {!hasProAccess && (
-          <div style={{ padding: '14px 20px' }}>
+          <div style={{ padding: '4px 20px 14px' }}>
             <ProUpgradeLink label={t('common.proBadge')} />
           </div>
         )}
@@ -346,14 +375,11 @@ export default function AiSettingsPage() {
         {hasProAccess && facts.length > 0 && (
           <div
             className="flex items-center justify-between"
-            style={{
-              padding: '8px 20px 12px',
-              borderBottom: '1px solid var(--hairline)',
-            }}
+            style={{ padding: '0 20px 10px' }}
           >
             <span
               style={{
-                fontFamily: 'var(--font-family-mono)',
+                fontFamily: 'var(--font-mono)',
                 fontSize: 12,
                 fontWeight: 500,
                 color: selectMode ? 'var(--fg-1)' : 'var(--fg-3)',
@@ -364,93 +390,74 @@ export default function AiSettingsPage() {
                 ? `${selectedFactIds.size} ${t('profile.facts.select').toLowerCase()}`
                 : `${facts.length}`}
             </span>
-            <div className="inline-flex items-center" style={{ gap: 14 }}>
+            <div className="inline-flex items-center" style={{ gap: 8 }}>
               {selectMode && (
-                <button
-                  type="button"
-                  onClick={toggleSelectAll}
-                  className="appearance-none border-0 bg-transparent cursor-pointer"
-                  style={{
-                    fontFamily: 'var(--font-family-sans)',
-                    fontSize: 13,
-                    fontWeight: 600,
-                    color: 'var(--fg-1)',
-                    textDecoration: 'underline',
-                    textUnderlineOffset: 3,
-                    textDecorationColor: 'var(--hairline-strong)',
-                  }}
-                >
+                <ChipActionButton onClick={toggleSelectAll}>
                   {selectedFactIds.size === facts.length
                     ? t('profile.facts.deselectAll')
                     : t('profile.facts.selectAll')}
-                </button>
+                </ChipActionButton>
               )}
               {selectMode && selectedFactIds.size > 0 && (
-                <button
-                  type="button"
-                  onClick={() => bulkDeleteMutation.mutate([...selectedFactIds])}
+                <ChipActionButton
+                  destructive
                   disabled={bulkDeleteMutation.isPending}
-                  className="appearance-none border-0 bg-transparent cursor-pointer disabled:opacity-40"
-                  style={{
-                    fontFamily: 'var(--font-family-sans)',
-                    fontSize: 13,
-                    fontStyle: 'italic',
-                    color: 'var(--status-overdue)',
-                  }}
+                  onClick={() => bulkDeleteMutation.mutate([...selectedFactIds])}
                 >
                   {t('profile.facts.deleteSelected', { n: selectedFactIds.size })}
-                </button>
+                </ChipActionButton>
               )}
-              <button
-                type="button"
-                onClick={toggleSelectMode}
-                className="appearance-none border-0 bg-transparent cursor-pointer"
-                style={{
-                  fontFamily: 'var(--font-family-sans)',
-                  fontSize: 13,
-                  fontWeight: selectMode ? 400 : 600,
-                  fontStyle: selectMode ? 'italic' : 'normal',
-                  color: selectMode ? 'var(--fg-3)' : 'var(--fg-1)',
-                  textDecoration: 'underline',
-                  textUnderlineOffset: 3,
-                  textDecorationColor: 'var(--hairline-strong)',
-                }}
-              >
+              <ChipActionButton onClick={toggleSelectMode}>
                 {selectMode ? t('profile.facts.cancel') : t('profile.facts.select')}
-              </button>
+              </ChipActionButton>
             </div>
           </div>
         )}
 
         {hasProAccess && factsQuery.isLoading && (
-          <div className="px-5 py-4 space-y-2">
-            <div className="h-10 w-full rounded-md animate-pulse" style={{ background: 'var(--bg-elev)' }} />
-            <div className="h-10 w-full rounded-md animate-pulse" style={{ background: 'var(--bg-elev)' }} />
+          <div className="px-5 space-y-2.5">
+            <div
+              className="w-full animate-pulse"
+              style={{ height: 56, borderRadius: 16, background: 'var(--bg-elev)' }}
+            />
+            <div
+              className="w-full animate-pulse"
+              style={{ height: 56, borderRadius: 16, background: 'var(--bg-elev)' }}
+            />
           </div>
         )}
 
         {hasProAccess && !factsQuery.isLoading && facts.length === 0 && (
           <div
-            className="flex flex-col items-center text-center"
-            style={{ padding: '40px 24px', gap: 14 }}
+            className="flex flex-col items-center text-center animate-scale-in"
+            style={{ padding: '40px 36px', gap: 18 }}
           >
-            <Orbit size={28} strokeWidth={1.4} color="var(--fg-3)" />
+            <SatelliteGlyph size={104} />
             <span
               style={{
-                fontFamily: 'var(--font-family-sans)',
-                fontSize: 14,
-                fontStyle: 'italic',
-                color: 'var(--fg-3)',
+                fontFamily: 'var(--font-sans)',
+                fontSize: 15,
+                color: 'var(--fg-2)',
                 lineHeight: 1.5,
+                maxWidth: 320,
+                textWrap: 'pretty',
               }}
             >
               {t('profile.facts.empty')}
             </span>
+            <PillButton
+              fullWidth
+              onClick={() => router.push('/chat')}
+              leading={<Sparkles size={18} strokeWidth={1.8} aria-hidden="true" />}
+              className="mt-2"
+            >
+              {t('summary.askAstra')}
+            </PillButton>
           </div>
         )}
 
         {hasProAccess && !factsQuery.isLoading && facts.length > 0 && (
-          <div>
+          <div className="flex flex-col px-5 stagger-enter" style={{ gap: 10 }}>
             {pagedFacts.map((fact) => (
               <FactItem
                 key={fact.id}

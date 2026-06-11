@@ -16,8 +16,10 @@ import {
 import { AppBar } from '@/components/ui/app-bar'
 import { SectionLabel } from '@/components/ui/section-label'
 import { SettingsDescription } from '@/components/ui/settings-description'
-import { SettingsRow } from '@/components/ui/settings-row'
-import { MonoToggle } from '@/components/ui/mono-toggle'
+import { Switch } from '@/components/ui/settings-row'
+import { RadioGlyph } from '@/components/ui/select-check'
+import { Badge } from '@/components/ui/badge'
+import { PillButton } from '@/components/ui/pill-button'
 import { useTranslations } from 'next-intl'
 import { plural } from '@/lib/plural'
 import { useProfile, useHasProAccess } from '@/hooks/use-profile'
@@ -64,6 +66,33 @@ async function connectGoogle(): Promise<void> {
   })
 }
 
+function QuietActionButton({
+  onClick,
+  disabled = false,
+  tone = 'default',
+  ariaLabel,
+  children,
+}: Readonly<{
+  onClick: () => void
+  disabled?: boolean
+  tone?: 'default' | 'warning'
+  ariaLabel?: string
+  children: React.ReactNode
+}>) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      aria-label={ariaLabel}
+      className="chip disabled:opacity-50 disabled:cursor-not-allowed"
+      style={tone === 'warning' ? { color: 'var(--status-overdue)' } : undefined}
+    >
+      {children}
+    </button>
+  )
+}
+
 function AutoSyncSettingsCard() {
   const t = useTranslations()
   const { data: state, isLoading } = useCalendarAutoSyncState()
@@ -103,71 +132,73 @@ function AutoSyncSettingsCard() {
     }
   }
 
+  const statusMeta = (() => {
+    if (isLoading) return t('calendar.fetchingEvents')
+    if (!hasConnection) return t('calendar.autoSync.connectGoogleFirst')
+    return lastSyncedLabel
+  })()
+
   return (
     <>
-      <SectionLabel>{t('calendar.autoSync.title')}</SectionLabel>
-      <SettingsRow label={t('calendar.autoSync.toggleLabel')} accessory="none" divider={false}>
-        <MonoToggle
-          on={enabled}
-          onToggle={handleToggle}
-          ariaLabel={t('calendar.autoSync.toggleLabel')}
-          disabled={toggleDisabled}
-        />
-      </SettingsRow>
-      <SettingsDescription>{t('calendar.autoSync.description')}</SettingsDescription>
-
-      {isLoading && (
+      <SectionLabel bottom={10}>{t('calendar.autoSync.title')}</SectionLabel>
+      <div style={{ padding: '0 20px' }}>
         <div
           className="flex items-center"
           style={{
-            padding: '8px 20px 14px',
-            gap: 8,
-            fontFamily: 'var(--font-family-sans)',
-            fontSize: 13,
-            color: 'var(--fg-3)',
+            gap: 14,
+            padding: '16px 18px',
+            borderRadius: 16,
+            background: 'var(--bg-card)',
+            boxShadow: 'inset 0 0 0 1px var(--hairline)',
           }}
         >
-          <Loader2 className="size-3 animate-spin" aria-hidden />
-          <span>{t('calendar.fetchingEvents')}</span>
+          <span
+            aria-hidden="true"
+            className="inline-flex justify-center shrink-0"
+            style={{ width: 26 }}
+          >
+            <CalendarDays size={22} strokeWidth={1.8} color="var(--fg-1)" />
+          </span>
+          <div className="flex-1 min-w-0">
+            <div
+              style={{
+                fontFamily: 'var(--font-sans)',
+                fontSize: 18,
+                fontWeight: 400,
+                lineHeight: 1.25,
+                color: 'var(--fg-1)',
+              }}
+            >
+              Google Calendar
+            </div>
+            <div
+              className="flex items-center"
+              style={{
+                gap: 6,
+                marginTop: 3,
+                fontFamily: 'var(--font-sans)',
+                fontSize: 13,
+                lineHeight: 1.4,
+                color: 'var(--fg-3)',
+              }}
+            >
+              {isLoading && <Loader2 className="size-3 animate-spin shrink-0" aria-hidden />}
+              <span>{statusMeta}</span>
+            </div>
+          </div>
+          <Switch
+            on={enabled}
+            onToggle={handleToggle}
+            ariaLabel={t('calendar.autoSync.toggleLabel')}
+            disabled={toggleDisabled}
+          />
         </div>
-      )}
-
-      {!isLoading && !hasConnection && (
-        <p
-          style={{
-            padding: '8px 20px 14px',
-            fontFamily: 'var(--font-family-sans)',
-            fontSize: 13,
-            color: 'var(--fg-3)',
-          }}
-        >
-          {t('calendar.autoSync.connectGoogleFirst')}
-        </p>
-      )}
+      </div>
+      <SettingsDescription>{t('calendar.autoSync.description')}</SettingsDescription>
 
       {!isLoading && hasConnection && (
-        <div
-          className="flex flex-wrap items-center justify-between"
-          style={{
-            padding: '8px 20px 14px',
-            gap: 12,
-          }}
-        >
-          <p
-            style={{
-              fontFamily: 'var(--font-family-sans)',
-              fontSize: 13,
-              color: 'var(--fg-3)',
-            }}
-          >
-            {lastSyncedLabel}
-          </p>
-          <button
-            type="button"
-            onClick={handleSyncNow}
-            disabled={runSyncNow.isPending}
-            className="inline-flex items-center gap-2 rounded-[var(--radius-md)] border border-[var(--hairline)] px-3 py-1.5 text-xs font-semibold text-[var(--fg-1)] hover:bg-[var(--bg-elev)] transition-colors disabled:opacity-50"
-          >
+        <div className="flex justify-end" style={{ padding: '0 20px 6px' }}>
+          <QuietActionButton onClick={handleSyncNow} disabled={runSyncNow.isPending}>
             {runSyncNow.isPending ? (
               <>
                 <Loader2 className="size-3 animate-spin" aria-hidden />
@@ -179,17 +210,17 @@ function AutoSyncSettingsCard() {
                 {t('calendar.autoSync.syncNow')}
               </>
             )}
-          </button>
+          </QuietActionButton>
         </div>
       )}
 
       {showReconnect && (
         <div
           style={{
-            padding: '14px 20px',
+            padding: '6px 20px 14px',
             display: 'flex',
             flexDirection: 'column',
-            gap: 10,
+            gap: 4,
           }}
         >
           <div className="flex items-start gap-2 text-[var(--status-overdue)]">
@@ -197,16 +228,16 @@ function AutoSyncSettingsCard() {
             <div className="flex-1 min-w-0">
               <p
                 style={{
-                  fontFamily: 'var(--font-family-sans)',
+                  fontFamily: 'var(--font-sans)',
                   fontSize: 14,
-                  fontWeight: 600,
+                  fontWeight: 500,
                 }}
               >
                 {t('calendar.autoSync.reconnectTitle')}
               </p>
               <p
                 style={{
-                  fontFamily: 'var(--font-family-sans)',
+                  fontFamily: 'var(--font-sans)',
                   fontSize: 13,
                   marginTop: 4,
                   color: 'var(--fg-3)',
@@ -217,13 +248,9 @@ function AutoSyncSettingsCard() {
               </p>
             </div>
           </div>
-          <button
-            type="button"
-            onClick={connectGoogle}
-            className="rounded-[var(--radius-md)] border border-[var(--hairline)] text-[var(--status-overdue)] font-semibold py-2 px-3 text-xs hover:bg-[var(--bg-elev)] transition-colors self-start"
-          >
+          <QuietActionButton onClick={connectGoogle} tone="warning">
             {t('calendar.autoSync.reconnectCta')}
-          </button>
+          </QuietActionButton>
         </div>
       )}
     </>
@@ -386,11 +413,23 @@ export default function CalendarSyncPage() {
     const title = isReviewMode ? t('calendar.autoSync.reviewModeEmpty') : t('calendar.noEvents')
     return (
       <div className="text-center pt-12" role="status" aria-live="polite">
-        <CalendarDays className="size-12 text-[var(--fg-3)] mx-auto mb-4" />
-        <p className="text-[var(--fg-2)]">{title}</p>
+        <CalendarDays
+          className="size-12 mx-auto mb-4"
+          strokeWidth={1.4}
+          color="var(--fg-3)"
+        />
+        <p
+          style={{
+            fontFamily: 'var(--font-sans)',
+            fontSize: 14,
+            color: 'var(--fg-2)',
+          }}
+        >
+          {title}
+        </p>
         <button
           type="button"
-          className="inline-block mt-4 text-[var(--primary)] font-semibold text-sm hover:underline"
+          className="chip mt-4"
           onClick={() => goBackOrFallback('/profile')}
         >
           {t('common.goBack')}
@@ -419,40 +458,81 @@ export default function CalendarSyncPage() {
       {step === 'loading' && (
         <div className="flex flex-col items-center justify-center gap-4 pt-12" role="status" aria-live="polite">
           <Loader2 className="size-8 animate-spin text-[var(--primary)]" />
-          <p className="text-[var(--fg-2)] text-sm">{t('calendar.fetchingEvents')}</p>
+          <p
+            style={{
+              fontFamily: 'var(--font-sans)',
+              fontSize: 14,
+              color: 'var(--fg-2)',
+            }}
+          >
+            {t('calendar.fetchingEvents')}
+          </p>
         </div>
       )}
 
       {step === 'not-connected' && !isReviewMode && (
         <div className="flex flex-col items-center justify-center gap-5 pt-12" role="status" aria-live="polite">
-          <div className="size-14 rounded-full border border-[var(--hairline)] flex items-center justify-center">
-            <LinkIcon className="size-7 text-[var(--primary)]" />
-          </div>
-          <div className="text-center">
-            <h2 className="text-lg font-semibold text-[var(--fg-1)] mb-1">{t('calendar.notConnectedTitle')}</h2>
-            <p className="text-sm text-[var(--fg-3)]">{t('calendar.notConnectedDesc')}</p>
-          </div>
-          <button
-            className="inline-flex items-center justify-center bg-[var(--primary)] text-[var(--fg-on-primary)] font-semibold py-2.5 px-5 rounded-[var(--radius-md)] text-sm hover:bg-[var(--primary-pressed)] transition-colors"
-            onClick={connectGoogle}
+          <div
+            className="flex items-center justify-center rounded-full"
+            style={{
+              width: 64,
+              height: 64,
+              background: 'rgba(var(--primary-rgb), 0.10)',
+            }}
           >
+            <LinkIcon className="size-7 text-[var(--primary)]" strokeWidth={1.8} />
+          </div>
+          <div className="text-center px-6">
+            <h2
+              style={{
+                fontFamily: 'var(--font-sans)',
+                fontSize: 18,
+                fontWeight: 500,
+                color: 'var(--fg-1)',
+                marginBottom: 4,
+              }}
+            >
+              {t('calendar.notConnectedTitle')}
+            </h2>
+            <p
+              style={{
+                fontFamily: 'var(--font-sans)',
+                fontSize: 14,
+                lineHeight: 1.5,
+                color: 'var(--fg-3)',
+              }}
+            >
+              {t('calendar.notConnectedDesc')}
+            </p>
+          </div>
+          <PillButton onClick={connectGoogle}>
             {t('auth.signInWithGoogle')}
-          </button>
+          </PillButton>
         </div>
       )}
 
       {step === 'select' && (
-        <div className="space-y-4 px-5 pt-6">
+        <div style={{ paddingTop: 18 }}>
           {events.length === 0 ? (
             renderEmptyState()
           ) : (
             <>
-              <div className="flex items-center justify-between">
-                <p className="text-sm text-[var(--fg-2)]">
+              <div
+                className="flex items-center justify-between"
+                style={{ padding: '0 20px 6px' }}
+              >
+                <p
+                  style={{
+                    fontFamily: 'var(--font-sans)',
+                    fontSize: 14,
+                    color: 'var(--fg-2)',
+                  }}
+                >
                   {plural(t('calendar.eventsFound', { count: events.length }), events.length)}
                 </p>
                 <button
-                  className="text-xs font-semibold text-[var(--primary)] hover:text-[var(--primary-pressed)] transition-colors"
+                  type="button"
+                  className="chip"
                   onClick={toggleAll}
                   aria-pressed={allSelected}
                 >
@@ -460,95 +540,138 @@ export default function CalendarSyncPage() {
                 </button>
               </div>
 
-              <div className="space-y-2 max-h-[60vh] overflow-y-auto">
+              <div className="max-h-[60vh] overflow-y-auto stagger-enter">
                 {events.map((event) => {
                   const suggestionId = isReviewMode ? findSuggestionIdForEvent(event.id) : null
+                  const selected = selectedIds.has(event.id)
                   return (
                     <div
                       key={event.id}
-                      className={`w-full rounded-[12px] p-4 transition-[background-color,border-color] border ${
-                        selectedIds.has(event.id)
-                          ? 'bg-[var(--bg-sunk)] border-[var(--hairline-strong)]'
-                          : 'bg-[var(--bg-elev)] border-[var(--hairline)]'
-                      }`}
+                      className="flex items-start transition-[background-color] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev)]"
+                      style={{
+                        gap: 12,
+                        padding: '0 20px',
+                        borderBottom: '1px solid var(--hairline)',
+                        background: selected
+                          ? 'rgba(var(--primary-rgb), 0.06)'
+                          : undefined,
+                      }}
                     >
-                      <div className="flex items-start gap-3">
+                      <button
+                        type="button"
+                        onClick={() => toggleEvent(event.id)}
+                        aria-pressed={selected}
+                        className="flex-1 min-w-0 text-left flex items-start appearance-none border-0 bg-transparent cursor-pointer"
+                        style={{ gap: 14, padding: '14px 0' }}
+                      >
+                        <span className="shrink-0" style={{ marginTop: 1 }}>
+                          <RadioGlyph selected={selected} size={24} />
+                        </span>
+                        <span className="flex-1 min-w-0 block">
+                          <span
+                            className="block truncate"
+                            style={{
+                              fontFamily: 'var(--font-sans)',
+                              fontSize: 15,
+                              fontWeight: 500,
+                              color: 'var(--fg-1)',
+                            }}
+                          >
+                            {event.title}
+                          </span>
+                          <span
+                            className="flex flex-wrap items-center"
+                            style={{ gap: 8, marginTop: 3 }}
+                          >
+                            {event.startDate && (
+                              <span
+                                style={{
+                                  fontFamily: 'var(--font-mono)',
+                                  fontSize: 12,
+                                  color: 'var(--fg-3)',
+                                  fontVariantNumeric: 'tabular-nums',
+                                }}
+                              >
+                                {event.startDate}
+                              </span>
+                            )}
+                            {event.startTime && (
+                              <span
+                                style={{
+                                  fontFamily: 'var(--font-mono)',
+                                  fontSize: 12,
+                                  color: 'var(--fg-3)',
+                                  fontVariantNumeric: 'tabular-nums',
+                                }}
+                              >
+                                {event.startTime}{event.endTime ? ` - ${event.endTime}` : ''}
+                              </span>
+                            )}
+                            {event.isRecurring && (
+                              <Badge tone="soft">
+                                {formatCalendarSyncRecurrenceLabel(event.recurrenceRule, {
+                                  translate: (key, values) => t(key as never, values as never),
+                                  pluralize: plural,
+                                }) || t('calendar.recurring')}
+                              </Badge>
+                            )}
+                            {event.reminders.length > 0 && (
+                              <span
+                                className="inline-flex items-center"
+                                style={{
+                                  gap: 3,
+                                  fontFamily: 'var(--font-mono)',
+                                  fontSize: 12,
+                                  color: 'var(--fg-3)',
+                                  fontVariantNumeric: 'tabular-nums',
+                                }}
+                              >
+                                <Bell className="size-3" aria-hidden />
+                                {event.reminders.length}
+                              </span>
+                            )}
+                          </span>
+                          {event.description && (
+                            <span
+                              className="block line-clamp-1"
+                              style={{
+                                fontFamily: 'var(--font-sans)',
+                                fontSize: 13,
+                                color: 'var(--fg-3)',
+                                marginTop: 3,
+                              }}
+                            >
+                              {event.description}
+                            </span>
+                          )}
+                        </span>
+                      </button>
+
+                      {isReviewMode && suggestionId && (
                         <button
                           type="button"
-                          onClick={() => toggleEvent(event.id)}
-                          aria-pressed={selectedIds.has(event.id)}
-                          className="flex-1 text-left flex items-start gap-3"
+                          onClick={() => handleDismissSuggestion(suggestionId)}
+                          disabled={dismissSuggestion.isPending}
+                          aria-label={t('calendar.autoSync.dismissSuggestion')}
+                          className="icon-btn shrink-0 hover:text-[var(--status-bad)] disabled:opacity-50"
+                          style={{ width: 36, height: 36, marginTop: 8, color: 'var(--fg-4)' }}
                         >
-                          <div
-                            className={`shrink-0 mt-0.5 size-5 rounded-md border-2 flex items-center justify-center transition-colors ${
-                              selectedIds.has(event.id)
-                                ? 'bg-[var(--primary)] border-[var(--primary)]'
-                                : 'border-[var(--hairline)]'
-                            }`}
-                          >
-                            {selectedIds.has(event.id) && <Check className="size-3 text-white" />}
-                          </div>
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-semibold text-[var(--fg-1)] truncate">{event.title}</p>
-                            <div className="flex flex-wrap items-center gap-2 mt-1">
-                              {event.startDate && (
-                                <span className="text-xs text-[var(--fg-2)]">
-                                  {event.startDate}
-                                </span>
-                              )}
-                              {event.startTime && (
-                                <span className="text-xs text-[var(--fg-3)]">
-                                  {event.startTime}{event.endTime ? ` - ${event.endTime}` : ''}
-                                </span>
-                              )}
-                              {event.isRecurring && (
-                                <span className="text-[10px] font-bold uppercase tracking-wider bg-[var(--bg-elev)] text-[var(--primary)] px-1.5 py-0.5 rounded-full">
-                                  {formatCalendarSyncRecurrenceLabel(event.recurrenceRule, {
-                                    translate: (key, values) => t(key as never, values as never),
-                                    pluralize: plural,
-                                  }) || t('calendar.recurring')}
-                                </span>
-                              )}
-                              {event.reminders.length > 0 && (
-                                <span className="text-[10px] text-[var(--fg-3)]">
-                                  <Bell className="size-3 inline" />
-                                  {event.reminders.length}
-                                </span>
-                              )}
-                            </div>
-                            {event.description && (
-                              <p className="text-xs text-[var(--fg-3)] mt-1 line-clamp-1">
-                                {event.description}
-                              </p>
-                            )}
-                          </div>
+                          <X size={18} strokeWidth={1.8} aria-hidden />
                         </button>
-
-                        {isReviewMode && suggestionId && (
-                          <button
-                            type="button"
-                            onClick={() => handleDismissSuggestion(suggestionId)}
-                            disabled={dismissSuggestion.isPending}
-                            aria-label={t('calendar.autoSync.dismissSuggestion')}
-                            className="shrink-0 p-1.5 rounded-full text-[var(--fg-3)] hover:text-[var(--fg-1)] hover:bg-[var(--bg-elev)] transition-colors disabled:opacity-50"
-                          >
-                            <X className="size-4" aria-hidden />
-                          </button>
-                        )}
-                      </div>
+                      )}
                     </div>
                   )
                 })}
               </div>
 
-              <div className="pt-2">
-                <button
-                  className="w-full py-3.5 rounded-[12px] bg-[var(--primary)] text-white font-bold text-sm hover:bg-[var(--primary-pressed)] transition-[background-color,transform,opacity] active:scale-[0.98] disabled:opacity-50"
+              <div style={{ padding: '18px 20px 0' }}>
+                <PillButton
+                  fullWidth
                   disabled={selectedIds.size === 0}
                   onClick={importSelected}
                 >
                   {plural(t('calendar.importButton', { count: selectedIds.size }), selectedIds.size)}
-                </button>
+                </PillButton>
               </div>
             </>
           )}
@@ -558,24 +681,61 @@ export default function CalendarSyncPage() {
       {step === 'importing' && (
         <div className="flex flex-col items-center justify-center gap-4 pt-12" role="status" aria-live="polite">
           <Loader2 className="size-8 animate-spin text-[var(--primary)]" />
-          <p className="text-[var(--fg-2)] text-sm">{t('calendar.importing')}</p>
+          <p
+            style={{
+              fontFamily: 'var(--font-sans)',
+              fontSize: 14,
+              color: 'var(--fg-2)',
+            }}
+          >
+            {t('calendar.importing')}
+          </p>
         </div>
       )}
 
       {step === 'done' && (
         <div className="flex flex-col items-center justify-center gap-6 pt-12" role="status" aria-live="polite">
-          <div className="size-16 rounded-full bg-[var(--status-done)]/15 flex items-center justify-center">
-            <Check className="size-8 text-[var(--status-done)]" />
+          <div
+            className="flex items-center justify-center rounded-full"
+            style={{
+              width: 64,
+              height: 64,
+              background: 'rgba(var(--primary-rgb), 0.15)',
+            }}
+          >
+            <Check className="size-8 text-[var(--status-done)]" strokeWidth={2.2} />
           </div>
-          <div className="text-center">
-            <h2 className="text-lg font-bold text-[var(--fg-1)] mb-2">{t('calendar.importDone')}</h2>
-            <p className="text-sm text-[var(--fg-2)]">
+          <div className="text-center px-6">
+            <h2
+              style={{
+                fontFamily: 'var(--font-sans)',
+                fontSize: 18,
+                fontWeight: 500,
+                color: 'var(--fg-1)',
+                marginBottom: 6,
+              }}
+            >
+              {t('calendar.importDone')}
+            </h2>
+            <p
+              style={{
+                fontFamily: 'var(--font-sans)',
+                fontSize: 14,
+                color: 'var(--fg-2)',
+              }}
+            >
               {plural(t('calendar.importedCount', { count: importResult?.imported ?? 0 }), importResult?.imported ?? 0)}
             </p>
           </div>
           <Link
             href="/"
-            className="bg-[var(--primary)] text-white font-bold py-3 px-8 rounded-[12px] text-sm hover:bg-[var(--primary-pressed)] transition-colors"
+            className="inline-flex items-center justify-center rounded-full bg-[var(--primary)] text-[var(--fg-on-primary)] shadow-[var(--primary-glow)] transition-[background-color,box-shadow,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:-translate-y-px hover:bg-[var(--primary-pressed)] hover:shadow-[var(--primary-glow-hover)] active:translate-y-0 active:scale-[0.98]"
+            style={{
+              fontFamily: 'var(--font-sans)',
+              fontSize: 16,
+              fontWeight: 500,
+              padding: '15px 26px',
+            }}
           >
             {t('calendar.goToHabits')}
           </Link>
@@ -584,27 +744,44 @@ export default function CalendarSyncPage() {
 
       {step === 'error' && (
         <div className="flex flex-col items-center justify-center gap-6 pt-12" role="alert" aria-live="assertive">
-          <div className="size-16 rounded-full bg-[var(--status-bad)]/15 flex items-center justify-center">
-            <AlertTriangle className="size-8 text-[var(--status-bad)]" />
+          <div
+            className="flex items-center justify-center rounded-full"
+            style={{
+              width: 64,
+              height: 64,
+              background: 'color-mix(in srgb, var(--status-bad) 15%, transparent)',
+            }}
+          >
+            <AlertTriangle className="size-8 text-[var(--status-bad)]" strokeWidth={1.8} />
           </div>
-          <div className="text-center">
-            <h2 className="text-lg font-bold text-[var(--fg-1)] mb-2">{t('calendar.errorTitle')}</h2>
-            <p className="text-sm text-[var(--fg-2)]">{displayedErrorMessage}</p>
+          <div className="text-center px-6">
+            <h2
+              style={{
+                fontFamily: 'var(--font-sans)',
+                fontSize: 18,
+                fontWeight: 500,
+                color: 'var(--fg-1)',
+                marginBottom: 6,
+              }}
+            >
+              {t('calendar.errorTitle')}
+            </h2>
+            <p
+              style={{
+                fontFamily: 'var(--font-sans)',
+                fontSize: 14,
+                lineHeight: 1.5,
+                color: 'var(--fg-2)',
+              }}
+            >
+              {displayedErrorMessage}
+            </p>
           </div>
           <div className="flex gap-3">
-            <button
-              className="bg-[var(--primary)] text-white font-bold py-3 px-6 rounded-[12px] text-sm hover:bg-[var(--primary-pressed)] transition-colors"
-              onClick={handleRetry}
-            >
-              {t('calendar.retry')}
-            </button>
-            <button
-              type="button"
-              className="border border-[var(--hairline)] text-[var(--fg-2)] font-bold py-3 px-6 rounded-[12px] text-sm hover:bg-[var(--bg-elev)] transition-colors"
-              onClick={() => goBackOrFallback('/profile')}
-            >
+            <PillButton onClick={handleRetry}>{t('calendar.retry')}</PillButton>
+            <PillButton variant="ghost" onClick={() => goBackOrFallback('/profile')}>
               {t('common.goBack')}
-            </button>
+            </PillButton>
           </div>
         </div>
       )}

@@ -2,16 +2,15 @@ import { useCallback, useMemo, useRef } from 'react'
 import { Animated, View, Text, TouchableOpacity, StyleSheet } from 'react-native'
 import { useTourTarget } from '@/hooks/use-tour-target'
 import { differenceInDays, parseISO } from 'date-fns'
-import { Flame } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import type { Goal } from '@orbit/shared/types/goal'
 import { isStreakGoal } from '@orbit/shared/utils/goal-form'
 import { plural } from '@/lib/plural'
-import { createTokensV2, easings, radius, shadows } from '@/lib/theme'
+import { createTokensV2, easings } from '@/lib/theme'
 import { toAnimatedEasing, useResolvedMotionPreset } from '@/lib/motion'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { StatusDot, type StatusDotState } from '@/components/ui/status-dot'
-import { ParentRing } from '@/components/ui/parent-ring'
+import { ProgressBar } from '@/components/ui/progress-bar'
 
 interface GoalCardProps {
   goal: Goal
@@ -54,7 +53,7 @@ export function GoalCard({ goal, onPress, tourTargetId }: GoalCardProps) {
     }).start()
   }, [pressScale, selectionMotion.exitDuration])
 
-  const ringColor = useMemo(() => {
+  const progressColor = useMemo(() => {
     if (goal.status === 'Completed') return tokens.statusDone
     if (goal.status === 'Abandoned') return tokens.fg3
     if (isStreak) return tokens.statusOverdue
@@ -137,6 +136,10 @@ export function GoalCard({ goal, onPress, tourTargetId }: GoalCardProps) {
         unit: goal.unit,
       })
 
+  const percentLabel = t('goals.progressPercentage', {
+    pct: goal.progressPercentage,
+  })
+
   return (
     <Animated.View style={{ transform: [{ scale: pressScale }] }}>
       <TouchableOpacity
@@ -150,60 +153,62 @@ export function GoalCard({ goal, onPress, tourTargetId }: GoalCardProps) {
         accessibilityRole="button"
         accessibilityLabel={goal.title}
       >
-      <View style={styles.body}>
+        <View style={styles.headerRow}>
+          <View style={styles.emojiWell}>
+            <Text style={styles.emojiWellText}>{isStreak ? '🔥' : '🎯'}</Text>
+          </View>
+
+          <View style={styles.headerContent}>
+            <View style={styles.titleRow}>
+              <Text
+                style={[
+                  styles.title,
+                  goal.status === 'Abandoned' && styles.titleAbandoned,
+                ]}
+                numberOfLines={2}
+              >
+                {goal.title}
+              </Text>
+              {statusBadge ? (
+                <View style={styles.badge}>
+                  <Text style={[styles.badgeText, { color: statusBadge.textColor }]}>
+                    {statusBadge.text}
+                  </Text>
+                </View>
+              ) : trackingDot ? (
+                <StatusDot state={trackingDot.state} accessibilityLabel={trackingDot.label} />
+              ) : null}
+            </View>
+            <View style={styles.metaRow}>
+              <Text style={styles.progressLabel} numberOfLines={1}>
+                {progressLabel}
+              </Text>
+              {deadlineInfo && (
+                <View style={styles.badge}>
+                  <Text style={[styles.badgeText, { color: deadlineInfo.textColor }]}>
+                    {deadlineInfo.text}
+                  </Text>
+                </View>
+              )}
+            </View>
+          </View>
+
+          <Text style={[styles.percentText, { color: progressColor }]}>
+            {progress}%
+          </Text>
+        </View>
+
         <View
           ref={tourTargetId ? progressRef : undefined}
-          style={styles.ringWrap}
-          accessibilityRole="progressbar"
-          accessibilityValue={{
-            min: 0,
-            max: 100,
-            now: progress,
-          }}
+          style={styles.progressRow}
         >
-          <ParentRing done={progress} total={100} size={36} color={ringColor} />
+          <ProgressBar
+            style={styles.progressBar}
+            progress={progress / 100}
+            label={percentLabel}
+            color={progressColor}
+          />
         </View>
-      <View style={styles.content}>
-        <View style={styles.titleRow}>
-          {isStreak && (
-            <Flame size={14} color={tokens.statusOverdue} style={styles.flameIcon} />
-          )}
-          <Text
-            style={[
-              styles.title,
-              goal.status === 'Abandoned' && styles.titleAbandoned,
-            ]}
-            numberOfLines={1}
-          >
-            {goal.title}
-          </Text>
-          {statusBadge ? (
-            <View style={styles.statusBadge}>
-              <Text style={[styles.statusBadgeText, { color: statusBadge.textColor }]}>
-                {statusBadge.text}
-              </Text>
-            </View>
-          ) : trackingDot ? (
-            <StatusDot state={trackingDot.state} accessibilityLabel={trackingDot.label} />
-          ) : null}
-        </View>
-
-        <Text style={styles.progressLabel}>{progressLabel}</Text>
-
-        <View style={styles.footer}>
-          <Text style={styles.percentText}>
-            {t('goals.progressPercentage', { pct: goal.progressPercentage })}
-          </Text>
-          {deadlineInfo && (
-            <View style={styles.deadlineBadge}>
-              <Text style={[styles.deadlineBadgeText, { color: deadlineInfo.textColor }]}>
-                {deadlineInfo.text}
-              </Text>
-            </View>
-          )}
-        </View>
-      </View>
-      </View>
       </TouchableOpacity>
     </Animated.View>
   )
@@ -211,98 +216,96 @@ export function GoalCard({ goal, onPress, tourTargetId }: GoalCardProps) {
 
 function createStyles(tokens: ReturnType<typeof createTokensV2>) {
   return StyleSheet.create({
-  card: {
-    backgroundColor: tokens.bgElev,
-    borderRadius: radius.md,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: tokens.hairline,
-    marginBottom: 10,
-    overflow: 'hidden',
-    ...shadows.cardParent,
-    elevation: 5,
-  },
+    card: {
+      backgroundColor: tokens.bgCard,
+      borderRadius: 18,
+      paddingVertical: 16,
+      paddingHorizontal: 18,
+      borderWidth: 1,
+      borderColor: tokens.hairline,
+      overflow: 'hidden',
+    },
 
-  body: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 12,
-  },
-  ringWrap: {
-    flexShrink: 0,
-    paddingTop: 2,
-  },
-  content: {
-    flex: 1,
-    minWidth: 0,
-  },
+    headerRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      marginBottom: 12,
+    },
+    emojiWell: {
+      width: 42,
+      height: 42,
+      borderRadius: 12,
+      backgroundColor: tokens.bgElev,
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexShrink: 0,
+    },
+    emojiWellText: {
+      fontSize: 20,
+      lineHeight: 26,
+    },
+    headerContent: {
+      flex: 1,
+      minWidth: 0,
+    },
+    titleRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+    },
+    title: {
+      fontFamily: 'Rubik_500Medium',
+      fontSize: 16,
+      color: tokens.fg1,
+      flex: 1,
+    },
+    titleAbandoned: {
+      textDecorationLine: 'line-through',
+      color: tokens.fg3,
+    },
 
-  titleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 4,
-  },
-  flameIcon: {
-    flexShrink: 0,
-  },
-  title: {
-    fontFamily: 'Geist',
-    fontSize: 14,
-    fontWeight: '600',
-    color: tokens.fg1,
-    flex: 1,
-  },
-  titleAbandoned: {
-    textDecorationLine: 'line-through',
-    color: tokens.fg3,
-  },
+    badge: {
+      paddingHorizontal: 9,
+      paddingVertical: 3,
+      borderRadius: 9999,
+      borderWidth: 1,
+      borderColor: tokens.hairline,
+    },
+    badgeText: {
+      fontFamily: 'Rubik_600SemiBold',
+      fontSize: 10.5,
+      letterSpacing: 0.63,
+      textTransform: 'uppercase',
+    },
 
-  statusBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 9999,
-    backgroundColor: tokens.bgElev,
-    borderWidth: 1,
-    borderColor: tokens.hairline,
-  },
-  statusBadgeText: {
-    fontFamily: 'Geist',
-    fontSize: 10,
-    fontWeight: '700',
-  },
+    metaRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      marginTop: 2,
+    },
+    progressLabel: {
+      fontFamily: 'Roboto_400Regular',
+      fontSize: 13,
+      color: tokens.fg3,
+      fontVariant: ['tabular-nums'],
+      flexShrink: 1,
+    },
 
-  progressLabel: {
-    fontFamily: 'Geist',
-    fontSize: 12,
-    color: tokens.fg2,
-    marginBottom: 8,
-  },
-
-  footer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  percentText: {
-    fontFamily: 'GeistMono',
-    fontSize: 12,
-    color: tokens.fg2,
-    fontVariant: ['tabular-nums'],
-  },
-
-  deadlineBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 9999,
-    backgroundColor: tokens.bgElev,
-    borderWidth: 1,
-    borderColor: tokens.hairline,
-  },
-  deadlineBadgeText: {
-    fontFamily: 'Geist',
-    fontSize: 10,
-    fontWeight: '700',
-  },
+    progressRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+    },
+    progressBar: {
+      flex: 1,
+    },
+    percentText: {
+      fontFamily: 'Inter_700Bold',
+      fontSize: 18,
+      letterSpacing: -0.18,
+      fontVariant: ['tabular-nums'],
+      flexShrink: 0,
+    },
   })
 }

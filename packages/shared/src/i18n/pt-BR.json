@@ -38,12 +38,16 @@
     }
   },
   "pushPrompt": {
-    "eyebrow": "Notificações",
     "title": "Mantenha o foco",
     "description": "Ative notificações para receber lembretes dos seus hábitos",
     "enable": "Ativar",
     "later": "Agora não",
     "retryHint": "Falha ao configurar notificações. Toque em Ativar para tentar novamente."
+  },
+  "notFoundPage": {
+    "title": "Página não encontrada",
+    "description": "Esta página não existe ou foi movida.",
+    "home": "Voltar ao início"
   },
   "updatePrompt": {
     "eyebrow": "Atualização disponível",
@@ -89,12 +93,16 @@
     "dismiss": "Fechar",
     "confirm": "Confirmar",
     "discard": "Descartar",
-    "keepEditing": "Continuar editando",
+    "keepEditing": "Continuar",
+    "seeMore": "Ver mais",
+    "seeLess": "Ver menos",
     "discardChangesTitle": "Descartar alterações?",
     "discardChangesDescription": "Você tem alterações não salvas. Fechar agora vai perdê-las.",
     "openSettings": "Abrir configurações",
     "loading": "Carregando...",
     "close": "Fechar",
+    "help": "Ajuda",
+    "share": "Compartilhar",
     "expandDescription": "Expandir descrição",
     "edit": "Editar",
     "create": "Criar",
@@ -171,6 +179,7 @@
   },
   "auth": {
     "signIn": "Entrar",
+    "signInSubtitle": "Enviaremos um código de acesso por e-mail.",
     "enterCode": "Digite o código",
     "email": "E-mail",
     "emailPlaceholder": "você@exemplo.com",
@@ -223,7 +232,6 @@
     "overdue": "Atrasado",
     "oneTimeTask": "Tarefa única",
     "generalHabit": "Geral",
-    "badHabit": "Mau Hábito",
     "schedule": {
       "dueInDays": "em {count}d",
       "scheduledOn": "agendado {date}"
@@ -234,6 +242,8 @@
       "matchDescription": "na descrição"
     },
     "createHabit": "Criar Hábito",
+    "askAstra": "Pedir à Astra",
+    "createManually": "Criar manualmente",
     "createSubHabit": "Criar Sub-Hábito",
     "editHabit": "Editar Hábito",
     "deleteHabit": "Excluir Hábito",
@@ -295,7 +305,7 @@
     "duplicateConfirm": "Duplicar",
     "forceLogTitle": "Registrar com sub-hábitos incompletos",
     "forceLogMessage": "Alguns sub-hábitos ainda não foram concluídos. Deseja registrar este hábito mesmo assim?",
-    "forceLogConfirm": "Registrar mesmo assim",
+    "forceLogConfirm": "Registrar",
     "autoLogParentTitle": "Todos os sub-hábitos concluídos!",
     "autoLogParentMessage": "Deseja registrar \"{name}\" como completo?",
     "autoLogParentConfirm": "Registrar pai",
@@ -304,13 +314,13 @@
     "checklistCompleteConfirm": "Registrar hábito",
     "bulkDeleteTitle": "Excluir Hábitos",
     "bulkDeleteMessage": "Tem certeza que deseja excluir {count} hábito? Esta ação não pode ser desfeita. | Tem certeza que deseja excluir {count} hábitos? Esta ação não pode ser desfeita.",
-    "bulkDeleteConfirm": "Excluir Todos",
+    "bulkDeleteConfirm": "Excluir todos",
     "bulkLogTitle": "Registrar Hábitos",
     "bulkLogMessage": "Registrar {count} hábito selecionado como concluído? Hábitos já concluídos serão ignorados. | Registrar {count} hábitos selecionados como concluídos? Hábitos já concluídos serão ignorados.",
-    "bulkLogConfirm": "Registrar Todos",
+    "bulkLogConfirm": "Registrar todos",
     "bulkSkipTitle": "Pular Hábitos",
     "bulkSkipMessage": "Pular/adiar {count} hábito selecionado? Hábitos recorrentes avançam para a próxima data, tarefas únicas movem para amanhã. | Pular/adiar {count} hábitos selecionados? Hábitos recorrentes avançam para a próxima data, tarefas únicas movem para amanhã.",
-    "bulkSkipConfirm": "Pular Todos",
+    "bulkSkipConfirm": "Pular todos",
     "skipHabit": "Pular",
     "frequency": {
       "everyDay": "Todo dia",
@@ -484,11 +494,14 @@
       "streakDays": "{n}d",
       "stats": "Estatísticas",
       "noDataYet": "Nenhum dado ainda",
+      "daysFree": "Dias livre",
       "reminders": "Lembretes",
       "linkedGoal": "Meta vinculada",
       "askAstraEyebrow": "PERGUNTE AO ASTRA",
       "askAstraSubHabits": "Quer dividir isto em passos menores?",
-      "askAstraDefault": "Quer uma perspectiva sobre este hábito?"
+      "askAstraDefault": "Quer uma perspectiva sobre este hábito?",
+      "askAstraSeedSubHabits": "Me ajude a dividir o hábito \"{title}\" em sub-hábitos menores.",
+      "askAstraSeedDefault": "Como estou indo com o hábito \"{title}\"? Me dê sua análise e uma dica para melhorar."
     },
     "filter": {
       "daily": "Diário",
@@ -637,6 +650,10 @@
     "timeoutError": "A requisição expirou. Tente novamente.",
     "limitReachedError": "Você atingiu o limite mensal de mensagens de IA.",
     "aiError": "Desculpe, algo deu errado. Tente novamente.",
+    "proGate": {
+      "title": "Recurso Pro",
+      "body": "Esta ação precisa do Orbit Pro. Faça upgrade para desbloquear."
+    },
     "suggestion": {
       "prompt": "Posso resumir, planejar ou ajudar você a ajustar um hábito.",
       "meditated": "Eu meditei hoje",
@@ -693,7 +710,6 @@
     }
   },
   "profile": {
-    "title": "Perfil",
     "sections": {
       "account": "Conta",
       "preferences": "Preferências",
@@ -832,8 +848,8 @@
       "warning": "Esta ação é irreversível.",
       "warningFree": "Sua conta será desativada e permanentemente excluída após 7 dias. Faça login novamente antes disso para cancelar.",
       "warningPro": "Sua conta será desativada e permanentemente excluída 7 dias após seu plano expirar em {date}. Faça login novamente antes disso para cancelar.",
-      "warningDetail": "Todos os seus dados serão permanentemente excluídos, incluindo hábitos, histórico de conclusão, conversas com IA, fatos do usuário e configurações.",
-      "sendCode": "Enviar código de confirmação para meu e-mail",
+      "warningDetail": "Todos os seus dados serão permanentemente excluídos, incluindo hábitos, histórico de conclusão, conversas com IA, fatos do usuário e configurações. Enviaremos um código de confirmação para o seu e-mail.",
+      "sendCode": "Enviar código",
       "sending": "Enviando...",
       "codeInstructions": "Digite o código de 6 dígitos enviado ao seu e-mail para confirmar a desativação da conta.",
       "confirmDelete": "Desativar minha conta",
@@ -1272,6 +1288,7 @@
   },
   "upgrade": {
     "title": "Upgrade para Pro",
+    "heroTitle": "Desbloqueie todo o potencial dos seus hábitos com o Pro",
     "alreadyPro": "Você está no plano Pro!",
     "manageHint": "Gerencie sua assinatura, atualize pagamento ou cancele quando quiser",
     "feature": "Recurso",
@@ -1414,6 +1431,7 @@
         "appliedNote": "Desconto de indicação aplicado"
       },
       "equivalent": "{price}/mês",
+      "renewalNote": "A assinatura é renovada automaticamente. Cancele quando quiser com 24h de antecedência para evitar cobranças futuras.",
       "error": "Não foi possível carregar preços",
       "retry": "Tentar novamente"
     },
@@ -1506,7 +1524,7 @@
       "streakDescriptionPlaceholder": "ex: Dias na academia",
       "targetValue": "Quantidade",
       "unit": "Unidade",
-      "unitPlaceholder": "ex: livros, músicas, kg",
+      "unitPlaceholder": "ex: livros",
       "deadline": "Prazo",
       "deadlineOptional": "Opcional",
       "addDeadline": "Adicionar prazo",
@@ -1557,6 +1575,7 @@
       "showAllHistory": "Ver todos",
       "showLessHistory": "Ver menos",
       "askAstraDefault": "Quer um plano de check-in semanal para isto?",
+      "askAstraSeedDefault": "Me ajude a montar um plano de check-in semanal para a meta \"{title}\".",
       "askAstraEyebrow": "PERGUNTE AO ASTRA",
       "statusLabel": "Status"
     },
@@ -1588,7 +1607,7 @@
       "velocity": "Ritmo de Progresso",
       "daysToDeadline": "Dias para o Prazo",
       "habitAdherence": "Desempenho dos Hábitos Vinculados",
-      "noData": "Dados insuficientes",
+      "noData": "Sem dados",
       "perDay": "dia"
     }
   },
@@ -1596,6 +1615,7 @@
     "title": "Conquistas & Nível",
     "profileCard": {
       "title": "Conquistas & Nível",
+      "tileLabel": "Conquistas",
       "hint": "Acompanhe seu progresso e desbloqueie conquistas",
       "level": "Nível {level}",
       "xp": "{current} / {next} XP",
@@ -1796,6 +1816,7 @@
       "tierStrong": "Forte",
       "tierSteady": "Constante",
       "tierNormal": "Normal",
+      "tierTileLabel": "Nível",
       "dayActive": "Ativo",
       "dayFrozen": "Congelado",
       "dayMissed": "Perdido",
@@ -1854,6 +1875,7 @@
   },
   "preferences": {
     "title": "Preferências",
+    "general": "Geral",
     "colorBlue": "Tema azul",
     "colorCyan": "Tema ciano",
     "colorGreen": "Tema verde",
@@ -1868,7 +1890,8 @@
     "title": "Recursos de IA"
   },
   "about": {
-    "title": "Sobre e Ajuda"
+    "title": "Sobre e Ajuda",
+    "version": "Versão {version}"
   },
   "advancedSettings": {
     "title": "Avançado",

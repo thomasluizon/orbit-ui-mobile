@@ -94,11 +94,10 @@ export function AdvancedSection({
           value={description}
           registerFlush={registerFlush}
           placeholder={t("habits.form.descriptionPlaceholder")}
-          placeholderTextColor={tokens.fg3}
           maxLength={2000}
           multiline
           numberOfLines={2}
-          style={[styles.input, styles.textarea]}
+          style={styles.textarea}
           textAlignVertical="top"
           onCommit={(val) => setValue("description", val, { shouldDirty: true })}
         />
@@ -158,7 +157,7 @@ export function AdvancedSection({
                   onPress={() => setValue("endDate", "", { shouldDirty: true })}
                   activeOpacity={0.7}
                 >
-                  <X size={16} color={tokens.fg3} />
+                  <X size={16} color={tokens.fg3} strokeWidth={1.8} />
                 </TouchableOpacity>
               </View>
               <Text style={styles.hintText}>{t("habits.form.endDateHint")}</Text>
@@ -171,7 +170,7 @@ export function AdvancedSection({
               }
               activeOpacity={0.7}
             >
-              <Plus size={14} color={tokens.primary} />
+              <Plus size={14} color={tokens.fg2} strokeWidth={2} />
               <Text style={sectionStyles.addButtonText}>
                 {t("habits.form.addEndDate")}
               </Text>
@@ -226,7 +225,9 @@ export function AdvancedSection({
               isBadHabit && styles.customCheckboxChecked,
             ]}
           >
-            {isBadHabit && <Check size={12} color={tokens.fgOnPrimary} />}
+            {isBadHabit && (
+              <Check size={15} color={tokens.fgOnPrimary} strokeWidth={3} />
+            )}
           </View>
           <Text style={styles.checkboxLabel}>
             {t("habits.form.badHabitLabel")}

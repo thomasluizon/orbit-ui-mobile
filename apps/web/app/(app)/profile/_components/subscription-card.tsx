@@ -1,7 +1,8 @@
 'use client'
 
-import Link from 'next/link'
+import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
+import { CreditCard } from 'lucide-react'
 import { plural } from '@/lib/plural'
 import type { Profile } from '@orbit/shared/types/profile'
 import { SettingsGroup, SettingsGroupRow } from '@/components/ui/settings-group'
@@ -40,69 +41,29 @@ function getSubscriptionHint(
   return t('profile.subscription.freeHint')
 }
 
-/** v8 SettingsRow-style "Plan" card.
- *  - Free: shows "Free" + Pro pill, links to /upgrade
- *  - Trial: shows "Trial · N days" + Upgrade link
- *  - Pro: shows "Pro · Annual" + Manage link */
+/** Canon Assinatura ListRow: credit-card icon, plan label, status line, chevron to /upgrade. */
 export function SubscriptionCard({
   profile,
   trialDaysLeft,
   trialExpired,
 }: Readonly<SubscriptionCardProps>) {
   const t = useTranslations()
-  const isPro = profile?.hasProAccess ?? false
-  const isTrial = profile?.isTrialActive ?? false
+  const router = useRouter()
   const label = getSubscriptionLabel(profile, trialExpired, t)
   const hint = getSubscriptionHint(profile, trialExpired, trialDaysLeft, t)
-
-  let rightLink: React.ReactNode
-  if (isPro) {
-    rightLink = (
-      <Link
-        href="/upgrade"
-        style={{
-          fontFamily: 'var(--font-family-sans)',
-          fontSize: 13,
-          fontWeight: 500,
-          color: 'var(--fg-1)',
-          textDecoration: 'underline',
-          textUnderlineOffset: 3,
-          textDecorationColor: 'var(--hairline-strong)',
-          textDecorationThickness: 1,
-        }}
-      >
-        {t('profile.subscription.manage')}
-      </Link>
-    )
-  } else {
-    rightLink = (
-      <Link
-        href="/upgrade"
-        style={{
-          fontFamily: 'var(--font-family-sans)',
-          fontSize: 13,
-          fontWeight: 500,
-          color: 'var(--fg-1)',
-          textDecoration: 'underline',
-          textUnderlineOffset: 3,
-          textDecorationColor: 'var(--hairline-strong)',
-          textDecorationThickness: 1,
-        }}
-      >
-        {t('common.upgrade')}
-      </Link>
-    )
-  }
-
-  const secondary = isTrial ? `${label} · ${hint}` : (hint ? `${label} · ${hint}` : label)
 
   return (
     <SettingsGroup>
       <SettingsGroupRow
+        icon={<CreditCard size={22} strokeWidth={1.8} color="var(--fg-1)" />}
         label={t('profile.subscription.plan')}
-        hint={secondary}
-        trailing={rightLink}
-        accessory="none"
+        hint={hint ? `${label} · ${hint}` : label}
+        onClick={() => router.push('/upgrade')}
+        ariaLabel={
+          profile?.hasProAccess && !profile.isTrialActive
+            ? t('profile.subscription.manage')
+            : t('common.upgrade')
+        }
       />
     </SettingsGroup>
   )

@@ -8,7 +8,7 @@ import {
   StyleSheet,
 } from 'react-native'
 import { ChevronDown, Check } from 'lucide-react-native'
-import { createTokensV2, radius } from '@/lib/theme'
+import { createTokensV2, radius, shadowsV2, tintFromPrimary } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 type AppTokens = ReturnType<typeof createTokensV2>
@@ -32,12 +32,12 @@ export function AppSelect({
   label,
 }: Readonly<AppSelectProps>) {
   const [isOpen, setIsOpen] = useState(false)
-  const { currentScheme, currentTheme, shadows } = useAppTheme()
+  const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
     () => createTokensV2(currentScheme, currentTheme),
     [currentScheme, currentTheme],
   )
-  const styles = useMemo(() => createStyles(tokens, shadows), [tokens, shadows])
+  const styles = useMemo(() => createStyles(tokens), [tokens])
 
   const selectedOption = options.find((o) => o.value === value)
 
@@ -64,7 +64,7 @@ export function AppSelect({
         >
           {selectedOption?.label ?? label ?? ''}
         </Text>
-        <ChevronDown size={16} color={tokens.fg3} />
+        <ChevronDown size={20} strokeWidth={1.8} color={tokens.fg4} />
       </TouchableOpacity>
 
       <Modal
@@ -108,7 +108,7 @@ export function AppSelect({
                       {item.label}
                     </Text>
                     {isSelected ? (
-                      <Check size={16} color={tokens.primary} />
+                      <Check size={18} strokeWidth={1.8} color={tokens.primary} />
                     ) : null}
                   </TouchableOpacity>
                 )
@@ -121,27 +121,29 @@ export function AppSelect({
   )
 }
 
-function createStyles(tokens: AppTokens, shadows: ReturnType<typeof useAppTheme>['shadows']) {
+function createStyles(tokens: AppTokens) {
   return StyleSheet.create({
     trigger: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      backgroundColor: tokens.bgElev,
+      minHeight: 44,
+      backgroundColor: tokens.bgField,
       borderWidth: 1,
       borderColor: tokens.hairline,
-      borderRadius: radius.sm,
-      paddingVertical: 12,
+      borderRadius: 14,
+      paddingVertical: 10,
       paddingHorizontal: 16,
     },
     triggerText: {
       flex: 1,
       color: tokens.fg1,
-      fontSize: 14,
+      fontFamily: 'Rubik_400Regular',
+      fontSize: 16,
       marginRight: 8,
     },
     triggerPlaceholder: {
-      color: tokens.fg3,
+      color: tokens.fg4,
     },
     backdrop: {
       flex: 1,
@@ -154,18 +156,17 @@ function createStyles(tokens: AppTokens, shadows: ReturnType<typeof useAppTheme>
       width: '100%',
       maxWidth: 360,
       maxHeight: '60%',
-      backgroundColor: tokens.bgElev,
+      backgroundColor: tokens.bgSheet,
       borderRadius: radius.lg,
       borderWidth: 1,
       borderColor: tokens.hairline,
       padding: 8,
-      ...shadows.lg,
-      elevation: 12,
+      ...shadowsV2.shadow2,
     },
     sheetTitle: {
       color: tokens.fg1,
+      fontFamily: 'Rubik_500Medium',
       fontSize: 14,
-      fontWeight: '600',
       paddingHorizontal: 12,
       paddingVertical: 10,
       borderBottomWidth: 1,
@@ -184,16 +185,17 @@ function createStyles(tokens: AppTokens, shadows: ReturnType<typeof useAppTheme>
       borderRadius: radius.sm,
     },
     optionSelected: {
-      backgroundColor: tokens.bgSunk,
+      backgroundColor: tintFromPrimary(tokens, 0.12),
     },
     optionText: {
       flex: 1,
       color: tokens.fg1,
-      fontSize: 14,
+      fontFamily: 'Rubik_400Regular',
+      fontSize: 16,
     },
     optionTextSelected: {
       color: tokens.primary,
-      fontWeight: '500',
+      fontFamily: 'Rubik_500Medium',
     },
   })
 }

@@ -48,11 +48,28 @@ vi.mock('@/hooks/use-profile', () => ({
   }),
 }))
 
+const mockApplyTheme = vi.fn()
 vi.mock('@/hooks/use-color-scheme', () => ({
   useColorScheme: () => ({
     currentScheme: 'purple',
+    currentTheme: 'dark',
     applyScheme: vi.fn(),
+    applyTheme: mockApplyTheme,
   }),
+}))
+
+vi.mock('@/components/ui/app-overlay', () => ({
+  AppOverlay: ({ open, title, children }: {
+    open: boolean; title?: string; children?: React.ReactNode
+  }) => {
+    if (!open) return null
+    return (
+      <div data-testid="picker-sheet">
+        {title && <h2>{title}</h2>}
+        {children}
+      </div>
+    )
+  },
 }))
 
 vi.mock('@/hooks/use-push-notification-preferences', () => ({
@@ -82,7 +99,7 @@ vi.mock('@/components/ui/pro-badge', () => ({
 
 vi.mock('@orbit/shared/theme', () => ({
   colorSchemeOptions: [
-    { value: 'purple', color: '#8b5cf6' },
+    { value: 'purple', color: '#7f46f7' },
     { value: 'blue', color: '#3b82f6' },
     { value: 'green', color: '#22c55e' },
   ],
@@ -149,16 +166,24 @@ describe('PreferencesPage', () => {
     expect(screen.getByText('profile.language.description')).toBeInTheDocument()
   })
 
-  it('renders language buttons', () => {
+  it('opens the language picker sheet with both language options', () => {
     render(<PreferencesPage />)
-    expect(screen.getByText('English')).toBeInTheDocument()
-    expect(screen.getByText('Portugu\u00eas')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /profile.language.title/ }))
+    expect(screen.getByRole('radio', { name: 'English' })).toBeInTheDocument()
+    expect(screen.getByRole('radio', { name: 'Portugu\u00eas' })).toBeInTheDocument()
   })
 
-  it('marks selected language with aria-pressed', () => {
+  it('marks the selected language radio as checked', () => {
     render(<PreferencesPage />)
-    const enButton = screen.getByText('English')
-    expect(enButton).toHaveAttribute('aria-pressed', 'true')
+    fireEvent.click(screen.getByRole('button', { name: /profile.language.title/ }))
+    expect(screen.getByRole('radio', { name: 'English' })).toHaveAttribute('aria-checked', 'true')
+  })
+
+  it('renders the appearance row and applies the picked theme mode', () => {
+    render(<PreferencesPage />)
+    fireEvent.click(screen.getByRole('button', { name: /preferences.themeMode/ }))
+    fireEvent.click(screen.getByRole('radio', { name: 'preferences.themeModeLight' }))
+    expect(mockApplyTheme).toHaveBeenCalledWith('light')
   })
 
 
@@ -169,21 +194,20 @@ describe('PreferencesPage', () => {
     expect(screen.getByTestId('pro-badge')).toBeInTheDocument()
   })
 
-  it('renders color scheme buttons for each option', () => {
+  it('renders a color scheme radio for each option', () => {
     render(<PreferencesPage />)
-    const colorButtons = screen.getAllByRole('button').filter(
-      (btn) => btn.getAttribute('aria-label')?.startsWith('preferences.color'),
+    fireEvent.click(screen.getByRole('button', { name: /profile.colorScheme.title/ }))
+    const colorRadios = screen.getAllByRole('radio').filter(
+      (radio) => radio.textContent?.startsWith('preferences.color'),
     )
-    expect(colorButtons.length).toBe(3)
+    expect(colorRadios.length).toBe(3)
   })
 
-  it('redirects to upgrade when non-Pro user clicks non-purple scheme', () => {
+  it('redirects to upgrade when non-Pro user picks non-purple scheme', () => {
     mockProfile = { ...mockProfile, hasProAccess: false }
     render(<PreferencesPage />)
-    const blueButton = screen.getAllByRole('button').find(
-      (btn) => btn.getAttribute('aria-label') === 'preferences.colorBlue',
-    )
-    if (blueButton) fireEvent.click(blueButton)
+    fireEvent.click(screen.getByRole('button', { name: /profile.colorScheme.title/ }))
+    fireEvent.click(screen.getByRole('radio', { name: 'preferences.colorBlue' }))
     expect(mockPush).toHaveBeenCalledWith('/upgrade')
   })
 
@@ -194,16 +218,17 @@ describe('PreferencesPage', () => {
     expect(screen.getByText('settings.weekStartDay.description')).toBeInTheDocument()
   })
 
-  it('renders monday and sunday options', () => {
+  it('renders monday and sunday options in the picker sheet', () => {
     render(<PreferencesPage />)
-    expect(screen.getByText('settings.weekStartDay.monday')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /settings.weekStartDay.title/ }))
     expect(screen.getByText('settings.weekStartDay.sunday')).toBeInTheDocument()
+    expect(screen.getByRole('radio', { name: 'settings.weekStartDay.monday' })).toBeInTheDocument()
   })
 
   it('marks current week start day as selected', () => {
     render(<PreferencesPage />)
-    const mondayButton = screen.getByText('settings.weekStartDay.monday')
-    expect(mondayButton).toHaveAttribute('aria-pressed', 'true')
+    fireEvent.click(screen.getByRole('button', { name: /settings.weekStartDay.title/ }))
+    expect(screen.getByRole('radio', { name: 'settings.weekStartDay.monday' })).toHaveAttribute('aria-checked', 'true')
   })
 
 

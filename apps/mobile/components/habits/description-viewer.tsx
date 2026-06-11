@@ -1,8 +1,10 @@
-import { useCallback } from "react";
-import { ScrollView, StyleSheet } from "react-native";
+import { useCallback, useMemo } from "react";
+import { ScrollView, StyleSheet, View } from "react-native";
 import { BottomSheetModal } from "@/components/bottom-sheet-modal";
 import { withDrawerContentInset } from "@/components/ui/drawer-content-inset";
 import { Markdown } from "@/components/ui/markdown";
+import { createTokensV2 } from "@/lib/theme";
+import { useAppTheme } from "@/lib/use-app-theme";
 
 interface DescriptionViewerProps {
   open: boolean;
@@ -17,6 +19,11 @@ export function DescriptionViewer({
   title,
   description,
 }: Readonly<DescriptionViewerProps>) {
+  const { currentScheme, currentTheme } = useAppTheme();
+  const tokens = useMemo(
+    () => createTokensV2(currentScheme, currentTheme),
+    [currentScheme, currentTheme],
+  );
   const handleClose = useCallback(() => {
     onClose();
   }, [onClose]);
@@ -33,7 +40,14 @@ export function DescriptionViewer({
         contentContainerStyle={withDrawerContentInset(styles.scrollContent)}
         showsVerticalScrollIndicator={false}
       >
-        <Markdown tone="muted">{description}</Markdown>
+        <View
+          style={[
+            styles.card,
+            { backgroundColor: tokens.bgCard, borderColor: tokens.hairline },
+          ]}
+        >
+          <Markdown tone="muted">{description}</Markdown>
+        </View>
       </ScrollView>
     </BottomSheetModal>
   );
@@ -46,5 +60,11 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingHorizontal: 20,
     paddingBottom: 32,
+  },
+  card: {
+    borderRadius: 18,
+    borderWidth: 1,
+    paddingVertical: 18,
+    paddingHorizontal: 20,
   },
 });

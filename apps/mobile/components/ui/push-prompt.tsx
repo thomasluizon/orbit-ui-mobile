@@ -1,22 +1,27 @@
 import { useMemo, useState, useEffect, useCallback } from 'react'
-import { Animated, Pressable, StyleSheet, Text, View } from 'react-native'
+import { Animated, Modal, Pressable, StyleSheet, Text, View } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import AsyncStorage from '@react-native-async-storage/async-storage'
-import { X } from 'lucide-react-native'
+import { Bell, X } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import { shouldShowNativePushPrompt } from '@orbit/shared/utils'
+import { PillButton } from '@/components/ui/pill-button'
 import { usePushNotifications } from '@/hooks/use-push-notifications'
-import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
+import { createTokensV2, shadowsV2, tintFromPrimary, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 const STORAGE_KEY = 'orbit_push_prompted'
 
 /**
- * v8 push prompt: bottom edge banner with mono "Permissions" eyebrow, plain
- * title, italic body, italic Later / underlined Enable links.
+ * Push prompt per the PushPrompt artboard: a bottom sheet in its own Modal
+ * (dimmed backdrop, docked over the tab bar) with a primary-tinted bell disc,
+ * Rubik 20/500 title, fg-2 body, and stacked primary/ghost pill actions.
+ * Permission flow unchanged.
  */
 export function PushPrompt() {
   const { t } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
+  const insets = useSafeAreaInsets()
   const tokens = useMemo(
     () => createTokensV2(currentScheme, currentTheme),
     [currentScheme, currentTheme],
@@ -61,7 +66,7 @@ export function PushPrompt() {
     })
 
     if (!shouldShow) {
-       
+
       setShow(false)
       return
     }
@@ -119,21 +124,43 @@ export function PushPrompt() {
   if (!show) return null
 
   return (
-    <Animated.View
-      style={[
-        styles.wrapper,
-        {
-          opacity: fadeAnim,
-          transform: [{ translateY: slideAnim }],
-          backgroundColor: tokens.bgElev,
-          borderTopColor: tokens.hairline,
-        },
-      ]}
+    <Modal
+      transparent
+      visible
+      statusBarTranslucent
+      animationType="none"
+      onRequestClose={dismiss}
     >
+      <Animated.View style={[styles.backdrop, { opacity: fadeAnim }]}>
+        <Pressable
+          style={StyleSheet.absoluteFill}
+          onPress={dismiss}
+          accessibilityRole="button"
+          accessibilityLabel={t('common.dismiss')}
+        />
+      </Animated.View>
+      <Animated.View
+        style={[
+          styles.wrapper,
+          { paddingBottom: 20 + insets.bottom },
+          {
+            opacity: fadeAnim,
+            transform: [{ translateY: slideAnim }],
+          },
+        ]}
+      >
       <View style={styles.headerRow}>
-        <Text style={styles.eyebrow}>Permissions</Text>
-        <Pressable onPress={dismiss} hitSlop={8}>
-          <X size={14} color={tokens.fg3} strokeWidth={1.6} />
+        <View style={styles.bellDisc}>
+          <Bell size={22} color={tokens.primarySoft} strokeWidth={1.8} />
+        </View>
+        <Pressable
+          onPress={dismiss}
+          hitSlop={8}
+          style={styles.closeButton}
+          accessibilityRole="button"
+          accessibilityLabel={t('common.dismiss')}
+        >
+          <X size={18} color={tokens.fg3} strokeWidth={1.8} />
         </Pressable>
       </View>
       <Text style={styles.title}>{t('pushPrompt.title')}</Text>
@@ -142,74 +169,81 @@ export function PushPrompt() {
         <Text style={styles.retryText}>{t('pushPrompt.retryHint')}</Text>
       )}
       <View style={styles.buttons}>
-        <Pressable onPress={dismiss} hitSlop={6}>
-          <Text style={styles.laterText}>{t('pushPrompt.later')}</Text>
-        </Pressable>
-        <Pressable onPress={handleEnable} hitSlop={6}>
-          <Text style={styles.enableText}>{t('pushPrompt.enable')}</Text>
-        </Pressable>
+        <PillButton fullWidth onPress={handleEnable}>
+          {t('pushPrompt.enable')}
+        </PillButton>
+        <PillButton variant="ghost" fullWidth onPress={dismiss}>
+          {t('pushPrompt.later')}
+        </PillButton>
       </View>
-    </Animated.View>
+      </Animated.View>
+    </Modal>
   )
 }
 
 function createStyles(tokens: AppTokensV2) {
   return StyleSheet.create({
+    backdrop: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: 'rgba(0, 0, 0, 0.55)',
+    },
     wrapper: {
       position: 'absolute',
-      bottom: 80,
+      bottom: 0,
       left: 0,
       right: 0,
-      zIndex: 50,
-      paddingHorizontal: 20,
-      paddingVertical: 14,
-      borderTopWidth: 1,
+      paddingHorizontal: 22,
+      paddingTop: 20,
       gap: 8,
+      backgroundColor: tokens.bgSheet,
+      borderTopLeftRadius: 26,
+      borderTopRightRadius: 26,
+      borderWidth: 1,
+      borderBottomWidth: 0,
+      borderColor: tokens.hairline,
+      ...shadowsV2.shadow3,
     },
     headerRow: {
       flexDirection: 'row',
-      alignItems: 'center',
+      alignItems: 'flex-start',
       justifyContent: 'space-between',
     },
-    eyebrow: {
-      fontFamily: 'Geist',
-      fontSize: 12,
-      fontWeight: '600',
-      color: tokens.fg3,
+    bellDisc: {
+      width: 44,
+      height: 44,
+      borderRadius: 999,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: tintFromPrimary(tokens, 0.15),
+    },
+    closeButton: {
+      width: 44,
+      height: 44,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginRight: -8,
+      marginTop: -4,
     },
     title: {
-      fontFamily: 'Geist',
-      fontSize: 16,
+      fontFamily: 'Rubik_500Medium',
+      fontSize: 20,
       color: tokens.fg1,
     },
     description: {
-      fontFamily: 'Geist',
-      fontSize: 13,
-      fontStyle: 'italic',
-      lineHeight: 19,
-      color: tokens.fg3,
+      fontFamily: 'Rubik_400Regular',
+      fontSize: 15,
+      lineHeight: 22,
+      color: tokens.fg2,
     },
     retryText: {
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_400Regular',
       fontSize: 12,
       color: tokens.statusOverdue,
     },
     buttons: {
-      flexDirection: 'row',
-      justifyContent: 'flex-end',
-      gap: 22,
-      paddingTop: 4,
-    },
-    laterText: {
-      fontFamily: 'Geist',
-      fontSize: 13,
-      color: tokens.fg3,
-    },
-    enableText: {
-      fontFamily: 'Geist',
-      fontSize: 13,
-      color: tokens.fg1,
-      textDecorationLine: 'underline',
+      flexDirection: 'column',
+      gap: 10,
+      paddingTop: 10,
     },
   })
 }

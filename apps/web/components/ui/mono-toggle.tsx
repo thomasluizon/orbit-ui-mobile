@@ -11,7 +11,7 @@ interface MonoToggleProps {
   offLabel?: string
 }
 
-/** v8 MonoToggle: monospaced ON/OFF pill, hairline ring inactive, primary fill when on. */
+/** Kit toggle pill: bg-field fill, primary 0.12 tint + primary text when on, fg-3 text when off. */
 export function MonoToggle({
   on,
   onToggle,
@@ -28,18 +28,18 @@ export function MonoToggle({
       aria-label={ariaLabel}
       disabled={disabled}
       onClick={onToggle}
-      className="appearance-none cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 shrink-0 font-[family-name:var(--font-family-mono)]"
+      className="appearance-none border-0 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 shrink-0"
       style={{
         minWidth: 44,
-        padding: '4px 8px',
-        borderRadius: 4,
-        border: `1px solid ${on ? 'var(--primary)' : 'var(--hairline-strong)'}`,
-        background: on ? 'var(--primary)' : 'transparent',
-        color: on ? 'var(--fg-on-primary)' : 'var(--fg-2)',
-        fontSize: 10,
-        fontWeight: 600,
-        letterSpacing: '0.06em',
-        transition: 'background-color 150ms, border-color 150ms, color 150ms',
+        padding: '4px 12px',
+        borderRadius: 999,
+        background: on ? 'rgba(var(--primary-rgb), 0.12)' : 'var(--bg-field)',
+        color: on ? 'var(--primary)' : 'var(--fg-3)',
+        fontFamily: 'var(--font-sans)',
+        fontSize: 13,
+        fontWeight: 500,
+        transition:
+          'background-color var(--dur-fast) var(--ease-standard), color var(--dur-fast) var(--ease-standard)',
       }}
     >
       {on ? onLabel : offLabel}

@@ -12,9 +12,11 @@ import {
   translateErrorKey,
   validateGoalDraftInput,
 } from '@orbit/shared/utils'
+import { Badge } from '@/components/ui/badge'
 import { Chip } from '@/components/ui/chip'
 import { SectionLabel } from '@/components/ui/section-label'
-import { UnderlinedInput } from '@/components/ui/underlined-input'
+import { FieldInput } from '@/components/ui/field-input'
+import { PillButton } from '@/components/ui/pill-button'
 
 interface GoalSuggestion {
   key: string
@@ -129,20 +131,22 @@ export function OnboardingCreateGoal({
             width: 56,
             height: 56,
             background: 'var(--primary)',
+            boxShadow: '0 8px 28px rgba(var(--primary-rgb), 0.45)',
+            animation: 'fresh-start-orb 0.5s var(--ease-out) both',
           }}
         >
           <Check
-            className="size-7"
-            style={{ color: 'var(--fg-on-primary)' }}
+            className="animate-check-pop size-7"
+            style={{ color: 'var(--fg-on-primary)', animationDelay: '300ms' }}
             strokeWidth={2.4}
           />
         </div>
         <div
           className="text-center"
           style={{
-            fontFamily: 'var(--font-family-mono)',
-            fontSize: 17,
-            fontWeight: 600,
+            fontFamily: 'var(--font-mono)',
+            fontSize: 20,
+            fontWeight: 500,
             color: 'var(--fg-1)',
             fontVariantNumeric: 'tabular-nums',
           }}
@@ -153,9 +157,8 @@ export function OnboardingCreateGoal({
           <div
             className="text-center"
             style={{
-              fontFamily: 'var(--font-family-sans)',
+              fontFamily: 'var(--font-sans)',
               fontSize: 13,
-              fontStyle: 'italic',
               color: 'var(--fg-3)',
             }}
           >
@@ -165,9 +168,8 @@ export function OnboardingCreateGoal({
         <div
           className="text-center"
           style={{
-            fontFamily: 'var(--font-family-sans)',
+            fontFamily: 'var(--font-sans)',
             fontSize: 14,
-            fontStyle: 'italic',
             color: 'var(--primary)',
           }}
         >
@@ -178,40 +180,39 @@ export function OnboardingCreateGoal({
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 18, padding: '16px 0' }}>
+    <div
+      className="stagger-enter"
+      style={{ display: 'flex', flexDirection: 'column', gap: 18, padding: '16px 0' }}
+    >
       <div className="flex justify-center" style={{ paddingTop: 4 }}>
-        <span
-          style={{
-            fontFamily: 'var(--font-family-sans)',
-            fontSize: 10,
-            fontWeight: 600,
-            color: 'var(--fg-on-primary)',
-            background: 'var(--primary)',
-            padding: '2px 8px',
-            borderRadius: 4,
-            letterSpacing: '0.04em',
-            textTransform: 'uppercase',
-          }}
-        >
-          {t('onboarding.flow.createGoal.proTag')}
-        </span>
+        <Badge>{t('onboarding.flow.createGoal.proTag')}</Badge>
       </div>
       <div
         className="text-center"
         style={{
-          fontFamily: 'var(--font-family-sans)',
-          fontSize: 22,
-          fontWeight: 600,
-          letterSpacing: '-0.015em',
-          lineHeight: 1.15,
+          fontFamily: 'var(--font-sans)',
+          fontSize: 24,
+          fontWeight: 500,
+          letterSpacing: '-0.01em',
+          lineHeight: 1.3,
           color: 'var(--fg-1)',
         }}
       >
         {t('onboarding.flow.createGoal.title')}
       </div>
+      <div
+        className="text-center"
+        style={{
+          fontFamily: 'var(--font-sans)',
+          fontSize: 15,
+          color: 'var(--fg-2)',
+          lineHeight: 1.55,
+        }}
+      >
+        {t('onboarding.flow.createGoal.subtitle')}
+      </div>
 
-      <UnderlinedInput
-        large
+      <FieldInput
         value={description}
         onChange={setDescription}
         placeholder={t('onboarding.flow.createGoal.descriptionPlaceholder')}
@@ -221,7 +222,7 @@ export function OnboardingCreateGoal({
 
       <div className="flex" style={{ gap: 12 }}>
         <div style={{ flex: 1 }}>
-          <UnderlinedInput
+          <FieldInput
             mono
             type="number"
             inputMode="numeric"
@@ -232,7 +233,7 @@ export function OnboardingCreateGoal({
           />
         </div>
         <div style={{ flex: 1 }}>
-          <UnderlinedInput
+          <FieldInput
             value={unit}
             onChange={setUnit}
             placeholder={t('onboarding.flow.createGoal.unitPlaceholder')}
@@ -257,40 +258,29 @@ export function OnboardingCreateGoal({
         ))}
       </div>
 
-      <button
-        type="button"
-        className="appearance-none border-0 cursor-pointer disabled:opacity-50 transition-[background-color] duration-150 ease-out hover:bg-[var(--primary-pressed)]"
-        disabled={!canCreate || isCreating}
-        onClick={handleCreate}
-        style={{
-          padding: '12px 18px',
-          marginTop: 12,
-          background: 'var(--primary)',
-          color: 'var(--fg-on-primary)',
-          borderRadius: 10,
-          fontFamily: 'var(--font-family-sans)',
-          fontSize: 14,
-          fontWeight: 600,
-        }}
-      >
-        {isCreating ? (
-          <span className="inline-flex items-center justify-center" style={{ gap: 8 }}>
-            <Loader2 className="size-4 animate-spin" />
-            {t('onboarding.flow.createGoal.creating')}
-          </span>
-        ) : (
-          t('onboarding.flow.createGoal.create')
-        )}
-      </button>
+      <div style={{ marginTop: 12 }}>
+        <PillButton
+          fullWidth
+          disabled={!canCreate || isCreating}
+          busy={isCreating}
+          onClick={handleCreate}
+          leading={isCreating ? <Loader2 className="size-4 animate-spin" /> : undefined}
+        >
+          {isCreating
+            ? t('onboarding.flow.createGoal.creating')
+            : t('onboarding.flow.createGoal.create')}
+        </PillButton>
+      </div>
 
       <button
         type="button"
-        className="appearance-none border-0 bg-transparent cursor-pointer transition-colors duration-150 ease-out hover:text-[var(--fg-1)]"
+        className="inline-flex appearance-none items-center justify-center border-0 bg-transparent cursor-pointer transition-[color] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:text-[var(--fg-1)]"
         disabled={isCreating}
         onClick={onSkip}
         style={{
-          padding: 6,
-          fontFamily: 'var(--font-family-sans)',
+          minHeight: 44,
+          padding: '0 12px',
+          fontFamily: 'var(--font-sans)',
           fontSize: 13,
           color: 'var(--fg-3)',
         }}

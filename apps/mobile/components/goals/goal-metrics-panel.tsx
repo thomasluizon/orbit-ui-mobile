@@ -7,9 +7,11 @@ import {
   getGoalHabitAdherenceTone,
   getGoalMetricsStatusPresentation,
 } from '@orbit/shared/utils/goal-metrics'
+import { ProgressBar } from '@/components/ui/progress-bar'
 import { SectionLabel } from '@/components/ui/section-label'
 import { SettingsRow } from '@/components/ui/settings-row'
 import { SkeletonLine } from '@/components/ui/skeleton'
+import { StatTile } from '@/components/ui/stat-tile'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
@@ -22,8 +24,7 @@ interface GoalMetricsPanelProps {
   isStreak?: boolean
 }
 
-/** Metrics: status row + flush SettingsRow strip + adherence rows.
- *  No chrome cards; purely hairline-separated rows (mirrors web). */
+/** Metrics: status row, a StatTile pair (projection + pace), and adherence rows (mirrors web). */
 export function GoalMetricsPanel({
   metrics,
   unit,
@@ -71,6 +72,23 @@ export function GoalMetricsPanel({
 
   if (!metrics) return null
 
+  const projectedValue = metrics.projectedCompletionDate
+    ? formatGoalMetricsDate(metrics.projectedCompletionDate, locale)
+    : t('goals.metrics.noData')
+
+  const paceTile = isStreak
+    ? {
+        value: metrics.daysToDeadline ?? t('goals.metrics.noData'),
+        label: t('goals.metrics.daysToDeadline'),
+      }
+    : {
+        value:
+          metrics.velocityPerDay > 0
+            ? `${metrics.velocityPerDay} ${unit}/${t('goals.metrics.perDay')}`
+            : t('goals.metrics.noData'),
+        label: t('goals.metrics.velocity'),
+      }
+
   return (
     <View>
       <SectionLabel top={8} bottom={0}>
@@ -87,43 +105,20 @@ export function GoalMetricsPanel({
         />
       ) : null}
 
-      <SettingsRow
-        label={t('goals.metrics.projectedCompletion')}
-        mono
-        accessory="none"
-        value={
-          metrics.projectedCompletionDate
-            ? formatGoalMetricsDate(metrics.projectedCompletionDate, locale)
-            : t('goals.metrics.noData')
-        }
-        valueColor={tokens.fg1}
-      />
-
-      {isStreak ? (
-        <SettingsRow
-          label={t('goals.streak.daysRemaining', { count: metrics.daysToDeadline ?? 0 })}
-          mono
-          accessory="none"
-          value={
-            metrics.daysToDeadline != null
-              ? String(metrics.daysToDeadline)
-              : t('goals.metrics.noData')
-          }
-          valueColor={tokens.fg1}
+      <View style={styles.tileRow}>
+        <StatTile
+          emoji="📅"
+          value={projectedValue}
+          label={t('goals.metrics.projectedCompletion')}
+          phraseValue
         />
-      ) : (
-        <SettingsRow
-          label={t('goals.metrics.velocity')}
-          mono
-          accessory="none"
-          value={
-            metrics.velocityPerDay > 0
-              ? `${metrics.velocityPerDay} ${unit}/${t('goals.metrics.perDay')}`
-              : t('goals.metrics.noData')
-          }
-          valueColor={tokens.fg1}
+        <StatTile
+          emoji="⚡"
+          value={paceTile.value}
+          label={paceTile.label}
+          phraseValue={typeof paceTile.value === 'string'}
         />
-      )}
+      </View>
 
       {metrics.habitAdherence.length > 0 ? (
         <>
@@ -144,17 +139,12 @@ export function GoalMetricsPanel({
                 <Text style={styles.adherenceTitle} numberOfLines={1}>
                   {habit.habitTitle}
                 </Text>
-                <View style={styles.adherenceTrack}>
-                  <View
-                    style={[
-                      styles.adherenceFill,
-                      {
-                        width: `${Math.min(100, habit.weeklyCompletionRate)}%`,
-                        backgroundColor: barColor,
-                      },
-                    ]}
-                  />
-                </View>
+                <ProgressBar
+                  style={styles.adherenceBar}
+                  progress={Math.min(100, habit.weeklyCompletionRate) / 100}
+                  label={habit.habitTitle}
+                  color={barColor}
+                />
                 <Text style={styles.adherencePercent}>
                   {Math.round(habit.weeklyCompletionRate)}%
                 </Text>
@@ -175,6 +165,13 @@ function createStyles(tokens: AppTokens) {
       borderBottomWidth: StyleSheet.hairlineWidth,
       borderBottomColor: tokens.hairline,
     },
+    tileRow: {
+      flexDirection: 'row',
+      gap: 12,
+      paddingHorizontal: 20,
+      paddingTop: 14,
+      paddingBottom: 4,
+    },
     adherenceRow: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -186,28 +183,20 @@ function createStyles(tokens: AppTokens) {
     },
     adherenceTitle: {
       flex: 1,
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_400Regular',
       fontSize: 14,
       color: tokens.fg1,
     },
-    adherenceTrack: {
+    adherenceBar: {
       width: 80,
-      height: 3,
-      borderRadius: 999,
-      backgroundColor: tokens.bgSunk,
-      overflow: 'hidden',
-    },
-    adherenceFill: {
-      height: '100%',
-      borderRadius: 999,
+      flexShrink: 0,
     },
     adherencePercent: {
-      fontFamily: 'GeistMono',
-      fontSize: 11,
-      fontWeight: '500',
+      fontFamily: 'Roboto_500Medium',
+      fontSize: 12,
       color: tokens.fg1,
       fontVariant: ['tabular-nums'],
-      minWidth: 28,
+      minWidth: 32,
       textAlign: 'right',
     },
   })

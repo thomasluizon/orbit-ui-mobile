@@ -1,9 +1,10 @@
 import { useMemo } from "react";
-import { View, Text, TouchableOpacity, Switch } from "react-native";
+import { View, Text, TouchableOpacity } from "react-native";
 import { useRouter } from "expo-router";
 import { ShieldAlert } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import { ProBadge } from "@/components/ui/pro-badge";
+import { Switch } from "@/components/ui/settings-row";
 import { type AppTokens, createSectionStyles } from "./styles";
 
 interface SlipAlertSectionProps {
@@ -27,9 +28,9 @@ export function SlipAlertSection({
     <View style={sectionStyles.container}>
       {hasProAccess ? (
         <View style={sectionStyles.headerRow}>
-          <View style={{ flex: 1, gap: 2 }}>
+          <View style={{ flex: 1, gap: 4 }}>
             <View style={sectionStyles.headerLeft}>
-              <ShieldAlert size={16} color={tokens.primary} />
+              <ShieldAlert size={20} color={tokens.fg2} strokeWidth={1.8} />
               <Text style={sectionStyles.headerLabel}>
                 {t("habits.form.slipAlert")}
               </Text>
@@ -39,10 +40,9 @@ export function SlipAlertSection({
             </Text>
           </View>
           <Switch
-            value={slipAlertEnabled}
-            onValueChange={onToggle}
-            trackColor={{ false: tokens.bgElev, true: tokens.primary }}
-            thumbColor={tokens.fgOnPrimary}
+            on={slipAlertEnabled}
+            onToggle={onToggle}
+            accessibilityLabel={t("habits.form.slipAlert")}
           />
         </View>
       ) : (
@@ -51,9 +51,9 @@ export function SlipAlertSection({
           onPress={() => router.push("/upgrade")}
           activeOpacity={0.8}
         >
-          <View style={{ flex: 1, gap: 2 }}>
+          <View style={{ flex: 1, gap: 4 }}>
             <View style={sectionStyles.headerLeft}>
-              <ShieldAlert size={16} color={tokens.fg3} />
+              <ShieldAlert size={20} color={tokens.fg3} strokeWidth={1.8} />
               <Text
                 style={[sectionStyles.headerLabel, { color: tokens.fg3 }]}
               >

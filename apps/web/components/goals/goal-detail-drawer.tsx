@@ -7,6 +7,7 @@ import {
   CheckCircle2,
   ChevronRight,
   PencilLine,
+  Plus,
   RotateCw,
   Orbit,
   Trash2,
@@ -14,8 +15,8 @@ import {
 import { useTranslations, useLocale } from 'next-intl'
 import { AppOverlay } from '@/components/ui/app-overlay'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import { PillButton } from '@/components/ui/pill-button'
 import { SectionLabel } from '@/components/ui/section-label'
-import { PullQuote } from '@/components/chat/pull-quote'
 import { EditGoalModal } from './edit-goal-modal'
 import { GoalMetricsPanel } from './goal-metrics-panel'
 import {
@@ -47,6 +48,95 @@ interface GoalDetailDrawerProps {
 }
 
 type ProgressDismissTarget = 'drawer' | 'form'
+
+const RING_SIZE = 180
+const RING_RADIUS = 70
+const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS
+
+interface GoalProgressRingProps {
+  progressPercentage: number
+  percentLabel: string
+  progressOfLabel: string
+  color: string
+}
+
+/** MetaDetalhe progress ring: 12px stroke, round caps, dashoffset animated 280ms. */
+function GoalProgressRing({
+  progressPercentage,
+  percentLabel,
+  progressOfLabel,
+  color,
+}: Readonly<GoalProgressRingProps>) {
+  const clamped = Math.min(100, Math.max(0, progressPercentage))
+  const dashOffset = RING_CIRCUMFERENCE * (1 - clamped / 100)
+
+  return (
+    <div className="flex justify-center" style={{ paddingBottom: 4 }}>
+      <div
+        role="progressbar"
+        aria-valuemin={0}
+        aria-valuemax={100}
+        aria-valuenow={Math.round(clamped)}
+        aria-label={percentLabel}
+        className="relative flex items-center justify-center"
+        style={{ width: RING_SIZE, height: RING_SIZE }}
+      >
+        <svg
+          width={RING_SIZE}
+          height={RING_SIZE}
+          style={{ transform: 'rotate(-90deg)' }}
+          aria-hidden="true"
+        >
+          <circle
+            cx={RING_SIZE / 2}
+            cy={RING_SIZE / 2}
+            r={RING_RADIUS}
+            fill="none"
+            stroke="color-mix(in srgb, var(--fg-1) 8%, transparent)"
+            strokeWidth={12}
+          />
+          <circle
+            cx={RING_SIZE / 2}
+            cy={RING_SIZE / 2}
+            r={RING_RADIUS}
+            fill="none"
+            stroke={color}
+            strokeWidth={12}
+            strokeLinecap="round"
+            strokeDasharray={RING_CIRCUMFERENCE}
+            strokeDashoffset={dashOffset}
+            style={{ transition: 'stroke-dashoffset 280ms var(--ease-out)' }}
+          />
+        </svg>
+        <div className="absolute text-center">
+          <div
+            style={{
+              fontFamily: 'var(--font-display)',
+              fontSize: 40,
+              fontWeight: 700,
+              letterSpacing: '-0.02em',
+              lineHeight: 1.1,
+              color: 'var(--fg-1)',
+              fontVariantNumeric: 'tabular-nums',
+            }}
+          >
+            {Math.round(clamped)}%
+          </div>
+          <div
+            style={{
+              marginTop: 2,
+              fontFamily: 'var(--font-sans)',
+              fontSize: 14,
+              color: 'var(--fg-3)',
+            }}
+          >
+            {progressOfLabel}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
 
 export function GoalDetailDrawer({
   open,
@@ -108,7 +198,8 @@ export function GoalDetailDrawer({
   const router = useRouter()
   const askPrompt = t('goals.detail.askAstraDefault')
   function handleAskAstra() {
-    const seed = goal?.title ? `${askPrompt} (${goal.title})` : askPrompt
+    if (!goal) return
+    const seed = t('goals.detail.askAstraSeedDefault', { title: goal.title })
     if (typeof globalThis !== 'undefined' && typeof globalThis.localStorage !== 'undefined') {
       globalThis.localStorage.setItem('orbit-chat-draft', seed)
     }
@@ -284,19 +375,37 @@ export function GoalDetailDrawer({
               style={{ borderRadius: 8, padding: '8px 10px', margin: '-8px -10px' }}
             >
               <div className="flex items-center gap-3">
-                <div className="flex-1 min-w-0">
-                  <PullQuote
-                    paddingX={0}
-                    paddingY={0}
-                    eyebrow={
-                      <>
-                        <Orbit size={12} strokeWidth={1.7} color="var(--primary)" />
-                        <span>{t('goals.detail.askAstraEyebrow')}</span>
-                      </>
-                    }
+                <div className="relative flex-1 min-w-0" style={{ paddingLeft: 14 }}>
+                  <span
+                    aria-hidden="true"
+                    className="absolute rounded-[1px]"
+                    style={{ left: 0, top: 4, bottom: 4, width: 2, background: 'var(--primary)' }}
+                  />
+                  <div className="inline-flex items-center" style={{ gap: 6, marginBottom: 6 }}>
+                    <Orbit size={12} strokeWidth={1.7} color="var(--primary)" />
+                    <span
+                      style={{
+                        fontFamily: 'var(--font-mono)',
+                        fontSize: 10.5,
+                        fontWeight: 500,
+                        letterSpacing: '0.06em',
+                        color: 'var(--fg-3)',
+                      }}
+                    >
+                      {t('goals.detail.askAstraEyebrow')}
+                    </span>
+                  </div>
+                  <div
+                    style={{
+                      fontFamily: 'var(--font-sans)',
+                      fontSize: 15,
+                      lineHeight: 1.5,
+                      color: 'var(--fg-2)',
+                      textWrap: 'pretty',
+                    }}
                   >
                     {askPrompt}
-                  </PullQuote>
+                  </div>
                 </div>
                 <ChevronRight
                   size={16}
@@ -311,12 +420,12 @@ export function GoalDetailDrawer({
         }
       >
         {goal && (
-          <div className="-mx-6">
+          <div className="overlay-bleed">
             {isStreak && (
               <div
                 style={{
                   padding: '10px 20px',
-                  fontFamily: 'var(--font-family-mono)',
+                  fontFamily: 'var(--font-mono)',
                   fontSize: 12,
                   fontWeight: 500,
                   color: 'var(--fg-3)',
@@ -330,31 +439,12 @@ export function GoalDetailDrawer({
             )}
 
             <SectionLabel>{t('goals.progress')}</SectionLabel>
-            <div style={{ padding: '10px 20px 16px' }}>
-              <div
-                className="relative rounded-full"
-                style={{ height: 5, background: 'var(--bg-sunk)' }}
-              >
-                <div
-                  className="absolute left-0 top-0 bottom-0 rounded-full"
-                  style={{
-                    width: `${Math.min(goal.progressPercentage, 100)}%`,
-                    background: 'var(--primary)',
-                  }}
-                />
-              </div>
-              <div
-                className="flex items-center justify-between"
-                style={{
-                  marginTop: 10,
-                  fontFamily: 'var(--font-family-mono)',
-                  fontSize: 12,
-                  color: 'var(--fg-2)',
-                  fontVariantNumeric: 'tabular-nums',
-                }}
-              >
-                <span>
-                  {isStreak
+            <div style={{ padding: '2px 20px 16px' }}>
+              <GoalProgressRing
+                progressPercentage={goal.progressPercentage}
+                percentLabel={t('goals.progressPercentage', { pct: goal.progressPercentage })}
+                progressOfLabel={
+                  isStreak
                     ? t('goals.streak.ofTarget', {
                         current: goal.currentValue,
                         target: goal.targetValue,
@@ -363,32 +453,32 @@ export function GoalDetailDrawer({
                         current: goal.currentValue,
                         target: goal.targetValue,
                         unit: goal.unit,
-                      })}
-                  <span style={{ color: 'var(--fg-3)', marginLeft: 4 }}>
-                    ({t('goals.progressPercentage', { pct: goal.progressPercentage })})
-                  </span>
-                </span>
-                {goal.status === 'Active' && !showProgressForm && (
-                  <button
-                    type="button"
-                    className="appearance-none border-0 bg-transparent cursor-pointer text-[var(--fg-1)] transition-colors duration-150 ease-out hover:text-[var(--primary)]"
-                    style={{
-                      fontFamily: 'var(--font-family-sans)',
-                      fontSize: 13,
-                      fontWeight: 500,
-                      padding: 0,
-                    }}
-                    onClick={() => {
-                      setInitialProgressValue(goal.currentValue)
-                      setProgressValue(goal.currentValue)
-                      setProgressNote('')
-                      setShowProgressForm(true)
-                    }}
-                  >
-                    {t('goals.updateProgress')}
-                  </button>
-                )}
-              </div>
+                      })
+                }
+                color={isStreak ? 'var(--status-overdue)' : 'var(--primary)'}
+              />
+              {goal.status === 'Active' && !showProgressForm && (
+                <PillButton
+                  fullWidth
+                  className="mt-[14px]"
+                  leading={
+                    <Plus
+                      size={18}
+                      strokeWidth={1.8}
+                      color="var(--fg-on-primary)"
+                      aria-hidden="true"
+                    />
+                  }
+                  onClick={() => {
+                    setInitialProgressValue(goal.currentValue)
+                    setProgressValue(goal.currentValue)
+                    setProgressNote('')
+                    setShowProgressForm(true)
+                  }}
+                >
+                  {t('goals.updateProgress')}
+                </PillButton>
+              )}
             </div>
 
             {showProgressForm && goal.status === 'Active' && (
@@ -453,9 +543,8 @@ export function GoalDetailDrawer({
               <p
                 style={{
                   padding: '10px 20px',
-                  fontFamily: 'var(--font-family-sans)',
+                  fontFamily: 'var(--font-sans)',
                   fontSize: 13,
-                  fontStyle: 'italic',
                   color: 'var(--status-overdue)',
                 }}
               >

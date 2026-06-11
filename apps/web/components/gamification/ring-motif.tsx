@@ -1,9 +1,8 @@
 import type { ReactNode } from 'react'
 
-/** Saturn-ring celebration motif: concentric expanding hairline rings + anchor + body. */
+/** Saturn-ring celebration motif: concentric expanding hairline rings + optional eyebrow above the anchor. */
 interface RingMotifProps {
   anchor: ReactNode
-  body?: ReactNode
   eyebrow?: ReactNode
   eyebrowColor?: string
   ringCount?: number
@@ -14,7 +13,6 @@ interface RingMotifProps {
 
 export function RingMotif({
   anchor,
-  body,
   eyebrow,
   eyebrowColor,
   ringCount = 3,
@@ -31,6 +29,7 @@ export function RingMotif({
     >
       <div
         aria-hidden="true"
+        data-slot="celebration-rings"
         className="absolute inset-0 flex items-center justify-center pointer-events-none"
       >
         {Array.from({ length: ringCount }).map((_, i) => {
@@ -53,37 +52,20 @@ export function RingMotif({
 
       {eyebrow && (
         <div
-          className="relative"
+          className="relative z-[1]"
           style={{
-            fontFamily: 'var(--font-family-mono)',
-            fontSize: 11,
-            fontWeight: 600,
-            color: eyebrowColor ?? 'rgba(255,255,255,0.7)',
-            letterSpacing: '0.18em',
+            fontFamily: 'var(--font-sans)',
+            fontSize: 12,
+            fontWeight: 500,
+            letterSpacing: '0.08em',
             textTransform: 'uppercase',
-            zIndex: 1,
+            color: eyebrowColor ?? 'var(--fg-3)',
           }}
         >
           {eyebrow}
         </div>
       )}
-      <div className="relative" style={{ zIndex: 1 }}>
-        {anchor}
-      </div>
-      {body && (
-        <div
-          className="relative"
-          style={{
-            fontFamily: 'var(--font-family-sans)',
-            fontSize: 16,
-            fontStyle: 'italic',
-            color: 'rgba(255,255,255,0.85)',
-            zIndex: 1,
-          }}
-        >
-          {body}
-        </div>
-      )}
+      <div className="relative z-[1]">{anchor}</div>
     </div>
   )
 }

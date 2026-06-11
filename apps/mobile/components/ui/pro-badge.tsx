@@ -1,9 +1,7 @@
-import { useMemo } from 'react'
-import { View, Text, StyleSheet, type ViewStyle, type TextStyle } from 'react-native'
+import type { StyleProp, ViewStyle } from 'react-native'
 import { useTranslation } from 'react-i18next'
+import { Badge } from '@/components/ui/badge'
 import { useProfile } from '@/hooks/use-profile'
-import { createTokensV2, radius } from '@/lib/theme'
-import { useAppTheme } from '@/lib/use-app-theme'
 
 interface ProBadgeProps {
   /**
@@ -12,21 +10,14 @@ interface ProBadgeProps {
    */
   alwaysVisible?: boolean
   /** Additional styles applied to the outer badge container. */
-  style?: ViewStyle
-  /** Additional styles applied to the badge label text. */
-  textStyle?: TextStyle
+  style?: StyleProp<ViewStyle>
   /** Override the badge label. Defaults to the i18n trial/pro label. */
   label?: string
 }
 
-export function ProBadge({ alwaysVisible = false, style, textStyle, label }: ProBadgeProps) {
+export function ProBadge({ alwaysVisible = false, style, label }: Readonly<ProBadgeProps>) {
   const { t } = useTranslation()
   const { profile } = useProfile()
-  const { currentScheme, currentTheme } = useAppTheme()
-  const tokens = useMemo(
-    () => createTokensV2(currentScheme, currentTheme),
-    [currentScheme, currentTheme],
-  )
 
   const isTrialActive = profile?.isTrialActive ?? false
   const hasProAccess = profile?.hasProAccess ?? false
@@ -36,30 +27,5 @@ export function ProBadge({ alwaysVisible = false, style, textStyle, label }: Pro
 
   const badgeLabel = label ?? (isTrialActive ? t('trial.proBadge') : t('common.proBadge'))
 
-  return (
-    <View
-      style={[
-        styles.badge,
-        { backgroundColor: tokens.bgElev, borderColor: tokens.hairline },
-        style,
-      ]}
-    >
-      <Text style={[styles.text, { color: tokens.primary }, textStyle]}>{badgeLabel}</Text>
-    </View>
-  )
+  return <Badge style={style}>{badgeLabel}</Badge>
 }
-
-const styles = StyleSheet.create({
-  badge: {
-    borderRadius: radius.full,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-    borderWidth: 1,
-  },
-  text: {
-    fontFamily: 'GeistMono',
-    fontSize: 10,
-    fontWeight: '600',
-    letterSpacing: 0.4,
-  },
-})

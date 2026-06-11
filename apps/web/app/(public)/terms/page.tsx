@@ -45,17 +45,7 @@ export default function TermsPage() {
         {sections.map(({ label, body }) => (
           <div key={label}>
             <SectionLabel>{label}</SectionLabel>
-            <div
-              className="px-5 pb-[18px]"
-              style={{
-                fontFamily: 'var(--font-family-sans)',
-                fontSize: 14,
-                lineHeight: 1.6,
-                color: 'var(--fg-2)',
-              }}
-            >
-              {body}
-            </div>
+            <div className="t-secondary px-5 pb-[18px]">{body}</div>
           </div>
         ))}
       </div>

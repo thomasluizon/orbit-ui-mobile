@@ -1,5 +1,6 @@
 import type { BulkCreateRequest, FrequencyUnit } from '../types/habit'
 import type { CalendarAutoSyncStatus, CalendarSyncSuggestion } from '../types/calendar'
+import { plural } from './plural'
 
 export interface CalendarSyncEvent {
   id: string
@@ -250,12 +251,23 @@ export function formatCalendarAutoSyncLastSynced(
   const deltaMinutes = Math.floor(deltaMs / 60_000)
 
   if (deltaMinutes < 1) return translate('calendar.autoSync.lastSyncedJustNow')
-  if (deltaMinutes < 60) return translate('calendar.autoSync.lastSyncedMinutesAgo', { n: deltaMinutes })
+  if (deltaMinutes < 60)
+    return plural(
+      translate('calendar.autoSync.lastSyncedMinutesAgo', { n: deltaMinutes }),
+      deltaMinutes,
+    )
 
   const deltaHours = Math.floor(deltaMinutes / 60)
-  if (deltaHours < 24) return translate('calendar.autoSync.lastSyncedHoursAgo', { n: deltaHours })
+  if (deltaHours < 24)
+    return plural(
+      translate('calendar.autoSync.lastSyncedHoursAgo', { n: deltaHours }),
+      deltaHours,
+    )
 
   const deltaDays = Math.floor(deltaHours / 24)
   if (deltaDays === 1) return translate('calendar.autoSync.lastSyncedYesterday')
-  return translate('calendar.autoSync.lastSyncedDaysAgo', { n: deltaDays })
+  return plural(
+    translate('calendar.autoSync.lastSyncedDaysAgo', { n: deltaDays }),
+    deltaDays,
+  )
 }

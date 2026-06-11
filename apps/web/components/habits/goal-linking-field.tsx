@@ -16,7 +16,7 @@ interface GoalsListResponse {
   items: Goal[]
 }
 
-/** Hairline-ringed chip strip with mono percent token. */
+/** Pill chip strip with mono percent token; active chips take the primary tint. */
 export function GoalLinkingField({
   selectedGoalIds,
   atGoalLimit,
@@ -43,7 +43,7 @@ export function GoalLinkingField({
         {t('habits.form.goals')}
       </span>
       {activeGoals.length > 0 ? (
-        <div className="flex flex-wrap" style={{ gap: 6 }}>
+        <div className="flex flex-wrap" style={{ gap: 8 }}>
           {activeGoals.map((goal) => {
             const isSelected = selectedGoalIds.includes(goal.id)
             const isDimmed = !isSelected && atGoalLimit
@@ -53,30 +53,17 @@ export function GoalLinkingField({
                 type="button"
                 aria-pressed={isSelected}
                 disabled={isDimmed}
-                className="appearance-none cursor-pointer inline-flex items-center whitespace-nowrap shrink-0 disabled:opacity-30 disabled:pointer-events-none"
-                style={{
-                  height: 28,
-                  padding: '0 10px',
-                  borderRadius: 6,
-                  background: isSelected ? 'var(--bg-elev)' : 'transparent',
-                  boxShadow: isSelected
-                    ? 'inset 0 0 0 1px var(--fg-3)'
-                    : 'inset 0 0 0 1px var(--hairline-strong)',
-                  border: 0,
-                  color: isSelected ? 'var(--fg-1)' : 'var(--fg-2)',
-                  fontFamily: 'var(--font-family-sans)',
-                  fontSize: 12,
-                  fontWeight: isSelected ? 600 : 500,
-                  gap: 6,
-                }}
+                className={`chip disabled:opacity-30 disabled:pointer-events-none ${
+                  isSelected ? 'chip-active' : ''
+                }`}
                 onClick={() => onToggleGoal(goal.id)}
               >
                 <span>{goal.title}</span>
                 <span
                   style={{
-                    fontFamily: 'var(--font-family-mono)',
+                    fontFamily: 'var(--font-mono)',
                     fontSize: 11,
-                    color: isSelected ? 'var(--fg-2)' : 'var(--fg-3)',
+                    color: isSelected ? 'var(--primary)' : 'var(--fg-4)',
                     fontVariantNumeric: 'tabular-nums',
                   }}
                 >
@@ -90,9 +77,8 @@ export function GoalLinkingField({
         <p
           style={{
             marginTop: 8,
-            fontFamily: 'var(--font-family-sans)',
+            fontFamily: 'var(--font-sans)',
             fontSize: 13,
-            fontStyle: 'italic',
             color: 'var(--fg-3)',
           }}
         >

@@ -7,7 +7,10 @@ import {
   type ViewStyle,
 } from 'react-native'
 import type { ReactNode } from 'react'
+import { Plus } from 'lucide-react-native'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
+import { createTokensV2 } from '@/lib/theme'
+import { useAppTheme } from '@/lib/use-app-theme'
 
 interface DrillPanelStyles {
   sectionInset: StyleProp<ViewStyle>
@@ -58,12 +61,16 @@ interface DrillFooterProps {
 
 /** Add-sub-habit affordance shown below the drill list. */
 export function DrillFooter({ styles, label, onAddSubHabit }: DrillFooterProps) {
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = createTokensV2(currentScheme, currentTheme)
+
   return (
     <TouchableOpacity
       style={styles.drillAddBtn}
       onPress={onAddSubHabit}
       activeOpacity={0.7}
     >
+      <Plus size={16} color={tokens.fg3} strokeWidth={1.8} />
       <Text style={styles.drillAddBtnText}>{label}</Text>
     </TouchableOpacity>
   )

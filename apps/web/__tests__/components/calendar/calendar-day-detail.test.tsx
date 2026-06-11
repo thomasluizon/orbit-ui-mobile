@@ -57,14 +57,9 @@ describe('CalendarDayDetail', () => {
     document.body.innerHTML = ''
   })
 
-  it('renders nothing when closed', () => {
+  it('renders nothing without a selected date', () => {
     const { container } = render(
-      <CalendarDayDetail
-        open={false}
-        onOpenChange={vi.fn()}
-        dateStr="2025-06-15"
-        entries={[]}
-      />,
+      <CalendarDayDetail dateStr={null} entries={[]} />,
     )
     expect(container.innerHTML).toBe('')
   })
@@ -72,8 +67,6 @@ describe('CalendarDayDetail', () => {
   it('shows no habits message when entries are empty', () => {
     render(
       <CalendarDayDetail
-        open={true}
-        onOpenChange={vi.fn()}
         dateStr="2025-06-15"
         entries={[]}
       />,
@@ -84,8 +77,6 @@ describe('CalendarDayDetail', () => {
   it('renders habit entries', () => {
     render(
       <CalendarDayDetail
-        open={true}
-        onOpenChange={vi.fn()}
         dateStr="2025-06-15"
         entries={[makeEntry({ title: 'Read' }), makeEntry({ title: 'Exercise', habitId: '2' })]}
       />,
@@ -97,8 +88,6 @@ describe('CalendarDayDetail', () => {
   it('shows completion summary', () => {
     render(
       <CalendarDayDetail
-        open={true}
-        onOpenChange={vi.fn()}
         dateStr="2025-06-15"
         entries={[makeEntry(), makeEntry({ habitId: '2', status: 'missed' })]}
       />,
@@ -109,8 +98,6 @@ describe('CalendarDayDetail', () => {
   it('shows completed status badge', () => {
     render(
       <CalendarDayDetail
-        open={true}
-        onOpenChange={vi.fn()}
         dateStr="2025-06-15"
         entries={[makeEntry({ status: 'completed' })]}
       />,
@@ -121,8 +108,6 @@ describe('CalendarDayDetail', () => {
   it('shows missed status badge', () => {
     render(
       <CalendarDayDetail
-        open={true}
-        onOpenChange={vi.fn()}
         dateStr="2025-06-15"
         entries={[makeEntry({ status: 'missed' })]}
       />,
@@ -133,8 +118,6 @@ describe('CalendarDayDetail', () => {
   it('shows no status badge for upcoming habits', () => {
     render(
       <CalendarDayDetail
-        open={true}
-        onOpenChange={vi.fn()}
         dateStr="2025-06-15"
         entries={[makeEntry({ title: 'Read', status: 'upcoming' })]}
       />,
@@ -147,8 +130,6 @@ describe('CalendarDayDetail', () => {
   it('shows bad habit labels (indulged/resisted)', () => {
     render(
       <CalendarDayDetail
-        open={true}
-        onOpenChange={vi.fn()}
         dateStr="2025-06-15"
         entries={[
           makeEntry({ isBadHabit: true, status: 'completed' }),
@@ -163,8 +144,6 @@ describe('CalendarDayDetail', () => {
   it('renders go to day link', () => {
     render(
       <CalendarDayDetail
-        open={true}
-        onOpenChange={vi.fn()}
         dateStr="2025-06-15"
         entries={[]}
       />,
@@ -177,8 +156,6 @@ describe('CalendarDayDetail', () => {
   it('shows due time when present', () => {
     render(
       <CalendarDayDetail
-        open={true}
-        onOpenChange={vi.fn()}
         dateStr="2025-06-15"
         entries={[makeEntry({ dueTime: '08:00' })]}
       />,
@@ -189,8 +166,6 @@ describe('CalendarDayDetail', () => {
   it('shows recurring checkbox', () => {
     render(
       <CalendarDayDetail
-        open={true}
-        onOpenChange={vi.fn()}
         dateStr="2025-06-15"
         entries={[makeEntry()]}
       />,

@@ -55,19 +55,19 @@
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
                         android:text="Today"
-                        android:textColor="#FFFFFFFF"
+                        android:textColor="#FFF8FAFC"
                         android:textSize="20sp"
-                        android:textStyle="bold"
-                        android:fontFamily="sans-serif-medium"
-                        android:letterSpacing="0.02" />
+                        android:fontFamily="@font/rubik_medium"
+                        android:letterSpacing="-0.01" />
 
                     <TextView
                         android:id="@+id/widget_subtitle"
                         android:layout_width="wrap_content"
                         android:layout_height="wrap_content"
-                        android:textColor="#997a7490"
+                        android:textColor="#9990A1B9"
                         android:textSize="12sp"
-                        android:fontFamily="sans-serif-medium"
+                        android:fontFamily="@font/roboto_regular"
+                        android:letterSpacing="0.02"
                         android:paddingTop="1dp" />
                 </LinearLayout>
             </LinearLayout>
@@ -95,10 +95,10 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginStart="2dp"
-                    android:textColor="#FFf0eef6"
+                    android:textColor="#FFF8FAFC"
                     android:textSize="14sp"
-                    android:textStyle="bold"
-                    android:fontFamily="sans-serif-medium"
+                    android:fontFamily="@font/roboto_medium"
+                    android:fontFeatureSettings="tnum"
                     android:visibility="gone" />
 
                 <!-- Refresh button -->
@@ -118,7 +118,7 @@
                     android:layout_width="36dp"
                     android:layout_height="36dp"
                     android:layout_marginStart="6dp"
-                    android:indeterminateTint="#AAf0eef6"
+                    android:indeterminateTint="#AAF8FAFC"
                     android:visibility="gone" />
             </LinearLayout>
         </RelativeLayout>
@@ -155,9 +155,9 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="All clear!"
-                android:textColor="#997a7490"
+                android:textColor="#9990A1B9"
                 android:textSize="14sp"
-                android:fontFamily="sans-serif-medium" />
+                android:fontFamily="@font/rubik_regular" />
         </LinearLayout>
 
     </LinearLayout>

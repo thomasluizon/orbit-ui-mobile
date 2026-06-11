@@ -5,7 +5,7 @@ import RNMarkdown, {
   type MarkedStyles,
   type RendererInterface,
 } from 'react-native-marked'
-import { createTokensV2 } from '@/lib/theme'
+import { createTokensV2, radius } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 type AppTokens = ReturnType<typeof createTokensV2>
@@ -17,10 +17,16 @@ interface MarkdownProps {
   tone?: MarkdownTone
 }
 
-function resolveColor(tokens: AppTokens, tone: MarkdownTone): string {
-  if (tone === "muted") return tokens.fg2
-  if (tone === "onPrimary") return tokens.fgOnPrimary
-  return tokens.fg1
+interface ProseColors {
+  body: string
+  heading: string
+}
+
+function resolveProseColors(tokens: AppTokens, tone: MarkdownTone): ProseColors {
+  if (tone === "muted") return { body: tokens.fg3, heading: tokens.fg2 }
+  if (tone === "onPrimary")
+    return { body: tokens.fgOnPrimary, heading: tokens.fgOnPrimary }
+  return { body: tokens.fg2, heading: tokens.fg1 }
 }
 
 const SAFE_LINK_SCHEME = /^(https?:|mailto:)/i
@@ -57,27 +63,48 @@ class SafeLinkRenderer extends Renderer implements RendererInterface {
   }
 }
 
-function createMarkedStyles(tokens: AppTokens, color: string): MarkedStyles {
+function createMarkedStyles(tokens: AppTokens, colors: ProseColors): MarkedStyles {
+  const { body, heading } = colors
   return {
-    text: { color, fontSize: 14, lineHeight: 20 },
+    text: { color: body, fontFamily: 'Rubik_400Regular', fontSize: 14, lineHeight: 20 },
     paragraph: { marginVertical: 4 },
-    strong: { color, fontWeight: '700' },
-    em: { color, fontStyle: 'italic' },
+    strong: { color: heading, fontFamily: 'Rubik_500Medium' },
+    em: { color: body, fontStyle: 'italic' },
     link: { color: tokens.primary, textDecorationLine: 'underline' },
-    h1: { color, fontSize: 20, fontWeight: '700', marginVertical: 6 },
-    h2: { color, fontSize: 18, fontWeight: '700', marginVertical: 6 },
-    h3: { color, fontSize: 16, fontWeight: '600', marginVertical: 4 },
-    list: { marginVertical: 4 },
-    li: { color, fontSize: 14, lineHeight: 20 },
-    codespan: {
-      color,
-      backgroundColor: tokens.bgSunk,
-      fontFamily: 'monospace',
+    h1: {
+      color: heading,
+      fontFamily: 'Rubik_600SemiBold',
+      fontSize: 20,
+      marginVertical: 6,
     },
-    code: { backgroundColor: tokens.bgSunk, padding: 12, borderRadius: 8 },
+    h2: {
+      color: heading,
+      fontFamily: 'Rubik_500Medium',
+      fontSize: 18,
+      marginVertical: 6,
+    },
+    h3: {
+      color: heading,
+      fontFamily: 'Rubik_500Medium',
+      fontSize: 16,
+      marginVertical: 4,
+    },
+    list: { marginVertical: 4 },
+    li: { color: body, fontFamily: 'Rubik_400Regular', fontSize: 14, lineHeight: 20 },
+    codespan: {
+      color: body,
+      backgroundColor: tokens.bgElev,
+      borderRadius: radius.sm,
+      fontFamily: 'Roboto_400Regular',
+    },
+    code: {
+      backgroundColor: tokens.bgElev,
+      padding: 12,
+      borderRadius: radius.sm,
+    },
     blockquote: {
-      borderLeftWidth: 3,
-      borderLeftColor: tokens.hairlineStrong,
+      borderLeftWidth: 2,
+      borderLeftColor: tokens.hairline,
       paddingLeft: 12,
     },
   }
@@ -86,9 +113,9 @@ function createMarkedStyles(tokens: AppTokens, color: string): MarkedStyles {
 /**
  * The single mobile markdown renderer for chat messages and habit/goal
  * descriptions. Wraps react-native-marked (same `marked` engine as web for
- * parsing parity), themes it with v8 tokens, and never opens unsafe link
- * schemes. Renders through RN core primitives only — no raw HTML, no native
- * module, so it is New-Architecture safe.
+ * parsing parity), themes it with the navy+violet tokens, and never opens
+ * unsafe link schemes. Renders through RN core primitives only — no raw HTML,
+ * no native module, so it is New-Architecture safe.
  */
 export function Markdown({ children, tone = "default" }: Readonly<MarkdownProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
@@ -96,8 +123,11 @@ export function Markdown({ children, tone = "default" }: Readonly<MarkdownProps>
     () => createTokensV2(currentScheme, currentTheme),
     [currentScheme, currentTheme],
   )
-  const color = resolveColor(tokens, tone)
-  const styles = useMemo(() => createMarkedStyles(tokens, color), [tokens, color])
+  const colors = useMemo(() => resolveProseColors(tokens, tone), [tokens, tone])
+  const styles = useMemo(
+    () => createMarkedStyles(tokens, colors),
+    [tokens, colors],
+  )
   const renderer = useMemo(() => new SafeLinkRenderer(), [])
 
   return (
@@ -107,10 +137,10 @@ export function Markdown({ children, tone = "default" }: Readonly<MarkdownProps>
       renderer={renderer}
       theme={{
         colors: {
-          text: color,
+          text: colors.body,
           link: tokens.primary,
-          code: color,
-          border: tokens.hairlineStrong,
+          code: colors.body,
+          border: tokens.hairline,
         },
       }}
       flatListProps={{

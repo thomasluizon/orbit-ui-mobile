@@ -30,9 +30,9 @@ interface BulkActionBarV2Props {
 }
 
 /**
- * v8 floating bulk action bar shown when select mode is active.
- * Pinned to the bottom by the parent screen; this primitive lays out the
- * count caption and the action buttons.
+ * Floating bulk action toolbar on an elevated solid sheet surface, shown when
+ * select mode is active. Pinned to the bottom by the parent screen; this
+ * primitive lays out the count caption and the action buttons.
  */
 export function BulkActionBarV2({
   count,
@@ -60,10 +60,10 @@ export function BulkActionBarV2({
       style={[
         styles.bar,
         {
-          backgroundColor: tokens.bgElev,
-          borderColor: tokens.hairlineStrong,
+          backgroundColor: tokens.bgSheet,
+          borderColor: tokens.hairline,
         },
-        shadowsV2.shadow3,
+        shadowsV2.shadow2,
       ]}
     >
       <Text style={[styles.count, { color: tokens.fg1 }]}>
@@ -80,9 +80,9 @@ export function BulkActionBarV2({
           ]}
         >
           {allSelected ? (
-            <MinusCircle size={18} color={tokens.fg2} strokeWidth={1.5} />
+            <MinusCircle size={18} color={tokens.fg2} strokeWidth={1.8} />
           ) : (
-            <PlusCircle size={18} color={tokens.fg2} strokeWidth={1.5} />
+            <PlusCircle size={18} color={tokens.fg2} strokeWidth={1.8} />
           )}
         </Pressable>
         <Pressable
@@ -100,7 +100,7 @@ export function BulkActionBarV2({
           <CheckCircle2
             size={18}
             color={tokens.primary}
-            strokeWidth={1.5}
+            strokeWidth={1.8}
           />
         </Pressable>
         <Pressable
@@ -118,7 +118,7 @@ export function BulkActionBarV2({
           <FastForward
             size={18}
             color={tokens.statusSkip}
-            strokeWidth={1.5}
+            strokeWidth={1.8}
           />
         </Pressable>
         <Pressable
@@ -136,7 +136,7 @@ export function BulkActionBarV2({
           <Trash2
             size={18}
             color={tokens.statusBad}
-            strokeWidth={1.5}
+            strokeWidth={1.8}
           />
         </Pressable>
         <View
@@ -151,7 +151,7 @@ export function BulkActionBarV2({
             { backgroundColor: pressed ? tokens.bgSunk : 'transparent' },
           ]}
         >
-          <X size={18} color={tokens.fg2} strokeWidth={1.5} />
+          <X size={18} color={tokens.fg2} strokeWidth={1.8} />
         </Pressable>
       </View>
     </View>
@@ -160,26 +160,25 @@ export function BulkActionBarV2({
 
 const styles = StyleSheet.create({
   bar: {
-    borderRadius: 12,
-    borderWidth: StyleSheet.hairlineWidth,
+    borderRadius: 20,
+    borderWidth: 1,
     paddingHorizontal: 14,
     paddingVertical: 12,
-    gap: 10,
+    gap: 8,
   },
   count: {
-    fontFamily: 'Geist',
+    fontFamily: 'Rubik_500Medium',
     fontSize: 13,
-    fontWeight: '500',
-  },
+    },
   actions: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 4,
   },
   actionBtn: {
-    width: 36,
-    height: 36,
-    borderRadius: 8,
+    width: 40,
+    height: 40,
+    borderRadius: 999,
     alignItems: 'center',
     justifyContent: 'center',
   },

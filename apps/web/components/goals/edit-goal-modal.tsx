@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl'
 import { AppOverlay } from '@/components/ui/app-overlay'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { AppDatePicker } from '@/components/ui/app-date-picker'
+import { PillButton } from '@/components/ui/pill-button'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useDismissGuard } from '@/hooks/use-dismiss-guard'
 import { useUpdateGoal } from '@/hooks/use-goals'
@@ -153,12 +154,12 @@ export function EditGoalModal({
         isDirty={isDirty}
         onAttemptDismiss={dismissGuard.requestDismiss}
       >
-        <form className="-mx-6" onSubmit={onSubmit}>
+        <form onSubmit={onSubmit}>
           {isStreak && (
             <div
               style={{
-                padding: '10px 20px',
-                fontFamily: 'var(--font-family-mono)',
+                padding: '10px 0',
+                fontFamily: 'var(--font-mono)',
                 fontSize: 12,
                 fontWeight: 500,
                 color: 'var(--fg-3)',
@@ -170,8 +171,8 @@ export function EditGoalModal({
             </div>
           )}
 
-          <div className={isStreak ? '' : 'grid grid-cols-2'} style={{ padding: '16px 20px 12px', gap: 14 }}>
-            <UnderlinedField
+          <div className={isStreak ? '' : 'grid grid-cols-2'} style={{ padding: '16px 0 0', gap: 12 }}>
+            <FieldWell
               label={isStreak ? t('goals.form.streakTarget') : t('goals.form.targetValue')}
               id="edit-goal-target"
               type="number"
@@ -181,7 +182,7 @@ export function EditGoalModal({
               onChange={setTargetValue}
             />
             {isStreak ? (
-              <UnderlinedField
+              <FieldWell
                 label={t('goals.form.unit')}
                 id="edit-goal-unit-readonly"
                 type="text"
@@ -190,7 +191,7 @@ export function EditGoalModal({
                 onChange={() => {}}
               />
             ) : (
-              <UnderlinedField
+              <FieldWell
                 label={t('goals.form.unit')}
                 id="edit-goal-unit"
                 type="text"
@@ -202,8 +203,8 @@ export function EditGoalModal({
             )}
           </div>
 
-          <div style={{ padding: '0 20px 12px' }}>
-            <UnderlinedField
+          <div style={{ padding: '16px 0 0' }}>
+            <FieldWell
               label={t('goals.form.description')}
               id="edit-goal-description"
               type="text"
@@ -215,15 +216,15 @@ export function EditGoalModal({
             />
           </div>
 
-          <div style={{ padding: '0 20px 16px' }}>
+          <div style={{ padding: '16px 0 16px' }}>
             {deadline ? (
-              <div className="flex flex-col" style={{ gap: 4 }}>
+              <div className="flex flex-col" style={{ gap: 8 }}>
                 <span
                   style={{
-                    fontFamily: 'var(--font-family-sans)',
-                    fontSize: 11,
+                    fontFamily: 'var(--font-sans)',
+                    fontSize: 14,
                     fontWeight: 500,
-                    color: 'var(--fg-3)',
+                    color: 'var(--fg-2)',
                   }}
                 >
                   {t('goals.form.deadline')}
@@ -234,20 +235,19 @@ export function EditGoalModal({
                   </div>
                   <button
                     type="button"
-                    className="appearance-none border-0 bg-transparent cursor-pointer"
-                    style={{ padding: 6, color: 'var(--fg-3)' }}
+                    className="appearance-none border-0 bg-transparent cursor-pointer inline-flex items-center justify-center"
+                    style={{ width: 44, height: 44, color: 'var(--fg-3)' }}
                     aria-label={t('common.cancel')}
                     onClick={() => setDeadline('')}
                   >
-                    <X size={14} />
+                    <X size={16} strokeWidth={1.8} />
                   </button>
                 </div>
                 {isGoalDeadlinePast(deadline) && (
                   <p
                     style={{
-                      fontFamily: 'var(--font-family-sans)',
+                      fontFamily: 'var(--font-sans)',
                       fontSize: 13,
-                      fontStyle: 'italic',
                       color: 'var(--status-overdue)',
                     }}
                   >
@@ -260,54 +260,45 @@ export function EditGoalModal({
                 type="button"
                 className="appearance-none border-0 bg-transparent cursor-pointer inline-flex items-center"
                 style={{
-                  fontFamily: 'var(--font-family-sans)',
+                  fontFamily: 'var(--font-sans)',
                   fontSize: 13,
                   fontWeight: 500,
                   color: 'var(--fg-1)',
-                  padding: 0,
+                  padding: '6px 0',
                   gap: 6,
                 }}
                 onClick={() => setDeadline(formatAPIDate(new Date()))}
               >
-                <Plus size={14} />
+                <Plus size={14} strokeWidth={1.8} />
                 {t('goals.form.addDeadline')}
               </button>
             )}
           </div>
 
           <div
-            className="flex items-center justify-between"
+            className="flex items-center"
             style={{
-              padding: '12px 20px 16px',
-              borderTop: '1px solid var(--hairline)',
+              gap: 12,
+              padding: '18px 0 8px',
             }}
           >
-            <button
-              type="button"
-              className="appearance-none border-0 bg-transparent cursor-pointer"
-              style={{
-                fontFamily: 'var(--font-family-sans)',
-                fontSize: 14,
-                fontWeight: 500,
-                color: 'var(--fg-3)',
-                padding: 6,
-              }}
+            <PillButton
+              variant="ghost"
+              className="flex-1"
               onClick={dismissGuard.requestDismiss}
             >
               {t('common.cancel')}
-            </button>
+            </PillButton>
             <button
               type="submit"
               disabled={isSubmitting}
-              className="appearance-none border-0 cursor-pointer disabled:opacity-50"
+              className="flex-1 inline-flex cursor-pointer items-center justify-center rounded-full border-0 bg-[var(--primary)] text-[var(--fg-on-primary)] transition-[background-color,box-shadow,transform,opacity] duration-[var(--dur-fast)] ease-[var(--ease-standard)] enabled:hover:bg-[var(--primary-pressed)] enabled:hover:-translate-y-px enabled:hover:shadow-[var(--primary-glow-hover)] enabled:active:translate-y-0 enabled:active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
               style={{
-                background: 'var(--primary)',
-                color: 'var(--fg-on-primary)',
-                fontFamily: 'var(--font-family-sans)',
-                fontSize: 14,
-                fontWeight: 600,
-                padding: '10px 18px',
-                borderRadius: 8,
+                fontFamily: 'var(--font-sans)',
+                fontSize: 16,
+                fontWeight: 500,
+                padding: '15px 26px',
+                boxShadow: isSubmitting ? 'none' : 'var(--primary-glow)',
               }}
             >
               {isSubmitting ? '...' : t('common.save')}
@@ -332,7 +323,7 @@ export function EditGoalModal({
   )
 }
 
-interface UnderlinedFieldProps {
+interface FieldWellProps {
   label: string
   id: string
   type: 'text' | 'number'
@@ -345,7 +336,8 @@ interface UnderlinedFieldProps {
   onChange: (next: string) => void
 }
 
-function UnderlinedField({
+/** Kit field well with native min/step semantics and inline error slot. */
+function FieldWell({
   label,
   id,
   type,
@@ -356,16 +348,16 @@ function UnderlinedField({
   readOnly = false,
   error,
   onChange,
-}: Readonly<UnderlinedFieldProps>) {
+}: Readonly<FieldWellProps>) {
   return (
-    <div className="flex flex-col" style={{ gap: 4 }}>
+    <div className="flex flex-col" style={{ gap: 8 }}>
       <label
         htmlFor={id}
         style={{
-          fontFamily: 'var(--font-family-sans)',
-          fontSize: 11,
+          fontFamily: 'var(--font-sans)',
+          fontSize: 14,
           fontWeight: 500,
-          color: 'var(--fg-3)',
+          color: 'var(--fg-2)',
         }}
       >
         {label}
@@ -382,18 +374,14 @@ function UnderlinedField({
         aria-invalid={!!error}
         aria-describedby={error ? `${id}-error` : undefined}
         onChange={(e) => onChange(e.target.value)}
+        className="w-full appearance-none rounded-[14px] border-0 bg-[var(--bg-field)] shadow-[inset_0_0_0_1px_var(--hairline)] outline-none placeholder:text-[var(--fg-4)] focus:shadow-[inset_0_0_0_2px_var(--primary)]"
         style={{
-          appearance: 'none',
-          border: 0,
-          background: 'transparent',
-          outline: 'none',
-          fontFamily: mono ? 'var(--font-family-mono)' : 'var(--font-family-sans)',
-          fontSize: 14,
+          minHeight: 54,
+          padding: '0 16px',
+          fontFamily: mono ? 'var(--font-mono)' : 'var(--font-sans)',
+          fontSize: 16,
           color: readOnly ? 'var(--fg-3)' : 'var(--fg-1)',
-          padding: '6px 0',
-          borderBottom: '1px solid var(--hairline-strong)',
           fontVariantNumeric: mono ? 'tabular-nums' : 'normal',
-          width: '100%',
           opacity: readOnly ? 0.6 : 1,
         }}
       />
@@ -402,9 +390,8 @@ function UnderlinedField({
           id={`${id}-error`}
           role="alert"
           style={{
-            fontFamily: 'var(--font-family-sans)',
+            fontFamily: 'var(--font-sans)',
             fontSize: 12,
-            fontStyle: 'italic',
             color: 'var(--status-overdue)',
           }}
         >

@@ -214,7 +214,7 @@ const styles = StyleSheet.create({
     gap: 6,
   },
   bodyText: {
-    fontFamily: 'Geist',
+    fontFamily: 'Rubik_400Regular',
     fontSize: 14,
     lineHeight: 22,
   },

@@ -3,6 +3,7 @@
 import { useState, useCallback } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
+import { RotateCcw } from 'lucide-react'
 import {
   buildFreshStartDeletedItems,
   buildFreshStartPreservedItems,
@@ -10,8 +11,65 @@ import {
 } from '@orbit/shared/utils'
 import { AppOverlay } from '@/components/ui/app-overlay'
 import { FreshStartAnimation } from '@/components/ui/fresh-start-animation'
-import { UnderlinedInput } from '@/components/ui/underlined-input'
+import { FieldInput } from '@/components/ui/field-input'
+import { PillButton } from '@/components/ui/pill-button'
 import { resetAccount } from '@/app/actions/profile'
+
+function AmberPillButton({
+  disabled = false,
+  onClick,
+  children,
+}: Readonly<{
+  disabled?: boolean
+  onClick: () => void
+  children: React.ReactNode
+}>) {
+  return (
+    <button
+      type="button"
+      disabled={disabled}
+      onClick={onClick}
+      className="inline-flex w-full cursor-pointer items-center justify-center gap-[9px] rounded-full border-0 px-[26px] py-[15px] text-[16px] font-medium transition-[opacity,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] enabled:hover:opacity-90 enabled:active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
+      style={{
+        fontFamily: 'var(--font-sans)',
+        background: 'var(--status-overdue)',
+        color: 'var(--fg-on-primary)',
+      }}
+    >
+      {children}
+    </button>
+  )
+}
+
+function FreshStartHero({ body }: Readonly<{ body: string }>) {
+  return (
+    <div className="flex flex-col items-center text-center" style={{ gap: 16 }}>
+      <div
+        aria-hidden="true"
+        className="flex items-center justify-center rounded-full"
+        style={{
+          width: 80,
+          height: 80,
+          background: 'color-mix(in srgb, var(--status-overdue) 14%, transparent)',
+        }}
+      >
+        <RotateCcw size={34} strokeWidth={1.8} color="var(--status-overdue)" />
+      </div>
+      <p
+        style={{
+          fontFamily: 'var(--font-sans)',
+          fontSize: 15,
+          color: 'var(--fg-2)',
+          lineHeight: 1.5,
+          margin: 0,
+          textWrap: 'pretty',
+        }}
+      >
+        {body}
+      </p>
+    </div>
+  )
+}
 
 interface FreshStartModalProps {
   open: boolean
@@ -85,6 +143,7 @@ export function FreshStartModal({ open, onOpenChange }: Readonly<FreshStartModal
           <FreshStartInfoStep
             deletedItems={deletedItems}
             preservedItems={preservedItems}
+            onCancel={() => onOpenChange(false)}
             onContinue={() => setStep('confirm')}
           />
         ) : (
@@ -94,6 +153,7 @@ export function FreshStartModal({ open, onOpenChange }: Readonly<FreshStartModal
             isConfirmed={isConfirmed}
             loading={loading}
             error={error}
+            onCancel={() => onOpenChange(false)}
             onReset={handleReset}
           />
         )}
@@ -106,25 +166,36 @@ export function FreshStartModal({ open, onOpenChange }: Readonly<FreshStartModal
 
 function ListBlock({ title, items }: Readonly<{ title: string; items: string[] }>) {
   return (
-    <div className="flex flex-col" style={{ gap: 6 }}>
+    <div
+      className="flex flex-col rounded-[16px]"
+      style={{
+        gap: 8,
+        padding: '14px 16px',
+        background: 'var(--bg-card)',
+        boxShadow: 'inset 0 0 0 1px var(--hairline)',
+      }}
+    >
       <div
         style={{
-          fontFamily: 'var(--font-family-sans)',
+          fontFamily: 'var(--font-sans)',
           fontSize: 12,
-          fontWeight: 600,
+          fontWeight: 500,
+          letterSpacing: '0.08em',
+          textTransform: 'uppercase',
           color: 'var(--fg-3)',
         }}
       >
         {title}
       </div>
-      <div className="flex flex-col" style={{ gap: 3 }}>
+      <div className="flex flex-col" style={{ gap: 4 }}>
         {items.map((item) => (
           <span
             key={item}
             style={{
-              fontFamily: 'var(--font-family-mono)',
-              fontSize: 12,
-              color: 'var(--fg-1)',
+              fontFamily: 'var(--font-sans)',
+              fontSize: 13,
+              lineHeight: 1.4,
+              color: 'var(--fg-2)',
             }}
           >
             {item}
@@ -138,64 +209,30 @@ function ListBlock({ title, items }: Readonly<{ title: string; items: string[] }
 function FreshStartInfoStep({
   deletedItems,
   preservedItems,
+  onCancel,
   onContinue,
 }: Readonly<{
   deletedItems: string[]
   preservedItems: string[]
+  onCancel: () => void
   onContinue: () => void
 }>) {
   const t = useTranslations()
 
   return (
     <div className="flex flex-col" style={{ gap: 16 }}>
-      <p
-        style={{
-          fontFamily: 'var(--font-family-sans)',
-          fontSize: 14,
-          fontStyle: 'italic',
-          color: 'var(--fg-2)',
-          lineHeight: 1.55,
-        }}
-      >
-        {t('profile.freshStart.description')}
-      </p>
-      <div className="grid" style={{ gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+      <FreshStartHero body={t('profile.freshStart.description')} />
+      <div className="grid" style={{ gridTemplateColumns: '1fr 1fr', gap: 12 }}>
         <ListBlock title={t('profile.freshStart.willDelete')} items={deletedItems} />
         <ListBlock title={t('profile.freshStart.willKeep')} items={preservedItems} />
       </div>
-      <div
-        className="flex items-center justify-end"
-        style={{ gap: 12, paddingTop: 8 }}
-      >
-        <button
-          type="button"
-          className="appearance-none border-0 bg-transparent cursor-pointer"
-          style={{
-            fontFamily: 'var(--font-family-sans)',
-            fontSize: 14,
-            color: 'var(--fg-3)',
-            padding: 6,
-          }}
-          onClick={() => globalThis.history.back()}
-        >
-          {t('common.cancel')}
-        </button>
-        <button
-          type="button"
-          className="appearance-none border-0 cursor-pointer"
-          onClick={onContinue}
-          style={{
-            padding: '10px 18px',
-            background: 'var(--primary)',
-            color: 'var(--fg-on-primary)',
-            borderRadius: 10,
-            fontFamily: 'var(--font-family-sans)',
-            fontSize: 14,
-            fontWeight: 600,
-          }}
-        >
+      <div className="flex flex-col" style={{ gap: 12, paddingTop: 8 }}>
+        <AmberPillButton onClick={onContinue}>
           {t('common.continue')}
-        </button>
+        </AmberPillButton>
+        <PillButton variant="ghost" fullWidth onClick={onCancel}>
+          {t('common.cancel')}
+        </PillButton>
       </div>
     </div>
   )
@@ -207,6 +244,7 @@ function FreshStartConfirmStep({
   isConfirmed,
   loading,
   error,
+  onCancel,
   onReset,
 }: Readonly<{
   confirmText: string
@@ -214,6 +252,7 @@ function FreshStartConfirmStep({
   isConfirmed: boolean
   loading: boolean
   error: string
+  onCancel: () => void
   onReset: () => void
 }>) {
   const t = useTranslations()
@@ -222,16 +261,15 @@ function FreshStartConfirmStep({
     <div className="flex flex-col" style={{ gap: 16 }}>
       <p
         style={{
-          fontFamily: 'var(--font-family-sans)',
-          fontSize: 14,
-          fontStyle: 'italic',
-          color: 'var(--fg-3)',
+          fontFamily: 'var(--font-sans)',
+          fontSize: 15,
+          color: 'var(--fg-2)',
+          lineHeight: 1.55,
         }}
       >
         {t('profile.freshStart.confirmInstruction')}
       </p>
-      <UnderlinedInput
-        large
+      <FieldInput
         mono
         value={confirmText}
         onChange={onConfirmTextChange}
@@ -243,48 +281,21 @@ function FreshStartConfirmStep({
         <p
           role="alert"
           style={{
-            fontFamily: 'var(--font-family-sans)',
+            fontFamily: 'var(--font-sans)',
             fontSize: 13,
-            fontStyle: 'italic',
             color: 'var(--status-overdue)',
           }}
         >
           {error}
         </p>
       )}
-      <div
-        className="flex items-center justify-end"
-        style={{ gap: 12, paddingTop: 8 }}
-      >
-        <button
-          type="button"
-          className="appearance-none border-0 bg-transparent cursor-pointer"
-          style={{
-            fontFamily: 'var(--font-family-sans)',
-            fontSize: 14,
-            color: 'var(--fg-3)',
-            padding: 6,
-          }}
-          disabled={loading}
-        >
-          {t('common.cancel')}
-        </button>
-        <button
-          type="button"
-          className="appearance-none border-0 bg-transparent cursor-pointer disabled:opacity-50"
-          disabled={!isConfirmed || loading}
-          onClick={onReset}
-          style={{
-            fontFamily: 'var(--font-family-sans)',
-            fontSize: 14,
-            fontWeight: 600,
-            color: 'var(--fg-1)',
-            fontStyle: 'italic',
-            padding: 6,
-          }}
-        >
+      <div className="flex flex-col" style={{ gap: 12, paddingTop: 8 }}>
+        <AmberPillButton disabled={!isConfirmed || loading} onClick={onReset}>
           {loading ? t('profile.freshStart.processing') : t('profile.freshStart.confirmButton')}
-        </button>
+        </AmberPillButton>
+        <PillButton variant="ghost" fullWidth disabled={loading} onClick={onCancel}>
+          {t('common.cancel')}
+        </PillButton>
       </div>
     </div>
   )

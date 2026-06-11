@@ -1,17 +1,12 @@
 import { useEffect, useMemo } from "react";
-import { View, Text, StyleSheet, Animated } from "react-native";
-import { Orbit } from "lucide-react-native";
+import { View, StyleSheet, Animated } from "react-native";
+import Reanimated, { FadeInUp, ReduceMotion } from "react-native-reanimated";
+import { Sparkles } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
-import { createTokensV2 } from '@/lib/theme'
+import { createTokensV2, tintFromPrimary } from '@/lib/theme'
 import { useAppTheme } from "@/lib/use-app-theme";
 
-function AnimatedDot({ delay }: { delay: number }) {
-  const { currentScheme, currentTheme } = useAppTheme()
-  const tokens = useMemo(
-    () => createTokensV2(currentScheme, currentTheme),
-    [currentScheme, currentTheme],
-  );
-  const styles = useMemo(() => createStyles(tokens), [tokens]);
+function AnimatedDot({ delay, color }: Readonly<{ delay: number; color: string }>) {
   const opacity = useMemo(() => new Animated.Value(1), []);
 
   useEffect(() => {
@@ -34,7 +29,9 @@ function AnimatedDot({ delay }: { delay: number }) {
     return () => animation.stop();
   }, [delay, opacity]);
 
-  return <Animated.View style={[styles.typingDot, { opacity }]} />;
+  return (
+    <Animated.View style={[styles.typingDot, { opacity, backgroundColor: color }]} />
+  );
 }
 
 export function TypingIndicator() {
@@ -44,94 +41,64 @@ export function TypingIndicator() {
     () => createTokensV2(currentScheme, currentTheme),
     [currentScheme, currentTheme],
   );
-  const styles = useMemo(() => createStyles(tokens), [tokens]);
 
   return (
-    <View
-      style={[styles.container, styles.aiContainer]}
+    <Reanimated.View
+      entering={FadeInUp.duration(220).reduceMotion(ReduceMotion.System)}
+      style={styles.container}
       accessibilityLiveRegion="polite"
+      accessibilityLabel={t("chat.senderOrbit")}
     >
       <View
-        style={styles.aiAvatar}
+        style={[styles.aiAvatar, { backgroundColor: tintFromPrimary(tokens, 0.18) }]}
         accessibilityElementsHidden
         importantForAccessibility="no-hide-descendants"
       >
-        <Orbit size={20} color={tokens.primary} />
+        <Sparkles size={16} color={tokens.primarySoft} strokeWidth={1.8} />
       </View>
 
-      <View style={styles.bubbleColumnAI}>
-        <Text style={styles.senderLabel}>{t("chat.senderOrbit")}</Text>
-        <View style={styles.typingBubble}>
-          <View style={styles.dotsRow}>
-            <AnimatedDot delay={0} />
-            <AnimatedDot delay={200} />
-            <AnimatedDot delay={400} />
-          </View>
+      <View style={[styles.typingBubble, { backgroundColor: tokens.bgElev }]}>
+        <View style={styles.dotsRow}>
+          <AnimatedDot delay={0} color={tokens.primary} />
+          <AnimatedDot delay={200} color={tokens.fg4} />
+          <AnimatedDot delay={400} color={tokens.fg4} />
         </View>
       </View>
-    </View>
+    </Reanimated.View>
   );
 }
 
-type AppTokens = ReturnType<typeof createTokensV2>;
-
-function createStyles(tokens: AppTokens) {
-  return StyleSheet.create({
-    container: {
-      flexDirection: "row",
-      marginBottom: 24,
-      paddingHorizontal: 16,
-      gap: 12,
-    },
-    aiContainer: {
-      justifyContent: "flex-start",
-    },
-    aiAvatar: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
-      backgroundColor: tokens.bgElev,
-      borderWidth: 1,
-      borderColor: tokens.hairlineStrong,
-      alignItems: "center",
-      justifyContent: "center",
-      alignSelf: "flex-end",
-    },
-    bubbleColumnAI: {
-      alignItems: "flex-start",
-    },
-    senderLabel: {
-      fontSize: 11,
-      fontWeight: "500",
-      color: tokens.fg2,
-      marginBottom: 4,
-      paddingHorizontal: 8,
-    },
-    typingBubble: {
-      backgroundColor: tokens.bgElev,
-      borderTopLeftRadius: 16,
-      borderTopRightRadius: 16,
-      borderBottomRightRadius: 16,
-      paddingHorizontal: 16,
-      paddingVertical: 12,
-      borderWidth: 1,
-      borderColor: tokens.hairline,
-      shadowColor: "#000",
-      shadowOpacity: 0.1,
-      shadowOffset: { width: 0, height: 2 },
-      shadowRadius: 6,
-      elevation: 1,
-    },
-    dotsRow: {
-      flexDirection: "row",
-      gap: 6,
-      alignItems: "center",
-    },
-    typingDot: {
-      width: 8,
-      height: 8,
-      borderRadius: 4,
-      backgroundColor: tokens.fg2,
-    },
-  });
-}
+const styles = StyleSheet.create({
+  container: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    marginBottom: 16,
+    paddingHorizontal: 16,
+    gap: 10,
+  },
+  aiAvatar: {
+    width: 30,
+    height: 30,
+    borderRadius: 999,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  typingBubble: {
+    borderTopLeftRadius: 4,
+    borderTopRightRadius: 18,
+    borderBottomLeftRadius: 18,
+    borderBottomRightRadius: 18,
+    paddingHorizontal: 15,
+    paddingVertical: 12,
+  },
+  dotsRow: {
+    flexDirection: "row",
+    gap: 6,
+    alignItems: "center",
+  },
+  typingDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+});

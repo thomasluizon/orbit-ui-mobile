@@ -19,8 +19,9 @@
     "android": "node scripts/run-android.js"
   },
   "dependencies": {
-    "@expo-google-fonts/geist": "^0.4.2",
-    "@expo-google-fonts/geist-mono": "^0.4.2",
+    "@expo-google-fonts/inter": "^0.4.2",
+    "@expo-google-fonts/roboto": "^0.4.3",
+    "@expo-google-fonts/rubik": "^0.4.2",
     "@hookform/resolvers": "^5.2.2",
     "@lodev09/react-native-true-sheet": "^3.10.1",
     "@orbit/shared": "*",

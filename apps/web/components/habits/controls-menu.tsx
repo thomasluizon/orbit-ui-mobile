@@ -26,7 +26,7 @@ export interface ControlsMenuProps {
   onClose: () => void
 }
 
-/** v8 chrome: hairline-bordered panel, flush rows, mono icons. */
+/** Anchored list-controls menu on the kit sheet panel chrome. */
 export function ControlsMenu({
   menuPanelRef,
   position,
@@ -52,17 +52,16 @@ export function ControlsMenu({
         left: `${position.left}px`,
         top: `${position.top}px`,
         minWidth: 220,
-        background: 'var(--bg-elev)',
-        boxShadow:
-          '0 12px 40px rgba(0,0,0,0.35), inset 0 0 0 1px var(--hairline)',
-        borderRadius: 12,
+        background: 'var(--bg-sheet)',
+        boxShadow: 'var(--shadow-2), inset 0 0 0 1px var(--hairline)',
+        borderRadius: 16,
         padding: 4,
       }}
       onClick={(e) => e.stopPropagation()}
       onKeyDown={(e) => { if (e.key === 'Escape') onClose() }}
     >
       <MenuRow
-        icon={isSelectMode ? <X size={14} /> : <CheckCircle size={14} />}
+        icon={isSelectMode ? <X size={16} strokeWidth={1.8} /> : <CheckCircle size={16} strokeWidth={1.8} />}
         label={isSelectMode ? t('common.cancel') : t('common.select')}
         onClick={() => {
           onToggleSelect()
@@ -70,7 +69,7 @@ export function ControlsMenu({
         }}
       />
       <MenuRow
-        icon={allCollapsed ? <ChevronsUpDown size={14} /> : <ChevronsDownUp size={14} />}
+        icon={allCollapsed ? <ChevronsUpDown size={16} strokeWidth={1.8} /> : <ChevronsDownUp size={16} strokeWidth={1.8} />}
         label={allCollapsed ? t('habits.expandAll') : t('habits.collapseAll')}
         onClick={() => {
           onToggleCollapse()
@@ -78,7 +77,7 @@ export function ControlsMenu({
         }}
       />
       <MenuRow
-        icon={<RefreshCw size={14} className={isFetching ? 'animate-spin' : ''} />}
+        icon={<RefreshCw size={16} strokeWidth={1.8} className={isFetching ? 'animate-spin' : ''} />}
         label={t('habits.refresh')}
         disabled={isFetching}
         onClick={() => {
@@ -87,7 +86,7 @@ export function ControlsMenu({
         }}
       />
       <MenuRow
-        icon={showCompleted ? <Check size={14} /> : <Eye size={14} />}
+        icon={showCompleted ? <Check size={16} strokeWidth={1.8} /> : <Eye size={16} strokeWidth={1.8} />}
         label={t('habits.showCompleted')}
         onClick={() => {
           onToggleCompleted()
@@ -104,7 +103,6 @@ interface MenuRowProps {
   label: string
   onClick: () => void
   disabled?: boolean
-  destructive?: boolean
 }
 
 function MenuRow({
@@ -112,7 +110,6 @@ function MenuRow({
   label,
   onClick,
   disabled = false,
-  destructive = false,
 }: Readonly<MenuRowProps>) {
   return (
     <button
@@ -124,11 +121,10 @@ function MenuRow({
       style={{
         padding: '10px 12px',
         gap: 12,
-        fontFamily: 'var(--font-family-sans)',
+        fontFamily: 'var(--font-sans)',
         fontSize: 14,
         fontWeight: 500,
-        color: destructive ? 'var(--fg-3)' : 'var(--fg-1)',
-        fontStyle: destructive ? 'italic' : 'normal',
+        color: 'var(--fg-1)',
         textAlign: 'left',
         borderRadius: 8,
       }}

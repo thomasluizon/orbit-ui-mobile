@@ -59,7 +59,7 @@ class OrbitWidgetProvider : AppWidgetProvider() {
             views.setInt(R.id.widget_header_dot, "setColorFilter", colors.primary)
 
             // Refresh icon tint
-            views.setInt(R.id.widget_refresh, "setColorFilter", Color.argb(0xAA, Color.red(colors.primary), Color.green(colors.primary), Color.blue(colors.primary)))
+            views.setInt(R.id.widget_refresh, "setColorFilter", colors.primary)
 
             // Flame bitmap (programmatic, avoids vector inflation issues)
             val flameBitmap = OrbitWidgetFactory.createFlameBitmap(density, colors.streak)

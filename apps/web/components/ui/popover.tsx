@@ -180,10 +180,9 @@ export function Popover({
                 style={{
                   top: `${position.top}px`,
                   left: `${position.left}px`,
-                  background: 'var(--bg-elev)',
-                  borderRadius: 12,
-                  boxShadow:
-                    '0 12px 40px rgba(0,0,0,0.35), inset 0 0 0 1px var(--hairline)',
+                  background: 'var(--bg-sheet)',
+                  borderRadius: 16,
+                  boxShadow: 'var(--shadow-2), inset 0 0 0 1px var(--hairline)',
                 }}
                 tabIndex={-1}
                 onKeyDown={handlePanelKeyDown}

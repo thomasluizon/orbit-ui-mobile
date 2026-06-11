@@ -28,15 +28,18 @@ export function OnboardingFeatures() {
   const t = useTranslations()
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '12px 0' }}>
+    <div
+      className="stagger-enter"
+      style={{ display: 'flex', flexDirection: 'column', gap: 4, padding: '12px 0' }}
+    >
       <div
         className="text-center"
         style={{
-          fontFamily: 'var(--font-family-sans)',
-          fontSize: 22,
-          fontWeight: 600,
-          letterSpacing: '-0.015em',
-          lineHeight: 1.15,
+          fontFamily: 'var(--font-sans)',
+          fontSize: 24,
+          fontWeight: 500,
+          letterSpacing: '-0.01em',
+          lineHeight: 1.3,
           color: 'var(--fg-1)',
           marginBottom: 14,
         }}
@@ -48,18 +51,23 @@ export function OnboardingFeatures() {
           key={titleKey}
           className="flex items-start"
           style={{
-            padding: '12px 0',
+            padding: '14px 0',
             borderBottom: '1px solid var(--hairline)',
-            gap: 12,
+            gap: 14,
           }}
         >
-          <Icon size={18} strokeWidth={1.5} color="var(--fg-2)" />
+          <span
+            className="inline-flex shrink-0 justify-center"
+            style={{ width: 26, paddingTop: 1 }}
+          >
+            <Icon size={22} strokeWidth={1.8} color="var(--fg-2)" />
+          </span>
           <div className="flex-1 min-w-0">
             <div
               style={{
-                fontFamily: 'var(--font-family-sans)',
-                fontSize: 15,
-                fontWeight: 600,
+                fontFamily: 'var(--font-sans)',
+                fontSize: 16,
+                fontWeight: 500,
                 color: 'var(--fg-1)',
               }}
             >
@@ -67,11 +75,11 @@ export function OnboardingFeatures() {
             </div>
             <div
               style={{
-                fontFamily: 'var(--font-family-sans)',
-                fontSize: 13,
+                fontFamily: 'var(--font-sans)',
+                fontSize: 13.5,
                 color: 'var(--fg-3)',
-                fontStyle: 'italic',
-                marginTop: 2,
+                lineHeight: 1.4,
+                marginTop: 3,
               }}
             >
               {t(descKey)}

@@ -17,7 +17,7 @@ import DateTimePicker, {
 import { Clock3, X } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import { detectDefaultTimeFormat, formatLocaleTime } from '@orbit/shared/utils'
-import { createTokensV2, radius, type AppShadows } from '@/lib/theme'
+import { createTokensV2, radius, shadowsV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 type AppTokens = ReturnType<typeof createTokensV2>
@@ -62,12 +62,12 @@ export function AppTimePicker({
 }: Readonly<AppTimePickerProps>) {
   const { t, i18n } = useTranslation()
   const locale = i18n.language
-  const { currentScheme, currentTheme, shadows } = useAppTheme()
+  const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
     () => createTokensV2(currentScheme, currentTheme),
     [currentScheme, currentTheme],
   )
-  const styles = useMemo(() => createStyles(tokens, shadows), [tokens, shadows])
+  const styles = useMemo(() => createStyles(tokens), [tokens])
   const [isOpen, setIsOpen] = useState(false)
   const [draftValue, setDraftValue] = useState(() => parseTimeValue(value))
   const is24Hour = detectDefaultTimeFormat(locale) === '24h'
@@ -134,7 +134,7 @@ export function AppTimePicker({
             accessibilityLabel={t('common.clear')}
             style={styles.iconButton}
           >
-            <X size={16} color={tokens.fg2} />
+            <X size={16} strokeWidth={1.8} color={tokens.fg3} />
           </Pressable>
         ) : (
           <Pressable
@@ -143,7 +143,7 @@ export function AppTimePicker({
             hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
             style={styles.iconButton}
           >
-            <Clock3 size={16} color={disabled ? tokens.fg3 : tokens.fg2} />
+            <Clock3 size={20} strokeWidth={1.8} color={tokens.fg4} />
           </Pressable>
         )}
       </View>
@@ -203,41 +203,43 @@ export function AppTimePicker({
   )
 }
 
-function createStyles(tokens: AppTokens, shadows: AppShadows) {
+function createStyles(tokens: AppTokens) {
   return StyleSheet.create({
     trigger: {
       width: '100%',
       flexDirection: 'row',
       alignItems: 'center',
-      backgroundColor: tokens.bgElev,
+      minHeight: 44,
+      backgroundColor: tokens.bgField,
       borderWidth: 1,
       borderColor: tokens.hairline,
-      borderRadius: radius.sm,
+      borderRadius: 14,
     },
     triggerDisabled: {
       opacity: 0.6,
     },
     triggerTextArea: {
       flex: 1,
-      paddingVertical: 12,
+      paddingVertical: 10,
       paddingLeft: 16,
       paddingRight: 8,
     },
     iconButton: {
-      paddingVertical: 12,
+      paddingVertical: 10,
       paddingHorizontal: 16,
       alignItems: 'center',
       justifyContent: 'center',
     },
     triggerText: {
       color: tokens.fg1,
-      fontSize: 14,
+      fontFamily: 'Rubik_400Regular',
+      fontSize: 16,
     },
     triggerTextDisabled: {
       color: tokens.fg3,
     },
     triggerPlaceholder: {
-      color: tokens.fg3,
+      color: tokens.fg4,
     },
     backdrop: {
       flex: 1,
@@ -249,12 +251,13 @@ function createStyles(tokens: AppTokens, shadows: AppShadows) {
     dialog: {
       width: '100%',
       maxWidth: 360,
-      borderRadius: radius.xl,
-      backgroundColor: tokens.bgElev,
+      borderRadius: radius.lg,
+      backgroundColor: tokens.bgSheet,
+      borderWidth: 1,
+      borderColor: tokens.hairline,
       padding: 16,
       gap: 12,
-      ...shadows.cardParent,
-      elevation: 8,
+      ...shadowsV2.shadow2,
     },
     dialogHeader: {
       flexDirection: 'row',
@@ -262,13 +265,13 @@ function createStyles(tokens: AppTokens, shadows: AppShadows) {
       justifyContent: 'space-between',
     },
     dialogTitle: {
+      fontFamily: 'Rubik_500Medium',
       fontSize: 16,
-      fontWeight: '700',
       color: tokens.fg1,
     },
     dialogAction: {
+      fontFamily: 'Rubik_500Medium',
       fontSize: 14,
-      fontWeight: '600',
       color: tokens.primary,
     },
   })

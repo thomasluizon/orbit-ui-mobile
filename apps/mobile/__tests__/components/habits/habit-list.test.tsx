@@ -176,6 +176,16 @@ vi.mock('react-native-svg', () => ({
   Circle: (props: any) => React.createElement('Circle', props),
 }))
 
+function flattenRenderedText(node: unknown): string {
+  if (node == null) return ''
+  if (typeof node === 'string' || typeof node === 'number') return String(node)
+  if (Array.isArray(node)) return node.map(flattenRenderedText).join('')
+  if (typeof node === 'object' && 'children' in node) {
+    return flattenRenderedText((node as { children: unknown }).children)
+  }
+  return ''
+}
+
 function seedHabits(habits: NormalizedHabit[]) {
   mockHabitsData.habitsById = new Map(habits.map((habit) => [habit.id, habit]))
   mockHabitsData.childrenByParent = new Map<string, string[]>()
@@ -738,8 +748,6 @@ describe('HabitList', () => {
       )
     })
 
-    // HabitRow wires up onLongPress on its root Pressable; the test renderer
-    // surfaces that as a node with the long-press handler attached.
     const findDraggableCards = () =>
       tree.root.findAll(
         (node: any) =>
@@ -755,8 +763,6 @@ describe('HabitList', () => {
       parentCard?.props.onLongPress?.()
     })
 
-    // After long-pressing the parent, the child row collapses out so the
-    // count of draggable handlers drops by one.
     expect(findDraggableCards().length).toBeLessThan(initialCount)
 
     const draggableList = tree.root.findByType('DraggableFlatList')
@@ -848,11 +854,6 @@ describe('HabitList', () => {
       )
     })
 
-    // Both rows should still render and the featured one is wrapped in a
-    // tour-anchor wrapper. The wrapper is detected by traversing parents of
-    // the row and checking whether any registers the tour-habit-card target;
-    // since we cannot easily inspect the registry inline, we instead assert
-    // that exactly one tour-habit-card anchor exists in the tree.
     const meditationCard = tree.root
       .findAllByType(HabitRow)
       .find((node: any) => node.props.habit.id === 'tour-habit-1')
@@ -1227,13 +1228,7 @@ describe('HabitList', () => {
       )
     })
 
-    const italicNodes = tree.root.findAll(
-      (node: any) =>
-        node.props?.style?.fontStyle === 'italic' &&
-        node.props?.children === 'habits.overdue',
-    )
-
-    expect(italicNodes.length).toBeGreaterThan(0)
+    expect(flattenRenderedText(tree.toJSON())).toContain('habits.overdue')
   })
 
   it('shows a future meta token for a habit due in six days', () => {
@@ -1251,15 +1246,9 @@ describe('HabitList', () => {
       tree = TestRenderer.create(<HabitRow habit={futureHabit} />)
     })
 
-    const futureNodes = tree.root.findAll(
-      (node: any) =>
-        node.props?.style?.fontStyle === 'italic' &&
-        typeof node.props?.children === 'string' &&
-        node.props.children.includes('habits.schedule.dueindays') &&
-        node.props.children.includes('"count":6'),
-    )
-
-    expect(futureNodes.length).toBeGreaterThan(0)
+    const renderedText = flattenRenderedText(tree.toJSON())
+    expect(renderedText).toContain('habits.schedule.dueInDays')
+    expect(renderedText).toContain('"count":6')
   })
 
   it('renders the status dot disabled for a non-loggable row and interactive for a loggable one', () => {

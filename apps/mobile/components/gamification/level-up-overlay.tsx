@@ -8,9 +8,14 @@ import {
 } from 'react-native'
 import Svg, { Ellipse } from 'react-native-svg'
 import { useTranslation } from 'react-i18next'
-import { createTokensV2 } from '@/lib/theme'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { usePrefersReducedMotion } from '@/lib/motion'
+import { createTokensV2, tintFromPrimary } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useUIStore } from '@/stores/ui-store'
+import { GradientTop } from '@/components/ui/gradient-top'
+import { PillButton } from '@/components/ui/pill-button'
+import { useCelebrationEntrance } from './celebration-motion'
 
 interface LevelUpOverlayProps {
   leveledUp: boolean
@@ -19,7 +24,8 @@ interface LevelUpOverlayProps {
 }
 
 /**
- * v8 Level-up overlay: rotating orbit ellipse + mono level number.
+ * Level-up overlay: star hero disc, rotating orbit ellipse around the big
+ * Inter level numeral, and a continue pill.
  * Preserves queue contract (enqueueCelebration / completeActiveCelebration).
  */
 export function LevelUpOverlay({
@@ -28,11 +34,13 @@ export function LevelUpOverlay({
   onClear,
 }: Readonly<LevelUpOverlayProps>) {
   const { t } = useTranslation()
+  const insets = useSafeAreaInsets()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
     () => createTokensV2(currentScheme, currentTheme),
     [currentScheme, currentTheme],
   )
+  const prefersReducedMotion = usePrefersReducedMotion()
   const activeCelebration = useUIStore((s) => s.activeCelebration)
   const enqueueCelebration = useUIStore((s) => s.enqueueCelebration)
   const completeActiveCelebration = useUIStore((s) => s.completeActiveCelebration)
@@ -44,8 +52,12 @@ export function LevelUpOverlay({
   const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
   const activeLevelUp =
     activeCelebration?.kind === 'level-up' ? activeCelebration : null
+  const { orbStyle, titleStyle, subtitleStyle, footerStyle } =
+    useCelebrationEntrance(Boolean(activeLevelUp))
 
   useEffect(() => {
+    if (prefersReducedMotion) return
+
     const spin = Animated.loop(
       Animated.timing(ringRotation, {
         toValue: 1,
@@ -58,7 +70,7 @@ export function LevelUpOverlay({
     return () => {
       spin.stop()
     }
-  }, [ringRotation])
+  }, [prefersReducedMotion, ringRotation])
 
   useEffect(() => {
     if (leveledUp && newLevel) {
@@ -87,7 +99,6 @@ export function LevelUpOverlay({
   useEffect(() => {
     if (!activeLevelUp) return
 
-     
     setLevel(activeLevelUp.payload.level)
     setShouldRender(true)
     overlayOpacity.setValue(0)
@@ -120,10 +131,27 @@ export function LevelUpOverlay({
       accessibilityRole="alert"
       accessibilityLiveRegion="assertive"
     >
+      <View style={[styles.backdrop, { backgroundColor: tokens.bg }]} />
+      <GradientTop height={520} />
       <View style={styles.content}>
-        <Text style={styles.eyebrow}>{t('gamification.levelUp.title')}</Text>
+        <Text style={[styles.eyebrow, { color: tokens.fg3 }]}>
+          {t('gamification.levelUp.title')}
+        </Text>
 
-        <View style={styles.ringWrapper}>
+        <Animated.View
+          style={[
+            styles.heroDisc,
+            {
+              backgroundColor: tintFromPrimary(tokens, 0.16),
+              shadowColor: tokens.primary,
+            },
+            orbStyle,
+          ]}
+        >
+          <Text style={styles.heroEmoji}>⭐</Text>
+        </Animated.View>
+
+        <Animated.View style={[styles.ringWrapper, titleStyle]}>
           <Animated.View
             style={[
               styles.ringContainer,
@@ -131,27 +159,34 @@ export function LevelUpOverlay({
             ]}
             pointerEvents="none"
           >
-            <Svg width={130} height={130}>
+            <Svg width={150} height={150}>
               <Ellipse
-                cx={65}
-                cy={65}
-                rx={62}
-                ry={22}
+                cx={75}
+                cy={75}
+                rx={72}
+                ry={26}
                 fill="none"
                 stroke={tokens.primary}
                 strokeWidth={1.5}
               />
             </Svg>
           </Animated.View>
-          <Text style={styles.levelNumber}>
+          <Text style={[styles.levelNumber, { color: tokens.fg1 }]}>
             {String(level).padStart(2, '0')}
           </Text>
-        </View>
+        </Animated.View>
 
-        <Text style={styles.subtitle}>
+        <Animated.Text style={[styles.subtitle, { color: tokens.fg2 }, subtitleStyle]}>
           {t('gamification.levelUp.steadyHand')}
-        </Text>
+        </Animated.Text>
       </View>
+      <Animated.View
+        style={[styles.footer, { paddingBottom: insets.bottom + 24 }, footerStyle]}
+      >
+        <PillButton fullWidth onPress={() => dismiss(activeLevelUp?.id)}>
+          {t('common.continue')}
+        </PillButton>
+      </Animated.View>
     </Animated.View>
   )
 }
@@ -160,44 +195,63 @@ const styles = StyleSheet.create({
   overlay: {
     ...StyleSheet.absoluteFillObject,
     zIndex: 10001,
-    backgroundColor: 'rgba(0,0,0,0.85)',
-    alignItems: 'center',
-    justifyContent: 'center',
+  },
+  backdrop: {
+    ...StyleSheet.absoluteFillObject,
+    opacity: 0.96,
   },
   content: {
+    flex: 1,
     alignItems: 'center',
-    gap: 14,
+    justifyContent: 'center',
+    gap: 12,
+    paddingHorizontal: 32,
   },
   eyebrow: {
-    fontFamily: 'GeistMono',
-    fontSize: 11,
-    fontWeight: '600',
-    color: 'rgba(255,255,255,0.7)',
-    letterSpacing: 1.98,
+    fontFamily: 'Rubik_500Medium',
+    fontSize: 12,
+    letterSpacing: 0.96,
     textTransform: 'uppercase',
   },
+  heroDisc: {
+    width: 120,
+    height: 120,
+    borderRadius: 999,
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.4,
+    shadowRadius: 60,
+    elevation: 8,
+  },
+  heroEmoji: {
+    fontSize: 60,
+    lineHeight: 72,
+  },
   ringWrapper: {
-    width: 130,
-    height: 130,
+    width: 150,
+    height: 150,
     alignItems: 'center',
     justifyContent: 'center',
   },
   ringContainer: {
     position: 'absolute',
-    width: 130,
-    height: 130,
+    width: 150,
+    height: 150,
   },
   levelNumber: {
-    fontFamily: 'GeistMono',
-    fontSize: 80,
-    fontWeight: '500',
-    color: '#fff',
-    letterSpacing: -3.2,
+    fontFamily: 'Inter_700Bold',
+    fontSize: 56,
+    letterSpacing: -1.12,
+    fontVariant: ['tabular-nums'],
   },
   subtitle: {
-    fontFamily: 'Geist',
+    fontFamily: 'Rubik_400Regular',
     fontSize: 16,
-    fontStyle: 'italic',
-    color: 'rgba(255,255,255,0.85)',
+    lineHeight: 24,
+    textAlign: 'center',
+  },
+  footer: {
+    paddingHorizontal: 24,
   },
 })

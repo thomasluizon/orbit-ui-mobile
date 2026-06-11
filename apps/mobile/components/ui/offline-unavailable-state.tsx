@@ -1,10 +1,8 @@
 import { useMemo } from 'react'
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native'
 import { WifiOff } from 'lucide-react-native'
-import { createTokensV2 } from '@/lib/theme'
+import { createTokensV2, radius, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
-
-type AppTokens = ReturnType<typeof createTokensV2>
 
 interface OfflineUnavailableStateProps {
   title: string
@@ -39,11 +37,11 @@ export function OfflineUnavailableState({
       accessibilityLabel={`${title}. ${description}`}
     >
       <View
-        style={[styles.iconWrap, compact ? styles.compactIconWrap : null]}
+        style={styles.iconWrap}
         accessibilityElementsHidden
         importantForAccessibility="no-hide-descendants"
       >
-        <WifiOff size={compact ? 14 : 18} color={tokens.fg3} />
+        <WifiOff size={22} strokeWidth={1.8} color={tokens.fg3} />
       </View>
       <View style={styles.content}>
         <Text style={[styles.title, compact ? styles.compactTitle : null]}>{title}</Text>
@@ -52,7 +50,7 @@ export function OfflineUnavailableState({
           <TouchableOpacity
             style={[styles.button, disabled ? styles.buttonDisabled : null]}
             onPress={onAction}
-            activeOpacity={0.8}
+            activeOpacity={0.85}
             disabled={disabled}
           accessibilityRole="button"
           accessibilityLabel={actionLabel}
@@ -71,74 +69,64 @@ export function OfflineUnavailableState({
   )
 }
 
-function createStyles(tokens: AppTokens) {
+function createStyles(tokens: AppTokensV2) {
   return StyleSheet.create({
     container: {
       borderWidth: 1,
       borderColor: tokens.hairline,
-      borderRadius: 12,
-      backgroundColor: tokens.bgElev,
+      borderRadius: 18,
+      backgroundColor: tokens.bgCard,
       flexDirection: 'row',
-      gap: 10,
+      gap: 14,
     },
     cardContainer: {
-      padding: 14,
+      padding: 16,
     },
     compactContainer: {
-      paddingVertical: 10,
-      paddingHorizontal: 12,
-      borderRadius: 14,
+      paddingVertical: 12,
+      paddingHorizontal: 14,
     },
     iconWrap: {
-      width: 28,
-      height: 28,
-      borderRadius: 14,
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: tokens.bgElev,
       marginTop: 1,
-    },
-    compactIconWrap: {
-      width: 22,
-      height: 22,
-      borderRadius: 11,
     },
     content: {
       flex: 1,
-      gap: 6,
     },
     title: {
-      fontSize: 13,
-      fontWeight: '700',
+      fontFamily: 'Rubik_500Medium',
+      fontSize: 16,
       color: tokens.fg1,
     },
     compactTitle: {
-      fontSize: 12,
+      fontSize: 14,
     },
     description: {
-      fontSize: 12,
-      color: tokens.fg2,
-      lineHeight: 17,
+      fontFamily: 'Rubik_400Regular',
+      fontSize: 13.5,
+      color: tokens.fg3,
+      lineHeight: 19,
+      marginTop: 3,
     },
     compactDescription: {
-      fontSize: 11,
-      lineHeight: 15,
+      fontSize: 12.5,
+      lineHeight: 17,
     },
     button: {
       alignSelf: 'flex-start',
-      paddingHorizontal: 12,
-      paddingVertical: 7,
-      borderRadius: 12,
-      borderWidth: 1,
+      marginTop: 12,
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+      borderRadius: radius.full,
+      borderWidth: 1.5,
       borderColor: tokens.hairlineStrong,
-      backgroundColor: tokens.bgElev,
+      backgroundColor: 'transparent',
     },
     buttonDisabled: {
-      opacity: 0.5,
+      opacity: 0.4,
     },
     buttonText: {
-      fontSize: 12,
-      fontWeight: '700',
+      fontFamily: 'Rubik_500Medium',
+      fontSize: 13,
       color: tokens.fg1,
     },
   })

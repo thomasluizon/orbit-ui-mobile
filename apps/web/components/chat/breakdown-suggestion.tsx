@@ -8,6 +8,7 @@ import type { SuggestedSubHabit } from '@orbit/shared/types/chat'
 import type { BulkHabitItem, FrequencyUnit } from '@orbit/shared/types/habit'
 import { frequencyUnitSchema } from '@orbit/shared/types/habit'
 import { useBulkCreateHabits } from '@/hooks/use-habits'
+import { PillButton } from '@/components/ui/pill-button'
 
 interface EditableHabit {
   title: string
@@ -28,7 +29,7 @@ interface BreakdownSuggestionProps {
 }
 
 function RichBoldPrimary(chunks: React.ReactNode): React.ReactNode {
-  return <span className="text-[var(--primary)] font-bold">{chunks}</span>
+  return <span className="text-[var(--primary)] font-semibold">{chunks}</span>
 }
 
 export function BreakdownSuggestion({
@@ -163,12 +164,12 @@ export function BreakdownSuggestion({
 
   if (isCreated) {
     return (
-      <div className="bg-[var(--bg-elev)]/50 border border-[var(--hairline)] rounded-[12px] p-4 shadow-[var(--shadow-sm)]">
+      <div className="rounded-[16px] bg-[var(--bg-field)] p-4 shadow-[inset_0_0_0_1px_var(--hairline)]">
         <div className="flex items-center gap-2 py-2">
           <div className="size-6 rounded-full bg-[var(--status-done)]/20 flex items-center justify-center">
             <Check className="size-3.5 text-[var(--status-done)]" />
           </div>
-          <p className="text-sm font-semibold text-[var(--status-done)]">
+          <p className="text-sm font-medium text-[var(--status-done)]">
             {createAsParent
               ? plural(t('habits.breakdown.createAsParentSuccess', { name: parentName, n: createdCount }), createdCount)
               : plural(t('habits.breakdown.createdSuccess', { n: createdCount }), createdCount)}
@@ -179,8 +180,15 @@ export function BreakdownSuggestion({
   }
 
   return (
-    <div className="bg-[var(--bg-elev)]/50 border border-[var(--hairline)] rounded-[12px] p-4 space-y-3 shadow-[var(--shadow-sm)]">
-      <p className="text-sm font-medium text-[var(--fg-1)]">
+    <div className="rounded-[16px] bg-[var(--bg-field)] p-4 space-y-3 shadow-[inset_0_0_0_1px_var(--hairline)]">
+      <p
+        style={{
+          fontFamily: 'var(--font-sans)',
+          fontSize: 14,
+          fontWeight: 500,
+          color: 'var(--fg-1)',
+        }}
+      >
         {t.rich('habits.breakdown.breakInto', {
           name: RichBoldPrimary,
         })}
@@ -190,7 +198,7 @@ export function BreakdownSuggestion({
         {habits.map((habit, index) => (
           <div
             key={`${habit.title}-${index}`}
-            className="bg-[var(--bg-elev)] border border-[var(--hairline)] rounded-[var(--radius-lg)] p-3 flex items-center justify-between gap-3"
+            className="bg-[var(--bg-elev)] rounded-[12px] p-3 flex items-center justify-between gap-3 shadow-[inset_0_0_0_1px_var(--hairline)]"
           >
             <div className="flex-1 min-w-0 space-y-1">
               <input
@@ -273,9 +281,9 @@ export function BreakdownSuggestion({
         />
         <div
           aria-hidden="true"
-          className={`size-4 rounded border-2 flex items-center justify-center transition-colors shrink-0 ${createAsParent ? 'bg-[var(--primary)] border-[var(--primary)]' : 'border-[var(--hairline)]'}`}
+          className={`size-4 rounded border-2 flex items-center justify-center transition-colors shrink-0 ${createAsParent ? 'bg-[var(--primary)] border-[var(--primary)]' : 'border-[var(--fg-4)]'}`}
         >
-          {createAsParent && <Check className="size-2.5 text-white" />}
+          {createAsParent && <Check className="size-2.5 text-[var(--fg-on-primary)]" />}
         </div>
         <span className="text-xs text-[var(--fg-2)]">
           {t('habits.breakdown.createAsParent')}
@@ -285,21 +293,24 @@ export function BreakdownSuggestion({
       {createError && <p className="text-xs text-[var(--status-bad)]">{createError}</p>}
 
       <div className="flex gap-2 pt-1">
-        <button
-          className="flex-1 py-2.5 rounded-[var(--radius-lg)] bg-[var(--primary)] text-white font-bold text-xs hover:bg-[var(--primary-pressed)] transition-[background-color,transform,opacity] duration-150 active:scale-[0.98] disabled:opacity-50 flex items-center justify-center gap-1.5"
+        <PillButton
+          className="flex-1 py-[11px]! text-[14px]!"
           disabled={validHabits.length === 0 || isSubmitting}
-          onClick={handleConfirm}
+          onClick={() => {
+            void handleConfirm()
+          }}
+          leading={isSubmitting ? <Loader2 className="size-3.5 animate-spin" /> : undefined}
         >
-          {isSubmitting && <Loader2 className="size-3.5 animate-spin" />}
           {plural(t('habits.breakdown.createCount', { n: validHabits.length }), validHabits.length)}
-        </button>
-        <button
-          className="px-4 py-2.5 rounded-[var(--radius-lg)] border border-[var(--hairline)] text-[var(--fg-2)] text-xs font-medium hover:bg-[var(--bg-elev)]/80 transition-colors duration-150"
+        </PillButton>
+        <PillButton
+          variant="ghost"
+          className="py-[11px]! text-[14px]! px-[18px]!"
           disabled={isSubmitting}
           onClick={onCancelled}
         >
           {t('common.cancel')}
-        </button>
+        </PillButton>
       </div>
     </div>
   )

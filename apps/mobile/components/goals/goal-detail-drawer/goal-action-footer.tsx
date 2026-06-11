@@ -43,7 +43,7 @@ function GoalActionRow({
         disabled ? { opacity: 0.5 } : null,
       ]}
     >
-      <Icon size={16} strokeWidth={1.7} color={iconColor} />
+      <Icon size={18} strokeWidth={1.8} color={iconColor} />
       <Text
         style={destructive ? styles.actionRowTextDestructive : styles.actionRowText}
       >
@@ -57,6 +57,7 @@ interface GoalActionFooterProps {
   isActive: boolean
   isUpdatingStatus: boolean
   iconColor: string
+  dangerColor: string
   onMarkCompleted: () => void
   onMarkAbandoned: () => void
   onReactivate: () => void
@@ -69,6 +70,7 @@ export function GoalActionFooter({
   isActive,
   isUpdatingStatus,
   iconColor,
+  dangerColor,
   onMarkCompleted,
   onMarkAbandoned,
   onReactivate,
@@ -119,7 +121,7 @@ export function GoalActionFooter({
       <GoalActionRow
         label={t('goals.detail.delete')}
         icon={Trash2}
-        iconColor={iconColor}
+        iconColor={dangerColor}
         destructive
         onPress={onDelete}
         styles={styles}

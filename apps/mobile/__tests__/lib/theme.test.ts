@@ -1,11 +1,13 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import {
-  colors,
-  createColors,
+  blendElevOverCanvas,
   createSurfaces,
+  createTokensV2,
   getRuntimeTheme,
+  primaryGlow,
   setRuntimeTheme,
-  surfaces,
+  tintFromPrimary,
+  tokens,
 } from '@/lib/theme'
 
 describe('mobile theme runtime', () => {
@@ -13,32 +15,59 @@ describe('mobile theme runtime', () => {
     setRuntimeTheme({ scheme: 'purple', themeMode: 'dark' })
   })
 
-  it('uses light theme values when requested', () => {
-    const lightColors = createColors('purple', 'light')
-    const darkColors = createColors('purple', 'dark')
+  it('purple dark resolves the handoff palette byte-exact', () => {
+    const dark = createTokensV2('purple', 'dark')
 
-    expect(lightColors.background).not.toBe(darkColors.background)
-    expect(lightColors.border).not.toBe(darkColors.border)
-    expect(lightColors.primary).not.toBe(darkColors.primary)
+    expect(dark.bg).toBe('#020618')
+    expect(dark.fg1).toBe('#f8fafc')
+    expect(dark.fg2).toBe('#cad5e2')
+    expect(dark.fg3).toBe('#90a1b9')
+    expect(dark.fg4).toBe('#62748e')
+    expect(dark.bgElev).toBe('rgba(248, 250, 252, 0.06)')
+    expect(dark.primary).toBe('#7f46f7')
+    expect(dark.gradientHeaderFrom).toBe('#22094f')
+    expect(dark.gradientHeaderTo).toBe('rgba(2, 6, 24, 0)')
   })
 
-  it('updates the exported theme proxy when runtime theme changes', () => {
+  it('purple light uses the pale handoff canvas with opaque white cards', () => {
+    const light = createTokensV2('purple', 'light')
+
+    expect(light.bg).toBe('#f8fafc')
+    expect(light.bgElev).toBe('rgb(255, 255, 255)')
+    expect(light.fg1).toBe('#0f172b')
+    expect(light.primary).toBe('#631df2')
+    expect(light.bg).not.toBe(createTokensV2('purple', 'dark').bg)
+  })
+
+  it('updates the exported tokens proxy when runtime theme changes', () => {
     setRuntimeTheme({ scheme: 'blue', themeMode: 'light' })
 
     expect(getRuntimeTheme()).toEqual({ scheme: 'blue', themeMode: 'light' })
-    expect(colors.background).toBe(createColors('blue', 'light').background)
-    expect(colors.primary).toBe(createColors('blue', 'light').primary)
+    expect(tokens.bg).toBe(createTokensV2('blue', 'light').bg)
+    expect(tokens.primary).toBe(createTokensV2('blue', 'light').primary)
   })
 
-  it('derives semantic surface presets from the active theme mode', () => {
-    const lightSurfaces = createSurfaces('green', 'light')
-    const darkSurfaces = createSurfaces('green', 'dark')
+  it('derives primary tints and glow from primaryRgb, never hardcoded violet', () => {
+    const green = createTokensV2('green', 'dark')
 
-    expect(lightSurfaces.elevated.backgroundColor).toBe(createColors('green', 'light').surfaceElevated)
-    expect(darkSurfaces.elevated.backgroundColor).toBe(createColors('green', 'dark').surfaceElevated)
-    expect(lightSurfaces.elevated.shadow.shadowOpacity).toBeLessThan(darkSurfaces.elevated.shadow.shadowOpacity)
+    expect(tintFromPrimary(green, 0.18)).toBe('rgba(0, 201, 80, 0.18)')
+    expect(primaryGlow(green).shadowColor).toBe('#00c950')
+    expect(primaryGlow(green).shadowOpacity).toBe(0.45)
+  })
 
-    setRuntimeTheme({ scheme: 'green', themeMode: 'light' })
-    expect(surfaces.screen.backgroundColor).toBe(lightSurfaces.screen.backgroundColor)
+  it('pre-blends sheet surfaces to solid hexes on dark', () => {
+    const dark = createTokensV2('purple', 'dark')
+    const darkSurfaces = createSurfaces('purple', 'dark')
+
+    expect(darkSurfaces.sheet.backgroundColor).toBe(blendElevOverCanvas(dark, 0.05))
+    expect(darkSurfaces.sheet.backgroundColor).toMatch(/^#[0-9a-f]{6}$/)
+    expect(darkSurfaces.elevated.backgroundColor).toBe(dark.bgElev)
+  })
+
+  it('uses opaque white sheet and card surfaces on light', () => {
+    const lightSurfaces = createSurfaces('purple', 'light')
+
+    expect(lightSurfaces.sheet.backgroundColor).toBe('#ffffff')
+    expect(lightSurfaces.elevated.backgroundColor).toBe('rgb(255, 255, 255)')
   })
 })

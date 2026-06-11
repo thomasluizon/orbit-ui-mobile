@@ -1,6 +1,6 @@
 import { forwardRef } from "react";
 import { View, Text } from "react-native";
-import { Orbit } from "lucide-react-native";
+import { Sparkles } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import { SuggestionChips } from "@/components/chat/suggestion-chips";
 import type { ChatStyles, Tokens } from "@/app/chat.styles";
@@ -17,21 +17,17 @@ export const ChatEmptyState = forwardRef<View, Readonly<ChatEmptyStateProps>>(
 
     return (
       <View ref={ref} style={styles.emptyState}>
-        <View style={styles.sparkleOuter}>
-          <View style={styles.orbitRing} />
-          <View style={styles.sparkleInnerRing} />
-          <Orbit size={36} color={tokens.fg1} strokeWidth={1.3} />
+        <View style={styles.emptyContent}>
+          <View style={styles.emptyAvatar}>
+            <Sparkles size={38} color={tokens.primarySoft} strokeWidth={1.8} />
+          </View>
+          <Text style={styles.emptyTitle}>{t("chat.empty.title")}</Text>
+          <Text style={styles.emptyText}>{t("chat.suggestion.prompt")}</Text>
+          <SuggestionChips onSelect={onSelectSuggestion} />
+          <Text style={styles.aiDisclaimer}>
+            {t("aiDisclosure.notMedicalAdvice")}
+          </Text>
         </View>
-        <Text style={[styles.emptyTitle, { color: tokens.fg1 }]}>
-          {t("chat.empty.title")}
-        </Text>
-        <Text style={[styles.emptyText, { color: tokens.fg3 }]}>
-          {t("chat.suggestion.prompt")}
-        </Text>
-        <SuggestionChips onSelect={onSelectSuggestion} />
-        <Text style={[styles.aiDisclaimer, { color: tokens.fg3 }]}>
-          {t("aiDisclosure.notMedicalAdvice")}
-        </Text>
       </View>
     );
   },

@@ -1,5 +1,11 @@
 import { useState, useCallback, useMemo } from 'react'
-import { ScrollView, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
+import {
+  ScrollView,
+  StyleSheet,
+  Text,
+  TouchableOpacity,
+  View,
+} from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { ChevronRight, Orbit } from 'lucide-react-native'
 import { useRouter } from 'expo-router'
@@ -9,7 +15,6 @@ import { withDrawerContentInset } from '@/components/ui/drawer-content-inset'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { SectionLabel } from '@/components/ui/section-label'
 import { SettingsRow } from '@/components/ui/settings-row'
-import { InfoRow } from '@/components/ui/info-row'
 import { HabitChecklist } from './habit-checklist'
 import { DescriptionViewer } from './description-viewer'
 import { HabitCalendar } from './habit-calendar'
@@ -79,11 +84,14 @@ export function HabitDetailDrawer({
 
   const handleAskAstra = useCallback(() => {
     if (!habit) return
-    const seed = `${askPrompt} (${habit.title})`
+    const seed =
+      (habit.checklistItems?.length ?? 0) > 0
+        ? t('habits.detail.askAstraSeedSubHabits', { title: habit.title })
+        : t('habits.detail.askAstraSeedDefault', { title: habit.title })
     void AsyncStorage.setItem('orbit-chat-draft', seed)
     onClose()
     router.push('/chat')
-  }, [askPrompt, habit, onClose, router])
+  }, [habit, onClose, router, t])
 
   const handleChecklistToggle = useCallback(
     (index: number) => {
@@ -172,7 +180,33 @@ export function HabitDetailDrawer({
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="always"
           >
-            {summaryStrip ? <InfoRow label={summaryStrip} /> : null}
+            {habit.emoji || summaryStrip ? (
+              <View style={styles.titleBlock}>
+                {habit.emoji ? (
+                  <View
+                    style={[
+                      styles.emojiWell,
+                      habit.isBadHabit
+                        ? { backgroundColor: `${tokens.statusBad}1F` }
+                        : null,
+                    ]}
+                  >
+                    <Text style={styles.emojiWellText}>{habit.emoji}</Text>
+                  </View>
+                ) : null}
+                {summaryStrip ? (
+                  <Text
+                    style={[
+                      styles.titleMeta,
+                      { color: habit.isBadHabit ? tokens.statusBad : tokens.fg3 },
+                    ]}
+                    numberOfLines={2}
+                  >
+                    {summaryStrip}
+                  </Text>
+                ) : null}
+              </View>
+            ) : null}
 
             {habit.description ? (
               <TouchableOpacity
@@ -212,6 +246,7 @@ export function HabitDetailDrawer({
                 <HabitDetailStatsRow
                   metrics={metrics}
                   loading={metricsLoading}
+                  isBadHabit={habit.isBadHabit}
                   t={t}
                   tokens={tokens}
                 />
@@ -338,10 +373,35 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       paddingBottom: 40,
       gap: 0,
     },
+    titleBlock: {
+      alignItems: 'center',
+      gap: 10,
+      paddingHorizontal: 20,
+      paddingTop: 8,
+      paddingBottom: 16,
+    },
+    emojiWell: {
+      width: 76,
+      height: 76,
+      borderRadius: 22,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: `${tokens.fg1}0F`,
+    },
+    emojiWellText: {
+      fontSize: 38,
+      lineHeight: 46,
+    },
+    titleMeta: {
+      fontFamily: 'Rubik_400Regular',
+      fontSize: 14,
+      lineHeight: 20,
+      textAlign: 'center',
+    },
     description: {
       paddingHorizontal: 20,
       paddingVertical: 12,
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_400Regular',
       fontSize: 14,
       lineHeight: 21,
       color: tokens.fg2,
@@ -383,15 +443,13 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       marginBottom: 6,
     },
     askAstraEyebrowText: {
-      fontFamily: 'GeistMono',
+      fontFamily: 'Roboto_500Medium',
       fontSize: 10.5,
-      fontWeight: '500',
       letterSpacing: 0.63,
     },
     askAstraBody: {
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_400Regular',
       fontSize: 14,
-      fontStyle: 'italic',
       lineHeight: 20,
     },
   })

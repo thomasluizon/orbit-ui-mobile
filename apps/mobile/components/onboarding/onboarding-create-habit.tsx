@@ -1,17 +1,12 @@
-import { useState, useMemo, useCallback } from 'react'
-import {
-  ActivityIndicator,
-  Pressable,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native'
+import { useEffect, useState, useMemo, useCallback } from 'react'
+import { ActivityIndicator, Animated, StyleSheet, Text, View } from 'react-native'
 import { Check } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useCreateHabit } from '@/hooks/use-habits'
-import { UnderlinedInput } from '@/components/ui/underlined-input'
+import { FieldInput } from '@/components/ui/field-input'
 import { Chip } from '@/components/ui/chip'
+import { PillButton } from '@/components/ui/pill-button'
 import {
   getFriendlyErrorMessage,
   translateErrorKey,
@@ -23,7 +18,8 @@ import {
   ONBOARDING_HABIT_SUGGESTIONS,
   type OnboardingFrequencyUnit,
 } from '@orbit/shared/utils/onboarding'
-import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
+import { createTokensV2, primaryGlow, type AppTokensV2 } from '@/lib/theme'
+import { usePrefersReducedMotion } from '@/lib/motion'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 interface Suggestion {
@@ -36,8 +32,8 @@ interface OnboardingCreateHabitProps {
 }
 
 /**
- * v8 step 3: "Tell Astra what to track." Underlined large input, suggestion
- * chips, frequency chip row, primary CTA.
+ * ob-3 step: "Tell Astra what to track." Kit field well, suggestion chips,
+ * frequency chip row, pill CTA.
  */
 export function OnboardingCreateHabit({
   onCreated,
@@ -62,6 +58,25 @@ export function OnboardingCreateHabit({
     null,
   )
   const { showError } = useAppToast()
+  const prefersReducedMotion = usePrefersReducedMotion()
+  const successScale = useMemo(() => new Animated.Value(0), [])
+
+  useEffect(() => {
+    if (!isCreated) return
+    if (prefersReducedMotion) {
+      successScale.setValue(1)
+      return
+    }
+    const animation = Animated.spring(successScale, {
+      toValue: 1,
+      stiffness: 260,
+      damping: 20,
+      mass: 0.9,
+      useNativeDriver: true,
+    })
+    animation.start()
+    return () => animation.stop()
+  }, [isCreated, prefersReducedMotion, successScale])
 
   const createHabit = useCreateHabit()
   const isCreating = createHabit.isPending
@@ -133,9 +148,25 @@ export function OnboardingCreateHabit({
     return (
       <View style={styles.container}>
         <View style={styles.successCard}>
-          <View style={styles.successIcon}>
-            <Check size={22} color={tokens.primary} strokeWidth={2} />
-          </View>
+          <Animated.View
+            style={[
+              styles.successIcon,
+              primaryGlow(tokens),
+              {
+                opacity: successScale,
+                transform: [
+                  {
+                    scale: successScale.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [0.3, 1],
+                    }),
+                  },
+                ],
+              },
+            ]}
+          >
+            <Check size={26} color={tokens.fgOnPrimary} strokeWidth={2.4} />
+          </Animated.View>
           <Text style={styles.successTitle}>{title}</Text>
           <Text style={styles.successFreq}>
             {t(getOnboardingHabitFrequencyLabelKey(frequencyUnit))}
@@ -157,8 +188,7 @@ export function OnboardingCreateHabit({
         {t('onboarding.flow.createHabit.subtitle')}
       </Text>
 
-      <UnderlinedInput
-        large
+      <FieldInput
         value={title}
         onChangeText={setTitle}
         placeholder={t('onboarding.flow.createHabit.placeholder')}
@@ -168,9 +198,6 @@ export function OnboardingCreateHabit({
         onSubmitEditing={handleCreate}
       />
 
-      <Text style={styles.sectionLabel}>
-        {t('onboarding.flow.createHabit.frequency.daily')}
-      </Text>
       <View style={styles.chipsRow}>
         {ONBOARDING_HABIT_FREQUENCIES.map((freq) => (
           <Chip
@@ -184,7 +211,7 @@ export function OnboardingCreateHabit({
       </View>
 
       <Text style={styles.sectionLabel}>
-        {t('onboarding.flow.createHabit.title')}
+        {t('onboarding.flow.createHabit.starters')}
       </Text>
       <View style={styles.chipsRow}>
         {ONBOARDING_HABIT_SUGGESTIONS.map((suggestion) => (
@@ -198,25 +225,23 @@ export function OnboardingCreateHabit({
         ))}
       </View>
 
-      <Pressable
-        style={({ pressed }) => [
-          styles.createBtn,
-          {
-            backgroundColor: pressed ? tokens.primaryPressed : tokens.primary,
-          },
-          (!title.trim() || isCreating) && styles.createBtnDisabled,
-        ]}
-        disabled={!title.trim() || isCreating}
-        onPress={handleCreate}
-      >
-        {isCreating ? (
-          <ActivityIndicator size="small" color={tokens.fgOnPrimary} />
-        ) : (
-          <Text style={[styles.createBtnText, { color: tokens.fgOnPrimary }]}>
-            {t('onboarding.flow.createHabit.create')}
-          </Text>
-        )}
-      </Pressable>
+      <View style={styles.createBtnWrap}>
+        <PillButton
+          fullWidth
+          disabled={!title.trim() || isCreating}
+          busy={isCreating}
+          onPress={handleCreate}
+          leading={
+            isCreating ? (
+              <ActivityIndicator size="small" color={tokens.fgOnPrimary} />
+            ) : undefined
+          }
+        >
+          {isCreating
+            ? t('onboarding.flow.createHabit.creating')
+            : t('onboarding.flow.createHabit.create')}
+        </PillButton>
+      </View>
     </View>
   )
 }
@@ -229,25 +254,25 @@ function createStyles(tokens: AppTokensV2) {
       paddingBottom: 12,
     },
     title: {
-      fontFamily: 'Geist',
-      fontSize: 22,
-      fontWeight: '600',
-      letterSpacing: -0.33,
-      lineHeight: 25,
+      fontFamily: 'Rubik_500Medium',
+      fontSize: 24,
+      letterSpacing: -0.24,
+      lineHeight: 31,
       color: tokens.fg1,
       textAlign: 'center',
     },
     subtitle: {
-      fontFamily: 'Geist',
-      fontSize: 14,
-      lineHeight: 21,
+      fontFamily: 'Rubik_400Regular',
+      fontSize: 15,
+      lineHeight: 23,
       color: tokens.fg2,
       textAlign: 'center',
     },
     sectionLabel: {
-      fontFamily: 'Geist',
-      fontSize: 13,
-      fontWeight: '600',
+      fontFamily: 'Rubik_500Medium',
+      fontSize: 12,
+      letterSpacing: 0.96,
+      textTransform: 'uppercase',
       color: tokens.fg3,
       marginTop: 6,
     },
@@ -256,57 +281,38 @@ function createStyles(tokens: AppTokensV2) {
       flexWrap: 'wrap',
       gap: 6,
     },
-    createBtn: {
+    createBtnWrap: {
       marginTop: 8,
-      paddingVertical: 12,
-      paddingHorizontal: 18,
-      borderRadius: 10,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    createBtnDisabled: {
-      opacity: 0.5,
-    },
-    createBtnText: {
-      fontFamily: 'Geist',
-      fontSize: 14,
-      fontWeight: '600',
     },
     successCard: {
-      borderTopWidth: 1,
-      borderBottomWidth: 1,
-      borderColor: tokens.hairline,
       paddingVertical: 24,
       alignItems: 'center',
       gap: 6,
     },
     successIcon: {
-      width: 40,
-      height: 40,
-      borderRadius: 20,
-      borderWidth: 1,
-      borderColor: tokens.primary,
+      width: 56,
+      height: 56,
+      borderRadius: 999,
+      backgroundColor: tokens.primary,
       alignItems: 'center',
       justifyContent: 'center',
       marginBottom: 8,
     },
     successTitle: {
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_500Medium',
       fontSize: 17,
-      fontWeight: '600',
       color: tokens.fg1,
     },
     successFreq: {
-      fontFamily: 'GeistMono',
-      fontSize: 11,
+      fontFamily: 'Roboto_400Regular',
+      fontSize: 12,
       color: tokens.fg3,
-      letterSpacing: 0.44,
+      letterSpacing: 0.24,
     },
     successMessage: {
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_400Regular',
       fontSize: 13,
-      fontStyle: 'italic',
-      color: tokens.fg2,
+      color: tokens.fg3,
       marginTop: 8,
     },
   })

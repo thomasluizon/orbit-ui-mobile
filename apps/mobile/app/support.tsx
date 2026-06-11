@@ -1,9 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import {
-  Pressable,
   StyleSheet,
   Text,
-  TextInput,
   View,
 } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
@@ -13,10 +11,12 @@ import { useTranslation } from 'react-i18next'
 import { API } from '@orbit/shared/api'
 import { isValidEmail } from '@orbit/shared/utils/email'
 import { buildSupportRequestBody, getErrorMessage } from '@orbit/shared/utils'
-import { createTokensV2 } from '@/lib/theme'
+import { createTokensV2, tintFromPrimary } from '@/lib/theme'
 import { useProfile } from '@/hooks/use-profile'
 import { apiClient } from '@/lib/api-client'
+import { AppTextInput } from '@/components/ui/app-text-input'
 import { KeyboardAwareScrollView } from '@/components/ui/keyboard-aware-scroll-view'
+import { PillButton } from '@/components/ui/pill-button'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useOffline } from '@/hooks/use-offline'
 import { OfflineUnavailableState } from '@/components/ui/offline-unavailable-state'
@@ -27,7 +27,7 @@ type Tokens = ReturnType<typeof createTokensV2>
 
 const SUPPORT_DRAFT_STORAGE_KEY = 'orbit-support-draft'
 
-interface UnderlinedInputProps {
+interface SupportFieldProps {
   label: string
   value: string
   onChangeText: (v: string) => void
@@ -40,7 +40,7 @@ interface UnderlinedInputProps {
   tokens: Tokens
 }
 
-function UnderlinedInput({
+function SupportField({
   label,
   value,
   onChangeText,
@@ -51,29 +51,26 @@ function UnderlinedInput({
   mono = false,
   error,
   tokens,
-}: Readonly<UnderlinedInputProps>) {
+}: Readonly<SupportFieldProps>) {
   return (
     <View style={styles.fieldWrap}>
-      <Text style={[styles.fieldLabel, { color: tokens.fg3 }]}>
+      <Text style={[styles.fieldLabel, { color: tokens.fg2 }]}>
         {label}
       </Text>
-      <TextInput
+      <AppTextInput
         value={value}
         onChangeText={onChangeText}
         placeholder={placeholder}
-        placeholderTextColor={tokens.fg4}
         multiline={multiline}
         numberOfLines={multiline ? 6 : 1}
         keyboardType={keyboardType}
         autoCapitalize={autoCapitalize}
         textAlignVertical={multiline ? 'top' : 'auto'}
+        accessibilityLabel={label}
         style={[
-          mono ? styles.inputMono : styles.input,
-          {
-            color: tokens.fg1,
-            borderBottomColor: error ? tokens.statusBad : tokens.hairlineStrong,
-            minHeight: multiline ? 110 : 36,
-          },
+          mono ? styles.inputMono : null,
+          multiline ? styles.inputMultiline : null,
+          error ? { borderColor: tokens.statusBad } : null,
         ]}
       />
       {error ? (
@@ -130,7 +127,7 @@ export default function SupportScreen() {
 
   useEffect(() => {
     if (profile) {
-       
+
       setName((current) => current || profile.name || '')
       setEmail((current) => current || profile.email || '')
     }
@@ -224,11 +221,18 @@ export default function SupportScreen() {
       >
         {success ? (
           <View style={styles.successBlock}>
-            <Check size={28} color={tokens.primary} strokeWidth={1.7} />
+            <View
+              style={[
+                styles.successIconCircle,
+                { backgroundColor: tintFromPrimary(tokens, 0.15) },
+              ]}
+            >
+              <Check size={34} color={tokens.primarySoft} strokeWidth={1.8} />
+            </View>
             <Text style={[styles.successTitle, { color: tokens.fg1 }]}>
               {t('profile.support.success')}
             </Text>
-            <Text style={[styles.successHint, { color: tokens.fg3 }]}>
+            <Text style={[styles.successHint, { color: tokens.fg2 }]}>
               {t('profile.support.successHint')}
             </Text>
           </View>
@@ -243,7 +247,7 @@ export default function SupportScreen() {
             ) : null}
             <View style={styles.rowPair}>
               <View style={styles.halfField}>
-                <UnderlinedInput
+                <SupportField
                   label={t('profile.support.name')}
                   value={name}
                   onChangeText={setName}
@@ -253,7 +257,7 @@ export default function SupportScreen() {
                 />
               </View>
               <View style={styles.halfField}>
-                <UnderlinedInput
+                <SupportField
                   label={t('profile.support.email')}
                   value={email}
                   onChangeText={setEmail}
@@ -266,14 +270,14 @@ export default function SupportScreen() {
                 />
               </View>
             </View>
-            <UnderlinedInput
+            <SupportField
               label={t('profile.support.subject')}
               value={subject}
               onChangeText={setSubject}
               placeholder={t('profile.support.subjectPlaceholder')}
               tokens={tokens}
             />
-            <UnderlinedInput
+            <SupportField
               label={t('profile.support.message')}
               value={message}
               onChangeText={setMessage}
@@ -282,34 +286,21 @@ export default function SupportScreen() {
               tokens={tokens}
             />
             {error ? (
-              <Text style={[styles.fieldErrorText, { color: tokens.statusOverdue }]}>
+              <Text style={[styles.formErrorText, { color: tokens.statusBad }]}>
                 {error}
               </Text>
             ) : null}
             <View style={styles.actionPad}>
-              <Pressable
+              <PillButton
                 onPress={() => {
                   void handleSend()
                 }}
                 disabled={!canSend}
-                accessibilityRole="button"
+                fullWidth
                 accessibilityLabel={t('profile.support.send')}
-                style={({ pressed }) => [
-                  styles.primaryBtn,
-                  {
-                    backgroundColor: pressed
-                      ? tokens.primaryPressed
-                      : tokens.primary,
-                  },
-                  !canSend && { opacity: 0.5 },
-                ]}
               >
-                <Text
-                  style={[styles.primaryBtnText, { color: tokens.fgOnPrimary }]}
-                >
-                  {t('profile.support.send')}
-                </Text>
-              </Pressable>
+                {t('profile.support.send')}
+              </PillButton>
             </View>
           </View>
         )}
@@ -326,7 +317,7 @@ const styles = StyleSheet.create({
   formBlock: {
     paddingHorizontal: 20,
     paddingTop: 16,
-    gap: 14,
+    gap: 16,
   },
   rowPair: {
     flexDirection: 'row',
@@ -334,55 +325,32 @@ const styles = StyleSheet.create({
   },
   halfField: { flex: 1 },
   fieldWrap: {
-    gap: 4,
+    gap: 8,
   },
   fieldLabel: {
-    fontFamily: 'GeistMono',
-    fontSize: 10,
-    fontWeight: '600',
-    letterSpacing: 0.6,
-    textTransform: 'uppercase',
-  },
-  input: {
-    fontFamily: 'Geist',
-    fontSize: 16,
-    paddingVertical: 6,
-    paddingHorizontal: 0,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    fontFamily: 'Rubik_500Medium',
+    fontSize: 14,
   },
   inputMono: {
-    fontFamily: 'GeistMono',
-    fontSize: 14,
-    paddingVertical: 6,
-    paddingHorizontal: 0,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    fontFamily: 'Roboto_400Regular',
+    fontSize: 15,
     fontVariant: ['tabular-nums'],
   },
-  errorText: {
-    fontFamily: 'Geist',
-    fontSize: 11,
-    fontStyle: 'italic',
-    marginTop: 2,
+  inputMultiline: {
+    minHeight: 132,
   },
-  fieldErrorText: {
-    fontFamily: 'Geist',
+  errorText: {
+    fontFamily: 'Rubik_400Regular',
+    fontSize: 12,
+    marginTop: -2,
+  },
+  formErrorText: {
+    fontFamily: 'Rubik_400Regular',
     fontSize: 13,
-    fontStyle: 'italic',
+    lineHeight: 19,
   },
   actionPad: {
     paddingTop: 8,
-  },
-  primaryBtn: {
-    paddingVertical: 12,
-    paddingHorizontal: 18,
-    borderRadius: 8,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  primaryBtnText: {
-    fontFamily: 'Geist',
-    fontSize: 14,
-    fontWeight: '600',
   },
   successBlock: {
     paddingHorizontal: 24,
@@ -390,16 +358,24 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 14,
   },
+  successIconCircle: {
+    width: 80,
+    height: 80,
+    borderRadius: 999,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   successTitle: {
-    fontFamily: 'Geist',
-    fontSize: 17,
-    fontWeight: '600',
-    letterSpacing: -0.17,
+    fontFamily: 'Rubik_500Medium',
+    fontSize: 22,
+    letterSpacing: -0.22,
+    textAlign: 'center',
   },
   successHint: {
-    fontFamily: 'Geist',
-    fontSize: 13,
-    fontStyle: 'italic',
+    fontFamily: 'Rubik_400Regular',
+    fontSize: 15,
+    lineHeight: 22.5,
     textAlign: 'center',
+    maxWidth: 320,
   },
 })

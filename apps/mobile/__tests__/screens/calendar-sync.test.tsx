@@ -169,14 +169,15 @@ vi.mock("@/components/ui/section-label", () => ({
 
 vi.mock("@/components/ui/settings-row", () => ({
   SettingsRow: () => null,
+  Switch: () => null,
 }));
 
 vi.mock("@/components/ui/select-check", () => ({
   SelectCheck: () => null,
 }));
 
-vi.mock("@/components/ui/mono-toggle", () => ({
-  MonoToggle: () => null,
+vi.mock("@/components/ui/pill-button", () => ({
+  PillButton: () => null,
 }));
 
 vi.mock("react-native", async (importOriginal) => {

@@ -138,15 +138,15 @@ export function HabitFormFields({
         registerFlush={registerBufferedInputFlusher}
         onCommit={(val) => setValue("title", val, { shouldDirty: true })}
         onDraftChange={(val) => onTitlePresenceChange?.(val.trim().length > 0)}
+        leading={
+          <HabitEmojiSelector
+            selectedEmoji={watchedEmoji}
+            tokens={tokens}
+            styles={styles}
+            onSelect={(emoji) => setValue("emoji", emoji, { shouldDirty: true })}
+          />
+        }
         styles={styles}
-        tokens={tokens}
-      />
-
-      <HabitEmojiSelector
-        selectedEmoji={watchedEmoji}
-        tokens={tokens}
-        styles={styles}
-        onSelect={(emoji) => setValue("emoji", emoji, { shouldDirty: true })}
       />
 
       <FrequencyTypeCards

@@ -8,8 +8,6 @@ import { AppOverlay } from '@/components/ui/app-overlay'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { SectionLabel } from '@/components/ui/section-label'
 import { SettingsRow } from '@/components/ui/settings-row'
-import { InfoRow } from '@/components/ui/info-row'
-import { PullQuote } from '@/components/chat/pull-quote'
 import { HabitChecklist } from './habit-checklist'
 import { HabitCalendar } from './habit-calendar'
 import {
@@ -110,7 +108,11 @@ export function HabitDetailDrawer({
 
   const router = useRouter()
   function handleAskAstra() {
-    const seed = habit?.title ? `${askPrompt} (${habit.title})` : askPrompt
+    if (!habit) return
+    const seed =
+      habit.checklistItems && habit.checklistItems.length > 0
+        ? t('habits.detail.askAstraSeedSubHabits', { title: habit.title })
+        : t('habits.detail.askAstraSeedDefault', { title: habit.title })
     if (typeof globalThis !== 'undefined' && typeof globalThis.localStorage !== 'undefined') {
       globalThis.localStorage.setItem('orbit-chat-draft', seed)
     }
@@ -133,6 +135,55 @@ export function HabitDetailDrawer({
         open={open}
         onOpenChange={onOpenChange}
         title={habit?.title}
+        titleContent={
+          habit ? (
+            <span
+              className="flex w-full flex-col items-center text-center"
+              style={{ gap: 10, paddingTop: 8 }}
+            >
+              {habit.emoji ? (
+                <span
+                  aria-hidden="true"
+                  className="inline-flex shrink-0 items-center justify-center"
+                  style={{
+                    width: 76,
+                    height: 76,
+                    borderRadius: 22,
+                    fontSize: 38,
+                    background: habit.isBadHabit
+                      ? 'color-mix(in srgb, var(--status-bad) 12%, transparent)'
+                      : 'color-mix(in srgb, var(--fg-1) 6%, transparent)',
+                  }}
+                >
+                  {habit.emoji}
+                </span>
+              ) : null}
+              <span
+                style={{
+                  fontFamily: 'var(--font-sans)',
+                  fontSize: 24,
+                  fontWeight: 500,
+                  lineHeight: 1.3,
+                  color: 'var(--fg-1)',
+                }}
+              >
+                {habit.title}
+              </span>
+              {summaryStrip ? (
+                <span
+                  style={{
+                    fontFamily: 'var(--font-sans)',
+                    fontSize: 14,
+                    fontWeight: 400,
+                    color: habit.isBadHabit ? 'var(--status-bad)' : 'var(--fg-3)',
+                  }}
+                >
+                  {summaryStrip}
+                </span>
+              ) : null}
+            </span>
+          ) : undefined
+        }
         description={habit?.description ?? undefined}
         expandable
         onExpandDescription={() => setDescriptionViewerOpen(true)}
@@ -145,19 +196,37 @@ export function HabitDetailDrawer({
             style={{ borderRadius: 8, padding: '8px 10px', margin: '-8px -10px' }}
           >
             <div className="flex items-center gap-3">
-              <div className="flex-1 min-w-0">
-                <PullQuote
-                  paddingX={0}
-                  paddingY={0}
-                  eyebrow={
-                    <>
-                      <Orbit size={12} strokeWidth={1.7} color="var(--primary)" />
-                      <span>{t('habits.detail.askAstraEyebrow')}</span>
-                    </>
-                  }
+              <div className="relative flex-1 min-w-0" style={{ paddingLeft: 14 }}>
+                <span
+                  aria-hidden="true"
+                  className="absolute rounded-[1px]"
+                  style={{ left: 0, top: 4, bottom: 4, width: 2, background: 'var(--primary)' }}
+                />
+                <div className="inline-flex items-center" style={{ gap: 6, marginBottom: 6 }}>
+                  <Orbit size={12} strokeWidth={1.7} color="var(--primary)" />
+                  <span
+                    style={{
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: 10.5,
+                      fontWeight: 500,
+                      letterSpacing: '0.06em',
+                      color: 'var(--fg-3)',
+                    }}
+                  >
+                    {t('habits.detail.askAstraEyebrow')}
+                  </span>
+                </div>
+                <div
+                  style={{
+                    fontFamily: 'var(--font-sans)',
+                    fontSize: 15,
+                    lineHeight: 1.5,
+                    color: 'var(--fg-2)',
+                    textWrap: 'pretty',
+                  }}
                 >
                   {askPrompt}
-                </PullQuote>
+                </div>
               </div>
               <ChevronRight
                 size={16}
@@ -171,9 +240,7 @@ export function HabitDetailDrawer({
         }
       >
         {habit && (
-          <div className="-mx-6">
-            {summaryStrip ? <InfoRow label={summaryStrip} /> : null}
-
+          <div className="overlay-bleed">
             {habit.dueTime && (
               <SettingsRow
                 label={t('habits.form.dueTime')}
@@ -219,6 +286,7 @@ export function HabitDetailDrawer({
               <HabitDetailStatsGrid
                 metrics={metrics}
                 loading={metricsLoading}
+                isBadHabit={habit.isBadHabit}
                 t={t as TranslationFn}
               />
             ) : null}

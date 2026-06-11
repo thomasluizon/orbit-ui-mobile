@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import {
+  Animated,
   View,
   Text,
   Pressable,
@@ -22,7 +23,8 @@ import {
   resolveAuthLoginErrorKey,
 } from '@orbit/shared/utils'
 import { useAppToast } from '@/hooks/use-app-toast'
-import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
+import { createTokensV2, easings, solidTintFromPrimary, tintFromPrimary, type AppTokensV2 } from '@/lib/theme'
+import { toAnimatedEasing, usePrefersReducedMotion } from '@/lib/motion'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useAuthStore } from '@/stores/auth-store'
 import { apiClient } from '@/lib/api-client'
@@ -45,7 +47,9 @@ import { useOffline } from '@/hooks/use-offline'
 import { OfflineUnavailableState } from '@/components/ui/offline-unavailable-state'
 import { KeyboardAwareScrollView } from '@/components/ui/keyboard-aware-scroll-view'
 import { AppLogo } from '@/components/ui/app-logo'
-import { UnderlinedInput } from '@/components/ui/underlined-input'
+import { GradientTop } from '@/components/ui/gradient-top'
+import { PillButton } from '@/components/ui/pill-button'
+import { FieldInput } from '@/components/ui/field-input'
 import { CodeInput } from '@/components/ui/code-input'
 
 interface AuthErrorState {
@@ -110,6 +114,45 @@ export default function LoginScreen() {
   const [keyboardVisible, setKeyboardVisible] = useState(false)
   const isCodeStep = step === 'code'
   const isAndroidKeyboardOpen = Platform.OS === 'android' && keyboardVisible
+  const prefersReducedMotion = usePrefersReducedMotion()
+  const stepEntrance = useMemo(() => new Animated.Value(1), [])
+  const shakeOffset = useMemo(() => new Animated.Value(0), [])
+
+  useEffect(() => {
+    if (prefersReducedMotion) {
+      stepEntrance.setValue(1)
+      return
+    }
+    stepEntrance.setValue(0)
+    const animation = Animated.timing(stepEntrance, {
+      toValue: 1,
+      duration: 280,
+      easing: toAnimatedEasing(easings.out),
+      useNativeDriver: true,
+    })
+    animation.start()
+    return () => animation.stop()
+  }, [prefersReducedMotion, step, stepEntrance])
+
+  useEffect(() => {
+    if (!errorMessage || step !== 'code' || prefersReducedMotion) return
+    shakeOffset.setValue(0)
+    const shakeFrame = (toValue: number) =>
+      Animated.timing(shakeOffset, {
+        toValue,
+        duration: 56,
+        useNativeDriver: true,
+      })
+    const animation = Animated.sequence([
+      shakeFrame(-4),
+      shakeFrame(4),
+      shakeFrame(-4),
+      shakeFrame(4),
+      shakeFrame(0),
+    ])
+    animation.start()
+    return () => animation.stop()
+  }, [errorMessage, prefersReducedMotion, shakeOffset, step])
 
   const {
     codeDigits,
@@ -360,226 +403,228 @@ export default function LoginScreen() {
     codeDigits.join('').length === 6 && !isSubmitting && isOnline
 
   return (
-    <KeyboardAwareScrollView
-      containerStyle={[
-        styles.container,
-        { paddingTop: insets.top, paddingBottom: insets.bottom },
-      ]}
-      keyboardVerticalOffset={Platform.OS === 'ios' ? 12 : 0}
-      contentContainerStyle={[
-        styles.scrollContent,
-        isCodeStep && styles.scrollContentCode,
-        isAndroidKeyboardOpen && styles.scrollContentKeyboard,
-      ]}
-      keyboardShouldPersistTaps="always"
-      showsVerticalScrollIndicator={false}
-    >
-      {showReferralBanner && (
-        <View style={styles.referralBanner}>
-          <Text style={styles.referralBannerText}>
-            {t('referral.loginBanner')}
-          </Text>
-        </View>
-      )}
-
-      <View style={styles.formColumn}>
-        <View style={styles.brandingHeader}>
-          <AppLogo size={32} />
-          <Text style={styles.wordmark}>Orbit</Text>
-          <View style={styles.brandingRule} />
-        </View>
-
-        <Text style={styles.stepSubtitle}>
-          {step === 'email' ? t('auth.signIn') : t('auth.enterCode')}
-        </Text>
-
-        {errorMessage && (
-          <Text style={styles.inlineError}>{errorMessage}</Text>
+    <View style={styles.root}>
+      <GradientTop height={320} />
+      <KeyboardAwareScrollView
+        containerStyle={[
+          styles.container,
+          { paddingTop: insets.top, paddingBottom: insets.bottom },
+        ]}
+        keyboardVerticalOffset={Platform.OS === 'ios' ? 12 : 0}
+        contentContainerStyle={[
+          styles.scrollContent,
+          isCodeStep && styles.scrollContentCode,
+          isAndroidKeyboardOpen && styles.scrollContentKeyboard,
+        ]}
+        keyboardShouldPersistTaps="always"
+        showsVerticalScrollIndicator={false}
+      >
+        {showReferralBanner && (
+          <View style={styles.referralBanner}>
+            <Text style={styles.referralBannerText}>
+              {t('referral.loginBanner')}
+            </Text>
+          </View>
         )}
 
-        {successMessage && (
-          <Text style={styles.successText}>{successMessage}</Text>
-        )}
-
-        {!isOnline && (
-          <OfflineUnavailableState
-            title={offlineTitle}
-            description={offlineDescription}
-            compact
-          />
-        )}
-
-        {step === 'email' ? (
-          <>
-            <UnderlinedInput
-              label={t('auth.email')}
-              mono
-              value={email}
-              onChangeText={setEmail}
-              placeholder={t('auth.emailPlaceholder')}
-              keyboardType="email-address"
-              autoCapitalize="none"
-              autoCorrect={false}
-              autoComplete="email"
-              textContentType="emailAddress"
-              editable={!isSubmitting}
-              onSubmitEditing={sendCode}
-              returnKeyType="send"
-              accessibilityLabel={t('auth.email')}
-            />
-
-            <Pressable
-              style={({ pressed }) => [
-                styles.primaryButton,
+        <Animated.View
+          style={[
+            styles.formColumn,
+            {
+              opacity: stepEntrance,
+              transform: [
                 {
-                  backgroundColor: pressed
-                    ? tokens.primaryPressed
-                    : tokens.primary,
+                  translateX: stepEntrance.interpolate({
+                    inputRange: [0, 1],
+                    outputRange: [isCodeStep ? 24 : -24, 0],
+                  }),
                 },
-                !canSubmitEmail && styles.buttonDisabled,
-              ]}
-              onPress={sendCode}
-              disabled={!canSubmitEmail}
-              accessibilityState={{
-                disabled: !canSubmitEmail,
-                busy: isSubmitting,
-              }}
-            >
-              {isSubmitting && <Spinner color={tokens.fgOnPrimary} />}
-              <Text
-                style={[
-                  styles.primaryButtonText,
-                  { color: tokens.fgOnPrimary },
-                ]}
+              ],
+            },
+          ]}
+        >
+          <View style={styles.brandingHeader}>
+            <View style={styles.logoTile}>
+              <AppLogo size={40} />
+            </View>
+          </View>
+
+          <View style={styles.titleBlock}>
+            <Text style={styles.stepTitle}>
+              {step === 'email' ? t('auth.signIn') : t('auth.enterCode')}
+            </Text>
+            {step === 'email' && (
+              <Text style={styles.stepSubtitle}>{t('auth.signInSubtitle')}</Text>
+            )}
+          </View>
+
+          {errorMessage && (
+            <Text style={styles.inlineError}>{errorMessage}</Text>
+          )}
+
+          {successMessage && (
+            <Text style={styles.successText}>{successMessage}</Text>
+          )}
+
+          {!isOnline && (
+            <OfflineUnavailableState
+              title={offlineTitle}
+              description={offlineDescription}
+              compact
+            />
+          )}
+
+          {step === 'email' ? (
+            <>
+              <FieldInput
+                label={t('auth.email')}
+                value={email}
+                onChangeText={setEmail}
+                placeholder={t('auth.emailPlaceholder')}
+                keyboardType="email-address"
+                autoCapitalize="none"
+                autoCorrect={false}
+                autoComplete="email"
+                textContentType="emailAddress"
+                editable={!isSubmitting}
+                onSubmitEditing={sendCode}
+                returnKeyType="send"
+                accessibilityLabel={t('auth.email')}
+              />
+
+              <PillButton
+                fullWidth
+                onPress={sendCode}
+                disabled={!canSubmitEmail}
+                busy={isSubmitting}
+                leading={
+                  isSubmitting ? <Spinner color={tokens.fgOnPrimary} /> : undefined
+                }
               >
                 {t('auth.sendCode')}
-              </Text>
-            </Pressable>
+              </PillButton>
 
-            <View style={styles.divider}>
-              <View style={styles.dividerLine} />
-              <Text style={styles.dividerText}>
-                {t('auth.orContinueWith')}
-              </Text>
-              <View style={styles.dividerLine} />
-            </View>
+              <View style={styles.divider}>
+                <View style={styles.dividerLine} />
+                <Text style={styles.dividerText}>
+                  {t('auth.orContinueWith')}
+                </Text>
+                <View style={styles.dividerLine} />
+              </View>
 
-            <Pressable
-              style={({ pressed }) => [
-                styles.secondaryButton,
-                {
-                  borderColor: tokens.hairlineStrong,
-                  backgroundColor: pressed ? tokens.bgSunk : 'transparent',
-                },
-                (isGoogleLoading || !isOnline) && styles.buttonDisabled,
-              ]}
-              onPress={signInWithGoogle}
-              disabled={isGoogleLoading || !isOnline}
-            >
-              {isGoogleLoading ? (
-                <Spinner size={20} color={tokens.fg1} />
-              ) : (
-                <GoogleIcon />
-              )}
-              <Text style={[styles.secondaryButtonText, { color: tokens.fg1 }]}>
+              <PillButton
+                variant="ghost"
+                fullWidth
+                onPress={signInWithGoogle}
+                disabled={isGoogleLoading || !isOnline}
+                busy={isGoogleLoading}
+                leading={
+                  isGoogleLoading ? (
+                    <Spinner size={20} color={tokens.fg1} />
+                  ) : (
+                    <GoogleIcon />
+                  )
+                }
+              >
                 {t('auth.signInWithGoogle')}
+              </PillButton>
+
+              <Text style={styles.legal}>
+                {t('auth.legalPrefix')}{' '}
+                <Text style={styles.legalLink} onPress={openTerms}>
+                  {t('auth.terms')}
+                </Text>{' '}
+                {t('auth.legalConjunction')}{' '}
+                <Text style={styles.legalLink} onPress={openPrivacyPolicy}>
+                  {t('auth.privacy')}
+                </Text>
+                .
               </Text>
-            </Pressable>
-
-            <Text style={styles.legal}>
-              {t('auth.legalPrefix')}{' '}
-              <Text style={styles.legalLink} onPress={openTerms}>
-                {t('auth.terms')}
-              </Text>{' '}
-              {t('auth.legalConjunction')}{' '}
-              <Text style={styles.legalLink} onPress={openPrivacyPolicy}>
-                {t('auth.privacy')}
+            </>
+          ) : (
+            <>
+              <Text style={styles.codeSentText}>
+                {t('auth.codeSentTo')}{' '}
+                <Text style={styles.codeSentEmail}>{email}</Text>.
               </Text>
-              .
-            </Text>
-          </>
-        ) : (
-          <>
-            <Text style={styles.codeSentText}>
-              {t('auth.codeSentTo')}{' '}
-              <Text style={styles.codeSentEmail}>{email}</Text>.
-            </Text>
 
-            <CodeInput
-              digits={codeDigits}
-              inputRefs={codeInputRefs}
-              onChange={onCodeInput}
-              onKeyPress={onCodeKeyPress}
-              ariaLabelForIndex={(n) => t('auth.codeDigit', { n: n + 1 })}
-              disabled={isSubmitting}
-              autoFocusFirst
-            />
+              <Animated.View style={{ transform: [{ translateX: shakeOffset }] }}>
+                <CodeInput
+                  digits={codeDigits}
+                  inputRefs={codeInputRefs}
+                  onChange={onCodeInput}
+                  onKeyPress={onCodeKeyPress}
+                  ariaLabelForIndex={(n) => t('auth.codeDigit', { n: n + 1 })}
+                  disabled={isSubmitting}
+                  autoFocusFirst
+                />
+              </Animated.View>
 
-            <Pressable
-              style={({ pressed }) => [
-                styles.primaryButton,
-                {
-                  backgroundColor: pressed
-                    ? tokens.primaryPressed
-                    : tokens.primary,
-                },
-                !canSubmitCode && styles.buttonDisabled,
-              ]}
-              onPress={verifyCode}
-              disabled={!canSubmitCode}
-              accessibilityState={{
-                disabled: !canSubmitCode,
-                busy: isSubmitting,
-              }}
-            >
-              {isSubmitting && <Spinner color={tokens.fgOnPrimary} />}
-              <Text
-                style={[
-                  styles.primaryButtonText,
-                  { color: tokens.fgOnPrimary },
-                ]}
+              <PillButton
+                fullWidth
+                onPress={verifyCode}
+                disabled={!canSubmitCode}
+                busy={isSubmitting}
+                leading={
+                  isSubmitting ? <Spinner color={tokens.fgOnPrimary} /> : undefined
+                }
               >
                 {t('auth.verify')}
-              </Text>
-            </Pressable>
+              </PillButton>
 
-            <View style={styles.resendRow}>
-              {canResend ? (
-                <Pressable onPress={resendCode} disabled={!isOnline}>
-                  <Text style={styles.resendActiveText}>
-                    {t('auth.resendCode')}
-                  </Text>
+              <View style={styles.resendRow}>
+                {canResend ? (
+                  <Pressable
+                    onPress={resendCode}
+                    disabled={!isOnline}
+                    style={styles.textButton}
+                    accessibilityRole="button"
+                  >
+                    <Text style={styles.resendActiveText}>
+                      {t('auth.resendCode')}
+                    </Text>
+                  </Pressable>
+                ) : (
+                  <View style={styles.textButton}>
+                    <Text style={styles.resendCountdownText}>
+                      {t('auth.resendIn', { seconds: resendCountdown })}
+                    </Text>
+                  </View>
+                )}
+              </View>
+
+              <View style={styles.changeEmailRow}>
+                <Pressable
+                  onPress={backToEmail}
+                  style={styles.textButton}
+                  accessibilityRole="button"
+                >
+                  <Text style={styles.quietLink}>{t('auth.changeEmail')}</Text>
                 </Pressable>
-              ) : (
-                <Text style={styles.resendCountdownText}>
-                  {t('auth.resendIn', { seconds: resendCountdown })}
-                </Text>
-              )}
-            </View>
-
-            <View style={styles.changeEmailRow}>
-              <Pressable onPress={backToEmail}>
-                <Text style={styles.quietLink}>{t('auth.changeEmail')}</Text>
-              </Pressable>
-            </View>
-          </>
-        )}
-      </View>
-    </KeyboardAwareScrollView>
+              </View>
+            </>
+          )}
+        </Animated.View>
+      </KeyboardAwareScrollView>
+    </View>
   )
 }
 
 function createStyles(tokens: AppTokensV2) {
   return StyleSheet.create({
-    container: {
+    root: {
       flex: 1,
       backgroundColor: tokens.bg,
+    },
+    container: {
+      flex: 1,
+      backgroundColor: 'transparent',
     },
     scrollContent: {
       flexGrow: 1,
       justifyContent: 'center',
       alignItems: 'center',
-      paddingHorizontal: 28,
+      paddingHorizontal: 24,
       paddingVertical: 24,
     },
     scrollContentCode: {
@@ -604,9 +649,8 @@ function createStyles(tokens: AppTokensV2) {
       marginBottom: 20,
     },
     referralBannerText: {
-      fontFamily: 'GeistMono',
+      fontFamily: 'Roboto_500Medium',
       fontSize: 11,
-      fontWeight: '600',
       color: tokens.fg1,
       letterSpacing: 0.66,
     },
@@ -620,63 +664,58 @@ function createStyles(tokens: AppTokensV2) {
     brandingHeader: {
       alignItems: 'center',
       gap: 14,
-      paddingBottom: 12,
+      paddingBottom: 4,
     },
-    wordmark: {
-      fontFamily: 'Geist',
-      fontSize: 28,
-      fontWeight: '600',
-      color: tokens.fg1,
-      letterSpacing: -0.7,
-      lineHeight: 28,
-    },
-    brandingRule: {
-      width: 60,
-      height: 1,
-      backgroundColor: tokens.hairlineStrong,
-      marginTop: 6,
+    logoTile: {
+      width: 64,
+      height: 64,
+      borderRadius: 18,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: solidTintFromPrimary(tokens, 0.16),
+      borderWidth: 1,
+      borderColor: tintFromPrimary(tokens, 0.28),
+      shadowColor: tokens.primary,
+      shadowOffset: { width: 0, height: 10 },
+      shadowOpacity: 0.45,
+      shadowRadius: 30,
+      elevation: 10,
     },
 
+    titleBlock: {
+      alignItems: 'center',
+      gap: 6,
+    },
+    stepTitle: {
+      fontFamily: 'Rubik_500Medium',
+      fontSize: 26,
+      lineHeight: 34,
+      letterSpacing: -0.26,
+      color: tokens.fg1,
+      textAlign: 'center',
+    },
     stepSubtitle: {
-      fontFamily: 'Geist',
-      fontSize: 13,
-      fontWeight: '600',
-      color: tokens.fg3,
+      fontFamily: 'Rubik_400Regular',
+      fontSize: 15,
+      lineHeight: 23,
+      color: tokens.fg2,
       textAlign: 'center',
     },
 
     inlineError: {
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_400Regular',
       fontSize: 14,
-      fontStyle: 'italic',
+      lineHeight: 22,
       color: tokens.statusOverdue,
       textAlign: 'center',
     },
 
     successText: {
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_400Regular',
       fontSize: 13,
-      fontStyle: 'italic',
+      lineHeight: 20,
       color: tokens.fg2,
       textAlign: 'center',
-    },
-
-    primaryButton: {
-      paddingHorizontal: 18,
-      paddingVertical: 12,
-      borderRadius: 10,
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 8,
-    },
-    primaryButtonText: {
-      fontFamily: 'Geist',
-      fontSize: 14,
-      fontWeight: '600',
-    },
-    buttonDisabled: {
-      opacity: 0.5,
     },
 
     divider: {
@@ -691,35 +730,16 @@ function createStyles(tokens: AppTokensV2) {
       backgroundColor: tokens.hairline,
     },
     dividerText: {
-      fontFamily: 'GeistMono',
-      fontSize: 11,
-      fontWeight: '500',
-      color: tokens.fg3,
-      letterSpacing: 0.66,
-    },
-
-    secondaryButton: {
-      paddingHorizontal: 18,
-      paddingVertical: 11,
-      borderRadius: 10,
-      borderWidth: 1,
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 8,
-    },
-    secondaryButtonText: {
-      fontFamily: 'Geist',
-      fontSize: 14,
-      fontWeight: '500',
+      fontFamily: 'Rubik_400Regular',
+      fontSize: 13,
+      color: tokens.fg4,
     },
 
     legal: {
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_400Regular',
       fontSize: 12,
-      fontStyle: 'italic',
       lineHeight: 18,
-      color: tokens.fg3,
+      color: tokens.fg4,
       textAlign: 'center',
       marginTop: 8,
     },
@@ -729,16 +749,14 @@ function createStyles(tokens: AppTokensV2) {
     },
 
     codeSentText: {
-      fontFamily: 'Geist',
-      fontSize: 14,
-      fontStyle: 'italic',
-      lineHeight: 21,
-      color: tokens.fg3,
+      fontFamily: 'Rubik_400Regular',
+      fontSize: 15,
+      lineHeight: 23,
+      color: tokens.fg2,
       textAlign: 'center',
     },
     codeSentEmail: {
       color: tokens.fg1,
-      fontStyle: 'normal',
     },
 
     resendRow: {
@@ -746,31 +764,31 @@ function createStyles(tokens: AppTokensV2) {
       justifyContent: 'center',
       paddingTop: 4,
     },
-    resendActiveText: {
-      fontFamily: 'GeistMono',
-      fontSize: 11,
-      fontWeight: '500',
-      color: tokens.fg1,
-      textDecorationLine: 'underline',
-      letterSpacing: 0.44,
-    },
-    resendCountdownText: {
-      fontFamily: 'GeistMono',
-      fontSize: 11,
-      fontWeight: '500',
-      color: tokens.fg3,
-      letterSpacing: 0.44,
-    },
-
     changeEmailRow: {
       flexDirection: 'row',
       justifyContent: 'center',
     },
+    textButton: {
+      minHeight: 44,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: 12,
+    },
+    resendActiveText: {
+      fontFamily: 'Rubik_500Medium',
+      fontSize: 14,
+      color: tokens.fg2,
+    },
+    resendCountdownText: {
+      fontFamily: 'Rubik_400Regular',
+      fontSize: 14,
+      color: tokens.fg3,
+      fontVariant: ['tabular-nums'],
+    },
     quietLink: {
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_400Regular',
       fontSize: 13,
       color: tokens.fg3,
-      paddingVertical: 6,
     },
   })
 }

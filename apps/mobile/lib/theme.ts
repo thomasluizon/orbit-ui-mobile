@@ -1,25 +1,18 @@
 import {
-  schemes,
-  motionDurations,
+  alphaSurfaces,
   motionEasings,
+  resolveDarkNeutrals,
+  resolveLightNeutrals,
+  schemes,
+  selectionAlpha,
+  statusConstants,
   type ColorScheme,
 } from '@orbit/shared/theme'
 import type { ThemeMode } from '@orbit/shared/types/profile'
-import { oklchToHex, oklchToRgba } from './oklch'
 
 type ThemeRuntime = {
   scheme: ColorScheme
   themeMode: ThemeMode
-}
-
-export interface AppColors {
-  background: string
-  surfaceElevated: string
-  surfaceOverlay: string
-  border: string
-  borderEmphasis: string
-  primary: string
-  white: string
 }
 
 export interface AppRadius {
@@ -28,16 +21,8 @@ export interface AppRadius {
   lg: number
   xl: number
   '2xl': number
+  sheet: number
   full: number
-}
-
-export interface AppSpacing {
-  pageX: number
-  pageBottom: number
-  sectionGap: number
-  cardPadding: number
-  cardGap: number
-  itemGap: number
 }
 
 export interface ShadowValue extends Record<string, unknown> {
@@ -59,7 +44,6 @@ export interface AppShadows {
 export interface AppSurfaceLayer {
   backgroundColor: string
   borderColor: string
-  topHighlight: string
   shadow: ShadowValue
   elevation: number
 }
@@ -70,6 +54,7 @@ export interface AppSurfaces {
   }
   elevated: AppSurfaceLayer
   overlay: AppSurfaceLayer
+  sheet: AppSurfaceLayer
 }
 
 let runtimeTheme: ThemeRuntime = {
@@ -88,71 +73,14 @@ export function getRuntimeTheme() {
   return runtimeTheme
 }
 
-function withAlpha(color: string, opacity: number, fallback: string): string {
-  const normalized = color.replace('#', '')
-
-  if (normalized.length === 3) {
-    const [r, g, b] = normalized.split('')
-    const expanded = `${r}${r}${g}${g}${b}${b}`
-    const red = Number.parseInt(expanded.slice(0, 2), 16)
-    const green = Number.parseInt(expanded.slice(2, 4), 16)
-    const blue = Number.parseInt(expanded.slice(4, 6), 16)
-    return `rgba(${red}, ${green}, ${blue}, ${opacity})`
-  }
-
-  if (normalized.length === 6) {
-    const red = Number.parseInt(normalized.slice(0, 2), 16)
-    const green = Number.parseInt(normalized.slice(2, 4), 16)
-    const blue = Number.parseInt(normalized.slice(4, 6), 16)
-    return `rgba(${red}, ${green}, ${blue}, ${opacity})`
-  }
-
-  return fallback
-}
-
-export function createColors(
-  colorScheme: ColorScheme = runtimeTheme.scheme,
-  themeMode: ThemeMode = runtimeTheme.themeMode,
-): AppColors {
-  const definition = schemes[colorScheme]
-  // Legacy surface/border tokens resolve to the canonical OKLCH values via
-  // createTokensV2 so createSurfaces keeps emitting the shared neutrals without
-  // a per-field rewrite. Direct callers of createTokensV2 get the same values.
-  const v8 = createTokensV2(colorScheme, themeMode)
-  const primary =
-    themeMode === 'light' ? definition.primaryLight : definition.primary
-
-  return {
-    background: v8.bg,
-    surfaceElevated: v8.bgElev,
-    surfaceOverlay: v8.bgElev,
-    border: v8.hairline,
-    borderEmphasis: v8.hairlineStrong,
-    primary,
-    white: '#ffffff',
-  }
-}
-
-export const colors = new Proxy({} as AppColors, {
-  get: (_target, prop) => createColors()[prop as keyof AppColors],
-})
-
 export const radius: AppRadius = {
   sm: 8,
   md: 12,
   lg: 16,
   xl: 20,
   '2xl': 24,
+  sheet: 26,
   full: 9999,
-} as const
-
-export const spacing: AppSpacing = {
-  pageX: 20,
-  pageBottom: 40,
-  sectionGap: 16,
-  cardPadding: 20,
-  cardGap: 12,
-  itemGap: 8,
 } as const
 
 /** Raw bezier control points for use with Easing.bezier(...) */
@@ -162,101 +90,18 @@ export const easings = {
   smooth: motionEasings.standard,
 }
 
-export const durations = {
-  fast: motionDurations.fast,
-  base: motionDurations.route,
-  slow: motionDurations.slow,
-}
-
-export const shadows: AppShadows = {
-  sm: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.4,
-    shadowRadius: 3,
-  },
-  md: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.5,
-    shadowRadius: 12,
-  },
-  lg: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.6,
-    shadowRadius: 40,
-  },
-  cardParent: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.32,
-    shadowRadius: 12,
-  },
-  cardParentHover: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.5,
-    shadowRadius: 24,
-  },
-  cardChild: {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 3 },
-    shadowOpacity: 0.16,
-    shadowRadius: 8,
-  },
-}
-
-function createLightShadow(radiusValue: number, opacity: number): ShadowValue {
-  return {
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: Math.max(1, Math.round(radiusValue / 4)) },
-    shadowOpacity: opacity,
-    shadowRadius: radiusValue,
-  }
-}
-
-export function createSurfaces(
-  colorScheme: ColorScheme = runtimeTheme.scheme,
-  themeMode: ThemeMode = runtimeTheme.themeMode,
-): AppSurfaces {
-  const colors = createColors(colorScheme, themeMode)
-  const isLight = themeMode === 'light'
-  const topHighlight = isLight
-    ? withAlpha(colors.white, 0.85, 'rgba(255, 255, 255, 0.85)')
-    : withAlpha(colors.white, 0.05, 'rgba(255, 255, 255, 0.05)')
-
-  return {
-    screen: {
-      backgroundColor: colors.background,
-    },
-    elevated: {
-      backgroundColor: colors.surfaceElevated,
-      borderColor: colors.border,
-      topHighlight,
-      shadow: isLight ? createLightShadow(12, 0.075) : shadows.md,
-      elevation: isLight ? 2 : 7,
-    },
-    overlay: {
-      backgroundColor: colors.surfaceOverlay,
-      borderColor: colors.borderEmphasis,
-      topHighlight,
-      shadow: isLight ? createLightShadow(18, 0.1) : shadows.lg,
-      elevation: isLight ? 8 : 16,
-    },
-  }
-}
-
-export const surfaces = new Proxy({} as AppSurfaces, {
-  get: (_target, prop) => createSurfaces()[prop as keyof AppSurfaces],
-})
-
 export interface AppTokensV2 {
   bg: string
+  /** Card fill — dark translucency ladder step 0.04; opaque white on light. */
+  bgCard: string
+  /** Field/well fill — dark ladder step 0.05; scheme-tinted sunk on light. */
+  bgField: string
   bgElev: string
-  /** Subtle lift from `bgElev` for press/active states. Matches web's
-   *  `color-mix(in oklch, var(--bg-elev), var(--fg-1) 4%)`. */
+  bgElev2: string
+  /** Press/active lift from `bgElev` (elev-2 alpha on dark, sunk on light). */
   bgElevPressed: string
+  /** Solid sheet/dialog panel — elev alpha pre-blended over the canvas. */
+  bgSheet: string
   bgSunk: string
   hairline: string
   hairlineStrong: string
@@ -267,6 +112,12 @@ export interface AppTokensV2 {
   fgOnPrimary: string
   primary: string
   primaryPressed: string
+  /** "r, g, b" channels of `primary` for alpha tints (never hardcode violet). */
+  primaryRgb: string
+  /** Soft accent foreground (lightened primary on dark, primary on light). */
+  primarySoft: string
+  gradientHeaderFrom: string
+  gradientHeaderTo: string
   statusDone: string
   statusEmpty: string
   statusSkip: string
@@ -290,62 +141,98 @@ export interface AppShadowsV2 {
   shadow3: AppShadowV2
 }
 
+function hexChannels(hex: string): [number, number, number] {
+  const normalized = hex.replace('#', '')
+  return [
+    Number.parseInt(normalized.slice(0, 2), 16),
+    Number.parseInt(normalized.slice(2, 4), 16),
+    Number.parseInt(normalized.slice(4, 6), 16),
+  ]
+}
+
+function blendWhiteOverHex(baseHex: string, alpha: number): string {
+  const [r, g, b] = hexChannels(baseHex)
+  const blend = (canvas: number, white: number) =>
+    Math.round(canvas * (1 - alpha) + white * alpha)
+  const toHexByte = (channel: number) => channel.toString(16).padStart(2, '0')
+  return `#${toHexByte(blend(r, 248))}${toHexByte(blend(g, 250))}${toHexByte(blend(b, 252))}`
+}
+
 export function createTokensV2(
   colorScheme: ColorScheme = runtimeTheme.scheme,
   themeMode: ThemeMode = runtimeTheme.themeMode,
 ): AppTokensV2 {
-  const def = schemes[colorScheme]
-  const { hue } = def.v2
-  const modeDef = def.v2[themeMode]
-  const { primary, primaryPressed, chromaBg, chromaFg } = modeDef
-  const isLight = themeMode === 'light'
+  const accent = schemes[colorScheme].accent[themeMode]
+  const alpha = alphaSurfaces[themeMode]
+  const status = statusConstants[themeMode]
+  const gradientFrom = schemes[colorScheme].gradientHeaderFrom[themeMode]
 
-  if (isLight) {
+  if (themeMode === 'light') {
+    const neutrals = resolveLightNeutrals(colorScheme)
+    const [r, g, b] = hexChannels(neutrals.bg)
     return {
-      bg: oklchToHex(0.985, chromaBg, hue),
-      bgElev: oklchToHex(0.995, chromaBg, hue),
-      bgElevPressed: oklchToHex(0.963, chromaBg, hue),
-      bgSunk: oklchToHex(0.965, chromaBg, hue),
-      hairline: oklchToHex(0.905, chromaBg * 1.4, hue),
-      hairlineStrong: oklchToHex(0.84, chromaBg * 1.6, hue),
-      fg1: oklchToHex(0.205, chromaFg, hue),
-      fg2: oklchToHex(0.4, chromaFg, hue),
-      fg3: oklchToHex(0.55, chromaFg, hue),
-      fg4: oklchToHex(0.68, chromaFg, hue),
-      fgOnPrimary: '#fcfcfc',
-      primary,
-      primaryPressed,
-      statusDone: primary,
-      statusEmpty: oklchToHex(0.78, chromaBg, hue),
-      statusSkip: oklchToHex(0.62, chromaFg, hue),
-      statusOverdue: oklchToHex(0.62, 0.13, 60),
-      statusBad: oklchToHex(0.55, 0.14, 20),
-      statusFrozen: oklchToHex(0.62, 0.09, 235),
-      selectionBg: oklchToHex(0.92, chromaBg * 1.6, hue),
+      bg: neutrals.bg,
+      bgCard: alpha.bgCard,
+      bgField: neutrals.bgSunk,
+      bgElev: alpha.bgElev,
+      bgElev2: alpha.bgElev2,
+      bgElevPressed: neutrals.bgSunk,
+      bgSheet: '#ffffff',
+      bgSunk: neutrals.bgSunk,
+      hairline: alpha.hairline,
+      hairlineStrong: alpha.hairlineStrong,
+      fg1: neutrals.fg1,
+      fg2: neutrals.fg2,
+      fg3: neutrals.fg3,
+      fg4: neutrals.fg4,
+      fgOnPrimary: '#ffffff',
+      primary: accent.primary,
+      primaryPressed: accent.primaryPressed,
+      primaryRgb: accent.primaryRgb,
+      primarySoft: accent.primary,
+      gradientHeaderFrom: gradientFrom,
+      gradientHeaderTo: `rgba(${r}, ${g}, ${b}, 0)`,
+      statusDone: accent.primary,
+      statusEmpty: alpha.statusEmpty,
+      statusSkip: neutrals.fg3,
+      statusOverdue: status.overdue,
+      statusBad: status.bad,
+      statusFrozen: status.frozen,
+      selectionBg: `rgba(${accent.primaryRgb}, ${selectionAlpha.light})`,
     }
   }
 
+  const neutrals = resolveDarkNeutrals(colorScheme)
+  const [r, g, b] = hexChannels(neutrals.bg)
   return {
-    bg: oklchToHex(0.16, 0.012, hue),
-    bgElev: oklchToHex(0.2, 0.014, hue),
-    bgElevPressed: oklchToHex(0.23, 0.014, hue),
-    bgSunk: oklchToHex(0.13, 0.01, hue),
-    hairline: oklchToRgba(0.965, 0.014, hue, 0.08),
-    hairlineStrong: oklchToRgba(0.965, 0.014, hue, 0.16),
-    fg1: oklchToHex(0.965, 0.014, hue),
-    fg2: oklchToHex(0.74, 0.014, hue),
-    fg3: oklchToHex(0.58, 0.014, hue),
-    fg4: oklchToHex(0.42, 0.012, hue),
-    fgOnPrimary: '#fcfcfc',
-    primary,
-    primaryPressed,
-    statusDone: primary,
-    statusEmpty: oklchToHex(0.42, 0.012, hue),
-    statusSkip: oklchToHex(0.58, 0.014, hue),
-    statusOverdue: oklchToHex(0.74, 0.1, 60),
-    statusBad: oklchToHex(0.65, 0.12, 20),
-    statusFrozen: oklchToHex(0.72, 0.07, 235),
-    selectionBg: oklchToHex(0.32, 0.018, hue),
+    bg: neutrals.bg,
+    bgCard: alpha.bgCard,
+    bgField: alpha.bgField ?? 'rgba(248, 250, 252, 0.05)',
+    bgElev: alpha.bgElev,
+    bgElev2: alpha.bgElev2,
+    bgElevPressed: alpha.bgElev2,
+    bgSheet: blendWhiteOverHex(neutrals.bg, 0.05),
+    bgSunk: alpha.bgSunk ?? 'rgba(0, 0, 0, 0.28)',
+    hairline: alpha.hairline,
+    hairlineStrong: alpha.hairlineStrong,
+    fg1: neutrals.fg1,
+    fg2: neutrals.fg2,
+    fg3: neutrals.fg3,
+    fg4: neutrals.fg4,
+    fgOnPrimary: '#ffffff',
+    primary: accent.primary,
+    primaryPressed: accent.primaryPressed,
+    primaryRgb: accent.primaryRgb,
+    primarySoft: lightenHex(accent.primary, 0.45),
+    gradientHeaderFrom: gradientFrom,
+    gradientHeaderTo: `rgba(${r}, ${g}, ${b}, 0)`,
+    statusDone: accent.primary,
+    statusEmpty: alpha.statusEmpty,
+    statusSkip: neutrals.fg3,
+    statusOverdue: status.overdue,
+    statusBad: status.bad,
+    statusFrozen: status.frozen,
+    selectionBg: `rgba(${accent.primaryRgb}, ${selectionAlpha.dark})`,
   }
 }
 
@@ -353,30 +240,166 @@ export const tokens = new Proxy({} as AppTokensV2, {
   get: (_target, prop) => createTokensV2()[prop as keyof AppTokensV2],
 })
 
-// Three cool hairline-layered shadow tiers (no glows, no color).
-// Mobile picks the dominant layer; elevation gives Android the same depth.
+/** rgba() tint of the scheme primary at the given alpha (handoff tint ladder). */
+export function tintFromPrimary(appTokens: AppTokensV2, alpha: number): string {
+  return `rgba(${appTokens.primaryRgb}, ${alpha})`
+}
+
+/**
+ * Solid hex equal to the primary tint alpha-composited over the canvas.
+ * Required under elevation glows: Android renders the native shadow through
+ * translucent fills as a dark plate, so glowing wells need opaque pixels.
+ */
+export function solidTintFromPrimary(
+  appTokens: AppTokensV2,
+  alpha: number,
+): string {
+  const [pr, pg, pb] = hexChannels(appTokens.primary)
+  const [br, bgC, bb] = hexChannels(appTokens.bg)
+  const mix = (top: number, base: number) =>
+    Math.round(top * alpha + base * (1 - alpha))
+  const channel = (value: number) => value.toString(16).padStart(2, '0')
+  return `#${channel(mix(pr, br))}${channel(mix(pg, bgC))}${channel(mix(pb, bb))}`
+}
+
+/** RN shadow props for the handoff primary glow (0 8px 28px primary @ .45). */
+export function primaryGlow(appTokens: AppTokensV2): AppShadowV2 {
+  return {
+    shadowColor: appTokens.primary,
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.45,
+    shadowRadius: 28,
+    elevation: 8,
+  }
+}
+
+/**
+ * Solid hex equal to the dark translucent surface alpha composited over the
+ * canvas. RemoteViews and stacking-sensitive surfaces (sheets, overlays)
+ * need pre-blended opaque colors instead of alpha layers.
+ */
+export function blendElevOverCanvas(
+  appTokens: AppTokensV2,
+  alpha: number,
+): string {
+  return blendWhiteOverHex(appTokens.bg, alpha)
+}
+
 export const shadowsV2: AppShadowsV2 = {
   shadow1: {
-    shadowColor: '#0f1016',
+    shadowColor: '#000000',
     shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.04,
+    shadowOpacity: 0.2,
     shadowRadius: 2,
     elevation: 1,
   },
   shadow2: {
-    shadowColor: '#0f1016',
+    shadowColor: '#000000',
     shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.06,
-    shadowRadius: 12,
+    shadowOpacity: 0.28,
+    shadowRadius: 16,
     elevation: 4,
   },
   shadow3: {
-    shadowColor: '#0f1016',
+    shadowColor: '#000000',
     shadowOffset: { width: 0, height: 12 },
-    shadowOpacity: 0.1,
-    shadowRadius: 32,
-    elevation: 10,
+    shadowOpacity: 0.45,
+    shadowRadius: 40,
+    elevation: 12,
   },
+}
+
+export const shadows: AppShadows = {
+  sm: {
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+  },
+  md: {
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.28,
+    shadowRadius: 16,
+  },
+  lg: {
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 12 },
+    shadowOpacity: 0.45,
+    shadowRadius: 40,
+  },
+  cardParent: {
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 12,
+  },
+  cardParentHover: {
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 8 },
+    shadowOpacity: 0.28,
+    shadowRadius: 20,
+  },
+  cardChild: {
+    shadowColor: '#000000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.14,
+    shadowRadius: 6,
+  },
+}
+
+export function createSurfaces(
+  colorScheme: ColorScheme = runtimeTheme.scheme,
+  themeMode: ThemeMode = runtimeTheme.themeMode,
+): AppSurfaces {
+  const appTokens = createTokensV2(colorScheme, themeMode)
+  const isLight = themeMode === 'light'
+
+  if (isLight) {
+    return {
+      screen: { backgroundColor: appTokens.bg },
+      elevated: {
+        backgroundColor: appTokens.bgElev,
+        borderColor: appTokens.hairline,
+        shadow: shadows.sm,
+        elevation: 1,
+      },
+      overlay: {
+        backgroundColor: appTokens.bgElev,
+        borderColor: appTokens.hairlineStrong,
+        shadow: shadows.md,
+        elevation: 4,
+      },
+      sheet: {
+        backgroundColor: appTokens.bgSheet,
+        borderColor: appTokens.hairline,
+        shadow: shadows.lg,
+        elevation: 8,
+      },
+    }
+  }
+
+  return {
+    screen: { backgroundColor: appTokens.bg },
+    elevated: {
+      backgroundColor: appTokens.bgElev,
+      borderColor: appTokens.hairline,
+      shadow: shadows.sm,
+      elevation: 0,
+    },
+    overlay: {
+      backgroundColor: blendElevOverCanvas(appTokens, 0.1),
+      borderColor: appTokens.hairlineStrong,
+      shadow: shadows.md,
+      elevation: 4,
+    },
+    sheet: {
+      backgroundColor: appTokens.bgSheet,
+      borderColor: appTokens.hairline,
+      shadow: shadows.lg,
+      elevation: 8,
+    },
+  }
 }
 
 /**

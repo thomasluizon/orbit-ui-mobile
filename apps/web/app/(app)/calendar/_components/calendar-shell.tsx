@@ -1,10 +1,8 @@
 'use client'
 
-import { ChevronLeft, ChevronRight, CalendarDays } from 'lucide-react'
-import { AppBar } from '@/components/ui/app-bar'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 
 interface CalendarHeaderProps {
-  title: string
   monthLabel: string
   subtitle?: string | null
   previousMonthLabel: string
@@ -13,9 +11,8 @@ interface CalendarHeaderProps {
   onNextMonth: () => void
 }
 
-/** Calendar AppBar — leading CalendarDays glyph, month subtitle, prev/next trailing. */
+/** Agenda header — the month itself is the title (24/500), prev/next as icon-btn circles. */
 export function CalendarHeader({
-  title,
   monthLabel,
   subtitle,
   previousMonthLabel,
@@ -24,33 +21,61 @@ export function CalendarHeader({
   onNextMonth,
 }: Readonly<CalendarHeaderProps>) {
   return (
-    <AppBar
-      leadingIcon={<CalendarDays size={17} strokeWidth={1.5} color="var(--fg-2)" />}
-      title={title}
-      subtitle={subtitle ? `${monthLabel} · ${subtitle}` : monthLabel}
-      trailing={
-        <div data-tour="tour-calendar-month-nav" className="flex items-center">
-          <button
-            type="button"
-            aria-label={previousMonthLabel}
-            onClick={onPreviousMonth}
-            className="appearance-none border-0 bg-transparent cursor-pointer inline-flex items-center justify-center text-[var(--fg-2)] transition-[background-color,color] duration-150 ease-out hover:bg-[var(--bg-elev)] hover:text-[var(--fg-1)]"
-            style={{ width: 36, height: 36, borderRadius: 8 }}
+    <div
+      className="flex items-center justify-between"
+      style={{ padding: '20px 20px 0', gap: 12 }}
+    >
+      <div className="min-w-0 flex-1">
+        <h1
+          className="capitalize truncate"
+          style={{
+            margin: 0,
+            fontFamily: 'var(--font-sans)',
+            fontSize: 24,
+            fontWeight: 500,
+            letterSpacing: '-0.01em',
+            color: 'var(--fg-1)',
+          }}
+        >
+          {monthLabel}
+        </h1>
+        {subtitle && (
+          <div
+            style={{
+              marginTop: 6,
+              fontFamily: 'var(--font-mono)',
+              fontSize: 12,
+              color: 'var(--fg-3)',
+              fontVariantNumeric: 'tabular-nums',
+            }}
           >
-            <ChevronLeft size={17} strokeWidth={1.6} />
-          </button>
-          <button
-            type="button"
-            aria-label={nextMonthLabel}
-            onClick={onNextMonth}
-            className="appearance-none border-0 bg-transparent cursor-pointer inline-flex items-center justify-center text-[var(--fg-2)] transition-[background-color,color] duration-150 ease-out hover:bg-[var(--bg-elev)] hover:text-[var(--fg-1)]"
-            style={{ width: 36, height: 36, borderRadius: 8 }}
-          >
-            <ChevronRight size={17} strokeWidth={1.6} />
-          </button>
-        </div>
-      }
-    />
+            {subtitle}
+          </div>
+        )}
+      </div>
+      <div
+        data-tour="tour-calendar-month-nav"
+        className="flex items-center shrink-0"
+        style={{ gap: 4 }}
+      >
+        <button
+          type="button"
+          aria-label={previousMonthLabel}
+          onClick={onPreviousMonth}
+          className="icon-btn"
+        >
+          <ChevronLeft size={22} strokeWidth={1.8} color="var(--fg-2)" />
+        </button>
+        <button
+          type="button"
+          aria-label={nextMonthLabel}
+          onClick={onNextMonth}
+          className="icon-btn"
+        >
+          <ChevronRight size={22} strokeWidth={1.8} color="var(--fg-2)" />
+        </button>
+      </div>
+    </div>
   )
 }
 
@@ -73,11 +98,11 @@ export function CalendarLegend({
     <div
       data-tour="tour-calendar-legend"
       className="flex flex-wrap items-center"
-      style={{ padding: '12px 20px', gap: 16 }}
+      style={{ padding: '14px 20px', gap: 16 }}
     >
-      <LegendItem dotColor="var(--primary)" label={todayLabel} />
-      <LegendItem dotColor="var(--fg-1)" label={doneLabel} />
-      <LegendItem dotColor="var(--fg-3)" hollow label={partialLabel} />
+      <LegendItem dotColor="var(--primary)" hollow label={todayLabel} />
+      <LegendItem dotColor="var(--primary)" label={doneLabel} />
+      <LegendItem dotColor="var(--fg-4)" hollow label={partialLabel} />
       <LegendItem dotColor="var(--status-overdue)" label={missedLabel} />
     </div>
   )
@@ -97,13 +122,13 @@ function LegendItem({ dotColor, label, hollow = false }: Readonly<LegendItemProp
         className="rounded-full shrink-0"
         style={
           hollow
-            ? { width: 6, height: 6, boxShadow: `inset 0 0 0 1px ${dotColor}` }
+            ? { width: 6, height: 6, boxShadow: `inset 0 0 0 1.5px ${dotColor}` }
             : { width: 6, height: 6, background: dotColor }
         }
       />
       <span
         style={{
-          fontFamily: 'var(--font-family-sans)',
+          fontFamily: 'var(--font-sans)',
           fontSize: 13,
           color: 'var(--fg-2)',
         }}

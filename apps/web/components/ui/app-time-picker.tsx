@@ -58,7 +58,7 @@ export function AppTimePicker({
           className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center justify-center rounded-full text-[var(--fg-3)] hover:bg-[var(--bg-sunk)] hover:text-[var(--fg-1)] transition-colors"
           style={{ width: 24, height: 24 }}
         >
-          <X size={14} strokeWidth={1.75} />
+          <X size={16} strokeWidth={1.8} />
         </button>
       ) : null}
     </div>

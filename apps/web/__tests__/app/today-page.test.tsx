@@ -133,10 +133,6 @@ vi.mock('@/components/habits/habit-list', () => ({
   }),
 }))
 
-vi.mock('@/components/habits/habit-summary-card', () => ({
-  HabitSummaryCard: () => null,
-}))
-
 vi.mock('@/components/habits/today-ai-summary', () => ({
   TodayAISummary: () => null,
 }))

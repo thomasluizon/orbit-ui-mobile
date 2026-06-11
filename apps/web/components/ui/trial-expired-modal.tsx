@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { usePathname } from 'next/navigation'
 import Link from 'next/link'
+import { Crown } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useIsClient } from '@/hooks/use-is-client'
 import { useTrialExpired } from '@/hooks/use-profile'
@@ -50,15 +51,13 @@ export function TrialExpiredModal() {
         <div className="flex flex-col" style={{ gap: 10 }}>
           <Link
             href="/upgrade"
-            className="appearance-none cursor-pointer text-center"
+            className="inline-flex w-full cursor-pointer items-center justify-center gap-[9px] rounded-full bg-[var(--primary)] text-center shadow-[var(--primary-glow)] transition-[background-color,box-shadow,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:-translate-y-px hover:bg-[var(--primary-pressed)] hover:shadow-[var(--primary-glow-hover)] active:translate-y-0 active:scale-[0.98]"
             style={{
-              padding: '12px 18px',
-              background: 'var(--primary)',
+              padding: '15px 26px',
               color: 'var(--fg-on-primary)',
-              borderRadius: 10,
-              fontFamily: 'var(--font-family-sans)',
-              fontSize: 14,
-              fontWeight: 600,
+              fontFamily: 'var(--font-sans)',
+              fontSize: 16,
+              fontWeight: 500,
             }}
             onClick={dismiss}
           >
@@ -66,13 +65,15 @@ export function TrialExpiredModal() {
           </Link>
           <button
             type="button"
-            className="appearance-none border-0 bg-transparent cursor-pointer text-center"
+            className="inline-flex w-full cursor-pointer appearance-none items-center justify-center rounded-full border-0 bg-transparent text-center transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-card)] active:scale-[0.98]"
             onClick={dismiss}
             style={{
-              fontFamily: 'var(--font-family-sans)',
-              fontSize: 13,
-              color: 'var(--fg-3)',
-              padding: 6,
+              padding: '14px 26px',
+              boxShadow: 'inset 0 0 0 1.5px var(--hairline-strong)',
+              fontFamily: 'var(--font-sans)',
+              fontSize: 16,
+              fontWeight: 500,
+              color: 'var(--fg-1)',
             }}
           >
             {t('trial.expired.continueFree')}
@@ -82,23 +83,26 @@ export function TrialExpiredModal() {
     >
       <div className="flex flex-col" style={{ gap: 14 }}>
         <div
+          aria-hidden="true"
+          className="flex items-center justify-center self-center rounded-full"
           style={{
-            fontFamily: 'var(--font-family-sans)',
-            fontSize: 12,
-            fontWeight: 600,
-            color: 'var(--fg-3)',
+            width: 64,
+            height: 64,
+            marginTop: 2,
+            background: 'rgba(var(--primary-rgb), 0.16)',
           }}
         >
-          {t('trial.expired.eyebrow')}
+          <Crown size={30} strokeWidth={1.8} className="text-[var(--primary-soft)]" />
         </div>
         <p
           style={{
-            fontFamily: 'var(--font-family-sans)',
-            fontSize: 14,
-            fontStyle: 'italic',
+            fontFamily: 'var(--font-sans)',
+            fontSize: 15,
             color: 'var(--fg-2)',
-            lineHeight: 1.55,
+            lineHeight: 1.5,
             margin: 0,
+            textAlign: 'center',
+            textWrap: 'pretty',
           }}
         >
           {t('trial.expired.subtitleQuiet')}
@@ -115,7 +119,7 @@ export function TrialExpiredModal() {
             >
               <span
                 style={{
-                  fontFamily: 'var(--font-family-sans)',
+                  fontFamily: 'var(--font-sans)',
                   fontSize: 15,
                   color: 'var(--fg-1)',
                 }}
@@ -124,9 +128,10 @@ export function TrialExpiredModal() {
               </span>
               <span
                 style={{
-                  fontFamily: 'var(--font-family-mono)',
+                  fontFamily: 'var(--font-mono)',
                   fontSize: 11,
-                  fontStyle: 'italic',
+                  letterSpacing: '0.04em',
+                  textTransform: 'uppercase',
                   color: 'var(--fg-3)',
                 }}
               >

@@ -249,10 +249,6 @@ vi.mock("@/components/ui/section-label", () => ({
     ),
 }));
 
-vi.mock("@/components/habits/habit-summary-card", () => ({
-  HabitSummaryCard: () => null,
-}));
-
 vi.mock("@/components/goals/goals-view", () => ({
   GoalsView: () => React.createElement("GoalsView"),
 }));
@@ -300,6 +296,7 @@ vi.mock("@/lib/habit-selection-state", () => ({
 vi.mock("@/lib/theme", () => ({
   createColors: () => colorProxy,
   createTokensV2: () => colorProxy,
+  tintFromPrimary: () => "rgba(127, 70, 247, 0.1)",
   easings: {
     spring: [0.34, 1.56, 0.64, 1],
     out: [0.16, 1, 0.3, 1],

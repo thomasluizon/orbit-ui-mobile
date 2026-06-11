@@ -1,27 +1,20 @@
 import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
-import React from 'react'
 import { EmptyState } from '@/components/ui/empty-state'
-import { Inbox } from 'lucide-react'
-
-vi.mock('lucide-react', () => ({
-  Inbox: (props: React.SVGProps<SVGSVGElement>) =>
-    React.createElement('svg', { ...props, 'data-testid': 'inbox-icon' }),
-}))
 
 describe('EmptyState', () => {
   it('renders description text', () => {
-    render(<EmptyState icon={Inbox} description="No items found" />)
+    render(<EmptyState description="No items found" />)
     expect(screen.getByText('No items found')).toBeInTheDocument()
   })
 
   it('renders title when provided', () => {
-    render(<EmptyState icon={Inbox} title="Empty" description="No items" />)
+    render(<EmptyState title="Empty" description="No items" />)
     expect(screen.getByText('Empty')).toBeInTheDocument()
   })
 
   it('does not render title when not provided', () => {
-    render(<EmptyState icon={Inbox} description="No items" />)
+    render(<EmptyState description="No items" />)
     expect(screen.queryByText('Empty')).not.toBeInTheDocument()
   })
 
@@ -29,7 +22,6 @@ describe('EmptyState', () => {
     const onClick = vi.fn()
     render(
       <EmptyState
-        icon={Inbox}
         description="No items"
         action={{ label: 'Create', onClick }}
       />,
@@ -42,18 +34,18 @@ describe('EmptyState', () => {
   })
 
   it('does not render action button when not provided', () => {
-    render(<EmptyState icon={Inbox} description="No items" />)
+    render(<EmptyState description="No items" />)
     expect(screen.queryByRole('button')).not.toBeInTheDocument()
   })
 
-  it('renders icon', () => {
-    render(<EmptyState icon={Inbox} description="No items" />)
-    expect(screen.getByTestId('inbox-icon')).toBeInTheDocument()
+  it('renders the satellite glyph', () => {
+    const { container } = render(<EmptyState description="No items" />)
+    expect(container.querySelector('svg')).not.toBeNull()
   })
 
   it('applies className', () => {
     const { container } = render(
-      <EmptyState icon={Inbox} description="No items" className="custom-class" />,
+      <EmptyState description="No items" className="custom-class" />,
     )
     expect(container.firstChild).toHaveClass('custom-class')
   })
@@ -62,7 +54,6 @@ describe('EmptyState', () => {
     const onClick = vi.fn()
     render(
       <EmptyState
-        icon={Inbox}
         description="No items"
         action={{ label: 'Learn More', onClick, variant: 'secondary' }}
       />,

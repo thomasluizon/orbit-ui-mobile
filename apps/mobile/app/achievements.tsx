@@ -4,13 +4,12 @@ import {
   Text,
   StyleSheet,
   ScrollView,
-  Pressable,
 } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Lock } from 'lucide-react-native'
-import { createTokensV2 } from '@/lib/theme'
+import { createTokensV2, tintFromPrimary } from '@/lib/theme'
 import { buildUpgradeHref } from '@/lib/upgrade-route'
 import { useProfile, useHasProAccess } from '@/hooks/use-profile'
 import { useGamificationProfile } from '@/hooks/use-gamification'
@@ -21,6 +20,8 @@ import {
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { AppBar } from '@/components/ui/app-bar'
+import { PillButton } from '@/components/ui/pill-button'
+import { ProgressBar } from '@/components/ui/progress-bar'
 
 type Tokens = ReturnType<typeof createTokensV2>
 
@@ -50,6 +51,13 @@ export default function AchievementsScreen() {
     ? `${t('gamification.profileCard.level', { level: profile.level })} · ${profile.levelTitle}`
     : undefined
 
+  const xpLine = profile
+    ? t('gamification.profileCard.xp', {
+        current: formatNum(profile.totalXp),
+        next: formatNum(profile.xpForNextLevel),
+      })
+    : ''
+
   return (
     <SafeAreaView
       style={[styles.safeArea, { backgroundColor: tokens.bg }]}
@@ -72,7 +80,7 @@ export default function AchievementsScreen() {
             <View
               style={[
                 styles.lockedIconCircle,
-                { backgroundColor: tokens.bgSunk },
+                { backgroundColor: tokens.bgField },
               ]}
             >
               <Lock size={28} color={tokens.fg3} strokeWidth={1.4} />
@@ -83,25 +91,13 @@ export default function AchievementsScreen() {
             <Text style={[styles.lockedDescription, { color: tokens.fg3 }]}>
               {t('gamification.page.lockedDescription')}
             </Text>
-            <Pressable
+            <PillButton
               onPress={() => router.push(buildUpgradeHref('/achievements'))}
-              accessibilityRole="button"
               accessibilityLabel={t('gamification.page.upgradeButton')}
-              style={({ pressed }) => [
-                styles.upgradeButton,
-                {
-                  backgroundColor: pressed
-                    ? tokens.primaryPressed
-                    : tokens.primary,
-                },
-              ]}
+              style={styles.upgradeButton}
             >
-              <Text
-                style={[styles.upgradeButtonText, { color: tokens.fgOnPrimary }]}
-              >
-                {t('gamification.page.upgradeButton')}
-              </Text>
-            </Pressable>
+              {t('gamification.page.upgradeButton')}
+            </PillButton>
           </View>
         ) : null}
 
@@ -130,54 +126,44 @@ export default function AchievementsScreen() {
 
         {hasProAccess && profile ? (
           <>
-            <View style={styles.levelBlock}>
-              <View style={styles.levelRow}>
-                <View>
-                  <Text style={[styles.levelEyebrow, { color: tokens.fg3 }]}>
+            <View style={styles.levelBlockWrap}>
+              <View
+                style={[
+                  styles.levelCard,
+                  {
+                    backgroundColor: tintFromPrimary(tokens, 0.1),
+                    borderColor: tintFromPrimary(tokens, 0.28),
+                  },
+                ]}
+              >
+                <View style={styles.levelRow}>
+                  <Text style={[styles.levelDisplay, { color: tokens.fg1 }]}>
                     {t('gamification.profileCard.level', {
                       level: profile.level,
-                    }).toUpperCase()}
-                  </Text>
-                  <Text style={[styles.levelNumber, { color: tokens.fg1 }]}>
-                    {profile.level}
-                  </Text>
-                </View>
-                <View style={styles.levelMetaCol}>
-                  <Text
-                    style={[styles.levelTitle, { color: tokens.fg1 }]}
-                    numberOfLines={1}
-                  >
-                    {profile.levelTitle}
-                  </Text>
-                  <Text style={[styles.levelMeta, { color: tokens.fg3 }]}>
-                    {t('gamification.profileCard.xp', {
-                      current: formatNum(profile.totalXp),
-                      next: formatNum(profile.xpForNextLevel),
                     })}
                   </Text>
+                  <View style={styles.levelMetaCol}>
+                    <Text
+                      style={[styles.levelTitle, { color: tokens.fg1 }]}
+                      numberOfLines={1}
+                    >
+                      {profile.levelTitle}
+                    </Text>
+                    <Text style={[styles.levelMeta, { color: tokens.fg3 }]}>
+                      {xpLine}
+                    </Text>
+                  </View>
                 </View>
-              </View>
 
-              <View
-                style={[styles.xpTrack, { backgroundColor: tokens.bgSunk }]}
-              >
-                <View
-                  style={[
-                    styles.xpFill,
-                    {
-                      width: `${xpProgress}%`,
-                      backgroundColor: tokens.primary,
-                    },
-                  ]}
-                />
-              </View>
+                <ProgressBar progress={xpProgress / 100} label={xpLine} />
 
-              <Text style={[styles.earnedCount, { color: tokens.fg3 }]}>
-                {t('gamification.profileCard.earned', {
-                  count: profile.achievementsEarned,
-                  total: profile.achievementsTotal,
-                })}
-              </Text>
+                <Text style={[styles.earnedCount, { color: tokens.fg3 }]}>
+                  {t('gamification.profileCard.earned', {
+                    count: profile.achievementsEarned,
+                    total: profile.achievementsTotal,
+                  })}
+                </Text>
+              </View>
             </View>
 
             {achievementsByCategory.map(
@@ -231,84 +217,61 @@ function createStyles(_tokens: Tokens) {
       justifyContent: 'center',
     },
     lockedTitle: {
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_500Medium',
       fontSize: 17,
-      fontWeight: '600',
       letterSpacing: -0.17,
       textAlign: 'center',
     },
     lockedDescription: {
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_400Regular',
       fontSize: 14,
       lineHeight: 22,
-      fontStyle: 'italic',
       textAlign: 'center',
     },
     upgradeButton: {
-      paddingHorizontal: 18,
-      paddingVertical: 12,
-      borderRadius: 8,
       marginTop: 4,
     },
-    upgradeButtonText: {
-      fontFamily: 'Geist',
-      fontSize: 14,
-      fontWeight: '600',
-    },
-    levelBlock: {
+    levelBlockWrap: {
       paddingHorizontal: 20,
-      paddingTop: 24,
-      paddingBottom: 12,
-      gap: 12,
+      paddingTop: 20,
+      paddingBottom: 4,
+    },
+    levelCard: {
+      borderRadius: 18,
+      borderWidth: 1,
+      padding: 18,
     },
     levelRow: {
       flexDirection: 'row',
-      alignItems: 'flex-end',
-      gap: 16,
+      alignItems: 'center',
+      gap: 14,
+      marginBottom: 12,
     },
-    levelEyebrow: {
-      fontFamily: 'GeistMono',
-      fontSize: 11,
-      fontWeight: '500',
-      letterSpacing: 0.66,
-    },
-    levelNumber: {
-      fontFamily: 'GeistMono',
-      fontSize: 56,
-      fontWeight: '500',
-      letterSpacing: -2,
-      lineHeight: 56,
+    levelDisplay: {
+      fontFamily: 'Inter_700Bold',
+      fontSize: 36,
+      letterSpacing: -0.72,
       fontVariant: ['tabular-nums'],
     },
     levelMetaCol: {
       flex: 1,
-      paddingBottom: 6,
+      minWidth: 0,
     },
     levelTitle: {
-      fontFamily: 'Geist',
-      fontSize: 17,
-      fontWeight: '600',
-      letterSpacing: -0.17,
+      fontFamily: 'Rubik_500Medium',
+      fontSize: 15,
     },
     levelMeta: {
-      fontFamily: 'GeistMono',
-      fontSize: 11,
+      fontFamily: 'Roboto_400Regular',
+      fontSize: 12,
       fontVariant: ['tabular-nums'],
-      marginTop: 4,
-    },
-    xpTrack: {
-      height: 3,
-      borderRadius: 999,
-      overflow: 'hidden',
-    },
-    xpFill: {
-      height: '100%',
-      borderRadius: 999,
+      marginTop: 2,
     },
     earnedCount: {
-      fontFamily: 'GeistMono',
-      fontSize: 11,
+      fontFamily: 'Roboto_400Regular',
+      fontSize: 12,
       fontVariant: ['tabular-nums'],
+      marginTop: 10,
     },
   })
 }

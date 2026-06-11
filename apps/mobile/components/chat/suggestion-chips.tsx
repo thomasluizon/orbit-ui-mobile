@@ -1,5 +1,6 @@
 import { useMemo, useRef } from "react";
-import { StyleSheet, Text, TouchableOpacity, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
+import Animated, { FadeInLeft, ReduceMotion } from "react-native-reanimated";
 import { useTranslation } from "react-i18next";
 import { createTokensV2 } from "@/lib/theme";
 import { useAppTheme } from "@/lib/use-app-theme";
@@ -34,17 +35,22 @@ export function SuggestionChips({ onSelect }: Readonly<SuggestionChipsProps>) {
 
   return (
     <View ref={suggestionsRef} style={styles.container}>
-      {suggestions.map((suggestion) => (
-        <TouchableOpacity
+      {suggestions.map((suggestion, index) => (
+        <Animated.View
           key={suggestion}
-          style={styles.chip}
-          onPress={() => onSelect(suggestion)}
-          activeOpacity={0.7}
-          accessibilityRole="button"
-          accessibilityLabel={suggestion}
+          entering={FadeInLeft.duration(280)
+            .delay(index * 60)
+            .reduceMotion(ReduceMotion.System)}
         >
-          <Text style={styles.chipText}>{suggestion}</Text>
-        </TouchableOpacity>
+          <Pressable
+            style={({ pressed }) => [styles.chip, pressed && styles.chipPressed]}
+            onPress={() => onSelect(suggestion)}
+            accessibilityRole="button"
+            accessibilityLabel={suggestion}
+          >
+            <Text style={styles.chipText}>{suggestion}</Text>
+          </Pressable>
+        </Animated.View>
       ))}
     </View>
   );
@@ -59,17 +65,22 @@ function createStyles(tokens: AppTokens) {
       gap: 8,
     },
     chip: {
+      minHeight: 44,
+      justifyContent: "center",
       paddingHorizontal: 16,
-      paddingVertical: 8,
-      borderRadius: 9999,
+      borderRadius: 999,
       backgroundColor: tokens.bgElev,
       borderWidth: 1,
       borderColor: tokens.hairline,
     },
+    chipPressed: {
+      backgroundColor: tokens.bgElev2,
+      transform: [{ scale: 0.96 }],
+    },
     chipText: {
-      fontSize: 12,
-      fontWeight: "500",
-      color: tokens.fg1,
+      fontFamily: 'Rubik_500Medium',
+      fontSize: 13,
+      color: tokens.fg2,
     },
   });
 }

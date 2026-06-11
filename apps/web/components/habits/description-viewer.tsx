@@ -26,19 +26,42 @@ export function DescriptionViewer({
 
   return createPortal(
     <div className="fixed inset-0 z-[10000] bg-[var(--bg)] flex flex-col">
-      <div className="flex items-center gap-3 px-5 py-4 pt-[max(1rem,env(safe-area-inset-top))] border-b border-[var(--hairline)] shrink-0">
+      <div
+        className="flex items-center gap-2 px-3 pt-[max(0.5rem,env(safe-area-inset-top))] pb-2 border-b border-[var(--hairline)] shrink-0"
+        style={{ minHeight: 56 }}
+      >
         <button
+          type="button"
           aria-label={t('common.back')}
-          className="size-9 rounded-full bg-[var(--bg-elev)] flex items-center justify-center text-[var(--fg-2)] hover:text-[var(--fg-1)] transition-colors duration-150"
+          className="icon-btn shrink-0"
+          style={{ width: 44, height: 44 }}
           onClick={() => onOpenChange(false)}
         >
-          <ArrowLeft className="size-4" />
+          <ArrowLeft size={24} strokeWidth={2} />
         </button>
-        <h1 className="font-bold text-lg text-[var(--fg-1)] truncate">{title}</h1>
+        <h1
+          className="truncate text-[var(--fg-1)]"
+          style={{
+            fontFamily: 'var(--font-sans)',
+            fontSize: 20,
+            fontWeight: 500,
+            letterSpacing: '-0.01em',
+          }}
+        >
+          {title}
+        </h1>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-6 py-6">
-        <Markdown content={description} />
+      <div className="flex-1 overflow-y-auto px-5 py-5">
+        <div
+          className="rounded-[18px] bg-[var(--bg-card)]"
+          style={{
+            padding: '18px 20px',
+            boxShadow: 'inset 0 0 0 1px var(--hairline)',
+          }}
+        >
+          <Markdown content={description} />
+        </div>
       </div>
     </div>,
     document.body,

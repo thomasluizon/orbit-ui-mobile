@@ -2,7 +2,6 @@ import { useMemo, useState } from "react";
 import {
   View,
   Text,
-  TouchableOpacity,
   StyleSheet,
   TextInput,
   ActivityIndicator,
@@ -10,7 +9,9 @@ import {
 import { ShieldAlert } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import type { AgentExecuteOperationResponse, PendingAgentOperation } from "@orbit/shared/types";
-import { createTokensV2, radius } from '@/lib/theme';
+import { Badge } from "@/components/ui/badge";
+import { PillButton } from "@/components/ui/pill-button";
+import { createTokensV2 } from '@/lib/theme';
 import { useAppTheme } from "@/lib/use-app-theme"
 
 type AppTokens = ReturnType<typeof createTokensV2>;
@@ -68,12 +69,12 @@ export function PendingOperationCard({
   onVerifyStepUp,
 }: Readonly<PendingOperationCardProps>) {
   const { t } = useTranslation();
-  const { currentScheme, currentTheme, shadows } = useAppTheme()
+  const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
     () => createTokensV2(currentScheme, currentTheme),
     [currentScheme, currentTheme],
   );
-  const styles = useMemo(() => createStyles(tokens, shadows), [tokens, shadows]);
+  const styles = useMemo(() => createStyles(tokens), [tokens]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
@@ -154,15 +155,13 @@ export function PendingOperationCard({
   return (
     <View style={styles.card}>
       <View style={styles.header}>
-        <View style={styles.iconWrap}>
-          <ShieldAlert size={16} color={tokens.statusOverdue} />
+        <View style={styles.iconWell}>
+          <ShieldAlert size={20} color={tokens.statusOverdue} strokeWidth={1.8} />
         </View>
         <View style={styles.headerText}>
           <View style={styles.headerRow}>
             <Text style={styles.title}>{pendingOperation.displayName}</Text>
-            <View style={styles.riskPill}>
-              <Text style={styles.riskPillText}>{riskLabel}</Text>
-            </View>
+            <Badge tone="amber">{riskLabel}</Badge>
           </View>
           <Text style={styles.summary}>{pendingOperation.summary}</Text>
         </View>
@@ -181,41 +180,37 @@ export function PendingOperationCard({
             maxLength={6}
             style={styles.codeInput}
           />
-          <TouchableOpacity
-            style={[styles.primaryButton, verificationCode.trim().length < 6 && styles.disabled]}
+          <PillButton
+            style={styles.compactPill}
+            disabled={isLoading || verificationCode.trim().length < 6}
             onPress={() => {
               void handleVerify();
             }}
-            disabled={isLoading || verificationCode.trim().length < 6}
-            activeOpacity={0.8}
+            leading={
+              isLoading ? <ActivityIndicator size="small" color={tokens.fgOnPrimary} /> : undefined
+            }
           >
-            {isLoading ? (
-              <ActivityIndicator size="small" color={tokens.fgOnPrimary} />
-            ) : (
-              <Text style={styles.primaryButtonText}>{t("auth.verify")}</Text>
-            )}
-          </TouchableOpacity>
+            <Text style={styles.primaryPillLabel}>{t("auth.verify")}</Text>
+          </PillButton>
           <Text style={styles.helper}>{t("auth.codeSent")}</Text>
         </View>
       ) : null}
 
       {!challengeId && !successMessage ? (
-        <TouchableOpacity
-          style={[styles.primaryButton, isLoading && styles.disabled]}
+        <PillButton
+          style={styles.compactPill}
+          disabled={isLoading}
           onPress={() => {
             void handleStart();
           }}
-          disabled={isLoading}
-          activeOpacity={0.8}
+          leading={
+            isLoading ? <ActivityIndicator size="small" color={tokens.fgOnPrimary} /> : undefined
+          }
         >
-          {isLoading ? (
-            <ActivityIndicator size="small" color={tokens.fgOnPrimary} />
-          ) : (
-            <Text style={styles.primaryButtonText}>
-              {needsStepUp ? t("auth.sendCode") : t("common.confirm")}
-            </Text>
-          )}
-        </TouchableOpacity>
+          <Text style={styles.primaryPillLabel}>
+            {needsStepUp ? t("auth.sendCode") : t("common.confirm")}
+          </Text>
+        </PillButton>
       ) : null}
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
@@ -224,35 +219,33 @@ export function PendingOperationCard({
   );
 }
 
-function createStyles(tokens: AppTokens, shadows: ReturnType<typeof useAppTheme>['shadows']) {
+function createStyles(tokens: AppTokens) {
   return StyleSheet.create({
     card: {
-      marginTop: 12,
       gap: 12,
-      borderRadius: radius.xl,
+      borderRadius: 16,
       borderWidth: 1,
-      borderColor: `${tokens.statusOverdue}40`,
-      backgroundColor: `${tokens.statusOverdue}14`,
-      padding: 14,
-      ...shadows.sm,
-      elevation: 3,
+      borderColor: tokens.hairline,
+      backgroundColor: tokens.bgCard,
+      paddingVertical: 14,
+      paddingHorizontal: 16,
     },
     header: {
       flexDirection: "row",
-      gap: 10,
-      alignItems: "flex-start",
+      gap: 12,
+      alignItems: "center",
     },
-    iconWrap: {
-      width: 32,
-      height: 32,
-      borderRadius: 16,
-      backgroundColor: `${tokens.statusOverdue}26`,
+    iconWell: {
+      width: 42,
+      height: 42,
+      borderRadius: 12,
+      backgroundColor: tokens.bgElev,
       alignItems: "center",
       justifyContent: "center",
     },
     headerText: {
       flex: 1,
-      gap: 6,
+      gap: 2,
     },
     headerRow: {
       flexDirection: "row",
@@ -262,73 +255,54 @@ function createStyles(tokens: AppTokens, shadows: ReturnType<typeof useAppTheme>
     },
     title: {
       flex: 1,
-      fontSize: 13,
-      fontWeight: "700",
+      fontFamily: 'Rubik_500Medium',
+      fontSize: 16,
       color: tokens.fg1,
     },
-    riskPill: {
-      borderRadius: 999,
-      borderWidth: 1,
-      borderColor: `${tokens.statusOverdue}33`,
-      backgroundColor: `${tokens.statusOverdue}1A`,
-      paddingHorizontal: 8,
-      paddingVertical: 3,
-    },
-    riskPillText: {
-      fontSize: 9,
-      fontWeight: "700",
-      textTransform: "uppercase",
-      letterSpacing: 0.6,
-      color: tokens.statusOverdue,
-    },
     summary: {
-      fontSize: 12,
-      lineHeight: 18,
-      color: tokens.fg2,
+      fontFamily: 'Rubik_400Regular',
+      fontSize: 13,
+      lineHeight: 19,
+      color: tokens.fg3,
     },
     verificationBlock: {
       gap: 10,
     },
     codeInput: {
-      borderRadius: radius.lg,
+      borderRadius: 14,
       borderWidth: 1,
       borderColor: tokens.hairline,
-      backgroundColor: tokens.bg,
+      backgroundColor: tokens.bgField,
       paddingHorizontal: 14,
       paddingVertical: 12,
       color: tokens.fg1,
-      fontSize: 14,
+      fontFamily: 'Roboto_500Medium',
+      fontSize: 16,
       letterSpacing: 4,
       textAlign: "center",
     },
-    primaryButton: {
-      alignItems: "center",
-      justifyContent: "center",
-      borderRadius: radius.lg,
-      backgroundColor: tokens.primary,
-      minHeight: 44,
-      paddingHorizontal: 14,
-      paddingVertical: 12,
+    compactPill: {
+      paddingVertical: 11,
+      alignSelf: "stretch",
     },
-    primaryButtonText: {
-      fontSize: 12,
-      fontWeight: "700",
+    primaryPillLabel: {
+      fontFamily: 'Rubik_500Medium',
+      fontSize: 14,
       color: tokens.fgOnPrimary,
     },
-    disabled: {
-      opacity: 0.5,
-    },
     helper: {
+      fontFamily: 'Rubik_400Regular',
       fontSize: 11,
       color: tokens.fg3,
     },
     error: {
+      fontFamily: 'Rubik_400Regular',
       fontSize: 12,
       color: tokens.statusBad,
     },
     success: {
+      fontFamily: 'Rubik_500Medium',
       fontSize: 12,
-      fontWeight: "600",
       color: tokens.statusDone,
     },
   });

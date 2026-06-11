@@ -26,6 +26,7 @@ interface SubHabitEditorProps {
     subHabitRow: object
     subHabitIndex: object
     subHabitInput: object
+    subHabitRemoveButton: object
     addSubHabitButton: object
     addSubHabitText: object
   }
@@ -67,6 +68,7 @@ export function SubHabitEditor({
                 onChangeText={(val: string) => onUpdateSubHabit(entry.id, val)}
               />
               <TouchableOpacity
+                style={styles.subHabitRemoveButton}
                 onPress={() => onRemoveSubHabit(entry.id)}
                 activeOpacity={0.7}
                 hitSlop={{
@@ -78,7 +80,7 @@ export function SubHabitEditor({
                 accessibilityRole="button"
                 accessibilityLabel={t('common.clear')}
               >
-                <Trash2 size={14} color={tokens.fg4} strokeWidth={1.6} />
+                <Trash2 size={16} color={tokens.fg4} strokeWidth={1.8} />
               </TouchableOpacity>
             </View>
           ))}
@@ -92,7 +94,7 @@ export function SubHabitEditor({
         accessibilityRole="button"
         accessibilityLabel={t('habits.form.addSubHabit')}
       >
-        <Plus size={14} color={tokens.fg1} strokeWidth={1.6} />
+        <Plus size={14} color={tokens.fg2} strokeWidth={2} />
         <Text style={styles.addSubHabitText}>{t('habits.form.addSubHabit')}</Text>
       </TouchableOpacity>
     </View>

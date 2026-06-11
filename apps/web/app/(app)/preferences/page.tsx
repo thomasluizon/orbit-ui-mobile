@@ -3,15 +3,15 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useMutation } from '@tanstack/react-query'
-import { useTranslations } from 'next-intl'
-import { Check, Lock } from 'lucide-react'
+import { useLocale, useTranslations } from 'next-intl'
+import { Calendar, Check, Languages, Moon, Palette } from 'lucide-react'
 import { colorSchemeOptions, type ColorScheme } from '@orbit/shared/theme'
 import {
   buildWeekStartOptions,
   LANGUAGE_OPTIONS,
   parseShowGeneralOnTodayPreference,
 } from '@orbit/shared/utils'
-import type { SupportedLocale } from '@orbit/shared/types/profile'
+import type { SupportedLocale, ThemeMode } from '@orbit/shared/types/profile'
 import { useIsClient } from '@/hooks/use-is-client'
 import { useProfile } from '@/hooks/use-profile'
 import { useColorScheme } from '@/hooks/use-color-scheme'
@@ -23,11 +23,12 @@ import {
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { useAuthStore } from '@/stores/auth-store'
 import { AppBar } from '@/components/ui/app-bar'
+import { AppOverlay } from '@/components/ui/app-overlay'
 import { SectionLabel } from '@/components/ui/section-label'
 import { SettingsDescription } from '@/components/ui/settings-description'
-import { SettingsRow } from '@/components/ui/settings-row'
-import { Chip } from '@/components/ui/chip'
-import { MonoToggle } from '@/components/ui/mono-toggle'
+import { SettingsRow, Switch } from '@/components/ui/settings-row'
+import { RadioRow } from '@/components/ui/select-check'
+import { PillButton } from '@/components/ui/pill-button'
 import { ProBadge } from '@/components/ui/pro-badge'
 import {
   updateWeekStartDay,
@@ -35,54 +36,19 @@ import {
   updateLanguage,
 } from '@/app/actions/profile'
 
-interface SchemeSwatchesProps {
-  active: ColorScheme
-  hasProAccess: boolean
-  mounted: boolean
-  onSelect: (scheme: ColorScheme) => void
-  t: ReturnType<typeof useTranslations>
+type PreferencePicker = 'language' | 'theme' | 'scheme' | 'weekStart'
+
+function capitalize(value: string): string {
+  return value.charAt(0).toUpperCase() + value.slice(1)
 }
 
-function SchemeSwatches({ active, hasProAccess, mounted, onSelect, t }: Readonly<SchemeSwatchesProps>) {
+function SchemeDot({ color }: Readonly<{ color: string }>) {
   return (
-    <div className="flex items-center" style={{ gap: 12 }}>
-      {colorSchemeOptions.map((option) => {
-        const isActive = mounted && active === option.value
-        const isLocked = !hasProAccess && option.value !== 'purple'
-        const ariaLabel = t(
-          `preferences.color${option.value.charAt(0).toUpperCase() + option.value.slice(1)}` as Parameters<typeof t>[0],
-        )
-        return (
-          <button
-            key={option.value}
-            type="button"
-            aria-label={ariaLabel}
-            aria-pressed={isActive}
-            onClick={() => onSelect(option.value)}
-            className="appearance-none border-0 cursor-pointer inline-flex items-center justify-center shrink-0 transition-[opacity,box-shadow] duration-150 ease-out hover:opacity-80"
-            style={{
-              width: 22,
-              height: 22,
-              borderRadius: 999,
-              background: option.color,
-              boxShadow: isActive ? 'inset 0 0 0 2px var(--fg-1)' : 'none',
-            }}
-          >
-            {isActive && (
-              <Check
-                size={11}
-                strokeWidth={2.5}
-                color="var(--fg-on-primary)"
-                style={{ filter: 'drop-shadow(0 0 1px rgba(0,0,0,0.4))' }}
-              />
-            )}
-            {!isActive && isLocked && (
-              <Lock size={9} strokeWidth={2} color="rgba(255,255,255,0.65)" />
-            )}
-          </button>
-        )
-      })}
-    </div>
+    <span
+      aria-hidden="true"
+      className="rounded-full shrink-0"
+      style={{ width: 12, height: 12, background: color }}
+    />
   )
 }
 
@@ -93,7 +59,7 @@ export default function PreferencesPage() {
   const { profile, patchProfile } = useProfile()
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
 
-  const { currentScheme, applyScheme } = useColorScheme()
+  const { currentScheme, currentTheme, applyScheme, applyTheme } = useColorScheme()
   const {
     supported: pushSupported,
     subscribed: pushSubscribed,
@@ -104,17 +70,15 @@ export default function PreferencesPage() {
   } = usePushNotificationPreferences()
 
   const mounted = useIsClient()
+  const [activePicker, setActivePicker] = useState<PreferencePicker | null>(null)
 
   useEffect(() => {
     localStorage.removeItem('orbit_time_format')
     document.cookie = 'orbit_time_format=;max-age=0;path=/;samesite=strict'
   }, [])
 
-  const [selectedLanguage, setSelectedLanguage] = useState<string>(() => {
-    if (typeof document === 'undefined') return 'en'
-    const match = /(?:^|; )i18n_locale=([^;]*)/.exec(document.cookie)
-    return match?.[1] ? decodeURIComponent(match[1]) : 'en'
-  })
+  const locale = useLocale()
+  const [selectedLanguage, setSelectedLanguage] = useState<string>(locale)
 
   const handleLanguageChange = useCallback(
     async (locale: SupportedLocale) => {
@@ -168,11 +132,17 @@ export default function PreferencesPage() {
 
   function handleSchemeChange(scheme: ColorScheme) {
     if (!profile?.hasProAccess && scheme !== 'purple') {
+      setActivePicker(null)
       router.push('/upgrade')
       return
     }
     applyScheme(scheme)
     colorSchemeMutation.mutate(scheme)
+  }
+
+  function handleThemeModeChange(mode: ThemeMode) {
+    if (mode === currentTheme) return
+    applyTheme(mode)
   }
 
   const [showGeneralOnToday, setShowGeneralOnToday] = useState<boolean>(() => {
@@ -186,6 +156,38 @@ export default function PreferencesPage() {
     localStorage.setItem('orbit_show_general_on_today', String(next))
   }
 
+  const themeModeOptions: { value: ThemeMode; label: string }[] = [
+    { value: 'dark', label: t('preferences.themeModeDark') },
+    { value: 'light', label: t('preferences.themeModeLight') },
+  ]
+
+  const languageLabel = LANGUAGE_OPTIONS.find(
+    (lang) => lang.value === selectedLanguage,
+  )?.label
+  const themeLabel = themeModeOptions.find(
+    (mode) => mode.value === currentTheme,
+  )?.label
+  const schemeOption = colorSchemeOptions.find(
+    (option) => option.value === currentScheme,
+  )
+  const schemeLabel = schemeOption
+    ? t(`preferences.color${capitalize(schemeOption.value)}` as Parameters<typeof t>[0])
+    : undefined
+  const weekStartLabel = weekStartOptions.find(
+    (option) => option.value === profile?.weekStartDay,
+  )?.label
+
+  const pickerTitles: Record<PreferencePicker, string> = {
+    language: t('profile.language.title'),
+    theme: t('preferences.themeMode'),
+    scheme: t('profile.colorScheme.title'),
+    weekStart: t('settings.weekStartDay.title'),
+  }
+
+  function closePicker() {
+    setActivePicker(null)
+  }
+
   return (
     <div className="flex flex-col min-h-[100dvh]">
       <AppBar
@@ -194,97 +196,67 @@ export default function PreferencesPage() {
         onBack={() => goBackOrFallback('/profile')}
         title={t('preferences.title')}
       />
-      <div className="flex-1 min-h-0 overflow-y-auto">
-        <SectionLabel>{t('profile.language.title')}</SectionLabel>
-        <div
-          className="flex items-center"
-          style={{
-            padding: '0 20px 12px',
-            gap: 6,
-            flexWrap: 'wrap',
-          }}
+      <div className="flex-1 min-h-0 overflow-y-auto stagger-enter">
+        <SectionLabel bottom={4}>{t('preferences.general')}</SectionLabel>
+        <SettingsRow
+          icon={Languages}
+          label={t('profile.language.title')}
+          desc={t('profile.language.description')}
+          value={mounted ? languageLabel : undefined}
+          onClick={() => setActivePicker('language')}
+          divider={false}
+        />
+        <SettingsRow
+          icon={Moon}
+          label={t('preferences.themeMode')}
+          value={mounted ? themeLabel : undefined}
+          onClick={() => setActivePicker('theme')}
+          divider={false}
+        />
+        <SettingsRow
+          icon={Palette}
+          label={t('profile.colorScheme.title')}
+          desc={t('profile.colorScheme.description')}
+          value={mounted ? schemeLabel : undefined}
+          onClick={() => setActivePicker('scheme')}
+          divider={false}
         >
-          {LANGUAGE_OPTIONS.map((lang) => {
-            const isActive = mounted && selectedLanguage === lang.value
-            return (
-              <Chip
-                key={lang.value}
-                active={isActive}
-                onClick={() => handleLanguageChange(lang.value)}
-                ariaLabel={lang.label}
-              >
-                {lang.label}
-              </Chip>
-            )
-          })}
-        </div>
-        <SettingsDescription>{t('profile.language.description')}</SettingsDescription>
+          {mounted && schemeOption ? <SchemeDot color={schemeOption.color} /> : null}
+          <ProBadge />
+        </SettingsRow>
+        <SettingsRow
+          icon={Calendar}
+          label={t('settings.weekStartDay.title')}
+          desc={t('settings.weekStartDay.description')}
+          value={mounted ? weekStartLabel : undefined}
+          onClick={() => setActivePicker('weekStart')}
+          divider={false}
+        />
 
-        <SectionLabel trailing={<ProBadge />}>{t('profile.colorScheme.title')}</SectionLabel>
-        <div
-          className="flex items-center justify-end"
-          style={{
-            padding: '4px 20px 12px',
-            gap: 12,
-          }}
+        <SectionLabel bottom={4}>{t('settings.homeScreen.title')}</SectionLabel>
+        <SettingsRow
+          label={t('settings.homeScreen.showGeneral')}
+          desc={t('settings.homeScreen.showGeneralDesc')}
+          accessory="none"
+          divider={false}
         >
-          <SchemeSwatches
-            active={currentScheme}
-            hasProAccess={profile?.hasProAccess ?? false}
-            mounted={mounted}
-            onSelect={handleSchemeChange}
-            t={t}
-          />
-        </div>
-        <SettingsDescription>{t('profile.colorScheme.description')}</SettingsDescription>
-
-        <SectionLabel>{t('settings.weekStartDay.title')}</SectionLabel>
-        <div
-          className="flex items-center justify-end"
-          style={{
-            padding: '4px 20px 12px',
-            gap: 12,
-            flexWrap: 'wrap',
-          }}
-        >
-          <div className="flex items-center" style={{ gap: 4 }}>
-            {weekStartOptions.map((opt) => {
-              const isActive = mounted && profile?.weekStartDay === opt.value
-              return (
-                <Chip
-                  key={opt.value}
-                  active={isActive}
-                  onClick={() => weekStartMutation.mutate(opt.value)}
-                  ariaLabel={opt.label}
-                >
-                  {opt.label}
-                </Chip>
-              )
-            })}
-          </div>
-        </div>
-        <SettingsDescription>{t('settings.weekStartDay.description')}</SettingsDescription>
-
-        <SectionLabel>{t('settings.homeScreen.title')}</SectionLabel>
-        <SettingsRow label={t('settings.homeScreen.showGeneral')} accessory="none" divider={false}>
-          <MonoToggle
+          <Switch
             on={mounted && showGeneralOnToday}
             onToggle={toggleShowGeneral}
             ariaLabel={t('settings.homeScreen.showGeneral')}
           />
         </SettingsRow>
-        <SettingsDescription>{t('settings.homeScreen.showGeneralDesc')}</SettingsDescription>
 
         {pushSupported && (
           <>
-            <SectionLabel>{t('settings.notifications.title')}</SectionLabel>
+            <SectionLabel bottom={4}>{t('settings.notifications.title')}</SectionLabel>
             <SettingsRow
               label={t('settings.notifications.allowed')}
               accessory="none"
               divider={false}
             >
               {pushPermission !== 'denied' && (
-                <MonoToggle
+                <Switch
                   on={pushSubscribed}
                   onToggle={handleTogglePush}
                   ariaLabel={t('settings.notifications.title')}
@@ -292,22 +264,14 @@ export default function PreferencesPage() {
                 />
               )}
             </SettingsRow>
-            <div
-              style={{
-                padding: '0 20px 6px',
-                fontFamily: 'var(--font-family-sans)',
-                fontSize: 13,
-                fontStyle: 'italic',
-                color: 'var(--fg-3)',
-              }}
-            >
+            <SettingsDescription>
               {t('settings.notifications.description')}
-            </div>
+            </SettingsDescription>
             <div
               className={getPushStatusTone(pushStatus)}
               style={{
                 padding: '0 20px 14px',
-                fontFamily: 'var(--font-family-sans)',
+                fontFamily: 'var(--font-sans)',
                 fontSize: 12,
                 fontWeight: 500,
               }}
@@ -318,6 +282,81 @@ export default function PreferencesPage() {
         )}
         <div style={{ height: 24 }} />
       </div>
+
+      <AppOverlay
+        open={activePicker !== null}
+        onOpenChange={(open) => {
+          if (!open) closePicker()
+        }}
+        title={activePicker ? pickerTitles[activePicker] : undefined}
+        footer={
+          activePicker === 'scheme' ? (
+            <PillButton
+              variant="white"
+              fullWidth
+              onClick={closePicker}
+              leading={<Check size={18} strokeWidth={2} aria-hidden="true" />}
+            >
+              {t('common.save')}
+            </PillButton>
+          ) : undefined
+        }
+      >
+        {activePicker === 'language' &&
+          LANGUAGE_OPTIONS.map((lang, index) => (
+            <RadioRow
+              key={lang.value}
+              label={lang.label}
+              selected={mounted && selectedLanguage === lang.value}
+              divider={index < LANGUAGE_OPTIONS.length - 1}
+              onClick={() => {
+                closePicker()
+                void handleLanguageChange(lang.value)
+              }}
+            />
+          ))}
+        {activePicker === 'theme' &&
+          themeModeOptions.map((mode, index) => (
+            <RadioRow
+              key={mode.value}
+              label={mode.label}
+              selected={mounted && currentTheme === mode.value}
+              divider={index < themeModeOptions.length - 1}
+              onClick={() => {
+                closePicker()
+                handleThemeModeChange(mode.value)
+              }}
+            />
+          ))}
+        {activePicker === 'scheme' &&
+          colorSchemeOptions.map((option, index) => (
+            <RadioRow
+              key={option.value}
+              label={t(
+                `preferences.color${capitalize(option.value)}` as Parameters<typeof t>[0],
+              )}
+              selected={mounted && currentScheme === option.value}
+              dot={option.color}
+              divider={index < colorSchemeOptions.length - 1}
+              onClick={() => {
+                handleSchemeChange(option.value)
+              }}
+            />
+          ))}
+        {activePicker === 'weekStart' &&
+          weekStartOptions.map((option, index) => (
+            <RadioRow
+              key={option.value}
+              label={option.label}
+              selected={mounted && profile?.weekStartDay === option.value}
+              divider={index < weekStartOptions.length - 1}
+              onClick={() => {
+                closePicker()
+                weekStartMutation.mutate(option.value)
+              }}
+            />
+          ))}
+      </AppOverlay>
     </div>
   )
 }

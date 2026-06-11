@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { StyleSheet, Text, View } from 'react-native'
+import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import {
@@ -9,7 +9,6 @@ import {
 } from '@orbit/shared/utils'
 import type { NotificationItem } from '@orbit/shared/types/notification'
 import { BottomSheetModal } from '@/components/bottom-sheet-modal'
-import { SettingsRow } from '@/components/ui/settings-row'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
@@ -21,6 +20,7 @@ interface NotificationDetailModalProps {
   onDelete: (id: string) => void
 }
 
+/** Sheet chrome with a mono timestamp eyebrow, body copy, and quiet text-button actions. */
 export function NotificationDetailModal({
   open,
   onClose,
@@ -68,30 +68,73 @@ export function NotificationDetailModal({
 
         <View style={styles.actions}>
           {canView ? (
-            <SettingsRow
+            <QuietAction
               label={t('notifications.view')}
+              color={tokens.fg2}
               onPress={handleView}
-              accessory="chevron"
             />
           ) : null}
           {canMarkAsRead ? (
-            <SettingsRow
+            <QuietAction
               label={t('notifications.markAsRead')}
+              color={tokens.fg2}
               onPress={() => onMarkAsRead(notification.id)}
-              accessory="none"
             />
           ) : null}
-          <SettingsRow
+          <QuietAction
             label={t('notifications.deleteNotification')}
+            color={tokens.statusBad}
             onPress={handleDelete}
-            accessory="none"
-            valueColor={tokens.fg3}
           />
         </View>
       </View>
     </BottomSheetModal>
   )
 }
+
+function QuietAction({
+  label,
+  color,
+  onPress,
+}: Readonly<{ label: string; color: string; onPress: () => void }>) {
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = createTokensV2(currentScheme, currentTheme)
+  return (
+    <Pressable
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      style={({ pressed }) => [
+        quietActionStyles.chip,
+        {
+          backgroundColor: pressed ? tokens.bgElev2 : tokens.bgElev,
+          borderColor: tokens.hairline,
+        },
+        pressed && quietActionStyles.pressed,
+      ]}
+    >
+      <Text style={[quietActionStyles.label, { color }]}>{label}</Text>
+    </Pressable>
+  )
+}
+
+const quietActionStyles = StyleSheet.create({
+  chip: {
+    borderRadius: 999,
+    borderWidth: 1,
+    paddingVertical: 9,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pressed: {
+    transform: [{ scale: 0.96 }],
+  },
+  label: {
+    fontFamily: 'Rubik_500Medium',
+    fontSize: 13,
+  },
+})
 
 function createStyles(tokens: ReturnType<typeof createTokensV2>) {
   return StyleSheet.create({
@@ -103,24 +146,31 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       paddingHorizontal: 20,
       paddingTop: 4,
       paddingBottom: 10,
-      fontFamily: 'GeistMono',
-      fontSize: 11,
-      color: tokens.fg3,
-      letterSpacing: 0.44,
+      fontFamily: 'Roboto_400Regular',
+      fontSize: 12,
+      color: tokens.fg4,
+      letterSpacing: 0.24,
       fontVariant: ['tabular-nums'],
-    },
-    bodyText: {
-      paddingHorizontal: 20,
-      paddingBottom: 16,
-      fontFamily: 'Geist',
-      fontSize: 14,
-      color: tokens.fg2,
-      lineHeight: 21,
       borderBottomWidth: StyleSheet.hairlineWidth,
       borderBottomColor: tokens.hairline,
     },
+    bodyText: {
+      paddingHorizontal: 20,
+      paddingTop: 14,
+      paddingBottom: 16,
+      fontFamily: 'Rubik_400Regular',
+      fontSize: 15,
+      color: tokens.fg2,
+      lineHeight: 23,
+    },
     actions: {
-      paddingTop: 8,
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      alignItems: 'center',
+      justifyContent: 'flex-end',
+      gap: 10,
+      paddingHorizontal: 20,
+      paddingTop: 4,
     },
   })
 }

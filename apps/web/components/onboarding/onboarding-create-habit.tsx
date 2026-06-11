@@ -16,7 +16,8 @@ import {
 import type { FrequencyUnit } from '@orbit/shared/types/habit'
 import { Chip } from '@/components/ui/chip'
 import { SectionLabel } from '@/components/ui/section-label'
-import { UnderlinedInput } from '@/components/ui/underlined-input'
+import { FieldInput } from '@/components/ui/field-input'
+import { PillButton } from '@/components/ui/pill-button'
 
 interface Suggestion {
   key: string
@@ -107,16 +108,22 @@ export function OnboardingCreateHabit({ onCreated }: Readonly<OnboardingCreateHa
             width: 56,
             height: 56,
             background: 'var(--primary)',
+            boxShadow: '0 8px 28px rgba(var(--primary-rgb), 0.45)',
+            animation: 'fresh-start-orb 0.5s var(--ease-out) both',
           }}
         >
-          <Check className="size-7" style={{ color: 'var(--fg-on-primary)' }} strokeWidth={2.4} />
+          <Check
+            className="animate-check-pop size-7"
+            style={{ color: 'var(--fg-on-primary)', animationDelay: '300ms' }}
+            strokeWidth={2.4}
+          />
         </div>
         <div
           className="text-center"
           style={{
-            fontFamily: 'var(--font-family-sans)',
+            fontFamily: 'var(--font-sans)',
             fontSize: 17,
-            fontWeight: 600,
+            fontWeight: 500,
             color: 'var(--fg-1)',
           }}
         >
@@ -125,9 +132,8 @@ export function OnboardingCreateHabit({ onCreated }: Readonly<OnboardingCreateHa
         <div
           className="text-center"
           style={{
-            fontFamily: 'var(--font-family-sans)',
+            fontFamily: 'var(--font-sans)',
             fontSize: 13,
-            fontStyle: 'italic',
             color: 'var(--fg-3)',
           }}
         >
@@ -140,15 +146,18 @@ export function OnboardingCreateHabit({ onCreated }: Readonly<OnboardingCreateHa
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 20, padding: '16px 0' }}>
+    <div
+      className="stagger-enter"
+      style={{ display: 'flex', flexDirection: 'column', gap: 20, padding: '16px 0' }}
+    >
       <div
         className="text-center"
         style={{
-          fontFamily: 'var(--font-family-sans)',
-          fontSize: 22,
-          fontWeight: 600,
-          letterSpacing: '-0.015em',
-          lineHeight: 1.15,
+          fontFamily: 'var(--font-sans)',
+          fontSize: 24,
+          fontWeight: 500,
+          letterSpacing: '-0.01em',
+          lineHeight: 1.3,
           color: 'var(--fg-1)',
         }}
       >
@@ -157,17 +166,16 @@ export function OnboardingCreateHabit({ onCreated }: Readonly<OnboardingCreateHa
       <div
         className="text-center"
         style={{
-          fontFamily: 'var(--font-family-sans)',
-          fontSize: 14,
+          fontFamily: 'var(--font-sans)',
+          fontSize: 15,
           color: 'var(--fg-2)',
-          lineHeight: 1.5,
+          lineHeight: 1.55,
         }}
       >
         {t('onboarding.flow.createHabit.subtitle')}
       </div>
 
-      <UnderlinedInput
-        large
+      <FieldInput
         value={title}
         onChange={setTitle}
         placeholder={t('onboarding.flow.createHabit.placeholder')}
@@ -198,26 +206,25 @@ export function OnboardingCreateHabit({ onCreated }: Readonly<OnboardingCreateHa
               type="button"
               key={freq.value}
               className={
-                'flex-1 appearance-none border-0 cursor-pointer transition-[background-color,color,box-shadow] duration-150 ease-out ' +
+                'flex-1 appearance-none border-0 cursor-pointer transition-[background-color,color] duration-[var(--dur-fast)] ease-[var(--ease-standard)] ' +
                 (activeFrequency === freq.value
                   ? ''
-                  : 'hover:bg-[var(--bg-elev)] hover:text-[var(--fg-1)]')
+                  : 'hover:bg-[var(--bg-elev-2)] hover:text-[var(--fg-1)]')
               }
               disabled={isCreating}
               onClick={() => selectFrequency(freq.value)}
               style={{
-                padding: '8px 12px',
-                borderRadius: 6,
+                height: 42,
+                padding: '0 12px',
+                borderRadius: 12,
                 background:
-                  activeFrequency === freq.value ? 'var(--bg-elev)' : 'transparent',
-                boxShadow:
-                  activeFrequency === freq.value
-                    ? 'inset 0 0 0 1px var(--fg-3)'
-                    : 'inset 0 0 0 1px var(--hairline-strong)',
+                  activeFrequency === freq.value ? 'var(--primary)' : 'var(--bg-elev)',
                 color:
-                  activeFrequency === freq.value ? 'var(--fg-1)' : 'var(--fg-2)',
-                fontFamily: 'var(--font-family-sans)',
-                fontSize: 12,
+                  activeFrequency === freq.value
+                    ? 'var(--fg-on-primary)'
+                    : 'var(--fg-3)',
+                fontFamily: 'var(--font-sans)',
+                fontSize: 13,
                 fontWeight: 500,
               }}
             >
@@ -242,31 +249,19 @@ export function OnboardingCreateHabit({ onCreated }: Readonly<OnboardingCreateHa
         ))}
       </div>
 
-      <button
-        type="button"
-        className="appearance-none border-0 cursor-pointer disabled:opacity-50 transition-[background-color] duration-150 ease-out hover:bg-[var(--primary-pressed)]"
-        disabled={!title.trim() || isCreating}
-        onClick={handleCreate}
-        style={{
-          padding: '12px 18px',
-          marginTop: 12,
-          background: 'var(--primary)',
-          color: 'var(--fg-on-primary)',
-          borderRadius: 10,
-          fontFamily: 'var(--font-family-sans)',
-          fontSize: 14,
-          fontWeight: 600,
-        }}
-      >
-        {isCreating ? (
-          <span className="inline-flex items-center justify-center" style={{ gap: 8 }}>
-            <Loader2 className="size-4 animate-spin" />
-            {t('onboarding.flow.createHabit.creating')}
-          </span>
-        ) : (
-          t('onboarding.flow.createHabit.create')
-        )}
-      </button>
+      <div style={{ marginTop: 12 }}>
+        <PillButton
+          fullWidth
+          disabled={!title.trim() || isCreating}
+          busy={isCreating}
+          onClick={handleCreate}
+          leading={isCreating ? <Loader2 className="size-4 animate-spin" /> : undefined}
+        >
+          {isCreating
+            ? t('onboarding.flow.createHabit.creating')
+            : t('onboarding.flow.createHabit.create')}
+        </PillButton>
+      </div>
     </div>
   )
 }

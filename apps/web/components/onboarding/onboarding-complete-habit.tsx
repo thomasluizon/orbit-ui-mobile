@@ -35,15 +35,18 @@ export function OnboardingCompleteHabit({
   }, [habitId, isCompleted, logHabit, onCompleted])
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 22, padding: '16px 0' }}>
+    <div
+      className="stagger-enter"
+      style={{ display: 'flex', flexDirection: 'column', gap: 22, padding: '16px 0' }}
+    >
       <div
         className="text-center"
         style={{
-          fontFamily: 'var(--font-family-sans)',
-          fontSize: 22,
-          fontWeight: 600,
-          letterSpacing: '-0.015em',
-          lineHeight: 1.15,
+          fontFamily: 'var(--font-sans)',
+          fontSize: 24,
+          fontWeight: 500,
+          letterSpacing: '-0.01em',
+          lineHeight: 1.3,
           color: 'var(--fg-1)',
         }}
       >
@@ -52,21 +55,21 @@ export function OnboardingCompleteHabit({
       <div
         className="text-center"
         style={{
-          fontFamily: 'var(--font-family-sans)',
-          fontSize: 14,
+          fontFamily: 'var(--font-sans)',
+          fontSize: 15,
           color: 'var(--fg-2)',
-          lineHeight: 1.5,
+          lineHeight: 1.55,
         }}
       >
         {t('onboarding.flow.completeHabit.instruction')}
       </div>
 
       <div
-        className="flex items-center"
+        className="flex items-center rounded-[18px]"
         style={{
-          padding: '14px 4px',
-          borderTop: '1px solid var(--hairline)',
-          borderBottom: '1px solid var(--hairline)',
+          padding: '14px 16px',
+          background: 'var(--bg-card)',
+          boxShadow: 'inset 0 0 0 1px var(--hairline)',
           gap: 14,
         }}
       >
@@ -74,8 +77,8 @@ export function OnboardingCompleteHabit({
           <div
             className="overflow-hidden whitespace-nowrap text-ellipsis"
             style={{
-              fontFamily: 'var(--font-family-sans)',
-              fontSize: 15,
+              fontFamily: 'var(--font-sans)',
+              fontSize: 16,
               fontWeight: 500,
               color: 'var(--fg-1)',
             }}
@@ -84,11 +87,10 @@ export function OnboardingCompleteHabit({
           </div>
           <div
             style={{
-              fontFamily: 'var(--font-family-sans)',
-              fontSize: 12,
-              fontStyle: 'italic',
+              fontFamily: 'var(--font-sans)',
+              fontSize: 13,
               color: 'var(--fg-3)',
-              marginTop: 2,
+              marginTop: 3,
             }}
           >
             {t('onboarding.flow.completeHabit.tapHint')}
@@ -96,7 +98,7 @@ export function OnboardingCompleteHabit({
         </div>
         <StatusDot
           state={isCompleted ? 'done' : 'empty'}
-          size={12}
+          size={26}
           onToggle={handleComplete}
           ariaLabel={t('onboarding.flow.completeHabit.tapHint')}
         />
@@ -106,9 +108,8 @@ export function OnboardingCompleteHabit({
         <div
           className="text-center"
           style={{
-            fontFamily: 'var(--font-family-sans)',
+            fontFamily: 'var(--font-sans)',
             fontSize: 14,
-            fontStyle: 'italic',
             color: 'var(--primary)',
           }}
         >

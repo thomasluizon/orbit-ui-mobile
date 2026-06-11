@@ -1,11 +1,6 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
-import {
-  ActivityIndicator,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native'
+import { ActivityIndicator, StyleSheet, View } from 'react-native'
+import { Check } from 'lucide-react-native'
 import { useRouter } from 'expo-router'
 import { useWatch } from 'react-hook-form'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
@@ -13,6 +8,7 @@ import { useTranslation } from 'react-i18next'
 import { BottomSheetModal } from '@/components/bottom-sheet-modal'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { KeyboardAwareBottomSheetScrollView } from '@/components/ui/keyboard-aware-scroll-view'
+import { PillButton } from '@/components/ui/pill-button'
 import { HabitFormFields } from './habit-form-fields'
 import { SubHabitEditor, type SubHabitEntry } from './create-habit-modal/sub-habit-editor'
 import { useAppToast } from '@/hooks/use-app-toast'
@@ -375,37 +371,29 @@ export function CreateHabitModal({
           </HabitFormFields>
 
           <View style={styles.footer}>
-            <TouchableOpacity
-              style={styles.cancelButton}
+            <PillButton
+              variant="ghost"
               disabled={isPending}
               onPress={dismissGuard.requestDismiss}
-              activeOpacity={0.7}
-              accessibilityRole="button"
-              accessibilityLabel={t('common.cancel')}
             >
-              <Text style={styles.cancelButtonText}>{t('common.cancel')}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.submitButton, submitDisabled && styles.disabled]}
+              {t('common.cancel')}
+            </PillButton>
+            <PillButton
+              style={styles.submitButton}
               disabled={submitDisabled}
               onPress={handleSubmit}
-              activeOpacity={0.7}
-              accessibilityRole="button"
-              accessibilityLabel={
-                isSubHabitMode
-                  ? t('habits.createSubHabit')
-                  : t('habits.createHabit')
+              leading={
+                isPending ? (
+                  <ActivityIndicator size="small" color={tokens.fgOnPrimary} />
+                ) : (
+                  <Check size={18} color={tokens.fgOnPrimary} strokeWidth={2.2} />
+                )
               }
             >
-              {isPending ? (
-                <ActivityIndicator size="small" color={tokens.fgOnPrimary} />
-              ) : null}
-              <Text style={styles.submitButtonText}>
-                {isSubHabitMode
-                  ? t('habits.createSubHabit')
-                  : t('habits.createHabit')}
-              </Text>
-            </TouchableOpacity>
+              {isSubHabitMode
+                ? t('habits.createSubHabit')
+                : t('habits.createHabit')}
+            </PillButton>
           </View>
         </KeyboardAwareBottomSheetScrollView>
       </BottomSheetModal>
@@ -440,10 +428,9 @@ function createStyles(
       gap: 22,
     },
     fieldLabel: {
-      fontFamily: 'Geist',
-      fontSize: 13,
-      fontWeight: '600',
-      color: tokens.fg3,
+      fontFamily: 'Rubik_500Medium',
+      fontSize: 14,
+      color: tokens.fg2,
     },
     subHabitsSection: {
       gap: 10,
@@ -454,87 +441,76 @@ function createStyles(
       gap: 8,
     },
     subHabitsHint: {
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_400Regular',
       fontSize: 13,
-      fontStyle: 'italic',
       color: tokens.fg3,
       lineHeight: 19,
     },
     subHabitsList: {
-      gap: 0,
+      gap: 8,
     },
     subHabitRow: {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 10,
-      paddingVertical: 10,
-      borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: tokens.hairline,
+      minHeight: 48,
+      borderRadius: 14,
+      backgroundColor: tokens.bgField,
+      borderWidth: 1,
+      borderColor: tokens.hairline,
+      paddingLeft: 14,
+      paddingRight: 6,
     },
     subHabitIndex: {
       width: 16,
       textAlign: 'right',
-      fontFamily: 'GeistMono',
-      fontSize: 11,
+      fontFamily: 'Roboto_400Regular',
+      fontSize: 12,
       color: tokens.fg4,
     },
     subHabitInput: {
       flex: 1,
+      minHeight: 44,
       backgroundColor: 'transparent',
       color: tokens.fg1,
-      fontFamily: 'Geist',
-      fontSize: 14,
+      fontFamily: 'Rubik_400Regular',
+      fontSize: 15,
       borderWidth: 0,
-      paddingVertical: 0,
+      borderRadius: 0,
+      paddingVertical: 10,
       paddingHorizontal: 0,
+    },
+    subHabitRemoveButton: {
+      width: 36,
+      height: 36,
+      alignItems: 'center',
+      justifyContent: 'center',
     },
     addSubHabitButton: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 8,
-      paddingVertical: 8,
+      alignSelf: 'flex-start',
+      gap: 7,
+      paddingHorizontal: 14,
+      paddingVertical: 9,
+      borderRadius: 999,
+      borderWidth: 1,
+      borderColor: tokens.hairline,
+      backgroundColor: tokens.bgElev,
     },
     addSubHabitText: {
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_500Medium',
       fontSize: 13,
-      fontWeight: '500',
-      color: tokens.fg1,
+      color: tokens.fg2,
     },
     footer: {
       flexDirection: 'row',
-      justifyContent: 'space-between',
       alignItems: 'center',
       gap: 12,
-      paddingTop: 16,
-    },
-    cancelButton: {
-      paddingVertical: 10,
-      paddingHorizontal: 6,
-    },
-    cancelButtonText: {
-      fontFamily: 'Geist',
-      fontSize: 14,
-      color: tokens.fg3,
+      paddingTop: 18,
     },
     submitButton: {
-      backgroundColor: tokens.primary,
-      borderRadius: 8,
-      paddingHorizontal: 16,
-      paddingVertical: 10,
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 8,
-      minWidth: 132,
-    },
-    submitButtonText: {
-      fontFamily: 'Geist',
-      fontSize: 14,
-      fontWeight: '600',
-      color: tokens.fgOnPrimary,
-    },
-    disabled: {
-      opacity: 0.5,
+      flex: 1,
     },
   })
 }

@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 
-/** Plain flush-left 13px/600 muted section label with optional trailing slot. */
+/** Kit SectionTitle: Rubik 20/500 fg-1 with 24/20/14 padding and an optional trailing slot. */
 interface SectionLabelProps {
   children: ReactNode
   top?: number
@@ -11,7 +11,7 @@ interface SectionLabelProps {
 export function SectionLabel({
   children,
   top = 24,
-  bottom = 12,
+  bottom = 14,
   trailing,
 }: Readonly<SectionLabelProps>) {
   return (
@@ -20,8 +20,13 @@ export function SectionLabel({
       style={{ paddingTop: top, paddingBottom: bottom }}
     >
       <span
-        className="text-[13px] font-semibold text-[var(--fg-3)]"
-        style={{ fontFamily: 'var(--font-family-sans)' }}
+        style={{
+          fontFamily: 'var(--font-sans)',
+          fontSize: 20,
+          fontWeight: 500,
+          letterSpacing: '-0.01em',
+          color: 'var(--fg-1)',
+        }}
       >
         {children}
       </span>

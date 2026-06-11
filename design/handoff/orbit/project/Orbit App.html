@@ -1,0 +1,320 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Orbit — AI-forward habit tracker</title>
+<link rel="stylesheet" href="colors_and_type.css">
+<style>
+  html, body { margin: 0; padding: 0; background: #0c0c10; }
+  body { font-family: var(--font-sans); }
+  @keyframes orbit-bulk-in {
+    from { opacity: 0; transform: translateY(16px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  @keyframes orbit-rotate {
+    from { transform: rotate(0deg); }
+    to   { transform: rotate(360deg); }
+  }
+  .scheme-purple, .scheme-blue, .scheme-rose, .scheme-green, .scheme-orange, .scheme-cyan {
+    scrollbar-width: none;
+  }
+  .scheme-purple ::-webkit-scrollbar,
+  .scheme-blue ::-webkit-scrollbar,
+  .scheme-rose ::-webkit-scrollbar,
+  .scheme-green ::-webkit-scrollbar,
+  .scheme-orange ::-webkit-scrollbar,
+  .scheme-cyan ::-webkit-scrollbar { display: none; }
+</style>
+</head>
+<body>
+
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/lucide@latest/dist/umd/lucide.min.js"></script>
+
+<script type="text/babel" src="design-canvas.jsx"></script>
+<script type="text/babel" src="orbit-components.jsx"></script>
+<script type="text/babel" src="orbit-app-components.jsx"></script>
+<script type="text/babel" src="orbit-screens-today.jsx"></script>
+<script type="text/babel" src="orbit-screens-chat.jsx"></script>
+<script type="text/babel" src="orbit-screens-cal-profile.jsx"></script>
+<script type="text/babel" src="orbit-screens-detail-create.jsx"></script>
+<script type="text/babel" src="orbit-screens-subs.jsx"></script>
+<script type="text/babel" src="orbit-screens-flows.jsx"></script>
+<script type="text/babel" src="orbit-screens-overlays.jsx"></script>
+<script type="text/babel" src="orbit-screens-extras.jsx"></script>
+<script type="text/babel" src="orbit-screens-subhabits.jsx"></script>
+
+<script type="text/babel">
+function App() {
+  React.useEffect(() => {
+    if (window.lucide?.createIcons) {
+      const t = setTimeout(() => window.lucide.createIcons(), 80);
+      return () => clearTimeout(t);
+    }
+  });
+
+  const W = 412, H = 892;
+  const F = (id, label, children) => (
+    <DCArtboard id={id} label={label} width={W} height={H}>
+      <LazyMount width={W} height={H}>{children}</LazyMount>
+    </DCArtboard>
+  );
+
+  return (
+    <DesignCanvas
+      title="Orbit · AI-forward habit tracker"
+      subtitle="Linear-tight chrome, dark by default. Astra is the headline. ~150 artboards across 20 sections."
+    >
+      <DCSection id="chat" title="Chat · the headline feature" subtitle="Astra is Orbit's primary interaction model. Conversation, embedded cards, voice, action chips.">
+        {F("ch-a", "a · Active conversation", <ChatA />)}
+        {F("ch-b", "b · Empty · enlarged sparkle", <ChatB />)}
+        {F("ch-c", "c · Pending op · StepUp", <ChatC />)}
+        {F("ch-d", "d · Breakdown suggestion", <ChatD />)}
+        {F("ch-e", "e · Clarification", <ChatE />)}
+        {F("ch-f", "f · Conflict · medium", <ChatF />)}
+        {F("ch-g", "g · Action chips", <ChatG />)}
+        {F("ch-h", "h · Voice recording", <ChatH />)}
+        {F("ch-i", "i · Message limit + ad", <ChatI />)}
+        {F("ch-j", "j · Offline", <ChatJ />)}
+      </DCSection>
+
+      <DCSection id="today" title="Today" subtitle="Linear-tight rows. Status dot + streak number on the right. AI summary is structural.">
+        {F("t-a", "a · Default Today", <TodayA />)}
+        {F("t-banners", "a · with banners", <TodayA withBanners />)}
+        {F("t-b", "b · Loading", <TodayB />)}
+        {F("t-c", "c · Empty · Tell Astra", <TodayC />)}
+        {F("t-d", "d · Active search", <TodayD />)}
+        {F("t-e", "e · Select mode + bulk", <TodayE />)}
+        {F("t-f", "f · Filtered Weekly+Work", <TodayF />)}
+        {F("t-g", "g · AI summary (Pro)", <TodayG />)}
+        {F("t-g-free", "g · AI summary upgrade (free)", <TodayGFree />)}
+        {F("t-reflect", "g · End-of-day Reflect prompt", <TodayReflect />)}
+        {F("t-summary-close", "AI summary block close-up", <AISummaryCloseup />)}
+        {F("t-h", "h · Yesterday", <TodayH />)}
+        {F("t-i", "i · Tomorrow", <TodayI />)}
+        {F("t-j", "j · Goals tab (Pro)", <TodayJ />)}
+        {F("t-k", "k · All tab", <TodayK />)}
+        {F("t-l", "l · General tab", <TodayL />)}
+        {F("t-m", "m · Broken streak", <TodayM />)}
+      </DCSection>
+
+      <DCSection id="calendar" title="Calendar" subtitle="Month grid. Today's date marked with a primary dot.">
+        {F("cal-a", "a · Current month", <CalendarA />)}
+        {F("cal-b", "b · Past month archive", <CalendarB />)}
+        {F("cal-c", "c · Day selected", <CalendarC />)}
+        {F("cal-d", "d · Empty future month", <CalendarD />)}
+        {F("cal-tour", "Tour overlay (Today)", <TourOverlay />)}
+      </DCSection>
+
+      <DCSection id="row-actions" title="Habit row action sheet" subtitle="Opens from the 3-dot icon on a habit row.">
+        {F("row-actions", "Action sheet · parent habit", <HabitRowActionSheet />)}
+      </DCSection>
+
+      <DCSection id="drill" title="Drill · parent → child" subtitle="Tap a child in the All list, land on the child's detail with the parent as the back link.">
+        {F("drill-list", "1 · All list with Spanish focused", <DrillList />)}
+        {F("drill-child", "2 · Spanish detail · back · Languages", <DrillChild />)}
+      </DCSection>
+
+      <DCSection id="profile" title="Profile · You" subtitle="Avatar + name + email. Streak row leads to detail.">
+        {F("p-a", "a · Free user", <ProfileA />)}
+        {F("p-b", "b · Pro · dark · blue", <ProfileB />)}
+        {F("p-c", "c · Trial user", <ProfileC />)}
+        {F("p-actions", "d · Account actions", <ProfileAccountActions />)}
+      </DCSection>
+
+      <DCSection id="schemes" title="Scheme retints · all dark" subtitle="Verifies tinting across the new chrome.">
+        {F("s-purple", "Purple", <ProfileRetint scheme="purple" />)}
+        {F("s-blue", "Blue", <ProfileRetint scheme="blue" />)}
+        {F("s-green", "Green", <ProfileRetint scheme="green" />)}
+        {F("s-rose", "Rose", <ProfileRetint scheme="rose" />)}
+        {F("s-orange", "Orange", <ProfileRetint scheme="orange" />)}
+        {F("s-cyan", "Cyan", <ProfileRetint scheme="cyan" />)}
+      </DCSection>
+
+      <DCSection id="streak" title="Streak Detail" subtitle="The big mono number, week timeline, freezes, tier, milestones.">
+        {F("t-nested", "All tab · nested sub-habits (3 levels)", <NestedHabits />)}
+        {F("st-a", "47 · Strong", <StreakDetail />)}
+        {F("st-low", "Low · 3 days", <StreakDetailLow />)}
+        {F("st-frozen", "Frozen today", <StreakDetailFrozen />)}
+        {F("st-monthly-limit", "Monthly limit reached", <StreakDetailMonthlyLimit />)}
+        {F("st-legendary", "Legendary · 365", <StreakDetailLegendary />)}
+      </DCSection>
+
+      <DCSection id="achievements" title="Achievements">
+        {F("ach-a", "Level 7 · 23 of 60", <AchievementsScreen />)}
+        {F("ach-cat", "Getting started", <AchievementsCategory />)}
+        {F("ach-locked", "Locked · detail expanded", <AchievementsLockedDetail />)}
+        {F("ach-earned", "Earned · detail expanded", <AchievementsEarnedDetail />)}
+        {F("ach-rarity", "Rarity legend", <AchievementsRarityLegend />)}
+      </DCSection>
+
+      <DCSection id="detail" title="Habit Detail drawer" subtitle="Sub-habit parent is promoted as the second variant.">
+        {F("d-a", "a · Active w/ streak", <HabitDetailA />)}
+        {F("d-e", "b · Parent + children", <HabitDetailE />)}
+        {F("d-e-free", "b · Parent + children · free", <HabitDetailE isPro={false} />)}
+        {F("d-b", "c · Skipped today", <HabitDetailB />)}
+        {F("d-c", "d · Checklist", <HabitDetailC />)}
+        {F("d-d", "e · Bad habit", <HabitDetailD />)}
+        {F("d-f", "f · Bad + Slip alert", <HabitDetailF />)}
+        {F("d-g", "g · Linked goal", <HabitDetailG />)}
+      </DCSection>
+
+      <DCSection id="create" title="Create / Edit Habit sheet">
+        {F("cr-a", "a · New · empty", <CreateHabitSheet mode="new" />)}
+        {F("cr-b", "b · Filled · advanced open", <CreateHabitSheet mode="new" habitName="Read 30 minutes" showAdvanced showWeekDays />)}
+        {F("cr-c", "c · Edit existing", <CreateHabitSheet mode="edit" habitName="Meditate" />)}
+        {F("cr-d", "d · Weekly schedule", <CreateHabitSheet mode="new" habitName="Weekly review" showWeekDays />)}
+        {F("cr-e", "e · Validation error", <CreateHabitSheet mode="new" validationError="Give the habit a name." />)}
+        {F("cr-f", "f · Sub-habit context", <CreateHabitSheet mode="new" subHabitContext="Morning routine" habitName="Drink water" />)}
+        {F("cr-g", "g · Bad + Slip alert (Pro)", <CreateHabitSheet mode="new" habitName="Late-night screen" showAdvanced withSlipAlert isPro />)}
+        {F("cr-h", "h · Free sub-habits locked", <CreateHabitSheet mode="new" habitName="Morning routine" showAdvanced withSubHabits isPro={false} />)}
+        {F("cr-subhabits", "i · Pro sub-habits · 4 filled", <CreateHabitSubHabitsActive />)}
+        {F("cr-end-date", "End date set", <CreateHabitEndDate />)}
+        {F("cr-sched", "Scheduled reminders", <CreateHabitScheduledReminders />)}
+        {F("cr-templates", "Checklist templates", <ChecklistTemplatesSheet />)}
+        {F("cr-tag-new", "Tag editor · new", <CreateHabitTagEditor mode="new" />)}
+        {F("cr-tag-edit", "Tag editor · edit", <CreateHabitTagEditor mode="edit" />)}
+        {F("cr-emoji", "Emoji sheet", <EmojiSheet />)}
+      </DCSection>
+
+      <DCSection id="goals" title="Goals · Create + Detail">
+        {F("g-a", "a · New standard", <CreateGoalSheet mode="new" />)}
+        {F("g-b", "b · New streak", <CreateGoalSheet mode="new" goalType="Streak" />)}
+        {F("g-c", "c · Edit standard", <CreateGoalSheet mode="edit" />)}
+        {F("g-d", "d · Edit streak · immutable", <CreateGoalSheet mode="edit" goalType="Streak" immutable />)}
+        {F("g-e", "e · Validation error", <CreateGoalSheet mode="new" validationError="Target must be positive." />)}
+        {F("g-f", "f · Deadline in past", <CreateGoalSheet mode="new" deadlineInPast />)}
+        {F("gd-a", "Detail · Standard on track", <GoalDetail variant="standard-track" />)}
+        {F("gd-b", "Detail · Streak day 12", <GoalDetail variant="streak" />)}
+        {F("gd-c", "Detail · At risk", <GoalDetail variant="at-risk" />)}
+        {F("gd-d", "Detail · Behind", <GoalDetail variant="behind" />)}
+        {F("gd-e", "Detail · Update form", <GoalDetail variant="update" />)}
+        {F("gd-f", "Detail · Completed", <GoalDetail variant="completed" />)}
+        {F("gd-g", "Detail · Abandoned", <GoalDetail variant="abandoned" />)}
+      </DCSection>
+
+      <DCSection id="upgrade" title="Upgrade to Pro">
+        {F("up-a", "Upgrade · yearly", <UpgradeScreen />)}
+        {F("up-trial", "In trial · 4 days left", <UpgradeInTrial />)}
+        {F("up-expired", "Trial expired", <UpgradeExpired />)}
+      </DCSection>
+
+      <DCSection id="confirm" title="Confirm dialogs">
+        {F("co-a", "a · Delete habit", <ConfirmFrame variant="delete" />)}
+        {F("co-b", "b · Bulk delete", <ConfirmFrame variant="bulkDelete" />)}
+        {F("co-c", "c · Bulk log", <ConfirmFrame variant="bulkLog" />)}
+        {F("co-d", "d · Bulk skip", <ConfirmFrame variant="bulkSkip" />)}
+        {F("co-e", "e · Sign out", <ConfirmFrame variant="signOut" />)}
+        {F("co-f", "f · Force-log parent", <ConfirmFrame variant="forceLog" />)}
+        {F("co-g", "g · Move parent", <ConfirmFrame variant="moveParent" />)}
+      </DCSection>
+
+      <DCSection id="settings" title="Sub-screens">
+        {F("pr-prefs", "Preferences", <PreferencesScreen />)}
+        {F("pr-adv", "Advanced · Pro w/ keys", <AdvancedScreen isPro />)}
+        {F("pr-adv-free", "Advanced · free", <AdvancedScreen isPro={false} />)}
+        {F("pr-about", "About", <AboutScreen />)}
+        {F("pr-priv", "Privacy", <PrivacyScreen />)}
+        {F("pr-supp", "Support · form", <SupportScreen />)}
+        {F("pr-supp-sent", "Support · sent", <SupportScreen sent />)}
+        {F("pr-ai", "AI Settings · free", <AISettingsScreen />)}
+        {F("pr-ai-pro", "AI Settings · Pro", <AISettingsScreen isPro />)}
+        {F("pr-ai-paged", "AI facts · paginated", <AISettingsFactsPaginated />)}
+        {F("pr-ai-select", "AI facts · select mode", <AISettingsFactsSelect />)}
+        {F("pr-ai-empty", "AI facts · empty", <AISettingsFactsEmpty />)}
+        {F("pr-retro", "Retrospective · content", <RetrospectiveScreen />)}
+        {F("pr-retro-gen", "Retrospective · generate", <RetrospectiveScreen state="generate" />)}
+        {F("pr-retro-load", "Retrospective · loading", <RetrospectiveScreen state="loading" />)}
+        {F("pr-calsync-sel", "Cal Sync · select", <CalendarSyncScreen state="select" />)}
+        {F("pr-calsync-idle", "Cal Sync · connected", <CalendarSyncScreen state="idle" />)}
+        {F("pr-calsync-disc", "Cal Sync · disconnected", <CalendarSyncScreen state="disconnected" />)}
+        {F("pr-calsync-imp", "Cal Sync · importing", <CalendarSyncScreen state="importing" />)}
+        {F("pr-calsync-done", "Cal Sync · done", <CalendarSyncScreen state="done" />)}
+        {F("pr-calsync-err", "Cal Sync · error", <CalendarSyncScreen state="error" />)}
+        {F("pr-calsync-off", "Cal Sync · offline", <CalendarSyncScreen state="offline" />)}
+      </DCSection>
+
+      <DCSection id="modals" title="Modals & drawers">
+        {F("nt-a", "Notifications · inbox", <NotificationsSheet />)}
+        {F("m-fresh-1", "Fresh start · step 1", <FreshStartModal step={1} />)}
+        {F("m-fresh-2", "Fresh start · step 2", <FreshStartModal step={2} />)}
+        {F("m-del-1", "Delete account · step 1", <DeleteAccountModal step={1} />)}
+        {F("m-del-2", "Delete account · step 2", <DeleteAccountModal step={2} />)}
+        {F("m-del-3", "Delete account · step 3", <DeleteAccountModal step={3} />)}
+        {F("m-trial-exp", "Trial expired", <TrialExpiredModal />)}
+        {F("m-push", "Push prompt", <PushPrompt />)}
+        {F("m-ver", "Version update", <VersionUpdateDrawer />)}
+        {F("m-api-1", "API key · new", <ApiKeyModal step={1} />)}
+        {F("m-api-2", "API key · reveal", <ApiKeyModal step={2} />)}
+        {F("dr-ref", "Referral drawer", <ReferralDrawer />)}
+        {F("dr-fg", "Feature guide", <FeatureGuideDrawer />)}
+      </DCSection>
+
+      <DCSection id="login" title="Login (email + 6-digit code)">
+        {F("l-a", "a · Step 1 · email", <LoginScreen step={1} />)}
+        {F("l-b", "b · Step 1 · with referral", <LoginScreen step={1} referral />)}
+        {F("l-c", "c · Step 2 · code", <LoginScreen step={2} code="142" countdown="0:54" />)}
+        {F("l-d", "d · Step 2 · error", <LoginScreen step={2} error="That code didn't match." />)}
+      </DCSection>
+
+      <DCSection id="onboarding" title="Onboarding · 7 steps" subtitle="Meet Astra is step 2 — AI is introduced before habit creation.">
+        {F("ob-1", "01 · Welcome", <OnboardingStep step={1} />)}
+        {F("ob-2", "02 · Meet Astra", <OnboardingStep step={2} />)}
+        {F("ob-3", "03 · Tell Astra what to track", <OnboardingStep step={3} />)}
+        {F("ob-4", "04 · Complete habit", <OnboardingStep step={4} />)}
+        {F("ob-5", "05 · Add a goal", <OnboardingStep step={5} />)}
+        {F("ob-6", "06 · Features", <OnboardingStep step={6} />)}
+        {F("ob-7", "07 · You're set", <OnboardingStep step={7} />)}
+        {F("ob-cal", "Calendar import prompt", <CalendarImportPrompt />)}
+      </DCSection>
+
+      <DCSection id="toasts" title="Toasts">
+        {F("t-success", "Success", <ToastFrame kind="success" />)}
+        {F("t-error", "Error", <ToastFrame kind="error" />)}
+        {F("t-info", "Info", <ToastFrame kind="info" />)}
+        {F("t-queued", "Queued · undo", <ToastFrame kind="queued" />)}
+      </DCSection>
+
+      <DCSection id="celebrations" title="Celebrations">
+        {F("ce-done", "All done", <Celebration kind="all-done" />)}
+        {F("ce-streak", "Streak milestone", <Celebration kind="streak" />)}
+        {F("ce-freeze", "Streak freeze", <Celebration kind="freeze" />)}
+        {F("ce-goal", "Goal completed", <Celebration kind="goal" />)}
+        {F("ce-level", "Level up", <Celebration kind="level" />)}
+        {F("ce-ach", "Achievement (toast)", <Celebration kind="achievement" />)}
+        {F("ce-welcome", "Welcome back (toast)", <Celebration kind="welcome" />)}
+      </DCSection>
+
+      <DCSection id="banners" title="Edge banners">
+        {F("b-trial", "Trial", <BannerSpecimen variant="trial" />)}
+        {F("b-trial-urg", "Trial · last day", <BannerSpecimen variant="trialUrgent" />)}
+        {F("b-review", "Review reminder", <BannerSpecimen variant="review" />)}
+        {F("b-expiry", "Session expiring", <BannerSpecimen variant="expiry" />)}
+        {F("b-ref", "Referral applied", <BannerSpecimen variant="referral" />)}
+      </DCSection>
+
+      <DCSection id="appendix" title="Shared components appendix">
+        {F("ap-nav", "Bottom nav · FAB", <BottomNavSpecimen />)}
+        {F("ap-comp", "Specimens", <ComponentAppendix />)}
+        {F("ap-meta", "Habit row meta combinations", <HabitMetaSampler />)}
+      </DCSection>
+
+      <DCSection id="light" title="Light mode reference" subtitle="Three frames for color verification. Light mode is supported but secondary.">
+        {F("lt-today", "Today · light", <TodayA dark={false} />)}
+        {F("lt-chat", "Chat · light", <ChatA dark={false} />)}
+        {F("lt-profile", "Profile · light", <ProfileA dark={false} />)}
+      </DCSection>
+    </DesignCanvas>
+  );
+}
+
+const root = ReactDOM.createRoot(document.getElementById("root"));
+root.render(<App />);
+</script>
+
+</body>
+</html>

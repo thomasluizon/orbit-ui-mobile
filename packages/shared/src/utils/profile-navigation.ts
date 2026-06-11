@@ -17,6 +17,7 @@ export type ProfileNavIconKey =
   | 'calendar'
   | 'info'
   | 'wrench'
+  | 'compass'
 
 export type ProfileNavHintMode = 'static' | 'gamificationProfile'
 

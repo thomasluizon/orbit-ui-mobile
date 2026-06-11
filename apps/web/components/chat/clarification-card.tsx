@@ -58,12 +58,12 @@ export function ClarificationCard({
 
   if (resolved) {
     return (
-      <div className="bg-[var(--bg-elev)]/50 border border-[var(--hairline)] rounded-[12px] p-4 shadow-[var(--shadow-sm)]">
+      <div className="rounded-[16px] bg-[var(--bg-field)] p-4 shadow-[inset_0_0_0_1px_var(--hairline)]">
         <div className="flex items-center gap-2 py-1">
           <div className="size-6 rounded-full bg-[var(--status-done)]/20 flex items-center justify-center">
             <Check className="size-3.5 text-[var(--status-done)]" />
           </div>
-          <p className="text-sm font-semibold text-[var(--status-done)]">
+          <p className="text-sm font-medium text-[var(--status-done)]">
             {t('habits.clarification.successCreated', { name: entityName ?? resolvedLabel ?? '' })}
           </p>
         </div>
@@ -72,8 +72,15 @@ export function ClarificationCard({
   }
 
   return (
-    <div className="bg-[var(--bg-elev)]/50 border border-[var(--hairline)] rounded-[12px] p-4 space-y-3 shadow-[var(--shadow-sm)]">
-      <p className="text-sm font-medium text-[var(--fg-1)]">
+    <div className="rounded-[16px] bg-[var(--bg-field)] p-4 space-y-3 shadow-[inset_0_0_0_1px_var(--hairline)]">
+      <p
+        style={{
+          fontFamily: 'var(--font-sans)',
+          fontSize: 14,
+          fontWeight: 500,
+          color: 'var(--fg-1)',
+        }}
+      >
         {safeT(t, clarificationRequest.question)}
       </p>
 
@@ -88,7 +95,7 @@ export function ClarificationCard({
               type="button"
               disabled={disabled}
               onClick={() => handleSelect(label, action.value)}
-              className="inline-flex items-center gap-1.5 rounded-full border border-[var(--hairline)] bg-[var(--bg-elev)] px-3 py-1.5 text-xs font-medium text-[var(--fg-1)] transition-transform duration-150 hover:bg-[var(--bg-sunk)] hover:border-[var(--hairline-strong)] focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-[var(--primary)] focus-visible:ring-offset-2 focus-visible:ring-offset-surface disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]"
+              className="chip focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]/60 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isActive && <Loader2 className="size-3 animate-spin" />}
               {label}

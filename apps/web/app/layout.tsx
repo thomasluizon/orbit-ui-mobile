@@ -1,23 +1,33 @@
 import type { Metadata, Viewport } from 'next'
-import { Geist, Geist_Mono } from 'next/font/google'
+import { Rubik, Inter, Roboto } from 'next/font/google'
 import { NextIntlClientProvider } from 'next-intl'
 import { getLocale, getMessages, getTranslations } from 'next-intl/server'
+import { Bell, Check, X } from 'lucide-react'
 import { Toaster } from 'sonner'
 import { Analytics } from '@vercel/analytics/next'
 import { SpeedInsights } from '@vercel/speed-insights/next'
-import { schemes } from '@orbit/shared/theme'
+import { colorSchemeOptions, resolveDarkNeutrals, resolveLightNeutrals } from '@orbit/shared/theme'
 import { NavigationHistoryTracker } from '@/components/navigation/navigation-history-tracker'
 import './globals.css'
 
-const geistSans = Geist({
+const rubik = Rubik({
   subsets: ['latin'],
-  variable: '--font-geist-sans',
+  weight: ['400', '500', '600', '700'],
+  variable: '--font-rubik',
   display: 'swap',
 })
 
-const geistMono = Geist_Mono({
+const inter = Inter({
   subsets: ['latin'],
-  variable: '--font-geist-mono',
+  weight: ['500', '600', '700'],
+  variable: '--font-inter',
+  display: 'swap',
+})
+
+const roboto = Roboto({
+  subsets: ['latin'],
+  weight: ['400', '500', '700'],
+  variable: '--font-roboto',
   display: 'swap',
 })
 
@@ -32,7 +42,7 @@ export async function generateMetadata(): Promise<Metadata> {
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  themeColor: '#07060e',
+  themeColor: '#020618',
 }
 
 export default async function RootLayout({
@@ -42,6 +52,12 @@ export default async function RootLayout({
 }>) {
   const locale = await getLocale()
   const messages = await getMessages()
+  const canvasByScheme = Object.fromEntries(
+    colorSchemeOptions.map(({ value }) => [
+      value,
+      { dark: resolveDarkNeutrals(value).bg, light: resolveLightNeutrals(value).bg },
+    ]),
+  )
   const themeBootstrapScript = `
     try {
       const cookie = document.cookie
@@ -51,10 +67,6 @@ export default async function RootLayout({
       }
       const schemeName = readCookie('orbit_color_scheme')
       const themeName = readCookie('orbit_theme_mode') === 'light' ? 'light' : 'dark'
-      const defs = ${JSON.stringify(schemes)}
-      const fallback = defs.purple
-      const def = defs[schemeName] ?? fallback
-      const colors = def[themeName]
       const root = document.documentElement
 
       if (themeName === 'dark') {
@@ -65,42 +77,21 @@ export default async function RootLayout({
         root.classList.remove('dark')
       }
 
-      // v2: scheme class enables OKLCH neutrals via .scheme-{name}.dark|.light rules.
       const schemeNames = ['purple','blue','green','rose','orange','cyan']
       schemeNames.forEach((s) => root.classList.remove('scheme-' + s))
       const activeScheme = schemeNames.indexOf(schemeName) >= 0 ? schemeName : 'purple'
       root.classList.add('scheme-' + activeScheme)
 
-      // v8 migration: --color-* tokens are aliased to v8 vars (--bg, --fg-1, ...) in
-      // globals.css @theme, so we no longer overwrite them here. Per-scheme --primary
-      // is driven by the .scheme-{name} class added above. We still inject the shadow
-      // and nav-glass tokens since those are not yet aliased to v8.
       root.style.setProperty('color-scheme', themeName)
-      root.style.setProperty('--shadow-sm', colors.shadowSm)
-      root.style.setProperty('--shadow-md', colors.shadowMd)
-      root.style.setProperty('--shadow-lg', colors.shadowLg)
-      root.style.setProperty('--nav-glass-bg', colors.navGlassBg)
-      root.style.setProperty('--nav-glass-border', colors.navGlassBorder)
-      root.style.setProperty('--primary-shadow', def.shadowRgb)
-      root.style.setProperty('--date-icon-filter', themeName === 'dark' ? 'invert(0.6)' : 'none')
 
-      const tint = themeName === 'light'
-        ? { bg: 0.3, bgHover: 0.38, border: 0.5, borderHover: 0.62, iconBg: 0.42, iconBgHover: 0.52 }
-        : { bg: 0.1, bgHover: 0.15, border: 0.2, borderHover: 0.3, iconBg: 0.2, iconBgHover: 0.3 }
-      root.style.setProperty('--primary-tint-bg', 'rgba(' + def.shadowRgb + ', ' + tint.bg + ')')
-      root.style.setProperty('--primary-tint-bg-hover', 'rgba(' + def.shadowRgb + ', ' + tint.bgHover + ')')
-      root.style.setProperty('--primary-tint-border', 'rgba(' + def.shadowRgb + ', ' + tint.border + ')')
-      root.style.setProperty('--primary-tint-border-hover', 'rgba(' + def.shadowRgb + ', ' + tint.borderHover + ')')
-      root.style.setProperty('--primary-tint-icon-bg', 'rgba(' + def.shadowRgb + ', ' + tint.iconBg + ')')
-      root.style.setProperty('--primary-tint-icon-bg-hover', 'rgba(' + def.shadowRgb + ', ' + tint.iconBgHover + ')')
-
+      const canvases = ${JSON.stringify(canvasByScheme)}
       const metaThemeColor = document.querySelector('meta[name="theme-color"]')
-      if (metaThemeColor) metaThemeColor.setAttribute('content', colors.background)
+      if (metaThemeColor) metaThemeColor.setAttribute('content', canvases[activeScheme][themeName])
     } catch {}
   `
 
   return (
-    <html lang={locale} className={`dark scheme-purple ${geistSans.variable} ${geistMono.variable}`} suppressHydrationWarning>
+    <html lang={locale} className={`dark scheme-purple ${rubik.variable} ${inter.variable} ${roboto.variable}`} suppressHydrationWarning>
       <head>
         <script
           dangerouslySetInnerHTML={{
@@ -115,16 +106,23 @@ export default async function RootLayout({
           <Toaster
             theme="dark"
             position="top-center"
+            icons={{
+              success: <Check size={17} strokeWidth={2.4} />,
+              error: <X size={17} strokeWidth={2.4} />,
+              info: <Bell size={17} strokeWidth={2.4} />,
+            }}
             toastOptions={{
-              // v8 toast chrome: flat bg-elev, hairline inset shadow, no corner glow.
               style: {
-                background: 'var(--bg-elev)',
+                background: 'var(--bg-sheet)',
                 boxShadow:
-                  '0 8px 24px rgba(0,0,0,0.30), inset 0 0 0 1px var(--hairline)',
+                  '0 14px 36px rgba(0, 0, 0, 0.5), inset 0 0 0 1px var(--hairline)',
                 border: 'none',
                 color: 'var(--fg-1)',
-                borderRadius: 10,
-                fontFamily: 'var(--font-family-sans)',
+                borderRadius: 18,
+                padding: '14px 16px',
+                gap: 12,
+                alignItems: 'center',
+                fontFamily: 'var(--font-sans)',
               },
             }}
           />

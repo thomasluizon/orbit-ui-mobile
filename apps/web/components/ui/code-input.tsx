@@ -1,13 +1,15 @@
 'use client'
 
-import type {
-  ChangeEvent,
-  ClipboardEvent,
-  KeyboardEvent,
-  RefObject,
+import {
+  useState,
+  type ChangeEvent,
+  type ClipboardEvent,
+  type KeyboardEvent,
+  type RefObject,
 } from 'react'
 
-/** v8 6-digit code input: mono tabular-nums, 0.4em letter-spacing, bare hairline underline. */
+/** Kit OTP: six 48x58 filled boxes (radius 14, inset hairline ring), Roboto
+ *  26/500 digits, primary ring on the focused box. */
 interface CodeInputProps {
   digits: string[]
   inputRefs: RefObject<(HTMLInputElement | null)[]>
@@ -30,6 +32,8 @@ export function CodeInput({
   ariaLabelForIndex,
   ariaLabelledBy,
 }: Readonly<CodeInputProps>) {
+  const [activeIndex, setActiveIndex] = useState<number | null>(null)
+
   function handleChange(index: number, event: ChangeEvent<HTMLInputElement>) {
     onChange(index, event.target.value)
   }
@@ -37,7 +41,7 @@ export function CodeInput({
   return (
     <fieldset
       className="flex items-center justify-center"
-      style={{ gap: 14, border: 0, padding: 0, margin: 0, minInlineSize: 0 }}
+      style={{ gap: 10, border: 0, padding: 0, margin: 0, minInlineSize: 0 }}
       aria-labelledby={ariaLabelledBy}
     >
       {digits.map((digit, index) => (
@@ -56,22 +60,31 @@ export function CodeInput({
           onChange={(e) => handleChange(index, e)}
           onKeyDown={(e) => onKeyDown(index, e)}
           onPaste={onPaste}
+          onFocus={() => setActiveIndex(index)}
+          onBlur={() =>
+            setActiveIndex((current) => (current === index ? null : current))
+          }
           style={{
-            width: 44,
+            width: 48,
+            height: 58,
             flex: 'none',
             appearance: 'none',
             border: 0,
-            background: 'transparent',
             outline: 'none',
+            borderRadius: 14,
+            background: 'var(--bg-field)',
+            boxShadow:
+              activeIndex === index
+                ? 'inset 0 0 0 2px var(--primary)'
+                : 'inset 0 0 0 1px var(--hairline)',
             textAlign: 'center',
-            fontFamily: 'var(--font-family-mono)',
-            fontSize: 28,
+            fontFamily: 'var(--font-mono)',
+            fontSize: 26,
             fontWeight: 500,
             color: 'var(--fg-1)',
-            letterSpacing: '0.06em',
-            padding: '8px 0',
-            borderBottom: '1px solid var(--hairline-strong)',
+            padding: 0,
             fontVariantNumeric: 'tabular-nums',
+            transition: 'box-shadow var(--dur-fast) var(--ease-standard)',
           }}
         />
       ))}

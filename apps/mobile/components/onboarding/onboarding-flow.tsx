@@ -1,5 +1,6 @@
-import { useState, useMemo, useCallback } from 'react'
+import { useEffect, useState, useMemo, useCallback } from 'react'
 import {
+  Animated,
   Modal,
   Pressable,
   StyleSheet,
@@ -30,10 +31,50 @@ import { OnboardingCreateGoal } from './onboarding-create-goal'
 import { OnboardingFeatures } from './onboarding-features'
 import { OnboardingComplete } from './onboarding-complete'
 import { KeyboardAwareScrollView } from '@/components/ui/keyboard-aware-scroll-view'
-import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
+import { GradientTop } from '@/components/ui/gradient-top'
+import { PillButton } from '@/components/ui/pill-button'
+import { createTokensV2, easings, type AppTokensV2 } from '@/lib/theme'
+import { toAnimatedEasing, usePrefersReducedMotion } from '@/lib/motion'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 const MOBILE_ASTRA_OFFSET = 1
+
+interface ProgressDotProps {
+  active: boolean
+  activeColor: string
+  inactiveColor: string
+  reducedMotion: boolean
+}
+
+function ProgressDot({ active, activeColor, inactiveColor, reducedMotion }: Readonly<ProgressDotProps>) {
+  const width = useMemo(() => new Animated.Value(7), [])
+
+  useEffect(() => {
+    if (reducedMotion) {
+      width.setValue(active ? 24 : 7)
+      return
+    }
+    const animation = Animated.timing(width, {
+      toValue: active ? 24 : 7,
+      duration: 220,
+      easing: toAnimatedEasing(easings.smooth),
+      useNativeDriver: false,
+    })
+    animation.start()
+    return () => animation.stop()
+  }, [active, reducedMotion, width])
+
+  return (
+    <Animated.View
+      style={{
+        width,
+        height: 7,
+        borderRadius: 999,
+        backgroundColor: active ? activeColor : inactiveColor,
+      }}
+    />
+  )
+}
 
 export function OnboardingFlow() {
   const { t } = useTranslation()
@@ -53,6 +94,9 @@ export function OnboardingFlow() {
   const [createdHabitId, setCreatedHabitId] = useState<string | null>(null)
   const [createdHabitTitle, setCreatedHabitTitle] = useState('')
   const [createdGoal, setCreatedGoal] = useState(false)
+  const [stepDirection, setStepDirection] = useState<'forward' | 'back'>('forward')
+  const prefersReducedMotion = usePrefersReducedMotion()
+  const stepEntrance = useMemo(() => new Animated.Value(1), [])
 
   const sharedDisplayTotal = getOnboardingDisplayTotal(hasProAccess)
   const displayTotal = sharedDisplayTotal + MOBILE_ASTRA_OFFSET
@@ -69,6 +113,7 @@ export function OnboardingFlow() {
   const isStarter = sharedStep === 0 && !viewingAstra && !astraStepShown
 
   const goNext = useCallback(() => {
+    setStepDirection('forward')
     if (sharedStep === 0 && !astraStepShown) {
       setViewingAstra(true)
       setAstraStepShown(true)
@@ -83,6 +128,7 @@ export function OnboardingFlow() {
   }, [sharedStep, astraStepShown, viewingAstra, hasProAccess])
 
   const goPrev = useCallback(() => {
+    setStepDirection('back')
     if (viewingAstra) {
       setViewingAstra(false)
       return
@@ -94,6 +140,22 @@ export function OnboardingFlow() {
     }
     setSharedStep((s) => getOnboardingPreviousStep(s, hasProAccess))
   }, [sharedStep, astraStepShown, viewingAstra, hasProAccess])
+
+  useEffect(() => {
+    if (prefersReducedMotion) {
+      stepEntrance.setValue(1)
+      return
+    }
+    stepEntrance.setValue(0)
+    const animation = Animated.timing(stepEntrance, {
+      toValue: 1,
+      duration: 280,
+      easing: toAnimatedEasing(easings.out),
+      useNativeDriver: true,
+    })
+    animation.start()
+    return () => animation.stop()
+  }, [prefersReducedMotion, sharedStep, stepEntrance, viewingAstra])
 
   function handleHabitCreated(habitId: string, title: string) {
     setCreatedHabitId(habitId)
@@ -189,10 +251,11 @@ export function OnboardingFlow() {
   return (
     <Modal visible transparent animationType="fade">
       <View style={styles.container}>
+        <GradientTop height={520} />
         <View style={styles.header}>
           <Text style={styles.progressLabel}>{progressLabel}</Text>
           {!isFinalStep && (
-            <Pressable onPress={handleSkip} hitSlop={8}>
+            <Pressable onPress={handleSkip} hitSlop={8} style={styles.skipButton}>
               <Text style={styles.skipText}>
                 {t('onboarding.flow.skip')}
               </Text>
@@ -205,65 +268,59 @@ export function OnboardingFlow() {
           showsVerticalScrollIndicator={false}
           keyboardVerticalOffset={12}
         >
-          <View style={styles.stepWrapper}>{stepContent}</View>
+          <Animated.View
+            style={[
+              styles.stepWrapper,
+              {
+                opacity: stepEntrance,
+                transform: [
+                  {
+                    translateX: stepEntrance.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [stepDirection === 'forward' ? 30 : -30, 0],
+                    }),
+                  },
+                ],
+              },
+            ]}
+          >
+            {stepContent}
+          </Animated.View>
         </KeyboardAwareScrollView>
 
         {!hideFooter && (
           <View style={styles.footer}>
             <View style={styles.dotsRow}>
               {Array.from({ length: displayTotal }).map((_, i) => (
-                <View
+                <ProgressDot
                   key={`progress-dot-${i}`}
-                  style={[
-                    styles.dot,
-                    {
-                      backgroundColor:
-                        i <= displayStep - 1
-                          ? tokens.primary
-                          : tokens.hairlineStrong,
-                    },
-                  ]}
+                  active={i === displayStep - 1}
+                  activeColor={tokens.primary}
+                  inactiveColor={`${tokens.fg1}2E`}
+                  reducedMotion={prefersReducedMotion}
                 />
               ))}
             </View>
 
-            <View style={styles.footerRow}>
-              <View style={styles.footerSide}>
-                {hasPrev && (
-                  <Pressable onPress={goPrev} hitSlop={8}>
-                    <Text style={styles.backText}>
-                      {t('onboarding.flow.back')}
-                    </Text>
-                  </Pressable>
-                )}
-              </View>
-              <View style={styles.footerCenter}>
-                {canAdvance && (
-                  <Pressable
-                    onPress={goNext}
-                    style={({ pressed }) => [
-                      styles.nextBtn,
-                      {
-                        backgroundColor: pressed
-                          ? tokens.primaryPressed
-                          : tokens.primary,
-                      },
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.nextBtnText,
-                        { color: tokens.fgOnPrimary },
-                      ]}
-                    >
-                      {isStarter
-                        ? t('onboarding.flow.begin')
-                        : t('onboarding.flow.next')}
-                    </Text>
-                  </Pressable>
-                )}
-              </View>
-              <View style={styles.footerSide} />
+            <View style={styles.footerActions}>
+              {canAdvance && (
+                <PillButton fullWidth onPress={goNext}>
+                  {isStarter
+                    ? t('onboarding.flow.begin')
+                    : t('onboarding.flow.next')}
+                </PillButton>
+              )}
+              {hasPrev && (
+                <Pressable
+                  onPress={goPrev}
+                  style={styles.backButton}
+                  accessibilityRole="button"
+                >
+                  <Text style={styles.backText}>
+                    {t('onboarding.flow.back')}
+                  </Text>
+                </Pressable>
+              )}
             </View>
           </View>
         )}
@@ -283,18 +340,24 @@ function createStyles(tokens: AppTokensV2) {
       alignItems: 'center',
       justifyContent: 'space-between',
       paddingHorizontal: 20,
-      paddingTop: 56,
-      paddingBottom: 8,
+      paddingTop: 48,
+      paddingBottom: 0,
+      minHeight: 56,
     },
     progressLabel: {
-      fontFamily: 'GeistMono',
+      fontFamily: 'Roboto_500Medium',
       fontSize: 11,
-      fontWeight: '500',
       color: tokens.fg3,
       letterSpacing: 0.44,
+      fontVariant: ['tabular-nums'],
+    },
+    skipButton: {
+      minHeight: 44,
+      justifyContent: 'center',
+      paddingHorizontal: 4,
     },
     skipText: {
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_400Regular',
       fontSize: 13,
       color: tokens.fg3,
     },
@@ -306,54 +369,35 @@ function createStyles(tokens: AppTokensV2) {
       width: '100%',
       maxWidth: 400,
       alignSelf: 'center',
+      flexGrow: 1,
+      justifyContent: 'center',
     },
     footer: {
-      paddingHorizontal: 22,
+      paddingHorizontal: 28,
       paddingTop: 12,
-      paddingBottom: 40,
-      gap: 14,
+      paddingBottom: 32,
+      gap: 22,
       alignItems: 'center',
     },
     dotsRow: {
       flexDirection: 'row',
-      gap: 6,
+      gap: 8,
     },
-    dot: {
-      width: 5,
-      height: 5,
-      borderRadius: 999,
-    },
-    footerRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
+    footerActions: {
       width: '100%',
-      gap: 12,
+      gap: 4,
+      alignItems: 'center',
     },
-    footerSide: {
-      flex: 1,
-      alignItems: 'flex-start',
-    },
-    footerCenter: {
-      flex: 2,
-    },
-    backText: {
-      fontFamily: 'Geist',
-      fontSize: 13,
-      color: tokens.fg3,
-      paddingVertical: 6,
-    },
-    nextBtn: {
-      borderRadius: 10,
-      paddingHorizontal: 18,
-      paddingVertical: 10,
+    backButton: {
+      minHeight: 44,
       alignItems: 'center',
       justifyContent: 'center',
+      paddingHorizontal: 12,
     },
-    nextBtnText: {
-      fontFamily: 'Geist',
-      fontSize: 14,
-      fontWeight: '600',
+    backText: {
+      fontFamily: 'Rubik_400Regular',
+      fontSize: 13,
+      color: tokens.fg3,
     },
   })
 }

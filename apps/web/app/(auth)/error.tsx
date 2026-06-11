@@ -1,6 +1,8 @@
 'use client'
 
 import { useTranslations } from 'next-intl'
+import { TriangleAlert } from 'lucide-react'
+import { PillButton } from '@/components/ui/pill-button'
 
 /**
  * Error boundary for auth pages (login, auth-callback).
@@ -16,29 +18,44 @@ export default function AuthError({
   const t = useTranslations()
 
   return (
-    <div className="flex flex-col items-center gap-4 text-center w-full max-w-sm">
-      <svg
-        className="size-10 text-[var(--fg-3)]"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
+    <div className="flex w-full max-w-sm flex-col items-center text-center">
+      <div
+        className="flex items-center justify-center rounded-full"
+        style={{
+          width: 80,
+          height: 80,
+          background: 'var(--bg-field)',
+          boxShadow: 'inset 0 0 0 1px var(--hairline)',
+          animation: 'fresh-start-orb 0.6s var(--ease-out) both',
+        }}
       >
-        <path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
-        <line x1="12" y1="9" x2="12" y2="13" />
-        <line x1="12" y1="17" x2="12.01" y2="17" />
-      </svg>
-      <p className="text-sm text-[var(--fg-2)]">
-        {process.env.NODE_ENV === 'development' ? error.message : t('auth.genericError')}
+        <TriangleAlert size={34} strokeWidth={1.8} className="text-[var(--fg-3)]" />
+      </div>
+      <p
+        style={{
+          margin: '18px 0 0',
+          fontFamily: 'var(--font-sans)',
+          fontSize: 22,
+          fontWeight: 500,
+          lineHeight: 1.3,
+          color: 'var(--fg-1)',
+          animation: 'slide-up-fade 0.28s var(--ease-out) backwards',
+          animationDelay: '160ms',
+        }}
+      >
+        {process.env.NODE_ENV === 'development' && error.message
+          ? error.message
+          : t('auth.genericError')}
       </p>
-      <button
-        onClick={reset}
-        className="px-5 py-2.5 rounded-[12px] bg-[var(--primary)] text-white font-semibold text-sm hover:bg-[var(--primary-pressed)] transition-colors"
+      <div
+        style={{
+          marginTop: 22,
+          animation: 'slide-up-fade 0.28s var(--ease-out) backwards',
+          animationDelay: '240ms',
+        }}
       >
-        {t('common.retry')}
-      </button>
+        <PillButton onClick={reset}>{t('common.retry')}</PillButton>
+      </div>
     </div>
   )
 }

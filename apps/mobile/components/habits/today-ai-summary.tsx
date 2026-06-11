@@ -1,11 +1,11 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
-import { Orbit } from 'lucide-react-native'
+import { Sparkles } from 'lucide-react-native'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { useProfile } from '@/hooks/use-profile'
 import { useSummary } from '@/hooks/use-habits'
-import { createTokensV2 } from '@/lib/theme'
+import { createTokensV2, tintFromPrimary } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 interface TodayAISummaryProps {
@@ -13,10 +13,10 @@ interface TodayAISummaryProps {
 }
 
 /**
- * Today screen "Astra" block: full-height primary rail on the left, then
- * Orbit glyph + heading and one or two lines of message stacked on the
- * right. No card chrome. Whole block is tappable; tap destination depends on
- * state (pro → /chat, free → /upgrade, error → refetch).
+ * Today screen "Astra" summary card on the kit InfoCard chrome: primary 0.10
+ * tint, 0.28 ring, radius 18, sparkles + ASTRA eyebrow over the message.
+ * Whole card is tappable; tap destination depends on state (pro → /chat,
+ * free → /upgrade, error → refetch).
  *
  * - Pro + enabled: shows the AI summary text
  * - Free: shows the upgrade prompt
@@ -28,11 +28,12 @@ export function TodayAISummary({ date }: Readonly<TodayAISummaryProps>) {
   const { profile } = useProfile()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
-  const styles = useMemo(() => createStyles(tokens.fg1, tokens.fg2, tokens.fg3, tokens.primary, tokens.hairline), [tokens.fg1, tokens.fg2, tokens.fg3, tokens.primary, tokens.hairline])
+  const styles = useMemo(() => createStyles(tokens), [tokens])
 
   const hasProAccess = profile?.hasProAccess ?? false
   const aiSummaryEnabled = profile?.aiSummaryEnabled ?? false
   const locale = profile?.language ?? i18n.language
+  const [expanded, setExpanded] = useState(false)
 
   const { summary, isLoading, error, refetch } = useSummary({
     date,
@@ -75,114 +76,132 @@ export function TodayAISummary({ date }: Readonly<TodayAISummaryProps>) {
   }
 
   const resolved = body()
+
+  const isSummaryText =
+    hasProAccess && aiSummaryEnabled && !isLoading && !error && !!summary
+  const clampable = isSummaryText && (summary?.length ?? 0) > 140
+
   if (!resolved) return null
 
-  const showDisclaimer =
-    hasProAccess && aiSummaryEnabled && !isLoading && !error && !!summary
+  const showDisclaimer = isSummaryText && (expanded || !clampable)
 
   return (
     <Pressable
       onPress={resolved.onPress}
       accessibilityRole="button"
       accessibilityLabel={resolved.label}
-      style={({ pressed }) => [
-        styles.wrap,
-        pressed ? styles.wrapPressed : null,
-      ]}
+      style={styles.wrap}
     >
-      <View style={styles.row}>
-        <View style={styles.rail} />
-        <View style={styles.column}>
+      {({ pressed }) => (
+        <View
+          style={[
+            styles.card,
+            pressed
+              ? [
+                  styles.cardPressed,
+                  { borderColor: tintFromPrimary(tokens, 0.45) },
+                ]
+              : null,
+          ]}
+        >
           <View style={styles.headerRow}>
-            <Orbit
-              size={20}
-              color={tokens.fg1}
-              strokeWidth={1.5}
-            />
-            <Text style={styles.heading}>Astra</Text>
+            <Sparkles size={16} color={tokens.primarySoft} strokeWidth={1.9} />
+            <Text style={styles.eyebrow}>Astra</Text>
             <Text style={styles.aiBadge}>{t('aiDisclosure.isAiLabel')}</Text>
           </View>
-          <Text style={styles.message}>
+          <Text
+            style={styles.message}
+            numberOfLines={clampable && !expanded ? 3 : undefined}
+          >
             {resolved.text}
           </Text>
+          {clampable ? (
+            <Pressable
+              onPress={(event) => {
+                event.stopPropagation()
+                setExpanded((current) => !current)
+              }}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel={expanded ? t('common.seeLess') : t('common.seeMore')}
+            >
+              <Text style={styles.expandToggle}>
+                {expanded ? t('common.seeLess') : t('common.seeMore')}
+              </Text>
+            </Pressable>
+          ) : null}
           {showDisclaimer ? (
             <Text style={styles.disclaimer}>
               {t('aiDisclosure.notMedicalAdvice')}
             </Text>
           ) : null}
         </View>
-      </View>
+      )}
     </Pressable>
   )
 }
 
-function createStyles(
-  fg1: string,
-  fg2: string,
-  fg3: string,
-  primary: string,
-  hairline: string,
-) {
+function createStyles(tokens: ReturnType<typeof createTokensV2>) {
   return StyleSheet.create({
     wrap: {
       paddingHorizontal: 20,
       paddingTop: 14,
-      paddingBottom: 16,
+      paddingBottom: 6,
     },
-    wrapPressed: {
-      opacity: 0.6,
+    card: {
+      borderRadius: 18,
+      paddingVertical: 12,
+      paddingHorizontal: 16,
+      backgroundColor: tintFromPrimary(tokens, 0.10),
+      borderWidth: 1,
+      borderColor: tintFromPrimary(tokens, 0.28),
     },
-    row: {
-      flexDirection: 'row',
-      alignItems: 'stretch',
-      gap: 14,
-    },
-    rail: {
-      width: 2,
-      borderRadius: 1,
-      backgroundColor: primary,
-    },
-    column: {
-      flex: 1,
-      gap: 8,
+    cardPressed: {
+      transform: [{ scale: 0.99 }],
     },
     headerRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 10,
+      gap: 8,
+      marginBottom: 6,
     },
-    heading: {
-      fontFamily: 'Geist',
-      fontSize: 20,
-      fontWeight: '600',
-      color: fg1,
-      letterSpacing: -0.2,
+    eyebrow: {
+      fontFamily: 'Rubik_500Medium',
+      fontSize: 12,
+      letterSpacing: 0.6,
+      textTransform: 'uppercase',
+      color: tokens.primarySoft,
     },
     aiBadge: {
-      fontFamily: 'GeistMono',
+      fontFamily: 'Roboto_500Medium',
       fontSize: 10,
-      fontWeight: '600',
       letterSpacing: 0.6,
-      color: fg3,
-      borderWidth: StyleSheet.hairlineWidth,
-      borderColor: hairline,
-      borderRadius: 4,
-      paddingHorizontal: 5,
+      color: tokens.fg3,
+      borderWidth: 1,
+      borderColor: tokens.hairline,
+      borderRadius: 999,
+      paddingHorizontal: 7,
       paddingVertical: 1,
       overflow: 'hidden',
     },
     message: {
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_400Regular',
       fontSize: 14,
       lineHeight: 20,
-      color: fg2,
+      color: tokens.fg1,
+    },
+    expandToggle: {
+      fontFamily: 'Rubik_500Medium',
+      fontSize: 12,
+      color: tokens.primarySoft,
+      marginTop: 6,
     },
     disclaimer: {
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_400Regular',
       fontSize: 11,
       lineHeight: 15,
-      color: fg3,
-      fontStyle: 'italic',
+      color: tokens.fg4,
+      marginTop: 6,
     },
   })
 }

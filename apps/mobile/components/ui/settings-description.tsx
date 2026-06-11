@@ -7,7 +7,7 @@ interface SettingsDescriptionProps {
   children: ReactNode
 }
 
-/** v8 settings description: italic helper text under a SettingsRow, separated by whitespace. */
+/** Helper text under a settings row: Rubik 14 fg-3, row-aligned 20px horizontal padding. */
 export function SettingsDescription({ children }: Readonly<SettingsDescriptionProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
@@ -28,9 +28,8 @@ const styles = StyleSheet.create({
     paddingBottom: 16,
   },
   text: {
-    fontFamily: 'Geist',
-    fontSize: 13,
-    fontStyle: 'italic',
-    lineHeight: 20,
+    fontFamily: 'Rubik_400Regular',
+    fontSize: 14,
+    lineHeight: 21,
   },
 })

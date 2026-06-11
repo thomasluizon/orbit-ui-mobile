@@ -5,13 +5,14 @@ import {
   Text,
   View,
 } from "react-native";
-import { Check, Filter, Flag } from "lucide-react-native";
+import { Check, Filter } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import type { GoalStatus } from "@orbit/shared/types/goal";
 import { useGoals } from "@/hooks/use-goals";
 import { GoalList } from "./goal-list";
 import { AnchoredMenu } from "@/components/ui/anchored-menu";
 import { EmptyState } from "@/components/ui/empty-state";
+import { SectionLabel } from "@/components/ui/section-label";
 import type { MenuAnchorRect } from "@/lib/anchored-menu";
 import { createTokensV2 } from "@/lib/theme";
 import { useAppTheme } from "@/lib/use-app-theme";
@@ -88,27 +89,36 @@ export function GoalsView() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.toolbar}>
-        <View ref={filterMenuButtonRef} collapsable={false}>
-          <Pressable
-            onPress={handleToggleFilterMenu}
-            accessibilityRole="button"
-            accessibilityLabel={t("goals.filters.statusFilter")}
-            accessibilityState={{ selected: activeFilter != null }}
-            hitSlop={6}
-            style={[
-              styles.iconBtn,
-              activeFilter != null && styles.iconBtnActive,
-            ]}
-          >
-            <Filter
-              size={15}
-              color={activeFilter != null ? tokens.fg1 : tokens.fg3}
-              strokeWidth={1.6}
-            />
-          </Pressable>
-        </View>
-      </View>
+      <SectionLabel
+        top={16}
+        bottom={12}
+        trailing={
+          <View style={styles.headerActions}>
+            <View ref={filterMenuButtonRef} collapsable={false}>
+              <Pressable
+                onPress={handleToggleFilterMenu}
+                accessibilityRole="button"
+                accessibilityLabel={t("goals.filters.statusFilter")}
+                accessibilityState={{ selected: activeFilter != null }}
+                hitSlop={4}
+                style={({ pressed }) => [
+                  styles.iconBtn,
+                  activeFilter != null && styles.iconBtnActive,
+                  pressed && styles.iconBtnPressed,
+                ]}
+              >
+                <Filter
+                  size={18}
+                  color={activeFilter != null ? tokens.fg1 : tokens.fg3}
+                  strokeWidth={1.8}
+                />
+              </Pressable>
+            </View>
+          </View>
+        }
+      >
+        {t("goals.tab")}
+      </SectionLabel>
 
       {!isFetched ? (
         <View style={styles.skeletonContainer}>
@@ -120,16 +130,8 @@ export function GoalsView() {
         <GoalList goals={filteredGoals} />
       ) : (
         <EmptyState
-          icon={Flag}
           title={t("goals.empty")}
           description={t("goals.emptyHint")}
-          style={{
-            marginHorizontal: 20,
-            borderRadius: 12,
-            backgroundColor: tokens.bgSunk,
-            borderWidth: StyleSheet.hairlineWidth,
-            borderColor: tokens.hairline,
-          }}
         />
       )}
 
@@ -163,10 +165,8 @@ export function GoalsView() {
               <Text
                 style={[
                   styles.menuLabel,
-                  {
-                    color: active ? tokens.fg1 : tokens.fg2,
-                    fontWeight: active ? "600" : "500",
-                  },
+                  active ? styles.menuLabelActive : null,
+                  { color: active ? tokens.fg1 : tokens.fg2 },
                 ]}
               >
                 {filter.label}
@@ -182,25 +182,28 @@ export function GoalsView() {
 function createStyles(tokens: AppTokens) {
   return StyleSheet.create({
     container: {
-      paddingTop: 8,
+      paddingTop: 0,
     },
-    toolbar: {
+    headerActions: {
       flexDirection: "row",
-      justifyContent: "flex-end",
-      paddingHorizontal: 20,
-      paddingBottom: 12,
+      alignItems: "center",
+      gap: 8,
     },
     iconBtn: {
-      width: 28,
-      height: 28,
-      borderRadius: 8,
+      width: 40,
+      height: 40,
+      borderRadius: 999,
       alignItems: "center",
       justifyContent: "center",
     },
     iconBtnActive: {
       backgroundColor: tokens.bgElev,
-      borderWidth: 1,
+      borderWidth: 1.5,
       borderColor: tokens.hairlineStrong,
+    },
+    iconBtnPressed: {
+      backgroundColor: tokens.bgElev,
+      transform: [{ scale: 0.92 }],
     },
     menuItem: {
       flexDirection: "row",
@@ -216,18 +219,21 @@ function createStyles(tokens: AppTokens) {
       justifyContent: "center",
     },
     menuLabel: {
-      fontFamily: "Geist",
+      fontFamily: 'Rubik_500Medium',
       fontSize: 13,
       flex: 1,
+    },
+    menuLabelActive: {
+      fontFamily: 'Rubik_600SemiBold',
     },
     skeletonContainer: {
       gap: 12,
       paddingHorizontal: 20,
     },
     skeletonCard: {
-      backgroundColor: tokens.bgSunk,
-      borderRadius: 12,
-      borderWidth: StyleSheet.hairlineWidth,
+      backgroundColor: tokens.bgCard,
+      borderRadius: 18,
+      borderWidth: 1,
       borderColor: tokens.hairline,
       padding: 20,
       gap: 10,

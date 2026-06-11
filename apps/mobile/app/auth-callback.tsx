@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { View, Text, ActivityIndicator, StyleSheet, TouchableOpacity } from 'react-native'
+import { View, Text, ActivityIndicator, StyleSheet } from 'react-native'
+import { TriangleAlert } from 'lucide-react-native'
 import * as Linking from 'expo-linking'
 import { useLocalSearchParams, useRouter, type Href } from 'expo-router'
 import { useTranslation } from 'react-i18next'
@@ -27,6 +28,8 @@ import { completeGoogleAuthFromUrl } from '@/lib/google-auth'
 import { useAuthStore } from '@/stores/auth-store'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
+import { GradientTop } from '@/components/ui/gradient-top'
+import { PillButton } from '@/components/ui/pill-button'
 
 type AppTokens = ReturnType<typeof createTokensV2>
 
@@ -171,23 +174,21 @@ export default function AuthCallbackScreen() {
 
   return (
     <View style={styles.container}>
+      <GradientTop height={320} />
       {errorState ? (
         <>
-          <View style={styles.errorCard}>
-            <Text style={styles.errorText}>{errorState.message}</Text>
-            {errorState.requestId ? (
-              <Text style={styles.errorReferenceText}>
-                {t('auth.errorReference', { requestId: errorState.requestId })}
-              </Text>
-            ) : null}
+          <View style={styles.errorWell}>
+            <TriangleAlert size={34} color={tokens.fg3} strokeWidth={1.8} />
           </View>
-          <TouchableOpacity
-            style={styles.backButton}
-            activeOpacity={0.8}
-            onPress={() => router.replace('/login' as Href)}
-          >
-            <Text style={styles.backButtonText}>{t('auth.backToLogin')}</Text>
-          </TouchableOpacity>
+          <Text style={styles.errorTitle}>{errorState.message}</Text>
+          {errorState.requestId ? (
+            <Text style={styles.errorMeta}>
+              {t('auth.errorReference', { requestId: errorState.requestId })}
+            </Text>
+          ) : null}
+          <PillButton onPress={() => router.replace('/login' as Href)}>
+            {t('auth.backToLogin')}
+          </PillButton>
         </>
       ) : (
         <>
@@ -207,44 +208,38 @@ function createStyles(tokens: AppTokens) {
       justifyContent: 'center',
       alignItems: 'center',
       paddingHorizontal: 24,
-      gap: 16,
+      gap: 20,
     },
     text: {
-      color: tokens.fg2,
-      fontSize: 16,
-    },
-    errorCard: {
-      width: '100%',
-      maxWidth: 360,
-      borderRadius: 20,
-      backgroundColor: tokens.bgElev,
-      borderWidth: 1,
-      borderColor: tokens.hairlineStrong,
-      paddingHorizontal: 16,
-      paddingVertical: 14,
-    },
-    errorText: {
-      color: tokens.statusBad,
-      fontSize: 14,
-      textAlign: 'center',
-      lineHeight: 20,
-    },
-    errorReferenceText: {
-      color: tokens.statusBad,
+      fontFamily: 'Roboto_400Regular',
       fontSize: 12,
+      letterSpacing: 0.24,
+      color: tokens.fg3,
+    },
+    errorWell: {
+      width: 80,
+      height: 80,
+      borderRadius: 999,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: tokens.bgField,
+      borderWidth: 1,
+      borderColor: tokens.hairline,
+    },
+    errorTitle: {
+      fontFamily: 'Rubik_500Medium',
+      fontSize: 22,
+      lineHeight: 29,
+      color: tokens.fg1,
       textAlign: 'center',
-      lineHeight: 18,
-      marginTop: 8,
-      opacity: 0.9,
+      maxWidth: 320,
     },
-    backButton: {
-      paddingVertical: 8,
-      paddingHorizontal: 12,
-    },
-    backButtonText: {
-      color: tokens.primary,
-      fontSize: 14,
-      fontWeight: '700',
+    errorMeta: {
+      fontFamily: 'Roboto_400Regular',
+      fontSize: 12,
+      color: tokens.fg3,
+      textAlign: 'center',
+      fontVariant: ['tabular-nums'],
     },
   })
 }

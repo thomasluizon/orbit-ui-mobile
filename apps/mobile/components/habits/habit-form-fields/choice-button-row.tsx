@@ -2,7 +2,7 @@ import { type ReactNode } from "react";
 import {
   View,
   Text,
-  TouchableOpacity,
+  Pressable,
   type StyleProp,
   type TextStyle,
   type ViewStyle,
@@ -35,18 +35,21 @@ export function ChoiceButtonRow({
   return (
     <View style={containerStyle}>
       {options.map((option) => (
-        <TouchableOpacity
+        <Pressable
           key={option.key}
-          style={[buttonStyle, option.active && activeButtonStyle]}
+          style={({ pressed }) => [
+            buttonStyle,
+            option.active && activeButtonStyle,
+            pressed ? { transform: [{ scale: 0.96 }] } : null,
+          ]}
           onPress={option.onPress}
-          activeOpacity={0.7}
           accessibilityRole="button"
           accessibilityState={{ selected: option.active }}
         >
           <Text style={[textStyle, option.active && activeTextStyle]}>
             {option.label}
           </Text>
-        </TouchableOpacity>
+        </Pressable>
       ))}
     </View>
   );

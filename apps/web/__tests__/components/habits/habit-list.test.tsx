@@ -509,11 +509,12 @@ describe('HabitList', () => {
     expect(screen.getByTestId('habit-card-great-grandchild')).toBeDefined()
   })
 
-  it('renders the create button in all view empty state', () => {
+  it('renders the ask-astra and create-manually actions in all view empty state', () => {
     renderWithProviders(
       <HabitList filters={defaultFilters} view="all" />,
     )
-    expect(screen.getByText('habits.createHabit')).toBeDefined()
+    expect(screen.getByText('habits.askAstra')).toBeDefined()
+    expect(screen.getByText('habits.createManually')).toBeDefined()
   })
 
   it('passes selected date to habit cards', () => {

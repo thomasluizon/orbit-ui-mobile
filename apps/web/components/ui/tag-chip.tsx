@@ -19,7 +19,7 @@ export function TagChip({ tag, active, onClick }: Readonly<TagChipProps>) {
         <span
           aria-hidden="true"
           className="inline-block rounded-full shrink-0"
-          style={{ width: 6, height: 6, background: tag.color }}
+          style={{ width: 8, height: 8, background: tag.color }}
         />
       }
     >

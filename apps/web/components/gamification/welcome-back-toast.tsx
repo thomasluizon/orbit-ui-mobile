@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslations } from 'next-intl'
+import { Gift } from 'lucide-react'
 import { useIsClient } from '@/hooks/use-is-client'
 import { useProfile } from '@/hooks/use-profile'
 
@@ -88,11 +89,10 @@ export function WelcomeBackToast() {
         maxWidth: 380,
         width: 'calc(100% - 32px)',
         padding: '14px 16px',
-        background: 'var(--bg-elev)',
-        borderRadius: 10,
-        boxShadow:
-          '0 8px 24px rgba(0,0,0,0.30), inset 0 0 0 1px var(--hairline)',
-        transition: 'opacity 400ms ease-out, transform 400ms ease-out',
+        background: 'var(--bg-sheet)',
+        borderRadius: 18,
+        boxShadow: '0 14px 36px rgba(0, 0, 0, 0.5), inset 0 0 0 1px var(--hairline)',
+        transition: 'opacity 400ms var(--ease-out), transform 400ms var(--ease-out)',
         opacity: isVisible ? 1 : 0,
         transform: isVisible
           ? 'translate(-50%, 0) scale(1)'
@@ -101,15 +101,31 @@ export function WelcomeBackToast() {
       }}
       onClick={dismiss}
     >
-      <div className="flex items-center" style={{ gap: 14 }}>
-        <div className="flex-1 flex flex-col" style={{ gap: 4 }}>
+      <div className="flex items-center" style={{ gap: 12 }}>
+        <span
+          aria-hidden="true"
+          className="flex items-center justify-center rounded-full shrink-0"
+          style={{
+            width: 32,
+            height: 32,
+            background: 'rgba(var(--primary-rgb), 0.16)',
+            fontSize: 16,
+          }}
+        >
+          {variant === 'welcome' ? (
+            '🔥'
+          ) : (
+            <Gift size={17} strokeWidth={2.2} color="var(--primary-soft)" />
+          )}
+        </span>
+        <div className="flex-1 flex flex-col" style={{ gap: 3 }}>
           <span
             style={{
-              fontFamily: 'var(--font-family-sans)',
-              fontSize: 10,
-              fontWeight: 600,
+              fontFamily: 'var(--font-sans)',
+              fontSize: 11,
+              fontWeight: 500,
               color: 'var(--fg-3)',
-              letterSpacing: '0.12em',
+              letterSpacing: '0.08em',
               textTransform: 'uppercase',
             }}
           >
@@ -117,9 +133,8 @@ export function WelcomeBackToast() {
           </span>
           <span
             style={{
-              fontFamily: 'var(--font-family-sans)',
+              fontFamily: 'var(--font-sans)',
               fontSize: 14,
-              fontStyle: 'italic',
               color: 'var(--fg-2)',
               lineHeight: 1.5,
             }}
@@ -127,16 +142,6 @@ export function WelcomeBackToast() {
             {message}
           </span>
         </div>
-        <svg width={24} height={24} aria-hidden="true" style={{ flexShrink: 0 }}>
-          <circle
-            cx={12}
-            cy={12}
-            r={10.5}
-            fill="none"
-            stroke="var(--primary)"
-            strokeWidth={1}
-          />
-        </svg>
       </div>
     </button>,
     document.body,

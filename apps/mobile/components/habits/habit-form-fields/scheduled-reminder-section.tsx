@@ -1,10 +1,11 @@
 import { useState, useMemo } from "react";
-import { View, Text, TouchableOpacity, Switch } from "react-native";
+import { View, Text, TouchableOpacity } from "react-native";
 import { X, Plus, Bell } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import type { ScheduledReminderWhen } from "@orbit/shared/types/habit";
 import { formatLocaleTime } from "@orbit/shared/utils";
 import { AppTimePicker } from "@/components/ui/app-time-picker";
+import { Switch } from "@/components/ui/settings-row";
 import { type AppTokens, createSectionStyles } from "./styles";
 
 interface ScheduledReminderSectionProps {
@@ -82,16 +83,15 @@ export function ScheduledReminderSection({
     <View style={sectionStyles.container}>
       <View style={sectionStyles.headerRow}>
         <View style={sectionStyles.headerLeft}>
-          <Bell size={16} color={tokens.primary} />
+          <Bell size={20} color={tokens.fg2} strokeWidth={1.8} />
           <Text style={sectionStyles.headerLabel}>
             {t("habits.form.scheduledReminder")}
           </Text>
         </View>
         <Switch
-          value={reminderEnabled}
-          onValueChange={onToggleReminder}
-          trackColor={{ false: tokens.bgElev, true: tokens.primary }}
-          thumbColor={tokens.fgOnPrimary}
+          on={reminderEnabled}
+          onToggle={onToggleReminder}
+          accessibilityLabel={t("habits.form.scheduledReminder")}
         />
       </View>
       {reminderEnabled && (
@@ -107,7 +107,7 @@ export function ScheduledReminderSection({
                     onPress={() => removeScheduledReminder(idx)}
                     activeOpacity={0.7}
                   >
-                    <X size={12} color={tokens.primary} />
+                    <X size={13} color={tokens.primary} strokeWidth={2.2} />
                   </TouchableOpacity>
                 </View>
               ))}
@@ -120,7 +120,7 @@ export function ScheduledReminderSection({
               onPress={() => setShowForm(true)}
               activeOpacity={0.7}
             >
-              <Plus size={14} color={tokens.primary} />
+              <Plus size={14} color={tokens.fg2} strokeWidth={2} />
               <Text style={sectionStyles.addButtonText}>
                 {t("habits.form.scheduledReminderAdd")}
               </Text>
@@ -206,7 +206,7 @@ export function ScheduledReminderSection({
                   }}
                   activeOpacity={0.7}
                 >
-                  <X size={14} color={tokens.fg3} />
+                  <X size={16} color={tokens.fg3} strokeWidth={1.8} />
                 </TouchableOpacity>
               </View>
             </View>

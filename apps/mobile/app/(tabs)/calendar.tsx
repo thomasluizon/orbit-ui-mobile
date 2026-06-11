@@ -9,6 +9,12 @@ import {
   ScrollView,
   Switch,
 } from "react-native";
+import Animated, {
+  FadeInDown,
+  FadeInLeft,
+  FadeInRight,
+  ReduceMotion,
+} from "react-native-reanimated";
 import { useTranslation } from "react-i18next";
 import { useRouter } from "expo-router";
 import {
@@ -32,11 +38,11 @@ import { useCalendarData } from "@/hooks/use-habits";
 import { useProfile } from "@/hooks/use-profile";
 import { useTimeFormat } from "@/hooks/use-time-format";
 import { useHorizontalSwipe } from "@/hooks/use-horizontal-swipe";
-import { BottomSheetModal } from "@/components/bottom-sheet-modal";
 import { createTokensV2 } from "@/lib/theme";
 import { useAppTheme } from "@/lib/use-app-theme";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { withDrawerContentInset } from "@/components/ui/drawer-content-inset";
+import { GradientTop } from "@/components/ui/gradient-top";
+import { PillButton } from "@/components/ui/pill-button";
 import { SectionLabel } from "@/components/ui/section-label";
 import { SettingsRow } from "@/components/ui/settings-row";
 import type { StatusDotState } from "@/components/ui/status-dot";
@@ -60,6 +66,7 @@ interface GridDay {
 
 type Tokens = ReturnType<typeof createTokensV2>;
 type DayStatus = "empty" | "full" | "partial" | "missed";
+type MonthSlide = "left" | "right" | null;
 
 function dayStatus(cell: GridDay): DayStatus {
   if (!cell.isCurrentMonth || cell.totalCount === 0) return "empty";
@@ -92,6 +99,13 @@ function statusBadge(
   return null;
 }
 
+function statusBadgeColor(entry: CalendarDayEntry, tokens: Tokens): string {
+  if (entry.isBadHabit) {
+    return entry.status === "completed" ? tokens.statusBad : tokens.statusDone;
+  }
+  return entry.status === "completed" ? tokens.statusDone : tokens.statusOverdue;
+}
+
 export default function CalendarScreen() {
   const { t, i18n } = useTranslation();
   const router = useRouter();
@@ -120,8 +134,10 @@ export default function CalendarScreen() {
   const [currentMonth, setCurrentMonth] = useState(() =>
     startOfMonth(new Date()),
   );
-  const [selectedDay, setSelectedDay] = useState<string | null>(null);
-  const [showDayDetail, setShowDayDetail] = useState(false);
+  const [monthSlide, setMonthSlide] = useState<MonthSlide>(null);
+  const [selectedDay, setSelectedDay] = useState<string | null>(() =>
+    formatAPIDate(new Date()),
+  );
   const [showRecurring, setShowRecurring] = useState(true);
 
   const { dayMap, isLoading } = useCalendarData(currentMonth);
@@ -135,10 +151,12 @@ export default function CalendarScreen() {
   );
 
   const prevMonth = useCallback(() => {
+    setMonthSlide("left");
     setCurrentMonth((m) => subMonths(m, 1));
   }, []);
 
   const nextMonth = useCallback(() => {
+    setMonthSlide("right");
     setCurrentMonth((m) => addMonths(m, 1));
   }, []);
 
@@ -149,7 +167,6 @@ export default function CalendarScreen() {
 
   const onSelectDay = useCallback((dateStr: string) => {
     setSelectedDay(dateStr);
-    setShowDayDetail(true);
   }, []);
 
   const weekdayHeaders = useMemo(() => {
@@ -242,7 +259,6 @@ export default function CalendarScreen() {
 
   const goToSelectedDay = () => {
     if (!selectedDay) return;
-    setShowDayDetail(false);
     router.push(`/?date=${selectedDay}`);
   };
 
@@ -271,10 +287,17 @@ export default function CalendarScreen() {
     return { totalLogs, missed, bestStreak };
   }, [gridDays]);
 
+  const monthEntering =
+    monthSlide === "right"
+      ? FadeInRight.duration(220).reduceMotion(ReduceMotion.System)
+      : monthSlide === "left"
+        ? FadeInLeft.duration(220).reduceMotion(ReduceMotion.System)
+        : undefined;
+
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: tokens.bg }]}>
+      <GradientTop height={180} />
       <CalendarHeader
-        title={t("nav.calendar")}
         monthLabel={monthLabel}
         subtitle={monthSummary}
         previousMonthLabel={t("common.previousMonth")}
@@ -296,61 +319,75 @@ export default function CalendarScreen() {
           style={styles.calendarGrid}
           {...swipePanResponder.panHandlers}
         >
-          <View style={styles.weekDayRow}>
-            {weekdayHeaders.map((d) => (
-              <View key={d.key} style={styles.weekDayCell}>
-                <Text style={[styles.weekDayText, { color: tokens.fg3 }]}>
-                  {d.label}
-                </Text>
-              </View>
-            ))}
-          </View>
+          <Animated.View
+            key={format(currentMonth, "yyyy-MM")}
+            entering={monthEntering}
+            style={styles.gridCard}
+          >
+            <View style={styles.weekDayRow}>
+              {weekdayHeaders.map((d) => (
+                <View key={d.key} style={styles.weekDayCell}>
+                  <Text style={[styles.weekDayText, { color: tokens.fg4 }]}>
+                    {d.label}
+                  </Text>
+                </View>
+              ))}
+            </View>
 
-          <View style={styles.daysGrid}>
-            {gridDays.map((cell) => {
-              const status = dayStatus(cell);
-              const canSelect = cell.isCurrentMonth;
+            <View style={styles.daysGrid}>
+              {gridDays.map((cell) => {
+                const status = dayStatus(cell);
+                const canSelect = cell.isCurrentMonth;
+                const selected = canSelect && cell.dateStr === selectedDay;
 
-              return (
-                <Pressable
-                  key={cell.dateStr}
-                  ref={cell.isToday ? calendarDayRef : undefined}
-                  onPress={() => canSelect && onSelectDay(cell.dateStr)}
-                  disabled={!canSelect}
-                  hitSlop={4}
-                  style={({ pressed }) => [
-                    styles.dayCell,
-                    pressed && canSelect && {
-                      backgroundColor: tokens.bgElev,
-                      borderRadius: 6,
-                    },
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.dayText,
-                      {
-                        color:
-                          status === "empty" && !cell.isToday
-                            ? tokens.fg3
-                            : cell.isCurrentMonth
-                              ? tokens.fg1
-                              : tokens.fg4,
-                        fontWeight: cell.isToday ? "600" : "400",
-                      },
+                return (
+                  <Pressable
+                    key={cell.dateStr}
+                    ref={cell.isToday ? calendarDayRef : undefined}
+                    onPress={() => canSelect && onSelectDay(cell.dateStr)}
+                    disabled={!canSelect}
+                    hitSlop={4}
+                    style={({ pressed }) => [
+                      styles.dayCell,
+                      pressed && canSelect && styles.dayCellPressed,
                     ]}
                   >
-                    {cell.day}
-                  </Text>
-                  {isLoading ? (
-                    <View style={styles.dayDotSkeleton} />
-                  ) : (
-                    <DayDot status={status} isToday={cell.isToday} tokens={tokens} />
-                  )}
-                </Pressable>
-              );
-            })}
-          </View>
+                    <View
+                      style={[
+                        styles.dayNumPill,
+                        cell.isToday && !selected && {
+                          borderWidth: 1.5,
+                          borderColor: tokens.primary,
+                        },
+                        selected && { backgroundColor: tokens.selectionBg },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          cell.isToday ? styles.dayTextToday : styles.dayText,
+                          {
+                            color:
+                              selected || cell.isToday
+                                ? tokens.fg1
+                                : cell.isCurrentMonth
+                                  ? tokens.fg2
+                                  : tokens.fg4,
+                          },
+                        ]}
+                      >
+                        {cell.day}
+                      </Text>
+                    </View>
+                    {isLoading ? (
+                      <View style={styles.dayDotSkeleton} />
+                    ) : (
+                      <DayDot status={status} tokens={tokens} />
+                    )}
+                  </Pressable>
+                );
+              })}
+            </View>
+          </Animated.View>
         </View>
 
         <CalendarLegend
@@ -360,6 +397,97 @@ export default function CalendarScreen() {
           missedLabel={t("calendar.legend.missed")}
           tokens={tokens}
         />
+
+        {selectedDay ? (
+          <View style={styles.daySection}>
+            <View style={styles.daySectionHeader}>
+              <Text style={styles.daySectionTitle} numberOfLines={1}>
+                {formattedSelectedDate}
+              </Text>
+              {selectedEntries.length > 0 ? (
+                <View style={styles.recurringToggleRow}>
+                  <Switch
+                    value={showRecurring}
+                    onValueChange={setShowRecurring}
+                    trackColor={{
+                      false: tokens.bgSunk,
+                      true: tokens.primary,
+                    }}
+                    thumbColor={tokens.fgOnPrimary}
+                  />
+                  <Text style={[styles.recurringToggleText, { color: tokens.fg2 }]}>
+                    {t("calendar.showRecurring")}
+                  </Text>
+                </View>
+              ) : null}
+            </View>
+
+            {selectedEntries.length === 0 ? (
+              <View style={styles.emptyDayCard}>
+                <Text style={[styles.emptyDayText, { color: tokens.fg3 }]}>
+                  {t("calendar.noHabitsScheduled")}
+                </Text>
+              </View>
+            ) : (
+              <>
+                <Text style={[styles.summaryText, { color: tokens.fg3 }]}>
+                  {plural(
+                    t("calendar.dayDetail.completionSummary", {
+                      done: completedCount,
+                      total: filteredEntries.length,
+                    }),
+                    filteredEntries.length,
+                  )}
+                </Text>
+
+                {filteredEntries.length === 0 ? (
+                  <View style={styles.emptyDayCard}>
+                    <Text style={[styles.emptyDayText, { color: tokens.fg3 }]}>
+                      {t("calendar.noHabitsScheduled")}
+                    </Text>
+                  </View>
+                ) : (
+                  <View style={styles.entriesCard}>
+                    {filteredEntries.map((entry: CalendarDayEntry, idx: number) => {
+                      const badge = statusBadge(entry, t);
+                      return (
+                        <Animated.View
+                          key={`${entry.habitId}-${idx}`}
+                          entering={
+                            idx < 8
+                              ? FadeInDown.duration(220)
+                                  .delay(idx * 30)
+                                  .reduceMotion(ReduceMotion.System)
+                              : undefined
+                          }
+                        >
+                          <CalendarDayEntryRow
+                            entry={entry}
+                            tokens={tokens}
+                            dotState={entryDotState(entry)}
+                            statusText={badge}
+                            statusColor={statusBadgeColor(entry, tokens)}
+                            statusAccessibilityLabel={badge ?? t("calendar.status.upcoming")}
+                            displayTime={displayTime}
+                            isLast={idx === filteredEntries.length - 1}
+                          />
+                        </Animated.View>
+                      );
+                    })}
+                  </View>
+                )}
+              </>
+            )}
+
+            <PillButton
+              variant="ghost"
+              style={styles.goToDayButton}
+              onPress={goToSelectedDay}
+            >
+              {t("calendar.goToDay")}
+            </PillButton>
+          </View>
+        ) : null}
 
         <SectionLabel>{t("calendar.thisMonth")}</SectionLabel>
         <SettingsRow
@@ -383,123 +511,25 @@ export default function CalendarScreen() {
 
         <View style={{ height: 24 }} />
       </ScrollView>
-
-      <BottomSheetModal
-        open={showDayDetail}
-        onClose={() => setShowDayDetail(false)}
-        title={formattedSelectedDate}
-        snapPoints={["45%", "75%"]}
-      >
-        {selectedEntries.length === 0 ? (
-          <View style={styles.emptyDay}>
-            <Text style={[styles.emptyDayText, { color: tokens.fg3 }]}>
-              {t("calendar.noHabitsScheduled")}
-            </Text>
-            <GoToDayButton
-              label={t("calendar.goToDay")}
-              tokens={tokens}
-              styles={styles}
-              onPress={goToSelectedDay}
-            />
-          </View>
-        ) : (
-          <ScrollView
-            style={styles.dayDetailScroll}
-            contentContainerStyle={withDrawerContentInset(styles.dayDetailContent)}
-            showsVerticalScrollIndicator={false}
-          >
-            <View style={styles.summaryRow}>
-              <Text style={[styles.summaryText, { color: tokens.fg3 }]}>
-                {plural(
-                  t("calendar.dayDetail.completionSummary", {
-                    done: completedCount,
-                    total: filteredEntries.length,
-                  }),
-                  filteredEntries.length,
-                )}
-              </Text>
-              <View style={styles.recurringToggleRow}>
-                <Switch
-                  value={showRecurring}
-                  onValueChange={setShowRecurring}
-                  trackColor={{
-                    false: tokens.bgSunk,
-                    true: tokens.primary,
-                  }}
-                  thumbColor={tokens.fgOnPrimary}
-                />
-                <Text style={[styles.recurringToggleText, { color: tokens.fg2 }]}>
-                  {t("calendar.showRecurring")}
-                </Text>
-              </View>
-            </View>
-
-            {filteredEntries.length === 0 ? (
-              <View style={styles.emptyDay}>
-                <Text style={[styles.emptyDayText, { color: tokens.fg3 }]}>
-                  {t("calendar.noHabitsScheduled")}
-                </Text>
-              </View>
-            ) : null}
-
-            {filteredEntries.map((entry: CalendarDayEntry, idx: number) => {
-              const badge = statusBadge(entry, t);
-              return (
-                <CalendarDayEntryRow
-                  key={`${entry.habitId}-${idx}`}
-                  entry={entry}
-                  tokens={tokens}
-                  dotState={entryDotState(entry)}
-                  statusText={badge}
-                  statusAccessibilityLabel={badge ?? t("calendar.status.upcoming")}
-                  displayTime={displayTime}
-                  isLast={idx === filteredEntries.length - 1}
-                />
-              );
-            })}
-
-            <GoToDayButton
-              label={t("calendar.goToDay")}
-              tokens={tokens}
-              styles={styles}
-              onPress={goToSelectedDay}
-            />
-          </ScrollView>
-        )}
-      </BottomSheetModal>
     </SafeAreaView>
   );
 }
 
 function DayDot({
   status,
-  isToday,
   tokens,
 }: Readonly<{
   status: DayStatus;
-  isToday: boolean;
   tokens: Tokens;
 }>) {
-  if (isToday) {
-    return (
-      <View
-        style={{
-          width: 5,
-          height: 5,
-          borderRadius: 999,
-          backgroundColor: tokens.primary,
-        }}
-      />
-    );
-  }
   if (status === "full") {
     return (
       <View
         style={{
-          width: 5,
-          height: 5,
+          width: 6,
+          height: 6,
           borderRadius: 999,
-          backgroundColor: tokens.fg1,
+          backgroundColor: tokens.primary,
         }}
       />
     );
@@ -508,8 +538,8 @@ function DayDot({
     return (
       <View
         style={{
-          width: 5,
-          height: 5,
+          width: 6,
+          height: 6,
           borderRadius: 999,
           backgroundColor: tokens.statusOverdue,
         }}
@@ -520,46 +550,16 @@ function DayDot({
     return (
       <View
         style={{
-          width: 5,
-          height: 5,
+          width: 6,
+          height: 6,
           borderRadius: 999,
-          borderWidth: 1,
-          borderColor: tokens.fg3,
+          borderWidth: 1.5,
+          borderColor: tokens.fg4,
         }}
       />
     );
   }
-  return <View style={{ width: 5, height: 5 }} />;
-}
-
-function GoToDayButton({
-  label,
-  tokens,
-  styles,
-  onPress,
-}: Readonly<{
-  label: string;
-  tokens: Tokens;
-  styles: ReturnType<typeof createStyles>;
-  onPress: () => void;
-}>) {
-  return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => [
-        styles.goToDayButton,
-        {
-          backgroundColor: pressed ? tokens.primaryPressed : tokens.primary,
-        },
-      ]}
-      accessibilityRole="button"
-      accessibilityLabel={label}
-    >
-      <Text style={[styles.goToDayButtonText, { color: tokens.fgOnPrimary }]}>
-        {label}
-      </Text>
-    </Pressable>
-  );
+  return <View style={{ width: 6, height: 6 }} />;
 }
 
 function createStyles(tokens: Tokens) {
@@ -569,8 +569,16 @@ function createStyles(tokens: Tokens) {
 
     calendarGrid: {
       paddingHorizontal: 20,
-      paddingTop: 16,
-      paddingBottom: 8,
+      paddingTop: 20,
+      paddingBottom: 10,
+    },
+    gridCard: {
+      borderRadius: 18,
+      paddingVertical: 18,
+      paddingHorizontal: 14,
+      backgroundColor: tokens.bgCard,
+      borderWidth: 1,
+      borderColor: tokens.hairline,
     },
 
     weekDayRow: {
@@ -582,90 +590,117 @@ function createStyles(tokens: Tokens) {
       alignItems: "center",
     },
     weekDayText: {
-      fontFamily: "GeistMono",
+      fontFamily: 'Roboto_500Medium',
       fontSize: 11,
-      fontWeight: "500",
       letterSpacing: 0.44,
+      textTransform: "uppercase",
+      fontVariant: ["tabular-nums"],
     },
 
     daysGrid: {
       flexDirection: "row",
       flexWrap: "wrap",
-      rowGap: 6,
+      rowGap: 8,
     },
     dayCell: {
       width: "14.2857%",
-      height: 40,
+      height: 44,
       alignItems: "center",
       justifyContent: "center",
-      gap: 3,
+      gap: 4,
+      borderRadius: 999,
+    },
+    dayCellPressed: {
+      backgroundColor: tokens.bgElev,
+      transform: [{ scale: 0.92 }],
+    },
+    dayNumPill: {
+      width: 28,
+      height: 28,
+      borderRadius: 999,
+      alignItems: "center",
+      justifyContent: "center",
     },
     dayText: {
-      fontFamily: "GeistMono",
-      fontSize: 13,
+      fontFamily: 'Roboto_500Medium',
+      fontSize: 14,
+      fontVariant: ["tabular-nums"],
+    },
+    dayTextToday: {
+      fontFamily: 'Roboto_700Bold',
+      fontSize: 14,
       fontVariant: ["tabular-nums"],
     },
     dayDotSkeleton: {
-      width: 5,
-      height: 5,
+      width: 6,
+      height: 6,
       borderRadius: 999,
       backgroundColor: tokens.hairline,
       opacity: 0.5,
     },
 
-    emptyDay: {
-      alignItems: "center",
-      justifyContent: "center",
-      paddingVertical: 32,
+    daySection: {
       paddingHorizontal: 20,
-    },
-    emptyDayText: {
-      fontFamily: "Geist",
-      fontSize: 14,
-      fontStyle: "italic",
-      textAlign: "center",
-    },
-
-    dayDetailScroll: { flex: 1 },
-    dayDetailContent: {
-      paddingBottom: 32,
-    },
-
-    summaryText: {
-      fontFamily: "Geist",
-      fontSize: 14,
-      flex: 1,
-    },
-    summaryRow: {
-      flexDirection: "row",
-      alignItems: "center",
+      paddingTop: 12,
+      paddingBottom: 12,
       gap: 12,
-      paddingHorizontal: 20,
-      paddingVertical: 12,
-      borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: tokens.hairline,
+    },
+    daySectionHeader: {
+      flexDirection: "row",
+      alignItems: "flex-end",
+      justifyContent: "space-between",
+      gap: 12,
+    },
+    daySectionTitle: {
+      flex: 1,
+      minWidth: 0,
+      fontFamily: 'Rubik_500Medium',
+      fontSize: 20,
+      color: tokens.fg1,
+      textTransform: "capitalize",
     },
     recurringToggleRow: {
       flexDirection: "row",
       alignItems: "center",
       gap: 8,
+      flexShrink: 0,
     },
     recurringToggleText: {
-      fontFamily: "Geist",
+      fontFamily: 'Rubik_400Regular',
       fontSize: 12,
+    },
+    summaryText: {
+      fontFamily: 'Rubik_400Regular',
+      fontSize: 14,
+    },
+
+    emptyDayCard: {
+      alignItems: "center",
+      justifyContent: "center",
+      paddingVertical: 24,
+      paddingHorizontal: 18,
+      borderRadius: 18,
+      backgroundColor: tokens.bgCard,
+      borderWidth: 1,
+      borderColor: tokens.hairline,
+    },
+    emptyDayText: {
+      fontFamily: 'Rubik_400Regular',
+      fontSize: 14,
+      textAlign: "center",
+    },
+
+    entriesCard: {
+      borderRadius: 18,
+      backgroundColor: tokens.bgCard,
+      borderWidth: 1,
+      borderColor: tokens.hairline,
+      overflow: "hidden",
     },
 
     goToDayButton: {
-      marginHorizontal: 20,
-      marginTop: 16,
-      borderRadius: 8,
-      paddingVertical: 12,
-      alignItems: "center",
-    },
-    goToDayButtonText: {
-      fontFamily: "Geist",
-      fontSize: 14,
-      fontWeight: "500",
+      marginTop: 6,
+      alignSelf: "stretch",
     },
   });
 }

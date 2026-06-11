@@ -10,8 +10,8 @@ interface ReviewReminderCardProps {
 }
 
 /**
- * v8 review reminder edge banner: hairline-divided strip with quiet text
- * and Rate / Later links on the right.
+ * Review reminder card: quiet bg-card strip with the prompt text and
+ * Rate / Later actions on the right.
  */
 export function ReviewReminderCard({
   onRate,
@@ -26,13 +26,23 @@ export function ReviewReminderCard({
   const styles = useMemo(() => createStyles(tokens), [tokens])
 
   return (
-    <View style={styles.banner}>
+    <View style={styles.card}>
       <Text style={styles.text}>{t('reviewPrompt.title')}</Text>
       <View style={styles.actions}>
-        <Pressable onPress={onRate} hitSlop={6}>
+        <Pressable
+          onPress={onRate}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel={t('reviewPrompt.cta')}
+        >
           <Text style={styles.rateText}>{t('reviewPrompt.cta')}</Text>
         </Pressable>
-        <Pressable onPress={onDismiss} hitSlop={6}>
+        <Pressable
+          onPress={onDismiss}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel={t('common.later')}
+        >
           <Text style={styles.laterText}>{t('common.later')}</Text>
         </Pressable>
       </View>
@@ -42,40 +52,43 @@ export function ReviewReminderCard({
 
 function createStyles(tokens: AppTokensV2) {
   return StyleSheet.create({
-    banner: {
+    card: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      borderTopWidth: 1,
-      borderBottomWidth: 1,
-      borderColor: tokens.hairline,
-      paddingHorizontal: 14,
-      paddingVertical: 8,
       gap: 12,
+      marginHorizontal: 20,
       marginBottom: 16,
+      borderRadius: 16,
+      borderWidth: 1,
+      borderColor: tokens.hairline,
+      backgroundColor: tokens.bgCard,
+      paddingHorizontal: 16,
+      paddingVertical: 10,
     },
     text: {
       flex: 1,
-      fontFamily: 'Geist',
-      fontSize: 13,
+      fontFamily: 'Rubik_400Regular',
+      fontSize: 14,
+      lineHeight: 19,
       color: tokens.fg1,
     },
     actions: {
       flexDirection: 'row',
+      alignItems: 'center',
       gap: 14,
     },
     rateText: {
-      fontFamily: 'Geist',
-      fontSize: 13,
-      color: tokens.fg1,
-      textDecorationLine: 'underline',
-      paddingVertical: 4,
+      fontFamily: 'Rubik_500Medium',
+      fontSize: 14,
+      color: tokens.primary,
+      paddingVertical: 8,
     },
     laterText: {
-      fontFamily: 'Geist',
-      fontSize: 13,
+      fontFamily: 'Rubik_400Regular',
+      fontSize: 14,
       color: tokens.fg3,
-      paddingVertical: 4,
+      paddingVertical: 8,
     },
   })
 }

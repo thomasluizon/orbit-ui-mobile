@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useState } from 'react'
-import { X } from 'lucide-react'
+import { Plus, X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import type { ChecklistItem } from '@orbit/shared/types/habit'
 import { applyChecklistTemplate } from '@orbit/shared/utils'
@@ -69,29 +69,39 @@ export function ChecklistTemplates({ items, onLoad }: Readonly<ChecklistTemplate
         {items.length > 0 && !showSave && (
           <button
             type="button"
-            className="text-xs font-semibold text-[var(--primary)] hover:text-[var(--primary-pressed)] transition-colors"
+            className="chip"
             onClick={() => setShowSave(true)}
           >
+            <Plus size={14} strokeWidth={2} aria-hidden="true" />
             {t('habits.form.saveAsTemplate')}
           </button>
         )}
         {templates.length > 0 && (
           <>
             {items.length > 0 && !showSave && (
-              <span className="text-[var(--fg-3)] text-xs">|</span>
+              <span aria-hidden="true" className="self-stretch w-px bg-[var(--hairline)]" />
             )}
-            <div className="flex items-center gap-1.5 flex-wrap min-w-0">
-              <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--fg-3)]">
+            <div className="flex items-center gap-2 flex-wrap min-w-0">
+              <span
+                className="uppercase text-[var(--fg-3)]"
+                style={{
+                  fontFamily: 'var(--font-sans)',
+                  fontSize: 12,
+                  fontWeight: 500,
+                  letterSpacing: '0.08em',
+                }}
+              >
                 {t('habits.form.templates')}:
               </span>
               {templates.map((tmpl) => (
                 <span
                   key={tmpl.id}
-                  className="inline-flex items-center gap-1 rounded-lg text-xs bg-[var(--bg-elev)] border border-[var(--hairline)]"
+                  className="inline-flex items-center rounded-full bg-[var(--bg-elev)] shadow-[inset_0_0_0_1px_var(--hairline)] transition-[background-color] duration-[var(--dur-fast)] hover:bg-[var(--bg-elev-2)]"
+                  style={{ fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 500 }}
                 >
                   <button
                     type="button"
-                    className="px-2 py-0.5 text-[var(--fg-2)] hover:text-[var(--fg-1)] transition-colors duration-150"
+                    className="pl-3.5 pr-1.5 py-2 text-[var(--fg-2)] hover:text-[var(--fg-1)] transition-colors duration-150"
                     onClick={() => handleLoad(tmpl.id)}
                     aria-label={`${t('habits.form.templates')}: ${tmpl.name}`}
                   >
@@ -100,11 +110,11 @@ export function ChecklistTemplates({ items, onLoad }: Readonly<ChecklistTemplate
                   <button
                     type="button"
                     aria-label={`${t('common.delete')}: ${tmpl.name}`}
-                    className="px-1 py-0.5 text-[var(--fg-3)] hover:text-[var(--status-bad)] transition-colors disabled:opacity-50"
+                    className="pl-0.5 pr-3 py-2 text-[var(--fg-3)] hover:text-[var(--status-bad)] transition-colors disabled:opacity-50"
                     onClick={() => handleDelete(tmpl.id)}
                     disabled={deleteTemplate.isPending && deleteTemplate.variables === tmpl.id}
                   >
-                    <X className="size-3" />
+                    <X size={13} strokeWidth={1.8} aria-hidden="true" />
                   </button>
                 </span>
               ))}
@@ -119,7 +129,7 @@ export function ChecklistTemplates({ items, onLoad }: Readonly<ChecklistTemplate
             value={templateName}
             type="text"
             placeholder={t('habits.form.templateNamePlaceholder')}
-            className="flex-1 min-w-0 bg-[var(--bg-elev)] text-[var(--fg-1)] placeholder:text-[var(--fg-3)] rounded-xl py-2 px-3 text-xs border border-[var(--hairline)] focus:outline-none focus:border-[var(--primary)]"
+            className="flex-1 min-w-0 bg-[var(--bg-field)] text-[var(--fg-1)] placeholder:text-[var(--fg-4)] rounded-[12px] py-2.5 px-3.5 text-[13px] border-0 shadow-[inset_0_0_0_1px_var(--hairline)] focus:outline-none focus:shadow-[inset_0_0_0_2px_var(--primary)] transition-[box-shadow] duration-[var(--dur-fast)]"
             onChange={(e) => setTemplateName(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
@@ -130,7 +140,13 @@ export function ChecklistTemplates({ items, onLoad }: Readonly<ChecklistTemplate
           />
           <button
             type="button"
-            className="shrink-0 px-3 py-2 rounded-xl bg-[var(--primary)] text-white text-xs font-bold disabled:opacity-50 hover:bg-[var(--primary-pressed)] transition-[background-color,opacity] duration-150"
+            className="shrink-0 rounded-full bg-[var(--primary)] text-[var(--fg-on-primary)] disabled:opacity-40 hover:bg-[var(--primary-pressed)] transition-[background-color,opacity] duration-150"
+            style={{
+              padding: '9px 14px',
+              fontFamily: 'var(--font-sans)',
+              fontSize: 13,
+              fontWeight: 500,
+            }}
             disabled={!templateName.trim() || createTemplate.isPending}
             onClick={handleSave}
             aria-label={t('common.save')}
@@ -139,11 +155,11 @@ export function ChecklistTemplates({ items, onLoad }: Readonly<ChecklistTemplate
           </button>
           <button
             type="button"
-            className="shrink-0 p-2 text-[var(--fg-3)] hover:text-[var(--fg-1)] transition-colors duration-150"
+            className="shrink-0 grid size-10 place-items-center rounded-full text-[var(--fg-3)] hover:text-[var(--fg-1)] transition-colors duration-150"
             onClick={() => setShowSave(false)}
             aria-label={t('common.close')}
           >
-            <X className="size-3.5" />
+            <X size={16} strokeWidth={1.8} aria-hidden="true" />
           </button>
         </div>
       )}

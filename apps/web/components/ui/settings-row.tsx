@@ -1,49 +1,57 @@
 'use client'
 
-import { ChevronRight } from 'lucide-react'
+import { ChevronRight, type LucideIcon } from 'lucide-react'
 import type { ReactNode } from 'react'
 
-/** Flush-list row: 14px padding, label left, value/accessory right, hairline bottom.
+/** Kit ListRow: flat row — leading icon/dot · title (+ desc) · value · trailing slot · chevron.
  *  Used for Profile nav, settings sub-screens, and stat strips. */
 interface SettingsRowProps {
   label: string
+  /** Secondary line under the label (Rubik 14 fg-3). */
+  desc?: string
   value?: ReactNode
   valueColor?: string
   accessory?: 'chevron' | 'none'
   onClick?: () => void
   mono?: boolean
   leadingDot?: string
+  /** Leading lucide icon, rendered 22/1.8 centered in a 26px slot. */
+  icon?: LucideIcon
+  /** Destructive row: title and icon render in status-bad. */
+  danger?: boolean
   children?: ReactNode
-  href?: string
   ariaLabel?: string
   divider?: boolean
 }
 
 export function SettingsRow({
   label,
+  desc,
   value,
   valueColor,
   accessory = 'chevron',
   onClick,
   mono = false,
   leadingDot,
+  icon: LeadingIcon,
+  danger = false,
   children,
   ariaLabel,
   divider = true,
 }: Readonly<SettingsRowProps>) {
   const interactive = typeof onClick === 'function'
   const RootTag = interactive ? 'button' : 'div'
+  const titleColor = danger ? 'var(--status-bad)' : 'var(--fg-1)'
 
   return (
     <RootTag
       type={interactive ? 'button' : undefined}
       onClick={interactive ? onClick : undefined}
       aria-label={ariaLabel}
-      className={`w-full flex items-center justify-between bg-transparent ${interactive ? 'cursor-pointer transition-colors duration-150 ease-out hover:bg-[var(--bg-elev)]' : ''}`}
+      className={`w-full flex items-center bg-transparent ${interactive ? 'cursor-pointer transition-colors duration-150 ease-out hover:bg-[var(--bg-elev)]' : ''}`}
       style={{
-        padding: '14px 20px',
-        gap: 12,
-        borderBottom: divider ? '1px solid var(--hairline)' : 'none',
+        padding: '16px 20px',
+        gap: 14,
         textAlign: 'left',
         appearance: 'none',
         border: 0,
@@ -52,32 +60,56 @@ export function SettingsRow({
         borderBottomColor: 'var(--hairline)',
       }}
     >
-      <div className="flex items-center min-w-0 flex-1" style={{ gap: 10 }}>
-        {leadingDot && (
-          <span
-            aria-hidden="true"
-            className="rounded-full shrink-0"
-            style={{ width: 8, height: 8, background: leadingDot }}
-          />
-        )}
+      {LeadingIcon && (
         <span
-          className="overflow-hidden whitespace-nowrap text-ellipsis"
+          aria-hidden="true"
+          className="inline-flex justify-center shrink-0"
+          style={{ width: 26 }}
+        >
+          <LeadingIcon size={22} strokeWidth={1.8} color={titleColor} />
+        </span>
+      )}
+      {leadingDot && (
+        <span
+          aria-hidden="true"
+          className="rounded-full shrink-0"
+          style={{ width: 8, height: 8, background: leadingDot }}
+        />
+      )}
+      <span className="flex flex-col min-w-0 flex-1" style={{ gap: 3 }}>
+        <span
+          className="overflow-hidden line-clamp-2"
           style={{
-            fontFamily: 'var(--font-family-sans)',
-            fontSize: 15,
+            fontFamily: 'var(--font-sans)',
+            fontSize: 18,
             fontWeight: 400,
-            color: 'var(--fg-1)',
+            lineHeight: 1.25,
+            color: titleColor,
+            overflowWrap: 'anywhere',
           }}
         >
           {label}
         </span>
-      </div>
-      <div
+        {desc && (
+          <span
+            style={{
+              fontFamily: 'var(--font-sans)',
+              fontSize: 14,
+              fontWeight: 400,
+              lineHeight: 1.35,
+              color: 'var(--fg-3)',
+            }}
+          >
+            {desc}
+          </span>
+        )}
+      </span>
+      <span
         className="flex items-center shrink-0"
         style={{
-          gap: 8,
+          gap: 10,
           color: 'var(--fg-3)',
-          fontFamily: mono ? 'var(--font-family-mono)' : 'var(--font-family-sans)',
+          fontFamily: mono ? 'var(--font-mono)' : 'var(--font-sans)',
           fontSize: mono ? 13 : 14,
           fontVariantNumeric: mono ? 'tabular-nums' : 'normal',
         }}
@@ -95,9 +127,58 @@ export function SettingsRow({
         )}
         {children}
         {accessory === 'chevron' && (
-          <ChevronRight size={16} strokeWidth={1.5} color="var(--fg-4)" />
+          <ChevronRight size={22} strokeWidth={1.8} color="var(--fg-4)" />
         )}
-      </div>
+      </span>
     </RootTag>
+  )
+}
+
+interface SwitchProps {
+  on: boolean
+  onToggle: () => void
+  ariaLabel: string
+  disabled?: boolean
+}
+
+/** Kit Switch: 48×28 pill, 22px thumb; primary track when on, fg-1 alpha track when off. */
+export function Switch({ on, onToggle, ariaLabel, disabled = false }: Readonly<SwitchProps>) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={on}
+      aria-label={ariaLabel}
+      disabled={disabled}
+      onClick={onToggle}
+      className="appearance-none border-0 bg-transparent cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 p-0 shrink-0 inline-flex items-center justify-center"
+      style={{ minHeight: 44 }}
+    >
+      <span
+        className="inline-flex items-center"
+        style={{
+          width: 48,
+          height: 28,
+          borderRadius: 999,
+          padding: 3,
+          background: on
+            ? 'var(--primary)'
+            : 'color-mix(in srgb, var(--fg-1) 16%, transparent)',
+          transition: 'background-color var(--dur-base) var(--ease-standard)',
+        }}
+      >
+        <span
+          style={{
+            width: 22,
+            height: 22,
+            borderRadius: 999,
+            background: 'var(--fg-on-primary)',
+            boxShadow: '0 1px 3px rgba(0,0,0,0.35)',
+            transform: on ? 'translateX(20px)' : 'translateX(0px)',
+            transition: 'transform var(--dur-base) var(--ease-standard)',
+          }}
+        />
+      </span>
+    </button>
   )
 }

@@ -20,6 +20,7 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import type { ChecklistItem } from '@orbit/shared/types/habit'
+import { ProgressBar } from '@/components/ui/progress-bar'
 
 interface HabitChecklistProps {
   items: ChecklistItem[]
@@ -122,35 +123,30 @@ export function HabitChecklist({
   )
 
   return (
-    <div className="space-y-2">
+    <div className="space-y-3">
       {items.length > 0 && !editable && (
         <div className="flex items-center gap-2">
-          <div className="flex-1 relative">
-            <progress
-              className="sr-only"
-              value={items.length > 0 ? Math.round((checkedCount / items.length) * 100) : 0}
-              max={100}
-              aria-label={`${checkedCount}/${items.length}`}
-            />
-            <div
-              className="h-1.5 bg-[var(--bg-elev)] rounded-full overflow-hidden"
-              aria-hidden="true"
-            >
-              <div
-                className="h-full bg-[var(--primary)] rounded-full transition-[width] duration-300"
-                style={{
-                  width: `${items.length > 0 ? (checkedCount / items.length) * 100 : 0}%`,
-                }}
-              />
-            </div>
-          </div>
-          <span className="text-[10px] font-bold text-[var(--fg-3)] tabular-nums" aria-hidden="true">
+          <ProgressBar
+            progress={items.length > 0 ? checkedCount / items.length : 0}
+            label={`${checkedCount}/${items.length}`}
+            className="flex-1"
+          />
+          <span
+            className="text-[var(--fg-3)]"
+            style={{
+              fontFamily: 'var(--font-mono)',
+              fontSize: 12,
+              fontVariantNumeric: 'tabular-nums',
+            }}
+            aria-hidden="true"
+          >
             {checkedCount}/{items.length}
           </span>
           {interactive && checkedCount > 0 && (
             <button
               type="button"
-              className="text-[10px] font-semibold text-[var(--primary)] hover:text-[var(--primary-pressed)] transition-colors"
+              className="text-[var(--primary)] hover:text-[var(--primary-pressed)] transition-colors"
+              style={{ fontFamily: 'var(--font-sans)', fontSize: 12, fontWeight: 500 }}
               onClick={onReset}
             >
               {t('habits.form.resetChecklist')}
@@ -159,7 +155,8 @@ export function HabitChecklist({
           {interactive && (
             <button
               type="button"
-              className="text-[10px] font-semibold text-[var(--status-bad)] hover:text-[var(--status-bad)] transition-colors"
+              className="text-[var(--status-bad)] transition-opacity hover:opacity-80"
+              style={{ fontFamily: 'var(--font-sans)', fontSize: 12, fontWeight: 500 }}
               onClick={onClear}
             >
               {t('habits.form.clearChecklist')}
@@ -191,50 +188,78 @@ export function HabitChecklist({
           </SortableContext>
         </DndContext>
       ) : (
-        <div className="space-y-1">
-          {items.map((item, index) => (
-            <div key={`${item.text}-${index}`} className="flex items-center gap-2 group py-1">
-              {interactive ? (
-                <label className="shrink-0 cursor-pointer">
-                  <input
-                    checked={item.isChecked}
-                    type="checkbox"
-                    aria-label={item.text}
-                    className="sr-only"
-                    onChange={() => handleToggle(index)}
-                  />
-                  <span
-                    aria-hidden="true"
-                    className={`size-5 rounded-md border-2 flex items-center justify-center transition-[background-color,border-color] ${
-                      item.isChecked
-                        ? 'bg-[var(--primary)] border-[var(--primary)]'
-                        : 'border-[var(--hairline)] hover:border-[var(--primary)]'
-                    } ${justCheckedIndex === index ? 'animate-check-pop' : ''}`}
-                  >
-                    {item.isChecked && <Check className="size-3 text-white" />}
-                  </span>
-                </label>
-              ) : null}
-
-              <span
-                className={`flex-1 min-w-0 text-sm transition-colors ${
-                  item.isChecked
-                    ? 'text-[var(--fg-3)] line-through'
-                    : 'text-[var(--fg-1)]'
-                }`}
+        items.length > 0 && (
+          <div
+            style={{
+              borderRadius: 18,
+              background: 'var(--bg-card)',
+              boxShadow: 'inset 0 0 0 1px var(--hairline)',
+              overflow: 'hidden',
+            }}
+          >
+            {items.map((item, index) => (
+              <div
+                key={`${item.text}-${index}`}
+                className="flex items-center gap-[14px]"
+                style={{
+                  padding: '15px 18px',
+                  borderBottom:
+                    index < items.length - 1 ? '1px solid var(--hairline)' : 'none',
+                }}
               >
-                {item.text}
-              </span>
-            </div>
-          ))}
-        </div>
+                {interactive ? (
+                  <label className="shrink-0 cursor-pointer">
+                    <input
+                      checked={item.isChecked}
+                      type="checkbox"
+                      aria-label={item.text}
+                      className="sr-only"
+                      onChange={() => handleToggle(index)}
+                    />
+                    <span
+                      aria-hidden="true"
+                      className={`flex items-center justify-center transition-[background-color,box-shadow] ${
+                        justCheckedIndex === index ? 'animate-check-pop' : ''
+                      }`}
+                      style={{
+                        width: 26,
+                        height: 26,
+                        borderRadius: 8,
+                        background: item.isChecked ? 'var(--primary)' : 'transparent',
+                        boxShadow: item.isChecked
+                          ? 'none'
+                          : 'inset 0 0 0 2px var(--fg-4)',
+                      }}
+                    >
+                      {item.isChecked && (
+                        <Check size={15} strokeWidth={3} color="var(--fg-on-primary)" />
+                      )}
+                    </span>
+                  </label>
+                ) : null}
+
+                <span
+                  className={`flex-1 min-w-0 transition-colors ${
+                    item.isChecked
+                      ? 'text-[var(--fg-3)] line-through'
+                      : 'text-[var(--fg-1)]'
+                  }`}
+                  style={{ fontFamily: 'var(--font-sans)', fontSize: 16 }}
+                >
+                  {item.text}
+                </span>
+              </div>
+            ))}
+          </div>
+        )
       )}
 
       {editable && items.length > 0 && (
         <div className="flex justify-end">
           <button
             type="button"
-            className="text-[10px] font-semibold text-[var(--status-bad)] hover:text-[var(--status-bad)] transition-colors"
+            className="text-[var(--status-bad)] transition-opacity hover:opacity-80"
+            style={{ fontFamily: 'var(--font-sans)', fontSize: 12, fontWeight: 500 }}
             onClick={clearAll}
           >
             {t('habits.form.clearChecklist')}
@@ -252,7 +277,8 @@ export function HabitChecklist({
             value={newItemText}
             type="text"
             placeholder={t('habits.form.checklistPlaceholder')}
-            className="flex-1 min-w-0 bg-[var(--bg-elev)] text-[var(--fg-1)] placeholder:text-[var(--fg-3)] py-2 px-3 text-sm border border-[var(--hairline)] rounded-l-xl border-r-0 focus:outline-none focus:border-[var(--primary)]"
+            className="flex-1 min-w-0 bg-[var(--bg-field)] text-[var(--fg-1)] placeholder:text-[var(--fg-4)] py-2 px-3 text-sm rounded-l-[14px] focus:outline-none"
+            style={{ boxShadow: 'inset 0 0 0 1px var(--hairline)' }}
             onChange={(e) => setNewItemText(e.target.value)}
             onKeyDown={(e) => {
               if (e.key === 'Enter') {
@@ -263,7 +289,8 @@ export function HabitChecklist({
           />
           <button
             type="button"
-            className="shrink-0 px-4 py-2 rounded-r-xl bg-[var(--primary)] text-white text-xs font-bold disabled:opacity-40 hover:bg-[var(--primary-pressed)] transition-[background-color,opacity] duration-150"
+            className="shrink-0 px-4 py-2 rounded-r-[14px] bg-[var(--primary)] text-[var(--fg-on-primary)] disabled:opacity-40 hover:bg-[var(--primary-pressed)] transition-[background-color,opacity] duration-150"
+            style={{ fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 500 }}
             disabled={!newItemText.trim()}
             onClick={addItem}
           >
@@ -311,44 +338,56 @@ function SortableChecklistItem({
     <div
       ref={setNodeRef}
       style={style}
-      className="flex items-center gap-2 group py-0.5"
+      className="flex items-center gap-1.5 group py-0.5"
       {...attributes}
     >
       <div
         ref={setActivatorNodeRef}
         {...listeners}
         aria-hidden="true"
-        className="checklist-drag-handle shrink-0 cursor-grab active:cursor-grabbing text-[var(--fg-3)] hover:text-[var(--fg-2)] transition-colors touch-none"
+        className="checklist-drag-handle shrink-0 inline-flex items-center justify-center rounded-full cursor-grab active:cursor-grabbing text-[var(--fg-3)] hover:text-[var(--fg-2)] hover:bg-[var(--bg-elev)] transition-[color,background-color] duration-[var(--dur-fast)] touch-none"
+        style={{ width: 36, height: 36 }}
       >
-        <GripHorizontal className="size-3.5" />
+        <GripHorizontal size={16} strokeWidth={1.8} />
       </div>
 
-      <div aria-hidden="true" className="shrink-0 size-4 rounded border-2 border-[var(--hairline)]" />
+      <div
+        aria-hidden="true"
+        className="shrink-0"
+        style={{
+          width: 26,
+          height: 26,
+          borderRadius: 8,
+          boxShadow: 'inset 0 0 0 2px var(--fg-4)',
+        }}
+      />
 
       <input
         value={item.text}
         type="text"
         aria-label={t('habits.form.checklistItemLabel', { n: index + 1 })}
-        className="flex-1 min-w-0 bg-transparent text-sm text-[var(--fg-1)] py-1 px-0 border-0 border-b border-transparent focus:border-[var(--hairline)] focus:outline-none"
+        className="flex-1 min-w-0 bg-transparent text-sm text-[var(--fg-1)] py-1 px-2 border-0 border-b border-transparent focus:border-[var(--hairline)] focus:outline-none"
         onChange={(e) => onUpdateText(index, e.target.value)}
       />
 
       <button
         type="button"
         aria-label={t('habits.form.duplicateChecklistItem')}
-        className="shrink-0 p-1 text-[var(--fg-3)] hover:text-[var(--primary-pressed)] sm:opacity-0 sm:group-hover:opacity-100 transition-[color,opacity]"
+        className="shrink-0 inline-flex items-center justify-center rounded-full text-[var(--fg-3)] hover:text-[var(--primary-pressed)] hover:bg-[var(--bg-elev)] active:scale-[0.92] sm:opacity-0 sm:group-hover:opacity-100 transition-[color,background-color,opacity,transform] duration-[var(--dur-fast)]"
+        style={{ width: 36, height: 36 }}
         onClick={() => onDuplicate(index)}
       >
-        <Copy className="size-3.5" aria-hidden="true" />
+        <Copy size={16} strokeWidth={1.8} aria-hidden="true" />
       </button>
 
       <button
         type="button"
         aria-label={t('habits.form.removeChecklistItem')}
-        className="shrink-0 p-1 text-[var(--fg-3)] hover:text-[var(--status-bad)] sm:opacity-0 sm:group-hover:opacity-100 transition-[color,opacity]"
+        className="shrink-0 inline-flex items-center justify-center rounded-full text-[var(--fg-3)] hover:text-[var(--status-bad)] hover:bg-[var(--bg-elev)] active:scale-[0.92] sm:opacity-0 sm:group-hover:opacity-100 transition-[color,background-color,opacity,transform] duration-[var(--dur-fast)]"
+        style={{ width: 36, height: 36 }}
         onClick={() => onRemove(index)}
       >
-        <X className="size-3.5" aria-hidden="true" />
+        <X size={16} strokeWidth={1.8} aria-hidden="true" />
       </button>
     </div>
   )

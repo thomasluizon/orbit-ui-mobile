@@ -79,14 +79,14 @@ vi.mock('@/hooks/use-tag-selection', () => ({
     setShowNewTag: vi.fn(),
     newTagName: '',
     setNewTagName: vi.fn(),
-    newTagColor: '#7c3aed',
+    newTagColor: '#7f46f7',
     setNewTagColor: vi.fn(),
-    tagColors: ['#7c3aed'] as readonly string[],
+    tagColors: ['#7f46f7'] as readonly string[],
     createAndSelectTag: vi.fn(),
     editingTagId: null,
     editTagName: '',
     setEditTagName: vi.fn(),
-    editTagColor: '#7c3aed',
+    editTagColor: '#7f46f7',
     setEditTagColor: vi.fn(),
     startEditTag: vi.fn(),
     saveEditTag: vi.fn(),
@@ -206,8 +206,13 @@ describe('CreateHabitModal (mobile)', () => {
     const findSubmit = () =>
       tree.root.findAll(
         (node: any) =>
-          node.type === 'TouchableOpacity' &&
-          node.props.accessibilityLabel === 'habits.createHabit',
+          node.type === 'Pressable' &&
+          node.props.accessibilityRole === 'button' &&
+          node.findAll(
+            (child: any) =>
+              child.type === 'Text' &&
+              child.props.children === 'habits.createHabit',
+          ).length > 0,
       )[0]
 
     expect(findSubmit().props.disabled).toBe(true)

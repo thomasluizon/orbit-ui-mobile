@@ -1,9 +1,10 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { X } from 'lucide-react'
+import { Bell, X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { subscribePush } from '@/app/actions/notifications'
+import { PillButton } from '@/components/ui/pill-button'
 
 const STORAGE_KEY = 'orbit_push_prompted'
 
@@ -104,49 +105,51 @@ export function PushPrompt() {
     <div
       role="dialog"
       aria-label={t('pushPrompt.title')}
-      className="fixed left-0 right-0 z-50 mx-auto"
+      className="fixed left-0 right-0 z-50 mx-auto transition-[opacity,transform] duration-[240ms] ease-out motion-reduce:transition-none"
       style={{
         bottom: 0,
         maxWidth: 'var(--app-max-w)',
-        transition: 'opacity 240ms ease-out, transform 240ms ease-out',
         opacity: visible ? 1 : 0,
         transform: visible ? 'translateY(0)' : 'translateY(8px)',
       }}
     >
       <div
-        className="flex flex-col"
+        className="flex flex-col rounded-t-[26px]"
         style={{
-          padding: '14px 20px 18px',
-          background: 'var(--bg-elev)',
-          borderTop: '1px solid var(--hairline)',
+          padding: '20px 22px calc(20px + var(--safe-bottom))',
+          background: 'var(--bg-sheet)',
+          boxShadow: 'var(--shadow-3), inset 0 0 0 1px var(--hairline)',
           gap: 8,
         }}
       >
-        <div className="flex items-center justify-between">
+        <div className="flex items-start justify-between">
           <span
+            aria-hidden="true"
+            className="flex items-center justify-center rounded-full"
             style={{
-              fontFamily: 'var(--font-family-sans)',
-              fontSize: 12,
-              fontWeight: 600,
-              color: 'var(--fg-3)',
+              width: 44,
+              height: 44,
+              background: 'rgba(var(--primary-rgb), 0.15)',
+              color: 'var(--primary-soft)',
             }}
           >
-            {t('pushPrompt.eyebrow')}
+            <Bell size={22} strokeWidth={1.8} />
           </span>
           <button
             type="button"
-            className="appearance-none border-0 bg-transparent cursor-pointer"
-            style={{ padding: 0, color: 'var(--fg-3)' }}
+            className="appearance-none border-0 bg-transparent cursor-pointer flex items-center justify-center -mr-2 -mt-1"
+            style={{ width: 44, height: 44, color: 'var(--fg-3)' }}
             aria-label={t('common.dismiss')}
             onClick={dismiss}
           >
-            <X size={14} strokeWidth={1.6} />
+            <X size={18} strokeWidth={1.8} />
           </button>
         </div>
         <span
           style={{
-            fontFamily: 'var(--font-family-sans)',
-            fontSize: 16,
+            fontFamily: 'var(--font-sans)',
+            fontSize: 20,
+            fontWeight: 500,
             color: 'var(--fg-1)',
           }}
         >
@@ -154,10 +157,9 @@ export function PushPrompt() {
         </span>
         <span
           style={{
-            fontFamily: 'var(--font-family-sans)',
-            fontSize: 13,
-            fontStyle: 'italic',
-            color: 'var(--fg-3)',
+            fontFamily: 'var(--font-sans)',
+            fontSize: 15,
+            color: 'var(--fg-2)',
             lineHeight: 1.5,
           }}
         >
@@ -167,7 +169,7 @@ export function PushPrompt() {
           <span
             role="alert"
             style={{
-              fontFamily: 'var(--font-family-sans)',
+              fontFamily: 'var(--font-sans)',
               fontSize: 12,
               color: 'var(--status-overdue)',
             }}
@@ -175,34 +177,13 @@ export function PushPrompt() {
             {t('pushPrompt.retryHint')}
           </span>
         )}
-        <div className="flex items-center justify-end" style={{ gap: 22, paddingTop: 4 }}>
-          <button
-            type="button"
-            className="appearance-none border-0 bg-transparent cursor-pointer"
-            style={{
-              fontFamily: 'var(--font-family-sans)',
-              fontSize: 13,
-              color: 'var(--fg-3)',
-              padding: 6,
-            }}
-            onClick={dismiss}
-          >
-            {t('pushPrompt.later')}
-          </button>
-          <button
-            type="button"
-            className="appearance-none border-0 bg-transparent cursor-pointer"
-            style={{
-              fontFamily: 'var(--font-family-sans)',
-              fontSize: 13,
-              fontWeight: 600,
-              color: 'var(--fg-1)',
-              padding: 6,
-            }}
-            onClick={handleEnable}
-          >
+        <div className="flex flex-col" style={{ gap: 10, paddingTop: 10 }}>
+          <PillButton fullWidth onClick={handleEnable}>
             {t('pushPrompt.enable')}
-          </button>
+          </PillButton>
+          <PillButton variant="ghost" fullWidth onClick={dismiss}>
+            {t('pushPrompt.later')}
+          </PillButton>
         </div>
       </div>
     </div>

@@ -7,11 +7,20 @@ import {
   Text,
   View,
 } from 'react-native'
-import { AlertCircle, CheckCircle2, Clock3, Info } from 'lucide-react-native'
+import { Bell, Check, Clock, X } from 'lucide-react-native'
 import type { LucideIcon } from 'lucide-react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { schemes } from '@orbit/shared/theme'
+import type { ThemeMode } from '@orbit/shared/types/profile'
 import { toAnimatedEasing } from '@/lib/motion'
-import { createTokensV2, easings, shadowsV2, type AppTokensV2 } from '@/lib/theme'
+import {
+  createTokensV2,
+  easings,
+  lightenHex,
+  shadowsV2,
+  tintFromPrimary,
+  type AppTokensV2,
+} from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useAppToastStore } from '@/stores/app-toast-store'
 
@@ -24,14 +33,15 @@ type Variant = 'success' | 'error' | 'info' | 'queued'
 
 interface VariantStyle {
   icon: LucideIcon
-  accent: string
-  eyebrow: string
+  tint: string
+  discBg: string
 }
 
 /**
- * v8 AppToast: 4 kinds (success / error / info / queued · undo) with a colored
- * left stripe, hairline ring, and uppercase mono eyebrow. Preserves the
- * existing store contract.
+ * Toast per the toast-success/error/info/queued artboards: solid sheet card,
+ * radius 18, leading 32px status icon disc, Rubik 15/500 message, optional
+ * accent action. Preserves the existing store contract (queue + variants,
+ * including the offline `queued` kind).
  */
 export function AppToast() {
   const insets = useSafeAreaInsets()
@@ -121,7 +131,7 @@ export function AppToast() {
 
   if (!currentToast) return null
 
-  const variantStyle = getVariantStyle(currentToast.variant, tokens)
+  const variantStyle = getVariantStyle(currentToast.variant, tokens, currentTheme)
   const Icon = variantStyle.icon
 
   return (
@@ -142,65 +152,70 @@ export function AppToast() {
         style={[
           styles.toast,
           {
-            backgroundColor: tokens.bgElev,
+            backgroundColor: tokens.bgSheet,
             borderColor: tokens.hairline,
           },
         ]}
         onPress={hideToast}
       >
-        <View
-          style={[styles.stripe, { backgroundColor: variantStyle.accent }]}
-        />
-        <View style={styles.body}>
-          <View style={styles.iconWrap}>
-            <Icon size={16} color={variantStyle.accent} strokeWidth={1.6} />
-          </View>
-          <View style={styles.messageWrap}>
-            <Text style={[styles.eyebrow, { color: tokens.fg3 }]}>
-              {variantStyle.eyebrow}
-            </Text>
-            <Text style={[styles.message, { color: tokens.fg1 }]}>
-              {currentToast.message}
-            </Text>
-          </View>
-          {currentToast.actionLabel ? (
-            <Pressable onPress={triggerAction} style={styles.actionButton}>
-              <Text style={[styles.actionText, { color: tokens.fg1 }]}>
-                {currentToast.actionLabel}
-              </Text>
-            </Pressable>
-          ) : null}
+        <View style={[styles.iconDisc, { backgroundColor: variantStyle.discBg }]}>
+          <Icon size={17} color={variantStyle.tint} strokeWidth={2.4} />
         </View>
+        <Text style={[styles.message, { color: tokens.fg1 }]}>
+          {currentToast.message}
+        </Text>
+        {currentToast.actionLabel ? (
+          <Pressable onPress={triggerAction} hitSlop={8} style={styles.actionButton}>
+            <Text style={[styles.actionText, { color: tokens.primarySoft }]}>
+              {currentToast.actionLabel}
+            </Text>
+          </Pressable>
+        ) : null}
       </Pressable>
     </Animated.View>
   )
 }
 
-function getVariantStyle(variant: Variant, tokens: AppTokensV2): VariantStyle {
+function hexWithAlpha(hex: string, alpha: number): string {
+  const alphaByte = Math.round(alpha * 255)
+    .toString(16)
+    .padStart(2, '0')
+  return `${hex}${alphaByte}`
+}
+
+function getVariantStyle(
+  variant: Variant,
+  tokens: AppTokensV2,
+  themeMode: ThemeMode,
+): VariantStyle {
+  const isLight = themeMode === 'light'
+
   switch (variant) {
-    case 'success':
+    case 'success': {
+      const successAccent = schemes.green.accent[isLight ? 'light' : 'dark']
       return {
-        icon: CheckCircle2,
-        accent: tokens.statusDone,
-        eyebrow: 'Created',
+        icon: Check,
+        tint: successAccent.primary,
+        discBg: `rgba(${successAccent.primaryRgb}, 0.16)`,
       }
+    }
     case 'info':
       return {
-        icon: Info,
-        accent: tokens.primary,
-        eyebrow: 'Heads up',
+        icon: Bell,
+        tint: tokens.primarySoft,
+        discBg: tintFromPrimary(tokens, 0.18),
       }
     case 'queued':
       return {
-        icon: Clock3,
-        accent: tokens.statusSkip,
-        eyebrow: 'Queued',
+        icon: Clock,
+        tint: tokens.fg2,
+        discBg: hexWithAlpha(tokens.fg1, 0.1),
       }
     default:
       return {
-        icon: AlertCircle,
-        accent: tokens.statusOverdue,
-        eyebrow: 'Error',
+        icon: X,
+        tint: isLight ? tokens.statusBad : lightenHex(tokens.statusBad, 0.35),
+        discBg: hexWithAlpha(tokens.statusBad, 0.16),
       }
   }
 }
@@ -214,55 +229,32 @@ const styles = StyleSheet.create({
   },
   toast: {
     flexDirection: 'row',
-    alignItems: 'stretch',
-    borderWidth: 1,
-    borderRadius: 10,
-    overflow: 'hidden',
-    ...shadowsV2.shadow2,
-  },
-  stripe: {
-    width: 3,
-  },
-  body: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    alignItems: 'center',
     gap: 12,
+    borderWidth: 1,
+    borderRadius: 18,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    ...shadowsV2.shadow3,
   },
-  iconWrap: {
-    width: 18,
-    height: 18,
+  iconDisc: {
+    width: 32,
+    height: 32,
+    borderRadius: 999,
     alignItems: 'center',
     justifyContent: 'center',
-    marginTop: 2,
-  },
-  messageWrap: {
-    flex: 1,
-    gap: 2,
-  },
-  eyebrow: {
-    fontFamily: 'Geist',
-    fontSize: 10,
-    fontWeight: '600',
-    letterSpacing: 1.2,
-    textTransform: 'uppercase',
   },
   message: {
-    fontFamily: 'Geist',
-    fontSize: 14,
-    fontWeight: '500',
+    flex: 1,
+    fontFamily: 'Rubik_500Medium',
+    fontSize: 15,
   },
   actionButton: {
-    alignSelf: 'flex-start',
     paddingHorizontal: 4,
-    paddingTop: 2,
+    paddingVertical: 6,
   },
   actionText: {
-    fontFamily: 'Geist',
-    fontSize: 13,
-    fontWeight: '500',
-    textDecorationLine: 'underline',
+    fontFamily: 'Rubik_500Medium',
+    fontSize: 14,
   },
 })

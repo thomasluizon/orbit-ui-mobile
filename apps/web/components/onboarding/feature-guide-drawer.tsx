@@ -108,7 +108,7 @@ export function FeatureGuideDrawer({ open, onOpenChange }: Readonly<FeatureGuide
 
   return (
     <AppOverlay open={open} onOpenChange={onOpenChange} title={t('onboarding.featureGuide.title')}>
-      <div className="-mx-6">
+      <div className="overlay-bleed">
         <div
           role="tablist"
           className="flex"
@@ -128,24 +128,20 @@ export function FeatureGuideDrawer({ open, onOpenChange }: Readonly<FeatureGuide
                 aria-selected={isActive}
                 tabIndex={isActive ? 0 : -1}
                 className={
-                  'appearance-none cursor-pointer inline-flex items-center whitespace-nowrap shrink-0 transition-[background-color,color,box-shadow] duration-150 ease-out ' +
+                  'appearance-none cursor-pointer inline-flex items-center whitespace-nowrap shrink-0 transition-[background-color,color,box-shadow] duration-[var(--dur-fast)] ease-[var(--ease-standard)] ' +
                   (isActive
-                    ? ''
-                    : 'hover:bg-[var(--bg-elev)] hover:text-[var(--fg-1)]')
+                    ? 'bg-[var(--bg-elev)] text-[var(--fg-1)]'
+                    : 'bg-transparent text-[var(--fg-3)] hover:bg-[var(--bg-elev)] hover:text-[var(--fg-1)]')
                 }
                 style={{
-                  height: 26,
-                  padding: '0 9px',
-                  borderRadius: 6,
-                  background: isActive ? 'var(--bg-elev)' : 'transparent',
-                  boxShadow: isActive
-                    ? 'inset 0 0 0 1px var(--fg-3)'
-                    : 'inset 0 0 0 1px var(--hairline-strong)',
+                  height: 30,
+                  padding: '0 14px',
+                  borderRadius: 999,
+                  boxShadow: isActive ? undefined : 'inset 0 0 0 1px var(--hairline)',
                   border: 0,
-                  color: isActive ? 'var(--fg-1)' : 'var(--fg-2)',
-                  fontFamily: 'var(--font-family-sans)',
-                  fontSize: 12,
-                  fontWeight: isActive ? 600 : 500,
+                  fontFamily: 'var(--font-sans)',
+                  fontSize: 13,
+                  fontWeight: 500,
                 }}
                 onClick={() => setActiveSection(tab.key)}
               >
@@ -160,16 +156,16 @@ export function FeatureGuideDrawer({ open, onOpenChange }: Readonly<FeatureGuide
             key={item.titleKey}
             className="flex flex-col"
             style={{
-              padding: '12px 20px',
+              padding: '14px 20px',
               gap: 4,
               borderBottom: '1px solid var(--hairline)',
             }}
           >
             <h3
               style={{
-                fontFamily: 'var(--font-family-sans)',
-                fontSize: 14,
-                fontWeight: 600,
+                fontFamily: 'var(--font-sans)',
+                fontSize: 16,
+                fontWeight: 500,
                 color: 'var(--fg-1)',
               }}
             >
@@ -177,8 +173,8 @@ export function FeatureGuideDrawer({ open, onOpenChange }: Readonly<FeatureGuide
             </h3>
             <p
               style={{
-                fontFamily: 'var(--font-family-sans)',
-                fontSize: 13,
+                fontFamily: 'var(--font-sans)',
+                fontSize: 13.5,
                 color: 'var(--fg-3)',
                 lineHeight: 1.55,
               }}

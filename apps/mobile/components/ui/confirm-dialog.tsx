@@ -2,13 +2,14 @@ import { useEffect, useMemo, useState } from 'react'
 import {
   Animated,
   Modal,
+  Pressable,
   StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native'
 import { useTranslation } from 'react-i18next'
-import { createTokensV2, easings } from '@/lib/theme'
+import { createTokensV2, easings, shadowsV2 } from '@/lib/theme'
 import { toAnimatedEasing, useResolvedMotionPreset } from '@/lib/motion'
 import { useAppTheme } from '@/lib/use-app-theme'
 
@@ -25,8 +26,8 @@ interface ConfirmDialogProps {
   cancelLabel?: string
   onConfirm?: () => void
   onCancel?: () => void
-  /** 'danger' is treated as destructive — italicized action label, no semantic fill.
-   *  'info' renders a single close action and hides the cancel button. */
+  /** 'danger' renders the confirm action as a status-bad fill pill (dlg-delete
+   *  artboard). 'info' renders a single close action and hides the cancel button. */
   variant?: Variant
 }
 
@@ -138,32 +139,34 @@ export function ConfirmDialog({
 
           <View style={styles.actions}>
             {!infoOnly ? (
-              <TouchableOpacity
-                style={styles.actionButton}
+              <Pressable
+                style={({ pressed }) => [
+                  styles.actionPill,
+                  pressed ? styles.cancelPillPressed : styles.cancelPill,
+                  pressed ? styles.pillPressedScale : null,
+                ]}
                 onPress={handleCancel}
-                activeOpacity={0.7}
               >
                 <Text style={styles.cancelLabel} numberOfLines={1}>
                   {cancelLabel ?? t('common.cancel')}
                 </Text>
-              </TouchableOpacity>
+              </Pressable>
             ) : null}
 
-            <TouchableOpacity
-              style={styles.actionButton}
+            <Pressable
+              style={({ pressed }) => [
+                styles.actionPill,
+                destructive ? styles.confirmPillDestructive : null,
+                !destructive && (pressed ? styles.confirmPillPressed : styles.confirmPill),
+                pressed ? styles.pillPressedScale : null,
+                destructive && pressed ? styles.destructivePressed : null,
+              ]}
               onPress={handleConfirm}
-              activeOpacity={0.7}
             >
-              <Text
-                style={[
-                  styles.confirmLabel,
-                  destructive ? styles.confirmLabelDestructive : null,
-                ]}
-                numberOfLines={1}
-              >
+              <Text style={styles.confirmLabel} numberOfLines={1}>
                 {confirmLabel ?? (infoOnly ? t('common.close') : t('common.confirm'))}
               </Text>
-            </TouchableOpacity>
+            </Pressable>
           </View>
         </Animated.View>
       </TouchableOpacity>
@@ -181,60 +184,76 @@ function createStyles(tokens: AppTokens) {
     },
     backdrop: {
       ...StyleSheet.absoluteFillObject,
-      backgroundColor: 'rgba(0,0,0,0.58)',
+      backgroundColor: 'rgba(0,0,0,0.6)',
     },
     dialog: {
       width: '100%',
-      maxWidth: 360,
-      backgroundColor: tokens.bgElev,
-      borderRadius: 12,
-      borderWidth: StyleSheet.hairlineWidth,
+      maxWidth: 340,
+      backgroundColor: tokens.bgSheet,
+      borderRadius: 24,
+      borderWidth: 1,
       borderColor: tokens.hairline,
-      padding: 20,
-      shadowColor: '#000',
-      shadowOpacity: 0.35,
-      shadowOffset: { width: 0, height: 12 },
-      shadowRadius: 40,
-      elevation: 10,
+      paddingTop: 24,
+      paddingHorizontal: 22,
+      paddingBottom: 18,
+      ...shadowsV2.shadow3,
     },
     title: {
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_500Medium',
       color: tokens.fg1,
-      fontSize: 17,
-      fontWeight: '600',
-      letterSpacing: -0.17,
-      marginBottom: 6,
+      fontSize: 20,
+      marginBottom: 8,
     },
     description: {
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_400Regular',
       color: tokens.fg2,
-      fontSize: 14,
-      lineHeight: 21,
-      marginBottom: 20,
+      fontSize: 15,
+      lineHeight: 22,
+      marginBottom: 22,
     },
     actions: {
       flexDirection: 'row',
-      justifyContent: 'flex-end',
       alignItems: 'center',
-      gap: 16,
+      gap: 10,
     },
-    actionButton: {
-      padding: 6,
+    actionPill: {
+      flex: 1,
+      minHeight: 44,
+      borderRadius: 999,
+      paddingVertical: 13,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    cancelPill: {
+      backgroundColor: tokens.bgField,
+    },
+    cancelPillPressed: {
+      backgroundColor: tokens.bgElev2,
+    },
+    confirmPill: {
+      backgroundColor: tokens.primary,
+    },
+    confirmPillPressed: {
+      backgroundColor: tokens.primaryPressed,
+    },
+    confirmPillDestructive: {
+      backgroundColor: tokens.statusBad,
+    },
+    destructivePressed: {
+      opacity: 0.85,
+    },
+    pillPressedScale: {
+      transform: [{ scale: 0.97 }],
     },
     cancelLabel: {
-      fontFamily: 'Geist',
-      color: tokens.fg3,
-      fontSize: 14,
-      fontWeight: '500',
+      fontFamily: 'Rubik_500Medium',
+      color: tokens.fg1,
+      fontSize: 15,
     },
     confirmLabel: {
-      fontFamily: 'Geist',
-      color: tokens.fg1,
-      fontSize: 14,
-      fontWeight: '600',
-    },
-    confirmLabelDestructive: {
-      fontStyle: 'italic',
+      fontFamily: 'Rubik_500Medium',
+      color: tokens.fgOnPrimary,
+      fontSize: 15,
     },
   })
 }

@@ -1,10 +1,11 @@
 'use client'
 
 import { useState, useCallback, useEffect } from 'react'
-import { Loader2 } from 'lucide-react'
+import { Check, Loader2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { AppOverlay } from '@/components/ui/app-overlay'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import { PillButton } from '@/components/ui/pill-button'
 import { HabitFormFields } from './habit-form-fields'
 import { useHabitForm } from '@/hooks/use-habit-form'
 import { useAppToast } from '@/hooks/use-app-toast'
@@ -149,7 +150,7 @@ export function EditHabitModal({
         isDirty={isDirty}
         onAttemptDismiss={dismissGuard.requestDismiss}
       >
-        <form className="space-y-10" onSubmit={handleSubmit}>
+        <form className="stagger-enter space-y-10" onSubmit={handleSubmit}>
         <HabitFormFields
           formHelpers={formHelpers}
           tags={tags}
@@ -162,47 +163,34 @@ export function EditHabitModal({
         />
 
         <div
-          className="flex items-center justify-between"
+          className="flex items-center"
           style={{
-            paddingTop: 12,
+            gap: 12,
+            paddingTop: 14,
             paddingBottom: 8,
           }}
         >
-          <button
-            type="button"
-            className="appearance-none border-0 bg-transparent cursor-pointer disabled:opacity-50"
-            style={{
-              fontFamily: 'var(--font-family-sans)',
-              fontSize: 14,
-              fontWeight: 500,
-              color: 'var(--fg-3)',
-              padding: 6,
-            }}
+          <PillButton
+            variant="ghost"
             disabled={updateHabit.isPending}
             onClick={dismissGuard.requestDismiss}
           >
             {t('common.cancel')}
-          </button>
-          <button
+          </PillButton>
+          <PillButton
             type="submit"
-            className="appearance-none border-0 cursor-pointer disabled:opacity-50 inline-flex items-center"
-            style={{
-              background: 'var(--primary)',
-              color: 'var(--fg-on-primary)',
-              fontFamily: 'var(--font-family-sans)',
-              fontSize: 14,
-              fontWeight: 600,
-              padding: '10px 18px',
-              borderRadius: 8,
-              gap: 6,
-            }}
+            className="flex-1"
             disabled={updateHabit.isPending || !formHelpers.form.formState.isValid}
+            leading={
+              updateHabit.isPending ? (
+                <Loader2 className="size-[18px] animate-spin" />
+              ) : (
+                <Check size={18} strokeWidth={2.2} aria-hidden="true" />
+              )
+            }
           >
-            {updateHabit.isPending && (
-              <Loader2 className="size-4 animate-spin" />
-            )}
             {t('habits.saveChanges')}
-          </button>
+          </PillButton>
         </div>
         </form>
       </AppOverlay>

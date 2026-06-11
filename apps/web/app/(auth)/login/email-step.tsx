@@ -1,7 +1,8 @@
 import Link from 'next/link'
 import type { useTranslations } from 'next-intl'
-import { UnderlinedInput } from '@/components/ui/underlined-input'
-import { GoogleIcon, PrimaryButton, SecondaryButton } from './login-atoms'
+import { FieldInput } from '@/components/ui/field-input'
+import { PillButton } from '@/components/ui/pill-button'
+import { GoogleIcon, Spinner } from './login-atoms'
 
 interface EmailStepProps {
   email: string
@@ -30,74 +31,74 @@ export function EmailStep({
     >
       <form
         className="flex flex-col"
-        style={{ gap: 16 }}
+        style={{ gap: 20 }}
         onSubmit={(e) => {
           e.preventDefault()
           onSendCode()
         }}
       >
-        <UnderlinedInput
+        <FieldInput
           id="login-email"
           name="email"
           label={t('auth.email')}
-          mono
           value={email}
           onChange={onEmailChange}
           type="email"
           autoComplete="email"
           placeholder={t('auth.emailPlaceholder')}
         />
-        <PrimaryButton
+        <PillButton
           type="submit"
-          loading={isSubmitting}
+          fullWidth
           disabled={isSubmitting || !email.trim()}
+          busy={isSubmitting}
+          leading={isSubmitting ? <Spinner /> : undefined}
         >
           {t('auth.sendCode')}
-        </PrimaryButton>
+        </PillButton>
       </form>
 
       <div className="flex items-center" style={{ gap: 14, padding: '8px 0' }}>
-        <span style={{ flex: 1, height: 1, background: 'var(--hairline)' }} />
+        <span aria-hidden style={{ flex: 1, height: 1, background: 'var(--hairline)' }} />
         <span
           style={{
-            fontFamily: 'var(--font-family-mono)',
-            fontSize: 11,
-            fontWeight: 500,
-            color: 'var(--fg-3)',
-            letterSpacing: '0.06em',
+            fontFamily: 'var(--font-sans)',
+            fontSize: 13,
+            color: 'var(--fg-4)',
           }}
         >
           {t('auth.orContinueWith')}
         </span>
-        <span style={{ flex: 1, height: 1, background: 'var(--hairline)' }} />
+        <span aria-hidden style={{ flex: 1, height: 1, background: 'var(--hairline)' }} />
       </div>
 
-      <SecondaryButton
-        loading={isGoogleLoading}
+      <PillButton
+        variant="ghost"
+        fullWidth
         disabled={isGoogleLoading}
+        busy={isGoogleLoading}
         onClick={onSignInWithGoogle}
-        leading={<GoogleIcon />}
+        leading={isGoogleLoading ? <Spinner size={5} /> : <GoogleIcon />}
       >
         {t('auth.signInWithGoogle')}
-      </SecondaryButton>
+      </PillButton>
 
       <p
         className="text-center"
         style={{
-          fontFamily: 'var(--font-family-sans)',
+          fontFamily: 'var(--font-sans)',
           fontSize: 12,
-          lineHeight: 1.5,
-          color: 'var(--fg-3)',
-          fontStyle: 'italic',
-          marginTop: 16,
+          lineHeight: 1.55,
+          color: 'var(--fg-4)',
+          marginTop: 12,
         }}
       >
         {t('auth.legalPrefix')}{' '}
-        <Link href="/terms" className="underline">
+        <Link href="/terms" className="underline" style={{ color: 'var(--fg-3)' }}>
           {t('auth.terms')}
         </Link>{' '}
         {t('auth.legalConjunction')}{' '}
-        <Link href="/privacy" className="underline">
+        <Link href="/privacy" className="underline" style={{ color: 'var(--fg-3)' }}>
           {t('auth.privacy')}
         </Link>
         .

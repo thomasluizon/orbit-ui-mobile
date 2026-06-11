@@ -6,12 +6,13 @@ import {
   StyleSheet,
   ScrollView,
 } from 'react-native'
+import Animated, { FadeInDown, ReduceMotion } from 'react-native-reanimated'
 import * as Clipboard from 'expo-clipboard'
 import { useRouter } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
 import { enUS, ptBR } from 'date-fns/locale'
-import { Lock } from 'lucide-react-native'
+import { Lock, Plus, Smartphone } from 'lucide-react-native'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { buildUpgradeHref } from '@/lib/upgrade-route'
 import { formatDistanceToNow, parseISO } from 'date-fns'
@@ -34,13 +35,19 @@ import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
 import { useOffline } from '@/hooks/use-offline'
 import { CreateApiKeyModal } from '@/components/ui/create-api-key-modal'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
-import { createTokensV2 } from '@/lib/theme'
+import { createTokensV2, tintFromPrimary } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { AppBar } from '@/components/ui/app-bar'
 import { SectionLabel } from '@/components/ui/section-label'
 import { SettingsRow } from '@/components/ui/settings-row'
 import { Chip } from '@/components/ui/chip'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+
+function rowEntrance(index: number) {
+  return FadeInDown.duration(280)
+    .delay(Math.min(index, 8) * 40)
+    .reduceMotion(ReduceMotion.System)
+}
 
 export default function AdvancedScreen() {
   const { t, i18n } = useTranslation()
@@ -203,6 +210,8 @@ export default function AdvancedScreen() {
         <SectionLabel>{t('advancedSettings.widgetSection')}</SectionLabel>
         <SettingsRow
           label={t('profile.widgetTitle')}
+          desc={t('profile.widgetHint')}
+          icon={Smartphone}
           onPress={() => setShowWidgetInfo(true)}
           accessory="chevron"
           divider={false}
@@ -215,17 +224,17 @@ export default function AdvancedScreen() {
             {apiKeysQuery.isLoading ? (
               <View style={styles.skelStack}>
                 <View
-                  style={[styles.skelBar, { backgroundColor: tokens.bgSunk }]}
+                  style={[styles.skelBar, { backgroundColor: tokens.bgCard }]}
                 />
                 <View
-                  style={[styles.skelBar, { backgroundColor: tokens.bgSunk }]}
+                  style={[styles.skelBar, { backgroundColor: tokens.bgCard }]}
                 />
               </View>
             ) : null}
 
             {apiKeysQuery.error && !apiKeysQuery.isLoading ? (
-              <View style={styles.errorBlock}>
-                <Text style={[styles.italicText, { color: tokens.statusBad }]}>
+              <View style={styles.messageBlock}>
+                <Text style={[styles.messageText, { color: tokens.statusBad }]}>
                   {t('orbitMcp.apiKeysError')}
                 </Text>
               </View>
@@ -234,14 +243,14 @@ export default function AdvancedScreen() {
             {!apiKeysQuery.isLoading &&
             !apiKeysQuery.error &&
             apiKeys.length === 0 ? (
-              <View style={styles.italicBlock}>
-                <Text style={[styles.italicText, { color: tokens.fg3 }]}>
+              <View style={styles.messageBlock}>
+                <Text style={[styles.messageText, { color: tokens.fg3 }]}>
                   {t('orbitMcp.noKeys')}
                 </Text>
               </View>
             ) : null}
 
-            {apiKeys.map((key) => {
+            {apiKeys.map((key, index) => {
               const lastUsed = key.lastUsedAtUtc
                 ? `${t('orbitMcp.lastUsed')} ${formatKeyDate(key.lastUsedAtUtc)}`
                 : t('orbitMcp.never')
@@ -250,11 +259,15 @@ export default function AdvancedScreen() {
                 : t('orbitMcp.permReadWrite')
               const meta = `${perm} · ${lastUsed} · ${t('orbitMcp.created')} ${formatKeyDate(key.createdAtUtc)}`
               return (
-                <View
+                <Animated.View
                   key={key.id}
+                  entering={rowEntrance(index)}
                   style={[
-                    styles.keyBlock,
-                    { borderBottomColor: tokens.hairline },
+                    styles.keyCard,
+                    {
+                      backgroundColor: tokens.bgCard,
+                      borderColor: tokens.hairline,
+                    },
                   ]}
                 >
                   <View style={styles.keyTopRow}>
@@ -268,27 +281,35 @@ export default function AdvancedScreen() {
                       onPress={() => setRevokingKeyId(key.id)}
                       accessibilityRole="button"
                       accessibilityLabel={t('orbitMcp.revoke')}
-                      style={styles.linkPress}
+                      style={({ pressed }) => [
+                        styles.actionChip,
+                        {
+                          backgroundColor: pressed ? tokens.bgElev2 : tokens.bgElev,
+                          borderColor: tokens.hairline,
+                        },
+                        pressed ? styles.actionChipPressed : null,
+                      ]}
+                      hitSlop={8}
                     >
                       <Text
-                        style={[styles.revokeLink, { color: tokens.fg3 }]}
+                        style={[styles.revokeLink, { color: tokens.statusBad }]}
                       >
                         {t('orbitMcp.revoke')}
                       </Text>
                     </Pressable>
                   </View>
                   <Text
-                    style={[styles.keyPrefix, { color: tokens.fg3 }]}
+                    style={[styles.keyPrefix, { color: tokens.fg2 }]}
                   >
                     {`${key.keyPrefix}…`}
                   </Text>
                   <Text
-                    style={[styles.keyMeta, { color: tokens.fg3 }]}
+                    style={[styles.keyMeta, { color: tokens.fg4 }]}
                     numberOfLines={2}
                   >
                     {meta}
                   </Text>
-                </View>
+                </Animated.View>
               )
             })}
 
@@ -298,16 +319,27 @@ export default function AdvancedScreen() {
                   onPress={() => setCreateKeyModalOpen(true)}
                   accessibilityRole="button"
                   accessibilityLabel={t('orbitMcp.createKey')}
-                  style={styles.linkPress}
+                  style={({ pressed }) => [
+                    styles.createKeyChip,
+                    {
+                      backgroundColor: tokens.selectionBg,
+                      borderColor: tintFromPrimary(tokens, 0.45),
+                    },
+                    pressed ? styles.actionChipPressed : null,
+                  ]}
+                  hitSlop={8}
                 >
-                  <Text style={[styles.actionLink, { color: tokens.fg1 }]}>
-                    {`+ ${t('orbitMcp.createKey')}`}
+                  <Plus size={14} color={tokens.primary} strokeWidth={2.2} />
+                  <Text style={[styles.actionLink, { color: tokens.primary }]}>
+                    {t('orbitMcp.createKey')}
                   </Text>
                 </Pressable>
               </View>
             ) : (
-              <View style={styles.italicBlock}>
-                <Text style={[styles.italicText, { color: tokens.statusOverdue }]}>
+              <View style={styles.messageBlock}>
+                <Text
+                  style={[styles.messageText, { color: tokens.statusOverdue }]}
+                >
                   {t('orbitMcp.maxKeysReached')}
                 </Text>
               </View>
@@ -332,9 +364,9 @@ export default function AdvancedScreen() {
 
             <View
               style={[
-                styles.codeBlock,
+                styles.codeWell,
                 {
-                  backgroundColor: tokens.bgSunk,
+                  backgroundColor: tokens.bgField,
                   borderColor: tokens.hairline,
                 },
               ]}
@@ -345,47 +377,49 @@ export default function AdvancedScreen() {
                 }}
                 accessibilityRole="button"
                 accessibilityLabel={t('orbitMcp.copyConfig')}
-                style={styles.copyBtn}
+                style={({ pressed }) => [
+                  styles.copyBtn,
+                  {
+                    backgroundColor: pressed ? tokens.bgElev2 : tokens.bgElev,
+                    borderColor: tokens.hairline,
+                  },
+                  pressed ? styles.actionChipPressed : null,
+                ]}
+                hitSlop={8}
               >
                 <Text
                   style={[
                     styles.copyBtnText,
-                    { color: codeCopied ? tokens.statusDone : tokens.fg3 },
+                    { color: codeCopied ? tokens.statusDone : tokens.fg2 },
                   ]}
                 >
                   {codeCopied ? t('orbitMcp.copied') : t('orbitMcp.copyConfig')}
                 </Text>
               </Pressable>
               <Text
-                style={[styles.codeText, { color: tokens.fg1 }]}
+                style={[styles.codeText, { color: tokens.fg2 }]}
                 selectable
               >
                 {codeContent}
               </Text>
             </View>
-            {activeConfigTab === 'web' ? (
-              <View style={styles.hintPad}>
-                <Text style={[styles.italicText, { color: tokens.fg3 }]}>
-                  {t('orbitMcp.webNoApiKey')}
-                </Text>
-              </View>
-            ) : (
-              <View style={styles.hintPad}>
-                <Text style={[styles.italicText, { color: tokens.fg3 }]}>
-                  {t('orbitMcp.replaceKey')}
-                </Text>
-              </View>
-            )}
+            <View style={styles.hintPad}>
+              <Text style={[styles.hintText, { color: tokens.fg4 }]}>
+                {activeConfigTab === 'web'
+                  ? t('orbitMcp.webNoApiKey')
+                  : t('orbitMcp.replaceKey')}
+              </Text>
+            </View>
           </>
         ) : (
           <View style={styles.lockedRow}>
-            <Lock size={16} color={tokens.fg3} strokeWidth={1.4} />
+            <Lock size={16} color={tokens.fg3} strokeWidth={1.8} />
             <View style={{ flex: 1 }}>
               <Text style={[styles.lockedTitle, { color: tokens.fg1 }]}>
                 {t('orbitMcp.title')}
               </Text>
               <Text
-                style={[styles.italicText, { color: tokens.fg3 }]}
+                style={[styles.lockedDesc, { color: tokens.fg3 }]}
                 numberOfLines={3}
               >
                 {t('orbitMcp.description')}
@@ -394,7 +428,16 @@ export default function AdvancedScreen() {
             <Pressable
               onPress={() => router.push(buildUpgradeHref('/advanced'))}
               accessibilityRole="button"
-              style={styles.linkPress}
+              accessibilityLabel={t('common.proBadge')}
+              style={({ pressed }) => [
+                styles.actionChip,
+                {
+                  backgroundColor: tokens.selectionBg,
+                  borderColor: tintFromPrimary(tokens, 0.45),
+                },
+                pressed ? styles.actionChipPressed : null,
+              ]}
+              hitSlop={8}
             >
               <Text style={[styles.actionLink, { color: tokens.primary }]}>
                 {t('common.proBadge')}
@@ -410,7 +453,7 @@ export default function AdvancedScreen() {
         open={showWidgetInfo}
         onOpenChange={setShowWidgetInfo}
         title={t('profile.widgetTitle')}
-        description={t('profile.widgetHint')}
+        description={`1. ${t('profile.widgetHow.step1')}\n\n2. ${t('profile.widgetHow.step2')}\n\n3. ${t('profile.widgetHow.step3')}`}
         variant="info"
       />
 
@@ -449,65 +492,81 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   skelBar: {
-    height: 56,
-    borderRadius: 8,
+    height: 64,
+    borderRadius: 16,
   },
-  italicBlock: {
+  messageBlock: {
     paddingHorizontal: 20,
     paddingVertical: 12,
   },
-  italicText: {
-    fontFamily: 'Geist',
+  messageText: {
+    fontFamily: 'Rubik_400Regular',
     fontSize: 13,
-    fontStyle: 'italic',
-    flex: 1,
+    lineHeight: 19,
   },
-  errorBlock: {
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-  },
-  keyBlock: {
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+  keyCard: {
+    marginHorizontal: 20,
+    marginBottom: 8,
+    borderRadius: 16,
+    borderWidth: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
     gap: 4,
   },
   keyTopRow: {
     flexDirection: 'row',
-    alignItems: 'baseline',
+    alignItems: 'center',
     justifyContent: 'space-between',
     gap: 12,
   },
   keyName: {
-    fontFamily: 'Geist',
-    fontSize: 14,
+    fontFamily: 'Rubik_500Medium',
+    fontSize: 15,
     flexShrink: 1,
   },
   keyPrefix: {
-    fontFamily: 'GeistMono',
-    fontSize: 11,
+    fontFamily: 'Roboto_400Regular',
+    fontSize: 13,
+    fontVariant: ['tabular-nums'],
   },
   keyMeta: {
-    fontFamily: 'Geist',
+    fontFamily: 'Rubik_400Regular',
     fontSize: 12,
-    fontStyle: 'italic',
+    lineHeight: 17,
   },
   revokeLink: {
-    fontFamily: 'Geist',
+    fontFamily: 'Rubik_500Medium',
     fontSize: 13,
-    fontStyle: 'italic',
-    textDecorationLine: 'underline',
   },
   actionPad: {
     paddingHorizontal: 20,
     paddingVertical: 12,
   },
-  actionLink: {
-    fontFamily: 'Geist',
-    fontSize: 13,
-    fontWeight: '500',
+  createKeyChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 6,
+    borderRadius: 999,
+    borderWidth: 1,
+    paddingVertical: 9,
+    paddingHorizontal: 16,
   },
-  linkPress: { padding: 4 },
+  actionChip: {
+    borderRadius: 999,
+    borderWidth: 1,
+    paddingVertical: 9,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  actionChipPressed: {
+    transform: [{ scale: 0.96 }],
+  },
+  actionLink: {
+    fontFamily: 'Rubik_500Medium',
+    fontSize: 13,
+  },
   lockedRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -516,9 +575,13 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   lockedTitle: {
-    fontFamily: 'Geist',
+    fontFamily: 'Rubik_500Medium',
     fontSize: 14,
-    fontWeight: '600',
+  },
+  lockedDesc: {
+    fontFamily: 'Rubik_400Regular',
+    fontSize: 13,
+    lineHeight: 19,
   },
   tabRow: {
     flexDirection: 'row',
@@ -528,33 +591,42 @@ const styles = StyleSheet.create({
     paddingTop: 4,
     paddingBottom: 12,
   },
-  codeBlock: {
+  codeWell: {
     marginHorizontal: 20,
-    padding: 14,
-    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+    borderRadius: 14,
     borderWidth: 1,
     gap: 10,
     position: 'relative',
   },
   codeText: {
-    fontFamily: 'GeistMono',
-    fontSize: 12,
-    lineHeight: 18,
+    fontFamily: 'Roboto_400Regular',
+    fontSize: 12.5,
+    lineHeight: 20,
+    fontVariant: ['tabular-nums'],
   },
   copyBtn: {
     position: 'absolute',
-    top: 6,
-    right: 8,
-    padding: 6,
+    top: 8,
+    right: 10,
+    borderRadius: 999,
+    borderWidth: 1,
+    paddingVertical: 7,
+    paddingHorizontal: 12,
     zIndex: 1,
   },
   copyBtnText: {
-    fontFamily: 'Geist',
+    fontFamily: 'Rubik_500Medium',
     fontSize: 12,
-    textDecorationLine: 'underline',
   },
   hintPad: {
     paddingHorizontal: 20,
     paddingVertical: 8,
+  },
+  hintText: {
+    fontFamily: 'Rubik_400Regular',
+    fontSize: 13,
+    lineHeight: 19,
   },
 })

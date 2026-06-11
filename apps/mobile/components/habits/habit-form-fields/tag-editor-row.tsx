@@ -35,11 +35,10 @@ export function TagEditorRow({
       <BottomSheetAppTextInput
         value={value}
         placeholder={placeholder}
-        placeholderTextColor={tokens.fg3}
         maxLength={50}
         accessibilityLabel={inputAriaLabel}
         editable={!disabled}
-        style={[styles.input, { flex: 1 }]}
+        style={{ flex: 1 }}
         onChangeText={onChange}
         onSubmitEditing={onCommit}
       />
@@ -58,7 +57,7 @@ export function TagEditorRow({
         onPress={onCancel}
         activeOpacity={0.7}
       >
-        <X size={14} color={tokens.fg3} />
+        <X size={16} color={tokens.fg3} strokeWidth={1.8} />
       </TouchableOpacity>
     </View>
   );

@@ -41,41 +41,52 @@ export default function LoginPage() {
       >
         <div
           className="flex flex-col items-center"
-          style={{ gap: 14, paddingBottom: 12 }}
+          style={{ gap: 14, paddingBottom: 4 }}
         >
-          <div style={{ color: 'var(--fg-1)' }}>
-            <AppLogo size={32} />
-          </div>
           <div
+            className="flex items-center justify-center"
             style={{
-              fontFamily: 'var(--font-family-sans)',
-              fontSize: 28,
-              fontWeight: 600,
-              letterSpacing: '-0.025em',
-              lineHeight: 1,
-              color: 'var(--fg-1)',
+              width: 64,
+              height: 64,
+              borderRadius: 18,
+              background: 'rgba(var(--primary-rgb), 0.16)',
+              boxShadow:
+                '0 10px 30px rgba(var(--primary-rgb), 0.45), inset 0 0 0 1px rgba(var(--primary-rgb), 0.28)',
+              animation: 'fresh-start-orb 0.6s var(--ease-out) both',
             }}
           >
-            Orbit
+            <AppLogo size={40} />
           </div>
-          <div
-            aria-hidden="true"
-            style={{ width: 60, height: 1, background: 'var(--hairline-strong)', marginTop: 6 }}
-          />
         </div>
 
-        <h2
-          className="text-center"
-          style={{
-            fontFamily: 'var(--font-family-sans)',
-            fontSize: 13,
-            fontWeight: 600,
-            color: 'var(--fg-3)',
-            margin: 0,
-          }}
-        >
-          {step === 'email' ? t('auth.signIn') : t('auth.enterCode')}
-        </h2>
+        <div className="flex flex-col text-center" style={{ gap: 6 }}>
+          <h2
+            style={{
+              fontFamily: 'var(--font-sans)',
+              fontSize: 26,
+              fontWeight: 500,
+              letterSpacing: '-0.01em',
+              lineHeight: 1.3,
+              color: 'var(--fg-1)',
+              margin: 0,
+            }}
+          >
+            {step === 'email' ? t('auth.signIn') : t('auth.enterCode')}
+          </h2>
+          {step === 'email' && (
+            <p
+              style={{
+                fontFamily: 'var(--font-sans)',
+                fontSize: 15,
+                lineHeight: 1.55,
+                color: 'var(--fg-2)',
+                margin: 0,
+              }}
+            >
+              {t('auth.signInSubtitle')}
+            </p>
+          )}
+        </div>
 
         {referralCode && (
           <motion.div
@@ -101,7 +112,7 @@ export default function LoginPage() {
           >
             <span
               style={{
-                fontFamily: 'var(--font-family-mono)',
+                fontFamily: 'var(--font-mono)',
                 fontSize: 11,
                 fontWeight: 600,
                 color: 'var(--fg-1)',
@@ -120,9 +131,9 @@ export default function LoginPage() {
             aria-atomic="true"
             className="text-center"
             style={{
-              fontFamily: 'var(--font-family-sans)',
+              fontFamily: 'var(--font-sans)',
               fontSize: 14,
-              fontStyle: 'italic',
+              lineHeight: 1.55,
               color: 'var(--status-overdue)',
             }}
           >
@@ -139,9 +150,9 @@ export default function LoginPage() {
               aria-atomic="true"
               className="text-center"
               style={{
-                fontFamily: 'var(--font-family-sans)',
+                fontFamily: 'var(--font-sans)',
                 fontSize: 13,
-                fontStyle: 'italic',
+                lineHeight: 1.55,
                 color: 'var(--fg-2)',
               }}
               initial={{ opacity: 0, y: 8, scale: 0.98 }}
@@ -217,6 +228,7 @@ export default function LoginPage() {
                 canResend={canResend}
                 resendCountdown={resendCountdown}
                 codeInputRefs={codeInputRefs}
+                errorSignal={errorMessage}
                 onVerifyCode={verifyCode}
                 onCodeInput={onCodeInput}
                 onCodeKeydown={onCodeKeydown}

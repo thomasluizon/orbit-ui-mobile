@@ -1,3 +1,4 @@
+export { achievementEmoji } from './achievement-emoji'
 export { parseAPIDate, formatAPIDate } from './dates'
 export { getTimezoneList } from './timezones'
 export { isValidEmail } from './email'
@@ -29,6 +30,8 @@ export {
 } from './error-utils'
 export type { FriendlyErrorContext } from './error-utils'
 export { isFeatureEnabled } from './config'
+export { stripInlineMarkdown } from './markdown'
+export { plural } from './plural'
 export { buildRecentChatHistory } from './chat-history'
 export {
   buildCalendarAutoSyncImportRequest,
@@ -185,6 +188,7 @@ export {
 export {
   applyLinkedGoalUpdates,
   buildChildrenIndex,
+  computeDayProgress,
   habitDetailToNormalized,
   normalizeHabitQueryData,
   normalizeHabits,
@@ -208,8 +212,10 @@ export {
 } from './notification-cache'
 export type { NotificationTimeTranslationAdapter } from './notification-time'
 export { formatNotificationRelativeTime } from './notification-time'
+export type { NotificationGlyph } from './notification-actions'
 export {
   getNotificationDetailActionVisibility,
+  getNotificationGlyph,
   isViewableNotificationUrl,
 } from './notification-actions'
 export {

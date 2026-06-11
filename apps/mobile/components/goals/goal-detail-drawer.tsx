@@ -339,7 +339,7 @@ export function GoalDetailDrawer({
   const router = useRouter()
   const handleAskAstra = useCallback(() => {
     if (!goal) return
-    const seed = `${t('goals.detail.askAstraDefault')} (${goal.title})`
+    const seed = t('goals.detail.askAstraSeedDefault', { title: goal.title })
     void AsyncStorage.setItem('orbit-chat-draft', seed)
     onClose()
     router.push('/chat')
@@ -451,6 +451,7 @@ export function GoalDetailDrawer({
             isActive={isActive}
             isUpdatingStatus={isUpdatingStatus}
             iconColor={tokens.fg3}
+            dangerColor={tokens.statusBad}
             onMarkCompleted={markCompleted}
             onMarkAbandoned={markAbandoned}
             onReactivate={reactivate}

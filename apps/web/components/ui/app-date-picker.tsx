@@ -116,11 +116,11 @@ export function AppDatePicker({
         aria-label={displayValue ? t('common.selectedDate', { date: displayValue }) : t('common.selectDate')}
         aria-expanded={isOpen}
         aria-haspopup="dialog"
-        className="w-full bg-[var(--bg-elev)] text-[var(--fg-1)] rounded-md py-3 px-4 text-sm border border-[var(--hairline)] text-left flex items-center justify-between focus:outline-none focus:border-[var(--primary)] transition-colors duration-[var(--duration-fast)]"
+        className="w-full min-h-[44px] bg-[var(--bg-field)] text-[var(--fg-1)] rounded-[14px] py-3 px-4 text-base shadow-[inset_0_0_0_1px_var(--hairline)] text-left flex items-center justify-between focus:outline-none focus:shadow-[inset_0_0_0_2px_var(--primary)] transition-[background-color,box-shadow,color] duration-[var(--dur-fast)]"
         onClick={() => setIsOpen(!isOpen)}
       >
         <span>{displayValue || placeholder || t('common.selectDate')}</span>
-        <Calendar className="size-4 text-[var(--fg-3)]" />
+        <Calendar size={20} strokeWidth={1.8} className="text-[var(--fg-4)]" />
       </button>
 
       {isOpen && (
@@ -135,16 +135,16 @@ export function AppDatePicker({
             open
             aria-modal="true"
             aria-labelledby={dialogLabelId}
-            className="fixed z-50 left-1/2 top-1/2 m-0 w-[min(90vw,320px)] -translate-x-1/2 -translate-y-1/2 rounded-[12px] border border-[var(--hairline)] bg-[var(--bg-elev)] p-2.5 text-[var(--fg-1)] shadow-[0_12px_40px_rgba(0,0,0,0.35)]"
+            className="fixed z-50 left-1/2 top-1/2 m-0 w-[min(90vw,320px)] -translate-x-1/2 -translate-y-1/2 rounded-[16px] border-0 bg-[var(--bg-sheet)] p-2.5 text-[var(--fg-1)] shadow-[var(--shadow-2),inset_0_0_0_1px_var(--hairline)]"
           >
             <div className="flex items-center justify-between mb-2">
               <button
                 type="button"
-                className="p-1.5 rounded-lg hover:bg-white/10"
+                className="p-1.5 rounded-lg hover:bg-[var(--bg-elev)]"
                 aria-label={t('common.previousMonth')}
                 onClick={prevMonth}
               >
-                <ChevronLeft className="size-4 text-[var(--fg-3)]" />
+                <ChevronLeft size={18} strokeWidth={1.8} className="text-[var(--fg-3)]" />
               </button>
               <span
                 id={dialogLabelId}
@@ -155,11 +155,11 @@ export function AppDatePicker({
               </span>
               <button
                 type="button"
-                className="p-1.5 rounded-lg hover:bg-white/10"
+                className="p-1.5 rounded-lg hover:bg-[var(--bg-elev)]"
                 aria-label={t('common.nextMonth')}
                 onClick={nextMonth}
               >
-                <ChevronRight className="size-4 text-[var(--fg-3)]" />
+                <ChevronRight size={18} strokeWidth={1.8} className="text-[var(--fg-3)]" />
               </button>
             </div>
 
@@ -170,7 +170,11 @@ export function AppDatePicker({
                     <th
                       key={day.key}
                       scope="col"
-                      className="py-1 text-center text-xs font-normal text-[var(--fg-3)]"
+                      className="py-1 text-center text-xs font-normal uppercase text-[var(--fg-3)]"
+                      style={{
+                        fontFamily: 'var(--font-mono)',
+                        fontVariantNumeric: 'tabular-nums',
+                      }}
                     >
                       {day.label}
                     </th>
@@ -196,17 +200,17 @@ export function AppDatePicker({
                             })}
                             aria-pressed={!!isSelected}
                             aria-current={isToday ? 'date' : undefined}
-                            className={`flex aspect-square w-full items-center justify-center rounded-lg text-xs transition-colors ${
+                            className={`flex aspect-square w-full items-center justify-center rounded-full text-xs transition-colors ${
                               isCurrentMonth
-                                ? 'text-[var(--fg-1)] hover:bg-white/10'
-                                : 'text-[var(--fg-3)]/40'
+                                ? 'text-[var(--fg-1)] hover:bg-[var(--bg-elev)]'
+                                : 'text-[var(--fg-4)]'
                             } ${
                               isSelected
-                                ? 'bg-[var(--primary)] text-white hover:bg-[var(--primary-pressed)]'
+                                ? 'bg-[var(--primary)] text-[var(--fg-on-primary)] hover:bg-[var(--primary-pressed)]'
                                 : ''
                             } ${
                               isToday && !isSelected
-                                ? 'ring-1 ring-primary/50'
+                                ? 'shadow-[inset_0_0_0_1px_var(--primary)]'
                                 : ''
                             }`}
                             onClick={() => selectDay(day)}

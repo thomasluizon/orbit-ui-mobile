@@ -1,7 +1,7 @@
 'use client'
 
 import { createPortal } from 'react-dom'
-import { useEffect, useRef, useState, useCallback } from 'react'
+import { useEffect, useRef, useState, useCallback, type CSSProperties } from 'react'
 import { useTranslations } from 'next-intl'
 import type { TourStep, TourSection } from '@orbit/shared/types'
 import type { TourTargetRect } from '@orbit/shared/stores'
@@ -247,10 +247,14 @@ export function TourTooltip({
     : ''
 
   const modeClassName = (() => {
-    if (mode === 'float') return 'fixed z-[9999] w-[360px] rounded-[12px] border border-[var(--hairline)] bg-[var(--bg-elev)] px-6 py-5 shadow-[0_12px_40px_rgba(0,0,0,0.35)]'
-    if (mode === 'sheet-top') return 'fixed top-0 left-0 right-0 z-[9999] rounded-b-[12px] border-b border-[var(--hairline)] bg-[var(--bg-elev)] px-6 pt-3 pb-5 shadow-[0_12px_40px_rgba(0,0,0,0.35)]'
-    return 'fixed bottom-0 left-0 right-0 z-[9999] rounded-t-[12px] border-t border-[var(--hairline)] bg-[var(--bg-elev)] px-6 pt-3 pb-[calc(1.75rem+var(--safe-bottom))] shadow-[0_12px_40px_rgba(0,0,0,0.35)]'
+    if (mode === 'float') return 'fixed z-[9999] w-[360px] rounded-[18px] bg-[var(--bg-sheet)] px-6 py-5'
+    if (mode === 'sheet-top') return 'fixed top-0 left-0 right-0 z-[9999] rounded-b-[18px] bg-[var(--bg-sheet)] px-6 pt-3 pb-5'
+    return 'fixed bottom-0 left-0 right-0 z-[9999] rounded-t-[18px] bg-[var(--bg-sheet)] px-6 pt-3 pb-[calc(1.75rem+var(--safe-bottom))]'
   })()
+
+  const surfaceStyle = {
+    boxShadow: 'var(--shadow-3), inset 0 0 0 1px var(--hairline)',
+  }
 
   const floatStyle = (() => {
     if (mode !== 'float') return undefined
@@ -258,57 +262,71 @@ export function TourTooltip({
     return { top: pos.top, left: pos.left }
   })()
 
+  const entranceStyle = (() => {
+    if (mode === 'float' && !pos) return undefined
+    if (mode === 'sheet-top' || mode === 'sheet-bottom') {
+      return { animation: 'slide-up-fade 0.28s var(--ease-out) backwards' }
+    }
+    return { animation: 'scale-in 0.22s var(--ease-out) backwards' }
+  })()
+
   const content = (
     <dialog
       open
       ref={tooltipRef}
       className={modeClassName}
-      style={floatStyle}
+      style={{ ...surfaceStyle, ...floatStyle, ...entranceStyle }}
       aria-modal="true"
       aria-label={t(step.titleKey)}
     >
       {mode !== 'float' && (
-        <div className="mx-auto mb-4 h-1 w-10 rounded-full bg-[var(--hairline-strong)]" />
+        <div className="mx-auto mb-4 h-[5px] w-11 rounded-full bg-[var(--hairline-strong)]" />
       )}
 
       <div className="mb-3 flex items-center gap-2">
-        {SectionIcon && <SectionIcon className="size-4 text-[var(--primary)]" />}
-        <span className="text-xs italic text-[var(--fg-2)]">{sectionName}</span>
-        <span className="font-[var(--font-family-mono)] text-[11px] uppercase tracking-[0.04em] text-[var(--fg-3)]">
+        {SectionIcon && <SectionIcon className="size-4 text-[var(--primary)]" strokeWidth={1.8} />}
+        <span className="text-[12px] font-medium uppercase tracking-[0.08em] text-[var(--fg-3)]">
+          {sectionName}
+        </span>
+        <span className="font-[var(--font-mono)] text-[12px] uppercase tracking-[0.04em] text-[var(--fg-3)] [font-variant-numeric:tabular-nums]">
           {t('tour.ui.stepOf', {
             current: sectionProgress.current,
             total: sectionProgress.total,
           })}
         </span>
         {step.proBadge && (
-          <span className="ml-auto rounded-full border border-[var(--hairline)] bg-[var(--bg-sunk)] px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[var(--primary)]">
+          <span
+            className="ml-auto rounded-full px-[9px] py-[3px] text-[10.5px] font-semibold uppercase tracking-[0.06em] text-[var(--primary-soft)]"
+            style={{ background: 'rgba(var(--primary-rgb), 0.15)' }}
+          >
             {t('tour.ui.pro')}
           </span>
         )}
       </div>
 
-      <h3 className="mb-1.5 text-[length:var(--text-fluid-xl)] font-extrabold tracking-tight text-[var(--fg-1)]">
+      <h3 className="mb-1.5 text-[16px] font-medium text-[var(--fg-1)]">
         {t(step.titleKey)}
       </h3>
 
-      <p className="mb-4 text-sm italic leading-relaxed text-[var(--fg-2)]">
+      <p className="mb-4 text-[13.5px] leading-relaxed text-[var(--fg-2)]">
         {t(step.descriptionKey)}
       </p>
 
-      <div className="mb-4 flex items-center justify-center gap-1">
+      <div className="mb-4 flex items-center justify-center gap-1.5">
         {Array.from({ length: sectionProgress.total }).map((_, i) => {
-          let dotClass: string
+          let dotStyle: CSSProperties
           if (i === sectionProgress.current - 1) {
-            dotClass = 'w-4 bg-[var(--primary)]'
+            dotStyle = { width: 16, background: 'var(--primary)' }
           } else if (i < sectionProgress.current - 1) {
-            dotClass = 'w-1.5 bg-[var(--primary)]/40'
+            dotStyle = { width: 8, background: 'rgba(var(--primary-rgb), 0.4)' }
           } else {
-            dotClass = 'w-1.5 bg-[var(--hairline)]'
+            dotStyle = { width: 8, background: 'var(--fg-4)' }
           }
           return (
             <div
               key={`progress-dot-${sectionProgress.section}-${i}`}
-              className={`h-1.5 rounded-full transition-[width,background-color] duration-200 ${dotClass}`}
+              className="h-2 rounded-full transition-[width,background-color] duration-[var(--dur-base)] ease-[var(--ease-standard)]"
+              style={dotStyle}
             />
           )
         })}
@@ -321,9 +339,9 @@ export function TourTooltip({
           <button
             type="button"
             onClick={onPrev}
-            className="flex items-center gap-1 rounded-[10px] px-3 py-2.5 text-sm italic text-[var(--fg-2)] transition-colors duration-150 ease-out hover:bg-[var(--bg-sunk)] hover:text-[var(--fg-1)]"
+            className="flex min-h-[44px] items-center gap-1 rounded-full px-3 text-[14px] text-[var(--fg-2)] transition-colors duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev)] hover:text-[var(--fg-1)]"
           >
-            <ChevronLeft className="size-4" />
+            <ChevronLeft className="size-4" strokeWidth={1.8} />
             {t('tour.ui.back')}
           </button>
         )}
@@ -332,17 +350,17 @@ export function TourTooltip({
           ref={nextButtonRef}
           type="button"
           onClick={onNext}
-          className="flex items-center gap-1 rounded-[10px] bg-[var(--primary)] px-5 py-2.5 text-sm font-semibold text-[var(--fg-on-primary)] transition-[background-color] duration-150 ease-out hover:bg-[var(--primary-pressed)]"
+          className="flex min-h-[44px] items-center gap-1 rounded-full bg-[var(--primary)] px-[18px] text-[15px] font-medium text-[var(--fg-on-primary)] shadow-[0_6px_18px_rgba(var(--primary-rgb),0.35)] transition-[background-color,box-shadow,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:-translate-y-px hover:bg-[var(--primary-pressed)] hover:shadow-[0_8px_22px_rgba(var(--primary-rgb),0.45)] active:translate-y-0 active:scale-[0.97]"
         >
           {isLastStep ? t('tour.ui.finish') : t('tour.ui.next')}
-          {!isLastStep && <ChevronRight className="size-4" />}
+          {!isLastStep && <ChevronRight className="size-4" strokeWidth={1.8} />}
         </button>
       </div>
 
       <button
         type="button"
         onClick={onSkip}
-        className="mt-3 w-full text-center text-xs italic text-[var(--fg-3)] transition-colors duration-150 ease-out hover:text-[var(--fg-2)]"
+        className="mt-2 flex min-h-[44px] w-full items-center justify-center text-center text-[13px] text-[var(--fg-3)] transition-colors duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:text-[var(--fg-2)]"
       >
         {t('tour.ui.skip')}
       </button>

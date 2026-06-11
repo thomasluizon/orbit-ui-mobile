@@ -60,6 +60,34 @@ describe('createChatSseParser', () => {
     ])
   })
 
+  it('parses final events whose action results omit null fields, as the stream serializer does', () => {
+    const parser = createChatSseParser()
+    const response = {
+      aiMessage: 'Sub-habits need Pro.',
+      actions: [
+        {
+          type: 'CreateSubHabit',
+          status: 'Failed',
+          error: 'Sub-habits are a Pro feature. Upgrade to unlock!',
+        },
+      ],
+      policyDenials: [
+        {
+          operationId: 'create_sub_habit',
+          sourceName: 'create_sub_habit',
+          riskClass: 'Low',
+          confirmationRequirement: 'None',
+          reason: 'Sub-habits are a Pro feature. Upgrade to unlock!',
+        },
+      ],
+    }
+
+    const events = parser.feed(frame(JSON.stringify({ type: 'final', response })))
+
+    expect(events).toHaveLength(1)
+    expect(events[0]).toMatchObject({ type: 'final' })
+  })
+
   it('parses error events with and without code', () => {
     const parser = createChatSseParser()
 

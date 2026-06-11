@@ -14,8 +14,8 @@ interface OnboardingCompleteHabitProps {
 }
 
 /**
- * v8 step 4: "Try it. Tap the dot." Hairline-divided row with a quiet
- * habit name and a tap-to-complete dot.
+ * ob-4 step: "Now complete it." Kit habit card with the created habit and a
+ * tap-to-complete check circle.
  */
 export function OnboardingCompleteHabit({
   habitId,
@@ -110,20 +110,21 @@ export function OnboardingCompleteHabit({
           </Text>
         </View>
 
-        <Pressable disabled={isCompleted} onPress={handleComplete} hitSlop={6}>
+        <Pressable disabled={isCompleted} onPress={handleComplete} hitSlop={8}>
           <Animated.View
             style={[
               styles.dot,
               {
-                borderColor: tokens.hairlineStrong,
+                borderColor: isCompleted
+                  ? tokens.primary
+                  : tokens.statusEmpty,
                 backgroundColor: isCompleted ? tokens.primary : 'transparent',
               },
-              isCompleted && { borderColor: tokens.primary },
               { transform: [{ scale: scaleAnim }] },
             ]}
           >
             {isCompleted && (
-              <Check size={16} color={tokens.fgOnPrimary} strokeWidth={2.4} />
+              <Check size={17} color={tokens.fgOnPrimary} strokeWidth={2.6} />
             )}
           </Animated.View>
         </Pressable>
@@ -156,29 +157,29 @@ function createStyles(tokens: AppTokensV2) {
       paddingBottom: 12,
     },
     title: {
-      fontFamily: 'Geist',
-      fontSize: 22,
-      fontWeight: '600',
-      letterSpacing: -0.33,
-      lineHeight: 25,
+      fontFamily: 'Rubik_500Medium',
+      fontSize: 24,
+      letterSpacing: -0.24,
+      lineHeight: 31,
       color: tokens.fg1,
       textAlign: 'center',
     },
     subtitle: {
-      fontFamily: 'Geist',
-      fontSize: 14,
-      lineHeight: 21,
+      fontFamily: 'Rubik_400Regular',
+      fontSize: 15,
+      lineHeight: 23,
       color: tokens.fg2,
       textAlign: 'center',
     },
     habitRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 16,
-      paddingVertical: 16,
-      paddingHorizontal: 4,
-      borderTopWidth: 1,
-      borderBottomWidth: 1,
+      gap: 14,
+      paddingVertical: 14,
+      paddingHorizontal: 16,
+      borderRadius: 18,
+      backgroundColor: tokens.bgCard,
+      borderWidth: 1,
       borderColor: tokens.hairline,
       marginTop: 12,
     },
@@ -186,23 +187,21 @@ function createStyles(tokens: AppTokensV2) {
       flex: 1,
     },
     habitTitle: {
-      fontFamily: 'Geist',
-      fontSize: 15,
-      fontWeight: '500',
+      fontFamily: 'Rubik_500Medium',
+      fontSize: 16,
       color: tokens.fg1,
     },
     habitHint: {
-      fontFamily: 'Geist',
-      fontSize: 12,
-      fontStyle: 'italic',
+      fontFamily: 'Rubik_400Regular',
+      fontSize: 13,
       color: tokens.fg3,
-      marginTop: 2,
+      marginTop: 3,
     },
     dot: {
-      width: 28,
-      height: 28,
+      width: 30,
+      height: 30,
       borderRadius: 999,
-      borderWidth: 1,
+      borderWidth: 2,
       alignItems: 'center',
       justifyContent: 'center',
     },
@@ -211,10 +210,9 @@ function createStyles(tokens: AppTokensV2) {
       paddingTop: 8,
     },
     streakText: {
-      fontFamily: 'Geist',
-      fontSize: 13,
-      fontStyle: 'italic',
-      color: tokens.fg2,
+      fontFamily: 'Rubik_400Regular',
+      fontSize: 14,
+      color: tokens.primary,
     },
   })
 }

@@ -17,6 +17,7 @@ import { useCalendarData } from '@/hooks/use-calendar-data'
 import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
 import { CalendarGrid } from '@/components/calendar/calendar-grid'
 import { CalendarDayDetail } from '@/components/calendar/calendar-day-detail'
+import { GradientTop } from '@/components/ui/gradient-top'
 import { SectionLabel } from '@/components/ui/section-label'
 import { SettingsRow } from '@/components/ui/settings-row'
 import {
@@ -26,13 +27,17 @@ import {
 
 const SWIPE_THRESHOLD = 50
 
+type MonthSlide = 'left' | 'right' | null
+
 export default function CalendarPage() {
   const t = useTranslations()
   const locale = useLocale()
   const dateFnsLocale = locale === 'pt-BR' ? ptBR : enUS
   const [currentMonth, setCurrentMonth] = useState(() => startOfMonth(new Date()))
-  const [selectedDay, setSelectedDay] = useState<string | null>(null)
-  const [showDayDetail, setShowDayDetail] = useState(false)
+  const [monthSlide, setMonthSlide] = useState<MonthSlide>(null)
+  const [selectedDay, setSelectedDay] = useState<string | null>(() =>
+    formatAPIDate(new Date()),
+  )
 
   const { dayMap, isLoading, isFetching } = useCalendarData(currentMonth)
 
@@ -57,16 +62,17 @@ export default function CalendarPage() {
   }, [dayMap, isLoading, t])
 
   const prevMonth = useCallback(() => {
+    setMonthSlide('left')
     setCurrentMonth((m) => subMonths(m, 1))
   }, [])
 
   const nextMonth = useCallback(() => {
+    setMonthSlide('right')
     setCurrentMonth((m) => addMonths(m, 1))
   }, [])
 
   const onSelectDay = useCallback((dateStr: string) => {
     setSelectedDay(dateStr)
-    setShowDayDetail(true)
   }, [])
 
   const selectedEntries = useMemo(() => {
@@ -116,74 +122,84 @@ export default function CalendarPage() {
     touchStartX.current = null
     if (Math.abs(deltaX) < SWIPE_THRESHOLD) return
     if (deltaX < 0) {
+      setMonthSlide('right')
       setCurrentMonth((m) => addMonths(m, 1))
     } else {
+      setMonthSlide('left')
       setCurrentMonth((m) => subMonths(m, 1))
     }
   }, [])
 
+  const monthSlideClass =
+    monthSlide === 'right'
+      ? 'animate-slide-date-right'
+      : monthSlide === 'left'
+        ? 'animate-slide-date-left'
+        : ''
+
   return (
     <div
+      className="relative"
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
-      <CalendarHeader
-        title={t('nav.calendar')}
-        monthLabel={monthLabel}
-        subtitle={monthSummary}
-        previousMonthLabel={t('common.previousMonth')}
-        nextMonthLabel={t('common.nextMonth')}
-        onPreviousMonth={prevMonth}
-        onNextMonth={nextMonth}
-      />
+      <GradientTop height={180} />
+      <div className="relative z-[1]">
+        <CalendarHeader
+          monthLabel={monthLabel}
+          subtitle={monthSummary}
+          previousMonthLabel={t('common.previousMonth')}
+          nextMonthLabel={t('common.nextMonth')}
+          onPreviousMonth={prevMonth}
+          onNextMonth={nextMonth}
+        />
 
-      <div
-        className={`loading-bar w-full transition-opacity duration-300 ${
-          isFetching && !isLoading ? 'opacity-100' : 'opacity-0 pointer-events-none'
-        }`}
-      />
+        <div
+          className={`loading-bar w-full transition-opacity duration-300 ${
+            isFetching && !isLoading ? 'opacity-100' : 'opacity-0 pointer-events-none'
+          }`}
+        />
 
-      <CalendarGrid
-        currentMonth={currentMonth}
-        dayMap={dayMap}
-        onSelectDay={onSelectDay}
-        isLoading={isLoading}
-      />
+        <div key={format(currentMonth, 'yyyy-MM')} className={monthSlideClass}>
+          <CalendarGrid
+            currentMonth={currentMonth}
+            dayMap={dayMap}
+            onSelectDay={onSelectDay}
+            selectedDateStr={selectedDay}
+            isLoading={isLoading}
+          />
+        </div>
 
-      <CalendarLegend
-        todayLabel={t('calendar.legend.today')}
-        doneLabel={t('calendar.legend.done')}
-        partialLabel={t('calendar.legend.partial')}
-        missedLabel={t('calendar.legend.missed')}
-      />
+        <CalendarLegend
+          todayLabel={t('calendar.legend.today')}
+          doneLabel={t('calendar.legend.done')}
+          partialLabel={t('calendar.legend.partial')}
+          missedLabel={t('calendar.legend.missed')}
+        />
 
-      <SectionLabel>{t('calendar.thisMonth')}</SectionLabel>
-      <SettingsRow
-        label={t('calendar.bestStreak')}
-        value={String(monthStats.bestStreak)}
-        accessory="none"
-        mono
-      />
-      <SettingsRow
-        label={t('calendar.totalLogs')}
-        value={String(monthStats.totalLogs)}
-        accessory="none"
-        mono
-      />
-      <SettingsRow
-        label={t('calendar.missedCount')}
-        value={String(monthStats.missed)}
-        accessory="none"
-        mono
-        divider={false}
-      />
+        <CalendarDayDetail dateStr={selectedDay} entries={selectedEntries} />
 
-      <CalendarDayDetail
-        open={showDayDetail}
-        onOpenChange={setShowDayDetail}
-        dateStr={selectedDay}
-        entries={selectedEntries}
-      />
+        <SectionLabel>{t('calendar.thisMonth')}</SectionLabel>
+        <SettingsRow
+          label={t('calendar.bestStreak')}
+          value={String(monthStats.bestStreak)}
+          accessory="none"
+          mono
+        />
+        <SettingsRow
+          label={t('calendar.totalLogs')}
+          value={String(monthStats.totalLogs)}
+          accessory="none"
+          mono
+        />
+        <SettingsRow
+          label={t('calendar.missedCount')}
+          value={String(monthStats.missed)}
+          accessory="none"
+          mono
+          divider={false}
+        />
+      </div>
     </div>
   )
 }

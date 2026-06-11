@@ -1,8 +1,9 @@
 'use client'
 
-import { Fragment, type MouseEvent, type ReactNode } from 'react'
+import { Fragment, useState, type MouseEvent, type ReactNode } from 'react'
 import {
   ArrowRight,
+  Check,
   CheckCircle2,
   ChevronDown,
   ChevronRight,
@@ -15,11 +16,12 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
+import { stripInlineMarkdown } from '@orbit/shared/utils'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { ParentRing } from '@/components/ui/parent-ring'
 import { Popover } from '@/components/ui/popover'
 import { SelectCheck } from '@/components/ui/select-check'
-import { StatusDot, type StatusDotState } from '@/components/ui/status-dot'
+import type { StatusDotState } from '@/components/ui/status-dot'
 
 /** Action callbacks consumed by HabitRow. Mirrors the mobile shape so that
  *  cross-platform call sites can pass the same handler bag. */
@@ -45,10 +47,9 @@ export interface HabitRowActions {
 export type HabitRowMetaToken =
   | string
   | { kind: 'overdue'; label: string }
-  | { kind: 'bad'; label: string }
   | { kind: 'future'; label: string }
 
-/** Linear-tight habit row. Single line: emoji / chevron / title / inline meta / status dot / streak.
+/** Linear-tight habit row: emoji / chevron / title (wraps to two lines) / inline meta / status dot / streak.
  *  Sub-habit rows ("child") render a tree-line connector to the parent column. */
 interface HabitRowProps {
   habit: NormalizedHabit
@@ -127,9 +128,11 @@ export function HabitRow({
 
   const isDone = state === 'done'
   const isSkip = state === 'skip'
-  const titleSize = child ? 14 : 17
-  const emojiSize = child ? 16 : 18
-  const showStreak = !child && streak != null && streak >= 2
+  const titleSize = child ? 14 : 16
+  const emojiSize = child ? 16 : 22
+  const wellSize = child ? 36 : 46
+  const wellRadius = child ? 12 : 14
+  const showStreak = !child && !selectMode && streak != null && streak >= 2
 
   const indentPx = depth * 16
 
@@ -167,19 +170,19 @@ export function HabitRow({
       }}
       data-tour={tourTargetId}
       className={
-        `relative flex items-center cursor-pointer transition-[background-color] duration-150 ease-out ${
+        `relative flex items-center cursor-pointer shadow-[inset_0_0_0_1px_var(--hairline)] transition-[background-color,transform,box-shadow] duration-[160ms] ease-[var(--ease-standard)] active:scale-[0.99] ${
           selected
             ? 'bg-[var(--bg-sunk)]'
-            : 'bg-[var(--bg-elev)] hover:bg-[color-mix(in_oklch,var(--bg-elev),var(--fg-1)_4%)]'
+            : 'bg-[var(--bg-card)] hover:bg-[var(--bg-elev-pressed)] hover:shadow-[inset_0_0_0_1px_var(--hairline-strong)]'
         }`
       }
       style={{
-        gap: 10,
-        padding: '12px 16px',
-        borderRadius: 10,
+        gap: 14,
+        padding: '14px 16px',
+        borderRadius: 18,
         marginLeft: 20 + indentPx,
         marginRight: 20,
-        marginBottom: 6,
+        marginBottom: 10,
       }}
     >
 
@@ -202,19 +205,31 @@ export function HabitRow({
             transform: expanded ? 'rotate(0deg)' : 'rotate(-90deg)',
           }}
         >
-          <ChevronDown size={14} />
+          <ChevronDown size={14} strokeWidth={1.8} />
         </button>
       )}
 
-      {habit.emoji && (
-        <span
-          aria-hidden="true"
-          className="shrink-0"
-          style={{ fontSize: emojiSize, lineHeight: 1 }}
-        >
-          {habit.emoji}
-        </span>
-      )}
+      <span
+        aria-hidden="true"
+        className="shrink-0 inline-flex items-center justify-center"
+        style={{
+          width: wellSize,
+          height: wellSize,
+          borderRadius: wellRadius,
+          background: 'var(--bg-field)',
+          fontSize: habit.emoji ? emojiSize : emojiSize - 4,
+          lineHeight: 1,
+          ...(habit.emoji
+            ? {}
+            : {
+                fontFamily: 'var(--font-sans)',
+                fontWeight: 500,
+                color: 'var(--fg-3)',
+              }),
+        }}
+      >
+        {habit.emoji ?? [...habit.title.trim().toUpperCase()][0]}
+      </span>
 
       <div
         className="flex-1 min-w-0 flex flex-col"
@@ -230,17 +245,32 @@ export function HabitRow({
           <span
             className="overflow-hidden whitespace-nowrap text-ellipsis"
             style={{
-              fontFamily: 'var(--font-family-sans)',
+              fontFamily: 'var(--font-sans)',
               fontSize: 13,
               color: 'var(--fg-3)',
               lineHeight: 1.3,
             }}
           >
-            {habit.description}
+            {stripInlineMarkdown(habit.description)}
           </span>
         )}
-        {meta.length > 0 && (
-          <MetaStrip tokens={meta} />
+        {(meta.length > 0 || showStreak) && (
+          <span className="flex items-center" style={{ gap: 8 }}>
+            {meta.length > 0 && <MetaStrip tokens={meta} />}
+            {showStreak && (
+              <span
+                className="shrink-0"
+                style={{
+                  fontFamily: 'var(--font-sans)',
+                  fontSize: 13,
+                  color: 'var(--status-overdue)',
+                  fontVariantNumeric: 'tabular-nums',
+                }}
+              >
+                🔥 {streak}
+              </span>
+            )}
+          </span>
         )}
       </div>
 
@@ -263,7 +293,7 @@ export function HabitRow({
                 <span
                   aria-hidden="true"
                   style={{
-                    fontFamily: 'var(--font-family-mono)',
+                    fontFamily: 'var(--font-mono)',
                     fontSize: 12,
                     fontVariantNumeric: 'tabular-nums',
                     color: 'var(--fg-3)',
@@ -294,40 +324,31 @@ export function HabitRow({
                   }
                 }}
                 className="appearance-none border-0 bg-transparent flex items-center justify-center cursor-pointer"
-                style={{ padding: 6, margin: -6 }}
+                style={{ padding: 7, margin: -7 }}
               >
                 <ParentRing
                   done={childProgress?.done ?? 0}
                   total={childProgress?.total ?? 0}
-                  size={22}
+                  size={30}
                   ariaLabel={t('goals.progress')}
+                  color={habit.isBadHabit ? 'var(--status-bad)' : undefined}
+                  trackColor={
+                    habit.isBadHabit
+                      ? 'color-mix(in srgb, var(--status-bad) 40%, transparent)'
+                      : undefined
+                  }
                 />
               </button>
             </>
           ) : (
-            <StatusDot
+            <CheckCircle
               state={state}
-              size={22}
+              tone={habit.isBadHabit ? 'bad' : 'default'}
               onToggle={handleToggleStatus}
               disabled={!canLog && !isDone}
               ariaLabel={t(`habits.statusDot.${state}` as Parameters<typeof t>[0])}
             />
           )
-        )}
-        {showStreak && !selectMode && (
-          <span
-            className="text-right"
-            style={{
-              fontFamily: 'var(--font-family-mono)',
-              fontSize: 12,
-              fontWeight: 500,
-              color: 'var(--fg-2)',
-              fontVariantNumeric: 'tabular-nums',
-              minWidth: 18,
-            }}
-          >
-            {streak}
-          </span>
         )}
         {!selectMode && hasMenuActions && (
           <Popover
@@ -338,15 +359,15 @@ export function HabitRow({
                 type="button"
                 aria-label={t('habits.actions.more')}
                 onClick={(event) => event.stopPropagation()}
-                className="appearance-none border-0 bg-transparent flex items-center justify-center text-[var(--fg-3)] transition-[background-color,color] duration-150 ease-out hover:bg-[var(--bg)] hover:text-[var(--fg-1)]"
+                className="appearance-none border-0 bg-transparent flex items-center justify-center rounded-full text-[var(--fg-3)] transition-[background-color,color,transform] duration-[160ms] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev-pressed)] hover:text-[var(--fg-1)] active:scale-90"
                 style={{
-                  width: 28,
-                  height: 28,
-                  borderRadius: 6,
+                  width: 34,
+                  height: 34,
+                  margin: '-3px',
                   cursor: 'pointer',
                 }}
               >
-                <MoreVertical size={16} />
+                <MoreVertical size={18} strokeWidth={1.8} />
               </button>
             }
           >
@@ -456,12 +477,12 @@ function MenuItem({ icon: Icon, label, onClick, tone = 'default' }: Readonly<Men
         gap: 10,
         padding: '8px 12px',
         color,
-        fontFamily: 'var(--font-family-sans)',
+        fontFamily: 'var(--font-sans)',
         fontSize: 14,
         cursor: 'pointer',
       }}
     >
-      <Icon size={14} strokeWidth={1.6} />
+      <Icon size={14} strokeWidth={1.8} />
       <span>{label}</span>
     </button>
   )
@@ -477,22 +498,89 @@ interface TitleTextProps {
 function TitleText({ title, size, color, strikethrough }: Readonly<TitleTextProps>) {
   return (
     <span
-      className="flex-shrink min-w-0 overflow-hidden whitespace-nowrap text-ellipsis"
+      className="flex-shrink min-w-0 overflow-hidden line-clamp-2"
       style={{
-        fontFamily: 'var(--font-family-sans)',
+        fontFamily: 'var(--font-sans)',
         fontSize: size,
-        fontWeight: 400,
+        fontWeight: 500,
         color,
         textDecorationLine: strikethrough ? 'line-through' : 'none',
         textDecorationStyle: 'solid',
-        textDecorationColor: 'var(--hairline-strong)',
+        textDecorationColor: 'var(--fg-4)',
         textDecorationThickness: 1,
         lineHeight: 1.25,
         letterSpacing: '-0.005em',
+        overflowWrap: 'anywhere',
       }}
     >
       {title}
     </span>
+  )
+}
+
+const CHECK_FILLED_STATES: ReadonlySet<StatusDotState> = new Set(['done', 'skip', 'frozen'])
+
+const CHECK_COLOR_VAR: Record<StatusDotState, string> = {
+  done: 'var(--status-done)',
+  empty: 'var(--status-empty)',
+  skip: 'var(--status-skip)',
+  overdue: 'var(--status-overdue)',
+  bad: 'var(--status-bad)',
+  frozen: 'var(--status-frozen)',
+}
+
+interface CheckCircleProps {
+  state: StatusDotState
+  /** 'bad' fills the logged circle in status-bad instead of status-done. */
+  tone?: 'default' | 'bad'
+  onToggle: () => void
+  disabled: boolean
+  ariaLabel: string
+}
+
+function CheckCircle({ state, tone = 'default', onToggle, disabled, ariaLabel }: Readonly<CheckCircleProps>) {
+  const filled = CHECK_FILLED_STATES.has(state)
+  const color =
+    tone === 'bad' && state === 'done' ? 'var(--status-bad)' : CHECK_COLOR_VAR[state]
+  const [previousFilled, setPreviousFilled] = useState(filled)
+  const [justCompleted, setJustCompleted] = useState(false)
+  if (filled !== previousFilled) {
+    setPreviousFilled(filled)
+    setJustCompleted(filled)
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={(event) => {
+        event.stopPropagation()
+        if (disabled) return
+        onToggle()
+      }}
+      disabled={disabled}
+      aria-disabled={disabled}
+      aria-label={ariaLabel}
+      className={`appearance-none border-0 bg-transparent shrink-0 flex items-center justify-center ${disabled ? 'cursor-default' : 'cursor-pointer'}`}
+      style={{ padding: 7, margin: -7, opacity: disabled ? 0.4 : 1 }}
+    >
+      <span
+        className={`flex items-center justify-center rounded-full transition-transform duration-[160ms] ease-[var(--ease-standard)] ${disabled ? '' : 'hover:scale-105 active:scale-95'} ${justCompleted ? 'animate-check-pop' : ''}`}
+        style={{
+          width: 30,
+          height: 30,
+          background: filled ? color : 'transparent',
+          boxShadow: filled
+            ? state === 'done'
+              ? tone === 'bad'
+                ? '0 4px 14px color-mix(in srgb, var(--status-bad) 35%, transparent)'
+                : '0 4px 14px rgba(var(--primary-rgb), 0.35)'
+              : 'none'
+            : `inset 0 0 0 2px ${color}`,
+        }}
+      >
+        {filled && <Check size={17} strokeWidth={3} color="var(--fg-on-primary)" aria-hidden="true" />}
+      </span>
+    </button>
   )
 }
 
@@ -503,9 +591,9 @@ interface MetaStripProps {
 function MetaStrip({ tokens }: Readonly<MetaStripProps>) {
   return (
     <span
-      className="overflow-hidden whitespace-nowrap text-ellipsis"
+      className="min-w-0 overflow-hidden whitespace-nowrap text-ellipsis"
       style={{
-        fontFamily: 'var(--font-family-sans)',
+        fontFamily: 'var(--font-sans)',
         fontSize: 13,
         color: 'var(--fg-3)',
         fontVariantNumeric: 'tabular-nums',
@@ -528,5 +616,6 @@ function metaTokenKey(token: HabitRowMetaToken, index: number): string {
 
 function renderMetaToken(token: HabitRowMetaToken): ReactNode {
   if (typeof token === 'string') return token
-  return <span style={{ fontStyle: 'italic' }}>{token.label.toLowerCase()}</span>
+  const color = token.kind === 'overdue' ? 'var(--status-overdue)' : undefined
+  return <span style={color ? { color, fontWeight: 500 } : {}}>{token.label}</span>
 }

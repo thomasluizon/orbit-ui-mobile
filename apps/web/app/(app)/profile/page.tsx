@@ -10,7 +10,7 @@ import {
   type ProfileNavItem,
 } from '@orbit/shared/utils/profile-navigation'
 import { useTranslations } from 'next-intl'
-import { User, Flame } from 'lucide-react'
+import { User, Download, LogOut, RotateCcw, UserX } from 'lucide-react'
 import {
   useProfile,
   useTrialDaysLeft,
@@ -19,8 +19,11 @@ import {
 import { useAuthStore } from '@/stores/auth-store'
 import { useGamificationProfile, useStreakInfo } from '@/hooks/use-gamification'
 import { AppBar } from '@/components/ui/app-bar'
+import { Badge } from '@/components/ui/badge'
+import { GradientTop } from '@/components/ui/gradient-top'
 import { SectionLabel } from '@/components/ui/section-label'
 import { SettingsGroup, SettingsGroupRow } from '@/components/ui/settings-group'
+import { StatTile } from '@/components/ui/stat-tile'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
 import { StreakBadge } from '@/components/gamification/streak-badge'
 import { NotificationBell } from '@/components/navigation/notification-bell'
@@ -32,6 +35,30 @@ import { ProfileNavIcon } from './_components/profile-nav-icon'
 import { ProfileActionButton } from './_components/profile-action-button'
 import { TourReplayModal } from './_components/tour-replay-modal'
 import { exportUserData } from '@/app/actions/profile'
+
+function StatTileButton({
+  onClick,
+  ariaLabel,
+  dataTour,
+  children,
+}: Readonly<{
+  onClick: () => void
+  ariaLabel: string
+  dataTour?: string
+  children: React.ReactNode
+}>) {
+  return (
+    <button
+      type="button"
+      data-tour={dataTour}
+      aria-label={ariaLabel}
+      onClick={onClick}
+      className="flex flex-1 cursor-pointer appearance-none rounded-[18px] border-0 bg-transparent p-0 text-left transition-transform duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:-translate-y-px active:translate-y-0 active:scale-[0.99]"
+    >
+      {children}
+    </button>
+  )
+}
 
 export default function ProfilePage() {
   const t = useTranslations()
@@ -46,11 +73,15 @@ export default function ProfilePage() {
     profile?.hasProAccess ?? false,
   )
   const { data: streakInfo } = useStreakInfo(profile?.hasProAccess ?? false)
+  const streak = streakInfo?.currentStreak ?? 0
   const accountNavItems = PROFILE_NAV_ITEMS.filter(
     (item) => item.section === 'account',
   )
+  const achievementsNavItem = PROFILE_NAV_ITEMS.find(
+    (item) => item.id === 'achievements',
+  )
   const featureNavItems = PROFILE_NAV_ITEMS.filter(
-    (item) => item.section === 'features',
+    (item) => item.section === 'features' && item.id !== 'achievements',
   )
 
   const navTourMap: Record<string, string> = {
@@ -113,25 +144,37 @@ export default function ProfilePage() {
     router.push(item.route)
   }
 
-  const userInitials = profile?.name
-    ? profile.name
-        .split(' ')
-        .slice(0, 2)
-        .map((n) => n[0])
-        .join('')
-        .toUpperCase()
-    : '?'
+  const showPlanBadge = profile?.isTrialActive || profile?.hasProAccess
+  const planBadgeTone = profile?.isTrialActive ? 'soft' : 'violet'
+  const planBadgeLabel = profile?.isTrialActive
+    ? t('trial.proBadge')
+    : t('common.proBadge')
+
+  const identityLine =
+    profile?.hasProAccess && gamificationProfile
+      ? t('gamification.profileCard.level', { level: gamificationProfile.level })
+      : profile?.email
 
   return (
-    <div>
+    <div className="relative">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-y-0 -z-10"
+        style={{
+          left: 'calc(var(--app-px) * -1)',
+          right: 'calc(var(--app-px) * -1)',
+        }}
+      >
+        <GradientTop height={300} />
+      </div>
+
       <AppBar
         leadingIcon={<User size={17} strokeWidth={1.5} color="var(--fg-2)" />}
-        title={t('profile.title')}
         trailing={
           <>
             <ThemeToggle />
             <span data-tour="tour-streak-badge">
-              <StreakBadge streak={streakInfo?.currentStreak ?? 0} />
+              <StreakBadge streak={streak} />
             </span>
             <NotificationBell />
           </>
@@ -142,7 +185,7 @@ export default function ProfilePage() {
         <p
           style={{
             margin: '12px 20px',
-            fontFamily: 'var(--font-family-sans)',
+            fontFamily: 'var(--font-sans)',
             fontSize: 13,
             color: 'var(--status-bad)',
             textAlign: 'center',
@@ -154,211 +197,179 @@ export default function ProfilePage() {
         </p>
       )}
 
-      <div
-        className="flex items-center"
-        style={{
-          padding: '20px 20px 18px',
-          gap: 14,
-        }}
-      >
-        {isLoading ? (
-          <>
-            <div
-              className="animate-pulse rounded-full shrink-0"
-              style={{ width: 44, height: 44, background: 'var(--bg-elev)' }}
-            />
-            <div className="flex-1 flex flex-col" style={{ gap: 6 }}>
+      <div className="stagger-enter">
+        <div
+          className="flex flex-col items-center text-center"
+          style={{ padding: '18px 20px 0', gap: 6 }}
+        >
+          {isLoading ? (
+            <>
               <div
-                className="animate-pulse rounded-sm"
-                style={{ width: 140, height: 14, background: 'var(--bg-elev)' }}
+                className="animate-pulse rounded-full"
+                style={{ width: 76, height: 22, background: 'var(--bg-elev)' }}
               />
               <div
                 className="animate-pulse rounded-sm"
-                style={{ width: 200, height: 11, background: 'var(--bg-elev)' }}
+                style={{ width: 160, height: 30, background: 'var(--bg-elev)', marginTop: 4 }}
               />
-            </div>
-          </>
-        ) : (
-          <>
-            <div
-              className="flex items-center justify-center rounded-full shrink-0"
-              style={{
-                width: 44,
-                height: 44,
-                background: 'var(--bg-elev)',
-                fontFamily: 'var(--font-family-sans)',
-                fontSize: 16,
-                fontWeight: 600,
-                color: 'var(--fg-1)',
-              }}
-            >
-              {userInitials}
-            </div>
-            <div className="flex-1 min-w-0 flex flex-col" style={{ gap: 2 }}>
+              <div
+                className="animate-pulse rounded-sm"
+                style={{ width: 120, height: 14, background: 'var(--bg-elev)' }}
+              />
+            </>
+          ) : (
+            <>
+              {showPlanBadge && <Badge tone={planBadgeTone}>{planBadgeLabel}</Badge>}
               <span
-                className="overflow-hidden whitespace-nowrap text-ellipsis"
+                className="max-w-full overflow-hidden whitespace-nowrap text-ellipsis"
                 style={{
-                  fontFamily: 'var(--font-family-sans)',
-                  fontSize: 17,
-                  fontWeight: 600,
+                  fontFamily: 'var(--font-sans)',
+                  fontSize: 32,
+                  fontWeight: 500,
+                  letterSpacing: '-0.01em',
+                  lineHeight: 1.2,
                   color: 'var(--fg-1)',
                 }}
               >
                 {profile?.name}
               </span>
               <span
-                className="overflow-hidden whitespace-nowrap text-ellipsis"
+                className="max-w-full overflow-hidden whitespace-nowrap text-ellipsis"
                 style={{
-                  fontFamily: 'var(--font-family-sans)',
-                  fontSize: 13,
-                  color: 'var(--fg-3)',
+                  fontFamily: 'var(--font-sans)',
+                  fontSize: 16,
+                  color: 'var(--fg-2)',
                 }}
               >
-                {profile?.email}
+                {identityLine}
               </span>
-            </div>
-            {profile?.hasProAccess && (
-              <span
-                style={{
-                  fontFamily: 'var(--font-family-sans)',
-                  fontSize: 10,
-                  fontWeight: 600,
-                  color: 'var(--fg-on-primary)',
-                  background: 'var(--primary)',
-                  padding: '2px 6px',
-                  borderRadius: 4,
-                  letterSpacing: '0.04em',
-                  textTransform: 'uppercase',
-                }}
-              >
-                {t('common.proBadge')}
-              </span>
-            )}
-          </>
-        )}
-      </div>
+            </>
+          )}
+        </div>
 
-      <div className="px-5">
-        <SettingsGroup>
-          <SettingsGroupRow
-            icon={<Flame size={18} strokeWidth={1.75} color="var(--status-bad)" />}
-            label={t('streakDisplay.title')}
-            ariaLabel={t('streakDisplay.title')}
+        <div className="flex px-5" style={{ gap: 14, marginTop: 24 }}>
+          <StatTileButton
             dataTour="tour-profile-streak"
+            ariaLabel={t('streakDisplay.title')}
             onClick={() => router.push('/streak')}
-            trailing={
-              <span className="flex items-center" style={{ gap: 6 }}>
-                <span
-                  style={{
-                    fontFamily: 'var(--font-family-mono)',
-                    fontSize: 14,
-                    fontWeight: 600,
-                    color: 'var(--fg-1)',
-                    fontVariantNumeric: 'tabular-nums',
-                  }}
-                >
-                  {streakInfo?.currentStreak ?? 0}
-                </span>
-                <span
-                  style={{
-                    fontFamily: 'var(--font-family-sans)',
-                    fontSize: 13,
-                    color: 'var(--fg-3)',
-                  }}
-                >
-                  {plural(t('streakDisplay.daysSuffix'), streakInfo?.currentStreak ?? 0)}
-                </span>
-              </span>
-            }
-          />
-        </SettingsGroup>
-      </div>
-
-      <SectionLabel>{t('profile.sections.account')}</SectionLabel>
-      <nav aria-label={t('profile.sections.account')} className="px-5">
-        <SettingsGroup>
-          {accountNavItems.map((item) => (
-            <SettingsGroupRow
-              key={item.id}
-              icon={<ProfileNavIcon iconKey={item.iconKey} />}
-              label={t(item.titleKey)}
-              hint={getNavHint(item)}
-              proBadge={item.proBadge}
-              proBadgeLabel={t('common.proBadge')}
-              dataTour={navTourMap[item.id]}
-              onClick={() => handleNavClick(item)}
+          >
+            <StatTile
+              emoji="🔥"
+              value={`${streak} ${plural(t('streakDisplay.daysSuffix'), streak)}`}
+              label={t('streakDisplay.title')}
             />
-          ))}
-        </SettingsGroup>
-      </nav>
+          </StatTileButton>
+          {achievementsNavItem && (
+            <StatTileButton
+              dataTour={navTourMap[achievementsNavItem.id]}
+              ariaLabel={t('gamification.profileCard.tileLabel')}
+              onClick={() => handleNavClick(achievementsNavItem)}
+            >
+              <StatTile
+                emoji="🏆"
+                value={gamificationProfile?.achievementsEarned ?? 0}
+                label={t('gamification.profileCard.tileLabel')}
+              />
+            </StatTileButton>
+          )}
+        </div>
 
-      <SectionLabel>{t('profile.sections.features')}</SectionLabel>
-      <div className="px-5">
-        <SettingsGroup>
-          <SettingsGroupRow
-            label={t('tour.replay.title')}
-            hint={t('tour.replay.hint')}
-            onClick={() => setShowTourReplay(true)}
-          />
-          {featureNavItems.map((item) => (
-            <SettingsGroupRow
-              key={item.id}
-              icon={<ProfileNavIcon iconKey={item.iconKey} />}
-              label={t(item.titleKey)}
-              hint={getNavHint(item)}
-              proBadge={item.proBadge}
-              proBadgeLabel={t('common.proBadge')}
-              dataTour={navTourMap[item.id]}
-              onClick={() => handleNavClick(item)}
+        <div>
+          <SectionLabel>{t('profile.sections.account')}</SectionLabel>
+          <nav aria-label={t('profile.sections.account')} className="px-5">
+            <SettingsGroup>
+              {accountNavItems.map((item) => (
+                <SettingsGroupRow
+                  key={item.id}
+                  icon={<ProfileNavIcon iconKey={item.iconKey} />}
+                  label={t(item.titleKey)}
+                  hint={getNavHint(item)}
+                  proBadge={item.proBadge}
+                  proBadgeLabel={t('common.proBadge')}
+                  dataTour={navTourMap[item.id]}
+                  onClick={() => handleNavClick(item)}
+                />
+              ))}
+            </SettingsGroup>
+          </nav>
+        </div>
+
+        <div>
+          <SectionLabel>{t('profile.sections.features')}</SectionLabel>
+          <div className="px-5">
+            <SettingsGroup>
+              <SettingsGroupRow
+                icon={<ProfileNavIcon iconKey="compass" />}
+                label={t('tour.replay.title')}
+                hint={t('tour.replay.hint')}
+                onClick={() => setShowTourReplay(true)}
+              />
+              {featureNavItems.map((item) => (
+                <SettingsGroupRow
+                  key={item.id}
+                  icon={<ProfileNavIcon iconKey={item.iconKey} />}
+                  label={t(item.titleKey)}
+                  hint={getNavHint(item)}
+                  proBadge={item.proBadge}
+                  proBadgeLabel={t('common.proBadge')}
+                  dataTour={navTourMap[item.id]}
+                  onClick={() => handleNavClick(item)}
+                />
+              ))}
+            </SettingsGroup>
+          </div>
+        </div>
+
+        <div>
+          <SectionLabel>{t('profile.sections.subscription')}</SectionLabel>
+          <div data-tour="tour-profile-subscription" className="px-5">
+            <SubscriptionCard
+              profile={profile}
+              trialDaysLeft={trialDaysLeft}
+              trialExpired={trialExpired}
             />
-          ))}
-        </SettingsGroup>
-      </div>
+          </div>
+        </div>
 
-      <SectionLabel>{t('profile.sections.subscription')}</SectionLabel>
-      <div data-tour="tour-profile-subscription" className="px-5">
-        <SubscriptionCard
-          profile={profile}
-          trialDaysLeft={trialDaysLeft}
-          trialExpired={trialExpired}
-        />
+        <div>
+          <SectionLabel>{t('profile.sections.accountActions')}</SectionLabel>
+          <ProfileActionButton
+            icon={Download}
+            onClick={() => {
+              void handleExportData()
+            }}
+            label={isExporting ? t('dataExport.preparing') : t('dataExport.button')}
+          />
+          {exportError && (
+            <p
+              style={{
+                margin: '0 20px 8px',
+                fontFamily: 'var(--font-sans)',
+                fontSize: 12,
+                color: 'var(--status-bad)',
+              }}
+            >
+              {exportError}
+            </p>
+          )}
+          <ProfileActionButton
+            icon={RotateCcw}
+            onClick={() => setShowResetModal(true)}
+            label={t('profile.freshStart.button')}
+          />
+          <ProfileActionButton
+            icon={UserX}
+            onClick={() => setShowDeleteModal(true)}
+            label={t('profile.deleteAccount.button')}
+            tone="danger"
+          />
+          <ProfileActionButton
+            icon={LogOut}
+            onClick={() => logout()}
+            label={t('profile.logout')}
+          />
+        </div>
       </div>
-
-      <SectionLabel>{t('profile.sections.accountActions')}</SectionLabel>
-      <ProfileActionButton
-        onClick={() => {
-          void handleExportData()
-        }}
-        label={isExporting ? t('dataExport.preparing') : t('dataExport.button')}
-      />
-      {exportError && (
-        <p
-          style={{
-            margin: '0 20px 8px',
-            fontFamily: 'var(--font-family-sans)',
-            fontSize: 12,
-            color: 'var(--status-bad)',
-          }}
-        >
-          {exportError}
-        </p>
-      )}
-      <ProfileActionButton
-        onClick={() => logout()}
-        label={t('profile.logout')}
-        tone="danger"
-      />
-      <ProfileActionButton
-        onClick={() => setShowResetModal(true)}
-        label={t('profile.freshStart.button')}
-        tone="primary"
-      />
-      <ProfileActionButton
-        onClick={() => setShowDeleteModal(true)}
-        label={t('profile.deleteAccount.button')}
-        tone="danger"
-        compact
-      />
 
       <div style={{ height: 24 }} />
 

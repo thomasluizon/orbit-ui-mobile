@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react'
 import { StyleSheet, Text, TouchableOpacity, View } from 'react-native'
+import { Repeat } from 'lucide-react-native'
 import type { Goal } from '@orbit/shared/types/goal'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -100,6 +101,9 @@ export function GoalLinkedHabitsSection({
     >
       {linkedHabits.map((habit) => (
         <View key={habit.id} style={styles.linkedRow}>
+          <View style={styles.linkedWell}>
+            <Repeat size={18} strokeWidth={1.8} color={tokens.fg2} />
+          </View>
           <Text style={styles.linkedTitle} numberOfLines={1}>
             {habit.title}
           </Text>
@@ -125,22 +129,20 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       gap: 12,
     },
     historyDate: {
-      fontFamily: 'GeistMono',
+      fontFamily: 'Roboto_400Regular',
       fontSize: 11,
       color: tokens.fg3,
       fontVariant: ['tabular-nums'],
     },
     historyValue: {
-      fontFamily: 'GeistMono',
+      fontFamily: 'Roboto_500Medium',
       fontSize: 12,
-      fontWeight: '500',
       color: tokens.fg1,
       fontVariant: ['tabular-nums'],
     },
     historyNote: {
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_400Regular',
       fontSize: 13,
-      fontStyle: 'italic',
       color: tokens.fg2,
     },
     toggleAll: {
@@ -148,26 +150,36 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       paddingVertical: 10,
     },
     toggleAllText: {
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_500Medium',
       fontSize: 13,
-      fontWeight: '500',
       color: tokens.fg1,
     },
     linkedList: {
     },
     linkedRow: {
       paddingHorizontal: 20,
-      paddingVertical: 12,
+      paddingVertical: 10,
       borderBottomWidth: StyleSheet.hairlineWidth,
       borderBottomColor: tokens.hairline,
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 12,
+      gap: 14,
+    },
+    linkedWell: {
+      width: 36,
+      height: 36,
+      borderRadius: 12,
+      backgroundColor: tokens.bgField,
+      borderWidth: 1,
+      borderColor: tokens.hairline,
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexShrink: 0,
     },
     linkedTitle: {
       flex: 1,
-      fontFamily: 'Geist',
-      fontSize: 14,
+      fontFamily: 'Rubik_400Regular',
+      fontSize: 16,
       color: tokens.fg1,
     },
   })

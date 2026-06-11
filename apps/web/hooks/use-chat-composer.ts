@@ -224,7 +224,7 @@ export function useChatComposer() {
     })
 
     if (failure.kind === 'upgrade' && shouldRouteToUpgrade(failure.upgrade)) {
-      setSendError(resolvedError)
+      setSendError(t('chat.proGate.body'))
       router.push('/upgrade')
       return
     }
@@ -235,7 +235,7 @@ export function useChatComposer() {
     } else if (failure.kind === 'limit') {
       setSendError(t('chat.limitReachedError'))
     } else {
-      setSendError(resolvedError)
+      setSendError(t('chat.sendError'))
       setLastFailedSend(attempted)
     }
 
@@ -280,7 +280,6 @@ export function useChatComposer() {
     const premiumDenial = findPremiumPolicyDenial(response.policyDenials)
     if (premiumDenial) {
       const upgradeResolution = resolveUpgradeEntitlementFromPolicyDenial(premiumDenial)
-      setSendError(premiumDenial.reason)
       if (shouldRouteToUpgrade(upgradeResolution)) {
         router.push('/upgrade')
       }

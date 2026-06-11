@@ -22,8 +22,8 @@ import type { ThemeMode } from '@orbit/shared/types/profile'
 import { useProfile } from '@/hooks/use-profile'
 import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
 import {
-  createColors,
   createSurfaces,
+  createTokensV2,
   easings,
   getRuntimeTheme,
   radius,
@@ -143,10 +143,10 @@ export function ThemeProvider({ children }: Readonly<{ children: ReactNode }>) {
 
     const previous = previousThemeRef.current
     if (previous.scheme !== currentScheme || previous.theme !== currentTheme) {
-      const previousColors = createColors(previous.scheme, previous.theme)
+      const previousTokens = createTokensV2(previous.scheme, previous.theme)
       runThemeTransition({
-        background: previousColors.background,
-        accent: previousColors.primary,
+        background: previousTokens.bg,
+        accent: previousTokens.primary,
       })
       previousThemeRef.current = { scheme: currentScheme, theme: currentTheme }
     }

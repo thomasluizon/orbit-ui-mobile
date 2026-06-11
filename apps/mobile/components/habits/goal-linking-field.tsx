@@ -6,7 +6,7 @@ import { API } from '@orbit/shared/api'
 import { goalKeys, QUERY_STALE_TIMES } from '@orbit/shared/query'
 import type { Goal, PaginatedGoalResponse } from '@orbit/shared/types/goal'
 import { apiClient } from '@/lib/api-client'
-import { createTokensV2, radius } from '@/lib/theme'
+import { createTokensV2, radius, tintFromPrimary } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 type AppTokens = ReturnType<typeof createTokensV2>
@@ -74,7 +74,14 @@ export function GoalLinkingField({
                   ]}
                 >
                   {goal.title}
-                  <Text style={styles.chipPercentage}>
+                  <Text
+                    style={[
+                      styles.chipPercentage,
+                      isSelected
+                        ? styles.chipPercentageSelected
+                        : styles.chipPercentageDefault,
+                    ]}
+                  >
                     {' '}
                     {Math.round(goal.progressPercentage)}%
                   </Text>
@@ -96,11 +103,9 @@ function createStyles(tokens: AppTokens) {
       gap: 10,
     },
     label: {
-      fontSize: 12,
-      fontWeight: '700',
-      textTransform: 'uppercase',
-      letterSpacing: 1,
-      color: tokens.fg3,
+      fontFamily: 'Rubik_500Medium',
+      fontSize: 14,
+      color: tokens.fg2,
     },
     chips: {
       flexDirection: 'row',
@@ -108,7 +113,7 @@ function createStyles(tokens: AppTokens) {
       gap: 8,
     },
     chip: {
-      borderRadius: radius.xl,
+      borderRadius: radius.full,
       paddingHorizontal: 12,
       paddingVertical: 8,
       borderWidth: 1,
@@ -118,26 +123,35 @@ function createStyles(tokens: AppTokens) {
       borderColor: tokens.hairline,
     },
     chipSelected: {
-      backgroundColor: tokens.primary,
-      borderColor: tokens.primary,
+      backgroundColor: tokens.selectionBg,
+      borderColor: tintFromPrimary(tokens, 0.45),
     },
     chipDisabled: {
       opacity: 0.35,
     },
     chipText: {
-      fontSize: 12,
-      fontWeight: '700',
+      fontFamily: 'Rubik_500Medium',
+      fontSize: 13,
     },
     chipTextDefault: {
       color: tokens.fg2,
     },
     chipTextSelected: {
-      color: tokens.fgOnPrimary,
+      color: tokens.primary,
     },
     chipPercentage: {
-      opacity: 0.72,
+      fontFamily: 'Roboto_400Regular',
+      fontSize: 11,
+      fontVariant: ['tabular-nums'],
+    },
+    chipPercentageDefault: {
+      color: tokens.fg4,
+    },
+    chipPercentageSelected: {
+      color: tokens.primary,
     },
     emptyText: {
+      fontFamily: 'Rubik_400Regular',
       fontSize: 13,
       color: tokens.fg3,
     },

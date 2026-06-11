@@ -1,11 +1,12 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native'
-import { createTokensV2 } from '@/lib/theme'
+import { Lock } from 'lucide-react-native'
+import { createTokensV2, radius, tintFromPrimary } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 export interface SectionHeadTab<T extends string = string> {
   id: T
   label: string
-  /** When true the tab is rendered but routes to upgrade on press. */
+  /** When true the tab is rendered with a lock glyph and routes to upgrade on press. */
   locked?: boolean
 }
 
@@ -16,9 +17,9 @@ interface SectionHeadTabsProps<T extends string = string> {
 }
 
 /**
- * Tab bar that spreads each option proportionally across the row (Today /
- * All / General / Goals). Each tab is `flex: 1` so the row fills the canvas
- * width with equal slots. Active tab fills bg-elev with a stronger inset ring.
+ * Kit pill-chip row used as the Today / All / General / Goals view switcher:
+ * inactive chips sit on the bg-elev well with a hairline ring, the active chip
+ * fills selection-bg with a primary ring and primary text.
  */
 export function SectionHeadTabs<T extends string = string>({
   tabs,
@@ -39,21 +40,33 @@ export function SectionHeadTabs<T extends string = string>({
             accessibilityRole="tab"
             accessibilityLabel={tab.label}
             accessibilityState={{ selected: isActive }}
-            style={[
+            hitSlop={{ top: 6, bottom: 6 }}
+            style={({ pressed }) => [
               styles.tab,
               {
-                backgroundColor: isActive ? tokens.bgElev : 'transparent',
-                borderColor: isActive ? tokens.fg3 : tokens.hairlineStrong,
+                backgroundColor: isActive
+                  ? tokens.selectionBg
+                  : pressed
+                    ? tokens.bgElev2
+                    : tokens.bgElev,
+                borderColor: isActive
+                  ? tintFromPrimary(tokens, 0.45)
+                  : tokens.hairline,
               },
+              pressed && !isActive ? styles.tabPressed : null,
             ]}
           >
+            {tab.locked ? (
+              <Lock
+                size={14}
+                color={isActive ? tokens.primarySoft : tokens.fg2}
+                strokeWidth={1.8}
+              />
+            ) : null}
             <Text
               style={[
                 styles.label,
-                {
-                  color: isActive ? tokens.fg1 : tokens.fg2,
-                  fontWeight: isActive ? '600' : '500',
-                },
+                { color: isActive ? tokens.primarySoft : tokens.fg2 },
               ]}
               numberOfLines={1}
             >
@@ -69,23 +82,28 @@ export function SectionHeadTabs<T extends string = string>({
 const styles = StyleSheet.create({
   wrap: {
     flexDirection: 'row',
-    alignItems: 'stretch',
-    gap: 6,
-    paddingHorizontal: 20,
-    paddingTop: 8,
-    paddingBottom: 10,
-  },
-  tab: {
-    flex: 1,
-    height: 38,
-    borderRadius: 8,
-    borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 10,
+    gap: 8,
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 16,
+  },
+  tab: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 9,
+    paddingHorizontal: 14,
+    borderRadius: radius.full,
+    borderWidth: 1,
+  },
+  tabPressed: {
+    transform: [{ scale: 0.96 }],
   },
   label: {
-    fontFamily: 'Geist',
+    fontFamily: 'Rubik_500Medium',
     fontSize: 13,
   },
 })

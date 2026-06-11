@@ -47,7 +47,7 @@ export function HighlightText({ text, query }: Readonly<HighlightTextProps>) {
     <>
       {segments.map((seg, i) =>
         seg.isMatch ? (
-          <mark key={`segment-${i}-${seg.text}`} className="bg-primary/30 text-inherit rounded-sm px-0.5 transition-colors duration-150">
+          <mark key={`segment-${i}-${seg.text}`} className="bg-[rgba(var(--primary-rgb),0.18)] text-[var(--fg-1)] rounded-sm px-0.5 transition-colors duration-150">
             {seg.text}
           </mark>
         ) : (

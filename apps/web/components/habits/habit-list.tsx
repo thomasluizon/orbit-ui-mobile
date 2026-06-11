@@ -922,7 +922,7 @@ const isPostponeAction = useMemo(() => {
     return 'empty'
   }
 
-  function buildMetaTokens(habit: NormalizedHabit, isChild: boolean): HabitRowMetaToken[] {
+  function buildMetaTokens(habit: NormalizedHabit): HabitRowMetaToken[] {
     const tokens: HabitRowMetaToken[] = []
     const freqLabel = computeHabitFrequencyLabel(habit, t)
     if (freqLabel) tokens.push(freqLabel)
@@ -933,9 +933,6 @@ const isPostponeAction = useMemo(() => {
     }
     if (habit.isOverdue && !habit.isCompleted) {
       tokens.push({ kind: 'overdue', label: t('habits.overdue') })
-    }
-    if (habit.isBadHabit && !isChild) {
-      tokens.push({ kind: 'bad', label: t('habits.badHabit') })
     }
     if (!habit.isCompleted && selectedDateStr === todayStr) {
       const futureHint = computeHabitFutureHint(habit, todayStr, t, locale)
@@ -958,7 +955,7 @@ const isPostponeAction = useMemo(() => {
     const isChild = depth > 0
     const recentlyCompleted = recentlyCompletedIds.has(habit.id)
     const state = deriveRowState(habit, isChild, recentlyCompleted)
-    const meta = buildMetaTokens(habit, isChild)
+    const meta = buildMetaTokens(habit)
     const canLog = canLogHabitOnDate(habit, selectedDateStr, todayStr)
     const hasLinkedGoal = (habit.linkedGoals?.length ?? 0) > 0
     const tourTargetId =
@@ -1036,19 +1033,43 @@ const isPostponeAction = useMemo(() => {
     if (drill.currentParent) {
       return (
         <>
-          <div className="flex items-center gap-3 pb-1">
+          <div className="flex items-center" style={{ padding: '4px 20px 10px', gap: 12 }}>
             <button
               aria-label={t('common.goBack')}
-              className="shrink-0 size-8 rounded-full bg-[var(--bg-elev)] flex items-center justify-center hover:bg-[var(--bg-elev)]/80 transition-[background-color,transform] duration-150"
+              className="shrink-0 appearance-none border-0 bg-transparent cursor-pointer flex items-center justify-center text-[var(--fg-1)] transition-[background-color] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev)]"
+              style={{
+                width: 40,
+                height: 40,
+                borderRadius: 999,
+                boxShadow: 'inset 0 0 0 1.5px var(--hairline-strong)',
+              }}
               onClick={drill.drillBack}
             >
-              <ArrowLeft className="size-4 text-[var(--fg-2)]" aria-hidden="true" />
+              <ArrowLeft size={20} strokeWidth={1.8} aria-hidden="true" />
             </button>
             <div className="flex-1 min-w-0">
-              <h3 className="text-sm font-bold text-[var(--fg-1)] truncate">
+              <h3
+                className="truncate"
+                style={{
+                  margin: 0,
+                  fontFamily: 'var(--font-sans)',
+                  fontSize: 16,
+                  fontWeight: 500,
+                  color: 'var(--fg-1)',
+                }}
+              >
                 {drill.currentParent.title}
               </h3>
-              <p className="text-[10px] text-[var(--fg-3)] uppercase tracking-wider">
+              <p
+                style={{
+                  margin: '2px 0 0',
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: 12,
+                  letterSpacing: '0.02em',
+                  color: 'var(--fg-3)',
+                  fontVariantNumeric: 'tabular-nums',
+                }}
+              >
                 {drill.drillChildren.filter((c) => c.isCompleted).length}/
                 {drill.drillChildren.length} {t('habits.completed')}
               </p>
@@ -1057,10 +1078,17 @@ const isPostponeAction = useMemo(() => {
 
           {drill.drillStack.length > 1 && (
             <button
-              className="flex items-center gap-1.5 text-xs text-[var(--primary)] hover:text-[var(--primary-pressed)] transition-colors pb-2"
+              className="flex items-center appearance-none border-0 bg-transparent cursor-pointer text-[var(--primary)] hover:text-[var(--primary-pressed)] transition-colors"
+              style={{
+                gap: 6,
+                padding: '0 20px 10px',
+                fontFamily: 'var(--font-sans)',
+                fontSize: 13,
+                fontWeight: 500,
+              }}
               onClick={drill.drillReset}
             >
-              <Home className="size-3" />
+              <Home size={13} aria-hidden="true" />
               {t('habits.backToHabits')}
             </button>
           )}
@@ -1095,7 +1123,9 @@ const isPostponeAction = useMemo(() => {
         <HabitListEmptyState
           title={t(getHabitEmptyStateKey(view))}
           description={getEmptyHabitsMessage(view, t)}
-          actionLabel={view === 'all' || view === 'general' ? t('habits.createHabit') : undefined}
+          askAstraLabel={t('habits.askAstra')}
+          onAskAstra={() => router.push('/chat')}
+          actionLabel={t('habits.createManually')}
           onAction={onCreate}
         />
       )

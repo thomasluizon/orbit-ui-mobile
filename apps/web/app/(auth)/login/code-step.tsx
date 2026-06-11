@@ -1,6 +1,8 @@
 import type { useTranslations } from 'next-intl'
+import { motion, useReducedMotion } from 'motion/react'
 import { CodeInput } from '@/components/ui/code-input'
-import { PrimaryButton, QuietLink } from './login-atoms'
+import { PillButton } from '@/components/ui/pill-button'
+import { QuietLink, Spinner } from './login-atoms'
 
 interface CodeStepProps {
   email: string
@@ -9,6 +11,7 @@ interface CodeStepProps {
   canResend: boolean
   resendCountdown: number
   codeInputRefs: React.RefObject<(HTMLInputElement | null)[]>
+  errorSignal?: string | null
   onVerifyCode: () => void
   onCodeInput: (index: number, value: string) => void
   onCodeKeydown: (index: number, event: React.KeyboardEvent<HTMLInputElement>) => void
@@ -25,6 +28,7 @@ export function CodeStep({
   canResend,
   resendCountdown,
   codeInputRefs,
+  errorSignal = null,
   onVerifyCode,
   onCodeInput,
   onCodeKeydown,
@@ -33,17 +37,20 @@ export function CodeStep({
   onResendCode,
   t,
 }: Readonly<CodeStepProps>) {
+  const prefersReducedMotion = useReducedMotion()
+  const shake = Boolean(errorSignal) && !prefersReducedMotion
+
   return (
     <div className="flex flex-col" style={{ gap: 16 }}>
       <p
         id="code-sent-to"
         className="text-center"
         style={{
-          fontFamily: 'var(--font-family-sans)',
-          fontSize: 14,
-          lineHeight: 1.5,
-          color: 'var(--fg-3)',
-          fontStyle: 'italic',
+          fontFamily: 'var(--font-sans)',
+          fontSize: 15,
+          lineHeight: 1.55,
+          color: 'var(--fg-2)',
+          margin: 0,
         }}
       >
         {t('auth.codeSentTo')} <span style={{ color: 'var(--fg-1)' }}>{email}</span>.
@@ -51,47 +58,58 @@ export function CodeStep({
 
       <form
         className="flex flex-col"
-        style={{ gap: 18 }}
+        style={{ gap: 24 }}
         onSubmit={(e) => {
           e.preventDefault()
           onVerifyCode()
         }}
       >
-        <CodeInput
-          digits={codeDigits}
-          inputRefs={codeInputRefs}
-          onChange={onCodeInput}
-          onKeyDown={onCodeKeydown}
-          onPaste={onCodePaste}
-          ariaLabelForIndex={(n) => t('auth.codeDigit', { n: n + 1 })}
-          ariaLabelledBy="code-sent-to"
-        />
+        <motion.div
+          key={errorSignal || 'code-steady'}
+          animate={shake ? { x: [0, -4, 4, -4, 4, 0] } : { x: 0 }}
+          transition={{ duration: 0.28, ease: 'easeInOut' }}
+        >
+          <CodeInput
+            digits={codeDigits}
+            inputRefs={codeInputRefs}
+            onChange={onCodeInput}
+            onKeyDown={onCodeKeydown}
+            onPaste={onCodePaste}
+            ariaLabelForIndex={(n) => t('auth.codeDigit', { n: n + 1 })}
+            ariaLabelledBy="code-sent-to"
+          />
+        </motion.div>
 
-        <PrimaryButton
+        <PillButton
           type="submit"
-          loading={isSubmitting}
+          fullWidth
           disabled={isSubmitting || codeDigits.join('').length !== 6}
+          busy={isSubmitting}
+          leading={isSubmitting ? <Spinner /> : undefined}
         >
           {t('auth.verify')}
-        </PrimaryButton>
+        </PillButton>
       </form>
 
-      <div
-        className="flex justify-center"
-        style={{
-          fontFamily: 'var(--font-family-mono)',
-          fontSize: 11,
-          fontWeight: 500,
-          color: 'var(--fg-3)',
-          fontVariantNumeric: 'tabular-nums',
-        }}
-      >
+      <div className="flex justify-center">
         {canResend ? (
           <QuietLink emphasized onClick={onResendCode}>
             {t('auth.resendCode')}
           </QuietLink>
         ) : (
-          <span style={{ padding: 6 }}>{t('auth.resendIn', { seconds: resendCountdown })}</span>
+          <span
+            className="inline-flex items-center"
+            style={{
+              minHeight: 44,
+              padding: '6px 12px',
+              fontFamily: 'var(--font-sans)',
+              fontSize: 14,
+              color: 'var(--fg-3)',
+              fontVariantNumeric: 'tabular-nums',
+            }}
+          >
+            {t('auth.resendIn', { seconds: resendCountdown })}
+          </span>
         )}
       </div>
 

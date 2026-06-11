@@ -1,17 +1,13 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
-import {
-  ActivityIndicator,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native'
+import { ActivityIndicator, StyleSheet, View } from 'react-native'
+import { Check } from 'lucide-react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
 import { BottomSheetModal } from '@/components/bottom-sheet-modal'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { HabitFormFields } from './habit-form-fields'
 import { KeyboardAwareBottomSheetScrollView } from '@/components/ui/keyboard-aware-scroll-view'
+import { PillButton } from '@/components/ui/pill-button'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useDismissGuard } from '@/hooks/use-dismiss-guard'
 import { useHabitForm } from '@/hooks/use-habit-form'
@@ -51,10 +47,7 @@ export function EditHabitModal({
   const insets = useSafeAreaInsets()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
-  const styles = useMemo(
-    () => createStyles(tokens, insets.bottom),
-    [tokens, insets.bottom],
-  )
+  const styles = useMemo(() => createStyles(insets.bottom), [insets.bottom])
   const updateHabit = useUpdateHabit()
   const assignTags = useAssignTags()
   const { showError } = useAppToast()
@@ -236,34 +229,27 @@ export function EditHabitModal({
           />
 
           <View style={styles.footer}>
-            <TouchableOpacity
-              style={styles.cancelButton}
+            <PillButton
+              variant="ghost"
               disabled={updateHabit.isPending}
               onPress={dismissGuard.requestDismiss}
-              activeOpacity={0.7}
-              accessibilityRole="button"
-              accessibilityLabel={t('common.cancel')}
             >
-              <Text style={styles.cancelButtonText}>{t('common.cancel')}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[
-                styles.submitButton,
-                submitDisabled && styles.disabled,
-              ]}
+              {t('common.cancel')}
+            </PillButton>
+            <PillButton
+              style={styles.submitButton}
               disabled={submitDisabled}
               onPress={handleSubmit}
-              activeOpacity={0.7}
-              accessibilityRole="button"
-              accessibilityLabel={t('habits.saveChanges')}
+              leading={
+                updateHabit.isPending ? (
+                  <ActivityIndicator size="small" color={tokens.fgOnPrimary} />
+                ) : (
+                  <Check size={18} color={tokens.fgOnPrimary} strokeWidth={2.2} />
+                )
+              }
             >
-              {updateHabit.isPending ? (
-                <ActivityIndicator size="small" color={tokens.fgOnPrimary} />
-              ) : null}
-              <Text style={styles.submitButtonText}>
-                {t('habits.saveChanges')}
-              </Text>
-            </TouchableOpacity>
+              {t('habits.saveChanges')}
+            </PillButton>
           </View>
         </KeyboardAwareBottomSheetScrollView>
       </BottomSheetModal>
@@ -284,10 +270,7 @@ export function EditHabitModal({
   )
 }
 
-function createStyles(
-  tokens: ReturnType<typeof createTokensV2>,
-  bottomInset: number,
-) {
+function createStyles(bottomInset: number) {
   return StyleSheet.create({
     scroll: {
       flex: 1,
@@ -299,39 +282,12 @@ function createStyles(
     },
     footer: {
       flexDirection: 'row',
-      justifyContent: 'space-between',
       alignItems: 'center',
       gap: 12,
-      paddingTop: 16,
-    },
-    cancelButton: {
-      paddingVertical: 10,
-      paddingHorizontal: 6,
-    },
-    cancelButtonText: {
-      fontFamily: 'Geist',
-      fontSize: 14,
-      color: tokens.fg3,
+      paddingTop: 18,
     },
     submitButton: {
-      backgroundColor: tokens.primary,
-      borderRadius: 8,
-      paddingHorizontal: 16,
-      paddingVertical: 10,
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 8,
-      minWidth: 132,
-    },
-    submitButtonText: {
-      fontFamily: 'Geist',
-      fontSize: 14,
-      fontWeight: '600',
-      color: tokens.fgOnPrimary,
-    },
-    disabled: {
-      opacity: 0.5,
+      flex: 1,
     },
   })
 }

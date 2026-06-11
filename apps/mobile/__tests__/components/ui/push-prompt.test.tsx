@@ -59,7 +59,7 @@ vi.mock('lucide-react-native', () => {
     React.createElement(name, props)
 
   return {
-    BellRing: createIcon('BellRing'),
+    Bell: createIcon('Bell'),
     X: createIcon('X'),
   }
 })
@@ -81,7 +81,7 @@ vi.mock('react-native', async (importOriginal) => {
 })
 
 function findPressableByText(root: any, label: string) {
-  return root.find(
+  const matches = root.findAll(
     (node: any) =>
       typeof node.type !== 'string' &&
       typeof node.props?.onPress === 'function' &&
@@ -89,6 +89,10 @@ function findPressableByText(root: any, label: string) {
         (child: any) => child.type === 'Text' && child.props?.children === label,
       ).length > 0,
   )
+  if (matches.length === 0) {
+    throw new Error(`No pressable found with text ${label}`)
+  }
+  return matches[0]
 }
 
 describe('PushPrompt (mobile)', () => {

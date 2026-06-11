@@ -7,7 +7,7 @@ import {
   type ComponentProps,
 } from 'react'
 import { StyleSheet, TextInput } from 'react-native'
-import { createTokensV2, radius } from '@/lib/theme'
+import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useKeyboardAwareInputReveal } from './keyboard-aware-scroll-view'
 
@@ -17,7 +17,7 @@ type AppTextInputProps = ComponentProps<typeof TextInput>
 
 export const AppTextInput = forwardRef<TextInput, AppTextInputProps>(
   function AppTextInput(
-    { onBlur, onFocus, style, ...props },
+    { onBlur, onFocus, placeholderTextColor, style, ...props },
     ref,
   ) {
     const localRef = useRef<TextInput>(null)
@@ -66,6 +66,7 @@ export const AppTextInput = forwardRef<TextInput, AppTextInputProps>(
     return (
       <TextInput
         ref={assignRef}
+        placeholderTextColor={placeholderTextColor ?? tokens.fg4}
         {...props}
         style={[styles.input, focused ? styles.inputFocused : null, style]}
         onBlur={handleBlur}
@@ -78,16 +79,22 @@ export const AppTextInput = forwardRef<TextInput, AppTextInputProps>(
 function createStyles(tokens: AppTokens) {
   return StyleSheet.create({
     input: {
-      color: tokens.fg1,
+      minHeight: 54,
+      borderRadius: 14,
+      backgroundColor: tokens.bgField,
+      borderWidth: 1,
       borderColor: tokens.hairline,
-      borderRadius: radius.md,
+      paddingHorizontal: 16,
+      paddingVertical: 14,
+      fontFamily: 'Rubik_400Regular',
+      fontSize: 16,
+      color: tokens.fg1,
     },
     inputFocused: {
-      borderColor: tokens.hairlineStrong,
-      shadowColor: tokens.primary,
-      shadowOffset: { width: 0, height: 0 },
-      shadowOpacity: 0.12,
-      shadowRadius: 10,
+      borderWidth: 2,
+      borderColor: tokens.primary,
+      paddingHorizontal: 15,
+      paddingVertical: 13,
     },
   })
 }

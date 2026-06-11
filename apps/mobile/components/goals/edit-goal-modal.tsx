@@ -14,7 +14,7 @@ import { BottomSheetAppTextInput } from '@/components/ui/bottom-sheet-app-text-i
 import { AppDatePicker } from '@/components/ui/app-date-picker'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { KeyboardAwareBottomSheetScrollView } from '@/components/ui/keyboard-aware-scroll-view'
-import { SectionLabel } from '@/components/ui/section-label'
+import { PillButton } from '@/components/ui/pill-button'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useDismissGuard } from '@/hooks/use-dismiss-guard'
 import { useUpdateGoal } from '@/hooks/use-goals'
@@ -116,7 +116,7 @@ export function EditGoalModal({ open, onClose, goal }: EditGoalModalProps) {
 
   useEffect(() => {
     if (open) {
-       
+
       setDescription(goal.title)
       setTargetValue(String(goal.targetValue))
       setUnit(goal.unit)
@@ -188,7 +188,8 @@ export function EditGoalModal({ open, onClose, goal }: EditGoalModalProps) {
             <Text style={styles.eyebrow}>{t('goals.form.typeStreak')}</Text>
           ) : null}
 
-          <View style={styles.titleField}>
+          <View>
+            <Text style={styles.fieldLabel}>{t('goals.form.description')}</Text>
             <BottomSheetAppTextInput
               value={description}
               onChangeText={setDescription}
@@ -196,7 +197,6 @@ export function EditGoalModal({ open, onClose, goal }: EditGoalModalProps) {
               placeholderTextColor={tokens.fg4}
               maxLength={MAX_GOAL_DESCRIPTION_LENGTH}
               accessibilityLabel={t('goals.form.description')}
-              style={[styles.titleInput, { color: tokens.fg1 }]}
             />
             {fieldErrors.description ? (
               <Text style={styles.fieldError} accessibilityRole="alert">
@@ -205,61 +205,54 @@ export function EditGoalModal({ open, onClose, goal }: EditGoalModalProps) {
             ) : null}
           </View>
 
-          <View>
-            <SectionLabel top={4} bottom={8}>
-              {t('goals.form.target')}
-            </SectionLabel>
-            <View style={styles.row}>
-              <View style={isStreak ? styles.fullField : styles.halfField}>
-                <Text style={styles.fieldLabel}>
-                  {isStreak
+          <View style={styles.row}>
+            <View style={isStreak ? styles.fullField : styles.halfField}>
+              <Text style={styles.fieldLabel}>
+                {isStreak
+                  ? t('goals.form.streakTarget')
+                  : t('goals.form.targetValue')}
+              </Text>
+              <BottomSheetAppTextInput
+                value={targetValue}
+                onChangeText={setTargetValue}
+                keyboardType="decimal-pad"
+                accessibilityLabel={
+                  isStreak
                     ? t('goals.form.streakTarget')
-                    : t('goals.form.targetValue')}
+                    : t('goals.form.targetValue')
+                }
+              />
+              {fieldErrors.targetValue ? (
+                <Text style={styles.fieldError} accessibilityRole="alert">
+                  {fieldErrors.targetValue}
                 </Text>
+              ) : null}
+            </View>
+            {!isStreak ? (
+              <View style={styles.halfField}>
+                <Text style={styles.fieldLabel}>{t('goals.form.unit')}</Text>
                 <BottomSheetAppTextInput
-                  style={styles.input}
-                  value={targetValue}
-                  onChangeText={setTargetValue}
-                  keyboardType="decimal-pad"
-                  accessibilityLabel={
-                    isStreak
-                      ? t('goals.form.streakTarget')
-                      : t('goals.form.targetValue')
-                  }
+                  value={unit}
+                  onChangeText={setUnit}
+                  maxLength={50}
+                  accessibilityLabel={t('goals.form.unit')}
                 />
-                {fieldErrors.targetValue ? (
+                {fieldErrors.unit ? (
                   <Text style={styles.fieldError} accessibilityRole="alert">
-                    {fieldErrors.targetValue}
+                    {fieldErrors.unit}
                   </Text>
                 ) : null}
               </View>
-              {!isStreak ? (
-                <View style={styles.halfField}>
-                  <Text style={styles.fieldLabel}>{t('goals.form.unit')}</Text>
-                  <BottomSheetAppTextInput
-                    style={styles.input}
-                    value={unit}
-                    onChangeText={setUnit}
-                    maxLength={50}
-                    accessibilityLabel={t('goals.form.unit')}
-                  />
-                  {fieldErrors.unit ? (
-                    <Text style={styles.fieldError} accessibilityRole="alert">
-                      {fieldErrors.unit}
-                    </Text>
-                  ) : null}
-                </View>
-              ) : null}
-            </View>
+            ) : null}
           </View>
 
           <View>
-            <SectionLabel top={4} bottom={8}>
+            <Text style={styles.fieldLabel}>
               {t('goals.form.deadline')}{' '}
               <Text style={styles.labelOptional}>
                 ({t('goals.form.deadlineOptional')})
               </Text>
-            </SectionLabel>
+            </Text>
             {deadline ? (
               <View>
                 <View style={styles.deadlineRow}>
@@ -273,7 +266,7 @@ export function EditGoalModal({ open, onClose, goal }: EditGoalModalProps) {
                     accessibilityRole="button"
                     accessibilityLabel={t('common.clear')}
                   >
-                    <X size={16} color={tokens.fg4} strokeWidth={1.6} />
+                    <X size={16} color={tokens.fg4} strokeWidth={1.8} />
                   </TouchableOpacity>
                 </View>
                 {isGoalDeadlinePast(deadline) ? (
@@ -290,7 +283,7 @@ export function EditGoalModal({ open, onClose, goal }: EditGoalModalProps) {
                 accessibilityRole="button"
                 accessibilityLabel={t('goals.form.addDeadline')}
               >
-                <Plus size={14} color={tokens.fg1} strokeWidth={1.6} />
+                <Plus size={14} color={tokens.fg1} strokeWidth={1.8} />
                 <Text style={styles.addDeadlineText}>
                   {t('goals.form.addDeadline')}
                 </Text>
@@ -299,30 +292,27 @@ export function EditGoalModal({ open, onClose, goal }: EditGoalModalProps) {
           </View>
 
           <View style={styles.footer}>
-            <TouchableOpacity
-              style={styles.cancelButton}
+            <PillButton
+              variant="ghost"
+              style={styles.footerButton}
               disabled={isSubmitting}
               onPress={dismissGuard.requestDismiss}
-              activeOpacity={0.7}
-              accessibilityRole="button"
               accessibilityLabel={t('common.cancel')}
             >
-              <Text style={styles.cancelButtonText}>{t('common.cancel')}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.submitButton, isSubmitting && styles.disabled]}
+              {t('common.cancel')}
+            </PillButton>
+            <PillButton
+              style={styles.footerButton}
               onPress={onSubmit}
               disabled={isSubmitting}
-              activeOpacity={0.7}
-              accessibilityRole="button"
               accessibilityLabel={t('common.save')}
             >
               {isSubmitting ? (
                 <ActivityIndicator size="small" color={tokens.fgOnPrimary} />
               ) : (
-                <Text style={styles.submitText}>{t('common.save')}</Text>
+                t('common.save')
               )}
-            </TouchableOpacity>
+            </PillButton>
           </View>
         </KeyboardAwareBottomSheetScrollView>
       </BottomSheetModal>
@@ -358,66 +348,37 @@ function createStyles(
       gap: 18,
     },
     eyebrow: {
-      fontFamily: 'GeistMono',
+      fontFamily: 'Roboto_500Medium',
       fontSize: 11,
-      fontWeight: '500',
       letterSpacing: 0.66,
       color: tokens.fg3,
       textTransform: 'uppercase',
     },
-    titleField: {
-      borderBottomWidth: 1,
-      borderBottomColor: tokens.hairlineStrong,
-      paddingBottom: 8,
-    },
-    titleInput: {
-      fontFamily: 'Geist',
-      fontSize: 22,
-      fontWeight: '600',
-      letterSpacing: -0.33,
-      paddingVertical: 4,
-      paddingHorizontal: 0,
-      backgroundColor: 'transparent',
-      borderWidth: 0,
-    },
     row: {
       flexDirection: 'row',
-      gap: 14,
+      gap: 12,
     },
     halfField: {
       flex: 1,
-      gap: 6,
     },
     fullField: {
       flex: 1,
-      gap: 6,
     },
     fieldLabel: {
-      fontFamily: 'Geist',
-      fontSize: 12,
-      color: tokens.fg3,
+      fontFamily: 'Rubik_500Medium',
+      fontSize: 14,
+      color: tokens.fg2,
+      marginBottom: 8,
     },
     labelOptional: {
-      fontFamily: 'Geist',
-      fontWeight: '400',
+      fontFamily: 'Rubik_400Regular',
       color: tokens.fg4,
     },
-    input: {
-      backgroundColor: 'transparent',
-      borderBottomWidth: 1,
-      borderBottomColor: tokens.hairline,
-      paddingHorizontal: 0,
-      paddingVertical: 8,
-      fontSize: 16,
-      color: tokens.fg1,
-      fontFamily: 'Geist',
-    },
     fieldError: {
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_400Regular',
       fontSize: 12,
-      fontStyle: 'italic',
       color: tokens.statusOverdue,
-      marginTop: 4,
+      marginTop: 6,
     },
     deadlineRow: {
       flexDirection: 'row',
@@ -428,16 +389,15 @@ function createStyles(
       flex: 1,
     },
     removeDeadlineButton: {
-      width: 36,
-      height: 36,
-      borderRadius: 8,
+      width: 44,
+      height: 44,
+      borderRadius: 999,
       alignItems: 'center',
       justifyContent: 'center',
     },
     warningText: {
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_400Regular',
       fontSize: 13,
-      fontStyle: 'italic',
       color: tokens.statusOverdue,
       marginTop: 8,
     },
@@ -445,17 +405,16 @@ function createStyles(
       flexDirection: 'row',
       alignItems: 'center',
       gap: 8,
-      paddingVertical: 4,
+      paddingVertical: 10,
+      alignSelf: 'flex-start',
     },
     addDeadlineText: {
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_500Medium',
       fontSize: 13,
-      fontWeight: '500',
       color: tokens.fg1,
     },
     footer: {
       flexDirection: 'row',
-      justifyContent: 'space-between',
       alignItems: 'center',
       gap: 12,
       paddingTop: 16,
@@ -463,34 +422,8 @@ function createStyles(
       borderTopColor: tokens.hairline,
       marginTop: 8,
     },
-    cancelButton: {
-      paddingVertical: 10,
-      paddingHorizontal: 6,
-    },
-    cancelButtonText: {
-      fontFamily: 'Geist',
-      fontSize: 14,
-      color: tokens.fg3,
-    },
-    submitButton: {
-      backgroundColor: tokens.primary,
-      borderRadius: 8,
-      paddingHorizontal: 16,
-      paddingVertical: 10,
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 8,
-      minWidth: 120,
-    },
-    submitText: {
-      fontFamily: 'Geist',
-      fontSize: 14,
-      fontWeight: '600',
-      color: tokens.fgOnPrimary,
-    },
-    disabled: {
-      opacity: 0.5,
+    footerButton: {
+      flex: 1,
     },
   })
 }

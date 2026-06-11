@@ -14,7 +14,8 @@ import { getErrorMessage } from '@orbit/shared/utils'
 import { openCustomerPortal } from '@/app/actions/subscription'
 import { AppBar } from '@/components/ui/app-bar'
 import { Chip } from '@/components/ui/chip'
-import { PullQuote } from '@/components/chat/pull-quote'
+import { InfoCard } from '@/components/ui/info-card'
+import { PillButton } from '@/components/ui/pill-button'
 import { OfflineUnavailableState } from '@/components/ui/offline-unavailable-state'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 
@@ -33,6 +34,25 @@ function renderMarkdown(text: string): string {
     .replaceAll('\n', '<br>')
 
   return DOMPurify.sanitize(result, { ALLOWED_TAGS: ['strong', 'br'], ALLOWED_ATTR: [] })
+}
+
+const pillLinkClassName =
+  'inline-flex items-center justify-center gap-[9px] rounded-full bg-[var(--primary)] px-[26px] py-[15px] text-[16px] font-medium text-[var(--fg-on-primary)] no-underline shadow-[var(--primary-glow)] transition-[background-color,box-shadow,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:-translate-y-px hover:bg-[var(--primary-pressed)] hover:shadow-[var(--primary-glow-hover)] active:translate-y-0 active:scale-[0.98]'
+
+function LockedBlock({
+  title,
+  hint,
+  children,
+}: Readonly<{ title: string; hint: string; children: React.ReactNode }>) {
+  return (
+    <div className="flex flex-col items-center text-center" style={{ padding: '40px 24px', gap: 14 }}>
+      <span className="t-h2">{title}</span>
+      <span className="t-secondary" style={{ color: 'var(--fg-3)', maxWidth: 320 }}>
+        {hint}
+      </span>
+      <div style={{ marginTop: 8 }}>{children}</div>
+    </div>
+  )
 }
 
 export default function RetrospectivePage() {
@@ -106,112 +126,40 @@ export default function RetrospectivePage() {
       />
 
       {isLoaded && !hasProAccess && (
-        <div className="flex flex-col items-center text-center" style={{ padding: '40px 24px', gap: 14 }}>
-          <span
-            style={{
-              fontFamily: 'var(--font-family-sans)',
-              fontSize: 16,
-              fontWeight: 600,
-              color: 'var(--fg-1)',
-            }}
-          >
-            {t('retrospective.locked')}
-          </span>
-          <span
-            style={{
-              fontFamily: 'var(--font-family-sans)',
-              fontSize: 14,
-              fontStyle: 'italic',
-              color: 'var(--fg-3)',
-              lineHeight: 1.55,
-            }}
-          >
-            {t('retrospective.lockedHint')}
-          </span>
-          <Link
-            href="/upgrade"
-            style={{
-              marginTop: 8,
-              padding: '10px 16px',
-              borderRadius: 8,
-              background: 'var(--primary)',
-              color: 'var(--fg-on-primary)',
-              fontFamily: 'var(--font-family-sans)',
-              fontSize: 14,
-              fontWeight: 600,
-              textDecoration: 'none',
-            }}
-          >
+        <LockedBlock title={t('retrospective.locked')} hint={t('retrospective.lockedHint')}>
+          <Link href="/upgrade" className={pillLinkClassName}>
             {t('upgrade.subscribe')}
           </Link>
-        </div>
+        </LockedBlock>
       )}
 
       {isLoaded && hasProAccess && !isYearlyPro && (
-        <div className="flex flex-col items-center text-center" style={{ padding: '40px 24px', gap: 14 }}>
-          <span
-            style={{
-              fontFamily: 'var(--font-family-sans)',
-              fontSize: 16,
-              fontWeight: 600,
-              color: 'var(--fg-1)',
-            }}
-          >
-            {t('retrospective.lockedYearly')}
-          </span>
-          <span
-            style={{
-              fontFamily: 'var(--font-family-sans)',
-              fontSize: 14,
-              fontStyle: 'italic',
-              color: 'var(--fg-3)',
-              lineHeight: 1.55,
-            }}
-          >
-            {t('retrospective.lockedYearlyHint')}
-          </span>
+        <LockedBlock
+          title={t('retrospective.lockedYearly')}
+          hint={t('retrospective.lockedYearlyHint')}
+        >
           {profile?.isTrialActive ? (
-            <Link
-              href="/upgrade"
-              style={{
-                marginTop: 8,
-                padding: '10px 16px',
-                borderRadius: 8,
-                background: 'var(--primary)',
-                color: 'var(--fg-on-primary)',
-                fontFamily: 'var(--font-family-sans)',
-                fontSize: 14,
-                fontWeight: 600,
-                textDecoration: 'none',
-              }}
-            >
+            <Link href="/upgrade" className={pillLinkClassName}>
               {t('upgrade.subscribe')}
             </Link>
           ) : (
-            <button
-              type="button"
-              onClick={handleOpenPortal}
-              className="appearance-none border-0 cursor-pointer"
-              style={{
-                marginTop: 8,
-                padding: '10px 16px',
-                borderRadius: 8,
-                background: 'var(--primary)',
-                color: 'var(--fg-on-primary)',
-                fontFamily: 'var(--font-family-sans)',
-                fontSize: 14,
-                fontWeight: 600,
-              }}
-            >
+            <PillButton onClick={handleOpenPortal}>
               {t('retrospective.changePlan')}
-            </button>
+            </PillButton>
           )}
           {portalError && (
-            <p style={{ fontSize: 12, color: 'var(--status-overdue)', fontFamily: 'var(--font-family-sans)' }}>
+            <p
+              style={{
+                marginTop: 12,
+                fontFamily: 'var(--font-sans)',
+                fontSize: 13,
+                color: 'var(--status-bad)',
+              }}
+            >
               {portalError}
             </p>
           )}
-        </div>
+        </LockedBlock>
       )}
 
       {isLoaded && isYearlyPro && (
@@ -241,77 +189,58 @@ export default function RetrospectivePage() {
             {isLoading && (
               <div style={{ padding: '24px 20px', display: 'flex', flexDirection: 'column', gap: 12 }}>
                 <span
-                  style={{
-                    fontFamily: 'var(--font-family-sans)',
-                    fontSize: 14,
-                    fontStyle: 'italic',
-                    color: 'var(--fg-3)',
-                    textAlign: 'center',
-                  }}
+                  className="t-secondary"
+                  style={{ color: 'var(--fg-3)', textAlign: 'center' }}
                 >
                   {t('retrospective.generating')}
                 </span>
-                <div style={{ width: '60%', height: 7, background: 'var(--bg-sunk)', borderRadius: 4 }} />
-                <div style={{ width: '80%', height: 7, background: 'var(--bg-sunk)', borderRadius: 4 }} />
-                <div style={{ width: '40%', height: 7, background: 'var(--bg-sunk)', borderRadius: 4 }} />
+                <div className="animate-pulse" style={{ width: '60%', height: 7, background: 'var(--bg-card)', borderRadius: 4 }} />
+                <div className="animate-pulse" style={{ width: '80%', height: 7, background: 'var(--bg-card)', borderRadius: 4 }} />
+                <div className="animate-pulse" style={{ width: '40%', height: 7, background: 'var(--bg-card)', borderRadius: 4 }} />
               </div>
             )}
 
             {!isLoading && retrospective && (
-              <div style={{ padding: '14px 0' }}>
+              <div className="px-5" style={{ padding: '16px 20px 24px' }}>
                 <div
+                  className="rounded-[18px] bg-[var(--bg-card)] animate-scale-in"
                   style={{
-                    fontFamily: 'var(--font-family-mono)',
-                    fontSize: 10.5,
-                    fontWeight: 500,
-                    color: 'var(--fg-3)',
-                    letterSpacing: '0.06em',
-                    textTransform: 'uppercase',
-                    padding: '0 20px 6px 22px',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 6,
+                    padding: '16px 18px 18px',
+                    boxShadow: 'inset 0 0 0 1px var(--hairline)',
                   }}
                 >
-                  <Orbit size={11} strokeWidth={1.7} color="var(--primary)" />
-                  {t('retrospective.astraEyebrow')}
-                </div>
-                <div
-                  className="relative"
-                  style={{
-                    padding: '0 20px 24px 22px',
-                  }}
-                >
-                  <span
-                    aria-hidden="true"
-                    className="absolute"
+                  <div
+                    className="inline-flex items-center uppercase"
                     style={{
-                      left: 8,
-                      top: 0,
-                      bottom: 12,
-                      width: 2,
-                      background: 'var(--primary)',
-                      borderRadius: 1,
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: 10.5,
+                      fontWeight: 500,
+                      color: 'var(--fg-3)',
+                      letterSpacing: '0.06em',
+                      gap: 6,
+                      marginBottom: 10,
                     }}
-                  />
+                  >
+                    <Orbit size={11} strokeWidth={1.7} color="var(--primary)" />
+                    {t('retrospective.astraEyebrow')}
+                  </div>
                   <div
                     style={{
-                      fontFamily: 'var(--font-family-sans)',
+                      fontFamily: 'var(--font-sans)',
                       fontSize: 15,
                       lineHeight: 1.6,
                       color: 'var(--fg-2)',
                     }}
-                    className="[&_strong]:block [&_strong]:mt-4 [&_strong]:font-semibold [&_strong]:text-[var(--fg-1)] [&_strong:first-child]:mt-0"
+                    className="[&_strong]:block [&_strong]:mt-4 [&_strong]:font-medium [&_strong]:text-[var(--fg-1)] [&_strong:first-child]:mt-0"
                     dangerouslySetInnerHTML={{ __html: renderMarkdown(retrospective) }}
                   />
                   <p
                     style={{
                       marginTop: 16,
-                      fontFamily: 'var(--font-family-sans)',
+                      fontFamily: 'var(--font-sans)',
                       fontSize: 11,
                       lineHeight: 1.4,
-                      fontStyle: 'italic',
-                      color: 'var(--fg-3)',
+                      color: 'var(--fg-4)',
                     }}
                   >
                     {t('aiDisclosure.notMedicalAdvice')}
@@ -319,11 +248,12 @@ export default function RetrospectivePage() {
                   {fromCache && (
                     <p
                       style={{
-                        marginTop: 16,
-                        fontFamily: 'var(--font-family-sans)',
-                        fontSize: 12,
-                        fontStyle: 'italic',
+                        marginTop: 10,
+                        fontFamily: 'var(--font-mono)',
+                        fontSize: 11,
+                        letterSpacing: '0.02em',
                         color: 'var(--fg-4)',
+                        fontVariantNumeric: 'tabular-nums',
                       }}
                     >
                       {t('retrospective.cached')}
@@ -334,24 +264,15 @@ export default function RetrospectivePage() {
             )}
 
             {!isLoading && error && (
-              <div style={{ padding: '20px', textAlign: 'center' }}>
-                <p style={{ fontFamily: 'var(--font-family-sans)', fontSize: 14, color: 'var(--status-overdue)' }}>
+              <div style={{ padding: '32px 20px', textAlign: 'center' }}>
+                <p style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--status-bad)' }}>
                   {t('retrospective.error')}
                 </p>
                 <button
                   type="button"
                   onClick={generate}
-                  className="appearance-none border-0 bg-transparent cursor-pointer"
-                  style={{
-                    marginTop: 8,
-                    fontFamily: 'var(--font-family-sans)',
-                    fontSize: 13,
-                    fontWeight: 600,
-                    color: 'var(--fg-1)',
-                    textDecoration: 'underline',
-                    textUnderlineOffset: 3,
-                    textDecorationColor: 'var(--hairline-strong)',
-                  }}
+                  className="chip"
+                  style={{ marginTop: 10 }}
                 >
                   {t('common.retry')}
                 </button>
@@ -360,19 +281,15 @@ export default function RetrospectivePage() {
 
             {!isLoading && !retrospective && !error && (
               <div style={{ padding: '20px 0 0' }}>
-                <PullQuote
-                  italic
-                  eyebrow={
-                    <>
-                      <Orbit size={11} strokeWidth={1.7} color="var(--primary)" />
-                      {t('retrospective.astraEyebrow')}
-                    </>
-                  }
-                >
-                  {t('retrospective.empty')}
-                </PullQuote>
+                <div className="px-5">
+                  <InfoCard
+                    icon={Orbit}
+                    title={t('retrospective.astraEyebrow')}
+                    desc={t('retrospective.empty')}
+                  />
+                </div>
                 {!isOnline && (
-                  <div style={{ padding: '8px 20px 0' }}>
+                  <div style={{ padding: '14px 20px 0' }}>
                     <OfflineUnavailableState
                       title={t('calendarSync.notConnected')}
                       description={`${t('retrospective.generate')} / ${t('retrospective.changePlan')}`}
@@ -380,26 +297,15 @@ export default function RetrospectivePage() {
                     />
                   </div>
                 )}
-                <div style={{ padding: '14px 20px 24px' }}>
-                  <button
-                    type="button"
-                    disabled={isLoading || !isOnline}
+                <div style={{ padding: '18px 20px 24px' }}>
+                  <PillButton
                     onClick={generate}
-                    className="appearance-none border-0 cursor-pointer disabled:cursor-not-allowed inline-flex items-center justify-center gap-2 w-full"
-                    style={{
-                      height: 44,
-                      borderRadius: 8,
-                      background: 'var(--primary)',
-                      color: 'var(--fg-on-primary)',
-                      fontFamily: 'var(--font-family-sans)',
-                      fontSize: 14,
-                      fontWeight: 600,
-                      opacity: !isOnline ? 0.5 : 1,
-                    }}
+                    disabled={isLoading || !isOnline}
+                    fullWidth
+                    leading={<Orbit size={16} strokeWidth={1.8} aria-hidden="true" />}
                   >
-                    <Orbit size={14} strokeWidth={1.7} />
                     {t('retrospective.generate')}
-                  </button>
+                  </PillButton>
                 </div>
               </div>
             )}

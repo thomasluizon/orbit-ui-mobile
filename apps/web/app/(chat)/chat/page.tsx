@@ -4,10 +4,13 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   Orbit,
+  Sparkles,
   Mic,
   Square,
-  ChevronRight as ChevronRightIcon,
+  ArrowUp,
   X,
+  Crown,
+  Lock,
   Image as ImageIcon,
 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
@@ -18,7 +21,10 @@ import {
 import { CHAT_GOAL_ACTION_TYPES } from '@orbit/shared/hooks'
 import { habitDetailToNormalized } from '@orbit/shared/utils'
 import { AppBar } from '@/components/ui/app-bar'
+import { GradientTop } from '@/components/ui/gradient-top'
+import { InfoCard } from '@/components/ui/info-card'
 import { LocalImage } from '@/components/ui/local-image'
+import { PillButton } from '@/components/ui/pill-button'
 import { useChatComposer } from '@/hooks/use-chat-composer'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { useHabitDetail } from '@/hooks/use-habits'
@@ -72,6 +78,8 @@ export default function ChatPage() {
     prepareStepUpForBubble,
     verifyStepUpForBubble,
   } = useChatComposer()
+
+  const limitLocked = !hasProAccess && atMessageLimit
 
   const [selectedHabitId, setSelectedHabitId] = useState<string | null>(null)
   const [selectedGoalId, setSelectedGoalId] = useState<string | null>(null)
@@ -129,19 +137,23 @@ export default function ChatPage() {
   }, [goBackOrFallback])
 
   return (
-    <div className="flex flex-col h-full">
-      <AppBar
-        back
-        backLabel={t('common.goBack')}
-        onBack={() => goBackOrFallback('/')}
-        leadingIcon={<Orbit size={17} strokeWidth={1.5} color="var(--primary)" />}
-        title={t('chat.title')}
-      />
+    <div className="relative flex flex-col h-full">
+      {showSuggestions && <GradientTop height={420} />}
+      <div className="relative z-10 shrink-0">
+        <AppBar
+          back
+          backLabel={t('common.goBack')}
+          onBack={() => goBackOrFallback('/')}
+          leadingIcon={<Orbit size={17} strokeWidth={1.5} color="var(--primary)" />}
+          title={t('chat.title')}
+        />
+      </div>
 
       <div
         data-tour="tour-chat-area"
         ref={chatContainerRef}
-        className="flex-1 overflow-y-auto"
+        className="relative z-10 flex-1 overflow-y-auto overflow-x-hidden"
+        style={{ paddingTop: 8 }}
         role="log"
         aria-live="polite"
         aria-relevant="additions text"
@@ -151,67 +163,59 @@ export default function ChatPage() {
       >
         {showSuggestions && (
           <div
-            className="flex flex-col items-center justify-center h-full"
-            style={{ gap: 24, padding: '32px 24px' }}
+            className="relative flex flex-col items-center justify-center h-full"
+            style={{ gap: 16, padding: '32px' }}
           >
-            <div
-              className="relative flex items-center justify-center"
-              style={{ width: 132, height: 132 }}
-            >
-              <span
-                aria-hidden="true"
-                className="absolute inset-0 rounded-full"
-                style={{ boxShadow: 'inset 0 0 0 1.5px var(--primary)' }}
-              />
-              <span
-                aria-hidden="true"
-                className="absolute rounded-full"
+            <div className="relative z-10 flex flex-col items-center" style={{ gap: 16 }}>
+              <div
+                className="rounded-full flex items-center justify-center"
                 style={{
-                  inset: 10,
-                  boxShadow: 'inset 0 0 0 1px var(--hairline-strong)',
+                  width: 84,
+                  height: 84,
+                  background: 'rgba(var(--primary-rgb), 0.16)',
+                  boxShadow: '0 0 50px rgba(var(--primary-rgb), 0.35)',
                 }}
-              />
-              <Orbit size={36} strokeWidth={1.3} color="var(--fg-1)" />
-            </div>
-            <div
-              className="text-center"
-              style={{
-                fontFamily: 'var(--font-family-sans)',
-                fontSize: 20,
-                fontWeight: 600,
-                color: 'var(--fg-1)',
-                letterSpacing: '-0.01em',
-              }}
-            >
-              {t('chat.empty.title')}
-            </div>
-            <div
-              className="text-center"
-              style={{
-                fontFamily: 'var(--font-family-sans)',
-                fontSize: 14,
-                color: 'var(--fg-3)',
-                maxWidth: 280,
-                lineHeight: 1.5,
-                fontStyle: 'italic',
-              }}
-            >
-              {t('chat.suggestion.prompt')}
-            </div>
-            <SuggestionChips onSelect={(s) => sendMessage(s)} />
-            <div
-              className="text-center"
-              style={{
-                fontFamily: 'var(--font-family-sans)',
-                fontSize: 11,
-                color: 'var(--fg-3)',
-                maxWidth: 300,
-                lineHeight: 1.4,
-                fontStyle: 'italic',
-                marginTop: 4,
-              }}
-            >
-              {t('aiDisclosure.notMedicalAdvice')}
+              >
+                <Sparkles size={38} strokeWidth={1.8} color="var(--primary-soft)" />
+              </div>
+              <div
+                className="text-center"
+                style={{
+                  fontFamily: 'var(--font-sans)',
+                  fontSize: 24,
+                  fontWeight: 500,
+                  letterSpacing: '-0.01em',
+                  color: 'var(--fg-1)',
+                }}
+              >
+                {t('chat.empty.title')}
+              </div>
+              <div
+                className="text-center"
+                style={{
+                  fontFamily: 'var(--font-sans)',
+                  fontSize: 15,
+                  color: 'var(--fg-2)',
+                  maxWidth: 280,
+                  lineHeight: 1.5,
+                }}
+              >
+                {t('chat.suggestion.prompt')}
+              </div>
+              <SuggestionChips onSelect={(s) => sendMessage(s)} />
+              <div
+                className="text-center"
+                style={{
+                  fontFamily: 'var(--font-sans)',
+                  fontSize: 11,
+                  color: 'var(--fg-4)',
+                  maxWidth: 300,
+                  lineHeight: 1.4,
+                  marginTop: 4,
+                }}
+              >
+                {t('aiDisclosure.notMedicalAdvice')}
+              </div>
             </div>
           </div>
         )}
@@ -242,7 +246,7 @@ export default function ChatPage() {
       >
         <div
           style={{
-            padding: `12px 20px calc(12px + var(--safe-bottom))`,
+            padding: `12px 16px calc(12px + var(--safe-bottom))`,
           }}
         >
           {sendError && (
@@ -251,7 +255,7 @@ export default function ChatPage() {
               aria-live="assertive"
               style={{
                 paddingBottom: 8,
-                fontFamily: 'var(--font-family-sans)',
+                fontFamily: 'var(--font-sans)',
                 fontSize: 13,
                 color: 'var(--status-bad)',
                 textAlign: 'center',
@@ -278,7 +282,7 @@ export default function ChatPage() {
                   alt=""
                   style={{
                     height: 64,
-                    borderRadius: 6,
+                    borderRadius: 12,
                     boxShadow: 'inset 0 0 0 1px var(--hairline)',
                   }}
                 />
@@ -303,23 +307,13 @@ export default function ChatPage() {
               style={{ paddingBottom: 10 }}
             >
               <div className="flex" style={{ gap: 8, minWidth: 'max-content' }}>
-                {starterChips.map((chip) => (
+                {starterChips.map((chip, index) => (
                   <button
                     key={chip}
                     type="button"
                     onClick={() => sendMessage(chip)}
-                    className="appearance-none border-0 cursor-pointer whitespace-nowrap"
-                    style={{
-                      padding: '0 9px',
-                      height: 26,
-                      borderRadius: 6,
-                      background: 'transparent',
-                      boxShadow: 'inset 0 0 0 1px var(--hairline-strong)',
-                      color: 'var(--fg-2)',
-                      fontFamily: 'var(--font-family-sans)',
-                      fontSize: 12,
-                      fontWeight: 500,
-                    }}
+                    className="chip animate-chip-in"
+                    style={{ animationDelay: `${index * 60}ms` }}
                   >
                     {chip}
                   </button>
@@ -338,19 +332,28 @@ export default function ChatPage() {
 
           <div
             className="flex items-center"
-            style={{ gap: 8 }}
+            style={{ gap: 10 }}
           >
             {isRecording ? (
               <>
-                <span
-                  className="rounded-full"
+                <div
+                  className="flex items-center flex-1 min-w-0 rounded-full"
                   style={{
-                    width: 8,
-                    height: 8,
-                    background: 'var(--status-bad)',
+                    gap: 12,
+                    minHeight: 50,
+                    padding: '0 16px',
+                    background: 'var(--bg-field)',
+                    boxShadow: 'inset 0 0 0 1px var(--hairline)',
                   }}
-                />
-                <div className="flex items-center flex-1" style={{ gap: 4 }}>
+                >
+                  <span
+                    className="rounded-full shrink-0"
+                    style={{
+                      width: 8,
+                      height: 8,
+                      background: 'var(--status-bad)',
+                    }}
+                  />
                   <div
                     className="mic-visualizer flex-1 min-w-0"
                     style={{ color: 'var(--fg-2)' }}
@@ -364,175 +367,192 @@ export default function ChatPage() {
                       />
                     ))}
                   </div>
+                  <span
+                    style={{
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: 12,
+                      fontWeight: 500,
+                      color: 'var(--fg-1)',
+                      fontVariantNumeric: 'tabular-nums',
+                    }}
+                  >
+                    {recordingTime}
+                  </span>
                 </div>
-                <span
-                  style={{
-                    fontFamily: 'var(--font-family-mono)',
-                    fontSize: 12,
-                    fontWeight: 500,
-                    color: 'var(--fg-1)',
-                    fontVariantNumeric: 'tabular-nums',
-                  }}
-                >
-                  {recordingTime}
-                </span>
                 <button
                   type="button"
                   aria-label={t('chat.stopRecording')}
                   onClick={toggleRecording}
-                  className="appearance-none border-0 cursor-pointer flex items-center justify-center"
+                  className="appearance-none border-0 cursor-pointer flex items-center justify-center shrink-0 rounded-full bg-[var(--bg-elev)]"
                   style={{
-                    width: 32,
-                    height: 32,
-                    borderRadius: 8,
-                    background: 'var(--fg-1)',
+                    width: 50,
+                    height: 50,
+                    boxShadow: 'inset 0 0 0 1.5px var(--hairline-strong)',
                   }}
                 >
-                  <Square size={11} fill="var(--bg)" color="var(--bg)" />
+                  <Square size={18} fill="var(--status-bad)" color="var(--status-bad)" />
                 </button>
               </>
             ) : (
               <>
-                <textarea
-                  ref={textareaRef}
-                  rows={1}
-                  placeholder={t('chat.placeholder')}
-                  aria-label={t('chat.placeholder')}
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={handleKeyDown}
-                  onPaste={handlePaste}
-                  className="appearance-none border-0 bg-transparent flex-1 min-w-0 resize-none"
+                <div
+                  className="flex items-center flex-1 min-w-0 rounded-full"
                   style={{
-                    outline: 'none',
-                    fontFamily: 'var(--font-family-sans)',
-                    fontSize: 15,
-                    color: 'var(--fg-1)',
-                    minHeight: 36,
-                    maxHeight: 120,
-                    padding: '8px 0',
+                    gap: 2,
+                    minHeight: 50,
+                    padding: '0 8px 0 18px',
+                    background: 'var(--bg-field)',
+                    boxShadow: 'inset 0 0 0 1px var(--hairline)',
+                    opacity: limitLocked ? 0.45 : 1,
                   }}
-                />
-                <button
-                  type="button"
-                  aria-label={t('chat.attachImage')}
-                  onClick={openFilePicker}
-                  className="appearance-none border-0 bg-transparent cursor-pointer inline-flex items-center justify-center text-[var(--fg-3)] transition-[background-color,color] duration-150 ease-out hover:bg-[var(--bg-elev)] hover:text-[var(--fg-1)]"
-                  style={{ width: 36, height: 36, borderRadius: 8 }}
                 >
-                  <ImageIcon size={17} strokeWidth={1.5} />
-                </button>
-                {speechSupported && (
-                  <div ref={langPickerRef} className="relative shrink-0 flex items-center">
+                  <textarea
+                    ref={textareaRef}
+                    rows={1}
+                    disabled={limitLocked}
+                    placeholder={limitLocked ? t('chat.limitReachedError') : t('chat.placeholder')}
+                    aria-label={t('chat.placeholder')}
+                    value={input}
+                    onChange={(e) => setInput(e.target.value)}
+                    onKeyDown={handleKeyDown}
+                    onPaste={handlePaste}
+                    className="appearance-none border-0 bg-transparent flex-1 min-w-0 resize-none"
+                    style={{
+                      outline: 'none',
+                      fontFamily: 'var(--font-sans)',
+                      fontSize: 16,
+                      color: 'var(--fg-1)',
+                      maxHeight: 120,
+                      padding: '13px 0',
+                    }}
+                  />
+                  {limitLocked && (
+                    <span
+                      aria-hidden="true"
+                      className="inline-flex items-center justify-center shrink-0"
+                      style={{ width: 34, height: 34, color: 'var(--fg-4)' }}
+                    >
+                      <Lock size={18} strokeWidth={1.8} />
+                    </span>
+                  )}
+                  {!limitLocked && (
                     <button
                       type="button"
-                      data-tour="tour-chat-voice"
-                      aria-label={t('chat.toggleMic')}
-                      disabled={isTyping}
-                      onClick={toggleRecording}
-                      className="appearance-none border-0 bg-transparent cursor-pointer inline-flex items-center justify-center text-[var(--fg-3)] transition-[background-color,color] duration-150 ease-out hover:bg-[var(--bg-elev)] hover:text-[var(--fg-1)] disabled:opacity-50"
-                      style={{ width: 36, height: 36, borderRadius: 8 }}
+                      aria-label={t('chat.attachImage')}
+                      onClick={openFilePicker}
+                      className="icon-btn shrink-0 text-[var(--fg-3)] hover:text-[var(--fg-1)]"
+                      style={{ width: 34, height: 34 }}
                     >
-                      <Mic size={17} strokeWidth={1.5} />
+                      <ImageIcon size={18} strokeWidth={1.8} />
                     </button>
-                    <button
-                      type="button"
-                      aria-label={t('chat.speechLanguage')}
-                      onClick={(e) => {
-                        e.stopPropagation()
-                        setShowLangPicker((prev) => !prev)
-                      }}
-                      className="appearance-none border-0 bg-transparent cursor-pointer transition-opacity duration-150 ease-out hover:opacity-80"
-                      style={{
-                        padding: 4,
-                        fontSize: 14,
-                        lineHeight: 1,
-                      }}
-                    >
-                      {currentLangFlag}
-                    </button>
-                    {showLangPicker && (
-                      <div
-                        className="absolute z-50"
+                  )}
+                  {!limitLocked && speechSupported && (
+                    <div ref={langPickerRef} className="relative shrink-0 flex items-center">
+                      <button
+                        type="button"
+                        data-tour="tour-chat-voice"
+                        aria-label={t('chat.toggleMic')}
+                        disabled={isTyping}
+                        onClick={toggleRecording}
+                        className="icon-btn shrink-0 text-[var(--fg-3)] hover:text-[var(--fg-1)] disabled:opacity-50"
+                        style={{ width: 34, height: 34 }}
+                      >
+                        <Mic size={18} strokeWidth={1.8} />
+                      </button>
+                      <button
+                        type="button"
+                        aria-label={t('chat.speechLanguage')}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setShowLangPicker((prev) => !prev)
+                        }}
+                        className="appearance-none border-0 bg-transparent cursor-pointer transition-opacity duration-150 ease-out hover:opacity-80"
                         style={{
-                          bottom: '100%',
-                          left: 0,
-                          marginBottom: 8,
-                          minWidth: 140,
-                          background: 'var(--bg-elev)',
-                          borderRadius: 8,
-                          boxShadow: '0 12px 32px rgba(0,0,0,0.35), inset 0 0 0 1px var(--hairline)',
-                          padding: '4px 0',
+                          padding: 4,
+                          fontSize: 14,
+                          lineHeight: 1,
                         }}
                       >
-                        {SPEECH_LANGUAGES.map((lang) => (
-                          <button
-                            key={lang.value}
-                            type="button"
-                            onClick={() => {
-                              setSpeechLang(lang.value)
-                              setShowLangPicker(false)
-                            }}
-                            className="w-full text-left flex items-center bg-transparent transition-colors duration-150 ease-out hover:bg-[var(--bg-sunk)]"
-                            style={{
-                              padding: '6px 12px',
-                              gap: 8,
-                              fontFamily: 'var(--font-family-sans)',
-                              fontSize: 12,
-                              color: speechLang === lang.value ? 'var(--primary)' : 'var(--fg-2)',
-                              fontWeight: speechLang === lang.value ? 600 : 400,
-                              border: 0,
-                              cursor: 'pointer',
-                            }}
-                          >
-                            <span>{lang.flag}</span>
-                            <span>{lang.label}</span>
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                )}
+                        {currentLangFlag}
+                      </button>
+                      {showLangPicker && (
+                        <div
+                          className="absolute z-50"
+                          style={{
+                            bottom: '100%',
+                            left: 0,
+                            marginBottom: 12,
+                            minWidth: 148,
+                            background: 'var(--bg-sheet)',
+                            borderRadius: 12,
+                            boxShadow: 'var(--shadow-2), inset 0 0 0 1px var(--hairline)',
+                            padding: '4px 0',
+                          }}
+                        >
+                          {SPEECH_LANGUAGES.map((lang) => (
+                            <button
+                              key={lang.value}
+                              type="button"
+                              onClick={() => {
+                                setSpeechLang(lang.value)
+                                setShowLangPicker(false)
+                              }}
+                              className="w-full text-left flex items-center bg-transparent transition-colors duration-150 ease-out hover:bg-[var(--bg-elev)]"
+                              style={{
+                                padding: '8px 12px',
+                                gap: 8,
+                                fontFamily: 'var(--font-sans)',
+                                fontSize: 12,
+                                color: speechLang === lang.value ? 'var(--fg-1)' : 'var(--fg-2)',
+                                fontWeight: speechLang === lang.value ? 600 : 400,
+                                border: 0,
+                                cursor: 'pointer',
+                              }}
+                            >
+                              <span>{lang.flag}</span>
+                              <span>{lang.label}</span>
+                            </button>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
                 <button
                   type="button"
                   disabled={!canSend}
                   aria-label={t('chat.send')}
                   onClick={() => sendMessage()}
-                  className={
-                    'appearance-none border-0 cursor-pointer inline-flex items-center justify-center transition-[background-color,transform] duration-150 ease-out ' +
-                    (canSend
-                      ? 'bg-[var(--primary)] hover:bg-[var(--primary-pressed)] hover:scale-110 active:scale-95'
-                      : 'bg-[var(--bg-sunk)]')
-                  }
+                  className="appearance-none border-0 cursor-pointer inline-flex items-center justify-center shrink-0 rounded-full bg-[var(--primary)] enabled:hover:bg-[var(--primary-pressed)] enabled:hover:scale-105 enabled:hover:shadow-[var(--primary-glow-hover)] enabled:active:scale-95 transition-[background-color,box-shadow,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] disabled:cursor-not-allowed"
                   style={{
-                    width: 32,
-                    height: 32,
-                    borderRadius: 999,
+                    width: 50,
+                    height: 50,
                     color: 'var(--fg-on-primary)',
-                    opacity: canSend ? 1 : 0.4,
+                    boxShadow: canSend ? 'var(--primary-glow)' : 'none',
+                    opacity: canSend ? 1 : 0.45,
                   }}
                 >
-                  <ChevronRightIcon size={16} strokeWidth={2.2} color="var(--fg-on-primary)" />
+                  <ArrowUp size={22} strokeWidth={2.4} color="var(--fg-on-primary)" />
                 </button>
               </>
             )}
           </div>
 
-          {!hasProAccess && atMessageLimit && (
+          {limitLocked && (
             <div
               role="status"
               aria-live="polite"
-              className="text-center"
-              style={{
-                paddingTop: 8,
-                fontFamily: 'var(--font-family-mono)',
-                fontSize: 11,
-                color: 'var(--status-overdue)',
-                fontWeight: 500,
-                letterSpacing: '0.04em',
-              }}
+              className="flex flex-col"
+              style={{ paddingTop: 12, gap: 12 }}
             >
-              {t('chat.limitReachedError')}
+              <InfoCard title={t('chat.limitReachedError')} />
+              <PillButton
+                fullWidth
+                leading={<Crown size={18} strokeWidth={1.8} aria-hidden="true" />}
+                onClick={() => router.push('/upgrade')}
+              >
+                {t('upgrade.subscribe')}
+              </PillButton>
             </div>
           )}
           {!hasProAccess && !atMessageLimit && (
@@ -540,7 +560,7 @@ export default function ChatPage() {
               className="text-center"
               style={{
                 paddingTop: 8,
-                fontFamily: 'var(--font-family-mono)',
+                fontFamily: 'var(--font-mono)',
                 fontSize: 11,
                 color: 'var(--fg-3)',
                 fontVariantNumeric: 'tabular-nums',

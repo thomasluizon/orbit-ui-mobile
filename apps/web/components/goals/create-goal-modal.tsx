@@ -6,7 +6,7 @@ import { useTranslations } from 'next-intl'
 import { AppOverlay } from '@/components/ui/app-overlay'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { AppDatePicker } from '@/components/ui/app-date-picker'
-import { SectionLabel } from '@/components/ui/section-label'
+import { PillButton } from '@/components/ui/pill-button'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useDismissGuard } from '@/hooks/use-dismiss-guard'
 import { useCreateGoal } from '@/hooks/use-goals'
@@ -43,6 +43,22 @@ type GoalModalTranslateFn = (
   key: string,
   values?: GoalModalTranslateValues,
 ) => string
+
+const goalTypeOptions = [
+  {
+    key: 'Standard',
+    titleKey: 'goals.form.typeStandard',
+    descKey: 'goals.form.typeStandardDescription',
+    icon: Target,
+  },
+  {
+    key: 'Streak',
+    titleKey: 'goals.form.typeStreak',
+    descKey: 'goals.form.typeStreakHintGood',
+    hintKey: 'goals.form.typeStreakHintBad',
+    icon: Flame,
+  },
+] as const
 
 function buildGoalFieldErrors(
   submitted: boolean,
@@ -120,6 +136,16 @@ export function CreateGoalModal({ open, onOpenChange }: Readonly<CreateGoalModal
     targetValue.trim().length > 0 ||
     unit.trim().length > 0 ||
     deadline.length > 0
+
+  const resetForm = useCallback(() => {
+    setGoalType('Standard')
+    setDescription('')
+    setTargetValue('')
+    setUnit('')
+    setDeadline('')
+    setSubmitted(false)
+  }, [])
+
   const dismissGuard = useDismissGuard({
     isDirty,
     onDismiss: () => {
@@ -140,6 +166,9 @@ export function CreateGoalModal({ open, onOpenChange }: Readonly<CreateGoalModal
     [submitted, description, targetValue, unit, translate],
   )
 
+  const activeTypeOption =
+    goalTypeOptions.find((option) => option.key === goalType) ?? goalTypeOptions[0]
+
   const handleTypeChange = useCallback(
     (type: GoalType) => {
       setGoalType(type)
@@ -151,15 +180,6 @@ export function CreateGoalModal({ open, onOpenChange }: Readonly<CreateGoalModal
     },
     [t],
   )
-
-  const resetForm = useCallback(() => {
-    setGoalType('Standard')
-    setDescription('')
-    setTargetValue('')
-    setUnit('')
-    setDeadline('')
-    setSubmitted(false)
-  }, [])
 
   const onSubmit = useCallback<NonNullable<React.ComponentProps<'form'>['onSubmit']>>(
     async (e) => {
@@ -208,101 +228,71 @@ export function CreateGoalModal({ open, onOpenChange }: Readonly<CreateGoalModal
         isDirty={isDirty}
         onAttemptDismiss={dismissGuard.requestDismiss}
       >
-        <form id="create-goal-form" className="-mx-6" onSubmit={onSubmit}>
-          <SectionLabel top={4}>{t('goals.form.type')}</SectionLabel>
+        <form id="create-goal-form" onSubmit={onSubmit}>
+          <GoalGroupLabel>{t('goals.form.type')}</GoalGroupLabel>
           <div
-            className="flex flex-col"
+            className="flex"
             role="radiogroup"
             aria-label={t('goals.form.type')}
-            style={{ padding: '0 20px 12px', gap: 6 }}
+            style={{ gap: 10 }}
           >
-            {([
-              {
-                key: 'Standard',
-                titleKey: 'goals.form.typeStandard',
-                descKey: 'goals.form.typeStandardDescription',
-                icon: Target,
-              },
-              {
-                key: 'Streak',
-                titleKey: 'goals.form.typeStreak',
-                descKey: 'goals.form.typeStreakHintGood',
-                hintKey: 'goals.form.typeStreakHintBad',
-                icon: Flame,
-              },
-            ] as const).map((card) => {
-              const isActive = goalType === card.key
-              const Icon = card.icon
+            {goalTypeOptions.map((option) => {
+              const isActive = goalType === option.key
+              const Icon = option.icon
               return (
                 <button
-                  key={card.key}
+                  key={option.key}
                   type="button"
                   aria-pressed={isActive}
-                  onClick={() => handleTypeChange(card.key as GoalType)}
-                  className="appearance-none cursor-pointer text-left w-full transition-[background-color,box-shadow] duration-150"
+                  onClick={() => handleTypeChange(option.key as GoalType)}
+                  className="flex flex-1 cursor-pointer appearance-none items-center justify-center transition-[background-color,color,box-shadow] duration-[var(--dur-fast)] ease-[var(--ease-standard)]"
                   style={{
-                    padding: '10px 12px',
-                    borderRadius: 8,
-                    background: isActive ? 'var(--bg-elev)' : 'transparent',
-                    boxShadow: isActive
-                      ? 'inset 0 0 0 1px var(--fg-3)'
-                      : 'inset 0 0 0 1px var(--hairline-strong)',
+                    gap: 8,
+                    minHeight: 46,
+                    borderRadius: 14,
                     border: 0,
+                    background: isActive ? 'var(--primary)' : 'var(--bg-elev)',
+                    boxShadow: isActive ? 'none' : 'inset 0 0 0 1px var(--hairline)',
+                    fontFamily: 'var(--font-sans)',
+                    fontSize: 15,
+                    fontWeight: 500,
+                    color: isActive ? 'var(--fg-on-primary)' : 'var(--fg-2)',
                   }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <Icon
-                      size={18}
-                      aria-hidden="true"
-                      style={{ color: isActive ? 'var(--fg-1)' : 'var(--fg-3)', flexShrink: 0 }}
-                    />
-                    <span
-                      style={{
-                        fontFamily: 'var(--font-family-sans)',
-                        fontSize: 13,
-                        fontWeight: isActive ? 600 : 500,
-                        color: isActive ? 'var(--fg-1)' : 'var(--fg-2)',
-                      }}
-                    >
-                      {t(card.titleKey)}
-                    </span>
-                  </div>
-                  {isActive && (
-                    <div style={{ marginTop: 6, paddingLeft: 28 }}>
-                      <div
-                        style={{
-                          fontFamily: 'var(--font-family-sans)',
-                          fontSize: 12,
-                          color: 'var(--fg-3)',
-                          lineHeight: 1.5,
-                        }}
-                      >
-                        {t(card.descKey)}
-                      </div>
-                      {'hintKey' in card && card.hintKey && (
-                        <div
-                          style={{
-                            marginTop: 4,
-                            fontFamily: 'var(--font-family-sans)',
-                            fontSize: 11,
-                            fontStyle: 'italic',
-                            color: 'var(--fg-3)',
-                            opacity: 0.7,
-                            lineHeight: 1.4,
-                          }}
-                        >
-                          {t(card.hintKey)}
-                        </div>
-                      )}
-                    </div>
-                  )}
+                  <Icon size={18} strokeWidth={1.8} aria-hidden="true" className="shrink-0" />
+                  {t(option.titleKey)}
                 </button>
               )
             })}
           </div>
+          <div style={{ padding: '10px 0 12px' }}>
+            <div
+              style={{
+                fontFamily: 'var(--font-sans)',
+                fontSize: 12,
+                color: 'var(--fg-3)',
+                lineHeight: 1.5,
+              }}
+            >
+              {t(activeTypeOption.descKey)}
+            </div>
+            {'hintKey' in activeTypeOption && activeTypeOption.hintKey && (
+              <div
+                style={{
+                  marginTop: 4,
+                  fontFamily: 'var(--font-sans)',
+                  fontSize: 11,
+                  color: 'var(--fg-4)',
+                  lineHeight: 1.4,
+                }}
+              >
+                {t(activeTypeOption.hintKey)}
+              </div>
+            )}
+          </div>
 
-          <div className={isStreak ? '' : 'grid grid-cols-2'} style={{ padding: '16px 20px 12px', gap: 14 }}>
-            <UnderlinedField
+          <div className={isStreak ? '' : 'grid grid-cols-2'} style={{ padding: '8px 0 0', gap: 12 }}>
+            <FieldWell
               label={isStreak ? t('goals.form.streakTarget') : t('goals.form.targetValue')}
               id="create-goal-target"
               type="number"
@@ -313,7 +303,7 @@ export function CreateGoalModal({ open, onOpenChange }: Readonly<CreateGoalModal
               onChange={setTargetValue}
             />
             {!isStreak && (
-              <UnderlinedField
+              <FieldWell
                 label={t('goals.form.unit')}
                 id="create-goal-unit"
                 type="text"
@@ -326,8 +316,8 @@ export function CreateGoalModal({ open, onOpenChange }: Readonly<CreateGoalModal
             )}
           </div>
 
-          <div style={{ padding: '16px 20px 12px' }}>
-            <UnderlinedField
+          <div style={{ padding: '16px 0 0' }}>
+            <FieldWell
               label={t('goals.form.description')}
               id="create-goal-description"
               type="text"
@@ -343,8 +333,8 @@ export function CreateGoalModal({ open, onOpenChange }: Readonly<CreateGoalModal
             />
           </div>
 
-          <SectionLabel>{t('goals.form.deadline')}</SectionLabel>
-          <div style={{ padding: '0 20px 16px' }}>
+          <GoalGroupLabel top={18}>{t('goals.form.deadline')}</GoalGroupLabel>
+          <div style={{ padding: '0 0 16px' }}>
             {deadline ? (
               <div className="flex items-center" style={{ gap: 8 }}>
                 <div className="flex-1">
@@ -352,15 +342,16 @@ export function CreateGoalModal({ open, onOpenChange }: Readonly<CreateGoalModal
                 </div>
                 <button
                   type="button"
-                  className="appearance-none border-0 bg-transparent cursor-pointer"
+                  className="appearance-none border-0 bg-transparent cursor-pointer inline-flex items-center justify-center"
                   style={{
-                    padding: 6,
+                    width: 44,
+                    height: 44,
                     color: 'var(--fg-3)',
                   }}
                   aria-label={t('common.cancel')}
                   onClick={() => setDeadline('')}
                 >
-                  <X size={14} />
+                  <X size={16} strokeWidth={1.8} />
                 </button>
               </div>
             ) : (
@@ -368,16 +359,16 @@ export function CreateGoalModal({ open, onOpenChange }: Readonly<CreateGoalModal
                 type="button"
                 className="appearance-none border-0 bg-transparent cursor-pointer inline-flex items-center"
                 style={{
-                  fontFamily: 'var(--font-family-sans)',
+                  fontFamily: 'var(--font-sans)',
                   fontSize: 13,
                   fontWeight: 500,
                   color: 'var(--fg-1)',
-                  padding: 0,
+                  padding: '6px 0',
                   gap: 6,
                 }}
                 onClick={() => setDeadline(formatAPIDate(new Date()))}
               >
-                <Plus size={14} />
+                <Plus size={14} strokeWidth={1.8} />
                 {t('goals.form.addDeadline')}
               </button>
             )}
@@ -385,9 +376,8 @@ export function CreateGoalModal({ open, onOpenChange }: Readonly<CreateGoalModal
               <p
                 style={{
                   marginTop: 8,
-                  fontFamily: 'var(--font-family-sans)',
+                  fontFamily: 'var(--font-sans)',
                   fontSize: 13,
-                  fontStyle: 'italic',
                   color: 'var(--status-overdue)',
                 }}
               >
@@ -397,38 +387,29 @@ export function CreateGoalModal({ open, onOpenChange }: Readonly<CreateGoalModal
           </div>
 
           <div
-            className="flex items-center justify-between"
+            className="flex items-center"
             style={{
-              padding: '12px 20px 16px',
-              borderTop: '1px solid var(--hairline)',
+              gap: 12,
+              padding: '18px 0 8px',
             }}
           >
-            <button
-              type="button"
-              className="appearance-none border-0 bg-transparent cursor-pointer"
-              style={{
-                fontFamily: 'var(--font-family-sans)',
-                fontSize: 14,
-                fontWeight: 500,
-                color: 'var(--fg-3)',
-                padding: 6,
-              }}
+            <PillButton
+              variant="ghost"
+              className="flex-1"
               onClick={dismissGuard.requestDismiss}
             >
               {t('common.cancel')}
-            </button>
+            </PillButton>
             <button
               type="submit"
               disabled={isSubmitting}
-              className="appearance-none border-0 cursor-pointer disabled:opacity-50"
+              className="flex-1 inline-flex cursor-pointer items-center justify-center rounded-full border-0 bg-[var(--primary)] text-[var(--fg-on-primary)] transition-[background-color,box-shadow,transform,opacity] duration-[var(--dur-fast)] ease-[var(--ease-standard)] enabled:hover:bg-[var(--primary-pressed)] enabled:hover:-translate-y-px enabled:hover:shadow-[var(--primary-glow-hover)] enabled:active:translate-y-0 enabled:active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
               style={{
-                background: 'var(--primary)',
-                color: 'var(--fg-on-primary)',
-                fontFamily: 'var(--font-family-sans)',
-                fontSize: 14,
-                fontWeight: 600,
-                padding: '10px 18px',
-                borderRadius: 8,
+                fontFamily: 'var(--font-sans)',
+                fontSize: 16,
+                fontWeight: 500,
+                padding: '15px 26px',
+                boxShadow: isSubmitting ? 'none' : 'var(--primary-glow)',
               }}
             >
               {isSubmitting ? '...' : t('goals.create')}
@@ -453,7 +434,29 @@ export function CreateGoalModal({ open, onOpenChange }: Readonly<CreateGoalModal
   )
 }
 
-interface UnderlinedFieldProps {
+interface GoalGroupLabelProps {
+  children: React.ReactNode
+  top?: number
+}
+
+/** meta-criar group label: Rubik 14/500 fg-2 over the field group. */
+function GoalGroupLabel({ children, top = 4 }: Readonly<GoalGroupLabelProps>) {
+  return (
+    <div
+      style={{
+        padding: `${top}px 0 8px`,
+        fontFamily: 'var(--font-sans)',
+        fontSize: 14,
+        fontWeight: 500,
+        color: 'var(--fg-2)',
+      }}
+    >
+      {children}
+    </div>
+  )
+}
+
+interface FieldWellProps {
   label: string
   id: string
   type: 'text' | 'number'
@@ -461,12 +464,12 @@ interface UnderlinedFieldProps {
   value: string
   placeholder?: string
   maxLength?: number
-  hideLabel?: boolean
   error?: string
   onChange: (next: string) => void
 }
 
-function UnderlinedField({
+/** Kit field well with native min/step semantics and inline error slot. */
+function FieldWell({
   label,
   id,
   type,
@@ -474,25 +477,22 @@ function UnderlinedField({
   value,
   placeholder,
   maxLength,
-  hideLabel = false,
   error,
   onChange,
-}: Readonly<UnderlinedFieldProps>) {
+}: Readonly<FieldWellProps>) {
   return (
-    <div className="flex flex-col" style={{ gap: 4 }}>
-      {!hideLabel && (
-        <label
-          htmlFor={id}
-          style={{
-            fontFamily: 'var(--font-family-sans)',
-            fontSize: 11,
-            fontWeight: 500,
-            color: 'var(--fg-3)',
-          }}
-        >
-          {label}
-        </label>
-      )}
+    <div className="flex flex-col" style={{ gap: 8 }}>
+      <label
+        htmlFor={id}
+        style={{
+          fontFamily: 'var(--font-sans)',
+          fontSize: 14,
+          fontWeight: 500,
+          color: 'var(--fg-2)',
+        }}
+      >
+        {label}
+      </label>
       <input
         id={id}
         type={type}
@@ -504,18 +504,13 @@ function UnderlinedField({
         aria-invalid={!!error}
         aria-describedby={error ? `${id}-error` : undefined}
         onChange={(e) => onChange(e.target.value)}
+        className="w-full appearance-none rounded-[14px] border-0 bg-[var(--bg-field)] text-[var(--fg-1)] shadow-[inset_0_0_0_1px_var(--hairline)] outline-none placeholder:text-[var(--fg-4)] focus:shadow-[inset_0_0_0_2px_var(--primary)]"
         style={{
-          appearance: 'none',
-          border: 0,
-          background: 'transparent',
-          outline: 'none',
-          fontFamily: mono ? 'var(--font-family-mono)' : 'var(--font-family-sans)',
-          fontSize: 14,
-          color: 'var(--fg-1)',
-          padding: '6px 0',
-          borderBottom: '1px solid var(--hairline-strong)',
+          minHeight: 54,
+          padding: '0 16px',
+          fontFamily: mono ? 'var(--font-mono)' : 'var(--font-sans)',
+          fontSize: 16,
           fontVariantNumeric: mono ? 'tabular-nums' : 'normal',
-          width: '100%',
         }}
       />
       {error && (
@@ -523,9 +518,8 @@ function UnderlinedField({
           id={`${id}-error`}
           role="alert"
           style={{
-            fontFamily: 'var(--font-family-sans)',
+            fontFamily: 'var(--font-sans)',
             fontSize: 12,
-            fontStyle: 'italic',
             color: 'var(--status-overdue)',
           }}
         >

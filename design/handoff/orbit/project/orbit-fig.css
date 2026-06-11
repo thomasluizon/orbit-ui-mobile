@@ -1,0 +1,296 @@
+/* ============================================================
+   Orbit — Figma redesign tokens
+   ------------------------------------------------------------
+   Faithful to the attached Figma: dark navy (slate-950) canvas,
+   violet-500 accent, violet-950→transparent gradient headers,
+   translucent slate surfaces, Rubik / Inter / Roboto type.
+   Keeps every semantic token name the screen files rely on, so
+   the existing ~150 screens inherit the new look wholesale.
+   ============================================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Rubik:wght@400;500;600;700&family=Inter:wght@500;600;700&family=Roboto:wght@400;500;700&display=swap');
+
+:root {
+  /* ---- Figma raw palette (used directly by hero screens) ---- */
+  --slate-50:  rgb(248,250,252);
+  --slate-200: rgb(226,232,240);
+  --slate-300: rgb(202,213,226);
+  --slate-400: rgb(144,161,185);
+  --slate-500: rgb(98,116,142);
+  --slate-700: rgb(49,65,88);
+  --slate-800: rgb(29,41,61);
+  --slate-900: rgb(15,23,43);
+  --slate-950: rgb(2,6,24);
+
+  --violet-300: rgb(180,140,252);
+  --violet-400: rgb(154,105,250);
+  --violet-500: rgb(127,70,247);
+  --violet-600: rgb(99,29,242);
+  --violet-700: rgb(81,15,211);
+  --violet-800: rgb(66,14,166);
+  --violet-900: rgb(50,12,122);
+  --violet-950: rgb(34,9,79);
+
+  --amber-400: rgb(255,185,0);
+  --amber-500: rgb(254,154,0);
+  --orange-500: rgb(255,105,0);
+  --cyan-300: rgb(83,234,253);
+  --cyan-400: rgb(0,211,243);
+  --cyan-500: rgb(0,184,219);
+  --green-400: rgb(5,223,114);
+  --green-500: rgb(0,201,80);
+  --red-400: rgb(255,100,103);
+  --red-500: rgb(251,44,54);
+
+  /* ---- Type families ---- */
+  --font-sans:    "Rubik", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-display: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-mono:    "Roboto", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+
+  /* ---- Type scale ---- */
+  --fs-xs:   12px;
+  --fs-sm:   14px;
+  --fs-base: 16px;
+  --fs-md:   18px;
+  --fs-lg:   22px;
+  --fs-xl:   28px;
+  --fs-2xl:  34px;
+  --fs-3xl:  44px;
+  --fs-4xl:  60px;
+
+  --lh-tight: 1.15;
+  --lh-snug:  1.3;
+  --lh-body:  1.55;
+  --lh-loose: 1.7;
+
+  --tracking-tight:   -0.01em;
+  --tracking-normal:  0em;
+  --tracking-wide:    0.06em;
+  --tracking-widest:  0.12em;
+
+  --fw-light: 400;
+  --fw-regular: 400;
+  --fw-medium: 500;
+  --fw-semibold: 500;
+  --fw-bold: 600;
+
+  /* ---- Spacing ---- */
+  --space-1: 4px;  --space-2: 8px;  --space-3: 12px; --space-4: 16px;
+  --space-5: 20px; --space-6: 24px; --space-8: 32px; --space-10: 40px;
+  --space-12: 48px; --space-16: 64px; --space-20: 80px;
+
+  /* ---- Radii — Figma is rounded; cards 16, pills for CTAs ---- */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --radius-pill: 999px;
+
+  /* ---- Shadows ---- */
+  --shadow-hairline: 0 0 0 0.5px rgba(248,250,252,0.06);
+  --shadow-1: 0 1px 2px rgba(0,0,0,0.20);
+  --shadow-2: 0 4px 16px rgba(0,0,0,0.28);
+  --shadow-3: 0 12px 40px rgba(0,0,0,0.45);
+
+  /* ---- Motion ---- */
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --dur-fast: 160ms;
+  --dur-base: 220ms;
+  --dur-slow: 280ms;
+
+  --hit-min: 44px;
+  --hit-comfortable: 56px;
+
+  --primary: var(--violet-500);
+}
+
+/* ============================================================
+   SCHEMES — only the accent retints; the navy canvas is fixed
+   (the Figma is a single dark navy theme with a violet accent).
+   ============================================================ */
+.scheme-purple.dark, :root.scheme-purple.dark { --primary: rgb(127,70,247); --primary-pressed: rgb(99,29,242); }
+.scheme-blue.dark   { --primary: rgb(43,127,255);  --primary-pressed: rgb(21,93,252); }
+.scheme-green.dark  { --primary: rgb(0,201,80);    --primary-pressed: rgb(0,166,62); }
+.scheme-rose.dark   { --primary: rgb(255,32,86);   --primary-pressed: rgb(236,0,63); }
+.scheme-orange.dark { --primary: rgb(255,105,0);   --primary-pressed: rgb(245,73,0); }
+.scheme-cyan.dark   { --primary: rgb(0,184,219);   --primary-pressed: rgb(0,146,184); }
+
+.scheme-purple.light, :root.scheme-purple.light { --primary: rgb(99,29,242); --primary-pressed: rgb(81,15,211); }
+.scheme-blue.light   { --primary: rgb(21,93,252);  --primary-pressed: rgb(20,71,230); }
+.scheme-green.light  { --primary: rgb(0,166,62);   --primary-pressed: rgb(0,130,54); }
+.scheme-rose.light   { --primary: rgb(236,0,63);   --primary-pressed: rgb(199,0,54); }
+.scheme-orange.light { --primary: rgb(245,73,0);   --primary-pressed: rgb(202,53,0); }
+.scheme-cyan.light   { --primary: rgb(0,146,184);  --primary-pressed: rgb(0,117,149); }
+
+/* ============================================================
+   DARK MODE  — the Figma's primary theme (navy + slate)
+   ============================================================ */
+:root.dark, .dark {
+  --bg:          rgb(2,6,24);                    /* slate-950 canvas */
+  --bg-elev:     rgba(248,250,252,0.06);         /* the translucent card */
+  --bg-elev-2:   rgba(248,250,252,0.10);
+  --bg-sunk:     rgba(0,0,0,0.28);               /* fields, wells */
+
+  --hairline:        rgba(248,250,252,0.10);
+  --hairline-strong: rgba(248,250,252,0.18);
+
+  --fg-1: rgb(248,250,252);   /* slate-50 */
+  --fg-2: rgb(202,213,226);   /* slate-300 */
+  --fg-3: rgb(144,161,185);   /* slate-400 */
+  --fg-4: rgb(98,116,142);    /* slate-500 */
+  --fg-on-primary: rgb(255,255,255);
+
+  --status-done:    var(--primary);
+  --status-empty:   rgba(248,250,252,0.22);
+  --status-skip:    rgb(144,161,185);
+  --status-overdue: rgb(254,154,0);    /* amber-500 */
+  --status-bad:     rgb(251,44,54);    /* red-500 */
+  --status-frozen:  rgb(0,211,243);    /* cyan-400 */
+
+  --selection-bg: rgba(127,70,247,0.32);
+  --gradient-header: linear-gradient(180deg, rgb(34,9,79) 0%, rgba(2,6,24,0) 100%);
+
+  color-scheme: dark;
+}
+
+/* ============================================================
+   LIGHT MODE  — secondary (slate-50 canvas, slate-900 ink)
+   ============================================================ */
+:root.light, .light {
+  --bg:          rgb(248,250,252);
+  --bg-elev:     rgb(255,255,255);
+  --bg-elev-2:   rgb(255,255,255);
+  --bg-sunk:     rgb(241,245,249);
+
+  --hairline:        rgba(2,6,24,0.08);
+  --hairline-strong: rgba(2,6,24,0.16);
+
+  --fg-1: rgb(15,23,43);
+  --fg-2: rgb(49,65,88);
+  --fg-3: rgb(98,116,142);
+  --fg-4: rgb(144,161,185);
+  --fg-on-primary: rgb(255,255,255);
+
+  --status-done:    var(--primary);
+  --status-empty:   rgba(2,6,24,0.18);
+  --status-skip:    rgb(98,116,142);
+  --status-overdue: rgb(225,113,0);
+  --status-bad:     rgb(231,0,11);
+  --status-frozen:  rgb(0,146,184);
+
+  --selection-bg: rgba(127,70,247,0.18);
+  --gradient-header: linear-gradient(180deg, rgb(233,212,255) 0%, rgba(248,250,252,0) 100%);
+
+  color-scheme: light;
+}
+
+/* ============================================================
+   SEMANTIC TYPE CLASSES (Rubik / Inter / Roboto)
+   ============================================================ */
+.t-eyebrow {
+  font-family: var(--font-sans);
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--fg-3);
+}
+.t-display {
+  font-family: var(--font-sans);
+  font-size: var(--fs-2xl);
+  font-weight: 500;
+  letter-spacing: var(--tracking-tight);
+  line-height: var(--lh-tight);
+  color: var(--fg-1);
+}
+.t-hero {
+  font-family: var(--font-display);
+  font-size: var(--fs-4xl);
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  line-height: var(--lh-tight);
+  color: var(--fg-1);
+}
+.t-h1 {
+  font-family: var(--font-sans);
+  font-size: var(--fs-xl);
+  font-weight: 500;
+  letter-spacing: var(--tracking-tight);
+  line-height: var(--lh-snug);
+  color: var(--fg-1);
+}
+.t-h2 {
+  font-family: var(--font-sans);
+  font-size: var(--fs-lg);
+  font-weight: 500;
+  letter-spacing: -0.01em;
+  line-height: var(--lh-snug);
+  color: var(--fg-1);
+}
+.t-row {
+  font-family: var(--font-sans);
+  font-size: var(--fs-md);
+  font-weight: 400;
+  line-height: var(--lh-snug);
+  color: var(--fg-1);
+}
+.t-body {
+  font-family: var(--font-sans);
+  font-size: var(--fs-base);
+  font-weight: 400;
+  line-height: var(--lh-body);
+  color: var(--fg-1);
+}
+.t-secondary {
+  font-family: var(--font-sans);
+  font-size: var(--fs-sm);
+  font-weight: 400;
+  line-height: var(--lh-body);
+  color: var(--fg-2);
+}
+.t-meta {
+  font-family: var(--font-mono);
+  font-size: var(--fs-xs);
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  color: var(--fg-3);
+  font-variant-numeric: tabular-nums;
+}
+.t-num {
+  font-family: var(--font-mono);
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0;
+  color: var(--fg-1);
+}
+.t-num-xl {
+  font-family: var(--font-display);
+  font-weight: 700;
+  font-size: var(--fs-3xl);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  color: var(--fg-1);
+}
+
+/* ============================================================
+   Base reset
+   ============================================================ */
+html, body {
+  background: var(--bg);
+  color: var(--fg-1);
+  font-family: var(--font-sans);
+  font-size: var(--fs-base);
+  line-height: var(--lh-body);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+::selection { background: var(--selection-bg); color: var(--fg-1); }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}

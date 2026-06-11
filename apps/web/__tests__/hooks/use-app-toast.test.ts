@@ -5,12 +5,14 @@ import { useAppToast } from '@/hooks/use-app-toast'
 const mockToast = vi.fn()
 const mockToastError = vi.fn()
 const mockToastSuccess = vi.fn()
+const mockToastInfo = vi.fn()
 vi.mock('sonner', () => ({
   toast: Object.assign(
     (...args: unknown[]) => mockToast(...args),
     {
       error: (...args: unknown[]) => mockToastError(...args),
       success: (...args: unknown[]) => mockToastSuccess(...args),
+      info: (...args: unknown[]) => mockToastInfo(...args),
     },
   ),
 }))
@@ -29,23 +31,31 @@ describe('useAppToast', () => {
     })
 
     expect(mockToast).toHaveBeenCalledWith('Saved')
-    expect(mockToast).toHaveBeenCalledWith('FYI', {
+    expect(mockToastInfo).toHaveBeenCalledWith('FYI', {
       duration: 4000,
     })
     expect(mockToastSuccess).toHaveBeenCalledWith('Done', {
       duration: 4000,
     })
-    expect(mockToast).toHaveBeenCalledWith('Queued', {
-      duration: 6000,
-      action: {
-        label: 'Undo',
-        onClick: onUndo,
-      },
-    })
-    expect(mockToast).toHaveBeenCalledWith('Queued without action', {
-      duration: 6000,
-      action: undefined,
-    })
+    expect(mockToast).toHaveBeenCalledWith(
+      'Queued',
+      expect.objectContaining({
+        duration: 6000,
+        className: 'toast-queued',
+        action: {
+          label: 'Undo',
+          onClick: onUndo,
+        },
+      }),
+    )
+    expect(mockToast).toHaveBeenCalledWith(
+      'Queued without action',
+      expect.objectContaining({
+        duration: 6000,
+        className: 'toast-queued',
+        action: undefined,
+      }),
+    )
   })
 
   it('calls toast.error with message and duration', () => {

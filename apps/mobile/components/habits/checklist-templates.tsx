@@ -5,7 +5,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native'
-import { X } from 'lucide-react-native'
+import { Plus, X } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import type { ChecklistItem } from '@orbit/shared/types/habit'
 import { applyChecklistTemplate } from '@orbit/shared/utils'
@@ -90,13 +90,15 @@ export function ChecklistTemplates({
       <View style={styles.actionsRow}>
         {items.length > 0 && !showSave ? (
           <TouchableOpacity
+            style={styles.saveChip}
             onPress={() => setShowSave(true)}
             activeOpacity={0.8}
             accessibilityRole="button"
             accessibilityLabel={t('habits.form.saveAsTemplate')}
             accessibilityHint={t('habits.form.templateNamePlaceholder')}
           >
-            <Text style={styles.saveLink}>{t('habits.form.saveAsTemplate')}</Text>
+            <Plus size={14} color={tokens.fg2} strokeWidth={2} />
+            <Text style={styles.saveChipText}>{t('habits.form.saveAsTemplate')}</Text>
           </TouchableOpacity>
         ) : null}
 
@@ -129,7 +131,7 @@ export function ChecklistTemplates({
                     disabled={isDeletingThisTemplate(template.id)}
                     activeOpacity={0.8}
                   >
-                    <X size={12} color={tokens.fg3} />
+                    <X size={13} color={tokens.fg3} strokeWidth={1.8} />
                   </TouchableOpacity>
                 </View>
               ))}
@@ -143,7 +145,6 @@ export function ChecklistTemplates({
           <BottomSheetAppTextInput
             value={templateName}
             placeholder={t('habits.form.templateNamePlaceholder')}
-            placeholderTextColor={tokens.fg3}
             style={styles.input}
             accessibilityLabel={t('habits.form.templateNamePlaceholder')}
             accessibilityHint={t('habits.form.saveAsTemplate')}
@@ -175,7 +176,7 @@ export function ChecklistTemplates({
             accessibilityRole="button"
             accessibilityLabel={t('common.close')}
           >
-            <X size={14} color={tokens.fg3} />
+            <X size={16} color={tokens.fg3} strokeWidth={1.8} />
           </TouchableOpacity>
         </View>
       ) : null}
@@ -191,20 +192,32 @@ function createStyles(tokens: AppTokens) {
     actionsRow: {
       gap: 8,
     },
-    saveLink: {
-      fontSize: 12,
-      fontWeight: '700',
-      color: tokens.primary,
+    saveChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      alignSelf: 'flex-start',
+      gap: 7,
+      paddingHorizontal: 14,
+      paddingVertical: 9,
+      borderRadius: 999,
+      borderWidth: 1,
+      borderColor: tokens.hairline,
+      backgroundColor: tokens.bgElev,
+    },
+    saveChipText: {
+      fontFamily: 'Rubik_500Medium',
+      fontSize: 13,
+      color: tokens.fg2,
     },
     templatesWrap: {
       gap: 6,
     },
     templatesLabel: {
-      fontSize: 10,
-      fontWeight: '700',
+      fontFamily: 'Rubik_500Medium',
+      fontSize: 12,
       color: tokens.fg3,
       textTransform: 'uppercase',
-      letterSpacing: 0.6,
+      letterSpacing: 0.96,
     },
     chipsRow: {
       flexDirection: 'row',
@@ -214,26 +227,30 @@ function createStyles(tokens: AppTokens) {
     chip: {
       flexDirection: 'row',
       alignItems: 'center',
-      borderRadius: 12,
+      borderRadius: 999,
       borderWidth: 1,
       borderColor: tokens.hairline,
       backgroundColor: tokens.bgElev,
       overflow: 'hidden',
     },
     chipLoadButton: {
-      minHeight: 32,
-      paddingLeft: 10,
-      paddingVertical: 6,
-      paddingRight: 6,
+      minHeight: 36,
+      justifyContent: 'center',
+      paddingLeft: 12,
+      paddingVertical: 7,
+      paddingRight: 5,
     },
     chipText: {
-      fontSize: 12,
+      fontFamily: 'Rubik_500Medium',
+      fontSize: 13,
       color: tokens.fg2,
     },
     chipDeleteButton: {
-      minHeight: 32,
-      paddingHorizontal: 6,
-      paddingVertical: 6,
+      minHeight: 36,
+      justifyContent: 'center',
+      paddingLeft: 3,
+      paddingRight: 10,
+      paddingVertical: 7,
     },
     chipDeleteButtonDisabled: {
       opacity: 0.5,
@@ -245,34 +262,35 @@ function createStyles(tokens: AppTokens) {
     },
     input: {
       flex: 1,
-      minHeight: 40,
-      borderRadius: 14,
+      minHeight: 44,
+      borderRadius: 12,
       borderWidth: 1,
       borderColor: tokens.hairline,
-      backgroundColor: tokens.bgElev,
+      backgroundColor: tokens.bgField,
       paddingHorizontal: 12,
       color: tokens.fg1,
-      fontSize: 13,
+      fontFamily: 'Rubik_400Regular',
+      fontSize: 14,
     },
     saveButton: {
-      minHeight: 40,
-      borderRadius: 14,
+      minHeight: 44,
+      borderRadius: 999,
       backgroundColor: tokens.primary,
       paddingHorizontal: 14,
       alignItems: 'center',
       justifyContent: 'center',
     },
     saveButtonDisabled: {
-      opacity: 0.5,
+      opacity: 0.4,
     },
     saveButtonText: {
-      fontSize: 12,
-      fontWeight: '700',
+      fontFamily: 'Rubik_500Medium',
+      fontSize: 13,
       color: tokens.fgOnPrimary,
     },
     closeButton: {
-      width: 36,
-      height: 36,
+      width: 40,
+      height: 40,
       alignItems: 'center',
       justifyContent: 'center',
     },

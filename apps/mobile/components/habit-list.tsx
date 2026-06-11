@@ -18,11 +18,13 @@ import {
   ActivityIndicator,
 } from 'react-native'
 import { usePathname, useRouter } from 'expo-router'
+import Animated, { FadeInDown } from 'react-native-reanimated'
 import DraggableFlatList, {
   type RenderItemParams,
 } from 'react-native-draggable-flatlist'
 import { FlatList as GHFlatList } from 'react-native-gesture-handler'
-import { CheckCircle2, ChevronLeft } from 'lucide-react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
+import { ChevronLeft } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import {
   computeHabitReorderPositions,
@@ -53,6 +55,7 @@ import { useDrillNavigation } from '@/hooks/use-drill-navigation'
 import { useConfig } from '@/hooks/use-config'
 import { useHabitVisibility } from '@/hooks/use-habit-visibility'
 import { getHabitListExtraData } from '@/lib/habit-selection-state'
+import { usePrefersReducedMotion } from '@/lib/motion'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useUIStore } from '@/stores/ui-store'
@@ -171,6 +174,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     const deviceLocale = i18n.language
     const router = useRouter()
     const pathname = usePathname()
+    const prefersReducedMotion = usePrefersReducedMotion()
     const { profile } = useProfile()
     const { currentScheme, currentTheme } = useAppTheme()
     const tokens = useMemo(
@@ -1371,8 +1375,17 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     )
 
     const renderItem = useCallback(
-      ({ item, drag }: RenderItemParams<DragItem>) => (
-        <View style={styles.sectionInset}>
+      ({ item, drag, getIndex }: RenderItemParams<DragItem>) => (
+        <Animated.View
+          style={styles.sectionInset}
+          entering={
+            prefersReducedMotion
+              ? undefined
+              : FadeInDown.duration(280).delay(
+                  Math.min(getIndex() ?? 0, 8) * 40,
+                )
+          }
+        >
           {renderHabitCard(
             item.habit,
             item.depth,
@@ -1388,9 +1401,16 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
                   : undefined,
             },
           )}
-        </View>
+        </Animated.View>
       ),
-      [isDndEnabled, prepareDrag, renderHabitCard, styles.sectionInset, tourCardHabitId],
+      [
+        isDndEnabled,
+        prefersReducedMotion,
+        prepareDrag,
+        renderHabitCard,
+        styles.sectionInset,
+        tourCardHabitId,
+      ],
     )
 
     const keyExtractor = useCallback((item: DragItem) => item.id, [])
@@ -1400,16 +1420,14 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         <HabitListEmptyState
           title={t(getHabitEmptyStateKey(currentView))}
           description={getEmptyHabitsMessage(currentView, t)}
-          actionLabel={
-            currentView === 'all' || currentView === 'general'
-              ? t('habits.createHabit')
-              : undefined
-          }
+          askAstraLabel={t('habits.askAstra')}
+          onAskAstra={() => router.push('/chat')}
+          actionLabel={t('habits.createManually')}
           onAction={onCreatePress}
           variant="primary"
         />
       ),
-      [onCreatePress, t],
+      [onCreatePress, router, t],
     )
 
     const listHeaderComponent = useMemo(
@@ -1420,15 +1438,17 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       [listHeader, styles.sectionInset],
     )
 
+    const insets = useSafeAreaInsets()
     const refreshControl = useMemo(
       () => (
         <RefreshControl
           refreshing={isFetching && !isLoading}
           onRefresh={refetch}
           tintColor={tokens.primary}
+          progressViewOffset={insets.top}
         />
       ),
-      [tokens.primary, isFetching, isLoading, refetch],
+      [tokens.primary, insets.top, isFetching, isLoading, refetch],
     )
 
     const renderGroupSection = useCallback(
@@ -1580,9 +1600,10 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
               onPress={drill.drillBack}
               style={styles.drillBackBtn}
               activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel={t('common.back')}
             >
-              <ChevronLeft size={20} color={tokens.primary} />
-              <Text style={styles.drillBackText}>{t('common.back')}</Text>
+              <ChevronLeft size={20} color={tokens.fg1} strokeWidth={1.8} />
             </TouchableOpacity>
             <View style={{ flex: 1 }}>
               <Text style={styles.drillTitle} numberOfLines={1}>
@@ -1678,28 +1699,13 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
             ListHeaderComponent={listHeaderComponent}
             ListEmptyComponent={
               <View style={styles.sectionInset}>
-                <View style={styles.emptyAllDone}>
-                  <View style={styles.allDoneIconContainer}>
-                    <CheckCircle2 size={40} color={tokens.statusDone} />
-                  </View>
-                  <Text style={styles.allDoneTitle}>
-                    {t('habits.allDoneToday')}
-                  </Text>
-                  <Text style={styles.allDoneSubtitle}>
-                    {t('habits.allDoneHint')}
-                  </Text>
-                  {onSeeUpcoming ? (
-                    <TouchableOpacity
-                      style={styles.seeUpcomingButton}
-                      onPress={onSeeUpcoming}
-                      activeOpacity={0.8}
-                    >
-                      <Text style={styles.seeUpcomingText}>
-                        {t('habits.seeUpcoming')}
-                      </Text>
-                    </TouchableOpacity>
-                  ) : null}
-                </View>
+                <HabitListEmptyState
+                  title={t('habits.allDoneToday')}
+                  description={t('habits.allDoneHint')}
+                  actionLabel={t('habits.seeUpcoming')}
+                  onAction={onSeeUpcoming}
+                  variant="secondary"
+                />
               </View>
             }
             contentContainerStyle={[
@@ -1799,48 +1805,53 @@ function alpha(color: string, opacity: number): string {
 }
 
 function createStyles(tokens: AppTokens) {
+  const skeletonBone = alpha(tokens.fg1, 0.08)
+
   return StyleSheet.create({
     skeletonContainer: {
       paddingTop: 8,
       paddingBottom: 100,
-      gap: 12,
+      gap: 10,
     },
     skeletonCard: {
-      backgroundColor: tokens.bgSunk,
-      borderRadius: 16,
+      marginHorizontal: 20,
+      backgroundColor: tokens.bgCard,
+      borderRadius: 18,
       borderWidth: 1,
       borderColor: tokens.hairline,
-      padding: 16,
+      paddingVertical: 14,
+      paddingHorizontal: 16,
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 16,
-      shadowColor: '#000',
-      shadowOffset: { width: 0, height: 4 },
-      shadowOpacity: 0.18,
-      shadowRadius: 10,
-      elevation: 3,
+      gap: 14,
     },
     skeletonCircle: {
-      width: 44,
-      height: 44,
-      borderRadius: 22,
-      backgroundColor: tokens.bgElev,
+      width: 46,
+      height: 46,
+      borderRadius: 14,
+      backgroundColor: skeletonBone,
     },
     skeletonContent: {
       flex: 1,
-      gap: 10,
+      gap: 8,
     },
     skeletonTitle: {
-      height: 16,
-      width: '75%',
-      backgroundColor: tokens.bgElev,
-      borderRadius: 8,
+      height: 12,
+      width: '55%',
+      backgroundColor: skeletonBone,
+      borderRadius: 6,
     },
     skeletonSubtitle: {
       height: 12,
-      width: '40%',
-      backgroundColor: alpha(tokens.bgElev, 0.6),
-      borderRadius: 8,
+      width: '32%',
+      backgroundColor: skeletonBone,
+      borderRadius: 6,
+    },
+    skeletonCheck: {
+      width: 30,
+      height: 30,
+      borderRadius: 999,
+      backgroundColor: skeletonBone,
     },
 
     sectionInset: {},
@@ -1853,212 +1864,57 @@ function createStyles(tokens: AppTokens) {
     groupedList: {
       paddingBottom: 100,
     },
-    groupSection: {
-      marginBottom: 16,
-    },
-    groupHeader: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 12,
-      marginTop: 8,
-      marginBottom: 8,
-    },
-    groupLabel: {
-      fontSize: 11,
-      fontWeight: '700',
-      textTransform: 'uppercase',
-      letterSpacing: 1,
-      color: tokens.fg3,
-    },
-    groupLabelOverdue: {
-      color: tokens.statusBad,
-    },
-    groupDivider: {
-      flex: 1,
-      height: 1,
-      backgroundColor: tokens.hairline,
-    },
-    groupDividerOverdue: {
-      backgroundColor: alpha(tokens.statusBad, 0.2),
-    },
-    groupItems: {
-      gap: 10,
-    },
-    groupItem: {
-      gap: 6,
-    },
     allViewChild: {
       gap: 6,
     },
-    generalSection: {
-      marginTop: 24,
-      marginBottom: 16,
-    },
-    generalSectionHeader: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 12,
-      marginBottom: 12,
-    },
-    generalSectionLabel: {
-      fontSize: 11,
-      fontWeight: '700',
-      textTransform: 'uppercase',
-      letterSpacing: 1,
-      color: tokens.primary,
-      opacity: 0.7,
-    },
-    generalSectionDivider: {
-      flex: 1,
-      height: 1,
-      backgroundColor: tokens.bgElev,
-    },
-    generalSectionList: {
-      gap: 10,
-    },
-    emptyContainer: {
-      flex: 1,
-    },
 
-    emptyAllDone: {
-      alignItems: 'center',
-      justifyContent: 'center',
-      paddingHorizontal: 20,
-      paddingVertical: 56,
-      marginHorizontal: 20,
-      borderRadius: 12,
-      backgroundColor: tokens.bgSunk,
-      borderWidth: StyleSheet.hairlineWidth,
-      borderColor: tokens.hairline,
-    },
-    allDoneIconContainer: {
-      width: 80,
-      height: 80,
-      borderRadius: 40,
-      backgroundColor: tokens.bgElev,
-      borderWidth: 1,
-      borderColor: tokens.bgElev,
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginBottom: 16,
-    },
-    allDoneTitle: {
-      fontSize: 18,
-      fontWeight: '700',
-      color: tokens.fg1,
-      marginBottom: 4,
-    },
-    allDoneSubtitle: {
-      fontSize: 14,
-      color: tokens.fg2,
-      textAlign: 'center',
-      marginBottom: 24,
-    },
-    seeUpcomingButton: {
-      paddingHorizontal: 24,
-      paddingVertical: 12,
-      borderRadius: 12,
-      backgroundColor: tokens.bgSunk,
-      borderWidth: 1,
-      borderColor: tokens.bgElev,
-    },
-    seeUpcomingText: {
-      fontSize: 14,
-      fontWeight: '700',
-      color: tokens.primary,
-    },
-
-    emptyState: {
-      alignItems: 'center',
-      justifyContent: 'center',
-      paddingHorizontal: 20,
-      paddingVertical: 56,
-      borderRadius: 20,
-      backgroundColor: tokens.bgSunk,
-      borderWidth: 1,
-      borderColor: tokens.hairline,
-    },
-    emptyIconContainer: {
-      width: 80,
-      height: 80,
-      borderRadius: 40,
-      backgroundColor: tokens.bgSunk,
-      borderWidth: 1,
-      borderColor: tokens.hairline,
-      alignItems: 'center',
-      justifyContent: 'center',
-      marginBottom: 16,
-    },
-    emptySubtitle: {
-      fontSize: 14,
-      color: tokens.fg2,
-      textAlign: 'center',
-      marginBottom: 24,
-    },
-    createButton: {
-      paddingHorizontal: 24,
-      paddingVertical: 12,
-      borderRadius: 12,
-      backgroundColor: tokens.primary,
-      shadowColor: tokens.primary,
-      shadowOffset: { width: 0, height: 0 },
-      shadowOpacity: 0.2,
-      shadowRadius: 20,
-      elevation: 8,
-    },
-    createButtonText: {
-      fontSize: 14,
-      fontWeight: '700',
-      color: tokens.fgOnPrimary,
-    },
     drillHeader: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 8,
-      paddingHorizontal: 16,
-      paddingVertical: 12,
-      borderBottomWidth: 1,
-      borderBottomColor: tokens.hairline,
+      gap: 12,
+      paddingHorizontal: 20,
+      paddingVertical: 10,
       marginBottom: 8,
     },
     drillBackBtn: {
-      flexDirection: 'row',
+      width: 40,
+      height: 40,
+      borderRadius: 999,
+      borderWidth: 1.5,
+      borderColor: tokens.hairlineStrong,
       alignItems: 'center',
-      gap: 4,
-      paddingRight: 8,
-    },
-    drillBackText: {
-      fontSize: 14,
-      color: tokens.primary,
-      fontWeight: '500',
+      justifyContent: 'center',
     },
     drillTitle: {
-      fontSize: 15,
-      fontWeight: '600',
+      fontFamily: 'Rubik_500Medium',
+      fontSize: 16,
       color: tokens.fg1,
     },
     drillProgress: {
+      fontFamily: 'Roboto_400Regular',
       fontSize: 12,
-      color: tokens.fg2,
-      marginTop: 1,
+      letterSpacing: 0.24,
+      fontVariant: ['tabular-nums'],
+      color: tokens.fg3,
+      marginTop: 2,
     },
     drillAddBtn: {
-      marginHorizontal: 16,
-      marginVertical: 12,
-      paddingVertical: 10,
-      borderRadius: 8,
-      borderWidth: 1,
-      borderColor: tokens.primary,
+      flexDirection: 'row',
       alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
+      paddingVertical: 12,
+      marginHorizontal: 20,
     },
     drillAddBtnText: {
-      fontSize: 14,
-      color: tokens.primary,
-      fontWeight: '500',
+      fontFamily: 'Rubik_500Medium',
+      fontSize: 13,
+      color: tokens.fg3,
     },
     emptyText: {
+      fontFamily: 'Rubik_400Regular',
       fontSize: 14,
-      color: tokens.fg2,
+      color: tokens.fg3,
       textAlign: 'center',
       marginTop: 32,
       paddingHorizontal: 24,

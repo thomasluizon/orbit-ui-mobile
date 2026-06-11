@@ -6,14 +6,17 @@ import {
   StyleSheet,
   ScrollView,
 } from 'react-native'
+import Animated, { FadeInDown, ReduceMotion } from 'react-native-reanimated'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import {
+  Brain,
   ChevronLeft,
   ChevronRight,
   Lock,
-  Orbit,
+  Satellite,
+  Sparkles,
   Trash2,
   X,
 } from 'lucide-react-native'
@@ -29,20 +32,27 @@ import { useProfile } from '@/hooks/use-profile'
 import { apiClient } from '@/lib/api-client'
 import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
 import { useOffline } from '@/hooks/use-offline'
-import { createTokensV2 } from '@/lib/theme'
+import { createTokensV2, tintFromPrimary } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { AppBar } from '@/components/ui/app-bar'
+import { PillButton } from '@/components/ui/pill-button'
+import { SatelliteGlyph } from '@/components/ui/satellite-glyph'
 import { SectionLabel } from '@/components/ui/section-label'
-import { SettingsRow } from '@/components/ui/settings-row'
-import { SettingsDescription } from '@/components/ui/settings-description'
-import { MonoToggle } from '@/components/ui/mono-toggle'
+import { SettingsRow, Switch } from '@/components/ui/settings-row'
 import { SelectCheck } from '@/components/ui/select-check'
+import { ProBadge } from '@/components/ui/pro-badge'
 
 interface UserFact {
   id: string
   factText: string
   category: string | null
+}
+
+function rowEntrance(index: number) {
+  return FadeInDown.duration(280)
+    .delay(Math.min(index, 8) * 40)
+    .reduceMotion(ReduceMotion.System)
 }
 
 export default function AiSettingsScreen() {
@@ -240,14 +250,6 @@ export default function AiSettingsScreen() {
     return t(`profile.facts.${norm}`, { defaultValue: norm }).toUpperCase()
   }
 
-  const factsTrailing = (
-    <View style={styles.factsTrailing}>
-      <Text style={[styles.factsPageMono, { color: tokens.fg3 }]}>
-        {t('profile.facts.title')}
-      </Text>
-    </View>
-  )
-
   const pagingTrailing = (
     <View style={styles.pagingRow}>
       <Text style={[styles.pagingText, { color: tokens.fg3 }]}>
@@ -258,11 +260,16 @@ export default function AiSettingsScreen() {
         disabled={factsPage === 1}
         accessibilityRole="button"
         accessibilityLabel={t('common.previous')}
-        style={styles.pageBtn}
+        style={({ pressed }) => [
+          styles.pageBtn,
+          { backgroundColor: pressed ? tokens.bgElev2 : tokens.bgElev },
+          pressed ? styles.pageBtnPressed : null,
+        ]}
       >
         <ChevronLeft
-          size={14}
-          color={factsPage === 1 ? tokens.fg4 : tokens.fg3}
+          size={18}
+          strokeWidth={1.8}
+          color={factsPage === 1 ? tokens.fg4 : tokens.fg2}
         />
       </Pressable>
       <Pressable
@@ -270,11 +277,16 @@ export default function AiSettingsScreen() {
         disabled={factsPage === totalFactsPages}
         accessibilityRole="button"
         accessibilityLabel={t('common.next')}
-        style={styles.pageBtn}
+        style={({ pressed }) => [
+          styles.pageBtn,
+          { backgroundColor: pressed ? tokens.bgElev2 : tokens.bgElev },
+          pressed ? styles.pageBtnPressed : null,
+        ]}
       >
         <ChevronRight
-          size={14}
-          color={factsPage === totalFactsPages ? tokens.fg4 : tokens.fg3}
+          size={18}
+          strokeWidth={1.8}
+          color={factsPage === totalFactsPages ? tokens.fg4 : tokens.fg2}
         />
       </Pressable>
     </View>
@@ -296,99 +308,105 @@ export default function AiSettingsScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        <SectionLabel>{t('profile.aiMemory.title')}</SectionLabel>
+        <SectionLabel bottom={4} trailing={<ProBadge />}>
+          {t('profile.sections.aiFeatures')}
+        </SectionLabel>
         {hasProAccess ? (
           <SettingsRow
+            icon={Brain}
             label={t('profile.aiMemory.title')}
+            desc={t('profile.aiMemory.description')}
             accessory="none"
             divider={false}
           >
-            <MonoToggle
+            <Switch
               on={aiMemoryEnabled}
-              onPress={() => aiMemoryMutation.mutate(!aiMemoryEnabled)}
+              onToggle={() => aiMemoryMutation.mutate(!aiMemoryEnabled)}
               disabled={aiMemoryMutation.isPending}
               accessibilityLabel={t('profile.aiMemory.title')}
             />
           </SettingsRow>
         ) : (
           <SettingsRow
+            icon={Brain}
             label={t('profile.aiMemory.title')}
+            desc={t('profile.aiMemory.description')}
             onPress={() => router.push(buildUpgradeHref('/ai-settings'))}
             accessory="chevron"
             divider={false}
           >
-            <Lock size={14} color={tokens.fg3} strokeWidth={1.4} />
+            <Lock size={18} color={tokens.fg3} strokeWidth={1.8} />
           </SettingsRow>
         )}
-        <SettingsDescription>{t('profile.aiMemory.description')}</SettingsDescription>
-
-        <SectionLabel>{t('profile.aiSummary.title')}</SectionLabel>
         {hasProAccess ? (
           <SettingsRow
+            icon={Satellite}
             label={t('profile.aiSummary.title')}
+            desc={t('profile.aiSummary.description')}
             accessory="none"
             divider={false}
           >
-            <MonoToggle
+            <Switch
               on={aiSummaryEnabled}
-              onPress={() => aiSummaryMutation.mutate(!aiSummaryEnabled)}
+              onToggle={() => aiSummaryMutation.mutate(!aiSummaryEnabled)}
               disabled={aiSummaryMutation.isPending}
               accessibilityLabel={t('profile.aiSummary.title')}
             />
           </SettingsRow>
         ) : (
           <SettingsRow
+            icon={Satellite}
             label={t('profile.aiSummary.title')}
+            desc={t('profile.aiSummary.description')}
             onPress={() => router.push(buildUpgradeHref('/ai-settings'))}
             accessory="chevron"
             divider={false}
           >
-            <Lock size={14} color={tokens.fg3} strokeWidth={1.4} />
+            <Lock size={18} color={tokens.fg3} strokeWidth={1.8} />
           </SettingsRow>
         )}
-        <SettingsDescription>{t('profile.aiSummary.description')}</SettingsDescription>
 
         <SectionLabel
-          trailing={
-            hasProAccess && totalFactsPages > 1 ? pagingTrailing : factsTrailing
-          }
+          trailing={hasProAccess && totalFactsPages > 1 ? pagingTrailing : undefined}
         >
           {t('profile.facts.title')}
         </SectionLabel>
 
         {!hasProAccess ? (
-          <View style={styles.italicBlock}>
-            <Text style={[styles.italicText, { color: tokens.fg3 }]}>
+          <View style={styles.lockedBlock}>
+            <Text style={[styles.lockedText, { color: tokens.fg3 }]}>
               {t('profile.facts.lockedHint')}
             </Text>
           </View>
         ) : factsQuery.isLoading ? (
           <View style={styles.skelStack}>
             <View
-              style={[styles.skelBar, { backgroundColor: tokens.bgSunk }]}
+              style={[styles.skelBar, { backgroundColor: tokens.bgElev }]}
             />
             <View
-              style={[styles.skelBar, { backgroundColor: tokens.bgSunk }]}
+              style={[styles.skelBar, { backgroundColor: tokens.bgElev }]}
             />
           </View>
         ) : facts.length === 0 ? (
           <View style={styles.emptyBlock}>
-            <Orbit size={26} color={tokens.fg3} strokeWidth={1.4} />
-            <Text
-              style={[styles.emptyText, { color: tokens.fg3 }]}
-            >
+            <SatelliteGlyph size={104} />
+            <Text style={[styles.emptyBody, { color: tokens.fg2 }]}>
               {t('profile.facts.empty')}
             </Text>
+            <PillButton
+              fullWidth
+              onPress={() => router.push('/chat')}
+              leading={
+                <Sparkles size={18} color={tokens.fgOnPrimary} strokeWidth={1.8} />
+              }
+            >
+              {t('summary.askAstra')}
+            </PillButton>
           </View>
         ) : (
           <>
             {selectMode ? (
-              <View
-                style={[
-                  styles.selectBar,
-                  { borderBottomColor: tokens.hairline },
-                ]}
-              >
+              <View style={styles.selectBar}>
                 <Text
                   style={[styles.selectedCount, { color: tokens.fg1 }]}
                 >
@@ -400,10 +418,17 @@ export default function AiSettingsScreen() {
                   <Pressable
                     onPress={toggleSelectAll}
                     accessibilityRole="button"
-                    style={styles.selectActionPress}
+                    style={({ pressed }) => [
+                      styles.actionChip,
+                      {
+                        backgroundColor: pressed ? tokens.bgElev2 : tokens.bgElev,
+                        borderColor: tokens.hairline,
+                      },
+                      pressed ? styles.actionChipPressed : null,
+                    ]}
                   >
                     <Text
-                      style={[styles.selectActionText, { color: tokens.fg1 }]}
+                      style={[styles.selectActionText, { color: tokens.fg2 }]}
                     >
                       {selectedFactIds.size === facts.length
                         ? t('profile.facts.deselectAll')
@@ -416,13 +441,20 @@ export default function AiSettingsScreen() {
                     }
                     disabled={selectedFactIds.size === 0}
                     accessibilityRole="button"
-                    style={styles.selectActionPress}
+                    style={({ pressed }) => [
+                      styles.actionChip,
+                      {
+                        backgroundColor: pressed ? tokens.bgElev2 : tokens.bgElev,
+                        borderColor: tokens.hairline,
+                      },
+                      pressed ? styles.actionChipPressed : null,
+                      selectedFactIds.size === 0 && { opacity: 0.45 },
+                    ]}
                   >
                     <Text
                       style={[
-                        styles.selectActionItalic,
-                        { color: tokens.fg3 },
-                        selectedFactIds.size === 0 && { opacity: 0.45 },
+                        styles.selectActionText,
+                        { color: tokens.statusBad },
                       ]}
                     >
                       {t('profile.facts.deleteSelectedShort')}
@@ -431,27 +463,34 @@ export default function AiSettingsScreen() {
                   <Pressable
                     onPress={toggleSelectMode}
                     accessibilityRole="button"
-                    style={styles.selectActionPress}
+                    accessibilityLabel={t('profile.facts.cancel')}
+                    style={({ pressed }) => [
+                      styles.cancelBtn,
+                      { backgroundColor: pressed ? tokens.bgElev2 : tokens.bgElev },
+                      pressed ? styles.actionChipPressed : null,
+                    ]}
                   >
-                    <X size={14} color={tokens.fg3} />
+                    <X size={18} color={tokens.fg3} strokeWidth={1.8} />
                   </Pressable>
                 </View>
               </View>
             ) : (
-              <View
-                style={[
-                  styles.factsHeader,
-                  { borderBottomColor: tokens.hairline },
-                ]}
-              >
+              <View style={styles.factsHeader}>
                 <Pressable
                   onPress={toggleSelectMode}
                   accessibilityRole="button"
                   accessibilityLabel={t('profile.facts.select')}
-                  style={styles.selectActionPress}
+                  style={({ pressed }) => [
+                    styles.actionChip,
+                    {
+                      backgroundColor: pressed ? tokens.bgElev2 : tokens.bgElev,
+                      borderColor: tokens.hairline,
+                    },
+                    pressed ? styles.actionChipPressed : null,
+                  ]}
                 >
                   <Text
-                    style={[styles.selectActionText, { color: tokens.fg3 }]}
+                    style={[styles.selectActionText, { color: tokens.fg2 }]}
                   >
                     {t('profile.facts.select')}
                   </Text>
@@ -459,72 +498,90 @@ export default function AiSettingsScreen() {
               </View>
             )}
 
-            {pagedFacts.map((fact) => {
-              const selected = selectedFactIds.has(fact.id)
-              return (
-                <Pressable
-                  key={fact.id}
-                  onPress={
-                    selectMode ? () => toggleFactSelection(fact.id) : undefined
-                  }
-                  accessibilityRole={selectMode ? 'checkbox' : 'none'}
-                  accessibilityState={
-                    selectMode ? { checked: selected } : undefined
-                  }
-                  style={({ pressed }) => [
-                    styles.factRow,
-                    {
-                      borderBottomColor: tokens.hairline,
-                      backgroundColor:
-                        selected && selectMode
-                          ? tokens.bgSunk
-                          : pressed && selectMode
-                            ? tokens.bgElev
-                            : 'transparent',
-                    },
-                  ]}
-                >
-                  {selectMode ? (
-                    <View style={styles.checkSlot}>
-                      <SelectCheck
-                        selected={selected}
-                        size={16}
-                        onPress={() => toggleFactSelection(fact.id)}
-                      />
-                    </View>
-                  ) : null}
-                  <View style={styles.factBody}>
-                    {fact.category ? (
-                      <View
-                        style={[
-                          styles.categoryPill,
-                          { borderColor: tokens.hairlineStrong },
-                        ]}
-                      >
-                        <Text
-                          style={[styles.categoryText, { color: tokens.fg2 }]}
-                        >
-                          {categoryLabel(fact.category)}
-                        </Text>
+            <View style={styles.factsList}>
+              {pagedFacts.map((fact, index) => {
+                const selected = selectedFactIds.has(fact.id)
+                return (
+                  <Animated.View key={fact.id} entering={rowEntrance(index)}>
+                  <Pressable
+                    onPress={
+                      selectMode ? () => toggleFactSelection(fact.id) : undefined
+                    }
+                    accessibilityRole={selectMode ? 'checkbox' : 'none'}
+                    accessibilityState={
+                      selectMode ? { checked: selected } : undefined
+                    }
+                    style={({ pressed }) => [
+                      styles.factCard,
+                      selected && selectMode
+                        ? {
+                            backgroundColor: tintFromPrimary(tokens, 0.08),
+                            borderColor: tintFromPrimary(tokens, 0.28),
+                          }
+                        : {
+                            backgroundColor:
+                              pressed && selectMode
+                                ? tokens.bgElevPressed
+                                : tokens.bgCard,
+                            borderColor: tokens.hairline,
+                          },
+                      pressed && selectMode ? styles.factCardPressed : null,
+                    ]}
+                  >
+                    {selectMode ? (
+                      <View style={styles.checkSlot}>
+                        <SelectCheck
+                          selected={selected}
+                          size={18}
+                          onPress={() => toggleFactSelection(fact.id)}
+                        />
                       </View>
                     ) : null}
-                    <Text style={[styles.factText, { color: tokens.fg1 }]}>
-                      {fact.factText}
-                    </Text>
-                  </View>
-                  {!selectMode ? (
-                    <Pressable
-                      onPress={() => deleteMutation.mutate(fact.id)}
-                      accessibilityRole="button"
-                      accessibilityLabel={t('profile.facts.delete')}
-                      style={styles.deleteBtn}
-                    >
-                      <Trash2 size={14} color={tokens.fg4} strokeWidth={1.5} />
-                    </Pressable>
-                  ) : null}
-                </Pressable>
-              )
-            })}
+                    <View style={styles.factBody}>
+                      {fact.category ? (
+                        <View
+                          style={[
+                            styles.categoryPill,
+                            { borderColor: tokens.hairlineStrong },
+                          ]}
+                        >
+                          <Text
+                            style={[styles.categoryText, { color: tokens.fg3 }]}
+                          >
+                            {categoryLabel(fact.category)}
+                          </Text>
+                        </View>
+                      ) : null}
+                      <Text style={[styles.factText, { color: tokens.fg1 }]}>
+                        {fact.factText}
+                      </Text>
+                    </View>
+                    {!selectMode ? (
+                      <Pressable
+                        onPress={() => deleteMutation.mutate(fact.id)}
+                        accessibilityRole="button"
+                        accessibilityLabel={t('profile.facts.delete')}
+                        hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                        style={({ pressed }) => [
+                          styles.deleteBtn,
+                          { backgroundColor: pressed ? tokens.bgElev2 : tokens.bgElev },
+                          pressed ? styles.actionChipPressed : null,
+                        ]}
+                      >
+                        {({ pressed }) => (
+                          <Trash2
+                            size={18}
+                            color={pressed ? tokens.statusBad : tokens.fg4}
+                            strokeWidth={1.8}
+                          />
+                        )}
+                      </Pressable>
+                    ) : null}
+                  </Pressable>
+                  </Animated.View>
+                )
+              })}
+            </View>
           </>
         )}
 
@@ -539,19 +596,26 @@ function createStyles() {
     safeArea: { flex: 1 },
     container: { flex: 1 },
     scrollContent: { paddingBottom: 40 },
-    italicBlock: {
+    lockedBlock: {
       paddingHorizontal: 20,
       paddingVertical: 10,
     },
-    italicText: {
-      fontFamily: 'Geist',
+    lockedText: {
+      fontFamily: 'Rubik_400Regular',
       fontSize: 13,
-      fontStyle: 'italic',
     },
-    factsTrailing: { display: 'none' },
-    factsPageMono: {
-      fontFamily: 'GeistMono',
-      fontSize: 11,
+    emptyBlock: {
+      alignItems: 'center',
+      paddingHorizontal: 36,
+      paddingVertical: 40,
+      gap: 18,
+    },
+    emptyBody: {
+      fontFamily: 'Rubik_400Regular',
+      fontSize: 15,
+      lineHeight: 22.5,
+      textAlign: 'center',
+      maxWidth: 320,
     },
     pagingRow: {
       flexDirection: 'row',
@@ -559,77 +623,89 @@ function createStyles() {
       gap: 8,
     },
     pagingText: {
-      fontFamily: 'GeistMono',
+      fontFamily: 'Roboto_400Regular',
       fontSize: 11,
       fontVariant: ['tabular-nums'],
     },
-    pageBtn: { padding: 4 },
+    pageBtn: {
+      width: 36,
+      height: 36,
+      borderRadius: 999,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    pageBtnPressed: {
+      transform: [{ scale: 0.92 }],
+    },
     skelStack: {
       paddingHorizontal: 20,
-      paddingVertical: 12,
-      gap: 8,
+      gap: 10,
     },
     skelBar: {
       height: 56,
-      borderRadius: 8,
-    },
-    emptyBlock: {
-      paddingHorizontal: 24,
-      paddingVertical: 40,
-      alignItems: 'center',
-      gap: 12,
-    },
-    emptyText: {
-      fontFamily: 'Geist',
-      fontSize: 14,
-      fontStyle: 'italic',
-      textAlign: 'center',
-      lineHeight: 22,
+      borderRadius: 16,
     },
     factsHeader: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'flex-end',
       paddingHorizontal: 20,
-      paddingVertical: 8,
-      borderBottomWidth: StyleSheet.hairlineWidth,
+      paddingBottom: 6,
     },
     selectBar: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
       paddingHorizontal: 20,
-      paddingVertical: 10,
-      borderBottomWidth: StyleSheet.hairlineWidth,
+      paddingBottom: 10,
     },
     selectedCount: {
-      fontFamily: 'GeistMono',
+      fontFamily: 'Roboto_500Medium',
       fontSize: 12,
-      fontWeight: '500',
+      fontVariant: ['tabular-nums'],
     },
     selectActions: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 12,
+      gap: 8,
     },
-    selectActionPress: { padding: 4 },
+    actionChip: {
+      borderRadius: 999,
+      borderWidth: 1,
+      paddingVertical: 9,
+      paddingHorizontal: 16,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    actionChipPressed: {
+      transform: [{ scale: 0.96 }],
+    },
+    cancelBtn: {
+      width: 36,
+      height: 36,
+      borderRadius: 999,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
     selectActionText: {
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_500Medium',
       fontSize: 13,
-      fontWeight: '500',
     },
-    selectActionItalic: {
-      fontFamily: 'Geist',
-      fontSize: 13,
-      fontStyle: 'italic',
+    factsList: {
+      paddingHorizontal: 20,
+      gap: 10,
     },
-    factRow: {
+    factCard: {
       flexDirection: 'row',
       alignItems: 'flex-start',
       gap: 12,
-      paddingHorizontal: 20,
-      paddingVertical: 12,
-      borderBottomWidth: StyleSheet.hairlineWidth,
+      paddingHorizontal: 16,
+      paddingVertical: 14,
+      borderRadius: 16,
+      borderWidth: 1,
+    },
+    factCardPressed: {
+      transform: [{ scale: 0.99 }],
     },
     checkSlot: {
       paddingTop: 2,
@@ -640,25 +716,27 @@ function createStyles() {
     },
     categoryPill: {
       alignSelf: 'flex-start',
-      paddingHorizontal: 6,
+      paddingHorizontal: 7,
       paddingVertical: 2,
-      borderRadius: 4,
-      borderWidth: StyleSheet.hairlineWidth,
+      borderRadius: 999,
+      borderWidth: 1,
     },
     categoryText: {
-      fontFamily: 'GeistMono',
+      fontFamily: 'Roboto_500Medium',
       fontSize: 10,
-      fontWeight: '600',
       letterSpacing: 0.6,
     },
     factText: {
-      fontFamily: 'Geist',
-      fontSize: 14,
-      lineHeight: 20,
+      fontFamily: 'Rubik_400Regular',
+      fontSize: 15,
+      lineHeight: 21.75,
     },
     deleteBtn: {
-      padding: 4,
+      width: 36,
+      height: 36,
+      borderRadius: 999,
+      alignItems: 'center',
+      justifyContent: 'center',
     },
   })
 }
-

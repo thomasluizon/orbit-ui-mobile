@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
-import { createTokensV2 } from '@/lib/theme'
+import { createTokensV2, radius, tintFromPrimary } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 interface ChipProps {
@@ -13,10 +13,8 @@ interface ChipProps {
   accessibilityLabel?: string
 }
 
-/**
- * v8 Linear-tactical chip. NOT an underline — active chips fill with the elevated
- * background and gain a fg-3 inset ring; inactive chips show a hairline-strong ring.
- */
+/** Kit pill chip: bg-elev well with a hairline ring; active fills selection-bg
+ *  with a primary ring and primary text. */
 export function Chip({
   children,
   active = false,
@@ -33,23 +31,23 @@ export function Chip({
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
       accessibilityState={{ selected: active }}
-      style={[
+      hitSlop={{ top: 6, bottom: 6 }}
+      style={({ pressed }) => [
         styles.chip,
         {
-          backgroundColor: active ? tokens.bgElev : 'transparent',
-          borderColor: active ? tokens.fg3 : tokens.hairlineStrong,
+          backgroundColor: active
+            ? tokens.selectionBg
+            : pressed
+              ? tokens.bgElev2
+              : tokens.bgElev,
+          borderColor: active ? tintFromPrimary(tokens, 0.45) : tokens.hairline,
         },
+        pressed && !active ? styles.chipPressed : null,
       ]}
     >
       {leading ? <View style={styles.leading}>{leading}</View> : null}
       <Text
-        style={[
-          styles.label,
-          {
-            color: active ? tokens.fg1 : tokens.fg2,
-            fontWeight: active ? '600' : '500',
-          },
-        ]}
+        style={[styles.label, { color: active ? tokens.primary : tokens.fg2 }]}
         numberOfLines={1}
       >
         {children}
@@ -60,20 +58,23 @@ export function Chip({
 
 const styles = StyleSheet.create({
   chip: {
-    height: 26,
-    paddingHorizontal: 9,
-    borderRadius: 6,
+    paddingVertical: 9,
+    paddingHorizontal: 16,
+    borderRadius: radius.full,
     borderWidth: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 7,
+  },
+  chipPressed: {
+    transform: [{ scale: 0.96 }],
   },
   leading: {
     flexDirection: 'row',
     alignItems: 'center',
   },
   label: {
-    fontFamily: 'Geist',
-    fontSize: 12,
+    fontFamily: 'Rubik_500Medium',
+    fontSize: 13,
   },
 })

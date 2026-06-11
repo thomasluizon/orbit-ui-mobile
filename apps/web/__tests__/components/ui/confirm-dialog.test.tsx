@@ -43,7 +43,7 @@ describe('ConfirmDialog', () => {
     expect(screen.getByText('This cannot be undone.')).toBeInTheDocument()
   })
 
-  it('keeps breathing room below the description above the footer divider', () => {
+  it('announces as an alert dialog with the description wired via aria-describedby', () => {
     render(
       <ConfirmDialog
         open={true}
@@ -54,8 +54,9 @@ describe('ConfirmDialog', () => {
       />,
     )
 
+    const dialog = screen.getByRole('alertdialog')
     const desc = screen.getByText('This moves the task to tomorrow.') as HTMLElement
-    expect(desc.style.paddingBottom).toBe('16px')
+    expect(dialog.getAttribute('aria-describedby')).toBe(desc.id)
   })
 
   it('shows default confirm and cancel labels', () => {
@@ -123,7 +124,7 @@ describe('ConfirmDialog', () => {
     expect(onOpenChange).toHaveBeenCalledWith(false)
   })
 
-  it('renders the destructive (danger) confirm label in italic — v8 spec, no semantic fill', () => {
+  it('renders the destructive (danger) confirm action as a status-bad fill pill — dlg-delete artboard', () => {
     render(
       <ConfirmDialog
         open={true}
@@ -134,10 +135,10 @@ describe('ConfirmDialog', () => {
       />,
     )
     const confirmBtn = screen.getByText('common.confirm') as HTMLElement
-    expect(confirmBtn.style.fontStyle).toBe('italic')
+    expect(confirmBtn.getAttribute('data-variant')).toBe('danger')
   })
 
-  it('renders non-destructive variants without italic emphasis', () => {
+  it('renders non-destructive variants as a primary fill pill', () => {
     render(
       <ConfirmDialog
         open={true}
@@ -149,6 +150,6 @@ describe('ConfirmDialog', () => {
       />,
     )
     const confirmBtn = screen.getByText('common.confirm') as HTMLElement
-    expect(confirmBtn.style.fontStyle).toBe('normal')
+    expect(confirmBtn.getAttribute('data-variant')).toBe('primary')
   })
 })

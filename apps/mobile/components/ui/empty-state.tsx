@@ -1,7 +1,14 @@
-import { useMemo } from 'react'
-import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native'
-import type { LucideIcon } from 'lucide-react-native'
-import { createTokensV2, radius } from '@/lib/theme'
+import {
+  Pressable,
+  StyleSheet,
+  Text,
+  View,
+  type StyleProp,
+  type ViewStyle,
+} from 'react-native'
+import { PillButton } from '@/components/ui/pill-button'
+import { SatelliteGlyph } from '@/components/ui/satellite-glyph'
+import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 interface EmptyStateAction {
@@ -11,63 +18,52 @@ interface EmptyStateAction {
 }
 
 interface EmptyStateProps {
-  icon: LucideIcon
-  iconVariant?: 'default' | 'success'
   title?: string
   description: string
   action?: EmptyStateAction
   style?: StyleProp<ViewStyle>
 }
 
-/** v8 empty state: centered icon disc, optional title, description, and optional action. */
+/** Kit empty state: satellite glyph, optional title, body copy, and optional pill CTA. */
 export function EmptyState({
-  icon: Icon,
-  iconVariant = 'default',
   title,
   description,
   action,
   style,
 }: Readonly<EmptyStateProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
-  const tokens = useMemo(
-    () => createTokensV2(currentScheme, currentTheme),
-    [currentScheme, currentTheme],
-  )
-
-  const isSuccess = iconVariant === 'success'
-  const discColor = isSuccess ? `${tokens.statusDone}1A` : tokens.bgSunk
-  const discBorder = isSuccess ? `${tokens.statusDone}33` : tokens.hairline
-  const iconColor = isSuccess ? tokens.statusDone : tokens.fg3
+  const tokens = createTokensV2(currentScheme, currentTheme)
 
   return (
     <View style={[styles.container, style]}>
-      <View style={[styles.disc, { backgroundColor: discColor, borderColor: discBorder }]}>
-        <Icon size={32} color={iconColor} strokeWidth={1.6} />
-      </View>
+      <SatelliteGlyph size={96} />
       {title ? <Text style={[styles.title, { color: tokens.fg1 }]}>{title}</Text> : null}
-      <Text style={[styles.description, { color: tokens.fg3 }]}>{description}</Text>
+      <Text
+        style={[
+          styles.description,
+          { color: tokens.fg3 },
+          title ? null : styles.descriptionWithoutTitle,
+        ]}
+      >
+        {description}
+      </Text>
       {action ? (
-        <Pressable
-          onPress={action.onPress}
-          accessibilityRole="button"
-          accessibilityLabel={action.label}
-          style={({ pressed }) => [
-            styles.action,
-            action.variant === 'secondary'
-              ? { backgroundColor: 'transparent' }
-              : { backgroundColor: tokens.primary },
-            pressed ? { opacity: 0.85 } : null,
-          ]}
-        >
-          <Text
-            style={[
-              styles.actionText,
-              { color: action.variant === 'secondary' ? tokens.primary : tokens.fgOnPrimary },
-            ]}
+        action.variant === 'secondary' ? (
+          <Pressable
+            onPress={action.onPress}
+            accessibilityRole="button"
+            accessibilityLabel={action.label}
+            style={({ pressed }) => [styles.secondaryAction, pressed ? styles.pressed : null]}
           >
+            <Text style={[styles.secondaryActionText, { color: tokens.primary }]}>
+              {action.label}
+            </Text>
+          </Pressable>
+        ) : (
+          <PillButton onPress={action.onPress} style={styles.primaryAction}>
             {action.label}
-          </Text>
-        </Pressable>
+          </PillButton>
+        )
       ) : null}
     </View>
   )
@@ -79,38 +75,36 @@ const styles = StyleSheet.create({
     paddingVertical: 48,
     paddingHorizontal: 24,
   },
-  disc: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    borderWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
   title: {
-    fontFamily: 'Geist',
-    fontSize: 14,
-    fontWeight: '700',
-    marginTop: 16,
+    fontFamily: 'Rubik_500Medium',
+    fontSize: 20,
+    marginTop: 18,
     textAlign: 'center',
   },
   description: {
-    fontFamily: 'Geist',
-    fontSize: 12,
-    lineHeight: 18,
+    fontFamily: 'Rubik_400Regular',
+    fontSize: 14,
+    lineHeight: 21,
     marginTop: 6,
-    maxWidth: 240,
+    maxWidth: 280,
     textAlign: 'center',
   },
-  action: {
-    marginTop: 20,
-    borderRadius: radius.md,
-    paddingHorizontal: 16,
-    paddingVertical: 8,
+  descriptionWithoutTitle: {
+    marginTop: 14,
   },
-  actionText: {
-    fontFamily: 'Geist',
-    fontSize: 12,
-    fontWeight: '600',
+  primaryAction: {
+    marginTop: 22,
+  },
+  secondaryAction: {
+    marginTop: 22,
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+  },
+  secondaryActionText: {
+    fontFamily: 'Rubik_500Medium',
+    fontSize: 13,
+  },
+  pressed: {
+    opacity: 0.7,
   },
 })

@@ -17,6 +17,21 @@ export interface NormalizedHabitQueryData {
   currentPage: number
 }
 
+/**
+ * Day-progress counter for the Hábitos section head: counts every habit in
+ * the normalized map — parents AND sub-habits — as one unit each, done when
+ * it is completed or has a log in the viewed range.
+ */
+export function computeDayProgress(
+  habitsById: Map<string, NormalizedHabit>,
+): { done: number; total: number } {
+  let done = 0
+  for (const habit of habitsById.values()) {
+    if (habit.isCompleted || habit.isLoggedInRange) done++
+  }
+  return { done, total: habitsById.size }
+}
+
 export function sortNormalizedHabits(a: NormalizedHabit, b: NormalizedHabit): number {
   if (a.position !== null && b.position !== null) {
     const diff = a.position - b.position

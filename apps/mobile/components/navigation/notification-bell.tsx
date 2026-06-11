@@ -3,13 +3,19 @@ import {
   View,
   Text,
   TouchableOpacity,
+  Pressable,
   ActivityIndicator,
   ScrollView,
   StyleSheet,
 } from 'react-native'
-import { Bell, BellOff, Trash2, X } from 'lucide-react-native'
+import Animated, { FadeInDown, ReduceMotion } from 'react-native-reanimated'
+import { Bell, BellOff, CheckCheck, Flame, Sparkles, Trash2, Trophy, X } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
-import { formatNotificationRelativeTime } from '@orbit/shared/utils'
+import {
+  formatNotificationRelativeTime,
+  getNotificationGlyph,
+  type NotificationGlyph,
+} from '@orbit/shared/utils'
 import type { NotificationItem } from '@orbit/shared/types/notification'
 import {
   useNotifications,
@@ -24,7 +30,7 @@ import { NotificationDetailModal } from './notification-detail-modal'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { plural } from '@/lib/plural'
-import { createTokensV2, radius } from '@/lib/theme'
+import { createTokensV2, tintFromPrimary } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import {
   cancelPendingNotificationDelete,
@@ -35,9 +41,28 @@ import {
 
 type AppTokens = ReturnType<typeof createTokensV2>
 
+const glyphIconMap = {
+  streak: Flame,
+  celebration: Trophy,
+  astra: Sparkles,
+  reminder: Bell,
+} as const
+
+function glyphColor(glyph: NotificationGlyph, tokens: AppTokens): string {
+  if (glyph === 'streak') return tokens.statusOverdue
+  if (glyph === 'reminder') return tokens.fg3
+  return tokens.primarySoft
+}
+
+function rowEntrance(index: number) {
+  return FadeInDown.duration(280)
+    .delay(Math.min(index, 8) * 40)
+    .reduceMotion(ReduceMotion.System)
+}
+
 export function NotificationBell() {
   const { t } = useTranslation()
-  const { currentScheme, currentTheme, shadows } = useAppTheme()
+  const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
     () => createTokensV2(currentScheme, currentTheme),
     [currentScheme, currentTheme],
@@ -65,7 +90,7 @@ export function NotificationBell() {
     setIsOpen((prev) => !prev)
   }, [])
 
-  const styles = useMemo(() => createStyles(tokens, shadows), [tokens, shadows])
+  const styles = useMemo(() => createStyles(tokens), [tokens])
   const visibleNotifications = useMemo(
     () => notifications.filter((item) => !pendingDeleteIdSet.has(item.id)),
     [notifications, pendingDeleteIdSet],
@@ -111,41 +136,55 @@ export function NotificationBell() {
     setSelectedNotification(null)
   }
 
-  function renderNotification({ item }: { item: NotificationItem }) {
+  function renderNotification({ item, index }: { item: NotificationItem; index: number }) {
+    const glyph = getNotificationGlyph(item)
+    const GlyphIcon = glyphIconMap[glyph]
     return (
-      <TouchableOpacity
-        style={[styles.notifRow, !item.isRead && styles.notifUnread]}
-        activeOpacity={0.7}
-        onPress={() => handlePress(item)}
-      >
-        <View
-          style={[
-            styles.unreadDot,
-            { backgroundColor: item.isRead ? 'transparent' : tokens.primary },
-          ]}
-        />
-        <View style={styles.notifContent}>
-          <Text style={styles.notifTitle} numberOfLines={1}>
-            {item.title}
-          </Text>
-          <Text style={styles.notifBody} numberOfLines={2}>
-            {item.body}
-          </Text>
-          <Text style={styles.notifTime}>
-            {formatNotificationRelativeTime(item.createdAtUtc, (key, values) =>
-              t(`notifications.${key}`, values),
-            )}
-          </Text>
-        </View>
+      <Animated.View key={item.id} entering={rowEntrance(index)}>
         <TouchableOpacity
-          style={styles.deleteBtn}
+          style={[styles.notifRow, !item.isRead && styles.notifUnread]}
           activeOpacity={0.7}
-          onPress={() => requestDeleteNotification(item)}
-          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          onPress={() => handlePress(item)}
+          accessibilityLabel={item.title}
         >
-          <X size={14} color={tokens.fg3} />
+          <View style={styles.notifGlyphCircle}>
+            <GlyphIcon size={20} color={glyphColor(glyph, tokens)} strokeWidth={1.8} />
+          </View>
+          <View style={styles.notifContent}>
+            <View style={styles.notifTopRow}>
+              <Text style={styles.notifTitle} numberOfLines={1}>
+                {item.title}
+              </Text>
+              <Text style={styles.notifTime}>
+                {formatNotificationRelativeTime(item.createdAtUtc, (key, values) =>
+                  t(`notifications.${key}`, values),
+                )}
+              </Text>
+            </View>
+            <Text style={styles.notifBody} numberOfLines={2}>
+              {item.body}
+            </Text>
+          </View>
+          <Pressable
+            style={({ pressed }) => [
+              styles.deleteBtn,
+              pressed ? styles.deleteBtnPressed : null,
+            ]}
+            onPress={() => requestDeleteNotification(item)}
+            accessibilityRole="button"
+            accessibilityLabel={t('notifications.deleteNotification')}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            {({ pressed }) => (
+              <X
+                size={18}
+                color={pressed ? tokens.statusBad : tokens.fg4}
+                strokeWidth={1.8}
+              />
+            )}
+          </Pressable>
         </TouchableOpacity>
-      </TouchableOpacity>
+      </Animated.View>
     )
   }
 
@@ -159,7 +198,9 @@ export function NotificationBell() {
     }
     return (
       <View style={styles.emptyContainer}>
-        <BellOff size={32} color={tokens.fg3} />
+        <View style={styles.notifGlyphCircle}>
+          <BellOff size={20} color={tokens.fg3} strokeWidth={1.8} />
+        </View>
         <Text style={styles.emptyText}>{t('notifications.empty')}</Text>
       </View>
     )
@@ -167,19 +208,23 @@ export function NotificationBell() {
 
   return (
     <View>
-      <TouchableOpacity
-        style={styles.bellButton}
-        activeOpacity={0.7}
+      <Pressable
+        style={({ pressed }) => [
+          styles.bellButton,
+          { backgroundColor: pressed ? tokens.bgElev2 : tokens.bgElev },
+          pressed ? styles.bellPressed : null,
+        ]}
         onPress={toggle}
+        accessibilityRole="button"
         accessibilityLabel={
           visibleUnreadCount > 0
             ? plural(t('notifications.bellWithCount', { count: visibleUnreadCount }), visibleUnreadCount)
             : t('notifications.bell')
         }
       >
-        <Bell size={17} color={tokens.fg2} strokeWidth={1.5} />
+        <Bell size={22} color={tokens.fg1} strokeWidth={1.8} />
         {visibleUnreadCount > 0 && <View style={styles.bellUnreadDot} />}
-      </TouchableOpacity>
+      </Pressable>
 
       <BottomSheetModal
         open={isOpen}
@@ -189,23 +234,42 @@ export function NotificationBell() {
       >
         <View style={styles.actionsRow}>
           {visibleUnreadCount > 0 && (
-            <TouchableOpacity
-              activeOpacity={0.7}
+            <Pressable
+              style={({ pressed }) => [
+                styles.sheetActionBtn,
+                pressed ? styles.deleteBtnPressed : null,
+              ]}
               onPress={() => markAllAsRead.mutate()}
+              accessibilityRole="button"
+              accessibilityLabel={t('notifications.markAllRead')}
             >
-              <Text style={styles.markAllText}>
-                {t('notifications.markAllRead')}
-              </Text>
-            </TouchableOpacity>
+              {({ pressed }) => (
+                <CheckCheck
+                  size={18}
+                  color={pressed ? tokens.primarySoft : tokens.fg3}
+                  strokeWidth={1.8}
+                />
+              )}
+            </Pressable>
           )}
           {visibleNotifications.length > 0 && (
-            <TouchableOpacity
-              style={styles.deleteAllBtn}
-              activeOpacity={0.7}
+            <Pressable
+              style={({ pressed }) => [
+                styles.sheetActionBtn,
+                pressed ? styles.deleteBtnPressed : null,
+              ]}
               onPress={() => setShowDeleteAllConfirm(true)}
+              accessibilityRole="button"
+              accessibilityLabel={t('notifications.deleteAll')}
             >
-              <Trash2 size={14} color={tokens.fg3} />
-            </TouchableOpacity>
+              {({ pressed }) => (
+                <Trash2
+                  size={18}
+                  color={pressed ? tokens.statusBad : tokens.fg3}
+                  strokeWidth={1.8}
+                />
+              )}
+            </Pressable>
           )}
         </View>
 
@@ -222,7 +286,7 @@ export function NotificationBell() {
           ) : visibleNotifications.length === 0 ? (
             renderEmpty()
           ) : (
-            visibleNotifications.map((item) => renderNotification({ item }))
+            visibleNotifications.map((item, index) => renderNotification({ item, index }))
           )}
         </ScrollView>
       </BottomSheetModal>
@@ -250,21 +314,26 @@ export function NotificationBell() {
   )
 }
 
-function createStyles(tokens: AppTokens, shadows: ReturnType<typeof useAppTheme>['shadows']) {
+function createStyles(tokens: AppTokens) {
   return StyleSheet.create({
     bellButton: {
-      width: 36,
-      height: 36,
-      borderRadius: 8,
+      width: 40,
+      height: 40,
+      borderRadius: 999,
+      borderWidth: 1.5,
+      borderColor: tokens.hairlineStrong,
       alignItems: 'center',
       justifyContent: 'center',
     },
+    bellPressed: {
+      transform: [{ scale: 0.92 }],
+    },
     bellUnreadDot: {
       position: 'absolute',
-      top: 8,
-      right: 8,
-      width: 6,
-      height: 6,
+      top: 5,
+      right: 5,
+      width: 8,
+      height: 8,
       borderRadius: 999,
       backgroundColor: tokens.primary,
       borderWidth: 2,
@@ -274,61 +343,80 @@ function createStyles(tokens: AppTokens, shadows: ReturnType<typeof useAppTheme>
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'flex-end',
-      gap: 12,
+      gap: 10,
       paddingHorizontal: 20,
-      marginBottom: 8,
+      marginBottom: 4,
     },
-    markAllText: {
-      fontSize: 12,
-      fontWeight: '600',
-      color: tokens.primary,
-    },
-    deleteAllBtn: {
-      padding: 6,
-      borderRadius: radius.full,
+    sheetActionBtn: {
+      width: 40,
+      height: 40,
+      borderRadius: 999,
+      backgroundColor: tokens.bgElev,
+      alignItems: 'center',
+      justifyContent: 'center',
     },
     notifRow: {
       flexDirection: 'row',
       alignItems: 'flex-start',
-      gap: 10,
-      paddingVertical: 12,
-      paddingHorizontal: 4,
+      gap: 12,
+      paddingVertical: 14,
+      paddingHorizontal: 20,
       borderBottomWidth: StyleSheet.hairlineWidth,
       borderBottomColor: tokens.hairline,
     },
     notifUnread: {
-      backgroundColor: tokens.bgSunk,
-      borderRadius: radius.md,
-      marginHorizontal: -4,
-      paddingHorizontal: 8,
+      backgroundColor: tintFromPrimary(tokens, 0.06),
     },
-    unreadDot: {
-      width: 8,
-      height: 8,
-      borderRadius: 4,
-      marginTop: 5,
+    notifGlyphCircle: {
+      width: 42,
+      height: 42,
+      borderRadius: 999,
+      backgroundColor: tokens.bgElev,
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexShrink: 0,
     },
     notifContent: {
       flex: 1,
+      minWidth: 0,
+    },
+    notifTopRow: {
+      flexDirection: 'row',
+      alignItems: 'baseline',
+      justifyContent: 'space-between',
+      gap: 8,
     },
     notifTitle: {
-      fontSize: 14,
-      fontWeight: '500',
+      flex: 1,
+      minWidth: 0,
+      fontFamily: 'Rubik_500Medium',
+      fontSize: 15,
       color: tokens.fg1,
     },
-    notifBody: {
-      fontSize: 12,
-      color: tokens.fg2,
-      marginTop: 2,
-    },
     notifTime: {
-      fontSize: 10,
+      fontFamily: 'Rubik_400Regular',
+      fontSize: 12,
+      color: tokens.fg4,
+      flexShrink: 0,
+    },
+    notifBody: {
+      fontFamily: 'Rubik_400Regular',
+      fontSize: 14,
+      lineHeight: 19.6,
       color: tokens.fg3,
-      marginTop: 4,
+      marginTop: 3,
     },
     deleteBtn: {
-      padding: 6,
-      borderRadius: radius.full,
+      width: 36,
+      height: 36,
+      borderRadius: 999,
+      backgroundColor: tokens.bgElev,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    deleteBtnPressed: {
+      transform: [{ scale: 0.92 }],
+      backgroundColor: tokens.bgElev2,
     },
     emptyContainer: {
       alignItems: 'center',
@@ -337,6 +425,7 @@ function createStyles(tokens: AppTokens, shadows: ReturnType<typeof useAppTheme>
       gap: 8,
     },
     emptyText: {
+      fontFamily: 'Rubik_400Regular',
       fontSize: 14,
       color: tokens.fg3,
     },
@@ -344,13 +433,11 @@ function createStyles(tokens: AppTokens, shadows: ReturnType<typeof useAppTheme>
       flex: 1,
     },
     listContent: {
-      paddingHorizontal: 20,
       paddingBottom: 8,
     },
     emptyListContainer: {
       flexGrow: 1,
       justifyContent: 'center',
     },
-    _shadow: shadows.lg,
   })
 }

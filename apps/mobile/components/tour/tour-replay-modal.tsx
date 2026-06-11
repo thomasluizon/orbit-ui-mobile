@@ -21,7 +21,8 @@ import { API } from '@orbit/shared/api'
 import { apiClient } from '@/lib/api-client'
 import { useTourStore } from '@/stores/tour-store'
 import { useAppTheme } from '@/lib/use-app-theme'
-import { createTokensV2 } from '@/lib/theme'
+import { createTokensV2, radius, shadowsV2 } from '@/lib/theme'
+import { PillButton } from '@/components/ui/pill-button'
 import { useProfile } from '@/hooks/use-profile'
 
 type AppTokens = ReturnType<typeof createTokensV2>
@@ -114,17 +115,25 @@ export function TourReplayModal({ visible, onClose }: TourReplayModalProps) {
             <Text style={styles.headerTitle}>
               {t('tour.replay.modalTitle')}
             </Text>
-            <Pressable onPress={onClose} hitSlop={8}>
-              <X size={20} color={tokens.fg2} />
+            <Pressable
+              onPress={onClose}
+              hitSlop={8}
+              style={styles.closeButton}
+              accessibilityRole="button"
+              accessibilityLabel={t('tour.replay.modalTitle')}
+            >
+              <X size={24} color={tokens.fg2} strokeWidth={1.8} />
             </Pressable>
           </View>
 
-          <Pressable style={styles.replayAllButton} onPress={handleReplayAll}>
-            <RotateCcw size={16} color={tokens.fgOnPrimary} />
-            <Text style={styles.replayAllText}>
-              {t('tour.replay.replayAll')}
-            </Text>
-          </Pressable>
+          <PillButton
+            fullWidth
+            onPress={handleReplayAll}
+            leading={<RotateCcw size={18} color={tokens.fgOnPrimary} strokeWidth={1.8} />}
+            style={styles.replayAll}
+          >
+            {t('tour.replay.replayAll')}
+          </PillButton>
 
           <View style={styles.sectionList}>
             {availableSections.map((section, index) => {
@@ -144,13 +153,15 @@ export function TourReplayModal({ visible, onClose }: TourReplayModalProps) {
                     ]}
                     onPress={() => handleReplaySection(section)}
                   >
-                    {Icon ? (
-                      <Icon
-                        size={18}
-                        color={tokens.fg3}
-                        strokeWidth={1.6}
-                      />
-                    ) : null}
+                    <View style={styles.sectionIconSlot}>
+                      {Icon ? (
+                        <Icon
+                          size={22}
+                          color={tokens.fg3}
+                          strokeWidth={1.8}
+                        />
+                      ) : null}
+                    </View>
                     <View style={styles.sectionBody}>
                       <Text style={styles.sectionTitle}>
                         {t(`tour.sections.${section}`)}
@@ -160,9 +171,9 @@ export function TourReplayModal({ visible, onClose }: TourReplayModalProps) {
                       </Text>
                     </View>
                     {completed ? (
-                      <CheckCircle size={16} color={tokens.statusDone} />
+                      <CheckCircle size={18} color={tokens.statusDone} strokeWidth={1.8} />
                     ) : (
-                      <Play size={16} color={tokens.fg3} />
+                      <Play size={18} color={tokens.fg4} strokeWidth={1.8} />
                     )}
                   </Pressable>
                 </View>
@@ -183,49 +194,48 @@ function createModalStyles(tokens: AppTokens) {
     },
     backdropTouch: {
       ...StyleSheet.absoluteFillObject,
-      backgroundColor: 'rgba(0,0,0,0.4)',
+      backgroundColor: 'rgba(0,0,0,0.55)',
     },
     sheet: {
-      backgroundColor: tokens.bgElev,
-      borderTopLeftRadius: 16,
-      borderTopRightRadius: 16,
+      backgroundColor: tokens.bgSheet,
+      borderTopLeftRadius: radius.sheet,
+      borderTopRightRadius: radius.sheet,
       paddingHorizontal: 20,
       paddingBottom: 40,
+      ...shadowsV2.shadow3,
     },
     handle: {
-      width: 36,
-      height: 4,
-      borderRadius: 2,
-      backgroundColor: tokens.hairline,
+      width: 44,
+      height: 5,
+      borderRadius: 999,
+      backgroundColor: tokens.hairlineStrong,
       alignSelf: 'center',
       marginTop: 12,
-      marginBottom: 16,
+      marginBottom: 12,
     },
     header: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      marginBottom: 16,
+      gap: 16,
+      marginBottom: 12,
     },
     headerTitle: {
-      fontSize: 18,
-      fontWeight: '700',
+      flex: 1,
+      fontFamily: 'Rubik_500Medium',
+      fontSize: 24,
       color: tokens.fg1,
     },
-    replayAllButton: {
-      flexDirection: 'row',
+    closeButton: {
+      width: 44,
+      height: 44,
+      borderRadius: 22,
       alignItems: 'center',
       justifyContent: 'center',
-      gap: 8,
-      backgroundColor: tokens.primary,
-      borderRadius: 8,
-      paddingVertical: 14,
-      marginBottom: 20,
+      marginRight: -10,
     },
-    replayAllText: {
-      fontSize: 14,
-      fontWeight: '600',
-      color: tokens.fgOnPrimary,
+    replayAll: {
+      marginBottom: 16,
     },
     sectionList: {
       gap: 0,
@@ -234,7 +244,8 @@ function createModalStyles(tokens: AppTokens) {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 14,
-      paddingVertical: 14,
+      paddingVertical: 16,
+      minHeight: 44,
     },
     sectionRowPressed: {
       opacity: 0.6,
@@ -243,19 +254,22 @@ function createModalStyles(tokens: AppTokens) {
       height: StyleSheet.hairlineWidth,
       backgroundColor: tokens.hairline,
     },
+    sectionIconSlot: {
+      width: 26,
+      alignItems: 'center',
+    },
     sectionBody: {
       flex: 1,
       gap: 2,
     },
     sectionTitle: {
-      fontFamily: 'Geist',
-      fontSize: 15,
-      fontWeight: '500',
+      fontFamily: 'Rubik_400Regular',
+      fontSize: 18,
       color: tokens.fg1,
     },
     sectionSteps: {
-      fontFamily: 'Geist',
-      fontSize: 13,
+      fontFamily: 'Rubik_400Regular',
+      fontSize: 14,
       color: tokens.fg3,
     },
   })

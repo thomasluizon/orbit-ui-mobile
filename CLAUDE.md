@@ -71,11 +71,11 @@ See `WORKFLOW.md` for the multi-issue paired-worktree path.
 
 ## Frontend design
 
-Read `DESIGN.md` at the repo root before any frontend work. It's the source of truth for tokens, primitives, motion, and bans.
+Read `DESIGN.md` at the repo root before any frontend work. It's the source of truth for tokens, primitives, motion, and bans. The full design canon (artboards, kit, token CSS) is vendored at `design/handoff/`.
 
-- Anchor is **Linear-tactical**, locked. Do not re-pick per session, do not hybridise.
+- Anchor is **navy-violet orbital**, locked: slate-950 canvas, violet accent, gradient headers, translucent cards on dark / white cards on light, pill CTAs with glow, Rubik/Inter/Roboto. Do not re-pick per session, do not hybridise. DESIGN.md is authoritative over user-global design defaults (documented deviation: Inter display + violet accent are deliberate).
 - The `impeccable` skill is the running design-review philosophy (anchor / differentiator / AI-slop test / scene-sentence test). Apply it when reviewing or shaping new surfaces.
-- v8 OKLCH tokens (`--bg`, `--fg-1`, `--primary`, `--hairline`, etc.) are canonical. Do NOT introduce `--color-background`, `bg-surface-*`, or `text-text-*` in new code — they're aliased for legacy compat only.
+- Semantic tokens (`--bg`, `--bg-elev`, `--fg-1..4`, `--primary`, `--primary-rgb`, `--hairline`, `--status-*`, `--gradient-header`) are canonical. Never reference raw slate values or hardcode violet rgba in app code — see the derivation + mapping rules in `DESIGN.md`.
 - Mobile-first. Canvas is a 412px phone shell on both platforms; web caps at `--app-max-w: 640px`.
 
 ## API repository access

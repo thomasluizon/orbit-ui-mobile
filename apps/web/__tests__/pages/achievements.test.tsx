@@ -133,7 +133,7 @@ describe('AchievementsPage', () => {
       achievements: [],
     }
     render(<AchievementsPage />)
-    expect(screen.getByText('5')).toBeInTheDocument()
+    expect(document.body.textContent).toContain('gamification.profileCard.level:{"level":5}')
     expect(screen.getByText('Habit Builder')).toBeInTheDocument()
   })
 
@@ -228,9 +228,9 @@ describe('AchievementsPage', () => {
       achievementsTotal: 10,
       achievements: [],
     }
-    const { container } = render(<AchievementsPage />)
-    const progressBar = container.querySelector('[style*="width: 60%"]')
-    expect(progressBar).toBeTruthy()
+    render(<AchievementsPage />)
+    const progressBar = screen.getByRole('progressbar')
+    expect(progressBar).toHaveAttribute('aria-valuenow', '60')
   })
 
   it('does not show locked state while profile is still loading', () => {

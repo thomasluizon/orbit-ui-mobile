@@ -1,5 +1,8 @@
 import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native'
+import { Plus, Sparkles } from 'lucide-react-native'
 import { getHabitEmptyStateKey } from '@orbit/shared/utils'
+import { PillButton } from '@/components/ui/pill-button'
+import { SatelliteGlyph } from '@/components/ui/satellite-glyph'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
@@ -8,63 +11,81 @@ interface HabitListEmptyStateProps {
   description: string
   actionLabel?: string
   onAction?: () => void
+  askAstraLabel?: string
+  onAskAstra?: () => void
   variant?: 'primary' | 'secondary'
 }
 
 /**
- * v8 empty state: italic title, optional distinct description, optional Astra
- * primary pill or quiet underline link. Mirrors the web habit-list empty state.
+ * InicioEmpty kit state: 104px satellite glyph, 22/500 title, 15 fg-2 body,
+ * then a stacked full-width Astra pill + ghost create pill. Mirrors the web
+ * habit-list empty state.
  */
 export function HabitListEmptyState({
   title,
   description,
   actionLabel,
   onAction,
+  askAstraLabel,
+  onAskAstra,
   variant = 'primary',
 }: HabitListEmptyStateProps) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const isAstraPrompt = variant === 'primary'
   const hasDistinctDescription = Boolean(description) && description !== title
+  const showAstraAction =
+    isAstraPrompt && Boolean(askAstraLabel) && Boolean(onAskAstra)
+  const showStackedActions =
+    showAstraAction || (isAstraPrompt && Boolean(actionLabel))
 
   return (
     <View style={styles.container}>
-      <Text style={[styles.title, { color: tokens.fg2 }]}>{title}</Text>
+      <SatelliteGlyph size={104} />
+      <Text style={[styles.title, { color: tokens.fg1 }]}>{title}</Text>
       {hasDistinctDescription ? (
-        <Text style={[styles.description, { color: tokens.fg3 }]}>{description}</Text>
+        <Text style={[styles.description, { color: tokens.fg2 }]}>{description}</Text>
       ) : null}
-      {actionLabel ? (
-        isAstraPrompt ? (
-          <Pressable
-            onPress={onAction}
-            accessibilityRole="button"
-            accessibilityLabel={actionLabel}
-            style={({ pressed }) => [
-              styles.primaryAction,
-              { backgroundColor: tokens.primary, opacity: pressed ? 0.85 : 1 },
-            ]}
-          >
-            <Text style={[styles.primaryActionText, { color: tokens.fgOnPrimary }]}>
-              {actionLabel}
-            </Text>
-          </Pressable>
-        ) : (
-          <Pressable
-            onPress={onAction}
-            accessibilityRole="button"
-            accessibilityLabel={actionLabel}
-            style={({ pressed }) => [styles.linkAction, { opacity: pressed ? 0.7 : 1 }]}
-          >
-            <Text
-              style={[
-                styles.linkActionText,
-                { color: tokens.fg1, textDecorationColor: tokens.hairlineStrong },
-              ]}
+      {showStackedActions ? (
+        <View style={styles.actions}>
+          {showAstraAction ? (
+            <PillButton
+              fullWidth
+              onPress={onAskAstra}
+              leading={
+                <Sparkles size={18} color={tokens.fgOnPrimary} strokeWidth={1.8} />
+              }
+            >
+              {askAstraLabel}
+            </PillButton>
+          ) : null}
+          {actionLabel ? (
+            <PillButton
+              variant="ghost"
+              fullWidth
+              onPress={onAction}
+              leading={<Plus size={18} color={tokens.fg1} strokeWidth={1.8} />}
             >
               {actionLabel}
-            </Text>
-          </Pressable>
-        )
+            </PillButton>
+          ) : null}
+        </View>
+      ) : actionLabel ? (
+        <Pressable
+          onPress={onAction}
+          accessibilityRole="button"
+          accessibilityLabel={actionLabel}
+          style={({ pressed }) => [styles.linkAction, { opacity: pressed ? 0.7 : 1 }]}
+        >
+          <Text
+            style={[
+              styles.linkActionText,
+              { color: tokens.fg1, textDecorationColor: tokens.hairlineStrong },
+            ]}
+          >
+            {actionLabel}
+          </Text>
+        </Pressable>
       ) : null}
     </View>
   )
@@ -76,6 +97,7 @@ interface SkeletonCardStyles {
   skeletonContent: StyleProp<ViewStyle>
   skeletonTitle: StyleProp<ViewStyle>
   skeletonSubtitle: StyleProp<ViewStyle>
+  skeletonCheck: StyleProp<ViewStyle>
 }
 
 export function SkeletonCard({ styles: cardStyles }: { styles: SkeletonCardStyles }) {
@@ -86,6 +108,7 @@ export function SkeletonCard({ styles: cardStyles }: { styles: SkeletonCardStyle
         <View style={cardStyles.skeletonTitle} />
         <View style={cardStyles.skeletonSubtitle} />
       </View>
+      <View style={cardStyles.skeletonCheck} />
     </View>
   )
 }
@@ -101,41 +124,35 @@ const styles = StyleSheet.create({
   container: {
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 24,
-    paddingVertical: 60,
+    paddingHorizontal: 36,
+    paddingVertical: 64,
     gap: 16,
   },
   title: {
-    fontFamily: 'Geist',
-    fontSize: 17,
-    fontStyle: 'italic',
+    fontFamily: 'Rubik_500Medium',
+    fontSize: 22,
     textAlign: 'center',
   },
   description: {
-    fontFamily: 'Geist',
-    fontSize: 13,
-    lineHeight: 20,
+    fontFamily: 'Rubik_400Regular',
+    fontSize: 15,
+    lineHeight: 22.5,
     textAlign: 'center',
-    maxWidth: 280,
+    maxWidth: 300,
   },
-  primaryAction: {
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderRadius: 999,
-  },
-  primaryActionText: {
-    fontFamily: 'Geist',
-    fontSize: 13,
-    fontWeight: '500',
+  actions: {
+    marginTop: 8,
+    alignSelf: 'stretch',
+    gap: 12,
   },
   linkAction: {
+    marginTop: 6,
     paddingVertical: 6,
     paddingHorizontal: 8,
   },
   linkActionText: {
-    fontFamily: 'Geist',
+    fontFamily: 'Rubik_500Medium',
     fontSize: 13,
-    fontWeight: '500',
     textDecorationLine: 'underline',
   },
 })

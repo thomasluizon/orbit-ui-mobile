@@ -57,26 +57,27 @@ export function HabitEmojiSelector({
   }
 
   return (
-    <View style={styles.fieldGroup}>
-      <TouchableOpacity
-        style={styles.emojiTrigger}
+    <>
+      <Pressable
+        style={({ pressed }) => [
+          styles.emojiWell,
+          pressed
+            ? {
+                backgroundColor: tokens.bgElevPressed,
+                transform: [{ scale: 0.96 }],
+              }
+            : null,
+        ]}
         onPress={() => setPickerOpen(true)}
-        activeOpacity={0.78}
         accessibilityRole="button"
         accessibilityLabel={t("habits.form.emojiOpenPicker")}
       >
-        <View style={{ flex: 1 }}>
-          <Text style={styles.label}>{t("habits.form.emoji")}</Text>
-          <Text style={styles.hintText}>{t("habits.form.emojiDescription")}</Text>
-        </View>
-        <View style={styles.emojiPreview}>
-          {selectedEmoji ? (
-            <Text style={styles.emojiPreviewText}>{selectedEmoji}</Text>
-          ) : (
-            <Plus size={20} color={tokens.fg3} />
-          )}
-        </View>
-      </TouchableOpacity>
+        {selectedEmoji ? (
+          <Text style={styles.emojiWellText}>{selectedEmoji}</Text>
+        ) : (
+          <Plus size={22} color={tokens.fg3} strokeWidth={1.8} />
+        )}
+      </Pressable>
 
       {pickerOpen ? (
         <Modal
@@ -93,7 +94,7 @@ export function HabitEmojiSelector({
                     {selectedEmoji ? (
                       <Text style={styles.emojiPreviewCompactText}>{selectedEmoji}</Text>
                     ) : (
-                      <Plus size={16} color={tokens.fg3} />
+                      <Plus size={16} color={tokens.fg3} strokeWidth={1.8} />
                     )}
                   </View>
                   <View style={{ flex: 1 }}>
@@ -107,7 +108,7 @@ export function HabitEmojiSelector({
                   accessibilityRole="button"
                   accessibilityLabel={t("common.close")}
                 >
-                  <X size={18} color={tokens.fg2} />
+                  <X size={20} color={tokens.fg2} strokeWidth={1.8} />
                 </TouchableOpacity>
               </View>
 
@@ -115,7 +116,7 @@ export function HabitEmojiSelector({
                 value={query}
                 onChangeText={setQuery}
                 placeholder={t("habits.form.emojiSearchPlaceholder")}
-                placeholderTextColor={tokens.fg3}
+                placeholderTextColor={tokens.fg4}
                 style={styles.emojiSearchInput}
                 autoCapitalize="none"
                 autoCorrect={false}
@@ -130,7 +131,7 @@ export function HabitEmojiSelector({
                   accessibilityRole="button"
                   accessibilityLabel={t("habits.form.emojiRemove")}
                 >
-                  <X size={14} color={tokens.fg2} />
+                  <X size={14} color={tokens.fg2} strokeWidth={1.8} />
                   <Text style={styles.emojiRemoveButtonText}>{t("habits.form.emojiRemove")}</Text>
                 </TouchableOpacity>
               ) : null}
@@ -192,6 +193,6 @@ export function HabitEmojiSelector({
           </Pressable>
         </Modal>
       ) : null}
-    </View>
+    </>
   );
 }

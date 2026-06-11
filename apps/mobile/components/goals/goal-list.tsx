@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react'
 import { StyleSheet, View } from 'react-native'
+import Animated, { FadeInDown, ReduceMotion } from 'react-native-reanimated'
 import type { Goal } from '@orbit/shared/types/goal'
 import { GoalCard } from '@/components/goal-card'
 import { GoalDetailDrawer } from './goal-detail-drawer'
@@ -26,12 +27,22 @@ export function GoalList({ goals }: Readonly<GoalListProps>) {
     <View style={styles.container}>
       <View style={styles.listContent}>
         {goals.map((goal, index) => (
-          <GoalCard
+          <Animated.View
             key={goal.id}
-            goal={goal}
-            onPress={handleGoalPress}
-            tourTargetId={index === 0 ? 'tour-goal-card' : undefined}
-          />
+            entering={
+              index < 8
+                ? FadeInDown.duration(280)
+                    .delay(index * 40)
+                    .reduceMotion(ReduceMotion.System)
+                : undefined
+            }
+          >
+            <GoalCard
+              goal={goal}
+              onPress={handleGoalPress}
+              tourTargetId={index === 0 ? 'tour-goal-card' : undefined}
+            />
+          </Animated.View>
         ))}
       </View>
 

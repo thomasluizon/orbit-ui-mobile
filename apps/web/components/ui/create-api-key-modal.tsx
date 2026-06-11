@@ -5,8 +5,9 @@ import { useTranslations } from 'next-intl'
 import type { ApiKeyCreateRequest, ApiKeyCreateResponse } from '@orbit/shared/types/api-key'
 import { AppOverlay } from '@/components/ui/app-overlay'
 import { Chip } from '@/components/ui/chip'
-import { SectionLabel } from '@/components/ui/section-label'
-import { UnderlinedInput } from '@/components/ui/underlined-input'
+import { FieldInput } from '@/components/ui/field-input'
+import { PillButton } from '@/components/ui/pill-button'
+import { Switch } from '@/components/ui/settings-row'
 
 interface ScopeOption {
   scope: string
@@ -200,6 +201,7 @@ export function CreateApiKeyModal({
           apiError={apiError ?? null}
           isSubmitting={isSubmitting}
           onSubmit={handleSubmit}
+          onCancel={() => onOpenChange(false)}
         />
       )}
     </AppOverlay>
@@ -222,6 +224,7 @@ interface CreateStepProps {
   apiError: string | null
   isSubmitting: boolean
   onSubmit: React.FormEventHandler<HTMLFormElement>
+  onCancel: () => void
 }
 
 function CreateStep(props: Readonly<CreateStepProps>) {
@@ -242,13 +245,13 @@ function CreateStep(props: Readonly<CreateStepProps>) {
     apiError,
     isSubmitting,
     onSubmit,
+    onCancel,
   } = props
 
   return (
-    <form className="flex flex-col" style={{ gap: 18 }} onSubmit={onSubmit}>
-      <UnderlinedInput
+    <form className="flex flex-col" style={{ gap: 18, paddingBottom: 8 }} onSubmit={onSubmit}>
+      <FieldInput
         id="api-key-name"
-        large
         label={t('orbitMcp.keyName')}
         value={keyName}
         onChange={onKeyNameChange}
@@ -259,20 +262,26 @@ function CreateStep(props: Readonly<CreateStepProps>) {
         <p
           role="alert"
           style={{
-            fontFamily: 'var(--font-family-sans)',
+            fontFamily: 'var(--font-sans)',
             fontSize: 13,
-            fontStyle: 'italic',
-            color: 'var(--status-overdue)',
+            color: 'var(--status-bad)',
           }}
         >
           {validationError}
         </p>
       )}
 
-      <div>
-        <SectionLabel top={6} bottom={6}>
+      <div className="flex flex-col" style={{ gap: 8 }}>
+        <span
+          style={{
+            fontFamily: 'var(--font-sans)',
+            fontSize: 14,
+            fontWeight: 500,
+            color: 'var(--fg-2)',
+          }}
+        >
           {t('orbitMcp.scopesLabel')}
-        </SectionLabel>
+        </span>
         <div className="flex flex-wrap" style={{ gap: 6 }}>
           {availableScopes.map((scope) => (
             <Chip
@@ -284,20 +293,15 @@ function CreateStep(props: Readonly<CreateStepProps>) {
             </Chip>
           ))}
         </div>
-        <div
-          className="flex items-center justify-between"
-          style={{
-            padding: '12px 0',
-            borderBottom: '1px solid var(--hairline)',
-          }}
-        >
+        <div className="flex items-center justify-between">
           <button
             type="button"
-            className="appearance-none border-0 bg-transparent cursor-pointer transition-opacity duration-150 ease-out hover:opacity-80"
+            className="cursor-pointer border-0 bg-transparent transition-[opacity] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:opacity-80"
             onClick={onSelectAll}
             style={{
-              fontFamily: 'var(--font-family-sans)',
+              fontFamily: 'var(--font-sans)',
               fontSize: 13,
+              fontWeight: 500,
               color: 'var(--fg-1)',
               padding: 6,
             }}
@@ -306,10 +310,10 @@ function CreateStep(props: Readonly<CreateStepProps>) {
           </button>
           <button
             type="button"
-            className="appearance-none border-0 bg-transparent cursor-pointer transition-colors duration-150 ease-out hover:text-[var(--fg-1)]"
+            className="cursor-pointer border-0 bg-transparent transition-[color] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:text-[var(--fg-1)]"
             onClick={onClear}
             style={{
-              fontFamily: 'var(--font-family-sans)',
+              fontFamily: 'var(--font-sans)',
               fontSize: 13,
               color: 'var(--fg-3)',
               padding: 6,
@@ -320,35 +324,39 @@ function CreateStep(props: Readonly<CreateStepProps>) {
         </div>
       </div>
 
-      <label
-        className="flex items-center justify-between"
-        style={{ padding: '12px 0', borderBottom: '1px solid var(--hairline)' }}
+      <div
+        className="flex items-center justify-between rounded-[14px] bg-[var(--bg-field)]"
+        style={{
+          padding: '8px 16px',
+          minHeight: 54,
+          gap: 12,
+          boxShadow: 'inset 0 0 0 1px var(--hairline)',
+        }}
       >
         <span
           style={{
-            fontFamily: 'var(--font-family-sans)',
-            fontSize: 15,
+            fontFamily: 'var(--font-sans)',
+            fontSize: 16,
             color: 'var(--fg-1)',
           }}
         >
           {t('orbitMcp.readOnlyKeyLabel')}
         </span>
-        <input
-          type="checkbox"
-          checked={isReadOnly}
-          onChange={(event) => onIsReadOnlyChange(event.target.checked)}
-          className="accent-[var(--primary)]"
+        <Switch
+          on={isReadOnly}
+          onToggle={() => onIsReadOnlyChange(!isReadOnly)}
+          ariaLabel={t('orbitMcp.readOnlyKeyLabel')}
         />
-      </label>
+      </div>
 
-      <div className="flex flex-col" style={{ gap: 4 }}>
+      <div className="flex flex-col" style={{ gap: 8 }}>
         <label
           htmlFor="api-key-expiry"
           style={{
-            fontFamily: 'var(--font-family-sans)',
-            fontSize: 11,
+            fontFamily: 'var(--font-sans)',
+            fontSize: 14,
             fontWeight: 500,
-            color: 'var(--fg-3)',
+            color: 'var(--fg-2)',
           }}
         >
           {t('orbitMcp.expiresAtLabel')}
@@ -358,16 +366,13 @@ function CreateStep(props: Readonly<CreateStepProps>) {
           type="datetime-local"
           value={expiresAt}
           onChange={(event) => onExpiresAtChange(event.target.value)}
+          className="w-full appearance-none rounded-[14px] border-0 bg-[var(--bg-field)] shadow-[inset_0_0_0_1px_var(--hairline)] outline-none focus:shadow-[inset_0_0_0_2px_var(--primary)]"
           style={{
-            appearance: 'none',
-            border: 0,
-            background: 'transparent',
-            outline: 'none',
-            fontFamily: 'var(--font-family-mono)',
-            fontSize: 13,
+            minHeight: 54,
+            padding: '0 16px',
+            fontFamily: 'var(--font-mono)',
+            fontSize: 15,
             color: 'var(--fg-1)',
-            padding: '6px 0',
-            borderBottom: '1px solid var(--hairline-strong)',
             fontVariantNumeric: 'tabular-nums',
           }}
         />
@@ -377,46 +382,22 @@ function CreateStep(props: Readonly<CreateStepProps>) {
         <p
           role="alert"
           style={{
-            fontFamily: 'var(--font-family-sans)',
+            fontFamily: 'var(--font-sans)',
             fontSize: 13,
-            fontStyle: 'italic',
-            color: 'var(--status-overdue)',
+            color: 'var(--status-bad)',
           }}
         >
           {apiError}
         </p>
       )}
 
-      <div className="flex items-center justify-end" style={{ gap: 12, paddingTop: 8 }}>
-        <button
-          type="button"
-          className="appearance-none border-0 bg-transparent cursor-pointer transition-colors duration-150 ease-out hover:text-[var(--fg-1)]"
-          style={{
-            fontFamily: 'var(--font-family-sans)',
-            fontSize: 14,
-            color: 'var(--fg-3)',
-            padding: 6,
-          }}
-          disabled={isSubmitting}
-        >
+      <div className="flex items-center justify-end" style={{ gap: 10, paddingTop: 8 }}>
+        <PillButton variant="ghost" onClick={onCancel} disabled={isSubmitting}>
           {t('common.cancel')}
-        </button>
-        <button
-          type="submit"
-          className="appearance-none border-0 cursor-pointer disabled:opacity-50 transition-[background-color] duration-150 ease-out hover:bg-[var(--primary-pressed)]"
-          disabled={isSubmitting}
-          style={{
-            padding: '10px 18px',
-            background: 'var(--primary)',
-            color: 'var(--fg-on-primary)',
-            borderRadius: 10,
-            fontFamily: 'var(--font-family-sans)',
-            fontSize: 14,
-            fontWeight: 600,
-          }}
-        >
+        </PillButton>
+        <PillButton type="submit" disabled={isSubmitting}>
           {isSubmitting ? t('common.loading') : t('orbitMcp.createKey')}
-        </button>
+        </PillButton>
       </div>
     </form>
   )
@@ -434,43 +415,43 @@ function RevealStep({ createdKey, copied, onCopy, onDone }: Readonly<RevealStepP
   if (!createdKey) return null
 
   return (
-    <div className="flex flex-col" style={{ gap: 12 }}>
+    <div className="flex flex-col" style={{ gap: 14, paddingBottom: 8 }}>
       <p
         style={{
-          fontFamily: 'var(--font-family-sans)',
+          fontFamily: 'var(--font-sans)',
           fontSize: 14,
-          fontStyle: 'italic',
+          fontWeight: 500,
           color: 'var(--status-overdue)',
         }}
       >
         {t('orbitMcp.keyCreatedWarning')}
       </p>
       <div
-        className="relative"
+        className="relative rounded-[14px] bg-[var(--bg-field)]"
         style={{
-          padding: '12px 14px',
-          borderRadius: 8,
-          background: 'var(--bg-sunk)',
+          padding: '14px 16px',
+          paddingRight: 76,
           boxShadow: 'inset 0 0 0 1px var(--hairline)',
-          fontFamily: 'var(--font-family-mono)',
+          fontFamily: 'var(--font-mono)',
           fontSize: 13,
           color: 'var(--fg-1)',
-          lineHeight: 1.5,
+          lineHeight: 1.6,
           wordBreak: 'break-all',
+          fontVariantNumeric: 'tabular-nums',
         }}
       >
         <button
           type="button"
-          className="appearance-none border-0 bg-transparent cursor-pointer"
+          className="absolute cursor-pointer border-0 bg-transparent"
           onClick={onCopy}
           style={{
-            position: 'absolute',
-            top: 8,
-            right: 10,
-            fontFamily: 'var(--font-family-sans)',
-            fontSize: 12,
-            color: 'var(--fg-3)',
-            textDecoration: 'underline',
+            top: 10,
+            right: 12,
+            fontFamily: 'var(--font-sans)',
+            fontSize: 13,
+            fontWeight: 500,
+            color: copied ? 'var(--status-done)' : 'var(--primary)',
+            padding: 4,
           }}
         >
           {copied ? t('orbitMcp.copied') : t('orbitMcp.copy')}
@@ -479,37 +460,23 @@ function RevealStep({ createdKey, copied, onCopy, onDone }: Readonly<RevealStepP
       </div>
       <div
         style={{
-          fontFamily: 'var(--font-family-mono)',
+          fontFamily: 'var(--font-mono)',
           fontSize: 11,
-          fontWeight: 500,
-          color: 'var(--fg-3)',
+          letterSpacing: '0.02em',
+          color: 'var(--fg-4)',
+          fontVariantNumeric: 'tabular-nums',
         }}
       >
-        {t('orbitMcp.revealSummary', {
-          scopes: createdKey.scopes.length || 0,
-          readOnly: createdKey.isReadOnly
-            ? t('common.yes')
-            : t('common.no'),
-          expires: createdKey.expiresAtUtc ?? t('common.never'),
-        })}
+        {`${t('orbitMcp.scopesLabel')} ${
+          createdKey.scopes.length > 0
+            ? createdKey.scopes.length
+            : t('orbitMcp.noScopes')
+        } · ${t('orbitMcp.readOnlyLabel')} ${
+          createdKey.isReadOnly ? t('common.yes') : t('common.no')
+        } · ${createdKey.expiresAtUtc ?? t('common.never')}`}
       </div>
       <div className="flex items-center justify-end" style={{ paddingTop: 8 }}>
-        <button
-          type="button"
-          className="appearance-none border-0 cursor-pointer"
-          onClick={onDone}
-          style={{
-            padding: '10px 18px',
-            background: 'var(--primary)',
-            color: 'var(--fg-on-primary)',
-            borderRadius: 10,
-            fontFamily: 'var(--font-family-sans)',
-            fontSize: 14,
-            fontWeight: 600,
-          }}
-        >
-          {t('orbitMcp.done')}
-        </button>
+        <PillButton onClick={onDone}>{t('orbitMcp.done')}</PillButton>
       </div>
     </div>
   )

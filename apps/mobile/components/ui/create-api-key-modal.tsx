@@ -1,23 +1,24 @@
 import { useEffect, useState, useCallback, useMemo } from 'react'
 import {
   ActivityIndicator,
-  Modal,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   View,
 } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import * as Clipboard from 'expo-clipboard'
 import { useTranslation } from 'react-i18next'
 import type {
   ApiKeyCreateRequest,
   ApiKeyCreateResponse,
 } from '@orbit/shared/types/api-key'
+import { BottomSheetModal } from '@/components/bottom-sheet-modal'
+import { BottomSheetAppTextInput } from '@/components/ui/bottom-sheet-app-text-input'
+import { KeyboardAwareBottomSheetScrollView } from '@/components/ui/keyboard-aware-scroll-view'
 import { Chip } from '@/components/ui/chip'
-import { MonoToggle } from '@/components/ui/mono-toggle'
-import { UnderlinedInput } from '@/components/ui/underlined-input'
-import { KeyboardAwareScrollView } from '@/components/ui/keyboard-aware-scroll-view'
+import { PillButton } from '@/components/ui/pill-button'
+import { Switch } from '@/components/ui/settings-row'
 import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
@@ -39,8 +40,9 @@ interface CreateApiKeyModalProps {
 }
 
 /**
- * v8 API key modal: bottom sheet with two phases -- "New key" (name, scope
- * chips, MonoToggle, expires row) and "One-time reveal" (sunk mono block).
+ * API key sheet with two phases: "Create" (name well, scope chips, read-only
+ * switch row, expires well) and the one-time reveal (bg-field mono well with
+ * a copy action). Pill CTAs in the footer.
  */
 export function CreateApiKeyModal({
   open,
@@ -56,7 +58,11 @@ export function CreateApiKeyModal({
     () => createTokensV2(currentScheme, currentTheme),
     [currentScheme, currentTheme],
   )
-  const styles = useMemo(() => createStyles(tokens), [tokens])
+  const insets = useSafeAreaInsets()
+  const styles = useMemo(
+    () => createStyles(tokens, insets.bottom),
+    [tokens, insets.bottom],
+  )
   const [keyName, setKeyName] = useState('')
   const [selectedScopes, setSelectedScopes] = useState<string[]>([])
   const [isReadOnly, setIsReadOnly] = useState(false)
@@ -72,7 +78,6 @@ export function CreateApiKeyModal({
 
   useEffect(() => {
     if (!open) {
-       
       setKeyName('')
       setSelectedScopes([])
       setIsReadOnly(false)
@@ -151,84 +156,101 @@ export function CreateApiKeyModal({
   }
 
   return (
-    <Modal
-      visible={open}
-      transparent
-      animationType="slide"
-      onRequestClose={() => onOpenChange(false)}
+    <BottomSheetModal
+      open={open}
+      onClose={() => onOpenChange(false)}
+      title={
+        isRevealState ? t('orbitMcp.revealHeading') : t('orbitMcp.createHeading')
+      }
+      contentKey={isRevealState ? 'reveal' : 'create'}
+      snapPoints={['80%', '95%']}
+      canDismiss={!isRevealState}
     >
-      <KeyboardAwareScrollView
-        containerStyle={styles.backdrop}
-        contentContainerStyle={styles.sheetScrollContent}
-        keyboardVerticalOffset={12}
+      <KeyboardAwareBottomSheetScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
+        keyboardShouldPersistTaps="always"
       >
-        <View style={styles.sheet}>
-          <Text style={styles.eyebrow}>
-            {isRevealState
-              ? t('orbitMcp.keyCreated')
-              : t('orbitMcp.createKey')}
-          </Text>
+        {isRevealState ? (
+          <>
+            <Text style={styles.warningText}>
+              {t('orbitMcp.keyCreatedWarning')}
+            </Text>
 
-          {isRevealState ? (
-            <View style={styles.content}>
-              <Text style={styles.warningText}>
-                {t('orbitMcp.keyCreatedWarning')}
-              </Text>
-
-              <View style={styles.keyBox}>
-                <Pressable style={styles.copyButton} onPress={copyKey}>
-                  <Text style={styles.copyButtonText}>
-                    {copied ? t('orbitMcp.copied') : t('orbitMcp.copy')}
-                  </Text>
-                </Pressable>
-                <Text style={styles.keyText}>{createdKey?.key}</Text>
-              </View>
-
-              <Text style={styles.metaLine}>
-                {`${t('orbitMcp.scopesLabel')} ${
-                  createdKey?.scopes.length
-                    ? createdKey.scopes.length
-                    : t('orbitMcp.noScopes')
-                } · ${t('orbitMcp.readOnlyLabel')} ${
-                  createdKey?.isReadOnly ? t('common.yes') : t('common.no')
-                } · ${
-                  createdKey?.expiresAtUtc
-                    ? createdKey.expiresAtUtc
-                    : t('common.never')
-                }`}
+            <View style={styles.keyWell}>
+              <Pressable
+                style={styles.copyButton}
+                onPress={() => {
+                  void copyKey()
+                }}
+                accessibilityRole="button"
+                accessibilityLabel={t('orbitMcp.copy')}
+                hitSlop={8}
+              >
+                <Text
+                  style={[
+                    styles.copyButtonText,
+                    { color: copied ? tokens.statusDone : tokens.primary },
+                  ]}
+                >
+                  {copied ? t('orbitMcp.copied') : t('orbitMcp.copy')}
+                </Text>
+              </Pressable>
+              <Text style={styles.keyText} selectable>
+                {createdKey?.key}
               </Text>
             </View>
-          ) : (
-            <View style={styles.content}>
-              <UnderlinedInput
-                large
+
+            <Text style={styles.metaLine}>
+              {`${t('orbitMcp.scopesLabel')} ${
+                createdKey?.scopes.length
+                  ? createdKey.scopes.length
+                  : t('orbitMcp.noScopes')
+              } · ${t('orbitMcp.readOnlyLabel')} ${
+                createdKey?.isReadOnly ? t('common.yes') : t('common.no')
+              } · ${
+                createdKey?.expiresAtUtc
+                  ? createdKey.expiresAtUtc
+                  : t('common.never')
+              }`}
+            </Text>
+
+            <View style={styles.footerEnd}>
+              <PillButton
+                onPress={() => onOpenChange(false)}
+                accessibilityLabel={t('orbitMcp.done')}
+              >
+                {t('orbitMcp.done')}
+              </PillButton>
+            </View>
+          </>
+        ) : (
+          <>
+            <View>
+              <Text style={styles.fieldLabel}>{t('orbitMcp.keyName')}</Text>
+              <BottomSheetAppTextInput
                 value={keyName}
                 onChangeText={setKeyName}
                 placeholder={t('orbitMcp.keyNamePlaceholder')}
                 maxLength={50}
+                accessibilityLabel={t('orbitMcp.keyName')}
               />
+            </View>
 
-              <Text style={styles.sectionLabel}>{t('orbitMcp.apiKeys')}</Text>
-              <ScrollView
-                horizontal={false}
-                style={styles.scopeList}
-                contentContainerStyle={styles.scopeListContent}
-              >
-                {availableScopes.map((scope) => {
-                  const isSelected = selectedScopes.includes(scope.scope)
-                  return (
-                    <Chip
-                      key={scope.scope}
-                      active={isSelected}
-                      onPress={() => toggleScope(scope.scope)}
-                    >
-                      {scope.scope}
-                    </Chip>
-                  )
-                })}
-              </ScrollView>
-
+            <View>
+              <Text style={styles.fieldLabel}>{t('orbitMcp.scopesLabel')}</Text>
+              <View style={styles.scopeWrap}>
+                {availableScopes.map((scope) => (
+                  <Chip
+                    key={scope.scope}
+                    active={selectedScopes.includes(scope.scope)}
+                    onPress={() => toggleScope(scope.scope)}
+                  >
+                    {scope.scope}
+                  </Chip>
+                ))}
+              </View>
               <View style={styles.scopeActions}>
                 <Pressable
                   onPress={() =>
@@ -236,259 +258,213 @@ export function CreateApiKeyModal({
                       availableScopes.map((scope) => scope.scope),
                     )
                   }
+                  accessibilityRole="button"
+                  accessibilityLabel={t('common.selectAll')}
                 >
                   <Text style={styles.quietLinkStrong}>
                     {t('common.selectAll')}
                   </Text>
                 </Pressable>
-                <Pressable onPress={() => setSelectedScopes([])}>
+                <Pressable
+                  onPress={() => setSelectedScopes([])}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('common.clear')}
+                >
                   <Text style={styles.quietLink}>{t('common.clear')}</Text>
                 </Pressable>
               </View>
-
-              <View style={styles.row}>
-                <Text style={styles.rowLabel}>
-                  {t('orbitMcp.readOnlyKeyLabel')}
-                </Text>
-                <MonoToggle
-                  on={isReadOnly}
-                  onPress={() => setIsReadOnly((current) => !current)}
-                />
-              </View>
-
-              <View style={styles.row}>
-                <Text style={styles.rowLabel}>
-                  {t('orbitMcp.expiresAtLabel')}
-                </Text>
-                <View style={styles.expiresInputWrap}>
-                  <UnderlinedInput
-                    mono
-                    value={expiresAt}
-                    onChangeText={setExpiresAt}
-                    placeholder={t('common.never')}
-                    autoCapitalize="none"
-                  />
-                </View>
-              </View>
-
-              {validationError ? (
-                <Text style={styles.errorText}>{validationError}</Text>
-              ) : null}
-
-              {apiError ? (
-                <Text style={styles.errorText}>{apiError}</Text>
-              ) : null}
             </View>
-          )}
 
-          <View style={styles.footer}>
-            {isRevealState ? (
-              <View style={styles.footerEnd}>
-                <Pressable onPress={() => onOpenChange(false)}>
-                  <Text style={styles.doneLink}>{t('orbitMcp.done')}</Text>
-                </Pressable>
-              </View>
-            ) : (
-              <>
-                <Pressable onPress={() => onOpenChange(false)}>
-                  <Text style={styles.quietLink}>{t('common.cancel')}</Text>
-                </Pressable>
-                <Pressable
-                  style={({ pressed }) => [
-                    styles.primaryButton,
-                    {
-                      backgroundColor: pressed
-                        ? tokens.primaryPressed
-                        : tokens.primary,
-                    },
-                    isSubmitting && styles.disabledButton,
-                  ]}
-                  onPress={handleSubmit}
-                  disabled={isSubmitting}
-                >
-                  {isSubmitting ? (
-                    <ActivityIndicator size="small" color={tokens.fgOnPrimary} />
-                  ) : (
-                    <Text
-                      style={[
-                        styles.primaryButtonText,
-                        { color: tokens.fgOnPrimary },
-                      ]}
-                    >
-                      {t('orbitMcp.createKey')}
-                    </Text>
-                  )}
-                </Pressable>
-              </>
-            )}
-          </View>
-        </View>
-      </KeyboardAwareScrollView>
-    </Modal>
+            <View style={styles.switchRow}>
+              <Text style={styles.switchRowLabel}>
+                {t('orbitMcp.readOnlyKeyLabel')}
+              </Text>
+              <Switch
+                on={isReadOnly}
+                onToggle={() => setIsReadOnly((current) => !current)}
+                accessibilityLabel={t('orbitMcp.readOnlyKeyLabel')}
+              />
+            </View>
+
+            <View>
+              <Text style={styles.fieldLabel}>
+                {t('orbitMcp.expiresAtLabel')}
+              </Text>
+              <BottomSheetAppTextInput
+                value={expiresAt}
+                onChangeText={setExpiresAt}
+                placeholder={t('common.never')}
+                autoCapitalize="none"
+                style={styles.monoInput}
+                accessibilityLabel={t('orbitMcp.expiresAtLabel')}
+              />
+            </View>
+
+            {validationError ? (
+              <Text style={styles.errorText} accessibilityRole="alert">
+                {validationError}
+              </Text>
+            ) : null}
+
+            {apiError ? (
+              <Text style={styles.errorText} accessibilityRole="alert">
+                {apiError}
+              </Text>
+            ) : null}
+
+            <View style={styles.footer}>
+              <PillButton
+                variant="ghost"
+                style={styles.footerButton}
+                onPress={() => onOpenChange(false)}
+                disabled={isSubmitting}
+                accessibilityLabel={t('common.cancel')}
+              >
+                {t('common.cancel')}
+              </PillButton>
+              <PillButton
+                style={styles.footerButton}
+                onPress={() => {
+                  void handleSubmit()
+                }}
+                disabled={isSubmitting}
+                accessibilityLabel={t('orbitMcp.createKey')}
+              >
+                {isSubmitting ? (
+                  <ActivityIndicator size="small" color={tokens.fgOnPrimary} />
+                ) : (
+                  t('orbitMcp.createKey')
+                )}
+              </PillButton>
+            </View>
+          </>
+        )}
+      </KeyboardAwareBottomSheetScrollView>
+    </BottomSheetModal>
   )
 }
 
-function createStyles(tokens: AppTokensV2) {
+function createStyles(tokens: AppTokensV2, bottomInset: number) {
   return StyleSheet.create({
-    backdrop: {
+    scroll: {
       flex: 1,
-      backgroundColor: 'rgba(0,0,0,0.6)',
-    },
-    sheetScrollContent: {
-      flexGrow: 1,
-      justifyContent: 'flex-end',
-      paddingTop: 24,
-    },
-    sheet: {
-      backgroundColor: tokens.bgElev,
-      borderTopWidth: 1,
-      borderTopColor: tokens.hairlineStrong,
-      borderTopLeftRadius: 12,
-      borderTopRightRadius: 12,
-      paddingHorizontal: 20,
-      paddingTop: 12,
-      paddingBottom: 18,
-      gap: 12,
-    },
-    eyebrow: {
-      fontFamily: 'Geist',
-      fontSize: 12,
-      fontWeight: '600',
-      color: tokens.fg3,
     },
     content: {
-      gap: 14,
+      paddingTop: 8,
+      paddingHorizontal: 20,
+      paddingBottom: Math.max(bottomInset, 16) + 24,
+      gap: 18,
     },
-    sectionLabel: {
-      fontFamily: 'Geist',
-      fontSize: 13,
-      fontWeight: '600',
-      color: tokens.fg3,
-      marginTop: 4,
+    fieldLabel: {
+      fontFamily: 'Rubik_500Medium',
+      fontSize: 14,
+      color: tokens.fg2,
+      marginBottom: 8,
     },
-    scopeList: {
-      maxHeight: 160,
-    },
-    scopeListContent: {
+    scopeWrap: {
       flexDirection: 'row',
       flexWrap: 'wrap',
       gap: 6,
-      paddingBottom: 8,
     },
     scopeActions: {
       flexDirection: 'row',
       justifyContent: 'space-between',
-      paddingBottom: 4,
-      borderBottomWidth: 1,
-      borderBottomColor: tokens.hairline,
+      alignItems: 'center',
+      paddingTop: 10,
     },
-    row: {
+    quietLink: {
+      fontFamily: 'Rubik_400Regular',
+      fontSize: 13,
+      color: tokens.fg3,
+      paddingVertical: 8,
+    },
+    quietLinkStrong: {
+      fontFamily: 'Rubik_500Medium',
+      fontSize: 13,
+      color: tokens.fg1,
+      paddingVertical: 8,
+    },
+    switchRow: {
       flexDirection: 'row',
       justifyContent: 'space-between',
       alignItems: 'center',
-      paddingVertical: 12,
-      borderBottomWidth: 1,
-      borderBottomColor: tokens.hairline,
       gap: 12,
-    },
-    rowLabel: {
-      fontFamily: 'Geist',
-      fontSize: 14,
-      color: tokens.fg1,
-    },
-    expiresInputWrap: {
-      flex: 1,
-      maxWidth: 160,
-    },
-    warningText: {
-      fontFamily: 'Geist',
-      fontSize: 14,
-      fontStyle: 'italic',
-      color: tokens.statusOverdue,
-    },
-    keyBox: {
-      position: 'relative',
-      backgroundColor: tokens.bgSunk,
+      minHeight: 54,
+      borderRadius: 14,
+      backgroundColor: tokens.bgField,
       borderWidth: 1,
       borderColor: tokens.hairline,
-      borderRadius: 8,
-      paddingHorizontal: 14,
-      paddingVertical: 12,
+      paddingHorizontal: 16,
+      paddingVertical: 8,
+    },
+    switchRowLabel: {
+      fontFamily: 'Rubik_400Regular',
+      fontSize: 16,
+      color: tokens.fg1,
+      flexShrink: 1,
+    },
+    monoInput: {
+      fontFamily: 'Roboto_400Regular',
+      fontSize: 15,
+      fontVariant: ['tabular-nums'],
+    },
+    warningText: {
+      fontFamily: 'Rubik_500Medium',
+      fontSize: 14,
+      lineHeight: 20,
+      color: tokens.statusOverdue,
+    },
+    keyWell: {
+      position: 'relative',
+      backgroundColor: tokens.bgField,
+      borderWidth: 1,
+      borderColor: tokens.hairline,
+      borderRadius: 14,
+      paddingHorizontal: 16,
+      paddingVertical: 14,
+      paddingRight: 76,
     },
     copyButton: {
       position: 'absolute',
-      top: 8,
-      right: 10,
+      top: 10,
+      right: 12,
+      padding: 4,
+      zIndex: 1,
     },
     copyButtonText: {
-      fontFamily: 'Geist',
-      fontSize: 12,
-      color: tokens.fg3,
-      textDecorationLine: 'underline',
+      fontFamily: 'Rubik_500Medium',
+      fontSize: 13,
     },
     keyText: {
-      fontFamily: 'GeistMono',
+      fontFamily: 'Roboto_400Regular',
       fontSize: 13,
       color: tokens.fg1,
-      lineHeight: 20,
+      lineHeight: 21,
+      fontVariant: ['tabular-nums'],
     },
     metaLine: {
-      fontFamily: 'GeistMono',
+      fontFamily: 'Roboto_400Regular',
       fontSize: 11,
-      fontWeight: '500',
-      color: tokens.fg3,
+      letterSpacing: 0.22,
+      color: tokens.fg4,
+      fontVariant: ['tabular-nums'],
     },
     errorText: {
-      fontFamily: 'Geist',
-      fontSize: 12,
-      fontStyle: 'italic',
-      color: tokens.statusOverdue,
+      fontFamily: 'Rubik_400Regular',
+      fontSize: 13,
+      color: tokens.statusBad,
     },
     footer: {
       flexDirection: 'row',
-      justifyContent: 'space-between',
-      alignItems: 'center',
-      paddingTop: 12,
-      borderTopWidth: 1,
-      borderTopColor: tokens.hairline,
+      gap: 10,
+      paddingTop: 8,
+    },
+    footerButton: {
+      flex: 1,
     },
     footerEnd: {
-      flex: 1,
       alignItems: 'flex-end',
-    },
-    quietLink: {
-      fontFamily: 'Geist',
-      fontSize: 13,
-      color: tokens.fg3,
-      paddingVertical: 6,
-    },
-    quietLinkStrong: {
-      fontFamily: 'Geist',
-      fontSize: 13,
-      color: tokens.fg1,
-      paddingVertical: 6,
-    },
-    doneLink: {
-      fontFamily: 'Geist',
-      fontSize: 13,
-      color: tokens.fg1,
-      paddingVertical: 6,
-      textDecorationLine: 'underline',
-    },
-    primaryButton: {
-      borderRadius: 10,
-      paddingHorizontal: 18,
-      paddingVertical: 10,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    primaryButtonText: {
-      fontFamily: 'Geist',
-      fontSize: 14,
-      fontWeight: '600',
-    },
-    disabledButton: {
-      opacity: 0.5,
+      paddingTop: 8,
     },
   })
 }

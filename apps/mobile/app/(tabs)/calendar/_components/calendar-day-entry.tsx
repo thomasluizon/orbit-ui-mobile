@@ -13,6 +13,8 @@ interface CalendarDayEntryRowProps {
   dotState: StatusDotState;
   /** Visible outcome badge; null for upcoming habits (no badge shown). */
   statusText: string | null;
+  /** Status-token color for the outcome badge text. */
+  statusColor: string;
   /** Always-present label for the status dot's screen-reader announcement. */
   statusAccessibilityLabel: string;
   displayTime: (time: string) => string;
@@ -24,8 +26,8 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
     row: {
       flexDirection: "row",
       alignItems: "center",
-      paddingHorizontal: 20,
-      paddingVertical: 13,
+      paddingHorizontal: 18,
+      paddingVertical: 15,
       gap: 12,
     },
     content: {
@@ -39,7 +41,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       gap: 8,
     },
     title: {
-      fontFamily: "Geist",
+      fontFamily: 'Rubik_400Regular',
       fontSize: 15,
       color: tokens.fg1,
       flexShrink: 1,
@@ -50,21 +52,19 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       textDecorationColor: tokens.hairlineStrong,
     },
     time: {
-      fontFamily: "GeistMono",
+      fontFamily: 'Roboto_400Regular',
       fontSize: 12,
       color: tokens.fg3,
       fontVariant: ["tabular-nums"],
     },
     statusText: {
-      fontFamily: "GeistMono",
+      fontFamily: 'Rubik_600SemiBold',
       fontSize: 10.5,
-      letterSpacing: 0.4,
-      color: tokens.fg3,
+      letterSpacing: 0.63,
     },
     divider: {
       height: StyleSheet.hairlineWidth,
       backgroundColor: tokens.hairline,
-      marginLeft: 20,
     },
   });
 }
@@ -74,6 +74,7 @@ export function CalendarDayEntryRow({
   tokens,
   dotState,
   statusText,
+  statusColor,
   statusAccessibilityLabel,
   displayTime,
   isLast,
@@ -105,7 +106,9 @@ export function CalendarDayEntryRow({
           </View>
         </View>
         {statusText ? (
-          <Text style={styles.statusText}>{statusText}</Text>
+          <Text style={[styles.statusText, { color: statusColor }]}>
+            {statusText}
+          </Text>
         ) : null}
       </View>
       {!isLast ? (

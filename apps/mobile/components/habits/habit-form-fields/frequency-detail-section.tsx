@@ -59,7 +59,6 @@ export function FrequencyDetailSection({
             <BottomSheetAppTextInput
               value={String(watchedFrequencyQuantity ?? "")}
               keyboardType="number-pad"
-              style={styles.input}
               onChangeText={(val: string) => {
                 const num = Number(val);
                 if (!val) {

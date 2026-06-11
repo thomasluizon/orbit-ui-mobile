@@ -3,14 +3,39 @@ import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { useAuthStore } from '@/stores/auth-store'
-import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
+import { createTokensV2, shadowsV2, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 const WARN_AT_MINUTES = 5
 
+function mixHexOver(baseHex: string, tintHex: string, alpha: number): string {
+  const channels = (hex: string) => {
+    const normalized = hex.replace('#', '')
+    return [
+      Number.parseInt(normalized.slice(0, 2), 16),
+      Number.parseInt(normalized.slice(2, 4), 16),
+      Number.parseInt(normalized.slice(4, 6), 16),
+    ]
+  }
+  const base = channels(baseHex)
+  const tint = channels(tintHex)
+  const toHexByte = (channel: number) => channel.toString(16).padStart(2, '0')
+  return `#${base
+    .map((value, index) => toHexByte(Math.round(value * (1 - alpha) + tint[index]! * alpha)))
+    .join('')}`
+}
+
+function rgbaFromHex(hex: string, alpha: number): string {
+  const normalized = hex.replace('#', '')
+  const r = Number.parseInt(normalized.slice(0, 2), 16)
+  const g = Number.parseInt(normalized.slice(2, 4), 16)
+  const b = Number.parseInt(normalized.slice(4, 6), 16)
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`
+}
+
 /**
- * v8 expiry warning edge banner: hairline-divided strip with mono countdown
- * and "Refresh" / "Log in" link. Preserves the auth-store driven session
+ * Session expiry warning: floating amber-tinted card with a tabular countdown
+ * and "Refresh" / "Log in" action. Preserves the auth-store driven session
  * expiry watcher.
  */
 export function ExpiryWarning() {
@@ -29,7 +54,6 @@ export function ExpiryWarning() {
 
   useEffect(() => {
     if (!expiresAt) {
-       
       setMinutesLeft(null)
       setIsExpired(false)
       return
@@ -70,7 +94,7 @@ export function ExpiryWarning() {
       <View style={styles.banner}>
         <Text style={styles.text}>
           {isExpired ? (
-            t('auth.sessionExpired')
+            <Text style={styles.urgent}>{t('auth.sessionExpired')}</Text>
           ) : (
             <>
               {t('auth.sessionExpiring', { minutes: '' }).replace(
@@ -83,7 +107,7 @@ export function ExpiryWarning() {
             </>
           )}
         </Text>
-        <Pressable onPress={handleLogin} hitSlop={6}>
+        <Pressable onPress={handleLogin} hitSlop={6} style={styles.actionPress}>
           <Text style={styles.actionText}>
             {isExpired ? t('auth.login') : t('auth.refresh')}
           </Text>
@@ -102,35 +126,44 @@ function createStyles(tokens: AppTokensV2) {
       right: 0,
       zIndex: 9998,
       paddingTop: 50,
-      backgroundColor: tokens.bg,
+      paddingHorizontal: 10,
     },
     banner: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      borderTopWidth: 1,
-      borderBottomWidth: 1,
-      borderColor: tokens.hairline,
-      paddingHorizontal: 14,
-      paddingVertical: 8,
       gap: 12,
+      borderRadius: 14,
+      borderWidth: 1,
+      borderColor: rgbaFromHex(tokens.statusOverdue, 0.28),
+      backgroundColor: mixHexOver(tokens.bg, tokens.statusOverdue, 0.1),
+      paddingHorizontal: 14,
+      paddingVertical: 10,
+      ...shadowsV2.shadow2,
     },
     text: {
       flex: 1,
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_400Regular',
       fontSize: 13,
       color: tokens.fg2,
     },
+    urgent: {
+      color: tokens.statusOverdue,
+    },
     monoCount: {
-      fontFamily: 'GeistMono',
-      color: tokens.fg1,
+      fontFamily: 'Roboto_400Regular',
+      fontVariant: ['tabular-nums'],
+      color: tokens.statusOverdue,
+    },
+    actionPress: {
+      paddingVertical: 8,
+      paddingHorizontal: 4,
     },
     actionText: {
-      fontFamily: 'Geist',
+      fontFamily: 'Rubik_500Medium',
       fontSize: 13,
       color: tokens.fg1,
       textDecorationLine: 'underline',
-      paddingVertical: 4,
     },
   })
 }

@@ -1,5 +1,5 @@
 import { Pressable, StyleSheet, Text } from 'react-native'
-import { createTokensV2 } from '@/lib/theme'
+import { createTokensV2, tintFromPrimary } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 interface MonoToggleProps {
@@ -14,9 +14,9 @@ interface MonoToggleProps {
 }
 
 /**
- * v8 MonoToggle: monospaced ON/OFF pill, hairline ring inactive, primary fill when on.
- * Used inside `SettingsRow` slot for binary settings (push notifications,
- * memory, auto-sync, etc.).
+ * Kit toggle pill: bg-field fill, primary 0.12 tint + primary text when on,
+ * fg-3 text when off. Used inside `SettingsRow` slot for binary settings
+ * (push notifications, memory, auto-sync, etc.).
  */
 export function MonoToggle({
   on,
@@ -39,8 +39,7 @@ export function MonoToggle({
       style={({ pressed }) => [
         styles.toggle,
         {
-          borderColor: on ? tokens.primary : tokens.hairlineStrong,
-          backgroundColor: on ? tokens.primary : 'transparent',
+          backgroundColor: on ? tintFromPrimary(tokens, 0.12) : tokens.bgField,
           opacity: pressed && onPress && !disabled ? 0.75 : disabled ? 0.55 : 1,
         },
       ]}
@@ -48,7 +47,7 @@ export function MonoToggle({
       <Text
         style={[
           styles.label,
-          { color: on ? tokens.fgOnPrimary : tokens.fg2 },
+          { color: on ? tokens.primary : tokens.fg3 },
         ]}
       >
         {on ? onLabel : offLabel}
@@ -60,17 +59,14 @@ export function MonoToggle({
 const styles = StyleSheet.create({
   toggle: {
     minWidth: 44,
-    paddingHorizontal: 8,
+    paddingHorizontal: 12,
     paddingVertical: 4,
-    borderRadius: 4,
-    borderWidth: 1,
+    borderRadius: 999,
     alignItems: 'center',
     justifyContent: 'center',
   },
   label: {
-    fontFamily: 'GeistMono',
-    fontSize: 10,
-    fontWeight: '600',
-    letterSpacing: 0.6,
+    fontFamily: 'Rubik_500Medium',
+    fontSize: 13,
   },
 })
