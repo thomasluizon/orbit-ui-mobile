@@ -69,6 +69,7 @@ interface SkeletonCardStyles {
   skeletonContent: StyleProp<ViewStyle>
   skeletonTitle: StyleProp<ViewStyle>
   skeletonSubtitle: StyleProp<ViewStyle>
+  skeletonCheck: StyleProp<ViewStyle>
 }
 
 export function SkeletonCard({ styles: cardStyles }: { styles: SkeletonCardStyles }) {
@@ -79,6 +80,7 @@ export function SkeletonCard({ styles: cardStyles }: { styles: SkeletonCardStyle
         <View style={cardStyles.skeletonTitle} />
         <View style={cardStyles.skeletonSubtitle} />
       </View>
+      <View style={cardStyles.skeletonCheck} />
     </View>
   )
 }

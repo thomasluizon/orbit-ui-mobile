@@ -47,14 +47,15 @@ vi.mock('@/lib/theme', () => ({
         },
       },
     ),
+  tintFromPrimary: () => 'rgba(17, 17, 17, 0.18)',
 }))
 
 vi.mock('lucide-react-native', () => {
 
   const React = require('react')
   return {
-    Orbit: (props: Record<string, unknown>) => React.createElement('Orbit', props),
-    User: (props: Record<string, unknown>) => React.createElement('User', props),
+    Sparkles: (props: Record<string, unknown>) =>
+      React.createElement('Sparkles', props),
     ArrowUpRight: (props: Record<string, unknown>) =>
       React.createElement('ArrowUpRight', props),
   }

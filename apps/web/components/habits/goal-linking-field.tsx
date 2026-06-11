@@ -16,7 +16,7 @@ interface GoalsListResponse {
   items: Goal[]
 }
 
-/** Hairline-ringed chip strip with mono percent token. */
+/** Pill chip strip with mono percent token; active chips take the primary tint. */
 export function GoalLinkingField({
   selectedGoalIds,
   atGoalLimit,
@@ -43,7 +43,7 @@ export function GoalLinkingField({
         {t('habits.form.goals')}
       </span>
       {activeGoals.length > 0 ? (
-        <div className="flex flex-wrap" style={{ gap: 6 }}>
+        <div className="flex flex-wrap" style={{ gap: 8 }}>
           {activeGoals.map((goal) => {
             const isSelected = selectedGoalIds.includes(goal.id)
             const isDimmed = !isSelected && atGoalLimit
@@ -53,20 +53,22 @@ export function GoalLinkingField({
                 type="button"
                 aria-pressed={isSelected}
                 disabled={isDimmed}
-                className="appearance-none cursor-pointer inline-flex items-center whitespace-nowrap shrink-0 disabled:opacity-30 disabled:pointer-events-none"
+                className="appearance-none cursor-pointer inline-flex items-center whitespace-nowrap shrink-0 transition-[background-color,box-shadow,color] duration-[var(--dur-fast)] ease-[var(--ease-standard)] disabled:opacity-30 disabled:pointer-events-none"
                 style={{
-                  height: 28,
-                  padding: '0 10px',
-                  borderRadius: 6,
-                  background: isSelected ? 'var(--bg-elev)' : 'transparent',
+                  height: 32,
+                  padding: '0 12px',
+                  borderRadius: 999,
+                  background: isSelected
+                    ? 'rgba(var(--primary-rgb), 0.12)'
+                    : 'var(--bg-field)',
                   boxShadow: isSelected
-                    ? 'inset 0 0 0 1px var(--fg-3)'
-                    : 'inset 0 0 0 1px var(--hairline-strong)',
+                    ? 'inset 0 0 0 1px var(--primary)'
+                    : undefined,
                   border: 0,
-                  color: isSelected ? 'var(--fg-1)' : 'var(--fg-2)',
+                  color: isSelected ? 'var(--primary)' : 'var(--fg-3)',
                   fontFamily: 'var(--font-sans)',
-                  fontSize: 12,
-                  fontWeight: isSelected ? 600 : 500,
+                  fontSize: 13,
+                  fontWeight: 500,
                   gap: 6,
                 }}
                 onClick={() => onToggleGoal(goal.id)}
@@ -76,7 +78,7 @@ export function GoalLinkingField({
                   style={{
                     fontFamily: 'var(--font-mono)',
                     fontSize: 11,
-                    color: isSelected ? 'var(--fg-2)' : 'var(--fg-3)',
+                    color: isSelected ? 'var(--primary)' : 'var(--fg-4)',
                     fontVariantNumeric: 'tabular-nums',
                   }}
                 >

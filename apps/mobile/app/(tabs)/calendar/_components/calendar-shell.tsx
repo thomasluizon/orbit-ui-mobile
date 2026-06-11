@@ -38,9 +38,9 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       alignItems: "center",
     },
     monthNavButton: {
-      width: 36,
-      height: 36,
-      borderRadius: 8,
+      width: 40,
+      height: 40,
+      borderRadius: 999,
       alignItems: "center",
       justifyContent: "center",
     },
@@ -61,20 +61,21 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       width: 6,
       height: 6,
       borderRadius: 999,
-      backgroundColor: tokens.primary,
+      borderWidth: 1.5,
+      borderColor: tokens.primary,
     },
     legendDotDone: {
       width: 6,
       height: 6,
       borderRadius: 999,
-      backgroundColor: tokens.fg1,
+      backgroundColor: tokens.primary,
     },
     legendDotPartial: {
       width: 6,
       height: 6,
       borderRadius: 999,
-      borderWidth: 1,
-      borderColor: tokens.fg3,
+      borderWidth: 1.5,
+      borderColor: tokens.fg4,
     },
     legendDotMissed: {
       width: 6,
@@ -117,16 +118,18 @@ export function CalendarHeader({
               style={styles.monthNavButton}
               onPress={onPreviousMonth}
               activeOpacity={0.7}
+              hitSlop={4}
             >
-              <ChevronLeft size={17} color={tokens.fg2} strokeWidth={1.6} />
+              <ChevronLeft size={22} color={tokens.fg2} strokeWidth={1.8} />
             </TouchableOpacity>
             <TouchableOpacity
               accessibilityLabel={nextMonthLabel}
               style={styles.monthNavButton}
               onPress={onNextMonth}
               activeOpacity={0.7}
+              hitSlop={4}
             >
-              <ChevronRight size={17} color={tokens.fg2} strokeWidth={1.6} />
+              <ChevronRight size={22} color={tokens.fg2} strokeWidth={1.8} />
             </TouchableOpacity>
           </View>
         }

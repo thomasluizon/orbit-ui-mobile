@@ -293,6 +293,7 @@ export default function ChatScreen() {
             setSpeechLang(value);
             setShowLangPicker(false);
           }}
+          onUpgrade={() => router.push("/upgrade")}
         />
       </KeyboardAvoidingView>
 

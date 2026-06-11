@@ -37,6 +37,8 @@ import { createTokensV2 } from "@/lib/theme";
 import { useAppTheme } from "@/lib/use-app-theme";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { withDrawerContentInset } from "@/components/ui/drawer-content-inset";
+import { GradientTop } from "@/components/ui/gradient-top";
+import { PillButton } from "@/components/ui/pill-button";
 import { SectionLabel } from "@/components/ui/section-label";
 import { SettingsRow } from "@/components/ui/settings-row";
 import type { StatusDotState } from "@/components/ui/status-dot";
@@ -90,6 +92,13 @@ function statusBadge(
   if (entry.status === "completed") return t("calendar.status.completed").toUpperCase();
   if (entry.status === "missed") return t("calendar.status.missed").toUpperCase();
   return null;
+}
+
+function statusBadgeColor(entry: CalendarDayEntry, tokens: Tokens): string {
+  if (entry.isBadHabit) {
+    return entry.status === "completed" ? tokens.statusBad : tokens.statusDone;
+  }
+  return entry.status === "completed" ? tokens.statusDone : tokens.statusOverdue;
 }
 
 export default function CalendarScreen() {
@@ -273,6 +282,7 @@ export default function CalendarScreen() {
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: tokens.bg }]}>
+      <GradientTop height={180} />
       <CalendarHeader
         title={t("nav.calendar")}
         monthLabel={monthLabel}
@@ -296,60 +306,75 @@ export default function CalendarScreen() {
           style={styles.calendarGrid}
           {...swipePanResponder.panHandlers}
         >
-          <View style={styles.weekDayRow}>
-            {weekdayHeaders.map((d) => (
-              <View key={d.key} style={styles.weekDayCell}>
-                <Text style={[styles.weekDayText, { color: tokens.fg3 }]}>
-                  {d.label}
-                </Text>
-              </View>
-            ))}
-          </View>
+          <View style={styles.gridCard}>
+            <View style={styles.weekDayRow}>
+              {weekdayHeaders.map((d) => (
+                <View key={d.key} style={styles.weekDayCell}>
+                  <Text style={[styles.weekDayText, { color: tokens.fg4 }]}>
+                    {d.label}
+                  </Text>
+                </View>
+              ))}
+            </View>
 
-          <View style={styles.daysGrid}>
-            {gridDays.map((cell) => {
-              const status = dayStatus(cell);
-              const canSelect = cell.isCurrentMonth;
+            <View style={styles.daysGrid}>
+              {gridDays.map((cell) => {
+                const status = dayStatus(cell);
+                const canSelect = cell.isCurrentMonth;
+                const selected =
+                  canSelect && showDayDetail && cell.dateStr === selectedDay;
 
-              return (
-                <Pressable
-                  key={cell.dateStr}
-                  ref={cell.isToday ? calendarDayRef : undefined}
-                  onPress={() => canSelect && onSelectDay(cell.dateStr)}
-                  disabled={!canSelect}
-                  hitSlop={4}
-                  style={({ pressed }) => [
-                    styles.dayCell,
-                    pressed && canSelect && {
-                      backgroundColor: tokens.bgElev,
-                      borderRadius: 6,
-                    },
-                  ]}
-                >
-                  <Text
-                    style={[
-                      styles.dayText,
-                      {
-                        color:
-                          status === "empty" && !cell.isToday
-                            ? tokens.fg3
-                            : cell.isCurrentMonth
-                              ? tokens.fg1
-                              : tokens.fg4,
-                        fontWeight: cell.isToday ? "600" : "400",
+                return (
+                  <Pressable
+                    key={cell.dateStr}
+                    ref={cell.isToday ? calendarDayRef : undefined}
+                    onPress={() => canSelect && onSelectDay(cell.dateStr)}
+                    disabled={!canSelect}
+                    hitSlop={4}
+                    style={({ pressed }) => [
+                      styles.dayCell,
+                      pressed && canSelect && {
+                        backgroundColor: tokens.bgElev,
+                        borderRadius: 12,
                       },
                     ]}
                   >
-                    {cell.day}
-                  </Text>
-                  {isLoading ? (
-                    <View style={styles.dayDotSkeleton} />
-                  ) : (
-                    <DayDot status={status} isToday={cell.isToday} tokens={tokens} />
-                  )}
-                </Pressable>
-              );
-            })}
+                    <View
+                      style={[
+                        styles.dayNumPill,
+                        cell.isToday && !selected && {
+                          borderWidth: 1.5,
+                          borderColor: tokens.primary,
+                        },
+                        selected && { backgroundColor: tokens.primary },
+                      ]}
+                    >
+                      <Text
+                        style={[
+                          cell.isToday ? styles.dayTextToday : styles.dayText,
+                          {
+                            color: selected
+                              ? tokens.fgOnPrimary
+                              : cell.isToday
+                                ? tokens.fg1
+                                : cell.isCurrentMonth
+                                  ? tokens.fg2
+                                  : tokens.fg4,
+                          },
+                        ]}
+                      >
+                        {cell.day}
+                      </Text>
+                    </View>
+                    {isLoading ? (
+                      <View style={styles.dayDotSkeleton} />
+                    ) : (
+                      <DayDot status={status} tokens={tokens} />
+                    )}
+                  </Pressable>
+                );
+              })}
+            </View>
           </View>
         </View>
 
@@ -395,12 +420,9 @@ export default function CalendarScreen() {
             <Text style={[styles.emptyDayText, { color: tokens.fg3 }]}>
               {t("calendar.noHabitsScheduled")}
             </Text>
-            <GoToDayButton
-              label={t("calendar.goToDay")}
-              tokens={tokens}
-              styles={styles}
-              onPress={goToSelectedDay}
-            />
+            <PillButton style={styles.goToDayButton} onPress={goToSelectedDay}>
+              {t("calendar.goToDay")}
+            </PillButton>
           </View>
         ) : (
           <ScrollView
@@ -440,30 +462,33 @@ export default function CalendarScreen() {
                   {t("calendar.noHabitsScheduled")}
                 </Text>
               </View>
-            ) : null}
+            ) : (
+              <View style={styles.entriesCard}>
+                {filteredEntries.map((entry: CalendarDayEntry, idx: number) => {
+                  const badge = statusBadge(entry, t);
+                  return (
+                    <CalendarDayEntryRow
+                      key={`${entry.habitId}-${idx}`}
+                      entry={entry}
+                      tokens={tokens}
+                      dotState={entryDotState(entry)}
+                      statusText={badge}
+                      statusColor={statusBadgeColor(entry, tokens)}
+                      statusAccessibilityLabel={badge ?? t("calendar.status.upcoming")}
+                      displayTime={displayTime}
+                      isLast={idx === filteredEntries.length - 1}
+                    />
+                  );
+                })}
+              </View>
+            )}
 
-            {filteredEntries.map((entry: CalendarDayEntry, idx: number) => {
-              const badge = statusBadge(entry, t);
-              return (
-                <CalendarDayEntryRow
-                  key={`${entry.habitId}-${idx}`}
-                  entry={entry}
-                  tokens={tokens}
-                  dotState={entryDotState(entry)}
-                  statusText={badge}
-                  statusAccessibilityLabel={badge ?? t("calendar.status.upcoming")}
-                  displayTime={displayTime}
-                  isLast={idx === filteredEntries.length - 1}
-                />
-              );
-            })}
-
-            <GoToDayButton
-              label={t("calendar.goToDay")}
-              tokens={tokens}
-              styles={styles}
+            <PillButton
+              style={[styles.goToDayButton, styles.goToDayButtonInset]}
               onPress={goToSelectedDay}
-            />
+            >
+              {t("calendar.goToDay")}
+            </PillButton>
           </ScrollView>
         )}
       </BottomSheetModal>
@@ -473,33 +498,19 @@ export default function CalendarScreen() {
 
 function DayDot({
   status,
-  isToday,
   tokens,
 }: Readonly<{
   status: DayStatus;
-  isToday: boolean;
   tokens: Tokens;
 }>) {
-  if (isToday) {
-    return (
-      <View
-        style={{
-          width: 5,
-          height: 5,
-          borderRadius: 999,
-          backgroundColor: tokens.primary,
-        }}
-      />
-    );
-  }
   if (status === "full") {
     return (
       <View
         style={{
-          width: 5,
-          height: 5,
+          width: 6,
+          height: 6,
           borderRadius: 999,
-          backgroundColor: tokens.fg1,
+          backgroundColor: tokens.primary,
         }}
       />
     );
@@ -508,8 +519,8 @@ function DayDot({
     return (
       <View
         style={{
-          width: 5,
-          height: 5,
+          width: 6,
+          height: 6,
           borderRadius: 999,
           backgroundColor: tokens.statusOverdue,
         }}
@@ -520,46 +531,16 @@ function DayDot({
     return (
       <View
         style={{
-          width: 5,
-          height: 5,
+          width: 6,
+          height: 6,
           borderRadius: 999,
-          borderWidth: 1,
-          borderColor: tokens.fg3,
+          borderWidth: 1.5,
+          borderColor: tokens.fg4,
         }}
       />
     );
   }
-  return <View style={{ width: 5, height: 5 }} />;
-}
-
-function GoToDayButton({
-  label,
-  tokens,
-  styles,
-  onPress,
-}: Readonly<{
-  label: string;
-  tokens: Tokens;
-  styles: ReturnType<typeof createStyles>;
-  onPress: () => void;
-}>) {
-  return (
-    <Pressable
-      onPress={onPress}
-      style={({ pressed }) => [
-        styles.goToDayButton,
-        {
-          backgroundColor: pressed ? tokens.primaryPressed : tokens.primary,
-        },
-      ]}
-      accessibilityRole="button"
-      accessibilityLabel={label}
-    >
-      <Text style={[styles.goToDayButtonText, { color: tokens.fgOnPrimary }]}>
-        {label}
-      </Text>
-    </Pressable>
-  );
+  return <View style={{ width: 6, height: 6 }} />;
 }
 
 function createStyles(tokens: Tokens) {
@@ -572,10 +553,18 @@ function createStyles(tokens: Tokens) {
       paddingTop: 16,
       paddingBottom: 8,
     },
+    gridCard: {
+      borderRadius: 18,
+      paddingVertical: 16,
+      paddingHorizontal: 14,
+      backgroundColor: tokens.bgCard,
+      borderWidth: 1,
+      borderColor: tokens.hairline,
+    },
 
     weekDayRow: {
       flexDirection: "row",
-      marginBottom: 12,
+      marginBottom: 8,
     },
     weekDayCell: {
       flex: 1,
@@ -585,28 +574,42 @@ function createStyles(tokens: Tokens) {
       fontFamily: 'Roboto_500Medium',
       fontSize: 11,
       letterSpacing: 0.44,
+      textTransform: "uppercase",
+      fontVariant: ["tabular-nums"],
     },
 
     daysGrid: {
       flexDirection: "row",
       flexWrap: "wrap",
-      rowGap: 6,
+      rowGap: 4,
     },
     dayCell: {
       width: "14.2857%",
-      height: 40,
+      height: 44,
       alignItems: "center",
       justifyContent: "center",
-      gap: 3,
+      gap: 4,
+    },
+    dayNumPill: {
+      width: 28,
+      height: 24,
+      borderRadius: 999,
+      alignItems: "center",
+      justifyContent: "center",
     },
     dayText: {
-      fontFamily: 'Roboto_400Regular',
-      fontSize: 13,
+      fontFamily: 'Roboto_500Medium',
+      fontSize: 14,
+      fontVariant: ["tabular-nums"],
+    },
+    dayTextToday: {
+      fontFamily: 'Roboto_700Bold',
+      fontSize: 14,
       fontVariant: ["tabular-nums"],
     },
     dayDotSkeleton: {
-      width: 5,
-      height: 5,
+      width: 6,
+      height: 6,
       borderRadius: 999,
       backgroundColor: tokens.hairline,
       opacity: 0.5,
@@ -654,16 +657,22 @@ function createStyles(tokens: Tokens) {
       fontSize: 12,
     },
 
-    goToDayButton: {
+    entriesCard: {
       marginHorizontal: 20,
-      marginTop: 16,
-      borderRadius: 8,
-      paddingVertical: 12,
-      alignItems: "center",
+      marginTop: 12,
+      borderRadius: 18,
+      backgroundColor: tokens.bgCard,
+      borderWidth: 1,
+      borderColor: tokens.hairline,
+      overflow: "hidden",
     },
-    goToDayButtonText: {
-      fontFamily: 'Rubik_500Medium',
-      fontSize: 14,
-      },
+
+    goToDayButton: {
+      marginTop: 16,
+      alignSelf: "stretch",
+    },
+    goToDayButtonInset: {
+      marginHorizontal: 20,
+    },
   });
 }

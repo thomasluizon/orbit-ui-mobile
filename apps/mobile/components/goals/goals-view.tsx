@@ -95,16 +95,16 @@ export function GoalsView() {
             accessibilityRole="button"
             accessibilityLabel={t("goals.filters.statusFilter")}
             accessibilityState={{ selected: activeFilter != null }}
-            hitSlop={6}
+            hitSlop={4}
             style={[
               styles.iconBtn,
               activeFilter != null && styles.iconBtnActive,
             ]}
           >
             <Filter
-              size={15}
+              size={18}
               color={activeFilter != null ? tokens.fg1 : tokens.fg3}
-              strokeWidth={1.6}
+              strokeWidth={1.8}
             />
           </Pressable>
         </View>
@@ -155,10 +155,8 @@ export function GoalsView() {
               <Text
                 style={[
                   styles.menuLabel,
-                  {
-                    color: active ? tokens.fg1 : tokens.fg2,
-                    fontWeight: active ? "600" : "500",
-                  },
+                  active ? styles.menuLabelActive : null,
+                  { color: active ? tokens.fg1 : tokens.fg2 },
                 ]}
               >
                 {filter.label}
@@ -183,9 +181,9 @@ function createStyles(tokens: AppTokens) {
       paddingBottom: 12,
     },
     iconBtn: {
-      width: 28,
-      height: 28,
-      borderRadius: 8,
+      width: 40,
+      height: 40,
+      borderRadius: 999,
       alignItems: "center",
       justifyContent: "center",
     },
@@ -208,18 +206,21 @@ function createStyles(tokens: AppTokens) {
       justifyContent: "center",
     },
     menuLabel: {
-      fontFamily: 'Rubik_400Regular',
+      fontFamily: 'Rubik_500Medium',
       fontSize: 13,
       flex: 1,
+    },
+    menuLabelActive: {
+      fontFamily: 'Rubik_600SemiBold',
     },
     skeletonContainer: {
       gap: 12,
       paddingHorizontal: 20,
     },
     skeletonCard: {
-      backgroundColor: tokens.bgSunk,
-      borderRadius: 12,
-      borderWidth: StyleSheet.hairlineWidth,
+      backgroundColor: tokens.bgCard,
+      borderRadius: 18,
+      borderWidth: 1,
       borderColor: tokens.hairline,
       padding: 20,
       gap: 10,

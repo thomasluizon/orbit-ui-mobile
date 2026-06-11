@@ -10,7 +10,7 @@ import { Check } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import type { ClarificationRequest } from '@orbit/shared/types'
 import { useResolveClarification } from '@/hooks/use-resolve-clarification'
-import { createTokensV2, radius, shadows } from '@/lib/theme'
+import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 type AppTokens = ReturnType<typeof createTokensV2>
@@ -132,18 +132,16 @@ function mapStatusToErrorKey(status: number): string {
 function createStyles(tokens: AppTokens) {
   return StyleSheet.create({
     card: {
-      backgroundColor: tokens.bgElev,
+      backgroundColor: tokens.bgCard,
       borderWidth: 1,
       borderColor: tokens.hairline,
-      borderRadius: radius.xl,
+      borderRadius: 16,
       padding: 16,
       gap: 12,
-      ...shadows.sm,
-      elevation: 2,
     },
     questionText: {
+      fontFamily: 'Rubik_500Medium',
       fontSize: 14,
-      fontWeight: '500',
       color: tokens.fg1,
     },
     actionsRow: {
@@ -155,9 +153,9 @@ function createStyles(tokens: AppTokens) {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 6,
-      paddingHorizontal: 12,
-      paddingVertical: 6,
-      borderRadius: radius.full,
+      minHeight: 36,
+      paddingHorizontal: 14,
+      borderRadius: 999,
       backgroundColor: tokens.bgElev,
       borderWidth: 1,
       borderColor: tokens.hairline,
@@ -170,11 +168,12 @@ function createStyles(tokens: AppTokens) {
       opacity: 0.5,
     },
     chipText: {
-      fontSize: 12,
-      fontWeight: '500',
+      fontFamily: 'Rubik_500Medium',
+      fontSize: 13,
       color: tokens.fg1,
     },
     errorText: {
+      fontFamily: 'Rubik_400Regular',
       fontSize: 12,
       color: tokens.statusBad,
     },
@@ -188,13 +187,13 @@ function createStyles(tokens: AppTokens) {
       width: 24,
       height: 24,
       borderRadius: 12,
-      backgroundColor: tokens.bgElev,
+      backgroundColor: `${tokens.statusDone}33`,
       alignItems: 'center',
       justifyContent: 'center',
     },
     successText: {
+      fontFamily: 'Rubik_500Medium',
       fontSize: 14,
-      fontWeight: '600',
       color: tokens.statusDone,
     },
   })

@@ -2,6 +2,7 @@
 
 import { Plus } from 'lucide-react'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
+import { PillButton } from '@/components/ui/pill-button'
 import { HabitListSkeleton } from './empty-state'
 
 interface HabitListDrillContentProps {
@@ -50,15 +51,17 @@ export function HabitListDrillContent({
         )}
         <button
           type="button"
-          className="w-full flex items-center justify-center gap-2 py-3 text-[var(--fg-3)] text-sm hover:text-[var(--primary-pressed)] transition-[color] duration-150"
+          className="w-full appearance-none border-0 bg-transparent cursor-pointer flex items-center justify-center text-[var(--fg-3)] hover:text-[var(--primary-pressed)] transition-[color] duration-[var(--dur-fast)] ease-[var(--ease-standard)]"
           style={{
+            gap: 8,
+            padding: '12px 20px',
             fontFamily: 'var(--font-sans)',
             fontSize: 13,
-            borderTop: '1px solid var(--hairline)',
+            fontWeight: 500,
           }}
           onClick={() => currentParentId && onAddSubHabit(currentParentId)}
         >
-          <Plus className="size-4" />
+          <Plus size={16} strokeWidth={1.8} aria-hidden="true" />
           {t('habits.form.addSubHabit')}
         </button>
       </div>
@@ -66,17 +69,27 @@ export function HabitListDrillContent({
   }
 
   return (
-    <div className="text-center py-8">
-      <p className="text-[var(--fg-3)] text-sm">
+    <div className="flex flex-col items-center text-center" style={{ padding: '32px 20px' }}>
+      <p
+        style={{
+          margin: 0,
+          fontFamily: 'var(--font-sans)',
+          fontSize: 14,
+          color: 'var(--fg-3)',
+        }}
+      >
         {t('habits.noSubHabits')}
       </p>
-      <button
-        className="mt-4 flex items-center justify-center gap-2 mx-auto px-6 py-3 rounded-xl border border-dashed border-[var(--hairline)] text-[var(--fg-3)] text-sm hover:border-[var(--primary)] hover:text-[var(--primary-pressed)] transition-[border-color,color,background-color,transform] duration-150"
-        onClick={() => currentParentId && onAddSubHabit(currentParentId)}
+      <PillButton
+        variant="ghost"
+        className="mt-[18px]"
+        leading={<Plus size={18} strokeWidth={1.8} color="var(--fg-1)" aria-hidden="true" />}
+        onClick={() => {
+          if (currentParentId) onAddSubHabit(currentParentId)
+        }}
       >
-        <Plus className="size-4" />
         {t('habits.form.addSubHabit')}
-      </button>
+      </PillButton>
     </div>
   )
 }

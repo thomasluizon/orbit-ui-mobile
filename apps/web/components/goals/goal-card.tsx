@@ -7,7 +7,7 @@ import { Flame } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { plural } from '@/lib/plural'
 import { StatusDot, type StatusDotState } from '@/components/ui/status-dot'
-import { ParentRing } from '@/components/ui/parent-ring'
+import { ProgressBar } from '@/components/ui/progress-bar'
 import { GoalDetailDrawer } from './goal-detail-drawer'
 import { resolveMotionPreset } from '@orbit/shared/theme'
 import { isStreakGoal } from '@orbit/shared/utils/goal-form'
@@ -16,6 +16,18 @@ import type { Goal } from '@orbit/shared/types/goal'
 interface GoalCardProps {
   goal: Goal
 }
+
+const badgeClassName =
+  'inline-flex shrink-0 items-center rounded-full uppercase'
+
+const badgeStyle = {
+  fontFamily: 'var(--font-sans)',
+  fontSize: 10.5,
+  fontWeight: 600,
+  letterSpacing: '0.06em',
+  padding: '3px 9px',
+  boxShadow: 'inset 0 0 0 1px var(--hairline)',
+} as const
 
 export function GoalCard({ goal }: Readonly<GoalCardProps>) {
   const t = useTranslations()
@@ -45,18 +57,18 @@ export function GoalCard({ goal }: Readonly<GoalCardProps>) {
     if (daysLeft < 0) {
       return {
         text: t('goals.deadline.overdue'),
-        className: 'text-[var(--status-bad)] bg-[var(--bg-elev)] border border-[var(--hairline)]',
+        color: 'var(--status-bad)',
       }
     }
     if (daysLeft <= 7) {
       return {
         text: plural(t('goals.deadline.daysLeft', { n: daysLeft }), daysLeft),
-        className: 'text-[var(--status-overdue)] bg-[var(--bg-elev)] border border-[var(--hairline)]',
+        color: 'var(--status-overdue)',
       }
     }
     return {
       text: plural(t('goals.deadline.daysLeft', { n: daysLeft }), daysLeft),
-      className: 'text-[var(--fg-3)] bg-[var(--bg-elev)] border border-[var(--hairline)]',
+      color: 'var(--fg-3)',
     }
   }, [goal.deadline, goal.status, t])
 
@@ -64,13 +76,13 @@ export function GoalCard({ goal }: Readonly<GoalCardProps>) {
     if (goal.status === 'Completed') {
       return {
         text: t('goals.status.completed'),
-        className: 'text-[var(--status-done)] bg-[var(--bg-elev)] border border-[var(--hairline)]',
+        color: 'var(--status-done)',
       }
     }
     if (goal.status === 'Abandoned') {
       return {
         text: t('goals.status.abandoned'),
-        className: 'text-[var(--fg-3)] bg-[var(--bg-elev)] border border-[var(--hairline)]',
+        color: 'var(--fg-3)',
       }
     }
     return null
@@ -90,12 +102,15 @@ export function GoalCard({ goal }: Readonly<GoalCardProps>) {
     }
   }, [goal.status, goal.trackingStatus, t])
 
+  const percentLabel = t('goals.progressPercentage', { pct: goal.progressPercentage })
+
   return (
     <>
       <motion.button
         type="button"
         data-tour="tour-goal-card"
-        className={`group relative w-full overflow-hidden rounded-[12px] border border-[var(--hairline)] bg-[var(--bg-elev)] p-5 text-left shadow-[var(--shadow-sm)] surface-interactive transition-[background-color,border-color,box-shadow,transform] cursor-pointer hover:bg-[var(--bg-elev-pressed)]`}
+        className="group relative w-full cursor-pointer overflow-hidden rounded-[18px] border-0 bg-[var(--bg-card)] text-left transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev)]"
+        style={{ padding: '16px 18px', boxShadow: 'inset 0 0 0 1px var(--hairline)' }}
         whileTap={tapTarget}
         transition={{
           duration: selectionMotion.enterDuration / 1000,
@@ -103,79 +118,88 @@ export function GoalCard({ goal }: Readonly<GoalCardProps>) {
         }}
         onClick={() => setShowDetail(true)}
       >
-        <div className="relative z-10 flex items-start gap-3">
-          <div
-            className="shrink-0"
-            data-tour="tour-goal-progress"
-            data-progress-state={progress.state}
-            style={{ paddingTop: 2 }}
+        <div className="flex items-center" style={{ gap: 8, marginBottom: 4 }}>
+          {isStreak && (
+            <Flame
+              size={16}
+              strokeWidth={1.8}
+              className="shrink-0 text-[var(--status-overdue)]"
+              aria-hidden="true"
+            />
+          )}
+          <h3
+            className={`min-w-0 flex-1 truncate ${
+              goal.status === 'Abandoned' ? 'line-through text-[var(--fg-3)]' : ''
+            }`}
+            style={{
+              fontFamily: 'var(--font-sans)',
+              fontSize: 16,
+              fontWeight: 500,
+              color: goal.status === 'Abandoned' ? undefined : 'var(--fg-1)',
+            }}
           >
-            <progress
-              className="sr-only"
-              value={Math.min(goal.progressPercentage, 100)}
-              max={100}
-              aria-label={t('goals.progressPercentage', { pct: goal.progressPercentage })}
-            />
-            <ParentRing
-              done={Math.min(goal.progressPercentage, 100)}
-              total={100}
-              size={36}
-              color={progress.color}
-            />
-          </div>
-          <div className="flex-1 min-w-0">
-            <div className="flex items-center gap-2 mb-1">
-              {isStreak && (
-                <Flame className="size-3.5 text-[var(--status-overdue)] shrink-0" aria-hidden="true" />
-              )}
-              <h3
-                className={`text-sm font-semibold text-[var(--fg-1)] truncate ${
-                  goal.status === 'Abandoned'
-                    ? 'line-through text-[var(--fg-3)]'
-                    : ''
-                }`}
-              >
-                {goal.title}
-              </h3>
-              {statusBadge ? (
-                <span
-                  className={`text-[10px] font-bold px-2 py-0.5 rounded-full shrink-0 ${statusBadge.className}`}
-                >
-                  {statusBadge.text}
-                </span>
-              ) : trackingDot ? (
-                <StatusDot state={trackingDot.state} ariaLabel={trackingDot.label} />
-              ) : null}
-            </div>
+            {goal.title}
+          </h3>
+          {statusBadge ? (
+            <span className={badgeClassName} style={{ ...badgeStyle, color: statusBadge.color }}>
+              {statusBadge.text}
+            </span>
+          ) : trackingDot ? (
+            <StatusDot state={trackingDot.state} ariaLabel={trackingDot.label} />
+          ) : null}
+        </div>
 
-            <p className="text-xs text-[var(--fg-2)] mb-2">
-              {isStreak
-                ? t('goals.streak.ofTarget', {
-                    current: goal.currentValue,
-                    target: goal.targetValue,
-                  })
-                : t('goals.progressOf', {
-                    current: goal.currentValue,
-                    target: goal.targetValue,
-                    unit: goal.unit,
-                  })}
-            </p>
-
-            <div className="flex items-center justify-between">
-              <span className="text-[12px] text-[var(--fg-2)] font-[family-name:var(--font-mono)] tabular-nums">
-                {t('goals.progressPercentage', {
-                  pct: goal.progressPercentage,
+        <div className="flex items-center justify-between" style={{ gap: 8, marginBottom: 12 }}>
+          <span
+            style={{
+              fontFamily: 'var(--font-mono)',
+              fontSize: 13,
+              color: 'var(--fg-3)',
+              fontVariantNumeric: 'tabular-nums',
+            }}
+          >
+            {isStreak
+              ? t('goals.streak.ofTarget', {
+                  current: goal.currentValue,
+                  target: goal.targetValue,
+                })
+              : t('goals.progressOf', {
+                  current: goal.currentValue,
+                  target: goal.targetValue,
+                  unit: goal.unit,
                 })}
-              </span>
-              {deadlineInfo && (
-                <span
-                  className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${deadlineInfo.className}`}
-                >
-                  {deadlineInfo.text}
-                </span>
-              )}
-            </div>
-          </div>
+          </span>
+          {deadlineInfo && (
+            <span className={badgeClassName} style={{ ...badgeStyle, color: deadlineInfo.color }}>
+              {deadlineInfo.text}
+            </span>
+          )}
+        </div>
+
+        <div
+          className="flex items-center"
+          style={{ gap: 12 }}
+          data-tour="tour-goal-progress"
+          data-progress-state={progress.state}
+        >
+          <ProgressBar
+            className="flex-1"
+            progress={Math.min(goal.progressPercentage, 100) / 100}
+            label={percentLabel}
+            color={progress.color}
+          />
+          <span
+            className="shrink-0"
+            style={{
+              fontFamily: 'var(--font-mono)',
+              fontSize: 13,
+              fontWeight: 500,
+              color: 'var(--fg-2)',
+              fontVariantNumeric: 'tabular-nums',
+            }}
+          >
+            {percentLabel}
+          </span>
         </div>
       </motion.button>
 

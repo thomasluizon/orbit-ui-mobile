@@ -1,11 +1,11 @@
 import { useMemo } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
-import { Orbit } from 'lucide-react-native'
+import { Sparkles } from 'lucide-react-native'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { useProfile } from '@/hooks/use-profile'
 import { useSummary } from '@/hooks/use-habits'
-import { createTokensV2 } from '@/lib/theme'
+import { createTokensV2, tintFromPrimary } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 interface TodayAISummaryProps {
@@ -13,10 +13,10 @@ interface TodayAISummaryProps {
 }
 
 /**
- * Today screen "Astra" block: full-height primary rail on the left, then
- * Orbit glyph + heading and one or two lines of message stacked on the
- * right. No card chrome. Whole block is tappable; tap destination depends on
- * state (pro → /chat, free → /upgrade, error → refetch).
+ * Today screen "Astra" summary card on the kit InfoCard chrome: primary 0.08
+ * tint, 0.28 ring, radius 18, sparkles + ASTRA eyebrow over the message.
+ * Whole card is tappable; tap destination depends on state (pro → /chat,
+ * free → /upgrade, error → refetch).
  *
  * - Pro + enabled: shows the AI summary text
  * - Free: shows the upgrade prompt
@@ -28,7 +28,7 @@ export function TodayAISummary({ date }: Readonly<TodayAISummaryProps>) {
   const { profile } = useProfile()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
-  const styles = useMemo(() => createStyles(tokens.fg1, tokens.fg2, tokens.fg3, tokens.primary, tokens.hairline), [tokens.fg1, tokens.fg2, tokens.fg3, tokens.primary, tokens.hairline])
+  const styles = useMemo(() => createStyles(tokens), [tokens])
 
   const hasProAccess = profile?.hasProAccess ?? false
   const aiSummaryEnabled = profile?.aiSummaryEnabled ?? false
@@ -90,97 +90,79 @@ export function TodayAISummary({ date }: Readonly<TodayAISummaryProps>) {
         pressed ? styles.wrapPressed : null,
       ]}
     >
-      <View style={styles.row}>
-        <View style={styles.rail} />
-        <View style={styles.column}>
-          <View style={styles.headerRow}>
-            <Orbit
-              size={20}
-              color={tokens.fg1}
-              strokeWidth={1.5}
-            />
-            <Text style={styles.heading}>Astra</Text>
-            <Text style={styles.aiBadge}>{t('aiDisclosure.isAiLabel')}</Text>
-          </View>
-          <Text style={styles.message}>
-            {resolved.text}
-          </Text>
-          {showDisclaimer ? (
-            <Text style={styles.disclaimer}>
-              {t('aiDisclosure.notMedicalAdvice')}
-            </Text>
-          ) : null}
+      <View style={styles.card}>
+        <View style={styles.headerRow}>
+          <Sparkles size={16} color={tokens.primarySoft} strokeWidth={1.9} />
+          <Text style={styles.eyebrow}>Astra</Text>
+          <Text style={styles.aiBadge}>{t('aiDisclosure.isAiLabel')}</Text>
         </View>
+        <Text style={styles.message}>{resolved.text}</Text>
+        {showDisclaimer ? (
+          <Text style={styles.disclaimer}>
+            {t('aiDisclosure.notMedicalAdvice')}
+          </Text>
+        ) : null}
       </View>
     </Pressable>
   )
 }
 
-function createStyles(
-  fg1: string,
-  fg2: string,
-  fg3: string,
-  primary: string,
-  hairline: string,
-) {
+function createStyles(tokens: ReturnType<typeof createTokensV2>) {
   return StyleSheet.create({
     wrap: {
       paddingHorizontal: 20,
       paddingTop: 14,
-      paddingBottom: 16,
+      paddingBottom: 6,
     },
     wrapPressed: {
-      opacity: 0.6,
+      opacity: 0.9,
     },
-    row: {
-      flexDirection: 'row',
-      alignItems: 'stretch',
-      gap: 14,
-    },
-    rail: {
-      width: 2,
-      borderRadius: 1,
-      backgroundColor: primary,
-    },
-    column: {
-      flex: 1,
-      gap: 8,
+    card: {
+      borderRadius: 18,
+      paddingVertical: 16,
+      paddingHorizontal: 18,
+      backgroundColor: tintFromPrimary(tokens, 0.08),
+      borderWidth: 1,
+      borderColor: tintFromPrimary(tokens, 0.28),
     },
     headerRow: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 10,
+      gap: 8,
+      marginBottom: 8,
     },
-    heading: {
-      fontFamily: 'Rubik_600SemiBold',
-      fontSize: 20,
-      color: fg1,
-      letterSpacing: -0.2,
+    eyebrow: {
+      fontFamily: 'Rubik_500Medium',
+      fontSize: 12,
+      letterSpacing: 0.6,
+      textTransform: 'uppercase',
+      color: tokens.primarySoft,
     },
     aiBadge: {
       fontFamily: 'Roboto_500Medium',
       fontSize: 10,
       letterSpacing: 0.6,
-      color: fg3,
-      borderWidth: StyleSheet.hairlineWidth,
-      borderColor: hairline,
-      borderRadius: 4,
-      paddingHorizontal: 5,
+      color: tokens.fg3,
+      borderWidth: 1,
+      borderColor: tokens.hairline,
+      borderRadius: 999,
+      paddingHorizontal: 7,
       paddingVertical: 1,
       overflow: 'hidden',
     },
     message: {
       fontFamily: 'Rubik_400Regular',
-      fontSize: 14,
-      lineHeight: 20,
-      color: fg2,
+      fontSize: 15,
+      lineHeight: 22,
+      color: tokens.fg1,
     },
     disclaimer: {
       fontFamily: 'Rubik_400Regular',
       fontSize: 11,
       lineHeight: 15,
-      color: fg3,
+      color: tokens.fg3,
       fontStyle: 'italic',
+      marginTop: 8,
     },
   })
 }

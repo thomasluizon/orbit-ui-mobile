@@ -18,17 +18,23 @@ interface CalendarDayDetailProps {
   entries: CalendarDayEntry[]
 }
 
-function statusBadgeClass(entry: CalendarDayEntry): string {
-  const border = 'border border-[var(--hairline)]'
+function statusBadgeColor(entry: CalendarDayEntry): string {
   if (entry.isBadHabit) {
-    return `${entry.status === 'completed' ? 'text-[var(--status-bad)]' : 'text-[var(--status-done)]'} ${border}`
+    return entry.status === 'completed' ? 'var(--status-bad)' : 'var(--status-done)'
   }
-  return `${entry.status === 'completed' ? 'text-[var(--status-done)]' : 'text-[var(--status-overdue)]'} ${border}`
+  return entry.status === 'completed' ? 'var(--status-done)' : 'var(--status-overdue)'
 }
 
-function statusIconBg(entry: CalendarDayEntry): string {
-  if (entry.status === 'completed') return 'bg-[var(--bg-elev)] border-[var(--status-done)]'
-  return 'border-[var(--hairline-strong)]'
+function statusCircleStyle(entry: CalendarDayEntry): React.CSSProperties {
+  if (entry.status === 'completed') {
+    return {
+      background: entry.isBadHabit ? 'var(--status-bad)' : 'var(--status-done)',
+    }
+  }
+  if (entry.status === 'missed' && !entry.isBadHabit) {
+    return { boxShadow: 'inset 0 0 0 2px var(--status-overdue)' }
+  }
+  return { boxShadow: 'inset 0 0 0 2px var(--status-empty)' }
 }
 
 export function CalendarDayDetail({
@@ -74,10 +80,17 @@ export function CalendarDayDetail({
       footer={
         <Link
           href={`/?date=${dateStr ?? ''}`}
-          className="w-full py-3 rounded-[var(--radius-lg)] bg-[var(--primary)] text-[var(--fg-on-primary)] font-semibold text-sm flex items-center justify-center gap-2 hover:bg-[var(--primary-pressed)] transition-[background-color,transform] duration-150 active:scale-[0.98]"
+          className="flex w-full items-center justify-center gap-[9px] rounded-full bg-[var(--primary)] text-[var(--fg-on-primary)] hover:bg-[var(--primary-pressed)] transition-[background-color,transform] duration-[var(--dur-fast)] active:scale-[0.98]"
+          style={{
+            padding: '15px 26px',
+            fontFamily: 'var(--font-sans)',
+            fontSize: 16,
+            fontWeight: 500,
+            boxShadow: 'var(--primary-glow)',
+          }}
           onClick={() => onOpenChange(false)}
         >
-          <ArrowRight className="size-4" />
+          <ArrowRight size={18} strokeWidth={1.8} aria-hidden="true" />
           {t('calendar.goToDay')}
         </Link>
       }
@@ -112,46 +125,91 @@ export function CalendarDayDetail({
             </div>
           )}
 
-          {filteredEntries.map((entry, i) => {
-            const label = statusLabel(entry)
-            return (
-              <div key={entry.habitId}>
-                <div className="flex items-center gap-3 py-3">
+          {filteredEntries.length > 0 && (
+            <div
+              style={{
+                borderRadius: 18,
+                background: 'var(--bg-card)',
+                boxShadow: 'inset 0 0 0 1px var(--hairline)',
+                overflow: 'hidden',
+              }}
+            >
+              {filteredEntries.map((entry, i) => {
+                const label = statusLabel(entry)
+                return (
                   <div
-                    className={`shrink-0 size-6 rounded-full border flex items-center justify-center ${statusIconBg(entry)}`}
+                    key={entry.habitId}
+                    className="flex items-center gap-3"
+                    style={{
+                      padding: '15px 18px',
+                      borderBottom:
+                        i < filteredEntries.length - 1
+                          ? '1px solid var(--hairline)'
+                          : 'none',
+                    }}
                   >
-                    {entry.status === 'completed' && (
-                      <Check className="size-3 text-[var(--status-done)]" />
+                    <span
+                      aria-hidden="true"
+                      className="inline-flex size-6 shrink-0 items-center justify-center rounded-full"
+                      style={statusCircleStyle(entry)}
+                    >
+                      {entry.status === 'completed' && (
+                        <Check size={15} strokeWidth={2.5} color="var(--fg-on-primary)" />
+                      )}
+                    </span>
+
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-baseline gap-2">
+                        <span
+                          className={`truncate ${
+                            entry.status === 'completed'
+                              ? 'text-[var(--fg-3)] line-through'
+                              : 'text-[var(--fg-1)]'
+                          }`}
+                          style={{
+                            fontFamily: 'var(--font-sans)',
+                            fontSize: 15,
+                            fontWeight: 500,
+                          }}
+                        >
+                          {entry.title}
+                        </span>
+                        {entry.dueTime && (
+                          <span
+                            className="shrink-0 text-[var(--fg-3)]"
+                            style={{
+                              fontFamily: 'var(--font-mono)',
+                              fontSize: 12,
+                              fontVariantNumeric: 'tabular-nums',
+                            }}
+                          >
+                            {displayTime(entry.dueTime)}
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {label && (
+                      <span
+                        className="shrink-0 rounded-full uppercase"
+                        style={{
+                          padding: '3px 9px',
+                          fontFamily: 'var(--font-sans)',
+                          fontSize: 10.5,
+                          fontWeight: 600,
+                          letterSpacing: '0.06em',
+                          color: statusBadgeColor(entry),
+                          boxShadow: 'inset 0 0 0 1px var(--hairline)',
+                        }}
+                      >
+                        {label}
+                      </span>
                     )}
                   </div>
-
-                  <div className="flex-1 min-w-0">
-                    <div className="flex items-baseline gap-2">
-                      <span
-                        className={`text-sm font-medium text-[var(--fg-1)] truncate ${entry.status === 'completed' ? 'opacity-60' : ''}`}
-                      >
-                        {entry.title}
-                      </span>
-                      {entry.dueTime && (
-                        <span className="shrink-0 text-[11px] font-semibold text-[var(--fg-2)]">
-                          {displayTime(entry.dueTime)}
-                        </span>
-                      )}
-                    </div>
-                  </div>
-
-                  {label && (
-                    <span
-                      className={`shrink-0 px-2 py-0.5 rounded-lg text-[10px] font-bold uppercase tracking-wider ${statusBadgeClass(entry)}`}
-                    >
-                      {label}
-                    </span>
-                  )}
-                </div>
-                {i < filteredEntries.length - 1 && <div className="h-px bg-[var(--hairline)]" />}
-              </div>
-            )
-          })}
+                )
+              })}
+            </div>
+          )}
         </div>
       )}
     </AppOverlay>

@@ -2,11 +2,13 @@ interface ProgressBarProps {
   /** Fill ratio between 0 and 1 (values outside the range are clamped). */
   progress: number
   label: string
+  /** Fill color override (defaults to the scheme primary). */
+  color?: string
   className?: string
 }
 
 /** Kit progress bar: 8px pill track with a primary fill animated via scaleX only. */
-export function ProgressBar({ progress, label, className }: Readonly<ProgressBarProps>) {
+export function ProgressBar({ progress, label, color, className }: Readonly<ProgressBarProps>) {
   const clamped = Math.min(1, Math.max(0, progress))
 
   return (
@@ -21,7 +23,7 @@ export function ProgressBar({ progress, label, className }: Readonly<ProgressBar
     >
       <div
         className="h-full w-full origin-left rounded-full transition-transform duration-[var(--dur-base)] ease-[var(--ease-standard)] motion-reduce:transition-none"
-        style={{ background: 'var(--primary)', transform: `scaleX(${clamped})` }}
+        style={{ background: color ?? 'var(--primary)', transform: `scaleX(${clamped})` }}
       />
     </div>
   )

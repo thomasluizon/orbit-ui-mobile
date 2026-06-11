@@ -20,6 +20,9 @@ interface HabitCalendarProps {
   logs?: HabitLog[] | null
 }
 
+const navButtonClass =
+  'inline-flex items-center justify-center appearance-none border-0 bg-transparent cursor-pointer rounded-full text-[var(--fg-2)] transition-[background-color,color] duration-150 hover:bg-[var(--bg-elev)] hover:text-[var(--fg-1)]'
+
 export function HabitCalendar({ habitId, logs: externalLogs }: Readonly<HabitCalendarProps>) {
   const t = useTranslations()
   const { displayMonthYear, displayDate } = useDateFormat()
@@ -91,25 +94,38 @@ export function HabitCalendar({ habitId, logs: externalLogs }: Readonly<HabitCal
   }
 
   return (
-    <div className="bg-[var(--bg-sunk)] border border-[var(--hairline)] rounded-xl p-4 shadow-[var(--shadow-sm)]">
-      <div className="flex items-center justify-between mb-4">
+    <div
+      style={{
+        borderRadius: 18,
+        background: 'var(--bg-card)',
+        boxShadow: 'inset 0 0 0 1px var(--hairline)',
+        padding: '16px 14px',
+      }}
+    >
+      <div className="flex items-center justify-between mb-3">
         <button
-          className="p-1.5 rounded-full hover:bg-[var(--bg-elev)]/80 transition-colors duration-150 text-[var(--fg-3)] hover:text-[var(--fg-1)]"
+          type="button"
+          className={navButtonClass}
+          style={{ width: 40, height: 40 }}
           onClick={prevMonth}
         >
-          <ChevronLeft className="size-4" />
+          <ChevronLeft size={18} strokeWidth={1.8} />
         </button>
         <button
-          className="text-sm font-bold text-[var(--fg-1)] capitalize hover:text-[var(--primary-pressed)] transition-colors"
+          type="button"
+          className="capitalize appearance-none border-0 bg-transparent cursor-pointer text-[var(--fg-1)] hover:text-[var(--primary)] transition-colors"
+          style={{ fontFamily: 'var(--font-sans)', fontSize: 16, fontWeight: 500 }}
           onClick={goToToday}
         >
           {monthLabel}
         </button>
         <button
-          className="p-1.5 rounded-full hover:bg-[var(--bg-elev)]/80 transition-colors duration-150 text-[var(--fg-3)] hover:text-[var(--fg-1)]"
+          type="button"
+          className={navButtonClass}
+          style={{ width: 40, height: 40 }}
           onClick={nextMonth}
         >
-          <ChevronRight className="size-4" />
+          <ChevronRight size={18} strokeWidth={1.8} />
         </button>
       </div>
 
@@ -117,7 +133,14 @@ export function HabitCalendar({ habitId, logs: externalLogs }: Readonly<HabitCal
         {weekdays.map((day) => (
           <div
             key={day.key}
-            className="text-center text-[10px] font-bold uppercase tracking-wider text-[var(--fg-3)] py-1"
+            className="text-center uppercase py-1"
+            style={{
+              fontFamily: 'var(--font-mono)',
+              fontSize: 11,
+              fontWeight: 500,
+              letterSpacing: '0.04em',
+              color: 'var(--fg-4)',
+            }}
           >
             {day.label}
           </div>
@@ -132,24 +155,41 @@ export function HabitCalendar({ habitId, logs: externalLogs }: Readonly<HabitCal
           >
             {day.isCurrentMonth && day.isCompleted ? (
               <button
-                className={`size-8 flex items-center justify-center rounded-full text-xs font-bold transition-[filter,box-shadow] cursor-pointer bg-[var(--status-done)] text-[var(--fg-on-primary)] hover:brightness-110 ${
+                type="button"
+                className={`flex size-9 cursor-pointer items-center justify-center rounded-full bg-[var(--status-done)] text-[var(--fg-on-primary)] transition-[filter,box-shadow] hover:brightness-110 ${
                   selectedDate === day.dateStr
-                    ? 'ring-2 ring-primary/50 ring-offset-2 ring-offset-[var(--bg)]'
+                    ? 'ring-2 ring-[var(--primary)]/50 ring-offset-2 ring-offset-[var(--bg)]'
                     : ''
                 }`}
+                style={{
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: 13,
+                  fontWeight: 500,
+                  fontVariantNumeric: 'tabular-nums',
+                }}
                 onClick={() => toggleDay(day.dateStr)}
               >
                 {day.dayNum}
               </button>
             ) : (
               <div
-                className={`size-8 flex items-center justify-center rounded-full text-xs font-medium transition-[opacity,box-shadow,color] ${
+                className={`flex size-9 items-center justify-center rounded-full ${
                   day.isCurrentMonth ? '' : 'opacity-0'
-                } ${
-                  day.isCurrentMonth && day.isToday
-                    ? 'ring-1 ring-primary/50 text-[var(--fg-1)]'
-                    : ''
-                } ${day.isCurrentMonth && !day.isToday ? 'text-[var(--fg-3)]' : ''}`}
+                }`}
+                style={{
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: 13,
+                  fontWeight: 500,
+                  fontVariantNumeric: 'tabular-nums',
+                  color:
+                    day.isCurrentMonth && day.isToday
+                      ? 'var(--fg-1)'
+                      : 'var(--fg-3)',
+                  boxShadow:
+                    day.isCurrentMonth && day.isToday
+                      ? 'inset 0 0 0 1.5px var(--primary)'
+                      : 'none',
+                }}
               >
                 {day.dayNum}
               </div>
@@ -159,22 +199,43 @@ export function HabitCalendar({ habitId, logs: externalLogs }: Readonly<HabitCal
       </div>
 
       {selectedDate && selectedDayLogs.length > 0 && (
-        <div className="mt-3 bg-[var(--bg-sunk)] border border-[var(--hairline)] rounded-lg p-3 overflow-hidden">
+        <div
+          className="mt-3 overflow-hidden"
+          style={{
+            borderRadius: 14,
+            background: 'var(--bg-field)',
+            boxShadow: 'inset 0 0 0 1px var(--hairline)',
+            padding: 12,
+          }}
+        >
           <div className="flex items-center justify-between mb-2">
-            <span className="text-xs font-bold text-[var(--fg-1)]">
+            <span
+              className="text-[var(--fg-1)]"
+              style={{ fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 500 }}
+            >
               {displayDate(parseISO(selectedDate))}
             </span>
             <button
-              className="p-0.5 rounded-full hover:bg-[var(--bg-elev)]/80 transition-colors duration-150 text-[var(--fg-3)] hover:text-[var(--fg-1)]"
+              type="button"
+              className="inline-flex items-center justify-center appearance-none border-0 bg-transparent cursor-pointer rounded-full text-[var(--fg-3)] hover:text-[var(--fg-1)] transition-colors duration-150"
+              style={{ width: 28, height: 28 }}
               onClick={() => setSelectedDate(null)}
             >
-              <X className="size-3.5" />
+              <X size={14} strokeWidth={1.8} />
             </button>
           </div>
           <div className="space-y-2">
             {selectedDayLogs.map((log) => (
               <div key={log.id} className="flex flex-col gap-0.5">
-                <span className="text-[10px] text-[var(--fg-3)]">
+                <span
+                  className="text-[var(--fg-3)]"
+                  style={{
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: 12,
+                    fontVariantNumeric: 'tabular-nums',
+                    letterSpacing: '0.02em',
+                  }}
+                >
                   {t('habits.detail.loggedAt', {
                     time: formatLogTime(log.createdAtUtc),
                   })}
@@ -186,10 +247,27 @@ export function HabitCalendar({ habitId, logs: externalLogs }: Readonly<HabitCal
       )}
 
       <div className="flex items-center justify-between mt-3 px-1">
-        <span className="text-[10px] font-bold uppercase tracking-wider text-[var(--fg-3)]">
+        <span
+          className="uppercase"
+          style={{
+            fontFamily: 'var(--font-sans)',
+            fontSize: 12,
+            fontWeight: 500,
+            letterSpacing: '0.08em',
+            color: 'var(--fg-3)',
+          }}
+        >
           {t('calendar.completionHistory')}
         </span>
-        <span className="text-xs font-bold text-[var(--status-done)]">
+        <span
+          style={{
+            fontFamily: 'var(--font-mono)',
+            fontSize: 13,
+            fontWeight: 500,
+            fontVariantNumeric: 'tabular-nums',
+            color: 'var(--status-done)',
+          }}
+        >
           {totalInMonth}{' '}
           {totalInMonth === 1 ? t('habits.detail.day') : t('habits.detail.days')}
         </span>

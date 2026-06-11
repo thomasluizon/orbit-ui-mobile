@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
 import { AppOverlay } from '@/components/ui/app-overlay'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import { PillButton } from '@/components/ui/pill-button'
 import { ProBadge } from '@/components/ui/pro-badge'
 import { HabitFormFields } from './habit-form-fields'
 import { useHabitForm } from '@/hooks/use-habit-form'
@@ -276,21 +277,25 @@ export function CreateHabitModal({
                 {subHabits.length > 0 && (
                   <div className="space-y-2">
                     {subHabits.map((entry) => (
-                      <div key={entry.id} className="flex items-center gap-2">
+                      <div
+                        key={entry.id}
+                        className="flex items-center rounded-[14px] bg-[var(--bg-field)] shadow-[inset_0_0_0_1px_var(--hairline)] focus-within:shadow-[inset_0_0_0_2px_var(--primary)] transition-[box-shadow] duration-[var(--dur-fast)]"
+                        style={{ minHeight: 48, gap: 10, padding: '0 8px 0 16px' }}
+                      >
                         <input
                           value={entry.value}
                           type="text"
                           maxLength={200}
                           placeholder={t('habits.form.subHabitPlaceholder')}
-                          className="flex-1 bg-[var(--bg-sunk)] text-[var(--fg-1)] placeholder:text-[var(--fg-3)] rounded-lg py-3 px-4 text-sm border border-[var(--hairline)] focus:outline-none focus:border-[var(--primary)] transition-[border-color]"
+                          className="flex-1 min-w-0 bg-transparent text-[15px] text-[var(--fg-1)] placeholder:text-[var(--fg-4)] border-0 focus:outline-none"
                           onChange={(e) => updateSubHabitValue(entry.id, e.target.value)}
                         />
                         <button
                           type="button"
-                          className="shrink-0 p-2 text-[var(--fg-3)] hover:text-[var(--status-bad)] transition-colors duration-150 rounded-full"
+                          className="shrink-0 grid size-9 place-items-center rounded-full text-[var(--fg-4)] hover:text-[var(--status-bad)] transition-colors duration-150"
                           onClick={() => removeSubHabit(entry.id)}
                         >
-                          <Trash2 className="size-4" />
+                          <Trash2 size={16} strokeWidth={1.8} />
                         </button>
                       </div>
                     ))}
@@ -298,11 +303,17 @@ export function CreateHabitModal({
                 )}
                 <button
                   type="button"
-                  className="flex items-center gap-1.5 text-xs font-semibold text-[var(--primary)] hover:text-[var(--primary-pressed)] transition-colors"
+                  className="flex items-center gap-2 text-[var(--fg-3)] hover:text-[var(--primary-pressed)] transition-[color] duration-[var(--dur-fast)] ease-[var(--ease-standard)] disabled:opacity-40"
+                  style={{
+                    padding: '10px 2px',
+                    fontFamily: 'var(--font-sans)',
+                    fontSize: 13,
+                    fontWeight: 500,
+                  }}
                   disabled={subHabits.length >= 20}
                   onClick={() => setSubHabits((prev) => [...prev, createSubHabitEntry()])}
                 >
-                  <Plus className="size-3.5" />
+                  <Plus size={16} strokeWidth={1.8} aria-hidden="true" />
                   {t('habits.form.addSubHabit')}
                 </button>
               </div>
@@ -322,7 +333,8 @@ export function CreateHabitModal({
                   </div>
                   <button
                     type="button"
-                    className="shrink-0 text-xs font-semibold text-[var(--primary)] hover:text-[var(--primary-pressed)] transition-colors"
+                    className="shrink-0 text-[var(--primary)] hover:text-[var(--primary-pressed)] transition-colors duration-150"
+                    style={{ fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 500 }}
                     onClick={() => router.push('/upgrade')}
                   >
                     {t('upgrade.subscribe')}
@@ -334,47 +346,30 @@ export function CreateHabitModal({
         </HabitFormFields>
 
         <div
-          className="flex items-center justify-between"
+          className="flex items-center"
           style={{
-            paddingTop: 12,
+            gap: 12,
+            paddingTop: 14,
             paddingBottom: 8,
           }}
         >
-          <button
-            type="button"
-            className="appearance-none border-0 bg-transparent cursor-pointer disabled:opacity-50"
-            style={{
-              fontFamily: 'var(--font-sans)',
-              fontSize: 14,
-              fontWeight: 500,
-              color: 'var(--fg-3)',
-              padding: 6,
-            }}
+          <PillButton
+            variant="ghost"
             disabled={isPending}
             onClick={dismissGuard.requestDismiss}
           >
             {t('common.cancel')}
-          </button>
-          <button
+          </PillButton>
+          <PillButton
             type="submit"
-            className="appearance-none border-0 cursor-pointer disabled:opacity-50 inline-flex items-center"
-            style={{
-              background: 'var(--primary)',
-              color: 'var(--fg-on-primary)',
-              fontFamily: 'var(--font-sans)',
-              fontSize: 14,
-              fontWeight: 600,
-              padding: '10px 18px',
-              borderRadius: 8,
-              gap: 6,
-            }}
+            className="flex-1"
             disabled={isPending || !formHelpers.form.formState.isValid}
+            leading={isPending ? <Loader2 className="size-[18px] animate-spin" /> : undefined}
           >
-            {isPending && <Loader2 className="size-4 animate-spin" />}
             {isSubHabitMode
               ? t('habits.createSubHabit')
               : t('habits.createHabit')}
-          </button>
+          </PillButton>
         </div>
         </form>
       </AppOverlay>

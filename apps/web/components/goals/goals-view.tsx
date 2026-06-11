@@ -52,17 +52,17 @@ export function GoalsView() {
               type="button"
               aria-label={t('goals.filters.statusFilter')}
               aria-pressed={activeFilter != null}
-              className="appearance-none border-0 cursor-pointer inline-flex items-center justify-center shrink-0"
+              className="appearance-none border-0 cursor-pointer inline-flex items-center justify-center shrink-0 transition-[background-color,color] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:text-[var(--fg-1)]"
               style={{
-                width: 36,
-                height: 36,
-                borderRadius: 8,
+                width: 44,
+                height: 44,
+                borderRadius: 999,
                 color: activeFilter ? 'var(--fg-1)' : 'var(--fg-3)',
                 background: activeFilter ? 'var(--bg-elev)' : 'transparent',
                 boxShadow: activeFilter ? 'inset 0 0 0 1px var(--hairline-strong)' : 'none',
               }}
             >
-              <Filter size={16} strokeWidth={1.6} />
+              <Filter size={18} strokeWidth={1.8} />
             </button>
           }
         >
@@ -110,7 +110,7 @@ export function GoalsView() {
       {!isFetched && (
         <div className="space-y-3">
           {[1, 2, 3].map((i) => (
-            <SkeletonCard key={`skeleton-${i}`} lines={3} className="bg-[var(--bg-sunk)] shadow-[var(--shadow-sm)]" />
+            <SkeletonCard key={`skeleton-${i}`} lines={3} className="rounded-[18px]" />
           ))}
         </div>
       )}

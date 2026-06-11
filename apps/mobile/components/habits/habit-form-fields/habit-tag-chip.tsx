@@ -56,7 +56,8 @@ export function HabitTagChip({
         activeOpacity={0.7}
       >
         <PenSquare
-          size={12}
+          size={13}
+          strokeWidth={1.8}
           color={selected ? tokens.fgOnPrimary : tokens.fg3}
         />
       </TouchableOpacity>
@@ -67,7 +68,8 @@ export function HabitTagChip({
         activeOpacity={0.7}
       >
         <X
-          size={12}
+          size={13}
+          strokeWidth={1.8}
           color={selected ? tokens.fgOnPrimary : tokens.fg3}
         />
       </TouchableOpacity>

@@ -1099,6 +1099,23 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   background: var(--bg-elev);
 }
 
+[data-bubble-role] .prose-orbit > :last-child {
+  margin-bottom: 0;
+}
+
+[data-bubble-role='ai'] .prose-orbit {
+  color: var(--fg-1);
+}
+
+[data-bubble-role='user'] .prose-orbit,
+[data-bubble-role='user'] .prose-orbit :is(strong, em, a, code, li) {
+  color: var(--fg-on-primary);
+}
+
+[data-bubble-role='user'] .prose-orbit code {
+  background: rgba(255, 255, 255, 0.14);
+}
+
 /* Theme transition class (toggled by useColorScheme on scheme change) */
 .theme-transitioning,
 .theme-transitioning * {

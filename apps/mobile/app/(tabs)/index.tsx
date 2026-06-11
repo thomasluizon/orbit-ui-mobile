@@ -64,6 +64,8 @@ import { GoalsView } from "@/components/goals/goals-view";
 import { CreateGoalModal } from "@/components/goals/create-goal-modal";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { AppTextInput } from "@/components/ui/app-text-input";
+import { GradientTop } from "@/components/ui/gradient-top";
+import { ProgressBar } from "@/components/ui/progress-bar";
 import { TagChip } from "@/components/ui/tag-chip";
 import { SectionLabel } from "@/components/ui/section-label";
 import { TrialBanner } from "@/components/ui/trial-banner";
@@ -486,6 +488,18 @@ export default function TodayScreen() {
     return dateLong;
   }, [currentActiveView, dateLong, t]);
 
+  const greetingHour = new Date().getHours();
+  const greetingKey =
+    greetingHour < 12
+      ? "home.greetingMorning"
+      : greetingHour < 18
+        ? "home.greetingAfternoon"
+        : "home.greetingEvening";
+  const greetingFirstName = profile?.name?.trim().split(/\s+/)[0];
+  const greeting = greetingFirstName
+    ? `${t(greetingKey)}, ${greetingFirstName}`
+    : t(greetingKey);
+
   useEffect(() => {
     dateLabelAnim.setValue(0);
     Animated.timing(dateLabelAnim, {
@@ -644,6 +658,16 @@ export default function TodayScreen() {
 
     return ids;
   }, [habitsQuery, visibleTopLevelHabits]);
+
+  const dayProgress = useMemo(() => {
+    const habits = habitsQuery.data?.topLevelHabits ?? EMPTY_NORMALIZED_HABITS;
+    const total = habits.length;
+    const done = habits.filter(
+      (habit) => habit.isCompleted || habit.isLoggedInRange,
+    ).length;
+    return { done, total };
+  }, [habitsQuery.data?.topLevelHabits]);
+  const showDayProgress = currentActiveView === "today" && dayProgress.total > 0;
 
   useEffect(() => {
     Animated.timing(refetchTransitionAnim, {
@@ -962,11 +986,15 @@ export default function TodayScreen() {
   const sharedHeader = useMemo(
     () => (
       <>
+        <GradientTop height={260} />
+
         <TodayHeader
           currentStreak={currentStreak}
           onGoToToday={goToToday}
           goToTodayLabel={t("dates.goToToday")}
-          subtitle={headerSubtitle}
+          dateLine={headerSubtitle}
+          greeting={greeting}
+          topInset={insets.top}
         />
 
         <TrialBanner />
@@ -991,7 +1019,9 @@ export default function TodayScreen() {
     [
       currentActiveView,
       currentStreak,
+      greeting,
       headerSubtitle,
+      insets.top,
       goToToday,
       handleChangeView,
       reviewReminder,
@@ -1025,8 +1055,15 @@ export default function TodayScreen() {
         />
 
         <SectionLabel
+          top={20}
+          bottom={showDayProgress ? 6 : 0}
           trailing={
             <View style={styles.sectionTrailing}>
+              {showDayProgress ? (
+                <Text style={[styles.dayProgressCount, { color: tokens.fg3 }]}>
+                  {dayProgress.done}/{dayProgress.total}
+                </Text>
+              ) : null}
               <Pressable
                 onPress={handleToggleSearch}
                 accessibilityRole="button"
@@ -1087,6 +1124,15 @@ export default function TodayScreen() {
         >
           {t("habits.sectionLabel")}
         </SectionLabel>
+
+        {showDayProgress ? (
+          <View style={styles.dayProgressWrap}>
+            <ProgressBar
+              progress={dayProgress.done / dayProgress.total}
+              label={`${dayProgress.done}/${dayProgress.total} ${t("habits.completed")}`}
+            />
+          </View>
+        ) : null}
 
         <Animated.View
           testID="today-filters-shell"
@@ -1298,6 +1344,7 @@ export default function TodayScreen() {
       dateLabel,
       dateLabelAnim,
       dateStr,
+      dayProgress,
       filtersAnimatedStyle,
       frequencyOptions,
       goToNextDay,
@@ -1322,6 +1369,7 @@ export default function TodayScreen() {
       sharedHeader,
       showCompleted,
       showControlsMenu,
+      showDayProgress,
       showSummary,
       slideDirection,
       styles,
@@ -1338,7 +1386,7 @@ export default function TodayScreen() {
   );
 
   return (
-    <View style={[styles.safeArea, { paddingTop: insets.top }]}>
+    <View style={styles.safeArea}>
       {currentActiveView === "goals" ? (
         <ScrollView
           ref={goalsScrollRef}
@@ -1555,6 +1603,16 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       flexDirection: "row",
       alignItems: "center",
       gap: 4,
+    },
+    dayProgressCount: {
+      fontFamily: 'Roboto_400Regular',
+      fontSize: 14,
+      fontVariant: ['tabular-nums'],
+      marginRight: 6,
+    },
+    dayProgressWrap: {
+      paddingHorizontal: 20,
+      paddingBottom: 6,
     },
     iconBtn: {
       width: 32,

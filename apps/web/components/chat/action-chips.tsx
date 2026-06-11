@@ -60,32 +60,36 @@ const NON_NAVIGABLE_ACTION_TYPES = new Set([
   'DeleteTag',
 ])
 
-const CHIP_STYLES: Record<
-  string,
-  { text: string; bg: string; border: string; Icon: typeof CheckCircle }
-> = {
+interface ChipPalette {
+  color: string
+  background: string
+  ring: string
+  Icon: typeof CheckCircle
+}
+
+const CHIP_STYLES: Record<string, ChipPalette> = {
   Success: {
-    text: 'text-[var(--status-done)]',
-    bg: 'bg-[var(--status-done)]/10',
-    border: 'border-[var(--status-done)]/30',
+    color: 'var(--status-done)',
+    background: 'var(--bg-elev)',
+    ring: 'var(--hairline)',
     Icon: CheckCircle,
   },
   Failed: {
-    text: 'text-[var(--status-bad)]',
-    bg: 'bg-[var(--status-bad)]/10',
-    border: 'border-[var(--status-bad)]/30',
+    color: 'var(--status-bad)',
+    background: 'color-mix(in srgb, var(--status-bad) 10%, transparent)',
+    ring: 'color-mix(in srgb, var(--status-bad) 30%, transparent)',
     Icon: XCircle,
   },
 }
 
-const DEFAULT_CHIP_STYLE = {
-  text: 'text-[var(--fg-2)]',
-  bg: 'bg-[var(--bg-elev)]',
-  border: 'border-[var(--hairline)]',
+const DEFAULT_CHIP_STYLE: ChipPalette = {
+  color: 'var(--fg-2)',
+  background: 'var(--bg-elev)',
+  ring: 'var(--hairline)',
   Icon: Info,
 }
 
-function chipStyle(action: ActionResult) {
+function chipStyle(action: ActionResult): ChipPalette {
   return CHIP_STYLES[action.status] ?? DEFAULT_CHIP_STYLE
 }
 
@@ -117,10 +121,22 @@ export function ActionChips({ actions, onChipClick }: Readonly<ActionChipsProps>
     <div className="flex flex-col gap-2 mt-2">
       {actions.map((action, index) => {
         if (action.status === 'Suggestion') return null
-        const style = chipStyle(action)
-        const IconComponent = style.Icon
+        const palette = chipStyle(action)
+        const IconComponent = palette.Icon
         const navigable = isNavigable(action, !!onChipClick)
-        const chipClassName = `inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-semibold border hover:scale-[1.02] transition-[background-color,border-color,color,transform] duration-150 ${style.text} ${style.bg} ${style.border}`
+        const chipClassName =
+          'inline-flex items-center rounded-full transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)]'
+        const chipStyleProps = {
+          gap: 6,
+          minHeight: 36,
+          padding: '0 14px',
+          fontFamily: 'var(--font-sans)',
+          fontSize: 13,
+          fontWeight: 500,
+          color: palette.color,
+          background: palette.background,
+          boxShadow: `inset 0 0 0 1px ${palette.ring}`,
+        }
 
         return (
           <div
@@ -134,14 +150,15 @@ export function ActionChips({ actions, onChipClick }: Readonly<ActionChipsProps>
                 type="button"
                 onClick={() => onChipClick!(action.entityId!, action.type)}
                 aria-label={t('chat.action.openEntity', { name: actionLabel(action) })}
-                className={`${chipClassName} cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/60`}
+                className={`${chipClassName} cursor-pointer border-0 hover:scale-[1.02] active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]/60`}
+                style={chipStyleProps}
               >
-                <IconComponent className="size-2.5" />
+                <IconComponent size={16} strokeWidth={1.8} />
                 {actionLabel(action)}
               </button>
             ) : (
-              <span className={chipClassName}>
-                <IconComponent className="size-2.5" />
+              <span className={chipClassName} style={chipStyleProps}>
+                <IconComponent size={16} strokeWidth={1.8} />
                 {actionLabel(action)}
               </span>
             )}

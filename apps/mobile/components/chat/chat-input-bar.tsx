@@ -61,7 +61,7 @@ export const ChatInputBar = forwardRef<View, Readonly<ChatInputBarProps>>(
     const { t } = useTranslation();
 
     return (
-      <View style={[styles.inputBar, { borderTopColor: tokens.hairline }]}>
+      <View style={styles.inputBar}>
         {isRecording ? (
           <>
             <View style={styles.recordingContent}>
@@ -83,104 +83,97 @@ export const ChatInputBar = forwardRef<View, Readonly<ChatInputBarProps>>(
               accessibilityLabel={t("chat.stopRecording")}
               activeOpacity={0.7}
               onPress={onToggleRecording}
-              style={[styles.stopButton, { backgroundColor: tokens.fg1 }]}
+              style={styles.stopButton}
             >
-              <Square size={11} color={tokens.bg} fill={tokens.bg} />
+              <Square size={18} color={tokens.statusBad} fill={tokens.statusBad} />
             </TouchableOpacity>
           </>
         ) : (
-          <>
-            <ChatComposerInput
-              transcript={transcript}
-              resetSignal={composerResetSignal}
-              isRecording={isRecording}
-              isTyping={isTyping}
-              atMessageLimit={atMessageLimit}
-              isOnline={isOnline}
-              selectedImagePresent={selectedImagePresent}
-              placeholder={t("chat.placeholder")}
-              tokens={tokens}
-              styles={styles}
-              onSend={onSend}
-            />
-
-            <TouchableOpacity
-              accessibilityRole="button"
-              accessibilityLabel={t("chat.attachImage")}
-              activeOpacity={0.7}
-              disabled={!isOnline}
-              onPress={onOpenFilePicker}
-              style={styles.iconButton}
-            >
-              <ImageIcon size={17} color={tokens.fg3} strokeWidth={1.5} />
-            </TouchableOpacity>
-
-            {speechSupported && (
-              <View ref={voiceRef} style={styles.languageControl}>
+          <ChatComposerInput
+            transcript={transcript}
+            resetSignal={composerResetSignal}
+            isRecording={isRecording}
+            isTyping={isTyping}
+            atMessageLimit={atMessageLimit}
+            isOnline={isOnline}
+            selectedImagePresent={selectedImagePresent}
+            placeholder={t("chat.placeholder")}
+            tokens={tokens}
+            styles={styles}
+            onSend={onSend}
+            fieldAccessories={
+              <>
                 <TouchableOpacity
                   accessibilityRole="button"
-                  accessibilityLabel={t("chat.toggleMic")}
-                  activeOpacity={0.7}
-                  disabled={isTyping || !isOnline}
-                  onPress={onToggleRecording}
-                  style={styles.iconButton}
-                >
-                  <Mic size={17} color={tokens.fg3} strokeWidth={1.5} />
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  accessibilityRole="button"
-                  accessibilityLabel={t("chat.speechLanguage")}
+                  accessibilityLabel={t("chat.attachImage")}
                   activeOpacity={0.7}
                   disabled={!isOnline}
-                  onPress={onToggleLangPicker}
-                  style={styles.languageFlagButton}
+                  onPress={onOpenFilePicker}
+                  style={styles.fieldIconButton}
                 >
-                  <Text style={styles.languageFlagText}>{currentLangFlag}</Text>
+                  <ImageIcon size={18} color={tokens.fg3} strokeWidth={1.8} />
                 </TouchableOpacity>
 
-                {showLangPicker && (
-                  <View
-                    style={[
-                      styles.languagePicker,
-                      {
-                        backgroundColor: tokens.bgElev,
-                        borderColor: tokens.hairlineStrong,
-                      },
-                    ]}
-                  >
-                    {SPEECH_LANGUAGES.map((lang) => (
-                      <TouchableOpacity
-                        key={lang.value}
-                        activeOpacity={0.7}
-                        onPress={() => onSelectLanguage(lang.value)}
-                        style={[
-                          styles.languageOption,
-                          speechLang === lang.value && {
-                            backgroundColor: tokens.bgSunk,
-                          },
-                        ]}
-                      >
-                        <Text style={styles.languageOptionFlag}>{lang.flag}</Text>
-                        <Text
-                          style={[
-                            styles.languageOptionText,
-                            { color: tokens.fg2 },
-                            speechLang === lang.value && {
-                              color: tokens.fg1,
-                              fontWeight: "600",
-                            },
-                          ]}
-                        >
-                          {lang.label}
-                        </Text>
-                      </TouchableOpacity>
-                    ))}
+                {speechSupported && (
+                  <View ref={voiceRef} style={styles.languageControl}>
+                    <TouchableOpacity
+                      accessibilityRole="button"
+                      accessibilityLabel={t("chat.toggleMic")}
+                      activeOpacity={0.7}
+                      disabled={isTyping || !isOnline}
+                      onPress={onToggleRecording}
+                      style={styles.fieldIconButton}
+                    >
+                      <Mic size={18} color={tokens.fg3} strokeWidth={1.8} />
+                    </TouchableOpacity>
+
+                    <TouchableOpacity
+                      accessibilityRole="button"
+                      accessibilityLabel={t("chat.speechLanguage")}
+                      activeOpacity={0.7}
+                      disabled={!isOnline}
+                      onPress={onToggleLangPicker}
+                      style={styles.languageFlagButton}
+                    >
+                      <Text style={styles.languageFlagText}>{currentLangFlag}</Text>
+                    </TouchableOpacity>
+
+                    {showLangPicker && (
+                      <View style={styles.languagePicker}>
+                        {SPEECH_LANGUAGES.map((lang) => (
+                          <TouchableOpacity
+                            key={lang.value}
+                            activeOpacity={0.7}
+                            onPress={() => onSelectLanguage(lang.value)}
+                            style={[
+                              styles.languageOption,
+                              speechLang === lang.value && {
+                                backgroundColor: tokens.bgElev,
+                              },
+                            ]}
+                          >
+                            <Text style={styles.languageOptionFlag}>{lang.flag}</Text>
+                            <Text
+                              style={[
+                                styles.languageOptionText,
+                                { color: tokens.fg2 },
+                                speechLang === lang.value && [
+                                  styles.languageOptionTextSelected,
+                                  { color: tokens.fg1 },
+                                ],
+                              ]}
+                            >
+                              {lang.label}
+                            </Text>
+                          </TouchableOpacity>
+                        ))}
+                      </View>
+                    )}
                   </View>
                 )}
-              </View>
-            )}
-          </>
+              </>
+            }
+          />
         )}
       </View>
     );

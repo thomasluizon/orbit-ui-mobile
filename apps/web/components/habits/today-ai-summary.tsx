@@ -1,7 +1,7 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { Orbit } from 'lucide-react'
+import { Sparkles } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
 import { useSummary } from '@/hooks/use-summary'
 import { useProfile } from '@/hooks/use-profile'
@@ -11,10 +11,10 @@ interface TodayAISummaryProps {
 }
 
 /**
- * Today screen "Astra" block: full-height primary rail on the left, then
- * Orbit glyph + heading and one or two lines of message stacked on the
- * right. No card chrome. Whole block is tappable; tap destination depends on
- * state (pro → /chat, free → /upgrade, error → refetch).
+ * Today screen "Astra" summary card on the kit InfoCard chrome: primary 0.08
+ * tint, 0.28 inset ring, radius 18, sparkles + ASTRA eyebrow over the message.
+ * Whole card is tappable; tap destination depends on state (pro → /chat,
+ * free → /upgrade, error → refetch).
  *
  * - Pro + enabled: shows the AI summary text
  * - Free: shows the upgrade prompt
@@ -83,79 +83,77 @@ export function TodayAISummary({ date }: Readonly<TodayAISummaryProps>) {
       type="button"
       onClick={resolved.onClick}
       aria-label={resolved.label}
-      className="w-full text-left appearance-none border-0 bg-transparent cursor-pointer transition-[opacity] duration-150 hover:opacity-80"
-      style={{
-        padding: '20px 20px 20px',
-      }}
+      className="relative z-[1] w-full text-left appearance-none border-0 bg-transparent cursor-pointer transition-[opacity] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:opacity-90"
+      style={{ padding: '14px 20px 6px' }}
     >
-      <div className="flex items-stretch" style={{ gap: 14 }}>
-        <div
-          aria-hidden="true"
-          style={{
-            width: 2,
-            borderRadius: 1,
-            background: 'var(--primary)',
-            flexShrink: 0,
-          }}
-        />
-        <div className="flex flex-col flex-1 min-w-0" style={{ gap: 8 }}>
-          <div className="flex items-center" style={{ gap: 10 }}>
-            <Orbit
-              size={20}
-              strokeWidth={1.5}
-              color="var(--fg-1)"
-            />
-            <span
-              style={{
-                fontFamily: 'var(--font-sans)',
-                fontSize: 20,
-                fontWeight: 600,
-                color: 'var(--fg-1)',
-                letterSpacing: '-0.01em',
-              }}
-            >
-              Astra
-            </span>
-            <span
-              aria-label={t('aiDisclosure.isAiTooltip')}
-              style={{
-                fontFamily: 'var(--font-mono)',
-                fontSize: 10,
-                fontWeight: 600,
-                letterSpacing: '0.06em',
-                color: 'var(--fg-3)',
-                border: '1px solid var(--hairline)',
-                borderRadius: 4,
-                padding: '1px 5px',
-              }}
-            >
-              {t('aiDisclosure.isAiLabel')}
-            </span>
-          </div>
+      <div
+        style={{
+          borderRadius: 18,
+          padding: '16px 18px',
+          background: 'rgba(var(--primary-rgb), 0.08)',
+          boxShadow: 'inset 0 0 0 1px rgba(var(--primary-rgb), 0.28)',
+        }}
+      >
+        <div className="flex items-center" style={{ gap: 8, marginBottom: 8 }}>
+          <Sparkles
+            size={16}
+            strokeWidth={1.9}
+            color="var(--primary-soft)"
+            aria-hidden="true"
+          />
           <span
             style={{
               fontFamily: 'var(--font-sans)',
-              fontSize: 14,
-              lineHeight: 1.45,
-              color: 'var(--fg-2)',
+              fontSize: 12,
+              fontWeight: 500,
+              letterSpacing: '0.05em',
+              textTransform: 'uppercase',
+              color: 'var(--primary-soft)',
             }}
           >
-            {resolved.text}
+            Astra
           </span>
-          {showDisclaimer && (
-            <span
-              style={{
-                fontFamily: 'var(--font-sans)',
-                fontSize: 11,
-                lineHeight: 1.4,
-                color: 'var(--fg-3)',
-                fontStyle: 'italic',
-              }}
-            >
-              {t('aiDisclosure.notMedicalAdvice')}
-            </span>
-          )}
+          <span
+            aria-label={t('aiDisclosure.isAiTooltip')}
+            style={{
+              fontFamily: 'var(--font-mono)',
+              fontSize: 10,
+              fontWeight: 500,
+              letterSpacing: '0.06em',
+              color: 'var(--fg-3)',
+              boxShadow: 'inset 0 0 0 1px var(--hairline)',
+              borderRadius: 999,
+              padding: '1px 7px',
+            }}
+          >
+            {t('aiDisclosure.isAiLabel')}
+          </span>
         </div>
+        <div
+          style={{
+            fontFamily: 'var(--font-sans)',
+            fontSize: 15,
+            lineHeight: 1.5,
+            color: 'var(--fg-1)',
+            textWrap: 'pretty',
+          }}
+        >
+          {resolved.text}
+        </div>
+        {showDisclaimer && (
+          <div
+            style={{
+              fontFamily: 'var(--font-sans)',
+              fontSize: 11,
+              lineHeight: 1.4,
+              color: 'var(--fg-3)',
+              fontStyle: 'italic',
+              marginTop: 8,
+            }}
+          >
+            {t('aiDisclosure.notMedicalAdvice')}
+          </div>
+        )}
       </div>
     </button>
   )

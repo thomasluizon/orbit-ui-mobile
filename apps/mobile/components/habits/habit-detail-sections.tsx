@@ -1,4 +1,5 @@
 import { StyleSheet, Text, View } from 'react-native'
+import { StatTile } from '@/components/ui/stat-tile'
 import type { createTokensV2 } from '@/lib/theme'
 
 type TranslationFn = (key: string, values?: Record<string, unknown>) => string
@@ -16,6 +17,7 @@ interface HabitDetailStatsRowProps {
   tokens: ReturnType<typeof createTokensV2>
 }
 
+/** Kit StatTile row for the habit detail: streak, longest streak, monthly rate. */
 export function HabitDetailStatsRow({
   metrics,
   loading,
@@ -23,64 +25,41 @@ export function HabitDetailStatsRow({
   tokens,
 }: Readonly<HabitDetailStatsRowProps>) {
   if (metrics && !loading) {
-    const items: { label: string; value: string }[] = [
-      {
-        label: t('habits.detail.currentStreak'),
-        value: String(metrics.currentStreak),
-      },
-      {
-        label: t('habits.detail.longestStreak'),
-        value: String(metrics.longestStreak),
-      },
-      {
-        label: t('habits.detail.monthlyRate'),
-        value: `${Math.round(metrics.monthlyCompletionRate)}%`,
-      },
-    ]
     return (
-      <View
-        style={[
-          rowStyles.row,
-          { borderBottomColor: tokens.hairline },
-        ]}
-      >
-        {items.map((item) => (
-          <View key={item.label} style={rowStyles.cell}>
-            <Text style={[rowStyles.label, { color: tokens.fg3 }]}>
-              {item.label}
-            </Text>
-            <Text style={[rowStyles.value, { color: tokens.fg1 }]}>
-              {item.value}
-            </Text>
-          </View>
-        ))}
+      <View style={rowStyles.tilesRow}>
+        <StatTile
+          emoji="🔥"
+          value={String(metrics.currentStreak)}
+          label={t('habits.detail.currentStreak')}
+        />
+        <StatTile
+          emoji="🏆"
+          value={String(metrics.longestStreak)}
+          label={t('habits.detail.longestStreak')}
+        />
+        <StatTile
+          emoji="📈"
+          value={`${Math.round(metrics.monthlyCompletionRate)}%`}
+          label={t('habits.detail.monthlyRate')}
+        />
       </View>
     )
   }
 
   if (!metrics && loading) {
     return (
-      <View
-        style={[
-          rowStyles.row,
-          { borderBottomColor: tokens.hairline },
-        ]}
-      >
+      <View style={rowStyles.tilesRow}>
         {[1, 2, 3].map((i) => (
-          <View key={i} style={rowStyles.cell}>
-            <View
-              style={[
-                rowStyles.skeletonLabel,
-                { backgroundColor: tokens.hairlineStrong },
-              ]}
-            />
-            <View
-              style={[
-                rowStyles.skeletonValue,
-                { backgroundColor: tokens.hairlineStrong },
-              ]}
-            />
-          </View>
+          <View
+            key={i}
+            style={[
+              rowStyles.skeletonTile,
+              {
+                backgroundColor: tokens.bgField,
+                borderColor: tokens.hairline,
+              },
+            ]}
+          />
         ))}
       </View>
     )
@@ -99,37 +78,17 @@ export function HabitDetailStatsRow({
 }
 
 const rowStyles = StyleSheet.create({
-  row: {
+  tilesRow: {
     flexDirection: 'row',
+    gap: 12,
     paddingHorizontal: 20,
-    paddingVertical: 14,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    paddingBottom: 12,
   },
-  cell: {
+  skeletonTile: {
     flex: 1,
-    gap: 6,
-  },
-  label: {
-    fontFamily: 'Rubik_500Medium',
-    fontSize: 11,
-    },
-  value: {
-    fontFamily: 'Roboto_500Medium',
-    fontSize: 24,
-    letterSpacing: -0.48,
-    lineHeight: 26,
-    fontVariant: ['tabular-nums'],
-  },
-  skeletonLabel: {
-    width: 60,
-    height: 11,
-    borderRadius: 4,
-    opacity: 0.5,
-  },
-  skeletonValue: {
-    width: 40,
-    height: 24,
-    borderRadius: 4,
+    height: 110,
+    borderRadius: 18,
+    borderWidth: 1,
     opacity: 0.5,
   },
   empty: {

@@ -59,16 +59,17 @@ function createStyles(tokens: AppTokens) {
       gap: 8,
     },
     chip: {
+      minHeight: 44,
+      justifyContent: "center",
       paddingHorizontal: 16,
-      paddingVertical: 8,
-      borderRadius: 9999,
+      borderRadius: 999,
       backgroundColor: tokens.bgElev,
       borderWidth: 1,
       borderColor: tokens.hairline,
     },
     chipText: {
-      fontSize: 12,
-      fontWeight: "500",
+      fontFamily: 'Rubik_500Medium',
+      fontSize: 13,
       color: tokens.fg1,
     },
   });

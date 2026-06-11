@@ -102,6 +102,8 @@ vi.mock('lucide-react-native', () => {
     ChevronRight: createIcon('ChevronRight'),
     Flame: createIcon('Flame'),
     PencilLine: createIcon('PencilLine'),
+    Plus: createIcon('Plus'),
+    Repeat: createIcon('Repeat'),
     RotateCw: createIcon('RotateCw'),
     Orbit: createIcon('Orbit'),
     Trash2: createIcon('Trash2'),
@@ -174,7 +176,7 @@ describe('GoalDetailDrawer', () => {
     const textContent = collectText(tree.toJSON())
 
     expect(textContent).toContain('goals.progress')
-    expect(textContent).toContain('goals.progressPercentage:{"pct":25}')
+    expect(textContent).toContain('25%')
   })
 
   it('opens the progress form when the edit affordance is tapped', () => {

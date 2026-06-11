@@ -56,7 +56,7 @@ export function MoreOptionsToggle({
         activeOpacity={0.7}
       >
         <View style={expanded ? styles.chevronRotated : undefined}>
-          <ChevronDown size={16} color={tokens.fg2} />
+          <ChevronDown size={16} color={tokens.fg2} strokeWidth={1.8} />
         </View>
         <Text style={styles.moreOptionsLabel}>
           {t("habits.form.moreOptions")}

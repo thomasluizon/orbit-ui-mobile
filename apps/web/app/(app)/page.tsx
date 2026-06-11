@@ -27,6 +27,8 @@ import { GoalsView } from '@/components/goals/goals-view'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { ControlsMenu } from '@/components/habits/controls-menu'
 import { BulkActionBarV2 } from '@/components/habits/bulk-action-bar-v2'
+import { GradientTop } from '@/components/ui/gradient-top'
+import { ProgressBar } from '@/components/ui/progress-bar'
 import { SectionLabel } from '@/components/ui/section-label'
 import { useUIStore } from '@/stores/ui-store'
 import { useProfile } from '@/hooks/use-profile'
@@ -34,6 +36,7 @@ import { useStreakInfo } from '@/hooks/use-gamification'
 import {
   EMPTY_CHILDREN_BY_PARENT,
   EMPTY_HABITS_BY_ID,
+  EMPTY_NORMALIZED_HABITS,
   useHabits,
 } from '@/hooks/use-habits'
 import { useTags } from '@/hooks/use-tags'
@@ -225,6 +228,18 @@ export default function TodayPage() {
     })
   }, [currentActiveView, selectedDate, locale, t])
 
+  const greetingHour = new Date().getHours()
+  const greetingKey =
+    greetingHour < 12
+      ? 'home.greetingMorning'
+      : greetingHour < 18
+        ? 'home.greetingAfternoon'
+        : 'home.greetingEvening'
+  const greetingFirstName = profile?.name?.trim().split(/\s+/)[0]
+  const greeting = greetingFirstName
+    ? `${t(greetingKey)}, ${greetingFirstName}`
+    : t(greetingKey)
+
   const tabItems = useMemo<TodayTabItem[]>(
     () =>
       TAB_VIEWS.map((view) => ({
@@ -311,6 +326,16 @@ export default function TodayPage() {
   const hasFetched = habitsQuery.dataUpdatedAt > 0
   const isRefetching = habitsQuery.isFetching && hasFetched
 
+  const topLevelHabits = habitsQuery.data?.topLevelHabits ?? EMPTY_NORMALIZED_HABITS
+  const dayProgress = useMemo(() => {
+    const total = topLevelHabits.length
+    const done = topLevelHabits.filter(
+      (habit) => habit.isCompleted || habit.isLoggedInRange,
+    ).length
+    return { done, total }
+  }, [topLevelHabits])
+  const showDayProgress = currentActiveView === 'today' && dayProgress.total > 0
+
   const getDescendantIds = useCallback(
     (parentId: string): string[] => {
       return collectSelectableDescendantIds(
@@ -393,9 +418,20 @@ export default function TodayPage() {
 
   return (
     <div className="relative">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-y-0 -z-10"
+        style={{
+          left: 'calc(var(--app-px) * -1)',
+          right: 'calc(var(--app-px) * -1)',
+        }}
+      >
+        <GradientTop height={260} />
+      </div>
+
       <TodayHeader
-        title={t('common.appName')}
-        subtitle={headerSubtitle}
+        dateLine={headerSubtitle}
+        greeting={greeting}
         streak={streakInfo?.currentStreak ?? 0}
       />
 
@@ -438,7 +474,35 @@ export default function TodayPage() {
           role="tabpanel"
           aria-labelledby={`tab-${currentActiveView}`}
         >
-          <SectionLabel top={20} bottom={0}>{t('habits.sectionLabel')}</SectionLabel>
+          <SectionLabel
+            top={20}
+            bottom={showDayProgress ? 6 : 0}
+            trailing={
+              showDayProgress ? (
+                <span
+                  style={{
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: 14,
+                    color: 'var(--fg-3)',
+                    fontVariantNumeric: 'tabular-nums',
+                  }}
+                >
+                  {dayProgress.done}/{dayProgress.total}
+                </span>
+              ) : undefined
+            }
+          >
+            {t('habits.sectionLabel')}
+          </SectionLabel>
+
+          {showDayProgress && (
+            <div style={{ padding: '0 20px 6px' }}>
+              <ProgressBar
+                progress={dayProgress.done / dayProgress.total}
+                label={`${dayProgress.done}/${dayProgress.total} ${t('habits.completed')}`}
+              />
+            </div>
+          )}
 
           <motion.div layout transition={listTransition}>
             <TodayUtilityRow
@@ -482,33 +546,53 @@ export default function TodayPage() {
           )}
 
           {!hasFetched && (
-            <div className="stagger-enter">
+            <div className="stagger-enter" style={{ padding: '12px 20px 8px' }}>
               {SKELETON_KEYS.map((key) => (
                 <div
                   key={key}
-                  className="flex items-center"
+                  className="flex items-center animate-pulse"
                   style={{
-                    padding: '16px 20px',
+                    padding: '14px 16px',
                     gap: 14,
-                    borderBottom: '1px solid var(--hairline)',
+                    borderRadius: 18,
+                    background: 'var(--bg-card)',
+                    boxShadow: 'inset 0 0 0 1px var(--hairline)',
+                    marginBottom: 10,
                   }}
                 >
+                  <div
+                    className="shrink-0"
+                    style={{
+                      width: 46,
+                      height: 46,
+                      borderRadius: 14,
+                      background: 'color-mix(in srgb, var(--fg-1) 8%, transparent)',
+                    }}
+                  />
                   <div className="flex-1 flex flex-col" style={{ gap: 8 }}>
                     <div
-                      className="rounded-sm animate-pulse"
-                      style={{ width: '55%', height: 10, background: 'var(--bg-sunk)' }}
+                      style={{
+                        width: '55%',
+                        height: 12,
+                        borderRadius: 6,
+                        background: 'color-mix(in srgb, var(--fg-1) 8%, transparent)',
+                      }}
                     />
                     <div
-                      className="rounded-sm animate-pulse"
-                      style={{ width: '30%', height: 7, background: 'var(--bg-sunk)' }}
+                      style={{
+                        width: '32%',
+                        height: 12,
+                        borderRadius: 6,
+                        background: 'color-mix(in srgb, var(--fg-1) 8%, transparent)',
+                      }}
                     />
                   </div>
                   <div
                     className="rounded-full shrink-0"
                     style={{
-                      width: 9,
-                      height: 9,
-                      boxShadow: 'inset 0 0 0 1.5px var(--hairline-strong)',
+                      width: 30,
+                      height: 30,
+                      background: 'color-mix(in srgb, var(--fg-1) 8%, transparent)',
                     }}
                   />
                 </div>

@@ -8,7 +8,6 @@ import { AppOverlay } from '@/components/ui/app-overlay'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { SectionLabel } from '@/components/ui/section-label'
 import { SettingsRow } from '@/components/ui/settings-row'
-import { InfoRow } from '@/components/ui/info-row'
 import { PullQuote } from '@/components/chat/pull-quote'
 import { HabitChecklist } from './habit-checklist'
 import { HabitCalendar } from './habit-calendar'
@@ -133,6 +132,56 @@ export function HabitDetailDrawer({
         open={open}
         onOpenChange={onOpenChange}
         title={habit?.title}
+        titleContent={
+          habit ? (
+            <span className="flex items-center gap-3">
+              {habit.emoji ? (
+                <span
+                  aria-hidden="true"
+                  className="inline-flex shrink-0 items-center justify-center"
+                  style={{
+                    width: 46,
+                    height: 46,
+                    borderRadius: 14,
+                    fontSize: 22,
+                    background: habit.isBadHabit
+                      ? 'color-mix(in srgb, var(--status-bad) 12%, transparent)'
+                      : 'var(--bg-elev)',
+                  }}
+                >
+                  {habit.emoji}
+                </span>
+              ) : null}
+              <span className="flex min-w-0 flex-col" style={{ gap: 2 }}>
+                <span
+                  className="truncate"
+                  style={{
+                    fontFamily: 'var(--font-sans)',
+                    fontSize: 22,
+                    fontWeight: 500,
+                    lineHeight: 1.3,
+                    color: 'var(--fg-1)',
+                  }}
+                >
+                  {habit.title}
+                </span>
+                {summaryStrip ? (
+                  <span
+                    className="truncate"
+                    style={{
+                      fontFamily: 'var(--font-sans)',
+                      fontSize: 13,
+                      fontWeight: 400,
+                      color: habit.isBadHabit ? 'var(--status-bad)' : 'var(--fg-3)',
+                    }}
+                  >
+                    {summaryStrip}
+                  </span>
+                ) : null}
+              </span>
+            </span>
+          ) : undefined
+        }
         description={habit?.description ?? undefined}
         expandable
         onExpandDescription={() => setDescriptionViewerOpen(true)}
@@ -172,8 +221,6 @@ export function HabitDetailDrawer({
       >
         {habit && (
           <div className="-mx-6">
-            {summaryStrip ? <InfoRow label={summaryStrip} /> : null}
-
             {habit.dueTime && (
               <SettingsRow
                 label={t('habits.form.dueTime')}

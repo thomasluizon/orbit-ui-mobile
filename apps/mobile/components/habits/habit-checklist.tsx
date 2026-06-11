@@ -8,8 +8,9 @@ import {
 import { ChevronUp, ChevronDown, X, Copy, Check } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import type { ChecklistItem } from '@orbit/shared/types/habit'
-import { createTokensV2, radius } from '@/lib/theme'
+import { createTokensV2 } from '@/lib/theme'
 import { BottomSheetAppTextInput } from '@/components/ui/bottom-sheet-app-text-input'
+import { ProgressBar } from '@/components/ui/progress-bar'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 interface HabitChecklistProps {
@@ -146,7 +147,6 @@ export function HabitChecklist({
   const styles = useMemo(() => createStyles(tokens), [tokens])
 
   const checkedCount = items.filter((i) => i.isChecked).length
-  const progressPercent = items.length > 0 ? (checkedCount / items.length) * 100 : 0
 
   useEffect(() => {
     return () => {
@@ -223,11 +223,11 @@ export function HabitChecklist({
     <View style={styles.container}>
       {items.length > 0 && !editable && (
         <View style={styles.progressRow}>
-          <View style={styles.progressBarOuter}>
-            <View
-              style={[styles.progressBarInner, { width: `${progressPercent}%` }]}
-            />
-          </View>
+          <ProgressBar
+            progress={items.length > 0 ? checkedCount / items.length : 0}
+            label={`${checkedCount}/${items.length}`}
+            style={styles.progressBar}
+          />
           <Text style={styles.progressText}>
             {checkedCount}/{items.length}
           </Text>
@@ -264,38 +264,49 @@ export function HabitChecklist({
           ))}
         </View>
       ) : (
-        <View style={styles.itemsList}>
-          {items.map((item, index) => (
-            <View key={`${item.text}-${index}`} style={styles.interactiveItem}>
-              {interactive && (
-                <TouchableOpacity
-                  onPress={() => handleToggle(index)}
-                  activeOpacity={0.7}
-                >
-                  <View
-                    style={[
-                      styles.checkbox,
-                      item.isChecked
-                        ? styles.checkboxChecked
-                        : styles.checkboxUnchecked,
-                    ]}
-                  >
-                    {item.isChecked && <Check size={12} color={tokens.fgOnPrimary} />}
-                  </View>
-                </TouchableOpacity>
-              )}
-              <Text
+        items.length > 0 && (
+          <View style={styles.itemsCard}>
+            {items.map((item, index) => (
+              <View
+                key={`${item.text}-${index}`}
                 style={[
-                  styles.itemText,
-                  item.isChecked && styles.itemTextChecked,
+                  styles.interactiveItem,
+                  index < items.length - 1 ? styles.interactiveItemDivider : null,
                 ]}
-                numberOfLines={2}
               >
-                {item.text}
-              </Text>
-            </View>
-          ))}
-        </View>
+                {interactive && (
+                  <TouchableOpacity
+                    onPress={() => handleToggle(index)}
+                    activeOpacity={0.7}
+                    hitSlop={9}
+                  >
+                    <View
+                      style={[
+                        styles.checkbox,
+                        item.isChecked
+                          ? styles.checkboxChecked
+                          : styles.checkboxUnchecked,
+                      ]}
+                    >
+                      {item.isChecked && (
+                        <Check size={15} color={tokens.fgOnPrimary} strokeWidth={3} />
+                      )}
+                    </View>
+                  </TouchableOpacity>
+                )}
+                <Text
+                  style={[
+                    styles.itemText,
+                    item.isChecked && styles.itemTextChecked,
+                  ]}
+                  numberOfLines={2}
+                >
+                  {item.text}
+                </Text>
+              </View>
+            ))}
+          </View>
+        )
       )}
 
       {editable && items.length > 0 && (
@@ -311,7 +322,7 @@ export function HabitChecklist({
           <BottomSheetAppTextInput
             value={newItemText}
             placeholder={t('habits.form.checklistPlaceholder')}
-            placeholderTextColor={tokens.fg3}
+            placeholderTextColor={tokens.fg4}
             style={styles.addItemInput}
             onChangeText={setNewItemText}
             onSubmitEditing={addItem}
@@ -337,39 +348,30 @@ export function HabitChecklist({
 function createStyles(tokens: AppTokens) {
   return StyleSheet.create({
   container: {
-    gap: 8,
+    gap: 12,
   },
   progressRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
   },
-  progressBarOuter: {
+  progressBar: {
     flex: 1,
-    height: 6,
-    backgroundColor: tokens.bgElev,
-    borderRadius: radius.full,
-    overflow: 'hidden',
-  },
-  progressBarInner: {
-    height: '100%',
-    backgroundColor: tokens.primary,
-    borderRadius: radius.full,
   },
   progressText: {
-    fontSize: 10,
-    fontWeight: '700',
+    fontFamily: 'Roboto_400Regular',
+    fontSize: 12,
     color: tokens.fg3,
     fontVariant: ['tabular-nums'],
   },
   resetText: {
-    fontSize: 10,
-    fontWeight: '600',
+    fontFamily: 'Rubik_500Medium',
+    fontSize: 12,
     color: tokens.primary,
   },
   clearText: {
-    fontSize: 10,
-    fontWeight: '600',
+    fontFamily: 'Rubik_500Medium',
+    fontSize: 12,
     color: tokens.statusBad,
   },
   clearRow: {
@@ -377,6 +379,13 @@ function createStyles(tokens: AppTokens) {
   },
   itemsList: {
     gap: 4,
+  },
+  itemsCard: {
+    borderRadius: 18,
+    backgroundColor: tokens.bgCard,
+    borderWidth: 1,
+    borderColor: tokens.hairline,
+    overflow: 'hidden',
   },
   editableItem: {
     flexDirection: 'row',
@@ -397,14 +406,15 @@ function createStyles(tokens: AppTokens) {
     justifyContent: 'center',
   },
   uncheckedBox: {
-    width: 16,
-    height: 16,
-    borderRadius: 4,
+    width: 26,
+    height: 26,
+    borderRadius: 8,
     borderWidth: 2,
-    borderColor: tokens.hairline,
+    borderColor: tokens.fg4,
   },
   itemTextInput: {
     flex: 1,
+    fontFamily: 'Rubik_400Regular',
     fontSize: 14,
     color: tokens.fg1,
     paddingVertical: 4,
@@ -418,27 +428,32 @@ function createStyles(tokens: AppTokens) {
   interactiveItem: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    paddingVertical: 4,
+    gap: 14,
+    paddingVertical: 15,
+    paddingHorizontal: 18,
+  },
+  interactiveItemDivider: {
+    borderBottomWidth: 1,
+    borderBottomColor: tokens.hairline,
   },
   checkbox: {
-    width: 20,
-    height: 20,
-    borderRadius: 6,
-    borderWidth: 2,
+    width: 26,
+    height: 26,
+    borderRadius: 8,
     alignItems: 'center',
     justifyContent: 'center',
   },
   checkboxChecked: {
     backgroundColor: tokens.primary,
-    borderColor: tokens.primary,
   },
   checkboxUnchecked: {
-    borderColor: tokens.hairline,
+    borderWidth: 2,
+    borderColor: tokens.fg4,
   },
   itemText: {
     flex: 1,
-    fontSize: 14,
+    fontFamily: 'Rubik_400Regular',
+    fontSize: 16,
     color: tokens.fg1,
   },
   itemTextChecked: {
@@ -450,22 +465,23 @@ function createStyles(tokens: AppTokens) {
   },
   addItemInput: {
     flex: 1,
-    backgroundColor: tokens.bgElev,
+    backgroundColor: tokens.bgField,
     color: tokens.fg1,
     paddingVertical: 8,
     paddingHorizontal: 12,
+    fontFamily: 'Rubik_400Regular',
     fontSize: 14,
     borderWidth: 1,
     borderColor: tokens.hairline,
-    borderTopLeftRadius: radius.xl,
-    borderBottomLeftRadius: radius.xl,
+    borderTopLeftRadius: 14,
+    borderBottomLeftRadius: 14,
     borderRightWidth: 0,
   },
   addItemButton: {
     paddingHorizontal: 16,
     paddingVertical: 8,
-    borderTopRightRadius: radius.xl,
-    borderBottomRightRadius: radius.xl,
+    borderTopRightRadius: 14,
+    borderBottomRightRadius: 14,
     backgroundColor: tokens.primary,
     justifyContent: 'center',
   },
@@ -473,9 +489,9 @@ function createStyles(tokens: AppTokens) {
     opacity: 0.4,
   },
   addItemButtonText: {
+    fontFamily: 'Rubik_500Medium',
+    fontSize: 13,
     color: tokens.fgOnPrimary,
-    fontSize: 12,
-    fontWeight: '700',
   },
   })
 }

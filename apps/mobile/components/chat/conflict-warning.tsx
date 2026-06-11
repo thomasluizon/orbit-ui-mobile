@@ -3,7 +3,7 @@ import { View, Text, StyleSheet } from "react-native";
 import { AlertTriangle } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import type { ConflictWarning as ConflictWarningType } from "@orbit/shared/types/chat";
-import { createTokensV2, radius } from '@/lib/theme';
+import { createTokensV2 } from '@/lib/theme';
 import { useAppTheme } from "@/lib/use-app-theme";
 
 type AppTokens = ReturnType<typeof createTokensV2>
@@ -100,7 +100,7 @@ export function ConflictWarning({ warning }: Readonly<ConflictWarningProps>) {
 
 const styles = StyleSheet.create({
   container: {
-    borderRadius: radius.lg,
+    borderRadius: 16,
     borderWidth: 1,
     paddingHorizontal: 16,
     paddingVertical: 12,
@@ -113,21 +113,23 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   title: {
+    fontFamily: 'Rubik_600SemiBold',
     fontSize: 12,
-    fontWeight: "700",
   },
   habitsList: {
     gap: 2,
     marginBottom: 6,
   },
   habitText: {
+    fontFamily: 'Rubik_400Regular',
     fontSize: 12,
     lineHeight: 16,
   },
   habitName: {
-    fontWeight: "600",
+    fontFamily: 'Rubik_500Medium',
   },
   recommendation: {
+    fontFamily: 'Rubik_400Regular',
     fontSize: 11,
     opacity: 0.8,
   },

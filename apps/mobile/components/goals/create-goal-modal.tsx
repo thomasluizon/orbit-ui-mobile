@@ -1,6 +1,7 @@
 import { useState, useCallback, useMemo } from 'react'
 import {
   ActivityIndicator,
+  Pressable,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -14,7 +15,7 @@ import { BottomSheetAppTextInput } from '@/components/ui/bottom-sheet-app-text-i
 import { AppDatePicker } from '@/components/ui/app-date-picker'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { KeyboardAwareBottomSheetScrollView } from '@/components/ui/keyboard-aware-scroll-view'
-import { SectionLabel } from '@/components/ui/section-label'
+import { PillButton } from '@/components/ui/pill-button'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useDismissGuard } from '@/hooks/use-dismiss-guard'
 import { useCreateGoal } from '@/hooks/use-goals'
@@ -48,6 +49,22 @@ interface CreateGoalRequest {
   type?: 'Standard' | 'Streak'
 }
 
+const goalTypeOptions = [
+  {
+    key: 'Standard',
+    titleKey: 'goals.form.typeStandard',
+    descKey: 'goals.form.typeStandardDescription',
+    icon: Target,
+  },
+  {
+    key: 'Streak',
+    titleKey: 'goals.form.typeStreak',
+    descKey: 'goals.form.typeStreakHintGood',
+    hintKey: 'goals.form.typeStreakHintBad',
+    icon: Flame,
+  },
+] as const
+
 export function CreateGoalModal({ open, onClose }: CreateGoalModalProps) {
   const { t } = useTranslation()
   const translate = useCallback(
@@ -79,6 +96,16 @@ export function CreateGoalModal({ open, onClose }: CreateGoalModalProps) {
     targetValue.trim().length > 0 ||
     unit.trim().length > 0 ||
     deadline.length > 0
+
+  const resetForm = useCallback(() => {
+    setGoalType('Standard')
+    setDescription('')
+    setTargetValue('')
+    setUnit('')
+    setDeadline('')
+    setSubmitted(false)
+  }, [])
+
   const dismissGuard = useDismissGuard({
     isDirty,
     onDismiss: () => {
@@ -112,14 +139,8 @@ export function CreateGoalModal({ open, onClose }: CreateGoalModalProps) {
     return errs
   }, [submitted, description, targetValue, unit, translate])
 
-  const resetForm = useCallback(() => {
-    setGoalType('Standard')
-    setDescription('')
-    setTargetValue('')
-    setUnit('')
-    setDeadline('')
-    setSubmitted(false)
-  }, [])
+  const activeTypeOption =
+    goalTypeOptions.find((option) => option.key === goalType) ?? goalTypeOptions[0]
 
   const handleTypeChange = useCallback(
     (type: GoalType) => {
@@ -195,7 +216,8 @@ export function CreateGoalModal({ open, onClose }: CreateGoalModalProps) {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="always"
         >
-          <View style={styles.titleField}>
+          <View>
+            <Text style={styles.fieldLabel}>{t('goals.form.description')}</Text>
             <BottomSheetAppTextInput
               value={description}
               onChangeText={setDescription}
@@ -207,7 +229,6 @@ export function CreateGoalModal({ open, onClose }: CreateGoalModalProps) {
               placeholderTextColor={tokens.fg4}
               maxLength={MAX_GOAL_DESCRIPTION_LENGTH}
               accessibilityLabel={t('goals.form.description')}
-              style={[styles.titleInput, { color: tokens.fg1 }]}
             />
             {fieldErrors.description ? (
               <Text style={styles.fieldError} accessibilityRole="alert">
@@ -217,138 +238,106 @@ export function CreateGoalModal({ open, onClose }: CreateGoalModalProps) {
           </View>
 
           <View>
-            <SectionLabel top={0} bottom={8}>
-              {t('goals.form.type')}
-            </SectionLabel>
-            <View style={styles.typeCardsColumn}>
-              {(
-                [
-                  {
-                    key: 'Standard',
-                    titleKey: 'goals.form.typeStandard',
-                    descKey: 'goals.form.typeStandardDescription',
-                    icon: Target,
-                  },
-                  {
-                    key: 'Streak',
-                    titleKey: 'goals.form.typeStreak',
-                    descKey: 'goals.form.typeStreakHintGood',
-                    hintKey: 'goals.form.typeStreakHintBad',
-                    icon: Flame,
-                  },
-                ] as const
-              ).map((card) => {
-                const isActive = goalType === card.key
-                const CardIcon = card.icon
+            <Text style={styles.fieldLabel}>{t('goals.form.type')}</Text>
+            <View
+              style={styles.typeRow}
+              accessibilityRole="radiogroup"
+              accessibilityLabel={t('goals.form.type')}
+            >
+              {goalTypeOptions.map((option) => {
+                const isActive = goalType === option.key
+                const OptionIcon = option.icon
                 return (
-                  <TouchableOpacity
-                    key={card.key}
+                  <Pressable
+                    key={option.key}
                     style={[
-                      styles.typeCard,
-                      isActive
-                        ? styles.typeCardActive
-                        : styles.typeCardInactive,
+                      styles.typeOption,
+                      isActive ? styles.typeOptionActive : styles.typeOptionInactive,
                     ]}
-                    onPress={() => handleTypeChange(card.key)}
-                    activeOpacity={0.7}
+                    onPress={() => handleTypeChange(option.key)}
                     accessibilityRole="button"
+                    accessibilityLabel={t(option.titleKey)}
                     accessibilityState={{ selected: isActive }}
                   >
-                    <View style={styles.typeCardHeader}>
-                      <CardIcon
-                        size={18}
-                        color={isActive ? tokens.fg1 : tokens.fg3}
-                      />
-                      <Text
-                        style={[
-                          styles.typeCardTitle,
-                          isActive
-                            ? styles.typeCardTitleActive
-                            : styles.typeCardTitleInactive,
-                        ]}
-                      >
-                        {t(card.titleKey)}
-                      </Text>
-                    </View>
-                    {isActive ? (
-                      <View style={styles.typeCardBody}>
-                        <Text style={styles.typeCardDesc}>
-                          {t(card.descKey)}
-                        </Text>
-                        {'hintKey' in card && card.hintKey ? (
-                          <Text style={styles.typeCardHint}>
-                            {t(card.hintKey)}
-                          </Text>
-                        ) : null}
-                      </View>
-                    ) : null}
-                  </TouchableOpacity>
+                    <OptionIcon
+                      size={18}
+                      strokeWidth={1.8}
+                      color={isActive ? tokens.fgOnPrimary : tokens.fg2}
+                    />
+                    <Text
+                      style={[
+                        styles.typeOptionText,
+                        { color: isActive ? tokens.fgOnPrimary : tokens.fg2 },
+                      ]}
+                    >
+                      {t(option.titleKey)}
+                    </Text>
+                  </Pressable>
                 )
               })}
             </View>
-          </View>
-
-          <View>
-            <SectionLabel top={4} bottom={8}>
-              {t('goals.form.target')}
-            </SectionLabel>
-            <View style={styles.row}>
-              <View style={isStreak ? styles.fullField : styles.halfField}>
-                <Text style={styles.fieldLabel}>
-                  {isStreak
-                    ? t('goals.form.streakTarget')
-                    : t('goals.form.targetValue')}
-                </Text>
-                <BottomSheetAppTextInput
-                  style={styles.input}
-                  value={targetValue}
-                  onChangeText={setTargetValue}
-                  keyboardType="decimal-pad"
-                  placeholder={
-                    isStreak ? t('goals.form.streakTargetPlaceholder') : '0'
-                  }
-                  placeholderTextColor={tokens.fg4}
-                  accessibilityLabel={
-                    isStreak
-                      ? t('goals.form.streakTarget')
-                      : t('goals.form.targetValue')
-                  }
-                />
-                {fieldErrors.targetValue ? (
-                  <Text style={styles.fieldError} accessibilityRole="alert">
-                    {fieldErrors.targetValue}
-                  </Text>
-                ) : null}
-              </View>
-              {!isStreak ? (
-                <View style={styles.halfField}>
-                  <Text style={styles.fieldLabel}>{t('goals.form.unit')}</Text>
-                  <BottomSheetAppTextInput
-                    style={styles.input}
-                    value={unit}
-                    onChangeText={setUnit}
-                    placeholder={t('goals.form.unitPlaceholder')}
-                    placeholderTextColor={tokens.fg4}
-                    maxLength={50}
-                    accessibilityLabel={t('goals.form.unit')}
-                  />
-                  {fieldErrors.unit ? (
-                    <Text style={styles.fieldError} accessibilityRole="alert">
-                      {fieldErrors.unit}
-                    </Text>
-                  ) : null}
-                </View>
+            <View style={styles.typeCaption}>
+              <Text style={styles.typeDesc}>{t(activeTypeOption.descKey)}</Text>
+              {'hintKey' in activeTypeOption && activeTypeOption.hintKey ? (
+                <Text style={styles.typeHint}>{t(activeTypeOption.hintKey)}</Text>
               ) : null}
             </View>
           </View>
 
+          <View style={styles.row}>
+            <View style={isStreak ? styles.fullField : styles.halfField}>
+              <Text style={styles.fieldLabel}>
+                {isStreak
+                  ? t('goals.form.streakTarget')
+                  : t('goals.form.targetValue')}
+              </Text>
+              <BottomSheetAppTextInput
+                value={targetValue}
+                onChangeText={setTargetValue}
+                keyboardType="decimal-pad"
+                placeholder={
+                  isStreak ? t('goals.form.streakTargetPlaceholder') : '0'
+                }
+                placeholderTextColor={tokens.fg4}
+                accessibilityLabel={
+                  isStreak
+                    ? t('goals.form.streakTarget')
+                    : t('goals.form.targetValue')
+                }
+              />
+              {fieldErrors.targetValue ? (
+                <Text style={styles.fieldError} accessibilityRole="alert">
+                  {fieldErrors.targetValue}
+                </Text>
+              ) : null}
+            </View>
+            {!isStreak ? (
+              <View style={styles.halfField}>
+                <Text style={styles.fieldLabel}>{t('goals.form.unit')}</Text>
+                <BottomSheetAppTextInput
+                  value={unit}
+                  onChangeText={setUnit}
+                  placeholder={t('goals.form.unitPlaceholder')}
+                  placeholderTextColor={tokens.fg4}
+                  maxLength={50}
+                  accessibilityLabel={t('goals.form.unit')}
+                />
+                {fieldErrors.unit ? (
+                  <Text style={styles.fieldError} accessibilityRole="alert">
+                    {fieldErrors.unit}
+                  </Text>
+                ) : null}
+              </View>
+            ) : null}
+          </View>
+
           <View>
-            <SectionLabel top={4} bottom={8}>
+            <Text style={styles.fieldLabel}>
               {t('goals.form.deadline')}{' '}
               <Text style={styles.labelOptional}>
                 ({t('goals.form.deadlineOptional')})
               </Text>
-            </SectionLabel>
+            </Text>
             {deadline ? (
               <View>
                 <View style={styles.deadlineRow}>
@@ -362,7 +351,7 @@ export function CreateGoalModal({ open, onClose }: CreateGoalModalProps) {
                     accessibilityRole="button"
                     accessibilityLabel={t('common.clear')}
                   >
-                    <X size={16} color={tokens.fg4} strokeWidth={1.6} />
+                    <X size={16} color={tokens.fg4} strokeWidth={1.8} />
                   </TouchableOpacity>
                 </View>
                 {isGoalDeadlinePast(deadline) ? (
@@ -379,7 +368,7 @@ export function CreateGoalModal({ open, onClose }: CreateGoalModalProps) {
                 accessibilityRole="button"
                 accessibilityLabel={t('goals.form.addDeadline')}
               >
-                <Plus size={14} color={tokens.fg1} strokeWidth={1.6} />
+                <Plus size={14} color={tokens.fg1} strokeWidth={1.8} />
                 <Text style={styles.addDeadlineText}>
                   {t('goals.form.addDeadline')}
                 </Text>
@@ -388,30 +377,27 @@ export function CreateGoalModal({ open, onClose }: CreateGoalModalProps) {
           </View>
 
           <View style={styles.footer}>
-            <TouchableOpacity
-              style={styles.cancelButton}
+            <PillButton
+              variant="ghost"
+              style={styles.footerButton}
               disabled={isSubmitting}
               onPress={dismissGuard.requestDismiss}
-              activeOpacity={0.7}
-              accessibilityRole="button"
               accessibilityLabel={t('common.cancel')}
             >
-              <Text style={styles.cancelButtonText}>{t('common.cancel')}</Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.submitButton, isSubmitting && styles.disabled]}
+              {t('common.cancel')}
+            </PillButton>
+            <PillButton
+              style={styles.footerButton}
               onPress={onSubmit}
               disabled={isSubmitting}
-              activeOpacity={0.7}
-              accessibilityRole="button"
               accessibilityLabel={t('goals.create')}
             >
               {isSubmitting ? (
                 <ActivityIndicator size="small" color={tokens.fgOnPrimary} />
               ) : (
-                <Text style={styles.submitText}>{t('goals.create')}</Text>
+                t('goals.create')
               )}
-            </TouchableOpacity>
+            </PillButton>
           </View>
         </KeyboardAwareBottomSheetScrollView>
       </BottomSheetModal>
@@ -446,112 +432,74 @@ function createStyles(
       paddingBottom: Math.max(bottomInset, 16) + 24,
       gap: 18,
     },
-    titleField: {
-      borderBottomWidth: 1,
-      borderBottomColor: tokens.hairlineStrong,
-      paddingBottom: 8,
-    },
-    titleInput: {
-      fontFamily: 'Rubik_600SemiBold',
-      fontSize: 22,
-      letterSpacing: -0.33,
-      paddingVertical: 4,
-      paddingHorizontal: 0,
-      backgroundColor: 'transparent',
-      borderWidth: 0,
-    },
     row: {
       flexDirection: 'row',
       gap: 14,
     },
     halfField: {
       flex: 1,
-      gap: 6,
     },
     fullField: {
       flex: 1,
-      gap: 6,
     },
     fieldLabel: {
-      fontFamily: 'Rubik_400Regular',
-      fontSize: 12,
-      color: tokens.fg3,
+      fontFamily: 'Rubik_500Medium',
+      fontSize: 14,
+      color: tokens.fg2,
+      marginBottom: 8,
     },
     labelOptional: {
       fontFamily: 'Rubik_400Regular',
       color: tokens.fg4,
-    },
-    input: {
-      backgroundColor: 'transparent',
-      borderBottomWidth: 1,
-      borderBottomColor: tokens.hairline,
-      paddingHorizontal: 0,
-      paddingVertical: 8,
-      fontSize: 16,
-      color: tokens.fg1,
-      fontFamily: 'Rubik_400Regular',
     },
     fieldError: {
       fontFamily: 'Rubik_400Regular',
       fontSize: 12,
       fontStyle: 'italic',
       color: tokens.statusOverdue,
-      marginTop: 4,
+      marginTop: 6,
     },
-    typeCardsColumn: {
-      flexDirection: 'column',
-      gap: 6,
-    },
-    typeCard: {
-      borderRadius: 8,
-      borderWidth: 1,
-      paddingVertical: 10,
-      paddingHorizontal: 12,
-    },
-    typeCardActive: {
-      borderColor: tokens.fg3,
-      backgroundColor: tokens.bgElev,
-    },
-    typeCardInactive: {
-      borderColor: tokens.hairlineStrong,
-      backgroundColor: 'transparent',
-    },
-    typeCardHeader: {
+    typeRow: {
       flexDirection: 'row',
-      alignItems: 'center',
       gap: 10,
     },
-    typeCardBody: {
-      marginTop: 6,
-      paddingLeft: 28,
-    },
-    typeCardTitle: {
-      fontFamily: 'Rubik_400Regular',
-      fontSize: 13,
+    typeOption: {
       flex: 1,
+      minHeight: 46,
+      borderRadius: 14,
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: 8,
     },
-    typeCardTitleActive: {
-      color: tokens.fg1,
-      fontWeight: '600',
+    typeOptionActive: {
+      backgroundColor: tokens.primary,
     },
-    typeCardTitleInactive: {
-      color: tokens.fg2,
-      fontWeight: '500',
+    typeOptionInactive: {
+      backgroundColor: tokens.bgField,
+      borderWidth: 1,
+      borderColor: tokens.hairline,
     },
-    typeCardDesc: {
+    typeOptionText: {
+      fontFamily: 'Rubik_500Medium',
+      fontSize: 15,
+    },
+    typeCaption: {
+      marginTop: 10,
+    },
+    typeDesc: {
       fontFamily: 'Rubik_400Regular',
       fontSize: 12,
       color: tokens.fg3,
       lineHeight: 18,
     },
-    typeCardHint: {
+    typeHint: {
       fontFamily: 'Rubik_400Regular',
       fontSize: 11,
-      color: tokens.fg3,
+      color: tokens.fg4,
       lineHeight: 16,
       marginTop: 4,
       fontStyle: 'italic',
-      opacity: 0.7,
     },
     deadlineRow: {
       flexDirection: 'row',
@@ -562,9 +510,9 @@ function createStyles(
       flex: 1,
     },
     removeDeadlineButton: {
-      width: 36,
-      height: 36,
-      borderRadius: 8,
+      width: 44,
+      height: 44,
+      borderRadius: 999,
       alignItems: 'center',
       justifyContent: 'center',
     },
@@ -579,7 +527,8 @@ function createStyles(
       flexDirection: 'row',
       alignItems: 'center',
       gap: 8,
-      paddingVertical: 4,
+      paddingVertical: 10,
+      alignSelf: 'flex-start',
     },
     addDeadlineText: {
       fontFamily: 'Rubik_500Medium',
@@ -588,7 +537,6 @@ function createStyles(
     },
     footer: {
       flexDirection: 'row',
-      justifyContent: 'space-between',
       alignItems: 'center',
       gap: 12,
       paddingTop: 16,
@@ -596,33 +544,8 @@ function createStyles(
       borderTopColor: tokens.hairline,
       marginTop: 8,
     },
-    cancelButton: {
-      paddingVertical: 10,
-      paddingHorizontal: 6,
-    },
-    cancelButtonText: {
-      fontFamily: 'Rubik_400Regular',
-      fontSize: 14,
-      color: tokens.fg3,
-    },
-    submitButton: {
-      backgroundColor: tokens.primary,
-      borderRadius: 8,
-      paddingHorizontal: 16,
-      paddingVertical: 10,
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 8,
-      minWidth: 120,
-    },
-    submitText: {
-      fontFamily: 'Rubik_600SemiBold',
-      fontSize: 14,
-      color: tokens.fgOnPrimary,
-    },
-    disabled: {
-      opacity: 0.5,
+    footerButton: {
+      flex: 1,
     },
   })
 }

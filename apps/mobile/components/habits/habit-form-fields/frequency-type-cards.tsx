@@ -107,8 +107,9 @@ export function FrequencyTypeCards({
             >
               <View style={styles.frequencyCardHeader}>
                 <CardIcon
-                  size={18}
-                  color={isActive ? tokens.fg1 : tokens.fg3}
+                  size={20}
+                  strokeWidth={isActive ? 2.2 : 1.8}
+                  color={isActive ? tokens.primary : tokens.fg3}
                 />
                 <Text
                   style={[

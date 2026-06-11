@@ -154,6 +154,11 @@
     "title": "Está curtindo o Orbit?",
     "cta": "Avaliar Orbit"
   },
+  "home": {
+    "greetingMorning": "Bom dia",
+    "greetingAfternoon": "Boa tarde",
+    "greetingEvening": "Boa noite"
+  },
   "dates": {
     "today": "Hoje",
     "goToToday": "Ir para hoje",

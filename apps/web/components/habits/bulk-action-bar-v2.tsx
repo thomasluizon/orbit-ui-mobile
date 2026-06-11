@@ -13,7 +13,7 @@ import { useTranslations } from 'next-intl'
 import { resolveMotionPreset } from '@orbit/shared/theme'
 import { plural } from '@/lib/plural'
 
-/** v8 floating bulk action bar. Square icon buttons, mono selected count. */
+/** Floating bulk action toolbar on an elevated solid sheet surface. */
 export interface BulkActionBarV2Props {
   selectedCount: number
   allSelected: boolean
@@ -37,16 +37,16 @@ function BulkBtn({ icon: Icon, label, onClick }: Readonly<BulkBtnProps>) {
       type="button"
       onClick={onClick}
       aria-label={label}
-      className="appearance-none border-0 cursor-pointer flex items-center justify-center"
+      className="appearance-none border-0 cursor-pointer flex items-center justify-center transition-[background-color] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev)]"
       style={{
-        width: 36,
-        height: 36,
-        borderRadius: 8,
+        width: 40,
+        height: 40,
+        borderRadius: 999,
         background: 'transparent',
         color: 'var(--fg-1)',
       }}
     >
-      <Icon size={18} strokeWidth={1.6} />
+      <Icon size={18} strokeWidth={1.8} />
     </button>
   )
 }
@@ -73,12 +73,11 @@ export function BulkActionBarV2({
         bottom: 88,
         width: 'calc(100% - var(--app-px) * 2)',
         maxWidth: 'calc(var(--app-max-w) - var(--app-px) * 2)',
-        gap: 10,
-        background: 'var(--bg-elev)',
-        borderRadius: 12,
-        padding: '10px 12px 12px',
-        boxShadow:
-          '0 8px 24px rgba(0,0,0,0.30), inset 0 0 0 1px var(--hairline)',
+        gap: 8,
+        background: 'var(--bg-sheet)',
+        borderRadius: 20,
+        padding: '12px 14px',
+        boxShadow: 'var(--shadow-2), inset 0 0 0 1px var(--hairline)',
       }}
       initial={{
         opacity: 0,

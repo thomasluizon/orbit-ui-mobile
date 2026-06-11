@@ -8,28 +8,45 @@ interface ConflictWarningProps {
   warning: ConflictWarningType
 }
 
-function severityStyle(severity: ConflictWarningType['severity']): string {
+function severityStyle(severity: ConflictWarningType['severity']): {
+  className: string
+  ring: string
+} {
   switch (severity) {
     case 'HIGH':
-      return 'border-[var(--status-bad)]/30 bg-[var(--status-bad)]/10 text-[var(--status-bad)]'
+      return {
+        className: 'bg-[var(--status-bad)]/10 text-[var(--status-bad)]',
+        ring: 'color-mix(in srgb, var(--status-bad) 30%, transparent)',
+      }
     case 'MEDIUM':
-      return 'border-[var(--status-overdue)]/30 bg-[var(--status-overdue)]/10 text-[var(--status-overdue)]'
+      return {
+        className: 'bg-[var(--status-overdue)]/10 text-[var(--status-overdue)]',
+        ring: 'color-mix(in srgb, var(--status-overdue) 30%, transparent)',
+      }
     case 'LOW':
-      return 'border-[var(--primary)]/30 bg-[var(--primary)]/10 text-[var(--primary)]'
+      return {
+        className: 'bg-[rgba(var(--primary-rgb),0.10)] text-[var(--primary)]',
+        ring: 'rgba(var(--primary-rgb), 0.30)',
+      }
     default:
-      return 'border-[var(--hairline)] bg-[var(--bg-elev)] text-[var(--fg-2)]'
+      return {
+        className: 'bg-[var(--bg-elev)] text-[var(--fg-2)]',
+        ring: 'var(--hairline)',
+      }
   }
 }
 
 export function ConflictWarning({ warning }: Readonly<ConflictWarningProps>) {
   const t = useTranslations()
+  const severity = severityStyle(warning.severity)
 
   return (
     <div
       data-severity={warning.severity}
-      className={`rounded-[var(--radius-lg)] border px-4 py-3 text-xs mt-2 shadow-[var(--shadow-sm)] ${severityStyle(warning.severity)}`}
+      className={`rounded-[16px] px-4 py-3 text-xs mt-2 ${severity.className}`}
+      style={{ boxShadow: `inset 0 0 0 1px ${severity.ring}` }}
     >
-      <p className="font-bold mb-1 flex items-center gap-1.5">
+      <p className="font-semibold mb-1 flex items-center gap-1.5">
         <AlertTriangle className="size-3.5" />
         {t('chat.conflict.title')}
       </p>

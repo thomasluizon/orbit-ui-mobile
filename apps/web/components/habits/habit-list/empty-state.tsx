@@ -87,36 +87,44 @@ export function HabitListEmptyState({
   )
 }
 
+const SKELETON_BONE = 'color-mix(in srgb, var(--fg-1) 8%, transparent)'
+
 export function HabitListSkeleton() {
   return (
     <div>
       {[1, 2, 3].map((i) => (
         <div
           key={i}
-          className="flex items-center"
+          className="flex items-center animate-pulse"
           style={{
-            padding: '16px 20px',
+            padding: '14px 16px',
             gap: 14,
-            borderBottom: '1px solid var(--hairline)',
+            borderRadius: 18,
+            background: 'var(--bg-card)',
+            boxShadow: 'inset 0 0 0 1px var(--hairline)',
+            margin: '0 20px 10px',
           }}
         >
+          <div
+            className="shrink-0"
+            style={{
+              width: 46,
+              height: 46,
+              borderRadius: 14,
+              background: SKELETON_BONE,
+            }}
+          />
           <div className="flex-1 flex flex-col" style={{ gap: 8 }}>
             <div
-              className="rounded-sm animate-pulse"
-              style={{ width: '55%', height: 10, background: 'var(--bg-sunk)' }}
+              style={{ width: '55%', height: 12, borderRadius: 6, background: SKELETON_BONE }}
             />
             <div
-              className="rounded-sm animate-pulse"
-              style={{ width: '30%', height: 7, background: 'var(--bg-sunk)' }}
+              style={{ width: '32%', height: 12, borderRadius: 6, background: SKELETON_BONE }}
             />
           </div>
           <div
             className="rounded-full shrink-0"
-            style={{
-              width: 9,
-              height: 9,
-              boxShadow: 'inset 0 0 0 1.5px var(--hairline-strong)',
-            }}
+            style={{ width: 30, height: 30, background: SKELETON_BONE }}
           />
         </div>
       ))}

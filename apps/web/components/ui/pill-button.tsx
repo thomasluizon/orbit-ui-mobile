@@ -6,6 +6,7 @@ type PillButtonVariant = 'primary' | 'white' | 'ghost'
 
 interface PillButtonProps {
   variant?: PillButtonVariant
+  type?: 'button' | 'submit'
   onClick?: () => void
   disabled?: boolean
   fullWidth?: boolean
@@ -27,6 +28,7 @@ const variantClasses: Record<PillButtonVariant, string> = {
 /** Kit pill CTA: glowing primary, inverted white, or hairline ghost variant. */
 export function PillButton({
   variant = 'primary',
+  type = 'button',
   onClick,
   disabled = false,
   fullWidth = false,
@@ -44,7 +46,7 @@ export function PillButton({
 
   return (
     <button
-      type="button"
+      type={type}
       onClick={onClick}
       disabled={disabled}
       className={[

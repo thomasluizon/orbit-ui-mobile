@@ -56,9 +56,10 @@ describe('StreakBadge', () => {
     expect(container.querySelector('svg')?.getAttribute('viewBox')).toBe('0 0 12 14')
   })
 
-  it('does not show frozen icon by default', () => {
+  it('shows the flame emoji instead of the frozen icon by default', () => {
     const { container } = render(<StreakBadge streak={5} />)
-    expect(container.querySelector('svg')?.getAttribute('viewBox')).toBe('0 0 24 24')
+    expect(container.querySelector('svg')).toBeNull()
+    expect(container.textContent).toContain('🔥')
   })
 
   it('has accessible aria-label', () => {

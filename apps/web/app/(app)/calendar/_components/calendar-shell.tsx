@@ -35,18 +35,18 @@ export function CalendarHeader({
             aria-label={previousMonthLabel}
             onClick={onPreviousMonth}
             className="appearance-none border-0 bg-transparent cursor-pointer inline-flex items-center justify-center text-[var(--fg-2)] transition-[background-color,color] duration-150 ease-out hover:bg-[var(--bg-elev)] hover:text-[var(--fg-1)]"
-            style={{ width: 36, height: 36, borderRadius: 8 }}
+            style={{ width: 40, height: 40, borderRadius: 999 }}
           >
-            <ChevronLeft size={17} strokeWidth={1.6} />
+            <ChevronLeft size={22} strokeWidth={1.8} />
           </button>
           <button
             type="button"
             aria-label={nextMonthLabel}
             onClick={onNextMonth}
             className="appearance-none border-0 bg-transparent cursor-pointer inline-flex items-center justify-center text-[var(--fg-2)] transition-[background-color,color] duration-150 ease-out hover:bg-[var(--bg-elev)] hover:text-[var(--fg-1)]"
-            style={{ width: 36, height: 36, borderRadius: 8 }}
+            style={{ width: 40, height: 40, borderRadius: 999 }}
           >
-            <ChevronRight size={17} strokeWidth={1.6} />
+            <ChevronRight size={22} strokeWidth={1.8} />
           </button>
         </div>
       }
@@ -75,9 +75,9 @@ export function CalendarLegend({
       className="flex flex-wrap items-center"
       style={{ padding: '12px 20px', gap: 16 }}
     >
-      <LegendItem dotColor="var(--primary)" label={todayLabel} />
-      <LegendItem dotColor="var(--fg-1)" label={doneLabel} />
-      <LegendItem dotColor="var(--fg-3)" hollow label={partialLabel} />
+      <LegendItem dotColor="var(--primary)" hollow label={todayLabel} />
+      <LegendItem dotColor="var(--primary)" label={doneLabel} />
+      <LegendItem dotColor="var(--fg-4)" hollow label={partialLabel} />
       <LegendItem dotColor="var(--status-overdue)" label={missedLabel} />
     </div>
   )
@@ -97,7 +97,7 @@ function LegendItem({ dotColor, label, hollow = false }: Readonly<LegendItemProp
         className="rounded-full shrink-0"
         style={
           hollow
-            ? { width: 6, height: 6, boxShadow: `inset 0 0 0 1px ${dotColor}` }
+            ? { width: 6, height: 6, boxShadow: `inset 0 0 0 1.5px ${dotColor}` }
             : { width: 6, height: 6, background: dotColor }
         }
       />

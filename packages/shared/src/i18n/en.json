@@ -154,6 +154,11 @@
     "title": "Enjoying Orbit?",
     "cta": "Rate Orbit"
   },
+  "home": {
+    "greetingMorning": "Good morning",
+    "greetingAfternoon": "Good afternoon",
+    "greetingEvening": "Good evening"
+  },
   "dates": {
     "today": "Today",
     "goToToday": "Go to today",

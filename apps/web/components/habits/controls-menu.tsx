@@ -26,7 +26,7 @@ export interface ControlsMenuProps {
   onClose: () => void
 }
 
-/** v8 chrome: hairline-bordered panel, flush rows, mono icons. */
+/** Anchored list-controls menu on the kit sheet panel chrome. */
 export function ControlsMenu({
   menuPanelRef,
   position,
@@ -52,10 +52,9 @@ export function ControlsMenu({
         left: `${position.left}px`,
         top: `${position.top}px`,
         minWidth: 220,
-        background: 'var(--bg-elev)',
-        boxShadow:
-          '0 12px 40px rgba(0,0,0,0.35), inset 0 0 0 1px var(--hairline)',
-        borderRadius: 12,
+        background: 'var(--bg-sheet)',
+        boxShadow: 'var(--shadow-2), inset 0 0 0 1px var(--hairline)',
+        borderRadius: 16,
         padding: 4,
       }}
       onClick={(e) => e.stopPropagation()}
@@ -104,7 +103,6 @@ interface MenuRowProps {
   label: string
   onClick: () => void
   disabled?: boolean
-  destructive?: boolean
 }
 
 function MenuRow({
@@ -112,7 +110,6 @@ function MenuRow({
   label,
   onClick,
   disabled = false,
-  destructive = false,
 }: Readonly<MenuRowProps>) {
   return (
     <button
@@ -127,8 +124,7 @@ function MenuRow({
         fontFamily: 'var(--font-sans)',
         fontSize: 14,
         fontWeight: 500,
-        color: destructive ? 'var(--fg-3)' : 'var(--fg-1)',
-        fontStyle: destructive ? 'italic' : 'normal',
+        color: 'var(--fg-1)',
         textAlign: 'left',
         borderRadius: 8,
       }}

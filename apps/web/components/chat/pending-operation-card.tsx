@@ -4,6 +4,8 @@ import { useState } from 'react'
 import { ShieldAlert } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import type { AgentExecuteOperationResponse, PendingAgentOperation } from '@orbit/shared/types/ai'
+import { Badge } from '@/components/ui/badge'
+import { PillButton } from '@/components/ui/pill-button'
 
 type PendingOperationExecutionResult = {
   ok: boolean
@@ -141,79 +143,101 @@ export function PendingOperationCard({
   }
 
   return (
-    <div className="rounded-[12px] border border-[var(--status-overdue)]/25 bg-[var(--status-overdue)]/8 p-4 shadow-[var(--shadow-sm)]">
-      <div className="flex items-start gap-3">
-        <div className="mt-0.5 rounded-full bg-[var(--status-overdue)]/15 p-2 text-[var(--status-overdue)]">
-          <ShieldAlert className="size-4" />
+    <div
+      className="rounded-[16px] bg-[var(--bg-card)]"
+      style={{
+        padding: '14px 16px',
+        boxShadow: 'inset 0 0 0 1px var(--hairline)',
+      }}
+    >
+      <div className="flex items-center" style={{ gap: 12, marginBottom: 12 }}>
+        <div
+          className="shrink-0 flex items-center justify-center rounded-[12px] bg-[var(--bg-elev)]"
+          style={{ width: 42, height: 42 }}
+          aria-hidden="true"
+        >
+          <ShieldAlert size={20} strokeWidth={1.8} color="var(--status-overdue)" />
         </div>
-        <div className="flex-1 min-w-0 space-y-2">
+        <div className="flex-1 min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <p className="text-sm font-semibold text-[var(--fg-1)]">
+            <p
+              style={{
+                fontFamily: 'var(--font-sans)',
+                fontSize: 16,
+                fontWeight: 500,
+                color: 'var(--fg-1)',
+              }}
+            >
               {pendingOperation.displayName}
             </p>
-            <span className="rounded-full border border-[var(--status-overdue)]/20 bg-[var(--status-overdue)]/10 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--status-overdue)]">
-              {riskLabel}
-            </span>
+            <Badge tone="amber">{riskLabel}</Badge>
           </div>
-
-          <p className="text-xs leading-relaxed text-[var(--fg-2)]">
+          <p
+            style={{
+              fontFamily: 'var(--font-sans)',
+              fontSize: 13,
+              color: 'var(--fg-3)',
+              marginTop: 2,
+              lineHeight: 1.4,
+            }}
+          >
             {pendingOperation.summary}
           </p>
-
-          {challengeId && !successMessage && (
-            <div className="space-y-2">
-              <input
-                type="text"
-                inputMode="numeric"
-                pattern="[0-9]*"
-                value={verificationCode}
-                onChange={(event) =>
-                  setVerificationCode(event.target.value.replaceAll(/\D/g, '').slice(0, 6))
-                }
-                placeholder={t('common.codePlaceholder')}
-                className="w-full rounded-[var(--radius-lg)] border border-[var(--hairline)] bg-[var(--bg)] px-3 py-2 text-sm text-[var(--fg-1)] outline-none transition focus:border-[var(--primary)]"
-              />
-              <button
-                type="button"
-                className="rounded-[var(--radius-lg)] bg-[var(--primary)] px-3 py-2 text-xs font-semibold text-white transition hover:bg-[var(--primary-pressed)] disabled:opacity-50"
-                onClick={() => {
-                  void handleVerify()
-                }}
-                disabled={isLoading || verificationCode.trim().length < 6}
-              >
-                {isLoading ? t('common.loading') : t('auth.verify')}
-              </button>
-            </div>
-          )}
-
-          {!challengeId && !successMessage && (
-            <button
-              type="button"
-              className="rounded-[var(--radius-lg)] bg-[var(--primary)] px-3 py-2 text-xs font-semibold text-white transition hover:bg-[var(--primary-pressed)] disabled:opacity-50"
-              onClick={() => {
-                void handleStart()
-              }}
-              disabled={isLoading}
-            >
-              {primaryActionLabel}
-            </button>
-          )}
-
-          {challengeId && !successMessage && (
-            <p className="text-[11px] text-[var(--fg-3)]">
-              {t('auth.codeSent')}
-            </p>
-          )}
-
-          {error && (
-            <p className="text-xs text-[var(--status-bad)]">{error}</p>
-          )}
-
-          {successMessage && (
-            <p className="text-xs font-medium text-[var(--status-done)]">{successMessage}</p>
-          )}
         </div>
       </div>
+
+      {challengeId && !successMessage && (
+        <div className="space-y-2">
+          <input
+            type="text"
+            inputMode="numeric"
+            pattern="[0-9]*"
+            value={verificationCode}
+            onChange={(event) =>
+              setVerificationCode(event.target.value.replaceAll(/\D/g, '').slice(0, 6))
+            }
+            placeholder={t('common.codePlaceholder')}
+            className="w-full rounded-[14px] bg-[var(--bg-field)] px-4 py-3 text-sm text-[var(--fg-1)] outline-none transition-[box-shadow] duration-[var(--dur-fast)] shadow-[inset_0_0_0_1px_var(--hairline)] focus:shadow-[inset_0_0_0_2px_var(--primary)]"
+            style={{ fontFamily: 'var(--font-sans)' }}
+          />
+          <div className="flex gap-2">
+            <PillButton
+              className="flex-1 py-[11px]! text-[14px]!"
+              disabled={isLoading || verificationCode.trim().length < 6}
+              onClick={() => {
+                void handleVerify()
+              }}
+            >
+              {isLoading ? t('common.loading') : t('auth.verify')}
+            </PillButton>
+          </div>
+          <p className="text-[11px] text-[var(--fg-3)]">
+            {t('auth.codeSent')}
+          </p>
+        </div>
+      )}
+
+      {!challengeId && !successMessage && (
+        <div className="flex gap-2">
+          <PillButton
+            className="flex-1 py-[11px]! text-[14px]!"
+            disabled={isLoading}
+            onClick={() => {
+              void handleStart()
+            }}
+          >
+            {primaryActionLabel}
+          </PillButton>
+        </div>
+      )}
+
+      {error && (
+        <p className="text-xs text-[var(--status-bad)]" style={{ marginTop: 10 }}>{error}</p>
+      )}
+
+      {successMessage && (
+        <p className="text-xs font-medium text-[var(--status-done)]">{successMessage}</p>
+      )}
     </div>
   )
 }

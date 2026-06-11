@@ -1,8 +1,10 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import type { LucideIcon } from 'lucide-react'
+import { Repeat, type LucideIcon } from 'lucide-react'
 import type { Goal } from '@orbit/shared/types/goal'
+import { FieldInput } from '@/components/ui/field-input'
+import { PillButton } from '@/components/ui/pill-button'
 import { SectionLabel } from '@/components/ui/section-label'
 
 interface GoalProgressHistoryEntry {
@@ -139,7 +141,7 @@ interface GoalProgressFormProps {
 }
 
 /** Inline progress-update form rendered in-place inside the GoalDetailDrawer.
- *  Underlined inputs with mono numerals. */
+ *  Kit field wells with a pill footer. */
 export function GoalProgressForm({
   progressValue,
   progressNote,
@@ -160,16 +162,17 @@ export function GoalProgressForm({
     <div
       className="flex flex-col"
       style={{
-        padding: '12px 20px',
+        padding: '12px 20px 16px',
         borderBottom: '1px solid var(--hairline)',
-        gap: 10,
+        gap: 14,
       }}
     >
-      <UnderlinedInputField
+      <FieldInput
         label={labelValue}
         type="number"
+        inputMode="decimal"
         mono
-        value={progressValue ?? ''}
+        value={progressValue === null ? '' : String(progressValue)}
         onChange={(raw) =>
           onProgressValueChange(raw === '' ? null : Number(raw))
         }
@@ -186,101 +189,26 @@ export function GoalProgressForm({
           {labelExceedsTarget}
         </p>
       )}
-      <UnderlinedInputField
+      <FieldInput
         label={labelNote}
-        type="text"
         value={progressNote}
         onChange={onProgressNoteChange}
         placeholder={labelNote}
         maxLength={500}
       />
-      <div className="flex items-center justify-end" style={{ gap: 14 }}>
-        <button
-          type="button"
-          className="appearance-none border-0 bg-transparent cursor-pointer"
-          style={{
-            fontFamily: 'var(--font-sans)',
-            fontSize: 14,
-            fontWeight: 500,
-            color: 'var(--fg-3)',
-            padding: 6,
-          }}
-          onClick={onCancel}
-        >
+      <div className="flex items-center" style={{ gap: 12, marginTop: 2 }}>
+        <PillButton variant="ghost" className="flex-1" onClick={onCancel}>
           {labelCancel}
-        </button>
-        <button
-          type="button"
+        </PillButton>
+        <PillButton
+          className="flex-1"
           disabled={progressValue === null || isUpdating}
-          className="appearance-none border-0 bg-transparent cursor-pointer disabled:opacity-50"
-          style={{
-            fontFamily: 'var(--font-sans)',
-            fontSize: 14,
-            fontWeight: 600,
-            color: 'var(--fg-1)',
-            padding: 6,
-          }}
           onClick={onSubmit}
         >
           {isUpdating ? '...' : labelSave}
-        </button>
+        </PillButton>
       </div>
     </div>
-  )
-}
-
-interface UnderlinedInputFieldProps {
-  label: string
-  value: string | number
-  type?: 'text' | 'number'
-  placeholder?: string
-  maxLength?: number
-  mono?: boolean
-  onChange: (next: string) => void
-}
-
-/** UnderlinedInput: tiny label, bare input with hairline underline. */
-function UnderlinedInputField({
-  label,
-  value,
-  type = 'text',
-  placeholder,
-  maxLength,
-  mono = false,
-  onChange,
-}: Readonly<UnderlinedInputFieldProps>) {
-  return (
-    <label className="flex flex-col" style={{ gap: 4 }}>
-      <span
-        style={{
-          fontFamily: 'var(--font-sans)',
-          fontSize: 11,
-          fontWeight: 500,
-          color: 'var(--fg-3)',
-        }}
-      >
-        {label}
-      </span>
-      <input
-        type={type}
-        value={value}
-        placeholder={placeholder}
-        maxLength={maxLength}
-        onChange={(e) => onChange(e.target.value)}
-        style={{
-          appearance: 'none',
-          border: 0,
-          background: 'transparent',
-          outline: 'none',
-          fontFamily: mono ? 'var(--font-mono)' : 'var(--font-sans)',
-          fontSize: 14,
-          color: 'var(--fg-1)',
-          padding: '4px 0',
-          borderBottom: '1px solid var(--hairline-strong)',
-          fontVariantNumeric: mono ? 'tabular-nums' : 'normal',
-        }}
-      />
-    </label>
   )
 }
 
@@ -289,7 +217,7 @@ interface GoalLinkedHabitsSectionProps {
   linkedHabits: NonNullable<Goal['linkedHabits']>
 }
 
-/** Linked-habits list: each habit is a single row with progress bar and percent. */
+/** Linked-habits list: ListRow language — icon well, Rubik 16 title, hairline dividers. */
 export function GoalLinkedHabitsSection({
   title,
   linkedHabits,
@@ -306,16 +234,23 @@ export function GoalLinkedHabitsSection({
           key={habit.id}
           className="flex items-center"
           style={{
-            padding: '12px 20px',
+            padding: '10px 20px',
             borderBottom: '1px solid var(--hairline)',
-            gap: 12,
+            gap: 14,
           }}
         >
+          <span
+            className="inline-flex shrink-0 items-center justify-center rounded-[12px] bg-[var(--bg-field)]"
+            style={{ width: 36, height: 36, boxShadow: 'inset 0 0 0 1px var(--hairline)' }}
+            aria-hidden="true"
+          >
+            <Repeat size={18} strokeWidth={1.8} color="var(--fg-2)" />
+          </span>
           <span
             className="flex-1 overflow-hidden whitespace-nowrap text-ellipsis"
             style={{
               fontFamily: 'var(--font-sans)',
-              fontSize: 14,
+              fontSize: 16,
               color: 'var(--fg-1)',
             }}
           >

@@ -7,7 +7,7 @@ import {
   TouchableOpacity,
   View,
 } from 'react-native'
-import { createTokensV2 } from '@/lib/theme'
+import { createTokensV2, tintFromPrimary } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 export interface MoveParentOption {
@@ -94,7 +94,7 @@ export function MoveParentDialog({
                       isSelectedOption && styles.moveOptionSelected,
                       option.disabled && styles.moveOptionDisabled,
                       option.id !== null
-                        ? { paddingLeft: 12 + option.depth * 18 }
+                        ? { paddingLeft: 14 + option.depth * 18 }
                         : null,
                     ]}
                     disabled={option.disabled}
@@ -170,7 +170,7 @@ function createStyles(tokens: AppTokens) {
   return StyleSheet.create({
     dialogBackdrop: {
       flex: 1,
-      backgroundColor: 'rgba(0,0,0,0.5)',
+      backgroundColor: 'rgba(0,0,0,0.55)',
       justifyContent: 'center',
       alignItems: 'center',
       padding: 24,
@@ -179,18 +179,19 @@ function createStyles(tokens: AppTokens) {
       width: '100%',
       maxWidth: 380,
       maxHeight: '75%',
-      backgroundColor: tokens.bgElev,
+      backgroundColor: tokens.bgSheet,
       borderWidth: 1,
       borderColor: tokens.hairline,
-      borderRadius: 20,
+      borderRadius: 16,
       padding: 20,
     },
     moveDialogTitle: {
-      fontSize: 18,
-      fontWeight: '700',
+      fontFamily: 'Rubik_500Medium',
+      fontSize: 20,
       color: tokens.fg1,
     },
     moveDialogDescription: {
+      fontFamily: 'Rubik_400Regular',
       fontSize: 14,
       lineHeight: 20,
       color: tokens.fg2,
@@ -208,13 +209,14 @@ function createStyles(tokens: AppTokens) {
       borderRadius: 14,
       borderWidth: 1,
       borderColor: tokens.hairline,
-      backgroundColor: tokens.bgElev,
-      paddingHorizontal: 12,
+      backgroundColor: tokens.bgField,
+      paddingHorizontal: 14,
       paddingVertical: 12,
     },
     moveOptionSelected: {
+      borderWidth: 1.5,
       borderColor: tokens.primary,
-      backgroundColor: tokens.bgSunk,
+      backgroundColor: tintFromPrimary(tokens, 0.1),
     },
     moveOptionDisabled: {
       opacity: 0.5,
@@ -227,23 +229,26 @@ function createStyles(tokens: AppTokens) {
     },
     moveOptionLabel: {
       flex: 1,
+      fontFamily: 'Rubik_500Medium',
       fontSize: 14,
-      fontWeight: '600',
       color: tokens.fg1,
     },
     moveOptionCurrent: {
-      fontSize: 10,
-      fontWeight: '700',
+      fontFamily: 'Rubik_600SemiBold',
+      fontSize: 10.5,
       textTransform: 'uppercase',
-      letterSpacing: 0.8,
+      letterSpacing: 0.63,
       color: tokens.fg3,
     },
     moveOptionReason: {
+      fontFamily: 'Rubik_400Regular',
       fontSize: 11,
+      lineHeight: 15,
       color: tokens.fg3,
-      marginTop: 6,
+      marginTop: 5,
     },
     moveDialogEmpty: {
+      fontFamily: 'Rubik_400Regular',
       fontSize: 14,
       color: tokens.fg3,
       textAlign: 'center',
@@ -258,21 +263,22 @@ function createStyles(tokens: AppTokens) {
       flex: 1,
       alignItems: 'center',
       justifyContent: 'center',
-      borderRadius: 14,
-      borderWidth: 1,
-      borderColor: tokens.hairline,
+      borderRadius: 999,
+      borderWidth: 1.5,
+      borderColor: tokens.hairlineStrong,
       paddingVertical: 12,
+      minHeight: 46,
     },
     moveDialogCancelText: {
-      fontSize: 14,
-      fontWeight: '600',
-      color: tokens.fg2,
+      fontFamily: 'Rubik_500Medium',
+      fontSize: 15,
+      color: tokens.fg1,
     },
     moveDialogConfirm: {
       flex: 1,
       alignItems: 'center',
       justifyContent: 'center',
-      borderRadius: 14,
+      borderRadius: 999,
       backgroundColor: tokens.primary,
       paddingVertical: 12,
       minHeight: 46,
@@ -281,8 +287,8 @@ function createStyles(tokens: AppTokens) {
       opacity: 0.5,
     },
     moveDialogConfirmText: {
-      fontSize: 14,
-      fontWeight: '700',
+      fontFamily: 'Rubik_500Medium',
+      fontSize: 15,
       color: tokens.fgOnPrimary,
     },
   })

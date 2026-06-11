@@ -22,7 +22,15 @@ export function SuggestionChips({ onSelect }: Readonly<SuggestionChipsProps>) {
         <button
           type="button"
           key={suggestion}
-          className="px-4 py-2 rounded-full text-xs font-medium bg-[var(--bg-elev)] border border-[var(--hairline)] text-[var(--fg-1)] hover:border-[var(--hairline)] hover:scale-[1.02] transition-[border-color,transform] duration-150 active:scale-95"
+          className="rounded-full inline-flex items-center border-0 cursor-pointer bg-[var(--bg-elev)] text-[var(--fg-1)] transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev-pressed)] hover:scale-[1.02] active:scale-95"
+          style={{
+            minHeight: 44,
+            padding: '0 16px',
+            boxShadow: 'inset 0 0 0 1px var(--hairline)',
+            fontFamily: 'var(--font-sans)',
+            fontSize: 13,
+            fontWeight: 500,
+          }}
           onClick={() => onSelect(suggestion)}
         >
           {suggestion}

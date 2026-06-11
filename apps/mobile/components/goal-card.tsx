@@ -7,11 +7,11 @@ import { useTranslation } from 'react-i18next'
 import type { Goal } from '@orbit/shared/types/goal'
 import { isStreakGoal } from '@orbit/shared/utils/goal-form'
 import { plural } from '@/lib/plural'
-import { createTokensV2, easings, radius, shadows } from '@/lib/theme'
+import { createTokensV2, easings } from '@/lib/theme'
 import { toAnimatedEasing, useResolvedMotionPreset } from '@/lib/motion'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { StatusDot, type StatusDotState } from '@/components/ui/status-dot'
-import { ParentRing } from '@/components/ui/parent-ring'
+import { ProgressBar } from '@/components/ui/progress-bar'
 
 interface GoalCardProps {
   goal: Goal
@@ -54,7 +54,7 @@ export function GoalCard({ goal, onPress, tourTargetId }: GoalCardProps) {
     }).start()
   }, [pressScale, selectionMotion.exitDuration])
 
-  const ringColor = useMemo(() => {
+  const progressColor = useMemo(() => {
     if (goal.status === 'Completed') return tokens.statusDone
     if (goal.status === 'Abandoned') return tokens.fg3
     if (isStreak) return tokens.statusOverdue
@@ -137,6 +137,10 @@ export function GoalCard({ goal, onPress, tourTargetId }: GoalCardProps) {
         unit: goal.unit,
       })
 
+  const percentLabel = t('goals.progressPercentage', {
+    pct: goal.progressPercentage,
+  })
+
   return (
     <Animated.View style={{ transform: [{ scale: pressScale }] }}>
       <TouchableOpacity
@@ -150,23 +154,14 @@ export function GoalCard({ goal, onPress, tourTargetId }: GoalCardProps) {
         accessibilityRole="button"
         accessibilityLabel={goal.title}
       >
-      <View style={styles.body}>
-        <View
-          ref={tourTargetId ? progressRef : undefined}
-          style={styles.ringWrap}
-          accessibilityRole="progressbar"
-          accessibilityValue={{
-            min: 0,
-            max: 100,
-            now: progress,
-          }}
-        >
-          <ParentRing done={progress} total={100} size={36} color={ringColor} />
-        </View>
-      <View style={styles.content}>
         <View style={styles.titleRow}>
           {isStreak && (
-            <Flame size={14} color={tokens.statusOverdue} style={styles.flameIcon} />
+            <Flame
+              size={16}
+              strokeWidth={1.8}
+              color={tokens.statusOverdue}
+              style={styles.flameIcon}
+            />
           )}
           <Text
             style={[
@@ -178,8 +173,8 @@ export function GoalCard({ goal, onPress, tourTargetId }: GoalCardProps) {
             {goal.title}
           </Text>
           {statusBadge ? (
-            <View style={styles.statusBadge}>
-              <Text style={[styles.statusBadgeText, { color: statusBadge.textColor }]}>
+            <View style={styles.badge}>
+              <Text style={[styles.badgeText, { color: statusBadge.textColor }]}>
                 {statusBadge.text}
               </Text>
             </View>
@@ -188,22 +183,29 @@ export function GoalCard({ goal, onPress, tourTargetId }: GoalCardProps) {
           ) : null}
         </View>
 
-        <Text style={styles.progressLabel}>{progressLabel}</Text>
-
-        <View style={styles.footer}>
-          <Text style={styles.percentText}>
-            {t('goals.progressPercentage', { pct: goal.progressPercentage })}
-          </Text>
+        <View style={styles.metaRow}>
+          <Text style={styles.progressLabel}>{progressLabel}</Text>
           {deadlineInfo && (
-            <View style={styles.deadlineBadge}>
-              <Text style={[styles.deadlineBadgeText, { color: deadlineInfo.textColor }]}>
+            <View style={styles.badge}>
+              <Text style={[styles.badgeText, { color: deadlineInfo.textColor }]}>
                 {deadlineInfo.text}
               </Text>
             </View>
           )}
         </View>
-      </View>
-      </View>
+
+        <View
+          ref={tourTargetId ? progressRef : undefined}
+          style={styles.progressRow}
+        >
+          <ProgressBar
+            style={styles.progressBar}
+            progress={progress / 100}
+            label={percentLabel}
+            color={progressColor}
+          />
+          <Text style={styles.percentText}>{percentLabel}</Text>
+        </View>
       </TouchableOpacity>
     </Animated.View>
   )
@@ -211,95 +213,79 @@ export function GoalCard({ goal, onPress, tourTargetId }: GoalCardProps) {
 
 function createStyles(tokens: ReturnType<typeof createTokensV2>) {
   return StyleSheet.create({
-  card: {
-    backgroundColor: tokens.bgElev,
-    borderRadius: radius.md,
-    padding: 20,
-    borderWidth: 1,
-    borderColor: tokens.hairline,
-    marginBottom: 10,
-    overflow: 'hidden',
-    ...shadows.cardParent,
-    elevation: 5,
-  },
-
-  body: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 12,
-  },
-  ringWrap: {
-    flexShrink: 0,
-    paddingTop: 2,
-  },
-  content: {
-    flex: 1,
-    minWidth: 0,
-  },
-
-  titleRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-    marginBottom: 4,
-  },
-  flameIcon: {
-    flexShrink: 0,
-  },
-  title: {
-    fontFamily: 'Rubik_600SemiBold',
-    fontSize: 14,
-    color: tokens.fg1,
-    flex: 1,
-  },
-  titleAbandoned: {
-    textDecorationLine: 'line-through',
-    color: tokens.fg3,
-  },
-
-  statusBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 9999,
-    backgroundColor: tokens.bgElev,
-    borderWidth: 1,
-    borderColor: tokens.hairline,
-  },
-  statusBadgeText: {
-    fontFamily: 'Rubik_700Bold',
-    fontSize: 10,
+    card: {
+      backgroundColor: tokens.bgCard,
+      borderRadius: 18,
+      paddingVertical: 16,
+      paddingHorizontal: 18,
+      borderWidth: 1,
+      borderColor: tokens.hairline,
+      overflow: 'hidden',
     },
 
-  progressLabel: {
-    fontFamily: 'Rubik_400Regular',
-    fontSize: 12,
-    color: tokens.fg2,
-    marginBottom: 8,
-  },
+    titleRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      marginBottom: 4,
+    },
+    flameIcon: {
+      flexShrink: 0,
+    },
+    title: {
+      fontFamily: 'Rubik_500Medium',
+      fontSize: 16,
+      color: tokens.fg1,
+      flex: 1,
+    },
+    titleAbandoned: {
+      textDecorationLine: 'line-through',
+      color: tokens.fg3,
+    },
 
-  footer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-  },
-  percentText: {
-    fontFamily: 'Roboto_400Regular',
-    fontSize: 12,
-    color: tokens.fg2,
-    fontVariant: ['tabular-nums'],
-  },
+    badge: {
+      paddingHorizontal: 9,
+      paddingVertical: 3,
+      borderRadius: 9999,
+      borderWidth: 1,
+      borderColor: tokens.hairline,
+    },
+    badgeText: {
+      fontFamily: 'Rubik_600SemiBold',
+      fontSize: 10.5,
+      letterSpacing: 0.63,
+      textTransform: 'uppercase',
+    },
 
-  deadlineBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 9999,
-    backgroundColor: tokens.bgElev,
-    borderWidth: 1,
-    borderColor: tokens.hairline,
-  },
-  deadlineBadgeText: {
-    fontFamily: 'Rubik_700Bold',
-    fontSize: 10,
+    metaRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 8,
+      marginBottom: 12,
+    },
+    progressLabel: {
+      fontFamily: 'Roboto_400Regular',
+      fontSize: 13,
+      color: tokens.fg3,
+      fontVariant: ['tabular-nums'],
+      flexShrink: 1,
+    },
+
+    progressRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+    },
+    progressBar: {
+      flex: 1,
+    },
+    percentText: {
+      fontFamily: 'Roboto_500Medium',
+      fontSize: 13,
+      color: tokens.fg2,
+      fontVariant: ['tabular-nums'],
+      flexShrink: 0,
     },
   })
 }

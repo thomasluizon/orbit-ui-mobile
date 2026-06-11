@@ -39,6 +39,8 @@ vi.mock('@/lib/theme', () => ({
       return '#111111'
     },
   }),
+  tintFromPrimary: () => 'rgba(17, 17, 17, 0.18)',
+  primaryGlow: () => ({}),
 }))
 
 vi.mock('lucide-react-native', () => {

@@ -18,6 +18,7 @@ interface PillButtonProps {
   fullWidth?: boolean
   glow?: boolean
   leading?: ReactNode
+  accessibilityLabel?: string
   children: ReactNode
   style?: StyleProp<ViewStyle>
 }
@@ -30,6 +31,7 @@ export function PillButton({
   fullWidth = false,
   glow = true,
   leading,
+  accessibilityLabel,
   children,
   style,
 }: Readonly<PillButtonProps>) {
@@ -65,6 +67,7 @@ export function PillButton({
       onPress={onPress}
       disabled={disabled}
       accessibilityRole="button"
+      accessibilityLabel={accessibilityLabel}
       accessibilityState={{ disabled }}
       style={({ pressed }) => [
         styles.base,

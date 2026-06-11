@@ -70,20 +70,20 @@ describe('MessageBubble', () => {
     expect(document.body.textContent).toContain('Test message content')
   })
 
-  it('renders user avatar for user messages', () => {
+  it('does not render an avatar for user messages', () => {
     const { container } = render(
       <MessageBubble message={makeMessage({ role: 'user' })} />,
     )
-    const avatars = container.querySelectorAll('.rounded-full')
-    expect(avatars.length).toBeGreaterThan(0)
+    expect(container.querySelector('[data-slot="ai-avatar"]')).not.toBeInTheDocument()
   })
 
   it('renders AI avatar for AI messages', () => {
     const { container } = render(
       <MessageBubble message={makeMessage({ role: 'ai' })} />,
     )
-    const avatars = container.querySelectorAll('.rounded-full')
-    expect(avatars.length).toBeGreaterThan(0)
+    const avatar = container.querySelector('[data-slot="ai-avatar"]')
+    expect(avatar).toBeInTheDocument()
+    expect(avatar?.className).toContain('rounded-full')
   })
 
   it('aligns user messages to the right', () => {

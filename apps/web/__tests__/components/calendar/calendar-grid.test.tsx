@@ -106,7 +106,7 @@ describe('CalendarGrid', () => {
     expect(dots.length).toBeGreaterThan(0)
   })
 
-  it('marks completed days with a full fg-1 dot', () => {
+  it('marks completed days with a full primary dot', () => {
     const dayMap = new Map<string, CalendarDayEntry[]>([
       [
         '2025-06-15',
@@ -131,7 +131,7 @@ describe('CalendarGrid', () => {
     )
     const fullDot = Array.from(
       container.querySelectorAll<HTMLSpanElement>('span.block.rounded-full'),
-    ).some((el) => el.style.background.includes('var(--fg-1)'))
+    ).some((el) => el.style.background.includes('var(--primary)'))
     expect(fullDot).toBe(true)
   })
 

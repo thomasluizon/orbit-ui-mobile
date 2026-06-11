@@ -139,7 +139,6 @@ export function HabitFormFields({
         onCommit={(val) => setValue("title", val, { shouldDirty: true })}
         onDraftChange={(val) => onTitlePresenceChange?.(val.trim().length > 0)}
         styles={styles}
-        tokens={tokens}
       />
 
       <HabitEmojiSelector

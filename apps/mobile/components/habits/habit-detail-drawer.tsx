@@ -9,7 +9,6 @@ import { withDrawerContentInset } from '@/components/ui/drawer-content-inset'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { SectionLabel } from '@/components/ui/section-label'
 import { SettingsRow } from '@/components/ui/settings-row'
-import { InfoRow } from '@/components/ui/info-row'
 import { HabitChecklist } from './habit-checklist'
 import { DescriptionViewer } from './description-viewer'
 import { HabitCalendar } from './habit-calendar'
@@ -172,7 +171,33 @@ export function HabitDetailDrawer({
             showsVerticalScrollIndicator={false}
             keyboardShouldPersistTaps="always"
           >
-            {summaryStrip ? <InfoRow label={summaryStrip} /> : null}
+            {habit.emoji || summaryStrip ? (
+              <View style={styles.titleBlock}>
+                {habit.emoji ? (
+                  <View
+                    style={[
+                      styles.emojiWell,
+                      habit.isBadHabit
+                        ? { backgroundColor: `${tokens.statusBad}1F` }
+                        : null,
+                    ]}
+                  >
+                    <Text style={styles.emojiWellText}>{habit.emoji}</Text>
+                  </View>
+                ) : null}
+                {summaryStrip ? (
+                  <Text
+                    style={[
+                      styles.titleMeta,
+                      { color: habit.isBadHabit ? tokens.statusBad : tokens.fg3 },
+                    ]}
+                    numberOfLines={2}
+                  >
+                    {summaryStrip}
+                  </Text>
+                ) : null}
+              </View>
+            ) : null}
 
             {habit.description ? (
               <TouchableOpacity
@@ -337,6 +362,32 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
     scrollContent: {
       paddingBottom: 40,
       gap: 0,
+    },
+    titleBlock: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      paddingHorizontal: 20,
+      paddingTop: 4,
+      paddingBottom: 12,
+    },
+    emojiWell: {
+      width: 46,
+      height: 46,
+      borderRadius: 14,
+      alignItems: 'center',
+      justifyContent: 'center',
+      backgroundColor: tokens.bgElev,
+    },
+    emojiWellText: {
+      fontSize: 22,
+      lineHeight: 28,
+    },
+    titleMeta: {
+      flex: 1,
+      fontFamily: 'Rubik_400Regular',
+      fontSize: 13,
+      lineHeight: 18,
     },
     description: {
       paddingHorizontal: 20,

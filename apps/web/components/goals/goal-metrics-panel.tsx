@@ -8,8 +8,10 @@ import {
   getGoalHabitAdherenceTone,
   getGoalMetricsStatusPresentation,
 } from '@orbit/shared/utils/goal-metrics'
+import { ProgressBar } from '@/components/ui/progress-bar'
 import { SectionLabel } from '@/components/ui/section-label'
 import { SettingsRow } from '@/components/ui/settings-row'
+import { StatTile } from '@/components/ui/stat-tile'
 
 interface GoalMetricsPanelProps {
   metrics: GoalMetricsViewModel | null
@@ -18,8 +20,7 @@ interface GoalMetricsPanelProps {
   isStreak?: boolean
 }
 
-/** Metrics: status row + flush SettingsRow strip + adherence rows.
- *  No chrome cards — purely hairline-separated rows. */
+/** Metrics: status row, a StatTile pair (projection + pace), and adherence rows. */
 export function GoalMetricsPanel({
   metrics,
   unit,
@@ -43,10 +44,6 @@ export function GoalMetricsPanel({
       dot: dotColor,
     }
   }, [metrics?.trackingStatus, t])
-
-  function formatMetricDate(dateStr: string) {
-    return formatGoalMetricsDate(dateStr, locale)
-  }
 
   if (isLoading) {
     return (
@@ -72,6 +69,23 @@ export function GoalMetricsPanel({
 
   if (!metrics) return null
 
+  const projectedValue = metrics.projectedCompletionDate
+    ? formatGoalMetricsDate(metrics.projectedCompletionDate, locale)
+    : t('goals.metrics.noData')
+
+  const paceTile = isStreak
+    ? {
+        value: metrics.daysToDeadline ?? t('goals.metrics.noData'),
+        label: t('goals.metrics.daysToDeadline'),
+      }
+    : {
+        value:
+          metrics.velocityPerDay > 0
+            ? `${metrics.velocityPerDay} ${unit}/${t('goals.metrics.perDay')}`
+            : t('goals.metrics.noData'),
+        label: t('goals.metrics.velocity'),
+      }
+
   return (
     <div>
       <SectionLabel>{t('goals.metrics.title')}</SectionLabel>
@@ -86,51 +100,24 @@ export function GoalMetricsPanel({
         />
       )}
 
-      <SettingsRow
-        label={t('goals.metrics.projectedCompletion')}
-        mono
-        accessory="none"
-        value={
-          metrics.projectedCompletionDate
-            ? formatMetricDate(metrics.projectedCompletionDate)
-            : t('goals.metrics.noData')
-        }
-        valueColor="var(--fg-1)"
-      />
-
-      {isStreak ? (
-        <SettingsRow
-          label={t('goals.streak.daysRemaining', { count: metrics.daysToDeadline ?? 0 })}
-          mono
-          accessory="none"
-          value={metrics.daysToDeadline ?? t('goals.metrics.noData')}
-          valueColor="var(--fg-1)"
+      <div className="flex" style={{ gap: 12, padding: '14px 20px 4px' }}>
+        <StatTile
+          emoji="📅"
+          value={projectedValue}
+          label={t('goals.metrics.projectedCompletion')}
         />
-      ) : (
-        <SettingsRow
-          label={t('goals.metrics.velocity')}
-          mono
-          accessory="none"
-          value={
-            metrics.velocityPerDay > 0
-              ? `${metrics.velocityPerDay} ${unit}/${t('goals.metrics.perDay')}`
-              : t('goals.metrics.noData')
-          }
-          valueColor="var(--fg-1)"
-        />
-      )}
+        <StatTile emoji="⚡" value={paceTile.value} label={paceTile.label} />
+      </div>
 
       {metrics.habitAdherence.length > 0 && (
         <>
           <SectionLabel>{t('goals.metrics.habitAdherence')}</SectionLabel>
           {metrics.habitAdherence.map((habit) => {
             const adherenceTone = getGoalHabitAdherenceTone(habit.weeklyCompletionRate)
-            let barColor = 'var(--status-overdue)'
-            if (adherenceTone === 'success') {
-              barColor = 'var(--primary)'
-            } else if (adherenceTone === 'primary') {
-              barColor = 'var(--primary)'
-            }
+            const barColor =
+              adherenceTone === 'success' || adherenceTone === 'primary'
+                ? 'var(--primary)'
+                : 'var(--status-overdue)'
 
             return (
               <div
@@ -152,30 +139,20 @@ export function GoalMetricsPanel({
                 >
                   {habit.habitTitle}
                 </span>
-                <div
-                  className="relative rounded-full"
-                  style={{
-                    width: 80,
-                    height: 3,
-                    background: 'var(--bg-sunk)',
-                  }}
-                >
-                  <div
-                    className="absolute left-0 top-0 bottom-0 rounded-full"
-                    style={{
-                      width: `${Math.min(100, habit.weeklyCompletionRate)}%`,
-                      background: barColor,
-                    }}
-                  />
-                </div>
+                <ProgressBar
+                  className="w-20 shrink-0"
+                  progress={Math.min(100, habit.weeklyCompletionRate) / 100}
+                  label={habit.habitTitle}
+                  color={barColor}
+                />
                 <span
                   style={{
                     fontFamily: 'var(--font-mono)',
-                    fontSize: 11,
+                    fontSize: 12,
                     fontWeight: 500,
                     color: 'var(--fg-1)',
                     fontVariantNumeric: 'tabular-nums',
-                    minWidth: 28,
+                    minWidth: 32,
                     textAlign: 'right',
                   }}
                 >

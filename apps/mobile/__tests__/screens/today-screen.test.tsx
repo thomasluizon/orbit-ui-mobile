@@ -249,10 +249,6 @@ vi.mock("@/components/ui/section-label", () => ({
     ),
 }));
 
-vi.mock("@/components/habits/habit-summary-card", () => ({
-  HabitSummaryCard: () => null,
-}));
-
 vi.mock("@/components/goals/goals-view", () => ({
   GoalsView: () => React.createElement("GoalsView"),
 }));

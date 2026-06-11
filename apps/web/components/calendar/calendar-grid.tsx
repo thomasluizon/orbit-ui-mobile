@@ -21,6 +21,8 @@ interface CalendarGridProps {
   currentMonth: Date
   dayMap: Map<string, CalendarDayEntry[]>
   onSelectDay: (dateStr: string) => void
+  /** Date string of the day whose detail panel is open (primary-filled pill). */
+  selectedDateStr?: string | null
   /** When true, suppresses status dots so the grid structure still renders
    *  while the month's data is loading. */
   isLoading?: boolean
@@ -48,10 +50,18 @@ function dayStatus(cell: GridDay): DayStatus {
   return 'partial'
 }
 
+function dayNumberColor(cell: GridDay, selected: boolean): string {
+  if (selected) return 'var(--fg-on-primary)'
+  if (!cell.isCurrentMonth) return 'var(--fg-4)'
+  if (cell.isToday) return 'var(--fg-1)'
+  return 'var(--fg-2)'
+}
+
 export function CalendarGrid({
   currentMonth,
   dayMap,
   onSelectDay,
+  selectedDateStr = null,
   isLoading = false,
 }: Readonly<CalendarGridProps>) {
   const t = useTranslations()
@@ -110,105 +120,110 @@ export function CalendarGrid({
       style={{ padding: '16px 20px 8px' }}
     >
       <div
-        className="grid"
         style={{
-          gridTemplateColumns: 'repeat(7, 1fr)',
-          marginBottom: 12,
+          borderRadius: 18,
+          padding: '16px 14px',
+          background: 'var(--bg-card)',
+          boxShadow: 'inset 0 0 0 1px var(--hairline)',
         }}
       >
-        {weekdayHeaders.map((day, i) => (
-          <div
-            key={`${day}-${i}`}
-            className="text-center"
-            style={{
-              fontFamily: 'var(--font-mono)',
-              fontSize: 11,
-              fontWeight: 500,
-              color: 'var(--fg-3)',
-              letterSpacing: '0.04em',
-            }}
-          >
-            {day}
-          </div>
-        ))}
-      </div>
-
-      <div
-        className="grid"
-        style={{ gridTemplateColumns: 'repeat(7, 1fr)', rowGap: 6 }}
-      >
-        {gridDays.map((cell, index) => {
-          const canSelect = cell.isCurrentMonth
-          const status = dayStatus(cell)
-
-          return (
-            <button
-              type="button"
-              key={cell.dateStr}
-              data-tour={index === 0 ? 'tour-calendar-day' : undefined}
-              aria-label={displayWeekdayDate(cell.date, true)}
-              aria-current={cell.isToday ? 'date' : undefined}
-              aria-disabled={!canSelect}
-              onClick={() => canSelect && onSelectDay(cell.dateStr)}
-              className={
-                'relative flex flex-col items-center justify-center bg-transparent transition-colors duration-150 ease-out ' +
-                (canSelect ? 'hover:bg-[var(--bg-elev)]' : '')
-              }
+        <div
+          className="grid"
+          style={{
+            gridTemplateColumns: 'repeat(7, 1fr)',
+            marginBottom: 8,
+          }}
+        >
+          {weekdayHeaders.map((day, i) => (
+            <div
+              key={`${day}-${i}`}
+              className="text-center uppercase"
               style={{
-                appearance: 'none',
-                border: 0,
-                height: 40,
-                gap: 3,
-                borderRadius: 6,
-                cursor: canSelect ? 'pointer' : 'default',
-                color: cell.isCurrentMonth ? 'var(--fg-1)' : 'var(--fg-4)',
-                opacity: cell.isCurrentMonth ? 1 : 0.5,
+                fontFamily: 'var(--font-mono)',
+                fontSize: 11,
+                fontWeight: 500,
+                color: 'var(--fg-4)',
+                letterSpacing: '0.04em',
+                fontVariantNumeric: 'tabular-nums',
               }}
             >
-              <span
-                aria-hidden="true"
+              {day}
+            </div>
+          ))}
+        </div>
+
+        <div
+          className="grid"
+          style={{ gridTemplateColumns: 'repeat(7, 1fr)', rowGap: 4 }}
+        >
+          {gridDays.map((cell, index) => {
+            const canSelect = cell.isCurrentMonth
+            const status = dayStatus(cell)
+            const selected = canSelect && cell.dateStr === selectedDateStr
+
+            return (
+              <button
+                type="button"
+                key={cell.dateStr}
+                data-tour={index === 0 ? 'tour-calendar-day' : undefined}
+                aria-label={displayWeekdayDate(cell.date, true)}
+                aria-current={cell.isToday ? 'date' : undefined}
+                aria-disabled={!canSelect}
+                onClick={() => canSelect && onSelectDay(cell.dateStr)}
+                className={
+                  'relative flex flex-col items-center justify-center bg-transparent transition-colors duration-150 ease-out ' +
+                  (canSelect ? 'hover:bg-[var(--bg-elev)]' : '')
+                }
                 style={{
-                  fontFamily: 'var(--font-mono)',
-                  fontSize: 13,
-                  fontWeight: cell.isToday ? 600 : 400,
-                  color:
-                    cell.isCurrentMonth
-                      ? status === 'empty' && !cell.isToday
-                        ? 'var(--fg-3)'
-                        : 'var(--fg-1)'
-                      : 'var(--fg-4)',
-                  fontVariantNumeric: 'tabular-nums',
+                  appearance: 'none',
+                  border: 0,
+                  height: 44,
+                  gap: 4,
+                  borderRadius: 12,
+                  cursor: canSelect ? 'pointer' : 'default',
+                  opacity: cell.isCurrentMonth ? 1 : 0.5,
                 }}
               >
-                {cell.day}
-              </span>
-              <span aria-hidden="true" style={{ width: 5, height: 5 }}>
-                {isLoading
-                  ? <span className="block rounded-full" style={{ width: 5, height: 5, background: 'var(--hairline)', opacity: 0.5 }} />
-                  : renderDot(cell.isToday ? 'today' : status)}
-              </span>
-            </button>
-          )
-        })}
+                <span
+                  aria-hidden="true"
+                  className="inline-flex items-center justify-center rounded-full"
+                  style={{
+                    width: 28,
+                    height: 24,
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: 14,
+                    fontWeight: cell.isToday ? 700 : 500,
+                    color: dayNumberColor(cell, selected),
+                    fontVariantNumeric: 'tabular-nums',
+                    background: selected ? 'var(--primary)' : 'transparent',
+                    boxShadow:
+                      cell.isToday && !selected
+                        ? 'inset 0 0 0 1.5px var(--primary)'
+                        : 'none',
+                  }}
+                >
+                  {cell.day}
+                </span>
+                <span aria-hidden="true" style={{ width: 6, height: 6 }}>
+                  {isLoading
+                    ? <span className="block rounded-full" style={{ width: 6, height: 6, background: 'var(--hairline)', opacity: 0.5 }} />
+                    : renderDot(status)}
+                </span>
+              </button>
+            )
+          })}
+        </div>
       </div>
     </div>
   )
 }
 
-function renderDot(kind: 'today' | DayStatus): React.ReactNode {
-  if (kind === 'today') {
-    return (
-      <span
-        className="block rounded-full"
-        style={{ width: 5, height: 5, background: 'var(--primary)' }}
-      />
-    )
-  }
+function renderDot(kind: DayStatus): React.ReactNode {
   if (kind === 'full') {
     return (
       <span
         className="block rounded-full"
-        style={{ width: 5, height: 5, background: 'var(--fg-1)' }}
+        style={{ width: 6, height: 6, background: 'var(--primary)' }}
       />
     )
   }
@@ -217,9 +232,9 @@ function renderDot(kind: 'today' | DayStatus): React.ReactNode {
       <span
         className="block rounded-full"
         style={{
-          width: 5,
-          height: 5,
-          boxShadow: 'inset 0 0 0 1px var(--fg-3)',
+          width: 6,
+          height: 6,
+          boxShadow: 'inset 0 0 0 1.5px var(--fg-4)',
         }}
       />
     )
@@ -228,7 +243,7 @@ function renderDot(kind: 'today' | DayStatus): React.ReactNode {
     return (
       <span
         className="block rounded-full"
-        style={{ width: 5, height: 5, background: 'var(--status-overdue)' }}
+        style={{ width: 6, height: 6, background: 'var(--status-overdue)' }}
       />
     )
   }

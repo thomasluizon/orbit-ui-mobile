@@ -206,8 +206,13 @@ describe('CreateHabitModal (mobile)', () => {
     const findSubmit = () =>
       tree.root.findAll(
         (node: any) =>
-          node.type === 'TouchableOpacity' &&
-          node.props.accessibilityLabel === 'habits.createHabit',
+          node.type === 'Pressable' &&
+          node.props.accessibilityRole === 'button' &&
+          node.findAll(
+            (child: any) =>
+              child.type === 'Text' &&
+              child.props.children === 'habits.createHabit',
+          ).length > 0,
       )[0]
 
     expect(findSubmit().props.disabled).toBe(true)

@@ -2,9 +2,7 @@
 
 import { ChevronLeft, ChevronRight, Search, X, MoreHorizontal, Filter, Check } from 'lucide-react'
 import { useTranslations } from 'next-intl'
-import { AppBar } from '@/components/ui/app-bar'
 import { Popover } from '@/components/ui/popover'
-import { AppLogo } from '@/components/ui/app-logo'
 import { SectionHeadTabs, type SectionHeadTabItem } from '@/components/ui/section-head-tabs'
 import { TagChip } from '@/components/ui/tag-chip'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
@@ -36,35 +34,56 @@ export function getTodayTabLabel(
 }
 
 interface TodayHeaderProps {
-  title: string
-  subtitle?: string
+  dateLine: string
+  greeting: string
   streak: number
 }
 
+/** Início greeting header: date line + greeting over the gradient, with the
+ *  theme toggle, streak flame, and notification bell clustered top-right. */
 export function TodayHeader({
-  title,
-  subtitle,
+  dateLine,
+  greeting,
   streak,
 }: Readonly<TodayHeaderProps>) {
   return (
-    <AppBar
-      leadingIcon={
-        <span style={{ color: 'var(--fg-2)' }}>
-          <AppLogo size={20} />
+    <div
+      className="relative z-[1] flex items-start justify-between"
+      style={{ padding: '12px 20px 0', gap: 12 }}
+    >
+      <div className="min-w-0">
+        <div
+          style={{
+            fontFamily: 'var(--font-sans)',
+            fontSize: 15,
+            color: 'var(--fg-2)',
+          }}
+        >
+          {dateLine}
+        </div>
+        <h1
+          className="overflow-hidden text-ellipsis whitespace-nowrap"
+          style={{
+            margin: '4px 0 0',
+            fontFamily: 'var(--font-sans)',
+            fontSize: 28,
+            fontWeight: 500,
+            lineHeight: 1.3,
+            letterSpacing: '-0.01em',
+            color: 'var(--fg-1)',
+          }}
+        >
+          {greeting}
+        </h1>
+      </div>
+      <div className="flex shrink-0 items-center" style={{ gap: 8, paddingTop: 4 }}>
+        <ThemeToggle />
+        <span data-tour="tour-streak-badge">
+          <StreakBadge streak={streak} />
         </span>
-      }
-      title={title}
-      subtitle={subtitle}
-      trailing={
-        <>
-          <ThemeToggle />
-          <span data-tour="tour-streak-badge">
-            <StreakBadge streak={streak} />
-          </span>
-          <NotificationBell />
-        </>
-      }
-    />
+        <NotificationBell />
+      </div>
+    </div>
   )
 }
 

@@ -3,13 +3,11 @@ import {
   Animated,
   Pressable,
   StyleSheet,
+  Text,
   View,
   type GestureResponderHandlers,
 } from 'react-native'
-import { useTranslation } from 'react-i18next'
 import { ChevronLeft, ChevronRight } from 'lucide-react-native'
-import { AppBar } from '@/components/ui/app-bar'
-import { AppLogo } from '@/components/ui/app-logo'
 import { SectionHeadTabs, type SectionHeadTab } from '@/components/ui/section-head-tabs'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
 import { StreakBadge } from '@/components/gamification/streak-badge'
@@ -26,19 +24,25 @@ export type TodayTabItem = {
   label: string
 }
 
-/** v8 AppBar + streak/bell utility cluster for the Today screen. */
+/** Início greeting header: date line + greeting over the gradient, with the
+ *  theme toggle, streak flame, and notification bell clustered top-right. */
 export function TodayHeader({
   currentStreak,
   onGoToToday,
   goToTodayLabel,
-  subtitle,
+  dateLine,
+  greeting,
+  topInset,
 }: Readonly<{
   currentStreak: number
   onGoToToday: () => void
   goToTodayLabel: string
-  subtitle: string
+  dateLine: string
+  greeting: string
+  topInset: number
 }>) {
-  const { t } = useTranslation()
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = createTokensV2(currentScheme, currentTheme)
   const streakRef = useRef<View>(null)
   const bellRef = useRef<View>(null)
   useTourTarget('tour-streak-badge', streakRef)
@@ -49,23 +53,28 @@ export function TodayHeader({
       onPress={onGoToToday}
       accessibilityRole="button"
       accessibilityLabel={goToTodayLabel}
+      style={[styles.greetingRow, { paddingTop: topInset + 12 }]}
     >
-      <AppBar
-        LeadingIcon={AppLogo}
-        title={t('common.appName')}
-        subtitle={subtitle}
-        trailing={
-          <>
-            <ThemeToggle />
-            <View ref={streakRef} collapsable={false}>
-              <StreakBadge streak={currentStreak} />
-            </View>
-            <View ref={bellRef} collapsable={false}>
-              <NotificationBell />
-            </View>
-          </>
-        }
-      />
+      <View style={styles.greetingBlock}>
+        <Text style={[styles.greetingDate, { color: tokens.fg2 }]}>
+          {dateLine}
+        </Text>
+        <Text
+          style={[styles.greetingTitle, { color: tokens.fg1 }]}
+          numberOfLines={1}
+        >
+          {greeting}
+        </Text>
+      </View>
+      <View style={styles.greetingActions}>
+        <ThemeToggle />
+        <View ref={streakRef} collapsable={false}>
+          <StreakBadge streak={currentStreak} />
+        </View>
+        <View ref={bellRef} collapsable={false}>
+          <NotificationBell />
+        </View>
+      </View>
     </Pressable>
   )
 }
@@ -210,6 +219,34 @@ export function TodayDateNavigation({
 }
 
 const styles = StyleSheet.create({
+  greetingRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    justifyContent: 'space-between',
+    gap: 12,
+    paddingHorizontal: 20,
+  },
+  greetingBlock: {
+    flex: 1,
+    minWidth: 0,
+  },
+  greetingDate: {
+    fontFamily: 'Rubik_400Regular',
+    fontSize: 15,
+  },
+  greetingTitle: {
+    fontFamily: 'Rubik_500Medium',
+    fontSize: 28,
+    lineHeight: 36,
+    letterSpacing: -0.28,
+    marginTop: 4,
+  },
+  greetingActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingTop: 4,
+  },
   dateNavWrap: {
     paddingHorizontal: 20,
     paddingTop: 4,

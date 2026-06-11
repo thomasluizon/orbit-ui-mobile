@@ -7,6 +7,7 @@ import {
   CheckCircle2,
   ChevronRight,
   PencilLine,
+  Plus,
   RotateCw,
   Orbit,
   Trash2,
@@ -14,6 +15,8 @@ import {
 import { useTranslations, useLocale } from 'next-intl'
 import { AppOverlay } from '@/components/ui/app-overlay'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
+import { PillButton } from '@/components/ui/pill-button'
+import { ProgressBar } from '@/components/ui/progress-bar'
 import { SectionLabel } from '@/components/ui/section-label'
 import { PullQuote } from '@/components/chat/pull-quote'
 import { EditGoalModal } from './edit-goal-modal'
@@ -330,65 +333,68 @@ export function GoalDetailDrawer({
             )}
 
             <SectionLabel>{t('goals.progress')}</SectionLabel>
-            <div style={{ padding: '10px 20px 16px' }}>
+            <div style={{ padding: '2px 20px 16px' }}>
               <div
-                className="relative rounded-full"
-                style={{ height: 5, background: 'var(--bg-sunk)' }}
+                style={{
+                  fontFamily: 'var(--font-display)',
+                  fontSize: 34,
+                  fontWeight: 700,
+                  letterSpacing: '-0.02em',
+                  lineHeight: 1,
+                  color: 'var(--fg-1)',
+                  fontVariantNumeric: 'tabular-nums',
+                  marginBottom: 12,
+                }}
               >
-                <div
-                  className="absolute left-0 top-0 bottom-0 rounded-full"
-                  style={{
-                    width: `${Math.min(goal.progressPercentage, 100)}%`,
-                    background: 'var(--primary)',
-                  }}
-                />
+                {goal.progressPercentage}%
               </div>
+              <ProgressBar
+                progress={Math.min(goal.progressPercentage, 100) / 100}
+                label={t('goals.progressPercentage', { pct: goal.progressPercentage })}
+                color={isStreak ? 'var(--status-overdue)' : undefined}
+              />
               <div
-                className="flex items-center justify-between"
                 style={{
                   marginTop: 10,
                   fontFamily: 'var(--font-mono)',
                   fontSize: 12,
-                  color: 'var(--fg-2)',
+                  color: 'var(--fg-3)',
                   fontVariantNumeric: 'tabular-nums',
                 }}
               >
-                <span>
-                  {isStreak
-                    ? t('goals.streak.ofTarget', {
-                        current: goal.currentValue,
-                        target: goal.targetValue,
-                      })
-                    : t('goals.progressOf', {
-                        current: goal.currentValue,
-                        target: goal.targetValue,
-                        unit: goal.unit,
-                      })}
-                  <span style={{ color: 'var(--fg-3)', marginLeft: 4 }}>
-                    ({t('goals.progressPercentage', { pct: goal.progressPercentage })})
-                  </span>
-                </span>
-                {goal.status === 'Active' && !showProgressForm && (
-                  <button
-                    type="button"
-                    className="appearance-none border-0 bg-transparent cursor-pointer text-[var(--fg-1)] transition-colors duration-150 ease-out hover:text-[var(--primary)]"
-                    style={{
-                      fontFamily: 'var(--font-sans)',
-                      fontSize: 13,
-                      fontWeight: 500,
-                      padding: 0,
-                    }}
-                    onClick={() => {
-                      setInitialProgressValue(goal.currentValue)
-                      setProgressValue(goal.currentValue)
-                      setProgressNote('')
-                      setShowProgressForm(true)
-                    }}
-                  >
-                    {t('goals.updateProgress')}
-                  </button>
-                )}
+                {isStreak
+                  ? t('goals.streak.ofTarget', {
+                      current: goal.currentValue,
+                      target: goal.targetValue,
+                    })
+                  : t('goals.progressOf', {
+                      current: goal.currentValue,
+                      target: goal.targetValue,
+                      unit: goal.unit,
+                    })}
               </div>
+              {goal.status === 'Active' && !showProgressForm && (
+                <PillButton
+                  fullWidth
+                  className="mt-[14px]"
+                  leading={
+                    <Plus
+                      size={18}
+                      strokeWidth={1.8}
+                      color="var(--fg-on-primary)"
+                      aria-hidden="true"
+                    />
+                  }
+                  onClick={() => {
+                    setInitialProgressValue(goal.currentValue)
+                    setProgressValue(goal.currentValue)
+                    setProgressNote('')
+                    setShowProgressForm(true)
+                  }}
+                >
+                  {t('goals.updateProgress')}
+                </PillButton>
+              )}
             </div>
 
             {showProgressForm && goal.status === 'Active' && (

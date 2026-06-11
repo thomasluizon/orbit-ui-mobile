@@ -2,7 +2,6 @@ import { View, Text } from "react-native";
 import { useWatch } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { BufferedSheetInput } from "./buffered-sheet-input";
-import type { AppTokens } from "./styles";
 import type { HabitFormControl, HabitFormStyles } from "./types";
 
 interface TitleSectionProps {
@@ -12,7 +11,6 @@ interface TitleSectionProps {
   onCommit: (value: string) => void;
   onDraftChange?: (value: string) => void;
   styles: HabitFormStyles;
-  tokens: AppTokens;
 }
 
 export function TitleSection({
@@ -22,7 +20,6 @@ export function TitleSection({
   onCommit,
   onDraftChange,
   styles,
-  tokens,
 }: Readonly<TitleSectionProps>) {
   const { t } = useTranslation();
   const watchedTitle = useWatch({ control, name: "title" }) ?? "";
@@ -35,8 +32,6 @@ export function TitleSection({
         registerFlush={registerFlush}
         maxLength={200}
         placeholder={t("habits.form.titlePlaceholder")}
-        placeholderTextColor={tokens.fg3}
-        style={styles.input}
         onCommit={onCommit}
         onDraftChange={onDraftChange}
         accessibilityLabel={t("habits.form.title")}

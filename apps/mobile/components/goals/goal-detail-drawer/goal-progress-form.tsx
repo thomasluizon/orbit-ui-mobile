@@ -1,6 +1,7 @@
-import { ActivityIndicator, Text, TouchableOpacity, View } from 'react-native'
+import { ActivityIndicator, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { BottomSheetAppTextInput } from '@/components/ui/bottom-sheet-app-text-input'
+import { PillButton } from '@/components/ui/pill-button'
 import type { AppTokens, createStyles } from './styles'
 
 type GoalDetailStyles = ReturnType<typeof createStyles>
@@ -42,7 +43,6 @@ export function GoalProgressForm({
       <View>
         <Text style={styles.formLabel}>{targetLabel}</Text>
         <BottomSheetAppTextInput
-          style={styles.formInput}
           value={progressValue}
           onChangeText={onChangeValue}
           keyboardType="decimal-pad"
@@ -58,7 +58,6 @@ export function GoalProgressForm({
       <View>
         <Text style={styles.formLabel}>{t('goals.progressNote')}</Text>
         <BottomSheetAppTextInput
-          style={styles.formInput}
           value={progressNote}
           onChangeText={onChangeNote}
           placeholder={t('goals.progressNote')}
@@ -68,33 +67,26 @@ export function GoalProgressForm({
         />
       </View>
       <View style={styles.progressFormActions}>
-        <TouchableOpacity
+        <PillButton
+          variant="ghost"
+          style={styles.progressFormButton}
           onPress={onCancel}
-          activeOpacity={0.7}
-          accessibilityRole="button"
           accessibilityLabel={t('common.cancel')}
-          accessibilityHint={t('common.discardChangesDescription')}
-          style={styles.formCancelBtn}
         >
-          <Text style={styles.formCancelText}>{t('common.cancel')}</Text>
-        </TouchableOpacity>
-        <TouchableOpacity
+          {t('common.cancel')}
+        </PillButton>
+        <PillButton
+          style={styles.progressFormButton}
           onPress={onSubmit}
           disabled={!progressValue || isUpdatingProgress}
-          activeOpacity={0.7}
-          accessibilityRole="button"
           accessibilityLabel={t('common.save')}
-          style={[
-            styles.formSaveBtn,
-            (!progressValue || isUpdatingProgress) && styles.disabled,
-          ]}
         >
           {isUpdatingProgress ? (
             <ActivityIndicator size="small" color={tokens.fgOnPrimary} />
           ) : (
-            <Text style={styles.formSaveText}>{t('common.save')}</Text>
+            t('common.save')
           )}
-        </TouchableOpacity>
+        </PillButton>
       </View>
     </View>
   )

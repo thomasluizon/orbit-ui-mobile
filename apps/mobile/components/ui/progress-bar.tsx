@@ -14,6 +14,8 @@ interface ProgressBarProps {
   /** Fill ratio between 0 and 1 (values outside the range are clamped). */
   progress: number
   label: string
+  /** Fill color override (defaults to the scheme primary). */
+  color?: string
   style?: StyleProp<ViewStyle>
 }
 
@@ -28,7 +30,7 @@ function rgbaFromHex(hex: string, alpha: number): string {
 }
 
 /** Kit progress bar: 8px pill track with a primary fill animated via scaleX only. */
-export function ProgressBar({ progress, label, style }: Readonly<ProgressBarProps>) {
+export function ProgressBar({ progress, label, color, style }: Readonly<ProgressBarProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const prefersReducedMotion = usePrefersReducedMotion()
@@ -59,7 +61,7 @@ export function ProgressBar({ progress, label, style }: Readonly<ProgressBarProp
         style={[
           styles.fill,
           {
-            backgroundColor: tokens.primary,
+            backgroundColor: color ?? tokens.primary,
             transform: [{ scaleX }],
             transformOrigin: 'left',
           },

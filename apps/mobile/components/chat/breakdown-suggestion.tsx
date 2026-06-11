@@ -13,7 +13,8 @@ import type { BulkHabitItem, FrequencyUnit } from '@orbit/shared/types/habit'
 import { frequencyUnitSchema } from '@orbit/shared/types/habit'
 import { useBulkCreateHabits } from '@/hooks/use-habits'
 import { AppTextInput } from '@/components/ui/app-text-input'
-import { createTokensV2, radius, shadows } from '@/lib/theme'
+import { PillButton } from '@/components/ui/pill-button'
+import { createTokensV2, tintFromPrimary } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { plural } from '@/lib/plural'
 
@@ -295,28 +296,28 @@ export function BreakdownSuggestion({
       )}
 
       <View style={styles.actions}>
-        <TouchableOpacity
-          style={[
-            styles.confirmBtn,
-            (validHabits.length === 0 || isSubmitting) && styles.btnDisabled,
-          ]}
-          activeOpacity={0.8}
+        <PillButton
+          style={styles.confirmPill}
           disabled={validHabits.length === 0 || isSubmitting}
-          onPress={handleConfirm}
+          onPress={() => {
+            void handleConfirm()
+          }}
+          leading={
+            isSubmitting ? <ActivityIndicator size="small" color={tokens.fgOnPrimary} /> : undefined
+          }
         >
-          {isSubmitting && <ActivityIndicator size="small" color={tokens.fgOnPrimary} />}
-          <Text style={styles.confirmBtnText}>
+          <Text style={styles.confirmPillLabel}>
             {plural(t('habits.breakdown.createCount', { n: validHabits.length }), validHabits.length)}
           </Text>
-        </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.cancelBtn}
-          activeOpacity={0.7}
+        </PillButton>
+        <PillButton
+          variant="ghost"
+          style={styles.cancelPill}
           disabled={isSubmitting}
           onPress={onCancelled}
         >
-          <Text style={styles.cancelBtnText}>{t('common.cancel')}</Text>
-        </TouchableOpacity>
+          <Text style={styles.cancelPillLabel}>{t('common.cancel')}</Text>
+        </PillButton>
       </View>
     </View>
   )
@@ -325,18 +326,16 @@ export function BreakdownSuggestion({
 function createStyles(tokens: AppTokens) {
   return StyleSheet.create({
   card: {
-    backgroundColor: tokens.bgElev,
+    backgroundColor: tokens.bgCard,
     borderWidth: 1,
     borderColor: tokens.hairline,
-    borderRadius: radius.xl,
+    borderRadius: 16,
     padding: 16,
     gap: 12,
-    ...shadows.sm,
-    elevation: 2,
   },
   headerText: {
+    fontFamily: 'Rubik_500Medium',
     fontSize: 14,
-    fontWeight: '500',
     color: tokens.fg1,
   },
   habitsList: {
@@ -349,7 +348,7 @@ function createStyles(tokens: AppTokens) {
     backgroundColor: tokens.bgElev,
     borderWidth: 1,
     borderColor: tokens.hairline,
-    borderRadius: radius.lg,
+    borderRadius: 12,
     padding: 12,
   },
   habitContent: {
@@ -357,9 +356,12 @@ function createStyles(tokens: AppTokens) {
     gap: 6,
   },
   habitInput: {
+    fontFamily: 'Rubik_500Medium',
     fontSize: 14,
-    fontWeight: '500',
     color: tokens.fg1,
+    minHeight: 0,
+    backgroundColor: 'transparent',
+    borderWidth: 0,
     padding: 0,
   },
   freqRow: {
@@ -368,28 +370,29 @@ function createStyles(tokens: AppTokens) {
     gap: 4,
   },
   freqChip: {
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: radius.full,
-    backgroundColor: tokens.bgElev,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 999,
+    backgroundColor: 'transparent',
     borderWidth: 1,
     borderColor: tokens.hairline,
   },
   freqChipActive: {
-    backgroundColor: tokens.bgElev,
-    borderColor: tokens.hairlineStrong,
+    backgroundColor: tintFromPrimary(tokens, 0.1),
+    borderColor: tintFromPrimary(tokens, 0.3),
   },
   freqChipText: {
-    fontSize: 10,
+    fontFamily: 'Rubik_400Regular',
+    fontSize: 11,
     color: tokens.fg2,
   },
   freqChipTextActive: {
+    fontFamily: 'Rubik_500Medium',
     color: tokens.primary,
-    fontWeight: '600',
   },
   removeBtn: {
     padding: 6,
-    borderRadius: radius.full,
+    borderRadius: 999,
   },
   addBtn: {
     flexDirection: 'row',
@@ -397,8 +400,8 @@ function createStyles(tokens: AppTokens) {
     gap: 6,
   },
   addBtnText: {
+    fontFamily: 'Rubik_600SemiBold',
     fontSize: 12,
-    fontWeight: '600',
     color: tokens.primary,
   },
   checkboxRow: {
@@ -411,7 +414,7 @@ function createStyles(tokens: AppTokens) {
     height: 16,
     borderRadius: 4,
     borderWidth: 2,
-    borderColor: tokens.hairline,
+    borderColor: tokens.fg4,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -420,10 +423,12 @@ function createStyles(tokens: AppTokens) {
     borderColor: tokens.primary,
   },
   checkboxLabel: {
+    fontFamily: 'Rubik_400Regular',
     fontSize: 12,
     color: tokens.fg2,
   },
   errorText: {
+    fontFamily: 'Rubik_400Regular',
     fontSize: 12,
     color: tokens.statusBad,
   },
@@ -432,37 +437,23 @@ function createStyles(tokens: AppTokens) {
     gap: 8,
     marginTop: 4,
   },
-  confirmBtn: {
+  confirmPill: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 10,
-    borderRadius: radius.lg,
-    backgroundColor: tokens.primary,
+    paddingVertical: 11,
   },
-  confirmBtnText: {
+  confirmPillLabel: {
+    fontFamily: 'Rubik_500Medium',
+    fontSize: 14,
     color: tokens.fgOnPrimary,
-    fontSize: 12,
-    fontWeight: '700',
   },
-  cancelBtn: {
-    paddingHorizontal: 16,
-    paddingVertical: 10,
-    borderRadius: radius.lg,
-    borderWidth: 1,
-    borderColor: tokens.hairline,
-    alignItems: 'center',
-    justifyContent: 'center',
+  cancelPill: {
+    paddingVertical: 11,
+    paddingHorizontal: 18,
   },
-  cancelBtnText: {
-    color: tokens.fg2,
-    fontSize: 12,
-    fontWeight: '500',
-  },
-  btnDisabled: {
-    opacity: 0.5,
+  cancelPillLabel: {
+    fontFamily: 'Rubik_500Medium',
+    fontSize: 14,
+    color: tokens.fg1,
   },
   successRow: {
     flexDirection: 'row',
@@ -474,13 +465,13 @@ function createStyles(tokens: AppTokens) {
     width: 24,
     height: 24,
     borderRadius: 12,
-    backgroundColor: tokens.bgElev,
+    backgroundColor: `${tokens.statusDone}33`,
     alignItems: 'center',
     justifyContent: 'center',
   },
   successText: {
+    fontFamily: 'Rubik_500Medium',
     fontSize: 14,
-    fontWeight: '600',
     color: tokens.statusDone,
   },
   })
