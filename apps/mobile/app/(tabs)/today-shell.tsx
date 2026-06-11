@@ -24,21 +24,19 @@ export type TodayTabItem = {
   label: string
 }
 
-/** Início greeting header: date line + greeting over the gradient, with the
- *  theme toggle, streak flame, and notification bell clustered top-right. */
+/** Início header: the date as the heading over the gradient, with the theme
+ *  toggle, streak flame, and notification bell clustered top-right. */
 export function TodayHeader({
   currentStreak,
   onGoToToday,
   goToTodayLabel,
   dateLine,
-  greeting,
   topInset,
 }: Readonly<{
   currentStreak: number
   onGoToToday: () => void
   goToTodayLabel: string
   dateLine: string
-  greeting: string
   topInset: number
 }>) {
   const { currentScheme, currentTheme } = useAppTheme()
@@ -56,14 +54,11 @@ export function TodayHeader({
       style={[styles.greetingRow, { paddingTop: topInset + 12 }]}
     >
       <View style={styles.greetingBlock}>
-        <Text style={[styles.greetingDate, { color: tokens.fg2 }]}>
-          {dateLine}
-        </Text>
         <Text
-          style={[styles.greetingTitle, { color: tokens.fg1 }]}
+          style={[styles.greetingDate, { color: tokens.fg1 }]}
           numberOfLines={1}
         >
-          {greeting}
+          {dateLine}
         </Text>
       </View>
       <View style={styles.greetingActions}>
@@ -239,7 +234,7 @@ export function TodayDateNavigation({
 const styles = StyleSheet.create({
   greetingRow: {
     flexDirection: 'row',
-    alignItems: 'flex-start',
+    alignItems: 'center',
     justifyContent: 'space-between',
     gap: 12,
     paddingHorizontal: 20,
@@ -249,15 +244,9 @@ const styles = StyleSheet.create({
     minWidth: 0,
   },
   greetingDate: {
-    fontFamily: 'Rubik_400Regular',
-    fontSize: 15,
-  },
-  greetingTitle: {
     fontFamily: 'Rubik_500Medium',
-    fontSize: 28,
-    lineHeight: 36,
-    letterSpacing: -0.28,
-    marginTop: 4,
+    fontSize: 18,
+    letterSpacing: -0.18,
   },
   greetingActions: {
     flexDirection: 'row',

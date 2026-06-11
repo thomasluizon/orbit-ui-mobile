@@ -35,48 +35,32 @@ export function getTodayTabLabel(
 
 interface TodayHeaderProps {
   dateLine: string
-  greeting: string
   streak: number
 }
 
-/** Início greeting header: date line + greeting over the gradient, with the
- *  theme toggle, streak flame, and notification bell clustered top-right. */
-export function TodayHeader({
-  dateLine,
-  greeting,
-  streak,
-}: Readonly<TodayHeaderProps>) {
+/** Início header: the date as the heading over the gradient, with the theme
+ *  toggle, streak flame, and notification bell clustered top-right. */
+export function TodayHeader({ dateLine, streak }: Readonly<TodayHeaderProps>) {
   return (
     <div
-      className="relative z-[1] flex items-start justify-between"
+      className="relative z-[1] flex items-center justify-between"
       style={{ padding: '12px 20px 0', gap: 12 }}
     >
-      <div className="min-w-0">
-        <div
-          style={{
-            fontFamily: 'var(--font-sans)',
-            fontSize: 15,
-            color: 'var(--fg-2)',
-          }}
-        >
-          {dateLine}
-        </div>
-        <h1
-          className="overflow-hidden text-ellipsis whitespace-nowrap"
-          style={{
-            margin: '4px 0 0',
-            fontFamily: 'var(--font-sans)',
-            fontSize: 28,
-            fontWeight: 500,
-            lineHeight: 1.3,
-            letterSpacing: '-0.01em',
-            color: 'var(--fg-1)',
-          }}
-        >
-          {greeting}
-        </h1>
-      </div>
-      <div className="flex shrink-0 items-center" style={{ gap: 8, paddingTop: 4 }}>
+      <h1
+        className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap"
+        style={{
+          margin: 0,
+          fontFamily: 'var(--font-sans)',
+          fontSize: 18,
+          fontWeight: 500,
+          lineHeight: 1.3,
+          letterSpacing: '-0.01em',
+          color: 'var(--fg-1)',
+        }}
+      >
+        {dateLine}
+      </h1>
+      <div className="flex shrink-0 items-center" style={{ gap: 8 }}>
         <ThemeToggle />
         <span data-tour="tour-streak-badge">
           <StreakBadge streak={streak} />
@@ -175,7 +159,7 @@ export function TodayDateNavigation({
       }}
     >
       <div
-        className="flex items-center w-full"
+        className="flex items-center justify-between w-full"
         style={{
           padding: '0 4px',
         }}
@@ -193,10 +177,10 @@ export function TodayDateNavigation({
           type="button"
           key={dateLabel}
           aria-label={isTodaySelected ? dateLabel : todayLabel}
-          className={`appearance-none border-0 bg-transparent cursor-pointer flex-1 inline-flex items-center justify-center rounded-full transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev)] active:scale-[0.98] animate-slide-date-${slideDirection}`}
+          className={`appearance-none border-0 bg-transparent cursor-pointer inline-flex items-center justify-center rounded-full transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev)] active:scale-[0.98] animate-slide-date-${slideDirection}`}
           style={{
             height: 36,
-            padding: '0 12px',
+            padding: '0 16px',
             fontFamily: 'var(--font-sans)',
             fontSize: 15,
             fontWeight: 500,

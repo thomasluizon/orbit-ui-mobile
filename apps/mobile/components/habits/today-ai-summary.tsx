@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { Sparkles } from 'lucide-react-native'
 import { useRouter } from 'expo-router'
@@ -33,6 +33,7 @@ export function TodayAISummary({ date }: Readonly<TodayAISummaryProps>) {
   const hasProAccess = profile?.hasProAccess ?? false
   const aiSummaryEnabled = profile?.aiSummaryEnabled ?? false
   const locale = profile?.language ?? i18n.language
+  const [expanded, setExpanded] = useState(false)
 
   const { summary, isLoading, error, refetch } = useSummary({
     date,
@@ -75,10 +76,14 @@ export function TodayAISummary({ date }: Readonly<TodayAISummaryProps>) {
   }
 
   const resolved = body()
+
+  const isSummaryText =
+    hasProAccess && aiSummaryEnabled && !isLoading && !error && !!summary
+  const clampable = isSummaryText && (summary?.length ?? 0) > 140
+
   if (!resolved) return null
 
-  const showDisclaimer =
-    hasProAccess && aiSummaryEnabled && !isLoading && !error && !!summary
+  const showDisclaimer = isSummaryText && (expanded || !clampable)
 
   return (
     <Pressable
@@ -104,7 +109,27 @@ export function TodayAISummary({ date }: Readonly<TodayAISummaryProps>) {
             <Text style={styles.eyebrow}>Astra</Text>
             <Text style={styles.aiBadge}>{t('aiDisclosure.isAiLabel')}</Text>
           </View>
-          <Text style={styles.message}>{resolved.text}</Text>
+          <Text
+            style={styles.message}
+            numberOfLines={clampable && !expanded ? 3 : undefined}
+          >
+            {resolved.text}
+          </Text>
+          {clampable ? (
+            <Pressable
+              onPress={(event) => {
+                event.stopPropagation()
+                setExpanded((current) => !current)
+              }}
+              hitSlop={8}
+              accessibilityRole="button"
+              accessibilityLabel={expanded ? t('common.seeLess') : t('common.seeMore')}
+            >
+              <Text style={styles.expandToggle}>
+                {expanded ? t('common.seeLess') : t('common.seeMore')}
+              </Text>
+            </Pressable>
+          ) : null}
           {showDisclaimer ? (
             <Text style={styles.disclaimer}>
               {t('aiDisclosure.notMedicalAdvice')}
@@ -125,8 +150,8 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
     },
     card: {
       borderRadius: 18,
-      paddingVertical: 16,
-      paddingHorizontal: 18,
+      paddingVertical: 12,
+      paddingHorizontal: 16,
       backgroundColor: tintFromPrimary(tokens, 0.10),
       borderWidth: 1,
       borderColor: tintFromPrimary(tokens, 0.28),
@@ -138,7 +163,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 8,
-      marginBottom: 8,
+      marginBottom: 6,
     },
     eyebrow: {
       fontFamily: 'Rubik_500Medium',
@@ -161,16 +186,22 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
     },
     message: {
       fontFamily: 'Rubik_400Regular',
-      fontSize: 15,
-      lineHeight: 22,
+      fontSize: 14,
+      lineHeight: 20,
       color: tokens.fg1,
+    },
+    expandToggle: {
+      fontFamily: 'Rubik_500Medium',
+      fontSize: 12,
+      color: tokens.primarySoft,
+      marginTop: 6,
     },
     disclaimer: {
       fontFamily: 'Rubik_400Regular',
-      fontSize: 12,
-      lineHeight: 17,
+      fontSize: 11,
+      lineHeight: 15,
       color: tokens.fg4,
-      marginTop: 8,
+      marginTop: 6,
     },
   })
 }

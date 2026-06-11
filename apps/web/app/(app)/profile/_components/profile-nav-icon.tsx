@@ -85,6 +85,13 @@ export function ProfileNavIcon({
           <path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3 18v3h3l6.3-6.3a4 4 0 0 0 5.4-5.4l-2 2-3-1 1-3 2-2Z" />
         </svg>
       )
+    case 'compass':
+      return (
+        <svg {...sharedProps}>
+          <circle cx="12" cy="12" r="10" />
+          <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" />
+        </svg>
+      )
     default:
       return null
   }

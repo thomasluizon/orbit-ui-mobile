@@ -165,10 +165,12 @@ export function NotificationBell() {
           className="flex items-center justify-between"
           style={{
             padding: '12px 16px',
+            gap: 12,
             borderBottom: '1px solid var(--hairline)',
           }}
         >
           <h3
+            className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap"
             style={{
               fontFamily: 'var(--font-sans)',
               fontSize: 15,
@@ -178,7 +180,7 @@ export function NotificationBell() {
           >
             {t('notifications.title')}
           </h3>
-          <div className="flex items-center gap-2">
+          <div className="flex shrink-0 items-center gap-2">
             {visibleUnreadCount > 0 && (
               <button
                 type="button"

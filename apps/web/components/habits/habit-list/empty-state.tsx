@@ -66,12 +66,12 @@ export function HabitListEmptyState({
       )}
       {showStackedActions ? (
         <div
-          className="flex flex-col self-stretch"
+          className="flex flex-col items-center"
           style={{ marginTop: 8, gap: 12 }}
         >
           {showAstraAction && (
             <PillButton
-              fullWidth
+              className="min-w-[240px]"
               onClick={onAskAstra}
               leading={<Sparkles size={18} strokeWidth={1.8} aria-hidden="true" />}
             >
@@ -81,7 +81,7 @@ export function HabitListEmptyState({
           {actionLabel && (
             <PillButton
               variant="ghost"
-              fullWidth
+              className="min-w-[240px]"
               onClick={onAction}
               leading={<Plus size={18} strokeWidth={1.8} aria-hidden="true" />}
             >

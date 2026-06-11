@@ -126,8 +126,7 @@ function TabBtn({ tab, label, active, onClick, unread = false }: Readonly<TabBtn
           : 'text-[var(--fg-4)] hover:text-[var(--fg-2)]')
       }
       style={{
-        gap: 5,
-        padding: '10px 0 12px',
+        padding: '14px 0 16px',
       }}
     >
       <span className="relative">
@@ -146,16 +145,6 @@ function TabBtn({ tab, label, active, onClick, unread = false }: Readonly<TabBtn
             }}
           />
         )}
-      </span>
-      <span
-        style={{
-          fontFamily: 'var(--font-sans)',
-          fontSize: 11,
-          fontWeight: active ? 500 : 400,
-          lineHeight: 1,
-        }}
-      >
-        {label}
       </span>
     </button>
   )

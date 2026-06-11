@@ -94,6 +94,8 @@
     "confirm": "Confirmar",
     "discard": "Descartar",
     "keepEditing": "Continuar",
+    "seeMore": "Ver mais",
+    "seeLess": "Ver menos",
     "discardChangesTitle": "Descartar alterações?",
     "discardChangesDescription": "Você tem alterações não salvas. Fechar agora vai perdê-las.",
     "openSettings": "Abrir configurações",
@@ -157,11 +159,6 @@
   "reviewPrompt": {
     "title": "Está curtindo o Orbit?",
     "cta": "Avaliar Orbit"
-  },
-  "home": {
-    "greetingMorning": "Bom dia",
-    "greetingAfternoon": "Boa tarde",
-    "greetingEvening": "Boa noite"
   },
   "dates": {
     "today": "Hoje",

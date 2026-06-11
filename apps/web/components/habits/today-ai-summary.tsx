@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Sparkles } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
@@ -29,6 +30,7 @@ export function TodayAISummary({ date }: Readonly<TodayAISummaryProps>) {
   const hasProAccess = profile?.hasProAccess ?? false
   const aiSummaryEnabled = profile?.aiSummaryEnabled ?? false
   const locale = profile?.language ?? uiLocale
+  const [expanded, setExpanded] = useState(false)
 
   const { summary, isLoading, error, refetch } = useSummary({
     date,
@@ -73,10 +75,14 @@ export function TodayAISummary({ date }: Readonly<TodayAISummaryProps>) {
   }
 
   const resolved = resolveBody()
+
+  const isSummaryText =
+    hasProAccess && aiSummaryEnabled && !isLoading && !error && !!summary
+  const clampable = isSummaryText && (summary?.length ?? 0) > 140
+
   if (!resolved) return null
 
-  const showDisclaimer =
-    hasProAccess && aiSummaryEnabled && !isLoading && !error && !!summary
+  const showDisclaimer = isSummaryText && (expanded || !clampable)
 
   return (
     <button
@@ -90,10 +96,10 @@ export function TodayAISummary({ date }: Readonly<TodayAISummaryProps>) {
         className="bg-[rgba(var(--primary-rgb),0.10)] shadow-[inset_0_0_0_1px_rgba(var(--primary-rgb),0.28)] group-hover:shadow-[inset_0_0_0_1px_rgba(var(--primary-rgb),0.45)] group-hover:-translate-y-px group-active:translate-y-0 group-active:scale-[0.99] transition-[box-shadow,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)]"
         style={{
           borderRadius: 18,
-          padding: '16px 18px',
+          padding: '12px 16px',
         }}
       >
-        <div className="flex items-center" style={{ gap: 8, marginBottom: 8 }}>
+        <div className="flex items-center" style={{ gap: 8, marginBottom: 6 }}>
           <Sparkles
             size={16}
             strokeWidth={1.9}
@@ -129,24 +135,53 @@ export function TodayAISummary({ date }: Readonly<TodayAISummaryProps>) {
           </span>
         </div>
         <div
+          className={clampable && !expanded ? 'line-clamp-3' : undefined}
           style={{
             fontFamily: 'var(--font-sans)',
-            fontSize: 15,
-            lineHeight: 1.5,
+            fontSize: 14,
+            lineHeight: 1.45,
             color: 'var(--fg-1)',
             textWrap: 'pretty',
           }}
         >
           {resolved.text}
         </div>
+        {clampable && (
+          <span
+            role="button"
+            tabIndex={0}
+            aria-label={expanded ? t('common.seeLess') : t('common.seeMore')}
+            onClick={(event) => {
+              event.stopPropagation()
+              setExpanded((current) => !current)
+            }}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault()
+                event.stopPropagation()
+                setExpanded((current) => !current)
+              }
+            }}
+            className="inline-block cursor-pointer hover:text-[var(--primary)]"
+            style={{
+              fontFamily: 'var(--font-sans)',
+              fontSize: 12,
+              fontWeight: 500,
+              color: 'var(--primary-soft)',
+              marginTop: 6,
+            }}
+          >
+            {expanded ? t('common.seeLess') : t('common.seeMore')}
+          </span>
+        )}
         {showDisclaimer && (
           <div
             style={{
               fontFamily: 'var(--font-sans)',
-              fontSize: 12,
+              fontSize: 11,
               lineHeight: 1.4,
               color: 'var(--fg-4)',
-              marginTop: 8,
+              marginTop: 6,
             }}
           >
             {t('aiDisclosure.notMedicalAdvice')}

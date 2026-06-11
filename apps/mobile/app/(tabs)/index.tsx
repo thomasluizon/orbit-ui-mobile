@@ -498,18 +498,6 @@ export default function TodayScreen() {
     return dateLong;
   }, [currentActiveView, dateLong, t]);
 
-  const greetingHour = new Date().getHours();
-  const greetingKey =
-    greetingHour < 12
-      ? "home.greetingMorning"
-      : greetingHour < 18
-        ? "home.greetingAfternoon"
-        : "home.greetingEvening";
-  const greetingFirstName = profile?.name?.trim().split(/\s+/)[0];
-  const greeting = greetingFirstName
-    ? `${t(greetingKey)}, ${greetingFirstName}`
-    : t(greetingKey);
-
   useEffect(() => {
     dateLabelAnim.setValue(0);
     Animated.timing(dateLabelAnim, {
@@ -1003,7 +991,6 @@ export default function TodayScreen() {
           onGoToToday={goToToday}
           goToTodayLabel={t("dates.goToToday")}
           dateLine={headerSubtitle}
-          greeting={greeting}
           topInset={insets.top}
         />
 
@@ -1030,7 +1017,6 @@ export default function TodayScreen() {
     [
       currentActiveView,
       currentStreak,
-      greeting,
       hasProAccess,
       headerSubtitle,
       insets.top,

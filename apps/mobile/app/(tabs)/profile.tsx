@@ -651,6 +651,7 @@ export default function ProfileScreen() {
           <View style={styles.groupWrap}>
             <SettingsGroup>
               <SettingsGroupRow
+                icon={<ProfileNavIcon iconKey="compass" color={tokens.fg1} />}
                 label={t('tour.replay.title')}
                 hint={t('tour.replay.hint')}
                 onPress={() => setShowTourReplay(true)}

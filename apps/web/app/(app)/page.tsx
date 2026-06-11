@@ -228,18 +228,6 @@ export default function TodayPage() {
     })
   }, [currentActiveView, selectedDate, locale, t])
 
-  const greetingHour = new Date().getHours()
-  const greetingKey =
-    greetingHour < 12
-      ? 'home.greetingMorning'
-      : greetingHour < 18
-        ? 'home.greetingAfternoon'
-        : 'home.greetingEvening'
-  const greetingFirstName = profile?.name?.trim().split(/\s+/)[0]
-  const greeting = greetingFirstName
-    ? `${t(greetingKey)}, ${greetingFirstName}`
-    : t(greetingKey)
-
   const tabItems = useMemo<TodayTabItem[]>(
     () =>
       TAB_VIEWS.map((view) => ({
@@ -431,7 +419,6 @@ export default function TodayPage() {
 
       <TodayHeader
         dateLine={headerSubtitle}
-        greeting={greeting}
         streak={streakInfo?.currentStreak ?? 0}
       />
 

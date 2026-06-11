@@ -1,5 +1,5 @@
 import { Fragment, type ComponentType } from 'react'
-import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { Pressable, StyleSheet, View } from 'react-native'
 import {
   CalendarDays,
   Home,
@@ -168,17 +168,6 @@ function TabButton({
           />
         ) : null}
       </View>
-      <Text
-        style={[
-          styles.tabLabel,
-          {
-            color,
-            fontFamily: isActive ? 'Rubik_500Medium' : 'Rubik_400Regular',
-          },
-        ]}
-      >
-        {label}
-      </Text>
     </Pressable>
   )
 }
@@ -234,19 +223,14 @@ const styles = StyleSheet.create({
   tabBtn: {
     flex: 1,
     alignItems: 'center',
-    gap: 5,
-    paddingTop: 10,
-    paddingBottom: 12,
+    paddingTop: 14,
+    paddingBottom: 16,
   },
   tabBtnPressed: {
     opacity: 0.7,
   },
   iconWrap: {
     position: 'relative',
-  },
-  tabLabel: {
-    fontSize: 11,
-    lineHeight: 13,
   },
   unreadDot: {
     position: 'absolute',

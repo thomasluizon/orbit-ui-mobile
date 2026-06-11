@@ -300,6 +300,7 @@ export default function ProfilePage() {
           <div className="px-5">
             <SettingsGroup>
               <SettingsGroupRow
+                icon={<ProfileNavIcon iconKey="compass" />}
                 label={t('tour.replay.title')}
                 hint={t('tour.replay.hint')}
                 onClick={() => setShowTourReplay(true)}

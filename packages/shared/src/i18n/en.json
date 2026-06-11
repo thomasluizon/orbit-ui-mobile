@@ -94,6 +94,8 @@
     "confirm": "Confirm",
     "discard": "Discard",
     "keepEditing": "Continue",
+    "seeMore": "See more",
+    "seeLess": "See less",
     "discardChangesTitle": "Discard changes?",
     "discardChangesDescription": "You have unsaved changes. Closing now will lose them.",
     "openSettings": "Open settings",
@@ -157,11 +159,6 @@
   "reviewPrompt": {
     "title": "Enjoying Orbit?",
     "cta": "Rate Orbit"
-  },
-  "home": {
-    "greetingMorning": "Good morning",
-    "greetingAfternoon": "Good afternoon",
-    "greetingEvening": "Good evening"
   },
   "dates": {
     "today": "Today",
