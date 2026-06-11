@@ -3,7 +3,6 @@ import {
   Animated,
   Pressable,
   StyleSheet,
-  Text,
   View,
   type GestureResponderHandlers,
 } from 'react-native'
@@ -25,23 +24,19 @@ export type TodayTabItem = {
   label: string
 }
 
-/** Início header: the date as the heading over the gradient, with the theme
- *  toggle, streak flame, and notification bell clustered top-right. */
+/** Início header: the Orbit mark over the gradient, with the theme toggle,
+ *  streak flame, and notification bell clustered top-right. */
 export function TodayHeader({
   currentStreak,
   onGoToToday,
   goToTodayLabel,
-  dateLine,
   topInset,
 }: Readonly<{
   currentStreak: number
   onGoToToday: () => void
   goToTodayLabel: string
-  dateLine: string
   topInset: number
 }>) {
-  const { currentScheme, currentTheme } = useAppTheme()
-  const tokens = createTokensV2(currentScheme, currentTheme)
   const streakRef = useRef<View>(null)
   const bellRef = useRef<View>(null)
   useTourTarget('tour-streak-badge', streakRef)
@@ -56,12 +51,6 @@ export function TodayHeader({
     >
       <View style={styles.greetingBlock}>
         <AppLogo size={28} />
-        <Text
-          style={[styles.greetingDate, { color: tokens.fg1 }]}
-          numberOfLines={1}
-        >
-          {dateLine}
-        </Text>
       </View>
       <View style={styles.greetingActions}>
         <ThemeToggle />
@@ -246,13 +235,6 @@ const styles = StyleSheet.create({
     minWidth: 0,
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
-  },
-  greetingDate: {
-    fontFamily: 'Rubik_500Medium',
-    fontSize: 18,
-    letterSpacing: -0.18,
-    flexShrink: 1,
   },
   greetingActions: {
     flexDirection: 'row',

@@ -482,25 +482,6 @@ export default function TodayScreen() {
     });
   }, [selectedDate, t, locale]);
 
-  const dateLong = useMemo(
-    () =>
-      formatLocaleDate(selectedDate, locale, {
-        weekday: "short",
-        month: "short",
-        day: "numeric",
-      }),
-    [selectedDate, locale],
-  );
-
-  const headerDateLine = useMemo(() => {
-    if (currentActiveView === "today") return dateLong;
-    return formatLocaleDate(new Date(), locale, {
-      weekday: "short",
-      month: "short",
-      day: "numeric",
-    });
-  }, [currentActiveView, dateLong, locale]);
-
   useEffect(() => {
     dateLabelAnim.setValue(0);
     Animated.timing(dateLabelAnim, {
@@ -986,7 +967,6 @@ export default function TodayScreen() {
           currentStreak={currentStreak}
           onGoToToday={goToToday}
           goToTodayLabel={t("dates.goToToday")}
-          dateLine={headerDateLine}
           topInset={insets.top}
         />
 
@@ -1014,7 +994,6 @@ export default function TodayScreen() {
       currentActiveView,
       currentStreak,
       hasProAccess,
-      headerDateLine,
       insets.top,
       goToToday,
       handleChangeView,

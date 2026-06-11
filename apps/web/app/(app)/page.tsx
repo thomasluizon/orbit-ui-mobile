@@ -217,16 +217,6 @@ export default function TodayPage() {
     })
   }, [selectedDate, t, locale])
 
-  const headerDateLine = useMemo(
-    () =>
-      formatLocaleDate(currentActiveView === 'today' ? selectedDate : new Date(), locale, {
-        weekday: 'short',
-        month: 'short',
-        day: 'numeric',
-      }),
-    [currentActiveView, selectedDate, locale],
-  )
-
   const tabItems = useMemo<TodayTabItem[]>(
     () =>
       TAB_VIEWS.map((view) => ({
@@ -409,10 +399,7 @@ export default function TodayPage() {
         <GradientTop height={260} />
       </div>
 
-      <TodayHeader
-        dateLine={headerDateLine}
-        streak={streakInfo?.currentStreak ?? 0}
-      />
+      <TodayHeader streak={streakInfo?.currentStreak ?? 0} />
 
       <TodayTabs
         tabs={tabItems}
