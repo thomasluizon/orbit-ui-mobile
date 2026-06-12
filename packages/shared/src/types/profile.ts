@@ -72,6 +72,12 @@ export const setAiSummaryRequestSchema = z.object({
 
 export type SetAiSummaryRequest = z.infer<typeof setAiSummaryRequestSchema>
 
+export const setNameRequestSchema = z.object({
+  name: z.string().trim().min(1).max(50),
+})
+
+export type SetNameRequest = z.infer<typeof setNameRequestSchema>
+
 export const setLanguageRequestSchema = z.object({
   language: supportedLocaleSchema,
 })

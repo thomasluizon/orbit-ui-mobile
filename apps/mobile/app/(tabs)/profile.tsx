@@ -37,6 +37,7 @@ import {
   CreditCard,
   Download,
   LogOut,
+  Pencil,
   RotateCcw,
   TriangleAlert,
   User as UserIcon,
@@ -82,6 +83,7 @@ import { FreshStartAnimation } from '@/components/ui/fresh-start-animation'
 import { plural } from '@/lib/plural'
 import { ProfileNavIcon } from './profile/_components/profile-nav-icon'
 import { ProfileActionButton } from './profile/_components/profile-action-button'
+import { EditNameSheet } from './profile/_components/edit-name-sheet'
 import { TourReplayModal } from '@/components/tour/tour-replay-modal'
 
 type Tokens = ReturnType<typeof createTokensV2>
@@ -251,6 +253,7 @@ export default function ProfileScreen() {
 
   const [showFreshStartAnim, setShowFreshStartAnim] = useState(false)
   const [showResetModal, setShowResetModal] = useState(false)
+  const [showEditName, setShowEditName] = useState(false)
   const [resetStep, setResetStep] = useState<'info' | 'confirm'>('info')
   const [resetConfirmText, setResetConfirmText] = useState('')
   const [resetLoading, setResetLoading] = useState(false)
@@ -566,12 +569,21 @@ export default function ProfileScreen() {
                   {planBadgeLabel}
                 </Badge>
               ) : null}
-              <Text
-                style={[styles.identityName, { color: tokens.fg1 }]}
-                numberOfLines={1}
+              <Pressable
+                onPress={() => setShowEditName(true)}
+                accessibilityRole="button"
+                accessibilityLabel={t('profile.editName.title')}
+                hitSlop={8}
+                style={styles.identityNameButton}
               >
-                {profile?.name}
-              </Text>
+                <Text
+                  style={[styles.identityName, { color: tokens.fg1 }]}
+                  numberOfLines={1}
+                >
+                  {profile?.name}
+                </Text>
+                <Pencil size={16} strokeWidth={1.8} color={tokens.fg3} />
+              </Pressable>
               <Text
                 style={[styles.identityLine, { color: tokens.fg2 }]}
                 numberOfLines={1}
@@ -877,6 +889,8 @@ export default function ProfileScreen() {
         </KeyboardAwareScrollView>
       </Modal>
 
+      <EditNameSheet open={showEditName} onClose={() => setShowEditName(false)} />
+
       <TourReplayModal
         visible={showTourReplay}
         onClose={() => setShowTourReplay(false)}
@@ -1097,12 +1111,19 @@ function createStyles(_tokens: Tokens) {
     planBadge: {
       alignSelf: 'center',
     },
+    identityNameButton: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      maxWidth: '100%',
+      minHeight: 44,
+    },
     identityName: {
       fontFamily: 'Rubik_500Medium',
       fontSize: 32,
       letterSpacing: -0.32,
       lineHeight: 38,
-      maxWidth: '100%',
+      flexShrink: 1,
     },
     identityLine: {
       fontFamily: 'Rubik_400Regular',

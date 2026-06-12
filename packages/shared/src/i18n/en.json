@@ -724,6 +724,14 @@
       "aboutHelpHint": "Feature guide, support, referral",
       "advancedHint": "Timezone, widget, developer tools"
     },
+    "editName": {
+      "title": "Edit name",
+      "label": "Name",
+      "placeholder": "Your name",
+      "required": "Enter a name.",
+      "tooLong": "Keep it under 50 characters.",
+      "errorGeneric": "Something went wrong. Please try again."
+    },
     "language": {
       "title": "Language",
       "description": "Select your preferred language"

@@ -724,6 +724,14 @@
       "aboutHelpHint": "Guia de recursos, suporte, indicação",
       "advancedHint": "Fuso horário, widget, ferramentas de desenvolvedor"
     },
+    "editName": {
+      "title": "Editar nome",
+      "label": "Nome",
+      "placeholder": "Seu nome",
+      "required": "Digite um nome.",
+      "tooLong": "Use no máximo 50 caracteres.",
+      "errorGeneric": "Algo deu errado. Tente novamente."
+    },
     "language": {
       "title": "Idioma",
       "description": "Selecione seu idioma preferido"
