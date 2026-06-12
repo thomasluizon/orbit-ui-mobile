@@ -632,7 +632,10 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       [childrenProgressMap],
     )
 
-    const getChildrenProgressForPrompt = useCallback((habitId: string) => {
+    const getChildrenProgressForPrompt = useCallback((
+      habitId: string,
+      assumeCompletedId?: string,
+    ) => {
       const data = promptDataRef.current
       if (!data) return { done: 0, total: 0 }
       const { getChildren, isListView, visibility } = data
@@ -643,7 +646,10 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       ): { done: number; total: number } {
         let done = 0
         let total = 0
-        const isCompletedForPrompt = child.isCompleted || child.isLoggedInRange
+        const isCompletedForPrompt =
+          child.isCompleted ||
+          child.isLoggedInRange ||
+          child.id === assumeCompletedId
 
         if (isListView || child.isGeneral) {
           total += 1
@@ -713,7 +719,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
           hasHabitScheduleOnDate(parentHabit, data.selectedDateStr)
         if (!parentIsDueToday) return
 
-        const progress = getChildrenProgressForPrompt(parentHabit.id)
+        const progress = getChildrenProgressForPrompt(parentHabit.id, childHabitId)
         if (progress.total > 0 && progress.done >= progress.total) {
           if (!promptedParentIdsRef.current.has(parentHabit.id)) {
             promptedParentIdsRef.current.add(parentHabit.id)
