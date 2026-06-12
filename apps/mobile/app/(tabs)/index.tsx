@@ -482,23 +482,6 @@ export default function TodayScreen() {
     });
   }, [selectedDate, t, locale]);
 
-  const dateLong = useMemo(
-    () =>
-      formatLocaleDate(selectedDate, locale, {
-        weekday: "short",
-        month: "short",
-        day: "numeric",
-      }),
-    [selectedDate, locale],
-  );
-
-  const headerSubtitle = useMemo(() => {
-    if (currentActiveView === "all") return t("habits.viewAll");
-    if (currentActiveView === "general") return t("habits.viewGeneral");
-    if (currentActiveView === "goals") return t("goals.tab");
-    return dateLong;
-  }, [currentActiveView, dateLong, t]);
-
   useEffect(() => {
     dateLabelAnim.setValue(0);
     Animated.timing(dateLabelAnim, {
@@ -658,7 +641,10 @@ export default function TodayScreen() {
     return ids;
   }, [habitsQuery, visibleTopLevelHabits]);
 
-  const dayProgress = useMemo(() => computeDayProgress(habitsById), [habitsById]);
+  const dayProgress = useMemo(
+    () => computeDayProgress(habitsById, dateStr),
+    [habitsById, dateStr],
+  );
   const showDayProgress = currentActiveView === "today" && dayProgress.total > 0;
 
   useEffect(() => {
@@ -984,7 +970,6 @@ export default function TodayScreen() {
           currentStreak={currentStreak}
           onGoToToday={goToToday}
           goToTodayLabel={t("dates.goToToday")}
-          dateLine={headerSubtitle}
           topInset={insets.top}
         />
 
@@ -1012,7 +997,6 @@ export default function TodayScreen() {
       currentActiveView,
       currentStreak,
       hasProAccess,
-      headerSubtitle,
       insets.top,
       goToToday,
       handleChangeView,

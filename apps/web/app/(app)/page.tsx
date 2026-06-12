@@ -217,17 +217,6 @@ export default function TodayPage() {
     })
   }, [selectedDate, t, locale])
 
-  const headerSubtitle = useMemo(() => {
-    if (currentActiveView === 'all') return t('habits.viewAll')
-    if (currentActiveView === 'general') return t('habits.viewGeneral')
-    if (currentActiveView === 'goals') return t('goals.tab')
-    return formatLocaleDate(selectedDate, locale, {
-      weekday: 'short',
-      month: 'short',
-      day: 'numeric',
-    })
-  }, [currentActiveView, selectedDate, locale, t])
-
   const tabItems = useMemo<TodayTabItem[]>(
     () =>
       TAB_VIEWS.map((view) => ({
@@ -277,6 +266,8 @@ export default function TodayPage() {
     })
   }, [localSearchQuery])
 
+  const dateStr = formatAPIDate(selectedDate)
+
   const filters = useMemo<HabitsFilter>(() => {
     if (currentActiveView === 'general') {
       const f: HabitsFilter = { isGeneral: true }
@@ -284,8 +275,6 @@ export default function TodayPage() {
       if (selectedTagIds.length > 0) f.tagIds = selectedTagIds
       return f
     }
-
-    const dateStr = formatAPIDate(selectedDate)
 
     if (currentActiveView === 'today') {
       const f: HabitsFilter = {
@@ -305,7 +294,7 @@ export default function TodayPage() {
     if (selectedFrequency) f.frequencyUnit = selectedFrequency
     if (selectedTagIds.length > 0) f.tagIds = selectedTagIds
     return f
-  }, [currentActiveView, selectedDate, searchQueryStore, selectedFrequency, selectedTagIds, showGeneralOnToday])
+  }, [currentActiveView, dateStr, selectedDate, searchQueryStore, selectedFrequency, selectedTagIds, showGeneralOnToday])
 
   const habitsQuery = useHabits(filters)
   const habitsById = habitsQuery.data?.habitsById ?? EMPTY_HABITS_BY_ID
@@ -314,7 +303,10 @@ export default function TodayPage() {
   const hasFetched = habitsQuery.dataUpdatedAt > 0
   const isRefetching = habitsQuery.isFetching && hasFetched
 
-  const dayProgress = useMemo(() => computeDayProgress(habitsById), [habitsById])
+  const dayProgress = useMemo(
+    () => computeDayProgress(habitsById, dateStr),
+    [habitsById, dateStr],
+  )
   const showDayProgress = currentActiveView === 'today' && dayProgress.total > 0
 
   const getDescendantIds = useCallback(
@@ -410,10 +402,7 @@ export default function TodayPage() {
         <GradientTop height={260} />
       </div>
 
-      <TodayHeader
-        dateLine={headerSubtitle}
-        streak={streakInfo?.currentStreak ?? 0}
-      />
+      <TodayHeader streak={streakInfo?.currentStreak ?? 0} />
 
       <TodayTabs
         tabs={tabItems}

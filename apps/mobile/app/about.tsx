@@ -6,7 +6,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
 import Constants from 'expo-constants'
 import { Compass, FileText, Mail, Shield } from 'lucide-react-native'
-import { createTokensV2, primaryGlow, solidTintFromPrimary } from '@/lib/theme'
+import { createTokensV2 } from '@/lib/theme'
 import { AppLogo } from '@/components/ui/app-logo'
 import { FeatureGuideDrawer } from '@/components/onboarding/feature-guide-drawer'
 import { ReferralCard } from '@/components/referral/referral-card'
@@ -52,15 +52,7 @@ export default function AboutScreen() {
         showsVerticalScrollIndicator={false}
       >
         <Animated.View entering={sectionEntrance(0)} style={styles.logoBlock}>
-          <View
-            style={[
-              styles.logoTile,
-              { backgroundColor: solidTintFromPrimary(tokens, 0.16) },
-              primaryGlow(tokens),
-            ]}
-          >
-            <AppLogo size={44} />
-          </View>
+          <AppLogo size={72} />
           <Text style={[styles.appName, { color: tokens.fg1 }]}>
             {t('common.appName')}
           </Text>
@@ -117,13 +109,6 @@ const styles = StyleSheet.create({
     gap: 10,
     paddingTop: 24,
     paddingBottom: 20,
-  },
-  logoTile: {
-    width: 72,
-    height: 72,
-    borderRadius: 20,
-    alignItems: 'center',
-    justifyContent: 'center',
   },
   appName: {
     fontFamily: 'Rubik_500Medium',

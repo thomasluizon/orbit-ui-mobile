@@ -7,6 +7,7 @@ import type {
 } from '../types/habit'
 import type { Goal } from '../types/goal'
 import { formatAPIDate } from './dates'
+import { hasHabitScheduleOnDate } from './habits'
 
 export interface NormalizedHabitQueryData {
   habitsById: Map<string, NormalizedHabit>
@@ -18,18 +19,30 @@ export interface NormalizedHabitQueryData {
 }
 
 /**
- * Day-progress counter for the Hábitos section head: counts every habit in
- * the normalized map — parents AND sub-habits — as one unit each, done when
- * it is completed or has a log in the viewed range.
+ * Day-progress counter for the Hábitos section head. Mirrors the Today list's
+ * visibility semantics: a habit (parent or sub-habit) counts toward the day
+ * only when it has own content on the selected date — general, scheduled, or
+ * overdue — and counts as done when it is completed or logged on that date.
  */
 export function computeDayProgress(
   habitsById: Map<string, NormalizedHabit>,
+  selectedDate: string,
 ): { done: number; total: number } {
   let done = 0
+  let total = 0
   for (const habit of habitsById.values()) {
-    if (habit.isCompleted || habit.isLoggedInRange) done++
+    const countsForDay =
+      habit.isGeneral || habit.isOverdue || hasHabitScheduleOnDate(habit, selectedDate)
+    if (!countsForDay) continue
+    total++
+    const loggedOnSelectedDate =
+      habit.isLoggedInRange ||
+      habit.instances.some(
+        (instance) => instance.date === selectedDate && instance.status === 'Completed',
+      )
+    if (habit.isCompleted || loggedOnSelectedDate) done++
   }
-  return { done, total: habitsById.size }
+  return { done, total }
 }
 
 export function sortNormalizedHabits(a: NormalizedHabit, b: NormalizedHabit): number {

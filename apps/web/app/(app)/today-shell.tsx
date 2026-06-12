@@ -2,6 +2,7 @@
 
 import { ChevronLeft, ChevronRight, Search, X, MoreHorizontal, Filter, Check } from 'lucide-react'
 import { useTranslations } from 'next-intl'
+import { AppLogo } from '@/components/ui/app-logo'
 import { Popover } from '@/components/ui/popover'
 import { SectionHeadTabs, type SectionHeadTabItem } from '@/components/ui/section-head-tabs'
 import { TagChip } from '@/components/ui/tag-chip'
@@ -34,32 +35,20 @@ export function getTodayTabLabel(
 }
 
 interface TodayHeaderProps {
-  dateLine: string
   streak: number
 }
 
-/** Início header: the date as the heading over the gradient, with the theme
- *  toggle, streak flame, and notification bell clustered top-right. */
-export function TodayHeader({ dateLine, streak }: Readonly<TodayHeaderProps>) {
+/** Início header: the Orbit mark over the gradient, with the theme toggle,
+ *  streak flame, and notification bell clustered top-right. */
+export function TodayHeader({ streak }: Readonly<TodayHeaderProps>) {
   return (
     <div
       className="relative z-[1] flex items-center justify-between"
       style={{ padding: '12px 20px 0', gap: 12 }}
     >
-      <h1
-        className="min-w-0 overflow-hidden text-ellipsis whitespace-nowrap"
-        style={{
-          margin: 0,
-          fontFamily: 'var(--font-sans)',
-          fontSize: 18,
-          fontWeight: 500,
-          lineHeight: 1.3,
-          letterSpacing: '-0.01em',
-          color: 'var(--fg-1)',
-        }}
-      >
-        {dateLine}
-      </h1>
+      <span className="inline-flex shrink-0">
+        <AppLogo size={28} />
+      </span>
       <div className="flex shrink-0 items-center" style={{ gap: 10 }}>
         <ThemeToggle />
         <span data-tour="tour-streak-badge">

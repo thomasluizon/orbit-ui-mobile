@@ -23,7 +23,7 @@ import {
   resolveAuthLoginErrorKey,
 } from '@orbit/shared/utils'
 import { useAppToast } from '@/hooks/use-app-toast'
-import { createTokensV2, easings, solidTintFromPrimary, tintFromPrimary, type AppTokensV2 } from '@/lib/theme'
+import { createTokensV2, easings, type AppTokensV2 } from '@/lib/theme'
 import { toAnimatedEasing, usePrefersReducedMotion } from '@/lib/motion'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useAuthStore } from '@/stores/auth-store'
@@ -444,9 +444,7 @@ export default function LoginScreen() {
           ]}
         >
           <View style={styles.brandingHeader}>
-            <View style={styles.logoTile}>
-              <AppLogo size={40} />
-            </View>
+            <AppLogo size={64} />
           </View>
 
           <View style={styles.titleBlock}>
@@ -666,22 +664,6 @@ function createStyles(tokens: AppTokensV2) {
       gap: 14,
       paddingBottom: 4,
     },
-    logoTile: {
-      width: 64,
-      height: 64,
-      borderRadius: 18,
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: solidTintFromPrimary(tokens, 0.16),
-      borderWidth: 1,
-      borderColor: tintFromPrimary(tokens, 0.28),
-      shadowColor: tokens.primary,
-      shadowOffset: { width: 0, height: 10 },
-      shadowOpacity: 0.45,
-      shadowRadius: 30,
-      elevation: 10,
-    },
-
     titleBlock: {
       alignItems: 'center',
       gap: 6,

@@ -3,11 +3,11 @@ import {
   Animated,
   Pressable,
   StyleSheet,
-  Text,
   View,
   type GestureResponderHandlers,
 } from 'react-native'
 import { ChevronLeft, ChevronRight } from 'lucide-react-native'
+import { AppLogo } from '@/components/ui/app-logo'
 import { SectionHeadTabs, type SectionHeadTab } from '@/components/ui/section-head-tabs'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
 import { StreakBadge } from '@/components/gamification/streak-badge'
@@ -24,23 +24,19 @@ export type TodayTabItem = {
   label: string
 }
 
-/** Início header: the date as the heading over the gradient, with the theme
- *  toggle, streak flame, and notification bell clustered top-right. */
+/** Início header: the Orbit mark over the gradient, with the theme toggle,
+ *  streak flame, and notification bell clustered top-right. */
 export function TodayHeader({
   currentStreak,
   onGoToToday,
   goToTodayLabel,
-  dateLine,
   topInset,
 }: Readonly<{
   currentStreak: number
   onGoToToday: () => void
   goToTodayLabel: string
-  dateLine: string
   topInset: number
 }>) {
-  const { currentScheme, currentTheme } = useAppTheme()
-  const tokens = createTokensV2(currentScheme, currentTheme)
   const streakRef = useRef<View>(null)
   const bellRef = useRef<View>(null)
   useTourTarget('tour-streak-badge', streakRef)
@@ -54,12 +50,7 @@ export function TodayHeader({
       style={[styles.greetingRow, { paddingTop: topInset + 12 }]}
     >
       <View style={styles.greetingBlock}>
-        <Text
-          style={[styles.greetingDate, { color: tokens.fg1 }]}
-          numberOfLines={1}
-        >
-          {dateLine}
-        </Text>
+        <AppLogo size={28} />
       </View>
       <View style={styles.greetingActions}>
         <ThemeToggle />
@@ -242,11 +233,8 @@ const styles = StyleSheet.create({
   greetingBlock: {
     flex: 1,
     minWidth: 0,
-  },
-  greetingDate: {
-    fontFamily: 'Rubik_500Medium',
-    fontSize: 18,
-    letterSpacing: -0.18,
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   greetingActions: {
     flexDirection: 'row',

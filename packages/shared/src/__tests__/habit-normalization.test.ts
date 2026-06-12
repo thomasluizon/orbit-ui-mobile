@@ -270,7 +270,7 @@ describe('habitDetailToNormalized', () => {
 })
 
 describe('computeDayProgress', () => {
-  it('counts parents and sub-habits alike', () => {
+  it('counts parents and sub-habits scheduled on the selected date alike', () => {
     const habitsById = new Map(
       [
         createMockHabit({ id: 'parent', isCompleted: false }),
@@ -280,10 +280,51 @@ describe('computeDayProgress', () => {
       ].map((habit) => [habit.id, habit]),
     )
 
-    expect(computeDayProgress(habitsById)).toEqual({ done: 2, total: 4 })
+    expect(computeDayProgress(habitsById, '2025-01-01')).toEqual({ done: 2, total: 4 })
+  })
+
+  it('excludes habits with no content on the selected date, mirroring list visibility', () => {
+    const habitsById = new Map(
+      [
+        createMockHabit({ id: 'due-done', isCompleted: true }),
+        createMockHabit({ id: 'due-pending' }),
+        createMockHabit({
+          id: 'not-due-today',
+          scheduledDates: ['2025-01-02'],
+          dueDate: '2025-01-02',
+        }),
+        createMockHabit({
+          id: 'overdue',
+          scheduledDates: [],
+          dueDate: '2024-12-30',
+          isOverdue: true,
+        }),
+        createMockHabit({
+          id: 'general',
+          isGeneral: true,
+          scheduledDates: [],
+          dueDate: '2025-01-02',
+        }),
+      ].map((habit) => [habit.id, habit]),
+    )
+
+    expect(computeDayProgress(habitsById, '2025-01-01')).toEqual({ done: 1, total: 4 })
+  })
+
+  it('counts a habit logged on the selected date via instances as done', () => {
+    const habitsById = new Map(
+      [
+        createMockHabit({
+          id: 'logged-via-instance',
+          instances: [{ date: '2025-01-01', status: 'Completed', logId: 'log-1' }],
+        }),
+      ].map((habit) => [habit.id, habit]),
+    )
+
+    expect(computeDayProgress(habitsById, '2025-01-01')).toEqual({ done: 1, total: 1 })
   })
 
   it('returns zeros for an empty map', () => {
-    expect(computeDayProgress(new Map())).toEqual({ done: 0, total: 0 })
+    expect(computeDayProgress(new Map(), '2025-01-01')).toEqual({ done: 0, total: 0 })
   })
 })

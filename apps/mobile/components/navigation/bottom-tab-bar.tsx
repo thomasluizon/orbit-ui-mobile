@@ -223,8 +223,8 @@ const styles = StyleSheet.create({
   tabBtn: {
     flex: 1,
     alignItems: 'center',
-    paddingTop: 14,
-    paddingBottom: 16,
+    paddingTop: 18,
+    paddingBottom: 20,
   },
   tabBtnPressed: {
     opacity: 0.7,
