@@ -641,7 +641,10 @@ export default function TodayScreen() {
     return ids;
   }, [habitsQuery, visibleTopLevelHabits]);
 
-  const dayProgress = useMemo(() => computeDayProgress(habitsById), [habitsById]);
+  const dayProgress = useMemo(
+    () => computeDayProgress(habitsById, dateStr),
+    [habitsById, dateStr],
+  );
   const showDayProgress = currentActiveView === "today" && dayProgress.total > 0;
 
   useEffect(() => {
