@@ -157,6 +157,7 @@ vi.mock('@/components/habits/habit-row', () => ({
       data-tour={tourTargetId}
       data-select-mode={selectMode ? 'yes' : 'no'}
       data-selected={selected ? 'yes' : 'no'}
+      data-state={state}
     >
       <span>{habit.title}</span>
       <span data-testid={`habit-progress-${habit.id}`}>
@@ -479,6 +480,34 @@ describe('HabitList', () => {
     expect(screen.getByTestId('habit-card-completed-recurring-child')).toBeDefined()
     expect(screen.queryByTestId('habit-card-completed-one-time-child')).toBeNull()
     expect(screen.queryByTestId('habit-card-general-child')).toBeNull()
+  })
+
+  it('renders the bad status circle on bad-habit sub-habit rows', () => {
+    const parent = createMockHabit({ id: 'parent', title: 'Bad Habits', hasSubHabits: true, isBadHabit: true })
+    const badChild = createMockHabit({
+      id: 'bad-child',
+      title: 'Cheat diet',
+      parentId: 'parent',
+      isBadHabit: true,
+      frequencyUnit: 'Day',
+    })
+
+    for (const habit of [parent, badChild]) {
+      mockHabitsData.habitsById.set(habit.id, habit)
+    }
+    mockHabitsData.childrenByParent.set(parent.id, [badChild.id])
+    mockHabitsData.topLevelHabits = [parent]
+
+    renderWithProviders(
+      <HabitList
+        filters={defaultFilters}
+        view="all"
+        showCompleted={false}
+      />,
+    )
+
+    expect(screen.getByTestId('habit-card-parent').getAttribute('data-state')).toBe('bad')
+    expect(screen.getByTestId('habit-card-bad-child').getAttribute('data-state')).toBe('bad')
   })
 
   it('renders deeply nested all-view children up to the configured depth', () => {

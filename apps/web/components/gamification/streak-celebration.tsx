@@ -7,7 +7,6 @@ import { plural } from '@/lib/plural'
 import { useIsClient } from '@/hooks/use-is-client'
 import { useUIStore } from '@/stores/ui-store'
 import { GradientTop } from '@/components/ui/gradient-top'
-import { PillButton } from '@/components/ui/pill-button'
 import { RingMotif } from './ring-motif'
 
 const MILESTONE_VALUES = [7, 14, 30, 100, 365] as const
@@ -158,18 +157,6 @@ export function StreakCelebration() {
               </>
             )}
           </p>
-        </div>
-        <div
-          className="pointer-events-auto relative z-[1]"
-          style={{
-            padding: '0 24px calc(24px + var(--safe-bottom, 0px))',
-            animation: 'slide-up-fade 0.28s var(--ease-out) backwards',
-            animationDelay: '380ms',
-          }}
-        >
-          <PillButton fullWidth onClick={dismiss}>
-            {t('common.continue')}
-          </PillButton>
         </div>
       </div>
     </div>,

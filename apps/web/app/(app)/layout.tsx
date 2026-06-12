@@ -74,6 +74,12 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
     const cleanup = useAuthStore.getState().startExpiryMonitor()
     return cleanup
   }, [])
+
+  useEffect(() => {
+    for (const tabRoute of ['/', '/chat', '/calendar', '/profile']) {
+      router.prefetch(tabRoute)
+    }
+  }, [router])
   const activeView = useUIStore((s) => s.activeView)
   const showCreateModal = useUIStore((s) => s.showCreateModal)
   const setShowCreateModal = useUIStore((s) => s.setShowCreateModal)

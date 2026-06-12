@@ -284,6 +284,9 @@ export {
   buildHabitCalendarWeekdayKeys,
   buildHabitLogDateSet,
 } from './habit-calendar'
+export { buildStreakWeekDays } from './streak-week'
+export type { StreakWeekDay, StreakWeekDayStatus } from './streak-week'
+export { AI_SUMMARY_MAX_CHARS } from './ai-summary'
 export type {
   HabitHierarchyNode,
   HabitReorderPosition,

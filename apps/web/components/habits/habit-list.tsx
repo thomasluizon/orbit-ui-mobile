@@ -912,13 +912,12 @@ const isPostponeAction = useMemo(() => {
 
   function deriveRowState(
     habit: NormalizedHabit,
-    isChild: boolean,
     recentlyCompleted: boolean,
   ): StatusDotState {
     if (recentlyCompleted || habit.isCompleted || habit.isLoggedInRange) return 'done'
     const status = computeHabitCardStatus(habit, view === 'today' ? cardSelectedDate : undefined)
-    if (status === 'overdue' && !isChild) return 'overdue'
-    if (habit.isBadHabit && !isChild) return 'bad'
+    if (status === 'overdue') return 'overdue'
+    if (habit.isBadHabit) return 'bad'
     return 'empty'
   }
 
@@ -954,7 +953,7 @@ const isPostponeAction = useMemo(() => {
     const progress = hasChildren ? getChildrenProgress(habit.id) : { done: 0, total: 0 }
     const isChild = depth > 0
     const recentlyCompleted = recentlyCompletedIds.has(habit.id)
-    const state = deriveRowState(habit, isChild, recentlyCompleted)
+    const state = deriveRowState(habit, recentlyCompleted)
     const meta = buildMetaTokens(habit)
     const canLog = canLogHabitOnDate(habit, selectedDateStr, todayStr)
     const hasLinkedGoal = (habit.linkedGoals?.length ?? 0) > 0

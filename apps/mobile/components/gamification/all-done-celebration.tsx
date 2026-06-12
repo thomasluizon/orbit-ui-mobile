@@ -7,23 +7,19 @@ import {
   View,
 } from 'react-native'
 import { useTranslation } from 'react-i18next'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { createTokensV2, tintFromPrimary } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useUIStore } from '@/stores/ui-store'
 import { GradientTop } from '@/components/ui/gradient-top'
-import { PillButton } from '@/components/ui/pill-button'
 import { useCelebrationEntrance } from './celebration-motion'
 import { RingMotif } from './ring-motif'
 
 /**
- * All-done celebration: full-screen canvas takeover with gradient header,
- * emoji hero disc inside the Saturn-ring motif, and a continue pill.
- * Pure presentation -- preserves dismiss + auto-close behavior.
+ * All-done celebration: full-screen canvas takeover with gradient header and
+ * emoji hero disc inside the Saturn-ring motif. Auto-closes; tap dismisses early.
  */
 export function AllDoneCelebration() {
   const { t } = useTranslation()
-  const insets = useSafeAreaInsets()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const allDoneCelebration = useUIStore((s) => s.allDoneCelebration)
@@ -31,7 +27,7 @@ export function AllDoneCelebration() {
 
   const overlayOpacity = useMemo(() => new Animated.Value(0), [])
   const dismissTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
-  const { orbStyle, titleStyle, subtitleStyle, footerStyle } =
+  const { orbStyle, titleStyle, subtitleStyle } =
     useCelebrationEntrance(Boolean(allDoneCelebration))
 
   const dismiss = useCallback(() => {
@@ -106,13 +102,6 @@ export function AllDoneCelebration() {
             {t('habits.allDoneCelebrationSubtitle')}
           </Animated.Text>
         </View>
-        <Animated.View
-          style={[styles.footer, { paddingBottom: insets.bottom + 24 }, footerStyle]}
-        >
-          <PillButton fullWidth onPress={dismiss}>
-            {t('common.continue')}
-          </PillButton>
-        </Animated.View>
       </Pressable>
     </Animated.View>
   )
@@ -164,8 +153,5 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: 24,
     textAlign: 'center',
-  },
-  footer: {
-    paddingHorizontal: 24,
   },
 })

@@ -133,6 +133,29 @@ describe('mobile auth store security paths', () => {
     expect(useAuthStore.getState().isAuthenticated).toBe(true)
   })
 
+  it('persists the new tokens before clearing cached query data on login', async () => {
+    const callOrder: string[] = []
+    setTokenMock.mockImplementation(async () => {
+      callOrder.push('setToken')
+    })
+    setRefreshTokenMock.mockImplementation(async () => {
+      callOrder.push('setRefreshToken')
+    })
+    queryClientClearMock.mockImplementation(() => {
+      callOrder.push('queryClient.clear')
+    })
+
+    await useAuthStore.getState().login('access-token', 'refresh-token', {
+      userId: 'user-1',
+      email: 'user@example.com',
+      name: 'User',
+    })
+
+    expect(callOrder.indexOf('setToken')).toBeGreaterThanOrEqual(0)
+    expect(callOrder.indexOf('setToken')).toBeLessThan(callOrder.indexOf('queryClient.clear'))
+    expect(callOrder.indexOf('setRefreshToken')).toBeLessThan(callOrder.indexOf('queryClient.clear'))
+  })
+
   it('resets local auth state when profile refresh returns unauthorized', async () => {
     const validToken = makeJwt(Math.floor(Date.now() / 1000) + 3600)
     getTokenMock.mockResolvedValueOnce(validToken)

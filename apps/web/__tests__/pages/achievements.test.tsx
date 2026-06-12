@@ -197,6 +197,32 @@ describe('AchievementsPage', () => {
     expect(screen.getByTestId('achievement-a3')).toBeInTheDocument()
   })
 
+  it('shows name and description on earned and locked achievement cards', () => {
+    mockGamificationProfile = {
+      level: 5,
+      levelTitle: 'Habit Builder',
+      totalXp: 1200,
+      xpForNextLevel: 2000,
+      achievementsEarned: 1,
+      achievementsTotal: 2,
+      achievements: [],
+    }
+    mockAchievementsByCategory = [
+      {
+        key: 'GettingStarted',
+        items: [
+          { id: 'a1', name: 'First Habit', isEarned: true, earnedAtUtc: '2025-01-01T00:00:00Z', rarity: 'Common' },
+          { id: 'a2', name: 'First Log', isEarned: false, earnedAtUtc: null, rarity: 'Common' },
+        ],
+      },
+    ]
+    render(<AchievementsPage />)
+    expect(screen.getByText('gamification.achievements.a1.name')).toBeVisible()
+    expect(screen.getByText('gamification.achievements.a1.description')).toBeVisible()
+    expect(screen.getByText('gamification.achievements.a2.name')).toBeVisible()
+    expect(screen.getByText('gamification.achievements.a2.description')).toBeVisible()
+  })
+
   it('renders category headers', () => {
     mockGamificationProfile = {
       level: 1,

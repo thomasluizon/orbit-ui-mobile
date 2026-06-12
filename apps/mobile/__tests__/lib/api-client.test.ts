@@ -110,6 +110,33 @@ describe('mobile apiClient', () => {
     )
   })
 
+  it('retries with the newest stored token after a mid-flight rotation instead of clearing the session', async () => {
+    getTokenMock
+      .mockResolvedValueOnce('stale-token')
+      .mockResolvedValue('fresh-token')
+    fetchMock
+      .mockResolvedValueOnce({ ok: false, status: 401 })
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        text: () => Promise.resolve(JSON.stringify({ ok: true })),
+      })
+
+    await expect(apiClient('/secure')).resolves.toEqual({ ok: true })
+
+    expect(refreshSessionTokenMock).not.toHaveBeenCalled()
+    expect(clearSessionAndResetAuthMock).not.toHaveBeenCalled()
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      'https://api.useorbit.org/secure',
+      expect.objectContaining({
+        headers: expect.objectContaining({
+          Authorization: 'Bearer fresh-token',
+        }),
+      }),
+    )
+  })
+
   it('clears auth state when refresh cannot recover a 401', async () => {
     getTokenMock.mockResolvedValue('token-123')
     refreshSessionTokenMock.mockResolvedValue(null)

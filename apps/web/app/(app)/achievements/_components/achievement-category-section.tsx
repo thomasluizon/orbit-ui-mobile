@@ -25,7 +25,7 @@ export function AchievementCategorySection({
       <SectionLabel>
         {t(`gamification.categories.${category.key}`)}
       </SectionLabel>
-      <div className="stagger-enter grid grid-cols-3 gap-3 px-5">
+      <div className="stagger-enter grid grid-cols-2 gap-3 px-5">
         {category.items.map((achievement) => (
           <AchievementTile
             key={achievement.id}
@@ -59,10 +59,10 @@ function AchievementTile({ achievement, t }: Readonly<AchievementTileProps>) {
   return (
     <div
       data-testid={`achievement-${achievement.id}`}
-      title={description}
       className={`flex flex-col items-center text-center ${earned ? 'card-int' : ''}`}
       style={{
-        padding: '18px 8px 14px',
+        minHeight: 156,
+        padding: '18px 12px 14px',
         borderRadius: 16,
         cursor: 'default',
         ...lockedSurface,
@@ -83,13 +83,24 @@ function AchievementTile({ achievement, t }: Readonly<AchievementTileProps>) {
         style={{
           fontFamily: 'var(--font-sans)',
           fontSize: 12,
-          lineHeight: 1.25,
+          fontWeight: 500,
+          lineHeight: 1.3,
           color: earned ? 'var(--fg-1)' : 'var(--fg-2)',
+          marginBottom: 4,
         }}
       >
         {name}
       </span>
-      <span className="sr-only">{description}</span>
+      <span
+        style={{
+          fontFamily: 'var(--font-sans)',
+          fontSize: 11,
+          lineHeight: 1.35,
+          color: 'var(--fg-3)',
+        }}
+      >
+        {description}
+      </span>
     </div>
   )
 }

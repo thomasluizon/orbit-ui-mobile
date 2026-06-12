@@ -174,16 +174,17 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   expiresAt: null,
 
   login: async (token, refreshToken, user) => {
+    await setToken(token)
+    if (refreshToken) {
+      await setRefreshToken(refreshToken)
+    } else {
+      await clearRefreshToken()
+    }
+    await saveWidgetToken(token).catch(() => {})
     queryClient.clear()
     await clearPersistedQueryCache()
     useChatStore.getState().clearMessages()
     useReviewReminderStore.getState().setAccountScope(user.userId)
-    await clearRefreshToken()
-    await setToken(token)
-    if (refreshToken) {
-      await setRefreshToken(refreshToken)
-    }
-    await saveWidgetToken(token).catch(() => {})
     let hydratedUser = user
 
     try {
