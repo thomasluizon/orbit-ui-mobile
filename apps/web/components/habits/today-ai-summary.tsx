@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { Sparkles } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
-import { AI_SUMMARY_MAX_CHARS } from '@orbit/shared/utils'
+import { AI_SUMMARY_CLAMP_CHARS } from '@orbit/shared/utils'
 import { useSummary } from '@/hooks/use-summary'
 import { useProfile } from '@/hooks/use-profile'
 
@@ -79,7 +79,7 @@ export function TodayAISummary({ date }: Readonly<TodayAISummaryProps>) {
 
   const isSummaryText =
     hasProAccess && aiSummaryEnabled && !isLoading && !error && !!summary
-  const clampable = isSummaryText && (summary?.length ?? 0) > AI_SUMMARY_MAX_CHARS
+  const clampable = isSummaryText && (summary?.length ?? 0) > AI_SUMMARY_CLAMP_CHARS
 
   if (!resolved) return null
 
