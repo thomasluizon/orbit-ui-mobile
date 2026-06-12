@@ -2,7 +2,33 @@ import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 
-const TestRenderer = require('react-test-renderer')
+interface TestNode {
+  type: unknown
+  props: {
+    children?: unknown
+    onPress?: (...args: unknown[]) => unknown
+    accessibilityLabel?: string
+    testID?: string
+    value?: unknown
+    onChangeText?: (...args: unknown[]) => unknown
+    [key: string]: unknown
+  }
+}
+
+interface TestTreeRoot extends TestNode {
+  findAllByProps(props: Record<string, unknown>): TestNode[]
+}
+
+interface TestInstance {
+  root: TestTreeRoot
+}
+
+interface TestRendererApi {
+  create(element: React.ReactNode): TestInstance
+  act(callback: () => Promise<void> | void): Promise<void>
+}
+
+const TestRenderer: TestRendererApi = require('react-test-renderer')
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -40,21 +66,25 @@ vi.mock('@/components/bottom-sheet-modal', () => ({
 
 import { EditNameSheet } from '@/app/(tabs)/profile/_components/edit-name-sheet'
 
-function findByTestId(tree: any, testID: string) {
-  return tree.root.findAllByProps({ testID }).at(0)
+function findByTestId(tree: TestInstance, testID: string): TestNode {
+  const node = tree.root.findAllByProps({ testID }).at(0)
+  if (!node) throw new Error(`No node with testID "${testID}"`)
+  return node
 }
 
-function findByLabel(tree: any, accessibilityLabel: string) {
-  return tree.root
+function findByLabel(tree: TestInstance, accessibilityLabel: string): TestNode {
+  const node = tree.root
     .findAllByProps({ accessibilityLabel })
-    .find((node: any) => typeof node.props.onPress === 'function')
+    .find((candidate) => typeof candidate.props.onPress === 'function')
+  if (!node) throw new Error(`No pressable with label "${accessibilityLabel}"`)
+  return node
 }
 
 async function renderSheet(onClose = vi.fn()) {
   const queryClient = new QueryClient({
     defaultOptions: { mutations: { retry: false } },
   })
-  let tree: any
+  let tree!: TestInstance
   await TestRenderer.act(async () => {
     tree = TestRenderer.create(
       <QueryClientProvider client={queryClient}>
@@ -65,12 +95,12 @@ async function renderSheet(onClose = vi.fn()) {
   return { tree, onClose }
 }
 
-async function typeAndSave(tree: any, value: string) {
+async function typeAndSave(tree: TestInstance, value: string) {
   await TestRenderer.act(async () => {
-    findByTestId(tree, 'edit-name-input').props.onChangeText(value)
+    findByTestId(tree, 'edit-name-input').props.onChangeText?.(value)
   })
   await TestRenderer.act(async () => {
-    findByLabel(tree, 'common.save').props.onPress()
+    findByLabel(tree, 'common.save').props.onPress?.()
   })
 }
 
