@@ -5,7 +5,7 @@ import {
   habitScheduleItemSchema,
 } from '../types/habit'
 import { goalSchema, paginatedGoalResponseSchema } from '../types/goal'
-import { profileSchema } from '../types/profile'
+import { profileSchema, setNameRequestSchema } from '../types/profile'
 import { notificationItemSchema, notificationsResponseSchema } from '../types/notification'
 import { achievementSchema, gamificationProfileSchema } from '../types/gamification'
 import { appConfigSchema } from '../types/config'
@@ -309,6 +309,43 @@ describe('profile schema', () => {
       subscriptionInterval: 'yearly',
     })
     const result = profileSchema.safeParse(profile)
+    expect(result.success).toBe(true)
+  })
+})
+
+describe('setNameRequestSchema', () => {
+  it('parses a valid name', () => {
+    const result = setNameRequestSchema.safeParse({ name: 'Ana Clara' })
+    expect(result.success).toBe(true)
+  })
+
+  it('trims surrounding whitespace', () => {
+    const result = setNameRequestSchema.parse({ name: '  Ana Clara  ' })
+    expect(result.name).toBe('Ana Clara')
+  })
+
+  it('rejects an empty name', () => {
+    const result = setNameRequestSchema.safeParse({ name: '' })
+    expect(result.success).toBe(false)
+  })
+
+  it('rejects a whitespace-only name', () => {
+    const result = setNameRequestSchema.safeParse({ name: '   ' })
+    expect(result.success).toBe(false)
+  })
+
+  it('rejects names longer than 50 characters', () => {
+    const result = setNameRequestSchema.safeParse({ name: 'a'.repeat(51) })
+    expect(result.success).toBe(false)
+  })
+
+  it('accepts a 50-character name after trimming', () => {
+    const result = setNameRequestSchema.safeParse({ name: `  ${'a'.repeat(50)}  ` })
+    expect(result.success).toBe(true)
+  })
+
+  it('accepts accented characters', () => {
+    const result = setNameRequestSchema.safeParse({ name: 'João Sebastião' })
     expect(result.success).toBe(true)
   })
 })

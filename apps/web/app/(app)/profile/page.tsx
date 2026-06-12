@@ -10,7 +10,7 @@ import {
   type ProfileNavItem,
 } from '@orbit/shared/utils/profile-navigation'
 import { useTranslations } from 'next-intl'
-import { User, Download, LogOut, RotateCcw, UserX } from 'lucide-react'
+import { User, Download, LogOut, RotateCcw, UserX, Pencil } from 'lucide-react'
 import {
   useProfile,
   useTrialDaysLeft,
@@ -31,6 +31,7 @@ import { plural } from '@/lib/plural'
 import { SubscriptionCard } from './_components/subscription-card'
 import { FreshStartModal } from './_components/fresh-start-modal'
 import { DeleteAccountModal } from './_components/delete-account-modal'
+import { EditNameSheet } from './_components/edit-name-sheet'
 import { ProfileNavIcon } from './_components/profile-nav-icon'
 import { ProfileActionButton } from './_components/profile-action-button'
 import { TourReplayModal } from './_components/tour-replay-modal'
@@ -110,6 +111,7 @@ export default function ProfilePage() {
   const [showResetModal, setShowResetModal] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [showTourReplay, setShowTourReplay] = useState(false)
+  const [showEditName, setShowEditName] = useState(false)
   const [isExporting, setIsExporting] = useState(false)
   const [exportError, setExportError] = useState<string | null>(null)
 
@@ -220,19 +222,34 @@ export default function ProfilePage() {
           ) : (
             <>
               {showPlanBadge && <Badge tone={planBadgeTone}>{planBadgeLabel}</Badge>}
-              <span
-                className="max-w-full overflow-hidden whitespace-nowrap text-ellipsis"
-                style={{
-                  fontFamily: 'var(--font-sans)',
-                  fontSize: 32,
-                  fontWeight: 500,
-                  letterSpacing: '-0.01em',
-                  lineHeight: 1.2,
-                  color: 'var(--fg-1)',
-                }}
+              <button
+                type="button"
+                aria-label={t('profile.editName.title')}
+                onClick={() => setShowEditName(true)}
+                className="flex max-w-full cursor-pointer appearance-none items-center border-0 bg-transparent p-0"
+                style={{ gap: 8, minHeight: 44 }}
               >
-                {profile?.name}
-              </span>
+                <span
+                  className="overflow-hidden whitespace-nowrap text-ellipsis"
+                  style={{
+                    fontFamily: 'var(--font-sans)',
+                    fontSize: 32,
+                    fontWeight: 500,
+                    letterSpacing: '-0.01em',
+                    lineHeight: 1.2,
+                    color: 'var(--fg-1)',
+                  }}
+                >
+                  {profile?.name}
+                </span>
+                <Pencil
+                  size={16}
+                  strokeWidth={1.8}
+                  color="var(--fg-3)"
+                  aria-hidden="true"
+                  className="shrink-0"
+                />
+              </button>
               <span
                 className="max-w-full overflow-hidden whitespace-nowrap text-ellipsis"
                 style={{
@@ -373,6 +390,7 @@ export default function ProfilePage() {
 
       <div style={{ height: 24 }} />
 
+      <EditNameSheet open={showEditName} onOpenChange={setShowEditName} />
       <FreshStartModal open={showResetModal} onOpenChange={setShowResetModal} />
       <DeleteAccountModal
         open={showDeleteModal}

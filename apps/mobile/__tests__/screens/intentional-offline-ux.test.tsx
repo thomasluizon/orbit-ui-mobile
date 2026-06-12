@@ -319,6 +319,7 @@ vi.mock('lucide-react-native', () => {
     MessageCircle: createIcon('MessageCircle'),
     MessageSquare: createIcon('MessageSquare'),
     Palette: createIcon('Palette'),
+    Pencil: createIcon('Pencil'),
     RotateCcw: createIcon('RotateCcw'),
     Settings: createIcon('Settings'),
     ShieldCheck: createIcon('ShieldCheck'),

@@ -30,6 +30,10 @@ vi.mock('@tanstack/react-query', () => ({
     invalidateQueries: vi.fn(),
     clear: vi.fn(),
   }),
+  useMutation: () => ({
+    mutate: vi.fn(),
+    isPending: false,
+  }),
 }))
 
 vi.mock('@/hooks/use-profile', () => ({
@@ -211,6 +215,7 @@ vi.mock('lucide-react-native', () => {
     ChevronLeft: createIcon('ChevronLeft'),
     Flame: createIcon('Flame'),
     Download: createIcon('Download'),
+    Pencil: createIcon('Pencil'),
     UserX: createIcon('UserX'),
     TriangleAlert: createIcon('TriangleAlert'),
   }

@@ -11,6 +11,7 @@ export const API = {
 
   profile: {
     get: '/api/profile',
+    name: '/api/profile/name',
     timezone: '/api/profile/timezone',
     weekStartDay: '/api/profile/week-start-day',
     aiMemory: '/api/profile/ai-memory',

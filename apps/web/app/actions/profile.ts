@@ -2,6 +2,7 @@
 
 import type {
   UpdateTimezoneRequest,
+  SetNameRequest,
   SetLanguageRequest,
   SetAiMemoryRequest,
   SetAiSummaryRequest,
@@ -11,6 +12,13 @@ import type {
   UserDataExport,
 } from '@orbit/shared'
 import { serverAuthFetch } from '@/lib/server-fetch'
+
+export async function updateName(data: SetNameRequest): Promise<void> {
+  await serverAuthFetch('/api/profile/name', {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  })
+}
 
 export async function updateTimezone(data: UpdateTimezoneRequest): Promise<void> {
   await serverAuthFetch('/api/profile/timezone', {
