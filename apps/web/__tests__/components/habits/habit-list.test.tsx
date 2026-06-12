@@ -716,6 +716,44 @@ describe('HabitList', () => {
     expect(screen.getByText('habits.autoLogParentMessage({"name":"Parent"})')).toBeDefined()
   })
 
+  it('prompts the parent when the final child is logged before the snapshot reflects its completion', () => {
+    const parent = createMockHabit({
+      id: 'parent',
+      title: 'Parent',
+      hasSubHabits: true,
+      instances: [{ date: TODAY, status: 'Pending', logId: null }],
+    })
+    const doneChild = createMockHabit({
+      id: 'child-a',
+      title: 'Child A',
+      parentId: 'parent',
+      isCompleted: true,
+    })
+    const justLoggedChild = createMockHabit({
+      id: 'child-b',
+      title: 'Child B',
+      parentId: 'parent',
+      isCompleted: false,
+    })
+
+    mockHabitsData.habitsById.set(parent.id, parent)
+    mockHabitsData.habitsById.set(doneChild.id, doneChild)
+    mockHabitsData.habitsById.set(justLoggedChild.id, justLoggedChild)
+    mockHabitsData.childrenByParent.set(parent.id, [doneChild.id, justLoggedChild.id])
+    mockHabitsData.topLevelHabits = [parent]
+
+    const ref = React.createRef<HabitListHandle>()
+
+    renderWithProviders(<HabitList ref={ref} filters={defaultFilters} />)
+
+    act(() => {
+      ref.current?.markRecentlyCompleted('child-b')
+      ref.current?.checkAndPromptParentLog('child-b')
+    })
+
+    expect(screen.getByText('habits.autoLogParentMessage({"name":"Parent"})')).toBeDefined()
+  })
+
   it('opens the parent prompt exactly once for a burst of sibling completions', () => {
     const parent = createMockHabit({
       id: 'parent',

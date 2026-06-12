@@ -954,6 +954,54 @@ describe('HabitList', () => {
     expect(autoLogDialog?.props.description).toContain('"Parent"')
   })
 
+  it('prompts the parent when the final child is logged before the snapshot reflects its completion', () => {
+    const parent = createMockHabit({
+      id: 'parent',
+      title: 'Parent',
+      hasSubHabits: true,
+      instances: [{ date: TODAY, status: 'Pending', logId: null }],
+    })
+    const doneChild = createMockHabit({
+      id: 'child-a',
+      title: 'A',
+      parentId: 'parent',
+      isCompleted: true,
+    })
+    const justLoggedChild = createMockHabit({
+      id: 'child-b',
+      title: 'B',
+      parentId: 'parent',
+      isCompleted: false,
+    })
+    seedHabits([parent, doneChild, justLoggedChild])
+
+    const ref = React.createRef<HabitListHandle>()
+    let tree: any
+
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <HabitList
+          ref={ref}
+          view="today"
+          filters={{}}
+          showCompleted
+          onCreatePress={vi.fn()}
+        />,
+      )
+    })
+
+    TestRenderer.act(() => {
+      ref.current?.markRecentlyCompleted('child-b')
+      ref.current?.checkAndPromptParentLog('child-b')
+    })
+
+    const autoLogDialog = tree.root
+      .findAllByType('ConfirmDialog')
+      .find((node: any) => node.props.title === 'habits.autoLogParentTitle')
+
+    expect(autoLogDialog?.props.description).toContain('"Parent"')
+  })
+
   it('prompts an overdue parent when the last child is marked completed', () => {
     const parent = createMockHabit({
       id: 'parent',
