@@ -18,6 +18,7 @@ interface ApiErrorPayload {
 type RequestExecution = {
   response: Response
   requestId: string | null
+  tokenUsed: string | null
 }
 
 function getResponseHeader(
@@ -86,6 +87,7 @@ async function executeRequest(
   return {
     response,
     requestId: getResponseHeader(response, 'x-orbit-request-id'),
+    tokenUsed: token,
   }
 }
 
@@ -130,9 +132,17 @@ export async function apiClient<T = unknown>(
   path: string,
   options: ApiRequestOptions = {},
 ): Promise<T> {
-  const { response, requestId } = await executeRequest(path, options)
+  const { response, requestId, tokenUsed } = await executeRequest(path, options)
 
   if (response.status === 401 && path !== API.auth.refresh) {
+    const latestToken = await getToken()
+    if (latestToken && latestToken !== tokenUsed) {
+      const retryWithLatest = await executeRequest(path, options, latestToken)
+      if (retryWithLatest.response.status !== 401) {
+        return parseApiResponse<T>(retryWithLatest.response, retryWithLatest.requestId)
+      }
+    }
+
     const { clearSessionAndResetAuth, refreshSessionToken } = await import('@/stores/auth-store')
     const refreshedToken = await refreshSessionToken({ clearOnFailure: false })
 

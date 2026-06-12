@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useRef, useEffect } from 'react'
-import { subDays, isToday, format, parseISO } from 'date-fns'
+import { buildStreakWeekDays } from '@orbit/shared/utils'
 import { Snowflake } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { plural } from '@/lib/plural'
@@ -52,38 +52,16 @@ export default function StreakPage() {
     return ''
   }, [streak, t])
 
-  const weekDays = useMemo(() => {
-    const today = new Date()
-    const freezeDates = new Set(streakInfo?.recentFreezeDates ?? [])
-    const lastActive = streakInfo?.lastActiveDate
-    const lastActiveDate = lastActive ? parseISO(lastActive) : null
-    const currentStreak = streak
-
-    return Array.from({ length: 7 }, (_, i) => {
-      const date = subDays(today, 6 - i)
-      const dateStr = format(date, 'yyyy-MM-dd')
-      const dayLabel = displayDate(date, { weekday: 'short' }).slice(0, 3)
-      const dayNum = String(date.getDate())
-      const isTodayDate = isToday(date)
-
-      let status: 'active' | 'frozen' | 'missed' | 'today' | 'future' = 'missed'
-
-      if (isTodayDate) {
-        if (isFrozenToday) status = 'frozen'
-        else if (lastActiveDate && isToday(lastActiveDate)) status = 'active'
-        else status = 'today'
-      } else if (freezeDates.has(dateStr)) {
-        status = 'frozen'
-      } else if (lastActiveDate && currentStreak > 0) {
-        const streakStart = subDays(lastActiveDate, currentStreak - 1)
-        if (date >= streakStart && date <= lastActiveDate) {
-          status = 'active'
-        }
-      }
-
-      return { dateStr, dayLabel, dayNum, status }
-    })
-  }, [streakInfo, streak, isFrozenToday, displayDate])
+  const weekDays = useMemo(
+    () =>
+      buildStreakWeekDays(streakInfo, streak, isFrozenToday).map((day) => ({
+        dateStr: day.dateStr,
+        dayLabel: displayDate(day.date, { weekday: 'short' }).slice(0, 3),
+        dayNum: day.dayNum,
+        status: day.status,
+      })),
+    [streakInfo, streak, isFrozenToday, displayDate],
+  )
 
   const isLoading = streakQuery.isLoading && !streakInfo
 

@@ -15,7 +15,7 @@ export type AchievementCategoryView = {
 
 const GRID_PADDING = 20
 const GRID_GAP = 12
-const GRID_COLUMNS = 3
+const GRID_COLUMNS = 2
 
 interface AchievementCategorySectionProps {
   category: AchievementCategoryView
@@ -97,8 +97,15 @@ function AchievementTile({
       </Text>
       <Text
         style={[styles.name, { color: earned ? tokens.fg1 : tokens.fg2 }]}
+        numberOfLines={2}
       >
         {name}
+      </Text>
+      <Text
+        style={[styles.description, { color: tokens.fg3 }]}
+        numberOfLines={3}
+      >
+        {description}
       </Text>
     </View>
   )
@@ -112,11 +119,12 @@ const styles = StyleSheet.create({
     paddingHorizontal: GRID_PADDING,
   },
   tile: {
+    minHeight: 156,
     borderRadius: 16,
     borderWidth: 1,
     paddingTop: 18,
     paddingBottom: 14,
-    paddingHorizontal: 8,
+    paddingHorizontal: 12,
     alignItems: 'center',
   },
   tileLocked: {
@@ -128,8 +136,15 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   name: {
-    fontFamily: 'Rubik_400Regular',
+    fontFamily: 'Rubik_500Medium',
     fontSize: 12,
+    lineHeight: 16,
+    textAlign: 'center',
+    marginBottom: 4,
+  },
+  description: {
+    fontFamily: 'Rubik_400Regular',
+    fontSize: 11,
     lineHeight: 15,
     textAlign: 'center',
   },

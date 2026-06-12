@@ -57,7 +57,7 @@ export function RouteTransitionShell({
         : Math.round(motionPreset.shift * 0.55)
 
   return (
-    <AnimatePresence mode="wait" initial={false}>
+    <AnimatePresence mode="popLayout" initial={false}>
       <motion.div
         key={pathname}
         className={className}

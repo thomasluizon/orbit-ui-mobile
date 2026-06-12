@@ -132,8 +132,10 @@ interface TodaySearchBarProps {
   initialValue: string;
   onChange: (value: string) => void;
   onFocusChange: (focused: boolean) => void;
+  onCancel: () => void;
   placeholder: string;
   clearLabel: string;
+  cancelLabel: string;
   focused: boolean;
   tokens: ReturnType<typeof createTokensV2>;
   styles: ReturnType<typeof createStyles>;
@@ -143,8 +145,10 @@ const TodaySearchBar = memo(function TodaySearchBar({
   initialValue,
   onChange,
   onFocusChange,
+  onCancel,
   placeholder,
   clearLabel,
+  cancelLabel,
   focused,
   tokens,
   styles,
@@ -192,39 +196,53 @@ const TodaySearchBar = memo(function TodaySearchBar({
   );
 
   return (
-    <Animated.View
-      style={[
-        styles.searchWrap,
-        { borderColor: focused ? tokens.hairlineStrong : tokens.hairline },
-        focusAnimatedStyle,
-      ]}
-    >
-      <Search size={18} color={tokens.fg3} strokeWidth={1.8} />
-      <AppTextInput
-        style={[styles.searchInput, { color: tokens.fg1 }]}
-        value={draft}
-        onChangeText={setDraft}
-        onFocus={() => onFocusChange(true)}
-        onBlur={() => onFocusChange(false)}
-        placeholder={placeholder}
-        placeholderTextColor={tokens.fg3}
-        returnKeyType="search"
-        selectionColor={tokens.primary}
-      />
-      {draft.length > 0 ? (
-        <Pressable
-          onPress={() => setDraft("")}
-          accessibilityRole="button"
-          accessibilityLabel={clearLabel}
-          hitSlop={6}
-          style={({ pressed }) => [
-            styles.searchClear,
-            pressed ? { backgroundColor: tokens.bgSunk } : null,
-          ]}
-        >
-          <X size={16} color={tokens.fg3} strokeWidth={1.8} />
-        </Pressable>
-      ) : null}
+    <Animated.View style={[styles.searchRow, focusAnimatedStyle]}>
+      <View
+        style={[
+          styles.searchWrap,
+          { borderColor: focused ? tokens.hairlineStrong : tokens.hairline },
+        ]}
+      >
+        <Search size={18} color={tokens.fg3} strokeWidth={1.8} />
+        <AppTextInput
+          style={[styles.searchInput, { color: tokens.fg1 }]}
+          value={draft}
+          onChangeText={setDraft}
+          onFocus={() => onFocusChange(true)}
+          onBlur={() => onFocusChange(false)}
+          placeholder={placeholder}
+          placeholderTextColor={tokens.fg3}
+          returnKeyType="search"
+          selectionColor={tokens.primary}
+        />
+        {draft.length > 0 ? (
+          <Pressable
+            onPress={() => setDraft("")}
+            accessibilityRole="button"
+            accessibilityLabel={clearLabel}
+            hitSlop={6}
+            style={({ pressed }) => [
+              styles.searchClear,
+              pressed ? { backgroundColor: tokens.bgSunk } : null,
+            ]}
+          >
+            <X size={16} color={tokens.fg3} strokeWidth={1.8} />
+          </Pressable>
+        ) : null}
+      </View>
+      <Pressable
+        onPress={onCancel}
+        accessibilityRole="button"
+        hitSlop={6}
+        style={({ pressed }) => [
+          styles.searchCancel,
+          pressed ? { backgroundColor: tokens.bgElev } : null,
+        ]}
+      >
+        <Text style={[styles.searchCancelText, { color: tokens.fg2 }]}>
+          {cancelLabel}
+        </Text>
+      </Pressable>
     </Animated.View>
   );
 });
@@ -1140,8 +1158,10 @@ export default function TodayScreen() {
               initialValue={searchQueryStore}
               onChange={setSearchQueryStore}
               onFocusChange={setIsSearchFocused}
+              onCancel={handleToggleSearch}
               placeholder={t("habits.searchPlaceholder")}
               clearLabel={t("common.clear")}
+              cancelLabel={t("common.cancel")}
               focused={isSearchFocused}
               tokens={tokens}
               styles={styles}
@@ -1573,12 +1593,19 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
     filtersShell: {
       paddingBottom: 8,
     },
+    searchRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 8,
+      marginHorizontal: 20,
+      marginVertical: 8,
+    },
     searchWrap: {
+      flex: 1,
+      minWidth: 0,
       flexDirection: "row",
       alignItems: "center",
       gap: 10,
-      marginHorizontal: 20,
-      marginVertical: 8,
       minHeight: 44,
       borderRadius: 999,
       borderWidth: 1,
@@ -1596,9 +1623,23 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
     searchInput: {
       flex: 1,
       minWidth: 0,
+      minHeight: 0,
+      borderWidth: 0,
+      borderRadius: 0,
+      backgroundColor: "transparent",
+      paddingHorizontal: 0,
       paddingVertical: 0,
       fontFamily: 'Rubik_400Regular',
       fontSize: 15,
+    },
+    searchCancel: {
+      paddingHorizontal: 12,
+      paddingVertical: 8,
+      borderRadius: 999,
+    },
+    searchCancelText: {
+      fontFamily: 'Rubik_500Medium',
+      fontSize: 13,
     },
     filtersContent: {
       flexDirection: "row",

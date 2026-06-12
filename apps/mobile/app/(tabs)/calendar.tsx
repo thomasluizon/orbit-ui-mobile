@@ -359,7 +359,10 @@ export default function CalendarScreen() {
                           borderWidth: 1.5,
                           borderColor: tokens.primary,
                         },
-                        selected && { backgroundColor: tokens.selectionBg },
+                        selected && {
+                          backgroundColor: tokens.selectionBg,
+                          borderRadius: 14,
+                        },
                       ]}
                     >
                       <Text
@@ -617,7 +620,7 @@ function createStyles(tokens: Tokens) {
     dayNumPill: {
       width: 28,
       height: 28,
-      borderRadius: 999,
+      borderRadius: 14,
       alignItems: "center",
       justifyContent: "center",
     },

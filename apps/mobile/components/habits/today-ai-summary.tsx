@@ -3,6 +3,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { Sparkles } from 'lucide-react-native'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
+import { AI_SUMMARY_CLAMP_CHARS } from '@orbit/shared/utils'
 import { useProfile } from '@/hooks/use-profile'
 import { useSummary } from '@/hooks/use-habits'
 import { createTokensV2, tintFromPrimary } from '@/lib/theme'
@@ -79,7 +80,7 @@ export function TodayAISummary({ date }: Readonly<TodayAISummaryProps>) {
 
   const isSummaryText =
     hasProAccess && aiSummaryEnabled && !isLoading && !error && !!summary
-  const clampable = isSummaryText && (summary?.length ?? 0) > 140
+  const clampable = isSummaryText && (summary?.length ?? 0) > AI_SUMMARY_CLAMP_CHARS
 
   if (!resolved) return null
 

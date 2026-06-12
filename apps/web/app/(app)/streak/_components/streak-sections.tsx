@@ -11,7 +11,7 @@ type StreakDayView = {
   dateStr: string
   dayLabel: string
   dayNum: string
-  status: 'active' | 'frozen' | 'missed' | 'today' | 'future'
+  status: 'active' | 'frozen' | 'missed' | 'today'
 }
 
 type StreakInfoView = {
