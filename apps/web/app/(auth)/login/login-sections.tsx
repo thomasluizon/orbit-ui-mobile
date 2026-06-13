@@ -1,0 +1,214 @@
+'use client'
+
+import type { ReactNode } from 'react'
+import type { useTranslations } from 'next-intl'
+import { AnimatePresence, motion } from 'motion/react'
+import type { ResolvedMotionPreset } from '@orbit/shared/theme'
+import { AppLogo } from '@/components/ui/app-logo'
+
+type LoginStep = 'email' | 'code'
+type Translate = ReturnType<typeof useTranslations>
+
+export function LoginHeader({
+  step,
+  t,
+}: Readonly<{ step: LoginStep; t: Translate }>) {
+  return (
+    <>
+      <div
+        className="flex flex-col items-center"
+        style={{ gap: 14, paddingBottom: 4 }}
+      >
+        <div
+          className="flex items-center justify-center"
+          style={{ animation: 'fresh-start-orb 0.6s var(--ease-out) both' }}
+        >
+          <AppLogo size={64} />
+        </div>
+      </div>
+
+      <div className="flex flex-col text-center" style={{ gap: 6 }}>
+        <h2
+          style={{
+            fontFamily: 'var(--font-sans)',
+            fontSize: 26,
+            fontWeight: 500,
+            letterSpacing: '-0.01em',
+            lineHeight: 1.3,
+            color: 'var(--fg-1)',
+            margin: 0,
+          }}
+        >
+          {step === 'email' ? t('auth.signIn') : t('auth.enterCode')}
+        </h2>
+        {step === 'email' && (
+          <p
+            style={{
+              fontFamily: 'var(--font-sans)',
+              fontSize: 15,
+              lineHeight: 1.55,
+              color: 'var(--fg-2)',
+              margin: 0,
+            }}
+          >
+            {t('auth.signInSubtitle')}
+          </p>
+        )}
+      </div>
+    </>
+  )
+}
+
+export function ReferralBanner({
+  motionPreset,
+  t,
+}: Readonly<{ motionPreset: ResolvedMotionPreset; t: Translate }>) {
+  return (
+    <motion.div
+      role="status"
+      aria-live="polite"
+      aria-atomic="true"
+      className="flex items-center justify-center"
+      style={{
+        padding: '8px 14px',
+        borderTop: '1px solid var(--hairline)',
+        borderBottom: '1px solid var(--hairline)',
+      }}
+      initial={{ opacity: 0, y: 8, scale: 0.98 }}
+      animate={{
+        opacity: 1,
+        y: 0,
+        scale: 1,
+        transition: {
+          duration: motionPreset.enterDuration / 1000,
+          ease: motionPreset.enterEasing,
+        },
+      }}
+    >
+      <span
+        style={{
+          fontFamily: 'var(--font-mono)',
+          fontSize: 11,
+          fontWeight: 600,
+          color: 'var(--fg-1)',
+          letterSpacing: '0.06em',
+        }}
+      >
+        {t('referral.loginBanner')}
+      </span>
+    </motion.div>
+  )
+}
+
+export function LoginStepStage({
+  step,
+  motionPreset,
+  emailStep,
+  codeStep,
+}: Readonly<{
+  step: LoginStep
+  motionPreset: ResolvedMotionPreset
+  emailStep: ReactNode
+  codeStep: ReactNode
+}>) {
+  return (
+    <AnimatePresence initial={false} mode="wait">
+      <motion.div
+        key={step}
+        initial={{
+          opacity: 0,
+          x: step === 'email' ? -motionPreset.shift : motionPreset.shift,
+          scale: motionPreset.scaleFrom,
+        }}
+        animate={{
+          opacity: 1,
+          x: 0,
+          scale: motionPreset.scaleTo,
+          transition: {
+            duration: motionPreset.enterDuration / 1000,
+            ease: motionPreset.enterEasing,
+          },
+        }}
+        exit={{
+          opacity: 0,
+          x:
+            step === 'email'
+              ? motionPreset.shift * 0.4
+              : -motionPreset.shift * 0.4,
+          scale: 0.99,
+          transition: {
+            duration: motionPreset.exitDuration / 1000,
+            ease: motionPreset.exitEasing,
+          },
+        }}
+      >
+        {step === 'email' ? emailStep : codeStep}
+      </motion.div>
+    </AnimatePresence>
+  )
+}
+
+export function LoginErrorMessage({ message }: Readonly<{ message: string }>) {
+  return (
+    <div
+      role="alert"
+      aria-live="assertive"
+      aria-atomic="true"
+      className="text-center"
+      style={{
+        fontFamily: 'var(--font-sans)',
+        fontSize: 14,
+        lineHeight: 1.55,
+        color: 'var(--status-overdue)',
+      }}
+    >
+      {message}
+    </div>
+  )
+}
+
+export function LoginSuccessMessage({
+  message,
+  motionPreset,
+}: Readonly<{ message: string | null; motionPreset: ResolvedMotionPreset }>) {
+  return (
+    <AnimatePresence initial={false} mode="popLayout">
+      {message ? (
+        <motion.div
+          key={message}
+          role="status"
+          aria-live="polite"
+          aria-atomic="true"
+          className="text-center"
+          style={{
+            fontFamily: 'var(--font-sans)',
+            fontSize: 13,
+            lineHeight: 1.55,
+            color: 'var(--fg-2)',
+          }}
+          initial={{ opacity: 0, y: 8, scale: 0.98 }}
+          animate={{
+            opacity: 1,
+            y: 0,
+            scale: 1,
+            transition: {
+              duration: motionPreset.enterDuration / 1000,
+              ease: motionPreset.enterEasing,
+            },
+          }}
+          exit={{
+            opacity: 0,
+            y: -4,
+            scale: 0.99,
+            transition: {
+              duration: motionPreset.exitDuration / 1000,
+              ease: motionPreset.exitEasing,
+            },
+          }}
+        >
+          {message}
+        </motion.div>
+      ) : null}
+    </AnimatePresence>
+  )
+}

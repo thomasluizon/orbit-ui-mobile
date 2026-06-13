@@ -115,6 +115,334 @@ function RetrospectiveBody({
   )
 }
 
+interface RetrospectiveLockedFreeProps {
+  tokens: Tokens
+  onSubscribe: () => void
+}
+
+function RetrospectiveLockedFree({
+  tokens,
+  onSubscribe,
+}: Readonly<RetrospectiveLockedFreeProps>) {
+  const { t } = useTranslation()
+  return (
+    <View style={styles.lockedBlock}>
+      <View
+        style={[
+          styles.lockedIconCircle,
+          { backgroundColor: tintFromPrimary(tokens, 0.16) },
+        ]}
+      >
+        <Lock size={30} color={tokens.primarySoft} strokeWidth={1.8} />
+      </View>
+      <Text style={[styles.lockedTitle, { color: tokens.fg1 }]}>
+        {t('retrospective.locked')}
+      </Text>
+      <Text style={[styles.lockedDescription, { color: tokens.fg3 }]}>
+        {t('retrospective.lockedHint')}
+      </Text>
+      <PillButton
+        onPress={onSubscribe}
+        accessibilityLabel={t('upgrade.subscribe')}
+        style={styles.lockedCta}
+      >
+        {t('upgrade.subscribe')}
+      </PillButton>
+    </View>
+  )
+}
+
+interface RetrospectiveLockedYearlyProps {
+  tokens: Tokens
+  isTrialActive: boolean
+  isOnline: boolean
+  portalError: string
+  onSubscribe: () => void
+  onOpenPortal: () => void
+}
+
+function RetrospectiveLockedYearly({
+  tokens,
+  isTrialActive,
+  isOnline,
+  portalError,
+  onSubscribe,
+  onOpenPortal,
+}: Readonly<RetrospectiveLockedYearlyProps>) {
+  const { t } = useTranslation()
+  return (
+    <View style={styles.lockedBlock}>
+      <View
+        style={[
+          styles.lockedIconCircle,
+          { backgroundColor: tintFromPrimary(tokens, 0.16) },
+        ]}
+      >
+        <Lock size={30} color={tokens.primarySoft} strokeWidth={1.8} />
+      </View>
+      <Text style={[styles.lockedTitle, { color: tokens.fg1 }]}>
+        {t('retrospective.lockedYearly')}
+      </Text>
+      <Text style={[styles.lockedDescription, { color: tokens.fg3 }]}>
+        {t('retrospective.lockedYearlyHint')}
+      </Text>
+      {isTrialActive ? (
+        <PillButton
+          onPress={onSubscribe}
+          accessibilityLabel={t('upgrade.subscribe')}
+          style={styles.lockedCta}
+        >
+          {t('upgrade.subscribe')}
+        </PillButton>
+      ) : (
+        <PillButton
+          onPress={onOpenPortal}
+          disabled={!isOnline}
+          accessibilityLabel={t('retrospective.changePlan')}
+          style={styles.lockedCta}
+        >
+          {t('retrospective.changePlan')}
+        </PillButton>
+      )}
+      {!isOnline ? (
+        <OfflineUnavailableState
+          title={t('offline.title')}
+          description={t('offline.description')}
+          compact
+        />
+      ) : null}
+      {portalError ? (
+        <Text style={[styles.statusError, { color: tokens.statusBad }]}>
+          {portalError}
+        </Text>
+      ) : null}
+    </View>
+  )
+}
+
+interface RetrospectiveReportCardProps {
+  tokens: Tokens
+  text: string
+  fromCache: boolean
+  onRegenerate: () => void
+}
+
+function RetrospectiveReportCard({
+  tokens,
+  text,
+  fromCache,
+  onRegenerate,
+}: Readonly<RetrospectiveReportCardProps>) {
+  const { t } = useTranslation()
+  return (
+    <View style={styles.contentWrap}>
+      <Animated.View
+        entering={FadeInDown.duration(280).reduceMotion(ReduceMotion.System)}
+        style={[
+          styles.contentCard,
+          {
+            backgroundColor: tokens.bgCard,
+            borderColor: tokens.hairline,
+          },
+        ]}
+      >
+        <View style={styles.astraRow}>
+          <View style={styles.astraEyebrowGroup}>
+            <Orbit size={11} color={tokens.primary} strokeWidth={1.7} />
+            <Text style={[styles.astraEyebrow, { color: tokens.fg3 }]}>
+              {t('retrospective.astraEyebrow').toUpperCase()}
+            </Text>
+          </View>
+          <Pressable
+            onPress={onRegenerate}
+            accessibilityRole="button"
+            style={({ pressed }) => [
+              styles.actionChip,
+              {
+                backgroundColor: pressed ? tokens.bgElev2 : tokens.bgElev,
+                borderColor: tokens.hairline,
+              },
+              pressed ? styles.actionChipPressed : null,
+            ]}
+          >
+            <Text style={[styles.actionChipText, { color: tokens.fg2 }]}>
+              {t('retrospective.regenerate')}
+            </Text>
+          </Pressable>
+        </View>
+        <RetrospectiveBody text={text} tokens={tokens} />
+        <Text style={[styles.aiDisclaimer, { color: tokens.fg3 }]}>
+          {t('aiDisclosure.notMedicalAdvice')}
+        </Text>
+        {fromCache ? (
+          <Text style={[styles.cachedText, { color: tokens.fg3 }]}>
+            {t('retrospective.cached')}
+          </Text>
+        ) : null}
+      </Animated.View>
+    </View>
+  )
+}
+
+interface RetrospectiveContentProps {
+  tokens: Tokens
+  isOnline: boolean
+  isLoading: boolean
+  isCacheLoading: boolean
+  period: RetrospectivePeriod
+  periodChips: { id: RetrospectivePeriod; label: string }[]
+  displayedRetrospective: string | null
+  displayedFromCache: boolean
+  error: string | null
+  onSelectPeriod: (next: RetrospectivePeriod) => void
+  onGenerate: () => void
+}
+
+function RetrospectiveContent({
+  tokens,
+  isOnline,
+  isLoading,
+  isCacheLoading,
+  period,
+  periodChips,
+  displayedRetrospective,
+  displayedFromCache,
+  error,
+  onSelectPeriod,
+  onGenerate,
+}: Readonly<RetrospectiveContentProps>) {
+  const { t } = useTranslation()
+  return (
+    <>
+      {!isOnline ? (
+        <View style={styles.offlinePad}>
+          <OfflineUnavailableState
+            title={t('offline.title')}
+            description={t('offline.description')}
+            compact
+          />
+        </View>
+      ) : null}
+
+      <View
+        style={[
+          styles.tabsRow,
+          { borderBottomColor: tokens.hairline },
+        ]}
+      >
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.chipsScroll}
+        >
+          {periodChips.map((p) => (
+            <Chip
+              key={p.id}
+              active={period === p.id}
+              onPress={() => onSelectPeriod(p.id)}
+            >
+              {p.label}
+            </Chip>
+          ))}
+        </ScrollView>
+      </View>
+
+      {isLoading ? (
+        <View style={styles.skeletonStack}>
+          <Text
+            style={[styles.skeletonLabel, { color: tokens.fg3 }]}
+          >
+            {t('retrospective.generating')}
+          </Text>
+          <View
+            style={[
+              styles.skeletonLine,
+              { width: '60%', backgroundColor: tokens.bgCard },
+            ]}
+          />
+          <View
+            style={[
+              styles.skeletonLine,
+              { width: '80%', backgroundColor: tokens.bgCard },
+            ]}
+          />
+          <View
+            style={[
+              styles.skeletonLine,
+              { width: '40%', backgroundColor: tokens.bgCard },
+            ]}
+          />
+        </View>
+      ) : null}
+
+      {!isLoading && displayedRetrospective ? (
+        <RetrospectiveReportCard
+          tokens={tokens}
+          text={displayedRetrospective}
+          fromCache={displayedFromCache}
+          onRegenerate={onGenerate}
+        />
+      ) : null}
+
+      {!isLoading && error && (!displayedRetrospective || isOnline) ? (
+        <View style={styles.errorWrap}>
+          <Text style={[styles.errorText, { color: tokens.statusBad }]}>
+            {t('retrospective.error')}
+          </Text>
+          <Pressable
+            onPress={onGenerate}
+            accessibilityRole="button"
+            style={({ pressed }) => [
+              styles.actionChip,
+              {
+                backgroundColor: pressed ? tokens.bgElev2 : tokens.bgElev,
+                borderColor: tokens.hairline,
+              },
+              pressed ? styles.actionChipPressed : null,
+            ]}
+          >
+            <Text style={[styles.actionChipText, { color: tokens.fg1 }]}>
+              {t('common.retry')}
+            </Text>
+          </Pressable>
+        </View>
+      ) : null}
+
+      {!isLoading &&
+      !displayedRetrospective &&
+      !error &&
+      !isCacheLoading ? (
+        <View style={styles.generateBlock}>
+          <View style={styles.generateCardWrap}>
+            <InfoCard
+              icon={Orbit}
+              title={t('retrospective.astraEyebrow')}
+              desc={t('retrospective.empty')}
+            />
+          </View>
+          <View style={styles.generateBtnWrap}>
+            <PillButton
+              onPress={onGenerate}
+              disabled={!isOnline}
+              fullWidth
+              accessibilityLabel={t('retrospective.generate')}
+              leading={
+                <Orbit
+                  size={16}
+                  color={tokens.fgOnPrimary}
+                  strokeWidth={1.8}
+                />
+              }
+            >
+              {t('retrospective.generate')}
+            </PillButton>
+          </View>
+        </View>
+      ) : null}
+    </>
+  )
+}
+
 export default function RetrospectiveScreen() {
   const router = useRouter()
   const goBackOrFallback = useGoBackOrFallback()
@@ -244,259 +572,39 @@ export default function RetrospectiveScreen() {
         showsVerticalScrollIndicator={false}
       >
         {isLoaded && !hasProAccess ? (
-          <View style={styles.lockedBlock}>
-            <View
-              style={[
-                styles.lockedIconCircle,
-                { backgroundColor: tintFromPrimary(tokens, 0.16) },
-              ]}
-            >
-              <Lock size={30} color={tokens.primarySoft} strokeWidth={1.8} />
-            </View>
-            <Text style={[styles.lockedTitle, { color: tokens.fg1 }]}>
-              {t('retrospective.locked')}
-            </Text>
-            <Text style={[styles.lockedDescription, { color: tokens.fg3 }]}>
-              {t('retrospective.lockedHint')}
-            </Text>
-            <PillButton
-              onPress={() => router.push(buildUpgradeHref('/retrospective'))}
-              accessibilityLabel={t('upgrade.subscribe')}
-              style={styles.lockedCta}
-            >
-              {t('upgrade.subscribe')}
-            </PillButton>
-          </View>
+          <RetrospectiveLockedFree
+            tokens={tokens}
+            onSubscribe={() => router.push(buildUpgradeHref('/retrospective'))}
+          />
         ) : null}
 
         {isLoaded && hasProAccess && !isYearlyPro ? (
-          <View style={styles.lockedBlock}>
-            <View
-              style={[
-                styles.lockedIconCircle,
-                { backgroundColor: tintFromPrimary(tokens, 0.16) },
-              ]}
-            >
-              <Lock size={30} color={tokens.primarySoft} strokeWidth={1.8} />
-            </View>
-            <Text style={[styles.lockedTitle, { color: tokens.fg1 }]}>
-              {t('retrospective.lockedYearly')}
-            </Text>
-            <Text style={[styles.lockedDescription, { color: tokens.fg3 }]}>
-              {t('retrospective.lockedYearlyHint')}
-            </Text>
-            {profile?.isTrialActive ? (
-              <PillButton
-                onPress={() => router.push(buildUpgradeHref('/retrospective'))}
-                accessibilityLabel={t('upgrade.subscribe')}
-                style={styles.lockedCta}
-              >
-                {t('upgrade.subscribe')}
-              </PillButton>
-            ) : (
-              <PillButton
-                onPress={() => {
-                  void handleOpenPortal()
-                }}
-                disabled={!isOnline}
-                accessibilityLabel={t('retrospective.changePlan')}
-                style={styles.lockedCta}
-              >
-                {t('retrospective.changePlan')}
-              </PillButton>
-            )}
-            {!isOnline ? (
-              <OfflineUnavailableState
-                title={t('offline.title')}
-                description={t('offline.description')}
-                compact
-              />
-            ) : null}
-            {portalError ? (
-              <Text style={[styles.statusError, { color: tokens.statusBad }]}>
-                {portalError}
-              </Text>
-            ) : null}
-          </View>
+          <RetrospectiveLockedYearly
+            tokens={tokens}
+            isTrialActive={!!profile?.isTrialActive}
+            isOnline={isOnline}
+            portalError={portalError}
+            onSubscribe={() => router.push(buildUpgradeHref('/retrospective'))}
+            onOpenPortal={() => {
+              void handleOpenPortal()
+            }}
+          />
         ) : null}
 
         {isLoaded && isYearlyPro ? (
-          <>
-            {!isOnline ? (
-              <View style={styles.offlinePad}>
-                <OfflineUnavailableState
-                  title={t('offline.title')}
-                  description={t('offline.description')}
-                  compact
-                />
-              </View>
-            ) : null}
-
-            <View
-              style={[
-                styles.tabsRow,
-                { borderBottomColor: tokens.hairline },
-              ]}
-            >
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.chipsScroll}
-              >
-                {periodChips.map((p) => (
-                  <Chip
-                    key={p.id}
-                    active={period === p.id}
-                    onPress={() => selectPeriod(p.id)}
-                  >
-                    {p.label}
-                  </Chip>
-                ))}
-              </ScrollView>
-            </View>
-
-            {isLoading ? (
-              <View style={styles.skeletonStack}>
-                <Text
-                  style={[styles.skeletonLabel, { color: tokens.fg3 }]}
-                >
-                  {t('retrospective.generating')}
-                </Text>
-                <View
-                  style={[
-                    styles.skeletonLine,
-                    { width: '60%', backgroundColor: tokens.bgCard },
-                  ]}
-                />
-                <View
-                  style={[
-                    styles.skeletonLine,
-                    { width: '80%', backgroundColor: tokens.bgCard },
-                  ]}
-                />
-                <View
-                  style={[
-                    styles.skeletonLine,
-                    { width: '40%', backgroundColor: tokens.bgCard },
-                  ]}
-                />
-              </View>
-            ) : null}
-
-            {!isLoading && displayedRetrospective ? (
-              <View style={styles.contentWrap}>
-                <Animated.View
-                  entering={FadeInDown.duration(280).reduceMotion(ReduceMotion.System)}
-                  style={[
-                    styles.contentCard,
-                    {
-                      backgroundColor: tokens.bgCard,
-                      borderColor: tokens.hairline,
-                    },
-                  ]}
-                >
-                  <View style={styles.astraRow}>
-                    <View style={styles.astraEyebrowGroup}>
-                      <Orbit size={11} color={tokens.primary} strokeWidth={1.7} />
-                      <Text
-                        style={[styles.astraEyebrow, { color: tokens.fg3 }]}
-                      >
-                        {t('retrospective.astraEyebrow').toUpperCase()}
-                      </Text>
-                    </View>
-                    <Pressable
-                      onPress={handleGenerate}
-                      accessibilityRole="button"
-                      style={({ pressed }) => [
-                        styles.actionChip,
-                        {
-                          backgroundColor: pressed ? tokens.bgElev2 : tokens.bgElev,
-                          borderColor: tokens.hairline,
-                        },
-                        pressed ? styles.actionChipPressed : null,
-                      ]}
-                    >
-                      <Text
-                        style={[styles.actionChipText, { color: tokens.fg2 }]}
-                      >
-                        {t('retrospective.regenerate')}
-                      </Text>
-                    </Pressable>
-                  </View>
-                  <RetrospectiveBody
-                    text={displayedRetrospective}
-                    tokens={tokens}
-                  />
-                  <Text style={[styles.aiDisclaimer, { color: tokens.fg3 }]}>
-                    {t('aiDisclosure.notMedicalAdvice')}
-                  </Text>
-                  {displayedFromCache ? (
-                    <Text
-                      style={[styles.cachedText, { color: tokens.fg3 }]}
-                    >
-                      {t('retrospective.cached')}
-                    </Text>
-                  ) : null}
-                </Animated.View>
-              </View>
-            ) : null}
-
-            {!isLoading && error && (!displayedRetrospective || isOnline) ? (
-              <View style={styles.errorWrap}>
-                <Text style={[styles.errorText, { color: tokens.statusBad }]}>
-                  {t('retrospective.error')}
-                </Text>
-                <Pressable
-                  onPress={handleGenerate}
-                  accessibilityRole="button"
-                  style={({ pressed }) => [
-                    styles.actionChip,
-                    {
-                      backgroundColor: pressed ? tokens.bgElev2 : tokens.bgElev,
-                      borderColor: tokens.hairline,
-                    },
-                    pressed ? styles.actionChipPressed : null,
-                  ]}
-                >
-                  <Text style={[styles.actionChipText, { color: tokens.fg1 }]}>
-                    {t('common.retry')}
-                  </Text>
-                </Pressable>
-              </View>
-            ) : null}
-
-            {!isLoading &&
-            !displayedRetrospective &&
-            !error &&
-            !isCacheLoading ? (
-              <View style={styles.generateBlock}>
-                <View style={styles.generateCardWrap}>
-                  <InfoCard
-                    icon={Orbit}
-                    title={t('retrospective.astraEyebrow')}
-                    desc={t('retrospective.empty')}
-                  />
-                </View>
-                <View style={styles.generateBtnWrap}>
-                  <PillButton
-                    onPress={handleGenerate}
-                    disabled={!isOnline}
-                    fullWidth
-                    accessibilityLabel={t('retrospective.generate')}
-                    leading={
-                      <Orbit
-                        size={16}
-                        color={tokens.fgOnPrimary}
-                        strokeWidth={1.8}
-                      />
-                    }
-                  >
-                    {t('retrospective.generate')}
-                  </PillButton>
-                </View>
-              </View>
-            ) : null}
-          </>
+          <RetrospectiveContent
+            tokens={tokens}
+            isOnline={isOnline}
+            isLoading={isLoading}
+            isCacheLoading={isCacheLoading}
+            period={period}
+            periodChips={periodChips}
+            displayedRetrospective={displayedRetrospective}
+            displayedFromCache={displayedFromCache}
+            error={error}
+            onSelectPeriod={selectPeriod}
+            onGenerate={handleGenerate}
+          />
         ) : null}
       </ScrollView>
     </SafeAreaView>

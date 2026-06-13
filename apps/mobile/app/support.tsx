@@ -82,6 +82,132 @@ function SupportField({
   )
 }
 
+function SupportSuccessState({ tokens }: Readonly<{ tokens: Tokens }>) {
+  const { t } = useTranslation()
+  return (
+    <View style={styles.successBlock}>
+      <View
+        style={[
+          styles.successIconCircle,
+          { backgroundColor: tintFromPrimary(tokens, 0.15) },
+        ]}
+      >
+        <Check size={34} color={tokens.primarySoft} strokeWidth={1.8} />
+      </View>
+      <Text style={[styles.successTitle, { color: tokens.fg1 }]}>
+        {t('profile.support.success')}
+      </Text>
+      <Text style={[styles.successHint, { color: tokens.fg2 }]}>
+        {t('profile.support.successHint')}
+      </Text>
+    </View>
+  )
+}
+
+interface SupportFormProps {
+  tokens: Tokens
+  isOnline: boolean
+  name: string
+  email: string
+  subject: string
+  message: string
+  nameError: string | null
+  emailError: string | null
+  error: string | null
+  canSend: boolean
+  onChangeName: (value: string) => void
+  onChangeEmail: (value: string) => void
+  onChangeSubject: (value: string) => void
+  onChangeMessage: (value: string) => void
+  onSend: () => void
+}
+
+function SupportForm({
+  tokens,
+  isOnline,
+  name,
+  email,
+  subject,
+  message,
+  nameError,
+  emailError,
+  error,
+  canSend,
+  onChangeName,
+  onChangeEmail,
+  onChangeSubject,
+  onChangeMessage,
+  onSend,
+}: Readonly<SupportFormProps>) {
+  const { t } = useTranslation()
+  return (
+    <View style={styles.formBlock}>
+      {!isOnline ? (
+        <OfflineUnavailableState
+          title={t('offline.title')}
+          description={t('offline.description')}
+          compact
+        />
+      ) : null}
+      <View style={styles.rowPair}>
+        <View style={styles.halfField}>
+          <SupportField
+            label={t('profile.support.name')}
+            value={name}
+            onChangeText={onChangeName}
+            placeholder={t('profile.support.namePlaceholder')}
+            error={nameError}
+            tokens={tokens}
+          />
+        </View>
+        <View style={styles.halfField}>
+          <SupportField
+            label={t('profile.support.email')}
+            value={email}
+            onChangeText={onChangeEmail}
+            placeholder={t('profile.support.emailPlaceholder')}
+            keyboardType="email-address"
+            autoCapitalize="none"
+            mono
+            error={emailError}
+            tokens={tokens}
+          />
+        </View>
+      </View>
+      <SupportField
+        label={t('profile.support.subject')}
+        value={subject}
+        onChangeText={onChangeSubject}
+        placeholder={t('profile.support.subjectPlaceholder')}
+        tokens={tokens}
+      />
+      <SupportField
+        label={t('profile.support.message')}
+        value={message}
+        onChangeText={onChangeMessage}
+        placeholder={t('profile.support.messagePlaceholder')}
+        multiline
+        tokens={tokens}
+      />
+      {error ? (
+        <Text style={[styles.formErrorText, { color: tokens.statusBad }]}>
+          {error}
+        </Text>
+      ) : null}
+      <View style={styles.actionPad}>
+        <PillButton
+          onPress={onSend}
+          disabled={!canSend}
+          fullWidth
+          accessibilityLabel={t('profile.support.send')}
+        >
+          {t('profile.support.send')}
+        </PillButton>
+      </View>
+    </View>
+  )
+}
+
 export default function SupportScreen() {
   const goBackOrFallback = useGoBackOrFallback()
   const { t } = useTranslation()
@@ -220,89 +346,27 @@ export default function SupportScreen() {
         keyboardVerticalOffset={12}
       >
         {success ? (
-          <View style={styles.successBlock}>
-            <View
-              style={[
-                styles.successIconCircle,
-                { backgroundColor: tintFromPrimary(tokens, 0.15) },
-              ]}
-            >
-              <Check size={34} color={tokens.primarySoft} strokeWidth={1.8} />
-            </View>
-            <Text style={[styles.successTitle, { color: tokens.fg1 }]}>
-              {t('profile.support.success')}
-            </Text>
-            <Text style={[styles.successHint, { color: tokens.fg2 }]}>
-              {t('profile.support.successHint')}
-            </Text>
-          </View>
+          <SupportSuccessState tokens={tokens} />
         ) : (
-          <View style={styles.formBlock}>
-            {!isOnline ? (
-              <OfflineUnavailableState
-                title={t('offline.title')}
-                description={t('offline.description')}
-                compact
-              />
-            ) : null}
-            <View style={styles.rowPair}>
-              <View style={styles.halfField}>
-                <SupportField
-                  label={t('profile.support.name')}
-                  value={name}
-                  onChangeText={setName}
-                  placeholder={t('profile.support.namePlaceholder')}
-                  error={nameError}
-                  tokens={tokens}
-                />
-              </View>
-              <View style={styles.halfField}>
-                <SupportField
-                  label={t('profile.support.email')}
-                  value={email}
-                  onChangeText={setEmail}
-                  placeholder={t('profile.support.emailPlaceholder')}
-                  keyboardType="email-address"
-                  autoCapitalize="none"
-                  mono
-                  error={emailError}
-                  tokens={tokens}
-                />
-              </View>
-            </View>
-            <SupportField
-              label={t('profile.support.subject')}
-              value={subject}
-              onChangeText={setSubject}
-              placeholder={t('profile.support.subjectPlaceholder')}
-              tokens={tokens}
-            />
-            <SupportField
-              label={t('profile.support.message')}
-              value={message}
-              onChangeText={setMessage}
-              placeholder={t('profile.support.messagePlaceholder')}
-              multiline
-              tokens={tokens}
-            />
-            {error ? (
-              <Text style={[styles.formErrorText, { color: tokens.statusBad }]}>
-                {error}
-              </Text>
-            ) : null}
-            <View style={styles.actionPad}>
-              <PillButton
-                onPress={() => {
-                  void handleSend()
-                }}
-                disabled={!canSend}
-                fullWidth
-                accessibilityLabel={t('profile.support.send')}
-              >
-                {t('profile.support.send')}
-              </PillButton>
-            </View>
-          </View>
+          <SupportForm
+            tokens={tokens}
+            isOnline={isOnline}
+            name={name}
+            email={email}
+            subject={subject}
+            message={message}
+            nameError={nameError}
+            emailError={emailError}
+            error={error}
+            canSend={canSend}
+            onChangeName={setName}
+            onChangeEmail={setEmail}
+            onChangeSubject={setSubject}
+            onChangeMessage={setMessage}
+            onSend={() => {
+              void handleSend()
+            }}
+          />
         )}
         <View style={{ height: 24 }} />
       </KeyboardAwareScrollView>

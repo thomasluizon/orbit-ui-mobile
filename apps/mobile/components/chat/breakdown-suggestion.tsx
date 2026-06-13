@@ -40,6 +40,20 @@ function createEditableHabitId() {
   return `editable-habit-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
 }
 
+function createEditableHabit(source?: SuggestedSubHabit): EditableHabit {
+  return {
+    id: createEditableHabitId(),
+    title: source?.title ?? '',
+    description: source?.description ?? '',
+    frequencyUnit: source?.frequencyUnit ?? null,
+    frequencyQuantity: source?.frequencyQuantity ?? null,
+    days: source?.days ?? null,
+    isBadHabit: source?.isBadHabit ?? false,
+    dueDate: source?.dueDate ?? null,
+    checklistItems: source?.checklistItems ?? null,
+  }
+}
+
 const FREQUENCY_OPTIONS: { value: string; labelKey: string }[] = [
   { value: '', labelKey: 'habits.filter.oneTime' },
   { value: 'Day', labelKey: 'habits.filter.daily' },
@@ -47,6 +61,232 @@ const FREQUENCY_OPTIONS: { value: string; labelKey: string }[] = [
   { value: 'Month', labelKey: 'habits.filter.monthly' },
   { value: 'Year', labelKey: 'habits.filter.yearly' },
 ]
+
+type BreakdownStyles = ReturnType<typeof createStyles>
+
+interface BreakdownHabitRowProps {
+  habit: EditableHabit
+  tokens: AppTokens
+  styles: BreakdownStyles
+  onUpdate: (patch: Partial<EditableHabit>) => void
+  onRemove: () => void
+}
+
+function BreakdownHabitRow({
+  habit,
+  tokens,
+  styles,
+  onUpdate,
+  onRemove,
+}: Readonly<BreakdownHabitRowProps>) {
+  const { t } = useTranslation()
+  return (
+    <View style={styles.habitRow}>
+      <View style={styles.habitContent}>
+        <AppTextInput
+          style={styles.habitInput}
+          value={habit.title}
+          onChangeText={(text) => onUpdate({ title: text })}
+          placeholder={t('habits.breakdown.habitNamePlaceholder')}
+          placeholderTextColor={tokens.fg3}
+        />
+        <View style={styles.freqRow}>
+          {FREQUENCY_OPTIONS.map((opt) => {
+            const isActive =
+              opt.value === '' ? !habit.frequencyUnit : habit.frequencyUnit === opt.value
+            return (
+              <TouchableOpacity
+                key={opt.value}
+                style={[
+                  styles.freqChip,
+                  isActive && styles.freqChipActive,
+                ]}
+                activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityState={{ selected: isActive }}
+                onPress={() => {
+                  const parsed = frequencyUnitSchema.safeParse(opt.value)
+                  const val: FrequencyUnit | null = parsed.success ? parsed.data : null
+                  onUpdate({
+                    frequencyUnit: val,
+                    frequencyQuantity: val ? habit.frequencyQuantity : null,
+                  })
+                }}
+              >
+                <Text
+                  style={[
+                    styles.freqChipText,
+                    isActive && styles.freqChipTextActive,
+                  ]}
+                >
+                  {t(opt.labelKey)}
+                </Text>
+              </TouchableOpacity>
+            )
+          })}
+        </View>
+        {habit.frequencyUnit ? (
+          <View style={styles.quantityRow}>
+            <Text style={styles.quantityLabel}>{t('habits.breakdown.every')}</Text>
+            <AppTextInput
+              style={styles.quantityInput}
+              value={String(habit.frequencyQuantity ?? 1)}
+              onChangeText={(text) =>
+                onUpdate({
+                  frequencyQuantity: Number(text.replace(/[^0-9]/g, '')) || 1,
+                })
+              }
+              keyboardType="number-pad"
+              accessibilityLabel={t('habits.breakdown.frequencyQuantityLabel')}
+            />
+            <Text style={styles.quantityLabel}>
+              {t(`habits.form.unit${habit.frequencyUnit}` as 'habits.form.unitDay')}
+            </Text>
+          </View>
+        ) : null}
+      </View>
+      <TouchableOpacity
+        style={styles.removeBtn}
+        activeOpacity={0.7}
+        accessibilityRole="button"
+        accessibilityLabel={t('habits.breakdown.removeHabit', {
+          name: habit.title || t('habits.breakdown.habitNamePlaceholder'),
+        })}
+        onPress={onRemove}
+      >
+        <X size={14} color={tokens.fg3} />
+      </TouchableOpacity>
+    </View>
+  )
+}
+
+interface BreakdownSuccessCardProps {
+  tokens: AppTokens
+  styles: BreakdownStyles
+  parentName: string
+  createdCount: number
+  createAsParent: boolean
+}
+
+function BreakdownSuccessCard({
+  tokens,
+  styles,
+  parentName,
+  createdCount,
+  createAsParent,
+}: Readonly<BreakdownSuccessCardProps>) {
+  const { t } = useTranslation()
+  return (
+    <View style={styles.card}>
+      <View style={styles.successRow}>
+        <View style={styles.successIcon}>
+          <Check size={14} color={tokens.statusDone} />
+        </View>
+        <Text style={styles.successText}>
+          {createAsParent
+            ? plural(
+                t('habits.breakdown.createAsParentSuccess', {
+                  name: parentName,
+                  n: createdCount,
+                }),
+                createdCount,
+              )
+            : plural(t('habits.breakdown.createdSuccess', { n: createdCount }), createdCount)}
+        </Text>
+      </View>
+    </View>
+  )
+}
+
+interface BreakdownActionsProps {
+  tokens: AppTokens
+  styles: BreakdownStyles
+  createAsParent: boolean
+  createError: string
+  validCount: number
+  isSubmitting: boolean
+  onAddHabit: () => void
+  onToggleCreateAsParent: () => void
+  onConfirm: () => void
+  onCancel: () => void
+}
+
+function BreakdownActions({
+  tokens,
+  styles,
+  createAsParent,
+  createError,
+  validCount,
+  isSubmitting,
+  onAddHabit,
+  onToggleCreateAsParent,
+  onConfirm,
+  onCancel,
+}: Readonly<BreakdownActionsProps>) {
+  const { t } = useTranslation()
+  return (
+    <>
+      <TouchableOpacity
+        style={styles.addBtn}
+        activeOpacity={0.7}
+        accessibilityRole="button"
+        accessibilityLabel={t('habits.breakdown.addHabit')}
+        onPress={onAddHabit}
+      >
+        <Plus size={14} color={tokens.primary} />
+        <Text style={styles.addBtnText}>{t('habits.breakdown.addHabit')}</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={styles.checkboxRow}
+        activeOpacity={0.7}
+        accessibilityRole="checkbox"
+        accessibilityState={{ checked: createAsParent }}
+        accessibilityLabel={t('habits.breakdown.createAsParent')}
+        onPress={onToggleCreateAsParent}
+      >
+        <View
+          style={[
+            styles.checkbox,
+            createAsParent && styles.checkboxActive,
+          ]}
+        >
+          {createAsParent && <Check size={10} color={tokens.fgOnPrimary} />}
+        </View>
+        <Text style={styles.checkboxLabel}>
+          {t('habits.breakdown.createAsParent')}
+        </Text>
+      </TouchableOpacity>
+
+      {createError !== '' && (
+        <Text style={styles.errorText}>{createError}</Text>
+      )}
+
+      <View style={styles.actions}>
+        <PillButton
+          style={styles.confirmPill}
+          disabled={validCount === 0 || isSubmitting}
+          onPress={onConfirm}
+          leading={
+            isSubmitting ? <ActivityIndicator size="small" color={tokens.fgOnPrimary} /> : undefined
+          }
+        >
+          <Text style={styles.confirmPillLabel}>
+            {plural(t('habits.breakdown.createCount', { n: validCount }), validCount)}
+          </Text>
+        </PillButton>
+        <PillButton
+          variant="ghost"
+          style={styles.cancelPill}
+          disabled={isSubmitting}
+          onPress={onCancel}
+        >
+          <Text style={styles.cancelPillLabel}>{t('common.cancel')}</Text>
+        </PillButton>
+      </View>
+    </>
+  )
+}
 
 export function BreakdownSuggestion({
   parentName,
@@ -64,17 +304,7 @@ export function BreakdownSuggestion({
   const styles = useMemo(() => createStyles(tokens), [tokens])
 
   const [habits, setHabits] = useState<EditableHabit[]>(
-    subHabits.map((h) => ({
-      id: createEditableHabitId(),
-      title: h.title,
-      description: h.description ?? '',
-      frequencyUnit: h.frequencyUnit ?? null,
-      frequencyQuantity: h.frequencyQuantity ?? null,
-      days: h.days ?? null,
-      isBadHabit: h.isBadHabit ?? false,
-      dueDate: h.dueDate ?? null,
-      checklistItems: h.checklistItems ?? null,
-    })),
+    subHabits.map((h) => createEditableHabit(h)),
   )
 
   const [isCreated, setIsCreated] = useState(false)
@@ -96,20 +326,7 @@ export function BreakdownSuggestion({
   }
 
   function addHabit() {
-    setHabits((prev) => [
-      ...prev,
-      {
-        id: createEditableHabitId(),
-        title: '',
-        description: '',
-        frequencyUnit: null,
-        frequencyQuantity: null,
-        days: null,
-        isBadHabit: false,
-        dueDate: null,
-        checklistItems: null,
-      },
-    ])
+    setHabits((prev) => [...prev, createEditableHabit()])
   }
 
   async function handleConfirm() {
@@ -136,24 +353,13 @@ export function BreakdownSuggestion({
 
   if (isCreated) {
     return (
-      <View style={styles.card}>
-        <View style={styles.successRow}>
-          <View style={styles.successIcon}>
-            <Check size={14} color={tokens.statusDone} />
-          </View>
-          <Text style={styles.successText}>
-            {createAsParent
-              ? plural(
-                  t('habits.breakdown.createAsParentSuccess', {
-                    name: parentName,
-                    n: createdCount,
-                  }),
-                  createdCount,
-                )
-              : plural(t('habits.breakdown.createdSuccess', { n: createdCount }), createdCount)}
-          </Text>
-        </View>
-      </View>
+      <BreakdownSuccessCard
+        tokens={tokens}
+        styles={styles}
+        parentName={parentName}
+        createdCount={createdCount}
+        createAsParent={createAsParent}
+      />
     )
   }
 
@@ -165,145 +371,31 @@ export function BreakdownSuggestion({
 
       <View style={styles.habitsList}>
         {habits.map((habit, index) => (
-          <View key={habit.id} style={styles.habitRow}>
-            <View style={styles.habitContent}>
-              <AppTextInput
-                style={styles.habitInput}
-                value={habit.title}
-                onChangeText={(text) => updateHabit(index, { title: text })}
-                placeholder={t('habits.breakdown.habitNamePlaceholder')}
-                placeholderTextColor={tokens.fg3}
-              />
-              <View style={styles.freqRow}>
-                {FREQUENCY_OPTIONS.map((opt) => {
-                  const isActive =
-                    opt.value === '' ? !habit.frequencyUnit : habit.frequencyUnit === opt.value
-                  return (
-                    <TouchableOpacity
-                      key={opt.value}
-                      style={[
-                        styles.freqChip,
-                        isActive && styles.freqChipActive,
-                      ]}
-                      activeOpacity={0.7}
-                      accessibilityRole="button"
-                      accessibilityState={{ selected: isActive }}
-                      onPress={() => {
-                        const parsed = frequencyUnitSchema.safeParse(opt.value)
-                        const val: FrequencyUnit | null = parsed.success ? parsed.data : null
-                        updateHabit(index, {
-                          frequencyUnit: val,
-                          frequencyQuantity: val ? habit.frequencyQuantity : null,
-                        })
-                      }}
-                    >
-                      <Text
-                        style={[
-                          styles.freqChipText,
-                          isActive && styles.freqChipTextActive,
-                        ]}
-                      >
-                        {t(opt.labelKey)}
-                      </Text>
-                    </TouchableOpacity>
-                  )
-                })}
-              </View>
-              {habit.frequencyUnit ? (
-                <View style={styles.quantityRow}>
-                  <Text style={styles.quantityLabel}>{t('habits.breakdown.every')}</Text>
-                  <AppTextInput
-                    style={styles.quantityInput}
-                    value={String(habit.frequencyQuantity ?? 1)}
-                    onChangeText={(text) =>
-                      updateHabit(index, {
-                        frequencyQuantity: Number(text.replace(/[^0-9]/g, '')) || 1,
-                      })
-                    }
-                    keyboardType="number-pad"
-                    accessibilityLabel={t('habits.breakdown.frequencyQuantityLabel')}
-                  />
-                  <Text style={styles.quantityLabel}>
-                    {t(`habits.form.unit${habit.frequencyUnit}` as 'habits.form.unitDay')}
-                  </Text>
-                </View>
-              ) : null}
-            </View>
-            <TouchableOpacity
-              style={styles.removeBtn}
-              activeOpacity={0.7}
-              accessibilityRole="button"
-              accessibilityLabel={t('habits.breakdown.removeHabit', {
-                name: habit.title || t('habits.breakdown.habitNamePlaceholder'),
-              })}
-              onPress={() => removeHabit(index)}
-            >
-              <X size={14} color={tokens.fg3} />
-            </TouchableOpacity>
-          </View>
+          <BreakdownHabitRow
+            key={habit.id}
+            habit={habit}
+            tokens={tokens}
+            styles={styles}
+            onUpdate={(patch) => updateHabit(index, patch)}
+            onRemove={() => removeHabit(index)}
+          />
         ))}
       </View>
 
-      <TouchableOpacity
-        style={styles.addBtn}
-        activeOpacity={0.7}
-        accessibilityRole="button"
-        accessibilityLabel={t('habits.breakdown.addHabit')}
-        onPress={addHabit}
-      >
-        <Plus size={14} color={tokens.primary} />
-        <Text style={styles.addBtnText}>{t('habits.breakdown.addHabit')}</Text>
-      </TouchableOpacity>
-
-      <TouchableOpacity
-        style={styles.checkboxRow}
-        activeOpacity={0.7}
-        accessibilityRole="checkbox"
-        accessibilityState={{ checked: createAsParent }}
-        accessibilityLabel={t('habits.breakdown.createAsParent')}
-        onPress={() => setCreateAsParent((prev) => !prev)}
-      >
-        <View
-          style={[
-            styles.checkbox,
-            createAsParent && styles.checkboxActive,
-          ]}
-        >
-          {createAsParent && <Check size={10} color={tokens.fgOnPrimary} />}
-        </View>
-        <Text style={styles.checkboxLabel}>
-          {t('habits.breakdown.createAsParent')}
-        </Text>
-      </TouchableOpacity>
-
-      {createError !== '' && (
-        <Text style={styles.errorText}>{createError}</Text>
-      )}
-
-      <View style={styles.actions}>
-        <PillButton
-          style={styles.confirmPill}
-          disabled={validHabits.length === 0 || isSubmitting}
-          onPress={() => {
-            void handleConfirm()
-          }}
-          leading={
-            isSubmitting ? <ActivityIndicator size="small" color={tokens.fgOnPrimary} /> : undefined
-          }
-        >
-          <Text style={styles.confirmPillLabel}>
-            {plural(t('habits.breakdown.createCount', { n: validHabits.length }), validHabits.length)}
-          </Text>
-        </PillButton>
-        <PillButton
-          variant="ghost"
-          style={styles.cancelPill}
-          disabled={isSubmitting}
-          onPress={onCancelled}
-        >
-          <Text style={styles.cancelPillLabel}>{t('common.cancel')}</Text>
-        </PillButton>
-      </View>
+      <BreakdownActions
+        tokens={tokens}
+        styles={styles}
+        createAsParent={createAsParent}
+        createError={createError}
+        validCount={validHabits.length}
+        isSubmitting={isSubmitting}
+        onAddHabit={addHabit}
+        onToggleCreateAsParent={() => setCreateAsParent((prev) => !prev)}
+        onConfirm={() => {
+          void handleConfirm()
+        }}
+        onCancel={onCancelled}
+      />
     </View>
   )
 }

@@ -115,6 +115,56 @@ function AuthGuard() {
   return null
 }
 
+const SLIDE_FROM_RIGHT_SCREENS = [
+  'preferences',
+  'ai-settings',
+  'advanced',
+  'about',
+  'support',
+  'achievements',
+  'streak',
+  'upgrade',
+  'retrospective',
+  'calendar-sync',
+] as const
+
+function RootStackScreens({
+  screenBackgroundColor,
+}: Readonly<{ screenBackgroundColor: string }>) {
+  return (
+    <Stack
+      screenOptions={{
+        headerShown: false,
+        animation: 'fade_from_bottom',
+        animationDuration: mobileMotion.presets['route-push'].enterDuration,
+        animationMatchesGesture: true,
+        animationTypeForReplace: 'push',
+        contentStyle: { backgroundColor: screenBackgroundColor },
+      }}
+    >
+      <Stack.Screen name="(tabs)" />
+      <Stack.Screen name="chat" options={{ animation: 'slide_from_right' }} />
+      <Stack.Screen
+        name="login"
+        options={{ animation: 'fade', gestureEnabled: false }}
+      />
+      <Stack.Screen
+        name="auth-callback"
+        options={{ animation: 'fade', gestureEnabled: false }}
+      />
+      {SLIDE_FROM_RIGHT_SCREENS.map((name) => (
+        <Stack.Screen
+          key={name}
+          name={name}
+          options={{ animation: 'slide_from_right' }}
+        />
+      ))}
+      <Stack.Screen name="privacy" options={{ animation: 'fade' }} />
+      <Stack.Screen name="terms" options={{ animation: 'fade' }} />
+    </Stack>
+  )
+}
+
 function RootLayoutNav() {
   const router = useRouter()
   const pathname = usePathname()
@@ -216,72 +266,9 @@ function RootLayoutNav() {
 
       <View style={{ flex: 1 }}>
         <View style={{ flex: 1 }}>
-          <Stack
-            screenOptions={{
-              headerShown: false,
-              animation: 'fade_from_bottom',
-              animationDuration: mobileMotion.presets['route-push'].enterDuration,
-              animationMatchesGesture: true,
-              animationTypeForReplace: 'push',
-              contentStyle: { backgroundColor: surfaces.screen.backgroundColor },
-            }}
-          >
-            <Stack.Screen name="(tabs)" />
-            <Stack.Screen
-              name="chat"
-              options={{ animation: 'slide_from_right' }}
-            />
-            <Stack.Screen
-              name="login"
-              options={{ animation: 'fade', gestureEnabled: false }}
-            />
-            <Stack.Screen
-              name="auth-callback"
-              options={{ animation: 'fade', gestureEnabled: false }}
-            />
-            <Stack.Screen
-              name="preferences"
-              options={{ animation: 'slide_from_right' }}
-            />
-            <Stack.Screen
-              name="ai-settings"
-              options={{ animation: 'slide_from_right' }}
-            />
-            <Stack.Screen
-              name="advanced"
-              options={{ animation: 'slide_from_right' }}
-            />
-            <Stack.Screen
-              name="about"
-              options={{ animation: 'slide_from_right' }}
-            />
-            <Stack.Screen
-              name="support"
-              options={{ animation: 'slide_from_right' }}
-            />
-            <Stack.Screen
-              name="achievements"
-              options={{ animation: 'slide_from_right' }}
-            />
-            <Stack.Screen
-              name="streak"
-              options={{ animation: 'slide_from_right' }}
-            />
-            <Stack.Screen
-              name="upgrade"
-              options={{ animation: 'slide_from_right' }}
-            />
-            <Stack.Screen
-              name="retrospective"
-              options={{ animation: 'slide_from_right' }}
-            />
-            <Stack.Screen
-              name="calendar-sync"
-              options={{ animation: 'slide_from_right' }}
-            />
-            <Stack.Screen name="privacy" options={{ animation: 'fade' }} />
-            <Stack.Screen name="terms" options={{ animation: 'fade' }} />
-          </Stack>
+          <RootStackScreens
+            screenBackgroundColor={surfaces.screen.backgroundColor}
+          />
         </View>
 
         {showBottomNav ? (

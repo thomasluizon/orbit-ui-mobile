@@ -80,6 +80,139 @@ function ProgressDot({ active, activeColor, inactiveColor, reducedMotion }: Read
   )
 }
 
+interface OnboardingStepContentProps {
+  viewingAstra: boolean
+  sharedStep: number
+  createdHabitId: string | null
+  createdHabitTitle: string
+  createdGoal: boolean
+  onHabitCreated: (habitId: string, title: string) => void
+  onHabitCompleted: () => void
+  onGoalCreated: () => void
+  onGoalSkipped: () => void
+  onFinish: () => void
+}
+
+function OnboardingStepContent({
+  viewingAstra,
+  sharedStep,
+  createdHabitId,
+  createdHabitTitle,
+  createdGoal,
+  onHabitCreated,
+  onHabitCompleted,
+  onGoalCreated,
+  onGoalSkipped,
+  onFinish,
+}: Readonly<OnboardingStepContentProps>) {
+  if (viewingAstra) return <OnboardingMeetAstra key="meet-astra" />
+  switch (sharedStep) {
+    case 0:
+      return <OnboardingWelcome key="welcome" />
+    case 1:
+      return (
+        <OnboardingCreateHabit
+          key="create-habit"
+          onCreated={onHabitCreated}
+        />
+      )
+    case 2:
+      return (
+        <OnboardingCompleteHabit
+          key="complete-habit"
+          habitId={createdHabitId}
+          habitTitle={createdHabitTitle}
+          onCompleted={onHabitCompleted}
+        />
+      )
+    case 3:
+      return (
+        <OnboardingCreateGoal
+          key="create-goal"
+          onCreated={onGoalCreated}
+          onSkip={onGoalSkipped}
+        />
+      )
+    case 4:
+      return <OnboardingFeatures key="features" />
+    case 5:
+      return (
+        <OnboardingComplete
+          key="complete"
+          createdHabit={createdHabitTitle}
+          createdGoal={createdGoal}
+          onFinish={onFinish}
+        />
+      )
+    default:
+      return null
+  }
+}
+
+interface OnboardingFooterProps {
+  tokens: AppTokensV2
+  styles: ReturnType<typeof createStyles>
+  displayTotal: number
+  displayStep: number
+  prefersReducedMotion: boolean
+  canAdvance: boolean
+  hasPrev: boolean
+  isStarter: boolean
+  onNext: () => void
+  onPrev: () => void
+}
+
+function OnboardingFooter({
+  tokens,
+  styles,
+  displayTotal,
+  displayStep,
+  prefersReducedMotion,
+  canAdvance,
+  hasPrev,
+  isStarter,
+  onNext,
+  onPrev,
+}: Readonly<OnboardingFooterProps>) {
+  const { t } = useTranslation()
+  return (
+    <View style={styles.footer}>
+      <View style={styles.dotsRow}>
+        {Array.from({ length: displayTotal }).map((_, i) => (
+          <ProgressDot
+            key={`progress-dot-${i}`}
+            active={i === displayStep - 1}
+            activeColor={tokens.primary}
+            inactiveColor={`${tokens.fg1}2E`}
+            reducedMotion={prefersReducedMotion}
+          />
+        ))}
+      </View>
+
+      <View style={styles.footerActions}>
+        {canAdvance && (
+          <PillButton fullWidth onPress={onNext}>
+            {isStarter
+              ? t('onboarding.flow.begin')
+              : t('onboarding.flow.next')}
+          </PillButton>
+        )}
+        {hasPrev && (
+          <Pressable
+            onPress={onPrev}
+            style={styles.backButton}
+            accessibilityRole="button"
+          >
+            <Text style={styles.backText}>
+              {t('onboarding.flow.back')}
+            </Text>
+          </Pressable>
+        )}
+      </View>
+    </View>
+  )
+}
+
 export function OnboardingFlow() {
   const { t } = useTranslation()
   const router = useRouter()
@@ -205,51 +338,6 @@ export function OnboardingFlow() {
 
   const hideFooter = !viewingAstra && shouldHideOnboardingFooter(sharedStep)
 
-  const stepContent = (() => {
-    if (viewingAstra) return <OnboardingMeetAstra key="meet-astra" />
-    switch (sharedStep) {
-      case 0:
-        return <OnboardingWelcome key="welcome" />
-      case 1:
-        return (
-          <OnboardingCreateHabit
-            key="create-habit"
-            onCreated={handleHabitCreated}
-          />
-        )
-      case 2:
-        return (
-          <OnboardingCompleteHabit
-            key="complete-habit"
-            habitId={createdHabitId}
-            habitTitle={createdHabitTitle}
-            onCompleted={handleHabitCompleted}
-          />
-        )
-      case 3:
-        return (
-          <OnboardingCreateGoal
-            key="create-goal"
-            onCreated={handleGoalCreated}
-            onSkip={handleGoalSkipped}
-          />
-        )
-      case 4:
-        return <OnboardingFeatures key="features" />
-      case 5:
-        return (
-          <OnboardingComplete
-            key="complete"
-            createdHabit={createdHabitTitle}
-            createdGoal={createdGoal}
-            onFinish={handleFinish}
-          />
-        )
-      default:
-        return null
-    }
-  })()
-
   const progressLabel = `Orbit · ${String(displayStep).padStart(2, '0')} / ${String(displayTotal).padStart(2, '0')}`
 
   return (
@@ -288,45 +376,34 @@ export function OnboardingFlow() {
               },
             ]}
           >
-            {stepContent}
+            <OnboardingStepContent
+              viewingAstra={viewingAstra}
+              sharedStep={sharedStep}
+              createdHabitId={createdHabitId}
+              createdHabitTitle={createdHabitTitle}
+              createdGoal={createdGoal}
+              onHabitCreated={handleHabitCreated}
+              onHabitCompleted={handleHabitCompleted}
+              onGoalCreated={handleGoalCreated}
+              onGoalSkipped={handleGoalSkipped}
+              onFinish={handleFinish}
+            />
           </Animated.View>
         </KeyboardAwareScrollView>
 
         {!hideFooter && (
-          <View style={styles.footer}>
-            <View style={styles.dotsRow}>
-              {Array.from({ length: displayTotal }).map((_, i) => (
-                <ProgressDot
-                  key={`progress-dot-${i}`}
-                  active={i === displayStep - 1}
-                  activeColor={tokens.primary}
-                  inactiveColor={`${tokens.fg1}2E`}
-                  reducedMotion={prefersReducedMotion}
-                />
-              ))}
-            </View>
-
-            <View style={styles.footerActions}>
-              {canAdvance && (
-                <PillButton fullWidth onPress={goNext}>
-                  {isStarter
-                    ? t('onboarding.flow.begin')
-                    : t('onboarding.flow.next')}
-                </PillButton>
-              )}
-              {hasPrev && (
-                <Pressable
-                  onPress={goPrev}
-                  style={styles.backButton}
-                  accessibilityRole="button"
-                >
-                  <Text style={styles.backText}>
-                    {t('onboarding.flow.back')}
-                  </Text>
-                </Pressable>
-              )}
-            </View>
-          </View>
+          <OnboardingFooter
+            tokens={tokens}
+            styles={styles}
+            displayTotal={displayTotal}
+            displayStep={displayStep}
+            prefersReducedMotion={prefersReducedMotion}
+            canAdvance={canAdvance}
+            hasPrev={hasPrev}
+            isStarter={isStarter}
+            onNext={goNext}
+            onPrev={goPrev}
+          />
         )}
       </View>
     </Modal>

@@ -60,6 +60,164 @@ function rowEntrance(index: number) {
     .reduceMotion(ReduceMotion.System)
 }
 
+interface NotificationRowContext {
+  tokens: AppTokens
+  styles: ReturnType<typeof createStyles>
+  t: (key: string, values?: Record<string, unknown>) => string
+  onPress: (notification: NotificationItem) => void
+  onRequestDelete: (notification: NotificationItem) => void
+}
+
+function renderNotificationRow(
+  item: NotificationItem,
+  index: number,
+  context: NotificationRowContext,
+) {
+  const { tokens, styles, t, onPress, onRequestDelete } = context
+  const glyph = getNotificationGlyph(item)
+  const GlyphIcon = glyphIconMap[glyph]
+  return (
+    <Animated.View entering={rowEntrance(index)}>
+      <TouchableOpacity
+        style={[styles.notifRow, !item.isRead && styles.notifUnread]}
+        activeOpacity={0.7}
+        onPress={() => onPress(item)}
+        accessibilityLabel={item.title}
+      >
+        <View style={styles.notifGlyphCircle}>
+          <GlyphIcon size={20} color={glyphColor(glyph, tokens)} strokeWidth={1.8} />
+        </View>
+        <View style={styles.notifContent}>
+          <View style={styles.notifTopRow}>
+            <Text style={styles.notifTitle} numberOfLines={1}>
+              {item.title}
+            </Text>
+            <Text style={styles.notifTime}>
+              {formatNotificationRelativeTime(item.createdAtUtc, (key, values) =>
+                t(`notifications.${key}`, values),
+              )}
+            </Text>
+          </View>
+          <Text style={styles.notifBody} numberOfLines={2}>
+            {item.body}
+          </Text>
+        </View>
+        <Pressable
+          style={({ pressed }) => [
+            styles.deleteBtn,
+            pressed ? styles.deleteBtnPressed : null,
+          ]}
+          onPress={() => onRequestDelete(item)}
+          accessibilityRole="button"
+          accessibilityLabel={t('notifications.deleteNotification')}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
+          {({ pressed }) => (
+            <X
+              size={18}
+              color={pressed ? tokens.statusBad : tokens.fg4}
+              strokeWidth={1.8}
+            />
+          )}
+        </Pressable>
+      </TouchableOpacity>
+    </Animated.View>
+  )
+}
+
+type NotificationBellStyles = ReturnType<typeof createStyles>
+
+interface NotificationListActionsProps {
+  tokens: AppTokens
+  styles: NotificationBellStyles
+  showMarkAllRead: boolean
+  showDeleteAll: boolean
+  onMarkAllRead: () => void
+  onDeleteAll: () => void
+}
+
+function NotificationListActions({
+  tokens,
+  styles,
+  showMarkAllRead,
+  showDeleteAll,
+  onMarkAllRead,
+  onDeleteAll,
+}: Readonly<NotificationListActionsProps>) {
+  const { t } = useTranslation()
+  return (
+    <View style={styles.actionsRow}>
+      {showMarkAllRead && (
+        <Pressable
+          style={({ pressed }) => [
+            styles.sheetActionBtn,
+            pressed ? styles.deleteBtnPressed : null,
+          ]}
+          onPress={onMarkAllRead}
+          accessibilityRole="button"
+          accessibilityLabel={t('notifications.markAllRead')}
+        >
+          {({ pressed }) => (
+            <CheckCheck
+              size={18}
+              color={pressed ? tokens.primarySoft : tokens.fg3}
+              strokeWidth={1.8}
+            />
+          )}
+        </Pressable>
+      )}
+      {showDeleteAll && (
+        <Pressable
+          style={({ pressed }) => [
+            styles.sheetActionBtn,
+            pressed ? styles.deleteBtnPressed : null,
+          ]}
+          onPress={onDeleteAll}
+          accessibilityRole="button"
+          accessibilityLabel={t('notifications.deleteAll')}
+        >
+          {({ pressed }) => (
+            <Trash2
+              size={18}
+              color={pressed ? tokens.statusBad : tokens.fg3}
+              strokeWidth={1.8}
+            />
+          )}
+        </Pressable>
+      )}
+    </View>
+  )
+}
+
+interface NotificationListEmptyProps {
+  tokens: AppTokens
+  styles: NotificationBellStyles
+  isLoading: boolean
+}
+
+function NotificationListEmpty({
+  tokens,
+  styles,
+  isLoading,
+}: Readonly<NotificationListEmptyProps>) {
+  const { t } = useTranslation()
+  if (isLoading) {
+    return (
+      <View style={styles.emptyContainer}>
+        <ActivityIndicator color={tokens.primary} />
+      </View>
+    )
+  }
+  return (
+    <View style={styles.emptyContainer}>
+      <View style={styles.notifGlyphCircle}>
+        <BellOff size={20} color={tokens.fg3} strokeWidth={1.8} />
+      </View>
+      <Text style={styles.emptyText}>{t('notifications.empty')}</Text>
+    </View>
+  )
+}
+
 export function NotificationBell() {
   const { t } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
@@ -137,73 +295,13 @@ export function NotificationBell() {
   }
 
   function renderNotification({ item, index }: { item: NotificationItem; index: number }) {
-    const glyph = getNotificationGlyph(item)
-    const GlyphIcon = glyphIconMap[glyph]
-    return (
-      <Animated.View entering={rowEntrance(index)}>
-        <TouchableOpacity
-          style={[styles.notifRow, !item.isRead && styles.notifUnread]}
-          activeOpacity={0.7}
-          onPress={() => handlePress(item)}
-          accessibilityLabel={item.title}
-        >
-          <View style={styles.notifGlyphCircle}>
-            <GlyphIcon size={20} color={glyphColor(glyph, tokens)} strokeWidth={1.8} />
-          </View>
-          <View style={styles.notifContent}>
-            <View style={styles.notifTopRow}>
-              <Text style={styles.notifTitle} numberOfLines={1}>
-                {item.title}
-              </Text>
-              <Text style={styles.notifTime}>
-                {formatNotificationRelativeTime(item.createdAtUtc, (key, values) =>
-                  t(`notifications.${key}`, values),
-                )}
-              </Text>
-            </View>
-            <Text style={styles.notifBody} numberOfLines={2}>
-              {item.body}
-            </Text>
-          </View>
-          <Pressable
-            style={({ pressed }) => [
-              styles.deleteBtn,
-              pressed ? styles.deleteBtnPressed : null,
-            ]}
-            onPress={() => requestDeleteNotification(item)}
-            accessibilityRole="button"
-            accessibilityLabel={t('notifications.deleteNotification')}
-            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-          >
-            {({ pressed }) => (
-              <X
-                size={18}
-                color={pressed ? tokens.statusBad : tokens.fg4}
-                strokeWidth={1.8}
-              />
-            )}
-          </Pressable>
-        </TouchableOpacity>
-      </Animated.View>
-    )
-  }
-
-  function renderEmpty() {
-    if (isLoading) {
-      return (
-        <View style={styles.emptyContainer}>
-          <ActivityIndicator color={tokens.primary} />
-        </View>
-      )
-    }
-    return (
-      <View style={styles.emptyContainer}>
-        <View style={styles.notifGlyphCircle}>
-          <BellOff size={20} color={tokens.fg3} strokeWidth={1.8} />
-        </View>
-        <Text style={styles.emptyText}>{t('notifications.empty')}</Text>
-      </View>
-    )
+    return renderNotificationRow(item, index, {
+      tokens,
+      styles,
+      t,
+      onPress: handlePress,
+      onRequestDelete: requestDeleteNotification,
+    })
   }
 
   return (
@@ -239,48 +337,22 @@ export function NotificationBell() {
           renderItem={renderNotification}
           showsVerticalScrollIndicator={false}
           ListHeaderComponent={
-            <View style={styles.actionsRow}>
-              {visibleUnreadCount > 0 && (
-                <Pressable
-                  style={({ pressed }) => [
-                    styles.sheetActionBtn,
-                    pressed ? styles.deleteBtnPressed : null,
-                  ]}
-                  onPress={() => markAllAsRead.mutate()}
-                  accessibilityRole="button"
-                  accessibilityLabel={t('notifications.markAllRead')}
-                >
-                  {({ pressed }) => (
-                    <CheckCheck
-                      size={18}
-                      color={pressed ? tokens.primarySoft : tokens.fg3}
-                      strokeWidth={1.8}
-                    />
-                  )}
-                </Pressable>
-              )}
-              {visibleNotifications.length > 0 && (
-                <Pressable
-                  style={({ pressed }) => [
-                    styles.sheetActionBtn,
-                    pressed ? styles.deleteBtnPressed : null,
-                  ]}
-                  onPress={() => setShowDeleteAllConfirm(true)}
-                  accessibilityRole="button"
-                  accessibilityLabel={t('notifications.deleteAll')}
-                >
-                  {({ pressed }) => (
-                    <Trash2
-                      size={18}
-                      color={pressed ? tokens.statusBad : tokens.fg3}
-                      strokeWidth={1.8}
-                    />
-                  )}
-                </Pressable>
-              )}
-            </View>
+            <NotificationListActions
+              tokens={tokens}
+              styles={styles}
+              showMarkAllRead={visibleUnreadCount > 0}
+              showDeleteAll={visibleNotifications.length > 0}
+              onMarkAllRead={() => markAllAsRead.mutate()}
+              onDeleteAll={() => setShowDeleteAllConfirm(true)}
+            />
           }
-          ListEmptyComponent={renderEmpty()}
+          ListEmptyComponent={
+            <NotificationListEmpty
+              tokens={tokens}
+              styles={styles}
+              isLoading={isLoading}
+            />
+          }
           contentContainerStyle={[
             withDrawerContentInset(styles.listContent),
             visibleNotifications.length === 0 && styles.emptyListContainer,
