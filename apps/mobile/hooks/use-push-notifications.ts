@@ -6,7 +6,9 @@ import * as Device from 'expo-device'
 import { useRouter } from 'expo-router'
 import type { Href } from 'expo-router'
 import { API } from '@orbit/shared/api'
+import { schemes } from '@orbit/shared/theme'
 import type { NativePushRegistrationStatus } from '@orbit/shared/utils'
+import i18n from '@/lib/i18n'
 import { apiClient } from '@/lib/api-client'
 import {
   normalizePermissionStatus,
@@ -175,10 +177,10 @@ if (notificationsModule) {
 async function ensureAndroidChannel(): Promise<void> {
   if (!notificationsModule || Platform.OS !== 'android') return
   await notificationsModule.setNotificationChannelAsync('default', {
-    name: 'Default',
+    name: i18n.t('notifications.channel.default'),
     importance: notificationsModule.AndroidImportance.MAX,
     vibrationPattern: [0, 250, 250, 250],
-    lightColor: '#7f46f7',
+    lightColor: schemes.purple.accent.dark.primary,
   })
 }
 
@@ -318,14 +320,14 @@ export function usePushNotifications(): UsePushNotificationsReturn {
       } catch (err: unknown) {
         setExpoPushToken(null)
         setRegistrationStatus('token-missing')
-        setError(err instanceof Error ? err.message : 'Push token is unavailable on this device.')
+        setError(err instanceof Error ? err.message : i18n.t('settings.notifications.tokenMissing'))
         return false
       }
       setExpoPushToken(token)
 
       if (!token) {
         setRegistrationStatus('token-missing')
-        setError('Push token is unavailable on this device.')
+        setError(i18n.t('settings.notifications.tokenMissing'))
         return false
       }
 
@@ -343,7 +345,7 @@ export function usePushNotifications(): UsePushNotificationsReturn {
         return true
       } catch (err: unknown) {
         setRegistrationStatus('sync-failed')
-        setError(err instanceof Error ? err.message : 'Failed to sync push subscription.')
+        setError(err instanceof Error ? err.message : i18n.t('settings.notifications.syncFailed'))
         return false
       }
     })()
@@ -411,7 +413,7 @@ export function usePushNotifications(): UsePushNotificationsReturn {
       setExpoPushToken(null)
       setRegistrationStatus('sync-failed')
       setIsRegistered(false)
-      setError(err instanceof Error ? err.message : 'Failed to refresh push notification state.')
+      setError(err instanceof Error ? err.message : i18n.t('settings.notifications.syncFailed'))
     }
   }, [isSupported, readDisabledPreference, registerAndSync])
 
@@ -450,7 +452,7 @@ export function usePushNotifications(): UsePushNotificationsReturn {
     } catch (err: unknown) {
       setRegistrationStatus('sync-failed')
       setIsRegistered(false)
-      setError(err instanceof Error ? err.message : 'Failed to register for push notifications.')
+      setError(err instanceof Error ? err.message : i18n.t('settings.notifications.syncFailed'))
       return false
     } finally {
       setIsLoading(false)
@@ -477,7 +479,7 @@ export function usePushNotifications(): UsePushNotificationsReturn {
           token = await getCurrentPushToken()
         } catch (err: unknown) {
           setRegistrationStatus('token-missing')
-          setError(err instanceof Error ? err.message : 'Push token is unavailable on this device.')
+          setError(err instanceof Error ? err.message : i18n.t('settings.notifications.tokenMissing'))
           return false
         }
 
@@ -486,13 +488,13 @@ export function usePushNotifications(): UsePushNotificationsReturn {
 
       if (!token) {
         setRegistrationStatus('token-missing')
-        setError('Push token is unavailable on this device.')
+        setError(i18n.t('settings.notifications.tokenMissing'))
         return false
       }
 
       if (!isAuthenticated) {
         setRegistrationStatus('sync-failed')
-        setError('Failed to sync push unsubscription.')
+        setError(i18n.t('settings.notifications.syncFailed'))
         return false
       }
 
@@ -504,7 +506,7 @@ export function usePushNotifications(): UsePushNotificationsReturn {
       return true
     } catch (err: unknown) {
       setRegistrationStatus('sync-failed')
-      setError(err instanceof Error ? err.message : 'Failed to sync push unsubscription.')
+      setError(err instanceof Error ? err.message : i18n.t('settings.notifications.syncFailed'))
       return false
     } finally {
       setIsLoading(false)

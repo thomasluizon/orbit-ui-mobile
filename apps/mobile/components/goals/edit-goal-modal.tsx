@@ -32,7 +32,7 @@ import {
 } from '@orbit/shared/utils/goal-form'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
-import { MAX_GOAL_DESCRIPTION_LENGTH } from '@orbit/shared/validation'
+import { MAX_GOAL_DESCRIPTION_LENGTH, MAX_GOAL_UNIT_LENGTH } from '@orbit/shared/validation'
 
 interface EditGoalModalProps {
   open: boolean
@@ -194,7 +194,7 @@ export function EditGoalModal({ open, onClose, goal }: EditGoalModalProps) {
               value={description}
               onChangeText={setDescription}
               placeholder={t('goals.form.descriptionPlaceholder')}
-              placeholderTextColor={tokens.fg4}
+              placeholderTextColor={tokens.fg3}
               maxLength={MAX_GOAL_DESCRIPTION_LENGTH}
               accessibilityLabel={t('goals.form.description')}
             />
@@ -234,7 +234,7 @@ export function EditGoalModal({ open, onClose, goal }: EditGoalModalProps) {
                 <BottomSheetAppTextInput
                   value={unit}
                   onChangeText={setUnit}
-                  maxLength={50}
+                  maxLength={MAX_GOAL_UNIT_LENGTH}
                   accessibilityLabel={t('goals.form.unit')}
                 />
                 {fieldErrors.unit ? (
@@ -377,7 +377,7 @@ function createStyles(
     fieldError: {
       fontFamily: 'Rubik_400Regular',
       fontSize: 12,
-      color: tokens.statusOverdue,
+      color: tokens.statusOverdueText,
       marginTop: 6,
     },
     deadlineRow: {
@@ -398,7 +398,7 @@ function createStyles(
     warningText: {
       fontFamily: 'Rubik_400Regular',
       fontSize: 13,
-      color: tokens.statusOverdue,
+      color: tokens.statusOverdueText,
       marginTop: 8,
     },
     addDeadlineButton: {

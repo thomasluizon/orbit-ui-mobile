@@ -282,7 +282,7 @@ export function NotificationBell() {
                       style={{
                         fontFamily: 'var(--font-sans)',
                         fontSize: 12,
-                        color: 'var(--fg-4)',
+                        color: 'var(--fg-3)',
                       }}
                     >
                       {formatNotificationRelativeTime(item.createdAtUtc, (key, values) =>

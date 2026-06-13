@@ -427,12 +427,12 @@ export default function RetrospectiveScreen() {
                     text={displayedRetrospective}
                     tokens={tokens}
                   />
-                  <Text style={[styles.aiDisclaimer, { color: tokens.fg4 }]}>
+                  <Text style={[styles.aiDisclaimer, { color: tokens.fg3 }]}>
                     {t('aiDisclosure.notMedicalAdvice')}
                   </Text>
                   {displayedFromCache ? (
                     <Text
-                      style={[styles.cachedText, { color: tokens.fg4 }]}
+                      style={[styles.cachedText, { color: tokens.fg3 }]}
                     >
                       {t('retrospective.cached')}
                     </Text>

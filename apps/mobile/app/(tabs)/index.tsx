@@ -10,6 +10,7 @@ import {
 import {
   Animated,
   AppState,
+  type FlatList,
   View,
   Text,
   Pressable,
@@ -42,6 +43,7 @@ import {
 } from "@orbit/shared/utils";
 import { useHabitVisibility } from "@/hooks/use-habit-visibility";
 import type { HabitsFilter, NormalizedHabit } from "@orbit/shared/types/habit";
+import type { Goal } from "@orbit/shared/types/goal";
 import { plural } from "@/lib/plural";
 import { useAdMob } from "@/hooks/use-ad-mob";
 import { useProfile } from "@/hooks/use-profile";
@@ -319,9 +321,9 @@ export default function TodayScreen() {
   >(() => new Set());
   const habitsTourRef = useRef<View>(null);
   useTourTarget("tour-habit-list", habitsTourRef);
-  const goalsScrollRef = useRef<ScrollView>(null);
+  const goalsScrollRef = useRef<FlatList<Goal>>(null);
   const goalsScrollTo = useCallback((y: number) => {
-    goalsScrollRef.current?.scrollTo({ y, animated: true });
+    goalsScrollRef.current?.scrollToOffset({ offset: y, animated: true });
   }, []);
   const { onTourScroll: onGoalsTourScroll } = useTourScrollContainer(
     "/",
@@ -1407,22 +1409,15 @@ export default function TodayScreen() {
   return (
     <View style={styles.safeArea}>
       {currentActiveView === "goals" ? (
-        <ScrollView
-          ref={goalsScrollRef}
-          style={styles.scrollView}
-          contentContainerStyle={[
-            styles.scrollContent,
-            isSelectMode && styles.scrollContentWithBulkBar,
-          ]}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="always"
+        <GoalsView
+          listHeader={sharedHeader}
+          scrollRef={goalsScrollRef}
+          contentContainerStyle={
+            isSelectMode ? styles.scrollContentWithBulkBar : undefined
+          }
           onScroll={onGoalsTourScroll}
-          scrollEventThrottle={16}
           onScrollBeginDrag={handleListScrollBeginDrag}
-        >
-          {sharedHeader}
-          <GoalsView />
-        </ScrollView>
+        />
       ) : (
         <Animated.View
           ref={habitsTourRef}
@@ -1574,12 +1569,6 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
     safeArea: {
       flex: 1,
       backgroundColor: tokens.bg,
-    },
-    scrollView: {
-      flex: 1,
-    },
-    scrollContent: {
-      paddingBottom: 120,
     },
     scrollContentWithBulkBar: {
       paddingBottom: 220,

@@ -5,7 +5,7 @@ import {
   TouchableOpacity,
   Pressable,
   ActivityIndicator,
-  ScrollView,
+  FlatList,
   StyleSheet,
 } from 'react-native'
 import Animated, { FadeInDown, ReduceMotion } from 'react-native-reanimated'
@@ -140,7 +140,7 @@ export function NotificationBell() {
     const glyph = getNotificationGlyph(item)
     const GlyphIcon = glyphIconMap[glyph]
     return (
-      <Animated.View key={item.id} entering={rowEntrance(index)}>
+      <Animated.View entering={rowEntrance(index)}>
         <TouchableOpacity
           style={[styles.notifRow, !item.isRead && styles.notifUnread]}
           activeOpacity={0.7}
@@ -232,63 +232,60 @@ export function NotificationBell() {
         title={t('notifications.title')}
         snapPoints={['88%', '96%']}
       >
-        <View style={styles.actionsRow}>
-          {visibleUnreadCount > 0 && (
-            <Pressable
-              style={({ pressed }) => [
-                styles.sheetActionBtn,
-                pressed ? styles.deleteBtnPressed : null,
-              ]}
-              onPress={() => markAllAsRead.mutate()}
-              accessibilityRole="button"
-              accessibilityLabel={t('notifications.markAllRead')}
-            >
-              {({ pressed }) => (
-                <CheckCheck
-                  size={18}
-                  color={pressed ? tokens.primarySoft : tokens.fg3}
-                  strokeWidth={1.8}
-                />
-              )}
-            </Pressable>
-          )}
-          {visibleNotifications.length > 0 && (
-            <Pressable
-              style={({ pressed }) => [
-                styles.sheetActionBtn,
-                pressed ? styles.deleteBtnPressed : null,
-              ]}
-              onPress={() => setShowDeleteAllConfirm(true)}
-              accessibilityRole="button"
-              accessibilityLabel={t('notifications.deleteAll')}
-            >
-              {({ pressed }) => (
-                <Trash2
-                  size={18}
-                  color={pressed ? tokens.statusBad : tokens.fg3}
-                  strokeWidth={1.8}
-                />
-              )}
-            </Pressable>
-          )}
-        </View>
-
-        <ScrollView
+        <FlatList
           style={styles.listScroll}
+          data={visibleNotifications}
+          keyExtractor={(item) => item.id}
+          renderItem={renderNotification}
           showsVerticalScrollIndicator={false}
+          ListHeaderComponent={
+            <View style={styles.actionsRow}>
+              {visibleUnreadCount > 0 && (
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.sheetActionBtn,
+                    pressed ? styles.deleteBtnPressed : null,
+                  ]}
+                  onPress={() => markAllAsRead.mutate()}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('notifications.markAllRead')}
+                >
+                  {({ pressed }) => (
+                    <CheckCheck
+                      size={18}
+                      color={pressed ? tokens.primarySoft : tokens.fg3}
+                      strokeWidth={1.8}
+                    />
+                  )}
+                </Pressable>
+              )}
+              {visibleNotifications.length > 0 && (
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.sheetActionBtn,
+                    pressed ? styles.deleteBtnPressed : null,
+                  ]}
+                  onPress={() => setShowDeleteAllConfirm(true)}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('notifications.deleteAll')}
+                >
+                  {({ pressed }) => (
+                    <Trash2
+                      size={18}
+                      color={pressed ? tokens.statusBad : tokens.fg3}
+                      strokeWidth={1.8}
+                    />
+                  )}
+                </Pressable>
+              )}
+            </View>
+          }
+          ListEmptyComponent={renderEmpty()}
           contentContainerStyle={[
             withDrawerContentInset(styles.listContent),
             visibleNotifications.length === 0 && styles.emptyListContainer,
           ]}
-        >
-          {isLoading && visibleNotifications.length === 0 ? (
-            renderEmpty()
-          ) : visibleNotifications.length === 0 ? (
-            renderEmpty()
-          ) : (
-            visibleNotifications.map((item, index) => renderNotification({ item, index }))
-          )}
-        </ScrollView>
+        />
       </BottomSheetModal>
 
       {selectedNotification && (
@@ -396,7 +393,7 @@ function createStyles(tokens: AppTokens) {
     notifTime: {
       fontFamily: 'Rubik_400Regular',
       fontSize: 12,
-      color: tokens.fg4,
+      color: tokens.fg3,
       flexShrink: 0,
     },
     notifBody: {

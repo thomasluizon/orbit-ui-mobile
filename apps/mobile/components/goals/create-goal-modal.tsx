@@ -34,7 +34,7 @@ import {
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import type { GoalType } from '@orbit/shared/types/goal'
-import { MAX_GOAL_DESCRIPTION_LENGTH } from '@orbit/shared/validation'
+import { MAX_GOAL_DESCRIPTION_LENGTH, MAX_GOAL_UNIT_LENGTH } from '@orbit/shared/validation'
 
 interface CreateGoalModalProps {
   open: boolean
@@ -226,7 +226,7 @@ export function CreateGoalModal({ open, onClose }: CreateGoalModalProps) {
                   ? t('goals.form.streakDescriptionPlaceholder')
                   : t('goals.form.descriptionPlaceholder')
               }
-              placeholderTextColor={tokens.fg4}
+              placeholderTextColor={tokens.fg3}
               maxLength={MAX_GOAL_DESCRIPTION_LENGTH}
               accessibilityLabel={t('goals.form.description')}
             />
@@ -298,7 +298,7 @@ export function CreateGoalModal({ open, onClose }: CreateGoalModalProps) {
                 placeholder={
                   isStreak ? t('goals.form.streakTargetPlaceholder') : '0'
                 }
-                placeholderTextColor={tokens.fg4}
+                placeholderTextColor={tokens.fg3}
                 accessibilityLabel={
                   isStreak
                     ? t('goals.form.streakTarget')
@@ -318,8 +318,8 @@ export function CreateGoalModal({ open, onClose }: CreateGoalModalProps) {
                   value={unit}
                   onChangeText={setUnit}
                   placeholder={t('goals.form.unitPlaceholder')}
-                  placeholderTextColor={tokens.fg4}
-                  maxLength={50}
+                  placeholderTextColor={tokens.fg3}
+                  maxLength={MAX_GOAL_UNIT_LENGTH}
                   accessibilityLabel={t('goals.form.unit')}
                 />
                 {fieldErrors.unit ? (
@@ -455,7 +455,7 @@ function createStyles(
     fieldError: {
       fontFamily: 'Rubik_400Regular',
       fontSize: 12,
-      color: tokens.statusOverdue,
+      color: tokens.statusOverdueText,
       marginTop: 6,
     },
     typeRow: {
@@ -517,7 +517,7 @@ function createStyles(
     warningText: {
       fontFamily: 'Rubik_400Regular',
       fontSize: 13,
-      color: tokens.statusOverdue,
+      color: tokens.statusOverdueText,
       marginTop: 8,
     },
     addDeadlineButton: {

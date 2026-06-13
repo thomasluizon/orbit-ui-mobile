@@ -1,0 +1,10 @@
+{
+  "habits.breakdown.frequencyQuantityLabel": {
+    "en": "Frequency interval",
+    "pt": "Intervalo de frequência"
+  },
+  "habits.breakdown.removeHabit": {
+    "en": "Remove {name}",
+    "pt": "Remover {name}"
+  }
+}

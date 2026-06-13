@@ -23,7 +23,7 @@ import {
   validateGoalDraftInput,
 } from '@orbit/shared/utils/goal-form'
 import type { GoalType } from '@orbit/shared/types/goal'
-import { MAX_GOAL_DESCRIPTION_LENGTH } from '@orbit/shared/validation'
+import { MAX_GOAL_DESCRIPTION_LENGTH, MAX_GOAL_UNIT_LENGTH } from '@orbit/shared/validation'
 
 interface CreateGoalModalProps {
   open: boolean
@@ -228,7 +228,7 @@ export function CreateGoalModal({ open, onOpenChange }: Readonly<CreateGoalModal
         isDirty={isDirty}
         onAttemptDismiss={dismissGuard.requestDismiss}
       >
-        <form id="create-goal-form" onSubmit={onSubmit}>
+        <form id="create-goal-form" onSubmit={onSubmit} noValidate>
           <GoalGroupLabel>{t('goals.form.type')}</GoalGroupLabel>
           <div
             className="flex"
@@ -309,7 +309,7 @@ export function CreateGoalModal({ open, onOpenChange }: Readonly<CreateGoalModal
                 type="text"
                 value={unit}
                 placeholder={t('goals.form.unitPlaceholder')}
-                maxLength={50}
+                maxLength={MAX_GOAL_UNIT_LENGTH}
                 error={fieldErrors.unit}
                 onChange={setUnit}
               />
@@ -378,7 +378,7 @@ export function CreateGoalModal({ open, onOpenChange }: Readonly<CreateGoalModal
                   marginTop: 8,
                   fontFamily: 'var(--font-sans)',
                   fontSize: 13,
-                  color: 'var(--status-overdue)',
+                  color: 'var(--status-overdue-text)',
                 }}
               >
                 {t('goals.form.deadlineInPast')}
@@ -499,12 +499,11 @@ function FieldWell({
         value={value}
         placeholder={placeholder}
         maxLength={maxLength}
-        min={type === 'number' ? 0.01 : undefined}
         step={type === 'number' ? 'any' : undefined}
         aria-invalid={!!error}
         aria-describedby={error ? `${id}-error` : undefined}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full appearance-none rounded-[14px] border-0 bg-[var(--bg-field)] text-[var(--fg-1)] shadow-[inset_0_0_0_1px_var(--hairline)] outline-none placeholder:text-[var(--fg-4)] focus:shadow-[inset_0_0_0_2px_var(--primary)]"
+        className="w-full appearance-none rounded-[14px] border-0 bg-[var(--bg-field)] text-[var(--fg-1)] shadow-[inset_0_0_0_1px_var(--hairline)] outline-none placeholder:text-[var(--fg-3)] focus:shadow-[inset_0_0_0_2px_var(--primary)]"
         style={{
           minHeight: 54,
           padding: '0 16px',
@@ -520,7 +519,7 @@ function FieldWell({
           style={{
             fontFamily: 'var(--font-sans)',
             fontSize: 12,
-            color: 'var(--status-overdue)',
+            color: 'var(--status-overdue-text)',
           }}
         >
           {error}

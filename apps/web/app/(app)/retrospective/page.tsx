@@ -210,19 +210,31 @@ export default function RetrospectivePage() {
                   }}
                 >
                   <div
-                    className="inline-flex items-center uppercase"
-                    style={{
-                      fontFamily: 'var(--font-mono)',
-                      fontSize: 10.5,
-                      fontWeight: 500,
-                      color: 'var(--fg-3)',
-                      letterSpacing: '0.06em',
-                      gap: 6,
-                      marginBottom: 10,
-                    }}
+                    className="flex items-center justify-between"
+                    style={{ gap: 6, marginBottom: 10 }}
                   >
-                    <Orbit size={11} strokeWidth={1.7} color="var(--primary)" />
-                    {t('retrospective.astraEyebrow')}
+                    <div
+                      className="inline-flex items-center uppercase"
+                      style={{
+                        fontFamily: 'var(--font-mono)',
+                        fontSize: 10.5,
+                        fontWeight: 500,
+                        color: 'var(--fg-3)',
+                        letterSpacing: '0.06em',
+                        gap: 6,
+                      }}
+                    >
+                      <Orbit size={11} strokeWidth={1.7} color="var(--primary)" />
+                      {t('retrospective.astraEyebrow')}
+                    </div>
+                    <button
+                      type="button"
+                      className="chip"
+                      onClick={generate}
+                      disabled={isLoading || !isOnline}
+                    >
+                      {t('retrospective.regenerate')}
+                    </button>
                   </div>
                   <div
                     style={{
@@ -240,7 +252,7 @@ export default function RetrospectivePage() {
                       fontFamily: 'var(--font-sans)',
                       fontSize: 11,
                       lineHeight: 1.4,
-                      color: 'var(--fg-4)',
+                      color: 'var(--fg-3)',
                     }}
                   >
                     {t('aiDisclosure.notMedicalAdvice')}
@@ -252,7 +264,7 @@ export default function RetrospectivePage() {
                         fontFamily: 'var(--font-mono)',
                         fontSize: 11,
                         letterSpacing: '0.02em',
-                        color: 'var(--fg-4)',
+                        color: 'var(--fg-3)',
                         fontVariantNumeric: 'tabular-nums',
                       }}
                     >

@@ -9,8 +9,13 @@ import {
 import { Check, X, Plus } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import type { SuggestedSubHabit } from '@orbit/shared/types/chat'
-import type { BulkHabitItem, FrequencyUnit } from '@orbit/shared/types/habit'
+import type { FrequencyUnit } from '@orbit/shared/types/habit'
 import { frequencyUnitSchema } from '@orbit/shared/types/habit'
+import {
+  buildBreakdownCreateRequest,
+  filterValidBreakdownHabits,
+  type BreakdownEditableHabit,
+} from '@orbit/shared/utils'
 import { useBulkCreateHabits } from '@/hooks/use-habits'
 import { AppTextInput } from '@/components/ui/app-text-input'
 import { PillButton } from '@/components/ui/pill-button'
@@ -20,16 +25,8 @@ import { plural } from '@/lib/plural'
 
 type AppTokens = ReturnType<typeof createTokensV2>
 
-interface EditableHabit {
+interface EditableHabit extends BreakdownEditableHabit {
   id: string
-  title: string
-  description: string
-  frequencyUnit: FrequencyUnit | null
-  frequencyQuantity: number | null
-  days: string[] | null
-  isBadHabit: boolean
-  dueDate: string | null
-  checklistItems: { text: string; isChecked: boolean }[] | null
 }
 
 interface BreakdownSuggestionProps {
@@ -86,7 +83,7 @@ export function BreakdownSuggestion({
   const [createError, setCreateError] = useState('')
 
   const validHabits = useMemo(
-    () => habits.filter((h) => h.title.trim().length > 0),
+    () => filterValidBreakdownHabits(habits),
     [habits],
   )
 
@@ -115,64 +112,22 @@ export function BreakdownSuggestion({
     ])
   }
 
-  function resolveFrequencyQuantity(habit: EditableHabit): number | undefined {
-    if (!habit.frequencyUnit) return undefined
-    return habit.frequencyQuantity && habit.frequencyQuantity >= 1
-      ? habit.frequencyQuantity
-      : 1
-  }
-
   async function handleConfirm() {
     if (validHabits.length === 0) return
     setCreateError('')
 
     try {
-      const subItems: BulkHabitItem[] = validHabits.map((h) => ({
-        title: h.title.trim(),
-        description: h.description.trim() || undefined,
-        frequencyUnit: h.frequencyUnit ?? undefined,
-        frequencyQuantity: resolveFrequencyQuantity(h),
-        days: h.days ?? undefined,
-        isBadHabit: h.isBadHabit,
-        dueDate: h.dueDate ?? undefined,
-        checklistItems: h.checklistItems ?? undefined,
-      }))
-
-      if (createAsParent) {
-        const firstWithFreq = validHabits.find((h) => h.frequencyUnit)
-        const earliestDueDate =
-          validHabits
-            .map((h) => h.dueDate)
-            .filter((d): d is string => !!d)
-            .sort((a, b) => a.localeCompare(b))[0] ?? new Date().toISOString().slice(0, 10)
-
-        let parentFreqQty: number | undefined
-        if (firstWithFreq?.frequencyUnit) {
-          parentFreqQty = resolveFrequencyQuantity(firstWithFreq)
-        }
-
-        await bulkCreate.mutateAsync({
-          habits: [
-            {
-              title: parentName,
-              frequencyUnit: firstWithFreq?.frequencyUnit ?? undefined,
-              frequencyQuantity: parentFreqQty,
-              dueDate: earliestDueDate,
-              subHabits: subItems,
-            },
-          ],
-        })
-        setCreatedCount(subItems.length)
-      } else {
-        await bulkCreate.mutateAsync({ habits: subItems })
-        setCreatedCount(subItems.length)
-      }
-
+      await bulkCreate.mutateAsync(
+        buildBreakdownCreateRequest(validHabits, parentName, createAsParent),
+      )
+      setCreatedCount(validHabits.length)
       setIsCreated(true)
       onConfirmed()
     } catch (err: unknown) {
       setCreateError(
-        err instanceof Error ? err.message : t('errors.bulkCreateHabits'),
+        process.env.NODE_ENV === 'development' && err instanceof Error
+          ? err.message
+          : t('errors.bulkCreateHabits'),
       )
     }
   }
@@ -231,6 +186,8 @@ export function BreakdownSuggestion({
                         isActive && styles.freqChipActive,
                       ]}
                       activeOpacity={0.7}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected: isActive }}
                       onPress={() => {
                         const parsed = frequencyUnitSchema.safeParse(opt.value)
                         const val: FrequencyUnit | null = parsed.success ? parsed.data : null
@@ -252,10 +209,33 @@ export function BreakdownSuggestion({
                   )
                 })}
               </View>
+              {habit.frequencyUnit ? (
+                <View style={styles.quantityRow}>
+                  <Text style={styles.quantityLabel}>{t('habits.breakdown.every')}</Text>
+                  <AppTextInput
+                    style={styles.quantityInput}
+                    value={String(habit.frequencyQuantity ?? 1)}
+                    onChangeText={(text) =>
+                      updateHabit(index, {
+                        frequencyQuantity: Number(text.replace(/[^0-9]/g, '')) || 1,
+                      })
+                    }
+                    keyboardType="number-pad"
+                    accessibilityLabel={t('habits.breakdown.frequencyQuantityLabel')}
+                  />
+                  <Text style={styles.quantityLabel}>
+                    {t(`habits.form.unit${habit.frequencyUnit}` as 'habits.form.unitDay')}
+                  </Text>
+                </View>
+              ) : null}
             </View>
             <TouchableOpacity
               style={styles.removeBtn}
               activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel={t('habits.breakdown.removeHabit', {
+                name: habit.title || t('habits.breakdown.habitNamePlaceholder'),
+              })}
               onPress={() => removeHabit(index)}
             >
               <X size={14} color={tokens.fg3} />
@@ -267,6 +247,8 @@ export function BreakdownSuggestion({
       <TouchableOpacity
         style={styles.addBtn}
         activeOpacity={0.7}
+        accessibilityRole="button"
+        accessibilityLabel={t('habits.breakdown.addHabit')}
         onPress={addHabit}
       >
         <Plus size={14} color={tokens.primary} />
@@ -276,6 +258,9 @@ export function BreakdownSuggestion({
       <TouchableOpacity
         style={styles.checkboxRow}
         activeOpacity={0.7}
+        accessibilityRole="checkbox"
+        accessibilityState={{ checked: createAsParent }}
+        accessibilityLabel={t('habits.breakdown.createAsParent')}
         onPress={() => setCreateAsParent((prev) => !prev)}
       >
         <View
@@ -389,6 +374,28 @@ function createStyles(tokens: AppTokens) {
   freqChipTextActive: {
     fontFamily: 'Rubik_500Medium',
     color: tokens.primary,
+  },
+  quantityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  quantityLabel: {
+    fontFamily: 'Rubik_400Regular',
+    fontSize: 11,
+    color: tokens.fg3,
+  },
+  quantityInput: {
+    fontFamily: 'Rubik_500Medium',
+    fontSize: 11,
+    color: tokens.fg2,
+    textAlign: 'center',
+    minWidth: 32,
+    minHeight: 0,
+    paddingVertical: 2,
+    paddingHorizontal: 6,
+    backgroundColor: tokens.bgField,
+    borderRadius: 6,
   },
   removeBtn: {
     padding: 6,

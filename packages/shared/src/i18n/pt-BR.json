@@ -74,7 +74,10 @@
     "now": "Agora",
     "minutesAgo": "{n} min atrás",
     "hoursAgo": "{n}h atrás",
-    "daysAgo": "{n}d atrás"
+    "daysAgo": "{n}d atrás",
+    "channel": {
+      "default": "Padrão"
+    }
   },
   "welcome": {
     "backMessage": "Sua sequência de {streak} dias continua viva.",

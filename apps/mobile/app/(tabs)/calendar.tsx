@@ -6,7 +6,7 @@ import {
   Text,
   Pressable,
   StyleSheet,
-  ScrollView,
+  FlatList,
   Switch,
 } from "react-native";
 import Animated, {
@@ -86,6 +86,16 @@ function entryDotState(entry: CalendarDayEntry): StatusDotState {
   return "empty";
 }
 
+function dayStatusLabel(
+  status: DayStatus,
+  t: (key: string) => string,
+): string | null {
+  if (status === "full") return t("calendar.legend.done");
+  if (status === "partial") return t("calendar.legend.partial");
+  if (status === "missed") return t("calendar.legend.missed");
+  return null;
+}
+
 function statusBadge(
   entry: CalendarDayEntry,
   t: (key: string) => string,
@@ -121,11 +131,11 @@ export default function CalendarScreen() {
   const styles = useMemo(() => createStyles(tokens), [tokens]);
   const calendarGridRef = useRef<View>(null);
   const calendarDayRef = useRef<View>(null);
-  const calendarScrollRef = useRef<ScrollView>(null);
+  const calendarScrollRef = useRef<FlatList<CalendarDayEntry>>(null);
   useTourTarget("tour-calendar-grid", calendarGridRef);
   useTourTarget("tour-calendar-day", calendarDayRef);
   const calendarScrollTo = useCallback((y: number) => {
-    calendarScrollRef.current?.scrollTo({ y, animated: true });
+    calendarScrollRef.current?.scrollToOffset({ offset: y, animated: true });
   }, []);
   const { onTourScroll: onCalendarTourScroll } = useTourScrollContainer(
     "/calendar",
@@ -295,31 +305,16 @@ export default function CalendarScreen() {
         ? FadeInLeft.duration(220).reduceMotion(ReduceMotion.System)
         : undefined;
 
-  return (
-    <SafeAreaView style={[styles.safeArea, { backgroundColor: tokens.bg }]}>
-      <GradientTop height={180} />
-      <CalendarHeader
-        monthLabel={monthLabel}
-        subtitle={monthSummary}
-        previousMonthLabel={t("common.previousMonth")}
-        nextMonthLabel={t("common.nextMonth")}
-        onPreviousMonth={prevMonth}
-        onNextMonth={nextMonth}
-        tokens={tokens}
-      />
-      <ScrollView
-        ref={calendarScrollRef}
-        style={styles.container}
-        showsVerticalScrollIndicator={false}
-        onScroll={onCalendarTourScroll}
-        scrollEventThrottle={16}
-      >
-        <GestureDetector gesture={swipeGesture}>
-          <View
-            ref={calendarGridRef}
-            collapsable={false}
-            style={styles.calendarGrid}
-          >
+  const hasDayEntries = Boolean(selectedDay) && filteredEntries.length > 0;
+
+  const listHeader = (
+    <>
+      <GestureDetector gesture={swipeGesture}>
+        <View
+          ref={calendarGridRef}
+          collapsable={false}
+          style={styles.calendarGrid}
+        >
           <Animated.View
             key={format(currentMonth, "yyyy-MM")}
             entering={monthEntering}
@@ -328,7 +323,7 @@ export default function CalendarScreen() {
             <View style={styles.weekDayRow}>
               {weekdayHeaders.map((d) => (
                 <View key={d.key} style={styles.weekDayCell}>
-                  <Text style={[styles.weekDayText, { color: tokens.fg4 }]}>
+                  <Text style={[styles.weekDayText, { color: tokens.fg3 }]}>
                     {d.label}
                   </Text>
                 </View>
@@ -340,6 +335,13 @@ export default function CalendarScreen() {
                 const status = dayStatus(cell);
                 const canSelect = cell.isCurrentMonth;
                 const selected = canSelect && cell.dateStr === selectedDay;
+                const statusLabel = dayStatusLabel(status, t);
+                const dayDateLabel = format(cell.date, "EEEE, MMM d", {
+                  locale: i18n.language === "pt-BR" ? ptBR : enUS,
+                });
+                const dayAccessibilityLabel = statusLabel
+                  ? `${dayDateLabel}, ${statusLabel}`
+                  : dayDateLabel;
 
                 return (
                   <Pressable
@@ -348,6 +350,9 @@ export default function CalendarScreen() {
                     onPress={() => canSelect && onSelectDay(cell.dateStr)}
                     disabled={!canSelect}
                     hitSlop={4}
+                    accessibilityRole="button"
+                    accessibilityLabel={dayAccessibilityLabel}
+                    accessibilityState={{ selected, disabled: !canSelect }}
                     style={({ pressed }) => [
                       styles.dayCell,
                       pressed && canSelect && styles.dayCellPressed,
@@ -392,130 +397,168 @@ export default function CalendarScreen() {
               })}
             </View>
           </Animated.View>
-          </View>
-        </GestureDetector>
+        </View>
+      </GestureDetector>
 
-        <CalendarLegend
-          todayLabel={t("calendar.legend.today")}
-          doneLabel={t("calendar.legend.done")}
-          partialLabel={t("calendar.legend.partial")}
-          missedLabel={t("calendar.legend.missed")}
-          tokens={tokens}
-        />
+      <CalendarLegend
+        todayLabel={t("calendar.legend.today")}
+        doneLabel={t("calendar.legend.done")}
+        partialLabel={t("calendar.legend.partial")}
+        missedLabel={t("calendar.legend.missed")}
+        tokens={tokens}
+      />
 
-        {selectedDay ? (
-          <View style={styles.daySection}>
-            <View style={styles.daySectionHeader}>
-              <Text style={styles.daySectionTitle} numberOfLines={1}>
-                {formattedSelectedDate}
-              </Text>
-              {selectedEntries.length > 0 ? (
-                <View style={styles.recurringToggleRow}>
-                  <Switch
-                    value={showRecurring}
-                    onValueChange={setShowRecurring}
-                    trackColor={{
-                      false: tokens.bgSunk,
-                      true: tokens.primary,
-                    }}
-                    thumbColor={tokens.fgOnPrimary}
-                  />
-                  <Text style={[styles.recurringToggleText, { color: tokens.fg2 }]}>
-                    {t("calendar.showRecurring")}
-                  </Text>
-                </View>
-              ) : null}
-            </View>
-
-            {selectedEntries.length === 0 ? (
-              <View style={styles.emptyDayCard}>
-                <Text style={[styles.emptyDayText, { color: tokens.fg3 }]}>
-                  {t("calendar.noHabitsScheduled")}
+      {selectedDay ? (
+        <View style={styles.daySectionHeaderBlock}>
+          <View style={styles.daySectionHeader}>
+            <Text style={styles.daySectionTitle} numberOfLines={1}>
+              {formattedSelectedDate}
+            </Text>
+            {selectedEntries.length > 0 ? (
+              <View style={styles.recurringToggleRow}>
+                <Switch
+                  value={showRecurring}
+                  onValueChange={setShowRecurring}
+                  trackColor={{
+                    false: tokens.bgSunk,
+                    true: tokens.primary,
+                  }}
+                  thumbColor={tokens.fgOnPrimary}
+                />
+                <Text style={[styles.recurringToggleText, { color: tokens.fg2 }]}>
+                  {t("calendar.showRecurring")}
                 </Text>
               </View>
-            ) : (
-              <>
-                <Text style={[styles.summaryText, { color: tokens.fg3 }]}>
-                  {plural(
-                    t("calendar.dayDetail.completionSummary", {
-                      done: completedCount,
-                      total: filteredEntries.length,
-                    }),
-                    filteredEntries.length,
-                  )}
-                </Text>
-
-                {filteredEntries.length === 0 ? (
-                  <View style={styles.emptyDayCard}>
-                    <Text style={[styles.emptyDayText, { color: tokens.fg3 }]}>
-                      {t("calendar.noHabitsScheduled")}
-                    </Text>
-                  </View>
-                ) : (
-                  <View style={styles.entriesCard}>
-                    {filteredEntries.map((entry: CalendarDayEntry, idx: number) => {
-                      const badge = statusBadge(entry, t);
-                      return (
-                        <Animated.View
-                          key={`${entry.habitId}-${idx}`}
-                          entering={
-                            idx < 8
-                              ? FadeInDown.duration(220)
-                                  .delay(idx * 30)
-                                  .reduceMotion(ReduceMotion.System)
-                              : undefined
-                          }
-                        >
-                          <CalendarDayEntryRow
-                            entry={entry}
-                            tokens={tokens}
-                            dotState={entryDotState(entry)}
-                            statusText={badge}
-                            statusColor={statusBadgeColor(entry, tokens)}
-                            statusAccessibilityLabel={badge ?? t("calendar.status.upcoming")}
-                            displayTime={displayTime}
-                            isLast={idx === filteredEntries.length - 1}
-                          />
-                        </Animated.View>
-                      );
-                    })}
-                  </View>
-                )}
-              </>
-            )}
-
-            <PillButton
-              variant="ghost"
-              style={styles.goToDayButton}
-              onPress={goToSelectedDay}
-            >
-              {t("calendar.goToDay")}
-            </PillButton>
+            ) : null}
           </View>
-        ) : null}
 
-        <SectionLabel>{t("calendar.thisMonth")}</SectionLabel>
-        <SettingsRow
-          label={t("calendar.bestStreak")}
-          value={String(monthStats.bestStreak)}
-          accessory="none"
-          mono
-        />
-        <SettingsRow
-          label={t("calendar.totalLogs")}
-          value={String(monthStats.totalLogs)}
-          accessory="none"
-          mono
-        />
-        <SettingsRow
-          label={t("calendar.missedCount")}
-          value={String(monthStats.missed)}
-          accessory="none"
-          mono
-        />
+          {selectedEntries.length === 0 || filteredEntries.length === 0 ? (
+            <View style={styles.emptyDayCard}>
+              <Text style={[styles.emptyDayText, { color: tokens.fg3 }]}>
+                {t("calendar.noHabitsScheduled")}
+              </Text>
+            </View>
+          ) : (
+            <Text style={[styles.summaryText, { color: tokens.fg3 }]}>
+              {plural(
+                t("calendar.dayDetail.completionSummary", {
+                  done: completedCount,
+                  total: filteredEntries.length,
+                }),
+                filteredEntries.length,
+              )}
+            </Text>
+          )}
+        </View>
+      ) : null}
+    </>
+  );
 
-        <View style={{ height: 24 }} />
-      </ScrollView>
+  const listFooter = (
+    <View style={styles.listFooter}>
+      {selectedDay ? (
+        <PillButton
+          variant="ghost"
+          style={styles.goToDayButton}
+          onPress={goToSelectedDay}
+        >
+          {t("calendar.goToDay")}
+        </PillButton>
+      ) : null}
+
+      <SectionLabel>{t("calendar.thisMonth")}</SectionLabel>
+      <SettingsRow
+        label={t("calendar.bestStreak")}
+        value={String(monthStats.bestStreak)}
+        accessory="none"
+        mono
+      />
+      <SettingsRow
+        label={t("calendar.totalLogs")}
+        value={String(monthStats.totalLogs)}
+        accessory="none"
+        mono
+      />
+      <SettingsRow
+        label={t("calendar.missedCount")}
+        value={String(monthStats.missed)}
+        accessory="none"
+        mono
+      />
+
+      <View style={{ height: 24 }} />
+    </View>
+  );
+
+  const renderEntry = ({
+    item,
+    index,
+  }: {
+    item: CalendarDayEntry;
+    index: number;
+  }) => {
+    const badge = statusBadge(item, t);
+    const isFirst = index === 0;
+    const isLast = index === filteredEntries.length - 1;
+    return (
+      <View style={styles.entriesCardPad}>
+        <Animated.View
+          style={[
+            styles.entryRowFrame,
+            {
+              backgroundColor: tokens.bgCard,
+              borderColor: tokens.hairline,
+            },
+            isFirst && styles.entryRowFrameFirst,
+            isLast && styles.entryRowFrameLast,
+          ]}
+          entering={
+            index < 8
+              ? FadeInDown.duration(220)
+                  .delay(index * 30)
+                  .reduceMotion(ReduceMotion.System)
+              : undefined
+          }
+        >
+          <CalendarDayEntryRow
+            entry={item}
+            tokens={tokens}
+            dotState={entryDotState(item)}
+            statusText={badge}
+            statusColor={statusBadgeColor(item, tokens)}
+            statusAccessibilityLabel={badge ?? t("calendar.status.upcoming")}
+            displayTime={displayTime}
+            isLast={isLast}
+          />
+        </Animated.View>
+      </View>
+    );
+  };
+
+  return (
+    <SafeAreaView style={[styles.safeArea, { backgroundColor: tokens.bg }]}>
+      <GradientTop height={180} />
+      <CalendarHeader
+        monthLabel={monthLabel}
+        subtitle={monthSummary}
+        previousMonthLabel={t("common.previousMonth")}
+        nextMonthLabel={t("common.nextMonth")}
+        onPreviousMonth={prevMonth}
+        onNextMonth={nextMonth}
+        tokens={tokens}
+      />
+      <FlatList
+        ref={calendarScrollRef}
+        style={styles.container}
+        data={hasDayEntries ? filteredEntries : []}
+        keyExtractor={(item, index) => `${item.habitId}-${index}`}
+        renderItem={renderEntry}
+        ListHeaderComponent={listHeader}
+        ListFooterComponent={listFooter}
+        showsVerticalScrollIndicator={false}
+        onScroll={onCalendarTourScroll}
+        scrollEventThrottle={16}
+      />
     </SafeAreaView>
   );
 }
@@ -644,7 +687,7 @@ function createStyles(tokens: Tokens) {
       opacity: 0.5,
     },
 
-    daySection: {
+    daySectionHeaderBlock: {
       paddingHorizontal: 20,
       paddingTop: 12,
       paddingBottom: 12,
@@ -655,6 +698,9 @@ function createStyles(tokens: Tokens) {
       alignItems: "flex-end",
       justifyContent: "space-between",
       gap: 12,
+    },
+    listFooter: {
+      paddingTop: 4,
     },
     daySectionTitle: {
       flex: 1,
@@ -695,16 +741,27 @@ function createStyles(tokens: Tokens) {
       textAlign: "center",
     },
 
-    entriesCard: {
-      borderRadius: 18,
-      backgroundColor: tokens.bgCard,
-      borderWidth: 1,
-      borderColor: tokens.hairline,
-      overflow: "hidden",
+    entriesCardPad: {
+      paddingHorizontal: 20,
+    },
+    entryRowFrame: {
+      borderLeftWidth: 1,
+      borderRightWidth: 1,
+    },
+    entryRowFrameFirst: {
+      borderTopWidth: 1,
+      borderTopLeftRadius: 18,
+      borderTopRightRadius: 18,
+    },
+    entryRowFrameLast: {
+      borderBottomWidth: 1,
+      borderBottomLeftRadius: 18,
+      borderBottomRightRadius: 18,
     },
 
     goToDayButton: {
       marginTop: 6,
+      marginHorizontal: 20,
       alignSelf: "stretch",
     },
   });

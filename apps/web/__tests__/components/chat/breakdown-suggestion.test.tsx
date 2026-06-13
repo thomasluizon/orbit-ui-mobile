@@ -18,9 +18,11 @@ vi.mock('@/lib/plural', () => ({
   plural: (text: string) => text,
 }))
 
+const bulkCreateMock = vi.fn().mockResolvedValue(undefined)
+
 vi.mock('@/hooks/use-habits', () => ({
   useBulkCreateHabits: () => ({
-    mutateAsync: vi.fn().mockResolvedValue(undefined),
+    mutateAsync: bulkCreateMock,
     isPending: false,
   }),
 }))
@@ -51,6 +53,8 @@ describe('BreakdownSuggestion', () => {
   beforeEach(() => {
     defaultProps.onConfirmed.mockClear()
     defaultProps.onCancelled.mockClear()
+    bulkCreateMock.mockReset()
+    bulkCreateMock.mockResolvedValue(undefined)
   })
 
   it('renders sub-habits as editable inputs', () => {
@@ -73,15 +77,64 @@ describe('BreakdownSuggestion', () => {
     expect(inputs.length).toBeGreaterThanOrEqual(3)
   })
 
-  it('removes a habit when X button clicked', () => {
+  it('removes a habit when its labeled X button is clicked', () => {
     render(<BreakdownSuggestion {...defaultProps} />, { wrapper: createWrapper() })
-    const removeButtons = screen.getAllByRole('button').filter((btn) => {
-      const svg = btn.querySelector('svg')
-      return svg && btn.closest('[class*="hover:text-red"]')
+    const removeButton = screen.getByRole('button', {
+      name: /habits\.breakdown\.removeHabit.*Push-ups/,
     })
-    if (removeButtons.length > 0) {
-      fireEvent.click(removeButtons[0]!)
-      expect(screen.queryByDisplayValue('Push-ups')).not.toBeInTheDocument()
+    fireEvent.click(removeButton)
+    expect(screen.queryByDisplayValue('Push-ups')).not.toBeInTheDocument()
+  })
+
+  it('shows the friendly i18n fallback instead of a raw Error message on failure', async () => {
+    bulkCreateMock.mockRejectedValue(new Error('ECONNREFUSED 127.0.0.1:5432'))
+    render(<BreakdownSuggestion {...defaultProps} />, { wrapper: createWrapper() })
+
+    fireEvent.click(
+      screen.getByText('habits.breakdown.createCount({"n":2})'),
+    )
+
+    expect(
+      await screen.findByText('errors.bulkCreateHabits'),
+    ).toBeInTheDocument()
+    expect(screen.queryByText(/ECONNREFUSED/)).not.toBeInTheDocument()
+  })
+
+  it('reveals the frequency-quantity editor once a recurrence unit is chosen', () => {
+    render(<BreakdownSuggestion {...defaultProps} />, { wrapper: createWrapper() })
+
+    expect(
+      screen.queryByLabelText('habits.breakdown.frequencyQuantityLabel'),
+    ).not.toBeInTheDocument()
+
+    const [firstUnitSelect] = screen.getAllByRole('combobox')
+    fireEvent.change(firstUnitSelect!, { target: { value: 'Week' } })
+
+    expect(
+      screen.getByLabelText('habits.breakdown.frequencyQuantityLabel'),
+    ).toBeInTheDocument()
+  })
+
+  it('passes the chosen frequency quantity into the bulk-create request', async () => {
+    render(<BreakdownSuggestion {...defaultProps} />, { wrapper: createWrapper() })
+
+    const [firstUnitSelect] = screen.getAllByRole('combobox')
+    fireEvent.change(firstUnitSelect!, { target: { value: 'Week' } })
+    fireEvent.change(
+      screen.getByLabelText('habits.breakdown.frequencyQuantityLabel'),
+      { target: { value: '3' } },
+    )
+    fireEvent.click(
+      screen.getByText('habits.breakdown.createCount({"n":2})'),
+    )
+
+    await vi.waitFor(() => expect(bulkCreateMock).toHaveBeenCalled())
+    const request = bulkCreateMock.mock.calls[0]![0] as {
+      habits: { frequencyUnit?: string; frequencyQuantity?: number }[]
     }
+    expect(request.habits[0]).toMatchObject({
+      frequencyUnit: 'Week',
+      frequencyQuantity: 3,
+    })
   })
 })

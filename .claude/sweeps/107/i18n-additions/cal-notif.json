@@ -1,0 +1,17 @@
+{
+  "_note": "CAL-NOTIF-FIX round-2 i18n additions. Already merged into en.json + pt-BR.json directly (consumed live by use-push-notifications channel name). Listed here for the W2.5 central-merge idempotency check. Push error display state reuses the EXISTING settings.notifications.tokenMissing / settings.notifications.syncFailed keys (no new push-error keys minted, per DRY rule 10). 'Google Calendar' JSX rewired to the EXISTING calendar.title key (identical 'Google Calendar' in both locales).",
+  "en": {
+    "notifications": {
+      "channel": {
+        "default": "Default"
+      }
+    }
+  },
+  "pt-BR": {
+    "notifications": {
+      "channel": {
+        "default": "Padrão"
+      }
+    }
+  }
+}

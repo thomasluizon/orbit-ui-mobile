@@ -86,7 +86,7 @@ function QuietActionButton({
       disabled={disabled}
       aria-label={ariaLabel}
       className="chip disabled:opacity-50 disabled:cursor-not-allowed"
-      style={tone === 'warning' ? { color: 'var(--status-overdue)' } : undefined}
+      style={tone === 'warning' ? { color: 'var(--status-overdue-text)' } : undefined}
     >
       {children}
     </button>
@@ -169,7 +169,7 @@ function AutoSyncSettingsCard() {
                 color: 'var(--fg-1)',
               }}
             >
-              Google Calendar
+              {t('calendar.title')}
             </div>
             <div
               className="flex items-center"
@@ -223,7 +223,7 @@ function AutoSyncSettingsCard() {
             gap: 4,
           }}
         >
-          <div className="flex items-start gap-2 text-[var(--status-overdue)]">
+          <div className="flex items-start gap-2 text-[var(--status-overdue-text)]">
             <AlertTriangle className="size-4 mt-0.5 shrink-0" aria-hidden />
             <div className="flex-1 min-w-0">
               <p

@@ -74,7 +74,10 @@
     "now": "Just now",
     "minutesAgo": "{n} min ago",
     "hoursAgo": "{n}h ago",
-    "daysAgo": "{n}d ago"
+    "daysAgo": "{n}d ago",
+    "channel": {
+      "default": "Default"
+    }
   },
   "welcome": {
     "backMessage": "Your {streak}-day streak is still alive.",

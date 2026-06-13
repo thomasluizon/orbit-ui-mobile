@@ -268,7 +268,7 @@ describe('CalendarSyncPage', () => {
 
   it('renders the page header with title and back button', () => {
     render(<CalendarSyncPage />)
-    expect(screen.getByText('calendar.title')).toBeInTheDocument()
+    expect(screen.getAllByText('calendar.title').length).toBeGreaterThan(0)
     expect(screen.getByRole('button', { name: 'common.backToProfile' })).toBeInTheDocument()
   })
 

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import {
+  ActivityIndicator,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -10,8 +11,7 @@ import Animated, { FadeInDown, ReduceMotion } from 'react-native-reanimated'
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
-import { CalendarDays, RefreshCw, WifiOff } from 'lucide-react-native'
-import { API } from '@orbit/shared/api'
+import { CalendarDays, Link as LinkIcon, RefreshCw, WifiOff } from 'lucide-react-native'
 import { calendarKeys } from '@orbit/shared/query'
 import {
   buildCalendarAutoSyncImportRequest,
@@ -19,7 +19,6 @@ import {
   formatCalendarAutoSyncLastSynced,
   formatCalendarSyncRecurrenceLabel,
   isCalendarAutoSyncStatusReconnectRequired,
-  isCalendarSyncNotConnectedMessage,
   type CalendarSyncEvent,
 } from '@orbit/shared/utils'
 import { getErrorMessage } from '@orbit/shared/utils/error-utils'
@@ -32,7 +31,7 @@ import {
   useRunCalendarSyncNow,
   useSetCalendarAutoSync,
 } from '@/hooks/use-calendar-auto-sync'
-import { apiClient } from '@/lib/api-client'
+import { useCalendarEvents } from '@/hooks/use-calendar-events'
 import { plural } from '@/lib/plural'
 import { startMobileGoogleAuth } from '@/lib/google-auth'
 import { createTokensV2, tintFromPrimary } from '@/lib/theme'
@@ -67,22 +66,6 @@ type CalendarEvent = CalendarSyncEvent
 interface ImportResult {
   imported: number
   habits: { id: string; title: string }[]
-}
-
-async function fetchCalendarEvents(): Promise<CalendarEvent[]> {
-  try {
-    const data = await apiClient<CalendarEvent[]>(API.calendar.events)
-    return Array.isArray(data) ? data : []
-  } catch (err: unknown) {
-    const message = err instanceof Error ? err.message : ''
-    if (
-      message === 'Unauthorized' ||
-      isCalendarSyncNotConnectedMessage(message)
-    ) {
-      throw new Error('__NOT_CONNECTED__')
-    }
-    throw err
-  }
 }
 
 export default function CalendarSyncScreen() {
@@ -130,6 +113,10 @@ export default function CalendarSyncScreen() {
   const [isConnecting, setIsConnecting] = useState(false)
   const fetchErrorText = t('calendar.fetchError')
 
+  const eventsQuery = useCalendarEvents({
+    enabled: (profile?.hasProAccess ?? false) && !isReviewMode && isOnline,
+  })
+
   const allSelected = events.length > 0 && selectedIds.size === events.length
 
   const selectedEvents = useMemo(
@@ -138,30 +125,6 @@ export default function CalendarSyncScreen() {
   )
 
   const selectedCount = selectedIds.size
-
-  const fetchManualEvents = useCallback(async () => {
-    if (!isOnline) {
-      setStep('offline')
-      return
-    }
-
-    setStep('loading')
-    setErrorMessage('')
-
-    try {
-      const nextEvents = await fetchCalendarEvents()
-      setEvents(nextEvents)
-      setSelectedIds(new Set(nextEvents.map((event) => event.id)))
-      setStep('select')
-    } catch (err: unknown) {
-      if (err instanceof Error && err.message === '__NOT_CONNECTED__') {
-        setStep('not-connected')
-        return
-      }
-      setErrorMessage(getErrorMessage(err, fetchErrorText))
-      setStep('error')
-    }
-  }, [fetchErrorText, isOnline])
 
   useFocusEffect(
     useCallback(() => {
@@ -186,8 +149,8 @@ export default function CalendarSyncScreen() {
         return
       }
 
-      void fetchManualEvents()
-    }, [fetchManualEvents, isOnline, isReviewMode, profile, queryClient, router]),
+      void eventsQuery.refetch()
+    }, [eventsQuery, isOnline, isReviewMode, profile, queryClient, router]),
   )
 
   useEffect(() => {
@@ -231,6 +194,40 @@ export default function CalendarSyncScreen() {
     suggestionsQuery.error,
     suggestionsQuery.isError,
     suggestionsQuery.isLoading,
+    fetchErrorText,
+  ])
+
+  useEffect(() => {
+    if (isReviewMode) return
+    if (!isOnline) {
+      setStep('offline')
+      return
+    }
+    if (eventsQuery.isLoading) {
+      setStep('loading')
+      return
+    }
+    if (eventsQuery.isError) {
+      setErrorMessage(getErrorMessage(eventsQuery.error, fetchErrorText))
+      setStep('error')
+      return
+    }
+    if (eventsQuery.data?.status === 'not-connected') {
+      setStep('not-connected')
+      return
+    }
+
+    const nextEvents = eventsQuery.data?.events ?? []
+    setEvents(nextEvents)
+    setSelectedIds(new Set(nextEvents.map((event) => event.id)))
+    setStep('select')
+  }, [
+    isOnline,
+    isReviewMode,
+    eventsQuery.data,
+    eventsQuery.error,
+    eventsQuery.isError,
+    eventsQuery.isLoading,
     fetchErrorText,
   ])
 
@@ -392,16 +389,16 @@ export default function CalendarSyncScreen() {
       setStep('offline')
       return
     }
+    setStep('loading')
+    setErrorMessage('')
     if (isReviewMode) {
-      setStep('loading')
-      setErrorMessage('')
       void queryClient.invalidateQueries({
         queryKey: calendarKeys.syncSuggestions(),
       })
       return
     }
-    void fetchManualEvents()
-  }, [fetchManualEvents, isOnline, isReviewMode, queryClient])
+    void eventsQuery.refetch()
+  }, [eventsQuery, isOnline, isReviewMode, queryClient])
 
   function renderEventRow(event: CalendarEvent, index: number) {
     const selected = selectedIds.has(event.id)
@@ -499,7 +496,7 @@ export default function CalendarSyncScreen() {
                 </View>
                 <View style={styles.connectionBody}>
                   <Text style={[styles.connectionTitle, { color: tokens.fg1 }]}>
-                    Google Calendar
+                    {t('calendar.title')}
                   </Text>
                   <Text
                     style={[styles.connectionMeta, { color: tokens.fg3 }]}
@@ -549,7 +546,7 @@ export default function CalendarSyncScreen() {
             {isCalendarAutoSyncStatusReconnectRequired(autoSyncState?.status) ? (
               <View style={styles.reconnectBlock}>
                 <Text
-                  style={[styles.stateText, { color: tokens.statusOverdue }]}
+                  style={[styles.stateText, { color: tokens.statusOverdueText }]}
                 >
                   {t('calendar.autoSync.reconnectBody')}
                 </Text>
@@ -564,7 +561,7 @@ export default function CalendarSyncScreen() {
                   ]}
                 >
                   <Text
-                    style={[styles.quietActionText, { color: tokens.statusOverdue }]}
+                    style={[styles.quietActionText, { color: tokens.statusOverdueText }]}
                   >
                     {t('calendar.autoSync.reconnectCta')}
                   </Text>
@@ -580,7 +577,8 @@ export default function CalendarSyncScreen() {
             accessibilityLiveRegion="polite"
             accessibilityLabel={t('calendar.fetchingEvents')}
           >
-            <Text style={[styles.stateText, { color: tokens.fg3 }]}>
+            <ActivityIndicator color={tokens.primary} />
+            <Text style={[styles.stateText, { color: tokens.fg2 }]}>
               {t('calendar.fetchingEvents')}
             </Text>
           </View>
@@ -592,6 +590,14 @@ export default function CalendarSyncScreen() {
             accessibilityLiveRegion="polite"
             accessibilityLabel={t('calendar.notConnectedTitle')}
           >
+            <View
+              style={[styles.stateGlyphCircle, { backgroundColor: tintFromPrimary(tokens, 0.1) }]}
+            >
+              <LinkIcon size={28} color={tokens.primary} strokeWidth={1.8} />
+            </View>
+            <Text style={[styles.stateTitle, { color: tokens.fg1 }]}>
+              {t('calendar.notConnectedTitle')}
+            </Text>
             <Text style={[styles.stateText, { color: tokens.fg3 }]}>
               {t('calendar.notConnectedDesc')}
             </Text>
@@ -635,12 +641,29 @@ export default function CalendarSyncScreen() {
         {step === 'select' && (
           <>
             {events.length === 0 ? (
-              <View style={styles.centerBlock}>
-                <Text style={[styles.stateText, { color: tokens.fg3 }]}>
+              <View
+                style={styles.centerBlock}
+                accessibilityLiveRegion="polite"
+              >
+                <CalendarDays size={48} color={tokens.fg3} strokeWidth={1.4} />
+                <Text style={[styles.stateText, { color: tokens.fg2 }]}>
                   {isReviewMode
                     ? t('calendar.autoSync.reviewModeEmpty')
                     : t('calendar.noEvents')}
                 </Text>
+                <Pressable
+                  onPress={handleBack}
+                  accessibilityRole="button"
+                  style={({ pressed }) => [
+                    styles.quietAction,
+                    chipTint,
+                    pressed && styles.quietActionDim,
+                  ]}
+                >
+                  <Text style={[styles.quietActionText, { color: tokens.fg2 }]}>
+                    {t('common.goBack')}
+                  </Text>
+                </Pressable>
               </View>
             ) : (
               <>
@@ -739,7 +762,7 @@ export default function CalendarSyncScreen() {
             accessibilityRole="alert"
             accessibilityLiveRegion="assertive"
           >
-            <Text style={[styles.stateText, { color: tokens.statusOverdue }]}>
+            <Text style={[styles.stateText, { color: tokens.statusOverdueText }]}>
               {errorMessage || t('calendar.errorTitle')}
             </Text>
             <Pressable
@@ -820,6 +843,19 @@ function createStyles() {
       fontSize: 14,
       lineHeight: 19.6,
       textAlign: 'center',
+    },
+    stateTitle: {
+      fontFamily: 'Rubik_500Medium',
+      fontSize: 18,
+      lineHeight: 22.5,
+      textAlign: 'center',
+    },
+    stateGlyphCircle: {
+      width: 64,
+      height: 64,
+      borderRadius: 999,
+      alignItems: 'center',
+      justifyContent: 'center',
     },
     centerBlock: {
       paddingHorizontal: 24,
