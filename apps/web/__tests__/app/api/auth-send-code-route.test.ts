@@ -62,8 +62,7 @@ describe('send-code BFF route', () => {
     expect(json.errorCode).toBe('RATE_LIMITED')
   })
 
-  it('logs server-side and returns a generic 500 when the upstream throws', async () => {
-    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+  it('returns a generic 500 when the upstream throws', async () => {
     mockFetch.mockRejectedValue(new Error('dns failure detail'))
 
     const response = await POST(makeRequest(validBody))
@@ -72,7 +71,5 @@ describe('send-code BFF route', () => {
     expect(response.status).toBe(500)
     expect(json.error).toBe('Authentication failed')
     expect(JSON.stringify(json)).not.toContain('dns failure detail')
-    expect(consoleError).toHaveBeenCalled()
-    consoleError.mockRestore()
   })
 })

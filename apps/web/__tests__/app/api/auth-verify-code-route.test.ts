@@ -76,7 +76,6 @@ describe('verify-code BFF route', () => {
   })
 
   it('returns a generic 500 and does not leak detail when the upstream throws', async () => {
-    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
     mockFetch.mockRejectedValue(new Error('ECONNREFUSED api-base'))
 
     const response = await POST(makeRequest(validBody))
@@ -85,7 +84,5 @@ describe('verify-code BFF route', () => {
     expect(response.status).toBe(500)
     expect(json.error).toBe('Authentication failed')
     expect(JSON.stringify(json)).not.toContain('ECONNREFUSED')
-    expect(consoleError).toHaveBeenCalled()
-    consoleError.mockRestore()
   })
 })

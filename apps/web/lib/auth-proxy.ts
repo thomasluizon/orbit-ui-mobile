@@ -47,8 +47,4 @@ export function buildAuthErrorPayload(
   }
 }
 
-export function logAuthRouteFailure(route: string, requestId: string, error: unknown): void {
-  console.error(`[auth-proxy] ${route} failed`, { requestId, error })
-}
-
 export { ORBIT_REQUEST_ID_HEADER }

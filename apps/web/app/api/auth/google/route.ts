@@ -3,7 +3,6 @@ import { setSessionCookies } from '@/lib/auth-api'
 import {
   buildAuthErrorPayload,
   buildRequestIdResponseHeaders,
-  logAuthRouteFailure,
   ORBIT_REQUEST_ID_HEADER,
   resolveRequestId,
   resolveResponseRequestId,
@@ -58,8 +57,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(safeResponse, {
       headers: responseHeaders,
     })
-  } catch (error) {
-    logAuthRouteFailure('google', requestId, error)
+  } catch {
     return NextResponse.json(
       {
         error: 'Authentication failed',

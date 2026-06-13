@@ -3,7 +3,6 @@ import { sendCodeRequestSchema } from '@orbit/shared/types/auth'
 import {
   buildAuthErrorPayload,
   buildRequestIdResponseHeaders,
-  logAuthRouteFailure,
   ORBIT_REQUEST_ID_HEADER,
   resolveRequestId,
   resolveResponseRequestId,
@@ -53,8 +52,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(data, {
       headers: responseHeaders,
     })
-  } catch (error) {
-    logAuthRouteFailure('send-code', requestId, error)
+  } catch {
     return NextResponse.json(
       {
         error: 'Authentication failed',

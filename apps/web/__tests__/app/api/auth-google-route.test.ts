@@ -56,8 +56,7 @@ describe('google BFF route', () => {
     expect(mockFetch).not.toHaveBeenCalled()
   })
 
-  it('logs server-side and returns a generic 500 when the upstream throws', async () => {
-    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {})
+  it('returns a generic 500 when the upstream throws', async () => {
     mockFetch.mockRejectedValue(new Error('upstream offline'))
 
     const response = await POST(makeRequest(validBody))
@@ -66,7 +65,5 @@ describe('google BFF route', () => {
     expect(response.status).toBe(500)
     expect(json.error).toBe('Authentication failed')
     expect(JSON.stringify(json)).not.toContain('upstream offline')
-    expect(consoleError).toHaveBeenCalled()
-    consoleError.mockRestore()
   })
 })
