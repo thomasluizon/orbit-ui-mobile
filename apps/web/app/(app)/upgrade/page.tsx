@@ -705,7 +705,7 @@ function PricingSection({
               margin: 0,
               fontFamily: 'var(--font-sans)',
               fontSize: 13,
-              color: trialUrgent ? 'var(--status-overdue)' : 'var(--fg-1)',
+              color: trialUrgent ? 'var(--status-overdue-text)' : 'var(--fg-1)',
             }}
           >
             {trialDaysLeft === 0

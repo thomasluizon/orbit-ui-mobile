@@ -44,7 +44,7 @@ export function TrialBanner() {
       >
         {t('trial.banner.trialEyebrow')}{' '}
         {trialDaysLeft === 0 ? (
-          <span style={{ color: 'var(--status-overdue)' }}>
+          <span style={{ color: 'var(--status-overdue-text)' }}>
             {t('trial.banner.lastDay')}
           </span>
         ) : (
@@ -72,7 +72,7 @@ export function TrialBanner() {
           fontFamily: 'var(--font-sans)',
           fontSize: 13,
           fontWeight: 500,
-          color: trialUrgent ? 'var(--status-overdue)' : 'var(--primary-soft)',
+          color: trialUrgent ? 'var(--status-overdue-text)' : 'var(--primary-soft)',
           padding: '0 4px',
         }}
       >
