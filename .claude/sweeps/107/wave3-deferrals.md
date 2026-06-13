@@ -95,3 +95,7 @@ app/(app)/streak/_components/streak-sections.tsx:314 · FreezeProgressCard · 21
 # e.g. components/habits/*, components/goals/*, components/chat/*, components/gamification/* (celebration overlays),
 # app/(app)/page.tsx (TodayPage), app/(chat)/chat/page.tsx, app/(app)/advanced|calendar-sync|upgrade/page.tsx,
 # components/tour/tour-provider.tsx, app/(auth)/login/use-login-flow.ts (hook — conservative, left as root).
+
+## packages/shared (main session)
+- packages/shared/src/stores/ui-store.ts:335 · createUIStoreState · 302 · DEFER:root — Zustand store-state factory; the 302 lines are one cohesive `set/get` action object. Splitting fragments the store's single source of truth (rule 6/10 over rule 7). Mirrors DEF-2b orchestration-root reasoning.
+- packages/shared/src/tour/tour-mock-data.ts:14 · createTourMockHabits · 220 · SKIP:not-a-function — body is a static array of mock HabitScheduleItem literals (tour demo data), not control-flow logic. Rule-7's intent (a function doing too much) doesn't apply to a data literal.
