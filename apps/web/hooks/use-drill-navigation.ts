@@ -69,18 +69,11 @@ export function useDrillNavigation(
     async (habitId: string, silent = false) => {
       if (!silent) setDrillLoading(true)
       try {
-        const detail = await fetchHabitDetail(habitId)
-        const today = formatAPIDate(new Date())
-        const normalized = normalizeHabitDetailForDrill(detail, today)
+        const normalized = await loadDrillChildren(habitId, fetchHabitDetail)
         setDrillParentInfo(normalized.parent)
-
-        setDrillChildrenMap((prev) => {
-          const next = new Map(prev)
-          for (const [parentId, children] of normalized.childrenByParent.entries()) {
-            next.set(parentId, children)
-          }
-          return next
-        })
+        setDrillChildrenMap((prev) =>
+          mergeDrillChildrenMap(prev, normalized.childrenByParent),
+        )
       } catch (err: unknown) {
         if (!silent) {
           setDrillError(getErrorMessage(err, t('errors.fetchSubHabits')))

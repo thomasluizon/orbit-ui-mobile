@@ -173,7 +173,7 @@ export function CreateApiKeyModal({
 interface CreateStepProps {
   keyName: string
   onKeyNameChange: (value: string) => void
-  availableScopes: ScopeOption[]
+  availableScopes: AgentScopeOption[]
   selectedScopes: string[]
   onToggleScope: (scope: string) => void
   onSelectAll: () => void
