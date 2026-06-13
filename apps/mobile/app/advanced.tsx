@@ -375,7 +375,7 @@ export default function AdvancedScreen() {
             ) : (
               <View style={styles.messageBlock}>
                 <Text
-                  style={[styles.messageText, { color: tokens.statusOverdue }]}
+                  style={[styles.messageText, { color: tokens.statusOverdueText }]}
                 >
                   {t('orbitMcp.maxKeysReached')}
                 </Text>

@@ -6,11 +6,17 @@ import {
   type ViewStyle,
 } from 'react-native'
 import { createTokensV2, radius } from '@/lib/theme'
+import { usePrefersReducedMotion } from '@/lib/motion'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 function usePulseOpacity() {
   const opacity = useMemo(() => new Animated.Value(1), [])
+  const prefersReducedMotion = usePrefersReducedMotion()
   useEffect(() => {
+    if (prefersReducedMotion) {
+      opacity.setValue(1)
+      return
+    }
     const loop = Animated.loop(
       Animated.sequence([
         Animated.timing(opacity, { toValue: 0.55, duration: 550, useNativeDriver: true }),
@@ -19,7 +25,7 @@ function usePulseOpacity() {
     )
     loop.start()
     return () => loop.stop()
-  }, [opacity])
+  }, [opacity, prefersReducedMotion])
   return opacity
 }
 

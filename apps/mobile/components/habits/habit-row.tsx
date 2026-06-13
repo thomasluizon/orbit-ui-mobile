@@ -38,6 +38,7 @@ import {
 } from '@orbit/shared/utils'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { useTimeFormat } from '@/hooks/use-time-format'
+import { usePrefersReducedMotion } from '@/lib/motion'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { AnchoredMenu } from '@/components/ui/anchored-menu'
@@ -599,18 +600,19 @@ function CheckCircle({
   const color =
     tone === 'bad' && state === 'done' ? tokens.statusBad : colorMap[state]
 
+  const prefersReducedMotion = usePrefersReducedMotion()
   const popScale = useSharedValue(1)
   const previousFilled = useRef(filled)
 
   useEffect(() => {
-    if (filled && !previousFilled.current) {
+    if (filled && !previousFilled.current && !prefersReducedMotion) {
       popScale.value = withSequence(
         withSpring(1.18, { damping: 14 }),
         withSpring(1),
       )
     }
     previousFilled.current = filled
-  }, [filled, popScale])
+  }, [filled, popScale, prefersReducedMotion])
 
   const popStyle = useAnimatedStyle(() => ({
     transform: [{ scale: popScale.value }],

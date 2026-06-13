@@ -214,7 +214,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
     errorText: {
       fontFamily: 'Rubik_400Regular',
       fontSize: 14,
-      color: tokens.statusOverdue,
+      color: tokens.statusOverdueText,
     },
     heroRow: {
       alignItems: 'center',

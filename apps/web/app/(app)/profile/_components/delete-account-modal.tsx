@@ -276,7 +276,7 @@ function DeleteConfirmStep({
           style={{
             fontFamily: 'var(--font-sans)',
             fontSize: 13,
-            color: 'var(--status-overdue)',
+            color: 'var(--status-overdue-text)',
           }}
         >
           {error}
@@ -343,7 +343,7 @@ function DeleteCodeStep({
           style={{
             fontFamily: 'var(--font-sans)',
             fontSize: 13,
-            color: 'var(--status-overdue)',
+            color: 'var(--status-overdue-text)',
           }}
         >
           {error}

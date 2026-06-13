@@ -515,21 +515,29 @@ button {
 }
 
 .loading-bar {
+  position: relative;
   height: 2px;
   border-radius: var(--radius-full);
+  overflow: hidden;
+}
+
+.loading-bar::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  width: 200%;
   background: linear-gradient(
     90deg,
     transparent 0%,
     var(--primary) 50%,
     transparent 100%
   );
-  background-size: 200% 100%;
   animation: loading-slide 1.5s ease-in-out infinite;
 }
 
 @keyframes loading-slide {
-  0% { background-position: 200% 0; }
-  100% { background-position: -200% 0; }
+  0% { transform: translateX(-50%); }
+  100% { transform: translateX(50%); }
 }
 
 /* ═══════════════════════════════════════════════════════

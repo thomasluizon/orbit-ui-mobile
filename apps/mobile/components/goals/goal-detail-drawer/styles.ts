@@ -81,7 +81,7 @@ export function createStyles(tokens: AppTokens, bottomInset: number) {
       paddingHorizontal: 20,
       fontFamily: 'Rubik_400Regular',
       fontSize: 13,
-      color: tokens.statusOverdue,
+      color: tokens.statusOverdueText,
     },
     askAstra: {
       position: 'relative',

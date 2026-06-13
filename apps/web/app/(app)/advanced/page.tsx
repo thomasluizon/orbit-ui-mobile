@@ -324,7 +324,7 @@ export default function AdvancedPage() {
                       fontFamily: 'var(--font-sans)',
                       fontSize: 13,
                       fontWeight: 500,
-                      color: 'var(--status-overdue)',
+                      color: 'var(--status-overdue-text)',
                     }}
                   >
                     {t('orbitMcp.maxKeysReached')}

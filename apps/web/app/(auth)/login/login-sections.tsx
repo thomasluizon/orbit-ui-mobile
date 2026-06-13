@@ -159,7 +159,7 @@ export function LoginErrorMessage({ message }: Readonly<{ message: string }>) {
         fontFamily: 'var(--font-sans)',
         fontSize: 14,
         lineHeight: 1.55,
-        color: 'var(--status-overdue)',
+        color: 'var(--status-overdue-text)',
       }}
     >
       {message}

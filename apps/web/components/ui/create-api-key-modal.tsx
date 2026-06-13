@@ -383,7 +383,7 @@ function RevealStep({ createdKey, copied, onCopy, onDone }: Readonly<RevealStepP
           fontFamily: 'var(--font-sans)',
           fontSize: 14,
           fontWeight: 500,
-          color: 'var(--status-overdue)',
+          color: 'var(--status-overdue-text)',
         }}
       >
         {t('orbitMcp.keyCreatedWarning')}

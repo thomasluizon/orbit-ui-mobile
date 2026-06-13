@@ -238,7 +238,7 @@ function createStyles(tokens: AppTokensV2) {
     retryText: {
       fontFamily: 'Rubik_400Regular',
       fontSize: 12,
-      color: tokens.statusOverdue,
+      color: tokens.statusOverdueText,
     },
     buttons: {
       flexDirection: 'column',

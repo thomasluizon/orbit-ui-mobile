@@ -681,7 +681,7 @@ function createStyles(tokens: AppTokensV2) {
       fontFamily: 'Rubik_400Regular',
       fontSize: 14,
       lineHeight: 22,
-      color: tokens.statusOverdue,
+      color: tokens.statusOverdueText,
       textAlign: 'center',
     },
 

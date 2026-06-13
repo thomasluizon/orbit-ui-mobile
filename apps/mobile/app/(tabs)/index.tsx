@@ -202,7 +202,7 @@ const TodaySearchBar = memo(function TodaySearchBar({
       <View
         style={[
           styles.searchWrap,
-          { borderColor: focused ? tokens.hairlineStrong : tokens.hairline },
+          { borderColor: focused ? tokens.primary : tokens.hairline },
         ]}
       >
         <Search size={18} color={tokens.fg3} strokeWidth={1.8} />

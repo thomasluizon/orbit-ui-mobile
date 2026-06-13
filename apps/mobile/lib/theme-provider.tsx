@@ -122,6 +122,15 @@ export function ThemeProvider({ children }: Readonly<{ children: ReactNode }>) {
     })
   }, [transitionOpacity])
 
+  const finishThemeTransition = useCallback(() => {
+    if (transitionFrameRef.current !== null) {
+      cancelAnimationFrame(transitionFrameRef.current)
+      transitionFrameRef.current = null
+    }
+    transitionOpacity.stopAnimation()
+    setTransitionSnapshot(null)
+  }, [transitionOpacity])
+
   useEffect(() => {
     setRuntimeTheme({ scheme: currentScheme, themeMode: currentTheme })
   }, [currentScheme, currentTheme])
@@ -252,6 +261,7 @@ export function ThemeProvider({ children }: Readonly<{ children: ReactNode }>) {
             animationType="none"
             statusBarTranslucent
             visible
+            onRequestClose={finishThemeTransition}
           >
             <Animated.View
               pointerEvents="none"

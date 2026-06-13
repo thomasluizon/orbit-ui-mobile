@@ -174,7 +174,7 @@ export function PushPrompt() {
             style={{
               fontFamily: 'var(--font-sans)',
               fontSize: 12,
-              color: 'var(--status-overdue)',
+              color: 'var(--status-overdue-text)',
             }}
           >
             {t('pushPrompt.retryHint')}

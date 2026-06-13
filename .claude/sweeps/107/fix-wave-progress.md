@@ -35,4 +35,10 @@ NOTE: central merge step must reconcile — some agents merge directly (habits-f
 ## ROUND-4 plan (sequenced to avoid component-file collision):
 - R4a NOW (parallel, disjoint): R4-A11Y (component contrast/aria migration, all FE visual) + API-R4 (SkipHabit includes, N+1, v1 route).
 - R4b after A11Y commits: SPLIT-WEB-2 + SPLIT-MOBILE-2 (split decomposable big fns + register genuine roots + handle that platform's rule-10 dup + rule-2 dead exports + small round-3 FE MED/LOW: paths, drill F1, login-offline, constants, dead claimAdReward/useInvalidateSummary). highlightText→shared core.
-- Then round-5 sweep (quality + a11y focus) → until ZERO → Phase F.
+## ROUND-4 DONE + committed. Commits: api fcfdc95; ui-mobile c8f4292 (a11y) → 3520d10 (splits+misc).
+- API-R4: SkipHabit filtered includes, N+1 batched, v1 route kept (DEF-R4-1), errorcode coherence test. 3255 tests.
+- R4-A11Y: contrast migration complete app-wide (fg-3 text, status-text + new fg-on-bad token, control names, focus rings, headings). 2 token-level deferrals (primary-as-text, amber-on-amber → DESIGN.md decision).
+- SPLIT-WEB-2 + SPLIT-MOBILE-2: split useChatComposer(both)/ChatPage/CalendarSync; ALL >100 fns now split OR registered (0 unregistered both platforms, 271 register entries); highlightText→shared; dead exports deleted; all small round-3 FE items fixed (paths, drill F1, focus rings, login offline, constants, revoke F14, profile.language sync).
+- ui-mobile green: 981+544+1511; i18n parity 1628=1628.
+
+## NOW: round-5 final verification (14 sweeps / 4 agents) → if ZERO (registers accepted) → Phase F (1 PR per repo + close #107). Else targeted round-6.

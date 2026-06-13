@@ -255,7 +255,7 @@ export function TodayUtilityRow({
       {searchOpen ? (
         <div className="flex items-center flex-1" style={{ gap: 8 }}>
           <div
-            className="flex items-center flex-1 min-w-0 shadow-[inset_0_0_0_1px_var(--hairline)] focus-within:shadow-[inset_0_0_0_1px_var(--hairline-strong)] transition-[box-shadow] duration-[var(--dur-fast)] ease-[var(--ease-standard)]"
+            className="flex items-center flex-1 min-w-0 shadow-[inset_0_0_0_1px_var(--hairline)] focus-within:shadow-[inset_0_0_0_2px_var(--primary)] transition-[box-shadow] duration-[var(--dur-fast)] ease-[var(--ease-standard)]"
             style={{
               gap: 8,
               minHeight: 44,

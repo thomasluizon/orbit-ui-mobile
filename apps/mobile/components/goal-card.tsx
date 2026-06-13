@@ -69,6 +69,22 @@ export function GoalCard({ goal, onPress, tourTargetId }: GoalCardProps) {
     tokens.fg3,
   ])
 
+  const progressTextColor = useMemo(() => {
+    if (goal.status === 'Completed') return tokens.statusDone
+    if (goal.status === 'Abandoned') return tokens.fg3
+    if (isStreak) return tokens.statusOverdueText
+    if (goal.progressPercentage >= 75) return tokens.statusDone
+    return tokens.primary
+  }, [
+    goal.status,
+    goal.progressPercentage,
+    isStreak,
+    tokens.statusOverdueText,
+    tokens.statusDone,
+    tokens.primary,
+    tokens.fg3,
+  ])
+
   const deadlineInfo = useMemo(() => {
     if (!goal.deadline) return null
     const deadlineDate = parseISO(goal.deadline)
@@ -86,14 +102,14 @@ export function GoalCard({ goal, onPress, tourTargetId }: GoalCardProps) {
     if (daysLeft <= 7) {
       return {
         text: plural(t('goals.deadline.daysLeft', { n: daysLeft }), daysLeft),
-        textColor: tokens.statusOverdue,
+        textColor: tokens.statusOverdueText,
       }
     }
     return {
       text: plural(t('goals.deadline.daysLeft', { n: daysLeft }), daysLeft),
       textColor: tokens.fg3,
     }
-  }, [goal.deadline, goal.status, t, tokens.statusOverdue, tokens.statusBad, tokens.fg3])
+  }, [goal.deadline, goal.status, t, tokens.statusOverdueText, tokens.statusBad, tokens.fg3])
 
   const statusBadge = useMemo(() => {
     if (goal.status === 'Completed') {
@@ -193,7 +209,7 @@ export function GoalCard({ goal, onPress, tourTargetId }: GoalCardProps) {
             </View>
           </View>
 
-          <Text style={[styles.percentText, { color: progressColor }]}>
+          <Text style={[styles.percentText, { color: progressTextColor }]}>
             {progress}%
           </Text>
         </View>

@@ -513,7 +513,7 @@ function createStyles(tokens: AppTokensV2, bottomInset: number) {
       fontFamily: 'Rubik_500Medium',
       fontSize: 14,
       lineHeight: 20,
-      color: tokens.statusOverdue,
+      color: tokens.statusOverdueText,
     },
     keyWell: {
       position: 'relative',
