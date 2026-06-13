@@ -26,7 +26,6 @@ export interface AuthLoginErrorInput {
 function extractFromRecord(obj: Record<string, unknown>): string | undefined {
   if (typeof obj.error === 'string') return obj.error
   if (typeof obj.message === 'string' && obj.message.length > 0) {
-    // Avoid leaking fallback "Request failed: N" strings.
     if (/^Request failed:\s*\d+/.test(obj.message)) return undefined
     return obj.message
   }
@@ -48,7 +47,6 @@ export function extractAuthBackendMessage(err: unknown): string | undefined {
   if (!err || typeof err !== 'object') return undefined
   const obj = err as Record<string, unknown>
 
-  // ApiClientError / Error subclass: check data first, then message.
   const data = obj.data
   if (data && typeof data === 'object') {
     const fromData = extractFromRecord(data as Record<string, unknown>)

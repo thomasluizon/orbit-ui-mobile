@@ -4,9 +4,6 @@ import {
   RELATED_SURFACE_ROUTES,
 } from '../chat/related-surfaces'
 
-// The surface IDs the orbit-api feature-explanation bundle can emit today.
-// Kept in sync manually: the bundle lives in orbit-api, so this list guards the
-// shared map against drift (see plan Risk 6).
 const FEATURE_FILE_SURFACE_IDS = [
   'today',
   'gamification',

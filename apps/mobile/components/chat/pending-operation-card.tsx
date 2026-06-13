@@ -298,7 +298,7 @@ function createStyles(tokens: AppTokens) {
     error: {
       fontFamily: 'Rubik_400Regular',
       fontSize: 12,
-      color: tokens.statusBad,
+      color: tokens.statusBadText,
     },
     success: {
       fontFamily: 'Rubik_500Medium',

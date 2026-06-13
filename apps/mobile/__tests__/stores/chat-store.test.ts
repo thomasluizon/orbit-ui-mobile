@@ -6,12 +6,11 @@ describe('mobile chat store', () => {
     useChatStore.setState({
       messages: [],
       isTyping: false,
-      isStreaming: false,
     })
   })
 
-  it('appends messages and toggles flags', () => {
-    const { addMessage, setIsTyping, setIsStreaming } = useChatStore.getState()
+  it('appends messages and toggles the typing flag', () => {
+    const { addMessage, setIsTyping } = useChatStore.getState()
 
     addMessage({
       id: 'message-1',
@@ -20,12 +19,10 @@ describe('mobile chat store', () => {
       timestamp: new Date('2026-04-06T00:00:00Z'),
     })
     setIsTyping(true)
-    setIsStreaming(true)
 
     const state = useChatStore.getState()
     expect(state.messages).toHaveLength(1)
     expect(state.isTyping).toBe(true)
-    expect(state.isStreaming).toBe(true)
   })
 
   it('clears the conversation state', () => {
@@ -39,7 +36,6 @@ describe('mobile chat store', () => {
         },
       ],
       isTyping: true,
-      isStreaming: true,
     })
 
     useChatStore.getState().clearMessages()
@@ -47,7 +43,6 @@ describe('mobile chat store', () => {
     expect(useChatStore.getState()).toMatchObject({
       messages: [],
       isTyping: false,
-      isStreaming: false,
     })
   })
 })

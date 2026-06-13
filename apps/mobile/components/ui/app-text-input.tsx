@@ -66,7 +66,7 @@ export const AppTextInput = forwardRef<TextInput, AppTextInputProps>(
     return (
       <TextInput
         ref={assignRef}
-        placeholderTextColor={placeholderTextColor ?? tokens.fg4}
+        placeholderTextColor={placeholderTextColor ?? tokens.fg3}
         {...props}
         style={[styles.input, focused ? styles.inputFocused : null, style]}
         onBlur={handleBlur}

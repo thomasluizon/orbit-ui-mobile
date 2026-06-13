@@ -24,7 +24,7 @@ export const calendarDayEntrySchema = z.object({
 
 export type CalendarDayEntry = z.infer<typeof calendarDayEntrySchema>
 
-export const calendarSyncEventSchema = z.object({
+const calendarSyncEventSchema = z.object({
   id: z.string(),
   title: z.string(),
   description: z.string().nullable(),
@@ -35,8 +35,6 @@ export const calendarSyncEventSchema = z.object({
   recurrenceRule: z.string().nullable(),
   reminders: z.array(z.number()),
 })
-
-export type CalendarSyncEventDto = z.infer<typeof calendarSyncEventSchema>
 
 export const calendarAutoSyncStatusSchema = z.enum(['Idle', 'ReconnectRequired', 'TransientError'])
 
@@ -59,12 +57,6 @@ export const calendarSyncSuggestionSchema = z.object({
 })
 
 export type CalendarSyncSuggestion = z.infer<typeof calendarSyncSuggestionSchema>
-
-export const setCalendarAutoSyncRequestSchema = z.object({
-  enabled: z.boolean(),
-})
-
-export type SetCalendarAutoSyncRequest = z.infer<typeof setCalendarAutoSyncRequestSchema>
 
 export const calendarAutoSyncResultSchema = z.object({
   newSuggestions: z.number(),

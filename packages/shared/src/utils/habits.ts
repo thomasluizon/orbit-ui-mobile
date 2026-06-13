@@ -3,13 +3,13 @@ import { parseAPIDate } from './dates'
 import type { CalendarDayEntry, HabitDayStatus } from '../types/calendar'
 import type { CalendarMonthResponse } from '../types/habit'
 
-export interface HabitScheduleMatchSource {
+interface HabitScheduleMatchSource {
   dueDate?: string | null
   scheduledDates?: string[] | null
   instances?: Array<{ date: string }> | null
 }
 
-export type HabitEmptyStateView = 'today' | 'all' | 'general'
+type HabitEmptyStateView = 'today' | 'all' | 'general'
 
 export function getHabitEmptyStateKey(view: HabitEmptyStateView): string {
   if (view === 'general') return 'habits.emptyGeneral'

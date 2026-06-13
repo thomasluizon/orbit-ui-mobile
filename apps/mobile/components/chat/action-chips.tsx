@@ -179,7 +179,7 @@ function chipStyle(
       };
     case "Failed":
       return {
-        text: tokens.statusBad,
+        text: tokens.statusBadText,
         bg: `${tokens.statusBad}1A`,
         border: `${tokens.statusBad}4D`,
         Icon: XCircle,
@@ -217,7 +217,7 @@ function createStyles(tokens: AppTokens) {
     errorText: {
       fontFamily: 'Rubik_400Regular',
       fontSize: 12,
-      color: tokens.statusBad,
+      color: tokens.statusBadText,
       marginTop: 4,
       paddingLeft: 4,
     },

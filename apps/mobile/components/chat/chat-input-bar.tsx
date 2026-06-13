@@ -154,6 +154,8 @@ export const ChatInputBar = forwardRef<View, Readonly<ChatInputBarProps>>(
                             key={lang.value}
                             activeOpacity={0.7}
                             onPress={() => onSelectLanguage(lang.value)}
+                            accessibilityRole="button"
+                            accessibilityState={{ selected: speechLang === lang.value }}
                             style={[
                               styles.languageOption,
                               speechLang === lang.value && {

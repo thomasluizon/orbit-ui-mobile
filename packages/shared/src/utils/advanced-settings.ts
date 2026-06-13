@@ -17,6 +17,37 @@ export function buildMcpConfigJson(apiKeyPlaceholder = 'YOUR_API_KEY'): string {
 }`
 }
 
+export interface AgentScopeOption {
+  scope: string
+  label: string
+  description: string
+}
+
+/**
+ * Groups agent capabilities by scope into the option list rendered by the
+ * create-API-key modal: one entry per scope, description listing the display
+ * names of every capability in that scope, sorted by scope name.
+ */
+export function buildAgentScopeOptions(
+  capabilities: readonly { scope: string; displayName: string }[] | undefined,
+): AgentScopeOption[] {
+  const grouped = new Map<string, string[]>()
+
+  for (const capability of capabilities ?? []) {
+    const descriptions = grouped.get(capability.scope) ?? []
+    descriptions.push(capability.displayName)
+    grouped.set(capability.scope, descriptions)
+  }
+
+  return Array.from(grouped.entries())
+    .map(([scope, labels]) => ({
+      scope,
+      label: scope,
+      description: labels.join(', '),
+    }))
+    .sort((left, right) => left.scope.localeCompare(right.scope))
+}
+
 export const WIDGET_STEP_KEYS = [
   'profile.widgetHow.step1',
   'profile.widgetHow.step2',

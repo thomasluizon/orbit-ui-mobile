@@ -13,9 +13,6 @@ import {
   translateErrorKey,
 } from '../utils/error-utils'
 
-// ---------------------------------------------------------------------------
-// ApiClientError class
-// ---------------------------------------------------------------------------
 
 describe('ApiClientError', () => {
   it('creates error with status and message', () => {
@@ -42,9 +39,6 @@ describe('ApiClientError', () => {
   })
 })
 
-// ---------------------------------------------------------------------------
-// createApiClientError
-// ---------------------------------------------------------------------------
 
 describe('createApiClientError', () => {
   it('creates error from payload with error message', () => {
@@ -73,9 +67,6 @@ describe('createApiClientError', () => {
   })
 })
 
-// ---------------------------------------------------------------------------
-// extractBackendErrorCode
-// ---------------------------------------------------------------------------
 
 describe('extractBackendErrorCode', () => {
   it('extracts errorCode from nested data.data', () => {
@@ -105,9 +96,6 @@ describe('extractBackendErrorCode', () => {
   })
 })
 
-// ---------------------------------------------------------------------------
-// extractBackendFieldErrors
-// ---------------------------------------------------------------------------
 
 describe('extractBackendFieldErrors', () => {
   it('extracts errors from data.data.errors', () => {
@@ -131,9 +119,6 @@ describe('extractBackendFieldErrors', () => {
   })
 })
 
-// ---------------------------------------------------------------------------
-// extractBackendStatus
-// ---------------------------------------------------------------------------
 
 describe('extractBackendStatus', () => {
   it('extracts status from top-level object', () => {
@@ -154,9 +139,6 @@ describe('extractBackendStatus', () => {
   })
 })
 
-// ---------------------------------------------------------------------------
-// extractBackendRequestId
-// ---------------------------------------------------------------------------
 
 describe('extractBackendRequestId', () => {
   it('extracts requestId from nested data.data', () => {
@@ -178,9 +160,6 @@ describe('extractBackendRequestId', () => {
   })
 })
 
-// ---------------------------------------------------------------------------
-// translateErrorKey
-// ---------------------------------------------------------------------------
 
 describe('translateErrorKey (extended)', () => {
   const translate = (key: string, values?: Record<string, unknown>) => {
@@ -198,12 +177,8 @@ describe('translateErrorKey (extended)', () => {
   })
 })
 
-// ---------------------------------------------------------------------------
-// getFriendlyErrorKey -- comprehensive contextual mapping
-// ---------------------------------------------------------------------------
 
 describe('getFriendlyErrorKey (extended coverage)', () => {
-  // Error code mappings
   it('maps TOO_MANY_ATTEMPTS code', () => {
     const err = createApiClientError(400, { errorCode: 'TOO_MANY_ATTEMPTS' }, 'fallback')
     expect(getFriendlyErrorKey(err, 'errors.generic')).toBe('toast.errors.tooManyRequests')
@@ -264,7 +239,6 @@ describe('getFriendlyErrorKey (extended coverage)', () => {
     expect(getFriendlyErrorKey(err, 'errors.generic')).toBe('toast.errors.notFound')
   })
 
-  // Habit contextual messages
   it('maps title required for habit context', () => {
     const err = createApiClientError(400, { error: 'Title is required' }, 'fallback')
     expect(getFriendlyErrorKey(err, 'errors.generic', 'habit')).toBe('habits.form.titleRequired')
@@ -326,8 +300,6 @@ describe('getFriendlyErrorKey (extended coverage)', () => {
   })
 
   it('maps sub-habit title too long via title+200 check', () => {
-    // The title+200 check fires first so sub-habit title containing
-    // both "title" and "200" maps to the generic titleTooLong key
     const err = createApiClientError(400, { error: 'Sub-habit title must be at most 200 characters' }, 'fallback')
     expect(getFriendlyErrorKey(err, 'errors.generic', 'subHabit')).toBe('habits.form.titleTooLong')
   })
@@ -357,7 +329,6 @@ describe('getFriendlyErrorKey (extended coverage)', () => {
     expect(getFriendlyErrorKey(err, 'errors.generic', 'habit')).toBe('habits.errors.circularReference')
   })
 
-  // Goal contextual messages
   it('maps title required for goal context', () => {
     const err = createApiClientError(400, { error: 'Title is required' }, 'fallback')
     expect(getFriendlyErrorKey(err, 'errors.generic', 'goal')).toBe('goals.form.titleRequired')
@@ -393,7 +364,6 @@ describe('getFriendlyErrorKey (extended coverage)', () => {
     expect(getFriendlyErrorKey(err, 'errors.generic', 'goal')).toBe('goals.form.habitLimit')
   })
 
-  // Tag contextual messages
   it('maps name required for tag context', () => {
     const err = createApiClientError(400, { error: 'Tag name is required' }, 'fallback')
     expect(getFriendlyErrorKey(err, 'errors.generic', 'tag')).toBe('habits.form.tagNameRequired')
@@ -404,7 +374,6 @@ describe('getFriendlyErrorKey (extended coverage)', () => {
     expect(getFriendlyErrorKey(err, 'errors.generic', 'tag')).toBe('habits.form.tagNameTooLong')
   })
 
-  // Auth contextual messages
   it('maps invalid verification code for auth context', () => {
     const err = createApiClientError(400, { error: 'Invalid verification code' }, 'fallback')
     expect(getFriendlyErrorKey(err, 'errors.generic', 'auth')).toBe('auth.errors.invalidCode')
@@ -420,7 +389,6 @@ describe('getFriendlyErrorKey (extended coverage)', () => {
     expect(getFriendlyErrorKey(err, 'errors.generic', 'auth')).toBe('auth.errors.codeExpired')
   })
 
-  // Fallback behavior
   it('returns caller fallback when no matching context', () => {
     const err = createApiClientError(400, { error: 'Some random error' }, 'fallback')
     expect(getFriendlyErrorKey(err, 'my.custom.fallback', 'generic')).toBe('my.custom.fallback')
@@ -432,9 +400,6 @@ describe('getFriendlyErrorKey (extended coverage)', () => {
   })
 })
 
-// ---------------------------------------------------------------------------
-// getFriendlyErrorMessage
-// ---------------------------------------------------------------------------
 
 describe('getFriendlyErrorMessage (extended)', () => {
   const translate = (key: string) => `t:${key}`
@@ -461,9 +426,6 @@ describe('getFriendlyErrorMessage (extended)', () => {
   })
 })
 
-// ---------------------------------------------------------------------------
-// getErrorMessage -- edge cases
-// ---------------------------------------------------------------------------
 
 describe('getErrorMessage (edge cases)', () => {
   it('returns Error message over fallback', () => {
@@ -475,8 +437,6 @@ describe('getErrorMessage (edge cases)', () => {
   })
 
   it('returns whitespace Error message via backend extraction path', () => {
-    // Error objects have a .message property that extractBackendError reads
-    // as data.message, so whitespace-only messages are returned as-is
     const result = getErrorMessage(new Error('   '), 'Generic')
     expect(result).toBe('   ')
   })

@@ -1,6 +1,6 @@
 import type { HabitScheduleChild, HabitScheduleItem, HabitTag } from '../types/habit'
 
-export interface TagSummary {
+interface TagSummary {
   id: string
   name: string
   color: string

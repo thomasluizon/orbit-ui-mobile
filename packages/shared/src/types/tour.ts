@@ -1,6 +1,6 @@
 export type TourSection = 'habits' | 'goals' | 'chat' | 'calendar' | 'profile'
 
-export type TourPlacement = 'top' | 'bottom' | 'left' | 'right'
+type TourPlacement = 'top' | 'bottom' | 'left' | 'right'
 
 export interface TourStep {
   /** Unique step identifier */
@@ -23,7 +23,7 @@ export interface TourStep {
   preAction?: TourPreAction
 }
 
-export type TourPreAction =
+type TourPreAction =
   | 'switchToGoalsTab'
   | 'switchToTodayTab'
   | 'scrollHabitsDown'

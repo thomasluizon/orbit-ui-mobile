@@ -101,7 +101,7 @@ export const ChatInputArea = forwardRef<View, Readonly<ChatInputAreaProps>>(
         ]}
       >
         {sendError && (
-          <Text style={[styles.errorText, { color: tokens.statusBad }]} accessibilityRole="alert">
+          <Text style={[styles.errorText, { color: tokens.statusBadText }]} accessibilityRole="alert">
             {sendError}
             {canRetry ? (
               <Text
@@ -129,6 +129,7 @@ export const ChatInputArea = forwardRef<View, Readonly<ChatInputAreaProps>>(
               void Linking.openSettings().catch(() => {});
             }}
             activeOpacity={0.75}
+            accessibilityRole="button"
           >
             <Text style={[styles.permissionActionText, { color: tokens.fg1 }]}>
               {t("common.openSettings")}
@@ -141,6 +142,7 @@ export const ChatInputArea = forwardRef<View, Readonly<ChatInputAreaProps>>(
             <View style={styles.imagePreviewCard}>
               <Image
                 source={{ uri: imagePreview }}
+                resizeMethod="resize"
                 style={[styles.imagePreview, { borderColor: tokens.hairline }]}
               />
               <TouchableOpacity
@@ -188,7 +190,6 @@ export const ChatInputArea = forwardRef<View, Readonly<ChatInputAreaProps>>(
                     styles.quickChip,
                     pressed && styles.quickChipPressed,
                   ]}
-                  hitSlop={{ top: 4, bottom: 4 }}
                 >
                   <Text style={styles.quickChipText}>{chip}</Text>
                 </Pressable>
@@ -241,6 +242,8 @@ export const ChatInputArea = forwardRef<View, Readonly<ChatInputAreaProps>>(
                   onPress={reward.onWatchAd}
                   disabled={!reward.canWatchRewardAd}
                   activeOpacity={0.7}
+                  accessibilityRole="button"
+                  accessibilityState={{ disabled: !reward.canWatchRewardAd }}
                 >
                   <Text style={[styles.rewardButtonText, { color: tokens.fg1 }]}>
                     {reward.isLoadingReward

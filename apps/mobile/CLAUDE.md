@@ -7,6 +7,7 @@ Mobile client (Android only — no iOS app exists). Direct calls to `orbit-api` 
 - **Named exports only.** `kebab-case` filenames, `PascalCase` components.
 - **Zero `any`** — root `CLAUDE.md` Code Standards rule 3.
 - **No `console.log`** in production code — rule 4.
+- **No narration comments** (lint-enforced `local/no-comments`) — rule 5. Only `/** */` JSDoc on exports, WHY notes linking an upstream URL, and tooling directives.
 - **All user-facing strings through i18n** (react-i18next). Read locale via `i18n.language`, not `useDeviceLocale`. Never hardcode display text.
 - **All mutations through `apiClient`** (`lib/api-client.ts`). Never call `fetch` directly.
 - **Imports:** types from `@orbit/shared/types`, query keys from `@orbit/shared/query`, endpoints from `@orbit/shared/api`.
@@ -20,7 +21,7 @@ Mobile client (Android only — no iOS app exists). Direct calls to `orbit-api` 
 | Theme provider | `lib/theme-provider.tsx` |
 | API client | `lib/api-client.ts` |
 | Offline queue (SQLite) | `lib/queued-api-mutation.ts` |
-| Auth storage | SecureStore — see `lib/auth.ts` |
+| Auth storage | SecureStore — see `lib/secure-store.ts` |
 | TanStack Query hooks | `hooks/use-*.ts` |
 | Zustand stores | `stores/*-store.ts` |
 | Primitives (mirror of `apps/web/components/`) | `components/*` |
@@ -68,11 +69,11 @@ React 19 forbids several patterns that worked before. The compiler will fail the
 
 | Want to add… | Look at… |
 |---|---|
-| New screen | `app/(tabs)/today.tsx` |
+| New screen | `app/(tabs)/index.tsx` |
 | New API call hook | `hooks/use-habits.ts` |
 | New Zustand store | `stores/ui-store.ts` |
 | New primitive | `components/ui/section-label.tsx` |
-| Offline-safe mutation | `hooks/use-update-habit.ts` (search for `performQueuedApiMutation`) |
+| Offline-safe mutation | `hooks/use-habits.ts` (search for `performQueuedApiMutation`) |
 | Theme-aware component | `components/ui/theme-toggle.tsx` |
 
 ## Testing

@@ -1,4 +1,4 @@
-export interface NotificationTimeTranslationAdapter {
+interface NotificationTimeTranslationAdapter {
   now: string
   minutesAgo: string
   hoursAgo: string

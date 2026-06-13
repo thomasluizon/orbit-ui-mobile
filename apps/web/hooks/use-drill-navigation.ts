@@ -2,8 +2,10 @@
 
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import { useTranslations } from 'next-intl'
-import { formatAPIDate } from '@orbit/shared/utils'
-import { normalizeHabitDetailForDrill } from '@orbit/shared/utils/drill-navigation'
+import {
+  loadDrillChildren,
+  mergeDrillChildrenMap,
+} from '@orbit/shared/utils/drill-navigation'
 import { getErrorMessage, API } from '@orbit/shared/api'
 import type { NormalizedHabit, HabitDetail } from '@orbit/shared/types/habit'
 

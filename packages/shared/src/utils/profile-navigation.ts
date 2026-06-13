@@ -129,6 +129,36 @@ export const PROFILE_NAV_ITEMS: ProfileNavItem[] = [
   },
 ]
 
+export type ProfileNavTranslationAdapter = (
+  key: string,
+  values?: Record<string, string | number>,
+) => string
+
+export interface ProfileNavHintContext {
+  hasProAccess: boolean | undefined
+  gamificationProfile: { level: number; totalXp: number } | null | undefined
+}
+
+/**
+ * Resolves the hint line for a profile nav row: gamification rows show
+ * "Level N · X XP" for pro users with a loaded gamification profile,
+ * everything else falls back to the item's static hint key.
+ */
+export function resolveProfileNavHint(
+  item: Pick<ProfileNavItem, 'hintMode' | 'hintKey'>,
+  context: ProfileNavHintContext,
+  translate: ProfileNavTranslationAdapter,
+): string {
+  if (
+    item.hintMode === 'gamificationProfile' &&
+    context.hasProAccess &&
+    context.gamificationProfile
+  ) {
+    return `${translate('gamification.profileCard.level', { level: context.gamificationProfile.level })} · ${translate('gamification.profileCard.totalXp', { total: context.gamificationProfile.totalXp })}`
+  }
+  return translate(item.hintKey)
+}
+
 export function isProfileNavItemLocked(
   item: Pick<ProfileNavItem, 'entitlementRequirement'>,
   profile: Pick<Profile, 'hasProAccess' | 'isLifetimePro' | 'subscriptionInterval'> | null | undefined,

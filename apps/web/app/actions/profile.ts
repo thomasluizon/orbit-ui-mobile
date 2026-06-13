@@ -98,9 +98,3 @@ export async function exportUserData(): Promise<UserDataExport> {
     method: 'GET',
   })
 }
-
-export async function dismissCalendarImport(): Promise<void> {
-  await serverAuthFetch('/api/calendar/dismiss', {
-    method: 'PUT',
-  })
-}

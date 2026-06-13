@@ -1,13 +1,13 @@
-export type GoalMetricsStatusTone = 'success' | 'warning' | 'danger' | 'muted'
+type GoalMetricsStatusTone = 'success' | 'warning' | 'danger' | 'muted'
 
-export interface GoalMetricsStatusPresentation {
+interface GoalMetricsStatusPresentation {
   labelKey: string
   tone: GoalMetricsStatusTone
 }
 
-export type GoalHabitAdherenceTone = 'success' | 'primary' | 'warning'
+type GoalHabitAdherenceTone = 'success' | 'primary' | 'warning'
 
-export interface GoalMetricsHabitAdherence {
+interface GoalMetricsHabitAdherence {
   habitId: string
   habitTitle: string
   weeklyCompletionRate: number

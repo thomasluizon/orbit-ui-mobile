@@ -69,7 +69,6 @@
     "deleteNotification": "Delete notification",
     "deleteUndo": "Undo delete",
     "deleteQueued": "Notification will be deleted",
-    "deleteQueuedMultiple": "{count} notifications will be deleted",
     "view": "View",
     "now": "Just now",
     "minutesAgo": "{n} min ago",
@@ -107,7 +106,6 @@
     "edit": "Edit",
     "create": "Create",
     "search": "Search...",
-    "noResults": "No results found",
     "error": "An error occurred",
     "retry": "Retry",
     "selected": "{n} selected",
@@ -127,7 +125,6 @@
     "codePlaceholder": "123456",
     "upgrade": "Upgrade",
     "proBadge": "Pro",
-    "yearlyBadge": "Yearly",
     "required": "is required",
     "selectDate": "Select date",
     "selectedDate": "Selected date: {date}",
@@ -142,8 +139,7 @@
     "syncing": "Syncing",
     "synced": "Synced",
     "collapse": "Collapse",
-    "expand": "Expand",
-    "moreActions": "More actions"
+    "expand": "Expand"
   },
   "nav": {
     "habits": "Habits",
@@ -448,9 +444,7 @@
       "checklistPlaceholder": "Add an item...",
       "templates": "Templates",
       "saveAsTemplate": "Save as template",
-      "templateName": "Template name",
       "templateNamePlaceholder": "e.g. Weekly groceries",
-      "deleteTemplate": "Delete",
       "saveTemplateError": "Couldn't save template. Please try again.",
       "deleteTemplateError": "Couldn't delete template. Please try again.",
       "resetChecklist": "Reset",
@@ -491,7 +485,6 @@
       "longestStreak": "Longest",
       "monthlyRate": "Month",
       "activity": "Activity",
-      "streakDays": "{n}d",
       "stats": "Stats",
       "noDataYet": "No data yet",
       "daysFree": "Days free",
@@ -751,15 +744,13 @@
     "facts": {
       "title": "What Astra knows",
       "empty": "Astra hasn't learned anything yet. Have a conversation in Chat to teach it.",
-      "add": "Add Fact",
       "save": "Save",
       "cancel": "Cancel",
       "delete": "Delete",
-      "factPlaceholder": "Enter a fact about yourself...",
-      "category": "Category",
       "preference": "Preference",
       "routine": "Routine",
       "context": "Context",
+      "default": "Default",
       "none": "None",
       "select": "Select",
       "selectAll": "Select all",
@@ -767,9 +758,7 @@
       "selectedCount": "{n} selected",
       "deleteSelected": "Delete ({n})",
       "deleteSelectedShort": "Delete selected",
-      "confirmBulkDelete": "Delete {n} facts?",
       "count": "{n} / {max}",
-      "limitReached": "Fact limit reached. Delete some to add new ones.",
       "lockedHint": "Upgrade to Pro to let Astra remember the facts you share in chat."
     },
     "support": {
@@ -993,7 +982,6 @@
       "paused": "Paused",
       "subtitleQuiet": "These Pro features will pause unless you subscribe.",
       "title": "Your Pro Trial Has Ended",
-      "subtitle": "You had {days} day of full Pro access. Don't lose what you built. | You had {days} days of full Pro access. Don't lose what you built.",
       "dontLose": "Don't lose access to:",
       "unlimitedHabits": "Unlimited habits",
       "aiChat": "500 AI messages per month",
@@ -1012,7 +1000,6 @@
   },
   "metrics": {
     "currentStreak": "Current Streak",
-    "longestStreak": "Longest Streak",
     "monthly": "Monthly"
   },
   "summary": {
@@ -1303,7 +1290,6 @@
     "free": "Free",
     "subscribe": "Subscribe to Pro",
     "plan": "Plan",
-    "currentPlan": "Current plan",
     "restorePurchase": "Restore purchase",
     "categories": {
       "habits": "Habits",
@@ -1398,16 +1384,6 @@
       }
     },
     "plans": {
-      "free": {
-        "name": "Free",
-        "cta": "Current Plan",
-        "features": {
-          "habits": "Up to 10 habits",
-          "ai": "20 AI messages/month",
-          "theme": "1 color theme",
-          "ads": "With ads"
-        }
-      },
       "monthly": {
         "name": "Pro Monthly",
         "period": "/mo",
@@ -1417,7 +1393,6 @@
         "name": "Pro Yearly",
         "period": "/yr",
         "cta": "Subscribe Yearly",
-        "recommended": "Best Value",
         "includesMonthly": "Everything in Pro Monthly, plus:"
       },
       "proFeatures": {
@@ -1430,8 +1405,7 @@
         "achievements": "Achievements & XP",
         "themes": "All 6 color themes",
         "adFree": "No ads",
-        "retrospective": "AI Retrospective",
-        "allFeatures": "All Pro features"
+        "retrospective": "AI Retrospective"
       },
       "savePercent": "Save {percent}%",
       "coupon": {
@@ -1557,8 +1531,7 @@
       "target": "Target"
     },
     "streak": {
-      "ofTarget": "Day {current} of {target}",
-      "daysRemaining": "{count} days remaining"
+      "ofTarget": "Day {current} of {target}"
     },
     "progress": "Progress",
     "progressOf": "{current} of {target} {unit}",
@@ -1852,7 +1825,6 @@
     "revokeConfirm": "Are you sure? Any tools using this key will lose access.",
     "cancel": "Cancel",
     "confirm": "Confirm",
-    "keyCreated": "API Key Created",
     "keyCreatedWarning": "Copy this key now. It will not be shown again.",
     "copied": "Copied!",
     "done": "Done",

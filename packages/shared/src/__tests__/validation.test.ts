@@ -11,9 +11,6 @@ import {
 import { goalFormSchema } from '../validation/goal-form'
 import { validateTagForm } from '../validation/tag-form'
 
-// ---------------------------------------------------------------------------
-// habitFormSchema
-// ---------------------------------------------------------------------------
 
 describe('habitFormSchema', () => {
   it('parses a minimal valid habit form', () => {
@@ -111,9 +108,6 @@ describe('habitFormSchema', () => {
   })
 })
 
-// ---------------------------------------------------------------------------
-// goalFormSchema
-// ---------------------------------------------------------------------------
 
 describe('goalFormSchema', () => {
   it('parses a minimal valid goal form', () => {
@@ -184,9 +178,6 @@ describe('goalFormSchema', () => {
   })
 })
 
-// ---------------------------------------------------------------------------
-// validateEndDate
-// ---------------------------------------------------------------------------
 
 describe('validateEndDate', () => {
   it('returns null when both dates are empty', () => {
@@ -216,9 +207,6 @@ describe('validateEndDate', () => {
   })
 })
 
-// ---------------------------------------------------------------------------
-// validateEndTime
-// ---------------------------------------------------------------------------
 
 describe('validateEndTime', () => {
   it('returns null when both times are empty', () => {
@@ -250,9 +238,6 @@ describe('validateEndTime', () => {
   })
 })
 
-// ---------------------------------------------------------------------------
-// validateTime
-// ---------------------------------------------------------------------------
 
 describe('validateTime', () => {
   it('returns null for empty string', () => {
@@ -293,9 +278,6 @@ describe('validateTime', () => {
   })
 })
 
-// ---------------------------------------------------------------------------
-// validateFrequency
-// ---------------------------------------------------------------------------
 
 describe('validateFrequency', () => {
   it('returns null for one-time habits (no frequency, not general, not flexible)', () => {
@@ -333,9 +315,6 @@ describe('validateFrequency', () => {
   })
 })
 
-// ---------------------------------------------------------------------------
-// validateScheduledReminders
-// ---------------------------------------------------------------------------
 
 describe('validateScheduledReminders', () => {
   it('returns null for empty reminders array', () => {
@@ -379,9 +358,6 @@ describe('validateScheduledReminders', () => {
   })
 })
 
-// ---------------------------------------------------------------------------
-// validateTagForm
-// ---------------------------------------------------------------------------
 
 describe('validateTagForm', () => {
   it('returns null for valid input', () => {
@@ -401,9 +377,6 @@ describe('validateTagForm', () => {
   })
 })
 
-// ---------------------------------------------------------------------------
-// validateHabitForm (integration)
-// ---------------------------------------------------------------------------
 
 describe('validateHabitForm', () => {
   it('returns null for valid minimal form', () => {

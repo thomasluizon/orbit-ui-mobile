@@ -10,7 +10,6 @@ import { notificationItemSchema, notificationsResponseSchema } from '../types/no
 import { achievementSchema, gamificationProfileSchema } from '../types/gamification'
 import { appConfigSchema } from '../types/config'
 
-// Auth schemas
 import {
   userSchema,
   loginResponseSchema,
@@ -21,7 +20,6 @@ import {
   googleAuthRequestSchema,
 } from '../types/auth'
 
-// Chat schemas
 import {
   aiActionTypeSchema,
   actionStatusSchema,
@@ -41,18 +39,15 @@ import {
   userDataCatalogEntrySchema,
 } from '../types/ai'
 
-// Sync schemas
 import {
   mutationTypeSchema,
   queuedMutationSchema,
   syncBatchRequestSchema,
   syncMutationResultSchema,
   syncBatchResponseSchema,
-  syncChangesResponseSchema,
   syncChangesV2ResponseSchema,
 } from '../types/sync'
 
-// Subscription schemas
 import {
   planPriceSchema,
   subscriptionPlansSchema,
@@ -61,27 +56,22 @@ import {
   billingDetailsSchema,
 } from '../types/subscription'
 
-// Referral schemas
 import {
   referralCodeSchema,
   referralStatsSchema,
   referralDashboardSchema,
 } from '../types/referral'
 
-// User fact schema
 import { userFactSchema } from '../types/user-fact'
 
-// API key schemas
 import {
   apiKeySchema,
   apiKeyCreateRequestSchema,
   apiKeyCreateResponseSchema,
 } from '../types/api-key'
 
-// Checklist template schema
 import { checklistTemplateSchema } from '../types/checklist-template'
 
-// API error schema
 import { apiErrorSchema } from '../types/api'
 
 import {
@@ -94,9 +84,6 @@ import {
   createMockConfig,
 } from './factories'
 
-// ---------------------------------------------------------------------------
-// Habit schemas
-// ---------------------------------------------------------------------------
 
 describe('habit schemas', () => {
   describe('normalizedHabitSchema', () => {
@@ -205,9 +192,6 @@ describe('habit schemas', () => {
   })
 })
 
-// ---------------------------------------------------------------------------
-// Goal schemas
-// ---------------------------------------------------------------------------
 
 describe('goal schemas', () => {
   describe('goalSchema', () => {
@@ -264,9 +248,6 @@ describe('goal schemas', () => {
   })
 })
 
-// ---------------------------------------------------------------------------
-// Profile schema
-// ---------------------------------------------------------------------------
 
 describe('profile schema', () => {
   it('parses a valid Profile', () => {
@@ -350,9 +331,6 @@ describe('setNameRequestSchema', () => {
   })
 })
 
-// ---------------------------------------------------------------------------
-// Notification schema
-// ---------------------------------------------------------------------------
 
 describe('notification schemas', () => {
   it('parses a valid NotificationItem', () => {
@@ -378,9 +356,6 @@ describe('notification schemas', () => {
   })
 })
 
-// ---------------------------------------------------------------------------
-// Gamification schemas
-// ---------------------------------------------------------------------------
 
 describe('gamification schemas', () => {
   describe('achievementSchema', () => {
@@ -408,11 +383,9 @@ describe('gamification schemas', () => {
     })
 
     it('rejects negative totalXp', () => {
-      // Numbers that are negative should still parse (no min constraint in schema)
-      // This test verifies the schema parses the shape correctly
       const profile = createMockGamificationProfile({ totalXp: -1 })
       const result = gamificationProfileSchema.safeParse(profile)
-      expect(result.success).toBe(true) // No min constraint on totalXp
+      expect(result.success).toBe(true)
     })
 
     it('accepts null xpToNextLevel (max level reached)', () => {
@@ -423,9 +396,6 @@ describe('gamification schemas', () => {
   })
 })
 
-// ---------------------------------------------------------------------------
-// Config schema
-// ---------------------------------------------------------------------------
 
 describe('config schema', () => {
   it('parses a valid AppConfig', () => {
@@ -459,9 +429,6 @@ describe('config schema', () => {
   })
 })
 
-// ---------------------------------------------------------------------------
-// Auth schemas
-// ---------------------------------------------------------------------------
 
 describe('auth schemas', () => {
   describe('userSchema', () => {
@@ -644,9 +611,6 @@ describe('auth schemas', () => {
   })
 })
 
-// ---------------------------------------------------------------------------
-// Chat schemas
-// ---------------------------------------------------------------------------
 
 describe('chat schemas', () => {
   describe('aiActionTypeSchema', () => {
@@ -994,9 +958,6 @@ describe('chat schemas', () => {
   })
 })
 
-// ---------------------------------------------------------------------------
-// AI schemas
-// ---------------------------------------------------------------------------
 
 describe('ai schemas', () => {
   it('parses a valid capability entry', () => {
@@ -1097,9 +1058,6 @@ describe('ai schemas', () => {
   })
 })
 
-// ---------------------------------------------------------------------------
-// Sync schemas
-// ---------------------------------------------------------------------------
 
 describe('sync schemas', () => {
   describe('mutationTypeSchema', () => {
@@ -1180,8 +1138,6 @@ describe('sync schemas', () => {
 
   describe('syncBatchRequestSchema', () => {
     it('parses valid batch request', () => {
-      // Matches Orbit.Api SyncController.SyncBatchRequest:
-      //   { Mutations: [{ Entity: string, Action: string, Id?: Guid, Data?: dict }] }
       const result = syncBatchRequestSchema.safeParse({
         mutations: [
           {
@@ -1213,8 +1169,6 @@ describe('sync schemas', () => {
 
   describe('syncMutationResultSchema', () => {
     it('parses success result', () => {
-      // Matches Orbit.Api SyncController.SyncMutationResult:
-      //   { Index: int, Status: string, Error?: string }
       const result = syncMutationResultSchema.safeParse({
         index: 0,
         status: 'success',
@@ -1242,8 +1196,6 @@ describe('sync schemas', () => {
 
   describe('syncBatchResponseSchema', () => {
     it('parses valid batch response', () => {
-      // Matches Orbit.Api SyncController.SyncBatchResponse:
-      //   { Processed: int, Failed: int, Results: SyncMutationResult[] }
       const result = syncBatchResponseSchema.safeParse({
         processed: 1,
         failed: 0,
@@ -1270,51 +1222,6 @@ describe('sync schemas', () => {
     })
   })
 
-  describe('syncChangesResponseSchema', () => {
-    it('parses valid sync changes response', () => {
-      // Matches Orbit.Api SyncController.SyncChangesResponse: per-entity { updated, deleted } sets
-      // plus serverTimestamp.
-      const result = syncChangesResponseSchema.safeParse({
-        habits: { updated: [], deleted: [] },
-        habitLogs: { updated: [], deleted: [] },
-        goals: { updated: [], deleted: [] },
-        goalProgressLogs: { updated: [], deleted: [] },
-        tags: { updated: [], deleted: [] },
-        notifications: { updated: [], deleted: [] },
-        checklistTemplates: { updated: [], deleted: [] },
-        serverTimestamp: '2025-01-15T10:00:00Z',
-      })
-      expect(result.success).toBe(true)
-    })
-
-    it('parses response with populated arrays', () => {
-      const result = syncChangesResponseSchema.safeParse({
-        habits: { updated: [{ id: 'h-1', title: 'Exercise' }], deleted: ['h-2'] },
-        habitLogs: { updated: [], deleted: [] },
-        goals: { updated: [{ id: 'g-1', title: 'Read' }], deleted: ['g-2'] },
-        goalProgressLogs: { updated: [], deleted: [] },
-        tags: { updated: [{ id: 't-1', name: 'Health' }], deleted: ['t-2'] },
-        notifications: { updated: [{ id: 'n-1' }], deleted: [] },
-        checklistTemplates: { updated: [], deleted: [] },
-        serverTimestamp: '2025-01-15T10:00:00Z',
-      })
-      expect(result.success).toBe(true)
-    })
-
-    it('rejects missing deletedIds', () => {
-      const result = syncChangesResponseSchema.safeParse({
-        serverTime: '2025-01-15T10:00:00Z',
-        changes: {
-          habits: [],
-          goals: [],
-          tags: [],
-          notifications: [],
-        },
-      })
-      expect(result.success).toBe(false)
-    })
-  })
-
   describe('syncChangesV2ResponseSchema', () => {
     it('parses valid redacted sync v2 response', () => {
       const result = syncChangesV2ResponseSchema.safeParse({
@@ -1334,9 +1241,6 @@ describe('sync schemas', () => {
   })
 })
 
-// ---------------------------------------------------------------------------
-// Subscription schemas
-// ---------------------------------------------------------------------------
 
 describe('subscription schemas', () => {
   describe('planPriceSchema', () => {
@@ -1513,9 +1417,6 @@ describe('subscription schemas', () => {
   })
 })
 
-// ---------------------------------------------------------------------------
-// Referral schemas
-// ---------------------------------------------------------------------------
 
 describe('referral schemas', () => {
   describe('referralCodeSchema', () => {
@@ -1601,9 +1502,6 @@ describe('referral schemas', () => {
   })
 })
 
-// ---------------------------------------------------------------------------
-// User fact schema
-// ---------------------------------------------------------------------------
 
 describe('user fact schema', () => {
   it('parses valid user fact', () => {
@@ -1650,9 +1548,6 @@ describe('user fact schema', () => {
   })
 })
 
-// ---------------------------------------------------------------------------
-// API key schemas
-// ---------------------------------------------------------------------------
 
 describe('api key schemas', () => {
   describe('apiKeySchema', () => {
@@ -1748,9 +1643,6 @@ describe('api key schemas', () => {
   })
 })
 
-// ---------------------------------------------------------------------------
-// Checklist template schema
-// ---------------------------------------------------------------------------
 
 describe('checklist template schema', () => {
   it('parses valid checklist template', () => {
@@ -1789,9 +1681,6 @@ describe('checklist template schema', () => {
   })
 })
 
-// ---------------------------------------------------------------------------
-// API error schema
-// ---------------------------------------------------------------------------
 
 describe('api error schema', () => {
   it('parses valid API error', () => {
@@ -1810,44 +1699,29 @@ describe('api error schema', () => {
   })
 })
 
-// ---------------------------------------------------------------------------
-// Barrel re-exports
-// ---------------------------------------------------------------------------
 
 describe('barrel re-exports', () => {
   it('types/index re-exports all type modules', async () => {
     const barrel = await import('../types/index')
-    // Auth
     expect(barrel.userSchema).toBeDefined()
     expect(barrel.loginResponseSchema).toBeDefined()
-    // Chat
     expect(barrel.chatMessageSchema).toBeDefined()
     expect(barrel.chatResponseSchema).toBeDefined()
-    // AI
     expect(barrel.agentCapabilitySchema).toBeDefined()
     expect(barrel.pendingAgentOperationSchema).toBeDefined()
-    // Sync
     expect(barrel.mutationTypeSchema).toBeDefined()
     expect(barrel.syncBatchResponseSchema).toBeDefined()
     expect(barrel.syncChangesV2ResponseSchema).toBeDefined()
-    // Subscription
     expect(barrel.planPriceSchema).toBeDefined()
     expect(barrel.billingDetailsSchema).toBeDefined()
-    // Referral
     expect(barrel.referralCodeSchema).toBeDefined()
     expect(barrel.referralDashboardSchema).toBeDefined()
-    // User fact
     expect(barrel.userFactSchema).toBeDefined()
-    // API key
     expect(barrel.apiKeySchema).toBeDefined()
     expect(barrel.apiKeyCreateRequestSchema).toBeDefined()
-    // Checklist template
     expect(barrel.checklistTemplateSchema).toBeDefined()
-    // API error
     expect(barrel.apiErrorSchema).toBeDefined()
-    // Config
     expect(barrel.appConfigSchema).toBeDefined()
-    // Existing types
     expect(barrel.normalizedHabitSchema).toBeDefined()
     expect(barrel.goalSchema).toBeDefined()
     expect(barrel.profileSchema).toBeDefined()

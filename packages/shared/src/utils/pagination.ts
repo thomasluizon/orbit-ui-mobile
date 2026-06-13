@@ -1,4 +1,4 @@
-export interface PaginatedItemsResponse<TItem> {
+interface PaginatedItemsResponse<TItem> {
   items: TItem[]
   totalPages: number
 }

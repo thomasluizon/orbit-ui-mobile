@@ -291,7 +291,7 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ["images"] as ImagePicker.MediaType[],
       allowsMultipleSelection: false,
-      quality: 1,
+      quality: 0.7,
     });
 
     if (result.canceled) return;

@@ -1,6 +1,6 @@
 import type { HabitsFilter } from '../types/habit'
 
-export type DailySummaryTimeBucket = 'morning' | 'afternoon' | 'evening' | 'night'
+type DailySummaryTimeBucket = 'morning' | 'afternoon' | 'evening' | 'night'
 
 export function buildHabitQueryString(filters: HabitsFilter): string {
   const params = new URLSearchParams()

@@ -106,6 +106,8 @@ export function ClarificationCard({
               activeOpacity={0.7}
               disabled={disabled}
               onPress={() => handleSelect(label, action.value)}
+              accessibilityRole="button"
+              accessibilityState={{ disabled }}
             >
               {isActive && <ActivityIndicator size="small" color={tokens.primary} />}
               <Text style={styles.chipText}>{label}</Text>
@@ -153,7 +155,7 @@ function createStyles(tokens: AppTokens) {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 6,
-      minHeight: 36,
+      minHeight: 44,
       paddingHorizontal: 14,
       borderRadius: 999,
       backgroundColor: tokens.bgElev,
@@ -175,7 +177,7 @@ function createStyles(tokens: AppTokens) {
     errorText: {
       fontFamily: 'Rubik_400Regular',
       fontSize: 12,
-      color: tokens.statusBad,
+      color: tokens.statusBadText,
     },
     successRow: {
       flexDirection: 'row',

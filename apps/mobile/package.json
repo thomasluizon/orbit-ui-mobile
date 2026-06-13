@@ -54,7 +54,6 @@
     "expo-store-review": "55.0.13",
     "expo-updates": "55.0.24",
     "expo-web-browser": "55.0.13",
-    "fs-extra": "^11.3.4",
     "hermes-compiler": "0.14.1",
     "html-parse-stringify": "^3.0.1",
     "i18next": "^26.0.3",
@@ -79,6 +78,7 @@
     "react-native-worklets": "0.7.2",
     "regenerator-runtime": "^0.13.2",
     "sp-react-native-in-app-updates": "^1.5.0",
+    "underscore": "^1.13.8",
     "zod": "^4.3.6",
     "zustand": "^5.0.12"
   },
@@ -107,6 +107,7 @@
     "expo-image": "55.0.8",
     "expo-image-loader": "55.0.0",
     "expo-keep-awake": "55.0.6",
-    "expo-log-box": "55.0.10"
+    "expo-log-box": "55.0.10",
+    "underscore": "^1.13.8"
   }
 }

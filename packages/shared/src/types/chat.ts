@@ -33,15 +33,11 @@ export const actionStatusSchema = z.enum(['Success', 'Failed', 'Suggestion', 'Ne
 
 export type ActionStatus = z.infer<typeof actionStatusSchema>
 
-export const quickActionSchema = z.object({
+const quickActionSchema = z.object({
   label: z.string(),
-  // `value` is what the client echoes back verbatim to the resolve endpoint; empty
-  // strings would be meaningless and the backend rejects them anyway.
   value: z.string().min(1),
   description: z.string().nullable().optional(),
 })
-
-export type QuickAction = z.infer<typeof quickActionSchema>
 
 export const clarificationRequestSchema = z.object({
   question: z.string(),
@@ -98,14 +94,8 @@ export type SuggestedSubHabit = z.infer<typeof suggestedSubHabitSchema>
 
 export const actionResultSchema = z
   .object({
-    // The backend emits PascalCase tool names beyond the 18-value aiActionTypeSchema
-    // enum (e.g. CreateTag, ReorderHabits), and the chat path renders these without
-    // ever calling .parse() — so a plain string keeps the type honest about the wire.
     type: z.string(),
     status: actionStatusSchema,
-    // The buffered endpoint writes null for unset fields while the SSE stream omits
-    // them entirely (WhenWritingNull serializer), so every nullable field must also
-    // be optional or the final stream event fails parsing and the send looks failed.
     entityId: z.string().nullable().optional(),
     entityName: z.string().nullable().optional(),
     error: z.string().nullable().optional(),
@@ -115,8 +105,6 @@ export const actionResultSchema = z
     clarificationRequest: clarificationRequestSchema.nullable().optional(),
   })
   .superRefine((value, ctx) => {
-    // NeedsClarification is meaningless without the structured payload — fail loudly
-    // rather than letting the card silently fail to render.
     if (value.status === 'NeedsClarification' && !value.clarificationRequest) {
       ctx.addIssue({
         code: z.ZodIssueCode.custom,
@@ -138,8 +126,6 @@ export const chatMessageSchema = z.object({
   policyDenials: z.array(agentPolicyDenialSchema).nullable().optional(),
   imageUrl: z.string().nullable().optional(),
   correlationId: z.string().nullable().optional(),
-  // App surface IDs (e.g. "today", "gamification") the assistant linked to via a
-  // describe_feature reply; rendered as a deep-link footer when present.
   relatedSurfaces: z.array(z.string()).nullable().optional(),
   timestamp: z.date(),
 })

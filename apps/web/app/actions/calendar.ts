@@ -19,5 +19,5 @@ export async function dismissCalendarSuggestion(suggestionId: string): Promise<v
 }
 
 export async function dismissCalendarImport(): Promise<void> {
-  await serverAuthFetch(API.calendar.dismiss, { method: 'POST' })
+  await serverAuthFetch(API.calendar.dismiss, { method: 'PUT' })
 }

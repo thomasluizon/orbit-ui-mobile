@@ -1,6 +1,7 @@
 import { useEffect, useMemo } from "react";
 import { View, Animated } from "react-native";
 import { CHAT_VISUALIZER_BAR_OFFSETS as VISUALIZER_BAR_OFFSETS } from "@orbit/shared/chat";
+import { usePrefersReducedMotion } from "@/lib/motion";
 import type { ChatStyles } from "@/app/chat.styles";
 
 function AnimatedVisualizerBar({
@@ -11,8 +12,14 @@ function AnimatedVisualizerBar({
   styles: ChatStyles;
 }>) {
   const scale = useMemo(() => new Animated.Value(0.45), []);
+  const prefersReducedMotion = usePrefersReducedMotion();
 
   useEffect(() => {
+    if (prefersReducedMotion) {
+      scale.setValue(0.45);
+      return;
+    }
+
     const animation = Animated.loop(
       Animated.sequence([
         Animated.timing(scale, {
@@ -31,7 +38,7 @@ function AnimatedVisualizerBar({
 
     animation.start();
     return () => animation.stop();
-  }, [delay, scale]);
+  }, [delay, prefersReducedMotion, scale]);
 
   return (
     <Animated.View

@@ -187,11 +187,8 @@ export * from './hooks/index'
 export * from './query/index'
 export * from './stores/index'
 export * from './validation/index'
-export type { FriendlyErrorContext } from './utils/error-utils'
-export type { HabitEmojiOption } from './utils/habit-emoji-options'
 export type { HabitFormValidationContext } from './utils/habit-form-helpers'
 export type { AutoManagedReminderEnabledInput } from './utils/habit-form-state'
-export type { NotificationTimeTranslationAdapter } from './utils/notification-time'
 export type {
   GamificationMilestoneState,
   GamificationProfileDerivedState,
@@ -233,7 +230,6 @@ export type {
   WidgetFeatureDefinition,
   WidgetFeatureIconKey,
 } from './utils/advanced-settings'
-export type { FreshStartTranslationAdapter } from './utils/fresh-start'
 export type {
   ProfileNavHintMode,
   ProfileNavIconKey,

@@ -69,7 +69,6 @@
     "deleteNotification": "Excluir notificação",
     "deleteUndo": "Desfazer exclusão",
     "deleteQueued": "A notificação será excluída",
-    "deleteQueuedMultiple": "{count} notificações serão excluídas",
     "view": "Ver",
     "now": "Agora",
     "minutesAgo": "{n} min atrás",
@@ -107,7 +106,6 @@
     "edit": "Editar",
     "create": "Criar",
     "search": "Buscar...",
-    "noResults": "Nenhum resultado encontrado",
     "error": "Ocorreu um erro",
     "retry": "Tentar Novamente",
     "selected": "{n} selecionado | {n} selecionados",
@@ -127,7 +125,6 @@
     "codePlaceholder": "123456",
     "upgrade": "Fazer upgrade",
     "proBadge": "Pro",
-    "yearlyBadge": "Anual",
     "required": "é obrigatório",
     "selectDate": "Selecionar data",
     "selectedDate": "Data selecionada: {date}",
@@ -142,8 +139,7 @@
     "syncing": "Sincronizando",
     "synced": "Sincronizado",
     "collapse": "Recolher",
-    "expand": "Expandir",
-    "moreActions": "Mais ações"
+    "expand": "Expandir"
   },
   "nav": {
     "habits": "Hábitos",
@@ -448,9 +444,7 @@
       "checklistPlaceholder": "Adicionar um item...",
       "templates": "Modelos",
       "saveAsTemplate": "Salvar como modelo",
-      "templateName": "Nome do modelo",
       "templateNamePlaceholder": "ex. Compras semanais",
-      "deleteTemplate": "Excluir",
       "saveTemplateError": "Não foi possível salvar o modelo. Tente novamente.",
       "deleteTemplateError": "Não foi possível excluir o modelo. Tente novamente.",
       "resetChecklist": "Resetar",
@@ -491,7 +485,6 @@
       "longestStreak": "Maior",
       "monthlyRate": "Mensal",
       "activity": "Atividade",
-      "streakDays": "{n}d",
       "stats": "Estatísticas",
       "noDataYet": "Nenhum dado ainda",
       "daysFree": "Dias livre",
@@ -751,15 +744,13 @@
     "facts": {
       "title": "O que a Astra sabe",
       "empty": "A Astra ainda não aprendeu nada. Converse no Chat para ensinar.",
-      "add": "Adicionar Fato",
       "save": "Salvar",
       "cancel": "Cancelar",
       "delete": "Excluir",
-      "factPlaceholder": "Digite um fato sobre você...",
-      "category": "Categoria",
       "preference": "Preferência",
       "routine": "Rotina",
       "context": "Contexto",
+      "default": "Padrão",
       "none": "Nenhuma",
       "select": "Selecionar",
       "selectAll": "Selecionar tudo",
@@ -767,9 +758,7 @@
       "selectedCount": "{n} selecionado(s)",
       "deleteSelected": "Excluir ({n})",
       "deleteSelectedShort": "Excluir selecionados",
-      "confirmBulkDelete": "Excluir {n} fatos?",
       "count": "{n} / {max}",
-      "limitReached": "Limite de fatos atingido. Exclua alguns para adicionar novos.",
       "lockedHint": "Faça upgrade para Pro para a Astra lembrar dos fatos que você compartilha no chat."
     },
     "support": {
@@ -993,7 +982,6 @@
       "paused": "Pausado",
       "subtitleQuiet": "Estes recursos Pro pausarão a não ser que você assine.",
       "title": "Seu Teste Pro Acabou",
-      "subtitle": "Você teve {days} dia de acesso Pro completo. Não perca o que construiu. | Você teve {days} dias de acesso Pro completo. Não perca o que construiu.",
       "dontLose": "Não perca acesso a:",
       "unlimitedHabits": "Hábitos ilimitados",
       "aiChat": "500 mensagens de IA por mês",
@@ -1012,7 +1000,6 @@
   },
   "metrics": {
     "currentStreak": "Sequência Atual",
-    "longestStreak": "Maior Sequência",
     "monthly": "Mensal"
   },
   "summary": {
@@ -1303,7 +1290,6 @@
     "free": "Grátis",
     "subscribe": "Assinar Pro",
     "plan": "Plano",
-    "currentPlan": "Plano atual",
     "restorePurchase": "Restaurar compra",
     "categories": {
       "habits": "Hábitos",
@@ -1398,16 +1384,6 @@
       }
     },
     "plans": {
-      "free": {
-        "name": "Grátis",
-        "cta": "Plano Atual",
-        "features": {
-          "habits": "Até 10 hábitos",
-          "ai": "20 mensagens IA/mês",
-          "theme": "1 tema de cor",
-          "ads": "Com anúncios"
-        }
-      },
       "monthly": {
         "name": "Pro Mensal",
         "period": "/mês",
@@ -1417,7 +1393,6 @@
         "name": "Pro Anual",
         "period": "/ano",
         "cta": "Assinar Anual",
-        "recommended": "Melhor Valor",
         "includesMonthly": "Tudo do Pro Mensal, mais:"
       },
       "proFeatures": {
@@ -1430,8 +1405,7 @@
         "achievements": "Conquistas e XP",
         "themes": "Todos os 6 temas",
         "adFree": "Sem anúncios",
-        "retrospective": "Retrospectiva IA",
-        "allFeatures": "Todos os recursos Pro"
+        "retrospective": "Retrospectiva IA"
       },
       "savePercent": "Economize {percent}%",
       "coupon": {
@@ -1557,8 +1531,7 @@
       "target": "Meta"
     },
     "streak": {
-      "ofTarget": "Dia {current} de {target}",
-      "daysRemaining": "{count} dias restantes"
+      "ofTarget": "Dia {current} de {target}"
     },
     "progress": "Progresso",
     "progressOf": "{current} de {target} {unit}",
@@ -1852,7 +1825,6 @@
     "revokeConfirm": "Tem certeza? Todas as ferramentas usando esta chave perderão o acesso.",
     "cancel": "Cancelar",
     "confirm": "Confirmar",
-    "keyCreated": "Chave de API Criada",
     "keyCreatedWarning": "Copie esta chave agora. Ela não será exibida novamente.",
     "copied": "Copiado!",
     "done": "Concluído",

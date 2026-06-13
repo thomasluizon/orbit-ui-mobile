@@ -3,13 +3,20 @@ import { View, StyleSheet, Animated } from "react-native";
 import Reanimated, { FadeInUp, ReduceMotion } from "react-native-reanimated";
 import { Sparkles } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
+import { usePrefersReducedMotion } from "@/lib/motion";
 import { createTokensV2, tintFromPrimary } from '@/lib/theme'
 import { useAppTheme } from "@/lib/use-app-theme";
 
 function AnimatedDot({ delay, color }: Readonly<{ delay: number; color: string }>) {
   const opacity = useMemo(() => new Animated.Value(1), []);
+  const prefersReducedMotion = usePrefersReducedMotion();
 
   useEffect(() => {
+    if (prefersReducedMotion) {
+      opacity.setValue(1);
+      return;
+    }
+
     const animation = Animated.loop(
       Animated.sequence([
         Animated.timing(opacity, {
@@ -27,7 +34,7 @@ function AnimatedDot({ delay, color }: Readonly<{ delay: number; color: string }
     );
     animation.start();
     return () => animation.stop();
-  }, [delay, opacity]);
+  }, [delay, opacity, prefersReducedMotion]);
 
   return (
     <Animated.View style={[styles.typingDot, { opacity, backgroundColor: color }]} />

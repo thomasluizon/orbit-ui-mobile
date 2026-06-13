@@ -18,7 +18,7 @@ interface ErrorWithData {
   fieldErrors?: Record<string, string[]>
 }
 
-export type FriendlyErrorContext =
+type FriendlyErrorContext =
   | 'auth'
   | 'goal'
   | 'goalProgress'
@@ -212,7 +212,6 @@ const TAG_CONTEXTS: ContextSet = new Set(['tag'])
 const AUTH_CONTEXTS: ContextSet = new Set(['auth'])
 
 const CONTEXTUAL_RULES: readonly MessageRule[] = [
-  // Habit rules
   { includes: ['description', '2000'], key: 'habits.form.descriptionTooLong', contexts: HABIT_CONTEXTS },
   { includes: ['frequency quantity', 'required'], key: 'habits.form.frequencyRequired', contexts: HABIT_CONTEXTS },
   { includes: ['days can only be specified'], key: 'habits.form.daysOnlyForDaily', contexts: HABIT_CONTEXTS },
@@ -230,30 +229,25 @@ const CONTEXTUAL_RULES: readonly MessageRule[] = [
   { includes: [['max depth'], ['depth reached']], key: 'habits.errors.maxDepthReached', contexts: HABIT_CONTEXTS },
   { includes: ['circular'], key: 'habits.errors.circularReference', contexts: HABIT_CONTEXTS },
 
-  // Goal rules
   { includes: ['unit', 'required'], key: 'goals.form.unitRequired', contexts: GOAL_CONTEXTS },
   { includes: ['unit', '50'], key: 'goals.form.unitTooLong', contexts: GOAL_CONTEXTS },
   { includes: [['target value'], ['must be greater than 0']], key: 'goals.form.targetValueRequired', contexts: GOAL_CONTEXTS },
   { includes: ['new value', 'greater than or equal to 0'], key: 'goals.form.progressValueInvalid', contexts: GOAL_CONTEXTS },
   { includes: ['linked habits'], key: 'goals.form.habitLimit', contexts: GOAL_CONTEXTS },
 
-  // Tag rules
   { includes: ['name', 'required'], key: 'habits.form.tagNameRequired', contexts: TAG_CONTEXTS },
   { includes: ['name', '50'], key: 'habits.form.tagNameTooLong', contexts: TAG_CONTEXTS },
   { includes: ['valid hex color'], key: 'habits.form.tagColorInvalid', contexts: TAG_CONTEXTS },
 
-  // Auth rules
   { includes: [['invalid verification code'], ['invalid code']], key: 'auth.errors.invalidCode', contexts: AUTH_CONTEXTS },
   { includes: ['expired'], key: 'auth.errors.codeExpired', contexts: AUTH_CONTEXTS },
 ]
 
 function matchesIncludes(msg: string, includes: MessageRule['includes']): boolean {
   if (includes.length === 0) return false
-  // If the first element is a string, treat as AND list
   if (typeof includes[0] === 'string') {
     return (includes as readonly string[]).every((s) => msg.includes(s))
   }
-  // Otherwise treat as OR groups (any group matching means a match)
   return (includes as readonly (readonly string[])[]).some((group) =>
     group.every((s) => msg.includes(s)),
   )
@@ -263,7 +257,6 @@ function getContextualMessageKey(
   normalizedMessage: string,
   context: FriendlyErrorContext,
 ): string | null {
-  // Context-free title rules
   if (normalizedMessage.includes('title') && normalizedMessage.includes('required')) {
     return context === 'goal' ? 'goals.form.titleRequired' : 'habits.form.titleRequired'
   }

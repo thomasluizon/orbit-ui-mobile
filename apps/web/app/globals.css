@@ -36,6 +36,8 @@
   --color-status-overdue: var(--status-overdue);
   --color-status-bad: var(--status-bad);
   --color-status-frozen: var(--status-frozen);
+  --color-status-overdue-text: var(--status-overdue-text);
+  --color-status-bad-text: var(--status-bad-text);
 
   --shadow-hairline: 0 0 0 0.5px rgba(248, 250, 252, 0.06);
   --shadow-1: 0 1px 2px rgba(0, 0, 0, 0.20);
@@ -138,25 +140,28 @@
   --chroma-scale-bg: 1;
   --chroma-scale-fg: 1;
   --gradient-header-from: #22094f;
+  --fg-on-primary: #ffffff;
 }
 
 /* ═══════════════════════════════════════════════════════
    Scheme classes — accent literals + neutral hue/chroma-scale
+   + AA-resolved fg-on-primary (white where it passes 4.5:1 on
+   the accent, canvas ink where it fails — DESIGN.md hand-tune log)
    (derivation rules 1-8 in DESIGN.md; purple-dark byte-exact)
    ═══════════════════════════════════════════════════════ */
 
-.scheme-purple.dark { --primary: #7f46f7; --primary-pressed: #631df2; --primary-rgb: 127, 70, 247; --hue: 265.1322; --chroma-scale-bg: 1;      --chroma-scale-fg: 1;     --gradient-header-from: #22094f; }
-.scheme-purple.light, :root.scheme-purple.light { --primary: #631df2; --primary-pressed: #510fd3; --primary-rgb: 99, 29, 242; --hue: 265.1322; --chroma-scale-bg: 1; --chroma-scale-fg: 1; --gradient-header-from: #e9d4ff; }
-.scheme-blue.dark   { --primary: #2b7fff; --primary-pressed: #155dfc; --primary-rgb: 43, 127, 255; --hue: 233.1502; --chroma-scale-bg: 0.6226; --chroma-scale-fg: 1;     --gradient-header-from: #001b48; }
-.scheme-blue.light  { --primary: #155dfc; --primary-pressed: #1447e6; --primary-rgb: 21, 93, 252;  --hue: 233.1502; --chroma-scale-bg: 0.6226; --chroma-scale-fg: 1;     --gradient-header-from: #cedfff; }
-.scheme-green.dark  { --primary: #00c950; --primary-pressed: #00a63e; --primary-rgb: 0, 201, 80;   --hue: 140;      --chroma-scale-bg: 0.6;    --chroma-scale-fg: 0.6;   --gradient-header-from: #012709; }
-.scheme-green.light { --primary: #00a63e; --primary-pressed: #008236; --primary-rgb: 0, 166, 62;   --hue: 140;      --chroma-scale-bg: 0.6;    --chroma-scale-fg: 0.6;   --gradient-header-from: #c4eac7; }
-.scheme-rose.dark   { --primary: #ff2056; --primary-pressed: #ec003f; --primary-rgb: 255, 32, 86;  --hue: 350.4196; --chroma-scale-bg: 1;      --chroma-scale-fg: 1;     --gradient-header-from: #40010e; }
-.scheme-rose.light  { --primary: #ec003f; --primary-pressed: #c70036; --primary-rgb: 236, 0, 63;   --hue: 350.4196; --chroma-scale-bg: 1;      --chroma-scale-fg: 1;     --gradient-header-from: #ffd1d0; }
-.scheme-orange.dark { --primary: #ff6900; --primary-pressed: #f54900; --primary-rgb: 255, 105, 0;  --hue: 32;       --chroma-scale-bg: 1;      --chroma-scale-fg: 1;     --gradient-header-from: #371100; }
-.scheme-orange.light{ --primary: #f54900; --primary-pressed: #ca3500; --primary-rgb: 245, 73, 0;   --hue: 32;       --chroma-scale-bg: 1;      --chroma-scale-fg: 1;     --gradient-header-from: #ffd3c6; }
-.scheme-cyan.dark   { --primary: #00b8db; --primary-pressed: #0092b8; --primary-rgb: 0, 184, 219;  --hue: 191.8735; --chroma-scale-bg: 0.5167; --chroma-scale-fg: 0.843; --gradient-header-from: #01232b; }
-.scheme-cyan.light  { --primary: #0092b8; --primary-pressed: #007595; --primary-rgb: 0, 146, 184;  --hue: 191.8735; --chroma-scale-bg: 0.5167; --chroma-scale-fg: 0.843; --gradient-header-from: #b2e8fd; }
+.scheme-purple.dark { --primary: #7f46f7; --primary-pressed: #631df2; --primary-rgb: 127, 70, 247; --hue: 265.1322; --chroma-scale-bg: 1;      --chroma-scale-fg: 1;     --gradient-header-from: #22094f; --fg-on-primary: #ffffff; }
+.scheme-purple.light, :root.scheme-purple.light { --primary: #631df2; --primary-pressed: #510fd3; --primary-rgb: 99, 29, 242; --hue: 265.1322; --chroma-scale-bg: 1; --chroma-scale-fg: 1; --gradient-header-from: #e9d4ff; --fg-on-primary: #ffffff; }
+.scheme-blue.dark   { --primary: #2b7fff; --primary-pressed: #155dfc; --primary-rgb: 43, 127, 255; --hue: 233.1502; --chroma-scale-bg: 0.6226; --chroma-scale-fg: 1;     --gradient-header-from: #001b48; --fg-on-primary: #020618; }
+.scheme-blue.light  { --primary: #155dfc; --primary-pressed: #1447e6; --primary-rgb: 21, 93, 252;  --hue: 233.1502; --chroma-scale-bg: 0.6226; --chroma-scale-fg: 1;     --gradient-header-from: #cedfff; --fg-on-primary: #ffffff; }
+.scheme-green.dark  { --primary: #00c950; --primary-pressed: #00a63e; --primary-rgb: 0, 201, 80;   --hue: 140;      --chroma-scale-bg: 0.6;    --chroma-scale-fg: 0.6;   --gradient-header-from: #012709; --fg-on-primary: #020618; }
+.scheme-green.light { --primary: #00a63e; --primary-pressed: #008236; --primary-rgb: 0, 166, 62;   --hue: 140;      --chroma-scale-bg: 0.6;    --chroma-scale-fg: 0.6;   --gradient-header-from: #c4eac7; --fg-on-primary: #020618; }
+.scheme-rose.dark   { --primary: #ff2056; --primary-pressed: #ec003f; --primary-rgb: 255, 32, 86;  --hue: 350.4196; --chroma-scale-bg: 1;      --chroma-scale-fg: 1;     --gradient-header-from: #40010e; --fg-on-primary: #020618; }
+.scheme-rose.light  { --primary: #ec003f; --primary-pressed: #c70036; --primary-rgb: 236, 0, 63;   --hue: 350.4196; --chroma-scale-bg: 1;      --chroma-scale-fg: 1;     --gradient-header-from: #ffd1d0; --fg-on-primary: #ffffff; }
+.scheme-orange.dark { --primary: #ff6900; --primary-pressed: #f54900; --primary-rgb: 255, 105, 0;  --hue: 32;       --chroma-scale-bg: 1;      --chroma-scale-fg: 1;     --gradient-header-from: #371100; --fg-on-primary: #020618; }
+.scheme-orange.light{ --primary: #f54900; --primary-pressed: #ca3500; --primary-rgb: 245, 73, 0;   --hue: 32;       --chroma-scale-bg: 1;      --chroma-scale-fg: 1;     --gradient-header-from: #ffd3c6; --fg-on-primary: #020618; }
+.scheme-cyan.dark   { --primary: #00b8db; --primary-pressed: #0092b8; --primary-rgb: 0, 184, 219;  --hue: 191.8735; --chroma-scale-bg: 0.5167; --chroma-scale-fg: 0.843; --gradient-header-from: #01232b; --fg-on-primary: #020618; }
+.scheme-cyan.light  { --primary: #0092b8; --primary-pressed: #007595; --primary-rgb: 0, 146, 184;  --hue: 191.8735; --chroma-scale-bg: 0.5167; --chroma-scale-fg: 0.843; --gradient-header-from: #b2e8fd; --fg-on-primary: #020618; }
 
 /* ═══════════════════════════════════════════════════════
    DARK MODE — navy canvas (handoff slate ramp), translucent surfaces.
@@ -182,7 +187,6 @@
   --fg-2: oklch(0.8686 calc(0.0216 * var(--chroma-scale-fg)) calc(var(--hue) - 12.6185));
   --fg-3: oklch(0.7038 calc(0.0402 * var(--chroma-scale-fg)) calc(var(--hue) - 8.1393));
   --fg-4: oklch(0.5542 calc(0.046 * var(--chroma-scale-fg)) calc(var(--hue) - 7.6061));
-  --fg-on-primary: rgb(255, 255, 255);
 
   --status-done:    var(--primary);
   --status-empty:   rgba(248, 250, 252, 0.22);
@@ -190,6 +194,8 @@
   --status-overdue: #fe9a00;
   --status-bad:     #fb2c36;
   --status-frozen:  #00d3f3;
+  --status-overdue-text: #fe9a00;
+  --status-bad-text:     #fb2c36;
 
   --selection-bg: rgba(var(--primary-rgb), 0.32);
   --gradient-header: linear-gradient(180deg, var(--gradient-header-from) 0%, transparent 100%);
@@ -225,7 +231,6 @@
   --fg-2: oklch(0.3717 calc(0.0449 * var(--chroma-scale-fg)) calc(var(--hue) - 7.7086));
   --fg-3: oklch(0.5542 calc(0.046 * var(--chroma-scale-fg)) calc(var(--hue) - 7.6061));
   --fg-4: oklch(0.7038 calc(0.0402 * var(--chroma-scale-fg)) calc(var(--hue) - 8.1393));
-  --fg-on-primary: rgb(255, 255, 255);
 
   --status-done:    var(--primary);
   --status-empty:   rgba(2, 6, 24, 0.18);
@@ -233,6 +238,8 @@
   --status-overdue: #e17100;
   --status-bad:     #e7000b;
   --status-frozen:  #0092b8;
+  --status-overdue-text: #b45b00;
+  --status-bad-text:     #e7000b;
 
   --selection-bg: rgba(var(--primary-rgb), 0.18);
   --gradient-header: linear-gradient(180deg, var(--gradient-header-from) 0%, transparent 100%);
@@ -573,7 +580,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 }
 
 .form-input {
-  @apply w-full bg-[var(--bg-field)] text-[var(--fg-1)] placeholder:text-[var(--fg-4)] rounded-[14px] py-3.5 px-4 text-base focus:outline-none transition-[background-color,box-shadow,color] duration-200;
+  @apply w-full bg-[var(--bg-field)] text-[var(--fg-1)] placeholder:text-[var(--fg-3)] rounded-[14px] py-3.5 px-4 text-base focus:outline-none transition-[background-color,box-shadow,color] duration-200;
   min-height: 54px;
   box-shadow: inset 0 0 0 1px var(--hairline);
 }

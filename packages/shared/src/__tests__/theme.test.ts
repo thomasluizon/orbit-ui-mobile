@@ -63,6 +63,51 @@ describe('color schemes', () => {
   }
 })
 
+describe('fg-on-primary (scheme x mode AA resolution)', () => {
+  const WHITE = '#ffffff'
+  const INK = '#020618'
+
+  it('keeps white where white passes 4.5:1 on the accent', () => {
+    expect(schemes.purple.fgOnPrimary).toEqual({ dark: WHITE, light: WHITE })
+    expect(schemes.blue.fgOnPrimary.light).toBe(WHITE)
+    expect(schemes.rose.fgOnPrimary.light).toBe(WHITE)
+  })
+
+  it('flips to the locked canvas ink where white fails AA', () => {
+    expect(schemes.blue.fgOnPrimary.dark).toBe(INK)
+    expect(schemes.rose.fgOnPrimary.dark).toBe(INK)
+    expect(schemes.green.fgOnPrimary).toEqual({ dark: INK, light: INK })
+    expect(schemes.orange.fgOnPrimary).toEqual({ dark: INK, light: INK })
+    expect(schemes.cyan.fgOnPrimary).toEqual({ dark: INK, light: INK })
+  })
+
+  it('every resolved value passes 4.5:1 WCAG AA on its accent', () => {
+    const channel = (hexColor: string, offset: number) =>
+      Number.parseInt(hexColor.slice(offset, offset + 2), 16) / 255
+    const linear = (value: number) =>
+      value <= 0.03928 ? value / 12.92 : Math.pow((value + 0.055) / 1.055, 2.4)
+    const luminance = (hexColor: string) =>
+      0.2126 * linear(channel(hexColor, 1)) +
+      0.7152 * linear(channel(hexColor, 3)) +
+      0.0722 * linear(channel(hexColor, 5))
+    const contrast = (a: string, b: string) => {
+      const first = luminance(a)
+      const second = luminance(b)
+      return (Math.max(first, second) + 0.05) / (Math.min(first, second) + 0.05)
+    }
+
+    for (const name of ALL_SCHEMES) {
+      for (const mode of ['dark', 'light'] as const) {
+        const ratio = contrast(
+          schemes[name].fgOnPrimary[mode],
+          schemes[name].accent[mode].primary,
+        )
+        expect(ratio).toBeGreaterThanOrEqual(4.5)
+      }
+    }
+  })
+})
+
 describe('neutral ramp resolution', () => {
   it('purple dark resolves byte-exact to the handoff slate palette', () => {
     expect(resolveDarkNeutrals('purple')).toEqual({
@@ -126,8 +171,27 @@ describe('alpha surfaces and status constants', () => {
   })
 
   it('status constants match the handoff per mode', () => {
-    expect(statusConstants.dark).toEqual({ overdue: '#fe9a00', bad: '#fb2c36', frozen: '#00d3f3' })
-    expect(statusConstants.light).toEqual({ overdue: '#e17100', bad: '#e7000b', frozen: '#0092b8' })
+    expect(statusConstants.dark).toEqual({
+      overdue: '#fe9a00',
+      bad: '#fb2c36',
+      frozen: '#00d3f3',
+      overdueText: '#fe9a00',
+      badText: '#fb2c36',
+    })
+    expect(statusConstants.light).toEqual({
+      overdue: '#e17100',
+      bad: '#e7000b',
+      frozen: '#0092b8',
+      overdueText: '#b45b00',
+      badText: '#e7000b',
+    })
+  })
+
+  it('status text variants equal the base except the darkened light overdue', () => {
+    expect(statusConstants.dark.overdueText).toBe(statusConstants.dark.overdue)
+    expect(statusConstants.dark.badText).toBe(statusConstants.dark.bad)
+    expect(statusConstants.light.badText).toBe(statusConstants.light.bad)
+    expect(statusConstants.light.overdueText).not.toBe(statusConstants.light.overdue)
   })
 
   it('selection alphas match the handoff', () => {

@@ -1,9 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { API } from '../api/endpoints'
 
-// ===========================================================================
-// API endpoint constants
-// ===========================================================================
 
 describe('API endpoints', () => {
   describe('auth', () => {
@@ -51,6 +48,7 @@ describe('API endpoints', () => {
       expect(API.habits.delete('h-3')).toBe('/api/habits/h-3')
       expect(API.habits.detail('h-1')).toBe('/api/habits/h-1/detail')
       expect(API.habits.log('h-1')).toBe('/api/habits/h-1/log')
+      expect(API.habits.logs('h-1')).toBe('/api/habits/h-1/logs')
       expect(API.habits.skip('h-1')).toBe('/api/habits/h-1/skip')
       expect(API.habits.duplicate('h-1')).toBe('/api/habits/h-1/duplicate')
       expect(API.habits.checklist('h-1')).toBe('/api/habits/h-1/checklist')
@@ -205,7 +203,6 @@ describe('API endpoints', () => {
   describe('sync', () => {
     it('has correct static paths', () => {
       expect(API.sync.batch).toBe('/api/sync/batch')
-      expect(API.sync.changes).toBe('/api/sync/changes')
       expect(API.sync.changesV2).toBe('/api/sync/v2/changes')
     })
   })
