@@ -47,6 +47,10 @@ export function buildAuthErrorPayload(
   }
 }
 
+export function logAuthRouteFailure(route: string, requestId: string, error: unknown): void {
+  console.error(`[auth-proxy] ${route} failed`, { requestId, error })
+}
+
 export function buildEmailLogContext(email: unknown): Record<string, boolean | number | string | undefined> {
   if (typeof email !== 'string') {
     return { hasEmail: false }

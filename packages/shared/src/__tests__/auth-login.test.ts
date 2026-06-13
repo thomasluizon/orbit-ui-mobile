@@ -1,16 +1,18 @@
 import { describe, expect, it } from 'vitest'
 import {
+  AUTH_BACKEND_ERROR_CODE_MAP,
   AUTH_BACKEND_ERROR_MAP,
   createVerificationCodeDigits,
   extractAuthBackendMessage,
   fillVerificationCodeDigits,
   getAuthLoginErrorKey,
+  getAuthLoginErrorKeyByCode,
   isValidVerificationCode,
   isVerificationCodeComplete,
   normalizeVerificationCodeInput,
   resolveAuthLoginErrorKey,
 } from '../utils/auth-login'
-import { createApiClientError } from '../utils/error-utils'
+import { createApiClientError, extractBackendErrorCode } from '../utils/error-utils'
 
 describe('auth login helpers', () => {
   it('normalizes verification code input to digits only', () => {
@@ -39,9 +41,43 @@ describe('auth login helpers', () => {
     expect(getAuthLoginErrorKey('Invalid verification code')).toBe(AUTH_BACKEND_ERROR_MAP['Invalid verification code'])
     expect(getAuthLoginErrorKey('missing')).toBeUndefined()
   })
+
+  it('maps stable backend error codes to translation keys', () => {
+    expect(getAuthLoginErrorKeyByCode('INVALID_VERIFICATION_CODE')).toBe('auth.errors.invalidCode')
+    expect(getAuthLoginErrorKeyByCode('CODE_EXPIRED')).toBe('auth.errors.codeExpired')
+    expect(getAuthLoginErrorKeyByCode('TOO_MANY_ATTEMPTS')).toBe('auth.errors.tooManyAttempts')
+    expect(getAuthLoginErrorKeyByCode('RATE_LIMITED')).toBe('auth.errors.rateLimited')
+    expect(getAuthLoginErrorKeyByCode('INVALID_EMAIL')).toBe('auth.errors.invalidEmail')
+    expect(getAuthLoginErrorKeyByCode('UNKNOWN_CODE')).toBeUndefined()
+    expect(Object.keys(AUTH_BACKEND_ERROR_CODE_MAP)).toHaveLength(5)
+  })
 })
 
 describe('resolveAuthLoginErrorKey', () => {
+  it('prefers backend error code (from raw) over status and message', () => {
+    const mobileError = createApiClientError(
+      400,
+      { error: 'Some server text', errorCode: 'CODE_EXPIRED' },
+      'Request failed: 400',
+    )
+    expect(
+      resolveAuthLoginErrorKey({ status: 400, backendMessage: 'Some server text', raw: mobileError }),
+    ).toBe('auth.errors.codeExpired')
+  })
+
+  it('resolves the code from the web BFF {status, body} envelope', () => {
+    const webError = { status: 400, body: { error: 'Some server text', errorCode: 'TOO_MANY_ATTEMPTS' } }
+    expect(
+      resolveAuthLoginErrorKey({ status: 400, backendMessage: 'Some server text', raw: webError }),
+    ).toBe('auth.errors.tooManyAttempts')
+  })
+
+  it('falls back to backend message mapping when no code is present', () => {
+    expect(
+      resolveAuthLoginErrorKey({ status: 400, backendMessage: 'Invalid verification code' }),
+    ).toBe('auth.errors.invalidCode')
+  })
+
   it('prefers exact backend message mapping', () => {
     expect(
       resolveAuthLoginErrorKey({ status: 400, backendMessage: 'Invalid verification code' }),

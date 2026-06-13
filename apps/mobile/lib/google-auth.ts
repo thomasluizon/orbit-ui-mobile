@@ -2,7 +2,8 @@ import * as WebBrowser from 'expo-web-browser'
 import type { Session } from '@supabase/supabase-js'
 import { API } from '@orbit/shared/api'
 import type { BackendLoginResponse } from '@orbit/shared/types/auth'
-import { buildGoogleCalendarOAuthOptions, createApiClientError } from '@orbit/shared/utils'
+import { buildGoogleCalendarOAuthOptions } from '@orbit/shared/utils'
+import { apiClient } from './api-client'
 import { isSafeReturnUrl, storeAuthReturnUrl } from './auth-flow'
 import {
   AUTH_CALLBACK_URL,
@@ -13,36 +14,9 @@ import {
 } from './google-auth-callback'
 import { supabase } from './supabase'
 
-const API_BASE = process.env.EXPO_PUBLIC_API_BASE ?? 'https://api.useorbit.org'
-
 export type MobileGoogleAuthResult =
   | { type: 'success'; url: string }
   | { type: WebBrowser.WebBrowserResultType }
-
-function mergeRequestIdIntoPayload(payload: unknown, requestId: string | null): unknown {
-  const trimmedRequestId = requestId?.trim()
-  if (!trimmedRequestId) {
-    return payload
-  }
-
-  if (payload === null) {
-    return { requestId: trimmedRequestId }
-  }
-
-  if (typeof payload !== 'object') {
-    return payload
-  }
-
-  const payloadRecord = payload as Record<string, unknown>
-  if (typeof payloadRecord.requestId === 'string') {
-    return payload
-  }
-
-  return {
-    ...payloadRecord,
-    requestId: trimmedRequestId,
-  }
-}
 
 async function exchangeGoogleSession(
   session: Session,
@@ -51,9 +25,8 @@ async function exchangeGoogleSession(
   providerToken?: string,
   providerRefreshToken?: string,
 ): Promise<BackendLoginResponse> {
-  const response = await fetch(`${API_BASE}${API.auth.google}`, {
+  return apiClient<BackendLoginResponse>(API.auth.google, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       accessToken: session.access_token,
       language,
@@ -62,21 +35,6 @@ async function exchangeGoogleSession(
       ...(referralCode ? { referralCode } : {}),
     }),
   })
-
-  const data = mergeRequestIdIntoPayload(
-    await response.json().catch(() => null) as unknown,
-    response.headers.get('x-orbit-request-id'),
-  )
-
-  if (!response.ok) {
-    throw createApiClientError(
-      response.status,
-      data,
-      `Request failed: ${response.status}`,
-    )
-  }
-
-  return data as BackendLoginResponse
 }
 
 export function getGoogleAuthRedirectUrl(): string {

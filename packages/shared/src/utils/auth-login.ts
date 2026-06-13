@@ -1,4 +1,14 @@
+import { extractBackendErrorCode } from './error-utils'
+
 export const VERIFICATION_CODE_LENGTH = 6
+
+export const AUTH_BACKEND_ERROR_CODE_MAP: Record<string, string> = {
+  RATE_LIMITED: 'auth.errors.rateLimited',
+  CODE_EXPIRED: 'auth.errors.codeExpired',
+  TOO_MANY_ATTEMPTS: 'auth.errors.tooManyAttempts',
+  INVALID_VERIFICATION_CODE: 'auth.errors.invalidCode',
+  INVALID_EMAIL: 'auth.errors.invalidEmail',
+}
 
 export const AUTH_BACKEND_ERROR_MAP: Record<string, string> = {
   'Please wait before requesting a new code': 'auth.errors.rateLimited',
@@ -10,6 +20,10 @@ export const AUTH_BACKEND_ERROR_MAP: Record<string, string> = {
 
 export function getAuthLoginErrorKey(error: string): string | undefined {
   return AUTH_BACKEND_ERROR_MAP[error]
+}
+
+export function getAuthLoginErrorKeyByCode(errorCode: string): string | undefined {
+  return AUTH_BACKEND_ERROR_CODE_MAP[errorCode]
 }
 
 export interface AuthLoginErrorInput {
@@ -72,6 +86,12 @@ export function extractAuthBackendMessage(err: unknown): string | undefined {
  * Never returns the raw backend string.
  */
 export function resolveAuthLoginErrorKey(input: AuthLoginErrorInput): string {
+  const errorCode = extractBackendErrorCode(input.raw)
+  if (errorCode) {
+    const mappedByCode = AUTH_BACKEND_ERROR_CODE_MAP[errorCode]
+    if (mappedByCode) return mappedByCode
+  }
+
   if (input.backendMessage) {
     const mapped = AUTH_BACKEND_ERROR_MAP[input.backendMessage]
     if (mapped) return mapped

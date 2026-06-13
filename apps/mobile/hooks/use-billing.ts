@@ -7,7 +7,7 @@ import { apiClient } from '@/lib/api-client'
 
 export function useBilling(enabled = false) {
   const query = useQuery({
-    queryKey: [...subscriptionKeys.all, 'billing'] as const,
+    queryKey: subscriptionKeys.billing(),
     queryFn: async (): Promise<BillingDetails | null> => {
       try {
         return await apiClient<BillingDetails>(API.subscription.billing)

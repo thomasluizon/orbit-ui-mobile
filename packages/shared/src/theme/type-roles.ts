@@ -16,7 +16,7 @@ export interface TypeRole {
 /**
  * The 11 semantic type roles of the navy+violet system (Rubik = sans,
  * Inter = display, Roboto = mono-role). Web maps these to .t-* classes,
- * mobile to RN TextStyles via lib/typography.ts, the widget to XML attrs.
+ * mobile to RN TextStyles, the widget to XML attrs.
  */
 export const typeRoles = {
   eyebrow: {

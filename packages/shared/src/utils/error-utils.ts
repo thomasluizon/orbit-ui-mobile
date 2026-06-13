@@ -118,13 +118,20 @@ export function extractBackendFieldErrors(
 
 export function extractBackendErrorCode(err: unknown): string | undefined {
   const data = extractNestedData(err)
-  return (
+  const fromData =
     data?.data?.errorCode ??
     data?.data?.code ??
     data?.errorCode ??
     data?.code ??
     (isErrorWithData(err) ? err.errorCode ?? err.code : undefined)
-  )
+  if (fromData) return fromData
+
+  if (isErrorWithData(err)) {
+    const body = asBackendErrorData((err as { body?: unknown }).body)
+    return body?.errorCode ?? body?.code
+  }
+
+  return undefined
 }
 
 export function extractBackendStatus(err: unknown): number | undefined {

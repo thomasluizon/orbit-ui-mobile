@@ -8,7 +8,7 @@ import type { Href } from 'expo-router'
 import { API } from '@orbit/shared/api'
 import { schemes } from '@orbit/shared/theme'
 import type { NativePushRegistrationStatus } from '@orbit/shared/utils'
-import i18n from '@/lib/i18n'
+import { i18n } from '@/lib/i18n'
 import { apiClient } from '@/lib/api-client'
 import {
   normalizePermissionStatus,

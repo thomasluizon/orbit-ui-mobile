@@ -1,5 +1,3 @@
-'use client'
-
 import React, { type ReactNode } from 'react'
 import { CalendarDays, Snowflake } from 'lucide-react'
 import { SectionLabel } from '@/components/ui/section-label'

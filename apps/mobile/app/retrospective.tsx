@@ -190,7 +190,7 @@ export default function RetrospectiveScreen() {
 
   async function handleOpenPortal() {
     if (!isOnline) {
-      setPortalError(t('calendarSync.notConnected'))
+      setPortalError(t('offline.title'))
       return
     }
 
@@ -209,7 +209,7 @@ export default function RetrospectiveScreen() {
 
   function handleGenerate() {
     if (!isOnline) {
-      setError(t('calendarSync.notConnected'))
+      setError(t('offline.title'))
       return
     }
     void generate()
@@ -307,8 +307,8 @@ export default function RetrospectiveScreen() {
             )}
             {!isOnline ? (
               <OfflineUnavailableState
-                title={t('calendarSync.notConnected')}
-                description={`${t('retrospective.generate')} / ${t('retrospective.changePlan')}`}
+                title={t('offline.title')}
+                description={t('offline.description')}
                 compact
               />
             ) : null}
@@ -325,8 +325,8 @@ export default function RetrospectiveScreen() {
             {!isOnline ? (
               <View style={styles.offlinePad}>
                 <OfflineUnavailableState
-                  title={t('calendarSync.notConnected')}
-                  description={`${t('retrospective.generate')} / ${t('retrospective.changePlan')}`}
+                  title={t('offline.title')}
+                  description={t('offline.description')}
                   compact
                 />
               </View>

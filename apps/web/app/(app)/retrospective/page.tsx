@@ -99,7 +99,7 @@ export default function RetrospectivePage() {
 
   const handleOpenPortal = useCallback(async () => {
     if (!isOnline) {
-      setPortalError(t('calendarSync.notConnected'))
+      setPortalError(t('offline.title'))
       return
     }
 
@@ -303,8 +303,8 @@ export default function RetrospectivePage() {
                 {!isOnline && (
                   <div style={{ padding: '14px 20px 0' }}>
                     <OfflineUnavailableState
-                      title={t('calendarSync.notConnected')}
-                      description={`${t('retrospective.generate')} / ${t('retrospective.changePlan')}`}
+                      title={t('offline.title')}
+                      description={t('offline.description')}
                       compact
                     />
                   </div>

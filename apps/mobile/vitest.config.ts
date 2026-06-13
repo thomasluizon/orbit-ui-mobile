@@ -14,7 +14,6 @@ export default defineConfig({
       include: ['lib/**/*.{ts,tsx}', 'stores/**/*.ts'],
       exclude: [
         '**/*.d.ts',
-        'lib/google-auth.ts',
         'lib/offline-queue.ts',
         'lib/orbit-widget.ts',
         'lib/providers.tsx',

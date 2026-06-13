@@ -30,6 +30,7 @@ import { Badge } from '@/components/ui/badge'
 import { RadioGlyph } from '@/components/ui/select-check'
 import { Switch } from '@/components/ui/settings-row'
 import { useAppToast } from '@/hooks/use-app-toast'
+import { useOverlayEscape } from '@/hooks/use-overlay-escape'
 import type { TagSelectionState } from '@/hooks/use-tag-selection'
 import type { HabitFormHelpers } from '@/hooks/use-habit-form'
 import { useHasProAccess } from '@/hooks/use-profile'
@@ -229,14 +230,7 @@ function HabitEmojiSelector({ selectedEmoji, onSelect }: Readonly<HabitEmojiSele
     setSelectedCategoryId(null)
   }, [])
 
-  useEffect(() => {
-    if (!pickerOpen) return undefined
-    function handleKeyDown(event: KeyboardEvent) {
-      if (event.key === 'Escape') closePicker()
-    }
-    window.addEventListener('keydown', handleKeyDown)
-    return () => window.removeEventListener('keydown', handleKeyDown)
-  }, [closePicker, pickerOpen])
+  useOverlayEscape({ open: pickerOpen, onDismiss: closePicker })
 
   function handleSelectEmoji(emoji: string) {
     onSelect(emoji)

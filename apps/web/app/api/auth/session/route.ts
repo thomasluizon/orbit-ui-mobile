@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { resolveServerSession } from '@/lib/auth-api'
+import { logAuthRouteFailure, resolveRequestId } from '@/lib/auth-proxy'
 
 /**
  * BFF: GET /api/auth/session
@@ -14,7 +15,8 @@ export async function GET() {
     }
 
     return NextResponse.json({ expiresAt: session.expiresAt })
-  } catch {
+  } catch (error) {
+    logAuthRouteFailure('session', resolveRequestId(null), error)
     return NextResponse.json({ expiresAt: null }, { status: 500 })
   }
 }

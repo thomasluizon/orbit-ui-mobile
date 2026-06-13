@@ -1496,6 +1496,10 @@
     "loadReferral": "Failed to load referral data",
     "fetchSubHabits": "Failed to fetch sub-habits"
   },
+  "offline": {
+    "title": "You're offline",
+    "description": "Check your connection and try again."
+  },
   "speech": {
     "micDenied": "Microphone access denied.",
     "noSpeech": "No speech detected.",

@@ -73,7 +73,7 @@ export function useInvalidateSummary() {
   const queryClient = useQueryClient()
   return () => {
     queryClient.invalidateQueries({
-      queryKey: [...habitKeys.all, 'summary'],
+      queryKey: habitKeys.summaryPrefix(),
     })
   }
 }

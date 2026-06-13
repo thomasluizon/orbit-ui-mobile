@@ -26,6 +26,7 @@ export function useLoginCodeEntry(onCompleteCode?: (code: string) => void): UseL
   const [resendCountdown, setResendCountdown] = useState(0)
   const codeInputRefs = useRef<(HTMLInputElement | null)[]>([])
   const resendTimerRef = useRef<ReturnType<typeof globalThis.setInterval> | null>(null)
+  const submittedCodeRef = useRef<string | null>(null)
 
   const clearResendTimer = useCallback(() => {
     if (resendTimerRef.current === null) return
@@ -34,6 +35,17 @@ export function useLoginCodeEntry(onCompleteCode?: (code: string) => void): UseL
   }, [])
 
   useEffect(() => () => clearResendTimer(), [clearResendTimer])
+
+  const joinedCode = codeDigits.join('')
+  useEffect(() => {
+    if (!isVerificationCodeComplete(codeDigits, VERIFICATION_CODE_LENGTH)) {
+      submittedCodeRef.current = null
+      return
+    }
+    if (submittedCodeRef.current === joinedCode) return
+    submittedCodeRef.current = joinedCode
+    onCompleteCode?.(joinedCode)
+  }, [codeDigits, joinedCode, onCompleteCode])
 
   const startResendCountdown = useCallback(() => {
     clearResendTimer()
@@ -67,10 +79,6 @@ export function useLoginCodeEntry(onCompleteCode?: (code: string) => void): UseL
         )
         setCodeDigits(digits)
         codeInputRefs.current[nextFocusIndex]?.focus()
-
-        if (onCompleteCode && isVerificationCodeComplete(digits, VERIFICATION_CODE_LENGTH)) {
-          globalThis.setTimeout(() => onCompleteCode(digits.join('')), 0)
-        }
         return
       }
 
@@ -84,7 +92,7 @@ export function useLoginCodeEntry(onCompleteCode?: (code: string) => void): UseL
         codeInputRefs.current[index + 1]?.focus()
       }
     },
-    [codeDigits, onCompleteCode],
+    [codeDigits],
   )
 
   const onCodePaste = useCallback(
@@ -100,12 +108,8 @@ export function useLoginCodeEntry(onCompleteCode?: (code: string) => void): UseL
       )
       setCodeDigits(digits)
       codeInputRefs.current[nextFocusIndex]?.focus()
-
-      if (onCompleteCode && pasted.length >= VERIFICATION_CODE_LENGTH) {
-        globalThis.setTimeout(() => onCompleteCode(digits.join('')), 0)
-      }
     },
-    [onCompleteCode],
+    [],
   )
 
   const onCodeKeydown = useCallback(

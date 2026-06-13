@@ -3,11 +3,12 @@ import { setSessionCookies } from '@/lib/auth-api'
 import {
   buildAuthErrorPayload,
   buildRequestIdResponseHeaders,
+  logAuthRouteFailure,
   ORBIT_REQUEST_ID_HEADER,
   resolveRequestId,
   resolveResponseRequestId,
 } from '@/lib/auth-proxy'
-import type { BackendLoginResponse } from '@orbit/shared/types/auth'
+import { googleAuthRequestSchema, type BackendLoginResponse } from '@orbit/shared/types/auth'
 
 /**
  * BFF: POST /api/auth/google
@@ -20,7 +21,14 @@ export async function POST(request: NextRequest) {
   const responseHeaders = buildRequestIdResponseHeaders(requestId)
 
   try {
-    const body = await request.json() as unknown
+    const parsed = googleAuthRequestSchema.safeParse(await request.json())
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: 'Invalid request', requestId },
+        { status: 400, headers: responseHeaders },
+      )
+    }
+    const body = parsed.data
 
     const response = await fetch(`${apiBase}/api/auth/google`, {
       method: 'POST',
@@ -50,7 +58,8 @@ export async function POST(request: NextRequest) {
     return NextResponse.json(safeResponse, {
       headers: responseHeaders,
     })
-  } catch {
+  } catch (error) {
+    logAuthRouteFailure('google', requestId, error)
     return NextResponse.json(
       {
         error: 'Authentication failed',

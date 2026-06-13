@@ -94,6 +94,21 @@ describe('extractBackendErrorCode', () => {
     const err = { errorCode: 'ALREADY_LOGGED' }
     expect(extractBackendErrorCode(err)).toBe('ALREADY_LOGGED')
   })
+
+  it('extracts errorCode from a web BFF {status, body} envelope', () => {
+    const err = { status: 400, body: { error: 'text', errorCode: 'CODE_EXPIRED' } }
+    expect(extractBackendErrorCode(err)).toBe('CODE_EXPIRED')
+  })
+
+  it('extracts code from a {body} envelope when errorCode is absent', () => {
+    const err = { status: 400, body: { code: 'INVALID_EMAIL' } }
+    expect(extractBackendErrorCode(err)).toBe('INVALID_EMAIL')
+  })
+
+  it('prefers data over body when both carry a code', () => {
+    const err = { data: { errorCode: 'FROM_DATA' }, body: { errorCode: 'FROM_BODY' } }
+    expect(extractBackendErrorCode(err)).toBe('FROM_DATA')
+  })
 })
 
 

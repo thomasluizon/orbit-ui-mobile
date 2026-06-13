@@ -209,8 +209,8 @@ export default function SupportPage() {
         {!isOnline && (
           <div className="mb-4">
             <OfflineUnavailableState
-              title={t('calendarSync.notConnected')}
-              description={`${t('profile.support.send')} / ${t('profile.support.description')}`}
+              title={t('offline.title')}
+              description={t('offline.description')}
               compact
             />
           </div>

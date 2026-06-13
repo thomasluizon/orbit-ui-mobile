@@ -1,5 +1,3 @@
-'use client'
-
 import type { Achievement } from '@orbit/shared/types/gamification'
 import { achievementEmoji } from '@orbit/shared/utils'
 import { SectionLabel } from '@/components/ui/section-label'

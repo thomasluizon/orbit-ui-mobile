@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   Animated,
   View,
@@ -19,7 +19,6 @@ import {
   extractAuthBackendMessage,
   extractBackendRequestId,
   isValidEmail,
-  isVerificationCodeComplete,
   resolveAuthLoginErrorKey,
 } from '@orbit/shared/utils'
 import { useAppToast } from '@/hooks/use-app-toast'
@@ -164,7 +163,9 @@ export default function LoginScreen() {
     resetCodeDigits,
     onCodeInput,
     onCodeKeyPress,
-  } = useLoginCodeEntry()
+  } = useLoginCodeEntry(() => {
+    void verifyCode()
+  })
   const offlineTitle = t('calendarSync.notConnected')
   const offlineDescription = `${t('auth.sendCode')} / ${t('auth.verify')} / ${t('auth.signInWithGoogle')}`
 
@@ -223,18 +224,6 @@ export default function LoginScreen() {
       hideSubscription.remove()
     }
   }, [])
-
-  const verifyCodeRef = useRef(() => {})
-  useEffect(() => {
-    verifyCodeRef.current = verifyCode
-  })
-
-  useEffect(() => {
-    if (step !== 'code' || isSubmitting) return
-    if (isVerificationCodeComplete(codeDigits)) {
-      verifyCodeRef.current()
-    }
-  }, [codeDigits, step, isSubmitting])
 
   function resolveLoginErrorState(
     err: unknown,
@@ -317,6 +306,9 @@ export default function LoginScreen() {
         name: res.name,
         email: res.email,
       })
+      if (res.wasReactivated) {
+        setSuccessMessage(t('profile.deleteAccount.reactivated'))
+      }
       if (referralCode) {
         await markReferralApplied()
         await clearStoredReferralCode()

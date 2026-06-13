@@ -1496,6 +1496,10 @@
     "loadReferral": "Falha ao carregar dados de indicação",
     "fetchSubHabits": "Falha ao buscar sub-hábitos"
   },
+  "offline": {
+    "title": "Você está offline",
+    "description": "Verifique sua conexão e tente novamente."
+  },
   "speech": {
     "micDenied": "Acesso ao microfone negado.",
     "noSpeech": "Nenhuma fala detectada.",

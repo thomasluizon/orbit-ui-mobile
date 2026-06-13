@@ -412,7 +412,7 @@ export default function UpgradeScreen() {
 
   async function handlePortal() {
     if (!isOnline) {
-      setPortalError(t('calendarSync.notConnected'))
+      setPortalError(t('offline.title'))
       return
     }
 
@@ -594,8 +594,8 @@ export default function UpgradeScreen() {
         return (
           <View style={styles.padBlock}>
             <OfflineUnavailableState
-              title={t('calendarSync.notConnected')}
-              description={`${t('upgrade.billing.actions.manage')} / ${t('upgrade.billing.payment.change')}`}
+              title={t('offline.title')}
+              description={t('offline.description')}
               compact
             />
           </View>
@@ -906,8 +906,8 @@ export default function UpgradeScreen() {
         {!isOnline ? (
           <View style={styles.padBlock}>
             <OfflineUnavailableState
-              title={t('calendarSync.notConnected')}
-              description={`${t('upgrade.billing.actions.manage')} / ${t('upgrade.plans.monthly.cta')} / ${t('upgrade.plans.yearly.cta')}`}
+              title={t('offline.title')}
+              description={t('offline.description')}
               compact
             />
           </View>

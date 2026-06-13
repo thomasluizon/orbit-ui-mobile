@@ -464,7 +464,7 @@ describe('intentional offline UX screens', () => {
     const tree = await renderScreen(<UpgradeScreen />)
 
     const texts = tree.root.findAllByType('Text').map((node: any) => flattenText(node.props.children))
-    expect(texts).toContain('calendarSync.notConnected')
+    expect(texts).toContain('offline.title')
     expect(texts).not.toContain('upgrade.plans.error')
     expect(texts).not.toContain('upgrade.billing.error')
   })
@@ -473,7 +473,7 @@ describe('intentional offline UX screens', () => {
     const tree = await renderScreen(<SupportScreen />)
 
     const texts = tree.root.findAllByType('Text').map((node: any) => flattenText(node.props.children))
-    expect(texts).toContain('calendarSync.notConnected')
-    expect(texts).toContain('profile.support.send')
+    expect(texts).toContain('offline.title')
+    expect(texts).toContain('offline.description')
   })
 })

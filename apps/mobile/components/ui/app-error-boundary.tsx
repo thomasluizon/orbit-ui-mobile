@@ -1,6 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { AlertTriangle } from 'lucide-react-native'
-import i18n from '@/lib/i18n'
+import { i18n } from '@/lib/i18n'
 import { createTokensV2, primaryGlow, radius } from '@/lib/theme'
 
 interface AppErrorScreenProps {

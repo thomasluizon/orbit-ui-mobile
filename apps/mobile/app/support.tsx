@@ -170,7 +170,7 @@ export default function SupportScreen() {
 
   const handleSend = useCallback(async () => {
     if (!isOnline) {
-      setError(t('calendarSync.notConnected'))
+      setError(t('offline.title'))
       return
     }
     if (!subject.trim() || !message.trim()) return
@@ -240,8 +240,8 @@ export default function SupportScreen() {
           <View style={styles.formBlock}>
             {!isOnline ? (
               <OfflineUnavailableState
-                title={t('calendarSync.notConnected')}
-                description={`${t('profile.support.send')} / ${t('profile.support.description')}`}
+                title={t('offline.title')}
+                description={t('offline.description')}
                 compact
               />
             ) : null}
