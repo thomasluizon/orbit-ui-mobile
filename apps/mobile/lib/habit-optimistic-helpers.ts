@@ -10,22 +10,9 @@ import type {
   HabitScheduleChild,
   HabitScheduleItem,
 } from '@orbit/shared/types/habit'
+import { withChildren } from '@orbit/shared/utils'
 
-type ChildContainer = {
-  children: HabitScheduleChild[]
-  hasSubHabits: boolean
-}
-
-function withChildren<T extends ChildContainer>(
-  node: T,
-  children: HabitScheduleChild[],
-): T {
-  return {
-    ...node,
-    children,
-    hasSubHabits: children.length > 0 || (node.hasSubHabits && node.children.length === 0),
-  }
-}
+export { optimisticPatchHabit } from '@orbit/shared/utils'
 
 /** Toggle isCompleted on a single habit item, resetting checklist if needed */
 function toggleHabitCompletion(item: HabitScheduleItem): HabitScheduleItem {
@@ -104,38 +91,6 @@ export function optimisticUpdateChecklist(
     return withChildren(
       item,
       item.children.map((child) => updateChecklistInChild(child, habitId, newItems)),
-    )
-  })
-}
-
-function patchChildHabit(
-  child: HabitScheduleChild,
-  habitId: string,
-  patch: Partial<HabitScheduleChild>,
-): HabitScheduleChild {
-  if (child.id === habitId) {
-    return { ...child, ...patch }
-  }
-
-  return withChildren(
-    child,
-    child.children.map((nestedChild) => patchChildHabit(nestedChild, habitId, patch)),
-  )
-}
-
-/** Optimistically patch a parent or child habit in-place */
-export function optimisticPatchHabit(
-  items: HabitScheduleItem[],
-  habitId: string,
-  patch: Partial<HabitScheduleItem>,
-): HabitScheduleItem[] {
-  return items.map((item) => {
-    if (item.id === habitId) return { ...item, ...patch }
-    return withChildren(
-      item,
-      item.children.map((child) =>
-        patchChildHabit(child, habitId, patch as Partial<HabitScheduleChild>),
-      ),
     )
   })
 }

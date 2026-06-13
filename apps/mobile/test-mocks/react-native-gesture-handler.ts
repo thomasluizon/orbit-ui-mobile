@@ -15,9 +15,27 @@ function createHostComponent(name: string) {
 export const GestureHandlerRootView = createHostComponent('GestureHandlerRootView')
 export const PanGestureHandler = createHostComponent('PanGestureHandler')
 export const TapGestureHandler = createHostComponent('TapGestureHandler')
+export const GestureDetector = createHostComponent('GestureDetector')
+
+function createPanGestureBuilder() {
+  const builder = {
+    activeOffsetX: () => builder,
+    failOffsetY: () => builder,
+    onEnd: () => builder,
+    onUpdate: () => builder,
+    onBegin: () => builder,
+  }
+  return builder
+}
+
+export const Gesture = {
+  Pan: createPanGestureBuilder,
+}
 
 export default {
   GestureHandlerRootView,
   PanGestureHandler,
   TapGestureHandler,
+  GestureDetector,
+  Gesture,
 }

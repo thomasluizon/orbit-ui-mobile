@@ -1,6 +1,7 @@
 import { memo, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import { Pressable, View } from "react-native";
 import { ArrowUp } from "lucide-react-native";
+import { useTranslation } from "react-i18next";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { CHAT_DRAFT_STORAGE_KEY } from "@orbit/shared/hooks";
 import { AppTextInput } from "@/components/ui/app-text-input";
@@ -37,6 +38,7 @@ export const ChatComposerInput = memo(function ChatComposerInput({
   fieldAccessories,
   onSend,
 }: Readonly<ChatComposerInputProps>) {
+  const { t } = useTranslation();
   const [draft, setDraft] = useState("");
   const prevIsRecording = useRef(false);
 
@@ -122,6 +124,7 @@ export const ChatComposerInput = memo(function ChatComposerInput({
         onPress={handleSend}
         disabled={!canSend || !isOnline}
         accessibilityRole="button"
+        accessibilityLabel={t("chat.send")}
         accessibilityState={{ disabled: !canSend || !isOnline }}
       >
         <ArrowUp size={22} color={tokens.fgOnPrimary} strokeWidth={2.4} />

@@ -545,7 +545,7 @@ export function GoalDetailDrawer({
                   padding: '10px 20px',
                   fontFamily: 'var(--font-sans)',
                   fontSize: 13,
-                  color: 'var(--status-overdue)',
+                  color: 'var(--status-overdue-text)',
                 }}
               >
                 {t('goals.detail.loadError')}

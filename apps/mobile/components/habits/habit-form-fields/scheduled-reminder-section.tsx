@@ -4,6 +4,10 @@ import { X, Plus, Bell } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import type { ScheduledReminderWhen } from "@orbit/shared/types/habit";
 import { formatLocaleTime } from "@orbit/shared/utils";
+import {
+  MAX_SCHEDULED_REMINDERS,
+  validateScheduledReminders,
+} from "@orbit/shared/validation";
 import { AppTimePicker } from "@/components/ui/app-time-picker";
 import { Switch } from "@/components/ui/settings-row";
 import { type AppTokens, createSectionStyles } from "./styles";
@@ -32,7 +36,6 @@ export function ScheduledReminderSection({
   const { t, i18n } = useTranslation();
   const deviceLocale = i18n.language;
   const sectionStyles = useMemo(() => createSectionStyles(tokens), [tokens]);
-  const MAX_SCHEDULED_REMINDERS = 5;
   const [showForm, setShowForm] = useState(false);
   const [when, setWhen] = useState<ScheduledReminderWhen>("same_day");
   const [time, setTime] = useState("");
@@ -44,19 +47,16 @@ export function ScheduledReminderSection({
       onValidationError(t("habits.form.invalidScheduledReminderTime"));
       return;
     }
-    if (atLimit) {
-      onValidationError(t("habits.form.scheduledReminderMax"));
-      return;
-    }
     const current = scheduledReminders ?? [];
-    const duplicate = current.some(
-      (sr) => sr.when === when && sr.time === time,
-    );
-    if (duplicate) {
-      onValidationError(t("habits.form.duplicateScheduledReminder"));
+    const candidate = [...current, { when, time }];
+    const validationErrorKey = validateScheduledReminders(candidate);
+    if (validationErrorKey) {
+      onValidationError(
+        t(validationErrorKey as "habits.form.scheduledReminderMax"),
+      );
       return;
     }
-    onSetScheduledReminders([...current, { when, time }]);
+    onSetScheduledReminders(candidate);
     setTime("");
     setShowForm(false);
   }
@@ -104,6 +104,9 @@ export function ScheduledReminderSection({
                     {scheduledReminderLabel(sr)}
                   </Text>
                   <TouchableOpacity
+                    hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
+                    accessibilityRole="button"
+                    accessibilityLabel={t("habits.form.removeScheduledReminder")}
                     onPress={() => removeScheduledReminder(idx)}
                     activeOpacity={0.7}
                   >
@@ -117,6 +120,7 @@ export function ScheduledReminderSection({
           {!showForm && !atLimit && (
             <TouchableOpacity
               style={sectionStyles.addButton}
+              accessibilityRole="button"
               onPress={() => setShowForm(true)}
               activeOpacity={0.7}
             >
@@ -141,6 +145,8 @@ export function ScheduledReminderSection({
                     sectionStyles.whenButton,
                     when === "day_before" && sectionStyles.whenButtonActive,
                   ]}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: when === "day_before" }}
                   onPress={() => setWhen("day_before")}
                   activeOpacity={0.7}
                 >
@@ -159,6 +165,8 @@ export function ScheduledReminderSection({
                     sectionStyles.whenButton,
                     when === "same_day" && sectionStyles.whenButtonActive,
                   ]}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: when === "same_day" }}
                   onPress={() => setWhen("same_day")}
                   activeOpacity={0.7}
                 >
@@ -191,6 +199,7 @@ export function ScheduledReminderSection({
                     !time && { opacity: 0.4 },
                   ]}
                   disabled={!time}
+                  accessibilityRole="button"
                   onPress={addScheduledReminder}
                   activeOpacity={0.7}
                 >
@@ -200,6 +209,8 @@ export function ScheduledReminderSection({
                 </TouchableOpacity>
                 <TouchableOpacity
                   style={sectionStyles.timeCancelButton}
+                  accessibilityRole="button"
+                  accessibilityLabel={t("common.cancel")}
                   onPress={() => {
                     setShowForm(false);
                     setTime("");

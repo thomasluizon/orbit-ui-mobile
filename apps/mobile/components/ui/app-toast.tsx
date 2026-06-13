@@ -157,6 +157,7 @@ export function AppToast() {
           },
         ]}
         onPress={hideToast}
+        accessibilityRole="button"
       >
         <View style={[styles.iconDisc, { backgroundColor: variantStyle.discBg }]}>
           <Icon size={17} color={variantStyle.tint} strokeWidth={2.4} />
@@ -165,7 +166,7 @@ export function AppToast() {
           {currentToast.message}
         </Text>
         {currentToast.actionLabel ? (
-          <Pressable onPress={triggerAction} hitSlop={8} style={styles.actionButton}>
+          <Pressable onPress={triggerAction} hitSlop={8} style={styles.actionButton} accessibilityRole="button">
             <Text style={[styles.actionText, { color: tokens.primarySoft }]}>
               {currentToast.actionLabel}
             </Text>

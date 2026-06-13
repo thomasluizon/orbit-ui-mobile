@@ -14,6 +14,7 @@ import {
   usePathname,
   useRouter,
   useSegments,
+  type ErrorBoundaryProps,
 } from 'expo-router'
 import { StatusBar } from 'expo-status-bar'
 import Constants from 'expo-constants'
@@ -52,6 +53,7 @@ import {
 } from '@/components/gamification/streak-freeze-celebration'
 import { WelcomeBackToast } from '@/components/gamification/welcome-back-toast'
 import { AppToast } from '@/components/ui/app-toast'
+import { AppErrorScreen } from '@/components/ui/app-error-boundary'
 import { TrialExpiredModal } from '@/components/ui/trial-expired-modal'
 import { VersionUpdateDrawer } from '@/components/version-update-drawer'
 import { TourProvider } from '@/components/tour/tour-provider'
@@ -111,6 +113,56 @@ function AuthGuard() {
   ])
 
   return null
+}
+
+const SLIDE_FROM_RIGHT_SCREENS = [
+  'preferences',
+  'ai-settings',
+  'advanced',
+  'about',
+  'support',
+  'achievements',
+  'streak',
+  'upgrade',
+  'retrospective',
+  'calendar-sync',
+] as const
+
+function RootStackScreens({
+  screenBackgroundColor,
+}: Readonly<{ screenBackgroundColor: string }>) {
+  return (
+    <Stack
+      screenOptions={{
+        headerShown: false,
+        animation: 'fade_from_bottom',
+        animationDuration: mobileMotion.presets['route-push'].enterDuration,
+        animationMatchesGesture: true,
+        animationTypeForReplace: 'push',
+        contentStyle: { backgroundColor: screenBackgroundColor },
+      }}
+    >
+      <Stack.Screen name="(tabs)" />
+      <Stack.Screen name="chat" options={{ animation: 'slide_from_right' }} />
+      <Stack.Screen
+        name="login"
+        options={{ animation: 'fade', gestureEnabled: false }}
+      />
+      <Stack.Screen
+        name="auth-callback"
+        options={{ animation: 'fade', gestureEnabled: false }}
+      />
+      {SLIDE_FROM_RIGHT_SCREENS.map((name) => (
+        <Stack.Screen
+          key={name}
+          name={name}
+          options={{ animation: 'slide_from_right' }}
+        />
+      ))}
+      <Stack.Screen name="privacy" options={{ animation: 'fade' }} />
+      <Stack.Screen name="terms" options={{ animation: 'fade' }} />
+    </Stack>
+  )
 }
 
 function RootLayoutNav() {
@@ -189,7 +241,6 @@ function RootLayoutNav() {
 
   useEffect(() => {
     if (Platform.OS !== 'android') return
-    if (!androidBackFallbackRoute) return
 
     const subscription = BackHandler.addEventListener(
       'hardwareBackPress',
@@ -197,6 +248,8 @@ function RootLayoutNav() {
         if (dismissTopOverlay('system-back')) {
           return true
         }
+
+        if (!androidBackFallbackRoute) return false
 
         dismissOrFallback(router, androidBackFallbackRoute)
         return true
@@ -213,72 +266,9 @@ function RootLayoutNav() {
 
       <View style={{ flex: 1 }}>
         <View style={{ flex: 1 }}>
-          <Stack
-            screenOptions={{
-              headerShown: false,
-              animation: 'fade_from_bottom',
-              animationDuration: mobileMotion.presets['route-push'].enterDuration,
-              animationMatchesGesture: true,
-              animationTypeForReplace: 'push',
-              contentStyle: { backgroundColor: surfaces.screen.backgroundColor },
-            }}
-          >
-            <Stack.Screen name="(tabs)" />
-            <Stack.Screen
-              name="chat"
-              options={{ animation: 'slide_from_right' }}
-            />
-            <Stack.Screen
-              name="login"
-              options={{ animation: 'fade', gestureEnabled: false }}
-            />
-            <Stack.Screen
-              name="auth-callback"
-              options={{ animation: 'fade', gestureEnabled: false }}
-            />
-            <Stack.Screen
-              name="preferences"
-              options={{ animation: 'slide_from_right' }}
-            />
-            <Stack.Screen
-              name="ai-settings"
-              options={{ animation: 'slide_from_right' }}
-            />
-            <Stack.Screen
-              name="advanced"
-              options={{ animation: 'slide_from_right' }}
-            />
-            <Stack.Screen
-              name="about"
-              options={{ animation: 'slide_from_right' }}
-            />
-            <Stack.Screen
-              name="support"
-              options={{ animation: 'slide_from_right' }}
-            />
-            <Stack.Screen
-              name="achievements"
-              options={{ animation: 'slide_from_right' }}
-            />
-            <Stack.Screen
-              name="streak"
-              options={{ animation: 'slide_from_right' }}
-            />
-            <Stack.Screen
-              name="upgrade"
-              options={{ animation: 'slide_from_right' }}
-            />
-            <Stack.Screen
-              name="retrospective"
-              options={{ animation: 'slide_from_right' }}
-            />
-            <Stack.Screen
-              name="calendar-sync"
-              options={{ animation: 'slide_from_right' }}
-            />
-            <Stack.Screen name="privacy" options={{ animation: 'fade' }} />
-            <Stack.Screen name="terms" options={{ animation: 'fade' }} />
-          </Stack>
+          <RootStackScreens
+            screenBackgroundColor={surfaces.screen.backgroundColor}
+          />
         </View>
 
         {showBottomNav ? (
@@ -471,6 +461,14 @@ export default function RootLayout() {
       <Providers>
         <RootLayoutContent />
       </Providers>
+    </GestureHandlerRootView>
+  )
+}
+
+export function ErrorBoundary({ error, retry }: Readonly<ErrorBoundaryProps>) {
+  return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <AppErrorScreen error={error} retry={() => void retry()} />
     </GestureHandlerRootView>
   )
 }

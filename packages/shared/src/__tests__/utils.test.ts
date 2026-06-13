@@ -16,9 +16,6 @@ import {
   translateErrorKey,
 } from '../utils/error-utils'
 
-// ---------------------------------------------------------------------------
-// parseAPIDate
-// ---------------------------------------------------------------------------
 
 describe('parseAPIDate', () => {
   it('returns a Date object for a valid YYYY-MM-DD string', () => {
@@ -30,14 +27,14 @@ describe('parseAPIDate', () => {
   it('preserves the local date (month and day match the input)', () => {
     const result = parseAPIDate('2025-01-31')
     expect(result.getFullYear()).toBe(2025)
-    expect(result.getMonth()).toBe(0) // January is 0-indexed
+    expect(result.getMonth()).toBe(0)
     expect(result.getDate()).toBe(31)
   })
 
   it('parses as local time, not UTC', () => {
     const result = parseAPIDate('2025-03-01')
     expect(result.getDate()).toBe(1)
-    expect(result.getMonth()).toBe(2) // March
+    expect(result.getMonth()).toBe(2)
   })
 
   it('handles year boundaries correctly', () => {
@@ -48,18 +45,15 @@ describe('parseAPIDate', () => {
   })
 })
 
-// ---------------------------------------------------------------------------
-// formatAPIDate
-// ---------------------------------------------------------------------------
 
 describe('formatAPIDate', () => {
   it('formats a Date to YYYY-MM-DD string', () => {
-    const date = new Date(2025, 5, 15) // June 15, 2025
+    const date = new Date(2025, 5, 15)
     expect(formatAPIDate(date)).toBe('2025-06-15')
   })
 
   it('pads single-digit months and days with zeros', () => {
-    const date = new Date(2025, 0, 5) // January 5, 2025
+    const date = new Date(2025, 0, 5)
     expect(formatAPIDate(date)).toBe('2025-01-05')
   })
 
@@ -76,9 +70,6 @@ describe('formatAPIDate', () => {
   })
 })
 
-// ---------------------------------------------------------------------------
-// getTimezoneList
-// ---------------------------------------------------------------------------
 
 describe('getTimezoneList', () => {
   afterEach(() => {
@@ -125,9 +116,6 @@ describe('getTimezoneList', () => {
   })
 })
 
-// ---------------------------------------------------------------------------
-// client context
-// ---------------------------------------------------------------------------
 
 describe('getClientTimeZone', () => {
   afterEach(() => {
@@ -185,9 +173,6 @@ describe('buildClientTimeZoneHeaders', () => {
   })
 })
 
-// ---------------------------------------------------------------------------
-// isValidEmail
-// ---------------------------------------------------------------------------
 
 describe('isValidEmail', () => {
   it('accepts a simple valid email', () => {
@@ -237,9 +222,6 @@ describe('isValidEmail', () => {
   })
 })
 
-// ---------------------------------------------------------------------------
-// getErrorMessage
-// ---------------------------------------------------------------------------
 
 describe('getErrorMessage', () => {
   it('returns data.error when present', () => {
@@ -278,9 +260,6 @@ describe('getErrorMessage', () => {
   })
 })
 
-// ---------------------------------------------------------------------------
-// extractBackendError
-// ---------------------------------------------------------------------------
 
 describe('extractBackendError', () => {
   it('returns string from nested data.data.error', () => {
@@ -346,9 +325,6 @@ describe('extractBackendError', () => {
   })
 })
 
-// ---------------------------------------------------------------------------
-// translateErrorKey
-// ---------------------------------------------------------------------------
 
 describe('translateErrorKey', () => {
   const translate = (key: string) => `translated:${key}`
@@ -365,9 +341,6 @@ describe('translateErrorKey', () => {
   })
 })
 
-// ---------------------------------------------------------------------------
-// getFriendlyErrorKey / getFriendlyErrorMessage
-// ---------------------------------------------------------------------------
 
 describe('getFriendlyErrorKey', () => {
   it('maps tag color validation errors', () => {

@@ -3,10 +3,38 @@ import type {
   HabitDetailChild,
   NormalizedHabit,
 } from '../types/habit'
+import { formatAPIDate } from './dates'
 
 export interface NormalizedDrillDetail {
   parent: NormalizedHabit
   childrenByParent: Map<string, NormalizedHabit[]>
+}
+
+/**
+ * Fetches a habit's detail through the injected platform fetcher and
+ * normalizes it for drill-down navigation against today's date.
+ */
+export async function loadDrillChildren(
+  habitId: string,
+  fetchHabitDetail: (habitId: string) => Promise<HabitDetail>,
+): Promise<NormalizedDrillDetail> {
+  const detail = await fetchHabitDetail(habitId)
+  return normalizeHabitDetailForDrill(detail, formatAPIDate(new Date()))
+}
+
+/**
+ * Merges freshly fetched drill children into the existing children-by-parent
+ * map, returning a new map so state containers can swap by reference.
+ */
+export function mergeDrillChildrenMap(
+  previous: ReadonlyMap<string, NormalizedHabit[]>,
+  fetched: ReadonlyMap<string, NormalizedHabit[]>,
+): Map<string, NormalizedHabit[]> {
+  const next = new Map(previous)
+  for (const [parentId, children] of fetched.entries()) {
+    next.set(parentId, children)
+  }
+  return next
 }
 
 function fallbackChildOverdue(

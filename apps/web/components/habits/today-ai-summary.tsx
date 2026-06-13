@@ -181,7 +181,7 @@ export function TodayAISummary({ date }: Readonly<TodayAISummaryProps>) {
               fontFamily: 'var(--font-sans)',
               fontSize: 11,
               lineHeight: 1.4,
-              color: 'var(--fg-4)',
+              color: 'var(--fg-3)',
               marginTop: 6,
             }}
           >

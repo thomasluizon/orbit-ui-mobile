@@ -1,6 +1,5 @@
 'use client'
 
-import { createPortal } from 'react-dom'
 import {
   X,
   CheckCircle,
@@ -9,12 +8,12 @@ import {
   RefreshCw,
   ChevronsDownUp,
   ChevronsUpDown,
+  MoreHorizontal,
 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
+import { Popover } from '@/components/ui/popover'
 
 export interface ControlsMenuProps {
-  menuPanelRef: React.RefObject<HTMLDivElement | null>
-  position: { top: number; left: number }
   isSelectMode: boolean
   showCompleted: boolean
   isFetching: boolean
@@ -23,13 +22,11 @@ export interface ControlsMenuProps {
   onToggleCollapse: () => void
   onRefresh: () => void
   onToggleCompleted: () => void
-  onClose: () => void
 }
 
-/** Anchored list-controls menu on the kit sheet panel chrome. */
+/** List-controls menu anchored on the utility-row trigger. Built on Popover so it
+ *  inherits focus-in, roving Arrow/Home/End, focus restore, and stack-gated ESC. */
 export function ControlsMenu({
-  menuPanelRef,
-  position,
   isSelectMode,
   showCompleted,
   isFetching,
@@ -38,63 +35,62 @@ export function ControlsMenu({
   onToggleCollapse,
   onRefresh,
   onToggleCompleted,
-  onClose,
-}: ControlsMenuProps) {
+}: Readonly<ControlsMenuProps>) {
   const t = useTranslations()
 
-  return createPortal(
-    <div
-      ref={menuPanelRef}
-      role="menu"
-      tabIndex={0}
-      className="fixed z-[70]"
-      style={{
-        left: `${position.left}px`,
-        top: `${position.top}px`,
-        minWidth: 220,
-        background: 'var(--bg-sheet)',
-        boxShadow: 'var(--shadow-2), inset 0 0 0 1px var(--hairline)',
-        borderRadius: 16,
-        padding: 4,
-      }}
-      onClick={(e) => e.stopPropagation()}
-      onKeyDown={(e) => { if (e.key === 'Escape') onClose() }}
+  return (
+    <Popover
+      placement="bottom-end"
+      className="min-w-[220px]"
+      trigger={
+        <button
+          type="button"
+          aria-label={t('habits.actions.more')}
+          className="icon-btn shrink-0"
+          style={{ width: 36, height: 36 }}
+        >
+          <MoreHorizontal size={18} strokeWidth={1.8} color="var(--fg-2)" aria-hidden="true" />
+        </button>
+      }
     >
-      <MenuRow
-        icon={isSelectMode ? <X size={16} strokeWidth={1.8} /> : <CheckCircle size={16} strokeWidth={1.8} />}
-        label={isSelectMode ? t('common.cancel') : t('common.select')}
-        onClick={() => {
-          onToggleSelect()
-          onClose()
-        }}
-      />
-      <MenuRow
-        icon={allCollapsed ? <ChevronsUpDown size={16} strokeWidth={1.8} /> : <ChevronsDownUp size={16} strokeWidth={1.8} />}
-        label={allCollapsed ? t('habits.expandAll') : t('habits.collapseAll')}
-        onClick={() => {
-          onToggleCollapse()
-          onClose()
-        }}
-      />
-      <MenuRow
-        icon={<RefreshCw size={16} strokeWidth={1.8} className={isFetching ? 'animate-spin' : ''} />}
-        label={t('habits.refresh')}
-        disabled={isFetching}
-        onClick={() => {
-          onRefresh()
-          onClose()
-        }}
-      />
-      <MenuRow
-        icon={showCompleted ? <Check size={16} strokeWidth={1.8} /> : <Eye size={16} strokeWidth={1.8} />}
-        label={t('habits.showCompleted')}
-        onClick={() => {
-          onToggleCompleted()
-          onClose()
-        }}
-      />
-    </div>,
-    document.body,
+      {(close) => (
+        <>
+          <MenuRow
+            icon={isSelectMode ? <X size={16} strokeWidth={1.8} /> : <CheckCircle size={16} strokeWidth={1.8} />}
+            label={isSelectMode ? t('common.cancel') : t('common.select')}
+            onClick={() => {
+              onToggleSelect()
+              close()
+            }}
+          />
+          <MenuRow
+            icon={allCollapsed ? <ChevronsUpDown size={16} strokeWidth={1.8} /> : <ChevronsDownUp size={16} strokeWidth={1.8} />}
+            label={allCollapsed ? t('habits.expandAll') : t('habits.collapseAll')}
+            onClick={() => {
+              onToggleCollapse()
+              close()
+            }}
+          />
+          <MenuRow
+            icon={<RefreshCw size={16} strokeWidth={1.8} className={isFetching ? 'animate-spin' : ''} />}
+            label={t('habits.refresh')}
+            disabled={isFetching}
+            onClick={() => {
+              onRefresh()
+              close()
+            }}
+          />
+          <MenuRow
+            icon={showCompleted ? <Check size={16} strokeWidth={1.8} /> : <Eye size={16} strokeWidth={1.8} />}
+            label={t('habits.showCompleted')}
+            onClick={() => {
+              onToggleCompleted()
+              close()
+            }}
+          />
+        </>
+      )}
+    </Popover>
   )
 }
 

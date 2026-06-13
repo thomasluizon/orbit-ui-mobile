@@ -104,7 +104,7 @@ export function validateFrequency(
   return null
 }
 
-export function validateDescription(description: string | undefined): string | null {
+function validateDescription(description: string | undefined): string | null {
   if (!description) return null
   if (description.length > MAX_HABIT_DESCRIPTION_LENGTH) {
     return 'habits.form.descriptionTooLong'

@@ -2,8 +2,12 @@ import { describe, expect, it } from 'vitest'
 import {
   PROFILE_NAV_ITEMS,
   isProfileNavItemLocked,
+  resolveProfileNavHint,
   shouldRedirectProfileNavItem,
 } from '../utils/profile-navigation'
+
+const translate = (key: string, values?: Record<string, string | number>) =>
+  values ? `${key}:${JSON.stringify(values)}` : key
 
 describe('profile-navigation', () => {
   it('keeps the web-aligned profile card order and routes', () => {
@@ -54,6 +58,44 @@ describe('profile-navigation', () => {
     expect(calendar?.entitlementRequirement).toBe('pro')
     expect(retrospective?.entitlementRequirement).toBe('yearlyPro')
     expect(preferences?.entitlementMode).toBe('mixed')
+  })
+
+  it('builds the gamification hint for pro users with a loaded profile', () => {
+    expect(
+      resolveProfileNavHint(
+        { hintMode: 'gamificationProfile', hintKey: 'gamification.profileCard.hint' },
+        { hasProAccess: true, gamificationProfile: { level: 4, totalXp: 870 } },
+        translate,
+      ),
+    ).toBe(
+      'gamification.profileCard.level:{"level":4} · gamification.profileCard.totalXp:{"total":870}',
+    )
+  })
+
+  it('falls back to the static hint without pro access or gamification data', () => {
+    expect(
+      resolveProfileNavHint(
+        { hintMode: 'gamificationProfile', hintKey: 'gamification.profileCard.hint' },
+        { hasProAccess: false, gamificationProfile: { level: 4, totalXp: 870 } },
+        translate,
+      ),
+    ).toBe('gamification.profileCard.hint')
+
+    expect(
+      resolveProfileNavHint(
+        { hintMode: 'gamificationProfile', hintKey: 'gamification.profileCard.hint' },
+        { hasProAccess: true, gamificationProfile: null },
+        translate,
+      ),
+    ).toBe('gamification.profileCard.hint')
+
+    expect(
+      resolveProfileNavHint(
+        { hintMode: 'static', hintKey: 'profile.sections.preferencesHint' },
+        { hasProAccess: true, gamificationProfile: { level: 4, totalXp: 870 } },
+        translate,
+      ),
+    ).toBe('profile.sections.preferencesHint')
   })
 
   it('uses the shared entitlement rules for redirect decisions', () => {

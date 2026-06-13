@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  buildAgentScopeOptions,
   buildMcpConfigJson,
   MCP_CONFIG_TABS,
   MCP_ENDPOINT_URL,
@@ -15,6 +16,23 @@ describe('advanced settings utils', () => {
 
   it('defines the supported config tabs', () => {
     expect(MCP_CONFIG_TABS).toEqual(['web', 'desktop', 'code'])
+  })
+
+  it('groups capabilities into sorted scope options', () => {
+    expect(
+      buildAgentScopeOptions([
+        { scope: 'habits', displayName: 'List habits' },
+        { scope: 'goals', displayName: 'List goals' },
+        { scope: 'habits', displayName: 'Log habit' },
+      ]),
+    ).toEqual([
+      { scope: 'goals', label: 'goals', description: 'List goals' },
+      { scope: 'habits', label: 'habits', description: 'List habits, Log habit' },
+    ])
+  })
+
+  it('returns no scope options when capabilities are missing', () => {
+    expect(buildAgentScopeOptions(undefined)).toEqual([])
   })
 
   it('defines the widget steps and features', () => {

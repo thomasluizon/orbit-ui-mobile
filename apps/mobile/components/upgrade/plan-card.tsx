@@ -62,7 +62,7 @@ export function PlanCard({
             styles.radio,
             selected
               ? { backgroundColor: tokens.primary }
-              : { borderWidth: 2, borderColor: tokens.fg4 },
+              : { borderWidth: 2, borderColor: tokens.fg3 },
           ]}
         >
           {selected ? (

@@ -56,6 +56,13 @@ function dayNumberColor(cell: GridDay, selected: boolean): string {
   return 'var(--fg-2)'
 }
 
+function dayStatusLabel(status: DayStatus, t: ReturnType<typeof useTranslations>): string | null {
+  if (status === 'full') return t('calendar.legend.done')
+  if (status === 'partial') return t('calendar.legend.partial')
+  if (status === 'missed') return t('calendar.legend.missed')
+  return null
+}
+
 export function CalendarGrid({
   currentMonth,
   dayMap,
@@ -141,7 +148,7 @@ export function CalendarGrid({
                 fontFamily: 'var(--font-mono)',
                 fontSize: 11,
                 fontWeight: 500,
-                color: 'var(--fg-4)',
+                color: 'var(--fg-3)',
                 letterSpacing: '0.04em',
                 fontVariantNumeric: 'tabular-nums',
               }}
@@ -159,13 +166,17 @@ export function CalendarGrid({
             const canSelect = cell.isCurrentMonth
             const status = dayStatus(cell)
             const selected = canSelect && cell.dateStr === selectedDateStr
+            const statusLabel = dayStatusLabel(status, t)
+            const dayLabel = statusLabel
+              ? `${displayWeekdayDate(cell.date, true)}, ${statusLabel}`
+              : displayWeekdayDate(cell.date, true)
 
             return (
               <button
                 type="button"
                 key={cell.dateStr}
                 data-tour={index === 0 ? 'tour-calendar-day' : undefined}
-                aria-label={displayWeekdayDate(cell.date, true)}
+                aria-label={dayLabel}
                 aria-current={cell.isToday ? 'date' : undefined}
                 aria-disabled={!canSelect}
                 onClick={() => canSelect && onSelectDay(cell.dateStr)}

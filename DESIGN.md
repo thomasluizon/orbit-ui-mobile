@@ -30,9 +30,10 @@ Canonical CSS lives in `apps/web/app/globals.css`; the mobile equivalent is `cre
 --hairline      rgba(248,250,252,0.10)
 --hairline-strong rgba(248,250,252,0.18)
 --fg-1 rgb(248,250,252)  --fg-2 rgb(202,213,226)  --fg-3 rgb(144,161,185)  --fg-4 rgb(98,116,142)
---fg-on-primary rgb(255,255,255)
+--fg-on-primary rgb(255,255,255)          /* scheme×mode-resolved; see hand-tune log */
 --status-done var(--primary) · empty rgba(248,250,252,0.22) · skip rgb(144,161,185)
 --status-overdue rgb(254,154,0) · bad rgb(251,44,54) · frozen rgb(0,211,243)
+--status-overdue-text rgb(254,154,0) · bad-text rgb(251,44,54)   /* = base; AA ≥4.5 on canvas */
 --selection-bg rgba(var(--primary-rgb),0.32)
 --gradient-header linear-gradient(180deg, rgb(34,9,79) 0%, rgba(2,6,24,0) 100%)   /* violet-950 → transparent */
 ```
@@ -44,6 +45,7 @@ Canonical CSS lives in `apps/web/app/globals.css`; the mobile equivalent is `cre
 --hairline rgba(2,6,24,0.08) · --hairline-strong rgba(2,6,24,0.16)
 --fg-1 rgb(15,23,43) · --fg-2 rgb(49,65,88) · --fg-3 rgb(98,116,142) · --fg-4 rgb(144,161,185)
 --status-empty rgba(2,6,24,0.18) · skip rgb(98,116,142) · overdue rgb(225,113,0) · bad rgb(231,0,11) · frozen rgb(0,146,184)
+--status-overdue-text rgb(180,91,0) · bad-text rgb(231,0,11)   /* overdue darkened to AA; bad = base */
 --selection-bg rgba(var(--primary-rgb),0.18)
 --gradient-header linear-gradient(180deg, rgb(233,212,255) 0%, rgba(248,250,252,0) 100%)
 ```
@@ -87,6 +89,7 @@ Hand-tune log (rule 3):
 - **orange:** Δ-derived hue 18.36° read rose-tinted; nudged to 32 (warm brown-black canvas).
 - **blue / cyan:** canvas chroma gamut-clamped at the locked L (scaleBg 0.6226 / 0.5167); cyan fg ramp also clamped (scaleFg 0.843). Values are the sRGB gamut ceiling ×0.985 so web CSS and the TS pipeline resolve identical bytes.
 - **Light gradient stops:** purple keeps the handoff's +21.71° lilac rotation from the accent hue (byte-exact `#e9d4ff`); the rotation misreads on rose (peach) and cyan (periwinkle), so all non-purple schemes use their light accent hue directly at the locked L/C, chroma gamut-clamped.
+- **fg-on-primary (scheme×mode):** white fails 4.5:1 AA on green/orange/cyan (both modes) and blue/rose (dark), so those eight resolve to the locked canvas ink rgb(2,6,24) (≥5.36:1 on every flipped accent); white stays on purple (both modes), blue light, rose light (4.53–7.03:1). Data in `color-schemes.ts` `fgOnPrimary`, mirrored per scheme×mode in `globals.css`.
 
 ## Type roles
 
@@ -138,17 +141,20 @@ Exact dimensions in `design/handoff/orbit/project/orbit-kit.jsx`. Web in `apps/w
 - Opaque white cards on light — never translucent.
 - Inset 1px hairline rings instead of borders (web `box-shadow: inset 0 0 0 1px var(--hairline)`; RN border with the same color reads equivalently).
 - No opaque card-on-card on dark; surfaces stack by alpha, not by lighter hexes.
-- Gradient-header usage: profile, paywall, auth, onboarding, celebrations, Início.
+- Gradient-header usage: profile, paywall, auth, onboarding, celebrations, Início, calendar, chat.
 
 ## Status, emoji, icons
 
 - done = primary · overdue = amber · bad/danger = red · frozen = cyan · skip/empty = neutral (exact values in the token spec).
+- Dots, rings and icons use the base status tokens; status-colored TEXT uses `--status-overdue-text` / `--status-bad-text` (mobile `statusOverdueText` / `statusBadText`) — AA ≥4.5 on the mode canvas (only light overdue differs from base).
 - Emoji deliberately, where the artboards show them: habit emoji wells, stat tiles, streak flame, celebration heroes. Never as decoration elsewhere.
 - Lucide 22px, strokeWidth 1.8 (2.2 active/emphasis).
 
 ## Motion
 
 Unchanged philosophy: transform + opacity only, durations 160/220/280, `--ease-standard` for state changes, `--ease-out` for entrances. Presets in `packages/shared/src/theme/motion.ts`. Respect `prefers-reduced-motion`.
+
+SVG `stroke-dashoffset` ring/progress sweeps are sanctioned (paint-only property, no layout; the `status-sweep` keyframe is the precedent).
 
 ## Bans
 

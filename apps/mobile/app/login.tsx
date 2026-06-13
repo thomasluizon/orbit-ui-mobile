@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   Animated,
   View,
@@ -164,9 +164,11 @@ export default function LoginScreen() {
     resetCodeDigits,
     onCodeInput,
     onCodeKeyPress,
-  } = useLoginCodeEntry()
-  const offlineTitle = t('calendarSync.notConnected')
-  const offlineDescription = `${t('auth.sendCode')} / ${t('auth.verify')} / ${t('auth.signInWithGoogle')}`
+  } = useLoginCodeEntry(() => {
+    void verifyCode()
+  })
+  const offlineTitle = t('offline.title')
+  const offlineDescription = t('offline.description')
 
   useEffect(() => {
     async function hydrateAuthFlowState() {
@@ -223,18 +225,6 @@ export default function LoginScreen() {
       hideSubscription.remove()
     }
   }, [])
-
-  const verifyCodeRef = useRef(() => {})
-  useEffect(() => {
-    verifyCodeRef.current = verifyCode
-  })
-
-  useEffect(() => {
-    if (step !== 'code' || isSubmitting) return
-    if (isVerificationCodeComplete(codeDigits)) {
-      verifyCodeRef.current()
-    }
-  }, [codeDigits, step, isSubmitting])
 
   function resolveLoginErrorState(
     err: unknown,
@@ -317,6 +307,9 @@ export default function LoginScreen() {
         name: res.name,
         email: res.email,
       })
+      if (res.wasReactivated) {
+        setSuccessMessage(t('profile.deleteAccount.reactivated'))
+      }
       if (referralCode) {
         await markReferralApplied()
         await clearStoredReferralCode()
@@ -400,7 +393,7 @@ export default function LoginScreen() {
 
   const canSubmitEmail = Boolean(email.trim()) && !isSubmitting && isOnline
   const canSubmitCode =
-    codeDigits.join('').length === 6 && !isSubmitting && isOnline
+    isVerificationCodeComplete(codeDigits) && !isSubmitting && isOnline
 
   return (
     <View style={styles.root}>
@@ -688,7 +681,7 @@ function createStyles(tokens: AppTokensV2) {
       fontFamily: 'Rubik_400Regular',
       fontSize: 14,
       lineHeight: 22,
-      color: tokens.statusOverdue,
+      color: tokens.statusOverdueText,
       textAlign: 'center',
     },
 
@@ -714,14 +707,14 @@ function createStyles(tokens: AppTokensV2) {
     dividerText: {
       fontFamily: 'Rubik_400Regular',
       fontSize: 13,
-      color: tokens.fg4,
+      color: tokens.fg3,
     },
 
     legal: {
       fontFamily: 'Rubik_400Regular',
       fontSize: 12,
       lineHeight: 18,
-      color: tokens.fg4,
+      color: tokens.fg3,
       textAlign: 'center',
       marginTop: 8,
     },

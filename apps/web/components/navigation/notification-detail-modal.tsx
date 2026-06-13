@@ -70,7 +70,7 @@ export function NotificationDetailModal({
             style={{
               fontFamily: 'var(--font-mono)',
               fontSize: 12,
-              color: 'var(--fg-4)',
+              color: 'var(--fg-3)',
               letterSpacing: '0.02em',
               fontVariantNumeric: 'tabular-nums',
             }}

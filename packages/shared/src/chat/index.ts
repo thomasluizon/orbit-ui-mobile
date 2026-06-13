@@ -31,13 +31,13 @@ export const CHAT_STARTER_CHIP_KEYS = [
  */
 export const CHAT_STREAM_IDLE_TIMEOUT_MS = 60_000
 
-export const MAX_CHAT_IMAGE_SIZE_BYTES = 20 * 1024 * 1024
+const MAX_CHAT_IMAGE_SIZE_BYTES = 20 * 1024 * 1024
 
-export const CHAT_IMAGE_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const
+const CHAT_IMAGE_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const
 
-export type ChatImageValidationError = 'type' | 'size'
+type ChatImageValidationError = 'type' | 'size'
 
-export interface ChatImageCandidate {
+interface ChatImageCandidate {
   mimeType?: string | null
   fileSize?: number | null
   name?: string | null

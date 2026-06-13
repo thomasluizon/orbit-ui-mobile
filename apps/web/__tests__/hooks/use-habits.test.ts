@@ -284,6 +284,31 @@ describe('useLogHabit', () => {
     expect(mockedLogHabit).toHaveBeenCalledWith('h-1', undefined)
   })
 
+  it('invalidates lists, summary, goals, gamification, and profile on settle (parity with mobile)', async () => {
+    const { logHabit } = await import('@/app/actions/habits')
+    vi.mocked(logHabit).mockResolvedValue({
+      logId: 'log-x',
+      isFirstCompletionToday: false,
+      currentStreak: 1,
+    })
+
+    const queryClient = createQueryClient()
+    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries')
+    const { result } = renderHook(() => useLogHabit(), {
+      wrapper: createWrapper(queryClient),
+    })
+
+    await act(async () => {
+      await result.current.mutateAsync({ habitId: 'h-1' })
+    })
+
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: habitKeys.lists() })
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: habitKeys.summaryPrefix() })
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: goalKeys.lists() })
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: gamificationKeys.all })
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: profileKeys.all })
+  })
+
   it('passes date to logHabit action', async () => {
     const { logHabit } = await import('@/app/actions/habits')
     const mockedLogHabit = vi.mocked(logHabit)
@@ -365,6 +390,27 @@ describe('useSkipHabit', () => {
     })
 
     expect(mockedSkipHabit).toHaveBeenCalledWith('h-1', undefined)
+  })
+
+  it('invalidates lists, summary, goals, gamification, and profile on settle (parity with mobile)', async () => {
+    const { skipHabit } = await import('@/app/actions/habits')
+    vi.mocked(skipHabit).mockResolvedValue(undefined)
+
+    const queryClient = createQueryClient()
+    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries')
+    const { result } = renderHook(() => useSkipHabit(), {
+      wrapper: createWrapper(queryClient),
+    })
+
+    await act(async () => {
+      await result.current.mutateAsync({ habitId: 'h-1' })
+    })
+
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: habitKeys.lists() })
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: habitKeys.summaryPrefix() })
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: goalKeys.lists() })
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: gamificationKeys.all })
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: profileKeys.all })
   })
 
   it('passes date to skipHabit action', async () => {

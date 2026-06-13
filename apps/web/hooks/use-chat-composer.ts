@@ -6,8 +6,6 @@ import {
   useCallback,
   useEffect,
   useMemo,
-  type ChangeEvent,
-  type ClipboardEvent,
   type KeyboardEvent,
 } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
@@ -17,16 +15,12 @@ import { goalKeys, habitKeys, profileKeys, tagKeys } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
 import type { ChatResponse } from '@orbit/shared/types/chat'
 import type { Profile } from '@orbit/shared/types/profile'
-import type {
-  AgentExecuteOperationResponse,
-  AgentStepUpChallenge,
-} from '@orbit/shared/types/ai'
+import type { AgentExecuteOperationResponse } from '@orbit/shared/types/ai'
 import {
   CHAT_SPEECH_LANGUAGES as SPEECH_LANGUAGES,
   CHAT_STARTER_CHIP_KEYS,
   CHAT_STREAM_IDLE_TIMEOUT_MS,
   consumeChatSseStream,
-  getChatImageValidationError,
 } from '@orbit/shared/chat'
 import {
   buildAgentExecutionMessage,
@@ -46,24 +40,8 @@ import {
 import { useSpeechToText } from '@/hooks/use-speech-to-text'
 import { useChatStore } from '@/stores/chat-store'
 import { useProfile } from '@/hooks/use-profile'
-import {
-  confirmPendingOperation,
-  executePendingOperation,
-  issuePendingOperationStepUp,
-  verifyPendingOperationStepUp,
-} from '@/app/actions/chat'
-
-type PendingExecutionResult =
-  | { ok: true; response: AgentExecuteOperationResponse }
-  | { ok: false; error: string }
-
-type PreparedStepUpExecution =
-  | {
-      ok: true
-      challenge: AgentStepUpChallenge
-      confirmationToken: string
-    }
-  | { ok: false; error: string }
+import { useChatImageAttachment } from '@/hooks/use-chat-image-attachment'
+import { useChatPendingOperations } from '@/hooks/use-chat-pending-operations'
 
 interface AttemptedSend {
   content: string
@@ -99,6 +77,12 @@ async function* streamTextChunks(
   }
 }
 
+/**
+ * Drives the chat composer: draft + speech input, image attachment, the SSE
+ * streaming send pipeline, and pending-operation step-up flows. The streaming
+ * send is the one sanctioned client-side `fetch` to the API (a Server Action
+ * cannot return a streaming `ReadableStream`); see apps/web/CLAUDE.md.
+ */
 export function useChatComposer() {
   const t = useTranslations()
   const locale = useLocale()
@@ -126,7 +110,6 @@ export function useChatComposer() {
 
   const chatContainerRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
-  const fileInputRef = useRef<HTMLInputElement>(null)
   const langPickerRef = useRef<HTMLDivElement>(null)
   const prevIsRecording = useRef(false)
 
@@ -136,10 +119,19 @@ export function useChatComposer() {
   })
   const [sendError, setSendError] = useState<string | null>(null)
   const [lastFailedSend, setLastFailedSend] = useState<AttemptedSend | null>(null)
-  const [selectedImage, setSelectedImage] = useState<File | null>(null)
-  const [imagePreview, setImagePreview] = useState<string | null>(null)
   const [showLangPicker, setShowLangPicker] = useState(false)
   const [previousSpeechError, setPreviousSpeechError] = useState<string | null>(speechError)
+
+  const {
+    fileInputRef,
+    selectedImage,
+    imagePreview,
+    openFilePicker,
+    handleFileSelect,
+    handlePaste,
+    removeImage,
+    clearImage,
+  } = useChatImageAttachment(setSendError)
 
   if (speechError !== previousSpeechError) {
     setPreviousSpeechError(speechError)
@@ -209,6 +201,12 @@ export function useChatComposer() {
       }
     }
   }, [addMessage, queryClient, router, scrollToBottom, shouldRouteToUpgrade])
+
+  const {
+    confirmAndExecutePendingOperation,
+    prepareStepUpForBubble,
+    verifyStepUpForBubble,
+  } = useChatPendingOperations(appendExecutionMessage)
 
   const handleFailedSend = useCallback((
     failureInput: StreamSendFailure,
@@ -353,66 +351,6 @@ export function useChatComposer() {
     document.addEventListener('click', handleClick)
     return () => document.removeEventListener('click', handleClick)
   }, [])
-
-  function validateImageFile(file: File): string | null {
-    const validationError = getChatImageValidationError({
-      mimeType: file.type,
-      fileSize: file.size,
-      name: file.name,
-    })
-    if (validationError === 'type') return t('chat.imageError')
-    if (validationError === 'size') return t('chat.imageSizeError')
-    return null
-  }
-
-  function openFilePicker() {
-    fileInputRef.current?.click()
-  }
-
-  function handleFileSelect(event: ChangeEvent<HTMLInputElement>) {
-    const file = event.target.files?.[0]
-    if (!file) return
-    const validationErr = validateImageFile(file)
-    if (validationErr) {
-      setSendError(validationErr)
-      event.target.value = ''
-      return
-    }
-    setSendError(null)
-    setSelectedImage(file)
-    setImagePreview(URL.createObjectURL(file))
-    event.target.value = ''
-  }
-
-  function removeImage() {
-    if (imagePreview) URL.revokeObjectURL(imagePreview)
-    setSelectedImage(null)
-    setImagePreview(null)
-  }
-
-  function handlePaste(event: ClipboardEvent<HTMLTextAreaElement>) {
-    const items = event.clipboardData?.items
-    if (!items) return
-
-    for (const item of Array.from(items)) {
-      if (!item.type.startsWith('image/')) continue
-      const file = item.getAsFile()
-      if (!file) continue
-
-      event.preventDefault()
-
-      const validationErr = validateImageFile(file)
-      if (validationErr) {
-        setSendError(validationErr)
-        return
-      }
-
-      setSendError(null)
-      setSelectedImage(file)
-      setImagePreview(URL.createObjectURL(file))
-      return
-    }
-  }
 
   const buildChatFormData = useCallback((attempted: AttemptedSend) => {
     const formData = new FormData()
@@ -564,12 +502,11 @@ export function useChatComposer() {
       }
 
       setInput('')
-      setSelectedImage(null)
-      setImagePreview(null)
+      clearImage()
 
       await performSend(attempted, false)
     },
-    [imagePreview, input, isTyping, performSend, selectedImage],
+    [clearImage, imagePreview, input, isTyping, performSend, selectedImage],
   )
 
   const retryLastSend = useCallback(async () => {
@@ -578,70 +515,6 @@ export function useChatComposer() {
   }, [isTyping, lastFailedSend, performSend])
 
   const canRetryLastSend = lastFailedSend !== null && !isTyping
-
-  const confirmAndExecutePendingOperation = useCallback(async (pendingOperationId: string): Promise<PendingExecutionResult> => {
-    const confirmation = await confirmPendingOperation(pendingOperationId)
-    if (!confirmation.ok) {
-      return { ok: false, error: getErrorMessage(confirmation.error, t('chat.sendError')) }
-    }
-
-    const execution = await executePendingOperation(
-      pendingOperationId,
-      confirmation.data.confirmationToken,
-    )
-
-    if (!execution.ok) {
-      return { ok: false, error: getErrorMessage(execution.error, t('chat.sendError')) }
-    }
-
-    await appendExecutionMessage(execution.data)
-    return { ok: true, response: execution.data }
-  }, [appendExecutionMessage, t])
-
-  const preparePendingOperationStepUp = useCallback(async (
-    pendingOperationId: string,
-  ): Promise<PreparedStepUpExecution> => {
-    const confirmation = await confirmPendingOperation(pendingOperationId)
-    if (!confirmation.ok) {
-      return { ok: false, error: getErrorMessage(confirmation.error, t('chat.sendError')) }
-    }
-
-    const challenge = await issuePendingOperationStepUp(pendingOperationId, locale)
-    if (!challenge.ok) {
-      return { ok: false, error: getErrorMessage(challenge.error, t('chat.sendError')) }
-    }
-
-    return {
-      ok: true,
-      challenge: challenge.data,
-      confirmationToken: confirmation.data.confirmationToken,
-    }
-  }, [locale, t])
-
-  const verifyAndExecutePendingOperationStepUp = useCallback(async (
-    pendingOperationId: string,
-    challengeId: string,
-    code: string,
-    confirmationToken: string,
-  ): Promise<PendingExecutionResult> => {
-    const verification = await verifyPendingOperationStepUp(
-      pendingOperationId,
-      challengeId,
-      code,
-    )
-
-    if (!verification.ok) {
-      return { ok: false, error: getErrorMessage(verification.error, t('chat.sendError')) }
-    }
-
-    const execution = await executePendingOperation(pendingOperationId, confirmationToken)
-    if (!execution.ok) {
-      return { ok: false, error: getErrorMessage(execution.error, t('chat.sendError')) }
-    }
-
-    await appendExecutionMessage(execution.data)
-    return { ok: true, response: execution.data }
-  }, [appendExecutionMessage, t])
 
   function handleKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
     if (event.key === 'Enter' && !event.shiftKey) {
@@ -653,41 +526,6 @@ export function useChatComposer() {
   function handleBreakdownConfirmed() {
     queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
   }
-
-  const prepareStepUpForBubble = useCallback(
-    async (pendingOperationId: string) => {
-      const result = await preparePendingOperationStepUp(pendingOperationId)
-      if (!result.ok) {
-        return { ok: false as const, error: result.error }
-      }
-      return {
-        ok: true as const,
-        challengeId: result.challenge.challengeId,
-        confirmationToken: result.confirmationToken,
-      }
-    },
-    [preparePendingOperationStepUp],
-  )
-
-  const verifyStepUpForBubble = useCallback(
-    async (
-      pendingOperationId: string,
-      challengeId: string,
-      code: string,
-      confirmationToken: string,
-    ) => {
-      const result = await verifyAndExecutePendingOperationStepUp(
-        pendingOperationId,
-        challengeId,
-        code,
-        confirmationToken,
-      )
-      return result.ok
-        ? { ok: true as const, response: result.response }
-        : { ok: false as const, error: result.error }
-    },
-    [verifyAndExecutePendingOperationStepUp],
-  )
 
   return {
     chatContainerRef,

@@ -10,6 +10,8 @@ interface HabitTagChipProps {
   onToggle: () => void;
   onEdit: () => void;
   onDelete: () => void;
+  editAriaLabel: string;
+  deleteAriaLabel: string;
   styles: ReturnType<typeof createStyles>;
   tokens: AppTokens;
 }
@@ -22,6 +24,8 @@ export function HabitTagChip({
   onToggle,
   onEdit,
   onDelete,
+  editAriaLabel,
+  deleteAriaLabel,
   styles,
   tokens,
 }: Readonly<HabitTagChipProps>) {
@@ -37,6 +41,9 @@ export function HabitTagChip({
       <TouchableOpacity
         style={styles.tagChipMain}
         disabled={!selected && atLimit}
+        accessibilityRole="button"
+        accessibilityState={{ selected }}
+        accessibilityLabel={tag.name}
         onPress={onToggle}
         activeOpacity={0.7}
       >
@@ -52,6 +59,9 @@ export function HabitTagChip({
       <TouchableOpacity
         style={styles.tagAction}
         disabled={disabled}
+        accessibilityRole="button"
+        accessibilityLabel={editAriaLabel}
+        hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
         onPress={onEdit}
         activeOpacity={0.7}
       >
@@ -64,6 +74,9 @@ export function HabitTagChip({
       <TouchableOpacity
         style={styles.tagAction}
         disabled={disabled}
+        accessibilityRole="button"
+        accessibilityLabel={deleteAriaLabel}
+        hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
         onPress={onDelete}
         activeOpacity={0.7}
       >

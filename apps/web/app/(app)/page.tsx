@@ -26,7 +26,6 @@ import { HabitList, type HabitListHandle } from '@/components/habits/habit-list'
 import { TodayAISummary } from '@/components/habits/today-ai-summary'
 import { GoalsView } from '@/components/goals/goals-view'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
-import { ControlsMenu } from '@/components/habits/controls-menu'
 import { BulkActionBarV2 } from '@/components/habits/bulk-action-bar-v2'
 import { GradientTop } from '@/components/ui/gradient-top'
 import { ProgressBar } from '@/components/ui/progress-bar'
@@ -103,17 +102,10 @@ export default function TodayPage() {
 
   const [localSearchQuery, setLocalSearchQuery] = useState(searchQueryStore)
   const [searchOpen, setSearchOpen] = useState(false)
-  const [showControlsMenu, setShowControlsMenu] = useState(false)
-  const [controlsMenuPosition, setControlsMenuPosition] = useState({ top: 0, left: 0 })
   const [slideDirection, setSlideDirection] = useState<'left' | 'right'>('right')
   const searchDebounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const controlsMenuRef = useRef<HTMLDivElement>(null)
-  const controlsMenuPanelRef = useRef<HTMLDivElement>(null)
   const habitListRef = useRef<HabitListHandle>(null)
   const [habitListAllCollapsed, setHabitListAllCollapsed] = useState(false)
-
-  const CONTROLS_MENU_WIDTH_PX = 220
-  const CONTROLS_MENU_MARGIN_PX = 8
 
   const dateParam = searchParams.get('date')
   const pinnedDateStr = useMemo(() => {
@@ -167,44 +159,17 @@ export default function TodayPage() {
     router.push('/')
   }, [router, selectedDate, setActiveView])
 
-  const toggleControlsMenu = useCallback(() => {
-    if (!showControlsMenu) {
-      const rect = controlsMenuRef.current?.getBoundingClientRect()
-      if (rect) {
-        const preferredLeft = rect.right - CONTROLS_MENU_WIDTH_PX
-        const maxLeft = globalThis.innerWidth - CONTROLS_MENU_WIDTH_PX - CONTROLS_MENU_MARGIN_PX
-        setControlsMenuPosition({
-          top: rect.bottom + CONTROLS_MENU_MARGIN_PX,
-          left: Math.min(Math.max(preferredLeft, CONTROLS_MENU_MARGIN_PX), Math.max(CONTROLS_MENU_MARGIN_PX, maxLeft)),
-        })
-      }
+  const handleToggleCollapse = useCallback(() => {
+    if (habitListAllCollapsed) {
+      habitListRef.current?.expandAll()
+    } else {
+      habitListRef.current?.collapseAll()
     }
-    setShowControlsMenu((prev) => !prev)
-  }, [showControlsMenu])
+  }, [habitListAllCollapsed])
 
-  const closeControlsMenu = useCallback(() => {
-    setShowControlsMenu(false)
-  }, [])
-
-  useEffect(() => {
-    function handlePointerDown(event: PointerEvent) {
-      if (!showControlsMenu) return
-      const target = event.target
-      if (!(target instanceof Node)) return
-      if (controlsMenuRef.current?.contains(target)) return
-      if (controlsMenuPanelRef.current?.contains(target)) return
-      setShowControlsMenu(false)
-    }
-    function handleKeydown(event: KeyboardEvent) {
-      if (event.key === 'Escape') setShowControlsMenu(false)
-    }
-    document.addEventListener('pointerdown', handlePointerDown)
-    document.addEventListener('keydown', handleKeydown)
-    return () => {
-      document.removeEventListener('pointerdown', handlePointerDown)
-      document.removeEventListener('keydown', handleKeydown)
-    }
-  }, [showControlsMenu])
+  const handleRefresh = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
+  }, [queryClient])
 
   const dateLabel = useMemo(() => {
     if (isToday(selectedDate)) return t('dates.today')
@@ -482,37 +447,21 @@ export default function TodayPage() {
               selectedTagIds={selectedTagIds}
               tags={tags}
               frequencyOptions={frequencyOptions}
-              controlsMenuRef={controlsMenuRef}
+              isSelectMode={isSelectMode}
+              showCompleted={showCompleted}
+              isFetching={habitsQuery.isFetching}
+              allCollapsed={habitListAllCollapsed}
               onSearchToggle={toggleSearch}
               onSearchChange={setLocalSearchQuery}
               onSearchClear={() => setLocalSearchQuery('')}
               onFrequencyChange={setSelectedFrequency}
               onTagToggle={toggleTagFilter}
-              onOpenControlsMenu={toggleControlsMenu}
+              onToggleSelect={toggleSelectMode}
+              onToggleCollapse={handleToggleCollapse}
+              onRefresh={handleRefresh}
+              onToggleCompleted={() => setShowCompleted(!showCompleted)}
             />
           </motion.div>
-
-          {showControlsMenu && typeof document !== 'undefined' && (
-            <ControlsMenu
-              menuPanelRef={controlsMenuPanelRef}
-              position={controlsMenuPosition}
-              isSelectMode={isSelectMode}
-              showCompleted={showCompleted}
-              isFetching={habitsQuery.isFetching}
-              allCollapsed={habitListAllCollapsed}
-              onToggleSelect={toggleSelectMode}
-              onToggleCollapse={() => {
-                if (habitListAllCollapsed) {
-                  habitListRef.current?.expandAll()
-                } else {
-                  habitListRef.current?.collapseAll()
-                }
-              }}
-              onRefresh={() => queryClient.invalidateQueries({ queryKey: habitKeys.lists() })}
-              onToggleCompleted={() => setShowCompleted(!showCompleted)}
-              onClose={closeControlsMenu}
-            />
-          )}
 
           {!hasFetched && (
             <div className="stagger-enter" style={{ padding: '12px 20px 8px' }}>
@@ -573,10 +522,11 @@ export default function TodayPage() {
             {isRefetching ? (
               <motion.div
                 key="today-refetch-indicator"
-                className="overflow-hidden px-5 pt-1"
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: 8 }}
-                exit={{ opacity: 0, height: 0 }}
+                className="overflow-hidden px-5 pt-1 origin-top"
+                style={{ height: 8 }}
+                initial={{ opacity: 0, scaleY: 0 }}
+                animate={{ opacity: 1, scaleY: 1 }}
+                exit={{ opacity: 0, scaleY: 0 }}
                 transition={listTransition}
               >
                 <motion.div

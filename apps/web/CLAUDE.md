@@ -1,4 +1,4 @@
-# apps/web — Next.js 15 + App Router
+# apps/web — Next.js 16 + App Router
 
 Web client. Server Components by default. Auth via httpOnly cookies + BFF proxy. State via Zustand + TanStack Query.
 
@@ -8,8 +8,9 @@ Web client. Server Components by default. Auth via httpOnly cookies + BFF proxy.
 - **Server Components by default.** `"use client"` only when you need hooks, events, browser APIs, or context. If you can render on the server, do.
 - **Zero `any`** — root `CLAUDE.md` Code Standards rule 3.
 - **No `console.log`** in production code — rule 4.
+- **No narration comments** (lint-enforced `local/no-comments`) — rule 5. Only `/** */` JSDoc on exports, WHY notes linking an upstream URL, and tooling directives.
 - **All user-facing strings through i18n** (next-intl). Never hardcode display text.
-- **All mutations through Server Actions** in `app/actions/*.ts`. Never call the API from a client component.
+- **All mutations through Server Actions** in `app/actions/*.ts`. Never call the API from a client component. Sanctioned exceptions: (1) cookie-setting auth/session flows (`app/api/auth/*` — send-code, verify-code, google, logout, session) are BFF route handlers because they own the httpOnly auth cookie lifecycle; (2) the SSE chat send in `hooks/use-chat-composer.ts` fetches the BFF chat-stream route directly because a Server Action cannot return a streaming `ReadableStream`. Everything else stays a Server Action.
 - **Imports:** types from `@orbit/shared/types`, query keys from `@orbit/shared/query`, endpoints from `@orbit/shared/api`.
 
 ## Key files
@@ -18,7 +19,7 @@ Web client. Server Components by default. Auth via httpOnly cookies + BFF proxy.
 |---|---|
 | App shell + nav | `app/(app)/layout.tsx` + `components/navigation/web-nav.tsx` |
 | Design tokens (navy+violet system, 6 schemes × dark/light) | `app/globals.css` (Tailwind v4 CSS-first) |
-| Auth middleware | `middleware.ts` |
+| Auth middleware | `proxy.ts` |
 | BFF catch-all proxy | `app/api/[...path]/route.ts` |
 | Server Actions (mutations) | `app/actions/*.ts` |
 | TanStack Query hooks | `hooks/use-*.ts` |
@@ -28,28 +29,26 @@ Web client. Server Components by default. Auth via httpOnly cookies + BFF proxy.
 ## State management
 
 - **Server state:** TanStack Query. One hook per resource in `hooks/use-*.ts`. Query keys from `@orbit/shared/query/keys.ts` — never invent inline keys.
-- **Client state:** Zustand stores in `stores/*-store.ts`. Persist with `skipHydration: true` and rehydrate manually in `app/providers.tsx` to avoid SSR mismatches.
+- **Client state:** Zustand stores in `stores/*-store.ts`. Persist with `skipHydration: true` and rehydrate manually in `lib/providers.tsx` to avoid SSR mismatches.
 - **Form state:** react-hook-form + Zod resolver. Schemas live in `packages/shared/src/validation/*.ts` so the mobile app uses the same rules.
 
 ## Server Actions pattern
 
 ```ts
 "use server"
-import { authedFetch } from "@/lib/server-fetch"
+import { serverAuthFetch } from "@/lib/server-fetch"
 import { API } from "@orbit/shared/api"
 
 export async function createHabit(input: CreateHabitInput) {
-  const result = await authedFetch(API.habits.create, {
+  return serverAuthFetch(API.habits.create, {
     method: "POST",
     body: JSON.stringify(input),
   })
-  revalidateTag("habits")
-  return result
 }
 ```
 
-- Always go through `authedFetch` so the httpOnly cookie is forwarded.
-- Use `revalidateTag` / `revalidatePath` after mutations so the TanStack cache (web) refetches.
+- Always go through `serverAuthFetch` so the httpOnly cookie is forwarded.
+- Cache refresh is client-side: mutation hooks invalidate TanStack queries (`queryClient.invalidateQueries` with keys from `@orbit/shared/query`). Server Actions do not call `revalidateTag` / `revalidatePath`.
 - Errors propagate as thrown — the client side catches via `useMutation`'s `onError`.
 
 ## BFF proxy
@@ -66,7 +65,7 @@ export async function createHabit(input: CreateHabitInput) {
 
 | Want to add… | Look at… |
 |---|---|
-| New page | `app/(app)/today/page.tsx` |
+| New page | `app/(app)/page.tsx` |
 | New Server Action | `app/actions/habits.ts` |
 | New TanStack hook | `hooks/use-habits.ts` |
 | New Zustand store | `stores/ui-store.ts` |

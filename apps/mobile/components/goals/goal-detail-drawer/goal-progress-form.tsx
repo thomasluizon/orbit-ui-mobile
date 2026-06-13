@@ -61,7 +61,7 @@ export function GoalProgressForm({
           value={progressNote}
           onChangeText={onChangeNote}
           placeholder={t('goals.progressNote')}
-          placeholderTextColor={tokens.fg4}
+          placeholderTextColor={tokens.fg3}
           accessibilityLabel={t('goals.progressNote')}
           accessibilityHint={t('goals.updateProgress')}
         />

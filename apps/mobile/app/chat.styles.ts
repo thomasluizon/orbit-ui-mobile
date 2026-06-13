@@ -62,7 +62,7 @@ export function createStyles(tokens: Tokens) {
       textAlign: "center",
       maxWidth: 300,
       marginTop: 4,
-      color: tokens.fg4,
+      color: tokens.fg3,
     },
     messageList: {
       paddingVertical: 16,
@@ -127,7 +127,7 @@ export function createStyles(tokens: Tokens) {
     quickChip: {
       flexDirection: "row",
       alignItems: "center",
-      minHeight: 36,
+      minHeight: 44,
       paddingHorizontal: 16,
       borderRadius: 999,
       backgroundColor: tokens.bgElev,

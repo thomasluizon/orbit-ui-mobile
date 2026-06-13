@@ -1,5 +1,3 @@
-'use client'
-
 import type { ReactNode } from 'react'
 import {
   isToday as isDateToday,
@@ -63,7 +61,7 @@ export function HabitListDateGroupSection({
             fontFamily: 'var(--font-sans)',
             fontSize: 13,
             fontWeight: 600,
-            color: group.isOverdue ? 'var(--status-overdue)' : 'var(--fg-3)',
+            color: group.isOverdue ? 'var(--status-overdue-text)' : 'var(--fg-3)',
             whiteSpace: 'nowrap',
           }}
         >

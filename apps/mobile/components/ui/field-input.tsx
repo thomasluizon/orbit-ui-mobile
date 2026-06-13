@@ -36,7 +36,7 @@ export const FieldInput = forwardRef<TextInput, FieldInputProps>(
         ) : null}
         <TextInput
           ref={ref}
-          placeholderTextColor={tokens.fg4}
+          placeholderTextColor={tokens.fg3}
           {...textInputProps}
           onFocus={(event) => {
             setFocused(true)

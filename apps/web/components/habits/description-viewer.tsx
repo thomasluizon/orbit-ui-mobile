@@ -1,9 +1,11 @@
 'use client'
 
+import { useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { ArrowLeft } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useIsClient } from '@/hooks/use-is-client'
+import { useOverlayEscape } from '@/hooks/use-overlay-escape'
 import { Markdown } from '@/components/ui/markdown'
 
 interface DescriptionViewerProps {
@@ -21,6 +23,13 @@ export function DescriptionViewer({
 }: Readonly<DescriptionViewerProps>) {
   const t = useTranslations()
   const mounted = useIsClient()
+  const backButtonRef = useRef<HTMLButtonElement>(null)
+
+  useOverlayEscape({
+    open,
+    onDismiss: () => onOpenChange(false),
+    initialFocusRef: backButtonRef,
+  })
 
   if (!mounted || !open) return null
 
@@ -31,6 +40,7 @@ export function DescriptionViewer({
         style={{ minHeight: 56 }}
       >
         <button
+          ref={backButtonRef}
           type="button"
           aria-label={t('common.back')}
           className="icon-btn shrink-0"

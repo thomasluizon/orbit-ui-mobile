@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 
 
 vi.mock('next-intl', () => ({
@@ -37,7 +37,7 @@ let mockCapabilitiesError: Error | null = null
 
 vi.mock('@tanstack/react-query', () => ({
   useQuery: ({ queryKey }: { queryKey: unknown[] }) => {
-    if (Array.isArray(queryKey) && queryKey[0] === 'ai-capabilities') {
+    if (Array.isArray(queryKey) && queryKey[0] === 'ai' && queryKey[1] === 'capabilities') {
       return {
         data: mockCapabilitiesLoading ? undefined : mockCapabilities,
         isLoading: mockCapabilitiesLoading,
@@ -69,6 +69,9 @@ vi.mock('@orbit/shared/query', () => ({
   apiKeyKeys: {
     lists: () => ['api-keys', 'list'],
     all: ['api-keys'],
+  },
+  aiKeys: {
+    capabilities: () => ['ai', 'capabilities'],
   },
 }))
 
@@ -260,14 +263,16 @@ describe('AdvancedPage', () => {
     expect(screen.getByText('orbitMcp.confirm')).toBeInTheDocument()
   })
 
-  it('cancels revoke confirmation', () => {
+  it('cancels revoke confirmation', async () => {
     mockApiKeys = [
       { id: 'k1', name: 'Key 1', keyPrefix: 'orbit_sk_1', createdAtUtc: '2025-01-01T00:00:00Z', lastUsedAtUtc: null },
     ]
     render(<AdvancedPage />)
     fireEvent.click(screen.getByText('orbitMcp.revoke'))
     fireEvent.click(screen.getByText('orbitMcp.cancel'))
-    expect(screen.queryByText('orbitMcp.revokeConfirm')).not.toBeInTheDocument()
+    await waitFor(() =>
+      expect(screen.queryByText('orbitMcp.revokeConfirm')).not.toBeInTheDocument(),
+    )
   })
 
   it('shows max keys warning when at limit', () => {

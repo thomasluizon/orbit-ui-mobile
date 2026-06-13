@@ -114,6 +114,7 @@ function EditableChecklistItem({
   styles,
   tokens,
 }: EditableChecklistItemProps) {
+  const { t } = useTranslation()
   const [localText, setLocalText] = useState(text)
 
   const [previousText, setPreviousText] = useState(text)
@@ -142,6 +143,8 @@ function EditableChecklistItem({
     <View style={styles.editableItem}>
       <View style={styles.moveButtons}>
         <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel={t('habits.form.moveChecklistItemUp')}
           style={styles.moveButton}
           onPress={onMoveUp}
           disabled={isFirst}
@@ -151,6 +154,8 @@ function EditableChecklistItem({
           <ChevronUp size={14} color={tokens.fg3} style={{ opacity: isFirst ? 0.3 : 1 }} />
         </TouchableOpacity>
         <TouchableOpacity
+          accessibilityRole="button"
+          accessibilityLabel={t('habits.form.moveChecklistItemDown')}
           style={styles.moveButton}
           onPress={onMoveDown}
           disabled={isLast}
@@ -169,6 +174,8 @@ function EditableChecklistItem({
         onBlur={flushLocalText}
       />
       <TouchableOpacity
+        accessibilityRole="button"
+        accessibilityLabel={t('habits.form.duplicateChecklistItem')}
         style={styles.itemAction}
         onPress={handleDuplicate}
         activeOpacity={0.7}
@@ -176,6 +183,8 @@ function EditableChecklistItem({
         <Copy size={16} color={tokens.fg3} strokeWidth={1.8} />
       </TouchableOpacity>
       <TouchableOpacity
+        accessibilityRole="button"
+        accessibilityLabel={t('habits.form.removeChecklistItem')}
         style={styles.itemAction}
         onPress={handleRemove}
         activeOpacity={0.7}
@@ -279,12 +288,12 @@ export function HabitChecklist({
             {checkedCount}/{items.length}
           </Text>
           {interactive && checkedCount > 0 && (
-            <TouchableOpacity onPress={onReset} activeOpacity={0.7}>
+            <TouchableOpacity accessibilityRole="button" onPress={onReset} activeOpacity={0.7}>
               <Text style={styles.resetText}>{t('habits.form.resetChecklist')}</Text>
             </TouchableOpacity>
           )}
           {interactive && (
-            <TouchableOpacity onPress={onClear} activeOpacity={0.7}>
+            <TouchableOpacity accessibilityRole="button" onPress={onClear} activeOpacity={0.7}>
               <Text style={styles.clearText}>{t('habits.form.clearChecklist')}</Text>
             </TouchableOpacity>
           )}
@@ -347,7 +356,7 @@ export function HabitChecklist({
 
       {editable && items.length > 0 && (
         <View style={styles.clearRow}>
-          <TouchableOpacity onPress={clearAll} activeOpacity={0.7}>
+          <TouchableOpacity accessibilityRole="button" onPress={clearAll} activeOpacity={0.7}>
             <Text style={styles.clearText}>{t('habits.form.clearChecklist')}</Text>
           </TouchableOpacity>
         </View>
@@ -358,13 +367,14 @@ export function HabitChecklist({
           <BottomSheetAppTextInput
             value={newItemText}
             placeholder={t('habits.form.checklistPlaceholder')}
-            placeholderTextColor={tokens.fg4}
+            placeholderTextColor={tokens.fg3}
             style={styles.addItemInput}
             onChangeText={setNewItemText}
             onSubmitEditing={addItem}
             returnKeyType="done"
           />
           <TouchableOpacity
+            accessibilityRole="button"
             style={[
               styles.addItemButton,
               !newItemText.trim() && styles.addItemButtonDisabled,
@@ -446,7 +456,7 @@ function createStyles(tokens: AppTokens) {
     height: 26,
     borderRadius: 8,
     borderWidth: 2,
-    borderColor: tokens.fg4,
+    borderColor: tokens.fg3,
   },
   itemTextInput: {
     flex: 1,
@@ -488,7 +498,7 @@ function createStyles(tokens: AppTokens) {
   },
   checkboxUnchecked: {
     borderWidth: 2,
-    borderColor: tokens.fg4,
+    borderColor: tokens.fg3,
   },
   itemText: {
     flex: 1,

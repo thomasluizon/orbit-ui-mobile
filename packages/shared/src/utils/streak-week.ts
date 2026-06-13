@@ -1,9 +1,9 @@
 import { format, isSameDay, parseISO, startOfDay, subDays } from 'date-fns'
 import type { StreakInfo } from '../types/gamification'
 
-export type StreakWeekDayStatus = 'active' | 'frozen' | 'missed' | 'today'
+type StreakWeekDayStatus = 'active' | 'frozen' | 'missed' | 'today'
 
-export interface StreakWeekDay {
+interface StreakWeekDay {
   date: Date
   dateStr: string
   dayNum: string

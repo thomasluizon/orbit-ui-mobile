@@ -87,6 +87,11 @@ export const calendarKeys = {
   syncSuggestions: () => [...calendarKeys.all, 'sync-suggestions'] as const,
 }
 
+export const aiKeys = {
+  all: ['ai'] as const,
+  capabilities: () => [...aiKeys.all, 'capabilities'] as const,
+}
+
 export const userFactKeys = {
   all: ['userFacts'] as const,
   lists: () => [...userFactKeys.all, 'list'] as const,

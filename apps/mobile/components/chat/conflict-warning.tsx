@@ -19,13 +19,13 @@ function severityColors(
   switch (severity) {
     case "HIGH":
       return {
-        text: tokens.statusBad,
+        text: tokens.statusBadText,
         bg: `${tokens.statusBad}1A`,
         border: `${tokens.statusBad}4D`,
       };
     case "MEDIUM":
       return {
-        text: tokens.statusOverdue,
+        text: tokens.statusOverdueText,
         bg: `${tokens.statusOverdue}1A`,
         border: `${tokens.statusOverdue}4D`,
       };

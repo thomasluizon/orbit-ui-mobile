@@ -5,6 +5,7 @@ import { Bell, X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { subscribePush } from '@/app/actions/notifications'
 import { PillButton } from '@/components/ui/pill-button'
+import { useOverlayEscape } from '@/hooks/use-overlay-escape'
 
 const STORAGE_KEY = 'orbit_push_prompted'
 
@@ -63,6 +64,8 @@ export function PushPrompt() {
     setCookie(STORAGE_KEY, '1', 60 * 60 * 24 * 365)
     setTimeout(() => setShow(false), 240)
   }, [])
+
+  useOverlayEscape({ open: show, onDismiss: dismiss, restoreFocus: false })
 
   const handleEnable = useCallback(async () => {
     setShowRetryHint(false)
@@ -171,7 +174,7 @@ export function PushPrompt() {
             style={{
               fontFamily: 'var(--font-sans)',
               fontSize: 12,
-              color: 'var(--status-overdue)',
+              color: 'var(--status-overdue-text)',
             }}
           >
             {t('pushPrompt.retryHint')}

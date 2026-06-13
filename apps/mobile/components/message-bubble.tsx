@@ -118,6 +118,7 @@ export function MessageBubble({
               accessibilityLabel={t("chat.attachmentPreview")}
               style={styles.imageAttachment}
               resizeMode="cover"
+              resizeMethod="resize"
             />
           )}
 
@@ -330,7 +331,7 @@ function createStyles(tokens: AppTokens) {
       flexDirection: "row",
       alignItems: "center",
       gap: 6,
-      minHeight: 36,
+      minHeight: 44,
       paddingHorizontal: 14,
       borderRadius: 999,
       backgroundColor: tokens.bgElev,
@@ -366,13 +367,13 @@ function createStyles(tokens: AppTokens) {
     denialTitle: {
       fontFamily: 'Rubik_500Medium',
       fontSize: 12,
-      color: tokens.statusBad,
+      color: tokens.statusBadText,
     },
     denialReason: {
       fontFamily: 'Rubik_400Regular',
       fontSize: 11,
       lineHeight: 16,
-      color: tokens.statusBad,
+      color: tokens.statusBadText,
     },
     denialUpgrade: {
       fontFamily: 'Rubik_600SemiBold',

@@ -3,6 +3,7 @@ import type { NativeSyntheticEvent, TextInputKeyPressEventData, TextInput } from
 import {
   createVerificationCodeDigits,
   fillVerificationCodeDigits,
+  isVerificationCodeComplete,
   normalizeVerificationCodeInput,
   VERIFICATION_CODE_LENGTH,
 } from '@orbit/shared/utils'
@@ -19,12 +20,13 @@ interface UseLoginCodeEntryResult {
   onCodeKeyPress: (index: number, event: NativeSyntheticEvent<TextInputKeyPressEventData>) => void
 }
 
-export function useLoginCodeEntry(): UseLoginCodeEntryResult {
+export function useLoginCodeEntry(onCompleteCode?: (code: string) => void): UseLoginCodeEntryResult {
   const [codeDigits, setCodeDigits] = useState(() => createVerificationCodeDigits())
   const [canResend, setCanResend] = useState(true)
   const [resendCountdown, setResendCountdown] = useState(0)
   const codeInputRefs = useRef<(TextInput | null)[]>([])
   const resendTimerRef = useRef<ReturnType<typeof globalThis.setInterval> | null>(null)
+  const submittedCodeRef = useRef<string | null>(null)
 
   const clearResendTimer = useCallback(() => {
     if (resendTimerRef.current === null) return
@@ -33,6 +35,17 @@ export function useLoginCodeEntry(): UseLoginCodeEntryResult {
   }, [])
 
   useEffect(() => () => clearResendTimer(), [clearResendTimer])
+
+  const joinedCode = codeDigits.join('')
+  useEffect(() => {
+    if (!isVerificationCodeComplete(codeDigits, VERIFICATION_CODE_LENGTH)) {
+      submittedCodeRef.current = null
+      return
+    }
+    if (submittedCodeRef.current === joinedCode) return
+    submittedCodeRef.current = joinedCode
+    onCompleteCode?.(joinedCode)
+  }, [codeDigits, joinedCode, onCompleteCode])
 
   const startResendCountdown = useCallback(() => {
     clearResendTimer()

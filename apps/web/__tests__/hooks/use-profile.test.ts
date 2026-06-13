@@ -9,6 +9,10 @@ import type { Profile } from '@orbit/shared/types/profile'
 const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
 
+vi.mock('next-intl', () => ({
+  useLocale: () => 'en',
+}))
+
 vi.mock('@/app/actions/profile', () => ({
   updateThemePreference: vi.fn().mockResolvedValue(undefined),
   updateColorScheme: vi.fn().mockResolvedValue(undefined),

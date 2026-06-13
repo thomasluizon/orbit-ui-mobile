@@ -4,8 +4,8 @@ import {
   Pressable,
   StyleSheet,
   View,
-  type GestureResponderHandlers,
 } from 'react-native'
+import { GestureDetector, type PanGesture } from 'react-native-gesture-handler'
 import { ChevronLeft, ChevronRight } from 'lucide-react-native'
 import { AppLogo } from '@/components/ui/app-logo'
 import { SectionHeadTabs, type SectionHeadTab } from '@/components/ui/section-head-tabs'
@@ -119,7 +119,7 @@ interface TodayDateNavigationProps {
   todayLabel: string
   nextLabel: string
   dateLabelAnim: Animated.Value
-  panHandlers?: GestureResponderHandlers
+  swipeGesture?: PanGesture
 }
 
 /** v8 inline ◂  date  ▸ navigation pinned under the section tabs. */
@@ -135,7 +135,7 @@ export function TodayDateNavigation({
   todayLabel,
   nextLabel,
   dateLabelAnim,
-  panHandlers,
+  swipeGesture,
 }: Readonly<TodayDateNavigationProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
@@ -150,13 +150,8 @@ export function TodayDateNavigation({
 
   if (!visible) return null
 
-  return (
-    <View
-      ref={dateNavRef}
-      style={styles.dateNavWrap}
-      collapsable={false}
-      {...panHandlers}
-    >
+  const dateNav = (
+    <View ref={dateNavRef} style={styles.dateNavWrap} collapsable={false}>
       <View style={styles.datePill}>
         <Pressable
           onPress={onGoToPreviousDay}
@@ -220,6 +215,10 @@ export function TodayDateNavigation({
       </View>
     </View>
   )
+
+  if (!swipeGesture) return dateNav
+
+  return <GestureDetector gesture={swipeGesture}>{dateNav}</GestureDetector>
 }
 
 const styles = StyleSheet.create({

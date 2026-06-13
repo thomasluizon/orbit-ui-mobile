@@ -13,6 +13,7 @@ import {
   translateErrorKey,
   validateHabitFormInput,
 } from '@orbit/shared/utils'
+import { MAX_HABIT_TITLE_LENGTH } from '@orbit/shared/validation'
 import type { FrequencyUnit } from '@orbit/shared/types/habit'
 import { Chip } from '@/components/ui/chip'
 import { SectionLabel } from '@/components/ui/section-label'
@@ -179,7 +180,7 @@ export function OnboardingCreateHabit({ onCreated }: Readonly<OnboardingCreateHa
         value={title}
         onChange={setTitle}
         placeholder={t('onboarding.flow.createHabit.placeholder')}
-        maxLength={200}
+        maxLength={MAX_HABIT_TITLE_LENGTH}
         disabled={isCreating}
         onKeyDown={(e) => {
           if (e.key === 'Enter') handleCreate()

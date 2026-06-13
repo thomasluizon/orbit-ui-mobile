@@ -16,7 +16,7 @@ import {
 import { clearWidgetToken, saveWidgetToken } from '@/lib/orbit-widget'
 import { apiClient } from '@/lib/api-client'
 import { clearPersistedQueryCache, queryClient } from '@/lib/query-client'
-import i18n from '@/lib/i18n'
+import { i18n } from '@/lib/i18n'
 import { setRuntimeTheme } from '@/lib/theme'
 import { useChatStore } from './chat-store'
 import { useReviewReminderStore } from './review-reminder-store'
@@ -102,6 +102,13 @@ export async function clearSessionAndResetAuth(): Promise<void> {
   useAuthStore.setState({ isAuthenticated: false, user: null, expiresAt: null })
 }
 
+/**
+ * Rotates the access token using the stored refresh token. Uses raw fetch, not
+ * apiClient: apiClient's own 401 handler calls this function, so routing it back
+ * through apiClient would invert the dependency and lose the clearOnFailure
+ * contract (apiClient throws + clears unconditionally; this returns null and
+ * honours clearOnFailure). Returns the new token, or null on failure.
+ */
 export async function refreshSessionToken(options?: {
   clearOnFailure?: boolean
 }): Promise<string | null> {
@@ -224,15 +231,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     const refreshToken = await getRefreshToken()
 
     if (refreshToken) {
-      try {
-        await fetch(`${process.env.EXPO_PUBLIC_API_BASE ?? 'https://api.useorbit.org'}${API.auth.logout}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ refreshToken }),
-        })
-      } catch {
-        // Best-effort logout; always clear local session state.
-      }
+      await apiClient(API.auth.logout, {
+        method: 'POST',
+        body: JSON.stringify({ refreshToken }),
+      }).catch(() => {})
     }
 
     await clearStoredAuthReturnUrl()

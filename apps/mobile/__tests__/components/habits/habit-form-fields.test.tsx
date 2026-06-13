@@ -450,10 +450,9 @@ describe('HabitFormFields (mobile)', () => {
     expect(hasText('habits.form.tags')).toBe(true)
   })
 
-  it('reports title presence to onTitlePresenceChange as the title is typed and cleared', async () => {
+  it('commits the title to the form as it is typed so the shared schema gates submit', async () => {
     const formHelpers = createMockFormHelpers({ title: '' })
     const tags = createMockTags()
-    const onTitlePresenceChange = vi.fn()
     let tree: any
 
     await TestRenderer.act(async () => {
@@ -466,7 +465,6 @@ describe('HabitFormFields (mobile)', () => {
           onToggleGoal={vi.fn()}
           reminderTimes={[]}
           onReminderTimesChange={vi.fn()}
-          onTitlePresenceChange={onTitlePresenceChange}
         />,
       )
     })
@@ -481,11 +479,8 @@ describe('HabitFormFields (mobile)', () => {
     await TestRenderer.act(async () => {
       titleInput.props.onChangeText('Read a book')
     })
-    expect(onTitlePresenceChange).toHaveBeenLastCalledWith(true)
-
-    await TestRenderer.act(async () => {
-      titleInput.props.onChangeText('   ')
+    expect(formHelpers.form.setValue).toHaveBeenLastCalledWith('title', 'Read a book', {
+      shouldDirty: true,
     })
-    expect(onTitlePresenceChange).toHaveBeenLastCalledWith(false)
   })
 })

@@ -20,7 +20,7 @@ function severityStyle(severity: ConflictWarningType['severity']): {
       }
     case 'MEDIUM':
       return {
-        className: 'bg-[var(--status-overdue)]/10 text-[var(--status-overdue)]',
+        className: 'bg-[var(--status-overdue)]/10 text-[var(--status-overdue-text)]',
         ring: 'color-mix(in srgb, var(--status-overdue) 30%, transparent)',
       }
     case 'LOW':

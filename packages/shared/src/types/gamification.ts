@@ -11,16 +11,6 @@ export const achievementCategorySchema = z.enum([
 
 export type AchievementCategory = z.infer<typeof achievementCategorySchema>
 
-export const achievementRaritySchema = z.enum([
-  'Common',
-  'Uncommon',
-  'Rare',
-  'Epic',
-  'Legendary',
-])
-
-export type AchievementRarity = z.infer<typeof achievementRaritySchema>
-
 export const achievementSchema = z.object({
   id: z.string(),
   name: z.string(),
@@ -35,12 +25,10 @@ export const achievementSchema = z.object({
 
 export type Achievement = z.infer<typeof achievementSchema>
 
-export const userAchievementSchema = z.object({
+const userAchievementSchema = z.object({
   achievementId: z.string(),
   earnedAtUtc: z.string(),
 })
-
-export type UserAchievement = z.infer<typeof userAchievementSchema>
 
 export const gamificationProfileSchema = z.object({
   totalXp: z.number(),

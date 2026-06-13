@@ -97,17 +97,17 @@ export function CalendarDayDetail({
               type="checkbox"
               checked={showRecurring}
               onChange={(e) => setShowRecurring(e.target.checked)}
-              className="sr-only"
+              className="peer sr-only"
             />
             <span
               aria-hidden="true"
-              className="flex items-center justify-center shrink-0 transition-[background-color,box-shadow] duration-[var(--dur-fast)]"
+              className="flex items-center justify-center shrink-0 transition-[background-color,box-shadow] duration-[var(--dur-fast)] peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-[var(--primary)]"
               style={{
                 width: 20,
                 height: 20,
                 borderRadius: 6,
                 background: showRecurring ? 'var(--primary)' : 'transparent',
-                boxShadow: showRecurring ? 'none' : 'inset 0 0 0 2px var(--fg-4)',
+                boxShadow: showRecurring ? 'none' : 'inset 0 0 0 2px var(--fg-3)',
               }}
             >
               {showRecurring && (

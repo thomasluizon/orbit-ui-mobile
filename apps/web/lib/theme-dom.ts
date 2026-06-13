@@ -61,8 +61,7 @@ export function applyThemeTokensToDOM(
 
   root.style.setProperty('color-scheme', theme)
 
-  const metaThemeColor = document.querySelector('meta[name="theme-color"]')
-  if (metaThemeColor) {
+  for (const metaThemeColor of document.querySelectorAll('meta[name="theme-color"]')) {
     metaThemeColor.setAttribute('content', canvasColor(scheme, theme))
   }
 

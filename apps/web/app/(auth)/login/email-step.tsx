@@ -64,7 +64,7 @@ export function EmailStep({
           style={{
             fontFamily: 'var(--font-sans)',
             fontSize: 13,
-            color: 'var(--fg-4)',
+            color: 'var(--fg-3)',
           }}
         >
           {t('auth.orContinueWith')}
@@ -89,7 +89,7 @@ export function EmailStep({
           fontFamily: 'var(--font-sans)',
           fontSize: 12,
           lineHeight: 1.55,
-          color: 'var(--fg-4)',
+          color: 'var(--fg-3)',
           marginTop: 12,
         }}
       >

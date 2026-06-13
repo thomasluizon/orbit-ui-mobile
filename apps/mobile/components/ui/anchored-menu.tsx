@@ -137,6 +137,8 @@ export function AnchoredMenu({
           style={styles.backdropPressTarget}
           activeOpacity={1}
           onPress={onClose}
+          importantForAccessibility="no"
+          accessibilityElementsHidden
         />
         <Animated.View
           style={[

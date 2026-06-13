@@ -12,7 +12,15 @@ import { useRouter } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
 import { enUS, ptBR } from 'date-fns/locale'
-import { Lock, Plus, Smartphone } from 'lucide-react-native'
+import {
+  CheckCircle,
+  Clock,
+  List,
+  Lock,
+  Plus,
+  RotateCcw,
+  Smartphone,
+} from 'lucide-react-native'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { buildUpgradeHref } from '@/lib/upgrade-route'
 import { formatDistanceToNow, parseISO } from 'date-fns'
@@ -21,6 +29,9 @@ import {
   buildMcpConfigJson,
   MCP_CONFIG_TABS,
   MCP_ENDPOINT_URL,
+  WIDGET_FEATURES,
+  WIDGET_STEP_KEYS,
+  type WidgetFeatureIconKey,
 } from '@orbit/shared/utils/advanced-settings'
 import type {
   AgentCapability,
@@ -28,7 +39,7 @@ import type {
   ApiKeyCreateRequest,
   ApiKeyCreateResponse,
 } from '@orbit/shared/types'
-import { apiKeyKeys } from '@orbit/shared/query'
+import { aiKeys, apiKeyKeys } from '@orbit/shared/query'
 import { useProfile } from '@/hooks/use-profile'
 import { apiClient } from '@/lib/api-client'
 import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
@@ -38,6 +49,7 @@ import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { createTokensV2, tintFromPrimary } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { AppBar } from '@/components/ui/app-bar'
+import { BottomSheetModal } from '@/components/bottom-sheet-modal'
 import { SectionLabel } from '@/components/ui/section-label'
 import { SettingsRow } from '@/components/ui/settings-row'
 import { Chip } from '@/components/ui/chip'
@@ -47,6 +59,17 @@ function rowEntrance(index: number) {
   return FadeInDown.duration(280)
     .delay(Math.min(index, 8) * 40)
     .reduceMotion(ReduceMotion.System)
+}
+
+function WidgetFeatureIcon({
+  iconKey,
+  color,
+}: Readonly<{ iconKey: WidgetFeatureIconKey; color: string }>) {
+  const iconProps = { size: 16, strokeWidth: 1.8, color }
+  if (iconKey === 'checkCircle') return <CheckCircle {...iconProps} />
+  if (iconKey === 'clock') return <Clock {...iconProps} />
+  if (iconKey === 'list') return <List {...iconProps} />
+  return <RotateCcw {...iconProps} />
 }
 
 export default function AdvancedScreen() {
@@ -73,7 +96,7 @@ export default function AdvancedScreen() {
   })
 
   const capabilitiesQuery = useQuery({
-    queryKey: ['ai-capabilities'],
+    queryKey: aiKeys.capabilities(),
     queryFn: () => apiClient<AgentCapability[]>(API.ai.capabilities),
     enabled: profile?.hasProAccess ?? false,
     staleTime: 5 * 60 * 1000,
@@ -99,6 +122,11 @@ export default function AdvancedScreen() {
   }, [capabilitiesQuery.data])
   const MAX_API_KEYS = 5
   const canCreateKey = apiKeys.length < MAX_API_KEYS
+  const canCreateScopedKey =
+    canCreateKey &&
+    !capabilitiesQuery.isLoading &&
+    !capabilitiesQuery.error &&
+    scopeOptions.length > 0
 
   const [createKeyModalOpen, setCreateKeyModalOpen] = useState(false)
   const [createKeyError, setCreateKeyError] = useState<string | null>(null)
@@ -155,7 +183,7 @@ export default function AdvancedScreen() {
   ): Promise<ApiKeyCreateResponse | null> {
     setCreateKeyError(null)
     if (!isOnline) {
-      setCreateKeyError(t('calendarSync.notConnected'))
+      setCreateKeyError(t('errors.offline'))
       return null
     }
     try {
@@ -165,10 +193,8 @@ export default function AdvancedScreen() {
       })
       await queryClient.invalidateQueries({ queryKey: apiKeyKeys.all })
       return result
-    } catch (err: unknown) {
-      setCreateKeyError(
-        err instanceof Error ? err.message : t('apiKeys.errors.create'),
-      )
+    } catch {
+      setCreateKeyError(t('orbitMcp.createKeyError'))
       return null
     }
   }
@@ -240,6 +266,14 @@ export default function AdvancedScreen() {
               </View>
             ) : null}
 
+            {capabilitiesQuery.error && !capabilitiesQuery.isLoading ? (
+              <View style={styles.messageBlock}>
+                <Text style={[styles.messageText, { color: tokens.statusBad }]}>
+                  {t('orbitMcp.apiKeysError')}
+                </Text>
+              </View>
+            ) : null}
+
             {!apiKeysQuery.isLoading &&
             !apiKeysQuery.error &&
             apiKeys.length === 0 ? (
@@ -304,7 +338,7 @@ export default function AdvancedScreen() {
                     {`${key.keyPrefix}…`}
                   </Text>
                   <Text
-                    style={[styles.keyMeta, { color: tokens.fg4 }]}
+                    style={[styles.keyMeta, { color: tokens.fg3 }]}
                     numberOfLines={2}
                   >
                     {meta}
@@ -317,14 +351,17 @@ export default function AdvancedScreen() {
               <View style={styles.actionPad}>
                 <Pressable
                   onPress={() => setCreateKeyModalOpen(true)}
+                  disabled={!canCreateScopedKey}
                   accessibilityRole="button"
                   accessibilityLabel={t('orbitMcp.createKey')}
+                  accessibilityState={{ disabled: !canCreateScopedKey }}
                   style={({ pressed }) => [
                     styles.createKeyChip,
                     {
                       backgroundColor: tokens.selectionBg,
                       borderColor: tintFromPrimary(tokens, 0.45),
                     },
+                    !canCreateScopedKey ? styles.createKeyChipDisabled : null,
                     pressed ? styles.actionChipPressed : null,
                   ]}
                   hitSlop={8}
@@ -338,7 +375,7 @@ export default function AdvancedScreen() {
             ) : (
               <View style={styles.messageBlock}>
                 <Text
-                  style={[styles.messageText, { color: tokens.statusOverdue }]}
+                  style={[styles.messageText, { color: tokens.statusOverdueText }]}
                 >
                   {t('orbitMcp.maxKeysReached')}
                 </Text>
@@ -404,7 +441,7 @@ export default function AdvancedScreen() {
               </Text>
             </View>
             <View style={styles.hintPad}>
-              <Text style={[styles.hintText, { color: tokens.fg4 }]}>
+              <Text style={[styles.hintText, { color: tokens.fg3 }]}>
                 {activeConfigTab === 'web'
                   ? t('orbitMcp.webNoApiKey')
                   : t('orbitMcp.replaceKey')}
@@ -449,13 +486,49 @@ export default function AdvancedScreen() {
         <View style={{ height: 24 }} />
       </ScrollView>
 
-      <ConfirmDialog
+      <BottomSheetModal
         open={showWidgetInfo}
-        onOpenChange={setShowWidgetInfo}
+        onClose={() => setShowWidgetInfo(false)}
         title={t('profile.widgetTitle')}
-        description={`1. ${t('profile.widgetHow.step1')}\n\n2. ${t('profile.widgetHow.step2')}\n\n3. ${t('profile.widgetHow.step3')}`}
-        variant="info"
-      />
+        contentKey="widget-info"
+        snapPoints={['70%']}
+      >
+        <ScrollView
+          style={styles.widgetSheetScroll}
+          contentContainerStyle={styles.widgetSheetContent}
+          showsVerticalScrollIndicator={false}
+        >
+          <Text style={[styles.widgetHeading, { color: tokens.fg1 }]}>
+            {t('profile.widgetHow.title')}
+          </Text>
+          <View style={styles.widgetList}>
+            {WIDGET_STEP_KEYS.map((stepKey, index) => (
+              <View key={stepKey} style={styles.widgetStepRow}>
+                <Text style={[styles.widgetStepNumber, { color: tokens.primary }]}>
+                  {`${index + 1}.`}
+                </Text>
+                <Text style={[styles.widgetItemText, { color: tokens.fg2 }]}>
+                  {t(stepKey)}
+                </Text>
+              </View>
+            ))}
+          </View>
+
+          <Text style={[styles.widgetHeading, { color: tokens.fg1 }]}>
+            {t('profile.widgetHow.featuresTitle')}
+          </Text>
+          <View style={styles.widgetList}>
+            {WIDGET_FEATURES.map((feature) => (
+              <View key={feature.textKey} style={styles.widgetFeatureRow}>
+                <WidgetFeatureIcon iconKey={feature.iconKey} color={tokens.primary} />
+                <Text style={[styles.widgetItemText, { color: tokens.fg2 }]}>
+                  {t(feature.textKey)}
+                </Text>
+              </View>
+            ))}
+          </View>
+        </ScrollView>
+      </BottomSheetModal>
 
       <ConfirmDialog
         open={revokingKeyId !== null}
@@ -552,6 +625,9 @@ const styles = StyleSheet.create({
     paddingVertical: 9,
     paddingHorizontal: 16,
   },
+  createKeyChipDisabled: {
+    opacity: 0.4,
+  },
   actionChip: {
     borderRadius: 999,
     borderWidth: 1,
@@ -628,5 +704,40 @@ const styles = StyleSheet.create({
     fontFamily: 'Rubik_400Regular',
     fontSize: 13,
     lineHeight: 19,
+  },
+  widgetSheetScroll: {
+    flexGrow: 0,
+  },
+  widgetSheetContent: {
+    paddingHorizontal: 22,
+    paddingBottom: 24,
+    gap: 16,
+  },
+  widgetHeading: {
+    fontFamily: 'Rubik_500Medium',
+    fontSize: 15,
+  },
+  widgetList: {
+    gap: 10,
+  },
+  widgetStepRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  widgetStepNumber: {
+    fontFamily: 'Roboto_500Medium',
+    fontSize: 14,
+    fontVariant: ['tabular-nums'],
+  },
+  widgetFeatureRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 8,
+  },
+  widgetItemText: {
+    flex: 1,
+    fontFamily: 'Rubik_400Regular',
+    fontSize: 14,
+    lineHeight: 21,
   },
 })

@@ -29,7 +29,7 @@ import {
   X as XIcon,
 } from 'lucide-react-native'
 import { API } from '@orbit/shared/api'
-import { formatLocaleDate, getErrorMessage, playManageSubscriptionUrl } from '@orbit/shared/utils'
+import { applySubscriptionDiscount, formatLocaleDate, getErrorMessage, playManageSubscriptionUrl } from '@orbit/shared/utils'
 import {
   TRIAL_EXPIRED_FEATURE_KEYS,
   UPGRADE_FEATURE_CATEGORIES,
@@ -115,7 +115,8 @@ function monthlyEquivalentPriceLabel(plans: SubscriptionPlans, yearlyOffer: Play
       yearlyOffer.currency ?? plans.currency,
     )
   }
-  return formatPrice(monthlyEquivalent(plans.yearly.unitAmount), plans.currency)
+  const discountedYearly = applySubscriptionDiscount(plans.yearly.unitAmount, plans.couponPercentOff)
+  return formatPrice(monthlyEquivalent(discountedYearly), plans.currency)
 }
 
 function UsageCard({
@@ -143,7 +144,7 @@ function UsageCard({
         <Text
           style={[
             styles.usageValue,
-            { color: usageUrgent ? tokens.statusOverdue : tokens.fg2 },
+            { color: usageUrgent ? tokens.statusOverdueText : tokens.fg2 },
           ]}
         >
           {t('upgrade.billing.usage.aiMessagesOf', {
@@ -178,8 +179,13 @@ function PlanSelection({
   onSelectInterval: (interval: SubscriptionInterval) => void
   t: UpgradeTextFn
 }>) {
-  const yearlyCharge = yearlyPrice ?? formatPrice(plans.yearly.unitAmount, plans.currency)
-  const monthlyCharge = monthlyPrice ?? formatPrice(plans.monthly.unitAmount, plans.currency)
+  const yearlyCharge = yearlyPrice
+    ?? formatPrice(applySubscriptionDiscount(plans.yearly.unitAmount, plans.couponPercentOff), plans.currency)
+  const monthlyCharge = monthlyPrice
+    ?? formatPrice(applySubscriptionDiscount(plans.monthly.unitAmount, plans.couponPercentOff), plans.currency)
+  const discountSuffix = !yearlyPrice && plans.couponPercentOff
+    ? ` · ${t('upgrade.plans.coupon.discountBadge', { percent: plans.couponPercentOff })}`
+    : ''
 
   return (
     <View accessibilityRole="radiogroup" style={styles.planGroup}>
@@ -189,7 +195,7 @@ function PlanSelection({
         price={t('upgrade.plans.equivalent', {
           price: monthlyEquivalentPriceLabel(plans, yearlyOffer),
         })}
-        sub={`${yearlyCharge}${t('upgrade.plans.yearly.period')}`}
+        sub={`${yearlyCharge}${t('upgrade.plans.yearly.period')}${discountSuffix}`}
         features={[
           t('upgrade.plans.yearly.includesMonthly'),
           ...UPGRADE_YEARLY_EXTRA_FEATURES.map((feature) =>
@@ -406,7 +412,7 @@ export default function UpgradeScreen() {
 
   async function handlePortal() {
     if (!isOnline) {
-      setPortalError(t('calendarSync.notConnected'))
+      setPortalError(t('offline.title'))
       return
     }
 
@@ -470,7 +476,7 @@ export default function UpgradeScreen() {
           >
             {t('upgrade.billing.actions.managePlay')}
           </PillButton>
-          <Text style={[styles.centerMuted, { color: tokens.fg4 }]}>
+          <Text style={[styles.centerMuted, { color: tokens.fg3 }]}>
             {t('upgrade.billing.actions.managePlayHint')}
           </Text>
           {portalError ? (
@@ -588,8 +594,8 @@ export default function UpgradeScreen() {
         return (
           <View style={styles.padBlock}>
             <OfflineUnavailableState
-              title={t('calendarSync.notConnected')}
-              description={`${t('upgrade.billing.actions.manage')} / ${t('upgrade.billing.payment.change')}`}
+              title={t('offline.title')}
+              description={t('offline.description')}
               compact
             />
           </View>
@@ -602,6 +608,7 @@ export default function UpgradeScreen() {
             {t('upgrade.billing.error')}
           </Text>
           <Pressable
+            accessibilityRole="button"
             onPress={() => {
               refetchBilling().catch(() => {})
             }}
@@ -702,7 +709,7 @@ export default function UpgradeScreen() {
           >
             {t('upgrade.billing.actions.manage')}
           </PillButton>
-          <Text style={[styles.centerMuted, { color: tokens.fg4 }]}>
+          <Text style={[styles.centerMuted, { color: tokens.fg3 }]}>
             {t('upgrade.billing.actions.manageHint')}
           </Text>
           {portalError ? (
@@ -776,6 +783,7 @@ export default function UpgradeScreen() {
               {t('upgrade.plans.error')}
             </Text>
             <Pressable
+              accessibilityRole="button"
               onPress={() => {
                 refetchPlans().catch(() => {})
               }}
@@ -867,7 +875,7 @@ export default function UpgradeScreen() {
                   </Text>
                 )}
               </Pressable>
-              <Text style={[styles.renewalNote, { color: tokens.fg4 }]}>
+              <Text style={[styles.renewalNote, { color: tokens.fg3 }]}>
                 {t('upgrade.plans.renewalNote')}
               </Text>
             </View>
@@ -900,8 +908,8 @@ export default function UpgradeScreen() {
         {!isOnline ? (
           <View style={styles.padBlock}>
             <OfflineUnavailableState
-              title={t('calendarSync.notConnected')}
-              description={`${t('upgrade.billing.actions.manage')} / ${t('upgrade.plans.monthly.cta')} / ${t('upgrade.plans.yearly.cta')}`}
+              title={t('offline.title')}
+              description={t('offline.description')}
               compact
             />
           </View>

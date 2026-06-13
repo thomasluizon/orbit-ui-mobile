@@ -75,7 +75,6 @@ describe('hasHabitScheduleOnDate', () => {
   })
 
   it('handles empty arrays for scheduledDates and instances', () => {
-    // Empty arrays should fall through to dueDate check
     expect(
       hasHabitScheduleOnDate(
         { scheduledDates: [], instances: [], dueDate: '2025-01-15' },
@@ -109,14 +108,13 @@ describe('computeHabitReorderPositions', () => {
 
     const positions = computeHabitReorderPositions(
       items,
-      0, // move 'a' from index 0
-      2, // to index 2
+      0,
+      2,
       habitsById,
       () => [],
     )
 
     expect(positions.length).toBeGreaterThan(0)
-    // 'a' should have a higher position now
     const aPos = positions.find((p) => p.habitId === 'a')
     expect(aPos).toBeDefined()
   })
@@ -127,8 +125,8 @@ describe('computeHabitReorderPositions', () => {
 
     const positions = computeHabitReorderPositions(
       items,
-      2, // move 'c' from last
-      0, // to first
+      2,
+      0,
       habitsById,
       () => [],
     )

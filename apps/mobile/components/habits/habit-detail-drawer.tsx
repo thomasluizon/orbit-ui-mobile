@@ -37,6 +37,258 @@ interface HabitDetailDrawerProps {
   onLogged?: (habitId: string) => void
 }
 
+type HabitDetailStyles = ReturnType<typeof createStyles>
+type HabitDetailTokens = ReturnType<typeof createTokensV2>
+
+interface HabitAskAstraButtonProps {
+  tokens: HabitDetailTokens
+  styles: HabitDetailStyles
+  askPrompt: string
+  onPress: () => void
+}
+
+function HabitAskAstraButton({
+  tokens,
+  styles,
+  askPrompt,
+  onPress,
+}: Readonly<HabitAskAstraButtonProps>) {
+  const { t } = useTranslation()
+  return (
+    <TouchableOpacity
+      activeOpacity={0.7}
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`${t('habits.detail.askAstraEyebrow')}: ${askPrompt}`}
+      style={styles.askAstra}
+    >
+      <View
+        style={[
+          styles.askAstraRule,
+          { backgroundColor: tokens.primary },
+        ]}
+      />
+      <View style={styles.askAstraContent}>
+        <View style={styles.askAstraEyebrow}>
+          <Orbit size={12} color={tokens.primary} strokeWidth={1.7} />
+          <Text
+            style={[
+              styles.askAstraEyebrowText,
+              { color: tokens.fg3 },
+            ]}
+          >
+            {t('habits.detail.askAstraEyebrow')}
+          </Text>
+        </View>
+        <Text style={[styles.askAstraBody, { color: tokens.fg2 }]}>
+          {askPrompt}
+        </Text>
+      </View>
+      <ChevronRight size={16} color={tokens.fg3} strokeWidth={1.7} />
+    </TouchableOpacity>
+  )
+}
+type ChecklistItems = NonNullable<NormalizedHabit['checklistItems']>
+type HabitMetrics = NonNullable<
+  ReturnType<typeof useHabitFullDetail>['data']
+>['metrics']
+type HabitLogs = NonNullable<
+  ReturnType<typeof useHabitFullDetail>['data']
+>['logs']
+
+interface HabitDetailContentProps {
+  habit: NormalizedHabit
+  tokens: HabitDetailTokens
+  styles: HabitDetailStyles
+  metrics: HabitMetrics | null
+  metricsLoading: boolean
+  logs: HabitLogs | null
+  liveChecklist: ChecklistItems
+  summaryStrip: string
+  askPrompt: string
+  locale: string
+  displayTime: (time: string) => string
+  onOpenDescription: () => void
+  onChecklistToggle: (index: number) => void
+  onChecklistReset: () => void
+  onChecklistClear: () => void
+  onAskAstra: () => void
+}
+
+function HabitDetailContent({
+  habit,
+  tokens,
+  styles,
+  metrics,
+  metricsLoading,
+  logs,
+  liveChecklist,
+  summaryStrip,
+  askPrompt,
+  locale,
+  displayTime,
+  onOpenDescription,
+  onChecklistToggle,
+  onChecklistReset,
+  onChecklistClear,
+  onAskAstra,
+}: Readonly<HabitDetailContentProps>) {
+  const { t } = useTranslation()
+  return (
+    <ScrollView
+      style={styles.scroll}
+      contentContainerStyle={withDrawerContentInset(styles.scrollContent)}
+      showsVerticalScrollIndicator={false}
+      keyboardShouldPersistTaps="always"
+    >
+      {habit.emoji || summaryStrip ? (
+        <View style={styles.titleBlock}>
+          {habit.emoji ? (
+            <View
+              style={[
+                styles.emojiWell,
+                habit.isBadHabit
+                  ? { backgroundColor: `${tokens.statusBad}1F` }
+                  : null,
+              ]}
+            >
+              <Text style={styles.emojiWellText}>{habit.emoji}</Text>
+            </View>
+          ) : null}
+          {summaryStrip ? (
+            <Text
+              style={[
+                styles.titleMeta,
+                { color: habit.isBadHabit ? tokens.statusBad : tokens.fg3 },
+              ]}
+              numberOfLines={2}
+            >
+              {summaryStrip}
+            </Text>
+          ) : null}
+        </View>
+      ) : null}
+
+      {habit.description ? (
+        <TouchableOpacity
+          onPress={onOpenDescription}
+          activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel={t('habits.detail.viewDescription')}
+        >
+          <Text style={styles.description} numberOfLines={2}>
+            {habit.description}
+          </Text>
+        </TouchableOpacity>
+      ) : null}
+
+      {liveChecklist.length > 0 ? (
+        <View>
+          <SectionLabel top={4} bottom={8}>
+            {t('habits.form.checklist')}
+          </SectionLabel>
+          <View style={styles.sectionInset}>
+            <HabitChecklist
+              items={liveChecklist}
+              interactive
+              onToggle={onChecklistToggle}
+              onReset={onChecklistReset}
+              onClear={onChecklistClear}
+            />
+          </View>
+        </View>
+      ) : null}
+
+      {habit.frequencyUnit || habit.isGeneral ? (
+        <View>
+          <SectionLabel top={4} bottom={8}>
+            {t('habits.detail.stats')}
+          </SectionLabel>
+          <HabitDetailStatsRow
+            metrics={metrics}
+            loading={metricsLoading}
+            isBadHabit={habit.isBadHabit}
+            t={t}
+            tokens={tokens}
+          />
+        </View>
+      ) : null}
+
+      {habit.dueTime ? (
+        <View>
+          <SectionLabel top={8} bottom={0}>
+            {t('habits.detail.reminders')}
+          </SectionLabel>
+          <SettingsRow
+            label={t('habits.form.dueTime')}
+            value={displayTime(habit.dueTime)}
+            mono
+            accessory="none"
+          />
+          {habit.scheduledReminders?.map((sr, idx) => (
+            <SettingsRow
+              key={`${sr.when}-${sr.time}-${idx}`}
+              label={
+                sr.when === 'day_before'
+                  ? t('habits.form.scheduledReminderDayBefore')
+                  : t('habits.form.scheduledReminderSameDay')
+              }
+              value={displayTime(sr.time)}
+              mono
+              accessory="none"
+            />
+          ))}
+        </View>
+      ) : null}
+
+      {habit.endDate ? (
+        <SettingsRow
+          label={t('habits.detail.endsOn')}
+          value={formatLocaleDate(habit.endDate, locale, {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric',
+          })}
+          mono
+          accessory="none"
+        />
+      ) : null}
+
+      {habit.linkedGoals && habit.linkedGoals.length > 0 ? (
+        <View>
+          <SectionLabel top={8} bottom={0}>
+            {t('habits.detail.linkedGoal')}
+          </SectionLabel>
+          {habit.linkedGoals.map((g) => (
+            <SettingsRow
+              key={g.id}
+              label={g.title}
+              accessory="chevron"
+            />
+          ))}
+        </View>
+      ) : null}
+
+
+      <View>
+        <SectionLabel top={8} bottom={8}>
+          {t('habits.detail.activity')}
+        </SectionLabel>
+        <View style={styles.sectionInset}>
+          <HabitCalendar habitId={habit.id} logs={logs} />
+        </View>
+      </View>
+
+      <HabitAskAstraButton
+        tokens={tokens}
+        styles={styles}
+        askPrompt={askPrompt}
+        onPress={onAskAstra}
+      />
+    </ScrollView>
+  )
+}
+
 /**
  * Habit Detail Drawer. Covers all variants by data-driven section presence:
  * active, skipped (checklist hidden when empty), checklist, bad, slip alert
@@ -174,190 +426,24 @@ export function HabitDetailDrawer({
         snapPoints={['68%', '92%']}
       >
         {habit ? (
-          <ScrollView
-            style={styles.scroll}
-            contentContainerStyle={withDrawerContentInset(styles.scrollContent)}
-            showsVerticalScrollIndicator={false}
-            keyboardShouldPersistTaps="always"
-          >
-            {habit.emoji || summaryStrip ? (
-              <View style={styles.titleBlock}>
-                {habit.emoji ? (
-                  <View
-                    style={[
-                      styles.emojiWell,
-                      habit.isBadHabit
-                        ? { backgroundColor: `${tokens.statusBad}1F` }
-                        : null,
-                    ]}
-                  >
-                    <Text style={styles.emojiWellText}>{habit.emoji}</Text>
-                  </View>
-                ) : null}
-                {summaryStrip ? (
-                  <Text
-                    style={[
-                      styles.titleMeta,
-                      { color: habit.isBadHabit ? tokens.statusBad : tokens.fg3 },
-                    ]}
-                    numberOfLines={2}
-                  >
-                    {summaryStrip}
-                  </Text>
-                ) : null}
-              </View>
-            ) : null}
-
-            {habit.description ? (
-              <TouchableOpacity
-                onPress={() => setDescriptionViewerOpen(true)}
-                activeOpacity={0.7}
-                accessibilityRole="button"
-                accessibilityLabel={t('habits.detail.viewDescription')}
-              >
-                <Text style={styles.description} numberOfLines={2}>
-                  {habit.description}
-                </Text>
-              </TouchableOpacity>
-            ) : null}
-
-            {liveChecklist.length > 0 ? (
-              <View>
-                <SectionLabel top={4} bottom={8}>
-                  {t('habits.form.checklist')}
-                </SectionLabel>
-                <View style={styles.sectionInset}>
-                  <HabitChecklist
-                    items={liveChecklist}
-                    interactive
-                    onToggle={handleChecklistToggle}
-                    onReset={handleChecklistReset}
-                    onClear={handleChecklistClear}
-                  />
-                </View>
-              </View>
-            ) : null}
-
-            {habit.frequencyUnit || habit.isGeneral ? (
-              <View>
-                <SectionLabel top={4} bottom={8}>
-                  {t('habits.detail.stats')}
-                </SectionLabel>
-                <HabitDetailStatsRow
-                  metrics={metrics}
-                  loading={metricsLoading}
-                  isBadHabit={habit.isBadHabit}
-                  t={t}
-                  tokens={tokens}
-                />
-              </View>
-            ) : null}
-
-            {habit.dueTime ? (
-              <View>
-                <SectionLabel top={8} bottom={0}>
-                  {t('habits.detail.reminders')}
-                </SectionLabel>
-                <SettingsRow
-                  label={t('habits.form.dueTime')}
-                  value={displayTime(habit.dueTime)}
-                  mono
-                  accessory="none"
-                />
-                {habit.scheduledReminders?.map((sr, idx) => (
-                  <SettingsRow
-                    key={`${sr.when}-${sr.time}-${idx}`}
-                    label={
-                      sr.when === 'day_before'
-                        ? t('habits.form.scheduledReminderDayBefore')
-                        : t('habits.form.scheduledReminderSameDay')
-                    }
-                    value={displayTime(sr.time)}
-                    mono
-                    accessory="none"
-                  />
-                ))}
-              </View>
-            ) : null}
-
-            {habit.endDate ? (
-              <SettingsRow
-                label={t('habits.detail.endsOn')}
-                value={formatLocaleDate(habit.endDate, locale, {
-                  month: 'short',
-                  day: 'numeric',
-                  year: 'numeric',
-                })}
-                mono
-                accessory="none"
-              />
-            ) : null}
-
-            {habit.linkedGoals && habit.linkedGoals.length > 0 ? (
-              <View>
-                <SectionLabel top={8} bottom={0}>
-                  {t('habits.detail.linkedGoal')}
-                </SectionLabel>
-                {habit.linkedGoals.map((g) => (
-                  <SettingsRow
-                    key={g.id}
-                    label={g.title}
-                    accessory="chevron"
-                  />
-                ))}
-              </View>
-            ) : null}
-
-
-            <View>
-              <SectionLabel top={8} bottom={8}>
-                {t('habits.detail.activity')}
-              </SectionLabel>
-              <View style={styles.sectionInset}>
-                <HabitCalendar habitId={habit.id} logs={logs} />
-              </View>
-            </View>
-
-            <TouchableOpacity
-              activeOpacity={0.7}
-              onPress={handleAskAstra}
-              accessibilityRole="button"
-              accessibilityLabel={`${t('habits.detail.askAstraEyebrow')}: ${askPrompt}`}
-              style={styles.askAstra}
-            >
-              <View
-                style={[
-                  styles.askAstraRule,
-                  { backgroundColor: tokens.primary },
-                ]}
-              />
-              <View style={styles.askAstraContent}>
-                <View style={styles.askAstraEyebrow}>
-                  <Orbit
-                    size={12}
-                    color={tokens.primary}
-                    strokeWidth={1.7}
-                  />
-                  <Text
-                    style={[
-                      styles.askAstraEyebrowText,
-                      { color: tokens.fg3 },
-                    ]}
-                  >
-                    {t('habits.detail.askAstraEyebrow')}
-                  </Text>
-                </View>
-                <Text style={[styles.askAstraBody, { color: tokens.fg2 }]}>
-                  {askPrompt}
-                </Text>
-              </View>
-              <ChevronRight
-                size={16}
-                color={tokens.fg3}
-                strokeWidth={1.7}
-              />
-            </TouchableOpacity>
-          </ScrollView>
+          <HabitDetailContent
+            habit={habit}
+            tokens={tokens}
+            styles={styles}
+            metrics={metrics}
+            metricsLoading={metricsLoading}
+            logs={logs}
+            liveChecklist={liveChecklist}
+            summaryStrip={summaryStrip}
+            askPrompt={askPrompt}
+            locale={locale}
+            displayTime={displayTime}
+            onOpenDescription={() => setDescriptionViewerOpen(true)}
+            onChecklistToggle={handleChecklistToggle}
+            onChecklistReset={handleChecklistReset}
+            onChecklistClear={handleChecklistClear}
+            onAskAstra={handleAskAstra}
+          />
         ) : null}
       </BottomSheetModal>
     </>

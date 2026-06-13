@@ -54,7 +54,8 @@
     "title": "Atualização disponível",
     "description": "Uma nova versão do Orbit está disponível com melhorias e correções",
     "update": "Atualizar",
-    "later": "Agora não"
+    "later": "Agora não",
+    "version": "v{previous} → v{next}"
   },
   "notifications": {
     "title": "Notificações",
@@ -69,12 +70,14 @@
     "deleteNotification": "Excluir notificação",
     "deleteUndo": "Desfazer exclusão",
     "deleteQueued": "A notificação será excluída",
-    "deleteQueuedMultiple": "{count} notificações serão excluídas",
     "view": "Ver",
     "now": "Agora",
     "minutesAgo": "{n} min atrás",
     "hoursAgo": "{n}h atrás",
-    "daysAgo": "{n}d atrás"
+    "daysAgo": "{n}d atrás",
+    "channel": {
+      "default": "Padrão"
+    }
   },
   "welcome": {
     "backMessage": "Sua sequência de {streak} dias continua viva.",
@@ -107,7 +110,6 @@
     "edit": "Editar",
     "create": "Criar",
     "search": "Buscar...",
-    "noResults": "Nenhum resultado encontrado",
     "error": "Ocorreu um erro",
     "retry": "Tentar Novamente",
     "selected": "{n} selecionado | {n} selecionados",
@@ -127,7 +129,6 @@
     "codePlaceholder": "123456",
     "upgrade": "Fazer upgrade",
     "proBadge": "Pro",
-    "yearlyBadge": "Anual",
     "required": "é obrigatório",
     "selectDate": "Selecionar data",
     "selectedDate": "Data selecionada: {date}",
@@ -142,8 +143,7 @@
     "syncing": "Sincronizando",
     "synced": "Sincronizado",
     "collapse": "Recolher",
-    "expand": "Expandir",
-    "moreActions": "Mais ações"
+    "expand": "Expandir"
   },
   "nav": {
     "habits": "Hábitos",
@@ -190,6 +190,7 @@
     "resendCode": "Reenviar código",
     "resendIn": "Reenviar em {seconds}s",
     "changeEmail": "Alterar e-mail",
+    "minutesShort": "{minutes} min restantes",
     "genericError": "Ocorreu um erro. Tente novamente.",
     "orContinueWith": "ou continue com",
     "signInWithGoogle": "Entrar com Google",
@@ -448,21 +449,22 @@
       "checklistPlaceholder": "Adicionar um item...",
       "templates": "Modelos",
       "saveAsTemplate": "Salvar como modelo",
-      "templateName": "Nome do modelo",
       "templateNamePlaceholder": "ex. Compras semanais",
-      "deleteTemplate": "Excluir",
       "saveTemplateError": "Não foi possível salvar o modelo. Tente novamente.",
       "deleteTemplateError": "Não foi possível excluir o modelo. Tente novamente.",
       "resetChecklist": "Resetar",
       "clearChecklist": "Limpar tudo",
       "duplicateChecklistItem": "Duplicar item",
       "removeChecklistItem": "Remover item",
+      "moveChecklistItemUp": "Mover item para cima",
+      "moveChecklistItemDown": "Mover item para baixo",
       "checklistItemLabel": "Item {n}",
       "checklistItemLimit": "Você pode adicionar até 50 itens no checklist",
       "checklistItemTooLong": "Os itens do checklist devem ter no máximo 500 caracteres",
       "removeEndDate": "Remover data de fim",
       "removeReminder": "Remover lembrete",
       "removeScheduledReminder": "Remover lembrete agendado",
+      "removeSubHabit": "Remover sub-hábito",
       "editTag": "Editar etiqueta",
       "deleteTag": "Excluir etiqueta",
       "selectColor": "Selecionar cor {color}",
@@ -491,7 +493,6 @@
       "longestStreak": "Maior",
       "monthlyRate": "Mensal",
       "activity": "Atividade",
-      "streakDays": "{n}d",
       "stats": "Estatísticas",
       "noDataYet": "Nenhum dado ainda",
       "daysFree": "Dias livre",
@@ -518,7 +519,9 @@
       "createdSuccess": "nenhum hábito criado | {n} hábito criado com sucesso | {n} hábitos criados com sucesso",
       "createAsParent": "Agrupar como hábito pai",
       "createAsParentSuccess": "'{name}' criado com {n} sub-hábito | '{name}' criado com {n} sub-hábitos",
-      "every": "a cada"
+      "every": "a cada",
+      "frequencyQuantityLabel": "Intervalo de frequência",
+      "removeHabit": "Remover {name}"
     },
     "clarification": {
       "questionFallback": "Qual deve ser a frequência?",
@@ -624,6 +627,10 @@
   },
   "chat": {
     "title": "Astra",
+    "offline": {
+      "title": "Você está offline",
+      "description": "A Astra precisa de conexão com a internet. Reconecte para continuar conversando."
+    },
     "pendingOp": {
       "risk": {
         "high": "Risco alto",
@@ -751,15 +758,15 @@
     "facts": {
       "title": "O que a Astra sabe",
       "empty": "A Astra ainda não aprendeu nada. Converse no Chat para ensinar.",
-      "add": "Adicionar Fato",
+      "factsError": "Não foi possível carregar o que a Astra sabe.",
+      "retry": "Tentar novamente",
       "save": "Salvar",
       "cancel": "Cancelar",
       "delete": "Excluir",
-      "factPlaceholder": "Digite um fato sobre você...",
-      "category": "Categoria",
       "preference": "Preferência",
       "routine": "Rotina",
       "context": "Contexto",
+      "default": "Padrão",
       "none": "Nenhuma",
       "select": "Selecionar",
       "selectAll": "Selecionar tudo",
@@ -767,9 +774,7 @@
       "selectedCount": "{n} selecionado(s)",
       "deleteSelected": "Excluir ({n})",
       "deleteSelectedShort": "Excluir selecionados",
-      "confirmBulkDelete": "Excluir {n} fatos?",
       "count": "{n} / {max}",
-      "limitReached": "Limite de fatos atingido. Exclua alguns para adicionar novos.",
       "lockedHint": "Faça upgrade para Pro para a Astra lembrar dos fatos que você compartilha no chat."
     },
     "support": {
@@ -864,7 +869,9 @@
       "deleting": "Processando...",
       "deactivated": "Sua conta será desativada. Ela será permanentemente excluída em {date}.",
       "reactivated": "Bem-vindo de volta! A exclusão da sua conta foi cancelada.",
-      "errorGeneric": "Algo deu errado. Tente novamente."
+      "errorGeneric": "Algo deu errado. Tente novamente.",
+      "offlineTitle": "Você está offline",
+      "offlineDescription": "Conecte-se à internet para desativar sua conta."
     }
   },
   "referral": {
@@ -993,7 +1000,6 @@
       "paused": "Pausado",
       "subtitleQuiet": "Estes recursos Pro pausarão a não ser que você assine.",
       "title": "Seu Teste Pro Acabou",
-      "subtitle": "Você teve {days} dia de acesso Pro completo. Não perca o que construiu. | Você teve {days} dias de acesso Pro completo. Não perca o que construiu.",
       "dontLose": "Não perca acesso a:",
       "unlimitedHabits": "Hábitos ilimitados",
       "aiChat": "500 mensagens de IA por mês",
@@ -1012,7 +1018,6 @@
   },
   "metrics": {
     "currentStreak": "Sequência Atual",
-    "longestStreak": "Maior Sequência",
     "monthly": "Mensal"
   },
   "summary": {
@@ -1303,7 +1308,6 @@
     "free": "Grátis",
     "subscribe": "Assinar Pro",
     "plan": "Plano",
-    "currentPlan": "Plano atual",
     "restorePurchase": "Restaurar compra",
     "categories": {
       "habits": "Hábitos",
@@ -1398,16 +1402,6 @@
       }
     },
     "plans": {
-      "free": {
-        "name": "Grátis",
-        "cta": "Plano Atual",
-        "features": {
-          "habits": "Até 10 hábitos",
-          "ai": "20 mensagens IA/mês",
-          "theme": "1 tema de cor",
-          "ads": "Com anúncios"
-        }
-      },
       "monthly": {
         "name": "Pro Mensal",
         "period": "/mês",
@@ -1417,7 +1411,6 @@
         "name": "Pro Anual",
         "period": "/ano",
         "cta": "Assinar Anual",
-        "recommended": "Melhor Valor",
         "includesMonthly": "Tudo do Pro Mensal, mais:"
       },
       "proFeatures": {
@@ -1430,8 +1423,7 @@
         "achievements": "Conquistas e XP",
         "themes": "Todos os 6 temas",
         "adFree": "Sem anúncios",
-        "retrospective": "Retrospectiva IA",
-        "allFeatures": "Todos os recursos Pro"
+        "retrospective": "Retrospectiva IA"
       },
       "savePercent": "Economize {percent}%",
       "coupon": {
@@ -1510,7 +1502,12 @@
     "createSubHabit": "Falha ao criar sub-hábito",
     "loadProfile": "Falha ao carregar perfil",
     "loadReferral": "Falha ao carregar dados de indicação",
-    "fetchSubHabits": "Falha ao buscar sub-hábitos"
+    "fetchSubHabits": "Falha ao buscar sub-hábitos",
+    "offline": "Reconecte-se à internet e tente novamente."
+  },
+  "offline": {
+    "title": "Você está offline",
+    "description": "Verifique sua conexão e tente novamente."
   },
   "speech": {
     "micDenied": "Acesso ao microfone negado.",
@@ -1526,6 +1523,7 @@
     "empty": "Nenhuma meta ainda",
     "emptyHint": "Crie sua primeira meta para começar a acompanhar o progresso",
     "create": "Nova Meta",
+    "dragItem": "item arrastável",
     "form": {
       "description": "Descrição",
       "descriptionPlaceholder": "ex: Ler 12 livros este ano",
@@ -1557,8 +1555,7 @@
       "target": "Meta"
     },
     "streak": {
-      "ofTarget": "Dia {current} de {target}",
-      "daysRemaining": "{count} dias restantes"
+      "ofTarget": "Dia {current} de {target}"
     },
     "progress": "Progresso",
     "progressOf": "{current} de {target} {unit}",
@@ -1852,7 +1849,6 @@
     "revokeConfirm": "Tem certeza? Todas as ferramentas usando esta chave perderão o acesso.",
     "cancel": "Cancelar",
     "confirm": "Confirmar",
-    "keyCreated": "Chave de API Criada",
     "keyCreatedWarning": "Copie esta chave agora. Ela não será exibida novamente.",
     "copied": "Copiado!",
     "done": "Concluído",
@@ -1879,7 +1875,8 @@
     "permReadWrite": "Leitura e escrita",
     "expiresOn": "Expira {date}",
     "readOnlyKeyLabel": "Chave somente leitura",
-    "expiresAtLabel": "Expira em (UTC, opcional)"
+    "expiresAtLabel": "Expira em (UTC, opcional)",
+    "invalidExpiry": "Insira uma data de expiração futura válida."
   },
   "preferences": {
     "title": "Preferências",

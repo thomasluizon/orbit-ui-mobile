@@ -90,6 +90,9 @@ export function ReminderSection({
                   style={
                     reminderTimes.length <= 1 ? { opacity: 0.3 } : undefined
                   }
+                  hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
+                  accessibilityRole="button"
+                  accessibilityLabel={t("habits.form.removeReminder")}
                   onPress={() => removeReminder(time)}
                   activeOpacity={0.7}
                 >
@@ -101,6 +104,7 @@ export function ReminderSection({
 
           <TouchableOpacity
             style={sectionStyles.addButton}
+            accessibilityRole="button"
             onPress={() => {
               setShowAddReminder(!showAddReminder);
               setShowCustomInput(false);
@@ -119,6 +123,7 @@ export function ReminderSection({
                 <TouchableOpacity
                   key={preset.value}
                   style={sectionStyles.dropdownItem}
+                  accessibilityRole="button"
                   onPress={() => addPreset(preset.value)}
                   activeOpacity={0.7}
                 >
@@ -145,6 +150,7 @@ export function ReminderSection({
                           sectionStyles.unitButton,
                           customUnit === unit && sectionStyles.unitButtonActive,
                         ]}
+                        accessibilityRole="button"
                         onPress={() => setCustomUnit(unit)}
                         activeOpacity={0.7}
                       >
@@ -164,6 +170,8 @@ export function ReminderSection({
                   </View>
                   <TouchableOpacity
                     style={sectionStyles.customAddButton}
+                    accessibilityRole="button"
+                    accessibilityLabel={t("common.add")}
                     onPress={addCustomReminder}
                     activeOpacity={0.7}
                   >
@@ -173,6 +181,7 @@ export function ReminderSection({
               )}
               <TouchableOpacity
                 style={sectionStyles.dropdownItem}
+                accessibilityRole="button"
                 onPress={() => setShowCustomInput(!showCustomInput)}
                 activeOpacity={0.7}
               >

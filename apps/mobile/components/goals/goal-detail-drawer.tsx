@@ -46,6 +46,48 @@ interface GoalDetailDrawerProps {
 
 type ProgressDismissTarget = 'drawer' | 'form'
 
+interface GoalAskAstraButtonProps {
+  tokens: ReturnType<typeof createTokensV2>
+  styles: ReturnType<typeof createStyles>
+  onPress: () => void
+}
+
+function GoalAskAstraButton({
+  tokens,
+  styles,
+  onPress,
+}: Readonly<GoalAskAstraButtonProps>) {
+  const { t } = useTranslation()
+  return (
+    <TouchableOpacity
+      activeOpacity={0.7}
+      onPress={onPress}
+      accessibilityRole="button"
+      accessibilityLabel={`${t('goals.detail.askAstraEyebrow')}: ${t('goals.detail.askAstraDefault')}`}
+      style={styles.askAstra}
+    >
+      <View
+        style={[
+          styles.askAstraRule,
+          { backgroundColor: tokens.primary },
+        ]}
+      />
+      <View style={styles.askAstraContent}>
+        <View style={styles.askAstraEyebrow}>
+          <Orbit size={12} color={tokens.primary} strokeWidth={1.7} />
+          <Text style={styles.askAstraEyebrowText}>
+            {t('goals.detail.askAstraEyebrow')}
+          </Text>
+        </View>
+        <Text style={styles.askAstraBody}>
+          {t('goals.detail.askAstraDefault')}
+        </Text>
+      </View>
+      <ChevronRight size={16} color={tokens.fg3} strokeWidth={1.7} />
+    </TouchableOpacity>
+  )
+}
+
 /**
  * Goal Detail Drawer. Covers all 7 spec variants by status: on-track,
  * at-risk, behind, completed, abandoned, streak, update (active progress
@@ -460,32 +502,11 @@ export function GoalDetailDrawer({
             styles={styles}
           />
 
-          <TouchableOpacity
-            activeOpacity={0.7}
+          <GoalAskAstraButton
+            tokens={tokens}
+            styles={styles}
             onPress={handleAskAstra}
-            accessibilityRole="button"
-            accessibilityLabel={`${t('goals.detail.askAstraEyebrow')}: ${t('goals.detail.askAstraDefault')}`}
-            style={styles.askAstra}
-          >
-            <View
-              style={[
-                styles.askAstraRule,
-                { backgroundColor: tokens.primary },
-              ]}
-            />
-            <View style={styles.askAstraContent}>
-              <View style={styles.askAstraEyebrow}>
-                <Orbit size={12} color={tokens.primary} strokeWidth={1.7} />
-                <Text style={styles.askAstraEyebrowText}>
-                  {t('goals.detail.askAstraEyebrow')}
-                </Text>
-              </View>
-              <Text style={styles.askAstraBody}>
-                {t('goals.detail.askAstraDefault')}
-              </Text>
-            </View>
-            <ChevronRight size={16} color={tokens.fg3} strokeWidth={1.7} />
-          </TouchableOpacity>
+          />
         </KeyboardAwareBottomSheetScrollView>
       </BottomSheetModal>
 

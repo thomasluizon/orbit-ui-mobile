@@ -82,7 +82,7 @@ describe('GoalList', () => {
 
   it('sets aria-roledescription on draggable sections', () => {
     const { container } = render(<GoalList goals={mockGoals} />)
-    const sections = container.querySelectorAll('[aria-roledescription="draggable item"]')
+    const sections = container.querySelectorAll('[aria-roledescription="goals.dragItem"]')
     expect(sections).toHaveLength(2)
     expect(sections[0]).toHaveAttribute('aria-label', 'Run 100km')
     expect(sections[1]).toHaveAttribute('aria-label', 'Read 12 books')

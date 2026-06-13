@@ -28,12 +28,13 @@ import {
   WIDGET_FEATURES,
   WIDGET_STEP_KEYS,
 } from '@orbit/shared/utils/advanced-settings'
-import { apiKeyKeys } from '@orbit/shared/query'
+import { aiKeys, apiKeyKeys } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
 import { useProfile } from '@/hooks/use-profile'
 import { ProBadge } from '@/components/ui/pro-badge'
 import { AppOverlay } from '@/components/ui/app-overlay'
 import { Chip } from '@/components/ui/chip'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { CreateApiKeyModal } from '@/components/ui/create-api-key-modal'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import type {
@@ -45,7 +46,9 @@ import { createApiKey, revokeApiKey } from '@/app/actions/api-keys'
 
 async function fetchApiKeys(): Promise<ApiKey[]> {
   const res = await fetch(API.apiKeys.list)
-  if (!res.ok) return []
+  if (!res.ok) {
+    throw new Error('Failed to load API keys')
+  }
   return res.json()
 }
 
@@ -113,7 +116,7 @@ function CopyIconButton({
 
 function SubsectionTitle({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <h4
+    <h2
       style={{
         fontFamily: 'var(--font-sans)',
         fontSize: 16,
@@ -123,7 +126,7 @@ function SubsectionTitle({ children }: Readonly<{ children: React.ReactNode }>) 
       }}
     >
       {children}
-    </h4>
+    </h2>
   )
 }
 
@@ -145,7 +148,7 @@ export default function AdvancedPage() {
   })
 
   const capabilitiesQuery = useQuery({
-    queryKey: ['ai-capabilities'],
+    queryKey: aiKeys.capabilities(),
     queryFn: fetchCapabilities,
     enabled: profile?.hasProAccess ?? false,
     staleTime: 5 * 60 * 1000,
@@ -268,7 +271,7 @@ export default function AdvancedPage() {
               </span>
             </span>
           </span>
-          <ChevronRight size={22} strokeWidth={1.8} color="var(--fg-4)" />
+          <ChevronRight size={22} strokeWidth={1.8} color="var(--fg-3)" />
         </button>
 
         <SectionLabel trailing={<ProBadge />}>{t('orbitMcp.title')}</SectionLabel>
@@ -321,7 +324,7 @@ export default function AdvancedPage() {
                       fontFamily: 'var(--font-sans)',
                       fontSize: 13,
                       fontWeight: 500,
-                      color: 'var(--status-overdue)',
+                      color: 'var(--status-overdue-text)',
                     }}
                   >
                     {t('orbitMcp.maxKeysReached')}
@@ -407,7 +410,7 @@ export default function AdvancedPage() {
                                 fontFamily: 'var(--font-mono)',
                                 fontSize: 11,
                                 letterSpacing: '0.02em',
-                                color: 'var(--fg-4)',
+                                color: 'var(--fg-3)',
                               }}
                             >
                               {scopes.length > 0 ? scopes.join(', ') : t('orbitMcp.noScopes')}
@@ -420,7 +423,7 @@ export default function AdvancedPage() {
                               fontSize: 11,
                               lineHeight: 1.6,
                               letterSpacing: '0.02em',
-                              color: 'var(--fg-4)',
+                              color: 'var(--fg-3)',
                               fontVariantNumeric: 'tabular-nums',
                             }}
                           >
@@ -438,48 +441,16 @@ export default function AdvancedPage() {
                           </div>
                         </div>
 
-                        {revokingKeyId === key.id ? (
-                          <div
-                            className="flex items-center justify-between rounded-[12px]"
-                            style={{
-                              padding: '8px 12px',
-                              background: 'color-mix(in srgb, var(--status-bad) 8%, transparent)',
-                              boxShadow: 'inset 0 0 0 1px color-mix(in srgb, var(--status-bad) 24%, transparent)',
-                            }}
+                        <div className="flex justify-end">
+                          <button
+                            type="button"
+                            className="chip"
+                            style={{ color: 'var(--status-bad)' }}
+                            onClick={() => setRevokingKeyId(key.id)}
                           >
-                            <p style={{ fontFamily: 'var(--font-sans)', fontSize: 13, color: 'var(--status-bad)' }}>
-                              {t('orbitMcp.revokeConfirm')}
-                            </p>
-                            <div className="ml-3 flex shrink-0 items-center gap-2">
-                              <button
-                                type="button"
-                                className="chip"
-                                onClick={() => setRevokingKeyId(null)}
-                              >
-                                {t('orbitMcp.cancel')}
-                              </button>
-                              <button
-                                type="button"
-                                className="chip"
-                                style={{ color: 'var(--status-bad)' }}
-                                onClick={() => revokeKeyMutation.mutate(key.id)}
-                              >
-                                {t('orbitMcp.confirm')}
-                              </button>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="flex justify-end">
-                            <button
-                              type="button"
-                              className="chip"
-                              style={{ color: 'var(--status-bad)' }}
-                              onClick={() => setRevokingKeyId(key.id)}
-                            >
-                              {t('orbitMcp.revoke')}
-                            </button>
-                          </div>
-                        )}
+                            {t('orbitMcp.revoke')}
+                          </button>
+                        </div>
                       </div>
                       )
                     })}
@@ -553,7 +524,7 @@ export default function AdvancedPage() {
                             />
                           }
                         />
-                        <p style={{ fontFamily: 'var(--font-sans)', fontSize: 13, lineHeight: 1.5, color: 'var(--fg-4)' }}>
+                        <p style={{ fontFamily: 'var(--font-sans)', fontSize: 13, lineHeight: 1.5, color: 'var(--fg-3)' }}>
                           {t('orbitMcp.webNoApiKey')}
                         </p>
                       </div>
@@ -574,7 +545,7 @@ export default function AdvancedPage() {
                             />
                           }
                         />
-                        <p style={{ fontFamily: 'var(--font-sans)', fontSize: 13, lineHeight: 1.5, color: 'var(--fg-4)' }}>
+                        <p style={{ fontFamily: 'var(--font-sans)', fontSize: 13, lineHeight: 1.5, color: 'var(--fg-3)' }}>
                           {t('orbitMcp.replaceKey')}
                         </p>
                       </div>
@@ -663,6 +634,21 @@ export default function AdvancedPage() {
         onCreateKey={handleCreateKey}
         availableScopes={scopeOptions}
         apiError={createKeyError}
+      />
+
+      <ConfirmDialog
+        open={revokingKeyId !== null}
+        onOpenChange={(open) => {
+          if (!open) setRevokingKeyId(null)
+        }}
+        title={t('orbitMcp.revoke')}
+        description={t('orbitMcp.revokeConfirm')}
+        cancelLabel={t('orbitMcp.cancel')}
+        confirmLabel={t('orbitMcp.confirm')}
+        variant="danger"
+        onConfirm={() => {
+          if (revokingKeyId) revokeKeyMutation.mutate(revokingKeyId)
+        }}
       />
     </div>
   )

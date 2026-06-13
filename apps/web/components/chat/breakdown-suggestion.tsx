@@ -5,21 +5,17 @@ import { Check, X, Plus, Loader2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { plural } from '@/lib/plural'
 import type { SuggestedSubHabit } from '@orbit/shared/types/chat'
-import type { BulkHabitItem, FrequencyUnit } from '@orbit/shared/types/habit'
+import type { FrequencyUnit } from '@orbit/shared/types/habit'
 import { frequencyUnitSchema } from '@orbit/shared/types/habit'
+import {
+  buildBreakdownCreateRequest,
+  filterValidBreakdownHabits,
+  type BreakdownEditableHabit,
+} from '@orbit/shared/utils'
 import { useBulkCreateHabits } from '@/hooks/use-habits'
 import { PillButton } from '@/components/ui/pill-button'
 
-interface EditableHabit {
-  title: string
-  description: string
-  frequencyUnit: FrequencyUnit | null
-  frequencyQuantity: number | null
-  days: string[] | null
-  isBadHabit: boolean
-  dueDate: string | null
-  checklistItems: { text: string; isChecked: boolean }[] | null
-}
+type EditableHabit = BreakdownEditableHabit
 
 interface BreakdownSuggestionProps {
   parentName: string
@@ -68,7 +64,7 @@ export function BreakdownSuggestion({
   ], [t])
 
   const validHabits = useMemo(
-    () => habits.filter((h) => h.title.trim().length > 0),
+    () => filterValidBreakdownHabits(habits),
     [habits],
   )
 
@@ -96,66 +92,22 @@ export function BreakdownSuggestion({
     ])
   }
 
-  function resolveFrequencyQuantity(habit: EditableHabit): number | undefined {
-    if (!habit.frequencyUnit) return undefined
-    return habit.frequencyQuantity && habit.frequencyQuantity >= 1
-      ? habit.frequencyQuantity
-      : 1
-  }
-
   async function handleConfirm() {
     if (validHabits.length === 0) return
     setCreateError('')
 
     try {
-      const subItems: BulkHabitItem[] = validHabits.map((h) => ({
-        title: h.title.trim(),
-        description: h.description.trim() || undefined,
-        frequencyUnit: h.frequencyUnit ?? undefined,
-        frequencyQuantity: resolveFrequencyQuantity(h),
-        days: h.days ?? undefined,
-        isBadHabit: h.isBadHabit,
-        dueDate: h.dueDate ?? undefined,
-        checklistItems: h.checklistItems ?? undefined,
-      }))
-
-      if (createAsParent) {
-        const firstWithFreq = validHabits.find((h) => h.frequencyUnit)
-        const earliestDueDate =
-          validHabits
-            .map((h) => h.dueDate)
-            .filter((d): d is string => !!d)
-            .sort((a, b) => a.localeCompare(b))[0] ?? new Date().toISOString().slice(0, 10)
-
-        let parentFreqQty: number | undefined
-        if (firstWithFreq?.frequencyUnit) {
-          parentFreqQty = resolveFrequencyQuantity(firstWithFreq)
-        }
-
-        await bulkCreate.mutateAsync({
-          habits: [
-            {
-              title: parentName,
-              frequencyUnit:
-                firstWithFreq?.frequencyUnit ??
-                undefined,
-              frequencyQuantity: parentFreqQty,
-              dueDate: earliestDueDate,
-              subHabits: subItems,
-            },
-          ],
-        })
-        setCreatedCount(subItems.length)
-      } else {
-        await bulkCreate.mutateAsync({ habits: subItems })
-        setCreatedCount(subItems.length)
-      }
-
+      await bulkCreate.mutateAsync(
+        buildBreakdownCreateRequest(validHabits, parentName, createAsParent),
+      )
+      setCreatedCount(validHabits.length)
       setIsCreated(true)
       onConfirmed()
     } catch (err: unknown) {
       setCreateError(
-        err instanceof Error ? err.message : t('errors.bulkCreateHabits'),
+        process.env.NODE_ENV === 'development' && err instanceof Error
+          ? err.message
+          : t('errors.bulkCreateHabits'),
       )
     }
   }
@@ -206,7 +158,7 @@ export function BreakdownSuggestion({
                 value={habit.title}
                 onChange={(e) => updateHabit(index, { title: e.target.value })}
                 placeholder={t('habits.breakdown.habitNamePlaceholder')}
-                className="w-full bg-transparent text-sm font-medium text-[var(--fg-1)] placeholder:text-[var(--fg-3)] outline-none"
+                className="w-full bg-transparent text-sm font-medium text-[var(--fg-1)] placeholder:text-[var(--fg-3)] outline-none rounded-sm focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]"
               />
               <div className="flex items-center gap-2">
                 <select
@@ -220,7 +172,7 @@ export function BreakdownSuggestion({
                       frequencyQuantity: val ? habit.frequencyQuantity : null,
                     })
                   }}
-                  className="bg-transparent text-[11px] text-[var(--fg-2)] outline-none cursor-pointer"
+                  className="bg-transparent text-[11px] text-[var(--fg-2)] outline-none cursor-pointer rounded-sm focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]"
                 >
                   {frequencyOptions.map((opt) => (
                     <option
@@ -238,13 +190,14 @@ export function BreakdownSuggestion({
                     <input
                       type="number"
                       min={1}
+                      aria-label={t('habits.breakdown.frequencyQuantityLabel')}
                       value={habit.frequencyQuantity ?? 1}
                       onChange={(e) =>
                         updateHabit(index, {
                           frequencyQuantity: Number(e.target.value) || 1,
                         })
                       }
-                      className="w-8 bg-transparent text-[11px] text-[var(--fg-2)] text-center outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"
+                      className="w-8 bg-transparent text-[11px] text-[var(--fg-2)] text-center outline-none rounded-sm focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)] [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"
                     />
                     <span className="text-[11px] text-[var(--fg-3)]">
                       {t(`habits.form.unit${habit.frequencyUnit}` as Parameters<typeof t>[0])} {}
@@ -254,6 +207,8 @@ export function BreakdownSuggestion({
               </div>
             </div>
             <button
+              type="button"
+              aria-label={t('habits.breakdown.removeHabit', { name: habit.title || t('habits.breakdown.habitNamePlaceholder') })}
               className="shrink-0 p-1.5 rounded-full text-[var(--fg-3)] hover:text-[var(--status-bad)] hover:bg-[var(--status-bad)]/10 transition-colors"
               onClick={() => removeHabit(index)}
             >
@@ -281,7 +236,7 @@ export function BreakdownSuggestion({
         />
         <div
           aria-hidden="true"
-          className={`size-4 rounded border-2 flex items-center justify-center transition-colors shrink-0 ${createAsParent ? 'bg-[var(--primary)] border-[var(--primary)]' : 'border-[var(--fg-4)]'}`}
+          className={`size-4 rounded border-2 flex items-center justify-center transition-colors shrink-0 ${createAsParent ? 'bg-[var(--primary)] border-[var(--primary)]' : 'border-[var(--fg-3)]'}`}
         >
           {createAsParent && <Check className="size-2.5 text-[var(--fg-on-primary)]" />}
         </div>

@@ -2,6 +2,7 @@ import { type ReactNode } from "react";
 import { View, Text } from "react-native";
 import { useWatch } from "react-hook-form";
 import { useTranslation } from "react-i18next";
+import { MAX_HABIT_TITLE_LENGTH } from "@orbit/shared/validation";
 import { BufferedSheetInput } from "./buffered-sheet-input";
 import type { HabitFormControl, HabitFormStyles } from "./types";
 
@@ -36,7 +37,7 @@ export function TitleSection({
           <BufferedSheetInput
             value={watchedTitle}
             registerFlush={registerFlush}
-            maxLength={200}
+            maxLength={MAX_HABIT_TITLE_LENGTH}
             placeholder={t("habits.form.titlePlaceholder")}
             onCommit={onCommit}
             onDraftChange={onDraftChange}

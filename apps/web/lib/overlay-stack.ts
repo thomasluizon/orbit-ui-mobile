@@ -39,6 +39,10 @@ export function isTopOverlay(id: string): boolean {
   return overlayStack.at(-1)?.id === id
 }
 
+export function hasOpenOverlay(): boolean {
+  return overlayStack.length > 0
+}
+
 export function dismissTopOverlay(reason: OverlayCloseReason): boolean {
   const topOverlay = overlayStack.at(-1)
   if (!topOverlay) return false

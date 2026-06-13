@@ -89,7 +89,7 @@ export function StreakCelebration() {
       accessibilityRole="alert"
       accessibilityLiveRegion="polite"
     >
-      <Pressable style={styles.pressable} onPress={dismiss} accessibilityLabel={subtitle}>
+      <Pressable style={styles.pressable} onPress={dismiss} accessibilityRole="button" accessibilityLabel={subtitle}>
         <View style={[styles.backdrop, { backgroundColor: tokens.bg }]} />
         <GradientTop height={520} />
         <View style={styles.content} pointerEvents="none">

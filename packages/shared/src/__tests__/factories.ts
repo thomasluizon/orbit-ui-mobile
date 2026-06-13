@@ -6,9 +6,6 @@ import type { Achievement, GamificationProfile } from '../types/gamification'
 import type { AppConfig } from '../types/config'
 import { DEFAULT_CONFIG } from '../types/config'
 
-// ---------------------------------------------------------------------------
-// Habit factory
-// ---------------------------------------------------------------------------
 
 export function createMockHabit(overrides: Partial<NormalizedHabit> = {}): NormalizedHabit {
   return {
@@ -47,9 +44,6 @@ export function createMockHabit(overrides: Partial<NormalizedHabit> = {}): Norma
   }
 }
 
-// ---------------------------------------------------------------------------
-// Goal factory
-// ---------------------------------------------------------------------------
 
 export function createMockGoal(overrides: Partial<Goal> = {}): Goal {
   return {
@@ -69,9 +63,6 @@ export function createMockGoal(overrides: Partial<Goal> = {}): Goal {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Profile factory
-// ---------------------------------------------------------------------------
 
 export function createMockProfile(overrides: Partial<Profile> = {}): Profile {
   return {
@@ -111,9 +102,6 @@ export function createMockProfile(overrides: Partial<Profile> = {}): Profile {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Notification factory
-// ---------------------------------------------------------------------------
 
 export function createMockNotification(overrides: Partial<NotificationItem> = {}): NotificationItem {
   return {
@@ -128,9 +116,6 @@ export function createMockNotification(overrides: Partial<NotificationItem> = {}
   }
 }
 
-// ---------------------------------------------------------------------------
-// Achievement factory
-// ---------------------------------------------------------------------------
 
 export function createMockAchievement(overrides: Partial<Achievement> = {}): Achievement {
   return {
@@ -147,9 +132,6 @@ export function createMockAchievement(overrides: Partial<Achievement> = {}): Ach
   }
 }
 
-// ---------------------------------------------------------------------------
-// GamificationProfile factory
-// ---------------------------------------------------------------------------
 
 export function createMockGamificationProfile(
   overrides: Partial<GamificationProfile> = {},
@@ -178,9 +160,6 @@ export function createMockGamificationProfile(
   }
 }
 
-// ---------------------------------------------------------------------------
-// AppConfig factory
-// ---------------------------------------------------------------------------
 
 export function createMockConfig(overrides: Partial<AppConfig> = {}): AppConfig {
   return {

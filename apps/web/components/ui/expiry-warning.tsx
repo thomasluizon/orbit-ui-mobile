@@ -74,7 +74,7 @@ export function ExpiryWarning() {
           }}
         >
           {isExpired ? (
-            <span style={{ color: 'var(--status-overdue)' }}>
+            <span style={{ color: 'var(--status-overdue-text)' }}>
               {t('auth.sessionExpired')}
             </span>
           ) : (
@@ -82,7 +82,7 @@ export function ExpiryWarning() {
               {t('auth.sessionExpiringPrefix')}{' '}
               <span
                 style={{
-                  color: 'var(--status-overdue)',
+                  color: 'var(--status-overdue-text)',
                   fontFamily: 'var(--font-mono)',
                   fontVariantNumeric: 'tabular-nums',
                 }}

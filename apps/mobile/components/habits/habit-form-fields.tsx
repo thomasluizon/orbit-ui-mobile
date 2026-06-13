@@ -6,7 +6,8 @@ import {
   useRef,
   type ReactNode,
 } from "react";
-import { View, LayoutAnimation } from "react-native";
+import { View } from "react-native";
+import Animated, { FadeInDown, ReduceMotion } from "react-native-reanimated";
 import { useWatch } from "react-hook-form";
 import type { TagSelectionState } from "@/hooks/use-tag-selection";
 import type { HabitFormHelpers } from "@/hooks/use-habit-form";
@@ -38,7 +39,6 @@ interface HabitFormFieldsProps {
   onReminderTimesChange: (times: number[]) => void;
   onReminderEnabledChange?: (nextEnabled: boolean) => void;
   onFlushBufferedInputsReady?: (flush: () => void) => void;
-  onTitlePresenceChange?: (hasTitle: boolean) => void;
   /** When true, advanced fields are visible by default (used in edit modal) */
   defaultExpanded?: boolean;
   children?: ReactNode;
@@ -54,7 +54,6 @@ export function HabitFormFields({
   onReminderTimesChange,
   onReminderEnabledChange,
   onFlushBufferedInputsReady,
-  onTitlePresenceChange,
   defaultExpanded = false,
   children,
 }: Readonly<HabitFormFieldsProps>) {
@@ -114,7 +113,6 @@ export function HabitFormFields({
   const [showAdvanced, setShowAdvanced] = useState(defaultExpanded);
 
   function toggleAdvanced() {
-    LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
     setShowAdvanced((prev) => !prev);
   }
 
@@ -137,7 +135,7 @@ export function HabitFormFields({
         error={errors.title?.message}
         registerFlush={registerBufferedInputFlusher}
         onCommit={(val) => setValue("title", val, { shouldDirty: true })}
-        onDraftChange={(val) => onTitlePresenceChange?.(val.trim().length > 0)}
+        onDraftChange={(val) => setValue("title", val, { shouldDirty: true })}
         leading={
           <HabitEmojiSelector
             selectedEmoji={watchedEmoji}
@@ -214,26 +212,30 @@ export function HabitFormFields({
       />
 
       {showAdvanced && (
-        <AdvancedSection
-          control={form.control}
-          isGeneral={isGeneral}
-          showEndDate={showEndDate}
-          hasProAccess={hasProAccess}
-          reminderTimes={reminderTimes}
-          onReminderTimesChange={onReminderTimesChange}
-          onToggleReminder={handleReminderEnabledChange}
-          onValidationError={showError}
-          selectedGoalIds={selectedGoalIds}
-          atGoalLimit={atGoalLimit}
-          onToggleGoal={onToggleGoal}
-          registerFlush={registerBufferedInputFlusher}
-          setValue={setValue}
-          styles={styles}
-          sectionStyles={sectionStyles}
-          tokens={tokens}
+        <Animated.View
+          entering={FadeInDown.duration(220).reduceMotion(ReduceMotion.System)}
         >
-          {children}
-        </AdvancedSection>
+          <AdvancedSection
+            control={form.control}
+            isGeneral={isGeneral}
+            showEndDate={showEndDate}
+            hasProAccess={hasProAccess}
+            reminderTimes={reminderTimes}
+            onReminderTimesChange={onReminderTimesChange}
+            onToggleReminder={handleReminderEnabledChange}
+            onValidationError={showError}
+            selectedGoalIds={selectedGoalIds}
+            atGoalLimit={atGoalLimit}
+            onToggleGoal={onToggleGoal}
+            registerFlush={registerBufferedInputFlusher}
+            setValue={setValue}
+            styles={styles}
+            sectionStyles={sectionStyles}
+            tokens={tokens}
+          >
+            {children}
+          </AdvancedSection>
+        </Animated.View>
       )}
 
     </View>

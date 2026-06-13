@@ -1,23 +1,20 @@
 import { z } from 'zod'
 
-export const agentRiskClassSchema = z.enum(['Low', 'Destructive', 'High'])
-export type AgentRiskClass = z.infer<typeof agentRiskClassSchema>
+const agentRiskClassSchema = z.enum(['Low', 'Destructive', 'High'])
 
-export const agentConfirmationRequirementSchema = z.enum([
+const agentConfirmationRequirementSchema = z.enum([
   'None',
   'FreshConfirmation',
   'StepUp',
 ])
-export type AgentConfirmationRequirement = z.infer<typeof agentConfirmationRequirementSchema>
 
-export const agentOperationStatusSchema = z.enum([
+const agentOperationStatusSchema = z.enum([
   'Succeeded',
   'Failed',
   'PendingConfirmation',
   'Denied',
   'UnsupportedByPolicy',
 ])
-export type AgentOperationStatus = z.infer<typeof agentOperationStatusSchema>
 
 export const agentCapabilitySchema = z.object({
   id: z.string(),
@@ -37,20 +34,6 @@ export const agentCapabilitySchema = z.object({
 })
 export type AgentCapability = z.infer<typeof agentCapabilitySchema>
 
-export const agentOperationSchema = z.object({
-  id: z.string(),
-  displayName: z.string(),
-  description: z.string(),
-  capabilityId: z.string(),
-  riskClass: agentRiskClassSchema,
-  confirmationRequirement: agentConfirmationRequirementSchema,
-  isMutation: z.boolean(),
-  isAgentExecutable: z.boolean(),
-  requestSchema: z.unknown(),
-  responseSchema: z.unknown(),
-})
-export type AgentOperation = z.infer<typeof agentOperationSchema>
-
 export const appSurfaceSchema = z.object({
   id: z.string(),
   displayName: z.string(),
@@ -62,13 +45,12 @@ export const appSurfaceSchema = z.object({
 })
 export type AppSurface = z.infer<typeof appSurfaceSchema>
 
-export const userDataFieldDescriptorSchema = z.object({
+const userDataFieldDescriptorSchema = z.object({
   name: z.string(),
   meaning: z.string(),
   aiReadable: z.boolean(),
   aiMutableInPhaseOne: z.boolean(),
 })
-export type UserDataFieldDescriptor = z.infer<typeof userDataFieldDescriptorSchema>
 
 export const userDataCatalogEntrySchema = z.object({
   id: z.string(),
@@ -140,12 +122,3 @@ export const agentExecuteOperationResponseSchema = z.object({
   policyDenial: agentPolicyDenialSchema.nullable().optional(),
 })
 export type AgentExecuteOperationResponse = z.infer<typeof agentExecuteOperationResponseSchema>
-
-export const agentClientContextSchema = z.object({
-  platform: z.string().nullable().optional(),
-  locale: z.string().nullable().optional(),
-  timeFormat: z.string().nullable().optional(),
-  currentAppArea: z.string().nullable().optional(),
-  showGeneralOnToday: z.boolean().nullable().optional(),
-})
-export type AgentClientContext = z.infer<typeof agentClientContextSchema>

@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server'
+import { sendCodeRequestSchema } from '@orbit/shared/types/auth'
 import {
   buildAuthErrorPayload,
   buildRequestIdResponseHeaders,
@@ -17,7 +18,14 @@ export async function POST(request: NextRequest) {
   const responseHeaders = buildRequestIdResponseHeaders(requestId)
 
   try {
-    const body = await request.json() as unknown
+    const parsed = sendCodeRequestSchema.safeParse(await request.json())
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: 'Invalid request', requestId },
+        { status: 400, headers: responseHeaders },
+      )
+    }
+    const body = parsed.data
 
     const url = `${apiBase}/api/auth/send-code`
 

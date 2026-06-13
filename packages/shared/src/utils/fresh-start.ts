@@ -15,7 +15,7 @@ export const FRESH_START_PRESERVED_ITEM_KEYS = [
   'profile.freshStart.preservePreferences',
 ] as const
 
-export type FreshStartTranslationAdapter = (key: string) => string
+type FreshStartTranslationAdapter = (key: string) => string
 
 export function buildFreshStartDeletedItems(
   translate: FreshStartTranslationAdapter,

@@ -148,7 +148,12 @@ export function FreshStartAnimation({ onComplete }: Readonly<FreshStartAnimation
   if (!visible) return null
 
   return (
-    <Modal visible transparent animationType="none">
+    <Modal
+      visible
+      transparent
+      animationType="none"
+      onRequestClose={onComplete}
+    >
       <Animated.View style={[styles.overlay, { opacity: fadeAnim }]}>
         <View style={styles.backdrop} />
 

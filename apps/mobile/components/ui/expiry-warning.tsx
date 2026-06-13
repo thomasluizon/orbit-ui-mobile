@@ -107,7 +107,7 @@ export function ExpiryWarning() {
             </>
           )}
         </Text>
-        <Pressable onPress={handleLogin} hitSlop={6} style={styles.actionPress}>
+        <Pressable onPress={handleLogin} hitSlop={6} style={styles.actionPress} accessibilityRole="button">
           <Text style={styles.actionText}>
             {isExpired ? t('auth.login') : t('auth.refresh')}
           </Text>
@@ -148,12 +148,12 @@ function createStyles(tokens: AppTokensV2) {
       color: tokens.fg2,
     },
     urgent: {
-      color: tokens.statusOverdue,
+      color: tokens.statusOverdueText,
     },
     monoCount: {
       fontFamily: 'Roboto_400Regular',
       fontVariant: ['tabular-nums'],
-      color: tokens.statusOverdue,
+      color: tokens.statusOverdueText,
     },
     actionPress: {
       paddingVertical: 8,

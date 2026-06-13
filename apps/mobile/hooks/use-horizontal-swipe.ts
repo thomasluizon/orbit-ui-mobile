@@ -1,5 +1,7 @@
 import { useMemo } from 'react'
-import { Dimensions, PanResponder } from 'react-native'
+import { Dimensions } from 'react-native'
+import { Gesture } from 'react-native-gesture-handler'
+import { runOnJS } from 'react-native-reanimated'
 
 interface UseHorizontalSwipeOptions {
   onSwipeLeft: () => void
@@ -9,6 +11,11 @@ interface UseHorizontalSwipeOptions {
   minVelocity?: number
 }
 
+/**
+ * Horizontal swipe gesture for day/month paging. Returns an RNGH `Gesture.Pan`
+ * to feed a `GestureDetector`; the recognition runs on the UI thread so list
+ * scrolling stays smooth. Thresholds match the prior PanResponder exactly.
+ */
 export function useHorizontalSwipe({
   onSwipeLeft,
   onSwipeRight,
@@ -16,36 +23,34 @@ export function useHorizontalSwipe({
   edgeExclusion = 24,
   minVelocity = 0.2,
 }: Readonly<UseHorizontalSwipeOptions>) {
+  const screenWidth = Dimensions.get('window').width
+
   return useMemo(
     () =>
-      PanResponder.create({
-        onMoveShouldSetPanResponder: (event, gestureState) => {
-          const touch = event.nativeEvent
-          const startX = touch.pageX - gestureState.dx
-          const screenWidth = Dimensions.get('window').width
+      Gesture.Pan()
+        .activeOffsetX([-minDistance, minDistance])
+        .failOffsetY([-minDistance, minDistance])
+        .onEnd((event) => {
+          'worklet'
+          const startX = event.absoluteX - event.translationX
 
-          if (startX <= edgeExclusion) {
-            return false
-          }
+          if (startX <= edgeExclusion) return
+          if (screenWidth > 0 && startX >= screenWidth - edgeExclusion) return
 
-          if (screenWidth > 0 && startX >= screenWidth - edgeExclusion) {
-            return false
-          }
+          const dx = event.translationX
+          const dy = event.translationY
+          const vx = event.velocityX / 1000
 
-          return (
-            Math.abs(gestureState.dx) > Math.abs(gestureState.dy) * 1.2 &&
-            Math.abs(gestureState.dx) > minDistance &&
-            Math.abs(gestureState.vx) >= minVelocity
-          )
-        },
-        onPanResponderRelease: (_event, gestureState) => {
-          if (gestureState.dx <= -minDistance) {
-            onSwipeLeft()
-          } else if (gestureState.dx >= minDistance) {
-            onSwipeRight()
+          if (Math.abs(dx) <= Math.abs(dy) * 1.2) return
+          if (Math.abs(dx) <= minDistance) return
+          if (Math.abs(vx) < minVelocity) return
+
+          if (dx <= -minDistance) {
+            runOnJS(onSwipeLeft)()
+          } else if (dx >= minDistance) {
+            runOnJS(onSwipeRight)()
           }
-        },
-      }),
-    [edgeExclusion, minDistance, minVelocity, onSwipeLeft, onSwipeRight],
+        }),
+    [edgeExclusion, minDistance, minVelocity, onSwipeLeft, onSwipeRight, screenWidth],
   )
 }

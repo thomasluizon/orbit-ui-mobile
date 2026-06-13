@@ -1328,10 +1328,14 @@ describe('HabitList', () => {
     })
 
     const nonLoggableDot = nonLoggableTree.root.find(
-      (node: any) => node.props?.accessibilityLabel === 'habits.logHabit',
+      (node: any) =>
+        typeof node.props?.accessibilityLabel === 'string' &&
+        node.props.accessibilityLabel.includes('habits.logHabit'),
     )
     const loggableDot = loggableTree.root.find(
-      (node: any) => node.props?.accessibilityLabel === 'habits.logHabit',
+      (node: any) =>
+        typeof node.props?.accessibilityLabel === 'string' &&
+        node.props.accessibilityLabel.includes('habits.logHabit'),
     )
 
     expect(nonLoggableDot.props.disabled).toBe(true)

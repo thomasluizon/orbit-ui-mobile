@@ -42,7 +42,10 @@ export async function generateMetadata(): Promise<Metadata> {
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
-  themeColor: '#020618',
+  themeColor: [
+    { media: '(prefers-color-scheme: light)', color: resolveLightNeutrals('purple').bg },
+    { media: '(prefers-color-scheme: dark)', color: resolveDarkNeutrals('purple').bg },
+  ],
 }
 
 export default async function RootLayout({
@@ -85,8 +88,9 @@ export default async function RootLayout({
       root.style.setProperty('color-scheme', themeName)
 
       const canvases = ${JSON.stringify(canvasByScheme)}
-      const metaThemeColor = document.querySelector('meta[name="theme-color"]')
-      if (metaThemeColor) metaThemeColor.setAttribute('content', canvases[activeScheme][themeName])
+      document.querySelectorAll('meta[name="theme-color"]').forEach((meta) => {
+        meta.setAttribute('content', canvases[activeScheme][themeName])
+      })
     } catch {}
   `
 

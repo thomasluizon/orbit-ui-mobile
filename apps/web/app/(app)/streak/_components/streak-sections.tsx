@@ -1,5 +1,3 @@
-'use client'
-
 import React, { type ReactNode } from 'react'
 import { CalendarDays, Snowflake } from 'lucide-react'
 import { SectionLabel } from '@/components/ui/section-label'
@@ -93,7 +91,7 @@ export function StreakTimelineCard({
                   fontSize: 11,
                   fontWeight: 500,
                   letterSpacing: '0.04em',
-                  color: 'var(--fg-4)',
+                  color: 'var(--fg-3)',
                   fontVariantNumeric: 'tabular-nums',
                 }}
               >
@@ -138,7 +136,7 @@ function StreakDayCell({
 }: Readonly<{ day: StreakDayView; runStart: boolean; runEnd: boolean }>) {
   const inRun = isInRun(day.status)
 
-  let numeralColor = 'var(--fg-4)'
+  let numeralColor = 'var(--fg-3)'
   if (day.status === 'active' || day.status === 'frozen' || day.status === 'today') {
     numeralColor = 'var(--fg-1)'
   }
@@ -314,212 +312,256 @@ interface FreezeProgressCardProps {
 }
 
 export function FreezeProgressCard(props: Readonly<FreezeProgressCardProps>) {
-  const {
-    t,
-    isPro,
-    streak,
-    streakFreezesAccumulated,
-    maxStreakFreezesAccumulated,
-    freezesUsedThisMonth,
-    maxFreezesPerMonth,
-    isFrozenToday,
-    streakInfo,
-    displayDate,
-  } = props
+  const { t, isPro } = props
 
+  return (
+    <div>
+      <SectionLabel>{t('streakDisplay.freeze.title')}</SectionLabel>
+      {isPro ? <FreezeAutoCard {...props} /> : <FreezeProGate t={t} />}
+    </div>
+  )
+}
+
+function FreezeAutoCard(props: Readonly<FreezeProgressCardProps>) {
+  const { t, isFrozenToday, streakInfo, displayDate } = props
+  const protectedDates = (streakInfo?.recentFreezeDates ?? []).slice(0, 5)
+
+  return (
+    <>
+      <FreezeBankCard {...props} />
+
+      <SectionLabel>{t('streakDisplay.freeze.protected.label')}</SectionLabel>
+      <div className="px-5" style={{ paddingBottom: 14 }}>
+        {isFrozenToday || protectedDates.length > 0 ? (
+          <CardGroup>
+            {isFrozenToday && (
+              <ProtectedRow
+                label={t('streakDisplay.freeze.protected.today')}
+                value={t('streakDisplay.freeze.protected.todayValue')}
+              />
+            )}
+            {protectedDates.map((date) => (
+              <ProtectedRow
+                key={date}
+                label={displayDate(date, { month: 'short', day: 'numeric' })}
+              />
+            ))}
+          </CardGroup>
+        ) : (
+          <p
+            style={{
+              fontFamily: 'var(--font-sans)',
+              fontSize: 14,
+              lineHeight: 1.55,
+              color: 'var(--fg-3)',
+            }}
+          >
+            {t('streakDisplay.freeze.protected.empty')}
+          </p>
+        )}
+      </div>
+    </>
+  )
+}
+
+function FreezeStatRow({
+  icon,
+  label,
+  trailing,
+}: Readonly<{ icon: ReactNode; label: string; trailing: ReactNode }>) {
+  return (
+    <div className="flex items-center justify-between" style={{ gap: 12 }}>
+      <span className="flex min-w-0 items-center" style={{ gap: 12 }}>
+        {icon}
+        <span
+          style={{
+            fontFamily: 'var(--font-sans)',
+            fontSize: 16,
+            color: 'var(--fg-1)',
+          }}
+        >
+          {label}
+        </span>
+      </span>
+      <span className="flex shrink-0 items-center" style={{ gap: 10 }}>
+        {trailing}
+      </span>
+    </div>
+  )
+}
+
+function FreezeBankCard({
+  t,
+  streak,
+  streakFreezesAccumulated,
+  maxStreakFreezesAccumulated,
+  freezesUsedThisMonth,
+  maxFreezesPerMonth,
+}: Readonly<FreezeProgressCardProps>) {
   const isBankedFull = streakFreezesAccumulated >= maxStreakFreezesAccumulated
   const nextFreezeDays = STREAK_DAYS_PER_FREEZE - (streak % STREAK_DAYS_PER_FREEZE)
   const nextFreezeProgress = isBankedFull
     ? 1
     : (STREAK_DAYS_PER_FREEZE - nextFreezeDays) / STREAK_DAYS_PER_FREEZE
-  const protectedDates = (streakInfo?.recentFreezeDates ?? []).slice(0, 5)
 
   return (
-    <div>
-      <SectionLabel>{t('streakDisplay.freeze.title')}</SectionLabel>
-
-      {isPro ? (
-        <>
-          <div className="px-5">
-            <p
-              style={{
-                marginBottom: 14,
-                fontFamily: 'var(--font-sans)',
-                fontSize: 14,
-                lineHeight: 1.55,
-                color: 'var(--fg-3)',
-              }}
-            >
-              {t('streakDisplay.freeze.auto.explainer')}
-            </p>
-            <div
-              className="rounded-[18px] bg-[var(--bg-card)]"
-              style={{
-                padding: '16px 18px',
-                boxShadow: 'inset 0 0 0 1px var(--hairline)',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: 16,
-              }}
-            >
-              <div className="flex items-center justify-between" style={{ gap: 12 }}>
-                <span className="flex min-w-0 items-center" style={{ gap: 12 }}>
-                  <Snowflake
-                    size={20}
-                    strokeWidth={1.8}
-                    color="var(--status-frozen)"
-                    aria-hidden="true"
-                  />
-                  <span
-                    style={{
-                      fontFamily: 'var(--font-sans)',
-                      fontSize: 16,
-                      color: 'var(--fg-1)',
-                    }}
-                  >
-                    {t('streakDisplay.freeze.banked.label')}
-                  </span>
-                </span>
-                <span className="flex shrink-0 items-center" style={{ gap: 10 }}>
-                  <ChargeGauge
-                    banked={streakFreezesAccumulated}
-                    max={maxStreakFreezesAccumulated}
-                  />
-                  <StatValue
-                    value={`${streakFreezesAccumulated}/${maxStreakFreezesAccumulated}`}
-                  />
-                </span>
-              </div>
-
-              <div className="flex items-center justify-between" style={{ gap: 12 }}>
-                <span className="flex min-w-0 items-center" style={{ gap: 12 }}>
-                  <CalendarDays
-                    size={20}
-                    strokeWidth={1.8}
-                    color="var(--fg-3)"
-                    aria-hidden="true"
-                  />
-                  <span
-                    style={{
-                      fontFamily: 'var(--font-sans)',
-                      fontSize: 16,
-                      color: 'var(--fg-1)',
-                    }}
-                  >
-                    {t('streakDisplay.freeze.usedThisMonth.label')}
-                  </span>
-                </span>
-                <StatValue value={`${freezesUsedThisMonth}/${maxFreezesPerMonth}`} />
-              </div>
-
-              <div className="flex flex-col" style={{ gap: 10 }}>
-                <div className="flex items-center justify-between" style={{ gap: 12 }}>
-                  <span
-                    style={{
-                      fontFamily: 'var(--font-sans)',
-                      fontSize: 16,
-                      color: 'var(--fg-1)',
-                    }}
-                  >
-                    {t('streakDisplay.freeze.nextFreeze.label')}
-                  </span>
-                  <StatValue
-                    value={
-                      isBankedFull
-                        ? t('streakDisplay.freeze.nextFreeze.full')
-                        : t('streakDisplay.freeze.nextFreeze.inDays', {
-                            days: nextFreezeDays,
-                          })
-                    }
-                  />
-                </div>
-                <ProgressBar
-                  progress={nextFreezeProgress}
-                  label={t('streakDisplay.freeze.nextFreeze.label')}
-                  color="var(--status-frozen)"
-                />
-              </div>
-            </div>
-          </div>
-
-          <SectionLabel>{t('streakDisplay.freeze.protected.label')}</SectionLabel>
-          <div className="px-5" style={{ paddingBottom: 14 }}>
-            {isFrozenToday || protectedDates.length > 0 ? (
-              <CardGroup>
-                {isFrozenToday && (
-                  <ProtectedRow
-                    label={t('streakDisplay.freeze.protected.today')}
-                    value={t('streakDisplay.freeze.protected.todayValue')}
-                  />
-                )}
-                {protectedDates.map((date) => (
-                  <ProtectedRow
-                    key={date}
-                    label={displayDate(date, { month: 'short', day: 'numeric' })}
-                  />
-                ))}
-              </CardGroup>
-            ) : (
-              <p
-                style={{
-                  fontFamily: 'var(--font-sans)',
-                  fontSize: 14,
-                  lineHeight: 1.55,
-                  color: 'var(--fg-3)',
-                }}
-              >
-                {t('streakDisplay.freeze.protected.empty')}
-              </p>
-            )}
-          </div>
-        </>
-      ) : (
-        <div className="px-5" style={{ paddingBottom: 14 }}>
-          <div
-            className="flex items-center rounded-[18px]"
-            style={{
-              padding: '16px 18px',
-              gap: 14,
-              background: 'rgba(var(--primary-rgb), 0.08)',
-              boxShadow: 'inset 0 0 0 1px rgba(var(--primary-rgb), 0.28)',
-            }}
-          >
+    <div className="px-5">
+      <p
+        style={{
+          marginBottom: 14,
+          fontFamily: 'var(--font-sans)',
+          fontSize: 14,
+          lineHeight: 1.55,
+          color: 'var(--fg-3)',
+        }}
+      >
+        {t('streakDisplay.freeze.auto.explainer')}
+      </p>
+      <div
+        className="rounded-[18px] bg-[var(--bg-card)]"
+        style={{
+          padding: '16px 18px',
+          boxShadow: 'inset 0 0 0 1px var(--hairline)',
+          display: 'flex',
+          flexDirection: 'column',
+          gap: 16,
+        }}
+      >
+        <FreezeStatRow
+          icon={
             <Snowflake
-              size={24}
-              strokeWidth={1.9}
+              size={20}
+              strokeWidth={1.8}
               color="var(--status-frozen)"
               aria-hidden="true"
             />
-            <span
-              className="flex-1 min-w-0"
-              style={{
-                fontFamily: 'var(--font-sans)',
-                fontSize: 16,
-                fontWeight: 500,
-                lineHeight: 1.4,
-                color: 'var(--fg-1)',
-              }}
-            >
-              {t('streakDisplay.freeze.pro.gate')}
-            </span>
-            <a
-              href="/upgrade"
-              className="shrink-0 rounded-full transition-[background-color,box-shadow,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:-translate-y-px hover:bg-[var(--primary-pressed)] active:translate-y-0 active:scale-[0.96]"
-              style={{
-                padding: '9px 16px',
-                background: 'var(--primary)',
-                color: 'var(--fg-on-primary)',
-                fontFamily: 'var(--font-sans)',
-                fontSize: 13,
-                fontWeight: 500,
-                boxShadow: 'var(--primary-glow)',
-              }}
-            >
-              {t('common.upgrade')}
-            </a>
-          </div>
-        </div>
-      )}
+          }
+          label={t('streakDisplay.freeze.banked.label')}
+          trailing={
+            <>
+              <ChargeGauge
+                banked={streakFreezesAccumulated}
+                max={maxStreakFreezesAccumulated}
+              />
+              <StatValue
+                value={`${streakFreezesAccumulated}/${maxStreakFreezesAccumulated}`}
+              />
+            </>
+          }
+        />
+
+        <FreezeStatRow
+          icon={
+            <CalendarDays
+              size={20}
+              strokeWidth={1.8}
+              color="var(--fg-3)"
+              aria-hidden="true"
+            />
+          }
+          label={t('streakDisplay.freeze.usedThisMonth.label')}
+          trailing={<StatValue value={`${freezesUsedThisMonth}/${maxFreezesPerMonth}`} />}
+        />
+
+        <NextFreezeRow
+          t={t}
+          isBankedFull={isBankedFull}
+          nextFreezeDays={nextFreezeDays}
+          nextFreezeProgress={nextFreezeProgress}
+        />
+      </div>
+    </div>
+  )
+}
+
+function NextFreezeRow({
+  t,
+  isBankedFull,
+  nextFreezeDays,
+  nextFreezeProgress,
+}: Readonly<{
+  t: TranslationFn
+  isBankedFull: boolean
+  nextFreezeDays: number
+  nextFreezeProgress: number
+}>) {
+  return (
+    <div className="flex flex-col" style={{ gap: 10 }}>
+      <div className="flex items-center justify-between" style={{ gap: 12 }}>
+        <span
+          style={{
+            fontFamily: 'var(--font-sans)',
+            fontSize: 16,
+            color: 'var(--fg-1)',
+          }}
+        >
+          {t('streakDisplay.freeze.nextFreeze.label')}
+        </span>
+        <StatValue
+          value={
+            isBankedFull
+              ? t('streakDisplay.freeze.nextFreeze.full')
+              : t('streakDisplay.freeze.nextFreeze.inDays', {
+                  days: nextFreezeDays,
+                })
+          }
+        />
+      </div>
+      <ProgressBar
+        progress={nextFreezeProgress}
+        label={t('streakDisplay.freeze.nextFreeze.label')}
+        color="var(--status-frozen)"
+      />
+    </div>
+  )
+}
+
+function FreezeProGate({ t }: Readonly<{ t: TranslationFn }>) {
+  return (
+    <div className="px-5" style={{ paddingBottom: 14 }}>
+      <div
+        className="flex items-center rounded-[18px]"
+        style={{
+          padding: '16px 18px',
+          gap: 14,
+          background: 'rgba(var(--primary-rgb), 0.08)',
+          boxShadow: 'inset 0 0 0 1px rgba(var(--primary-rgb), 0.28)',
+        }}
+      >
+        <Snowflake
+          size={24}
+          strokeWidth={1.9}
+          color="var(--status-frozen)"
+          aria-hidden="true"
+        />
+        <span
+          className="flex-1 min-w-0"
+          style={{
+            fontFamily: 'var(--font-sans)',
+            fontSize: 16,
+            fontWeight: 500,
+            lineHeight: 1.4,
+            color: 'var(--fg-1)',
+          }}
+        >
+          {t('streakDisplay.freeze.pro.gate')}
+        </span>
+        <a
+          href="/upgrade"
+          className="shrink-0 rounded-full transition-[background-color,box-shadow,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:-translate-y-px hover:bg-[var(--primary-pressed)] active:translate-y-0 active:scale-[0.96]"
+          style={{
+            padding: '9px 16px',
+            background: 'var(--primary)',
+            color: 'var(--fg-on-primary)',
+            fontFamily: 'var(--font-sans)',
+            fontSize: 13,
+            fontWeight: 500,
+            boxShadow: 'var(--primary-glow)',
+          }}
+        >
+          {t('common.upgrade')}
+        </a>
+      </div>
     </div>
   )
 }

@@ -69,6 +69,7 @@ export function DrillFooter({ styles, label, onAddSubHabit }: DrillFooterProps) 
       style={styles.drillAddBtn}
       onPress={onAddSubHabit}
       activeOpacity={0.7}
+      accessibilityRole="button"
     >
       <Plus size={16} color={tokens.fg3} strokeWidth={1.8} />
       <Text style={styles.drillAddBtnText}>{label}</Text>

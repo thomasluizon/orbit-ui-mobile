@@ -4,10 +4,7 @@ const expoConfig = require("eslint-config-expo/flat")
 const reactHooks = require("eslint-plugin-react-hooks")
 const noComments = require("../../eslint-rules/no-comments.cjs")
 
-// eslint-config-expo@55 ships react-hooks v5, which pre-dates the React 19 /
-// Compiler rules (set-state-in-effect, refs, immutability, etc.). Strip the
-// expo registration and re-register with v7 so disable directives that
-// reference the new rules resolve correctly and the rules actually fire.
+// https://github.com/expo/expo/issues/43758 — eslint-config-expo@55 bundles react-hooks v5 (no React-19/Compiler rules); strip its registration and re-register v7.
 const expoConfigArray = Array.isArray(expoConfig) ? expoConfig : [expoConfig]
 const patchedExpoConfig = expoConfigArray.map((c) => {
   if (c && c.plugins && c.plugins["react-hooks"]) {

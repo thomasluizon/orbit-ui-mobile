@@ -77,6 +77,7 @@ export function GoalCompletedCelebration() {
       <Pressable
         style={styles.pressable}
         onPress={dismiss}
+        accessibilityRole="button"
         accessibilityLabel={t('goals.completedCelebrationTitle')}
       >
         <View style={[styles.backdrop, { backgroundColor: tokens.bg }]} />

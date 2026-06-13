@@ -38,6 +38,7 @@ import {
 } from '@orbit/shared/utils'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { useTimeFormat } from '@/hooks/use-time-format'
+import { usePrefersReducedMotion } from '@/lib/motion'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { AnchoredMenu } from '@/components/ui/anchored-menu'
@@ -122,11 +123,7 @@ export function HabitRow({
   const isOverdue = status === 'overdue'
   const canLog = canLogHabitOnDate(habit, selectedDateStr, todayStr)
 
-  const metaParts: (
-    | string
-    | { kind: 'overdue' }
-    | { kind: 'future'; label: string }
-  )[] = []
+  const metaParts: HabitRowMetaPart[] = []
   if (!habit.isGeneral && frequencyLabel) metaParts.push(frequencyLabel)
   if (habit.dueTime) {
     const due = displayTime(habit.dueTime)
@@ -213,6 +210,13 @@ export function HabitRow({
 
   const linkedGoal = (habit.linkedGoals?.length ?? 0) > 0
 
+  const rowAccessibilityLabel = useMemo(() => {
+    const parts = [habit.title, t(`habits.statusDot.${dotState}` as const)]
+    if (linkedGoal) parts.push(t('habits.detail.linkedGoal'))
+    if (showStreak) parts.push(`🔥 ${streak}`)
+    return parts.join(', ')
+  }, [habit.title, dotState, linkedGoal, showStreak, streak, t])
+
   const indentPx = depth * 16
 
   return (
@@ -224,7 +228,7 @@ export function HabitRow({
         }
         delayLongPress={300}
         accessibilityRole="button"
-        accessibilityLabel={habit.title}
+        accessibilityLabel={rowAccessibilityLabel}
         style={({ pressed }) => [
           styles.row,
           {
@@ -294,145 +298,37 @@ export function HabitRow({
           )}
         </View>
 
-        <View style={styles.titleBlock}>
-          <Text
-            numberOfLines={2}
-            style={[
-              styles.title,
-              {
-                fontSize: titleSize,
-                color: titleColor,
-                textDecorationLine: isDoneForRange ? 'line-through' : 'none',
-                textDecorationColor: tokens.fg4,
-              },
-            ]}
-          >
-            {habit.title}
-          </Text>
+        <HabitRowContent
+          habit={habit}
+          titleSize={titleSize}
+          titleColor={titleColor}
+          isDoneForRange={isDoneForRange}
+          metaParts={metaParts}
+          showStreak={showStreak}
+          streak={streak}
+          tokens={tokens}
+        />
 
-          {habit.description?.trim() ? (
-            <Text
-              numberOfLines={1}
-              style={[styles.description, { color: tokens.fg3 }]}
-            >
-              {stripInlineMarkdown(habit.description)}
-            </Text>
-          ) : null}
-
-          {metaParts.length > 0 || showStreak ? (
-            <Text
-              numberOfLines={1}
-              style={[styles.meta, { color: tokens.fg3 }]}
-            >
-              {metaParts.map((part, i) => (
-                <Fragment key={i}>
-                  {i > 0 ? (
-                    <Text style={{ color: tokens.fg4 }}> · </Text>
-                  ) : null}
-                  {typeof part === 'string' ? (
-                    part
-                  ) : part.kind === 'future' ? (
-                    part.label
-                  ) : (
-                    <Text
-                      style={{
-                        fontFamily: 'Rubik_500Medium',
-                        color: tokens.statusOverdue,
-                      }}
-                    >
-                      {t('habits.overdue')}
-                    </Text>
-                  )}
-                </Fragment>
-              ))}
-              {showStreak ? (
-                <Text style={{ color: tokens.statusOverdue }}>
-                  {metaParts.length > 0 ? '  ' : ''}🔥 {streak}
-                </Text>
-              ) : null}
-            </Text>
-          ) : null}
-        </View>
-
-        <View style={styles.trailing}>
-          {linkedGoal ? (
-            <View
-              style={[
-                styles.linkedGoalDot,
-                { backgroundColor: tokens.primary },
-              ]}
-            />
-          ) : null}
-          {!isSelectMode ? (
-            hasChildren && childrenTotal > 0 ? (
-              <>
-                <Text style={[styles.childProgressText, { color: tokens.fg3 }]}>
-                  {childrenDone}/{childrenTotal}
-                </Text>
-                <Pressable
-                  onPress={() => {
-                    if (isDoneForRange) {
-                      actions.onUnlog?.()
-                    } else if (childrenDone >= childrenTotal) {
-                      actions.onLog?.()
-                    } else {
-                      actions.onForceLogParent?.()
-                    }
-                  }}
-                  hitSlop={{ top: 14, bottom: 14, left: 14, right: 14 }}
-                  accessibilityRole="button"
-                  accessibilityLabel={`${habit.title} ${childrenDone}/${childrenTotal}`}
-                >
-                  <ParentRing
-                    done={childrenDone}
-                    total={childrenTotal}
-                    size={30}
-                    color={habit.isBadHabit ? tokens.statusBad : undefined}
-                    trackColor={
-                      habit.isBadHabit ? `${tokens.statusBad}66` : undefined
-                    }
-                  />
-                </Pressable>
-              </>
-            ) : (
-              <CheckCircle
-                state={dotState}
-                tone={habit.isBadHabit ? 'bad' : 'default'}
-                onToggle={handleToggleStatus}
-                disabled={!canLog && !isDoneForRange}
-                accessibilityLabel={
-                  isDoneForRange
-                    ? t('habits.actions.unlog')
-                    : t('habits.logHabit')
-                }
-                tokens={tokens}
-              />
-            )
-          ) : null}
-          {!isSelectMode && hasMenuActions ? (
-            <View ref={menuButtonRef} collapsable={false}>
-              <Pressable
-                onPressIn={() => {
-                  menuActivityAt.current = Date.now()
-                }}
-                onPress={openMenu}
-                hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
-                accessibilityRole="button"
-                accessibilityLabel={t('habits.actions.more')}
-                style={({ pressed }) => [
-                  styles.menuButton,
-                  pressed ? { backgroundColor: tokens.bgElevPressed } : null,
-                ]}
-              >
-                <MoreVertical
-                  size={18}
-                  color={tokens.fg3}
-                  strokeWidth={1.8}
-                />
-              </Pressable>
-            </View>
-          ) : null}
-        </View>
+        <HabitRowTrailing
+          habit={habit}
+          isSelectMode={isSelectMode}
+          hasChildren={hasChildren}
+          childrenDone={childrenDone}
+          childrenTotal={childrenTotal}
+          linkedGoal={linkedGoal}
+          isDoneForRange={isDoneForRange}
+          canLog={canLog}
+          dotState={dotState}
+          hasMenuActions={hasMenuActions}
+          menuButtonRef={menuButtonRef}
+          actions={actions}
+          tokens={tokens}
+          onToggleStatus={handleToggleStatus}
+          onOpenMenu={openMenu}
+          onMenuActivity={() => {
+            menuActivityAt.current = Date.now()
+          }}
+        />
       </Pressable>
 
       {hasMenuActions ? (
@@ -452,6 +348,217 @@ export function HabitRow({
             tokens={tokens}
           />
         </AnchoredMenu>
+      ) : null}
+    </View>
+  )
+}
+
+type HabitRowMetaPart =
+  | string
+  | { kind: 'overdue' }
+  | { kind: 'future'; label: string }
+
+interface HabitRowContentProps {
+  habit: NormalizedHabit
+  titleSize: number
+  titleColor: string
+  isDoneForRange: boolean
+  metaParts: HabitRowMetaPart[]
+  showStreak: boolean
+  streak: number
+  tokens: ReturnType<typeof createTokensV2>
+}
+
+function HabitRowContent({
+  habit,
+  titleSize,
+  titleColor,
+  isDoneForRange,
+  metaParts,
+  showStreak,
+  streak,
+  tokens,
+}: Readonly<HabitRowContentProps>) {
+  const { t } = useTranslation()
+  return (
+    <View style={styles.titleBlock}>
+      <Text
+        numberOfLines={2}
+        style={[
+          styles.title,
+          {
+            fontSize: titleSize,
+            color: titleColor,
+            textDecorationLine: isDoneForRange ? 'line-through' : 'none',
+            textDecorationColor: tokens.fg4,
+          },
+        ]}
+      >
+        {habit.title}
+      </Text>
+
+      {habit.description?.trim() ? (
+        <Text
+          numberOfLines={1}
+          style={[styles.description, { color: tokens.fg3 }]}
+        >
+          {stripInlineMarkdown(habit.description)}
+        </Text>
+      ) : null}
+
+      {metaParts.length > 0 || showStreak ? (
+        <Text
+          numberOfLines={1}
+          style={[styles.meta, { color: tokens.fg3 }]}
+        >
+          {metaParts.map((part, i) => (
+            <Fragment key={i}>
+              {i > 0 ? (
+                <Text style={{ color: tokens.fg3 }}> · </Text>
+              ) : null}
+              {typeof part === 'string' ? (
+                part
+              ) : part.kind === 'future' ? (
+                part.label
+              ) : (
+                <Text
+                  style={{
+                    fontFamily: 'Rubik_500Medium',
+                    color: tokens.statusOverdueText,
+                  }}
+                >
+                  {t('habits.overdue')}
+                </Text>
+              )}
+            </Fragment>
+          ))}
+          {showStreak ? (
+            <Text style={{ color: tokens.statusOverdueText }}>
+              {metaParts.length > 0 ? '  ' : ''}🔥 {streak}
+            </Text>
+          ) : null}
+        </Text>
+      ) : null}
+    </View>
+  )
+}
+
+interface HabitRowTrailingProps {
+  habit: NormalizedHabit
+  isSelectMode: boolean
+  hasChildren: boolean
+  childrenDone: number
+  childrenTotal: number
+  linkedGoal: boolean
+  isDoneForRange: boolean
+  canLog: boolean
+  dotState: StatusDotState
+  hasMenuActions: boolean
+  menuButtonRef: React.RefObject<View | null>
+  actions: HabitRowActions
+  tokens: ReturnType<typeof createTokensV2>
+  onToggleStatus: () => void
+  onOpenMenu: () => void
+  onMenuActivity: () => void
+}
+
+function HabitRowTrailing({
+  habit,
+  isSelectMode,
+  hasChildren,
+  childrenDone,
+  childrenTotal,
+  linkedGoal,
+  isDoneForRange,
+  canLog,
+  dotState,
+  hasMenuActions,
+  menuButtonRef,
+  actions,
+  tokens,
+  onToggleStatus,
+  onOpenMenu,
+  onMenuActivity,
+}: Readonly<HabitRowTrailingProps>) {
+  const { t } = useTranslation()
+  return (
+    <View style={styles.trailing}>
+      {linkedGoal ? (
+        <View
+          style={[
+            styles.linkedGoalDot,
+            { backgroundColor: tokens.primary },
+          ]}
+        />
+      ) : null}
+      {!isSelectMode ? (
+        hasChildren && childrenTotal > 0 ? (
+          <>
+            <Text style={[styles.childProgressText, { color: tokens.fg3 }]}>
+              {childrenDone}/{childrenTotal}
+            </Text>
+            <Pressable
+              onPress={() => {
+                if (isDoneForRange) {
+                  actions.onUnlog?.()
+                } else if (childrenDone >= childrenTotal) {
+                  actions.onLog?.()
+                } else {
+                  actions.onForceLogParent?.()
+                }
+              }}
+              hitSlop={{ top: 14, bottom: 14, left: 14, right: 14 }}
+              accessibilityRole="button"
+              accessibilityLabel={`${habit.title} ${childrenDone}/${childrenTotal}`}
+            >
+              <ParentRing
+                done={childrenDone}
+                total={childrenTotal}
+                size={30}
+                color={habit.isBadHabit ? tokens.statusBad : undefined}
+                trackColor={
+                  habit.isBadHabit ? `${tokens.statusBad}66` : undefined
+                }
+              />
+            </Pressable>
+          </>
+        ) : (
+          <CheckCircle
+            state={dotState}
+            tone={habit.isBadHabit ? 'bad' : 'default'}
+            onToggle={onToggleStatus}
+            disabled={!canLog && !isDoneForRange}
+            accessibilityLabel={`${t(
+              `habits.statusDot.${dotState}` as const,
+            )}, ${
+              isDoneForRange
+                ? t('habits.actions.unlog')
+                : t('habits.logHabit')
+            }`}
+            tokens={tokens}
+          />
+        )
+      ) : null}
+      {!isSelectMode && hasMenuActions ? (
+        <View ref={menuButtonRef} collapsable={false}>
+          <Pressable
+            onPressIn={onMenuActivity}
+            onPress={onOpenMenu}
+            hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
+            accessibilityRole="button"
+            accessibilityLabel={t('habits.actions.more')}
+            style={({ pressed }) => [
+              styles.menuButton,
+              pressed ? { backgroundColor: tokens.bgElevPressed } : null,
+            ]}
+          >
+            <MoreVertical
+              size={18}
+              color={tokens.fg3}
+              strokeWidth={1.8}
+            />
+          </Pressable>
+        </View>
       ) : null}
     </View>
   )
@@ -493,18 +600,19 @@ function CheckCircle({
   const color =
     tone === 'bad' && state === 'done' ? tokens.statusBad : colorMap[state]
 
+  const prefersReducedMotion = usePrefersReducedMotion()
   const popScale = useSharedValue(1)
   const previousFilled = useRef(filled)
 
   useEffect(() => {
-    if (filled && !previousFilled.current) {
+    if (filled && !previousFilled.current && !prefersReducedMotion) {
       popScale.value = withSequence(
         withSpring(1.18, { damping: 14 }),
         withSpring(1),
       )
     }
     previousFilled.current = filled
-  }, [filled, popScale])
+  }, [filled, popScale, prefersReducedMotion])
 
   const popStyle = useAnimatedStyle(() => ({
     transform: [{ scale: popScale.value }],
@@ -598,7 +706,7 @@ function HabitRowMenuBody({
         <MenuItem
           icon={FastForward}
           label={t('habits.actions.skip')}
-          color={tokens.statusOverdue}
+          color={tokens.statusOverdueText}
           onPress={run(actions.onSkip)}
         />
       ) : null}
@@ -634,7 +742,7 @@ function HabitRowMenuBody({
           <MenuItem
             icon={Trash2}
             label={t('habits.deleteHabit')}
-            color={tokens.statusBad}
+            color={tokens.statusBadText}
             onPress={run(actions.onDelete)}
           />
         </>

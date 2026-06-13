@@ -32,12 +32,16 @@ export function GoalCard({ goal }: Readonly<GoalCardProps>) {
 
   const isStreak = isStreakGoal(goal.type)
 
-  const progress = useMemo<{ state: string; color: string }>(() => {
-    if (goal.status === 'Completed') return { state: 'completed', color: 'var(--status-done)' }
-    if (goal.status === 'Abandoned') return { state: 'abandoned', color: 'var(--fg-3)' }
-    if (isStreak) return { state: 'streak', color: 'var(--status-overdue)' }
-    if (goal.progressPercentage >= 75) return { state: 'high', color: 'var(--status-done)' }
-    return { state: 'mid', color: 'var(--primary)' }
+  const progress = useMemo<{ state: string; color: string; textColor: string }>(() => {
+    if (goal.status === 'Completed')
+      return { state: 'completed', color: 'var(--status-done)', textColor: 'var(--status-done)' }
+    if (goal.status === 'Abandoned')
+      return { state: 'abandoned', color: 'var(--fg-3)', textColor: 'var(--fg-3)' }
+    if (isStreak)
+      return { state: 'streak', color: 'var(--status-overdue)', textColor: 'var(--status-overdue-text)' }
+    if (goal.progressPercentage >= 75)
+      return { state: 'high', color: 'var(--status-done)', textColor: 'var(--status-done)' }
+    return { state: 'mid', color: 'var(--primary)', textColor: 'var(--primary)' }
   }, [goal.status, goal.progressPercentage, isStreak])
 
   const deadlineInfo = useMemo(() => {
@@ -57,7 +61,7 @@ export function GoalCard({ goal }: Readonly<GoalCardProps>) {
     if (daysLeft <= 7) {
       return {
         text: plural(t('goals.deadline.daysLeft', { n: daysLeft }), daysLeft),
-        color: 'var(--status-overdue)',
+        color: 'var(--status-overdue-text)',
       }
     }
     return {
@@ -186,7 +190,7 @@ export function GoalCard({ goal }: Readonly<GoalCardProps>) {
               fontSize: 18,
               fontWeight: 700,
               letterSpacing: '-0.01em',
-              color: progress.color,
+              color: progress.textColor,
               fontVariantNumeric: 'tabular-nums',
             }}
           >

@@ -5,25 +5,21 @@ export const frequencyUnitSchema = z.enum(['Day', 'Week', 'Month', 'Year'])
 
 export type FrequencyUnit = z.infer<typeof frequencyUnitSchema>
 
-export const instanceStatusSchema = z.enum(['Pending', 'Completed', 'Overdue'])
-
-export type InstanceStatus = z.infer<typeof instanceStatusSchema>
+const instanceStatusSchema = z.enum(['Pending', 'Completed', 'Overdue'])
 
 export const scheduledReminderWhenSchema = z.enum(['day_before', 'same_day'])
 
 export type ScheduledReminderWhen = z.infer<typeof scheduledReminderWhenSchema>
 
-export const bulkItemStatusSchema = z.enum(['Success', 'Failed'])
+const bulkItemStatusSchema = z.enum(['Success', 'Failed'])
 
-export type BulkItemStatus = z.infer<typeof bulkItemStatusSchema>
-
-export const habitInstanceSchema = z.object({
+const habitInstanceSchema = z.object({
   date: z.string(),
   status: instanceStatusSchema,
   logId: z.string().nullable(),
 })
 
-export type HabitInstance = z.infer<typeof habitInstanceSchema>
+type HabitInstance = z.infer<typeof habitInstanceSchema>
 
 export const habitTagSchema = z.object({
   id: z.string(),
@@ -33,12 +29,12 @@ export const habitTagSchema = z.object({
 
 export type HabitTag = z.infer<typeof habitTagSchema>
 
-export const searchMatchFieldSchema = z.object({
+const searchMatchFieldSchema = z.object({
   field: z.enum(['title', 'description', 'tag', 'child']),
   value: z.string().nullable(),
 })
 
-export type SearchMatchField = z.infer<typeof searchMatchFieldSchema>
+type SearchMatchField = z.infer<typeof searchMatchFieldSchema>
 
 export const checklistItemSchema = z.object({
   text: z.string(),
@@ -54,12 +50,10 @@ export const scheduledReminderTimeSchema = z.object({
 
 export type ScheduledReminderTime = z.infer<typeof scheduledReminderTimeSchema>
 
-export const linkedGoalInfoSchema = z.object({
+const linkedGoalInfoSchema = z.object({
   id: z.string(),
   title: z.string(),
 })
-
-export type LinkedGoalInfo = z.infer<typeof linkedGoalInfoSchema>
 
 const baseHabitFieldsSchema = z.object({
   id: z.string(),
@@ -104,7 +98,9 @@ export const habitScheduleChildSchema: z.ZodType<{
   tags: HabitTag[]
   children: HabitScheduleChild[]
   hasSubHabits: boolean
-  isLoggedInRange: boolean
+  flexibleTarget?: number | null
+  flexibleCompleted?: number | null
+  isLoggedInRange?: boolean
   instances: HabitInstance[]
   searchMatches?: SearchMatchField[] | null
 }> = baseHabitFieldsSchema.extend({
@@ -113,7 +109,9 @@ export const habitScheduleChildSchema: z.ZodType<{
   tags: z.array(habitTagSchema),
   children: z.lazy(() => z.array(habitScheduleChildSchema)),
   hasSubHabits: z.boolean(),
-  isLoggedInRange: z.boolean(),
+  flexibleTarget: z.number().nullable().optional(),
+  flexibleCompleted: z.number().nullable().optional(),
+  isLoggedInRange: z.boolean().optional(),
   instances: z.array(habitInstanceSchema),
   searchMatches: z.array(searchMatchFieldSchema).nullable().optional(),
 })
@@ -372,7 +370,7 @@ export const bulkCreateRequestSchema = z.object({
 
 export type BulkCreateRequest = z.infer<typeof bulkCreateRequestSchema>
 
-export const bulkCreateItemResultSchema = z.object({
+const bulkCreateItemResultSchema = z.object({
   index: z.number(),
   status: bulkItemStatusSchema,
   habitId: z.string().nullable(),
@@ -381,28 +379,18 @@ export const bulkCreateItemResultSchema = z.object({
   field: z.string().nullable(),
 })
 
-export type BulkCreateItemResult = z.infer<typeof bulkCreateItemResultSchema>
-
 export const bulkCreateResponseSchema = z.object({
   results: z.array(bulkCreateItemResultSchema),
 })
 
 export type BulkCreateResponse = z.infer<typeof bulkCreateResponseSchema>
 
-export const bulkDeleteRequestSchema = z.object({
-  habitIds: z.array(z.string()),
-})
-
-export type BulkDeleteRequest = z.infer<typeof bulkDeleteRequestSchema>
-
-export const bulkDeleteItemResultSchema = z.object({
+const bulkDeleteItemResultSchema = z.object({
   index: z.number(),
   status: bulkItemStatusSchema,
   habitId: z.string(),
   error: z.string().nullable(),
 })
-
-export type BulkDeleteItemResult = z.infer<typeof bulkDeleteItemResultSchema>
 
 export const bulkDeleteResponseSchema = z.object({
   results: z.array(bulkDeleteItemResultSchema),
@@ -480,7 +468,7 @@ export const bulkSkipItemRequestSchema = z.object({
 
 export type BulkSkipItemRequest = z.infer<typeof bulkSkipItemRequestSchema>
 
-export const bulkLogItemResultSchema = z.object({
+const bulkLogItemResultSchema = z.object({
   index: z.number(),
   status: bulkItemStatusSchema,
   habitId: z.string(),
@@ -488,22 +476,18 @@ export const bulkLogItemResultSchema = z.object({
   error: z.string().nullable(),
 })
 
-export type BulkLogItemResult = z.infer<typeof bulkLogItemResultSchema>
-
 export const bulkLogResultSchema = z.object({
   results: z.array(bulkLogItemResultSchema),
 })
 
 export type BulkLogResult = z.infer<typeof bulkLogResultSchema>
 
-export const bulkSkipItemResultSchema = z.object({
+const bulkSkipItemResultSchema = z.object({
   index: z.number(),
   status: bulkItemStatusSchema,
   habitId: z.string(),
   error: z.string().nullable(),
 })
-
-export type BulkSkipItemResult = z.infer<typeof bulkSkipItemResultSchema>
 
 export const bulkSkipResultSchema = z.object({
   results: z.array(bulkSkipItemResultSchema),

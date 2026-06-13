@@ -7,6 +7,7 @@ import { TourSpotlight } from './tour-spotlight'
 import { TourTooltip } from './tour-tooltip'
 import { API } from '@orbit/shared/api'
 import { apiClient } from '@/lib/api-client'
+import { useOverlayBack } from '@/hooks/use-overlay-back'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 
 /**
@@ -71,6 +72,8 @@ export function TourOverlay() {
   const handleSkip = useCallback(() => {
     handleEnd()
   }, [handleEnd])
+
+  useOverlayBack(isActive && !isNavigating && !!targetRect && !!step, handleSkip)
 
   if (!isActive || isNavigating || !targetRect || !step) {
     return null

@@ -285,6 +285,7 @@ export function useLogHabit() {
       queryClient.invalidateQueries({ queryKey: habitKeys.summaryPrefix() })
       queryClient.invalidateQueries({ queryKey: goalKeys.lists() })
       queryClient.invalidateQueries({ queryKey: gamificationKeys.all })
+      queryClient.invalidateQueries({ queryKey: profileKeys.all })
     },
   })
 }
@@ -329,6 +330,9 @@ export function useSkipHabit() {
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
       queryClient.invalidateQueries({ queryKey: habitKeys.summaryPrefix() })
+      queryClient.invalidateQueries({ queryKey: goalKeys.lists() })
+      queryClient.invalidateQueries({ queryKey: gamificationKeys.all })
+      queryClient.invalidateQueries({ queryKey: profileKeys.all })
     },
   })
 }

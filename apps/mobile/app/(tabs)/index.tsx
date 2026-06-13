@@ -10,6 +10,7 @@ import {
 import {
   Animated,
   AppState,
+  type FlatList,
   View,
   Text,
   Pressable,
@@ -42,6 +43,7 @@ import {
 } from "@orbit/shared/utils";
 import { useHabitVisibility } from "@/hooks/use-habit-visibility";
 import type { HabitsFilter, NormalizedHabit } from "@orbit/shared/types/habit";
+import type { Goal } from "@orbit/shared/types/goal";
 import { plural } from "@/lib/plural";
 import { useAdMob } from "@/hooks/use-ad-mob";
 import { useProfile } from "@/hooks/use-profile";
@@ -200,7 +202,7 @@ const TodaySearchBar = memo(function TodaySearchBar({
       <View
         style={[
           styles.searchWrap,
-          { borderColor: focused ? tokens.hairlineStrong : tokens.hairline },
+          { borderColor: focused ? tokens.primary : tokens.hairline },
         ]}
       >
         <Search size={18} color={tokens.fg3} strokeWidth={1.8} />
@@ -319,9 +321,9 @@ export default function TodayScreen() {
   >(() => new Set());
   const habitsTourRef = useRef<View>(null);
   useTourTarget("tour-habit-list", habitsTourRef);
-  const goalsScrollRef = useRef<ScrollView>(null);
+  const goalsScrollRef = useRef<FlatList<Goal>>(null);
   const goalsScrollTo = useCallback((y: number) => {
-    goalsScrollRef.current?.scrollTo({ y, animated: true });
+    goalsScrollRef.current?.scrollToOffset({ offset: y, animated: true });
   }, []);
   const { onTourScroll: onGoalsTourScroll } = useTourScrollContainer(
     "/",
@@ -484,7 +486,7 @@ export default function TodayScreen() {
     };
   }, [handleTodayRollover]);
 
-  const swipePanResponder = useHorizontalSwipe({
+  const swipeGesture = useHorizontalSwipe({
     onSwipeLeft: goToNextDay,
     onSwipeRight: goToPreviousDay,
   });
@@ -1043,9 +1045,7 @@ export default function TodayScreen() {
           todayLabel={t("dates.goToToday")}
           nextLabel={t("dates.nextDay")}
           dateLabelAnim={dateLabelAnim}
-          panHandlers={
-            !isSearchFocused ? swipePanResponder.panHandlers : undefined
-          }
+          swipeGesture={!isSearchFocused ? swipeGesture : undefined}
         />
 
         <SectionLabel
@@ -1198,6 +1198,7 @@ export default function TodayScreen() {
                 },
               ]}
               onPress={handleToggleSelectMode}
+              accessibilityRole="button"
             >
               {isSelectMode ? (
                 <X size={16} color={tokens.fg2} strokeWidth={1.8} />
@@ -1221,6 +1222,7 @@ export default function TodayScreen() {
                 },
               ]}
               onPress={handleToggleCollapse}
+              accessibilityRole="button"
             >
               {habitListAllCollapsed ? (
                 <ChevronsUpDown
@@ -1250,6 +1252,7 @@ export default function TodayScreen() {
                 },
               ]}
               onPress={handleRefresh}
+              accessibilityRole="button"
             >
               <RefreshCw
                 size={16}
@@ -1270,6 +1273,7 @@ export default function TodayScreen() {
                 },
               ]}
               onPress={handleToggleCompleted}
+              accessibilityRole="button"
             >
               {showCompleted ? (
                 <Check size={16} color={tokens.fg2} strokeWidth={1.8} />
@@ -1394,7 +1398,7 @@ export default function TodayScreen() {
       showSummary,
       slideDirection,
       styles,
-      swipePanResponder.panHandlers,
+      swipeGesture,
       t,
       tags,
       toggleTagFilter,
@@ -1409,22 +1413,15 @@ export default function TodayScreen() {
   return (
     <View style={styles.safeArea}>
       {currentActiveView === "goals" ? (
-        <ScrollView
-          ref={goalsScrollRef}
-          style={styles.scrollView}
-          contentContainerStyle={[
-            styles.scrollContent,
-            isSelectMode && styles.scrollContentWithBulkBar,
-          ]}
-          showsVerticalScrollIndicator={false}
-          keyboardShouldPersistTaps="always"
+        <GoalsView
+          listHeader={sharedHeader}
+          scrollRef={goalsScrollRef}
+          contentContainerStyle={
+            isSelectMode ? styles.scrollContentWithBulkBar : undefined
+          }
           onScroll={onGoalsTourScroll}
-          scrollEventThrottle={16}
           onScrollBeginDrag={handleListScrollBeginDrag}
-        >
-          {sharedHeader}
-          <GoalsView />
-        </ScrollView>
+        />
       ) : (
         <Animated.View
           ref={habitsTourRef}
@@ -1576,12 +1573,6 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
     safeArea: {
       flex: 1,
       backgroundColor: tokens.bg,
-    },
-    scrollView: {
-      flex: 1,
-    },
-    scrollContent: {
-      paddingBottom: 120,
     },
     scrollContentWithBulkBar: {
       paddingBottom: 220,

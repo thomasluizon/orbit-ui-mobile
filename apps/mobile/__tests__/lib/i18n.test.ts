@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import i18n from '@/lib/i18n'
+import { i18n } from '@/lib/i18n'
 import { plural } from '@/lib/plural'
 
 describe('mobile i18n interpolation', () => {

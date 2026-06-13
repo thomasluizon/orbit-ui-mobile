@@ -50,8 +50,8 @@ export default function ChatScreen() {
   useTourTarget("tour-chat-input", chatInputRef);
   useTourTarget("tour-chat-voice", chatVoiceRef);
 
-  const offlineTitle = t("calendarSync.notConnected");
-  const offlineDescription = `${t("chat.send")} / ${t("chat.attachImage")} / ${t("chat.toggleMic")}`;
+  const offlineTitle = t("chat.offline.title");
+  const offlineDescription = t("chat.offline.description");
 
   const {
     flatListRef,

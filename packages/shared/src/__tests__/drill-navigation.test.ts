@@ -1,6 +1,9 @@
-import { describe, expect, it } from 'vitest'
-import type { HabitDetail, HabitDetailChild } from '../types/habit'
+import { describe, expect, it, vi } from 'vitest'
+import type { HabitDetail, HabitDetailChild, NormalizedHabit } from '../types/habit'
+import { createMockHabit } from './factories'
 import {
+  loadDrillChildren,
+  mergeDrillChildrenMap,
   normalizeDrillDetailChild,
   normalizeHabitDetailForDrill,
 } from '../utils/drill-navigation'
@@ -118,5 +121,51 @@ describe('drill navigation utils', () => {
       'grand-1',
     ])
     expect(normalized.childrenByParent.has('child-2')).toBe(false)
+  })
+})
+
+describe('loadDrillChildren', () => {
+  it('fetches through the injected fetcher and normalizes the detail', async () => {
+    const detail = makeDetail({
+      id: 'parent-1',
+      children: [makeDetailChild({ id: 'child-1' })],
+    })
+    const fetchHabitDetail = vi.fn().mockResolvedValue(detail)
+
+    const normalized = await loadDrillChildren('parent-1', fetchHabitDetail)
+
+    expect(fetchHabitDetail).toHaveBeenCalledWith('parent-1')
+    expect(normalized.parent.id).toBe('parent-1')
+    expect(normalized.childrenByParent.get('parent-1')?.map((habit) => habit.id)).toEqual([
+      'child-1',
+    ])
+  })
+
+  it('propagates fetcher failures', async () => {
+    const fetchHabitDetail = vi.fn().mockRejectedValue(new Error('fetch failed'))
+
+    await expect(loadDrillChildren('parent-1', fetchHabitDetail)).rejects.toThrow(
+      'fetch failed',
+    )
+  })
+})
+
+describe('mergeDrillChildrenMap', () => {
+  it('overwrites fetched parents and keeps untouched entries', () => {
+    const previousChild = createMockHabit({ id: 'old-child' })
+    const keptChild = createMockHabit({ id: 'kept-child' })
+    const fetchedChild = createMockHabit({ id: 'new-child' })
+    const previous = new Map<string, NormalizedHabit[]>([
+      ['parent-1', [previousChild]],
+      ['parent-2', [keptChild]],
+    ])
+    const fetched = new Map<string, NormalizedHabit[]>([['parent-1', [fetchedChild]]])
+
+    const merged = mergeDrillChildrenMap(previous, fetched)
+
+    expect(merged.get('parent-1')).toEqual([fetchedChild])
+    expect(merged.get('parent-2')).toEqual([keptChild])
+    expect(merged).not.toBe(previous)
+    expect(previous.get('parent-1')).toEqual([previousChild])
   })
 })

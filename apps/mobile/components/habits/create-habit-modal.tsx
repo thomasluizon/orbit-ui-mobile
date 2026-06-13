@@ -32,7 +32,7 @@ import {
   buildSubHabitRequest,
   buildCreateHabitRequest,
 } from '@/lib/habit-request-builders'
-import { habitFormSchema } from '@orbit/shared/validation'
+import { MAX_GOALS_PER_HABIT, habitFormSchema } from '@orbit/shared/validation'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
@@ -86,7 +86,6 @@ export function CreateHabitModal({
   const [selectedGoalIds, setSelectedGoalIds] = useState<string[]>([])
   const [subHabits, setSubHabits] = useState<SubHabitEntry[]>([])
   const [reminderTimes, setReminderTimes] = useState<number[]>([0, 15])
-  const [titleFilled, setTitleFilled] = useState(false)
   const [reminderWasManuallyToggled, setReminderWasManuallyToggled] = useState(false)
   const flushBufferedInputsRef = useRef<() => void>(() => {})
   const [initialTagIdsSnapshot, setInitialTagIdsSnapshot] = useState('[]')
@@ -108,7 +107,7 @@ export function CreateHabitModal({
       name: 'scheduledReminders',
     }) ?? []
 
-  const atGoalLimit = selectedGoalIds.length >= 10
+  const atGoalLimit = selectedGoalIds.length >= MAX_GOALS_PER_HABIT
   const isDirty =
     formHelpers.form.formState.isDirty ||
     JSON.stringify(
@@ -142,7 +141,6 @@ export function CreateHabitModal({
       const fallbackDate = initialDate ?? formatAPIDate(new Date())
 
       setReminderWasManuallyToggled(false)
-      setTitleFilled(false)
       formHelpers.form.reset(buildEmptyHabitFormValues(fallbackDate))
       tags.resetTags()
       setSelectedGoalIds([])
@@ -235,15 +233,6 @@ export function CreateHabitModal({
       return
     }
 
-    const hasTypedSubHabits = subHabits.some(
-      (entry) => entry.value.trim().length > 0,
-    )
-    if (!hasProAccess && hasTypedSubHabits) {
-      onClose()
-      router.push('/upgrade')
-      return
-    }
-
     const permittedGoalIds = hasProAccess ? selectedGoalIds : []
     const subHabitValues = hasProAccess
       ? subHabits.map((entry) => entry.value)
@@ -310,7 +299,7 @@ export function CreateHabitModal({
   ])
 
   const isPending = createHabit.isPending || createSubHabit.isPending
-  const submitDisabled = isPending || !titleFilled
+  const submitDisabled = isPending || !formHelpers.form.formState.isValid
 
   const updateSubHabitValue = useCallback((id: string, value: string) => {
     setSubHabits((prev) =>
@@ -355,7 +344,6 @@ export function CreateHabitModal({
             onReminderTimesChange={setReminderTimes}
             onReminderEnabledChange={handleReminderEnabledChange}
             onFlushBufferedInputsReady={handleBufferedInputsReady}
-            onTitlePresenceChange={setTitleFilled}
           >
             {!isSubHabitMode ? (
               <SubHabitEditor
@@ -364,6 +352,7 @@ export function CreateHabitModal({
                 onUpdateSubHabit={updateSubHabitValue}
                 onRemoveSubHabit={removeSubHabit}
                 onAddSubHabit={addSubHabit}
+                onUpgrade={() => router.push('/upgrade')}
                 tokens={tokens}
                 styles={styles}
               />
@@ -440,11 +429,26 @@ function createStyles(
       alignItems: 'center',
       gap: 8,
     },
+    subHabitsUpsellHeader: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'space-between',
+      gap: 12,
+    },
+    subHabitsHeaderLeft: {
+      flex: 1,
+      gap: 4,
+    },
     subHabitsHint: {
       fontFamily: 'Rubik_400Regular',
       fontSize: 13,
       color: tokens.fg3,
       lineHeight: 19,
+    },
+    subHabitsUpgradeText: {
+      fontFamily: 'Rubik_500Medium',
+      fontSize: 13,
+      color: tokens.primary,
     },
     subHabitsList: {
       gap: 8,
@@ -466,7 +470,7 @@ function createStyles(
       textAlign: 'right',
       fontFamily: 'Roboto_400Regular',
       fontSize: 12,
-      color: tokens.fg4,
+      color: tokens.fg3,
     },
     subHabitInput: {
       flex: 1,

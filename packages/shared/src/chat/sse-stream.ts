@@ -7,7 +7,7 @@ import { chatStreamEventSchema, type ChatResponse, type ChatStreamEvent } from '
  * payloads that do not match the shared contract so a future protocol
  * addition never breaks an older client mid-stream.
  */
-export interface ChatSseParser {
+interface ChatSseParser {
   feed: (chunk: string) => ChatStreamEvent[]
 }
 
@@ -35,13 +35,13 @@ export function createChatSseParser(): ChatSseParser {
   }
 }
 
-export interface ChatStreamCallbacks {
+interface ChatStreamCallbacks {
   onDelta: (text: string) => void
   onReset: () => void
   onRound?: (iteration: number) => void
 }
 
-export type ChatStreamOutcome =
+type ChatStreamOutcome =
   | { kind: 'final'; response: ChatResponse }
   | { kind: 'error'; status: number; error: string; code: string | null }
   | { kind: 'incomplete' }

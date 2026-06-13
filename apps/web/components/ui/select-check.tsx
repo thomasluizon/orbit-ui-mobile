@@ -11,7 +11,7 @@ export function RadioGlyph({ selected, size }: Readonly<{ selected: boolean; siz
         width: size,
         height: size,
         background: selected ? 'var(--primary)' : 'transparent',
-        boxShadow: selected ? 'none' : 'inset 0 0 0 2px var(--fg-4)',
+        boxShadow: selected ? 'none' : 'inset 0 0 0 2px var(--fg-3)',
       }}
     >
       {selected && (
@@ -28,7 +28,7 @@ export function RadioGlyph({ selected, size }: Readonly<{ selected: boolean; siz
   )
 }
 
-/** Kit Radio: 24px circle — primary fill + white dot when selected, inset 2px fg-4 ring otherwise. */
+/** Kit Radio: 24px circle — primary fill + white dot when selected, inset 2px fg-3 ring otherwise. */
 interface SelectCheckProps {
   selected: boolean
   size?: number

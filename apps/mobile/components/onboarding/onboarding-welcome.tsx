@@ -153,6 +153,11 @@ export function OnboardingWelcome() {
                 <Pressable
                   key={option.value}
                   onPress={() => handleSchemeSelect(option.value)}
+                  accessibilityRole="button"
+                  accessibilityLabel={t(
+                    `preferences.color${option.value.charAt(0).toUpperCase() + option.value.slice(1)}`,
+                  )}
+                  accessibilityState={{ selected: isActive }}
                   style={[
                     styles.schemeBtn,
                     {

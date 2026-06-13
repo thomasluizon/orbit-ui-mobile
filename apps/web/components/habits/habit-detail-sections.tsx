@@ -1,5 +1,3 @@
-'use client'
-
 import type { HabitCardTranslationAdapter } from '@orbit/shared/utils'
 import { SectionLabel } from '@/components/ui/section-label'
 import { StatTile } from '@/components/ui/stat-tile'

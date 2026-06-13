@@ -77,7 +77,7 @@ export function FieldInput({
           onChange={handleChange}
           onKeyDown={onKeyDown}
           autoFocus={autoFocus}
-          className="placeholder:text-[var(--fg-4)]"
+          className="placeholder:text-[var(--fg-3)]"
           style={{
             flex: 1,
             minWidth: 0,

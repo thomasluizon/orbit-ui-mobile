@@ -9,7 +9,7 @@ import type { Goal } from '../types/goal'
 import { formatAPIDate } from './dates'
 import { hasHabitScheduleOnDate } from './habits'
 
-export interface NormalizedHabitQueryData {
+interface NormalizedHabitQueryData {
   habitsById: Map<string, NormalizedHabit>
   childrenByParent: Map<string, string[]>
   topLevelHabits: NormalizedHabit[]

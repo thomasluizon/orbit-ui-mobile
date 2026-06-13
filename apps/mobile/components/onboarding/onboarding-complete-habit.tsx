@@ -110,7 +110,14 @@ export function OnboardingCompleteHabit({
           </Text>
         </View>
 
-        <Pressable disabled={isCompleted} onPress={handleComplete} hitSlop={8}>
+        <Pressable
+          disabled={isCompleted}
+          onPress={handleComplete}
+          hitSlop={8}
+          accessibilityRole="button"
+          accessibilityLabel={t('onboarding.flow.completeHabit.tapHint')}
+          accessibilityState={{ checked: isCompleted }}
+        >
           <Animated.View
             style={[
               styles.dot,

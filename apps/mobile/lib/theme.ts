@@ -78,7 +78,7 @@ export const radius: AppRadius = {
   md: 12,
   lg: 16,
   xl: 20,
-  '2xl': 24,
+  '2xl': 20,
   sheet: 26,
   full: 9999,
 } as const
@@ -124,6 +124,12 @@ export interface AppTokensV2 {
   statusOverdue: string
   statusBad: string
   statusFrozen: string
+  /** AA text variant of `statusOverdue` — use for status-colored text. */
+  statusOverdueText: string
+  /** AA text variant of `statusBad` — use for status-colored text. */
+  statusBadText: string
+  /** Foreground for text/icons painted on a `statusBad` fill (ink dark, white light). */
+  fgOnBad: string
   selectionBg: string
 }
 
@@ -163,6 +169,7 @@ export function createTokensV2(
   themeMode: ThemeMode = runtimeTheme.themeMode,
 ): AppTokensV2 {
   const accent = schemes[colorScheme].accent[themeMode]
+  const fgOnPrimary = schemes[colorScheme].fgOnPrimary[themeMode]
   const alpha = alphaSurfaces[themeMode]
   const status = statusConstants[themeMode]
   const gradientFrom = schemes[colorScheme].gradientHeaderFrom[themeMode]
@@ -185,7 +192,7 @@ export function createTokensV2(
       fg2: neutrals.fg2,
       fg3: neutrals.fg3,
       fg4: neutrals.fg4,
-      fgOnPrimary: '#ffffff',
+      fgOnPrimary,
       primary: accent.primary,
       primaryPressed: accent.primaryPressed,
       primaryRgb: accent.primaryRgb,
@@ -198,6 +205,9 @@ export function createTokensV2(
       statusOverdue: status.overdue,
       statusBad: status.bad,
       statusFrozen: status.frozen,
+      statusOverdueText: status.overdueText,
+      statusBadText: status.badText,
+      fgOnBad: status.fgOnBad,
       selectionBg: `rgba(${accent.primaryRgb}, ${selectionAlpha.light})`,
     }
   }
@@ -219,7 +229,7 @@ export function createTokensV2(
     fg2: neutrals.fg2,
     fg3: neutrals.fg3,
     fg4: neutrals.fg4,
-    fgOnPrimary: '#ffffff',
+    fgOnPrimary,
     primary: accent.primary,
     primaryPressed: accent.primaryPressed,
     primaryRgb: accent.primaryRgb,
@@ -232,6 +242,9 @@ export function createTokensV2(
     statusOverdue: status.overdue,
     statusBad: status.bad,
     statusFrozen: status.frozen,
+    statusOverdueText: status.overdueText,
+    statusBadText: status.badText,
+    fgOnBad: status.fgOnBad,
     selectionBg: `rgba(${accent.primaryRgb}, ${selectionAlpha.dark})`,
   }
 }

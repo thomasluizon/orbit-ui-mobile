@@ -1,5 +1,3 @@
-'use client'
-
 import type { ProfileNavIconKey } from '@orbit/shared/utils/profile-navigation'
 
 interface ProfileNavIconProps {

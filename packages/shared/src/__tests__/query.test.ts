@@ -15,9 +15,6 @@ import {
 } from '../query/keys'
 import { QUERY_STALE_TIMES } from '../query/options'
 
-// ===========================================================================
-// Query key factories
-// ===========================================================================
 
 describe('habitKeys', () => {
   it('all returns base key', () => {
@@ -242,9 +239,6 @@ describe('userFactKeys', () => {
   })
 })
 
-// ===========================================================================
-// Query stale times
-// ===========================================================================
 
 describe('QUERY_STALE_TIMES', () => {
   it('profile is 5 minutes', () => {

@@ -118,6 +118,8 @@ export function ConfirmDialog({
       <TouchableOpacity
         style={styles.root}
         activeOpacity={1}
+        accessibilityRole="button"
+        accessibilityLabel={t('common.close')}
         onPress={() => onOpenChange(false)}
       >
         <Animated.View
@@ -140,6 +142,7 @@ export function ConfirmDialog({
           <View style={styles.actions}>
             {!infoOnly ? (
               <Pressable
+                accessibilityRole="button"
                 style={({ pressed }) => [
                   styles.actionPill,
                   pressed ? styles.cancelPillPressed : styles.cancelPill,
@@ -154,6 +157,7 @@ export function ConfirmDialog({
             ) : null}
 
             <Pressable
+              accessibilityRole="button"
               style={({ pressed }) => [
                 styles.actionPill,
                 destructive ? styles.confirmPillDestructive : null,
@@ -163,7 +167,13 @@ export function ConfirmDialog({
               ]}
               onPress={handleConfirm}
             >
-              <Text style={styles.confirmLabel} numberOfLines={1}>
+              <Text
+                style={[
+                  styles.confirmLabel,
+                  destructive ? styles.confirmLabelDestructive : null,
+                ]}
+                numberOfLines={1}
+              >
                 {confirmLabel ?? (infoOnly ? t('common.close') : t('common.confirm'))}
               </Text>
             </Pressable>
@@ -254,6 +264,9 @@ function createStyles(tokens: AppTokens) {
       fontFamily: 'Rubik_500Medium',
       color: tokens.fgOnPrimary,
       fontSize: 15,
+    },
+    confirmLabelDestructive: {
+      color: tokens.fgOnBad,
     },
   })
 }

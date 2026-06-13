@@ -5,7 +5,7 @@
  * read differs (platform adapter). IDs not present here are dropped — an unknown
  * surface renders no link rather than a broken one.
  */
-export interface RelatedSurface {
+interface RelatedSurface {
   id: string
   labelKey: string
   webRoute: string

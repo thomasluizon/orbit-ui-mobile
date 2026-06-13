@@ -1,6 +1,5 @@
 import type { ColorScheme } from '../theme'
 import type { AgentPolicyDenial } from '../types/ai'
-import type { Profile } from '../types/profile'
 import {
   extractBackendError,
   extractBackendErrorCode,

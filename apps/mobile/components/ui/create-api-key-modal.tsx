@@ -13,6 +13,10 @@ import type {
   ApiKeyCreateRequest,
   ApiKeyCreateResponse,
 } from '@orbit/shared/types/api-key'
+import {
+  MAX_API_KEY_NAME_LENGTH,
+  parseApiKeyExpiryUtc,
+} from '@orbit/shared/validation'
 import { BottomSheetModal } from '@/components/bottom-sheet-modal'
 import { BottomSheetAppTextInput } from '@/components/ui/bottom-sheet-app-text-input'
 import { KeyboardAwareBottomSheetScrollView } from '@/components/ui/keyboard-aware-scroll-view'
@@ -37,6 +41,232 @@ interface CreateApiKeyModalProps {
   ) => Promise<ApiKeyCreateResponse | null>
   apiError?: string | null
   onCreated?: () => void
+}
+
+type ApiKeyModalStyles = ReturnType<typeof createStyles>
+
+interface ApiKeyRevealPanelProps {
+  tokens: AppTokensV2
+  styles: ApiKeyModalStyles
+  createdKey: ApiKeyCreateResponse
+  copied: boolean
+  onCopy: () => void
+  onClose: () => void
+}
+
+function ApiKeyRevealPanel({
+  tokens,
+  styles,
+  createdKey,
+  copied,
+  onCopy,
+  onClose,
+}: Readonly<ApiKeyRevealPanelProps>) {
+  const { t } = useTranslation()
+  return (
+    <>
+      <Text style={styles.warningText}>
+        {t('orbitMcp.keyCreatedWarning')}
+      </Text>
+
+      <View style={styles.keyWell}>
+        <Pressable
+          style={styles.copyButton}
+          onPress={onCopy}
+          accessibilityRole="button"
+          accessibilityLabel={t('orbitMcp.copy')}
+          hitSlop={8}
+        >
+          <Text
+            style={[
+              styles.copyButtonText,
+              { color: copied ? tokens.statusDone : tokens.primary },
+            ]}
+          >
+            {copied ? t('orbitMcp.copied') : t('orbitMcp.copy')}
+          </Text>
+        </Pressable>
+        <Text style={styles.keyText} selectable>
+          {createdKey.key}
+        </Text>
+      </View>
+
+      <Text style={styles.metaLine}>
+        {`${t('orbitMcp.scopesLabel')} ${
+          createdKey.scopes.length
+            ? createdKey.scopes.length
+            : t('orbitMcp.noScopes')
+        } · ${t('orbitMcp.readOnlyLabel')} ${
+          createdKey.isReadOnly ? t('common.yes') : t('common.no')
+        } · ${
+          createdKey.expiresAtUtc
+            ? createdKey.expiresAtUtc
+            : t('common.never')
+        }`}
+      </Text>
+
+      <View style={styles.footerEnd}>
+        <PillButton
+          onPress={onClose}
+          accessibilityLabel={t('orbitMcp.done')}
+        >
+          {t('orbitMcp.done')}
+        </PillButton>
+      </View>
+    </>
+  )
+}
+
+interface ApiKeyCreateFormProps {
+  tokens: AppTokensV2
+  styles: ApiKeyModalStyles
+  availableScopes: ScopeOption[]
+  keyName: string
+  selectedScopes: string[]
+  isReadOnly: boolean
+  expiresAt: string
+  validationError: string
+  apiError?: string | null
+  isSubmitting: boolean
+  onChangeName: (value: string) => void
+  onChangeExpiresAt: (value: string) => void
+  onToggleScope: (scope: string) => void
+  onSelectAllScopes: () => void
+  onClearScopes: () => void
+  onToggleReadOnly: () => void
+  onCancel: () => void
+  onSubmit: () => void
+}
+
+function ApiKeyCreateForm({
+  tokens,
+  styles,
+  availableScopes,
+  keyName,
+  selectedScopes,
+  isReadOnly,
+  expiresAt,
+  validationError,
+  apiError,
+  isSubmitting,
+  onChangeName,
+  onChangeExpiresAt,
+  onToggleScope,
+  onSelectAllScopes,
+  onClearScopes,
+  onToggleReadOnly,
+  onCancel,
+  onSubmit,
+}: Readonly<ApiKeyCreateFormProps>) {
+  const { t } = useTranslation()
+  return (
+    <>
+      <View>
+        <Text style={styles.fieldLabel}>{t('orbitMcp.keyName')}</Text>
+        <BottomSheetAppTextInput
+          value={keyName}
+          onChangeText={onChangeName}
+          placeholder={t('orbitMcp.keyNamePlaceholder')}
+          maxLength={MAX_API_KEY_NAME_LENGTH}
+          accessibilityLabel={t('orbitMcp.keyName')}
+        />
+      </View>
+
+      <View>
+        <Text style={styles.fieldLabel}>{t('orbitMcp.scopesLabel')}</Text>
+        <View style={styles.scopeWrap}>
+          {availableScopes.map((scope) => (
+            <Chip
+              key={scope.scope}
+              active={selectedScopes.includes(scope.scope)}
+              onPress={() => onToggleScope(scope.scope)}
+            >
+              {scope.scope}
+            </Chip>
+          ))}
+        </View>
+        <View style={styles.scopeActions}>
+          <Pressable
+            onPress={onSelectAllScopes}
+            accessibilityRole="button"
+            accessibilityLabel={t('common.selectAll')}
+          >
+            <Text style={styles.quietLinkStrong}>
+              {t('common.selectAll')}
+            </Text>
+          </Pressable>
+          <Pressable
+            onPress={onClearScopes}
+            accessibilityRole="button"
+            accessibilityLabel={t('common.clear')}
+          >
+            <Text style={styles.quietLink}>{t('common.clear')}</Text>
+          </Pressable>
+        </View>
+      </View>
+
+      <View style={styles.switchRow}>
+        <Text style={styles.switchRowLabel}>
+          {t('orbitMcp.readOnlyKeyLabel')}
+        </Text>
+        <Switch
+          on={isReadOnly}
+          onToggle={onToggleReadOnly}
+          accessibilityLabel={t('orbitMcp.readOnlyKeyLabel')}
+        />
+      </View>
+
+      <View>
+        <Text style={styles.fieldLabel}>
+          {t('orbitMcp.expiresAtLabel')}
+        </Text>
+        <BottomSheetAppTextInput
+          value={expiresAt}
+          onChangeText={onChangeExpiresAt}
+          placeholder={t('common.never')}
+          autoCapitalize="none"
+          style={styles.monoInput}
+          accessibilityLabel={t('orbitMcp.expiresAtLabel')}
+        />
+      </View>
+
+      {validationError ? (
+        <Text style={styles.errorText} accessibilityRole="alert">
+          {validationError}
+        </Text>
+      ) : null}
+
+      {apiError ? (
+        <Text style={styles.errorText} accessibilityRole="alert">
+          {apiError}
+        </Text>
+      ) : null}
+
+      <View style={styles.footer}>
+        <PillButton
+          variant="ghost"
+          style={styles.footerButton}
+          onPress={onCancel}
+          disabled={isSubmitting}
+          accessibilityLabel={t('common.cancel')}
+        >
+          {t('common.cancel')}
+        </PillButton>
+        <PillButton
+          style={styles.footerButton}
+          onPress={onSubmit}
+          disabled={isSubmitting}
+          accessibilityLabel={t('orbitMcp.createKey')}
+        >
+          {isSubmitting ? (
+            <ActivityIndicator size="small" color={tokens.fgOnPrimary} />
+          ) : (
+            t('orbitMcp.createKey')
+          )}
+        </PillButton>
+      </View>
+    </>
+  )
 }
 
 /**
@@ -96,14 +326,13 @@ export function CreateApiKeyModal({
       setValidationError(t('orbitMcp.keyNameRequired'))
       return false
     }
-    if (trimmed.length > 50) {
+    if (trimmed.length > MAX_API_KEY_NAME_LENGTH) {
       setValidationError(t('orbitMcp.keyNameMaxLength'))
       return false
     }
     if (expiresAt.trim()) {
-      const parsed = new Date(expiresAt)
-      if (Number.isNaN(parsed.getTime())) {
-        setValidationError(t('auth.genericError'))
+      if (!parseApiKeyExpiryUtc(expiresAt)) {
+        setValidationError(t('orbitMcp.invalidExpiry'))
         return false
       }
     }
@@ -123,13 +352,15 @@ export function CreateApiKeyModal({
 
     setIsSubmitting(true)
     try {
+      const expiresAtUtc = expiresAt.trim()
+        ? parseApiKeyExpiryUtc(expiresAt)?.toISOString() ?? null
+        : null
+
       const result = await onCreateKey({
         name: keyName.trim(),
         scopes: selectedScopes.length > 0 ? selectedScopes : undefined,
         isReadOnly,
-        expiresAtUtc: expiresAt.trim()
-          ? new Date(expiresAt).toISOString()
-          : null,
+        expiresAtUtc,
       })
       if (result) {
         setCreatedKey(result)
@@ -172,172 +403,42 @@ export function CreateApiKeyModal({
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="always"
       >
-        {isRevealState ? (
-          <>
-            <Text style={styles.warningText}>
-              {t('orbitMcp.keyCreatedWarning')}
-            </Text>
-
-            <View style={styles.keyWell}>
-              <Pressable
-                style={styles.copyButton}
-                onPress={() => {
-                  void copyKey()
-                }}
-                accessibilityRole="button"
-                accessibilityLabel={t('orbitMcp.copy')}
-                hitSlop={8}
-              >
-                <Text
-                  style={[
-                    styles.copyButtonText,
-                    { color: copied ? tokens.statusDone : tokens.primary },
-                  ]}
-                >
-                  {copied ? t('orbitMcp.copied') : t('orbitMcp.copy')}
-                </Text>
-              </Pressable>
-              <Text style={styles.keyText} selectable>
-                {createdKey?.key}
-              </Text>
-            </View>
-
-            <Text style={styles.metaLine}>
-              {`${t('orbitMcp.scopesLabel')} ${
-                createdKey?.scopes.length
-                  ? createdKey.scopes.length
-                  : t('orbitMcp.noScopes')
-              } · ${t('orbitMcp.readOnlyLabel')} ${
-                createdKey?.isReadOnly ? t('common.yes') : t('common.no')
-              } · ${
-                createdKey?.expiresAtUtc
-                  ? createdKey.expiresAtUtc
-                  : t('common.never')
-              }`}
-            </Text>
-
-            <View style={styles.footerEnd}>
-              <PillButton
-                onPress={() => onOpenChange(false)}
-                accessibilityLabel={t('orbitMcp.done')}
-              >
-                {t('orbitMcp.done')}
-              </PillButton>
-            </View>
-          </>
+        {isRevealState && createdKey ? (
+          <ApiKeyRevealPanel
+            tokens={tokens}
+            styles={styles}
+            createdKey={createdKey}
+            copied={copied}
+            onCopy={() => {
+              void copyKey()
+            }}
+            onClose={() => onOpenChange(false)}
+          />
         ) : (
-          <>
-            <View>
-              <Text style={styles.fieldLabel}>{t('orbitMcp.keyName')}</Text>
-              <BottomSheetAppTextInput
-                value={keyName}
-                onChangeText={setKeyName}
-                placeholder={t('orbitMcp.keyNamePlaceholder')}
-                maxLength={50}
-                accessibilityLabel={t('orbitMcp.keyName')}
-              />
-            </View>
-
-            <View>
-              <Text style={styles.fieldLabel}>{t('orbitMcp.scopesLabel')}</Text>
-              <View style={styles.scopeWrap}>
-                {availableScopes.map((scope) => (
-                  <Chip
-                    key={scope.scope}
-                    active={selectedScopes.includes(scope.scope)}
-                    onPress={() => toggleScope(scope.scope)}
-                  >
-                    {scope.scope}
-                  </Chip>
-                ))}
-              </View>
-              <View style={styles.scopeActions}>
-                <Pressable
-                  onPress={() =>
-                    setSelectedScopes(
-                      availableScopes.map((scope) => scope.scope),
-                    )
-                  }
-                  accessibilityRole="button"
-                  accessibilityLabel={t('common.selectAll')}
-                >
-                  <Text style={styles.quietLinkStrong}>
-                    {t('common.selectAll')}
-                  </Text>
-                </Pressable>
-                <Pressable
-                  onPress={() => setSelectedScopes([])}
-                  accessibilityRole="button"
-                  accessibilityLabel={t('common.clear')}
-                >
-                  <Text style={styles.quietLink}>{t('common.clear')}</Text>
-                </Pressable>
-              </View>
-            </View>
-
-            <View style={styles.switchRow}>
-              <Text style={styles.switchRowLabel}>
-                {t('orbitMcp.readOnlyKeyLabel')}
-              </Text>
-              <Switch
-                on={isReadOnly}
-                onToggle={() => setIsReadOnly((current) => !current)}
-                accessibilityLabel={t('orbitMcp.readOnlyKeyLabel')}
-              />
-            </View>
-
-            <View>
-              <Text style={styles.fieldLabel}>
-                {t('orbitMcp.expiresAtLabel')}
-              </Text>
-              <BottomSheetAppTextInput
-                value={expiresAt}
-                onChangeText={setExpiresAt}
-                placeholder={t('common.never')}
-                autoCapitalize="none"
-                style={styles.monoInput}
-                accessibilityLabel={t('orbitMcp.expiresAtLabel')}
-              />
-            </View>
-
-            {validationError ? (
-              <Text style={styles.errorText} accessibilityRole="alert">
-                {validationError}
-              </Text>
-            ) : null}
-
-            {apiError ? (
-              <Text style={styles.errorText} accessibilityRole="alert">
-                {apiError}
-              </Text>
-            ) : null}
-
-            <View style={styles.footer}>
-              <PillButton
-                variant="ghost"
-                style={styles.footerButton}
-                onPress={() => onOpenChange(false)}
-                disabled={isSubmitting}
-                accessibilityLabel={t('common.cancel')}
-              >
-                {t('common.cancel')}
-              </PillButton>
-              <PillButton
-                style={styles.footerButton}
-                onPress={() => {
-                  void handleSubmit()
-                }}
-                disabled={isSubmitting}
-                accessibilityLabel={t('orbitMcp.createKey')}
-              >
-                {isSubmitting ? (
-                  <ActivityIndicator size="small" color={tokens.fgOnPrimary} />
-                ) : (
-                  t('orbitMcp.createKey')
-                )}
-              </PillButton>
-            </View>
-          </>
+          <ApiKeyCreateForm
+            tokens={tokens}
+            styles={styles}
+            availableScopes={availableScopes}
+            keyName={keyName}
+            selectedScopes={selectedScopes}
+            isReadOnly={isReadOnly}
+            expiresAt={expiresAt}
+            validationError={validationError}
+            apiError={apiError}
+            isSubmitting={isSubmitting}
+            onChangeName={setKeyName}
+            onChangeExpiresAt={setExpiresAt}
+            onToggleScope={toggleScope}
+            onSelectAllScopes={() =>
+              setSelectedScopes(availableScopes.map((scope) => scope.scope))
+            }
+            onClearScopes={() => setSelectedScopes([])}
+            onToggleReadOnly={() => setIsReadOnly((current) => !current)}
+            onCancel={() => onOpenChange(false)}
+            onSubmit={() => {
+              void handleSubmit()
+            }}
+          />
         )}
       </KeyboardAwareBottomSheetScrollView>
     </BottomSheetModal>
@@ -412,7 +513,7 @@ function createStyles(tokens: AppTokensV2, bottomInset: number) {
       fontFamily: 'Rubik_500Medium',
       fontSize: 14,
       lineHeight: 20,
-      color: tokens.statusOverdue,
+      color: tokens.statusOverdueText,
     },
     keyWell: {
       position: 'relative',
@@ -446,7 +547,7 @@ function createStyles(tokens: AppTokensV2, bottomInset: number) {
       fontFamily: 'Roboto_400Regular',
       fontSize: 11,
       letterSpacing: 0.22,
-      color: tokens.fg4,
+      color: tokens.fg3,
       fontVariant: ['tabular-nums'],
     },
     errorText: {

@@ -50,6 +50,7 @@ export function SlipAlertSection({
           style={sectionStyles.headerRow}
           onPress={() => router.push("/upgrade")}
           activeOpacity={0.8}
+          accessibilityRole="button"
         >
           <View style={{ flex: 1, gap: 4 }}>
             <View style={sectionStyles.headerLeft}>

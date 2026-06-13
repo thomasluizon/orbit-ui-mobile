@@ -36,7 +36,7 @@ describe('useLoginCodeEntry', () => {
     expect(nextFocus).toHaveBeenCalledTimes(1)
   })
 
-  it('fills multiple digits from one input and completes asynchronously', () => {
+  it('fills multiple digits from one input and auto-submits once complete', () => {
     const onComplete = vi.fn()
     const { result } = renderHook(() => useLoginCodeEntry(onComplete))
     const lastFocus = attachFocusableRef(
@@ -50,12 +50,36 @@ describe('useLoginCodeEntry', () => {
 
     expect(result.current.codeDigits).toEqual(['1', '2', '3', '4', '5', '6'])
     expect(lastFocus).toHaveBeenCalledTimes(1)
+    expect(onComplete).toHaveBeenCalledTimes(1)
+    expect(onComplete).toHaveBeenCalledWith('123456')
+  })
+
+  it('auto-submits when the final digit is typed manually', () => {
+    const onComplete = vi.fn()
+    const { result } = renderHook(() => useLoginCodeEntry(onComplete))
+
+    act(() => {
+      result.current.setCodeDigits(['1', '2', '3', '4', '5', ''])
+    })
     expect(onComplete).not.toHaveBeenCalled()
 
     act(() => {
-      vi.runAllTimers()
+      result.current.onCodeInput(5, '6')
     })
 
+    expect(onComplete).toHaveBeenCalledTimes(1)
+    expect(onComplete).toHaveBeenCalledWith('123456')
+  })
+
+  it('auto-submits when a complete code is set from a deep link', () => {
+    const onComplete = vi.fn()
+    const { result } = renderHook(() => useLoginCodeEntry(onComplete))
+
+    act(() => {
+      result.current.setCodeDigits('123456'.split(''))
+    })
+
+    expect(onComplete).toHaveBeenCalledTimes(1)
     expect(onComplete).toHaveBeenCalledWith('123456')
   })
 
@@ -80,12 +104,22 @@ describe('useLoginCodeEntry', () => {
     expect(preventDefault).toHaveBeenCalledTimes(1)
     expect(result.current.codeDigits).toEqual(['9', '8', '7', '6', '5', '4'])
     expect(lastFocus).toHaveBeenCalledTimes(1)
+    expect(onComplete).toHaveBeenCalledTimes(1)
+    expect(onComplete).toHaveBeenCalledWith('987654')
+  })
+
+  it('does not double-submit the same complete code', () => {
+    const onComplete = vi.fn()
+    const { result } = renderHook(() => useLoginCodeEntry(onComplete))
 
     act(() => {
-      vi.runAllTimers()
+      result.current.onCodeInput(0, '123456')
+    })
+    act(() => {
+      result.current.onCodeInput(5, '6')
     })
 
-    expect(onComplete).toHaveBeenCalledWith('987654')
+    expect(onComplete).toHaveBeenCalledTimes(1)
   })
 
   it('moves focus backward on backspace and resets digits', () => {

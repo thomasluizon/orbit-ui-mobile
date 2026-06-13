@@ -1,13 +1,18 @@
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState, type ReactElement } from "react";
 import {
+  type FlatList,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
   Pressable,
+  type StyleProp,
   StyleSheet,
   Text,
   View,
+  type ViewStyle,
 } from "react-native";
 import { Check, Filter } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
-import type { GoalStatus } from "@orbit/shared/types/goal";
+import type { Goal, GoalStatus } from "@orbit/shared/types/goal";
 import { useGoals } from "@/hooks/use-goals";
 import { GoalList } from "./goal-list";
 import { AnchoredMenu } from "@/components/ui/anchored-menu";
@@ -24,6 +29,14 @@ interface StatusFilter {
   label: string;
 }
 
+interface GoalsViewProps {
+  listHeader?: ReactElement;
+  scrollRef?: React.Ref<FlatList<Goal>>;
+  contentContainerStyle?: StyleProp<ViewStyle>;
+  onScroll?: (event: NativeSyntheticEvent<NativeScrollEvent>) => void;
+  onScrollBeginDrag?: (event: NativeSyntheticEvent<NativeScrollEvent>) => void;
+}
+
 function SkeletonCard({
   styles,
 }: Readonly<{
@@ -38,7 +51,13 @@ function SkeletonCard({
   );
 }
 
-export function GoalsView() {
+export function GoalsView({
+  listHeader,
+  scrollRef,
+  contentContainerStyle,
+  onScroll,
+  onScrollBeginDrag,
+}: Readonly<GoalsViewProps>) {
   const { t } = useTranslation();
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
@@ -87,8 +106,9 @@ export function GoalsView() {
     });
   }, [showFilterMenu]);
 
-  return (
-    <View style={styles.container}>
+  const listHeaderElement = (
+    <>
+      {listHeader}
       <SectionLabel
         top={16}
         bottom={12}
@@ -119,21 +139,30 @@ export function GoalsView() {
       >
         {t("goals.tab")}
       </SectionLabel>
+    </>
+  );
 
-      {!isFetched ? (
-        <View style={styles.skeletonContainer}>
-          <SkeletonCard styles={styles} />
-          <SkeletonCard styles={styles} />
-          <SkeletonCard styles={styles} />
-        </View>
-      ) : filteredGoals.length > 0 ? (
-        <GoalList goals={filteredGoals} />
-      ) : (
-        <EmptyState
-          title={t("goals.empty")}
-          description={t("goals.emptyHint")}
-        />
-      )}
+  const listEmptyElement = !isFetched ? (
+    <View style={styles.skeletonContainer}>
+      <SkeletonCard styles={styles} />
+      <SkeletonCard styles={styles} />
+      <SkeletonCard styles={styles} />
+    </View>
+  ) : (
+    <EmptyState title={t("goals.empty")} description={t("goals.emptyHint")} />
+  );
+
+  return (
+    <View style={styles.container}>
+      <GoalList
+        ref={scrollRef}
+        goals={filteredGoals}
+        ListHeaderComponent={listHeaderElement}
+        ListEmptyComponent={listEmptyElement}
+        contentContainerStyle={contentContainerStyle}
+        onScroll={onScroll}
+        onScrollBeginDrag={onScrollBeginDrag}
+      />
 
       <AnchoredMenu
         visible={showFilterMenu}
@@ -182,7 +211,7 @@ export function GoalsView() {
 function createStyles(tokens: AppTokens) {
   return StyleSheet.create({
     container: {
-      paddingTop: 0,
+      flex: 1,
     },
     headerActions: {
       flexDirection: "row",

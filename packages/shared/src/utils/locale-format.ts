@@ -30,7 +30,6 @@ export function getSystemLocale(): string {
       return resolved
     }
   } catch {
-    // fall through
   }
   return 'en-US'
 }

@@ -148,7 +148,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       paddingBottom: 10,
       fontFamily: 'Roboto_400Regular',
       fontSize: 12,
-      color: tokens.fg4,
+      color: tokens.fg3,
       letterSpacing: 0.24,
       fontVariant: ['tabular-nums'],
       borderBottomWidth: StyleSheet.hairlineWidth,

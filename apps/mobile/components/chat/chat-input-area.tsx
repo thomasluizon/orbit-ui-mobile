@@ -60,6 +60,200 @@ interface ChatInputAreaProps {
   onUpgrade: () => void;
 }
 
+interface ChatInputNoticesProps {
+  tokens: Tokens;
+  styles: ChatStyles;
+  hasMessages: boolean;
+  isOnline: boolean;
+  offlineTitle: string;
+  offlineDescription: string;
+  sendError: string | null;
+  canRetry: boolean;
+  speechError: string | null;
+  imagePreview: string | null;
+  onRetry: () => void;
+  onRemoveImage: () => void;
+}
+
+function ChatInputNotices({
+  tokens,
+  styles,
+  hasMessages,
+  isOnline,
+  offlineTitle,
+  offlineDescription,
+  sendError,
+  canRetry,
+  speechError,
+  imagePreview,
+  onRetry,
+  onRemoveImage,
+}: Readonly<ChatInputNoticesProps>) {
+  const { t } = useTranslation();
+  return (
+    <>
+      {sendError && (
+        <Text style={[styles.errorText, { color: tokens.statusBadText }]} accessibilityRole="alert">
+          {sendError}
+          {canRetry ? (
+            <Text
+              onPress={onRetry}
+              accessibilityRole="button"
+              accessibilityLabel={t("common.retry")}
+              style={styles.retryText}
+            >
+              {"  " + t("common.retry")}
+            </Text>
+          ) : null}
+        </Text>
+      )}
+      {!isOnline && (
+        <OfflineUnavailableState
+          title={offlineTitle}
+          description={offlineDescription}
+          compact
+        />
+      )}
+      {speechError === t("speech.micDenied") && (
+        <TouchableOpacity
+          style={styles.permissionAction}
+          onPress={() => {
+            void Linking.openSettings().catch(() => {});
+          }}
+          activeOpacity={0.75}
+          accessibilityRole="button"
+        >
+          <Text style={[styles.permissionActionText, { color: tokens.fg1 }]}>
+            {t("common.openSettings")}
+          </Text>
+        </TouchableOpacity>
+      )}
+
+      {imagePreview && (
+        <View style={styles.imagePreviewRow}>
+          <View style={styles.imagePreviewCard}>
+            <Image
+              source={{ uri: imagePreview }}
+              resizeMethod="resize"
+              style={[styles.imagePreview, { borderColor: tokens.hairline }]}
+            />
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel={t("chat.removeImage")}
+              activeOpacity={0.8}
+              onPress={onRemoveImage}
+              style={[
+                styles.imageRemoveButton,
+                { backgroundColor: tokens.bgElev, borderColor: tokens.hairlineStrong },
+              ]}
+            >
+              <X size={12} color={tokens.fg1} />
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
+      {hasMessages && !isOnline ? (
+        <View style={styles.offlineNotice}>
+          <WifiOff size={15} color={tokens.fg3} strokeWidth={1.6} />
+          <Text style={[styles.offlineText, { color: tokens.fg2 }]}>{offlineTitle}</Text>
+        </View>
+      ) : null}
+    </>
+  );
+}
+
+interface ChatStarterChipsProps {
+  styles: ChatStyles;
+  starterChips: readonly string[];
+  onSendChip: (chip: string) => void;
+}
+
+function ChatStarterChips({ styles, starterChips, onSendChip }: Readonly<ChatStarterChipsProps>) {
+  return (
+    <ScrollView
+      horizontal
+      showsHorizontalScrollIndicator={false}
+      contentContainerStyle={styles.quickChipsContent}
+      style={styles.quickChipsScroll}
+    >
+      {starterChips.map((chip, index) => (
+        <Animated.View
+          key={chip}
+          entering={FadeInLeft.duration(280)
+            .delay(index * 60)
+            .reduceMotion(ReduceMotion.System)}
+        >
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={chip}
+            onPress={() => onSendChip(chip)}
+            style={({ pressed }) => [
+              styles.quickChip,
+              pressed && styles.quickChipPressed,
+            ]}
+          >
+            <Text style={styles.quickChipText}>{chip}</Text>
+          </Pressable>
+        </Animated.View>
+      ))}
+    </ScrollView>
+  );
+}
+
+interface ChatLimitNoticeProps {
+  tokens: Tokens;
+  styles: ChatStyles;
+  reward: ChatRewardState;
+  onUpgrade: () => void;
+}
+
+function ChatLimitNotice({ tokens, styles, reward, onUpgrade }: Readonly<ChatLimitNoticeProps>) {
+  const { t } = useTranslation();
+  return (
+    <View style={styles.limitBlock} accessibilityLiveRegion="polite">
+      <InfoCard title={t("chat.limitReachedError")} />
+      <PillButton
+        fullWidth
+        leading={<Crown size={18} strokeWidth={1.8} color={tokens.fgOnPrimary} />}
+        onPress={onUpgrade}
+      >
+        {t("upgrade.subscribe")}
+      </PillButton>
+      {reward.adsEnabledForUser ? (
+        <View style={styles.rewardCard}>
+          <TouchableOpacity
+            style={[
+              styles.rewardButton,
+              !reward.canWatchRewardAd && styles.rewardButtonDisabled,
+            ]}
+            onPress={reward.onWatchAd}
+            disabled={!reward.canWatchRewardAd}
+            activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityState={{ disabled: !reward.canWatchRewardAd }}
+          >
+            <Text style={[styles.rewardButtonText, { color: tokens.fg1 }]}>
+              {reward.isLoadingReward
+                ? t("common.loading")
+                : t("ads.watchForMessages")}
+            </Text>
+          </TouchableOpacity>
+          <Text style={[styles.rewardMeta, { color: tokens.fg3 }]}>
+            {reward.rewardsClaimedToday}/{reward.dailyRewardCap}{" "}
+            {t("ads.dailyLimitReached")}
+          </Text>
+          {reward.rewardMessage ? (
+            <Text style={[styles.rewardMessage, { color: tokens.fg2 }]}>
+              {reward.rewardMessage}
+            </Text>
+          ) : null}
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
 export const ChatInputArea = forwardRef<View, Readonly<ChatInputAreaProps>>(
   function ChatInputArea(props, inputAreaRef) {
     const { t } = useTranslation();
@@ -100,101 +294,27 @@ export const ChatInputArea = forwardRef<View, Readonly<ChatInputAreaProps>>(
           },
         ]}
       >
-        {sendError && (
-          <Text style={[styles.errorText, { color: tokens.statusBad }]} accessibilityRole="alert">
-            {sendError}
-            {canRetry ? (
-              <Text
-                onPress={onRetry}
-                accessibilityRole="button"
-                accessibilityLabel={t("common.retry")}
-                style={styles.retryText}
-              >
-                {"  " + t("common.retry")}
-              </Text>
-            ) : null}
-          </Text>
-        )}
-        {!isOnline && (
-          <OfflineUnavailableState
-            title={offlineTitle}
-            description={offlineDescription}
-            compact
-          />
-        )}
-        {speechError === t("speech.micDenied") && (
-          <TouchableOpacity
-            style={styles.permissionAction}
-            onPress={() => {
-              void Linking.openSettings().catch(() => {});
-            }}
-            activeOpacity={0.75}
-          >
-            <Text style={[styles.permissionActionText, { color: tokens.fg1 }]}>
-              {t("common.openSettings")}
-            </Text>
-          </TouchableOpacity>
-        )}
-
-        {imagePreview && (
-          <View style={styles.imagePreviewRow}>
-            <View style={styles.imagePreviewCard}>
-              <Image
-                source={{ uri: imagePreview }}
-                style={[styles.imagePreview, { borderColor: tokens.hairline }]}
-              />
-              <TouchableOpacity
-                accessibilityRole="button"
-                accessibilityLabel={t("chat.removeImage")}
-                activeOpacity={0.8}
-                onPress={onRemoveImage}
-                style={[
-                  styles.imageRemoveButton,
-                  { backgroundColor: tokens.bgElev, borderColor: tokens.hairlineStrong },
-                ]}
-              >
-                <X size={12} color={tokens.fg1} />
-              </TouchableOpacity>
-            </View>
-          </View>
-        )}
-
-        {hasMessages && !isOnline ? (
-          <View style={styles.offlineNotice}>
-            <WifiOff size={15} color={tokens.fg3} strokeWidth={1.6} />
-            <Text style={[styles.offlineText, { color: tokens.fg2 }]}>{offlineTitle}</Text>
-          </View>
-        ) : null}
+        <ChatInputNotices
+          tokens={tokens}
+          styles={styles}
+          hasMessages={hasMessages}
+          isOnline={isOnline}
+          offlineTitle={offlineTitle}
+          offlineDescription={offlineDescription}
+          sendError={sendError}
+          canRetry={canRetry}
+          speechError={speechError}
+          imagePreview={imagePreview}
+          onRetry={onRetry}
+          onRemoveImage={onRemoveImage}
+        />
 
         {hasMessages && (
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.quickChipsContent}
-            style={styles.quickChipsScroll}
-          >
-            {starterChips.map((chip, index) => (
-              <Animated.View
-                key={chip}
-                entering={FadeInLeft.duration(280)
-                  .delay(index * 60)
-                  .reduceMotion(ReduceMotion.System)}
-              >
-                <Pressable
-                  accessibilityRole="button"
-                  accessibilityLabel={chip}
-                  onPress={() => onSendChip(chip)}
-                  style={({ pressed }) => [
-                    styles.quickChip,
-                    pressed && styles.quickChipPressed,
-                  ]}
-                  hitSlop={{ top: 4, bottom: 4 }}
-                >
-                  <Text style={styles.quickChipText}>{chip}</Text>
-                </Pressable>
-              </Animated.View>
-            ))}
-          </ScrollView>
+          <ChatStarterChips
+            styles={styles}
+            starterChips={starterChips}
+            onSendChip={onSendChip}
+          />
         )}
 
         <ChatInputBar
@@ -222,44 +342,12 @@ export const ChatInputArea = forwardRef<View, Readonly<ChatInputAreaProps>>(
         />
 
         {!hasProAccess && atMessageLimit && (
-          <View style={styles.limitBlock} accessibilityLiveRegion="polite">
-            <InfoCard title={t("chat.limitReachedError")} />
-            <PillButton
-              fullWidth
-              leading={<Crown size={18} strokeWidth={1.8} color={tokens.fgOnPrimary} />}
-              onPress={onUpgrade}
-            >
-              {t("upgrade.subscribe")}
-            </PillButton>
-            {reward.adsEnabledForUser ? (
-              <View style={styles.rewardCard}>
-                <TouchableOpacity
-                  style={[
-                    styles.rewardButton,
-                    !reward.canWatchRewardAd && styles.rewardButtonDisabled,
-                  ]}
-                  onPress={reward.onWatchAd}
-                  disabled={!reward.canWatchRewardAd}
-                  activeOpacity={0.7}
-                >
-                  <Text style={[styles.rewardButtonText, { color: tokens.fg1 }]}>
-                    {reward.isLoadingReward
-                      ? t("common.loading")
-                      : t("ads.watchForMessages")}
-                  </Text>
-                </TouchableOpacity>
-                <Text style={[styles.rewardMeta, { color: tokens.fg3 }]}>
-                  {reward.rewardsClaimedToday}/{reward.dailyRewardCap}{" "}
-                  {t("ads.dailyLimitReached")}
-                </Text>
-                {reward.rewardMessage ? (
-                  <Text style={[styles.rewardMessage, { color: tokens.fg2 }]}>
-                    {reward.rewardMessage}
-                  </Text>
-                ) : null}
-              </View>
-            ) : null}
-          </View>
+          <ChatLimitNotice
+            tokens={tokens}
+            styles={styles}
+            reward={reward}
+            onUpgrade={onUpgrade}
+          />
         )}
         {!hasProAccess && !atMessageLimit && (
           <Text style={[styles.usageText, { color: tokens.fg3 }]}>

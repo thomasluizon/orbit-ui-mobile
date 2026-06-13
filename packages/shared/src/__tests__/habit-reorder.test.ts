@@ -16,7 +16,6 @@ describe('computeHabitReorderPositions', () => {
 
     const positions = computeHabitReorderPositions(items, 2, 0, habitsById, () => [])
 
-    // c moved to front: [c, a, b]
     const byId = Object.fromEntries(positions.map((p) => [p.habitId, p.position]))
     expect(byId).toEqual({ c: 0, a: 1, b: 2 })
   })
@@ -51,7 +50,6 @@ describe('computeHabitReorderPositions', () => {
     const visibleA = createMockHabit({ id: 'visible-a', position: 0 })
     const hidden = createMockHabit({ id: 'hidden', position: 1 })
     const visibleB = createMockHabit({ id: 'visible-b', position: 2 })
-    // Only visibleA and visibleB appear in the Today view (hidden is filtered out).
     const items = [visibleA, visibleB].map((habit) => ({
       id: habit.id,
       parentId: habit.parentId,
@@ -61,22 +59,15 @@ describe('computeHabitReorderPositions', () => {
       [visibleA, hidden, visibleB].map((habit) => [habit.id, habit]),
     )
 
-    // Swap visibleA and visibleB in the filtered view.
     const positions = computeHabitReorderPositions(items, 1, 0, habitsById, () => [])
 
     const byId = Object.fromEntries(positions.map((p) => [p.habitId, p.position]))
-    // Expected full order: [visibleB, visibleA, hidden] -- hidden stays between/after them,
-    // but critically it MUST NOT be pushed to the end index > visible count. Because the
-    // anchor for newIndex=0 is no "before" item and the "after" anchor is visibleA (pos 0
-    // in full list after removing visibleB), visibleB inserts at 0 -> [visibleB, visibleA, hidden].
     expect(byId['visible-b']).toBe(0)
     expect(byId['visible-a']).toBe(1)
     expect(byId['hidden']).toBe(2)
   })
 
   it('keeps hidden siblings anchored when dragging within a filtered view repeatedly (no drift)', () => {
-    // Simulate the bug: the user drags twice in a filtered view. The hidden habit
-    // must not drift to a higher index each time.
     const wakingUp = createMockHabit({ id: 'waking-up', position: 0 })
     const water = createMockHabit({ id: 'water', position: 1 })
     const meals = createMockHabit({ id: 'meals', position: 2 })
@@ -84,23 +75,17 @@ describe('computeHabitReorderPositions', () => {
       [wakingUp, water, meals].map((habit) => [habit.id, habit]),
     )
 
-    // Only water and meals visible today (waking-up already done & filtered out).
     const items = [water, meals].map((habit) => ({
       id: habit.id,
       parentId: habit.parentId,
       position: habit.position,
     }))
 
-    // Drag meals above water.
     const positions = computeHabitReorderPositions(items, 1, 0, habitsById, () => [])
     const byId = Object.fromEntries(positions.map((p) => [p.habitId, p.position]))
 
-    // waking-up MUST stay at position 0 (it's the first in the full list and
-    // was not dragged). The visible swap should land around it.
     expect(byId['waking-up']).toBe(0)
-    // meals should now be before water in the full order.
     expect(byId['meals']!).toBeLessThan(byId['water']!)
-    // All positions must form a contiguous 0..2 set.
     expect(new Set(Object.values(byId))).toEqual(new Set([0, 1, 2]))
   })
 

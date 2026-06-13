@@ -13,6 +13,7 @@ import { usePrefersReducedMotion } from '@/lib/motion'
 import { createTokensV2, tintFromPrimary } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useUIStore } from '@/stores/ui-store'
+import { useOverlayBack } from '@/hooks/use-overlay-back'
 import { GradientTop } from '@/components/ui/gradient-top'
 import { PillButton } from '@/components/ui/pill-button'
 import { useCelebrationEntrance } from './celebration-motion'
@@ -117,6 +118,8 @@ export function LevelUpOverlay({
       if (timerRef.current) clearTimeout(timerRef.current)
     }
   }, [activeLevelUp, dismiss, overlayOpacity])
+
+  useOverlayBack(shouldRender, () => dismiss(activeLevelUp?.id))
 
   const spin = ringRotation.interpolate({
     inputRange: [0, 1],

@@ -1,4 +1,4 @@
-export interface HabitDetailSummaryInput {
+interface HabitDetailSummaryInput {
   currentStreak: number
   streakLabel: string
   hasLinkedGoal: boolean

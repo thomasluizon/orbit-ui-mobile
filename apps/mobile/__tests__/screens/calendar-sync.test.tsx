@@ -21,6 +21,16 @@ const mocks = vi.hoisted(() => {
   return {
     apiClient: vi.fn(),
     queryClient,
+    eventsQuery: {
+      data: { status: "connected", events: [] } as
+        | { status: "connected"; events: unknown[] }
+        | { status: "not-connected" }
+        | undefined,
+      isLoading: false,
+      isError: false,
+      error: null as Error | null,
+      refetch: vi.fn(),
+    },
     router: {
       push: vi.fn(),
       replace: vi.fn(),
@@ -89,6 +99,10 @@ vi.mock("@/hooks/use-calendar-auto-sync", () => ({
     mutate: vi.fn(),
     isPending: false,
   }),
+}));
+
+vi.mock("@/hooks/use-calendar-events", () => ({
+  useCalendarEvents: () => mocks.eventsQuery,
 }));
 
 vi.mock("@/lib/api-client", () => ({
@@ -194,17 +208,20 @@ describe("CalendarSyncScreen", () => {
     vi.clearAllMocks();
     mocks.profile = createMockProfile({ hasProAccess: true });
     mocks.apiClient.mockResolvedValue([]);
+    mocks.eventsQuery.data = { status: "connected", events: [] };
+    mocks.eventsQuery.isLoading = false;
+    mocks.eventsQuery.isError = false;
+    mocks.eventsQuery.error = null;
   });
 
-  it("fetches calendar events once after the screen settles", async () => {
+  it("refetches calendar events through the cached query once the screen settles", async () => {
     await TestRenderer.act(async () => {
       TestRenderer.create(<CalendarSyncScreen />);
       await Promise.resolve();
       await Promise.resolve();
     });
 
-    expect(mocks.apiClient).toHaveBeenCalledTimes(1);
-    expect(mocks.apiClient).toHaveBeenCalledWith("/api/calendar/events");
+    expect(mocks.eventsQuery.refetch).toHaveBeenCalledTimes(1);
   });
 
   it("replaces to upgrade instead of pushing when a free user opens the screen", async () => {
@@ -218,6 +235,6 @@ describe("CalendarSyncScreen", () => {
 
     expect(mocks.router.replace).toHaveBeenCalledWith("/upgrade");
     expect(mocks.router.push).not.toHaveBeenCalledWith("/upgrade");
-    expect(mocks.apiClient).not.toHaveBeenCalled();
+    expect(mocks.eventsQuery.refetch).not.toHaveBeenCalled();
   });
 });

@@ -24,8 +24,8 @@ const {
   updateColorScheme,
   completeOnboarding,
   resetAccount,
-  dismissCalendarImport,
 } = await import('@/app/actions/profile')
+const { dismissCalendarImport } = await import('@/app/actions/calendar')
 
 describe('profile server actions', () => {
   beforeEach(() => {

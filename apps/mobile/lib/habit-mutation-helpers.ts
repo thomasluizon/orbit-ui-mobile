@@ -123,8 +123,8 @@ function cloneTopLevelHabit(node: HabitTreeNode): HabitScheduleItem {
     tags: node.tags,
     children,
     hasSubHabits: children.length > 0 || node.hasSubHabits,
-    flexibleTarget: 'flexibleTarget' in node ? node.flexibleTarget : null,
-    flexibleCompleted: 'flexibleCompleted' in node ? node.flexibleCompleted : null,
+    flexibleTarget: ('flexibleTarget' in node ? node.flexibleTarget : null) ?? null,
+    flexibleCompleted: ('flexibleCompleted' in node ? node.flexibleCompleted : null) ?? null,
     isLoggedInRange: ('isLoggedInRange' in node ? node.isLoggedInRange : false) ?? false,
     linkedGoals: 'linkedGoals' in node ? node.linkedGoals : undefined,
     instances: 'instances' in node ? node.instances : [],
@@ -636,19 +636,26 @@ function runBackgroundInvalidations(tasks: Promise<unknown>[]) {
   void Promise.allSettled(tasks)
 }
 
+interface HabitInvalidationOptions {
+  habitId?: string
+  includeGoals?: boolean
+  includeGamification?: boolean
+  includeProfile?: boolean
+  includeCount?: boolean
+}
+
 export function invalidateHabitMutationQueries(
   queryClient: QueryClient,
-  options?: {
-    habitId?: string
-    includeGoals?: boolean
-    includeGamification?: boolean
-    includeProfile?: boolean
-  },
+  options?: HabitInvalidationOptions,
 ): void {
   const invalidations: Promise<unknown>[] = [
     queryClient.invalidateQueries({ queryKey: habitKeys.lists() }),
     queryClient.invalidateQueries({ queryKey: habitKeys.summaryPrefix() }),
   ]
+
+  if (options?.includeCount) {
+    invalidations.push(queryClient.invalidateQueries({ queryKey: habitKeys.count() }))
+  }
 
   if (options?.habitId) {
     invalidations.push(
@@ -676,14 +683,9 @@ export function finalizeHabitMutation(
   queryClient: QueryClient,
   data: unknown,
   error: Error | null,
-  options?: {
-    habitId?: string
-    includeGoals?: boolean
-    includeGamification?: boolean
-    includeProfile?: boolean
-  },
+  options?: HabitInvalidationOptions,
 ): void {
-  if (error || isQueuedResult(data)) {
+  if (isQueuedResult(data)) {
     return
   }
 

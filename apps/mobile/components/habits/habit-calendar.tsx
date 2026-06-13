@@ -111,6 +111,8 @@ export function HabitCalendar({
       <View style={styles.header}>
         <TouchableOpacity
           testID="habit-calendar-prev-month"
+          accessibilityRole="button"
+          accessibilityLabel={t('common.previousMonth')}
           style={styles.iconButton}
           onPress={prevMonth}
           activeOpacity={0.7}
@@ -121,6 +123,7 @@ export function HabitCalendar({
 
         <TouchableOpacity
           testID="habit-calendar-month-label"
+          accessibilityRole="button"
           style={styles.monthButton}
           onPress={goToToday}
           activeOpacity={0.7}
@@ -130,6 +133,8 @@ export function HabitCalendar({
 
         <TouchableOpacity
           testID="habit-calendar-next-month"
+          accessibilityRole="button"
+          accessibilityLabel={t('common.nextMonth')}
           style={styles.iconButton}
           onPress={nextMonth}
           activeOpacity={0.7}
@@ -153,6 +158,8 @@ export function HabitCalendar({
             {day.isCurrentMonth && day.isCompleted ? (
               <TouchableOpacity
                 testID={`habit-calendar-day-${day.dateStr}`}
+                accessibilityRole="button"
+                accessibilityState={{ selected: selectedDate === day.dateStr }}
                 style={[
                   styles.completedDay,
                   selectedDate === day.dateStr && styles.completedDaySelected,
@@ -192,6 +199,8 @@ export function HabitCalendar({
               {displayDate(parseISO(selectedDate))}
             </Text>
             <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel={t('common.close')}
               style={styles.closeSelectionButton}
               onPress={() => setSelectedDate(null)}
               activeOpacity={0.7}
@@ -277,7 +286,7 @@ function createStyles(tokens: AppTokens) {
       fontSize: 11,
       textTransform: "uppercase",
       letterSpacing: 0.44,
-      color: tokens.fg4,
+      color: tokens.fg3,
     },
     grid: {
       flexDirection: "row",

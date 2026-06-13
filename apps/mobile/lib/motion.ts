@@ -6,7 +6,6 @@ import {
   motionLayerTiming,
   motionPresets,
   orbitalMotion,
-  motionSprings,
   resolveMotionPreset,
   type MotionScenario,
 } from '@orbit/shared/theme'
@@ -40,18 +39,6 @@ export async function getPrefersReducedMotion(): Promise<boolean> {
   }
 
   return reducedMotionRequest
-}
-
-export function setReducedMotionPreferenceForTests(value: boolean) {
-  cachedReducedMotionPreference = value
-  hasLoadedReducedMotionPreference = true
-  reducedMotionRequest = null
-}
-
-export function resetReducedMotionPreferenceForTests() {
-  cachedReducedMotionPreference = false
-  hasLoadedReducedMotionPreference = false
-  reducedMotionRequest = null
 }
 
 export function usePrefersReducedMotion(): boolean {
@@ -107,29 +94,6 @@ export function toAnimatedEasing(
     controlPoints[2],
     controlPoints[3],
   )
-}
-
-export function getReanimatedEasing(
-  easing: readonly [number, number, number, number],
-): readonly [number, number, number, number] {
-  return easing
-}
-
-export function getSpringConfig(
-  spring: keyof typeof motionSprings,
-  prefersReducedMotion: boolean,
-) {
-  if (prefersReducedMotion) {
-    return {
-      stiffness: 420,
-      damping: 42,
-      mass: 1,
-      restSpeedThreshold: 2,
-      restDisplacementThreshold: 2,
-    }
-  }
-
-  return motionSprings[spring]
 }
 
 export const mobileMotion = {

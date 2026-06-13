@@ -2,10 +2,25 @@
 
 import { useState, useCallback, useMemo, useEffect, useRef } from 'react'
 import { useTranslations } from 'next-intl'
-import { formatAPIDate } from '@orbit/shared/utils'
-import { normalizeHabitDetailForDrill } from '@orbit/shared/utils/drill-navigation'
+import {
+  loadDrillChildren,
+  mergeDrillChildrenMap,
+} from '@orbit/shared/utils/drill-navigation'
 import { getErrorMessage, API } from '@orbit/shared/api'
+import { hasOpenOverlay } from '@/lib/overlay-stack'
 import type { NormalizedHabit, HabitDetail } from '@orbit/shared/types/habit'
+
+function isTextEntryTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false
+  const tag = target.tagName
+  return tag === 'INPUT' || tag === 'TEXTAREA' || target.isContentEditable
+}
+
+function isInsideOpenLayer(target: EventTarget | null): boolean {
+  const node = target instanceof HTMLElement ? target : document.activeElement
+  if (!(node instanceof HTMLElement)) return false
+  return node.closest('[role="dialog"], [role="menu"]') !== null
+}
 
 async function fetchHabitDetail(habitId: string): Promise<HabitDetail> {
   const res = await fetch(API.habits.get(habitId))
@@ -67,18 +82,11 @@ export function useDrillNavigation(
     async (habitId: string, silent = false) => {
       if (!silent) setDrillLoading(true)
       try {
-        const detail = await fetchHabitDetail(habitId)
-        const today = formatAPIDate(new Date())
-        const normalized = normalizeHabitDetailForDrill(detail, today)
+        const normalized = await loadDrillChildren(habitId, fetchHabitDetail)
         setDrillParentInfo(normalized.parent)
-
-        setDrillChildrenMap((prev) => {
-          const next = new Map(prev)
-          for (const [parentId, children] of normalized.childrenByParent.entries()) {
-            next.set(parentId, children)
-          }
-          return next
-        })
+        setDrillChildrenMap((prev) =>
+          mergeDrillChildrenMap(prev, normalized.childrenByParent),
+        )
       } catch (err: unknown) {
         if (!silent) {
           setDrillError(getErrorMessage(err, t('errors.fetchSubHabits')))
@@ -130,6 +138,22 @@ export function useDrillNavigation(
     if (!currentParentId) return
     void Promise.resolve().then(() => fetchDrillChildren(currentParentId, true))
   }, [lastUpdated, currentParentId, fetchDrillChildren])
+
+  useEffect(() => {
+    if (!currentParentId) return
+
+    function handleEscape(event: KeyboardEvent) {
+      if (event.key !== 'Escape') return
+      if (hasOpenOverlay()) return
+      if (isTextEntryTarget(event.target)) return
+      if (isInsideOpenLayer(event.target)) return
+      event.preventDefault()
+      drillBack()
+    }
+
+    document.addEventListener('keydown', handleEscape)
+    return () => document.removeEventListener('keydown', handleEscape)
+  }, [currentParentId, drillBack])
 
   return {
     drillStack,

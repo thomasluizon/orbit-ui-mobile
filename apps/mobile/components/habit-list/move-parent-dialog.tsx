@@ -61,6 +61,8 @@ export function MoveParentDialog({
       <TouchableOpacity
         style={styles.dialogBackdrop}
         activeOpacity={1}
+        accessibilityRole="button"
+        accessibilityLabel={t('common.close')}
         onPress={onClose}
       >
         <View
@@ -100,6 +102,11 @@ export function MoveParentDialog({
                     disabled={option.disabled}
                     onPress={() => onSelectOption(option.id)}
                     activeOpacity={0.75}
+                    accessibilityRole="button"
+                    accessibilityState={{
+                      selected: isSelectedOption,
+                      disabled: option.disabled,
+                    }}
                   >
                     <View style={styles.moveOptionHeader}>
                       <Text
@@ -135,6 +142,7 @@ export function MoveParentDialog({
               disabled={isPending}
               onPress={onClose}
               activeOpacity={0.75}
+              accessibilityRole="button"
             >
               <Text style={styles.moveDialogCancelText}>
                 {t('common.cancel')}
@@ -148,6 +156,7 @@ export function MoveParentDialog({
               disabled={!canSubmit}
               onPress={onConfirm}
               activeOpacity={0.8}
+              accessibilityRole="button"
             >
               {isPending ? (
                 <ActivityIndicator size="small" color={tokens.fgOnPrimary} />

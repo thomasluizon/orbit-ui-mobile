@@ -123,7 +123,7 @@ function TabBtn({ tab, label, active, onClick, unread = false }: Readonly<TabBtn
         'appearance-none border-0 bg-transparent cursor-pointer flex flex-col items-center transition-colors duration-[160ms] ease-[var(--ease-standard)] ' +
         (active
           ? 'text-[var(--primary)]'
-          : 'text-[var(--fg-4)] hover:text-[var(--fg-2)]')
+          : 'text-[var(--fg-3)] hover:text-[var(--fg-2)]')
       }
       style={{
         padding: '18px 0 20px',

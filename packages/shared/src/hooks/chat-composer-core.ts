@@ -56,8 +56,6 @@ export const CHAT_GOAL_ACTION_TYPES: ReadonlySet<string> = new Set([
   'ReorderGoals',
 ])
 
-// Tag mutations refresh the tag list and, because habits carry tag chips, the
-// habit lists too (handled via CHAT_HABIT_ACTION_TYPES membership below).
 const CHAT_TAG_ACTION_TYPES: ReadonlySet<string> = new Set([
   'CreateTag',
   'UpdateTag',

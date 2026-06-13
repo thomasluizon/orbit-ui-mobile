@@ -1,4 +1,4 @@
-export interface HabitEmojiCategory {
+interface HabitEmojiCategory {
   readonly id: string
   readonly labelKey: string
   readonly searchTerms: string
@@ -507,7 +507,6 @@ export const HABIT_EMOJI_OPTIONS: readonly string[] = Array.from(
   new Set(HABIT_EMOJI_CATEGORIES.flatMap((category) => category.emojis)),
 )
 
-export type HabitEmojiOption = string
 
 const HABIT_EMOJI_SEARCH_TERMS = new Map(
   HABIT_EMOJI_CATEGORY_DEFINITIONS.flatMap((category) => (

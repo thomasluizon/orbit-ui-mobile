@@ -34,7 +34,7 @@ import {
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import type { GoalType } from '@orbit/shared/types/goal'
-import { MAX_GOAL_DESCRIPTION_LENGTH } from '@orbit/shared/validation'
+import { MAX_GOAL_DESCRIPTION_LENGTH, MAX_GOAL_UNIT_LENGTH } from '@orbit/shared/validation'
 
 interface CreateGoalModalProps {
   open: boolean
@@ -64,6 +64,209 @@ const goalTypeOptions = [
     icon: Flame,
   },
 ] as const
+
+type CreateGoalStyles = ReturnType<typeof createStyles>
+type CreateGoalTokens = ReturnType<typeof createTokensV2>
+
+interface GoalTypeSelectorProps {
+  tokens: CreateGoalTokens
+  styles: CreateGoalStyles
+  goalType: GoalType
+  onTypeChange: (type: GoalType) => void
+}
+
+function GoalTypeSelector({
+  tokens,
+  styles,
+  goalType,
+  onTypeChange,
+}: Readonly<GoalTypeSelectorProps>) {
+  const { t } = useTranslation()
+  const activeTypeOption =
+    goalTypeOptions.find((option) => option.key === goalType) ?? goalTypeOptions[0]
+  return (
+    <View>
+      <Text style={styles.fieldLabel}>{t('goals.form.type')}</Text>
+      <View
+        style={styles.typeRow}
+        accessibilityRole="radiogroup"
+        accessibilityLabel={t('goals.form.type')}
+      >
+        {goalTypeOptions.map((option) => {
+          const isActive = goalType === option.key
+          const OptionIcon = option.icon
+          return (
+            <Pressable
+              key={option.key}
+              style={[
+                styles.typeOption,
+                isActive ? styles.typeOptionActive : styles.typeOptionInactive,
+              ]}
+              onPress={() => onTypeChange(option.key)}
+              accessibilityRole="button"
+              accessibilityLabel={t(option.titleKey)}
+              accessibilityState={{ selected: isActive }}
+            >
+              <OptionIcon
+                size={18}
+                strokeWidth={1.8}
+                color={isActive ? tokens.fgOnPrimary : tokens.fg2}
+              />
+              <Text
+                style={[
+                  styles.typeOptionText,
+                  { color: isActive ? tokens.fgOnPrimary : tokens.fg2 },
+                ]}
+              >
+                {t(option.titleKey)}
+              </Text>
+            </Pressable>
+          )
+        })}
+      </View>
+      <View style={styles.typeCaption}>
+        <Text style={styles.typeDesc}>{t(activeTypeOption.descKey)}</Text>
+        {'hintKey' in activeTypeOption && activeTypeOption.hintKey ? (
+          <Text style={styles.typeHint}>{t(activeTypeOption.hintKey)}</Text>
+        ) : null}
+      </View>
+    </View>
+  )
+}
+
+interface GoalTargetFieldsProps {
+  tokens: CreateGoalTokens
+  styles: CreateGoalStyles
+  isStreak: boolean
+  targetValue: string
+  unit: string
+  fieldErrors: Record<string, string>
+  onChangeTarget: (value: string) => void
+  onChangeUnit: (value: string) => void
+}
+
+function GoalTargetFields({
+  tokens,
+  styles,
+  isStreak,
+  targetValue,
+  unit,
+  fieldErrors,
+  onChangeTarget,
+  onChangeUnit,
+}: Readonly<GoalTargetFieldsProps>) {
+  const { t } = useTranslation()
+  return (
+    <View style={styles.row}>
+      <View style={isStreak ? styles.fullField : styles.halfField}>
+        <Text style={styles.fieldLabel}>
+          {isStreak
+            ? t('goals.form.streakTarget')
+            : t('goals.form.targetValue')}
+        </Text>
+        <BottomSheetAppTextInput
+          value={targetValue}
+          onChangeText={onChangeTarget}
+          keyboardType="decimal-pad"
+          placeholder={
+            isStreak ? t('goals.form.streakTargetPlaceholder') : '0'
+          }
+          placeholderTextColor={tokens.fg3}
+          accessibilityLabel={
+            isStreak
+              ? t('goals.form.streakTarget')
+              : t('goals.form.targetValue')
+          }
+        />
+        {fieldErrors.targetValue ? (
+          <Text style={styles.fieldError} accessibilityRole="alert">
+            {fieldErrors.targetValue}
+          </Text>
+        ) : null}
+      </View>
+      {!isStreak ? (
+        <View style={styles.halfField}>
+          <Text style={styles.fieldLabel}>{t('goals.form.unit')}</Text>
+          <BottomSheetAppTextInput
+            value={unit}
+            onChangeText={onChangeUnit}
+            placeholder={t('goals.form.unitPlaceholder')}
+            placeholderTextColor={tokens.fg3}
+            maxLength={MAX_GOAL_UNIT_LENGTH}
+            accessibilityLabel={t('goals.form.unit')}
+          />
+          {fieldErrors.unit ? (
+            <Text style={styles.fieldError} accessibilityRole="alert">
+              {fieldErrors.unit}
+            </Text>
+          ) : null}
+        </View>
+      ) : null}
+    </View>
+  )
+}
+
+interface GoalDeadlineFieldProps {
+  tokens: CreateGoalTokens
+  styles: CreateGoalStyles
+  deadline: string
+  onChangeDeadline: (value: string) => void
+}
+
+function GoalDeadlineField({
+  tokens,
+  styles,
+  deadline,
+  onChangeDeadline,
+}: Readonly<GoalDeadlineFieldProps>) {
+  const { t } = useTranslation()
+  return (
+    <View>
+      <Text style={styles.fieldLabel}>
+        {t('goals.form.deadline')}{' '}
+        <Text style={styles.labelOptional}>
+          ({t('goals.form.deadlineOptional')})
+        </Text>
+      </Text>
+      {deadline ? (
+        <View>
+          <View style={styles.deadlineRow}>
+            <View style={styles.deadlinePicker}>
+              <AppDatePicker value={deadline} onChange={onChangeDeadline} />
+            </View>
+            <TouchableOpacity
+              style={styles.removeDeadlineButton}
+              onPress={() => onChangeDeadline('')}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel={t('common.clear')}
+            >
+              <X size={16} color={tokens.fg4} strokeWidth={1.8} />
+            </TouchableOpacity>
+          </View>
+          {isGoalDeadlinePast(deadline) ? (
+            <Text style={styles.warningText}>
+              {t('goals.form.deadlineInPast')}
+            </Text>
+          ) : null}
+        </View>
+      ) : (
+        <TouchableOpacity
+          style={styles.addDeadlineButton}
+          onPress={() => onChangeDeadline(formatAPIDate(new Date()))}
+          activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel={t('goals.form.addDeadline')}
+        >
+          <Plus size={14} color={tokens.fg1} strokeWidth={1.8} />
+          <Text style={styles.addDeadlineText}>
+            {t('goals.form.addDeadline')}
+          </Text>
+        </TouchableOpacity>
+      )}
+    </View>
+  )
+}
 
 export function CreateGoalModal({ open, onClose }: CreateGoalModalProps) {
   const { t } = useTranslation()
@@ -138,9 +341,6 @@ export function CreateGoalModal({ open, onClose }: CreateGoalModalProps) {
     }
     return errs
   }, [submitted, description, targetValue, unit, translate])
-
-  const activeTypeOption =
-    goalTypeOptions.find((option) => option.key === goalType) ?? goalTypeOptions[0]
 
   const handleTypeChange = useCallback(
     (type: GoalType) => {
@@ -226,7 +426,7 @@ export function CreateGoalModal({ open, onClose }: CreateGoalModalProps) {
                   ? t('goals.form.streakDescriptionPlaceholder')
                   : t('goals.form.descriptionPlaceholder')
               }
-              placeholderTextColor={tokens.fg4}
+              placeholderTextColor={tokens.fg3}
               maxLength={MAX_GOAL_DESCRIPTION_LENGTH}
               accessibilityLabel={t('goals.form.description')}
             />
@@ -237,144 +437,30 @@ export function CreateGoalModal({ open, onClose }: CreateGoalModalProps) {
             ) : null}
           </View>
 
-          <View>
-            <Text style={styles.fieldLabel}>{t('goals.form.type')}</Text>
-            <View
-              style={styles.typeRow}
-              accessibilityRole="radiogroup"
-              accessibilityLabel={t('goals.form.type')}
-            >
-              {goalTypeOptions.map((option) => {
-                const isActive = goalType === option.key
-                const OptionIcon = option.icon
-                return (
-                  <Pressable
-                    key={option.key}
-                    style={[
-                      styles.typeOption,
-                      isActive ? styles.typeOptionActive : styles.typeOptionInactive,
-                    ]}
-                    onPress={() => handleTypeChange(option.key)}
-                    accessibilityRole="button"
-                    accessibilityLabel={t(option.titleKey)}
-                    accessibilityState={{ selected: isActive }}
-                  >
-                    <OptionIcon
-                      size={18}
-                      strokeWidth={1.8}
-                      color={isActive ? tokens.fgOnPrimary : tokens.fg2}
-                    />
-                    <Text
-                      style={[
-                        styles.typeOptionText,
-                        { color: isActive ? tokens.fgOnPrimary : tokens.fg2 },
-                      ]}
-                    >
-                      {t(option.titleKey)}
-                    </Text>
-                  </Pressable>
-                )
-              })}
-            </View>
-            <View style={styles.typeCaption}>
-              <Text style={styles.typeDesc}>{t(activeTypeOption.descKey)}</Text>
-              {'hintKey' in activeTypeOption && activeTypeOption.hintKey ? (
-                <Text style={styles.typeHint}>{t(activeTypeOption.hintKey)}</Text>
-              ) : null}
-            </View>
-          </View>
+          <GoalTypeSelector
+            tokens={tokens}
+            styles={styles}
+            goalType={goalType}
+            onTypeChange={handleTypeChange}
+          />
 
-          <View style={styles.row}>
-            <View style={isStreak ? styles.fullField : styles.halfField}>
-              <Text style={styles.fieldLabel}>
-                {isStreak
-                  ? t('goals.form.streakTarget')
-                  : t('goals.form.targetValue')}
-              </Text>
-              <BottomSheetAppTextInput
-                value={targetValue}
-                onChangeText={setTargetValue}
-                keyboardType="decimal-pad"
-                placeholder={
-                  isStreak ? t('goals.form.streakTargetPlaceholder') : '0'
-                }
-                placeholderTextColor={tokens.fg4}
-                accessibilityLabel={
-                  isStreak
-                    ? t('goals.form.streakTarget')
-                    : t('goals.form.targetValue')
-                }
-              />
-              {fieldErrors.targetValue ? (
-                <Text style={styles.fieldError} accessibilityRole="alert">
-                  {fieldErrors.targetValue}
-                </Text>
-              ) : null}
-            </View>
-            {!isStreak ? (
-              <View style={styles.halfField}>
-                <Text style={styles.fieldLabel}>{t('goals.form.unit')}</Text>
-                <BottomSheetAppTextInput
-                  value={unit}
-                  onChangeText={setUnit}
-                  placeholder={t('goals.form.unitPlaceholder')}
-                  placeholderTextColor={tokens.fg4}
-                  maxLength={50}
-                  accessibilityLabel={t('goals.form.unit')}
-                />
-                {fieldErrors.unit ? (
-                  <Text style={styles.fieldError} accessibilityRole="alert">
-                    {fieldErrors.unit}
-                  </Text>
-                ) : null}
-              </View>
-            ) : null}
-          </View>
+          <GoalTargetFields
+            tokens={tokens}
+            styles={styles}
+            isStreak={isStreak}
+            targetValue={targetValue}
+            unit={unit}
+            fieldErrors={fieldErrors}
+            onChangeTarget={setTargetValue}
+            onChangeUnit={setUnit}
+          />
 
-          <View>
-            <Text style={styles.fieldLabel}>
-              {t('goals.form.deadline')}{' '}
-              <Text style={styles.labelOptional}>
-                ({t('goals.form.deadlineOptional')})
-              </Text>
-            </Text>
-            {deadline ? (
-              <View>
-                <View style={styles.deadlineRow}>
-                  <View style={styles.deadlinePicker}>
-                    <AppDatePicker value={deadline} onChange={setDeadline} />
-                  </View>
-                  <TouchableOpacity
-                    style={styles.removeDeadlineButton}
-                    onPress={() => setDeadline('')}
-                    activeOpacity={0.7}
-                    accessibilityRole="button"
-                    accessibilityLabel={t('common.clear')}
-                  >
-                    <X size={16} color={tokens.fg4} strokeWidth={1.8} />
-                  </TouchableOpacity>
-                </View>
-                {isGoalDeadlinePast(deadline) ? (
-                  <Text style={styles.warningText}>
-                    {t('goals.form.deadlineInPast')}
-                  </Text>
-                ) : null}
-              </View>
-            ) : (
-              <TouchableOpacity
-                style={styles.addDeadlineButton}
-                onPress={() => setDeadline(formatAPIDate(new Date()))}
-                activeOpacity={0.7}
-                accessibilityRole="button"
-                accessibilityLabel={t('goals.form.addDeadline')}
-              >
-                <Plus size={14} color={tokens.fg1} strokeWidth={1.8} />
-                <Text style={styles.addDeadlineText}>
-                  {t('goals.form.addDeadline')}
-                </Text>
-              </TouchableOpacity>
-            )}
-          </View>
+          <GoalDeadlineField
+            tokens={tokens}
+            styles={styles}
+            deadline={deadline}
+            onChangeDeadline={setDeadline}
+          />
 
           <View style={styles.footer}>
             <PillButton
@@ -450,12 +536,12 @@ function createStyles(
     },
     labelOptional: {
       fontFamily: 'Rubik_400Regular',
-      color: tokens.fg4,
+      color: tokens.fg3,
     },
     fieldError: {
       fontFamily: 'Rubik_400Regular',
       fontSize: 12,
-      color: tokens.statusOverdue,
+      color: tokens.statusOverdueText,
       marginTop: 6,
     },
     typeRow: {
@@ -495,7 +581,7 @@ function createStyles(
     typeHint: {
       fontFamily: 'Rubik_400Regular',
       fontSize: 11,
-      color: tokens.fg4,
+      color: tokens.fg3,
       lineHeight: 16,
       marginTop: 4,
     },
@@ -517,7 +603,7 @@ function createStyles(
     warningText: {
       fontFamily: 'Rubik_400Regular',
       fontSize: 13,
-      color: tokens.statusOverdue,
+      color: tokens.statusOverdueText,
       marginTop: 8,
     },
     addDeadlineButton: {

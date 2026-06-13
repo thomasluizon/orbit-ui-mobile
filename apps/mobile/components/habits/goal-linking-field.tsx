@@ -66,6 +66,8 @@ export function GoalLinkingField({
                 disabled={isDisabled}
                 onPress={() => onToggleGoal(goal.id)}
                 activeOpacity={0.75}
+                accessibilityRole="button"
+                accessibilityState={{ selected: isSelected, disabled: isDisabled }}
               >
                 <Text
                   style={[
@@ -137,7 +139,7 @@ function createStyles(tokens: AppTokens) {
       color: tokens.fg2,
     },
     chipTextSelected: {
-      color: tokens.primary,
+      color: tokens.primarySoft,
     },
     chipPercentage: {
       fontFamily: 'Roboto_400Regular',
@@ -145,10 +147,10 @@ function createStyles(tokens: AppTokens) {
       fontVariant: ['tabular-nums'],
     },
     chipPercentageDefault: {
-      color: tokens.fg4,
+      color: tokens.fg3,
     },
     chipPercentageSelected: {
-      color: tokens.primary,
+      color: tokens.primarySoft,
     },
     emptyText: {
       fontFamily: 'Rubik_400Regular',

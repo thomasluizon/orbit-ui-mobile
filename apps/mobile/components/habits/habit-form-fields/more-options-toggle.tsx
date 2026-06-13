@@ -52,6 +52,8 @@ export function MoreOptionsToggle({
     <View style={styles.moreOptionsDivider}>
       <TouchableOpacity
         style={styles.moreOptionsButton}
+        accessibilityRole="button"
+        accessibilityState={{ expanded }}
         onPress={onToggle}
         activeOpacity={0.7}
       >

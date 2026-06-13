@@ -174,6 +174,7 @@ export function WelcomeBackToast() {
           },
         ]}
         onPress={dismiss}
+        accessibilityRole="button"
         accessibilityLabel={message}
       >
         <View style={styles.row}>

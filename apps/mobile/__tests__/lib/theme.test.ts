@@ -25,8 +25,36 @@ describe('mobile theme runtime', () => {
     expect(dark.fg4).toBe('#62748e')
     expect(dark.bgElev).toBe('rgba(248, 250, 252, 0.06)')
     expect(dark.primary).toBe('#7f46f7')
+    expect(dark.fgOnPrimary).toBe('#ffffff')
     expect(dark.gradientHeaderFrom).toBe('#22094f')
     expect(dark.gradientHeaderTo).toBe('rgba(2, 6, 24, 0)')
+  })
+
+  it('resolves fg-on-primary per scheme and mode (AA flips to canvas ink)', () => {
+    expect(createTokensV2('purple', 'light').fgOnPrimary).toBe('#ffffff')
+    expect(createTokensV2('blue', 'light').fgOnPrimary).toBe('#ffffff')
+    expect(createTokensV2('rose', 'light').fgOnPrimary).toBe('#ffffff')
+    expect(createTokensV2('blue', 'dark').fgOnPrimary).toBe('#020618')
+    expect(createTokensV2('rose', 'dark').fgOnPrimary).toBe('#020618')
+    expect(createTokensV2('green', 'dark').fgOnPrimary).toBe('#020618')
+    expect(createTokensV2('green', 'light').fgOnPrimary).toBe('#020618')
+    expect(createTokensV2('orange', 'dark').fgOnPrimary).toBe('#020618')
+    expect(createTokensV2('orange', 'light').fgOnPrimary).toBe('#020618')
+    expect(createTokensV2('cyan', 'dark').fgOnPrimary).toBe('#020618')
+    expect(createTokensV2('cyan', 'light').fgOnPrimary).toBe('#020618')
+  })
+
+  it('exposes AA status text variants alongside the base status colors', () => {
+    const dark = createTokensV2('purple', 'dark')
+    const light = createTokensV2('purple', 'light')
+
+    expect(dark.statusOverdueText).toBe(dark.statusOverdue)
+    expect(dark.statusBadText).toBe(dark.statusBad)
+    expect(light.statusBadText).toBe(light.statusBad)
+    expect(light.statusOverdue).toBe('#e17100')
+    expect(light.statusOverdueText).toBe('#b45b00')
+    expect(dark.fgOnBad).toBe('#020618')
+    expect(light.fgOnBad).toBe('#ffffff')
   })
 
   it('purple light uses the pale handoff canvas with opaque white cards', () => {

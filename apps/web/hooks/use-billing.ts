@@ -20,7 +20,7 @@ async function fetchBillingDetails(): Promise<BillingDetails | null> {
 
 export function useBilling(enabled = false) {
   const query = useQuery({
-    queryKey: [...subscriptionKeys.all, 'billing'] as const,
+    queryKey: subscriptionKeys.billing(),
     queryFn: fetchBillingDetails,
     enabled,
     staleTime: 5 * 60 * 1000,

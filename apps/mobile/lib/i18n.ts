@@ -4,7 +4,7 @@ import en from '@orbit/shared/i18n/en.json'
 import ptBR from '@orbit/shared/i18n/pt-BR.json'
 import { resolveSystemLocale } from '@orbit/shared/utils'
 
-const i18n = i18next
+export const i18n = i18next
 
 function detectInitialLocale() {
   try {
@@ -28,5 +28,3 @@ i18n.use(initReactI18next).init({
     suffix: '}',
   },
 })
-
-export default i18n

@@ -8,16 +8,6 @@ export const goalStatusSchema = z.enum(['Active', 'Completed', 'Abandoned'])
 
 export type GoalStatus = z.infer<typeof goalStatusSchema>
 
-export const trackingStatusSchema = z.enum([
-  'on_track',
-  'at_risk',
-  'behind',
-  'no_deadline',
-  'completed',
-])
-
-export type TrackingStatus = z.infer<typeof trackingStatusSchema>
-
 export const linkedHabitInfoSchema = z.object({
   id: z.string(),
   title: z.string(),
@@ -25,7 +15,7 @@ export const linkedHabitInfoSchema = z.object({
 
 export type LinkedHabitInfo = z.infer<typeof linkedHabitInfoSchema>
 
-export const linkedHabitAdherenceSchema = z.object({
+const linkedHabitAdherenceSchema = z.object({
   habitId: z.string(),
   habitTitle: z.string(),
   weeklyCompletionRate: z.number(),
@@ -33,27 +23,16 @@ export const linkedHabitAdherenceSchema = z.object({
   currentStreak: z.number(),
 })
 
-export type LinkedHabitAdherence = z.infer<typeof linkedHabitAdherenceSchema>
-
 export const goalMetricsSchema = z.object({
   progressPercentage: z.number(),
   velocityPerDay: z.number(),
   projectedCompletionDate: z.string().nullable(),
   daysToDeadline: z.number().nullable(),
-  // Backend GoalMetrics.TrackingStatus is a non-nullable string.
-  // Use z.string() to accept any value, with optional enum refinement at use sites.
   trackingStatus: z.string(),
   habitAdherence: z.array(linkedHabitAdherenceSchema),
 })
 
 export type GoalMetrics = z.infer<typeof goalMetricsSchema>
-
-export const goalReviewResponseSchema = z.object({
-  review: z.string(),
-  fromCache: z.boolean(),
-})
-
-export type GoalReviewResponse = z.infer<typeof goalReviewResponseSchema>
 
 export const goalSchema = z.object({
   id: z.string(),
@@ -69,28 +48,22 @@ export const goalSchema = z.object({
   createdAtUtc: z.string(),
   completedAtUtc: z.string().nullable(),
   progressPercentage: z.number(),
-  // Backend sends `null` for goals in non-trackable states (e.g., Abandoned). z.string()
-  // alone would reject null and crash Zod parse on the list endpoint, so allow both.
   trackingStatus: z.string().nullable().optional(),
   linkedHabits: z.array(linkedHabitInfoSchema).optional(),
 })
 
 export type Goal = z.infer<typeof goalSchema>
 
-export const goalProgressEntrySchema = z.object({
+const goalProgressEntrySchema = z.object({
   value: z.number(),
   previousValue: z.number(),
   note: z.string().nullable(),
   createdAtUtc: z.string(),
 })
 
-export type GoalProgressEntry = z.infer<typeof goalProgressEntrySchema>
-
-export const goalDetailSchema = goalSchema.extend({
+const goalDetailSchema = goalSchema.extend({
   progressHistory: z.array(goalProgressEntrySchema),
 })
-
-export type GoalDetail = z.infer<typeof goalDetailSchema>
 
 export const goalDetailWithMetricsSchema = z.object({
   goal: goalDetailSchema,

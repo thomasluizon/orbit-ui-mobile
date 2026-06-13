@@ -214,7 +214,7 @@ describe('use-push-notification-preferences helpers', () => {
     })
     mockSubscribePush.mockRejectedValue(new Error('Server error'))
 
-    await expect(subscribeToPushNotifications()).rejects.toThrow('Failed to subscribe to push notifications')
+    await expect(subscribeToPushNotifications()).rejects.toThrow()
     expect(subscription.unsubscribe).toHaveBeenCalledTimes(1)
   })
 

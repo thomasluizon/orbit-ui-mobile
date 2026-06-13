@@ -28,7 +28,6 @@ export {
   getFriendlyErrorMessage,
   translateErrorKey,
 } from './error-utils'
-export type { FriendlyErrorContext } from './error-utils'
 export { isFeatureEnabled } from './config'
 export { stripInlineMarkdown } from './markdown'
 export { plural } from './plural'
@@ -73,7 +72,6 @@ export {
   HABIT_EMOJI_CATEGORIES,
   HABIT_EMOJI_OPTIONS,
 } from './habit-emoji-options'
-export type { HabitEmojiOption } from './habit-emoji-options'
 export {
   applyHabitFormMode,
   buildEditHabitFormState,
@@ -121,7 +119,6 @@ export type {
   HabitCardTranslationAdapter,
 } from './habit-card-helpers'
 export { formatHabitDetailSummary } from './habit-detail-summary'
-export type { HabitDetailSummaryInput } from './habit-detail-summary'
 export { parseShowGeneralOnTodayPreference } from './preferences'
 export {
   detectDefaultTimeFormat,
@@ -142,7 +139,6 @@ export {
   getDailySummaryTimeBucket,
   getMsUntilNextDailySummaryTimeBucket,
 } from './habit-query'
-export type { DailySummaryTimeBucket } from './habit-query'
 export {
   applySubscriptionDiscount,
   formatPrice,
@@ -210,7 +206,6 @@ export {
   restoreNotificationList,
   snapshotNotificationList,
 } from './notification-cache'
-export type { NotificationTimeTranslationAdapter } from './notification-time'
 export { formatNotificationRelativeTime } from './notification-time'
 export type { NotificationGlyph } from './notification-actions'
 export {
@@ -243,7 +238,6 @@ export {
   setHabitTags,
   updateTagInList,
 } from './tag-cache'
-export type { TagSummary } from './tag-cache'
 export {
   getCurrentPlan,
   getIsYearlyPro,
@@ -285,7 +279,6 @@ export {
   buildHabitLogDateSet,
 } from './habit-calendar'
 export { buildStreakWeekDays } from './streak-week'
-export type { StreakWeekDay, StreakWeekDayStatus } from './streak-week'
 export { AI_SUMMARY_CLAMP_CHARS } from './ai-summary'
 export type {
   HabitHierarchyNode,
@@ -297,10 +290,30 @@ export type {
   HabitCalendarWeekdayKey,
 } from './habit-calendar'
 export {
+  loadDrillChildren,
+  mergeDrillChildrenMap,
   normalizeDrillDetailChild,
   normalizeHabitDetailForDrill,
 } from './drill-navigation'
 export type { NormalizedDrillDetail } from './drill-navigation'
+export {
+  optimisticPatchHabit,
+  withChildren,
+} from './habit-optimistic'
+export { highlightText } from './highlight-text'
+export type { HighlightSegment } from './highlight-text'
+export {
+  buildBreakdownCreateRequest,
+  filterValidBreakdownHabits,
+} from './breakdown-suggestion'
+export type { BreakdownEditableHabit } from './breakdown-suggestion'
+export {
+  cancelPendingNotificationDelete,
+  getPendingNotificationDeleteIdsSnapshot,
+  queuePendingNotificationDelete,
+  resetPendingNotificationDeletesForTests,
+  subscribePendingNotificationDeleteIds,
+} from './pending-notification-deletes'
 export {
   createHabitVisibilityHelpers,
   getChildrenFromIndex,
@@ -353,6 +366,7 @@ export type {
   PreferencesTranslationAdapter,
 } from './preferences-options'
 export {
+  buildAgentScopeOptions,
   buildMcpConfigJson,
   MCP_CONFIG_TABS,
   MCP_ENDPOINT_URL,
@@ -360,6 +374,7 @@ export {
   WIDGET_STEP_KEYS,
 } from './advanced-settings'
 export type {
+  AgentScopeOption,
   McpConfigTab,
   WidgetFeatureDefinition,
   WidgetFeatureIconKey,
@@ -370,7 +385,6 @@ export {
   FRESH_START_DELETED_ITEM_KEYS,
   FRESH_START_PRESERVED_ITEM_KEYS,
 } from './fresh-start'
-export type { FreshStartTranslationAdapter } from './fresh-start'
 export {
   buildSupportRequestBody,
 } from './support'
@@ -387,13 +401,16 @@ export type { UserFactCategoryKey } from './user-facts'
 export {
   PROFILE_NAV_ITEMS,
   isProfileNavItemLocked,
+  resolveProfileNavHint,
   shouldRedirectProfileNavItem,
 } from './profile-navigation'
 export type {
+  ProfileNavHintContext,
   ProfileNavHintMode,
   ProfileNavIconKey,
   ProfileNavItem,
   ProfileNavSection,
+  ProfileNavTranslationAdapter,
   ProfileNavVariant,
 } from './profile-navigation'
 export {

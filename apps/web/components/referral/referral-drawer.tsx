@@ -74,7 +74,7 @@ export function ReferralDrawer({ open, onOpenChange }: Readonly<ReferralDrawerPr
               style={{
                 fontFamily: 'var(--font-sans)',
                 fontSize: 13,
-                color: 'var(--status-overdue)',
+                color: 'var(--status-overdue-text)',
               }}
             >
               {error?.message ?? t('errors.loadReferral')}

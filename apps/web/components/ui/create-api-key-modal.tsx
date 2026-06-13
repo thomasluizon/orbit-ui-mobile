@@ -3,59 +3,21 @@
 import { useState, useCallback } from 'react'
 import { useTranslations } from 'next-intl'
 import type { ApiKeyCreateRequest, ApiKeyCreateResponse } from '@orbit/shared/types/api-key'
+import { MAX_API_KEY_NAME_LENGTH, parseApiKeyExpiryUtc } from '@orbit/shared/validation'
+import type { AgentScopeOption } from '@orbit/shared/utils'
 import { AppOverlay } from '@/components/ui/app-overlay'
 import { Chip } from '@/components/ui/chip'
 import { FieldInput } from '@/components/ui/field-input'
 import { PillButton } from '@/components/ui/pill-button'
 import { Switch } from '@/components/ui/settings-row'
 
-interface ScopeOption {
-  scope: string
-  label: string
-  description: string
-}
-
 interface CreateApiKeyModalProps {
   open: boolean
   onOpenChange: (open: boolean) => void
-  availableScopes: ScopeOption[]
+  availableScopes: AgentScopeOption[]
   onCreateKey: (request: ApiKeyCreateRequest) => Promise<ApiKeyCreateResponse | null>
   apiError?: string | null
   onCreated?: () => void
-}
-
-function parseUtcDateTimeLocal(value: string): Date | null {
-  const dateTimePattern = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?$/
-  const match = dateTimePattern.exec(value.trim())
-
-  if (!match) {
-    return null
-  }
-
-  const [, year, month, day, hour, minute, second] = match
-  const parsed = new Date(
-    Date.UTC(
-      Number(year),
-      Number(month) - 1,
-      Number(day),
-      Number(hour),
-      Number(minute),
-      Number(second ?? '0'),
-    ),
-  )
-
-  if (
-    parsed.getUTCFullYear() !== Number(year) ||
-    parsed.getUTCMonth() !== Number(month) - 1 ||
-    parsed.getUTCDate() !== Number(day) ||
-    parsed.getUTCHours() !== Number(hour) ||
-    parsed.getUTCMinutes() !== Number(minute) ||
-    parsed.getUTCSeconds() !== Number(second ?? '0')
-  ) {
-    return null
-  }
-
-  return parsed
 }
 
 export function CreateApiKeyModal({
@@ -105,13 +67,13 @@ export function CreateApiKeyModal({
       setValidationError(t('orbitMcp.keyNameRequired'))
       return false
     }
-    if (trimmed.length > 50) {
+    if (trimmed.length > MAX_API_KEY_NAME_LENGTH) {
       setValidationError(t('orbitMcp.keyNameMaxLength'))
       return false
     }
     if (expiresAt.trim()) {
-      if (!parseUtcDateTimeLocal(expiresAt)) {
-        setValidationError(t('auth.genericError'))
+      if (!parseApiKeyExpiryUtc(expiresAt)) {
+        setValidationError(t('orbitMcp.invalidExpiry'))
         return false
       }
     }
@@ -134,7 +96,7 @@ export function CreateApiKeyModal({
       setIsSubmitting(true)
       try {
         const expiresAtUtc = expiresAt.trim()
-          ? parseUtcDateTimeLocal(expiresAt)?.toISOString() ?? null
+          ? parseApiKeyExpiryUtc(expiresAt)?.toISOString() ?? null
           : null
 
         const result = await onCreateKey({
@@ -211,7 +173,7 @@ export function CreateApiKeyModal({
 interface CreateStepProps {
   keyName: string
   onKeyNameChange: (value: string) => void
-  availableScopes: ScopeOption[]
+  availableScopes: AgentScopeOption[]
   selectedScopes: string[]
   onToggleScope: (scope: string) => void
   onSelectAll: () => void
@@ -256,7 +218,7 @@ function CreateStep(props: Readonly<CreateStepProps>) {
         value={keyName}
         onChange={onKeyNameChange}
         placeholder={t('orbitMcp.keyNamePlaceholder')}
-        maxLength={50}
+        maxLength={MAX_API_KEY_NAME_LENGTH}
       />
       {validationError && (
         <p
@@ -421,7 +383,7 @@ function RevealStep({ createdKey, copied, onCopy, onDone }: Readonly<RevealStepP
           fontFamily: 'var(--font-sans)',
           fontSize: 14,
           fontWeight: 500,
-          color: 'var(--status-overdue)',
+          color: 'var(--status-overdue-text)',
         }}
       >
         {t('orbitMcp.keyCreatedWarning')}
@@ -463,7 +425,7 @@ function RevealStep({ createdKey, copied, onCopy, onDone }: Readonly<RevealStepP
           fontFamily: 'var(--font-mono)',
           fontSize: 11,
           letterSpacing: '0.02em',
-          color: 'var(--fg-4)',
+          color: 'var(--fg-3)',
           fontVariantNumeric: 'tabular-nums',
         }}
       >

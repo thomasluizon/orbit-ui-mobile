@@ -32,7 +32,7 @@ import {
 } from '@orbit/shared/utils/goal-form'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
-import { MAX_GOAL_DESCRIPTION_LENGTH } from '@orbit/shared/validation'
+import { MAX_GOAL_DESCRIPTION_LENGTH, MAX_GOAL_UNIT_LENGTH } from '@orbit/shared/validation'
 
 interface EditGoalModalProps {
   open: boolean
@@ -52,6 +52,135 @@ interface UpdateGoalRequest {
   targetValue: number
   unit: string
   deadline?: string | null
+}
+
+type EditGoalStyles = ReturnType<typeof createStyles>
+type EditGoalTokens = ReturnType<typeof createTokensV2>
+
+interface EditGoalTargetFieldsProps {
+  styles: EditGoalStyles
+  isStreak: boolean
+  targetValue: string
+  unit: string
+  fieldErrors: Record<string, string>
+  onChangeTarget: (value: string) => void
+  onChangeUnit: (value: string) => void
+}
+
+function EditGoalTargetFields({
+  styles,
+  isStreak,
+  targetValue,
+  unit,
+  fieldErrors,
+  onChangeTarget,
+  onChangeUnit,
+}: Readonly<EditGoalTargetFieldsProps>) {
+  const { t } = useTranslation()
+  return (
+    <View style={styles.row}>
+      <View style={isStreak ? styles.fullField : styles.halfField}>
+        <Text style={styles.fieldLabel}>
+          {isStreak
+            ? t('goals.form.streakTarget')
+            : t('goals.form.targetValue')}
+        </Text>
+        <BottomSheetAppTextInput
+          value={targetValue}
+          onChangeText={onChangeTarget}
+          keyboardType="decimal-pad"
+          accessibilityLabel={
+            isStreak
+              ? t('goals.form.streakTarget')
+              : t('goals.form.targetValue')
+          }
+        />
+        {fieldErrors.targetValue ? (
+          <Text style={styles.fieldError} accessibilityRole="alert">
+            {fieldErrors.targetValue}
+          </Text>
+        ) : null}
+      </View>
+      {!isStreak ? (
+        <View style={styles.halfField}>
+          <Text style={styles.fieldLabel}>{t('goals.form.unit')}</Text>
+          <BottomSheetAppTextInput
+            value={unit}
+            onChangeText={onChangeUnit}
+            maxLength={MAX_GOAL_UNIT_LENGTH}
+            accessibilityLabel={t('goals.form.unit')}
+          />
+          {fieldErrors.unit ? (
+            <Text style={styles.fieldError} accessibilityRole="alert">
+              {fieldErrors.unit}
+            </Text>
+          ) : null}
+        </View>
+      ) : null}
+    </View>
+  )
+}
+
+interface EditGoalDeadlineFieldProps {
+  tokens: EditGoalTokens
+  styles: EditGoalStyles
+  deadline: string
+  onChangeDeadline: (value: string) => void
+}
+
+function EditGoalDeadlineField({
+  tokens,
+  styles,
+  deadline,
+  onChangeDeadline,
+}: Readonly<EditGoalDeadlineFieldProps>) {
+  const { t } = useTranslation()
+  return (
+    <View>
+      <Text style={styles.fieldLabel}>
+        {t('goals.form.deadline')}{' '}
+        <Text style={styles.labelOptional}>
+          ({t('goals.form.deadlineOptional')})
+        </Text>
+      </Text>
+      {deadline ? (
+        <View>
+          <View style={styles.deadlineRow}>
+            <View style={styles.deadlinePicker}>
+              <AppDatePicker value={deadline} onChange={onChangeDeadline} />
+            </View>
+            <TouchableOpacity
+              style={styles.removeDeadlineButton}
+              onPress={() => onChangeDeadline('')}
+              activeOpacity={0.7}
+              accessibilityRole="button"
+              accessibilityLabel={t('common.clear')}
+            >
+              <X size={16} color={tokens.fg4} strokeWidth={1.8} />
+            </TouchableOpacity>
+          </View>
+          {isGoalDeadlinePast(deadline) ? (
+            <Text style={styles.warningText}>
+              {t('goals.form.deadlineInPast')}
+            </Text>
+          ) : null}
+        </View>
+      ) : (
+        <TouchableOpacity
+          style={styles.addDeadlineButton}
+          onPress={() => onChangeDeadline(formatAPIDate(new Date()))}
+          activeOpacity={0.7}
+          accessibilityRole="button"
+          accessibilityLabel={t('goals.form.addDeadline')}
+        >
+          <Plus size={14} color={tokens.fg1} strokeWidth={1.8} />
+          <Text style={styles.addDeadlineText}>
+            {t('goals.form.addDeadline')}
+          </Text>
+        </TouchableOpacity>
+      )}
+    </View>
+  )
 }
 
 export function EditGoalModal({ open, onClose, goal }: EditGoalModalProps) {
@@ -194,7 +323,7 @@ export function EditGoalModal({ open, onClose, goal }: EditGoalModalProps) {
               value={description}
               onChangeText={setDescription}
               placeholder={t('goals.form.descriptionPlaceholder')}
-              placeholderTextColor={tokens.fg4}
+              placeholderTextColor={tokens.fg3}
               maxLength={MAX_GOAL_DESCRIPTION_LENGTH}
               accessibilityLabel={t('goals.form.description')}
             />
@@ -205,91 +334,22 @@ export function EditGoalModal({ open, onClose, goal }: EditGoalModalProps) {
             ) : null}
           </View>
 
-          <View style={styles.row}>
-            <View style={isStreak ? styles.fullField : styles.halfField}>
-              <Text style={styles.fieldLabel}>
-                {isStreak
-                  ? t('goals.form.streakTarget')
-                  : t('goals.form.targetValue')}
-              </Text>
-              <BottomSheetAppTextInput
-                value={targetValue}
-                onChangeText={setTargetValue}
-                keyboardType="decimal-pad"
-                accessibilityLabel={
-                  isStreak
-                    ? t('goals.form.streakTarget')
-                    : t('goals.form.targetValue')
-                }
-              />
-              {fieldErrors.targetValue ? (
-                <Text style={styles.fieldError} accessibilityRole="alert">
-                  {fieldErrors.targetValue}
-                </Text>
-              ) : null}
-            </View>
-            {!isStreak ? (
-              <View style={styles.halfField}>
-                <Text style={styles.fieldLabel}>{t('goals.form.unit')}</Text>
-                <BottomSheetAppTextInput
-                  value={unit}
-                  onChangeText={setUnit}
-                  maxLength={50}
-                  accessibilityLabel={t('goals.form.unit')}
-                />
-                {fieldErrors.unit ? (
-                  <Text style={styles.fieldError} accessibilityRole="alert">
-                    {fieldErrors.unit}
-                  </Text>
-                ) : null}
-              </View>
-            ) : null}
-          </View>
+          <EditGoalTargetFields
+            styles={styles}
+            isStreak={isStreak}
+            targetValue={targetValue}
+            unit={unit}
+            fieldErrors={fieldErrors}
+            onChangeTarget={setTargetValue}
+            onChangeUnit={setUnit}
+          />
 
-          <View>
-            <Text style={styles.fieldLabel}>
-              {t('goals.form.deadline')}{' '}
-              <Text style={styles.labelOptional}>
-                ({t('goals.form.deadlineOptional')})
-              </Text>
-            </Text>
-            {deadline ? (
-              <View>
-                <View style={styles.deadlineRow}>
-                  <View style={styles.deadlinePicker}>
-                    <AppDatePicker value={deadline} onChange={setDeadline} />
-                  </View>
-                  <TouchableOpacity
-                    style={styles.removeDeadlineButton}
-                    onPress={() => setDeadline('')}
-                    activeOpacity={0.7}
-                    accessibilityRole="button"
-                    accessibilityLabel={t('common.clear')}
-                  >
-                    <X size={16} color={tokens.fg4} strokeWidth={1.8} />
-                  </TouchableOpacity>
-                </View>
-                {isGoalDeadlinePast(deadline) ? (
-                  <Text style={styles.warningText}>
-                    {t('goals.form.deadlineInPast')}
-                  </Text>
-                ) : null}
-              </View>
-            ) : (
-              <TouchableOpacity
-                style={styles.addDeadlineButton}
-                onPress={() => setDeadline(formatAPIDate(new Date()))}
-                activeOpacity={0.7}
-                accessibilityRole="button"
-                accessibilityLabel={t('goals.form.addDeadline')}
-              >
-                <Plus size={14} color={tokens.fg1} strokeWidth={1.8} />
-                <Text style={styles.addDeadlineText}>
-                  {t('goals.form.addDeadline')}
-                </Text>
-              </TouchableOpacity>
-            )}
-          </View>
+          <EditGoalDeadlineField
+            tokens={tokens}
+            styles={styles}
+            deadline={deadline}
+            onChangeDeadline={setDeadline}
+          />
 
           <View style={styles.footer}>
             <PillButton
@@ -372,12 +432,12 @@ function createStyles(
     },
     labelOptional: {
       fontFamily: 'Rubik_400Regular',
-      color: tokens.fg4,
+      color: tokens.fg3,
     },
     fieldError: {
       fontFamily: 'Rubik_400Regular',
       fontSize: 12,
-      color: tokens.statusOverdue,
+      color: tokens.statusOverdueText,
       marginTop: 6,
     },
     deadlineRow: {
@@ -398,7 +458,7 @@ function createStyles(
     warningText: {
       fontFamily: 'Rubik_400Regular',
       fontSize: 13,
-      color: tokens.statusOverdue,
+      color: tokens.statusOverdueText,
       marginTop: 8,
     },
     addDeadlineButton: {

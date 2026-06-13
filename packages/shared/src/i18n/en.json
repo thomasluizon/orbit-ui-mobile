@@ -54,7 +54,8 @@
     "title": "Update available",
     "description": "A new version of Orbit is available with improvements and fixes",
     "update": "Update",
-    "later": "Not now"
+    "later": "Not now",
+    "version": "v{previous} → v{next}"
   },
   "notifications": {
     "title": "Notifications",
@@ -69,12 +70,14 @@
     "deleteNotification": "Delete notification",
     "deleteUndo": "Undo delete",
     "deleteQueued": "Notification will be deleted",
-    "deleteQueuedMultiple": "{count} notifications will be deleted",
     "view": "View",
     "now": "Just now",
     "minutesAgo": "{n} min ago",
     "hoursAgo": "{n}h ago",
-    "daysAgo": "{n}d ago"
+    "daysAgo": "{n}d ago",
+    "channel": {
+      "default": "Default"
+    }
   },
   "welcome": {
     "backMessage": "Your {streak}-day streak is still alive.",
@@ -107,7 +110,6 @@
     "edit": "Edit",
     "create": "Create",
     "search": "Search...",
-    "noResults": "No results found",
     "error": "An error occurred",
     "retry": "Retry",
     "selected": "{n} selected",
@@ -127,7 +129,6 @@
     "codePlaceholder": "123456",
     "upgrade": "Upgrade",
     "proBadge": "Pro",
-    "yearlyBadge": "Yearly",
     "required": "is required",
     "selectDate": "Select date",
     "selectedDate": "Selected date: {date}",
@@ -142,8 +143,7 @@
     "syncing": "Syncing",
     "synced": "Synced",
     "collapse": "Collapse",
-    "expand": "Expand",
-    "moreActions": "More actions"
+    "expand": "Expand"
   },
   "nav": {
     "habits": "Habits",
@@ -190,6 +190,7 @@
     "resendCode": "Resend code",
     "resendIn": "Resend in {seconds}s",
     "changeEmail": "Change email",
+    "minutesShort": "{minutes} min left",
     "genericError": "An error occurred. Please try again.",
     "orContinueWith": "or continue with",
     "signInWithGoogle": "Sign in with Google",
@@ -448,21 +449,22 @@
       "checklistPlaceholder": "Add an item...",
       "templates": "Templates",
       "saveAsTemplate": "Save as template",
-      "templateName": "Template name",
       "templateNamePlaceholder": "e.g. Weekly groceries",
-      "deleteTemplate": "Delete",
       "saveTemplateError": "Couldn't save template. Please try again.",
       "deleteTemplateError": "Couldn't delete template. Please try again.",
       "resetChecklist": "Reset",
       "clearChecklist": "Clear all",
       "duplicateChecklistItem": "Duplicate item",
       "removeChecklistItem": "Remove item",
+      "moveChecklistItemUp": "Move item up",
+      "moveChecklistItemDown": "Move item down",
       "checklistItemLabel": "Item {n}",
       "checklistItemLimit": "You can add up to 50 checklist items",
       "checklistItemTooLong": "Checklist items must be 500 characters or fewer",
       "removeEndDate": "Remove end date",
       "removeReminder": "Remove reminder",
       "removeScheduledReminder": "Remove scheduled reminder",
+      "removeSubHabit": "Remove sub-habit",
       "editTag": "Edit tag",
       "deleteTag": "Delete tag",
       "selectColor": "Select color {color}",
@@ -491,7 +493,6 @@
       "longestStreak": "Longest",
       "monthlyRate": "Month",
       "activity": "Activity",
-      "streakDays": "{n}d",
       "stats": "Stats",
       "noDataYet": "No data yet",
       "daysFree": "Days free",
@@ -518,7 +519,9 @@
       "createdSuccess": "no habits created | Created {n} habit successfully | Created {n} habits successfully",
       "createAsParent": "Group as parent habit",
       "createAsParentSuccess": "Created '{name}' with {n} sub-habit | Created '{name}' with {n} sub-habits",
-      "every": "every"
+      "every": "every",
+      "frequencyQuantityLabel": "Frequency interval",
+      "removeHabit": "Remove {name}"
     },
     "clarification": {
       "questionFallback": "What schedule should this be on?",
@@ -624,6 +627,10 @@
   },
   "chat": {
     "title": "Astra",
+    "offline": {
+      "title": "You’re offline",
+      "description": "Astra needs an internet connection. Reconnect to keep chatting."
+    },
     "pendingOp": {
       "risk": {
         "high": "High risk",
@@ -751,15 +758,15 @@
     "facts": {
       "title": "What Astra knows",
       "empty": "Astra hasn't learned anything yet. Have a conversation in Chat to teach it.",
-      "add": "Add Fact",
+      "factsError": "Couldn't load what Astra knows.",
+      "retry": "Try again",
       "save": "Save",
       "cancel": "Cancel",
       "delete": "Delete",
-      "factPlaceholder": "Enter a fact about yourself...",
-      "category": "Category",
       "preference": "Preference",
       "routine": "Routine",
       "context": "Context",
+      "default": "Default",
       "none": "None",
       "select": "Select",
       "selectAll": "Select all",
@@ -767,9 +774,7 @@
       "selectedCount": "{n} selected",
       "deleteSelected": "Delete ({n})",
       "deleteSelectedShort": "Delete selected",
-      "confirmBulkDelete": "Delete {n} facts?",
       "count": "{n} / {max}",
-      "limitReached": "Fact limit reached. Delete some to add new ones.",
       "lockedHint": "Upgrade to Pro to let Astra remember the facts you share in chat."
     },
     "support": {
@@ -864,7 +869,9 @@
       "deleting": "Processing...",
       "deactivated": "Your account has been deactivated. It will be permanently deleted on {date}.",
       "reactivated": "Welcome back! Your account deletion has been cancelled.",
-      "errorGeneric": "Something went wrong. Please try again."
+      "errorGeneric": "Something went wrong. Please try again.",
+      "offlineTitle": "You're offline",
+      "offlineDescription": "Connect to the internet to deactivate your account."
     }
   },
   "referral": {
@@ -993,7 +1000,6 @@
       "paused": "Paused",
       "subtitleQuiet": "These Pro features will pause unless you subscribe.",
       "title": "Your Pro Trial Has Ended",
-      "subtitle": "You had {days} day of full Pro access. Don't lose what you built. | You had {days} days of full Pro access. Don't lose what you built.",
       "dontLose": "Don't lose access to:",
       "unlimitedHabits": "Unlimited habits",
       "aiChat": "500 AI messages per month",
@@ -1012,7 +1018,6 @@
   },
   "metrics": {
     "currentStreak": "Current Streak",
-    "longestStreak": "Longest Streak",
     "monthly": "Monthly"
   },
   "summary": {
@@ -1303,7 +1308,6 @@
     "free": "Free",
     "subscribe": "Subscribe to Pro",
     "plan": "Plan",
-    "currentPlan": "Current plan",
     "restorePurchase": "Restore purchase",
     "categories": {
       "habits": "Habits",
@@ -1398,16 +1402,6 @@
       }
     },
     "plans": {
-      "free": {
-        "name": "Free",
-        "cta": "Current Plan",
-        "features": {
-          "habits": "Up to 10 habits",
-          "ai": "20 AI messages/month",
-          "theme": "1 color theme",
-          "ads": "With ads"
-        }
-      },
       "monthly": {
         "name": "Pro Monthly",
         "period": "/mo",
@@ -1417,7 +1411,6 @@
         "name": "Pro Yearly",
         "period": "/yr",
         "cta": "Subscribe Yearly",
-        "recommended": "Best Value",
         "includesMonthly": "Everything in Pro Monthly, plus:"
       },
       "proFeatures": {
@@ -1430,8 +1423,7 @@
         "achievements": "Achievements & XP",
         "themes": "All 6 color themes",
         "adFree": "No ads",
-        "retrospective": "AI Retrospective",
-        "allFeatures": "All Pro features"
+        "retrospective": "AI Retrospective"
       },
       "savePercent": "Save {percent}%",
       "coupon": {
@@ -1510,7 +1502,12 @@
     "createSubHabit": "Failed to create sub-habit",
     "loadProfile": "Failed to load profile",
     "loadReferral": "Failed to load referral data",
-    "fetchSubHabits": "Failed to fetch sub-habits"
+    "fetchSubHabits": "Failed to fetch sub-habits",
+    "offline": "Reconnect to the internet and try again."
+  },
+  "offline": {
+    "title": "You're offline",
+    "description": "Check your connection and try again."
   },
   "speech": {
     "micDenied": "Microphone access denied.",
@@ -1526,6 +1523,7 @@
     "empty": "No goals yet",
     "emptyHint": "Create your first goal to start tracking progress",
     "create": "New Goal",
+    "dragItem": "draggable item",
     "form": {
       "description": "Description",
       "descriptionPlaceholder": "e.g., Read 12 books this year",
@@ -1557,8 +1555,7 @@
       "target": "Target"
     },
     "streak": {
-      "ofTarget": "Day {current} of {target}",
-      "daysRemaining": "{count} days remaining"
+      "ofTarget": "Day {current} of {target}"
     },
     "progress": "Progress",
     "progressOf": "{current} of {target} {unit}",
@@ -1852,7 +1849,6 @@
     "revokeConfirm": "Are you sure? Any tools using this key will lose access.",
     "cancel": "Cancel",
     "confirm": "Confirm",
-    "keyCreated": "API Key Created",
     "keyCreatedWarning": "Copy this key now. It will not be shown again.",
     "copied": "Copied!",
     "done": "Done",
@@ -1879,7 +1875,8 @@
     "permReadWrite": "Read/write",
     "expiresOn": "Expires {date}",
     "readOnlyKeyLabel": "Read-only key",
-    "expiresAtLabel": "Expires At (UTC, optional)"
+    "expiresAtLabel": "Expires At (UTC, optional)",
+    "invalidExpiry": "Enter a valid future expiry date."
   },
   "preferences": {
     "title": "Preferences",

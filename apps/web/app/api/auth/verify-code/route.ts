@@ -7,7 +7,7 @@ import {
   resolveRequestId,
   resolveResponseRequestId,
 } from '@/lib/auth-proxy'
-import type { BackendLoginResponse } from '@orbit/shared/types/auth'
+import { verifyCodeRequestSchema, type BackendLoginResponse } from '@orbit/shared/types/auth'
 
 /**
  * BFF: POST /api/auth/verify-code
@@ -20,7 +20,14 @@ export async function POST(request: NextRequest) {
   const responseHeaders = buildRequestIdResponseHeaders(requestId)
 
   try {
-    const body = await request.json() as unknown
+    const parsed = verifyCodeRequestSchema.safeParse(await request.json())
+    if (!parsed.success) {
+      return NextResponse.json(
+        { error: 'Invalid request', requestId },
+        { status: 400, headers: responseHeaders },
+      )
+    }
+    const body = parsed.data
 
     const response = await fetch(`${apiBase}/api/auth/verify-code`, {
       method: 'POST',

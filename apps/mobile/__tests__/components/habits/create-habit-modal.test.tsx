@@ -9,6 +9,7 @@ const TestRenderer = require('react-test-renderer')
 
 const useWatchMock = vi.fn()
 let mockHasProAccess = false
+let mockFormIsValid = false
 
 vi.mock('react-hook-form', () => ({
   useWatch: (args: { control: { values: Record<string, unknown> }; name: string }) =>
@@ -47,7 +48,7 @@ vi.mock('@/hooks/use-habit-form', () => ({
       reset: vi.fn(),
       setValue: vi.fn(),
       getValues: vi.fn(() => ({})),
-      formState: { isDirty: false, errors: {} },
+      formState: { isDirty: false, errors: {}, get isValid() { return mockFormIsValid } },
     },
     isOneTime: false,
     isGeneral: false,
@@ -152,6 +153,7 @@ describe('CreateHabitModal (mobile)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockHasProAccess = false
+    mockFormIsValid = false
     useWatchMock.mockImplementation(({ name }: { name: string }) => {
       switch (name) {
         case 'dueTime':
@@ -200,30 +202,29 @@ describe('CreateHabitModal (mobile)', () => {
     ).toHaveLength(1)
   })
 
-  it('disables the submit button until the title has content', () => {
-    const tree = renderModal(<CreateHabitModal open onClose={vi.fn()} />)
-
-    const findSubmit = () =>
-      tree.root.findAll(
-        (node: any) =>
-          node.type === 'Pressable' &&
-          node.props.accessibilityRole === 'button' &&
-          node.findAll(
-            (child: any) =>
-              child.type === 'Text' &&
-              child.props.children === 'habits.createHabit',
-          ).length > 0,
-      )[0]
-
-    expect(findSubmit().props.disabled).toBe(true)
-
-    const fields = tree.root.findAll(
-      (node: any) => node.type === 'HabitFormFields',
+  const findSubmit = (root: {
+    findAll: (predicate: (node: any) => boolean) => any[]
+  }) =>
+    root.findAll(
+      (node: any) =>
+        node.type === 'Pressable' &&
+        node.props.accessibilityRole === 'button' &&
+        node.findAll(
+          (child: any) =>
+            child.type === 'Text' &&
+            child.props.children === 'habits.createHabit',
+        ).length > 0,
     )[0]
-    TestRenderer.act(() => {
-      fields.props.onTitlePresenceChange(true)
-    })
 
-    expect(findSubmit().props.disabled).toBe(false)
+  it('disables the submit button when the shared form schema is invalid', () => {
+    mockFormIsValid = false
+    const tree = renderModal(<CreateHabitModal open onClose={vi.fn()} />)
+    expect(findSubmit(tree.root).props.disabled).toBe(true)
+  })
+
+  it('enables the submit button when the shared form schema is valid', () => {
+    mockFormIsValid = true
+    const tree = renderModal(<CreateHabitModal open onClose={vi.fn()} />)
+    expect(findSubmit(tree.root).props.disabled).toBe(false)
   })
 })

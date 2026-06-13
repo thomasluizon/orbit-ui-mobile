@@ -35,6 +35,7 @@ export const API = {
     widget: '/api/habits/widget',
     detail: (id: string) => `/api/habits/${id}/detail` as const,
     log: (id: string) => `/api/habits/${id}/log` as const,
+    logs: (id: string) => `/api/habits/${id}/logs` as const,
     skip: (id: string) => `/api/habits/${id}/skip` as const,
     duplicate: (id: string) => `/api/habits/${id}/duplicate` as const,
     checklist: (id: string) => `/api/habits/${id}/checklist` as const,
@@ -80,7 +81,6 @@ export const API = {
     markAllRead: '/api/notifications/read-all',
     delete: (id: string) => `/api/notifications/${id}` as const,
     deleteAll: '/api/notifications/all',
-    pushToken: '/api/notifications/push-token',
     subscribe: '/api/notifications/subscribe',
     unsubscribe: '/api/notifications/unsubscribe',
     testPush: '/api/notifications/test-push',
@@ -158,7 +158,6 @@ export const API = {
 
   sync: {
     batch: '/api/sync/batch',
-    changes: '/api/sync/changes',
     changesV2: '/api/sync/v2/changes',
   },
 
