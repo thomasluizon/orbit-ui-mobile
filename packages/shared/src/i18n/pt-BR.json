@@ -517,7 +517,9 @@
       "createdSuccess": "nenhum hábito criado | {n} hábito criado com sucesso | {n} hábitos criados com sucesso",
       "createAsParent": "Agrupar como hábito pai",
       "createAsParentSuccess": "'{name}' criado com {n} sub-hábito | '{name}' criado com {n} sub-hábitos",
-      "every": "a cada"
+      "every": "a cada",
+      "frequencyQuantityLabel": "Intervalo de frequência",
+      "removeHabit": "Remover {name}"
     },
     "clarification": {
       "questionFallback": "Qual deve ser a frequência?",
@@ -623,6 +625,10 @@
   },
   "chat": {
     "title": "Astra",
+    "offline": {
+      "title": "Você está offline",
+      "description": "A Astra precisa de conexão com a internet. Reconecte para continuar conversando."
+    },
     "pendingOp": {
       "risk": {
         "high": "Risco alto",
@@ -1494,7 +1500,8 @@
     "createSubHabit": "Falha ao criar sub-hábito",
     "loadProfile": "Falha ao carregar perfil",
     "loadReferral": "Falha ao carregar dados de indicação",
-    "fetchSubHabits": "Falha ao buscar sub-hábitos"
+    "fetchSubHabits": "Falha ao buscar sub-hábitos",
+    "offline": "Reconecte-se à internet e tente novamente."
   },
   "offline": {
     "title": "Você está offline",

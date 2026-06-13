@@ -517,7 +517,9 @@
       "createdSuccess": "no habits created | Created {n} habit successfully | Created {n} habits successfully",
       "createAsParent": "Group as parent habit",
       "createAsParentSuccess": "Created '{name}' with {n} sub-habit | Created '{name}' with {n} sub-habits",
-      "every": "every"
+      "every": "every",
+      "frequencyQuantityLabel": "Frequency interval",
+      "removeHabit": "Remove {name}"
     },
     "clarification": {
       "questionFallback": "What schedule should this be on?",
@@ -623,6 +625,10 @@
   },
   "chat": {
     "title": "Astra",
+    "offline": {
+      "title": "You’re offline",
+      "description": "Astra needs an internet connection. Reconnect to keep chatting."
+    },
     "pendingOp": {
       "risk": {
         "high": "High risk",
@@ -1494,7 +1500,8 @@
     "createSubHabit": "Failed to create sub-habit",
     "loadProfile": "Failed to load profile",
     "loadReferral": "Failed to load referral data",
-    "fetchSubHabits": "Failed to fetch sub-habits"
+    "fetchSubHabits": "Failed to fetch sub-habits",
+    "offline": "Reconnect to the internet and try again."
   },
   "offline": {
     "title": "You're offline",
