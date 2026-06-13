@@ -77,6 +77,7 @@ export function AppSelect({
           style={styles.backdrop}
           activeOpacity={1}
           onPress={() => setIsOpen(false)}
+          importantForAccessibility="no"
         >
           <View
             style={styles.sheet}
@@ -98,6 +99,8 @@ export function AppSelect({
                     ]}
                     onPress={() => handleSelect(item.value)}
                     activeOpacity={0.7}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: isSelected }}
                   >
                     <Text
                       style={[

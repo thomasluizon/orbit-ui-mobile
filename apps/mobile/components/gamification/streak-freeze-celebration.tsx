@@ -102,6 +102,7 @@ export const StreakFreezeCelebration = forwardRef<StreakFreezeCelebrationHandle>
         <Pressable
           style={styles.pressable}
           onPress={dismiss}
+          accessibilityRole="button"
           accessibilityLabel={t('streakDisplay.freeze.celebrationTitle')}
         >
           <View style={[styles.backdrop, { backgroundColor: tokens.bg }]} />

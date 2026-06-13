@@ -153,7 +153,7 @@ export function ReferralDrawer({ open, onClose }: Readonly<ReferralDrawerProps>)
                     value={String(stats.pendingReferrals)}
                     mono
                     accessory="none"
-                    valueColor={tokens.statusOverdue}
+                    valueColor={tokens.fg1}
                   />
                 ) : null}
                 {stats.successfulReferrals > 0 ? (

@@ -66,6 +66,8 @@ export function GoalLinkingField({
                 disabled={isDisabled}
                 onPress={() => onToggleGoal(goal.id)}
                 activeOpacity={0.75}
+                accessibilityRole="button"
+                accessibilityState={{ selected: isSelected, disabled: isDisabled }}
               >
                 <Text
                   style={[

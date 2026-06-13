@@ -356,7 +356,7 @@ export function OnboardingFlow() {
         <View style={styles.header}>
           <Text style={styles.progressLabel}>{progressLabel}</Text>
           {!isFinalStep && (
-            <Pressable onPress={handleSkip} hitSlop={8} style={styles.skipButton}>
+            <Pressable onPress={handleSkip} hitSlop={8} style={styles.skipButton} accessibilityRole="button">
               <Text style={styles.skipText}>
                 {t('onboarding.flow.skip')}
               </Text>

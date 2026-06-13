@@ -82,6 +82,7 @@ function renderNotificationRow(
         style={[styles.notifRow, !item.isRead && styles.notifUnread]}
         activeOpacity={0.7}
         onPress={() => onPress(item)}
+        accessibilityRole="button"
         accessibilityLabel={item.title}
       >
         <View style={styles.notifGlyphCircle}>

@@ -161,6 +161,8 @@ export function AppTimePicker({
             style={styles.backdrop}
             activeOpacity={1}
             onPress={() => setIsOpen(false)}
+            accessibilityRole="button"
+            accessibilityLabel={t('common.close')}
           >
             <View
               style={styles.dialog}
@@ -170,6 +172,7 @@ export function AppTimePicker({
                 <TouchableOpacity
                   onPress={() => setIsOpen(false)}
                   hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  accessibilityRole="button"
                 >
                   <Text style={styles.dialogAction}>{t('common.cancel')}</Text>
                 </TouchableOpacity>
@@ -180,6 +183,7 @@ export function AppTimePicker({
                     setIsOpen(false)
                   }}
                   hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  accessibilityRole="button"
                 >
                   <Text style={styles.dialogAction}>{t('common.done')}</Text>
                 </TouchableOpacity>

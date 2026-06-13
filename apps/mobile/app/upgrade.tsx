@@ -144,7 +144,7 @@ function UsageCard({
         <Text
           style={[
             styles.usageValue,
-            { color: usageUrgent ? tokens.statusOverdue : tokens.fg2 },
+            { color: usageUrgent ? tokens.statusOverdueText : tokens.fg2 },
           ]}
         >
           {t('upgrade.billing.usage.aiMessagesOf', {
@@ -608,6 +608,7 @@ export default function UpgradeScreen() {
             {t('upgrade.billing.error')}
           </Text>
           <Pressable
+            accessibilityRole="button"
             onPress={() => {
               refetchBilling().catch(() => {})
             }}
@@ -782,6 +783,7 @@ export default function UpgradeScreen() {
               {t('upgrade.plans.error')}
             </Text>
             <Pressable
+              accessibilityRole="button"
               onPress={() => {
                 refetchPlans().catch(() => {})
               }}

@@ -1198,6 +1198,7 @@ export default function TodayScreen() {
                 },
               ]}
               onPress={handleToggleSelectMode}
+              accessibilityRole="button"
             >
               {isSelectMode ? (
                 <X size={16} color={tokens.fg2} strokeWidth={1.8} />
@@ -1221,6 +1222,7 @@ export default function TodayScreen() {
                 },
               ]}
               onPress={handleToggleCollapse}
+              accessibilityRole="button"
             >
               {habitListAllCollapsed ? (
                 <ChevronsUpDown
@@ -1250,6 +1252,7 @@ export default function TodayScreen() {
                 },
               ]}
               onPress={handleRefresh}
+              accessibilityRole="button"
             >
               <RefreshCw
                 size={16}
@@ -1270,6 +1273,7 @@ export default function TodayScreen() {
                 },
               ]}
               onPress={handleToggleCompleted}
+              accessibilityRole="button"
             >
               {showCompleted ? (
                 <Check size={16} color={tokens.fg2} strokeWidth={1.8} />

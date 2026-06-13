@@ -123,6 +123,7 @@ export function HabitCalendar({
 
         <TouchableOpacity
           testID="habit-calendar-month-label"
+          accessibilityRole="button"
           style={styles.monthButton}
           onPress={goToToday}
           activeOpacity={0.7}
@@ -157,6 +158,8 @@ export function HabitCalendar({
             {day.isCurrentMonth && day.isCompleted ? (
               <TouchableOpacity
                 testID={`habit-calendar-day-${day.dateStr}`}
+                accessibilityRole="button"
+                accessibilityState={{ selected: selectedDate === day.dateStr }}
                 style={[
                   styles.completedDay,
                   selectedDate === day.dateStr && styles.completedDaySelected,

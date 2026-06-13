@@ -70,6 +70,7 @@ export function AllDoneCelebration() {
       <Pressable
         style={styles.pressable}
         onPress={dismiss}
+        accessibilityRole="button"
         accessibilityLabel={t('habits.allDoneCelebrationTitle')}
       >
         <View

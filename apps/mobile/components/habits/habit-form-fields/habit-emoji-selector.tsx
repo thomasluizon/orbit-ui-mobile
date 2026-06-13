@@ -86,8 +86,17 @@ export function HabitEmojiSelector({
           animationType="slide"
           onRequestClose={closePicker}
         >
-          <Pressable style={styles.emojiModalBackdrop} onPress={closePicker}>
-            <Pressable style={styles.emojiModalSheet} onPress={(event) => event.stopPropagation()}>
+          <Pressable
+            style={styles.emojiModalBackdrop}
+            onPress={closePicker}
+            accessibilityRole="button"
+            accessibilityLabel={t('common.close')}
+          >
+            <Pressable
+              style={styles.emojiModalSheet}
+              onPress={(event) => event.stopPropagation()}
+              importantForAccessibility="no"
+            >
               <View style={styles.emojiModalHeader}>
                 <View style={styles.emojiModalTitleRow}>
                   <View style={styles.emojiPreviewCompact}>

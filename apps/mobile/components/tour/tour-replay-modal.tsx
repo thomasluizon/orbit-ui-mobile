@@ -107,7 +107,12 @@ export function TourReplayModal({ visible, onClose }: TourReplayModalProps) {
       onRequestClose={onClose}
     >
       <View style={styles.backdrop}>
-        <Pressable style={styles.backdropTouch} onPress={onClose} />
+        <Pressable
+          style={styles.backdropTouch}
+          onPress={onClose}
+          accessibilityElementsHidden
+          importantForAccessibility="no-hide-descendants"
+        />
         <View style={styles.sheet}>
           <View style={styles.handle} />
 
@@ -152,6 +157,7 @@ export function TourReplayModal({ visible, onClose }: TourReplayModalProps) {
                       pressed && styles.sectionRowPressed,
                     ]}
                     onPress={() => handleReplaySection(section)}
+                    accessibilityRole="button"
                   >
                     <View style={styles.sectionIconSlot}>
                       {Icon ? (

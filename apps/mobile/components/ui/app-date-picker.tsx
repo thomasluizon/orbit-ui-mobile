@@ -148,6 +148,8 @@ export function AppDatePicker({
           style={styles.backdrop}
           activeOpacity={1}
           onPress={() => setIsOpen(false)}
+          accessibilityRole="button"
+          accessibilityLabel={t('common.close')}
         >
           <View
             style={styles.dialog}
@@ -157,6 +159,7 @@ export function AppDatePicker({
               <TouchableOpacity
                 onPress={prevMonth}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                accessibilityRole="button"
                 accessibilityLabel={t('common.previousMonth')}
               >
                 <ChevronLeft size={18} strokeWidth={1.8} color={tokens.fg3} />
@@ -167,6 +170,7 @@ export function AppDatePicker({
               <TouchableOpacity
                 onPress={nextMonth}
                 hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                accessibilityRole="button"
                 accessibilityLabel={t('common.nextMonth')}
               >
                 <ChevronRight size={18} strokeWidth={1.8} color={tokens.fg3} />
@@ -199,6 +203,8 @@ export function AppDatePicker({
                       ]}
                       onPress={() => selectDay(day)}
                       activeOpacity={0.7}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected: isSelected }}
                       accessibilityLabel={formatLocaleDate(day, locale, {
                         month: 'long',
                         day: 'numeric',

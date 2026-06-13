@@ -115,3 +115,34 @@ The two APG-clean fixes both violate a binding constraint here:
 2. **Split the row** — move the whole-row click to a sibling full-bleed `<button>` overlay so the expand/check/menu buttons become siblings rather than descendants. This is exactly the structural split DEF-2b (wave-3 `DEFER:root`; habit-row is an n-family orchestration root — "Irreducible data-derivation root") forbids, and it risks the row's keyboard/focus order.
 
 Round-3 offered "accept/document"; the row already carries non-color, non-ambiguous affordances (visible hover/active states, an explicit overflow menu, focus ring via global `:focus-visible`), and screen readers still reach every nested control. Deferred per the brief's explicit instruction: "DEF-2b forbids splitting the row — if the fix risks the row's keyboard nav, defer with that reason." Mobile has no twin (RN `Pressable` rows do not surface an ARIA `button`-with-descendants conflict). Revisit only if DEF-2b is lifted and the row may restructure.
+
+---
+
+# Round-7 a11y deferral (orbit-ui-mobile) — sweep #4 R7-A11Y-EXHAUSTIVE
+
+## DEF-R7-A11Y-STATUS-TINT — status-tone TEXT on a same-tone low-alpha TINT chip (WHOLE FAMILY) — light residual, DEFER
+
+Single consolidated entry replacing per-site churn. Round-7 PASS-1 grepped EVERY `--status-overdue`/`--status-bad`/`tokens.statusOverdue`/`tokens.statusBad`/`*Text` usage across both apps and split TEXT-on-solid (migrated to the `-text` token, AA-cleared) from TEXT-on-same-tone-tint. The latter cannot reach 4.5 without a DESIGN.md token/tint redesign and migrating to the `-text` token is a **light no-op** (by design `overdueText`/`badText` light are only a strict improvement on *solid* surfaces; on a same-tone tint the residual persists). This family folds the previously-separate **DEF-R6-A11Y-1** (pastDue badge) and **DEF-R4-A11Y-3** (amber `<Badge>` + expiry-warning + trial-banner) and adds the chat-callout twins the prior rounds never enumerated. The previously-individual entries above (DEF-R4-A11Y-3, DEF-R6-A11Y-1) remain as the original audit trail; this entry is the canonical superset.
+
+Computed (hex-only, first-principles WCAG relative-luminance; tint = status hex blended over the mode canvas `#f8fafc` light / `#020618` dark; `.claude/sweeps/107/round-5/amber-bad-surfaces.mjs` + the round-7 ad-hoc blend script):
+
+| Surface (tint over canvas) | text token | light | dark |
+|---|---|---|---|
+| bad-text on **bad@8%** — message-bubble denialCard | `statusBadText`(=base light) | **3.96** ✗ | 5.07 ✓ |
+| bad-text on **bad@10%** — conflict-warning HIGH, action-chips Failed chip | `statusBadText` | **3.82** ✗ | 4.99 ✓ |
+| bad-text on **bad@18%** — pastDue billing badge (DEF-R6-A11Y-1) | `statusBadText` | **3.30** ✗ | 4.61 ✓ |
+| overdue-text on **overdue@10%** — trial-banner urgent + Upgrade link, expiry-warning, upgrade in-page trial block, conflict-warning MEDIUM | `statusOverdueText` | **4.06** ✗ | 8.44 ✓ |
+| overdue-text on **overdue@18%** — amber `<Badge>` tone | `statusOverdueText` | **3.72** ✗ | 6.29–7.29 ✓ |
+
+Sites (both platforms, TEXT-on-same-tone-tint only — NON-text dots/icons/fills/borders on these tints pass the 3:1 floor and are NOT listed):
+
+- **message-bubble denialCard** (NEW R7) — web `apps/web/components/chat/message-bubble.tsx:233,236` (base `--status-bad` on bad@8% `:228`) · mobile `apps/mobile/components/message-bubble.tsx` `denialTitle:370`/`denialReason:376` (`statusBadText` on `statusBad`@0x14≈8% `:362`).
+- **conflict-warning** — web `apps/web/components/chat/conflict-warning.tsx:18` (HIGH bad@10%), `:23` (MEDIUM overdue@10%) · mobile `apps/mobile/components/chat/conflict-warning.tsx:22-23` (HIGH `statusBadText` on `statusBad@1A`), `:27-30` (MEDIUM `statusOverdueText` on `statusOverdue@1A`).
+- **action-chips Failed chip** — web `apps/web/components/chat/action-chips.tsx:78-79` (base bad on bad@10%) · mobile `apps/mobile/components/chat/action-chips.tsx:182-183` (`statusBadText` on `statusBad@1A`). (The sibling `action.error`/`errorText` line is on a SOLID surface → bad-on-solid clears AA, NOT in family.)
+- **amber `<Badge>` tone** (DEF-R4-A11Y-3) — web `apps/web/components/ui/badge.tsx:23-24` · mobile `apps/mobile/components/ui/badge.tsx:56` (overdue@18%).
+- **expiry-warning** (DEF-R4-A11Y-3) — web `apps/web/components/ui/expiry-warning.tsx:77,85` (overdue@10% `:63`) · mobile `apps/mobile/components/ui/expiry-warning.tsx` (overdue@10% `:139`).
+- **trial-banner** urgent text + Upgrade link (DEF-R4-A11Y-3 / round-6-verify) — web `apps/web/components/ui/trial-banner.tsx:47,75` (overdue@10% `:30`) · mobile `apps/mobile/components/ui/trial-banner.tsx:92,130` (overdue@10% `:53`).
+- **upgrade in-page trial block** — web `apps/web/app/(app)/upgrade/page.tsx:701,708` (overdue@10% `:691`) · mobile `apps/mobile/app/upgrade.tsx:749,754` (overdue@10% `:737`).
+- **pastDue billing badge** (DEF-R6-A11Y-1) — web `apps/web/app/(app)/upgrade/page.tsx:418` · mobile `apps/mobile/app/upgrade.tsx:657` (bad@18%).
+
+Justification: status-tone text on a same-tone tint chip is a DESIGN.md token-ceiling decision (needs a darker on-tint text token or a darker fill); non-color cues (the AlertTriangle/XCircle/ShieldAlert/Clock icon and the literal status wording — "Failed", "past due", "last day", conflict copy) satisfy WCAG 1.4.1 (color not the sole indicator). Only 1.4.3 (text contrast) is short, light mode only; dark clears everywhere. The light fix is a darker per-tone on-tint text value (e.g. bad needs < `#c10007`; `#a60008` = 5.54) that must NOT regress the dark canvas where the base already passes — i.e. a new `--status-*-on-tint` token + per-component tint audit, owned by DESIGN.md. Migrating the in-scope sites to the existing `-text` token is a light no-op, so it was correctly NOT done (no per-site churn). Revisit as one DESIGN.md decision if status-tint AA is prioritized.

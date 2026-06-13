@@ -92,7 +92,7 @@ function UsageStats({ usagePercent, usageUrgent, profile, t }: Readonly<{
         <span
           style={{
             ...metaTextStyle,
-            color: usageUrgent ? 'var(--status-overdue)' : 'var(--fg-2)',
+            color: usageUrgent ? 'var(--status-overdue-text)' : 'var(--fg-2)',
           }}
         >
           {t('upgrade.billing.usage.aiMessagesOf', {
