@@ -1,5 +1,6 @@
 import { View, Text, TouchableOpacity } from "react-native";
 import { X } from "lucide-react-native";
+import { MAX_TAG_NAME_LENGTH } from "@orbit/shared/validation";
 import { BottomSheetAppTextInput } from "@/components/ui/bottom-sheet-app-text-input";
 import { type AppTokens, createStyles } from "./styles";
 
@@ -35,7 +36,7 @@ export function TagEditorRow({
       <BottomSheetAppTextInput
         value={value}
         placeholder={placeholder}
-        maxLength={50}
+        maxLength={MAX_TAG_NAME_LENGTH}
         accessibilityLabel={inputAriaLabel}
         editable={!disabled}
         style={{ flex: 1 }}
@@ -44,6 +45,8 @@ export function TagEditorRow({
       />
       <TouchableOpacity
         style={styles.tagFormSave}
+        accessibilityRole="button"
+        accessibilityLabel={actionLabel}
         disabled={disabled}
         onPress={onCommit}
         activeOpacity={0.7}
@@ -52,6 +55,7 @@ export function TagEditorRow({
       </TouchableOpacity>
       <TouchableOpacity
         style={styles.tagFormCancel}
+        accessibilityRole="button"
         accessibilityLabel={cancelAriaLabel}
         disabled={disabled}
         onPress={onCancel}

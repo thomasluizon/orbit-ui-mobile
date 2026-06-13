@@ -8,6 +8,7 @@ import { completeTour } from '@/app/actions/profile'
 import { useQueryClient } from '@tanstack/react-query'
 import { profileKeys } from '@orbit/shared/query'
 import type { Profile } from '@orbit/shared/types'
+import { useOverlayEscape } from '@/hooks/use-overlay-escape'
 
 /**
  * Composes TourSpotlight + TourTooltip.
@@ -68,6 +69,12 @@ export function TourOverlay() {
   const handleSkip = useCallback(() => {
     handleEnd()
   }, [handleEnd])
+
+  useOverlayEscape({
+    open: isActive && !isNavigating && !!targetRect && !!step,
+    onDismiss: handleSkip,
+    restoreFocus: false,
+  })
 
   if (!isActive || isNavigating || !targetRect || !step) {
     return null

@@ -313,7 +313,7 @@ export function AppOverlay({
                       />
                       {expandable && (
                         <button
-                          className="shrink-0 size-8 rounded-full border border-[var(--hairline)] bg-[var(--bg-sunk)] flex items-center justify-center text-[var(--fg-2)] hover:text-[var(--fg-1)] transition-[background-color,border-color,color] duration-150 mt-0.5"
+                          className="shrink-0 size-8 rounded-full icon-btn-ring bg-[var(--bg-sunk)] flex items-center justify-center text-[var(--fg-2)] hover:text-[var(--fg-1)] transition-[background-color,color] duration-150 mt-0.5"
                           aria-label={t('common.expandDescription')}
                           onClick={onExpandDescription}
                         >

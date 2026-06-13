@@ -1,6 +1,7 @@
 import { Text, TouchableOpacity, View } from 'react-native'
 import { Plus, Trash2 } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
+import { MAX_HABIT_TITLE_LENGTH, MAX_SUB_HABITS } from '@orbit/shared/validation'
 import { BottomSheetAppTextInput } from '@/components/ui/bottom-sheet-app-text-input'
 import { ProBadge } from '@/components/ui/pro-badge'
 import type { createTokensV2 } from '@/lib/theme'
@@ -16,12 +17,16 @@ interface SubHabitEditorProps {
   onUpdateSubHabit: (id: string, value: string) => void
   onRemoveSubHabit: (id: string) => void
   onAddSubHabit: () => void
+  onUpgrade: () => void
   tokens: ReturnType<typeof createTokensV2>
   styles: {
     subHabitsSection: object
     subHabitsHeader: object
+    subHabitsUpsellHeader: object
+    subHabitsHeaderLeft: object
     fieldLabel: object
     subHabitsHint: object
+    subHabitsUpgradeText: object
     subHabitsList: object
     subHabitRow: object
     subHabitIndex: object
@@ -38,22 +43,45 @@ export function SubHabitEditor({
   onUpdateSubHabit,
   onRemoveSubHabit,
   onAddSubHabit,
+  onUpgrade,
   tokens,
   styles,
 }: Readonly<SubHabitEditorProps>) {
   const { t } = useTranslation()
 
+  if (!hasProAccess) {
+    return (
+      <View style={styles.subHabitsSection}>
+        <View style={styles.subHabitsUpsellHeader}>
+          <View style={styles.subHabitsHeaderLeft}>
+            <View style={styles.subHabitsHeader}>
+              <Text style={styles.fieldLabel}>{t('habits.form.subHabits')}</Text>
+              <ProBadge alwaysVisible />
+            </View>
+            <Text style={styles.subHabitsHint}>
+              {t('upgrade.features.subHabits.tooltip')}
+            </Text>
+          </View>
+          <TouchableOpacity
+            onPress={onUpgrade}
+            activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityLabel={t('upgrade.subscribe')}
+          >
+            <Text style={styles.subHabitsUpgradeText}>
+              {t('upgrade.subscribe')}
+            </Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    )
+  }
+
   return (
     <View style={styles.subHabitsSection}>
       <View style={styles.subHabitsHeader}>
         <Text style={styles.fieldLabel}>{t('habits.form.subHabits')}</Text>
-        {!hasProAccess ? <ProBadge alwaysVisible /> : null}
       </View>
-      {!hasProAccess ? (
-        <Text style={styles.subHabitsHint}>
-          {t('upgrade.comparison.subHabits.tooltip')}
-        </Text>
-      ) : null}
       {subHabits.length > 0 ? (
         <View style={styles.subHabitsList}>
           {subHabits.map((entry, index) => (
@@ -61,9 +89,9 @@ export function SubHabitEditor({
               <Text style={styles.subHabitIndex}>{index + 1}</Text>
               <BottomSheetAppTextInput
                 value={entry.value}
-                maxLength={200}
+                maxLength={MAX_HABIT_TITLE_LENGTH}
                 placeholder={t('habits.form.subHabitPlaceholder')}
-                placeholderTextColor={tokens.fg4}
+                placeholderTextColor={tokens.fg3}
                 style={styles.subHabitInput}
                 onChangeText={(val: string) => onUpdateSubHabit(entry.id, val)}
               />
@@ -78,9 +106,9 @@ export function SubHabitEditor({
                   right: 6,
                 }}
                 accessibilityRole="button"
-                accessibilityLabel={t('common.clear')}
+                accessibilityLabel={t('habits.form.removeSubHabit')}
               >
-                <Trash2 size={16} color={tokens.fg4} strokeWidth={1.8} />
+                <Trash2 size={16} color={tokens.fg3} strokeWidth={1.8} />
               </TouchableOpacity>
             </View>
           ))}
@@ -88,7 +116,7 @@ export function SubHabitEditor({
       ) : null}
       <TouchableOpacity
         style={styles.addSubHabitButton}
-        disabled={subHabits.length >= 20}
+        disabled={subHabits.length >= MAX_SUB_HABITS}
         onPress={onAddSubHabit}
         activeOpacity={0.7}
         accessibilityRole="button"

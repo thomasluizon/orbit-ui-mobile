@@ -102,7 +102,7 @@ export function StreakTimelineCard({
             {weekDays.map((day) => (
               <Text
                 key={day.dateStr}
-                style={[styles.weekHeaderLabel, { color: tokens.fg4 }]}
+                style={[styles.weekHeaderLabel, { color: tokens.fg3 }]}
               >
                 {day.dayLabel.toUpperCase()}
               </Text>
@@ -169,7 +169,7 @@ function StreakDayCell({
 }: Readonly<StreakDayCellProps>) {
   const inRun = isInRun(day.status)
 
-  let numeralColor = tokens.fg4
+  let numeralColor = tokens.fg3
   if (day.status === 'active' || day.status === 'frozen' || day.status === 'today') {
     numeralColor = tokens.fg1
   }
@@ -418,7 +418,7 @@ export function FreezeProgressCard({
               <CardGroup>
                 {isFrozenToday ? (
                   <CardRow
-                    icon={<StatusDot state="frozen" size={8} />}
+                    icon={<StatusDot state="frozen" size={8} accessibilityLabel={t('habits.statusDot.frozen')} />}
                     label={t('streakDisplay.freeze.protected.today')}
                     trailing={
                       <StatValue
@@ -430,7 +430,7 @@ export function FreezeProgressCard({
                 {dates.map((date) => (
                   <CardRow
                     key={date}
-                    icon={<StatusDot state="frozen" size={8} />}
+                    icon={<StatusDot state="frozen" size={8} accessibilityLabel={t('habits.statusDot.frozen')} />}
                     label={displayDate(date, { month: 'short', day: 'numeric' })}
                   />
                 ))}

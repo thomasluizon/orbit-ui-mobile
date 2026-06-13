@@ -27,7 +27,12 @@ import {
 import { useUIStore } from '@/stores/ui-store'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { buildSubHabitRequest, buildCreateHabitRequest } from '@/lib/habit-request-builders'
-import { habitFormSchema } from '@orbit/shared/validation'
+import {
+  MAX_GOALS_PER_HABIT,
+  MAX_HABIT_TITLE_LENGTH,
+  MAX_SUB_HABITS,
+  habitFormSchema,
+} from '@orbit/shared/validation'
 
 interface SubHabitEntry {
   id: string
@@ -89,7 +94,7 @@ export function CreateHabitModal({
   const watchedReminderEnabled = formHelpers.form.watch('reminderEnabled') ?? false
   const watchedScheduledReminders = formHelpers.form.watch('scheduledReminders') ?? []
 
-  const atGoalLimit = selectedGoalIds.length >= 10
+  const atGoalLimit = selectedGoalIds.length >= MAX_GOALS_PER_HABIT
   const isDirty =
     formHelpers.form.formState.isDirty ||
     JSON.stringify([...tags.selectedTagIds].sort((left, right) => left.localeCompare(right))) !== initialSnapshot.tagIds ||
@@ -285,17 +290,18 @@ export function CreateHabitModal({
                         <input
                           value={entry.value}
                           type="text"
-                          maxLength={200}
+                          maxLength={MAX_HABIT_TITLE_LENGTH}
                           placeholder={t('habits.form.subHabitPlaceholder')}
-                          className="flex-1 min-w-0 bg-transparent text-[15px] text-[var(--fg-1)] placeholder:text-[var(--fg-4)] border-0 focus:outline-none"
+                          className="flex-1 min-w-0 bg-transparent text-[15px] text-[var(--fg-1)] placeholder:text-[var(--fg-3)] border-0 focus:outline-none"
                           onChange={(e) => updateSubHabitValue(entry.id, e.target.value)}
                         />
                         <button
                           type="button"
-                          className="shrink-0 grid size-9 place-items-center rounded-full text-[var(--fg-4)] hover:text-[var(--status-bad)] transition-colors duration-150"
+                          aria-label={t('habits.form.removeSubHabit')}
+                          className="shrink-0 grid size-11 place-items-center rounded-full text-[var(--fg-3)] hover:text-[var(--status-bad)] transition-colors duration-150"
                           onClick={() => removeSubHabit(entry.id)}
                         >
-                          <Trash2 size={16} strokeWidth={1.8} />
+                          <Trash2 size={16} strokeWidth={1.8} aria-hidden="true" />
                         </button>
                       </div>
                     ))}
@@ -304,7 +310,7 @@ export function CreateHabitModal({
                 <button
                   type="button"
                   className="chip disabled:opacity-40"
-                  disabled={subHabits.length >= 20}
+                  disabled={subHabits.length >= MAX_SUB_HABITS}
                   onClick={() => setSubHabits((prev) => [...prev, createSubHabitEntry()])}
                 >
                   <Plus size={14} strokeWidth={2} aria-hidden="true" />
@@ -322,7 +328,7 @@ export function CreateHabitModal({
                       <ProBadge />
                     </div>
                     <p className="text-xs text-[var(--fg-3)] leading-relaxed">
-                      {t('upgrade.comparison.subHabits.tooltip')}
+                      {t('upgrade.features.subHabits.tooltip')}
                     </p>
                   </div>
                   <button

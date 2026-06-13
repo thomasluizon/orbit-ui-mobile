@@ -46,31 +46,35 @@ interface ProgressDotProps {
   reducedMotion: boolean
 }
 
+const DOT_INACTIVE_SCALE = 7 / 24
+
 function ProgressDot({ active, activeColor, inactiveColor, reducedMotion }: Readonly<ProgressDotProps>) {
-  const width = useMemo(() => new Animated.Value(7), [])
+  const scale = useMemo(() => new Animated.Value(DOT_INACTIVE_SCALE), [])
 
   useEffect(() => {
     if (reducedMotion) {
-      width.setValue(active ? 24 : 7)
+      scale.setValue(active ? 1 : DOT_INACTIVE_SCALE)
       return
     }
-    const animation = Animated.timing(width, {
-      toValue: active ? 24 : 7,
+    const animation = Animated.timing(scale, {
+      toValue: active ? 1 : DOT_INACTIVE_SCALE,
       duration: 220,
       easing: toAnimatedEasing(easings.smooth),
-      useNativeDriver: false,
+      useNativeDriver: true,
     })
     animation.start()
     return () => animation.stop()
-  }, [active, reducedMotion, width])
+  }, [active, reducedMotion, scale])
 
   return (
     <Animated.View
       style={{
-        width,
+        width: 24,
         height: 7,
         borderRadius: 999,
         backgroundColor: active ? activeColor : inactiveColor,
+        transformOrigin: 'left',
+        transform: [{ scaleX: scale }],
       }}
     />
   )

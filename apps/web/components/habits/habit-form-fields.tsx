@@ -12,7 +12,14 @@ import {
   formatLocaleTime,
   getFriendlyErrorMessage,
 } from '@orbit/shared/utils'
-import { validateTagForm } from '@orbit/shared/validation'
+import {
+  MAX_HABIT_DESCRIPTION_LENGTH,
+  MAX_HABIT_TITLE_LENGTH,
+  MAX_SCHEDULED_REMINDERS,
+  MAX_TAG_NAME_LENGTH,
+  validateScheduledReminders,
+  validateTagForm,
+} from '@orbit/shared/validation'
 import { HabitChecklist } from './habit-checklist'
 import { ChecklistTemplates } from './checklist-templates'
 import { GoalLinkingField } from './goal-linking-field'
@@ -147,9 +154,9 @@ function TagEditorRow({
         type="text"
         aria-label={inputAriaLabel}
         placeholder={placeholder}
-        maxLength={50}
+        maxLength={MAX_TAG_NAME_LENGTH}
         disabled={disabled}
-        className="flex-1 min-w-0 bg-[var(--bg-field)] text-[var(--fg-1)] placeholder:text-[var(--fg-4)] rounded-[12px] py-2.5 px-3.5 text-[13px] shadow-[inset_0_0_0_1px_var(--hairline)] border-0 focus:outline-none focus:shadow-[inset_0_0_0_2px_var(--primary)] transition-[box-shadow] duration-[var(--dur-fast)]"
+        className="flex-1 min-w-0 bg-[var(--bg-field)] text-[var(--fg-1)] placeholder:text-[var(--fg-3)] rounded-[12px] py-2.5 px-3.5 text-[13px] shadow-[inset_0_0_0_1px_var(--hairline)] border-0 focus:outline-none focus:shadow-[inset_0_0_0_2px_var(--primary)] transition-[box-shadow] duration-[var(--dur-fast)]"
         onChange={(e) => onChange(e.target.value)}
         onKeyDown={(e) => {
           if (e.key === 'Enter') {
@@ -533,7 +540,7 @@ function ReminderSection({
                 <button
                   type="button"
                   aria-label={t('habits.form.removeReminder')}
-                  className={`transition-colors ${reminderTimes.length <= 1 ? 'opacity-30 cursor-not-allowed' : 'hover:text-[var(--primary-pressed)]'}`}
+                  className={`grid place-items-center min-h-[44px] min-w-[44px] -my-2.5 -mr-2.5 -ml-1 transition-colors ${reminderTimes.length <= 1 ? 'opacity-30 cursor-not-allowed' : 'hover:text-[var(--primary-pressed)]'}`}
                   disabled={reminderTimes.length <= 1}
                   onClick={() => removeReminder(time)}
                 >
@@ -574,7 +581,7 @@ function ReminderSection({
                       min={1}
                       aria-label={t('habits.form.reminderCustomPlaceholder')}
                       placeholder={t('habits.form.reminderCustomPlaceholder')}
-                      className="w-20 bg-[var(--bg-field)] text-[var(--fg-1)] placeholder:text-[var(--fg-4)] rounded-[12px] py-2 px-3 text-sm border-0 shadow-[inset_0_0_0_1px_var(--hairline)] focus:outline-none focus:shadow-[inset_0_0_0_2px_var(--primary)] transition-[box-shadow] duration-[var(--dur-fast)]"
+                      className="w-20 bg-[var(--bg-field)] text-[var(--fg-1)] placeholder:text-[var(--fg-3)] rounded-[12px] py-2 px-3 text-sm border-0 shadow-[inset_0_0_0_1px_var(--hairline)] focus:outline-none focus:shadow-[inset_0_0_0_2px_var(--primary)] transition-[box-shadow] duration-[var(--dur-fast)]"
                       onChange={(e) => setCustomValue(e.target.value ? Number(e.target.value) : null)}
                       onKeyDown={(e) => { if (e.key === 'Enter') { e.preventDefault(); addCustomReminder() } }}
                     />
@@ -624,7 +631,6 @@ function ScheduledReminderSection({
   onToggleReminder, onSetScheduledReminders, onValidationError, t,
 }: Readonly<ScheduledReminderSectionProps>) {
   const locale = useLocale()
-  const MAX_SCHEDULED_REMINDERS = 5
   const [showForm, setShowForm] = useState(false)
   const [when, setWhen] = useState<ScheduledReminderWhen>('same_day')
   const [time, setTime] = useState('')
@@ -636,17 +642,14 @@ function ScheduledReminderSection({
       onValidationError(t('habits.form.invalidScheduledReminderTime'))
       return
     }
-    if (atLimit) {
-      onValidationError(t('habits.form.scheduledReminderMax'))
-      return
-    }
     const current = scheduledReminders ?? []
-    const duplicate = current.some((sr) => sr.when === when && sr.time === time)
-    if (duplicate) {
-      onValidationError(t('habits.form.duplicateScheduledReminder'))
+    const candidate = [...current, { when, time }]
+    const validationErrorKey = validateScheduledReminders(candidate)
+    if (validationErrorKey) {
+      onValidationError(t(validationErrorKey as Parameters<typeof t>[0]))
       return
     }
-    onSetScheduledReminders([...current, { when, time }])
+    onSetScheduledReminders(candidate)
     setTime('')
     setShowForm(false)
   }
@@ -693,7 +696,7 @@ function ScheduledReminderSection({
                   style={{ fontFamily: 'var(--font-sans)', fontSize: 12, fontWeight: 500 }}
                 >
                   {scheduledReminderLabel(sr)}
-                  <button type="button" aria-label={t('habits.form.removeScheduledReminder')} className="hover:text-[var(--primary-pressed)] transition-colors" onClick={() => removeScheduledReminder(idx)}>
+                  <button type="button" aria-label={t('habits.form.removeScheduledReminder')} className="grid place-items-center min-h-[44px] min-w-[44px] -my-2.5 -mr-2.5 -ml-1 hover:text-[var(--primary-pressed)] transition-colors" onClick={() => removeScheduledReminder(idx)}>
                     <X size={13} strokeWidth={2.2} aria-hidden="true" />
                   </button>
                 </span>
@@ -1008,7 +1011,7 @@ export function HabitFormFields({
           <input
             id="habit-form-title"
             type="text"
-            maxLength={200}
+            maxLength={MAX_HABIT_TITLE_LENGTH}
             placeholder={t('habits.form.titlePlaceholder')}
             className="form-input flex-1 min-w-0"
             aria-invalid={!!errors.title}
@@ -1346,7 +1349,7 @@ export function HabitFormFields({
               id="habit-form-description"
               placeholder={t('habits.form.descriptionPlaceholder')}
               rows={2}
-              maxLength={2000}
+              maxLength={MAX_HABIT_DESCRIPTION_LENGTH}
               className="form-input resize-none"
               {...register('description')}
             />
@@ -1459,27 +1462,27 @@ export function HabitFormFields({
 
           {!isGeneral && (
             <label className="flex items-center gap-3 cursor-pointer py-2">
+              <input
+                type="checkbox"
+                className="peer sr-only"
+                checked={watchedIsBadHabit}
+                onChange={(e) => setValue('isBadHabit', e.target.checked, { shouldDirty: true })}
+              />
               <span
                 aria-hidden="true"
-                className="flex items-center justify-center transition-[background-color,box-shadow] duration-[var(--dur-fast)]"
+                className="flex items-center justify-center transition-[background-color,box-shadow] duration-[var(--dur-fast)] peer-focus-visible:shadow-[inset_0_0_0_2px_var(--fg-3),0_0_0_2px_var(--primary)]"
                 style={{
                   width: 26,
                   height: 26,
                   borderRadius: 8,
                   background: watchedIsBadHabit ? 'var(--primary)' : 'transparent',
-                  boxShadow: watchedIsBadHabit ? 'none' : 'inset 0 0 0 2px var(--fg-4)',
+                  boxShadow: watchedIsBadHabit ? 'none' : 'inset 0 0 0 2px var(--fg-3)',
                 }}
               >
                 {watchedIsBadHabit && (
                   <Check size={15} strokeWidth={3} color="var(--fg-on-primary)" />
                 )}
               </span>
-              <input
-                type="checkbox"
-                className="hidden"
-                checked={watchedIsBadHabit}
-                onChange={(e) => setValue('isBadHabit', e.target.checked, { shouldDirty: true })}
-              />
               <span className="text-sm text-[var(--fg-1)]">{t('habits.form.badHabitLabel')}</span>
             </label>
           )}

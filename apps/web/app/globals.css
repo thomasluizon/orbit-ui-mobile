@@ -1014,13 +1014,30 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 .collapsible {
   display: grid;
   grid-template-rows: 0fr;
-  transition: grid-template-rows var(--dur-base) var(--ease-out);
 }
 .collapsible.is-open {
   grid-template-rows: 1fr;
 }
 .collapsible > * {
   overflow: hidden;
+}
+.collapsible.is-open > * {
+  animation: collapsible-content-in var(--dur-base) var(--ease-out) both;
+}
+@keyframes collapsible-content-in {
+  from {
+    opacity: 0;
+    transform: translateY(-6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .collapsible.is-open > * {
+    animation: none;
+  }
 }
 
 /* ── Mic visualizer (speech-to-text recording) ── */

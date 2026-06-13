@@ -4,6 +4,7 @@ import { X, Plus, Check } from "lucide-react-native";
 import { useWatch } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { HABIT_REMINDER_PRESETS } from "@orbit/shared/utils";
+import { MAX_HABIT_DESCRIPTION_LENGTH } from "@orbit/shared/validation";
 import { HabitChecklist } from "../habit-checklist";
 import { ChecklistTemplates } from "../checklist-templates";
 import { GoalLinkingField } from "../goal-linking-field";
@@ -94,7 +95,7 @@ export function AdvancedSection({
           value={description}
           registerFlush={registerFlush}
           placeholder={t("habits.form.descriptionPlaceholder")}
-          maxLength={2000}
+          maxLength={MAX_HABIT_DESCRIPTION_LENGTH}
           multiline
           numberOfLines={2}
           style={styles.textarea}
@@ -154,6 +155,8 @@ export function AdvancedSection({
                 </View>
                 <TouchableOpacity
                   style={styles.removeEndDateButton}
+                  accessibilityRole="button"
+                  accessibilityLabel={t("habits.form.removeEndDate")}
                   onPress={() => setValue("endDate", "", { shouldDirty: true })}
                   activeOpacity={0.7}
                 >
@@ -165,6 +168,7 @@ export function AdvancedSection({
           ) : (
             <TouchableOpacity
               style={sectionStyles.addButton}
+              accessibilityRole="button"
               onPress={() =>
                 setValue("endDate", dueDate || "", { shouldDirty: true })
               }
@@ -214,6 +218,9 @@ export function AdvancedSection({
       {!isGeneral && (
         <TouchableOpacity
           style={styles.checkboxRow}
+          accessibilityRole="checkbox"
+          accessibilityState={{ checked: isBadHabit }}
+          accessibilityLabel={t("habits.form.badHabitLabel")}
           onPress={() =>
             setValue("isBadHabit", !isBadHabit, { shouldDirty: true })
           }

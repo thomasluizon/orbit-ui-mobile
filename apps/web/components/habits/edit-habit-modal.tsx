@@ -21,7 +21,7 @@ import {
 } from '@orbit/shared/utils'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { buildUpdateHabitRequest } from '@/lib/habit-request-builders'
-import { habitFormSchema } from '@orbit/shared/validation'
+import { MAX_GOALS_PER_HABIT, habitFormSchema } from '@orbit/shared/validation'
 
 interface EditHabitModalProps {
   open: boolean
@@ -55,7 +55,7 @@ export function EditHabitModal({
   const [initialGoalIds, setInitialGoalIds] = useState('[]')
   const [initialReminderTimes, setInitialReminderTimes] = useState('[0,15]')
 
-  const atGoalLimit = selectedGoalIds.length >= 10
+  const atGoalLimit = selectedGoalIds.length >= MAX_GOALS_PER_HABIT
   const isDirty =
     formHelpers.form.formState.isDirty ||
     JSON.stringify([...tags.selectedTagIds].sort((left, right) => left.localeCompare(right))) !== initialTagIds ||

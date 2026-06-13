@@ -9,6 +9,7 @@ import {
   startOfWeek,
   endOfWeek,
   eachDayOfInterval,
+  addDays,
   format,
   isSameMonth,
   isSameDay,
@@ -18,6 +19,7 @@ import { Calendar, ChevronLeft, ChevronRight } from 'lucide-react'
 import { useTranslations, useLocale } from 'next-intl'
 import { formatLocaleDate } from '@orbit/shared/utils'
 import { useProfile } from '@/hooks/use-profile'
+import { useOverlayEscape } from '@/hooks/use-overlay-escape'
 
 interface AppDatePickerProps {
   value: string
@@ -43,6 +45,8 @@ export function AppDatePicker({
   }
   const dialogLabelId = useId()
   const containerRef = useRef<HTMLDivElement>(null)
+  const gridRef = useRef<HTMLTableElement>(null)
+  const [focusedDate, setFocusedDate] = useState<Date | null>(null)
 
   const selectedDate = value ? parseISO(value) : null
 
@@ -78,6 +82,14 @@ export function AppDatePicker({
     return weeks
   })()
 
+  const rovingDay = useMemo(() => {
+    if (focusedDate && isSameMonth(focusedDate, viewDate)) return focusedDate
+    if (selectedDate && isSameMonth(selectedDate, viewDate)) return selectedDate
+    const today = new Date()
+    if (isSameMonth(today, viewDate)) return today
+    return startOfMonth(viewDate)
+  }, [focusedDate, selectedDate, viewDate])
+
   function prevMonth() {
     setViewDate((d) => subMonths(d, 1))
   }
@@ -86,20 +98,37 @@ export function AppDatePicker({
     setViewDate((d) => addMonths(d, 1))
   }
 
+  const closePicker = useCallback(() => {
+    setIsOpen(false)
+    setFocusedDate(null)
+  }, [])
+
   function selectDay(day: Date) {
     onChange(format(day, 'yyyy-MM-dd'))
-    setIsOpen(false)
+    closePicker()
   }
 
   const displayValue = value ? formatLocaleDate(value, locale) : ''
 
+  useOverlayEscape({
+    open: isOpen,
+    onDismiss: closePicker,
+  })
+
+  useEffect(() => {
+    if (!isOpen) return
+    requestAnimationFrame(() => {
+      gridRef.current?.querySelector<HTMLButtonElement>('button[tabindex="0"]')?.focus()
+    })
+  }, [isOpen])
+
   const handleClickOutside = useCallback(
     (e: MouseEvent) => {
       if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        setIsOpen(false)
+        closePicker()
       }
     },
-    []
+    [closePicker]
   )
 
   useEffect(() => {
@@ -109,6 +138,32 @@ export function AppDatePicker({
     }
   }, [isOpen, handleClickOutside])
 
+  function focusDayButton(day: Date) {
+    setFocusedDate(day)
+    if (!isSameMonth(day, viewDate)) setViewDate(day)
+    requestAnimationFrame(() => {
+      gridRef.current
+        ?.querySelector<HTMLButtonElement>(`button[data-day="${format(day, 'yyyy-MM-dd')}"]`)
+        ?.focus()
+    })
+  }
+
+  function handleGridKeyDown(e: React.KeyboardEvent) {
+    const anchor = focusedDate ?? selectedDate ?? new Date()
+    let next: Date | null = null
+    if (e.key === 'ArrowLeft') next = addDays(anchor, -1)
+    else if (e.key === 'ArrowRight') next = addDays(anchor, 1)
+    else if (e.key === 'ArrowUp') next = addDays(anchor, -7)
+    else if (e.key === 'ArrowDown') next = addDays(anchor, 7)
+    else if (e.key === 'Home') next = startOfWeek(anchor, { weekStartsOn })
+    else if (e.key === 'End') next = endOfWeek(anchor, { weekStartsOn })
+    else if (e.key === 'PageUp') next = subMonths(anchor, 1)
+    else if (e.key === 'PageDown') next = addMonths(anchor, 1)
+    if (!next) return
+    e.preventDefault()
+    focusDayButton(next)
+  }
+
   return (
     <div className="relative" ref={containerRef}>
       <button
@@ -117,7 +172,7 @@ export function AppDatePicker({
         aria-expanded={isOpen}
         aria-haspopup="dialog"
         className="w-full min-h-[44px] bg-[var(--bg-field)] text-[var(--fg-1)] rounded-[14px] py-3 px-4 text-base shadow-[inset_0_0_0_1px_var(--hairline)] text-left flex items-center justify-between focus:outline-none focus:shadow-[inset_0_0_0_2px_var(--primary)] transition-[background-color,box-shadow,color] duration-[var(--dur-fast)]"
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={() => (isOpen ? closePicker() : setIsOpen(true))}
       >
         <span>{displayValue || placeholder || t('common.selectDate')}</span>
         <Calendar size={20} strokeWidth={1.8} className="text-[var(--fg-4)]" />
@@ -128,7 +183,7 @@ export function AppDatePicker({
           <div
             className="fixed inset-0 z-40 bg-black/65"
             aria-hidden="true"
-            onClick={() => setIsOpen(false)}
+            onClick={closePicker}
           />
 
           <dialog
@@ -163,7 +218,11 @@ export function AppDatePicker({
               </button>
             </div>
 
-            <table className="w-full border-separate border-spacing-0">
+            <table
+              ref={gridRef}
+              className="w-full border-separate border-spacing-0"
+              onKeyDown={handleGridKeyDown}
+            >
               <thead aria-hidden="true">
                 <tr>
                   {weekDays.map((day) => (
@@ -189,10 +248,14 @@ export function AppDatePicker({
                       const isToday = isSameDay(day, new Date())
                       const isCurrentMonth = isSameMonth(day, viewDate)
 
+                      const isRoving = isSameDay(day, rovingDay)
+
                       return (
                         <td key={day.toISOString()} className="p-0">
                           <button
                             type="button"
+                            data-day={format(day, 'yyyy-MM-dd')}
+                            tabIndex={isRoving ? 0 : -1}
                             aria-label={formatLocaleDate(day, locale, {
                               month: 'long',
                               day: 'numeric',
@@ -200,10 +263,10 @@ export function AppDatePicker({
                             })}
                             aria-pressed={!!isSelected}
                             aria-current={isToday ? 'date' : undefined}
-                            className={`flex aspect-square w-full items-center justify-center rounded-full text-xs transition-colors ${
+                            className={`flex aspect-square w-full items-center justify-center rounded-full text-xs transition-colors focus-visible:outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--primary)] ${
                               isCurrentMonth
                                 ? 'text-[var(--fg-1)] hover:bg-[var(--bg-elev)]'
-                                : 'text-[var(--fg-4)]'
+                                : 'text-[var(--fg-3)]'
                             } ${
                               isSelected
                                 ? 'bg-[var(--primary)] text-[var(--fg-on-primary)] hover:bg-[var(--primary-pressed)]'

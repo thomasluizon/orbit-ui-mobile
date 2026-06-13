@@ -56,6 +56,8 @@ export function TagsSection({
               selected={isSelected}
               atLimit={isDisabled}
               disabled={isTagMutationPending}
+              editAriaLabel={t("habits.form.editTag")}
+              deleteAriaLabel={t("habits.form.deleteTag")}
               styles={styles}
               tokens={tokens}
               onToggle={() => tags.toggleTag(tag.id)}
@@ -84,6 +86,7 @@ export function TagsSection({
           <TouchableOpacity
             style={styles.newTagButton}
             disabled={isTagMutationPending}
+            accessibilityRole="button"
             onPress={() => tags.setShowNewTag(true)}
             activeOpacity={0.7}
           >

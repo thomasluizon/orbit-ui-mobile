@@ -14,6 +14,7 @@ import {
   usePathname,
   useRouter,
   useSegments,
+  type ErrorBoundaryProps,
 } from 'expo-router'
 import { StatusBar } from 'expo-status-bar'
 import Constants from 'expo-constants'
@@ -52,6 +53,7 @@ import {
 } from '@/components/gamification/streak-freeze-celebration'
 import { WelcomeBackToast } from '@/components/gamification/welcome-back-toast'
 import { AppToast } from '@/components/ui/app-toast'
+import { AppErrorScreen } from '@/components/ui/app-error-boundary'
 import { TrialExpiredModal } from '@/components/ui/trial-expired-modal'
 import { VersionUpdateDrawer } from '@/components/version-update-drawer'
 import { TourProvider } from '@/components/tour/tour-provider'
@@ -189,7 +191,6 @@ function RootLayoutNav() {
 
   useEffect(() => {
     if (Platform.OS !== 'android') return
-    if (!androidBackFallbackRoute) return
 
     const subscription = BackHandler.addEventListener(
       'hardwareBackPress',
@@ -197,6 +198,8 @@ function RootLayoutNav() {
         if (dismissTopOverlay('system-back')) {
           return true
         }
+
+        if (!androidBackFallbackRoute) return false
 
         dismissOrFallback(router, androidBackFallbackRoute)
         return true
@@ -471,6 +474,14 @@ export default function RootLayout() {
       <Providers>
         <RootLayoutContent />
       </Providers>
+    </GestureHandlerRootView>
+  )
+}
+
+export function ErrorBoundary({ error, retry }: Readonly<ErrorBoundaryProps>) {
+  return (
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <AppErrorScreen error={error} retry={() => void retry()} />
     </GestureHandlerRootView>
   )
 }

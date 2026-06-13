@@ -93,7 +93,7 @@ export function StreakTimelineCard({
                   fontSize: 11,
                   fontWeight: 500,
                   letterSpacing: '0.04em',
-                  color: 'var(--fg-4)',
+                  color: 'var(--fg-3)',
                   fontVariantNumeric: 'tabular-nums',
                 }}
               >
@@ -138,7 +138,7 @@ function StreakDayCell({
 }: Readonly<{ day: StreakDayView; runStart: boolean; runEnd: boolean }>) {
   const inRun = isInRun(day.status)
 
-  let numeralColor = 'var(--fg-4)'
+  let numeralColor = 'var(--fg-3)'
   if (day.status === 'active' || day.status === 'frozen' || day.status === 'today') {
     numeralColor = 'var(--fg-1)'
   }

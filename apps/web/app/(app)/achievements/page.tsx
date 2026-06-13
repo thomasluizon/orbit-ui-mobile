@@ -2,6 +2,7 @@
 
 import { useEffect } from 'react'
 import Link from 'next/link'
+import { Lock } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useTranslations, useLocale } from 'next-intl'
 import { useProfile, useHasProAccess } from '@/hooks/use-profile'
@@ -52,6 +53,13 @@ export default function AchievementsPage() {
         {!profileLoading && !hasProAccess ? (
           <div className="flex flex-col items-center text-center" style={{ padding: '40px 24px', gap: 14 }}>
             <span
+              aria-hidden="true"
+              className="flex items-center justify-center rounded-full"
+              style={{ width: 56, height: 56, background: 'var(--bg-field)' }}
+            >
+              <Lock size={28} strokeWidth={1.4} className="text-[var(--fg-3)]" />
+            </span>
+            <span
               style={{
                 fontFamily: 'var(--font-sans)',
                 fontSize: 16,
@@ -94,9 +102,9 @@ export default function AchievementsPage() {
           <>
             {isLoading && !profile && (
               <div className="px-5 py-6 space-y-4">
-                <div className="h-12 w-full rounded-md skeleton-pulse" style={{ background: 'var(--bg-elev)' }} />
-                <div className="h-6 w-32 rounded-md skeleton-pulse" style={{ background: 'var(--bg-elev)' }} />
-                <div className="h-24 w-full rounded-md skeleton-pulse" style={{ background: 'var(--bg-elev)' }} />
+                <div className="h-12 w-full rounded-lg skeleton-pulse" style={{ background: 'var(--bg-elev)' }} />
+                <div className="h-6 w-32 rounded-lg skeleton-pulse" style={{ background: 'var(--bg-elev)' }} />
+                <div className="h-24 w-full rounded-lg skeleton-pulse" style={{ background: 'var(--bg-elev)' }} />
               </div>
             )}
 

@@ -668,7 +668,7 @@ export function createStyles(tokens: AppTokens) {
       height: 26,
       borderRadius: 8,
       borderWidth: 2,
-      borderColor: tokens.fg4,
+      borderColor: tokens.fg3,
       alignItems: "center",
       justifyContent: "center",
     },

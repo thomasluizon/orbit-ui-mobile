@@ -1,0 +1,10 @@
+{
+  "habits": {
+    "form": {
+      "removeSubHabit": {
+        "en": "Remove sub-habit",
+        "pt-BR": "Remover sub-hábito"
+      }
+    }
+  }
+}

@@ -4,6 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslations } from 'next-intl'
 import { useIsClient } from '@/hooks/use-is-client'
+import { useOverlayEscape } from '@/hooks/use-overlay-escape'
 import { useUIStore } from '@/stores/ui-store'
 import { GradientTop } from '@/components/ui/gradient-top'
 import { PillButton } from '@/components/ui/pill-button'
@@ -81,6 +82,12 @@ export function LevelUpOverlay({
       dismiss(activeLevelUp.id)
     }, 3000)
   }, [activeLevelUp, dismiss])
+
+  useOverlayEscape({
+    open: shouldRender,
+    onDismiss: () => dismiss(activeLevelUp?.id),
+    restoreFocus: false,
+  })
 
   if (!mounted || !shouldRender) return null
 

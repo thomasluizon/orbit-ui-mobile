@@ -457,6 +457,7 @@
       "removeEndDate": "Remove end date",
       "removeReminder": "Remove reminder",
       "removeScheduledReminder": "Remove scheduled reminder",
+      "removeSubHabit": "Remove sub-habit",
       "editTag": "Edit tag",
       "deleteTag": "Delete tag",
       "selectColor": "Select color {color}",

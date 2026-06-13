@@ -316,16 +316,16 @@ export function TourTooltip({
         {Array.from({ length: sectionProgress.total }).map((_, i) => {
           let dotStyle: CSSProperties
           if (i === sectionProgress.current - 1) {
-            dotStyle = { width: 16, background: 'var(--primary)' }
+            dotStyle = { transform: 'scaleX(1)', background: 'var(--primary)' }
           } else if (i < sectionProgress.current - 1) {
-            dotStyle = { width: 8, background: 'rgba(var(--primary-rgb), 0.4)' }
+            dotStyle = { transform: 'scaleX(0.5)', background: 'rgba(var(--primary-rgb), 0.4)' }
           } else {
-            dotStyle = { width: 8, background: 'var(--fg-4)' }
+            dotStyle = { transform: 'scaleX(0.5)', background: 'var(--fg-4)' }
           }
           return (
             <div
               key={`progress-dot-${sectionProgress.section}-${i}`}
-              className="h-2 rounded-full transition-[width,background-color] duration-[var(--dur-base)] ease-[var(--ease-standard)]"
+              className="h-2 w-4 rounded-full transition-[transform,background-color] duration-[var(--dur-base)] ease-[var(--ease-standard)]"
               style={dotStyle}
             />
           )

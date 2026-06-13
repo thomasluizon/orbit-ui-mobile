@@ -250,7 +250,7 @@ function createStyles(tokens: AppTokens) {
       marginRight: 8,
     },
     triggerPlaceholder: {
-      color: tokens.fg4,
+      color: tokens.fg3,
     },
     backdrop: {
       flex: 1,
@@ -315,7 +315,7 @@ function createStyles(tokens: AppTokens) {
       fontSize: 12,
     },
     dayTextOutside: {
-      color: tokens.fg4,
+      color: tokens.fg3,
     },
     dayTextSelected: {
       color: tokens.fgOnPrimary,

@@ -29,7 +29,7 @@ import {
   X as XIcon,
 } from 'lucide-react-native'
 import { API } from '@orbit/shared/api'
-import { formatLocaleDate, getErrorMessage, playManageSubscriptionUrl } from '@orbit/shared/utils'
+import { applySubscriptionDiscount, formatLocaleDate, getErrorMessage, playManageSubscriptionUrl } from '@orbit/shared/utils'
 import {
   TRIAL_EXPIRED_FEATURE_KEYS,
   UPGRADE_FEATURE_CATEGORIES,
@@ -115,7 +115,8 @@ function monthlyEquivalentPriceLabel(plans: SubscriptionPlans, yearlyOffer: Play
       yearlyOffer.currency ?? plans.currency,
     )
   }
-  return formatPrice(monthlyEquivalent(plans.yearly.unitAmount), plans.currency)
+  const discountedYearly = applySubscriptionDiscount(plans.yearly.unitAmount, plans.couponPercentOff)
+  return formatPrice(monthlyEquivalent(discountedYearly), plans.currency)
 }
 
 function UsageCard({
@@ -178,8 +179,13 @@ function PlanSelection({
   onSelectInterval: (interval: SubscriptionInterval) => void
   t: UpgradeTextFn
 }>) {
-  const yearlyCharge = yearlyPrice ?? formatPrice(plans.yearly.unitAmount, plans.currency)
-  const monthlyCharge = monthlyPrice ?? formatPrice(plans.monthly.unitAmount, plans.currency)
+  const yearlyCharge = yearlyPrice
+    ?? formatPrice(applySubscriptionDiscount(plans.yearly.unitAmount, plans.couponPercentOff), plans.currency)
+  const monthlyCharge = monthlyPrice
+    ?? formatPrice(applySubscriptionDiscount(plans.monthly.unitAmount, plans.couponPercentOff), plans.currency)
+  const discountSuffix = !yearlyPrice && plans.couponPercentOff
+    ? ` · ${t('upgrade.plans.coupon.discountBadge', { percent: plans.couponPercentOff })}`
+    : ''
 
   return (
     <View accessibilityRole="radiogroup" style={styles.planGroup}>
@@ -189,7 +195,7 @@ function PlanSelection({
         price={t('upgrade.plans.equivalent', {
           price: monthlyEquivalentPriceLabel(plans, yearlyOffer),
         })}
-        sub={`${yearlyCharge}${t('upgrade.plans.yearly.period')}`}
+        sub={`${yearlyCharge}${t('upgrade.plans.yearly.period')}${discountSuffix}`}
         features={[
           t('upgrade.plans.yearly.includesMonthly'),
           ...UPGRADE_YEARLY_EXTRA_FEATURES.map((feature) =>

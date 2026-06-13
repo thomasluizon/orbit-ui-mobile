@@ -2,7 +2,6 @@
 
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { GradientTop } from '@/components/ui/gradient-top'
 import { PillButton } from '@/components/ui/pill-button'
 import { SatelliteGlyph } from '@/components/ui/satellite-glyph'
 
@@ -12,7 +11,6 @@ export default function NotFound() {
 
   return (
     <main className="relative flex min-h-dvh flex-col items-center justify-center overflow-hidden bg-[var(--bg)] px-9 text-center">
-      <GradientTop height={320} />
       <div
         className="relative z-[1]"
         style={{ animation: 'fresh-start-orb 0.6s var(--ease-out) both' }}

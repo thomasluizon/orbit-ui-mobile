@@ -322,11 +322,13 @@ function ProgressDots({ active, total }: Readonly<ProgressDotsProps>) {
       {Array.from({ length: total }).map((_, i) => (
         <span
           key={`progress-dot-${i}`}
-          className="transition-[width,background-color] duration-[var(--dur-base)] ease-[var(--ease-standard)]"
+          className="transition-[transform,background-color] duration-[var(--dur-base)] ease-[var(--ease-standard)]"
           style={{
-            width: i === active ? 24 : 7,
+            width: 24,
             height: 7,
             borderRadius: 999,
+            transformOrigin: 'left center',
+            transform: i === active ? 'scaleX(1)' : 'scaleX(0.2917)',
             background:
               i === active
                 ? 'var(--primary)'

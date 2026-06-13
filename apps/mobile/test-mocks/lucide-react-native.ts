@@ -8,6 +8,7 @@ function createIcon(name: string) {
   }
 }
 
+export const AlertTriangle = createIcon('AlertTriangle')
 export const ArrowRight = createIcon('ArrowRight')
 export const Bell = createIcon('Bell')
 export const CalendarCheck = createIcon('CalendarCheck')

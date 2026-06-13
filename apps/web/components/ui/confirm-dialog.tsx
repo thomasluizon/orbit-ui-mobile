@@ -54,6 +54,7 @@ export function ConfirmDialog({
   const titleId = useId()
   const descriptionId = useId()
   const panelRef = useRef<HTMLDivElement>(null)
+  const previouslyFocusedElement = useRef<HTMLElement | null>(null)
   const prefersReducedMotion = useReducedMotion()
   const motionPreset = resolveMotionPreset('dialog', Boolean(prefersReducedMotion))
   const mounted = useIsClient()
@@ -62,6 +63,8 @@ export function ConfirmDialog({
 
   useEffect(() => {
     if (!open) return
+
+    previouslyFocusedElement.current = document.activeElement as HTMLElement
 
     registerOverlay({
       id: overlayId,
@@ -101,6 +104,10 @@ export function ConfirmDialog({
     return () => {
       unregisterOverlay(overlayId)
       document.removeEventListener('keydown', handleKeydown)
+      if (previouslyFocusedElement.current) {
+        previouslyFocusedElement.current.focus()
+        previouslyFocusedElement.current = null
+      }
     }
   }, [open, overlayId, onOpenChange])
 
