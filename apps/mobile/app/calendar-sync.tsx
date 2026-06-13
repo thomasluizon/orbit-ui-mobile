@@ -3,7 +3,6 @@ import {
   ActivityIndicator,
   Pressable,
   ScrollView,
-  StyleSheet,
   Text,
   View,
 } from 'react-native'
@@ -11,14 +10,13 @@ import Animated, { FadeInDown, ReduceMotion } from 'react-native-reanimated'
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
-import { CalendarDays, Link as LinkIcon, RefreshCw, WifiOff } from 'lucide-react-native'
+import { CalendarDays, Link as LinkIcon, WifiOff } from 'lucide-react-native'
 import { calendarKeys } from '@orbit/shared/query'
 import {
   buildCalendarAutoSyncImportRequest,
   buildCalendarSyncImportRequest,
   formatCalendarAutoSyncLastSynced,
   formatCalendarSyncRecurrenceLabel,
-  isCalendarAutoSyncStatusReconnectRequired,
   type CalendarSyncEvent,
 } from '@orbit/shared/utils'
 import { getErrorMessage } from '@orbit/shared/utils/error-utils'
@@ -41,10 +39,11 @@ import { useAppToast } from '@/hooks/use-app-toast'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { AppBar } from '@/components/ui/app-bar'
 import { SectionLabel } from '@/components/ui/section-label'
-import { SettingsDescription } from '@/components/ui/settings-description'
-import { SettingsRow, Switch } from '@/components/ui/settings-row'
+import { SettingsRow } from '@/components/ui/settings-row'
 import { SelectCheck } from '@/components/ui/select-check'
 import { PillButton } from '@/components/ui/pill-button'
+import { CalendarAutoSyncSection } from './calendar-sync-auto-section'
+import { createStyles } from './calendar-sync-styles'
 
 type Step =
   | 'loading'
@@ -479,96 +478,23 @@ export default function CalendarSyncScreen() {
         showsVerticalScrollIndicator={false}
       >
         {profile?.hasProAccess && !isProfileLoading ? (
-          <>
-            <SectionLabel bottom={10}>{t('calendar.autoSync.title')}</SectionLabel>
-            <View style={styles.cardPad}>
-              <View
-                style={[
-                  styles.connectionCard,
-                  {
-                    backgroundColor: tokens.bgCard,
-                    borderColor: tokens.hairline,
-                  },
-                ]}
-              >
-                <View style={styles.connectionIconSlot}>
-                  <CalendarDays size={22} color={tokens.fg1} strokeWidth={1.8} />
-                </View>
-                <View style={styles.connectionBody}>
-                  <Text style={[styles.connectionTitle, { color: tokens.fg1 }]}>
-                    {t('calendar.title')}
-                  </Text>
-                  <Text
-                    style={[styles.connectionMeta, { color: tokens.fg3 }]}
-                    numberOfLines={2}
-                  >
-                    {connectionMeta}
-                  </Text>
-                </View>
-                <Switch
-                  on={autoSyncState?.enabled ?? false}
-                  onToggle={() =>
-                    handleToggleAutoSync(!(autoSyncState?.enabled ?? false))
-                  }
-                  disabled={
-                    !hasConnection ||
-                    setAutoSyncMutation.isPending ||
-                    autoSyncStateQuery.isLoading ||
-                    !isOnline
-                  }
-                  accessibilityLabel={t('calendar.autoSync.title')}
-                />
-              </View>
-            </View>
-            <SettingsDescription>{t('calendar.autoSync.description')}</SettingsDescription>
-            {hasConnection ? (
-              <View style={styles.syncNowRow}>
-                <Pressable
-                  onPress={handleSyncNow}
-                  disabled={runSyncNowMutation.isPending}
-                  accessibilityRole="button"
-                  accessibilityLabel={t('calendar.autoSync.syncNow')}
-                  style={({ pressed }) => [
-                    styles.quietAction,
-                    chipTint,
-                    (pressed || runSyncNowMutation.isPending) && styles.quietActionDim,
-                  ]}
-                >
-                  <RefreshCw size={13} color={tokens.fg2} strokeWidth={2} />
-                  <Text style={[styles.quietActionText, { color: tokens.fg2 }]}>
-                    {runSyncNowMutation.isPending
-                      ? t('calendar.autoSync.syncNowRunning')
-                      : t('calendar.autoSync.syncNow')}
-                  </Text>
-                </Pressable>
-              </View>
-            ) : null}
-            {isCalendarAutoSyncStatusReconnectRequired(autoSyncState?.status) ? (
-              <View style={styles.reconnectBlock}>
-                <Text
-                  style={[styles.stateText, { color: tokens.statusOverdueText }]}
-                >
-                  {t('calendar.autoSync.reconnectBody')}
-                </Text>
-                <Pressable
-                  onPress={handleConnect}
-                  disabled={isConnecting}
-                  accessibilityRole="button"
-                  style={({ pressed }) => [
-                    styles.quietAction,
-                    chipTint,
-                    (pressed || isConnecting) && styles.quietActionDim,
-                  ]}
-                >
-                  <Text
-                    style={[styles.quietActionText, { color: tokens.statusOverdueText }]}
-                  >
-                    {t('calendar.autoSync.reconnectCta')}
-                  </Text>
-                </Pressable>
-              </View>
-            ) : null}
-          </>
+          <CalendarAutoSyncSection
+            styles={styles}
+            tokens={tokens}
+            chipTint={chipTint}
+            t={t}
+            autoSyncState={autoSyncState}
+            isStateLoading={autoSyncStateQuery.isLoading}
+            hasConnection={hasConnection}
+            connectionMeta={connectionMeta}
+            isOnline={isOnline}
+            isTogglePending={setAutoSyncMutation.isPending}
+            isSyncNowPending={runSyncNowMutation.isPending}
+            isConnecting={isConnecting}
+            onToggleAutoSync={handleToggleAutoSync}
+            onSyncNow={handleSyncNow}
+            onReconnect={handleConnect}
+          />
         ) : null}
 
         {(isProfileLoading || step === 'loading') && (
@@ -785,137 +711,4 @@ export default function CalendarSyncScreen() {
       </ScrollView>
     </SafeAreaView>
   )
-}
-
-function createStyles() {
-  return StyleSheet.create({
-    safeArea: { flex: 1 },
-    container: { flex: 1 },
-    scrollContent: { paddingBottom: 40 },
-    cardPad: {
-      paddingHorizontal: 20,
-      paddingBottom: 14,
-    },
-    connectionCard: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 14,
-      borderRadius: 16,
-      borderWidth: 1,
-      paddingVertical: 16,
-      paddingHorizontal: 18,
-    },
-    connectionIconSlot: {
-      width: 26,
-      alignItems: 'center',
-      flexShrink: 0,
-    },
-    connectionBody: {
-      flex: 1,
-      minWidth: 0,
-    },
-    connectionTitle: {
-      fontFamily: 'Rubik_400Regular',
-      fontSize: 18,
-      lineHeight: 22.5,
-    },
-    connectionMeta: {
-      fontFamily: 'Rubik_400Regular',
-      fontSize: 13,
-      lineHeight: 18,
-      marginTop: 3,
-    },
-    syncNowRow: {
-      flexDirection: 'row',
-      justifyContent: 'flex-end',
-      paddingHorizontal: 20,
-      paddingTop: 16,
-      paddingBottom: 6,
-    },
-    reconnectBlock: {
-      paddingHorizontal: 20,
-      paddingVertical: 12,
-      gap: 8,
-      alignItems: 'flex-start',
-    },
-    stateText: {
-      fontFamily: 'Rubik_400Regular',
-      fontSize: 14,
-      lineHeight: 19.6,
-      textAlign: 'center',
-    },
-    stateTitle: {
-      fontFamily: 'Rubik_500Medium',
-      fontSize: 18,
-      lineHeight: 22.5,
-      textAlign: 'center',
-    },
-    stateGlyphCircle: {
-      width: 64,
-      height: 64,
-      borderRadius: 999,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    centerBlock: {
-      paddingHorizontal: 24,
-      paddingVertical: 32,
-      alignItems: 'center',
-      gap: 14,
-    },
-    eventRow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 12,
-      paddingHorizontal: 20,
-      paddingVertical: 14,
-      borderBottomWidth: StyleSheet.hairlineWidth,
-    },
-    eventBody: {
-      flex: 1,
-      gap: 3,
-    },
-    eventTitle: {
-      fontFamily: 'Rubik_500Medium',
-      fontSize: 15,
-    },
-    eventMeta: {
-      fontFamily: 'Roboto_400Regular',
-      fontSize: 12,
-      fontVariant: ['tabular-nums'],
-    },
-    quietAction: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 7,
-      borderRadius: 999,
-      borderWidth: 1,
-      paddingVertical: 9,
-      paddingHorizontal: 16,
-    },
-    quietActionDim: {
-      opacity: 0.6,
-      transform: [{ scale: 0.96 }],
-    },
-    quietActionText: {
-      fontFamily: 'Rubik_500Medium',
-      fontSize: 13,
-    },
-    actionPad: {
-      paddingHorizontal: 20,
-      paddingVertical: 18,
-    },
-    progressTrack: {
-      width: 200,
-      height: 8,
-      borderRadius: 999,
-      overflow: 'hidden',
-    },
-    progressFill: {
-      width: '60%',
-      height: '100%',
-      borderRadius: 999,
-    },
-  })
 }

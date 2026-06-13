@@ -34,6 +34,7 @@ import { useProfile } from '@/hooks/use-profile'
 import { ProBadge } from '@/components/ui/pro-badge'
 import { AppOverlay } from '@/components/ui/app-overlay'
 import { Chip } from '@/components/ui/chip'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { CreateApiKeyModal } from '@/components/ui/create-api-key-modal'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import type {
@@ -440,48 +441,16 @@ export default function AdvancedPage() {
                           </div>
                         </div>
 
-                        {revokingKeyId === key.id ? (
-                          <div
-                            className="flex items-center justify-between rounded-[12px]"
-                            style={{
-                              padding: '8px 12px',
-                              background: 'color-mix(in srgb, var(--status-bad) 8%, transparent)',
-                              boxShadow: 'inset 0 0 0 1px color-mix(in srgb, var(--status-bad) 24%, transparent)',
-                            }}
+                        <div className="flex justify-end">
+                          <button
+                            type="button"
+                            className="chip"
+                            style={{ color: 'var(--status-bad)' }}
+                            onClick={() => setRevokingKeyId(key.id)}
                           >
-                            <p style={{ fontFamily: 'var(--font-sans)', fontSize: 13, color: 'var(--status-bad)' }}>
-                              {t('orbitMcp.revokeConfirm')}
-                            </p>
-                            <div className="ml-3 flex shrink-0 items-center gap-2">
-                              <button
-                                type="button"
-                                className="chip"
-                                onClick={() => setRevokingKeyId(null)}
-                              >
-                                {t('orbitMcp.cancel')}
-                              </button>
-                              <button
-                                type="button"
-                                className="chip"
-                                style={{ color: 'var(--status-bad)' }}
-                                onClick={() => revokeKeyMutation.mutate(key.id)}
-                              >
-                                {t('orbitMcp.confirm')}
-                              </button>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="flex justify-end">
-                            <button
-                              type="button"
-                              className="chip"
-                              style={{ color: 'var(--status-bad)' }}
-                              onClick={() => setRevokingKeyId(key.id)}
-                            >
-                              {t('orbitMcp.revoke')}
-                            </button>
-                          </div>
-                        )}
+                            {t('orbitMcp.revoke')}
+                          </button>
+                        </div>
                       </div>
                       )
                     })}
@@ -665,6 +634,21 @@ export default function AdvancedPage() {
         onCreateKey={handleCreateKey}
         availableScopes={scopeOptions}
         apiError={createKeyError}
+      />
+
+      <ConfirmDialog
+        open={revokingKeyId !== null}
+        onOpenChange={(open) => {
+          if (!open) setRevokingKeyId(null)
+        }}
+        title={t('orbitMcp.revoke')}
+        description={t('orbitMcp.revokeConfirm')}
+        cancelLabel={t('orbitMcp.cancel')}
+        confirmLabel={t('orbitMcp.confirm')}
+        variant="danger"
+        onConfirm={() => {
+          if (revokingKeyId) revokeKeyMutation.mutate(revokingKeyId)
+        }}
       />
     </div>
   )

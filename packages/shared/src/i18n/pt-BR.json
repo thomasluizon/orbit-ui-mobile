@@ -1523,6 +1523,7 @@
     "empty": "Nenhuma meta ainda",
     "emptyHint": "Crie sua primeira meta para começar a acompanhar o progresso",
     "create": "Nova Meta",
+    "dragItem": "item arrastável",
     "form": {
       "description": "Descrição",
       "descriptionPlaceholder": "ex: Ler 12 livros este ano",

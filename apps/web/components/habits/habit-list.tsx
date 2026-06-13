@@ -1120,6 +1120,7 @@ const isPostponeAction = useMemo(() => {
           <HabitListDrillContent
             t={t}
             drillLoading={drill.drillLoading}
+            drillError={drill.drillError}
             drillChildren={drill.drillChildren}
             currentParentId={drill.currentParentId}
             getDrillChildren={drill.getDrillChildren}

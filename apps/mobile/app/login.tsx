@@ -19,6 +19,7 @@ import {
   extractAuthBackendMessage,
   extractBackendRequestId,
   isValidEmail,
+  isVerificationCodeComplete,
   resolveAuthLoginErrorKey,
 } from '@orbit/shared/utils'
 import { useAppToast } from '@/hooks/use-app-toast'
@@ -166,8 +167,8 @@ export default function LoginScreen() {
   } = useLoginCodeEntry(() => {
     void verifyCode()
   })
-  const offlineTitle = t('calendarSync.notConnected')
-  const offlineDescription = `${t('auth.sendCode')} / ${t('auth.verify')} / ${t('auth.signInWithGoogle')}`
+  const offlineTitle = t('offline.title')
+  const offlineDescription = t('offline.description')
 
   useEffect(() => {
     async function hydrateAuthFlowState() {
@@ -392,7 +393,7 @@ export default function LoginScreen() {
 
   const canSubmitEmail = Boolean(email.trim()) && !isSubmitting && isOnline
   const canSubmitCode =
-    codeDigits.join('').length === 6 && !isSubmitting && isOnline
+    isVerificationCodeComplete(codeDigits) && !isSubmitting && isOnline
 
   return (
     <View style={styles.root}>

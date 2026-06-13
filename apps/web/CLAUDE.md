@@ -10,7 +10,7 @@ Web client. Server Components by default. Auth via httpOnly cookies + BFF proxy.
 - **No `console.log`** in production code — rule 4.
 - **No narration comments** (lint-enforced `local/no-comments`) — rule 5. Only `/** */` JSDoc on exports, WHY notes linking an upstream URL, and tooling directives.
 - **All user-facing strings through i18n** (next-intl). Never hardcode display text.
-- **All mutations through Server Actions** in `app/actions/*.ts`. Never call the API from a client component. Sanctioned exception: cookie-setting auth/session flows (`app/api/auth/*` — send-code, verify-code, google, logout, session) are BFF route handlers because they own the httpOnly auth cookie lifecycle; everything else stays a Server Action.
+- **All mutations through Server Actions** in `app/actions/*.ts`. Never call the API from a client component. Sanctioned exceptions: (1) cookie-setting auth/session flows (`app/api/auth/*` — send-code, verify-code, google, logout, session) are BFF route handlers because they own the httpOnly auth cookie lifecycle; (2) the SSE chat send in `hooks/use-chat-composer.ts` fetches the BFF chat-stream route directly because a Server Action cannot return a streaming `ReadableStream`. Everything else stays a Server Action.
 - **Imports:** types from `@orbit/shared/types`, query keys from `@orbit/shared/query`, endpoints from `@orbit/shared/api`.
 
 ## Key files

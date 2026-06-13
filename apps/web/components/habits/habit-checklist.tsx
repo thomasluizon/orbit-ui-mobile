@@ -216,12 +216,12 @@ export function HabitChecklist({
                       checked={item.isChecked}
                       type="checkbox"
                       aria-label={item.text}
-                      className="sr-only"
+                      className="peer sr-only"
                       onChange={() => handleToggle(index)}
                     />
                     <span
                       aria-hidden="true"
-                      className={`flex items-center justify-center transition-[background-color,box-shadow] ${
+                      className={`flex items-center justify-center transition-[background-color,box-shadow] peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-[var(--primary)] ${
                         justCheckedIndex === index ? 'animate-check-pop' : ''
                       }`}
                       style={{
@@ -280,7 +280,7 @@ export function HabitChecklist({
             value={newItemText}
             type="text"
             placeholder={t('habits.form.checklistPlaceholder')}
-            className="flex-1 min-w-0 bg-[var(--bg-field)] text-[var(--fg-1)] placeholder:text-[var(--fg-3)] py-2 px-3 text-sm rounded-l-[14px] focus:outline-none"
+            className="flex-1 min-w-0 bg-[var(--bg-field)] text-[var(--fg-1)] placeholder:text-[var(--fg-3)] py-2 px-3 text-sm rounded-l-[14px] focus:outline-none focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--primary)]"
             style={{ boxShadow: 'inset 0 0 0 1px var(--hairline)' }}
             onChange={(e) => setNewItemText(e.target.value)}
             onKeyDown={(e) => {
@@ -369,7 +369,7 @@ function SortableChecklistItem({
         value={item.text}
         type="text"
         aria-label={t('habits.form.checklistItemLabel', { n: index + 1 })}
-        className="flex-1 min-w-0 bg-transparent text-sm text-[var(--fg-1)] py-1 px-2 border-0 border-b border-transparent focus:border-[var(--hairline)] focus:outline-none"
+        className="flex-1 min-w-0 bg-transparent text-sm text-[var(--fg-1)] py-1 px-2 border-0 border-b border-transparent focus:border-[var(--hairline)] focus:outline-none focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--primary)]"
         onChange={(e) => onUpdateText(index, e.target.value)}
       />
 

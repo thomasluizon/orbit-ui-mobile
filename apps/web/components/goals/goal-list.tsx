@@ -1,6 +1,7 @@
 'use client'
 
 import { useRef, useCallback, useState } from 'react'
+import { useTranslations } from 'next-intl'
 import { GoalCard } from './goal-card'
 import { useReorderGoals } from '@/hooks/use-goals'
 import type { Goal, GoalPositionItem } from '@orbit/shared/types/goal'
@@ -16,6 +17,7 @@ const TOUCH_HOLD_DELAY = 300
 const TOUCH_MOVE_THRESHOLD = 5
 
 export function GoalList({ goals }: Readonly<GoalListProps>) {
+  const t = useTranslations()
   const listRef = useRef<HTMLDivElement>(null)
   const reorderGoals = useReorderGoals()
 
@@ -166,7 +168,7 @@ export function GoalList({ goals }: Readonly<GoalListProps>) {
       {goals.map((goal, index) => (
         <section
           key={goal.id}
-          aria-roledescription="draggable item"
+          aria-roledescription={t('goals.dragItem')}
           aria-label={goal.title}
           draggable
           className={getDragClasses(index)}

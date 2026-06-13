@@ -158,7 +158,7 @@ export function BreakdownSuggestion({
                 value={habit.title}
                 onChange={(e) => updateHabit(index, { title: e.target.value })}
                 placeholder={t('habits.breakdown.habitNamePlaceholder')}
-                className="w-full bg-transparent text-sm font-medium text-[var(--fg-1)] placeholder:text-[var(--fg-3)] outline-none"
+                className="w-full bg-transparent text-sm font-medium text-[var(--fg-1)] placeholder:text-[var(--fg-3)] outline-none rounded-sm focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]"
               />
               <div className="flex items-center gap-2">
                 <select
@@ -172,7 +172,7 @@ export function BreakdownSuggestion({
                       frequencyQuantity: val ? habit.frequencyQuantity : null,
                     })
                   }}
-                  className="bg-transparent text-[11px] text-[var(--fg-2)] outline-none cursor-pointer"
+                  className="bg-transparent text-[11px] text-[var(--fg-2)] outline-none cursor-pointer rounded-sm focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]"
                 >
                   {frequencyOptions.map((opt) => (
                     <option
@@ -197,7 +197,7 @@ export function BreakdownSuggestion({
                           frequencyQuantity: Number(e.target.value) || 1,
                         })
                       }
-                      className="w-8 bg-transparent text-[11px] text-[var(--fg-2)] text-center outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"
+                      className="w-8 bg-transparent text-[11px] text-[var(--fg-2)] text-center outline-none rounded-sm focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)] [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"
                     />
                     <span className="text-[11px] text-[var(--fg-3)]">
                       {t(`habits.form.unit${habit.frequencyUnit}` as Parameters<typeof t>[0])} {}

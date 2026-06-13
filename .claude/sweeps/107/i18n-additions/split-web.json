@@ -1,0 +1,9 @@
+{
+  "_note": "SPLIT-WEB-2 round-4. Added DIRECTLY to both packages/shared/src/i18n/en.json and pt-BR.json in the same diff (verified parity: leaf counts equal). Listed here for the central-merge audit.",
+  "goals": {
+    "dragItem": {
+      "en": "draggable item",
+      "pt-BR": "item arrastável"
+    }
+  }
+}

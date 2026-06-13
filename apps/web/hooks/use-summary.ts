@@ -1,6 +1,6 @@
 'use client'
 
-import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { habitKeys } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
 import {
@@ -62,18 +62,5 @@ export function useSummary({
     isLoading: query.isLoading,
     error: query.error,
     refetch: query.refetch,
-  }
-}
-
-/**
- * Invalidates all summary queries. Call this from mutation onSettled
- * callbacks when habit data has been mutated.
- */
-export function useInvalidateSummary() {
-  const queryClient = useQueryClient()
-  return () => {
-    queryClient.invalidateQueries({
-      queryKey: habitKeys.summaryPrefix(),
-    })
   }
 }

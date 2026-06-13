@@ -6,10 +6,6 @@ export function setCachedConnectivity(online: boolean): void {
   cachedOnline = online
 }
 
-export function getCachedConnectivity(): boolean {
-  return cachedOnline
-}
-
 export async function getCurrentConnectivity(): Promise<boolean> {
   try {
     const state = await NetInfo.fetch()

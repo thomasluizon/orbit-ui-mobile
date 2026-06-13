@@ -2,6 +2,7 @@
 
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useCallback, useMemo } from 'react'
+import { useLocale } from 'next-intl'
 import { profileKeys } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
 import type { Profile } from '@orbit/shared/types/profile'
@@ -15,8 +16,15 @@ import {
 import { fetchJson } from '@/lib/api-fetch'
 import { useColorScheme } from '@/hooks/use-color-scheme'
 
+function writeLocaleCookie(value: string) {
+  if (typeof document !== 'undefined') {
+    document.cookie = `i18n_locale=${encodeURIComponent(value)};max-age=${365 * 24 * 60 * 60};path=/;samesite=strict`
+  }
+}
+
 export function useProfile() {
   const queryClient = useQueryClient()
+  const locale = useLocale()
   const {
     syncSchemeFromProfile,
     syncThemeFromProfile,
@@ -33,6 +41,7 @@ export function useProfile() {
   })
 
   const profile = query.data
+  const profileLanguage = profile?.language
 
   useEffect(() => {
     if (!profile) return
@@ -47,6 +56,12 @@ export function useProfile() {
     detectAndSaveSchemeIfNeeded,
     detectAndSaveThemeIfNeeded,
   ])
+
+  useEffect(() => {
+    if (!profileLanguage || profileLanguage === locale) return
+    writeLocaleCookie(profileLanguage)
+    globalThis.location.reload()
+  }, [profileLanguage, locale])
 
   const invalidate = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: profileKeys.all })

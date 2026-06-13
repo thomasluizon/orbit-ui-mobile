@@ -12,6 +12,7 @@ import {
   translateErrorKey,
   validateGoalDraftInput,
 } from '@orbit/shared/utils'
+import { MAX_GOAL_TITLE_LENGTH, MAX_GOAL_UNIT_LENGTH } from '@orbit/shared/validation'
 import { Badge } from '@/components/ui/badge'
 import { Chip } from '@/components/ui/chip'
 import { SectionLabel } from '@/components/ui/section-label'
@@ -216,7 +217,7 @@ export function OnboardingCreateGoal({
         value={description}
         onChange={setDescription}
         placeholder={t('onboarding.flow.createGoal.descriptionPlaceholder')}
-        maxLength={200}
+        maxLength={MAX_GOAL_TITLE_LENGTH}
         disabled={isCreating}
       />
 
@@ -237,7 +238,7 @@ export function OnboardingCreateGoal({
             value={unit}
             onChange={setUnit}
             placeholder={t('onboarding.flow.createGoal.unitPlaceholder')}
-            maxLength={50}
+            maxLength={MAX_GOAL_UNIT_LENGTH}
             disabled={isCreating}
           />
         </div>

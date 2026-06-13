@@ -4,7 +4,6 @@ import * as ImagePicker from "expo-image-picker";
 import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { useQueryClient } from "@tanstack/react-query";
-import { API } from "@orbit/shared/api";
 import {
   CHAT_STARTER_CHIP_KEYS,
   CHAT_SPEECH_LANGUAGES as SPEECH_LANGUAGES,
@@ -16,10 +15,8 @@ import {
 import { goalKeys, habitKeys, profileKeys, tagKeys } from "@orbit/shared/query";
 import type {
   AgentExecuteOperationResponse,
-  AgentStepUpChallenge,
   ChatMessage,
   ChatResponse,
-  PendingAgentOperationConfirmation,
 } from "@orbit/shared/types";
 import type { Profile } from "@orbit/shared/types/profile";
 import {
@@ -36,10 +33,10 @@ import {
   getErrorMessage,
   resolveUpgradeEntitlementFromPolicyDenial,
 } from "@orbit/shared/utils";
-import { apiClient } from "@/lib/api-client";
 import { openChatStream } from "@/lib/chat-stream";
 import { useProfile } from "@/hooks/use-profile";
 import { useSpeechToText } from "@/hooks/use-speech-to-text";
+import { usePendingOperationExecution } from "@/hooks/use-pending-operation-execution";
 import { useChatStore } from "@/stores/chat-store";
 
 interface RNFileUpload {
@@ -53,18 +50,6 @@ declare global {
     append(name: string, value: RNFileUpload): void;
   }
 }
-
-export type PendingExecutionResult =
-  | { ok: true; response: AgentExecuteOperationResponse }
-  | { ok: false; error: string };
-
-export type PreparedStepUpExecution =
-  | {
-      ok: true;
-      challenge: AgentStepUpChallenge;
-      confirmationToken: string;
-    }
-  | { ok: false; error: string };
 
 interface AttemptedSend {
   content: string;
@@ -622,136 +607,15 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
 
   const canRetryLastSend = lastFailedSend !== null && !isTyping;
 
-  const confirmAndExecutePendingOperation = useCallback(
-    async (pendingOperationId: string): Promise<PendingExecutionResult> => {
-      try {
-        const confirmation = await apiClient<PendingAgentOperationConfirmation>(
-          API.ai.pendingOperationConfirm(pendingOperationId),
-          {
-            method: "POST",
-          },
-        );
-
-        const execution = await apiClient<AgentExecuteOperationResponse>(
-          API.ai.pendingOperationExecute(pendingOperationId),
-          {
-            method: "POST",
-            body: JSON.stringify({
-              confirmationToken: confirmation.confirmationToken,
-            }),
-          },
-        );
-
-        await appendExecutionMessage(execution);
-        return { ok: true, response: execution };
-      } catch (error: unknown) {
-        return { ok: false, error: getErrorMessage(error, t("chat.sendError")) };
-      }
-    },
-    [appendExecutionMessage, t],
-  );
-
-  const preparePendingOperationStepUp = useCallback(
-    async (pendingOperationId: string): Promise<PreparedStepUpExecution> => {
-      try {
-        const confirmation = await apiClient<PendingAgentOperationConfirmation>(
-          API.ai.pendingOperationConfirm(pendingOperationId),
-          {
-            method: "POST",
-          },
-        );
-
-        const challenge = await apiClient<AgentStepUpChallenge>(
-          API.ai.pendingOperationStepUp(pendingOperationId),
-          {
-            method: "POST",
-            body: JSON.stringify({ language: i18n.language }),
-          },
-        );
-
-        return {
-          ok: true,
-          challenge,
-          confirmationToken: confirmation.confirmationToken,
-        };
-      } catch (error: unknown) {
-        return { ok: false, error: getErrorMessage(error, t("chat.sendError")) };
-      }
-    },
-    [i18n.language, t],
-  );
-
-  const verifyAndExecutePendingOperationStepUp = useCallback(
-    async (
-      pendingOperationId: string,
-      challengeId: string,
-      code: string,
-      confirmationToken: string,
-    ): Promise<PendingExecutionResult> => {
-      try {
-        await apiClient<{ id: string } | null>(
-          API.ai.pendingOperationVerifyStepUp(pendingOperationId),
-          {
-            method: "POST",
-            body: JSON.stringify({ challengeId, code }),
-          },
-        );
-
-        const execution = await apiClient<AgentExecuteOperationResponse>(
-          API.ai.pendingOperationExecute(pendingOperationId),
-          {
-            method: "POST",
-            body: JSON.stringify({ confirmationToken }),
-          },
-        );
-
-        await appendExecutionMessage(execution);
-        return { ok: true, response: execution };
-      } catch (error: unknown) {
-        return { ok: false, error: getErrorMessage(error, t("chat.sendError")) };
-      }
-    },
-    [appendExecutionMessage, t],
-  );
+  const {
+    confirmAndExecutePendingOperation,
+    prepareStepUpForBubble,
+    verifyStepUpForBubble,
+  } = usePendingOperationExecution({ appendExecutionMessage });
 
   const handleBreakdownConfirmed = useCallback(() => {
     queryClient.invalidateQueries({ queryKey: habitKeys.lists() });
   }, [queryClient]);
-
-  const prepareStepUpForBubble = useCallback(
-    async (pendingOperationId: string) => {
-      const result = await preparePendingOperationStepUp(pendingOperationId);
-      if (!result.ok) {
-        return { ok: false as const, error: result.error };
-      }
-      return {
-        ok: true as const,
-        challengeId: result.challenge.challengeId,
-        confirmationToken: result.confirmationToken,
-      };
-    },
-    [preparePendingOperationStepUp],
-  );
-
-  const verifyStepUpForBubble = useCallback(
-    async (
-      pendingOperationId: string,
-      challengeId: string,
-      code: string,
-      confirmationToken: string,
-    ) => {
-      const result = await verifyAndExecutePendingOperationStepUp(
-        pendingOperationId,
-        challengeId,
-        code,
-        confirmationToken,
-      );
-      return result.ok
-        ? { ok: true as const, response: result.response }
-        : { ok: false as const, error: result.error };
-    },
-    [verifyAndExecutePendingOperationStepUp],
-  );
 
   return {
     flatListRef,

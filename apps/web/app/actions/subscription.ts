@@ -28,12 +28,3 @@ export async function createCheckoutSession(
 export async function openCustomerPortal(): Promise<PortalResponse> {
   return serverAuthFetch(API.subscription.portal, { method: 'POST' })
 }
-
-export async function claimAdReward(): Promise<{
-  bonusMessages: number
-  remainingToday: number
-  totalBonus: number
-  newLimit: number
-}> {
-  return serverAuthFetch(API.subscription.adReward, { method: 'POST' })
-}

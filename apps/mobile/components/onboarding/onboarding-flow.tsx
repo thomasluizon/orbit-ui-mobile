@@ -340,8 +340,17 @@ export function OnboardingFlow() {
 
   const progressLabel = `Orbit · ${String(displayStep).padStart(2, '0')} / ${String(displayTotal).padStart(2, '0')}`
 
+  function handleRequestClose() {
+    if (hasPrev) goPrev()
+  }
+
   return (
-    <Modal visible transparent animationType="fade">
+    <Modal
+      visible
+      transparent
+      animationType="fade"
+      onRequestClose={handleRequestClose}
+    >
       <View style={styles.container}>
         <GradientTop height={520} />
         <View style={styles.header}>

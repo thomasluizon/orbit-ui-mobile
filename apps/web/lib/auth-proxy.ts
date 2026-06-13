@@ -51,23 +51,4 @@ export function logAuthRouteFailure(route: string, requestId: string, error: unk
   console.error(`[auth-proxy] ${route} failed`, { requestId, error })
 }
 
-export function buildEmailLogContext(email: unknown): Record<string, boolean | number | string | undefined> {
-  if (typeof email !== 'string') {
-    return { hasEmail: false }
-  }
-
-  const trimmed = email.trim()
-  if (!trimmed) {
-    return { hasEmail: false }
-  }
-
-  const [localPart, domain] = trimmed.split('@')
-
-  return {
-    hasEmail: true,
-    emailDomain: domain?.toLowerCase(),
-    emailLocalLength: localPart?.length,
-  }
-}
-
 export { ORBIT_REQUEST_ID_HEADER }

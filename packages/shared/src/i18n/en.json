@@ -1523,6 +1523,7 @@
     "empty": "No goals yet",
     "emptyHint": "Create your first goal to start tracking progress",
     "create": "New Goal",
+    "dragItem": "draggable item",
     "form": {
       "description": "Description",
       "descriptionPlaceholder": "e.g., Read 12 books this year",

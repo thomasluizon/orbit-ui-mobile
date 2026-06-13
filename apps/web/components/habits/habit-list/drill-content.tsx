@@ -8,6 +8,7 @@ import { HabitListSkeleton } from './empty-state'
 interface HabitListDrillContentProps {
   t: (key: string) => string
   drillLoading: boolean
+  drillError: string
   drillChildren: NormalizedHabit[]
   currentParentId: string | null
   getDrillChildren: (habitId: string) => NormalizedHabit[]
@@ -21,12 +22,13 @@ interface HabitListDrillContentProps {
   onAddSubHabit: (parentId: string) => void
 }
 
-/** Drill-panel body: the sub-habit list (or empty prompt) shown when the user
- *  drills into a parent. Presentational — the parent HabitList owns drill state
- *  and supplies renderHabitCard plus the add-sub-habit callback. */
+/** Drill-panel body: the sub-habit list (or error/empty prompt) shown when the
+ *  user drills into a parent. Presentational — the parent HabitList owns drill
+ *  state and supplies renderHabitCard plus the add-sub-habit callback. */
 export function HabitListDrillContent({
   t,
   drillLoading,
+  drillError,
   drillChildren,
   currentParentId,
   getDrillChildren,
@@ -35,6 +37,24 @@ export function HabitListDrillContent({
 }: Readonly<HabitListDrillContentProps>) {
   if (drillLoading) {
     return <HabitListSkeleton />
+  }
+
+  if (drillError) {
+    return (
+      <div className="flex flex-col items-center text-center" style={{ padding: '32px 20px' }}>
+        <p
+          role="alert"
+          style={{
+            margin: 0,
+            fontFamily: 'var(--font-sans)',
+            fontSize: 14,
+            color: 'var(--status-bad)',
+          }}
+        >
+          {drillError}
+        </p>
+      </div>
+    )
   }
 
   if (drillChildren.length > 0) {
