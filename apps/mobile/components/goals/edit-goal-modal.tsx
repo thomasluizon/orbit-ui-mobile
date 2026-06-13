@@ -432,7 +432,7 @@ function createStyles(
     },
     labelOptional: {
       fontFamily: 'Rubik_400Regular',
-      color: tokens.fg4,
+      color: tokens.fg3,
     },
     fieldError: {
       fontFamily: 'Rubik_400Regular',

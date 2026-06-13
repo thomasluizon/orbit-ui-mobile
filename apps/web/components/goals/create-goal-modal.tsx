@@ -282,7 +282,7 @@ export function CreateGoalModal({ open, onOpenChange }: Readonly<CreateGoalModal
                   marginTop: 4,
                   fontFamily: 'var(--font-sans)',
                   fontSize: 11,
-                  color: 'var(--fg-4)',
+                  color: 'var(--fg-3)',
                   lineHeight: 1.4,
                 }}
               >

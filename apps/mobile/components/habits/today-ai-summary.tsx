@@ -201,7 +201,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       fontFamily: 'Rubik_400Regular',
       fontSize: 11,
       lineHeight: 15,
-      color: tokens.fg4,
+      color: tokens.fg3,
       marginTop: 6,
     },
   })

@@ -208,7 +208,7 @@ export default function ChatPage() {
                 style={{
                   fontFamily: 'var(--font-sans)',
                   fontSize: 11,
-                  color: 'var(--fg-4)',
+                  color: 'var(--fg-3)',
                   maxWidth: 300,
                   lineHeight: 1.4,
                   marginTop: 4,

@@ -177,6 +177,7 @@ describe('alpha surfaces and status constants', () => {
       frozen: '#00d3f3',
       overdueText: '#fe9a00',
       badText: '#fb2c36',
+      fgOnBad: '#020618',
     })
     expect(statusConstants.light).toEqual({
       overdue: '#e17100',
@@ -184,6 +185,7 @@ describe('alpha surfaces and status constants', () => {
       frozen: '#0092b8',
       overdueText: '#b45b00',
       badText: '#e7000b',
+      fgOnBad: '#ffffff',
     })
   })
 

@@ -104,6 +104,7 @@ export function HabitCalendar({ habitId, logs: externalLogs }: Readonly<HabitCal
       <div className="flex items-center justify-between mb-3">
         <button
           type="button"
+          aria-label={t('common.previousMonth')}
           className={navButtonClass}
           onClick={prevMonth}
         >
@@ -119,6 +120,7 @@ export function HabitCalendar({ habitId, logs: externalLogs }: Readonly<HabitCal
         </button>
         <button
           type="button"
+          aria-label={t('common.nextMonth')}
           className={navButtonClass}
           onClick={nextMonth}
         >
@@ -136,7 +138,7 @@ export function HabitCalendar({ habitId, logs: externalLogs }: Readonly<HabitCal
               fontSize: 11,
               fontWeight: 500,
               letterSpacing: '0.04em',
-              color: 'var(--fg-4)',
+              color: 'var(--fg-3)',
             }}
           >
             {day.label}
@@ -214,6 +216,7 @@ export function HabitCalendar({ habitId, logs: externalLogs }: Readonly<HabitCal
             </span>
             <button
               type="button"
+              aria-label={t('common.close')}
               className="icon-btn text-[var(--fg-3)] hover:text-[var(--fg-1)]"
               style={{ width: 34, height: 34 }}
               onClick={() => setSelectedDate(null)}

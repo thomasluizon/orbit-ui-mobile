@@ -115,7 +115,7 @@ function CopyIconButton({
 
 function SubsectionTitle({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
-    <h4
+    <h2
       style={{
         fontFamily: 'var(--font-sans)',
         fontSize: 16,
@@ -125,7 +125,7 @@ function SubsectionTitle({ children }: Readonly<{ children: React.ReactNode }>) 
       }}
     >
       {children}
-    </h4>
+    </h2>
   )
 }
 

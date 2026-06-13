@@ -143,7 +143,7 @@ function createStyles(tokens: AppTokens) {
       marginRight: 8,
     },
     triggerPlaceholder: {
-      color: tokens.fg4,
+      color: tokens.fg3,
     },
     backdrop: {
       flex: 1,

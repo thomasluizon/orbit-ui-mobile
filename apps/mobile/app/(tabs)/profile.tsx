@@ -1059,7 +1059,7 @@ export default function ProfileScreen() {
                     },
                   ]}
                 >
-                  <Text style={[styles.boxLabel, { color: tokens.statusOverdue }]}>
+                  <Text style={[styles.boxLabel, { color: tokens.statusOverdueText }]}>
                     {t('profile.deleteAccount.title')}
                   </Text>
                   <Text

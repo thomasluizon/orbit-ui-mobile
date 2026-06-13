@@ -140,6 +140,8 @@ export function AppTimePicker({
           <Pressable
             onPress={openPicker}
             disabled={disabled}
+            accessibilityRole="button"
+            accessibilityLabel={accessibilityLabel ?? placeholder ?? t('common.selectTime')}
             hitSlop={{ top: 10, bottom: 10, left: 8, right: 8 }}
             style={styles.iconButton}
           >
@@ -239,7 +241,7 @@ function createStyles(tokens: AppTokens) {
       color: tokens.fg3,
     },
     triggerPlaceholder: {
-      color: tokens.fg4,
+      color: tokens.fg3,
     },
     backdrop: {
       flex: 1,

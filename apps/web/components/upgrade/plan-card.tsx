@@ -81,7 +81,7 @@ export function PlanCard({
             width: 24,
             height: 24,
             background: selected ? 'var(--primary)' : 'transparent',
-            boxShadow: selected ? 'none' : 'inset 0 0 0 2px var(--fg-4)',
+            boxShadow: selected ? 'none' : 'inset 0 0 0 2px var(--fg-3)',
           }}
           aria-hidden="true"
         >

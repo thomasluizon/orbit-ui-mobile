@@ -464,9 +464,9 @@ interface MenuItemProps {
 function MenuItem({ icon: Icon, label, onClick, tone = 'default' }: Readonly<MenuItemProps>) {
   const color =
     tone === 'danger'
-      ? 'var(--status-bad)'
+      ? 'var(--status-bad-text)'
       : tone === 'warning'
-        ? 'var(--status-overdue)'
+        ? 'var(--status-overdue-text)'
         : 'var(--fg-1)'
   return (
     <button

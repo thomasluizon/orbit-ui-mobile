@@ -116,7 +116,7 @@ export function HabitEmojiSelector({
                 value={query}
                 onChangeText={setQuery}
                 placeholder={t("habits.form.emojiSearchPlaceholder")}
-                placeholderTextColor={tokens.fg4}
+                placeholderTextColor={tokens.fg3}
                 style={styles.emojiSearchInput}
                 autoCapitalize="none"
                 autoCorrect={false}

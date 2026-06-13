@@ -236,7 +236,7 @@ export function BreakdownSuggestion({
         />
         <div
           aria-hidden="true"
-          className={`size-4 rounded border-2 flex items-center justify-center transition-colors shrink-0 ${createAsParent ? 'bg-[var(--primary)] border-[var(--primary)]' : 'border-[var(--fg-4)]'}`}
+          className={`size-4 rounded border-2 flex items-center justify-center transition-colors shrink-0 ${createAsParent ? 'bg-[var(--primary)] border-[var(--primary)]' : 'border-[var(--fg-3)]'}`}
         >
           {createAsParent && <Check className="size-2.5 text-[var(--fg-on-primary)]" />}
         </div>

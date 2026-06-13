@@ -456,6 +456,8 @@
       "clearChecklist": "Clear all",
       "duplicateChecklistItem": "Duplicate item",
       "removeChecklistItem": "Remove item",
+      "moveChecklistItemUp": "Move item up",
+      "moveChecklistItemDown": "Move item down",
       "checklistItemLabel": "Item {n}",
       "checklistItemLimit": "You can add up to 50 checklist items",
       "checklistItemTooLong": "Checklist items must be 500 characters or fewer",

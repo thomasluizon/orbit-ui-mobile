@@ -513,7 +513,7 @@ function createStyles(tokens: AppTokens) {
     height: 16,
     borderRadius: 4,
     borderWidth: 2,
-    borderColor: tokens.fg4,
+    borderColor: tokens.fg3,
     alignItems: 'center',
     justifyContent: 'center',
   },

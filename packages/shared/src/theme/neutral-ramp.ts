@@ -197,13 +197,16 @@ export interface StatusConstants {
   readonly frozen: string
   readonly overdueText: string
   readonly badText: string
+  readonly fgOnBad: string
 }
 
 /**
  * Fixed (not scheme-tinted) chromatic status colors per mode. Dots, rings and
  * icons use the base values; status-colored TEXT uses the `-Text` variants,
  * guaranteed >= 4.5:1 WCAG AA on the mode canvas (only light overdue needed
- * darkening; the other three equal their base).
+ * darkening; the other three equal their base). `fgOnBad` is the foreground for
+ * text/icons painted ON a `bad` fill (e.g. destructive confirm pill): ink in
+ * dark (white-on-bad is only 3.81:1), white in light (ink-on-bad is only 4.23:1).
  */
 export const statusConstants: Record<SchemeMode, StatusConstants> = {
   dark: {
@@ -212,6 +215,7 @@ export const statusConstants: Record<SchemeMode, StatusConstants> = {
     frozen: '#00d3f3',
     overdueText: '#fe9a00',
     badText: '#fb2c36',
+    fgOnBad: '#020618',
   },
   light: {
     overdue: '#e17100',
@@ -219,6 +223,7 @@ export const statusConstants: Record<SchemeMode, StatusConstants> = {
     frozen: '#0092b8',
     overdueText: '#b45b00',
     badText: '#e7000b',
+    fgOnBad: '#ffffff',
   },
 }
 

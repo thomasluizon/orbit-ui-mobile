@@ -413,7 +413,7 @@ function HabitRowContent({
           {metaParts.map((part, i) => (
             <Fragment key={i}>
               {i > 0 ? (
-                <Text style={{ color: tokens.fg4 }}> · </Text>
+                <Text style={{ color: tokens.fg3 }}> · </Text>
               ) : null}
               {typeof part === 'string' ? (
                 part
@@ -704,7 +704,7 @@ function HabitRowMenuBody({
         <MenuItem
           icon={FastForward}
           label={t('habits.actions.skip')}
-          color={tokens.statusOverdue}
+          color={tokens.statusOverdueText}
           onPress={run(actions.onSkip)}
         />
       ) : null}
@@ -740,7 +740,7 @@ function HabitRowMenuBody({
           <MenuItem
             icon={Trash2}
             label={t('habits.deleteHabit')}
-            color={tokens.statusBad}
+            color={tokens.statusBadText}
             onPress={run(actions.onDelete)}
           />
         </>

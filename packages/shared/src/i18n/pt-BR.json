@@ -456,6 +456,8 @@
       "clearChecklist": "Limpar tudo",
       "duplicateChecklistItem": "Duplicar item",
       "removeChecklistItem": "Remover item",
+      "moveChecklistItemUp": "Mover item para cima",
+      "moveChecklistItemDown": "Mover item para baixo",
       "checklistItemLabel": "Item {n}",
       "checklistItemLimit": "Você pode adicionar até 50 itens no checklist",
       "checklistItemTooLong": "Os itens do checklist devem ter no máximo 500 caracteres",

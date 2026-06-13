@@ -155,7 +155,7 @@ export function TourTooltip({
 
         <View style={styles.navRow}>
           {!isFirstStep ? (
-            <Pressable style={styles.backButton} onPress={onPrev}>
+            <Pressable accessibilityRole="button" style={styles.backButton} onPress={onPrev}>
               <ChevronLeft size={16} color={tokens.fg2} strokeWidth={1.8} />
               <Text style={styles.backButtonText}>{t('tour.ui.back')}</Text>
             </Pressable>
@@ -166,6 +166,7 @@ export function TourTooltip({
           <View style={{ flex: 1 }} />
 
           <Pressable
+            accessibilityRole="button"
             style={({ pressed }) => [
               styles.nextButton,
               primaryGlow(tokens),
@@ -180,7 +181,7 @@ export function TourTooltip({
           </Pressable>
         </View>
 
-        <Pressable style={styles.skipButton} onPress={onSkip}>
+        <Pressable accessibilityRole="button" style={styles.skipButton} onPress={onSkip}>
           <Text style={styles.skipButtonText}>{t('tour.ui.skip')}</Text>
         </Pressable>
       </Animated.View>

@@ -238,7 +238,7 @@ export function ConfirmDialog({
                   fontFamily: 'var(--font-sans)',
                   fontSize: 15,
                   fontWeight: 500,
-                  color: 'var(--fg-on-primary)',
+                  color: destructive ? 'var(--fg-on-bad)' : 'var(--fg-on-primary)',
                   padding: '13px 0',
                   minHeight: 44,
                 }}

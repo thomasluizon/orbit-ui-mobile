@@ -231,7 +231,7 @@ export function HabitChecklist({
                         background: item.isChecked ? 'var(--primary)' : 'transparent',
                         boxShadow: item.isChecked
                           ? 'none'
-                          : 'inset 0 0 0 2px var(--fg-4)',
+                          : 'inset 0 0 0 2px var(--fg-3)',
                       }}
                     >
                       {item.isChecked && (
@@ -280,7 +280,7 @@ export function HabitChecklist({
             value={newItemText}
             type="text"
             placeholder={t('habits.form.checklistPlaceholder')}
-            className="flex-1 min-w-0 bg-[var(--bg-field)] text-[var(--fg-1)] placeholder:text-[var(--fg-4)] py-2 px-3 text-sm rounded-l-[14px] focus:outline-none"
+            className="flex-1 min-w-0 bg-[var(--bg-field)] text-[var(--fg-1)] placeholder:text-[var(--fg-3)] py-2 px-3 text-sm rounded-l-[14px] focus:outline-none"
             style={{ boxShadow: 'inset 0 0 0 1px var(--hairline)' }}
             onChange={(e) => setNewItemText(e.target.value)}
             onKeyDown={(e) => {
@@ -361,7 +361,7 @@ function SortableChecklistItem({
           width: 26,
           height: 26,
           borderRadius: 8,
-          boxShadow: 'inset 0 0 0 2px var(--fg-4)',
+          boxShadow: 'inset 0 0 0 2px var(--fg-3)',
         }}
       />
 

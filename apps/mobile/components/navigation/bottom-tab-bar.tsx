@@ -141,7 +141,7 @@ function TabButton({
   onPress: () => void
   showUnread: boolean
 }>) {
-  const color = isActive ? tokens.primary : tokens.fg4
+  const color = isActive ? tokens.primary : tokens.fg3
 
   return (
     <Pressable

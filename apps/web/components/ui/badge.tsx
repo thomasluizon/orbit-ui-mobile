@@ -21,7 +21,7 @@ const toneStyles: Record<BadgeTone, CSSProperties> = {
   },
   amber: {
     background: 'color-mix(in srgb, var(--status-overdue) 18%, transparent)',
-    color: 'var(--status-overdue)',
+    color: 'var(--status-overdue-text)',
   },
 }
 

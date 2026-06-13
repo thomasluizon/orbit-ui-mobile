@@ -54,7 +54,7 @@ function toneStyles(
   if (tone === 'amber') {
     return {
       container: { backgroundColor: rgbaFromHex(tokens.statusOverdue, 0.18) },
-      text: { color: tokens.statusOverdue },
+      text: { color: tokens.statusOverdueText },
     }
   }
   return {

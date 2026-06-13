@@ -53,6 +53,8 @@ describe('mobile theme runtime', () => {
     expect(light.statusBadText).toBe(light.statusBad)
     expect(light.statusOverdue).toBe('#e17100')
     expect(light.statusOverdueText).toBe('#b45b00')
+    expect(dark.fgOnBad).toBe('#020618')
+    expect(light.fgOnBad).toBe('#ffffff')
   })
 
   it('purple light uses the pale handoff canvas with opaque white cards', () => {

@@ -20,4 +20,19 @@ Commits so far: api dec5bcc (API-FIX), ui-mobile 068aad8 (batch1: SHELL + HABITS
 chat.json (chat.offline.* — never merged), habits-forms.json (habits.form.removeSubHabit — ALREADY merged to locales by that agent), shell.json ({}), + pending: habits-today.json, profile.json, goals.json, cal-notif.json, auth.json.
 NOTE: central merge step must reconcile — some agents merge directly (habits-forms did), others emit-only. Verify parity after.
 
-## After all batches: central i18n merge → validate both → Wave 3 (206 fn splits) → round-3 battery.
+## DONE: all batches + i18n merge + Wave 3 committed. Commits:
+- api dec5bcc; ui-mobile chain: 068aad8 (b1) → a946724 (b2) → 59ddd32 (b3) → 61739eb (b4) → 9bdcdff (i18n) → 45d6312 (wave3) → 6399d00 (register).
+- Both repos green: type-check/lint/tests (ui-mobile 981+544+1511; api 3252).
+- Wave 3: 28 fns split, 18+2 roots deferred (justified), ~29 not-a-function skips.
+
+## NOW: round-3 verification battery running (14 sweeps / 6 agents). Reports → round-3/.
+## ROUND-3 results (all 14 in): 0 HIGH except a11y(2) + quality(154 rule-7). MED ~30, LOW ~40.
+- ZERO: contract, deps, security, design.
+- Small MED/LOW: perf (SkipHabit×2 MED + N+1), arch (tags.ts/support.ts paths MED), ux (drill F1, login-offline F15 MED), keyboard/i18n/parity/validation/tests (LOW).
+- a11y: 2 HIGH (contrast migration incomplete, ~27 fg-4-as-text/placeholder sites) + 13 MED + 8 LOW.
+- quality: 154 rule-7 (web 81/mobile 73 — wave-3 split ~36, registered 62; tail unsplit incl. CalendarSyncScreen 718/useChatComposer 652-635/HabitFormFields 631/UpgradeScreen 592/TodayPage 580) + 24 MED rule-10 dup + 5 dead exports.
+
+## ROUND-4 plan (sequenced to avoid component-file collision):
+- R4a NOW (parallel, disjoint): R4-A11Y (component contrast/aria migration, all FE visual) + API-R4 (SkipHabit includes, N+1, v1 route).
+- R4b after A11Y commits: SPLIT-WEB-2 + SPLIT-MOBILE-2 (split decomposable big fns + register genuine roots + handle that platform's rule-10 dup + rule-2 dead exports + small round-3 FE MED/LOW: paths, drill F1, login-offline, constants, dead claimAdReward/useInvalidateSummary). highlightText→shared core.
+- Then round-5 sweep (quality + a11y focus) → until ZERO → Phase F.

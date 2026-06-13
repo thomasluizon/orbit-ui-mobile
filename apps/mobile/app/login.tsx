@@ -706,14 +706,14 @@ function createStyles(tokens: AppTokensV2) {
     dividerText: {
       fontFamily: 'Rubik_400Regular',
       fontSize: 13,
-      color: tokens.fg4,
+      color: tokens.fg3,
     },
 
     legal: {
       fontFamily: 'Rubik_400Regular',
       fontSize: 12,
       lineHeight: 18,
-      color: tokens.fg4,
+      color: tokens.fg3,
       textAlign: 'center',
       marginTop: 8,
     },

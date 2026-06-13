@@ -1089,7 +1089,7 @@ export function HabitFormFields({
                       style={{
                         fontFamily: 'var(--font-sans)',
                         fontSize: 12,
-                        color: 'var(--fg-4)',
+                        color: 'var(--fg-3)',
                         lineHeight: 1.4,
                       }}
                     >

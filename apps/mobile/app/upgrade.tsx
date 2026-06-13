@@ -476,7 +476,7 @@ export default function UpgradeScreen() {
           >
             {t('upgrade.billing.actions.managePlay')}
           </PillButton>
-          <Text style={[styles.centerMuted, { color: tokens.fg4 }]}>
+          <Text style={[styles.centerMuted, { color: tokens.fg3 }]}>
             {t('upgrade.billing.actions.managePlayHint')}
           </Text>
           {portalError ? (
@@ -708,7 +708,7 @@ export default function UpgradeScreen() {
           >
             {t('upgrade.billing.actions.manage')}
           </PillButton>
-          <Text style={[styles.centerMuted, { color: tokens.fg4 }]}>
+          <Text style={[styles.centerMuted, { color: tokens.fg3 }]}>
             {t('upgrade.billing.actions.manageHint')}
           </Text>
           {portalError ? (
@@ -873,7 +873,7 @@ export default function UpgradeScreen() {
                   </Text>
                 )}
               </Pressable>
-              <Text style={[styles.renewalNote, { color: tokens.fg4 }]}>
+              <Text style={[styles.renewalNote, { color: tokens.fg3 }]}>
                 {t('upgrade.plans.renewalNote')}
               </Text>
             </View>

@@ -483,7 +483,7 @@ export function createStyles(tokens: AppTokens) {
     frequencyCardExample: {
       fontFamily: "Rubik_400Regular",
       fontSize: 12,
-      color: tokens.fg4,
+      color: tokens.fg3,
       lineHeight: 17,
     },
     frequencyRow: {

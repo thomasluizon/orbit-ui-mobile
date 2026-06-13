@@ -536,7 +536,7 @@ function createStyles(
     },
     labelOptional: {
       fontFamily: 'Rubik_400Regular',
-      color: tokens.fg4,
+      color: tokens.fg3,
     },
     fieldError: {
       fontFamily: 'Rubik_400Regular',
@@ -581,7 +581,7 @@ function createStyles(
     typeHint: {
       fontFamily: 'Rubik_400Regular',
       fontSize: 11,
-      color: tokens.fg4,
+      color: tokens.fg3,
       lineHeight: 16,
       marginTop: 4,
     },

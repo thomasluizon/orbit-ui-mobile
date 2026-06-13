@@ -128,6 +128,8 @@ export interface AppTokensV2 {
   statusOverdueText: string
   /** AA text variant of `statusBad` — use for status-colored text. */
   statusBadText: string
+  /** Foreground for text/icons painted on a `statusBad` fill (ink dark, white light). */
+  fgOnBad: string
   selectionBg: string
 }
 
@@ -205,6 +207,7 @@ export function createTokensV2(
       statusFrozen: status.frozen,
       statusOverdueText: status.overdueText,
       statusBadText: status.badText,
+      fgOnBad: status.fgOnBad,
       selectionBg: `rgba(${accent.primaryRgb}, ${selectionAlpha.light})`,
     }
   }
@@ -241,6 +244,7 @@ export function createTokensV2(
     statusFrozen: status.frozen,
     statusOverdueText: status.overdueText,
     statusBadText: status.badText,
+    fgOnBad: status.fgOnBad,
     selectionBg: `rgba(${accent.primaryRgb}, ${selectionAlpha.dark})`,
   }
 }

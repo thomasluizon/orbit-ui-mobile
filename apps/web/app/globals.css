@@ -196,6 +196,7 @@
   --status-frozen:  #00d3f3;
   --status-overdue-text: #fe9a00;
   --status-bad-text:     #fb2c36;
+  --fg-on-bad:           #020618;
 
   --selection-bg: rgba(var(--primary-rgb), 0.32);
   --gradient-header: linear-gradient(180deg, var(--gradient-header-from) 0%, transparent 100%);
@@ -240,6 +241,7 @@
   --status-frozen:  #0092b8;
   --status-overdue-text: #b45b00;
   --status-bad-text:     #e7000b;
+  --fg-on-bad:           #ffffff;
 
   --selection-bg: rgba(var(--primary-rgb), 0.18);
   --gradient-header: linear-gradient(180deg, var(--gradient-header-from) 0%, transparent 100%);

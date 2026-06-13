@@ -98,7 +98,7 @@ export const BottomSheetAppTextInput = forwardRef<
   return (
     <TextInput
       ref={assignRef}
-      placeholderTextColor={placeholderTextColor ?? tokens.fg4}
+      placeholderTextColor={placeholderTextColor ?? tokens.fg3}
       {...props}
       style={[styles.input, focused ? styles.inputFocused : null, style]}
       value={draftValue}

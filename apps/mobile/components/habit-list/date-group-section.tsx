@@ -56,7 +56,7 @@ export function HabitListDateGroupSection({
         <Text
           style={[
             styles.label,
-            { color: group.isOverdue ? tokens.statusOverdue : tokens.fg3 },
+            { color: group.isOverdue ? tokens.statusOverdueText : tokens.fg3 },
           ]}
         >
           {group.isOverdue ? overdueLabel : group.label}

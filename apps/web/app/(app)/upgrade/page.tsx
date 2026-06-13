@@ -546,7 +546,7 @@ function BillingDashboard({
             >
               {t('upgrade.billing.actions.manage')}
             </PillButton>
-            <p className="text-center" style={{ margin: 0, fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--fg-4)' }}>
+            <p className="text-center" style={{ margin: 0, fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--fg-3)' }}>
               {t('upgrade.billing.actions.manageHint')}
             </p>
             {portalError && (
@@ -632,7 +632,7 @@ function PlayBillingDashboard({ profile, locale, usagePercent, usageUrgent, t }:
           <Settings size={18} strokeWidth={1.8} aria-hidden="true" />
           {t('upgrade.billing.actions.managePlay')}
         </a>
-        <p className="text-center" style={{ margin: 0, fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--fg-4)' }}>
+        <p className="text-center" style={{ margin: 0, fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--fg-3)' }}>
           {t('upgrade.billing.actions.managePlayHint')}
         </p>
       </div>
@@ -816,7 +816,7 @@ function PricingSection({
             )}
             <p
               className="text-center"
-              style={{ margin: '4px 4px 0', fontFamily: 'var(--font-sans)', fontSize: 12, lineHeight: 1.5, color: 'var(--fg-4)' }}
+              style={{ margin: '4px 4px 0', fontFamily: 'var(--font-sans)', fontSize: 12, lineHeight: 1.5, color: 'var(--fg-3)' }}
             >
               {t('upgrade.plans.renewalNote')}
             </p>
