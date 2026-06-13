@@ -24,11 +24,10 @@ function baseProps() {
     activePicker: null as PreferencePicker | null,
     mounted: true,
     selectedLanguage: 'en',
-    currentTheme: 'system' as const,
+    currentTheme: 'dark' as const,
     currentScheme: 'purple' as const,
     weekStartDay: 1,
     themeModeOptions: [
-      { value: 'system' as const, label: 'System' },
       { value: 'light' as const, label: 'Light' },
       { value: 'dark' as const, label: 'Dark' },
     ],
