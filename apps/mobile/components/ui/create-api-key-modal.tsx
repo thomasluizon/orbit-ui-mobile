@@ -13,6 +13,10 @@ import type {
   ApiKeyCreateRequest,
   ApiKeyCreateResponse,
 } from '@orbit/shared/types/api-key'
+import {
+  MAX_API_KEY_NAME_LENGTH,
+  parseApiKeyExpiryUtc,
+} from '@orbit/shared/validation'
 import { BottomSheetModal } from '@/components/bottom-sheet-modal'
 import { BottomSheetAppTextInput } from '@/components/ui/bottom-sheet-app-text-input'
 import { KeyboardAwareBottomSheetScrollView } from '@/components/ui/keyboard-aware-scroll-view'
@@ -96,14 +100,13 @@ export function CreateApiKeyModal({
       setValidationError(t('orbitMcp.keyNameRequired'))
       return false
     }
-    if (trimmed.length > 50) {
+    if (trimmed.length > MAX_API_KEY_NAME_LENGTH) {
       setValidationError(t('orbitMcp.keyNameMaxLength'))
       return false
     }
     if (expiresAt.trim()) {
-      const parsed = new Date(expiresAt)
-      if (Number.isNaN(parsed.getTime())) {
-        setValidationError(t('auth.genericError'))
+      if (!parseApiKeyExpiryUtc(expiresAt)) {
+        setValidationError(t('orbitMcp.invalidExpiry'))
         return false
       }
     }
@@ -123,13 +126,15 @@ export function CreateApiKeyModal({
 
     setIsSubmitting(true)
     try {
+      const expiresAtUtc = expiresAt.trim()
+        ? parseApiKeyExpiryUtc(expiresAt)?.toISOString() ?? null
+        : null
+
       const result = await onCreateKey({
         name: keyName.trim(),
         scopes: selectedScopes.length > 0 ? selectedScopes : undefined,
         isReadOnly,
-        expiresAtUtc: expiresAt.trim()
-          ? new Date(expiresAt).toISOString()
-          : null,
+        expiresAtUtc,
       })
       if (result) {
         setCreatedKey(result)
@@ -233,7 +238,7 @@ export function CreateApiKeyModal({
                 value={keyName}
                 onChangeText={setKeyName}
                 placeholder={t('orbitMcp.keyNamePlaceholder')}
-                maxLength={50}
+                maxLength={MAX_API_KEY_NAME_LENGTH}
                 accessibilityLabel={t('orbitMcp.keyName')}
               />
             </View>
@@ -446,7 +451,7 @@ function createStyles(tokens: AppTokensV2, bottomInset: number) {
       fontFamily: 'Roboto_400Regular',
       fontSize: 11,
       letterSpacing: 0.22,
-      color: tokens.fg4,
+      color: tokens.fg3,
       fontVariant: ['tabular-nums'],
     },
     errorText: {

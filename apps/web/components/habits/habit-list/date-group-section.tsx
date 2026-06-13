@@ -63,7 +63,7 @@ export function HabitListDateGroupSection({
             fontFamily: 'var(--font-sans)',
             fontSize: 13,
             fontWeight: 600,
-            color: group.isOverdue ? 'var(--status-overdue)' : 'var(--fg-3)',
+            color: group.isOverdue ? 'var(--status-overdue-text)' : 'var(--fg-3)',
             whiteSpace: 'nowrap',
           }}
         >

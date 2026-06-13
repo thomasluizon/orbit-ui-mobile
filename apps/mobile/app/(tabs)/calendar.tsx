@@ -38,6 +38,7 @@ import { useCalendarData } from "@/hooks/use-habits";
 import { useProfile } from "@/hooks/use-profile";
 import { useTimeFormat } from "@/hooks/use-time-format";
 import { useHorizontalSwipe } from "@/hooks/use-horizontal-swipe";
+import { GestureDetector } from "react-native-gesture-handler";
 import { createTokensV2 } from "@/lib/theme";
 import { useAppTheme } from "@/lib/use-app-theme";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -160,7 +161,7 @@ export default function CalendarScreen() {
     setCurrentMonth((m) => addMonths(m, 1));
   }, []);
 
-  const swipePanResponder = useHorizontalSwipe({
+  const swipeGesture = useHorizontalSwipe({
     onSwipeLeft: nextMonth,
     onSwipeRight: prevMonth,
   });
@@ -313,12 +314,12 @@ export default function CalendarScreen() {
         onScroll={onCalendarTourScroll}
         scrollEventThrottle={16}
       >
-        <View
-          ref={calendarGridRef}
-          collapsable={false}
-          style={styles.calendarGrid}
-          {...swipePanResponder.panHandlers}
-        >
+        <GestureDetector gesture={swipeGesture}>
+          <View
+            ref={calendarGridRef}
+            collapsable={false}
+            style={styles.calendarGrid}
+          >
           <Animated.View
             key={format(currentMonth, "yyyy-MM")}
             entering={monthEntering}
@@ -391,7 +392,8 @@ export default function CalendarScreen() {
               })}
             </View>
           </Animated.View>
-        </View>
+          </View>
+        </GestureDetector>
 
         <CalendarLegend
           todayLabel={t("calendar.legend.today")}

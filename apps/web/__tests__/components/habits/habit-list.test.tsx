@@ -243,6 +243,7 @@ vi.mock('@/components/ui/app-overlay', () => ({
 vi.mock('@dnd-kit/core', () => ({
   DndContext: ({ children }: { children: React.ReactNode }) => <>{children}</>,
   closestCenter: vi.fn(),
+  KeyboardSensor: vi.fn(),
   PointerSensor: vi.fn(),
   TouchSensor: vi.fn(),
   useSensor: () => ({}),
@@ -251,6 +252,7 @@ vi.mock('@dnd-kit/core', () => ({
 
 vi.mock('@dnd-kit/sortable', () => ({
   SortableContext: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+  sortableKeyboardCoordinates: vi.fn(),
   useSortable: () => ({
     attributes: {},
     listeners: {},

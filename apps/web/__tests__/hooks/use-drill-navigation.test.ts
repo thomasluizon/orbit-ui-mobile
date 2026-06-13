@@ -13,6 +13,11 @@ const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
 
 import { useDrillNavigation } from '@/hooks/use-drill-navigation'
+import { registerOverlay, unregisterOverlay } from '@/lib/overlay-stack'
+
+function pressEscape() {
+  document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+}
 
 function makeHabit(overrides: Partial<NormalizedHabit> = {}): NormalizedHabit {
   return {
@@ -193,6 +198,103 @@ describe('useDrillNavigation', () => {
     })
 
     expect(result.current.drillError).toBeTruthy()
+  })
+
+  it('pops one drill level on Escape (mirrors mobile hardware back)', async () => {
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve(makeDetailResponse()),
+    })
+
+    const { result } = renderHook(() => useDrillNavigation(habitsById, 0))
+
+    await act(async () => {
+      await result.current.drillInto('parent1')
+    })
+    expect(result.current.currentParentId).toBe('parent1')
+
+    act(() => {
+      pressEscape()
+    })
+
+    expect(result.current.drillStack).toEqual([])
+    expect(result.current.currentParentId).toBeNull()
+  })
+
+  it('does not pop on Escape while an overlay is open (overlay wins LIFO)', async () => {
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve(makeDetailResponse()),
+    })
+
+    const { result } = renderHook(() => useDrillNavigation(habitsById, 0))
+
+    await act(async () => {
+      await result.current.drillInto('parent1')
+    })
+
+    registerOverlay({ id: 'overlay-1', dismiss: () => {} })
+    try {
+      act(() => {
+        pressEscape()
+      })
+      expect(result.current.currentParentId).toBe('parent1')
+    } finally {
+      unregisterOverlay('overlay-1')
+    }
+  })
+
+  it('does not pop on Escape while focus is inside an open menu/popover', async () => {
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve(makeDetailResponse()),
+    })
+
+    const { result } = renderHook(() => useDrillNavigation(habitsById, 0))
+
+    await act(async () => {
+      await result.current.drillInto('parent1')
+    })
+
+    const menu = document.createElement('div')
+    menu.setAttribute('role', 'menu')
+    const item = document.createElement('button')
+    menu.appendChild(item)
+    document.body.appendChild(menu)
+    item.focus()
+    try {
+      act(() => {
+        item.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+      })
+      expect(result.current.currentParentId).toBe('parent1')
+    } finally {
+      menu.remove()
+    }
+  })
+
+  it('does not pop on Escape while typing in a text field', async () => {
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve(makeDetailResponse()),
+    })
+
+    const { result } = renderHook(() => useDrillNavigation(habitsById, 0))
+
+    await act(async () => {
+      await result.current.drillInto('parent1')
+    })
+
+    const input = document.createElement('input')
+    document.body.appendChild(input)
+    input.focus()
+    try {
+      act(() => {
+        input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }))
+      })
+      expect(result.current.currentParentId).toBe('parent1')
+    } finally {
+      input.remove()
+    }
   })
 
   it('refreshes the current drill parent on demand', async () => {

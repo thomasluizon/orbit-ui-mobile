@@ -213,6 +213,13 @@ export function HabitRow({
 
   const linkedGoal = (habit.linkedGoals?.length ?? 0) > 0
 
+  const rowAccessibilityLabel = useMemo(() => {
+    const parts = [habit.title, t(`habits.statusDot.${dotState}` as const)]
+    if (linkedGoal) parts.push(t('habits.detail.linkedGoal'))
+    if (showStreak) parts.push(`🔥 ${streak}`)
+    return parts.join(', ')
+  }, [habit.title, dotState, linkedGoal, showStreak, streak, t])
+
   const indentPx = depth * 16
 
   return (
@@ -224,7 +231,7 @@ export function HabitRow({
         }
         delayLongPress={300}
         accessibilityRole="button"
-        accessibilityLabel={habit.title}
+        accessibilityLabel={rowAccessibilityLabel}
         style={({ pressed }) => [
           styles.row,
           {
@@ -337,7 +344,7 @@ export function HabitRow({
                     <Text
                       style={{
                         fontFamily: 'Rubik_500Medium',
-                        color: tokens.statusOverdue,
+                        color: tokens.statusOverdueText,
                       }}
                     >
                       {t('habits.overdue')}
@@ -346,7 +353,7 @@ export function HabitRow({
                 </Fragment>
               ))}
               {showStreak ? (
-                <Text style={{ color: tokens.statusOverdue }}>
+                <Text style={{ color: tokens.statusOverdueText }}>
                   {metaParts.length > 0 ? '  ' : ''}🔥 {streak}
                 </Text>
               ) : null}
@@ -400,11 +407,13 @@ export function HabitRow({
                 tone={habit.isBadHabit ? 'bad' : 'default'}
                 onToggle={handleToggleStatus}
                 disabled={!canLog && !isDoneForRange}
-                accessibilityLabel={
+                accessibilityLabel={`${t(
+                  `habits.statusDot.${dotState}` as const,
+                )}, ${
                   isDoneForRange
                     ? t('habits.actions.unlog')
                     : t('habits.logHabit')
-                }
+                }`}
                 tokens={tokens}
               />
             )

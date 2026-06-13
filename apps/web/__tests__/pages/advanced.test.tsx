@@ -37,7 +37,7 @@ let mockCapabilitiesError: Error | null = null
 
 vi.mock('@tanstack/react-query', () => ({
   useQuery: ({ queryKey }: { queryKey: unknown[] }) => {
-    if (Array.isArray(queryKey) && queryKey[0] === 'ai-capabilities') {
+    if (Array.isArray(queryKey) && queryKey[0] === 'ai' && queryKey[1] === 'capabilities') {
       return {
         data: mockCapabilitiesLoading ? undefined : mockCapabilities,
         isLoading: mockCapabilitiesLoading,
@@ -69,6 +69,9 @@ vi.mock('@orbit/shared/query', () => ({
   apiKeyKeys: {
     lists: () => ['api-keys', 'list'],
     all: ['api-keys'],
+  },
+  aiKeys: {
+    capabilities: () => ['ai', 'capabilities'],
   },
 }))
 

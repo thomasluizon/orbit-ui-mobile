@@ -1621,7 +1621,13 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
               </Text>
             </View>
             {drill.drillStack.length > 1 ? (
-              <TouchableOpacity onPress={drill.drillReset} activeOpacity={0.7}>
+              <TouchableOpacity
+                onPress={drill.drillReset}
+                activeOpacity={0.7}
+                hitSlop={{ top: 14, bottom: 14, left: 14, right: 14 }}
+                accessibilityRole="button"
+                accessibilityLabel={t('habits.backToHabits')}
+              >
                 <ChevronLeft size={16} color={tokens.fg3} />
               </TouchableOpacity>
             ) : null}

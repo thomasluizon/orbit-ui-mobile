@@ -33,7 +33,7 @@ type CookieValueWriter = {
 
 type CookieTarget = CookieValueReader & CookieValueWriter
 
-export type ResolvedServerSession = {
+type ResolvedServerSession = {
   token: string | null
   expiresAt: number | null
   refreshed: boolean
@@ -61,7 +61,7 @@ function decodeBase64Url(segment: string): string {
   return new TextDecoder().decode(bytes)
 }
 
-export function getTokenExpiry(token: string): number | null {
+function getTokenExpiry(token: string): number | null {
   try {
     const payloadSegment = token.split('.')[1]
     if (!payloadSegment) return null
@@ -70,15 +70,6 @@ export function getTokenExpiry(token: string): number | null {
   } catch {
     return null
   }
-}
-
-export function isTokenRefreshRequired(
-  token: string,
-  thresholdMs = ACCESS_TOKEN_REFRESH_THRESHOLD_MS,
-): boolean {
-  const expiresAt = getTokenExpiry(token)
-  if (!expiresAt) return true
-  return expiresAt - Date.now() <= thresholdMs
 }
 
 function getAccessCookieMaxAge(token: string): number {
@@ -100,14 +91,6 @@ export async function getAuthHeaders(): Promise<Record<string, string>> {
   const session = await resolveServerSession()
   if (!session.token) return {}
   return { Authorization: `Bearer ${session.token}` }
-}
-
-/**
- * Returns the raw auth token string, or null if not present.
- */
-export async function getAuthToken(): Promise<string | null> {
-  const cookieStore = await getCookieStore()
-  return getCookieValue(cookieStore, AUTH_COOKIE)
 }
 
 /**

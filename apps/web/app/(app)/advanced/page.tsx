@@ -28,7 +28,7 @@ import {
   WIDGET_FEATURES,
   WIDGET_STEP_KEYS,
 } from '@orbit/shared/utils/advanced-settings'
-import { apiKeyKeys } from '@orbit/shared/query'
+import { aiKeys, apiKeyKeys } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
 import { useProfile } from '@/hooks/use-profile'
 import { ProBadge } from '@/components/ui/pro-badge'
@@ -45,7 +45,9 @@ import { createApiKey, revokeApiKey } from '@/app/actions/api-keys'
 
 async function fetchApiKeys(): Promise<ApiKey[]> {
   const res = await fetch(API.apiKeys.list)
-  if (!res.ok) return []
+  if (!res.ok) {
+    throw new Error('Failed to load API keys')
+  }
   return res.json()
 }
 
@@ -145,7 +147,7 @@ export default function AdvancedPage() {
   })
 
   const capabilitiesQuery = useQuery({
-    queryKey: ['ai-capabilities'],
+    queryKey: aiKeys.capabilities(),
     queryFn: fetchCapabilities,
     enabled: profile?.hasProAccess ?? false,
     staleTime: 5 * 60 * 1000,
@@ -268,7 +270,7 @@ export default function AdvancedPage() {
               </span>
             </span>
           </span>
-          <ChevronRight size={22} strokeWidth={1.8} color="var(--fg-4)" />
+          <ChevronRight size={22} strokeWidth={1.8} color="var(--fg-3)" />
         </button>
 
         <SectionLabel trailing={<ProBadge />}>{t('orbitMcp.title')}</SectionLabel>
@@ -407,7 +409,7 @@ export default function AdvancedPage() {
                                 fontFamily: 'var(--font-mono)',
                                 fontSize: 11,
                                 letterSpacing: '0.02em',
-                                color: 'var(--fg-4)',
+                                color: 'var(--fg-3)',
                               }}
                             >
                               {scopes.length > 0 ? scopes.join(', ') : t('orbitMcp.noScopes')}
@@ -420,7 +422,7 @@ export default function AdvancedPage() {
                               fontSize: 11,
                               lineHeight: 1.6,
                               letterSpacing: '0.02em',
-                              color: 'var(--fg-4)',
+                              color: 'var(--fg-3)',
                               fontVariantNumeric: 'tabular-nums',
                             }}
                           >
@@ -553,7 +555,7 @@ export default function AdvancedPage() {
                             />
                           }
                         />
-                        <p style={{ fontFamily: 'var(--font-sans)', fontSize: 13, lineHeight: 1.5, color: 'var(--fg-4)' }}>
+                        <p style={{ fontFamily: 'var(--font-sans)', fontSize: 13, lineHeight: 1.5, color: 'var(--fg-3)' }}>
                           {t('orbitMcp.webNoApiKey')}
                         </p>
                       </div>
@@ -574,7 +576,7 @@ export default function AdvancedPage() {
                             />
                           }
                         />
-                        <p style={{ fontFamily: 'var(--font-sans)', fontSize: 13, lineHeight: 1.5, color: 'var(--fg-4)' }}>
+                        <p style={{ fontFamily: 'var(--font-sans)', fontSize: 13, lineHeight: 1.5, color: 'var(--fg-3)' }}>
                           {t('orbitMcp.replaceKey')}
                         </p>
                       </div>

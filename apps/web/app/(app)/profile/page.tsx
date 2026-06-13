@@ -211,11 +211,11 @@ export default function ProfilePage() {
                 style={{ width: 76, height: 22, background: 'var(--bg-elev)' }}
               />
               <div
-                className="animate-pulse rounded-sm"
+                className="animate-pulse rounded-lg"
                 style={{ width: 160, height: 30, background: 'var(--bg-elev)', marginTop: 4 }}
               />
               <div
-                className="animate-pulse rounded-sm"
+                className="animate-pulse rounded-lg"
                 style={{ width: 120, height: 14, background: 'var(--bg-elev)' }}
               />
             </>

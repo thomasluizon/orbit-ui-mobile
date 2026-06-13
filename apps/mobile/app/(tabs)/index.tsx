@@ -484,7 +484,7 @@ export default function TodayScreen() {
     };
   }, [handleTodayRollover]);
 
-  const swipePanResponder = useHorizontalSwipe({
+  const swipeGesture = useHorizontalSwipe({
     onSwipeLeft: goToNextDay,
     onSwipeRight: goToPreviousDay,
   });
@@ -1043,9 +1043,7 @@ export default function TodayScreen() {
           todayLabel={t("dates.goToToday")}
           nextLabel={t("dates.nextDay")}
           dateLabelAnim={dateLabelAnim}
-          panHandlers={
-            !isSearchFocused ? swipePanResponder.panHandlers : undefined
-          }
+          swipeGesture={!isSearchFocused ? swipeGesture : undefined}
         />
 
         <SectionLabel
@@ -1394,7 +1392,7 @@ export default function TodayScreen() {
       showSummary,
       slideDirection,
       styles,
-      swipePanResponder.panHandlers,
+      swipeGesture,
       t,
       tags,
       toggleTagFilter,

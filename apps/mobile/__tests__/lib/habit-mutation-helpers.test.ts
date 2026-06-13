@@ -189,6 +189,42 @@ describe('finalizeHabitMutation', () => {
     })
     expect(mocks.refreshWidget).toHaveBeenCalledTimes(1)
   })
+
+  it('invalidates the habit count only when includeCount is set (parity with web create/delete/bulk)', async () => {
+    const withCount = { invalidateQueries: vi.fn(async () => {}) }
+    await finalizeHabitMutation(withCount as never, { ok: true }, null, { includeCount: true })
+    expect(withCount.invalidateQueries).toHaveBeenCalledWith({ queryKey: habitKeys.count() })
+
+    const withoutCount = { invalidateQueries: vi.fn(async () => {}) }
+    await finalizeHabitMutation(withoutCount as never, { ok: true }, null, { includeGoals: true })
+    expect(withoutCount.invalidateQueries).not.toHaveBeenCalledWith({ queryKey: habitKeys.count() })
+  })
+
+  it('still refetches on a plain (non-queued) online error so the cache reconciles', async () => {
+    const queryClient = { invalidateQueries: vi.fn(async () => {}) }
+
+    await finalizeHabitMutation(queryClient as never, { ok: true }, new Error('network'), {
+      includeGoals: true,
+    })
+
+    expect(queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: habitKeys.lists() })
+    expect(queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: goalKeys.lists() })
+    expect(mocks.refreshWidget).toHaveBeenCalledTimes(1)
+  })
+
+  it('still skips invalidation for a queued (offline) result even on error', async () => {
+    const queryClient = { invalidateQueries: vi.fn(async () => {}) }
+
+    await finalizeHabitMutation(
+      queryClient as never,
+      { queued: true, queuedMutationId: 'offline-1' },
+      new Error('network'),
+      { includeGoals: true },
+    )
+
+    expect(queryClient.invalidateQueries).not.toHaveBeenCalled()
+    expect(mocks.refreshWidget).not.toHaveBeenCalled()
+  })
 })
 
 describe('habit mutation helper builders', () => {

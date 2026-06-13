@@ -344,7 +344,8 @@ export function useCreateHabit() {
       useUIStore.getState().setLastCreatedHabitId(result.id)
     },
 
-    onSettled: (data, error) => finalizeHabitMutation(queryClient, data, error),
+    onSettled: (data, error) =>
+      finalizeHabitMutation(queryClient, data, error, { includeCount: true }),
   })
 }
 
@@ -428,7 +429,10 @@ export function useDeleteHabit() {
     },
 
     onSettled: (data, error) =>
-      finalizeHabitMutation(queryClient, data, error, { includeGoals: true }),
+      finalizeHabitMutation(queryClient, data, error, {
+        includeGoals: true,
+        includeCount: true,
+      }),
   })
 }
 
@@ -766,7 +770,8 @@ export function useBulkCreateHabits() {
       adjustHabitCount(queryClient, -context.createdCount)
     },
 
-    onSettled: (data, error) => finalizeHabitMutation(queryClient, data, error),
+    onSettled: (data, error) =>
+      finalizeHabitMutation(queryClient, data, error, { includeCount: true }),
   })
 }
 
@@ -815,7 +820,10 @@ export function useBulkDeleteHabits() {
     },
 
     onSettled: (data, error) =>
-      finalizeHabitMutation(queryClient, data, error, { includeGoals: true }),
+      finalizeHabitMutation(queryClient, data, error, {
+        includeGoals: true,
+        includeCount: true,
+      }),
   })
 }
 

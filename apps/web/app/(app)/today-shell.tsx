@@ -1,9 +1,10 @@
 'use client'
 
-import { ChevronLeft, ChevronRight, Search, X, MoreHorizontal, Filter, Check } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Search, X, Filter, Check } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { AppLogo } from '@/components/ui/app-logo'
 import { Popover } from '@/components/ui/popover'
+import { ControlsMenu } from '@/components/habits/controls-menu'
 import { SectionHeadTabs, type SectionHeadTabItem } from '@/components/ui/section-head-tabs'
 import { TagChip } from '@/components/ui/tag-chip'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
@@ -203,13 +204,19 @@ export interface TodayUtilityRowProps {
   selectedTagIds: string[]
   tags: Tag[]
   frequencyOptions: Array<{ key: FreqKey; label: string }>
-  controlsMenuRef: React.RefObject<HTMLDivElement | null>
+  isSelectMode: boolean
+  showCompleted: boolean
+  isFetching: boolean
+  allCollapsed: boolean
   onSearchToggle: () => void
   onSearchChange: (value: string) => void
   onSearchClear: () => void
   onFrequencyChange: (key: FreqKey | null) => void
   onTagToggle: (tagId: string) => void
-  onOpenControlsMenu: () => void
+  onToggleSelect: () => void
+  onToggleCollapse: () => void
+  onRefresh: () => void
+  onToggleCompleted: () => void
 }
 
 export function TodayUtilityRow({
@@ -220,13 +227,19 @@ export function TodayUtilityRow({
   selectedTagIds,
   tags,
   frequencyOptions,
-  controlsMenuRef,
+  isSelectMode,
+  showCompleted,
+  isFetching,
+  allCollapsed,
   onSearchToggle,
   onSearchChange,
   onSearchClear,
   onFrequencyChange,
   onTagToggle,
-  onOpenControlsMenu,
+  onToggleSelect,
+  onToggleCollapse,
+  onRefresh,
+  onToggleCompleted,
 }: Readonly<TodayUtilityRowProps>) {
   const t = useTranslations()
   const showFreq = activeView !== 'general'
@@ -324,20 +337,16 @@ export function TodayUtilityRow({
               allLabel={t('common.all')}
             />
           )}
-          <div ref={controlsMenuRef} className="shrink-0">
-            <button
-              type="button"
-              aria-label={t('habits.actions.more')}
-              onClick={(e) => {
-                e.stopPropagation()
-                onOpenControlsMenu()
-              }}
-              className="icon-btn"
-              style={{ width: 36, height: 36 }}
-            >
-              <MoreHorizontal size={18} strokeWidth={1.8} color="var(--fg-2)" aria-hidden="true" />
-            </button>
-          </div>
+          <ControlsMenu
+            isSelectMode={isSelectMode}
+            showCompleted={showCompleted}
+            isFetching={isFetching}
+            allCollapsed={allCollapsed}
+            onToggleSelect={onToggleSelect}
+            onToggleCollapse={onToggleCollapse}
+            onRefresh={onRefresh}
+            onToggleCompleted={onToggleCompleted}
+          />
         </>
       )}
     </div>

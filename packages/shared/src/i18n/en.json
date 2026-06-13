@@ -54,7 +54,8 @@
     "title": "Update available",
     "description": "A new version of Orbit is available with improvements and fixes",
     "update": "Update",
-    "later": "Not now"
+    "later": "Not now",
+    "version": "v{previous} → v{next}"
   },
   "notifications": {
     "title": "Notifications",
@@ -186,6 +187,7 @@
     "resendCode": "Resend code",
     "resendIn": "Resend in {seconds}s",
     "changeEmail": "Change email",
+    "minutesShort": "{minutes} min left",
     "genericError": "An error occurred. Please try again.",
     "orContinueWith": "or continue with",
     "signInWithGoogle": "Sign in with Google",
@@ -745,6 +747,8 @@
     "facts": {
       "title": "What Astra knows",
       "empty": "Astra hasn't learned anything yet. Have a conversation in Chat to teach it.",
+      "factsError": "Couldn't load what Astra knows.",
+      "retry": "Try again",
       "save": "Save",
       "cancel": "Cancel",
       "delete": "Delete",
@@ -854,7 +858,9 @@
       "deleting": "Processing...",
       "deactivated": "Your account has been deactivated. It will be permanently deleted on {date}.",
       "reactivated": "Welcome back! Your account deletion has been cancelled.",
-      "errorGeneric": "Something went wrong. Please try again."
+      "errorGeneric": "Something went wrong. Please try again.",
+      "offlineTitle": "You're offline",
+      "offlineDescription": "Connect to the internet to deactivate your account."
     }
   },
   "referral": {
@@ -1852,7 +1858,8 @@
     "permReadWrite": "Read/write",
     "expiresOn": "Expires {date}",
     "readOnlyKeyLabel": "Read-only key",
-    "expiresAtLabel": "Expires At (UTC, optional)"
+    "expiresAtLabel": "Expires At (UTC, optional)",
+    "invalidExpiry": "Enter a valid future expiry date."
   },
   "preferences": {
     "title": "Preferences",

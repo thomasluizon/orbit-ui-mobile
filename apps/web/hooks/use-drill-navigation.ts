@@ -7,7 +7,20 @@ import {
   mergeDrillChildrenMap,
 } from '@orbit/shared/utils/drill-navigation'
 import { getErrorMessage, API } from '@orbit/shared/api'
+import { hasOpenOverlay } from '@/lib/overlay-stack'
 import type { NormalizedHabit, HabitDetail } from '@orbit/shared/types/habit'
+
+function isTextEntryTarget(target: EventTarget | null): boolean {
+  if (!(target instanceof HTMLElement)) return false
+  const tag = target.tagName
+  return tag === 'INPUT' || tag === 'TEXTAREA' || target.isContentEditable
+}
+
+function isInsideOpenLayer(target: EventTarget | null): boolean {
+  const node = target instanceof HTMLElement ? target : document.activeElement
+  if (!(node instanceof HTMLElement)) return false
+  return node.closest('[role="dialog"], [role="menu"]') !== null
+}
 
 async function fetchHabitDetail(habitId: string): Promise<HabitDetail> {
   const res = await fetch(API.habits.get(habitId))
@@ -125,6 +138,22 @@ export function useDrillNavigation(
     if (!currentParentId) return
     void Promise.resolve().then(() => fetchDrillChildren(currentParentId, true))
   }, [lastUpdated, currentParentId, fetchDrillChildren])
+
+  useEffect(() => {
+    if (!currentParentId) return
+
+    function handleEscape(event: KeyboardEvent) {
+      if (event.key !== 'Escape') return
+      if (hasOpenOverlay()) return
+      if (isTextEntryTarget(event.target)) return
+      if (isInsideOpenLayer(event.target)) return
+      event.preventDefault()
+      drillBack()
+    }
+
+    document.addEventListener('keydown', handleEscape)
+    return () => document.removeEventListener('keydown', handleEscape)
+  }, [currentParentId, drillBack])
 
   return {
     drillStack,

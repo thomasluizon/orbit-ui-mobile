@@ -9,13 +9,12 @@ interface SupabaseStorageAdapter {
   removeItem: (key: string) => void
 }
 
-const SUPABASE_URL =
-  process.env.EXPO_PUBLIC_SUPABASE_URL
-  ?? 'https://wdscxamegetmhqldqsdg.supabase.co'
+const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL
+const SUPABASE_PUBLISHABLE_KEY = process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY
 
-const SUPABASE_PUBLISHABLE_KEY =
-  process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY
-  ?? 'sb_publishable_CGlL4PSxvp2Ia0SCHcathQ_iAQnmXis'
+if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
+  throw new Error('Supabase config missing')
+}
 
 const storage = (globalThis as typeof globalThis & { localStorage: SupabaseStorageAdapter }).localStorage
 

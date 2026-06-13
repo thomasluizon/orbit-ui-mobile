@@ -35,7 +35,9 @@ import type { UserFact } from '@orbit/shared/types/user-fact'
 
 async function fetchUserFacts(): Promise<UserFact[]> {
   const res = await fetch(API.userFacts.list)
-  if (!res.ok) return []
+  if (!res.ok) {
+    throw new Error('Failed to load user facts')
+  }
   return res.json()
 }
 
@@ -89,7 +91,9 @@ function FactItem({
 }: Readonly<FactItemProps>) {
   const t = useTranslations()
   const category = fact.category ? normalizeUserFactCategory(fact.category) : null
-  const categoryLabel = category ? category.toUpperCase() : null
+  const categoryLabel = category
+    ? t(`profile.facts.${category}` as Parameters<typeof t>[0]).toUpperCase()
+    : null
 
   const cardStyle: React.CSSProperties = {
     padding: '14px 16px',
@@ -141,7 +145,7 @@ function FactItem({
           onClick={onDelete}
           aria-label={t('common.delete')}
           className="icon-btn shrink-0 hover:text-[var(--status-bad)]"
-          style={{ width: 36, height: 36, margin: -6, color: 'var(--fg-4)' }}
+          style={{ width: 36, height: 36, margin: -6, color: 'var(--fg-3)' }}
         >
           <X size={18} strokeWidth={1.8} />
         </button>
@@ -427,7 +431,36 @@ export default function AiSettingsPage() {
           </div>
         )}
 
-        {hasProAccess && !factsQuery.isLoading && facts.length === 0 && (
+        {hasProAccess && !factsQuery.isLoading && factsQuery.error && (
+          <div
+            className="flex flex-col items-center text-center animate-scale-in"
+            style={{ padding: '40px 36px', gap: 18 }}
+          >
+            <SatelliteGlyph size={104} />
+            <span
+              role="alert"
+              style={{
+                fontFamily: 'var(--font-sans)',
+                fontSize: 15,
+                color: 'var(--status-bad)',
+                lineHeight: 1.5,
+                maxWidth: 320,
+                textWrap: 'pretty',
+              }}
+            >
+              {t('profile.facts.factsError')}
+            </span>
+            <PillButton
+              fullWidth
+              onClick={() => factsQuery.refetch()}
+              className="mt-2"
+            >
+              {t('profile.facts.retry')}
+            </PillButton>
+          </div>
+        )}
+
+        {hasProAccess && !factsQuery.isLoading && !factsQuery.error && facts.length === 0 && (
           <div
             className="flex flex-col items-center text-center animate-scale-in"
             style={{ padding: '40px 36px', gap: 18 }}
@@ -456,7 +489,7 @@ export default function AiSettingsPage() {
           </div>
         )}
 
-        {hasProAccess && !factsQuery.isLoading && facts.length > 0 && (
+        {hasProAccess && !factsQuery.isLoading && !factsQuery.error && facts.length > 0 && (
           <div className="flex flex-col px-5 stagger-enter" style={{ gap: 10 }}>
             {pagedFacts.map((fact) => (
               <FactItem

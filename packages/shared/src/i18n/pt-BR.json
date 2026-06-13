@@ -54,7 +54,8 @@
     "title": "Atualização disponível",
     "description": "Uma nova versão do Orbit está disponível com melhorias e correções",
     "update": "Atualizar",
-    "later": "Agora não"
+    "later": "Agora não",
+    "version": "v{previous} → v{next}"
   },
   "notifications": {
     "title": "Notificações",
@@ -186,6 +187,7 @@
     "resendCode": "Reenviar código",
     "resendIn": "Reenviar em {seconds}s",
     "changeEmail": "Alterar e-mail",
+    "minutesShort": "{minutes} min restantes",
     "genericError": "Ocorreu um erro. Tente novamente.",
     "orContinueWith": "ou continue com",
     "signInWithGoogle": "Entrar com Google",
@@ -745,6 +747,8 @@
     "facts": {
       "title": "O que a Astra sabe",
       "empty": "A Astra ainda não aprendeu nada. Converse no Chat para ensinar.",
+      "factsError": "Não foi possível carregar o que a Astra sabe.",
+      "retry": "Tentar novamente",
       "save": "Salvar",
       "cancel": "Cancelar",
       "delete": "Excluir",
@@ -854,7 +858,9 @@
       "deleting": "Processando...",
       "deactivated": "Sua conta será desativada. Ela será permanentemente excluída em {date}.",
       "reactivated": "Bem-vindo de volta! A exclusão da sua conta foi cancelada.",
-      "errorGeneric": "Algo deu errado. Tente novamente."
+      "errorGeneric": "Algo deu errado. Tente novamente.",
+      "offlineTitle": "Você está offline",
+      "offlineDescription": "Conecte-se à internet para desativar sua conta."
     }
   },
   "referral": {
@@ -1852,7 +1858,8 @@
     "permReadWrite": "Leitura e escrita",
     "expiresOn": "Expira {date}",
     "readOnlyKeyLabel": "Chave somente leitura",
-    "expiresAtLabel": "Expira em (UTC, opcional)"
+    "expiresAtLabel": "Expira em (UTC, opcional)",
+    "invalidExpiry": "Insira uma data de expiração futura válida."
   },
   "preferences": {
     "title": "Preferências",

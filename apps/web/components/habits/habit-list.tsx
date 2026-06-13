@@ -59,6 +59,7 @@ import { useConfig } from '@/hooks/use-config'
 import {
   DndContext,
   closestCenter,
+  KeyboardSensor,
   PointerSensor,
   TouchSensor,
   useSensor,
@@ -68,6 +69,7 @@ import {
 } from '@dnd-kit/core'
 import {
   SortableContext,
+  sortableKeyboardCoordinates,
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import { SortableHabitItem } from './habit-list/sortable-habit-item'
@@ -499,7 +501,10 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
   const touchSensor = useSensor(TouchSensor, {
     activationConstraint: { delay: 300, tolerance: 5 },
   })
-  const sensors = useSensors(pointerSensor, touchSensor)
+  const keyboardSensor = useSensor(KeyboardSensor, {
+    coordinateGetter: sortableKeyboardCoordinates,
+  })
+  const sensors = useSensors(pointerSensor, touchSensor, keyboardSensor)
 
   const isDndEnabled = view !== 'all' && !isSelectMode
 
@@ -911,6 +916,25 @@ const isPostponeAction = useMemo(() => {
     checkAndPromptParentLog,
   }))
 
+  const listContainerRef = useReactRef<HTMLDivElement>(null)
+
+  function handleListKeyDown(event: React.KeyboardEvent<HTMLDivElement>) {
+    if (event.key !== 'Home' && event.key !== 'End') return
+    const container = listContainerRef.current
+    if (!container) return
+
+    const rows = Array.from(
+      container.querySelectorAll<HTMLElement>(':scope [role="button"][tabindex="0"]'),
+    )
+    const activeElement = document.activeElement
+    if (!(activeElement instanceof HTMLElement) || !rows.includes(activeElement)) return
+
+    const target = event.key === 'Home' ? rows[0] : rows.at(-1)
+    if (!target) return
+    event.preventDefault()
+    target.focus()
+  }
+
   function deriveRowState(
     habit: NormalizedHabit,
     recentlyCompleted: boolean,
@@ -1200,7 +1224,7 @@ const isPostponeAction = useMemo(() => {
   }
 
   return (
-    <div data-tour="tour-habit-list">
+    <div data-tour="tour-habit-list" ref={listContainerRef} onKeyDown={handleListKeyDown}>
       {renderMainContent()}
 
       <HabitDetailDrawer

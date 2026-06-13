@@ -284,9 +284,7 @@ vi.mock("@/components/ui/anchored-menu", () => ({
 
 vi.mock("../../app/(tabs)/today-shell", () => todayShellMock);
 vi.mock("@/hooks/use-horizontal-swipe", () => ({
-  useHorizontalSwipe: () => ({
-    panHandlers: {},
-  }),
+  useHorizontalSwipe: () => ({ toGestureArray: () => [] }),
 }));
 
 vi.mock("@/lib/habit-selection-state", () => ({

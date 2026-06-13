@@ -425,7 +425,7 @@ function RevealStep({ createdKey, copied, onCopy, onDone }: Readonly<RevealStepP
           fontFamily: 'var(--font-mono)',
           fontSize: 11,
           letterSpacing: '0.02em',
-          color: 'var(--fg-4)',
+          color: 'var(--fg-3)',
           fontVariantNumeric: 'tabular-nums',
         }}
       >

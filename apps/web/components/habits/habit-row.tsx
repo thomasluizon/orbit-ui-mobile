@@ -200,12 +200,15 @@ export function HabitRow({
           onClick={handleExpand}
           aria-label={expanded ? t('common.collapse') : t('common.expand')}
           aria-expanded={expanded}
-          className="appearance-none border-0 bg-transparent cursor-pointer p-0 flex shrink-0 text-[var(--fg-3)] transition-[transform,color] duration-150 ease-out hover:text-[var(--fg-1)]"
+          className="appearance-none border-0 bg-transparent cursor-pointer flex shrink-0 items-center justify-center text-[var(--fg-3)] transition-[transform,color] duration-150 ease-out hover:text-[var(--fg-1)]"
           style={{
+            width: 44,
+            height: 44,
+            margin: '-15px -14px',
             transform: expanded ? 'rotate(0deg)' : 'rotate(-90deg)',
           }}
         >
-          <ChevronDown size={14} strokeWidth={1.8} />
+          <ChevronDown size={14} strokeWidth={1.8} aria-hidden="true" />
         </button>
       )}
 
@@ -263,7 +266,7 @@ export function HabitRow({
                 style={{
                   fontFamily: 'var(--font-sans)',
                   fontSize: 13,
-                  color: 'var(--status-overdue)',
+                  color: 'var(--status-overdue-text)',
                   fontVariantNumeric: 'tabular-nums',
                 }}
               >
@@ -277,6 +280,7 @@ export function HabitRow({
       <div className="flex items-center shrink-0" style={{ gap: 10 }}>
         {showLinkedGoalDot && (
           <span
+            role="img"
             aria-label={t('habits.detail.linkedGoal')}
             className="rounded-full"
             style={{
@@ -601,7 +605,7 @@ function MetaStrip({ tokens }: Readonly<MetaStripProps>) {
     >
       {tokens.map((token, i) => (
         <Fragment key={metaTokenKey(token, i)}>
-          {i > 0 && <span style={{ margin: '0 6px', color: 'var(--fg-4)' }}>·</span>}
+          {i > 0 && <span style={{ margin: '0 6px', color: 'var(--fg-3)' }}>·</span>}
           {renderMetaToken(token)}
         </Fragment>
       ))}
@@ -616,6 +620,6 @@ function metaTokenKey(token: HabitRowMetaToken, index: number): string {
 
 function renderMetaToken(token: HabitRowMetaToken): ReactNode {
   if (typeof token === 'string') return token
-  const color = token.kind === 'overdue' ? 'var(--status-overdue)' : undefined
+  const color = token.kind === 'overdue' ? 'var(--status-overdue-text)' : undefined
   return <span style={color ? { color, fontWeight: 500 } : {}}>{token.label}</span>
 }

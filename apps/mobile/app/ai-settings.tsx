@@ -387,6 +387,16 @@ export default function AiSettingsScreen() {
               style={[styles.skelBar, { backgroundColor: tokens.bgElev }]}
             />
           </View>
+        ) : factsQuery.error ? (
+          <View style={styles.emptyBlock} accessibilityRole="alert">
+            <SatelliteGlyph size={104} />
+            <Text style={[styles.emptyBody, { color: tokens.statusBad }]}>
+              {t('profile.facts.factsError')}
+            </Text>
+            <PillButton fullWidth onPress={() => factsQuery.refetch()}>
+              {t('profile.facts.retry')}
+            </PillButton>
+          </View>
         ) : facts.length === 0 ? (
           <View style={styles.emptyBlock}>
             <SatelliteGlyph size={104} />

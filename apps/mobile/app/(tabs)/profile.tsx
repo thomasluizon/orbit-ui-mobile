@@ -326,7 +326,7 @@ export default function ProfileScreen() {
   async function handleExportData() {
     if (isExporting) return
     if (!isOnline) {
-      setExportError(t('calendarSync.notConnected'))
+      setExportError(t('errors.offline'))
       return
     }
     setIsExporting(true)
@@ -341,8 +341,8 @@ export default function ProfileScreen() {
         title: t('dataExport.shareTitle'),
         url: file.uri,
       })
-    } catch (err: unknown) {
-      setExportError(getErrorMessage(err, t('dataExport.error')))
+    } catch {
+      setExportError(t('dataExport.error'))
     } finally {
       setIsExporting(false)
     }
@@ -374,7 +374,7 @@ export default function ProfileScreen() {
 
   async function handleRequestDeletion() {
     if (!isOnline) {
-      setDeleteError(t('calendarSync.notConnected'))
+      setDeleteError(t('errors.offline'))
       return
     }
     setDeleteLoading(true)
@@ -394,7 +394,7 @@ export default function ProfileScreen() {
     const code = deleteCodeDigits.join('')
     if (code.length !== 6) return
     if (!isOnline) {
-      setDeleteError(t('calendarSync.notConnected'))
+      setDeleteError(t('errors.offline'))
       return
     }
     setDeleteLoading(true)
@@ -539,7 +539,9 @@ export default function ProfileScreen() {
       >
         {error ? (
           <Text style={[styles.errorText, { color: tokens.statusBad }]}>
-            {error instanceof Error ? error.message : t('errors.loadProfile')}
+            {__DEV__ && error instanceof Error
+              ? error.message
+              : t('errors.loadProfile')}
           </Text>
         ) : null}
 
@@ -852,7 +854,7 @@ export default function ProfileScreen() {
                   value={resetConfirmText}
                   onChangeText={setResetConfirmText}
                   placeholder={t('profile.freshStart.confirmPlaceholder')}
-                  placeholderTextColor={tokens.fg4}
+                  placeholderTextColor={tokens.fg3}
                   autoCapitalize="characters"
                   autoCorrect={false}
                   textAlign="center"
@@ -930,8 +932,8 @@ export default function ProfileScreen() {
 
             {!isOnline ? (
               <OfflineUnavailableState
-                title={t('calendarSync.notConnected')}
-                description={`${t('profile.deleteAccount.sendCode')} / ${t('profile.deleteAccount.confirmDelete')}`}
+                title={t('profile.deleteAccount.offlineTitle')}
+                description={t('profile.deleteAccount.offlineDescription')}
                 compact
               />
             ) : deleteStep === 'confirm' ? (
@@ -1013,7 +1015,7 @@ export default function ProfileScreen() {
                       autoComplete="one-time-code"
                       maxLength={1}
                       placeholder="0"
-                      placeholderTextColor={tokens.fg4}
+                      placeholderTextColor={tokens.fg3}
                       textAlign="center"
                     />
                   ))}
@@ -1131,7 +1133,7 @@ function createStyles(_tokens: Tokens) {
       maxWidth: '100%',
     },
     skeleton: {
-      borderRadius: 4,
+      borderRadius: 8,
     },
 
     statRow: {

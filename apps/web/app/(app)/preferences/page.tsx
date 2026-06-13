@@ -80,21 +80,29 @@ export default function PreferencesPage() {
   const locale = useLocale()
   const [selectedLanguage, setSelectedLanguage] = useState<string>(locale)
 
+  function writeLocaleCookie(value: string) {
+    if (typeof document !== 'undefined') {
+      document.cookie = `i18n_locale=${encodeURIComponent(value)};max-age=${365 * 24 * 60 * 60};path=/;samesite=strict`
+    }
+  }
+
   const handleLanguageChange = useCallback(
-    async (locale: SupportedLocale) => {
-      setSelectedLanguage(locale)
-      if (typeof document !== 'undefined') {
-        document.cookie = `i18n_locale=${encodeURIComponent(locale)};max-age=${365 * 24 * 60 * 60};path=/;samesite=strict`
-      }
+    async (nextLocale: SupportedLocale) => {
+      const previousLocale = selectedLanguage
+      setSelectedLanguage(nextLocale)
+      writeLocaleCookie(nextLocale)
       if (isAuthenticated) {
         try {
-          await updateLanguage({ language: locale })
+          await updateLanguage({ language: nextLocale })
         } catch {
+          setSelectedLanguage(previousLocale)
+          writeLocaleCookie(previousLocale)
+          return
         }
       }
       globalThis.location.reload()
     },
-    [isAuthenticated],
+    [isAuthenticated, selectedLanguage],
   )
 
   const weekStartOptions = buildWeekStartOptions(t)

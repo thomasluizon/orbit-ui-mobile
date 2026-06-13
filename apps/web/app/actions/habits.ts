@@ -17,24 +17,25 @@ import type {
   MoveHabitParentRequest,
   ChecklistItem,
 } from '@orbit/shared'
+import { API } from '@orbit/shared/api'
 import { serverAuthFetch } from '@/lib/server-fetch'
 
 export async function createHabit(data: CreateHabitRequest): Promise<{ id: string }> {
-  return serverAuthFetch('/api/habits', {
+  return serverAuthFetch(API.habits.create, {
     method: 'POST',
     body: JSON.stringify(data),
   })
 }
 
 export async function updateHabit(habitId: string, data: UpdateHabitRequest): Promise<void> {
-  await serverAuthFetch(`/api/habits/${habitId}`, {
+  await serverAuthFetch(API.habits.update(habitId), {
     method: 'PUT',
     body: JSON.stringify(data),
   })
 }
 
 export async function deleteHabit(habitId: string): Promise<void> {
-  await serverAuthFetch(`/api/habits/${habitId}`, {
+  await serverAuthFetch(API.habits.delete(habitId), {
     method: 'DELETE',
   })
 }
@@ -43,7 +44,7 @@ export async function logHabit(
   habitId: string,
   data?: LogHabitRequest,
 ): Promise<LogHabitResponse> {
-  return serverAuthFetch(`/api/habits/${habitId}/log`, {
+  return serverAuthFetch(API.habits.log(habitId), {
     method: 'POST',
     body: data ? JSON.stringify(data) : undefined,
   })
@@ -53,42 +54,42 @@ export async function skipHabit(
   habitId: string,
   date?: string,
 ): Promise<void> {
-  await serverAuthFetch(`/api/habits/${habitId}/skip`, {
+  await serverAuthFetch(API.habits.skip(habitId), {
     method: 'POST',
     body: date ? JSON.stringify({ date }) : undefined,
   })
 }
 
 export async function bulkCreateHabits(data: BulkCreateRequest): Promise<BulkCreateResponse> {
-  return serverAuthFetch('/api/habits/bulk', {
+  return serverAuthFetch(API.habits.bulk, {
     method: 'POST',
     body: JSON.stringify(data),
   })
 }
 
 export async function bulkDeleteHabits(habitIds: string[]): Promise<BulkDeleteResponse> {
-  return serverAuthFetch('/api/habits/bulk', {
+  return serverAuthFetch(API.habits.bulk, {
     method: 'DELETE',
     body: JSON.stringify({ habitIds }),
   })
 }
 
 export async function bulkLogHabits(items: BulkLogItemRequest[]): Promise<BulkLogResult> {
-  return serverAuthFetch('/api/habits/bulk/log', {
+  return serverAuthFetch(API.habits.bulkLog, {
     method: 'POST',
     body: JSON.stringify({ items }),
   })
 }
 
 export async function bulkSkipHabits(items: BulkSkipItemRequest[]): Promise<BulkSkipResult> {
-  return serverAuthFetch('/api/habits/bulk/skip', {
+  return serverAuthFetch(API.habits.bulkSkip, {
     method: 'POST',
     body: JSON.stringify({ items }),
   })
 }
 
 export async function reorderHabits(data: ReorderHabitsRequest): Promise<void> {
-  await serverAuthFetch('/api/habits/reorder', {
+  await serverAuthFetch(API.habits.reorder, {
     method: 'PUT',
     body: JSON.stringify(data),
   })
@@ -98,7 +99,7 @@ export async function createSubHabit(
   parentId: string,
   data: CreateSubHabitRequest,
 ): Promise<void> {
-  await serverAuthFetch(`/api/habits/${parentId}/sub-habits`, {
+  await serverAuthFetch(API.habits.subHabits(parentId), {
     method: 'POST',
     body: JSON.stringify(data),
   })
@@ -108,14 +109,14 @@ export async function moveHabitParent(
   habitId: string,
   data: MoveHabitParentRequest,
 ): Promise<void> {
-  await serverAuthFetch(`/api/habits/${habitId}/parent`, {
+  await serverAuthFetch(API.habits.parent(habitId), {
     method: 'PUT',
     body: JSON.stringify(data),
   })
 }
 
 export async function duplicateHabit(habitId: string): Promise<void> {
-  await serverAuthFetch(`/api/habits/${habitId}/duplicate`, {
+  await serverAuthFetch(API.habits.duplicate(habitId), {
     method: 'POST',
   })
 }
@@ -124,7 +125,7 @@ export async function updateChecklist(
   habitId: string,
   checklistItems: ChecklistItem[],
 ): Promise<void> {
-  await serverAuthFetch(`/api/habits/${habitId}/checklist`, {
+  await serverAuthFetch(API.habits.checklist(habitId), {
     method: 'PUT',
     body: JSON.stringify({ checklistItems }),
   })
@@ -134,7 +135,7 @@ export async function linkGoalsToHabit(
   habitId: string,
   goalIds: string[],
 ): Promise<void> {
-  await serverAuthFetch(`/api/habits/${habitId}/goals`, {
+  await serverAuthFetch(API.habits.goals(habitId), {
     method: 'PUT',
     body: JSON.stringify({ goalIds }),
   })
