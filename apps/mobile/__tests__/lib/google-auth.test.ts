@@ -16,12 +16,12 @@ vi.mock('@/lib/api-client', () => ({
 }))
 
 vi.mock('@/lib/supabase', () => ({
-  supabase: {
+  getSupabaseClient: () => ({
     auth: {
       setSession: setSessionMock,
       signOut: signOutMock,
     },
-  },
+  }),
 }))
 
 vi.mock('expo-web-browser', () => ({
