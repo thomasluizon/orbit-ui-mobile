@@ -82,14 +82,20 @@ export function AchievementToast() {
     invalidate()
   }, [enqueueCelebration, invalidate, newAchievements])
 
+  const [prevActiveAchievement, setPrevActiveAchievement] =
+    useState(activeAchievement)
+  if (activeAchievement !== prevActiveAchievement) {
+    setPrevActiveAchievement(activeAchievement)
+    if (activeAchievement) {
+      setCurrentAchievement({
+        achievementId: activeAchievement.payload.achievementId,
+        xpReward: activeAchievement.payload.xpReward,
+      })
+    }
+  }
+
   useEffect(() => {
     if (!activeAchievement) return
-
-     
-    setCurrentAchievement({
-      achievementId: activeAchievement.payload.achievementId,
-      xpReward: activeAchievement.payload.xpReward,
-    })
 
     translateY.setValue(-100)
     opacity.setValue(0)

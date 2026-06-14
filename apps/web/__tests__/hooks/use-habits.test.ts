@@ -9,6 +9,22 @@ import type { HabitScheduleChild, HabitScheduleItem, PaginatedResponse } from '@
 const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
 
+const mockShowError = vi.fn()
+
+vi.mock('next-intl', () => ({
+  useTranslations: () => (key: string) => key,
+}))
+
+vi.mock('@/hooks/use-app-toast', () => ({
+  useAppToast: () => ({
+    showError: mockShowError,
+    showSuccess: vi.fn(),
+    showInfo: vi.fn(),
+    showToast: vi.fn(),
+    showQueued: vi.fn(),
+  }),
+}))
+
 vi.mock('@/app/actions/habits', () => ({
   createHabit: vi.fn(),
   updateHabit: vi.fn(),
@@ -303,6 +319,7 @@ describe('useLogHabit', () => {
     })
 
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: habitKeys.lists() })
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: habitKeys.calendarPrefix() })
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: habitKeys.summaryPrefix() })
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: goalKeys.lists() })
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: gamificationKeys.all })
@@ -407,6 +424,7 @@ describe('useSkipHabit', () => {
     })
 
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: habitKeys.lists() })
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: habitKeys.calendarPrefix() })
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: habitKeys.summaryPrefix() })
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: goalKeys.lists() })
     expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: gamificationKeys.all })
@@ -686,6 +704,7 @@ describe('useUpdateHabit', () => {
 describe('useReorderHabits', () => {
   beforeEach(() => {
     mockFetch.mockReset()
+    mockShowError.mockReset()
   })
 
   it('calls reorderHabits action with position data', async () => {
@@ -709,6 +728,85 @@ describe('useReorderHabits', () => {
     })
 
     expect(mockedReorderHabits).toHaveBeenCalledWith(data)
+  })
+
+  it('optimistically applies the new positions to the cached list before the action resolves', async () => {
+    const { useReorderHabits } = await import('@/hooks/use-habits')
+    const { reorderHabits } = await import('@/app/actions/habits')
+    vi.mocked(reorderHabits).mockImplementation(() => new Promise(() => {}))
+
+    const queryClient = createQueryClient()
+    queryClient.setQueryData<HabitScheduleItem[]>(habitKeys.list({}), [
+      makeScheduleItem({
+        id: 'parent-1',
+        position: 0,
+        hasSubHabits: true,
+        children: [
+          makeScheduleChild({ id: 'child-a', position: 0 }),
+          makeScheduleChild({ id: 'child-b', position: 1 }),
+        ],
+      }),
+      makeScheduleItem({ id: 'h-2', position: 1 }),
+    ])
+
+    const { result } = renderHook(() => useReorderHabits(), {
+      wrapper: createWrapper(queryClient),
+    })
+
+    act(() => {
+      result.current.mutate({
+        positions: [
+          { habitId: 'h-2', position: 0 },
+          { habitId: 'parent-1', position: 1 },
+          { habitId: 'child-b', position: 0 },
+          { habitId: 'child-a', position: 1 },
+        ],
+      })
+    })
+
+    await waitFor(() => {
+      const cached = queryClient.getQueryData<HabitScheduleItem[]>(habitKeys.list({}))
+      expect(cached?.find((h) => h.id === 'h-2')?.position).toBe(0)
+    })
+
+    const cached = queryClient.getQueryData<HabitScheduleItem[]>(habitKeys.list({}))!
+    expect(cached.find((h) => h.id === 'parent-1')?.position).toBe(1)
+    const parent = cached.find((h) => h.id === 'parent-1')!
+    expect(parent.children.find((c) => c.id === 'child-b')?.position).toBe(0)
+    expect(parent.children.find((c) => c.id === 'child-a')?.position).toBe(1)
+  })
+
+  it('rolls back the cached order and surfaces an error toast when the reorder fails', async () => {
+    const { useReorderHabits } = await import('@/hooks/use-habits')
+    const { reorderHabits } = await import('@/app/actions/habits')
+    vi.mocked(reorderHabits).mockRejectedValue(new Error('boom'))
+
+    const queryClient = createQueryClient()
+    queryClient.setQueryData<HabitScheduleItem[]>(habitKeys.list({}), [
+      makeScheduleItem({ id: 'h-1', position: 0 }),
+      makeScheduleItem({ id: 'h-2', position: 1 }),
+    ])
+
+    const { result } = renderHook(() => useReorderHabits(), {
+      wrapper: createWrapper(queryClient),
+    })
+
+    await act(async () => {
+      try {
+        await result.current.mutateAsync({
+          positions: [
+            { habitId: 'h-2', position: 0 },
+            { habitId: 'h-1', position: 1 },
+          ],
+        })
+      } catch {
+      }
+    })
+
+    const cached = queryClient.getQueryData<HabitScheduleItem[]>(habitKeys.list({}))!
+    expect(cached.find((h) => h.id === 'h-1')?.position).toBe(0)
+    expect(cached.find((h) => h.id === 'h-2')?.position).toBe(1)
+    expect(mockShowError).toHaveBeenCalledWith('habits.reorderFailed')
   })
 })
 

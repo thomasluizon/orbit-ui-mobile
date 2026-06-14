@@ -13,6 +13,11 @@ describe('auth store', () => {
       expiresAt: null,
     })
     mockFetch.mockReset()
+    mockFetch.mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve({ expiresAt: null }),
+    })
   })
 
   function makeLoginResponse(overrides: Partial<LoginResponse> = {}): LoginResponse {
@@ -92,6 +97,39 @@ describe('auth store', () => {
 
   it('keeps the current state on network errors', async () => {
     mockFetch.mockRejectedValue(new Error('Network error'))
+    useAuthStore.getState().setAuth(makeLoginResponse())
+
+    await useAuthStore.getState().checkSession()
+
+    expect(useAuthStore.getState()).toMatchObject({
+      isAuthenticated: true,
+      user: expect.objectContaining({ userId: 'user-1' }),
+    })
+  })
+
+  it('clears the session on a 401 response', async () => {
+    mockFetch.mockResolvedValue({
+      ok: false,
+      status: 401,
+      json: () => Promise.resolve({ expiresAt: null }),
+    })
+    useAuthStore.getState().setAuth(makeLoginResponse())
+
+    await useAuthStore.getState().checkSession()
+
+    expect(useAuthStore.getState()).toMatchObject({
+      isAuthenticated: false,
+      user: null,
+      expiresAt: null,
+    })
+  })
+
+  it('keeps the current state on a transient server error', async () => {
+    mockFetch.mockResolvedValue({
+      ok: false,
+      status: 500,
+      json: () => Promise.resolve({ expiresAt: null }),
+    })
     useAuthStore.getState().setAuth(makeLoginResponse())
 
     await useAuthStore.getState().checkSession()

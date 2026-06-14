@@ -27,6 +27,7 @@ const mocks = vi.hoisted(() => {
     apiClient: vi.fn(),
     isAppActive: vi.fn(() => true),
     isOnline: vi.fn(() => true),
+    isAuthenticated: true,
     useQuery: vi.fn((options: CapturedQuery) => {
       mocks.captured.push(options)
       return { data: undefined, isLoading: false, isSuccess: false, isError: false }
@@ -45,6 +46,11 @@ vi.mock('@/lib/api-client', () => ({
 vi.mock('@/lib/query-client', () => ({
   isAppActive: () => mocks.isAppActive(),
   isOnline: () => mocks.isOnline(),
+}))
+
+vi.mock('@/stores/auth-store', () => ({
+  useAuthStore: (selector: (state: { isAuthenticated: boolean }) => unknown) =>
+    selector({ isAuthenticated: mocks.isAuthenticated }),
 }))
 
 function renderHookCapture(useHook: () => unknown): void {
@@ -69,6 +75,7 @@ beforeEach(() => {
   mocks.useQuery.mockClear()
   mocks.isAppActive.mockReturnValue(true)
   mocks.isOnline.mockReturnValue(true)
+  mocks.isAuthenticated = true
 })
 
 describe('useHabits (mobile query hook)', () => {
@@ -199,14 +206,22 @@ describe('useHabitFullDetail (mobile)', () => {
 })
 
 describe('useTotalHabitCount (mobile)', () => {
-  it('reads the lightweight count endpoint', async () => {
+  it('reads the lightweight count endpoint when authenticated', async () => {
     mocks.apiClient.mockResolvedValue({ count: 42 })
 
     renderHookCapture(() => useTotalHabitCount())
     const query = lastQuery()
     expect(query.queryKey).toEqual(habitKeys.count())
+    expect(query.enabled).toBe(true)
 
     await query.queryFn()
     expect(mocks.apiClient).toHaveBeenCalledWith('/api/habits/count')
+  })
+
+  it('does not enable the query when unauthenticated', () => {
+    mocks.isAuthenticated = false
+
+    renderHookCapture(() => useTotalHabitCount())
+    expect(lastQuery().enabled).toBe(false)
   })
 })

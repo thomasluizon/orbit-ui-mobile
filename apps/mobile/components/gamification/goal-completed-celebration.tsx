@@ -47,10 +47,19 @@ export function GoalCompletedCelebration() {
     })
   }, [overlayOpacity, setGoalCompletedCelebration])
 
+  const [prevCelebration, setPrevCelebration] = useState(
+    goalCompletedCelebration,
+  )
+  if (goalCompletedCelebration !== prevCelebration) {
+    setPrevCelebration(goalCompletedCelebration)
+    if (goalCompletedCelebration) {
+      setGoalName(goalCompletedCelebration.name)
+    }
+  }
+
   useEffect(() => {
     if (!goalCompletedCelebration) return
 
-    setGoalName(goalCompletedCelebration.name)
     overlayOpacity.setValue(0)
 
     Animated.timing(overlayOpacity, {

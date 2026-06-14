@@ -343,6 +343,11 @@ export default function TodayScreen() {
   const bulkBarAnim = bulkBarAnimRef.current;
   const hasAnimatedFiltersRef = useRef(false);
   const [renderBulkActionBar, setRenderBulkActionBar] = useState(isSelectMode);
+  const [prevIsSelectMode, setPrevIsSelectMode] = useState(isSelectMode);
+  if (isSelectMode !== prevIsSelectMode) {
+    setPrevIsSelectMode(isSelectMode);
+    if (isSelectMode) setRenderBulkActionBar(true);
+  }
 
   const [detailHabit, setDetailHabit] = useState<NormalizedHabit | null>(null);
   const [editHabit, setEditHabit] = useState<NormalizedHabit | null>(null);
@@ -689,8 +694,6 @@ export default function TodayScreen() {
 
   useEffect(() => {
     if (isSelectMode) {
-       
-      setRenderBulkActionBar(true);
       bulkBarAnim.stopAnimation?.();
       bulkBarAnim.setValue(selectionMotion.reducedMotionEnabled ? 1 : 0);
       Animated.timing(
@@ -738,9 +741,11 @@ export default function TodayScreen() {
   const setShowCreateModal = useUIStore((s) => s.setShowCreateModal);
   const showCreateGoalModal = useUIStore((s) => s.showCreateGoalModal);
   const setShowCreateGoalModal = useUIStore((s) => s.setShowCreateGoalModal);
-  useEffect(() => {
+  const [prevFilters, setPrevFilters] = useState(filters);
+  if (filters !== prevFilters) {
+    setPrevFilters(filters);
     setFilters(filters);
-  }, [filters, setFilters]);
+  }
 
   const showSummary =
     currentActiveView === "today" && isToday(selectedDate) && hasProAccess;
@@ -820,12 +825,6 @@ export default function TodayScreen() {
     }),
     [bulkBarAnim, selectionMotion],
   );
-
-  useEffect(() => {
-    if (!hasProAccess && activeView === "goals") {
-      setActiveView("today");
-    }
-  }, [activeView, hasProAccess, setActiveView]);
 
   useEffect(() => {
     if (

@@ -22,7 +22,7 @@ import {
 } from 'lucide-react-native'
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { API } from '@orbit/shared/api'
-import { userFactKeys } from '@orbit/shared/query'
+import { habitKeys, userFactKeys } from '@orbit/shared/query'
 import {
   normalizeUserFactCategory,
   USER_FACTS_PER_PAGE,
@@ -120,6 +120,9 @@ export default function AiSettingsScreen() {
       if (context?.previous !== undefined) {
         patchProfile({ aiSummaryEnabled: context.previous })
       }
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: habitKeys.summaryPrefix() })
     },
   })
 

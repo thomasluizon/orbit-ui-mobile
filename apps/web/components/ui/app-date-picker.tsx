@@ -35,7 +35,7 @@ export function AppDatePicker({
   const t = useTranslations()
   const locale = useLocale()
   const { profile } = useProfile()
-  const weekStartsOn = (profile?.weekStartDay ?? 0) as 0 | 1
+  const weekStartsOn: 0 | 1 = profile?.weekStartDay ?? 0
   const [isOpen, setIsOpen] = useState(false)
   const [viewDate, setViewDate] = useState(() => (value ? parseISO(value) : new Date()))
   const [lastSyncedValue, setLastSyncedValue] = useState(value)

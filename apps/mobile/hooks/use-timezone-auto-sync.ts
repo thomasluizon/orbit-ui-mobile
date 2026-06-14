@@ -2,7 +2,7 @@ import { useEffect } from 'react'
 import { AppState } from 'react-native'
 import { useQueryClient } from '@tanstack/react-query'
 import { API } from '@orbit/shared/api'
-import { profileKeys } from '@orbit/shared/query'
+import { habitKeys, profileKeys } from '@orbit/shared/query'
 import type { Profile } from '@orbit/shared/types/profile'
 import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
 
@@ -27,14 +27,11 @@ async function queueTimezoneSyncIfNeeded(
     queryClient.setQueryData<Profile>(profileKeys.detail(), (old) =>
       old ? { ...old, timeZone: detected } : old,
     )
+    void queryClient.invalidateQueries({ queryKey: habitKeys.all })
   } catch {
-    // Silently ignore -- timezone update is best-effort
   }
 }
 
-// Single-instance timezone auto-sync. Call exactly once from the root layout.
-// Compares the device timezone against the cached profile on mount and on
-// AppState 'active'; queues PUT /api/profile/timezone only when they differ.
 export function useTimezoneAutoSync(profile: Profile | undefined) {
   const queryClient = useQueryClient()
 

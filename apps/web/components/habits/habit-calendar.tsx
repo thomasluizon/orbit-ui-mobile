@@ -30,7 +30,7 @@ export function HabitCalendar({ habitId, logs: externalLogs }: Readonly<HabitCal
   const { data: fetchedLogs } = useHabitLogs(externalLogs ? null : habitId)
   const logs = useMemo<HabitLog[]>(() => externalLogs ?? fetchedLogs ?? [], [externalLogs, fetchedLogs])
   const { profile } = useProfile()
-  const weekStartsOn = (profile?.weekStartDay ?? 1) as 0 | 1
+  const weekStartsOn: 0 | 1 = profile?.weekStartDay ?? 1
 
   const [currentMonth, setCurrentMonth] = useState(new Date())
   const [selectedDate, setSelectedDate] = useState<string | null>(null)

@@ -650,6 +650,7 @@ export function invalidateHabitMutationQueries(
 ): void {
   const invalidations: Promise<unknown>[] = [
     queryClient.invalidateQueries({ queryKey: habitKeys.lists() }),
+    queryClient.invalidateQueries({ queryKey: habitKeys.calendarPrefix() }),
     queryClient.invalidateQueries({ queryKey: habitKeys.summaryPrefix() }),
   ]
 

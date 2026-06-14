@@ -44,4 +44,14 @@ describe('formatNotificationRelativeTime', () => {
       ),
     ).toBe('daysAgo:3')
   })
+
+  it('renders a future timestamp (clock skew) as now instead of a negative diff', () => {
+    expect(
+      formatNotificationRelativeTime(
+        '2025-01-01T12:05:00Z',
+        translate,
+        new Date('2025-01-01T12:00:00Z'),
+      ),
+    ).toBe('now')
+  })
 })

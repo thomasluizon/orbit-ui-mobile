@@ -18,6 +18,14 @@ const validExport = {
     aiMemoryEnabled: true,
     aiSummaryEnabled: false,
   },
+  subscription: {
+    plan: 'pro',
+    isLifetimePro: false,
+    source: 'stripe',
+    interval: 'month',
+    planExpiresAtUtc: '2026-12-31T00:00:00Z',
+    trialEndsAtUtc: null,
+  },
   habits: [
     {
       id: '11111111-1111-1111-1111-111111111111',
@@ -46,6 +54,57 @@ const validExport = {
   goals: [],
   tags: [],
   facts: [],
+  notifications: [
+    {
+      id: '22222222-2222-2222-2222-222222222222',
+      title: 'Streak saved',
+      body: 'Your streak freeze kept your run alive.',
+      url: null,
+      isRead: true,
+      createdAtUtc: '2026-06-02T09:00:00Z',
+    },
+  ],
+  checklistTemplates: [
+    {
+      id: '33333333-3333-3333-3333-333333333333',
+      name: 'Morning routine',
+      items: ['Water', 'Stretch'],
+      createdAtUtc: '2026-01-03T00:00:00Z',
+    },
+  ],
+  achievements: [
+    {
+      achievementId: 'first-habit',
+      earnedAtUtc: '2026-01-05T00:00:00Z',
+    },
+  ],
+  streakFreezes: [
+    {
+      usedOnDate: '2026-05-30',
+      createdAtUtc: '2026-05-30T00:00:00Z',
+    },
+  ],
+  referrals: [
+    {
+      status: 'completed',
+      createdAtUtc: '2026-02-01T00:00:00Z',
+      completedAtUtc: '2026-02-10T00:00:00Z',
+      rewardGrantedAtUtc: '2026-02-11T00:00:00Z',
+    },
+  ],
+  apiKeys: [
+    {
+      id: '44444444-4444-4444-4444-444444444444',
+      name: 'CLI token',
+      keyPrefix: 'orb_live_abcd',
+      scopes: ['habits:read', 'habits:write'],
+      isReadOnly: false,
+      createdAtUtc: '2026-03-01T00:00:00Z',
+      expiresAtUtc: null,
+      lastUsedAtUtc: '2026-06-01T12:00:00Z',
+      isRevoked: false,
+    },
+  ],
 }
 
 describe('userDataExportSchema', () => {
@@ -53,6 +112,22 @@ describe('userDataExportSchema', () => {
     const result = userDataExportSchema.parse(validExport)
     expect(result.account.email).toBe('ada@example.com')
     expect(result.habits[0]?.logs[0]?.value).toBe(1)
+    expect(result.subscription.plan).toBe('pro')
+    expect(result.notifications[0]?.title).toBe('Streak saved')
+    expect(result.checklistTemplates[0]?.items).toEqual(['Water', 'Stretch'])
+    expect(result.achievements[0]?.achievementId).toBe('first-habit')
+    expect(result.streakFreezes[0]?.usedOnDate).toBe('2026-05-30')
+    expect(result.referrals[0]?.status).toBe('completed')
+    expect(result.apiKeys[0]?.keyPrefix).toBe('orb_live_abcd')
+  })
+
+  it('strips unknown fields such as a leaked api-key secret hash', () => {
+    const withSecret = {
+      ...validExport,
+      apiKeys: [{ ...validExport.apiKeys[0], keyHash: 'should-not-appear' }],
+    }
+    const result = userDataExportSchema.parse(withSecret)
+    expect(result.apiKeys[0]).not.toHaveProperty('keyHash')
   })
 
   it('rejects a payload missing required top-level collections', () => {

@@ -1,3 +1,5 @@
+import { nowDate } from './dates'
+
 interface NotificationTimeTranslationAdapter {
   now: string
   minutesAgo: string
@@ -8,10 +10,10 @@ interface NotificationTimeTranslationAdapter {
 export function formatNotificationRelativeTime(
   dateStr: string,
   translate: (key: keyof NotificationTimeTranslationAdapter, values?: { n: number }) => string,
-  now: Date = new Date(),
+  now: Date = nowDate(),
 ): string {
   const date = new Date(dateStr)
-  const diffMs = now.getTime() - date.getTime()
+  const diffMs = Math.max(0, now.getTime() - date.getTime())
   const diffMin = Math.floor(diffMs / 60000)
 
   if (diffMin < 1) {

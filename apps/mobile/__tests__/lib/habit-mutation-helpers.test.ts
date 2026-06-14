@@ -150,6 +150,9 @@ describe('finalizeHabitMutation', () => {
 
     expect(queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: habitKeys.lists() })
     expect(queryClient.invalidateQueries).toHaveBeenCalledWith({
+      queryKey: habitKeys.calendarPrefix(),
+    })
+    expect(queryClient.invalidateQueries).toHaveBeenCalledWith({
       queryKey: habitKeys.summaryPrefix(),
     })
     expect(queryClient.invalidateQueries).toHaveBeenCalledWith({

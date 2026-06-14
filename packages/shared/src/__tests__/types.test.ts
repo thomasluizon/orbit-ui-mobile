@@ -421,7 +421,7 @@ describe('config schema', () => {
   it('validates feature flag shape', () => {
     const config = createMockConfig({
       features: {
-        'custom.feature': { enabled: true, plan: null },
+        'custom.feature': { enabled: true, planRequirement: null },
       },
     })
     const result = appConfigSchema.safeParse(config)

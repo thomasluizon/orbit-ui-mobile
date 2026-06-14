@@ -20,6 +20,10 @@ vi.mock('@orbit/shared/utils', () => ({
     'X-Orbit-Time-Zone': 'America/Sao_Paulo',
   })),
   extractBackendError: vi.fn((err: { data?: { error?: string } }) => err?.data?.error ?? undefined),
+  extractBackendErrorCode: vi.fn(
+    (err: { data?: { code?: string; errorCode?: string } }) =>
+      err?.data?.code ?? err?.data?.errorCode ?? undefined,
+  ),
 }))
 
 const mockFetch = vi.fn()
@@ -108,7 +112,7 @@ describe('apiFetch', () => {
     }
   })
 
-  it('redirects to /upgrade on 403 without toast', async () => {
+  it('redirects to /upgrade on a 403 PAY_GATE without toast', async () => {
     const mockHref = { href: '' }
     Object.defineProperty(globalThis, 'location', {
       value: mockHref,
@@ -119,7 +123,7 @@ describe('apiFetch', () => {
     mockFetch.mockResolvedValue({
       ok: false,
       status: 403,
-      json: () => Promise.resolve({ error: 'Forbidden' }),
+      json: () => Promise.resolve({ error: 'Upgrade required', code: 'PAY_GATE' }),
     })
 
     await expect(apiFetch('/api/test')).rejects.toThrow(ApiError)
@@ -141,12 +145,34 @@ describe('apiFetch', () => {
     mockFetch.mockResolvedValue({
       ok: false,
       status: 403,
-      json: () => Promise.resolve({ error: 'Forbidden' }),
+      json: () => Promise.resolve({ error: 'Upgrade required', code: 'PAY_GATE' }),
     })
 
     await expect(apiFetch('/api/test')).rejects.toThrow(ApiError)
     expect(locationOnUpgrade.href).toBe('https://app.useorbit.org/upgrade')
     expect(toast.error).not.toHaveBeenCalled()
+  })
+
+  it('does not redirect on a non-PAY_GATE 403 and shows an error toast', async () => {
+    const mockHref = { href: '', pathname: '/today' }
+    Object.defineProperty(globalThis, 'location', {
+      value: mockHref,
+      writable: true,
+      configurable: true,
+    })
+
+    mockFetch.mockResolvedValue({
+      ok: false,
+      status: 403,
+      json: () => Promise.resolve({ error: 'You do not own this habit', code: 'NO_PERMISSION' }),
+    })
+
+    await expect(apiFetch('/api/test')).rejects.toThrow(ApiError)
+    expect(mockHref.href).toBe('')
+    expect(toast.error).toHaveBeenCalledWith('Something went wrong', {
+      description: 'You do not own this habit',
+      duration: 5000,
+    })
   })
 
   it('shows validation error toast on 400', async () => {

@@ -68,6 +68,21 @@ describe('chat server actions', () => {
       })
     })
 
+    it('forwards the backend error code when a pending-operation call fails', async () => {
+      mockServerAuthFetch.mockRejectedValue(
+        Object.assign(new Error('Step-up required'), { status: 403, code: 'STEP_UP_REQUIRED' }),
+      )
+
+      const result = await confirmPendingOperation('pending-1')
+
+      expect(result).toEqual({
+        ok: false,
+        error: 'Step-up required',
+        status: 403,
+        code: 'STEP_UP_REQUIRED',
+      })
+    })
+
     it('executes a confirmed pending operation', async () => {
       mockServerAuthFetch.mockResolvedValue({
         operation: {

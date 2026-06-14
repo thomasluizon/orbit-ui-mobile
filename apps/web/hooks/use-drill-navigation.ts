@@ -7,6 +7,7 @@ import {
   mergeDrillChildrenMap,
 } from '@orbit/shared/utils/drill-navigation'
 import { getErrorMessage, API } from '@orbit/shared/api'
+import { fetchJson } from '@/lib/api-fetch'
 import { hasOpenOverlay } from '@/lib/overlay-stack'
 import type { NormalizedHabit, HabitDetail } from '@orbit/shared/types/habit'
 
@@ -23,12 +24,7 @@ function isInsideOpenLayer(target: EventTarget | null): boolean {
 }
 
 async function fetchHabitDetail(habitId: string): Promise<HabitDetail> {
-  const res = await fetch(API.habits.get(habitId))
-  if (!res.ok) {
-    const body = await res.json().catch(() => null)
-    throw new Error(body?.error ?? `Failed to fetch habit detail (${res.status})`)
-  }
-  return res.json() as Promise<HabitDetail>
+  return fetchJson<HabitDetail>(API.habits.get(habitId))
 }
 
 export interface DrillNavigationState {

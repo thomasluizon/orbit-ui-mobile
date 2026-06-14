@@ -1,4 +1,4 @@
-import { memo, useCallback, useEffect, useRef, useState, type ReactNode } from "react";
+import { memo, useCallback, useEffect, useState, type ReactNode } from "react";
 import { Pressable, View } from "react-native";
 import { ArrowUp } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
@@ -40,7 +40,8 @@ export const ChatComposerInput = memo(function ChatComposerInput({
 }: Readonly<ChatComposerInputProps>) {
   const { t } = useTranslation();
   const [draft, setDraft] = useState("");
-  const prevIsRecording = useRef(false);
+  const [prevIsRecording, setPrevIsRecording] = useState(false);
+  const [prevResetSignal, setPrevResetSignal] = useState(resetSignal);
 
   useEffect(() => {
     let isMounted = true;
@@ -57,17 +58,21 @@ export const ChatComposerInput = memo(function ChatComposerInput({
     };
   }, []);
 
-  useEffect(() => {
-    if (prevIsRecording.current && !isRecording && transcript.trim()) {
+  if (isRecording !== prevIsRecording) {
+    setPrevIsRecording(isRecording);
+    if (prevIsRecording && !isRecording && transcript.trim()) {
       setDraft((current) =>
         current ? `${current} ${transcript.trim()}` : transcript.trim(),
       );
     }
-    prevIsRecording.current = isRecording;
-  }, [isRecording, transcript]);
+  }
+
+  if (resetSignal !== prevResetSignal) {
+    setPrevResetSignal(resetSignal);
+    setDraft("");
+  }
 
   useEffect(() => {
-    setDraft("");
     void AsyncStorage.removeItem(CHAT_DRAFT_STORAGE_KEY);
   }, [resetSignal]);
 

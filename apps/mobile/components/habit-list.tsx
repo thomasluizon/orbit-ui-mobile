@@ -315,18 +315,45 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       [habitsById, selectedIds],
     )
 
+    const recentlyCompletedTimersRef = useRef(
+      new Map<string, ReturnType<typeof setTimeout>>(),
+    )
+
+    useEffect(() => {
+      const timers = recentlyCompletedTimersRef.current
+      return () => {
+        for (const timer of timers.values()) {
+          clearTimeout(timer)
+        }
+        timers.clear()
+      }
+    }, [])
+
     const markRecentlyCompleted = useCallback((habitId: string) => {
       setRecentlyCompletedIds((previous) => new Set(previous).add(habitId))
-      setTimeout(() => {
-        setRecentlyCompletedIds((previous) => {
-          const next = new Set(previous)
-          next.delete(habitId)
-          return next
-        })
-      }, 1400)
+      const timers = recentlyCompletedTimersRef.current
+      const existing = timers.get(habitId)
+      if (existing) clearTimeout(existing)
+      timers.set(
+        habitId,
+        setTimeout(() => {
+          timers.delete(habitId)
+          setRecentlyCompletedIds((previous) => {
+            const next = new Set(previous)
+            next.delete(habitId)
+            return next
+          })
+        }, 1400),
+      )
     }, [])
 
     const clearRecentlyCompleted = useCallback((habitId: string) => {
+      const timers = recentlyCompletedTimersRef.current
+      const existing = timers.get(habitId)
+      if (existing) {
+        clearTimeout(existing)
+        timers.delete(habitId)
+      }
       setRecentlyCompletedIds((previous) => {
         if (!previous.has(habitId)) return previous
         const next = new Set(previous)

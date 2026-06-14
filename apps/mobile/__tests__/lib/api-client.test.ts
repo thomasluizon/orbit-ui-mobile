@@ -6,14 +6,16 @@ const {
   getTokenMock,
   clearAllTokensMock,
   fetchMock,
-  refreshSessionTokenMock,
+  refreshSessionMock,
   clearSessionAndResetAuthMock,
+  isAuthTransitionInFlightMock,
 } = vi.hoisted(() => ({
   getTokenMock: vi.fn(),
   clearAllTokensMock: vi.fn(),
   fetchMock: vi.fn(),
-  refreshSessionTokenMock: vi.fn(),
+  refreshSessionMock: vi.fn(),
   clearSessionAndResetAuthMock: vi.fn(),
+  isAuthTransitionInFlightMock: vi.fn(() => false),
 }))
 
 vi.mock('@/lib/secure-store', () => ({
@@ -22,8 +24,9 @@ vi.mock('@/lib/secure-store', () => ({
 }))
 
 vi.mock('@/stores/auth-store', () => ({
-  refreshSessionToken: refreshSessionTokenMock,
+  refreshSession: refreshSessionMock,
   clearSessionAndResetAuth: clearSessionAndResetAuthMock,
+  isAuthTransitionInFlight: isAuthTransitionInFlightMock,
 }))
 
 vi.stubGlobal('fetch', fetchMock)
@@ -33,8 +36,10 @@ describe('mobile apiClient', () => {
     getTokenMock.mockReset()
     clearAllTokensMock.mockReset()
     fetchMock.mockReset()
-    refreshSessionTokenMock.mockReset()
+    refreshSessionMock.mockReset()
     clearSessionAndResetAuthMock.mockReset()
+    isAuthTransitionInFlightMock.mockReset()
+    isAuthTransitionInFlightMock.mockReturnValue(false)
   })
 
   it('adds auth and JSON headers for standard requests', async () => {
@@ -86,7 +91,7 @@ describe('mobile apiClient', () => {
 
   it('retries once after a 401 when refresh succeeds', async () => {
     getTokenMock.mockResolvedValue('token-123')
-    refreshSessionTokenMock.mockResolvedValue('token-456')
+    refreshSessionMock.mockResolvedValue({ status: 'refreshed', token: 'token-456' })
     fetchMock
       .mockResolvedValueOnce({ ok: false, status: 401 })
       .mockResolvedValueOnce({
@@ -97,7 +102,7 @@ describe('mobile apiClient', () => {
 
     await expect(apiClient('/secure')).resolves.toEqual({ ok: true })
 
-    expect(refreshSessionTokenMock).toHaveBeenCalledWith({ clearOnFailure: false })
+    expect(refreshSessionMock).toHaveBeenCalledWith({ clearOnFailure: false })
     expect(clearSessionAndResetAuthMock).not.toHaveBeenCalled()
     expect(fetchMock).toHaveBeenNthCalledWith(
       2,
@@ -124,7 +129,7 @@ describe('mobile apiClient', () => {
 
     await expect(apiClient('/secure')).resolves.toEqual({ ok: true })
 
-    expect(refreshSessionTokenMock).not.toHaveBeenCalled()
+    expect(refreshSessionMock).not.toHaveBeenCalled()
     expect(clearSessionAndResetAuthMock).not.toHaveBeenCalled()
     expect(fetchMock).toHaveBeenNthCalledWith(
       2,
@@ -139,12 +144,33 @@ describe('mobile apiClient', () => {
 
   it('clears auth state when refresh cannot recover a 401', async () => {
     getTokenMock.mockResolvedValue('token-123')
-    refreshSessionTokenMock.mockResolvedValue(null)
+    refreshSessionMock.mockResolvedValue({ status: 'unauthorized' })
     fetchMock.mockResolvedValue({ ok: false, status: 401 })
 
     await expect(apiClient('/secure')).rejects.toThrow('Unauthorized')
 
     expect(clearSessionAndResetAuthMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not clear the session on a 401 caused by a transient refresh network blip', async () => {
+    getTokenMock.mockResolvedValue('token-123')
+    refreshSessionMock.mockResolvedValue({ status: 'network-error' })
+    fetchMock.mockResolvedValue({ ok: false, status: 401 })
+
+    await expect(apiClient('/secure')).rejects.toThrow('Unauthorized')
+
+    expect(clearSessionAndResetAuthMock).not.toHaveBeenCalled()
+  })
+
+  it('does not clear the session on a 401 while an auth transition is in flight', async () => {
+    isAuthTransitionInFlightMock.mockReturnValue(true)
+    getTokenMock.mockResolvedValue('token-123')
+    refreshSessionMock.mockResolvedValue({ status: 'unauthorized' })
+    fetchMock.mockResolvedValue({ ok: false, status: 401 })
+
+    await expect(apiClient('/secure')).rejects.toThrow('Unauthorized')
+
+    expect(clearSessionAndResetAuthMock).not.toHaveBeenCalled()
   })
 
   it('prefers backend error payload text when available', async () => {

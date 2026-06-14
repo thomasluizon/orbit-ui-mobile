@@ -1,24 +1,36 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { queryClient, persistQueryCache, restoreQueryCache } from '@/lib/query-client'
+import {
+  queryClient,
+  persistQueryCache,
+  restoreQueryCache,
+  setQueryCacheScope,
+} from '@/lib/query-client'
 
-const { getItemMock, setItemMock } = vi.hoisted(() => ({
+const { getItemMock, setItemMock, removeItemMock } = vi.hoisted(() => ({
   getItemMock: vi.fn(),
   setItemMock: vi.fn(),
+  removeItemMock: vi.fn(),
 }))
 
 vi.mock('@react-native-async-storage/async-storage', () => ({
   default: {
     getItem: getItemMock,
     setItem: setItemMock,
+    removeItem: removeItemMock,
   },
 }))
 
 describe('mobile query client', () => {
-  beforeEach(() => {
+  beforeEach(async () => {
     getItemMock.mockReset()
     setItemMock.mockReset()
+    removeItemMock.mockReset()
     queryClient.clear()
+    await setQueryCacheScope(null)
+    getItemMock.mockReset()
+    setItemMock.mockReset()
+    removeItemMock.mockReset()
   })
 
   it('uses the expected retry and stale defaults', () => {
@@ -35,13 +47,14 @@ describe('mobile query client', () => {
     expect(retry(3, new Error('network'))).toBe(false)
   })
 
-  it('persists only successful query results', async () => {
+  it('persists only successful query results under the active account scope', async () => {
+    await setQueryCacheScope('user-1')
     queryClient.setQueryData(['good'], { ok: true }, { updatedAt: 123 })
 
     await persistQueryCache()
 
     expect(setItemMock).toHaveBeenCalledWith(
-      '@orbit/query-cache',
+      '@orbit/query-cache:user-1',
       JSON.stringify([
         {
           queryKey: ['good'],
@@ -54,7 +67,8 @@ describe('mobile query client', () => {
     )
   })
 
-  it('restores cached query results', async () => {
+  it('restores cached query results for the active account scope', async () => {
+    await setQueryCacheScope('user-1')
     getItemMock.mockResolvedValue(
       JSON.stringify([
         {
@@ -69,6 +83,42 @@ describe('mobile query client', () => {
 
     await restoreQueryCache()
 
+    expect(getItemMock).toHaveBeenCalledWith('@orbit/query-cache:user-1')
     expect(queryClient.getQueryData(['restored'])).toEqual({ value: 1 })
+  })
+
+  it('does not persist or restore when no account scope is set', async () => {
+    queryClient.setQueryData(['good'], { ok: true }, { updatedAt: 123 })
+
+    await persistQueryCache()
+    await restoreQueryCache()
+
+    expect(setItemMock).not.toHaveBeenCalled()
+    expect(getItemMock).not.toHaveBeenCalled()
+  })
+
+  it('does not restore one account cache under a different account', async () => {
+    getItemMock.mockImplementation(async (key: string) =>
+      key === '@orbit/query-cache:user-1'
+        ? JSON.stringify([
+            { queryKey: ['secret'], state: { data: { a: 1 }, dataUpdatedAt: 1 } },
+          ])
+        : null,
+    )
+
+    await setQueryCacheScope('user-2')
+    await restoreQueryCache()
+
+    expect(getItemMock).toHaveBeenCalledWith('@orbit/query-cache:user-2')
+    expect(queryClient.getQueryData(['secret'])).toBeUndefined()
+  })
+
+  it('clears the previous account cache when switching scope', async () => {
+    await setQueryCacheScope('user-1')
+    removeItemMock.mockClear()
+
+    await setQueryCacheScope('user-2')
+
+    expect(removeItemMock).toHaveBeenCalledWith('@orbit/query-cache:user-1')
   })
 })

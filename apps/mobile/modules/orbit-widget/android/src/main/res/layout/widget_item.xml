@@ -49,7 +49,7 @@
                 android:layout_height="wrap_content"
                 android:layout_gravity="center"
                 android:textSize="10sp"
-                android:fontFamily="@font/roboto_medium"
+                android:fontFamily="sans-serif-medium"
                 android:fontFeatureSettings="tnum"
                 android:paddingStart="6dp"
                 android:paddingEnd="6dp"
@@ -67,7 +67,7 @@
             android:layout_alignParentEnd="true"
             android:layout_centerVertical="true"
             android:textSize="11sp"
-            android:fontFamily="@font/roboto_medium"
+            android:fontFamily="sans-serif-medium"
             android:fontFeatureSettings="tnum"
             android:paddingStart="7dp"
             android:paddingEnd="7dp"
@@ -93,9 +93,10 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:textSize="14sp"
+                android:textColor="#FFF8FAFC"
                 android:maxLines="1"
                 android:ellipsize="end"
-                android:fontFamily="@font/rubik_medium" />
+                android:fontFamily="sans-serif-medium" />
 
             <!-- Due time (below title, plain text) -->
             <TextView
@@ -103,7 +104,8 @@
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:textSize="11sp"
-                android:fontFamily="@font/roboto_regular"
+                android:textColor="#9990A1B9"
+                android:fontFamily="sans-serif"
                 android:letterSpacing="0.02"
                 android:fontFeatureSettings="tnum"
                 android:paddingTop="1dp"

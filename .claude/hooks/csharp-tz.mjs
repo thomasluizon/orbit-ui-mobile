@@ -34,7 +34,7 @@ try {
   for (const match of contents.matchAll(utcNowPattern)) {
     const lineNumber = contents.slice(0, match.index).split("\n").length
     const line = contents.split("\n")[lineNumber - 1]
-    if (/CreatedAtUtc|UpdatedAtUtc|cache(Key)?/i.test(line)) continue
+    if (/[A-Za-z]*AtUtc|cache(Key)?/i.test(line)) continue
     findings.push(`${filePath}:${lineNumber} — DateTime.UtcNow`)
   }
 

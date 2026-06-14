@@ -11,7 +11,7 @@ export function isFeatureEnabled(
     return false
   }
 
-  if (flag.plan === null) {
+  if (flag.planRequirement === null) {
     return true
   }
 

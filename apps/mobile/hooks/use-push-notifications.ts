@@ -68,7 +68,7 @@ interface UsePushNotificationsReturn {
   refreshPermissionStatus: () => Promise<void>
 }
 
-let activeRegistrationPromise: Promise<boolean> | null = null
+let activeRegistration: { userId: string | null; promise: Promise<boolean> } | null = null
 const PUSH_DISABLED_STORAGE_KEY_PREFIX = 'orbit_push_disabled'
 
 function isExpoGo(): boolean {
@@ -147,21 +147,6 @@ function isSafeInternalUrl(value: unknown): value is string {
   return typeof value === 'string' && value.startsWith('/') && !value.startsWith('//')
 }
 
-function getProjectIdFromExpoConfig(): string | null {
-  const extra = Constants.expoConfig?.extra
-  if (!extra || typeof extra !== 'object' || !('eas' in extra)) {
-    return null
-  }
-
-  const eas = extra.eas
-  if (!eas || typeof eas !== 'object' || !('projectId' in eas)) {
-    return null
-  }
-
-  const projectId = eas.projectId
-  return typeof projectId === 'string' ? projectId : null
-}
-
 if (notificationsModule) {
   notificationsModule.setNotificationHandler({
     handleNotification: async () => ({
@@ -190,23 +175,6 @@ async function delay(ms: number): Promise<void> {
   })
 }
 
-async function getPushToken(): Promise<string | null> {
-  if (!notificationsModule || !isPhysicalDevice()) return null
-
-  await ensureAndroidChannel()
-  const projectId =
-    process.env.EXPO_PUBLIC_PROJECT_ID ??
-    Constants.easConfig?.projectId ??
-    getProjectIdFromExpoConfig()
-
-  if (!projectId) return null
-  const tokenData = await notificationsModule.getExpoPushTokenAsync({
-    projectId,
-  })
-
-  return tokenData.data
-}
-
 async function getNativeAndroidPushToken(): Promise<string | null> {
   if (!notificationsModule || !isPhysicalDevice() || Platform.OS !== 'android') return null
 
@@ -221,8 +189,6 @@ async function getNativeAndroidPushToken(): Promise<string | null> {
     try {
       const tokenData = await notificationsModule.getDevicePushTokenAsync()
       if (!tokenData.data) continue
-      // Expo can report Android native tokens with service labels like `fcm`
-      // or platform labels like `android`. The backend only needs the token string.
       return tokenData.data
     } catch (err: unknown) {
       lastError = err
@@ -237,16 +203,14 @@ async function getNativeAndroidPushToken(): Promise<string | null> {
 }
 
 async function getCurrentPushToken(): Promise<string | null> {
-  return Platform.OS === 'android'
-    ? getNativeAndroidPushToken()
-    : getPushToken()
+  return getNativeAndroidPushToken()
 }
 
 function buildNativePushPayload(token: string) {
   return {
     endpoint: token,
-    p256dh: Platform.OS === 'android' ? 'fcm' : 'native',
-    auth: Platform.OS === 'android' ? 'fcm' : 'native',
+    p256dh: 'fcm',
+    auth: 'fcm',
   }
 }
 
@@ -262,6 +226,24 @@ async function removeTokenFromBackend(token: string): Promise<void> {
     method: 'POST',
     body: JSON.stringify(buildNativePushPayload(token)),
   })
+}
+
+/**
+ * Best-effort unsubscribe of this device's current push token from the backend.
+ * Called during logout while the auth token is still present, so a shared device
+ * stops receiving the prior user's pushes. Never throws — a failure must not
+ * block sign-out.
+ */
+export async function unsubscribePushToken(): Promise<void> {
+  let token: string | null = null
+  try {
+    token = await getCurrentPushToken()
+  } catch {
+    return
+  }
+
+  if (!token) return
+  await removeTokenFromBackend(token)
 }
 
 function getPushDisabledStorageKey(userId: string | null): string {
@@ -300,13 +282,12 @@ export function usePushNotifications(): UsePushNotificationsReturn {
       }
       await AsyncStorage.removeItem(disabledStorageKey)
     } catch {
-      // Best-effort local preference persistence.
     }
   }, [disabledStorageKey])
 
   const registerAndSync = useCallback(async (): Promise<boolean> => {
-    if (activeRegistrationPromise) {
-      return activeRegistrationPromise
+    if (activeRegistration && activeRegistration.userId === userId) {
+      return activeRegistration.promise
     }
 
     const registrationPromise = (async () => {
@@ -331,13 +312,17 @@ export function usePushNotifications(): UsePushNotificationsReturn {
         return false
       }
 
-      if (!isAuthenticated) {
+      if (!isAuthenticated || useAuthStore.getState().user?.userId !== userId) {
         setRegistrationStatus('idle')
         return false
       }
 
       try {
         await sendTokenToBackend(token)
+        if (useAuthStore.getState().user?.userId !== userId) {
+          setRegistrationStatus('idle')
+          return false
+        }
         await writeDisabledPreference(false)
         setRegistrationStatus('registered')
         setIsRegistered(true)
@@ -350,16 +335,17 @@ export function usePushNotifications(): UsePushNotificationsReturn {
       }
     })()
 
-    activeRegistrationPromise = registrationPromise
+    const registration = { userId, promise: registrationPromise }
+    activeRegistration = registration
 
     try {
       return await registrationPromise
     } finally {
-      if (activeRegistrationPromise === registrationPromise) {
-        activeRegistrationPromise = null
+      if (activeRegistration === registration) {
+        activeRegistration = null
       }
     }
-  }, [isAuthenticated, writeDisabledPreference])
+  }, [isAuthenticated, userId, writeDisabledPreference])
 
   const enablePushNotifications = useCallback(async (): Promise<boolean> => {
     await writeDisabledPreference(false)
@@ -513,9 +499,6 @@ export function usePushNotifications(): UsePushNotificationsReturn {
     }
   }, [expoPushToken, isAuthenticated, isSupported, permissionStatus, writeDisabledPreference])
 
-  // Defer sync calls to a microtask so the synchronous setState calls inside
-  // syncGrantedPermission (the unsupported-module short-circuit at the top of
-  // the function) don't fire inside the effect body.
   useEffect(() => {
     void Promise.resolve().then(() => syncGrantedPermission())
   }, [syncGrantedPermission])

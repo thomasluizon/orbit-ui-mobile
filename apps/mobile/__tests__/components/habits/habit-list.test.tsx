@@ -1151,6 +1151,51 @@ describe('HabitList', () => {
     expect(autoLogDialog?.props.description).toContain('"Grandparent"')
   })
 
+  it('clears the recently-completed timer on unmount so it never fires after teardown', () => {
+    vi.useFakeTimers()
+    try {
+      const clearTimeoutSpy = vi.spyOn(globalThis, 'clearTimeout')
+      seedHabits([createMockHabit({ id: 'habit-1', title: 'Exercise' })])
+
+      const ref = React.createRef<HabitListHandle>()
+      let tree: any
+
+      TestRenderer.act(() => {
+        tree = TestRenderer.create(
+          <HabitList
+            ref={ref}
+            view="today"
+            filters={{}}
+            showCompleted
+            onCreatePress={vi.fn()}
+          />,
+        )
+      })
+
+      TestRenderer.act(() => {
+        ref.current?.markRecentlyCompleted('habit-1')
+      })
+
+      clearTimeoutSpy.mockClear()
+
+      TestRenderer.act(() => {
+        tree.unmount()
+      })
+
+      expect(clearTimeoutSpy).toHaveBeenCalled()
+
+      expect(() => {
+        TestRenderer.act(() => {
+          vi.advanceTimersByTime(2000)
+        })
+      }).not.toThrow()
+
+      clearTimeoutSpy.mockRestore()
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
   it('logs an overdue habit directly with no date', async () => {
     const overdue = createMockHabit({
       id: 'overdue-1',

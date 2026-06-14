@@ -94,7 +94,7 @@ describe('isFeatureEnabled', () => {
       ...DEFAULT_CONFIG,
       features: {
         ...DEFAULT_CONFIG.features,
-        'habits.create': { enabled: false, plan: null },
+        'habits.create': { enabled: false, planRequirement: null },
       },
     }
     expect(isFeatureEnabled(config, 'habits.create', 'pro')).toBe(false)

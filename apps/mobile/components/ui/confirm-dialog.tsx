@@ -56,10 +56,14 @@ export function ConfirmDialog({
   const infoOnly = variant === 'info'
   const styles = useMemo(() => createStyles(tokens), [tokens])
 
+  const [prevOpen, setPrevOpen] = useState(open)
+  if (open !== prevOpen) {
+    setPrevOpen(open)
+    if (open) setVisible(true)
+  }
+
   useEffect(() => {
     if (open) {
-       
-      setVisible(true)
       Animated.timing(progress, {
         toValue: 1,
         duration: dialogMotion.enterDuration,

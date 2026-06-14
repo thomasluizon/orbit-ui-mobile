@@ -3,6 +3,7 @@ import type { QueuedMutation } from '@orbit/shared/types/sync'
 
 import {
   buildQueuedMutation,
+  cancelScheduledFlush,
   flushQueuedMutations,
   queueOrExecute,
   runQueuedMutation,
@@ -174,6 +175,7 @@ describe('offline mutations', () => {
     mocks.invalidateQueries.mockClear()
     mocks.apiClient.mockClear()
     mocks.getCurrentConnectivity.mockClear()
+    cancelScheduledFlush()
   })
 
   it('queues a deterministic mutation while offline instead of throwing a network error', async () => {
@@ -476,5 +478,69 @@ describe('offline mutations', () => {
       lastError: 'Unauthorized',
     })
     expect(mocks.remove).not.toHaveBeenCalled()
+  })
+
+  describe('transient-failure backoff', () => {
+    beforeEach(() => {
+      vi.useFakeTimers()
+    })
+
+    afterEach(() => {
+      cancelScheduledFlush()
+      vi.useRealTimers()
+    })
+
+    it('schedules a backoff re-flush after a transient network failure and recovers', async () => {
+      mocks.setOnline(true)
+      mocks.apiClient.mockRejectedValueOnce(new Error('Network request failed'))
+
+      mocks.queued.push({
+        ...buildQueuedMutation({
+          type: 'updateHabit',
+          scope: 'habits',
+          endpoint: '/api/habits/habit-1',
+          method: 'PUT',
+          payload: { title: 'Retry me' },
+          entityType: 'habit',
+          targetEntityId: 'habit-1',
+        }),
+        id: 'update-1',
+      })
+
+      const firstRun = await flushQueuedMutations()
+      expect(firstRun).toEqual({ succeeded: 0, failed: 0, remaining: 1 })
+      expect(mocks.apiClient).toHaveBeenCalledTimes(1)
+
+      await vi.advanceTimersByTimeAsync(2_000)
+
+      expect(mocks.apiClient).toHaveBeenCalledTimes(2)
+      expect(mocks.queued).toHaveLength(0)
+    })
+
+    it('cancelScheduledFlush prevents a pending retry from firing', async () => {
+      mocks.setOnline(true)
+      mocks.apiClient.mockRejectedValue(new Error('Network request failed'))
+
+      mocks.queued.push({
+        ...buildQueuedMutation({
+          type: 'updateHabit',
+          scope: 'habits',
+          endpoint: '/api/habits/habit-1',
+          method: 'PUT',
+          payload: { title: 'Retry me' },
+          entityType: 'habit',
+          targetEntityId: 'habit-1',
+        }),
+        id: 'update-1',
+      })
+
+      await flushQueuedMutations()
+      expect(mocks.apiClient).toHaveBeenCalledTimes(1)
+
+      cancelScheduledFlush()
+      await vi.advanceTimersByTimeAsync(60_000)
+
+      expect(mocks.apiClient).toHaveBeenCalledTimes(1)
+    })
   })
 })

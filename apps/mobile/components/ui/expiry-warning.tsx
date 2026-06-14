@@ -1,6 +1,5 @@
 import { useMemo, useState, useEffect, useCallback } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
-import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { useAuthStore } from '@/stores/auth-store'
 import { createTokensV2, shadowsV2, type AppTokensV2 } from '@/lib/theme'
@@ -40,7 +39,6 @@ function rgbaFromHex(hex: string, alpha: number): string {
  */
 export function ExpiryWarning() {
   const { t } = useTranslation()
-  const router = useRouter()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
     () => createTokensV2(currentScheme, currentTheme),
@@ -52,12 +50,17 @@ export function ExpiryWarning() {
   const [minutesLeft, setMinutesLeft] = useState<number | null>(null)
   const [isExpired, setIsExpired] = useState(false)
 
-  useEffect(() => {
+  const [prevExpiresAt, setPrevExpiresAt] = useState(expiresAt)
+  if (expiresAt !== prevExpiresAt) {
+    setPrevExpiresAt(expiresAt)
     if (!expiresAt) {
       setMinutesLeft(null)
       setIsExpired(false)
-      return
     }
+  }
+
+  useEffect(() => {
+    if (!expiresAt) return
 
     const sessionExpiresAt = expiresAt
 
@@ -84,8 +87,7 @@ export function ExpiryWarning() {
 
   const handleLogin = useCallback(async () => {
     await logout()
-    router.replace('/login')
-  }, [logout, router])
+  }, [logout])
 
   if (minutesLeft === null && !isExpired) return null
 

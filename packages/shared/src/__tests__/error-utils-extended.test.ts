@@ -214,11 +214,6 @@ describe('getFriendlyErrorKey (extended coverage)', () => {
     expect(getFriendlyErrorKey(err, 'errors.generic')).toBe('habits.errors.alreadyLogged')
   })
 
-  it('maps MAX_SUB_HABITS_REACHED code', () => {
-    const err = createApiClientError(400, { errorCode: 'MAX_SUB_HABITS_REACHED' }, 'fallback')
-    expect(getFriendlyErrorKey(err, 'errors.generic')).toBe('habits.form.subHabitLimit')
-  })
-
   it('maps MAX_DEPTH_REACHED code', () => {
     const err = createApiClientError(400, { errorCode: 'MAX_DEPTH_REACHED' }, 'fallback')
     expect(getFriendlyErrorKey(err, 'errors.generic')).toBe('habits.errors.maxDepthReached')

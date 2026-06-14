@@ -14,8 +14,9 @@ import { useRouter } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
 import { Calendar, Check, Languages, Moon, Palette } from 'lucide-react-native'
-import { useMutation } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { API } from '@orbit/shared/api'
+import { habitKeys } from '@orbit/shared/query'
 import { colorSchemeOptions, type ColorScheme } from '@orbit/shared/theme'
 import type { ThemeMode } from '@orbit/shared/types/profile'
 import {
@@ -57,6 +58,7 @@ export default function PreferencesScreen() {
   const { t, i18n } = useTranslation()
   const router = useRouter()
   const goBackOrFallback = useGoBackOrFallback()
+  const queryClient = useQueryClient()
   const { profile, patchProfile } = useProfile()
   const {
     applyScheme,
@@ -117,7 +119,7 @@ export default function PreferencesScreen() {
 
   const weekStartOptions = buildWeekStartOptions(t)
   const weekStartMutation = useMutation({
-    mutationFn: (day: number) =>
+    mutationFn: (day: 0 | 1) =>
       performQueuedApiMutation({
         type: 'setWeekStartDay',
         scope: 'profile',
@@ -135,6 +137,11 @@ export default function PreferencesScreen() {
       if (context?.previous !== undefined) {
         patchProfile({ weekStartDay: context.previous })
       }
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: habitKeys.calendarPrefix() })
+      queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
+      queryClient.invalidateQueries({ queryKey: habitKeys.summaryPrefix() })
     },
   })
 

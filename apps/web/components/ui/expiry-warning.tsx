@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { useAuthStore } from '@/stores/auth-store'
 
@@ -9,7 +8,6 @@ const WARN_AT_MINUTES = 5
 
 export function ExpiryWarning() {
   const t = useTranslations()
-  const router = useRouter()
   const { expiresAt, logout } = useAuthStore()
   const [minutesLeft, setMinutesLeft] = useState<number | null>(null)
   const [isExpired, setIsExpired] = useState(false)
@@ -40,9 +38,8 @@ export function ExpiryWarning() {
   }, [expiresAt])
 
   const handleLogin = useCallback(() => {
-    logout()
-    router.push('/login')
-  }, [logout, router])
+    void logout()
+  }, [logout])
 
   if (minutesLeft === null && !isExpired) return null
 

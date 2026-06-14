@@ -1,15 +1,19 @@
 'use client'
 
 import { toast } from 'sonner'
-import { buildClientTimeZoneHeaders, extractBackendError } from '@orbit/shared/utils'
+import {
+  buildClientTimeZoneHeaders,
+  extractBackendError,
+  extractBackendErrorCode,
+} from '@orbit/shared/utils'
 
 /**
  * Centralized API fetch with error categorization.
  *
  * Handles:
  * - 401: auto-logout (no toast)
- * - 403: redirect to /upgrade (no toast)
- * - 400/404/409/429/5xx: categorized error toast
+ * - 403 PAY_GATE: redirect to /upgrade (no toast)
+ * - 403 other (e.g. NO_PERMISSION) + 400/404/409/429/5xx: categorized error toast
  */
 
 type TranslateFn = (key: string) => string
@@ -69,7 +73,7 @@ async function getStatusError(
     return new ApiError(status, 'Unauthorized', body)
   }
 
-  if (status === 403) {
+  if (status === 403 && extractBackendErrorCode({ data: body }) === 'PAY_GATE') {
     if (
       globalThis.location !== undefined &&
       globalThis.location.pathname !== '/upgrade'

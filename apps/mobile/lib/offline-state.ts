@@ -138,3 +138,12 @@ export async function clearOfflineEntity(
   delete state.entities[buildEntityKey(entityType, id)]
   await writeState(state)
 }
+
+export async function clearOfflineState(): Promise<void> {
+  stateCache = null
+  try {
+    await AsyncStorage.removeItem(STORAGE_KEY)
+  } catch {
+    return
+  }
+}

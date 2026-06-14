@@ -65,7 +65,7 @@ function flattenColor(color: string, baseHex: string): string {
   return `#${blend(0)}${blend(1)}${blend(2)}`
 }
 
-function toWidgetColors(tokens: AppTokensV2): WidgetThemeColors {
+export function toWidgetColors(tokens: AppTokensV2): WidgetThemeColors {
   return {
     primary: tokens.primary,
     background: tokens.bg,

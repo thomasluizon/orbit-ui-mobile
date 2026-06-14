@@ -365,6 +365,67 @@ describe('usePlayBilling', () => {
     expect(hook.current.errorKey).toBe('upgrade.playError.notSignedIn')
   })
 
+  it('keeps the spinner latched to in-flight verifications across rapid interval switches', async () => {
+    mocks.state.subscriptions = [
+      {
+        id: 'orbit_pro',
+        subscriptionOffers: [
+          { basePlanIdAndroid: 'monthly', offerTokenAndroid: 'tok_m', displayPrice: 'R$14,90' },
+          { basePlanIdAndroid: 'yearly', offerTokenAndroid: 'tok_y', displayPrice: 'R$99,90' },
+        ],
+      },
+    ]
+    const hook = renderUsePlayBillingLive()
+    expect(hook.current.isProcessing).toBe(false)
+
+    await TestRenderer.act(async () => {
+      await hook.current.purchase('monthly')
+      await hook.current.purchase('yearly')
+    })
+
+    expect(hook.current.isProcessing).toBe(true)
+
+    const firstPurchase = { productId: 'orbit_pro', purchaseToken: 'tok_a' }
+    await TestRenderer.act(async () => {
+      mocks.state.iapOptions?.onPurchaseSuccess?.(firstPurchase)
+      await new Promise((resolve) => setTimeout(resolve, 0))
+    })
+
+    expect(hook.current.isProcessing).toBe(true)
+
+    const secondPurchase = { productId: 'orbit_pro', purchaseToken: 'tok_b' }
+    await TestRenderer.act(async () => {
+      mocks.state.iapOptions?.onPurchaseSuccess?.(secondPurchase)
+      await new Promise((resolve) => setTimeout(resolve, 0))
+    })
+
+    expect(hook.current.isProcessing).toBe(false)
+  })
+
+  it('clears the spinner when the purchase sheet reports an error', async () => {
+    mocks.state.subscriptions = [
+      {
+        id: 'orbit_pro',
+        subscriptionOffers: [
+          { basePlanIdAndroid: 'monthly', offerTokenAndroid: 'tok_m', displayPrice: 'R$14,90' },
+        ],
+      },
+    ]
+    const hook = renderUsePlayBillingLive()
+
+    await TestRenderer.act(async () => {
+      await hook.current.purchase('monthly')
+    })
+    expect(hook.current.isProcessing).toBe(true)
+
+    await TestRenderer.act(async () => {
+      mocks.state.iapOptions?.onPurchaseError?.({ code: ErrorCode.ServiceError })
+    })
+
+    expect(hook.current.isProcessing).toBe(false)
+    expect(hook.current.errorKey).toBe('upgrade.playError.serviceUnavailable')
+  })
+
   it('verifies, invalidates entitlement, and finishes a successful purchase', async () => {
     renderUsePlayBilling()
     const purchase = { productId: 'orbit_pro', purchaseToken: 'tok_123' }

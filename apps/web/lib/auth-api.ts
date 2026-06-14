@@ -84,16 +84,6 @@ async function getCookieStore(): Promise<CookieTarget> {
 }
 
 /**
- * Reads or refreshes the auth_token cookie and returns Bearer headers.
- * For use in Server Actions and Route Handlers.
- */
-export async function getAuthHeaders(): Promise<Record<string, string>> {
-  const session = await resolveServerSession()
-  if (!session.token) return {}
-  return { Authorization: `Bearer ${session.token}` }
-}
-
-/**
  * Returns the raw refresh token string, or null if not present.
  */
 export async function getRefreshToken(): Promise<string | null> {

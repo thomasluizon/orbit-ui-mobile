@@ -552,7 +552,6 @@ describe("TodayScreen", () => {
 
     const habitList = tree.root.findByType("HabitList");
     expect(habitList.props.view).toBe("today");
-    expect(uiState.setActiveView).toHaveBeenCalledWith("today");
   });
 
   it("advances a followed today selection after midnight without reopening the screen", async () => {

@@ -54,6 +54,7 @@ import {
 import { WelcomeBackToast } from '@/components/gamification/welcome-back-toast'
 import { AppToast } from '@/components/ui/app-toast'
 import { AppErrorScreen } from '@/components/ui/app-error-boundary'
+import { ExpiryWarning } from '@/components/ui/expiry-warning'
 import { TrialExpiredModal } from '@/components/ui/trial-expired-modal'
 import { VersionUpdateDrawer } from '@/components/version-update-drawer'
 import { TourProvider } from '@/components/tour/tour-provider'
@@ -314,6 +315,7 @@ function GlobalOverlays({
 
   return (
     <>
+      <ExpiryWarning />
       <TrialExpiredModal />
       {profile && !profile.hasCompletedOnboarding ? <OnboardingFlow /> : null}
       <Suspense fallback={null}>

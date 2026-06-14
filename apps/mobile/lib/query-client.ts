@@ -21,16 +21,32 @@ onlineManager.setEventListener((setOnline) => {
   })
 })
 
-// Track last known AppState/online state synchronously for guards below.
 let currentAppStateStatus: AppStateStatus = AppState.currentState
-AppState.addEventListener('change', (status) => {
-  currentAppStateStatus = status
-})
-
 let currentOnline = true
-NetInfo.addEventListener((state) => {
-  currentOnline = !!state.isConnected
-})
+
+const globalScope = globalThis as typeof globalThis & {
+  __orbitConnectivityTrackers__?: { remove: () => void }[]
+}
+
+function registerConnectivityTrackers(): void {
+  for (const tracker of globalScope.__orbitConnectivityTrackers__ ?? []) {
+    tracker.remove()
+  }
+
+  const appStateSubscription = AppState.addEventListener('change', (status) => {
+    currentAppStateStatus = status
+  })
+  const netInfoUnsubscribe = NetInfo.addEventListener((state) => {
+    currentOnline = !!state.isConnected
+  })
+
+  globalScope.__orbitConnectivityTrackers__ = [
+    appStateSubscription,
+    { remove: netInfoUnsubscribe },
+  ]
+}
+
+registerConnectivityTrackers()
 
 export function isAppActive(): boolean {
   return currentAppStateStatus === 'active'
@@ -60,10 +76,33 @@ export const queryClient = new QueryClient({
   },
 })
 
-// Persist query cache to AsyncStorage for offline support
-const CACHE_KEY = '@orbit/query-cache'
+const CACHE_KEY_PREFIX = '@orbit/query-cache'
+const LEGACY_CACHE_KEY = '@orbit/query-cache'
+
+let cacheScopeUserId: string | null = null
+
+function getCacheKey(): string | null {
+  return cacheScopeUserId ? `${CACHE_KEY_PREFIX}:${cacheScopeUserId}` : null
+}
+
+/**
+ * Scopes the persisted query cache to a user so an account never restores
+ * another account's cached data. Pass the userId on login, or null on logout.
+ * Switching scope clears the previous account's persisted cache.
+ */
+export async function setQueryCacheScope(userId: string | null): Promise<void> {
+  if (cacheScopeUserId === userId) return
+  const previousKey = getCacheKey()
+  cacheScopeUserId = userId
+  try {
+    if (previousKey) await AsyncStorage.removeItem(previousKey)
+    await AsyncStorage.removeItem(LEGACY_CACHE_KEY)
+  } catch {}
+}
 
 export async function persistQueryCache(): Promise<void> {
+  const key = getCacheKey()
+  if (!key) return
   try {
     const cache = queryClient.getQueryCache().getAll()
     const serializable = cache
@@ -75,23 +114,23 @@ export async function persistQueryCache(): Promise<void> {
           dataUpdatedAt: query.state.dataUpdatedAt,
         },
       }))
-    await AsyncStorage.setItem(CACHE_KEY, JSON.stringify(serializable))
-  } catch {
-    // Silently fail - cache persistence is best-effort
-  }
+    await AsyncStorage.setItem(key, JSON.stringify(serializable))
+  } catch {}
 }
 
 export async function clearPersistedQueryCache(): Promise<void> {
+  const key = getCacheKey()
   try {
-    await AsyncStorage.removeItem(CACHE_KEY)
-  } catch {
-    // Silently fail - cache clearing is best-effort
-  }
+    if (key) await AsyncStorage.removeItem(key)
+    await AsyncStorage.removeItem(LEGACY_CACHE_KEY)
+  } catch {}
 }
 
 export async function restoreQueryCache(): Promise<void> {
+  const key = getCacheKey()
+  if (!key) return
   try {
-    const raw = await AsyncStorage.getItem(CACHE_KEY)
+    const raw = await AsyncStorage.getItem(key)
     if (!raw) return
     const entries = JSON.parse(raw) as {
       queryKey: unknown[]
@@ -102,7 +141,5 @@ export async function restoreQueryCache(): Promise<void> {
         updatedAt: entry.state.dataUpdatedAt,
       })
     }
-  } catch {
-    // Silently fail - cache restore is best-effort
-  }
+  } catch {}
 }

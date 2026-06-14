@@ -44,7 +44,7 @@ const baseProfile = {
   subscriptionInterval: null,
   subscriptionSource: null,
   isLifetimePro: false,
-  weekStartDay: 0,
+  weekStartDay: 0 as const,
   totalXp: 0,
   level: 1,
   levelTitle: 'Beginner',

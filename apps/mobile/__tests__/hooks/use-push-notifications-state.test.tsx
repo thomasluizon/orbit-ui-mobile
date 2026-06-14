@@ -20,6 +20,10 @@ const mocks = vi.hoisted(() => ({
   device: {
     isDevice: true,
   },
+  auth: {
+    isAuthenticated: true,
+    user: { userId: 'user-1' } as { userId: string } | null,
+  },
 }))
 
 vi.mock('@react-native-async-storage/async-storage', () => ({
@@ -77,13 +81,13 @@ vi.mock('@/lib/api-client', () => ({
   apiClient: mocks.apiClient,
 }))
 
-vi.mock('@/stores/auth-store', () => ({
-  useAuthStore: (selector: (state: { isAuthenticated: boolean; user: { userId: string } | null }) => unknown) =>
-    selector({
-      isAuthenticated: true,
-      user: { userId: 'user-1' },
-    }),
-}))
+vi.mock('@/stores/auth-store', () => {
+  const useAuthStore = (
+    selector: (state: { isAuthenticated: boolean; user: { userId: string } | null }) => unknown,
+  ) => selector(mocks.auth)
+  useAuthStore.getState = () => mocks.auth
+  return { useAuthStore }
+})
 
 type NotificationsModule = typeof import('expo-notifications')
 type PermissionResponse = Awaited<ReturnType<NotificationsModule['getPermissionsAsync']>>
@@ -127,6 +131,8 @@ describe('usePushNotifications', () => {
     mocks.apiClient.mockClear()
     mocks.router.push.mockClear()
     mocks.appState.listener = null
+    mocks.auth.isAuthenticated = true
+    mocks.auth.user = { userId: 'user-1' }
     notificationsModule = await import('expo-notifications')
     vi.mocked(notificationsModule.setNotificationHandler).mockClear()
     vi.mocked(notificationsModule.setNotificationChannelAsync).mockReset()
@@ -169,6 +175,40 @@ describe('usePushNotifications', () => {
     expect(latestResult?.registrationStatus).toBe('disabled')
     expect(latestResult?.isEnabled).toBe(false)
     expect(mocks.apiClient).not.toHaveBeenCalled()
+  })
+
+  it('re-registers for the new account when it switches while a registration is in flight', async () => {
+    vi.mocked(notificationsModule.getPermissionsAsync).mockResolvedValue(
+      createPermissionResponse('granted'),
+    )
+
+    let resolveFirstSubscribe: (() => void) | null = null
+    mocks.apiClient.mockImplementationOnce(
+      () =>
+        new Promise<undefined>((resolve) => {
+          resolveFirstSubscribe = () => resolve(undefined)
+        }),
+    )
+
+    await renderHarness()
+    await TestRenderer.act(async () => {
+      for (let i = 0; i < 10; i++) await Promise.resolve()
+    })
+
+    expect(typeof resolveFirstSubscribe).toBe('function')
+    expect(mocks.apiClient).toHaveBeenCalledTimes(1)
+
+    mocks.auth.user = { userId: 'user-2' }
+
+    await TestRenderer.act(async () => {
+      resolveFirstSubscribe?.()
+      for (let i = 0; i < 10; i++) await Promise.resolve()
+    })
+
+    expect(mocks.apiClient).toHaveBeenCalledTimes(2)
+    expect(latestResult?.registrationStatus).toBe('registered')
+    expect(mocks.storage.get('orbit_push_disabled:user-1')).toBeUndefined()
+    expect(mocks.storage.get('orbit_push_disabled:user-2')).toBeUndefined()
   })
 
   it('subscribes with the current payload shape and unsubscribes without re-registering on resume', async () => {

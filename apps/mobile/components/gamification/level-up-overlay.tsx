@@ -97,11 +97,18 @@ export function LevelUpOverlay({
     [completeActiveCelebration, onClear, overlayOpacity],
   )
 
+  const [prevActiveLevelUp, setPrevActiveLevelUp] = useState(activeLevelUp)
+  if (activeLevelUp !== prevActiveLevelUp) {
+    setPrevActiveLevelUp(activeLevelUp)
+    if (activeLevelUp) {
+      setLevel(activeLevelUp.payload.level)
+      setShouldRender(true)
+    }
+  }
+
   useEffect(() => {
     if (!activeLevelUp) return
 
-    setLevel(activeLevelUp.payload.level)
-    setShouldRender(true)
     overlayOpacity.setValue(0)
 
     Animated.timing(overlayOpacity, {
