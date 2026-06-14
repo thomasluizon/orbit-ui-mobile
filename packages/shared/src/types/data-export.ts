@@ -81,14 +81,75 @@ const exportedUserFactSchema = z.object({
   extractedAtUtc: z.string(),
 })
 
+const exportedSubscriptionSchema = z.object({
+  plan: z.string(),
+  isLifetimePro: z.boolean(),
+  source: z.string().nullable(),
+  interval: z.string().nullable(),
+  planExpiresAtUtc: z.string().nullable(),
+  trialEndsAtUtc: z.string().nullable(),
+})
+
+const exportedNotificationSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  body: z.string(),
+  url: z.string().nullable(),
+  isRead: z.boolean(),
+  createdAtUtc: z.string(),
+})
+
+const exportedChecklistTemplateSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  items: z.array(z.string()),
+  createdAtUtc: z.string(),
+})
+
+const exportedAchievementSchema = z.object({
+  achievementId: z.string(),
+  earnedAtUtc: z.string(),
+})
+
+const exportedStreakFreezeSchema = z.object({
+  usedOnDate: z.string(),
+  createdAtUtc: z.string(),
+})
+
+const exportedReferralSchema = z.object({
+  status: z.string(),
+  createdAtUtc: z.string(),
+  completedAtUtc: z.string().nullable(),
+  rewardGrantedAtUtc: z.string().nullable(),
+})
+
+const exportedApiKeySchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  keyPrefix: z.string(),
+  scopes: z.array(z.string()),
+  isReadOnly: z.boolean(),
+  createdAtUtc: z.string(),
+  expiresAtUtc: z.string().nullable(),
+  lastUsedAtUtc: z.string().nullable(),
+  isRevoked: z.boolean(),
+})
+
 export const userDataExportSchema = z.object({
   exportedAtUtc: z.string(),
   account: exportedAccountSchema,
   settings: exportedSettingsSchema,
+  subscription: exportedSubscriptionSchema,
   habits: z.array(exportedHabitSchema),
   goals: z.array(exportedGoalSchema),
   tags: z.array(exportedTagSchema),
   facts: z.array(exportedUserFactSchema),
+  notifications: z.array(exportedNotificationSchema),
+  checklistTemplates: z.array(exportedChecklistTemplateSchema),
+  achievements: z.array(exportedAchievementSchema),
+  streakFreezes: z.array(exportedStreakFreezeSchema),
+  referrals: z.array(exportedReferralSchema),
+  apiKeys: z.array(exportedApiKeySchema),
 })
 
 export type UserDataExport = z.infer<typeof userDataExportSchema>

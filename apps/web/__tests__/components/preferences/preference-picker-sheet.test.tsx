@@ -32,8 +32,8 @@ function baseProps() {
       { value: 'dark' as const, label: 'Dark' },
     ],
     weekStartOptions: [
-      { value: 1, label: 'Monday' },
-      { value: 0, label: 'Sunday' },
+      { value: 1 as const, label: 'Monday' },
+      { value: 0 as const, label: 'Sunday' },
     ],
     pickerTitles,
     onClose: vi.fn(),

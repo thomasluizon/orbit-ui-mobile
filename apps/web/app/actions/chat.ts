@@ -10,7 +10,7 @@ import { serverAuthFetch } from '@/lib/server-fetch'
 
 type ActionResult<T> =
   | { ok: true; data: T }
-  | { ok: false; error: string; status: number }
+  | { ok: false; error: string; status: number; code?: string }
 
 export type PendingOperationActionResult<T> = ActionResult<T>
 
@@ -26,8 +26,14 @@ async function wrapServerAction<T>(fn: () => Promise<T>): Promise<PendingOperati
       typeof (error as { status?: unknown }).status === 'number'
       ? ((error as { status: number }).status)
       : 500
+    const code = typeof error === 'object' &&
+      error !== null &&
+      'code' in error &&
+      typeof (error as { code?: unknown }).code === 'string'
+      ? (error as { code: string }).code
+      : undefined
 
-    return { ok: false, error: message, status }
+    return { ok: false, error: message, status, code }
   }
 }
 

@@ -24,6 +24,7 @@ async function forwardStream(
     },
     body: formData,
     cache: 'no-store',
+    signal: request.signal,
   })
 }
 

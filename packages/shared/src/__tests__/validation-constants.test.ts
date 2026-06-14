@@ -15,7 +15,6 @@ import {
   MAX_GOAL_UNIT_LENGTH,
   MAX_GOAL_PROGRESS_NOTE_LENGTH,
   MAX_SCHEDULED_REMINDERS,
-  MAX_HABIT_LOG_NOTE_LENGTH,
 } from '../validation/constants'
 
 describe('validation constants', () => {
@@ -79,10 +78,6 @@ describe('validation constants', () => {
     expect(MAX_SCHEDULED_REMINDERS).toBe(5)
   })
 
-  it('has correct habit log note max length', () => {
-    expect(MAX_HABIT_LOG_NOTE_LENGTH).toBe(500)
-  })
-
   it('all constants are positive numbers', () => {
     const constants = [
       MAX_HABIT_TITLE_LENGTH,
@@ -100,7 +95,6 @@ describe('validation constants', () => {
       MAX_GOAL_UNIT_LENGTH,
       MAX_GOAL_PROGRESS_NOTE_LENGTH,
       MAX_SCHEDULED_REMINDERS,
-      MAX_HABIT_LOG_NOTE_LENGTH,
     ]
     for (const c of constants) {
       expect(c).toBeGreaterThan(0)

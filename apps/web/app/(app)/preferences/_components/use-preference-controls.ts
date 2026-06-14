@@ -3,7 +3,8 @@
 import { useCallback, useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { useLocale } from 'next-intl'
-import { useMutation } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { habitKeys } from '@orbit/shared/query'
 import { parseShowGeneralOnTodayPreference } from '@orbit/shared/utils'
 import type { ColorScheme } from '@orbit/shared/theme'
 import type { SupportedLocale, ThemeMode } from '@orbit/shared/types/profile'
@@ -25,6 +26,7 @@ function writeLocaleCookie(value: string) {
 
 export function usePreferenceControls() {
   const router = useRouter()
+  const queryClient = useQueryClient()
   const { profile, patchProfile } = useProfile()
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
   const { currentScheme, currentTheme, applyScheme, applyTheme } = useColorScheme()
@@ -59,7 +61,7 @@ export function usePreferenceControls() {
   )
 
   const weekStartMutation = useMutation({
-    mutationFn: (day: number) => updateWeekStartDay({ weekStartDay: day }),
+    mutationFn: (day: 0 | 1) => updateWeekStartDay({ weekStartDay: day }),
     onMutate: (day) => {
       const previous = profile?.weekStartDay
       patchProfile({ weekStartDay: day })
@@ -69,6 +71,11 @@ export function usePreferenceControls() {
       if (context?.previous !== undefined) {
         patchProfile({ weekStartDay: context.previous })
       }
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: habitKeys.calendarPrefix() })
+      queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
+      queryClient.invalidateQueries({ queryKey: habitKeys.summaryPrefix() })
     },
   })
 

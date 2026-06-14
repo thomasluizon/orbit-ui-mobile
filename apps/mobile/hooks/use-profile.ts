@@ -12,6 +12,7 @@ import {
   getTrialUrgent,
 } from '@orbit/shared/utils'
 import { apiClient } from '@/lib/api-client'
+import { useAuthStore } from '@/stores/auth-store'
 
 async function fetchProfile(): Promise<Profile> {
   return apiClient<Profile>(API.profile.get)
@@ -20,10 +21,12 @@ async function fetchProfile(): Promise<Profile> {
 export function useProfile() {
   const queryClient = useQueryClient()
   const { i18n } = useTranslation()
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
 
   const query = useQuery({
     queryKey: profileKeys.detail(),
     queryFn: fetchProfile,
+    enabled: isAuthenticated,
     staleTime: QUERY_STALE_TIMES.profile,
     gcTime: 24 * 60 * 60 * 1000,
   })

@@ -251,13 +251,14 @@ export default function SupportScreen() {
     }
   }, [])
 
-  useEffect(() => {
+  const [prevProfile, setPrevProfile] = useState(profile)
+  if (profile !== prevProfile) {
+    setPrevProfile(profile)
     if (profile) {
-
       setName((current) => current || profile.name || '')
       setEmail((current) => current || profile.email || '')
     }
-  }, [profile])
+  }
 
   useEffect(() => {
     const draft = { name, email, subject, message }

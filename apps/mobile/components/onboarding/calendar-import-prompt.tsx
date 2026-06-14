@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { usePathname, useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
@@ -34,13 +34,6 @@ export function CalendarImportPrompt() {
       pathname !== '/calendar-sync' &&
       !dismissed,
   )
-
-  useEffect(() => {
-    if (profile?.hasImportedCalendar) {
-       
-      setDismissed(true)
-    }
-  }, [profile?.hasImportedCalendar])
 
   const dismissPrompt = useCallback(async () => {
     setDismissed(true)

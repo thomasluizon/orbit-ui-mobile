@@ -4,6 +4,7 @@ import { useTranslations } from 'next-intl'
 import { useQuery } from '@tanstack/react-query'
 import { goalKeys, QUERY_STALE_TIMES } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
+import { fetchJson } from '@/lib/api-fetch'
 import type { Goal } from '@orbit/shared/types/goal'
 
 interface GoalLinkingFieldProps {
@@ -27,9 +28,7 @@ export function GoalLinkingField({
   const { data: goals } = useQuery({
     queryKey: goalKeys.lists(),
     queryFn: async (): Promise<Goal[]> => {
-      const res = await fetch(API.goals.list)
-      if (!res.ok) throw new Error('Failed to fetch goals')
-      const data = (await res.json()) as GoalsListResponse | Goal[]
+      const data = await fetchJson<GoalsListResponse | Goal[]>(API.goals.list)
       return Array.isArray(data) ? data : data.items
     },
     staleTime: QUERY_STALE_TIMES.goals,

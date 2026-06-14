@@ -75,8 +75,7 @@ export function VersionUpdateDrawer() {
     void startAndroidUpdate({ immediate: forceUpdate })
     if (!forceUpdate) {
       const until = Date.now() + SNOOZE_DURATION_MS
-       
-      setSnoozedUntil(until)
+      void Promise.resolve().then(() => setSnoozedUntil(until))
       AsyncStorage.setItem(SNOOZE_STORAGE_KEY, String(until)).catch(() => {})
     }
   }, [updateAvailable, forceUpdate, snoozeLoaded, snoozedUntil, dismissedForSession])

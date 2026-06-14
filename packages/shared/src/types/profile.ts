@@ -38,7 +38,7 @@ export const profileSchema = z.object({
   subscriptionInterval: subscriptionIntervalSchema.nullable(),
   subscriptionSource: subscriptionSourceSchema.nullable(),
   isLifetimePro: z.boolean(),
-  weekStartDay: z.number(),
+  weekStartDay: z.union([z.literal(0), z.literal(1)]),
   totalXp: z.number(),
   level: z.number(),
   levelTitle: z.string(),
@@ -85,7 +85,7 @@ export const setLanguageRequestSchema = z.object({
 export type SetLanguageRequest = z.infer<typeof setLanguageRequestSchema>
 
 export const setWeekStartDayRequestSchema = z.object({
-  weekStartDay: z.number(),
+  weekStartDay: z.union([z.literal(0), z.literal(1)]),
 })
 
 export type SetWeekStartDayRequest = z.infer<typeof setWeekStartDayRequestSchema>

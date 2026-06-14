@@ -52,10 +52,9 @@ export function PushPrompt() {
       })
   }, [])
 
-  useEffect(() => {
-    if (isDismissed === null) return
-
-    const shouldShow = shouldShowNativePushPrompt({
+  const shouldShow =
+    isDismissed !== null &&
+    shouldShowNativePushPrompt({
       hasCompletedOnboarding: true,
       isDismissed,
       isEnabled,
@@ -65,13 +64,15 @@ export function PushPrompt() {
       registrationStatus,
     })
 
-    if (!shouldShow) {
+  const [prevShouldShow, setPrevShouldShow] = useState(shouldShow)
+  if (shouldShow !== prevShouldShow) {
+    setPrevShouldShow(shouldShow)
+    setShow(shouldShow)
+  }
 
-      setShow(false)
-      return
-    }
+  useEffect(() => {
+    if (!shouldShow) return
 
-    setShow(true)
     Animated.parallel([
       Animated.timing(fadeAnim, {
         toValue: 1,
@@ -84,16 +85,7 @@ export function PushPrompt() {
         useNativeDriver: true,
       }),
     ]).start()
-  }, [
-    fadeAnim,
-    isDismissed,
-    isEnabled,
-    isRegistered,
-    isSupported,
-    permissionStatus,
-    registrationStatus,
-    slideAnim,
-  ])
+  }, [fadeAnim, shouldShow, slideAnim])
 
   const dismiss = useCallback(() => {
     Animated.parallel([

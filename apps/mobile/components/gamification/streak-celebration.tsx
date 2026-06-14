@@ -57,10 +57,17 @@ export function StreakCelebration() {
     })
   }, [overlayOpacity, setStreakCelebration])
 
+  const [prevCelebration, setPrevCelebration] = useState(streakCelebration)
+  if (streakCelebration !== prevCelebration) {
+    setPrevCelebration(streakCelebration)
+    if (streakCelebration) {
+      setStreakCount(streakCelebration.streak)
+    }
+  }
+
   useEffect(() => {
     if (!streakCelebration) return
 
-    setStreakCount(streakCelebration.streak)
     overlayOpacity.setValue(0)
 
     Animated.timing(overlayOpacity, {

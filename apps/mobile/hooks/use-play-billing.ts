@@ -133,8 +133,14 @@ export function usePlayBilling(options?: { preferReferralOffer?: boolean }) {
   const queryClient = useQueryClient()
   const userId = useAuthStore((state) => state.user?.userId)
   const [errorKey, setErrorKey] = useState<string | null>(null)
-  const [isProcessing, setIsProcessing] = useState(false)
+  const [pendingVerifications, setPendingVerifications] = useState(0)
   const [isRestoring, setIsRestoring] = useState(false)
+
+  const beginVerification = useCallback(() => setPendingVerifications((count) => count + 1), [])
+  const endVerification = useCallback(
+    () => setPendingVerifications((count) => Math.max(0, count - 1)),
+    [],
+  )
 
   const invalidateEntitlement = useCallback(async () => {
     await queryClient.invalidateQueries({ queryKey: subscriptionKeys.all })
@@ -150,12 +156,12 @@ export function usePlayBilling(options?: { preferReferralOffer?: boolean }) {
         } catch {
           setErrorKey('upgrade.playError.serviceUnavailable')
         } finally {
-          setIsProcessing(false)
+          endVerification()
         }
       })()
     },
     onPurchaseError: (error) => {
-      setIsProcessing(false)
+      endVerification()
       setErrorKey(mapPlayErrorKey(error))
     },
   })
@@ -180,7 +186,7 @@ export function usePlayBilling(options?: { preferReferralOffer?: boolean }) {
         return
       }
       setErrorKey(null)
-      setIsProcessing(true)
+      beginVerification()
       try {
         await requestPurchase({
           request: {
@@ -193,7 +199,7 @@ export function usePlayBilling(options?: { preferReferralOffer?: boolean }) {
           type: 'subs',
         })
       } catch (error) {
-        setIsProcessing(false)
+        endVerification()
         setErrorKey(
           error && typeof error === 'object' && 'code' in error
             ? mapPlayErrorKey(error as { code?: ErrorCode })
@@ -201,7 +207,7 @@ export function usePlayBilling(options?: { preferReferralOffer?: boolean }) {
         )
       }
     },
-    [offers, preferReferralOffer, requestPurchase, userId],
+    [beginVerification, endVerification, offers, preferReferralOffer, requestPurchase, userId],
   )
 
   const restorePurchases = useCallback(async (): Promise<boolean> => {
@@ -209,9 +215,12 @@ export function usePlayBilling(options?: { preferReferralOffer?: boolean }) {
     setIsRestoring(true)
     try {
       const purchases = await getAvailablePurchases()
+      const orbitPurchases = purchases.filter(
+        (owned) => owned.productId === PLAY_SUBSCRIPTION_PRODUCT_ID,
+      )
       let restored = false
       let failed = false
-      for (const owned of purchases) {
+      for (const owned of orbitPurchases) {
         try {
           if (await verifyPlayPurchase(owned)) restored = true
         } catch {
@@ -243,7 +252,7 @@ export function usePlayBilling(options?: { preferReferralOffer?: boolean }) {
     isReferralPricing: Boolean(monthlyOffer?.isReferral || yearlyOffer?.isReferral),
     purchase,
     restorePurchases,
-    isProcessing,
+    isProcessing: pendingVerifications > 0,
     isRestoring,
     errorKey,
     clearError,

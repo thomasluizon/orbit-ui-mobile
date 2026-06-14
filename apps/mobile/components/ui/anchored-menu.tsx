@@ -49,12 +49,16 @@ export function AnchoredMenu({
   const [shouldRender, setShouldRender] = useState(visible)
   const progress = useMemo(() => new Animated.Value(0), [])
 
-  useEffect(() => {
+  const [prevVisible, setPrevVisible] = useState(visible)
+  const [prevEstimatedHeight, setPrevEstimatedHeight] = useState(estimatedHeight)
+  if (visible !== prevVisible || estimatedHeight !== prevEstimatedHeight) {
+    setPrevVisible(visible)
+    setPrevEstimatedHeight(estimatedHeight)
     if (visible) {
-       
       setMenuHeight(estimatedHeight)
+      if (visible !== prevVisible) setShouldRender(true)
     }
-  }, [estimatedHeight, visible])
+  }
 
   useEffect(() => {
     if (!visible) return
@@ -67,8 +71,6 @@ export function AnchoredMenu({
 
   useEffect(() => {
     if (visible) {
-       
-      setShouldRender(true)
       Animated.timing(progress, {
         toValue: 1,
         duration: menuMotion.enterDuration,

@@ -347,8 +347,7 @@ export function OnboardingFlow() {
   return (
     <Modal
       visible
-      transparent
-      animationType="fade"
+      animationType="none"
       onRequestClose={handleRequestClose}
     >
       <View style={styles.container}>
@@ -461,6 +460,7 @@ function createStyles(tokens: AppTokensV2) {
       alignSelf: 'center',
       flexGrow: 1,
       justifyContent: 'center',
+      backgroundColor: tokens.bg,
     },
     footer: {
       paddingHorizontal: 28,

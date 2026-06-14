@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useMemo } from 'react'
+import { useState, useCallback, useMemo } from 'react'
 import {
   ActivityIndicator,
   StyleSheet,
@@ -243,16 +243,20 @@ export function EditGoalModal({ open, onClose, goal }: EditGoalModalProps) {
     return errs
   }, [submitted, description, targetValue, unit, translate])
 
-  useEffect(() => {
+  const [prevResetKey, setPrevResetKey] = useState<string | null>(null)
+  const resetKey = open
+    ? `${goal.title}:${goal.targetValue}:${goal.unit}:${goal.deadline ?? ''}`
+    : null
+  if (resetKey !== prevResetKey) {
+    setPrevResetKey(resetKey)
     if (open) {
-
       setDescription(goal.title)
       setTargetValue(String(goal.targetValue))
       setUnit(goal.unit)
       setDeadline(goal.deadline ?? '')
       setSubmitted(false)
     }
-  }, [open, goal.deadline, goal.targetValue, goal.title, goal.unit])
+  }
 
   const onSubmit = useCallback(async () => {
     setSubmitted(true)

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import {
   ActivityIndicator,
   Pressable,
@@ -54,6 +54,8 @@ type Step =
   | 'not-connected'
   | 'offline'
 
+type WizardStage = 'browse' | 'importing' | 'done' | 'error'
+
 function rowEntrance(index: number) {
   return FadeInDown.duration(280)
     .delay(Math.min(index, 8) * 40)
@@ -104,17 +106,43 @@ export default function CalendarSyncScreen() {
     [suggestionsQuery.data],
   )
 
-  const [step, setStep] = useState<Step>('loading')
+  const [wizardStage, setWizardStage] = useState<WizardStage>('browse')
   const [events, setEvents] = useState<CalendarEvent[]>([])
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set())
   const [errorMessage, setErrorMessage] = useState('')
   const [importResult, setImportResult] = useState<ImportResult | null>(null)
   const [isConnecting, setIsConnecting] = useState(false)
+  const [previousEventsKey, setPreviousEventsKey] = useState<string | null>(null)
   const fetchErrorText = t('calendar.fetchError')
 
   const eventsQuery = useCalendarEvents({
     enabled: (profile?.hasProAccess ?? false) && !isReviewMode && isOnline,
   })
+
+  const incomingEvents = useMemo<CalendarEvent[]>(() => {
+    if (isReviewMode) return suggestions.map((suggestion) => suggestion.event)
+    if (eventsQuery.data?.status === 'connected') return eventsQuery.data.events
+    return []
+  }, [isReviewMode, suggestions, eventsQuery.data])
+
+  const eventsKey = `${isReviewMode ? 'review' : 'manual'}:${incomingEvents
+    .map((event) => event.id)
+    .join('|')}`
+  if (eventsKey !== previousEventsKey) {
+    setPreviousEventsKey(eventsKey)
+    setEvents(incomingEvents)
+    if (isReviewMode && previousEventsKey !== null) {
+      setSelectedIds((prev) => {
+        const next = new Set<string>()
+        for (const event of incomingEvents) {
+          if (prev.has(event.id)) next.add(event.id)
+        }
+        return next
+      })
+    } else {
+      setSelectedIds(new Set(incomingEvents.map((event) => event.id)))
+    }
+  }
 
   const allSelected = events.length > 0 && selectedIds.size === events.length
 
@@ -134,7 +162,6 @@ export default function CalendarSyncScreen() {
         return
       }
       if (!isOnline) {
-        setStep('offline')
         return
       }
 
@@ -152,83 +179,27 @@ export default function CalendarSyncScreen() {
     }, [eventsQuery, isOnline, isReviewMode, profile, queryClient, router]),
   )
 
-  useEffect(() => {
-    if (!isReviewMode) return
-    if (!isOnline) {
+  const activeQuery = isReviewMode ? suggestionsQuery : eventsQuery
+  const step: Step = ((): Step => {
+    if (wizardStage === 'importing') return 'importing'
+    if (wizardStage === 'done') return 'done'
+    if (wizardStage === 'error') return 'error'
+    if (isProfileLoading) return 'loading'
+    if (!isOnline) return 'offline'
+    if (activeQuery.isLoading) return 'loading'
+    if (activeQuery.isError) return 'error'
+    if (!isReviewMode && eventsQuery.data?.status === 'not-connected') {
+      return 'not-connected'
+    }
+    return 'select'
+  })()
 
-      setStep('offline')
-      return
-    }
-    if (suggestionsQuery.isLoading) {
-      setStep('loading')
-      return
-    }
-    if (suggestionsQuery.isError) {
-      setErrorMessage(getErrorMessage(suggestionsQuery.error, fetchErrorText))
-      setStep('error')
-      return
-    }
-
-    const nextEvents: CalendarEvent[] = suggestions.map(
-      (suggestion) => suggestion.event,
-    )
-    setEvents(nextEvents)
-    setSelectedIds((prev) => {
-      if (prev.size === 0) {
-        return new Set(nextEvents.map((event) => event.id))
-      }
-      const next = new Set<string>()
-      for (const event of nextEvents) {
-        if (prev.has(event.id)) {
-          next.add(event.id)
-        }
-      }
-      return next
-    })
-    setStep('select')
-  }, [
-    isOnline,
-    isReviewMode,
-    suggestions,
-    suggestionsQuery.error,
-    suggestionsQuery.isError,
-    suggestionsQuery.isLoading,
-    fetchErrorText,
-  ])
-
-  useEffect(() => {
-    if (isReviewMode) return
-    if (!isOnline) {
-      setStep('offline')
-      return
-    }
-    if (eventsQuery.isLoading) {
-      setStep('loading')
-      return
-    }
-    if (eventsQuery.isError) {
-      setErrorMessage(getErrorMessage(eventsQuery.error, fetchErrorText))
-      setStep('error')
-      return
-    }
-    if (eventsQuery.data?.status === 'not-connected') {
-      setStep('not-connected')
-      return
-    }
-
-    const nextEvents = eventsQuery.data?.events ?? []
-    setEvents(nextEvents)
-    setSelectedIds(new Set(nextEvents.map((event) => event.id)))
-    setStep('select')
-  }, [
-    isOnline,
-    isReviewMode,
-    eventsQuery.data,
-    eventsQuery.error,
-    eventsQuery.isError,
-    eventsQuery.isLoading,
-    fetchErrorText,
-  ])
+  const displayedErrorMessage =
+    wizardStage === 'error'
+      ? errorMessage
+      : activeQuery.isError
+        ? getErrorMessage(activeQuery.error, fetchErrorText)
+        : ''
 
   const handleBack = useCallback(() => {
     goBackOrFallback('/profile')
@@ -255,7 +226,6 @@ export default function CalendarSyncScreen() {
 
   const handleConnect = useCallback(async () => {
     if (!isOnline) {
-      setStep('offline')
       return
     }
     if (isConnecting) return
@@ -274,6 +244,7 @@ export default function CalendarSyncScreen() {
       router.replace('/auth-callback')
     } catch {
       setErrorMessage(t('auth.googleError'))
+      setWizardStage('error')
     } finally {
       setIsConnecting(false)
     }
@@ -311,12 +282,11 @@ export default function CalendarSyncScreen() {
 
   const handleImportSelected = useCallback(async () => {
     if (!isOnline) {
-      setStep('offline')
       return
     }
     if (selectedCount === 0) return
 
-    setStep('importing')
+    setWizardStage('importing')
     setErrorMessage('')
 
     try {
@@ -345,7 +315,7 @@ export default function CalendarSyncScreen() {
             )
             .join(', '),
         )
-        setStep('error')
+        setWizardStage('error')
         return
       }
 
@@ -360,7 +330,7 @@ export default function CalendarSyncScreen() {
             title: item.title as string,
           })),
       })
-      setStep('done')
+      setWizardStage('done')
 
       if (isReviewMode) {
         void queryClient.invalidateQueries({
@@ -369,7 +339,7 @@ export default function CalendarSyncScreen() {
       }
     } catch (err: unknown) {
       setErrorMessage(getErrorMessage(err, t('calendar.importError')))
-      setStep('error')
+      setWizardStage('error')
     }
   }, [
     bulkCreateHabits,
@@ -385,10 +355,9 @@ export default function CalendarSyncScreen() {
 
   const handleRetry = useCallback(() => {
     if (!isOnline) {
-      setStep('offline')
       return
     }
-    setStep('loading')
+    setWizardStage('browse')
     setErrorMessage('')
     if (isReviewMode) {
       void queryClient.invalidateQueries({
@@ -689,7 +658,7 @@ export default function CalendarSyncScreen() {
             accessibilityLiveRegion="assertive"
           >
             <Text style={[styles.stateText, { color: tokens.statusOverdueText }]}>
-              {errorMessage || t('calendar.errorTitle')}
+              {displayedErrorMessage || t('calendar.errorTitle')}
             </Text>
             <Pressable
               onPress={handleRetry}

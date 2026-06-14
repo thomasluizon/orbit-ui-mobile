@@ -1,8 +1,9 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { useMutation } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
+import { habitKeys } from '@orbit/shared/query'
 import { useProfile } from '@/hooks/use-profile'
 import { AppBar } from '@/components/ui/app-bar'
 import { SectionLabel } from '@/components/ui/section-label'
@@ -19,6 +20,7 @@ export default function AiSettingsPage() {
   const t = useTranslations()
   const router = useRouter()
   const goBackOrFallback = useGoBackOrFallback()
+  const queryClient = useQueryClient()
   const { profile, patchProfile } = useProfile()
   const hasProAccess = profile?.hasProAccess ?? false
   const aiMemoryEnabled = hasProAccess && (profile?.aiMemoryEnabled ?? false)
@@ -49,6 +51,9 @@ export default function AiSettingsPage() {
       if (context?.previous !== undefined) {
         patchProfile({ aiSummaryEnabled: context.previous })
       }
+    },
+    onSettled: () => {
+      queryClient.invalidateQueries({ queryKey: habitKeys.summaryPrefix() })
     },
   })
 

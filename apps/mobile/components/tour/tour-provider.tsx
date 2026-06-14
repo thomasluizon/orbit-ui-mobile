@@ -1,4 +1,4 @@
-import { useEffect, useRef, useCallback } from 'react'
+import { useEffect, useRef, useCallback, useState } from 'react'
 import { Dimensions, Platform } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { usePathname, useRouter } from 'expo-router'
@@ -50,9 +50,11 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
   const reMeasureRef = useRef<ReturnType<typeof setInterval> | null>(null)
   const managedTimeoutsRef = useRef(new Set<ReturnType<typeof setTimeout>>())
 
-  useEffect(() => {
+  const [prevHasProAccess, setPrevHasProAccess] = useState<boolean | null>(null)
+  if (hasProAccess !== prevHasProAccess) {
+    setPrevHasProAccess(hasProAccess)
     setHiddenSections(hasProAccess ? [] : ['goals'])
-  }, [hasProAccess, setHiddenSections])
+  }
 
   const yAdjust = Platform.OS === 'android' ? insets.top : 0
 

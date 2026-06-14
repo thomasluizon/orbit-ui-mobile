@@ -2,7 +2,6 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 
 const mockLogout = vi.fn()
-const mockPush = vi.fn()
 let mockExpiresAt: number | null = null
 
 vi.mock('next-intl', () => ({
@@ -10,10 +9,6 @@ vi.mock('next-intl', () => ({
     if (params) return `${key}(${JSON.stringify(params)})`
     return key
   },
-}))
-
-vi.mock('next/navigation', () => ({
-  useRouter: () => ({ push: mockPush }),
 }))
 
 vi.mock('@/stores/auth-store', () => ({
@@ -30,7 +25,6 @@ import { ExpiryWarning } from '@/components/ui/expiry-warning'
 describe('ExpiryWarning', () => {
   beforeEach(() => {
     mockLogout.mockClear()
-    mockPush.mockClear()
     mockExpiresAt = null
   })
 
@@ -70,11 +64,10 @@ describe('ExpiryWarning', () => {
     expect(screen.getByText('auth.login')).toBeInTheDocument()
   })
 
-  it('calls logout and navigates to login when button clicked', () => {
+  it('calls logout when the login button is clicked (logout owns navigation)', () => {
     mockExpiresAt = Date.now() - 1000
     render(<ExpiryWarning />)
     fireEvent.click(screen.getByText('auth.login'))
     expect(mockLogout).toHaveBeenCalled()
-    expect(mockPush).toHaveBeenCalledWith('/login')
   })
 })

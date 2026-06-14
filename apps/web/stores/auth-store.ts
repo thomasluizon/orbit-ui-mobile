@@ -31,19 +31,27 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   checkSession: async () => {
+    let response: Response
     try {
-      const response = await fetch('/api/auth/session')
-      if (!response.ok) {
-        set({ isAuthenticated: false, user: null, expiresAt: null })
-        return
-      }
-      const data = (await response.json()) as { expiresAt: number | null }
-      if (data.expiresAt) {
-        set({ isAuthenticated: true, expiresAt: data.expiresAt })
-      } else {
-        set({ isAuthenticated: false, user: null, expiresAt: null })
-      }
+      response = await fetch('/api/auth/session')
     } catch {
+      return
+    }
+
+    if (response.status === 401 || response.status === 403) {
+      set({ isAuthenticated: false, user: null, expiresAt: null })
+      return
+    }
+
+    if (!response.ok) {
+      return
+    }
+
+    const data = (await response.json()) as { expiresAt: number | null }
+    if (data.expiresAt) {
+      set({ isAuthenticated: true, expiresAt: data.expiresAt })
+    } else {
+      set({ isAuthenticated: false, user: null, expiresAt: null })
     }
   },
 

@@ -43,6 +43,14 @@ describe('parseAPIDate', () => {
     expect(result.getMonth()).toBe(11)
     expect(result.getDate()).toBe(31)
   })
+
+  it('throws a descriptive error naming the bad value for a malformed string', () => {
+    expect(() => parseAPIDate('not-a-date')).toThrow('not-a-date')
+  })
+
+  it('throws for an empty string', () => {
+    expect(() => parseAPIDate('')).toThrow(/parseAPIDate/)
+  })
 })
 
 

@@ -112,6 +112,9 @@ vi.mock('@tanstack/react-query', () => ({
     error: null,
     mutateAsync: mutationFn,
   }),
+  useQueryClient: () => ({
+    invalidateQueries: vi.fn(),
+  }),
 }))
 
 vi.mock('@/app/actions/profile', () => ({

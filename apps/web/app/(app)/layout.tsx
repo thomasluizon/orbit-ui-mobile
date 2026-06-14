@@ -9,6 +9,7 @@ import { WebNav } from '@/components/navigation/web-nav'
 import type { BottomTab } from '@/components/navigation/bottom-tab-bar'
 import { TrialBanner } from '@/components/ui/trial-banner'
 import { TrialExpiredModal } from '@/components/ui/trial-expired-modal'
+import { ExpiryWarning } from '@/components/ui/expiry-warning'
 import { PushPrompt } from '@/components/ui/push-prompt'
 import { AppOverlay } from '@/components/ui/app-overlay'
 import { CreateHabitModal } from '@/components/habits/create-habit-modal'
@@ -257,6 +258,7 @@ function GlobalOverlays({
 
   return (
     <div className="contents">
+      <ExpiryWarning />
       <TrialExpiredModal />
       {profile?.hasCompletedOnboarding && <PushPrompt />}
       {profile && !profile.hasCompletedOnboarding && <OnboardingFlow />}

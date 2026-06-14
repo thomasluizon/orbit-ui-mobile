@@ -50,6 +50,13 @@ describe('habitKeys', () => {
     expect(habitKeys.logs('h-1')).toEqual(['habits', 'logs', 'h-1'])
   })
 
+  it('calendarPrefix returns the calendar prefix that matches calendar entries', () => {
+    expect(habitKeys.calendarPrefix()).toEqual(['habits', 'calendar'])
+    const entry = habitKeys.calendar('2025-01-01', '2025-01-31')
+    const prefix = habitKeys.calendarPrefix()
+    expect(entry.slice(0, prefix.length)).toEqual([...prefix])
+  })
+
   it('calendar appends date range', () => {
     expect(habitKeys.calendar('2025-01-01', '2025-01-31')).toEqual(
       ['habits', 'calendar', '2025-01-01', '2025-01-31'],
@@ -186,14 +193,6 @@ describe('subscriptionKeys', () => {
 describe('referralKeys', () => {
   it('all returns base key', () => {
     expect(referralKeys.all).toEqual(['referral'])
-  })
-
-  it('code returns code key', () => {
-    expect(referralKeys.code()).toEqual(['referral', 'code'])
-  })
-
-  it('stats returns stats key', () => {
-    expect(referralKeys.stats()).toEqual(['referral', 'stats'])
   })
 })
 

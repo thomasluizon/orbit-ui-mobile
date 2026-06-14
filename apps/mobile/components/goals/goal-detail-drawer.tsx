@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
+import { useState, useCallback, useMemo, useRef } from 'react'
 import { Text, TouchableOpacity, View } from 'react-native'
 import { ChevronRight, Orbit } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
@@ -160,19 +160,21 @@ export function GoalDetailDrawer({
     )
   }, [initialProgressValue, progressNote, progressValue, showProgressForm])
 
-  useEffect(() => {
+  const [prevResetKey, setPrevResetKey] = useState<string | null>(null)
+  const resetKey = open ? `${goalId}:${goal?.currentValue}` : null
+  if (resetKey !== prevResetKey) {
+    setPrevResetKey(resetKey)
     if (open) {
       const nextInitial =
         goal?.currentValue !== undefined ? String(goal.currentValue) : ''
       pendingProgressDismissRef.current = null
-       
       setInitialProgressValue(nextInitial)
       setProgressValue(nextInitial)
       setShowProgressForm(false)
       setProgressNote('')
       setShowProgressDiscardDialog(false)
     }
-  }, [open, goalId, goal?.currentValue])
+  }
 
   const formatDate = useCallback(
     (dateStr: string) =>

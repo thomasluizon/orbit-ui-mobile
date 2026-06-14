@@ -36,10 +36,11 @@ describe('auth-api session helpers', () => {
       return undefined
     })
 
-    const { getAuthHeaders } = await import('@/lib/auth-api')
-    const headers = await getAuthHeaders()
+    const { resolveServerSession } = await import('@/lib/auth-api')
+    const session = await resolveServerSession()
 
-    expect(headers).toEqual({ Authorization: `Bearer ${token}` })
+    expect(session.token).toBe(token)
+    expect(session.refreshed).toBe(false)
     expect(mockFetch).not.toHaveBeenCalled()
   })
 
@@ -57,10 +58,11 @@ describe('auth-api session helpers', () => {
       json: () => Promise.resolve({ token: refreshedToken, refreshToken: 'refresh-rotated' }),
     })
 
-    const { getAuthHeaders } = await import('@/lib/auth-api')
-    const headers = await getAuthHeaders()
+    const { resolveServerSession } = await import('@/lib/auth-api')
+    const session = await resolveServerSession()
 
-    expect(headers).toEqual({ Authorization: `Bearer ${refreshedToken}` })
+    expect(session.token).toBe(refreshedToken)
+    expect(session.refreshed).toBe(true)
     expect(mockFetch).toHaveBeenCalledTimes(1)
     expect(mockCookieStore.set).toHaveBeenCalledTimes(2)
     expect(mockCookieStore.set).toHaveBeenCalledWith(

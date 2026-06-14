@@ -2,7 +2,7 @@
 
 import { useEffect } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
-import { profileKeys } from '@orbit/shared/query'
+import { habitKeys, profileKeys } from '@orbit/shared/query'
 import type { Profile } from '@orbit/shared/types/profile'
 import { updateTimezone } from '@/app/actions/profile'
 
@@ -20,6 +20,7 @@ async function syncTimezoneIfNeeded(
     queryClient.setQueryData<Profile>(profileKeys.detail(), (old) =>
       old ? { ...old, timeZone: detected } : old,
     )
+    void queryClient.invalidateQueries({ queryKey: habitKeys.all })
   } catch {
   }
 }

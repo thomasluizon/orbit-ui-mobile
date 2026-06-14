@@ -23,13 +23,13 @@ interface PreferencePickerSheetProps {
   currentScheme: ColorScheme
   weekStartDay?: number
   themeModeOptions: { value: ThemeMode; label: string }[]
-  weekStartOptions: { value: number; label: string }[]
+  weekStartOptions: { value: 0 | 1; label: string }[]
   pickerTitles: Record<PreferencePicker, string>
   onClose: () => void
   onLanguageChange: (locale: SupportedLocale) => void
   onThemeModeChange: (mode: ThemeMode) => void
   onSchemeChange: (scheme: ColorScheme) => void
-  onWeekStartChange: (day: number) => void
+  onWeekStartChange: (day: 0 | 1) => void
 }
 
 export function PreferencePickerSheet({

@@ -200,25 +200,52 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
     selectedDateStr: string
   } | null>(null)
 
+  const recentlyCompletedTimersRef = useReactRef(
+    new Map<string, ReturnType<typeof setTimeout>>(),
+  )
+
+  useEffect(() => {
+    const timers = recentlyCompletedTimersRef.current
+    return () => {
+      for (const timer of timers.values()) {
+        clearTimeout(timer)
+      }
+      timers.clear()
+    }
+  }, [recentlyCompletedTimersRef])
+
   const markRecentlyCompleted = useCallback((habitId: string) => {
     setRecentlyCompletedIds((prev) => new Set(prev).add(habitId))
-    setTimeout(() => {
-      setRecentlyCompletedIds((prev) => {
-        const next = new Set(prev)
-        next.delete(habitId)
-        return next
-      })
-    }, 1400)
-  }, [])
+    const timers = recentlyCompletedTimersRef.current
+    const existing = timers.get(habitId)
+    if (existing) clearTimeout(existing)
+    timers.set(
+      habitId,
+      setTimeout(() => {
+        timers.delete(habitId)
+        setRecentlyCompletedIds((prev) => {
+          const next = new Set(prev)
+          next.delete(habitId)
+          return next
+        })
+      }, 1400),
+    )
+  }, [recentlyCompletedTimersRef])
 
   const clearRecentlyCompleted = useCallback((habitId: string) => {
+    const timers = recentlyCompletedTimersRef.current
+    const existing = timers.get(habitId)
+    if (existing) {
+      clearTimeout(existing)
+      timers.delete(habitId)
+    }
     setRecentlyCompletedIds((prev) => {
       if (!prev.has(habitId)) return prev
       const next = new Set(prev)
       next.delete(habitId)
       return next
     })
-  }, [])
+  }, [recentlyCompletedTimersRef])
 
   const selectedDateStr = selectedDate ? formatAPIDate(selectedDate) : formatAPIDate(new Date())
   const todayStr = formatAPIDate(new Date())
@@ -540,7 +567,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
     }
   }
 
-  async function handleDragEnd(event: DragEndEvent) {
+  function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event
     const items = dragOverrideItems ?? dragItemsRef.current
 
@@ -552,11 +579,8 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
         const positions = computeHabitReorderPositions(
           items, oldIndex, newIndex, habitsById, getChildren,
         )
-        try {
-          if (positions.length > 0) {
-            await reorderHabitsMut.mutateAsync({ positions })
-          }
-        } catch {
+        if (positions.length > 0) {
+          reorderHabitsMut.mutate({ positions })
         }
       }
     }

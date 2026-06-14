@@ -9,6 +9,7 @@ export const habitKeys = {
   fullDetail: (id: string) => [...habitKeys.fullDetails(), id] as const,
   metrics: (id: string) => [...habitKeys.all, 'metrics', id] as const,
   logs: (id: string) => [...habitKeys.all, 'logs', id] as const,
+  calendarPrefix: () => [...habitKeys.all, 'calendar'] as const,
   calendar: (from: string, to: string) => [...habitKeys.all, 'calendar', from, to] as const,
   summaryPrefix: () => [...habitKeys.all, 'summary'] as const,
   summary: (from: string, to: string, locale: string = 'en', timeBucket?: string) =>
@@ -61,8 +62,6 @@ export const subscriptionKeys = {
 
 export const referralKeys = {
   all: ['referral'] as const,
-  code: () => [...referralKeys.all, 'code'] as const,
-  stats: () => [...referralKeys.all, 'stats'] as const,
 }
 
 export const apiKeyKeys = {

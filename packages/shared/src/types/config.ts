@@ -2,7 +2,7 @@ import { z } from 'zod'
 
 export const featureFlagSchema = z.object({
   enabled: z.boolean(),
-  plan: z.enum(['Pro']).nullable(),
+  planRequirement: z.enum(['Pro']).nullable(),
 })
 export type FeatureFlag = z.infer<typeof featureFlagSchema>
 
@@ -37,19 +37,19 @@ export const DEFAULT_CONFIG: AppConfig = {
     dailyAdRewardCap: 3,
   },
   features: {
-    'habits.create': { enabled: true, plan: null },
-    'habits.subHabits': { enabled: true, plan: 'Pro' },
-    'habits.bulk': { enabled: true, plan: 'Pro' },
-    'goals': { enabled: true, plan: 'Pro' },
-    'chat': { enabled: true, plan: null },
-    'chat.imageUpload': { enabled: true, plan: 'Pro' },
-    'summary': { enabled: true, plan: 'Pro' },
-    'retrospective': { enabled: true, plan: 'Pro' },
-    'gamification': { enabled: true, plan: 'Pro' },
-    'apiKeys': { enabled: true, plan: 'Pro' },
-    'slipAlerts': { enabled: true, plan: null },
-    'calendarSync': { enabled: true, plan: null },
-    'checklistTemplates': { enabled: true, plan: null },
+    'habits.create': { enabled: true, planRequirement: null },
+    'habits.subHabits': { enabled: true, planRequirement: 'Pro' },
+    'habits.bulk': { enabled: true, planRequirement: 'Pro' },
+    'goals': { enabled: true, planRequirement: 'Pro' },
+    'chat': { enabled: true, planRequirement: null },
+    'chat.imageUpload': { enabled: true, planRequirement: 'Pro' },
+    'summary': { enabled: true, planRequirement: 'Pro' },
+    'retrospective': { enabled: true, planRequirement: 'Pro' },
+    'gamification': { enabled: true, planRequirement: 'Pro' },
+    'apiKeys': { enabled: true, planRequirement: 'Pro' },
+    'slipAlerts': { enabled: true, planRequirement: null },
+    'calendarSync': { enabled: true, planRequirement: null },
+    'checklistTemplates': { enabled: true, planRequirement: null },
   },
   settings: {
     syncIntervalSeconds: 300,

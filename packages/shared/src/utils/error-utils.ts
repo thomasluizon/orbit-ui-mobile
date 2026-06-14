@@ -296,7 +296,6 @@ export function getFriendlyErrorKey(
   if (code === 'INVALID_VERIFICATION_CODE') return 'auth.errors.invalidCode'
   if (code === 'CODE_EXPIRED') return 'auth.errors.codeExpired'
   if (code === 'ALREADY_LOGGED') return 'habits.errors.alreadyLogged'
-  if (code === 'MAX_SUB_HABITS_REACHED') return 'habits.form.subHabitLimit'
   if (code === 'MAX_DEPTH_REACHED') return 'habits.errors.maxDepthReached'
   if (code === 'CIRCULAR_REFERENCE') return 'habits.errors.circularReference'
   if (

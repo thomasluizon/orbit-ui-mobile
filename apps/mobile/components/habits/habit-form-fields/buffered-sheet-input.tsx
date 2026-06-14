@@ -34,15 +34,17 @@ export const BufferedSheetInput = memo(function BufferedSheetInput({
   ...props
 }: Readonly<BufferedSheetInputProps>) {
   const [draft, setDraft] = useState(value);
+  const [prevValue, setPrevValue] = useState(value);
   const isFocusedRef = useRef(false);
   const lastSyncedValueRef = useRef(value);
 
-  useEffect(() => {
+  if (value !== prevValue) {
+    setPrevValue(value);
     if (!isFocusedRef.current && value !== lastSyncedValueRef.current) {
       setDraft(value);
       lastSyncedValueRef.current = value;
     }
-  }, [value]);
+  }
 
   const commitDraft = useCallback(() => {
     if (draft !== value) {

@@ -247,6 +247,54 @@ async function resolveMutationReferences(mutation: QueuedMutation): Promise<Queu
   return rewriteMutationIdReferences(mutation, mutation.targetEntityId, resolvedId)
 }
 
+const BACKOFF_BASE_DELAY_MS = 2_000
+const BACKOFF_MAX_DELAY_MS = 60_000
+const BACKOFF_MAX_ATTEMPTS = 6
+
+let backoffAttempt = 0
+let backoffTimer: ReturnType<typeof setTimeout> | null = null
+let flushInFlight = false
+
+function computeBackoffDelay(attempt: number): number {
+  return Math.min(BACKOFF_BASE_DELAY_MS * 2 ** attempt, BACKOFF_MAX_DELAY_MS)
+}
+
+function clearBackoffTimer(): void {
+  if (backoffTimer !== null) {
+    clearTimeout(backoffTimer)
+    backoffTimer = null
+  }
+}
+
+/**
+ * Cancels any scheduled offline-queue retry and resets backoff state. Call when
+ * the session is torn down or replaced so a pending retry never fires against a
+ * cleared queue or a different account.
+ */
+export function cancelScheduledFlush(): void {
+  clearBackoffTimer()
+  backoffAttempt = 0
+}
+
+function scheduleBackoffFlush(): void {
+  if (backoffTimer !== null) return
+  if (backoffAttempt >= BACKOFF_MAX_ATTEMPTS) return
+
+  const delay = computeBackoffDelay(backoffAttempt)
+  backoffAttempt += 1
+  backoffTimer = setTimeout(() => {
+    backoffTimer = null
+    void (async () => {
+      if (count() === 0) {
+        backoffAttempt = 0
+        return
+      }
+      if (!(await getCurrentConnectivity())) return
+      await flushQueuedMutations()
+    })()
+  }, delay)
+}
+
 function isTransientNetworkError(error: unknown): boolean {
   if (error instanceof TypeError) return true
   if (!(error instanceof Error)) return false
@@ -443,17 +491,19 @@ async function markMutationSyncing(mutation: QueuedMutation): Promise<void> {
   }
 }
 
+type FlushStopReason = 'network' | 'auth' | null
+
 async function handleFlushFailure(
   mutation: QueuedMutation,
   error: unknown,
   touchedScopes: Set<MutationScope>,
 ): Promise<{
   incrementFailed: boolean
-  stop: boolean
+  stopReason: FlushStopReason
 }> {
   if (isTransientNetworkError(error)) {
     update(mutation.id, { status: 'failed', lastError: getErrorMessage(error) })
-    return { incrementFailed: false, stop: true }
+    return { incrementFailed: false, stopReason: 'network' }
   }
 
   const nextRetries = mutation.retries + 1
@@ -487,7 +537,7 @@ async function handleFlushFailure(
 
   return {
     incrementFailed: true,
-    stop: shouldStopFlushing(error),
+    stopReason: shouldStopFlushing(error) ? 'auth' : null,
   }
 }
 
@@ -501,7 +551,7 @@ async function invalidateTouchedScopes(scopes: Set<MutationScope>): Promise<void
 
 type FlushStepResult = {
   failedDelta: number
-  shouldBreak: boolean
+  stopReason: FlushStopReason
   succeededDelta: number
 }
 
@@ -511,13 +561,13 @@ async function processQueuedMutationFlush(
 ): Promise<FlushStepResult> {
   const currentMutation = getById(originalMutation.id)
   if (!currentMutation) {
-    return { failedDelta: 0, shouldBreak: false, succeededDelta: 0 }
+    return { failedDelta: 0, stopReason: null, succeededDelta: 0 }
   }
 
   const mutation = await resolveMutationReferences(currentMutation)
   if (hasPendingOfflineDependencies(mutation)) {
     update(mutation.id, { status: 'pending', lastError: null })
-    return { failedDelta: 0, shouldBreak: false, succeededDelta: 0 }
+    return { failedDelta: 0, stopReason: null, succeededDelta: 0 }
   }
 
   await markMutationSyncing(mutation)
@@ -529,24 +579,28 @@ async function processQueuedMutationFlush(
     })
 
     await finalizeSuccessfulFlush(mutation, response, touchedScopes)
-    return { failedDelta: 0, shouldBreak: false, succeededDelta: 1 }
+    return { failedDelta: 0, stopReason: null, succeededDelta: 1 }
   } catch (error: unknown) {
     const failure = await handleFlushFailure(mutation, error, touchedScopes)
     return {
       failedDelta: failure.incrementFailed ? 1 : 0,
-      shouldBreak: failure.stop,
+      stopReason: failure.stopReason,
       succeededDelta: 0,
     }
   }
 }
 
-export async function flushQueuedMutations(): Promise<{
+type FlushOutcome = {
   succeeded: number
   failed: number
   remaining: number
-}> {
+  stopReason: FlushStopReason
+}
+
+async function runQueueFlush(): Promise<FlushOutcome> {
   let succeeded = 0
   let failed = 0
+  let stopReason: FlushStopReason = null
   const touchedScopes = new Set<MutationScope>()
   const pending = getAll()
 
@@ -554,15 +608,44 @@ export async function flushQueuedMutations(): Promise<{
     const step = await processQueuedMutationFlush(originalMutation, touchedScopes)
     succeeded += step.succeededDelta
     failed += step.failedDelta
-    if (step.shouldBreak) break
+    if (step.stopReason) {
+      stopReason = step.stopReason
+      break
+    }
   }
 
   await invalidateTouchedScopes(touchedScopes)
   await persistQueryCache()
 
+  return { succeeded, failed, remaining: count(), stopReason }
+}
+
+export async function flushQueuedMutations(): Promise<{
+  succeeded: number
+  failed: number
+  remaining: number
+}> {
+  if (flushInFlight) {
+    return { succeeded: 0, failed: 0, remaining: count() }
+  }
+
+  flushInFlight = true
+  let outcome: FlushOutcome
+  try {
+    outcome = await runQueueFlush()
+  } finally {
+    flushInFlight = false
+  }
+
+  if (outcome.stopReason === 'network' && outcome.remaining > 0) {
+    scheduleBackoffFlush()
+  } else {
+    cancelScheduledFlush()
+  }
+
   return {
-    succeeded,
-    failed,
-    remaining: count(),
+    succeeded: outcome.succeeded,
+    failed: outcome.failed,
+    remaining: outcome.remaining,
   }
 }

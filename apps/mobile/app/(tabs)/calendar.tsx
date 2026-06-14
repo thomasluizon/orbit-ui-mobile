@@ -127,7 +127,7 @@ export default function CalendarScreen() {
     () => createTokensV2(currentScheme, currentTheme),
     [currentScheme, currentTheme],
   );
-  const weekStartsOn: 0 | 1 = (profile?.weekStartDay as 0 | 1) ?? 1;
+  const weekStartsOn: 0 | 1 = profile?.weekStartDay ?? 1;
   const styles = useMemo(() => createStyles(tokens), [tokens]);
   const calendarGridRef = useRef<View>(null);
   const calendarDayRef = useRef<View>(null);

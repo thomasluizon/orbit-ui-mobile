@@ -1,4 +1,4 @@
-import { useMemo, useState, useEffect, useCallback } from 'react'
+import { useMemo, useState, useCallback } from 'react'
 import {
   ActivityIndicator,
   Pressable,
@@ -8,6 +8,7 @@ import {
   Text,
   View,
 } from 'react-native'
+import * as Clipboard from 'expo-clipboard'
 import { Check, Copy, Gift, Share2 } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import { useReferral } from '@/hooks/use-referral'
@@ -34,13 +35,13 @@ export function ReferralDrawer({ open, onClose }: Readonly<ReferralDrawerProps>)
   const tokens = createTokensV2(currentScheme, currentTheme)
   const { stats, referralUrl, isLoading, isError, error } = useReferral()
   const [copied, setCopied] = useState(false)
+  const [prevOpen, setPrevOpen] = useState(open)
   const styles = useMemo(() => createStyles(tokens), [tokens])
 
-  useEffect(() => {
-    if (open) {
-      setCopied(false)
-    }
-  }, [open])
+  if (open !== prevOpen) {
+    setPrevOpen(open)
+    if (open) setCopied(false)
+  }
 
   const discountPercent = stats?.discountPercent ?? 10
 
@@ -55,12 +56,12 @@ export function ReferralDrawer({ open, onClose }: Readonly<ReferralDrawerProps>)
     }
   }, [referralUrl, discountPercent, t])
 
-  const copyLink = useCallback(() => {
+  const copyLink = useCallback(async () => {
     if (!referralUrl) return
-    doShare()
+    await Clipboard.setStringAsync(referralUrl)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
-  }, [referralUrl, doShare])
+  }, [referralUrl])
 
   return (
     <BottomSheetModal
@@ -115,7 +116,7 @@ export function ReferralDrawer({ open, onClose }: Readonly<ReferralDrawerProps>)
                     { backgroundColor: pressed ? tokens.bgElev2 : tokens.bgElev },
                     pressed ? styles.copyChipPressed : null,
                   ]}
-                  onPress={copyLink}
+                  onPress={() => void copyLink()}
                   accessibilityRole="button"
                   accessibilityLabel={t('referral.drawer.copy')}
                 >

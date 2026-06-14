@@ -10,6 +10,7 @@ const TestRenderer = require('react-test-renderer')
 const mocks = vi.hoisted(() => {
   const state = {
     profile: null as unknown as Profile,
+    isAuthenticated: true,
   }
 
   const queryClient = {
@@ -55,6 +56,11 @@ vi.mock('@/lib/api-client', () => ({
   apiClient: vi.fn(),
 }))
 
+vi.mock('@/stores/auth-store', () => ({
+  useAuthStore: (selector: (state: { isAuthenticated: boolean }) => unknown) =>
+    selector({ isAuthenticated: mocks.state.isAuthenticated }),
+}))
+
 function renderHookHarness() {
   function Harness() {
     useProfile()
@@ -70,6 +76,7 @@ function renderHookHarness() {
 describe('mobile useProfile', () => {
   beforeEach(() => {
     mocks.state.profile = createMockProfile()
+    mocks.state.isAuthenticated = true
     mocks.queryClient.invalidateQueries.mockClear()
     mocks.queryClient.setQueryData.mockClear()
     mocks.queryClient.getQueryData.mockClear()

@@ -14,7 +14,7 @@ export const LANGUAGE_OPTIONS: LabeledOption<SupportedLocale>[] = [
 
 export function buildWeekStartOptions(
   translate: PreferencesTranslationAdapter,
-): LabeledOption<number>[] {
+): LabeledOption<0 | 1>[] {
   return [
     { value: 1, label: translate('settings.weekStartDay.monday') },
     { value: 0, label: translate('settings.weekStartDay.sunday') },

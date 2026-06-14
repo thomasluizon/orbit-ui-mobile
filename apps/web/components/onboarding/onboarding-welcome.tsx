@@ -24,7 +24,7 @@ export function OnboardingWelcome() {
   const { currentScheme, applyScheme } = useColorScheme()
 
   const weekStartDayMutation = useMutation({
-    mutationFn: (day: number) => updateWeekStartDay({ weekStartDay: day }),
+    mutationFn: (day: 0 | 1) => updateWeekStartDay({ weekStartDay: day }),
     onMutate: async (newDay) => {
       await queryClient.cancelQueries({ queryKey: profileKeys.all })
       const prev = queryClient.getQueryData<Profile>(profileKeys.detail())
@@ -47,7 +47,7 @@ export function OnboardingWelcome() {
     mutationFn: (scheme: string) => updateColorSchemeAction({ colorScheme: scheme }),
   })
 
-  function handleWeekStartDaySelect(day: number) {
+  function handleWeekStartDaySelect(day: 0 | 1) {
     weekStartDayMutation.mutate(day)
   }
 

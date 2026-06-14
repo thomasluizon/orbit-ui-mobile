@@ -21,6 +21,7 @@ import type {
 } from '@orbit/shared/types/habit'
 import type { HabitLog } from '@orbit/shared/types/calendar'
 import { apiClient } from '@/lib/api-client'
+import { useAuthStore } from '@/stores/auth-store'
 
 export interface NormalizedHabitsData {
   habitsById: Map<string, NormalizedHabit>
@@ -156,12 +157,14 @@ export function useHabitFullDetail(id: string | null) {
 // useSummary lives in ./use-summary for parity with apps/web/hooks.
 
 export function useTotalHabitCount(): number {
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
   const query = useQuery({
     queryKey: habitKeys.count(),
     queryFn: async () => {
       const data = await apiClient<{ count: number }>(API.habits.count)
       return data.count
     },
+    enabled: isAuthenticated,
     staleTime: QUERY_STALE_TIMES.habits,
   })
 

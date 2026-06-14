@@ -6,7 +6,6 @@ import { PillButton } from '@/components/ui/pill-button'
 
 /**
  * Error boundary for auth pages (login, auth-callback).
- * Matches the Nuxt NuxtErrorBoundary in auth.vue layout.
  */
 export default function AuthError({
   error,

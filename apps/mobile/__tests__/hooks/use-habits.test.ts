@@ -137,6 +137,11 @@ vi.mock('@/lib/api-client', () => ({
   apiClient: vi.fn(),
 }))
 
+vi.mock('@/stores/auth-store', () => ({
+  useAuthStore: (selector: (state: { isAuthenticated: boolean }) => unknown) =>
+    selector({ isAuthenticated: true }),
+}))
+
 vi.mock('@/lib/offline-mutations', () => ({
   runQueuedMutation: mocks.runQueuedMutation,
   buildQueuedMutation: mocks.buildQueuedMutation,

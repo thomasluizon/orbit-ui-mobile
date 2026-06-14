@@ -73,7 +73,7 @@ export function CalendarGrid({
   const t = useTranslations()
   const { displayWeekdayDate } = useDateFormat()
   const { profile } = useProfile()
-  const weekStartsOn: 0 | 1 = (profile?.weekStartDay as 0 | 1) ?? 1
+  const weekStartsOn: 0 | 1 = profile?.weekStartDay ?? 1
 
   const weekdayHeaders = useMemo(() => {
     const mondayFirst = [

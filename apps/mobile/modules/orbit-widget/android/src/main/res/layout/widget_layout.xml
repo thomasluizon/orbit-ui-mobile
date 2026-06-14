@@ -57,7 +57,7 @@
                         android:text="Today"
                         android:textColor="#FFF8FAFC"
                         android:textSize="20sp"
-                        android:fontFamily="@font/rubik_medium"
+                        android:fontFamily="sans-serif-medium"
                         android:letterSpacing="-0.01" />
 
                     <TextView
@@ -66,7 +66,7 @@
                         android:layout_height="wrap_content"
                         android:textColor="#9990A1B9"
                         android:textSize="12sp"
-                        android:fontFamily="@font/roboto_regular"
+                        android:fontFamily="sans-serif"
                         android:letterSpacing="0.02"
                         android:paddingTop="1dp" />
                 </LinearLayout>
@@ -97,7 +97,7 @@
                     android:layout_marginStart="2dp"
                     android:textColor="#FFF8FAFC"
                     android:textSize="14sp"
-                    android:fontFamily="@font/roboto_medium"
+                    android:fontFamily="sans-serif-medium"
                     android:fontFeatureSettings="tnum"
                     android:visibility="gone" />
 
@@ -157,7 +157,7 @@
                 android:text="All clear!"
                 android:textColor="#9990A1B9"
                 android:textSize="14sp"
-                android:fontFamily="@font/rubik_regular" />
+                android:fontFamily="sans-serif" />
         </LinearLayout>
 
     </LinearLayout>

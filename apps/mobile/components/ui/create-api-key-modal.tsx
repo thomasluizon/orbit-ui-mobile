@@ -1,4 +1,4 @@
-import { useEffect, useState, useCallback, useMemo } from 'react'
+import { useState, useCallback, useMemo } from 'react'
 import {
   ActivityIndicator,
   Pressable,
@@ -306,7 +306,9 @@ export function CreateApiKeyModal({
 
   const isRevealState = createdKey !== null
 
-  useEffect(() => {
+  const [prevOpen, setPrevOpen] = useState(open)
+  if (open !== prevOpen) {
+    setPrevOpen(open)
     if (!open) {
       setKeyName('')
       setSelectedScopes([])
@@ -317,7 +319,7 @@ export function CreateApiKeyModal({
       setCreatedKey(null)
       setCopied(false)
     }
-  }, [open])
+  }
 
   const validate = useCallback((): boolean => {
     setValidationError('')

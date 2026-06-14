@@ -263,6 +263,7 @@
     "refresh": "Atualizar",
     "noDueToday": "Nenhum hábito para hoje",
     "noHabitsYet": "Nenhum hábito ainda. Crie o primeiro!",
+    "reorderFailed": "Não foi possível salvar a nova ordem. Tente novamente.",
     "emptyGeneral": "Nenhum hábito geral ainda",
     "allDoneToday": "Tudo feito por hoje!",
     "allDoneHint": "Todos os seus hábitos foram concluídos. Ótimo trabalho!",
@@ -639,7 +640,7 @@
       }
     },
     "empty": {
-      "title": "Como o dia foi?"
+      "title": "Como foi seu dia?"
     },
     "placeholder": "Pergunte à Astra",
     "attachImage": "Anexar imagem",

@@ -143,20 +143,25 @@ export async function apiClient<T = unknown>(
       }
     }
 
-    const { clearSessionAndResetAuth, refreshSessionToken } = await import('@/stores/auth-store')
-    const refreshedToken = await refreshSessionToken({ clearOnFailure: false })
+    const { clearSessionAndResetAuth, refreshSession, isAuthTransitionInFlight } =
+      await import('@/stores/auth-store')
+    const refreshOutcome = await refreshSession({ clearOnFailure: false })
 
-    if (refreshedToken) {
-      const retry = await executeRequest(path, options, refreshedToken)
+    if (refreshOutcome.status === 'refreshed') {
+      const retry = await executeRequest(path, options, refreshOutcome.token)
       if (retry.response.status !== 401) {
         return parseApiResponse<T>(retry.response, retry.requestId)
       }
 
-      await clearSessionAndResetAuth()
+      if (!isAuthTransitionInFlight()) {
+        await clearSessionAndResetAuth()
+      }
       throw toUnauthorizedError(retry.requestId)
     }
 
-    await clearSessionAndResetAuth()
+    if (refreshOutcome.status === 'unauthorized' && !isAuthTransitionInFlight()) {
+      await clearSessionAndResetAuth()
+    }
     throw toUnauthorizedError(requestId)
   }
 
