@@ -964,9 +964,9 @@ const isPostponeAction = useMemo(() => {
     recentlyCompleted: boolean,
   ): StatusDotState {
     if (recentlyCompleted || habit.isCompleted || habit.isLoggedInRange) return 'done'
+    if (habit.isBadHabit) return 'bad'
     const status = computeHabitCardStatus(habit, view === 'today' ? cardSelectedDate : undefined)
     if (status === 'overdue') return 'overdue'
-    if (habit.isBadHabit) return 'bad'
     return 'empty'
   }
 

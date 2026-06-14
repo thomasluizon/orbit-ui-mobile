@@ -1,6 +1,8 @@
 'use client'
 
+import { ListChecks, Trash2, X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
+import { FactsPagination } from './facts-pagination'
 
 function ChipActionButton({
   onClick,
@@ -19,7 +21,11 @@ function ChipActionButton({
       onClick={onClick}
       disabled={disabled}
       className="chip disabled:opacity-40 disabled:cursor-not-allowed"
-      style={destructive ? { color: 'var(--status-bad)' } : undefined}
+      style={{
+        fontSize: 12,
+        padding: '7px 12px',
+        ...(destructive ? { color: 'var(--status-bad)' } : null),
+      }}
     >
       {children}
     </button>
@@ -27,67 +33,86 @@ function ChipActionButton({
 }
 
 interface FactsSelectBarProps {
-  factCount: number
   selectMode: boolean
   selectedCount: number
   allSelected: boolean
   bulkDeletePending: boolean
+  showPagination: boolean
+  page: number
+  totalPages: number
+  onPreviousPage: () => void
+  onNextPage: () => void
   onToggleSelectAll: () => void
   onBulkDelete: () => void
   onToggleSelectMode: () => void
 }
 
 export function FactsSelectBar({
-  factCount,
   selectMode,
   selectedCount,
   allSelected,
   bulkDeletePending,
+  showPagination,
+  page,
+  totalPages,
+  onPreviousPage,
+  onNextPage,
   onToggleSelectAll,
   onBulkDelete,
   onToggleSelectMode,
 }: Readonly<FactsSelectBarProps>) {
   const t = useTranslations()
 
-  return (
-    <div
-      className="flex items-center justify-between"
-      style={{ padding: '0 20px 10px' }}
-    >
-      <span
-        style={{
-          fontFamily: 'var(--font-mono)',
-          fontSize: 12,
-          fontWeight: 500,
-          color: selectMode ? 'var(--fg-1)' : 'var(--fg-3)',
-          fontVariantNumeric: 'tabular-nums',
-        }}
-      >
-        {selectMode
-          ? `${selectedCount} ${t('profile.facts.select').toLowerCase()}`
-          : `${factCount}`}
+  if (!selectMode) {
+    return (
+      <span className="inline-flex items-center" style={{ gap: 4 }}>
+        {showPagination && (
+          <FactsPagination
+            page={page}
+            totalPages={totalPages}
+            onPrevious={onPreviousPage}
+            onNext={onNextPage}
+          />
+        )}
+        <button
+          type="button"
+          onClick={onToggleSelectMode}
+          aria-label={t('profile.facts.select')}
+          className="icon-btn"
+          style={{ width: 32, height: 32, color: 'var(--fg-3)' }}
+        >
+          <ListChecks size={18} strokeWidth={1.8} />
+        </button>
       </span>
-      <div className="inline-flex items-center" style={{ gap: 8 }}>
-        {selectMode && (
-          <ChipActionButton onClick={onToggleSelectAll}>
-            {allSelected
-              ? t('profile.facts.deselectAll')
-              : t('profile.facts.selectAll')}
-          </ChipActionButton>
-        )}
-        {selectMode && selectedCount > 0 && (
-          <ChipActionButton
-            destructive
-            disabled={bulkDeletePending}
-            onClick={onBulkDelete}
-          >
-            {t('profile.facts.deleteSelected', { n: selectedCount })}
-          </ChipActionButton>
-        )}
-        <ChipActionButton onClick={onToggleSelectMode}>
-          {selectMode ? t('profile.facts.cancel') : t('profile.facts.select')}
+    )
+  }
+
+  return (
+    <span className="inline-flex items-center" style={{ gap: 6 }}>
+      <ChipActionButton onClick={onToggleSelectAll}>
+        {allSelected
+          ? t('profile.facts.deselectAll')
+          : t('profile.facts.selectAll')}
+      </ChipActionButton>
+      {selectedCount > 0 && (
+        <ChipActionButton
+          destructive
+          disabled={bulkDeletePending}
+          onClick={onBulkDelete}
+        >
+          <Trash2 size={14} strokeWidth={1.8} />
+          {selectedCount}
         </ChipActionButton>
-      </div>
-    </div>
+      )}
+      <button
+        type="button"
+        onClick={onToggleSelectMode}
+        aria-label={t('profile.facts.cancel')}
+        className="icon-btn"
+        style={{ width: 32, height: 32, color: 'var(--fg-3)' }}
+      >
+        <X size={18} strokeWidth={1.8} />
+      </button>
+    </span>
   )
 }

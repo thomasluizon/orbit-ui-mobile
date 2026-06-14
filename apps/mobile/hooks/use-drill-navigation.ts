@@ -3,7 +3,8 @@ import { BackHandler } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { formatAPIDate } from '@orbit/shared/utils'
 import { normalizeHabitDetailForDrill } from '@orbit/shared/utils/drill-navigation'
-import { getErrorMessage , API } from '@orbit/shared/api'
+import { API } from '@orbit/shared/api'
+import { getFriendlyErrorMessage } from '@orbit/shared/utils'
 
 import type { NormalizedHabit, HabitDetail } from '@orbit/shared/types/habit'
 import { apiClient } from '@/lib/api-client'
@@ -69,7 +70,7 @@ export function useDrillNavigation(
         })
       } catch (err: unknown) {
         if (!silent) {
-          setDrillError(getErrorMessage(err, t('errors.fetchSubHabits')))
+          setDrillError(getFriendlyErrorMessage(err, t, 'errors.fetchSubHabits', 'subHabit'))
         }
       } finally {
         if (!silent) setDrillLoading(false)

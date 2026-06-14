@@ -44,11 +44,13 @@ vi.mock('@/hooks/use-profile', () => ({
 
 vi.mock('@/hooks/use-retrospective', () => ({
   useRetrospective: () => ({
-    retrospective: null,
-    setRetrospective: vi.fn(),
+    data: null,
+    setData: vi.fn(),
     isLoading: false,
     error: null,
     setError: vi.fn(),
+    noData: false,
+    setNoData: vi.fn(),
     fromCache: false,
     period: 'week',
     setPeriod: vi.fn(),

@@ -12,11 +12,11 @@ import {
 import { enUS, ptBR } from 'date-fns/locale'
 import { useLocale, useTranslations } from 'next-intl'
 import { formatAPIDate } from '@orbit/shared/utils'
-import { plural } from '@/lib/plural'
 import { useCalendarData } from '@/hooks/use-calendar-data'
 import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
 import { CalendarGrid } from '@/components/calendar/calendar-grid'
 import { CalendarDayDetail } from '@/components/calendar/calendar-day-detail'
+import { AppOverlay } from '@/components/ui/app-overlay'
 import { GradientTop } from '@/components/ui/gradient-top'
 import { SectionLabel } from '@/components/ui/section-label'
 import { SettingsRow } from '@/components/ui/settings-row'
@@ -38,6 +38,7 @@ export default function CalendarPage() {
   const [selectedDay, setSelectedDay] = useState<string | null>(() =>
     formatAPIDate(new Date()),
   )
+  const [isDayDetailOpen, setIsDayDetailOpen] = useState(false)
 
   const { dayMap, isLoading, isFetching } = useCalendarData(currentMonth)
 
@@ -45,21 +46,6 @@ export default function CalendarPage() {
     () => format(currentMonth, 'MMMM yyyy', { locale: dateFnsLocale }),
     [currentMonth, dateFnsLocale],
   )
-
-  const monthSummary = useMemo(() => {
-    if (isLoading || dayMap.size === 0) return null
-    let daysWithActivity = 0
-    let daysCompleted = 0
-    dayMap.forEach((entries: CalendarDayEntry[]) => {
-      if (entries.length === 0) return
-      daysWithActivity++
-      const allDone = entries.every((e) => e.status === 'completed')
-      if (allDone) daysCompleted++
-    })
-    if (daysWithActivity === 0) return null
-    const pct = Math.round((daysCompleted / daysWithActivity) * 100)
-    return `${daysCompleted}/${daysWithActivity} ${plural(t('calendar.summary.days'), daysCompleted)} (${pct}%)`
-  }, [dayMap, isLoading, t])
 
   const prevMonth = useCallback(() => {
     setMonthSlide('left')
@@ -71,8 +57,14 @@ export default function CalendarPage() {
     setCurrentMonth((m) => addMonths(m, 1))
   }, [])
 
+  const goToCurrentMonth = useCallback(() => {
+    setMonthSlide(null)
+    setCurrentMonth(startOfMonth(new Date()))
+  }, [])
+
   const onSelectDay = useCallback((dateStr: string) => {
     setSelectedDay(dateStr)
+    setIsDayDetailOpen(true)
   }, [])
 
   const selectedEntries = useMemo(() => {
@@ -147,11 +139,12 @@ export default function CalendarPage() {
       <div className="relative z-[1]">
         <CalendarHeader
           monthLabel={monthLabel}
-          subtitle={monthSummary}
           previousMonthLabel={t('common.previousMonth')}
           nextMonthLabel={t('common.nextMonth')}
+          currentMonthLabel={t('calendar.goToCurrentMonth')}
           onPreviousMonth={prevMonth}
           onNextMonth={nextMonth}
+          onCurrentMonth={goToCurrentMonth}
         />
 
         <div
@@ -177,8 +170,6 @@ export default function CalendarPage() {
           missedLabel={t('calendar.legend.missed')}
         />
 
-        <CalendarDayDetail dateStr={selectedDay} entries={selectedEntries} />
-
         <SectionLabel>{t('calendar.thisMonth')}</SectionLabel>
         <SettingsRow
           label={t('calendar.bestStreak')}
@@ -200,6 +191,10 @@ export default function CalendarPage() {
           divider={false}
         />
       </div>
+
+      <AppOverlay open={isDayDetailOpen} onOpenChange={setIsDayDetailOpen}>
+        <CalendarDayDetail dateStr={selectedDay} entries={selectedEntries} />
+      </AppOverlay>
     </div>
   )
 }

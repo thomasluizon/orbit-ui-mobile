@@ -123,12 +123,23 @@ describe('UpgradePage', () => {
     expect(screen.getByRole('button', { name: 'common.backToProfile' })).toBeInTheDocument()
   })
 
-  it('labels feature tooltip buttons accessibly', () => {
-    render(<UpgradePage />)
-    const tooltipButton = screen.getAllByRole('button').find((button) => button.getAttribute('aria-haspopup') === 'dialog')
-    expect(tooltipButton).toBeTruthy()
-    expect(tooltipButton).toHaveAttribute('aria-label')
-    expect(tooltipButton).toHaveAttribute('aria-expanded', 'false')
+  it('hides decorative feature icons and exposes feature labels as text', () => {
+    const { container } = render(<UpgradePage />)
+
+    expect(screen.getAllByText('upgrade.features.subHabits.label').length).toBeGreaterThan(0)
+
+    const featureRows = container.querySelectorAll('li')
+    expect(featureRows.length).toBeGreaterThan(0)
+    featureRows.forEach((row) => {
+      const icon = row.querySelector('svg')
+      expect(icon).toHaveAttribute('aria-hidden', 'true')
+      expect(row.textContent?.trim()).toBeTruthy()
+    })
+
+    screen.getAllByRole('button').forEach((button) => {
+      const accessibleName = button.getAttribute('aria-label') ?? button.textContent?.trim()
+      expect(accessibleName).toBeTruthy()
+    })
   })
 
 

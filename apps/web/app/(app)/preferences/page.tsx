@@ -67,6 +67,12 @@ export default function PreferencesPage() {
     weekStart: t('settings.weekStartDay.title'),
   }
 
+  const pickerDescriptions: Partial<Record<PreferencePicker, string>> = {
+    language: t('profile.language.description'),
+    scheme: t('profile.colorScheme.description'),
+    weekStart: t('settings.weekStartDay.description'),
+  }
+
   function closePicker() {
     setActivePicker(null)
   }
@@ -109,6 +115,7 @@ export default function PreferencesPage() {
         themeModeOptions={themeModeOptions}
         weekStartOptions={weekStartOptions}
         pickerTitles={pickerTitles}
+        pickerDescriptions={pickerDescriptions}
         onClose={closePicker}
         onLanguageChange={(locale) => void handleLanguageChange(locale)}
         onThemeModeChange={handleThemeModeChange}

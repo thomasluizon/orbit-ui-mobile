@@ -17,7 +17,6 @@ import { API } from '@orbit/shared/api'
 import {
   ApiClientError,
   extractAuthBackendMessage,
-  extractBackendRequestId,
   isValidEmail,
   isVerificationCodeComplete,
   resolveAuthLoginErrorKey,
@@ -54,7 +53,6 @@ import { CodeInput } from '@/components/ui/code-input'
 
 interface AuthErrorState {
   message: string
-  requestId?: string
 }
 
 function Spinner({ size = 16, color = '#fff' }: { size?: number; color?: string }) {
@@ -232,16 +230,9 @@ export default function LoginScreen() {
   ): AuthErrorState {
     const status = err instanceof ApiClientError ? err.status : undefined
     const backendMessage = extractAuthBackendMessage(err)
-    const requestId = extractBackendRequestId(err)
     const key = resolveAuthLoginErrorKey({ status, backendMessage, raw: err, source })
-    const message = requestId
-      ? `${t(key)} ${t('auth.errorReference', { requestId })}`
-      : t(key)
 
-    return {
-      message,
-      requestId,
-    }
+    return { message: t(key) }
   }
 
   function reportError(message: string) {
@@ -448,10 +439,6 @@ export default function LoginScreen() {
               <Text style={styles.stepSubtitle}>{t('auth.signInSubtitle')}</Text>
             )}
           </View>
-
-          {errorMessage && (
-            <Text style={styles.inlineError}>{errorMessage}</Text>
-          )}
 
           {successMessage && (
             <Text style={styles.successText}>{successMessage}</Text>
@@ -674,14 +661,6 @@ function createStyles(tokens: AppTokensV2) {
       fontSize: 15,
       lineHeight: 23,
       color: tokens.fg2,
-      textAlign: 'center',
-    },
-
-    inlineError: {
-      fontFamily: 'Rubik_400Regular',
-      fontSize: 14,
-      lineHeight: 22,
-      color: tokens.statusOverdueText,
       textAlign: 'center',
     },
 

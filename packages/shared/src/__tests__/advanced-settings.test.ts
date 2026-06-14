@@ -15,7 +15,7 @@ describe('advanced settings utils', () => {
   })
 
   it('defines the supported config tabs', () => {
-    expect(MCP_CONFIG_TABS).toEqual(['web', 'desktop', 'code'])
+    expect(MCP_CONFIG_TABS).toEqual(['web', 'code'])
   })
 
   it('groups capabilities into sorted scope options', () => {

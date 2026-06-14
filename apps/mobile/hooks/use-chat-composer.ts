@@ -30,7 +30,7 @@ import {
   buildRecentChatHistory,
   canAccessEntitlement,
   detectDefaultTimeFormat,
-  getErrorMessage,
+  getFriendlyErrorMessage,
   resolveUpgradeEntitlementFromPolicyDenial,
 } from "@orbit/shared/utils";
 import { openChatStream } from "@/lib/chat-stream";
@@ -522,7 +522,7 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
         handleFailedSend(
           {
             status: isAbortError(err) ? 408 : null,
-            error: getErrorMessage(err, t("chat.sendError")),
+            error: getFriendlyErrorMessage(err, t, "chat.sendError", "generic"),
             code: null,
           },
           attempted,

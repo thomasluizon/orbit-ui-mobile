@@ -7,7 +7,7 @@ import { RotateCcw } from 'lucide-react'
 import {
   buildFreshStartDeletedItems,
   buildFreshStartPreservedItems,
-  getErrorMessage,
+  getFriendlyErrorMessage,
 } from '@orbit/shared/utils'
 import { AppOverlay } from '@/components/ui/app-overlay'
 import { FreshStartAnimation } from '@/components/ui/fresh-start-animation'
@@ -113,7 +113,7 @@ export function FreshStartModal({ open, onOpenChange }: Readonly<FreshStartModal
       onOpenChange(false)
       setShowAnimation(true)
     } catch (err: unknown) {
-      setError(getErrorMessage(err, t('profile.freshStart.errorGeneric')))
+      setError(getFriendlyErrorMessage(err, t, 'profile.freshStart.errorGeneric', 'generic'))
     } finally {
       setLoading(false)
     }

@@ -45,6 +45,9 @@ export function StatTile({
       </Text>
       <Text
         style={[styles.value, phraseValue && styles.valuePhrase, { color: tokens.fg1 }]}
+        numberOfLines={phraseValue ? 1 : undefined}
+        adjustsFontSizeToFit={phraseValue || undefined}
+        minimumFontScale={phraseValue ? 0.7 : undefined}
       >
         {value}
       </Text>
@@ -74,7 +77,7 @@ const styles = StyleSheet.create({
     letterSpacing: -0.24,
   },
   valuePhrase: {
-    fontFamily: 'Rubik_500Medium',
+    fontFamily: 'Rubik_600SemiBold',
     fontSize: 15,
     lineHeight: 20,
     letterSpacing: 0,

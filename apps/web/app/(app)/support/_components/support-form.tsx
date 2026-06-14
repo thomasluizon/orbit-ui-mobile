@@ -6,34 +6,22 @@ import { PillButton } from '@/components/ui/pill-button'
 import { SupportField } from './support-field'
 
 interface SupportFormProps {
-  name: string
-  email: string
   subject: string
   message: string
-  nameError: string | null
-  emailError: string | null
   error: string | null
   isSending: boolean
   disabled: boolean
-  onNameChange: (next: string) => void
-  onEmailChange: (next: string) => void
   onSubjectChange: (next: string) => void
   onMessageChange: (next: string) => void
   onSend: () => void
 }
 
 export function SupportForm({
-  name,
-  email,
   subject,
   message,
-  nameError,
-  emailError,
   error,
   isSending,
   disabled,
-  onNameChange,
-  onEmailChange,
   onSubjectChange,
   onMessageChange,
   onSend,
@@ -42,26 +30,6 @@ export function SupportForm({
 
   return (
     <div className="flex flex-col stagger-enter" style={{ gap: 16 }}>
-      <div className="flex" style={{ gap: 12 }}>
-        <SupportField
-          label={t('profile.support.namePlaceholder')}
-          value={name}
-          onChange={onNameChange}
-          placeholder={t('profile.support.namePlaceholder')}
-          ariaLabel={t('profile.support.namePlaceholder')}
-          error={nameError}
-        />
-        <SupportField
-          label={t('profile.support.emailPlaceholder')}
-          value={email}
-          onChange={onEmailChange}
-          placeholder={t('profile.support.emailPlaceholder')}
-          ariaLabel={t('profile.support.emailPlaceholder')}
-          type="email"
-          mono
-          error={emailError}
-        />
-      </div>
       <SupportField
         label={t('profile.support.subjectPlaceholder')}
         value={subject}

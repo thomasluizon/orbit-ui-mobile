@@ -88,6 +88,9 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
     companion object {
         private const val API_BASE = "https://api.useorbit.org"
 
+        /** Terminal color fallback (navy-dark surface) when a value is blank or malformed. */
+        private const val SAFE_FALLBACK = 0xFF020618.toInt()
+
         // Bootstrap fallback (purple dark) for the first paint before JS syncs the
         // active scheme into SharedPreferences. The full per-scheme palette lives
         // in the app's createTokensV2 and arrives via OrbitWidgetModule.syncTheme;
@@ -182,6 +185,14 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
          */
         fun parseColor(value: String, fallback: String): Int {
             val trimmed = value.trim()
+            if (trimmed.isEmpty()) {
+                val trimmedFallback = fallback.trim()
+                return if (trimmedFallback.isEmpty() || trimmedFallback == trimmed) {
+                    SAFE_FALLBACK
+                } else {
+                    parseColor(trimmedFallback, "")
+                }
+            }
             return try {
                 if (trimmed.startsWith("rgba(") || trimmed.startsWith("rgb(")) {
                     parseRgba(trimmed)
@@ -189,7 +200,12 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
                     Color.parseColor(trimmed)
                 }
             } catch (_: Exception) {
-                if (fallback == trimmed) Color.BLACK else parseColor(fallback, fallback)
+                val trimmedFallback = fallback.trim()
+                if (trimmedFallback.isEmpty() || trimmedFallback == trimmed) {
+                    SAFE_FALLBACK
+                } else {
+                    parseColor(trimmedFallback, "")
+                }
             }
         }
 
@@ -210,14 +226,16 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
             width: Int, height: Int, color: Int,
             cornerRadius: Float, strokeWidth: Float = 0f, strokeColor: Int = 0
         ): Bitmap {
-            val bitmap = Bitmap.createBitmap(width, height, Bitmap.Config.ARGB_8888)
+            val safeWidth = width.coerceAtLeast(1)
+            val safeHeight = height.coerceAtLeast(1)
+            val bitmap = Bitmap.createBitmap(safeWidth, safeHeight, Bitmap.Config.ARGB_8888)
             val canvas = Canvas(bitmap)
             val drawable = GradientDrawable().apply {
                 setColor(color)
                 setCornerRadius(cornerRadius)
                 if (strokeWidth > 0f) setStroke(strokeWidth.toInt(), strokeColor)
             }
-            drawable.setBounds(0, 0, width, height)
+            drawable.setBounds(0, 0, safeWidth, safeHeight)
             drawable.draw(canvas)
             return bitmap
         }
@@ -256,34 +274,50 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
 
     override fun onCreate() {}
 
+    /**
+     * Degrades the widget to the empty/sign-in state without throwing: clears the
+     * habit list, resets cached counts, and restores the refresh button. Used both
+     * for the signed-out path and as the catch-all when data loading fails.
+     */
+    private fun renderEmptyState() {
+        habits = emptyList()
+        lang = detectLanguage(null)
+        headerLabel = tr(lang, "today")
+
+        val prefs = context.getSharedPreferences("orbit_widget_cache", Context.MODE_PRIVATE)
+        prefs.edit()
+            .putString("header_label", headerLabel)
+            .putInt("habit_count", 0)
+            .putInt("completed_count", 0)
+            .putInt("user_streak", 0)
+            .putString("lang", lang)
+            .apply()
+
+        val appWidgetManager = AppWidgetManager.getInstance(context)
+        val widgetIds = appWidgetManager.getAppWidgetIds(
+            ComponentName(context, OrbitWidgetProvider::class.java)
+        )
+        for (id in widgetIds) {
+            val views = RemoteViews(context.packageName, R.layout.widget_layout)
+            views.setViewVisibility(R.id.widget_refresh, android.view.View.VISIBLE)
+            views.setViewVisibility(R.id.widget_refresh_loading, android.view.View.GONE)
+            appWidgetManager.partiallyUpdateAppWidget(id, views)
+        }
+    }
+
     override fun onDataSetChanged() {
-        // Load theme colors
+        try {
+            loadWidgetData()
+        } catch (_: Exception) {
+            runCatching { renderEmptyState() }
+        }
+    }
+
+    private fun loadWidgetData() {
         colors = getThemeColors(context)
         val token = OrbitWidgetModule.getToken(context)
         if (token == null) {
-            habits = emptyList()
-            lang = detectLanguage(null)
-            headerLabel = tr(lang, "today")
-
-            val prefs = context.getSharedPreferences("orbit_widget_cache", Context.MODE_PRIVATE)
-            prefs.edit()
-                .putString("header_label", headerLabel)
-                .putInt("habit_count", 0)
-                .putInt("completed_count", 0)
-                .putInt("user_streak", 0)
-                .putString("lang", lang)
-                .apply()
-
-            val appWidgetManager = AppWidgetManager.getInstance(context)
-            val widgetIds = appWidgetManager.getAppWidgetIds(
-                ComponentName(context, OrbitWidgetProvider::class.java)
-            )
-            for (id in widgetIds) {
-                val views = RemoteViews(context.packageName, R.layout.widget_layout)
-                views.setViewVisibility(R.id.widget_refresh, android.view.View.VISIBLE)
-                views.setViewVisibility(R.id.widget_refresh_loading, android.view.View.GONE)
-                appWidgetManager.partiallyUpdateAppWidget(id, views)
-            }
+            renderEmptyState()
             return
         }
 
@@ -436,9 +470,17 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
         habits = emptyList()
     }
 
-    override fun getCount(): Int = habits.size
+    override fun getCount(): Int = runCatching { habits.size }.getOrDefault(0)
 
     override fun getViewAt(position: Int): RemoteViews {
+        return try {
+            buildItemView(position)
+        } catch (_: Exception) {
+            RemoteViews(context.packageName, R.layout.widget_item)
+        }
+    }
+
+    private fun buildItemView(position: Int): RemoteViews {
         val views = RemoteViews(context.packageName, R.layout.widget_item)
         if (position >= habits.size) return views
 

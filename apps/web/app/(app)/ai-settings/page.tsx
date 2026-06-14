@@ -12,7 +12,6 @@ import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { AiFeatureToggles } from './_components/ai-feature-toggles'
 import { ProUpgradeLink } from './_components/pro-upgrade-link'
 import { FactsSelectBar } from './_components/facts-select-bar'
-import { FactsPagination } from './_components/facts-pagination'
 import { UserFactsList } from './_components/user-facts-list'
 import { useUserFacts } from './_components/use-user-facts'
 
@@ -73,8 +72,7 @@ export default function AiSettingsPage() {
     toggleSelectAll,
   } = useUserFacts(hasProAccess)
 
-  const showFactsPagination =
-    facts.length > 0 && !selectMode && totalFactsPages > 1
+  const showFactsPagination = totalFactsPages > 1
 
   return (
     <div className="flex flex-col min-h-[100dvh]">
@@ -97,12 +95,22 @@ export default function AiSettingsPage() {
 
         <SectionLabel
           trailing={
-            showFactsPagination ? (
-              <FactsPagination
+            hasProAccess && facts.length > 0 ? (
+              <FactsSelectBar
+                selectMode={selectMode}
+                selectedCount={selectedFactIds.size}
+                allSelected={selectedFactIds.size === facts.length}
+                bulkDeletePending={bulkDeleteMutation.isPending}
+                showPagination={showFactsPagination}
                 page={factsPage}
                 totalPages={totalFactsPages}
-                onPrevious={() => setFactsPage((p) => p - 1)}
-                onNext={() => setFactsPage((p) => p + 1)}
+                onPreviousPage={() => setFactsPage((p) => p - 1)}
+                onNextPage={() => setFactsPage((p) => p + 1)}
+                onToggleSelectAll={toggleSelectAll}
+                onBulkDelete={() =>
+                  bulkDeleteMutation.mutate([...selectedFactIds])
+                }
+                onToggleSelectMode={toggleSelectMode}
               />
             ) : undefined
           }
@@ -114,19 +122,6 @@ export default function AiSettingsPage() {
           <div style={{ padding: '4px 20px 14px' }}>
             <ProUpgradeLink label={t('common.proBadge')} />
           </div>
-        )}
-
-        {hasProAccess && facts.length > 0 && (
-          <FactsSelectBar
-            factCount={facts.length}
-            selectMode={selectMode}
-            selectedCount={selectedFactIds.size}
-            allSelected={selectedFactIds.size === facts.length}
-            bulkDeletePending={bulkDeleteMutation.isPending}
-            onToggleSelectAll={toggleSelectAll}
-            onBulkDelete={() => bulkDeleteMutation.mutate([...selectedFactIds])}
-            onToggleSelectMode={toggleSelectMode}
-          />
         )}
 
         {hasProAccess && (

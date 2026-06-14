@@ -7,46 +7,56 @@ import {
   type RetrospectivePeriod,
   type RetrospectiveResponse,
 } from '@orbit/shared/utils/retrospective'
-import { getErrorMessage } from '@orbit/shared/utils'
+import { getFriendlyErrorMessage } from '@orbit/shared/utils'
 
 export type { RetrospectivePeriod } from '@orbit/shared/utils/retrospective'
+
+const NO_HABITS_FOR_PERIOD = 'NO_HABITS_FOR_PERIOD'
 
 export function useRetrospective() {
   const t = useTranslations()
   const locale = useLocale()
-  const [retrospective, setRetrospective] = useState<string | null>(null)
+  const [data, setData] = useState<RetrospectiveResponse | null>(null)
   const [isLoading, setIsLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [noData, setNoData] = useState(false)
   const [fromCache, setFromCache] = useState(false)
   const [period, setPeriod] = useState<RetrospectivePeriod>('week')
 
   const generate = useCallback(async () => {
     setIsLoading(true)
     setError(null)
-    setRetrospective(null)
+    setNoData(false)
+    setData(null)
 
     try {
       const res = await fetch(buildRetrospectiveRequestUrl(period, locale))
       if (!res.ok) {
         const body = await res.json().catch(() => null)
+        if ((body?.errorCode ?? body?.code) === NO_HABITS_FOR_PERIOD) {
+          setNoData(true)
+          return
+        }
         throw new Error(body?.error ?? body?.message ?? `Request failed with status ${res.status}`)
       }
-      const data: RetrospectiveResponse = await res.json()
-      setRetrospective(data.retrospective)
-      setFromCache(data.fromCache)
+      const response: RetrospectiveResponse = await res.json()
+      setData(response)
+      setFromCache(response.fromCache)
     } catch (err: unknown) {
-      setError(getErrorMessage(err, t('retrospective.error')))
+      setError(getFriendlyErrorMessage(err, t, 'retrospective.error', 'generic'))
     } finally {
       setIsLoading(false)
     }
   }, [period, locale, t])
 
   return {
-    retrospective,
-    setRetrospective,
+    data,
+    setData,
     isLoading,
     error,
     setError,
+    noData,
+    setNoData,
     fromCache,
     period,
     setPeriod,

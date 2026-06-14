@@ -431,7 +431,8 @@ describe('ProfileScreen account-deletion state machine', () => {
       await Promise.resolve()
     })
 
-    expect(screenTexts(tree)).toContain('boom')
+    expect(screenTexts(tree)).toContain('profile.deleteAccount.errorGeneric')
+    expect(screenTexts(tree)).not.toContain('boom')
     expect(tree.root.findAllByType('TextInput')).toHaveLength(0)
   })
 

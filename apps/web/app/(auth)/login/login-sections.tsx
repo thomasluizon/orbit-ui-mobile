@@ -148,25 +148,6 @@ export function LoginStepStage({
   )
 }
 
-export function LoginErrorMessage({ message }: Readonly<{ message: string }>) {
-  return (
-    <div
-      role="alert"
-      aria-live="assertive"
-      aria-atomic="true"
-      className="text-center"
-      style={{
-        fontFamily: 'var(--font-sans)',
-        fontSize: 14,
-        lineHeight: 1.55,
-        color: 'var(--status-overdue-text)',
-      }}
-    >
-      {message}
-    </div>
-  )
-}
-
 export function LoginSuccessMessage({
   message,
   motionPreset,

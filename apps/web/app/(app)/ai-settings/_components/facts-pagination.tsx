@@ -22,7 +22,7 @@ export function FactsPagination({
     <span
       className="inline-flex items-center"
       style={{
-        gap: 8,
+        gap: 2,
         fontFamily: 'var(--font-mono)',
         fontSize: 11,
         color: 'var(--fg-3)',
@@ -36,9 +36,9 @@ export function FactsPagination({
         onClick={onPrevious}
         aria-label={t('common.previousPage')}
         className="icon-btn disabled:opacity-40 disabled:cursor-not-allowed"
-        style={{ width: 36, height: 36, color: 'var(--fg-3)' }}
+        style={{ width: 30, height: 30, color: 'var(--fg-3)' }}
       >
-        <ChevronLeft size={18} strokeWidth={1.8} />
+        <ChevronLeft size={17} strokeWidth={1.8} />
       </button>
       <button
         type="button"
@@ -46,9 +46,9 @@ export function FactsPagination({
         onClick={onNext}
         aria-label={t('common.nextPage')}
         className="icon-btn disabled:opacity-40 disabled:cursor-not-allowed"
-        style={{ width: 36, height: 36, color: 'var(--fg-3)' }}
+        style={{ width: 30, height: 30, color: 'var(--fg-3)' }}
       >
-        <ChevronRight size={18} strokeWidth={1.8} />
+        <ChevronRight size={17} strokeWidth={1.8} />
       </button>
     </span>
   )

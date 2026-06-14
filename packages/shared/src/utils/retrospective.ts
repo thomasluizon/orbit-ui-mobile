@@ -10,8 +10,39 @@ export const RETROSPECTIVE_PERIODS = [
 
 export type RetrospectivePeriod = 'week' | 'month' | 'quarter' | 'semester' | 'year'
 
+export interface RetrospectiveHabitStat {
+  name: string
+  emoji: string | null
+  completionRate: number
+  completedCount: number
+  scheduledCount: number
+}
+
+export interface RetrospectiveMetrics {
+  completionRate: number
+  totalCompletions: number
+  totalScheduled: number
+  activeDays: number
+  periodDays: number
+  currentStreak: number
+  bestStreak: number
+  badHabitSlips: number
+  weeklyConsistency: number[]
+  topHabits: RetrospectiveHabitStat[]
+  needsAttention: RetrospectiveHabitStat[]
+}
+
+export interface RetrospectiveNarrative {
+  highlights: string
+  missed: string
+  trends: string
+  suggestion: string
+}
+
 export interface RetrospectiveResponse {
-  retrospective: string
+  period: RetrospectivePeriod
+  metrics: RetrospectiveMetrics
+  narrative: RetrospectiveNarrative
   fromCache: boolean
 }
 

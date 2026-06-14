@@ -7,7 +7,6 @@ import {
   Square,
 } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
-import { CHAT_SPEECH_LANGUAGES as SPEECH_LANGUAGES } from "@orbit/shared/chat";
 import { ChatComposerInput } from "@/components/chat/chat-composer-input";
 import { RecordingVisualizer } from "@/components/chat/chat-animations";
 import type { ChatStyles, Tokens } from "@/app/chat.styles";
@@ -25,14 +24,9 @@ interface ChatInputBarProps {
   composerResetSignal: number;
   recordingTime: string;
   speechSupported: boolean;
-  speechLang: string;
-  currentLangFlag: string;
-  showLangPicker: boolean;
   onSend: (message: string) => void;
   onToggleRecording: () => void;
   onOpenFilePicker: () => void;
-  onToggleLangPicker: () => void;
-  onSelectLanguage: (value: string) => void;
 }
 
 export const ChatInputBar = forwardRef<View, Readonly<ChatInputBarProps>>(
@@ -50,14 +44,9 @@ export const ChatInputBar = forwardRef<View, Readonly<ChatInputBarProps>>(
       composerResetSignal,
       recordingTime,
       speechSupported,
-      speechLang,
-      currentLangFlag,
-      showLangPicker,
       onSend,
       onToggleRecording,
       onOpenFilePicker,
-      onToggleLangPicker,
-      onSelectLanguage,
     },
     voiceRef,
   ) {
@@ -124,7 +113,7 @@ export const ChatInputBar = forwardRef<View, Readonly<ChatInputBarProps>>(
                 </TouchableOpacity>
 
                 {speechSupported && (
-                  <View ref={voiceRef} style={styles.languageControl}>
+                  <View ref={voiceRef} collapsable={false}>
                     <TouchableOpacity
                       accessibilityRole="button"
                       accessibilityLabel={t("chat.toggleMic")}
@@ -135,51 +124,6 @@ export const ChatInputBar = forwardRef<View, Readonly<ChatInputBarProps>>(
                     >
                       <Mic size={18} color={tokens.fg3} strokeWidth={1.8} />
                     </TouchableOpacity>
-
-                    <TouchableOpacity
-                      accessibilityRole="button"
-                      accessibilityLabel={t("chat.speechLanguage")}
-                      activeOpacity={0.7}
-                      disabled={!isOnline}
-                      onPress={onToggleLangPicker}
-                      style={styles.languageFlagButton}
-                    >
-                      <Text style={styles.languageFlagText}>{currentLangFlag}</Text>
-                    </TouchableOpacity>
-
-                    {showLangPicker && (
-                      <View style={styles.languagePicker}>
-                        {SPEECH_LANGUAGES.map((lang) => (
-                          <TouchableOpacity
-                            key={lang.value}
-                            activeOpacity={0.7}
-                            onPress={() => onSelectLanguage(lang.value)}
-                            accessibilityRole="button"
-                            accessibilityState={{ selected: speechLang === lang.value }}
-                            style={[
-                              styles.languageOption,
-                              speechLang === lang.value && {
-                                backgroundColor: tokens.bgElev,
-                              },
-                            ]}
-                          >
-                            <Text style={styles.languageOptionFlag}>{lang.flag}</Text>
-                            <Text
-                              style={[
-                                styles.languageOptionText,
-                                { color: tokens.fg2 },
-                                speechLang === lang.value && [
-                                  styles.languageOptionTextSelected,
-                                  { color: tokens.fg1 },
-                                ],
-                              ]}
-                            >
-                              {lang.label}
-                            </Text>
-                          </TouchableOpacity>
-                        ))}
-                      </View>
-                    )}
                   </View>
                 )}
               </>

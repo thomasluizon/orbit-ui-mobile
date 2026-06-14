@@ -5,12 +5,15 @@
     android:layout_height="wrap_content"
     android:minHeight="44dp">
 
-    <!-- Dynamic background (rendered programmatically with theme colors) -->
+    <!-- Dynamic background (rendered programmatically with theme colors).
+         Static fallback drawable guarantees a visible surface if the bitmap is
+         not yet applied or fails. -->
     <ImageView
         android:id="@+id/item_bg"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
         android:scaleType="fitXY"
+        android:src="@drawable/widget_item_bg_fallback"
         android:contentDescription="@null" />
 
     <RelativeLayout

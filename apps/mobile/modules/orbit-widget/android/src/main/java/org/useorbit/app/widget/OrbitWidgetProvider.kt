@@ -26,6 +26,23 @@ class OrbitWidgetProvider : AppWidgetProvider() {
             appWidgetManager: AppWidgetManager,
             appWidgetId: Int
         ) {
+            try {
+                renderWidget(context, appWidgetManager, appWidgetId)
+            } catch (_: Exception) {
+                runCatching {
+                    val fallback = RemoteViews(context.packageName, R.layout.widget_layout)
+                    fallback.setViewVisibility(R.id.widget_refresh, View.VISIBLE)
+                    fallback.setViewVisibility(R.id.widget_refresh_loading, View.GONE)
+                    appWidgetManager.updateAppWidget(appWidgetId, fallback)
+                }
+            }
+        }
+
+        private fun renderWidget(
+            context: Context,
+            appWidgetManager: AppWidgetManager,
+            appWidgetId: Int
+        ) {
             val views = RemoteViews(context.packageName, R.layout.widget_layout)
             val colors = OrbitWidgetFactory.getThemeColors(context)
             val density = context.resources.displayMetrics.density

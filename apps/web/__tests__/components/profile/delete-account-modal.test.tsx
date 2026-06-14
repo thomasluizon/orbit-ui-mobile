@@ -161,8 +161,9 @@ describe('DeleteAccountModal', () => {
     fireEvent.click(screen.getByText('common.continue'))
 
     await waitFor(() => {
-      expect(screen.getByText('Network error')).toBeInTheDocument()
+      expect(screen.getByText('profile.deleteAccount.errorGeneric')).toBeInTheDocument()
     })
+    expect(screen.queryByText('Network error')).not.toBeInTheDocument()
   })
 
   it('renders 6 code input fields in code step', async () => {
@@ -241,8 +242,9 @@ describe('DeleteAccountModal', () => {
     fireEvent.click(screen.getByText('auth.verify'))
 
     await waitFor(() => {
-      expect(screen.getByText('Invalid code')).toBeInTheDocument()
+      expect(screen.getByText('profile.deleteAccount.errorGeneric')).toBeInTheDocument()
     })
+    expect(screen.queryByText('Invalid code')).not.toBeInTheDocument()
   })
 
   it('calls logout in deactivated step', async () => {

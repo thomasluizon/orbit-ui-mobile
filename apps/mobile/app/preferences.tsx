@@ -249,6 +249,12 @@ export default function PreferencesScreen() {
     weekStart: t('settings.weekStartDay.title'),
   }
 
+  const pickerDescriptions: Partial<Record<PreferencePicker, string>> = {
+    language: t('profile.language.description'),
+    scheme: t('profile.colorScheme.description'),
+    weekStart: t('settings.weekStartDay.description'),
+  }
+
   function closePicker() {
     setActivePicker(null)
   }
@@ -276,7 +282,6 @@ export default function PreferencesScreen() {
           <SettingsRow
             icon={Languages}
             label={t('profile.language.title')}
-            desc={t('profile.language.description')}
             value={languageLabel}
             onPress={() => setActivePicker('language')}
             divider={false}
@@ -291,7 +296,6 @@ export default function PreferencesScreen() {
           <SettingsRow
             icon={Palette}
             label={t('profile.colorScheme.title')}
-            desc={t('profile.colorScheme.description')}
             value={schemeLabel}
             onPress={() => setActivePicker('scheme')}
             divider={false}
@@ -304,7 +308,6 @@ export default function PreferencesScreen() {
           <SettingsRow
             icon={Calendar}
             label={t('settings.weekStartDay.title')}
-            desc={t('settings.weekStartDay.description')}
             value={weekStartLabel}
             onPress={() => setActivePicker('weekStart')}
             divider={false}
@@ -397,6 +400,11 @@ export default function PreferencesScreen() {
           contentContainerStyle={styles.sheetContent}
           showsVerticalScrollIndicator={false}
         >
+          {activePicker && pickerDescriptions[activePicker] ? (
+            <Text style={[styles.sheetDescription, { color: tokens.fg3 }]}>
+              {pickerDescriptions[activePicker]}
+            </Text>
+          ) : null}
           {activePicker === 'language' &&
             LANGUAGE_OPTIONS.map((lang, index) => (
               <RadioRow
@@ -511,6 +519,12 @@ const styles = StyleSheet.create({
   sheetContent: {
     paddingHorizontal: 22,
     paddingBottom: 24,
+  },
+  sheetDescription: {
+    fontFamily: 'Rubik_400Regular',
+    fontSize: 14,
+    lineHeight: 19.6,
+    marginBottom: 12,
   },
   sheetFooter: {
     paddingTop: 16,

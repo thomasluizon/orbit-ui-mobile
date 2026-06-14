@@ -25,6 +25,7 @@ interface PreferencePickerSheetProps {
   themeModeOptions: { value: ThemeMode; label: string }[]
   weekStartOptions: { value: 0 | 1; label: string }[]
   pickerTitles: Record<PreferencePicker, string>
+  pickerDescriptions: Partial<Record<PreferencePicker, string>>
   onClose: () => void
   onLanguageChange: (locale: SupportedLocale) => void
   onThemeModeChange: (mode: ThemeMode) => void
@@ -42,6 +43,7 @@ export function PreferencePickerSheet({
   themeModeOptions,
   weekStartOptions,
   pickerTitles,
+  pickerDescriptions,
   onClose,
   onLanguageChange,
   onThemeModeChange,
@@ -57,6 +59,7 @@ export function PreferencePickerSheet({
         if (!open) onClose()
       }}
       title={activePicker ? pickerTitles[activePicker] : undefined}
+      description={activePicker ? pickerDescriptions[activePicker] : undefined}
       footer={
         activePicker === 'scheme' ? (
           <PillButton

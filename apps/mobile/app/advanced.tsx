@@ -392,9 +392,7 @@ export default function AdvancedScreen() {
                 >
                   {tab === 'web'
                     ? t('orbitMcp.claudeWeb')
-                    : tab === 'desktop'
-                      ? t('orbitMcp.claudeDesktop')
-                      : t('orbitMcp.claudeCode')}
+                    : t('orbitMcp.claudeCode')}
                 </Chip>
               ))}
             </View>
@@ -408,31 +406,33 @@ export default function AdvancedScreen() {
                 },
               ]}
             >
-              <Pressable
-                onPress={() => {
-                  void onCopy()
-                }}
-                accessibilityRole="button"
-                accessibilityLabel={t('orbitMcp.copyConfig')}
-                style={({ pressed }) => [
-                  styles.copyBtn,
-                  {
-                    backgroundColor: pressed ? tokens.bgElev2 : tokens.bgElev,
-                    borderColor: tokens.hairline,
-                  },
-                  pressed ? styles.actionChipPressed : null,
-                ]}
-                hitSlop={8}
-              >
-                <Text
-                  style={[
-                    styles.copyBtnText,
-                    { color: codeCopied ? tokens.statusDone : tokens.fg2 },
+              <View style={styles.copyRow}>
+                <Pressable
+                  onPress={() => {
+                    void onCopy()
+                  }}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('orbitMcp.copyConfig')}
+                  style={({ pressed }) => [
+                    styles.copyBtn,
+                    {
+                      backgroundColor: pressed ? tokens.bgElev2 : tokens.bgElev,
+                      borderColor: tokens.hairline,
+                    },
+                    pressed ? styles.actionChipPressed : null,
                   ]}
+                  hitSlop={8}
                 >
-                  {codeCopied ? t('orbitMcp.copied') : t('orbitMcp.copyConfig')}
-                </Text>
-              </Pressable>
+                  <Text
+                    style={[
+                      styles.copyBtnText,
+                      { color: codeCopied ? tokens.statusDone : tokens.fg2 },
+                    ]}
+                  >
+                    {codeCopied ? t('orbitMcp.copied') : t('orbitMcp.copyConfig')}
+                  </Text>
+                </Pressable>
+              </View>
               <Text
                 style={[styles.codeText, { color: tokens.fg2 }]}
                 selectable
@@ -669,28 +669,27 @@ const styles = StyleSheet.create({
   },
   codeWell: {
     marginHorizontal: 20,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
     borderRadius: 14,
     borderWidth: 1,
-    gap: 10,
-    position: 'relative',
+    gap: 6,
   },
   codeText: {
     fontFamily: 'Roboto_400Regular',
-    fontSize: 12.5,
-    lineHeight: 20,
+    fontSize: 12,
+    lineHeight: 19,
     fontVariant: ['tabular-nums'],
   },
+  copyRow: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+  },
   copyBtn: {
-    position: 'absolute',
-    top: 8,
-    right: 10,
     borderRadius: 999,
     borderWidth: 1,
-    paddingVertical: 7,
+    paddingVertical: 6,
     paddingHorizontal: 12,
-    zIndex: 1,
   },
   copyBtnText: {
     fontFamily: 'Rubik_500Medium',
@@ -698,12 +697,12 @@ const styles = StyleSheet.create({
   },
   hintPad: {
     paddingHorizontal: 20,
-    paddingVertical: 8,
+    paddingVertical: 6,
   },
   hintText: {
     fontFamily: 'Rubik_400Regular',
-    fontSize: 13,
-    lineHeight: 19,
+    fontSize: 12.5,
+    lineHeight: 18,
   },
   widgetSheetScroll: {
     flexGrow: 0,

@@ -197,7 +197,6 @@
     "googleError": "Google sign-in failed. Please try again.",
     "signingIn": "Signing you in...",
     "callbackError": "Something went wrong during sign-in. Please try again.",
-    "errorReference": "Reference code: {requestId}",
     "backToLogin": "Back to login",
     "sessionExpiring": "Your session expires in {minutes} minutes. Save your work.",
     "sessionExpiringPrefix": "Session expires in",
@@ -557,14 +556,12 @@
     "bestStreak": "Best streak",
     "totalLogs": "Total logs",
     "missedCount": "Missed",
-    "summary": {
-      "days": "day completed | days completed"
-    },
     "dayDetail": {
       "completionSummary": "{done} of {total} habit completed | {done} of {total} habits completed"
     },
     "noHabitsScheduled": "No habits scheduled for this day.",
     "goToDay": "View this day",
+    "goToCurrentMonth": "Go to current month",
     "status": {
       "completed": "Completed",
       "missed": "Missed",
@@ -1028,7 +1025,7 @@
     "retry": "Try again",
     "askAstra": "Ask Astra",
     "upgrade": "Upgrade",
-    "freePrompt": "Pro gets a daily summary about your habits."
+    "freePrompt": "Pro gets a daily summary of your habits."
   },
   "retrospective": {
     "title": "Retrospective",
@@ -1041,9 +1038,25 @@
     "generating": "Analyzing your habits...",
     "error": "Couldn't generate your retrospective.",
     "empty": "Choose a time period and generate a retrospective to see Astra's insights on your habits.",
+    "noData": "No habit activity for this period yet. Complete a few habits and check back.",
     "cached": "Loaded from cache",
     "astraEyebrow": "Astra",
     "regenerate": "Regenerate",
+    "metrics": {
+      "completionRate": "Completion",
+      "logs": "Logs",
+      "currentStreak": "Streak",
+      "activeDays": "Active days"
+    },
+    "weeklyTitle": "Weekly consistency",
+    "topHabitsTitle": "Top habits",
+    "needsAttentionTitle": "Needs attention",
+    "sections": {
+      "highlights": "Highlights",
+      "missed": "Missed opportunities",
+      "trends": "Trends",
+      "suggestion": "Suggestion"
+    },
     "periods": {
       "week": "Week",
       "month": "Month",
@@ -1302,7 +1315,7 @@
   },
   "upgrade": {
     "title": "Upgrade to Pro",
-    "heroTitle": "Unlock the full potential of your habits with Pro",
+    "heroTitle": "Unlock your full potential with Pro",
     "alreadyPro": "You're on the Pro plan!",
     "manageHint": "Manage your subscription, update payment, or cancel anytime",
     "feature": "Feature",
@@ -1310,6 +1323,7 @@
     "subscribe": "Subscribe to Pro",
     "plan": "Plan",
     "restorePurchase": "Restore purchase",
+    "recommended": "Recommended",
     "categories": {
       "habits": "Habits",
       "ai": "AI Features",
@@ -1504,7 +1518,33 @@
     "loadProfile": "Failed to load profile",
     "loadReferral": "Failed to load referral data",
     "fetchSubHabits": "Failed to fetch sub-habits",
-    "offline": "Reconnect to the internet and try again."
+    "offline": "Reconnect to the internet and try again.",
+    "api": {
+      "noPermission": "You don't have permission to do that.",
+      "sessionExpired": "Your session expired. Please sign in again.",
+      "factsLimit": "You've hit your saved-facts limit. Delete a few to add more.",
+      "duplicateFact": "Astra already knows something like that.",
+      "duplicateTag": "You already have a tag with that name.",
+      "apiKeyLimit": "You've reached the maximum number of API keys.",
+      "messageTooLong": "That message is too long. Try shortening it.",
+      "imageInvalid": "That image couldn't be used. Try another file.",
+      "logNotAllowed": "You can't log this habit right now.",
+      "selfParent": "A habit can't be its own sub-habit.",
+      "calendarNotConnected": "Connect Google Calendar first.",
+      "calendarReconnect": "Your Google Calendar connection expired. Reconnect to continue.",
+      "calendarFetchFailed": "Couldn't load your calendar events. Please try again.",
+      "aiUnavailable": "Astra is unavailable right now. Try again in a moment.",
+      "referralInvalid": "That referral code isn't valid.",
+      "referralSelf": "You can't refer yourself.",
+      "referralAlready": "This account was already referred.",
+      "referralCap": "You've reached the referral limit.",
+      "subscriptionInactive": "No active subscription found.",
+      "playPurchaseInactive": "This Google Play purchase isn't active.",
+      "playPurchaseMismatch": "This purchase belongs to a different account.",
+      "paymentUnavailable": "Payments are temporarily unavailable. Please try again soon.",
+      "invalidStepUp": "That confirmation code isn't valid.",
+      "invalidGoalStatus": "That status isn't valid."
+    }
   },
   "offline": {
     "title": "You're offline",
@@ -1789,7 +1829,7 @@
       "celebrationSubtitle": "Your streak holds.",
       "eyebrow": "Frozen · {date}",
       "auto": {
-        "explainer": "If you miss a day, a banked freeze is used automatically to keep your streak alive."
+        "explainer": "If you miss a day, the freeze is used automatically to keep your streak alive."
       },
       "banked": {
         "label": "Banked"

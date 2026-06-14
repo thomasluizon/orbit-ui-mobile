@@ -11,13 +11,23 @@ import Animated, { FadeInDown, ReduceMotion } from 'react-native-reanimated'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useRouter } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { Lock, Orbit } from 'lucide-react-native'
+import {
+  AlertTriangle,
+  Lightbulb,
+  Lock,
+  Orbit,
+  Star,
+  TrendingUp,
+  type LucideIcon,
+} from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import { API } from '@orbit/shared/api'
-import { getErrorMessage } from '@orbit/shared/utils'
+import { getFriendlyErrorMessage } from '@orbit/shared/utils'
 import {
   getRetrospectiveCacheKey,
   RETROSPECTIVE_PERIODS,
+  type RetrospectiveHabitStat,
+  type RetrospectiveResponse,
 } from '@orbit/shared/utils/retrospective'
 import {
   useProfile,
@@ -39,79 +49,184 @@ import { AppBar } from '@/components/ui/app-bar'
 import { Chip } from '@/components/ui/chip'
 import { InfoCard } from '@/components/ui/info-card'
 import { PillButton } from '@/components/ui/pill-button'
+import { StatTile } from '@/components/ui/stat-tile'
 
 type Tokens = ReturnType<typeof createTokensV2>
 
-interface RetrospectiveBodyProps {
-  text: string
-  tokens: Tokens
-}
+const CACHE_VERSION_SUFFIX = '_v2'
 
-function RetrospectiveBody({
-  text,
-  tokens,
-}: Readonly<RetrospectiveBodyProps>) {
-  const lines = text
-    .split('\n')
-    .map((line) => line.trim())
+const WEEKDAY_KEYS = [
+  'monday',
+  'tuesday',
+  'wednesday',
+  'thursday',
+  'friday',
+  'saturday',
+  'sunday',
+] as const
+
+function renderNarrativeInline(text: string, tokens: Tokens) {
+  return text
+    .split(/(\*\*.+?\*\*)/g)
     .filter(Boolean)
-
-  function renderInlineMarkdown(line: string) {
-    const parts = line.split(/(\*\*.+?\*\*)/g).filter(Boolean)
-
-    return parts.map((part, index) => {
-      const strongMatch = /^\*\*(.+?)\*\*$/.exec(part)
-      if (strongMatch) {
+    .map((part, index) => {
+      const strong = /^\*\*(.+?)\*\*$/.exec(part)
+      if (strong) {
         return (
           <Text
             key={`${part}-${index}`}
-            style={[styles.bodyStrong, { color: tokens.fg1 }]}
+            style={[styles.narrativeStrong, { color: tokens.fg1 }]}
           >
-            {strongMatch[1]}
+            {strong[1]}
           </Text>
         )
       }
-
       return (
-        <Text
-          key={`${part}-${index}`}
-          style={[styles.bodyInline, { color: tokens.fg2 }]}
-        >
+        <Text key={`${part}-${index}`} style={{ color: tokens.fg2 }}>
           {part}
         </Text>
       )
     })
-  }
+}
 
+interface DashboardCardProps {
+  tokens: Tokens
+  title: string
+  icon?: LucideIcon
+  children: React.ReactNode
+}
+
+function DashboardCard({
+  tokens,
+  title,
+  icon: Icon,
+  children,
+}: Readonly<DashboardCardProps>) {
   return (
-    <View style={styles.bodyStack}>
-      {lines.map((line, index) => {
-        const headingMatch = /^\*\*(.+?)\*\*$/.exec(line)
-        if (headingMatch) {
+    <View
+      style={[
+        styles.dashCard,
+        { backgroundColor: tokens.bgCard, borderColor: tokens.hairline },
+      ]}
+    >
+      <View style={styles.dashCardTitleRow}>
+        {Icon ? (
+          <Icon size={15} color={tokens.primary} strokeWidth={1.9} />
+        ) : null}
+        <Text style={[styles.dashCardTitle, { color: tokens.fg2 }]}>
+          {title}
+        </Text>
+      </View>
+      {children}
+    </View>
+  )
+}
+
+interface WeeklyConsistencyProps {
+  tokens: Tokens
+  values: number[]
+}
+
+function WeeklyConsistency({
+  tokens,
+  values,
+}: Readonly<WeeklyConsistencyProps>) {
+  const { t } = useTranslation()
+  return (
+    <DashboardCard tokens={tokens} title={t('retrospective.weeklyTitle')}>
+      <View style={styles.barsRow}>
+        {values.map((value, index) => {
+          const clamped = Math.max(0, Math.min(100, value))
+          const letter = t(`dates.daysShort.${WEEKDAY_KEYS[index]}`).charAt(0)
           return (
+            <View key={WEEKDAY_KEYS[index]} style={styles.barColumn}>
+              <View style={styles.barTrack}>
+                <View
+                  style={[
+                    styles.barFill,
+                    {
+                      height: Math.max(6, (clamped / 100) * 64),
+                      backgroundColor: tokens.primary,
+                      opacity: clamped === 0 ? 0.25 : 1,
+                    },
+                  ]}
+                />
+              </View>
+              <Text style={[styles.barLabel, { color: tokens.fg3 }]}>
+                {letter}
+              </Text>
+            </View>
+          )
+        })}
+      </View>
+    </DashboardCard>
+  )
+}
+
+interface HabitStatListProps {
+  tokens: Tokens
+  title: string
+  habits: RetrospectiveHabitStat[]
+  tone: 'default' | 'attention'
+}
+
+function HabitStatList({
+  tokens,
+  title,
+  habits,
+  tone,
+}: Readonly<HabitStatListProps>) {
+  return (
+    <DashboardCard tokens={tokens} title={title}>
+      <View style={styles.habitList}>
+        {habits.map((habit) => (
+          <View key={habit.name} style={styles.habitRow}>
+            <Text style={styles.habitEmoji}>{habit.emoji ?? '•'}</Text>
             <Text
-              key={`${line}-${index}`}
+              style={[styles.habitName, { color: tokens.fg1 }]}
+              numberOfLines={1}
+            >
+              {habit.name}
+            </Text>
+            <Text
               style={[
-                styles.bodyHeading,
-                { color: tokens.fg1 },
-                index > 0 ? styles.bodyHeadingSpaced : null,
+                styles.habitRate,
+                {
+                  color:
+                    tone === 'attention'
+                      ? tokens.statusOverdueText
+                      : tokens.fg2,
+                },
               ]}
             >
-              {headingMatch[1]}
+              {habit.completionRate}%
             </Text>
-          )
-        }
+          </View>
+        ))}
+      </View>
+    </DashboardCard>
+  )
+}
 
-        return (
-          <Text
-            key={`${line}-${index}`}
-            style={[styles.bodyParagraph, { color: tokens.fg2 }]}
-          >
-            {renderInlineMarkdown(line)}
-          </Text>
-        )
-      })}
-    </View>
+interface NarrativeSectionProps {
+  tokens: Tokens
+  icon: LucideIcon
+  title: string
+  body: string
+}
+
+function NarrativeSection({
+  tokens,
+  icon,
+  title,
+  body,
+}: Readonly<NarrativeSectionProps>) {
+  return (
+    <DashboardCard tokens={tokens} title={title} icon={icon}>
+      <Text style={[styles.narrativeBody, { color: tokens.fg2 }]}>
+        {renderNarrativeInline(body, tokens)}
+      </Text>
+    </DashboardCard>
   )
 }
 
@@ -220,31 +335,28 @@ function RetrospectiveLockedYearly({
   )
 }
 
-interface RetrospectiveReportCardProps {
+interface RetrospectiveDashboardProps {
   tokens: Tokens
-  text: string
+  data: RetrospectiveResponse
   fromCache: boolean
+  isOnline: boolean
   onRegenerate: () => void
 }
 
-function RetrospectiveReportCard({
+function RetrospectiveDashboard({
   tokens,
-  text,
+  data,
   fromCache,
+  isOnline,
   onRegenerate,
-}: Readonly<RetrospectiveReportCardProps>) {
+}: Readonly<RetrospectiveDashboardProps>) {
   const { t } = useTranslation()
+  const { metrics, narrative } = data
   return (
     <View style={styles.contentWrap}>
       <Animated.View
         entering={FadeInDown.duration(280).reduceMotion(ReduceMotion.System)}
-        style={[
-          styles.contentCard,
-          {
-            backgroundColor: tokens.bgCard,
-            borderColor: tokens.hairline,
-          },
-        ]}
+        style={styles.dashStack}
       >
         <View style={styles.astraRow}>
           <View style={styles.astraEyebrowGroup}>
@@ -255,7 +367,9 @@ function RetrospectiveReportCard({
           </View>
           <Pressable
             onPress={onRegenerate}
+            disabled={!isOnline}
             accessibilityRole="button"
+            accessibilityLabel={t('retrospective.regenerate')}
             style={({ pressed }) => [
               styles.actionChip,
               {
@@ -270,7 +384,70 @@ function RetrospectiveReportCard({
             </Text>
           </Pressable>
         </View>
-        <RetrospectiveBody text={text} tokens={tokens} />
+
+        <View style={styles.statTilesRow}>
+          <StatTile
+            emoji="🎯"
+            value={`${metrics.completionRate}%`}
+            label={t('retrospective.metrics.completionRate')}
+          />
+          <StatTile
+            emoji="✅"
+            value={metrics.totalCompletions}
+            label={t('retrospective.metrics.logs')}
+          />
+          <StatTile
+            emoji="🔥"
+            value={metrics.currentStreak}
+            label={t('retrospective.metrics.currentStreak')}
+          />
+        </View>
+
+        <WeeklyConsistency tokens={tokens} values={metrics.weeklyConsistency} />
+
+        {metrics.topHabits.length > 0 ? (
+          <HabitStatList
+            tokens={tokens}
+            title={t('retrospective.topHabitsTitle')}
+            habits={metrics.topHabits}
+            tone="default"
+          />
+        ) : null}
+
+        {metrics.needsAttention.length > 0 ? (
+          <HabitStatList
+            tokens={tokens}
+            title={t('retrospective.needsAttentionTitle')}
+            habits={metrics.needsAttention}
+            tone="attention"
+          />
+        ) : null}
+
+        <NarrativeSection
+          tokens={tokens}
+          icon={Star}
+          title={t('retrospective.sections.highlights')}
+          body={narrative.highlights}
+        />
+        <NarrativeSection
+          tokens={tokens}
+          icon={AlertTriangle}
+          title={t('retrospective.sections.missed')}
+          body={narrative.missed}
+        />
+        <NarrativeSection
+          tokens={tokens}
+          icon={TrendingUp}
+          title={t('retrospective.sections.trends')}
+          body={narrative.trends}
+        />
+        <NarrativeSection
+          tokens={tokens}
+          icon={Lightbulb}
+          title={t('retrospective.sections.suggestion')}
+          body={narrative.suggestion}
+        />
+
         <Text style={[styles.aiDisclaimer, { color: tokens.fg3 }]}>
           {t('aiDisclosure.notMedicalAdvice')}
         </Text>
@@ -291,9 +468,10 @@ interface RetrospectiveContentProps {
   isCacheLoading: boolean
   period: RetrospectivePeriod
   periodChips: { id: RetrospectivePeriod; label: string }[]
-  displayedRetrospective: string | null
+  displayedData: RetrospectiveResponse | null
   displayedFromCache: boolean
   error: string | null
+  noData: boolean
   onSelectPeriod: (next: RetrospectivePeriod) => void
   onGenerate: () => void
 }
@@ -305,9 +483,10 @@ function RetrospectiveContent({
   isCacheLoading,
   period,
   periodChips,
-  displayedRetrospective,
+  displayedData,
   displayedFromCache,
   error,
+  noData,
   onSelectPeriod,
   onGenerate,
 }: Readonly<RetrospectiveContentProps>) {
@@ -375,16 +554,42 @@ function RetrospectiveContent({
         </View>
       ) : null}
 
-      {!isLoading && displayedRetrospective ? (
-        <RetrospectiveReportCard
+      {!isLoading && displayedData ? (
+        <RetrospectiveDashboard
           tokens={tokens}
-          text={displayedRetrospective}
+          data={displayedData}
           fromCache={displayedFromCache}
+          isOnline={isOnline}
           onRegenerate={onGenerate}
         />
       ) : null}
 
-      {!isLoading && error && (!displayedRetrospective || isOnline) ? (
+      {!isLoading && !displayedData && noData ? (
+        <View style={styles.generateBlock}>
+          <View style={styles.generateCardWrap}>
+            <InfoCard
+              icon={Orbit}
+              title={t('retrospective.astraEyebrow')}
+              desc={t('retrospective.noData')}
+            />
+          </View>
+          <View style={styles.generateBtnWrap}>
+            <PillButton
+              onPress={onGenerate}
+              disabled={!isOnline}
+              fullWidth
+              accessibilityLabel={t('retrospective.regenerate')}
+              leading={
+                <Orbit size={16} color={tokens.fgOnPrimary} strokeWidth={1.8} />
+              }
+            >
+              {t('retrospective.regenerate')}
+            </PillButton>
+          </View>
+        </View>
+      ) : null}
+
+      {!isLoading && !displayedData && !noData && error && (!displayedData || isOnline) ? (
         <View style={styles.errorWrap}>
           <Text style={[styles.errorText, { color: tokens.statusBad }]}>
             {t('retrospective.error')}
@@ -409,8 +614,9 @@ function RetrospectiveContent({
       ) : null}
 
       {!isLoading &&
-      !displayedRetrospective &&
+      !displayedData &&
       !error &&
+      !noData &&
       !isCacheLoading ? (
         <View style={styles.generateBlock}>
           <View style={styles.generateCardWrap}>
@@ -457,22 +663,24 @@ export default function RetrospectiveScreen() {
   const hasProAccess = useHasProAccess()
   const isYearlyPro = useIsYearlyPro()
   const {
-    retrospective,
-    setRetrospective,
+    data,
+    setData,
     isLoading,
     error,
     setError,
+    noData,
+    setNoData,
     fromCache,
     period,
     setPeriod,
     generate,
   } = useRetrospective()
   const [portalError, setPortalError] = useState('')
-  const [cachedRetrospective, setCachedRetrospective] = useState<string | null>(
+  const [cachedData, setCachedData] = useState<RetrospectiveResponse | null>(
     null,
   )
   const [isCacheLoading, setIsCacheLoading] = useState(true)
-  const cacheKey = getRetrospectiveCacheKey(period)
+  const cacheKey = getRetrospectiveCacheKey(period) + CACHE_VERSION_SUFFIX
 
   useEffect(() => {
     if (!profile) return
@@ -492,7 +700,16 @@ export default function RetrospectiveScreen() {
 
     AsyncStorage.getItem(cacheKey)
       .then((value) => {
-        if (active) setCachedRetrospective(value)
+        if (!active) return
+        if (!value) {
+          setCachedData(null)
+          return
+        }
+        try {
+          setCachedData(JSON.parse(value) as RetrospectiveResponse)
+        } catch {
+          setCachedData(null)
+        }
       })
       .finally(() => {
         if (active) setIsCacheLoading(false)
@@ -504,20 +721,21 @@ export default function RetrospectiveScreen() {
   }, [cacheKey])
 
   useEffect(() => {
-    if (!retrospective) return
-    AsyncStorage.setItem(cacheKey, retrospective).catch(() => {})
-  }, [cacheKey, retrospective])
+    if (!data) return
+    AsyncStorage.setItem(cacheKey, JSON.stringify(data)).catch(() => {})
+  }, [cacheKey, data])
 
-  const displayedRetrospective =
-    retrospective ?? (!isOnline && !isLoading ? cachedRetrospective : null)
+  const displayedData =
+    data ?? (!isOnline && !isLoading ? cachedData : null)
   const displayedFromCache =
     fromCache ||
-    (!retrospective && !isOnline && !isLoading && cachedRetrospective !== null)
+    (!data && !isOnline && !isLoading && cachedData !== null)
 
   function selectPeriod(next: RetrospectivePeriod) {
     setPeriod(next)
-    setRetrospective(null)
+    setData(null)
     setError(null)
+    setNoData(false)
   }
 
   async function handleOpenPortal() {
@@ -528,14 +746,14 @@ export default function RetrospectiveScreen() {
 
     setPortalError('')
     try {
-      const data = await apiClient<{ url?: string }>(API.subscription.portal, {
+      const portal = await apiClient<{ url?: string }>(API.subscription.portal, {
         method: 'POST',
       })
-      if (data?.url) {
-        await Linking.openURL(data.url)
+      if (portal?.url) {
+        await Linking.openURL(portal.url)
       }
     } catch (err: unknown) {
-      setPortalError(getErrorMessage(err, t('auth.genericError')))
+      setPortalError(getFriendlyErrorMessage(err, t, 'auth.genericError', 'generic'))
     }
   }
 
@@ -603,9 +821,10 @@ export default function RetrospectiveScreen() {
             isCacheLoading={isCacheLoading}
             period={period}
             periodChips={periodChips}
-            displayedRetrospective={displayedRetrospective}
+            displayedData={displayedData}
             displayedFromCache={displayedFromCache}
             error={error}
+            noData={noData}
             onSelectPeriod={selectPeriod}
             onGenerate={handleGenerate}
           />
@@ -681,18 +900,94 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     paddingBottom: 24,
   },
-  contentCard: {
+  dashStack: {
+    gap: 12,
+  },
+  statTilesRow: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  dashCard: {
     borderRadius: 18,
     borderWidth: 1,
-    paddingTop: 16,
+    paddingVertical: 16,
     paddingHorizontal: 18,
-    paddingBottom: 18,
+  },
+  dashCardTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  dashCardTitle: {
+    fontFamily: 'Rubik_500Medium',
+    fontSize: 13,
+    letterSpacing: 0.1,
+  },
+  barsRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    marginTop: 14,
+    height: 88,
+  },
+  barColumn: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    gap: 8,
+    height: '100%',
+  },
+  barTrack: {
+    flex: 1,
+    width: '100%',
+    justifyContent: 'flex-end',
+    alignItems: 'center',
+  },
+  barFill: {
+    width: 22,
+    borderRadius: 6,
+  },
+  barLabel: {
+    fontFamily: 'Roboto_400Regular',
+    fontSize: 11,
+    fontVariant: ['tabular-nums'],
+  },
+  habitList: {
+    gap: 10,
+    marginTop: 14,
+  },
+  habitRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  habitEmoji: {
+    fontSize: 18,
+    lineHeight: 22,
+  },
+  habitName: {
+    flex: 1,
+    fontFamily: 'Rubik_400Regular',
+    fontSize: 14,
+  },
+  habitRate: {
+    fontFamily: 'Roboto_500Medium',
+    fontSize: 13,
+    fontVariant: ['tabular-nums'],
+  },
+  narrativeBody: {
+    fontFamily: 'Rubik_400Regular',
+    fontSize: 14.5,
+    lineHeight: 23,
+    marginTop: 10,
+  },
+  narrativeStrong: {
+    fontFamily: 'Rubik_500Medium',
   },
   astraRow: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
-    paddingBottom: 10,
   },
   astraEyebrowGroup: {
     flexDirection: 'row',
@@ -708,7 +1003,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Rubik_400Regular',
     fontSize: 11,
     lineHeight: 15,
-    marginTop: 16,
+    marginTop: 4,
   },
   actionChip: {
     borderRadius: 999,
@@ -725,35 +1020,11 @@ const styles = StyleSheet.create({
     fontFamily: 'Rubik_500Medium',
     fontSize: 13,
   },
-  bodyStack: { gap: 6 },
-  bodyHeading: {
-    fontFamily: 'Rubik_500Medium',
-    fontSize: 16,
-    lineHeight: 22,
-  },
-  bodyHeadingSpaced: {
-    marginTop: 10,
-  },
-  bodyParagraph: {
-    fontFamily: 'Rubik_400Regular',
-    fontSize: 15,
-    lineHeight: 24,
-  },
-  bodyStrong: {
-    fontFamily: 'Rubik_500Medium',
-    fontSize: 15,
-  },
-  bodyInline: {
-    fontFamily: 'Rubik_400Regular',
-    fontSize: 15,
-    lineHeight: 24,
-  },
   cachedText: {
     fontFamily: 'Roboto_400Regular',
     fontSize: 11,
     letterSpacing: 0.22,
     fontVariant: ['tabular-nums'],
-    marginTop: 10,
   },
   errorWrap: {
     paddingHorizontal: 20,

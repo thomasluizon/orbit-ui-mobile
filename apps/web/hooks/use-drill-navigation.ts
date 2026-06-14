@@ -6,7 +6,8 @@ import {
   loadDrillChildren,
   mergeDrillChildrenMap,
 } from '@orbit/shared/utils/drill-navigation'
-import { getErrorMessage, API } from '@orbit/shared/api'
+import { API } from '@orbit/shared/api'
+import { getFriendlyErrorMessage } from '@orbit/shared/utils'
 import { fetchJson } from '@/lib/api-fetch'
 import { hasOpenOverlay } from '@/lib/overlay-stack'
 import type { NormalizedHabit, HabitDetail } from '@orbit/shared/types/habit'
@@ -85,7 +86,7 @@ export function useDrillNavigation(
         )
       } catch (err: unknown) {
         if (!silent) {
-          setDrillError(getErrorMessage(err, t('errors.fetchSubHabits')))
+          setDrillError(getFriendlyErrorMessage(err, t, 'errors.fetchSubHabits', 'subHabit'))
         }
       } finally {
         if (!silent) setDrillLoading(false)

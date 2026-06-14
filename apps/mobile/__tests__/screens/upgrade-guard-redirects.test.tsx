@@ -63,11 +63,13 @@ vi.mock("@/hooks/use-gamification", () => ({
 
 vi.mock("@/hooks/use-retrospective", () => ({
   useRetrospective: () => ({
-    retrospective: null,
-    setRetrospective: vi.fn(),
+    data: null,
+    setData: vi.fn(),
     isLoading: false,
     error: "",
     setError: vi.fn(),
+    noData: false,
+    setNoData: vi.fn(),
     fromCache: false,
     period: "month",
     setPeriod: vi.fn(),

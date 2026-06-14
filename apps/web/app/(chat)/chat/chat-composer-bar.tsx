@@ -3,17 +3,12 @@
 import type {
   ChangeEvent,
   ClipboardEvent,
-  Dispatch,
   KeyboardEvent,
   RefObject,
-  SetStateAction,
 } from 'react'
 import { Mic, Square, ArrowUp, X, Crown, Lock, Image as ImageIcon } from 'lucide-react'
 import { useTranslations } from 'next-intl'
-import {
-  CHAT_SPEECH_LANGUAGES as SPEECH_LANGUAGES,
-  CHAT_VISUALIZER_BAR_OFFSETS as VISUALIZER_BAR_OFFSETS,
-} from '@orbit/shared/chat'
+import { CHAT_VISUALIZER_BAR_OFFSETS as VISUALIZER_BAR_OFFSETS } from '@orbit/shared/chat'
 import { InfoCard } from '@/components/ui/info-card'
 import { LocalImage } from '@/components/ui/local-image'
 import { PillButton } from '@/components/ui/pill-button'
@@ -21,20 +16,14 @@ import { PillButton } from '@/components/ui/pill-button'
 interface ChatComposerBarProps {
   textareaRef: RefObject<HTMLTextAreaElement | null>
   fileInputRef: RefObject<HTMLInputElement | null>
-  langPickerRef: RefObject<HTMLDivElement | null>
   input: string
   setInput: (value: string) => void
   sendError: string | null
   imagePreview: string | null
   isRecording: boolean
   speechSupported: boolean
-  speechLang: string
-  setSpeechLang: (value: string) => void
   toggleRecording: () => void
   recordingTime: string
-  currentLangFlag: string
-  showLangPicker: boolean
-  setShowLangPicker: Dispatch<SetStateAction<boolean>>
   starterChips: string[]
   isTyping: boolean
   hasProAccess: boolean
@@ -226,115 +215,13 @@ function ChatRecordingBar({ recordingTime, toggleRecording }: Readonly<ChatRecor
   )
 }
 
-interface ChatSpeechLanguagePickerProps {
-  langPickerRef: RefObject<HTMLDivElement | null>
-  speechLang: string
-  setSpeechLang: (value: string) => void
-  currentLangFlag: string
-  showLangPicker: boolean
-  setShowLangPicker: Dispatch<SetStateAction<boolean>>
-  toggleRecording: () => void
-  isTyping: boolean
-}
-
-function ChatSpeechLanguagePicker({
-  langPickerRef,
-  speechLang,
-  setSpeechLang,
-  currentLangFlag,
-  showLangPicker,
-  setShowLangPicker,
-  toggleRecording,
-  isTyping,
-}: Readonly<ChatSpeechLanguagePickerProps>) {
-  const t = useTranslations()
-
-  return (
-    <div ref={langPickerRef} className="relative shrink-0 flex items-center">
-      <button
-        type="button"
-        data-tour="tour-chat-voice"
-        aria-label={t('chat.toggleMic')}
-        disabled={isTyping}
-        onClick={toggleRecording}
-        className="icon-btn shrink-0 text-[var(--fg-3)] hover:text-[var(--fg-1)] disabled:opacity-50"
-        style={{ width: 34, height: 34 }}
-      >
-        <Mic size={18} strokeWidth={1.8} />
-      </button>
-      <button
-        type="button"
-        aria-label={t('chat.speechLanguage')}
-        onClick={(e) => {
-          e.stopPropagation()
-          setShowLangPicker((prev) => !prev)
-        }}
-        className="appearance-none border-0 bg-transparent cursor-pointer transition-opacity duration-150 ease-out hover:opacity-80"
-        style={{
-          padding: 4,
-          fontSize: 14,
-          lineHeight: 1,
-        }}
-      >
-        {currentLangFlag}
-      </button>
-      {showLangPicker && (
-        <div
-          className="absolute z-50"
-          style={{
-            bottom: '100%',
-            left: 0,
-            marginBottom: 12,
-            minWidth: 148,
-            background: 'var(--bg-sheet)',
-            borderRadius: 12,
-            boxShadow: 'var(--shadow-2), inset 0 0 0 1px var(--hairline)',
-            padding: '4px 0',
-          }}
-        >
-          {SPEECH_LANGUAGES.map((lang) => (
-            <button
-              key={lang.value}
-              type="button"
-              onClick={() => {
-                setSpeechLang(lang.value)
-                setShowLangPicker(false)
-              }}
-              className="w-full text-left flex items-center bg-transparent transition-colors duration-150 ease-out hover:bg-[var(--bg-elev)]"
-              style={{
-                padding: '8px 12px',
-                gap: 8,
-                fontFamily: 'var(--font-sans)',
-                fontSize: 12,
-                color: speechLang === lang.value ? 'var(--fg-1)' : 'var(--fg-2)',
-                fontWeight: speechLang === lang.value ? 600 : 400,
-                border: 0,
-                cursor: 'pointer',
-              }}
-            >
-              <span>{lang.flag}</span>
-              <span>{lang.label}</span>
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}
-
 interface ChatTextInputRowProps {
   textareaRef: RefObject<HTMLTextAreaElement | null>
-  langPickerRef: RefObject<HTMLDivElement | null>
   input: string
   setInput: (value: string) => void
   limitLocked: boolean
   isTyping: boolean
   speechSupported: boolean
-  speechLang: string
-  setSpeechLang: (value: string) => void
-  currentLangFlag: string
-  showLangPicker: boolean
-  setShowLangPicker: Dispatch<SetStateAction<boolean>>
   toggleRecording: () => void
   canSend: boolean
   openFilePicker: () => void
@@ -345,17 +232,11 @@ interface ChatTextInputRowProps {
 
 function ChatTextInputRow({
   textareaRef,
-  langPickerRef,
   input,
   setInput,
   limitLocked,
   isTyping,
   speechSupported,
-  speechLang,
-  setSpeechLang,
-  currentLangFlag,
-  showLangPicker,
-  setShowLangPicker,
   toggleRecording,
   canSend,
   openFilePicker,
@@ -419,16 +300,17 @@ function ChatTextInputRow({
           </button>
         )}
         {!limitLocked && speechSupported && (
-          <ChatSpeechLanguagePicker
-            langPickerRef={langPickerRef}
-            speechLang={speechLang}
-            setSpeechLang={setSpeechLang}
-            currentLangFlag={currentLangFlag}
-            showLangPicker={showLangPicker}
-            setShowLangPicker={setShowLangPicker}
-            toggleRecording={toggleRecording}
-            isTyping={isTyping}
-          />
+          <button
+            type="button"
+            data-tour="tour-chat-voice"
+            aria-label={t('chat.toggleMic')}
+            disabled={isTyping}
+            onClick={toggleRecording}
+            className="icon-btn shrink-0 text-[var(--fg-3)] hover:text-[var(--fg-1)] disabled:opacity-50"
+            style={{ width: 34, height: 34 }}
+          >
+            <Mic size={18} strokeWidth={1.8} />
+          </button>
         )}
       </div>
       <button
@@ -457,20 +339,14 @@ function ChatTextInputRow({
 export function ChatComposerBar({
   textareaRef,
   fileInputRef,
-  langPickerRef,
   input,
   setInput,
   sendError,
   imagePreview,
   isRecording,
   speechSupported,
-  speechLang,
-  setSpeechLang,
   toggleRecording,
   recordingTime,
-  currentLangFlag,
-  showLangPicker,
-  setShowLangPicker,
   starterChips,
   isTyping,
   hasProAccess,
@@ -534,17 +410,11 @@ export function ChatComposerBar({
           ) : (
             <ChatTextInputRow
               textareaRef={textareaRef}
-              langPickerRef={langPickerRef}
               input={input}
               setInput={setInput}
               limitLocked={limitLocked}
               isTyping={isTyping}
               speechSupported={speechSupported}
-              speechLang={speechLang}
-              setSpeechLang={setSpeechLang}
-              currentLangFlag={currentLangFlag}
-              showLangPicker={showLangPicker}
-              setShowLangPicker={setShowLangPicker}
               toggleRecording={toggleRecording}
               canSend={canSend}
               openFilePicker={openFilePicker}

@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { useMutation } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
 import { setNameRequestSchema } from '@orbit/shared/types/profile'
-import { getErrorMessage } from '@orbit/shared/utils'
+import { getFriendlyErrorMessage } from '@orbit/shared/utils'
 import { AppOverlay } from '@/components/ui/app-overlay'
 import { FieldInput } from '@/components/ui/field-input'
 import { PillButton } from '@/components/ui/pill-button'
@@ -45,7 +45,7 @@ export function EditNameSheet({ open, onOpenChange }: Readonly<EditNameSheetProp
       if (context?.previous !== undefined) {
         patchProfile({ name: context.previous })
       }
-      setError(getErrorMessage(err, t('profile.editName.errorGeneric')))
+      setError(getFriendlyErrorMessage(err, t, 'profile.editName.errorGeneric', 'generic'))
     },
     onSettled: () => {
       invalidate()

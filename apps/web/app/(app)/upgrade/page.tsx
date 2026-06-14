@@ -1,11 +1,10 @@
 'use client'
 
-import { useState, useMemo, useCallback, useRef, useEffect, useId } from 'react'
+import { useState, useMemo, useCallback } from 'react'
 import {
   Loader2, Sparkles, CreditCard, Settings,
-  Flame, MessageSquare, Palette, ShieldCheck, BarChart3,
   AlertTriangle, Download, Clock, Check, X as XIcon,
-  Tag, Info, Receipt,
+  Tag, Receipt,
 } from 'lucide-react'
 import { useTranslations, useLocale } from 'next-intl'
 import { AppBar } from '@/components/ui/app-bar'
@@ -20,7 +19,6 @@ import {
   UPGRADE_FEATURE_CATEGORIES,
   UPGRADE_PRO_FEATURES,
   UPGRADE_YEARLY_EXTRA_FEATURES,
-  type UpgradeIconKey,
 } from '@orbit/shared/utils/upgrade'
 import { plural } from '@/lib/plural'
 import { useProfile, useHasProAccess, useTrialExpired, useTrialDaysLeft, useTrialUrgent } from '@/hooks/use-profile'
@@ -29,21 +27,13 @@ import { useBilling } from '@/hooks/use-billing'
 import {
   formatLocaleDate,
   getClientTimeZone,
-  getErrorMessage,
+  getFriendlyErrorMessage,
   playManageSubscriptionUrl,
 } from '@orbit/shared/utils'
 import { createCheckoutSession, openCustomerPortal } from '@/app/actions/subscription'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 
 type SubscriptionInterval = 'monthly' | 'yearly'
-
-const upgradeIconMap = {
-  flame: Flame,
-  messageSquare: MessageSquare,
-  palette: Palette,
-  shieldCheck: ShieldCheck,
-  barChart3: BarChart3,
-} satisfies Record<UpgradeIconKey, React.ComponentType<{ className?: string; size?: number; strokeWidth?: number }>>
 
 const cardSurface: React.CSSProperties = {
   background: 'var(--bg-card)',
@@ -110,64 +100,6 @@ function UsageStats({ usagePercent, usageUrgent, profile, t }: Readonly<{
   )
 }
 
-function FeatureTooltip({ text }: Readonly<{ text: string }>) {
-  const [open, setOpen] = useState(false)
-  const ref = useRef<HTMLDivElement>(null)
-  const tooltipId = useId()
-
-  useEffect(() => {
-    if (!open) return
-    function handleClickOutside(e: MouseEvent) {
-      if (ref.current && !ref.current.contains(e.target as Node)) {
-        setOpen(false)
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [open])
-
-  return (
-    <div className="relative shrink-0" ref={ref}>
-      <button
-        className="icon-btn -m-2 shrink-0 hover:text-[var(--fg-2)]"
-        style={{ width: 36, height: 36, color: 'var(--fg-4)' }}
-        onClick={() => setOpen((v) => !v)}
-        type="button"
-        aria-label={text}
-        aria-expanded={open}
-        aria-haspopup="dialog"
-        aria-controls={tooltipId}
-      >
-        <Info size={18} strokeWidth={1.8} aria-hidden="true" />
-      </button>
-      {open && (
-        <div
-          id={tooltipId}
-          role="tooltip"
-          className="absolute bottom-full left-1/2 z-50 mb-2 max-w-[260px] -translate-x-1/2 rounded-[12px]"
-          style={{
-            padding: '10px 12px',
-            background: 'var(--bg-sheet)',
-            boxShadow: 'inset 0 0 0 1px var(--hairline), var(--shadow-2)',
-          }}
-        >
-          <p
-            style={{
-              margin: 0,
-              fontFamily: 'var(--font-sans)',
-              fontSize: 12,
-              lineHeight: 1.55,
-              color: 'var(--fg-2)',
-            }}
-          >
-            {text}
-          </p>
-        </div>
-      )}
-    </div>
-  )
-}
-
 function formatBillingDate(isoDate: string, locale: string): string {
   return formatLocaleDate(isoDate, locale, {
     month: 'short',
@@ -195,100 +127,92 @@ function invoiceStatusLabelFn(status: string, t: ReturnType<typeof useTranslatio
   return statuses[status] ?? status
 }
 
-const comparisonEyebrowStyle: React.CSSProperties = {
-  fontFamily: 'var(--font-sans)',
-  fontSize: 12,
-  fontWeight: 500,
-  letterSpacing: '0.08em',
-  textTransform: 'uppercase',
-  color: 'var(--fg-3)',
-}
+const UPGRADE_FEATURES = UPGRADE_FEATURE_CATEGORIES.flatMap((category) => category.features)
 
-function FeatureBooleanCell({ enabled, pro }: Readonly<{ enabled: boolean | undefined; pro: boolean }>) {
-  if (enabled) {
-    return (
-      <Check
-        size={16}
-        strokeWidth={2.4}
-        className={pro ? 'text-[var(--primary-soft)]' : 'text-[var(--fg-3)]'}
-        aria-hidden="true"
-      />
-    )
-  }
-  return <XIcon size={16} strokeWidth={1.8} className="text-[var(--fg-4)]" aria-hidden="true" />
-}
+function PlanColumnRow({ feature, plan, t }: Readonly<{
+  feature: (typeof UPGRADE_FEATURES)[number]
+  plan: 'free' | 'pro'
+  t: ReturnType<typeof useTranslations>
+}>) {
+  const included = feature.type === 'text' ? true : (plan === 'free' ? !!feature.freeEnabled : !!feature.proEnabled)
+  const text = feature.type === 'text'
+    ? t(`upgrade.features.${feature.key}.${plan}`)
+    : t(`upgrade.features.${feature.key}.label`)
 
-function FeatureComparisonTable({ t }: Readonly<{ t: ReturnType<typeof useTranslations> }>) {
+  const checkColor = plan === 'pro' ? 'var(--primary)' : 'var(--fg-3)'
+  const textColor = included ? (plan === 'pro' ? 'var(--fg-1)' : 'var(--fg-2)') : 'var(--fg-4)'
+
   return (
-    <div style={{ marginTop: 28 }}>
-      <div className="grid grid-cols-[1fr_auto_auto] items-center" style={{ gap: 12, padding: '0 4px 6px' }}>
-        <span style={comparisonEyebrowStyle}>{t('upgrade.feature')}</span>
-        <span className="w-14 text-center" style={comparisonEyebrowStyle}>{t('upgrade.free')}</span>
-        <span className="w-14 text-center" style={{ ...comparisonEyebrowStyle, color: 'var(--primary-soft)' }}>
-          {t('common.proBadge')}
+    <li className="flex items-center" style={{ gap: 9, minHeight: 34 }}>
+      {included
+        ? <Check size={15} strokeWidth={2.4} className="shrink-0" style={{ color: checkColor }} aria-hidden="true" />
+        : <XIcon size={15} strokeWidth={1.8} className="shrink-0" style={{ color: 'var(--fg-4)' }} aria-hidden="true" />}
+      <span
+        className="min-w-0 truncate"
+        style={{ fontFamily: 'var(--font-sans)', fontSize: 12.5, lineHeight: 1.4, color: textColor }}
+      >
+        {text}
+      </span>
+    </li>
+  )
+}
+
+function PlanColumn({ plan, t }: Readonly<{ plan: 'free' | 'pro'; t: ReturnType<typeof useTranslations> }>) {
+  const isPro = plan === 'pro'
+  return (
+    <div
+      className="rounded-[18px]"
+      style={{
+        padding: '16px 14px',
+        background: isPro ? 'rgba(var(--primary-rgb), 0.04)' : 'var(--bg-card)',
+        boxShadow: isPro
+          ? 'inset 0 0 0 1.5px var(--primary), var(--primary-glow)'
+          : 'inset 0 0 0 1px var(--hairline)',
+      }}
+    >
+      <div className="flex items-center" style={{ gap: 8, minHeight: 26, marginBottom: 14 }}>
+        <span
+          style={{
+            fontFamily: 'var(--font-sans)',
+            fontSize: 16,
+            fontWeight: 600,
+            letterSpacing: '-0.01em',
+            color: isPro ? 'var(--primary-soft)' : 'var(--fg-1)',
+          }}
+        >
+          {isPro ? t('common.proBadge') : t('upgrade.free')}
         </span>
+        {isPro && (
+          <span
+            className="inline-flex items-center rounded-full uppercase"
+            style={{
+              fontFamily: 'var(--font-sans)',
+              fontSize: 9.5,
+              fontWeight: 600,
+              letterSpacing: '0.05em',
+              padding: '3px 8px',
+              background: 'rgba(var(--primary-rgb), 0.16)',
+              color: 'var(--primary-soft)',
+            }}
+          >
+            {t('upgrade.recommended')}
+          </span>
+        )}
       </div>
+      <ul className="flex flex-col" style={{ gap: 8 }}>
+        {UPGRADE_FEATURES.map((feature) => (
+          <PlanColumnRow key={feature.key} feature={feature} plan={plan} t={t} />
+        ))}
+      </ul>
+    </div>
+  )
+}
 
-      {UPGRADE_FEATURE_CATEGORIES.map((group) => (
-        <div key={group.category}>
-          <div style={{ padding: '18px 4px 4px' }}>
-            <span
-              style={{
-                fontFamily: 'var(--font-sans)',
-                fontSize: 15,
-                fontWeight: 500,
-                letterSpacing: '-0.01em',
-                color: 'var(--fg-1)',
-              }}
-            >
-              {t(`upgrade.categories.${group.category}`)}
-            </span>
-          </div>
-
-          {group.features.map((feat) => {
-            const Icon = upgradeIconMap[feat.iconKey]
-
-            return (
-              <div
-                key={feat.key}
-                className="grid grid-cols-[1fr_auto_auto] items-center"
-                style={{ gap: 12, padding: '11px 4px', borderBottom: '1px solid var(--hairline)' }}
-              >
-                <div className="flex min-w-0 items-center" style={{ gap: 10 }}>
-                  <Icon size={16} strokeWidth={1.8} className="shrink-0 text-[var(--fg-3)]" />
-                  <span
-                    className="truncate"
-                    style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--fg-2)' }}
-                  >
-                    {t(`upgrade.features.${feat.key}.label`)}
-                  </span>
-                  <FeatureTooltip text={t(`upgrade.features.${feat.key}.tooltip`)} />
-                </div>
-
-                <div className="flex w-14 justify-center">
-                  {feat.type === 'boolean'
-                    ? <FeatureBooleanCell enabled={feat.freeEnabled} pro={false} />
-                    : (
-                      <span className="text-center" style={{ ...metaTextStyle, fontSize: 11.5 }}>
-                        {t(`upgrade.features.${feat.key}.free`)}
-                      </span>
-                    )}
-                </div>
-
-                <div className="flex w-14 justify-center">
-                  {feat.type === 'boolean'
-                    ? <FeatureBooleanCell enabled={feat.proEnabled} pro />
-                    : (
-                      <span className="text-center" style={{ ...metaTextStyle, fontSize: 11.5, color: 'var(--fg-1)' }}>
-                        {t(`upgrade.features.${feat.key}.pro`)}
-                      </span>
-                    )}
-                </div>
-              </div>
-            )
-          })}
-        </div>
-      ))}
+function PlanComparisonCards({ t }: Readonly<{ t: ReturnType<typeof useTranslations> }>) {
+  return (
+    <div className="grid grid-cols-2 items-start" style={{ gap: 10, marginTop: 28 }}>
+      <PlanColumn plan="free" t={t} />
+      <PlanColumn plan="pro" t={t} />
     </div>
   )
 }
@@ -824,7 +748,7 @@ function PricingSection({
         </>
       )}
 
-      <FeatureComparisonTable t={t} />
+      <PlanComparisonCards t={t} />
     </>
   )
 }
@@ -870,7 +794,7 @@ export default function UpgradePage() {
         globalThis.location.href = data.url
       }
     } catch (err: unknown) {
-      setCheckoutError(getErrorMessage(err, t('auth.genericError')))
+      setCheckoutError(getFriendlyErrorMessage(err, t, 'auth.genericError', 'generic'))
     } finally {
       setCheckoutLoading(null)
     }
@@ -884,7 +808,7 @@ export default function UpgradePage() {
         globalThis.location.href = data.url
       }
     } catch (err: unknown) {
-      setPortalError(getErrorMessage(err, t('auth.genericError')))
+      setPortalError(getFriendlyErrorMessage(err, t, 'auth.genericError', 'generic'))
     }
   }, [t])
 
