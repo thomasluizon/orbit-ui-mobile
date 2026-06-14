@@ -1,7 +1,7 @@
 import 'react-native-url-polyfill/auto'
 import 'expo-sqlite/localStorage/install'
 
-import { createClient } from '@supabase/supabase-js'
+import { createClient, type SupabaseClient } from '@supabase/supabase-js'
 
 interface SupabaseStorageAdapter {
   getItem: (key: string) => string | null
@@ -9,20 +9,27 @@ interface SupabaseStorageAdapter {
   removeItem: (key: string) => void
 }
 
-const SUPABASE_URL = process.env.EXPO_PUBLIC_SUPABASE_URL
-const SUPABASE_PUBLISHABLE_KEY = process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY
+const SUPABASE_URL =
+  process.env.EXPO_PUBLIC_SUPABASE_URL ?? 'https://wdscxamegetmhqldqsdg.supabase.co'
+const SUPABASE_PUBLISHABLE_KEY =
+  process.env.EXPO_PUBLIC_SUPABASE_PUBLISHABLE_KEY ??
+  'sb_publishable_CGlL4PSxvp2Ia0SCHcathQ_iAQnmXis'
 
-if (!SUPABASE_URL || !SUPABASE_PUBLISHABLE_KEY) {
-  throw new Error('Supabase config missing')
+let client: SupabaseClient | null = null
+
+export function getSupabaseClient(): SupabaseClient {
+  if (!client) {
+    const storage = (
+      globalThis as typeof globalThis & { localStorage: SupabaseStorageAdapter }
+    ).localStorage
+    client = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
+      auth: {
+        storage,
+        autoRefreshToken: true,
+        persistSession: true,
+        detectSessionInUrl: false,
+      },
+    })
+  }
+  return client
 }
-
-const storage = (globalThis as typeof globalThis & { localStorage: SupabaseStorageAdapter }).localStorage
-
-export const supabase = createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
-  auth: {
-    storage,
-    autoRefreshToken: true,
-    persistSession: true,
-    detectSessionInUrl: false,
-  },
-})

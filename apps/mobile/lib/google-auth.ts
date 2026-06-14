@@ -12,7 +12,7 @@ import {
   markPendingGoogleAuthSession,
   setPendingGoogleAuthCallbackUrl,
 } from './google-auth-callback'
-import { supabase } from './supabase'
+import { getSupabaseClient } from './supabase'
 
 export type MobileGoogleAuthResult =
   | { type: 'success'; url: string }
@@ -66,7 +66,7 @@ export async function completeGoogleAuthFromUrl(
     throw new Error('Authentication failed')
   }
 
-  const { data, error } = await supabase.auth.setSession({
+  const { data, error } = await getSupabaseClient().auth.setSession({
     access_token: params.access_token,
     refresh_token: params.refresh_token,
   })
@@ -84,7 +84,7 @@ export async function completeGoogleAuthFromUrl(
       params.provider_refresh_token,
     )
   } finally {
-    await supabase.auth.signOut().catch(() => {})
+    await getSupabaseClient().auth.signOut().catch(() => {})
   }
 }
 
@@ -103,7 +103,7 @@ export async function startMobileGoogleAuth({
 
   try {
     const redirectTo = getGoogleAuthRedirectUrl()
-    const { data, error } = await supabase.auth.signInWithOAuth({
+    const { data, error } = await getSupabaseClient().auth.signInWithOAuth({
       provider: 'google',
       options: buildGoogleCalendarOAuthOptions({
         redirectTo,
