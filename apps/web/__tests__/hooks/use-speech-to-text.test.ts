@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook, act, waitFor } from '@testing-library/react'
+import { VOICE_LEVEL_POLL_MS, VOICE_SILENCE_TIMEOUT_MS } from '@orbit/shared/chat'
 import { useSpeechToText } from '@/hooks/use-speech-to-text'
 
 vi.mock('next-intl', () => ({
@@ -178,6 +179,46 @@ describe('useSpeechToText', () => {
 
       expect(result.current.error).toBe('speech.micDenied')
       expect(result.current.isRecording).toBe(false)
+    })
+
+    it('auto-stops and transcribes after a silence once speech is detected', async () => {
+      vi.useFakeTimers()
+      const fetchMock = vi.fn(async () => Response.json({ text: 'log water' }, { status: 200 }))
+      vi.stubGlobal('fetch', fetchMock)
+
+      let sampleValue = 200
+      class MockAudioContext {
+        createMediaStreamSource() {
+          return { connect: vi.fn() }
+        }
+        createAnalyser() {
+          return {
+            fftSize: 2048,
+            getByteTimeDomainData: (buffer: Uint8Array) => buffer.fill(sampleValue),
+          }
+        }
+        close = vi.fn(async () => {})
+      }
+      vi.stubGlobal('AudioContext', MockAudioContext)
+
+      const { result } = renderHook(() => useSpeechToText())
+
+      await act(async () => {
+        await result.current.startRecording()
+      })
+      expect(result.current.isRecording).toBe(true)
+
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(VOICE_LEVEL_POLL_MS)
+      })
+
+      sampleValue = 128
+      await act(async () => {
+        await vi.advanceTimersByTimeAsync(VOICE_SILENCE_TIMEOUT_MS + VOICE_LEVEL_POLL_MS)
+      })
+
+      expect(result.current.isRecording).toBe(false)
+      expect(result.current.transcript).toBe('log water')
     })
   })
 })

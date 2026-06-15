@@ -1,6 +1,7 @@
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { API } from '@orbit/shared/api'
+import { VOICE_LEVEL_POLL_MS, VOICE_SILENCE_TIMEOUT_MS } from '@orbit/shared/chat'
 
 import { useSpeechToText } from '@/hooks/use-speech-to-text'
 
@@ -14,6 +15,7 @@ const mocks = vi.hoisted(() => ({
   record: vi.fn(),
   stop: vi.fn(async () => {}),
   recorderUri: 'file:///tmp/recording.m4a' as string | null,
+  metering: -20 as number,
 }))
 
 vi.mock('@/lib/api-client', () => ({
@@ -30,6 +32,7 @@ vi.mock('expo-audio', () => ({
     prepareToRecordAsync: mocks.prepareToRecordAsync,
     record: mocks.record,
     stop: mocks.stop,
+    getStatus: () => ({ metering: mocks.metering }),
     get uri() {
       return mocks.recorderUri
     },
@@ -68,6 +71,7 @@ describe('useSpeechToText', () => {
     mocks.record.mockClear()
     mocks.stop.mockClear()
     mocks.recorderUri = 'file:///tmp/recording.m4a'
+    mocks.metering = -20
   })
 
   it('records, uploads the audio, and commits the transcribed text', async () => {
@@ -139,5 +143,34 @@ describe('useSpeechToText', () => {
     expect(hook.current.error).toBe('speech.micDenied')
     expect(mocks.record).not.toHaveBeenCalled()
     expect(mocks.apiClient).not.toHaveBeenCalled()
+  })
+
+  it('auto-stops and transcribes after a silence once speech has been detected', async () => {
+    vi.useFakeTimers()
+    try {
+      mocks.apiClient.mockResolvedValue({ text: 'log water' })
+      mocks.metering = -20
+      const hook = await renderHook()
+
+      await TestRenderer.act(async () => {
+        await hook.current.startRecording()
+      })
+      expect(hook.current.isRecording).toBe(true)
+
+      await TestRenderer.act(async () => {
+        await vi.advanceTimersByTimeAsync(VOICE_LEVEL_POLL_MS)
+      })
+
+      mocks.metering = -90
+      await TestRenderer.act(async () => {
+        await vi.advanceTimersByTimeAsync(VOICE_SILENCE_TIMEOUT_MS + VOICE_LEVEL_POLL_MS)
+      })
+
+      expect(mocks.stop).toHaveBeenCalled()
+      expect(hook.current.isRecording).toBe(false)
+      expect(hook.current.transcript).toBe('log water')
+    } finally {
+      vi.useRealTimers()
+    }
   })
 })
