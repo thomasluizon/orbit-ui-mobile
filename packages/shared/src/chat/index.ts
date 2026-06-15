@@ -1,20 +1,6 @@
 export * from './related-surfaces'
 export * from './sse-stream'
 
-export const CHAT_SPEECH_LANG_KEY = 'orbit:speech-lang'
-
-export const CHAT_SPEECH_LANGUAGES = [
-  { value: 'en-US', label: 'English', flag: '\u{1F1FA}\u{1F1F8}' },
-  { value: 'pt-BR', label: 'Portugues', flag: '\u{1F1E7}\u{1F1F7}' },
-  { value: 'es-ES', label: 'Espanol', flag: '\u{1F1EA}\u{1F1F8}' },
-  { value: 'fr-FR', label: 'Francais', flag: '\u{1F1EB}\u{1F1F7}' },
-  { value: 'de-DE', label: 'Deutsch', flag: '\u{1F1E9}\u{1F1EA}' },
-  { value: 'it-IT', label: 'Italiano', flag: '\u{1F1EE}\u{1F1F9}' },
-  { value: 'ja-JP', label: '\u65E5\u672C\u8A9E', flag: '\u{1F1EF}\u{1F1F5}' },
-  { value: 'ko-KR', label: '\uD55C\uAD6D\uC5B4', flag: '\u{1F1F0}\u{1F1F7}' },
-  { value: 'zh-CN', label: '\u4E2D\u6587', flag: '\u{1F1E8}\u{1F1F3}' },
-] as const
-
 export const CHAT_VISUALIZER_BAR_OFFSETS = [0, 0.08, 0.16, 0.04, 0.12, 0.2, 0.06, 0.14, 0.22] as const
 
 export const CHAT_STARTER_CHIP_KEYS = [
@@ -74,8 +60,4 @@ export function getChatImageValidationError(
   }
 
   return null
-}
-
-export function getDefaultChatSpeechLanguage(locale: string | null | undefined): string {
-  return locale?.toLowerCase().startsWith('pt') ? 'pt-BR' : 'en-US'
 }

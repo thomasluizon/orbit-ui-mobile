@@ -105,6 +105,7 @@ export const API = {
   chat: {
     send: '/api/chat',
     stream: '/api/chat/stream',
+    transcribe: '/api/chat/transcribe',
   },
 
   ai: {

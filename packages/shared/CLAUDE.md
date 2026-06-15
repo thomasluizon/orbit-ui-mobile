@@ -37,7 +37,7 @@ src/
     index.ts
   stores/                   - shared Zustand store SHAPES (consumer apps implement persistence)
   validation/               - Zod refinement schemas for forms (shared between web + mobile rhf consumers)
-  chat/                     - shared chat constants (CHAT_SPEECH_LANG_KEY, CHAT_VISUALIZER_BAR_OFFSETS)
+  chat/                     - shared chat constants (CHAT_VISUALIZER_BAR_OFFSETS, CHAT_STARTER_CHIP_KEYS)
   __tests__/factories.ts    - test data factories used by both apps
 ```
 

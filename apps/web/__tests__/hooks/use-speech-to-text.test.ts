@@ -1,212 +1,183 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { renderHook, act } from '@testing-library/react'
+import { renderHook, act, waitFor } from '@testing-library/react'
 import { useSpeechToText } from '@/hooks/use-speech-to-text'
 
 vi.mock('next-intl', () => ({
-  useLocale: () => 'en',
-  useTranslations: () => (key: string, params?: Record<string, string>) => {
-    if (params) return `${key}: ${JSON.stringify(params)}`
-    return key
-  },
+  useTranslations: () => (key: string) => key,
 }))
 
-const mockStorage: Record<string, string> = {}
-vi.stubGlobal('localStorage', {
-  getItem: vi.fn((key: string) => mockStorage[key] ?? null),
-  setItem: vi.fn((key: string, value: string) => {
-    mockStorage[key] = value
-  }),
-})
+type RecorderState = 'inactive' | 'recording'
 
-class MockSpeechRecognition {
-  continuous = false
-  interimResults = false
-  lang = ''
-  onresult: ((event: unknown) => void) | null = null
-  onerror: ((event: unknown) => void) | null = null
-  onend: (() => void) | null = null
+class MockMediaRecorder {
+  static instances: MockMediaRecorder[] = []
+  state: RecorderState = 'inactive'
+  mimeType = 'audio/webm'
+  ondataavailable: ((event: { data: Blob }) => void) | null = null
+  onstop: (() => void) | null = null
+
+  constructor(public stream: MediaStream) {
+    MockMediaRecorder.instances.push(this)
+  }
 
   start = vi.fn(() => {
+    this.state = 'recording'
   })
+
   stop = vi.fn(() => {
-    if (this.onend) this.onend()
+    this.state = 'inactive'
+    this.ondataavailable?.({ data: new Blob(['audio'], { type: 'audio/webm' }) })
+    this.onstop?.()
   })
-  abort = vi.fn()
 }
+
+function makeStream(): MediaStream {
+  const track = { stop: vi.fn() }
+  return { getTracks: () => [track] } as unknown as MediaStream
+}
+
+const getUserMedia = vi.fn(async () => makeStream())
 
 describe('useSpeechToText', () => {
   beforeEach(() => {
-    Object.keys(mockStorage).forEach((key) => delete mockStorage[key])
+    MockMediaRecorder.instances = []
     vi.clearAllMocks()
-    vi.useFakeTimers()
+    vi.stubGlobal('MediaRecorder', MockMediaRecorder)
+    vi.stubGlobal('navigator', { mediaDevices: { getUserMedia } })
   })
 
   afterEach(() => {
+    vi.unstubAllGlobals()
     vi.useRealTimers()
   })
 
-  describe('without SpeechRecognition API', () => {
+  describe('without recording support', () => {
     beforeEach(() => {
-      globalThis.SpeechRecognition = undefined
-      globalThis.webkitSpeechRecognition = undefined
+      vi.stubGlobal('navigator', {})
     })
 
     it('reports not supported', () => {
       const { result } = renderHook(() => useSpeechToText())
       expect(result.current.isSupported).toBe(false)
-      expect(result.current.isRecording).toBe(false)
     })
 
-    it('does nothing on startRecording when not supported', () => {
+    it('does nothing on startRecording when not supported', async () => {
       const { result } = renderHook(() => useSpeechToText())
-
-      act(() => {
-        result.current.startRecording()
+      await act(async () => {
+        await result.current.startRecording()
       })
-
       expect(result.current.isRecording).toBe(false)
     })
   })
 
-  describe('with SpeechRecognition API', () => {
-    beforeEach(() => {
-      globalThis.SpeechRecognition = MockSpeechRecognition as unknown as typeof globalThis.SpeechRecognition
-    })
-
-    afterEach(() => {
-      globalThis.SpeechRecognition = undefined
-    })
-
+  describe('with recording support', () => {
     it('reports supported', () => {
       const { result } = renderHook(() => useSpeechToText())
       expect(result.current.isSupported).toBe(true)
     })
 
-    it('starts with default language based on locale', () => {
-      const { result } = renderHook(() => useSpeechToText())
-      expect(result.current.selectedLanguage).toBe('en-US')
-    })
-
-    it('reads stored language from localStorage', () => {
-      mockStorage['orbit:speech-lang'] = 'pt-BR'
-      const { result } = renderHook(() => useSpeechToText())
-      expect(result.current.selectedLanguage).toBe('pt-BR')
-    })
-
-    it('allows changing language', () => {
+    it('starts recording and requests the microphone', async () => {
       const { result } = renderHook(() => useSpeechToText())
 
-      act(() => {
-        result.current.setSelectedLanguage('es-ES')
+      await act(async () => {
+        await result.current.startRecording()
       })
 
-      expect(result.current.selectedLanguage).toBe('es-ES')
-      expect(localStorage.setItem).toHaveBeenCalledWith('orbit:speech-lang', 'es-ES')
-    })
-
-    it('starts recording', () => {
-      const { result } = renderHook(() => useSpeechToText())
-
-      act(() => {
-        result.current.startRecording()
-      })
-
+      expect(getUserMedia).toHaveBeenCalledWith({ audio: true })
       expect(result.current.isRecording).toBe(true)
       expect(result.current.error).toBeNull()
-      expect(result.current.transcript).toBe('')
     })
 
-    it('stops recording', () => {
+    it('tracks recording duration', async () => {
+      vi.useFakeTimers()
       const { result } = renderHook(() => useSpeechToText())
 
-      act(() => {
-        result.current.startRecording()
+      await act(async () => {
+        await result.current.startRecording()
       })
-
-      act(() => {
-        result.current.stopRecording()
-      })
-
-      expect(result.current.isRecording).toBe(false)
-    })
-
-    it('toggleRecording starts and stops', () => {
-      const { result } = renderHook(() => useSpeechToText())
-
-      act(() => {
-        result.current.toggleRecording()
-      })
-      expect(result.current.isRecording).toBe(true)
-
-      act(() => {
-        result.current.toggleRecording()
-      })
-      expect(result.current.isRecording).toBe(false)
-    })
-
-    it('tracks recording duration', () => {
-      const { result } = renderHook(() => useSpeechToText())
-
-      act(() => {
-        result.current.startRecording()
-      })
-
       expect(result.current.recordingDuration).toBe(0)
 
       act(() => {
         vi.advanceTimersByTime(3000)
       })
-
       expect(result.current.recordingDuration).toBe(3)
     })
 
-    it('resets duration on new recording', () => {
+    it('commits the transcript after a successful transcription', async () => {
+      const fetchMock = vi.fn(
+        async (_input: string, _init?: RequestInit) =>
+          Response.json({ text: '  log water  ' }, { status: 200 }),
+      )
+      vi.stubGlobal('fetch', fetchMock)
+
       const { result } = renderHook(() => useSpeechToText())
 
-      act(() => {
-        result.current.startRecording()
+      await act(async () => {
+        await result.current.startRecording()
       })
-
-      act(() => {
-        vi.advanceTimersByTime(5000)
-      })
-      expect(result.current.recordingDuration).toBe(5)
-
-      act(() => {
+      await act(async () => {
         result.current.stopRecording()
       })
 
-      act(() => {
-        result.current.startRecording()
-      })
+      await waitFor(() => expect(result.current.transcript).toBe('log water'))
+      expect(result.current.isRecording).toBe(false)
+      expect(result.current.isTranscribing).toBe(false)
+      expect(result.current.error).toBeNull()
 
-      expect(result.current.recordingDuration).toBe(0)
+      const init = fetchMock.mock.calls[0]?.[1]
+      const body = init?.body
+      expect(body).toBeInstanceOf(FormData)
+      if (body instanceof FormData) {
+        expect(body.get('audio')).toBeInstanceOf(Blob)
+      }
     })
 
-    it('starts with empty transcript', () => {
+    it('surfaces the mapped error key when transcription returns an error code', async () => {
+      const fetchMock = vi.fn(async () =>
+        Response.json({ error: 'too big', errorCode: 'AUDIO_TOO_LARGE' }, { status: 400 }),
+      )
+      vi.stubGlobal('fetch', fetchMock)
+
       const { result } = renderHook(() => useSpeechToText())
+
+      await act(async () => {
+        await result.current.startRecording()
+      })
+      await act(async () => {
+        result.current.stopRecording()
+      })
+
+      await waitFor(() => expect(result.current.error).toBe('errors.api.audioTooLarge'))
       expect(result.current.transcript).toBe('')
     })
 
-    it('starts with no error', () => {
+    it('falls back to the generic failure key on a network error', async () => {
+      const fetchMock = vi.fn(async () => {
+        throw new Error('network down')
+      })
+      vi.stubGlobal('fetch', fetchMock)
+
       const { result } = renderHook(() => useSpeechToText())
-      expect(result.current.error).toBeNull()
-    })
-  })
 
-  describe('with webkitSpeechRecognition fallback', () => {
-    beforeEach(() => {
-      globalThis.SpeechRecognition = undefined
-      globalThis.webkitSpeechRecognition = MockSpeechRecognition as unknown as typeof globalThis.webkitSpeechRecognition
-    })
+      await act(async () => {
+        await result.current.startRecording()
+      })
+      await act(async () => {
+        result.current.stopRecording()
+      })
 
-    afterEach(() => {
-      globalThis.webkitSpeechRecognition = undefined
+      await waitFor(() => expect(result.current.error).toBe('errors.api.transcriptionFailed'))
     })
 
-    it('detects webkit variant as supported', () => {
+    it('surfaces a permission-denied error without throwing', async () => {
+      getUserMedia.mockRejectedValueOnce(new DOMException('denied', 'NotAllowedError'))
       const { result } = renderHook(() => useSpeechToText())
-      expect(result.current.isSupported).toBe(true)
+
+      await act(async () => {
+        await result.current.startRecording()
+      })
+
+      expect(result.current.error).toBe('speech.micDenied')
+      expect(result.current.isRecording).toBe(false)
     })
   })
 })

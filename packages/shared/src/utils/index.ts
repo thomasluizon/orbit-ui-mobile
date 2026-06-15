@@ -18,6 +18,7 @@ export {
 export {
   ApiClientError,
   createApiClientError,
+  ERROR_CODE_TO_KEY,
   extractBackendError,
   extractBackendErrorCode,
   extractBackendFieldErrors,

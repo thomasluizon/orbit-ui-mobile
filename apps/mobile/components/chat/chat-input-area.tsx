@@ -40,6 +40,7 @@ interface ChatInputAreaProps {
   reward: ChatRewardState;
   voiceRef: React.Ref<View>;
   isRecording: boolean;
+  isTranscribing: boolean;
   isTyping: boolean;
   selectedImagePresent: boolean;
   transcript: string;
@@ -325,6 +326,7 @@ export const ChatInputArea = forwardRef<View, Readonly<ChatInputAreaProps>>(
           tokens={tokens}
           styles={styles}
           isRecording={props.isRecording}
+          isTranscribing={props.isTranscribing}
           isTyping={props.isTyping}
           isOnline={isOnline}
           atMessageLimit={atMessageLimit}

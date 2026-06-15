@@ -20,6 +20,7 @@ function baseProps() {
     sendError: null,
     imagePreview: null,
     isRecording: false,
+    isTranscribing: false,
     speechSupported: true,
     toggleRecording: vi.fn(),
     recordingTime: '0:05',
@@ -130,6 +131,15 @@ describe('ChatComposerBar', () => {
     expect(props.toggleRecording).toHaveBeenCalled()
   })
 
+  it('shows the transcribing state and disables the stop button while transcribing', () => {
+    const props = { ...baseProps(), isRecording: false, isTranscribing: true }
+    render(<ChatComposerBar {...props} />)
+    expect(screen.getByText('chat.transcribing')).toBeInTheDocument()
+    expect(screen.queryByText('0:05')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('chat.placeholder')).not.toBeInTheDocument()
+    expect(screen.getByLabelText('chat.stopRecording')).toBeDisabled()
+  })
+
   it('opens the file picker when the attach button is clicked', () => {
     const props = baseProps()
     render(<ChatComposerBar {...props} />)
@@ -142,11 +152,6 @@ describe('ChatComposerBar', () => {
     render(<ChatComposerBar {...props} />)
     fireEvent.click(screen.getByLabelText('chat.toggleMic'))
     expect(props.toggleRecording).toHaveBeenCalled()
-  })
-
-  it('does not render the speech-language flag inside the input bar', () => {
-    render(<ChatComposerBar {...baseProps()} />)
-    expect(screen.queryByLabelText('chat.speechLanguage')).not.toBeInTheDocument()
   })
 
   it('hides the mic when speech is unsupported', () => {

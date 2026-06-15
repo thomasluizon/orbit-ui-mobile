@@ -6,7 +6,6 @@ import { useTranslation } from "react-i18next";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   CHAT_STARTER_CHIP_KEYS,
-  CHAT_SPEECH_LANGUAGES as SPEECH_LANGUAGES,
   CHAT_STREAM_IDLE_TIMEOUT_MS,
   consumeChatSseStream,
   getChatImageValidationError,
@@ -138,11 +137,10 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
 
   const {
     isRecording,
+    isTranscribing,
     isSupported: speechSupported,
     transcript,
     error: speechError,
-    selectedLanguage: speechLang,
-    setSelectedLanguage: setSpeechLang,
     toggleRecording,
     recordingDuration,
   } = useSpeechToText();
@@ -154,7 +152,6 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
   const [selectedImage, setSelectedImage] =
     useState<ImagePicker.ImagePickerAsset | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [showLangPicker, setShowLangPicker] = useState(false);
   const [composerResetSignal, setComposerResetSignal] = useState(0);
 
   const hasProAccess = profile?.hasProAccess ?? false;
@@ -162,13 +159,6 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
   const aiMessagesLimit = profile?.aiMessagesLimit ?? 20;
   const atMessageLimit = !hasProAccess && aiMessagesUsed >= aiMessagesLimit;
   const showSuggestions = messages.length === 0 && !isTyping;
-
-  const currentLangFlag = useMemo(
-    () =>
-      SPEECH_LANGUAGES.find((lang) => lang.value === speechLang)?.flag ??
-      "\u{1F310}",
-    [speechLang],
-  );
 
   const starterChips = useMemo(
     () => CHAT_STARTER_CHIP_KEYS.map((key) => t(key)),
@@ -227,26 +217,21 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
   );
 
   useEffect(() => {
-    if (speechError) {
-      setSendError(speechError);
-      const timer = setTimeout(() => {
-        setSendError((current) => (current === speechError ? null : current));
-      }, 4000);
-      return () => clearTimeout(timer);
-    }
+    if (!speechError) return;
+
+    let active = true;
+    void Promise.resolve().then(() => {
+      if (active) setSendError(speechError);
+    });
+    const timer = setTimeout(() => {
+      setSendError((current) => (current === speechError ? null : current));
+    }, 4000);
+
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
   }, [speechError]);
-
-  useEffect(() => {
-    if (isRecording) {
-      setShowLangPicker(false);
-    }
-  }, [isRecording]);
-
-  useEffect(() => {
-    if (!isOnline) {
-      setShowLangPicker(false);
-    }
-  }, [isOnline]);
 
   const validateImageAsset = useCallback(
     (asset: ImagePicker.ImagePickerAsset): string | null => {
@@ -265,8 +250,6 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
   );
 
   const openFilePicker = useCallback(async () => {
-    setShowLangPicker(false);
-
     const permission = await ImagePicker.requestMediaLibraryPermissionsAsync();
     if (!permission.granted) {
       setSendError(t("chat.imagePermissionError"));
@@ -579,8 +562,6 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
         return;
       }
 
-      setShowLangPicker(false);
-
       const attempted: AttemptedSend = {
         content: messageContent,
         image: selectedImage,
@@ -624,18 +605,14 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
     sendError,
     selectedImage,
     imagePreview,
-    showLangPicker,
-    setShowLangPicker,
     composerResetSignal,
     isRecording,
+    isTranscribing,
     speechSupported,
     transcript,
     speechError,
-    speechLang,
-    setSpeechLang,
     toggleRecording,
     recordingTime,
-    currentLangFlag,
     starterChips,
     hasProAccess,
     aiMessagesUsed,

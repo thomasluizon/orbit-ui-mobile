@@ -1,7 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
   getChatImageValidationError,
-  getDefaultChatSpeechLanguage,
   resolveChatImageMimeType,
 } from '../chat'
 
@@ -45,17 +44,5 @@ describe('getChatImageValidationError', () => {
         fileSize: 21 * 1024 * 1024,
       }),
     ).toBe('size')
-  })
-})
-
-describe('getDefaultChatSpeechLanguage', () => {
-  it('defaults portuguese locales to pt-BR', () => {
-    expect(getDefaultChatSpeechLanguage('pt-BR')).toBe('pt-BR')
-    expect(getDefaultChatSpeechLanguage('pt')).toBe('pt-BR')
-  })
-
-  it('defaults all other locales to en-US', () => {
-    expect(getDefaultChatSpeechLanguage('en')).toBe('en-US')
-    expect(getDefaultChatSpeechLanguage(undefined)).toBe('en-US')
   })
 })

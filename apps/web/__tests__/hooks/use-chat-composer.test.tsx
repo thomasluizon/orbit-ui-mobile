@@ -32,11 +32,10 @@ vi.mock('@/hooks/use-profile', () => ({
 vi.mock('@/hooks/use-speech-to-text', () => ({
   useSpeechToText: () => ({
     isRecording: false,
+    isTranscribing: false,
     isSupported: true,
     transcript: '',
     error: null,
-    selectedLanguage: 'en-US',
-    setSelectedLanguage: vi.fn(),
     toggleRecording: vi.fn(),
     recordingDuration: 0,
   }),

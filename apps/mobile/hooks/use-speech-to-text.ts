@@ -1,248 +1,147 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import AsyncStorage from '@react-native-async-storage/async-storage'
-import { Platform } from 'react-native'
-import Constants, { AppOwnership } from 'expo-constants'
 import { useTranslation } from 'react-i18next'
-import { CHAT_SPEECH_LANG_KEY, getDefaultChatSpeechLanguage } from '@orbit/shared/chat'
 import {
-  buildSpeechRecognitionStartConfig,
-  resolveSpeechTranscript,
-} from '@/lib/speech-to-text'
-export {
-  CHAT_SPEECH_LANGUAGES as SPEECH_LANGUAGES,
-  CHAT_VISUALIZER_BAR_OFFSETS as VISUALIZER_BAR_OFFSETS,
-} from '@orbit/shared/chat'
+  AudioModule,
+  RecordingPresets,
+  setAudioModeAsync,
+  useAudioRecorder,
+} from 'expo-audio'
+import { API } from '@orbit/shared/api'
+import { getFriendlyErrorMessage } from '@orbit/shared/utils'
+import { apiClient } from '@/lib/api-client'
+export { CHAT_VISUALIZER_BAR_OFFSETS as VISUALIZER_BAR_OFFSETS } from '@orbit/shared/chat'
 
-interface SpeechResultEvent {
-  isFinal?: boolean
-  results: { transcript: string }[]
+interface RecordingUpload {
+  uri: string
+  name: string
+  type: string
 }
 
-interface SpeechErrorEvent {
-  error: string
-}
-
-interface SpeechRecognitionModule {
-  ExpoSpeechRecognitionModule: {
-    isRecognitionAvailable: () => boolean
-    requestPermissionsAsync: () => Promise<{ granted: boolean }>
-    start: (config: {
-      lang: string
-      interimResults: boolean
-      continuous: boolean
-      maxAlternatives?: number
-      androidIntentOptions?: Record<string, boolean | number>
-    }) => void
-    stop: () => void
-    abort: () => void
-  }
-  useSpeechRecognitionEvent: (
-    event: 'start' | 'end' | 'result' | 'error',
-    callback: (event: SpeechResultEvent | SpeechErrorEvent) => void,
-  ) => void
-}
-
-declare const require: (id: string) => unknown
-
-function hasFunctionAt(value: object, path: readonly string[]): boolean {
-  let current: unknown = value
-  for (const key of path) {
-    if (!current || typeof current !== 'object') return false
-    if (!(key in current)) return false
-    current = Reflect.get(current, key)
-  }
-  return typeof current === 'function'
-}
-
-function isSpeechRecognitionModule(value: unknown): value is SpeechRecognitionModule {
-  if (!value || typeof value !== 'object') return false
-
-  return (
-    hasFunctionAt(value, ['ExpoSpeechRecognitionModule', 'isRecognitionAvailable']) &&
-    hasFunctionAt(value, ['ExpoSpeechRecognitionModule', 'requestPermissionsAsync']) &&
-    hasFunctionAt(value, ['ExpoSpeechRecognitionModule', 'start']) &&
-    hasFunctionAt(value, ['ExpoSpeechRecognitionModule', 'stop']) &&
-    hasFunctionAt(value, ['ExpoSpeechRecognitionModule', 'abort']) &&
-    hasFunctionAt(value, ['useSpeechRecognitionEvent'])
-  )
-}
-
-function getSpeechModule(): SpeechRecognitionModule | null {
-  if (Platform.OS === 'web') return null
-  if (Constants.appOwnership === AppOwnership.Expo) return null
-
-  try {
-    const requiredModule = require('expo-speech-recognition')
-    return isSpeechRecognitionModule(requiredModule) ? requiredModule : null
-  } catch {
-    return null
+declare global {
+  interface FormData {
+    append(name: string, value: RecordingUpload): void
   }
 }
 
-const speechModule = getSpeechModule()
-const speechEventHook = speechModule?.useSpeechRecognitionEvent ?? (() => {})
-
-function getSpeechRecognitionAvailability(): boolean {
-  if (!speechModule) return false
-  try {
-    return speechModule.ExpoSpeechRecognitionModule.isRecognitionAvailable()
-  } catch {
-    return false
-  }
+interface TranscriptionResponse {
+  text: string
 }
 
-function getSpeechErrorMessageFromCode(error: string, t: (key: string, options?: Record<string, unknown>) => string) {
-  if (error === 'not-allowed') return t('speech.micDenied')
-  if (error === 'no-speech' || error === 'speech-timeout') {
-    return t('speech.noSpeech')
-  }
-  return t('speech.recognitionError', { error })
-}
-
+/**
+ * Records microphone audio with `expo-audio` and uploads it to the server
+ * transcription endpoint, returning the recognized text. Mirrors the web
+ * `useSpeechToText` return shape; the backend auto-detects language, so there is
+ * no language selector.
+ */
 export function useSpeechToText() {
-  const { t, i18n } = useTranslation()
-  const isMountedRef = useRef(true)
+  const { t } = useTranslation()
+  const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY)
 
   const [isRecording, setIsRecording] = useState(false)
-  const [isSupported] = useState(() => getSpeechRecognitionAvailability())
+  const [isTranscribing, setIsTranscribing] = useState(false)
+  const [isSupported] = useState(true)
   const [transcript, setTranscript] = useState('')
   const [error, setError] = useState<string | null>(null)
-  const [selectedLanguage, setSelectedLanguageState] = useState(() =>
-    getDefaultChatSpeechLanguage(i18n.language),
-  )
   const [recordingDuration, setRecordingDuration] = useState(0)
-  // Timer id lives in state (read only via the setter callback) so the helpers
-  // passed to useSpeechRecognitionEvent don't capture ref reads at render time.
-  const [_timerId, setTimerId] = useState<ReturnType<typeof setInterval> | null>(null)
+
+  const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const clearTimer = useCallback(() => {
-    setTimerId((current) => {
-      if (current) clearInterval(current)
-      return null
-    })
+    if (timerRef.current) {
+      clearInterval(timerRef.current)
+      timerRef.current = null
+    }
   }, [])
 
   const startTimer = useCallback(() => {
     clearTimer()
     setRecordingDuration(0)
-    const id = setInterval(() => {
+    timerRef.current = setInterval(() => {
       setRecordingDuration((current) => current + 1)
     }, 1000)
-    setTimerId(id)
   }, [clearTimer])
 
-  // `isSupported` is seeded by the lazy useState above and never changes after
-  // mount (the speech module is statically required), so we don't re-probe here.
-  useEffect(() => {
-    isMountedRef.current = true
-
-    AsyncStorage.getItem(CHAT_SPEECH_LANG_KEY)
-      .then((storedLanguage) => {
-        if (storedLanguage && isMountedRef.current) {
-          setSelectedLanguageState(storedLanguage)
-        }
-      })
-      .catch(() => {
-        // Ignore storage failures and keep the locale-derived default.
-      })
-
-    return () => {
-      isMountedRef.current = false
-      clearTimer()
+  const transcribe = useCallback(
+    async (uri: string) => {
+      setIsTranscribing(true)
       try {
-        speechModule?.ExpoSpeechRecognitionModule.abort()
-      } catch {
-        // Ignore cleanup failures when the native module is unavailable.
+        const formData = new FormData()
+        formData.append('audio', { uri, name: 'recording.m4a', type: 'audio/m4a' })
+        const { text } = await apiClient<TranscriptionResponse>(API.chat.transcribe, {
+          method: 'POST',
+          body: formData,
+        })
+        const trimmed = text.trim()
+        if (trimmed) {
+          setTranscript(trimmed)
+        } else {
+          setError(t('speech.noSpeech'))
+        }
+      } catch (err: unknown) {
+        setError(getFriendlyErrorMessage(err, t, 'errors.api.transcriptionFailed', 'generic'))
+      } finally {
+        setIsTranscribing(false)
       }
-    }
-  }, [clearTimer])
-
-  speechEventHook('start', () => {
-    setError(null)
-    setIsRecording(true)
-    startTimer()
-  })
-
-  speechEventHook('end', () => {
-    setIsRecording(false)
-    clearTimer()
-  })
-
-  speechEventHook('result', (event: SpeechResultEvent | SpeechErrorEvent) => {
-    const resultEvent = event as SpeechResultEvent
-    setTranscript(resolveSpeechTranscript(resultEvent.results))
-  })
-
-  speechEventHook('error', (event: SpeechResultEvent | SpeechErrorEvent) => {
-    const errorEvent = event as SpeechErrorEvent
-    setError(getSpeechErrorMessageFromCode(errorEvent.error, t))
-    setIsRecording(false)
-    clearTimer()
-  })
-
-  const updateSelectedLanguage = useCallback((newLanguage: string) => {
-    setSelectedLanguageState(newLanguage)
-    AsyncStorage.setItem(CHAT_SPEECH_LANG_KEY, newLanguage).catch(() => {
-      // Ignore persistence failures and keep the in-memory selection.
-    })
-  }, [])
+    },
+    [t],
+  )
 
   const startRecording = useCallback(async () => {
-    if (!isSupported || !speechModule) {
-      setError(t('chat.voiceUnsupportedError'))
-      return
-    }
-
     if (isRecording) return
 
     setError(null)
     setTranscript('')
     setRecordingDuration(0)
 
-    const permissions = await speechModule.ExpoSpeechRecognitionModule.requestPermissionsAsync()
-    if (!permissions.granted) {
+    const permission = await AudioModule.requestRecordingPermissionsAsync()
+    if (!permission.granted) {
       setError(t('speech.micDenied'))
       return
     }
 
     try {
-      speechModule.ExpoSpeechRecognitionModule.start(
-        buildSpeechRecognitionStartConfig(selectedLanguage),
-      )
+      await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true })
+      await audioRecorder.prepareToRecordAsync()
+      audioRecorder.record()
+      setIsRecording(true)
+      startTimer()
     } catch {
       setError(t('speech.failedToStart'))
       setIsRecording(false)
       clearTimer()
     }
-  }, [clearTimer, isRecording, isSupported, selectedLanguage, t])
+  }, [audioRecorder, clearTimer, isRecording, startTimer, t])
 
-  const stopRecording = useCallback(() => {
-    if (!isRecording || !speechModule) return
+  const stopRecording = useCallback(async () => {
+    if (!isRecording) return
 
-    try {
-      speechModule.ExpoSpeechRecognitionModule.stop()
-    } catch {
-      setError(t('speech.failedToStart'))
-      setIsRecording(false)
-      clearTimer()
-    }
-  }, [clearTimer, isRecording, t])
+    setIsRecording(false)
+    clearTimer()
+    await audioRecorder.stop()
+    const uri = audioRecorder.uri
+    if (uri) void transcribe(uri)
+  }, [audioRecorder, clearTimer, isRecording, transcribe])
 
   const toggleRecording = useCallback(() => {
     if (isRecording) {
-      stopRecording()
+      void stopRecording()
     } else {
       void startRecording()
     }
   }, [isRecording, startRecording, stopRecording])
 
+  useEffect(() => {
+    return () => {
+      clearTimer()
+    }
+  }, [clearTimer])
+
   return {
     isRecording,
+    isTranscribing,
     isSupported,
     transcript,
     error,
-    selectedLanguage,
-    setSelectedLanguage: updateSelectedLanguage,
     startRecording,
     stopRecording,
     toggleRecording,
