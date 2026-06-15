@@ -303,8 +303,6 @@ export const ERROR_CODE_TO_KEY: Record<string, string> = {
   IMAGE_FORMAT_UNKNOWN: 'errors.api.imageInvalid',
   IMAGE_NOT_AN_IMAGE: 'errors.api.imageInvalid',
   AUDIO_REQUIRED: 'errors.api.transcriptionFailed',
-  AUDIO_TOO_LARGE: 'errors.api.audioTooLarge',
-  AUDIO_FORMAT_NOT_ALLOWED: 'errors.api.audioFormat',
   AUDIO_TRANSCRIPTION_FAILED: 'errors.api.transcriptionFailed',
   AUDIO_TRANSCRIPTION_EMPTY: 'speech.noSpeech',
   HABIT_ALREADY_COMPLETED: 'habits.errors.alreadyLogged',

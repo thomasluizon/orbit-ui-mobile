@@ -650,7 +650,6 @@
     "imageError": "Só aceitamos imagens JPEG, PNG e WebP.",
     "imageSizeError": "A imagem precisa ter menos de 20 MB.",
     "imagePermissionError": "Permita o acesso às fotos para anexar imagens.",
-    "voiceUnsupportedError": "A entrada por voz não funciona neste aparelho.",
     "sendError": "Não foi possível enviar a mensagem. Tente de novo.",
     "timeoutError": "A resposta demorou demais. Tente de novo.",
     "limitReachedError": "Você atingiu o limite mensal de mensagens de IA.",
@@ -1528,8 +1527,6 @@
       "apiKeyLimit": "Você chegou ao número máximo de chaves de API.",
       "messageTooLong": "Essa mensagem é longa demais. Tente encurtar.",
       "imageInvalid": "Não deu para usar essa imagem. Tente outro arquivo.",
-      "audioTooLarge": "Essa gravação é muito longa. Tente uma mais curta.",
-      "audioFormat": "Esse formato de áudio não é compatível.",
       "transcriptionFailed": "Não deu para transcrever o áudio. Tente de novo.",
       "logNotAllowed": "Não dá para registrar esse hábito agora.",
       "selfParent": "Um hábito não pode ser sub-hábito de si mesmo.",
@@ -1556,7 +1553,6 @@
   "speech": {
     "micDenied": "Acesso ao microfone negado.",
     "noSpeech": "Não captamos nenhuma fala.",
-    "recognitionError": "Erro no reconhecimento de voz: {error}",
     "failedToStart": "Não foi possível iniciar a gravação."
   },
   "goals": {

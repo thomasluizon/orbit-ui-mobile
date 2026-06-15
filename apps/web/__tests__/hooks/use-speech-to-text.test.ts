@@ -133,7 +133,7 @@ describe('useSpeechToText', () => {
 
     it('surfaces the mapped error key when transcription returns an error code', async () => {
       const fetchMock = vi.fn(async () =>
-        Response.json({ error: 'too big', errorCode: 'AUDIO_TOO_LARGE' }, { status: 400 }),
+        Response.json({ error: 'no speech', errorCode: 'AUDIO_TRANSCRIPTION_EMPTY' }, { status: 400 }),
       )
       vi.stubGlobal('fetch', fetchMock)
 
@@ -146,7 +146,7 @@ describe('useSpeechToText', () => {
         result.current.stopRecording()
       })
 
-      await waitFor(() => expect(result.current.error).toBe('errors.api.audioTooLarge'))
+      await waitFor(() => expect(result.current.error).toBe('speech.noSpeech'))
       expect(result.current.transcript).toBe('')
     })
 
