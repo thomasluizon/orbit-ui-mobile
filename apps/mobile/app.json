@@ -95,15 +95,9 @@
         }
       ],
       [
-        "expo-speech-recognition",
+        "expo-audio",
         {
-          "microphonePermission": "Allow $(PRODUCT_NAME) to use the microphone for voice input in AI chat.",
-          "speechRecognitionPermission": "Allow $(PRODUCT_NAME) to use speech recognition for voice input in AI chat.",
-          "androidSpeechServicePackages": [
-            "com.google.android.googlequicksearchbox",
-            "com.google.android.tts",
-            "com.google.android.as"
-          ]
+          "microphonePermission": "Allow $(PRODUCT_NAME) to record voice input for AI chat."
         }
       ],
       "expo-sqlite",

@@ -15,6 +15,7 @@ interface ChatInputBarProps {
   tokens: Tokens;
   styles: ChatStyles;
   isRecording: boolean;
+  isTranscribing: boolean;
   isTyping: boolean;
   isOnline: boolean;
   atMessageLimit: boolean;
@@ -35,6 +36,7 @@ export const ChatInputBar = forwardRef<View, Readonly<ChatInputBarProps>>(
       tokens,
       styles,
       isRecording,
+      isTranscribing,
       isTyping,
       isOnline,
       atMessageLimit,
@@ -54,28 +56,41 @@ export const ChatInputBar = forwardRef<View, Readonly<ChatInputBarProps>>(
 
     return (
       <View style={styles.inputBar}>
-        {isRecording ? (
+        {isRecording || isTranscribing ? (
           <>
             <View style={styles.recordingContent}>
-              <View style={styles.recordingStatus}>
-                <View
-                  style={[
-                    styles.recordingDot,
-                    { backgroundColor: tokens.statusBad },
-                  ]}
-                />
-                <Text style={[styles.recordingTime, { color: tokens.fg1 }]}>
-                  {recordingTime}
+              {isTranscribing ? (
+                <Text
+                  style={[styles.recordingTime, { color: tokens.fg2 }]}
+                  accessibilityLiveRegion="polite"
+                >
+                  {t("chat.transcribing")}
                 </Text>
-              </View>
-              <RecordingVisualizer styles={styles} />
+              ) : (
+                <>
+                  <View style={styles.recordingStatus}>
+                    <View
+                      style={[
+                        styles.recordingDot,
+                        { backgroundColor: tokens.statusBad },
+                      ]}
+                    />
+                    <Text style={[styles.recordingTime, { color: tokens.fg1 }]}>
+                      {recordingTime}
+                    </Text>
+                  </View>
+                  <RecordingVisualizer styles={styles} />
+                </>
+              )}
             </View>
             <TouchableOpacity
               accessibilityRole="button"
               accessibilityLabel={t("chat.stopRecording")}
+              accessibilityState={{ disabled: isTranscribing }}
+              disabled={isTranscribing}
               activeOpacity={0.7}
               onPress={onToggleRecording}
-              style={styles.stopButton}
+              style={[styles.stopButton, isTranscribing && { opacity: 0.5 }]}
             >
               <Square size={18} color={tokens.statusBad} fill={tokens.statusBad} />
             </TouchableOpacity>

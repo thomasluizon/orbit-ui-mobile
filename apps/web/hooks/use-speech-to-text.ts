@@ -1,97 +1,34 @@
 'use client'
 
 import { useState, useRef, useCallback, useEffect } from 'react'
-import { useLocale, useTranslations } from 'next-intl'
-import {
-  CHAT_SPEECH_LANG_KEY,
-  getDefaultChatSpeechLanguage,
-} from '@orbit/shared/chat'
-export {
-  CHAT_SPEECH_LANGUAGES as SPEECH_LANGUAGES,
-  CHAT_VISUALIZER_BAR_OFFSETS as VISUALIZER_BAR_OFFSETS,
-} from '@orbit/shared/chat'
+import { useTranslations } from 'next-intl'
+import { API } from '@orbit/shared/api'
+import { ERROR_CODE_TO_KEY } from '@orbit/shared/utils'
+export { CHAT_VISUALIZER_BAR_OFFSETS as VISUALIZER_BAR_OFFSETS } from '@orbit/shared/chat'
 
-interface SpeechRecognitionResult {
-  readonly isFinal: boolean
-  readonly length: number
-  [index: number]: { readonly transcript: string; readonly confidence: number }
-}
-
-interface SpeechRecognitionResultList {
-  readonly length: number
-  [index: number]: SpeechRecognitionResult
-}
-
-interface SpeechRecognitionEvent extends Event {
-  readonly results: SpeechRecognitionResultList
-}
-
-interface SpeechRecognitionErrorEvent extends Event {
-  readonly error: string
-}
-
-interface SpeechRecognitionInstance extends EventTarget {
-  continuous: boolean
-  interimResults: boolean
-  lang: string
-  onresult: ((event: SpeechRecognitionEvent) => void) | null
-  onerror: ((event: SpeechRecognitionErrorEvent) => void) | null
-  onend: (() => void) | null
-  start(): void
-  stop(): void
-  abort(): void
-}
-
-type SpeechRecognitionConstructor = new () => SpeechRecognitionInstance
-
-declare global {
-  var SpeechRecognition: SpeechRecognitionConstructor | undefined
-  var webkitSpeechRecognition: SpeechRecognitionConstructor | undefined
+interface TranscriptionResponse {
+  text?: string
+  error?: string
+  errorCode?: string
 }
 
 export function useSpeechToText() {
-  const locale = useLocale()
   const t = useTranslations()
 
   const [isRecording, setIsRecording] = useState(false)
+  const [isTranscribing, setIsTranscribing] = useState(false)
   const [isSupported] = useState(() => {
-    if (typeof globalThis === 'undefined') return false
-    return !!(globalThis.SpeechRecognition || globalThis.webkitSpeechRecognition)
+    if (typeof navigator === 'undefined') return false
+    return !!navigator.mediaDevices?.getUserMedia && typeof MediaRecorder !== 'undefined'
   })
   const [transcript, setTranscript] = useState('')
   const [error, setError] = useState<string | null>(null)
-  const [selectedLanguage, setSelectedLanguageRaw] = useState(() => {
-    const defaultLanguage = getDefaultChatSpeechLanguage(locale)
-    if (typeof globalThis === 'undefined' || typeof globalThis.localStorage === 'undefined') return defaultLanguage
-    return localStorage.getItem(CHAT_SPEECH_LANG_KEY) ?? defaultLanguage
-  })
   const [recordingDuration, setRecordingDuration] = useState(0)
 
-  const recognitionRef = useRef<SpeechRecognitionInstance | null>(null)
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
+  const chunksRef = useRef<Blob[]>([])
+  const streamRef = useRef<MediaStream | null>(null)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
-
-  useEffect(() => {
-    const Ctor = globalThis.SpeechRecognition || globalThis.webkitSpeechRecognition
-    if (Ctor) {
-      const recognition = new Ctor()
-      recognition.continuous = true
-      recognition.interimResults = true
-      recognitionRef.current = recognition
-    }
-
-    return () => {
-      recognitionRef.current?.abort()
-      recognitionRef.current = null
-    }
-  }, [])
-
-  const setSelectedLanguage = useCallback((newLang: string) => {
-    setSelectedLanguageRaw(newLang)
-    localStorage.setItem(CHAT_SPEECH_LANG_KEY, newLang)
-    if (recognitionRef.current) {
-      recognitionRef.current.lang = newLang
-    }
-  }, [])
 
   const clearTimer = useCallback(() => {
     if (timerRef.current) {
@@ -100,93 +37,103 @@ export function useSpeechToText() {
     }
   }, [])
 
-  const startTimer = useCallback(() => {
-    setRecordingDuration(0)
-    timerRef.current = setInterval(() => {
-      setRecordingDuration((prev) => prev + 1)
-    }, 1000)
+  const stopStream = useCallback(() => {
+    streamRef.current?.getTracks().forEach((track) => track.stop())
+    streamRef.current = null
   }, [])
 
-  const startRecording = useCallback(() => {
-    const recognition = recognitionRef.current
-    if (!recognition) return
+  const transcribe = useCallback(
+    async (blob: Blob) => {
+      setIsTranscribing(true)
+      try {
+        const formData = new FormData()
+        formData.append('audio', blob, 'recording.webm')
+        const response = await fetch(API.chat.transcribe, { method: 'POST', body: formData })
+        const data = (await response.json().catch(() => null)) as TranscriptionResponse | null
+        const text = data?.text?.trim() ?? ''
+        if (!response.ok || !text) {
+          const key =
+            (data?.errorCode && ERROR_CODE_TO_KEY[data.errorCode]) ?? 'errors.api.transcriptionFailed'
+          setError(t(key))
+          return
+        }
+        setTranscript(text)
+      } catch {
+        setError(t('errors.api.transcriptionFailed'))
+      } finally {
+        setIsTranscribing(false)
+      }
+    },
+    [t],
+  )
 
+  const startRecording = useCallback(async () => {
+    if (!isSupported || isRecording) return
     setError(null)
     setTranscript('')
-    recognition.lang = selectedLanguage
-
-    recognition.onresult = (event: SpeechRecognitionEvent) => {
-      let finalText = ''
-      let interimText = ''
-
-      for (const result of Array.from({ length: event.results.length }, (_, i) => event.results[i])) {
-        if (!result?.[0]) continue
-        if (result.isFinal) {
-          finalText += result[0].transcript
-        } else {
-          interimText += result[0].transcript
-        }
-      }
-
-      setTranscript(finalText + interimText)
-    }
-
-    recognition.onerror = (event: SpeechRecognitionErrorEvent) => {
-      if (event.error === 'not-allowed') {
-        setError(t('speech.micDenied'))
-      } else if (event.error === 'no-speech') {
-        setError(t('speech.noSpeech'))
-      } else {
-        setError(t('speech.recognitionError', { error: event.error }))
-      }
-      setIsRecording(false)
-      clearTimer()
-    }
-
-    recognition.onend = () => {
-      setIsRecording(false)
-      clearTimer()
-    }
+    setRecordingDuration(0)
+    chunksRef.current = []
 
     try {
-      recognition.start()
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      streamRef.current = stream
+      const recorder = new MediaRecorder(stream)
+      mediaRecorderRef.current = recorder
+
+      recorder.ondataavailable = (event) => {
+        if (event.data.size > 0) chunksRef.current.push(event.data)
+      }
+      recorder.onstop = () => {
+        clearTimer()
+        stopStream()
+        const blob = new Blob(chunksRef.current, { type: recorder.mimeType || 'audio/webm' })
+        chunksRef.current = []
+        if (blob.size > 0) void transcribe(blob)
+      }
+
+      recorder.start()
       setIsRecording(true)
-      startTimer()
-    } catch {
-      setError(t('speech.failedToStart'))
+      timerRef.current = setInterval(() => setRecordingDuration((prev) => prev + 1), 1000)
+    } catch (err: unknown) {
+      stopStream()
+      const denied =
+        err instanceof DOMException && (err.name === 'NotAllowedError' || err.name === 'SecurityError')
+      setError(denied ? t('speech.micDenied') : t('speech.failedToStart'))
     }
-  }, [selectedLanguage, t, clearTimer, startTimer])
+  }, [clearTimer, isRecording, isSupported, stopStream, t, transcribe])
 
   const stopRecording = useCallback(() => {
-    const recognition = recognitionRef.current
-    if (!recognition) return
-    recognition.stop()
-    setIsRecording(false)
+    const recorder = mediaRecorderRef.current
     clearTimer()
-  }, [clearTimer])
+    setIsRecording(false)
+    if (recorder && recorder.state !== 'inactive') {
+      recorder.stop()
+    } else {
+      stopStream()
+    }
+  }, [clearTimer, stopStream])
 
   const toggleRecording = useCallback(() => {
-    if (isRecording) {
-      stopRecording()
-    } else {
-      startRecording()
-    }
+    if (isRecording) stopRecording()
+    else void startRecording()
   }, [isRecording, startRecording, stopRecording])
 
   useEffect(() => {
     return () => {
-      recognitionRef.current?.abort()
       clearTimer()
+      if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+        mediaRecorderRef.current.stop()
+      }
+      stopStream()
     }
-  }, [clearTimer])
+  }, [clearTimer, stopStream])
 
   return {
     isRecording,
+    isTranscribing,
     isSupported,
     transcript,
     error,
-    selectedLanguage,
-    setSelectedLanguage,
     startRecording,
     stopRecording,
     toggleRecording,

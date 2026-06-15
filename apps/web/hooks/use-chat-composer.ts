@@ -17,7 +17,6 @@ import type { ChatResponse } from '@orbit/shared/types/chat'
 import type { Profile } from '@orbit/shared/types/profile'
 import type { AgentExecuteOperationResponse } from '@orbit/shared/types/ai'
 import {
-  CHAT_SPEECH_LANGUAGES as SPEECH_LANGUAGES,
   CHAT_STARTER_CHIP_KEYS,
   CHAT_STREAM_IDLE_TIMEOUT_MS,
   consumeChatSseStream,
@@ -99,11 +98,10 @@ export function useChatComposer() {
 
   const {
     isRecording,
+    isTranscribing,
     isSupported: speechSupported,
     transcript,
     error: speechError,
-    selectedLanguage: speechLang,
-    setSelectedLanguage: setSpeechLang,
     toggleRecording,
     recordingDuration,
   } = useSpeechToText()
@@ -149,11 +147,6 @@ export function useChatComposer() {
   const starterChips = useMemo(
     () => CHAT_STARTER_CHIP_KEYS.map((key) => t(key)),
     [t],
-  )
-
-  const currentLangFlag = useMemo(
-    () => SPEECH_LANGUAGES.find((l) => l.value === speechLang)?.flag ?? '\u{1F310}',
-    [speechLang],
   )
 
   const recordingTime = useMemo(() => {
@@ -523,14 +516,12 @@ export function useChatComposer() {
     selectedImage,
     imagePreview,
     isRecording,
+    isTranscribing,
     speechSupported,
     transcript,
     speechError,
-    speechLang,
-    setSpeechLang,
     toggleRecording,
     recordingTime,
-    currentLangFlag,
     starterChips,
     messages,
     isTyping,

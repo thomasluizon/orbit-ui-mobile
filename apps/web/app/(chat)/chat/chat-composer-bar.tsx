@@ -21,6 +21,7 @@ interface ChatComposerBarProps {
   sendError: string | null
   imagePreview: string | null
   isRecording: boolean
+  isTranscribing: boolean
   speechSupported: boolean
   toggleRecording: () => void
   recordingTime: string
@@ -147,10 +148,15 @@ function ChatComposerNotices({
 
 interface ChatRecordingBarProps {
   recordingTime: string
+  isTranscribing: boolean
   toggleRecording: () => void
 }
 
-function ChatRecordingBar({ recordingTime, toggleRecording }: Readonly<ChatRecordingBarProps>) {
+function ChatRecordingBar({
+  recordingTime,
+  isTranscribing,
+  toggleRecording,
+}: Readonly<ChatRecordingBarProps>) {
   const t = useTranslations()
 
   return (
@@ -170,13 +176,13 @@ function ChatRecordingBar({ recordingTime, toggleRecording }: Readonly<ChatRecor
           style={{
             width: 8,
             height: 8,
-            background: 'var(--status-bad)',
+            background: isTranscribing ? 'var(--primary)' : 'var(--status-bad)',
           }}
         />
         <div
           className="mic-visualizer flex-1 min-w-0"
           style={{ color: 'var(--fg-2)' }}
-          aria-label={t('chat.listening')}
+          aria-label={isTranscribing ? t('chat.transcribing') : t('chat.listening')}
         >
           {VISUALIZER_BAR_OFFSETS.map((offset) => (
             <span
@@ -188,25 +194,27 @@ function ChatRecordingBar({ recordingTime, toggleRecording }: Readonly<ChatRecor
         </div>
         <span
           style={{
-            fontFamily: 'var(--font-mono)',
-            fontSize: 12,
+            fontFamily: isTranscribing ? 'var(--font-sans)' : 'var(--font-mono)',
+            fontSize: isTranscribing ? 13 : 12,
             fontWeight: 500,
-            color: 'var(--fg-1)',
+            color: isTranscribing ? 'var(--fg-2)' : 'var(--fg-1)',
             fontVariantNumeric: 'tabular-nums',
           }}
         >
-          {recordingTime}
+          {isTranscribing ? t('chat.transcribing') : recordingTime}
         </span>
       </div>
       <button
         type="button"
+        disabled={isTranscribing}
         aria-label={t('chat.stopRecording')}
         onClick={toggleRecording}
-        className="appearance-none border-0 cursor-pointer flex items-center justify-center shrink-0 rounded-full bg-[var(--bg-elev)]"
+        className="appearance-none border-0 flex items-center justify-center shrink-0 rounded-full bg-[var(--bg-elev)] disabled:cursor-not-allowed enabled:cursor-pointer"
         style={{
           width: 50,
           height: 50,
           boxShadow: 'inset 0 0 0 1.5px var(--hairline-strong)',
+          opacity: isTranscribing ? 0.45 : 1,
         }}
       >
         <Square size={18} fill="var(--status-bad)" color="var(--status-bad)" />
@@ -344,6 +352,7 @@ export function ChatComposerBar({
   sendError,
   imagePreview,
   isRecording,
+  isTranscribing,
   speechSupported,
   toggleRecording,
   recordingTime,
@@ -405,8 +414,12 @@ export function ChatComposerBar({
           className="flex items-center"
           style={{ gap: 10 }}
         >
-          {isRecording ? (
-            <ChatRecordingBar recordingTime={recordingTime} toggleRecording={toggleRecording} />
+          {isRecording || isTranscribing ? (
+            <ChatRecordingBar
+              recordingTime={recordingTime}
+              isTranscribing={isTranscribing}
+              toggleRecording={toggleRecording}
+            />
           ) : (
             <ChatTextInputRow
               textareaRef={textareaRef}

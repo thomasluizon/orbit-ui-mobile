@@ -17,7 +17,6 @@ import { GoalDetailDrawer } from '@/components/goals/goal-detail-drawer'
 import { HabitDetailDrawer } from '@/components/habits/habit-detail-drawer'
 import { ChatEmptyState } from './chat-empty-state'
 import { ChatComposerBar } from './chat-composer-bar'
-import { ChatLanguagePicker } from './chat-language-picker'
 
 export default function ChatPage() {
   const t = useTranslations()
@@ -105,15 +104,6 @@ export default function ChatPage() {
           onBack={() => goBackOrFallback('/')}
           leadingIcon={<Orbit size={17} strokeWidth={1.5} color="var(--primary)" />}
           title={t('chat.title')}
-          trailing={
-            composer.speechSupported ? (
-              <ChatLanguagePicker
-                speechLang={composer.speechLang}
-                setSpeechLang={composer.setSpeechLang}
-                currentLangFlag={composer.currentLangFlag}
-              />
-            ) : undefined
-          }
         />
       </div>
 
@@ -155,6 +145,7 @@ export default function ChatPage() {
         sendError={composer.sendError}
         imagePreview={composer.imagePreview}
         isRecording={composer.isRecording}
+        isTranscribing={composer.isTranscribing}
         speechSupported={composer.speechSupported}
         toggleRecording={composer.toggleRecording}
         recordingTime={composer.recordingTime}

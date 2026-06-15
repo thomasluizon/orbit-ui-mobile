@@ -1,5 +1,5 @@
 import { StyleSheet } from "react-native";
-import { createTokensV2, primaryGlow, shadowsV2, solidTintFromPrimary } from "@/lib/theme";
+import { createTokensV2, primaryGlow, solidTintFromPrimary } from "@/lib/theme";
 
 export type Tokens = ReturnType<typeof createTokensV2>;
 export type ChatStyles = ReturnType<typeof createStyles>;
@@ -198,62 +198,6 @@ export function createStyles(tokens: Tokens) {
     },
     composerFieldLocked: {
       opacity: 0.45,
-    },
-    languageControl: {
-      position: "relative",
-      flexDirection: "row",
-      alignItems: "center",
-    },
-    languageFlagButton: {
-      paddingVertical: 4,
-      paddingHorizontal: 4,
-      borderRadius: 6,
-    },
-    languageFlagText: {
-      fontSize: 12,
-    },
-    languagePicker: {
-      position: "absolute",
-      left: 0,
-      bottom: 48,
-      minWidth: 148,
-      borderRadius: 12,
-      borderWidth: StyleSheet.hairlineWidth,
-      paddingVertical: 6,
-      backgroundColor: tokens.bgSheet,
-      borderColor: tokens.hairline,
-      ...shadowsV2.shadow2,
-      zIndex: 20,
-    },
-    languagePickerHeader: {
-      position: "absolute",
-      right: 0,
-      top: 44,
-      minWidth: 148,
-      borderRadius: 12,
-      borderWidth: StyleSheet.hairlineWidth,
-      paddingVertical: 6,
-      backgroundColor: tokens.bgSheet,
-      borderColor: tokens.hairline,
-      ...shadowsV2.shadow2,
-      zIndex: 20,
-    },
-    languageOption: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 8,
-      paddingHorizontal: 12,
-      paddingVertical: 8,
-    },
-    languageOptionFlag: {
-      fontSize: 13,
-    },
-    languageOptionText: {
-      fontFamily: 'Rubik_400Regular',
-      fontSize: 12,
-    },
-    languageOptionTextSelected: {
-      fontFamily: 'Rubik_600SemiBold',
     },
     recordingContent: {
       flex: 1,

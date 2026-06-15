@@ -20,7 +20,6 @@ import { useChatReward } from "@/hooks/use-chat-reward";
 import { MessageBubble } from "@/components/message-bubble";
 import { TypingIndicator } from "@/components/chat/typing-indicator";
 import { ChatInputArea } from "@/components/chat/chat-input-area";
-import { ChatLanguagePicker } from "@/components/chat/chat-language-picker";
 import { ChatEmptyState } from "@/components/chat/chat-empty-state";
 import { GoalDetailDrawer } from "@/components/goals/goal-detail-drawer";
 import { HabitDetailDrawer } from "@/components/habits/habit-detail-drawer";
@@ -63,18 +62,14 @@ export default function ChatScreen() {
     canRetryLastSend,
     selectedImage,
     imagePreview,
-    showLangPicker,
-    setShowLangPicker,
     composerResetSignal,
     isRecording,
+    isTranscribing,
     speechSupported,
     transcript,
     speechError,
-    speechLang,
-    setSpeechLang,
     toggleRecording,
     recordingTime,
-    currentLangFlag,
     starterChips,
     hasProAccess,
     aiMessagesUsed,
@@ -95,10 +90,6 @@ export default function ChatScreen() {
   const [selectedHabitId, setSelectedHabitId] = useState<string | null>(null);
   const [selectedGoalId, setSelectedGoalId] = useState<string | null>(null);
 
-  const closeLangPicker = useCallback(() => {
-    setShowLangPicker(false);
-  }, [setShowLangPicker]);
-
   const {
     adsEnabledForUser,
     canWatchRewardAd,
@@ -107,7 +98,7 @@ export default function ChatScreen() {
     dailyRewardCap,
     rewardMessage,
     watchAdForMessages,
-  } = useChatReward({ onBeforeWatch: closeLangPicker });
+  } = useChatReward();
 
   useEffect(() => {
     if (Platform.OS !== "android") return;
@@ -197,22 +188,6 @@ export default function ChatScreen() {
           backLabel={t("common.goBack")}
           LeadingIcon={Orbit}
           title={t("chat.title")}
-          trailing={
-            speechSupported ? (
-              <ChatLanguagePicker
-                tokens={tokens}
-                styles={styles}
-                speechLang={speechLang}
-                currentLangFlag={currentLangFlag}
-                showLangPicker={showLangPicker}
-                onToggleLangPicker={() => setShowLangPicker((current) => !current)}
-                onSelectLanguage={(value) => {
-                  setSpeechLang(value);
-                  setShowLangPicker(false);
-                }}
-              />
-            ) : undefined
-          }
         />
 
         {showSuggestions ? (
@@ -266,6 +241,7 @@ export default function ChatScreen() {
           aiMessagesLimit={aiMessagesLimit}
           atMessageLimit={atMessageLimit}
           isRecording={isRecording}
+          isTranscribing={isTranscribing}
           isTyping={isTyping}
           selectedImagePresent={selectedImage !== null}
           transcript={transcript}
