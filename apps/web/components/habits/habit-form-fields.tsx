@@ -1058,11 +1058,20 @@ export function HabitFormFields({
         <span id="habit-form-frequency-label" className="form-label">
           {t('habits.form.frequency')}
         </span>
-        <div className="relative">
+        <div className="flex items-center gap-1.5">
+          <button
+            type="button"
+            aria-label={t('common.previous')}
+            disabled={activeFrequencyIndex === 0}
+            onClick={() => goToFrequencyIndex(activeFrequencyIndex - 1)}
+            className="grid size-8 shrink-0 place-items-center rounded-full bg-[var(--bg-elev)] text-[var(--fg-2)] shadow-[inset_0_0_0_1px_var(--hairline)] transition-opacity duration-150 hover:text-[var(--fg-1)] disabled:pointer-events-none disabled:opacity-30"
+          >
+            <ChevronLeft size={18} strokeWidth={2} aria-hidden="true" />
+          </button>
           <div
             ref={frequencyTrackRef}
             onScroll={handleFrequencyScroll}
-            className="flex snap-x snap-mandatory overflow-x-auto scroll-smooth [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+            className="flex min-w-0 flex-1 snap-x snap-mandatory overflow-x-auto scroll-smooth [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           >
             {FREQUENCY_TYPE_CARDS.map((card) => {
               const isActive = activeFrequencyKey === card.key
@@ -1134,19 +1143,10 @@ export function HabitFormFields({
 
           <button
             type="button"
-            aria-label={t('common.previous')}
-            disabled={activeFrequencyIndex === 0}
-            onClick={() => goToFrequencyIndex(activeFrequencyIndex - 1)}
-            className="absolute left-1 top-1/2 -translate-y-1/2 grid size-8 place-items-center rounded-full bg-[var(--bg-elev)] text-[var(--fg-2)] shadow-[inset_0_0_0_1px_var(--hairline)] transition-opacity duration-150 hover:text-[var(--fg-1)] disabled:pointer-events-none disabled:opacity-0"
-          >
-            <ChevronLeft size={18} strokeWidth={2} aria-hidden="true" />
-          </button>
-          <button
-            type="button"
             aria-label={t('common.next')}
             disabled={activeFrequencyIndex === FREQUENCY_TYPE_CARDS.length - 1}
             onClick={() => goToFrequencyIndex(activeFrequencyIndex + 1)}
-            className="absolute right-1 top-1/2 -translate-y-1/2 grid size-8 place-items-center rounded-full bg-[var(--bg-elev)] text-[var(--fg-2)] shadow-[inset_0_0_0_1px_var(--hairline)] transition-opacity duration-150 hover:text-[var(--fg-1)] disabled:pointer-events-none disabled:opacity-0"
+            className="grid size-8 shrink-0 place-items-center rounded-full bg-[var(--bg-elev)] text-[var(--fg-2)] shadow-[inset_0_0_0_1px_var(--hairline)] transition-opacity duration-150 hover:text-[var(--fg-1)] disabled:pointer-events-none disabled:opacity-30"
           >
             <ChevronRight size={18} strokeWidth={2} aria-hidden="true" />
           </button>
