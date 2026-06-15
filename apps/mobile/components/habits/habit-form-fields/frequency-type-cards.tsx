@@ -120,9 +120,25 @@ export function FrequencyTypeCards({
   return (
     <View style={styles.fieldGroup}>
       <Text style={styles.label}>{t("habits.form.frequency")}</Text>
-      <View style={styles.frequencyCarousel} onLayout={handleLayout}>
+      <View style={styles.frequencyCarouselRow}>
+        <Pressable
+          style={[
+            styles.frequencyArrow,
+            activeIndex === 0 ? styles.frequencyArrowDisabled : null,
+          ]}
+          disabled={activeIndex === 0}
+          onPress={() => goToIndex(activeIndex - 1)}
+          accessibilityRole="button"
+          accessibilityLabel={t("common.previous")}
+          hitSlop={8}
+        >
+          <ChevronLeft size={18} strokeWidth={2} color={tokens.fg2} />
+        </Pressable>
+
         <ScrollView
           ref={scrollRef}
+          style={styles.frequencyScroll}
+          onLayout={handleLayout}
           horizontal
           pagingEnabled
           showsHorizontalScrollIndicator={false}
@@ -165,36 +181,21 @@ export function FrequencyTypeCards({
           })}
         </ScrollView>
 
-        <View style={styles.frequencyArrowRow} pointerEvents="box-none">
-          <Pressable
-            style={[
-              styles.frequencyArrow,
-              activeIndex === 0 ? styles.frequencyArrowHidden : null,
-            ]}
-            disabled={activeIndex === 0}
-            onPress={() => goToIndex(activeIndex - 1)}
-            accessibilityRole="button"
-            accessibilityLabel={t("common.previous")}
-            hitSlop={8}
-          >
-            <ChevronLeft size={18} strokeWidth={2} color={tokens.fg2} />
-          </Pressable>
-          <Pressable
-            style={[
-              styles.frequencyArrow,
-              activeIndex === FREQUENCY_TYPE_CARDS.length - 1
-                ? styles.frequencyArrowHidden
-                : null,
-            ]}
-            disabled={activeIndex === FREQUENCY_TYPE_CARDS.length - 1}
-            onPress={() => goToIndex(activeIndex + 1)}
-            accessibilityRole="button"
-            accessibilityLabel={t("common.next")}
-            hitSlop={8}
-          >
-            <ChevronRight size={18} strokeWidth={2} color={tokens.fg2} />
-          </Pressable>
-        </View>
+        <Pressable
+          style={[
+            styles.frequencyArrow,
+            activeIndex === FREQUENCY_TYPE_CARDS.length - 1
+              ? styles.frequencyArrowDisabled
+              : null,
+          ]}
+          disabled={activeIndex === FREQUENCY_TYPE_CARDS.length - 1}
+          onPress={() => goToIndex(activeIndex + 1)}
+          accessibilityRole="button"
+          accessibilityLabel={t("common.next")}
+          hitSlop={8}
+        >
+          <ChevronRight size={18} strokeWidth={2} color={tokens.fg2} />
+        </Pressable>
       </View>
 
       <View style={styles.frequencyDots}>

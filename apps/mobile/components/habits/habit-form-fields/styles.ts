@@ -431,8 +431,13 @@ export function createStyles(tokens: AppTokens) {
       fontSize: 20,
       lineHeight: 25,
     },
-    frequencyCarousel: {
-      position: "relative",
+    frequencyCarouselRow: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 6,
+    },
+    frequencyScroll: {
+      flex: 1,
     },
     frequencySlide: {
       paddingHorizontal: 4,
@@ -448,17 +453,6 @@ export function createStyles(tokens: AppTokens) {
       borderWidth: 1.5,
       borderColor: tokens.primary,
     },
-    frequencyArrowRow: {
-      position: "absolute",
-      top: 0,
-      bottom: 0,
-      left: 0,
-      right: 0,
-      flexDirection: "row",
-      justifyContent: "space-between",
-      alignItems: "center",
-      paddingHorizontal: 2,
-    },
     frequencyArrow: {
       width: 32,
       height: 32,
@@ -469,8 +463,8 @@ export function createStyles(tokens: AppTokens) {
       borderWidth: 1,
       borderColor: tokens.hairline,
     },
-    frequencyArrowHidden: {
-      opacity: 0,
+    frequencyArrowDisabled: {
+      opacity: 0.3,
     },
     frequencyDots: {
       flexDirection: "row",
