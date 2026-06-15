@@ -6,7 +6,7 @@ import type {
   AgentStepUpChallenge,
   PendingAgentOperationConfirmation,
 } from "@orbit/shared/types";
-import { getErrorMessage } from "@orbit/shared/utils";
+import { getFriendlyErrorMessage } from "@orbit/shared/utils";
 import { apiClient } from "@/lib/api-client";
 
 export type PendingExecutionResult =
@@ -60,7 +60,7 @@ export function usePendingOperationExecution({
         await appendExecutionMessage(execution);
         return { ok: true, response: execution };
       } catch (error: unknown) {
-        return { ok: false, error: getErrorMessage(error, t("chat.sendError")) };
+        return { ok: false, error: getFriendlyErrorMessage(error, t, "chat.sendError", "generic") };
       }
     },
     [appendExecutionMessage, t],
@@ -90,7 +90,7 @@ export function usePendingOperationExecution({
           confirmationToken: confirmation.confirmationToken,
         };
       } catch (error: unknown) {
-        return { ok: false, error: getErrorMessage(error, t("chat.sendError")) };
+        return { ok: false, error: getFriendlyErrorMessage(error, t, "chat.sendError", "generic") };
       }
     },
     [i18n.language, t],
@@ -123,7 +123,7 @@ export function usePendingOperationExecution({
         await appendExecutionMessage(execution);
         return { ok: true, response: execution };
       } catch (error: unknown) {
-        return { ok: false, error: getErrorMessage(error, t("chat.sendError")) };
+        return { ok: false, error: getFriendlyErrorMessage(error, t, "chat.sendError", "generic") };
       }
     },
     [appendExecutionMessage, t],

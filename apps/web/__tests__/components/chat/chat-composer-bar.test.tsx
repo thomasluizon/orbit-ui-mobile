@@ -15,20 +15,14 @@ function baseProps() {
   return {
     textareaRef: createRef<HTMLTextAreaElement>(),
     fileInputRef: createRef<HTMLInputElement>(),
-    langPickerRef: createRef<HTMLDivElement>(),
     input: '',
     setInput: vi.fn(),
     sendError: null,
     imagePreview: null,
     isRecording: false,
     speechSupported: true,
-    speechLang: 'en-US',
-    setSpeechLang: vi.fn(),
     toggleRecording: vi.fn(),
     recordingTime: '0:05',
-    currentLangFlag: 'FLAG',
-    showLangPicker: false,
-    setShowLangPicker: vi.fn(),
     starterChips: [] as string[],
     isTyping: false,
     hasProAccess: false,
@@ -150,22 +144,12 @@ describe('ChatComposerBar', () => {
     expect(props.toggleRecording).toHaveBeenCalled()
   })
 
-  it('toggles the language picker open from the flag button', () => {
-    const props = baseProps()
-    render(<ChatComposerBar {...props} />)
-    fireEvent.click(screen.getByLabelText('chat.speechLanguage'))
-    expect(props.setShowLangPicker).toHaveBeenCalled()
+  it('does not render the speech-language flag inside the input bar', () => {
+    render(<ChatComposerBar {...baseProps()} />)
+    expect(screen.queryByLabelText('chat.speechLanguage')).not.toBeInTheDocument()
   })
 
-  it('opens the speech language picker and selects a language', () => {
-    const props = { ...baseProps(), showLangPicker: true }
-    render(<ChatComposerBar {...props} />)
-    fireEvent.click(screen.getByText('Espanol'))
-    expect(props.setSpeechLang).toHaveBeenCalledWith('es-ES')
-    expect(props.setShowLangPicker).toHaveBeenCalledWith(false)
-  })
-
-  it('hides the mic and language picker when speech is unsupported', () => {
+  it('hides the mic when speech is unsupported', () => {
     const props = { ...baseProps(), speechSupported: false }
     render(<ChatComposerBar {...props} />)
     expect(screen.queryByLabelText('chat.toggleMic')).not.toBeInTheDocument()

@@ -431,29 +431,63 @@ export function createStyles(tokens: AppTokens) {
       fontSize: 20,
       lineHeight: 25,
     },
-    frequencyCardGrid: {
-      flexDirection: "column",
-      gap: 8,
+    frequencyCarousel: {
+      position: "relative",
     },
-    frequencyCard: {
+    frequencySlide: {
+      paddingHorizontal: 4,
+    },
+    frequencyCardCarousel: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 12,
       borderRadius: 18,
       paddingVertical: 14,
       paddingHorizontal: 16,
-    },
-    frequencyCardActive: {
       backgroundColor: tintFromPrimary(tokens, 0.1),
       borderWidth: 1.5,
       borderColor: tokens.primary,
     },
-    frequencyCardInactive: {
-      backgroundColor: tokens.bgCard,
+    frequencyArrowRow: {
+      position: "absolute",
+      top: 0,
+      bottom: 0,
+      left: 0,
+      right: 0,
+      flexDirection: "row",
+      justifyContent: "space-between",
+      alignItems: "center",
+      paddingHorizontal: 2,
+    },
+    frequencyArrow: {
+      width: 32,
+      height: 32,
+      borderRadius: radius.full,
+      alignItems: "center",
+      justifyContent: "center",
+      backgroundColor: tokens.bgElev,
       borderWidth: 1,
       borderColor: tokens.hairline,
     },
-    frequencyCardHeader: {
+    frequencyArrowHidden: {
+      opacity: 0,
+    },
+    frequencyDots: {
       flexDirection: "row",
+      justifyContent: "center",
       alignItems: "center",
-      gap: 12,
+      gap: 6,
+      paddingTop: 10,
+    },
+    frequencyDot: {
+      width: 6,
+      height: 6,
+      borderRadius: radius.full,
+      backgroundColor: tokens.hairlineStrong,
+    },
+    frequencyDotActive: {
+      width: 18,
+      backgroundColor: tokens.primary,
     },
     frequencyCardIconWell: {
       width: 40,

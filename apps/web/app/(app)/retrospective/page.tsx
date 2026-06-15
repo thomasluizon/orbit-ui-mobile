@@ -7,7 +7,7 @@ import { RETROSPECTIVE_PERIODS } from '@orbit/shared/utils/retrospective'
 import { useProfile, useHasProAccess, useIsYearlyPro } from '@/hooks/use-profile'
 import { useOffline } from '@/hooks/use-offline'
 import { useRetrospective, type RetrospectivePeriod } from '@/hooks/use-retrospective'
-import { getErrorMessage } from '@orbit/shared/utils'
+import { getFriendlyErrorMessage } from '@orbit/shared/utils'
 import { openCustomerPortal } from '@/app/actions/subscription'
 import { AppBar } from '@/components/ui/app-bar'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
@@ -23,11 +23,13 @@ export default function RetrospectivePage() {
   const hasProAccess = useHasProAccess()
   const isYearlyPro = useIsYearlyPro()
   const {
-    retrospective,
-    setRetrospective,
+    data,
+    setData,
     isLoading,
     error,
     setError,
+    noData,
+    setNoData,
     fromCache,
     period,
     setPeriod,
@@ -52,8 +54,9 @@ export default function RetrospectivePage() {
 
   function selectPeriod(key: RetrospectivePeriod) {
     setPeriod(key)
-    setRetrospective(null)
+    setData(null)
     setError(null)
+    setNoData(false)
   }
 
   const handleOpenPortal = useCallback(async () => {
@@ -69,7 +72,7 @@ export default function RetrospectivePage() {
         globalThis.location.href = data.url
       }
     } catch (err: unknown) {
-      setPortalError(getErrorMessage(err, t('auth.genericError')))
+      setPortalError(getFriendlyErrorMessage(err, t, 'auth.genericError', 'generic'))
     }
   }, [isOnline, t])
 
@@ -98,9 +101,10 @@ export default function RetrospectivePage() {
         <RetrospectiveView
           periods={periods}
           activePeriod={period}
-          retrospective={retrospective}
+          data={data}
           isLoading={isLoading}
           hasError={!!error}
+          noData={noData}
           fromCache={fromCache}
           isOnline={isOnline}
           onSelectPeriod={selectPeriod}

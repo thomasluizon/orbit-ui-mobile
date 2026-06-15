@@ -20,6 +20,7 @@ import { useChatReward } from "@/hooks/use-chat-reward";
 import { MessageBubble } from "@/components/message-bubble";
 import { TypingIndicator } from "@/components/chat/typing-indicator";
 import { ChatInputArea } from "@/components/chat/chat-input-area";
+import { ChatLanguagePicker } from "@/components/chat/chat-language-picker";
 import { ChatEmptyState } from "@/components/chat/chat-empty-state";
 import { GoalDetailDrawer } from "@/components/goals/goal-detail-drawer";
 import { HabitDetailDrawer } from "@/components/habits/habit-detail-drawer";
@@ -196,6 +197,22 @@ export default function ChatScreen() {
           backLabel={t("common.goBack")}
           LeadingIcon={Orbit}
           title={t("chat.title")}
+          trailing={
+            speechSupported ? (
+              <ChatLanguagePicker
+                tokens={tokens}
+                styles={styles}
+                speechLang={speechLang}
+                currentLangFlag={currentLangFlag}
+                showLangPicker={showLangPicker}
+                onToggleLangPicker={() => setShowLangPicker((current) => !current)}
+                onSelectLanguage={(value) => {
+                  setSpeechLang(value);
+                  setShowLangPicker(false);
+                }}
+              />
+            ) : undefined
+          }
         />
 
         {showSuggestions ? (
@@ -255,9 +272,6 @@ export default function ChatScreen() {
           composerResetSignal={composerResetSignal}
           recordingTime={recordingTime}
           speechSupported={speechSupported}
-          speechLang={speechLang}
-          currentLangFlag={currentLangFlag}
-          showLangPicker={showLangPicker}
           reward={{
             adsEnabledForUser,
             canWatchRewardAd,
@@ -282,11 +296,6 @@ export default function ChatScreen() {
           onToggleRecording={toggleRecording}
           onOpenFilePicker={() => {
             void openFilePicker();
-          }}
-          onToggleLangPicker={() => setShowLangPicker((current) => !current)}
-          onSelectLanguage={(value) => {
-            setSpeechLang(value);
-            setShowLangPicker(false);
           }}
           onUpgrade={() => router.push("/upgrade")}
         />

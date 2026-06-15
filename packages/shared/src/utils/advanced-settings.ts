@@ -1,8 +1,8 @@
 export const MCP_ENDPOINT_URL = 'https://api.useorbit.org/mcp'
 
-export const MCP_CONFIG_TABS = ['web', 'desktop', 'code'] as const
+export const MCP_CONFIG_TABS = ['web', 'code'] as const
 
-export type McpConfigTab = 'web' | 'desktop' | 'code'
+export type McpConfigTab = 'web' | 'code'
 
 export function buildMcpConfigJson(apiKeyPlaceholder = 'YOUR_API_KEY'): string {
   return `{

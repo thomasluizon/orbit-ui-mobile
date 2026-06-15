@@ -41,6 +41,7 @@ export const ChatComposerInput = memo(function ChatComposerInput({
   const { t } = useTranslation();
   const [draft, setDraft] = useState("");
   const [prevIsRecording, setPrevIsRecording] = useState(false);
+  const [pendingVoiceCommit, setPendingVoiceCommit] = useState(false);
   const [prevResetSignal, setPrevResetSignal] = useState(resetSignal);
 
   useEffect(() => {
@@ -60,11 +61,14 @@ export const ChatComposerInput = memo(function ChatComposerInput({
 
   if (isRecording !== prevIsRecording) {
     setPrevIsRecording(isRecording);
-    if (prevIsRecording && !isRecording && transcript.trim()) {
-      setDraft((current) =>
-        current ? `${current} ${transcript.trim()}` : transcript.trim(),
-      );
-    }
+    if (isRecording) setPendingVoiceCommit(true);
+  }
+
+  if (pendingVoiceCommit && !isRecording && transcript.trim()) {
+    setPendingVoiceCommit(false);
+    setDraft((current) =>
+      current ? `${current} ${transcript.trim()}` : transcript.trim(),
+    );
   }
 
   if (resetSignal !== prevResetSignal) {

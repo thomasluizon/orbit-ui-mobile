@@ -79,6 +79,11 @@ vi.mock('@/stores/auth-store', () => ({
   useAuthStore: () => ({ setAuth: vi.fn() }),
 }))
 
+const mockShowError = vi.fn()
+vi.mock('@/hooks/use-app-toast', () => ({
+  useAppToast: () => ({ showError: mockShowError }),
+}))
+
 vi.mock('@/lib/supabase', () => ({
   getSupabaseClient: () => ({
     auth: {
@@ -92,6 +97,7 @@ import LoginPage from '@/app/(auth)/login/page'
 describe('LoginPage', () => {
   beforeEach(() => {
     mockPush.mockClear()
+    mockShowError.mockClear()
     mockResolveMotionPreset.mockClear()
     mockUseReducedMotion.mockReset()
     mockUseReducedMotion.mockReturnValue(true)
@@ -144,7 +150,7 @@ describe('LoginPage', () => {
     expect(within(stack).getByRole('button', { name: 'auth.signInWithGoogle' })).toBeInTheDocument()
   })
 
-  it('surfaces a resolved error message when sending a code with an invalid email', async () => {
+  it('surfaces the resolved error via a toast when sending a code with an invalid email', async () => {
     searchParamValues = {
       email: null,
       code: null,
@@ -159,7 +165,8 @@ describe('LoginPage', () => {
     fireEvent.submit(screen.getByLabelText('auth.email').closest('form')!)
 
     await waitFor(() => {
-      expect(screen.getByRole('alert')).toHaveTextContent('auth.errors.invalidEmail')
+      expect(mockShowError).toHaveBeenCalledWith('auth.errors.invalidEmail')
     })
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
   })
 })

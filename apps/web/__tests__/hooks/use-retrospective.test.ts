@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
 import { useRetrospective } from '@/hooks/use-retrospective'
+import type { RetrospectiveResponse } from '@orbit/shared/utils/retrospective'
 
 const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
@@ -14,11 +15,41 @@ vi.mock('next-intl', () => ({
 }))
 
 vi.mock('@orbit/shared/utils', () => ({
-  getErrorMessage: (err: unknown, fallback: string) => {
-    if (err instanceof Error) return err.message
-    return fallback
-  },
+  getFriendlyErrorMessage: (
+    _err: unknown,
+    translate: (key: string) => string,
+    fallbackKey: string,
+  ) => translate(fallbackKey),
 }))
+
+function buildResponse(
+  overrides: Partial<RetrospectiveResponse> = {},
+): RetrospectiveResponse {
+  return {
+    period: 'week',
+    fromCache: false,
+    metrics: {
+      completionRate: 90,
+      totalCompletions: 18,
+      totalScheduled: 20,
+      activeDays: 6,
+      periodDays: 7,
+      currentStreak: 4,
+      bestStreak: 9,
+      badHabitSlips: 1,
+      weeklyConsistency: [80, 100, 60, 100, 40, 0, 100],
+      topHabits: [],
+      needsAttention: [],
+    },
+    narrative: {
+      highlights: 'You stayed consistent.',
+      missed: 'A couple of slips.',
+      trends: 'Mornings are strong.',
+      suggestion: 'Keep the streak alive.',
+    },
+    ...overrides,
+  }
+}
 
 describe('useRetrospective', () => {
   beforeEach(() => {
@@ -28,21 +59,19 @@ describe('useRetrospective', () => {
   it('starts with default state', () => {
     const { result } = renderHook(() => useRetrospective())
 
-    expect(result.current.retrospective).toBeNull()
+    expect(result.current.data).toBeNull()
     expect(result.current.isLoading).toBe(false)
     expect(result.current.error).toBeNull()
+    expect(result.current.noData).toBe(false)
     expect(result.current.fromCache).toBe(false)
     expect(result.current.period).toBe('week')
   })
 
   it('generates retrospective on success', async () => {
+    const response = buildResponse()
     mockFetch.mockResolvedValue({
       ok: true,
-      json: () =>
-        Promise.resolve({
-          retrospective: 'You had a great week! Completed 90% of habits.',
-          fromCache: false,
-        }),
+      json: () => Promise.resolve(response),
     })
 
     const { result } = renderHook(() => useRetrospective())
@@ -51,7 +80,7 @@ describe('useRetrospective', () => {
       await result.current.generate()
     })
 
-    expect(result.current.retrospective).toBe('You had a great week! Completed 90% of habits.')
+    expect(result.current.data).toEqual(response)
     expect(result.current.fromCache).toBe(false)
     expect(result.current.isLoading).toBe(false)
     expect(result.current.error).toBeNull()
@@ -60,11 +89,7 @@ describe('useRetrospective', () => {
   it('detects cached response', async () => {
     mockFetch.mockResolvedValue({
       ok: true,
-      json: () =>
-        Promise.resolve({
-          retrospective: 'Cached result',
-          fromCache: true,
-        }),
+      json: () => Promise.resolve(buildResponse({ fromCache: true })),
     })
 
     const { result } = renderHook(() => useRetrospective())
@@ -89,9 +114,28 @@ describe('useRetrospective', () => {
       await result.current.generate()
     })
 
-    expect(result.current.retrospective).toBeNull()
-    expect(result.current.error).toBeTruthy()
+    expect(result.current.data).toBeNull()
+    expect(result.current.error).toBe('retrospective.error')
+    expect(result.current.noData).toBe(false)
     expect(result.current.isLoading).toBe(false)
+  })
+
+  it('sets noData (not error) when the period has no habits', async () => {
+    mockFetch.mockResolvedValue({
+      ok: false,
+      status: 422,
+      json: () => Promise.resolve({ errorCode: 'NO_HABITS_FOR_PERIOD' }),
+    })
+
+    const { result } = renderHook(() => useRetrospective())
+
+    await act(async () => {
+      await result.current.generate()
+    })
+
+    expect(result.current.noData).toBe(true)
+    expect(result.current.error).toBeNull()
+    expect(result.current.data).toBeNull()
   })
 
   it('handles network error', async () => {
@@ -103,8 +147,8 @@ describe('useRetrospective', () => {
       await result.current.generate()
     })
 
-    expect(result.current.retrospective).toBeNull()
-    expect(result.current.error).toBe('Network error')
+    expect(result.current.data).toBeNull()
+    expect(result.current.error).toBe('retrospective.error')
     expect(result.current.isLoading).toBe(false)
   })
 
@@ -121,7 +165,7 @@ describe('useRetrospective', () => {
   it('passes period to API call', async () => {
     mockFetch.mockResolvedValue({
       ok: true,
-      json: () => Promise.resolve({ retrospective: 'Monthly review', fromCache: false }),
+      json: () => Promise.resolve(buildResponse({ period: 'quarter' })),
     })
 
     const { result } = renderHook(() => useRetrospective())
@@ -140,9 +184,10 @@ describe('useRetrospective', () => {
   })
 
   it('replaces old result with new generation', async () => {
+    const first = buildResponse()
     mockFetch.mockResolvedValueOnce({
       ok: true,
-      json: () => Promise.resolve({ retrospective: 'First result', fromCache: false }),
+      json: () => Promise.resolve(first),
     })
 
     const { result } = renderHook(() => useRetrospective())
@@ -150,18 +195,22 @@ describe('useRetrospective', () => {
     await act(async () => {
       await result.current.generate()
     })
-    expect(result.current.retrospective).toBe('First result')
+    expect(result.current.data).toEqual(first)
 
+    const second = buildResponse({
+      fromCache: true,
+      metrics: { ...first.metrics, completionRate: 55 },
+    })
     mockFetch.mockResolvedValueOnce({
       ok: true,
-      json: () => Promise.resolve({ retrospective: 'Second result', fromCache: true }),
+      json: () => Promise.resolve(second),
     })
 
     await act(async () => {
       await result.current.generate()
     })
 
-    expect(result.current.retrospective).toBe('Second result')
+    expect(result.current.data).toEqual(second)
     expect(result.current.fromCache).toBe(true)
   })
 })

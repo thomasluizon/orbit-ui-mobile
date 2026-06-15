@@ -180,7 +180,7 @@ const styles = StyleSheet.create({
   fab: {
     position: 'absolute',
     left: '50%',
-    top: -30,
+    top: -22,
     marginLeft: -30,
     width: 60,
     height: 60,

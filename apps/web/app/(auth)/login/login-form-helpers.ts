@@ -2,7 +2,6 @@ import type { useRouter } from 'next/navigation'
 import type { useTranslations } from 'next-intl'
 import {
   extractAuthBackendMessage,
-  extractBackendRequestId,
   resolveAuthLoginErrorKey,
 } from '@orbit/shared/utils'
 import { setRouteTransitionIntent } from '@/lib/motion/route-intent'
@@ -16,7 +15,6 @@ interface AuthFetchError {
 
 interface AuthErrorState {
   message: string
-  requestId?: string
 }
 
 export function getCookieValue(name: string): string | undefined {
@@ -55,15 +53,6 @@ export function mergeRequestIdIntoBody(body: unknown, requestId: string | null):
   return body
 }
 
-export function appendAuthReference(
-  message: string,
-  requestId: string | undefined,
-  t: ReturnType<typeof useTranslations>,
-): string {
-  if (!requestId) return message
-  return `${message} ${t('auth.errorReference', { requestId })}`
-}
-
 export function resolveLoginErrorState(
   err: unknown,
   t: ReturnType<typeof useTranslations>,
@@ -72,14 +61,9 @@ export function resolveLoginErrorState(
   const status = isAuthFetchError(err) ? err.status : undefined
   const body = isAuthFetchError(err) ? err.body : err
   const backendMessage = extractAuthBackendMessage(body)
-  const requestId = extractBackendRequestId(body)
   const key = resolveAuthLoginErrorKey({ status, backendMessage, raw: err, source })
-  const message = t(key)
 
-  return {
-    message: appendAuthReference(message, requestId, t),
-    requestId,
-  }
+  return { message: t(key) }
 }
 
 export async function fetchAuthEndpoint(

@@ -1,13 +1,22 @@
-import { useMemo } from "react";
-import { View, Text, Pressable } from "react-native";
+import { useEffect, useMemo, useRef, useState } from "react";
+import {
+  View,
+  Text,
+  Pressable,
+  ScrollView,
+  type LayoutChangeEvent,
+  type NativeSyntheticEvent,
+  type NativeScrollEvent,
+} from "react-native";
 import {
   CalendarCheck,
   Repeat,
   Shuffle,
   Infinity,
+  ChevronLeft,
+  ChevronRight,
 } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
-import { RadioGlyph } from "@/components/ui/select-check";
 import type { AppTokens } from "./styles";
 import type { HabitFormStyles } from "./types";
 
@@ -66,73 +75,138 @@ export function FrequencyTypeCards({
   tokens,
 }: Readonly<FrequencyTypeCardsProps>) {
   const { t } = useTranslation();
+  const scrollRef = useRef<ScrollView>(null);
+  const [pageWidth, setPageWidth] = useState(0);
 
-  const activeFrequencyKey = isOneTime
-    ? "one-time"
-    : isGeneral
-      ? "general"
-      : isFlexible
-        ? "flexible"
-        : "recurring";
+  const activeIndex = isOneTime ? 0 : isGeneral ? 3 : isFlexible ? 2 : 1;
 
-  const frequencyHandlers: Record<string, () => void> = useMemo(
-    () => ({
-      "one-time": onSetOneTime,
-      recurring: onSetRecurring,
-      flexible: onSetFlexible,
-      general: onSetGeneral,
-    }),
+  const frequencyHandlers = useMemo<(() => void)[]>(
+    () => [onSetOneTime, onSetRecurring, onSetFlexible, onSetGeneral],
     [onSetOneTime, onSetRecurring, onSetFlexible, onSetGeneral],
   );
+
+  useEffect(() => {
+    if (pageWidth === 0) {
+      return;
+    }
+    scrollRef.current?.scrollTo({ x: activeIndex * pageWidth, animated: true });
+  }, [activeIndex, pageWidth]);
+
+  function handleLayout(event: LayoutChangeEvent) {
+    setPageWidth(event.nativeEvent.layout.width);
+  }
+
+  function handleMomentumScrollEnd(
+    event: NativeSyntheticEvent<NativeScrollEvent>,
+  ) {
+    if (pageWidth === 0) {
+      return;
+    }
+    const nextIndex = Math.round(
+      event.nativeEvent.contentOffset.x / pageWidth,
+    );
+    if (nextIndex !== activeIndex) {
+      frequencyHandlers[nextIndex]?.();
+    }
+  }
+
+  function goToIndex(index: number) {
+    if (index < 0 || index >= FREQUENCY_TYPE_CARDS.length) {
+      return;
+    }
+    frequencyHandlers[index]?.();
+  }
 
   return (
     <View style={styles.fieldGroup}>
       <Text style={styles.label}>{t("habits.form.frequency")}</Text>
-      <View style={styles.frequencyCardGrid}>
-        {FREQUENCY_TYPE_CARDS.map((card) => {
-          const isActive = activeFrequencyKey === card.key;
-          const CardIcon = card.icon;
-          return (
-            <Pressable
-              key={card.key}
-              style={({ pressed }) => [
-                styles.frequencyCard,
-                isActive
-                  ? styles.frequencyCardActive
-                  : styles.frequencyCardInactive,
-                !isActive && pressed
-                  ? { backgroundColor: tokens.bgElev }
-                  : null,
-                pressed ? { transform: [{ scale: 0.99 }] } : null,
-              ]}
-              onPress={frequencyHandlers[card.key]}
-              accessibilityRole="button"
-              accessibilityState={{ selected: isActive }}
-            >
-              <View style={styles.frequencyCardHeader}>
-                <View style={styles.frequencyCardIconWell}>
-                  <CardIcon
-                    size={22}
-                    strokeWidth={isActive ? 2.2 : 1.8}
-                    color={isActive ? tokens.primary : tokens.fg2}
-                  />
-                </View>
-                <View style={styles.frequencyCardTexts}>
-                  <Text style={styles.frequencyCardTitle}>
-                    {t(card.titleKey)}
-                  </Text>
-                  <Text style={styles.frequencyCardDesc}>
-                    {t(card.descKey)}
-                  </Text>
-                  <Text style={styles.frequencyCardExample}>
-                    {t(card.exampleKey)}
-                  </Text>
-                </View>
-                <RadioGlyph selected={isActive} size={24} tokens={tokens} />
+      <View style={styles.frequencyCarousel} onLayout={handleLayout}>
+        <ScrollView
+          ref={scrollRef}
+          horizontal
+          pagingEnabled
+          showsHorizontalScrollIndicator={false}
+          onMomentumScrollEnd={handleMomentumScrollEnd}
+        >
+          {FREQUENCY_TYPE_CARDS.map((card) => {
+            const CardIcon = card.icon;
+            return (
+              <View
+                key={card.key}
+                style={[styles.frequencySlide, { width: pageWidth }]}
+              >
+                <Pressable
+                  style={styles.frequencyCardCarousel}
+                  onPress={frequencyHandlers[activeIndex]}
+                  accessibilityRole="button"
+                  accessibilityState={{ selected: true }}
+                >
+                  <View style={styles.frequencyCardIconWell}>
+                    <CardIcon
+                      size={22}
+                      strokeWidth={2.2}
+                      color={tokens.primary}
+                    />
+                  </View>
+                  <View style={styles.frequencyCardTexts}>
+                    <Text style={styles.frequencyCardTitle}>
+                      {t(card.titleKey)}
+                    </Text>
+                    <Text style={styles.frequencyCardDesc}>
+                      {t(card.descKey)}
+                    </Text>
+                    <Text style={styles.frequencyCardExample}>
+                      {t(card.exampleKey)}
+                    </Text>
+                  </View>
+                </Pressable>
               </View>
-            </Pressable>
-          );
-        })}
+            );
+          })}
+        </ScrollView>
+
+        <View style={styles.frequencyArrowRow} pointerEvents="box-none">
+          <Pressable
+            style={[
+              styles.frequencyArrow,
+              activeIndex === 0 ? styles.frequencyArrowHidden : null,
+            ]}
+            disabled={activeIndex === 0}
+            onPress={() => goToIndex(activeIndex - 1)}
+            accessibilityRole="button"
+            accessibilityLabel={t("common.previous")}
+            hitSlop={8}
+          >
+            <ChevronLeft size={18} strokeWidth={2} color={tokens.fg2} />
+          </Pressable>
+          <Pressable
+            style={[
+              styles.frequencyArrow,
+              activeIndex === FREQUENCY_TYPE_CARDS.length - 1
+                ? styles.frequencyArrowHidden
+                : null,
+            ]}
+            disabled={activeIndex === FREQUENCY_TYPE_CARDS.length - 1}
+            onPress={() => goToIndex(activeIndex + 1)}
+            accessibilityRole="button"
+            accessibilityLabel={t("common.next")}
+            hitSlop={8}
+          >
+            <ChevronRight size={18} strokeWidth={2} color={tokens.fg2} />
+          </Pressable>
+        </View>
+      </View>
+
+      <View style={styles.frequencyDots}>
+        {FREQUENCY_TYPE_CARDS.map((card, index) => (
+          <View
+            key={card.key}
+            style={[
+              styles.frequencyDot,
+              index === activeIndex ? styles.frequencyDotActive : null,
+            ]}
+          />
+        ))}
       </View>
     </View>
   );

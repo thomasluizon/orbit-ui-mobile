@@ -20,7 +20,7 @@ const numeralValueStyle: CSSProperties = {
 const phraseValueStyle: CSSProperties = {
   fontFamily: 'var(--font-sans)',
   fontSize: 15,
-  fontWeight: 500,
+  fontWeight: 600,
   lineHeight: '20px',
   color: 'var(--fg-1)',
   textAlign: 'center',

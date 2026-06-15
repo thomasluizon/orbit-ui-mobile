@@ -14,6 +14,7 @@ import {
   Brain,
   ChevronLeft,
   ChevronRight,
+  ListChecks,
   Lock,
   Satellite,
   Sparkles,
@@ -253,47 +254,129 @@ export default function AiSettingsScreen() {
     return t(`profile.facts.${norm}`, { defaultValue: norm }).toUpperCase()
   }
 
-  const pagingTrailing = (
-    <View style={styles.pagingRow}>
-      <Text style={[styles.pagingText, { color: tokens.fg3 }]}>
-        <Text style={{ color: tokens.fg1 }}>{factsPage}</Text> / {totalFactsPages}
-      </Text>
-      <Pressable
-        onPress={() => setFactsPage((p) => Math.max(1, p - 1))}
-        disabled={factsPage === 1}
-        accessibilityRole="button"
-        accessibilityLabel={t('common.previous')}
-        style={({ pressed }) => [
-          styles.pageBtn,
-          { backgroundColor: pressed ? tokens.bgElev2 : tokens.bgElev },
-          pressed ? styles.pageBtnPressed : null,
-        ]}
-      >
-        <ChevronLeft
-          size={18}
-          strokeWidth={1.8}
-          color={factsPage === 1 ? tokens.fg4 : tokens.fg2}
-        />
-      </Pressable>
-      <Pressable
-        onPress={() => setFactsPage((p) => Math.min(totalFactsPages, p + 1))}
-        disabled={factsPage === totalFactsPages}
-        accessibilityRole="button"
-        accessibilityLabel={t('common.next')}
-        style={({ pressed }) => [
-          styles.pageBtn,
-          { backgroundColor: pressed ? tokens.bgElev2 : tokens.bgElev },
-          pressed ? styles.pageBtnPressed : null,
-        ]}
-      >
-        <ChevronRight
-          size={18}
-          strokeWidth={1.8}
-          color={factsPage === totalFactsPages ? tokens.fg4 : tokens.fg2}
-        />
-      </Pressable>
-    </View>
-  )
+  const showPaging = totalFactsPages > 1 && !selectMode
+
+  const factsTrailing =
+    !hasProAccess || facts.length === 0 ? undefined : (
+      <View style={styles.headerControls}>
+        {showPaging ? (
+          <>
+            <Text style={[styles.pagingText, { color: tokens.fg3 }]}>
+              <Text style={{ color: tokens.fg1 }}>{factsPage}</Text> /{' '}
+              {totalFactsPages}
+            </Text>
+            <Pressable
+              onPress={() => setFactsPage((p) => Math.max(1, p - 1))}
+              disabled={factsPage === 1}
+              accessibilityRole="button"
+              accessibilityLabel={t('common.previous')}
+              style={({ pressed }) => [
+                styles.pageBtn,
+                { backgroundColor: pressed ? tokens.bgElev2 : tokens.bgElev },
+                pressed ? styles.pageBtnPressed : null,
+              ]}
+            >
+              <ChevronLeft
+                size={17}
+                strokeWidth={1.8}
+                color={factsPage === 1 ? tokens.fg4 : tokens.fg2}
+              />
+            </Pressable>
+            <Pressable
+              onPress={() =>
+                setFactsPage((p) => Math.min(totalFactsPages, p + 1))
+              }
+              disabled={factsPage === totalFactsPages}
+              accessibilityRole="button"
+              accessibilityLabel={t('common.next')}
+              style={({ pressed }) => [
+                styles.pageBtn,
+                { backgroundColor: pressed ? tokens.bgElev2 : tokens.bgElev },
+                pressed ? styles.pageBtnPressed : null,
+              ]}
+            >
+              <ChevronRight
+                size={17}
+                strokeWidth={1.8}
+                color={factsPage === totalFactsPages ? tokens.fg4 : tokens.fg2}
+              />
+            </Pressable>
+          </>
+        ) : null}
+
+        {selectMode ? (
+          <>
+            <Pressable
+              onPress={toggleSelectAll}
+              accessibilityRole="button"
+              style={({ pressed }) => [
+                styles.actionChip,
+                {
+                  backgroundColor: pressed ? tokens.bgElev2 : tokens.bgElev,
+                  borderColor: tokens.hairline,
+                },
+                pressed ? styles.actionChipPressed : null,
+              ]}
+            >
+              <Text style={[styles.selectActionText, { color: tokens.fg2 }]}>
+                {selectedFactIds.size === facts.length
+                  ? t('profile.facts.deselectAll')
+                  : t('profile.facts.selectAll')}
+              </Text>
+            </Pressable>
+            {selectedFactIds.size > 0 ? (
+              <Pressable
+                onPress={() => bulkDeleteMutation.mutate([...selectedFactIds])}
+                disabled={bulkDeleteMutation.isPending}
+                accessibilityRole="button"
+                accessibilityLabel={t('profile.facts.deleteSelectedShort')}
+                style={({ pressed }) => [
+                  styles.actionChip,
+                  {
+                    backgroundColor: pressed ? tokens.bgElev2 : tokens.bgElev,
+                    borderColor: tokens.hairline,
+                  },
+                  pressed ? styles.actionChipPressed : null,
+                  bulkDeleteMutation.isPending && { opacity: 0.45 },
+                ]}
+              >
+                <Trash2 size={14} strokeWidth={1.8} color={tokens.statusBad} />
+                <Text
+                  style={[styles.selectActionText, { color: tokens.statusBad }]}
+                >
+                  {selectedFactIds.size}
+                </Text>
+              </Pressable>
+            ) : null}
+            <Pressable
+              onPress={toggleSelectMode}
+              accessibilityRole="button"
+              accessibilityLabel={t('profile.facts.cancel')}
+              style={({ pressed }) => [
+                styles.iconBtn,
+                { backgroundColor: pressed ? tokens.bgElev2 : tokens.bgElev },
+                pressed ? styles.actionChipPressed : null,
+              ]}
+            >
+              <X size={18} color={tokens.fg3} strokeWidth={1.8} />
+            </Pressable>
+          </>
+        ) : (
+          <Pressable
+            onPress={toggleSelectMode}
+            accessibilityRole="button"
+            accessibilityLabel={t('profile.facts.select')}
+            style={({ pressed }) => [
+              styles.iconBtn,
+              { backgroundColor: pressed ? tokens.bgElev2 : tokens.bgElev },
+              pressed ? styles.actionChipPressed : null,
+            ]}
+          >
+            <ListChecks size={18} color={tokens.fg3} strokeWidth={1.8} />
+          </Pressable>
+        )}
+      </View>
+    )
 
   return (
     <SafeAreaView
@@ -369,9 +452,7 @@ export default function AiSettingsScreen() {
           </SettingsRow>
         )}
 
-        <SectionLabel
-          trailing={hasProAccess && totalFactsPages > 1 ? pagingTrailing : undefined}
-        >
+        <SectionLabel trailing={factsTrailing}>
           {t('profile.facts.title')}
         </SectionLabel>
 
@@ -417,102 +498,8 @@ export default function AiSettingsScreen() {
             </PillButton>
           </View>
         ) : (
-          <>
-            {selectMode ? (
-              <View style={styles.selectBar}>
-                <Text
-                  style={[styles.selectedCount, { color: tokens.fg1 }]}
-                >
-                  {t('profile.facts.selectedCount', {
-                    n: selectedFactIds.size,
-                  })}
-                </Text>
-                <View style={styles.selectActions}>
-                  <Pressable
-                    onPress={toggleSelectAll}
-                    accessibilityRole="button"
-                    style={({ pressed }) => [
-                      styles.actionChip,
-                      {
-                        backgroundColor: pressed ? tokens.bgElev2 : tokens.bgElev,
-                        borderColor: tokens.hairline,
-                      },
-                      pressed ? styles.actionChipPressed : null,
-                    ]}
-                  >
-                    <Text
-                      style={[styles.selectActionText, { color: tokens.fg2 }]}
-                    >
-                      {selectedFactIds.size === facts.length
-                        ? t('profile.facts.deselectAll')
-                        : t('profile.facts.selectAll')}
-                    </Text>
-                  </Pressable>
-                  <Pressable
-                    onPress={() =>
-                      bulkDeleteMutation.mutate([...selectedFactIds])
-                    }
-                    disabled={selectedFactIds.size === 0}
-                    accessibilityRole="button"
-                    style={({ pressed }) => [
-                      styles.actionChip,
-                      {
-                        backgroundColor: pressed ? tokens.bgElev2 : tokens.bgElev,
-                        borderColor: tokens.hairline,
-                      },
-                      pressed ? styles.actionChipPressed : null,
-                      selectedFactIds.size === 0 && { opacity: 0.45 },
-                    ]}
-                  >
-                    <Text
-                      style={[
-                        styles.selectActionText,
-                        { color: tokens.statusBad },
-                      ]}
-                    >
-                      {t('profile.facts.deleteSelectedShort')}
-                    </Text>
-                  </Pressable>
-                  <Pressable
-                    onPress={toggleSelectMode}
-                    accessibilityRole="button"
-                    accessibilityLabel={t('profile.facts.cancel')}
-                    style={({ pressed }) => [
-                      styles.cancelBtn,
-                      { backgroundColor: pressed ? tokens.bgElev2 : tokens.bgElev },
-                      pressed ? styles.actionChipPressed : null,
-                    ]}
-                  >
-                    <X size={18} color={tokens.fg3} strokeWidth={1.8} />
-                  </Pressable>
-                </View>
-              </View>
-            ) : (
-              <View style={styles.factsHeader}>
-                <Pressable
-                  onPress={toggleSelectMode}
-                  accessibilityRole="button"
-                  accessibilityLabel={t('profile.facts.select')}
-                  style={({ pressed }) => [
-                    styles.actionChip,
-                    {
-                      backgroundColor: pressed ? tokens.bgElev2 : tokens.bgElev,
-                      borderColor: tokens.hairline,
-                    },
-                    pressed ? styles.actionChipPressed : null,
-                  ]}
-                >
-                  <Text
-                    style={[styles.selectActionText, { color: tokens.fg2 }]}
-                  >
-                    {t('profile.facts.select')}
-                  </Text>
-                </Pressable>
-              </View>
-            )}
-
-            <View style={styles.factsList}>
-              {pagedFacts.map((fact, index) => {
+          <View style={styles.factsList}>
+            {pagedFacts.map((fact, index) => {
                 const selected = selectedFactIds.has(fact.id)
                 return (
                   <Animated.View key={fact.id} entering={rowEntrance(index)}>
@@ -594,8 +581,7 @@ export default function AiSettingsScreen() {
                   </Animated.View>
                 )
               })}
-            </View>
-          </>
+          </View>
         )}
 
         <View style={{ height: 24 }} />
@@ -630,10 +616,10 @@ function createStyles() {
       textAlign: 'center',
       maxWidth: 320,
     },
-    pagingRow: {
+    headerControls: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 8,
+      gap: 4,
     },
     pagingText: {
       fontFamily: 'Roboto_400Regular',
@@ -641,8 +627,8 @@ function createStyles() {
       fontVariant: ['tabular-nums'],
     },
     pageBtn: {
-      width: 36,
-      height: 36,
+      width: 30,
+      height: 30,
       borderRadius: 999,
       alignItems: 'center',
       justifyContent: 'center',
@@ -658,51 +644,29 @@ function createStyles() {
       height: 56,
       borderRadius: 16,
     },
-    factsHeader: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'flex-end',
-      paddingHorizontal: 20,
-      paddingBottom: 6,
-    },
-    selectBar: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'space-between',
-      paddingHorizontal: 20,
-      paddingBottom: 10,
-    },
-    selectedCount: {
-      fontFamily: 'Roboto_500Medium',
-      fontSize: 12,
-      fontVariant: ['tabular-nums'],
-    },
-    selectActions: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 8,
-    },
     actionChip: {
+      flexDirection: 'row',
       borderRadius: 999,
       borderWidth: 1,
-      paddingVertical: 9,
-      paddingHorizontal: 16,
+      paddingVertical: 6,
+      paddingHorizontal: 11,
+      gap: 4,
       alignItems: 'center',
       justifyContent: 'center',
     },
     actionChipPressed: {
       transform: [{ scale: 0.96 }],
     },
-    cancelBtn: {
-      width: 36,
-      height: 36,
+    iconBtn: {
+      width: 32,
+      height: 32,
       borderRadius: 999,
       alignItems: 'center',
       justifyContent: 'center',
     },
     selectActionText: {
       fontFamily: 'Rubik_500Medium',
-      fontSize: 13,
+      fontSize: 12,
     },
     factsList: {
       paddingHorizontal: 20,

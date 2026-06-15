@@ -46,17 +46,12 @@ interface ChatInputAreaProps {
   composerResetSignal: number;
   recordingTime: string;
   speechSupported: boolean;
-  speechLang: string;
-  currentLangFlag: string;
-  showLangPicker: boolean;
   onRemoveImage: () => void;
   onRetry: () => void;
   onSendChip: (chip: string) => void;
   onSend: (message: string) => void;
   onToggleRecording: () => void;
   onOpenFilePicker: () => void;
-  onToggleLangPicker: () => void;
-  onSelectLanguage: (value: string) => void;
   onUpgrade: () => void;
 }
 
@@ -331,14 +326,9 @@ export const ChatInputArea = forwardRef<View, Readonly<ChatInputAreaProps>>(
           composerResetSignal={props.composerResetSignal}
           recordingTime={props.recordingTime}
           speechSupported={props.speechSupported}
-          speechLang={props.speechLang}
-          currentLangFlag={props.currentLangFlag}
-          showLangPicker={props.showLangPicker}
           onSend={props.onSend}
           onToggleRecording={props.onToggleRecording}
           onOpenFilePicker={props.onOpenFilePicker}
-          onToggleLangPicker={props.onToggleLangPicker}
-          onSelectLanguage={props.onSelectLanguage}
         />
 
         {!hasProAccess && atMessageLimit && (

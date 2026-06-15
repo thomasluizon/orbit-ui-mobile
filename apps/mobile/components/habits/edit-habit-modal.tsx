@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import { ActivityIndicator, StyleSheet, View } from 'react-native'
+import { useWatch } from 'react-hook-form'
 import { Check } from 'lucide-react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
@@ -194,7 +195,9 @@ export function EditHabitModal({
     translate,
   ])
 
-  const submitDisabled = updateHabit.isPending || !formHelpers.form.formState.isValid
+  const watchedTitle =
+    useWatch({ control: formHelpers.form.control, name: 'title' }) ?? ''
+  const submitDisabled = updateHabit.isPending || watchedTitle.trim().length === 0
 
   return (
     <>

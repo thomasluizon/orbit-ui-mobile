@@ -19,7 +19,7 @@ import {
   formatCalendarSyncRecurrenceLabel,
   type CalendarSyncEvent,
 } from '@orbit/shared/utils'
-import { getErrorMessage } from '@orbit/shared/utils/error-utils'
+import { getFriendlyErrorMessage } from '@orbit/shared/utils/error-utils'
 import { useQueryClient } from '@tanstack/react-query'
 import { useProfile } from '@/hooks/use-profile'
 import { useBulkCreateHabits } from '@/hooks/use-habits'
@@ -113,7 +113,6 @@ export default function CalendarSyncScreen() {
   const [importResult, setImportResult] = useState<ImportResult | null>(null)
   const [isConnecting, setIsConnecting] = useState(false)
   const [previousEventsKey, setPreviousEventsKey] = useState<string | null>(null)
-  const fetchErrorText = t('calendar.fetchError')
 
   const eventsQuery = useCalendarEvents({
     enabled: (profile?.hasProAccess ?? false) && !isReviewMode && isOnline,
@@ -198,7 +197,7 @@ export default function CalendarSyncScreen() {
     wizardStage === 'error'
       ? errorMessage
       : activeQuery.isError
-        ? getErrorMessage(activeQuery.error, fetchErrorText)
+        ? getFriendlyErrorMessage(activeQuery.error, t, 'calendar.fetchError', 'generic')
         : ''
 
   const handleBack = useCallback(() => {
@@ -260,7 +259,7 @@ export default function CalendarSyncScreen() {
         { enabled },
         {
           onError: (err: unknown) => {
-            showError(getErrorMessage(err, t('calendar.autoSync.syncFailed')))
+            showError(getFriendlyErrorMessage(err, t, 'calendar.autoSync.syncFailed', 'generic'))
           },
         },
       )
@@ -275,7 +274,7 @@ export default function CalendarSyncScreen() {
     }
     runSyncNowMutation.mutate(undefined, {
       onError: (err: unknown) => {
-        showError(getErrorMessage(err, t('calendar.autoSync.syncFailed')))
+        showError(getFriendlyErrorMessage(err, t, 'calendar.autoSync.syncFailed', 'generic'))
       },
     })
   }, [isOnline, runSyncNowMutation, showError, t])
@@ -338,7 +337,7 @@ export default function CalendarSyncScreen() {
         })
       }
     } catch (err: unknown) {
-      setErrorMessage(getErrorMessage(err, t('calendar.importError')))
+      setErrorMessage(getFriendlyErrorMessage(err, t, 'calendar.importError', 'generic'))
       setWizardStage('error')
     }
   }, [

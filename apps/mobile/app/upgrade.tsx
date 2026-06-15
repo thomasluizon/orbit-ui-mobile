@@ -1,4 +1,4 @@
-import { useMemo, useState, type ComponentType, type ReactNode } from 'react'
+import { useMemo, useState, type ReactNode } from 'react'
 import {
   ActivityIndicator,
   Linking,
@@ -13,29 +13,23 @@ import { useTranslation } from 'react-i18next'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import {
   AlertTriangle,
-  BarChart3,
   Check,
   Clock,
   CreditCard,
   Download,
-  Flame,
-  MessageSquare,
-  Palette,
   Receipt,
   Settings,
-  ShieldCheck,
   Sparkles,
   Tag,
   X as XIcon,
 } from 'lucide-react-native'
 import { API } from '@orbit/shared/api'
-import { applySubscriptionDiscount, formatLocaleDate, getErrorMessage, playManageSubscriptionUrl } from '@orbit/shared/utils'
+import { applySubscriptionDiscount, formatLocaleDate, getFriendlyErrorMessage, playManageSubscriptionUrl } from '@orbit/shared/utils'
 import {
   TRIAL_EXPIRED_FEATURE_KEYS,
   UPGRADE_FEATURE_CATEGORIES,
   UPGRADE_PRO_FEATURES,
   UPGRADE_YEARLY_EXTRA_FEATURES,
-  type UpgradeIconKey,
 } from '@orbit/shared/utils/upgrade'
 import type {
   BillingDetails,
@@ -57,7 +51,7 @@ import {
   useTrialUrgent,
 } from '@/hooks/use-profile'
 import { plural } from '@/lib/plural'
-import { createTokensV2, tintFromPrimary } from '@/lib/theme'
+import { createTokensV2, primaryGlow, tintFromPrimary } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useOffline } from '@/hooks/use-offline'
 import { OfflineUnavailableState } from '@/components/ui/offline-unavailable-state'
@@ -74,17 +68,8 @@ import { SettingsRow } from '@/components/ui/settings-row'
 import { VerifiedBadge } from '@/components/ui/verified-badge'
 
 type Tokens = ReturnType<typeof createTokensV2>
-type IconType = ComponentType<{ size?: number; color?: string; strokeWidth?: number }>
 type SubscriptionInterval = 'monthly' | 'yearly'
 type UpgradeTextFn = (key: string, params?: Record<string, unknown>) => string
-
-const upgradeIconMap = {
-  flame: Flame,
-  messageSquare: MessageSquare,
-  palette: Palette,
-  shieldCheck: ShieldCheck,
-  barChart3: BarChart3,
-} satisfies Record<UpgradeIconKey, IconType>
 
 function rgbaFromHex(hex: string, alpha: number): string {
   const normalized = hex.replace('#', '')
@@ -256,7 +241,73 @@ function TrialExpiredCard({
   )
 }
 
-function FeatureComparisonTable({
+const UPGRADE_FEATURES = UPGRADE_FEATURE_CATEGORIES.flatMap((category) => category.features)
+
+function PlanColumn({
+  plan,
+  t,
+  tokens,
+}: Readonly<{
+  plan: 'free' | 'pro'
+  t: UpgradeTextFn
+  tokens: Tokens
+}>) {
+  const isPro = plan === 'pro'
+  return (
+    <View
+      style={[
+        styles.planColumn,
+        isPro
+          ? [
+              styles.planColumnPro,
+              primaryGlow(tokens),
+              { borderColor: tokens.primary, backgroundColor: tintFromPrimary(tokens, 0.04) },
+            ]
+          : { borderColor: tokens.hairline, backgroundColor: tokens.bgCard },
+      ]}
+    >
+      <View style={styles.planColumnHeader}>
+        <Text style={[styles.planColumnTitle, { color: isPro ? tokens.primarySoft : tokens.fg1 }]}>
+          {isPro ? t('common.proBadge') : t('upgrade.free')}
+        </Text>
+        {isPro ? (
+          <View style={[styles.planColumnBadge, { backgroundColor: tintFromPrimary(tokens, 0.16) }]}>
+            <Text style={[styles.planColumnBadgeText, { color: tokens.primarySoft }]}>
+              {t('upgrade.recommended')}
+            </Text>
+          </View>
+        ) : null}
+      </View>
+      {UPGRADE_FEATURES.map((feature) => {
+        const included =
+          feature.type === 'text'
+            ? true
+            : isPro
+              ? !!feature.proEnabled
+              : !!feature.freeEnabled
+        const text =
+          feature.type === 'text'
+            ? t(`upgrade.features.${feature.key}.${plan}`)
+            : t(`upgrade.features.${feature.key}.label`)
+        const textColor = included ? (isPro ? tokens.fg1 : tokens.fg2) : tokens.fg4
+        return (
+          <View key={feature.key} style={styles.planFeatureRow}>
+            {included ? (
+              <Check size={15} strokeWidth={2.4} color={isPro ? tokens.primary : tokens.fg3} />
+            ) : (
+              <XIcon size={15} strokeWidth={1.8} color={tokens.fg4} />
+            )}
+            <Text style={[styles.planFeatureText, { color: textColor }]} numberOfLines={1}>
+              {text}
+            </Text>
+          </View>
+        )
+      })}
+    </View>
+  )
+}
+
+function PlanComparisonCards({
   t,
   tokens,
 }: Readonly<{
@@ -265,69 +316,8 @@ function FeatureComparisonTable({
 }>) {
   return (
     <View style={styles.comparisonPad}>
-      <View style={styles.comparisonHeader}>
-        <Text style={[styles.comparisonEyebrow, styles.comparisonLabelCell, { color: tokens.fg3 }]}>
-          {t('upgrade.feature')}
-        </Text>
-        <Text style={[styles.comparisonEyebrow, styles.comparisonCell, { color: tokens.fg3 }]}>
-          {t('upgrade.free')}
-        </Text>
-        <Text style={[styles.comparisonEyebrow, styles.comparisonCell, { color: tokens.primarySoft }]}>
-          {t('common.proBadge')}
-        </Text>
-      </View>
-      {UPGRADE_FEATURE_CATEGORIES.map((group) => (
-        <View key={group.category}>
-          <Text style={[styles.comparisonCategory, { color: tokens.fg1 }]}>
-            {t(`upgrade.categories.${group.category}`)}
-          </Text>
-          {group.features.map((row) => {
-            const Icon = upgradeIconMap[row.iconKey]
-            return (
-              <View
-                key={row.key}
-                style={[styles.comparisonRow, { borderBottomColor: tokens.hairline }]}
-              >
-                <View style={styles.comparisonLabelGroup}>
-                  <Icon size={16} strokeWidth={1.8} color={tokens.fg3} />
-                  <Text
-                    style={[styles.comparisonLabel, { color: tokens.fg2 }]}
-                    numberOfLines={1}
-                  >
-                    {t(`upgrade.features.${row.key}.label`)}
-                  </Text>
-                </View>
-                <View style={styles.comparisonCell}>
-                  {row.type === 'boolean' ? (
-                    row.freeEnabled ? (
-                      <Check size={16} strokeWidth={2.4} color={tokens.fg3} />
-                    ) : (
-                      <XIcon size={16} strokeWidth={1.8} color={tokens.fg4} />
-                    )
-                  ) : (
-                    <Text style={[styles.comparisonCellText, { color: tokens.fg3 }]}>
-                      {t(`upgrade.features.${row.key}.free`)}
-                    </Text>
-                  )}
-                </View>
-                <View style={styles.comparisonCell}>
-                  {row.type === 'boolean' ? (
-                    row.proEnabled ? (
-                      <Check size={16} strokeWidth={2.4} color={tokens.primarySoft} />
-                    ) : (
-                      <XIcon size={16} strokeWidth={1.8} color={tokens.fg4} />
-                    )
-                  ) : (
-                    <Text style={[styles.comparisonCellText, { color: tokens.fg1 }]}>
-                      {t(`upgrade.features.${row.key}.pro`)}
-                    </Text>
-                  )}
-                </View>
-              </View>
-            )
-          })}
-        </View>
-      ))}
+      <PlanColumn plan="free" t={t} tokens={tokens} />
+      <PlanColumn plan="pro" t={t} tokens={tokens} />
     </View>
   )
 }
@@ -406,7 +396,7 @@ export default function UpgradeScreen() {
   function handleManagePlay() {
     setPortalError('')
     Linking.openURL(playManageSubscriptionUrl()).catch((err: unknown) =>
-      setPortalError(getErrorMessage(err, t('auth.genericError'))),
+      setPortalError(getFriendlyErrorMessage(err, t, 'auth.genericError', 'generic')),
     )
   }
 
@@ -424,7 +414,7 @@ export default function UpgradeScreen() {
       })
       if (res.url) await Linking.openURL(res.url)
     } catch (err: unknown) {
-      setPortalError(getErrorMessage(err, t('auth.genericError')))
+      setPortalError(getFriendlyErrorMessage(err, t, 'auth.genericError', 'generic'))
     } finally {
       setPortalLoading(false)
     }
@@ -882,7 +872,7 @@ export default function UpgradeScreen() {
           </>
         ) : null}
 
-        <FeatureComparisonTable t={t} tokens={tokens} />
+        <PlanComparisonCards t={t} tokens={tokens} />
       </>
     )
   }
@@ -1181,58 +1171,55 @@ const styles = StyleSheet.create({
     fontSize: 16,
   },
   comparisonPad: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 10,
     paddingHorizontal: 20,
     paddingTop: 28,
   },
-  comparisonHeader: {
+  planColumn: {
+    flex: 1,
+    borderRadius: 18,
+    borderWidth: 1,
+    paddingVertical: 16,
+    paddingHorizontal: 14,
+  },
+  planColumnPro: {
+    borderWidth: 1.5,
+  },
+  planColumnHeader: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 12,
-    paddingBottom: 6,
+    gap: 8,
+    minHeight: 26,
+    marginBottom: 14,
   },
-  comparisonEyebrow: {
+  planColumnTitle: {
     fontFamily: 'Rubik_500Medium',
-    fontSize: 12,
-    letterSpacing: 0.96,
+    fontSize: 16,
+    letterSpacing: -0.16,
+  },
+  planColumnBadge: {
+    borderRadius: 999,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  planColumnBadgeText: {
+    fontFamily: 'Rubik_600SemiBold',
+    fontSize: 9.5,
+    letterSpacing: 0.48,
     textTransform: 'uppercase',
   },
-  comparisonCategory: {
-    fontFamily: 'Rubik_500Medium',
-    fontSize: 15,
-    letterSpacing: -0.15,
-    paddingTop: 18,
-    paddingBottom: 4,
-  },
-  comparisonLabelCell: {
-    flex: 1,
-  },
-  comparisonRow: {
+  planFeatureRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    paddingVertical: 11,
-    gap: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
+    gap: 9,
+    minHeight: 34,
   },
-  comparisonLabelGroup: {
+  planFeatureText: {
     flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
-  },
-  comparisonLabel: {
     fontFamily: 'Rubik_400Regular',
-    fontSize: 14,
-    flexShrink: 1,
-  },
-  comparisonCell: {
-    width: 56,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  comparisonCellText: {
-    fontFamily: 'Roboto_400Regular',
-    fontSize: 11.5,
-    fontVariant: ['tabular-nums'],
-    textAlign: 'center',
+    fontSize: 12.5,
+    lineHeight: 17,
   },
 })

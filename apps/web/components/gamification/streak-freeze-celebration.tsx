@@ -6,7 +6,6 @@ import { useTranslations } from 'next-intl'
 import { useProfile } from '@/hooks/use-profile'
 import { useDateFormat } from '@/hooks/use-date-format'
 import { GradientTop } from '@/components/ui/gradient-top'
-import { PillButton } from '@/components/ui/pill-button'
 import { RingMotif } from './ring-motif'
 
 export interface StreakFreezeCelebrationHandle {
@@ -138,18 +137,6 @@ export const StreakFreezeCelebration = forwardRef<StreakFreezeCelebrationHandle>
             >
               {t('streakDisplay.freeze.celebrationSubtitle')}
             </p>
-          </div>
-          <div
-            className="pointer-events-auto relative z-[1]"
-            style={{
-              padding: '0 24px calc(24px + var(--safe-bottom, 0px))',
-              animation: 'slide-up-fade 0.28s var(--ease-out) backwards',
-              animationDelay: '380ms',
-            }}
-          >
-            <PillButton fullWidth onClick={dismiss}>
-              {t('common.continue')}
-            </PillButton>
           </div>
         </div>
       </div>,

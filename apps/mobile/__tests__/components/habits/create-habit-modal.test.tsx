@@ -9,7 +9,6 @@ const TestRenderer = require('react-test-renderer')
 
 const useWatchMock = vi.fn()
 let mockHasProAccess = false
-let mockFormIsValid = false
 
 vi.mock('react-hook-form', () => ({
   useWatch: (args: { control: { values: Record<string, unknown> }; name: string }) =>
@@ -48,7 +47,7 @@ vi.mock('@/hooks/use-habit-form', () => ({
       reset: vi.fn(),
       setValue: vi.fn(),
       getValues: vi.fn(() => ({})),
-      formState: { isDirty: false, errors: {}, get isValid() { return mockFormIsValid } },
+      formState: { isDirty: false, errors: {} },
     },
     isOneTime: false,
     isGeneral: false,
@@ -153,9 +152,10 @@ describe('CreateHabitModal (mobile)', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     mockHasProAccess = false
-    mockFormIsValid = false
     useWatchMock.mockImplementation(({ name }: { name: string }) => {
       switch (name) {
+        case 'title':
+          return ''
         case 'dueTime':
           return ''
         case 'reminderEnabled':
@@ -216,14 +216,26 @@ describe('CreateHabitModal (mobile)', () => {
         ).length > 0,
     )[0]
 
-  it('disables the submit button when the shared form schema is invalid', () => {
-    mockFormIsValid = false
+  it('disables the submit button until a title is entered', () => {
     const tree = renderModal(<CreateHabitModal open onClose={vi.fn()} />)
     expect(findSubmit(tree.root).props.disabled).toBe(true)
   })
 
-  it('enables the submit button when the shared form schema is valid', () => {
-    mockFormIsValid = true
+  it('enables the submit button once the title has content', () => {
+    useWatchMock.mockImplementation(({ name }: { name: string }) => {
+      switch (name) {
+        case 'title':
+          return 'Drink water'
+        case 'dueTime':
+          return ''
+        case 'reminderEnabled':
+          return false
+        case 'scheduledReminders':
+          return []
+        default:
+          return undefined
+      }
+    })
     const tree = renderModal(<CreateHabitModal open onClose={vi.fn()} />)
     expect(findSubmit(tree.root).props.disabled).toBe(false)
   })

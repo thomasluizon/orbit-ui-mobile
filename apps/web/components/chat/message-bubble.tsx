@@ -69,12 +69,23 @@ export function MessageBubble({
     [message.actions],
   )
 
+  const hasUpgradeDenial = useMemo(
+    () =>
+      (message.policyDenials ?? []).some(
+        (denial) => resolveUpgradeEntitlementFromPolicyDenial(denial).shouldUpgrade,
+      ),
+    [message.policyDenials],
+  )
+
   const nonSuggestionActions = useMemo(
     () =>
       message.actions?.filter(
-        (a) => a.status !== 'Suggestion' && a.status !== 'NeedsClarification',
+        (a) =>
+          a.status !== 'Suggestion' &&
+          a.status !== 'NeedsClarification' &&
+          !(hasUpgradeDenial && a.status === 'Failed'),
       ) ?? [],
-    [message.actions],
+    [message.actions, hasUpgradeDenial],
   )
 
   function dismissBreakdown(key: string) {

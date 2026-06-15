@@ -279,6 +279,73 @@ function getContextualMessageKey(
   return null
 }
 
+/**
+ * Maps stable backend error codes (orbit-api ErrorCodes) to friendly i18n keys.
+ * Consulted after contextual form-field matching, so precise validation messages
+ * still win; this guarantees every other backend error renders localized text
+ * instead of the raw English message.
+ */
+export const ERROR_CODE_TO_KEY: Record<string, string> = {
+  NO_PERMISSION: 'errors.api.noPermission',
+  HABIT_NOT_OWNED: 'errors.api.noPermission',
+  INVALID_SESSION: 'errors.api.sessionExpired',
+  USER_FACTS_LIMIT_REACHED: 'errors.api.factsLimit',
+  DUPLICATE_FACT: 'errors.api.duplicateFact',
+  DUPLICATE_TAG_NAME: 'errors.api.duplicateTag',
+  MAX_API_KEYS: 'errors.api.apiKeyLimit',
+  MAX_TAGS_PER_HABIT: 'habits.form.tagLimit',
+  MAX_HABITS_PER_GOAL: 'goals.form.habitLimit',
+  MESSAGE_TOO_LONG: 'errors.api.messageTooLong',
+  CHAT_HISTORY_TOO_LARGE: 'errors.api.messageTooLong',
+  IMAGE_TOO_LARGE: 'errors.api.imageInvalid',
+  IMAGE_EMPTY: 'errors.api.imageInvalid',
+  IMAGE_EXTENSION_NOT_ALLOWED: 'errors.api.imageInvalid',
+  IMAGE_FORMAT_UNKNOWN: 'errors.api.imageInvalid',
+  IMAGE_NOT_AN_IMAGE: 'errors.api.imageInvalid',
+  HABIT_ALREADY_COMPLETED: 'habits.errors.alreadyLogged',
+  CANNOT_LOG_FUTURE_DATE: 'errors.api.logNotAllowed',
+  CANNOT_SKIP_FUTURE_DATE: 'errors.api.logNotAllowed',
+  HABIT_NOT_YET_DUE: 'errors.api.logNotAllowed',
+  NOT_SCHEDULED_ON_DATE: 'errors.api.logNotAllowed',
+  ALL_INSTANCES_DONE: 'errors.api.logNotAllowed',
+  BEYOND_OVERDUE_WINDOW: 'errors.api.logNotAllowed',
+  SELF_PARENT: 'errors.api.selfParent',
+  CALENDAR_NOT_CONNECTED: 'errors.api.calendarNotConnected',
+  CALENDAR_RECONNECT_REQUIRED: 'errors.api.calendarReconnect',
+  CALENDAR_FETCH_FAILED: 'errors.api.calendarFetchFailed',
+  AI_UNAVAILABLE: 'errors.api.aiUnavailable',
+  AI_EMPTY_RESPONSE: 'errors.api.aiUnavailable',
+  AI_NO_ACTIVE_CONVERSATION: 'errors.api.aiUnavailable',
+  INVALID_REFERRAL_CODE: 'errors.api.referralInvalid',
+  SELF_REFERRAL: 'errors.api.referralSelf',
+  ALREADY_REFERRED: 'errors.api.referralAlready',
+  REFERRAL_CAP_REACHED: 'errors.api.referralCap',
+  NO_ACTIVE_SUBSCRIPTION: 'errors.api.subscriptionInactive',
+  SUBSCRIPTION_NOT_FOUND: 'errors.api.subscriptionInactive',
+  PLAY_PURCHASE_NOT_ACTIVE: 'errors.api.playPurchaseInactive',
+  PLAY_PURCHASE_ACCOUNT_MISMATCH: 'errors.api.playPurchaseMismatch',
+  PAYMENT_SERVICE_UNAVAILABLE: 'errors.api.paymentUnavailable',
+  BILLING_DETAILS_UNAVAILABLE: 'errors.api.paymentUnavailable',
+  INVALID_STEP_UP_CODE: 'errors.api.invalidStepUp',
+  STEP_UP_COOLDOWN: 'toast.errors.tooManyRequests',
+  CODE_REQUEST_COOLDOWN: 'toast.errors.tooManyRequests',
+  RATE_LIMITED: 'toast.errors.tooManyRequests',
+  INVALID_GOAL_STATUS: 'errors.api.invalidGoalStatus',
+  DEADLINE_IN_PAST: 'goals.form.deadlineInPast',
+  CONCURRENT_UPDATE_CONFLICT: 'toast.errors.conflict',
+  VALIDATION_ERROR: 'toast.errors.validation',
+  INTERNAL_SERVER_ERROR: 'toast.errors.server',
+  USER_NOT_FOUND: 'toast.errors.notFound',
+  FACT_NOT_FOUND: 'toast.errors.notFound',
+  API_KEY_NOT_FOUND: 'toast.errors.notFound',
+  NOTIFICATION_NOT_FOUND: 'toast.errors.notFound',
+  TEMPLATE_NOT_FOUND: 'toast.errors.notFound',
+  SUGGESTION_NOT_FOUND: 'toast.errors.notFound',
+  PARENT_HABIT_NOT_FOUND: 'toast.errors.notFound',
+  TARGET_PARENT_NOT_FOUND: 'toast.errors.notFound',
+  PENDING_OPERATION_NOT_FOUND: 'toast.errors.notFound',
+}
+
 export function getFriendlyErrorKey(
   err: unknown,
   fallbackKey: string,
@@ -313,6 +380,8 @@ export function getFriendlyErrorKey(
 
   const contextualKey = getContextualMessageKey(normalizedMessage, context)
   if (contextualKey) return contextualKey
+
+  if (code && ERROR_CODE_TO_KEY[code]) return ERROR_CODE_TO_KEY[code]
 
   return fallbackKey
 }

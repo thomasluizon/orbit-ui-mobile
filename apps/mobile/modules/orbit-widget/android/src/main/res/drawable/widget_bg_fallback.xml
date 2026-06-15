@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Static navy-dark surface so the widget is never fully transparent before/if
+     the programmatic theme bitmap (setImageViewBitmap on widget_bg) is applied.
+     Mirrors OrbitWidgetFactory.FALLBACK_COLORS: background #020618, border #1b1e2f. -->
+<shape xmlns:android="http://schemas.android.com/apk/res/android"
+    android:shape="rectangle">
+    <solid android:color="#FF020618" />
+    <stroke android:width="1dp" android:color="#FF1B1E2F" />
+    <corners android:radius="24dp" />
+</shape>

@@ -9,8 +9,7 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { Check } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import { API } from '@orbit/shared/api'
-import { isValidEmail } from '@orbit/shared/utils/email'
-import { buildSupportRequestBody, getErrorMessage } from '@orbit/shared/utils'
+import { buildSupportRequestBody, getFriendlyErrorMessage } from '@orbit/shared/utils'
 import { createTokensV2, tintFromPrimary } from '@/lib/theme'
 import { useProfile } from '@/hooks/use-profile'
 import { apiClient } from '@/lib/api-client'
@@ -33,10 +32,6 @@ interface SupportFieldProps {
   onChangeText: (v: string) => void
   placeholder: string
   multiline?: boolean
-  keyboardType?: 'default' | 'email-address'
-  autoCapitalize?: 'none' | 'sentences'
-  mono?: boolean
-  error?: string | null
   tokens: Tokens
 }
 
@@ -46,10 +41,6 @@ function SupportField({
   onChangeText,
   placeholder,
   multiline = false,
-  keyboardType = 'default',
-  autoCapitalize = 'sentences',
-  mono = false,
-  error,
   tokens,
 }: Readonly<SupportFieldProps>) {
   return (
@@ -63,21 +54,10 @@ function SupportField({
         placeholder={placeholder}
         multiline={multiline}
         numberOfLines={multiline ? 6 : 1}
-        keyboardType={keyboardType}
-        autoCapitalize={autoCapitalize}
         textAlignVertical={multiline ? 'top' : 'auto'}
         accessibilityLabel={label}
-        style={[
-          mono ? styles.inputMono : null,
-          multiline ? styles.inputMultiline : null,
-          error ? { borderColor: tokens.statusBad } : null,
-        ]}
+        style={multiline ? styles.inputMultiline : null}
       />
-      {error ? (
-        <Text style={[styles.errorText, { color: tokens.statusBad }]}>
-          {error}
-        </Text>
-      ) : null}
     </View>
   )
 }
@@ -107,16 +87,10 @@ function SupportSuccessState({ tokens }: Readonly<{ tokens: Tokens }>) {
 interface SupportFormProps {
   tokens: Tokens
   isOnline: boolean
-  name: string
-  email: string
   subject: string
   message: string
-  nameError: string | null
-  emailError: string | null
   error: string | null
   canSend: boolean
-  onChangeName: (value: string) => void
-  onChangeEmail: (value: string) => void
   onChangeSubject: (value: string) => void
   onChangeMessage: (value: string) => void
   onSend: () => void
@@ -125,16 +99,10 @@ interface SupportFormProps {
 function SupportForm({
   tokens,
   isOnline,
-  name,
-  email,
   subject,
   message,
-  nameError,
-  emailError,
   error,
   canSend,
-  onChangeName,
-  onChangeEmail,
   onChangeSubject,
   onChangeMessage,
   onSend,
@@ -149,31 +117,6 @@ function SupportForm({
           compact
         />
       ) : null}
-      <View style={styles.rowPair}>
-        <View style={styles.halfField}>
-          <SupportField
-            label={t('profile.support.name')}
-            value={name}
-            onChangeText={onChangeName}
-            placeholder={t('profile.support.namePlaceholder')}
-            error={nameError}
-            tokens={tokens}
-          />
-        </View>
-        <View style={styles.halfField}>
-          <SupportField
-            label={t('profile.support.email')}
-            value={email}
-            onChangeText={onChangeEmail}
-            placeholder={t('profile.support.emailPlaceholder')}
-            keyboardType="email-address"
-            autoCapitalize="none"
-            mono
-            error={emailError}
-            tokens={tokens}
-          />
-        </View>
-      </View>
       <SupportField
         label={t('profile.support.subject')}
         value={subject}
@@ -218,15 +161,11 @@ export default function SupportScreen() {
   )
   const { isOnline } = useOffline()
   const { profile } = useProfile()
-  const [name, setName] = useState('')
-  const [email, setEmail] = useState('')
   const [subject, setSubject] = useState('')
   const [message, setMessage] = useState('')
   const [sending, setSending] = useState(false)
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [nameError, setNameError] = useState<string | null>(null)
-  const [emailError, setEmailError] = useState<string | null>(null)
 
   useEffect(() => {
     let isMounted = true
@@ -235,10 +174,8 @@ export default function SupportScreen() {
         if (!isMounted || !storedDraft) return
         try {
           const draft = JSON.parse(storedDraft) as Partial<
-            Record<'name' | 'email' | 'subject' | 'message', string>
+            Record<'subject' | 'message', string>
           >
-          setName(draft.name ?? '')
-          setEmail(draft.email ?? '')
           setSubject(draft.subject ?? '')
           setMessage(draft.message ?? '')
         } catch {
@@ -251,17 +188,8 @@ export default function SupportScreen() {
     }
   }, [])
 
-  const [prevProfile, setPrevProfile] = useState(profile)
-  if (profile !== prevProfile) {
-    setPrevProfile(profile)
-    if (profile) {
-      setName((current) => current || profile.name || '')
-      setEmail((current) => current || profile.email || '')
-    }
-  }
-
   useEffect(() => {
-    const draft = { name, email, subject, message }
+    const draft = { subject, message }
     const hasDraft = Object.values(draft).some(
       (value) => value.trim().length > 0,
     )
@@ -271,29 +199,7 @@ export default function SupportScreen() {
       return
     }
     void AsyncStorage.setItem(SUPPORT_DRAFT_STORAGE_KEY, JSON.stringify(draft))
-  }, [email, message, name, subject])
-
-  const validateForm = useCallback((): boolean => {
-    setNameError(null)
-    setEmailError(null)
-    let valid = true
-
-    const effectiveName = name.trim() || profile?.name
-    if (!effectiveName) {
-      setNameError(t('profile.support.nameRequired'))
-      valid = false
-    }
-
-    const effectiveEmail = email.trim() || profile?.email
-    if (!effectiveEmail) {
-      setEmailError(t('profile.support.emailRequired'))
-      valid = false
-    } else if (!isValidEmail(effectiveEmail)) {
-      setEmailError(t('profile.support.emailInvalid'))
-      valid = false
-    }
-    return valid
-  }, [email, name, profile?.email, profile?.name, t])
+  }, [message, subject])
 
   const handleSend = useCallback(async () => {
     if (!isOnline) {
@@ -301,7 +207,6 @@ export default function SupportScreen() {
       return
     }
     if (!subject.trim() || !message.trim()) return
-    if (!validateForm()) return
 
     setSending(true)
     setError(null)
@@ -311,7 +216,12 @@ export default function SupportScreen() {
       await apiClient(API.support.send, {
         method: 'POST',
         body: JSON.stringify(
-          buildSupportRequestBody(profile, { name, email, subject, message }),
+          buildSupportRequestBody(profile, {
+            name: '',
+            email: '',
+            subject,
+            message,
+          }),
         ),
       })
       setSuccess(true)
@@ -319,11 +229,11 @@ export default function SupportScreen() {
       setMessage('')
       void AsyncStorage.removeItem(SUPPORT_DRAFT_STORAGE_KEY)
     } catch (err: unknown) {
-      setError(getErrorMessage(err, t('auth.genericError')))
+      setError(getFriendlyErrorMessage(err, t, 'auth.genericError', 'generic'))
     } finally {
       setSending(false)
     }
-  }, [email, isOnline, message, name, profile, subject, t, validateForm])
+  }, [isOnline, message, profile, subject, t])
 
   const canSend =
     subject.trim().length > 0 && message.trim().length > 0 && isOnline && !sending
@@ -352,16 +262,10 @@ export default function SupportScreen() {
           <SupportForm
             tokens={tokens}
             isOnline={isOnline}
-            name={name}
-            email={email}
             subject={subject}
             message={message}
-            nameError={nameError}
-            emailError={emailError}
             error={error}
             canSend={canSend}
-            onChangeName={setName}
-            onChangeEmail={setEmail}
             onChangeSubject={setSubject}
             onChangeMessage={setMessage}
             onSend={() => {
@@ -384,11 +288,6 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     gap: 16,
   },
-  rowPair: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  halfField: { flex: 1 },
   fieldWrap: {
     gap: 8,
   },
@@ -396,18 +295,8 @@ const styles = StyleSheet.create({
     fontFamily: 'Rubik_500Medium',
     fontSize: 14,
   },
-  inputMono: {
-    fontFamily: 'Roboto_400Regular',
-    fontSize: 15,
-    fontVariant: ['tabular-nums'],
-  },
   inputMultiline: {
     minHeight: 132,
-  },
-  errorText: {
-    fontFamily: 'Rubik_400Regular',
-    fontSize: 12,
-    marginTop: -2,
   },
   formErrorText: {
     fontFamily: 'Rubik_400Regular',

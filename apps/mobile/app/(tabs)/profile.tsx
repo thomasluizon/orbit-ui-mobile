@@ -25,7 +25,7 @@ import { profileKeys } from '@orbit/shared/query'
 import {
   buildFreshStartDeletedItems,
   buildFreshStartPreservedItems,
-  getErrorMessage,
+  getFriendlyErrorMessage,
 } from '@orbit/shared/utils'
 import {
   PROFILE_NAV_ITEMS,
@@ -313,7 +313,7 @@ export default function ProfileScreen() {
       setShowResetModal(false)
       setShowFreshStartAnim(true)
     } catch (err: unknown) {
-      const msg = getErrorMessage(err, t('profile.freshStart.errorGeneric'))
+      const msg = getFriendlyErrorMessage(err, t, 'profile.freshStart.errorGeneric', 'generic')
       setResetError(msg)
     } finally {
       setResetLoading(false)
@@ -383,7 +383,7 @@ export default function ProfileScreen() {
       await apiClient(API.auth.requestDeletion, { method: 'POST' })
       setDeleteStep('code')
     } catch (err: unknown) {
-      const msg = getErrorMessage(err, t('profile.deleteAccount.errorGeneric'))
+      const msg = getFriendlyErrorMessage(err, t, 'profile.deleteAccount.errorGeneric', 'generic')
       setDeleteError(msg)
     } finally {
       setDeleteLoading(false)
@@ -410,7 +410,7 @@ export default function ProfileScreen() {
       setScheduledDeletionDate(response.scheduledDeletionAt ?? null)
       setDeleteStep('deactivated')
     } catch (err: unknown) {
-      const msg = getErrorMessage(err, t('profile.deleteAccount.errorGeneric'))
+      const msg = getFriendlyErrorMessage(err, t, 'profile.deleteAccount.errorGeneric', 'generic')
       setDeleteError(msg)
     } finally {
       setDeleteLoading(false)

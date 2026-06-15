@@ -6,7 +6,6 @@ import { useLoginFlow } from './use-login-flow'
 import {
   LoginHeader,
   ReferralBanner,
-  LoginErrorMessage,
   LoginSuccessMessage,
   LoginStepStage,
 } from './login-sections'
@@ -47,8 +46,6 @@ export default function LoginPage() {
         <LoginHeader step={step} t={t} />
 
         {referralCode && <ReferralBanner motionPreset={feedbackMotion} t={t} />}
-
-        {errorMessage && <LoginErrorMessage message={errorMessage} />}
 
         <LoginSuccessMessage message={successMessage} motionPreset={feedbackMotion} />
 

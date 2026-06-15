@@ -3,7 +3,7 @@
 import { useCallback } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
 import type { AgentExecuteOperationResponse } from '@orbit/shared/types/ai'
-import { getErrorMessage } from '@orbit/shared/utils'
+import { getFriendlyErrorMessage } from '@orbit/shared/utils'
 import {
   confirmPendingOperation,
   executePendingOperation,
@@ -29,7 +29,7 @@ export function useChatPendingOperations(
   const confirmAndExecutePendingOperation = useCallback(async (pendingOperationId: string): Promise<PendingExecutionResult> => {
     const confirmation = await confirmPendingOperation(pendingOperationId)
     if (!confirmation.ok) {
-      return { ok: false, error: getErrorMessage(confirmation.error, t('chat.sendError')) }
+      return { ok: false, error: getFriendlyErrorMessage(confirmation.error, t, 'chat.sendError', 'generic') }
     }
 
     const execution = await executePendingOperation(
@@ -38,7 +38,7 @@ export function useChatPendingOperations(
     )
 
     if (!execution.ok) {
-      return { ok: false, error: getErrorMessage(execution.error, t('chat.sendError')) }
+      return { ok: false, error: getFriendlyErrorMessage(execution.error, t, 'chat.sendError', 'generic') }
     }
 
     await onExecuted(execution.data)
@@ -49,12 +49,12 @@ export function useChatPendingOperations(
     async (pendingOperationId: string) => {
       const confirmation = await confirmPendingOperation(pendingOperationId)
       if (!confirmation.ok) {
-        return { ok: false as const, error: getErrorMessage(confirmation.error, t('chat.sendError')) }
+        return { ok: false as const, error: getFriendlyErrorMessage(confirmation.error, t, 'chat.sendError', 'generic') }
       }
 
       const challenge = await issuePendingOperationStepUp(pendingOperationId, locale)
       if (!challenge.ok) {
-        return { ok: false as const, error: getErrorMessage(challenge.error, t('chat.sendError')) }
+        return { ok: false as const, error: getFriendlyErrorMessage(challenge.error, t, 'chat.sendError', 'generic') }
       }
 
       return {
@@ -80,12 +80,12 @@ export function useChatPendingOperations(
       )
 
       if (!verification.ok) {
-        return { ok: false as const, error: getErrorMessage(verification.error, t('chat.sendError')) }
+        return { ok: false as const, error: getFriendlyErrorMessage(verification.error, t, 'chat.sendError', 'generic') }
       }
 
       const execution = await executePendingOperation(pendingOperationId, confirmationToken)
       if (!execution.ok) {
-        return { ok: false as const, error: getErrorMessage(execution.error, t('chat.sendError')) }
+        return { ok: false as const, error: getFriendlyErrorMessage(execution.error, t, 'chat.sendError', 'generic') }
       }
 
       await onExecuted(execution.data)

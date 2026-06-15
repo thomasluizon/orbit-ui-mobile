@@ -34,7 +34,7 @@ import {
   buildRecentChatHistory,
   canAccessEntitlement,
   detectDefaultTimeFormat,
-  getErrorMessage,
+  getFriendlyErrorMessage,
   resolveUpgradeEntitlementFromPolicyDenial,
 } from '@orbit/shared/utils'
 import { useSpeechToText } from '@/hooks/use-speech-to-text'
@@ -110,8 +110,7 @@ export function useChatComposer() {
 
   const chatContainerRef = useRef<HTMLDivElement>(null)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
-  const langPickerRef = useRef<HTMLDivElement>(null)
-  const prevIsRecording = useRef(false)
+  const pendingVoiceCommit = useRef(false)
 
   const [input, setInput] = useState<string>(() => {
     if (typeof globalThis === 'undefined' || typeof globalThis.localStorage === 'undefined') return ''
@@ -119,7 +118,6 @@ export function useChatComposer() {
   })
   const [sendError, setSendError] = useState<string | null>(null)
   const [lastFailedSend, setLastFailedSend] = useState<AttemptedSend | null>(null)
-  const [showLangPicker, setShowLangPicker] = useState(false)
   const [previousSpeechError, setPreviousSpeechError] = useState<string | null>(speechError)
 
   const {
@@ -324,10 +322,12 @@ export function useChatComposer() {
   }, [input])
 
   useEffect(() => {
-    if (prevIsRecording.current && !isRecording && transcript.trim()) {
+    if (isRecording) {
+      pendingVoiceCommit.current = true
+    } else if (pendingVoiceCommit.current && transcript.trim()) {
+      pendingVoiceCommit.current = false
       setInput((current) => (current ? `${current} ${transcript.trim()}` : transcript.trim()))
     }
-    prevIsRecording.current = isRecording
   }, [isRecording, transcript])
 
   useEffect(() => {
@@ -337,20 +337,6 @@ export function useChatComposer() {
     }, 4000)
     return () => globalThis.clearTimeout(timer)
   }, [speechError])
-
-  useEffect(() => {
-    function handleClick(event: MouseEvent) {
-      if (
-        langPickerRef.current &&
-        !langPickerRef.current.contains(event.target as Node)
-      ) {
-        setShowLangPicker(false)
-      }
-    }
-
-    document.addEventListener('click', handleClick)
-    return () => document.removeEventListener('click', handleClick)
-  }, [])
 
   const buildChatFormData = useCallback((attempted: AttemptedSend) => {
     const formData = new FormData()
@@ -445,7 +431,7 @@ export function useChatComposer() {
       handleFailedSend(
         {
           status: isAbortError(error) ? 408 : null,
-          error: getErrorMessage(error, t('chat.sendError')),
+          error: getFriendlyErrorMessage(error, t, 'chat.sendError', 'generic'),
           code: null,
         },
         attempted,
@@ -531,7 +517,6 @@ export function useChatComposer() {
     chatContainerRef,
     textareaRef,
     fileInputRef,
-    langPickerRef,
     input,
     setInput,
     sendError,
@@ -546,8 +531,6 @@ export function useChatComposer() {
     toggleRecording,
     recordingTime,
     currentLangFlag,
-    showLangPicker,
-    setShowLangPicker,
     starterChips,
     messages,
     isTyping,

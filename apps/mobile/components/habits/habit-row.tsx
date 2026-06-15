@@ -144,12 +144,12 @@ export function HabitRow({
   const streak = habit.currentStreak ?? 0
   const showStreak = streak >= 2 && !isChild && !isSelectMode
 
-  const dotState: StatusDotState = isOverdue
-    ? 'overdue'
-    : isDoneForRange
-      ? 'done'
-      : habit.isBadHabit
-        ? 'bad'
+  const dotState: StatusDotState = isDoneForRange
+    ? 'done'
+    : habit.isBadHabit
+      ? 'bad'
+      : isOverdue
+        ? 'overdue'
         : 'empty'
 
   const emoji = habit.emoji

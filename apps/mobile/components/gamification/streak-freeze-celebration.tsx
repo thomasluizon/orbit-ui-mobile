@@ -15,13 +15,11 @@ import {
   View,
 } from 'react-native'
 import { useTranslation } from 'react-i18next'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useDateFormat } from '@/hooks/use-date-format'
 import { useProfile } from '@/hooks/use-profile'
 import { GradientTop } from '@/components/ui/gradient-top'
-import { PillButton } from '@/components/ui/pill-button'
 import { useCelebrationEntrance } from './celebration-motion'
 import { RingMotif } from './ring-motif'
 
@@ -37,7 +35,6 @@ export interface StreakFreezeCelebrationHandle {
 export const StreakFreezeCelebration = forwardRef<StreakFreezeCelebrationHandle>(
   function StreakFreezeCelebration(_props, ref) {
     const { t } = useTranslation()
-    const insets = useSafeAreaInsets()
     const { currentScheme, currentTheme } = useAppTheme()
     const tokens = useMemo(
       () => createTokensV2(currentScheme, currentTheme),
@@ -50,7 +47,7 @@ export const StreakFreezeCelebration = forwardRef<StreakFreezeCelebrationHandle>
     const dismissTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
     const isShowingRef = useRef(false)
     const [celebrationActive, setCelebrationActive] = useState(false)
-    const { orbStyle, titleStyle, subtitleStyle, footerStyle } =
+    const { orbStyle, titleStyle, subtitleStyle } =
       useCelebrationEntrance(celebrationActive)
 
     const dismiss = useCallback(() => {
@@ -137,13 +134,6 @@ export const StreakFreezeCelebration = forwardRef<StreakFreezeCelebrationHandle>
               {t('streakDisplay.freeze.celebrationSubtitle')}
             </Animated.Text>
           </View>
-          <Animated.View
-            style={[styles.footer, { paddingBottom: insets.bottom + 24 }, footerStyle]}
-          >
-            <PillButton fullWidth onPress={dismiss}>
-              {t('common.continue')}
-            </PillButton>
-          </Animated.View>
         </Pressable>
       </Animated.View>
     )
@@ -197,8 +187,5 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: 24,
     textAlign: 'center',
-  },
-  footer: {
-    paddingHorizontal: 24,
   },
 })

@@ -59,13 +59,14 @@ vi.mock('@/hooks/use-color-scheme', () => ({
 }))
 
 vi.mock('@/components/ui/app-overlay', () => ({
-  AppOverlay: ({ open, title, children }: {
-    open: boolean; title?: string; children?: React.ReactNode
+  AppOverlay: ({ open, title, description, children }: {
+    open: boolean; title?: string; description?: string; children?: React.ReactNode
   }) => {
     if (!open) return null
     return (
       <div data-testid="picker-sheet">
         {title && <h2>{title}</h2>}
+        {description && <p>{description}</p>}
         {children}
       </div>
     )
@@ -163,9 +164,10 @@ describe('PreferencesPage', () => {
   })
 
 
-  it('renders language section', () => {
+  it('renders language section and shows its description in the picker sheet', () => {
     render(<PreferencesPage />)
     expect(screen.getByText('profile.language.title')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /profile.language.title/ }))
     expect(screen.getByText('profile.language.description')).toBeInTheDocument()
   })
 
@@ -190,11 +192,12 @@ describe('PreferencesPage', () => {
   })
 
 
-  it('renders color scheme section with ProBadge', () => {
+  it('renders color scheme section with ProBadge and shows its description in the picker sheet', () => {
     render(<PreferencesPage />)
     expect(screen.getByText('profile.colorScheme.title')).toBeInTheDocument()
-    expect(screen.getByText('profile.colorScheme.description')).toBeInTheDocument()
     expect(screen.getByTestId('pro-badge')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /profile.colorScheme.title/ }))
+    expect(screen.getByText('profile.colorScheme.description')).toBeInTheDocument()
   })
 
   it('renders a color scheme radio for each option', () => {
@@ -215,9 +218,10 @@ describe('PreferencesPage', () => {
   })
 
 
-  it('renders week start day section', () => {
+  it('renders week start day section and shows its description in the picker sheet', () => {
     render(<PreferencesPage />)
     expect(screen.getByText('settings.weekStartDay.title')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: /settings.weekStartDay.title/ }))
     expect(screen.getByText('settings.weekStartDay.description')).toBeInTheDocument()
   })
 

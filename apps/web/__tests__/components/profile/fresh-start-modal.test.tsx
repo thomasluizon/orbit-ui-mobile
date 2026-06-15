@@ -214,8 +214,9 @@ describe('FreshStartModal', () => {
     fireEvent.click(screen.getByText('profile.freshStart.confirmButton'))
 
     await waitFor(() => {
-      expect(screen.getByText('Server error')).toBeInTheDocument()
+      expect(screen.getByText('profile.freshStart.errorGeneric')).toBeInTheDocument()
     })
+    expect(screen.queryByText('Server error')).not.toBeInTheDocument()
   })
 
   it('resets state when overlay triggers onOpenChange(true)', () => {

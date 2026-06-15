@@ -54,7 +54,6 @@ export function PreferenceSettingsList({
       <SettingsRow
         icon={Languages}
         label={t('profile.language.title')}
-        desc={t('profile.language.description')}
         value={mounted ? languageLabel : undefined}
         onClick={() => onOpenPicker('language')}
         divider={false}
@@ -69,7 +68,6 @@ export function PreferenceSettingsList({
       <SettingsRow
         icon={Palette}
         label={t('profile.colorScheme.title')}
-        desc={t('profile.colorScheme.description')}
         value={mounted ? schemeLabel : undefined}
         onClick={() => onOpenPicker('scheme')}
         divider={false}
@@ -80,7 +78,6 @@ export function PreferenceSettingsList({
       <SettingsRow
         icon={Calendar}
         label={t('settings.weekStartDay.title')}
-        desc={t('settings.weekStartDay.description')}
         value={mounted ? weekStartLabel : undefined}
         onClick={() => onOpenPicker('weekStart')}
         divider={false}

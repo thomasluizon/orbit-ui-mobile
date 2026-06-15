@@ -2,16 +2,19 @@
 
 import { useTranslations } from 'next-intl'
 import type { RetrospectivePeriod } from '@/hooks/use-retrospective'
+import type { RetrospectiveResponse } from '@orbit/shared/utils/retrospective'
 import { Chip } from '@/components/ui/chip'
-import { RetrospectiveCard } from './retrospective-card'
+import { RetrospectiveDashboard } from './retrospective-dashboard'
 import { RetrospectiveEmptyState } from './retrospective-empty-state'
+import { RetrospectiveNoDataState } from './retrospective-no-data-state'
 
 interface RetrospectiveViewProps {
   periods: { key: RetrospectivePeriod; label: string }[]
   activePeriod: RetrospectivePeriod
-  retrospective: string | null
+  data: RetrospectiveResponse | null
   isLoading: boolean
   hasError: boolean
+  noData: boolean
   fromCache: boolean
   isOnline: boolean
   onSelectPeriod: (key: RetrospectivePeriod) => void
@@ -21,9 +24,10 @@ interface RetrospectiveViewProps {
 export function RetrospectiveView({
   periods,
   activePeriod,
-  retrospective,
+  data,
   isLoading,
   hasError,
+  noData,
   fromCache,
   isOnline,
   onSelectPeriod,
@@ -69,17 +73,20 @@ export function RetrospectiveView({
           </div>
         )}
 
-        {!isLoading && retrospective && (
-          <RetrospectiveCard
-            retrospective={retrospective}
+        {!isLoading && data && (
+          <RetrospectiveDashboard
+            data={data}
             fromCache={fromCache}
-            isLoading={isLoading}
             isOnline={isOnline}
             onRegenerate={onGenerate}
           />
         )}
 
-        {!isLoading && hasError && (
+        {!isLoading && !data && noData && (
+          <RetrospectiveNoDataState isOnline={isOnline} onGenerate={onGenerate} />
+        )}
+
+        {!isLoading && !data && !noData && hasError && (
           <div style={{ padding: '32px 20px', textAlign: 'center' }}>
             <p style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--status-bad)' }}>
               {t('retrospective.error')}
@@ -95,7 +102,7 @@ export function RetrospectiveView({
           </div>
         )}
 
-        {!isLoading && !retrospective && !hasError && (
+        {!isLoading && !data && !noData && !hasError && (
           <RetrospectiveEmptyState isOnline={isOnline} onGenerate={onGenerate} />
         )}
       </div>

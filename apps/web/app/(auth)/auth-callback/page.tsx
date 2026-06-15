@@ -29,7 +29,6 @@ interface AuthFetchError {
 
 interface AuthCallbackErrorState {
   message: string
-  requestId?: string
 }
 
 function isAuthFetchError(err: unknown): err is AuthFetchError {
@@ -78,7 +77,6 @@ function resolveAuthCallbackError(
   if (!hasStructuredContext) {
     return {
       message: t('auth.callbackError'),
-      requestId,
     }
   }
 
@@ -91,7 +89,6 @@ function resolveAuthCallbackError(
 
   return {
     message: t(key),
-    requestId,
   }
 }
 
@@ -233,18 +230,6 @@ export default function AuthCallbackPage() {
             >
               {errorState.message}
             </p>
-            {errorState.requestId && (
-              <p
-                className="t-meta text-center"
-                style={{
-                  margin: 0,
-                  animation: 'slide-up-fade 0.28s var(--ease-out) backwards',
-                  animationDelay: '200ms',
-                }}
-              >
-                {t('auth.errorReference', { requestId: errorState.requestId })}
-              </p>
-            )}
             <div
               style={{
                 animation: 'slide-up-fade 0.28s var(--ease-out) backwards',

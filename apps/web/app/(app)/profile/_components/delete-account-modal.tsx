@@ -4,7 +4,7 @@ import { useState, useMemo, useRef } from 'react'
 import { useTranslations } from 'next-intl'
 import { parseISO } from 'date-fns'
 import { TriangleAlert } from 'lucide-react'
-import { getErrorMessage } from '@orbit/shared/utils'
+import { getFriendlyErrorMessage } from '@orbit/shared/utils'
 import type { Profile } from '@orbit/shared/types/profile'
 import { AppOverlay } from '@/components/ui/app-overlay'
 import { CodeInput } from '@/components/ui/code-input'
@@ -53,7 +53,7 @@ export function DeleteAccountModal({
       await requestDeletion()
       setStep('code')
     } catch (err: unknown) {
-      setError(getErrorMessage(err, t('profile.deleteAccount.errorGeneric')))
+      setError(getFriendlyErrorMessage(err, t, 'profile.deleteAccount.errorGeneric', 'generic'))
     } finally {
       setLoading(false)
     }
@@ -69,7 +69,7 @@ export function DeleteAccountModal({
       setScheduledDeletionDate(response.scheduledDeletionAt ?? null)
       setStep('deactivated')
     } catch (err: unknown) {
-      setError(getErrorMessage(err, t('profile.deleteAccount.errorGeneric')))
+      setError(getFriendlyErrorMessage(err, t, 'profile.deleteAccount.errorGeneric', 'generic'))
     } finally {
       setLoading(false)
     }

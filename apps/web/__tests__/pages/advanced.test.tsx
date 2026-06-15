@@ -300,7 +300,6 @@ describe('AdvancedPage', () => {
     fireEvent.click(instructionsBtn)
     expect(instructionsBtn).toHaveAttribute('aria-expanded', 'true')
     expect(screen.getByText('orbitMcp.claudeWeb')).toBeInTheDocument()
-    expect(screen.getByText('orbitMcp.claudeDesktop')).toBeInTheDocument()
     expect(screen.getByText('orbitMcp.claudeCode')).toBeInTheDocument()
   })
 
@@ -311,10 +310,10 @@ describe('AdvancedPage', () => {
     expect(screen.getByText('orbitMcp.webNoApiKey')).toBeInTheDocument()
   })
 
-  it('switches to desktop instructions tab', () => {
+  it('switches to the code instructions tab', () => {
     render(<AdvancedPage />)
     fireEvent.click(screen.getByText('orbitMcp.connectionInstructions').closest('button')!)
-    fireEvent.click(screen.getByText('orbitMcp.claudeDesktop'))
+    fireEvent.click(screen.getByText('orbitMcp.claudeCode'))
     expect(screen.getByText('orbitMcp.configInstructions')).toBeInTheDocument()
     expect(screen.getByText('orbitMcp.replaceKey')).toBeInTheDocument()
   })

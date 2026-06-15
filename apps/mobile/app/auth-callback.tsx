@@ -35,7 +35,6 @@ type AppTokens = ReturnType<typeof createTokensV2>
 
 interface AuthCallbackErrorState {
   message: string
-  requestId?: string
 }
 
 export default function AuthCallbackScreen() {
@@ -82,7 +81,6 @@ export default function AuthCallbackScreen() {
       if (!hasStructuredContext) {
         return {
           message: t('auth.callbackError'),
-          requestId,
         }
       }
 
@@ -95,7 +93,6 @@ export default function AuthCallbackScreen() {
 
       return {
         message: t(key),
-        requestId,
       }
     },
     [t],
@@ -181,11 +178,6 @@ export default function AuthCallbackScreen() {
             <TriangleAlert size={34} color={tokens.fg3} strokeWidth={1.8} />
           </View>
           <Text style={styles.errorTitle}>{errorState.message}</Text>
-          {errorState.requestId ? (
-            <Text style={styles.errorMeta}>
-              {t('auth.errorReference', { requestId: errorState.requestId })}
-            </Text>
-          ) : null}
           <PillButton onPress={() => router.replace('/login' as Href)}>
             {t('auth.backToLogin')}
           </PillButton>
@@ -233,13 +225,6 @@ function createStyles(tokens: AppTokens) {
       color: tokens.fg1,
       textAlign: 'center',
       maxWidth: 320,
-    },
-    errorMeta: {
-      fontFamily: 'Roboto_400Regular',
-      fontSize: 12,
-      color: tokens.fg3,
-      textAlign: 'center',
-      fontVariant: ['tabular-nums'],
     },
   })
 }

@@ -7,6 +7,7 @@ import {
   Pressable,
   StyleSheet,
   FlatList,
+  ScrollView,
   Switch,
 } from "react-native";
 import Animated, {
@@ -42,6 +43,7 @@ import { GestureDetector } from "react-native-gesture-handler";
 import { createTokensV2 } from "@/lib/theme";
 import { useAppTheme } from "@/lib/use-app-theme";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { BottomSheetModal } from "@/components/bottom-sheet-modal";
 import { GradientTop } from "@/components/ui/gradient-top";
 import { PillButton } from "@/components/ui/pill-button";
 import { SectionLabel } from "@/components/ui/section-label";
@@ -68,6 +70,8 @@ interface GridDay {
 type Tokens = ReturnType<typeof createTokensV2>;
 type DayStatus = "empty" | "full" | "partial" | "missed";
 type MonthSlide = "left" | "right" | null;
+
+const EMPTY_LIST: readonly CalendarDayEntry[] = [];
 
 function dayStatus(cell: GridDay): DayStatus {
   if (!cell.isCurrentMonth || cell.totalCount === 0) return "empty";
@@ -149,6 +153,7 @@ export default function CalendarScreen() {
   const [selectedDay, setSelectedDay] = useState<string | null>(() =>
     formatAPIDate(new Date()),
   );
+  const [isDayDetailOpen, setIsDayDetailOpen] = useState(false);
   const [showRecurring, setShowRecurring] = useState(true);
 
   const { dayMap, isLoading } = useCalendarData(currentMonth);
@@ -171,6 +176,11 @@ export default function CalendarScreen() {
     setCurrentMonth((m) => addMonths(m, 1));
   }, []);
 
+  const goToCurrentMonth = useCallback(() => {
+    setMonthSlide(null);
+    setCurrentMonth(startOfMonth(new Date()));
+  }, []);
+
   const swipeGesture = useHorizontalSwipe({
     onSwipeLeft: nextMonth,
     onSwipeRight: prevMonth,
@@ -178,6 +188,11 @@ export default function CalendarScreen() {
 
   const onSelectDay = useCallback((dateStr: string) => {
     setSelectedDay(dateStr);
+    setIsDayDetailOpen(true);
+  }, []);
+
+  const closeDayDetail = useCallback(() => {
+    setIsDayDetailOpen(false);
   }, []);
 
   const weekdayHeaders = useMemo(() => {
@@ -251,25 +266,9 @@ export default function CalendarScreen() {
     (entry: CalendarDayEntry) => entry.status === "completed",
   ).length;
 
-  const monthSummary = useMemo(() => {
-    if (isLoading || dayMap.size === 0) return null;
-    let daysWithActivity = 0;
-    let daysCompleted = 0;
-    dayMap.forEach((entries: CalendarDayEntry[]) => {
-      if (entries.length === 0) return;
-      daysWithActivity++;
-      const allDone = entries.every(
-        (entry: CalendarDayEntry) => entry.status === "completed",
-      );
-      if (allDone) daysCompleted++;
-    });
-    if (daysWithActivity === 0) return null;
-    const pct = Math.round((daysCompleted / daysWithActivity) * 100);
-    return `${daysCompleted}/${daysWithActivity} ${plural(t("calendar.summary.days"), daysCompleted)} (${pct}%)`;
-  }, [dayMap, isLoading, t]);
-
   const goToSelectedDay = () => {
     if (!selectedDay) return;
+    setIsDayDetailOpen(false);
     router.push(`/?date=${selectedDay}`);
   };
 
@@ -304,8 +303,6 @@ export default function CalendarScreen() {
       : monthSlide === "left"
         ? FadeInLeft.duration(220).reduceMotion(ReduceMotion.System)
         : undefined;
-
-  const hasDayEntries = Boolean(selectedDay) && filteredEntries.length > 0;
 
   const listHeader = (
     <>
@@ -407,65 +404,11 @@ export default function CalendarScreen() {
         missedLabel={t("calendar.legend.missed")}
         tokens={tokens}
       />
-
-      {selectedDay ? (
-        <View style={styles.daySectionHeaderBlock}>
-          <View style={styles.daySectionHeader}>
-            <Text style={styles.daySectionTitle} numberOfLines={1}>
-              {formattedSelectedDate}
-            </Text>
-            {selectedEntries.length > 0 ? (
-              <View style={styles.recurringToggleRow}>
-                <Switch
-                  value={showRecurring}
-                  onValueChange={setShowRecurring}
-                  trackColor={{
-                    false: tokens.bgSunk,
-                    true: tokens.primary,
-                  }}
-                  thumbColor={tokens.fgOnPrimary}
-                />
-                <Text style={[styles.recurringToggleText, { color: tokens.fg2 }]}>
-                  {t("calendar.showRecurring")}
-                </Text>
-              </View>
-            ) : null}
-          </View>
-
-          {selectedEntries.length === 0 || filteredEntries.length === 0 ? (
-            <View style={styles.emptyDayCard}>
-              <Text style={[styles.emptyDayText, { color: tokens.fg3 }]}>
-                {t("calendar.noHabitsScheduled")}
-              </Text>
-            </View>
-          ) : (
-            <Text style={[styles.summaryText, { color: tokens.fg3 }]}>
-              {plural(
-                t("calendar.dayDetail.completionSummary", {
-                  done: completedCount,
-                  total: filteredEntries.length,
-                }),
-                filteredEntries.length,
-              )}
-            </Text>
-          )}
-        </View>
-      ) : null}
     </>
   );
 
   const listFooter = (
     <View style={styles.listFooter}>
-      {selectedDay ? (
-        <PillButton
-          variant="ghost"
-          style={styles.goToDayButton}
-          onPress={goToSelectedDay}
-        >
-          {t("calendar.goToDay")}
-        </PillButton>
-      ) : null}
-
       <SectionLabel>{t("calendar.thisMonth")}</SectionLabel>
       <SettingsRow
         label={t("calendar.bestStreak")}
@@ -490,48 +433,41 @@ export default function CalendarScreen() {
     </View>
   );
 
-  const renderEntry = ({
-    item,
-    index,
-  }: {
-    item: CalendarDayEntry;
-    index: number;
-  }) => {
+  const renderEntry = (item: CalendarDayEntry, index: number) => {
     const badge = statusBadge(item, t);
     const isFirst = index === 0;
     const isLast = index === filteredEntries.length - 1;
     return (
-      <View style={styles.entriesCardPad}>
-        <Animated.View
-          style={[
-            styles.entryRowFrame,
-            {
-              backgroundColor: tokens.bgCard,
-              borderColor: tokens.hairline,
-            },
-            isFirst && styles.entryRowFrameFirst,
-            isLast && styles.entryRowFrameLast,
-          ]}
-          entering={
-            index < 8
-              ? FadeInDown.duration(220)
-                  .delay(index * 30)
-                  .reduceMotion(ReduceMotion.System)
-              : undefined
-          }
-        >
-          <CalendarDayEntryRow
-            entry={item}
-            tokens={tokens}
-            dotState={entryDotState(item)}
-            statusText={badge}
-            statusColor={statusBadgeColor(item, tokens)}
-            statusAccessibilityLabel={badge ?? t("calendar.status.upcoming")}
-            displayTime={displayTime}
-            isLast={isLast}
-          />
-        </Animated.View>
-      </View>
+      <Animated.View
+        key={`${item.habitId}-${index}`}
+        style={[
+          styles.entryRowFrame,
+          {
+            backgroundColor: tokens.bgCard,
+            borderColor: tokens.hairline,
+          },
+          isFirst && styles.entryRowFrameFirst,
+          isLast && styles.entryRowFrameLast,
+        ]}
+        entering={
+          index < 8
+            ? FadeInDown.duration(220)
+                .delay(index * 30)
+                .reduceMotion(ReduceMotion.System)
+            : undefined
+        }
+      >
+        <CalendarDayEntryRow
+          entry={item}
+          tokens={tokens}
+          dotState={entryDotState(item)}
+          statusText={badge}
+          statusColor={statusBadgeColor(item, tokens)}
+          statusAccessibilityLabel={badge ?? t("calendar.status.upcoming")}
+          displayTime={displayTime}
+          isLast={isLast}
+        />
+      </Animated.View>
     );
   };
 
@@ -540,25 +476,85 @@ export default function CalendarScreen() {
       <GradientTop height={180} />
       <CalendarHeader
         monthLabel={monthLabel}
-        subtitle={monthSummary}
         previousMonthLabel={t("common.previousMonth")}
         nextMonthLabel={t("common.nextMonth")}
+        currentMonthLabel={t("calendar.goToCurrentMonth")}
         onPreviousMonth={prevMonth}
         onNextMonth={nextMonth}
+        onCurrentMonth={goToCurrentMonth}
         tokens={tokens}
       />
       <FlatList
         ref={calendarScrollRef}
         style={styles.container}
-        data={hasDayEntries ? filteredEntries : []}
-        keyExtractor={(item, index) => `${item.habitId}-${index}`}
-        renderItem={renderEntry}
+        data={EMPTY_LIST}
+        keyExtractor={(_item, index) => String(index)}
+        renderItem={null}
         ListHeaderComponent={listHeader}
         ListFooterComponent={listFooter}
         showsVerticalScrollIndicator={false}
         onScroll={onCalendarTourScroll}
         scrollEventThrottle={16}
       />
+
+      <BottomSheetModal
+        open={isDayDetailOpen}
+        onClose={closeDayDetail}
+        title={formattedSelectedDate}
+        contentKey={selectedDay ?? undefined}
+      >
+        <ScrollView
+          style={styles.sheetScroll}
+          contentContainerStyle={styles.sheetContent}
+          showsVerticalScrollIndicator={false}
+        >
+          {selectedEntries.length > 0 ? (
+            <View style={styles.recurringToggleRow}>
+              <Switch
+                value={showRecurring}
+                onValueChange={setShowRecurring}
+                trackColor={{
+                  false: tokens.bgSunk,
+                  true: tokens.primary,
+                }}
+                thumbColor={tokens.fgOnPrimary}
+              />
+              <Text style={[styles.recurringToggleText, { color: tokens.fg2 }]}>
+                {t("calendar.showRecurring")}
+              </Text>
+            </View>
+          ) : null}
+
+          {selectedEntries.length === 0 || filteredEntries.length === 0 ? (
+            <View style={styles.emptyDayCard}>
+              <Text style={[styles.emptyDayText, { color: tokens.fg3 }]}>
+                {t("calendar.noHabitsScheduled")}
+              </Text>
+            </View>
+          ) : (
+            <>
+              <Text style={[styles.summaryText, { color: tokens.fg3 }]}>
+                {plural(
+                  t("calendar.dayDetail.completionSummary", {
+                    done: completedCount,
+                    total: filteredEntries.length,
+                  }),
+                  filteredEntries.length,
+                )}
+              </Text>
+              <View>{filteredEntries.map(renderEntry)}</View>
+            </>
+          )}
+
+          <PillButton
+            variant="ghost"
+            style={styles.goToDayButton}
+            onPress={goToSelectedDay}
+          >
+            {t("calendar.goToDay")}
+          </PillButton>
+        </ScrollView>
+      </BottomSheetModal>
     </SafeAreaView>
   );
 }
@@ -687,28 +683,18 @@ function createStyles(tokens: Tokens) {
       opacity: 0.5,
     },
 
-    daySectionHeaderBlock: {
-      paddingHorizontal: 20,
-      paddingTop: 12,
-      paddingBottom: 12,
-      gap: 12,
-    },
-    daySectionHeader: {
-      flexDirection: "row",
-      alignItems: "flex-end",
-      justifyContent: "space-between",
-      gap: 12,
-    },
     listFooter: {
       paddingTop: 4,
     },
-    daySectionTitle: {
+
+    sheetScroll: {
       flex: 1,
-      minWidth: 0,
-      fontFamily: 'Rubik_500Medium',
-      fontSize: 20,
-      color: tokens.fg1,
-      textTransform: "capitalize",
+    },
+    sheetContent: {
+      paddingHorizontal: 20,
+      paddingTop: 4,
+      paddingBottom: 24,
+      gap: 12,
     },
     recurringToggleRow: {
       flexDirection: "row",
@@ -741,9 +727,6 @@ function createStyles(tokens: Tokens) {
       textAlign: "center",
     },
 
-    entriesCardPad: {
-      paddingHorizontal: 20,
-    },
     entryRowFrame: {
       borderLeftWidth: 1,
       borderRightWidth: 1,
@@ -760,8 +743,7 @@ function createStyles(tokens: Tokens) {
     },
 
     goToDayButton: {
-      marginTop: 6,
-      marginHorizontal: 20,
+      marginTop: 4,
       alignSelf: "stretch",
     },
   });

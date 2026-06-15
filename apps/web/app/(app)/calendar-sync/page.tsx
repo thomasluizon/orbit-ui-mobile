@@ -41,7 +41,7 @@ import {
   buildCalendarSyncImportRequest,
   formatCalendarAutoSyncLastSynced,
   formatCalendarSyncRecurrenceLabel,
-  getErrorMessage,
+  getFriendlyErrorMessage,
   isCalendarAutoSyncStatusReconnectRequired,
 } from '@orbit/shared/utils'
 import { toast } from 'sonner'
@@ -120,7 +120,7 @@ function AutoSyncSettingsCard() {
       await setAutoSync.mutateAsync({ enabled: next })
       toast.success(next ? t('calendar.autoSync.enableSuccess') : t('calendar.autoSync.disableSuccess'))
     } catch (err: unknown) {
-      toast.error(getErrorMessage(err, t('calendar.autoSync.syncFailed')))
+      toast.error(getFriendlyErrorMessage(err, t, 'calendar.autoSync.syncFailed', 'generic'))
     }
   }
 
@@ -128,7 +128,7 @@ function AutoSyncSettingsCard() {
     try {
       await runSyncNow.mutateAsync()
     } catch (err: unknown) {
-      toast.error(getErrorMessage(err, t('calendar.autoSync.syncFailed')))
+      toast.error(getFriendlyErrorMessage(err, t, 'calendar.autoSync.syncFailed', 'generic'))
     }
   }
 
@@ -326,7 +326,7 @@ export default function CalendarSyncPage() {
     wizardStage === 'error'
       ? errorMessage
       : activeQuery.isError
-        ? getErrorMessage(activeQuery.error, t('calendar.fetchError'))
+        ? getFriendlyErrorMessage(activeQuery.error, t, 'calendar.fetchError', 'generic')
         : ''
 
   useEffect(() => {
@@ -359,7 +359,7 @@ export default function CalendarSyncPage() {
     try {
       await dismissSuggestion.mutateAsync({ id: suggestionId })
     } catch (err: unknown) {
-      toast.error(getErrorMessage(err, t('calendar.autoSync.syncFailed')))
+      toast.error(getFriendlyErrorMessage(err, t, 'calendar.autoSync.syncFailed', 'generic'))
     }
   }
 
@@ -389,13 +389,13 @@ export default function CalendarSyncPage() {
             setWizardStage('done')
           },
           onError: (err: unknown) => {
-            setErrorMessage(getErrorMessage(err, t('calendar.importError')))
+            setErrorMessage(getFriendlyErrorMessage(err, t, 'calendar.importError', 'generic'))
             setWizardStage('error')
           },
         },
       )
     } catch (err: unknown) {
-      setErrorMessage(getErrorMessage(err, t('calendar.importError')))
+      setErrorMessage(getFriendlyErrorMessage(err, t, 'calendar.importError', 'generic'))
       setWizardStage('error')
     }
   }

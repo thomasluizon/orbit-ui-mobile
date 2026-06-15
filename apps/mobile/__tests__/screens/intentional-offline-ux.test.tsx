@@ -60,11 +60,13 @@ const mocks = vi.hoisted(() => {
     useTrialExpired: vi.fn(() => false),
     useTrialUrgent: vi.fn(() => false),
     useRetrospective: vi.fn(() => ({
-      retrospective: null,
-      setRetrospective: vi.fn(),
+      data: null,
+      setData: vi.fn(),
       isLoading: false,
       error: null,
       setError: vi.fn(),
+      noData: false,
+      setNoData: vi.fn(),
       fromCache: false,
       period: 'week',
       setPeriod: vi.fn(),
@@ -314,6 +316,7 @@ vi.mock('lucide-react-native', () => {
     Download: createIcon('Download'),
     Flame: createIcon('Flame'),
     Info: createIcon('Info'),
+    Lightbulb: createIcon('Lightbulb'),
     Lock: createIcon('Lock'),
     LogOut: createIcon('LogOut'),
     MessageCircle: createIcon('MessageCircle'),
@@ -325,10 +328,12 @@ vi.mock('lucide-react-native', () => {
     ShieldCheck: createIcon('ShieldCheck'),
     Orbit: createIcon('Orbit'),
     Sparkles: createIcon('Sparkles'),
+    Star: createIcon('Star'),
     Play: createIcon('Play'),
     Send: createIcon('Send'),
     Tag: createIcon('Tag'),
     Target: createIcon('Target'),
+    TrendingUp: createIcon('TrendingUp'),
     TriangleAlert: createIcon('TriangleAlert'),
     User: createIcon('User'),
     UserX: createIcon('UserX'),
@@ -401,11 +406,13 @@ describe('intentional offline UX screens', () => {
     mocks.useTrialExpired.mockReturnValue(false)
     mocks.useTrialUrgent.mockReturnValue(false)
     mocks.useRetrospective.mockReturnValue({
-      retrospective: null,
-      setRetrospective: vi.fn(),
+      data: null,
+      setData: vi.fn(),
       isLoading: false,
       error: null,
       setError: vi.fn(),
+      noData: false,
+      setNoData: vi.fn(),
       fromCache: false,
       period: 'week',
       setPeriod: vi.fn(),
@@ -431,7 +438,30 @@ describe('intentional offline UX screens', () => {
   })
 
   it('renders cached retrospective content offline when a cached read exists', async () => {
-    mocks.storage.set('orbit_retrospective_cache_week', 'Cached retrospective summary')
+    const cached = {
+      period: 'week',
+      fromCache: true,
+      metrics: {
+        completionRate: 88,
+        totalCompletions: 17,
+        totalScheduled: 20,
+        activeDays: 6,
+        periodDays: 7,
+        currentStreak: 3,
+        bestStreak: 8,
+        badHabitSlips: 1,
+        weeklyConsistency: [80, 100, 60, 100, 40, 0, 100],
+        topHabits: [],
+        needsAttention: [],
+      },
+      narrative: {
+        highlights: 'Cached retrospective summary',
+        missed: 'A couple of slips.',
+        trends: 'Mornings are strong.',
+        suggestion: 'Keep the streak alive.',
+      },
+    }
+    mocks.storage.set('orbit_retrospective_cache_week_v2', JSON.stringify(cached))
 
     const tree = await renderScreen(<RetrospectiveScreen />)
 

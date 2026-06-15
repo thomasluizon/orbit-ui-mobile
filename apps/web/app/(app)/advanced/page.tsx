@@ -69,48 +69,55 @@ async function copyToClipboard(text: string): Promise<void> {
 
 function CodeWell({
   content,
-  copyButton,
-}: Readonly<{ content: string; copyButton: React.ReactNode }>) {
+  copied,
+  onCopy,
+  copyLabel,
+  copiedLabel,
+}: Readonly<{
+  content: string
+  copied?: boolean
+  onCopy: () => void
+  copyLabel: string
+  copiedLabel: string
+}>) {
   return (
-    <div className="relative">
+    <div
+      className="rounded-[14px] bg-[var(--bg-field)]"
+      style={{
+        padding: '10px 12px',
+        boxShadow: 'inset 0 0 0 1px var(--hairline)',
+      }}
+    >
+      <div className="flex justify-end" style={{ marginBottom: 6 }}>
+        <button
+          type="button"
+          aria-label={copyLabel}
+          className="chip"
+          onClick={onCopy}
+          style={{ gap: 6 }}
+        >
+          {copied ? (
+            <Check size={14} strokeWidth={1.8} color="var(--status-done)" />
+          ) : (
+            <Clipboard size={14} strokeWidth={1.8} />
+          )}
+          {copied ? copiedLabel : copyLabel}
+        </button>
+      </div>
       <pre
-        className="overflow-x-auto rounded-[14px] bg-[var(--bg-field)]"
+        className="overflow-x-auto"
         style={{
-          padding: '14px 16px',
-          boxShadow: 'inset 0 0 0 1px var(--hairline)',
+          margin: 0,
           fontFamily: 'var(--font-mono)',
-          fontSize: 12.5,
-          lineHeight: 1.6,
+          fontSize: 12,
+          lineHeight: 1.55,
           color: 'var(--fg-2)',
           fontVariantNumeric: 'tabular-nums',
         }}
       >
         {content}
       </pre>
-      {copyButton}
     </div>
-  )
-}
-
-function CopyIconButton({
-  copied,
-  onClick,
-  ariaLabel,
-}: Readonly<{ copied?: boolean; onClick: () => void; ariaLabel: string }>) {
-  return (
-    <button
-      type="button"
-      aria-label={ariaLabel}
-      className="icon-btn icon-btn-well absolute"
-      style={{ top: 8, right: 8, width: 36, height: 36, color: 'var(--fg-2)' }}
-      onClick={onClick}
-    >
-      {copied ? (
-        <Check size={18} strokeWidth={1.8} color="var(--status-done)" />
-      ) : (
-        <Clipboard size={18} strokeWidth={1.8} />
-      )}
-    </button>
   )
 }
 
@@ -195,6 +202,7 @@ export default function AdvancedPage() {
   const [instructionsOpen, setInstructionsOpen] = useState(false)
   const [activeConfigTab, setActiveConfigTab] = useState<(typeof MCP_CONFIG_TABS)[number]>('web')
   const [configCopied, setConfigCopied] = useState(false)
+  const [endpointCopied, setEndpointCopied] = useState(false)
 
   const mcpConfigJson = buildMcpConfigJson()
 
@@ -202,6 +210,12 @@ export default function AdvancedPage() {
     await copyToClipboard(mcpConfigJson)
     setConfigCopied(true)
     setTimeout(() => setConfigCopied(false), 2000)
+  }
+
+  async function copyEndpoint() {
+    await copyToClipboard(MCP_ENDPOINT_URL)
+    setEndpointCopied(true)
+    setTimeout(() => setEndpointCopied(false), 2000)
   }
 
   function formatKeyDate(dateStr: string): string {
@@ -481,34 +495,27 @@ export default function AdvancedPage() {
                 {instructionsOpen && (
                   <div id="mcp-instructions" className="space-y-3">
                     <div className="flex gap-2">
-                      {MCP_CONFIG_TABS.map((tab) => {
-                        let tabLabel = t('orbitMcp.claudeCode')
-                        if (tab === 'web') {
-                          tabLabel = t('orbitMcp.claudeWeb')
-                        } else if (tab === 'desktop') {
-                          tabLabel = t('orbitMcp.claudeDesktop')
-                        }
-
-                        return (
-                          <Chip
-                            key={tab}
-                            active={activeConfigTab === tab}
-                            onClick={() => setActiveConfigTab(tab)}
-                          >
-                            {tabLabel}
-                          </Chip>
-                        )
-                      })}
+                      {MCP_CONFIG_TABS.map((tab) => (
+                        <Chip
+                          key={tab}
+                          active={activeConfigTab === tab}
+                          onClick={() => setActiveConfigTab(tab)}
+                        >
+                          {tab === 'web'
+                            ? t('orbitMcp.claudeWeb')
+                            : t('orbitMcp.claudeCode')}
+                        </Chip>
+                      ))}
                     </div>
 
                     {activeConfigTab === 'web' ? (
-                      <div className="space-y-3">
-                        <p style={{ fontFamily: 'var(--font-sans)', fontSize: 13, lineHeight: 1.5, color: 'var(--fg-3)' }}>
+                      <div className="space-y-2.5">
+                        <p style={{ fontFamily: 'var(--font-sans)', fontSize: 12.5, lineHeight: 1.5, color: 'var(--fg-3)' }}>
                           {t('orbitMcp.webInstructions')}
                         </p>
                         <ol
                           className="list-decimal list-inside space-y-2"
-                          style={{ fontFamily: 'var(--font-sans)', fontSize: 13, lineHeight: 1.5, color: 'var(--fg-2)' }}
+                          style={{ fontFamily: 'var(--font-sans)', fontSize: 12.5, lineHeight: 1.5, color: 'var(--fg-2)' }}
                         >
                           <li>{t('orbitMcp.webStep1')}</li>
                           <li>{t('orbitMcp.webStep2')}</li>
@@ -517,35 +524,32 @@ export default function AdvancedPage() {
                         </ol>
                         <CodeWell
                           content={MCP_ENDPOINT_URL}
-                          copyButton={
-                            <CopyIconButton
-                              ariaLabel={t('orbitMcp.copy')}
-                              onClick={() => copyToClipboard(MCP_ENDPOINT_URL)}
-                            />
-                          }
+                          copied={endpointCopied}
+                          onCopy={() => {
+                            void copyEndpoint()
+                          }}
+                          copyLabel={t('orbitMcp.copy')}
+                          copiedLabel={t('orbitMcp.copied')}
                         />
-                        <p style={{ fontFamily: 'var(--font-sans)', fontSize: 13, lineHeight: 1.5, color: 'var(--fg-3)' }}>
+                        <p style={{ fontFamily: 'var(--font-sans)', fontSize: 12.5, lineHeight: 1.5, color: 'var(--fg-3)' }}>
                           {t('orbitMcp.webNoApiKey')}
                         </p>
                       </div>
                     ) : (
-                      <div className="space-y-3">
-                        <p style={{ fontFamily: 'var(--font-sans)', fontSize: 13, lineHeight: 1.5, color: 'var(--fg-3)' }}>
+                      <div className="space-y-2.5">
+                        <p style={{ fontFamily: 'var(--font-sans)', fontSize: 12.5, lineHeight: 1.5, color: 'var(--fg-3)' }}>
                           {t('orbitMcp.configInstructions')}
                         </p>
                         <CodeWell
                           content={mcpConfigJson}
-                          copyButton={
-                            <CopyIconButton
-                              ariaLabel={t('orbitMcp.copyConfig')}
-                              copied={configCopied}
-                              onClick={() => {
-                                void copyConfig()
-                              }}
-                            />
-                          }
+                          copied={configCopied}
+                          onCopy={() => {
+                            void copyConfig()
+                          }}
+                          copyLabel={t('orbitMcp.copyConfig')}
+                          copiedLabel={t('orbitMcp.copied')}
                         />
-                        <p style={{ fontFamily: 'var(--font-sans)', fontSize: 13, lineHeight: 1.5, color: 'var(--fg-3)' }}>
+                        <p style={{ fontFamily: 'var(--font-sans)', fontSize: 12.5, lineHeight: 1.5, color: 'var(--fg-3)' }}>
                           {t('orbitMcp.replaceKey')}
                         </p>
                       </div>

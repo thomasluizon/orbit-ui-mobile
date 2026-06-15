@@ -59,7 +59,7 @@ export function BottomTabBar({
           }
           style={{
             left: '50%',
-            top: -30,
+            top: -22,
             width: 60,
             height: 60,
             borderRadius: 999,

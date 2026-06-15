@@ -621,6 +621,80 @@ describe('HabitFormFields', () => {
     expect(setGeneral).toHaveBeenCalled()
   })
 
+  it('advances to the next frequency card when the next arrow is clicked', () => {
+    const setFlexible = vi.fn()
+    const formHelpers = createMockFormHelpers({ setFlexible })
+    const tags = createMockTags()
+    renderWithProviders(
+      <HabitFormFields
+        formHelpers={formHelpers}
+        tags={tags}
+        selectedGoalIds={[]}
+        atGoalLimit={false}
+        onToggleGoal={vi.fn()}
+        reminderTimes={[]}
+        onReminderTimesChange={vi.fn()}
+      />,
+    )
+    fireEvent.click(screen.getByLabelText('common.next'))
+    expect(setFlexible).toHaveBeenCalled()
+  })
+
+  it('moves to the previous frequency card when the previous arrow is clicked', () => {
+    const setOneTime = vi.fn()
+    const formHelpers = createMockFormHelpers({ setOneTime })
+    const tags = createMockTags()
+    renderWithProviders(
+      <HabitFormFields
+        formHelpers={formHelpers}
+        tags={tags}
+        selectedGoalIds={[]}
+        atGoalLimit={false}
+        onToggleGoal={vi.fn()}
+        reminderTimes={[]}
+        onReminderTimesChange={vi.fn()}
+      />,
+    )
+    fireEvent.click(screen.getByLabelText('common.previous'))
+    expect(setOneTime).toHaveBeenCalled()
+  })
+
+  it('disables the previous arrow on the first frequency card', () => {
+    const formHelpers = createMockFormHelpers({ isOneTime: true, isRecurring: false })
+    const tags = createMockTags()
+    renderWithProviders(
+      <HabitFormFields
+        formHelpers={formHelpers}
+        tags={tags}
+        selectedGoalIds={[]}
+        atGoalLimit={false}
+        onToggleGoal={vi.fn()}
+        reminderTimes={[]}
+        onReminderTimesChange={vi.fn()}
+      />,
+    )
+    expect(screen.getByLabelText('common.previous')).toBeDisabled()
+    expect(screen.getByLabelText('common.next')).not.toBeDisabled()
+  })
+
+  it('disables the next arrow on the last frequency card', () => {
+    const formHelpers = createMockFormHelpers({ isGeneral: true, isRecurring: false })
+    const tags = createMockTags()
+    renderWithProviders(
+      <HabitFormFields
+        formHelpers={formHelpers}
+        tags={tags}
+        selectedGoalIds={[]}
+        atGoalLimit={false}
+        onToggleGoal={vi.fn()}
+        reminderTimes={[]}
+        onReminderTimesChange={vi.fn()}
+      />,
+    )
+    expect(screen.getByLabelText('common.next')).toBeDisabled()
+    expect(screen.getByLabelText('common.previous')).not.toBeDisabled()
+  })
+
 
   it('hides frequency picker and day picker for one-time habits', () => {
     const formHelpers = createMockFormHelpers({ isOneTime: true, isRecurring: false, showDayPicker: false, showEndDate: false })

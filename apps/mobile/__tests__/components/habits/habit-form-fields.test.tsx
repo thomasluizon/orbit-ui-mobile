@@ -450,6 +450,64 @@ describe('HabitFormFields (mobile)', () => {
     expect(hasText('habits.form.tags')).toBe(true)
   })
 
+  it('advances the frequency carousel to the next card when the next arrow is pressed', async () => {
+    const setFlexible = vi.fn()
+    const formHelpers = createMockFormHelpers(undefined, { setFlexible })
+    const tags = createMockTags()
+    let tree: any
+
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(
+        <HabitFormFields
+          formHelpers={formHelpers}
+          tags={tags}
+          selectedGoalIds={[]}
+          atGoalLimit={false}
+          onToggleGoal={vi.fn()}
+          reminderTimes={[]}
+          onReminderTimesChange={vi.fn()}
+        />,
+      )
+    })
+
+    const nextArrow = tree.root.findByProps({ accessibilityLabel: 'common.next' })
+
+    await TestRenderer.act(async () => {
+      nextArrow.props.onPress()
+    })
+
+    expect(setFlexible).toHaveBeenCalled()
+  })
+
+  it('moves the frequency carousel to the previous card when the previous arrow is pressed', async () => {
+    const setOneTime = vi.fn()
+    const formHelpers = createMockFormHelpers(undefined, { setOneTime })
+    const tags = createMockTags()
+    let tree: any
+
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(
+        <HabitFormFields
+          formHelpers={formHelpers}
+          tags={tags}
+          selectedGoalIds={[]}
+          atGoalLimit={false}
+          onToggleGoal={vi.fn()}
+          reminderTimes={[]}
+          onReminderTimesChange={vi.fn()}
+        />,
+      )
+    })
+
+    const previousArrow = tree.root.findByProps({ accessibilityLabel: 'common.previous' })
+
+    await TestRenderer.act(async () => {
+      previousArrow.props.onPress()
+    })
+
+    expect(setOneTime).toHaveBeenCalled()
+  })
+
   it('commits the title to the form as it is typed so the shared schema gates submit', async () => {
     const formHelpers = createMockFormHelpers({ title: '' })
     const tags = createMockTags()

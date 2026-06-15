@@ -36,6 +36,7 @@ function baseProps() {
       { value: 0 as const, label: 'Sunday' },
     ],
     pickerTitles,
+    pickerDescriptions: {},
     onClose: vi.fn(),
     onLanguageChange: vi.fn(),
     onThemeModeChange: vi.fn(),

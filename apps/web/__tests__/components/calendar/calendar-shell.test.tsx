@@ -14,14 +14,17 @@ describe('Calendar shell helpers', () => {
   it('renders the calendar header actions', () => {
     const onPreviousMonth = vi.fn()
     const onNextMonth = vi.fn()
+    const onCurrentMonth = vi.fn()
 
     render(
       <CalendarHeader
         monthLabel="April 2026"
         previousMonthLabel="common.previousMonth"
         nextMonthLabel="common.nextMonth"
+        currentMonthLabel="calendar.goToCurrentMonth"
         onPreviousMonth={onPreviousMonth}
         onNextMonth={onNextMonth}
+        onCurrentMonth={onCurrentMonth}
       />,
     )
 
@@ -29,9 +32,11 @@ describe('Calendar shell helpers', () => {
 
     fireEvent.click(screen.getByLabelText('common.previousMonth'))
     fireEvent.click(screen.getByLabelText('common.nextMonth'))
+    fireEvent.click(screen.getByLabelText('calendar.goToCurrentMonth'))
 
     expect(onPreviousMonth).toHaveBeenCalledTimes(1)
     expect(onNextMonth).toHaveBeenCalledTimes(1)
+    expect(onCurrentMonth).toHaveBeenCalledTimes(1)
   })
 
   it('renders the calendar legend labels inline', () => {

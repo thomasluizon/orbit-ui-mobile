@@ -94,6 +94,8 @@ export function CreateHabitModal({
   const [initialReminderTimesSnapshot, setInitialReminderTimesSnapshot] =
     useState('[0,15]')
 
+  const watchedTitle =
+    useWatch({ control: formHelpers.form.control, name: 'title' }) ?? ''
   const watchedDueTime =
     useWatch({ control: formHelpers.form.control, name: 'dueTime' }) ?? ''
   const watchedReminderEnabled =
@@ -299,7 +301,7 @@ export function CreateHabitModal({
   ])
 
   const isPending = createHabit.isPending || createSubHabit.isPending
-  const submitDisabled = isPending || !formHelpers.form.formState.isValid
+  const submitDisabled = isPending || watchedTitle.trim().length === 0
 
   const updateSubHabitValue = useCallback((id: string, value: string) => {
     setSubHabits((prev) =>
