@@ -28,7 +28,7 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#22094f"
       },
-      "versionCode": 27,
+      "versionCode": 29,
       "package": "org.useorbit.app",
       "googleServicesFile": "./google-services.json",
       "intentFilters": [
@@ -98,6 +98,16 @@
         "expo-audio",
         {
           "microphonePermission": "Allow $(PRODUCT_NAME) to record voice input for AI chat."
+        }
+      ],
+      [
+        "@siteed/audio-studio",
+        {
+          "enableNotifications": false,
+          "enableBackgroundAudio": false,
+          "enableDeviceDetection": false,
+          "enablePhoneStateHandling": false,
+          "iosBackgroundModes": { "useAudio": false }
         }
       ],
       "expo-sqlite",

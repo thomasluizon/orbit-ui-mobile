@@ -1,38 +1,33 @@
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { API } from '@orbit/shared/api'
+import { VOICE_SILENCE_TIMEOUT_MS, VOICE_LEVEL_POLL_MS } from '@orbit/shared/chat'
 
 import { useSpeechToText } from '@/hooks/use-speech-to-text'
 
 const TestRenderer = require('react-test-renderer')
 
+type AnalysisHandler = (event: { dataPoints: { rms: number }[] }) => Promise<void>
+
 const mocks = vi.hoisted(() => ({
   apiClient: vi.fn(),
-  requestRecordingPermissionsAsync: vi.fn(async () => ({ granted: true })),
-  setAudioModeAsync: vi.fn(async () => {}),
-  prepareToRecordAsync: vi.fn(async () => {}),
-  record: vi.fn(),
-  stop: vi.fn(async () => {}),
-  recorderUri: 'file:///tmp/recording.m4a' as string | null,
+  requestPermissionsAsync: vi.fn(async () => ({ granted: true })),
+  startRecording: vi.fn(),
+  stopRecording: vi.fn(async () => ({ fileUri: 'file:///tmp/recording.wav' })),
+  onAnalysis: undefined as AnalysisHandler | undefined,
 }))
 
 vi.mock('@/lib/api-client', () => ({
   apiClient: mocks.apiClient,
 }))
 
-vi.mock('expo-audio', () => ({
-  RecordingPresets: { HIGH_QUALITY: {} },
-  AudioModule: {
-    requestRecordingPermissionsAsync: mocks.requestRecordingPermissionsAsync,
+vi.mock('@siteed/audio-studio', () => ({
+  AudioStudioModule: {
+    requestPermissionsAsync: mocks.requestPermissionsAsync,
   },
-  setAudioModeAsync: mocks.setAudioModeAsync,
   useAudioRecorder: () => ({
-    prepareToRecordAsync: mocks.prepareToRecordAsync,
-    record: mocks.record,
-    stop: mocks.stop,
-    get uri() {
-      return mocks.recorderUri
-    },
+    startRecording: mocks.startRecording,
+    stopRecording: mocks.stopRecording,
   }),
 }))
 
@@ -61,13 +56,16 @@ async function renderHook(): Promise<{ current: SpeechApi }> {
 describe('useSpeechToText', () => {
   beforeEach(() => {
     mocks.apiClient.mockReset()
-    mocks.requestRecordingPermissionsAsync.mockReset()
-    mocks.requestRecordingPermissionsAsync.mockResolvedValue({ granted: true })
-    mocks.setAudioModeAsync.mockClear()
-    mocks.prepareToRecordAsync.mockClear()
-    mocks.record.mockClear()
-    mocks.stop.mockClear()
-    mocks.recorderUri = 'file:///tmp/recording.m4a'
+    mocks.requestPermissionsAsync.mockReset()
+    mocks.requestPermissionsAsync.mockResolvedValue({ granted: true })
+    mocks.startRecording.mockReset()
+    mocks.startRecording.mockImplementation(async (config: { onAudioAnalysis?: AnalysisHandler }) => {
+      mocks.onAnalysis = config.onAudioAnalysis
+      return { fileUri: 'file:///tmp/recording.wav' }
+    })
+    mocks.stopRecording.mockReset()
+    mocks.stopRecording.mockResolvedValue({ fileUri: 'file:///tmp/recording.wav' })
+    mocks.onAnalysis = undefined
   })
 
   it('records, uploads the audio, and commits the transcribed text', async () => {
@@ -78,7 +76,7 @@ describe('useSpeechToText', () => {
       await hook.current.startRecording()
     })
     expect(hook.current.isRecording).toBe(true)
-    expect(mocks.record).toHaveBeenCalledTimes(1)
+    expect(mocks.startRecording).toHaveBeenCalledTimes(1)
 
     await TestRenderer.act(async () => {
       await hook.current.stopRecording()
@@ -127,8 +125,8 @@ describe('useSpeechToText', () => {
     expect(hook.current.isTranscribing).toBe(false)
   })
 
-  it('denies recording and surfaces the mic-denied message without uploading', async () => {
-    mocks.requestRecordingPermissionsAsync.mockResolvedValue({ granted: false })
+  it('denies recording and surfaces the mic-denied message without recording', async () => {
+    mocks.requestPermissionsAsync.mockResolvedValue({ granted: false })
     const hook = await renderHook()
 
     await TestRenderer.act(async () => {
@@ -137,7 +135,31 @@ describe('useSpeechToText', () => {
 
     expect(hook.current.isRecording).toBe(false)
     expect(hook.current.error).toBe('speech.micDenied')
-    expect(mocks.record).not.toHaveBeenCalled()
+    expect(mocks.startRecording).not.toHaveBeenCalled()
     expect(mocks.apiClient).not.toHaveBeenCalled()
+  })
+
+  it('auto-stops and transcribes after a silence once speech has been detected', async () => {
+    mocks.apiClient.mockResolvedValue({ text: 'log water' })
+    const hook = await renderHook()
+
+    await TestRenderer.act(async () => {
+      await hook.current.startRecording()
+    })
+    expect(hook.current.isRecording).toBe(true)
+    expect(mocks.onAnalysis).toBeTypeOf('function')
+
+    await TestRenderer.act(async () => {
+      await mocks.onAnalysis?.({ dataPoints: [{ rms: 0.5 }] })
+      const silentPolls = Math.ceil(VOICE_SILENCE_TIMEOUT_MS / VOICE_LEVEL_POLL_MS)
+      for (let i = 0; i < silentPolls; i++) {
+        await mocks.onAnalysis?.({ dataPoints: [{ rms: 0.001 }] })
+      }
+      await Promise.resolve()
+    })
+
+    expect(mocks.stopRecording).toHaveBeenCalled()
+    expect(hook.current.isRecording).toBe(false)
+    expect(hook.current.transcript).toBe('log water')
   })
 })
