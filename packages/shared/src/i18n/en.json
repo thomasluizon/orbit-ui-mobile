@@ -1895,7 +1895,6 @@
     "done": "Done",
     "connectionInstructions": "Connection Instructions",
     "claudeWeb": "Claude Web",
-    "claudeDesktop": "Claude Desktop",
     "claudeCode": "Claude Code",
     "webInstructions": "Connect via claude.ai with automatic OAuth sign-in. No API key needed.",
     "webStep1": "Go to claude.ai Settings > Integrations",
