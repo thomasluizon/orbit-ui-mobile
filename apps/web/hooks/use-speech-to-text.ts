@@ -3,6 +3,11 @@
 import { useState, useRef, useCallback, useEffect } from 'react'
 import { useTranslations } from 'next-intl'
 import { API } from '@orbit/shared/api'
+import {
+  VOICE_LEVEL_POLL_MS,
+  VOICE_SILENCE_TIMEOUT_MS,
+  VOICE_WEB_SPEECH_RMS_THRESHOLD,
+} from '@orbit/shared/chat'
 import { ERROR_CODE_TO_KEY } from '@orbit/shared/utils'
 export { CHAT_VISUALIZER_BAR_OFFSETS as VISUALIZER_BAR_OFFSETS } from '@orbit/shared/chat'
 
@@ -29,6 +34,8 @@ export function useSpeechToText() {
   const chunksRef = useRef<Blob[]>([])
   const streamRef = useRef<MediaStream | null>(null)
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const audioContextRef = useRef<AudioContext | null>(null)
+  const silenceIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   const clearTimer = useCallback(() => {
     if (timerRef.current) {
@@ -40,6 +47,17 @@ export function useSpeechToText() {
   const stopStream = useCallback(() => {
     streamRef.current?.getTracks().forEach((track) => track.stop())
     streamRef.current = null
+  }, [])
+
+  const stopSilenceMonitor = useCallback(() => {
+    if (silenceIntervalRef.current) {
+      clearInterval(silenceIntervalRef.current)
+      silenceIntervalRef.current = null
+    }
+    if (audioContextRef.current) {
+      void audioContextRef.current.close().catch(() => {})
+      audioContextRef.current = null
+    }
   }, [])
 
   const transcribe = useCallback(
@@ -67,6 +85,58 @@ export function useSpeechToText() {
     [t],
   )
 
+  const stopRecording = useCallback(() => {
+    const recorder = mediaRecorderRef.current
+    clearTimer()
+    stopSilenceMonitor()
+    setIsRecording(false)
+    if (recorder && recorder.state !== 'inactive') {
+      recorder.stop()
+    } else {
+      stopStream()
+    }
+  }, [clearTimer, stopSilenceMonitor, stopStream])
+
+  const startSilenceMonitor = useCallback(
+    (stream: MediaStream) => {
+      try {
+        const audioContext = new AudioContext()
+        audioContextRef.current = audioContext
+        const source = audioContext.createMediaStreamSource(stream)
+        const analyser = audioContext.createAnalyser()
+        analyser.fftSize = 2048
+        source.connect(analyser)
+
+        const samples = new Uint8Array(analyser.fftSize)
+        let speechDetected = false
+        let silentElapsed = 0
+
+        silenceIntervalRef.current = setInterval(() => {
+          analyser.getByteTimeDomainData(samples)
+          let sumSquares = 0
+          for (const sample of samples) {
+            const deviation = (sample - 128) / 128
+            sumSquares += deviation * deviation
+          }
+          const rms = Math.sqrt(sumSquares / samples.length)
+
+          if (rms > VOICE_WEB_SPEECH_RMS_THRESHOLD) {
+            speechDetected = true
+            silentElapsed = 0
+          } else if (speechDetected) {
+            silentElapsed += VOICE_LEVEL_POLL_MS
+            if (silentElapsed >= VOICE_SILENCE_TIMEOUT_MS) {
+              stopRecording()
+            }
+          }
+        }, VOICE_LEVEL_POLL_MS)
+      } catch {
+        stopSilenceMonitor()
+      }
+    },
+    [stopRecording, stopSilenceMonitor],
+  )
+
   const startRecording = useCallback(async () => {
     if (!isSupported || isRecording) return
     setError(null)
@@ -85,6 +155,7 @@ export function useSpeechToText() {
       }
       recorder.onstop = () => {
         clearTimer()
+        stopSilenceMonitor()
         stopStream()
         const blob = new Blob(chunksRef.current, { type: recorder.mimeType || 'audio/webm' })
         chunksRef.current = []
@@ -94,24 +165,14 @@ export function useSpeechToText() {
       recorder.start()
       setIsRecording(true)
       timerRef.current = setInterval(() => setRecordingDuration((prev) => prev + 1), 1000)
+      startSilenceMonitor(stream)
     } catch (err: unknown) {
       stopStream()
       const denied =
         err instanceof DOMException && (err.name === 'NotAllowedError' || err.name === 'SecurityError')
       setError(denied ? t('speech.micDenied') : t('speech.failedToStart'))
     }
-  }, [clearTimer, isRecording, isSupported, stopStream, t, transcribe])
-
-  const stopRecording = useCallback(() => {
-    const recorder = mediaRecorderRef.current
-    clearTimer()
-    setIsRecording(false)
-    if (recorder && recorder.state !== 'inactive') {
-      recorder.stop()
-    } else {
-      stopStream()
-    }
-  }, [clearTimer, stopStream])
+  }, [clearTimer, isRecording, isSupported, startSilenceMonitor, stopSilenceMonitor, stopStream, t, transcribe])
 
   const toggleRecording = useCallback(() => {
     if (isRecording) stopRecording()
@@ -121,12 +182,13 @@ export function useSpeechToText() {
   useEffect(() => {
     return () => {
       clearTimer()
+      stopSilenceMonitor()
       if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
         mediaRecorderRef.current.stop()
       }
       stopStream()
     }
-  }, [clearTimer, stopStream])
+  }, [clearTimer, stopSilenceMonitor, stopStream])
 
   return {
     isRecording,

@@ -47,10 +47,15 @@ class OrbitWidgetProvider : AppWidgetProvider() {
             val colors = OrbitWidgetFactory.getThemeColors(context)
             val density = context.resources.displayMetrics.density
 
-            // Widget background: flat surface with a hairline border (lift, not gradient)
+            // Widget background: flat surface with a hairline border (lift, not gradient).
             val displayMetrics = context.resources.displayMetrics
-            val bgWidth = displayMetrics.widthPixels
-            val bgHeight = displayMetrics.heightPixels / 2
+            val options = appWidgetManager.getAppWidgetOptions(appWidgetId)
+            val maxWidthDp = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_WIDTH, 0)
+            val maxHeightDp = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_HEIGHT, 0)
+            val bgWidth = (if (maxWidthDp > 0) (maxWidthDp * density).toInt() else displayMetrics.widthPixels)
+                .coerceIn(1, displayMetrics.widthPixels)
+            val bgHeight = (if (maxHeightDp > 0) (maxHeightDp * density).toInt() else displayMetrics.heightPixels / 2)
+                .coerceIn(1, displayMetrics.heightPixels / 2)
             val bgBitmap = OrbitWidgetFactory.createRoundedBitmap(
                 bgWidth, bgHeight,
                 colors.background,

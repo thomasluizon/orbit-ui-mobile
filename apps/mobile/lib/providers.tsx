@@ -18,6 +18,7 @@ import {
   Roboto_700Bold,
 } from '@expo-google-fonts/roboto'
 import { queryClient, restoreQueryCache, persistQueryCache, clearPersistedQueryCache } from './query-client'
+import { syncWidgetData } from './orbit-widget'
 import { useAuthStore } from '@/stores/auth-store'
 import { AppState, type AppStateStatus, View, ActivityIndicator } from 'react-native'
 import { createTokensV2, getRuntimeTheme } from './theme'
@@ -95,6 +96,7 @@ function AuthInitializer({ children }: Readonly<{ children: ReactNode }>) {
 
       if (isAuthenticated) {
         try { await restoreQueryCache() } catch {}
+        void syncWidgetData().catch(() => {})
       } else {
         queryClient.clear()
         try { await clearPersistedQueryCache() } catch {}
@@ -112,7 +114,9 @@ function AuthInitializer({ children }: Readonly<{ children: ReactNode }>) {
       }
 
       if (nextState === 'active') {
-        useAuthStore.getState().checkAuth().catch(() => {})
+        useAuthStore.getState().checkAuth()
+          .then(() => { void syncWidgetData().catch(() => {}) })
+          .catch(() => {})
       }
     }
     const subscription = AppState.addEventListener('change', handleAppState)

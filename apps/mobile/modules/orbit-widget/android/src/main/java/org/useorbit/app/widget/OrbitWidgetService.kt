@@ -10,6 +10,7 @@ import android.graphics.Paint
 import android.graphics.Path
 import android.graphics.RectF
 import android.graphics.drawable.GradientDrawable
+import android.util.Log
 import android.widget.RemoteViews
 import android.widget.RemoteViewsService
 import com.google.gson.Gson
@@ -58,7 +59,7 @@ data class HabitWidgetResponse(
     val dayOffset: Int,
     val language: String?,
     val currentStreak: Int?,
-    val items: List<ApiHabit>,
+    val items: List<ApiHabit>?,
     val totalCount: Int?
 )
 
@@ -87,6 +88,8 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
 
     companion object {
         private const val API_BASE = "https://api.useorbit.org"
+        private const val TAG = "OrbitWidget"
+        private const val FRESH_WINDOW_MS = 15_000L
 
         /** Terminal color fallback (navy-dark surface) when a value is blank or malformed. */
         private const val SAFE_FALLBACK = 0xFF020618.toInt()
@@ -321,11 +324,16 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
             return
         }
 
-        val widgetData = fetchWidget(token)
-        lang = detectLanguage(widgetData?.language)
-        val streak = widgetData?.currentStreak ?: 0
-        habits = flattenHabits(widgetData?.items ?: emptyList())
-        headerLabel = if (widgetData?.dayOffset == 1 && habits.isNotEmpty()) {
+        val widgetData = resolveWidgetData(token)
+        if (widgetData == null) {
+            renderEmptyState()
+            return
+        }
+
+        lang = detectLanguage(widgetData.language)
+        val streak = widgetData.currentStreak ?: 0
+        habits = flattenHabits(widgetData.items ?: emptyList())
+        headerLabel = if (widgetData.dayOffset == 1 && habits.isNotEmpty()) {
             tr(lang, "tomorrow")
         } else {
             tr(lang, "today")
@@ -389,7 +397,44 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
         return if (deviceLocale == "pt") "pt-BR" else "en"
     }
 
-    private fun fetchWidget(token: String): HabitWidgetResponse? {
+    /**
+     * Returns parsed widget data, preferring a recent app-pushed cache, then a
+     * live fetch, then the last cached payload. Only the network fetch can fail,
+     * so a blip or a blocked binder-thread request degrades to stale data instead
+     * of a blank list. A successful fetch is cached for the next cold start.
+     */
+    private fun resolveWidgetData(token: String): HabitWidgetResponse? {
+        val prefs = context.getSharedPreferences("orbit_widget_cache", Context.MODE_PRIVATE)
+        val cachedData = parseWidgetResponse(prefs.getString("habits_json", null))
+        val cacheAge = System.currentTimeMillis() - prefs.getLong("habits_updated_at", 0L)
+        if (cachedData != null && cacheAge in 0L..FRESH_WINDOW_MS) {
+            return cachedData
+        }
+
+        val freshJson = fetchWidget(token)
+        val freshData = parseWidgetResponse(freshJson)
+        if (freshData != null && freshJson != null) {
+            prefs.edit()
+                .putString("habits_json", freshJson)
+                .putLong("habits_updated_at", System.currentTimeMillis())
+                .apply()
+            return freshData
+        }
+
+        return cachedData
+    }
+
+    private fun parseWidgetResponse(json: String?): HabitWidgetResponse? {
+        if (json.isNullOrBlank()) return null
+        return try {
+            gson.fromJson(json, HabitWidgetResponse::class.java)
+        } catch (e: Exception) {
+            Log.w(TAG, "widget parse error: ${e.javaClass.simpleName}: ${e.message}")
+            null
+        }
+    }
+
+    private fun fetchWidget(token: String): String? {
         return try {
             val url = URL("$API_BASE/api/habits/widget")
             val conn = url.openConnection() as HttpURLConnection
@@ -399,15 +444,18 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
             conn.connectTimeout = 5000
             conn.readTimeout = 5000
 
-            if (conn.responseCode == 200) {
+            val code = conn.responseCode
+            if (code == 200) {
                 val reader = BufferedReader(InputStreamReader(conn.inputStream))
                 val response = reader.readText()
                 reader.close()
-                gson.fromJson(response, HabitWidgetResponse::class.java)
+                response
             } else {
+                Log.w(TAG, "widget fetch failed with HTTP $code")
                 null
             }
         } catch (e: Exception) {
+            Log.w(TAG, "widget fetch error: ${e.javaClass.simpleName}: ${e.message}")
             null
         }
     }
