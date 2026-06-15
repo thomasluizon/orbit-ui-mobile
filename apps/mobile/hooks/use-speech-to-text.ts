@@ -128,7 +128,7 @@ export function useSpeechToText() {
       const recording = await stopNativeRecording()
       if (recording.fileUri) void transcribe(recording.fileUri)
     } catch {
-      setError(t('speech.failedToStart'))
+      setError(t('speech.failedToStop'))
     }
   }, [clearTimer, stopNativeRecording, t, transcribe])
 

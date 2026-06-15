@@ -1553,7 +1553,8 @@
   "speech": {
     "micDenied": "Acesso ao microfone negado.",
     "noSpeech": "Não captamos nenhuma fala.",
-    "failedToStart": "Não foi possível iniciar a gravação."
+    "failedToStart": "Não foi possível iniciar a gravação.",
+    "failedToStop": "Não foi possível parar a gravação."
   },
   "goals": {
     "completedCelebrationTitle": "Meta alcançada!",

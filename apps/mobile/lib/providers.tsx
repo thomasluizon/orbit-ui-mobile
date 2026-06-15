@@ -96,7 +96,7 @@ function AuthInitializer({ children }: Readonly<{ children: ReactNode }>) {
 
       if (isAuthenticated) {
         try { await restoreQueryCache() } catch {}
-        void syncWidgetData()
+        void syncWidgetData().catch(() => {})
       } else {
         queryClient.clear()
         try { await clearPersistedQueryCache() } catch {}
@@ -115,7 +115,7 @@ function AuthInitializer({ children }: Readonly<{ children: ReactNode }>) {
 
       if (nextState === 'active') {
         useAuthStore.getState().checkAuth()
-          .then(() => { void syncWidgetData() })
+          .then(() => { void syncWidgetData().catch(() => {}) })
           .catch(() => {})
       }
     }

@@ -96,13 +96,11 @@ export async function syncWidgetData(): Promise<void> {
   const widgetModule = getOrbitWidgetModule()
   if (!widgetModule) return
 
-  try {
-    const { getToken } = await import('./secure-store')
-    const token = await getToken()
-    if (!token) return
+  const { getToken } = await import('./secure-store')
+  const token = await getToken()
+  if (!token) return
 
-    const { apiClient } = await import('./api-client')
-    const data = await apiClient<unknown>(API.habits.widget)
-    await widgetModule.syncWidgetData(JSON.stringify(data))
-  } catch {}
+  const { apiClient } = await import('./api-client')
+  const data = await apiClient<unknown>(API.habits.widget)
+  await widgetModule.syncWidgetData(JSON.stringify(data))
 }

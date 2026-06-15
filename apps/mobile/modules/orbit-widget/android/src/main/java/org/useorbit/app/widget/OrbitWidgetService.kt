@@ -89,10 +89,6 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
     companion object {
         private const val API_BASE = "https://api.useorbit.org"
         private const val TAG = "OrbitWidget"
-
-        // Cache freshness window: when the app pushes data via syncWidgetData it
-        // stamps habits_updated_at, so a just-pushed list renders without the
-        // factory repeating the (possibly blocked) binder-thread network fetch.
         private const val FRESH_WINDOW_MS = 15_000L
 
         /** Terminal color fallback (navy-dark surface) when a value is blank or malformed. */

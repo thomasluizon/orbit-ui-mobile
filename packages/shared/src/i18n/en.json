@@ -1553,7 +1553,8 @@
   "speech": {
     "micDenied": "Microphone access denied.",
     "noSpeech": "No speech detected.",
-    "failedToStart": "Failed to start recording."
+    "failedToStart": "Failed to start recording.",
+    "failedToStop": "Failed to stop recording."
   },
   "goals": {
     "completedCelebrationTitle": "Goal achieved!",

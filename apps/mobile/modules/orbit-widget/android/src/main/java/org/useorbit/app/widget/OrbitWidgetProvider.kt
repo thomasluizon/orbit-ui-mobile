@@ -48,9 +48,6 @@ class OrbitWidgetProvider : AppWidgetProvider() {
             val density = context.resources.displayMetrics.density
 
             // Widget background: flat surface with a hairline border (lift, not gradient).
-            // Size the bitmap to the widget itself, not half the screen: a multi-megabyte
-            // bitmap can exceed the RemoteViews Binder limit on devices without bitmap
-            // caching, and stretching it (fitXY) distorts the rounded corners.
             val displayMetrics = context.resources.displayMetrics
             val options = appWidgetManager.getAppWidgetOptions(appWidgetId)
             val maxWidthDp = options.getInt(AppWidgetManager.OPTION_APPWIDGET_MAX_WIDTH, 0)

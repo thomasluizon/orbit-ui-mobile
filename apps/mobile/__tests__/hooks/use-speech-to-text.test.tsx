@@ -162,4 +162,21 @@ describe('useSpeechToText', () => {
     expect(hook.current.isRecording).toBe(false)
     expect(hook.current.transcript).toBe('log water')
   })
+
+  it('surfaces the stop-failure message when stopping the recording throws', async () => {
+    const hook = await renderHook()
+
+    await TestRenderer.act(async () => {
+      await hook.current.startRecording()
+    })
+
+    mocks.stopRecording.mockRejectedValueOnce(new Error('boom'))
+    await TestRenderer.act(async () => {
+      await hook.current.stopRecording()
+      await Promise.resolve()
+    })
+
+    expect(hook.current.error).toBe('speech.failedToStop')
+    expect(hook.current.isRecording).toBe(false)
+  })
 })
