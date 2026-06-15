@@ -109,6 +109,14 @@ function ChatInputNotices({
           compact
         />
       )}
+      {speechError && (
+        <Text
+          style={[styles.errorText, { color: tokens.statusBadText }]}
+          accessibilityRole="alert"
+        >
+          {speechError}
+        </Text>
+      )}
       {speechError === t("speech.micDenied") && (
         <TouchableOpacity
           style={styles.permissionAction}
