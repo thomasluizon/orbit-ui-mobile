@@ -18,18 +18,18 @@ export const CHAT_STARTER_CHIP_KEYS = [
 export const CHAT_STREAM_IDLE_TIMEOUT_MS = 60_000
 
 /**
- * Voice-input auto-stop tuning shared by both platforms. Recording stops on its
- * own after {@link VOICE_SILENCE_TIMEOUT_MS} of continuous silence, but only
- * once speech has been heard, so an early pause before the user starts talking
- * never cuts the recording short. Levels are sampled every
- * {@link VOICE_LEVEL_POLL_MS}. The speech thresholds differ by platform because
- * web reads a time-domain RMS amplitude (0..1) while mobile reads expo-audio's
- * metering value in dBFS.
+ * Web voice-input auto-stop tuning. Recording stops on its own after
+ * {@link VOICE_SILENCE_TIMEOUT_MS} of continuous silence, but only once speech
+ * has been heard, so an early pause before the user starts talking never cuts
+ * the recording short. The mic level (a time-domain RMS amplitude, 0..1) is
+ * sampled every {@link VOICE_LEVEL_POLL_MS} and compared against
+ * {@link VOICE_WEB_SPEECH_RMS_THRESHOLD}. Mobile cannot mirror this yet: the
+ * expo-audio metering needed for level sampling is broken on Android (it
+ * prevents `record()` from starting) — see https://github.com/expo/expo/issues/37241.
  */
 export const VOICE_SILENCE_TIMEOUT_MS = 2000
 export const VOICE_LEVEL_POLL_MS = 150
 export const VOICE_WEB_SPEECH_RMS_THRESHOLD = 0.025
-export const VOICE_MOBILE_SPEECH_DB_THRESHOLD = -40
 
 const MAX_CHAT_IMAGE_SIZE_BYTES = 20 * 1024 * 1024
 

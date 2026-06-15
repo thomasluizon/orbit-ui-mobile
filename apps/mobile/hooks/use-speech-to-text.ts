@@ -7,11 +7,6 @@ import {
   useAudioRecorder,
 } from 'expo-audio'
 import { API } from '@orbit/shared/api'
-import {
-  VOICE_LEVEL_POLL_MS,
-  VOICE_MOBILE_SPEECH_DB_THRESHOLD,
-  VOICE_SILENCE_TIMEOUT_MS,
-} from '@orbit/shared/chat'
 import { getFriendlyErrorMessage } from '@orbit/shared/utils'
 import { apiClient } from '@/lib/api-client'
 export { CHAT_VISUALIZER_BAR_OFFSETS as VISUALIZER_BAR_OFFSETS } from '@orbit/shared/chat'
@@ -36,15 +31,11 @@ interface TranscriptionResponse {
  * Records microphone audio with `expo-audio` and uploads it to the server
  * transcription endpoint, returning the recognized text. Mirrors the web
  * `useSpeechToText` return shape; the backend auto-detects language, so there is
- * no language selector. Recording auto-stops after a short silence once speech
- * has been detected.
+ * no language selector.
  */
 export function useSpeechToText() {
   const { t } = useTranslation()
-  const audioRecorder = useAudioRecorder({
-    ...RecordingPresets.HIGH_QUALITY,
-    isMeteringEnabled: true,
-  })
+  const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY)
 
   const [isRecording, setIsRecording] = useState(false)
   const [isTranscribing, setIsTranscribing] = useState(false)
@@ -54,8 +45,6 @@ export function useSpeechToText() {
   const [recordingDuration, setRecordingDuration] = useState(0)
 
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
-  const silenceIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
-  const isRecordingRef = useRef(false)
 
   const clearTimer = useCallback(() => {
     if (timerRef.current) {
@@ -71,13 +60,6 @@ export function useSpeechToText() {
       setRecordingDuration((current) => current + 1)
     }, 1000)
   }, [clearTimer])
-
-  const stopSilenceMonitor = useCallback(() => {
-    if (silenceIntervalRef.current) {
-      clearInterval(silenceIntervalRef.current)
-      silenceIntervalRef.current = null
-    }
-  }, [])
 
   const transcribe = useCallback(
     async (uri: string) => {
@@ -104,41 +86,8 @@ export function useSpeechToText() {
     [t],
   )
 
-  const stopRecording = useCallback(async () => {
-    if (!isRecordingRef.current) return
-
-    isRecordingRef.current = false
-    setIsRecording(false)
-    clearTimer()
-    stopSilenceMonitor()
-    await audioRecorder.stop()
-    const uri = audioRecorder.uri
-    if (uri) void transcribe(uri)
-  }, [audioRecorder, clearTimer, stopSilenceMonitor, transcribe])
-
-  const startSilenceMonitor = useCallback(() => {
-    stopSilenceMonitor()
-    let speechDetected = false
-    let silentElapsed = 0
-
-    silenceIntervalRef.current = setInterval(() => {
-      const metering = audioRecorder.getStatus().metering
-      if (metering === undefined) return
-
-      if (metering > VOICE_MOBILE_SPEECH_DB_THRESHOLD) {
-        speechDetected = true
-        silentElapsed = 0
-      } else if (speechDetected) {
-        silentElapsed += VOICE_LEVEL_POLL_MS
-        if (silentElapsed >= VOICE_SILENCE_TIMEOUT_MS) {
-          void stopRecording()
-        }
-      }
-    }, VOICE_LEVEL_POLL_MS)
-  }, [audioRecorder, stopRecording, stopSilenceMonitor])
-
   const startRecording = useCallback(async () => {
-    if (isRecordingRef.current) return
+    if (isRecording) return
 
     setError(null)
     setTranscript('')
@@ -154,33 +103,38 @@ export function useSpeechToText() {
       await setAudioModeAsync({ allowsRecording: true, playsInSilentMode: true })
       await audioRecorder.prepareToRecordAsync()
       audioRecorder.record()
-      isRecordingRef.current = true
       setIsRecording(true)
       startTimer()
-      startSilenceMonitor()
     } catch {
-      isRecordingRef.current = false
       setError(t('speech.failedToStart'))
       setIsRecording(false)
       clearTimer()
-      stopSilenceMonitor()
     }
-  }, [audioRecorder, clearTimer, startSilenceMonitor, startTimer, stopSilenceMonitor, t])
+  }, [audioRecorder, clearTimer, isRecording, startTimer, t])
+
+  const stopRecording = useCallback(async () => {
+    if (!isRecording) return
+
+    setIsRecording(false)
+    clearTimer()
+    await audioRecorder.stop()
+    const uri = audioRecorder.uri
+    if (uri) void transcribe(uri)
+  }, [audioRecorder, clearTimer, isRecording, transcribe])
 
   const toggleRecording = useCallback(() => {
-    if (isRecordingRef.current) {
+    if (isRecording) {
       void stopRecording()
     } else {
       void startRecording()
     }
-  }, [startRecording, stopRecording])
+  }, [isRecording, startRecording, stopRecording])
 
   useEffect(() => {
     return () => {
       clearTimer()
-      stopSilenceMonitor()
     }
-  }, [clearTimer, stopSilenceMonitor])
+  }, [clearTimer])
 
   return {
     isRecording,
