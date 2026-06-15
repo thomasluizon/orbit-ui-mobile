@@ -104,8 +104,14 @@ class OrbitWidgetModule : Module() {
       refreshWidgets(context)
     }
 
-    AsyncFunction("refresh") {
-      refreshWidgets(moduleContext())
+    AsyncFunction("syncWidgetData") { json: String ->
+      val context = moduleContext()
+      context.getSharedPreferences(CACHE_PREFS_NAME, Context.MODE_PRIVATE)
+        .edit()
+        .putString("habits_json", json)
+        .putLong("habits_updated_at", System.currentTimeMillis())
+        .apply()
+      refreshWidgets(context)
     }
 
     OnActivityEntersBackground {

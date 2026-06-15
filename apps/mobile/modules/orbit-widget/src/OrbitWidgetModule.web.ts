@@ -4,7 +4,7 @@ const OrbitWidgetWebModule: OrbitWidgetModuleType = {
   async saveToken() {},
   async clearToken() {},
   async syncTheme() {},
-  async refresh() {},
+  async syncWidgetData() {},
 }
 
 export default OrbitWidgetWebModule

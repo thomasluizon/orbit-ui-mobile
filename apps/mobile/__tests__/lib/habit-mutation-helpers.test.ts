@@ -30,7 +30,7 @@ const mocks = vi.hoisted(() => ({
     'queued' in value &&
     (value as { queued?: boolean }).queued === true
   )),
-  refreshWidget: vi.fn(async () => {}),
+  syncWidgetData: vi.fn(async () => {}),
 }))
 
 vi.mock('@/lib/offline-mutations', () => ({
@@ -38,7 +38,7 @@ vi.mock('@/lib/offline-mutations', () => ({
 }))
 
 vi.mock('@/lib/orbit-widget', () => ({
-  refreshWidget: mocks.refreshWidget,
+  syncWidgetData: mocks.syncWidgetData,
 }))
 
 function createQueryClient(): QueryClient {
@@ -103,7 +103,7 @@ describe('finalizeHabitMutation', () => {
   beforeEach(() => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date('2025-02-10T12:00:00Z'))
-    mocks.refreshWidget.mockClear()
+    mocks.syncWidgetData.mockClear()
   })
 
   afterEach(() => {
@@ -128,7 +128,7 @@ describe('finalizeHabitMutation', () => {
     )
 
     expect(queryClient.invalidateQueries).not.toHaveBeenCalled()
-    expect(mocks.refreshWidget).not.toHaveBeenCalled()
+    expect(mocks.syncWidgetData).not.toHaveBeenCalled()
   })
 
   it('invalidates habit-related caches and refreshes the widget on success', async () => {
@@ -164,7 +164,7 @@ describe('finalizeHabitMutation', () => {
     expect(queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: goalKeys.lists() })
     expect(queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: profileKeys.all })
     expect(queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: gamificationKeys.all })
-    expect(mocks.refreshWidget).toHaveBeenCalledTimes(1)
+    expect(mocks.syncWidgetData).toHaveBeenCalledTimes(1)
   })
 
   it('returns immediately instead of waiting for invalidations to settle', () => {
@@ -190,7 +190,7 @@ describe('finalizeHabitMutation', () => {
     expect(queryClient.invalidateQueries).toHaveBeenCalledWith({
       queryKey: habitKeys.summaryPrefix(),
     })
-    expect(mocks.refreshWidget).toHaveBeenCalledTimes(1)
+    expect(mocks.syncWidgetData).toHaveBeenCalledTimes(1)
   })
 
   it('invalidates the habit count only when includeCount is set (parity with web create/delete/bulk)', async () => {
@@ -212,7 +212,7 @@ describe('finalizeHabitMutation', () => {
 
     expect(queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: habitKeys.lists() })
     expect(queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: goalKeys.lists() })
-    expect(mocks.refreshWidget).toHaveBeenCalledTimes(1)
+    expect(mocks.syncWidgetData).toHaveBeenCalledTimes(1)
   })
 
   it('still skips invalidation for a queued (offline) result even on error', async () => {
@@ -226,7 +226,7 @@ describe('finalizeHabitMutation', () => {
     )
 
     expect(queryClient.invalidateQueries).not.toHaveBeenCalled()
-    expect(mocks.refreshWidget).not.toHaveBeenCalled()
+    expect(mocks.syncWidgetData).not.toHaveBeenCalled()
   })
 })
 

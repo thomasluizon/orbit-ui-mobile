@@ -114,7 +114,7 @@ const mocks = vi.hoisted(() => {
       queued: true as const,
       queuedMutationId: mutationId,
     })),
-    refreshWidget: vi.fn(async () => {}),
+    syncWidgetData: vi.fn(async () => {}),
     setLastCreatedHabitId: vi.fn(),
     invalidateHabitMutationQueries: vi.fn(async () => {}),
   }
@@ -153,7 +153,7 @@ vi.mock('@/lib/offline-mutations', () => ({
 }))
 
 vi.mock('@/lib/orbit-widget', () => ({
-  refreshWidget: mocks.refreshWidget,
+  syncWidgetData: mocks.syncWidgetData,
 }))
 
 vi.mock('@/stores/ui-store', () => ({
@@ -293,7 +293,7 @@ describe('mobile habit hooks', () => {
     mocks.isQueuedResult.mockClear()
     mocks.queueOrExecute.mockReset()
     mocks.withQueuedMarker.mockClear()
-    mocks.refreshWidget.mockClear()
+    mocks.syncWidgetData.mockClear()
     mocks.setLastCreatedHabitId.mockClear()
     mocks.invalidateHabitMutationQueries.mockClear()
   })

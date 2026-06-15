@@ -23,7 +23,7 @@ export interface OrbitWidgetModuleType {
   saveToken(token: string): Promise<void>
   clearToken(): Promise<void>
   syncTheme(colors: WidgetThemeColors): Promise<void>
-  refresh(): Promise<void>
+  syncWidgetData(json: string): Promise<void>
 }
 
 export type OnLoadEventPayload = {

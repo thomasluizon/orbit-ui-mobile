@@ -6,7 +6,7 @@ const noopModule: OrbitWidgetModuleType = {
   async saveToken() {},
   async clearToken() {},
   async syncTheme() {},
-  async refresh() {},
+  async syncWidgetData() {},
 }
 
 let orbitWidgetModule: OrbitWidgetModuleType | null = null

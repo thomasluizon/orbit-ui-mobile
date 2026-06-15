@@ -28,7 +28,7 @@
         "foregroundImage": "./assets/adaptive-icon.png",
         "backgroundColor": "#22094f"
       },
-      "versionCode": 29,
+      "versionCode": 30,
       "package": "org.useorbit.app",
       "googleServicesFile": "./google-services.json",
       "intentFilters": [

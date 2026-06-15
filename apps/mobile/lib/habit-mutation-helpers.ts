@@ -17,7 +17,7 @@ import type {
 } from '@orbit/shared/types/habit'
 import type { Goal } from '@orbit/shared/types/goal'
 import { isQueuedResult } from '@/lib/offline-mutations'
-import { refreshWidget } from '@/lib/orbit-widget'
+import { syncWidgetData } from '@/lib/orbit-widget'
 
 interface CachedTag {
   id: string
@@ -691,5 +691,5 @@ export function finalizeHabitMutation(
   }
 
   invalidateHabitMutationQueries(queryClient, options)
-  void refreshWidget().catch(() => {})
+  void syncWidgetData().catch(() => {})
 }
