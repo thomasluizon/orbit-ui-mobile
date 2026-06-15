@@ -1,109 +1,36 @@
-import { memo, useCallback, useEffect, useState, type ReactNode } from "react";
+import { memo, type ReactNode } from "react";
 import { Pressable, View } from "react-native";
 import { ArrowUp } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
-import AsyncStorage from "@react-native-async-storage/async-storage";
-import { CHAT_DRAFT_STORAGE_KEY } from "@orbit/shared/hooks";
 import { AppTextInput } from "@/components/ui/app-text-input";
 import type { ChatStyles, Tokens } from "@/app/chat.styles";
 
 interface ChatComposerInputProps {
-  transcript: string;
-  resetSignal: number;
-  isRecording: boolean;
-  isTyping: boolean;
-  atMessageLimit: boolean;
-  limitLocked: boolean;
+  draft: string;
+  canSend: boolean;
   isOnline: boolean;
-  selectedImagePresent: boolean;
+  limitLocked: boolean;
   placeholder: string;
   tokens: Tokens;
   styles: ChatStyles;
   fieldAccessories?: ReactNode;
-  onSend: (message: string) => void;
+  onChangeDraft: (text: string) => void;
+  onSubmit: () => void;
 }
 
 export const ChatComposerInput = memo(function ChatComposerInput({
-  transcript,
-  resetSignal,
-  isRecording,
-  isTyping,
-  atMessageLimit,
-  limitLocked,
+  draft,
+  canSend,
   isOnline,
-  selectedImagePresent,
+  limitLocked,
   placeholder,
   tokens,
   styles,
   fieldAccessories,
-  onSend,
+  onChangeDraft,
+  onSubmit,
 }: Readonly<ChatComposerInputProps>) {
   const { t } = useTranslation();
-  const [draft, setDraft] = useState("");
-  const [prevIsRecording, setPrevIsRecording] = useState(false);
-  const [pendingVoiceCommit, setPendingVoiceCommit] = useState(false);
-  const [prevResetSignal, setPrevResetSignal] = useState(resetSignal);
-
-  useEffect(() => {
-    let isMounted = true;
-
-    void AsyncStorage.getItem(CHAT_DRAFT_STORAGE_KEY)
-      .then((storedDraft) => {
-        if (!isMounted || !storedDraft) return;
-        setDraft(storedDraft);
-      })
-      .catch(() => {});
-
-    return () => {
-      isMounted = false;
-    };
-  }, []);
-
-  if (isRecording !== prevIsRecording) {
-    setPrevIsRecording(isRecording);
-    if (isRecording) setPendingVoiceCommit(true);
-  }
-
-  if (pendingVoiceCommit && !isRecording && transcript.trim()) {
-    setPendingVoiceCommit(false);
-    setDraft((current) =>
-      current ? `${current} ${transcript.trim()}` : transcript.trim(),
-    );
-  }
-
-  if (resetSignal !== prevResetSignal) {
-    setPrevResetSignal(resetSignal);
-    setDraft("");
-  }
-
-  useEffect(() => {
-    void AsyncStorage.removeItem(CHAT_DRAFT_STORAGE_KEY);
-  }, [resetSignal]);
-
-  useEffect(() => {
-    if (!draft.trim()) {
-      void AsyncStorage.removeItem(CHAT_DRAFT_STORAGE_KEY);
-      return;
-    }
-
-    void AsyncStorage.setItem(CHAT_DRAFT_STORAGE_KEY, draft);
-  }, [draft]);
-
-  const canSend =
-    (draft.trim().length > 0 || selectedImagePresent) &&
-    !isTyping &&
-    !atMessageLimit &&
-    !isRecording;
-
-  const handleSend = useCallback(() => {
-    const message = draft.trim();
-    if (!canSend || !isOnline) {
-      return;
-    }
-
-    onSend(message);
-    setDraft("");
-  }, [canSend, draft, isOnline, onSend]);
 
   return (
     <>
@@ -111,7 +38,7 @@ export const ChatComposerInput = memo(function ChatComposerInput({
         <AppTextInput
           style={[styles.textInput, { color: tokens.fg1 }]}
           value={draft}
-          onChangeText={setDraft}
+          onChangeText={onChangeDraft}
           placeholder={placeholder}
           placeholderTextColor={tokens.fg3}
           multiline
@@ -119,7 +46,7 @@ export const ChatComposerInput = memo(function ChatComposerInput({
           editable={isOnline && !limitLocked}
           returnKeyType="default"
           blurOnSubmit={false}
-          onSubmitEditing={handleSend}
+          onSubmitEditing={onSubmit}
         />
         {fieldAccessories}
       </View>
@@ -130,7 +57,7 @@ export const ChatComposerInput = memo(function ChatComposerInput({
           canSend && isOnline ? styles.sendButtonGlow : styles.sendButtonDisabled,
           pressed && canSend && isOnline && styles.sendButtonPressed,
         ]}
-        onPress={handleSend}
+        onPress={onSubmit}
         disabled={!canSend || !isOnline}
         accessibilityRole="button"
         accessibilityLabel={t("chat.send")}
