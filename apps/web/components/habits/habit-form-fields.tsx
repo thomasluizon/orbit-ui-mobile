@@ -968,14 +968,33 @@ export function HabitFormFields({
   }), [setOneTime, setRecurring, setFlexible, setGeneral])
 
   const frequencyTrackRef = useRef<HTMLDivElement>(null)
+  const hasPositionedFrequencyRef = useRef(false)
   const activeFrequencyIndex = FREQUENCY_TYPE_CARDS.findIndex((card) => card.key === activeFrequencyKey)
 
   useEffect(() => {
     const track = frequencyTrackRef.current
     if (!track) return
-    const target = activeFrequencyIndex * track.clientWidth
-    if (Math.abs(track.scrollLeft - target) > 1) {
-      track.scrollTo({ left: target, behavior: 'smooth' })
+
+    let frame = 0
+    const positionToActive = () => {
+      const width = track.clientWidth
+      if (width === 0) {
+        frame = requestAnimationFrame(positionToActive)
+        return
+      }
+      const target = activeFrequencyIndex * width
+      if (Math.abs(track.scrollLeft - target) > 1) {
+        track.scrollTo({
+          left: target,
+          behavior: hasPositionedFrequencyRef.current ? 'smooth' : 'auto',
+        })
+      }
+      hasPositionedFrequencyRef.current = true
+    }
+
+    positionToActive()
+    return () => {
+      if (frame) cancelAnimationFrame(frame)
     }
   }, [activeFrequencyIndex])
 

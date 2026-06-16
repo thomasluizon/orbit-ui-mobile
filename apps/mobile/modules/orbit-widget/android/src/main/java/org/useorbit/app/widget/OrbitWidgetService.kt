@@ -91,6 +91,13 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
         private const val TAG = "OrbitWidget"
         private const val FRESH_WINDOW_MS = 15_000L
 
+        // Cap rasterized background bitmaps. Android rejects a widget update whose
+        // summed RemoteViews bitmap memory (card background + every inlined list-item
+        // background) exceeds ~6x the screen; full-resolution rasters blew past it
+        // ("exceeds maximum bitmap memory usage"). Consumer ImageViews are fitXY, so a
+        // capped bitmap upscales to fill with the radius/stroke scaled to match.
+        private const val MAX_BITMAP_DIMENSION = 512
+
         /** Terminal color fallback (navy-dark surface) when a value is blank or malformed. */
         private const val SAFE_FALLBACK = 0xFF020618.toInt()
 
@@ -229,14 +236,19 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
             width: Int, height: Int, color: Int,
             cornerRadius: Float, strokeWidth: Float = 0f, strokeColor: Int = 0
         ): Bitmap {
-            val safeWidth = width.coerceAtLeast(1)
-            val safeHeight = height.coerceAtLeast(1)
+            val rawWidth = width.coerceAtLeast(1)
+            val rawHeight = height.coerceAtLeast(1)
+            val scale = minOf(1f, MAX_BITMAP_DIMENSION.toFloat() / maxOf(rawWidth, rawHeight))
+            val safeWidth = (rawWidth * scale).toInt().coerceAtLeast(1)
+            val safeHeight = (rawHeight * scale).toInt().coerceAtLeast(1)
+            val scaledRadius = cornerRadius * scale
+            val scaledStroke = if (strokeWidth > 0f) (strokeWidth * scale).coerceAtLeast(1f) else 0f
             val bitmap = Bitmap.createBitmap(safeWidth, safeHeight, Bitmap.Config.ARGB_8888)
             val canvas = Canvas(bitmap)
             val drawable = GradientDrawable().apply {
                 setColor(color)
-                setCornerRadius(cornerRadius)
-                if (strokeWidth > 0f) setStroke(strokeWidth.toInt(), strokeColor)
+                setCornerRadius(scaledRadius)
+                if (scaledStroke > 0f) setStroke(scaledStroke.toInt().coerceAtLeast(1), strokeColor)
             }
             drawable.setBounds(0, 0, safeWidth, safeHeight)
             drawable.draw(canvas)
@@ -278,11 +290,28 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
     override fun onCreate() {}
 
     /**
-     * Degrades the widget to the empty/sign-in state without throwing: clears the
-     * habit list, resets cached counts, and restores the refresh button. Used both
-     * for the signed-out path and as the catch-all when data loading fails.
+     * Applies a partial RemoteViews update to every mounted widget. Partial (not full
+     * updateWidgetLayout) on purpose: a full update recreates the RemoteAdapter and
+     * resets the factory mid-load.
      */
-    private fun renderEmptyState() {
+    private fun updateWidgets(mutate: (RemoteViews) -> Unit) {
+        val appWidgetManager = AppWidgetManager.getInstance(context)
+        val widgetIds = appWidgetManager.getAppWidgetIds(
+            ComponentName(context, OrbitWidgetProvider::class.java)
+        )
+        for (id in widgetIds) {
+            val views = RemoteViews(context.packageName, R.layout.widget_layout)
+            mutate(views)
+            appWidgetManager.partiallyUpdateAppWidget(id, views)
+        }
+    }
+
+    /**
+     * Clears the habit list and restores the idle header. With showSkeleton=true the
+     * loading skeleton stays up (signed in, no data yet) so the widget never paints
+     * blank; with false it yields to the empty/sign-in view (signed out).
+     */
+    private fun renderPlaceholder(showSkeleton: Boolean) {
         habits = emptyList()
         lang = detectLanguage(null)
         headerLabel = tr(lang, "today")
@@ -296,15 +325,13 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
             .putString("lang", lang)
             .apply()
 
-        val appWidgetManager = AppWidgetManager.getInstance(context)
-        val widgetIds = appWidgetManager.getAppWidgetIds(
-            ComponentName(context, OrbitWidgetProvider::class.java)
-        )
-        for (id in widgetIds) {
-            val views = RemoteViews(context.packageName, R.layout.widget_layout)
+        updateWidgets { views ->
             views.setViewVisibility(R.id.widget_refresh, android.view.View.VISIBLE)
             views.setViewVisibility(R.id.widget_refresh_loading, android.view.View.GONE)
-            appWidgetManager.partiallyUpdateAppWidget(id, views)
+            views.setViewVisibility(
+                R.id.widget_loading,
+                if (showSkeleton) android.view.View.VISIBLE else android.view.View.GONE
+            )
         }
     }
 
@@ -312,7 +339,12 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
         try {
             loadWidgetData()
         } catch (_: Exception) {
-            runCatching { renderEmptyState() }
+            runCatching {
+                updateWidgets { views ->
+                    views.setViewVisibility(R.id.widget_refresh, android.view.View.VISIBLE)
+                    views.setViewVisibility(R.id.widget_refresh_loading, android.view.View.GONE)
+                }
+            }
         }
     }
 
@@ -320,13 +352,13 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
         colors = getThemeColors(context)
         val token = OrbitWidgetModule.getToken(context)
         if (token == null) {
-            renderEmptyState()
+            renderPlaceholder(showSkeleton = false)
             return
         }
 
         val widgetData = resolveWidgetData(token)
         if (widgetData == null) {
-            renderEmptyState()
+            renderPlaceholder(showSkeleton = true)
             return
         }
 
@@ -355,18 +387,11 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
             .putString("lang", lang)
             .apply()
 
-        // Partial update for header text only (do NOT call updateWidgetLayout here
-        // as it recreates the RemoteAdapter, causing Android to reset the factory)
-        val appWidgetManager = AppWidgetManager.getInstance(context)
-        val widgetIds = appWidgetManager.getAppWidgetIds(
-            ComponentName(context, OrbitWidgetProvider::class.java)
-        )
         val colors = getThemeColors(context)
         val density = context.resources.displayMetrics.density
         val streakVisible = if (streak > 0) android.view.View.VISIBLE else android.view.View.GONE
         val flameBitmap = createFlameBitmap(density, colors.streak)
-        for (id in widgetIds) {
-            val views = RemoteViews(context.packageName, R.layout.widget_layout)
+        updateWidgets { views ->
             views.setTextViewText(R.id.widget_header, headerLabel)
             views.setTextColor(R.id.widget_header, colors.textPrimary)
             views.setTextViewText(R.id.widget_subtitle, subtitleText)
@@ -376,10 +401,10 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
             views.setImageViewBitmap(R.id.widget_flame, flameBitmap)
             views.setViewVisibility(R.id.widget_flame, streakVisible)
             views.setViewVisibility(R.id.widget_streak, streakVisible)
-            // Restore refresh button, hide loading spinner
+            // Restore refresh button, hide loading spinner and skeleton
             views.setViewVisibility(R.id.widget_refresh, android.view.View.VISIBLE)
             views.setViewVisibility(R.id.widget_refresh_loading, android.view.View.GONE)
-            appWidgetManager.partiallyUpdateAppWidget(id, views)
+            views.setViewVisibility(R.id.widget_loading, android.view.View.GONE)
         }
     }
 

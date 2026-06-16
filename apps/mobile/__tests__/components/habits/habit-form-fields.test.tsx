@@ -508,6 +508,37 @@ describe('HabitFormFields (mobile)', () => {
     expect(setOneTime).toHaveBeenCalled()
   })
 
+  it('selects the tapped frequency card instead of re-applying the active one', async () => {
+    const setOneTime = vi.fn()
+    const formHelpers = createMockFormHelpers(undefined, { setOneTime })
+    const tags = createMockTags()
+    let tree: any
+
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(
+        <HabitFormFields
+          formHelpers={formHelpers}
+          tags={tags}
+          selectedGoalIds={[]}
+          atGoalLimit={false}
+          onToggleGoal={vi.fn()}
+          reminderTimes={[]}
+          onReminderTimesChange={vi.fn()}
+        />,
+      )
+    })
+
+    const oneTimeCard = tree.root.findByProps({
+      accessibilityLabel: 'habits.form.oneTimeTask',
+    })
+
+    await TestRenderer.act(async () => {
+      oneTimeCard.props.onPress()
+    })
+
+    expect(setOneTime).toHaveBeenCalled()
+  })
+
   it('commits the title to the form as it is typed so the shared schema gates submit', async () => {
     const formHelpers = createMockFormHelpers({ title: '' })
     const tags = createMockTags()
