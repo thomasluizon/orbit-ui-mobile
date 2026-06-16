@@ -71,6 +71,7 @@ class OrbitWidgetProvider : AppWidgetProvider() {
             val streak = prefs.getInt("user_streak", 0)
             val isSignedOut = OrbitWidgetModule.getToken(context) == null
             val lang = prefs.getString("lang", "en") ?: "en"
+            val syncedOnce = prefs.getLong("habits_updated_at", 0L) > 0L
 
             // Apply dynamic text colors
             views.setTextColor(R.id.widget_header, colors.textPrimary)
@@ -95,7 +96,11 @@ class OrbitWidgetProvider : AppWidgetProvider() {
                 views.setTextViewText(R.id.widget_empty_text, OrbitWidgetFactory.tr(lang, "signIn"))
             } else {
                 views.setTextViewText(R.id.widget_header, headerLabel)
-                val subtitleText = "$completedCount ${OrbitWidgetFactory.tr(lang, "of")} $habitCount ${OrbitWidgetFactory.tr(lang, "completed")}"
+                val subtitleText = if (syncedOnce) {
+                    "$completedCount ${OrbitWidgetFactory.tr(lang, "of")} $habitCount ${OrbitWidgetFactory.tr(lang, "completed")}"
+                } else {
+                    ""
+                }
                 views.setTextViewText(R.id.widget_subtitle, subtitleText)
                 val streakVisible = if (streak > 0) View.VISIBLE else View.GONE
                 views.setImageViewBitmap(R.id.widget_flame, flameBitmap)
@@ -104,6 +109,12 @@ class OrbitWidgetProvider : AppWidgetProvider() {
                 views.setViewVisibility(R.id.widget_streak, streakVisible)
                 views.setTextViewText(R.id.widget_empty_text, OrbitWidgetFactory.tr(lang, "allClear"))
             }
+
+            // Show the loading skeleton until habits have synced at least once, so a
+            // freshly added widget never paints as a blank card. The factory hides it
+            // once its own load resolves (covers the case where no app push re-renders).
+            val showSkeleton = !isSignedOut && !syncedOnce
+            views.setViewVisibility(R.id.widget_loading, if (showSkeleton) View.VISIBLE else View.GONE)
 
             // Set up the RemoteViews adapter for the list
             val serviceIntent = Intent(context, OrbitWidgetService::class.java).apply {
@@ -137,6 +148,7 @@ class OrbitWidgetProvider : AppWidgetProvider() {
             views.setOnClickPendingIntent(R.id.widget_header_container, openAppPendingIntent)
             views.setOnClickPendingIntent(R.id.widget_header, openAppPendingIntent)
             views.setOnClickPendingIntent(R.id.widget_empty, openAppPendingIntent)
+            views.setOnClickPendingIntent(R.id.widget_loading, openAppPendingIntent)
 
             appWidgetManager.updateAppWidget(appWidgetId, views)
         }

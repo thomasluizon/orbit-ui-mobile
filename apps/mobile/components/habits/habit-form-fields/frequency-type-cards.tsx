@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -76,6 +76,7 @@ export function FrequencyTypeCards({
 }: Readonly<FrequencyTypeCardsProps>) {
   const { t } = useTranslation();
   const scrollRef = useRef<ScrollView>(null);
+  const hasPositionedRef = useRef(false);
   const [pageWidth, setPageWidth] = useState(0);
 
   const activeIndex = isOneTime ? 0 : isGeneral ? 3 : isFlexible ? 2 : 1;
@@ -85,12 +86,20 @@ export function FrequencyTypeCards({
     [onSetOneTime, onSetRecurring, onSetFlexible, onSetGeneral],
   );
 
+  const scrollToActive = useCallback(
+    (animated: boolean) => {
+      if (pageWidth === 0) {
+        return;
+      }
+      scrollRef.current?.scrollTo({ x: activeIndex * pageWidth, animated });
+    },
+    [activeIndex, pageWidth],
+  );
+
   useEffect(() => {
-    if (pageWidth === 0) {
-      return;
-    }
-    scrollRef.current?.scrollTo({ x: activeIndex * pageWidth, animated: true });
-  }, [activeIndex, pageWidth]);
+    scrollToActive(hasPositionedRef.current);
+    hasPositionedRef.current = true;
+  }, [scrollToActive]);
 
   function handleLayout(event: LayoutChangeEvent) {
     setPageWidth(event.nativeEvent.layout.width);
@@ -139,12 +148,13 @@ export function FrequencyTypeCards({
           ref={scrollRef}
           style={styles.frequencyScroll}
           onLayout={handleLayout}
+          onContentSizeChange={() => scrollToActive(false)}
           horizontal
           pagingEnabled
           showsHorizontalScrollIndicator={false}
           onMomentumScrollEnd={handleMomentumScrollEnd}
         >
-          {FREQUENCY_TYPE_CARDS.map((card) => {
+          {FREQUENCY_TYPE_CARDS.map((card, index) => {
             const CardIcon = card.icon;
             return (
               <View
@@ -153,9 +163,10 @@ export function FrequencyTypeCards({
               >
                 <Pressable
                   style={styles.frequencyCardCarousel}
-                  onPress={frequencyHandlers[activeIndex]}
+                  onPress={frequencyHandlers[index]}
                   accessibilityRole="button"
-                  accessibilityState={{ selected: true }}
+                  accessibilityLabel={t(card.titleKey)}
+                  accessibilityState={{ selected: index === activeIndex }}
                 >
                   <View style={styles.frequencyCardIconWell}>
                     <CardIcon

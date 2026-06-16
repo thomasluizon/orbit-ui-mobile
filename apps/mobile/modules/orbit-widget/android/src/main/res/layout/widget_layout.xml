@@ -131,37 +131,80 @@
             android:layout_width="match_parent"
             android:layout_height="10dp" />
 
-        <!-- Habit list -->
-        <ListView
-            android:id="@+id/widget_list"
+        <!-- Content area: list, empty message, and loading skeleton overlap so the
+             skeleton can cover the area during the cold/first-load window instead of
+             leaving the widget blank. -->
+        <FrameLayout
+            android:id="@+id/widget_content"
             android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:divider="@null"
-            android:dividerHeight="6dp"
-            android:scrollbars="vertical"
-            android:fadeScrollbars="true"
-            android:scrollbarThumbVertical="@drawable/widget_scrollbar_thumb"
-            android:fadingEdge="none"
-            android:clipToPadding="false" />
+            android:layout_height="match_parent">
 
-        <!-- Empty state -->
-        <LinearLayout
-            android:id="@+id/widget_empty"
-            android:layout_width="match_parent"
-            android:layout_height="match_parent"
-            android:orientation="vertical"
-            android:gravity="center"
-            android:visibility="gone">
+            <!-- Habit list -->
+            <ListView
+                android:id="@+id/widget_list"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:divider="@null"
+                android:dividerHeight="6dp"
+                android:scrollbars="vertical"
+                android:fadeScrollbars="true"
+                android:scrollbarThumbVertical="@drawable/widget_scrollbar_thumb"
+                android:fadingEdge="none"
+                android:clipToPadding="false" />
 
-            <TextView
-                android:id="@+id/widget_empty_text"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="All clear!"
-                android:textColor="#9990A1B9"
-                android:textSize="14sp"
-                android:fontFamily="sans-serif" />
-        </LinearLayout>
+            <!-- Empty state (genuinely no habits / signed out) -->
+            <LinearLayout
+                android:id="@+id/widget_empty"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:orientation="vertical"
+                android:gravity="center"
+                android:visibility="gone">
+
+                <TextView
+                    android:id="@+id/widget_empty_text"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="All clear!"
+                    android:textColor="#9990A1B9"
+                    android:textSize="14sp"
+                    android:fontFamily="sans-serif" />
+            </LinearLayout>
+
+            <!-- Loading skeleton (shown until habits have been synced at least once,
+                 so a freshly added widget never renders as an empty card) -->
+            <LinearLayout
+                android:id="@+id/widget_loading"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:orientation="vertical"
+                android:visibility="gone">
+
+                <ImageView
+                    android:id="@+id/widget_skeleton_1"
+                    android:layout_width="match_parent"
+                    android:layout_height="44dp"
+                    android:layout_marginBottom="6dp"
+                    android:background="@drawable/widget_skeleton_bar"
+                    android:contentDescription="@null" />
+
+                <ImageView
+                    android:id="@+id/widget_skeleton_2"
+                    android:layout_width="match_parent"
+                    android:layout_height="44dp"
+                    android:layout_marginBottom="6dp"
+                    android:background="@drawable/widget_skeleton_bar"
+                    android:contentDescription="@null" />
+
+                <ImageView
+                    android:id="@+id/widget_skeleton_3"
+                    android:layout_width="match_parent"
+                    android:layout_height="44dp"
+                    android:background="@drawable/widget_skeleton_bar"
+                    android:contentDescription="@null" />
+            </LinearLayout>
+
+        </FrameLayout>
 
     </LinearLayout>
 </FrameLayout>
