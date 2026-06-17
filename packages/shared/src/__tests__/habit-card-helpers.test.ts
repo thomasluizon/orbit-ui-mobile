@@ -40,6 +40,26 @@ describe('habit card helpers', () => {
     })
   })
 
+  it('marks overdue recurring habits as overdue regardless of frequency', () => {
+    const weekly = createMockHabit({
+      isCompleted: false,
+      isLoggedInRange: false,
+      isGeneral: false,
+      isOverdue: true,
+      frequencyUnit: 'Week',
+    })
+    const monthly = createMockHabit({
+      isCompleted: false,
+      isLoggedInRange: false,
+      isGeneral: false,
+      isOverdue: true,
+      frequencyUnit: 'Month',
+    })
+
+    expect(computeHabitCardStatus(weekly, new Date('2025-01-02'))).toBe('overdue')
+    expect(computeHabitCardStatus(monthly, new Date('2025-01-02'))).toBe('overdue')
+  })
+
   it('builds frequency and flexible progress labels', () => {
     const translator = createTranslator()
     const habit = createMockHabit({

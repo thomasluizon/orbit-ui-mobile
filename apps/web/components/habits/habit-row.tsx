@@ -339,7 +339,9 @@ export function HabitRow({
                   trackColor={
                     habit.isBadHabit
                       ? 'color-mix(in srgb, var(--status-bad) 40%, transparent)'
-                      : undefined
+                      : state === 'overdue'
+                        ? 'color-mix(in srgb, var(--status-overdue) 40%, transparent)'
+                        : undefined
                   }
                 />
               </button>

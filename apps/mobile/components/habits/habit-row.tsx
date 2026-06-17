@@ -517,7 +517,11 @@ function HabitRowTrailing({
                 size={30}
                 color={habit.isBadHabit ? tokens.statusBad : undefined}
                 trackColor={
-                  habit.isBadHabit ? `${tokens.statusBad}66` : undefined
+                  habit.isBadHabit
+                    ? `${tokens.statusBad}66`
+                    : dotState === 'overdue'
+                      ? `${tokens.statusOverdue}66`
+                      : undefined
                 }
               />
             </Pressable>
