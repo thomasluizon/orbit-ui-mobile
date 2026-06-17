@@ -8,7 +8,6 @@ import {
   computeHabitFrequencyLabel,
   computeHabitFutureHint,
   computeHabitMatchBadges,
-  computeHabitStatusBadge,
 } from '../utils/habit-card-helpers'
 
 function createTranslator() {
@@ -21,7 +20,7 @@ function createTranslator() {
 }
 
 describe('habit card helpers', () => {
-  it('derives the correct status and overdue badge', () => {
+  it('derives the overdue status for an overdue one-time task', () => {
     const habit = createMockHabit({
       isCompleted: false,
       isLoggedInRange: false,
@@ -30,14 +29,27 @@ describe('habit card helpers', () => {
       frequencyUnit: null,
     })
 
-    const status = computeHabitCardStatus(habit, new Date('2025-01-02'))
+    expect(computeHabitCardStatus(habit, new Date('2025-01-02'))).toBe('overdue')
+  })
 
-    expect(status).toBe('overdue')
-    expect(computeHabitStatusBadge(status, createTranslator())).toEqual({
-      text: 'habits.overdue',
-      color: 'text-red-500',
-      bg: 'bg-red-500/10',
+  it('marks overdue recurring habits as overdue regardless of frequency', () => {
+    const weekly = createMockHabit({
+      isCompleted: false,
+      isLoggedInRange: false,
+      isGeneral: false,
+      isOverdue: true,
+      frequencyUnit: 'Week',
     })
+    const monthly = createMockHabit({
+      isCompleted: false,
+      isLoggedInRange: false,
+      isGeneral: false,
+      isOverdue: true,
+      frequencyUnit: 'Month',
+    })
+
+    expect(computeHabitCardStatus(weekly, new Date('2025-01-02'))).toBe('overdue')
+    expect(computeHabitCardStatus(monthly, new Date('2025-01-02'))).toBe('overdue')
   })
 
   it('builds frequency and flexible progress labels', () => {
@@ -122,10 +134,6 @@ describe('habit card helpers', () => {
         parseAPIDate('2025-01-02'),
       ),
     ).toBe('pending')
-  })
-
-  it('returns null for non-overdue status badges', () => {
-    expect(computeHabitStatusBadge('pending', createTranslator())).toBeNull()
   })
 
   it('builds weekly, one-time, and pluralized frequency labels', () => {
