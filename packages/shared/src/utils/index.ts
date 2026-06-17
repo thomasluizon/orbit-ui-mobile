@@ -111,12 +111,10 @@ export {
   computeHabitFrequencyLabel,
   computeHabitFutureHint,
   computeHabitMatchBadges,
-  computeHabitStatusBadge,
 } from './habit-card-helpers'
 export type {
   HabitCardMatchBadge,
   HabitCardStatus,
-  HabitCardStatusBadge,
   HabitCardTranslationAdapter,
 } from './habit-card-helpers'
 export { formatHabitDetailSummary } from './habit-detail-summary'

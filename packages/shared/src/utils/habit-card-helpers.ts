@@ -11,12 +11,6 @@ export type HabitCardTranslationAdapter = (
   params?: Record<string, string | number | Date>,
 ) => string
 
-export interface HabitCardStatusBadge {
-  text: string
-  color: string
-  bg: string
-}
-
 export interface HabitCardMatchBadge {
   label: string
 }
@@ -62,18 +56,6 @@ export function computeHabitCardStatus(
   const hasTodaySchedule = hasHabitScheduleOnDate(habit, selectedDateStr)
   if (hasTodaySchedule) return 'due-today'
   return 'pending'
-}
-
-export function computeHabitStatusBadge(
-  status: HabitCardStatus,
-  t: HabitCardTranslationAdapter,
-): HabitCardStatusBadge | null {
-  if (status !== 'overdue') return null
-  return {
-    text: t('habits.overdue'),
-    color: 'text-red-500',
-    bg: 'bg-red-500/10',
-  }
 }
 
 export function computeHabitFrequencyLabel(

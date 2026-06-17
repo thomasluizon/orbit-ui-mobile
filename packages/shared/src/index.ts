@@ -106,7 +106,6 @@ export {
   computeHabitFlexibleProgressLabel,
   computeHabitFrequencyLabel,
   computeHabitMatchBadges,
-  computeHabitStatusBadge,
   getEarnedAchievements,
   getLockedAchievements,
   mapHabitTagReferences,
