@@ -1,4 +1,5 @@
 ---
+name: implement
 description: Execute a plan across orbit-ui-mobile + orbit-api with validation loops
 argument-hint: <path/to/plan.md | issue-number> [issue-number ...]
 ---
@@ -192,7 +193,7 @@ If the plan has no E2E section, perform a smoke test: start the relevant app(s),
 mkdir -p .claude/reports
 ```
 
-(Report template — branches, tasks completed, validation results, parity check, files changed, deviations, tests written. Keep the structure unchanged from the prior version of this command.)
+(Report template — branches, tasks completed, validation results, parity check, files changed, deviations, tests written. Keep the structure unchanged from the prior version of this skill.)
 
 ### Archive Plan
 
