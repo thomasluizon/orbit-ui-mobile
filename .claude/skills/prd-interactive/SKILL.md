@@ -1,4 +1,5 @@
 ---
+name: prd-interactive
 description: Interactive PRD generator - asks questions to build a PRD
 argument-hint: [feature/product idea] (blank = start with questions)
 ---
