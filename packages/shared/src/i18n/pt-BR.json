@@ -309,7 +309,7 @@
     "forceLogConfirm": "Registrar",
     "autoLogParentTitle": "Todos os sub-hábitos concluídos!",
     "autoLogParentMessage": "Quer registrar \"{name}\" como concluído?",
-    "autoLogParentConfirm": "Registrar o principal",
+    "autoLogParentConfirm": "Registrar",
     "checklistCompleteTitle": "Checklist concluído!",
     "checklistCompleteMessage": "Você concluiu todos os itens de \"{name}\". Quer registrar este hábito?",
     "checklistCompleteConfirm": "Registrar hábito",

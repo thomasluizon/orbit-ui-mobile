@@ -10,7 +10,9 @@ import android.view.View
 import android.widget.RemoteViews
 import androidx.work.Constraints
 import androidx.work.ExistingPeriodicWorkPolicy
+import androidx.work.ExistingWorkPolicy
 import androidx.work.NetworkType
+import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import java.util.concurrent.TimeUnit
@@ -20,6 +22,8 @@ class OrbitWidgetProvider : AppWidgetProvider() {
     companion object {
         const val ACTION_REFRESH = "org.useorbit.app.widget.ACTION_REFRESH"
         private const val WORK_NAME = "orbit_widget_sync"
+        private const val REFRESH_TIMEOUT_WORK_NAME = "orbit_widget_refresh_timeout"
+        private const val WIDGET_REFRESH_TIMEOUT_MS = 12_000L
 
         fun updateWidgetLayout(
             context: Context,
@@ -183,6 +187,7 @@ class OrbitWidgetProvider : AppWidgetProvider() {
             }
             // Trigger data reload (factory restores refresh button when done)
             appWidgetManager.notifyAppWidgetViewDataChanged(appWidgetIds, R.id.widget_list)
+            scheduleRefreshTimeout(context)
         }
     }
 
@@ -192,6 +197,19 @@ class OrbitWidgetProvider : AppWidgetProvider() {
 
     override fun onDisabled(context: Context) {
         WorkManager.getInstance(context).cancelUniqueWork(WORK_NAME)
+        WorkManager.getInstance(context).cancelUniqueWork(REFRESH_TIMEOUT_WORK_NAME)
+    }
+
+    private fun scheduleRefreshTimeout(context: Context) {
+        val workRequest = OneTimeWorkRequestBuilder<OrbitWidgetRefreshTimeoutWorker>()
+            .setInitialDelay(WIDGET_REFRESH_TIMEOUT_MS, TimeUnit.MILLISECONDS)
+            .build()
+
+        WorkManager.getInstance(context).enqueueUniqueWork(
+            REFRESH_TIMEOUT_WORK_NAME,
+            ExistingWorkPolicy.REPLACE,
+            workRequest
+        )
     }
 
     private fun schedulePeriodicSync(context: Context) {
