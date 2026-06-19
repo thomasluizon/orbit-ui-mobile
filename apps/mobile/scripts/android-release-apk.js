@@ -2,9 +2,11 @@ const { execSync } = require('child_process')
 const fs = require('fs')
 const os = require('os')
 const path = require('path')
+const { resolveProductionAdMobEnv } = require('./production-admob-env')
 
 process.env.EXPO_NO_METRO_WORKSPACE_ROOT = '1'
 process.env.NODE_ENV = process.env.NODE_ENV || 'production'
+Object.assign(process.env, resolveProductionAdMobEnv(process.env))
 
 const projectRoot = path.join(__dirname, '..')
 const androidDir = path.join(__dirname, '..', 'android')
