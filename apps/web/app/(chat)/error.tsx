@@ -1,5 +1,7 @@
 'use client'
 
+import { useEffect } from 'react'
+import * as Sentry from '@sentry/nextjs'
 import { AlertTriangle } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { PillButton } from '@/components/ui/pill-button'
@@ -12,6 +14,10 @@ export default function ChatError({
   reset: () => void
 }>) {
   const t = useTranslations()
+
+  useEffect(() => {
+    Sentry.captureException(error)
+  }, [error])
 
   return (
     <div className="flex min-h-[60dvh] flex-col items-center justify-center px-9 py-16 text-center">
