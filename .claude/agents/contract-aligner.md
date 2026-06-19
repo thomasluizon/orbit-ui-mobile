@@ -1,6 +1,6 @@
 ---
 name: contract-aligner
-description: Cross-checks packages/shared/src/types/* and packages/shared/src/api/endpoints.ts against orbit-api DTOs and Controllers for drift. Auto-invoke during /review when both repos have staged changes, or when the user asks to verify the API contract.
+description: Cross-checks packages/shared/src/types/* and packages/shared/src/api/endpoints.ts against orbit-api DTOs and Controllers for drift. Auto-invoke during /pr-review when both repos have staged changes, or when the user asks to verify the API contract.
 tools: Glob, Grep, Read
 model: sonnet
 ---
@@ -65,7 +65,7 @@ Contract alignment: FAIL
 
 ## When invoked
 
-- During `/review` of a PR that touches both repos.
+- During `/pr-review` of a PR that touches both repos.
 - When the user explicitly asks to verify the API contract.
 - When `add-api-endpoint` skill completes (final verification step).
 
