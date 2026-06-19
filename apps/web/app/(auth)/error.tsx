@@ -1,5 +1,7 @@
 'use client'
 
+import { useEffect } from 'react'
+import * as Sentry from '@sentry/nextjs'
 import { useTranslations } from 'next-intl'
 import { TriangleAlert } from 'lucide-react'
 import { PillButton } from '@/components/ui/pill-button'
@@ -15,6 +17,10 @@ export default function AuthError({
   reset: () => void
 }>) {
   const t = useTranslations()
+
+  useEffect(() => {
+    Sentry.captureException(error)
+  }, [error])
 
   return (
     <div className="flex w-full max-w-sm flex-col items-center text-center">
