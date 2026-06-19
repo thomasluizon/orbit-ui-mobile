@@ -15,6 +15,15 @@ vi.mock('@/stores/auth-store', () => ({
   },
 }))
 
+const mockMarkUpgradeRequired = vi.fn()
+vi.mock('@/stores/version-gate-store', () => ({
+  useVersionGateStore: {
+    getState: () => ({
+      markUpgradeRequired: mockMarkUpgradeRequired,
+    }),
+  },
+}))
+
 vi.mock('@orbit/shared/utils', () => ({
   buildClientTimeZoneHeaders: vi.fn(() => ({
     'X-Orbit-Time-Zone': 'America/Sao_Paulo',
@@ -38,6 +47,7 @@ describe('apiFetch', () => {
   beforeEach(() => {
     mockFetch.mockReset()
     mockLogout.mockReset()
+    mockMarkUpgradeRequired.mockReset()
     vi.mocked(toast.error).mockReset()
   })
 
@@ -173,6 +183,35 @@ describe('apiFetch', () => {
       description: 'You do not own this habit',
       duration: 5000,
     })
+  })
+
+  it('flags upgrade required on a 426 without toast', async () => {
+    mockFetch.mockResolvedValue({
+      ok: false,
+      status: 426,
+      json: () =>
+        Promise.resolve({
+          error: 'Upgrade required',
+          errorCode: 'UPGRADE_REQUIRED',
+          upgradeRequired: true,
+          minVersion: '1.5.0',
+        }),
+    })
+
+    await expect(apiFetch('/api/test')).rejects.toThrow(ApiError)
+    expect(mockMarkUpgradeRequired).toHaveBeenCalledWith('1.5.0')
+    expect(toast.error).not.toHaveBeenCalled()
+  })
+
+  it('flags upgrade required on a 426 with a null minVersion when absent', async () => {
+    mockFetch.mockResolvedValue({
+      ok: false,
+      status: 426,
+      json: () => Promise.resolve({ error: 'Upgrade required' }),
+    })
+
+    await expect(apiFetch('/api/test')).rejects.toThrow(ApiError)
+    expect(mockMarkUpgradeRequired).toHaveBeenCalledWith(null)
   })
 
   it('shows validation error toast on 400', async () => {

@@ -9,6 +9,8 @@ const {
   refreshSessionMock,
   clearSessionAndResetAuthMock,
   isAuthTransitionInFlightMock,
+  buildAppVersionHeadersMock,
+  markUpgradeRequiredMock,
 } = vi.hoisted(() => ({
   getTokenMock: vi.fn(),
   clearAllTokensMock: vi.fn(),
@@ -16,11 +18,21 @@ const {
   refreshSessionMock: vi.fn(),
   clearSessionAndResetAuthMock: vi.fn(),
   isAuthTransitionInFlightMock: vi.fn(() => false),
+  buildAppVersionHeadersMock: vi.fn(() => ({ 'X-App-Version': '1.1.4' })),
+  markUpgradeRequiredMock: vi.fn(),
 }))
 
 vi.mock('@/lib/secure-store', () => ({
   getToken: getTokenMock,
   clearAllTokens: clearAllTokensMock,
+}))
+
+vi.mock('@/lib/app-version', () => ({
+  buildAppVersionHeaders: buildAppVersionHeadersMock,
+}))
+
+vi.mock('@/stores/version-gate-store', () => ({
+  markUpgradeRequired: markUpgradeRequiredMock,
 }))
 
 vi.mock('@/stores/auth-store', () => ({
@@ -40,6 +52,9 @@ describe('mobile apiClient', () => {
     clearSessionAndResetAuthMock.mockReset()
     isAuthTransitionInFlightMock.mockReset()
     isAuthTransitionInFlightMock.mockReturnValue(false)
+    markUpgradeRequiredMock.mockReset()
+    buildAppVersionHeadersMock.mockReset()
+    buildAppVersionHeadersMock.mockReturnValue({ 'X-App-Version': '1.1.4' })
   })
 
   it('adds auth and JSON headers for standard requests', async () => {
@@ -61,9 +76,31 @@ describe('mobile apiClient', () => {
           Authorization: 'Bearer token-123',
           'Content-Type': 'application/json',
           'X-Orbit-Time-Zone': expect.any(String),
+          'X-App-Version': '1.1.4',
         }),
       }),
     )
+  })
+
+  it('flags upgrade required and throws on a 426 without retrying', async () => {
+    getTokenMock.mockResolvedValue('token-123')
+    fetchMock.mockResolvedValue({
+      ok: false,
+      status: 426,
+      json: () =>
+        Promise.resolve({
+          error: 'Upgrade required',
+          errorCode: 'UPGRADE_REQUIRED',
+          upgradeRequired: true,
+          minVersion: '1.5.0',
+        }),
+    })
+
+    await expect(apiClient('/secure')).rejects.toThrow('Upgrade required')
+
+    expect(markUpgradeRequiredMock).toHaveBeenCalledWith('1.5.0')
+    expect(refreshSessionMock).not.toHaveBeenCalled()
+    expect(fetchMock).toHaveBeenCalledTimes(1)
   })
 
   it('does not force JSON headers for FormData bodies', async () => {

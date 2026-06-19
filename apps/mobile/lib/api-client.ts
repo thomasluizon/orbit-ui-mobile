@@ -1,6 +1,7 @@
 import { getToken, clearAllTokens } from './secure-store'
 import { buildClientTimeZoneHeaders, createApiClientError } from '@orbit/shared'
 import { API } from '@orbit/shared/api'
+import { buildAppVersionHeaders } from './app-version'
 
 const API_BASE = process.env.EXPO_PUBLIC_API_BASE ?? 'https://api.useorbit.org'
 
@@ -59,6 +60,7 @@ function buildRequestHeaders(
 ): Record<string, string> {
   const headers: Record<string, string> = {
     ...buildClientTimeZoneHeaders(),
+    ...buildAppVersionHeaders(),
     ...(options.headers ?? {}),
   }
 
@@ -102,6 +104,26 @@ function toUnauthorizedError(requestId: string | null): Error {
   )
 }
 
+async function handleUpgradeRequired<T>(
+  response: Response,
+  requestId: string | null,
+): Promise<T> {
+  const payload = (await response.json().catch(() => null)) as
+    | (ApiErrorPayload & { minVersion?: unknown })
+    | null
+  const minVersion =
+    typeof payload?.minVersion === 'string' ? payload.minVersion : null
+
+  const { markUpgradeRequired } = await import('@/stores/version-gate-store')
+  markUpgradeRequired(minVersion)
+
+  throw createApiClientError(
+    426,
+    attachRequestIdToPayload(payload ?? { error: 'Upgrade required' }, requestId),
+    'Upgrade required',
+  )
+}
+
 async function parseApiResponse<T>(
   response: Response,
   requestId: string | null,
@@ -133,6 +155,10 @@ export async function apiClient<T = unknown>(
   options: ApiRequestOptions = {},
 ): Promise<T> {
   const { response, requestId, tokenUsed } = await executeRequest(path, options)
+
+  if (response.status === 426) {
+    return handleUpgradeRequired<T>(response, requestId)
+  }
 
   if (response.status === 401 && path !== API.auth.refresh) {
     const latestToken = await getToken()

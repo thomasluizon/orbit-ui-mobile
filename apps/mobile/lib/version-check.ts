@@ -32,35 +32,3 @@ export async function getAppStoreLookup(bundleId: string): Promise<AppStoreLooku
     return null
   }
 }
-
-/**
- * Compares two semver-ish version strings. Non-numeric segments (e.g.
- * `-beta`, `-rc1`) are ignored -- only the numeric `major.minor.patch`
- * portion is compared.
- *
- * Returns `true` iff `current` is strictly older than `latest`.
- */
-export function isVersionOutdated(current: string, latest: string): boolean {
-  const currentParts = normalizeVersion(current)
-  const latestParts = normalizeVersion(latest)
-
-  const length = Math.max(currentParts.length, latestParts.length)
-  for (let i = 0; i < length; i++) {
-    const c = currentParts[i] ?? 0
-    const l = latestParts[i] ?? 0
-    if (c < l) return true
-    if (c > l) return false
-  }
-  return false
-}
-
-function normalizeVersion(version: string): number[] {
-  if (!version) return [0]
-  const numeric = version.split(/[^0-9.]/)[0] ?? ''
-  return numeric
-    .split('.')
-    .map((segment) => {
-      const parsed = Number.parseInt(segment, 10)
-      return Number.isFinite(parsed) ? parsed : 0
-    })
-}
