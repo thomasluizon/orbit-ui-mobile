@@ -23,7 +23,6 @@ export interface VersionGateStoreState {
   upgradeRequired: boolean
   minVersion: string | null
   markUpgradeRequired: (minVersion: string | null) => void
-  clearUpgradeRequired: () => void
 }
 
 export function createVersionGateStoreState(
@@ -34,7 +33,5 @@ export function createVersionGateStoreState(
     minVersion: null,
     markUpgradeRequired: (minVersion) =>
       set({ upgradeRequired: true, minVersion }),
-    clearUpgradeRequired: () =>
-      set({ upgradeRequired: false, minVersion: null }),
   }
 }
