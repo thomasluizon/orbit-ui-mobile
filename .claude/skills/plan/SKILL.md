@@ -1,4 +1,5 @@
 ---
+name: plan
 description: Create implementation plan with cross-repo codebase analysis
 argument-hint: <issue-number | feature description | path/to/prd.md> [issue-number ...]
 ---
@@ -158,7 +159,7 @@ So that {benefit}
 (rest of plan body — see Phase 4 template details below.)
 ```
 
-The full plan template (Patterns / Files to Change / Tasks / Validation Commands / E2E / Acceptance Criteria) is unchanged from the earlier version of this command — preserve its structure.
+The full plan template (Patterns / Files to Change / Tasks / Validation Commands / E2E / Acceptance Criteria) is unchanged from the earlier version of this skill — preserve its structure.
 
 ---
 
