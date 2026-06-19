@@ -183,7 +183,33 @@ jobs:
           ${{ secrets.GOOGLE_PLAY_SERVICE_ACCOUNT_JSON }}
           EOF
 
+      - name: Resolve build target (prod vs QA)
+        shell: bash
+        env:
+          RELEASE_TRACK: ${{ inputs.track }}
+          QA_API_BASE: ${{ vars.QA_API_BASE }}
+          PROD_API_BASE: https://api.useorbit.org
+        run: |
+          set -euo pipefail
+
+          if [ "${RELEASE_TRACK}" = "internal" ]; then
+            if [ -z "${QA_API_BASE}" ]; then
+              echo "::error::The internal track builds against QA, but vars.QA_API_BASE is not set. Configure it under repo Settings → Secrets and variables → Actions → Variables." >&2
+              exit 1
+            fi
+            echo "BUILD_API_BASE=${QA_API_BASE}" >> "${GITHUB_ENV}"
+            echo "BUILD_ADMOB_USE_TEST_IDS=true" >> "${GITHUB_ENV}"
+            echo "BUILD_EAS_PROFILE=qa" >> "${GITHUB_ENV}"
+            echo "Build target: QA (api_base=${QA_API_BASE}, test AdMob IDs)"
+          else
+            echo "BUILD_API_BASE=${PROD_API_BASE}" >> "${GITHUB_ENV}"
+            echo "BUILD_ADMOB_USE_TEST_IDS=false" >> "${GITHUB_ENV}"
+            echo "BUILD_EAS_PROFILE=production" >> "${GITHUB_ENV}"
+            echo "Build target: PROD (api_base=${PROD_API_BASE}, real AdMob IDs)"
+          fi
+
       - name: Validate Expo config resolves production AdMob IDs
+        if: ${{ inputs.track != 'internal' }}
         working-directory: ${{ env.RELEASE_WORKDIR }}/apps/mobile
         shell: bash
         env:
@@ -277,17 +303,22 @@ jobs:
         env:
           CI: "1"
           EXPO_NO_TELEMETRY: "1"
-          EAS_BUILD_PROFILE: production
-          EXPO_PUBLIC_ADMOB_USE_TEST_IDS: "false"
+          EAS_BUILD_PROFILE: ${{ env.BUILD_EAS_PROFILE }}
+          EXPO_PUBLIC_API_BASE: ${{ env.BUILD_API_BASE }}
+          EXPO_PUBLIC_ADMOB_USE_TEST_IDS: ${{ env.BUILD_ADMOB_USE_TEST_IDS }}
           EXPO_PUBLIC_ADMOB_ANDROID_APP_ID: ${{ env.PROD_ADMOB_ANDROID_APP_ID }}
           EXPO_PUBLIC_ADMOB_ANDROID_INTERSTITIAL_ID: ${{ env.PROD_ADMOB_ANDROID_INTERSTITIAL_ID }}
           EXPO_PUBLIC_ADMOB_ANDROID_REWARDED_ID: ${{ env.PROD_ADMOB_ANDROID_REWARDED_ID }}
         run: |
           set -euo pipefail
 
+          echo "Prebuild API base: ${EXPO_PUBLIC_API_BASE}"
+          echo "Prebuild AdMob test IDs: ${EXPO_PUBLIC_ADMOB_USE_TEST_IDS}"
+
           npx expo prebuild --platform android --no-install
 
       - name: Validate generated Android project does not contain sample AdMob IDs
+        if: ${{ inputs.track != 'internal' }}
         working-directory: ${{ env.RELEASE_WORKDIR }}/apps/mobile
         shell: bash
         env:
