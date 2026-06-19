@@ -13,7 +13,7 @@ Just edit + `/validate`. No PRD, no plan, no issue.
 1. `/prime` — load context (add `<issue#>` if you opened one)
 2. `/plan "short description"` — get a plan file
 3. `/implement .claude/plans/<name>.plan.md` — code + tests + PR(s)
-4. `/review <PR#>` (optional) — second pass before merging
+4. `/pr-review <PR#>` (optional) — second pass before merging
 
 ### Medium / large feature (multiple stories, spans repos)
 
@@ -22,7 +22,7 @@ Driven shortcut: `/feature "<idea>"` chains grill → `/create-prd` (or `/prd-in
 1. `/prd-interactive` (cold start) **or** `/create-prd` (after you've already chatted through the idea) — pick one, not both
 2. `/create-stories .claude/PRDs/<name>.prd.md` — writes the local stories file and creates labeled GitHub issues in `orbit-ui-mobile`
 3. For each issue: `/prime <issue#>` → `/plan <issue#>` → `/implement <plan>`
-4. `/review` / `/security-review` on the resulting PRs
+4. `/pr-review` on the resulting PRs
 
 ### Multi-issue path (parallelize across 2+ issues at once)
 
