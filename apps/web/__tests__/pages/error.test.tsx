@@ -2,7 +2,12 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 
 vi.mock('next-intl', () => ({
+  NextIntlClientProvider: ({ children }: { children: React.ReactNode }) => <>{children}</>,
   useTranslations: () => (key: string) => key,
+}))
+
+vi.mock('@sentry/nextjs', () => ({
+  captureException: vi.fn(),
 }))
 
 vi.mock('lucide-react', async (importOriginal) => {
@@ -15,6 +20,7 @@ vi.mock('lucide-react', async (importOriginal) => {
 
 import AppError from '@/app/(app)/error'
 import AuthError from '@/app/(auth)/error'
+import GlobalError from '@/app/global-error'
 
 
 describe('AppError', () => {
@@ -105,6 +111,40 @@ describe('AuthError', () => {
   it('handles error with digest property', () => {
     const error = Object.assign(new Error('Session expired'), { digest: 'xyz789' })
     render(<AuthError error={error} reset={mockReset} />)
+    expect(screen.getByText('auth.genericError')).toBeInTheDocument()
+  })
+})
+
+
+describe('GlobalError', () => {
+  const mockReset = vi.fn()
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('renders the generic error message through i18n', () => {
+    const error = new Error('Boom') as Error & { digest?: string }
+    render(<GlobalError error={error} reset={mockReset} />)
+    expect(screen.getByText('auth.genericError')).toBeInTheDocument()
+  })
+
+  it('renders the retry button label through i18n', () => {
+    const error = new Error('Boom') as Error & { digest?: string }
+    render(<GlobalError error={error} reset={mockReset} />)
+    expect(screen.getByText('common.retry')).toBeInTheDocument()
+  })
+
+  it('calls reset when retry button is clicked', () => {
+    const error = new Error('Boom') as Error & { digest?: string }
+    render(<GlobalError error={error} reset={mockReset} />)
+    fireEvent.click(screen.getByText('common.retry'))
+    expect(mockReset).toHaveBeenCalledTimes(1)
+  })
+
+  it('handles error with digest property', () => {
+    const error = Object.assign(new Error('Server error'), { digest: 'abc123' })
+    render(<GlobalError error={error} reset={mockReset} />)
     expect(screen.getByText('auth.genericError')).toBeInTheDocument()
   })
 })

@@ -8,6 +8,7 @@ import { Providers } from '@/lib/providers'
 import { WebNav } from '@/components/navigation/web-nav'
 import type { BottomTab } from '@/components/navigation/bottom-tab-bar'
 import { TrialBanner } from '@/components/ui/trial-banner'
+import { UpdateAvailableBanner } from '@/components/ui/update-available-banner'
 import { TrialExpiredModal } from '@/components/ui/trial-expired-modal'
 import { ExpiryWarning } from '@/components/ui/expiry-warning'
 import { PushPrompt } from '@/components/ui/push-prompt'
@@ -175,6 +176,7 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
         className="relative z-10 mx-auto max-w-[var(--app-max-w)] px-[var(--app-px)]"
       >
         <TrialBanner />
+        <UpdateAvailableBanner />
         <RouteTransitionShell>
           <div>{children}</div>
         </RouteTransitionShell>

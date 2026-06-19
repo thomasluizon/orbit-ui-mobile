@@ -3,7 +3,8 @@ import Constants from 'expo-constants'
 import { useQuery } from '@tanstack/react-query'
 import SpInAppUpdates, { IAUUpdateKind, type NeedsUpdateResponse } from 'sp-react-native-in-app-updates'
 import { versionCheckKeys } from '@orbit/shared/query'
-import { getAppStoreLookup, isVersionOutdated } from '@/lib/version-check'
+import { isVersionBelow } from '@orbit/shared/utils'
+import { getAppStoreLookup } from '@/lib/version-check'
 
 const SIX_HOURS = 1000 * 60 * 60 * 6
 const ONE_DAY = 1000 * 60 * 60 * 24
@@ -91,7 +92,7 @@ export function useVersionCheck(): VersionNeedsUpdateResponse {
   const latestVersion = data?.latestIosVersion ?? null
   const iosStoreUrl = data?.iosStoreUrl ?? null
   const updateAvailable =
-    enabled && !!currentVersion && !!latestVersion && isVersionOutdated(currentVersion, latestVersion)
+    enabled && !!currentVersion && !!latestVersion && isVersionBelow(currentVersion, latestVersion)
 
   return {
     updateAvailable,

@@ -309,7 +309,7 @@
     "forceLogConfirm": "Registrar",
     "autoLogParentTitle": "Todos os sub-hábitos concluídos!",
     "autoLogParentMessage": "Quer registrar \"{name}\" como concluído?",
-    "autoLogParentConfirm": "Registrar o principal",
+    "autoLogParentConfirm": "Registrar",
     "checklistCompleteTitle": "Checklist concluído!",
     "checklistCompleteMessage": "Você concluiu todos os itens de \"{name}\". Quer registrar este hábito?",
     "checklistCompleteConfirm": "Registrar hábito",
@@ -1956,6 +1956,13 @@
     "description": "Saiu uma nova versão do Orbit. Atualize agora para ter as últimas correções e novidades.",
     "updateCta": "Atualizar agora",
     "laterCta": "Depois"
+  },
+  "forceUpdate": {
+    "title": "Atualização obrigatória",
+    "description": "Esta versão do Orbit não é mais compatível. Atualize para continuar.",
+    "cta": "Atualizar o Orbit",
+    "banner": "Uma nova versão do Orbit está disponível.",
+    "refresh": "Atualizar"
   },
   "tour": {
     "mockData": {

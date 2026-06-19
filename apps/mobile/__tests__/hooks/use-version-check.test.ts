@@ -56,22 +56,6 @@ vi.mock('@tanstack/react-query', () => ({
 
 vi.mock('@/lib/version-check', () => ({
   getAppStoreLookup: mocks.getAppStoreLookup,
-  isVersionOutdated: (current: string, latest: string) => {
-    const parse = (v: string) =>
-      (v.split(/[^0-9.]/)[0] ?? '')
-        .split('.')
-        .map((n) => Number.parseInt(n, 10) || 0)
-    const a = parse(current)
-    const b = parse(latest)
-    const len = Math.max(a.length, b.length)
-    for (let i = 0; i < len; i++) {
-      const x = a[i] ?? 0
-      const y = b[i] ?? 0
-      if (x < y) return true
-      if (x > y) return false
-    }
-    return false
-  },
 }))
 
 vi.mock('sp-react-native-in-app-updates', () => {

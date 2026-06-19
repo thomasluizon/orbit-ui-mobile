@@ -291,6 +291,53 @@ describe('mobile useAdMob', () => {
     mocks.state.rewardeds[0]?.emit('rewarded')
     mocks.state.rewardeds[0]?.emit('closed')
     await expect(rewardedAttempt).resolves.toBe(true)
+
+    expect(mocks.createInterstitial).not.toHaveBeenCalledWith('test-interstitial')
+    expect(mocks.createRewarded).not.toHaveBeenCalledWith('test-rewarded')
+  })
+
+  it('falls back to test ids in development when useTestIds is not configured', async () => {
+    mocks.constants.expoConfig.extra = {
+      adMob: {
+        androidInterstitialId: 'prod-interstitial',
+        androidRewardedId: 'prod-rewarded',
+      },
+    }
+    const { result } = await renderUseAdMob()
+
+    await TestRenderer.act(async () => {
+      await result.initialize()
+    })
+
+    const interstitialAttempt = result.showInterstitialIfDue()
+    await Promise.resolve()
+    expect(mocks.createInterstitial).toHaveBeenCalledWith('test-interstitial')
+    expect(mocks.createInterstitial).not.toHaveBeenCalledWith('prod-interstitial')
+    mocks.state.interstitials[0]?.emit('loaded')
+    await Promise.resolve()
+    mocks.state.interstitials[0]?.emit('closed')
+    await interstitialAttempt
+  })
+
+  it('does not request an ad when production ids are missing', async () => {
+    mocks.constants.expoConfig.extra = {
+      adMob: {
+        useTestIds: false,
+        androidInterstitialId: null,
+        androidRewardedId: null,
+      },
+    }
+    const { result } = await renderUseAdMob()
+
+    await TestRenderer.act(async () => {
+      await result.initialize()
+    })
+
+    await result.showInterstitialIfDue()
+    await expect(result.showRewardedAd()).resolves.toBe(false)
+
+    expect(mocks.createInterstitial).not.toHaveBeenCalled()
+    expect(mocks.createRewarded).not.toHaveBeenCalled()
   })
 
   it('increments the claimed reward count in the profile cache', async () => {

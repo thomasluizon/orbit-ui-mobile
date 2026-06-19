@@ -22,8 +22,15 @@ export const appConfigSchema = z.object({
     syncIntervalSeconds: z.number(),
     syncMaxBatchSize: z.number(),
   }),
+  minVersion: z.string(),
 })
 export type AppConfig = z.infer<typeof appConfigSchema>
+
+export const upgradeRequiredSchema = z.object({
+  upgradeRequired: z.literal(true),
+  minVersion: z.string(),
+})
+export type UpgradeRequiredResponse = z.infer<typeof upgradeRequiredSchema>
 
 export const DEFAULT_CONFIG: AppConfig = {
   limits: {
@@ -55,4 +62,5 @@ export const DEFAULT_CONFIG: AppConfig = {
     syncIntervalSeconds: 300,
     syncMaxBatchSize: 100,
   },
+  minVersion: '0.0.0',
 }

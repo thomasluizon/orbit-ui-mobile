@@ -1,5 +1,6 @@
 import { resolveServerSession } from '@/lib/auth-api'
 import { createApiClientError } from '@orbit/shared'
+import { APP_VERSION_HEADER } from '@orbit/shared/utils'
 
 const API_BASE = process.env.API_BASE ?? 'http://localhost:5000'
 
@@ -9,10 +10,12 @@ const API_BASE = process.env.API_BASE ?? 'http://localhost:5000'
  * and throws a structured ApiClientError on failure.
  */
 export async function serverAuthFetch<T = unknown>(path: string, init: RequestInit = {}): Promise<T> {
-  const buildHeaders = (token: string) => ({
+  const appVersion = process.env.APP_VERSION
+  const buildHeaders = (token: string): Record<string, string> => ({
     Authorization: `Bearer ${token}`,
     'Content-Type': 'application/json',
-    ...init.headers,
+    ...(appVersion ? { [APP_VERSION_HEADER]: appVersion } : {}),
+    ...(init.headers as Record<string, string> | undefined),
   })
 
   let session = await resolveServerSession()

@@ -1957,6 +1957,13 @@
     "updateCta": "Update now",
     "laterCta": "Later"
   },
+  "forceUpdate": {
+    "title": "Update required",
+    "description": "This version of Orbit is no longer supported. Update to keep going.",
+    "cta": "Update Orbit",
+    "banner": "A new version of Orbit is available.",
+    "refresh": "Refresh"
+  },
   "tour": {
     "mockData": {
       "habits": {

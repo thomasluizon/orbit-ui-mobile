@@ -1,4 +1,5 @@
 ---
+name: create-stories
 description: Break a PRD into GitHub issues across orbit-ui-mobile + orbit-api
 argument-hint: <path-to-prd> [--milestone "MVP"] [--no-create]
 ---
