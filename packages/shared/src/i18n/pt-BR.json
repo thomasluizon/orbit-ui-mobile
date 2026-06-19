@@ -1957,6 +1957,13 @@
     "updateCta": "Atualizar agora",
     "laterCta": "Depois"
   },
+  "forceUpdate": {
+    "title": "Atualização obrigatória",
+    "description": "Esta versão do Orbit não é mais compatível. Atualize para continuar.",
+    "cta": "Atualizar o Orbit",
+    "banner": "Uma nova versão do Orbit está disponível.",
+    "refresh": "Atualizar"
+  },
   "tour": {
     "mockData": {
       "habits": {

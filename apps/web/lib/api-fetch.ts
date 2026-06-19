@@ -83,7 +83,19 @@ async function getStatusError(
     return new ApiError(status, 'Forbidden', body)
   }
 
+  if (status === 426) {
+    const { useVersionGateStore } = await import('@/stores/version-gate-store')
+    useVersionGateStore.getState().markUpgradeRequired(extractMinVersion(body))
+    return new ApiError(status, 'Upgrade required', body)
+  }
+
   return null
+}
+
+function extractMinVersion(body: unknown): string | null {
+  if (typeof body !== 'object' || body === null) return null
+  const minVersion = (body as Record<string, unknown>).minVersion
+  return typeof minVersion === 'string' ? minVersion : null
 }
 
 export async function apiFetch<T>(url: string, options?: RequestInit): Promise<T> {

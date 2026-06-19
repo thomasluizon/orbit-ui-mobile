@@ -1,4 +1,5 @@
 import { NextResponse, type NextRequest } from 'next/server'
+import { APP_VERSION_HEADER } from '@orbit/shared/utils'
 import { resolveServerSession } from '@/lib/auth-api'
 import { buildForwardedClientHeaders } from '@/app/api/_utils/forwarded-client-context'
 
@@ -87,6 +88,11 @@ async function proxyRequest(
 
   if (token) {
     headers['Authorization'] = `Bearer ${token}`
+  }
+
+  const appVersion = process.env.APP_VERSION
+  if (appVersion) {
+    headers[APP_VERSION_HEADER] = appVersion
   }
 
   Object.assign(headers, buildForwardedClientHeaders(request))

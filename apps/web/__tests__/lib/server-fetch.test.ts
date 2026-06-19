@@ -122,4 +122,54 @@ describe('serverAuthFetch', () => {
 
     expect(result).toBeNull()
   })
+
+  it('attaches the X-App-Version header when APP_VERSION is set', async () => {
+    const previous = process.env.APP_VERSION
+    process.env.APP_VERSION = '1.2.3'
+    resolveServerSessionMock.mockResolvedValue({
+      token: 'test-token',
+      expiresAt: Date.now() + 3600000,
+      refreshed: false,
+    })
+    mockFetch.mockResolvedValue({
+      ok: true,
+      status: 200,
+      text: () => Promise.resolve(JSON.stringify({ ok: true })),
+    })
+
+    vi.resetModules()
+    const { serverAuthFetch } = await import('@/lib/server-fetch')
+    await serverAuthFetch('/api/habits')
+
+    expect(mockFetch).toHaveBeenCalledWith(
+      expect.any(String),
+      expect.objectContaining({
+        headers: expect.objectContaining({ 'X-App-Version': '1.2.3' }),
+      }),
+    )
+    process.env.APP_VERSION = previous
+  })
+
+  it('omits the X-App-Version header when APP_VERSION is unset', async () => {
+    const previous = process.env.APP_VERSION
+    delete process.env.APP_VERSION
+    resolveServerSessionMock.mockResolvedValue({
+      token: 'test-token',
+      expiresAt: Date.now() + 3600000,
+      refreshed: false,
+    })
+    mockFetch.mockResolvedValue({
+      ok: true,
+      status: 200,
+      text: () => Promise.resolve(JSON.stringify({ ok: true })),
+    })
+
+    vi.resetModules()
+    const { serverAuthFetch } = await import('@/lib/server-fetch')
+    await serverAuthFetch('/api/habits')
+
+    const [, options] = mockFetch.mock.calls[0] as [string, RequestInit]
+    expect((options.headers as Record<string, string>)['X-App-Version']).toBeUndefined()
+    process.env.APP_VERSION = previous
+  })
 })

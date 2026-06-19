@@ -1,40 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { getAppStoreLookup, isVersionOutdated } from '@/lib/version-check'
-
-describe('isVersionOutdated', () => {
-  it('returns true when current is strictly older than latest', () => {
-    expect(isVersionOutdated('1.0.0', '1.0.1')).toBe(true)
-    expect(isVersionOutdated('1.0.0', '1.1.0')).toBe(true)
-    expect(isVersionOutdated('1.9.9', '2.0.0')).toBe(true)
-  })
-
-  it('returns false when versions are equal', () => {
-    expect(isVersionOutdated('1.2.0', '1.2.0')).toBe(false)
-    expect(isVersionOutdated('3.4.5', '3.4.5')).toBe(false)
-  })
-
-  it('returns false when current is newer than latest', () => {
-    expect(isVersionOutdated('2.0.0', '1.9.9')).toBe(false)
-    expect(isVersionOutdated('1.1.0', '1.0.9')).toBe(false)
-  })
-
-  it('pads shorter versions with zeros', () => {
-    expect(isVersionOutdated('1.0', '1.0.1')).toBe(true)
-    expect(isVersionOutdated('1.0.0', '1.0')).toBe(false)
-    expect(isVersionOutdated('1', '1.0.0')).toBe(false)
-  })
-
-  it('ignores non-numeric suffix segments', () => {
-    expect(isVersionOutdated('1.0.0-beta', '1.0.0')).toBe(false)
-    expect(isVersionOutdated('1.0.0', '1.0.0-rc1')).toBe(false)
-    expect(isVersionOutdated('1.0.0-beta', '1.0.1')).toBe(true)
-  })
-
-  it('handles empty or malformed versions defensively', () => {
-    expect(isVersionOutdated('', '1.0.0')).toBe(true)
-    expect(isVersionOutdated('1.0.0', '')).toBe(false)
-  })
-})
+import { getAppStoreLookup } from '@/lib/version-check'
 
 describe('getAppStoreLookup', () => {
   const fetchMock = vi.fn()

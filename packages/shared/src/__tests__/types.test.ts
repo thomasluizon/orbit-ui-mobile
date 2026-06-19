@@ -8,7 +8,7 @@ import { goalSchema, paginatedGoalResponseSchema } from '../types/goal'
 import { profileSchema, setNameRequestSchema } from '../types/profile'
 import { notificationItemSchema, notificationsResponseSchema } from '../types/notification'
 import { achievementSchema, gamificationProfileSchema } from '../types/gamification'
-import { appConfigSchema } from '../types/config'
+import { appConfigSchema, upgradeRequiredSchema } from '../types/config'
 
 import {
   userSchema,
@@ -426,6 +426,38 @@ describe('config schema', () => {
     })
     const result = appConfigSchema.safeParse(config)
     expect(result.success).toBe(true)
+  })
+
+  it('parses config with minVersion', () => {
+    const config = createMockConfig({ minVersion: '1.2.3' })
+    const result = appConfigSchema.safeParse(config)
+    expect(result.success).toBe(true)
+    expect(result.success && result.data.minVersion).toBe('1.2.3')
+  })
+
+  it('rejects config missing minVersion', () => {
+    const config = createMockConfig()
+    const { minVersion: _, ...rest } = config
+    const result = appConfigSchema.safeParse(rest)
+    expect(result.success).toBe(false)
+  })
+})
+
+describe('upgradeRequiredSchema', () => {
+  it('parses a valid upgrade-required response', () => {
+    const result = upgradeRequiredSchema.safeParse({
+      upgradeRequired: true,
+      minVersion: '1.0.0',
+    })
+    expect(result.success).toBe(true)
+  })
+
+  it('rejects when upgradeRequired is not literally true', () => {
+    const result = upgradeRequiredSchema.safeParse({
+      upgradeRequired: false,
+      minVersion: '1.0.0',
+    })
+    expect(result.success).toBe(false)
   })
 })
 

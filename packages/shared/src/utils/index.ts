@@ -144,10 +144,12 @@ export {
   monthlyEquivalent,
 } from './subscription-pricing'
 export {
+  APP_VERSION_HEADER,
   buildClientTimeZoneHeaders,
   CLIENT_TIME_ZONE_HEADER,
   getClientTimeZone,
 } from './client-context'
+export { isVersionBelow } from './version'
 export { buildReferralUrl } from './referral'
 export {
   getOnboardingDisplayStep,

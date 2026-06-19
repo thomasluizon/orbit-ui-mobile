@@ -1,5 +1,9 @@
 export { createChatStoreState, type ChatStoreState } from './chat-store'
 export {
+  createVersionGateStoreState,
+  type VersionGateStoreState,
+} from './version-gate-store'
+export {
   createTourStoreState,
   type TourStoreState,
   type TourTargetRect,

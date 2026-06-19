@@ -59,6 +59,7 @@ import { captureError } from '@/lib/sentry'
 import { ExpiryWarning } from '@/components/ui/expiry-warning'
 import { TrialExpiredModal } from '@/components/ui/trial-expired-modal'
 import { VersionUpdateDrawer } from '@/components/version-update-drawer'
+import { UpgradeRequiredScreen } from '@/components/upgrade-required-screen'
 import { TourProvider } from '@/components/tour/tour-provider'
 import { TourOverlay } from '@/components/tour/tour-overlay'
 
@@ -389,6 +390,7 @@ function RootLayoutContent() {
         ]}
       >
         <RootLayoutNav />
+        <UpgradeRequiredScreen />
       </View>
     </NavigationThemeProvider>
   )
