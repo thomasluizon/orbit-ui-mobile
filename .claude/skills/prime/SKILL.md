@@ -1,4 +1,5 @@
 ---
+name: prime
 description: Prime agent with Orbit project context (both repos + optional GitHub issue)
 argument-hint: [issue-number ...] [--quick]
 ---
@@ -9,7 +10,7 @@ argument-hint: [issue-number ...] [--quick]
 
 ## Objective
 
-Build a working mental model of both Orbit repos so subsequent commands (`/plan`, `/implement`) have warm context.
+Build a working mental model of both Orbit repos so subsequent skills (`/plan`, `/implement`) have warm context.
 
 ## Mode detection (do this first)
 

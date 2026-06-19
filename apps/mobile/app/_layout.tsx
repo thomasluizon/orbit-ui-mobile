@@ -52,8 +52,10 @@ import {
   type StreakFreezeCelebrationHandle,
 } from '@/components/gamification/streak-freeze-celebration'
 import { WelcomeBackToast } from '@/components/gamification/welcome-back-toast'
+import * as Sentry from '@sentry/react-native'
 import { AppToast } from '@/components/ui/app-toast'
 import { AppErrorScreen } from '@/components/ui/app-error-boundary'
+import { captureError } from '@/lib/sentry'
 import { ExpiryWarning } from '@/components/ui/expiry-warning'
 import { TrialExpiredModal } from '@/components/ui/trial-expired-modal'
 import { VersionUpdateDrawer } from '@/components/version-update-drawer'
@@ -459,7 +461,7 @@ const styles = StyleSheet.create({
   },
 })
 
-export default function RootLayout() {
+function RootLayout() {
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <Providers>
@@ -469,7 +471,13 @@ export default function RootLayout() {
   )
 }
 
+export default Sentry.wrap(RootLayout)
+
 export function ErrorBoundary({ error, retry }: Readonly<ErrorBoundaryProps>) {
+  useEffect(() => {
+    captureError(error)
+  }, [error])
+
   return (
     <GestureHandlerRootView style={{ flex: 1 }}>
       <AppErrorScreen error={error} retry={() => void retry()} />

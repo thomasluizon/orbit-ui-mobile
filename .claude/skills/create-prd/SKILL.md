@@ -1,4 +1,5 @@
 ---
+name: create-prd
 description: Create a comprehensive Product Requirements Document from conversation context
 argument-hint: [output-filename]
 ---

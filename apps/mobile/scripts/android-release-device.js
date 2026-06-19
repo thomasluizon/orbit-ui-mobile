@@ -1,6 +1,7 @@
 const { spawn } = require('child_process')
 const fs = require('fs')
 const path = require('path')
+const { resolveProductionAdMobEnv } = require('./production-admob-env')
 
 const projectRoot = path.resolve(__dirname, '..')
 const androidDir = path.join(projectRoot, 'android')
@@ -91,6 +92,11 @@ async function waitForPid(deviceId) {
 }
 
 async function main() {
+  const releaseEnv = {
+    ...resolveProductionAdMobEnv(process.env),
+    EXPO_NO_METRO_WORKSPACE_ROOT: '1',
+  }
+
   const deviceId = await getConnectedDeviceId()
 
   console.log(`Using adb device: ${deviceId}`)
@@ -98,20 +104,14 @@ async function main() {
 
   await run('cmd.exe', ['/c', 'npx', 'expo', 'prebuild', '--platform', 'android', '--no-install'], {
     cwd: projectRoot,
-    env: {
-      ...process.env,
-      EXPO_NO_METRO_WORKSPACE_ROOT: '1',
-    },
+    env: releaseEnv,
   })
 
   console.log('Building release APK with Gradle...')
 
   await run('cmd.exe', ['/c', 'gradlew.bat', 'assembleRelease'], {
     cwd: androidDir,
-    env: {
-      ...process.env,
-      EXPO_NO_METRO_WORKSPACE_ROOT: '1',
-    },
+    env: releaseEnv,
   })
 
   if (!fs.existsSync(apkPath)) {
