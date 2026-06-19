@@ -68,6 +68,7 @@ See `WORKFLOW.md` for the multi-issue paired-worktree path.
 - **Mobile auth:** SecureStore. Never persist tokens to AsyncStorage.
 - **API contract:** types live in `packages/shared/src/types/*.ts` (Zod schemas). Never invent fields the API doesn't return.
 - **Cross-repo contract:** changing an endpoint here needs the matching change in `orbit-api`. The `contract-aligner` subagent flags drift.
+- **Backward compatibility (append-only + deploy-order):** shared/DTO contract changes are additive by default — add new optional fields, never rename/remove/retype a field old mobile clients still read (mobile updates ship through the Play store and lag). Breaking changes use expand-contract, not `/v1`,`/v2` versioning. Deploy the API **before** any client depends on the new contract. The min-supported-version gate is the backstop (API returns 426 for clients below the floor → mobile shows "please update"; see #210). `/pr-review` flags breaking `packages/shared`/DTO changes that would break old mobile clients (#206).
 
 ## Frontend design
 
@@ -107,7 +108,9 @@ TypeScript LSP is built into Claude Code — works without setup for `apps/web`,
 - **Shared:** Vitest. Config: `packages/shared/vitest.config.ts`.
 - **Factories:** `packages/shared/src/__tests__/factories.ts`.
 - **Run:** `npm test` per workspace.
-- Unit tests only — the Playwright E2E suite was removed as outdated; don't add E2E or integration suites.
+- Unit tests only by default — the old broad Playwright E2E suite was removed as outdated; don't add per-PR E2E, integration suites, or a real-DB harness.
+- Exception: a scoped ~5-test web Playwright **smoke suite** (signup, create+log habit, Astra-creates-habit, paywall) runs against the QA env post-deploy and blocks prod promotion (see #227). This is the only sanctioned E2E. A flaky smoke test is fix-or-delete same day — never retry-to-green; keep it ≤~5 tests. No per-PR E2E and no mobile E2E (Detox/Maestro).
+- Review tooling: `/pr-review` is the canonical local diff-review skill — it replaces and absorbs the old `/review` + `/security-review` (it orchestrates security-reviewer / contract-aligner / parity-checker / i18n-syncer and runs the backward-compat guard above) (#206). Don't invoke `/review` or `/security-review` separately.
 - Every new feature needs tests. Tests asserting behavior, not implementation details.
 
 ## Path-picking
