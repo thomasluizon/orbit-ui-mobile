@@ -57,6 +57,7 @@ export function BottomSheetModal({
   const sheetRef = useRef<TrueSheet>(null)
   const openRef = useRef(open)
   openRef.current = open
+  const presentedRef = useRef(false)
 
   const detents = useMemo(
     () => (snapPointsProp ?? DEFAULT_SNAP_POINTS).map(toDetent),
@@ -66,11 +67,23 @@ export function BottomSheetModal({
   const dismissible = canDismiss && !isDirty
 
   useEffect(() => {
-    if (open) {
-      void sheetRef.current?.present()
-    } else {
-      void sheetRef.current?.dismiss()
+    const sheet = sheetRef.current
+    if (!sheet) return
+
+    async function syncSheet(target: TrueSheet) {
+      try {
+        if (open) {
+          presentedRef.current = true
+          await target.present()
+        } else if (presentedRef.current) {
+          await target.dismiss()
+        }
+      } catch {
+        presentedRef.current = false
+      }
     }
+
+    void syncSheet(sheet)
   }, [open])
 
   function requestDismiss(reason: DismissReason) {
@@ -82,6 +95,7 @@ export function BottomSheetModal({
   }
 
   function handleDidDismiss() {
+    presentedRef.current = false
     if (openRef.current) onClose()
   }
 
