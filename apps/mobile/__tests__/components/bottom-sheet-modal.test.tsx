@@ -25,6 +25,10 @@ vi.mock('@/lib/theme', () => ({
   createTokensV2: () => new Proxy({}, { get: () => '#111111' }),
 }))
 
+vi.mock('@/lib/use-app-theme', () => ({
+  useAppTheme: () => ({ currentScheme: 'purple', currentTheme: 'dark' }),
+}))
+
 interface TestTree {
   update(element: React.ReactNode): void
 }
@@ -97,5 +101,17 @@ describe('BottomSheetModal', () => {
     await setOpen(tree, false)
 
     expect(dismiss).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not dismiss after a present that failed, since the sheet was never shown', async () => {
+    present.mockImplementationOnce(() =>
+      Promise.reject(new Error('present failed')),
+    )
+    const tree = await renderModal(true)
+
+    await setOpen(tree, false)
+
+    expect(present).toHaveBeenCalledTimes(1)
+    expect(dismiss).not.toHaveBeenCalled()
   })
 })

@@ -79,7 +79,7 @@ export function BottomSheetModal({
           await target.dismiss()
         }
       } catch {
-        presentedRef.current = open
+        presentedRef.current = false
       }
     }
 
