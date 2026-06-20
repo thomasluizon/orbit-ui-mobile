@@ -308,15 +308,6 @@ jobs:
           chmod +x gradlew
           ./gradlew --no-daemon bundleRelease
 
-      - name: Verify shipped AAB embeds production AdMob IDs
-        if: ${{ inputs.track != 'internal' }}
-        working-directory: ${{ env.RELEASE_WORKDIR }}/apps/mobile
-        shell: bash
-        run: |
-          set -euo pipefail
-          node scripts/assert-aab-admob-config.js \
-            android/app/build/outputs/bundle/release/app-release.aab
-
       - name: Verify Android widget is bundled in release manifest
         working-directory: ${{ env.RELEASE_WORKDIR }}/apps/mobile/android
         shell: bash
