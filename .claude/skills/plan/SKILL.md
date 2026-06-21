@@ -1,7 +1,7 @@
 ---
 name: plan
 description: Create implementation plan with cross-repo codebase analysis
-argument-hint: <issue-number | feature description | path/to/prd.md> [issue-number ...]
+argument-hint: <issue-number | feature description | path/to/prd.md> [issue-number ...] [--research | --no-research]
 ---
 
 # Implementation Plan Generator
@@ -17,7 +17,7 @@ Transform input into a context-rich, battle-tested implementation plan.
 
 ## Mode detection (do this first)
 
-Parse `$ARGUMENTS`. Count numeric tokens (`123`, `#123`) — split on whitespace OR commas.
+First strip any `--research` / `--no-research` flag from `$ARGUMENTS` (it controls Phase 2.5 only); the remainder is the plan input. Then parse `$ARGUMENTS` and count numeric tokens (`123`, `#123`) — split on whitespace OR commas.
 
 | Numeric arg count | Mode |
 |---|---|
@@ -95,6 +95,22 @@ Use the Explore subagent for breadth. Search areas based on `Repos`:
 | BACKEND_CQRS | api | `src/Orbit.Application/...` | ... |
 | BACKEND_VALIDATOR | api | `src/Orbit.Application/.../Validators/...` | ... |
 | TESTS | both | `apps/web/__tests__/...` + `tests/Orbit.IntegrationTests/...` | ... |
+
+---
+
+## Phase 2.5: RESEARCH open decisions (conditional)
+
+Most plans need NO web research — `/plan` fits work into existing Orbit patterns, and Phase 2 already surfaces the pattern to mirror. Reach for `/deep-research` only when the task has a genuine open decision the codebase doesn't answer.
+
+**Trigger** deep-research when EITHER:
+- `--research` was passed (force it), OR
+- Phase 2 found **no in-repo precedent** for a load-bearing decision — one of: a new third-party dependency/SDK with no established equivalent here; an unfamiliar architecture/integration/protocol with no pattern to mirror; a performance/security/scaling/cost approach not already settled in the codebase or `CLAUDE.md`; or the issue itself asks an open "what's the best way to X."
+
+**Skip** (the common case) when Phase 2 found a clear pattern to mirror, the task is routine CRUD/feature/bugfix/parity work, or `--no-research` was passed. State in one line that research was skipped and why.
+
+**How:** invoke `/deep-research "<the specific open question>"` scoped to the **decision**, not the whole feature (e.g. "best way to do optimistic offline sync for habit logs in Expo + TanStack Query", not "plan the habits feature"). Fold its recommendation into Phase 3 as the chosen approach, and cite its sources in the plan's Patterns/Risks. In **multi-plan mode**, run the research inline (apply the deep-research method directly) rather than nesting a `/deep-research` skill call.
+
+**Guardrail — Orbit conventions win.** deep-research surfaces *external* best practice; it does not override Orbit's deliberate choices. When a finding conflicts with `CLAUDE.md`, `DESIGN.md`, an established codebase pattern, or cross-platform parity, the Orbit convention wins — note the deviation and why. Never let a generic recommendation pull the plan off-anchor.
 
 ---
 

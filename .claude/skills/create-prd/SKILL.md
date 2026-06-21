@@ -1,7 +1,7 @@
 ---
 name: create-prd
 description: Create a comprehensive Product Requirements Document from conversation context
-argument-hint: [output-filename]
+argument-hint: [output-filename] [--research | --no-research]
 ---
 
 # Create PRD: Generate Product Requirements Document
@@ -10,7 +10,7 @@ argument-hint: [output-filename]
 
 Generate a comprehensive Product Requirements Document (PRD) for Orbit based on the current conversation context. Use the structure below.
 
-**Output file name**: $ARGUMENTS (default: `PRD.md`)
+**Output file name**: $ARGUMENTS with any `--research`/`--no-research` flag stripped (default: `PRD.md`)
 **Output directory**: `.claude/PRDs/`
 
 ## Orbit-Specific Notes
@@ -108,6 +108,20 @@ Cross-platform parity (`apps/web` ↔ `apps/mobile`) is mandatory per `CLAUDE.md
 Review conversation history. Identify explicit requirements, implicit needs, constraints, and success criteria.
 
 **If critical information is missing**, ask clarifying questions before generating. Wait for user response.
+
+### Phase 1.5: RESEARCH open decisions (conditional)
+
+Most PRDs need NO web research — they extend Orbit's existing product surface. Reach for `/deep-research` only when the PRODUCT approach has a genuine unknown.
+
+**Trigger** deep-research when EITHER:
+- `--research` was passed (force it), OR
+- Phase 1 surfaced an open product/approach question with no in-house precedent — one of: a new feature **category** Orbit hasn't built; a third-party integration or vendor choice; a market/UX/pricing/compliance pattern that needs current best practice; or an Open Question (§14) that is a genuine "what's the best way to X" rather than a product decision you can just make.
+
+**Skip** (the common case) when the PRD extends an existing feature, the approach mirrors something Orbit already ships, or `--no-research` was passed. Note in one line that research was skipped.
+
+**How:** invoke `/deep-research "<the specific open question>"` scoped to the decision. Fold its findings into §6 Architecture & Patterns, §13 Risks & Mitigations, and §14 Open Questions (with cited sources). Keep the PRD the source of truth; attach research as evidence, not a prose dump.
+
+**Guardrail — Orbit posture wins.** Research informs; it does not override Orbit's product posture, design canon (`DESIGN.md`), or the cross-platform-parity mandate. When a finding conflicts, the Orbit choice wins and the PRD records the deviation and why.
 
 ### Phase 2: SYNTHESIZE
 
