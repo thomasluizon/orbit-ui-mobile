@@ -169,6 +169,8 @@ export function HabitRow({
         }
       }}
       data-tour={tourTargetId}
+      data-testid="habit-row"
+      data-habit-title={habit.title}
       className={
         `relative flex items-center cursor-pointer shadow-[inset_0_0_0_1px_var(--hairline)] transition-[background-color,transform,box-shadow] duration-[160ms] ease-[var(--ease-standard)] active:scale-[0.99] ${
           selected
@@ -558,6 +560,7 @@ function CheckCircle({ state, tone = 'default', onToggle, disabled, ariaLabel }:
   return (
     <button
       type="button"
+      data-testid="habit-status-toggle"
       onClick={(event) => {
         event.stopPropagation()
         if (disabled) return

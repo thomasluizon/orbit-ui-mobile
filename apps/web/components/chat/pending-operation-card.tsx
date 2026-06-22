@@ -144,6 +144,7 @@ export function PendingOperationCard({
 
   return (
     <div
+      data-testid="pending-op-card"
       className="rounded-[16px] bg-[var(--bg-field)]"
       style={{
         padding: '14px 16px',
@@ -222,6 +223,7 @@ export function PendingOperationCard({
           <PillButton
             className="flex-1 py-[11px]! text-[14px]!"
             disabled={isLoading}
+            dataTestId="pending-op-confirm"
             onClick={() => {
               void handleStart()
             }}

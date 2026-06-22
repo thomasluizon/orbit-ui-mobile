@@ -53,6 +53,7 @@ export function EmailStep({
           disabled={isSubmitting || !email.trim()}
           busy={isSubmitting}
           leading={isSubmitting ? <Spinner /> : undefined}
+          dataTestId="auth-send-code"
         >
           {t('auth.sendCode')}
         </PillButton>

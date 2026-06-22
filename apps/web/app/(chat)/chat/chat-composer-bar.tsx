@@ -270,6 +270,7 @@ function ChatTextInputRow({
         <textarea
           ref={textareaRef}
           rows={1}
+          data-testid="chat-input"
           disabled={limitLocked}
           placeholder={limitLocked ? t('chat.limitReachedError') : t('chat.placeholder')}
           aria-label={t('chat.placeholder')}
@@ -324,6 +325,7 @@ function ChatTextInputRow({
       <button
         type="button"
         disabled={!canSend}
+        data-testid="chat-send"
         aria-label={t('chat.send')}
         onClick={() => sendMessage()}
         className="appearance-none border-0 cursor-pointer inline-flex items-center justify-center shrink-0 rounded-full bg-[var(--primary)] enabled:hover:bg-[var(--primary-pressed)] enabled:hover:scale-105 enabled:hover:shadow-[var(--primary-glow-hover)] enabled:active:scale-95 transition-[background-color,box-shadow,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] disabled:cursor-not-allowed"

@@ -35,6 +35,13 @@ Thumbs.db
 # Coverage
 coverage/
 
+# Playwright smoke (apps/web/e2e)
+apps/web/e2e/.auth/
+apps/web/e2e/.report/
+apps/web/e2e/.results/
+/test-results/
+.cache/ms-playwright/
+
 # Temporary files
 .tmp/
 temporary screenshots/

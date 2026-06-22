@@ -721,6 +721,7 @@ function PricingSection({
             <PillButton
               fullWidth
               disabled={!!checkoutLoading}
+              dataTestId="paywall-checkout"
               onClick={() => onCheckout(selectedInterval)}
               leading={checkoutLoading
                 ? <Loader2 size={18} className="animate-spin" aria-hidden="true" />
