@@ -118,13 +118,7 @@ export function VersionUpdateDrawer() {
     AsyncStorage.setItem(SNOOZE_STORAGE_KEY, String(until)).catch(() => {})
   }, [])
 
-  const handleAndroidRestart = useCallback(() => {
-    installAndroidUpdate()
-  }, [installAndroidUpdate])
-
-  const handleAndroidLater = useCallback(() => {
-    setAndroidRestartDismissed(true)
-  }, [])
+  const handleAndroidLater = () => setAndroidRestartDismissed(true)
 
   if (Platform.OS === 'android') {
     return (
@@ -138,6 +132,11 @@ export function VersionUpdateDrawer() {
           <Text style={styles.title}>
             {latestVersion ? `Orbit ${latestVersion}` : t('versionUpdate.readyTitle')}
           </Text>
+          {currentVersion && latestVersion ? (
+            <Text style={styles.delta}>
+              {currentVersion} → {latestVersion}
+            </Text>
+          ) : null}
           <Text style={styles.description}>
             {t('versionUpdate.readyDescription')}
           </Text>
@@ -147,7 +146,7 @@ export function VersionUpdateDrawer() {
           <View style={styles.buttons}>
             <PillButton
               fullWidth
-              onPress={handleAndroidRestart}
+              onPress={installAndroidUpdate}
               leading={<Download size={18} color={tokens.fgOnPrimary} strokeWidth={1.8} />}
             >
               {t('versionUpdate.restartCta')}
