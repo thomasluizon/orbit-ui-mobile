@@ -92,7 +92,7 @@ export default function StreakPage() {
           <StreakStatsRow
             t={t}
             streak={streak}
-            longestStreak={streakInfo?.longestStreak ?? 0}
+            longestStreak={profile?.longestStreak ?? 0}
           />
 
           <StreakTimelineCard t={t} weekDays={weekDays} />

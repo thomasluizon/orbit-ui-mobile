@@ -64,7 +64,7 @@ import StreakPage from '@/app/(app)/streak/page'
 
 describe('StreakPage', () => {
   beforeEach(() => {
-    mockProfile = { currentStreak: 10, hasProAccess: true }
+    mockProfile = { currentStreak: 10, longestStreak: 30, hasProAccess: true }
     mockStreakQuery = { isLoading: false, data: null }
     mockStreakInfo = {
       currentStreak: 10,
@@ -145,7 +145,7 @@ describe('StreakPage', () => {
     expect(screen.getByText('streakDisplay.detail.longestStreak')).toBeInTheDocument()
   })
 
-  it('renders longest streak value from streakInfo', () => {
+  it('renders longest streak value from profile', () => {
     render(<StreakPage />)
     expect(document.body.textContent).toContain('30')
   })

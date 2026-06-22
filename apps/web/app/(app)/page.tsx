@@ -32,7 +32,6 @@ import { ProgressBar } from '@/components/ui/progress-bar'
 import { SectionLabel } from '@/components/ui/section-label'
 import { useUIStore } from '@/stores/ui-store'
 import { useProfile } from '@/hooks/use-profile'
-import { useStreakInfo } from '@/hooks/use-gamification'
 import {
   EMPTY_CHILDREN_BY_PARENT,
   EMPTY_HABITS_BY_ID,
@@ -66,7 +65,6 @@ export default function TodayPage() {
   const searchParams = useSearchParams()
   const queryClient = useQueryClient()
   const { profile } = useProfile()
-  const { data: streakInfo } = useStreakInfo(profile?.hasProAccess ?? false)
   const { tags } = useTags()
   const listMotionPreset = resolveMotionPreset('list-enter', Boolean(prefersReducedMotion))
   const listTransition = {
@@ -367,7 +365,7 @@ export default function TodayPage() {
         <GradientTop height={260} />
       </div>
 
-      <TodayHeader streak={streakInfo?.currentStreak ?? 0} />
+      <TodayHeader streak={profile?.currentStreak ?? 0} />
 
       <TodayTabs
         tabs={tabItems}
