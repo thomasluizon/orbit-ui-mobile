@@ -1151,6 +1151,59 @@ describe('HabitList', () => {
     expect(autoLogDialog?.props.description).toContain('"Grandparent"')
   })
 
+  it('prompts to skip the parent once every sub-habit is skipped', async () => {
+    const parent = createMockHabit({
+      id: 'parent',
+      title: 'Parent',
+      hasSubHabits: true,
+      instances: [{ date: TODAY, status: 'Pending', logId: null }],
+    })
+    const childA = createMockHabit({ id: 'child-a', title: 'A', parentId: 'parent' })
+    const childB = createMockHabit({ id: 'child-b', title: 'B', parentId: 'parent' })
+    seedHabits([parent, childA, childB])
+
+    let tree: any
+
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <HabitList view="today" filters={{}} showCompleted onCreatePress={vi.fn()} />,
+      )
+    })
+
+    async function skipChild(childId: string) {
+      const card = tree.root
+        .findAllByType(HabitRow)
+        .find((node: any) => node.props.habit.id === childId)
+      TestRenderer.act(() => {
+        card?.props.actions.onSkip()
+      })
+      const skipDialog = tree.root
+        .findAllByType('ConfirmDialog')
+        .find((node: any) => node.props.title === 'habits.skipConfirmTitle')
+      await TestRenderer.act(async () => {
+        await skipDialog.props.onConfirm()
+      })
+    }
+
+    await skipChild('child-a')
+
+    expect(
+      tree.root
+        .findAllByType('ConfirmDialog')
+        .find((node: any) => node.props.title === 'habits.autoSkipParentTitle'),
+    ).toBeUndefined()
+
+    await skipChild('child-b')
+
+    const skipParentDialog = tree.root
+      .findAllByType('ConfirmDialog')
+      .find((node: any) => node.props.title === 'habits.autoSkipParentTitle')
+
+    expect(skipParentDialog?.props.description).toContain('"Parent"')
+    expect(skipMutateAsync).toHaveBeenCalledWith({ habitId: 'child-a' })
+    expect(skipMutateAsync).toHaveBeenCalledWith({ habitId: 'child-b' })
+  })
+
   it('clears the recently-completed timer on unmount so it never fires after teardown', () => {
     vi.useFakeTimers()
     try {

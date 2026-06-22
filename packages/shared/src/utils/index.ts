@@ -192,6 +192,15 @@ export {
   sortNormalizedHabits,
 } from './habit-normalization'
 export {
+  buildHabitDateBuckets,
+  computeParentPromptProgress,
+} from './habit-list-progress'
+export type {
+  HabitDateBucket,
+  ParentPromptProgress,
+  ParentPromptProgressOptions,
+} from './habit-list-progress'
+export {
   buildGoalTitle,
   isGoalDeadlinePast,
   parseGoalTargetValue,
