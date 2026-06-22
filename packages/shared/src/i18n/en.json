@@ -1955,7 +1955,10 @@
     "title": "Update available",
     "description": "A newer version of Orbit is available. Update now to get the latest fixes and features.",
     "updateCta": "Update now",
-    "laterCta": "Later"
+    "laterCta": "Later",
+    "readyTitle": "Update ready",
+    "readyDescription": "A new version of Orbit finished downloading. Restart to finish updating.",
+    "restartCta": "Restart now"
   },
   "forceUpdate": {
     "title": "Update required",
