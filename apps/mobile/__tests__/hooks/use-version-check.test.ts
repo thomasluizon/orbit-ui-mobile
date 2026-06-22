@@ -1,11 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import React from 'react'
 import { versionCheckKeys } from '@orbit/shared/query'
 
 import {
-  installAndroidUpdate,
   startAndroidUpdate,
+  useAndroidFlexibleUpdate,
   useVersionCheck,
 } from '@/hooks/use-version-check'
+
+const TestRenderer = require('react-test-renderer')
 
 type QueryResult = {
   androidCheck: {
@@ -29,6 +32,7 @@ const mocks = vi.hoisted(() => {
     version: '1.0.0' as string | undefined,
     pkg: 'org.useorbit.app' as string | undefined,
     bundleId: 'org.useorbit.app' as string | undefined,
+    statusListener: null as ((event: { status: number }) => void) | null,
   }
 
   return {
@@ -37,6 +41,10 @@ const mocks = vi.hoisted(() => {
     checkNeedsUpdate: vi.fn(),
     startUpdate: vi.fn(),
     installUpdate: vi.fn(),
+    addStatusUpdateListener: vi.fn((cb: (event: { status: number }) => void) => {
+      state.statusListener = cb
+    }),
+    removeStatusUpdateListener: vi.fn(),
     useQuery: vi.fn(
       (options: {
         queryKey: readonly unknown[]
@@ -63,10 +71,13 @@ vi.mock('sp-react-native-in-app-updates', () => {
     checkNeedsUpdate = mocks.checkNeedsUpdate
     startUpdate = mocks.startUpdate
     installUpdate = mocks.installUpdate
+    addStatusUpdateListener = mocks.addStatusUpdateListener
+    removeStatusUpdateListener = mocks.removeStatusUpdateListener
   }
   return {
     default: MockInAppUpdates,
     IAUUpdateKind: { FLEXIBLE: 'flexible', IMMEDIATE: 'immediate' },
+    IAUInstallStatus: { DOWNLOADED: 11 },
   }
 })
 
@@ -183,10 +194,9 @@ describe('useVersionCheck', () => {
   })
 })
 
-describe('startAndroidUpdate / installAndroidUpdate', () => {
+describe('startAndroidUpdate', () => {
   beforeEach(() => {
     mocks.startUpdate.mockReset()
-    mocks.installUpdate.mockReset()
   })
 
   it('calls startUpdate with FLEXIBLE by default on android', async () => {
@@ -204,8 +214,74 @@ describe('startAndroidUpdate / installAndroidUpdate', () => {
   it('does nothing on iOS', async () => {
     mocks.state.platformOS = 'ios'
     await startAndroidUpdate()
-    await installAndroidUpdate()
     expect(mocks.startUpdate).not.toHaveBeenCalled()
+  })
+})
+
+describe('useAndroidFlexibleUpdate', () => {
+  function renderFlexibleUpdate(active: boolean) {
+    const result: {
+      current: { downloaded: boolean; install: () => void } | null
+    } = { current: null }
+    function Harness() {
+      result.current = useAndroidFlexibleUpdate(active)
+      return null
+    }
+    TestRenderer.act(() => {
+      TestRenderer.create(React.createElement(Harness))
+    })
+    return result
+  }
+
+  beforeEach(() => {
+    mocks.state.platformOS = 'android'
+    mocks.state.statusListener = null
+    mocks.startUpdate.mockReset()
+    mocks.startUpdate.mockResolvedValue(undefined)
+    mocks.installUpdate.mockReset()
+    mocks.addStatusUpdateListener.mockClear()
+    mocks.removeStatusUpdateListener.mockClear()
+  })
+
+  it('starts a FLEXIBLE update exactly once when active', () => {
+    renderFlexibleUpdate(true)
+    expect(mocks.startUpdate).toHaveBeenCalledTimes(1)
+    expect(mocks.startUpdate).toHaveBeenCalledWith({ updateType: 'flexible' })
+  })
+
+  it('does not start an update while inactive', () => {
+    renderFlexibleUpdate(false)
+    expect(mocks.startUpdate).not.toHaveBeenCalled()
+  })
+
+  it('reports downloaded and installs once Play stages the update', async () => {
+    const result = renderFlexibleUpdate(true)
+    expect(result.current?.downloaded).toBe(false)
+
+    await TestRenderer.act(async () => {
+      mocks.state.statusListener?.({ status: 11 })
+      await Promise.resolve()
+    })
+
+    expect(result.current?.downloaded).toBe(true)
+    result.current?.install()
+    expect(mocks.installUpdate).toHaveBeenCalledTimes(1)
+  })
+
+  it('ignores non-downloaded status events', async () => {
+    const result = renderFlexibleUpdate(true)
+    await TestRenderer.act(async () => {
+      mocks.state.statusListener?.({ status: 2 })
+      await Promise.resolve()
+    })
+    expect(result.current?.downloaded).toBe(false)
+  })
+
+  it('does nothing on iOS', () => {
+    mocks.state.platformOS = 'ios'
+    const result = renderFlexibleUpdate(true)
+    expect(mocks.startUpdate).not.toHaveBeenCalled()
+    result.current?.install()
     expect(mocks.installUpdate).not.toHaveBeenCalled()
   })
 })

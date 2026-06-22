@@ -1958,7 +1958,10 @@
     "title": "Atualização disponível",
     "description": "Saiu uma nova versão do Orbit. Atualize agora para ter as últimas correções e novidades.",
     "updateCta": "Atualizar agora",
-    "laterCta": "Depois"
+    "laterCta": "Depois",
+    "readyTitle": "Atualização pronta",
+    "readyDescription": "Uma nova versão do Orbit terminou de baixar. Reinicie para concluir a atualização.",
+    "restartCta": "Reiniciar agora"
   },
   "forceUpdate": {
     "title": "Atualização obrigatória",

@@ -5,7 +5,11 @@ import { Download } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import { BottomSheetModal } from '@/components/bottom-sheet-modal'
 import { PillButton } from '@/components/ui/pill-button'
-import { startAndroidUpdate, useVersionCheck } from '@/hooks/use-version-check'
+import {
+  startAndroidUpdate,
+  useAndroidFlexibleUpdate,
+  useVersionCheck,
+} from '@/hooks/use-version-check'
 import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
@@ -34,10 +38,12 @@ export function VersionUpdateDrawer() {
     iosStoreUrl,
   } = useVersionCheck()
 
-  const androidFlowStartedRef = useRef(false)
+  const androidImmediateStartedRef = useRef(false)
+  const androidFlexibleSnoozedRef = useRef(false)
   const [snoozedUntil, setSnoozedUntil] = useState<number | null>(null)
   const [snoozeLoaded, setSnoozeLoaded] = useState(false)
   const [dismissedForSession, setDismissedForSession] = useState(false)
+  const [androidRestartDismissed, setAndroidRestartDismissed] = useState(false)
   const [nowMs, setNowMs] = useState(() => Date.now())
 
   useEffect(() => {
@@ -63,38 +69,41 @@ export function VersionUpdateDrawer() {
     }
   }, [])
 
-  useEffect(() => {
-    if (Platform.OS !== 'android') return
-    if (!updateAvailable) return
-    if (androidFlowStartedRef.current) return
-    if (!forceUpdate) {
-      const isSnoozed = snoozedUntil !== null && snoozedUntil > Date.now()
-      if (!snoozeLoaded || isSnoozed || dismissedForSession) return
-    }
-    androidFlowStartedRef.current = true
-    void startAndroidUpdate({ immediate: forceUpdate })
-    if (!forceUpdate) {
-      const until = Date.now() + SNOOZE_DURATION_MS
-      void Promise.resolve().then(() => setSnoozedUntil(until))
-      AsyncStorage.setItem(SNOOZE_STORAGE_KEY, String(until)).catch(() => {})
-    }
-  }, [updateAvailable, forceUpdate, snoozeLoaded, snoozedUntil, dismissedForSession])
+  const isSnoozed = snoozedUntil !== null && snoozedUntil > nowMs
 
-  const shouldShowIosSheet = useMemo(() => {
-    if (Platform.OS !== 'ios') return false
-    if (!updateAvailable) return false
-    if (!iosStoreUrl) return false
-    if (!snoozeLoaded) return false
-    const isSnoozed = snoozedUntil !== null && snoozedUntil > nowMs
-    return !isSnoozed && !dismissedForSession
-  }, [
-    updateAvailable,
-    iosStoreUrl,
-    snoozeLoaded,
-    snoozedUntil,
-    dismissedForSession,
-    nowMs,
-  ])
+  const androidFlexibleActive =
+    Platform.OS === 'android' &&
+    updateAvailable &&
+    !forceUpdate &&
+    snoozeLoaded &&
+    !isSnoozed &&
+    !dismissedForSession
+
+  const { downloaded: androidUpdateReady, install: installAndroidUpdate } =
+    useAndroidFlexibleUpdate(androidFlexibleActive)
+
+  useEffect(() => {
+    if (Platform.OS !== 'android' || !updateAvailable || !forceUpdate) return
+    if (androidImmediateStartedRef.current) return
+    androidImmediateStartedRef.current = true
+    void startAndroidUpdate({ immediate: true })
+  }, [updateAvailable, forceUpdate])
+
+  useEffect(() => {
+    if (!androidFlexibleActive || androidFlexibleSnoozedRef.current) return
+    androidFlexibleSnoozedRef.current = true
+    const until = Date.now() + SNOOZE_DURATION_MS
+    void Promise.resolve().then(() => setSnoozedUntil(until))
+    AsyncStorage.setItem(SNOOZE_STORAGE_KEY, String(until)).catch(() => {})
+  }, [androidFlexibleActive])
+
+  const shouldShowIosSheet =
+    Platform.OS === 'ios' &&
+    updateAvailable &&
+    !!iosStoreUrl &&
+    snoozeLoaded &&
+    !isSnoozed &&
+    !dismissedForSession
 
   const handleIosUpdate = useCallback(() => {
     if (!iosStoreUrl) return
@@ -108,6 +117,48 @@ export function VersionUpdateDrawer() {
     setDismissedForSession(true)
     AsyncStorage.setItem(SNOOZE_STORAGE_KEY, String(until)).catch(() => {})
   }, [])
+
+  const handleAndroidLater = () => setAndroidRestartDismissed(true)
+
+  if (Platform.OS === 'android') {
+    return (
+      <BottomSheetModal
+        open={androidUpdateReady && !androidRestartDismissed}
+        onClose={handleAndroidLater}
+        title={t('versionUpdate.readyTitle')}
+        snapPoints={['50%']}
+      >
+        <View style={styles.container}>
+          <Text style={styles.title}>
+            {latestVersion ? `Orbit ${latestVersion}` : t('versionUpdate.readyTitle')}
+          </Text>
+          {currentVersion && latestVersion ? (
+            <Text style={styles.delta}>
+              {currentVersion} → {latestVersion}
+            </Text>
+          ) : null}
+          <Text style={styles.description}>
+            {t('versionUpdate.readyDescription')}
+          </Text>
+
+          <View style={styles.spacer} />
+
+          <View style={styles.buttons}>
+            <PillButton
+              fullWidth
+              onPress={installAndroidUpdate}
+              leading={<Download size={18} color={tokens.fgOnPrimary} strokeWidth={1.8} />}
+            >
+              {t('versionUpdate.restartCta')}
+            </PillButton>
+            <PillButton variant="ghost" fullWidth onPress={handleAndroidLater}>
+              {t('versionUpdate.laterCta')}
+            </PillButton>
+          </View>
+        </View>
+      </BottomSheetModal>
+    )
+  }
 
   if (Platform.OS !== 'ios') return null
 

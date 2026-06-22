@@ -1,7 +1,13 @@
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { Platform } from 'react-native'
 import Constants from 'expo-constants'
 import { useQuery } from '@tanstack/react-query'
-import SpInAppUpdates, { IAUUpdateKind, type NeedsUpdateResponse } from 'sp-react-native-in-app-updates'
+import SpInAppUpdates, {
+  IAUInstallStatus,
+  IAUUpdateKind,
+  type NeedsUpdateResponse,
+  type StatusUpdateEvent,
+} from 'sp-react-native-in-app-updates'
 import { versionCheckKeys } from '@orbit/shared/query'
 import { isVersionBelow } from '@orbit/shared/utils'
 import { getAppStoreLookup } from '@/lib/version-check'
@@ -9,8 +15,6 @@ import { getAppStoreLookup } from '@/lib/version-check'
 const SIX_HOURS = 1000 * 60 * 60 * 6
 const ONE_DAY = 1000 * 60 * 60 * 24
 
-// Google considers priority 4+ a strong signal to force an immediate update.
-// The developer sets this in the Play Console Publishing API when rolling out a release.
 const ANDROID_IMMEDIATE_PRIORITY = 4
 
 export interface VersionNeedsUpdateResponse {
@@ -118,21 +122,51 @@ export async function startAndroidUpdate(
       updateType: options.immediate ? IAUUpdateKind.IMMEDIATE : IAUUpdateKind.FLEXIBLE,
     })
   } catch {
-    // User dismissed the flow or Play Services unavailable. Silent fail is fine --
-    // the check will run again on next app cold start.
   }
 }
 
 /**
- * Installs an already-downloaded flexible update. No-op on iOS or if no
- * update is staged.
+ * Drives the Android FLEXIBLE in-app update. While `active`, it starts the
+ * native download flow once and listens for completion; `downloaded` flips true
+ * once Play has staged the update, and `install` applies the staged update and
+ * restarts the app. Without this `install` call a flexible update downloads but
+ * never installs. No-op on iOS.
  */
-export async function installAndroidUpdate(): Promise<void> {
-  if (Platform.OS !== 'android') return
-  try {
-    const inAppUpdates = new SpInAppUpdates(false)
-    await inAppUpdates.installUpdate()
-  } catch {
-    // noop
-  }
+export function useAndroidFlexibleUpdate(active: boolean): {
+  downloaded: boolean
+  install: () => void
+} {
+  const inAppUpdates = useMemo(
+    () => (Platform.OS === 'android' ? new SpInAppUpdates(false) : null),
+    [],
+  )
+  const [downloaded, setDownloaded] = useState(false)
+  const startedRef = useRef(false)
+
+  useEffect(() => {
+    if (!inAppUpdates) return
+    const onStatus = (event: StatusUpdateEvent) => {
+      if (event.status === IAUInstallStatus.DOWNLOADED) {
+        void Promise.resolve().then(() => setDownloaded(true))
+      }
+    }
+    inAppUpdates.addStatusUpdateListener(onStatus)
+    return () => {
+      inAppUpdates.removeStatusUpdateListener(onStatus)
+    }
+  }, [inAppUpdates])
+
+  useEffect(() => {
+    if (!inAppUpdates || !active || startedRef.current) return
+    startedRef.current = true
+    void inAppUpdates
+      .startUpdate({ updateType: IAUUpdateKind.FLEXIBLE })
+      .catch(() => {})
+  }, [active, inAppUpdates])
+
+  const install = useCallback(() => {
+    inAppUpdates?.installUpdate()
+  }, [inAppUpdates])
+
+  return { downloaded, install }
 }
