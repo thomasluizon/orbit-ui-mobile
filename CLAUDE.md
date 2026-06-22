@@ -26,6 +26,8 @@ Before marking any task done, ask: *"Did I update both apps/web and apps/mobile?
 
 ## Code Standards
 
+**Overriding principle — best implementation, always.** Ship the most correct, most complete, most robust solution. NEVER scope down — cutting a required step, a real fix, or the proper workflow — to save effort, setup, or time. When a genuine tradeoff exists (effort/time/cost), surface it and let the user decide; never pick the cheaper or faster path silently. "Best" means correct and complete, **not** more code — the simplicity and no-premature-abstraction rules below still hold.
+
 These ten rules apply everywhere — `apps/web`, `apps/mobile`, `packages/shared`, and any contributions to `orbit-api`. The PR review bot enforces them.
 
 1. **Root cause over workarounds.** If something is broken upstream, fix it upstream. Don't add fallbacks, defensive branches, or local patches for problems that belong to a config, a type, or a shared util. If a workaround is genuinely unavoidable, write a one-line WHY comment.
