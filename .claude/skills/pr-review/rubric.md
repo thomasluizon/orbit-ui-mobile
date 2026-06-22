@@ -37,6 +37,20 @@ carrying this marker is Critical regardless of how small the diff looks.
 
 ---
 
+## Signal gate — post high-signal only
+
+The review CONVERGES; it is not a nit machine. What gets posted is gated by severity:
+
+- **Critical / High** — always post; these decide the outcome.
+- **Medium** — post only when concretely actionable (a specific missing test, a real unhandled edge case, a definite pattern break). Never speculative.
+- **Low / Info** — do **not** post as PR-review findings. A local deep audit may list them; on a PR they are noise.
+
+**Never post — not findings, in any dimension:** style preferences (verbose vs concise, arrow vs named function, optional-chaining vs guard); naming bikeshed; reformatting; "consider extracting / hoisting / future-proofing" on code that already works; Zod modifier ordering (`.nullable().optional()`) when behavior is correct; magic-number→const when the value is obvious from context; anything the author chose defensibly that you would merely prefer otherwise; anything already addressed in an earlier commit or a resolved review thread.
+
+**Outcome is deterministic:** `NEEDS WORK` iff ≥1 surviving **Critical or High** finding (including any `⚠️ breaks old mobile clients`); otherwise `APPROVE`. Medium / Low / Info never force NEEDS WORK. Never manufacture a Critical/High finding to avoid approving — a clean diff earns a plain approval.
+
+---
+
 ## Finding template
 
 Every finding, every dimension, the same shape:
