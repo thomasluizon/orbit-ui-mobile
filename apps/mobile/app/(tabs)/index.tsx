@@ -55,7 +55,6 @@ import {
   useDeleteHabit,
 } from "@/hooks/use-habits";
 import { useTags } from "@/hooks/use-tags";
-import { useStreakInfo } from "@/hooks/use-gamification";
 import { useUIStore } from "@/stores/ui-store";
 import { HabitList, type HabitListHandle } from "@/components/habit-list";
 import { CreateHabitModal } from "@/components/habits/create-habit-modal";
@@ -279,7 +278,6 @@ export default function TodayScreen() {
   const { showInterstitialIfDue } = useAdMob();
   const { profile } = useProfile();
   const reviewReminder = useReviewReminder(profile);
-  const { data: streakInfo } = useStreakInfo(profile?.hasProAccess ?? false);
   const { tags } = useTags();
   const deleteHabit = useDeleteHabit();
 
@@ -944,7 +942,7 @@ export default function TodayScreen() {
     }
   }, [deleteHabit, habitPendingDelete]);
 
-  const currentStreak = streakInfo?.currentStreak ?? 0;
+  const currentStreak = profile?.currentStreak ?? 0;
   const handleHabitLogged = useCallback(
     (habitId: string) => {
       habitListRef.current?.markRecentlyCompleted(habitId);

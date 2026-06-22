@@ -44,6 +44,7 @@ export const profileSchema = z.object({
   levelTitle: z.string(),
   adRewardsClaimedToday: z.number(),
   currentStreak: z.number(),
+  longestStreak: z.number(),
   streakFreezesAvailable: z.number(),
   themePreference: z.string().nullable(),
   colorScheme: z.string().nullable(),

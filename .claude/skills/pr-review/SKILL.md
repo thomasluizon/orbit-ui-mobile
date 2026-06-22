@@ -106,6 +106,8 @@ Parity · i18n · Contract drift + backward-compat · Security · Backend hard r
 
 Focus on changed code, not pre-existing issues — unless a pre-existing issue is Critical.
 
+Apply the rubric's **Signal gate**: post Critical/High and concretely-actionable Medium only — drop Low/Info nits and style preferences (manufacturing nits to avoid approving is a defect). The outcome is deterministic: **NEEDS WORK** iff any Critical/High finding survives, otherwise **APPROVE**.
+
 ---
 
 ## Phase 4 — Orchestrate subagents
@@ -234,13 +236,29 @@ mkdir -p .claude/reviews
 
 ### Post to GitHub (PR scope only)
 
+The review is **decisive** — it ends as APPROVE or REQUEST_CHANGES, never a bare comment.
+Map the deterministic recommendation (NEEDS WORK iff any Critical/High finding):
+
 ```bash
-gh pr review {N} --repo {OWNER/REPO} --comment --body-file .claude/reviews/{scope-name}-review.md
+# NEEDS WORK — any Critical/High (incl. ⚠️ old-client break)
+gh pr review {N} --repo {OWNER/REPO} --request-changes --body-file .claude/reviews/{scope-name}-review.md
+# APPROVE — no Critical/High
+gh pr review {N} --repo {OWNER/REPO} --approve --body-file .claude/reviews/{scope-name}-review.md
 ```
 
-For inline comments on specific lines, use `gh api` against the PR's review-comments
-endpoint (the project's CI already supports inline comments). Do **not** post when the
-scope is a local file/folder/staged diff — only write the report file.
+Inline comments (Critical/High, tied to a specific line) via the PR review-comments
+endpoint / `mcp__github_inline_comment__create_inline_comment`.
+
+**Caller context decides who posts:**
+
+- **CI wrapper** (`.github/workflows/claude-review.yml`) invokes this skill: it owns the
+  single decisive post — produce the report + recommendation and let it submit (skip this
+  posting step). In CI also skip Phase 6, and mark any dimension that needs the
+  un-checked-out sibling repo as "not verifiable in CI".
+- **Local, a PR you do NOT own**: post the decisive review yourself per the recommendation.
+- **Local, your OWN PR** (GitHub blocks self-approval): write the report and post it with
+  `--comment` instead — do not fail trying to `--approve`.
+- **Local file / folder / staged** scope: only write the report file, never post.
 
 ---
 

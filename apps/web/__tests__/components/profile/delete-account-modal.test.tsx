@@ -82,6 +82,7 @@ const defaultProfile = {
   levelTitle: 'Beginner',
   adRewardsClaimedToday: 0,
   currentStreak: 0,
+  longestStreak: 0,
   streakFreezesAvailable: 0,
   themePreference: null,
   colorScheme: null,

@@ -16,7 +16,7 @@ import {
   useTrialExpired,
 } from '@/hooks/use-profile'
 import { useAuthStore } from '@/stores/auth-store'
-import { useGamificationProfile, useStreakInfo } from '@/hooks/use-gamification'
+import { useGamificationProfile } from '@/hooks/use-gamification'
 import { SectionLabel } from '@/components/ui/section-label'
 import { SubscriptionCard } from './_components/subscription-card'
 import { ProfileIdentityHeader } from './_components/profile-identity-header'
@@ -40,8 +40,7 @@ export default function ProfilePage() {
   const { profile: gamificationProfile } = useGamificationProfile(
     profile?.hasProAccess ?? false,
   )
-  const { data: streakInfo } = useStreakInfo(profile?.hasProAccess ?? false)
-  const streak = streakInfo?.currentStreak ?? 0
+  const streak = profile?.currentStreak ?? 0
   const accountNavItems = PROFILE_NAV_ITEMS.filter(
     (item) => item.section === 'account',
   )

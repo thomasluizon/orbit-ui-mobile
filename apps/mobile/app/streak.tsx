@@ -176,7 +176,7 @@ export default function StreakScreen() {
               <StreakStatsRow
                 t={t}
                 streak={streak}
-                longestStreak={streakInfo?.longestStreak ?? 0}
+                longestStreak={profile?.longestStreak ?? 0}
               />
             </Animated.View>
 
