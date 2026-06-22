@@ -27,7 +27,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { ChevronLeft } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import {
+  buildHabitDateBuckets,
   computeHabitReorderPositions,
+  computeParentPromptProgress,
   collectSelectableDescendantIds,
   collectVisibleHabitTreeIds,
   formatAPIDate,
@@ -247,6 +249,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       Set<string>
     >(new Set())
     const promptedParentIdsRef = useRef(new Set<string>())
+    const skippedChildIdsRef = useRef(new Set<string>())
     const promptDataRef = useRef<{
       getChildren: (id: string) => NormalizedHabit[]
       isListView: boolean
@@ -258,6 +261,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     const [forceLogHabitId, setForceLogHabitId] = useState<string | null>(null)
     const [showAutoLogParent, setShowAutoLogParent] = useState(false)
     const [autoLogParentId, setAutoLogParentId] = useState<string | null>(null)
+    const [autoLogParentMode, setAutoLogParentMode] = useState<'log' | 'skip'>('log')
     const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
     const [habitToDelete, setHabitToDelete] = useState<string | null>(null)
     const [showDuplicateConfirm, setShowDuplicateConfirm] = useState(false)
@@ -392,54 +396,13 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       if (view !== 'all') return []
 
       const today = formatAPIDate(new Date())
-      const overdueHabits: NormalizedHabit[] = []
-      const groups = new Map<string, NormalizedHabit[]>()
-
-      for (const habit of visibleHabits) {
-        const key = habit.dueDate ?? ''
-        if (!key) {
-          const group = groups.get('') ?? []
-          group.push(habit)
-          groups.set('', group)
-          continue
-        }
-
-        if (key < today && !habit.isCompleted) {
-          overdueHabits.push(habit)
-          continue
-        }
-
-        const group = groups.get(key) ?? []
-        group.push(habit)
-        groups.set(key, group)
-      }
-
-      const result: HabitListDateGroup[] = []
-
-      if (overdueHabits.length > 0) {
-        result.push({
-          key: '__overdue__',
-          label: t('habits.overdue'),
-          isOverdue: true,
-          habits: [...overdueHabits].sort((left, right) =>
-            left.dueDate.localeCompare(right.dueDate),
-          ),
-        })
-      }
-
-      const sortedGroups = Array.from(groups.entries()).sort(
-        ([left], [right]) => left.localeCompare(right),
-      )
-      for (const [key, habits] of sortedGroups) {
-        result.push({
-          key,
-          label: formatDateGroupLabel(key, deviceLocale, t),
-          isOverdue: false,
-          habits,
-        })
-      }
-
-      return result
+      return buildHabitDateBuckets(visibleHabits, today).map((bucket) => ({
+        ...bucket,
+        label:
+          bucket.key === '__overdue__'
+            ? t('habits.overdue')
+            : formatDateGroupLabel(bucket.key, deviceLocale, t),
+      }))
     }, [deviceLocale, t, view, visibleHabits])
 
     const allLoadedIds = useMemo(() => {
@@ -596,11 +559,13 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
           }
         } else if (
           !visibility.isRelevantToday(child) &&
+          !child.isOverdue &&
           !child.isLoggedInRange
         ) {
           return computeFn(child.id)
         } else if (
           visibility.isDueOnSelectedDate(child) ||
+          child.isOverdue ||
           child.isLoggedInRange
         ) {
           total += 1
@@ -664,69 +629,16 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       assumeCompletedId?: string,
     ) => {
       const data = promptDataRef.current
-      if (!data) return { done: 0, total: 0 }
-      const { getChildren, isListView, visibility } = data
-
-      function computeChildProgress(
-        child: NormalizedHabit,
-        computeFn: (id: string) => { done: number; total: number },
-      ): { done: number; total: number } {
-        let done = 0
-        let total = 0
-        const isCompletedForPrompt =
-          child.isCompleted ||
-          child.isLoggedInRange ||
-          child.id === assumeCompletedId
-
-        if (isListView || child.isGeneral) {
-          total += 1
-          if (isCompletedForPrompt) {
-            done += 1
-          }
-        } else if (
-          !visibility.isRelevantToday(child) &&
-          !child.isLoggedInRange
-        ) {
-          return computeFn(child.id)
-        } else if (
-          visibility.isDueOnSelectedDate(child) ||
-          child.isLoggedInRange
-        ) {
-          total += 1
-          if (isCompletedForPrompt) {
-            done += 1
-          }
-        }
-
-        const nestedProgress = computeFn(child.id)
-        done += nestedProgress.done
-        total += nestedProgress.total
-
-        return { done, total }
-      }
-
-      function compute(currentHabitId: string): {
-        done: number
-        total: number
-      } {
-        const children = getChildren(currentHabitId)
-        if (children.length === 0) {
-          return { done: 0, total: 0 }
-        }
-
-        let done = 0
-        let total = 0
-
-        for (const child of children) {
-          const progress = computeChildProgress(child, compute)
-          done += progress.done
-          total += progress.total
-        }
-
-        return { done, total }
-      }
-
-      return compute(habitId)
+      if (!data) return { done: 0, total: 0, loggedDone: 0 }
+      return computeParentPromptProgress({
+        parentId: habitId,
+        getChildren: data.getChildren,
+        isRelevantToday: data.visibility.isRelevantToday,
+        isDueOnSelectedDate: data.visibility.isDueOnSelectedDate,
+        isListView: data.isListView,
+        skippedIds: skippedChildIdsRef.current,
+        assumeCompletedId,
+      })
     }, [])
 
     const checkAndPromptParentLog = useCallback(
@@ -751,6 +663,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
           if (!promptedParentIdsRef.current.has(parentHabit.id)) {
             promptedParentIdsRef.current.add(parentHabit.id)
             setAutoLogParentId(parentHabit.id)
+            setAutoLogParentMode(progress.loggedDone > 0 ? 'log' : 'skip')
             setShowAutoLogParent(true)
           }
         } else {
@@ -762,6 +675,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
 
     const handleLogged = useCallback(
       (habitId: string, markAsRecentlyCompleted = true) => {
+        skippedChildIdsRef.current.delete(habitId)
         if (markAsRecentlyCompleted) {
           markRecentlyCompleted(habitId)
         }
@@ -795,21 +709,31 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       const parentId = autoLogParentId
       if (!parentId) return
 
+      const mode = autoLogParentMode
       setAutoLogParentId(null)
       markRecentlyCompleted(parentId)
 
       try {
-        await logMutation.mutateAsync({ habitId: parentId })
-        handleLogged(parentId, false)
+        if (mode === 'skip') {
+          skippedChildIdsRef.current.add(parentId)
+          await skipMutation.mutateAsync({ habitId: parentId })
+          checkAndPromptParentLog(parentId)
+        } else {
+          await logMutation.mutateAsync({ habitId: parentId })
+          handleLogged(parentId, false)
+        }
       } catch {
         clearRecentlyCompleted(parentId)
       }
     }, [
       autoLogParentId,
+      autoLogParentMode,
+      checkAndPromptParentLog,
       clearRecentlyCompleted,
       handleLogged,
       logMutation,
       markRecentlyCompleted,
+      skipMutation,
     ])
 
     const promptForceLogParent = useCallback((habitId: string) => {
@@ -850,6 +774,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       const skippedId = habitToSkip
       try {
         await skipMutation.mutateAsync({ habitId: skippedId })
+        skippedChildIdsRef.current.add(skippedId)
         markRecentlyCompleted(skippedId)
         checkAndPromptParentLog(skippedId)
       } catch {
@@ -1593,6 +1518,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
             setShowForceLogConfirm(false)
           }}
           showAutoLogParent={showAutoLogParent}
+          autoLogParentMode={autoLogParentMode}
           onAutoLogParentOpenChange={setShowAutoLogParent}
           autoLogParentName={autoLogParentHabit?.title ?? ''}
           onConfirmAutoLogParent={confirmAutoLogParent}

@@ -24,6 +24,7 @@ interface HabitListConfirmDialogsProps {
   onConfirmForceLog: () => void
   onCancelForceLog: () => void
   showAutoLogParent: boolean
+  autoLogParentMode: 'log' | 'skip'
   onAutoLogParentOpenChange: (open: boolean) => void
   autoLogParentName: string
   onConfirmAutoLogParent: () => void
@@ -55,11 +56,13 @@ export function HabitListConfirmDialogs({
   onConfirmForceLog,
   onCancelForceLog,
   showAutoLogParent,
+  autoLogParentMode,
   onAutoLogParentOpenChange,
   autoLogParentName,
   onConfirmAutoLogParent,
   onCancelAutoLogParent,
 }: Readonly<HabitListConfirmDialogsProps>) {
+  const isSkipParent = autoLogParentMode === 'skip'
   return (
     <>
       <ConfirmDialog
@@ -123,13 +126,16 @@ export function HabitListConfirmDialogs({
       <ConfirmDialog
         open={showAutoLogParent}
         onOpenChange={onAutoLogParentOpenChange}
-        title={t('habits.autoLogParentTitle')}
-        description={t('habits.autoLogParentMessage', { name: autoLogParentName })}
-        confirmLabel={t('habits.autoLogParentConfirm')}
+        title={t(isSkipParent ? 'habits.autoSkipParentTitle' : 'habits.autoLogParentTitle')}
+        description={t(
+          isSkipParent ? 'habits.autoSkipParentMessage' : 'habits.autoLogParentMessage',
+          { name: autoLogParentName },
+        )}
+        confirmLabel={t(isSkipParent ? 'habits.autoSkipParentConfirm' : 'habits.autoLogParentConfirm')}
         cancelLabel={t('common.cancel')}
         onConfirm={onConfirmAutoLogParent}
         onCancel={onCancelAutoLogParent}
-        variant="success"
+        variant={isSkipParent ? 'warning' : 'success'}
       />
     </>
   )
