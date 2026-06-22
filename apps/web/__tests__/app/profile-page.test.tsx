@@ -33,7 +33,7 @@ vi.mock('@tanstack/react-query', () => ({
 
 vi.mock('@/hooks/use-profile', () => ({
   useProfile: () => ({
-    profile: createMockProfile({ hasProAccess: false }),
+    profile: createMockProfile({ hasProAccess: false, currentStreak: 13 }),
     isLoading: false,
     error: null,
   }),
@@ -102,5 +102,11 @@ describe('ProfilePage', () => {
     render(<ProfilePage />)
 
     expect(mockUseGamificationProfile).toHaveBeenCalledWith(false)
+  })
+
+  it('shows a free user their real streak (from profile, not the Pro-gated streak hook)', () => {
+    render(<ProfilePage />)
+
+    expect(document.body.textContent).toContain('13')
   })
 })
