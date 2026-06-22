@@ -44,7 +44,12 @@ jobs:
 
             2. **Security vulnerability** — auth bypass, injection, data leak, race condition, missing audit on a mutating endpoint, missing input validation at a trust boundary.
 
-            3. **API contract break** — request/response shape changes that break the web or mobile client; missing cross-platform parity per the root `CLAUDE.md` parity rule.
+            3. **API contract break / backward-compat** — request/response shape changes that break the web or mobile client; missing cross-platform parity per the root `CLAUDE.md` parity rule. **Old shipped Android builds run a frozen `@orbit/shared` snapshot**, so a field renamed or removed on the server or in shared types is invisible to them — they keep the old name and silently break. In `packages/shared/src/types/*.ts` (Zod schemas) and `orbit-api/**/DTOs/*.cs`, flag:
+               - A field **removed or renamed in a response** shape → old readers get `undefined` → **`⚠️ breaks old mobile clients`** (unless the field is already optional AND grep-confirmed to have no readers).
+               - A field **removed or renamed in a request** shape, or a field made **newly required** → old senders fail validation → **`⚠️ breaks old mobile clients`**.
+               - An **enum value removed** from a shape old clients may still send → flag.
+               - An **added optional** field is forward-compatible — do NOT flag.
+               Root-cause fix for a break: keep-and-deprecate the old field, accept both names server-side for one release, or gate the change behind the min-supported-version gate (see root `CLAUDE.md`). When old-client reach is genuinely uncertain, say so and ask the author to verify rather than over-claiming.
 
             4. **Missing test for new code that mutates state** — not "more tests would be nice", but "this codepath has zero coverage and changes user data".
 
@@ -85,7 +90,7 @@ jobs:
             - Pre-existing dead code, pre-existing workarounds, or pre-existing useless comments OUTSIDE the diff — those are separate cleanup, not this PR's problem.
             - Anything where the author's choice is defensible and you'd just prefer it done differently.
 
-            **A finding that isn't a bug, a security gap, a contract break, a missing test, a hard-rule violation, stale/dead code, a workaround, or a useless comment introduced by THIS PR is NOISE. Don't post it.**
+            **A finding that isn't a bug, a security gap, a contract break (including one that strands already-shipped mobile clients), a missing test, a hard-rule violation, stale/dead code, a workaround, or a useless comment introduced by THIS PR is NOISE. Don't post it.**
 
             Every finding MUST include: file:line, the exact problem, and a concrete root-cause fix the author can apply.
 

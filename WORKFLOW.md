@@ -10,6 +10,8 @@ Just edit + `/validate`. No PRD, no plan, no issue.
 
 ### Real bug or small feature (one vertical slice, clear scope)
 
+Driven shortcut: `/execute <issue#>` chains `/prime` (context load only) → `grill-me` → `/plan` → [confirm plan] → `/implement`, with a hard, blocking gate at every stage boundary. The manual steps below remain available if you'd rather drive each one yourself.
+
 1. `/prime` — load context (add `<issue#>` if you opened one)
 2. `/plan "short description"` — get a plan file
 3. `/implement .claude/plans/<name>.plan.md` — code + tests + PR(s)
