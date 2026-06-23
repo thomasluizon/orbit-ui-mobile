@@ -38,7 +38,7 @@ jobs:
       - run: npm ci
 
       - name: Run tests with coverage thresholds
-        run: npm run test -- --coverage
+        run: npx turbo run test -- --coverage
 
   dependency-audit:
     name: Dependency Audit
