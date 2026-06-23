@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { API } from '../api/endpoints'
-import { uploadKeys } from '../query/keys'
+import { uploadKeys } from '../query'
 import {
   SignUploadRequestSchema,
   SignUploadResponseSchema,
