@@ -89,7 +89,7 @@
     "@types/node": "^24.5.2",
     "@types/react": "~19.2.14",
     "@vitest/coverage-v8": "^4.1.9",
-    "babel-preset-expo": "~55.0.16",
+    "babel-preset-expo": "~56.0.15",
     "eslint-config-expo": "~55.0.1",
     "eslint-plugin-react-hooks": "^7.1.1",
     "react-test-renderer": "19.2.7",
