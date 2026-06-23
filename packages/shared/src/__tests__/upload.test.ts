@@ -1,0 +1,72 @@
+import { describe, it, expect } from 'vitest'
+import { API } from '../api/endpoints'
+import { uploadMutationKeys } from '../query'
+import {
+  SignUploadRequestSchema,
+  SignUploadResponseSchema,
+  UPLOAD_MAX_SIZE_BYTES,
+} from '../types/upload'
+
+describe('upload contract', () => {
+  it('exposes the sign endpoint', () => {
+    expect(API.uploads.sign).toBe('/api/uploads/sign')
+  })
+
+  it('builds the sign mutation key', () => {
+    expect(uploadMutationKeys.sign()).toEqual(['uploads', 'sign'])
+  })
+
+  describe('SignUploadRequestSchema', () => {
+    it('accepts an allowed image under the size cap', () => {
+      const parsed = SignUploadRequestSchema.safeParse({
+        contentType: 'image/png',
+        sizeBytes: 1024,
+      })
+      expect(parsed.success).toBe(true)
+    })
+
+    it('rejects a disallowed content type', () => {
+      const parsed = SignUploadRequestSchema.safeParse({
+        contentType: 'application/pdf',
+        sizeBytes: 1024,
+      })
+      expect(parsed.success).toBe(false)
+    })
+
+    it('rejects a file over the size cap', () => {
+      const parsed = SignUploadRequestSchema.safeParse({
+        contentType: 'image/png',
+        sizeBytes: UPLOAD_MAX_SIZE_BYTES + 1,
+      })
+      expect(parsed.success).toBe(false)
+    })
+
+    it('rejects a non-positive size', () => {
+      const parsed = SignUploadRequestSchema.safeParse({
+        contentType: 'image/png',
+        sizeBytes: 0,
+      })
+      expect(parsed.success).toBe(false)
+    })
+  })
+
+  describe('SignUploadResponseSchema', () => {
+    it('parses a well-formed response', () => {
+      const parsed = SignUploadResponseSchema.parse({
+        key: 'user/file.png',
+        signedUrl: 'https://project.supabase.co/storage/v1/object/upload/sign/uploads/user/file.png?token=jwt',
+        publicUrl: 'https://project.supabase.co/storage/v1/object/public/uploads/user/file.png',
+      })
+      expect(parsed.key).toBe('user/file.png')
+    })
+
+    it('rejects a non-URL signed url', () => {
+      const parsed = SignUploadResponseSchema.safeParse({
+        key: 'user/file.png',
+        signedUrl: 'not-a-url',
+        publicUrl: 'https://project.supabase.co/x',
+      })
+      expect(parsed.success).toBe(false)
+    })
+  })
+})
