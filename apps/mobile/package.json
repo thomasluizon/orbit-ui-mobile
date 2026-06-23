@@ -69,7 +69,7 @@
     "react-i18next": "^17.0.2",
     "react-native": "0.83.4",
     "react-native-draggable-flatlist": "^4.0.3",
-    "react-native-gesture-handler": "~2.30.0",
+    "react-native-gesture-handler": "~3.0.2",
     "react-native-google-mobile-ads": "^16.3.2",
     "react-native-marked": "^8.1.0",
     "react-native-reanimated": "4.2.1",
