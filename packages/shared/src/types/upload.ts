@@ -18,3 +18,5 @@ export const SignUploadResponseSchema = z.object({
 })
 
 export type SignUploadResponse = z.infer<typeof SignUploadResponseSchema>
+
+export type StoredFile = Pick<SignUploadResponse, 'key' | 'publicUrl'>

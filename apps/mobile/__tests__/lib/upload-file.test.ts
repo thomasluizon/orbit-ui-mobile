@@ -49,6 +49,13 @@ describe('mobile uploadFile', () => {
     expect(result).toEqual({ key: signed.key, publicUrl: signed.publicUrl })
   })
 
+  it('rejects a disallowed content type before signing', async () => {
+    const disallowed = { ...localUpload, contentType: 'application/pdf' as LocalUpload['contentType'] }
+
+    await expect(uploadFile(disallowed)).rejects.toThrow(/Unsupported content type/)
+    expect(apiClientMock).not.toHaveBeenCalled()
+  })
+
   it('throws when the upload PUT fails', async () => {
     fetchMock.mockResolvedValue({ ok: false, status: 500 })
 

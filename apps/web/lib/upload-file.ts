@@ -1,11 +1,9 @@
 import {
   SignUploadResponseSchema,
   UPLOAD_ALLOWED_CONTENT_TYPES,
-  type SignUploadResponse,
+  type StoredFile,
 } from '@orbit/shared'
 import { signUpload } from '@/app/actions/uploads'
-
-export type StoredFile = Pick<SignUploadResponse, 'key' | 'publicUrl'>
 
 type AllowedContentType = (typeof UPLOAD_ALLOWED_CONTENT_TYPES)[number]
 

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { API } from '../api/endpoints'
-import { uploadKeys } from '../query'
+import { uploadMutationKeys } from '../query'
 import {
   SignUploadRequestSchema,
   SignUploadResponseSchema,
@@ -13,7 +13,7 @@ describe('upload contract', () => {
   })
 
   it('builds the sign mutation key', () => {
-    expect(uploadKeys.sign()).toEqual(['uploads', 'sign'])
+    expect(uploadMutationKeys.sign()).toEqual(['uploads', 'sign'])
   })
 
   describe('SignUploadRequestSchema', () => {

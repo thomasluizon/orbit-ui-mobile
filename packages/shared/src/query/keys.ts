@@ -101,7 +101,7 @@ export const versionCheckKeys = {
   latest: (pkg: string) => [...versionCheckKeys.all, pkg] as const,
 }
 
-export const uploadKeys = {
+export const uploadMutationKeys = {
   all: ['uploads'] as const,
-  sign: () => [...uploadKeys.all, 'sign'] as const,
+  sign: () => [...uploadMutationKeys.all, 'sign'] as const,
 }

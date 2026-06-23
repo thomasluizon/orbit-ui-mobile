@@ -3,11 +3,10 @@ import {
   SignUploadResponseSchema,
   UPLOAD_ALLOWED_CONTENT_TYPES,
   type SignUploadResponse,
+  type StoredFile,
 } from '@orbit/shared'
 import { API } from '@orbit/shared/api'
 import { apiClient } from './api-client'
-
-export type StoredFile = Pick<SignUploadResponse, 'key' | 'publicUrl'>
 
 export interface LocalUpload {
   uri: string
@@ -20,6 +19,10 @@ export interface LocalUpload {
  * storage via its signed URL, and returns only the stored key + public URL.
  */
 export async function uploadFile(upload: LocalUpload): Promise<StoredFile> {
+  if (!(UPLOAD_ALLOWED_CONTENT_TYPES as readonly string[]).includes(upload.contentType)) {
+    throw new Error(`Unsupported content type: ${upload.contentType}`)
+  }
+
   const signed = SignUploadResponseSchema.parse(
     await apiClient<SignUploadResponse>(API.uploads.sign, {
       method: 'POST',
