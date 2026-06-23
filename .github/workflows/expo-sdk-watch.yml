@@ -1,0 +1,65 @@
+name: Expo SDK watch
+
+on:
+  schedule:
+    - cron: "0 6 * * 1"
+  workflow_dispatch: {}
+
+permissions:
+  issues: write
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Open a tracking issue when a newer Expo SDK ships
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs')
+            const { execSync } = require('child_process')
+            const pkg = JSON.parse(fs.readFileSync('apps/mobile/package.json', 'utf8'))
+            const installed = String(pkg.dependencies.expo || '').replace(/[^0-9.]/g, '')
+            const latest = execSync('npm view expo version', { encoding: 'utf8' }).trim()
+            const major = (v) => parseInt(String(v).split('.')[0], 10)
+            if (!installed || major(latest) <= major(installed)) {
+              core.info(`No new SDK major: installed ${installed || '?'}, latest ${latest}`)
+              return
+            }
+            const title = `Expo SDK ${major(latest)} is available (app is on ${major(installed)})`
+            const open = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'expo-sdk',
+            })
+            if (open.data.some((i) => i.title === title)) {
+              core.info('Tracking issue already open')
+              return
+            }
+            const next = major(installed) + 1
+            const body = [
+              'A newer Expo SDK is available. Upgrade **one SDK at a time**, deliberately — never auto-merge (native rebuild + breaking changes + device QA + Play submission).',
+              '',
+              `- Installed: \`expo@${installed}\``,
+              `- Latest published: \`expo@${latest}\``,
+              '',
+              'Official flow (or run the `upgrading-expo` skill):',
+              `1. \`npm install expo@^${next}.0.0\``,
+              '2. `npx expo install --fix`',
+              '3. `npx expo-doctor`',
+              '4. `npx expo prebuild --clean` + rebuild (android:apk / EAS)',
+              '5. Device-test critical flows, then submit to Play.',
+              '',
+              'While here, also run a quick `npm outdated` sweep of the non-Expo web/shared deps.',
+              '',
+              'Changelog: https://expo.dev/changelog',
+            ].join('\n')
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title,
+              labels: ['expo-sdk'],
+              body,
+            })
