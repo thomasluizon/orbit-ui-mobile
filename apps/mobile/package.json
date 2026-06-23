@@ -90,7 +90,7 @@
     "@types/react": "~19.2.14",
     "@vitest/coverage-v8": "^4.1.9",
     "babel-preset-expo": "~55.0.16",
-    "eslint-config-expo": "~55.0.1",
+    "eslint-config-expo": "~56.0.4",
     "eslint-plugin-react-hooks": "^7.1.1",
     "react-test-renderer": "19.2.7",
     "tailwindcss": "4.3.1",
