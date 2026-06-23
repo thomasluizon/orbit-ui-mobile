@@ -26,7 +26,7 @@
     "@lodev09/react-native-true-sheet": "^3.10.1",
     "@orbit/shared": "*",
     "@react-native-async-storage/async-storage": "2.2.0",
-    "@react-native-community/datetimepicker": "8.6.0",
+    "@react-native-community/datetimepicker": "9.1.0",
     "@react-native-community/netinfo": "11.5.2",
     "@react-navigation/native": "^7.1.33",
     "@sentry/react-native": "^8.15.1",
