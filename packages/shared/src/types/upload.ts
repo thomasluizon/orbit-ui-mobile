@@ -5,7 +5,6 @@ export const UPLOAD_ALLOWED_CONTENT_TYPES = ['image/png', 'image/jpeg', 'image/w
 export const UPLOAD_MAX_SIZE_BYTES = 8 * 1024 * 1024
 
 export const SignUploadRequestSchema = z.object({
-  filename: z.string().min(1).max(255),
   contentType: z.enum(UPLOAD_ALLOWED_CONTENT_TYPES),
   sizeBytes: z.number().int().positive().max(UPLOAD_MAX_SIZE_BYTES),
 })

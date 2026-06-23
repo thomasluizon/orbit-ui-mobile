@@ -19,7 +19,6 @@ describe('upload contract', () => {
   describe('SignUploadRequestSchema', () => {
     it('accepts an allowed image under the size cap', () => {
       const parsed = SignUploadRequestSchema.safeParse({
-        filename: 'avatar.png',
         contentType: 'image/png',
         sizeBytes: 1024,
       })
@@ -28,7 +27,6 @@ describe('upload contract', () => {
 
     it('rejects a disallowed content type', () => {
       const parsed = SignUploadRequestSchema.safeParse({
-        filename: 'doc.pdf',
         contentType: 'application/pdf',
         sizeBytes: 1024,
       })
@@ -37,7 +35,6 @@ describe('upload contract', () => {
 
     it('rejects a file over the size cap', () => {
       const parsed = SignUploadRequestSchema.safeParse({
-        filename: 'avatar.png',
         contentType: 'image/png',
         sizeBytes: UPLOAD_MAX_SIZE_BYTES + 1,
       })
@@ -46,7 +43,6 @@ describe('upload contract', () => {
 
     it('rejects a non-positive size', () => {
       const parsed = SignUploadRequestSchema.safeParse({
-        filename: 'avatar.png',
         contentType: 'image/png',
         sizeBytes: 0,
       })

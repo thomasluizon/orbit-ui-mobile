@@ -20,7 +20,6 @@ const signed = {
 
 const localUpload: LocalUpload = {
   uri: 'file:///tmp/avatar.webp',
-  filename: 'avatar.webp',
   contentType: 'image/webp',
   sizeBytes: 2048,
 }
@@ -39,7 +38,6 @@ describe('mobile uploadFile', () => {
     expect(apiClientMock).toHaveBeenCalledWith('/api/uploads/sign', expect.objectContaining({
       method: 'POST',
       body: JSON.stringify({
-        filename: 'avatar.webp',
         contentType: 'image/webp',
         sizeBytes: 2048,
       }),

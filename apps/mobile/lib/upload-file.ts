@@ -11,7 +11,6 @@ export type StoredFile = Pick<SignUploadResponse, 'key' | 'publicUrl'>
 
 export interface LocalUpload {
   uri: string
-  filename: string
   contentType: (typeof UPLOAD_ALLOWED_CONTENT_TYPES)[number]
   sizeBytes: number
 }
@@ -25,7 +24,6 @@ export async function uploadFile(upload: LocalUpload): Promise<StoredFile> {
     await apiClient<SignUploadResponse>(API.uploads.sign, {
       method: 'POST',
       body: JSON.stringify({
-        filename: upload.filename,
         contentType: upload.contentType,
         sizeBytes: upload.sizeBytes,
       }),

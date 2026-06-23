@@ -34,7 +34,6 @@ describe('web uploadFile', () => {
     const result = await uploadFile(file)
 
     expect(signUploadMock).toHaveBeenCalledWith({
-      filename: 'avatar.png',
       contentType: 'image/png',
       sizeBytes: file.size,
     })

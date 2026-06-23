@@ -24,7 +24,6 @@ export async function uploadFile(file: File): Promise<StoredFile> {
 
   const signed = SignUploadResponseSchema.parse(
     await signUpload({
-      filename: file.name,
       contentType: file.type,
       sizeBytes: file.size,
     }),
