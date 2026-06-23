@@ -20,6 +20,6 @@ export async function listHabitTitles(request: APIRequestContext): Promise<strin
   if (!response.ok()) {
     throw new Error(`list habits failed: ${response.status()} ${await response.text()}`)
   }
-  const body = (await response.json()) as { habits?: HabitListItem[] }
-  return (body.habits ?? []).map((habit) => habit.title)
+  const body = (await response.json()) as { items?: HabitListItem[] }
+  return (body.items ?? []).map((habit) => habit.title)
 }
