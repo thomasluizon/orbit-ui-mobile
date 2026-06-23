@@ -27,8 +27,8 @@
     "typescript": "^6.0.2"
   },
   "optionalDependencies": {
-    "@rolldown/binding-linux-x64-gnu": "^1.0.0-rc.13",
-    "@rolldown/binding-win32-x64-msvc": "^1.0.0-rc.13"
+    "@rolldown/binding-linux-x64-gnu": "^1.1.2",
+    "@rolldown/binding-win32-x64-msvc": "^1.1.2"
   },
   "packageManager": "npm@11.12.1",
   "engines": {
