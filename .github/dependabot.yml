@@ -16,6 +16,14 @@ updates:
         update-types:
           - minor
           - patch
+    ignore:
+      - dependency-name: "expo"
+      - dependency-name: "expo-*"
+      - dependency-name: "@expo/*"
+      - dependency-name: "react-native"
+      - dependency-name: "react-native-*"
+      - dependency-name: "babel-preset-expo"
+      - dependency-name: "jest-expo"
 
   - package-ecosystem: github-actions
     directory: /
