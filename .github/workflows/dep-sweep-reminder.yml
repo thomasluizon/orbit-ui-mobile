@@ -1,0 +1,45 @@
+name: Dependency sweep reminder
+
+on:
+  schedule:
+    - cron: "0 6 1 * *"
+  workflow_dispatch: {}
+
+permissions:
+  issues: write
+
+jobs:
+  remind:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Open the monthly dependency-sweep reminder issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const now = new Date()
+            const month = now.toLocaleString('en-US', { month: 'long', year: 'numeric' })
+            const title = `Dependency sweep — ${month}`
+            const open = await github.rest.issues.listForRepo({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              state: 'open',
+              labels: 'dep-sweep',
+            })
+            if (open.data.some((i) => i.title === title)) {
+              core.info('Reminder already open')
+              return
+            }
+            const body = [
+              'Monthly non-security dependency freshness sweep. Run **`/dep-sweep`** from `orbit-ui-mobile` — it bumps apps/web + packages/shared minor/patch, defers apps/mobile to `npx expo install --check`, reports orbit-api NuGet drift, runs the suites, and opens one PR.',
+              '',
+              'Handled elsewhere (not this sweep): security CVEs → Dependabot security updates; Expo SDK upgrades → the Expo SDK watch issue + `upgrading-expo`; GitHub Actions + NuGet minor/patch → Dependabot auto-merge.',
+              '',
+              'Close this issue when the sweep PR is merged (or if nothing was outdated).',
+            ].join('\n')
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title,
+              labels: ['dep-sweep'],
+              body,
+            })
