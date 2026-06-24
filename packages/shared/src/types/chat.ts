@@ -138,6 +138,23 @@ export const habitListCardSchema = z.object({
 
 export type HabitListCard = z.infer<typeof habitListCardSchema>
 
+export const goalListCardItemSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  current: z.number(),
+  target: z.number(),
+  unit: z.string(),
+  deadline: z.string().nullable().optional(),
+})
+
+export type GoalListCardItem = z.infer<typeof goalListCardItemSchema>
+
+export const goalListCardSchema = z.object({
+  items: z.array(goalListCardItemSchema),
+})
+
+export type GoalListCard = z.infer<typeof goalListCardSchema>
+
 export const chatMessageSchema = z.object({
   id: z.string(),
   role: z.enum(['user', 'ai']),
@@ -150,6 +167,7 @@ export const chatMessageSchema = z.object({
   correlationId: z.string().nullable().optional(),
   relatedSurfaces: z.array(z.string()).nullable().optional(),
   habitList: habitListCardSchema.nullable().optional(),
+  goalList: goalListCardSchema.nullable().optional(),
   timestamp: z.date(),
 })
 
@@ -164,6 +182,7 @@ export const chatResponseSchema = z.object({
   correlationId: z.string().nullable().optional(),
   relatedSurfaces: z.array(z.string()).nullable().optional(),
   habitList: habitListCardSchema.nullable().optional(),
+  goalList: goalListCardSchema.nullable().optional(),
 })
 
 export type ChatResponse = z.infer<typeof chatResponseSchema>

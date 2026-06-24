@@ -13,6 +13,7 @@ import { Markdown } from '@/components/ui/markdown'
 import { ActionChips } from './action-chips'
 import { BreakdownSuggestion } from './breakdown-suggestion'
 import { ClarificationCard } from './clarification-card'
+import { GoalListCard } from './goal-list-card'
 import { HabitListCard } from './habit-list-card'
 import { PendingOperationCard } from './pending-operation-card'
 
@@ -151,6 +152,10 @@ export function MessageBubble({
 
         {!isUser && message.habitList && (
           <HabitListCard habitList={message.habitList} />
+        )}
+
+        {!isUser && message.goalList && (
+          <GoalListCard goalList={message.goalList} />
         )}
 
         {!isUser && relatedSurfaces.length > 0 && (

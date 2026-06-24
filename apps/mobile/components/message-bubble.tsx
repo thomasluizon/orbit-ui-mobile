@@ -11,6 +11,7 @@ import { resolveUpgradeEntitlementFromPolicyDenial } from "@orbit/shared/utils";
 import { ActionChips } from "@/components/chat/action-chips";
 import { BreakdownSuggestion } from "@/components/chat/breakdown-suggestion";
 import { ClarificationCard } from "@/components/chat/clarification-card";
+import { GoalListCard } from "@/components/chat/goal-list-card";
 import { HabitListCard } from "@/components/chat/habit-list-card";
 import { PendingOperationCard } from "@/components/chat/pending-operation-card";
 import { Markdown } from "@/components/ui/markdown";
@@ -141,6 +142,10 @@ export function MessageBubble({
 
         {!isUser && message.habitList ? (
           <HabitListCard habitList={message.habitList} />
+        ) : null}
+
+        {!isUser && message.goalList ? (
+          <GoalListCard goalList={message.goalList} />
         ) : null}
 
         {!isUser && relatedSurfaces.length > 0 ? (
