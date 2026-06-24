@@ -22,6 +22,12 @@ export default defineConfig({
         'lib/use-app-theme.ts',
         'stores/auth-store.ts',
       ],
+      thresholds: {
+        statements: 75,
+        branches: 62,
+        functions: 75,
+        lines: 75,
+      },
     },
   },
   resolve: {

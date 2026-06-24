@@ -14,6 +14,7 @@ export {
   userFactKeys,
   versionCheckKeys,
   checklistTemplateKeys,
+  uploadMutationKeys,
 } from './keys'
 
 export {

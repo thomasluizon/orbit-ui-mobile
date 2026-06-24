@@ -167,4 +167,8 @@ export const API = {
     create: '/api/checklist-templates',
     delete: (id: string) => `/api/checklist-templates/${id}` as const,
   },
+
+  uploads: {
+    sign: '/api/uploads/sign',
+  },
 } as const

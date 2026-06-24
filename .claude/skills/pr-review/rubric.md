@@ -1,10 +1,12 @@
 # Orbit Review Rubric
 
-The single source of truth for what a review checks. `/pr-review` walks this file
-dimension-by-dimension; `/audit-code-quality` (#228) reads it verbatim. It is
-command-agnostic on purpose: it contains **dimensions, severities, and templates** —
-no orchestration, no scope resolution, no GitHub mechanics. Those live in the consuming
-skill.
+The single source of truth for what a review checks, shared verbatim by two skills:
+`/pr-review` walks it dimension-by-dimension over a **diff**, and `/audit-code-quality`
+(#228) walks it over the **whole repo**. Both read this one file
+(`.claude/skills/pr-review/rubric.md`) — there is no second copy, so the two can never
+drift. It is command-agnostic on purpose: it contains **dimensions, severities, and
+templates** — no orchestration, no scope resolution, no GitHub mechanics. Those live in
+the consuming skill.
 
 Every finding cites the rule it came from (a `CLAUDE.md` rule number, `no-comments.cjs`,
 a `DESIGN.md` line, an orbit-api hard rule, or a security category) so the author can

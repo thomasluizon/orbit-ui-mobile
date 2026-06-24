@@ -1,0 +1,23 @@
+version: 2
+updates:
+  # npm: security updates only. apps/mobile is Expo SDK-pinned — expo-*, react,
+  # react-dom, react-native and native transitives (hermes-compiler, react-native-worklets)
+  # are exact-pinned to the SDK and must be upgraded with `npx expo install --fix`
+  # during an SDK bump, never by a generic bumper (React Native is not backwards
+  # compatible; piecemeal bumps break SDK alignment). limit 0 disables all version
+  # PRs; Dependabot *security* updates are a separate repo setting and keep flowing.
+  # https://docs.github.com/en/code-security/dependabot/dependabot-security-updates/customizing-dependabot-security-prs
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 0
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    groups:
+      github-actions:
+        patterns:
+          - "*"
