@@ -6,11 +6,12 @@ import { Sparkles, ArrowUpRight } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import type { ChatMessage } from "@orbit/shared/types/chat";
 import type { AgentExecuteOperationResponse } from "@orbit/shared/types";
-import { getRelatedSurfaces } from "@orbit/shared/chat";
+import { getRelatedSurfaces, stripHabitListDirective } from "@orbit/shared/chat";
 import { resolveUpgradeEntitlementFromPolicyDenial } from "@orbit/shared/utils";
 import { ActionChips } from "@/components/chat/action-chips";
 import { BreakdownSuggestion } from "@/components/chat/breakdown-suggestion";
 import { ClarificationCard } from "@/components/chat/clarification-card";
+import { HabitListCard } from "@/components/chat/habit-list-card";
 import { PendingOperationCard } from "@/components/chat/pending-operation-card";
 import { Markdown } from "@/components/ui/markdown";
 import { createTokensV2, tintFromPrimary } from '@/lib/theme'
@@ -134,9 +135,13 @@ export function MessageBubble({
           )}
 
           <Markdown tone={isUser ? "onPrimary" : "default"}>
-            {message.content ?? ""}
+            {stripHabitListDirective(message.content ?? "")}
           </Markdown>
         </View>
+
+        {!isUser && message.habitList ? (
+          <HabitListCard habitList={message.habitList} />
+        ) : null}
 
         {!isUser && relatedSurfaces.length > 0 ? (
           <View style={styles.relatedContainer}>

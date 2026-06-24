@@ -220,6 +220,61 @@ describe('MessageBubble', () => {
     expect(document.body.textContent).not.toContain('req-abc-123')
   })
 
+  it('renders the habit-list card for AI messages with a habitList payload', () => {
+    const { container } = render(
+      <MessageBubble
+        message={makeMessage({
+          role: 'ai',
+          content: 'Here are your habits:',
+          habitList: {
+            scope: 'today',
+            items: [
+              { id: 'h1', title: 'Meditate', emoji: null, depth: 0, isBadHabit: false, status: 'today' },
+              { id: 'h2', title: 'Floss', emoji: null, depth: 0, isBadHabit: false, status: 'overdue' },
+            ],
+          },
+        })}
+      />,
+    )
+
+    expect(container.querySelector('[data-slot="habit-list-card"]')).toBeInTheDocument()
+    expect(screen.getByText('Meditate')).toBeInTheDocument()
+    expect(screen.getByText('Floss')).toBeInTheDocument()
+    expect(screen.getByText('chat.habitList.today')).toBeInTheDocument()
+    expect(screen.getByText('chat.habitList.overdue')).toBeInTheDocument()
+  })
+
+  it('strips the habit-list directive from rendered message content', () => {
+    render(
+      <MessageBubble
+        message={makeMessage({
+          role: 'ai',
+          content: 'Here are your habits for today:\n[[orbit:habits:today]]',
+          habitList: { scope: 'today', items: [] },
+        })}
+      />,
+    )
+
+    const markdown = screen.getByTestId('markdown')
+    expect(markdown.textContent).toBe('Here are your habits for today:')
+    expect(markdown.textContent).not.toContain('orbit:habits')
+  })
+
+  it('does not render the habit-list card for user messages', () => {
+    const { container } = render(
+      <MessageBubble
+        message={makeMessage({
+          role: 'user',
+          habitList: {
+            scope: 'all',
+            items: [{ id: 'h1', title: 'Meditate', emoji: null, depth: 0, isBadHabit: false, status: 'today' }],
+          },
+        })}
+      />,
+    )
+    expect(container.querySelector('[data-slot="habit-list-card"]')).not.toBeInTheDocument()
+  })
+
   it('does not render the raw operation summary card for completed operations', () => {
     render(
       <MessageBubble

@@ -6,13 +6,14 @@ import { useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
 import type { ChatMessage } from '@orbit/shared/types/chat'
 import type { AgentExecuteOperationResponse } from '@orbit/shared/types/ai'
-import { getRelatedSurfaces } from '@orbit/shared/chat'
+import { getRelatedSurfaces, stripHabitListDirective } from '@orbit/shared/chat'
 import { resolveUpgradeEntitlementFromPolicyDenial } from '@orbit/shared/utils'
 import { LocalImage } from '@/components/ui/local-image'
 import { Markdown } from '@/components/ui/markdown'
 import { ActionChips } from './action-chips'
 import { BreakdownSuggestion } from './breakdown-suggestion'
 import { ClarificationCard } from './clarification-card'
+import { HabitListCard } from './habit-list-card'
 import { PendingOperationCard } from './pending-operation-card'
 
 interface MessageBubbleProps {
@@ -145,8 +146,12 @@ export function MessageBubble({
               className="rounded-[12px] max-h-48 mb-2"
             />
           )}
-          <Markdown content={message.content ?? ''} />
+          <Markdown content={stripHabitListDirective(message.content ?? '')} />
         </div>
+
+        {!isUser && message.habitList && (
+          <HabitListCard habitList={message.habitList} />
+        )}
 
         {!isUser && relatedSurfaces.length > 0 && (
           <div className="mt-2 w-full">
