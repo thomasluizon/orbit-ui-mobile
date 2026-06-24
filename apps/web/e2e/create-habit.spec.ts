@@ -1,4 +1,5 @@
 import { test, expect } from '@playwright/test'
+import { listHabitTitles } from './support/api'
 import { smokeLabel } from './support/unique'
 
 test('create a habit from the Today FAB', async ({ page }) => {
@@ -16,5 +17,11 @@ test('create a habit from the Today FAB', async ({ page }) => {
   await expect(submit).toBeEnabled()
   await submit.click()
 
+  await expect(titleInput).toBeHidden()
+  await expect
+    .poll(() => listHabitTitles(page.request), { timeout: 30_000, intervals: [1_000] })
+    .toContain(title)
+
+  await page.reload()
   await expect(page.locator(`[data-habit-title="${title}"]`)).toBeVisible()
 })
