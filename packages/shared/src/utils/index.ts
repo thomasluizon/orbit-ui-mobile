@@ -235,6 +235,7 @@ export {
   updateGoalStatusItem,
 } from './goal-mutations'
 export {
+  formatGoalMetricsDate,
   getGoalHabitAdherenceTone,
   getGoalMetricsStatusPresentation,
 } from './goal-metrics'

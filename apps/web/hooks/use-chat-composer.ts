@@ -253,6 +253,7 @@ export function useChatComposer() {
       correlationId: response.correlationId,
       relatedSurfaces: response.relatedSurfaces,
       habitList: response.habitList,
+      goalList: response.goalList,
     }
     if (draftMessageId) {
       updateMessage(draftMessageId, finalFields)
@@ -345,6 +346,7 @@ export function useChatComposer() {
       timeFormat: detectDefaultTimeFormat(locale),
       currentAppArea: 'chat',
       supportsHabitListCard: true,
+      supportsGoalListCard: true,
     }))
     return formData
   }, [locale])

@@ -6,6 +6,7 @@ vi.mock('next-intl', () => ({
     () =>
     (key: string, values?: Record<string, unknown>) =>
       values ? `${key}:${JSON.stringify(values)}` : key,
+  useLocale: () => 'en-US',
 }))
 
 const push = vi.fn()
@@ -273,6 +274,43 @@ describe('MessageBubble', () => {
       />,
     )
     expect(container.querySelector('[data-slot="habit-list-card"]')).not.toBeInTheDocument()
+  })
+
+  it('renders the goal-list card for AI messages with a goalList payload', () => {
+    const { container } = render(
+      <MessageBubble
+        message={makeMessage({
+          role: 'ai',
+          content: 'Here are your goals:',
+          goalList: {
+            items: [
+              { id: 'g1', title: 'Read books', current: 12, target: 30, unit: 'books', deadline: null },
+              { id: 'g2', title: 'Run distance', current: 50, target: 100, unit: 'km', deadline: '2026-12-31' },
+            ],
+          },
+        })}
+      />,
+    )
+
+    expect(container.querySelector('[data-slot="goal-list-card"]')).toBeInTheDocument()
+    expect(screen.getByText('Read books')).toBeInTheDocument()
+    expect(screen.getByText('Run distance')).toBeInTheDocument()
+    expect(screen.getByText('chat.goalList.percentage:{"pct":40}')).toBeInTheDocument()
+    expect(screen.getByText('chat.goalList.percentage:{"pct":50}')).toBeInTheDocument()
+  })
+
+  it('does not render the goal-list card for user messages', () => {
+    const { container } = render(
+      <MessageBubble
+        message={makeMessage({
+          role: 'user',
+          goalList: {
+            items: [{ id: 'g1', title: 'Read books', current: 12, target: 30, unit: 'books', deadline: null }],
+          },
+        })}
+      />,
+    )
+    expect(container.querySelector('[data-slot="goal-list-card"]')).not.toBeInTheDocument()
   })
 
   it('does not render the raw operation summary card for completed operations', () => {

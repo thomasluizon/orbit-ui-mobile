@@ -341,6 +341,7 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
         correlationId: response.correlationId,
         relatedSurfaces: response.relatedSurfaces,
         habitList: response.habitList,
+        goalList: response.goalList,
       };
       if (draftMessageId) {
         updateMessage(draftMessageId, finalFields);
@@ -421,6 +422,7 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
           timeFormat: detectDefaultTimeFormat(i18n.language),
           currentAppArea: "chat",
           supportsHabitListCard: true,
+          supportsGoalListCard: true,
         }),
       );
       return formData;

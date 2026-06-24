@@ -33,6 +33,7 @@ vi.mock('react-i18next', () => ({
   useTranslation: () => ({
     t: (key: string, values?: Record<string, unknown>) =>
       values ? `${key}:${JSON.stringify(values)}` : key,
+    i18n: { language: 'en-US' },
   }),
 }))
 
@@ -239,5 +240,51 @@ describe('MessageBubble habit-list card (mobile)', () => {
     })
 
     expect(collectStrings(tree.root)).not.toContain('Meditate')
+  })
+})
+
+describe('MessageBubble goal-list card (mobile)', () => {
+  it('renders the goal-list card for AI messages with a goalList payload', async () => {
+    let tree!: TestInstance
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(
+        <MessageBubble
+          message={makeMessage({
+            role: 'ai',
+            content: 'Here are your goals:',
+            goalList: {
+              items: [
+                { id: 'g1', title: 'Read books', current: 12, target: 30, unit: 'books', deadline: null },
+                { id: 'g2', title: 'Run distance', current: 50, target: 100, unit: 'km', deadline: '2026-12-31' },
+              ],
+            },
+          })}
+        />,
+      )
+    })
+
+    const strings = collectStrings(tree.root)
+    expect(strings).toContain('Read books')
+    expect(strings).toContain('Run distance')
+    expect(strings).toContain('chat.goalList.percentage:{"pct":40}')
+    expect(strings).toContain('chat.goalList.percentage:{"pct":50}')
+  })
+
+  it('does not render the card for user messages', async () => {
+    let tree!: TestInstance
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(
+        <MessageBubble
+          message={makeMessage({
+            role: 'user',
+            goalList: {
+              items: [{ id: 'g1', title: 'Read books', current: 12, target: 30, unit: 'books', deadline: null }],
+            },
+          })}
+        />,
+      )
+    })
+
+    expect(collectStrings(tree.root)).not.toContain('Read books')
   })
 })

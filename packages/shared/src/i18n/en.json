@@ -720,6 +720,12 @@
       "overdue": "Overdue",
       "general": "General",
       "empty": "No habits to show"
+    },
+    "goalList": {
+      "progress": "{current} / {target} {unit}",
+      "percentage": "{pct}%",
+      "deadline": "Due {date}",
+      "empty": "No goals to show"
     }
   },
   "profile": {
