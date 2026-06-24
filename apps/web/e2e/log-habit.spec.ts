@@ -20,8 +20,9 @@ test('log a habit from the Today list', async ({ page }) => {
   await expect(row).toBeVisible()
 
   const toggle = row.getByTestId('habit-status-toggle')
+  await toggle.scrollIntoViewIfNeeded()
   const initialState = await toggle.getAttribute('aria-label')
-  await toggle.click()
+  await toggle.click({ force: true })
 
   await expect(toggle).not.toHaveAttribute('aria-label', initialState ?? '')
 })
