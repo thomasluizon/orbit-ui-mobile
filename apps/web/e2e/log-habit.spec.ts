@@ -25,7 +25,7 @@ test('log a habit from the Today list', async ({ page }) => {
 
   const logged = page.waitForResponse(
     (response) =>
-      /\/api\/habits\/[^/]+\/log\b/.test(response.url()) && response.request().method() === 'POST',
+      response.request().method() === 'POST' && 'next-action' in response.request().headers(),
     { timeout: 30_000 },
   )
   await toggle.dispatchEvent('click')
