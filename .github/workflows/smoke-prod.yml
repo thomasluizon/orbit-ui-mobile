@@ -3,6 +3,9 @@ name: Prod Smoke
 on:
   push:
     branches: [main]
+    paths:
+      - 'apps/web/**'
+      - 'packages/shared/**'
   workflow_dispatch:
     inputs:
       base_url:

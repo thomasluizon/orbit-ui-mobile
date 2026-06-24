@@ -1,4 +1,5 @@
 import { defineConfig, devices } from '@playwright/test'
+import { STORAGE_STATE_PATH } from './e2e/support/env'
 
 const baseURL = process.env.SMOKE_BASE_URL
 
@@ -40,7 +41,7 @@ export default defineConfig({
       testMatch: /global\.teardown\.ts/,
       use: {
         ...devices['Desktop Chrome'],
-        storageState: 'e2e/.auth/smoke-user.json',
+        storageState: STORAGE_STATE_PATH,
       },
     },
     {
@@ -50,7 +51,7 @@ export default defineConfig({
       use: {
         ...devices['Desktop Chrome'],
         viewport: { width: 412, height: 915 },
-        storageState: 'e2e/.auth/smoke-user.json',
+        storageState: STORAGE_STATE_PATH,
       },
     },
   ],

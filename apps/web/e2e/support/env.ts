@@ -10,7 +10,6 @@ function required(name: string): string {
  *  Throws at import time if any required value is missing so a misconfigured
  *  run fails fast instead of hitting prod with empty credentials. */
 export const smokeEnv = {
-  baseURL: required('SMOKE_BASE_URL'),
   testEmail: required('SMOKE_TEST_EMAIL'),
   testCode: required('SMOKE_TEST_CODE'),
 } as const
