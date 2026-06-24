@@ -144,8 +144,10 @@ function buildResponseHeaders(source: Response): Headers {
   return result
 }
 
+const NULL_BODY_STATUSES = new Set([204, 205, 304])
+
 async function toNextResponse(source: Response): Promise<NextResponse> {
-  const body = await source.text()
+  const body = NULL_BODY_STATUSES.has(source.status) ? null : await source.text()
   return new NextResponse(body, {
     status: source.status,
     headers: buildResponseHeaders(source),

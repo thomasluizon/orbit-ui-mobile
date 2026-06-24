@@ -114,7 +114,7 @@ jobs:
             exit 1
           fi
           echo "::warning::Smoke failed against prod; rolling back to ${PREVIOUS_URL}."
-          vercel rollback "${PREVIOUS_URL}" --non-interactive --timeout 120s
+          vercel rollback "${PREVIOUS_URL}" --scope "${VERCEL_ORG_ID}" --non-interactive --timeout 120s
           echo "::error::Prod smoke failed; rolled back to ${PREVIOUS_URL}. Production auto-deploys are now PAUSED until someone promotes a healthy deployment (vercel promote). Fix forward, then promote." >&2
 
       - name: Upload Playwright report

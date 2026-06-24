@@ -146,4 +146,23 @@ describe('catch-all API proxy route', () => {
     expect(mockFetch).toHaveBeenCalledTimes(1)
     expect(mockFetch.mock.calls[0]?.[0]).toBe('http://localhost:5000/api/ai/capabilities')
   })
+
+  it('proxies a 204 No Content without throwing on the Response constructor', async () => {
+    vi.mocked(resolveServerSession).mockResolvedValue({
+      token: 'initial-token',
+      expiresAt: Date.now() + 3600000,
+      refreshed: false,
+    })
+    mockFetch.mockResolvedValue(new Response(null, { status: 204 }))
+
+    const request = createRequest('profile/onboarding')
+
+    const response = await GET(request, {
+      params: Promise.resolve({ path: ['profile', 'onboarding'] }),
+    })
+
+    expect(response.status).toBe(204)
+    expect(await response.text()).toBe('')
+    expect(mockFetch).toHaveBeenCalledTimes(1)
+  })
 })
