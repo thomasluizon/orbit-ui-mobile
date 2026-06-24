@@ -23,3 +23,14 @@ export async function listHabitTitles(request: APIRequestContext): Promise<strin
   const body = (await response.json()) as { items?: HabitListItem[] }
   return (body.items ?? []).map((habit) => habit.title)
 }
+
+/** Pre-warms the cold or slow backend paths the specs depend on — the habit list and the
+ *  subscription-plans catalog — so a per-test wait never races a cold Render dyno or an
+ *  unprimed price catalog. Best-effort: failures are swallowed because the specs that need
+ *  these paths assert on them explicitly. */
+export async function warmBackend(request: APIRequestContext): Promise<void> {
+  await Promise.all([
+    request.get('/api/habits').catch(() => undefined),
+    request.get('/api/subscriptions/plans').catch(() => undefined),
+  ])
+}

@@ -20,9 +20,18 @@ test('log a habit from the Today list', async ({ page }) => {
   await expect(row).toBeVisible()
 
   const toggle = row.getByTestId('habit-status-toggle')
+  await expect(toggle).toBeEnabled()
   await toggle.scrollIntoViewIfNeeded()
   const initialState = await toggle.getAttribute('aria-label')
-  await toggle.click({ force: true })
+
+  const logged = page.waitForResponse(
+    (response) =>
+      /\/api\/habits\/[^/]+\/log\b/.test(response.url()) && response.request().method() === 'POST',
+    { timeout: 30_000 },
+  )
+  await toggle.click()
+  const logResponse = await logged
+  expect(logResponse.ok()).toBeTruthy()
 
   await expect(toggle).not.toHaveAttribute('aria-label', initialState ?? '')
 })
