@@ -14,6 +14,8 @@ test('log a habit from the Today list', async ({ page }) => {
   await expect(submit).toBeEnabled()
   await submit.click()
 
+  await expect(titleInput).toBeHidden()
+
   const row = page.locator(`[data-habit-title="${title}"]`)
   await expect(row).toBeVisible()
 
