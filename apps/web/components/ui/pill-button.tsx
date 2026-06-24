@@ -15,6 +15,7 @@ interface PillButtonProps {
   leading?: ReactNode
   children: ReactNode
   className?: string
+  dataTestId?: string
 }
 
 const variantClasses: Record<PillButtonVariant, string> = {
@@ -38,6 +39,7 @@ export function PillButton({
   leading,
   children,
   className,
+  dataTestId,
 }: Readonly<PillButtonProps>) {
   const glowClasses =
     variant === 'primary' && glow && !disabled
@@ -50,6 +52,7 @@ export function PillButton({
       onClick={onClick}
       disabled={disabled}
       aria-busy={busy || undefined}
+      data-testid={dataTestId}
       className={[
         'inline-flex cursor-pointer items-center justify-center gap-[9px] rounded-full border-0 px-[26px] text-[16px] font-medium transition-[background-color,opacity,box-shadow,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] disabled:cursor-not-allowed disabled:opacity-40',
         variantClasses[variant],

@@ -86,6 +86,7 @@ export function CodeStep({
           disabled={isSubmitting || codeDigits.join('').length !== 6}
           busy={isSubmitting}
           leading={isSubmitting ? <Spinner /> : undefined}
+          dataTestId="auth-verify-code"
         >
           {t('auth.verify')}
         </PillButton>

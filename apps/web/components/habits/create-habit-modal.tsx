@@ -364,6 +364,7 @@ export function CreateHabitModal({
             type="submit"
             className="flex-1"
             disabled={isPending || !formHelpers.form.formState.isValid}
+            dataTestId="habit-create-submit"
             leading={
               isPending ? (
                 <Loader2 className="size-[18px] animate-spin" />
