@@ -210,7 +210,7 @@ export function useLogHabit() {
       }
 
       // Apply gamification XP/achievement updates from enriched response (instant)
-      if (response?.xpEarned || response?.newAchievementIds?.length) {
+      if (!loggedHabit?.isBadHabit && (response?.xpEarned || response?.newAchievementIds?.length)) {
         queryClient.setQueryData<GamificationProfile>(gamificationKeys.profile(), (old) => {
           if (!old) return old
           return { ...old, totalXp: old.totalXp + (response.xpEarned ?? 0) }
