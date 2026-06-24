@@ -19,7 +19,7 @@ concurrency:
 
 jobs:
   smoke:
-    name: Post-deploy smoke + rollback on red
+    name: Post-deploy smoke (required)
     runs-on: ubuntu-latest
     env:
       VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
@@ -54,9 +54,6 @@ jobs:
       - name: Install Playwright chromium
         run: npx playwright install --with-deps chromium
 
-      - name: Install Vercel CLI
-        run: npm i -g vercel@54
-
       - name: Wait for Vercel production deployment of this commit
         run: |
           set -euo pipefail
@@ -83,31 +80,13 @@ jobs:
             sleep 15
           done
 
-      - name: Capture previous production deployment for rollback
-        id: prev_deploy
-        run: |
-          set -euo pipefail
-          api="https://api.vercel.com/v6/deployments?projectId=${VERCEL_PROJECT_ID}&teamId=${VERCEL_ORG_ID}&target=production&state=READY&limit=20"
-          body=$(curl -sS -H "Authorization: Bearer ${VERCEL_TOKEN}" "$api")
-          prev=$(echo "$body" | jq -r --arg sha "$GITHUB_SHA" '
-            [.deployments[] | select((.meta.githubCommitSha // "") != $sha)]
-            | sort_by(-.created) | .[0].url // empty')
-          if [ -z "$prev" ]; then
-            echo "::warning::No previous production deployment found; rollback will be skipped if smoke fails."
-          else
-            echo "previous deployment to roll back to: https://${prev}"
-          fi
-          echo "previous_url=${prev:+https://$prev}" >> "$GITHUB_OUTPUT"
-
       - name: Run prod smoke suite
-        id: smoke
-        continue-on-error: true
         run: npm --workspace @orbit/web run test:smoke
 
-      - name: Report smoke failures (non-blocking while the suite is hardened)
-        if: steps.smoke.outcome == 'failure'
+      - name: Report smoke failure
+        if: failure()
         run: |
-          echo "::warning::Prod smoke reported failures against the just-shipped deployment. Auto-rollback is intentionally disabled while the log-habit and paywall flows are hardened — they flake on Today-list re-render timing and intermittent plans-load, and a flaky rollback was reverting healthy deploys. Investigate the run; if prod is genuinely broken, run the Promote Production workflow to restore a known-good deployment."
+          echo "::error::Prod smoke failed against the just-shipped deployment (${GITHUB_SHA}). The suite is deterministic, so a red run signals a real regression in a core user flow (auth, create/log habit, Astra, or paywall). Investigate the uploaded Playwright trace; if prod is genuinely broken, run the Promote Production workflow to restore the last known-good deployment."
 
       - name: Upload Playwright report
         if: always()
