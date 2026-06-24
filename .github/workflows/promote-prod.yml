@@ -1,0 +1,55 @@
+name: Promote Production
+
+on:
+  workflow_dispatch:
+    inputs:
+      deployment_url:
+        description: Deployment URL to promote (defaults to the newest READY production deployment)
+        required: false
+        type: string
+
+concurrency:
+  group: prod-promote
+  cancel-in-progress: false
+
+jobs:
+  promote:
+    name: Promote a healthy deployment to production
+    runs-on: ubuntu-latest
+    env:
+      VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+      VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+      VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+
+    steps:
+      - name: Validate secrets
+        run: |
+          set -euo pipefail
+          missing=()
+          for name in VERCEL_TOKEN VERCEL_ORG_ID VERCEL_PROJECT_ID; do
+            if [ -z "${!name:-}" ]; then missing+=("$name"); fi
+          done
+          if [ ${#missing[@]} -gt 0 ]; then
+            echo "::error::Missing required secrets: ${missing[*]}" >&2
+            exit 1
+          fi
+
+      - name: Install Vercel CLI
+        run: npm i -g vercel@54
+
+      - name: Promote the chosen (or newest READY) production deployment
+        run: |
+          set -euo pipefail
+          url="${{ inputs.deployment_url }}"
+          if [ -z "$url" ]; then
+            api="https://api.vercel.com/v6/deployments?projectId=${VERCEL_PROJECT_ID}&teamId=${VERCEL_ORG_ID}&target=production&state=READY&limit=1"
+            url=$(curl -sS -H "Authorization: Bearer ${VERCEL_TOKEN}" "$api" | jq -r '.deployments[0].url // empty')
+          fi
+          if [ -z "$url" ]; then
+            echo "::error::No READY production deployment found to promote." >&2
+            exit 1
+          fi
+          case "$url" in https://*) ;; *) url="https://$url" ;; esac
+          echo "Promoting ${url} to production."
+          vercel promote "$url" --token="${VERCEL_TOKEN}" --scope="${VERCEL_ORG_ID}" --yes
+          echo "::notice::Promoted ${url}. Production auto-deploys are un-paused."
