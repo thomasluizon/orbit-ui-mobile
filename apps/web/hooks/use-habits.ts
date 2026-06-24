@@ -301,7 +301,7 @@ export function useLogHabit() {
         )
       }
 
-      if (response?.xpEarned || response?.newAchievementIds?.length) {
+      if (!loggedHabit?.isBadHabit && (response?.xpEarned || response?.newAchievementIds?.length)) {
         queryClient.setQueryData<GamificationProfile>(gamificationKeys.profile(), (old) => {
           if (!old) return old
           return { ...old, totalXp: old.totalXp + (response.xpEarned ?? 0) }
