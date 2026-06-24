@@ -116,6 +116,28 @@ export const actionResultSchema = z
 
 export type ActionResult = z.infer<typeof actionResultSchema>
 
+export const habitListCardStatusSchema = z.enum(['today', 'overdue', 'general', 'none'])
+
+export type HabitListCardStatus = z.infer<typeof habitListCardStatusSchema>
+
+export const habitListCardItemSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+  emoji: z.string().nullable().optional(),
+  depth: z.number(),
+  isBadHabit: z.boolean(),
+  status: habitListCardStatusSchema,
+})
+
+export type HabitListCardItem = z.infer<typeof habitListCardItemSchema>
+
+export const habitListCardSchema = z.object({
+  scope: z.enum(['today', 'all']),
+  items: z.array(habitListCardItemSchema),
+})
+
+export type HabitListCard = z.infer<typeof habitListCardSchema>
+
 export const chatMessageSchema = z.object({
   id: z.string(),
   role: z.enum(['user', 'ai']),
@@ -127,6 +149,7 @@ export const chatMessageSchema = z.object({
   imageUrl: z.string().nullable().optional(),
   correlationId: z.string().nullable().optional(),
   relatedSurfaces: z.array(z.string()).nullable().optional(),
+  habitList: habitListCardSchema.nullable().optional(),
   timestamp: z.date(),
 })
 
@@ -140,6 +163,7 @@ export const chatResponseSchema = z.object({
   policyDenials: z.array(agentPolicyDenialSchema).nullable().optional(),
   correlationId: z.string().nullable().optional(),
   relatedSurfaces: z.array(z.string()).nullable().optional(),
+  habitList: habitListCardSchema.nullable().optional(),
 })
 
 export type ChatResponse = z.infer<typeof chatResponseSchema>

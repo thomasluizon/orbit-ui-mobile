@@ -714,6 +714,12 @@
       "createRoutine": "Criar uma rotina",
       "howAmIDoing": "Como estou indo?",
       "planWeek": "Planejar minha semana"
+    },
+    "habitList": {
+      "today": "Hoje",
+      "overdue": "Atrasado",
+      "general": "Geral",
+      "empty": "Nenhum hábito para mostrar"
     }
   },
   "profile": {

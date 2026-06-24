@@ -168,3 +168,76 @@ describe('MessageBubble related-surfaces footer (mobile)', () => {
     expect(findSurfaceLinks(tree.root, 'chat.related.surface.gamification')).toHaveLength(0)
   })
 })
+
+function collectStrings(root: TestTreeRoot): string[] {
+  return root
+    .findAll((node) => typeof node.props?.children === 'string')
+    .map((node) => node.props.children as string)
+}
+
+describe('MessageBubble habit-list card (mobile)', () => {
+  it('renders the habit-list card for AI messages with a habitList payload', async () => {
+    let tree!: TestInstance
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(
+        <MessageBubble
+          message={makeMessage({
+            role: 'ai',
+            content: 'Here are your habits:',
+            habitList: {
+              scope: 'today',
+              items: [
+                { id: 'h1', title: 'Meditate', emoji: null, depth: 0, isBadHabit: false, status: 'today' },
+                { id: 'h2', title: 'Floss', emoji: null, depth: 0, isBadHabit: false, status: 'overdue' },
+              ],
+            },
+          })}
+        />,
+      )
+    })
+
+    const strings = collectStrings(tree.root)
+    expect(strings).toContain('Meditate')
+    expect(strings).toContain('Floss')
+    expect(strings).toContain('chat.habitList.today')
+    expect(strings).toContain('chat.habitList.overdue')
+  })
+
+  it('strips the habit-list directive from rendered content', async () => {
+    let tree!: TestInstance
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(
+        <MessageBubble
+          message={makeMessage({
+            role: 'ai',
+            content: 'Here are your habits for today:\n[[orbit:habits:today]]',
+            habitList: { scope: 'today', items: [] },
+          })}
+        />,
+      )
+    })
+
+    const strings = collectStrings(tree.root)
+    expect(strings).toContain('Here are your habits for today:')
+    expect(strings.some((value) => value.includes('orbit:habits'))).toBe(false)
+  })
+
+  it('does not render the card for user messages', async () => {
+    let tree!: TestInstance
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(
+        <MessageBubble
+          message={makeMessage({
+            role: 'user',
+            habitList: {
+              scope: 'all',
+              items: [{ id: 'h1', title: 'Meditate', emoji: null, depth: 0, isBadHabit: false, status: 'today' }],
+            },
+          })}
+        />,
+      )
+    })
+
+    expect(collectStrings(tree.root)).not.toContain('Meditate')
+  })
+})

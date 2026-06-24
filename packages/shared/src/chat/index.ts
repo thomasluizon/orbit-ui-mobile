@@ -78,3 +78,20 @@ export function getChatImageValidationError(
 
   return null
 }
+
+const COMPLETE_HABIT_LIST_DIRECTIVE = /\[\[orbit:habits:(?:today|all)\]\]/gi
+
+const TRAILING_HABIT_LIST_DIRECTIVE = /\n?\[\[orbit:habits:?[a-z]*\]?\]?\s*$/i
+
+/**
+ * Removes the `[[orbit:habits:today|all]]` directive Astra emits to request a
+ * habit-list card. The server strips it from the final message, but streamed
+ * deltas still carry it mid-flight, so both chat surfaces strip it from rendered
+ * content - including a partial token still being streamed at the end of the text.
+ */
+export function stripHabitListDirective(content: string): string {
+  return content
+    .replace(COMPLETE_HABIT_LIST_DIRECTIVE, '')
+    .replace(TRAILING_HABIT_LIST_DIRECTIVE, '')
+    .trimEnd()
+}

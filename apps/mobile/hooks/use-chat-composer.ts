@@ -340,6 +340,7 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
         policyDenials: response.policyDenials,
         correlationId: response.correlationId,
         relatedSurfaces: response.relatedSurfaces,
+        habitList: response.habitList,
       };
       if (draftMessageId) {
         updateMessage(draftMessageId, finalFields);
@@ -419,6 +420,7 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
           locale: i18n.language,
           timeFormat: detectDefaultTimeFormat(i18n.language),
           currentAppArea: "chat",
+          supportsHabitListCard: true,
         }),
       );
       return formData;
