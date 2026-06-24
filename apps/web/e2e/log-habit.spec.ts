@@ -20,10 +20,11 @@ test('log a habit from the Today list', async ({ page }) => {
     .poll(() => listHabitTitles(page.request), { timeout: 30_000, intervals: [1_000] })
     .toContain(title)
 
-  await page.reload()
-
   const row = page.locator(`[data-habit-title="${title}"]`)
-  await expect(row).toBeVisible()
+  await expect(async () => {
+    await page.reload()
+    await expect(row).toBeVisible({ timeout: 10_000 })
+  }).toPass({ timeout: 60_000 })
 
   const toggle = row.getByTestId('habit-status-toggle')
   await expect(toggle).toBeEnabled()

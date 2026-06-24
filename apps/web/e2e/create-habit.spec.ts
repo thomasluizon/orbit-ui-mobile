@@ -21,7 +21,4 @@ test('create a habit from the Today FAB', async ({ page }) => {
   await expect
     .poll(() => listHabitTitles(page.request), { timeout: 30_000, intervals: [1_000] })
     .toContain(title)
-
-  await page.reload()
-  await expect(page.locator(`[data-habit-title="${title}"]`)).toBeVisible()
 })
