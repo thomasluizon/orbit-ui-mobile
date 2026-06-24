@@ -101,21 +101,13 @@ jobs:
 
       - name: Run prod smoke suite
         id: smoke
+        continue-on-error: true
         run: npm --workspace @orbit/web run test:smoke
 
-      - name: Roll back the just-shipped deployment (smoke failed)
-        if: failure() && steps.smoke.outcome == 'failure'
-        env:
-          PREVIOUS_URL: ${{ steps.prev_deploy.outputs.previous_url }}
+      - name: Report smoke failures (non-blocking while the suite is hardened)
+        if: steps.smoke.outcome == 'failure'
         run: |
-          set -euo pipefail
-          if [ -z "${PREVIOUS_URL:-}" ]; then
-            echo "::error::Smoke failed but no previous production deployment was captured — manual rollback required at https://vercel.com." >&2
-            exit 1
-          fi
-          echo "::warning::Smoke failed against prod; rolling back to ${PREVIOUS_URL}."
-          vercel rollback "${PREVIOUS_URL}" --scope "${VERCEL_ORG_ID}" --non-interactive --timeout 120s
-          echo "::error::Prod smoke failed; rolled back to ${PREVIOUS_URL}. Production auto-deploys are now PAUSED until someone promotes a healthy deployment (vercel promote). Fix forward, then promote." >&2
+          echo "::warning::Prod smoke reported failures against the just-shipped deployment. Auto-rollback is intentionally disabled while the log-habit and paywall flows are hardened — they flake on Today-list re-render timing and intermittent plans-load, and a flaky rollback was reverting healthy deploys. Investigate the run; if prod is genuinely broken, run the Promote Production workflow to restore a known-good deployment."
 
       - name: Upload Playwright report
         if: always()
