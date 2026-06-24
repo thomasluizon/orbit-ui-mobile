@@ -20,7 +20,10 @@ export async function authenticate(page: Page): Promise<void> {
     await page.locator(`[data-code-index="${index}"]`).fill(digit)
   }
 
-  await page.getByTestId('auth-verify-code').click()
+  const verify = page.getByTestId('auth-verify-code')
+  if (await verify.isEnabled().catch(() => false)) {
+    await verify.click()
+  }
 
   await page.waitForURL((url) => !url.pathname.startsWith('/login'), { timeout: 30_000 })
 }
