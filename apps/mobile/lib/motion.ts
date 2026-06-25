@@ -96,6 +96,19 @@ export function toAnimatedEasing(
   )
 }
 
+/** Base Animated.timing config (toValue 1, native driver) from a duration + shared bezier. */
+export function createAnimatedTimingConfig(
+  duration: number,
+  easing: readonly [number, number, number, number],
+) {
+  return {
+    toValue: 1,
+    duration,
+    easing: toAnimatedEasing(easing),
+    useNativeDriver: true,
+  } as const
+}
+
 export const mobileMotion = {
   durations: motionDurations,
   easings: motionEasings,

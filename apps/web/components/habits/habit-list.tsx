@@ -34,6 +34,12 @@ import {
 import { HabitListConfirmDialogs } from './habit-list/confirm-dialogs'
 import { HabitListDrillContent } from './habit-list/drill-content'
 import { MoveParentOverlay, type MoveParentOption } from './habit-list/move-parent-overlay'
+import {
+  buildDragItemsFlat,
+  buildMoveParentOptions,
+  validateMoveTarget as computeMoveTargetValidation,
+  type DragItem,
+} from './habit-list/tree-helpers'
 import type { StatusDotState } from '@/components/ui/status-dot'
 import {
   canLogHabitOnDate,
@@ -103,50 +109,7 @@ export interface HabitListHandle {
   checkAndPromptParentLog: (childHabitId: string) => void
 }
 
-interface DragItem {
-  id: string
-  habit: NormalizedHabit
-  depth: number
-  parentId: string | null
-  hasChildren: boolean
-  hasSubHabits: boolean
-}
-
 const TOUR_FEATURED_HABIT_ID = 'tour-habit-2'
-
-type HabitView = 'today' | 'all' | 'general'
-
-function buildDragItemsFlat(
-  habits: NormalizedHabit[],
-  collapsedIds: Set<string>,
-  getVisibleChildrenForView: (habitId: string, view: HabitView) => NormalizedHabit[],
-  view: HabitView,
-): DragItem[] {
-  const items: DragItem[] = []
-
-  function addHabitTree(habit: NormalizedHabit, depth: number, parentId: string | null) {
-    const visChildren = getVisibleChildrenForView(habit.id, view)
-    items.push({
-      id: habit.id,
-      habit,
-      depth,
-      parentId,
-      hasChildren: visChildren.length > 0,
-      hasSubHabits: habit.hasSubHabits,
-    })
-    if (!collapsedIds.has(habit.id)) {
-      for (const child of visChildren) {
-        addHabitTree(child, depth + 1, habit.id)
-      }
-    }
-  }
-
-  for (const h of habits) {
-    addHabitTree(h, 0, null)
-  }
-
-  return items
-}
 
 export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function HabitList({
   view = 'today',
@@ -603,97 +566,20 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
     }
   }
 
-  function getHabitDepth(habitId: string): number {
-    let depth = 0
-    let current = habitsById.get(habitId)
-    while (current?.parentId) {
-      depth++
-      current = habitsById.get(current.parentId)
-    }
-    return depth
-  }
-
-  function getSubtreeMaxDepth(habitId: string, baseDepth: number): number {
-    let max = baseDepth
-    const children = getChildren(habitId)
-    for (const child of children) {
-      const childMax = getSubtreeMaxDepth(child.id, baseDepth + 1)
-      if (childMax > max) max = childMax
-    }
-    return max
-  }
-
-  function isDescendant(candidateId: string, ancestorId: string): boolean {
-    let current = habitsById.get(candidateId)
-    while (current?.parentId) {
-      if (current.parentId === ancestorId) return true
-      current = habitsById.get(current.parentId)
-    }
-    return false
-  }
-
-  function validateMoveTarget(
-    targetParentId: string | null,
-    draggedId: string,
-  ): { valid: boolean; reason: string | null } {
-    if (targetParentId === draggedId) {
-      return { valid: false, reason: t('habits.moveParent.invalidSelf') }
-    }
-
-    if (targetParentId && isDescendant(targetParentId, draggedId)) {
-      return { valid: false, reason: t('habits.moveParent.invalidDescendant') }
-    }
-
-    const newParentDepth = targetParentId ? getHabitDepth(targetParentId) : -1
-    const subtreeMax = getSubtreeMaxDepth(draggedId, newParentDepth + 1)
-    if (subtreeMax >= maxHabitDepth) {
-      return {
-        valid: false,
-        reason: t('habits.moveParent.invalidDepth', { max: maxHabitDepth }),
-      }
-    }
-
-    return { valid: true, reason: null }
+  function validateMoveTarget(targetParentId: string | null, draggedId: string) {
+    return computeMoveTargetValidation(
+      { habitsById, getChildren, maxHabitDepth, t },
+      targetParentId,
+      draggedId,
+    )
   }
 
   const moveParentOptions = ((): MoveParentOption[] => {
     if (!movingHabitId) return []
-
-    const options: MoveParentOption[] = []
-    const rootValidation = validateMoveTarget(null, movingHabitId)
-    options.push({
-      id: null,
-      label: t('habits.moveParent.toRoot'),
-      depth: 0,
-      disabled: !rootValidation.valid,
-      reason: rootValidation.reason,
-    })
-
-    const stack: Array<{ habit: NormalizedHabit; depth: number }> = []
-    for (let i = topLevelHabits.length - 1; i >= 0; i--) {
-      const habit = topLevelHabits[i]
-      if (habit) stack.push({ habit, depth: 0 })
-    }
-    while (stack.length > 0) {
-      const top = stack.pop()
-      if (!top) break
-      const { habit, depth } = top
-      const validation = validateMoveTarget(habit.id, movingHabitId)
-      options.push({
-        id: habit.id,
-        label: habit.title,
-        depth,
-        disabled: !validation.valid,
-        reason: validation.reason,
-      })
-      const children = getChildren(habit.id)
-      for (let i = children.length - 1; i >= 0; i--) {
-        const child = children[i]
-        if (child) stack.push({ habit: child, depth: depth + 1 })
-      }
-    }
-
-    return options
+    return buildMoveParentOptions(
+      { topLevelHabits, getChildren, validateMoveTarget, t },
+      movingHabitId,
+    )
   })()
 
   const selectedMoveOption = moveParentOptions.find(

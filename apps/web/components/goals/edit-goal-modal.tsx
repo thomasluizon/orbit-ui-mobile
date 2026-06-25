@@ -1,28 +1,27 @@
 'use client'
 
 import { useState, useCallback, useMemo } from 'react'
-import { Plus, X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { AppOverlay } from '@/components/ui/app-overlay'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
-import { AppDatePicker } from '@/components/ui/app-date-picker'
 import { PillButton } from '@/components/ui/pill-button'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useDismissGuard } from '@/hooks/use-dismiss-guard'
 import { useUpdateGoal } from '@/hooks/use-goals'
-import { formatAPIDate } from '@orbit/shared/utils/dates'
 import {
   getFriendlyErrorMessage,
   translateErrorKey,
 } from '@orbit/shared/utils'
 import {
   buildGoalTitle,
-  isGoalDeadlinePast,
   isStreakGoal,
   parseGoalTargetValue,
   validateGoalDraftInput,
 } from '@orbit/shared/utils/goal-form'
-import { MAX_GOAL_DESCRIPTION_LENGTH, MAX_GOAL_UNIT_LENGTH } from '@orbit/shared/validation'
+import { MAX_GOAL_DESCRIPTION_LENGTH } from '@orbit/shared/validation'
+import { EditGoalDeadlineField } from './edit-goal-modal/edit-goal-deadline-field'
+import { EditGoalTargetFields } from './edit-goal-modal/edit-goal-target-fields'
+import { FieldWell } from './edit-goal-modal/field-well'
 
 interface EditGoalModalProps {
   open: boolean
@@ -171,37 +170,14 @@ export function EditGoalModal({
             </div>
           )}
 
-          <div className={isStreak ? '' : 'grid grid-cols-2'} style={{ padding: '16px 0 0', gap: 12 }}>
-            <FieldWell
-              label={isStreak ? t('goals.form.streakTarget') : t('goals.form.targetValue')}
-              id="edit-goal-target"
-              type="number"
-              mono
-              value={targetValue}
-              error={fieldErrors.targetValue}
-              onChange={setTargetValue}
-            />
-            {isStreak ? (
-              <FieldWell
-                label={t('goals.form.unit')}
-                id="edit-goal-unit-readonly"
-                type="text"
-                value={unit}
-                readOnly
-                onChange={() => {}}
-              />
-            ) : (
-              <FieldWell
-                label={t('goals.form.unit')}
-                id="edit-goal-unit"
-                type="text"
-                value={unit}
-                maxLength={MAX_GOAL_UNIT_LENGTH}
-                error={fieldErrors.unit}
-                onChange={setUnit}
-              />
-            )}
-          </div>
+          <EditGoalTargetFields
+            isStreak={isStreak}
+            targetValue={targetValue}
+            unit={unit}
+            fieldErrors={fieldErrors}
+            onChangeTarget={setTargetValue}
+            onChangeUnit={setUnit}
+          />
 
           <div style={{ padding: '16px 0 0' }}>
             <FieldWell
@@ -216,64 +192,7 @@ export function EditGoalModal({
             />
           </div>
 
-          <div style={{ padding: '16px 0 16px' }}>
-            {deadline ? (
-              <div className="flex flex-col" style={{ gap: 8 }}>
-                <span
-                  style={{
-                    fontFamily: 'var(--font-sans)',
-                    fontSize: 14,
-                    fontWeight: 500,
-                    color: 'var(--fg-2)',
-                  }}
-                >
-                  {t('goals.form.deadline')}
-                </span>
-                <div className="flex items-center" style={{ gap: 8 }}>
-                  <div className="flex-1">
-                    <AppDatePicker value={deadline} onChange={setDeadline} />
-                  </div>
-                  <button
-                    type="button"
-                    className="appearance-none border-0 bg-transparent cursor-pointer inline-flex items-center justify-center"
-                    style={{ width: 44, height: 44, color: 'var(--fg-3)' }}
-                    aria-label={t('common.cancel')}
-                    onClick={() => setDeadline('')}
-                  >
-                    <X size={16} strokeWidth={1.8} />
-                  </button>
-                </div>
-                {isGoalDeadlinePast(deadline) && (
-                  <p
-                    style={{
-                      fontFamily: 'var(--font-sans)',
-                      fontSize: 13,
-                      color: 'var(--status-overdue-text)',
-                    }}
-                  >
-                    {t('goals.form.deadlineInPast')}
-                  </p>
-                )}
-              </div>
-            ) : (
-              <button
-                type="button"
-                className="appearance-none border-0 bg-transparent cursor-pointer inline-flex items-center"
-                style={{
-                  fontFamily: 'var(--font-sans)',
-                  fontSize: 13,
-                  fontWeight: 500,
-                  color: 'var(--fg-1)',
-                  padding: '6px 0',
-                  gap: 6,
-                }}
-                onClick={() => setDeadline(formatAPIDate(new Date()))}
-              >
-                <Plus size={14} strokeWidth={1.8} />
-                {t('goals.form.addDeadline')}
-              </button>
-            )}
-          </div>
+          <EditGoalDeadlineField deadline={deadline} onChangeDeadline={setDeadline} />
 
           <div
             className="flex items-center"
@@ -320,83 +239,5 @@ export function EditGoalModal({
         variant="warning"
       />
     </>
-  )
-}
-
-interface FieldWellProps {
-  label: string
-  id: string
-  type: 'text' | 'number'
-  mono?: boolean
-  value: string
-  placeholder?: string
-  maxLength?: number
-  readOnly?: boolean
-  error?: string
-  onChange: (next: string) => void
-}
-
-/** Kit field well with native min/step semantics and inline error slot. */
-function FieldWell({
-  label,
-  id,
-  type,
-  mono = false,
-  value,
-  placeholder,
-  maxLength,
-  readOnly = false,
-  error,
-  onChange,
-}: Readonly<FieldWellProps>) {
-  return (
-    <div className="flex flex-col" style={{ gap: 8 }}>
-      <label
-        htmlFor={id}
-        style={{
-          fontFamily: 'var(--font-sans)',
-          fontSize: 14,
-          fontWeight: 500,
-          color: 'var(--fg-2)',
-        }}
-      >
-        {label}
-      </label>
-      <input
-        id={id}
-        type={type}
-        value={value}
-        placeholder={placeholder}
-        maxLength={maxLength}
-        readOnly={readOnly}
-        step={type === 'number' ? 'any' : undefined}
-        aria-invalid={!!error}
-        aria-describedby={error ? `${id}-error` : undefined}
-        onChange={(e) => onChange(e.target.value)}
-        className="w-full appearance-none rounded-[14px] border-0 bg-[var(--bg-field)] shadow-[inset_0_0_0_1px_var(--hairline)] outline-none placeholder:text-[var(--fg-3)] focus:shadow-[inset_0_0_0_2px_var(--primary)]"
-        style={{
-          minHeight: 54,
-          padding: '0 16px',
-          fontFamily: mono ? 'var(--font-mono)' : 'var(--font-sans)',
-          fontSize: 16,
-          color: readOnly ? 'var(--fg-3)' : 'var(--fg-1)',
-          fontVariantNumeric: mono ? 'tabular-nums' : 'normal',
-          opacity: readOnly ? 0.6 : 1,
-        }}
-      />
-      {error && (
-        <p
-          id={`${id}-error`}
-          role="alert"
-          style={{
-            fontFamily: 'var(--font-sans)',
-            fontSize: 12,
-            color: 'var(--status-overdue-text)',
-          }}
-        >
-          {error}
-        </p>
-      )}
-    </div>
   )
 }

@@ -1,20 +1,7 @@
 'use client'
 
-import { Fragment, useState, type MouseEvent, type ReactNode } from 'react'
-import {
-  ArrowRight,
-  Check,
-  CheckCircle2,
-  ChevronDown,
-  ChevronRight,
-  Copy,
-  FastForward,
-  MoreVertical,
-  Pencil,
-  Plus,
-  Trash2,
-  type LucideIcon,
-} from 'lucide-react'
+import { type MouseEvent } from 'react'
+import { ChevronDown, MoreVertical } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { stripInlineMarkdown } from '@orbit/shared/utils'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
@@ -22,6 +9,11 @@ import { ParentRing } from '@/components/ui/parent-ring'
 import { Popover } from '@/components/ui/popover'
 import { SelectCheck } from '@/components/ui/select-check'
 import type { StatusDotState } from '@/components/ui/status-dot'
+import { CheckCircle } from './habit-row-check-circle'
+import { HabitRowMenu } from './habit-row-menu'
+import { MetaStrip, TitleText, type HabitRowMetaToken } from './habit-row-content'
+
+export type { HabitRowMetaToken }
 
 const MAX_VISIBLE_TAGS = 3
 
@@ -43,13 +35,6 @@ export interface HabitRowActions {
   onForceLogParent?: () => void
   onEnterSelectMode?: () => void
 }
-
-/** Inline meta token rendered between dots in the row's meta strip.
- *  String tokens render in fg-3; tagged tokens get status color. */
-export type HabitRowMetaToken =
-  | string
-  | { kind: 'overdue'; label: string }
-  | { kind: 'future'; label: string }
 
 /** Linear-tight habit row: emoji / chevron / title (wraps to two lines) / inline meta / status dot / streak.
  *  Sub-habit rows ("child") render a tree-line connector to the parent column. */
@@ -441,233 +426,4 @@ export function HabitRow({
       </div>
     </div>
   )
-}
-
-interface HabitRowMenuProps {
-  close: () => void
-  onEdit?: () => void
-  onDuplicate?: () => void
-  onAddSubHabit?: () => void
-  onMoveParent?: () => void
-  onSkip?: () => void
-  onDelete?: () => void
-  onEnterSelectMode?: () => void
-  onDrillInto?: () => void
-  t: ReturnType<typeof useTranslations>
-}
-
-function HabitRowMenu({
-  close,
-  onEdit,
-  onDuplicate,
-  onAddSubHabit,
-  onMoveParent,
-  onSkip,
-  onDelete,
-  onEnterSelectMode,
-  onDrillInto,
-  t,
-}: Readonly<HabitRowMenuProps>) {
-  function run(handler?: () => void) {
-    return () => {
-      handler?.()
-      close()
-    }
-  }
-
-  return (
-    <div role="menu">
-      {onAddSubHabit && <MenuItem icon={Plus} label={t('habits.form.addSubHabit')} onClick={run(onAddSubHabit)} />}
-      {onMoveParent && <MenuItem icon={ArrowRight} label={t('habits.moveParent.button')} onClick={run(onMoveParent)} />}
-      {onSkip && <MenuItem icon={FastForward} label={t('habits.actions.skip')} onClick={run(onSkip)} tone="warning" />}
-      {onEdit && <MenuItem icon={Pencil} label={t('common.edit')} onClick={run(onEdit)} />}
-      {onDuplicate && <MenuItem icon={Copy} label={t('habits.actions.duplicate')} onClick={run(onDuplicate)} />}
-      {onEnterSelectMode && <MenuItem icon={CheckCircle2} label={t('common.select')} onClick={run(onEnterSelectMode)} />}
-      {onDelete && (
-        <>
-          <div
-            aria-hidden="true"
-            style={{
-              height: 1,
-              margin: '4px 8px',
-              background: 'var(--hairline)',
-            }}
-          />
-          <MenuItem icon={Trash2} label={t('habits.deleteHabit')} onClick={run(onDelete)} tone="danger" />
-        </>
-      )}
-      {onDrillInto && <MenuItem icon={ChevronRight} label={t('habits.actions.openSubHabits')} onClick={run(onDrillInto)} />}
-    </div>
-  )
-}
-
-interface MenuItemProps {
-  icon: LucideIcon
-  label: string
-  onClick: () => void
-  tone?: 'default' | 'warning' | 'danger'
-}
-
-function MenuItem({ icon: Icon, label, onClick, tone = 'default' }: Readonly<MenuItemProps>) {
-  const color =
-    tone === 'danger'
-      ? 'var(--status-bad-text)'
-      : tone === 'warning'
-        ? 'var(--status-overdue-text)'
-        : 'var(--fg-1)'
-  return (
-    <button
-      type="button"
-      role="menuitem"
-      onClick={(event) => {
-        event.stopPropagation()
-        onClick()
-      }}
-      className="appearance-none border-0 bg-transparent w-full flex items-center text-left transition-colors hover:bg-[var(--bg-sunk)]"
-      style={{
-        gap: 10,
-        padding: '8px 12px',
-        color,
-        fontFamily: 'var(--font-sans)',
-        fontSize: 14,
-        cursor: 'pointer',
-      }}
-    >
-      <Icon size={14} strokeWidth={1.8} />
-      <span>{label}</span>
-    </button>
-  )
-}
-
-interface TitleTextProps {
-  title: string
-  size: number
-  color: string
-  strikethrough: boolean
-}
-
-function TitleText({ title, size, color, strikethrough }: Readonly<TitleTextProps>) {
-  return (
-    <span
-      className="flex-shrink min-w-0 overflow-hidden line-clamp-2"
-      style={{
-        fontFamily: 'var(--font-sans)',
-        fontSize: size,
-        fontWeight: 500,
-        color,
-        textDecorationLine: strikethrough ? 'line-through' : 'none',
-        textDecorationStyle: 'solid',
-        textDecorationColor: 'var(--fg-4)',
-        textDecorationThickness: 1,
-        lineHeight: 1.25,
-        letterSpacing: '-0.005em',
-        overflowWrap: 'anywhere',
-      }}
-    >
-      {title}
-    </span>
-  )
-}
-
-const CHECK_FILLED_STATES: ReadonlySet<StatusDotState> = new Set(['done', 'skip', 'frozen'])
-
-const CHECK_COLOR_VAR: Record<StatusDotState, string> = {
-  done: 'var(--status-done)',
-  empty: 'var(--status-empty)',
-  skip: 'var(--status-skip)',
-  overdue: 'var(--status-overdue)',
-  bad: 'var(--status-bad)',
-  frozen: 'var(--status-frozen)',
-}
-
-interface CheckCircleProps {
-  state: StatusDotState
-  /** 'bad' fills the logged circle in status-bad instead of status-done. */
-  tone?: 'default' | 'bad'
-  onToggle: () => void
-  disabled: boolean
-  ariaLabel: string
-}
-
-function CheckCircle({ state, tone = 'default', onToggle, disabled, ariaLabel }: Readonly<CheckCircleProps>) {
-  const filled = CHECK_FILLED_STATES.has(state)
-  const color =
-    tone === 'bad' && state === 'done' ? 'var(--status-bad)' : CHECK_COLOR_VAR[state]
-  const [previousFilled, setPreviousFilled] = useState(filled)
-  const [justCompleted, setJustCompleted] = useState(false)
-  if (filled !== previousFilled) {
-    setPreviousFilled(filled)
-    setJustCompleted(filled)
-  }
-
-  return (
-    <button
-      type="button"
-      data-testid="habit-status-toggle"
-      onClick={(event) => {
-        event.stopPropagation()
-        if (disabled) return
-        onToggle()
-      }}
-      disabled={disabled}
-      aria-disabled={disabled}
-      aria-label={ariaLabel}
-      className={`appearance-none border-0 bg-transparent shrink-0 flex items-center justify-center ${disabled ? 'cursor-default' : 'cursor-pointer'}`}
-      style={{ padding: 7, margin: -7, opacity: disabled ? 0.4 : 1 }}
-    >
-      <span
-        className={`flex items-center justify-center rounded-full transition-transform duration-[160ms] ease-[var(--ease-standard)] ${disabled ? '' : 'hover:scale-105 active:scale-95'} ${justCompleted ? 'animate-check-pop' : ''}`}
-        style={{
-          width: 30,
-          height: 30,
-          background: filled ? color : 'transparent',
-          boxShadow: filled
-            ? state === 'done'
-              ? tone === 'bad'
-                ? '0 4px 14px color-mix(in srgb, var(--status-bad) 35%, transparent)'
-                : '0 4px 14px rgba(var(--primary-rgb), 0.35)'
-              : 'none'
-            : `inset 0 0 0 2px ${color}`,
-        }}
-      >
-        {filled && <Check size={17} strokeWidth={3} color="var(--fg-on-primary)" aria-hidden="true" />}
-      </span>
-    </button>
-  )
-}
-
-interface MetaStripProps {
-  tokens: HabitRowMetaToken[]
-}
-
-function MetaStrip({ tokens }: Readonly<MetaStripProps>) {
-  return (
-    <span
-      className="min-w-0 overflow-hidden whitespace-nowrap text-ellipsis"
-      style={{
-        fontFamily: 'var(--font-sans)',
-        fontSize: 13,
-        color: 'var(--fg-3)',
-        fontVariantNumeric: 'tabular-nums',
-      }}
-    >
-      {tokens.map((token, i) => (
-        <Fragment key={metaTokenKey(token, i)}>
-          {i > 0 && <span style={{ margin: '0 6px', color: 'var(--fg-3)' }}>·</span>}
-          {renderMetaToken(token)}
-        </Fragment>
-      ))}
-    </span>
-  )
-}
-
-function metaTokenKey(token: HabitRowMetaToken, index: number): string {
-  if (typeof token === 'string') return `s:${index}:${token}`
-  return `${token.kind}:${index}`
-}
-
-function renderMetaToken(token: HabitRowMetaToken): ReactNode {
-  if (typeof token === 'string') return token
-  const color = token.kind === 'overdue' ? 'var(--status-overdue-text)' : undefined
-  return <span style={color ? { color, fontWeight: 500 } : {}}>{token.label}</span>
 }

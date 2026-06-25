@@ -1,5 +1,4 @@
 import {
-  memo,
   useState,
   useMemo,
   useCallback,
@@ -12,26 +11,11 @@ import {
   AppState,
   type FlatList,
   View,
-  Text,
-  Pressable,
   StyleSheet,
-  ScrollView,
 } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import {
-  Search,
-  X,
-  MoreVertical,
-  CheckCircle2,
-  RefreshCw,
-  ChevronsDownUp,
-  ChevronsUpDown,
-  Check,
-  Eye,
-  Filter,
-} from "lucide-react-native";
 import { addDays, subDays, isToday, isYesterday, isTomorrow } from "date-fns";
 import { useTranslation } from "react-i18next";
 import {
@@ -60,35 +44,29 @@ import { HabitList, type HabitListHandle } from "@/components/habit-list";
 import { CreateHabitModal } from "@/components/habits/create-habit-modal";
 import { HabitDetailDrawer } from "@/components/habits/habit-detail-drawer";
 import { EditHabitModal } from "@/components/habits/edit-habit-modal";
-import { TodayAISummary } from "@/components/habits/today-ai-summary";
 import { BulkActionBarV2 } from "@/components/habits/bulk-action-bar-v2";
 import { GoalsView } from "@/components/goals/goals-view";
 import { CreateGoalModal } from "@/components/goals/create-goal-modal";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
-import { AppTextInput } from "@/components/ui/app-text-input";
 import { GradientTop } from "@/components/ui/gradient-top";
-import { ProgressBar } from "@/components/ui/progress-bar";
-import { TagChip } from "@/components/ui/tag-chip";
-import { SectionLabel } from "@/components/ui/section-label";
 import { TrialBanner } from "@/components/ui/trial-banner";
-import { AnchoredMenu } from "@/components/ui/anchored-menu";
+import { TodayHabitsHeader } from "@/components/today/today-habits-header";
 import { ReviewReminderCard } from "@/components/review-reminder-card";
 import { useHorizontalSwipe } from "@/hooks/use-horizontal-swipe";
 import type { MenuAnchorRect } from "@/lib/anchored-menu";
 import { useBulkActions } from "@/hooks/use-bulk-actions";
 import { shouldResetSelectionForViewChange } from "@/lib/habit-selection-state";
-import { toAnimatedEasing, useResolvedMotionPreset } from "@/lib/motion";
-import { createTokensV2, easings, tintFromPrimary } from "@/lib/theme";
+import {
+  createAnimatedTimingConfig,
+  toAnimatedEasing,
+  useResolvedMotionPreset,
+} from "@/lib/motion";
+import { createTokensV2, easings } from "@/lib/theme";
 import { useAppTheme } from "@/lib/use-app-theme";
 import { useReviewReminder } from "@/hooks/use-review-reminder";
 import { useTourScrollContainer } from "@/hooks/use-tour-scroll-container";
 import { useTourTarget } from "@/hooks/use-tour-target";
-import {
-  TodayHeader,
-  TodayTabs,
-  TodayDateNavigation,
-  type TodayTabItem,
-} from "./today-shell";
+import { TodayHeader, TodayTabs, type TodayTabItem } from "./today-shell";
 
 const TAB_VIEWS = ["today", "all", "general", "goals"] as const;
 type TodayView = (typeof TAB_VIEWS)[number];
@@ -128,137 +106,6 @@ export function resolveBulkActionBarEnterShift(selectionMotion: {
 }
 
 type FreqKey = "Day" | "Week" | "Month" | "Year" | "none";
-
-interface TodaySearchBarProps {
-  initialValue: string;
-  onChange: (value: string) => void;
-  onFocusChange: (focused: boolean) => void;
-  onCancel: () => void;
-  placeholder: string;
-  clearLabel: string;
-  cancelLabel: string;
-  focused: boolean;
-  tokens: ReturnType<typeof createTokensV2>;
-  styles: ReturnType<typeof createStyles>;
-}
-
-const TodaySearchBar = memo(function TodaySearchBar({
-  initialValue,
-  onChange,
-  onFocusChange,
-  onCancel,
-  placeholder,
-  clearLabel,
-  cancelLabel,
-  focused,
-  tokens,
-  styles,
-}: Readonly<TodaySearchBarProps>) {
-  const [draft, setDraft] = useState(initialValue);
-  const focusMotion = useResolvedMotionPreset("selection");
-  const focusAnimRef = useRef<Animated.Value | null>(null);
-  if (focusAnimRef.current === null) {
-    focusAnimRef.current = new Animated.Value(focused ? 1 : 0);
-  }
-  const focusAnim = focusAnimRef.current;
-
-  const [previousInitialValue, setPreviousInitialValue] = useState(initialValue);
-  if (initialValue !== previousInitialValue) {
-    setPreviousInitialValue(initialValue);
-    setDraft(initialValue);
-  }
-
-  useEffect(() => {
-    const timer = setTimeout(() => {
-      onChange(draft);
-    }, 300);
-
-    return () => clearTimeout(timer);
-  }, [draft, onChange]);
-
-  useEffect(() => {
-    Animated.timing(focusAnim, {
-      ...createAnimatedTimingConfig(
-        focused ? focusMotion.enterDuration : focusMotion.exitDuration,
-        focused ? focusMotion.enterEasing : focusMotion.exitEasing,
-      ),
-      toValue: focused ? 1 : 0,
-    }).start();
-  }, [focusAnim, focusMotion, focused]);
-
-  const focusAnimatedStyle = useMemo(
-    () => ({
-      opacity: focusAnim.interpolate({
-        inputRange: [0, 1],
-        outputRange: [0.9, 1],
-      }),
-    }),
-    [focusAnim],
-  );
-
-  return (
-    <Animated.View style={[styles.searchRow, focusAnimatedStyle]}>
-      <View
-        style={[
-          styles.searchWrap,
-          { borderColor: focused ? tokens.primary : tokens.hairline },
-        ]}
-      >
-        <Search size={18} color={tokens.fg3} strokeWidth={1.8} />
-        <AppTextInput
-          style={[styles.searchInput, { color: tokens.fg1 }]}
-          value={draft}
-          onChangeText={setDraft}
-          onFocus={() => onFocusChange(true)}
-          onBlur={() => onFocusChange(false)}
-          placeholder={placeholder}
-          placeholderTextColor={tokens.fg3}
-          returnKeyType="search"
-          selectionColor={tokens.primary}
-        />
-        {draft.length > 0 ? (
-          <Pressable
-            onPress={() => setDraft("")}
-            accessibilityRole="button"
-            accessibilityLabel={clearLabel}
-            hitSlop={6}
-            style={({ pressed }) => [
-              styles.searchClear,
-              pressed ? { backgroundColor: tokens.bgSunk } : null,
-            ]}
-          >
-            <X size={16} color={tokens.fg3} strokeWidth={1.8} />
-          </Pressable>
-        ) : null}
-      </View>
-      <Pressable
-        onPress={onCancel}
-        accessibilityRole="button"
-        hitSlop={6}
-        style={({ pressed }) => [
-          styles.searchCancel,
-          pressed ? { backgroundColor: tokens.bgElev } : null,
-        ]}
-      >
-        <Text style={[styles.searchCancelText, { color: tokens.fg2 }]}>
-          {cancelLabel}
-        </Text>
-      </Pressable>
-    </Animated.View>
-  );
-});
-
-function createAnimatedTimingConfig(
-  duration: number,
-  easing: readonly [number, number, number, number],
-) {
-  return {
-    toValue: 1,
-    duration,
-    easing: toAnimatedEasing(easing),
-    useNativeDriver: true,
-  } as const;
-}
 
 export default function TodayScreen() {
   const { t, i18n } = useTranslation();
@@ -1025,349 +872,64 @@ export default function TodayScreen() {
 
   const habitsHeader = useMemo<ReactElement>(
     () => (
-      <>
-        {sharedHeader}
-
-        {showSummary ? <TodayAISummary date={dateStr} /> : null}
-
-        <TodayDateNavigation
-          visible={currentActiveView === "today"}
-          dateLabel={dateLabel}
-          isTodaySelected={isToday(selectedDate)}
-          slideDirection={slideDirection}
-          onGoToPreviousDay={goToPreviousDay}
-          onGoToToday={goToToday}
-          onGoToNextDay={goToNextDay}
-          previousLabel={t("dates.previousDay")}
-          todayLabel={t("dates.goToToday")}
-          nextLabel={t("dates.nextDay")}
-          dateLabelAnim={dateLabelAnim}
-          swipeGesture={!isSearchFocused ? swipeGesture : undefined}
-        />
-
-        <SectionLabel
-          top={20}
-          bottom={showDayProgress ? 6 : 0}
-          trailing={
-            <View style={styles.sectionTrailing}>
-              {showDayProgress ? (
-                <Text style={[styles.dayProgressCount, { color: tokens.fg2 }]}>
-                  {dayProgress.done}/{dayProgress.total}
-                </Text>
-              ) : null}
-              <Pressable
-                onPress={handleToggleSearch}
-                accessibilityRole="button"
-                accessibilityLabel={t("habits.searchPlaceholder")}
-                hitSlop={6}
-                style={({ pressed }) => [
-                  styles.iconBtn,
-                  pressed
-                    ? [
-                        styles.iconBtnPressed,
-                        { backgroundColor: tokens.bgElev },
-                      ]
-                    : null,
-                ]}
-              >
-                <Search
-                  size={18}
-                  color={isSearchOpen ? tokens.fg1 : tokens.fg2}
-                  strokeWidth={1.8}
-                />
-              </Pressable>
-              {currentActiveView !== "general" ? (
-                <View ref={freqMenuButtonRef} collapsable={false}>
-                  <Pressable
-                    onPress={handleToggleFreqMenu}
-                    accessibilityRole="button"
-                    accessibilityLabel={t("habits.frequencyFilter")}
-                    accessibilityState={{ selected: selectedFrequency != null }}
-                    hitSlop={6}
-                    style={({ pressed }) => [
-                      styles.iconBtn,
-                      selectedFrequency != null
-                        ? {
-                            backgroundColor: tokens.selectionBg,
-                            borderWidth: 1,
-                            borderColor: tintFromPrimary(tokens, 0.45),
-                          }
-                        : pressed
-                          ? { backgroundColor: tokens.bgElev }
-                          : null,
-                      pressed ? styles.iconBtnPressed : null,
-                    ]}
-                  >
-                    <Filter
-                      size={18}
-                      color={
-                        selectedFrequency != null ? tokens.primary : tokens.fg2
-                      }
-                      strokeWidth={1.8}
-                    />
-                  </Pressable>
-                </View>
-              ) : null}
-              <View ref={controlsButtonRef} collapsable={false}>
-                <Pressable
-                  onPress={handleToggleControlsMenu}
-                  accessibilityRole="button"
-                  accessibilityLabel={t("habits.actions.more")}
-                  hitSlop={6}
-                  style={({ pressed }) => [
-                    styles.iconBtn,
-                    pressed
-                      ? [
-                          styles.iconBtnPressed,
-                          { backgroundColor: tokens.bgElev },
-                        ]
-                      : null,
-                  ]}
-                >
-                  <MoreVertical
-                    size={18}
-                    color={tokens.fg2}
-                    strokeWidth={1.8}
-                  />
-                </Pressable>
-              </View>
-            </View>
-          }
-        >
-          {t("habits.sectionLabel")}
-        </SectionLabel>
-
-        {showDayProgress ? (
-          <View style={styles.dayProgressWrap}>
-            <ProgressBar
-              progress={dayProgress.done / dayProgress.total}
-              label={`${dayProgress.done}/${dayProgress.total} ${t("habits.completed")}`}
-            />
-          </View>
-        ) : null}
-
-        <Animated.View
-          testID="today-filters-shell"
-          style={[styles.filtersShell, filtersAnimatedStyle]}
-        >
-          {isSearchOpen ? (
-            <TodaySearchBar
-              initialValue={searchQueryStore}
-              onChange={setSearchQueryStore}
-              onFocusChange={setIsSearchFocused}
-              onCancel={handleToggleSearch}
-              placeholder={t("habits.searchPlaceholder")}
-              clearLabel={t("common.clear")}
-              cancelLabel={t("common.cancel")}
-              focused={isSearchFocused}
-              tokens={tokens}
-              styles={styles}
-            />
-          ) : null}
-
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.filtersContent}
-          >
-            {tags.map((tag) => (
-              <TagChip
-                key={tag.id}
-                tag={tag}
-                active={selectedTagIds.includes(tag.id)}
-                onPress={() => toggleTagFilter(tag.id)}
-              />
-            ))}
-          </ScrollView>
-
-          <AnchoredMenu
-            visible={showControlsMenu}
-            anchorRect={controlsMenuAnchorRect}
-            onClose={() => setShowControlsMenu(false)}
-            width={220}
-            estimatedHeight={220}
-          >
-            <Pressable
-              style={({ pressed }) => [
-                styles.controlsMenuItem,
-                {
-                  backgroundColor: pressed ? tokens.bgSunk : "transparent",
-                },
-              ]}
-              onPress={handleToggleSelectMode}
-              accessibilityRole="button"
-            >
-              {isSelectMode ? (
-                <X size={16} color={tokens.fg2} strokeWidth={1.8} />
-              ) : (
-                <CheckCircle2
-                  size={16}
-                  color={tokens.fg2}
-                  strokeWidth={1.8}
-                />
-              )}
-              <Text style={[styles.controlsMenuLabel, { color: tokens.fg1 }]}>
-                {isSelectMode ? t("common.cancel") : t("common.select")}
-              </Text>
-            </Pressable>
-
-            <Pressable
-              style={({ pressed }) => [
-                styles.controlsMenuItem,
-                {
-                  backgroundColor: pressed ? tokens.bgSunk : "transparent",
-                },
-              ]}
-              onPress={handleToggleCollapse}
-              accessibilityRole="button"
-            >
-              {habitListAllCollapsed ? (
-                <ChevronsUpDown
-                  size={16}
-                  color={tokens.fg2}
-                  strokeWidth={1.8}
-                />
-              ) : (
-                <ChevronsDownUp
-                  size={16}
-                  color={tokens.fg2}
-                  strokeWidth={1.8}
-                />
-              )}
-              <Text style={[styles.controlsMenuLabel, { color: tokens.fg1 }]}>
-                {habitListAllCollapsed
-                  ? t("habits.expandAll")
-                  : t("habits.collapseAll")}
-              </Text>
-            </Pressable>
-
-            <Pressable
-              style={({ pressed }) => [
-                styles.controlsMenuItem,
-                {
-                  backgroundColor: pressed ? tokens.bgSunk : "transparent",
-                },
-              ]}
-              onPress={handleRefresh}
-              accessibilityRole="button"
-            >
-              <RefreshCw
-                size={16}
-                color={tokens.fg2}
-                strokeWidth={1.8}
-                style={habitsQuery.isFetching ? styles.rotatingIcon : undefined}
-              />
-              <Text style={[styles.controlsMenuLabel, { color: tokens.fg1 }]}>
-                {t("habits.refresh")}
-              </Text>
-            </Pressable>
-
-            <Pressable
-              style={({ pressed }) => [
-                styles.controlsMenuItem,
-                {
-                  backgroundColor: pressed ? tokens.bgSunk : "transparent",
-                },
-              ]}
-              onPress={handleToggleCompleted}
-              accessibilityRole="button"
-            >
-              {showCompleted ? (
-                <Check size={16} color={tokens.fg2} strokeWidth={1.8} />
-              ) : (
-                <Eye size={16} color={tokens.fg2} strokeWidth={1.8} />
-              )}
-              <Text style={[styles.controlsMenuLabel, { color: tokens.fg1 }]}>
-                {t("habits.showCompleted")}
-              </Text>
-            </Pressable>
-          </AnchoredMenu>
-
-          <AnchoredMenu
-            visible={showFreqMenu}
-            anchorRect={freqMenuAnchorRect}
-            onClose={() => setShowFreqMenu(false)}
-            width={200}
-            estimatedHeight={260}
-          >
-            <Pressable
-              style={({ pressed }) => [
-                styles.controlsMenuItem,
-                {
-                  backgroundColor: pressed ? tokens.bgSunk : "transparent",
-                },
-              ]}
-              onPress={() => handleSelectFrequency(null)}
-              accessibilityRole="menuitem"
-              accessibilityState={{ selected: !selectedFrequency }}
-            >
-              <View style={styles.freqMenuCheck}>
-                {!selectedFrequency ? (
-                  <Check size={16} color={tokens.primary} strokeWidth={2} />
-                ) : null}
-              </View>
-              <Text
-                style={[
-                  styles.controlsMenuLabel,
-                  {
-                    color: !selectedFrequency ? tokens.fg1 : tokens.fg2,
-                    fontFamily: !selectedFrequency
-                      ? "Rubik_600SemiBold"
-                      : "Rubik_500Medium",
-                  },
-                ]}
-              >
-                {t("common.all")}
-              </Text>
-            </Pressable>
-            {frequencyOptions.map((opt) => {
-              const active = selectedFrequency === opt.key;
-              return (
-                <Pressable
-                  key={opt.key}
-                  style={({ pressed }) => [
-                    styles.controlsMenuItem,
-                    {
-                      backgroundColor: pressed ? tokens.bgSunk : "transparent",
-                    },
-                  ]}
-                  onPress={() => handleSelectFrequency(active ? null : opt.key)}
-                  accessibilityRole="menuitem"
-                  accessibilityState={{ selected: active }}
-                >
-                  <View style={styles.freqMenuCheck}>
-                    {active ? (
-                      <Check size={16} color={tokens.primary} strokeWidth={2} />
-                    ) : null}
-                  </View>
-                  <Text
-                    style={[
-                      styles.controlsMenuLabel,
-                      {
-                        color: active ? tokens.fg1 : tokens.fg2,
-                        fontFamily: active
-                          ? "Rubik_600SemiBold"
-                          : "Rubik_500Medium",
-                      },
-                    ]}
-                  >
-                    {opt.label}
-                  </Text>
-                </Pressable>
-              );
-            })}
-          </AnchoredMenu>
-        </Animated.View>
-      </>
+      <TodayHabitsHeader
+        header={sharedHeader}
+        showSummary={showSummary}
+        dateStr={dateStr}
+        currentActiveView={currentActiveView}
+        dateLabel={dateLabel}
+        selectedDate={selectedDate}
+        slideDirection={slideDirection}
+        dateLabelAnim={dateLabelAnim}
+        isSearchFocused={isSearchFocused}
+        swipeGesture={swipeGesture}
+        showDayProgress={showDayProgress}
+        dayProgress={dayProgress}
+        isSearchOpen={isSearchOpen}
+        searchQuery={searchQueryStore}
+        selectedFrequency={selectedFrequency}
+        selectedTagIds={selectedTagIds}
+        tags={tags}
+        frequencyOptions={frequencyOptions}
+        isSelectMode={isSelectMode}
+        showCompleted={showCompleted}
+        isFetching={habitsQuery.isFetching}
+        allCollapsed={habitListAllCollapsed}
+        showControlsMenu={showControlsMenu}
+        controlsMenuAnchorRect={controlsMenuAnchorRect}
+        showFreqMenu={showFreqMenu}
+        freqMenuAnchorRect={freqMenuAnchorRect}
+        controlsButtonRef={controlsButtonRef}
+        freqMenuButtonRef={freqMenuButtonRef}
+        filtersAnimatedStyle={filtersAnimatedStyle}
+        onGoToPreviousDay={goToPreviousDay}
+        onGoToToday={goToToday}
+        onGoToNextDay={goToNextDay}
+        onSearchToggle={handleToggleSearch}
+        onSearchChange={setSearchQueryStore}
+        onSearchFocusChange={setIsSearchFocused}
+        onTagToggle={toggleTagFilter}
+        onToggleFreqMenu={handleToggleFreqMenu}
+        onToggleControlsMenu={handleToggleControlsMenu}
+        onCloseControlsMenu={() => setShowControlsMenu(false)}
+        onCloseFreqMenu={() => setShowFreqMenu(false)}
+        onToggleSelect={handleToggleSelectMode}
+        onToggleCollapse={handleToggleCollapse}
+        onRefresh={handleRefresh}
+        onToggleCompleted={handleToggleCompleted}
+        onSelectFrequency={handleSelectFrequency}
+      />
     ),
     [
       controlsMenuAnchorRect,
+      controlsButtonRef,
       currentActiveView,
       dateLabel,
       dateLabelAnim,
       dateStr,
       dayProgress,
       filtersAnimatedStyle,
+      freqMenuButtonRef,
       frequencyOptions,
       goToNextDay,
       goToPreviousDay,
@@ -1375,9 +937,11 @@ export default function TodayScreen() {
       habitListAllCollapsed,
       habitsQuery.isFetching,
       handleRefresh,
+      handleSelectFrequency,
       handleToggleCollapse,
       handleToggleCompleted,
       handleToggleControlsMenu,
+      handleToggleFreqMenu,
       handleToggleSearch,
       handleToggleSelectMode,
       isSearchFocused,
@@ -1387,23 +951,21 @@ export default function TodayScreen() {
       selectedDate,
       selectedFrequency,
       selectedTagIds,
+      setIsSearchFocused,
       setSearchQueryStore,
+      setShowControlsMenu,
+      setShowFreqMenu,
       sharedHeader,
       showCompleted,
       showControlsMenu,
       showDayProgress,
       showSummary,
       slideDirection,
-      styles,
       swipeGesture,
-      t,
       tags,
       toggleTagFilter,
-      tokens,
       freqMenuAnchorRect,
       showFreqMenu,
-      handleToggleFreqMenu,
-      handleSelectFrequency,
     ],
   );
 
@@ -1577,113 +1139,6 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
     listShell: {
       flex: 1,
     },
-
-    filtersShell: {
-      paddingBottom: 8,
-    },
-    searchRow: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 8,
-      marginHorizontal: 20,
-      marginVertical: 8,
-    },
-    searchWrap: {
-      flex: 1,
-      minWidth: 0,
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 10,
-      minHeight: 44,
-      borderRadius: 999,
-      borderWidth: 1,
-      backgroundColor: tokens.bgElev,
-      paddingLeft: 16,
-      paddingRight: 8,
-    },
-    searchClear: {
-      width: 28,
-      height: 28,
-      borderRadius: 999,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    searchInput: {
-      flex: 1,
-      minWidth: 0,
-      minHeight: 0,
-      borderWidth: 0,
-      borderRadius: 0,
-      backgroundColor: "transparent",
-      paddingHorizontal: 0,
-      paddingVertical: 0,
-      fontFamily: 'Rubik_400Regular',
-      fontSize: 15,
-    },
-    searchCancel: {
-      paddingHorizontal: 12,
-      paddingVertical: 8,
-      borderRadius: 999,
-    },
-    searchCancelText: {
-      fontFamily: 'Rubik_500Medium',
-      fontSize: 13,
-    },
-    filtersContent: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 8,
-      paddingHorizontal: 20,
-      paddingVertical: 4,
-    },
-    freqMenuCheck: {
-      width: 16,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-
-    sectionTrailing: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 4,
-    },
-    dayProgressCount: {
-      fontFamily: 'Roboto_400Regular',
-      fontSize: 14,
-      fontVariant: ['tabular-nums'],
-      marginRight: 6,
-    },
-    dayProgressWrap: {
-      paddingHorizontal: 20,
-      paddingBottom: 6,
-    },
-    iconBtn: {
-      width: 36,
-      height: 36,
-      borderRadius: 999,
-      alignItems: "center",
-      justifyContent: "center",
-    },
-    iconBtnPressed: {
-      transform: [{ scale: 0.92 }],
-    },
-
-    controlsMenuItem: {
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 10,
-      paddingHorizontal: 12,
-      paddingVertical: 10,
-      borderRadius: 8,
-    },
-    controlsMenuLabel: {
-      fontFamily: 'Rubik_500Medium',
-      fontSize: 14,
-      },
-    rotatingIcon: {
-      transform: [{ rotate: "180deg" }],
-    },
-
     bulkActionBarWrap: {
       position: "absolute",
       left: 20,

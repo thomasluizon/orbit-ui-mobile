@@ -9,16 +9,8 @@ import {
   Link as LinkIcon,
   CalendarDays,
   AlertTriangle,
-  Bell,
-  RefreshCw,
-  X,
 } from 'lucide-react'
 import { AppBar } from '@/components/ui/app-bar'
-import { SectionLabel } from '@/components/ui/section-label'
-import { SettingsDescription } from '@/components/ui/settings-description'
-import { Switch } from '@/components/ui/settings-row'
-import { RadioGlyph } from '@/components/ui/select-check'
-import { Badge } from '@/components/ui/badge'
 import { PillButton } from '@/components/ui/pill-button'
 import { useTranslations } from 'next-intl'
 import { plural } from '@/lib/plural'
@@ -29,21 +21,17 @@ import {
   useCalendarAutoSyncState,
   useCalendarSyncSuggestions,
   useDismissCalendarSuggestion,
-  useRunCalendarSyncNow,
-  useSetCalendarAutoSync,
 } from '@/hooks/use-calendar-auto-sync'
 import { useCalendarEvents } from '@/hooks/use-calendar-events'
 import { CalendarPickerSection } from './_components/calendar-picker-section'
-import { getSupabaseClient } from '@/lib/supabase'
+import { AutoSyncSettingsCard } from './_components/auto-sync-settings-card'
+import { CalendarSyncEventRow } from './_components/calendar-sync-event-row'
+import { connectGoogle } from './_components/connect-google'
 import type { CalendarSyncEvent, CalendarSyncSuggestion } from '@orbit/shared'
 import {
-  buildGoogleCalendarOAuthOptions,
   buildCalendarAutoSyncImportRequest,
   buildCalendarSyncImportRequest,
-  formatCalendarAutoSyncLastSynced,
-  formatCalendarSyncRecurrenceLabel,
   getFriendlyErrorMessage,
-  isCalendarAutoSyncStatusReconnectRequired,
 } from '@orbit/shared/utils'
 import { toast } from 'sonner'
 
@@ -57,208 +45,6 @@ const EVENTS_PAGE_SIZE = 20
 type Step = 'loading' | 'select' | 'importing' | 'done' | 'error' | 'not-connected'
 type WizardStage = 'browse' | 'importing' | 'done' | 'error'
 type CalendarEvent = CalendarSyncEvent
-
-async function connectGoogle(): Promise<void> {
-  const supabase = getSupabaseClient()
-  const redirectTo = `${globalThis.location.origin}/auth-callback`
-  sessionStorage.setItem('auth_return_url', '/calendar-sync')
-
-  await supabase.auth.signInWithOAuth({
-    provider: 'google',
-    options: buildGoogleCalendarOAuthOptions({ redirectTo, forceConsent: true }),
-  })
-}
-
-function QuietActionButton({
-  onClick,
-  disabled = false,
-  tone = 'default',
-  ariaLabel,
-  children,
-}: Readonly<{
-  onClick: () => void
-  disabled?: boolean
-  tone?: 'default' | 'warning'
-  ariaLabel?: string
-  children: React.ReactNode
-}>) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      aria-label={ariaLabel}
-      className="chip disabled:opacity-50 disabled:cursor-not-allowed"
-      style={tone === 'warning' ? { color: 'var(--status-overdue-text)' } : undefined}
-    >
-      {children}
-    </button>
-  )
-}
-
-function AutoSyncSettingsCard() {
-  const t = useTranslations()
-  const { data: state, isLoading } = useCalendarAutoSyncState()
-  const setAutoSync = useSetCalendarAutoSync()
-  const runSyncNow = useRunCalendarSyncNow()
-
-  const lastSyncedLabel = useMemo(
-    () =>
-      formatCalendarAutoSyncLastSynced(
-        state?.lastSyncedAt ?? null,
-        (key, values) => t(key, values),
-      ),
-    [state?.lastSyncedAt, t],
-  )
-
-  const showReconnect = isCalendarAutoSyncStatusReconnectRequired(state?.status)
-  const hasConnection = state?.hasGoogleConnection === true
-  const toggleDisabled = !hasConnection || setAutoSync.isPending
-  const enabled = state?.enabled ?? false
-
-  async function handleToggle() {
-    if (toggleDisabled) return
-    const next = !enabled
-    try {
-      await setAutoSync.mutateAsync({ enabled: next })
-      toast.success(next ? t('calendar.autoSync.enableSuccess') : t('calendar.autoSync.disableSuccess'))
-    } catch (err: unknown) {
-      toast.error(getFriendlyErrorMessage(err, t, 'calendar.autoSync.syncFailed', 'generic'))
-    }
-  }
-
-  async function handleSyncNow() {
-    try {
-      await runSyncNow.mutateAsync()
-    } catch (err: unknown) {
-      toast.error(getFriendlyErrorMessage(err, t, 'calendar.autoSync.syncFailed', 'generic'))
-    }
-  }
-
-  const statusMeta = (() => {
-    if (isLoading) return t('calendar.fetchingEvents')
-    if (!hasConnection) return t('calendar.autoSync.connectGoogleFirst')
-    return lastSyncedLabel
-  })()
-
-  return (
-    <>
-      <SectionLabel bottom={10}>{t('calendar.autoSync.title')}</SectionLabel>
-      <div style={{ padding: '0 20px' }}>
-        <div
-          className="flex items-center"
-          style={{
-            gap: 14,
-            padding: '16px 18px',
-            borderRadius: 16,
-            background: 'var(--bg-card)',
-            boxShadow: 'inset 0 0 0 1px var(--hairline)',
-          }}
-        >
-          <span
-            aria-hidden="true"
-            className="inline-flex justify-center shrink-0"
-            style={{ width: 26 }}
-          >
-            <CalendarDays size={22} strokeWidth={1.8} color="var(--fg-1)" />
-          </span>
-          <div className="flex-1 min-w-0">
-            <div
-              style={{
-                fontFamily: 'var(--font-sans)',
-                fontSize: 18,
-                fontWeight: 400,
-                lineHeight: 1.25,
-                color: 'var(--fg-1)',
-              }}
-            >
-              {t('calendar.title')}
-            </div>
-            <div
-              className="flex items-center"
-              style={{
-                gap: 6,
-                marginTop: 3,
-                fontFamily: 'var(--font-sans)',
-                fontSize: 13,
-                lineHeight: 1.4,
-                color: 'var(--fg-3)',
-              }}
-            >
-              {isLoading && <Loader2 className="size-3 animate-spin shrink-0" aria-hidden />}
-              <span>{statusMeta}</span>
-            </div>
-          </div>
-          <Switch
-            on={enabled}
-            onToggle={handleToggle}
-            ariaLabel={t('calendar.autoSync.toggleLabel')}
-            disabled={toggleDisabled}
-          />
-        </div>
-      </div>
-      <SettingsDescription>{t('calendar.autoSync.description')}</SettingsDescription>
-
-      {!isLoading && hasConnection && (
-        <div className="flex justify-end" style={{ padding: '0 20px 6px' }}>
-          <QuietActionButton onClick={handleSyncNow} disabled={runSyncNow.isPending}>
-            {runSyncNow.isPending ? (
-              <>
-                <Loader2 className="size-3 animate-spin" aria-hidden />
-                {t('calendar.autoSync.syncNowRunning')}
-              </>
-            ) : (
-              <>
-                <RefreshCw className="size-3" aria-hidden />
-                {t('calendar.autoSync.syncNow')}
-              </>
-            )}
-          </QuietActionButton>
-        </div>
-      )}
-
-      {showReconnect && (
-        <div
-          style={{
-            padding: '6px 20px 14px',
-            display: 'flex',
-            flexDirection: 'column',
-            gap: 4,
-          }}
-        >
-          <div className="flex items-start gap-2 text-[var(--status-overdue-text)]">
-            <AlertTriangle className="size-4 mt-0.5 shrink-0" aria-hidden />
-            <div className="flex-1 min-w-0">
-              <p
-                style={{
-                  fontFamily: 'var(--font-sans)',
-                  fontSize: 14,
-                  fontWeight: 500,
-                }}
-              >
-                {t('calendar.autoSync.reconnectTitle')}
-              </p>
-              <p
-                style={{
-                  fontFamily: 'var(--font-sans)',
-                  fontSize: 13,
-                  marginTop: 4,
-                  color: 'var(--fg-3)',
-                  lineHeight: 1.5,
-                }}
-              >
-                {t('calendar.autoSync.reconnectBody')}
-              </p>
-            </div>
-          </div>
-          <QuietActionButton onClick={connectGoogle} tone="warning">
-            {t('calendar.autoSync.reconnectCta')}
-          </QuietActionButton>
-        </div>
-      )}
-    </>
-  )
-}
 
 export default function CalendarSyncPage() {
   const t = useTranslations()
@@ -549,140 +335,19 @@ export default function CalendarSyncPage() {
               </div>
 
               <div className="max-h-[60vh] overflow-y-auto stagger-enter">
-                {events.slice(0, visibleCount).map((event) => {
-                  const suggestionId = isReviewMode ? findSuggestionIdForEvent(event.id) : null
-                  const selected = selectedIds.has(event.id)
-                  return (
-                    <div
-                      key={event.id}
-                      className="flex items-start transition-[background-color] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev)]"
-                      style={{
-                        gap: 12,
-                        padding: '0 20px',
-                        borderBottom: '1px solid var(--hairline)',
-                        background: selected
-                          ? 'rgba(var(--primary-rgb), 0.06)'
-                          : undefined,
-                      }}
-                    >
-                      <button
-                        type="button"
-                        onClick={() => toggleEvent(event.id)}
-                        aria-pressed={selected}
-                        className="flex-1 min-w-0 text-left flex items-start appearance-none border-0 bg-transparent cursor-pointer"
-                        style={{ gap: 14, padding: '14px 0' }}
-                      >
-                        <span className="shrink-0" style={{ marginTop: 1 }}>
-                          <RadioGlyph selected={selected} size={24} />
-                        </span>
-                        <span className="flex-1 min-w-0 block">
-                          <span
-                            className="block truncate"
-                            style={{
-                              fontFamily: 'var(--font-sans)',
-                              fontSize: 15,
-                              fontWeight: 500,
-                              color: 'var(--fg-1)',
-                            }}
-                          >
-                            {event.title}
-                          </span>
-                          <span
-                            className="flex flex-wrap items-center"
-                            style={{ gap: 8, marginTop: 3 }}
-                          >
-                            {event.startDate && (
-                              <span
-                                style={{
-                                  fontFamily: 'var(--font-mono)',
-                                  fontSize: 12,
-                                  color: 'var(--fg-3)',
-                                  fontVariantNumeric: 'tabular-nums',
-                                }}
-                              >
-                                {event.startDate}
-                              </span>
-                            )}
-                            {event.startTime && (
-                              <span
-                                style={{
-                                  fontFamily: 'var(--font-mono)',
-                                  fontSize: 12,
-                                  color: 'var(--fg-3)',
-                                  fontVariantNumeric: 'tabular-nums',
-                                }}
-                              >
-                                {event.startTime}{event.endTime ? ` - ${event.endTime}` : ''}
-                              </span>
-                            )}
-                            {event.isRecurring && (
-                              <Badge tone="soft">
-                                {formatCalendarSyncRecurrenceLabel(event.recurrenceRule, {
-                                  translate: (key, values) => t(key as never, values as never),
-                                  pluralize: plural,
-                                }) || t('calendar.recurring')}
-                              </Badge>
-                            )}
-                            {event.reminders.length > 0 && (
-                              <span
-                                className="inline-flex items-center"
-                                style={{
-                                  gap: 3,
-                                  fontFamily: 'var(--font-mono)',
-                                  fontSize: 12,
-                                  color: 'var(--fg-3)',
-                                  fontVariantNumeric: 'tabular-nums',
-                                }}
-                              >
-                                <Bell className="size-3" aria-hidden />
-                                {event.reminders.length}
-                              </span>
-                            )}
-                            {event.calendarName && (
-                              <span
-                                className="truncate"
-                                style={{
-                                  maxWidth: 160,
-                                  fontFamily: 'var(--font-sans)',
-                                  fontSize: 12,
-                                  color: 'var(--fg-3)',
-                                }}
-                              >
-                                {event.calendarName}
-                              </span>
-                            )}
-                          </span>
-                          {event.description && (
-                            <span
-                              className="block line-clamp-1"
-                              style={{
-                                fontFamily: 'var(--font-sans)',
-                                fontSize: 13,
-                                color: 'var(--fg-3)',
-                                marginTop: 3,
-                              }}
-                            >
-                              {event.description}
-                            </span>
-                          )}
-                        </span>
-                      </button>
-
-                      {isReviewMode && suggestionId && (
-                        <button
-                          type="button"
-                          onClick={() => handleDismissSuggestion(suggestionId)}
-                          disabled={dismissSuggestion.isPending}
-                          aria-label={t('calendar.autoSync.dismissSuggestion')}
-                          className="icon-btn shrink-0 hover:text-[var(--status-bad)] disabled:opacity-50"
-                          style={{ width: 36, height: 36, marginTop: 8, color: 'var(--fg-4)' }}
-                        >
-                          <X size={18} strokeWidth={1.8} aria-hidden />
-                        </button>
-                      )}
-                    </div>
-                  )
-                })}
+                {events.slice(0, visibleCount).map((event) => (
+                  <CalendarSyncEventRow
+                    key={event.id}
+                    event={event}
+                    selected={selectedIds.has(event.id)}
+                    isReviewMode={isReviewMode}
+                    suggestionId={isReviewMode ? findSuggestionIdForEvent(event.id) : null}
+                    dismissPending={dismissSuggestion.isPending}
+                    onToggle={toggleEvent}
+                    onDismiss={handleDismissSuggestion}
+                    t={t}
+                  />
+                ))}
               </div>
 
               {events.length > visibleCount && (

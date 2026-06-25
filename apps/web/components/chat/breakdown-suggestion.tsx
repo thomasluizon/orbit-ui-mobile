@@ -1,21 +1,20 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { Check, X, Plus, Loader2 } from 'lucide-react'
+import { Check, Plus, Loader2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { plural } from '@/lib/plural'
 import type { SuggestedSubHabit } from '@orbit/shared/types/chat'
-import type { FrequencyUnit } from '@orbit/shared/types/habit'
-import { frequencyUnitSchema } from '@orbit/shared/types/habit'
 import {
   buildBreakdownCreateRequest,
   filterValidBreakdownHabits,
-  type BreakdownEditableHabit,
 } from '@orbit/shared/utils'
 import { useBulkCreateHabits } from '@/hooks/use-habits'
 import { PillButton } from '@/components/ui/pill-button'
-
-type EditableHabit = BreakdownEditableHabit
+import {
+  BreakdownHabitRow,
+  type EditableHabit,
+} from './breakdown-habit-row'
 
 interface BreakdownSuggestionProps {
   parentName: string
@@ -148,73 +147,13 @@ export function BreakdownSuggestion({
 
       <div className="space-y-3">
         {habits.map((habit, index) => (
-          <div
+          <BreakdownHabitRow
             key={`${habit.title}-${index}`}
-            className="bg-[var(--bg-elev)] rounded-[12px] p-3 flex items-center justify-between gap-3 shadow-[inset_0_0_0_1px_var(--hairline)]"
-          >
-            <div className="flex-1 min-w-0 space-y-1">
-              <input
-                type="text"
-                value={habit.title}
-                onChange={(e) => updateHabit(index, { title: e.target.value })}
-                placeholder={t('habits.breakdown.habitNamePlaceholder')}
-                className="w-full bg-transparent text-sm font-medium text-[var(--fg-1)] placeholder:text-[var(--fg-3)] outline-none rounded-sm focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]"
-              />
-              <div className="flex items-center gap-2">
-                <select
-                  value={habit.frequencyUnit ?? ''}
-                  onChange={(e) => {
-                    const rawVal = e.target.value
-                    const parsed = frequencyUnitSchema.safeParse(rawVal)
-                    const val: FrequencyUnit | null = parsed.success ? parsed.data : null
-                    updateHabit(index, {
-                      frequencyUnit: val,
-                      frequencyQuantity: val ? habit.frequencyQuantity : null,
-                    })
-                  }}
-                  className="bg-transparent text-[11px] text-[var(--fg-2)] outline-none cursor-pointer rounded-sm focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]"
-                >
-                  {frequencyOptions.map((opt) => (
-                    <option
-                      key={opt.value}
-                      value={opt.value}
-                      className="bg-[var(--bg-elev)] text-[var(--fg-1)]"
-                    >
-                      {opt.label}
-                    </option>
-                  ))}
-                </select>
-                {habit.frequencyUnit && (
-                  <>
-                    <span className="text-[11px] text-[var(--fg-3)]">{t('habits.breakdown.every')}</span>
-                    <input
-                      type="number"
-                      min={1}
-                      aria-label={t('habits.breakdown.frequencyQuantityLabel')}
-                      value={habit.frequencyQuantity ?? 1}
-                      onChange={(e) =>
-                        updateHabit(index, {
-                          frequencyQuantity: Number(e.target.value) || 1,
-                        })
-                      }
-                      className="w-8 bg-transparent text-[11px] text-[var(--fg-2)] text-center outline-none rounded-sm focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)] [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"
-                    />
-                    <span className="text-[11px] text-[var(--fg-3)]">
-                      {t(`habits.form.unit${habit.frequencyUnit}` as Parameters<typeof t>[0])} {}
-                    </span>
-                  </>
-                )}
-              </div>
-            </div>
-            <button
-              type="button"
-              aria-label={t('habits.breakdown.removeHabit', { name: habit.title || t('habits.breakdown.habitNamePlaceholder') })}
-              className="shrink-0 p-1.5 rounded-full text-[var(--fg-3)] hover:text-[var(--status-bad)] hover:bg-[var(--status-bad)]/10 transition-colors"
-              onClick={() => removeHabit(index)}
-            >
-              <X className="size-3.5" />
-            </button>
-          </div>
+            habit={habit}
+            frequencyOptions={frequencyOptions}
+            onUpdate={(patch) => updateHabit(index, patch)}
+            onRemove={() => removeHabit(index)}
+          />
         ))}
       </div>
 

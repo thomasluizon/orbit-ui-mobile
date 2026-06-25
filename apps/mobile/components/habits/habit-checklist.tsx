@@ -195,6 +195,97 @@ function EditableChecklistItem({
   )
 }
 
+interface InteractiveChecklistItemProps {
+  item: ChecklistItem
+  index: number
+  itemsLength: number
+  interactive: boolean
+  onToggle: (index: number) => void
+  styles: ReturnType<typeof createStyles>
+  tokens: AppTokens
+}
+
+function InteractiveChecklistItem({
+  item,
+  index,
+  itemsLength,
+  interactive,
+  onToggle,
+  styles,
+  tokens,
+}: Readonly<InteractiveChecklistItemProps>) {
+  return (
+    <View
+      style={[
+        styles.interactiveItem,
+        index < itemsLength - 1 ? styles.interactiveItemDivider : null,
+      ]}
+    >
+      {interactive && (
+        <ChecklistCheckbox
+          checked={item.isChecked}
+          label={item.text}
+          onPress={() => onToggle(index)}
+          styles={styles}
+          tokens={tokens}
+        />
+      )}
+      <Text
+        style={[
+          styles.itemText,
+          item.isChecked && styles.itemTextChecked,
+        ]}
+        numberOfLines={2}
+      >
+        {item.text}
+      </Text>
+    </View>
+  )
+}
+
+interface ChecklistAddRowProps {
+  value: string
+  onChangeText: (text: string) => void
+  onAdd: () => void
+  styles: ReturnType<typeof createStyles>
+  tokens: AppTokens
+}
+
+function ChecklistAddRow({
+  value,
+  onChangeText,
+  onAdd,
+  styles,
+  tokens,
+}: Readonly<ChecklistAddRowProps>) {
+  const { t } = useTranslation()
+  return (
+    <View style={styles.addItemRow}>
+      <BottomSheetAppTextInput
+        value={value}
+        placeholder={t('habits.form.checklistPlaceholder')}
+        placeholderTextColor={tokens.fg3}
+        style={styles.addItemInput}
+        onChangeText={onChangeText}
+        onSubmitEditing={onAdd}
+        returnKeyType="done"
+      />
+      <TouchableOpacity
+        accessibilityRole="button"
+        style={[
+          styles.addItemButton,
+          !value.trim() && styles.addItemButtonDisabled,
+        ]}
+        disabled={!value.trim()}
+        onPress={onAdd}
+        activeOpacity={0.7}
+      >
+        <Text style={styles.addItemButtonText}>{t('common.add')}</Text>
+      </TouchableOpacity>
+    </View>
+  )
+}
+
 export function HabitChecklist({
   items,
   interactive = false,
@@ -323,32 +414,16 @@ export function HabitChecklist({
         items.length > 0 && (
           <View style={styles.itemsCard}>
             {items.map((item, index) => (
-              <View
+              <InteractiveChecklistItem
                 key={`${item.text}-${index}`}
-                style={[
-                  styles.interactiveItem,
-                  index < items.length - 1 ? styles.interactiveItemDivider : null,
-                ]}
-              >
-                {interactive && (
-                  <ChecklistCheckbox
-                    checked={item.isChecked}
-                    label={item.text}
-                    onPress={() => handleToggle(index)}
-                    styles={styles}
-                    tokens={tokens}
-                  />
-                )}
-                <Text
-                  style={[
-                    styles.itemText,
-                    item.isChecked && styles.itemTextChecked,
-                  ]}
-                  numberOfLines={2}
-                >
-                  {item.text}
-                </Text>
-              </View>
+                item={item}
+                index={index}
+                itemsLength={items.length}
+                interactive={interactive}
+                onToggle={handleToggle}
+                styles={styles}
+                tokens={tokens}
+              />
             ))}
           </View>
         )
@@ -363,29 +438,13 @@ export function HabitChecklist({
       )}
 
       {editable && (
-        <View style={styles.addItemRow}>
-          <BottomSheetAppTextInput
-            value={newItemText}
-            placeholder={t('habits.form.checklistPlaceholder')}
-            placeholderTextColor={tokens.fg3}
-            style={styles.addItemInput}
-            onChangeText={setNewItemText}
-            onSubmitEditing={addItem}
-            returnKeyType="done"
-          />
-          <TouchableOpacity
-            accessibilityRole="button"
-            style={[
-              styles.addItemButton,
-              !newItemText.trim() && styles.addItemButtonDisabled,
-            ]}
-            disabled={!newItemText.trim()}
-            onPress={addItem}
-            activeOpacity={0.7}
-          >
-            <Text style={styles.addItemButtonText}>{t('common.add')}</Text>
-          </TouchableOpacity>
-        </View>
+        <ChecklistAddRow
+          value={newItemText}
+          onChangeText={setNewItemText}
+          onAdd={addItem}
+          styles={styles}
+          tokens={tokens}
+        />
       )}
     </View>
   )

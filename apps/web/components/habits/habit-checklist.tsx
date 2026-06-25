@@ -201,57 +201,15 @@ export function HabitChecklist({
             }}
           >
             {items.map((item, index) => (
-              <div
+              <InteractiveChecklistItem
                 key={`${item.text}-${index}`}
-                className="flex items-center gap-[14px]"
-                style={{
-                  padding: '15px 18px',
-                  borderBottom:
-                    index < items.length - 1 ? '1px solid var(--hairline)' : 'none',
-                }}
-              >
-                {interactive ? (
-                  <label className="shrink-0 cursor-pointer">
-                    <input
-                      checked={item.isChecked}
-                      type="checkbox"
-                      aria-label={item.text}
-                      className="peer sr-only"
-                      onChange={() => handleToggle(index)}
-                    />
-                    <span
-                      aria-hidden="true"
-                      className={`flex items-center justify-center transition-[background-color,box-shadow] peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-[var(--primary)] ${
-                        justCheckedIndex === index ? 'animate-check-pop' : ''
-                      }`}
-                      style={{
-                        width: 26,
-                        height: 26,
-                        borderRadius: 8,
-                        background: item.isChecked ? 'var(--primary)' : 'transparent',
-                        boxShadow: item.isChecked
-                          ? 'none'
-                          : 'inset 0 0 0 2px var(--fg-3)',
-                      }}
-                    >
-                      {item.isChecked && (
-                        <Check size={15} strokeWidth={3} color="var(--fg-on-primary)" />
-                      )}
-                    </span>
-                  </label>
-                ) : null}
-
-                <span
-                  className={`flex-1 min-w-0 transition-colors ${
-                    item.isChecked
-                      ? 'text-[var(--fg-3)] line-through'
-                      : 'text-[var(--fg-1)]'
-                  }`}
-                  style={{ fontFamily: 'var(--font-sans)', fontSize: 16 }}
-                >
-                  {item.text}
-                </span>
-              </div>
+                item={item}
+                index={index}
+                itemsLength={items.length}
+                interactive={interactive}
+                justCheckedIndex={justCheckedIndex}
+                onToggle={handleToggle}
+              />
             ))}
           </div>
         )
@@ -271,35 +229,12 @@ export function HabitChecklist({
       )}
 
       {editable && (
-        <div className="flex">
-          <label htmlFor={newItemInputId} className="sr-only">
-            {t('habits.form.checklistPlaceholder')}
-          </label>
-          <input
-            id={newItemInputId}
-            value={newItemText}
-            type="text"
-            placeholder={t('habits.form.checklistPlaceholder')}
-            className="flex-1 min-w-0 bg-[var(--bg-field)] text-[var(--fg-1)] placeholder:text-[var(--fg-3)] py-2 px-3 text-sm rounded-l-[14px] focus:outline-none focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--primary)]"
-            style={{ boxShadow: 'inset 0 0 0 1px var(--hairline)' }}
-            onChange={(e) => setNewItemText(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault()
-                addItem()
-              }
-            }}
-          />
-          <button
-            type="button"
-            className="shrink-0 px-4 py-2 rounded-r-[14px] bg-[var(--primary)] text-[var(--fg-on-primary)] disabled:opacity-40 hover:bg-[var(--primary-pressed)] transition-[background-color,opacity] duration-150"
-            style={{ fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 500 }}
-            disabled={!newItemText.trim()}
-            onClick={addItem}
-          >
-            {t('common.add')}
-          </button>
-        </div>
+        <ChecklistAddRow
+          inputId={newItemInputId}
+          value={newItemText}
+          onChangeText={setNewItemText}
+          onAdd={addItem}
+        />
       )}
     </div>
   )
@@ -391,6 +326,120 @@ function SortableChecklistItem({
         onClick={() => onRemove(index)}
       >
         <X size={16} strokeWidth={1.8} aria-hidden="true" />
+      </button>
+    </div>
+  )
+}
+
+function InteractiveChecklistItem({
+  item,
+  index,
+  itemsLength,
+  interactive,
+  justCheckedIndex,
+  onToggle,
+}: Readonly<{
+  item: ChecklistItem
+  index: number
+  itemsLength: number
+  interactive: boolean
+  justCheckedIndex: number
+  onToggle: (index: number) => void
+}>) {
+  return (
+    <div
+      className="flex items-center gap-[14px]"
+      style={{
+        padding: '15px 18px',
+        borderBottom:
+          index < itemsLength - 1 ? '1px solid var(--hairline)' : 'none',
+      }}
+    >
+      {interactive ? (
+        <label className="shrink-0 cursor-pointer">
+          <input
+            checked={item.isChecked}
+            type="checkbox"
+            aria-label={item.text}
+            className="peer sr-only"
+            onChange={() => onToggle(index)}
+          />
+          <span
+            aria-hidden="true"
+            className={`flex items-center justify-center transition-[background-color,box-shadow] peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-[var(--primary)] ${
+              justCheckedIndex === index ? 'animate-check-pop' : ''
+            }`}
+            style={{
+              width: 26,
+              height: 26,
+              borderRadius: 8,
+              background: item.isChecked ? 'var(--primary)' : 'transparent',
+              boxShadow: item.isChecked
+                ? 'none'
+                : 'inset 0 0 0 2px var(--fg-3)',
+            }}
+          >
+            {item.isChecked && (
+              <Check size={15} strokeWidth={3} color="var(--fg-on-primary)" />
+            )}
+          </span>
+        </label>
+      ) : null}
+
+      <span
+        className={`flex-1 min-w-0 transition-colors ${
+          item.isChecked
+            ? 'text-[var(--fg-3)] line-through'
+            : 'text-[var(--fg-1)]'
+        }`}
+        style={{ fontFamily: 'var(--font-sans)', fontSize: 16 }}
+      >
+        {item.text}
+      </span>
+    </div>
+  )
+}
+
+function ChecklistAddRow({
+  inputId,
+  value,
+  onChangeText,
+  onAdd,
+}: Readonly<{
+  inputId: string
+  value: string
+  onChangeText: (text: string) => void
+  onAdd: () => void
+}>) {
+  const t = useTranslations()
+  return (
+    <div className="flex">
+      <label htmlFor={inputId} className="sr-only">
+        {t('habits.form.checklistPlaceholder')}
+      </label>
+      <input
+        id={inputId}
+        value={value}
+        type="text"
+        placeholder={t('habits.form.checklistPlaceholder')}
+        className="flex-1 min-w-0 bg-[var(--bg-field)] text-[var(--fg-1)] placeholder:text-[var(--fg-3)] py-2 px-3 text-sm rounded-l-[14px] focus:outline-none focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--primary)]"
+        style={{ boxShadow: 'inset 0 0 0 1px var(--hairline)' }}
+        onChange={(e) => onChangeText(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter') {
+            e.preventDefault()
+            onAdd()
+          }
+        }}
+      />
+      <button
+        type="button"
+        className="shrink-0 px-4 py-2 rounded-r-[14px] bg-[var(--primary)] text-[var(--fg-on-primary)] disabled:opacity-40 hover:bg-[var(--primary-pressed)] transition-[background-color,opacity] duration-150"
+        style={{ fontFamily: 'var(--font-sans)', fontSize: 13, fontWeight: 500 }}
+        disabled={!value.trim()}
+        onClick={onAdd}
+      >
+        {t('common.add')}
       </button>
     </div>
   )
