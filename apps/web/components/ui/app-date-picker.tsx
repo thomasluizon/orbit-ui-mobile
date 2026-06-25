@@ -4,18 +4,18 @@ import { useState, useId, useRef, useCallback, useMemo, useEffect } from 'react'
 import {
   addMonths,
   subMonths,
+  addYears,
+  subYears,
   startOfMonth,
-  endOfMonth,
   startOfWeek,
   endOfWeek,
-  eachDayOfInterval,
   addDays,
   format,
   isSameMonth,
   isSameDay,
   parseISO,
 } from 'date-fns'
-import { Calendar, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Calendar, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react'
 import { useTranslations, useLocale } from 'next-intl'
 import { formatLocaleDate } from '@orbit/shared/utils'
 import { useProfile } from '@/hooks/use-profile'
@@ -67,11 +67,8 @@ export function AppDatePicker({
   }, [weekStartsOn, t])
 
   const calendarDays = useMemo(() => {
-    const monthStart = startOfMonth(viewDate)
-    const monthEnd = endOfMonth(viewDate)
-    const calStart = startOfWeek(monthStart, { weekStartsOn })
-    const calEnd = endOfWeek(monthEnd, { weekStartsOn })
-    return eachDayOfInterval({ start: calStart, end: calEnd })
+    const calStart = startOfWeek(startOfMonth(viewDate), { weekStartsOn })
+    return Array.from({ length: 42 }, (_, index) => addDays(calStart, index))
   }, [viewDate, weekStartsOn])
 
   const calendarWeeks = (() => {
@@ -96,6 +93,14 @@ export function AppDatePicker({
 
   function nextMonth() {
     setViewDate((d) => addMonths(d, 1))
+  }
+
+  function prevYear() {
+    setViewDate((d) => subYears(d, 1))
+  }
+
+  function nextYear() {
+    setViewDate((d) => addYears(d, 1))
   }
 
   const closePicker = useCallback(() => {
@@ -193,14 +198,24 @@ export function AppDatePicker({
             className="fixed z-50 left-1/2 top-1/2 m-0 w-[min(90vw,320px)] -translate-x-1/2 -translate-y-1/2 rounded-[16px] border-0 bg-[var(--bg-sheet)] p-2.5 text-[var(--fg-1)] shadow-[var(--shadow-2),inset_0_0_0_1px_var(--hairline)]"
           >
             <div className="flex items-center justify-between mb-2">
-              <button
-                type="button"
-                className="p-1.5 rounded-lg hover:bg-[var(--bg-elev)]"
-                aria-label={t('common.previousMonth')}
-                onClick={prevMonth}
-              >
-                <ChevronLeft size={18} strokeWidth={1.8} className="text-[var(--fg-3)]" />
-              </button>
+              <div className="flex items-center gap-0.5">
+                <button
+                  type="button"
+                  className="p-1.5 rounded-lg hover:bg-[var(--bg-elev)]"
+                  aria-label={t('common.previousYear')}
+                  onClick={prevYear}
+                >
+                  <ChevronsLeft size={18} strokeWidth={1.8} className="text-[var(--fg-3)]" />
+                </button>
+                <button
+                  type="button"
+                  className="p-1.5 rounded-lg hover:bg-[var(--bg-elev)]"
+                  aria-label={t('common.previousMonth')}
+                  onClick={prevMonth}
+                >
+                  <ChevronLeft size={18} strokeWidth={1.8} className="text-[var(--fg-3)]" />
+                </button>
+              </div>
               <span
                 id={dialogLabelId}
                 className="text-xs font-medium text-[var(--fg-1)] capitalize"
@@ -208,14 +223,24 @@ export function AppDatePicker({
               >
                 {monthLabel}
               </span>
-              <button
-                type="button"
-                className="p-1.5 rounded-lg hover:bg-[var(--bg-elev)]"
-                aria-label={t('common.nextMonth')}
-                onClick={nextMonth}
-              >
-                <ChevronRight size={18} strokeWidth={1.8} className="text-[var(--fg-3)]" />
-              </button>
+              <div className="flex items-center gap-0.5">
+                <button
+                  type="button"
+                  className="p-1.5 rounded-lg hover:bg-[var(--bg-elev)]"
+                  aria-label={t('common.nextMonth')}
+                  onClick={nextMonth}
+                >
+                  <ChevronRight size={18} strokeWidth={1.8} className="text-[var(--fg-3)]" />
+                </button>
+                <button
+                  type="button"
+                  className="p-1.5 rounded-lg hover:bg-[var(--bg-elev)]"
+                  aria-label={t('common.nextYear')}
+                  onClick={nextYear}
+                >
+                  <ChevronsRight size={18} strokeWidth={1.8} className="text-[var(--fg-3)]" />
+                </button>
+              </div>
             </div>
 
             <table
