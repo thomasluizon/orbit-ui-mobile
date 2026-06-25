@@ -8,7 +8,8 @@ import { useTranslations } from 'next-intl'
 import { habitKeys, goalKeys, gamificationKeys, profileKeys } from '@orbit/shared/query'
 import {
   applyLinkedGoalUpdates,
-  formatAPIDate,
+  buildOptimisticSkipPatch,
+  findHabitInList,
   normalizeHabits,
 } from '@orbit/shared/utils'
 import {
@@ -71,47 +72,6 @@ export {
 type HabitListSnapshots = ReadonlyArray<
   readonly [readonly unknown[], HabitScheduleItem[] | undefined]
 >
-
-type HabitTreeNode = HabitScheduleItem | HabitScheduleChild
-
-function getTomorrowDateString(): string {
-  const tomorrow = new Date()
-  tomorrow.setDate(tomorrow.getDate() + 1)
-  return formatAPIDate(tomorrow)
-}
-
-function findHabitInTree(node: HabitTreeNode, habitId: string): HabitTreeNode | null {
-  if (node.id === habitId) return node
-
-  for (const child of node.children) {
-    const match = findHabitInTree(child, habitId)
-    if (match) return match
-  }
-
-  return null
-}
-
-function findHabitInList(items: HabitScheduleItem[], habitId: string): HabitTreeNode | null {
-  for (const item of items) {
-    const match = findHabitInTree(item, habitId)
-    if (match) return match
-  }
-
-  return null
-}
-
-function buildOptimisticSkipPatch(habit: HabitTreeNode): Partial<HabitScheduleItem> {
-  if (habit.frequencyUnit !== null) return { isCompleted: true }
-
-  const dueDate = getTomorrowDateString()
-  return {
-    isCompleted: false,
-    dueDate,
-    scheduledDates: [dueDate],
-    isOverdue: false,
-    instances: [{ date: dueDate, status: 'Pending', logId: null }],
-  }
-}
 
 function snapshotHabitLists(queryClient: ReturnType<typeof useQueryClient>): HabitListSnapshots {
   return queryClient.getQueriesData<HabitScheduleItem[]>({

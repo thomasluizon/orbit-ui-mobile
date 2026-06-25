@@ -106,7 +106,7 @@ function AutoSyncSettingsCard() {
     () =>
       formatCalendarAutoSyncLastSynced(
         state?.lastSyncedAt ?? null,
-        (key, values) => t(key as never, values as never),
+        (key, values) => t(key, values),
       ),
     [state?.lastSyncedAt, t],
   )

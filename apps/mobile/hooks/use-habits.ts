@@ -11,12 +11,13 @@ import {
 import { API } from '@orbit/shared/api'
 import {
   applyLinkedGoalUpdates,
+  buildOptimisticSkipPatch,
+  findHabitInList,
   formatAPIDate,
   normalizeHabits,
 } from '@orbit/shared/utils'
 import type {
   HabitScheduleItem,
-  HabitScheduleChild,
   HabitDetail,
   HabitFullDetail,
   LogHabitResponse,
@@ -75,46 +76,7 @@ type CreateSubHabitMutationInput = {
   __offlineTempId?: string
 }
 type HabitListSnapshots = readonly (readonly [readonly unknown[], HabitScheduleItem[] | undefined])[]
-type HabitTreeNode = HabitScheduleItem | HabitScheduleChild
 
-function getTomorrowDateString(): string {
-  const tomorrow = new Date()
-  tomorrow.setDate(tomorrow.getDate() + 1)
-  return formatAPIDate(tomorrow)
-}
-
-function findHabitInTree(node: HabitTreeNode, habitId: string): HabitTreeNode | null {
-  if (node.id === habitId) return node
-
-  for (const child of node.children) {
-    const match = findHabitInTree(child, habitId)
-    if (match) return match
-  }
-
-  return null
-}
-
-function findHabitInList(items: HabitScheduleItem[], habitId: string): HabitTreeNode | null {
-  for (const item of items) {
-    const match = findHabitInTree(item, habitId)
-    if (match) return match
-  }
-
-  return null
-}
-
-function buildOptimisticSkipPatch(habit: HabitTreeNode): Partial<HabitScheduleItem> {
-  if (habit.frequencyUnit !== null) return { isCompleted: true }
-
-  const dueDate = getTomorrowDateString()
-  return {
-    isCompleted: false,
-    dueDate,
-    scheduledDates: [dueDate],
-    isOverdue: false,
-    instances: [{ date: dueDate, status: 'Pending', logId: null }],
-  }
-}
 export {
   EMPTY_CHILDREN_BY_PARENT,
   EMPTY_HABITS_BY_ID,

@@ -308,9 +308,14 @@ export {
 } from './drill-navigation'
 export type { NormalizedDrillDetail } from './drill-navigation'
 export {
+  buildOptimisticSkipPatch,
+  findHabitInList,
+  findHabitInTree,
+  getTomorrowDateString,
   optimisticPatchHabit,
   withChildren,
 } from './habit-optimistic'
+export type { HabitTreeNode } from './habit-optimistic'
 export { highlightText } from './highlight-text'
 export type { HighlightSegment } from './highlight-text'
 export {

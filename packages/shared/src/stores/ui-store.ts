@@ -194,6 +194,43 @@ function activateNextCelebration(
   };
 }
 
+function enqueueCelebrationItem(
+  state: Pick<UIStoreState, "activeCelebration" | "queuedCelebrations">,
+  item: CelebrationQueueItem,
+): Partial<UIStoreState> {
+  if (
+    isDuplicateCelebration(
+      state.queuedCelebrations,
+      state.activeCelebration,
+      item,
+    )
+  ) {
+    return {};
+  }
+
+  const nextQueue = [...state.queuedCelebrations, item];
+  if (state.activeCelebration) {
+    return { queuedCelebrations: sortCelebrationQueue(nextQueue) };
+  }
+
+  return activateNextCelebration(nextQueue);
+}
+
+function clearCelebrationKind(
+  state: Pick<UIStoreState, "activeCelebration" | "queuedCelebrations">,
+  kind: CelebrationKind,
+  clearedLegacyState: Partial<UIStoreState>,
+): Partial<UIStoreState> {
+  const remainingQueued = state.queuedCelebrations.filter(
+    (item) => item.kind !== kind,
+  );
+  if (state.activeCelebration?.kind === kind) {
+    return activateNextCelebration(remainingQueued);
+  }
+
+  return { queuedCelebrations: remainingQueued, ...clearedLegacyState };
+}
+
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object";
 }
@@ -339,6 +376,29 @@ export function createUIStoreState(
   let createdHabitTimer: ReturnType<typeof setTimeout> | undefined;
   let celebrationSequence = 0;
 
+  function nextCelebrationSequence(): number {
+    const sequence = celebrationSequence;
+    celebrationSequence += 1;
+    return sequence;
+  }
+
+  function createCelebrationSetter<TKind extends "streak" | "goal-completed">(
+    kind: TKind,
+    clearedLegacyState: Partial<UIStoreState>,
+  ): (payload: CelebrationPayloadMap[TKind] | null) => void {
+    return (payload) =>
+      set((state) => {
+        if (payload) {
+          return enqueueCelebrationItem(
+            state,
+            createCelebrationItem(kind, payload, nextCelebrationSequence()),
+          );
+        }
+
+        return clearCelebrationKind(state, kind, clearedLegacyState);
+      });
+  }
+
   return {
     activeFilters: {},
     setFilters: (filters) =>
@@ -357,31 +417,12 @@ export function createUIStoreState(
     goalCompletedCelebration: null,
 
     enqueueCelebration: (kind, payload) =>
-      set((state) => {
-        const nextItem = createCelebrationItem(
-          kind,
-          payload,
-          celebrationSequence,
-        );
-        celebrationSequence += 1;
-
-        if (
-          isDuplicateCelebration(
-            state.queuedCelebrations,
-            state.activeCelebration,
-            nextItem,
-          )
-        ) {
-          return {};
-        }
-
-        const nextQueue = [...state.queuedCelebrations, nextItem];
-        if (state.activeCelebration) {
-          return { queuedCelebrations: sortCelebrationQueue(nextQueue) };
-        }
-
-        return activateNextCelebration(nextQueue);
-      }),
+      set((state) =>
+        enqueueCelebrationItem(
+          state,
+          createCelebrationItem(kind, payload, nextCelebrationSequence()),
+        ),
+      ),
 
     completeActiveCelebration: (id) =>
       set((state) => {
@@ -397,128 +438,27 @@ export function createUIStoreState(
       );
     },
 
-    setStreakCelebration: (data) =>
-      set((state) => {
-        if (data) {
-          const nextItem = createCelebrationItem(
-            "streak",
-            data,
-            celebrationSequence,
-          );
-          celebrationSequence += 1;
-
-          if (
-            isDuplicateCelebration(
-              state.queuedCelebrations,
-              state.activeCelebration,
-              nextItem,
-            )
-          ) {
-            return {};
-          }
-
-          const nextQueue = [...state.queuedCelebrations, nextItem];
-          if (state.activeCelebration) {
-            return { queuedCelebrations: sortCelebrationQueue(nextQueue) };
-          }
-
-          return activateNextCelebration(nextQueue);
-        }
-
-        const remainingQueued = state.queuedCelebrations.filter(
-          (item) => item.kind !== "streak",
-        );
-        if (state.activeCelebration?.kind === "streak") {
-          return activateNextCelebration(remainingQueued);
-        }
-
-        return {
-          queuedCelebrations: remainingQueued,
-          streakCelebration: null,
-        };
-      }),
+    setStreakCelebration: createCelebrationSetter("streak", {
+      streakCelebration: null,
+    }),
 
     setAllDoneCelebration: (value) =>
       set((state) => {
         if (value) {
-          const nextItem = createCelebrationItem(
-            "all-done",
-            {},
-            celebrationSequence,
+          return enqueueCelebrationItem(
+            state,
+            createCelebrationItem("all-done", {}, nextCelebrationSequence()),
           );
-          celebrationSequence += 1;
-
-          if (
-            isDuplicateCelebration(
-              state.queuedCelebrations,
-              state.activeCelebration,
-              nextItem,
-            )
-          ) {
-            return {};
-          }
-
-          const nextQueue = [...state.queuedCelebrations, nextItem];
-          if (state.activeCelebration) {
-            return { queuedCelebrations: sortCelebrationQueue(nextQueue) };
-          }
-
-          return activateNextCelebration(nextQueue);
         }
 
-        const remainingQueued = state.queuedCelebrations.filter(
-          (item) => item.kind !== "all-done",
-        );
-        if (state.activeCelebration?.kind === "all-done") {
-          return activateNextCelebration(remainingQueued);
-        }
-
-        return {
-          queuedCelebrations: remainingQueued,
+        return clearCelebrationKind(state, "all-done", {
           allDoneCelebration: false,
-        };
+        });
       }),
 
-    setGoalCompletedCelebration: (data) =>
-      set((state) => {
-        if (data) {
-          const nextItem = createCelebrationItem(
-            "goal-completed",
-            data,
-            celebrationSequence,
-          );
-          celebrationSequence += 1;
-
-          if (
-            isDuplicateCelebration(
-              state.queuedCelebrations,
-              state.activeCelebration,
-              nextItem,
-            )
-          ) {
-            return {};
-          }
-
-          const nextQueue = [...state.queuedCelebrations, nextItem];
-          if (state.activeCelebration) {
-            return { queuedCelebrations: sortCelebrationQueue(nextQueue) };
-          }
-
-          return activateNextCelebration(nextQueue);
-        }
-
-        const remainingQueued = state.queuedCelebrations.filter(
-          (item) => item.kind !== "goal-completed",
-        );
-        if (state.activeCelebration?.kind === "goal-completed") {
-          return activateNextCelebration(remainingQueued);
-        }
-
-        return {
-          queuedCelebrations: remainingQueued,
-          goalCompletedCelebration: null,
-        };
-      }),
+    setGoalCompletedCelebration: createCelebrationSetter("goal-completed", {
+      goalCompletedCelebration: null,
+    }),
 
     checkAllDoneCelebration: (habitsById) => {
       const { activeFilters, allDoneCelebratedDate, enqueueCelebration } =
