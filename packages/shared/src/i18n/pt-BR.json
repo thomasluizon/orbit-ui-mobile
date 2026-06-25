@@ -657,6 +657,8 @@
     "timeoutError": "A resposta demorou demais. Tente de novo.",
     "limitReachedError": "Você atingiu o limite mensal de mensagens de IA.",
     "aiError": "Desculpe, algo deu errado. Tente de novo.",
+    "operationDone": "Pronto.",
+    "operationFailed": "Não funcionou — tente de novo.",
     "proGate": {
       "title": "Recurso Pro",
       "body": "Esta ação é do Orbit Pro. Faça upgrade para liberar."

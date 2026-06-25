@@ -172,7 +172,10 @@ export function useChatComposer() {
     addMessage({
       id: crypto.randomUUID(),
       role: 'ai',
-      content: buildAgentExecutionMessage(response),
+      content: buildAgentExecutionMessage(response, {
+        done: t('chat.operationDone'),
+        failed: t('chat.operationFailed'),
+      }),
       operations: [response.operation],
       pendingOperations: response.pendingOperation ? [response.pendingOperation] : undefined,
       policyDenials: response.policyDenial ? [response.policyDenial] : undefined,
@@ -191,7 +194,7 @@ export function useChatComposer() {
         router.push('/upgrade')
       }
     }
-  }, [addMessage, queryClient, router, scrollToBottom, shouldRouteToUpgrade])
+  }, [addMessage, queryClient, router, scrollToBottom, shouldRouteToUpgrade, t])
 
   const {
     confirmAndExecutePendingOperation,
