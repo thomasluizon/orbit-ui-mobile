@@ -155,4 +155,14 @@ describe('mobile calendar picker hooks', () => {
 
     expect(mocks.store.calendars?.[0]?.isSynced).toBe(true)
   })
+
+  it('useSetSelectedCalendars invalidates every calendar query after settling', () => {
+    const mutation = useSetSelectedCalendars() as unknown as { onSettled?: () => void }
+
+    mutation.onSettled?.()
+
+    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({
+      queryKey: calendarKeys.all,
+    })
+  })
 })
