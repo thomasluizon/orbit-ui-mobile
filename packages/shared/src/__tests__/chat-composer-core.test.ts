@@ -46,9 +46,22 @@ function makeAction(overrides: Partial<ActionResult> = {}): ActionResult {
 }
 
 describe('buildAgentExecutionMessage', () => {
-  it('prefers operation.summary over every fallback', () => {
+  const labels = { done: 'DONE', failed: 'FAILED' }
+  const internalSummary = 'Manage Calendar Sync requested via Chat'
+
+  it('returns the done label on success, never the raw operation summary', () => {
     const response = makeExecuteResponse({
-      operation: makeOperation({ summary: 'Done', policyReason: 'reason', sourceName: 'Src' }),
+      operation: makeOperation({ status: 'Succeeded', summary: internalSummary }),
+    })
+    expect(buildAgentExecutionMessage(response, labels)).toBe('DONE')
+  })
+
+  it('returns the failed label for any non-succeeded operation', () => {
+    const failed = makeExecuteResponse({
+      operation: makeOperation({ status: 'Failed', summary: internalSummary }),
+    })
+    const denied = makeExecuteResponse({
+      operation: makeOperation({ status: 'Denied', summary: internalSummary }),
       policyDenial: {
         operationId: 'op-1',
         sourceName: 'Src',
@@ -57,35 +70,15 @@ describe('buildAgentExecutionMessage', () => {
         reason: 'denied',
       },
     })
-    expect(buildAgentExecutionMessage(response)).toBe('Done')
+    expect(buildAgentExecutionMessage(failed, labels)).toBe('FAILED')
+    expect(buildAgentExecutionMessage(denied, labels)).toBe('FAILED')
   })
 
-  it('falls back to policyDenial.reason when summary is absent', () => {
+  it('never surfaces the internal operation summary as user-facing text', () => {
     const response = makeExecuteResponse({
-      operation: makeOperation({ summary: null, policyReason: 'reason', sourceName: 'Src' }),
-      policyDenial: {
-        operationId: 'op-1',
-        sourceName: 'Src',
-        riskClass: 'Low',
-        confirmationRequirement: 'None',
-        reason: 'denied',
-      },
+      operation: makeOperation({ status: 'Succeeded', summary: internalSummary }),
     })
-    expect(buildAgentExecutionMessage(response)).toBe('denied')
-  })
-
-  it('falls back to operation.policyReason before sourceName', () => {
-    const response = makeExecuteResponse({
-      operation: makeOperation({ summary: null, policyReason: 'plan required', sourceName: 'Src' }),
-    })
-    expect(buildAgentExecutionMessage(response)).toBe('plan required')
-  })
-
-  it('falls back to sourceName when nothing else is present', () => {
-    const response = makeExecuteResponse({
-      operation: makeOperation({ summary: null, policyReason: null, sourceName: 'Src' }),
-    })
-    expect(buildAgentExecutionMessage(response)).toBe('Src')
+    expect(buildAgentExecutionMessage(response, labels)).not.toContain('requested via Chat')
   })
 })
 

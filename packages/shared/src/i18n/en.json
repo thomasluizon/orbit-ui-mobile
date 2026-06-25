@@ -657,6 +657,8 @@
     "timeoutError": "The request timed out. Please try again.",
     "limitReachedError": "You've reached your monthly AI message limit.",
     "aiError": "Sorry, something went wrong. Please try again.",
+    "operationDone": "Done.",
+    "operationFailed": "That didn't work — try again.",
     "proGate": {
       "title": "Pro feature",
       "body": "This action needs Orbit Pro. Upgrade to unlock it."
