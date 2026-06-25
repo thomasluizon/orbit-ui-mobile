@@ -23,6 +23,8 @@ import { Popover } from '@/components/ui/popover'
 import { SelectCheck } from '@/components/ui/select-check'
 import type { StatusDotState } from '@/components/ui/status-dot'
 
+const MAX_VISIBLE_TAGS = 3
+
 /** Action callbacks consumed by HabitRow. Mirrors the mobile shape so that
  *  cross-platform call sites can pass the same handler bag. */
 export interface HabitRowActions {
@@ -273,6 +275,47 @@ export function HabitRow({
                 }}
               >
                 🔥 {streak}
+              </span>
+            )}
+          </span>
+        )}
+        {habit.tags.length > 0 && (
+          <span className="flex items-center overflow-hidden" style={{ gap: 8, marginTop: 1 }}>
+            {habit.tags.slice(0, MAX_VISIBLE_TAGS).map((tag) => (
+              <span
+                key={tag.id}
+                className="inline-flex items-center shrink-0 min-w-0"
+                style={{ gap: 5, maxWidth: 132 }}
+              >
+                <span
+                  aria-hidden="true"
+                  className="rounded-full shrink-0"
+                  style={{ width: 6, height: 6, background: tag.color }}
+                />
+                <span
+                  className="truncate"
+                  style={{
+                    fontFamily: 'var(--font-sans)',
+                    fontSize: 12,
+                    color: 'var(--fg-3)',
+                    lineHeight: 1.2,
+                  }}
+                >
+                  {tag.name}
+                </span>
+              </span>
+            ))}
+            {habit.tags.length > MAX_VISIBLE_TAGS && (
+              <span
+                className="shrink-0"
+                style={{
+                  fontFamily: 'var(--font-sans)',
+                  fontSize: 12,
+                  color: 'var(--fg-3)',
+                  fontVariantNumeric: 'tabular-nums',
+                }}
+              >
+                +{habit.tags.length - MAX_VISIBLE_TAGS}
               </span>
             )}
           </span>

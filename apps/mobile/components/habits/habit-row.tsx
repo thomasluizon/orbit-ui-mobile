@@ -47,6 +47,8 @@ import { ParentRing } from '@/components/ui/parent-ring'
 import { SelectCheck } from '@/components/ui/select-check'
 import type { StatusDotState } from '@/components/ui/status-dot'
 
+const MAX_VISIBLE_TAGS = 3
+
 /**
  * Action callbacks consumed by HabitRow.
  */
@@ -439,6 +441,24 @@ function HabitRowContent({
           ) : null}
         </Text>
       ) : null}
+
+      {habit.tags.length > 0 ? (
+        <View style={styles.tagRow}>
+          {habit.tags.slice(0, MAX_VISIBLE_TAGS).map((tag) => (
+            <View key={tag.id} style={styles.tagChip}>
+              <View style={[styles.tagDot, { backgroundColor: tag.color }]} />
+              <Text numberOfLines={1} style={[styles.tagName, { color: tokens.fg3 }]}>
+                {tag.name}
+              </Text>
+            </View>
+          ))}
+          {habit.tags.length > MAX_VISIBLE_TAGS ? (
+            <Text style={[styles.tagOverflow, { color: tokens.fg3 }]}>
+              +{habit.tags.length - MAX_VISIBLE_TAGS}
+            </Text>
+          ) : null}
+        </View>
+      ) : null}
     </View>
   )
 }
@@ -826,6 +846,34 @@ const styles = StyleSheet.create({
     fontFamily: 'Rubik_400Regular',
     fontSize: 13,
     lineHeight: 17,
+  },
+  tagRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginTop: 1,
+    overflow: 'hidden',
+  },
+  tagChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+    flexShrink: 0,
+  },
+  tagDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  tagName: {
+    fontFamily: 'Rubik_400Regular',
+    fontSize: 12,
+    maxWidth: 96,
+  },
+  tagOverflow: {
+    fontFamily: 'Roboto_400Regular',
+    fontSize: 12,
+    flexShrink: 0,
   },
   trailing: {
     flexDirection: 'row',
