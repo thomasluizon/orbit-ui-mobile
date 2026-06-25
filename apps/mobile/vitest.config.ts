@@ -97,10 +97,6 @@ export default defineConfig({
         replacement: path.resolve(__dirname, './test-mocks/expo-iap.ts'),
       },
       {
-        find: '@react-native-community/datetimepicker',
-        replacement: path.resolve(__dirname, './test-mocks/react-native-datetimepicker.tsx'),
-      },
-      {
         find: /\.(png|jpg|jpeg|gif|webp)$/,
         replacement: path.resolve(__dirname, './test-mocks/file-asset.ts'),
       },

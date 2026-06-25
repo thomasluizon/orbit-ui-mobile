@@ -1,8 +1,8 @@
-import { useCallback, useMemo, useState } from 'react'
+import { useCallback, useMemo, useRef, useState } from 'react'
 import {
   Modal,
-  Platform,
   Pressable,
+  ScrollView,
   StyleSheet,
   Text,
   TouchableOpacity,
@@ -10,10 +10,6 @@ import {
   type StyleProp,
   type ViewStyle,
 } from 'react-native'
-import DateTimePicker, {
-  DateTimePickerAndroid,
-  type DateTimePickerEvent,
-} from '@react-native-community/datetimepicker'
 import { Clock3, X } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import { detectDefaultTimeFormat, formatLocaleTime } from '@orbit/shared/utils'
@@ -35,21 +31,87 @@ interface AppTimePickerProps {
   containerStyle?: StyleProp<ViewStyle>
 }
 
-function parseTimeValue(value: string): Date {
-  if (!/^\d{2}:\d{2}$/.test(value)) {
-    const fallback = new Date()
-    fallback.setSeconds(0, 0)
-    return fallback
-  }
+const HOURS_24 = Array.from({ length: 24 }, (_, index) => index)
+const HOURS_12 = Array.from({ length: 12 }, (_, index) => index + 1)
+const MINUTES = Array.from({ length: 60 }, (_, index) => index)
+const PERIODS = ['AM', 'PM'] as const
 
-  const [hoursRaw, minutesRaw] = value.split(':')
-  const parsed = new Date()
-  parsed.setHours(Number(hoursRaw), Number(minutesRaw), 0, 0)
-  return parsed
+const ROW_HEIGHT = 44
+const COLUMN_HEIGHT = 220
+
+function pad(value: number): string {
+  return String(value).padStart(2, '0')
 }
 
-function formatApiTime(date: Date): string {
-  return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
+function parseTime(value: string): { hour24: number; minute: number } | null {
+  const match = /^(\d{1,2}):(\d{2})$/.exec(value)
+  if (!match) return null
+  const hour24 = Number(match[1])
+  const minute = Number(match[2])
+  if (hour24 > 23 || minute > 59) return null
+  return { hour24, minute }
+}
+
+function to12Hour(hour24: number): { hour12: number; period: 'AM' | 'PM' } {
+  return {
+    hour12: ((hour24 + 11) % 12) + 1,
+    period: hour24 < 12 ? 'AM' : 'PM',
+  }
+}
+
+function from12Hour(hour12: number, period: 'AM' | 'PM'): number {
+  const base = hour12 % 12
+  return period === 'PM' ? base + 12 : base
+}
+
+interface TimeColumnProps {
+  values: readonly (number | string)[]
+  selected: number | string
+  formatValue: (value: number | string) => string
+  onSelect: (value: number | string) => void
+  styles: ReturnType<typeof createStyles>
+}
+
+function TimeColumn({ values, selected, formatValue, onSelect, styles }: Readonly<TimeColumnProps>) {
+  const scrollRef = useRef<ScrollView>(null)
+  const selectedIndex = values.findIndex((value) => value === selected)
+
+  const centerSelected = useCallback(() => {
+    if (selectedIndex < 0) return
+    scrollRef.current?.scrollTo({
+      y: Math.max(0, selectedIndex * ROW_HEIGHT - COLUMN_HEIGHT / 2 + ROW_HEIGHT / 2),
+      animated: false,
+    })
+  }, [selectedIndex])
+
+  return (
+    <ScrollView
+      ref={scrollRef}
+      style={styles.column}
+      contentContainerStyle={styles.columnContent}
+      showsVerticalScrollIndicator
+      onContentSizeChange={centerSelected}
+    >
+      {values.map((value) => {
+        const isSelected = value === selected
+        return (
+          <TouchableOpacity
+            key={String(value)}
+            onPress={() => onSelect(value)}
+            activeOpacity={0.7}
+            accessibilityRole="button"
+            accessibilityState={{ selected: isSelected }}
+            accessibilityLabel={formatValue(value)}
+            style={[styles.option, isSelected && styles.optionSelected]}
+          >
+            <Text style={[styles.optionText, isSelected && styles.optionTextSelected]}>
+              {formatValue(value)}
+            </Text>
+          </TouchableOpacity>
+        )
+      })}
+    </ScrollView>
+  )
 }
 
 export function AppTimePicker({
@@ -69,44 +131,38 @@ export function AppTimePicker({
     [currentScheme, currentTheme],
   )
   const styles = useMemo(() => createStyles(tokens), [tokens])
-  const [isOpen, setIsOpen] = useState(false)
-  const [draftValue, setDraftValue] = useState(() => parseTimeValue(value))
   const { profile } = useProfile()
   const is24Hour = profile?.uses24HourClock ?? detectDefaultTimeFormat(locale) === '24h'
+  const [isOpen, setIsOpen] = useState(false)
+  const [openNonce, setOpenNonce] = useState(0)
+  const [draft, setDraft] = useState({ hour24: 9, minute: 0 })
+
   const displayValue = value
     ? formatLocaleTime(value, locale, { hour: 'numeric', minute: '2-digit', hour12: !is24Hour })
     : ''
+  const { hour12, period } = to12Hour(draft.hour24)
+
+  const closePicker = useCallback(() => setIsOpen(false), [])
 
   const openPicker = useCallback(() => {
     if (disabled) return
-
-    const nextValue = parseTimeValue(value)
-    setDraftValue(nextValue)
-
-    if (Platform.OS === 'android') {
-      DateTimePickerAndroid.open({
-        value: nextValue,
-        mode: 'time',
-        is24Hour,
-        onChange: (event: DateTimePickerEvent, selectedDate?: Date) => {
-          if (event.type === 'set' && selectedDate) {
-            onChange(formatApiTime(selectedDate))
-          }
-        },
-      })
-      return
-    }
-
+    const parsed = parseTime(value)
+    const now = new Date()
+    setDraft(parsed ?? { hour24: now.getHours(), minute: now.getMinutes() })
+    setOpenNonce((current) => current + 1)
     setIsOpen(true)
-  }, [disabled, is24Hour, onChange, value])
+  }, [disabled, value])
+
+  function applyDraft() {
+    onChange(`${pad(draft.hour24)}:${pad(draft.minute)}`)
+    closePicker()
+  }
 
   const canClear = !disabled && !!value && !!onClear
 
   return (
     <>
-      <View
-        style={[styles.trigger, containerStyle, disabled && styles.triggerDisabled]}
-      >
+      <View style={[styles.trigger, containerStyle, disabled && styles.triggerDisabled]}>
         <Pressable
           onPress={openPicker}
           disabled={disabled}
@@ -154,61 +210,77 @@ export function AppTimePicker({
         )}
       </View>
 
-      {Platform.OS === 'ios' ? (
-        <Modal
-          visible={isOpen}
-          transparent
-          animationType="fade"
-          onRequestClose={() => setIsOpen(false)}
+      <Modal
+        visible={isOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={closePicker}
+      >
+        <TouchableOpacity
+          style={styles.backdrop}
+          activeOpacity={1}
+          onPress={closePicker}
+          accessibilityRole="button"
+          accessibilityLabel={t('common.close')}
         >
-          <TouchableOpacity
-            style={styles.backdrop}
-            activeOpacity={1}
-            onPress={() => setIsOpen(false)}
-            accessibilityRole="button"
-            accessibilityLabel={t('common.close')}
-          >
-            <View
-              style={styles.dialog}
-              onStartShouldSetResponder={() => true}
-            >
-              <View style={styles.dialogHeader}>
-                <TouchableOpacity
-                  onPress={() => setIsOpen(false)}
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                  accessibilityRole="button"
-                >
-                  <Text style={styles.dialogAction}>{t('common.cancel')}</Text>
-                </TouchableOpacity>
-                <Text style={styles.dialogTitle}>{t('common.selectTime')}</Text>
-                <TouchableOpacity
-                  onPress={() => {
-                    onChange(formatApiTime(draftValue))
-                    setIsOpen(false)
-                  }}
-                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                  accessibilityRole="button"
-                >
-                  <Text style={styles.dialogAction}>{t('common.done')}</Text>
-                </TouchableOpacity>
-              </View>
-
-              <DateTimePicker
-                value={draftValue}
-                mode="time"
-                display="spinner"
-                themeVariant={currentTheme}
-                is24Hour={is24Hour}
-                onChange={(_event, selectedDate) => {
-                  if (selectedDate) {
-                    setDraftValue(selectedDate)
-                  }
-                }}
-              />
+          <View style={styles.dialog} onStartShouldSetResponder={() => true}>
+            <View style={styles.dialogHeader}>
+              <Text style={styles.dialogTitle}>{t('common.selectTime')}</Text>
+              <TouchableOpacity
+                onPress={applyDraft}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                accessibilityRole="button"
+                accessibilityLabel={t('common.done')}
+              >
+                <Text style={styles.dialogAction}>{t('common.done')}</Text>
+              </TouchableOpacity>
             </View>
-          </TouchableOpacity>
-        </Modal>
-      ) : null}
+
+            <View style={styles.columnsRow}>
+              <TimeColumn
+                key={`hours-${openNonce}`}
+                values={is24Hour ? HOURS_24 : HOURS_12}
+                selected={is24Hour ? draft.hour24 : hour12}
+                formatValue={(columnValue) => pad(Number(columnValue))}
+                onSelect={(columnValue) =>
+                  setDraft((current) => ({
+                    ...current,
+                    hour24: is24Hour
+                      ? Number(columnValue)
+                      : from12Hour(Number(columnValue), period),
+                  }))
+                }
+                styles={styles}
+              />
+              <TimeColumn
+                key={`minutes-${openNonce}`}
+                values={MINUTES}
+                selected={draft.minute}
+                formatValue={(columnValue) => pad(Number(columnValue))}
+                onSelect={(columnValue) =>
+                  setDraft((current) => ({ ...current, minute: Number(columnValue) }))
+                }
+                styles={styles}
+              />
+              {!is24Hour && (
+                <TimeColumn
+                  key={`period-${openNonce}`}
+                  values={PERIODS}
+                  selected={period}
+                  formatValue={(columnValue) => String(columnValue)}
+                  onSelect={(columnValue) =>
+                    setDraft((current) => ({
+                      ...current,
+                      hour24: from12Hour(to12Hour(current.hour24).hour12, columnValue as 'AM' | 'PM'),
+                    }))
+                  }
+                  styles={styles}
+                />
+              )}
+            </View>
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </>
   )
 }
@@ -253,36 +325,67 @@ function createStyles(tokens: AppTokens) {
     },
     backdrop: {
       flex: 1,
-      backgroundColor: 'rgba(0,0,0,0.5)',
+      backgroundColor: 'rgba(0,0,0,0.65)',
       justifyContent: 'center',
       alignItems: 'center',
       padding: 24,
     },
     dialog: {
       width: '100%',
-      maxWidth: 360,
+      maxWidth: 320,
       borderRadius: radius.lg,
       backgroundColor: tokens.bgSheet,
       borderWidth: 1,
       borderColor: tokens.hairline,
-      padding: 16,
-      gap: 12,
+      padding: 10,
       ...shadowsV2.shadow2,
     },
     dialogHeader: {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
+      marginBottom: 8,
+      paddingHorizontal: 4,
     },
     dialogTitle: {
       fontFamily: 'Rubik_500Medium',
-      fontSize: 16,
+      fontSize: 13,
       color: tokens.fg1,
     },
     dialogAction: {
       fontFamily: 'Rubik_500Medium',
       fontSize: 14,
       color: tokens.primary,
+    },
+    columnsRow: {
+      flexDirection: 'row',
+      height: COLUMN_HEIGHT,
+      gap: 6,
+    },
+    column: {
+      flex: 1,
+    },
+    columnContent: {
+      paddingHorizontal: 4,
+    },
+    option: {
+      height: ROW_HEIGHT,
+      borderRadius: 10,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    optionSelected: {
+      backgroundColor: tokens.primary,
+    },
+    optionText: {
+      color: tokens.fg1,
+      fontFamily: 'Roboto_400Regular',
+      fontSize: 16,
+      fontVariant: ['tabular-nums'],
+      textAlign: 'center',
+    },
+    optionTextSelected: {
+      color: tokens.fgOnPrimary,
     },
   })
 }
