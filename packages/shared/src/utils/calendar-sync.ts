@@ -241,7 +241,7 @@ export function isCalendarAutoSyncStatusReconnectRequired(
  */
 export function formatCalendarAutoSyncLastSynced(
   isoTimestamp: string | null,
-  translate: (key: string, values?: Record<string, unknown>) => string,
+  translate: (key: string, values?: Record<string, string | number>) => string,
   now: Date = new Date(),
 ): string {
   if (!isoTimestamp) return translate('calendar.autoSync.lastSyncedNever')

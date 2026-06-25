@@ -76,26 +76,9 @@ export function useHabitForm(options: HabitFormOptions = {}): HabitFormHelpers {
     },
   })
 
-  const watchedFrequencyUnit = useWatch({ control: form.control, name: 'frequencyUnit' })
-  const watchedFrequencyQuantity = useWatch({
-    control: form.control,
-    name: 'frequencyQuantity',
-  })
-  const watchedDays = useWatch({ control: form.control, name: 'days' })
-  const watchedIsGeneral = useWatch({ control: form.control, name: 'isGeneral' })
-  const watchedIsFlexible = useWatch({ control: form.control, name: 'isFlexible' })
-  const watchedDueTime = useWatch({ control: form.control, name: 'dueTime' })
-  const watchedEndDate = useWatch({ control: form.control, name: 'endDate' })
-
-  const watchedValues = normalizeHabitFormData({
-    frequencyUnit: watchedFrequencyUnit,
-    frequencyQuantity: watchedFrequencyQuantity,
-    days: watchedDays,
-    isGeneral: watchedIsGeneral,
-    isFlexible: watchedIsFlexible,
-    dueTime: watchedDueTime,
-    endDate: watchedEndDate,
-  })
+  const watchedValues = normalizeHabitFormData(
+    useWatch({ control: form.control }) as HabitFormInput,
+  )
   const { isOneTime, isGeneral, isFlexible, isRecurring, showDayPicker, showEndDate } =
     getHabitFormFlags(watchedValues)
 
