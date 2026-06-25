@@ -43,7 +43,10 @@ import { SettingsRow } from '@/components/ui/settings-row'
 import { SelectCheck } from '@/components/ui/select-check'
 import { PillButton } from '@/components/ui/pill-button'
 import { CalendarAutoSyncSection } from './calendar-sync-auto-section'
+import { CalendarPickerSection } from './calendar-picker-section'
 import { createStyles } from './calendar-sync-styles'
+
+const EVENTS_PAGE_SIZE = 20
 
 type Step =
   | 'loading'
@@ -113,6 +116,7 @@ export default function CalendarSyncScreen() {
   const [importResult, setImportResult] = useState<ImportResult | null>(null)
   const [isConnecting, setIsConnecting] = useState(false)
   const [previousEventsKey, setPreviousEventsKey] = useState<string | null>(null)
+  const [visibleCount, setVisibleCount] = useState(EVENTS_PAGE_SIZE)
 
   const eventsQuery = useCalendarEvents({
     enabled: (profile?.hasProAccess ?? false) && !isReviewMode && isOnline,
@@ -130,6 +134,7 @@ export default function CalendarSyncScreen() {
   if (eventsKey !== previousEventsKey) {
     setPreviousEventsKey(eventsKey)
     setEvents(incomingEvents)
+    setVisibleCount(EVENTS_PAGE_SIZE)
     if (isReviewMode && previousEventsKey !== null) {
       setSelectedIds((prev) => {
         const next = new Set<string>()
@@ -380,7 +385,12 @@ export default function CalendarSyncScreen() {
     const timeLabel = event.startTime
       ? `${event.startTime}${event.endTime ? `-${event.endTime}` : ''}`
       : ''
-    const meta = [dateLabel, timeLabel, event.isRecurring ? recurrenceLabel : null]
+    const meta = [
+      dateLabel,
+      timeLabel,
+      event.isRecurring ? recurrenceLabel : null,
+      event.calendarName ?? null,
+    ]
       .filter(Boolean)
       .join(' · ')
 
@@ -462,6 +472,15 @@ export default function CalendarSyncScreen() {
             onToggleAutoSync={handleToggleAutoSync}
             onSyncNow={handleSyncNow}
             onReconnect={handleConnect}
+          />
+        ) : null}
+
+        {profile?.hasProAccess && !isProfileLoading ? (
+          <CalendarPickerSection
+            styles={styles}
+            tokens={tokens}
+            t={t}
+            enabled={hasConnection && isOnline}
           />
         ) : null}
 
@@ -585,7 +604,34 @@ export default function CalendarSyncScreen() {
                     events.length,
                   )}
                 </SectionLabel>
-                {events.map(renderEventRow)}
+                {events.slice(0, visibleCount).map(renderEventRow)}
+                {events.length > visibleCount ? (
+                  <View style={styles.showMoreRow}>
+                    <Pressable
+                      onPress={() =>
+                        setVisibleCount((count) =>
+                          Math.min(count + EVENTS_PAGE_SIZE, events.length),
+                        )
+                      }
+                      accessibilityRole="button"
+                      style={({ pressed }) => [
+                        styles.quietAction,
+                        chipTint,
+                        pressed && styles.quietActionDim,
+                      ]}
+                    >
+                      <Text style={[styles.quietActionText, { color: tokens.fg2 }]}>
+                        {t('calendar.showMore')}
+                      </Text>
+                    </Pressable>
+                    <Text style={[styles.showingCountText, { color: tokens.fg3 }]}>
+                      {t('calendar.showingCount', {
+                        shown: Math.min(visibleCount, events.length),
+                        total: events.length,
+                      })}
+                    </Text>
+                  </View>
+                ) : null}
                 <View style={styles.actionPad}>
                   <PillButton
                     fullWidth

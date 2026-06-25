@@ -16,6 +16,7 @@ export interface RetrospectiveHabitStat {
   completionRate: number
   completedCount: number
   scheduledCount: number
+  isOneTime?: boolean
 }
 
 export interface RetrospectiveMetrics {

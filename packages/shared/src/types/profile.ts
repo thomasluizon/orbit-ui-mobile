@@ -21,6 +21,7 @@ export const profileSchema = z.object({
   name: z.string(),
   email: z.string(),
   timeZone: z.string().nullable(),
+  uses24HourClock: z.boolean().optional(),
   aiMemoryEnabled: z.boolean(),
   aiSummaryEnabled: z.boolean(),
   hasCompletedOnboarding: z.boolean(),

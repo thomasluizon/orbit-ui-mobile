@@ -84,6 +84,7 @@ export const calendarKeys = {
   events: (from: string, to: string) => [...calendarKeys.all, 'events', from, to] as const,
   autoSyncState: () => [...calendarKeys.all, 'auto-sync-state'] as const,
   syncSuggestions: () => [...calendarKeys.all, 'sync-suggestions'] as const,
+  calendars: () => [...calendarKeys.all, 'calendars'] as const,
 }
 
 export const aiKeys = {

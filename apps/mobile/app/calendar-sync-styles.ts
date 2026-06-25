@@ -119,6 +119,33 @@ export function createStyles() {
       paddingHorizontal: 20,
       paddingVertical: 18,
     },
+    pickerStateRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      paddingHorizontal: 20,
+      paddingTop: 6,
+    },
+    pickerStateText: {
+      fontFamily: 'Rubik_400Regular',
+      fontSize: 14,
+      lineHeight: 19.6,
+    },
+    showMoreRow: {
+      alignItems: 'center',
+      gap: 8,
+      paddingHorizontal: 20,
+      paddingTop: 14,
+    },
+    showingCountText: {
+      fontFamily: 'Roboto_400Regular',
+      fontSize: 12,
+      fontVariant: ['tabular-nums'],
+    },
+    eventTagText: {
+      fontFamily: 'Rubik_400Regular',
+      fontSize: 12,
+    },
     progressTrack: {
       width: 200,
       height: 8,

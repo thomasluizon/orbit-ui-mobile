@@ -126,6 +126,7 @@ function HabitStatList({
   habits: RetrospectiveHabitStat[]
   tone: 'default' | 'attention'
 }>) {
+  const t = useTranslations()
   return (
     <div style={cardStyle}>
       <div style={sectionTitleStyle}>{title}</div>
@@ -154,7 +155,11 @@ function HabitStatList({
                 color: tone === 'attention' ? 'var(--status-overdue-text)' : 'var(--fg-2)',
               }}
             >
-              {habit.completionRate}%
+              {habit.isOneTime
+                ? habit.completedCount > 0
+                  ? t('retrospective.completed')
+                  : t('retrospective.notCompleted')
+                : `${habit.completionRate}%`}
             </span>
           </div>
         ))}

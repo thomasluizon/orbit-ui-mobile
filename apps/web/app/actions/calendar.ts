@@ -3,6 +3,17 @@
 import { API } from '@orbit/shared/api'
 import { serverAuthFetch } from '@/lib/server-fetch'
 
+export async function getUserCalendars(): Promise<unknown> {
+  return serverAuthFetch(API.calendar.calendars, { method: 'GET' })
+}
+
+export async function setSelectedCalendars(calendarIds: string[]): Promise<unknown> {
+  return serverAuthFetch(API.calendar.selectedCalendars, {
+    method: 'PUT',
+    body: JSON.stringify({ calendarIds }),
+  })
+}
+
 export async function setCalendarAutoSync(enabled: boolean): Promise<unknown> {
   return serverAuthFetch(API.calendar.autoSync, {
     method: 'PUT',

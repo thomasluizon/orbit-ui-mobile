@@ -121,6 +121,11 @@ vi.mock('@/hooks/use-calendar-auto-sync', () => ({
   }),
 }))
 
+vi.mock('@/hooks/use-calendars', () => ({
+  useCalendars: () => ({ data: [], isLoading: false, isError: false }),
+  useSetSelectedCalendars: () => ({ mutateAsync: vi.fn() }),
+}))
+
 vi.mock('@/hooks/use-calendar-events', async () => {
   const { useEffect, useState } = await import('react')
   const { isCalendarSyncNotConnectedMessage } = await import('@orbit/shared/utils')

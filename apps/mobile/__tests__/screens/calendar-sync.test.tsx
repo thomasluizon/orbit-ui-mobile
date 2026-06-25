@@ -6,6 +6,11 @@ import CalendarSyncScreen from "@/app/calendar-sync";
 
 const TestRenderer = require("react-test-renderer");
 
+type TestNode = {
+  props: Record<string, unknown>;
+  findAll: (predicate: (node: TestNode) => boolean) => TestNode[];
+};
+
 const colorProxy: any = new Proxy(
   {},
   {
@@ -105,6 +110,11 @@ vi.mock("@/hooks/use-calendar-events", () => ({
   useCalendarEvents: () => mocks.eventsQuery,
 }));
 
+vi.mock("@/hooks/use-calendars", () => ({
+  useCalendars: () => ({ data: [], isLoading: false, isError: false }),
+  useSetSelectedCalendars: () => ({ mutate: vi.fn() }),
+}));
+
 vi.mock("@/lib/api-client", () => ({
   apiClient: mocks.apiClient,
 }));
@@ -172,7 +182,6 @@ vi.mock("lucide-react-native", () => {
   };
 });
 
-// Phase 5 v8 primitives consumed by the migrated calendar-sync screen.
 vi.mock("@/components/ui/app-bar", () => ({
   AppBar: () => null,
 }));
@@ -236,5 +245,103 @@ describe("CalendarSyncScreen", () => {
     expect(mocks.router.replace).toHaveBeenCalledWith("/upgrade");
     expect(mocks.router.push).not.toHaveBeenCalledWith("/upgrade");
     expect(mocks.eventsQuery.refetch).not.toHaveBeenCalled();
+  });
+
+  function buildEvents(count: number) {
+    return Array.from({ length: count }, (_value, index) => ({
+      id: `ev-${index}`,
+      title: `Event ${index}`,
+      description: null,
+      startDate: "2026-07-01",
+      startTime: null,
+      endTime: null,
+      isRecurring: false,
+      recurrenceRule: null,
+      reminders: [],
+      calendarName: "Work",
+    }));
+  }
+
+  function countEventTitles(root: {
+    findAll: (
+      predicate: (node: { props: Record<string, unknown>; type?: unknown }) => boolean,
+    ) => unknown[];
+  }) {
+    return root.findAll(
+      (node) =>
+        typeof node.type === "string" && /^Event \d+$/.test(String(node.props.children)),
+    ).length;
+  }
+
+  function findShowMore(root: {
+    findAll: (predicate: (node: { props: Record<string, unknown> }) => boolean) => {
+      props: Record<string, unknown>;
+    }[];
+  }) {
+    return root.findAll((node) => node.props.children === "calendar.showMore");
+  }
+
+  it("renders only the first page of events and reveals more on demand", async () => {
+    mocks.eventsQuery.data = { status: "connected", events: buildEvents(45) };
+
+    let tree: any;
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(<CalendarSyncScreen />);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(countEventTitles(tree.root)).toBe(20);
+
+    const showMore = findShowMore(tree.root);
+    expect(showMore.length).toBeGreaterThan(0);
+
+    const pressable = tree.root.find(
+      (node: TestNode) =>
+        node.props.accessibilityRole === "button" &&
+        typeof node.props.onPress === "function" &&
+        node.findAll((child: TestNode) =>
+          child.props.children === "calendar.showMore",
+        ).length > 0,
+    );
+
+    await TestRenderer.act(async () => {
+      (pressable.props.onPress as () => void)();
+      await Promise.resolve();
+    });
+
+    expect(countEventTitles(tree.root)).toBe(40);
+  });
+
+  it("does not show the pager when events fit on one page", async () => {
+    mocks.eventsQuery.data = { status: "connected", events: buildEvents(8) };
+
+    let tree: any;
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(<CalendarSyncScreen />);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(countEventTitles(tree.root)).toBe(8);
+    expect(findShowMore(tree.root).length).toBe(0);
+  });
+
+  it("shows the source calendar name in each event's meta", async () => {
+    mocks.eventsQuery.data = { status: "connected", events: buildEvents(1) };
+
+    let tree: any;
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(<CalendarSyncScreen />);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    const metaNodes = tree.root.findAll(
+      (node: { props: Record<string, unknown> }) =>
+        typeof node.props.children === "string" &&
+        (node.props.children as string).includes("Work"),
+    );
+    expect(metaNodes.length).toBeGreaterThan(0);
   });
 });

@@ -739,7 +739,7 @@ function ScheduledReminderSection({
                     value={time}
                     ariaLabel={t('habits.form.scheduledReminderTimePlaceholder')}
                     placeholder={t('habits.form.scheduledReminderTimePlaceholder')}
-                    className="form-input flex-1"
+                    className="flex-1"
                     onChange={setTime}
                   />
                   <button

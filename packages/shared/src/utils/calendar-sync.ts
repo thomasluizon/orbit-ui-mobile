@@ -12,6 +12,8 @@ export interface CalendarSyncEvent {
   isRecurring: boolean
   recurrenceRule: string | null
   reminders: number[]
+  calendarId?: string
+  calendarName?: string
 }
 
 export interface CalendarSyncParsedRecurrence {

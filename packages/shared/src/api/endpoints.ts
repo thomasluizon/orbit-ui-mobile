@@ -130,6 +130,8 @@ export const API = {
 
   calendar: {
     events: '/api/calendar/events',
+    calendars: '/api/calendar/calendars',
+    selectedCalendars: '/api/calendar/selected-calendars',
     dismiss: '/api/calendar/dismiss',
     autoSyncState: '/api/calendar/auto-sync/state',
     autoSync: '/api/calendar/auto-sync',
