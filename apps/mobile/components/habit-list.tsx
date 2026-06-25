@@ -13,7 +13,6 @@ import {
   Text,
   FlatList,
   TouchableOpacity,
-  StyleSheet,
   RefreshControl,
   ActivityIndicator,
 } from 'react-native'
@@ -36,7 +35,6 @@ import {
   getHabitEmptyStateKey,
   hasHabitScheduleOnDate,
   isHabitVisibleInAllView,
-  type ReorderableHabitItem,
 } from '@orbit/shared/utils'
 import type { NormalizedHabit, HabitsFilter } from '@orbit/shared/types/habit'
 import {
@@ -82,6 +80,13 @@ import {
   MoveParentDialog,
   type MoveParentOption,
 } from './habit-list/move-parent-dialog'
+import {
+  buildFlatHabitItems,
+  buildMoveParentOptions,
+  validateMoveTarget as computeMoveTargetValidation,
+  type DragItem,
+} from './habit-list/tree-helpers'
+import { createStyles } from './habit-list/styles'
 
 /**
  * Wraps a HabitRow in a measurable View that registers itself with the tour
@@ -139,16 +144,7 @@ export interface HabitListHandle {
   scrollToOffset: (offset: number) => void
 }
 
-type AppTokens = ReturnType<typeof createTokensV2>
 const TOUR_FEATURED_HABIT_ID = 'tour-habit-2'
-
-interface DragItem extends ReorderableHabitItem {
-  id: string
-  habit: NormalizedHabit
-  depth: number
-  hasChildren: boolean
-  hasSubHabits: boolean
-}
 
 export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
   function HabitList(
@@ -496,32 +492,10 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       autoCollapsedOnDragRef.current = null
     }, [])
 
-    const flatItems = useMemo<DragItem[]>(() => {
-      const items: DragItem[] = []
-
-      function addHabitTree(habit: NormalizedHabit, depth: number) {
-        const children = getVisibleChildren(habit.id)
-        items.push({
-          id: habit.id,
-          parentId: habit.parentId ?? null,
-          habit,
-          depth,
-          hasChildren: children.length > 0,
-          hasSubHabits: habit.hasSubHabits,
-        })
-        if (!collapsedIds.has(habit.id)) {
-          for (const child of children) {
-            addHabitTree(child, depth + 1)
-          }
-        }
-      }
-
-      for (const h of visibleHabits) {
-        addHabitTree(h, 0)
-      }
-
-      return items
-    }, [visibleHabits, collapsedIds, getVisibleChildren])
+    const flatItems = useMemo<DragItem[]>(
+      () => buildFlatHabitItems(visibleHabits, collapsedIds, getVisibleChildren),
+      [visibleHabits, collapsedIds, getVisibleChildren],
+    )
 
     const activeDragItems = dragOverrideItems ?? flatItems
     const activeDragItemsRef = useRef(activeDragItems)
@@ -808,133 +782,22 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       return t('habits.skipConfirmMessage')
     }, [habitToSkip, habitsById, isPostponeAction, t])
 
-    const getHabitDepth = useCallback(
-      (habitId: string): number => {
-        let depth = 0
-        let current = habitsById.get(habitId)
-
-        while (current?.parentId) {
-          depth += 1
-          current = habitsById.get(current.parentId)
-        }
-
-        return depth
-      },
-      [habitsById],
-    )
-
-    const getSubtreeMaxDepth = useCallback(
-      (habitId: string, baseDepth: number): number => {
-        function walk(currentId: string, currentDepth: number): number {
-          let maxDepth = currentDepth
-          const children = getChildren(currentId)
-
-          for (const child of children) {
-            const childMaxDepth = walk(child.id, currentDepth + 1)
-            if (childMaxDepth > maxDepth) {
-              maxDepth = childMaxDepth
-            }
-          }
-
-          return maxDepth
-        }
-
-        return walk(habitId, baseDepth)
-      },
-      [getChildren],
-    )
-
-    const isDescendant = useCallback(
-      (candidateId: string, ancestorId: string): boolean => {
-        let current = habitsById.get(candidateId)
-
-        while (current?.parentId) {
-          if (current.parentId === ancestorId) {
-            return true
-          }
-          current = habitsById.get(current.parentId)
-        }
-
-        return false
-      },
-      [habitsById],
-    )
-
     const validateMoveTarget = useCallback(
-      (targetParentId: string | null, draggedId: string) => {
-        if (targetParentId === draggedId) {
-          return {
-            valid: false,
-            reason: t('habits.moveParent.invalidSelf'),
-          }
-        }
-
-        if (targetParentId && isDescendant(targetParentId, draggedId)) {
-          return {
-            valid: false,
-            reason: t('habits.moveParent.invalidDescendant'),
-          }
-        }
-
-        const newParentDepth = targetParentId
-          ? getHabitDepth(targetParentId)
-          : -1
-        const subtreeMaxDepth = getSubtreeMaxDepth(
+      (targetParentId: string | null, draggedId: string) =>
+        computeMoveTargetValidation(
+          { habitsById, getChildren, maxHabitDepth, t },
+          targetParentId,
           draggedId,
-          newParentDepth + 1,
-        )
-
-        if (subtreeMaxDepth >= maxHabitDepth) {
-          return {
-            valid: false,
-            reason: t('habits.moveParent.invalidDepth', { max: maxHabitDepth }),
-          }
-        }
-
-        return {
-          valid: true,
-          reason: null,
-        }
-      },
-      [getHabitDepth, getSubtreeMaxDepth, isDescendant, maxHabitDepth, t],
+        ),
+      [getChildren, habitsById, maxHabitDepth, t],
     )
 
     const moveParentOptions = useMemo<MoveParentOption[]>(() => {
       if (!movingHabitId) return []
-      const movingId = movingHabitId
-
-      const options: MoveParentOption[] = []
-      const rootValidation = validateMoveTarget(null, movingId)
-
-      options.push({
-        id: null,
-        label: t('habits.moveParent.toRoot'),
-        depth: 0,
-        disabled: !rootValidation.valid,
-        reason: rootValidation.reason,
-      })
-
-      function addOption(habit: NormalizedHabit, depth: number) {
-        const validation = validateMoveTarget(habit.id, movingId)
-        options.push({
-          id: habit.id,
-          label: habit.title,
-          depth,
-          disabled: !validation.valid,
-          reason: validation.reason,
-        })
-
-        const children = getChildren(habit.id)
-        for (const child of children) {
-          addOption(child, depth + 1)
-        }
-      }
-
-      for (const habit of topLevelHabits) {
-        addOption(habit, 0)
-      }
-
-      return options
+      return buildMoveParentOptions(
+        { topLevelHabits, getChildren, validateMoveTarget, t },
+        movingHabitId,
+      )
     }, [getChildren, movingHabitId, t, topLevelHabits, validateMoveTarget])
 
     const selectedMoveOption = useMemo(
@@ -1739,150 +1602,3 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     )
   },
 )
-
-function alpha(color: string, opacity: number): string {
-  const normalized = color.trim()
-
-  if (normalized.startsWith('rgba(')) {
-    const channels = normalized
-      .slice(5, -1)
-      .split(',')
-      .slice(0, 3)
-      .join(',')
-      .trim()
-    return `rgba(${channels}, ${opacity})`
-  }
-
-  if (normalized.startsWith('rgb(')) {
-    const channels = normalized.slice(4, -1).trim()
-    return `rgba(${channels}, ${opacity})`
-  }
-
-  const hex = normalized.replace('#', '')
-  if (hex.length !== 6) {
-    return normalized
-  }
-
-  const r = Number.parseInt(hex.slice(0, 2), 16)
-  const g = Number.parseInt(hex.slice(2, 4), 16)
-  const b = Number.parseInt(hex.slice(4, 6), 16)
-  return `rgba(${r}, ${g}, ${b}, ${opacity})`
-}
-
-function createStyles(tokens: AppTokens) {
-  const skeletonBone = alpha(tokens.fg1, 0.08)
-
-  return StyleSheet.create({
-    skeletonContainer: {
-      paddingTop: 8,
-      paddingBottom: 100,
-      gap: 10,
-    },
-    skeletonCard: {
-      marginHorizontal: 20,
-      backgroundColor: tokens.bgCard,
-      borderRadius: 18,
-      borderWidth: 1,
-      borderColor: tokens.hairline,
-      paddingVertical: 14,
-      paddingHorizontal: 16,
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 14,
-    },
-    skeletonCircle: {
-      width: 46,
-      height: 46,
-      borderRadius: 14,
-      backgroundColor: skeletonBone,
-    },
-    skeletonContent: {
-      flex: 1,
-      gap: 8,
-    },
-    skeletonTitle: {
-      height: 12,
-      width: '55%',
-      backgroundColor: skeletonBone,
-      borderRadius: 6,
-    },
-    skeletonSubtitle: {
-      height: 12,
-      width: '32%',
-      backgroundColor: skeletonBone,
-      borderRadius: 6,
-    },
-    skeletonCheck: {
-      width: 30,
-      height: 30,
-      borderRadius: 999,
-      backgroundColor: skeletonBone,
-    },
-
-    sectionInset: {},
-    listContent: {
-      paddingBottom: 100,
-    },
-    listContentWithBulkBar: {
-      paddingBottom: 220,
-    },
-    groupedList: {
-      paddingBottom: 100,
-    },
-    allViewChild: {
-      gap: 6,
-    },
-
-    drillHeader: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 12,
-      paddingHorizontal: 20,
-      paddingVertical: 10,
-      marginBottom: 8,
-    },
-    drillBackBtn: {
-      width: 40,
-      height: 40,
-      borderRadius: 999,
-      borderWidth: 1.5,
-      borderColor: tokens.hairlineStrong,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-    drillTitle: {
-      fontFamily: 'Rubik_500Medium',
-      fontSize: 16,
-      color: tokens.fg1,
-    },
-    drillProgress: {
-      fontFamily: 'Roboto_400Regular',
-      fontSize: 12,
-      letterSpacing: 0.24,
-      fontVariant: ['tabular-nums'],
-      color: tokens.fg3,
-      marginTop: 2,
-    },
-    drillAddBtn: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      justifyContent: 'center',
-      gap: 8,
-      paddingVertical: 12,
-      marginHorizontal: 20,
-    },
-    drillAddBtnText: {
-      fontFamily: 'Rubik_500Medium',
-      fontSize: 13,
-      color: tokens.fg3,
-    },
-    emptyText: {
-      fontFamily: 'Rubik_400Regular',
-      fontSize: 14,
-      color: tokens.fg3,
-      textAlign: 'center',
-      marginTop: 32,
-      paddingHorizontal: 24,
-    },
-  })
-}
