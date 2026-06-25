@@ -3,46 +3,25 @@ import {
   View,
   Text,
   Pressable,
-  StyleSheet,
   ScrollView,
 } from 'react-native'
-import Animated, { FadeInDown, ReduceMotion } from 'react-native-reanimated'
 import * as Clipboard from 'expo-clipboard'
 import { useRouter } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
 import { enUS, ptBR } from 'date-fns/locale'
-import {
-  CheckCircle,
-  Clock,
-  List,
-  Lock,
-  Plus,
-  RotateCcw,
-  Smartphone,
-} from 'lucide-react-native'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { Lock, Plus, Smartphone } from 'lucide-react-native'
+import { useQueryClient } from '@tanstack/react-query'
 import { buildUpgradeHref } from '@/lib/upgrade-route'
 import { formatDistanceToNow, parseISO } from 'date-fns'
-import { API } from '@orbit/shared/api'
 import {
   buildMcpConfigJson,
   MCP_CONFIG_TABS,
   MCP_ENDPOINT_URL,
   WIDGET_FEATURES,
   WIDGET_STEP_KEYS,
-  type WidgetFeatureIconKey,
 } from '@orbit/shared/utils/advanced-settings'
-import type {
-  AgentCapability,
-  ApiKey,
-  ApiKeyCreateRequest,
-  ApiKeyCreateResponse,
-} from '@orbit/shared/types'
-import { aiKeys, apiKeyKeys } from '@orbit/shared/query'
 import { useProfile } from '@/hooks/use-profile'
-import { apiClient } from '@/lib/api-client'
-import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
 import { useOffline } from '@/hooks/use-offline'
 import { CreateApiKeyModal } from '@/components/ui/create-api-key-modal'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
@@ -54,23 +33,13 @@ import { SectionLabel } from '@/components/ui/section-label'
 import { SettingsRow } from '@/components/ui/settings-row'
 import { Chip } from '@/components/ui/chip'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
-
-function rowEntrance(index: number) {
-  return FadeInDown.duration(280)
-    .delay(Math.min(index, 8) * 40)
-    .reduceMotion(ReduceMotion.System)
-}
-
-function WidgetFeatureIcon({
-  iconKey,
-  color,
-}: Readonly<{ iconKey: WidgetFeatureIconKey; color: string }>) {
-  const iconProps = { size: 16, strokeWidth: 1.8, color }
-  if (iconKey === 'checkCircle') return <CheckCircle {...iconProps} />
-  if (iconKey === 'clock') return <Clock {...iconProps} />
-  if (iconKey === 'list') return <List {...iconProps} />
-  return <RotateCcw {...iconProps} />
-}
+import { useApiKeyManagement } from './advanced-api-keys'
+import {
+  ApiKeyCard,
+  QueryStateMessage,
+  WidgetFeatureIcon,
+} from './advanced-sections'
+import { styles } from './advanced-styles'
 
 export default function AdvancedScreen() {
   const { t, i18n } = useTranslation()
@@ -88,80 +57,25 @@ export default function AdvancedScreen() {
 
   const [showWidgetInfo, setShowWidgetInfo] = useState(false)
 
-  const apiKeysQuery = useQuery({
-    queryKey: apiKeyKeys.lists(),
-    queryFn: () => apiClient<ApiKey[]>(API.apiKeys.list),
-    enabled: profile?.hasProAccess ?? false,
-    staleTime: 5 * 60 * 1000,
-  })
-
-  const capabilitiesQuery = useQuery({
-    queryKey: aiKeys.capabilities(),
-    queryFn: () => apiClient<AgentCapability[]>(API.ai.capabilities),
-    enabled: profile?.hasProAccess ?? false,
-    staleTime: 5 * 60 * 1000,
-  })
-
-  const apiKeys = apiKeysQuery.data ?? []
-  const scopeOptions = useMemo(() => {
-    const grouped = new Map<string, string[]>()
-
-    for (const capability of capabilitiesQuery.data ?? []) {
-      const descriptions = grouped.get(capability.scope) ?? []
-      descriptions.push(capability.displayName)
-      grouped.set(capability.scope, descriptions)
-    }
-
-    return Array.from(grouped.entries())
-      .map(([scope, labels]) => ({
-        scope,
-        label: scope,
-        description: labels.join(', '),
-      }))
-      .sort((left, right) => left.scope.localeCompare(right.scope))
-  }, [capabilitiesQuery.data])
-  const MAX_API_KEYS = 5
-  const canCreateKey = apiKeys.length < MAX_API_KEYS
-  const canCreateScopedKey =
-    canCreateKey &&
-    !capabilitiesQuery.isLoading &&
-    !capabilitiesQuery.error &&
-    scopeOptions.length > 0
-
-  const [createKeyModalOpen, setCreateKeyModalOpen] = useState(false)
-  const [createKeyError, setCreateKeyError] = useState<string | null>(null)
-  const [revokingKeyId, setRevokingKeyId] = useState<string | null>(null)
-
-  const revokeKeyMutation = useMutation({
-    mutationFn: (id: string) =>
-      performQueuedApiMutation({
-        type: 'deleteApiKey',
-        scope: 'apiKeys',
-        endpoint: API.apiKeys.delete(id),
-        method: 'DELETE',
-        payload: undefined,
-        targetEntityId: id,
-        dedupeKey: `api-key-delete-${id}`,
-      }),
-    onMutate: async (id) => {
-      await queryClient.cancelQueries({ queryKey: apiKeyKeys.all })
-      const previous = queryClient.getQueryData<ApiKey[]>(apiKeyKeys.lists())
-      queryClient.setQueryData<ApiKey[]>(apiKeyKeys.lists(), (old) =>
-        old ? old.filter((key) => key.id !== id) : old,
-      )
-      return { previous }
-    },
-    onError: (_err, _id, context: { previous?: ApiKey[] } | undefined) => {
-      if (context?.previous) {
-        queryClient.setQueryData(apiKeyKeys.lists(), context.previous)
-      }
-    },
-    onSettled: () => {
-      setRevokingKeyId(null)
-      if (isOnline) {
-        queryClient.invalidateQueries({ queryKey: apiKeyKeys.all })
-      }
-    },
+  const {
+    apiKeysQuery,
+    capabilitiesQuery,
+    apiKeys,
+    scopeOptions,
+    canCreateKey,
+    canCreateScopedKey,
+    createKeyModalOpen,
+    setCreateKeyModalOpen,
+    createKeyError,
+    revokingKeyId,
+    setRevokingKeyId,
+    revokeKeyMutation,
+    handleCreateKey,
+  } = useApiKeyManagement({
+    hasProAccess: profile?.hasProAccess ?? false,
+    isOnline,
+    queryClient,
+    t,
   })
 
   const [activeConfigTab, setActiveConfigTab] =
@@ -176,27 +90,6 @@ export default function AdvancedScreen() {
       addSuffix: true,
       locale: dateFnsLocale,
     })
-  }
-
-  async function handleCreateKey(
-    request: ApiKeyCreateRequest,
-  ): Promise<ApiKeyCreateResponse | null> {
-    setCreateKeyError(null)
-    if (!isOnline) {
-      setCreateKeyError(t('errors.offline'))
-      return null
-    }
-    try {
-      const result = await apiClient<ApiKeyCreateResponse>(API.apiKeys.create, {
-        method: 'POST',
-        body: JSON.stringify(request),
-      })
-      await queryClient.invalidateQueries({ queryKey: apiKeyKeys.all })
-      return result
-    } catch {
-      setCreateKeyError(t('orbitMcp.createKeyError'))
-      return null
-    }
   }
 
   async function copyEndpoint() {
@@ -259,93 +152,39 @@ export default function AdvancedScreen() {
             ) : null}
 
             {apiKeysQuery.error && !apiKeysQuery.isLoading ? (
-              <View style={styles.messageBlock}>
-                <Text style={[styles.messageText, { color: tokens.statusBad }]}>
-                  {t('orbitMcp.apiKeysError')}
-                </Text>
-              </View>
+              <QueryStateMessage
+                text={t('orbitMcp.apiKeysError')}
+                color={tokens.statusBad}
+              />
             ) : null}
 
             {capabilitiesQuery.error && !capabilitiesQuery.isLoading ? (
-              <View style={styles.messageBlock}>
-                <Text style={[styles.messageText, { color: tokens.statusBad }]}>
-                  {t('orbitMcp.apiKeysError')}
-                </Text>
-              </View>
+              <QueryStateMessage
+                text={t('orbitMcp.apiKeysError')}
+                color={tokens.statusBad}
+              />
             ) : null}
 
             {!apiKeysQuery.isLoading &&
             !apiKeysQuery.error &&
             apiKeys.length === 0 ? (
-              <View style={styles.messageBlock}>
-                <Text style={[styles.messageText, { color: tokens.fg3 }]}>
-                  {t('orbitMcp.noKeys')}
-                </Text>
-              </View>
+              <QueryStateMessage
+                text={t('orbitMcp.noKeys')}
+                color={tokens.fg3}
+              />
             ) : null}
 
-            {apiKeys.map((key, index) => {
-              const lastUsed = key.lastUsedAtUtc
-                ? `${t('orbitMcp.lastUsed')} ${formatKeyDate(key.lastUsedAtUtc)}`
-                : t('orbitMcp.never')
-              const perm = key.isReadOnly
-                ? t('orbitMcp.permReadOnly')
-                : t('orbitMcp.permReadWrite')
-              const meta = `${perm} · ${lastUsed} · ${t('orbitMcp.created')} ${formatKeyDate(key.createdAtUtc)}`
-              return (
-                <Animated.View
-                  key={key.id}
-                  entering={rowEntrance(index)}
-                  style={[
-                    styles.keyCard,
-                    {
-                      backgroundColor: tokens.bgCard,
-                      borderColor: tokens.hairline,
-                    },
-                  ]}
-                >
-                  <View style={styles.keyTopRow}>
-                    <Text
-                      style={[styles.keyName, { color: tokens.fg1 }]}
-                      numberOfLines={1}
-                    >
-                      {key.name}
-                    </Text>
-                    <Pressable
-                      onPress={() => setRevokingKeyId(key.id)}
-                      accessibilityRole="button"
-                      accessibilityLabel={t('orbitMcp.revoke')}
-                      style={({ pressed }) => [
-                        styles.actionChip,
-                        {
-                          backgroundColor: pressed ? tokens.bgElev2 : tokens.bgElev,
-                          borderColor: tokens.hairline,
-                        },
-                        pressed ? styles.actionChipPressed : null,
-                      ]}
-                      hitSlop={8}
-                    >
-                      <Text
-                        style={[styles.revokeLink, { color: tokens.statusBad }]}
-                      >
-                        {t('orbitMcp.revoke')}
-                      </Text>
-                    </Pressable>
-                  </View>
-                  <Text
-                    style={[styles.keyPrefix, { color: tokens.fg2 }]}
-                  >
-                    {`${key.keyPrefix}…`}
-                  </Text>
-                  <Text
-                    style={[styles.keyMeta, { color: tokens.fg3 }]}
-                    numberOfLines={2}
-                  >
-                    {meta}
-                  </Text>
-                </Animated.View>
-              )
-            })}
+            {apiKeys.map((key, index) => (
+              <ApiKeyCard
+                key={key.id}
+                apiKey={key}
+                index={index}
+                tokens={tokens}
+                t={t}
+                formatKeyDate={formatKeyDate}
+                onRevoke={setRevokingKeyId}
+              />
+            ))}
 
             {canCreateKey ? (
               <View style={styles.actionPad}>
@@ -373,13 +212,10 @@ export default function AdvancedScreen() {
                 </Pressable>
               </View>
             ) : (
-              <View style={styles.messageBlock}>
-                <Text
-                  style={[styles.messageText, { color: tokens.statusOverdueText }]}
-                >
-                  {t('orbitMcp.maxKeysReached')}
-                </Text>
-              </View>
+              <QueryStateMessage
+                text={t('orbitMcp.maxKeysReached')}
+                color={tokens.statusOverdueText}
+              />
             )}
 
             <SectionLabel>{t('orbitMcp.connectionInstructions')}</SectionLabel>
@@ -554,189 +390,3 @@ export default function AdvancedScreen() {
     </SafeAreaView>
   )
 }
-
-const styles = StyleSheet.create({
-  safeArea: { flex: 1 },
-  container: { flex: 1 },
-  scrollContent: { paddingBottom: 40 },
-  skelStack: {
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    gap: 8,
-  },
-  skelBar: {
-    height: 64,
-    borderRadius: 16,
-  },
-  messageBlock: {
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-  },
-  messageText: {
-    fontFamily: 'Rubik_400Regular',
-    fontSize: 13,
-    lineHeight: 19,
-  },
-  keyCard: {
-    marginHorizontal: 20,
-    marginBottom: 8,
-    borderRadius: 16,
-    borderWidth: 1,
-    paddingHorizontal: 16,
-    paddingVertical: 14,
-    gap: 4,
-  },
-  keyTopRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: 12,
-  },
-  keyName: {
-    fontFamily: 'Rubik_500Medium',
-    fontSize: 15,
-    flexShrink: 1,
-  },
-  keyPrefix: {
-    fontFamily: 'Roboto_400Regular',
-    fontSize: 13,
-    fontVariant: ['tabular-nums'],
-  },
-  keyMeta: {
-    fontFamily: 'Rubik_400Regular',
-    fontSize: 12,
-    lineHeight: 17,
-  },
-  revokeLink: {
-    fontFamily: 'Rubik_500Medium',
-    fontSize: 13,
-  },
-  actionPad: {
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-  },
-  createKeyChip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    gap: 6,
-    borderRadius: 999,
-    borderWidth: 1,
-    paddingVertical: 9,
-    paddingHorizontal: 16,
-  },
-  createKeyChipDisabled: {
-    opacity: 0.4,
-  },
-  actionChip: {
-    borderRadius: 999,
-    borderWidth: 1,
-    paddingVertical: 9,
-    paddingHorizontal: 16,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  actionChipPressed: {
-    transform: [{ scale: 0.96 }],
-  },
-  actionLink: {
-    fontFamily: 'Rubik_500Medium',
-    fontSize: 13,
-  },
-  lockedRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 14,
-    gap: 10,
-  },
-  lockedTitle: {
-    fontFamily: 'Rubik_500Medium',
-    fontSize: 14,
-  },
-  lockedDesc: {
-    fontFamily: 'Rubik_400Regular',
-    fontSize: 13,
-    lineHeight: 19,
-  },
-  tabRow: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 6,
-    paddingHorizontal: 20,
-    paddingTop: 4,
-    paddingBottom: 12,
-  },
-  codeWell: {
-    marginHorizontal: 20,
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderRadius: 14,
-    borderWidth: 1,
-    gap: 6,
-  },
-  codeText: {
-    fontFamily: 'Roboto_400Regular',
-    fontSize: 12,
-    lineHeight: 19,
-    fontVariant: ['tabular-nums'],
-  },
-  copyRow: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-  },
-  copyBtn: {
-    borderRadius: 999,
-    borderWidth: 1,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-  },
-  copyBtnText: {
-    fontFamily: 'Rubik_500Medium',
-    fontSize: 12,
-  },
-  hintPad: {
-    paddingHorizontal: 20,
-    paddingVertical: 6,
-  },
-  hintText: {
-    fontFamily: 'Rubik_400Regular',
-    fontSize: 12.5,
-    lineHeight: 18,
-  },
-  widgetSheetScroll: {
-    flexGrow: 0,
-  },
-  widgetSheetContent: {
-    paddingHorizontal: 22,
-    paddingBottom: 24,
-    gap: 16,
-  },
-  widgetHeading: {
-    fontFamily: 'Rubik_500Medium',
-    fontSize: 15,
-  },
-  widgetList: {
-    gap: 10,
-  },
-  widgetStepRow: {
-    flexDirection: 'row',
-    gap: 8,
-  },
-  widgetStepNumber: {
-    fontFamily: 'Roboto_500Medium',
-    fontSize: 14,
-    fontVariant: ['tabular-nums'],
-  },
-  widgetFeatureRow: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 8,
-  },
-  widgetItemText: {
-    flex: 1,
-    fontFamily: 'Rubik_400Regular',
-    fontSize: 14,
-    lineHeight: 21,
-  },
-})

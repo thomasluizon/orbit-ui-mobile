@@ -1,13 +1,11 @@
 import { useState, useCallback, useMemo } from 'react'
 import {
   ScrollView,
-  StyleSheet,
   Text,
   TouchableOpacity,
   View,
 } from 'react-native'
 import { useTranslation } from 'react-i18next'
-import { ChevronRight, Orbit } from 'lucide-react-native'
 import { useRouter } from 'expo-router'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { BottomSheetModal } from '@/components/bottom-sheet-modal'
@@ -19,6 +17,10 @@ import { HabitChecklist } from './habit-checklist'
 import { DescriptionViewer } from './description-viewer'
 import { HabitCalendar } from './habit-calendar'
 import { HabitDetailStatsRow } from './habit-detail-sections'
+import { HabitDetailHeader } from './habit-detail-drawer/habit-detail-header'
+import { HabitDetailReminders } from './habit-detail-drawer/habit-detail-reminders'
+import { HabitAskAstraButton } from './habit-detail-drawer/habit-ask-astra-button'
+import { createDrawerStyles } from './habit-detail-drawer/styles'
 import { useTimeFormat } from '@/hooks/use-time-format'
 import {
   useHabitFullDetail,
@@ -37,57 +39,9 @@ interface HabitDetailDrawerProps {
   onLogged?: (habitId: string) => void
 }
 
-type HabitDetailStyles = ReturnType<typeof createStyles>
+type HabitDetailStyles = ReturnType<typeof createDrawerStyles>
 type HabitDetailTokens = ReturnType<typeof createTokensV2>
 
-interface HabitAskAstraButtonProps {
-  tokens: HabitDetailTokens
-  styles: HabitDetailStyles
-  askPrompt: string
-  onPress: () => void
-}
-
-function HabitAskAstraButton({
-  tokens,
-  styles,
-  askPrompt,
-  onPress,
-}: Readonly<HabitAskAstraButtonProps>) {
-  const { t } = useTranslation()
-  return (
-    <TouchableOpacity
-      activeOpacity={0.7}
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityLabel={`${t('habits.detail.askAstraEyebrow')}: ${askPrompt}`}
-      style={styles.askAstra}
-    >
-      <View
-        style={[
-          styles.askAstraRule,
-          { backgroundColor: tokens.primary },
-        ]}
-      />
-      <View style={styles.askAstraContent}>
-        <View style={styles.askAstraEyebrow}>
-          <Orbit size={12} color={tokens.primary} strokeWidth={1.7} />
-          <Text
-            style={[
-              styles.askAstraEyebrowText,
-              { color: tokens.fg3 },
-            ]}
-          >
-            {t('habits.detail.askAstraEyebrow')}
-          </Text>
-        </View>
-        <Text style={[styles.askAstraBody, { color: tokens.fg2 }]}>
-          {askPrompt}
-        </Text>
-      </View>
-      <ChevronRight size={16} color={tokens.fg3} strokeWidth={1.7} />
-    </TouchableOpacity>
-  )
-}
 type ChecklistItems = NonNullable<NormalizedHabit['checklistItems']>
 type HabitMetrics = NonNullable<
   ReturnType<typeof useHabitFullDetail>['data']
@@ -141,45 +95,12 @@ function HabitDetailContent({
       showsVerticalScrollIndicator={false}
       keyboardShouldPersistTaps="always"
     >
-      {habit.emoji || summaryStrip || habit.tags.length > 0 ? (
-        <View style={styles.titleBlock}>
-          {habit.emoji ? (
-            <View
-              style={[
-                styles.emojiWell,
-                habit.isBadHabit
-                  ? { backgroundColor: `${tokens.statusBad}1F` }
-                  : null,
-              ]}
-            >
-              <Text style={styles.emojiWellText}>{habit.emoji}</Text>
-            </View>
-          ) : null}
-          {summaryStrip ? (
-            <Text
-              style={[
-                styles.titleMeta,
-                { color: habit.isBadHabit ? tokens.statusBad : tokens.fg3 },
-              ]}
-              numberOfLines={2}
-            >
-              {summaryStrip}
-            </Text>
-          ) : null}
-          {habit.tags.length > 0 ? (
-            <View style={styles.drawerTagRow}>
-              {habit.tags.map((tag) => (
-                <View key={tag.id} style={styles.drawerTagChip}>
-                  <View style={[styles.drawerTagDot, { backgroundColor: tag.color }]} />
-                  <Text style={[styles.drawerTagName, { color: tokens.fg3 }]}>
-                    {tag.name}
-                  </Text>
-                </View>
-              ))}
-            </View>
-          ) : null}
-        </View>
-      ) : null}
+      <HabitDetailHeader
+        habit={habit}
+        tokens={tokens}
+        styles={styles}
+        summaryStrip={summaryStrip}
+      />
 
       {habit.description ? (
         <TouchableOpacity
@@ -226,32 +147,7 @@ function HabitDetailContent({
         </View>
       ) : null}
 
-      {habit.dueTime ? (
-        <View>
-          <SectionLabel top={8} bottom={0}>
-            {t('habits.detail.reminders')}
-          </SectionLabel>
-          <SettingsRow
-            label={t('habits.form.dueTime')}
-            value={displayTime(habit.dueTime)}
-            mono
-            accessory="none"
-          />
-          {habit.scheduledReminders?.map((sr, idx) => (
-            <SettingsRow
-              key={`${sr.when}-${sr.time}-${idx}`}
-              label={
-                sr.when === 'day_before'
-                  ? t('habits.form.scheduledReminderDayBefore')
-                  : t('habits.form.scheduledReminderSameDay')
-              }
-              value={displayTime(sr.time)}
-              mono
-              accessory="none"
-            />
-          ))}
-        </View>
-      ) : null}
+      <HabitDetailReminders habit={habit} displayTime={displayTime} />
 
       {habit.endDate ? (
         <SettingsRow
@@ -317,7 +213,7 @@ export function HabitDetailDrawer({
   const { displayTime } = useTimeFormat()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
-  const styles = useMemo(() => createStyles(tokens), [tokens])
+  const styles = useMemo(() => createDrawerStyles(tokens), [tokens])
   const habitId = habit?.id ?? ''
 
   const { data: fullDetail, isLoading: metricsLoading } = useHabitFullDetail(
@@ -462,116 +358,4 @@ export function HabitDetailDrawer({
       </BottomSheetModal>
     </>
   )
-}
-
-function createStyles(tokens: ReturnType<typeof createTokensV2>) {
-  return StyleSheet.create({
-    scroll: {
-      flex: 1,
-    },
-    scrollContent: {
-      paddingBottom: 40,
-      gap: 0,
-    },
-    titleBlock: {
-      alignItems: 'center',
-      gap: 10,
-      paddingHorizontal: 20,
-      paddingTop: 8,
-      paddingBottom: 16,
-    },
-    drawerTagRow: {
-      flexDirection: 'row',
-      flexWrap: 'wrap',
-      justifyContent: 'center',
-      alignItems: 'center',
-      gap: 8,
-    },
-    drawerTagChip: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 5,
-    },
-    drawerTagDot: {
-      width: 6,
-      height: 6,
-      borderRadius: 3,
-    },
-    drawerTagName: {
-      fontFamily: 'Rubik_400Regular',
-      fontSize: 13,
-    },
-    emojiWell: {
-      width: 76,
-      height: 76,
-      borderRadius: 22,
-      alignItems: 'center',
-      justifyContent: 'center',
-      backgroundColor: `${tokens.fg1}0F`,
-    },
-    emojiWellText: {
-      fontSize: 38,
-      lineHeight: 46,
-    },
-    titleMeta: {
-      fontFamily: 'Rubik_400Regular',
-      fontSize: 14,
-      lineHeight: 20,
-      textAlign: 'center',
-    },
-    description: {
-      paddingHorizontal: 20,
-      paddingVertical: 12,
-      fontFamily: 'Rubik_400Regular',
-      fontSize: 14,
-      lineHeight: 21,
-      color: tokens.fg2,
-      borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: tokens.hairline,
-    },
-    sectionInset: {
-      paddingHorizontal: 20,
-      paddingBottom: 8,
-    },
-    askAstra: {
-      position: 'relative',
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 12,
-      paddingLeft: 34,
-      paddingRight: 20,
-      paddingTop: 16,
-      paddingBottom: 24,
-      borderTopWidth: StyleSheet.hairlineWidth,
-      borderTopColor: tokens.hairline,
-      marginTop: 8,
-    },
-    askAstraRule: {
-      position: 'absolute',
-      left: 20,
-      top: 20,
-      bottom: 28,
-      width: 2,
-      borderRadius: 1,
-    },
-    askAstraContent: {
-      flex: 1,
-    },
-    askAstraEyebrow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 6,
-      marginBottom: 6,
-    },
-    askAstraEyebrowText: {
-      fontFamily: 'Roboto_500Medium',
-      fontSize: 10.5,
-      letterSpacing: 0.63,
-    },
-    askAstraBody: {
-      fontFamily: 'Rubik_400Regular',
-      fontSize: 14,
-      lineHeight: 20,
-    },
-  })
 }

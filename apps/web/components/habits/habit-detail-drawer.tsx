@@ -2,7 +2,6 @@
 
 import { useState, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
-import { Orbit, ChevronRight } from 'lucide-react'
 import { useTranslations, useLocale } from 'next-intl'
 import { AppOverlay } from '@/components/ui/app-overlay'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
@@ -14,6 +13,9 @@ import {
   HabitDetailStatsGrid,
   type TranslationFn,
 } from './habit-detail-sections'
+import { HabitDetailHeader } from './habit-detail-drawer/habit-detail-header'
+import { HabitDetailReminders } from './habit-detail-drawer/habit-detail-reminders'
+import { HabitAskAstraButton } from './habit-detail-drawer/habit-ask-astra-button'
 import { DescriptionViewer } from './description-viewer'
 import { useTimeFormat } from '@/hooks/use-time-format'
 import { useHabitFullDetail, useUpdateChecklist, useLogHabit } from '@/hooks/use-habits'
@@ -137,160 +139,19 @@ export function HabitDetailDrawer({
         title={habit?.title}
         titleContent={
           habit ? (
-            <span
-              className="flex w-full flex-col items-center text-center"
-              style={{ gap: 10, paddingTop: 8 }}
-            >
-              {habit.emoji ? (
-                <span
-                  aria-hidden="true"
-                  className="inline-flex shrink-0 items-center justify-center"
-                  style={{
-                    width: 76,
-                    height: 76,
-                    borderRadius: 22,
-                    fontSize: 38,
-                    background: habit.isBadHabit
-                      ? 'color-mix(in srgb, var(--status-bad) 12%, transparent)'
-                      : 'color-mix(in srgb, var(--fg-1) 6%, transparent)',
-                  }}
-                >
-                  {habit.emoji}
-                </span>
-              ) : null}
-              <span
-                style={{
-                  fontFamily: 'var(--font-sans)',
-                  fontSize: 24,
-                  fontWeight: 500,
-                  lineHeight: 1.3,
-                  color: 'var(--fg-1)',
-                }}
-              >
-                {habit.title}
-              </span>
-              {summaryStrip ? (
-                <span
-                  style={{
-                    fontFamily: 'var(--font-sans)',
-                    fontSize: 14,
-                    fontWeight: 400,
-                    color: habit.isBadHabit ? 'var(--status-bad)' : 'var(--fg-3)',
-                  }}
-                >
-                  {summaryStrip}
-                </span>
-              ) : null}
-              {habit.tags.length > 0 ? (
-                <span className="flex flex-wrap items-center justify-center" style={{ gap: 8 }}>
-                  {habit.tags.map((tag) => (
-                    <span key={tag.id} className="inline-flex items-center" style={{ gap: 5 }}>
-                      <span
-                        aria-hidden="true"
-                        className="rounded-full shrink-0"
-                        style={{ width: 6, height: 6, background: tag.color }}
-                      />
-                      <span
-                        style={{
-                          fontFamily: 'var(--font-sans)',
-                          fontSize: 13,
-                          color: 'var(--fg-3)',
-                          lineHeight: 1.2,
-                        }}
-                      >
-                        {tag.name}
-                      </span>
-                    </span>
-                  ))}
-                </span>
-              ) : null}
-            </span>
+            <HabitDetailHeader habit={habit} summaryStrip={summaryStrip} />
           ) : undefined
         }
         description={habit?.description ?? undefined}
         expandable
         onExpandDescription={() => setDescriptionViewerOpen(true)}
         footer={
-          <button
-            type="button"
-            onClick={handleAskAstra}
-            aria-label={`${t('habits.detail.askAstraEyebrow')}: ${askPrompt}`}
-            className="block w-full text-left appearance-none border-0 bg-transparent cursor-pointer transition-[background-color,transform] duration-150 ease-out hover:bg-[var(--bg-elev-pressed)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-primary active:scale-[0.99]"
-            style={{ borderRadius: 8, padding: '8px 10px', margin: '-8px -10px' }}
-          >
-            <div className="flex items-center gap-3">
-              <div className="relative flex-1 min-w-0" style={{ paddingLeft: 14 }}>
-                <span
-                  aria-hidden="true"
-                  className="absolute rounded-[1px]"
-                  style={{ left: 0, top: 4, bottom: 4, width: 2, background: 'var(--primary)' }}
-                />
-                <div className="inline-flex items-center" style={{ gap: 6, marginBottom: 6 }}>
-                  <Orbit size={12} strokeWidth={1.7} color="var(--primary)" />
-                  <span
-                    style={{
-                      fontFamily: 'var(--font-mono)',
-                      fontSize: 10.5,
-                      fontWeight: 500,
-                      letterSpacing: '0.06em',
-                      color: 'var(--fg-3)',
-                    }}
-                  >
-                    {t('habits.detail.askAstraEyebrow')}
-                  </span>
-                </div>
-                <div
-                  style={{
-                    fontFamily: 'var(--font-sans)',
-                    fontSize: 15,
-                    lineHeight: 1.5,
-                    color: 'var(--fg-2)',
-                    textWrap: 'pretty',
-                  }}
-                >
-                  {askPrompt}
-                </div>
-              </div>
-              <ChevronRight
-                size={16}
-                strokeWidth={1.7}
-                color="var(--fg-3)"
-                aria-hidden="true"
-                className="shrink-0"
-              />
-            </div>
-          </button>
+          <HabitAskAstraButton askPrompt={askPrompt} onPress={handleAskAstra} />
         }
       >
         {habit && (
           <div className="overlay-bleed">
-            {habit.dueTime && (
-              <SettingsRow
-                label={t('habits.form.dueTime')}
-                value={displayTime(habit.dueTime)}
-                mono
-                accessory="none"
-              />
-            )}
-
-            {habit.scheduledReminders && habit.scheduledReminders.length > 0 && (
-              <>
-                <SectionLabel>{t('habits.detail.reminders')}</SectionLabel>
-                {habit.scheduledReminders.map((sr, idx) => (
-                  <SettingsRow
-                    key={`${sr.when}-${sr.time}-${idx}`}
-                    label={
-                      sr.when === 'day_before'
-                        ? t('habits.form.scheduledReminderDayBefore')
-                        : t('habits.form.scheduledReminderSameDay')
-                    }
-                    value={displayTime(sr.time)}
-                    mono
-                    accessory="none"
-                  />
-                ))}
-              </>
-            )}
+            <HabitDetailReminders habit={habit} displayTime={displayTime} />
 
             {habit.endDate && (
               <SettingsRow

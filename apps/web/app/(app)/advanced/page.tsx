@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState } from 'react'
 import Link from 'next/link'
 import {
   CheckCircle,
@@ -9,15 +9,13 @@ import {
   RotateCcw,
   ChevronRight,
   ChevronDown,
-  Clipboard,
-  Check,
   Plus,
   Lock,
   Smartphone,
 } from 'lucide-react'
 import { AppBar } from '@/components/ui/app-bar'
 import { SectionLabel } from '@/components/ui/section-label'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useQueryClient } from '@tanstack/react-query'
 import { formatDistanceToNow, parseISO } from 'date-fns'
 import { enUS, ptBR } from 'date-fns/locale'
 import { useTranslations, useLocale } from 'next-intl'
@@ -28,8 +26,6 @@ import {
   WIDGET_FEATURES,
   WIDGET_STEP_KEYS,
 } from '@orbit/shared/utils/advanced-settings'
-import { aiKeys, apiKeyKeys } from '@orbit/shared/query'
-import { API } from '@orbit/shared/api'
 import { useProfile } from '@/hooks/use-profile'
 import { ProBadge } from '@/components/ui/pro-badge'
 import { AppOverlay } from '@/components/ui/app-overlay'
@@ -37,105 +33,14 @@ import { Chip } from '@/components/ui/chip'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { CreateApiKeyModal } from '@/components/ui/create-api-key-modal'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
-import type {
-  AgentCapability,
-  ApiKey,
-  ApiKeyCreateRequest,
-} from '@orbit/shared/types'
-import { createApiKey, revokeApiKey } from '@/app/actions/api-keys'
-
-async function fetchApiKeys(): Promise<ApiKey[]> {
-  const res = await fetch(API.apiKeys.list)
-  if (!res.ok) {
-    throw new Error('Failed to load API keys')
-  }
-  return res.json()
-}
-
-async function fetchCapabilities(): Promise<AgentCapability[]> {
-  const res = await fetch(API.ai.capabilities)
-  if (!res.ok) {
-    throw new Error('Failed to load AI capabilities')
-  }
-  return res.json()
-}
-
-async function copyToClipboard(text: string): Promise<void> {
-  try {
-    await navigator.clipboard.writeText(text)
-  } catch {
-  }
-}
-
-function CodeWell({
-  content,
-  copied,
-  onCopy,
-  copyLabel,
-  copiedLabel,
-}: Readonly<{
-  content: string
-  copied?: boolean
-  onCopy: () => void
-  copyLabel: string
-  copiedLabel: string
-}>) {
-  return (
-    <div
-      className="rounded-[14px] bg-[var(--bg-field)]"
-      style={{
-        padding: '10px 12px',
-        boxShadow: 'inset 0 0 0 1px var(--hairline)',
-      }}
-    >
-      <div className="flex justify-end" style={{ marginBottom: 6 }}>
-        <button
-          type="button"
-          aria-label={copyLabel}
-          className="chip"
-          onClick={onCopy}
-          style={{ gap: 6 }}
-        >
-          {copied ? (
-            <Check size={14} strokeWidth={1.8} color="var(--status-done)" />
-          ) : (
-            <Clipboard size={14} strokeWidth={1.8} />
-          )}
-          {copied ? copiedLabel : copyLabel}
-        </button>
-      </div>
-      <pre
-        className="overflow-x-auto"
-        style={{
-          margin: 0,
-          fontFamily: 'var(--font-mono)',
-          fontSize: 12,
-          lineHeight: 1.55,
-          color: 'var(--fg-2)',
-          fontVariantNumeric: 'tabular-nums',
-        }}
-      >
-        {content}
-      </pre>
-    </div>
-  )
-}
-
-function SubsectionTitle({ children }: Readonly<{ children: React.ReactNode }>) {
-  return (
-    <h2
-      style={{
-        fontFamily: 'var(--font-sans)',
-        fontSize: 16,
-        fontWeight: 500,
-        letterSpacing: '-0.01em',
-        color: 'var(--fg-1)',
-      }}
-    >
-      {children}
-    </h2>
-  )
-}
+import { useApiKeyManagement } from '@/hooks/use-api-key-management'
+import {
+  ApiKeyCard,
+  CodeWell,
+  QueryStateMessage,
+  SubsectionTitle,
+  copyToClipboard,
+} from '@/components/advanced/advanced-sections'
 
 export default function AdvancedPage() {
   const t = useTranslations()
@@ -147,56 +52,24 @@ export default function AdvancedPage() {
 
   const [showWidgetInfo, setShowWidgetInfo] = useState(false)
 
-  const apiKeysQuery = useQuery({
-    queryKey: apiKeyKeys.lists(),
-    queryFn: fetchApiKeys,
-    enabled: profile?.hasProAccess ?? false,
-    staleTime: 5 * 60 * 1000,
-  })
-
-  const capabilitiesQuery = useQuery({
-    queryKey: aiKeys.capabilities(),
-    queryFn: fetchCapabilities,
-    enabled: profile?.hasProAccess ?? false,
-    staleTime: 5 * 60 * 1000,
-  })
-
-  const apiKeys = apiKeysQuery.data ?? []
-  const scopeOptions = useMemo(() => {
-    const grouped = new Map<string, string[]>()
-
-    for (const capability of capabilitiesQuery.data ?? []) {
-      const descriptions = grouped.get(capability.scope) ?? []
-      descriptions.push(capability.displayName)
-      grouped.set(capability.scope, descriptions)
-    }
-
-    return Array.from(grouped.entries())
-      .map(([scope, labels]) => ({
-        scope,
-        label: scope,
-        description: labels.join(', '),
-      }))
-      .sort((left, right) => left.scope.localeCompare(right.scope))
-  }, [capabilitiesQuery.data])
-  const MAX_API_KEYS = 5
-  const canCreateKey = apiKeys.length < MAX_API_KEYS
-  const canCreateScopedKey =
-    canCreateKey &&
-    !capabilitiesQuery.isLoading &&
-    !capabilitiesQuery.error &&
-    scopeOptions.length > 0
-
-  const [createKeyModalOpen, setCreateKeyModalOpen] = useState(false)
-  const [createKeyError, setCreateKeyError] = useState<string | null>(null)
-  const [revokingKeyId, setRevokingKeyId] = useState<string | null>(null)
-
-  const revokeKeyMutation = useMutation({
-    mutationFn: revokeApiKey,
-    onSuccess: () => {
-      setRevokingKeyId(null)
-      queryClient.invalidateQueries({ queryKey: apiKeyKeys.all })
-    },
+  const {
+    apiKeysQuery,
+    capabilitiesQuery,
+    apiKeys,
+    scopeOptions,
+    canCreateKey,
+    canCreateScopedKey,
+    createKeyModalOpen,
+    setCreateKeyModalOpen,
+    createKeyError,
+    revokingKeyId,
+    setRevokingKeyId,
+    revokeKeyMutation,
+    handleCreateKey,
+  } = useApiKeyManagement({
+    hasProAccess: profile?.hasProAccess ?? false,
+    queryClient,
+    t,
   })
 
   const [instructionsOpen, setInstructionsOpen] = useState(false)
@@ -220,18 +93,6 @@ export default function AdvancedPage() {
 
   function formatKeyDate(dateStr: string): string {
     return formatDistanceToNow(parseISO(dateStr), { addSuffix: true, locale: dateFnsLocale })
-  }
-
-  async function handleCreateKey(request: ApiKeyCreateRequest) {
-    setCreateKeyError(null)
-    try {
-      const result = await createApiKey(request)
-      queryClient.invalidateQueries({ queryKey: apiKeyKeys.all })
-      return result
-    } catch {
-      setCreateKeyError(t('orbitMcp.createKeyError'))
-      return null
-    }
   }
 
   return (
@@ -353,121 +214,34 @@ export default function AdvancedPage() {
                 )}
 
                 {apiKeysQuery.error && !apiKeysQuery.isLoading && (
-                  <p style={{ fontFamily: 'var(--font-sans)', fontSize: 13, color: 'var(--status-bad)' }}>
+                  <QueryStateMessage tone="error">
                     {t('orbitMcp.apiKeysError')}
-                  </p>
+                  </QueryStateMessage>
                 )}
 
                 {capabilitiesQuery.error && !capabilitiesQuery.isLoading && (
-                  <p style={{ fontFamily: 'var(--font-sans)', fontSize: 13, color: 'var(--status-bad)' }}>
+                  <QueryStateMessage tone="error">
                     {t('orbitMcp.apiKeysError')}
-                  </p>
+                  </QueryStateMessage>
                 )}
 
                 {!apiKeysQuery.isLoading && !apiKeysQuery.error && apiKeys.length === 0 && (
-                  <p
-                    className="text-center"
-                    style={{
-                      padding: '16px 0',
-                      fontFamily: 'var(--font-sans)',
-                      fontSize: 14,
-                      color: 'var(--fg-3)',
-                    }}
-                  >
+                  <QueryStateMessage tone="empty">
                     {t('orbitMcp.noKeys')}
-                  </p>
+                  </QueryStateMessage>
                 )}
 
                 {apiKeys.length > 0 && (
                   <div className="space-y-2 stagger-enter">
-                    {apiKeys.map((key) => {
-                      const scopes = Array.isArray(key.scopes) ? key.scopes : []
-                      const isReadOnly = key.isReadOnly ?? false
-                      const expiresAtUtc = key.expiresAtUtc ?? null
-
-                      return (
-                      <div
+                    {apiKeys.map((key) => (
+                      <ApiKeyCard
                         key={key.id}
-                        className="rounded-[16px] bg-[var(--bg-card)] space-y-2"
-                        style={{
-                          padding: '14px 16px',
-                          boxShadow: 'inset 0 0 0 1px var(--hairline)',
-                        }}
-                      >
-                        <div className="flex items-center justify-between gap-3">
-                          <div className="flex-1 min-w-0">
-                            <p
-                              className="truncate"
-                              style={{
-                                fontFamily: 'var(--font-sans)',
-                                fontSize: 15,
-                                fontWeight: 500,
-                                color: 'var(--fg-1)',
-                              }}
-                            >
-                              {key.name}
-                            </p>
-                            <p
-                              style={{
-                                marginTop: 3,
-                                fontFamily: 'var(--font-mono)',
-                                fontSize: 13,
-                                color: 'var(--fg-2)',
-                                fontVariantNumeric: 'tabular-nums',
-                              }}
-                            >
-                              {key.keyPrefix}...
-                            </p>
-                            <p
-                              style={{
-                                marginTop: 4,
-                                fontFamily: 'var(--font-mono)',
-                                fontSize: 11,
-                                letterSpacing: '0.02em',
-                                color: 'var(--fg-3)',
-                              }}
-                            >
-                              {scopes.length > 0 ? scopes.join(', ') : t('orbitMcp.noScopes')}
-                            </p>
-                          </div>
-                          <div
-                            className="shrink-0 text-right"
-                            style={{
-                              fontFamily: 'var(--font-mono)',
-                              fontSize: 11,
-                              lineHeight: 1.6,
-                              letterSpacing: '0.02em',
-                              color: 'var(--fg-3)',
-                              fontVariantNumeric: 'tabular-nums',
-                            }}
-                          >
-                            <p>{t('orbitMcp.created')} {formatKeyDate(key.createdAtUtc)}</p>
-                            <p>
-                              {t('orbitMcp.lastUsed')}{' '}
-                              {key.lastUsedAtUtc ? formatKeyDate(key.lastUsedAtUtc) : t('orbitMcp.never')}
-                            </p>
-                            <p>
-                              {isReadOnly ? t('orbitMcp.permReadOnly') : t('orbitMcp.permReadWrite')}
-                            </p>
-                            {expiresAtUtc && (
-                              <p>{t('orbitMcp.expiresOn', { date: formatKeyDate(expiresAtUtc) })}</p>
-                            )}
-                          </div>
-                        </div>
-
-                        <div className="flex justify-end">
-                          <button
-                            type="button"
-                            className="chip"
-                            style={{ color: 'var(--status-bad)' }}
-                            onClick={() => setRevokingKeyId(key.id)}
-                          >
-                            {t('orbitMcp.revoke')}
-                          </button>
-                        </div>
-                      </div>
-                      )
-                    })}
+                        apiKey={key}
+                        t={t}
+                        formatKeyDate={formatKeyDate}
+                        onRevoke={setRevokingKeyId}
+                      />
+                    ))}
                   </div>
                 )}
               </div>
