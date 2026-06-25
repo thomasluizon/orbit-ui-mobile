@@ -155,4 +155,24 @@ describe('useSetSelectedCalendars', () => {
       expect(cached?.[0]?.isSynced).toBe(true)
     })
   })
+
+  it('invalidates every calendar query after a successful toggle', async () => {
+    const client = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    })
+    client.setQueryData<UserCalendar[]>(calendarKeys.calendars(), [
+      buildCalendar({ id: 'cal-1', isSynced: true }),
+    ])
+    const invalidateSpy = vi.spyOn(client, 'invalidateQueries')
+    setSelectedCalendars.mockResolvedValueOnce(undefined)
+
+    const { Wrapper } = createWrapper(client)
+    const { result } = renderHook(() => useSetSelectedCalendars(), { wrapper: Wrapper })
+
+    await act(async () => {
+      await result.current.mutateAsync({ id: 'cal-1', isSynced: false })
+    })
+
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: calendarKeys.all })
+  })
 })

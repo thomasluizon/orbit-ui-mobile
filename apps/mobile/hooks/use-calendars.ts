@@ -83,7 +83,7 @@ export function useSetSelectedCalendars() {
     },
 
     onSettled: () => {
-      void queryClient.invalidateQueries({ queryKey: calendarKeys.calendars() })
+      void queryClient.invalidateQueries({ queryKey: calendarKeys.all })
     },
   })
 }
