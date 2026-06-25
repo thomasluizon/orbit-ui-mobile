@@ -9,17 +9,17 @@ import {
 import {
   addMonths,
   subMonths,
+  addYears,
+  subYears,
+  addDays,
   startOfMonth,
-  endOfMonth,
   startOfWeek,
-  endOfWeek,
-  eachDayOfInterval,
   format,
   isSameMonth,
   isSameDay,
   parseISO,
 } from 'date-fns'
-import { Calendar, ChevronLeft, ChevronRight } from 'lucide-react-native'
+import { Calendar, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import { formatLocaleDate } from '@orbit/shared/utils'
 import { useProfile } from '@/hooks/use-profile'
@@ -83,11 +83,8 @@ export function AppDatePicker({
   }, [weekStartsOn, t])
 
   const calendarDays = useMemo(() => {
-    const monthStart = startOfMonth(viewDate)
-    const monthEnd = endOfMonth(viewDate)
-    const calStart = startOfWeek(monthStart, { weekStartsOn })
-    const calEnd = endOfWeek(monthEnd, { weekStartsOn })
-    return eachDayOfInterval({ start: calStart, end: calEnd })
+    const calStart = startOfWeek(startOfMonth(viewDate), { weekStartsOn })
+    return Array.from({ length: 42 }, (_, index) => addDays(calStart, index))
   }, [viewDate, weekStartsOn])
 
   const calendarWeeks = useMemo(() => {
@@ -104,6 +101,14 @@ export function AppDatePicker({
 
   const nextMonth = useCallback(() => {
     setViewDate((d) => addMonths(d, 1))
+  }, [])
+
+  const prevYear = useCallback(() => {
+    setViewDate((d) => subYears(d, 1))
+  }, [])
+
+  const nextYear = useCallback(() => {
+    setViewDate((d) => addYears(d, 1))
   }, [])
 
   function selectDay(day: Date) {
@@ -156,25 +161,47 @@ export function AppDatePicker({
             onStartShouldSetResponder={() => true}
           >
             <View style={styles.monthNav}>
-              <TouchableOpacity
-                onPress={prevMonth}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                accessibilityRole="button"
-                accessibilityLabel={t('common.previousMonth')}
-              >
-                <ChevronLeft size={18} strokeWidth={1.8} color={tokens.fg3} />
-              </TouchableOpacity>
+              <View style={styles.monthNavGroup}>
+                <TouchableOpacity
+                  onPress={prevYear}
+                  hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('common.previousYear')}
+                >
+                  <ChevronsLeft size={18} strokeWidth={1.8} color={tokens.fg3} />
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={prevMonth}
+                  hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('common.previousMonth')}
+                >
+                  <ChevronLeft size={18} strokeWidth={1.8} color={tokens.fg3} />
+                </TouchableOpacity>
+              </View>
 
               <Text style={styles.monthLabel}>{monthLabel}</Text>
 
-              <TouchableOpacity
-                onPress={nextMonth}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
-                accessibilityRole="button"
-                accessibilityLabel={t('common.nextMonth')}
-              >
-                <ChevronRight size={18} strokeWidth={1.8} color={tokens.fg3} />
-              </TouchableOpacity>
+              <View style={styles.monthNavGroup}>
+                <TouchableOpacity
+                  onPress={nextMonth}
+                  hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('common.nextMonth')}
+                >
+                  <ChevronRight size={18} strokeWidth={1.8} color={tokens.fg3} />
+                </TouchableOpacity>
+
+                <TouchableOpacity
+                  onPress={nextYear}
+                  hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('common.nextYear')}
+                >
+                  <ChevronsRight size={18} strokeWidth={1.8} color={tokens.fg3} />
+                </TouchableOpacity>
+              </View>
             </View>
 
             <View style={styles.weekRow}>
@@ -281,6 +308,11 @@ function createStyles(tokens: AppTokens) {
       justifyContent: 'space-between',
       marginBottom: 8,
       paddingHorizontal: 4,
+    },
+    monthNavGroup: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
     },
     monthLabel: {
       color: tokens.fg1,

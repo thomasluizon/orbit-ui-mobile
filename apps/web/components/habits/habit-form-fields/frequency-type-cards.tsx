@@ -9,6 +9,8 @@ const FREQUENCY_TYPE_CARDS = [
   { key: 'general', icon: Infinity, titleKey: 'habits.form.general', descKey: 'habits.form.generalDescription', exampleKey: 'habits.form.generalExample' },
 ] as const
 
+const FREQUENCY_SCROLL_SETTLE_MS = 120
+
 interface FrequencyTypeCardsProps {
   isOneTime: boolean
   isGeneral: boolean
@@ -46,6 +48,7 @@ export function FrequencyTypeCards({
 
   const frequencyTrackRef = useRef<HTMLDivElement>(null)
   const hasPositionedFrequencyRef = useRef(false)
+  const frequencyScrollSettleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const activeFrequencyIndex = FREQUENCY_TYPE_CARDS.findIndex((card) => card.key === activeFrequencyKey)
 
   useEffect(() => {
@@ -75,14 +78,25 @@ export function FrequencyTypeCards({
     }
   }, [activeFrequencyIndex])
 
-  function handleFrequencyScroll() {
-    const track = frequencyTrackRef.current
-    if (!track || track.clientWidth === 0) return
-    const index = Math.round(track.scrollLeft / track.clientWidth)
-    const nextCard = FREQUENCY_TYPE_CARDS[index]
-    if (nextCard && nextCard.key !== activeFrequencyKey) {
-      frequencyHandlers[nextCard.key]?.()
+  useEffect(() => () => {
+    if (frequencyScrollSettleTimerRef.current) {
+      clearTimeout(frequencyScrollSettleTimerRef.current)
     }
+  }, [])
+
+  function handleFrequencyScroll() {
+    if (frequencyScrollSettleTimerRef.current) {
+      clearTimeout(frequencyScrollSettleTimerRef.current)
+    }
+    frequencyScrollSettleTimerRef.current = setTimeout(() => {
+      const track = frequencyTrackRef.current
+      if (!track || track.clientWidth === 0) return
+      const index = Math.round(track.scrollLeft / track.clientWidth)
+      const nextCard = FREQUENCY_TYPE_CARDS[index]
+      if (nextCard && nextCard.key !== activeFrequencyKey) {
+        frequencyHandlers[nextCard.key]?.()
+      }
+    }, FREQUENCY_SCROLL_SETTLE_MS)
   }
 
   function goToFrequencyIndex(index: number) {
@@ -109,6 +123,7 @@ export function FrequencyTypeCards({
         </button>
         <div
           ref={frequencyTrackRef}
+          data-testid="frequency-carousel-track"
           onScroll={handleFrequencyScroll}
           className="flex min-w-0 flex-1 snap-x snap-mandatory overflow-x-auto scroll-smooth [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         >

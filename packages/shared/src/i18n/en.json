@@ -139,6 +139,8 @@
     "amPm": "AM/PM",
     "previousMonth": "Previous month",
     "nextMonth": "Next month",
+    "previousYear": "Previous year",
+    "nextYear": "Next year",
     "continue": "Continue",
     "unknown": "Unknown",
     "failed": "Failed",

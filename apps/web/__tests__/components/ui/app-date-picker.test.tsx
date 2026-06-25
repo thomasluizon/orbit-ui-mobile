@@ -77,4 +77,26 @@ describe('AppDatePicker', () => {
     const selected = document.querySelector('[aria-pressed="true"]')
     expect(selected).toBeInTheDocument()
   })
+
+  it('always renders six weeks (42 day cells) regardless of month length', () => {
+    render(<AppDatePicker value="2025-06-15" onChange={vi.fn()} />)
+    fireEvent.click(screen.getByRole('button'))
+    expect(document.querySelectorAll('tbody tr')).toHaveLength(6)
+    expect(document.querySelectorAll('td button')).toHaveLength(42)
+  })
+
+  it('has previous and next year navigation', () => {
+    render(<AppDatePicker value="2025-06-15" onChange={vi.fn()} />)
+    fireEvent.click(screen.getByRole('button'))
+    expect(screen.getByLabelText('common.previousYear')).toBeInTheDocument()
+    expect(screen.getByLabelText('common.nextYear')).toBeInTheDocument()
+  })
+
+  it('advances the year when the next-year arrow is clicked', () => {
+    render(<AppDatePicker value="2025-06-15" onChange={vi.fn()} />)
+    fireEvent.click(screen.getByRole('button'))
+    expect(screen.getByText('June 2025')).toBeInTheDocument()
+    fireEvent.click(screen.getByLabelText('common.nextYear'))
+    expect(screen.getByText('June 2026')).toBeInTheDocument()
+  })
 })
