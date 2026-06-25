@@ -189,7 +189,10 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
       addMessage({
         id: `msg-${Date.now()}-agent`,
         role: "ai",
-        content: buildAgentExecutionMessage(response),
+        content: buildAgentExecutionMessage(response, {
+          done: t("chat.operationDone"),
+          failed: t("chat.operationFailed"),
+        }),
         operations: [response.operation],
         pendingOperations: response.pendingOperation
           ? [response.pendingOperation]
@@ -213,7 +216,7 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
         }
       }
     },
-    [addMessage, queryClient, router, scrollToBottom, shouldRouteToUpgrade],
+    [addMessage, queryClient, router, scrollToBottom, shouldRouteToUpgrade, t],
   );
 
   useEffect(() => {

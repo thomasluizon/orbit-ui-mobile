@@ -65,17 +65,17 @@ const CHAT_TAG_ACTION_TYPES: ReadonlySet<string> = new Set([
 export const CHAT_DRAFT_STORAGE_KEY = 'orbit-chat-draft'
 
 /**
- * Resolves the assistant message text for an executed agent operation,
- * preferring the richest available signal. Keeps `operation.policyReason` in
- * the fallback chain so both platforms surface the same copy.
+ * Resolves the assistant chat line shown after an agent operation runs, from the
+ * caller's localized done/failed copy based on the outcome. Never returns the raw
+ * server `summary` (an internal audit label like "Manage Calendar Sync requested
+ * via Chat"), which must not surface as user-facing chat text — the pending/denial
+ * cards carry the specifics.
  */
-export function buildAgentExecutionMessage(response: AgentExecuteOperationResponse): string {
-  return (
-    response.operation.summary ??
-    response.policyDenial?.reason ??
-    response.operation.policyReason ??
-    response.operation.sourceName
-  )
+export function buildAgentExecutionMessage(
+  response: AgentExecuteOperationResponse,
+  labels: { done: string; failed: string },
+): string {
+  return response.operation.status === 'Succeeded' ? labels.done : labels.failed
 }
 
 /**

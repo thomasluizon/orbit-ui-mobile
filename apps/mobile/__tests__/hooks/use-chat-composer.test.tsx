@@ -351,6 +351,9 @@ describe('mobile useChatComposer', () => {
       }),
     )
     expect(result).toMatchObject({ ok: true })
-    expect(useChatStore.getState().messages[0]).toMatchObject({ role: 'ai', content: 'Created' })
+    expect(useChatStore.getState().messages[0]).toMatchObject({
+      role: 'ai',
+      content: 'chat.operationDone',
+    })
   })
 })
