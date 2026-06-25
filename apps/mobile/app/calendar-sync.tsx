@@ -6,7 +6,6 @@ import {
   Text,
   View,
 } from 'react-native'
-import Animated, { FadeInDown, ReduceMotion } from 'react-native-reanimated'
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
@@ -16,7 +15,6 @@ import {
   buildCalendarAutoSyncImportRequest,
   buildCalendarSyncImportRequest,
   formatCalendarAutoSyncLastSynced,
-  formatCalendarSyncRecurrenceLabel,
   type CalendarSyncEvent,
 } from '@orbit/shared/utils'
 import { getFriendlyErrorMessage } from '@orbit/shared/utils/error-utils'
@@ -40,10 +38,10 @@ import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { AppBar } from '@/components/ui/app-bar'
 import { SectionLabel } from '@/components/ui/section-label'
 import { SettingsRow } from '@/components/ui/settings-row'
-import { SelectCheck } from '@/components/ui/select-check'
 import { PillButton } from '@/components/ui/pill-button'
 import { CalendarAutoSyncSection } from './calendar-sync-auto-section'
 import { CalendarPickerSection } from './calendar-picker-section'
+import { CalendarSyncEventRow } from './calendar-sync-event-row'
 import { createStyles } from './calendar-sync-styles'
 
 const EVENTS_PAGE_SIZE = 20
@@ -58,12 +56,6 @@ type Step =
   | 'offline'
 
 type WizardStage = 'browse' | 'importing' | 'done' | 'error'
-
-function rowEntrance(index: number) {
-  return FadeInDown.duration(280)
-    .delay(Math.min(index, 8) * 40)
-    .reduceMotion(ReduceMotion.System)
-}
 
 type CalendarEvent = CalendarSyncEvent
 
@@ -372,62 +364,6 @@ export default function CalendarSyncScreen() {
     void eventsQuery.refetch()
   }, [eventsQuery, isOnline, isReviewMode, queryClient])
 
-  function renderEventRow(event: CalendarEvent, index: number) {
-    const selected = selectedIds.has(event.id)
-    const recurrenceLabel = formatCalendarSyncRecurrenceLabel(
-      event.recurrenceRule,
-      {
-        translate: (key, values) => t(key, values),
-        pluralize: plural,
-      },
-    )
-    const dateLabel = event.startDate ?? ''
-    const timeLabel = event.startTime
-      ? `${event.startTime}${event.endTime ? `-${event.endTime}` : ''}`
-      : ''
-    const meta = [
-      dateLabel,
-      timeLabel,
-      event.isRecurring ? recurrenceLabel : null,
-      event.calendarName ?? null,
-    ]
-      .filter(Boolean)
-      .join(' · ')
-
-    return (
-      <Animated.View key={event.id} entering={rowEntrance(index)}>
-        <Pressable
-          onPress={() => toggleEvent(event.id)}
-          accessibilityRole="checkbox"
-          accessibilityState={{ checked: selected }}
-          style={({ pressed }) => [
-            styles.eventRow,
-            {
-              borderBottomColor: tokens.hairline,
-              backgroundColor: pressed
-                ? tokens.bgElev
-                : selected
-                  ? tintFromPrimary(tokens, 0.06)
-                  : 'transparent',
-            },
-          ]}
-        >
-          <View style={styles.eventBody}>
-            <Text style={[styles.eventTitle, { color: tokens.fg1 }]} numberOfLines={1}>
-              {event.title}
-            </Text>
-            {meta ? (
-              <Text style={[styles.eventMeta, { color: tokens.fg3 }]} numberOfLines={1}>
-                {meta}
-              </Text>
-            ) : null}
-          </View>
-          <SelectCheck selected={selected} onPress={() => toggleEvent(event.id)} />
-        </Pressable>
-      </Animated.View>
-    )
-  }
-
   const hasConnection = autoSyncState?.hasGoogleConnection === true
   const lastSyncedLabel = formatCalendarAutoSyncLastSynced(
     autoSyncState?.lastSyncedAt ?? null,
@@ -604,7 +540,18 @@ export default function CalendarSyncScreen() {
                     events.length,
                   )}
                 </SectionLabel>
-                {events.slice(0, visibleCount).map(renderEventRow)}
+                {events.slice(0, visibleCount).map((event, index) => (
+                  <CalendarSyncEventRow
+                    key={event.id}
+                    event={event}
+                    index={index}
+                    selected={selectedIds.has(event.id)}
+                    styles={styles}
+                    tokens={tokens}
+                    t={t}
+                    onToggle={toggleEvent}
+                  />
+                ))}
                 {events.length > visibleCount ? (
                   <View style={styles.showMoreRow}>
                     <Pressable

@@ -1,5 +1,21 @@
 import type { HabitsFilter } from "../types/habit";
 import { formatAPIDate } from "../utils/dates";
+import {
+  activateNextCelebration,
+  clearCelebrationKind,
+  createCelebrationItem,
+  enqueueCelebrationItem,
+  type CelebrationKind,
+  type CelebrationPayloadMap,
+  type CelebrationQueueItem,
+  type CelebrationState,
+} from "./celebration-queue";
+
+export type {
+  CelebrationKind,
+  CelebrationPayloadMap,
+  CelebrationQueueItem,
+} from "./celebration-queue";
 
 type UIStoreSet = {
   (
@@ -18,218 +34,6 @@ type UIStoreGet = () => UIStoreState;
 
 export type HabitFrequencyFilter = "Day" | "Week" | "Month" | "Year" | "none";
 export type ActiveView = "today" | "all" | "general" | "goals";
-
-export type CelebrationKind =
-  | "streak"
-  | "achievement"
-  | "all-done"
-  | "goal-completed"
-  | "level-up";
-
-export interface CelebrationPayloadMap {
-  streak: { streak: number };
-  achievement: { achievementId: string; xpReward: number };
-  "all-done": Record<string, never>;
-  "goal-completed": { name: string };
-  "level-up": { level: number };
-}
-
-export type CelebrationQueueItem =
-  | {
-      id: string;
-      kind: "streak";
-      payload: CelebrationPayloadMap["streak"];
-      priority: number;
-      sequence: number;
-    }
-  | {
-      id: string;
-      kind: "achievement";
-      payload: CelebrationPayloadMap["achievement"];
-      priority: number;
-      sequence: number;
-    }
-  | {
-      id: string;
-      kind: "all-done";
-      payload: CelebrationPayloadMap["all-done"];
-      priority: number;
-      sequence: number;
-    }
-  | {
-      id: string;
-      kind: "goal-completed";
-      payload: CelebrationPayloadMap["goal-completed"];
-      priority: number;
-      sequence: number;
-    }
-  | {
-      id: string;
-      kind: "level-up";
-      payload: CelebrationPayloadMap["level-up"];
-      priority: number;
-      sequence: number;
-    };
-
-function getCelebrationPriority(kind: CelebrationKind): number {
-  switch (kind) {
-    case "streak":
-      return 0;
-    case "achievement":
-      return 1;
-    case "goal-completed":
-    case "all-done":
-      return 2;
-    case "level-up":
-      return 3;
-    default:
-      return 99;
-  }
-}
-
-function sortCelebrationQueue(
-  queue: CelebrationQueueItem[],
-): CelebrationQueueItem[] {
-  return [...queue].sort((left, right) => {
-    if (left.priority !== right.priority) {
-      return left.priority - right.priority;
-    }
-
-    return left.sequence - right.sequence;
-  });
-}
-
-function isDuplicateCelebration(
-  queue: CelebrationQueueItem[],
-  active: CelebrationQueueItem | null,
-  candidate: CelebrationQueueItem,
-): boolean {
-  const matches = [active, ...queue]
-    .filter((item): item is CelebrationQueueItem => item !== null)
-    .some((item) => {
-      if (item.kind !== candidate.kind) return false;
-
-      switch (item.kind) {
-        case "streak":
-          return (
-            item.payload.streak ===
-            (candidate.payload as CelebrationPayloadMap["streak"]).streak
-          );
-        case "achievement":
-          return (
-            item.payload.achievementId ===
-            (candidate.payload as CelebrationPayloadMap["achievement"])
-              .achievementId
-          );
-        case "goal-completed":
-          return (
-            item.payload.name ===
-            (candidate.payload as CelebrationPayloadMap["goal-completed"]).name
-          );
-        case "level-up":
-          return (
-            item.payload.level ===
-            (candidate.payload as CelebrationPayloadMap["level-up"]).level
-          );
-        case "all-done":
-          return true;
-        default:
-          return false;
-      }
-    });
-
-  return matches;
-}
-
-function createCelebrationItem<TKind extends CelebrationKind>(
-  kind: TKind,
-  payload: CelebrationPayloadMap[TKind],
-  sequence: number,
-): Extract<CelebrationQueueItem, { kind: TKind }> {
-  return {
-    id: `${kind}-${sequence}`,
-    kind,
-    payload,
-    priority: getCelebrationPriority(kind),
-    sequence,
-  } as Extract<CelebrationQueueItem, { kind: TKind }>;
-}
-
-function deriveLegacyCelebrationState(
-  activeCelebration: CelebrationQueueItem | null,
-): Pick<
-  UIStoreState,
-  "streakCelebration" | "allDoneCelebration" | "goalCompletedCelebration"
-> {
-  return {
-    streakCelebration:
-      activeCelebration?.kind === "streak" ? activeCelebration.payload : null,
-    allDoneCelebration: activeCelebration?.kind === "all-done",
-    goalCompletedCelebration:
-      activeCelebration?.kind === "goal-completed"
-        ? activeCelebration.payload
-        : null,
-  };
-}
-
-type ActiveCelebrationState = Pick<
-  UIStoreState,
-  | "activeCelebration"
-  | "queuedCelebrations"
-  | "streakCelebration"
-  | "allDoneCelebration"
-  | "goalCompletedCelebration"
->;
-
-function activateNextCelebration(
-  queue: CelebrationQueueItem[],
-): ActiveCelebrationState {
-  const sortedQueue = sortCelebrationQueue(queue);
-  const [nextCelebration, ...remainingCelebrations] = sortedQueue;
-
-  return {
-    activeCelebration: nextCelebration ?? null,
-    queuedCelebrations: remainingCelebrations,
-    ...deriveLegacyCelebrationState(nextCelebration ?? null),
-  };
-}
-
-function enqueueCelebrationItem(
-  state: Pick<UIStoreState, "activeCelebration" | "queuedCelebrations">,
-  item: CelebrationQueueItem,
-): Partial<UIStoreState> {
-  if (
-    isDuplicateCelebration(
-      state.queuedCelebrations,
-      state.activeCelebration,
-      item,
-    )
-  ) {
-    return {};
-  }
-
-  const nextQueue = [...state.queuedCelebrations, item];
-  if (state.activeCelebration) {
-    return { queuedCelebrations: sortCelebrationQueue(nextQueue) };
-  }
-
-  return activateNextCelebration(nextQueue);
-}
-
-function clearCelebrationKind(
-  state: Pick<UIStoreState, "activeCelebration" | "queuedCelebrations">,
-  kind: CelebrationKind,
-  clearedLegacyState: Partial<UIStoreState>,
-): Partial<UIStoreState> {
-  const remainingQueued = state.queuedCelebrations.filter(
-    (item) => item.kind !== kind,
-  );
-  if (state.activeCelebration?.kind === kind) {
-    return activateNextCelebration(remainingQueued);
-  }
-
-  return { queuedCelebrations: remainingQueued, ...clearedLegacyState };
-}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return value !== null && typeof value === "object";
@@ -384,7 +188,7 @@ export function createUIStoreState(
 
   function createCelebrationSetter<TKind extends "streak" | "goal-completed">(
     kind: TKind,
-    clearedLegacyState: Partial<UIStoreState>,
+    clearedLegacyState: Partial<CelebrationState>,
   ): (payload: CelebrationPayloadMap[TKind] | null) => void {
     return (payload) =>
       set((state) => {

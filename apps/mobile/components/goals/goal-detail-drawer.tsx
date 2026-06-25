@@ -1,6 +1,5 @@
 import { useState, useCallback, useMemo, useRef } from 'react'
-import { Text, TouchableOpacity, View } from 'react-native'
-import { ChevronRight, Orbit } from 'lucide-react-native'
+import { Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { useRouter } from 'expo-router'
 import AsyncStorage from '@react-native-async-storage/async-storage'
@@ -17,6 +16,7 @@ import {
   GoalProgressHistorySection,
 } from './goal-detail-sections'
 import { GoalActionFooter } from './goal-detail-drawer/goal-action-footer'
+import { GoalAskAstraButton } from './goal-detail-drawer/goal-ask-astra-button'
 import { GoalProgressBlock } from './goal-detail-drawer/goal-progress-block'
 import { GoalProgressForm } from './goal-detail-drawer/goal-progress-form'
 import { createStyles } from './goal-detail-drawer/styles'
@@ -45,48 +45,6 @@ interface GoalDetailDrawerProps {
 }
 
 type ProgressDismissTarget = 'drawer' | 'form'
-
-interface GoalAskAstraButtonProps {
-  tokens: ReturnType<typeof createTokensV2>
-  styles: ReturnType<typeof createStyles>
-  onPress: () => void
-}
-
-function GoalAskAstraButton({
-  tokens,
-  styles,
-  onPress,
-}: Readonly<GoalAskAstraButtonProps>) {
-  const { t } = useTranslation()
-  return (
-    <TouchableOpacity
-      activeOpacity={0.7}
-      onPress={onPress}
-      accessibilityRole="button"
-      accessibilityLabel={`${t('goals.detail.askAstraEyebrow')}: ${t('goals.detail.askAstraDefault')}`}
-      style={styles.askAstra}
-    >
-      <View
-        style={[
-          styles.askAstraRule,
-          { backgroundColor: tokens.primary },
-        ]}
-      />
-      <View style={styles.askAstraContent}>
-        <View style={styles.askAstraEyebrow}>
-          <Orbit size={12} color={tokens.primary} strokeWidth={1.7} />
-          <Text style={styles.askAstraEyebrowText}>
-            {t('goals.detail.askAstraEyebrow')}
-          </Text>
-        </View>
-        <Text style={styles.askAstraBody}>
-          {t('goals.detail.askAstraDefault')}
-        </Text>
-      </View>
-      <ChevronRight size={16} color={tokens.fg3} strokeWidth={1.7} />
-    </TouchableOpacity>
-  )
-}
 
 /**
  * Goal Detail Drawer. Covers all 7 spec variants by status: on-track,
