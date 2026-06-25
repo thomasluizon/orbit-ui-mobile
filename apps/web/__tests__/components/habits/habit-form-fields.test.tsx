@@ -710,6 +710,40 @@ describe('HabitFormFields', () => {
     expect(screen.getByLabelText('common.previous')).not.toBeDisabled()
   })
 
+  it('debounces carousel scroll so a programmatic scroll cannot instantly revert the frequency type', () => {
+    vi.useFakeTimers()
+    try {
+      const setOneTime = vi.fn()
+      const formHelpers = createMockFormHelpers({ isRecurring: true, setOneTime })
+      const tags = createMockTags()
+      const { container } = renderWithProviders(
+        <HabitFormFields
+          formHelpers={formHelpers}
+          tags={tags}
+          selectedGoalIds={[]}
+          atGoalLimit={false}
+          onToggleGoal={vi.fn()}
+          reminderTimes={[]}
+          onReminderTimesChange={vi.fn()}
+        />,
+      )
+      const track = container.querySelector(
+        '[data-testid="frequency-carousel-track"]',
+      ) as HTMLElement
+      Object.defineProperty(track, 'clientWidth', { value: 300, configurable: true })
+      Object.defineProperty(track, 'scrollLeft', { value: 0, writable: true, configurable: true })
+      Object.defineProperty(track, 'scrollTo', { value: vi.fn(), configurable: true })
+
+      fireEvent.scroll(track)
+      expect(setOneTime).not.toHaveBeenCalled()
+
+      vi.advanceTimersByTime(200)
+      expect(setOneTime).toHaveBeenCalledTimes(1)
+    } finally {
+      vi.useRealTimers()
+    }
+  })
+
 
   it('hides frequency picker and day picker for one-time habits', () => {
     const formHelpers = createMockFormHelpers({ isOneTime: true, isRecurring: false, showDayPicker: false, showEndDate: false })
