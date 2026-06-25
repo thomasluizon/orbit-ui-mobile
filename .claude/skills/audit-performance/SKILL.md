@@ -50,10 +50,12 @@ Parse `$ARGUMENTS`: blank → **both repos**; `api`/`backend` → orbit-api; `fr
 | `orbit-api` | CQRS query handlers (`src/Orbit.Application/**/Queries`), the generic repository + EF `DbContext` usage, controller request paths |
 | `orbit-ui-mobile` | TanStack Query hooks (`apps/*/hooks`), list-rendering screens/pages, `next.config`/Metro bundle surface, heavy client components |
 
-Load root + scoped `CLAUDE.md`, and `orbit-api/CLAUDE.md` (if backend in scope). Exclude
-generated/vendored dirs (`node_modules`, `bin`, `obj`, `Migrations/` — but **do read**
-migrations to confirm which **indexes exist**, since that's load-bearing for the index
-checks). Source globs: `**/*.{ts,tsx}`, `**/*.cs`.
+Load root + scoped `CLAUDE.md`, `orbit-api/CLAUDE.md` (if backend in scope), and
+**`.claude/skills/_shared/verification-protocol.md`** (the shared reliability contract —
+its Verify phase and Deferred ledger run below). Exclude generated/vendored dirs
+(`node_modules`, `bin`, `obj`, `Migrations/` — but **do read** migrations to confirm which
+**indexes exist**, since that's load-bearing for the index checks). Source globs:
+`**/*.{ts,tsx}`, `**/*.cs`.
 
 ---
 
@@ -126,7 +128,30 @@ non-overlapping. Each subagent prompt embeds:
 
 ---
 
-## Phase 5 — Report
+## Phase 5 — Verify (adversarial + completeness)
+
+Before writing the report, run `.claude/skills/_shared/verification-protocol.md` — a risk
+ships only after it survives a challenge, and the sweep must prove it covered the hot
+zones.
+
+1. **Adversarial pass (§2).** For every **High / Medium** finding, spawn an independent
+   skeptic subagent (3 concurrent) whose only job is to *refute* it — read the cited
+   `file:line` in full context and argue it is a false positive (the impact is bounded at
+   Orbit's scale, the index actually exists — cite the migration, the query is already
+   projected/parallelized, the list is bounded-small, a duplicate). Default to refuted
+   when uncertain. Drop or downgrade anything the skeptic disproves; survivors ship with
+   confidence.
+2. **Completeness critic + loop-until-dry (§3).** Run a fresh critic asking *"what did this
+   audit NOT examine — a hot zone never swept, a handler or query skipped, an index claim
+   unchecked against the migrations?"* Spawn a focused finder round on each gap it names;
+   repeat until a round surfaces nothing new (cap: 2 dry rounds — log it).
+3. **Deferred ledger (§4).** Roll everything in scope but un-verdicted (enterprise-only
+   tuning, load-test territory #230, a slice left unswept) into the report's **Deferred**
+   section, one reason each — never implied as clean.
+
+---
+
+## Phase 6 — Report
 
 ```bash
 mkdir -p .claude/audits
@@ -157,6 +182,12 @@ mkdir -p .claude/audits
 | Path | Side | Risk | Impact at scale |
 |---|---|---|---|
 | {handler/route or component} | API/FE | {pattern} | {how it grows} |
+
+## Deferred — in scope but not verdicted
+
+{Per the verification protocol §4: hot zones or slices the sweep did not reach with a
+verdict, enterprise-only tuning, load-test territory (#230) — each with a one-line reason.
+"Nothing deferred — full coverage" if the contract was met.}
 
 ## What's efficient
 

@@ -62,9 +62,11 @@ Parse `$ARGUMENTS`: blank → **both repos**; `api`/`backend` → orbit-api; `fr
 | `orbit-api` | `C:\Users\thoma\Documents\Programming\Projects\orbit-api` |
 
 Load in parallel: **`checklist.md`** (this skill's category list — read it first), root
-`CLAUDE.md` "Security boundaries", and `orbit-api/CLAUDE.md` "Cross-cutting hard rules"
-(if backend in scope). Exclude generated/vendored dirs (`node_modules`, `bin`, `obj`,
-`Migrations/`, `design/handoff/`, `.next`, `dist`).
+`CLAUDE.md` "Security boundaries", `orbit-api/CLAUDE.md` "Cross-cutting hard rules"
+(if backend in scope), and **`.claude/skills/_shared/verification-protocol.md`** (the
+shared reliability contract — its Verify phase and Deferred ledger run below). Exclude
+generated/vendored dirs (`node_modules`, `bin`, `obj`, `Migrations/`, `design/handoff/`,
+`.next`, `dist`).
 
 ---
 
@@ -126,7 +128,29 @@ explicitly even if a subagent didn't surface it:
 
 ---
 
-## Phase 4 — Report
+## Phase 4 — Verify (adversarial + completeness)
+
+Before writing the report, run `.claude/skills/_shared/verification-protocol.md` — a
+finding ships only after it survives a challenge, and the sweep must prove it covered the
+ground.
+
+1. **Adversarial pass (§2).** For every **Tier 1 / Tier 2** finding, spawn an independent
+   skeptic subagent (3 concurrent) whose only job is to *refute* it — read the cited
+   `file:line` in full context and argue it is a false positive (the query is actually
+   `userId`-scoped, the route unreachable, the input already validated, a duplicate, the
+   tier inflated). Default to refuted when uncertain. Drop or downgrade anything the
+   skeptic disproves; survivors ship with confidence.
+2. **Completeness critic + loop-until-dry (§3).** Run a fresh critic asking *"what did this
+   audit NOT examine — an attack surface never swept, a handler skipped, an ownership
+   claim unverified?"* Spawn a focused finder round on each gap it names; repeat until a
+   round surfaces nothing new (cap: 2 dry rounds — log it).
+3. **Deferred ledger (§4).** Roll everything in scope but un-verdicted (a surface left
+   unswept, a repo not checked out in CI, Tier-3 controls) into the report's **Deferred**
+   section, one reason each — never implied as clean.
+
+---
+
+## Phase 5 — Report
 
 ```bash
 mkdir -p .claude/audits
@@ -162,6 +186,13 @@ mkdir -p .claude/audits
 | Secrets & config | yes/no | … |
 | Rate-limit & AI-abuse | yes/no | … |
 | Error leakage & web/mobile auth | yes/no | … |
+
+## Deferred — in scope but not verdicted
+
+{Per the verification protocol §4: any surface the sweep did not reach with a verdict, a
+repo not checked out in CI, capped coverage — each with a one-line reason. "Nothing
+deferred — full coverage" if the contract was met. (Tier-3 enterprise controls stay in
+their section above.)}
 
 ## What's solid
 
