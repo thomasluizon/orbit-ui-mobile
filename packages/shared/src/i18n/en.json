@@ -134,6 +134,9 @@
     "selectedDate": "Selected date: {date}",
     "selectTime": "Select time",
     "selectedTime": "Selected time: {time}",
+    "hours": "Hours",
+    "minutes": "Minutes",
+    "amPm": "AM/PM",
     "previousMonth": "Previous month",
     "nextMonth": "Next month",
     "continue": "Continue",
@@ -602,6 +605,18 @@
     "recurrenceYearly": "Yearly",
     "notConnectedTitle": "Connect Google Account",
     "notConnectedDesc": "Sign in with Google to import your calendar events as habits.",
+    "showMore": "Show more",
+    "showingCount": "Showing {shown} of {total}",
+    "calendars": {
+      "title": "Calendars",
+      "description": "Choose which Google calendars Orbit reads events from.",
+      "loading": "Loading your calendars...",
+      "empty": "No calendars found in your Google account.",
+      "error": "Could not load your calendars. Please try again.",
+      "primaryLabel": "Primary",
+      "toggleLabel": "Sync {name}",
+      "saveFailed": "Could not save your calendar selection. Please try again."
+    },
     "autoSync": {
       "title": "Automatic sync",
       "description": "Orbit checks your Google Calendar for new events and notifies you. Habits are never created without your confirmation.",
@@ -1067,6 +1082,8 @@
     "weeklyTitle": "Weekly consistency",
     "topHabitsTitle": "Top habits",
     "needsAttentionTitle": "Needs attention",
+    "completed": "Completed",
+    "notCompleted": "Not completed",
     "sections": {
       "highlights": "Highlights",
       "missed": "Missed opportunities",

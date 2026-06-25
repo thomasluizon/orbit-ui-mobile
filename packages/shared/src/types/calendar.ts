@@ -34,6 +34,8 @@ const calendarSyncEventSchema = z.object({
   isRecurring: z.boolean(),
   recurrenceRule: z.string().nullable(),
   reminders: z.array(z.number()),
+  calendarId: z.string().optional(),
+  calendarName: z.string().optional(),
 })
 
 export const calendarAutoSyncStatusSchema = z.enum(['Idle', 'ReconnectRequired', 'TransientError'])
@@ -65,3 +67,22 @@ export const calendarAutoSyncResultSchema = z.object({
 })
 
 export type CalendarAutoSyncResult = z.infer<typeof calendarAutoSyncResultSchema>
+
+export const userCalendarSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  accessRole: z.string(),
+  primary: z.boolean(),
+  backgroundColor: z.string().nullable(),
+  isSynced: z.boolean(),
+})
+
+export type UserCalendar = z.infer<typeof userCalendarSchema>
+
+export const userCalendarsSchema = z.array(userCalendarSchema)
+
+export const selectedCalendarsRequestSchema = z.object({
+  calendarIds: z.array(z.string()),
+})
+
+export type SelectedCalendarsRequest = z.infer<typeof selectedCalendarsRequestSchema>

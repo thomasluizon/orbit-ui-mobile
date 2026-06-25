@@ -176,6 +176,7 @@ function HabitStatList({
   habits,
   tone,
 }: Readonly<HabitStatListProps>) {
+  const { t } = useTranslation()
   return (
     <DashboardCard tokens={tokens} title={title}>
       <View style={styles.habitList}>
@@ -199,7 +200,11 @@ function HabitStatList({
                 },
               ]}
             >
-              {habit.completionRate}%
+              {habit.isOneTime
+                ? habit.completedCount > 0
+                  ? t('retrospective.completed')
+                  : t('retrospective.notCompleted')
+                : `${habit.completionRate}%`}
             </Text>
           </View>
         ))}

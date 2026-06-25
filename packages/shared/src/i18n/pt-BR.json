@@ -134,6 +134,9 @@
     "selectedDate": "Data selecionada: {date}",
     "selectTime": "Selecionar horário",
     "selectedTime": "Horário selecionado: {time}",
+    "hours": "Horas",
+    "minutes": "Minutos",
+    "amPm": "AM/PM",
     "previousMonth": "Mês anterior",
     "nextMonth": "Próximo mês",
     "continue": "Continuar",
@@ -602,6 +605,18 @@
     "recurrenceYearly": "Anual",
     "notConnectedTitle": "Conectar conta Google",
     "notConnectedDesc": "Entre com o Google para importar os eventos do seu calendário como hábitos.",
+    "showMore": "Mostrar mais",
+    "showingCount": "Mostrando {shown} de {total}",
+    "calendars": {
+      "title": "Calendários",
+      "description": "Escolha de quais calendários do Google o Orbit lê os eventos.",
+      "loading": "Carregando seus calendários...",
+      "empty": "Nenhum calendário encontrado na sua conta Google.",
+      "error": "Não foi possível carregar seus calendários. Tente de novo.",
+      "primaryLabel": "Principal",
+      "toggleLabel": "Sincronizar {name}",
+      "saveFailed": "Não foi possível salvar a seleção de calendários. Tente de novo."
+    },
     "autoSync": {
       "title": "Sincronização automática",
       "description": "O Orbit fica de olho em novos eventos do seu Google Calendar e te avisa. Nenhum hábito é criado sem você confirmar.",
@@ -1067,6 +1082,8 @@
     "weeklyTitle": "Consistência semanal",
     "topHabitsTitle": "Melhores hábitos",
     "needsAttentionTitle": "Precisa de atenção",
+    "completed": "Concluído",
+    "notCompleted": "Não concluído",
     "sections": {
       "highlights": "Destaques",
       "missed": "Oportunidades perdidas",

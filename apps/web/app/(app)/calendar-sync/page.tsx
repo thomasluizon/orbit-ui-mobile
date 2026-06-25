@@ -33,6 +33,7 @@ import {
   useSetCalendarAutoSync,
 } from '@/hooks/use-calendar-auto-sync'
 import { useCalendarEvents } from '@/hooks/use-calendar-events'
+import { CalendarPickerSection } from './_components/calendar-picker-section'
 import { getSupabaseClient } from '@/lib/supabase'
 import type { CalendarSyncEvent, CalendarSyncSuggestion } from '@orbit/shared'
 import {
@@ -50,6 +51,8 @@ interface ImportResult {
   imported: number
   habits: { id: string; title: string }[]
 }
+
+const EVENTS_PAGE_SIZE = 20
 
 type Step = 'loading' | 'select' | 'importing' | 'done' | 'error' | 'not-connected'
 type WizardStage = 'browse' | 'importing' | 'done' | 'error'
@@ -275,8 +278,11 @@ export default function CalendarSyncPage() {
   const [errorMessage, setErrorMessage] = useState('')
   const [importResult, setImportResult] = useState<ImportResult | null>(null)
   const [previousEventsKey, setPreviousEventsKey] = useState<string | null>(null)
+  const [visibleCount, setVisibleCount] = useState(EVENTS_PAGE_SIZE)
 
   const eventsQuery = useCalendarEvents({ enabled: isProUser && !isReviewMode })
+  const autoSyncStateQuery = useCalendarAutoSyncState({ enabled: isProUser })
+  const googleConnected = autoSyncStateQuery.data?.hasGoogleConnection === true
   const suggestionsQuery = useCalendarSyncSuggestions({ enabled: isProUser && isReviewMode })
   const dismissSuggestion = useDismissCalendarSuggestion()
   const suggestions: CalendarSyncSuggestion[] = useMemo(
@@ -294,6 +300,7 @@ export default function CalendarSyncPage() {
   if (eventsKey !== previousEventsKey) {
     setPreviousEventsKey(eventsKey)
     setEvents(incomingEvents)
+    setVisibleCount(EVENTS_PAGE_SIZE)
     if (isReviewMode && previousEventsKey !== null) {
       setSelectedIds((prev) => {
         const next = new Set<string>()
@@ -454,6 +461,7 @@ export default function CalendarSyncPage() {
 
       <div className="flex-1 min-h-0 overflow-y-auto pb-8">
         {hasProAccess && <AutoSyncSettingsCard />}
+        {hasProAccess && <CalendarPickerSection enabled={googleConnected} />}
 
       {step === 'loading' && (
         <div className="flex flex-col items-center justify-center gap-4 pt-12" role="status" aria-live="polite">
@@ -541,7 +549,7 @@ export default function CalendarSyncPage() {
               </div>
 
               <div className="max-h-[60vh] overflow-y-auto stagger-enter">
-                {events.map((event) => {
+                {events.slice(0, visibleCount).map((event) => {
                   const suggestionId = isReviewMode ? findSuggestionIdForEvent(event.id) : null
                   const selected = selectedIds.has(event.id)
                   return (
@@ -630,6 +638,19 @@ export default function CalendarSyncPage() {
                                 {event.reminders.length}
                               </span>
                             )}
+                            {event.calendarName && (
+                              <span
+                                className="truncate"
+                                style={{
+                                  maxWidth: 160,
+                                  fontFamily: 'var(--font-sans)',
+                                  fontSize: 12,
+                                  color: 'var(--fg-3)',
+                                }}
+                              >
+                                {event.calendarName}
+                              </span>
+                            )}
                           </span>
                           {event.description && (
                             <span
@@ -663,6 +684,38 @@ export default function CalendarSyncPage() {
                   )
                 })}
               </div>
+
+              {events.length > visibleCount && (
+                <div
+                  className="flex flex-col items-center"
+                  style={{ gap: 8, padding: '14px 20px 0' }}
+                >
+                  <button
+                    type="button"
+                    className="chip"
+                    onClick={() =>
+                      setVisibleCount((count) =>
+                        Math.min(count + EVENTS_PAGE_SIZE, events.length),
+                      )
+                    }
+                  >
+                    {t('calendar.showMore')}
+                  </button>
+                  <span
+                    style={{
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: 12,
+                      color: 'var(--fg-3)',
+                      fontVariantNumeric: 'tabular-nums',
+                    }}
+                  >
+                    {t('calendar.showingCount', {
+                      shown: Math.min(visibleCount, events.length),
+                      total: events.length,
+                    })}
+                  </span>
+                </div>
+              )}
 
               <div style={{ padding: '18px 20px 0' }}>
                 <PillButton

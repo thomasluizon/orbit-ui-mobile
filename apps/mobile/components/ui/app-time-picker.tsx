@@ -19,6 +19,7 @@ import { useTranslation } from 'react-i18next'
 import { detectDefaultTimeFormat, formatLocaleTime } from '@orbit/shared/utils'
 import { createTokensV2, radius, shadowsV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
+import { useProfile } from '@/hooks/use-profile'
 
 type AppTokens = ReturnType<typeof createTokensV2>
 
@@ -70,8 +71,11 @@ export function AppTimePicker({
   const styles = useMemo(() => createStyles(tokens), [tokens])
   const [isOpen, setIsOpen] = useState(false)
   const [draftValue, setDraftValue] = useState(() => parseTimeValue(value))
-  const is24Hour = detectDefaultTimeFormat(locale) === '24h'
-  const displayValue = value ? formatLocaleTime(value, locale) : ''
+  const { profile } = useProfile()
+  const is24Hour = profile?.uses24HourClock ?? detectDefaultTimeFormat(locale) === '24h'
+  const displayValue = value
+    ? formatLocaleTime(value, locale, { hour: 'numeric', minute: '2-digit', hour12: !is24Hour })
+    : ''
 
   const openPicker = useCallback(() => {
     if (disabled) return
