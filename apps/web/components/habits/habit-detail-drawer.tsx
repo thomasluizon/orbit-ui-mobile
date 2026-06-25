@@ -181,6 +181,29 @@ export function HabitDetailDrawer({
                   {summaryStrip}
                 </span>
               ) : null}
+              {habit.tags.length > 0 ? (
+                <span className="flex flex-wrap items-center justify-center" style={{ gap: 8 }}>
+                  {habit.tags.map((tag) => (
+                    <span key={tag.id} className="inline-flex items-center" style={{ gap: 5 }}>
+                      <span
+                        aria-hidden="true"
+                        className="rounded-full shrink-0"
+                        style={{ width: 6, height: 6, background: tag.color }}
+                      />
+                      <span
+                        style={{
+                          fontFamily: 'var(--font-sans)',
+                          fontSize: 13,
+                          color: 'var(--fg-3)',
+                          lineHeight: 1.2,
+                        }}
+                      >
+                        {tag.name}
+                      </span>
+                    </span>
+                  ))}
+                </span>
+              ) : null}
             </span>
           ) : undefined
         }

@@ -39,3 +39,43 @@ describe('HabitRow description preview', () => {
     expect(screen.getByText('Child preview')).toBeDefined()
   })
 })
+
+describe('HabitRow tags', () => {
+  it('renders the habit tag names on the row', () => {
+    render(
+      <HabitRow
+        habit={createMockHabit({
+          title: 'Read',
+          tags: [
+            { id: '1', name: 'Learning', color: '#7c3aed' },
+            { id: '2', name: 'Evening', color: '#10b981' },
+          ],
+        })}
+      />,
+    )
+
+    expect(screen.getByText('Learning')).toBeDefined()
+    expect(screen.getByText('Evening')).toBeDefined()
+  })
+
+  it('caps visible tags at three and shows a +N overflow counter for the rest', () => {
+    render(
+      <HabitRow
+        habit={createMockHabit({
+          title: 'Read',
+          tags: Array.from({ length: 10 }, (_, i) => ({
+            id: String(i),
+            name: `Tag${i}`,
+            color: '#7c3aed',
+          })),
+        })}
+      />,
+    )
+
+    expect(screen.getByText('Tag0')).toBeDefined()
+    expect(screen.getByText('Tag1')).toBeDefined()
+    expect(screen.getByText('Tag2')).toBeDefined()
+    expect(screen.queryByText('Tag3')).toBeNull()
+    expect(screen.getByText('+7')).toBeDefined()
+  })
+})

@@ -63,11 +63,13 @@ vi.mock('@/components/ui/app-overlay', () => ({
     open,
     children,
     title,
+    titleContent,
     footer,
   }: {
     open: boolean
     children: React.ReactNode
     title?: string
+    titleContent?: React.ReactNode
     description?: string
     footer?: React.ReactNode
     expandable?: boolean
@@ -75,7 +77,7 @@ vi.mock('@/components/ui/app-overlay', () => ({
   }) =>
     open ? (
       <div data-testid="app-overlay">
-        {title && <h2>{title}</h2>}
+        {(titleContent || title) && <h2>{titleContent || title}</h2>}
         {children}
         {footer}
       </div>
@@ -195,6 +197,24 @@ describe('HabitDetailDrawer', () => {
       />,
     )
     expect(screen.getByText('Exercise')).toBeDefined()
+  })
+
+  it('renders the habit tags in the detail header', () => {
+    render(
+      <HabitDetailDrawer
+        open={true}
+        onOpenChange={vi.fn()}
+        habit={createMockHabit({
+          title: 'Read',
+          tags: [
+            { id: '1', name: 'Learning', color: '#7c3aed' },
+            { id: '2', name: 'Evening', color: '#10b981' },
+          ],
+        })}
+      />,
+    )
+    expect(screen.getByText('Learning')).toBeDefined()
+    expect(screen.getByText('Evening')).toBeDefined()
   })
 
   it('shows due time when habit has dueTime', () => {

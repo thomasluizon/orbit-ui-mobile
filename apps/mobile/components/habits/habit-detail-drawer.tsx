@@ -141,7 +141,7 @@ function HabitDetailContent({
       showsVerticalScrollIndicator={false}
       keyboardShouldPersistTaps="always"
     >
-      {habit.emoji || summaryStrip ? (
+      {habit.emoji || summaryStrip || habit.tags.length > 0 ? (
         <View style={styles.titleBlock}>
           {habit.emoji ? (
             <View
@@ -165,6 +165,18 @@ function HabitDetailContent({
             >
               {summaryStrip}
             </Text>
+          ) : null}
+          {habit.tags.length > 0 ? (
+            <View style={styles.drawerTagRow}>
+              {habit.tags.map((tag) => (
+                <View key={tag.id} style={styles.drawerTagChip}>
+                  <View style={[styles.drawerTagDot, { backgroundColor: tag.color }]} />
+                  <Text style={[styles.drawerTagName, { color: tokens.fg3 }]}>
+                    {tag.name}
+                  </Text>
+                </View>
+              ))}
+            </View>
           ) : null}
         </View>
       ) : null}
@@ -467,6 +479,27 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       paddingHorizontal: 20,
       paddingTop: 8,
       paddingBottom: 16,
+    },
+    drawerTagRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      justifyContent: 'center',
+      alignItems: 'center',
+      gap: 8,
+    },
+    drawerTagChip: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 5,
+    },
+    drawerTagDot: {
+      width: 6,
+      height: 6,
+      borderRadius: 3,
+    },
+    drawerTagName: {
+      fontFamily: 'Rubik_400Regular',
+      fontSize: 13,
     },
     emojiWell: {
       width: 76,
