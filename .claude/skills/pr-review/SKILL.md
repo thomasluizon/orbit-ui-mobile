@@ -86,6 +86,8 @@ In parallel:
 - The plan in `.claude/plans/completed/` if the PR body references one.
 - **`.claude/skills/pr-review/rubric.md`** — the dimensions, severities, and finding
   template this review walks.
+- **`.claude/skills/_shared/verification-protocol.md`** — the shared reliability contract;
+  its Verify phase and Deferred ledger run below.
 
 Understand intent: for a PR read the title, body, and linked issue; for a file
 understand its role; for staged changes, what is in flight.
@@ -105,6 +107,12 @@ policy · No-workaround · Type safety · No `console.log` · DESIGN.md/AI-slop 
 Parity · i18n · Contract drift + backward-compat · Security · Backend hard rules.
 
 Focus on changed code, not pre-existing issues — unless a pre-existing issue is Critical.
+
+**Coverage contract (verification protocol §1):** the diff's changed files are the binding
+inventory — rank them worst-first (highest-blast-radius / most-churned files and the
+trust-boundary + contract surfaces before stable leaves) so the riskiest code is reviewed
+even under pressure, and every changed file ends with a verdict or in the Deferred ledger.
+Nothing changed is silently skipped.
 
 Apply the rubric's **Signal gate**: post Critical/High and concretely-actionable Medium only — drop Low/Info nits and style preferences (manufacturing nits to avoid approving is a defect). The outcome is deterministic: **NEEDS WORK** iff any Critical/High finding survives, otherwise **APPROVE**.
 
@@ -163,7 +171,29 @@ not over-claim completeness here.
 
 ---
 
-## Phase 6 — Validate
+## Phase 6 — Verify findings (adversarial)
+
+Run `.claude/skills/_shared/verification-protocol.md` before validating — every finding
+that will decide the outcome has to survive a challenge first.
+
+1. **Adversarial pass (§2).** For every **Critical / High** finding (including any
+   `⚠️ breaks old mobile clients`), spawn an independent skeptic subagent (3 concurrent)
+   whose only job is to *refute* it — read the cited `file:line` in full diff context and
+   argue it is a false positive (the path is unreachable, the value already validated, the
+   field actually still present or optional-and-unused with the grep to prove it, a
+   duplicate, the severity inflated). Default to refuted when uncertain. Drop or downgrade
+   anything the skeptic disproves — a false Critical that blocks a clean PR is as costly as
+   a missed one. The survivors decide the recommendation.
+2. **Completeness pass (§3).** One pass only — a diff is its own boundary, so no loop: ask
+   *"what changed file or hunk did I not give a verdict, what dimension did I mark N/A
+   without checking its surface?"* and close the gap before reporting.
+3. **Deferred ledger (§4).** Every dimension marked N/A and every changed file not
+   verdicted goes into the report's **Deferred** line with a one-line reason — so "clean"
+   never hides "not looked at."
+
+---
+
+## Phase 7 — Validate
 
 Run the affected-repo checks by **delegating to the `/validate` skill** (auto-detects
 frontend / backend / both) rather than hardcoding a second copy of the command set —
@@ -173,7 +203,7 @@ table. For a file/folder scope with no working-tree changes, validation is N/A.
 
 ---
 
-## Phase 7 — Report
+## Phase 8 — Report
 
 Write the report, then post it to the PR when the scope is a PR.
 
@@ -225,6 +255,12 @@ mkdir -p .claude/reviews
 | Tests | PASS / FAIL / N/A |
 | Build (api) | PASS / FAIL / N/A |
 
+## Deferred — N/A dimensions & files not verdicted
+
+{Per the verification protocol §4: each dimension marked N/A (with why its surface wasn't
+touched) and any changed file not given a verdict — one line each. "Nothing deferred" if
+every dimension and file got a verdict.}
+
 ## What's good
 
 {positive observations}
@@ -253,7 +289,7 @@ endpoint / `mcp__github_inline_comment__create_inline_comment`.
 
 - **CI wrapper** (`.github/workflows/claude-review.yml`) invokes this skill: it owns the
   single decisive post — produce the report + recommendation and let it submit (skip this
-  posting step). In CI also skip Phase 6, and mark any dimension that needs the
+  posting step). In CI also skip Phase 7 (Validate), and mark any dimension that needs the
   un-checked-out sibling repo as "not verifiable in CI".
 - **Local, a PR you do NOT own**: post the decisive review yourself per the recommendation.
 - **Local, your OWN PR** (GitHub blocks self-approval): write the report and post it with

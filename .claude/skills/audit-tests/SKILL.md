@@ -48,9 +48,11 @@ Parse `$ARGUMENTS`: blank → **both repos**; `api`/`backend` → orbit-api; `fr
 | `orbit-api` | xUnit + FluentAssertions in `tests/`. Test accounts via `TEST_ACCOUNTS` env. |
 
 Load `rubric.md` (read first — it defines what "intelligent" means), root + scoped
-`CLAUDE.md` testing sections, and the factories file (so suggested tests use the real
-builders). **Unit only** — if you find an integration/E2E/real-DB harness, flag it as
-out-of-policy (it was deliberately removed), don't reward it.
+`CLAUDE.md` testing sections, the factories file (so suggested tests use the real
+builders), and **`.claude/skills/_shared/verification-protocol.md`** (the shared
+reliability contract — its Verify phase and Deferred ledger run below). **Unit only** — if
+you find an integration/E2E/real-DB harness, flag it as out-of-policy (it was deliberately
+removed), don't reward it.
 
 ---
 
@@ -100,7 +102,29 @@ Apply the rubric's smell list (defined fully in `rubric.md`):
 
 ---
 
-## Phase 4 — Report
+## Phase 4 — Verify (adversarial + completeness)
+
+Before writing the report, run `.claude/skills/_shared/verification-protocol.md` — a gap
+ships only after it survives a challenge, and the sweep must prove it covered the paths
+that matter.
+
+1. **Adversarial pass (§2).** For every **Critical / High** finding, spawn an independent
+   skeptic subagent (3 concurrent) whose only job is to *refute* it — read the cited test
+   + source in full context and argue the gap is a false positive (the path is actually
+   pinned by a test elsewhere, the test *would* fail on a real break, a duplicate, the
+   severity inflated). Default to refuted when uncertain. Drop or downgrade anything the
+   skeptic disproves; survivors ship with confidence.
+2. **Completeness critic + loop-until-dry (§3).** Run a fresh critic asking *"what did this
+   audit NOT examine — a critical path never mapped, a test area skipped, a suite only
+   half-read?"* Spawn a focused finder round on each gap it names; repeat until a round
+   surfaces nothing new (cap: 2 dry rounds — log it).
+3. **Deferred ledger (§4).** Roll everything in scope but un-verdicted (non-critical paths
+   not scored, policy-excluded integration/E2E, a suite left unread) into the report's
+   **Deferred** section, one reason each — never implied as covered.
+
+---
+
+## Phase 5 — Report
 
 ```bash
 mkdir -p .claude/audits
@@ -141,6 +165,12 @@ mkdir -p .claude/audits
 
 {A numbered, ready-to-write list. Each: name · file it goes in · arrange/act/assert ·
 the factory to use. This is the actionable core — make it copy-pasteable-into-a-task.}
+
+## Deferred — in scope but not verdicted
+
+{Per the verification protocol §4: paths or test areas the sweep did not score with a
+verdict, suites left unread, policy-excluded integration/E2E — each with a one-line
+reason. "Nothing deferred — full coverage" if the contract was met.}
 
 ## What's well-tested
 

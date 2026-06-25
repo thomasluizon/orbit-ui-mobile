@@ -74,6 +74,8 @@ In parallel:
 - `orbit-api/CLAUDE.md` (+ scoped project `CLAUDE.md`) — only if backend is in scope.
 - `DESIGN.md` (repo root) — only if `apps/*` UI files are in scope (dimension 8).
 - `eslint-rules/no-comments.cjs` — the exact comment rule dimension 4 mirrors.
+- **`.claude/skills/_shared/verification-protocol.md`** — the shared reliability contract;
+  its Verify phase and Deferred ledger run below.
 
 ---
 
@@ -139,7 +141,30 @@ Walk every in-scope dimension. The high-value ones for a standing codebase:
 
 ---
 
-## Phase 5 — Report
+## Phase 5 — Verify (adversarial + completeness)
+
+Before writing the report, run `.claude/skills/_shared/verification-protocol.md` — a
+finding ships only after it survives a challenge, and the sweep must prove it covered the
+tree.
+
+1. **Adversarial pass (§2).** For every **Critical / High** finding, spawn an independent
+   skeptic subagent (3 concurrent) whose only job is to *refute* it — read the cited
+   `file:line` in full context and argue it is a false positive (the reference actually
+   exists so it is not dead — re-run the grep, the function is within the cap, the
+   abstraction is intentional and defensible, a duplicate). Default to refuted when
+   uncertain. Drop or downgrade anything the skeptic disproves; survivors ship with
+   confidence.
+2. **Completeness critic + loop-until-dry (§3).** Run a fresh critic asking *"what did this
+   audit NOT examine — a code slice never swept, a directory skipped, a dead-code claim
+   unproven by a grep?"* Spawn a focused finder round on each gap it names; repeat until a
+   round surfaces nothing new (cap: 2 dry rounds — log it).
+3. **Deferred ledger (§4).** Roll everything in scope but un-verdicted (dimensions owned by
+   `/audit-security` and `/pr-review`, a slice left unswept) into the report's **Deferred**
+   section, one reason each — never implied as clean.
+
+---
+
+## Phase 6 — Report
 
 ```bash
 mkdir -p .claude/audits
@@ -180,6 +205,12 @@ mkdir -p .claude/audits
 | apps/mobile | yes/no | {…} |
 | packages/shared | yes/no | {…} |
 | orbit-api | yes/no | {…} |
+
+## Deferred — in scope but not verdicted
+
+{Per the verification protocol §4: slices the sweep did not reach with a verdict,
+dimensions deferred to `/audit-security` or `/pr-review`, capped coverage — each with a
+one-line reason. "Nothing deferred — full coverage" if the contract was met.}
 
 ## What's good
 
