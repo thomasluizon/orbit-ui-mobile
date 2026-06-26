@@ -1,4 +1,4 @@
-import type { NormalizedHabit } from '../types/habit'
+import type { NormalizedHabit, RescheduleSuggestion } from '../types/habit'
 import type { Goal } from '../types/goal'
 import type { Profile } from '../types/profile'
 import type { NotificationItem } from '../types/notification'
@@ -40,6 +40,21 @@ export function createMockHabit(overrides: Partial<NormalizedHabit> = {}): Norma
     isLoggedInRange: false,
     instances: [],
     searchMatches: null,
+    ...overrides,
+  }
+}
+
+
+export function createMockRescheduleSuggestion(
+  overrides: Partial<RescheduleSuggestion> = {},
+): RescheduleSuggestion {
+  return {
+    frequencyUnit: 'Day',
+    frequencyQuantity: 1,
+    dueDate: '2025-01-02',
+    dueTime: null,
+    days: [],
+    rationale: 'Restart tomorrow with a lighter rhythm so it feels easy to pick back up.',
     ...overrides,
   }
 }

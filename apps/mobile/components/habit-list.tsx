@@ -62,6 +62,7 @@ import { useUIStore } from '@/stores/ui-store'
 import { useTourScrollContainer } from '@/hooks/use-tour-scroll-container'
 import { useTourStore } from '@/stores/tour-store'
 import { CreateHabitModal } from '@/components/habits/create-habit-modal'
+import { RescheduleSheet } from '@/components/habits/reschedule-sheet'
 import { HabitRow } from '@/components/habits/habit-row'
 import { useTourTarget } from '@/hooks/use-tour-target'
 import { HabitListConfirmDialogs } from './habit-list/confirm-dialogs'
@@ -267,6 +268,9 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     const [habitToSkip, setHabitToSkip] = useState<string | null>(null)
     const [showSubHabitModal, setShowSubHabitModal] = useState(false)
     const [subHabitParent, setSubHabitParent] =
+      useState<NormalizedHabit | null>(null)
+    const [showRescheduleSheet, setShowRescheduleSheet] = useState(false)
+    const [habitToReschedule, setHabitToReschedule] =
       useState<NormalizedHabit | null>(null)
     const [showMoveParentDialog, setShowMoveParentDialog] = useState(false)
     const [movingHabitId, setMovingHabitId] = useState<string | null>(null)
@@ -1068,6 +1072,12 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
               onSkip: () => {
                 promptSkip(habit.id)
               },
+              onReschedule: habit.isOverdue
+                ? () => {
+                    setHabitToReschedule(habit)
+                    setShowRescheduleSheet(true)
+                  }
+                : undefined,
               onToggleExpand: () => toggleExpand(habit.id),
               onDelete: () => {
                 promptDelete(habit.id)
@@ -1335,6 +1345,15 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
           }}
           initialDate={selectedDate ? formatAPIDate(selectedDate) : null}
           parentHabit={subHabitParent}
+        />
+
+        <RescheduleSheet
+          open={showRescheduleSheet}
+          onOpenChange={(open) => {
+            setShowRescheduleSheet(open)
+            if (!open) setHabitToReschedule(null)
+          }}
+          habit={habitToReschedule}
         />
 
         <HabitListConfirmDialogs

@@ -21,6 +21,7 @@ import { HabitRow, type HabitRowMetaToken } from './habit-row'
 import { HabitDetailDrawer } from './habit-detail-drawer'
 import { CreateHabitModal } from './create-habit-modal'
 import { EditHabitModal } from './edit-habit-modal'
+import { RescheduleSheet } from './reschedule-sheet'
 import {
   getEmptyHabitsMessage,
   HabitListEmptyState,
@@ -498,6 +499,8 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
   const [editModalOnSaved, setEditModalOnSaved] = useState<(() => void | Promise<void>) | null>(null)
   const [showSubHabitModal, setShowSubHabitModal] = useState(false)
   const [subHabitParent, setSubHabitParent] = useState<NormalizedHabit | null>(null)
+  const [showRescheduleSheet, setShowRescheduleSheet] = useState(false)
+  const [habitToReschedule, setHabitToReschedule] = useState<NormalizedHabit | null>(null)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
   const [habitToDelete, setHabitToDelete] = useState<string | null>(null)
   const [showDuplicateConfirm, setShowDuplicateConfirm] = useState(false)
@@ -868,6 +871,12 @@ const isPostponeAction = useMemo(() => {
             setShowEditModal(true)
           },
           onMoveParent: () => openMoveParentPicker(habit.id),
+          onReschedule: habit.isOverdue
+            ? () => {
+                setHabitToReschedule(habit)
+                setShowRescheduleSheet(true)
+              }
+            : undefined,
           onDelete: () => promptDelete(habit.id),
           onDetail: () => openDetail(habit),
           onDrillInto: () => drill.drillInto(habit.id),
@@ -1089,6 +1098,15 @@ const isPostponeAction = useMemo(() => {
         onOpenChange={handleEditModalOpenChange}
         habit={habitToEdit}
         onSaved={editModalOnSaved ?? undefined}
+      />
+
+      <RescheduleSheet
+        open={showRescheduleSheet}
+        onOpenChange={(open) => {
+          setShowRescheduleSheet(open)
+          if (!open) setHabitToReschedule(null)
+        }}
+        habit={habitToReschedule}
       />
 
       {showSubHabitModal && (

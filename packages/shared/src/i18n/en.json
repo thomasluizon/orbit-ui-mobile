@@ -293,7 +293,19 @@
       "duplicate": "Duplicate",
       "skip": "Skip",
       "openSubHabits": "Open sub-habits",
-      "unlog": "Mark incomplete"
+      "unlog": "Mark incomplete",
+      "reschedule": "Reschedule with AI"
+    },
+    "reschedule": {
+      "title": "Reschedule with AI",
+      "loading": "Finding a realistic new plan…",
+      "error": "Couldn't suggest a new plan.",
+      "retry": "Try again",
+      "accept": "Use this plan",
+      "dismiss": "Not now",
+      "proposedScheduleLabel": "Suggested schedule",
+      "freePrompt": "Pro turns a missed habit into a realistic plan to get back on track.",
+      "upgrade": "Upgrade"
     },
     "backToHabits": "Back to all habits",
     "completed": "completed",

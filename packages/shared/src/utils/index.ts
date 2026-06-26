@@ -66,6 +66,7 @@ export {
   buildCreateHabitRequest,
   buildSubHabitRequest,
   buildUpdateHabitRequest,
+  buildRescheduleUpdateRequest,
 } from './habit-request-builders'
 export type { HabitFormData } from './habit-request-builders'
 export {

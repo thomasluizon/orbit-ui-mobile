@@ -1,10 +1,12 @@
 import { describe, expect, it } from 'vitest'
 import {
   buildCreateHabitRequest,
+  buildRescheduleUpdateRequest,
   buildSubHabitRequest,
   buildUpdateHabitRequest,
   type HabitFormData,
 } from '../utils/habit-request-builders'
+import { createMockHabit, createMockRescheduleSuggestion } from './factories'
 
 function makeFormData(overrides: Partial<HabitFormData> = {}): HabitFormData {
   return {
@@ -315,5 +317,88 @@ describe('habit-request-builders', () => {
       slipAlertEnabled: false,
       goalIds: [],
     })
+  })
+})
+
+describe('buildRescheduleUpdateRequest', () => {
+  it('overrides the schedule from a recurring suggestion and preserves identity fields', () => {
+    const habit = createMockHabit({
+      id: 'h1',
+      title: 'Evening run',
+      description: 'A jog',
+      emoji: '🏃',
+      frequencyUnit: 'Day',
+      frequencyQuantity: 1,
+      dueDate: '2026-01-01',
+    })
+    const suggestion = createMockRescheduleSuggestion({
+      frequencyUnit: 'Day',
+      frequencyQuantity: 2,
+      dueDate: '2026-02-10',
+      dueTime: null,
+      days: [],
+    })
+
+    const request = buildRescheduleUpdateRequest(habit, suggestion)
+
+    expect(request).toEqual({
+      title: 'Evening run',
+      isBadHabit: false,
+      emoji: '🏃',
+      description: 'A jog',
+      dueDate: '2026-02-10',
+      frequencyUnit: 'Day',
+      frequencyQuantity: 2,
+    })
+  })
+
+  it('keeps a one-time suggestion one-time (no cadence fields)', () => {
+    const habit = createMockHabit({ title: 'Renew passport', frequencyUnit: null, frequencyQuantity: null })
+    const suggestion = createMockRescheduleSuggestion({
+      frequencyUnit: null,
+      frequencyQuantity: null,
+      dueDate: '2026-03-01',
+    })
+
+    const request = buildRescheduleUpdateRequest(habit, suggestion)
+
+    expect(request.dueDate).toBe('2026-03-01')
+    expect(request.frequencyUnit).toBeUndefined()
+    expect(request.frequencyQuantity).toBeUndefined()
+    expect(request.days).toBeUndefined()
+  })
+
+  it('applies suggested days only for a daily-one cadence', () => {
+    const habit = createMockHabit({ title: 'Stretch' })
+    const suggestion = createMockRescheduleSuggestion({
+      frequencyUnit: 'Day',
+      frequencyQuantity: 1,
+      days: ['Monday', 'Thursday'],
+      dueDate: '2026-02-02',
+    })
+
+    const request = buildRescheduleUpdateRequest(habit, suggestion)
+
+    expect(request.days).toEqual(['Monday', 'Thursday'])
+  })
+
+  it('overrides the due time when the suggestion provides one and drops the stale end time', () => {
+    const habit = createMockHabit({ dueTime: '06:00:00', dueEndTime: '07:00:00' })
+    const suggestion = createMockRescheduleSuggestion({ dueTime: '18:00:00' })
+
+    const request = buildRescheduleUpdateRequest(habit, suggestion)
+
+    expect(request.dueTime).toBe('18:00:00')
+    expect(request.dueEndTime).toBeUndefined()
+  })
+
+  it('preserves the habit due time and end time when the suggestion has none', () => {
+    const habit = createMockHabit({ dueTime: '06:00:00', dueEndTime: '07:00:00' })
+    const suggestion = createMockRescheduleSuggestion({ dueTime: null })
+
+    const request = buildRescheduleUpdateRequest(habit, suggestion)
+
+    expect(request.dueTime).toBe('06:00:00')
+    expect(request.dueEndTime).toBe('07:00:00')
   })
 })
