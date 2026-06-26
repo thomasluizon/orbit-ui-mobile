@@ -13,6 +13,7 @@ interface TitleSectionProps {
   onCommit: (value: string) => void;
   onDraftChange?: (value: string) => void;
   leading?: ReactNode;
+  trailing?: ReactNode;
   styles: HabitFormStyles;
 }
 
@@ -23,6 +24,7 @@ export function TitleSection({
   onCommit,
   onDraftChange,
   leading,
+  trailing,
   styles,
 }: Readonly<TitleSectionProps>) {
   const { t } = useTranslation();
@@ -42,7 +44,9 @@ export function TitleSection({
             onCommit={onCommit}
             onDraftChange={onDraftChange}
             accessibilityLabel={t("habits.form.title")}
+            style={trailing ? styles.titleInputWithTrailing : undefined}
           />
+          {trailing ? <View style={styles.titleTrailing}>{trailing}</View> : null}
         </View>
       </View>
       {error && (

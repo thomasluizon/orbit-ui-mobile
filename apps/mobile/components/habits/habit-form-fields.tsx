@@ -6,14 +6,13 @@ import {
   useRef,
   type ReactNode,
 } from "react";
-import { ActivityIndicator, View } from "react-native";
+import { ActivityIndicator, Pressable, View } from "react-native";
 import Animated, { FadeInDown, ReduceMotion } from "react-native-reanimated";
 import { Sparkles } from "lucide-react-native";
 import { useWatch } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import type { TagSelectionState } from "@/hooks/use-tag-selection";
 import type { HabitFormHelpers } from "@/hooks/use-habit-form";
-import { PillButton } from "@/components/ui/pill-button";
 import { useAppToast } from "@/hooks/use-app-toast";
 import { useHasProAccess } from "@/hooks/use-profile";
 import { createTokensV2 } from '@/lib/theme';
@@ -156,28 +155,33 @@ export function HabitFormFields({
             onSelect={(emoji) => setValue("emoji", emoji, { shouldDirty: true })}
           />
         }
+        trailing={
+          onSuggestSetup ? (
+            <Pressable
+              onPress={onSuggestSetup}
+              disabled={isSuggesting || watchedTitle.trim().length === 0}
+              accessibilityRole="button"
+              accessibilityLabel={t("habits.form.aiSuggest")}
+              accessibilityState={{
+                disabled: isSuggesting || watchedTitle.trim().length === 0,
+                busy: isSuggesting,
+              }}
+              style={({ pressed }) => [
+                styles.aiSparkButton,
+                (isSuggesting || watchedTitle.trim().length === 0) && { opacity: 0.45 },
+                pressed && { transform: [{ scale: 0.92 }] },
+              ]}
+            >
+              {isSuggesting ? (
+                <ActivityIndicator size="small" color={tokens.primary} />
+              ) : (
+                <Sparkles size={18} color={tokens.primary} strokeWidth={2} />
+              )}
+            </Pressable>
+          ) : undefined
+        }
         styles={styles}
       />
-
-      {onSuggestSetup ? (
-        <PillButton
-          variant="ghost"
-          busy={isSuggesting}
-          disabled={isSuggesting || watchedTitle.trim().length === 0}
-          onPress={onSuggestSetup}
-          accessibilityLabel={t("habits.form.aiSuggest")}
-          style={{ alignSelf: "flex-start" }}
-          leading={
-            isSuggesting ? (
-              <ActivityIndicator size="small" color={tokens.fg1} />
-            ) : (
-              <Sparkles size={16} color={tokens.fg1} strokeWidth={2} />
-            )
-          }
-        >
-          {isSuggesting ? t("habits.form.aiSuggesting") : t("habits.form.aiSuggest")}
-        </PillButton>
-      ) : null}
 
       <FrequencyTypeCards
         isOneTime={isOneTime}

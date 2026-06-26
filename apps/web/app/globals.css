@@ -748,6 +748,55 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   color: var(--fg-on-primary);
   box-shadow: none;
 }
+.chip-ai {
+  background: rgba(var(--primary-rgb), 0.1);
+  color: var(--primary);
+  box-shadow: inset 0 0 0 1px rgba(var(--primary-rgb), 0.28);
+}
+.chip-ai:hover {
+  background: rgba(var(--primary-rgb), 0.16);
+  color: var(--primary);
+}
+.chip-ai:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* In-field AI affordance: a violet sparkle well that glows on hover */
+.ai-spark-btn {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 38px;
+  height: 38px;
+  border: 0;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  color: var(--primary);
+  background: rgba(var(--primary-rgb), 0.1);
+  box-shadow: inset 0 0 0 1px rgba(var(--primary-rgb), 0.22);
+  transition:
+    background-color var(--dur-fast) var(--ease-standard),
+    box-shadow var(--dur-fast) var(--ease-standard),
+    transform var(--dur-fast) var(--ease-standard);
+}
+.ai-spark-btn:hover:not(:disabled) {
+  background: rgba(var(--primary-rgb), 0.18);
+  box-shadow:
+    inset 0 0 0 1px rgba(var(--primary-rgb), 0.35),
+    0 0 16px rgba(var(--primary-rgb), 0.4);
+}
+.ai-spark-btn:active:not(:disabled) {
+  transform: translateY(-50%) scale(0.92);
+}
+.ai-spark-btn:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
 
 /* Overlay body gutter — single source for full-bleed rows inside AppOverlay */
 [data-slot='overlay-body'] {
