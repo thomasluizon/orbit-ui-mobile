@@ -1,6 +1,6 @@
 import { useCallback } from "react";
-import { View, Text, TouchableOpacity } from "react-native";
-import { Plus } from "lucide-react-native";
+import { View, Text, TouchableOpacity, ActivityIndicator } from "react-native";
+import { Plus, Sparkles } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import type { SuggestedTag } from "@orbit/shared/types/habit";
 import { getFriendlyErrorMessage } from "@orbit/shared/utils";
@@ -13,11 +13,11 @@ import {
   useTags,
   useUpdateTag,
 } from "@/hooks/use-tags";
+import { useTagSuggestions } from "@/hooks/use-tag-suggestions";
 import { type AppTokens } from "./styles";
 import { TagColorPicker } from "./tag-color-picker";
 import { TagEditorRow } from "./tag-editor-row";
 import { HabitTagChip } from "./habit-tag-chip";
-import { SuggestedTagsRow } from "./suggested-tags-row";
 import type { HabitFormStyles } from "./types";
 
 interface TagsSectionProps {
@@ -65,6 +65,23 @@ export function TagsSection({
         throw error;
       }
     });
+  }
+
+  const tagSuggestions = useTagSuggestions(title, description, tags.atTagLimit);
+
+  async function handleSuggest() {
+    try {
+      await tagSuggestions.suggest();
+    } catch (error: unknown) {
+      showError(
+        getFriendlyErrorMessage(
+          error,
+          translate,
+          "habits.form.suggestTagsError",
+          "generic",
+        ),
+      );
+    }
   }
 
   return (
@@ -121,16 +138,69 @@ export function TagsSection({
             </Text>
           </TouchableOpacity>
         )}
+        <TouchableOpacity
+          style={[styles.aiChip, !tagSuggestions.canSuggest && { opacity: 0.5 }]}
+          disabled={!tagSuggestions.canSuggest}
+          accessibilityRole="button"
+          accessibilityLabel={t("habits.form.suggestTags")}
+          accessibilityState={{
+            disabled: !tagSuggestions.canSuggest,
+            busy: tagSuggestions.isPending,
+          }}
+          onPress={handleSuggest}
+          activeOpacity={0.7}
+        >
+          {tagSuggestions.isPending ? (
+            <ActivityIndicator size="small" color={tokens.primary} />
+          ) : (
+            <Sparkles size={14} color={tokens.primary} strokeWidth={2} />
+          )}
+          <Text style={styles.aiChipText}>
+            {tagSuggestions.isPending
+              ? t("habits.form.suggestingTags")
+              : t("habits.form.suggestTags")}
+          </Text>
+        </TouchableOpacity>
       </View>
 
-      <SuggestedTagsRow
-        title={title}
-        description={description}
-        atTagLimit={tags.atTagLimit}
-        onAccept={handleAcceptSuggestion}
-        styles={styles}
-        tokens={tokens}
-      />
+      {tagSuggestions.suggestions.length > 0 && (
+        <>
+          <Text style={styles.hintText}>
+            {t("habits.form.suggestedTagsLabel")}
+          </Text>
+          <View style={styles.tagsRow}>
+            {tagSuggestions.suggestions.map((suggestion) => (
+              <TouchableOpacity
+                key={`${suggestion.name}-${suggestion.id ?? "new"}`}
+                style={[
+                  styles.tagChip,
+                  styles.tagChipInactive,
+                  tags.atTagLimit && { opacity: 0.3 },
+                ]}
+                disabled={tags.atTagLimit}
+                accessibilityRole="button"
+                accessibilityLabel={suggestion.name}
+                onPress={() => {
+                  handleAcceptSuggestion(suggestion);
+                  tagSuggestions.dismiss(suggestion);
+                }}
+                activeOpacity={0.7}
+              >
+                <View style={styles.tagChipMain}>
+                  <View
+                    style={[styles.tagDot, { backgroundColor: suggestion.color }]}
+                  />
+                  <Text style={styles.tagChipText}>{suggestion.name}</Text>
+                </View>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </>
+      )}
+
+      {tagSuggestions.noResults && !tagSuggestions.isPending && (
+        <Text style={styles.hintText}>{t("habits.form.noTagSuggestions")}</Text>
+      )}
 
       {tags.editingTagId && (
         <View style={styles.tagEditSection}>
