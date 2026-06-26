@@ -47,6 +47,7 @@ export const API = {
     bulkSkip: '/api/habits/bulk/skip',
     reorder: '/api/habits/reorder',
     summary: '/api/habits/summary',
+    suggestSetup: '/api/habits/suggest-setup',
     calendarMonth: '/api/habits/calendar-month',
     retrospective: '/api/habits/retrospective',
     metrics: (id: string) => `/api/habits/${id}/metrics` as const,

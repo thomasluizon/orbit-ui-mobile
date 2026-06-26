@@ -17,10 +17,13 @@ import { useHabitForm } from '@/hooks/use-habit-form'
 import { useProfile } from '@/hooks/use-profile'
 import { useTagSelection } from '@/hooks/use-tag-selection'
 import { useCreateHabit, useCreateSubHabit } from '@/hooks/use-habits'
+import { useHabitSuggestion } from '@/hooks/use-habit-suggestion'
 import {
   applyHabitFormMode,
   buildEmptyHabitFormValues,
+  buildHabitFormPatchFromSuggestion,
   buildParentHabitFormState,
+  extractBackendErrorCode,
   formatAPIDate,
   getFriendlyErrorMessage,
   resolveAutoManagedReminderEnabled,
@@ -55,7 +58,7 @@ export function CreateHabitModal({
   initialDate,
   parentHabit,
 }: Readonly<CreateHabitModalProps>) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const router = useRouter()
   const translate = useCallback(
     (key: string, values?: Record<string, unknown>) => t(key, values),
@@ -71,7 +74,8 @@ export function CreateHabitModal({
   const { profile } = useProfile()
   const createHabit = useCreateHabit()
   const createSubHabit = useCreateSubHabit()
-  const { showError } = useAppToast()
+  const suggestion = useHabitSuggestion()
+  const { showError, showSuccess, showInfo } = useAppToast()
   const isSubHabitMode = !!parentHabit
   const hasProAccess = profile?.hasProAccess ?? false
   const activeView = useUIStore((s) => s.activeView)
@@ -300,6 +304,57 @@ export function CreateHabitModal({
     translate,
   ])
 
+  const handleSuggest = useCallback(async () => {
+    flushBufferedInputsRef.current()
+    const title = formHelpers.form.getValues('title')?.trim() ?? ''
+    if (title.length === 0) return
+
+    try {
+      const patch = buildHabitFormPatchFromSuggestion(
+        await suggestion.mutateAsync({ title, language: i18n.language }),
+      )
+
+      if (patch.emoji) {
+        formHelpers.form.setValue('emoji', patch.emoji, { shouldDirty: true })
+      }
+
+      if (patch.mode === 'recurring') {
+        formHelpers.setRecurring()
+        if (patch.frequencyUnit) {
+          formHelpers.form.setValue('frequencyUnit', patch.frequencyUnit, { shouldDirty: true })
+        }
+        if (patch.frequencyQuantity) {
+          formHelpers.form.setValue('frequencyQuantity', patch.frequencyQuantity, { shouldDirty: true })
+        }
+        formHelpers.form.setValue('days', patch.days, { shouldDirty: true })
+      } else {
+        formHelpers.setOneTime()
+      }
+
+      const appliedSubHabits = hasProAccess && patch.subHabitTitles.length > 0
+      if (appliedSubHabits) {
+        setSubHabits((prev) => [
+          ...prev.filter((entry) => entry.value.trim().length > 0),
+          ...patch.subHabitTitles.map((subHabitTitle) => createSubHabitEntry(subHabitTitle)),
+        ])
+      }
+
+      const appliedAnything =
+        patch.emoji !== null || patch.frequencyUnit !== null || patch.days.length > 0 || appliedSubHabits
+      if (appliedAnything) {
+        showSuccess(t('habits.form.aiSuggestApplied'))
+      } else {
+        showInfo(t('habits.form.aiSuggestEmpty'))
+      }
+    } catch (error: unknown) {
+      showError(
+        extractBackendErrorCode(error) === 'PAY_GATE'
+          ? t('habits.form.aiSuggestLimitReached')
+          : t('habits.form.aiSuggestError'),
+      )
+    }
+  }, [formHelpers, hasProAccess, i18n.language, showError, showInfo, showSuccess, suggestion, t])
+
   const isPending = createHabit.isPending || createSubHabit.isPending
   const submitDisabled = isPending || watchedTitle.trim().length === 0
 
@@ -346,6 +401,8 @@ export function CreateHabitModal({
             onReminderTimesChange={setReminderTimes}
             onReminderEnabledChange={handleReminderEnabledChange}
             onFlushBufferedInputsReady={handleBufferedInputsReady}
+            onSuggestSetup={isSubHabitMode ? undefined : handleSuggest}
+            isSuggesting={suggestion.isPending}
           >
             {!isSubHabitMode ? (
               <SubHabitEditor

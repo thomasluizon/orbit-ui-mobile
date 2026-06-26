@@ -242,6 +242,23 @@ export const createHabitRequestSchema = z.object({
 
 export type CreateHabitRequest = z.infer<typeof createHabitRequestSchema>
 
+export const habitSetupSuggestionRequestSchema = z.object({
+  title: z.string(),
+  language: z.string().optional(),
+})
+
+export type HabitSetupSuggestionRequest = z.infer<typeof habitSetupSuggestionRequestSchema>
+
+export const habitSetupSuggestionSchema = z.object({
+  emoji: z.string().nullable(),
+  frequencyUnit: frequencyUnitSchema.nullable(),
+  frequencyQuantity: z.number().nullable(),
+  days: z.array(z.string()),
+  subHabits: z.array(z.string()),
+})
+
+export type HabitSetupSuggestion = z.infer<typeof habitSetupSuggestionSchema>
+
 export const updateHabitRequestSchema = z.object({
   title: z.string(),
   description: z.string().optional(),

@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useEffect, useRef } from 'react'
 import { Check, Loader2 } from 'lucide-react'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
 import { AppOverlay } from '@/components/ui/app-overlay'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
@@ -14,11 +14,14 @@ import { useAppToast } from '@/hooks/use-app-toast'
 import { useDismissGuard } from '@/hooks/use-dismiss-guard'
 import { useTagSelection } from '@/hooks/use-tag-selection'
 import { useCreateHabit, useCreateSubHabit } from '@/hooks/use-habits'
+import { useHabitSuggestion } from '@/hooks/use-habit-suggestion'
 import { useProfile } from '@/hooks/use-profile'
 import {
   applyHabitFormMode,
   buildEmptyHabitFormValues,
+  buildHabitFormPatchFromSuggestion,
   buildParentHabitFormState,
+  extractBackendErrorCode,
   formatAPIDate,
   getFriendlyErrorMessage,
   resolveAutoManagedReminderEnabled,
@@ -56,10 +59,12 @@ export function CreateHabitModal({
       t(key, values),
     [t],
   )
+  const locale = useLocale()
   const { profile } = useProfile()
   const createHabit = useCreateHabit()
   const createSubHabit = useCreateSubHabit()
-  const { showError } = useAppToast()
+  const suggestion = useHabitSuggestion()
+  const { showError, showSuccess, showInfo } = useAppToast()
   const isSubHabitMode = !!parentHabit
   const hasProAccess = profile?.hasProAccess ?? false
   const activeView = useUIStore((s) => s.activeView)
@@ -228,6 +233,58 @@ export function CreateHabitModal({
     [createHabit, createSubHabit, formHelpers, hasProAccess, isSubHabitMode, onOpenChange, parentHabit, reminderTimes, router, selectedGoalIds, showError, subHabits, tags, translate],
   )
 
+  const handleSuggest = useCallback(
+    async () => {
+      const title = formHelpers.form.getValues('title')?.trim() ?? ''
+      if (title.length === 0) return
+      try {
+        const patch = buildHabitFormPatchFromSuggestion(
+          await suggestion.mutateAsync({ title, language: locale }),
+        )
+
+        if (patch.emoji) {
+          formHelpers.form.setValue('emoji', patch.emoji, { shouldDirty: true })
+        }
+
+        if (patch.mode === 'recurring') {
+          formHelpers.setRecurring()
+          if (patch.frequencyUnit) {
+            formHelpers.form.setValue('frequencyUnit', patch.frequencyUnit, { shouldDirty: true })
+          }
+          if (patch.frequencyQuantity) {
+            formHelpers.form.setValue('frequencyQuantity', patch.frequencyQuantity, { shouldDirty: true })
+          }
+          formHelpers.form.setValue('days', patch.days, { shouldDirty: true })
+        } else {
+          formHelpers.setOneTime()
+        }
+
+        const appliedSubHabits = hasProAccess && patch.subHabitTitles.length > 0
+        if (appliedSubHabits) {
+          setSubHabits((prev) => [
+            ...prev.filter((entry) => entry.value.trim().length > 0),
+            ...patch.subHabitTitles.map((subHabitTitle) => createSubHabitEntry(subHabitTitle)),
+          ])
+        }
+
+        const appliedAnything =
+          patch.emoji !== null || patch.frequencyUnit !== null || patch.days.length > 0 || appliedSubHabits
+        if (appliedAnything) {
+          showSuccess(t('habits.form.aiSuggestApplied'))
+        } else {
+          showInfo(t('habits.form.aiSuggestEmpty'))
+        }
+      } catch (error: unknown) {
+        showError(
+          extractBackendErrorCode(error) === 'PAY_GATE'
+            ? t('habits.form.aiSuggestLimitReached')
+            : t('habits.form.aiSuggestError'),
+        )
+      }
+    },
+    [formHelpers, hasProAccess, locale, showError, showInfo, showSuccess, suggestion, t],
+  )
+
   const isPending = createHabit.isPending || createSubHabit.isPending
 
   const updateSubHabitValue = useCallback((id: string, value: string) => {
@@ -265,6 +322,8 @@ export function CreateHabitModal({
           reminderTimes={reminderTimes}
           onReminderTimesChange={setReminderTimes}
           onReminderEnabledChange={handleReminderEnabledChange}
+          onSuggestSetup={isSubHabitMode ? undefined : handleSuggest}
+          isSuggesting={suggestion.isPending}
         >
           {!isSubHabitMode && (
             <SubHabitEditor
