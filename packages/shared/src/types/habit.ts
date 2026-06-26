@@ -29,6 +29,21 @@ export const habitTagSchema = z.object({
 
 export type HabitTag = z.infer<typeof habitTagSchema>
 
+export const suggestedTagSchema = z.object({
+  name: z.string(),
+  color: z.string(),
+  isExisting: z.boolean(),
+  id: z.string().nullable(),
+})
+
+export type SuggestedTag = z.infer<typeof suggestedTagSchema>
+
+export const suggestTagsResponseSchema = z.object({
+  tags: z.array(suggestedTagSchema),
+})
+
+export type SuggestTagsResponse = z.infer<typeof suggestTagsResponseSchema>
+
 const searchMatchFieldSchema = z.object({
   field: z.enum(['title', 'description', 'tag', 'child']),
   value: z.string().nullable(),

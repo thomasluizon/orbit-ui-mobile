@@ -1,6 +1,7 @@
 'use server'
 
 import { API } from '@orbit/shared/api'
+import { suggestTagsResponseSchema, type SuggestTagsResponse } from '@orbit/shared/types/habit'
 import { serverAuthFetch } from '@/lib/server-fetch'
 
 export async function getTags(): Promise<Array<{ id: string; name: string; color: string }>> {
@@ -42,4 +43,16 @@ export async function assignTags(
     method: 'PUT',
     body: JSON.stringify({ tagIds }),
   })
+}
+
+export async function suggestTags(
+  title: string,
+  description: string | null,
+  language: string,
+): Promise<SuggestTagsResponse> {
+  const raw: unknown = await serverAuthFetch(API.tags.suggest, {
+    method: 'POST',
+    body: JSON.stringify({ title, description, language }),
+  })
+  return suggestTagsResponseSchema.parse(raw)
 }

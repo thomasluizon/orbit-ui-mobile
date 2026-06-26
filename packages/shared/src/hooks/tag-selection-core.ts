@@ -1,3 +1,4 @@
+import type { SuggestedTag } from '../types/habit'
 import { toggleSelectedId } from '../utils/habit-form-state'
 import { validateTagForm } from '../validation/tag-form'
 
@@ -165,6 +166,46 @@ export async function createAndSelectTagFlow(
     showNewTag: false,
     newTagColor: TAG_COLORS[0],
     tagValidationErrorKey: null,
+  }))
+}
+
+/**
+ * Accepts an AI-suggested tag: selects the existing tag id when the suggestion
+ * resolves to one the user already has, otherwise creates the tag through the
+ * injected closure and selects it. Honors `maxTags`, no-ops at the limit, and
+ * never duplicates an already-selected id.
+ */
+export async function acceptSuggestedTagFlow(
+  state: TagSelectionCoreState,
+  maxTags: number,
+  suggestion: SuggestedTag,
+  createTag: (name: string, color: string) => Promise<string | null>,
+  applyState: ApplyTagSelectionState,
+): Promise<void> {
+  if (state.selectedTagIds.length >= maxTags) {
+    return
+  }
+
+  if (suggestion.isExisting && suggestion.id) {
+    const existingId = suggestion.id
+    applyState((previous) =>
+      previous.selectedTagIds.includes(existingId) ||
+      previous.selectedTagIds.length >= maxTags
+        ? previous
+        : { ...previous, selectedTagIds: [...previous.selectedTagIds, existingId] },
+    )
+    return
+  }
+
+  const tagId = await createTag(suggestion.name.trim(), suggestion.color)
+  applyState((previous) => ({
+    ...previous,
+    selectedTagIds:
+      tagId &&
+      !previous.selectedTagIds.includes(tagId) &&
+      previous.selectedTagIds.length < maxTags
+        ? [...previous.selectedTagIds, tagId]
+        : previous.selectedTagIds,
   }))
 }
 

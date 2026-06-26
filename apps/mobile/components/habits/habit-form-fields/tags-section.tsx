@@ -2,6 +2,7 @@ import { useCallback } from "react";
 import { View, Text, TouchableOpacity } from "react-native";
 import { Plus } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
+import type { SuggestedTag } from "@orbit/shared/types/habit";
 import { getFriendlyErrorMessage } from "@orbit/shared/utils";
 import { validateTagForm } from "@orbit/shared/validation";
 import type { TagSelectionState } from "@/hooks/use-tag-selection";
@@ -16,16 +17,21 @@ import { type AppTokens } from "./styles";
 import { TagColorPicker } from "./tag-color-picker";
 import { TagEditorRow } from "./tag-editor-row";
 import { HabitTagChip } from "./habit-tag-chip";
+import { SuggestedTagsRow } from "./suggested-tags-row";
 import type { HabitFormStyles } from "./types";
 
 interface TagsSectionProps {
   tags: TagSelectionState;
+  title: string;
+  description: string;
   styles: HabitFormStyles;
   tokens: AppTokens;
 }
 
 export function TagsSection({
   tags,
+  title,
+  description,
   styles,
   tokens,
 }: Readonly<TagsSectionProps>) {
@@ -41,6 +47,25 @@ export function TagsSection({
   const deleteTag = useDeleteTag();
   const isTagMutationPending =
     createTag.isPending || updateTag.isPending || deleteTag.isPending;
+
+  function handleAcceptSuggestion(suggestion: SuggestedTag) {
+    void tags.acceptSuggestedTag(suggestion, async (name, color) => {
+      try {
+        const result = await createTag.mutateAsync({ name, color });
+        return result.id;
+      } catch (error: unknown) {
+        showError(
+          getFriendlyErrorMessage(
+            error,
+            translate,
+            "toast.errors.validation",
+            "tag",
+          ),
+        );
+        throw error;
+      }
+    });
+  }
 
   return (
     <View style={styles.fieldGroup}>
@@ -97,6 +122,15 @@ export function TagsSection({
           </TouchableOpacity>
         )}
       </View>
+
+      <SuggestedTagsRow
+        title={title}
+        description={description}
+        atTagLimit={tags.atTagLimit}
+        onAccept={handleAcceptSuggestion}
+        styles={styles}
+        tokens={tokens}
+      />
 
       {tags.editingTagId && (
         <View style={styles.tagEditSection}>

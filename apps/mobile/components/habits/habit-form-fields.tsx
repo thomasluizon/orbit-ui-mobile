@@ -108,6 +108,8 @@ export function HabitFormFields({
 
   const watchedEmoji = useWatch({ control: form.control, name: "emoji" }) ?? "";
   const watchedTitle = useWatch({ control: form.control, name: "title" }) ?? "";
+  const watchedDescription =
+    useWatch({ control: form.control, name: "description" }) ?? "";
 
   const handleReminderEnabledChange = useCallback(
     (nextEnabled: boolean) => {
@@ -230,7 +232,13 @@ export function HabitFormFields({
         />
       )}
 
-      <TagsSection tags={tags} styles={styles} tokens={tokens} />
+      <TagsSection
+        tags={tags}
+        title={watchedTitle}
+        description={watchedDescription}
+        styles={styles}
+        tokens={tokens}
+      />
 
       <MoreOptionsToggle
         control={form.control}

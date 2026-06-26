@@ -63,6 +63,15 @@ vi.mock('@/components/ui/app-select', () => ({
   ),
 }))
 
+vi.mock('@/app/actions/tags', () => ({
+  getTags: vi.fn().mockResolvedValue([]),
+  createTag: vi.fn(),
+  updateTag: vi.fn(),
+  deleteTag: vi.fn(),
+  assignTags: vi.fn(),
+  suggestTags: vi.fn(),
+}))
+
 
 function createMockFormHelpers(overrides?: Partial<HabitFormHelpers>): HabitFormHelpers {
   return {
@@ -136,6 +145,7 @@ function createMockTags(overrides?: Partial<TagSelectionState>): TagSelectionSta
     setNewTagColor: vi.fn(),
     tagColors: ['#7f46f7', '#dc2626', '#047857'] as readonly string[],
     createAndSelectTag: vi.fn(),
+    acceptSuggestedTag: vi.fn(),
     editingTagId: null,
     editTagName: '',
     setEditTagName: vi.fn(),
@@ -1532,5 +1542,118 @@ describe('HabitFormFields', () => {
     )
     expect(screen.getByTestId('habit-checklist')).toBeDefined()
     expect(screen.getByTestId('checklist-templates')).toBeDefined()
+  })
+
+  it('disables the suggest tags button when the title is empty', () => {
+    const formHelpers = createMockFormHelpers()
+    const tags = createMockTags()
+    renderWithProviders(
+      <HabitFormFields
+        formHelpers={formHelpers}
+        tags={tags}
+        selectedGoalIds={[]}
+        atGoalLimit={false}
+        onToggleGoal={vi.fn()}
+        reminderTimes={[]}
+        onReminderTimesChange={vi.fn()}
+      />,
+    )
+    expect(screen.getByRole('button', { name: 'habits.form.suggestTags' })).toBeDisabled()
+  })
+
+  it('suggests tags and accepts an existing suggestion as the real tag', async () => {
+    const { suggestTags } = await import('@/app/actions/tags')
+    vi.mocked(suggestTags).mockResolvedValue({
+      tags: [
+        { name: 'Health', color: '#10b981', isExisting: true, id: 'tag-1' },
+        { name: 'Reading', color: '#7c3aed', isExisting: false, id: null },
+      ],
+    })
+
+    const formHelpers = createMockFormHelpers()
+    formHelpers.form.watch = vi.fn((field: string) => {
+      const defaults: Record<string, unknown> = {
+        title: 'Morning run',
+        frequencyUnit: 'Day',
+        frequencyQuantity: 1,
+        days: [],
+        dueDate: '2025-01-01',
+        dueTime: '',
+        dueEndTime: '',
+        endDate: '',
+        isBadHabit: false,
+        reminderEnabled: false,
+        slipAlertEnabled: false,
+        checklistItems: [],
+        scheduledReminders: [],
+      }
+      return defaults[field] ?? ''
+    }) as unknown as typeof formHelpers.form.watch
+    const acceptSuggestedTag = vi.fn()
+    const tags = createMockTags({ acceptSuggestedTag })
+
+    renderWithProviders(
+      <HabitFormFields
+        formHelpers={formHelpers}
+        tags={tags}
+        selectedGoalIds={[]}
+        atGoalLimit={false}
+        onToggleGoal={vi.fn()}
+        reminderTimes={[]}
+        onReminderTimesChange={vi.fn()}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.suggestTags' }))
+
+    const healthChip = await screen.findByText('Health')
+    fireEvent.click(healthChip)
+
+    expect(acceptSuggestedTag).toHaveBeenCalledWith(
+      expect.objectContaining({ name: 'Health', isExisting: true, id: 'tag-1' }),
+      expect.any(Function),
+    )
+  })
+
+  it('shows the empty state when no tag suggestions are returned', async () => {
+    const { suggestTags } = await import('@/app/actions/tags')
+    vi.mocked(suggestTags).mockResolvedValue({ tags: [] })
+
+    const formHelpers = createMockFormHelpers()
+    formHelpers.form.watch = vi.fn((field: string) => {
+      const defaults: Record<string, unknown> = {
+        title: 'Morning run',
+        frequencyUnit: 'Day',
+        frequencyQuantity: 1,
+        days: [],
+        dueDate: '2025-01-01',
+        dueTime: '',
+        dueEndTime: '',
+        endDate: '',
+        isBadHabit: false,
+        reminderEnabled: false,
+        slipAlertEnabled: false,
+        checklistItems: [],
+        scheduledReminders: [],
+      }
+      return defaults[field] ?? ''
+    }) as unknown as typeof formHelpers.form.watch
+    const tags = createMockTags()
+
+    renderWithProviders(
+      <HabitFormFields
+        formHelpers={formHelpers}
+        tags={tags}
+        selectedGoalIds={[]}
+        atGoalLimit={false}
+        onToggleGoal={vi.fn()}
+        reminderTimes={[]}
+        onReminderTimesChange={vi.fn()}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'habits.form.suggestTags' }))
+
+    expect(await screen.findByText('habits.form.noTagSuggestions')).toBeDefined()
   })
 })

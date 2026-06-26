@@ -2,10 +2,12 @@
 
 import { useState, useMemo, useCallback } from 'react'
 import { MAX_TAGS_PER_HABIT } from '@orbit/shared/validation'
+import type { SuggestedTag } from '@orbit/shared/types/habit'
 import {
   TAG_COLORS,
   type EditableTag,
   type TagSelectionCoreState,
+  acceptSuggestedTagFlow,
   cancelTagEdit,
   createAndSelectTagFlow,
   createInitialTagSelectionState,
@@ -34,6 +36,10 @@ export interface TagSelectionState {
   setNewTagColor: (color: string) => void
   tagColors: readonly string[]
   createAndSelectTag: (
+    createTag: (name: string, color: string) => Promise<string | null>,
+  ) => Promise<void>
+  acceptSuggestedTag: (
+    suggestion: SuggestedTag,
     createTag: (name: string, color: string) => Promise<string | null>,
   ) => Promise<void>
   editingTagId: string | null
@@ -104,6 +110,14 @@ export function useTagSelection(
     [maxTags, state],
   )
 
+  const acceptSuggestedTag = useCallback(
+    (
+      suggestion: SuggestedTag,
+      createTag: (name: string, color: string) => Promise<string | null>,
+    ) => acceptSuggestedTagFlow(state, maxTags, suggestion, createTag, setState),
+    [maxTags, state],
+  )
+
   const saveEditTag = useCallback(
     (updateTag: (id: string, name: string, color: string) => Promise<void>) =>
       saveEditTagFlow(state, updateTag, setState),
@@ -130,6 +144,7 @@ export function useTagSelection(
     setNewTagColor,
     tagColors: TAG_COLORS,
     createAndSelectTag,
+    acceptSuggestedTag,
     editingTagId: state.editingTagId,
     editTagName: state.editTagName,
     setEditTagName,

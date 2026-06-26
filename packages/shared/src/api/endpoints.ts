@@ -75,6 +75,7 @@ export const API = {
     update: (id: string) => `/api/tags/${id}` as const,
     delete: (id: string) => `/api/tags/${id}` as const,
     assign: (habitId: string) => `/api/tags/${habitId}/assign` as const,
+    suggest: '/api/tags/suggest',
   },
 
   notifications: {

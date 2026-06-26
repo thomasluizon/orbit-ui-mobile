@@ -4,7 +4,7 @@ import { useState, useMemo, useCallback, useEffect, type ReactNode, type RefObje
 import { X, Plus, Check, ChevronDown, Sparkles, Loader2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { PillButton } from '@/components/ui/pill-button'
-import type { FrequencyUnit } from '@orbit/shared/types/habit'
+import type { FrequencyUnit, SuggestedTag } from '@orbit/shared/types/habit'
 import {
   HABIT_REMINDER_PRESETS,
   getFriendlyErrorMessage,
@@ -25,6 +25,7 @@ import { PillToggleRow } from './habit-form-fields/pill-toggle-row'
 import { ReminderSection } from './habit-form-fields/reminder-section'
 import { ScheduledReminderSection } from './habit-form-fields/scheduled-reminder-section'
 import { SlipAlertSection } from './habit-form-fields/slip-alert-section'
+import { SuggestedTagsRow } from './habit-form-fields/suggested-tags-row'
 import { TagEditorRow } from './habit-form-fields/tag-editor-row'
 import { AppDatePicker } from '@/components/ui/app-date-picker'
 import { AppTimePicker } from '@/components/ui/app-time-picker'
@@ -167,6 +168,18 @@ export function HabitFormFields({
       setTimeout(() => setJustToggledTagId(''), 200)
     }
     tags.toggleTag(tagId)
+  }
+
+  function handleAcceptSuggestion(suggestion: SuggestedTag) {
+    void tags.acceptSuggestedTag(suggestion, async (name, color) => {
+      try {
+        const result = await createTag.mutateAsync({ name, color })
+        return result.id
+      } catch (error: unknown) {
+        showError(getFriendlyErrorMessage(error, translate, 'toast.errors.validation', 'tag'))
+        throw error
+      }
+    })
   }
 
   return (
@@ -377,6 +390,12 @@ export function HabitFormFields({
             </button>
           )}
         </div>
+        <SuggestedTagsRow
+          title={watchedTitle}
+          description={watchedDescription}
+          atTagLimit={tags.atTagLimit}
+          onAccept={handleAcceptSuggestion}
+        />
         {tags.editingTagId && (
           <div className="space-y-2">
             <ColorSwatches
