@@ -1064,7 +1064,8 @@
     "retry": "Try again",
     "askAstra": "Ask Astra",
     "upgrade": "Upgrade",
-    "freePrompt": "Pro gets a daily summary of your habits."
+    "freePrompt": "Pro gets a daily summary of your habits.",
+    "insightLabel": "Nudge"
   },
   "retrospective": {
     "title": "Retrospective",

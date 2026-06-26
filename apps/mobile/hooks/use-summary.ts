@@ -11,6 +11,7 @@ import { apiClient } from '@/lib/api-client'
 
 interface SummaryResponse {
   summary: string
+  insight: string
   fromCache: boolean
 }
 
@@ -31,17 +32,16 @@ export function useSummary({ date, locale, hasProAccess, aiSummaryEnabled }: Use
 
   const query = useQuery({
     queryKey: habitKeys.summary(date, date, locale, summaryTimeBucket),
-    queryFn: async (): Promise<string> => {
+    queryFn: async (): Promise<SummaryResponse> => {
       const params = new URLSearchParams({
         dateFrom: date,
         dateTo: date,
         language: locale,
       })
 
-      const data = await apiClient<SummaryResponse>(
+      return apiClient<SummaryResponse>(
         `${API.habits.summary}?${params.toString()}`,
       )
-      return data.summary
     },
     enabled,
     staleTime: 5 * 60 * 1000, // 5 minutes -- summary is expensive, no need for frequent refresh
@@ -51,7 +51,8 @@ export function useSummary({ date, locale, hasProAccess, aiSummaryEnabled }: Use
   })
 
   return {
-    summary: query.data ?? null,
+    summary: query.data?.summary ?? null,
+    insight: query.data?.insight ?? null,
     isLoading: query.isLoading,
     error: query.error,
     refetch: query.refetch,
