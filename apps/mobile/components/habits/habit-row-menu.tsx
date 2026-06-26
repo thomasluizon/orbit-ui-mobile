@@ -1,6 +1,7 @@
 import { Pressable, Text, View } from 'react-native'
 import {
   ArrowRight,
+  CalendarClock,
   CheckCircle2,
   ChevronRight,
   Copy,
@@ -64,6 +65,14 @@ export function HabitRowMenuBody({
           label={t('habits.actions.skip')}
           color={tokens.statusOverdueText}
           onPress={run(actions.onSkip)}
+        />
+      ) : null}
+      {actions.onReschedule ? (
+        <MenuItem
+          icon={CalendarClock}
+          label={t('habits.actions.reschedule')}
+          color={tokens.fg1}
+          onPress={run(actions.onReschedule)}
         />
       ) : null}
       {actions.onEdit ? (

@@ -23,6 +23,7 @@ export interface HabitRowActions {
   onLog?: () => void
   onUnlog?: () => void
   onSkip?: () => void
+  onReschedule?: () => void
   onDelete?: () => void
   onDuplicate?: () => void
   onEdit?: () => void
@@ -96,6 +97,7 @@ export function HabitRow({
     onMoveParent,
     onAddSubHabit,
     onSkip,
+    onReschedule,
     onDelete,
     onEnterSelectMode,
     onDrillInto,
@@ -108,6 +110,7 @@ export function HabitRow({
     onMoveParent ||
     onAddSubHabit ||
     onSkip ||
+    onReschedule ||
     onDelete ||
     canSelect ||
     canDrillInto
@@ -415,6 +418,7 @@ export function HabitRow({
                 onAddSubHabit={onAddSubHabit}
                 onMoveParent={onMoveParent}
                 onSkip={onSkip}
+                onReschedule={onReschedule}
                 onDelete={onDelete}
                 onEnterSelectMode={canSelect ? onEnterSelectMode : undefined}
                 onDrillInto={canDrillInto ? onDrillInto : undefined}

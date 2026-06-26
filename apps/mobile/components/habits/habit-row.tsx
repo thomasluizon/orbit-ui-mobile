@@ -35,6 +35,7 @@ export interface HabitRowActions {
   onLog?: () => void
   onUnlog?: () => void
   onSkip?: () => void
+  onReschedule?: () => void
   onDelete?: () => void
   onDuplicate?: () => void
   onEdit?: () => void
@@ -148,6 +149,7 @@ export function HabitRow({
     !!actions.onMoveParent ||
     !!actions.onAddSubHabit ||
     !!actions.onSkip ||
+    !!actions.onReschedule ||
     !!actions.onDelete ||
     (!isSelectMode && !!actions.onEnterSelectMode) ||
     (hasChildren && !!actions.onDrillInto)

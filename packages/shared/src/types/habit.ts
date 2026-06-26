@@ -284,6 +284,24 @@ export const updateHabitRequestSchema = z.object({
 
 export type UpdateHabitRequest = z.infer<typeof updateHabitRequestSchema>
 
+export const rescheduleSuggestionSchema = z.object({
+  frequencyUnit: frequencyUnitSchema.nullable(),
+  frequencyQuantity: z.number().nullable(),
+  dueDate: z.string(),
+  dueTime: z.string().nullable(),
+  days: z.array(z.string()),
+  rationale: z.string(),
+})
+
+export type RescheduleSuggestion = z.infer<typeof rescheduleSuggestionSchema>
+
+export const rescheduleSuggestionResponseSchema = z.object({
+  suggestion: rescheduleSuggestionSchema,
+  fromCache: z.boolean(),
+})
+
+export type RescheduleSuggestionResponse = z.infer<typeof rescheduleSuggestionResponseSchema>
+
 export const logHabitRequestSchema = z.object({
   date: z.string().optional(),
 })
