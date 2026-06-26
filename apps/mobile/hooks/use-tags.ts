@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { habitKeys, tagKeys , QUERY_STALE_TIMES } from '@orbit/shared/query'
 
 import { API } from '@orbit/shared/api'
-import type { HabitScheduleItem } from '@orbit/shared/types/habit'
+import type { HabitScheduleItem, SuggestTagsResponse } from '@orbit/shared/types/habit'
 import {
   appendTag,
   mapHabitTagReferences,
@@ -314,6 +314,24 @@ export function useDeleteTag() {
       if (isQueuedResult(data)) return
       void invalidateTagMutationQueries(queryClient)
     },
+  })
+}
+
+export function useSuggestTags() {
+  return useMutation({
+    mutationFn: ({
+      title,
+      description,
+      language,
+    }: {
+      title: string
+      description: string | null
+      language: string
+    }) =>
+      apiClient<SuggestTagsResponse>(API.tags.suggest, {
+        method: 'POST',
+        body: JSON.stringify({ title, description, language }),
+      }),
   })
 }
 

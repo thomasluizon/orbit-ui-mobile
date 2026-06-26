@@ -5,7 +5,7 @@ import React from 'react'
 import { habitKeys, tagKeys } from '@orbit/shared/query'
 import { createMockGoal } from '@orbit/shared/__tests__/factories'
 import type { HabitScheduleItem } from '@orbit/shared/types/habit'
-import { useAssignTags, useCreateTag, useDeleteTag, useUpdateTag } from '@/hooks/use-tags'
+import { useAssignTags, useCreateTag, useDeleteTag, useSuggestTags, useUpdateTag } from '@/hooks/use-tags'
 
 vi.mock('@/app/actions/tags', () => ({
   getTags: vi.fn(),
@@ -13,6 +13,7 @@ vi.mock('@/app/actions/tags', () => ({
   updateTag: vi.fn(),
   deleteTag: vi.fn(),
   assignTags: vi.fn(),
+  suggestTags: vi.fn(),
 }))
 
 function createWrapper(queryClient: QueryClient) {
@@ -149,6 +150,40 @@ describe('web tag hooks', () => {
 
     expect(queryClient.getQueryData(tagKeys.lists())).toEqual(initialTags)
     expect(queryClient.getQueryData(habitKeys.lists())).toEqual(initialHabits)
+  })
+
+  it('returns AI tag suggestions from the suggest action', async () => {
+    const { suggestTags } = await import('@/app/actions/tags')
+    const response = {
+      tags: [
+        { name: 'Health', color: '#10b981', isExisting: true, id: 'tag-1' },
+        { name: 'Reading', color: '#7c3aed', isExisting: false, id: null },
+      ],
+    }
+    vi.mocked(suggestTags).mockResolvedValue(response)
+
+    const queryClient = new QueryClient({
+      defaultOptions: {
+        queries: { retry: false },
+        mutations: { retry: false },
+      },
+    })
+
+    const { result } = renderHook(() => useSuggestTags(), {
+      wrapper: createWrapper(queryClient),
+    })
+
+    let returned: unknown
+    await act(async () => {
+      returned = await result.current.mutateAsync({
+        title: 'Morning run',
+        description: null,
+        language: 'en',
+      })
+    })
+
+    expect(suggestTags).toHaveBeenCalledWith('Morning run', null, 'en')
+    expect(returned).toEqual(response)
   })
 
   it('optimistically assigns tags onto the habit cache', async () => {

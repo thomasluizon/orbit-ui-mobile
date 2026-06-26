@@ -4,6 +4,7 @@ import type {
   TagSelectionCoreState,
 } from '../hooks/tag-selection-core'
 import {
+  acceptSuggestedTagFlow,
   cancelTagEdit,
   createAndSelectTagFlow,
   createInitialTagSelectionState,
@@ -188,6 +189,84 @@ describe('createAndSelectTagFlow', () => {
     await createAndSelectTagFlow(harness.state, 2, createTag, harness.applyState)
 
     expect(harness.state.selectedTagIds).toEqual(['tag-1', 'tag-9'])
+  })
+})
+
+describe('acceptSuggestedTagFlow', () => {
+  it('selects an existing suggestion by its tag id without creating', async () => {
+    const harness = createStateHarness(createInitialTagSelectionState(['tag-1']))
+    const createTag = vi.fn()
+
+    await acceptSuggestedTagFlow(
+      harness.state,
+      5,
+      { name: 'Health', color: '#10b981', isExisting: true, id: 'tag-2' },
+      createTag,
+      harness.applyState,
+    )
+
+    expect(createTag).not.toHaveBeenCalled()
+    expect(harness.state.selectedTagIds).toEqual(['tag-1', 'tag-2'])
+  })
+
+  it('creates and selects a new suggestion', async () => {
+    const harness = createStateHarness(createInitialTagSelectionState())
+    const createTag = vi.fn().mockResolvedValue('tag-9')
+
+    await acceptSuggestedTagFlow(
+      harness.state,
+      5,
+      { name: '  Reading  ', color: '#7c3aed', isExisting: false, id: null },
+      createTag,
+      harness.applyState,
+    )
+
+    expect(createTag).toHaveBeenCalledWith('Reading', '#7c3aed')
+    expect(harness.state.selectedTagIds).toEqual(['tag-9'])
+  })
+
+  it('does nothing when the selection is already at the limit', async () => {
+    const harness = createStateHarness(createInitialTagSelectionState(['tag-1', 'tag-2']))
+    const createTag = vi.fn()
+
+    await acceptSuggestedTagFlow(
+      harness.state,
+      2,
+      { name: 'Health', color: '#10b981', isExisting: true, id: 'tag-3' },
+      createTag,
+      harness.applyState,
+    )
+
+    expect(createTag).not.toHaveBeenCalled()
+    expect(harness.state.selectedTagIds).toEqual(['tag-1', 'tag-2'])
+  })
+
+  it('does not duplicate an already-selected existing tag', async () => {
+    const harness = createStateHarness(createInitialTagSelectionState(['tag-1']))
+
+    await acceptSuggestedTagFlow(
+      harness.state,
+      5,
+      { name: 'Health', color: '#10b981', isExisting: true, id: 'tag-1' },
+      vi.fn(),
+      harness.applyState,
+    )
+
+    expect(harness.state.selectedTagIds).toEqual(['tag-1'])
+  })
+
+  it('skips selecting when creating a new suggestion returns null', async () => {
+    const harness = createStateHarness(createInitialTagSelectionState())
+
+    await acceptSuggestedTagFlow(
+      harness.state,
+      5,
+      { name: 'Reading', color: '#7c3aed', isExisting: false, id: null },
+      vi.fn().mockResolvedValue(null),
+      harness.applyState,
+    )
+
+    expect(harness.state.selectedTagIds).toEqual([])
   })
 })
 

@@ -9,6 +9,7 @@ import { HabitFormFields } from '@/components/habits/habit-form-fields'
 const TestRenderer = require('react-test-renderer')
 
 const useWatchMock = vi.fn()
+const suggestMutateAsyncMock = vi.fn()
 let mockHasProAccess = false
 
 vi.mock('react-hook-form', () => ({
@@ -39,6 +40,7 @@ vi.mock('@/hooks/use-tags', () => ({
   useCreateTag: () => ({ isPending: false, mutateAsync: vi.fn() }),
   useUpdateTag: () => ({ isPending: false, mutateAsync: vi.fn() }),
   useDeleteTag: () => ({ isPending: false, mutateAsync: vi.fn() }),
+  useSuggestTags: () => ({ isPending: false, mutateAsync: suggestMutateAsyncMock }),
 }))
 
 vi.mock('@/components/habits/habit-checklist', () => ({
@@ -153,6 +155,7 @@ function createMockTags(overrides?: Partial<TagSelectionState>): TagSelectionSta
     setNewTagColor: vi.fn(),
     tagColors: ['#7f46f7', '#dc2626', '#047857'] as readonly string[],
     createAndSelectTag: vi.fn(),
+    acceptSuggestedTag: vi.fn(),
     editingTagId: null,
     editTagName: '',
     setEditTagName: vi.fn(),
@@ -571,5 +574,87 @@ describe('HabitFormFields (mobile)', () => {
     expect(formHelpers.form.setValue).toHaveBeenLastCalledWith('title', 'Read a book', {
       shouldDirty: true,
     })
+  })
+
+  it('suggests tags and accepts an existing suggestion as the real tag', async () => {
+    suggestMutateAsyncMock.mockResolvedValue({
+      tags: [
+        { name: 'Health', color: '#10b981', isExisting: true, id: 'tag-1' },
+        { name: 'Reading', color: '#7c3aed', isExisting: false, id: null },
+      ],
+    })
+    const acceptSuggestedTag = vi.fn()
+    const formHelpers = createMockFormHelpers({ title: 'Morning run' })
+    const tags = createMockTags({ acceptSuggestedTag })
+    let tree: any
+
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(
+        <HabitFormFields
+          formHelpers={formHelpers}
+          tags={tags}
+          selectedGoalIds={[]}
+          atGoalLimit={false}
+          onToggleGoal={vi.fn()}
+          reminderTimes={[]}
+          onReminderTimesChange={vi.fn()}
+        />,
+      )
+    })
+
+    const suggestButton = tree.root.findByProps({
+      accessibilityLabel: 'habits.form.suggestTags',
+    })
+
+    await TestRenderer.act(async () => {
+      await suggestButton.props.onPress()
+    })
+
+    const healthChip = tree.root.findByProps({ accessibilityLabel: 'Health' })
+
+    await TestRenderer.act(async () => {
+      healthChip.props.onPress()
+    })
+
+    expect(acceptSuggestedTag).toHaveBeenCalledWith(
+      expect.objectContaining({ name: 'Health', isExisting: true, id: 'tag-1' }),
+      expect.any(Function),
+    )
+  })
+
+  it('shows the empty state when no tag suggestions are returned', async () => {
+    suggestMutateAsyncMock.mockResolvedValue({ tags: [] })
+    const formHelpers = createMockFormHelpers({ title: 'Morning run' })
+    const tags = createMockTags()
+    let tree: any
+
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(
+        <HabitFormFields
+          formHelpers={formHelpers}
+          tags={tags}
+          selectedGoalIds={[]}
+          atGoalLimit={false}
+          onToggleGoal={vi.fn()}
+          reminderTimes={[]}
+          onReminderTimesChange={vi.fn()}
+        />,
+      )
+    })
+
+    const suggestButton = tree.root.findByProps({
+      accessibilityLabel: 'habits.form.suggestTags',
+    })
+
+    await TestRenderer.act(async () => {
+      await suggestButton.props.onPress()
+    })
+
+    const emptyState = tree.root.findAll(
+      (node: any) =>
+        node.type === 'Text' &&
+        node.props.children === 'habits.form.noTagSuggestions',
+    )
+    expect(emptyState.length).toBe(1)
   })
 })

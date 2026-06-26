@@ -1,9 +1,10 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { createMockGoal } from '@orbit/shared/__tests__/factories'
+import { API } from '@orbit/shared/api'
 import { habitKeys, tagKeys } from '@orbit/shared/query'
-import type { HabitScheduleItem } from '@orbit/shared/types/habit'
+import type { HabitScheduleItem, SuggestTagsResponse } from '@orbit/shared/types/habit'
 
-import { useAssignTags, useDeleteTag } from '@/hooks/use-tags'
+import { useAssignTags, useDeleteTag, useSuggestTags } from '@/hooks/use-tags'
 
 const mocks = vi.hoisted(() => {
   const state = {
@@ -226,6 +227,35 @@ describe('mobile tag hooks', () => {
       { id: 'tag-2', name: 'Focus', color: '#0000ff' },
     ])
     expect(mocks.queryClient.invalidateQueries).not.toHaveBeenCalled()
+  })
+
+  it('requests AI tag suggestions through the online api client', async () => {
+    const { apiClient } = await import('@/lib/api-client')
+    const response: SuggestTagsResponse = {
+      tags: [
+        { name: 'Health', color: '#10b981', isExisting: true, id: 'tag-1' },
+        { name: 'Reading', color: '#7c3aed', isExisting: false, id: null },
+      ],
+    }
+    vi.mocked(apiClient).mockResolvedValue(response)
+
+    const mutation = useSuggestTags() as unknown as MutationConfig<
+      SuggestTagsResponse,
+      { title: string; description: string | null; language: string },
+      unknown
+    >
+
+    const result = await mutation.mutationFn({
+      title: 'Morning run',
+      description: null,
+      language: 'en',
+    })
+
+    expect(apiClient).toHaveBeenCalledWith(API.tags.suggest, {
+      method: 'POST',
+      body: JSON.stringify({ title: 'Morning run', description: null, language: 'en' }),
+    })
+    expect(result).toEqual(response)
   })
 
   it('restores both tag and habit caches when deleting a tag fails', async () => {

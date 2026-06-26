@@ -11,7 +11,7 @@ import {
   setHabitTags,
   updateTagInList,
 } from '@orbit/shared/utils'
-import { assignTags, createTag, deleteTag, getTags, updateTag } from '@/app/actions/tags'
+import { assignTags, createTag, deleteTag, getTags, suggestTags, updateTag } from '@/app/actions/tags'
 
 export interface Tag {
   id: string
@@ -236,6 +236,20 @@ export function useDeleteTag() {
     onSettled: () => {
       void invalidateTagMutationQueries(queryClient)
     },
+  })
+}
+
+export function useSuggestTags() {
+  return useMutation({
+    mutationFn: ({
+      title,
+      description,
+      language,
+    }: {
+      title: string
+      description: string | null
+      language: string
+    }) => suggestTags(title, description, language),
   })
 }
 
