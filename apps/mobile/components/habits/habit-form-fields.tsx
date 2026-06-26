@@ -6,11 +6,14 @@ import {
   useRef,
   type ReactNode,
 } from "react";
-import { View } from "react-native";
+import { ActivityIndicator, View } from "react-native";
 import Animated, { FadeInDown, ReduceMotion } from "react-native-reanimated";
+import { Sparkles } from "lucide-react-native";
 import { useWatch } from "react-hook-form";
+import { useTranslation } from "react-i18next";
 import type { TagSelectionState } from "@/hooks/use-tag-selection";
 import type { HabitFormHelpers } from "@/hooks/use-habit-form";
+import { PillButton } from "@/components/ui/pill-button";
 import { useAppToast } from "@/hooks/use-app-toast";
 import { useHasProAccess } from "@/hooks/use-profile";
 import { createTokensV2 } from '@/lib/theme';
@@ -41,6 +44,9 @@ interface HabitFormFieldsProps {
   onFlushBufferedInputsReady?: (flush: () => void) => void;
   /** When true, advanced fields are visible by default (used in edit modal) */
   defaultExpanded?: boolean;
+  /** When provided, renders the "Suggest with AI" affordance that requests a setup for the title. */
+  onSuggestSetup?: () => void;
+  isSuggesting?: boolean;
   children?: ReactNode;
 }
 
@@ -55,8 +61,11 @@ export function HabitFormFields({
   onReminderEnabledChange,
   onFlushBufferedInputsReady,
   defaultExpanded = false,
+  onSuggestSetup,
+  isSuggesting = false,
   children,
 }: Readonly<HabitFormFieldsProps>) {
+  const { t } = useTranslation();
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
     () => createTokensV2(currentScheme, currentTheme),
@@ -98,6 +107,7 @@ export function HabitFormFields({
   }, []);
 
   const watchedEmoji = useWatch({ control: form.control, name: "emoji" }) ?? "";
+  const watchedTitle = useWatch({ control: form.control, name: "title" }) ?? "";
 
   const handleReminderEnabledChange = useCallback(
     (nextEnabled: boolean) => {
@@ -146,6 +156,26 @@ export function HabitFormFields({
         }
         styles={styles}
       />
+
+      {onSuggestSetup ? (
+        <PillButton
+          variant="ghost"
+          busy={isSuggesting}
+          disabled={isSuggesting || watchedTitle.trim().length === 0}
+          onPress={onSuggestSetup}
+          accessibilityLabel={t("habits.form.aiSuggest")}
+          style={{ alignSelf: "flex-start" }}
+          leading={
+            isSuggesting ? (
+              <ActivityIndicator size="small" color={tokens.fg1} />
+            ) : (
+              <Sparkles size={16} color={tokens.fg1} strokeWidth={2} />
+            )
+          }
+        >
+          {isSuggesting ? t("habits.form.aiSuggesting") : t("habits.form.aiSuggest")}
+        </PillButton>
+      ) : null}
 
       <FrequencyTypeCards
         isOneTime={isOneTime}

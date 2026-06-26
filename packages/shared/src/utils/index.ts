@@ -93,6 +93,7 @@ export type {
 } from './habit-form-state'
 export {
   buildHabitDaysList,
+  buildHabitFormPatchFromSuggestion,
   buildHabitFrequencyUnits,
   HABIT_REMINDER_PRESETS,
   formatHabitTimeInput,
@@ -102,6 +103,7 @@ export {
   validateHabitFormInput,
 } from './habit-form-helpers'
 export type {
+  HabitFormSuggestionPatch,
   HabitFormTranslationAdapter,
   HabitFormValidationContext,
 } from './habit-form-helpers'

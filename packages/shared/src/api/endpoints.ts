@@ -48,6 +48,7 @@ export const API = {
     reorder: '/api/habits/reorder',
     summary: '/api/habits/summary',
     rescheduleSuggestion: (id: string) => `/api/habits/${id}/reschedule-suggestion` as const,
+    suggestSetup: '/api/habits/suggest-setup',
     calendarMonth: '/api/habits/calendar-month',
     retrospective: '/api/habits/retrospective',
     metrics: (id: string) => `/api/habits/${id}/metrics` as const,
