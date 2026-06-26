@@ -31,6 +31,7 @@ describe('useSummary', () => {
       json: () =>
         Promise.resolve({
           summary: 'Great day! You completed 5 out of 6 habits.',
+          insight: 'A short walk later could be a nice close.',
           fromCache: false,
         }),
     })
@@ -48,6 +49,7 @@ describe('useSummary', () => {
 
     await waitFor(() => expect(result.current.summary).toBeTruthy())
     expect(result.current.summary).toBe('Great day! You completed 5 out of 6 habits.')
+    expect(result.current.insight).toBe('A short walk later could be a nice close.')
     expect(result.current.isLoading).toBe(false)
   })
 
