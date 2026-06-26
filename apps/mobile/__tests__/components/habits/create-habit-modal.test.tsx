@@ -28,12 +28,16 @@ vi.mock('@/hooks/use-habits', () => ({
   useCreateSubHabit: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }))
 
+vi.mock('@/hooks/use-habit-suggestion', () => ({
+  useHabitSuggestion: () => ({ mutateAsync: vi.fn(), isPending: false }),
+}))
+
 vi.mock('@/hooks/use-profile', () => ({
   useProfile: () => ({ profile: { hasProAccess: mockHasProAccess } }),
 }))
 
 vi.mock('@/hooks/use-app-toast', () => ({
-  useAppToast: () => ({ showError: vi.fn() }),
+  useAppToast: () => ({ showError: vi.fn(), showSuccess: vi.fn(), showInfo: vi.fn() }),
 }))
 
 vi.mock('@/stores/ui-store', () => ({

@@ -293,7 +293,19 @@
       "duplicate": "Duplicar",
       "skip": "Pular",
       "openSubHabits": "Abrir sub-hábitos",
-      "unlog": "Marcar como incompleto"
+      "unlog": "Marcar como incompleto",
+      "reschedule": "Reagendar com IA"
+    },
+    "reschedule": {
+      "title": "Reagendar com IA",
+      "loading": "Buscando um novo plano realista…",
+      "error": "Não foi possível sugerir um novo plano.",
+      "retry": "Tentar de novo",
+      "accept": "Usar este plano",
+      "dismiss": "Agora não",
+      "proposedScheduleLabel": "Agenda sugerida",
+      "freePrompt": "O Pro transforma um hábito perdido em um plano realista para voltar aos trilhos.",
+      "upgrade": "Fazer upgrade"
     },
     "backToHabits": "Voltar para todos os hábitos",
     "completed": "concluídos",
@@ -344,6 +356,12 @@
       "flexibleProgress": "{done}/{target} neste {unit}"
     },
     "form": {
+      "aiSuggest": "Sugerir com IA",
+      "aiSuggesting": "Pensando…",
+      "aiSuggestApplied": "Sugestão de IA aplicada",
+      "aiSuggestError": "Não foi possível gerar uma sugestão. Tente novamente.",
+      "aiSuggestEmpty": "Sem sugestão para esse — adicione os detalhes você mesmo.",
+      "aiSuggestLimitReached": "Você atingiu seu limite mensal de mensagens de IA.",
       "title": "Título",
       "titlePlaceholder": "ex. Corrida matinal",
       "description": "Descrição",
@@ -1063,7 +1081,8 @@
     "retry": "Tentar de novo",
     "askAstra": "Pergunte à Astra",
     "upgrade": "Fazer upgrade",
-    "freePrompt": "No Pro, você recebe um resumo diário dos seus hábitos."
+    "freePrompt": "No Pro, você recebe um resumo diário dos seus hábitos.",
+    "insightLabel": "Toque"
   },
   "retrospective": {
     "title": "Retrospectiva",

@@ -293,7 +293,19 @@
       "duplicate": "Duplicate",
       "skip": "Skip",
       "openSubHabits": "Open sub-habits",
-      "unlog": "Mark incomplete"
+      "unlog": "Mark incomplete",
+      "reschedule": "Reschedule with AI"
+    },
+    "reschedule": {
+      "title": "Reschedule with AI",
+      "loading": "Finding a realistic new plan…",
+      "error": "Couldn't suggest a new plan.",
+      "retry": "Try again",
+      "accept": "Use this plan",
+      "dismiss": "Not now",
+      "proposedScheduleLabel": "Suggested schedule",
+      "freePrompt": "Pro turns a missed habit into a realistic plan to get back on track.",
+      "upgrade": "Upgrade"
     },
     "backToHabits": "Back to all habits",
     "completed": "completed",
@@ -344,6 +356,12 @@
       "flexibleProgress": "{done}/{target} this {unit}"
     },
     "form": {
+      "aiSuggest": "Suggest with AI",
+      "aiSuggesting": "Thinking…",
+      "aiSuggestApplied": "AI suggestion applied",
+      "aiSuggestError": "Couldn't generate a suggestion. Please try again.",
+      "aiSuggestEmpty": "No suggestion for this one — add the details yourself.",
+      "aiSuggestLimitReached": "You've reached your monthly AI message limit.",
       "title": "Title",
       "titlePlaceholder": "e.g. Morning run",
       "description": "Description",
@@ -1063,7 +1081,8 @@
     "retry": "Try again",
     "askAstra": "Ask Astra",
     "upgrade": "Upgrade",
-    "freePrompt": "Pro gets a daily summary of your habits."
+    "freePrompt": "Pro gets a daily summary of your habits.",
+    "insightLabel": "Nudge"
   },
   "retrospective": {
     "title": "Retrospective",

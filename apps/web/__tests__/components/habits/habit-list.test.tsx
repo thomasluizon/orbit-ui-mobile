@@ -198,6 +198,10 @@ vi.mock('@/components/habits/create-habit-modal', () => ({
   CreateHabitModal: () => null,
 }))
 
+vi.mock('@/components/habits/reschedule-sheet', () => ({
+  RescheduleSheet: () => null,
+}))
+
 vi.mock('@/components/habits/edit-habit-modal', () => ({
   EditHabitModal: ({
     open,

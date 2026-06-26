@@ -1,6 +1,8 @@
 import type {
   CreateHabitRequest,
   CreateSubHabitRequest,
+  NormalizedHabit,
+  RescheduleSuggestion,
   UpdateHabitRequest,
 } from '../types/habit'
 import type { HabitFormData } from '../validation'
@@ -141,6 +143,40 @@ function applyUpdateReminderFields(
   request.reminderEnabled = false
   request.reminderTimes = []
   request.scheduledReminders = []
+}
+
+/**
+ * Builds the habit-update payload that applies an AI reschedule suggestion to a habit. It carries the
+ * habit's identity fields (so the existing update path does not wipe them) and overwrites only the
+ * schedule — cadence, days, due date, and optional time — from the suggestion. Reminders, checklist,
+ * goals, and end date are intentionally omitted so the update path preserves them.
+ */
+export function buildRescheduleUpdateRequest(
+  habit: NormalizedHabit,
+  suggestion: RescheduleSuggestion,
+): UpdateHabitRequest {
+  const request: UpdateHabitRequest = {
+    title: habit.title,
+    isBadHabit: habit.isBadHabit,
+    emoji: normalizeHabitEmoji(habit.emoji),
+    dueDate: suggestion.dueDate,
+  }
+  if (habit.description) request.description = habit.description
+
+  if (suggestion.frequencyUnit) {
+    request.frequencyUnit = suggestion.frequencyUnit
+    request.frequencyQuantity = suggestion.frequencyQuantity ?? 1
+    if (suggestion.days.length > 0) request.days = suggestion.days
+  }
+
+  if (suggestion.dueTime) {
+    request.dueTime = suggestion.dueTime
+  } else if (habit.dueTime) {
+    request.dueTime = habit.dueTime
+    if (habit.dueEndTime) request.dueEndTime = habit.dueEndTime
+  }
+
+  return request
 }
 
 export function buildUpdateHabitRequest(

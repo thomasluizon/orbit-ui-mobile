@@ -1,5 +1,6 @@
 import {
   ArrowRight,
+  CalendarClock,
   CheckCircle2,
   ChevronRight,
   Copy,
@@ -18,6 +19,7 @@ interface HabitRowMenuProps {
   onAddSubHabit?: () => void
   onMoveParent?: () => void
   onSkip?: () => void
+  onReschedule?: () => void
   onDelete?: () => void
   onEnterSelectMode?: () => void
   onDrillInto?: () => void
@@ -31,6 +33,7 @@ export function HabitRowMenu({
   onAddSubHabit,
   onMoveParent,
   onSkip,
+  onReschedule,
   onDelete,
   onEnterSelectMode,
   onDrillInto,
@@ -48,6 +51,7 @@ export function HabitRowMenu({
       {onAddSubHabit && <MenuItem icon={Plus} label={t('habits.form.addSubHabit')} onClick={run(onAddSubHabit)} />}
       {onMoveParent && <MenuItem icon={ArrowRight} label={t('habits.moveParent.button')} onClick={run(onMoveParent)} />}
       {onSkip && <MenuItem icon={FastForward} label={t('habits.actions.skip')} onClick={run(onSkip)} tone="warning" />}
+      {onReschedule && <MenuItem icon={CalendarClock} label={t('habits.actions.reschedule')} onClick={run(onReschedule)} />}
       {onEdit && <MenuItem icon={Pencil} label={t('common.edit')} onClick={run(onEdit)} />}
       {onDuplicate && <MenuItem icon={Copy} label={t('habits.actions.duplicate')} onClick={run(onDuplicate)} />}
       {onEnterSelectMode && <MenuItem icon={CheckCircle2} label={t('common.select')} onClick={run(onEnterSelectMode)} />}

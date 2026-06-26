@@ -66,6 +66,7 @@ export {
   buildCreateHabitRequest,
   buildSubHabitRequest,
   buildUpdateHabitRequest,
+  buildRescheduleUpdateRequest,
 } from './habit-request-builders'
 export type { HabitFormData } from './habit-request-builders'
 export {
@@ -92,6 +93,7 @@ export type {
 } from './habit-form-state'
 export {
   buildHabitDaysList,
+  buildHabitFormPatchFromSuggestion,
   buildHabitFrequencyUnits,
   HABIT_REMINDER_PRESETS,
   formatHabitTimeInput,
@@ -101,6 +103,7 @@ export {
   validateHabitFormInput,
 } from './habit-form-helpers'
 export type {
+  HabitFormSuggestionPatch,
   HabitFormTranslationAdapter,
   HabitFormValidationContext,
 } from './habit-form-helpers'
