@@ -1058,7 +1058,8 @@
     "retry": "Tentar de novo",
     "askAstra": "Pergunte à Astra",
     "upgrade": "Fazer upgrade",
-    "freePrompt": "No Pro, você recebe um resumo diário dos seus hábitos."
+    "freePrompt": "No Pro, você recebe um resumo diário dos seus hábitos.",
+    "insightLabel": "Toque"
   },
   "retrospective": {
     "title": "Retrospectiva",

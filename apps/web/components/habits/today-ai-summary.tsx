@@ -33,7 +33,7 @@ export function TodayAISummary({ date }: Readonly<TodayAISummaryProps>) {
   const locale = profile?.language ?? uiLocale
   const [expanded, setExpanded] = useState(false)
 
-  const { summary, isLoading, error, refetch } = useSummary({
+  const { summary, insight, isLoading, error, refetch } = useSummary({
     date,
     locale,
     hasProAccess,
@@ -135,6 +135,28 @@ export function TodayAISummary({ date }: Readonly<TodayAISummaryProps>) {
             {t('aiDisclosure.isAiLabel')}
           </span>
         </div>
+        {isSummaryText && insight ? (
+          <div
+            aria-label={`${t('summary.insightLabel')}: ${insight}`}
+            style={{
+              width: 'fit-content',
+              maxWidth: '100%',
+              borderRadius: 999,
+              padding: '4px 11px',
+              marginBottom: 8,
+              backgroundColor: 'rgba(var(--primary-rgb),0.16)',
+              boxShadow: 'inset 0 0 0 1px rgba(var(--primary-rgb),0.32)',
+              fontFamily: 'var(--font-sans)',
+              fontSize: 12,
+              fontWeight: 500,
+              lineHeight: 1.35,
+              color: 'var(--primary-soft)',
+              textWrap: 'pretty',
+            }}
+          >
+            {insight}
+          </div>
+        ) : null}
         <div
           className={clampable && !expanded ? 'line-clamp-3' : undefined}
           style={{
