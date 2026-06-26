@@ -2,6 +2,8 @@
 
 import type {
   CreateHabitRequest,
+  HabitSetupSuggestion,
+  HabitSetupSuggestionRequest,
   UpdateHabitRequest,
   LogHabitRequest,
   LogHabitResponse,
@@ -22,6 +24,15 @@ import { serverAuthFetch } from '@/lib/server-fetch'
 
 export async function createHabit(data: CreateHabitRequest): Promise<{ id: string }> {
   return serverAuthFetch(API.habits.create, {
+    method: 'POST',
+    body: JSON.stringify(data),
+  })
+}
+
+export async function suggestHabitSetup(
+  data: HabitSetupSuggestionRequest,
+): Promise<HabitSetupSuggestion> {
+  return serverAuthFetch(API.habits.suggestSetup, {
     method: 'POST',
     body: JSON.stringify(data),
   })

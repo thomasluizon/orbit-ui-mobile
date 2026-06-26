@@ -344,6 +344,12 @@
       "flexibleProgress": "{done}/{target} this {unit}"
     },
     "form": {
+      "aiSuggest": "Suggest with AI",
+      "aiSuggesting": "Thinking…",
+      "aiSuggestApplied": "AI suggestion applied",
+      "aiSuggestError": "Couldn't generate a suggestion. Please try again.",
+      "aiSuggestEmpty": "No suggestion for this one — add the details yourself.",
+      "aiSuggestLimitReached": "You've reached your monthly AI message limit.",
       "title": "Title",
       "titlePlaceholder": "e.g. Morning run",
       "description": "Description",

@@ -1,8 +1,9 @@
 'use client'
 
 import { useState, useMemo, useCallback, useEffect, type ReactNode, type RefObject } from 'react'
-import { X, Plus, Check, ChevronDown } from 'lucide-react'
+import { X, Plus, Check, ChevronDown, Sparkles, Loader2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
+import { PillButton } from '@/components/ui/pill-button'
 import type { FrequencyUnit } from '@orbit/shared/types/habit'
 import {
   HABIT_REMINDER_PRESETS,
@@ -47,6 +48,9 @@ interface HabitFormFieldsProps {
   onReminderEnabledChange?: (nextEnabled: boolean) => void
   /** When true, advanced fields are visible by default (used in edit modal) */
   defaultExpanded?: boolean
+  /** When provided, renders the "Suggest with AI" affordance that requests a setup for the title. */
+  onSuggestSetup?: () => void
+  isSuggesting?: boolean
   children?: ReactNode
 }
 
@@ -61,6 +65,8 @@ export function HabitFormFields({
   onReminderTimesChange,
   onReminderEnabledChange,
   defaultExpanded = false,
+  onSuggestSetup,
+  isSuggesting = false,
   children,
 }: Readonly<HabitFormFieldsProps>) {
   const t = useTranslations()
@@ -91,6 +97,7 @@ export function HabitFormFields({
   const { register, watch, setValue, formState: { errors } } = form
   const titleRegister = register('title')
 
+  const watchedTitle = watch('title') ?? ''
   const watchedFrequencyUnit = watch('frequencyUnit') ?? null
   const watchedFrequencyQuantity = watch('frequencyQuantity') ?? null
   const watchedDays = watch('days') ?? []
@@ -194,6 +201,26 @@ export function HabitFormFields({
           <p id="habit-form-title-error" className="text-xs text-[var(--status-bad)] mt-1" role="alert">
             {errors.title.message}
           </p>
+        )}
+        {onSuggestSetup && (
+          <div className="pt-1">
+            <PillButton
+              variant="ghost"
+              busy={isSuggesting}
+              disabled={isSuggesting || watchedTitle.trim().length === 0}
+              onClick={onSuggestSetup}
+              dataTestId="habit-suggest-setup"
+              leading={
+                isSuggesting ? (
+                  <Loader2 className="size-4 animate-spin" aria-hidden="true" />
+                ) : (
+                  <Sparkles size={16} strokeWidth={2} aria-hidden="true" />
+                )
+              }
+            >
+              {isSuggesting ? t('habits.form.aiSuggesting') : t('habits.form.aiSuggest')}
+            </PillButton>
+          </div>
         )}
       </div>
 

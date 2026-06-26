@@ -1,4 +1,4 @@
-import type { FrequencyUnit } from '../types/habit'
+import type { FrequencyUnit, HabitSetupSuggestion } from '../types/habit'
 import type { HabitFormData } from '../validation'
 import {
   validateGoalSelection,
@@ -114,6 +114,39 @@ export function buildHabitFrequencyUnits(
     { value: 'Month', label: translations.unitMonth },
     { value: 'Year', label: translations.unitYear },
   ]
+}
+
+export interface HabitFormSuggestionPatch {
+  mode: 'oneTime' | 'recurring'
+  emoji: string | null
+  frequencyUnit: FrequencyUnit | null
+  frequencyQuantity: number | null
+  days: string[]
+  subHabitTitles: string[]
+}
+
+/**
+ * Translates an AI habit-setup suggestion into a platform-agnostic patch for the create-habit form:
+ * decides recurring vs one-time from the suggested frequency, keeps suggested weekdays only for a
+ * daily (Day, quantity 1) schedule, and surfaces the sub-habit titles. The per-app caller applies
+ * this to its form state (the react-hook-form glue is the platform seam).
+ */
+export function buildHabitFormPatchFromSuggestion(
+  suggestion: HabitSetupSuggestion,
+): HabitFormSuggestionPatch {
+  const isRecurring = suggestion.frequencyUnit !== null
+  const frequencyQuantity = isRecurring ? (suggestion.frequencyQuantity ?? 1) : null
+  const keepsDays =
+    isRecurring && suggestion.frequencyUnit === 'Day' && frequencyQuantity === 1
+
+  return {
+    mode: isRecurring ? 'recurring' : 'oneTime',
+    emoji: suggestion.emoji,
+    frequencyUnit: suggestion.frequencyUnit,
+    frequencyQuantity,
+    days: keepsDays ? suggestion.days : [],
+    subHabitTitles: suggestion.subHabits,
+  }
 }
 
 export function formatHabitTimeInput(value: string): string {
