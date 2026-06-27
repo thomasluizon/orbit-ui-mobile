@@ -269,7 +269,11 @@ export const habitSetupSuggestionSchema = z.object({
   frequencyUnit: frequencyUnitSchema.nullable(),
   frequencyQuantity: z.number().nullable(),
   days: z.array(z.string()),
+  isFlexible: z.boolean(),
+  flexibleTarget: z.number().nullable(),
+  dueTime: z.string().nullable(),
   subHabits: z.array(z.string()),
+  checklistItems: z.array(z.string()),
 })
 
 export type HabitSetupSuggestion = z.infer<typeof habitSetupSuggestionSchema>

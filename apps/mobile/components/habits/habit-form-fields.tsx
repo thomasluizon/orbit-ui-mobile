@@ -43,6 +43,8 @@ interface HabitFormFieldsProps {
   onFlushBufferedInputsReady?: (flush: () => void) => void;
   /** When true, advanced fields are visible by default (used in edit modal) */
   defaultExpanded?: boolean;
+  /** Incrementing this opens the advanced section (used to reveal AI-applied checklist / sub-habits). */
+  expandAdvancedSignal?: number;
   /** When provided, renders the "Suggest with AI" affordance that requests a setup for the title. */
   onSuggestSetup?: () => void;
   isSuggesting?: boolean;
@@ -60,6 +62,7 @@ export function HabitFormFields({
   onReminderEnabledChange,
   onFlushBufferedInputsReady,
   defaultExpanded = false,
+  expandAdvancedSignal = 0,
   onSuggestSetup,
   isSuggesting = false,
   children,
@@ -122,6 +125,11 @@ export function HabitFormFields({
   );
 
   const [showAdvanced, setShowAdvanced] = useState(defaultExpanded);
+  const [prevExpandSignal, setPrevExpandSignal] = useState(expandAdvancedSignal);
+  if (expandAdvancedSignal !== prevExpandSignal) {
+    setPrevExpandSignal(expandAdvancedSignal);
+    if (expandAdvancedSignal > 0) setShowAdvanced(true);
+  }
 
   function toggleAdvanced() {
     setShowAdvanced((prev) => !prev);

@@ -340,7 +340,7 @@ describe('HabitFormFields', () => {
     expect(screen.getByText('habits.form.general')).toBeDefined()
   })
 
-  it('shows bad habit toggle label', () => {
+  it('shows the habit type toggle', () => {
     const formHelpers = createMockFormHelpers({ isGeneral: false })
     const tags = createMockTags()
     renderWithProviders(
@@ -354,7 +354,8 @@ describe('HabitFormFields', () => {
         onReminderTimesChange={vi.fn()}
       />,
     )
-    expect(screen.getByText('habits.form.badHabitLabel')).toBeDefined()
+    expect(screen.getByText('habits.form.habitTypeBuild')).toBeDefined()
+    expect(screen.getByText('habits.form.habitTypeAvoid')).toBeDefined()
   })
 
   it('shows tags section label', () => {
@@ -790,7 +791,7 @@ describe('HabitFormFields', () => {
     )
     expect(screen.queryByText('habits.form.dueDate')).toBeNull()
     expect(screen.queryByText('habits.form.dueTime')).toBeNull()
-    expect(screen.queryByText('habits.form.badHabitLabel')).toBeNull()
+    expect(screen.queryByText('habits.form.habitTypeAvoid')).toBeNull()
   })
 
 
@@ -1378,7 +1379,7 @@ describe('HabitFormFields', () => {
   })
 
 
-  it('toggles isBadHabit checkbox via setValue', () => {
+  it('sets isBadHabit from the habit type segmented toggle', () => {
     const setValue = vi.fn()
     const formHelpers = createMockFormHelpers({ isGeneral: false })
     formHelpers.form.setValue = setValue
@@ -1394,9 +1395,10 @@ describe('HabitFormFields', () => {
         onReminderTimesChange={vi.fn()}
       />,
     )
-    const badHabitLabel = screen.getByText('habits.form.badHabitLabel')
-    fireEvent.click(badHabitLabel)
+    fireEvent.click(screen.getByText('habits.form.habitTypeAvoid'))
     expect(setValue).toHaveBeenCalledWith('isBadHabit', true, { shouldDirty: true })
+    fireEvent.click(screen.getByText('habits.form.habitTypeBuild'))
+    expect(setValue).toHaveBeenCalledWith('isBadHabit', false, { shouldDirty: true })
   })
 
 

@@ -50,7 +50,11 @@ const validSuggestion = {
   frequencyUnit: 'Day',
   frequencyQuantity: 1,
   days: ['Monday'],
+  isFlexible: false,
+  flexibleTarget: null,
+  dueTime: null,
   subHabits: ['Warm up'],
+  checklistItems: [],
 }
 
 describe('mobile useHabitSuggestion', () => {

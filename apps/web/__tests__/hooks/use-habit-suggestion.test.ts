@@ -33,7 +33,11 @@ function makeSuggestion(overrides: Partial<HabitSetupSuggestion> = {}): HabitSet
     frequencyUnit: 'Day',
     frequencyQuantity: 1,
     days: ['Monday'],
+    isFlexible: false,
+    flexibleTarget: null,
+    dueTime: null,
     subHabits: ['Warm up'],
+    checklistItems: [],
     ...overrides,
   }
 }
