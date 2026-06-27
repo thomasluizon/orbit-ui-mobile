@@ -66,6 +66,17 @@ export const referralKeys = {
   all: ['referral'] as const,
 }
 
+export const friendKeys = {
+  all: ['friends'] as const,
+  list: () => [...friendKeys.all, 'list'] as const,
+  feed: () => [...friendKeys.all, 'feed'] as const,
+}
+
+export const cheerKeys = {
+  all: ['cheers'] as const,
+  list: (direction: 'received' | 'sent') => [...cheerKeys.all, 'list', direction] as const,
+}
+
 export const apiKeyKeys = {
   all: ['apiKeys'] as const,
   lists: () => [...apiKeyKeys.all, 'list'] as const,

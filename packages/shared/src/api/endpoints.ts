@@ -23,6 +23,8 @@ export const API = {
     colorScheme: '/api/profile/color-scheme',
     reset: '/api/profile/reset',
     export: '/api/profile/export',
+    handle: '/api/profile/handle',
+    socialOptIn: '/api/profile/social-opt-in',
   },
 
   habits: {
@@ -151,6 +153,18 @@ export const API = {
 
   referral: {
     dashboard: '/api/referrals/dashboard',
+  },
+
+  friends: {
+    list: '/api/friends',
+    requests: '/api/friends/requests',
+    acceptRequest: (id: string) => `/api/friends/requests/${id}/accept` as const,
+    remove: (friendUserId: string) => `/api/friends/${friendUserId}` as const,
+    feed: '/api/friends/feed',
+    cheers: '/api/friends/cheers',
+    block: '/api/friends/block',
+    unblock: (blockedUserId: string) => `/api/friends/block/${blockedUserId}` as const,
+    report: '/api/friends/report',
   },
 
   apiKeys: {
