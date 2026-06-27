@@ -1,4 +1,5 @@
-import { describe, expect, it } from 'vitest'
+import React from 'react'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import {
   getOnboardingDisplayStep,
   getOnboardingDisplayTotal,
@@ -7,6 +8,98 @@ import {
   ONBOARDING_COMPLETE_STEP,
   shouldHideOnboardingFooter,
 } from '@orbit/shared/utils'
+
+const { routerMock, pathnameState, performQueuedApiMutationMock, captured } =
+  vi.hoisted(() => {
+    const capturedState: {
+      beginPress?: () => void
+      importPress?: () => void | Promise<void>
+      welcomeRendered: boolean
+    } = { welcomeRendered: false }
+    return {
+      routerMock: { replace: vi.fn(), push: vi.fn(), navigate: vi.fn() },
+      pathnameState: { value: '/' },
+      performQueuedApiMutationMock: vi.fn(),
+      captured: capturedState,
+    }
+  })
+
+vi.mock('expo-router', () => ({
+  useRouter: () => routerMock,
+  usePathname: () => pathnameState.value,
+}))
+
+vi.mock('@tanstack/react-query', () => ({
+  useQueryClient: () => ({ setQueryData: vi.fn() }),
+}))
+
+vi.mock('@/hooks/use-profile', () => ({
+  useHasProAccess: () => true,
+}))
+
+vi.mock('@/lib/queued-api-mutation', () => ({
+  performQueuedApiMutation: performQueuedApiMutationMock,
+}))
+
+vi.mock('@/components/ui/gradient-top', () => ({
+  GradientTop: () => null,
+}))
+
+vi.mock('@/components/ui/pill-button', () => ({
+  PillButton: ({
+    children,
+    onPress,
+  }: Readonly<{ children?: React.ReactNode; onPress?: () => void }>) => {
+    captured.beginPress = onPress
+    return React.createElement('PillButton', { onPress }, children)
+  },
+}))
+
+vi.mock('@/components/ui/keyboard-aware-scroll-view', () => ({
+  KeyboardAwareScrollView: ({
+    children,
+  }: Readonly<{ children?: React.ReactNode }>) =>
+    React.createElement('KeyboardAwareScrollView', null, children),
+}))
+
+vi.mock('@/components/onboarding/onboarding-welcome', () => ({
+  OnboardingWelcome: () => {
+    captured.welcomeRendered = true
+    return React.createElement('OnboardingWelcome')
+  },
+}))
+
+vi.mock('@/components/onboarding/onboarding-meet-astra', () => ({
+  OnboardingMeetAstra: ({
+    onImport,
+  }: Readonly<{ onImport?: () => void | Promise<void> }>) => {
+    captured.importPress = onImport
+    return React.createElement('OnboardingMeetAstra', { onImport })
+  },
+}))
+
+vi.mock('@/components/onboarding/onboarding-template-packs', () => ({
+  OnboardingTemplatePacks: () => null,
+}))
+vi.mock('@/components/onboarding/onboarding-create-habit', () => ({
+  OnboardingCreateHabit: () => null,
+}))
+vi.mock('@/components/onboarding/onboarding-complete-habit', () => ({
+  OnboardingCompleteHabit: () => null,
+}))
+vi.mock('@/components/onboarding/onboarding-create-goal', () => ({
+  OnboardingCreateGoal: () => null,
+}))
+vi.mock('@/components/onboarding/onboarding-features', () => ({
+  OnboardingFeatures: () => null,
+}))
+vi.mock('@/components/onboarding/onboarding-complete', () => ({
+  OnboardingComplete: () => null,
+}))
+
+import { OnboardingFlow } from '@/components/onboarding/onboarding-flow'
+
+const TestRenderer: typeof import('react-test-renderer') = require('react-test-renderer')
 
 describe('OnboardingFlow helpers', () => {
   it('keeps pro users on the full step sequence', () => {
@@ -31,5 +124,50 @@ describe('OnboardingFlow helpers', () => {
     expect(shouldHideOnboardingFooter(4)).toBe(true)
     expect(shouldHideOnboardingFooter(5)).toBe(false)
     expect(shouldHideOnboardingFooter(ONBOARDING_COMPLETE_STEP)).toBe(true)
+  })
+})
+
+describe('OnboardingFlow import handoff + resume', () => {
+  beforeEach(() => {
+    routerMock.replace.mockClear()
+    routerMock.push.mockClear()
+    performQueuedApiMutationMock.mockClear()
+    captured.beginPress = undefined
+    captured.importPress = undefined
+    captured.welcomeRendered = false
+    pathnameState.value = '/'
+  })
+
+  it('routes into Astra on import without completing onboarding', async () => {
+    await TestRenderer.act(async () => {
+      TestRenderer.create(<OnboardingFlow />)
+    })
+
+    await TestRenderer.act(async () => {
+      captured.beginPress?.()
+    })
+
+    await TestRenderer.act(async () => {
+      await captured.importPress?.()
+    })
+
+    expect(routerMock.replace).toHaveBeenCalledWith('/chat')
+    expect(performQueuedApiMutationMock).not.toHaveBeenCalled()
+  })
+
+  it('hides the overlay while on the chat route and restores it after leaving chat', async () => {
+    pathnameState.value = '/chat'
+    let tree!: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(<OnboardingFlow />)
+    })
+    expect(captured.welcomeRendered).toBe(false)
+
+    pathnameState.value = '/'
+    captured.welcomeRendered = false
+    await TestRenderer.act(async () => {
+      tree.update(<OnboardingFlow />)
+    })
+    expect(captured.welcomeRendered).toBe(true)
   })
 })

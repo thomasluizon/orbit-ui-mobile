@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 
-const mocks = vi.hoisted(() => ({ routerPush: vi.fn(), setOnboardingHandedOff: vi.fn() }))
+const mocks = vi.hoisted(() => ({ routerPush: vi.fn() }))
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string, params?: Record<string, unknown>) => {
@@ -28,19 +28,6 @@ vi.mock('@/hooks/use-profile', () => ({
 
 vi.mock('@/app/actions/profile', () => ({
   completeOnboarding: vi.fn().mockResolvedValue({}),
-}))
-
-vi.mock('@/stores/ui-store', () => ({
-  useUIStore: (
-    selector: (state: {
-      onboardingHandedOff: boolean
-      setOnboardingHandedOff: (handedOff: boolean) => void
-    }) => unknown,
-  ) =>
-    selector({
-      onboardingHandedOff: false,
-      setOnboardingHandedOff: mocks.setOnboardingHandedOff,
-    }),
 }))
 
 vi.mock('@/components/onboarding/onboarding-welcome', () => ({
@@ -115,7 +102,6 @@ describe('OnboardingFlow', () => {
   beforeEach(() => {
     document.body.innerHTML = ''
     mocks.routerPush.mockClear()
-    mocks.setOnboardingHandedOff.mockClear()
     vi.mocked(completeOnboarding).mockClear()
     globalThis.localStorage.clear()
   })
@@ -154,8 +140,19 @@ describe('OnboardingFlow', () => {
     expect(globalThis.localStorage.getItem('orbit-chat-draft')).toBe(
       'onboarding.flow.meetAstra.importPrompt',
     )
-    expect(mocks.setOnboardingHandedOff).toHaveBeenCalledWith(true)
     expect(completeOnboarding).not.toHaveBeenCalled()
+  })
+
+  it('resumes onboarding when the user returns to the app after the import handoff', async () => {
+    const handoff = render(<OnboardingFlow />)
+    fireEvent.click(screen.getByText('onboarding.flow.begin'))
+    fireEvent.click(screen.getByText('onboarding.flow.meetAstra.import'))
+    await waitFor(() => expect(mocks.routerPush).toHaveBeenCalledWith('/chat'))
+    handoff.unmount()
+    document.body.innerHTML = ''
+
+    render(<OnboardingFlow />)
+    expect(screen.getByTestId('step-welcome')).toBeInTheDocument()
   })
 
   it('advances through the create-my-own branch via interactions', () => {

@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo, useCallback } from 'react'
 import { Animated, Modal, Pressable, Text, View } from 'react-native'
-import { useRouter } from 'expo-router'
+import { usePathname, useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { useQueryClient } from '@tanstack/react-query'
 import {
@@ -17,7 +17,6 @@ import { profileKeys } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
 import type { Profile } from '@orbit/shared/types/profile'
 import { useHasProAccess } from '@/hooks/use-profile'
-import { useUIStore } from '@/stores/ui-store'
 import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { CHAT_DRAFT_STORAGE_KEY } from '@orbit/shared/hooks'
@@ -234,10 +233,9 @@ function OnboardingFooter({
 export function OnboardingFlow() {
   const { t } = useTranslation()
   const router = useRouter()
+  const pathname = usePathname()
   const queryClient = useQueryClient()
   const hasProAccess = useHasProAccess()
-  const onboardingHandedOff = useUIStore((s) => s.onboardingHandedOff)
-  const setOnboardingHandedOff = useUIStore((s) => s.setOnboardingHandedOff)
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
     () => createTokensV2(currentScheme, currentTheme),
@@ -366,7 +364,6 @@ export function OnboardingFlow() {
       CHAT_DRAFT_STORAGE_KEY,
       t('onboarding.flow.meetAstra.importPrompt'),
     )
-    setOnboardingHandedOff(true)
     router.replace('/chat')
   }
 
@@ -383,7 +380,7 @@ export function OnboardingFlow() {
     if (hasPrev) goPrev()
   }
 
-  if (onboardingHandedOff) return null
+  if (pathname.startsWith('/chat')) return null
 
   return (
     <Modal

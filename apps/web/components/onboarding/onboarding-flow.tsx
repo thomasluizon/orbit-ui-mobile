@@ -19,7 +19,6 @@ import { profileKeys } from '@orbit/shared/query'
 import { CHAT_DRAFT_STORAGE_KEY } from '@orbit/shared/hooks'
 import type { Profile } from '@orbit/shared/types/profile'
 import { useHasProAccess } from '@/hooks/use-profile'
-import { useUIStore } from '@/stores/ui-store'
 import { completeOnboarding } from '@/app/actions/profile'
 import { GradientTop } from '@/components/ui/gradient-top'
 import { PillButton } from '@/components/ui/pill-button'
@@ -39,8 +38,6 @@ export function OnboardingFlow() {
   const router = useRouter()
   const queryClient = useQueryClient()
   const hasProAccess = useHasProAccess()
-  const onboardingHandedOff = useUIStore((s) => s.onboardingHandedOff)
-  const setOnboardingHandedOff = useUIStore((s) => s.setOnboardingHandedOff)
 
   const [sharedStep, setSharedStep] = useState(0)
   const [astraStepShown, setAstraStepShown] = useState(false)
@@ -143,7 +140,6 @@ export function OnboardingFlow() {
         t('onboarding.flow.meetAstra.importPrompt'),
       )
     }
-    setOnboardingHandedOff(true)
     router.push('/chat')
   }
 
@@ -236,7 +232,7 @@ export function OnboardingFlow() {
     return () => el.removeEventListener('keydown', handleKeyDown)
   }, [mounted, sharedStep, viewingAstra])
 
-  if (!mounted || onboardingHandedOff) return null
+  if (!mounted) return null
 
   const progressLabel = `Orbit · ${String(displayStep).padStart(2, '0')} / ${String(displayTotal).padStart(2, '0')}`
 
