@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { type TourTargetRect } from '@orbit/shared/stores'
 
 interface TourSpotlightProps {
@@ -27,7 +28,7 @@ export function TourSpotlight({ targetRect, padding = 8 }: Readonly<TourSpotligh
   const w = targetRect.width + padding * 2
   const h = targetRect.height + padding * 2
 
-  return (
+  return createPortal(
     <div
       className="fixed inset-0 z-[9998] pointer-events-auto"
       aria-hidden="true"
@@ -73,6 +74,7 @@ export function TourSpotlight({ targetRect, padding = 8 }: Readonly<TourSpotligh
           style={{ filter: 'drop-shadow(0 0 12px rgba(var(--primary-rgb), 0.45))' }}
         />
       </svg>
-    </div>
+    </div>,
+    document.body,
   )
 }

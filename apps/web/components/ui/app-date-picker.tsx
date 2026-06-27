@@ -18,8 +18,8 @@ import { Calendar, ChevronLeft, ChevronRight } from 'lucide-react'
 import { useTranslations, useLocale } from 'next-intl'
 import { formatLocaleDate, splitMonthYear } from '@orbit/shared/utils'
 import { useProfile } from '@/hooks/use-profile'
-import { useOverlayEscape } from '@/hooks/use-overlay-escape'
 import { YearPicker } from '@/components/ui/year-picker'
+import { CenteredOverlay } from '@/components/ui/centered-overlay'
 
 interface AppDatePickerProps {
   value: string
@@ -45,7 +45,6 @@ export function AppDatePicker({
     if (value) setViewDate(parseISO(value))
   }
   const dialogLabelId = useId()
-  const containerRef = useRef<HTMLDivElement>(null)
   const gridRef = useRef<HTMLTableElement>(null)
   const [focusedDate, setFocusedDate] = useState<Date | null>(null)
 
@@ -111,33 +110,12 @@ export function AppDatePicker({
 
   const displayValue = value ? formatLocaleDate(value, locale) : ''
 
-  useOverlayEscape({
-    open: isOpen,
-    onDismiss: closePicker,
-  })
-
   useEffect(() => {
     if (!isOpen) return
     requestAnimationFrame(() => {
       gridRef.current?.querySelector<HTMLButtonElement>('button[tabindex="0"]')?.focus()
     })
   }, [isOpen])
-
-  const handleClickOutside = useCallback(
-    (e: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) {
-        closePicker()
-      }
-    },
-    [closePicker]
-  )
-
-  useEffect(() => {
-    if (isOpen) {
-      document.addEventListener('mousedown', handleClickOutside)
-      return () => document.removeEventListener('mousedown', handleClickOutside)
-    }
-  }, [isOpen, handleClickOutside])
 
   function focusDayButton(day: Date) {
     setFocusedDate(day)
@@ -166,7 +144,7 @@ export function AppDatePicker({
   }
 
   return (
-    <div className="relative" ref={containerRef}>
+    <div className="relative">
       <button
         type="button"
         aria-label={displayValue ? t('common.selectedDate', { date: displayValue }) : t('common.selectDate')}
@@ -179,133 +157,123 @@ export function AppDatePicker({
         <Calendar size={20} strokeWidth={1.8} className="text-[var(--fg-4)]" />
       </button>
 
-      {isOpen && (
-        <>
-          <div
-            className="fixed inset-0 z-40 bg-black/65"
-            aria-hidden="true"
-            onClick={closePicker}
-          />
-
-          <dialog
-            open
-            aria-modal="true"
-            aria-labelledby={dialogLabelId}
-            className="fixed z-50 left-1/2 top-1/2 m-0 w-[min(90vw,320px)] -translate-x-1/2 -translate-y-1/2 rounded-[16px] border-0 bg-[var(--bg-sheet)] p-2.5 text-[var(--fg-1)] shadow-[var(--shadow-2),inset_0_0_0_1px_var(--hairline)]"
+      <CenteredOverlay
+        open={isOpen}
+        onDismiss={closePicker}
+        ariaLabelledBy={dialogLabelId}
+        panelClassName="w-[min(90vw,320px)] rounded-[16px] bg-[var(--bg-sheet)] p-2.5 text-[var(--fg-1)] shadow-[var(--shadow-2),inset_0_0_0_1px_var(--hairline)]"
+      >
+        <div className="flex items-center justify-between mb-2">
+          <button
+            type="button"
+            className={`p-1.5 rounded-lg hover:bg-[var(--bg-elev)] ${pickerMode === 'years' ? 'invisible' : ''}`}
+            aria-label={t('common.previousMonth')}
+            onClick={prevMonth}
           >
-            <div className="flex items-center justify-between mb-2">
-              <button
-                type="button"
-                className={`p-1.5 rounded-lg hover:bg-[var(--bg-elev)] ${pickerMode === 'years' ? 'invisible' : ''}`}
-                aria-label={t('common.previousMonth')}
-                onClick={prevMonth}
-              >
-                <ChevronLeft size={18} strokeWidth={1.8} className="text-[var(--fg-3)]" />
-              </button>
-              <span id={dialogLabelId} className="flex items-center gap-1" aria-live="polite">
-                {monthLead && (
-                  <span className="text-xs font-medium text-[var(--fg-1)]">{monthLead}</span>
-                )}
-                <button
-                  type="button"
-                  aria-label={t('common.selectYear')}
-                  aria-expanded={pickerMode === 'years'}
-                  onClick={() => setPickerMode((mode) => (mode === 'years' ? 'days' : 'years'))}
-                  className="text-xs font-medium rounded-md px-1 py-0.5 hover:bg-[var(--bg-elev)] transition-[background-color,color]"
-                  style={{ color: pickerMode === 'years' ? 'var(--primary)' : 'var(--fg-1)' }}
-                >
-                  {yearLabel}
-                </button>
-              </span>
-              <button
-                type="button"
-                className={`p-1.5 rounded-lg hover:bg-[var(--bg-elev)] ${pickerMode === 'years' ? 'invisible' : ''}`}
-                aria-label={t('common.nextMonth')}
-                onClick={nextMonth}
-              >
-                <ChevronRight size={18} strokeWidth={1.8} className="text-[var(--fg-3)]" />
-              </button>
-            </div>
-
-            {pickerMode === 'years' ? (
-              <YearPicker
-                selectedYear={viewDate.getFullYear()}
-                onSelectYear={selectYear}
-              />
-            ) : (
-            <table
-              ref={gridRef}
-              className="w-full border-separate border-spacing-0"
-              onKeyDown={handleGridKeyDown}
-            >
-              <thead aria-hidden="true">
-                <tr>
-                  {weekDays.map((day) => (
-                    <th
-                      key={day.key}
-                      scope="col"
-                      className="py-1 text-center text-xs font-normal uppercase text-[var(--fg-3)]"
-                      style={{
-                        fontFamily: 'var(--font-mono)',
-                        fontVariantNumeric: 'tabular-nums',
-                      }}
-                    >
-                      {day.label}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {calendarWeeks.map((week) => (
-                  <tr key={week[0]?.toISOString()}>
-                    {week.map((day) => {
-                      const isSelected = selectedDate && isSameDay(day, selectedDate)
-                      const isToday = isSameDay(day, new Date())
-                      const isCurrentMonth = isSameMonth(day, viewDate)
-
-                      const isRoving = isSameDay(day, rovingDay)
-
-                      return (
-                        <td key={day.toISOString()} className="p-0">
-                          <button
-                            type="button"
-                            data-day={format(day, 'yyyy-MM-dd')}
-                            tabIndex={isRoving ? 0 : -1}
-                            aria-label={formatLocaleDate(day, locale, {
-                              month: 'long',
-                              day: 'numeric',
-                              year: 'numeric',
-                            })}
-                            aria-pressed={!!isSelected}
-                            aria-current={isToday ? 'date' : undefined}
-                            className={`flex aspect-square w-full items-center justify-center rounded-full text-xs transition-colors focus-visible:outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--primary)] ${
-                              isCurrentMonth
-                                ? 'text-[var(--fg-1)] hover:bg-[var(--bg-elev)]'
-                                : 'text-[var(--fg-3)]'
-                            } ${
-                              isSelected
-                                ? 'bg-[var(--primary)] text-[var(--fg-on-primary)] hover:bg-[var(--primary-pressed)]'
-                                : ''
-                            } ${
-                              isToday && !isSelected
-                                ? 'shadow-[inset_0_0_0_1px_var(--primary)]'
-                                : ''
-                            }`}
-                            onClick={() => selectDay(day)}
-                          >
-                            {format(day, 'd')}
-                          </button>
-                        </td>
-                      )
-                    })}
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+            <ChevronLeft size={18} strokeWidth={1.8} className="text-[var(--fg-3)]" />
+          </button>
+          <span id={dialogLabelId} className="flex items-center gap-1" aria-live="polite">
+            {monthLead && (
+              <span className="text-xs font-medium text-[var(--fg-1)]">{monthLead}</span>
             )}
-          </dialog>
-        </>
-      )}
+            <button
+              type="button"
+              aria-label={t('common.selectYear')}
+              aria-expanded={pickerMode === 'years'}
+              onClick={() => setPickerMode((mode) => (mode === 'years' ? 'days' : 'years'))}
+              className="text-xs font-medium rounded-md px-1 py-0.5 hover:bg-[var(--bg-elev)] transition-[background-color,color]"
+              style={{ color: pickerMode === 'years' ? 'var(--primary)' : 'var(--fg-1)' }}
+            >
+              {yearLabel}
+            </button>
+          </span>
+          <button
+            type="button"
+            className={`p-1.5 rounded-lg hover:bg-[var(--bg-elev)] ${pickerMode === 'years' ? 'invisible' : ''}`}
+            aria-label={t('common.nextMonth')}
+            onClick={nextMonth}
+          >
+            <ChevronRight size={18} strokeWidth={1.8} className="text-[var(--fg-3)]" />
+          </button>
+        </div>
+
+        {pickerMode === 'years' ? (
+          <YearPicker
+            selectedYear={viewDate.getFullYear()}
+            onSelectYear={selectYear}
+          />
+        ) : (
+          <table
+            ref={gridRef}
+            className="w-full border-separate border-spacing-0"
+            onKeyDown={handleGridKeyDown}
+          >
+            <thead aria-hidden="true">
+              <tr>
+                {weekDays.map((day) => (
+                  <th
+                    key={day.key}
+                    scope="col"
+                    className="py-1 text-center text-xs font-normal uppercase text-[var(--fg-3)]"
+                    style={{
+                      fontFamily: 'var(--font-mono)',
+                      fontVariantNumeric: 'tabular-nums',
+                    }}
+                  >
+                    {day.label}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {calendarWeeks.map((week) => (
+                <tr key={week[0]?.toISOString()}>
+                  {week.map((day) => {
+                    const isSelected = selectedDate && isSameDay(day, selectedDate)
+                    const isToday = isSameDay(day, new Date())
+                    const isCurrentMonth = isSameMonth(day, viewDate)
+
+                    const isRoving = isSameDay(day, rovingDay)
+
+                    return (
+                      <td key={day.toISOString()} className="p-0">
+                        <button
+                          type="button"
+                          data-day={format(day, 'yyyy-MM-dd')}
+                          tabIndex={isRoving ? 0 : -1}
+                          aria-label={formatLocaleDate(day, locale, {
+                            month: 'long',
+                            day: 'numeric',
+                            year: 'numeric',
+                          })}
+                          aria-pressed={!!isSelected}
+                          aria-current={isToday ? 'date' : undefined}
+                          className={`flex aspect-square w-full items-center justify-center rounded-full text-xs transition-colors focus-visible:outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--primary)] ${
+                            isCurrentMonth
+                              ? 'text-[var(--fg-1)] hover:bg-[var(--bg-elev)]'
+                              : 'text-[var(--fg-3)]'
+                          } ${
+                            isSelected
+                              ? 'bg-[var(--primary)] text-[var(--fg-on-primary)] hover:bg-[var(--primary-pressed)]'
+                              : ''
+                          } ${
+                            isToday && !isSelected
+                              ? 'shadow-[inset_0_0_0_1px_var(--primary)]'
+                              : ''
+                          }`}
+                          onClick={() => selectDay(day)}
+                        >
+                          {format(day, 'd')}
+                        </button>
+                      </td>
+                    )
+                  })}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </CenteredOverlay>
     </div>
   )
 }
