@@ -95,9 +95,10 @@ async function main() {
   const releaseEnv = {
     ...resolveTestBuildAdMobEnv(process.env),
     EXPO_NO_METRO_WORKSPACE_ROOT: '1',
+    SENTRY_DISABLE_AUTO_UPLOAD: 'true',
   }
 
-  console.log('Local build uses Google TEST AdMob units; real-ad releases ship via .github/workflows/android-release.yml.')
+  console.log('Local build uses Google TEST AdMob units and skips the Sentry source-map upload; real-ad releases ship via .github/workflows/android-release.yml.')
 
   const deviceId = await getConnectedDeviceId()
 
