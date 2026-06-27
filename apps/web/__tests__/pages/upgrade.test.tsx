@@ -1,5 +1,5 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 
 
 vi.mock('next-intl', () => ({
@@ -73,7 +73,7 @@ vi.mock('@/hooks/use-billing', () => ({
 
 vi.mock('@orbit/shared/api', () => ({
   API: {
-    subscription: { checkout: '/api/subscription/checkout', portal: '/api/subscription/portal', plans: '/api/subscription/plans' },
+    subscription: { checkout: '/api/subscriptions/checkout', portal: '/api/subscriptions/portal', plans: '/api/subscriptions/plans' },
   },
 }))
 
@@ -110,6 +110,10 @@ describe('UpgradePage', () => {
     mockIsBillingLoading = false
     mockIsBillingError = false
     mockUseBilling.mockClear()
+  })
+
+  afterEach(() => {
+    vi.unstubAllGlobals()
   })
 
   it('renders without crashing', () => {
@@ -366,5 +370,32 @@ describe('UpgradePage', () => {
     expect(mockUseBilling).toHaveBeenCalledWith(false)
     expect(screen.getByText('upgrade.billing.plan.lifetime')).toBeInTheDocument()
     expect(screen.queryByText('upgrade.billing.error')).not.toBeInTheDocument()
+  })
+
+  it('routes checkout through the geo-forwarding BFF route, not a direct Stripe action', async () => {
+    mockPlans = {
+      monthly: { unitAmount: 999 },
+      yearly: { unitAmount: 4999 },
+      currency: 'usd',
+      savingsPercent: 58,
+      couponPercentOff: null,
+    }
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ url: 'https://checkout.stripe.test/session' }),
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    vi.stubGlobal('location', { href: '' })
+
+    render(<UpgradePage />)
+    fireEvent.click(screen.getByTestId('paywall-checkout'))
+
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledTimes(1))
+    const call = fetchMock.mock.calls[0]
+    const requestUrl = String(call?.[0])
+    const requestInit = call?.[1] as RequestInit | undefined
+    expect(requestUrl.startsWith('/api/subscriptions/checkout')).toBe(true)
+    expect(requestInit?.method).toBe('POST')
+    expect(JSON.parse(String(requestInit?.body))).toEqual({ interval: 'yearly' })
   })
 })

@@ -47,7 +47,7 @@ export function PricingSection({
 
   return (
     <>
-      <header style={{ marginBottom: 18 }}>
+      <header style={{ marginBottom: 20 }}>
         <p className="t-eyebrow" style={{ margin: 0, color: 'var(--primary-soft)' }}>
           {eyebrow}
         </p>
@@ -65,9 +65,9 @@ export function PricingSection({
       </header>
 
       {isLoadingPlans ? (
-        <div className="grid grid-cols-1 sm:grid-cols-3" style={{ gap: 12 }}>
+        <div className="grid grid-cols-1 sm:grid-cols-3" style={{ gap: 16 }}>
           {[1, 2, 3].map((i) => (
-            <div key={i} className="rounded-[18px]" style={{ padding: '18px', ...cardSurface }}>
+            <div key={i} className="rounded-[18px]" style={{ padding: '22px', ...cardSurface }}>
               <div className="skeleton-pulse h-4 w-20 rounded" style={{ background: 'var(--bg-elev-2)' }} />
               <div className="skeleton-pulse mt-3 h-7 w-24 rounded" style={{ background: 'var(--bg-elev-2)' }} />
               <div className="skeleton-pulse mt-5 h-9 w-full rounded-full" style={{ background: 'var(--bg-elev-2)' }} />
@@ -100,7 +100,7 @@ export function PricingSection({
             t={t}
           />
 
-          <div className="flex flex-col items-center" style={{ gap: 6, marginTop: 16 }}>
+          <div className="flex flex-col items-center" style={{ gap: 6, marginTop: 20 }}>
             {plans.couponPercentOff ? (
               <p
                 className="flex items-center justify-center"

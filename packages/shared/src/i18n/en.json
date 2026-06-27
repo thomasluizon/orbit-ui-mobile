@@ -1586,14 +1586,14 @@
       "trialDaysLeft": "Pro Trial · {days} day left | Pro Trial · {days} days left",
       "trialLastDay": "Pro Trial · last day",
       "trialHeading": "Keep your Pro features",
-      "trialCta": "Subscribe to keep Pro",
+      "trialCta": "Keep Pro",
       "freeEyebrow": "Free plan",
       "freeHeading": "Your Pro trial ended",
-      "freeCta": "Upgrade to Pro",
+      "freeCta": "Get Pro",
       "trustLine": "No card was ever taken, you dropped to Free automatically.",
       "cancelAnytime": "Cancel anytime",
       "noCardCancel": "No card required · Cancel anytime",
-      "stayFree": "Stay on Free"
+      "stayFree": "Stay free"
     },
     "matrix": {
       "title": "Compare every feature",
@@ -1608,7 +1608,7 @@
       "monthly": {
         "name": "Pro Monthly",
         "period": "/mo",
-        "cta": "Subscribe Monthly",
+        "cta": "Subscribe",
         "note": "Billed monthly"
       },
       "yearly": {

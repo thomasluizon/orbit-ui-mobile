@@ -51,7 +51,7 @@ export function PlanCard({
   const isHero = variant === 'hero'
 
   return (
-    <div className={['flex h-full flex-col rounded-[18px] p-[18px]', cardOrder[variant], surface[variant]].join(' ')}>
+    <div className={['flex h-full flex-col rounded-[18px] p-[22px]', cardOrder[variant], surface[variant]].join(' ')}>
       <div className="flex flex-wrap items-center gap-2" style={{ minHeight: 24 }}>
         <span
           style={{
@@ -66,7 +66,7 @@ export function PlanCard({
         {badge ? <Badge>{badge}</Badge> : null}
       </div>
 
-      <div className="flex items-baseline gap-1" style={{ marginTop: 10 }}>
+      <div className="flex items-baseline gap-1" style={{ marginTop: 14 }}>
         <span
           style={{
             fontFamily: 'var(--font-display)',
@@ -82,7 +82,7 @@ export function PlanCard({
       </div>
 
       {sub ? (
-        <p style={{ margin: '4px 0 0', fontFamily: 'var(--font-sans)', fontSize: 12.5, lineHeight: 1.45, color: 'var(--fg-3)' }}>
+        <p style={{ margin: '6px 0 0', fontFamily: 'var(--font-sans)', fontSize: 13, lineHeight: 1.5, color: 'var(--fg-3)' }}>
           {sub}
         </p>
       ) : null}
@@ -90,25 +90,25 @@ export function PlanCard({
       {heroLine ? (
         <div
           className="flex items-start gap-2"
-          style={{ marginTop: 14, paddingTop: 14, borderTop: '1px solid var(--hairline)' }}
+          style={{ marginTop: 16, paddingTop: 16, borderTop: '1px solid var(--hairline)' }}
         >
           <Sparkles size={15} strokeWidth={1.8} className="shrink-0 text-[var(--primary-soft)]" style={{ marginTop: 1 }} aria-hidden="true" />
-          <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12.5, lineHeight: 1.4, color: 'var(--fg-2)' }}>{heroLine}</span>
+          <span style={{ fontFamily: 'var(--font-sans)', fontSize: 13, lineHeight: 1.45, color: 'var(--fg-2)' }}>{heroLine}</span>
         </div>
       ) : null}
 
       {features.length > 0 ? (
-        <ul className="flex flex-col" style={{ marginTop: 14, gap: 8 }}>
+        <ul className="flex flex-col" style={{ marginTop: 16, gap: 10 }}>
           {features.map((feature) => (
             <li key={feature} className="flex items-center" style={{ gap: 8 }}>
               <Check size={14} strokeWidth={2.4} className="shrink-0 text-[var(--primary-soft)]" aria-hidden="true" />
-              <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12.5, color: 'var(--fg-2)' }}>{feature}</span>
+              <span style={{ fontFamily: 'var(--font-sans)', fontSize: 13, color: 'var(--fg-2)' }}>{feature}</span>
             </li>
           ))}
         </ul>
       ) : null}
 
-      <div style={{ marginTop: 'auto', paddingTop: 16 }}>
+      <div style={{ marginTop: 'auto', paddingTop: 20 }}>
         <PillButton
           variant={isHero ? 'primary' : 'ghost'}
           fullWidth

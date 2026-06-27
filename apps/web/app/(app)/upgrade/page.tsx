@@ -8,13 +8,15 @@ import { BillingDashboard } from '@/components/upgrade/billing-dashboard'
 import { PlayBillingDashboard } from '@/components/upgrade/play-billing-dashboard'
 import { PricingSection } from '@/components/upgrade/pricing-section'
 import {
+  createApiClientError,
   getClientTimeZone,
   getFriendlyErrorMessage,
 } from '@orbit/shared/utils'
+import { API } from '@orbit/shared/api'
 import { useProfile, useHasProAccess, useTrialDaysLeft } from '@/hooks/use-profile'
 import { useSubscriptionPlans } from '@/hooks/use-subscription-plans'
 import { useBilling } from '@/hooks/use-billing'
-import { createCheckoutSession, openCustomerPortal } from '@/app/actions/subscription'
+import { openCustomerPortal } from '@/app/actions/subscription'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 
 type SubscriptionInterval = 'monthly' | 'yearly'
@@ -52,7 +54,19 @@ export default function UpgradePage() {
     setCheckoutError('')
     try {
       const timeZone = getClientTimeZone()
-      const data = await createCheckoutSession(interval, timeZone)
+      const checkoutUrl = timeZone
+        ? `${API.subscription.checkout}?timeZone=${encodeURIComponent(timeZone)}`
+        : API.subscription.checkout
+      const response = await fetch(checkoutUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ interval }),
+      })
+      if (!response.ok) {
+        const errorBody = await response.json().catch(() => null)
+        throw createApiClientError(response.status, errorBody, `Failed with status ${response.status}`)
+      }
+      const data = (await response.json()) as { url?: string }
       if (data?.url) {
         globalThis.location.href = data.url
       }

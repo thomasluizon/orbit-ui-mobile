@@ -87,9 +87,9 @@ export function PlanCard({
 const styles = StyleSheet.create({
   card: {
     borderRadius: 18,
-    paddingTop: 18,
-    paddingHorizontal: 18,
-    paddingBottom: 20,
+    paddingTop: 20,
+    paddingHorizontal: 20,
+    paddingBottom: 22,
   },
   cardPressed: {
     transform: [{ scale: 0.99 }],
@@ -107,7 +107,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    marginBottom: 6,
+    marginBottom: 8,
   },
   name: {
     fontFamily: 'Rubik_500Medium',
@@ -120,7 +120,7 @@ const styles = StyleSheet.create({
   sub: {
     fontFamily: 'Rubik_400Regular',
     fontSize: 13,
-    marginTop: 2,
+    marginTop: 4,
   },
   radio: {
     width: 24,
@@ -135,8 +135,8 @@ const styles = StyleSheet.create({
     borderRadius: radius.full,
   },
   features: {
-    marginTop: 14,
-    gap: 9,
+    marginTop: 16,
+    gap: 10,
   },
   featureRow: {
     flexDirection: 'row',
