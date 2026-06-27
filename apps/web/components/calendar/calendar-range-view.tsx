@@ -3,6 +3,7 @@
 import type { Locale } from 'date-fns'
 import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
 import { CalendarGrid } from './calendar-grid'
+import { ShowRecurringToggle } from './show-recurring-toggle'
 import { CalendarTimeGrid, type TimeGridColumn } from './calendar-time-grid'
 
 interface CalendarRangeViewProps {
@@ -17,11 +18,17 @@ interface CalendarRangeViewProps {
   /** Range-scoped entries powering the time grid. */
   rangeDayMap: Map<string, CalendarDayEntry[]>
   hint: string
+  /** Notice shown in place of the hint when the picked range was clamped to the
+   *  maximum number of days. */
+  clampedNotice: string
+  isClamped: boolean
   onSelectDay: (dateStr: string) => void
   displayTime: (time: string) => string
   dateFnsLocale: Locale
   allDayLabel: string
   nowLabel: string
+  showRecurring: boolean
+  onShowRecurringChange: (value: boolean) => void
 }
 
 /** Custom-range view: a mini-calendar to pick a contiguous range, then the same
@@ -35,11 +42,15 @@ export function CalendarRangeView({
   columns,
   rangeDayMap,
   hint,
+  clampedNotice,
+  isClamped,
   onSelectDay,
   displayTime,
   dateFnsLocale,
   allDayLabel,
   nowLabel,
+  showRecurring,
+  onShowRecurringChange,
 }: Readonly<CalendarRangeViewProps>) {
   return (
     <>
@@ -50,18 +61,25 @@ export function CalendarRangeView({
         rangeStart={rangeStart}
         rangeEnd={rangeEnd}
       />
-      <p
-        className="text-center"
-        style={{
-          margin: 0,
-          padding: '0 24px 4px',
-          fontFamily: 'var(--font-sans)',
-          fontSize: 13,
-          color: 'var(--fg-3)',
-        }}
+      <div
+        className="flex items-center justify-between"
+        style={{ gap: 12, padding: '0 20px 6px' }}
       >
-        {hint}
-      </p>
+        <p
+          style={{
+            margin: 0,
+            fontFamily: 'var(--font-sans)',
+            fontSize: 13,
+            color: isClamped ? 'var(--status-overdue-text)' : 'var(--fg-3)',
+          }}
+        >
+          {isClamped ? clampedNotice : hint}
+        </p>
+        <ShowRecurringToggle
+          checked={showRecurring}
+          onChange={onShowRecurringChange}
+        />
+      </div>
       <CalendarTimeGrid
         columns={columns}
         dayMap={rangeDayMap}

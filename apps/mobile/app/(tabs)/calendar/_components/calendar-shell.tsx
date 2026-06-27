@@ -1,31 +1,30 @@
-import { useMemo, useRef } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
   ChevronLeft,
   ChevronRight,
-  ChevronsLeft,
-  ChevronsRight,
 } from "lucide-react-native";
 import {
+  Modal,
   Pressable,
   StyleSheet,
   Text,
   View,
 } from "react-native";
 import { useTourTarget } from "@/hooks/use-tour-target";
-import { createTokensV2 } from "@/lib/theme";
+import { createTokensV2, radius, shadowsV2 } from "@/lib/theme";
+import { YearPicker } from "@/components/ui/year-picker";
 
 interface CalendarHeaderProps {
   monthLabel: string;
+  year: number;
   previousMonthLabel: string;
   nextMonthLabel: string;
-  previousYearLabel: string;
-  nextYearLabel: string;
   currentMonthLabel: string;
+  selectYearLabel: string;
   onPreviousMonth: () => void;
   onNextMonth: () => void;
-  onPreviousYear: () => void;
-  onNextYear: () => void;
   onCurrentMonth: () => void;
+  onSelectYear: (year: number) => void;
   tokens: ReturnType<typeof createTokensV2>;
 }
 
@@ -47,7 +46,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       paddingTop: 12,
       paddingBottom: 4,
     },
-    monthNavGroup: {
+    monthLabelGroup: {
       flexDirection: "row",
       alignItems: "center",
       gap: 2,
@@ -65,12 +64,11 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       transform: [{ scale: 0.92 }],
     },
     monthLabelButton: {
-      flex: 1,
       height: 36,
       borderRadius: 999,
       alignItems: "center",
       justifyContent: "center",
-      paddingHorizontal: 12,
+      paddingHorizontal: 10,
     },
     monthLabelButtonPressed: {
       backgroundColor: tokens.bgElev,
@@ -80,8 +78,37 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       fontSize: 17,
       letterSpacing: -0.17,
       color: tokens.fg1,
-      textTransform: "capitalize",
       textAlign: "center",
+    },
+    yearButton: {
+      height: 36,
+      borderRadius: 999,
+      alignItems: "center",
+      justifyContent: "center",
+      paddingHorizontal: 8,
+    },
+    yearTitle: {
+      fontFamily: 'Roboto_500Medium',
+      fontSize: 17,
+      color: tokens.fg1,
+      fontVariant: ['tabular-nums'],
+    },
+    yearBackdrop: {
+      flex: 1,
+      backgroundColor: 'rgba(0,0,0,0.50)',
+      justifyContent: 'center',
+      alignItems: 'center',
+      padding: 24,
+    },
+    yearDialog: {
+      width: '100%',
+      maxWidth: 320,
+      backgroundColor: tokens.bgSheet,
+      borderRadius: radius.lg,
+      borderWidth: 1,
+      borderColor: tokens.hairline,
+      padding: 10,
+      ...shadowsV2.shadow2,
     },
     legend: {
       flexDirection: "row",
@@ -137,90 +164,102 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
 
 export function CalendarHeader({
   monthLabel,
+  year,
   previousMonthLabel,
   nextMonthLabel,
-  previousYearLabel,
-  nextYearLabel,
   currentMonthLabel,
+  selectYearLabel,
   onPreviousMonth,
   onNextMonth,
-  onPreviousYear,
-  onNextYear,
   onCurrentMonth,
+  onSelectYear,
   tokens,
 }: CalendarHeaderProps) {
   const styles = useMemo(() => createStyles(tokens), [tokens]);
   const monthNavRef = useRef<View>(null);
   useTourTarget("tour-calendar-month-nav", monthNavRef);
+  const [isYearOpen, setIsYearOpen] = useState(false);
+
+  const handleSelectYear = (nextYear: number) => {
+    onSelectYear(nextYear);
+    setIsYearOpen(false);
+  };
 
   return (
     <View ref={monthNavRef} collapsable={false} style={styles.headerWrap}>
-      <View style={styles.monthNavGroup}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={previousMonthLabel}
+        onPress={onPreviousMonth}
+        hitSlop={4}
+        style={({ pressed }) => [
+          styles.monthNavButton,
+          pressed && styles.monthNavButtonPressed,
+        ]}
+      >
+        <ChevronLeft size={22} color={tokens.fg2} strokeWidth={1.8} />
+      </Pressable>
+      <View style={styles.monthLabelGroup}>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={previousYearLabel}
-          onPress={onPreviousYear}
+          accessibilityLabel={currentMonthLabel}
+          onPress={onCurrentMonth}
           hitSlop={4}
           style={({ pressed }) => [
-            styles.monthNavButton,
-            pressed && styles.monthNavButtonPressed,
+            styles.monthLabelButton,
+            pressed && styles.monthLabelButtonPressed,
           ]}
         >
-          <ChevronsLeft size={18} color={tokens.fg3} strokeWidth={1.8} />
+          <Text style={styles.monthTitle} numberOfLines={1}>
+            {monthLabel}
+          </Text>
         </Pressable>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={previousMonthLabel}
-          onPress={onPreviousMonth}
+          accessibilityLabel={selectYearLabel}
+          onPress={() => setIsYearOpen(true)}
           hitSlop={4}
           style={({ pressed }) => [
-            styles.monthNavButton,
-            pressed && styles.monthNavButtonPressed,
+            styles.yearButton,
+            pressed && styles.monthLabelButtonPressed,
           ]}
         >
-          <ChevronLeft size={22} color={tokens.fg2} strokeWidth={1.8} />
+          <Text
+            style={[styles.yearTitle, isYearOpen && { color: tokens.primary }]}
+          >
+            {year}
+          </Text>
         </Pressable>
       </View>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={currentMonthLabel}
-        onPress={onCurrentMonth}
+        accessibilityLabel={nextMonthLabel}
+        onPress={onNextMonth}
         hitSlop={4}
         style={({ pressed }) => [
-          styles.monthLabelButton,
-          pressed && styles.monthLabelButtonPressed,
+          styles.monthNavButton,
+          pressed && styles.monthNavButtonPressed,
         ]}
       >
-        <Text style={styles.monthTitle} numberOfLines={1}>
-          {monthLabel}
-        </Text>
+        <ChevronRight size={22} color={tokens.fg2} strokeWidth={1.8} />
       </Pressable>
-      <View style={styles.monthNavGroup}>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={nextMonthLabel}
-          onPress={onNextMonth}
-          hitSlop={4}
-          style={({ pressed }) => [
-            styles.monthNavButton,
-            pressed && styles.monthNavButtonPressed,
-          ]}
-        >
-          <ChevronRight size={22} color={tokens.fg2} strokeWidth={1.8} />
+
+      <Modal
+        visible={isYearOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setIsYearOpen(false)}
+      >
+        <Pressable style={styles.yearBackdrop} onPress={() => setIsYearOpen(false)}>
+          <View style={styles.yearDialog} onStartShouldSetResponder={() => true}>
+            <YearPicker
+              selectedYear={year}
+              onSelectYear={handleSelectYear}
+              tokens={tokens}
+            />
+          </View>
         </Pressable>
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel={nextYearLabel}
-          onPress={onNextYear}
-          hitSlop={4}
-          style={({ pressed }) => [
-            styles.monthNavButton,
-            pressed && styles.monthNavButtonPressed,
-          ]}
-        >
-          <ChevronsRight size={18} color={tokens.fg3} strokeWidth={1.8} />
-        </Pressable>
-      </View>
+      </Modal>
     </View>
   );
 }

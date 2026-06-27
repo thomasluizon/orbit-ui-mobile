@@ -28,6 +28,13 @@ vi.mock("@/components/ui/stat-tile", () => ({
     ),
 }));
 
+vi.mock("@/components/ui/year-picker", () => ({
+  YearPicker: ({ onSelectYear }: { onSelectYear: (year: number) => void }) =>
+    React.createElement("YearPickerMock", {
+      onPress: () => onSelectYear(2030),
+    }),
+}));
+
 import { createTokensV2 } from "@/lib/theme";
 import { CalendarHeader } from "@/app/(tabs)/calendar/_components/calendar-shell";
 import {
@@ -58,38 +65,83 @@ function pressByAccessibilityLabel(tree: Tree, label: string) {
 }
 
 describe("CalendarHeader year navigation (mobile)", () => {
-  it("fires the year handlers and renders the month label", () => {
-    const onPreviousYear = vi.fn();
-    const onNextYear = vi.fn();
+  it("renders the month and year, fires month handlers, and has no year-skip arrows", () => {
+    const onPreviousMonth = vi.fn();
+    const onNextMonth = vi.fn();
+    const onCurrentMonth = vi.fn();
+    const onSelectYear = vi.fn();
     const tokens = createTokensV2("purple", "dark");
 
     let tree: Tree;
     TestRenderer.act(() => {
       tree = TestRenderer.create(
         <CalendarHeader
-          monthLabel="April 2026"
+          monthLabel="April"
+          year={2026}
           previousMonthLabel="Previous month"
           nextMonthLabel="Next month"
-          previousYearLabel="Previous year"
-          nextYearLabel="Next year"
           currentMonthLabel="Go to current month"
-          onPreviousMonth={vi.fn()}
-          onNextMonth={vi.fn()}
-          onPreviousYear={onPreviousYear}
-          onNextYear={onNextYear}
-          onCurrentMonth={vi.fn()}
+          selectYearLabel="Select year"
+          onPreviousMonth={onPreviousMonth}
+          onNextMonth={onNextMonth}
+          onCurrentMonth={onCurrentMonth}
+          onSelectYear={onSelectYear}
           tokens={tokens}
         />,
       ) as unknown as Tree;
     });
 
-    expect(hostTextValues(tree!)).toContain("April 2026");
+    const texts = hostTextValues(tree!);
+    expect(texts).toContain("April");
+    expect(texts).toContain(2026);
 
-    pressByAccessibilityLabel(tree!, "Previous year");
-    pressByAccessibilityLabel(tree!, "Next year");
+    pressByAccessibilityLabel(tree!, "Previous month");
+    pressByAccessibilityLabel(tree!, "Next month");
+    pressByAccessibilityLabel(tree!, "Go to current month");
+    expect(onPreviousMonth).toHaveBeenCalledTimes(1);
+    expect(onNextMonth).toHaveBeenCalledTimes(1);
+    expect(onCurrentMonth).toHaveBeenCalledTimes(1);
 
-    expect(onPreviousYear).toHaveBeenCalledTimes(1);
-    expect(onNextYear).toHaveBeenCalledTimes(1);
+    const yearArrows = tree!.root.findAll(
+      (node) =>
+        typeof node.type === "string" &&
+        (node.props.accessibilityLabel === "Previous year" ||
+          node.props.accessibilityLabel === "Next year"),
+    );
+    expect(yearArrows).toHaveLength(0);
+  });
+
+  it("opens the year picker and reports the chosen year", () => {
+    const onSelectYear = vi.fn();
+    const tokens = createTokensV2("purple", "dark");
+
+    let tree: Tree;
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <CalendarHeader
+          monthLabel="April"
+          year={2026}
+          previousMonthLabel="Previous month"
+          nextMonthLabel="Next month"
+          currentMonthLabel="Go to current month"
+          selectYearLabel="Select year"
+          onPreviousMonth={vi.fn()}
+          onNextMonth={vi.fn()}
+          onCurrentMonth={vi.fn()}
+          onSelectYear={onSelectYear}
+          tokens={tokens}
+        />,
+      ) as unknown as Tree;
+    });
+
+    pressByAccessibilityLabel(tree!, "Select year");
+
+    const mock = tree!.root.findAll((node) => node.type === "YearPickerMock");
+    expect(mock.length).toBeGreaterThan(0);
+    TestRenderer.act(() => {
+      mock[0]!.props.onPress();
+    });
+    expect(onSelectYear).toHaveBeenCalledWith(2030);
   });
 });
 

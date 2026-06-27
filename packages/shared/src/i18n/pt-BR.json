@@ -148,8 +148,7 @@
     "amPm": "AM/PM",
     "previousMonth": "Mês anterior",
     "nextMonth": "Próximo mês",
-    "previousYear": "Ano anterior",
-    "nextYear": "Próximo ano",
+    "selectYear": "Selecionar ano",
     "previousWeek": "Semana anterior",
     "nextWeek": "Próxima semana",
     "continue": "Continuar",
@@ -618,7 +617,8 @@
     "timeGrid": {
       "allDay": "Dia inteiro",
       "now": "Agora",
-      "pickRangeHint": "Escolha um dia inicial e final acima para definir seu intervalo."
+      "pickRangeHint": "Escolha um dia inicial e final acima para definir seu intervalo.",
+      "rangeMaxDays": "Intervalo limitado a {max} dias."
     },
     "status": {
       "completed": "Concluído",

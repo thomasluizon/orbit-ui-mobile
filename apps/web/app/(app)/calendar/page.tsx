@@ -4,8 +4,7 @@ import { useState, useMemo, useCallback, useRef } from 'react'
 import {
   addMonths,
   subMonths,
-  addYears,
-  subYears,
+  setYear,
   addWeeks,
   subWeeks,
   startOfMonth,
@@ -19,7 +18,13 @@ import {
 } from 'date-fns'
 import { enUS, ptBR } from 'date-fns/locale'
 import { useLocale, useTranslations } from 'next-intl'
-import { formatAPIDate, parseAPIDate } from '@orbit/shared/utils'
+import {
+  formatAPIDate,
+  parseAPIDate,
+  capitalizeFirstLetter,
+  filterRecurringEntries,
+} from '@orbit/shared/utils'
+import { clampRangeToMaxDays, MAX_RANGE_DAYS } from '@/lib/calendar-range'
 import { useCalendarData, useCalendarRange } from '@/hooks/use-calendar-data'
 import { useTimeFormat } from '@/hooks/use-time-format'
 import { useProfile } from '@/hooks/use-profile'
@@ -61,10 +66,12 @@ export default function CalendarPage() {
   const [rangeStart, setRangeStart] = useState(() => formatAPIDate(new Date()))
   const [rangeEnd, setRangeEnd] = useState(() => formatAPIDate(new Date()))
   const [awaitingEnd, setAwaitingEnd] = useState(false)
+  const [rangeClamped, setRangeClamped] = useState(false)
   const [selectedDay, setSelectedDay] = useState<string | null>(() =>
     formatAPIDate(new Date()),
   )
   const [isDayDetailOpen, setIsDayDetailOpen] = useState(false)
+  const [showRecurring, setShowRecurring] = useState(true)
 
   const { dayMap, isLoading, isFetching } = useCalendarData(currentMonth)
 
@@ -104,9 +111,19 @@ export default function CalendarPage() {
   }, [view, weekStart, weekEnd, rangeBounds])
 
   const monthLabel = useMemo(
-    () => format(currentMonth, 'MMMM yyyy', { locale: dateFnsLocale }),
+    () => capitalizeFirstLetter(format(currentMonth, 'MMMM', { locale: dateFnsLocale })),
     [currentMonth, dateFnsLocale],
   )
+  const currentYear = currentMonth.getFullYear()
+
+  const displayRangeDayMap = useMemo(() => {
+    if (showRecurring) return rangeDayMap
+    const filtered = new Map<string, CalendarDayEntry[]>()
+    for (const [key, entries] of rangeDayMap) {
+      filtered.set(key, filterRecurringEntries(entries, false))
+    }
+    return filtered
+  }, [rangeDayMap, showRecurring])
 
   const weekLabel = useMemo(() => {
     const startLabel = format(weekStart, 'MMM d', { locale: dateFnsLocale })
@@ -130,14 +147,9 @@ export default function CalendarPage() {
     setCurrentMonth((m) => addMonths(m, 1))
   }, [])
 
-  const prevYear = useCallback(() => {
-    setMonthSlide('left')
-    setCurrentMonth((m) => subYears(m, 1))
-  }, [])
-
-  const nextYear = useCallback(() => {
-    setMonthSlide('right')
-    setCurrentMonth((m) => addYears(m, 1))
+  const selectYear = useCallback((year: number) => {
+    setMonthSlide(null)
+    setCurrentMonth((m) => startOfMonth(setYear(m, year)))
   }, [])
 
   const goToCurrentMonth = useCallback(() => {
@@ -159,14 +171,13 @@ export default function CalendarPage() {
       setRangeStart(dateStr)
       setRangeEnd(dateStr)
       setAwaitingEnd(true)
+      setRangeClamped(false)
       return
     }
-    if (dateStr >= rangeStart) {
-      setRangeEnd(dateStr)
-    } else {
-      setRangeEnd(rangeStart)
-      setRangeStart(dateStr)
-    }
+    const { start, end, clamped } = clampRangeToMaxDays(rangeStart, dateStr)
+    setRangeStart(start)
+    setRangeEnd(end)
+    setRangeClamped(clamped)
     setAwaitingEnd(false)
   }
 
@@ -270,16 +281,15 @@ export default function CalendarPage() {
         {(view === 'month' || view === 'range') && (
           <CalendarHeader
             monthLabel={monthLabel}
+            year={currentYear}
             previousMonthLabel={t('common.previousMonth')}
             nextMonthLabel={t('common.nextMonth')}
-            previousYearLabel={t('common.previousYear')}
-            nextYearLabel={t('common.nextYear')}
             currentMonthLabel={t('calendar.goToCurrentMonth')}
+            selectYearLabel={t('common.selectYear')}
             onPreviousMonth={prevMonth}
             onNextMonth={nextMonth}
-            onPreviousYear={prevYear}
-            onNextYear={nextYear}
             onCurrentMonth={goToCurrentMonth}
+            onSelectYear={selectYear}
           />
         )}
 
@@ -316,7 +326,7 @@ export default function CalendarPage() {
         {view === 'week' && (
           <CalendarWeekView
             columns={gridColumns}
-            dayMap={rangeDayMap}
+            dayMap={displayRangeDayMap}
             weekLabel={weekLabel}
             previousWeekLabel={t('common.previousWeek')}
             nextWeekLabel={t('common.nextWeek')}
@@ -329,6 +339,8 @@ export default function CalendarPage() {
             dateFnsLocale={dateFnsLocale}
             allDayLabel={t('calendar.timeGrid.allDay')}
             nowLabel={t('calendar.timeGrid.now')}
+            showRecurring={showRecurring}
+            onShowRecurringChange={setShowRecurring}
           />
         )}
 
@@ -340,19 +352,28 @@ export default function CalendarPage() {
             rangeEnd={rangeEnd}
             onPickDay={handleRangePick}
             columns={gridColumns}
-            rangeDayMap={rangeDayMap}
+            rangeDayMap={displayRangeDayMap}
             hint={t('calendar.timeGrid.pickRangeHint')}
+            clampedNotice={t('calendar.timeGrid.rangeMaxDays', { max: MAX_RANGE_DAYS })}
+            isClamped={rangeClamped}
             onSelectDay={openDay}
             displayTime={displayTime}
             dateFnsLocale={dateFnsLocale}
             allDayLabel={t('calendar.timeGrid.allDay')}
             nowLabel={t('calendar.timeGrid.now')}
+            showRecurring={showRecurring}
+            onShowRecurringChange={setShowRecurring}
           />
         )}
       </div>
 
       <AppOverlay open={isDayDetailOpen} onOpenChange={setIsDayDetailOpen}>
-        <CalendarDayDetail dateStr={selectedDay} entries={selectedEntries} />
+        <CalendarDayDetail
+          dateStr={selectedDay}
+          entries={selectedEntries}
+          showRecurring={showRecurring}
+          onShowRecurringChange={setShowRecurring}
+        />
       </AppOverlay>
     </div>
   )

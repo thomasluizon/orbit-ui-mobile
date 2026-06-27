@@ -148,8 +148,7 @@
     "amPm": "AM/PM",
     "previousMonth": "Previous month",
     "nextMonth": "Next month",
-    "previousYear": "Previous year",
-    "nextYear": "Next year",
+    "selectYear": "Select year",
     "previousWeek": "Previous week",
     "nextWeek": "Next week",
     "continue": "Continue",
@@ -618,7 +617,8 @@
     "timeGrid": {
       "allDay": "All-day",
       "now": "Now",
-      "pickRangeHint": "Pick a start and end day above to set your range."
+      "pickRangeHint": "Pick a start and end day above to set your range.",
+      "rangeMaxDays": "Range limited to {max} days."
     },
     "status": {
       "completed": "Completed",

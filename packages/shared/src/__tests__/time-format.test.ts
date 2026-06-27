@@ -1,11 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import {
+  capitalizeFirstLetter,
   detectDefaultTimeFormat,
   formatLocaleDate,
   formatLocaleDateTime,
   formatLocaleTime,
   resolveSupportedLocale,
   resolveSystemLocale,
+  splitMonthYear,
 } from '../utils/locale-format'
 
 describe('locale-format utils', () => {
@@ -64,5 +66,25 @@ describe('locale-format utils', () => {
     expect(formatLocaleDateTime('not-a-date', 'en')).toBe('not-a-date')
     expect(formatLocaleTime('25:61', 'en')).toBe('25:61')
     expect(formatLocaleTime(null, 'en')).toBe('')
+  })
+
+  it('capitalizes only the first letter, leaving connectors lowercase', () => {
+    expect(capitalizeFirstLetter('agosto de 2028')).toBe('Agosto de 2028')
+    expect(capitalizeFirstLetter('August 2028')).toBe('August 2028')
+    expect(capitalizeFirstLetter('')).toBe('')
+  })
+
+  it('splits a Portuguese month-year keeping the "de" connector lowercase', () => {
+    expect(splitMonthYear('2028-08-15', 'pt-BR')).toEqual({
+      lead: 'Agosto de',
+      year: '2028',
+    })
+  })
+
+  it('splits an English month-year with no connector', () => {
+    expect(splitMonthYear('2028-08-15', 'en')).toEqual({
+      lead: 'August',
+      year: '2028',
+    })
   })
 })

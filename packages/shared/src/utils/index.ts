@@ -123,6 +123,7 @@ export type {
 export { formatHabitDetailSummary } from './habit-detail-summary'
 export { parseShowGeneralOnTodayPreference } from './preferences'
 export {
+  capitalizeFirstLetter,
   detectDefaultTimeFormat,
   formatLocaleDate,
   formatLocaleDateTime,
@@ -133,7 +134,10 @@ export {
   getSystemLocale,
   resolveSupportedLocale,
   resolveSystemLocale,
+  splitMonthYear,
 } from './locale-format'
+export { buildYearRange } from './year-range'
+export { filterRecurringEntries } from './calendar-entries'
 export { fetchAllPaginatedItems } from './pagination'
 export {
   buildHabitQueryString,

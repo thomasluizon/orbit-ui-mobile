@@ -17,8 +17,7 @@ import { useRouter } from "expo-router";
 import {
   addMonths,
   subMonths,
-  addYears,
-  subYears,
+  setYear,
   startOfMonth,
   endOfMonth,
   startOfWeek,
@@ -30,7 +29,11 @@ import {
   getDate,
 } from "date-fns";
 import { enUS, ptBR } from "date-fns/locale";
-import { formatAPIDate, parseAPIDate } from "@orbit/shared/utils";
+import {
+  capitalizeFirstLetter,
+  formatAPIDate,
+  parseAPIDate,
+} from "@orbit/shared/utils";
 import type { CalendarDayEntry } from "@orbit/shared/types/calendar";
 import { useCalendarData } from "@/hooks/use-habits";
 import { useProfile } from "@/hooks/use-profile";
@@ -108,11 +111,14 @@ export default function CalendarScreen() {
 
   const monthLabel = useMemo(
     () =>
-      format(currentMonth, "MMMM yyyy", {
-        locale: i18n.language === "pt-BR" ? ptBR : enUS,
-      }),
+      capitalizeFirstLetter(
+        format(currentMonth, "MMMM", {
+          locale: i18n.language === "pt-BR" ? ptBR : enUS,
+        }),
+      ),
     [currentMonth, i18n.language],
   );
+  const currentYear = currentMonth.getFullYear();
 
   const prevMonth = useCallback(() => {
     setMonthSlide("left");
@@ -124,14 +130,9 @@ export default function CalendarScreen() {
     setCurrentMonth((m) => addMonths(m, 1));
   }, []);
 
-  const prevYear = useCallback(() => {
-    setMonthSlide("left");
-    setCurrentMonth((m) => subYears(m, 1));
-  }, []);
-
-  const nextYear = useCallback(() => {
-    setMonthSlide("right");
-    setCurrentMonth((m) => addYears(m, 1));
+  const selectYear = useCallback((year: number) => {
+    setMonthSlide(null);
+    setCurrentMonth((m) => startOfMonth(setYear(m, year)));
   }, []);
 
   const goToCurrentMonth = useCallback(() => {
@@ -328,16 +329,15 @@ export default function CalendarScreen() {
       <GradientTop height={180} />
       <CalendarHeader
         monthLabel={monthLabel}
+        year={currentYear}
         previousMonthLabel={t("common.previousMonth")}
         nextMonthLabel={t("common.nextMonth")}
-        previousYearLabel={t("common.previousYear")}
-        nextYearLabel={t("common.nextYear")}
         currentMonthLabel={t("calendar.goToCurrentMonth")}
+        selectYearLabel={t("common.selectYear")}
         onPreviousMonth={prevMonth}
         onNextMonth={nextMonth}
-        onPreviousYear={prevYear}
-        onNextYear={nextYear}
         onCurrentMonth={goToCurrentMonth}
+        onSelectYear={selectYear}
         tokens={tokens}
       />
       <FlatList

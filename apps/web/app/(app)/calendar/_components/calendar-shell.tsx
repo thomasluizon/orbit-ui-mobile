@@ -1,37 +1,47 @@
 'use client'
 
-import { ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react'
+import { useState } from 'react'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { YearPicker } from '@/components/ui/year-picker'
+import { useOverlayEscape } from '@/hooks/use-overlay-escape'
 
 interface CalendarHeaderProps {
   monthLabel: string
+  year: number
   previousMonthLabel: string
   nextMonthLabel: string
-  previousYearLabel: string
-  nextYearLabel: string
   currentMonthLabel: string
+  selectYearLabel: string
   onPreviousMonth: () => void
   onNextMonth: () => void
-  onPreviousYear: () => void
-  onNextYear: () => void
   onCurrentMonth: () => void
+  onSelectYear: (year: number) => void
 }
 
-/** Agenda header mirroring the Today date-nav: a centered, tappable month label
- *  (tap returns to the current month) flanked by month chevrons and outer
- *  double-chevron year-jump controls. */
+/** Agenda header mirroring the Today date-nav: single month chevrons flanking a
+ *  tappable month label (tap returns to the current month) and a tappable year
+ *  that opens a year picker for direct jumps. */
 export function CalendarHeader({
   monthLabel,
+  year,
   previousMonthLabel,
   nextMonthLabel,
-  previousYearLabel,
-  nextYearLabel,
   currentMonthLabel,
+  selectYearLabel,
   onPreviousMonth,
   onNextMonth,
-  onPreviousYear,
-  onNextYear,
   onCurrentMonth,
+  onSelectYear,
 }: Readonly<CalendarHeaderProps>) {
+  const [isYearOpen, setIsYearOpen] = useState(false)
+
+  useOverlayEscape({ open: isYearOpen, onDismiss: () => setIsYearOpen(false) })
+
+  function handleSelectYear(nextYear: number) {
+    onSelectYear(nextYear)
+    setIsYearOpen(false)
+  }
+
   return (
     <div className="shrink-0" style={{ padding: '12px 20px 16px' }}>
       <div
@@ -39,64 +49,81 @@ export function CalendarHeader({
         className="flex items-center justify-between w-full"
         style={{ padding: '0 4px' }}
       >
-        <div className="flex items-center shrink-0" style={{ gap: 2 }}>
+        <button
+          type="button"
+          aria-label={previousMonthLabel}
+          onClick={onPreviousMonth}
+          className="icon-btn shrink-0"
+          style={{ width: 36, height: 36 }}
+        >
+          <ChevronLeft size={18} strokeWidth={1.8} color="var(--fg-2)" aria-hidden="true" />
+        </button>
+        <div className="flex items-center" style={{ gap: 2 }}>
           <button
             type="button"
-            aria-label={previousYearLabel}
-            onClick={onPreviousYear}
-            className="icon-btn shrink-0"
-            style={{ width: 36, height: 36 }}
+            aria-label={currentMonthLabel}
+            onClick={onCurrentMonth}
+            className="appearance-none border-0 bg-transparent cursor-pointer inline-flex items-center justify-center rounded-full transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev)] active:scale-[0.98]"
+            style={{
+              height: 36,
+              padding: '0 10px',
+              fontFamily: 'var(--font-sans)',
+              fontSize: 17,
+              fontWeight: 500,
+              letterSpacing: '-0.01em',
+              color: 'var(--fg-1)',
+            }}
           >
-            <ChevronsLeft size={16} strokeWidth={1.8} color="var(--fg-3)" aria-hidden="true" />
+            {monthLabel}
           </button>
           <button
             type="button"
-            aria-label={previousMonthLabel}
-            onClick={onPreviousMonth}
-            className="icon-btn shrink-0"
-            style={{ width: 36, height: 36 }}
+            aria-label={selectYearLabel}
+            aria-expanded={isYearOpen}
+            aria-haspopup="dialog"
+            onClick={() => setIsYearOpen(true)}
+            className="appearance-none border-0 bg-transparent cursor-pointer inline-flex items-center justify-center rounded-full transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev)] active:scale-[0.98]"
+            style={{
+              height: 36,
+              padding: '0 10px',
+              fontFamily: 'var(--font-mono)',
+              fontSize: 17,
+              fontWeight: 500,
+              fontVariantNumeric: 'tabular-nums',
+              color: isYearOpen ? 'var(--primary)' : 'var(--fg-1)',
+            }}
           >
-            <ChevronLeft size={18} strokeWidth={1.8} color="var(--fg-2)" aria-hidden="true" />
+            {year}
           </button>
         </div>
         <button
           type="button"
-          aria-label={currentMonthLabel}
-          onClick={onCurrentMonth}
-          className="capitalize appearance-none border-0 bg-transparent cursor-pointer inline-flex items-center justify-center rounded-full transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev)] active:scale-[0.98]"
-          style={{
-            height: 36,
-            padding: '0 16px',
-            fontFamily: 'var(--font-sans)',
-            fontSize: 17,
-            fontWeight: 500,
-            letterSpacing: '-0.01em',
-            color: 'var(--fg-1)',
-          }}
+          aria-label={nextMonthLabel}
+          onClick={onNextMonth}
+          className="icon-btn shrink-0"
+          style={{ width: 36, height: 36 }}
         >
-          {monthLabel}
+          <ChevronRight size={18} strokeWidth={1.8} color="var(--fg-2)" aria-hidden="true" />
         </button>
-        <div className="flex items-center shrink-0" style={{ gap: 2 }}>
-          <button
-            type="button"
-            aria-label={nextMonthLabel}
-            onClick={onNextMonth}
-            className="icon-btn shrink-0"
-            style={{ width: 36, height: 36 }}
-          >
-            <ChevronRight size={18} strokeWidth={1.8} color="var(--fg-2)" aria-hidden="true" />
-          </button>
-          <button
-            type="button"
-            aria-label={nextYearLabel}
-            onClick={onNextYear}
-            className="icon-btn shrink-0"
-            style={{ width: 36, height: 36 }}
-          >
-            <ChevronsRight size={16} strokeWidth={1.8} color="var(--fg-3)" aria-hidden="true" />
-          </button>
-        </div>
       </div>
+
+      {isYearOpen && (
+        <>
+          <div
+            className="fixed inset-0 z-40 bg-black/65"
+            aria-hidden="true"
+            onClick={() => setIsYearOpen(false)}
+          />
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label={selectYearLabel}
+            className="fixed z-50 left-1/2 top-1/2 m-0 w-[min(90vw,320px)] -translate-x-1/2 -translate-y-1/2 rounded-[16px] bg-[var(--bg-sheet)] p-2.5 text-[var(--fg-1)] shadow-[var(--shadow-2),inset_0_0_0_1px_var(--hairline)]"
+          >
+            <YearPicker selectedYear={year} onSelectYear={handleSelectYear} />
+          </div>
+        </>
+      )}
     </div>
   )
 }

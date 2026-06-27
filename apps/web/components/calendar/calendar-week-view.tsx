@@ -3,6 +3,7 @@
 import type { Locale } from 'date-fns'
 import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
 import { CalendarWeekNav } from '@/app/(app)/calendar/_components/calendar-shell'
+import { ShowRecurringToggle } from './show-recurring-toggle'
 import { CalendarTimeGrid, type TimeGridColumn } from './calendar-time-grid'
 
 interface CalendarWeekViewProps {
@@ -20,6 +21,8 @@ interface CalendarWeekViewProps {
   dateFnsLocale: Locale
   allDayLabel: string
   nowLabel: string
+  showRecurring: boolean
+  onShowRecurringChange: (value: boolean) => void
 }
 
 /** Week view: a 7-column time grid with week-granularity navigation. */
@@ -38,6 +41,8 @@ export function CalendarWeekView({
   dateFnsLocale,
   allDayLabel,
   nowLabel,
+  showRecurring,
+  onShowRecurringChange,
 }: Readonly<CalendarWeekViewProps>) {
   return (
     <>
@@ -50,6 +55,12 @@ export function CalendarWeekView({
         onNextWeek={onNextWeek}
         onCurrentWeek={onCurrentWeek}
       />
+      <div className="flex justify-end" style={{ padding: '0 20px 6px' }}>
+        <ShowRecurringToggle
+          checked={showRecurring}
+          onChange={onShowRecurringChange}
+        />
+      </div>
       <CalendarTimeGrid
         columns={columns}
         dayMap={dayMap}
