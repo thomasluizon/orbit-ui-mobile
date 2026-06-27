@@ -40,6 +40,9 @@ import {
   withQueuedMarker,
 } from '@/lib/offline-mutations'
 import { useUIStore } from '@/stores/ui-store'
+import { useTranslation } from 'react-i18next'
+import { useAppToast } from '@/hooks/use-app-toast'
+import { useUndoToast } from '@/hooks/use-undo-toast'
 
 const pendingCreateGoalIds = new WeakMap<CreateGoalRequest, string>()
 export {
@@ -197,8 +200,50 @@ export function useUpdateGoal() {
   })
 }
 
+export function useRestoreGoal() {
+  const queryClient = useQueryClient()
+  const { t } = useTranslation()
+  const { showSuccess, showError } = useAppToast()
+
+  return useMutation({
+    mutationFn: async (goalId: string) => {
+      const mutation = buildQueuedMutation({
+        type: 'restoreGoal',
+        scope: 'goals',
+        endpoint: API.goals.restore(goalId),
+        method: 'POST',
+        payload: null,
+        entityType: 'goal',
+        targetEntityId: goalId,
+      })
+
+      return queueOrExecute({
+        mutation,
+        execute: async () => apiClient<void>(API.goals.restore(goalId), { method: 'POST' }),
+        queuedResult: createQueuedAck(mutation.id),
+      })
+    },
+
+    onSuccess: () => {
+      showSuccess(t('undo.restored'))
+    },
+
+    onError: () => {
+      showError(t('undo.restoreFailed'))
+    },
+
+    onSettled: (data) => {
+      if (isQueuedResult(data)) return
+      void invalidateGoalQueries(queryClient)
+    },
+  })
+}
+
 export function useDeleteGoal() {
   const queryClient = useQueryClient()
+  const { t } = useTranslation()
+  const restoreGoal = useRestoreGoal()
+  const showUndoToast = useUndoToast()
 
   return useMutation({
     mutationFn: async (goalId: string) => {
@@ -217,6 +262,10 @@ export function useDeleteGoal() {
         execute: async () => apiClient<void>(API.goals.delete(goalId), { method: 'DELETE' }),
         queuedResult: createQueuedAck(mutation.id),
       })
+    },
+
+    onSuccess: (_data, goalId) => {
+      showUndoToast(t('undo.goalDeleted'), () => restoreGoal.mutate(goalId))
     },
 
     onMutate: async (goalId) => {

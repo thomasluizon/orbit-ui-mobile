@@ -1,12 +1,15 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { API } from '@orbit/shared/api'
 import { habitKeys, goalKeys, tagKeys } from '@orbit/shared/query'
 import type { ChecklistItem, CreateHabitRequest, HabitScheduleChild, HabitScheduleItem } from '@orbit/shared/types/habit'
 
 import {
   useCreateHabit,
   useCreateSubHabit,
+  useDeleteHabit,
   useLogHabit,
   useMoveHabitParent,
+  useRestoreHabit,
   useSkipHabit,
   useUpdateChecklist,
 } from '@/hooks/use-habits'
@@ -117,6 +120,9 @@ const mocks = vi.hoisted(() => {
     syncWidgetData: vi.fn(async () => {}),
     setLastCreatedHabitId: vi.fn(),
     invalidateHabitMutationQueries: vi.fn(async () => {}),
+    showSuccess: vi.fn(),
+    showError: vi.fn(),
+    showUndoToast: vi.fn(),
   }
 })
 
@@ -177,6 +183,20 @@ vi.mock('@/lib/habit-mutation-helpers', async () => {
     invalidateHabitMutationQueries: mocks.invalidateHabitMutationQueries,
   }
 })
+
+vi.mock('@/hooks/use-app-toast', () => ({
+  useAppToast: () => ({
+    showSuccess: mocks.showSuccess,
+    showError: mocks.showError,
+    showQueued: vi.fn(),
+    showInfo: vi.fn(),
+    showToast: vi.fn(),
+  }),
+}))
+
+vi.mock('@/hooks/use-undo-toast', () => ({
+  useUndoToast: () => mocks.showUndoToast,
+}))
 
 type MutationConfig<TResult, TVariables, TContext> = {
   mutationFn: (variables: TVariables) => Promise<TResult>
@@ -296,6 +316,9 @@ describe('mobile habit hooks', () => {
     mocks.syncWidgetData.mockClear()
     mocks.setLastCreatedHabitId.mockClear()
     mocks.invalidateHabitMutationQueries.mockClear()
+    mocks.showSuccess.mockClear()
+    mocks.showError.mockClear()
+    mocks.showUndoToast.mockClear()
   })
 
   it('optimistically completes before query cancellation resolves', () => {
@@ -619,5 +642,41 @@ describe('mobile habit hooks', () => {
     expect(list.map((habit) => habit.id)).toEqual(['offline-parent-1', 'habit-1'])
     expect(list[0]?.hasSubHabits).toBe(false)
     expect(list[0]?.children).toEqual([])
+  })
+
+  it('shows the undo snackbar when a habit delete succeeds', () => {
+    const mutation = useDeleteHabit() as unknown as MutationConfig<unknown, string, undefined>
+
+    mutation.onSuccess?.(undefined, 'habit-1', undefined)
+
+    expect(mocks.showUndoToast).toHaveBeenCalledWith('undo.habitDeleted', expect.any(Function))
+  })
+
+  it('restores a habit through the queued path, targets the restore endpoint, and confirms', async () => {
+    mocks.runQueuedMutation.mockResolvedValueOnce({})
+
+    const mutation = useRestoreHabit() as unknown as MutationConfig<unknown, string, undefined>
+
+    const result = await mutation.mutationFn('habit-1')
+    mutation.onSuccess?.(result, 'habit-1', undefined)
+    await mutation.onSettled?.(result, null, 'habit-1', undefined)
+
+    expect(mocks.runQueuedMutation).toHaveBeenCalledWith(expect.objectContaining({
+      mutation: expect.objectContaining({
+        type: 'restoreHabit',
+        endpoint: API.habits.restore('habit-1'),
+        method: 'POST',
+      }),
+    }))
+    expect(mocks.showSuccess).toHaveBeenCalledWith('undo.restored')
+    expect(mocks.queryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: habitKeys.lists() })
+  })
+
+  it('surfaces an error toast when a habit restore fails', () => {
+    const mutation = useRestoreHabit() as unknown as MutationConfig<unknown, string, undefined>
+
+    mutation.onError?.(new Error('boom'), 'habit-1', undefined)
+
+    expect(mocks.showError).toHaveBeenCalledWith('undo.restoreFailed')
   })
 })

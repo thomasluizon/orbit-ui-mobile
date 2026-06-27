@@ -35,6 +35,12 @@ export async function deleteTag(tagId: string): Promise<void> {
   })
 }
 
+export async function restoreTag(tagId: string): Promise<void> {
+  await serverAuthFetch(API.tags.restore(tagId), {
+    method: 'POST',
+  })
+}
+
 export async function assignTags(
   habitId: string,
   tagIds: string[],

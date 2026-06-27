@@ -46,6 +46,7 @@ describe('API endpoints', () => {
       expect(API.habits.get('h-1')).toBe('/api/habits/h-1')
       expect(API.habits.update('h-2')).toBe('/api/habits/h-2')
       expect(API.habits.delete('h-3')).toBe('/api/habits/h-3')
+      expect(API.habits.restore('h-3')).toBe('/api/habits/h-3/restore')
       expect(API.habits.detail('h-1')).toBe('/api/habits/h-1/detail')
       expect(API.habits.log('h-1')).toBe('/api/habits/h-1/log')
       expect(API.habits.logs('h-1')).toBe('/api/habits/h-1/logs')
@@ -75,6 +76,7 @@ describe('API endpoints', () => {
       expect(API.goals.get('g-1')).toBe('/api/goals/g-1')
       expect(API.goals.update('g-1')).toBe('/api/goals/g-1')
       expect(API.goals.delete('g-1')).toBe('/api/goals/g-1')
+      expect(API.goals.restore('g-1')).toBe('/api/goals/g-1/restore')
       expect(API.goals.detail('g-1')).toBe('/api/goals/g-1/detail')
       expect(API.goals.progress('g-1')).toBe('/api/goals/g-1/progress')
       expect(API.goals.status('g-1')).toBe('/api/goals/g-1/status')
@@ -92,6 +94,7 @@ describe('API endpoints', () => {
     it('has correct parameterized paths', () => {
       expect(API.tags.update('t-1')).toBe('/api/tags/t-1')
       expect(API.tags.delete('t-1')).toBe('/api/tags/t-1')
+      expect(API.tags.restore('t-1')).toBe('/api/tags/t-1/restore')
       expect(API.tags.assign('h-1')).toBe('/api/tags/h-1/assign')
     })
   })

@@ -1727,6 +1727,14 @@
     "title": "You're offline",
     "description": "Check your connection and try again."
   },
+  "undo": {
+    "habitDeleted": "Habit deleted",
+    "goalDeleted": "Goal deleted",
+    "tagDeleted": "Tag deleted",
+    "action": "Undo",
+    "restored": "Restored",
+    "restoreFailed": "Couldn't restore. Try again."
+  },
   "speech": {
     "micDenied": "Microphone access denied.",
     "noSpeech": "No speech detected.",

@@ -4,6 +4,7 @@ import {
   useMutation,
   useQueryClient,
 } from '@tanstack/react-query'
+import { useTranslations } from 'next-intl'
 import { goalKeys, habitKeys } from '@orbit/shared/query'
 import type {
   Goal,
@@ -17,12 +18,15 @@ import {
   createGoal as createGoalAction,
   updateGoal as updateGoalAction,
   deleteGoal as deleteGoalAction,
+  restoreGoal as restoreGoalAction,
   updateGoalProgress as updateGoalProgressAction,
   updateGoalStatus as updateGoalStatusAction,
   reorderGoals as reorderGoalsAction,
   linkHabitsToGoal as linkHabitsToGoalAction,
 } from '@/app/actions/goals'
 import { useUIStore } from '@/stores/ui-store'
+import { useAppToast } from '@/hooks/use-app-toast'
+import { useUndoToast } from '@/hooks/use-undo-toast'
 export {
   type NormalizedGoalsData,
   useGoalDetail,
@@ -56,11 +60,37 @@ export function useUpdateGoal() {
   })
 }
 
+export function useRestoreGoal() {
+  const queryClient = useQueryClient()
+  const t = useTranslations()
+  const { showSuccess, showError } = useAppToast()
+
+  return useMutation({
+    mutationFn: (goalId: string) => restoreGoalAction(goalId),
+
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: goalKeys.lists() })
+      showSuccess(t('undo.restored'))
+    },
+
+    onError: () => {
+      showError(t('undo.restoreFailed'))
+    },
+  })
+}
+
 export function useDeleteGoal() {
   const queryClient = useQueryClient()
+  const t = useTranslations()
+  const restoreGoal = useRestoreGoal()
+  const showUndoToast = useUndoToast()
 
   return useMutation({
     mutationFn: (goalId: string) => deleteGoalAction(goalId),
+
+    onSuccess: (_data, goalId) => {
+      showUndoToast(t('undo.goalDeleted'), () => restoreGoal.mutate(goalId))
+    },
 
     onMutate: async (goalId) => {
       await queryClient.cancelQueries({ queryKey: goalKeys.lists() })
