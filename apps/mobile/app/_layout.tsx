@@ -37,7 +37,6 @@ import {
 import { dismissTopOverlay } from '@/lib/overlay-stack'
 import { buildUpgradeHref } from '@/lib/upgrade-route'
 import { useUIStore } from '@/stores/ui-store'
-import { useTourStore } from '@/stores/tour-store'
 import { OnboardingFlow } from '@/components/onboarding/onboarding-flow'
 import { CalendarImportPrompt } from '@/components/onboarding/calendar-import-prompt'
 import { BottomTabBar, type BottomTabId } from '@/components/navigation/bottom-tab-bar'
@@ -299,23 +298,9 @@ function GlobalOverlays({
   showSharedCelebrations: boolean
 }>) {
   const streakFreezeRef = useRef<StreakFreezeCelebrationHandle>(null)
-  const tourStarted = useRef(false)
   const hasProAccess = profile?.hasProAccess ?? false
   const canViewGamification = profile?.canViewGamification ?? false
   const gamification = useGamificationProfile(canViewGamification)
-
-  useEffect(() => {
-    if (
-      profile &&
-      profile.hasCompletedOnboarding &&
-      !profile.hasCompletedTour &&
-      !tourStarted.current &&
-      !useTourStore.getState().isActive
-    ) {
-      tourStarted.current = true
-      setTimeout(() => useTourStore.getState().startFullTour(), 500)
-    }
-  }, [profile])
 
   return (
     <>

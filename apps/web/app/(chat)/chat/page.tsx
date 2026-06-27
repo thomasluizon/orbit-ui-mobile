@@ -10,6 +10,7 @@ import { AstraMark } from '@/components/ui/astra-avatar'
 import { GradientTop } from '@/components/ui/gradient-top'
 import { useChatComposer } from '@/hooks/use-chat-composer'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
+import { useCoachMark } from '@/hooks/use-coach-mark'
 import { useHabitDetail } from '@/hooks/use-habits'
 import { MessageBubble } from '@/components/chat/message-bubble'
 import { TypingIndicator } from '@/components/chat/typing-indicator'
@@ -22,6 +23,7 @@ export default function ChatPage() {
   const t = useTranslations()
   const router = useRouter()
   const goBackOrFallback = useGoBackOrFallback()
+  useCoachMark('coach-astra')
   const composer = useChatComposer()
   const {
     chatContainerRef,

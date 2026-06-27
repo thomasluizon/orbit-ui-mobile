@@ -5,7 +5,10 @@ import { createMockHabit, createMockProfile } from '@orbit/shared/__tests__/fact
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { computeHabitCardStatus } from '@orbit/shared/utils'
 
-const { useHabitsMock } = vi.hoisted(() => ({ useHabitsMock: vi.fn() }))
+const { useHabitsMock, totalHabitCountRef } = vi.hoisted(() => ({
+  useHabitsMock: vi.fn(),
+  totalHabitCountRef: { value: 10 },
+}))
 
 const dateParamState = { value: null as string | null }
 
@@ -126,6 +129,18 @@ vi.mock('@/hooks/use-habits', () => ({
   useBulkSkipHabits: () => ({ mutateAsync: bulkSkipMutateAsync }),
 }))
 
+vi.mock('@/hooks/use-habit-queries', () => ({
+  useTotalHabitCount: () => totalHabitCountRef.value,
+}))
+
+vi.mock('@/hooks/use-coach-mark', () => ({
+  useCoachMark: () => {},
+}))
+
+vi.mock('@/components/today/setup-checklist-card', () => ({
+  SetupChecklistCard: () => null,
+}))
+
 vi.mock('@/components/habits/habit-list', () => ({
   HabitList: React.forwardRef(function MockHabitList(props: Record<string, unknown>, ref) {
     React.useImperativeHandle(ref, () => habitListHandle)
@@ -194,10 +209,24 @@ describe('TodayPage bulk parent prompts', () => {
     uiState.selectedTagIds = []
     uiState.showCompleted = false
     uiState.selectedHabitIds = new Set<string>()
+    totalHabitCountRef.value = 10
   })
 
   afterEach(() => {
     vi.useRealTimers()
+  })
+
+  it('hides the advanced filter row until the user has five habits', () => {
+    totalHabitCountRef.value = 4
+    const { unmount } = render(<TodayPage />)
+    expect(screen.queryByTestId('today-utility-row')).toBeNull()
+    expect(screen.getByTestId('habit-list')).toBeInTheDocument()
+    unmount()
+
+    totalHabitCountRef.value = 5
+    render(<TodayPage />)
+    expect(screen.getByTestId('today-utility-row')).toBeInTheDocument()
+    expect(screen.getByTestId('habit-list')).toBeInTheDocument()
   })
 
   it('suppresses descendant successes when bulk log finishes', async () => {

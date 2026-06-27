@@ -144,6 +144,18 @@ vi.mock("@react-native-async-storage/async-storage", () => ({
   },
 }));
 
+vi.mock("@/hooks/use-habit-queries", () => ({
+  useTotalHabitCount: () => 10,
+}));
+
+vi.mock("@/hooks/use-coach-mark", () => ({
+  useCoachMark: () => {},
+}));
+
+vi.mock("@/components/today/setup-checklist-card", () => ({
+  SetupChecklistCard: () => null,
+}));
+
 vi.mock("expo-router", () => ({
   useLocalSearchParams: () =>
     dateParamState.value ? { date: dateParamState.value } : {},

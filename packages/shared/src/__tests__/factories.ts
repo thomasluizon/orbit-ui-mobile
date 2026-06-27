@@ -116,6 +116,10 @@ export function createMockProfile(overrides: Partial<Profile> = {}): Profile {
     googleCalendarAutoSyncStatus: 'Idle',
     googleCalendarLastSyncedAt: null,
     canViewGamification: false,
+    hasCreatedFirstHabit: false,
+    hasLoggedFirstHabit: false,
+    hasTriedAstra: false,
+    hasCompletedOnboardingChecklist: false,
     ...overrides,
   }
 }

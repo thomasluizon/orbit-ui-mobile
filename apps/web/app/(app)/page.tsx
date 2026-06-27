@@ -30,6 +30,7 @@ import { BulkActionBarV2 } from '@/components/habits/bulk-action-bar-v2'
 import { GradientTop } from '@/components/ui/gradient-top'
 import { ProgressBar } from '@/components/ui/progress-bar'
 import { SectionLabel } from '@/components/ui/section-label'
+import { SetupChecklistCard } from '@/components/today/setup-checklist-card'
 import { useUIStore } from '@/stores/ui-store'
 import { useProfile } from '@/hooks/use-profile'
 import {
@@ -38,6 +39,8 @@ import {
   useHabits,
 } from '@/hooks/use-habits'
 import { useTags } from '@/hooks/use-tags'
+import { useTotalHabitCount } from '@/hooks/use-habit-queries'
+import { useCoachMark } from '@/hooks/use-coach-mark'
 import { useBulkActions } from '@/hooks/use-bulk-actions'
 import {
   TodayHeader,
@@ -66,6 +69,8 @@ export default function TodayPage() {
   const queryClient = useQueryClient()
   const { profile } = useProfile()
   const { tags } = useTags()
+  const totalHabitCount = useTotalHabitCount()
+  useCoachMark('coach-today')
   const listMotionPreset = resolveMotionPreset('list-enter', Boolean(prefersReducedMotion))
   const listTransition = {
     duration: listMotionPreset.enterDuration / 1000,
@@ -436,30 +441,34 @@ export default function TodayPage() {
             </div>
           )}
 
-          <motion.div layout transition={listTransition}>
-            <TodayUtilityRow
-              activeView={currentActiveView}
-              searchOpen={searchOpen}
-              searchValue={localSearchQuery}
-              selectedFrequency={selectedFrequency}
-              selectedTagIds={selectedTagIds}
-              tags={tags}
-              frequencyOptions={frequencyOptions}
-              isSelectMode={isSelectMode}
-              showCompleted={showCompleted}
-              isFetching={habitsQuery.isFetching}
-              allCollapsed={habitListAllCollapsed}
-              onSearchToggle={toggleSearch}
-              onSearchChange={setLocalSearchQuery}
-              onSearchClear={() => setLocalSearchQuery('')}
-              onFrequencyChange={setSelectedFrequency}
-              onTagToggle={toggleTagFilter}
-              onToggleSelect={toggleSelectMode}
-              onToggleCollapse={handleToggleCollapse}
-              onRefresh={handleRefresh}
-              onToggleCompleted={() => setShowCompleted(!showCompleted)}
-            />
-          </motion.div>
+          {currentActiveView === 'today' && <SetupChecklistCard />}
+
+          {totalHabitCount >= 5 && (
+            <motion.div layout transition={listTransition} data-testid="today-utility-row">
+              <TodayUtilityRow
+                activeView={currentActiveView}
+                searchOpen={searchOpen}
+                searchValue={localSearchQuery}
+                selectedFrequency={selectedFrequency}
+                selectedTagIds={selectedTagIds}
+                tags={tags}
+                frequencyOptions={frequencyOptions}
+                isSelectMode={isSelectMode}
+                showCompleted={showCompleted}
+                isFetching={habitsQuery.isFetching}
+                allCollapsed={habitListAllCollapsed}
+                onSearchToggle={toggleSearch}
+                onSearchChange={setLocalSearchQuery}
+                onSearchClear={() => setLocalSearchQuery('')}
+                onFrequencyChange={setSelectedFrequency}
+                onTagToggle={toggleTagFilter}
+                onToggleSelect={toggleSelectMode}
+                onToggleCollapse={handleToggleCollapse}
+                onRefresh={handleRefresh}
+                onToggleCompleted={() => setShowCompleted(!showCompleted)}
+              />
+            </motion.div>
+          )}
 
           {!hasFetched && (
             <div className="stagger-enter" style={{ padding: '12px 20px 8px' }}>

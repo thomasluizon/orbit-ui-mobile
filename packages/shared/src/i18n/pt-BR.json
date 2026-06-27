@@ -1127,6 +1127,75 @@
   },
   "onboarding": {
     "flow": {
+      "templatePacks": {
+        "title": "Comece com um pacote",
+        "subtitle": "Escolha um conjunto de hábitos para começar. Você pode ajustar tudo depois.",
+        "customizeTitle": "Personalize seu pacote",
+        "customizeSubtitle": "Desative o que não quiser. Adicionamos o resto.",
+        "createCta": "Adicionar {count} hábitos",
+        "createCtaOne": "Adicionar 1 hábito",
+        "createOwn": "Prefiro criar o meu",
+        "skip": "Pular por agora",
+        "created": "Seus hábitos estão prontos!",
+        "packs": {
+          "morningRoutine": {
+            "name": "Rotina Matinal",
+            "description": "Comece todo dia com intenção.",
+            "habits": {
+              "makeBed": "Arrume sua cama",
+              "water": "Beba um copo de água",
+              "stretch": "Alongamento de 5 minutos",
+              "breakfast": "Tome um café da manhã saudável",
+              "planDay": "Planeje suas 3 tarefas principais"
+            }
+          },
+          "fitnessMovement": {
+            "name": "Fitness e Movimento",
+            "description": "Mantenha o corpo ativo e forte.",
+            "habits": {
+              "walk": "Caminhada de 30 minutos",
+              "strength": "Treino de força",
+              "mobility": "Mobilidade de 10 minutos",
+              "stairs": "Use as escadas",
+              "steps": "Atinja sua meta de passos"
+            }
+          },
+          "studyFocus": {
+            "name": "Estudo e Foco",
+            "description": "Desenvolva foco profundo, sem distrações.",
+            "habits": {
+              "deepWork": "Bloco de trabalho focado",
+              "read": "Leia por 20 minutos",
+              "reviewNotes": "Revise suas anotações",
+              "phoneFree": "Primeira hora sem celular",
+              "singleTask": "Faça uma tarefa por vez"
+            }
+          },
+          "mindfulnessWellbeing": {
+            "name": "Mindfulness e Bem-estar",
+            "description": "Desacelere e cuide de você.",
+            "habits": {
+              "meditate": "Medite por 10 minutos",
+              "gratitude": "Diário de gratidão",
+              "digitalSunset": "Pôr do sol digital",
+              "breathing": "Respiração profunda",
+              "reachOut": "Fale com alguém"
+            }
+          }
+        },
+        "tags": {
+          "morning": "manhã",
+          "health": "saúde",
+          "movement": "movimento",
+          "focus": "foco",
+          "fitness": "fitness",
+          "learning": "aprendizado",
+          "mindfulness": "mindfulness",
+          "journal": "diário",
+          "sleep": "sono",
+          "social": "social"
+        }
+      },
       "step": "{current} de {total}",
       "skip": "Pular",
       "next": "Continuar",
@@ -1221,8 +1290,8 @@
           "theme": "Tema personalizado",
           "astra": "Assistente de IA"
         },
-        "trialTitle": "Seu teste Pro está ativo",
-        "trialDesc": "Aproveite o acesso Pro completo até {date}."
+        "trialTitle": "7 dias de Pro, grátis",
+        "trialDesc": "Sem cartão. Você tem acesso Pro completo até {date}."
       }
     },
     "wizard": {
@@ -2048,7 +2117,35 @@
     "banner": "Uma nova versão do Orbit está disponível.",
     "refresh": "Atualizar"
   },
+  "today": {
+    "setupChecklist": {
+      "title": "Primeiros passos",
+      "subtitle": "Três passos rápidos para configurar o Orbit.",
+      "items": {
+        "createHabit": "Crie seu primeiro hábito",
+        "logHabit": "Registre um hábito hoje",
+        "tryAstra": "Pergunte algo à Astra"
+      },
+      "progress": "{done} de {total} concluídos",
+      "complete": "Tudo pronto. Bom trabalho!",
+      "dismiss": "Dispensar"
+    }
+  },
   "tour": {
+    "coachmarks": {
+      "today": {
+        "title": "Seu dia, num relance",
+        "description": "Todo hábito de hoje fica aqui. Toque no círculo para concluir."
+      },
+      "astra": {
+        "title": "Conheça a Astra",
+        "description": "Seu assistente de IA. Peça para criar hábitos, planejar ou resumir o dia."
+      },
+      "calendar": {
+        "title": "Veja seu histórico",
+        "description": "Um mapa de calor colorido de tudo que você concluiu ao longo do tempo."
+      }
+    },
     "mockData": {
       "habits": {
         "meditation": {

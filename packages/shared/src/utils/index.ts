@@ -168,10 +168,21 @@ export {
   ONBOARDING_GOAL_SUGGESTIONS,
   ONBOARDING_HABIT_FREQUENCIES,
   ONBOARDING_HABIT_SUGGESTIONS,
+  ONBOARDING_TEMPLATE_PACKS_STEP,
   ONBOARDING_TOTAL_STEPS,
   ONBOARDING_WEEK_START_OPTIONS,
   shouldHideOnboardingFooter,
 } from './onboarding'
+export {
+  buildBulkItemsFromPack,
+  getTemplatePackById,
+  TEMPLATE_PACKS,
+  templatePackDescriptionKey,
+  templatePackHabitTitleKey,
+  templatePackNameKey,
+  templatePackTagKey,
+} from './template-packs'
+export type { TemplatePack, TemplatePackHabit } from './template-packs'
 export {
   isMissingBillingError,
   isMissingBillingStatus,

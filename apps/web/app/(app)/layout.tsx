@@ -29,7 +29,6 @@ import { useAuthStore } from '@/stores/auth-store'
 import { useTotalHabitCount } from '@/hooks/use-habits'
 import { useGamificationProfile } from '@/hooks/use-gamification'
 import { useUIStore } from '@/stores/ui-store'
-import { useTourStore } from '@/stores/tour-store'
 import { getSupabaseClient } from '@/lib/supabase'
 import { dismissCalendarImport } from '@/app/actions/calendar'
 import { TourProvider } from '@/components/tour/tour-provider'
@@ -92,20 +91,6 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
   const streakFreezeRef = useRef<{ show: () => void }>(null)
 
   const [showCalendarPrompt, setShowCalendarPrompt] = useState(false)
-
-  const tourStarted = useRef(false)
-  useEffect(() => {
-    if (
-      profile &&
-      profile.hasCompletedOnboarding &&
-      !profile.hasCompletedTour &&
-      !tourStarted.current &&
-      !useTourStore.getState().isActive
-    ) {
-      tourStarted.current = true
-      setTimeout(() => useTourStore.getState().startFullTour(), 500)
-    }
-  }, [profile])
 
   const calendarPromptCriteriaMet = !!(
     profile &&

@@ -13,6 +13,7 @@ import { enUS, ptBR } from 'date-fns/locale'
 import { useLocale, useTranslations } from 'next-intl'
 import { formatAPIDate } from '@orbit/shared/utils'
 import { useCalendarData } from '@/hooks/use-calendar-data'
+import { useCoachMark } from '@/hooks/use-coach-mark'
 import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
 import { CalendarGrid } from '@/components/calendar/calendar-grid'
 import { CalendarDayDetail } from '@/components/calendar/calendar-day-detail'
@@ -33,6 +34,7 @@ export default function CalendarPage() {
   const t = useTranslations()
   const locale = useLocale()
   const dateFnsLocale = locale === 'pt-BR' ? ptBR : enUS
+  useCoachMark('coach-calendar')
   const [currentMonth, setCurrentMonth] = useState(() => startOfMonth(new Date()))
   const [monthSlide, setMonthSlide] = useState<MonthSlide>(null)
   const [selectedDay, setSelectedDay] = useState<string | null>(() =>

@@ -389,6 +389,7 @@ export const bulkHabitItemSchema: z.ZodType<{
   subHabits?: BulkHabitItem[] | null
   endDate?: string | null
   googleEventId?: string | null
+  tags?: string[] | null
 }> = z.object({
   title: z.string(),
   description: z.string().nullable().optional(),
@@ -409,6 +410,7 @@ export const bulkHabitItemSchema: z.ZodType<{
   subHabits: z.lazy(() => z.array(bulkHabitItemSchema).nullable().optional()),
   endDate: z.string().nullable().optional(),
   googleEventId: z.string().nullable().optional(),
+  tags: z.array(z.string()).nullable().optional(),
 })
 
 export type BulkHabitItem = z.infer<typeof bulkHabitItemSchema>
