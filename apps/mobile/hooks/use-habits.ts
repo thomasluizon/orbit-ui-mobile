@@ -67,6 +67,9 @@ import {
 } from '@/lib/habit-mutation-helpers'
 import { useReviewReminderStore } from '@/stores/review-reminder-store'
 import { useUIStore } from '@/stores/ui-store'
+import { useTranslation } from 'react-i18next'
+import { useAppToast } from '@/hooks/use-app-toast'
+import { useUndoToast } from '@/hooks/use-undo-toast'
 
 type CreateHabitMutationInput = CreateHabitRequest & { __offlineTempId?: string }
 type BulkCreateHabitMutationInput = BulkCreateRequest & { __offlineTempIds?: string[] }
@@ -354,8 +357,44 @@ export function useUpdateHabit() {
   })
 }
 
+export function useRestoreHabit() {
+  const queryClient = useQueryClient()
+  const { t } = useTranslation()
+  const { showSuccess, showError } = useAppToast()
+
+  return useMutation<void | QueuedMarker, Error, string>({
+    mutationFn: (habitId) =>
+      performQueuedApiMutation<void>({
+        type: 'restoreHabit',
+        scope: 'habits',
+        endpoint: API.habits.restore(habitId),
+        method: 'POST',
+        payload: null,
+        entityType: 'habit',
+        targetEntityId: habitId,
+      }),
+
+    onSuccess: () => {
+      showSuccess(t('undo.restored'))
+    },
+
+    onError: () => {
+      showError(t('undo.restoreFailed'))
+    },
+
+    onSettled: (data, error) =>
+      finalizeHabitMutation(queryClient, data, error, {
+        includeGoals: true,
+        includeCount: true,
+      }),
+  })
+}
+
 export function useDeleteHabit() {
   const queryClient = useQueryClient()
+  const { t } = useTranslation()
+  const restoreHabit = useRestoreHabit()
+  const showUndoToast = useUndoToast()
 
   return useMutation<
     void | QueuedMarker,
@@ -388,6 +427,10 @@ export function useDeleteHabit() {
       if (!context) return
       restoreHabitLists(queryClient, context.previousLists)
       adjustHabitCount(queryClient, 1)
+    },
+
+    onSuccess: (_data, habitId) => {
+      showUndoToast(t('undo.habitDeleted'), () => restoreHabit.mutate(habitId))
     },
 
     onSettled: (data, error) =>

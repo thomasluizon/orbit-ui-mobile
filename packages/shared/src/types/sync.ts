@@ -1,11 +1,11 @@
 import { z } from 'zod'
 
 export const mutationTypeSchema = z.enum([
-  'createHabit', 'updateHabit', 'deleteHabit', 'logHabit', 'skipHabit',
+  'createHabit', 'updateHabit', 'deleteHabit', 'restoreHabit', 'logHabit', 'skipHabit',
   'reorderHabits', 'updateChecklist', 'duplicateHabit', 'moveHabitParent', 'createSubHabit',
   'bulkCreateHabits', 'bulkDeleteHabits', 'bulkLogHabits', 'bulkSkipHabits',
-  'createGoal', 'updateGoal', 'deleteGoal', 'updateGoalProgress', 'updateGoalStatus', 'reorderGoals', 'linkGoalHabits',
-  'createTag', 'updateTag', 'deleteTag', 'assignTags',
+  'createGoal', 'updateGoal', 'deleteGoal', 'restoreGoal', 'updateGoalProgress', 'updateGoalStatus', 'reorderGoals', 'linkGoalHabits',
+  'createTag', 'updateTag', 'deleteTag', 'restoreTag', 'assignTags',
   'markNotificationRead', 'markAllNotificationsRead', 'deleteNotification', 'deleteAllNotifications',
   'setName', 'setLanguage', 'setWeekStartDay', 'setColorScheme', 'setThemePreference', 'setTimeZone', 'setAiMemory', 'setAiSummary',
   'completeOnboarding', 'dismissCalendarPrompt', 'resetProfile',

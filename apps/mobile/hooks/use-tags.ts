@@ -20,6 +20,9 @@ import {
   queueOrExecute,
   withQueuedMarker,
 } from '@/lib/offline-mutations'
+import { useTranslation } from 'react-i18next'
+import { useAppToast } from '@/hooks/use-app-toast'
+import { useUndoToast } from '@/hooks/use-undo-toast'
 
 export interface Tag {
   id: string
@@ -269,8 +272,50 @@ export function useUpdateTag() {
   })
 }
 
+export function useRestoreTag() {
+  const queryClient = useQueryClient()
+  const { t } = useTranslation()
+  const { showSuccess, showError } = useAppToast()
+
+  return useMutation({
+    mutationFn: async (tagId: string) => {
+      const mutation = buildQueuedMutation({
+        type: 'restoreTag',
+        scope: 'tags',
+        endpoint: API.tags.restore(tagId),
+        method: 'POST',
+        payload: null,
+        entityType: 'tag',
+        targetEntityId: tagId,
+      })
+
+      return queueOrExecute({
+        mutation,
+        execute: async () => apiClient<void>(API.tags.restore(tagId), { method: 'POST' }),
+        queuedResult: createQueuedAck(mutation.id),
+      })
+    },
+
+    onSuccess: () => {
+      showSuccess(t('undo.restored'))
+    },
+
+    onError: () => {
+      showError(t('undo.restoreFailed'))
+    },
+
+    onSettled: (data) => {
+      if (isQueuedResult(data)) return
+      void invalidateTagMutationQueries(queryClient)
+    },
+  })
+}
+
 export function useDeleteTag() {
   const queryClient = useQueryClient()
+  const { t } = useTranslation()
+  const restoreTagMutation = useRestoreTag()
+  const showUndoToast = useUndoToast()
 
   return useMutation({
     mutationFn: async (tagId: string) => {
@@ -289,6 +334,10 @@ export function useDeleteTag() {
         execute: async () => apiClient<void>(API.tags.delete(tagId), { method: 'DELETE' }),
         queuedResult: createQueuedAck(mutation.id),
       })
+    },
+
+    onSuccess: (_data, tagId) => {
+      showUndoToast(t('undo.tagDeleted'), () => restoreTagMutation.mutate(tagId))
     },
 
     onMutate: async (tagId) => {

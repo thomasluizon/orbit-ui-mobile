@@ -1,17 +1,37 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { act, renderHook } from '@testing-library/react'
+import { act, renderHook, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import React from 'react'
 import { habitKeys, tagKeys } from '@orbit/shared/query'
 import { createMockGoal } from '@orbit/shared/__tests__/factories'
 import type { HabitScheduleItem } from '@orbit/shared/types/habit'
-import { useAssignTags, useCreateTag, useDeleteTag, useSuggestTags, useUpdateTag } from '@/hooks/use-tags'
+import { useAssignTags, useCreateTag, useDeleteTag, useRestoreTag, useSuggestTags, useUpdateTag } from '@/hooks/use-tags'
+
+const mockShowQueued = vi.fn()
+const mockShowSuccess = vi.fn()
+const mockShowError = vi.fn()
+
+vi.mock('next-intl', () => ({
+  useTranslations: () => (key: string) => key,
+}))
+
+vi.mock('@/hooks/use-app-toast', () => ({
+  useAppToast: () => ({
+    showError: mockShowError,
+    showSuccess: mockShowSuccess,
+    showInfo: vi.fn(),
+    showToast: vi.fn(),
+    showQueued: mockShowQueued,
+    dismissToast: vi.fn(),
+  }),
+}))
 
 vi.mock('@/app/actions/tags', () => ({
   getTags: vi.fn(),
   createTag: vi.fn(),
   updateTag: vi.fn(),
   deleteTag: vi.fn(),
+  restoreTag: vi.fn(),
   assignTags: vi.fn(),
   suggestTags: vi.fn(),
 }))
@@ -216,5 +236,83 @@ describe('web tag hooks', () => {
     expect((queryClient.getQueryData(habitKeys.lists()) as HabitScheduleItem[])[0]?.tags).toEqual([
       { id: 'tag-2', name: 'Focus', color: '#0000ff' },
     ])
+  })
+
+  it('shows an undo snackbar on successful delete and restores when undone', async () => {
+    const { deleteTag, restoreTag } = await import('@/app/actions/tags')
+    vi.mocked(deleteTag).mockResolvedValue(undefined)
+    vi.mocked(restoreTag).mockResolvedValue(undefined)
+
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    })
+    queryClient.setQueryData(tagKeys.lists(), [{ id: 'tag-1', name: 'Health', color: '#00ff00' }])
+
+    const { result } = renderHook(() => useDeleteTag(), {
+      wrapper: createWrapper(queryClient),
+    })
+
+    await act(async () => {
+      await result.current.mutateAsync('tag-1')
+    })
+
+    expect(mockShowQueued).toHaveBeenCalledWith(
+      'undo.tagDeleted',
+      'undo.action',
+      expect.any(Function),
+      expect.any(Function),
+    )
+
+    const performUndo = mockShowQueued.mock.calls.at(-1)![2] as () => void
+    await act(async () => {
+      performUndo()
+    })
+
+    await waitFor(() => expect(vi.mocked(restoreTag)).toHaveBeenCalledWith('tag-1'))
+  })
+
+  it('restores a tag, invalidates tag and habit lists, and confirms', async () => {
+    const { restoreTag } = await import('@/app/actions/tags')
+    vi.mocked(restoreTag).mockResolvedValue(undefined)
+
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    })
+    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries')
+
+    const { result } = renderHook(() => useRestoreTag(), {
+      wrapper: createWrapper(queryClient),
+    })
+
+    await act(async () => {
+      await result.current.mutateAsync('tag-1')
+    })
+
+    expect(vi.mocked(restoreTag)).toHaveBeenCalledWith('tag-1')
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: tagKeys.all })
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: habitKeys.lists() })
+    expect(mockShowSuccess).toHaveBeenCalledWith('undo.restored')
+  })
+
+  it('surfaces an error toast when restoring a tag fails', async () => {
+    const { restoreTag } = await import('@/app/actions/tags')
+    vi.mocked(restoreTag).mockRejectedValue(new Error('nope'))
+
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    })
+
+    const { result } = renderHook(() => useRestoreTag(), {
+      wrapper: createWrapper(queryClient),
+    })
+
+    await act(async () => {
+      try {
+        await result.current.mutateAsync('tag-1')
+      } catch {
+      }
+    })
+
+    expect(mockShowError).toHaveBeenCalledWith('undo.restoreFailed')
   })
 })

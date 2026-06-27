@@ -1610,6 +1610,14 @@
     "title": "Você está sem conexão",
     "description": "Confira sua internet e tente de novo."
   },
+  "undo": {
+    "habitDeleted": "Hábito excluído",
+    "goalDeleted": "Meta excluída",
+    "tagDeleted": "Tag excluída",
+    "action": "Desfazer",
+    "restored": "Restaurado",
+    "restoreFailed": "Não foi possível restaurar. Tente de novo."
+  },
   "speech": {
     "micDenied": "Acesso ao microfone negado.",
     "noSpeech": "Não captamos nenhuma fala.",

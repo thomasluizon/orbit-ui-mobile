@@ -51,6 +51,12 @@ export async function deleteHabit(habitId: string): Promise<void> {
   })
 }
 
+export async function restoreHabit(habitId: string): Promise<void> {
+  await serverAuthFetch(API.habits.restore(habitId), {
+    method: 'POST',
+  })
+}
+
 export async function logHabit(
   habitId: string,
   data?: LogHabitRequest,

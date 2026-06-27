@@ -45,6 +45,7 @@ import {
   createHabit as createHabitAction,
   updateHabit as updateHabitAction,
   deleteHabit as deleteHabitAction,
+  restoreHabit as restoreHabitAction,
   logHabit as logHabitAction,
   skipHabit as skipHabitAction,
   reorderHabits as reorderHabitsAction,
@@ -59,6 +60,7 @@ import {
 } from '@/app/actions/habits'
 import { useUIStore } from '@/stores/ui-store'
 import { useAppToast } from '@/hooks/use-app-toast'
+import { useUndoToast } from '@/hooks/use-undo-toast'
 
 export {
   EMPTY_CHILDREN_BY_PARENT,
@@ -264,18 +266,48 @@ export function useUpdateHabit() {
   })
 }
 
+function invalidateHabitDeleteQueries(queryClient: ReturnType<typeof useQueryClient>): void {
+  queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
+  queryClient.invalidateQueries({ queryKey: habitKeys.calendarPrefix() })
+  queryClient.invalidateQueries({ queryKey: habitKeys.count() })
+  queryClient.invalidateQueries({ queryKey: habitKeys.summaryPrefix() })
+  queryClient.invalidateQueries({ queryKey: goalKeys.lists() })
+}
+
+export function useRestoreHabit() {
+  const queryClient = useQueryClient()
+  const t = useTranslations()
+  const { showSuccess, showError } = useAppToast()
+
+  return useMutation({
+    mutationFn: (habitId: string) => restoreHabitAction(habitId),
+
+    onSuccess: () => {
+      invalidateHabitDeleteQueries(queryClient)
+      showSuccess(t('undo.restored'))
+    },
+
+    onError: () => {
+      showError(t('undo.restoreFailed'))
+    },
+  })
+}
+
 export function useDeleteHabit() {
   const queryClient = useQueryClient()
+  const t = useTranslations()
+  const restoreHabit = useRestoreHabit()
+  const showUndoToast = useUndoToast()
 
   return useMutation({
     mutationFn: (habitId: string) => deleteHabitAction(habitId),
 
+    onSuccess: (_data, habitId) => {
+      showUndoToast(t('undo.habitDeleted'), () => restoreHabit.mutate(habitId))
+    },
+
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
-      queryClient.invalidateQueries({ queryKey: habitKeys.calendarPrefix() })
-      queryClient.invalidateQueries({ queryKey: habitKeys.count() })
-      queryClient.invalidateQueries({ queryKey: habitKeys.summaryPrefix() })
-      queryClient.invalidateQueries({ queryKey: goalKeys.lists() })
+      invalidateHabitDeleteQueries(queryClient)
     },
   })
 }

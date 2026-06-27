@@ -10,6 +10,8 @@ const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
 
 const mockShowError = vi.fn()
+const mockShowSuccess = vi.fn()
+const mockShowQueued = vi.fn()
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
@@ -18,10 +20,11 @@ vi.mock('next-intl', () => ({
 vi.mock('@/hooks/use-app-toast', () => ({
   useAppToast: () => ({
     showError: mockShowError,
-    showSuccess: vi.fn(),
+    showSuccess: mockShowSuccess,
     showInfo: vi.fn(),
     showToast: vi.fn(),
-    showQueued: vi.fn(),
+    showQueued: mockShowQueued,
+    dismissToast: vi.fn(),
   }),
 }))
 
@@ -29,6 +32,7 @@ vi.mock('@/app/actions/habits', () => ({
   createHabit: vi.fn(),
   updateHabit: vi.fn(),
   deleteHabit: vi.fn(),
+  restoreHabit: vi.fn(),
   logHabit: vi.fn(),
   skipHabit: vi.fn(),
   reorderHabits: vi.fn(),
@@ -524,6 +528,82 @@ describe('useDeleteHabit', () => {
     })
 
     expect(mockedDeleteHabit).toHaveBeenCalledWith('h-1')
+  })
+
+  it('shows an undo snackbar on successful delete and restores when undone', async () => {
+    mockShowQueued.mockReset()
+    const { deleteHabit, restoreHabit } = await import('@/app/actions/habits')
+    vi.mocked(deleteHabit).mockResolvedValue(undefined)
+    vi.mocked(restoreHabit).mockResolvedValue(undefined)
+
+    const { result } = renderHook(() => useDeleteHabit(), { wrapper: createWrapper() })
+
+    await act(async () => {
+      await result.current.mutateAsync('h-1')
+    })
+
+    expect(mockShowQueued).toHaveBeenCalledWith(
+      'undo.habitDeleted',
+      'undo.action',
+      expect.any(Function),
+      expect.any(Function),
+    )
+
+    const performUndo = mockShowQueued.mock.calls.at(-1)![2] as () => void
+    await act(async () => {
+      performUndo()
+    })
+
+    await waitFor(() => expect(vi.mocked(restoreHabit)).toHaveBeenCalledWith('h-1'))
+  })
+})
+
+describe('useRestoreHabit', () => {
+  beforeEach(() => {
+    mockFetch.mockReset()
+    mockShowSuccess.mockReset()
+    mockShowError.mockReset()
+  })
+
+  it('calls restoreHabit action, invalidates delete-affected queries, and confirms', async () => {
+    const { restoreHabit } = await import('@/app/actions/habits')
+    vi.mocked(restoreHabit).mockResolvedValue(undefined)
+
+    const { useRestoreHabit } = await import('@/hooks/use-habits')
+    const queryClient = createQueryClient()
+    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries')
+    const { result } = renderHook(() => useRestoreHabit(), {
+      wrapper: createWrapper(queryClient),
+    })
+
+    await act(async () => {
+      await result.current.mutateAsync('h-1')
+    })
+
+    expect(vi.mocked(restoreHabit)).toHaveBeenCalledWith('h-1')
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: habitKeys.lists() })
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: habitKeys.calendarPrefix() })
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: habitKeys.count() })
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: habitKeys.summaryPrefix() })
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: goalKeys.lists() })
+    expect(mockShowSuccess).toHaveBeenCalledWith('undo.restored')
+  })
+
+  it('surfaces an error toast when restore fails', async () => {
+    const { restoreHabit } = await import('@/app/actions/habits')
+    vi.mocked(restoreHabit).mockRejectedValue(new Error('nope'))
+
+    const { useRestoreHabit } = await import('@/hooks/use-habits')
+    const { result } = renderHook(() => useRestoreHabit(), { wrapper: createWrapper() })
+
+    await act(async () => {
+      try {
+        await result.current.mutateAsync('h-1')
+      } catch {
+      }
+    })
+
+    expect(mockShowError).toHaveBeenCalledWith('undo.restoreFailed')
   })
 })
 

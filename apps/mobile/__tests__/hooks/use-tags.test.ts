@@ -120,6 +120,20 @@ vi.mock('@/lib/offline-mutations', () => ({
   withQueuedMarker: mocks.withQueuedMarker,
 }))
 
+vi.mock('@/hooks/use-app-toast', () => ({
+  useAppToast: () => ({
+    showSuccess: vi.fn(),
+    showError: vi.fn(),
+    showQueued: vi.fn(),
+    showInfo: vi.fn(),
+    showToast: vi.fn(),
+  }),
+}))
+
+vi.mock('@/hooks/use-undo-toast', () => ({
+  useUndoToast: () => vi.fn(),
+}))
+
 type MutationConfig<TResult, TVariables, TContext> = {
   mutationFn: (variables: TVariables) => Promise<TResult>
   onMutate?: (variables: TVariables) => Promise<TContext> | TContext
