@@ -16,6 +16,10 @@ const SCROLLER_MAX_HEIGHT = HEADER_HEIGHT + 40 + BODY_MAX_HEIGHT
 const HOURS = Array.from({ length: 24 }, (_, h) => h)
 
 const CARD_BG = 'var(--bg-card)'
+const pinnedPaneBackground = {
+  backgroundColor: 'var(--bg)',
+  backgroundImage: 'linear-gradient(var(--bg-card), var(--bg-card))',
+} as const
 
 export interface TimeGridColumn {
   date: Date
@@ -254,12 +258,12 @@ export function CalendarTimeGrid({
         >
           <div
             className="grid sticky top-0 z-[3]"
-            style={{ gridTemplateColumns: gridTemplate, minWidth: gridMinWidth, background: CARD_BG }}
+            style={{ gridTemplateColumns: gridTemplate, minWidth: gridMinWidth, ...pinnedPaneBackground }}
           >
             <div
               aria-hidden="true"
               className="sticky left-0 z-[1]"
-              style={{ height: HEADER_HEIGHT, borderBottom: '1px solid var(--hairline)', background: CARD_BG }}
+              style={{ height: HEADER_HEIGHT, borderBottom: '1px solid var(--hairline)', ...pinnedPaneBackground }}
             />
             {perColumn.map(({ column }) => (
               <button
@@ -311,12 +315,13 @@ export function CalendarTimeGrid({
           </div>
 
           <div
+            data-testid="time-grid-all-day-band"
             className="grid sticky z-[2]"
             style={{
               gridTemplateColumns: gridTemplate,
               minWidth: gridMinWidth,
               top: HEADER_HEIGHT,
-              background: CARD_BG,
+              ...pinnedPaneBackground,
             }}
           >
             <div
@@ -324,7 +329,7 @@ export function CalendarTimeGrid({
               style={{
                 padding: '6px 6px 0',
                 borderBottom: '1px solid var(--hairline)',
-                background: CARD_BG,
+                ...pinnedPaneBackground,
               }}
             >
               <span
@@ -365,7 +370,7 @@ export function CalendarTimeGrid({
             <div
               aria-hidden="true"
               className="sticky left-0 z-[1]"
-              style={{ height: DAY_HEIGHT, background: CARD_BG }}
+              style={{ height: DAY_HEIGHT, ...pinnedPaneBackground }}
             >
               {HOURS.map((hour) => (
                 <span

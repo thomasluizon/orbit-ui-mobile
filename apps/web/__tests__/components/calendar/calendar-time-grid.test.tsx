@@ -83,4 +83,12 @@ describe('CalendarTimeGrid', () => {
     fireEvent.click(screen.getByTestId('time-grid-col-header'))
     expect(onSelectDay).toHaveBeenCalledWith('2025-06-16')
   })
+
+  it('gives the pinned all-day band an opaque backdrop so scrolled hours never bleed through', () => {
+    const col = column(2025, 5, 16)
+    renderGrid([col], new Map())
+
+    const band = screen.getByTestId('time-grid-all-day-band')
+    expect(band.getAttribute('style')).toContain('var(--bg)')
+  })
 })
