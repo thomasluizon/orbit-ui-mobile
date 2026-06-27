@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import {
   DEFAULT_ANCHORED_MENU_MARGIN,
+  FALLBACK_ANCHOR_TOP_INSET,
   getAnchoredMenuPosition,
+  getFallbackAnchorRect,
 } from '@/lib/anchored-menu'
 
 describe('anchored menu positioning', () => {
@@ -47,5 +49,33 @@ describe('anchored menu positioning', () => {
     expect(position.left).toBe(84)
     expect(position.top).toBe(392)
     expect(position.opensUp).toBe(true)
+  })
+})
+
+describe('anchored menu fallback anchor', () => {
+  it('places a zero-size anchor at the top-right inset', () => {
+    expect(getFallbackAnchorRect(412)).toEqual({
+      x: 412 - DEFAULT_ANCHORED_MENU_MARGIN,
+      y: FALLBACK_ANCHOR_TOP_INSET,
+      width: 0,
+      height: 0,
+    })
+  })
+
+  it('positions a menu against the top-right corner when no rect was measured', () => {
+    const window = { width: 412, height: 892 }
+    const position = getAnchoredMenuPosition({
+      anchorRect: getFallbackAnchorRect(window.width),
+      viewportWidth: window.width,
+      viewportHeight: window.height,
+      menuWidth: 208,
+      menuHeight: 296,
+    })
+
+    expect(position.left).toBe(
+      window.width - 208 - DEFAULT_ANCHORED_MENU_MARGIN,
+    )
+    expect(position.top).toBe(FALLBACK_ANCHOR_TOP_INSET + DEFAULT_ANCHORED_MENU_MARGIN)
+    expect(position.opensUp).toBe(false)
   })
 })

@@ -1,16 +1,18 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
-import { ChevronRight, UserPlus } from 'lucide-react-native'
+import { ChevronRight, UserPlus, X } from 'lucide-react-native'
 import { useReferral } from '@/hooks/use-referral'
 import { createTokensV2, tintFromPrimary } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 interface ReferralCardProps {
   onOpen: () => void
+  /** When provided, the card shows a dismiss control instead of the chevron (the dismissible Today entry). */
+  onDismiss?: () => void
 }
 
-/** Kit referral entry card: primary-tinted icon disc, title, progress line, chevron. */
-export function ReferralCard({ onOpen }: Readonly<ReferralCardProps>) {
+/** Kit referral entry card: primary-tinted icon disc, title, progress line, and either a chevron or a dismiss control. */
+export function ReferralCard({ onOpen, onDismiss }: Readonly<ReferralCardProps>) {
   const { t } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
@@ -53,7 +55,19 @@ export function ReferralCard({ onOpen }: Readonly<ReferralCardProps>) {
           </Text>
           <Text style={[styles.desc, { color: tokens.fg3 }]}>{desc}</Text>
         </View>
-        <ChevronRight size={22} strokeWidth={1.8} color={tokens.fg4} />
+        {onDismiss ? (
+          <Pressable
+            onPress={onDismiss}
+            accessibilityRole="button"
+            accessibilityLabel={t('common.dismiss')}
+            hitSlop={8}
+            style={styles.dismissButton}
+          >
+            <X size={18} strokeWidth={1.8} color={tokens.fg4} />
+          </Pressable>
+        ) : (
+          <ChevronRight size={22} strokeWidth={1.8} color={tokens.fg4} />
+        )}
       </Pressable>
     </View>
   )
@@ -88,6 +102,12 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
     gap: 3,
+  },
+  dismissButton: {
+    width: 28,
+    height: 28,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   title: {
     fontFamily: 'Rubik_500Medium',

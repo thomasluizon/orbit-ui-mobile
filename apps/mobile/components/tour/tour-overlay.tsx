@@ -2,6 +2,7 @@ import { useCallback } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { profileKeys } from '@orbit/shared/query'
 import type { Profile } from '@orbit/shared/types'
+import { COACH_MARK_SECTIONS } from '@orbit/shared/types'
 import { useTourStore } from '@/stores/tour-store'
 import { TourSpotlight } from './tour-spotlight'
 import { TourTooltip } from './tour-tooltip'
@@ -38,7 +39,11 @@ export function TourOverlay() {
   const isLastStep = currentStepIndex === totalSteps - 1
 
   const handleEnd = useCallback(async () => {
+    const { replaySection } = useTourStore.getState()
     endTour()
+    if (replaySection && COACH_MARK_SECTIONS.includes(replaySection)) {
+      return
+    }
     try {
       await apiClient(API.profile.tour, { method: 'PUT' })
     } catch {

@@ -108,12 +108,15 @@ Before writing the report, run `.claude/skills/_shared/verification-protocol.md`
 ships only after it survives a challenge, and the sweep must prove it covered the paths
 that matter.
 
-1. **Adversarial pass (§2).** For every **Critical / High** finding, spawn an independent
-   skeptic subagent (3 concurrent) whose only job is to *refute* it — read the cited test
-   + source in full context and argue the gap is a false positive (the path is actually
-   pinned by a test elsewhere, the test *would* fail on a real break, a duplicate, the
-   severity inflated). Default to refuted when uncertain. Drop or downgrade anything the
-   skeptic disproves; survivors ship with confidence.
+1. **Adversarial pass (§2).** Refute before shipping — but **bound the fan-out** so the
+   audit stays affordable on a systemically-weak suite (where Critical/High findings can
+   run to dozens). **Every Critical finding gets its own skeptic; High findings are batched
+   (one skeptic per ~5, grouped by area) or capped at the top 15 by leverage, the remainder
+   rolled into Deferred.** Each skeptic (3 concurrent) reads the cited test + source in full
+   context and argues the gap is a false positive (pinned by a test elsewhere, the test
+   *would* fail on a real break, a duplicate, the severity inflated). Default to refuted
+   when uncertain. Drop or downgrade anything the skeptic disproves; survivors ship with
+   confidence.
 2. **Completeness critic + loop-until-dry (§3).** Run a fresh critic asking *"what did this
    audit NOT examine — a critical path never mapped, a test area skipped, a suite only
    half-read?"* Spawn a focused finder round on each gap it names; repeat until a round
@@ -139,6 +142,17 @@ mkdir -p .claude/audits
 **Rubric**: `.claude/skills/audit-tests/rubric.md` (behavior + edge + failure)
 **Verdict**: {1 line — e.g. "Critical paths covered except Play webhook rejection; 3 happy-path-only suites"}
 
+## Suite health — the scale of the rot
+
+> Quantify it so pervasive weakness reads as a number, not something buried in a list of
+> individual findings. This is the section that answers "are our tests systemically bad?"
+
+- **Files scored**: {N} of {total}
+- **Behavior-only (happy-path)**: {X} ({X/N %})
+- **Carry a smell** (rubber-stamp / over-mocked / assertion-free / impl-coupled / snapshot-crutch): {Y} ({Y/N %})
+- **Pin behavior on all three axes**: {Z} ({Z/N %})
+- **One-line read**: {e.g. "~60% happy-path-only — the green bar is mostly theater" vs "largely healthy; gaps are localized"}
+
 ## Critical-path coverage
 
 | Path | Tested? | Quality | Gap |
@@ -161,10 +175,23 @@ mkdir -p .claude/audits
 ### Medium — missing edge/failure case off the critical path
 {… or "None"}
 
+## Fix first — top 10 by leverage
+
+{The 10 highest-leverage tests to write or rewrite FIRST, ranked — so a systemically-weak
+suite is actionable instead of paralyzing. Each: one line · severity · the path it protects.
+Drawn from the Critical/High findings below. Fewer than 10 only if the suite is healthy.}
+
 ## Concrete tests to add
 
 {A numbered, ready-to-write list. Each: name · file it goes in · arrange/act/assert ·
 the factory to use. This is the actionable core — make it copy-pasteable-into-a-task.}
+
+## Tests to delete or rewrite — false safety
+
+{Existing tests to REMOVE or rewrite because they give false safety (rubber-stamp /
+assertion-free / tautological / snapshot-as-crutch). Deleting a test that can't fail is a
+real, valuable action — it's a liability, not coverage. Each: file:line · which smell ·
+delete vs rewrite · if rewrite, the observable assertion that would make it real.}
 
 ## Deferred — in scope but not verdicted
 
@@ -203,6 +230,7 @@ reason. "Nothing deferred — full coverage" if the contract was met.}
 
 **Scope**: {what was audited}
 **Verdict**: {1-line}
+**Suite health**: {X}% happy-path-only · {Y}% smell-carrying · {Z}% pin all three axes (of {N} files scored)
 
 | Severity | Count |
 |---|---|
@@ -211,5 +239,5 @@ reason. "Nothing deferred — full coverage" if the contract was met.}
 | Medium (missing edge/failure) | {N} |
 
 **Report**: `.claude/audits/tests-{scope}.md`
-**Top gap**: {the single most important test to write first}
+**Fix first**: {the single most important test to write or delete first}
 ```

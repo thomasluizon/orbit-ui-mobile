@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   calculateXpProgress,
   deriveGamificationProfileState,
+  deriveNextRewardCarrot,
   deriveStreakFreezeState,
   detectGamificationMilestones,
   getAchievementsByCategory,
@@ -76,6 +77,14 @@ function makeProfile(overrides: Partial<GamificationProfile> = {}): Gamification
     currentStreak: 7,
     longestStreak: 14,
     lastActiveDate: '2025-01-15',
+    isPro: true,
+    achievementsLocked: false,
+    nextReward: {
+      nextLevel: 6,
+      nextLevelTitle: 'Pilot',
+      xpToNextLevel: 100,
+      proTeaser: null,
+    },
     ...overrides,
   }
 }
@@ -220,5 +229,42 @@ describe('gamification-selectors', () => {
       '2025-01-16',
     )
     expect(state.canEarnMore).toBe(false)
+  })
+})
+
+describe('deriveNextRewardCarrot', () => {
+  it('returns carrot data for a free-unlocked user with a locked teaser', () => {
+    const profile = makeProfile({
+      isPro: false,
+      nextReward: {
+        nextLevel: 6,
+        nextLevelTitle: 'Pilot',
+        xpToNextLevel: 100,
+        proTeaser: { kind: 'achievements', locked: true },
+      },
+    })
+
+    const carrot = deriveNextRewardCarrot(profile, true)
+
+    expect(carrot).toEqual({
+      nextLevel: 6,
+      nextLevelTitle: 'Pilot',
+      xpToNextLevel: 100,
+      showProTeaser: true,
+    })
+  })
+
+  it('returns null for a Pro user', () => {
+    const profile = makeProfile({ isPro: true, nextReward: { nextLevel: 6, nextLevelTitle: 'Pilot', xpToNextLevel: 100, proTeaser: null } })
+    expect(deriveNextRewardCarrot(profile, true)).toBeNull()
+  })
+
+  it('returns null when gamification is not viewable', () => {
+    const profile = makeProfile({ isPro: false })
+    expect(deriveNextRewardCarrot(profile, false)).toBeNull()
+  })
+
+  it('returns null for a missing profile', () => {
+    expect(deriveNextRewardCarrot(null, true)).toBeNull()
   })
 })

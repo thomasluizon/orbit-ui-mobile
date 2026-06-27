@@ -8,29 +8,34 @@ export const styles = StyleSheet.create({
     paddingBottom: 40,
   },
   bottomSpace: { height: 24 },
-  heroTitle: {
+  convertEyebrow: {
     fontFamily: 'Rubik_500Medium',
-    fontSize: 24,
-    lineHeight: 31,
-    letterSpacing: -0.24,
+    fontSize: 12,
+    letterSpacing: 0.72,
+    textTransform: 'uppercase',
     marginHorizontal: 20,
-    marginBottom: 22,
   },
-  trialStrip: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 10,
+  convertHeading: {
+    fontFamily: 'Rubik_500Medium',
+    fontSize: 28,
+    lineHeight: 34,
+    letterSpacing: -0.28,
     marginHorizontal: 20,
-    marginBottom: 16,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderRadius: 14,
-    borderWidth: 1,
+    marginTop: 6,
   },
-  trialStripText: {
-    flex: 1,
+  convertPromise: {
     fontFamily: 'Rubik_400Regular',
-    fontSize: 13,
+    fontSize: 14,
+    lineHeight: 21,
+    marginHorizontal: 20,
+    marginTop: 10,
+  },
+  convertTrust: {
+    fontFamily: 'Roboto_400Regular',
+    fontSize: 12,
+    lineHeight: 18,
+    marginHorizontal: 20,
+    marginTop: 10,
   },
   card: {
     marginHorizontal: 20,
@@ -111,37 +116,34 @@ export const styles = StyleSheet.create({
     maxWidth: 320,
     textAlign: 'center',
   },
-  expiredCard: {
-    marginBottom: 16,
-    paddingVertical: 18,
+  freeLink: {
+    alignSelf: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    marginTop: 4,
   },
-  expiredHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 9,
-  },
-  expiredTitle: {
+  freeLinkText: {
     fontFamily: 'Rubik_500Medium',
-    fontSize: 16,
-  },
-  expiredSub: {
-    fontFamily: 'Rubik_400Regular',
     fontSize: 14,
-    marginTop: 6,
   },
-  expiredList: {
-    gap: 9,
-    marginTop: 12,
+  marqueePad: {
+    paddingHorizontal: 20,
+    paddingTop: 24,
+    gap: 14,
   },
-  featureCheckRow: {
+  marqueeRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+    gap: 12,
   },
-  featureCheckText: {
+  marqueeIcon: {
+    width: 26,
+    alignItems: 'center',
+  },
+  marqueeText: {
+    flex: 1,
     fontFamily: 'Rubik_400Regular',
-    fontSize: 14,
-    flexShrink: 1,
+    fontSize: 15,
   },
   planGroup: {
     paddingHorizontal: 20,
@@ -253,56 +255,112 @@ export const styles = StyleSheet.create({
     fontFamily: 'Rubik_400Regular',
     fontSize: 16,
   },
-  comparisonPad: {
-    flexDirection: 'row',
-    alignItems: 'flex-start',
-    gap: 10,
-    paddingHorizontal: 20,
-    paddingTop: 28,
-  },
-  planColumn: {
-    flex: 1,
-    borderRadius: 18,
-    borderWidth: 1,
-    paddingVertical: 16,
-    paddingHorizontal: 14,
-  },
-  planColumnPro: {
-    borderWidth: 1.5,
-  },
-  planColumnHeader: {
+  accordionToggle: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    minHeight: 26,
-    marginBottom: 14,
+    justifyContent: 'space-between',
+    marginHorizontal: 20,
+    marginTop: 28,
+    paddingVertical: 14,
+    borderTopWidth: 1,
   },
-  planColumnTitle: {
+  accordionTitle: {
     fontFamily: 'Rubik_500Medium',
     fontSize: 16,
-    letterSpacing: -0.16,
   },
-  planColumnBadge: {
-    borderRadius: 999,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
+  matrixPad: {
+    paddingHorizontal: 20,
+    paddingTop: 4,
   },
-  planColumnBadgeText: {
-    fontFamily: 'Rubik_600SemiBold',
-    fontSize: 9.5,
-    letterSpacing: 0.48,
-    textTransform: 'uppercase',
-  },
-  planFeatureRow: {
+  matrixHeaderRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 9,
-    minHeight: 34,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
   },
-  planFeatureText: {
+  matrixHeadSpacer: { flex: 1 },
+  matrixHeadFree: {
+    width: 64,
+    textAlign: 'center',
+    fontFamily: 'Rubik_500Medium',
+    fontSize: 11,
+    letterSpacing: 0.66,
+    textTransform: 'uppercase',
+  },
+  matrixHeadPro: {
+    width: 92,
+    textAlign: 'center',
+    fontFamily: 'Rubik_500Medium',
+    fontSize: 11,
+    letterSpacing: 0.66,
+    textTransform: 'uppercase',
+  },
+  matrixCategoryRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 7,
+    paddingTop: 16,
+    paddingBottom: 6,
+  },
+  matrixCategoryText: {
+    fontFamily: 'Rubik_500Medium',
+    fontSize: 11,
+    letterSpacing: 0.66,
+    textTransform: 'uppercase',
+  },
+  matrixRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 11,
+    borderTopWidth: 1,
+  },
+  matrixLabel: {
     flex: 1,
     fontFamily: 'Rubik_400Regular',
-    fontSize: 12.5,
-    lineHeight: 17,
+    fontSize: 14,
+    paddingRight: 10,
+  },
+  matrixCellFree: {
+    width: 64,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  matrixCellPro: {
+    width: 92,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  matrixCellText: {
+    fontFamily: 'Rubik_400Regular',
+    fontSize: 13,
+    textAlign: 'center',
+  },
+  matrixYearlyCell: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 5,
+  },
+  footerBar: {
+    paddingHorizontal: 20,
+    paddingTop: 12,
+    paddingBottom: 8,
+    gap: 8,
+    borderTopWidth: 1,
+  },
+  footerEcho: {
+    fontFamily: 'Roboto_400Regular',
+    fontSize: 12,
+    fontVariant: ['tabular-nums'],
+    textAlign: 'center',
+  },
+  footerTerms: {
+    fontFamily: 'Rubik_400Regular',
+    fontSize: 12,
+    textAlign: 'center',
+  },
+  footerError: {
+    fontFamily: 'Rubik_400Regular',
+    fontSize: 12,
+    textAlign: 'center',
   },
 })

@@ -37,7 +37,8 @@ import {
 import { dismissTopOverlay } from '@/lib/overlay-stack'
 import { buildUpgradeHref } from '@/lib/upgrade-route'
 import { useUIStore } from '@/stores/ui-store'
-import { useTourStore } from '@/stores/tour-store'
+import { useReferralPromptStore } from '@/stores/referral-prompt-store'
+import { getReferralLevelMilestone } from '@orbit/shared/stores'
 import { OnboardingFlow } from '@/components/onboarding/onboarding-flow'
 import { CalendarImportPrompt } from '@/components/onboarding/calendar-import-prompt'
 import { BottomTabBar, type BottomTabId } from '@/components/navigation/bottom-tab-bar'
@@ -46,6 +47,7 @@ import { AchievementToast } from '@/components/gamification/achievement-toast'
 import { AllDoneCelebration } from '@/components/gamification/all-done-celebration'
 import { GoalCompletedCelebration } from '@/components/gamification/goal-completed-celebration'
 import { LevelUpOverlay } from '@/components/gamification/level-up-overlay'
+import { ReferralPrompt } from '@/components/referral/referral-prompt'
 import { StreakCelebration } from '@/components/gamification/streak-celebration'
 import {
   StreakFreezeCelebration,
@@ -299,22 +301,16 @@ function GlobalOverlays({
   showSharedCelebrations: boolean
 }>) {
   const streakFreezeRef = useRef<StreakFreezeCelebrationHandle>(null)
-  const tourStarted = useRef(false)
   const hasProAccess = profile?.hasProAccess ?? false
-  const gamification = useGamificationProfile(hasProAccess)
+  const canViewGamification = profile?.canViewGamification ?? false
+  const gamification = useGamificationProfile(canViewGamification)
+  const armReferralPrompt = useReferralPromptStore((s) => s.armReferralPrompt)
 
   useEffect(() => {
-    if (
-      profile &&
-      profile.hasCompletedOnboarding &&
-      !profile.hasCompletedTour &&
-      !tourStarted.current &&
-      !useTourStore.getState().isActive
-    ) {
-      tourStarted.current = true
-      setTimeout(() => useTourStore.getState().startFullTour(), 500)
+    if (gamification.leveledUp && gamification.newLevel) {
+      armReferralPrompt(getReferralLevelMilestone(gamification.newLevel))
     }
-  }, [profile])
+  }, [gamification.leveledUp, gamification.newLevel, armReferralPrompt])
 
   return (
     <>
@@ -331,13 +327,14 @@ function GlobalOverlays({
           <GoalCompletedCelebration />
           {showSharedCelebrations ? <WelcomeBackToast /> : null}
           {showSharedCelebrations && hasProAccess ? <AchievementToast /> : null}
-          {showSharedCelebrations && hasProAccess ? (
+          {showSharedCelebrations && canViewGamification ? (
             <LevelUpOverlay
               leveledUp={gamification.leveledUp}
               newLevel={gamification.newLevel}
               onClear={gamification.clearLevelUp}
             />
           ) : null}
+          <ReferralPrompt />
         </>
       ) : null}
       <StreakFreezeCelebration ref={streakFreezeRef} />

@@ -1,6 +1,6 @@
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { render } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
 
 const { mockUseGamificationProfile } = vi.hoisted(() => ({
@@ -91,6 +91,19 @@ vi.mock('@/app/(app)/profile/_components/tour-replay-card', () => ({
   TourReplayCard: () => null,
 }))
 
+vi.mock('@/components/referral/referral-card', () => ({
+  ReferralCard: ({ onOpen }: { onOpen: () => void; onDismiss?: () => void }) => (
+    <button data-testid="profile-referral-card" onClick={onOpen}>
+      referral
+    </button>
+  ),
+}))
+
+vi.mock('@/components/referral/referral-drawer', () => ({
+  ReferralDrawer: ({ open }: { open: boolean; onOpenChange?: (open: boolean) => void }) =>
+    open ? <div data-testid="profile-referral-drawer" /> : null,
+}))
+
 import ProfilePage from '@/app/(app)/profile/page'
 
 describe('ProfilePage', () => {
@@ -108,5 +121,17 @@ describe('ProfilePage', () => {
     render(<ProfilePage />)
 
     expect(document.body.textContent).toContain('13')
+  })
+
+  it('mounts the referral card on profile and opens the drawer when tapped', () => {
+    render(<ProfilePage />)
+
+    const card = screen.getByTestId('profile-referral-card')
+    expect(card).toBeInTheDocument()
+    expect(screen.queryByTestId('profile-referral-drawer')).toBeNull()
+
+    fireEvent.click(card)
+
+    expect(screen.getByTestId('profile-referral-drawer')).toBeInTheDocument()
   })
 })

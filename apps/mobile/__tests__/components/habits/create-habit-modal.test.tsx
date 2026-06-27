@@ -8,6 +8,10 @@ import { CreateHabitModal } from '@/components/habits/create-habit-modal'
 const TestRenderer = require('react-test-renderer')
 
 const useWatchMock = vi.fn()
+const mockSuggestMutateAsync = vi.fn()
+const mockSetValue = vi.fn()
+const mockGetValues = vi.fn((..._args: unknown[]): unknown => ({}))
+const mockSetFlexible = vi.fn()
 let mockHasProAccess = false
 
 vi.mock('react-hook-form', () => ({
@@ -29,7 +33,7 @@ vi.mock('@/hooks/use-habits', () => ({
 }))
 
 vi.mock('@/hooks/use-habit-suggestion', () => ({
-  useHabitSuggestion: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useHabitSuggestion: () => ({ mutateAsync: mockSuggestMutateAsync, isPending: false }),
 }))
 
 vi.mock('@/hooks/use-profile', () => ({
@@ -49,8 +53,8 @@ vi.mock('@/hooks/use-habit-form', () => ({
     form: {
       control: { values: {} },
       reset: vi.fn(),
-      setValue: vi.fn(),
-      getValues: vi.fn(() => ({})),
+      setValue: mockSetValue,
+      getValues: mockGetValues,
       formState: { isDirty: false, errors: {} },
     },
     isOneTime: false,
@@ -63,7 +67,7 @@ vi.mock('@/hooks/use-habit-form', () => ({
     frequencyUnits: [],
     setOneTime: vi.fn(),
     setRecurring: vi.fn(),
-    setFlexible: vi.fn(),
+    setFlexible: mockSetFlexible,
     setGeneral: vi.fn(),
     toggleDay: vi.fn(),
     formatTimeInput: (value: string) => value,
@@ -216,7 +220,7 @@ describe('CreateHabitModal (mobile)', () => {
         node.findAll(
           (child: any) =>
             child.type === 'Text' &&
-            child.props.children === 'habits.createHabit',
+            child.props.children === 'common.create',
         ).length > 0,
     )[0]
 
@@ -242,5 +246,47 @@ describe('CreateHabitModal (mobile)', () => {
     })
     const tree = renderModal(<CreateHabitModal open onClose={vi.fn()} />)
     expect(findSubmit(tree.root).props.disabled).toBe(false)
+  })
+
+  it('applies due time, flexible cadence, and a checklist from an AI suggestion', async () => {
+    mockHasProAccess = true
+    mockGetValues.mockImplementation((field?: unknown) => {
+      if (field === 'title') return 'Swim'
+      if (field === 'checklistItems') return []
+      return {}
+    })
+    mockSuggestMutateAsync.mockResolvedValue({
+      emoji: '🏊',
+      frequencyUnit: 'Week',
+      frequencyQuantity: 1,
+      days: [],
+      isFlexible: true,
+      flexibleTarget: 3,
+      dueTime: '07:00',
+      subHabits: [],
+      checklistItems: ['Towel', 'Goggles'],
+    })
+
+    const tree = renderModal(<CreateHabitModal open onClose={vi.fn()} />)
+    const formFields = tree.root.findAll(
+      (node: any) => node.type === 'HabitFormFields',
+    )[0]
+
+    await TestRenderer.act(async () => {
+      await formFields.props.onSuggestSetup()
+    })
+
+    expect(mockSetFlexible).toHaveBeenCalled()
+    expect(mockSetValue).toHaveBeenCalledWith('dueTime', '07:00', {
+      shouldDirty: true,
+    })
+    expect(mockSetValue).toHaveBeenCalledWith(
+      'checklistItems',
+      [
+        { text: 'Towel', isChecked: false },
+        { text: 'Goggles', isChecked: false },
+      ],
+      { shouldDirty: true },
+    )
   })
 })

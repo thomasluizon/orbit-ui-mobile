@@ -300,7 +300,7 @@ const STREAK_DAYS_PER_FREEZE = 7
 
 interface FreezeProgressCardProps {
   t: TranslationFn
-  isPro: boolean
+  unlocked: boolean
   streak: number
   streakFreezesAccumulated: number
   maxStreakFreezesAccumulated: number
@@ -312,12 +312,12 @@ interface FreezeProgressCardProps {
 }
 
 export function FreezeProgressCard(props: Readonly<FreezeProgressCardProps>) {
-  const { t, isPro } = props
+  const { t, unlocked } = props
 
   return (
     <div>
       <SectionLabel>{t('streakDisplay.freeze.title')}</SectionLabel>
-      {isPro ? <FreezeAutoCard {...props} /> : <FreezeProGate t={t} />}
+      {unlocked ? <FreezeAutoCard {...props} /> : <FreezeProGate t={t} />}
     </div>
   )
 }

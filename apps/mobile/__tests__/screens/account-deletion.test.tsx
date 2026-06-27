@@ -5,6 +5,13 @@ import { API } from '@orbit/shared/api'
 
 import ProfileScreen from '@/app/(tabs)/profile'
 
+vi.mock('@/components/referral/referral-card', () => ({
+  ReferralCard: () => null,
+}))
+vi.mock('@/components/referral/referral-drawer', () => ({
+  ReferralDrawer: () => null,
+}))
+
 const TestRenderer = require('react-test-renderer')
 
 vi.hoisted(() => {

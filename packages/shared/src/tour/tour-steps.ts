@@ -218,6 +218,34 @@ export const TOUR_STEPS: TourStep[] = [
     route: '/profile',
     proBadge: true,
   },
+
+  {
+    id: 'coach-today',
+    section: 'coach-today',
+    targetId: 'tour-habit-list',
+    titleKey: 'tour.coachmarks.today.title',
+    descriptionKey: 'tour.coachmarks.today.description',
+    placement: 'bottom',
+    route: '/',
+  },
+  {
+    id: 'coach-astra',
+    section: 'coach-astra',
+    targetId: 'tour-chat-input',
+    titleKey: 'tour.coachmarks.astra.title',
+    descriptionKey: 'tour.coachmarks.astra.description',
+    placement: 'top',
+    route: '/chat',
+  },
+  {
+    id: 'coach-calendar',
+    section: 'coach-calendar',
+    targetId: 'tour-calendar-grid',
+    titleKey: 'tour.coachmarks.calendar.title',
+    descriptionKey: 'tour.coachmarks.calendar.description',
+    placement: 'bottom',
+    route: '/calendar',
+  },
 ]
 
 /** Get all steps for a specific section */

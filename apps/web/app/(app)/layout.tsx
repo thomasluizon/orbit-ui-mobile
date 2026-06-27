@@ -23,13 +23,15 @@ import { WelcomeBackToast } from '@/components/gamification/welcome-back-toast'
 import { AchievementToast } from '@/components/gamification/achievement-toast'
 import { LevelUpOverlay } from '@/components/gamification/level-up-overlay'
 import { StreakFreezeCelebration } from '@/components/gamification/streak-freeze-celebration'
+import { ReferralPrompt } from '@/components/referral/referral-prompt'
 import { useProfile } from '@/hooks/use-profile'
 import { useTimezoneAutoSync } from '@/hooks/use-timezone-auto-sync'
 import { useAuthStore } from '@/stores/auth-store'
 import { useTotalHabitCount } from '@/hooks/use-habits'
 import { useGamificationProfile } from '@/hooks/use-gamification'
 import { useUIStore } from '@/stores/ui-store'
-import { useTourStore } from '@/stores/tour-store'
+import { useReferralPromptStore } from '@/stores/referral-prompt-store'
+import { getReferralLevelMilestone } from '@orbit/shared/stores'
 import { getSupabaseClient } from '@/lib/supabase'
 import { dismissCalendarImport } from '@/app/actions/calendar'
 import { TourProvider } from '@/components/tour/tour-provider'
@@ -70,6 +72,7 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
   const { profile } = useProfile()
   useTimezoneAutoSync(profile)
   const hasProAccess = profile?.hasProAccess ?? false
+  const canViewGamification = profile?.canViewGamification ?? false
   const totalHabitCount = useTotalHabitCount()
 
   useEffect(() => {
@@ -91,20 +94,6 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
   const streakFreezeRef = useRef<{ show: () => void }>(null)
 
   const [showCalendarPrompt, setShowCalendarPrompt] = useState(false)
-
-  const tourStarted = useRef(false)
-  useEffect(() => {
-    if (
-      profile &&
-      profile.hasCompletedOnboarding &&
-      !profile.hasCompletedTour &&
-      !tourStarted.current &&
-      !useTourStore.getState().isActive
-    ) {
-      tourStarted.current = true
-      setTimeout(() => useTourStore.getState().startFullTour(), 500)
-    }
-  }, [profile])
 
   const calendarPromptCriteriaMet = !!(
     profile &&
@@ -206,6 +195,7 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
       <GlobalOverlays
         profile={profile}
         hasProAccess={hasProAccess}
+        canViewGamification={canViewGamification}
         streakFreezeRef={streakFreezeRef}
         showCalendarPrompt={showCalendarPrompt}
         onCalendarPromptOpenChange={handleCalendarPromptOpenChange}
@@ -241,6 +231,7 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
 function GlobalOverlays({
   profile,
   hasProAccess,
+  canViewGamification,
   streakFreezeRef,
   showCalendarPrompt,
   onCalendarPromptOpenChange,
@@ -249,6 +240,7 @@ function GlobalOverlays({
 }: Readonly<{
   profile: ReturnType<typeof useProfile>['profile']
   hasProAccess: boolean
+  canViewGamification: boolean
   streakFreezeRef: React.RefObject<{ show: () => void } | null>
   showCalendarPrompt: boolean
   onCalendarPromptOpenChange: (open: boolean) => void
@@ -256,7 +248,14 @@ function GlobalOverlays({
   onDismissCalendarPrompt: () => void
 }>) {
   const t = useTranslations()
-  const gamification = useGamificationProfile(hasProAccess)
+  const gamification = useGamificationProfile(canViewGamification)
+  const armReferralPrompt = useReferralPromptStore((s) => s.armReferralPrompt)
+
+  useEffect(() => {
+    if (gamification.leveledUp && gamification.newLevel) {
+      armReferralPrompt(getReferralLevelMilestone(gamification.newLevel))
+    }
+  }, [gamification.leveledUp, gamification.newLevel, armReferralPrompt])
 
   return (
     <div className="contents">
@@ -269,13 +268,14 @@ function GlobalOverlays({
       <GoalCompletedCelebration />
       <WelcomeBackToast />
       {hasProAccess && <AchievementToast />}
-      {hasProAccess && (
+      {canViewGamification && (
         <LevelUpOverlay
           leveledUp={gamification.leveledUp}
           newLevel={gamification.newLevel}
           onClear={gamification.clearLevelUp}
         />
       )}
+      {profile?.hasCompletedOnboarding && <ReferralPrompt />}
       <StreakFreezeCelebration ref={streakFreezeRef} />
       <AppOverlay
         open={showCalendarPrompt}

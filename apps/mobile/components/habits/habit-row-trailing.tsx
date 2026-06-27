@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next'
 import { MoreVertical } from 'lucide-react-native'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import type { createTokensV2 } from '@/lib/theme'
+import { MenuAnchorHost } from '@/components/ui/anchored-menu'
 import { ParentRing } from '@/components/ui/parent-ring'
 import type { StatusDotState } from '@/components/ui/status-dot'
 import { CheckCircle } from './habit-row-check-circle'
@@ -110,7 +111,7 @@ export function HabitRowTrailing({
         )
       ) : null}
       {!isSelectMode && hasMenuActions ? (
-        <View ref={menuButtonRef} collapsable={false}>
+        <MenuAnchorHost anchorRef={menuButtonRef}>
           <Pressable
             onPressIn={onMenuActivity}
             onPress={onOpenMenu}
@@ -128,7 +129,7 @@ export function HabitRowTrailing({
               strokeWidth={1.8}
             />
           </Pressable>
-        </View>
+        </MenuAnchorHost>
       ) : null}
     </View>
   )

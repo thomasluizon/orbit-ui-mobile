@@ -8,7 +8,9 @@ import {
   getOnboardingDisplayTotal,
   getOnboardingNextStep,
   getOnboardingPreviousStep,
+  ONBOARDING_COMPLETE_HABIT_STEP,
   ONBOARDING_COMPLETE_STEP,
+  ONBOARDING_CREATE_HABIT_STEP,
   shouldHideOnboardingFooter,
 } from '@orbit/shared/utils/onboarding'
 import { profileKeys } from '@orbit/shared/query'
@@ -23,6 +25,7 @@ import { OnboardingCompleteHabit } from './onboarding-complete-habit'
 import { OnboardingCreateGoal } from './onboarding-create-goal'
 import { OnboardingFeatures } from './onboarding-features'
 import { OnboardingComplete } from './onboarding-complete'
+import { OnboardingTemplatePacks } from './onboarding-template-packs'
 import { KeyboardAwareScrollView } from '@/components/ui/keyboard-aware-scroll-view'
 import { GradientTop } from '@/components/ui/gradient-top'
 import { PillButton } from '@/components/ui/pill-button'
@@ -87,6 +90,8 @@ interface OnboardingStepContentProps {
   onHabitCompleted: () => void
   onGoalCreated: () => void
   onGoalSkipped: () => void
+  onPackCreateOwn: () => void
+  onAdvancePastHabits: () => void
   onFinish: () => void
 }
 
@@ -100,6 +105,8 @@ function OnboardingStepContent({
   onHabitCompleted,
   onGoalCreated,
   onGoalSkipped,
+  onPackCreateOwn,
+  onAdvancePastHabits,
   onFinish,
 }: Readonly<OnboardingStepContentProps>) {
   if (viewingAstra) return <OnboardingMeetAstra key="meet-astra" />
@@ -108,12 +115,21 @@ function OnboardingStepContent({
       return <OnboardingWelcome key="welcome" />
     case 1:
       return (
+        <OnboardingTemplatePacks
+          key="template-packs"
+          onCreated={onAdvancePastHabits}
+          onCreateOwn={onPackCreateOwn}
+          onSkip={onAdvancePastHabits}
+        />
+      )
+    case 2:
+      return (
         <OnboardingCreateHabit
           key="create-habit"
           onCreated={onHabitCreated}
         />
       )
-    case 2:
+    case 3:
       return (
         <OnboardingCompleteHabit
           key="complete-habit"
@@ -122,7 +138,7 @@ function OnboardingStepContent({
           onCompleted={onHabitCompleted}
         />
       )
-    case 3:
+    case 4:
       return (
         <OnboardingCreateGoal
           key="create-goal"
@@ -130,9 +146,9 @@ function OnboardingStepContent({
           onSkip={onGoalSkipped}
         />
       )
-    case 4:
-      return <OnboardingFeatures key="features" />
     case 5:
+      return <OnboardingFeatures key="features" />
+    case 6:
       return (
         <OnboardingComplete
           key="complete"
@@ -310,6 +326,16 @@ export function OnboardingFlow() {
     goNext()
   }
 
+  function advancePastHabitSteps() {
+    setStepDirection('forward')
+    setSharedStep(getOnboardingNextStep(ONBOARDING_COMPLETE_HABIT_STEP, hasProAccess))
+  }
+
+  function handleCreateOwnInstead() {
+    setStepDirection('forward')
+    setSharedStep(ONBOARDING_CREATE_HABIT_STEP)
+  }
+
   async function handleFinish() {
     try {
       await performQueuedApiMutation({
@@ -391,6 +417,8 @@ export function OnboardingFlow() {
               onHabitCompleted={handleHabitCompleted}
               onGoalCreated={handleGoalCreated}
               onGoalSkipped={handleGoalSkipped}
+              onPackCreateOwn={handleCreateOwnInstead}
+              onAdvancePastHabits={advancePastHabitSteps}
               onFinish={handleFinish}
             />
           </Animated.View>
