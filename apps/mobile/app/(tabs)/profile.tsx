@@ -485,6 +485,7 @@ function createStyles(_tokens: Tokens) {
       gap: 14,
       paddingHorizontal: 20,
       marginTop: 24,
+      marginBottom: 18,
     },
     statTileWrap: {
       flex: 1,

@@ -51,7 +51,7 @@ export function ProfileStatTiles({
   const t = useTranslations()
 
   return (
-    <div className="flex px-5" style={{ gap: 14, marginTop: 24 }}>
+    <div className="flex px-5" style={{ gap: 14, marginTop: 24, marginBottom: 18 }}>
       <StatTileButton
         dataTour="tour-profile-streak"
         ariaLabel={t('streakDisplay.title')}

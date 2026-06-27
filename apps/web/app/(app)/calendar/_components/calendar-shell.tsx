@@ -3,7 +3,7 @@
 import { useState } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { YearPicker } from '@/components/ui/year-picker'
-import { useOverlayEscape } from '@/hooks/use-overlay-escape'
+import { CenteredOverlay } from '@/components/ui/centered-overlay'
 
 interface CalendarHeaderProps {
   monthLabel: string
@@ -34,8 +34,6 @@ export function CalendarHeader({
   onSelectYear,
 }: Readonly<CalendarHeaderProps>) {
   const [isYearOpen, setIsYearOpen] = useState(false)
-
-  useOverlayEscape({ open: isYearOpen, onDismiss: () => setIsYearOpen(false) })
 
   function handleSelectYear(nextYear: number) {
     onSelectYear(nextYear)
@@ -107,23 +105,14 @@ export function CalendarHeader({
         </button>
       </div>
 
-      {isYearOpen && (
-        <>
-          <div
-            className="fixed inset-0 z-40 bg-black/65"
-            aria-hidden="true"
-            onClick={() => setIsYearOpen(false)}
-          />
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-label={selectYearLabel}
-            className="fixed z-50 left-1/2 top-1/2 m-0 w-[min(90vw,320px)] -translate-x-1/2 -translate-y-1/2 rounded-[16px] bg-[var(--bg-sheet)] p-2.5 text-[var(--fg-1)] shadow-[var(--shadow-2),inset_0_0_0_1px_var(--hairline)]"
-          >
-            <YearPicker selectedYear={year} onSelectYear={handleSelectYear} />
-          </div>
-        </>
-      )}
+      <CenteredOverlay
+        open={isYearOpen}
+        onDismiss={() => setIsYearOpen(false)}
+        ariaLabel={selectYearLabel}
+        panelClassName="w-[min(90vw,320px)] rounded-[16px] bg-[var(--bg-sheet)] p-2.5 text-[var(--fg-1)] shadow-[var(--shadow-2),inset_0_0_0_1px_var(--hairline)]"
+      >
+        <YearPicker selectedYear={year} onSelectYear={handleSelectYear} />
+      </CenteredOverlay>
     </div>
   )
 }

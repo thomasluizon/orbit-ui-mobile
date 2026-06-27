@@ -124,6 +124,23 @@ describe('ConfirmDialog', () => {
     expect(onOpenChange).toHaveBeenCalledWith(false)
   })
 
+  it('confirms and closes when Enter is pressed', () => {
+    const onConfirm = vi.fn()
+    const onOpenChange = vi.fn()
+    render(
+      <ConfirmDialog
+        open={true}
+        onOpenChange={onOpenChange}
+        title="Delete?"
+        description="Sure?"
+        onConfirm={onConfirm}
+      />,
+    )
+    fireEvent.keyDown(document, { key: 'Enter' })
+    expect(onConfirm).toHaveBeenCalled()
+    expect(onOpenChange).toHaveBeenCalledWith(false)
+  })
+
   it('renders the destructive (danger) confirm action as a status-bad fill pill — dlg-delete artboard', () => {
     render(
       <ConfirmDialog

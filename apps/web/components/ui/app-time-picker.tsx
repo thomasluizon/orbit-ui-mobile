@@ -4,8 +4,8 @@ import { useCallback, useEffect, useId, useRef, useState } from 'react'
 import { Clock3, X } from 'lucide-react'
 import { useTranslations, useLocale } from 'next-intl'
 import { detectDefaultTimeFormat, formatLocaleTime } from '@orbit/shared/utils'
-import { useOverlayEscape } from '@/hooks/use-overlay-escape'
 import { useProfile } from '@/hooks/use-profile'
+import { CenteredOverlay } from '@/components/ui/centered-overlay'
 
 interface AppTimePickerProps {
   id?: string
@@ -119,7 +119,6 @@ export function AppTimePicker({
   const inputId = id ?? generatedId
   const { profile } = useProfile()
   const is24Hour = profile?.uses24HourClock ?? detectDefaultTimeFormat(locale) === '24h'
-  const containerRef = useRef<HTMLDivElement>(null)
   const [isOpen, setIsOpen] = useState(false)
   const [draft, setDraft] = useState({ hour24: 9, minute: 0 })
 
@@ -139,26 +138,13 @@ export function AppTimePicker({
     setIsOpen(true)
   }, [disabled, value])
 
-  useOverlayEscape({ open: isOpen, onDismiss: closePicker })
-
-  useEffect(() => {
-    if (!isOpen) return
-    const handleClickOutside = (event: MouseEvent) => {
-      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
-        closePicker()
-      }
-    }
-    document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [isOpen, closePicker])
-
   function applyDraft() {
     onChange(`${pad(draft.hour24)}:${pad(draft.minute)}`)
     closePicker()
   }
 
   return (
-    <div className={`relative ${className}`} ref={containerRef}>
+    <div className={`relative ${className}`}>
       <button
         id={inputId}
         type="button"
@@ -191,70 +177,65 @@ export function AppTimePicker({
         </button>
       )}
 
-      {isOpen && (
-        <>
-          <div className="fixed inset-0 z-40 bg-black/65" aria-hidden="true" onClick={closePicker} />
-          <dialog
-            open
-            aria-modal="true"
-            aria-labelledby={dialogLabelId}
-            className="fixed left-1/2 top-1/2 z-50 m-0 w-[min(90vw,320px)] -translate-x-1/2 -translate-y-1/2 rounded-[16px] border-0 bg-[var(--bg-sheet)] p-2.5 text-[var(--fg-1)] shadow-[var(--shadow-2),inset_0_0_0_1px_var(--hairline)]"
+      <CenteredOverlay
+        open={isOpen}
+        onDismiss={closePicker}
+        ariaLabelledBy={dialogLabelId}
+        panelClassName="w-[min(90vw,320px)] rounded-[16px] bg-[var(--bg-sheet)] p-2.5 text-[var(--fg-1)] shadow-[var(--shadow-2),inset_0_0_0_1px_var(--hairline)]"
+      >
+        <div className="mb-2 flex items-center justify-between px-1">
+          <span id={dialogLabelId} className="text-xs font-medium text-[var(--fg-1)]">
+            {t('common.selectTime')}
+          </span>
+          <button
+            type="button"
+            onClick={applyDraft}
+            className="rounded-lg px-2 py-1 text-sm font-medium text-[var(--primary)] transition-colors hover:bg-[var(--bg-elev)]"
           >
-            <div className="mb-2 flex items-center justify-between px-1">
-              <span id={dialogLabelId} className="text-xs font-medium text-[var(--fg-1)]">
-                {t('common.selectTime')}
-              </span>
-              <button
-                type="button"
-                onClick={applyDraft}
-                className="rounded-lg px-2 py-1 text-sm font-medium text-[var(--primary)] transition-colors hover:bg-[var(--bg-elev)]"
-              >
-                {t('common.done')}
-              </button>
-            </div>
+            {t('common.done')}
+          </button>
+        </div>
 
-            <div className="flex gap-1.5" style={{ height: 220 }}>
-              <TimeColumn
-                values={is24Hour ? HOURS_24 : HOURS_12}
-                selected={is24Hour ? draft.hour24 : hour12}
-                formatValue={(columnValue) => pad(Number(columnValue))}
-                ariaLabel={t('common.hours')}
-                onSelect={(columnValue) =>
-                  setDraft((current) => ({
-                    ...current,
-                    hour24: is24Hour
-                      ? Number(columnValue)
-                      : from12Hour(Number(columnValue), period),
-                  }))
-                }
-              />
-              <TimeColumn
-                values={MINUTES}
-                selected={draft.minute}
-                formatValue={(columnValue) => pad(Number(columnValue))}
-                ariaLabel={t('common.minutes')}
-                onSelect={(columnValue) =>
-                  setDraft((current) => ({ ...current, minute: Number(columnValue) }))
-                }
-              />
-              {!is24Hour && (
-                <TimeColumn
-                  values={PERIODS}
-                  selected={period}
-                  formatValue={(columnValue) => String(columnValue)}
-                  ariaLabel={t('common.amPm')}
-                  onSelect={(columnValue) =>
-                    setDraft((current) => ({
-                      ...current,
-                      hour24: from12Hour(to12Hour(current.hour24).hour12, columnValue as 'AM' | 'PM'),
-                    }))
-                  }
-                />
-              )}
-            </div>
-          </dialog>
-        </>
-      )}
+        <div className="flex gap-1.5" style={{ height: 220 }}>
+          <TimeColumn
+            values={is24Hour ? HOURS_24 : HOURS_12}
+            selected={is24Hour ? draft.hour24 : hour12}
+            formatValue={(columnValue) => pad(Number(columnValue))}
+            ariaLabel={t('common.hours')}
+            onSelect={(columnValue) =>
+              setDraft((current) => ({
+                ...current,
+                hour24: is24Hour
+                  ? Number(columnValue)
+                  : from12Hour(Number(columnValue), period),
+              }))
+            }
+          />
+          <TimeColumn
+            values={MINUTES}
+            selected={draft.minute}
+            formatValue={(columnValue) => pad(Number(columnValue))}
+            ariaLabel={t('common.minutes')}
+            onSelect={(columnValue) =>
+              setDraft((current) => ({ ...current, minute: Number(columnValue) }))
+            }
+          />
+          {!is24Hour && (
+            <TimeColumn
+              values={PERIODS}
+              selected={period}
+              formatValue={(columnValue) => String(columnValue)}
+              ariaLabel={t('common.amPm')}
+              onSelect={(columnValue) =>
+                setDraft((current) => ({
+                  ...current,
+                  hour24: from12Hour(to12Hour(current.hour24).hour12, columnValue as 'AM' | 'PM'),
+                }))
+              }
+            />
+          )}
+        </div>
+      </CenteredOverlay>
     </div>
   )
 }

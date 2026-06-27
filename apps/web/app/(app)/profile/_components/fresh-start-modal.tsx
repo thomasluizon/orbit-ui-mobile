@@ -276,6 +276,12 @@ function FreshStartConfirmStep({
         placeholder={t('profile.freshStart.confirmPlaceholder')}
         autoComplete="off"
         ariaLabel={t('profile.freshStart.confirmInstruction')}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter' && isConfirmed && !loading) {
+            event.preventDefault()
+            onReset()
+          }
+        }}
       />
       {error && (
         <p

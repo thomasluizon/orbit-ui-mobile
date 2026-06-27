@@ -219,6 +219,32 @@ describe('FreshStartModal', () => {
     expect(screen.queryByText('Server error')).not.toBeInTheDocument()
   })
 
+  it('submits the reset on Enter once ORBIT is typed', async () => {
+    render(<FreshStartModal open={true} onOpenChange={vi.fn()} />)
+
+    fireEvent.click(screen.getByText('common.continue'))
+
+    const input = screen.getByPlaceholderText('profile.freshStart.confirmPlaceholder')
+    fireEvent.change(input, { target: { value: 'ORBIT' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+
+    await waitFor(() => {
+      expect(mockResetAccount).toHaveBeenCalledTimes(1)
+    })
+  })
+
+  it('ignores Enter while the confirmation text is invalid', () => {
+    render(<FreshStartModal open={true} onOpenChange={vi.fn()} />)
+
+    fireEvent.click(screen.getByText('common.continue'))
+
+    const input = screen.getByPlaceholderText('profile.freshStart.confirmPlaceholder')
+    fireEvent.change(input, { target: { value: 'ORB' } })
+    fireEvent.keyDown(input, { key: 'Enter' })
+
+    expect(mockResetAccount).not.toHaveBeenCalled()
+  })
+
   it('resets state when overlay triggers onOpenChange(true)', () => {
     const onOpenChange = vi.fn()
 

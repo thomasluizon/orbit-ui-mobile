@@ -297,6 +297,12 @@ export function FreshStartModal({ open, onClose }: Readonly<FreshStartModalProps
                   autoCapitalize="characters"
                   autoCorrect={false}
                   textAlign="center"
+                  returnKeyType="done"
+                  onSubmitEditing={() => {
+                    if (isResetConfirmed && !resetLoading) {
+                      void handleResetAccount()
+                    }
+                  }}
                 />
                 {resetError ? (
                   <Text style={[styles.errorTextSmall, { color: tokens.statusBad }]}>
