@@ -480,6 +480,15 @@ button {
   animation: orbit-pulse 2.5s ease-in-out infinite;
 }
 
+@keyframes astra-orbit {
+  to { transform: rotate(360deg); }
+}
+
+.astra-orbit {
+  transform-origin: center;
+  animation: astra-orbit 14s linear infinite;
+}
+
 /* ═══════════════════════════════════════════════════════
    PAGE & LAYOUT TRANSITIONS
    ═══════════════════════════════════════════════════════ */

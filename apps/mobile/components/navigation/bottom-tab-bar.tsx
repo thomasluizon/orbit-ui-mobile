@@ -4,11 +4,11 @@ import {
   CalendarDays,
   Home,
   type LucideProps,
-  MessageCircle,
   Plus,
   User,
 } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
+import { AstraMark } from '@/components/ui/astra-avatar'
 import { createTokensV2, primaryGlow } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
@@ -35,7 +35,7 @@ interface TabDef {
 
 const TABS: readonly TabDef[] = [
   { id: 'today', labelKey: 'nav.home', Icon: Home },
-  { id: 'chat', labelKey: 'nav.astra', Icon: MessageCircle },
+  { id: 'chat', labelKey: 'nav.astra', Icon: AstraMark },
   { id: 'calendar', labelKey: 'nav.calendar', Icon: CalendarDays },
   { id: 'profile', labelKey: 'nav.you', Icon: User },
 ]

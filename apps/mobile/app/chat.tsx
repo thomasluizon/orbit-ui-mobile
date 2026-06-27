@@ -9,7 +9,6 @@ import {
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
-import { Orbit } from "lucide-react-native";
 import type { ChatMessage } from "@orbit/shared/types";
 import { CHAT_GOAL_ACTION_TYPES } from "@orbit/shared/hooks";
 import { habitDetailToNormalized } from "@orbit/shared/utils";
@@ -24,6 +23,7 @@ import { ChatEmptyState } from "@/components/chat/chat-empty-state";
 import { GoalDetailDrawer } from "@/components/goals/goal-detail-drawer";
 import { HabitDetailDrawer } from "@/components/habits/habit-detail-drawer";
 import { AppBar } from "@/components/ui/app-bar";
+import { AstraMark } from "@/components/ui/astra-avatar";
 import { GradientTop } from "@/components/ui/gradient-top";
 import { KeyboardAwareFlatList } from "@/components/ui/keyboard-aware-scroll-view";
 import { createStyles } from "@/app/chat.styles";
@@ -186,7 +186,7 @@ export default function ChatScreen() {
           back
           onBack={() => goBackOrFallback("/")}
           backLabel={t("common.goBack")}
-          LeadingIcon={Orbit}
+          titleIcon={<AstraMark size={18} />}
           title={t("chat.title")}
         />
 
