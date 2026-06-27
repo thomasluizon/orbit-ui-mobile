@@ -139,7 +139,7 @@ export function TourReplayModal({ open, onOpenChange }: Readonly<TourReplayModal
                   style={{
                     appearance: 'none',
                     border: 0,
-                    padding: '14px 0',
+                    padding: '14px 8px 14px 0',
                     gap: 14,
                   }}
                 >

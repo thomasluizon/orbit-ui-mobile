@@ -254,6 +254,7 @@ function createModalStyles(tokens: AppTokens) {
       alignItems: 'center',
       gap: 14,
       paddingVertical: 16,
+      paddingRight: 8,
       minHeight: 44,
     },
     sectionRowPressed: {

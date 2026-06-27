@@ -84,6 +84,13 @@ export function ConfirmDialog({
         onOpenChange(false)
         return
       }
+      if (e.key === 'Enter') {
+        e.preventDefault()
+        e.stopPropagation()
+        onConfirm?.()
+        onOpenChange(false)
+        return
+      }
       if (e.key !== 'Tab') return
       const focusable = Array.from(
         panelRef.current?.querySelectorAll<HTMLElement>('button:not([disabled])') ?? [],
@@ -109,7 +116,7 @@ export function ConfirmDialog({
         previouslyFocusedElement.current = null
       }
     }
-  }, [open, overlayId, onOpenChange])
+  }, [open, overlayId, onOpenChange, onConfirm])
 
   function handleConfirm() {
     onConfirm?.()
