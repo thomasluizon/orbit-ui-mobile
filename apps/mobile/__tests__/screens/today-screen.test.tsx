@@ -13,6 +13,13 @@ import TodayScreen, {
   shouldRedirectGoalsTab,
 } from "@/app/(tabs)/index";
 
+vi.mock("@/components/referral/referral-card", () => ({
+  ReferralCard: () => null,
+}));
+vi.mock("@/components/referral/referral-drawer", () => ({
+  ReferralDrawer: () => null,
+}));
+
 
 const TestRenderer: typeof import("react-test-renderer") = require("react-test-renderer");
 type RenderedNode = {

@@ -19,6 +19,8 @@ import { useAuthStore } from '@/stores/auth-store'
 import { deriveNextRewardCarrot } from '@orbit/shared/utils'
 import { useGamificationProfile } from '@/hooks/use-gamification'
 import { SectionLabel } from '@/components/ui/section-label'
+import { ReferralCard } from '@/components/referral/referral-card'
+import { ReferralDrawer } from '@/components/referral/referral-drawer'
 import { SubscriptionCard } from './_components/subscription-card'
 import { ProfileIdentityHeader } from './_components/profile-identity-header'
 import { ProfileStatTiles } from './_components/profile-stat-tiles'
@@ -73,6 +75,7 @@ export default function ProfilePage() {
   const [showDeleteModal, setShowDeleteModal] = useState(false)
   const [showTourReplay, setShowTourReplay] = useState(false)
   const [showEditName, setShowEditName] = useState(false)
+  const [showReferral, setShowReferral] = useState(false)
 
   function handleNavClick(item: ProfileNavItem) {
     if (shouldRedirectProfileNavItem(item, profile)) {
@@ -123,6 +126,8 @@ export default function ProfilePage() {
           }}
         />
 
+        <ReferralCard onOpen={() => setShowReferral(true)} />
+
         <NextRewardCarrot carrot={nextRewardCarrot} />
 
         <ProfileNavSections
@@ -171,6 +176,8 @@ export default function ProfilePage() {
         onDeleteChange={setShowDeleteModal}
         onTourReplayChange={setShowTourReplay}
       />
+
+      <ReferralDrawer open={showReferral} onOpenChange={setShowReferral} />
     </div>
   )
 }

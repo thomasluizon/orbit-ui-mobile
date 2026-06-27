@@ -31,6 +31,8 @@ import { StatTile } from '@/components/ui/stat-tile'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
 import { StreakBadge } from '@/components/gamification/streak-badge'
 import { NotificationBell } from '@/components/navigation/notification-bell'
+import { ReferralCard } from '@/components/referral/referral-card'
+import { ReferralDrawer } from '@/components/referral/referral-drawer'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { createTokensV2, tintFromPrimary } from '@/lib/theme'
 import { buildUpgradeHref } from '@/lib/upgrade-route'
@@ -127,6 +129,7 @@ export default function ProfileScreen() {
   const [showEditName, setShowEditName] = useState(false)
   const [showTourReplay, setShowTourReplay] = useState(false)
   const [showDeleteModal, setShowDeleteModal] = useState(false)
+  const [showReferral, setShowReferral] = useState(false)
 
   useEffect(() => {
     if (subscription === 'success') {
@@ -311,6 +314,10 @@ export default function ProfileScreen() {
           ) : null}
         </Animated.View>
 
+        <Animated.View entering={sectionEntrance(2)}>
+          <ReferralCard onOpen={() => setShowReferral(true)} />
+        </Animated.View>
+
         <NextRewardCarrot
           carrot={nextRewardCarrot}
           onUpgrade={() => router.push(buildUpgradeHref('/profile'))}
@@ -416,6 +423,11 @@ export default function ProfileScreen() {
         open={showDeleteModal}
         onClose={() => setShowDeleteModal(false)}
         profile={profile}
+      />
+
+      <ReferralDrawer
+        open={showReferral}
+        onClose={() => setShowReferral(false)}
       />
     </SafeAreaView>
   )

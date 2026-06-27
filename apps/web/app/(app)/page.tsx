@@ -31,7 +31,10 @@ import { GradientTop } from '@/components/ui/gradient-top'
 import { ProgressBar } from '@/components/ui/progress-bar'
 import { SectionLabel } from '@/components/ui/section-label'
 import { SetupChecklistCard } from '@/components/today/setup-checklist-card'
+import { ReferralCard } from '@/components/referral/referral-card'
+import { ReferralDrawer } from '@/components/referral/referral-drawer'
 import { useUIStore } from '@/stores/ui-store'
+import { useReferralPromptStore } from '@/stores/referral-prompt-store'
 import { useProfile } from '@/hooks/use-profile'
 import {
   EMPTY_CHILDREN_BY_PARENT,
@@ -102,7 +105,10 @@ export default function TodayPage() {
   const currentActiveView = !hasProAccess && activeView === 'goals' ? 'today' : activeView
 
   const setShowCreateModal = useUIStore((s) => s.setShowCreateModal)
+  const homeEntryDismissed = useReferralPromptStore((s) => s.homeEntryDismissed)
+  const dismissHomeEntry = useReferralPromptStore((s) => s.dismissHomeEntry)
 
+  const [showReferral, setShowReferral] = useState(false)
   const [localSearchQuery, setLocalSearchQuery] = useState(searchQueryStore)
   const [searchOpen, setSearchOpen] = useState(false)
   const [slideDirection, setSlideDirection] = useState<'left' | 'right'>('right')
@@ -384,6 +390,13 @@ export default function TodayPage() {
         <TodayAISummary date={formatAPIDate(selectedDate)} />
       )}
 
+      {currentActiveView === 'today' && isToday(selectedDate) && !homeEntryDismissed && (
+        <ReferralCard
+          onOpen={() => setShowReferral(true)}
+          onDismiss={dismissHomeEntry}
+        />
+      )}
+
       <TodayDateNavigation
         visible={currentActiveView === 'today'}
         dateLabel={dateLabel}
@@ -642,6 +655,7 @@ export default function TodayPage() {
         onCancel={() => setShowBulkSkipConfirm(false)}
       />
 
+      <ReferralDrawer open={showReferral} onOpenChange={setShowReferral} />
     </div>
   )
 }

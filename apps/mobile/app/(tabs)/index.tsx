@@ -42,6 +42,7 @@ import { useTags } from "@/hooks/use-tags";
 import { useTotalHabitCount } from "@/hooks/use-habit-queries";
 import { useCoachMark } from "@/hooks/use-coach-mark";
 import { useUIStore } from "@/stores/ui-store";
+import { useReferralPromptStore } from "@/stores/referral-prompt-store";
 import { HabitList, type HabitListHandle } from "@/components/habit-list";
 import { CreateHabitModal } from "@/components/habits/create-habit-modal";
 import { HabitDetailDrawer } from "@/components/habits/habit-detail-drawer";
@@ -54,6 +55,8 @@ import { GradientTop } from "@/components/ui/gradient-top";
 import { TrialBanner } from "@/components/ui/trial-banner";
 import { TodayHabitsHeader } from "@/components/today/today-habits-header";
 import { ReviewReminderCard } from "@/components/review-reminder-card";
+import { ReferralCard } from "@/components/referral/referral-card";
+import { ReferralDrawer } from "@/components/referral/referral-drawer";
 import { SetupChecklistCard } from "@/components/today/setup-checklist-card";
 import { useHorizontalSwipe } from "@/hooks/use-horizontal-swipe";
 import type { MenuAnchorRect } from "@/lib/anchored-menu";
@@ -591,6 +594,9 @@ export default function TodayScreen() {
   const setShowCreateModal = useUIStore((s) => s.setShowCreateModal);
   const showCreateGoalModal = useUIStore((s) => s.showCreateGoalModal);
   const setShowCreateGoalModal = useUIStore((s) => s.setShowCreateGoalModal);
+  const homeEntryDismissed = useReferralPromptStore((s) => s.homeEntryDismissed);
+  const dismissHomeEntry = useReferralPromptStore((s) => s.dismissHomeEntry);
+  const [showReferral, setShowReferral] = useState(false);
   const [prevFilters, setPrevFilters] = useState(filters);
   if (filters !== prevFilters) {
     setPrevFilters(filters);
@@ -855,6 +861,15 @@ export default function TodayScreen() {
           />
         ) : null}
 
+        {currentActiveView === "today" &&
+        isToday(selectedDate) &&
+        !homeEntryDismissed ? (
+          <ReferralCard
+            onOpen={() => setShowReferral(true)}
+            onDismiss={dismissHomeEntry}
+          />
+        ) : null}
+
         <TodayTabs
           tabs={tabItems}
           activeView={currentActiveView}
@@ -874,6 +889,9 @@ export default function TodayScreen() {
       reviewReminder,
       tabItems,
       t,
+      selectedDate,
+      homeEntryDismissed,
+      dismissHomeEntry,
     ],
   );
 
@@ -1131,6 +1149,11 @@ export default function TodayScreen() {
       <CreateGoalModal
         open={showCreateGoalModal}
         onClose={() => setShowCreateGoalModal(false)}
+      />
+
+      <ReferralDrawer
+        open={showReferral}
+        onClose={() => setShowReferral(false)}
       />
     </View>
   );

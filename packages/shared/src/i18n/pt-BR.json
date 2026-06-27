@@ -954,6 +954,14 @@
       "title": "Vem pro Orbit comigo",
       "text": "Estou usando o Orbit para criar hábitos melhores. Entra também e nós dois ganhamos um cupom de {discount}% de desconto!"
     },
+    "prompt": {
+      "eyebrow": "Você está com tudo",
+      "streakTitle": "Sequência de {count} dias!",
+      "levelTitle": "Você chegou ao nível {level}!",
+      "body": "Convide um amigo e vocês dois ganham um cupom de {discount}% de desconto no Pro.",
+      "cta": "Convidar um amigo",
+      "later": "Agora não"
+    },
     "loginBanner": "Você foi convidado! Cadastre-se e ganhe um cupom de 10% de desconto no Pro"
   },
   "privacy": {

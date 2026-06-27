@@ -141,6 +141,14 @@ vi.mock('@/components/today/setup-checklist-card', () => ({
   SetupChecklistCard: () => null,
 }))
 
+vi.mock('@/components/referral/referral-card', () => ({
+  ReferralCard: () => null,
+}))
+
+vi.mock('@/components/referral/referral-drawer', () => ({
+  ReferralDrawer: () => null,
+}))
+
 vi.mock('@/components/habits/habit-list', () => ({
   HabitList: React.forwardRef(function MockHabitList(props: Record<string, unknown>, ref) {
     React.useImperativeHandle(ref, () => habitListHandle)

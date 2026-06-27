@@ -4,6 +4,19 @@ import { createMockProfile } from '@orbit/shared/__tests__/factories'
 
 import ProfileScreen from '@/app/(tabs)/profile'
 
+vi.mock('@/components/referral/referral-card', () => ({
+  ReferralCard: ({ onOpen }: { onOpen: () => void; onDismiss?: () => void }) =>
+    React.createElement('ReferralCardStub', {
+      accessibilityRole: 'button',
+      onPress: onOpen,
+    }),
+}))
+
+vi.mock('@/components/referral/referral-drawer', () => ({
+  ReferralDrawer: ({ open }: { open: boolean; onClose?: () => void }) =>
+    open ? React.createElement('ReferralDrawerOpen', {}) : null,
+}))
+
 const TestRenderer = require('react-test-renderer')
 
 const { mockUseGamificationProfile } = vi.hoisted(() => ({
@@ -243,5 +256,30 @@ describe('ProfileScreen', () => {
     })
 
     expect(mockUseGamificationProfile).toHaveBeenCalledWith(false)
+  })
+
+  it('mounts the referral card on profile and opens the drawer when pressed', async () => {
+    let tree: ReturnType<typeof TestRenderer.create>
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(<ProfileScreen />)
+      await Promise.resolve()
+    })
+
+    const [card] = tree!.root.findAll(
+      (node: { type: unknown }) => node.type === 'ReferralCardStub',
+    )
+    expect(card).toBeTruthy()
+    expect(
+      tree!.root.findAll((node: { type: unknown }) => node.type === 'ReferralDrawerOpen'),
+    ).toHaveLength(0)
+
+    await TestRenderer.act(async () => {
+      card.props.onPress()
+      await Promise.resolve()
+    })
+
+    expect(
+      tree!.root.findAll((node: { type: unknown }) => node.type === 'ReferralDrawerOpen'),
+    ).toHaveLength(1)
   })
 })
