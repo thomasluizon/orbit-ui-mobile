@@ -1066,19 +1066,11 @@
       "heading": "Your Pro Trial Has Ended",
       "paused": "Paused",
       "subtitleQuiet": "These Pro features will pause unless you subscribe.",
-      "title": "Your Pro Trial Has Ended",
-      "dontLose": "Don't lose access to:",
-      "unlimitedHabits": "Unlimited habits",
       "aiChat": "500 AI messages per month",
       "allColors": "All 6 color schemes",
       "aiSummary": "Daily AI summaries",
       "subHabits": "Sub-habits",
       "goals": "Goals & progress tracking",
-      "calendar": "Google Calendar integration",
-      "apiKeys": "API keys",
-      "slipAlerts": "Slip alerts",
-      "achievements": "Achievements & XP",
-      "retrospective": "AI retrospectives",
       "subscribe": "Subscribe to Pro",
       "continueFree": "Continue with Free"
     }
@@ -1456,7 +1448,6 @@
   },
   "upgrade": {
     "title": "Upgrade to Pro",
-    "heroTitle": "Unlock your full potential with Pro",
     "alreadyPro": "You're on the Pro plan!",
     "manageHint": "Manage your subscription, update payment, or cancel anytime",
     "feature": "Feature",
@@ -1464,7 +1455,6 @@
     "subscribe": "Subscribe to Pro",
     "plan": "Plan",
     "restorePurchase": "Restore purchase",
-    "recommended": "Recommended",
     "categories": {
       "habits": "Habits",
       "ai": "AI Features",
@@ -1502,12 +1492,6 @@
         "pro": "All 6 themes",
         "tooltip": "Personalize Orbit with 6 color schemes: purple, blue, green, rose, orange, and cyan. Free users get the default purple theme."
       },
-      "premiumColors": {
-        "label": "Premium Colors",
-        "free": "No",
-        "pro": "Included",
-        "tooltip": "Unlock all premium color themes and customize Orbit beyond the default free scheme."
-      },
       "aiMemory": {
         "label": "AI Memory",
         "free": "No",
@@ -1531,6 +1515,15 @@
         "free": "No",
         "pro": "Yearly only",
         "tooltip": "AI analyzes your habit data over weeks, months, or quarters to surface patterns, wins, and areas for improvement."
+      },
+      "streaks": {
+        "label": "Current & longest streak"
+      },
+      "xpLevels": {
+        "label": "XP & levels"
+      },
+      "streakFreeze": {
+        "label": "Streak freeze"
       },
       "achievements": {
         "label": "Achievements & XP",
@@ -1557,28 +1550,47 @@
         "tooltip": "Remove all ads from the mobile app for a distraction-free habit tracking experience."
       }
     },
+    "convert": {
+      "promise": "Everything Orbit can do, in one calm plan.",
+      "trialDaysLeft": "Pro Trial · {days} day left | Pro Trial · {days} days left",
+      "trialLastDay": "Pro Trial · last day",
+      "trialHeading": "Keep your Pro features",
+      "trialCta": "Subscribe to keep Pro",
+      "freeEyebrow": "Free plan",
+      "freeHeading": "Your Pro trial ended",
+      "freeCta": "Upgrade to Pro",
+      "trustLine": "No card was ever taken, you dropped to Free automatically.",
+      "cancelAnytime": "Cancel anytime",
+      "noCardCancel": "No card required · Cancel anytime",
+      "stayFree": "Stay on Free"
+    },
+    "matrix": {
+      "title": "Compare every feature",
+      "included": "Included",
+      "notIncluded": "Not included",
+      "yearlyTag": "Yearly"
+    },
     "plans": {
+      "free": {
+        "note": "Keep streaks, XP and streak freeze, always free."
+      },
       "monthly": {
         "name": "Pro Monthly",
         "period": "/mo",
-        "cta": "Subscribe Monthly"
+        "cta": "Subscribe Monthly",
+        "note": "Billed monthly"
       },
       "yearly": {
         "name": "Pro Yearly",
         "period": "/yr",
-        "cta": "Subscribe Yearly",
-        "includesMonthly": "Everything in Pro Monthly, plus:"
+        "heroLine": "Everything in Pro Monthly, plus AI Retrospective.",
+        "billedSave": "Billed {price}/yr, save {amount} a year"
       },
       "proFeatures": {
         "unlimited": "Unlimited habits",
         "ai": "500 AI messages/month",
         "goals": "Goals & progress tracking",
-        "calendarImport": "Google Calendar integration",
-        "apiKeys": "API keys",
-        "slipAlerts": "Slip alerts",
-        "achievements": "Achievements & XP",
         "themes": "All 6 color themes",
-        "adFree": "No ads",
         "retrospective": "AI Retrospective"
       },
       "savePercent": "Save {percent}%",

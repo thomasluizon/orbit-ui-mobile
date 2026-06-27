@@ -123,17 +123,15 @@ describe('UpgradePage', () => {
     expect(screen.getByRole('button', { name: 'common.backToProfile' })).toBeInTheDocument()
   })
 
-  it('hides decorative feature icons and exposes feature labels as text', () => {
+  it('exposes matrix feature labels as text with decorative icons hidden', () => {
     const { container } = render(<UpgradePage />)
 
     expect(screen.getAllByText('upgrade.features.subHabits.label').length).toBeGreaterThan(0)
 
-    const featureRows = container.querySelectorAll('li')
-    expect(featureRows.length).toBeGreaterThan(0)
-    featureRows.forEach((row) => {
-      const icon = row.querySelector('svg')
+    const icons = container.querySelectorAll('table svg')
+    expect(icons.length).toBeGreaterThan(0)
+    icons.forEach((icon) => {
       expect(icon).toHaveAttribute('aria-hidden', 'true')
-      expect(row.textContent?.trim()).toBeTruthy()
     })
 
     screen.getAllByRole('button').forEach((button) => {
@@ -157,17 +155,19 @@ describe('UpgradePage', () => {
     expect(document.body.textContent).toContain('upgrade.plans.error')
   })
 
-  it('shows trial expired banner when trial is expired', () => {
+  it('shows the convert heading for an expired or free user', () => {
     mockTrialExpired = true
+    mockProfile = { ...mockProfile, isTrialActive: false }
     render(<UpgradePage />)
-    expect(document.body.textContent).toContain('trial.expired')
+    expect(document.body.textContent).toContain('upgrade.convert.freeHeading')
+    expect(document.body.textContent).toContain('upgrade.convert.trustLine')
   })
 
-  it('shows trial days left when trial is active', () => {
+  it('shows the trial-keeping heading when trial is active', () => {
     mockTrialDaysLeft = 5
     mockProfile = { ...mockProfile, isTrialActive: true }
     render(<UpgradePage />)
-    expect(document.body.textContent).toContain('trial')
+    expect(document.body.textContent).toContain('upgrade.convert.trialHeading')
   })
 
 
