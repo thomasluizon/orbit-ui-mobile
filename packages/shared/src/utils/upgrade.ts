@@ -7,20 +7,6 @@ import {
 } from './error-utils'
 import { getIsYearlyPro } from './profile-selectors'
 
-export const TRIAL_EXPIRED_FEATURE_KEYS = [
-  'trial.expired.unlimitedHabits',
-  'trial.expired.aiChat',
-  'trial.expired.allColors',
-  'trial.expired.aiSummary',
-  'trial.expired.subHabits',
-  'trial.expired.goals',
-  'trial.expired.calendar',
-  'trial.expired.apiKeys',
-  'trial.expired.slipAlerts',
-  'trial.expired.achievements',
-  'trial.expired.retrospective',
-] as const
-
 export type UpgradeEntitlementRequirement = 'pro' | 'yearlyPro'
 export type UpgradeEntitlementMode = 'redirect' | 'mixed'
 
@@ -30,6 +16,12 @@ export type UpgradeIconKey =
   | 'palette'
   | 'shieldCheck'
   | 'barChart3'
+
+/**
+ * Pro availability of a comparison-matrix feature: `true` on any paid plan,
+ * `'yearly'` when only the yearly plan unlocks it, `false` when Pro never gets it.
+ */
+export type UpgradeProState = 'yearly' | true | false
 
 export interface UpgradeAccessSnapshot {
   hasProAccess: boolean
@@ -44,14 +36,14 @@ export interface UpgradePlanFeature {
 
 export interface UpgradeFeatureMatrixRow {
   key: string
-  iconKey: UpgradeIconKey
   type: 'boolean' | 'text'
-  freeEnabled?: boolean
-  proEnabled?: boolean
+  free?: boolean
+  pro?: UpgradeProState
 }
 
 export interface UpgradeFeatureMatrixCategory {
   category: string
+  iconKey: UpgradeIconKey
   features: UpgradeFeatureMatrixRow[]
 }
 
@@ -73,12 +65,7 @@ export const UPGRADE_PRO_FEATURES: UpgradePlanFeature[] = [
   { key: 'unlimited', iconKey: 'flame' },
   { key: 'ai', iconKey: 'messageSquare' },
   { key: 'goals', iconKey: 'barChart3' },
-  { key: 'calendarImport', iconKey: 'flame' },
-  { key: 'apiKeys', iconKey: 'shieldCheck' },
-  { key: 'slipAlerts', iconKey: 'shieldCheck' },
-  { key: 'achievements', iconKey: 'flame' },
   { key: 'themes', iconKey: 'palette' },
-  { key: 'adFree', iconKey: 'shieldCheck' },
 ]
 
 export const UPGRADE_YEARLY_EXTRA_FEATURES: UpgradePlanFeature[] = [
@@ -88,102 +75,42 @@ export const UPGRADE_YEARLY_EXTRA_FEATURES: UpgradePlanFeature[] = [
 export const UPGRADE_FEATURE_CATEGORIES: UpgradeFeatureMatrixCategory[] = [
   {
     category: 'habits',
+    iconKey: 'flame',
     features: [
-      { key: 'habits', iconKey: 'flame', type: 'text' },
-      {
-        key: 'subHabits',
-        iconKey: 'flame',
-        type: 'boolean',
-        freeEnabled: false,
-        proEnabled: true,
-      },
-      {
-        key: 'goals',
-        iconKey: 'barChart3',
-        type: 'boolean',
-        freeEnabled: false,
-        proEnabled: true,
-      },
+      { key: 'habits', type: 'text' },
+      { key: 'subHabits', type: 'boolean', free: false, pro: true },
+      { key: 'goals', type: 'boolean', free: false, pro: true },
     ],
   },
   {
     category: 'ai',
+    iconKey: 'messageSquare',
     features: [
-      { key: 'ai', iconKey: 'messageSquare', type: 'text' },
-      {
-        key: 'aiMemory',
-        iconKey: 'messageSquare',
-        type: 'boolean',
-        freeEnabled: false,
-        proEnabled: true,
-      },
-      {
-        key: 'summary',
-        iconKey: 'messageSquare',
-        type: 'boolean',
-        freeEnabled: false,
-        proEnabled: true,
-      },
-      {
-        key: 'apiKeys',
-        iconKey: 'shieldCheck',
-        type: 'boolean',
-        freeEnabled: false,
-        proEnabled: true,
-      },
-      {
-        key: 'slipAlerts',
-        iconKey: 'shieldCheck',
-        type: 'boolean',
-        freeEnabled: false,
-        proEnabled: true,
-      },
+      { key: 'ai', type: 'text' },
+      { key: 'aiMemory', type: 'boolean', free: false, pro: true },
+      { key: 'summary', type: 'boolean', free: false, pro: true },
+      { key: 'slipAlerts', type: 'boolean', free: false, pro: true },
+      { key: 'apiKeys', type: 'boolean', free: false, pro: true },
     ],
   },
   {
     category: 'insights',
+    iconKey: 'barChart3',
     features: [
-      {
-        key: 'retrospective',
-        iconKey: 'barChart3',
-        type: 'boolean',
-        freeEnabled: false,
-        proEnabled: false,
-      },
-      {
-        key: 'achievements',
-        iconKey: 'flame',
-        type: 'boolean',
-        freeEnabled: false,
-        proEnabled: true,
-      },
+      { key: 'streaks', type: 'boolean', free: true, pro: true },
+      { key: 'xpLevels', type: 'boolean', free: true, pro: true },
+      { key: 'streakFreeze', type: 'boolean', free: true, pro: true },
+      { key: 'achievements', type: 'boolean', free: false, pro: true },
+      { key: 'retrospective', type: 'boolean', free: false, pro: 'yearly' },
     ],
   },
   {
     category: 'personalization',
+    iconKey: 'palette',
     features: [
-      { key: 'colors', iconKey: 'palette', type: 'text' },
-      {
-        key: 'calendarImport',
-        iconKey: 'flame',
-        type: 'boolean',
-        freeEnabled: false,
-        proEnabled: true,
-      },
-      {
-        key: 'premiumColors',
-        iconKey: 'palette',
-        type: 'boolean',
-        freeEnabled: false,
-        proEnabled: true,
-      },
-      {
-        key: 'adFree',
-        iconKey: 'shieldCheck',
-        type: 'boolean',
-        freeEnabled: false,
-        proEnabled: true,
-      },
+      { key: 'colors', type: 'text' },
+      { key: 'calendarImport', type: 'boolean', free: false, pro: true },
+      { key: 'adFree', type: 'boolean', free: false, pro: true },
     ],
   },
 ]

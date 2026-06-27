@@ -11,7 +11,7 @@ import {
   getClientTimeZone,
   getFriendlyErrorMessage,
 } from '@orbit/shared/utils'
-import { useProfile, useHasProAccess, useTrialExpired, useTrialDaysLeft, useTrialUrgent } from '@/hooks/use-profile'
+import { useProfile, useHasProAccess, useTrialDaysLeft } from '@/hooks/use-profile'
 import { useSubscriptionPlans } from '@/hooks/use-subscription-plans'
 import { useBilling } from '@/hooks/use-billing'
 import { createCheckoutSession, openCustomerPortal } from '@/app/actions/subscription'
@@ -26,16 +26,13 @@ export default function UpgradePage() {
 
   const { profile } = useProfile()
   const hasProAccess = useHasProAccess()
-  const trialExpired = useTrialExpired()
   const trialDaysLeft = useTrialDaysLeft()
-  const trialUrgent = useTrialUrgent()
   const { plans, isLoading: isLoadingPlans, isError: isPlansError, refetch: refetchPlans, discountedAmount } = useSubscriptionPlans()
 
   const isPlaySource = profile?.subscriptionSource === 'play'
   const isBillingEnabled = hasProAccess && !profile?.isTrialActive && !isPlaySource && !profile?.isLifetimePro
   const { billing, isLoading: isBillingLoading, isError: isBillingError, refetch: refetchBilling } = useBilling(isBillingEnabled)
 
-  const [selectedInterval, setSelectedInterval] = useState<SubscriptionInterval>('yearly')
   const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null)
   const [checkoutError, setCheckoutError] = useState('')
   const [portalError, setPortalError] = useState('')
@@ -120,15 +117,12 @@ export default function UpgradePage() {
             plans={plans}
             isLoadingPlans={isLoadingPlans}
             isPlansError={isPlansError}
-            trialExpired={trialExpired}
             trialDaysLeft={trialDaysLeft}
-            trialUrgent={trialUrgent}
-            selectedInterval={selectedInterval}
-            onSelectInterval={setSelectedInterval}
             checkoutLoading={checkoutLoading}
             checkoutError={checkoutError}
             discountedAmount={discountedAmount}
             onCheckout={handleCheckout}
+            onStayFree={() => goBackOrFallback('/profile')}
             onRetryPlans={() => refetchPlans()}
             t={t}
           />

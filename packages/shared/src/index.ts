@@ -147,7 +147,6 @@ export {
   resolveUpgradeEntitlementDenial,
   resolveUpgradeEntitlementFromError,
   resolveUpgradeEntitlementFromPolicyDenial,
-  TRIAL_EXPIRED_FEATURE_KEYS,
   UPGRADE_FEATURE_CATEGORIES,
   UPGRADE_PRO_FEATURES,
   UPGRADE_YEARLY_EXTRA_FEATURES,
@@ -221,6 +220,7 @@ export type {
   UpgradeFeatureMatrixRow,
   UpgradeIconKey,
   UpgradePlanFeature,
+  UpgradeProState,
 } from './utils/upgrade'
 export type {
   LabeledOption,

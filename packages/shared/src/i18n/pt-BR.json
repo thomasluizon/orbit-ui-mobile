@@ -1053,19 +1053,11 @@
       "heading": "Seu teste Pro acabou",
       "paused": "Pausado",
       "subtitleQuiet": "Estes recursos Pro vão pausar se você não assinar.",
-      "title": "Seu teste Pro acabou",
-      "dontLose": "Não perca o acesso a:",
-      "unlimitedHabits": "Hábitos ilimitados",
       "aiChat": "500 mensagens de IA por mês",
       "allColors": "Todos os 6 temas",
       "aiSummary": "Resumos diários da IA",
       "subHabits": "Sub-hábitos",
       "goals": "Metas e acompanhamento de progresso",
-      "calendar": "Integração com o Google Calendar",
-      "apiKeys": "Chaves de API",
-      "slipAlerts": "Alertas de deslize",
-      "achievements": "Conquistas e XP",
-      "retrospective": "Retrospectivas com IA",
       "subscribe": "Assinar Pro",
       "continueFree": "Continuar no plano grátis"
     }
@@ -1374,7 +1366,6 @@
   },
   "upgrade": {
     "title": "Upgrade para o Pro",
-    "heroTitle": "Desbloqueie todo seu potencial com o Pro",
     "alreadyPro": "Você está no plano Pro!",
     "manageHint": "Gerencie sua assinatura, troque o pagamento ou cancele quando quiser",
     "feature": "Recurso",
@@ -1382,7 +1373,6 @@
     "subscribe": "Assinar Pro",
     "plan": "Plano",
     "restorePurchase": "Restaurar compra",
-    "recommended": "Recomendado",
     "categories": {
       "habits": "Hábitos",
       "ai": "Recursos de IA",
@@ -1420,12 +1410,6 @@
         "pro": "Todos os 6 temas",
         "tooltip": "Personalize o Orbit com 6 cores de tema: roxo, azul, verde, rosa, laranja e ciano. No plano grátis, você usa o tema roxo padrão."
       },
-      "premiumColors": {
-        "label": "Cores premium",
-        "free": "Não",
-        "pro": "Incluso",
-        "tooltip": "Libere todos os temas premium e personalize o Orbit muito além do tema padrão do plano grátis."
-      },
       "aiMemory": {
         "label": "Memória da IA",
         "free": "Não",
@@ -1449,6 +1433,15 @@
         "free": "Não",
         "pro": "Anual",
         "tooltip": "A IA analisa seus hábitos ao longo de semanas, meses ou trimestres para revelar padrões, conquistas e pontos a melhorar."
+      },
+      "streaks": {
+        "label": "Sequência atual e recorde"
+      },
+      "xpLevels": {
+        "label": "XP e níveis"
+      },
+      "streakFreeze": {
+        "label": "Congelamento de sequência"
       },
       "achievements": {
         "label": "Conquistas e XP",
@@ -1475,28 +1468,47 @@
         "tooltip": "Tire todos os anúncios do app para acompanhar seus hábitos sem distração."
       }
     },
+    "convert": {
+      "promise": "Tudo o que o Orbit faz, em um plano só.",
+      "trialDaysLeft": "Teste Pro · {days} dia restante | Teste Pro · {days} dias restantes",
+      "trialLastDay": "Teste Pro · último dia",
+      "trialHeading": "Mantenha seus recursos Pro",
+      "trialCta": "Assinar para manter o Pro",
+      "freeEyebrow": "Plano grátis",
+      "freeHeading": "Seu teste Pro acabou",
+      "freeCta": "Fazer upgrade para o Pro",
+      "trustLine": "Nenhum cartão foi cobrado, você voltou ao plano grátis automaticamente.",
+      "cancelAnytime": "Cancele quando quiser",
+      "noCardCancel": "Sem cartão · Cancele quando quiser",
+      "stayFree": "Continuar no plano grátis"
+    },
+    "matrix": {
+      "title": "Compare todos os recursos",
+      "included": "Incluído",
+      "notIncluded": "Não incluído",
+      "yearlyTag": "Anual"
+    },
     "plans": {
+      "free": {
+        "note": "Mantenha sequências, XP e congelamento, sempre de graça."
+      },
       "monthly": {
         "name": "Pro Mensal",
         "period": "/mês",
-        "cta": "Assinar Mensal"
+        "cta": "Assinar Mensal",
+        "note": "Cobrado mensalmente"
       },
       "yearly": {
         "name": "Pro Anual",
         "period": "/ano",
-        "cta": "Assinar Anual",
-        "includesMonthly": "Tudo do Pro Mensal, mais:"
+        "heroLine": "Tudo do Pro Mensal, mais a Retrospectiva IA.",
+        "billedSave": "Cobrado {price}/ano, economize {amount} por ano"
       },
       "proFeatures": {
         "unlimited": "Hábitos ilimitados",
         "ai": "500 mensagens IA/mês",
         "goals": "Metas e acompanhamento de progresso",
-        "calendarImport": "Integração com Google Calendar",
-        "apiKeys": "Chaves de API",
-        "slipAlerts": "Alertas de deslize",
-        "achievements": "Conquistas e XP",
         "themes": "Todos os 6 temas",
-        "adFree": "Sem anúncios",
         "retrospective": "Retrospectiva IA"
       },
       "savePercent": "Economize {percent}%",
