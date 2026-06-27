@@ -342,7 +342,7 @@
     "autoSkipParentConfirm": "Skip parent",
     "checklistCompleteTitle": "Checklist complete!",
     "checklistCompleteMessage": "All items in \"{name}\" are done. Would you like to log this habit?",
-    "checklistCompleteConfirm": "Log habit",
+    "checklistCompleteConfirm": "Log",
     "bulkDeleteTitle": "Delete Habits",
     "bulkDeleteMessage": "Are you sure you want to delete {count} habit? This action cannot be undone. | Are you sure you want to delete {count} habits? This action cannot be undone.",
     "bulkDeleteConfirm": "Delete all",

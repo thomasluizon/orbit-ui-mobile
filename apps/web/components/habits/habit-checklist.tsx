@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, useCallback, useId } from 'react'
-import { GripHorizontal, X, Copy, Check } from 'lucide-react'
+import { GripHorizontal, X, Copy, Check, RotateCcw } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import {
   DndContext,
@@ -148,21 +148,23 @@ export function HabitChecklist({
           {interactive && checkedCount > 0 && (
             <button
               type="button"
-              className="text-[var(--primary)] hover:text-[var(--primary-pressed)] transition-colors"
-              style={{ fontFamily: 'var(--font-sans)', fontSize: 12, fontWeight: 500 }}
+              aria-label={t('habits.form.resetChecklist')}
+              className="shrink-0 inline-flex items-center justify-center rounded-full text-[var(--primary)] hover:text-[var(--primary-pressed)] hover:bg-[var(--bg-elev)] active:scale-[0.92] transition-[color,background-color,transform] duration-[var(--dur-fast)]"
+              style={{ width: 36, height: 36 }}
               onClick={onReset}
             >
-              {t('habits.form.resetChecklist')}
+              <RotateCcw size={16} strokeWidth={1.8} aria-hidden="true" />
             </button>
           )}
           {interactive && (
             <button
               type="button"
-              className="text-[var(--status-bad)] transition-opacity hover:opacity-80"
-              style={{ fontFamily: 'var(--font-sans)', fontSize: 12, fontWeight: 500 }}
+              aria-label={t('habits.form.clearChecklist')}
+              className="shrink-0 inline-flex items-center justify-center rounded-full text-[var(--status-bad)] hover:bg-[var(--bg-elev)] active:scale-[0.92] transition-[color,background-color,transform] duration-[var(--dur-fast)]"
+              style={{ width: 36, height: 36 }}
               onClick={onClear}
             >
-              {t('habits.form.clearChecklist')}
+              <X size={16} strokeWidth={1.8} aria-hidden="true" />
             </button>
           )}
         </div>
