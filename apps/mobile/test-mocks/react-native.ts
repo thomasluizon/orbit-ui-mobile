@@ -5,6 +5,33 @@ type HostProps = Readonly<{
   [key: string]: unknown
 }>
 
+type MeasureInWindowCallback = (
+  x: number,
+  y: number,
+  width: number,
+  height: number,
+) => void
+type MeasureInWindowImpl = (callback: MeasureInWindowCallback) => void
+
+const DEFAULT_MEASURE_IN_WINDOW: MeasureInWindowImpl = (callback) =>
+  callback(0, 0, 32, 32)
+
+let measureInWindowImpl: MeasureInWindowImpl = DEFAULT_MEASURE_IN_WINDOW
+let hostRefsNull = false
+
+export function __setMeasureInWindowImpl(impl: MeasureInWindowImpl) {
+  measureInWindowImpl = impl
+}
+
+export function __setHostRefsNull(value: boolean) {
+  hostRefsNull = value
+}
+
+export function __resetTestHostConfig() {
+  measureInWindowImpl = DEFAULT_MEASURE_IN_WINDOW
+  hostRefsNull = false
+}
+
 function createHostComponent(name: string) {
   const HostComponent = React.forwardRef<unknown, HostProps>(function HostComponent(
     { children, ...props },
@@ -12,14 +39,18 @@ function createHostComponent(name: string) {
   ) {
     const hostRef = {
       measure: (callback?: (...args: number[]) => void) => callback?.(0, 0, 32, 32, 0, 0),
-      measureInWindow: (callback?: (...args: number[]) => void) => callback?.(0, 0, 32, 32),
+      measureInWindow: (callback?: MeasureInWindowCallback) => {
+        if (callback) measureInWindowImpl(callback)
+      },
       setNativeProps: () => {},
     }
 
-    if (typeof ref === 'function') {
-      ref(hostRef)
-    } else if (ref && typeof ref === 'object') {
-      ;(ref as { current: unknown }).current = hostRef
+    if (!hostRefsNull) {
+      if (typeof ref === 'function') {
+        ref(hostRef)
+      } else if (ref && typeof ref === 'object') {
+        ;(ref as { current: unknown }).current = hostRef
+      }
     }
 
     return React.createElement(name, props, children as React.ReactNode)
@@ -82,6 +113,12 @@ export const PanResponder = {
 
 export const Dimensions = {
   get: (_dimension: 'window' | 'screen') => ({ width: 412, height: 892 }),
+  addEventListener: (
+    _event: string,
+    _listener: (...args: unknown[]) => void,
+  ) => ({
+    remove: () => {},
+  }),
 }
 
 export const Easing = {

@@ -280,6 +280,15 @@ vi.mock("@/components/navigation/notification-bell", () => ({
 
 vi.mock("@/components/ui/anchored-menu", () => ({
   AnchoredMenu: () => null,
+  MenuAnchorHost: ({ children }: { children?: unknown }) => children,
+  useAnchoredMenu: () => ({
+    anchorRef: { current: null },
+    visible: false,
+    anchorRect: null,
+    open: () => {},
+    close: () => {},
+    toggle: () => {},
+  }),
 }));
 
 vi.mock("../../app/(tabs)/today-shell", () => todayShellMock);

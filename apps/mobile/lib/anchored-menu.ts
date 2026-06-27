@@ -51,3 +51,22 @@ export function getAnchoredMenuPosition({
 
   return { left, top, opensUp }
 }
+
+export const FALLBACK_ANCHOR_TOP_INSET = 56
+
+/**
+ * Top-right fallback anchor used when a trigger's measured rect is unavailable —
+ * e.g. when Android Fabric's native `measureInWindow` silently no-ops — so an
+ * opened menu always paints near the top-right instead of rendering nothing.
+ */
+export function getFallbackAnchorRect(
+  viewportWidth: number,
+  margin = DEFAULT_ANCHORED_MENU_MARGIN,
+): MenuAnchorRect {
+  return {
+    x: viewportWidth - margin,
+    y: FALLBACK_ANCHOR_TOP_INSET,
+    width: 0,
+    height: 0,
+  }
+}

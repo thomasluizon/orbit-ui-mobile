@@ -53,7 +53,7 @@ import { TrialBanner } from "@/components/ui/trial-banner";
 import { TodayHabitsHeader } from "@/components/today/today-habits-header";
 import { ReviewReminderCard } from "@/components/review-reminder-card";
 import { useHorizontalSwipe } from "@/hooks/use-horizontal-swipe";
-import type { MenuAnchorRect } from "@/lib/anchored-menu";
+import { useAnchoredMenu } from "@/components/ui/anchored-menu";
 import { useBulkActions } from "@/hooks/use-bulk-actions";
 import { shouldResetSelectionForViewChange } from "@/lib/habit-selection-state";
 import {
@@ -147,12 +147,20 @@ export default function TodayScreen() {
   const currentActiveView = resolveTodayView(activeView, hasProAccess);
 
   const [showGeneralOnToday, setShowGeneralOnToday] = useState(false);
-  const [showControlsMenu, setShowControlsMenu] = useState(false);
-  const [controlsMenuAnchorRect, setControlsMenuAnchorRect] =
-    useState<MenuAnchorRect | null>(null);
-  const [showFreqMenu, setShowFreqMenu] = useState(false);
-  const [freqMenuAnchorRect, setFreqMenuAnchorRect] =
-    useState<MenuAnchorRect | null>(null);
+  const {
+    anchorRef: controlsButtonRef,
+    visible: showControlsMenu,
+    anchorRect: controlsMenuAnchorRect,
+    close: closeControlsMenu,
+    toggle: toggleControlsMenu,
+  } = useAnchoredMenu();
+  const {
+    anchorRef: freqMenuButtonRef,
+    visible: showFreqMenu,
+    anchorRect: freqMenuAnchorRect,
+    close: closeFreqMenu,
+    toggle: toggleFreqMenu,
+  } = useAnchoredMenu();
   const [showHabitDeleteConfirm, setShowHabitDeleteConfirm] = useState(false);
   const [slideDirection, setSlideDirection] = useState<"left" | "right">(
     "right",
@@ -174,8 +182,6 @@ export default function TodayScreen() {
     "/",
     goalsScrollTo,
   );
-  const controlsButtonRef = useRef<View>(null);
-  const freqMenuButtonRef = useRef<View>(null);
   const previousActiveViewRef = useRef(activeView);
   const dateLabelAnim = useMemo(() => new Animated.Value(0), []);
   const filtersTransitionAnim = useMemo(() => new Animated.Value(1), []);
@@ -682,9 +688,9 @@ export default function TodayScreen() {
     }
 
     previousActiveViewRef.current = activeView;
-    setShowControlsMenu(false);
+    closeControlsMenu();
     if (isSelectMode) clearSelection();
-  }, [activeView, clearSelection, isSelectMode]);
+  }, [activeView, clearSelection, closeControlsMenu, isSelectMode]);
 
   const handleToggleSelectMode = useCallback(() => {
     if (isSelectMode) {
@@ -692,8 +698,8 @@ export default function TodayScreen() {
     } else {
       toggleSelectMode();
     }
-    setShowControlsMenu(false);
-  }, [clearSelection, isSelectMode, toggleSelectMode]);
+    closeControlsMenu();
+  }, [clearSelection, closeControlsMenu, isSelectMode, toggleSelectMode]);
 
   const handleToggleCollapse = useCallback(() => {
     if (habitListRef.current?.allCollapsed) {
@@ -701,57 +707,25 @@ export default function TodayScreen() {
     } else {
       habitListRef.current?.collapseAll();
     }
-    setShowControlsMenu(false);
-  }, []);
+    closeControlsMenu();
+  }, [closeControlsMenu]);
 
   const handleRefresh = useCallback(() => {
     habitListRef.current?.refetch();
-    setShowControlsMenu(false);
-  }, []);
+    closeControlsMenu();
+  }, [closeControlsMenu]);
 
   const handleToggleCompleted = useCallback(() => {
     setShowCompleted(!showCompleted);
-    setShowControlsMenu(false);
-  }, [setShowCompleted, showCompleted]);
-
-  const measureControlsButton = useCallback(() => {
-    controlsButtonRef.current?.measureInWindow((x, y, width, height) => {
-      setControlsMenuAnchorRect({ x, y, width, height });
-      setShowControlsMenu(true);
-    });
-  }, []);
-
-  const handleToggleControlsMenu = useCallback(() => {
-    if (showControlsMenu) {
-      setShowControlsMenu(false);
-      return;
-    }
-
-    measureControlsButton();
-  }, [measureControlsButton, showControlsMenu]);
-
-  const measureFreqMenuButton = useCallback(() => {
-    freqMenuButtonRef.current?.measureInWindow((x, y, width, height) => {
-      setFreqMenuAnchorRect({ x, y, width, height });
-      setShowFreqMenu(true);
-    });
-  }, []);
-
-  const handleToggleFreqMenu = useCallback(() => {
-    if (showFreqMenu) {
-      setShowFreqMenu(false);
-      return;
-    }
-
-    measureFreqMenuButton();
-  }, [measureFreqMenuButton, showFreqMenu]);
+    closeControlsMenu();
+  }, [closeControlsMenu, setShowCompleted, showCompleted]);
 
   const handleSelectFrequency = useCallback(
     (key: FreqKey | null) => {
       setSelectedFrequency(key);
-      setShowFreqMenu(false);
+      closeFreqMenu();
     },
-    [setSelectedFrequency],
+    [closeFreqMenu, setSelectedFrequency],
   );
 
   const handleSelectAll = useCallback(() => {
@@ -813,8 +787,8 @@ export default function TodayScreen() {
   }, []);
 
   const handleListScrollBeginDrag = useCallback(() => {
-    setShowControlsMenu(false);
-  }, []);
+    closeControlsMenu();
+  }, [closeControlsMenu]);
 
   const handleToggleSearch = useCallback(() => {
     setIsSearchOpen((open) => {
@@ -909,10 +883,10 @@ export default function TodayScreen() {
         onSearchChange={setSearchQueryStore}
         onSearchFocusChange={setIsSearchFocused}
         onTagToggle={toggleTagFilter}
-        onToggleFreqMenu={handleToggleFreqMenu}
-        onToggleControlsMenu={handleToggleControlsMenu}
-        onCloseControlsMenu={() => setShowControlsMenu(false)}
-        onCloseFreqMenu={() => setShowFreqMenu(false)}
+        onToggleFreqMenu={toggleFreqMenu}
+        onToggleControlsMenu={toggleControlsMenu}
+        onCloseControlsMenu={closeControlsMenu}
+        onCloseFreqMenu={closeFreqMenu}
         onToggleSelect={handleToggleSelectMode}
         onToggleCollapse={handleToggleCollapse}
         onRefresh={handleRefresh}
@@ -940,8 +914,8 @@ export default function TodayScreen() {
       handleSelectFrequency,
       handleToggleCollapse,
       handleToggleCompleted,
-      handleToggleControlsMenu,
-      handleToggleFreqMenu,
+      toggleControlsMenu,
+      toggleFreqMenu,
       handleToggleSearch,
       handleToggleSelectMode,
       isSearchFocused,
@@ -953,8 +927,8 @@ export default function TodayScreen() {
       selectedTagIds,
       setIsSearchFocused,
       setSearchQueryStore,
-      setShowControlsMenu,
-      setShowFreqMenu,
+      closeControlsMenu,
+      closeFreqMenu,
       sharedHeader,
       showCompleted,
       showControlsMenu,
