@@ -36,7 +36,7 @@ import { AppTextInput } from "@/components/ui/app-text-input";
 import { ProgressBar } from "@/components/ui/progress-bar";
 import { TagChip } from "@/components/ui/tag-chip";
 import { SectionLabel } from "@/components/ui/section-label";
-import { AnchoredMenu } from "@/components/ui/anchored-menu";
+import { AnchoredMenu, MenuAnchorHost } from "@/components/ui/anchored-menu";
 import { TodayAISummary } from "@/components/habits/today-ai-summary";
 import { TodayDateNavigation } from "@/app/(tabs)/today-shell";
 import type { MenuAnchorRect } from "@/lib/anchored-menu";
@@ -325,7 +325,7 @@ export function TodayHabitsHeader({
               />
             </Pressable>
             {currentActiveView !== "general" ? (
-              <View ref={freqMenuButtonRef} collapsable={false}>
+              <MenuAnchorHost anchorRef={freqMenuButtonRef}>
                 <Pressable
                   onPress={onToggleFreqMenu}
                   accessibilityRole="button"
@@ -354,9 +354,9 @@ export function TodayHabitsHeader({
                     strokeWidth={1.8}
                   />
                 </Pressable>
-              </View>
+              </MenuAnchorHost>
             ) : null}
-            <View ref={controlsButtonRef} collapsable={false}>
+            <MenuAnchorHost anchorRef={controlsButtonRef}>
               <Pressable
                 onPress={onToggleControlsMenu}
                 accessibilityRole="button"
@@ -371,7 +371,7 @@ export function TodayHabitsHeader({
               >
                 <MoreVertical size={18} color={tokens.fg2} strokeWidth={1.8} />
               </Pressable>
-            </View>
+            </MenuAnchorHost>
               </>
             ) : null}
           </View>
