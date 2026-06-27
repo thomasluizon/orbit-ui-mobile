@@ -146,4 +146,18 @@ describe('CalendarGrid', () => {
     const disabledCells = document.querySelectorAll('[aria-disabled="true"]')
     expect(disabledCells.length).toBeGreaterThan(0)
   })
+
+  it('marks in-range days when range endpoints are provided', () => {
+    const { container } = render(
+      <CalendarGrid
+        currentMonth={currentMonth}
+        dayMap={emptyMap}
+        onSelectDay={vi.fn()}
+        rangeStart="2025-06-16"
+        rangeEnd="2025-06-18"
+      />,
+    )
+    const inRange = container.querySelectorAll('[data-in-range="true"]')
+    expect(inRange.length).toBe(3)
+  })
 })

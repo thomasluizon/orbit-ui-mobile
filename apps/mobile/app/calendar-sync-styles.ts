@@ -115,6 +115,14 @@ export function createStyles() {
       fontFamily: 'Rubik_500Medium',
       fontSize: 13,
     },
+    quietActionIcon: {
+      width: 36,
+      height: 36,
+      borderRadius: 999,
+      borderWidth: 1,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
     actionPad: {
       paddingHorizontal: 20,
       paddingVertical: 18,
