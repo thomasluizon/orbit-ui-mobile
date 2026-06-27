@@ -40,7 +40,7 @@ import {
 } from "@/hooks/use-habits";
 import { useTags } from "@/hooks/use-tags";
 import { useTotalHabitCount } from "@/hooks/use-habit-queries";
-import { useCoachMark } from "@/hooks/use-coach-mark";
+import { useCoachTour } from "@/hooks/use-coach-tour";
 import { useUIStore } from "@/stores/ui-store";
 import { useReferralPromptStore } from "@/stores/referral-prompt-store";
 import { HabitList, type HabitListHandle } from "@/components/habit-list";
@@ -133,7 +133,7 @@ export default function TodayScreen() {
   const reviewReminder = useReviewReminder(profile);
   const { tags } = useTags();
   const totalHabitCount = useTotalHabitCount();
-  useCoachMark("coach-today");
+  useCoachTour();
   const deleteHabit = useDeleteHabit();
 
   const activeView = useUIStore((s) => s.activeView);

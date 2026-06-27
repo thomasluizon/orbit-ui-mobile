@@ -5,8 +5,8 @@ import type { Profile } from '@orbit/shared/types'
 const TestRenderer = require('react-test-renderer')
 
 let mockProfile: Profile | undefined
-const startSectionReplay = vi.fn()
-const storeState = { isActive: false, startSectionReplay }
+const startCoachTour = vi.fn()
+const storeState = { isActive: false, startCoachTour }
 const asyncStore: Record<string, string> = {}
 
 vi.mock('expo-router', () => ({
@@ -32,17 +32,17 @@ vi.mock('@/stores/tour-store', () => ({
   useTourStore: { getState: () => storeState },
 }))
 
-import { useCoachMark } from '@/hooks/use-coach-mark'
+import { useCoachTour } from '@/hooks/use-coach-tour'
 
 function HookHost() {
-  useCoachMark('coach-today')
+  useCoachTour()
   return null
 }
 
-describe('useCoachMark (mobile)', () => {
+describe('useCoachTour (mobile)', () => {
   beforeEach(() => {
     vi.useFakeTimers()
-    startSectionReplay.mockClear()
+    startCoachTour.mockClear()
     storeState.isActive = false
     for (const key of Object.keys(asyncStore)) delete asyncStore[key]
     mockProfile = createMockProfile({
@@ -55,33 +55,33 @@ describe('useCoachMark (mobile)', () => {
     vi.useRealTimers()
   })
 
-  it('triggers a section replay once for an unseen surface and records it as seen', async () => {
+  it('starts the coach tour once and records it as seen', async () => {
     TestRenderer.act(() => {
       TestRenderer.create(<HookHost />)
     })
     await vi.advanceTimersByTimeAsync(700)
 
-    expect(startSectionReplay).toHaveBeenCalledWith('coach-today')
-    expect(asyncStore['orbit_tour_sections']).toContain('coach-today')
+    expect(startCoachTour).toHaveBeenCalledTimes(1)
+    expect(asyncStore['orbit_coach_tour_seen']).toBe('true')
   })
 
-  it('does not trigger again once the surface has been seen', async () => {
-    asyncStore['orbit_tour_sections'] = JSON.stringify({ 'coach-today': true })
+  it('does not start again once it has been seen', async () => {
+    asyncStore['orbit_coach_tour_seen'] = 'true'
     TestRenderer.act(() => {
       TestRenderer.create(<HookHost />)
     })
     await vi.advanceTimersByTimeAsync(700)
 
-    expect(startSectionReplay).not.toHaveBeenCalled()
+    expect(startCoachTour).not.toHaveBeenCalled()
   })
 
-  it('does not trigger before onboarding is complete', async () => {
+  it('does not start before onboarding is complete', async () => {
     mockProfile = createMockProfile({ hasCompletedOnboarding: false })
     TestRenderer.act(() => {
       TestRenderer.create(<HookHost />)
     })
     await vi.advanceTimersByTimeAsync(700)
 
-    expect(startSectionReplay).not.toHaveBeenCalled()
+    expect(startCoachTour).not.toHaveBeenCalled()
   })
 })

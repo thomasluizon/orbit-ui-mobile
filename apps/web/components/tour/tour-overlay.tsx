@@ -39,9 +39,9 @@ export function TourOverlay() {
   const isLastStep = currentStepIndex === totalSteps - 1
 
   const handleEnd = useCallback(() => {
-    const { replaySection } = useTourStore.getState()
+    const { replaySection, isCoachTour } = useTourStore.getState()
     endTour()
-    if (replaySection && COACH_MARK_SECTIONS.includes(replaySection)) {
+    if (isCoachTour || (replaySection && COACH_MARK_SECTIONS.includes(replaySection))) {
       return
     }
     completeTour().catch(() => {})
@@ -65,11 +65,12 @@ export function TourOverlay() {
   }, [endTour, queryClient])
 
   const handleNext = useCallback(() => {
-    const result = nextStep()
-    if (!result) {
+    if (isLastStep) {
       handleEnd()
+      return
     }
-  }, [nextStep, handleEnd])
+    nextStep()
+  }, [isLastStep, nextStep, handleEnd])
 
   const handleSkip = useCallback(() => {
     handleEnd()

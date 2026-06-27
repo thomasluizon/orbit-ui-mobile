@@ -37,7 +37,6 @@ import {
 import type { CalendarDayEntry } from "@orbit/shared/types/calendar";
 import { useCalendarData } from "@/hooks/use-habits";
 import { useProfile } from "@/hooks/use-profile";
-import { useCoachMark } from "@/hooks/use-coach-mark";
 import { useTimeFormat } from "@/hooks/use-time-format";
 import { useHorizontalSwipe } from "@/hooks/use-horizontal-swipe";
 import { createTokensV2 } from "@/lib/theme";
@@ -76,7 +75,6 @@ export default function CalendarScreen() {
   const router = useRouter();
   const { profile } = useProfile();
   const { displayTime } = useTimeFormat();
-  useCoachMark("coach-calendar");
   const { currentScheme, currentTheme } = useAppTheme();
   const tokens = useMemo(
     () => createTokensV2(currentScheme, currentTheme),

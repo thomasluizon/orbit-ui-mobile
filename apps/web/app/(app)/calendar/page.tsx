@@ -28,7 +28,6 @@ import { clampRangeToMaxDays, MAX_RANGE_DAYS } from '@/lib/calendar-range'
 import { useCalendarData, useCalendarRange } from '@/hooks/use-calendar-data'
 import { useTimeFormat } from '@/hooks/use-time-format'
 import { useProfile } from '@/hooks/use-profile'
-import { useCoachMark } from '@/hooks/use-coach-mark'
 import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
 import { CalendarGrid } from '@/components/calendar/calendar-grid'
 import { CalendarDayDetail } from '@/components/calendar/calendar-day-detail'
@@ -57,7 +56,6 @@ export default function CalendarPage() {
   const { displayTime } = useTimeFormat()
   const { profile } = useProfile()
   const weekStartsOn: 0 | 1 = profile?.weekStartDay ?? 1
-  useCoachMark('coach-calendar')
 
   const [view, setView] = useState<CalendarView>('month')
   const [currentMonth, setCurrentMonth] = useState(() => startOfMonth(new Date()))

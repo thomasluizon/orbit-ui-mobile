@@ -176,4 +176,15 @@ describe('tour-store (web)', () => {
     expect(useTourStore.getState().isActive).toBe(false)
     expect(useTourStore.getState().replaySection).toBeNull()
   })
+
+  it('starts the coach tour as a sequenced multi-step tour', () => {
+    useTourStore.getState().startCoachTour()
+    const state = useTourStore.getState()
+
+    expect(state.isActive).toBe(true)
+    expect(state.isCoachTour).toBe(true)
+    expect(state.replaySection).toBeNull()
+    expect(state.getTotalSteps()).toBe(3)
+    expect(state.getSectionProgress()).toMatchObject({ current: 1, total: 3 })
+  })
 })

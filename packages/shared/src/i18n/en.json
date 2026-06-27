@@ -2272,7 +2272,10 @@
       "goals": "Goals",
       "chat": "AI Chat",
       "calendar": "Calendar",
-      "profile": "Profile"
+      "profile": "Profile",
+      "coach-today": "Today",
+      "coach-astra": "Astra",
+      "coach-calendar": "Calendar"
     },
     "replay": {
       "title": "Feature Tour",

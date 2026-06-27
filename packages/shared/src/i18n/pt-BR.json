@@ -2272,7 +2272,10 @@
       "goals": "Metas",
       "chat": "Chat IA",
       "calendar": "Calendário",
-      "profile": "Perfil"
+      "profile": "Perfil",
+      "coach-today": "Hoje",
+      "coach-astra": "Astra",
+      "coach-calendar": "Calendário"
     },
     "replay": {
       "title": "Tour de recursos",

@@ -155,8 +155,8 @@ vi.mock("@/hooks/use-habit-queries", () => ({
   useTotalHabitCount: () => 10,
 }));
 
-vi.mock("@/hooks/use-coach-mark", () => ({
-  useCoachMark: () => {},
+vi.mock("@/hooks/use-coach-tour", () => ({
+  useCoachTour: () => {},
 }));
 
 vi.mock("@/components/today/setup-checklist-card", () => ({

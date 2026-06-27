@@ -24,6 +24,8 @@ export interface TourStoreState {
   currentStepIndex: number
   /** non-null when replaying a single section from profile */
   replaySection: TourSection | null
+  /** true while the first-run coach-mark tour runs (the coach sections sequenced as one tour) */
+  isCoachTour: boolean
   /** sections hidden by entitlement gating */
   hiddenSections: TourSection[]
   /** true while waiting for route change + element to appear */
@@ -37,6 +39,7 @@ export interface TourStoreState {
   getSectionProgress: () => { current: number; total: number; section: TourSection | null }
 
   startFullTour: () => void
+  startCoachTour: () => void
   startSectionReplay: (section: TourSection) => void
   nextStep: () => TourStep | null
   prevStep: () => void
@@ -47,21 +50,34 @@ export interface TourStoreState {
   setHiddenSections: (sections: TourSection[]) => void
 }
 
+function selectActiveSteps(
+  replaySection: TourSection | null,
+  isCoachTour: boolean,
+  hiddenSections: TourSection[],
+): TourStep[] {
+  const visibleSteps = TOUR_STEPS.filter((step) => !hiddenSections.includes(step.section))
+  if (replaySection) {
+    return visibleSteps.filter((step) => step.section === replaySection)
+  }
+  if (isCoachTour) {
+    return visibleSteps.filter((step) => COACH_MARK_SECTIONS.includes(step.section))
+  }
+  return visibleSteps.filter((step) => !COACH_MARK_SECTIONS.includes(step.section))
+}
+
 export function createTourStoreState(set: TourStoreSet, get: TourStoreGet): TourStoreState {
   return {
     isActive: false,
     currentStepIndex: 0,
     replaySection: null,
+    isCoachTour: false,
     hiddenSections: [],
     isNavigating: false,
     targetRect: null,
 
     getActiveSteps: () => {
-      const { replaySection, hiddenSections } = get()
-      const visibleSteps = TOUR_STEPS.filter((step) => !hiddenSections.includes(step.section))
-      return replaySection
-        ? visibleSteps.filter((step) => step.section === replaySection)
-        : visibleSteps.filter((step) => !COACH_MARK_SECTIONS.includes(step.section))
+      const { replaySection, isCoachTour, hiddenSections } = get()
+      return selectActiveSteps(replaySection, isCoachTour, hiddenSections)
     },
 
     getCurrentStep: () => {
@@ -76,8 +92,16 @@ export function createTourStoreState(set: TourStoreSet, get: TourStoreGet): Tour
     },
 
     getSectionProgress: () => {
+      const { isCoachTour, currentStepIndex } = get()
       const step = get().getCurrentStep()
       if (!step) return { current: 0, total: 0, section: null }
+      if (isCoachTour) {
+        return {
+          current: currentStepIndex + 1,
+          total: get().getActiveSteps().length,
+          section: step.section,
+        }
+      }
       const sectionSteps = getTourStepsBySection(step.section)
       const indexInSection = sectionSteps.findIndex((s) => s.id === step.id)
       return {
@@ -92,6 +116,17 @@ export function createTourStoreState(set: TourStoreSet, get: TourStoreGet): Tour
         isActive: true,
         currentStepIndex: 0,
         replaySection: null,
+        isCoachTour: false,
+        isNavigating: false,
+        targetRect: null,
+      }),
+
+    startCoachTour: () =>
+      set({
+        isActive: true,
+        currentStepIndex: 0,
+        replaySection: null,
+        isCoachTour: true,
         isNavigating: false,
         targetRect: null,
       }),
@@ -101,6 +136,7 @@ export function createTourStoreState(set: TourStoreSet, get: TourStoreGet): Tour
         isActive: !state.hiddenSections.includes(section),
         currentStepIndex: 0,
         replaySection: state.hiddenSections.includes(section) ? null : section,
+        isCoachTour: false,
         isNavigating: false,
         targetRect: null,
       })),
@@ -147,6 +183,7 @@ export function createTourStoreState(set: TourStoreSet, get: TourStoreGet): Tour
         isActive: false,
         currentStepIndex: 0,
         replaySection: null,
+        isCoachTour: false,
         isNavigating: false,
         targetRect: null,
       }),
@@ -155,10 +192,7 @@ export function createTourStoreState(set: TourStoreSet, get: TourStoreGet): Tour
     setNavigating: (v) => set({ isNavigating: v }),
     setHiddenSections: (sections) =>
       set((state) => {
-        const nextSteps = (state.replaySection
-          ? TOUR_STEPS.filter((step) => step.section === state.replaySection)
-          : TOUR_STEPS.filter((step) => !COACH_MARK_SECTIONS.includes(step.section))
-        ).filter((step) => !sections.includes(step.section))
+        const nextSteps = selectActiveSteps(state.replaySection, state.isCoachTour, sections)
 
         return {
           hiddenSections: sections,

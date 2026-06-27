@@ -19,6 +19,7 @@ import { profileKeys } from '@orbit/shared/query'
 import { CHAT_DRAFT_STORAGE_KEY } from '@orbit/shared/hooks'
 import type { Profile } from '@orbit/shared/types/profile'
 import { useHasProAccess } from '@/hooks/use-profile'
+import { useUIStore } from '@/stores/ui-store'
 import { completeOnboarding } from '@/app/actions/profile'
 import { GradientTop } from '@/components/ui/gradient-top'
 import { PillButton } from '@/components/ui/pill-button'
@@ -38,6 +39,8 @@ export function OnboardingFlow() {
   const router = useRouter()
   const queryClient = useQueryClient()
   const hasProAccess = useHasProAccess()
+  const onboardingHandedOff = useUIStore((s) => s.onboardingHandedOff)
+  const setOnboardingHandedOff = useUIStore((s) => s.setOnboardingHandedOff)
 
   const [sharedStep, setSharedStep] = useState(0)
   const [astraStepShown, setAstraStepShown] = useState(false)
@@ -133,20 +136,14 @@ export function OnboardingFlow() {
     router.push('/')
   }
 
-  async function handleImport() {
+  function handleImport() {
     if (typeof globalThis !== 'undefined' && typeof globalThis.localStorage !== 'undefined') {
       globalThis.localStorage.setItem(
         CHAT_DRAFT_STORAGE_KEY,
         t('onboarding.flow.meetAstra.importPrompt'),
       )
     }
-    try {
-      await completeOnboarding()
-    } catch {
-    }
-    queryClient.setQueryData<Profile>(profileKeys.detail(), (old) =>
-      old ? { ...old, hasCompletedOnboarding: true } : old,
-    )
+    setOnboardingHandedOff(true)
     router.push('/chat')
   }
 
@@ -239,7 +236,7 @@ export function OnboardingFlow() {
     return () => el.removeEventListener('keydown', handleKeyDown)
   }, [mounted, sharedStep, viewingAstra])
 
-  if (!mounted) return null
+  if (!mounted || onboardingHandedOff) return null
 
   const progressLabel = `Orbit · ${String(displayStep).padStart(2, '0')} / ${String(displayTotal).padStart(2, '0')}`
 
@@ -321,7 +318,7 @@ export function OnboardingFlow() {
             </progress>
             <div className="flex w-full flex-col items-center" style={{ gap: 4 }}>
               {canAdvance && (
-                <PillButton fullWidth onClick={goNext}>
+                <PillButton onClick={goNext}>
                   {isStarter ? t('onboarding.flow.begin') : t('onboarding.flow.next')}
                 </PillButton>
               )}
