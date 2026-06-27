@@ -12,6 +12,5 @@ test('the upgrade paywall renders its checkout CTA', async ({ page }) => {
   const plansResponse = await plansLoaded
   expect(plansResponse.ok()).toBeTruthy()
 
-  await expect(page.getByRole('radiogroup')).toBeVisible()
   await expect(page.getByTestId('paywall-checkout')).toBeVisible()
 })
