@@ -657,4 +657,39 @@ describe('HabitFormFields (mobile)', () => {
     )
     expect(emptyState.length).toBe(1)
   })
+
+  it('sets isBadHabit from the habit type segmented toggle', async () => {
+    const formHelpers = createMockFormHelpers()
+    const tags = createMockTags()
+    let tree: any
+
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(
+        <HabitFormFields
+          formHelpers={formHelpers}
+          tags={tags}
+          selectedGoalIds={[]}
+          atGoalLimit={false}
+          onToggleGoal={vi.fn()}
+          reminderTimes={[]}
+          onReminderTimesChange={vi.fn()}
+          defaultExpanded
+        />,
+      )
+    })
+
+    const avoidSegment = tree.root
+      .findAllByProps({ accessibilityLabel: 'habits.form.habitTypeAvoid' })
+      .find((node: any) => typeof node.props.onPress === 'function')
+
+    expect(avoidSegment).toBeTruthy()
+
+    await TestRenderer.act(async () => {
+      avoidSegment!.props.onPress()
+    })
+
+    expect(formHelpers.form.setValue).toHaveBeenCalledWith('isBadHabit', true, {
+      shouldDirty: true,
+    })
+  })
 })

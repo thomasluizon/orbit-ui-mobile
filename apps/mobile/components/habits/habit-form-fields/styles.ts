@@ -233,7 +233,7 @@ export function createSectionStyles(tokens: AppTokens) {
 export function createStyles(tokens: AppTokens) {
   return StyleSheet.create({
     container: {
-      gap: 32,
+      gap: 28,
     },
     fieldGroup: {
       gap: 8,
@@ -722,29 +722,34 @@ export function createStyles(tokens: AppTokens) {
     advancedSection: {
       gap: 24,
     },
-    checkboxRow: {
+    segmentGroup: {
+      flexDirection: "row",
+      gap: 4,
+      padding: 4,
+      borderRadius: 14,
+      backgroundColor: tokens.bgField,
+      borderWidth: 1,
+      borderColor: tokens.hairline,
+    },
+    segment: {
+      flex: 1,
       flexDirection: "row",
       alignItems: "center",
-      gap: 12,
-      paddingVertical: 4,
-    },
-    customCheckbox: {
-      width: 26,
-      height: 26,
-      borderRadius: 8,
-      borderWidth: 2,
-      borderColor: tokens.fg3,
-      alignItems: "center",
       justifyContent: "center",
+      gap: 7,
+      height: 42,
+      borderRadius: 10,
     },
-    customCheckboxChecked: {
-      backgroundColor: tokens.primary,
-      borderColor: tokens.primary,
+    segmentActive: {
+      backgroundColor: tintFromPrimary(tokens, 0.14),
     },
-    checkboxLabel: {
-      fontFamily: "Rubik_400Regular",
+    segmentText: {
+      fontFamily: "Rubik_500Medium",
       fontSize: 14,
-      color: tokens.fg1,
+      color: tokens.fg3,
+    },
+    segmentTextActive: {
+      color: tokens.primary,
     },
   });
 }
