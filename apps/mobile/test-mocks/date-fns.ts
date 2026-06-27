@@ -111,6 +111,85 @@ export function addDays(dateInput: Date | number | string, amount: number): Date
   return new Date(date.getTime() + amount * 86400000)
 }
 
+export function addWeeks(dateInput: Date | number | string, amount: number): Date {
+  return addDays(dateInput, amount * 7)
+}
+
+export function subWeeks(dateInput: Date | number | string, amount: number): Date {
+  return addDays(dateInput, -amount * 7)
+}
+
+export function getDate(dateInput: Date | number | string): number {
+  return toDate(dateInput).getDate()
+}
+
+export function getDay(dateInput: Date | number | string): number {
+  return toDate(dateInput).getDay()
+}
+
+export function getHours(dateInput: Date | number | string): number {
+  return toDate(dateInput).getHours()
+}
+
+export function getMinutes(dateInput: Date | number | string): number {
+  return toDate(dateInput).getMinutes()
+}
+
+export function setYear(dateInput: Date | number | string, year: number): Date {
+  const date = toDate(dateInput)
+  const result = new Date(date)
+  result.setFullYear(year)
+  return result
+}
+
+export function isSameMonth(
+  left: Date | number | string,
+  right: Date | number | string,
+): boolean {
+  const leftDate = toDate(left)
+  const rightDate = toDate(right)
+  return (
+    leftDate.getFullYear() === rightDate.getFullYear() &&
+    leftDate.getMonth() === rightDate.getMonth()
+  )
+}
+
+export function startOfWeek(
+  dateInput: Date | number | string,
+  options?: { weekStartsOn?: number },
+): Date {
+  const date = toDate(dateInput)
+  const weekStartsOn = options?.weekStartsOn ?? 0
+  const day = date.getDay()
+  const diff = (day - weekStartsOn + 7) % 7
+  const result = new Date(date.getFullYear(), date.getMonth(), date.getDate() - diff)
+  return result
+}
+
+export function endOfWeek(
+  dateInput: Date | number | string,
+  options?: { weekStartsOn?: number },
+): Date {
+  const start = startOfWeek(dateInput, options)
+  return new Date(start.getFullYear(), start.getMonth(), start.getDate() + 6)
+}
+
+export function eachDayOfInterval(interval: {
+  start: Date | number | string
+  end: Date | number | string
+}): Date[] {
+  const start = toDate(interval.start)
+  const end = toDate(interval.end)
+  const days: Date[] = []
+  const cursor = new Date(start.getFullYear(), start.getMonth(), start.getDate())
+  const last = new Date(end.getFullYear(), end.getMonth(), end.getDate())
+  while (cursor.getTime() <= last.getTime()) {
+    days.push(new Date(cursor))
+    cursor.setDate(cursor.getDate() + 1)
+  }
+  return days
+}
+
 export function formatDistanceToNow(dateInput: Date | number | string): string {
   return formatDistanceToNowStrict(dateInput)
 }

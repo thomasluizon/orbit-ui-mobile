@@ -23,8 +23,9 @@ import {
   parseAPIDate,
   capitalizeFirstLetter,
   filterRecurringEntries,
+  clampRangeToMaxDays,
+  MAX_RANGE_DAYS,
 } from '@orbit/shared/utils'
-import { clampRangeToMaxDays, MAX_RANGE_DAYS } from '@/lib/calendar-range'
 import { useCalendarData, useCalendarRange } from '@/hooks/use-calendar-data'
 import { useTimeFormat } from '@/hooks/use-time-format'
 import { useProfile } from '@/hooks/use-profile'

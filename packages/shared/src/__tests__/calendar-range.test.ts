@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { clampRangeToMaxDays, MAX_RANGE_DAYS } from '@/lib/calendar-range'
+import { clampRangeToMaxDays, MAX_RANGE_DAYS } from '../utils/calendar-range'
 
 describe('clampRangeToMaxDays', () => {
   it('caps the interval at 14 days', () => {
