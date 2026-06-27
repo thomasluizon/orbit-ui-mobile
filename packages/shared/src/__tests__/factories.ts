@@ -5,6 +5,7 @@ import type { NotificationItem } from '../types/notification'
 import type { Achievement, GamificationProfile } from '../types/gamification'
 import type { AppConfig } from '../types/config'
 import { DEFAULT_CONFIG } from '../types/config'
+import type { FriendSummary, Cheer, FriendFeedItem } from '../types/social'
 
 
 export function createMockHabit(overrides: Partial<NormalizedHabit> = {}): NormalizedHabit {
@@ -114,6 +115,11 @@ export function createMockProfile(overrides: Partial<Profile> = {}): Profile {
     googleCalendarAutoSyncEnabled: false,
     googleCalendarAutoSyncStatus: 'Idle',
     googleCalendarLastSyncedAt: null,
+    canViewGamification: false,
+    hasCreatedFirstHabit: false,
+    hasLoggedFirstHabit: false,
+    hasTriedAstra: false,
+    hasCompletedOnboardingChecklist: false,
     ...overrides,
   }
 }
@@ -172,6 +178,14 @@ export function createMockGamificationProfile(
     currentStreak: 7,
     longestStreak: 14,
     lastActiveDate: '2025-01-15',
+    isPro: true,
+    achievementsLocked: false,
+    nextReward: {
+      nextLevel: 4,
+      nextLevelTitle: 'Navigator',
+      xpToNextLevel: 300,
+      proTeaser: null,
+    },
     ...overrides,
   }
 }
@@ -180,6 +194,47 @@ export function createMockGamificationProfile(
 export function createMockConfig(overrides: Partial<AppConfig> = {}): AppConfig {
   return {
     ...DEFAULT_CONFIG,
+    ...overrides,
+  }
+}
+
+
+export function createMockFriendSummary(overrides: Partial<FriendSummary> = {}): FriendSummary {
+  return {
+    userId: 'user-1',
+    handle: 'ada_lovelace',
+    displayName: 'Ada Lovelace',
+    currentStreak: 7,
+    ...overrides,
+  }
+}
+
+
+export function createMockCheer(overrides: Partial<Cheer> = {}): Cheer {
+  return {
+    id: 'cheer-1',
+    senderId: 'user-2',
+    recipientId: 'user-1',
+    habitId: 'habit-1',
+    note: 'Keep it up!',
+    createdAtUtc: '2026-01-01T00:00:00Z',
+    senderHandle: 'grace_h',
+    senderDisplayName: 'Grace Hopper',
+    ...overrides,
+  }
+}
+
+
+export function createMockFriendFeedItem(overrides: Partial<FriendFeedItem> = {}): FriendFeedItem {
+  return {
+    id: 'feed-1',
+    actorUserId: 'user-2',
+    actorHandle: 'grace_h',
+    actorDisplayName: 'Grace Hopper',
+    type: 'StreakMilestone',
+    value: 30,
+    achievementId: null,
+    createdAtUtc: '2026-01-01T00:00:00Z',
     ...overrides,
   }
 }

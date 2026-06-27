@@ -1,87 +1,148 @@
-import { Check, X as XIcon } from 'lucide-react-native'
-import { Text, View } from 'react-native'
+import { useState } from 'react'
+import { Pressable, Text, View } from 'react-native'
+import {
+  BarChart3,
+  Check,
+  ChevronDown,
+  Flame,
+  MessageSquare,
+  Palette,
+  ShieldCheck,
+} from 'lucide-react-native'
 import { UPGRADE_FEATURE_CATEGORIES } from '@orbit/shared/utils/upgrade'
-import { primaryGlow, tintFromPrimary } from '@/lib/theme'
+import type {
+  UpgradeFeatureMatrixRow,
+  UpgradeIconKey,
+} from '@orbit/shared/utils/upgrade'
+import { Badge } from '@/components/ui/badge'
 import { styles } from './styles'
 import type { Tokens, UpgradeTextFn } from './types'
 
-const UPGRADE_FEATURES = UPGRADE_FEATURE_CATEGORIES.flatMap((category) => category.features)
+const iconByKey: Record<UpgradeIconKey, typeof Flame> = {
+  flame: Flame,
+  messageSquare: MessageSquare,
+  palette: Palette,
+  shieldCheck: ShieldCheck,
+  barChart3: BarChart3,
+}
 
-function PlanColumn({
-  plan,
+function FreeCell({
+  row,
   t,
   tokens,
-}: Readonly<{
-  plan: 'free' | 'pro'
-  t: UpgradeTextFn
-  tokens: Tokens
-}>) {
-  const isPro = plan === 'pro'
-  return (
-    <View
-      style={[
-        styles.planColumn,
-        isPro
-          ? [
-              styles.planColumnPro,
-              primaryGlow(tokens),
-              { borderColor: tokens.primary, backgroundColor: tintFromPrimary(tokens, 0.04) },
-            ]
-          : { borderColor: tokens.hairline, backgroundColor: tokens.bgCard },
-      ]}
-    >
-      <View style={styles.planColumnHeader}>
-        <Text style={[styles.planColumnTitle, { color: isPro ? tokens.primarySoft : tokens.fg1 }]}>
-          {isPro ? t('common.proBadge') : t('upgrade.free')}
-        </Text>
-        {isPro ? (
-          <View style={[styles.planColumnBadge, { backgroundColor: tintFromPrimary(tokens, 0.16) }]}>
-            <Text style={[styles.planColumnBadgeText, { color: tokens.primarySoft }]}>
-              {t('upgrade.recommended')}
-            </Text>
-          </View>
-        ) : null}
+}: Readonly<{ row: UpgradeFeatureMatrixRow; t: UpgradeTextFn; tokens: Tokens }>) {
+  if (row.type === 'text') {
+    return (
+      <Text style={[styles.matrixCellText, { color: tokens.fg2 }]}>
+        {t(`upgrade.features.${row.key}.free`)}
+      </Text>
+    )
+  }
+  if (row.free) {
+    return (
+      <View accessible accessibilityLabel={t('upgrade.matrix.included')}>
+        <Check size={15} strokeWidth={2.4} color={tokens.primary} />
       </View>
-      {UPGRADE_FEATURES.map((feature) => {
-        const included =
-          feature.type === 'text'
-            ? true
-            : isPro
-              ? !!feature.proEnabled
-              : !!feature.freeEnabled
-        const text =
-          feature.type === 'text'
-            ? t(`upgrade.features.${feature.key}.${plan}`)
-            : t(`upgrade.features.${feature.key}.label`)
-        const textColor = included ? (isPro ? tokens.fg1 : tokens.fg2) : tokens.fg4
-        return (
-          <View key={feature.key} style={styles.planFeatureRow}>
-            {included ? (
-              <Check size={15} strokeWidth={2.4} color={isPro ? tokens.primary : tokens.fg3} />
-            ) : (
-              <XIcon size={15} strokeWidth={1.8} color={tokens.fg4} />
-            )}
-            <Text style={[styles.planFeatureText, { color: textColor }]} numberOfLines={1}>
-              {text}
-            </Text>
-          </View>
-        )
-      })}
-    </View>
+    )
+  }
+  return (
+    <Text style={[styles.matrixCellText, { color: tokens.fg4, fontSize: 11 }]}>
+      {t('upgrade.matrix.notIncluded')}
+    </Text>
+  )
+}
+
+function ProCell({
+  row,
+  t,
+  tokens,
+}: Readonly<{ row: UpgradeFeatureMatrixRow; t: UpgradeTextFn; tokens: Tokens }>) {
+  if (row.type === 'text') {
+    return (
+      <Text style={[styles.matrixCellText, { color: tokens.fg1, fontFamily: 'Rubik_500Medium' }]}>
+        {t(`upgrade.features.${row.key}.pro`)}
+      </Text>
+    )
+  }
+  if (row.pro === 'yearly') {
+    return (
+      <View style={styles.matrixYearlyCell} accessible accessibilityLabel={t('upgrade.matrix.yearlyTag')}>
+        <Check size={15} strokeWidth={2.4} color={tokens.primary} />
+        <Badge tone="soft">{t('upgrade.matrix.yearlyTag')}</Badge>
+      </View>
+    )
+  }
+  if (row.pro) {
+    return (
+      <View accessible accessibilityLabel={t('upgrade.matrix.included')}>
+        <Check size={15} strokeWidth={2.4} color={tokens.primary} />
+      </View>
+    )
+  }
+  return (
+    <Text style={[styles.matrixCellText, { color: tokens.fg4, fontSize: 11 }]}>
+      {t('upgrade.matrix.notIncluded')}
+    </Text>
   )
 }
 
 export function PlanComparisonCards({
   t,
   tokens,
-}: Readonly<{
-  t: UpgradeTextFn
-  tokens: Tokens
-}>) {
+}: Readonly<{ t: UpgradeTextFn; tokens: Tokens }>) {
+  const [expanded, setExpanded] = useState(false)
+
   return (
-    <View style={styles.comparisonPad}>
-      <PlanColumn plan="free" t={t} tokens={tokens} />
-      <PlanColumn plan="pro" t={t} tokens={tokens} />
+    <View>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityState={{ expanded }}
+        onPress={() => setExpanded((value) => !value)}
+        style={[styles.accordionToggle, { borderTopColor: tokens.hairline }]}
+      >
+        <Text style={[styles.accordionTitle, { color: tokens.fg1 }]}>
+          {t('upgrade.matrix.title')}
+        </Text>
+        <View style={{ transform: [{ rotate: expanded ? '180deg' : '0deg' }] }}>
+          <ChevronDown size={20} strokeWidth={1.8} color={tokens.fg3} />
+        </View>
+      </Pressable>
+
+      {expanded ? (
+        <View style={styles.matrixPad}>
+          <View style={[styles.matrixHeaderRow, { borderBottomColor: tokens.hairline }]}>
+            <View style={styles.matrixHeadSpacer} />
+            <Text style={[styles.matrixHeadFree, { color: tokens.fg2 }]}>{t('upgrade.free')}</Text>
+            <Text style={[styles.matrixHeadPro, { color: tokens.primarySoft }]}>{t('common.proBadge')}</Text>
+          </View>
+          {UPGRADE_FEATURE_CATEGORIES.map((category) => {
+            const Icon = iconByKey[category.iconKey]
+            return (
+              <View key={category.category}>
+                <View style={styles.matrixCategoryRow}>
+                  <Icon size={14} strokeWidth={1.8} color={tokens.fg3} />
+                  <Text style={[styles.matrixCategoryText, { color: tokens.fg3 }]}>
+                    {t(`upgrade.categories.${category.category}`)}
+                  </Text>
+                </View>
+                {category.features.map((row) => (
+                  <View key={row.key} style={[styles.matrixRow, { borderTopColor: tokens.hairline }]}>
+                    <Text style={[styles.matrixLabel, { color: tokens.fg1 }]}>
+                      {t(`upgrade.features.${row.key}.label`)}
+                    </Text>
+                    <View style={styles.matrixCellFree}>
+                      <FreeCell row={row} t={t} tokens={tokens} />
+                    </View>
+                    <View style={styles.matrixCellPro}>
+                      <ProCell row={row} t={t} tokens={tokens} />
+                    </View>
+                  </View>
+                ))}
+              </View>
+            )
+          })}
+        </View>
+      ) : null}
     </View>
   )
 }

@@ -150,7 +150,7 @@ export function EditHabitModal({
         isDirty={isDirty}
         onAttemptDismiss={dismissGuard.requestDismiss}
       >
-        <form className="stagger-enter space-y-10" onSubmit={handleSubmit}>
+        <form className="stagger-enter space-y-7" onSubmit={handleSubmit}>
         <HabitFormFields
           formHelpers={formHelpers}
           tags={tags}
@@ -163,7 +163,7 @@ export function EditHabitModal({
         />
 
         <div
-          className="flex items-center"
+          className="flex items-center justify-end"
           style={{
             gap: 12,
             paddingTop: 14,
@@ -179,7 +179,7 @@ export function EditHabitModal({
           </PillButton>
           <PillButton
             type="submit"
-            className="flex-1"
+            glow={false}
             disabled={updateHabit.isPending || !formHelpers.form.formState.isValid}
             leading={
               updateHabit.isPending ? (
@@ -189,7 +189,7 @@ export function EditHabitModal({
               )
             }
           >
-            {t('habits.saveChanges')}
+            {t('common.save')}
           </PillButton>
         </div>
         </form>

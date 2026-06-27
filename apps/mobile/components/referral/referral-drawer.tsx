@@ -8,7 +8,7 @@ import {
   Text,
   View,
 } from 'react-native'
-import * as Clipboard from 'expo-clipboard'
+import Clipboard from '@react-native-clipboard/clipboard'
 import { Check, Copy, Gift, Share2 } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import { useReferral } from '@/hooks/use-referral'
@@ -56,9 +56,9 @@ export function ReferralDrawer({ open, onClose }: Readonly<ReferralDrawerProps>)
     }
   }, [referralUrl, discountPercent, t])
 
-  const copyLink = useCallback(async () => {
+  const copyLink = useCallback(() => {
     if (!referralUrl) return
-    await Clipboard.setStringAsync(referralUrl)
+    Clipboard.setString(referralUrl)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
   }, [referralUrl])
@@ -116,7 +116,7 @@ export function ReferralDrawer({ open, onClose }: Readonly<ReferralDrawerProps>)
                     { backgroundColor: pressed ? tokens.bgElev2 : tokens.bgElev },
                     pressed ? styles.copyChipPressed : null,
                   ]}
-                  onPress={() => void copyLink()}
+                  onPress={() => copyLink()}
                   accessibilityRole="button"
                   accessibilityLabel={t('referral.drawer.copy')}
                 >

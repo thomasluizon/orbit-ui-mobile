@@ -1,11 +1,15 @@
 'use client'
 
+import type { ComponentType } from 'react'
 import { useTranslations } from 'next-intl'
-import { Home, MessageCircle, CalendarDays, User, Plus, type LucideIcon } from 'lucide-react'
+import { Home, CalendarDays, User, Plus, type LucideProps } from 'lucide-react'
+import { AstraMark } from '@/components/ui/astra-avatar'
 
 /** Kit 4-tab bar (Home / Astra / Calendar / You) + centered 60px Plus FAB.
  *  FAB hidden on Astra (has its own composer); rendered disabled off Today. */
 export type BottomTab = 'today' | 'chat' | 'calendar' | 'profile'
+
+type LucideIcon = ComponentType<LucideProps>
 
 interface TabDef {
   id: BottomTab
@@ -24,7 +28,7 @@ interface BottomTabBarProps {
 
 const DEFAULT_TABS: TabDef[] = [
   { id: 'today', labelKey: 'home', icon: Home },
-  { id: 'chat', labelKey: 'astra', icon: MessageCircle },
+  { id: 'chat', labelKey: 'astra', icon: AstraMark },
   { id: 'calendar', labelKey: 'calendar', icon: CalendarDays },
   { id: 'profile', labelKey: 'you', icon: User },
 ]

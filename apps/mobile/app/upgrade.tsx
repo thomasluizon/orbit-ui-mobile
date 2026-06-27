@@ -9,7 +9,12 @@ import { useLocalSearchParams } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { API } from '@orbit/shared/api'
-import { getFriendlyErrorMessage, playManageSubscriptionUrl } from '@orbit/shared/utils'
+import {
+  applySubscriptionDiscount,
+  formatPrice,
+  getFriendlyErrorMessage,
+  playManageSubscriptionUrl,
+} from '@orbit/shared/utils'
 import { apiClient } from '@/lib/api-client'
 import { useBilling } from '@/hooks/use-billing'
 import { usePlayBilling } from '@/hooks/use-play-billing'
@@ -18,8 +23,6 @@ import {
   useHasProAccess,
   useProfile,
   useTrialDaysLeft,
-  useTrialExpired,
-  useTrialUrgent,
 } from '@/hooks/use-profile'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -32,6 +35,7 @@ import { GradientTop } from '@/components/ui/gradient-top'
 import { BillingDashboard } from '@/components/upgrade/billing-dashboard'
 import { PlayBillingDashboard } from '@/components/upgrade/play-billing-dashboard'
 import { PricingSection } from '@/components/upgrade/pricing-section'
+import { PricingFooter } from '@/components/upgrade/pricing-footer'
 import type { SubscriptionInterval } from '@/components/upgrade/types'
 
 export default function UpgradeScreen() {
@@ -47,9 +51,7 @@ export default function UpgradeScreen() {
   const locale = i18n.language
   const { profile } = useProfile()
   const hasProAccess = useHasProAccess()
-  const trialExpired = useTrialExpired()
   const trialDaysLeft = useTrialDaysLeft()
-  const trialUrgent = useTrialUrgent()
   const {
     plans,
     isLoading: isLoadingPlans,
@@ -97,6 +99,17 @@ export default function UpgradeScreen() {
   const showsProPanel =
     showBilling && !isPlaySource && !billing && !isBillingLoading && !isBillingError
   const showGradient = !showBilling || showsProPanel
+
+  const selectedCharge = plans
+    ? selectedInterval === 'yearly'
+      ? playBilling.yearlyOffer?.displayPrice ??
+        formatPrice(applySubscriptionDiscount(plans.yearly.unitAmount, plans.couponPercentOff), plans.currency)
+      : playBilling.monthlyOffer?.displayPrice ??
+        formatPrice(applySubscriptionDiscount(plans.monthly.unitAmount, plans.couponPercentOff), plans.currency)
+    : ''
+  const priceEcho = plans
+    ? `${t(`upgrade.plans.${selectedInterval}.name`)} · ${selectedCharge}${t(`upgrade.plans.${selectedInterval}.period`)}`
+    : ''
 
   function handleCheckout(interval: SubscriptionInterval) {
     if (!isOnline) return
@@ -199,19 +212,15 @@ export default function UpgradeScreen() {
             isLoadingPlans={isLoadingPlans}
             isPlansError={isPlansError}
             isOnline={isOnline}
-            trialExpired={trialExpired}
             trialDaysLeft={trialDaysLeft}
-            trialUrgent={trialUrgent}
             selectedInterval={selectedInterval}
             onSelectInterval={setSelectedInterval}
-            checkoutLoading={checkoutLoading}
-            checkoutError={checkoutError}
+            onStayFree={() => goBackOrFallback(fallbackRoute)}
             yearlyOffer={playBilling.yearlyOffer}
             monthlyDisplayPrice={playBilling.monthlyOffer?.displayPrice}
             yearlyDisplayPrice={playBilling.yearlyOffer?.displayPrice}
             isReferralPricing={playBilling.isReferralPricing}
             isRestoring={playBilling.isRestoring}
-            onCheckout={handleCheckout}
             onRestore={() => {
               void playBilling.restorePurchases()
             }}
@@ -225,6 +234,19 @@ export default function UpgradeScreen() {
 
         <View style={styles.bottomSpace} />
       </ScrollView>
+      {!showBilling && plans && isOnline ? (
+        <PricingFooter
+          trialActive={!!profile?.isTrialActive}
+          selectedInterval={selectedInterval}
+          priceEcho={priceEcho}
+          checkoutLoading={checkoutLoading}
+          checkoutError={checkoutError}
+          disabled={!isOnline}
+          onCheckout={handleCheckout}
+          t={t}
+          tokens={tokens}
+        />
+      ) : null}
     </SafeAreaView>
   )
 }

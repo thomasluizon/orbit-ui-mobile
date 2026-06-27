@@ -59,6 +59,9 @@ export function TourReplayModal({ visible, onClose }: TourReplayModalProps) {
     chat: false,
     calendar: false,
     profile: false,
+    'coach-today': false,
+    'coach-astra': false,
+    'coach-calendar': false,
   })
   const availableSections = TOUR_SECTIONS.filter((section) =>
     profile?.hasProAccess ? true : section !== 'goals',

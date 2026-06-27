@@ -52,6 +52,11 @@ export const profileSchema = z.object({
   googleCalendarAutoSyncEnabled: z.boolean(),
   googleCalendarAutoSyncStatus: calendarAutoSyncStatusSchema,
   googleCalendarLastSyncedAt: z.string().nullable(),
+  canViewGamification: z.boolean().optional(),
+  hasCreatedFirstHabit: z.boolean().optional(),
+  hasLoggedFirstHabit: z.boolean().optional(),
+  hasTriedAstra: z.boolean().optional(),
+  hasCompletedOnboardingChecklist: z.boolean().optional(),
 })
 
 export type Profile = z.infer<typeof profileSchema>

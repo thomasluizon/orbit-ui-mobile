@@ -34,6 +34,23 @@ vi.mock('@/components/onboarding/onboarding-welcome', () => ({
 vi.mock('@/components/onboarding/onboarding-meet-astra', () => ({
   OnboardingMeetAstra: () => <div data-testid="step-meet-astra">Meet Astra</div>,
 }))
+vi.mock('@/components/onboarding/onboarding-template-packs', () => ({
+  OnboardingTemplatePacks: ({
+    onCreated,
+    onCreateOwn,
+    onSkip,
+  }: {
+    onCreated: () => void
+    onCreateOwn: () => void
+    onSkip: () => void
+  }) => (
+    <div data-testid="step-template-packs">
+      <button onClick={onCreated}>Pack Created</button>
+      <button onClick={onCreateOwn}>Create Own</button>
+      <button onClick={onSkip}>Skip Packs</button>
+    </div>
+  ),
+}))
 vi.mock('@/components/onboarding/onboarding-create-habit', () => ({
   OnboardingCreateHabit: ({ onCreated }: { onCreated: (id: string, title: string) => void }) => (
     <div data-testid="step-create-habit">
@@ -100,18 +117,31 @@ describe('OnboardingFlow', () => {
     expect(screen.getByTestId('step-meet-astra')).toBeInTheDocument()
   })
 
-  it('advances through all steps via interactions', () => {
+  it('advances through the create-my-own branch via interactions', () => {
     render(<OnboardingFlow />)
     fireEvent.click(screen.getByText('onboarding.flow.begin'))
     expect(screen.getByTestId('step-meet-astra')).toBeInTheDocument()
 
     fireEvent.click(screen.getByText('onboarding.flow.next'))
+    expect(screen.getByTestId('step-template-packs')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByText('Create Own'))
     expect(screen.getByTestId('step-create-habit')).toBeInTheDocument()
 
     fireEvent.click(screen.getByText('Create'))
     expect(screen.getByTestId('step-complete-habit')).toBeInTheDocument()
 
     fireEvent.click(screen.getByText('Complete'))
+    expect(screen.getByTestId('step-create-goal')).toBeInTheDocument()
+  })
+
+  it('jumps past the manual habit steps after a pack is created', () => {
+    render(<OnboardingFlow />)
+    fireEvent.click(screen.getByText('onboarding.flow.begin'))
+    fireEvent.click(screen.getByText('onboarding.flow.next'))
+    expect(screen.getByTestId('step-template-packs')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByText('Pack Created'))
     expect(screen.getByTestId('step-create-goal')).toBeInTheDocument()
   })
 

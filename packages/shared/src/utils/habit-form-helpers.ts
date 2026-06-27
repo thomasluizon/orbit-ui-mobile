@@ -1,4 +1,4 @@
-import type { FrequencyUnit, HabitSetupSuggestion } from '../types/habit'
+import type { ChecklistItem, FrequencyUnit, HabitSetupSuggestion } from '../types/habit'
 import type { HabitFormData } from '../validation'
 import {
   validateGoalSelection,
@@ -117,23 +117,45 @@ export function buildHabitFrequencyUnits(
 }
 
 export interface HabitFormSuggestionPatch {
-  mode: 'oneTime' | 'recurring'
+  mode: 'oneTime' | 'recurring' | 'flexible'
   emoji: string | null
   frequencyUnit: FrequencyUnit | null
   frequencyQuantity: number | null
   days: string[]
+  dueTime: string | null
   subHabitTitles: string[]
+  checklistItems: ChecklistItem[]
 }
 
 /**
- * Translates an AI habit-setup suggestion into a platform-agnostic patch for the create-habit form:
- * decides recurring vs one-time from the suggested frequency, keeps suggested weekdays only for a
- * daily (Day, quantity 1) schedule, and surfaces the sub-habit titles. The per-app caller applies
- * this to its form state (the react-hook-form glue is the platform seam).
+ * Translates an AI habit-setup suggestion into a platform-agnostic patch for the create-habit form.
+ * Decides flexible vs recurring vs one-time from the suggestion; for a flexible cadence the form
+ * quantity is the per-period target (`flexibleTarget`), since the suggestion's own quantity is the
+ * interval. Keeps suggested weekdays only for a daily (Day, quantity 1) schedule, carries the due
+ * time, surfaces the sub-habit titles, and maps the checklist strings to unchecked checklist items
+ * (distinct from sub-habits). The per-app caller applies this to its form state.
  */
 export function buildHabitFormPatchFromSuggestion(
   suggestion: HabitSetupSuggestion,
 ): HabitFormSuggestionPatch {
+  const checklistItems: ChecklistItem[] = suggestion.checklistItems.map((text) => ({
+    text,
+    isChecked: false,
+  }))
+
+  if (suggestion.isFlexible) {
+    return {
+      mode: 'flexible',
+      emoji: suggestion.emoji,
+      frequencyUnit: suggestion.frequencyUnit,
+      frequencyQuantity: suggestion.flexibleTarget ?? 1,
+      days: [],
+      dueTime: suggestion.dueTime,
+      subHabitTitles: suggestion.subHabits,
+      checklistItems,
+    }
+  }
+
   const isRecurring = suggestion.frequencyUnit !== null
   const frequencyQuantity = isRecurring ? (suggestion.frequencyQuantity ?? 1) : null
   const keepsDays =
@@ -145,7 +167,9 @@ export function buildHabitFormPatchFromSuggestion(
     frequencyUnit: suggestion.frequencyUnit,
     frequencyQuantity,
     days: keepsDays ? suggestion.days : [],
+    dueTime: suggestion.dueTime,
     subHabitTitles: suggestion.subHabits,
+    checklistItems,
   }
 }
 

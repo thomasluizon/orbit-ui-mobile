@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo } from 'react'
 import { ActivityIndicator, Pressable, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import * as Clipboard from 'expo-clipboard'
+import Clipboard from '@react-native-clipboard/clipboard'
 import { useTranslation } from 'react-i18next'
 import type {
   ApiKeyCreateRequest,
@@ -377,9 +377,9 @@ export function CreateApiKeyModal({
     validate,
   ])
 
-  async function copyKey() {
+  function copyKey() {
     if (!createdKey) return
-    await Clipboard.setStringAsync(createdKey.key)
+    Clipboard.setString(createdKey.key)
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
   }
@@ -408,7 +408,7 @@ export function CreateApiKeyModal({
             createdKey={createdKey}
             copied={copied}
             onCopy={() => {
-              void copyKey()
+              copyKey()
             }}
             onClose={() => onOpenChange(false)}
           />

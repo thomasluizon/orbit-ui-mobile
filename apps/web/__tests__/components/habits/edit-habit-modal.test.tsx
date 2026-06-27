@@ -210,7 +210,7 @@ describe('EditHabitModal', () => {
       <EditHabitModal open={true} onOpenChange={vi.fn()} habit={defaultHabit} />,
     )
     expect(screen.getByText('common.cancel')).toBeDefined()
-    expect(screen.getByText('habits.saveChanges')).toBeDefined()
+    expect(screen.getByText('common.save')).toBeDefined()
   })
 
   it('renders the form fields component', () => {

@@ -11,7 +11,11 @@ function makeSuggestion(overrides: Partial<HabitSetupSuggestion> = {}): HabitSet
     frequencyUnit: null,
     frequencyQuantity: null,
     days: [],
+    isFlexible: false,
+    flexibleTarget: null,
+    dueTime: null,
     subHabits: [],
+    checklistItems: [],
     ...overrides,
   }
 }
@@ -74,6 +78,52 @@ describe('buildHabitFormPatchFromSuggestion', () => {
     expect(patch.days).toEqual([])
     expect(patch.subHabitTitles).toEqual(['Step 1'])
   })
+
+  it('maps a flexible suggestion using the per-period target as the form quantity', () => {
+    const patch = buildHabitFormPatchFromSuggestion(
+      makeSuggestion({
+        frequencyUnit: 'Week',
+        frequencyQuantity: 1,
+        isFlexible: true,
+        flexibleTarget: 4,
+        days: ['Monday'],
+      }),
+    )
+
+    expect(patch.mode).toBe('flexible')
+    expect(patch.frequencyUnit).toBe('Week')
+    expect(patch.frequencyQuantity).toBe(4)
+    expect(patch.days).toEqual([])
+  })
+
+  it('defaults a flexible suggestion without a target to once per period', () => {
+    const patch = buildHabitFormPatchFromSuggestion(
+      makeSuggestion({ frequencyUnit: 'Week', isFlexible: true, flexibleTarget: null }),
+    )
+
+    expect(patch.mode).toBe('flexible')
+    expect(patch.frequencyQuantity).toBe(1)
+  })
+
+  it('carries the suggested due time through to the patch', () => {
+    const patch = buildHabitFormPatchFromSuggestion(
+      makeSuggestion({ frequencyUnit: 'Day', frequencyQuantity: 1, dueTime: '07:30' }),
+    )
+
+    expect(patch.dueTime).toBe('07:30')
+  })
+
+  it('maps checklist strings to unchecked items, kept distinct from sub-habits', () => {
+    const patch = buildHabitFormPatchFromSuggestion(
+      makeSuggestion({ checklistItems: ['Towel', 'Goggles'], subHabits: [] }),
+    )
+
+    expect(patch.checklistItems).toEqual([
+      { text: 'Towel', isChecked: false },
+      { text: 'Goggles', isChecked: false },
+    ])
+    expect(patch.subHabitTitles).toEqual([])
+  })
 })
 
 describe('habitSetupSuggestionSchema', () => {
@@ -83,11 +133,17 @@ describe('habitSetupSuggestionSchema', () => {
       frequencyUnit: 'Day',
       frequencyQuantity: 1,
       days: ['Monday'],
+      isFlexible: false,
+      flexibleTarget: null,
+      dueTime: '07:00',
       subHabits: ['Warm up'],
+      checklistItems: ['Towel'],
     })
 
     expect(parsed.frequencyUnit).toBe('Day')
     expect(parsed.subHabits).toEqual(['Warm up'])
+    expect(parsed.dueTime).toBe('07:00')
+    expect(parsed.checklistItems).toEqual(['Towel'])
   })
 
   it('parses null schedule fields for a one-time task', () => {
@@ -96,10 +152,31 @@ describe('habitSetupSuggestionSchema', () => {
       frequencyUnit: null,
       frequencyQuantity: null,
       days: [],
+      isFlexible: false,
+      flexibleTarget: null,
+      dueTime: null,
       subHabits: [],
+      checklistItems: [],
     })
 
     expect(parsed.frequencyUnit).toBeNull()
+  })
+
+  it('parses a flexible suggestion payload', () => {
+    const parsed = habitSetupSuggestionSchema.parse({
+      emoji: '🏊',
+      frequencyUnit: 'Week',
+      frequencyQuantity: 1,
+      days: [],
+      isFlexible: true,
+      flexibleTarget: 3,
+      dueTime: null,
+      subHabits: [],
+      checklistItems: [],
+    })
+
+    expect(parsed.isFlexible).toBe(true)
+    expect(parsed.flexibleTarget).toBe(3)
   })
 
   it('rejects an unknown frequency unit', () => {
@@ -109,7 +186,11 @@ describe('habitSetupSuggestionSchema', () => {
         frequencyUnit: 'Fortnight',
         frequencyQuantity: 1,
         days: [],
+        isFlexible: false,
+        flexibleTarget: null,
+        dueTime: null,
         subHabits: [],
+        checklistItems: [],
       }),
     ).toThrow()
   })

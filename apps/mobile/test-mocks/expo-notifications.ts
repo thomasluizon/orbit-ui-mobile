@@ -1,11 +1,18 @@
 import { vi } from 'vitest'
 
 export const AndroidImportance = {
+  LOW: 4,
   MAX: 5,
 }
 
 export const setNotificationHandler = vi.fn()
-export const setNotificationChannelAsync = vi.fn(async () => {})
+export const setNotificationChannelAsync = vi.fn(
+  async (_channelId: string, _options: Record<string, unknown>) => {},
+)
+export const scheduleNotificationAsync = vi.fn(
+  async (_request: unknown) => 'orbit-persistent-reminder',
+)
+export const dismissNotificationAsync = vi.fn(async (_identifier: string) => {})
 export const getPermissionsAsync = vi.fn(async () => ({
   status: 'undetermined',
   granted: false,
@@ -26,6 +33,10 @@ export function resetExpoNotificationsMocks(): void {
   setNotificationHandler.mockClear()
   setNotificationChannelAsync.mockReset()
   setNotificationChannelAsync.mockResolvedValue(undefined)
+  scheduleNotificationAsync.mockReset()
+  scheduleNotificationAsync.mockResolvedValue('orbit-persistent-reminder')
+  dismissNotificationAsync.mockReset()
+  dismissNotificationAsync.mockResolvedValue(undefined)
   getPermissionsAsync.mockReset()
   getPermissionsAsync.mockResolvedValue({
     status: 'undetermined',
@@ -52,6 +63,8 @@ const expoNotificationsMock = {
   AndroidImportance,
   setNotificationHandler,
   setNotificationChannelAsync,
+  scheduleNotificationAsync,
+  dismissNotificationAsync,
   getPermissionsAsync,
   requestPermissionsAsync,
   getExpoPushTokenAsync,

@@ -65,6 +65,7 @@ export interface PersistedUIState {
   selectedFrequency: HabitFrequencyFilter | null;
   selectedTagIds: string[];
   showCompleted: boolean;
+  setupChecklistDismissed: boolean;
 }
 
 export function migratePersistedUIState(
@@ -88,6 +89,10 @@ export function migratePersistedUIState(
       : [],
     showCompleted:
       typeof state.showCompleted === "boolean" ? state.showCompleted : false,
+    setupChecklistDismissed:
+      typeof state.setupChecklistDismissed === "boolean"
+        ? state.setupChecklistDismissed
+        : false,
   };
 }
 
@@ -149,6 +154,9 @@ export interface UIStoreState {
 
   showCompleted: boolean;
   setShowCompleted: (show: boolean) => void;
+
+  setupChecklistDismissed: boolean;
+  setSetupChecklistDismissed: (dismissed: boolean) => void;
 }
 
 export function getPersistedUIState(state: UIStoreState): PersistedUIState {
@@ -159,6 +167,7 @@ export function getPersistedUIState(state: UIStoreState): PersistedUIState {
     selectedFrequency: state.selectedFrequency,
     selectedTagIds: [...state.selectedTagIds],
     showCompleted: state.showCompleted,
+    setupChecklistDismissed: state.setupChecklistDismissed,
   };
 }
 
@@ -170,6 +179,7 @@ export function createTourUIState(): PersistedUIState {
     selectedFrequency: null,
     selectedTagIds: [],
     showCompleted: true,
+    setupChecklistDismissed: false,
   };
 }
 
@@ -376,5 +386,9 @@ export function createUIStoreState(
 
     showCompleted: false,
     setShowCompleted: (show) => set({ showCompleted: show }),
+
+    setupChecklistDismissed: false,
+    setSetupChecklistDismissed: (dismissed) =>
+      set({ setupChecklistDismissed: dismissed }),
   };
 }

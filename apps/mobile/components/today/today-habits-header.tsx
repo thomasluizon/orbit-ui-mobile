@@ -189,6 +189,7 @@ interface TodayHabitsHeaderProps {
   showCompleted: boolean;
   isFetching: boolean;
   allCollapsed: boolean;
+  showFilters: boolean;
   showControlsMenu: boolean;
   controlsMenuAnchorRect: MenuAnchorRect | null;
   showFreqMenu: boolean;
@@ -239,6 +240,7 @@ export function TodayHabitsHeader({
   showCompleted,
   isFetching,
   allCollapsed,
+  showFilters,
   showControlsMenu,
   controlsMenuAnchorRect,
   showFreqMenu,
@@ -302,6 +304,8 @@ export function TodayHabitsHeader({
                 {dayProgress.done}/{dayProgress.total}
               </Text>
             ) : null}
+            {showFilters ? (
+              <>
             <Pressable
               onPress={onSearchToggle}
               accessibilityRole="button"
@@ -368,6 +372,8 @@ export function TodayHabitsHeader({
                 <MoreVertical size={18} color={tokens.fg2} strokeWidth={1.8} />
               </Pressable>
             </MenuAnchorHost>
+              </>
+            ) : null}
           </View>
         }
       >
@@ -402,20 +408,22 @@ export function TodayHabitsHeader({
           />
         ) : null}
 
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.filtersContent}
-        >
-          {tags.map((tag) => (
-            <TagChip
-              key={tag.id}
-              tag={tag}
-              active={selectedTagIds.includes(tag.id)}
-              onPress={() => onTagToggle(tag.id)}
-            />
-          ))}
-        </ScrollView>
+        {showFilters ? (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.filtersContent}
+          >
+            {tags.map((tag) => (
+              <TagChip
+                key={tag.id}
+                tag={tag}
+                active={selectedTagIds.includes(tag.id)}
+                onPress={() => onTagToggle(tag.id)}
+              />
+            ))}
+          </ScrollView>
+        ) : null}
 
         <AnchoredMenu
           visible={showControlsMenu}

@@ -22,6 +22,7 @@ const mocks = vi.hoisted(() => ({
   state: {
     profile: null as ReturnType<typeof createMockProfile> | null,
     hasProAccess: false,
+    canViewGamification: false,
     isYearlyPro: false,
   },
 }));
@@ -49,6 +50,7 @@ vi.mock("@/hooks/use-profile", () => ({
     isLoading: false,
   }),
   useHasProAccess: () => mocks.state.hasProAccess,
+  useCanViewGamification: () => mocks.state.canViewGamification,
   useIsYearlyPro: () => mocks.state.isYearlyPro,
 }));
 
@@ -179,6 +181,7 @@ describe("mobile upgrade guard redirects", () => {
       isTrialActive: false,
     });
     mocks.state.hasProAccess = false;
+    mocks.state.canViewGamification = false;
     mocks.state.isYearlyPro = false;
   });
 

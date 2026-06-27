@@ -7,8 +7,6 @@ import { Compass, FileText, Mail, Shield } from 'lucide-react'
 import { AppBar } from '@/components/ui/app-bar'
 import { AppLogo } from '@/components/ui/app-logo'
 import { SettingsRow } from '@/components/ui/settings-row'
-import { ReferralCard } from '@/components/referral/referral-card'
-import { ReferralDrawer } from '@/components/referral/referral-drawer'
 import { FeatureGuideDrawer } from '@/components/onboarding/feature-guide-drawer'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import packageJson from '@/package.json'
@@ -18,7 +16,6 @@ export default function AboutPage() {
   const router = useRouter()
   const goBackOrFallback = useGoBackOrFallback()
   const [showGuide, setShowGuide] = useState(false)
-  const [showReferral, setShowReferral] = useState(false)
 
   return (
     <div className="flex flex-col min-h-[100dvh]">
@@ -61,7 +58,6 @@ export default function AboutPage() {
           onClick={() => setShowGuide(true)}
           ariaLabel={t('onboarding.featureGuide.openButton')}
         />
-        <ReferralCard onOpen={() => setShowReferral(true)} />
         <SettingsRow
           icon={Mail}
           label={t('profile.support.title')}
@@ -81,7 +77,6 @@ export default function AboutPage() {
           ariaLabel={t('privacy.title')}
         />
       </div>
-      <ReferralDrawer open={showReferral} onOpenChange={setShowReferral} />
       <FeatureGuideDrawer open={showGuide} onOpenChange={setShowGuide} />
     </div>
   )

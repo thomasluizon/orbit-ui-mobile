@@ -1,4 +1,9 @@
+import { z } from 'zod'
 import { API } from '../api'
+import {
+  retrospectiveHabitStatSchema,
+  retrospectiveMetricsSchema,
+} from '../types/gamification'
 
 export const RETROSPECTIVE_PERIODS = [
   'week',
@@ -10,28 +15,9 @@ export const RETROSPECTIVE_PERIODS = [
 
 export type RetrospectivePeriod = 'week' | 'month' | 'quarter' | 'semester' | 'year'
 
-export interface RetrospectiveHabitStat {
-  name: string
-  emoji: string | null
-  completionRate: number
-  completedCount: number
-  scheduledCount: number
-  isOneTime?: boolean
-}
+export type RetrospectiveHabitStat = z.infer<typeof retrospectiveHabitStatSchema>
 
-export interface RetrospectiveMetrics {
-  completionRate: number
-  totalCompletions: number
-  totalScheduled: number
-  activeDays: number
-  periodDays: number
-  currentStreak: number
-  bestStreak: number
-  badHabitSlips: number
-  weeklyConsistency: number[]
-  topHabits: RetrospectiveHabitStat[]
-  needsAttention: RetrospectiveHabitStat[]
-}
+export type RetrospectiveMetrics = z.infer<typeof retrospectiveMetricsSchema>
 
 export interface RetrospectiveNarrative {
   highlights: string
