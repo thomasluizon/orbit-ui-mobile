@@ -17,6 +17,8 @@ import { useRouter } from "expo-router";
 import {
   addMonths,
   subMonths,
+  addYears,
+  subYears,
   startOfMonth,
   endOfMonth,
   startOfWeek,
@@ -40,13 +42,13 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { BottomSheetModal } from "@/components/bottom-sheet-modal";
 import { GradientTop } from "@/components/ui/gradient-top";
 import { SectionLabel } from "@/components/ui/section-label";
-import { SettingsRow } from "@/components/ui/settings-row";
 import {
   CalendarHeader,
   CalendarLegend,
 } from "./calendar/_components/calendar-shell";
 import { CalendarGrid } from "./calendar/_components/calendar-grid";
 import { CalendarDayDetail } from "./calendar/_components/calendar-day-detail";
+import { CalendarStats } from "./calendar/_components/calendar-stats";
 
 interface GridDay {
   date: Date;
@@ -118,6 +120,16 @@ export default function CalendarScreen() {
   const nextMonth = useCallback(() => {
     setMonthSlide("right");
     setCurrentMonth((m) => addMonths(m, 1));
+  }, []);
+
+  const prevYear = useCallback(() => {
+    setMonthSlide("left");
+    setCurrentMonth((m) => subYears(m, 1));
+  }, []);
+
+  const nextYear = useCallback(() => {
+    setMonthSlide("right");
+    setCurrentMonth((m) => addYears(m, 1));
   }, []);
 
   const goToCurrentMonth = useCallback(() => {
@@ -241,6 +253,30 @@ export default function CalendarScreen() {
     return { totalLogs, missed, bestStreak };
   }, [gridDays]);
 
+  const monthStatTiles = useMemo(
+    () => [
+      {
+        key: "bestStreak",
+        emoji: "🔥",
+        value: monthStats.bestStreak,
+        label: t("calendar.bestStreak"),
+      },
+      {
+        key: "totalLogs",
+        emoji: "✅",
+        value: monthStats.totalLogs,
+        label: t("calendar.totalLogs"),
+      },
+      {
+        key: "missed",
+        emoji: "⚠️",
+        value: monthStats.missed,
+        label: t("calendar.missedCount"),
+      },
+    ],
+    [monthStats, t],
+  );
+
   const monthEntering =
     monthSlide === "right"
       ? FadeInRight.duration(220).reduceMotion(ReduceMotion.System)
@@ -279,24 +315,7 @@ export default function CalendarScreen() {
   const listFooter = (
     <View style={styles.listFooter}>
       <SectionLabel>{t("calendar.thisMonth")}</SectionLabel>
-      <SettingsRow
-        label={t("calendar.bestStreak")}
-        value={String(monthStats.bestStreak)}
-        accessory="none"
-        mono
-      />
-      <SettingsRow
-        label={t("calendar.totalLogs")}
-        value={String(monthStats.totalLogs)}
-        accessory="none"
-        mono
-      />
-      <SettingsRow
-        label={t("calendar.missedCount")}
-        value={String(monthStats.missed)}
-        accessory="none"
-        mono
-      />
+      <CalendarStats stats={monthStatTiles} />
 
       <View style={{ height: 24 }} />
     </View>
@@ -309,9 +328,13 @@ export default function CalendarScreen() {
         monthLabel={monthLabel}
         previousMonthLabel={t("common.previousMonth")}
         nextMonthLabel={t("common.nextMonth")}
+        previousYearLabel={t("common.previousYear")}
+        nextYearLabel={t("common.nextYear")}
         currentMonthLabel={t("calendar.goToCurrentMonth")}
         onPreviousMonth={prevMonth}
         onNextMonth={nextMonth}
+        onPreviousYear={prevYear}
+        onNextYear={nextYear}
         onCurrentMonth={goToCurrentMonth}
         tokens={tokens}
       />

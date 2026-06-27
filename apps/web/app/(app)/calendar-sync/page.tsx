@@ -26,6 +26,7 @@ import { useCalendarEvents } from '@/hooks/use-calendar-events'
 import { CalendarPickerSection } from './_components/calendar-picker-section'
 import { AutoSyncSettingsCard } from './_components/auto-sync-settings-card'
 import { CalendarSyncEventRow } from './_components/calendar-sync-event-row'
+import { SelectAllToggle } from './_components/select-all-toggle'
 import { connectGoogle } from './_components/connect-google'
 import type { CalendarSyncEvent, CalendarSyncSuggestion } from '@orbit/shared'
 import {
@@ -324,14 +325,12 @@ export default function CalendarSyncPage() {
                 >
                   {plural(t('calendar.eventsFound', { count: events.length }), events.length)}
                 </p>
-                <button
-                  type="button"
-                  className="chip"
-                  onClick={toggleAll}
-                  aria-pressed={allSelected}
-                >
-                  {allSelected ? t('calendar.deselectAll') : t('calendar.selectAll')}
-                </button>
+                <SelectAllToggle
+                  allSelected={allSelected}
+                  onToggle={toggleAll}
+                  selectAllLabel={t('calendar.selectAll')}
+                  deselectAllLabel={t('calendar.deselectAll')}
+                />
               </div>
 
               <div className="max-h-[60vh] overflow-y-auto stagger-enter">

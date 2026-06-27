@@ -42,6 +42,7 @@ import { PillButton } from '@/components/ui/pill-button'
 import { CalendarAutoSyncSection } from './calendar-sync-auto-section'
 import { CalendarPickerSection } from './calendar-picker-section'
 import { CalendarSyncEventRow } from './calendar-sync-event-row'
+import { SelectAllToggle } from './calendar-sync-select-all-toggle'
 import { createStyles } from './calendar-sync-styles'
 
 const EVENTS_PAGE_SIZE = 20
@@ -518,21 +519,14 @@ export default function CalendarSyncScreen() {
               <>
                 <SectionLabel
                   trailing={
-                    <Pressable
-                      onPress={toggleAll}
-                      accessibilityRole="button"
-                      style={({ pressed }) => [
-                        styles.quietAction,
-                        chipTint,
-                        pressed && styles.quietActionDim,
-                      ]}
-                    >
-                      <Text style={[styles.quietActionText, { color: tokens.fg2 }]}>
-                        {allSelected
-                          ? t('calendar.deselectAll')
-                          : t('calendar.selectAll')}
-                      </Text>
-                    </Pressable>
+                    <SelectAllToggle
+                      allSelected={allSelected}
+                      onToggle={toggleAll}
+                      selectAllLabel={t('calendar.selectAll')}
+                      deselectAllLabel={t('calendar.deselectAll')}
+                      tokens={tokens}
+                      tintStyle={chipTint}
+                    />
                   }
                 >
                   {plural(

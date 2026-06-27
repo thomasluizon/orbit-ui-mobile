@@ -4,22 +4,36 @@ import { useState, useMemo, useCallback, useRef } from 'react'
 import {
   addMonths,
   subMonths,
+  addYears,
+  subYears,
+  addWeeks,
+  subWeeks,
   startOfMonth,
   endOfMonth,
+  startOfWeek,
+  endOfWeek,
   eachDayOfInterval,
+  isSameMonth,
+  isToday,
   format,
 } from 'date-fns'
 import { enUS, ptBR } from 'date-fns/locale'
 import { useLocale, useTranslations } from 'next-intl'
-import { formatAPIDate } from '@orbit/shared/utils'
-import { useCalendarData } from '@/hooks/use-calendar-data'
+import { formatAPIDate, parseAPIDate } from '@orbit/shared/utils'
+import { useCalendarData, useCalendarRange } from '@/hooks/use-calendar-data'
+import { useTimeFormat } from '@/hooks/use-time-format'
+import { useProfile } from '@/hooks/use-profile'
 import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
 import { CalendarGrid } from '@/components/calendar/calendar-grid'
 import { CalendarDayDetail } from '@/components/calendar/calendar-day-detail'
+import { CalendarStats } from '@/components/calendar/calendar-stats'
+import { CalendarWeekView } from '@/components/calendar/calendar-week-view'
+import { CalendarRangeView } from '@/components/calendar/calendar-range-view'
+import type { TimeGridColumn } from '@/components/calendar/calendar-time-grid'
 import { AppOverlay } from '@/components/ui/app-overlay'
 import { GradientTop } from '@/components/ui/gradient-top'
 import { SectionLabel } from '@/components/ui/section-label'
-import { SettingsRow } from '@/components/ui/settings-row'
+import { SectionHeadTabs } from '@/components/ui/section-head-tabs'
 import {
   CalendarHeader,
   CalendarLegend,
@@ -28,13 +42,23 @@ import {
 const SWIPE_THRESHOLD = 50
 
 type MonthSlide = 'left' | 'right' | null
+type CalendarView = 'month' | 'week' | 'range'
 
 export default function CalendarPage() {
   const t = useTranslations()
   const locale = useLocale()
   const dateFnsLocale = locale === 'pt-BR' ? ptBR : enUS
+  const { displayTime } = useTimeFormat()
+  const { profile } = useProfile()
+  const weekStartsOn: 0 | 1 = profile?.weekStartDay ?? 1
+
+  const [view, setView] = useState<CalendarView>('month')
   const [currentMonth, setCurrentMonth] = useState(() => startOfMonth(new Date()))
   const [monthSlide, setMonthSlide] = useState<MonthSlide>(null)
+  const [weekAnchor, setWeekAnchor] = useState(() => new Date())
+  const [rangeStart, setRangeStart] = useState(() => formatAPIDate(new Date()))
+  const [rangeEnd, setRangeEnd] = useState(() => formatAPIDate(new Date()))
+  const [awaitingEnd, setAwaitingEnd] = useState(false)
   const [selectedDay, setSelectedDay] = useState<string | null>(() =>
     formatAPIDate(new Date()),
   )
@@ -42,10 +66,57 @@ export default function CalendarPage() {
 
   const { dayMap, isLoading, isFetching } = useCalendarData(currentMonth)
 
+  const weekStart = useMemo(
+    () => startOfWeek(weekAnchor, { weekStartsOn }),
+    [weekAnchor, weekStartsOn],
+  )
+  const weekEnd = useMemo(
+    () => endOfWeek(weekAnchor, { weekStartsOn }),
+    [weekAnchor, weekStartsOn],
+  )
+  const rangeBounds = useMemo(() => {
+    const a = parseAPIDate(rangeStart)
+    const b = parseAPIDate(rangeEnd)
+    return rangeStart <= rangeEnd ? { lo: a, hi: b } : { lo: b, hi: a }
+  }, [rangeStart, rangeEnd])
+
+  const gridStartDate = view === 'week' ? weekStart : rangeBounds.lo
+  const gridEndDate = view === 'week' ? weekEnd : rangeBounds.hi
+
+  const {
+    dayMap: rangeDayMap,
+    isLoading: rangeLoading,
+    isFetching: rangeFetching,
+  } = useCalendarRange(gridStartDate, gridEndDate, view !== 'month')
+
+  const gridColumns = useMemo<TimeGridColumn[]>(() => {
+    const days =
+      view === 'week'
+        ? eachDayOfInterval({ start: weekStart, end: weekEnd })
+        : eachDayOfInterval({ start: rangeBounds.lo, end: rangeBounds.hi })
+    return days.map((date) => ({
+      date,
+      dateStr: formatAPIDate(date),
+      isToday: isToday(date),
+    }))
+  }, [view, weekStart, weekEnd, rangeBounds])
+
   const monthLabel = useMemo(
     () => format(currentMonth, 'MMMM yyyy', { locale: dateFnsLocale }),
     [currentMonth, dateFnsLocale],
   )
+
+  const weekLabel = useMemo(() => {
+    const startLabel = format(weekStart, 'MMM d', { locale: dateFnsLocale })
+    const endLabel = isSameMonth(weekStart, weekEnd)
+      ? format(weekEnd, 'd', { locale: dateFnsLocale })
+      : format(weekEnd, 'MMM d', { locale: dateFnsLocale })
+    return `${startLabel} - ${endLabel}`
+  }, [weekStart, weekEnd, dateFnsLocale])
+
+  const activeDayMap = view === 'month' ? dayMap : rangeDayMap
+  const activeLoading = view === 'month' ? isLoading : rangeLoading
+  const activeFetching = view === 'month' ? isFetching : rangeFetching
 
   const prevMonth = useCallback(() => {
     setMonthSlide('left')
@@ -57,20 +128,50 @@ export default function CalendarPage() {
     setCurrentMonth((m) => addMonths(m, 1))
   }, [])
 
+  const prevYear = useCallback(() => {
+    setMonthSlide('left')
+    setCurrentMonth((m) => subYears(m, 1))
+  }, [])
+
+  const nextYear = useCallback(() => {
+    setMonthSlide('right')
+    setCurrentMonth((m) => addYears(m, 1))
+  }, [])
+
   const goToCurrentMonth = useCallback(() => {
     setMonthSlide(null)
     setCurrentMonth(startOfMonth(new Date()))
   }, [])
 
-  const onSelectDay = useCallback((dateStr: string) => {
+  const prevWeek = useCallback(() => setWeekAnchor((a) => subWeeks(a, 1)), [])
+  const nextWeek = useCallback(() => setWeekAnchor((a) => addWeeks(a, 1)), [])
+  const goToCurrentWeek = useCallback(() => setWeekAnchor(new Date()), [])
+
+  const openDay = useCallback((dateStr: string) => {
     setSelectedDay(dateStr)
     setIsDayDetailOpen(true)
   }, [])
 
+  function handleRangePick(dateStr: string) {
+    if (!awaitingEnd) {
+      setRangeStart(dateStr)
+      setRangeEnd(dateStr)
+      setAwaitingEnd(true)
+      return
+    }
+    if (dateStr >= rangeStart) {
+      setRangeEnd(dateStr)
+    } else {
+      setRangeEnd(rangeStart)
+      setRangeStart(dateStr)
+    }
+    setAwaitingEnd(false)
+  }
+
   const selectedEntries = useMemo(() => {
     if (!selectedDay) return []
-    return dayMap.get(selectedDay) ?? []
-  }, [selectedDay, dayMap])
+    return activeDayMap.get(selectedDay) ?? []
+  }, [selectedDay, activeDayMap])
 
   const monthStats = useMemo(() => {
     const monthStart = startOfMonth(currentMonth)
@@ -99,28 +200,44 @@ export default function CalendarPage() {
     return { bestStreak, totalLogs, missed }
   }, [currentMonth, dayMap])
 
+  const monthStatTiles = useMemo(
+    () => [
+      { key: 'bestStreak', emoji: '🔥', value: monthStats.bestStreak, label: t('calendar.bestStreak') },
+      { key: 'totalLogs', emoji: '✅', value: monthStats.totalLogs, label: t('calendar.totalLogs') },
+      { key: 'missed', emoji: '⚠️', value: monthStats.missed, label: t('calendar.missedCount') },
+    ],
+    [monthStats, t],
+  )
+
   const touchStartX = useRef<number | null>(null)
 
-  const handleTouchStart = useCallback((e: React.TouchEvent) => {
-    const touch = e.touches[0]
-    if (touch) touchStartX.current = touch.clientX
-  }, [])
+  const handleTouchStart = useCallback(
+    (e: React.TouchEvent) => {
+      if (view !== 'month') return
+      const touch = e.touches[0]
+      if (touch) touchStartX.current = touch.clientX
+    },
+    [view],
+  )
 
-  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
-    if (touchStartX.current === null) return
-    const touch = e.changedTouches[0]
-    if (!touch) return
-    const deltaX = touch.clientX - touchStartX.current
-    touchStartX.current = null
-    if (Math.abs(deltaX) < SWIPE_THRESHOLD) return
-    if (deltaX < 0) {
-      setMonthSlide('right')
-      setCurrentMonth((m) => addMonths(m, 1))
-    } else {
-      setMonthSlide('left')
-      setCurrentMonth((m) => subMonths(m, 1))
-    }
-  }, [])
+  const handleTouchEnd = useCallback(
+    (e: React.TouchEvent) => {
+      if (view !== 'month' || touchStartX.current === null) return
+      const touch = e.changedTouches[0]
+      if (!touch) return
+      const deltaX = touch.clientX - touchStartX.current
+      touchStartX.current = null
+      if (Math.abs(deltaX) < SWIPE_THRESHOLD) return
+      if (deltaX < 0) {
+        setMonthSlide('right')
+        setCurrentMonth((m) => addMonths(m, 1))
+      } else {
+        setMonthSlide('left')
+        setCurrentMonth((m) => subMonths(m, 1))
+      }
+    },
+    [view],
+  )
 
   const monthSlideClass =
     monthSlide === 'right'
@@ -137,59 +254,99 @@ export default function CalendarPage() {
     >
       <GradientTop height={180} />
       <div className="relative z-[1]">
-        <CalendarHeader
-          monthLabel={monthLabel}
-          previousMonthLabel={t('common.previousMonth')}
-          nextMonthLabel={t('common.nextMonth')}
-          currentMonthLabel={t('calendar.goToCurrentMonth')}
-          onPreviousMonth={prevMonth}
-          onNextMonth={nextMonth}
-          onCurrentMonth={goToCurrentMonth}
+        <SectionHeadTabs<CalendarView>
+          tabs={[
+            { id: 'month', label: t('calendar.view.month') },
+            { id: 'week', label: t('calendar.view.week') },
+            { id: 'range', label: t('calendar.view.range') },
+          ]}
+          active={view}
+          onChange={setView}
+          ariaLabel={t('calendar.view.switchLabel')}
         />
+
+        {(view === 'month' || view === 'range') && (
+          <CalendarHeader
+            monthLabel={monthLabel}
+            previousMonthLabel={t('common.previousMonth')}
+            nextMonthLabel={t('common.nextMonth')}
+            previousYearLabel={t('common.previousYear')}
+            nextYearLabel={t('common.nextYear')}
+            currentMonthLabel={t('calendar.goToCurrentMonth')}
+            onPreviousMonth={prevMonth}
+            onNextMonth={nextMonth}
+            onPreviousYear={prevYear}
+            onNextYear={nextYear}
+            onCurrentMonth={goToCurrentMonth}
+          />
+        )}
 
         <div
           className={`loading-bar w-full transition-opacity duration-300 ${
-            isFetching && !isLoading ? 'opacity-100' : 'opacity-0 pointer-events-none'
+            activeFetching && !activeLoading ? 'opacity-100' : 'opacity-0 pointer-events-none'
           }`}
         />
 
-        <div key={format(currentMonth, 'yyyy-MM')} className={monthSlideClass}>
-          <CalendarGrid
-            currentMonth={currentMonth}
-            dayMap={dayMap}
-            onSelectDay={onSelectDay}
-            selectedDateStr={selectedDay}
-            isLoading={isLoading}
+        {view === 'month' && (
+          <>
+            <div key={format(currentMonth, 'yyyy-MM')} className={monthSlideClass}>
+              <CalendarGrid
+                currentMonth={currentMonth}
+                dayMap={dayMap}
+                onSelectDay={openDay}
+                selectedDateStr={selectedDay}
+                isLoading={isLoading}
+              />
+            </div>
+
+            <CalendarLegend
+              todayLabel={t('calendar.legend.today')}
+              doneLabel={t('calendar.legend.done')}
+              partialLabel={t('calendar.legend.partial')}
+              missedLabel={t('calendar.legend.missed')}
+            />
+
+            <SectionLabel>{t('calendar.thisMonth')}</SectionLabel>
+            <CalendarStats stats={monthStatTiles} />
+          </>
+        )}
+
+        {view === 'week' && (
+          <CalendarWeekView
+            columns={gridColumns}
+            dayMap={rangeDayMap}
+            weekLabel={weekLabel}
+            previousWeekLabel={t('common.previousWeek')}
+            nextWeekLabel={t('common.nextWeek')}
+            currentWeekLabel={t('calendar.goToCurrentWeek')}
+            onPreviousWeek={prevWeek}
+            onNextWeek={nextWeek}
+            onCurrentWeek={goToCurrentWeek}
+            onSelectDay={openDay}
+            displayTime={displayTime}
+            dateFnsLocale={dateFnsLocale}
+            allDayLabel={t('calendar.timeGrid.allDay')}
+            nowLabel={t('calendar.timeGrid.now')}
           />
-        </div>
+        )}
 
-        <CalendarLegend
-          todayLabel={t('calendar.legend.today')}
-          doneLabel={t('calendar.legend.done')}
-          partialLabel={t('calendar.legend.partial')}
-          missedLabel={t('calendar.legend.missed')}
-        />
-
-        <SectionLabel>{t('calendar.thisMonth')}</SectionLabel>
-        <SettingsRow
-          label={t('calendar.bestStreak')}
-          value={String(monthStats.bestStreak)}
-          accessory="none"
-          mono
-        />
-        <SettingsRow
-          label={t('calendar.totalLogs')}
-          value={String(monthStats.totalLogs)}
-          accessory="none"
-          mono
-        />
-        <SettingsRow
-          label={t('calendar.missedCount')}
-          value={String(monthStats.missed)}
-          accessory="none"
-          mono
-          divider={false}
-        />
+        {view === 'range' && (
+          <CalendarRangeView
+            currentMonth={currentMonth}
+            monthDayMap={dayMap}
+            rangeStart={rangeStart}
+            rangeEnd={rangeEnd}
+            onPickDay={handleRangePick}
+            columns={gridColumns}
+            rangeDayMap={rangeDayMap}
+            hint={t('calendar.timeGrid.pickRangeHint')}
+            onSelectDay={openDay}
+            displayTime={displayTime}
+            dateFnsLocale={dateFnsLocale}
+            allDayLabel={t('calendar.timeGrid.allDay')}
+            nowLabel={t('calendar.timeGrid.now')}
+          />
+        )}
       </div>
 
       <AppOverlay open={isDayDetailOpen} onOpenChange={setIsDayDetailOpen}>

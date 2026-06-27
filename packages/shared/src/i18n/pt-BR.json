@@ -141,6 +141,8 @@
     "nextMonth": "Próximo mês",
     "previousYear": "Ano anterior",
     "nextYear": "Próximo ano",
+    "previousWeek": "Semana anterior",
+    "nextWeek": "Próxima semana",
     "continue": "Continuar",
     "unknown": "Desconhecido",
     "failed": "Falhou",
@@ -593,6 +595,18 @@
     "noHabitsScheduled": "Nenhum hábito agendado para este dia.",
     "goToDay": "Ver este dia",
     "goToCurrentMonth": "Ir para o mês atual",
+    "goToCurrentWeek": "Ir para a semana atual",
+    "view": {
+      "switchLabel": "Visualização do calendário",
+      "month": "Mês",
+      "week": "Semana",
+      "range": "Intervalo"
+    },
+    "timeGrid": {
+      "allDay": "Dia inteiro",
+      "now": "Agora",
+      "pickRangeHint": "Escolha um dia inicial e final acima para definir seu intervalo."
+    },
     "status": {
       "completed": "Concluído",
       "missed": "Perdido",
@@ -652,7 +666,7 @@
       "lastSyncedHoursAgo": "há {n} hora | há {n} horas",
       "lastSyncedYesterday": "Ontem",
       "lastSyncedDaysAgo": "há {n} dia | há {n} dias",
-      "syncNow": "Sincronizar agora",
+      "syncNow": "Sincronizar",
       "syncNowRunning": "Sincronizando...",
       "connectGoogleFirst": "Conecte sua conta Google antes de ativar a sincronização automática.",
       "reconnectTitle": "Google Calendar desconectado",

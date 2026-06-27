@@ -23,9 +23,20 @@ interface CalendarGridProps {
   onSelectDay: (dateStr: string) => void
   /** Date string of the day whose detail panel is open (primary-filled pill). */
   selectedDateStr?: string | null
+  /** Inclusive range endpoints (yyyy-MM-dd) for range-pick mode. When set, the
+   *  grid renders an in-range band with highlighted endpoints. */
+  rangeStart?: string | null
+  rangeEnd?: string | null
   /** When true, suppresses status dots so the grid structure still renders
    *  while the month's data is loading. */
   isLoading?: boolean
+}
+
+function isInRange(dateStr: string, start?: string | null, end?: string | null): boolean {
+  if (!start || !end) return false
+  const lo = start <= end ? start : end
+  const hi = start <= end ? end : start
+  return dateStr >= lo && dateStr <= hi
 }
 
 interface GridDay {
@@ -68,6 +79,8 @@ export function CalendarGrid({
   dayMap,
   onSelectDay,
   selectedDateStr = null,
+  rangeStart = null,
+  rangeEnd = null,
   isLoading = false,
 }: Readonly<CalendarGridProps>) {
   const t = useTranslations()
@@ -166,6 +179,10 @@ export function CalendarGrid({
             const canSelect = cell.isCurrentMonth
             const status = dayStatus(cell)
             const selected = canSelect && cell.dateStr === selectedDateStr
+            const inRange = canSelect && isInRange(cell.dateStr, rangeStart, rangeEnd)
+            const isEndpoint =
+              canSelect && (cell.dateStr === rangeStart || cell.dateStr === rangeEnd)
+            const highlighted = selected || isEndpoint
             const statusLabel = dayStatusLabel(status, t)
             const dayLabel = statusLabel
               ? `${displayWeekdayDate(cell.date, true)}, ${statusLabel}`
@@ -179,6 +196,7 @@ export function CalendarGrid({
                 aria-label={dayLabel}
                 aria-current={cell.isToday ? 'date' : undefined}
                 aria-disabled={!canSelect}
+                data-in-range={inRange ? 'true' : undefined}
                 onClick={() => canSelect && onSelectDay(cell.dateStr)}
                 className={
                   'relative flex flex-col items-center justify-center bg-transparent transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] ' +
@@ -192,6 +210,9 @@ export function CalendarGrid({
                   borderRadius: 999,
                   cursor: canSelect ? 'pointer' : 'default',
                   opacity: cell.isCurrentMonth ? 1 : 0.5,
+                  background: inRange
+                    ? 'color-mix(in srgb, var(--primary) 12%, transparent)'
+                    : undefined,
                 }}
               >
                 <span
@@ -203,11 +224,11 @@ export function CalendarGrid({
                     fontFamily: 'var(--font-mono)',
                     fontSize: 14,
                     fontWeight: cell.isToday ? 700 : 500,
-                    color: dayNumberColor(cell, selected),
+                    color: dayNumberColor(cell, highlighted),
                     fontVariantNumeric: 'tabular-nums',
-                    background: selected ? 'var(--selection-bg)' : 'transparent',
+                    background: highlighted ? 'var(--selection-bg)' : 'transparent',
                     boxShadow:
-                      cell.isToday && !selected
+                      cell.isToday && !highlighted
                         ? 'inset 0 0 0 1.5px var(--primary)'
                         : 'none',
                   }}
