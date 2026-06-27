@@ -9,6 +9,8 @@ Runs the project's existing Android APK release command.
 
 The APK bakes in `EXPO_PUBLIC_API_BASE` at prebuild time, so the API the build targets is decided by the environment present when the script runs. Default (no env set) builds against prod (`https://api.useorbit.org`).
 
+This local build always uses Google TEST AdMob ad units (never real ads), so QA installs never serve or click live ads. Real-ad production releases ship only through the `.github/workflows/android-release.yml` CI workflow, which injects the real AdMob IDs and guards against shipping test units.
+
 ## Steps
 
 ### Prod (default)

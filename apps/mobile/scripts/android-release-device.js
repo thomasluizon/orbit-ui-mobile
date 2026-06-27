@@ -1,7 +1,7 @@
 const { spawn } = require('child_process')
 const fs = require('fs')
 const path = require('path')
-const { resolveProductionAdMobEnv } = require('./production-admob-env')
+const { resolveTestBuildAdMobEnv } = require('./test-build-admob-env')
 
 const projectRoot = path.resolve(__dirname, '..')
 const androidDir = path.join(projectRoot, 'android')
@@ -93,9 +93,11 @@ async function waitForPid(deviceId) {
 
 async function main() {
   const releaseEnv = {
-    ...resolveProductionAdMobEnv(process.env),
+    ...resolveTestBuildAdMobEnv(process.env),
     EXPO_NO_METRO_WORKSPACE_ROOT: '1',
   }
+
+  console.log('Local build uses Google TEST AdMob units; real-ad releases ship via .github/workflows/android-release.yml.')
 
   const deviceId = await getConnectedDeviceId()
 

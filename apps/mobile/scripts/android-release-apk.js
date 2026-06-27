@@ -2,11 +2,13 @@ const { execSync } = require('child_process')
 const fs = require('fs')
 const os = require('os')
 const path = require('path')
-const { resolveProductionAdMobEnv } = require('./production-admob-env')
+const { resolveTestBuildAdMobEnv } = require('./test-build-admob-env')
 
 process.env.EXPO_NO_METRO_WORKSPACE_ROOT = '1'
 process.env.NODE_ENV = process.env.NODE_ENV || 'production'
-Object.assign(process.env, resolveProductionAdMobEnv(process.env))
+Object.assign(process.env, resolveTestBuildAdMobEnv(process.env))
+
+console.log('Local build uses Google TEST AdMob units; real-ad releases ship via .github/workflows/android-release.yml.')
 
 const projectRoot = path.join(__dirname, '..')
 const androidDir = path.join(__dirname, '..', 'android')
