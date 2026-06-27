@@ -1,14 +1,19 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FlatList } from "react-native";
 import * as ImagePicker from "expo-image-picker";
+import * as DocumentPicker from "expo-document-picker";
+import { File as FileSystemFile } from "expo-file-system";
 import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { useQueryClient } from "@tanstack/react-query";
 import {
+  buildChatMessageWithFileContent,
   CHAT_STARTER_CHIP_KEYS,
   CHAT_STREAM_IDLE_TIMEOUT_MS,
+  CHAT_TEXT_FILE_PICKER_MIME_TYPES,
   consumeChatSseStream,
   getChatImageValidationError,
+  getChatTextFileValidationError,
   resolveChatImageMimeType,
 } from "@orbit/shared/chat";
 import { goalKeys, habitKeys, profileKeys, tagKeys } from "@orbit/shared/query";
@@ -152,6 +157,10 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
   const [selectedImage, setSelectedImage] =
     useState<ImagePicker.ImagePickerAsset | null>(null);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [selectedTextFile, setSelectedTextFile] = useState<{
+    name: string;
+    content: string;
+  } | null>(null);
   const [composerResetSignal, setComposerResetSignal] = useState(0);
 
   const hasProAccess = profile?.hasProAccess ?? false;
@@ -284,6 +293,45 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
   const removeImage = useCallback(() => {
     setSelectedImage(null);
     setImagePreview(null);
+  }, []);
+
+  const openTextFilePicker = useCallback(async () => {
+    const result = await DocumentPicker.getDocumentAsync({
+      type: [...CHAT_TEXT_FILE_PICKER_MIME_TYPES],
+      copyToCacheDirectory: true,
+      multiple: false,
+    });
+    if (result.canceled) return;
+
+    const asset = result.assets[0];
+    if (!asset) return;
+
+    const file = new FileSystemFile(asset.uri);
+    const validationError = getChatTextFileValidationError({
+      name: asset.name,
+      uri: asset.uri,
+      fileSize: asset.size ?? file.size,
+    });
+    if (validationError === "type") {
+      setSendError(t("chat.fileError"));
+      return;
+    }
+    if (validationError === "size") {
+      setSendError(t("chat.fileSizeError"));
+      return;
+    }
+
+    try {
+      const content = await file.text();
+      setSendError(null);
+      setSelectedTextFile({ name: asset.name, content });
+    } catch {
+      setSendError(t("chat.fileReadError"));
+    }
+  }, [t]);
+
+  const removeTextFile = useCallback(() => {
+    setSelectedTextFile(null);
   }, []);
 
   const handleFailedSend = useCallback(
@@ -562,12 +610,20 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
 
   const sendMessage = useCallback(
     async (content?: string) => {
-      const messageContent = content?.trim() ?? "";
-      if ((!messageContent && !selectedImage) || isTyping) return;
+      const typedContent = content?.trim() ?? "";
+      if ((!typedContent && !selectedImage && !selectedTextFile) || isTyping) return;
       if (!isOnline) {
         setSendError(offlineTitle);
         return;
       }
+
+      const messageContent = selectedTextFile
+        ? buildChatMessageWithFileContent({
+            message: typedContent,
+            fileLabel: t("chat.fileAttached", { name: selectedTextFile.name }),
+            fileContent: selectedTextFile.content,
+          })
+        : typedContent;
 
       const attempted: AttemptedSend = {
         content: messageContent,
@@ -578,10 +634,20 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
       setComposerResetSignal((current) => current + 1);
       setSelectedImage(null);
       setImagePreview(null);
+      setSelectedTextFile(null);
 
       await performSend(attempted, false);
     },
-    [imagePreview, isOnline, isTyping, offlineTitle, performSend, selectedImage],
+    [
+      imagePreview,
+      isOnline,
+      isTyping,
+      offlineTitle,
+      performSend,
+      selectedImage,
+      selectedTextFile,
+      t,
+    ],
   );
 
   const retryLastSend = useCallback(async () => {
@@ -628,6 +694,9 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
     showSuggestions,
     openFilePicker,
     removeImage,
+    selectedTextFile,
+    openTextFilePicker,
+    removeTextFile,
     sendMessage,
     retryLastSend,
     canRetryLastSend,

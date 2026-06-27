@@ -1,13 +1,19 @@
 import { useEffect, useMemo } from 'react'
 import { Animated, StyleSheet, Text, View } from 'react-native'
-import { Sparkles } from 'lucide-react-native'
+import { Sparkles, Upload } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import { createTokensV2, easings, tintFromPrimary, type AppTokensV2 } from '@/lib/theme'
 import { toAnimatedEasing, usePrefersReducedMotion } from '@/lib/motion'
 import { useAppTheme } from '@/lib/use-app-theme'
+import { PillButton } from '@/components/ui/pill-button'
 
-/** ob-2 onboarding step: tinted hero disc + Astra intro in the kit chat-bubble language. */
-export function OnboardingMeetAstra() {
+interface OnboardingMeetAstraProps {
+  onImport?: () => void
+}
+
+/** ob-2 onboarding step: tinted hero disc + Astra intro in the kit chat-bubble language.
+ *  When `onImport` is provided, offers an "import from another app" shortcut into Astra. */
+export function OnboardingMeetAstra({ onImport }: Readonly<OnboardingMeetAstraProps>) {
   const { t } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
@@ -93,6 +99,17 @@ export function OnboardingMeetAstra() {
           </Text>
         </View>
       </Animated.View>
+
+      {onImport && (
+        <PillButton
+          variant="ghost"
+          fullWidth
+          leading={<Upload size={18} color={tokens.fg1} strokeWidth={1.8} />}
+          onPress={onImport}
+        >
+          {t('onboarding.flow.meetAstra.import')}
+        </PillButton>
+      )}
     </View>
   )
 }

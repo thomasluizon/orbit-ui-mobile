@@ -1,4 +1,5 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from 'vitest'
+import type { ChangeEvent } from 'react'
 import { renderHook, act } from '@testing-library/react'
 import { CHAT_STREAM_IDLE_TIMEOUT_MS } from '@orbit/shared/chat'
 import type { ChatResponse } from '@orbit/shared/types/chat'
@@ -218,5 +219,45 @@ describe('web useChatComposer streaming send', () => {
 
     expect(result.current.sendError).toBe('chat.limitReachedError')
     expect(result.current.canRetryLastSend).toBe(false)
+  })
+
+  it('folds an attached text file into the sent user message', async () => {
+    mocks.fetch.mockResolvedValue(
+      sseResponse(finalFrame(makeChatResponse({ aiMessage: 'Imported' }))),
+    )
+    const { result } = renderHook(() => useChatComposer())
+    const file = new File(['Run\nRead'], 'habits.csv', { type: 'text/csv' })
+
+    await act(async () => {
+      await result.current.handleTextFileSelect({
+        target: { files: [file], value: '' },
+      } as unknown as ChangeEvent<HTMLInputElement>)
+    })
+    expect(result.current.selectedTextFileName).toBe('habits.csv')
+
+    await act(async () => {
+      await result.current.sendMessage()
+    })
+
+    const userMessage = useChatStore
+      .getState()
+      .messages.find((message) => message.role === 'user')
+    expect(userMessage?.content).toContain('Run\nRead')
+    expect(userMessage?.content).toContain('chat.fileAttached')
+    expect(result.current.selectedTextFileName).toBeNull()
+  })
+
+  it('surfaces the i18n error for an unsupported attachment type', async () => {
+    const { result } = renderHook(() => useChatComposer())
+    const file = new File(['nope'], 'photo.png', { type: 'image/png' })
+
+    await act(async () => {
+      await result.current.handleTextFileSelect({
+        target: { files: [file], value: '' },
+      } as unknown as ChangeEvent<HTMLInputElement>)
+    })
+
+    expect(result.current.sendError).toBe('chat.fileError')
+    expect(result.current.selectedTextFileName).toBeNull()
   })
 })

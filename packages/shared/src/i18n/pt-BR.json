@@ -693,6 +693,12 @@
     "imageError": "Só aceitamos imagens JPEG, PNG e WebP.",
     "imageSizeError": "A imagem precisa ter menos de 20 MB.",
     "imagePermissionError": "Permita o acesso às fotos para anexar imagens.",
+    "attachFile": "Anexar arquivo",
+    "removeFile": "Remover arquivo",
+    "fileError": "Só aceitamos arquivos .csv, .json, .txt e .md.",
+    "fileSizeError": "O arquivo precisa ter menos de 1 MB.",
+    "fileReadError": "Não foi possível ler esse arquivo. Tente de novo.",
+    "fileAttached": "Arquivo anexado \"{name}\":",
     "sendError": "Não foi possível enviar a mensagem. Tente de novo.",
     "timeoutError": "A resposta demorou demais. Tente de novo.",
     "limitReachedError": "Você atingiu o limite mensal de mensagens de IA.",
@@ -1133,7 +1139,9 @@
       "back": "Voltar",
       "meetAstra": {
         "title": "Conheça a Astra.",
-        "subtitle": "A assistente do Orbit. Ela cria hábitos, resume o seu dia, planeja o que vem e percebe o que saiu do eixo. Fale com naturalidade. Ela escuta."
+        "subtitle": "A assistente do Orbit. Ela cria hábitos, resume o seu dia, planeja o que vem e percebe o que saiu do eixo. Fale com naturalidade. Ela escuta.",
+        "import": "Importar de outro app",
+        "importPrompt": "Me ajude a importar meus hábitos de outro app. Vou anexar um arquivo ou colar minha lista, e você cria os hábitos."
       },
       "welcome": {
         "title": "Boas-vindas ao Orbit",

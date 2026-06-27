@@ -14,6 +14,7 @@ vi.mock('lucide-react-native', () => {
     Image: icon('Image'),
     Lock: icon('Lock'),
     Mic: icon('Mic'),
+    Paperclip: icon('Paperclip'),
     Square: icon('Square'),
     ArrowUp: icon('ArrowUp'),
   }
@@ -42,6 +43,7 @@ function buildProps(overrides: Record<string, unknown> = {}) {
     atMessageLimit: false,
     limitLocked: false,
     selectedImagePresent: false,
+    selectedTextFilePresent: false,
     transcript: '',
     composerResetSignal: 0,
     recordingTime: '0:00',
@@ -49,6 +51,7 @@ function buildProps(overrides: Record<string, unknown> = {}) {
     onSend: vi.fn(),
     onToggleRecording: vi.fn(),
     onOpenFilePicker: vi.fn(),
+    onOpenTextFilePicker: vi.fn(),
     ...overrides,
   }
 }
@@ -85,5 +88,59 @@ describe('ChatInputBar voice transcript (mobile)', () => {
     })
 
     expect(findInputValue(tree!.root)).toBe('buy milk')
+  })
+})
+
+describe('ChatInputBar text-file attachment (mobile)', () => {
+  it('invokes the text-file picker from the attach-file control', async () => {
+    const onOpenTextFilePicker = vi.fn()
+    let tree: ReturnType<typeof TestRenderer.create>
+
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(
+        <ChatInputBar {...buildProps({ onOpenTextFilePicker })} />,
+      )
+      await Promise.resolve()
+    })
+
+    const attachButton = tree!.root.findAll(
+      (node: { props?: Record<string, unknown> }) =>
+        !!node.props &&
+        node.props.accessibilityLabel === 'chat.attachFile' &&
+        typeof node.props.onPress === 'function',
+    )[0] as { props: { onPress: () => void } } | undefined
+
+    TestRenderer.act(() => {
+      attachButton?.props.onPress()
+    })
+
+    expect(onOpenTextFilePicker).toHaveBeenCalled()
+  })
+
+  it('allows sending when only a text file is attached', async () => {
+    const onSend = vi.fn()
+    let tree: ReturnType<typeof TestRenderer.create>
+
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(
+        <ChatInputBar
+          {...buildProps({ selectedTextFilePresent: true, onSend })}
+        />,
+      )
+      await Promise.resolve()
+    })
+
+    const sendButton = tree!.root.findAll(
+      (node: { props?: Record<string, unknown> }) =>
+        !!node.props &&
+        node.props.accessibilityLabel === 'chat.send' &&
+        typeof node.props.onPress === 'function',
+    )[0] as { props: { onPress: () => void } } | undefined
+
+    TestRenderer.act(() => {
+      sendButton?.props.onPress()
+    })
+
+    expect(onSend).toHaveBeenCalled()
   })
 })

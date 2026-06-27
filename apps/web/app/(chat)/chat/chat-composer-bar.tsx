@@ -6,9 +6,22 @@ import type {
   KeyboardEvent,
   RefObject,
 } from 'react'
-import { Mic, Square, ArrowUp, X, Crown, Lock, Image as ImageIcon } from 'lucide-react'
+import {
+  Mic,
+  Square,
+  ArrowUp,
+  X,
+  Crown,
+  Lock,
+  Image as ImageIcon,
+  Paperclip,
+  FileText,
+} from 'lucide-react'
 import { useTranslations } from 'next-intl'
-import { CHAT_VISUALIZER_BAR_OFFSETS as VISUALIZER_BAR_OFFSETS } from '@orbit/shared/chat'
+import {
+  CHAT_TEXT_FILE_WEB_ACCEPT,
+  CHAT_VISUALIZER_BAR_OFFSETS as VISUALIZER_BAR_OFFSETS,
+} from '@orbit/shared/chat'
 import { InfoCard } from '@/components/ui/info-card'
 import { LocalImage } from '@/components/ui/local-image'
 import { PillButton } from '@/components/ui/pill-button'
@@ -39,6 +52,11 @@ interface ChatComposerBarProps {
   handlePaste: (event: ClipboardEvent<HTMLTextAreaElement>) => void
   handleKeyDown: (event: KeyboardEvent<HTMLTextAreaElement>) => void
   removeImage: () => void
+  textFileInputRef: RefObject<HTMLInputElement | null>
+  selectedTextFileName: string | null
+  openTextFilePicker: () => void
+  handleTextFileSelect: (event: ChangeEvent<HTMLInputElement>) => void
+  removeTextFile: () => void
   sendMessage: (content?: string) => void
   retryLastSend: () => void
   canRetryLastSend: boolean
@@ -51,6 +69,8 @@ interface ChatComposerNoticesProps {
   retryLastSend: () => void
   imagePreview: string | null
   removeImage: () => void
+  selectedTextFileName: string | null
+  removeTextFile: () => void
   hasMessages: boolean
   starterChips: string[]
   sendMessage: (content?: string) => void
@@ -62,6 +82,8 @@ function ChatComposerNotices({
   retryLastSend,
   imagePreview,
   removeImage,
+  selectedTextFileName,
+  removeTextFile,
   hasMessages,
   starterChips,
   sendMessage,
@@ -112,6 +134,46 @@ function ChatComposerNotices({
               aria-label={t('chat.removeImage')}
               onClick={removeImage}
               className="absolute -top-1.5 -right-1.5 rounded-full p-0.5 bg-[var(--bg-elev)] transition-[background-color,transform] duration-150 ease-out hover:bg-[var(--bg-sunk)] hover:scale-110"
+              style={{
+                boxShadow: 'inset 0 0 0 1px var(--hairline-strong)',
+              }}
+            >
+              <X size={12} aria-hidden="true" color="var(--fg-1)" />
+            </button>
+          </div>
+        </div>
+      )}
+
+      {selectedTextFileName && (
+        <div style={{ paddingBottom: 8 }}>
+          <div
+            className="relative inline-flex items-center"
+            style={{
+              gap: 8,
+              maxWidth: '100%',
+              padding: '8px 12px',
+              borderRadius: 12,
+              background: 'var(--bg-elev)',
+              boxShadow: 'inset 0 0 0 1px var(--hairline)',
+            }}
+          >
+            <FileText size={16} strokeWidth={1.8} aria-hidden="true" color="var(--primary)" />
+            <span
+              className="truncate"
+              style={{
+                fontFamily: 'var(--font-sans)',
+                fontSize: 13,
+                color: 'var(--fg-2)',
+                maxWidth: 220,
+              }}
+            >
+              {selectedTextFileName}
+            </span>
+            <button
+              type="button"
+              aria-label={t('chat.removeFile')}
+              onClick={removeTextFile}
+              className="rounded-full p-0.5 bg-[var(--bg-elev)] transition-[background-color,transform] duration-150 ease-out hover:bg-[var(--bg-sunk)] hover:scale-110"
               style={{
                 boxShadow: 'inset 0 0 0 1px var(--hairline-strong)',
               }}
@@ -233,6 +295,7 @@ interface ChatTextInputRowProps {
   toggleRecording: () => void
   canSend: boolean
   openFilePicker: () => void
+  openTextFilePicker: () => void
   handlePaste: (event: ClipboardEvent<HTMLTextAreaElement>) => void
   handleKeyDown: (event: KeyboardEvent<HTMLTextAreaElement>) => void
   sendMessage: (content?: string) => void
@@ -248,6 +311,7 @@ function ChatTextInputRow({
   toggleRecording,
   canSend,
   openFilePicker,
+  openTextFilePicker,
   handlePaste,
   handleKeyDown,
   sendMessage,
@@ -296,6 +360,17 @@ function ChatTextInputRow({
           >
             <Lock size={18} strokeWidth={1.8} />
           </span>
+        )}
+        {!limitLocked && (
+          <button
+            type="button"
+            aria-label={t('chat.attachFile')}
+            onClick={openTextFilePicker}
+            className="icon-btn shrink-0 text-[var(--fg-3)] hover:text-[var(--fg-1)]"
+            style={{ width: 34, height: 34 }}
+          >
+            <Paperclip size={18} strokeWidth={1.8} />
+          </button>
         )}
         {!limitLocked && (
           <button
@@ -372,6 +447,11 @@ export function ChatComposerBar({
   handlePaste,
   handleKeyDown,
   removeImage,
+  textFileInputRef,
+  selectedTextFileName,
+  openTextFilePicker,
+  handleTextFileSelect,
+  removeTextFile,
   sendMessage,
   retryLastSend,
   canRetryLastSend,
@@ -399,6 +479,8 @@ export function ChatComposerBar({
           retryLastSend={retryLastSend}
           imagePreview={imagePreview}
           removeImage={removeImage}
+          selectedTextFileName={selectedTextFileName}
+          removeTextFile={removeTextFile}
           hasMessages={hasMessages}
           starterChips={starterChips}
           sendMessage={sendMessage}
@@ -410,6 +492,14 @@ export function ChatComposerBar({
           accept="image/jpeg,image/png,image/webp"
           className="hidden"
           onChange={handleFileSelect}
+        />
+
+        <input
+          ref={textFileInputRef}
+          type="file"
+          accept={CHAT_TEXT_FILE_WEB_ACCEPT}
+          className="hidden"
+          onChange={handleTextFileSelect}
         />
 
         <div
@@ -433,6 +523,7 @@ export function ChatComposerBar({
               toggleRecording={toggleRecording}
               canSend={canSend}
               openFilePicker={openFilePicker}
+              openTextFilePicker={openTextFilePicker}
               handlePaste={handlePaste}
               handleKeyDown={handleKeyDown}
               sendMessage={sendMessage}

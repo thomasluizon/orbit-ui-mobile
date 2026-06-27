@@ -25,6 +25,7 @@ const mocks = vi.hoisted(() => {
     queryClient,
     apiClient: vi.fn(),
     openChatStream: vi.fn(),
+    getDocumentAsync: vi.fn(),
     routerPush: vi.fn(),
     useQueryClient: vi.fn(() => queryClient),
   }
@@ -49,6 +50,10 @@ vi.mock('expo-router', () => ({
 vi.mock('expo-image-picker', () => ({
   requestMediaLibraryPermissionsAsync: vi.fn(),
   launchImageLibraryAsync: vi.fn(),
+}))
+
+vi.mock('expo-document-picker', () => ({
+  getDocumentAsync: mocks.getDocumentAsync,
 }))
 
 vi.mock('@/hooks/use-profile', () => ({
@@ -142,6 +147,7 @@ describe('mobile useChatComposer', () => {
     mocks.state.profile = undefined
     mocks.apiClient.mockReset()
     mocks.openChatStream.mockReset()
+    mocks.getDocumentAsync.mockReset()
     mocks.routerPush.mockReset()
     mocks.queryClient.invalidateQueries.mockClear()
     mocks.queryClient.setQueryData.mockClear()
@@ -260,6 +266,52 @@ describe('mobile useChatComposer', () => {
 
     expect(mocks.openChatStream).not.toHaveBeenCalled()
     expect(composer.current.sendError).toBe('You are offline')
+  })
+
+  it('reads an attached text file and folds it into the sent message', async () => {
+    mocks.getDocumentAsync.mockResolvedValue({
+      canceled: false,
+      assets: [
+        { name: 'habits.csv', uri: 'file:///tmp/habits.csv', size: 12, mimeType: 'text/csv' },
+      ],
+    })
+    mocks.openChatStream.mockResolvedValue(
+      sseStreamResponse(finalFrame(makeChatResponse({ aiMessage: 'Imported' }))),
+    )
+    const composer = await renderComposer()
+
+    await TestRenderer.act(async () => {
+      await composer.current.openTextFilePicker()
+    })
+    expect(composer.current.selectedTextFile?.name).toBe('habits.csv')
+
+    await TestRenderer.act(async () => {
+      await composer.current.sendMessage()
+    })
+
+    const userMessage = useChatStore
+      .getState()
+      .messages.find((message) => message.role === 'user')
+    expect(userMessage?.content).toContain('mock-file-content')
+    expect(userMessage?.content).toContain('chat.fileAttached')
+    expect(composer.current.selectedTextFile).toBeNull()
+  })
+
+  it('surfaces the i18n error for an unsupported attachment type', async () => {
+    mocks.getDocumentAsync.mockResolvedValue({
+      canceled: false,
+      assets: [
+        { name: 'photo.png', uri: 'file:///tmp/photo.png', size: 12, mimeType: 'image/png' },
+      ],
+    })
+    const composer = await renderComposer()
+
+    await TestRenderer.act(async () => {
+      await composer.current.openTextFilePicker()
+    })
+
+    expect(composer.current.sendError).toBe('chat.fileError')
+    expect(composer.current.selectedTextFile).toBeNull()
   })
 
   it('aborts an idle stream at the watchdog and arms retry with the timeout copy', async () => {

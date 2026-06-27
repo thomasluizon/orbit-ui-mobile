@@ -4,6 +4,7 @@ import {
   Image as ImageIcon,
   Lock,
   Mic,
+  Paperclip,
   Square,
 } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
@@ -23,6 +24,7 @@ interface ChatInputBarProps {
   atMessageLimit: boolean;
   limitLocked: boolean;
   selectedImagePresent: boolean;
+  selectedTextFilePresent: boolean;
   transcript: string;
   composerResetSignal: number;
   recordingTime: string;
@@ -30,6 +32,7 @@ interface ChatInputBarProps {
   onSend: (message: string) => void;
   onToggleRecording: () => void;
   onOpenFilePicker: () => void;
+  onOpenTextFilePicker: () => void;
 }
 
 /**
@@ -51,6 +54,7 @@ export const ChatInputBar = forwardRef<View, Readonly<ChatInputBarProps>>(
       atMessageLimit,
       limitLocked,
       selectedImagePresent,
+      selectedTextFilePresent,
       transcript,
       composerResetSignal,
       recordingTime,
@@ -58,6 +62,7 @@ export const ChatInputBar = forwardRef<View, Readonly<ChatInputBarProps>>(
       onSend,
       onToggleRecording,
       onOpenFilePicker,
+      onOpenTextFilePicker,
     },
     voiceRef,
   ) {
@@ -114,7 +119,7 @@ export const ChatInputBar = forwardRef<View, Readonly<ChatInputBarProps>>(
     }, [draft]);
 
     const canSend =
-      (draft.trim().length > 0 || selectedImagePresent) &&
+      (draft.trim().length > 0 || selectedImagePresent || selectedTextFilePresent) &&
       !isTyping &&
       !atMessageLimit &&
       !isRecording;
@@ -186,6 +191,17 @@ export const ChatInputBar = forwardRef<View, Readonly<ChatInputBarProps>>(
                 </View>
               ) : (
               <>
+                <TouchableOpacity
+                  accessibilityRole="button"
+                  accessibilityLabel={t("chat.attachFile")}
+                  activeOpacity={0.7}
+                  disabled={!isOnline}
+                  onPress={onOpenTextFilePicker}
+                  style={styles.fieldIconButton}
+                >
+                  <Paperclip size={18} color={tokens.fg3} strokeWidth={1.8} />
+                </TouchableOpacity>
+
                 <TouchableOpacity
                   accessibilityRole="button"
                   accessibilityLabel={t("chat.attachImage")}

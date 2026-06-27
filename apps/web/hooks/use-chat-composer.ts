@@ -17,6 +17,7 @@ import type { ChatResponse } from '@orbit/shared/types/chat'
 import type { Profile } from '@orbit/shared/types/profile'
 import type { AgentExecuteOperationResponse } from '@orbit/shared/types/ai'
 import {
+  buildChatMessageWithFileContent,
   CHAT_STARTER_CHIP_KEYS,
   CHAT_STREAM_IDLE_TIMEOUT_MS,
   consumeChatSseStream,
@@ -40,6 +41,7 @@ import { useSpeechToText } from '@/hooks/use-speech-to-text'
 import { useChatStore } from '@/stores/chat-store'
 import { useProfile } from '@/hooks/use-profile'
 import { useChatImageAttachment } from '@/hooks/use-chat-image-attachment'
+import { useChatTextFileAttachment } from '@/hooks/use-chat-text-file-attachment'
 import { useChatPendingOperations } from '@/hooks/use-chat-pending-operations'
 
 interface AttemptedSend {
@@ -129,6 +131,14 @@ export function useChatComposer() {
     clearImage,
   } = useChatImageAttachment(setSendError)
 
+  const {
+    textFileInputRef,
+    selectedTextFile,
+    openTextFilePicker,
+    handleTextFileSelect,
+    removeTextFile,
+  } = useChatTextFileAttachment(setSendError)
+
   if (speechError !== previousSpeechError) {
     setPreviousSpeechError(speechError)
     if (speechError) {
@@ -141,7 +151,9 @@ export function useChatComposer() {
   const aiMessagesLimit = profile?.aiMessagesLimit ?? 20
   const atMessageLimit = !hasProAccess && aiMessagesUsed >= aiMessagesLimit
   const canSend =
-    (input.trim().length > 0 || selectedImage !== null) && !isTyping && !atMessageLimit
+    (input.trim().length > 0 || selectedImage !== null || selectedTextFile !== null) &&
+    !isTyping &&
+    !atMessageLimit
   const showSuggestions = messages.length === 0 && !isTyping
 
   const starterChips = useMemo(
@@ -478,8 +490,16 @@ export function useChatComposer() {
 
   const sendMessage = useCallback(
     async (content?: string) => {
-      const messageContent = content || input.trim()
-      if ((!messageContent && !selectedImage) || isTyping) return
+      const typedContent = content || input.trim()
+      if ((!typedContent && !selectedImage && !selectedTextFile) || isTyping) return
+
+      const messageContent = selectedTextFile
+        ? buildChatMessageWithFileContent({
+            message: typedContent,
+            fileLabel: t('chat.fileAttached', { name: selectedTextFile.name }),
+            fileContent: selectedTextFile.content,
+          })
+        : typedContent
 
       const attempted: AttemptedSend = {
         content: messageContent,
@@ -489,10 +509,21 @@ export function useChatComposer() {
 
       setInput('')
       clearImage()
+      removeTextFile()
 
       await performSend(attempted, false)
     },
-    [clearImage, imagePreview, input, isTyping, performSend, selectedImage],
+    [
+      clearImage,
+      imagePreview,
+      input,
+      isTyping,
+      performSend,
+      removeTextFile,
+      selectedImage,
+      selectedTextFile,
+      t,
+    ],
   )
 
   const retryLastSend = useCallback(async () => {
@@ -542,6 +573,11 @@ export function useChatComposer() {
     handleFileSelect,
     handlePaste,
     removeImage,
+    textFileInputRef,
+    selectedTextFileName: selectedTextFile?.name ?? null,
+    openTextFilePicker,
+    handleTextFileSelect,
+    removeTextFile,
     sendMessage,
     retryLastSend,
     canRetryLastSend,

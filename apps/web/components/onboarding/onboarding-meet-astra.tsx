@@ -1,10 +1,16 @@
 'use client'
 
-import { Sparkles } from 'lucide-react'
+import { Sparkles, Upload } from 'lucide-react'
 import { useTranslations } from 'next-intl'
+import { PillButton } from '@/components/ui/pill-button'
 
-/** ob-2 onboarding step: tinted hero disc + Astra intro in the kit chat-bubble language. */
-export function OnboardingMeetAstra() {
+interface OnboardingMeetAstraProps {
+  onImport?: () => void
+}
+
+/** ob-2 onboarding step: tinted hero disc + Astra intro in the kit chat-bubble language.
+ *  When `onImport` is provided, offers an "import from another app" shortcut into Astra. */
+export function OnboardingMeetAstra({ onImport }: Readonly<OnboardingMeetAstraProps>) {
   const t = useTranslations()
 
   return (
@@ -69,6 +75,17 @@ export function OnboardingMeetAstra() {
           {t('onboarding.flow.meetAstra.subtitle')}
         </div>
       </div>
+
+      {onImport && (
+        <PillButton
+          variant="ghost"
+          fullWidth
+          leading={<Upload size={18} strokeWidth={1.8} aria-hidden="true" />}
+          onClick={onImport}
+        >
+          {t('onboarding.flow.meetAstra.import')}
+        </PillButton>
+      )}
     </div>
   )
 }

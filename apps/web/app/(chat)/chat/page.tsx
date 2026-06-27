@@ -163,6 +163,11 @@ export default function ChatPage() {
         handlePaste={composer.handlePaste}
         handleKeyDown={composer.handleKeyDown}
         removeImage={composer.removeImage}
+        textFileInputRef={composer.textFileInputRef}
+        selectedTextFileName={composer.selectedTextFileName}
+        openTextFilePicker={composer.openTextFilePicker}
+        handleTextFileSelect={composer.handleTextFileSelect}
+        removeTextFile={composer.removeTextFile}
         sendMessage={sendMessage}
         retryLastSend={composer.retryLastSend}
         canRetryLastSend={composer.canRetryLastSend}
