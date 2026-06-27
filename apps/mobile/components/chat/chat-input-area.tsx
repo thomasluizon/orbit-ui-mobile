@@ -1,6 +1,6 @@
 import { forwardRef } from "react";
 import { View, Text, TouchableOpacity, Pressable, ScrollView, Image, Linking } from "react-native";
-import { Crown, X, WifiOff } from "lucide-react-native";
+import { Crown, FileText, X, WifiOff } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import Animated, { FadeInLeft, ReduceMotion } from "react-native-reanimated";
 import { InfoCard } from "@/components/ui/info-card";
@@ -43,16 +43,20 @@ interface ChatInputAreaProps {
   isTranscribing: boolean;
   isTyping: boolean;
   selectedImagePresent: boolean;
+  selectedTextFileName: string | null;
+  selectedTextFilePresent: boolean;
   transcript: string;
   composerResetSignal: number;
   recordingTime: string;
   speechSupported: boolean;
   onRemoveImage: () => void;
+  onRemoveTextFile: () => void;
   onRetry: () => void;
   onSendChip: (chip: string) => void;
   onSend: (message: string) => void;
   onToggleRecording: () => void;
   onOpenFilePicker: () => void;
+  onOpenTextFilePicker: () => void;
   onUpgrade: () => void;
 }
 
@@ -67,8 +71,10 @@ interface ChatInputNoticesProps {
   canRetry: boolean;
   speechError: string | null;
   imagePreview: string | null;
+  selectedTextFileName: string | null;
   onRetry: () => void;
   onRemoveImage: () => void;
+  onRemoveTextFile: () => void;
 }
 
 function ChatInputNotices({
@@ -82,8 +88,10 @@ function ChatInputNotices({
   canRetry,
   speechError,
   imagePreview,
+  selectedTextFileName,
   onRetry,
   onRemoveImage,
+  onRemoveTextFile,
 }: Readonly<ChatInputNoticesProps>) {
   const { t } = useTranslation();
   return (
@@ -150,6 +158,26 @@ function ChatInputNotices({
                 styles.imageRemoveButton,
                 { backgroundColor: tokens.bgElev, borderColor: tokens.hairlineStrong },
               ]}
+            >
+              <X size={12} color={tokens.fg1} />
+            </TouchableOpacity>
+          </View>
+        </View>
+      )}
+
+      {selectedTextFileName && (
+        <View style={styles.textFileChipRow}>
+          <View style={styles.textFileChip}>
+            <FileText size={16} color={tokens.primary} strokeWidth={1.8} />
+            <Text style={styles.textFileChipText} numberOfLines={1}>
+              {selectedTextFileName}
+            </Text>
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel={t("chat.removeFile")}
+              activeOpacity={0.8}
+              onPress={onRemoveTextFile}
+              style={styles.textFileChipRemove}
             >
               <X size={12} color={tokens.fg1} />
             </TouchableOpacity>
@@ -272,6 +300,7 @@ export const ChatInputArea = forwardRef<View, Readonly<ChatInputAreaProps>>(
       canRetry,
       speechError,
       imagePreview,
+      selectedTextFileName,
       starterChips,
       hasProAccess,
       aiMessagesUsed,
@@ -280,6 +309,7 @@ export const ChatInputArea = forwardRef<View, Readonly<ChatInputAreaProps>>(
       reward,
       voiceRef,
       onRemoveImage,
+      onRemoveTextFile,
       onRetry,
       onSendChip,
       onUpgrade,
@@ -309,8 +339,10 @@ export const ChatInputArea = forwardRef<View, Readonly<ChatInputAreaProps>>(
           canRetry={canRetry}
           speechError={speechError}
           imagePreview={imagePreview}
+          selectedTextFileName={selectedTextFileName}
           onRetry={onRetry}
           onRemoveImage={onRemoveImage}
+          onRemoveTextFile={onRemoveTextFile}
         />
 
         {hasMessages && (
@@ -332,6 +364,7 @@ export const ChatInputArea = forwardRef<View, Readonly<ChatInputAreaProps>>(
           atMessageLimit={atMessageLimit}
           limitLocked={!hasProAccess && atMessageLimit}
           selectedImagePresent={props.selectedImagePresent}
+          selectedTextFilePresent={props.selectedTextFilePresent}
           transcript={props.transcript}
           composerResetSignal={props.composerResetSignal}
           recordingTime={props.recordingTime}
@@ -339,6 +372,7 @@ export const ChatInputArea = forwardRef<View, Readonly<ChatInputAreaProps>>(
           onSend={props.onSend}
           onToggleRecording={props.onToggleRecording}
           onOpenFilePicker={props.onOpenFilePicker}
+          onOpenTextFilePicker={props.onOpenTextFilePicker}
         />
 
         {!hasProAccess && atMessageLimit && (

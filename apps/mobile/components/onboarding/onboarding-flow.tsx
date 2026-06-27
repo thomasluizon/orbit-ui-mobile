@@ -18,6 +18,8 @@ import { API } from '@orbit/shared/api'
 import type { Profile } from '@orbit/shared/types/profile'
 import { useHasProAccess } from '@/hooks/use-profile'
 import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
+import AsyncStorage from '@react-native-async-storage/async-storage'
+import { CHAT_DRAFT_STORAGE_KEY } from '@orbit/shared/hooks'
 import { OnboardingWelcome } from './onboarding-welcome'
 import { OnboardingMeetAstra } from './onboarding-meet-astra'
 import { OnboardingCreateHabit } from './onboarding-create-habit'
@@ -93,6 +95,7 @@ interface OnboardingStepContentProps {
   onPackCreateOwn: () => void
   onAdvancePastHabits: () => void
   onFinish: () => void
+  onImport: () => void
 }
 
 function OnboardingStepContent({
@@ -108,8 +111,9 @@ function OnboardingStepContent({
   onPackCreateOwn,
   onAdvancePastHabits,
   onFinish,
+  onImport,
 }: Readonly<OnboardingStepContentProps>) {
-  if (viewingAstra) return <OnboardingMeetAstra key="meet-astra" />
+  if (viewingAstra) return <OnboardingMeetAstra key="meet-astra" onImport={onImport} />
   switch (sharedStep) {
     case 0:
       return <OnboardingWelcome key="welcome" />
@@ -354,6 +358,28 @@ export function OnboardingFlow() {
     router.replace('/')
   }
 
+  async function handleImport() {
+    await AsyncStorage.setItem(
+      CHAT_DRAFT_STORAGE_KEY,
+      t('onboarding.flow.meetAstra.importPrompt'),
+    )
+    try {
+      await performQueuedApiMutation({
+        type: 'completeOnboarding',
+        scope: 'profile',
+        endpoint: API.profile.onboarding,
+        method: 'PUT',
+        payload: undefined,
+        dedupeKey: 'profile-onboarding-complete',
+      })
+    } catch {
+    }
+    queryClient.setQueryData<Profile>(profileKeys.detail(), (old) =>
+      old ? { ...old, hasCompletedOnboarding: true } : old,
+    )
+    router.replace('/chat')
+  }
+
   function handleSkip() {
     setViewingAstra(false)
     setSharedStep(ONBOARDING_COMPLETE_STEP)
@@ -420,6 +446,7 @@ export function OnboardingFlow() {
               onPackCreateOwn={handleCreateOwnInstead}
               onAdvancePastHabits={advancePastHabitSteps}
               onFinish={handleFinish}
+              onImport={handleImport}
             />
           </Animated.View>
         </KeyboardAwareScrollView>

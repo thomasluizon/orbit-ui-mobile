@@ -16,6 +16,7 @@ import {
   shouldHideOnboardingFooter,
 } from '@orbit/shared/utils'
 import { profileKeys } from '@orbit/shared/query'
+import { CHAT_DRAFT_STORAGE_KEY } from '@orbit/shared/hooks'
 import type { Profile } from '@orbit/shared/types/profile'
 import { useHasProAccess } from '@/hooks/use-profile'
 import { completeOnboarding } from '@/app/actions/profile'
@@ -132,6 +133,23 @@ export function OnboardingFlow() {
     router.push('/')
   }
 
+  async function handleImport() {
+    if (typeof globalThis !== 'undefined' && typeof globalThis.localStorage !== 'undefined') {
+      globalThis.localStorage.setItem(
+        CHAT_DRAFT_STORAGE_KEY,
+        t('onboarding.flow.meetAstra.importPrompt'),
+      )
+    }
+    try {
+      await completeOnboarding()
+    } catch {
+    }
+    queryClient.setQueryData<Profile>(profileKeys.detail(), (old) =>
+      old ? { ...old, hasCompletedOnboarding: true } : old,
+    )
+    router.push('/chat')
+  }
+
   function handleSkip() {
     setStepDirection('forward')
     setViewingAstra(false)
@@ -141,7 +159,7 @@ export function OnboardingFlow() {
   const hideFooter = !viewingAstra && shouldHideOnboardingFooter(sharedStep)
 
   const stepContent = (() => {
-    if (viewingAstra) return <OnboardingMeetAstra key="meet-astra" />
+    if (viewingAstra) return <OnboardingMeetAstra key="meet-astra" onImport={handleImport} />
     switch (sharedStep) {
       case 0:
         return <OnboardingWelcome key="welcome" />

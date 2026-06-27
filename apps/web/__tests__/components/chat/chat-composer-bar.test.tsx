@@ -38,6 +38,11 @@ function baseProps() {
     handlePaste: vi.fn(),
     handleKeyDown: vi.fn(),
     removeImage: vi.fn(),
+    textFileInputRef: createRef<HTMLInputElement>(),
+    selectedTextFileName: null as string | null,
+    openTextFilePicker: vi.fn(),
+    handleTextFileSelect: vi.fn(),
+    removeTextFile: vi.fn(),
     sendMessage: vi.fn(),
     retryLastSend: vi.fn(),
     canRetryLastSend: false,
@@ -145,6 +150,21 @@ describe('ChatComposerBar', () => {
     render(<ChatComposerBar {...props} />)
     fireEvent.click(screen.getByLabelText('chat.attachImage'))
     expect(props.openFilePicker).toHaveBeenCalled()
+  })
+
+  it('opens the text-file picker when the attach-file button is clicked', () => {
+    const props = baseProps()
+    render(<ChatComposerBar {...props} />)
+    fireEvent.click(screen.getByLabelText('chat.attachFile'))
+    expect(props.openTextFilePicker).toHaveBeenCalled()
+  })
+
+  it('renders the attached text-file chip and removes it on click', () => {
+    const props = { ...baseProps(), selectedTextFileName: 'habits.csv' }
+    render(<ChatComposerBar {...props} />)
+    expect(screen.getByText('habits.csv')).toBeInTheDocument()
+    fireEvent.click(screen.getByLabelText('chat.removeFile'))
+    expect(props.removeTextFile).toHaveBeenCalled()
   })
 
   it('toggles recording from the mic button', () => {

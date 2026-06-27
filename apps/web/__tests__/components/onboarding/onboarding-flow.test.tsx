@@ -1,5 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+
+const mocks = vi.hoisted(() => ({ routerPush: vi.fn() }))
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string, params?: Record<string, unknown>) => {
@@ -9,7 +11,7 @@ vi.mock('next-intl', () => ({
 }))
 
 vi.mock('next/navigation', () => ({
-  useRouter: () => ({ push: vi.fn() }),
+  useRouter: () => ({ push: mocks.routerPush }),
 }))
 
 vi.mock('@tanstack/react-query', () => ({
@@ -32,7 +34,16 @@ vi.mock('@/components/onboarding/onboarding-welcome', () => ({
   OnboardingWelcome: () => <div data-testid="step-welcome">Welcome</div>,
 }))
 vi.mock('@/components/onboarding/onboarding-meet-astra', () => ({
-  OnboardingMeetAstra: () => <div data-testid="step-meet-astra">Meet Astra</div>,
+  OnboardingMeetAstra: ({ onImport }: { onImport?: () => void }) => (
+    <div data-testid="step-meet-astra">
+      Meet Astra
+      {onImport && (
+        <button type="button" onClick={onImport}>
+          onboarding.flow.meetAstra.import
+        </button>
+      )}
+    </div>
+  ),
 }))
 vi.mock('@/components/onboarding/onboarding-template-packs', () => ({
   OnboardingTemplatePacks: ({
@@ -89,6 +100,8 @@ import { OnboardingFlow } from '@/components/onboarding/onboarding-flow'
 describe('OnboardingFlow', () => {
   beforeEach(() => {
     document.body.innerHTML = ''
+    mocks.routerPush.mockClear()
+    globalThis.localStorage.clear()
   })
 
   it('renders the first step (welcome)', () => {
@@ -115,6 +128,16 @@ describe('OnboardingFlow', () => {
     render(<OnboardingFlow />)
     fireEvent.click(screen.getByText('onboarding.flow.begin'))
     expect(screen.getByTestId('step-meet-astra')).toBeInTheDocument()
+  })
+
+  it('imports from another app: writes the chat draft and routes into Astra', async () => {
+    render(<OnboardingFlow />)
+    fireEvent.click(screen.getByText('onboarding.flow.begin'))
+    fireEvent.click(screen.getByText('onboarding.flow.meetAstra.import'))
+    await waitFor(() => expect(mocks.routerPush).toHaveBeenCalledWith('/chat'))
+    expect(globalThis.localStorage.getItem('orbit-chat-draft')).toBe(
+      'onboarding.flow.meetAstra.importPrompt',
+    )
   })
 
   it('advances through the create-my-own branch via interactions', () => {

@@ -80,6 +80,9 @@ export default function ChatScreen() {
     showSuggestions,
     openFilePicker,
     removeImage,
+    selectedTextFile,
+    openTextFilePicker,
+    removeTextFile,
     sendMessage,
     scrollToBottom,
     handleBreakdownConfirmed,
@@ -246,6 +249,8 @@ export default function ChatScreen() {
           isTranscribing={isTranscribing}
           isTyping={isTyping}
           selectedImagePresent={selectedImage !== null}
+          selectedTextFileName={selectedTextFile?.name ?? null}
+          selectedTextFilePresent={selectedTextFile !== null}
           transcript={transcript}
           composerResetSignal={composerResetSignal}
           recordingTime={recordingTime}
@@ -262,6 +267,7 @@ export default function ChatScreen() {
             },
           }}
           onRemoveImage={removeImage}
+          onRemoveTextFile={removeTextFile}
           onRetry={() => {
             void retryLastSend();
           }}
@@ -274,6 +280,9 @@ export default function ChatScreen() {
           onToggleRecording={toggleRecording}
           onOpenFilePicker={() => {
             void openFilePicker();
+          }}
+          onOpenTextFilePicker={() => {
+            void openTextFilePicker();
           }}
           onUpgrade={() => router.push("/upgrade")}
         />

@@ -720,6 +720,12 @@
     "imageError": "Only JPEG, PNG, and WebP images are supported.",
     "imageSizeError": "Image must be under 20MB.",
     "imagePermissionError": "Photo library access is required to attach images.",
+    "attachFile": "Attach file",
+    "removeFile": "Remove file",
+    "fileError": "Only .csv, .json, .txt, and .md files are supported.",
+    "fileSizeError": "File must be under 1 MB.",
+    "fileReadError": "Couldn't read that file. Please try again.",
+    "fileAttached": "Attached file \"{name}\":",
     "sendError": "Failed to send message. Please try again.",
     "timeoutError": "The request timed out. Please try again.",
     "limitReachedError": "You've reached your monthly AI message limit.",
@@ -1230,7 +1236,9 @@
       "back": "Back",
       "meetAstra": {
         "title": "Meet Astra.",
-        "subtitle": "Orbit's assistant. It can create habits, recap your day, plan ahead, and reflect on what's drifting. Ask plainly. It listens."
+        "subtitle": "Orbit's assistant. It can create habits, recap your day, plan ahead, and reflect on what's drifting. Ask plainly. It listens.",
+        "import": "Import from another app",
+        "importPrompt": "Help me import my habits from another app. I'll attach a file or paste my list, and you create the habits."
       },
       "welcome": {
         "title": "Welcome to Orbit",
