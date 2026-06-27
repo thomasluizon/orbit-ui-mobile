@@ -1895,6 +1895,10 @@
         "name": "Controle de Missão",
         "description": "Crie sua primeira meta"
       },
+      "onboarding_complete": {
+        "name": "Tudo Pronto",
+        "description": "Conclua sua lista de configuração"
+      },
       "week_warrior": {
         "name": "Guerreiro da Semana",
         "description": "Alcance uma sequência de 7 dias"

@@ -1895,6 +1895,10 @@
         "name": "Mission Control",
         "description": "Create your first goal"
       },
+      "onboarding_complete": {
+        "name": "All Systems Go",
+        "description": "Complete your setup checklist"
+      },
       "week_warrior": {
         "name": "Week Warrior",
         "description": "Achieve a 7-day streak on any habit"
