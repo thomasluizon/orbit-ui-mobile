@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { createTourStoreState, type TourStoreState } from '../stores/tour-store'
+import { COACH_MARK_SECTIONS } from '../types/tour'
 
 /**
  * Creates a minimal Zustand-like store for testing.
@@ -205,5 +206,47 @@ describe('createTourStoreState', () => {
 
     expect(steps).toHaveLength(1)
     expect(steps[0]?.section).toBe('coach-today')
+  })
+
+  it('startCoachTour activates the sequenced coach tour', () => {
+    getState().startCoachTour()
+    const s = getState()
+
+    expect(s.isActive).toBe(true)
+    expect(s.isCoachTour).toBe(true)
+    expect(s.replaySection).toBeNull()
+    expect(s.currentStepIndex).toBe(0)
+  })
+
+  it('coach tour walks every coach section as one multi-step sequence', () => {
+    getState().startCoachTour()
+    const steps = getState().getActiveSteps()
+
+    expect(steps).toHaveLength(3)
+    expect(steps.every((step) => COACH_MARK_SECTIONS.includes(step.section))).toBe(true)
+  })
+
+  it('coach tour reports global step progress, not per-section', () => {
+    getState().startCoachTour()
+    expect(getState().getActiveSteps()).toHaveLength(3)
+
+    expect(getState().getSectionProgress()).toMatchObject({ current: 1, total: 3 })
+    getState().nextStep()
+    expect(getState().getSectionProgress()).toMatchObject({ current: 2, total: 3 })
+    getState().nextStep()
+    expect(getState().getSectionProgress()).toMatchObject({ current: 3, total: 3 })
+  })
+
+  it('coach tour ends after its final step', () => {
+    getState().startCoachTour()
+    const total = getState().getTotalSteps()
+    expect(total).toBe(3)
+
+    for (let i = 0; i < total; i++) {
+      getState().nextStep()
+    }
+
+    expect(getState().isActive).toBe(false)
+    expect(getState().isCoachTour).toBe(false)
   })
 })

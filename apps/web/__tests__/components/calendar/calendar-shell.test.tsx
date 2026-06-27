@@ -5,6 +5,8 @@ vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
 }))
 
+Element.prototype.scrollIntoView = vi.fn()
+
 import {
   CalendarHeader,
   CalendarWeekNav,
@@ -12,42 +14,43 @@ import {
 } from '@/app/(app)/calendar/_components/calendar-shell'
 
 describe('Calendar shell helpers', () => {
-  it('renders the calendar header actions including year jumps', () => {
+  it('renders the header, fires month handlers, and opens a year picker', () => {
     const onPreviousMonth = vi.fn()
     const onNextMonth = vi.fn()
-    const onPreviousYear = vi.fn()
-    const onNextYear = vi.fn()
     const onCurrentMonth = vi.fn()
+    const onSelectYear = vi.fn()
 
     render(
       <CalendarHeader
-        monthLabel="April 2026"
+        monthLabel="April"
+        year={2026}
         previousMonthLabel="common.previousMonth"
         nextMonthLabel="common.nextMonth"
-        previousYearLabel="common.previousYear"
-        nextYearLabel="common.nextYear"
         currentMonthLabel="calendar.goToCurrentMonth"
+        selectYearLabel="common.selectYear"
         onPreviousMonth={onPreviousMonth}
         onNextMonth={onNextMonth}
-        onPreviousYear={onPreviousYear}
-        onNextYear={onNextYear}
         onCurrentMonth={onCurrentMonth}
+        onSelectYear={onSelectYear}
       />,
     )
 
-    expect(screen.getByText('April 2026')).toBeInTheDocument()
+    expect(screen.getByText('April')).toBeInTheDocument()
 
     fireEvent.click(screen.getByLabelText('common.previousMonth'))
     fireEvent.click(screen.getByLabelText('common.nextMonth'))
-    fireEvent.click(screen.getByLabelText('common.previousYear'))
-    fireEvent.click(screen.getByLabelText('common.nextYear'))
     fireEvent.click(screen.getByLabelText('calendar.goToCurrentMonth'))
 
     expect(onPreviousMonth).toHaveBeenCalledTimes(1)
     expect(onNextMonth).toHaveBeenCalledTimes(1)
-    expect(onPreviousYear).toHaveBeenCalledTimes(1)
-    expect(onNextYear).toHaveBeenCalledTimes(1)
     expect(onCurrentMonth).toHaveBeenCalledTimes(1)
+
+    expect(screen.queryByLabelText('common.previousYear')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('common.nextYear')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByLabelText('common.selectYear'))
+    fireEvent.click(screen.getByRole('button', { name: '2030' }))
+    expect(onSelectYear).toHaveBeenCalledWith(2030)
   })
 
   it('renders the week nav and fires week handlers', () => {

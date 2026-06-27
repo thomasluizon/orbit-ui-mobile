@@ -9,8 +9,7 @@ import {
 import {
   addMonths,
   subMonths,
-  addYears,
-  subYears,
+  setYear,
   addDays,
   startOfMonth,
   startOfWeek,
@@ -19,12 +18,13 @@ import {
   isSameDay,
   parseISO,
 } from 'date-fns'
-import { Calendar, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react-native'
+import { Calendar, ChevronLeft, ChevronRight } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
-import { formatLocaleDate } from '@orbit/shared/utils'
+import { formatLocaleDate, splitMonthYear } from '@orbit/shared/utils'
 import { useProfile } from '@/hooks/use-profile'
 import { createTokensV2, radius, shadowsV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
+import { YearPicker } from '@/components/ui/year-picker'
 
 type AppTokens = ReturnType<typeof createTokensV2>
 
@@ -49,6 +49,7 @@ export function AppDatePicker({
   const weekStartsOn = (profile?.weekStartDay ?? 0) as 0 | 1
   const locale = i18n.language
   const [isOpen, setIsOpen] = useState(false)
+  const [pickerMode, setPickerMode] = useState<'days' | 'years'>('days')
   const [viewDate, setViewDate] = useState(new Date())
 
   const selectedDate = value ? parseISO(value) : null
@@ -59,10 +60,7 @@ export function AppDatePicker({
     if (value) setViewDate(parseISO(value))
   }
 
-  const monthLabel = formatLocaleDate(viewDate, locale, {
-    month: 'long',
-    year: 'numeric',
-  })
+  const { lead: monthLead, year: yearLabel } = splitMonthYear(viewDate, locale)
   const styles = useMemo(() => createStyles(tokens), [tokens])
 
   const weekDays = useMemo(() => {
@@ -103,17 +101,19 @@ export function AppDatePicker({
     setViewDate((d) => addMonths(d, 1))
   }, [])
 
-  const prevYear = useCallback(() => {
-    setViewDate((d) => subYears(d, 1))
+  const selectYear = useCallback((year: number) => {
+    setViewDate((d) => setYear(d, year))
+    setPickerMode('days')
   }, [])
 
-  const nextYear = useCallback(() => {
-    setViewDate((d) => addYears(d, 1))
+  const closePicker = useCallback(() => {
+    setIsOpen(false)
+    setPickerMode('days')
   }, [])
 
   function selectDay(day: Date) {
     onChange(format(day, 'yyyy-MM-dd'))
-    setIsOpen(false)
+    closePicker()
   }
 
   const displayValue = value ? formatLocaleDate(value, locale) : ''
@@ -147,12 +147,12 @@ export function AppDatePicker({
         visible={isOpen}
         transparent
         animationType="fade"
-        onRequestClose={() => setIsOpen(false)}
+        onRequestClose={closePicker}
       >
         <TouchableOpacity
           style={styles.backdrop}
           activeOpacity={1}
-          onPress={() => setIsOpen(false)}
+          onPress={closePicker}
           accessibilityRole="button"
           accessibilityLabel={t('common.close')}
         >
@@ -161,97 +161,110 @@ export function AppDatePicker({
             onStartShouldSetResponder={() => true}
           >
             <View style={styles.monthNav}>
-              <View style={styles.monthNavGroup}>
+              <TouchableOpacity
+                onPress={prevMonth}
+                hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
+                accessibilityRole="button"
+                accessibilityLabel={t('common.previousMonth')}
+                disabled={pickerMode === 'years'}
+                style={pickerMode === 'years' ? styles.navHidden : undefined}
+              >
+                <ChevronLeft size={18} strokeWidth={1.8} color={tokens.fg3} />
+              </TouchableOpacity>
+
+              <View style={styles.monthLabelGroup}>
+                {monthLead ? (
+                  <Text style={styles.monthLabel}>{monthLead}</Text>
+                ) : null}
                 <TouchableOpacity
-                  onPress={prevYear}
+                  onPress={() =>
+                    setPickerMode((mode) => (mode === 'years' ? 'days' : 'years'))
+                  }
                   hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
                   accessibilityRole="button"
-                  accessibilityLabel={t('common.previousYear')}
+                  accessibilityLabel={t('common.selectYear')}
                 >
-                  <ChevronsLeft size={18} strokeWidth={1.8} color={tokens.fg3} />
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  onPress={prevMonth}
-                  hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
-                  accessibilityRole="button"
-                  accessibilityLabel={t('common.previousMonth')}
-                >
-                  <ChevronLeft size={18} strokeWidth={1.8} color={tokens.fg3} />
-                </TouchableOpacity>
-              </View>
-
-              <Text style={styles.monthLabel}>{monthLabel}</Text>
-
-              <View style={styles.monthNavGroup}>
-                <TouchableOpacity
-                  onPress={nextMonth}
-                  hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
-                  accessibilityRole="button"
-                  accessibilityLabel={t('common.nextMonth')}
-                >
-                  <ChevronRight size={18} strokeWidth={1.8} color={tokens.fg3} />
-                </TouchableOpacity>
-
-                <TouchableOpacity
-                  onPress={nextYear}
-                  hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
-                  accessibilityRole="button"
-                  accessibilityLabel={t('common.nextYear')}
-                >
-                  <ChevronsRight size={18} strokeWidth={1.8} color={tokens.fg3} />
+                  <Text
+                    style={[
+                      styles.yearLabel,
+                      pickerMode === 'years' && { color: tokens.primary },
+                    ]}
+                  >
+                    {yearLabel}
+                  </Text>
                 </TouchableOpacity>
               </View>
+
+              <TouchableOpacity
+                onPress={nextMonth}
+                hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
+                accessibilityRole="button"
+                accessibilityLabel={t('common.nextMonth')}
+                disabled={pickerMode === 'years'}
+                style={pickerMode === 'years' ? styles.navHidden : undefined}
+              >
+                <ChevronRight size={18} strokeWidth={1.8} color={tokens.fg3} />
+              </TouchableOpacity>
             </View>
 
-            <View style={styles.weekRow}>
-              {weekDays.map((day, i) => (
-                <View key={`wh-${i}`} style={styles.dayCell}>
-                  <Text style={styles.weekDayText}>{day}</Text>
+            {pickerMode === 'years' ? (
+              <YearPicker
+                selectedYear={viewDate.getFullYear()}
+                onSelectYear={selectYear}
+                tokens={tokens}
+              />
+            ) : (
+              <>
+                <View style={styles.weekRow}>
+                  {weekDays.map((day, i) => (
+                    <View key={`wh-${i}`} style={styles.dayCell}>
+                      <Text style={styles.weekDayText}>{day}</Text>
+                    </View>
+                  ))}
                 </View>
-              ))}
-            </View>
 
-            {calendarWeeks.map((week) => (
-              <View key={week[0]?.toISOString()} style={styles.weekRow}>
-                {week.map((day) => {
-                  const isSelected =
-                    selectedDate != null && isSameDay(day, selectedDate)
-                  const isToday = isSameDay(day, new Date())
-                  const isCurrentMonth = isSameMonth(day, viewDate)
+                {calendarWeeks.map((week) => (
+                  <View key={week[0]?.toISOString()} style={styles.weekRow}>
+                    {week.map((day) => {
+                      const isSelected =
+                        selectedDate != null && isSameDay(day, selectedDate)
+                      const isToday = isSameDay(day, new Date())
+                      const isCurrentMonth = isSameMonth(day, viewDate)
 
-                  return (
-                    <TouchableOpacity
-                      key={day.toISOString()}
-                      style={[
-                        styles.dayCell,
-                        isSelected && styles.dayCellSelected,
-                        isToday && !isSelected && styles.dayCellToday,
-                      ]}
-                      onPress={() => selectDay(day)}
-                      activeOpacity={0.7}
-                      accessibilityRole="button"
-                      accessibilityState={{ selected: isSelected }}
-                      accessibilityLabel={formatLocaleDate(day, locale, {
-                        month: 'long',
-                        day: 'numeric',
-                        year: 'numeric',
-                      })}
-                    >
-                      <Text
-                        style={[
-                          styles.dayText,
-                          !isCurrentMonth && styles.dayTextOutside,
-                          isSelected && styles.dayTextSelected,
-                        ]}
-                      >
-                        {format(day, 'd')}
-                      </Text>
-                    </TouchableOpacity>
-                  )
-                })}
-              </View>
-            ))}
+                      return (
+                        <TouchableOpacity
+                          key={day.toISOString()}
+                          style={[
+                            styles.dayCell,
+                            isSelected && styles.dayCellSelected,
+                            isToday && !isSelected && styles.dayCellToday,
+                          ]}
+                          onPress={() => selectDay(day)}
+                          activeOpacity={0.7}
+                          accessibilityRole="button"
+                          accessibilityState={{ selected: isSelected }}
+                          accessibilityLabel={formatLocaleDate(day, locale, {
+                            month: 'long',
+                            day: 'numeric',
+                            year: 'numeric',
+                          })}
+                        >
+                          <Text
+                            style={[
+                              styles.dayText,
+                              !isCurrentMonth && styles.dayTextOutside,
+                              isSelected && styles.dayTextSelected,
+                            ]}
+                          >
+                            {format(day, 'd')}
+                          </Text>
+                        </TouchableOpacity>
+                      )
+                    })}
+                  </View>
+                ))}
+              </>
+            )}
           </View>
         </TouchableOpacity>
       </Modal>
@@ -309,16 +322,26 @@ function createStyles(tokens: AppTokens) {
       marginBottom: 8,
       paddingHorizontal: 4,
     },
-    monthNavGroup: {
+    monthLabelGroup: {
       flexDirection: 'row',
       alignItems: 'center',
-      gap: 8,
+      gap: 4,
     },
     monthLabel: {
       color: tokens.fg1,
       fontFamily: 'Rubik_500Medium',
       fontSize: 13,
-      textTransform: 'capitalize',
+    },
+    yearLabel: {
+      color: tokens.fg1,
+      fontFamily: 'Roboto_500Medium',
+      fontSize: 13,
+      fontVariant: ['tabular-nums'],
+      paddingHorizontal: 4,
+      paddingVertical: 2,
+    },
+    navHidden: {
+      opacity: 0,
     },
     weekRow: {
       flexDirection: 'row',

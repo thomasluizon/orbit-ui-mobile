@@ -17,6 +17,7 @@ import { profileKeys } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
 import type { Profile } from '@orbit/shared/types/profile'
 import { useHasProAccess } from '@/hooks/use-profile'
+import { useUIStore } from '@/stores/ui-store'
 import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { CHAT_DRAFT_STORAGE_KEY } from '@orbit/shared/hooks'
@@ -208,7 +209,7 @@ function OnboardingFooter({
 
       <View style={styles.footerActions}>
         {canAdvance && (
-          <PillButton fullWidth onPress={onNext}>
+          <PillButton onPress={onNext}>
             {isStarter
               ? t('onboarding.flow.begin')
               : t('onboarding.flow.next')}
@@ -235,6 +236,8 @@ export function OnboardingFlow() {
   const router = useRouter()
   const queryClient = useQueryClient()
   const hasProAccess = useHasProAccess()
+  const onboardingHandedOff = useUIStore((s) => s.onboardingHandedOff)
+  const setOnboardingHandedOff = useUIStore((s) => s.setOnboardingHandedOff)
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
     () => createTokensV2(currentScheme, currentTheme),
@@ -363,20 +366,7 @@ export function OnboardingFlow() {
       CHAT_DRAFT_STORAGE_KEY,
       t('onboarding.flow.meetAstra.importPrompt'),
     )
-    try {
-      await performQueuedApiMutation({
-        type: 'completeOnboarding',
-        scope: 'profile',
-        endpoint: API.profile.onboarding,
-        method: 'PUT',
-        payload: undefined,
-        dedupeKey: 'profile-onboarding-complete',
-      })
-    } catch {
-    }
-    queryClient.setQueryData<Profile>(profileKeys.detail(), (old) =>
-      old ? { ...old, hasCompletedOnboarding: true } : old,
-    )
+    setOnboardingHandedOff(true)
     router.replace('/chat')
   }
 
@@ -392,6 +382,8 @@ export function OnboardingFlow() {
   function handleRequestClose() {
     if (hasPrev) goPrev()
   }
+
+  if (onboardingHandedOff) return null
 
   return (
     <Modal

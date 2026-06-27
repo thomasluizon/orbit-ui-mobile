@@ -150,6 +150,40 @@ export function formatLocaleDate(
   )
 }
 
+/** Uppercases only the first character, leaving the rest untouched. Use for
+ *  localized month-year labels so locale connectors (e.g. pt-BR "de") stay
+ *  lowercase while the month keeps its leading capital. */
+export function capitalizeFirstLetter(value: string): string {
+  return value ? value.charAt(0).toUpperCase() + value.slice(1) : value
+}
+
+/** Splits a localized long "month year" label into its leading part (the month
+ *  plus any locale connector, with only the first letter capitalized) and the
+ *  year digits, so the year can render as its own control.
+ *  e.g. pt-BR → { lead: "Agosto de", year: "2028" }; en → { lead: "August", year: "2028" }. */
+export function splitMonthYear(
+  value: DateInput,
+  locale?: string | null,
+): { lead: string; year: string } {
+  const date = parseDateInput(value)
+  if (!date) {
+    return { lead: typeof value === 'string' ? value : '', year: '' }
+  }
+  const parts = new Intl.DateTimeFormat(getIntlLocale(locale), {
+    month: 'long',
+    year: 'numeric',
+  }).formatToParts(date)
+  const yearIndex = parts.findIndex((part) => part.type === 'year')
+  const year =
+    yearIndex >= 0 ? parts[yearIndex]!.value : String(date.getFullYear())
+  const leadParts = yearIndex > 0 ? parts.slice(0, yearIndex) : []
+  const lead = leadParts
+    .map((part) => part.value)
+    .join('')
+    .trim()
+  return { lead: capitalizeFirstLetter(lead), year }
+}
+
 export function formatLocaleDateTime(
   value: DateInput,
   locale?: string | null,

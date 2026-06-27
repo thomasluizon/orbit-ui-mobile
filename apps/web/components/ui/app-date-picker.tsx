@@ -4,8 +4,7 @@ import { useState, useId, useRef, useCallback, useMemo, useEffect } from 'react'
 import {
   addMonths,
   subMonths,
-  addYears,
-  subYears,
+  setYear,
   startOfMonth,
   startOfWeek,
   endOfWeek,
@@ -15,11 +14,12 @@ import {
   isSameDay,
   parseISO,
 } from 'date-fns'
-import { Calendar, ChevronLeft, ChevronRight, ChevronsLeft, ChevronsRight } from 'lucide-react'
+import { Calendar, ChevronLeft, ChevronRight } from 'lucide-react'
 import { useTranslations, useLocale } from 'next-intl'
-import { formatLocaleDate } from '@orbit/shared/utils'
+import { formatLocaleDate, splitMonthYear } from '@orbit/shared/utils'
 import { useProfile } from '@/hooks/use-profile'
 import { useOverlayEscape } from '@/hooks/use-overlay-escape'
+import { YearPicker } from '@/components/ui/year-picker'
 
 interface AppDatePickerProps {
   value: string
@@ -37,6 +37,7 @@ export function AppDatePicker({
   const { profile } = useProfile()
   const weekStartsOn: 0 | 1 = profile?.weekStartDay ?? 0
   const [isOpen, setIsOpen] = useState(false)
+  const [pickerMode, setPickerMode] = useState<'days' | 'years'>('days')
   const [viewDate, setViewDate] = useState(() => (value ? parseISO(value) : new Date()))
   const [lastSyncedValue, setLastSyncedValue] = useState(value)
   if (value !== lastSyncedValue) {
@@ -50,10 +51,7 @@ export function AppDatePicker({
 
   const selectedDate = value ? parseISO(value) : null
 
-  const monthLabel = formatLocaleDate(viewDate, locale, {
-    month: 'long',
-    year: 'numeric',
-  })
+  const { lead: monthLead, year: yearLabel } = splitMonthYear(viewDate, locale)
 
   const weekDays = useMemo(() => {
     const sundayFirst = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday']
@@ -95,17 +93,15 @@ export function AppDatePicker({
     setViewDate((d) => addMonths(d, 1))
   }
 
-  function prevYear() {
-    setViewDate((d) => subYears(d, 1))
-  }
-
-  function nextYear() {
-    setViewDate((d) => addYears(d, 1))
+  function selectYear(year: number) {
+    setViewDate((d) => setYear(d, year))
+    setPickerMode('days')
   }
 
   const closePicker = useCallback(() => {
     setIsOpen(false)
     setFocusedDate(null)
+    setPickerMode('days')
   }, [])
 
   function selectDay(day: Date) {
@@ -198,51 +194,45 @@ export function AppDatePicker({
             className="fixed z-50 left-1/2 top-1/2 m-0 w-[min(90vw,320px)] -translate-x-1/2 -translate-y-1/2 rounded-[16px] border-0 bg-[var(--bg-sheet)] p-2.5 text-[var(--fg-1)] shadow-[var(--shadow-2),inset_0_0_0_1px_var(--hairline)]"
           >
             <div className="flex items-center justify-between mb-2">
-              <div className="flex items-center gap-0.5">
-                <button
-                  type="button"
-                  className="p-1.5 rounded-lg hover:bg-[var(--bg-elev)]"
-                  aria-label={t('common.previousYear')}
-                  onClick={prevYear}
-                >
-                  <ChevronsLeft size={18} strokeWidth={1.8} className="text-[var(--fg-3)]" />
-                </button>
-                <button
-                  type="button"
-                  className="p-1.5 rounded-lg hover:bg-[var(--bg-elev)]"
-                  aria-label={t('common.previousMonth')}
-                  onClick={prevMonth}
-                >
-                  <ChevronLeft size={18} strokeWidth={1.8} className="text-[var(--fg-3)]" />
-                </button>
-              </div>
-              <span
-                id={dialogLabelId}
-                className="text-xs font-medium text-[var(--fg-1)] capitalize"
-                aria-live="polite"
+              <button
+                type="button"
+                className={`p-1.5 rounded-lg hover:bg-[var(--bg-elev)] ${pickerMode === 'years' ? 'invisible' : ''}`}
+                aria-label={t('common.previousMonth')}
+                onClick={prevMonth}
               >
-                {monthLabel}
+                <ChevronLeft size={18} strokeWidth={1.8} className="text-[var(--fg-3)]" />
+              </button>
+              <span id={dialogLabelId} className="flex items-center gap-1" aria-live="polite">
+                {monthLead && (
+                  <span className="text-xs font-medium text-[var(--fg-1)]">{monthLead}</span>
+                )}
+                <button
+                  type="button"
+                  aria-label={t('common.selectYear')}
+                  aria-expanded={pickerMode === 'years'}
+                  onClick={() => setPickerMode((mode) => (mode === 'years' ? 'days' : 'years'))}
+                  className="text-xs font-medium rounded-md px-1 py-0.5 hover:bg-[var(--bg-elev)] transition-[background-color,color]"
+                  style={{ color: pickerMode === 'years' ? 'var(--primary)' : 'var(--fg-1)' }}
+                >
+                  {yearLabel}
+                </button>
               </span>
-              <div className="flex items-center gap-0.5">
-                <button
-                  type="button"
-                  className="p-1.5 rounded-lg hover:bg-[var(--bg-elev)]"
-                  aria-label={t('common.nextMonth')}
-                  onClick={nextMonth}
-                >
-                  <ChevronRight size={18} strokeWidth={1.8} className="text-[var(--fg-3)]" />
-                </button>
-                <button
-                  type="button"
-                  className="p-1.5 rounded-lg hover:bg-[var(--bg-elev)]"
-                  aria-label={t('common.nextYear')}
-                  onClick={nextYear}
-                >
-                  <ChevronsRight size={18} strokeWidth={1.8} className="text-[var(--fg-3)]" />
-                </button>
-              </div>
+              <button
+                type="button"
+                className={`p-1.5 rounded-lg hover:bg-[var(--bg-elev)] ${pickerMode === 'years' ? 'invisible' : ''}`}
+                aria-label={t('common.nextMonth')}
+                onClick={nextMonth}
+              >
+                <ChevronRight size={18} strokeWidth={1.8} className="text-[var(--fg-3)]" />
+              </button>
             </div>
 
+            {pickerMode === 'years' ? (
+              <YearPicker
+                selectedYear={viewDate.getFullYear()}
+                onSelectYear={selectYear}
+              />
+            ) : (
             <table
               ref={gridRef}
               className="w-full border-separate border-spacing-0"
@@ -312,6 +302,7 @@ export function AppDatePicker({
                 ))}
               </tbody>
             </table>
+            )}
           </dialog>
         </>
       )}

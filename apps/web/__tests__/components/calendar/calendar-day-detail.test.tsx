@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string, params?: Record<string, unknown>) => {
@@ -52,124 +52,131 @@ function makeEntry(overrides: Partial<CalendarDayEntry> = {}): CalendarDayEntry 
   }
 }
 
+interface RenderProps {
+  dateStr: string | null
+  entries: CalendarDayEntry[]
+  showRecurring?: boolean
+  onShowRecurringChange?: (value: boolean) => void
+}
+
+function renderDetail({
+  dateStr,
+  entries,
+  showRecurring = true,
+  onShowRecurringChange = () => {},
+}: RenderProps) {
+  return render(
+    <CalendarDayDetail
+      dateStr={dateStr}
+      entries={entries}
+      showRecurring={showRecurring}
+      onShowRecurringChange={onShowRecurringChange}
+    />,
+  )
+}
+
 describe('CalendarDayDetail', () => {
   beforeEach(() => {
     document.body.innerHTML = ''
   })
 
   it('renders nothing without a selected date', () => {
-    const { container } = render(
-      <CalendarDayDetail dateStr={null} entries={[]} />,
-    )
+    const { container } = renderDetail({ dateStr: null, entries: [] })
     expect(container.innerHTML).toBe('')
   })
 
   it('shows no habits message when entries are empty', () => {
-    render(
-      <CalendarDayDetail
-        dateStr="2025-06-15"
-        entries={[]}
-      />,
-    )
+    renderDetail({ dateStr: '2025-06-15', entries: [] })
     expect(document.body.textContent).toContain('calendar.noHabitsScheduled')
   })
 
   it('renders habit entries', () => {
-    render(
-      <CalendarDayDetail
-        dateStr="2025-06-15"
-        entries={[makeEntry({ title: 'Read' }), makeEntry({ title: 'Exercise', habitId: '2' })]}
-      />,
-    )
+    renderDetail({
+      dateStr: '2025-06-15',
+      entries: [makeEntry({ title: 'Read' }), makeEntry({ title: 'Exercise', habitId: '2' })],
+    })
     expect(screen.getByText('Read')).toBeInTheDocument()
     expect(screen.getByText('Exercise')).toBeInTheDocument()
   })
 
   it('shows completion summary', () => {
-    render(
-      <CalendarDayDetail
-        dateStr="2025-06-15"
-        entries={[makeEntry(), makeEntry({ habitId: '2', status: 'missed' })]}
-      />,
-    )
+    renderDetail({
+      dateStr: '2025-06-15',
+      entries: [makeEntry(), makeEntry({ habitId: '2', status: 'missed' })],
+    })
     expect(document.body.textContent).toContain('calendar.dayDetail.completionSummary')
   })
 
   it('shows completed status badge', () => {
-    render(
-      <CalendarDayDetail
-        dateStr="2025-06-15"
-        entries={[makeEntry({ status: 'completed' })]}
-      />,
-    )
+    renderDetail({ dateStr: '2025-06-15', entries: [makeEntry({ status: 'completed' })] })
     expect(document.body.textContent).toContain('calendar.status.completed')
   })
 
   it('shows missed status badge', () => {
-    render(
-      <CalendarDayDetail
-        dateStr="2025-06-15"
-        entries={[makeEntry({ status: 'missed' })]}
-      />,
-    )
+    renderDetail({ dateStr: '2025-06-15', entries: [makeEntry({ status: 'missed' })] })
     expect(document.body.textContent).toContain('calendar.status.missed')
   })
 
   it('shows no status badge for upcoming habits', () => {
-    render(
-      <CalendarDayDetail
-        dateStr="2025-06-15"
-        entries={[makeEntry({ title: 'Read', status: 'upcoming' })]}
-      />,
-    )
+    renderDetail({
+      dateStr: '2025-06-15',
+      entries: [makeEntry({ title: 'Read', status: 'upcoming' })],
+    })
     expect(screen.getByText('Read')).toBeInTheDocument()
     expect(document.body.textContent).not.toContain('calendar.status.upcoming')
     expect(document.body.textContent).not.toContain('calendar.status.scheduled')
   })
 
   it('shows bad habit labels (indulged/resisted)', () => {
-    render(
-      <CalendarDayDetail
-        dateStr="2025-06-15"
-        entries={[
-          makeEntry({ isBadHabit: true, status: 'completed' }),
-          makeEntry({ isBadHabit: true, status: 'missed', habitId: '2' }),
-        ]}
-      />,
-    )
+    renderDetail({
+      dateStr: '2025-06-15',
+      entries: [
+        makeEntry({ isBadHabit: true, status: 'completed' }),
+        makeEntry({ isBadHabit: true, status: 'missed', habitId: '2' }),
+      ],
+    })
     expect(document.body.textContent).toContain('calendar.status.indulged')
     expect(document.body.textContent).toContain('calendar.status.resisted')
   })
 
   it('renders go to day link', () => {
-    render(
-      <CalendarDayDetail
-        dateStr="2025-06-15"
-        entries={[]}
-      />,
-    )
+    renderDetail({ dateStr: '2025-06-15', entries: [] })
     expect(document.body.textContent).toContain('calendar.goToDay')
     const link = document.querySelector('a[href="/?date=2025-06-15"]')
     expect(link).toBeInTheDocument()
   })
 
   it('shows due time when present', () => {
-    render(
-      <CalendarDayDetail
-        dateStr="2025-06-15"
-        entries={[makeEntry({ dueTime: '08:00' })]}
-      />,
-    )
+    renderDetail({ dateStr: '2025-06-15', entries: [makeEntry({ dueTime: '08:00' })] })
     expect(document.body.textContent).toContain('08:00')
   })
 
   it('shows recurring checkbox', () => {
-    render(
-      <CalendarDayDetail
-        dateStr="2025-06-15"
-        entries={[makeEntry()]}
-      />,
-    )
+    renderDetail({ dateStr: '2025-06-15', entries: [makeEntry()] })
     expect(document.body.textContent).toContain('calendar.showRecurring')
+  })
+
+  it('hides recurring habits when showRecurring is off', () => {
+    renderDetail({
+      dateStr: '2025-06-15',
+      showRecurring: false,
+      entries: [
+        makeEntry({ title: 'Recurring habit', isOneTime: false }),
+        makeEntry({ title: 'One-time task', habitId: '2', isOneTime: true }),
+      ],
+    })
+    expect(screen.queryByText('Recurring habit')).not.toBeInTheDocument()
+    expect(screen.getByText('One-time task')).toBeInTheDocument()
+  })
+
+  it('calls onShowRecurringChange when the checkbox is toggled', () => {
+    const onShowRecurringChange = vi.fn()
+    renderDetail({
+      dateStr: '2025-06-15',
+      entries: [makeEntry()],
+      onShowRecurringChange,
+    })
+    fireEvent.click(screen.getByRole('checkbox'))
+    expect(onShowRecurringChange).toHaveBeenCalledWith(false)
   })
 })

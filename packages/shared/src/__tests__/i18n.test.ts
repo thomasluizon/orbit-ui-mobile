@@ -83,4 +83,12 @@ describe('i18n locale parity', () => {
 
     expect(mismatches).toEqual([])
   })
+
+  it('labels every coach-mark tour section in both locales', () => {
+    for (const flat of [enFlat, ptFlat]) {
+      expect(flat.get('tour.sections.coach-today')).toBeTruthy()
+      expect(flat.get('tour.sections.coach-astra')).toBeTruthy()
+      expect(flat.get('tour.sections.coach-calendar')).toBeTruthy()
+    }
+  })
 })

@@ -1,18 +1,21 @@
 'use client'
 
-import { useState, useMemo, useCallback } from 'react'
+import { useMemo, useCallback } from 'react'
 import Link from 'next/link'
 import { ArrowRight, Check } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { plural } from '@/lib/plural'
 import { useTimeFormat } from '@/hooks/use-time-format'
 import { useDateFormat } from '@/hooks/use-date-format'
-import { parseAPIDate } from '@orbit/shared/utils'
+import { parseAPIDate, filterRecurringEntries } from '@orbit/shared/utils'
 import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
+import { ShowRecurringToggle } from '@/components/calendar/show-recurring-toggle'
 
 interface CalendarDayDetailProps {
   dateStr: string | null
   entries: CalendarDayEntry[]
+  showRecurring: boolean
+  onShowRecurringChange: (value: boolean) => void
 }
 
 function statusBadgeColor(entry: CalendarDayEntry): string {
@@ -39,11 +42,12 @@ function statusCircleStyle(entry: CalendarDayEntry): React.CSSProperties {
 export function CalendarDayDetail({
   dateStr,
   entries,
+  showRecurring,
+  onShowRecurringChange,
 }: Readonly<CalendarDayDetailProps>) {
   const t = useTranslations()
   const { displayTime } = useTimeFormat()
   const { displayWeekdayDate } = useDateFormat()
-  const [showRecurring, setShowRecurring] = useState(true)
 
   const formattedDate = useMemo(() => {
     if (!dateStr) return ''
@@ -51,10 +55,10 @@ export function CalendarDayDetail({
     return displayWeekdayDate(date)
   }, [dateStr, displayWeekdayDate])
 
-  const filteredEntries = useMemo(() => {
-    if (showRecurring) return entries
-    return entries.filter((e) => e.isOneTime)
-  }, [entries, showRecurring])
+  const filteredEntries = useMemo(
+    () => filterRecurringEntries(entries, showRecurring),
+    [entries, showRecurring],
+  )
 
   const completedCount = filteredEntries.filter((e) => e.status === 'completed').length
 
@@ -90,32 +94,10 @@ export function CalendarDayDetail({
           {formattedDate}
         </h2>
         {entries.length > 0 && (
-          <label
-            className="flex shrink-0 items-center gap-2 text-sm text-[var(--fg-2)] cursor-pointer select-none"
-          >
-            <input
-              type="checkbox"
-              checked={showRecurring}
-              onChange={(e) => setShowRecurring(e.target.checked)}
-              className="peer sr-only"
-            />
-            <span
-              aria-hidden="true"
-              className="flex items-center justify-center shrink-0 transition-[background-color,box-shadow] duration-[var(--dur-fast)] peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-[var(--primary)]"
-              style={{
-                width: 20,
-                height: 20,
-                borderRadius: 6,
-                background: showRecurring ? 'var(--primary)' : 'transparent',
-                boxShadow: showRecurring ? 'none' : 'inset 0 0 0 2px var(--fg-3)',
-              }}
-            >
-              {showRecurring && (
-                <Check size={13} strokeWidth={3} color="var(--fg-on-primary)" />
-              )}
-            </span>
-            {t('calendar.showRecurring')}
-          </label>
+          <ShowRecurringToggle
+            checked={showRecurring}
+            onChange={onShowRecurringChange}
+          />
         )}
       </div>
 

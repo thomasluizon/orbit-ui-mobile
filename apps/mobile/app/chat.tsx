@@ -30,7 +30,6 @@ import { createStyles } from "@/app/chat.styles";
 import { createTokensV2 } from "@/lib/theme";
 import { useAppTheme } from "@/lib/use-app-theme";
 import { useOffline } from "@/hooks/use-offline";
-import { useCoachMark } from "@/hooks/use-coach-mark";
 
 export default function ChatScreen() {
   const { t } = useTranslation();
@@ -44,7 +43,6 @@ export default function ChatScreen() {
   const { isOnline } = useOffline();
   const goBackOrFallback = useGoBackOrFallback();
   const insets = useSafeAreaInsets();
-  useCoachMark("coach-astra");
   const chatAreaRef = useRef<View>(null);
   const chatInputRef = useRef<View>(null);
   const chatVoiceRef = useRef<View>(null);

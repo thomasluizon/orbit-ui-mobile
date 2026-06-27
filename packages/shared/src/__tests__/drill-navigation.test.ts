@@ -13,6 +13,7 @@ function makeDetailChild(overrides: Partial<HabitDetailChild> = {}): HabitDetail
     id: overrides.id ?? 'child-1',
     title: overrides.title ?? 'Child habit',
     description: overrides.description ?? null,
+    emoji: overrides.emoji ?? null,
     frequencyUnit: overrides.frequencyUnit ?? null,
     frequencyQuantity: overrides.frequencyQuantity ?? null,
     isBadHabit: overrides.isBadHabit ?? false,
@@ -77,6 +78,33 @@ describe('drill navigation utils', () => {
     expect(normalized.position).toBe(0)
     expect(normalized.isOverdue).toBe(true)
     expect(normalized.hasSubHabits).toBe(true)
+  })
+
+  it('carries the child emoji through so sub-habit rows render the icon, not a letter', () => {
+    const child = makeDetailChild({ id: 'child-1', title: 'Floss', emoji: '🦷' })
+
+    const normalized = normalizeDrillDetailChild(child, 'parent-1', '2025-01-02')
+
+    expect(normalized.emoji).toBe('🦷')
+  })
+
+  it('maps a missing child emoji to null', () => {
+    const child = makeDetailChild({ id: 'child-1', emoji: null })
+
+    const normalized = normalizeDrillDetailChild(child, 'parent-1', '2025-01-02')
+
+    expect(normalized.emoji).toBeNull()
+  })
+
+  it('preserves emoji on nested drill children', () => {
+    const detail = makeDetail({
+      id: 'parent-1',
+      children: [makeDetailChild({ id: 'child-1', emoji: '📚' })],
+    })
+
+    const normalized = normalizeHabitDetailForDrill(detail, '2025-01-02')
+
+    expect(normalized.childrenByParent.get('parent-1')?.[0]?.emoji).toBe('📚')
   })
 
   it('prefers API child overdue state when present', () => {

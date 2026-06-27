@@ -43,7 +43,7 @@ import {
 } from '@/hooks/use-habits'
 import { useTags } from '@/hooks/use-tags'
 import { useTotalHabitCount } from '@/hooks/use-habit-queries'
-import { useCoachMark } from '@/hooks/use-coach-mark'
+import { useCoachTour } from '@/hooks/use-coach-tour'
 import { useBulkActions } from '@/hooks/use-bulk-actions'
 import {
   TodayHeader,
@@ -73,7 +73,7 @@ export default function TodayPage() {
   const { profile } = useProfile()
   const { tags } = useTags()
   const totalHabitCount = useTotalHabitCount()
-  useCoachMark('coach-today')
+  useCoachTour()
   const listMotionPreset = resolveMotionPreset('list-enter', Boolean(prefersReducedMotion))
   const listTransition = {
     duration: listMotionPreset.enterDuration / 1000,

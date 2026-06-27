@@ -229,15 +229,6 @@ export const TOUR_STEPS: TourStep[] = [
     route: '/',
   },
   {
-    id: 'coach-astra',
-    section: 'coach-astra',
-    targetId: 'tour-chat-input',
-    titleKey: 'tour.coachmarks.astra.title',
-    descriptionKey: 'tour.coachmarks.astra.description',
-    placement: 'top',
-    route: '/chat',
-  },
-  {
     id: 'coach-calendar',
     section: 'coach-calendar',
     targetId: 'tour-calendar-grid',
@@ -245,6 +236,15 @@ export const TOUR_STEPS: TourStep[] = [
     descriptionKey: 'tour.coachmarks.calendar.description',
     placement: 'bottom',
     route: '/calendar',
+  },
+  {
+    id: 'coach-astra',
+    section: 'coach-astra',
+    targetId: 'tour-chat-input',
+    titleKey: 'tour.coachmarks.astra.title',
+    descriptionKey: 'tour.coachmarks.astra.description',
+    placement: 'top',
+    route: '/chat',
   },
 ]
 

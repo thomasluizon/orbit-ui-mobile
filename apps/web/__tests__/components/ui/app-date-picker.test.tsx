@@ -10,6 +10,8 @@ vi.mock('@/hooks/use-profile', () => ({
   useProfile: () => ({ profile: { weekStartDay: 0 } }),
 }))
 
+Element.prototype.scrollIntoView = vi.fn()
+
 import { AppDatePicker } from '@/components/ui/app-date-picker'
 
 describe('AppDatePicker', () => {
@@ -85,18 +87,29 @@ describe('AppDatePicker', () => {
     expect(document.querySelectorAll('td button')).toHaveLength(42)
   })
 
-  it('has previous and next year navigation', () => {
+  it('has no year-skip arrows, only a tappable year', () => {
     render(<AppDatePicker value="2025-06-15" onChange={vi.fn()} />)
     fireEvent.click(screen.getByRole('button'))
-    expect(screen.getByLabelText('common.previousYear')).toBeInTheDocument()
-    expect(screen.getByLabelText('common.nextYear')).toBeInTheDocument()
+    expect(screen.queryByLabelText('common.previousYear')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('common.nextYear')).not.toBeInTheDocument()
+    expect(screen.getByLabelText('common.selectYear')).toBeInTheDocument()
   })
 
-  it('advances the year when the next-year arrow is clicked', () => {
+  it('opens a year picker from the year label', () => {
     render(<AppDatePicker value="2025-06-15" onChange={vi.fn()} />)
     fireEvent.click(screen.getByRole('button'))
-    expect(screen.getByText('June 2025')).toBeInTheDocument()
-    fireEvent.click(screen.getByLabelText('common.nextYear'))
-    expect(screen.getByText('June 2026')).toBeInTheDocument()
+    fireEvent.click(screen.getByLabelText('common.selectYear'))
+    expect(screen.getByRole('button', { name: '2030' })).toBeInTheDocument()
+  })
+
+  it('jumps to a chosen year from the year picker', () => {
+    render(<AppDatePicker value="2025-06-15" onChange={vi.fn()} />)
+    fireEvent.click(screen.getByRole('button'))
+    expect(screen.getByText('June')).toBeInTheDocument()
+    fireEvent.click(screen.getByLabelText('common.selectYear'))
+    fireEvent.click(screen.getByRole('button', { name: '2027' }))
+    expect(screen.getByText('2027')).toBeInTheDocument()
+    expect(screen.getByText('June')).toBeInTheDocument()
+    expect(screen.getByLabelText('common.previousMonth')).toBeInTheDocument()
   })
 })

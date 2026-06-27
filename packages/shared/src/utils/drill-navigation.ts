@@ -56,6 +56,7 @@ export function normalizeDrillDetailChild(
     id: child.id,
     title: child.title,
     description: child.description,
+    emoji: child.emoji ?? null,
     frequencyUnit: child.frequencyUnit,
     frequencyQuantity: child.frequencyQuantity,
     isBadHabit: child.isBadHabit,

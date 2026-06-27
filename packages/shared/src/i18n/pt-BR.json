@@ -148,8 +148,7 @@
     "amPm": "AM/PM",
     "previousMonth": "Mês anterior",
     "nextMonth": "Próximo mês",
-    "previousYear": "Ano anterior",
-    "nextYear": "Próximo ano",
+    "selectYear": "Selecionar ano",
     "previousWeek": "Semana anterior",
     "nextWeek": "Próxima semana",
     "continue": "Continuar",
@@ -618,7 +617,8 @@
     "timeGrid": {
       "allDay": "Dia inteiro",
       "now": "Agora",
-      "pickRangeHint": "Escolha um dia inicial e final acima para definir seu intervalo."
+      "pickRangeHint": "Escolha um dia inicial e final acima para definir seu intervalo.",
+      "rangeMaxDays": "Intervalo limitado a {max} dias."
     },
     "status": {
       "completed": "Concluído",
@@ -1895,6 +1895,10 @@
         "name": "Controle de Missão",
         "description": "Crie sua primeira meta"
       },
+      "onboarding_complete": {
+        "name": "Tudo Pronto",
+        "description": "Conclua sua lista de configuração"
+      },
       "week_warrior": {
         "name": "Guerreiro da Semana",
         "description": "Alcance uma sequência de 7 dias"
@@ -2268,7 +2272,10 @@
       "goals": "Metas",
       "chat": "Chat IA",
       "calendar": "Calendário",
-      "profile": "Perfil"
+      "profile": "Perfil",
+      "coach-today": "Hoje",
+      "coach-astra": "Astra",
+      "coach-calendar": "Calendário"
     },
     "replay": {
       "title": "Tour de recursos",

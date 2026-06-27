@@ -157,6 +157,9 @@ export interface UIStoreState {
 
   setupChecklistDismissed: boolean;
   setSetupChecklistDismissed: (dismissed: boolean) => void;
+
+  onboardingHandedOff: boolean;
+  setOnboardingHandedOff: (handedOff: boolean) => void;
 }
 
 export function getPersistedUIState(state: UIStoreState): PersistedUIState {
@@ -390,5 +393,9 @@ export function createUIStoreState(
     setupChecklistDismissed: false,
     setSetupChecklistDismissed: (dismissed) =>
       set({ setupChecklistDismissed: dismissed }),
+
+    onboardingHandedOff: false,
+    setOnboardingHandedOff: (handedOff) =>
+      set({ onboardingHandedOff: handedOff }),
   };
 }
