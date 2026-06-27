@@ -1,8 +1,9 @@
 'use client'
 
-import { Sparkles, Upload } from 'lucide-react'
+import { Upload } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { PillButton } from '@/components/ui/pill-button'
+import { AstraAvatar } from '@/components/ui/astra-avatar'
 
 interface OnboardingMeetAstraProps {
   onImport?: () => void
@@ -15,22 +16,12 @@ export function OnboardingMeetAstra({ onImport }: Readonly<OnboardingMeetAstraPr
 
   return (
     <div className="flex flex-col items-center" style={{ gap: 22, padding: '24px 0 0' }}>
-      <div
-        className="flex items-center justify-center rounded-full"
-        style={{
-          width: 116,
-          height: 116,
-          background: 'rgba(var(--primary-rgb), 0.14)',
-          animation: 'fresh-start-orb 0.6s var(--ease-out) both',
-        }}
-      >
-        <Sparkles
-          size={54}
-          strokeWidth={1.8}
-          style={{ color: 'var(--primary-soft)' }}
-          aria-hidden="true"
-        />
-      </div>
+      <AstraAvatar
+        size={116}
+        animate
+        label={t('chat.astraAvatarLabel')}
+        style={{ animation: 'fresh-start-orb 0.6s var(--ease-out) both' }}
+      />
 
       <div
         className="text-center"
@@ -50,17 +41,7 @@ export function OnboardingMeetAstra({ onImport }: Readonly<OnboardingMeetAstraPr
         className="animate-msg-in flex w-full items-start"
         style={{ gap: 10, maxWidth: 340, animationDelay: '200ms' }}
       >
-        <span
-          className="inline-flex shrink-0 items-center justify-center rounded-full"
-          style={{
-            width: 30,
-            height: 30,
-            background: 'rgba(var(--primary-rgb), 0.18)',
-          }}
-          aria-hidden="true"
-        >
-          <Sparkles size={16} style={{ color: 'var(--primary-soft)' }} />
-        </span>
+        <AstraAvatar size={30} />
         <div
           style={{
             background: 'var(--bg-elev)',

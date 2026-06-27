@@ -1,11 +1,12 @@
 import { useEffect, useMemo } from 'react'
 import { Animated, StyleSheet, Text, View } from 'react-native'
-import { Sparkles, Upload } from 'lucide-react-native'
+import { Upload } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
-import { createTokensV2, easings, tintFromPrimary, type AppTokensV2 } from '@/lib/theme'
+import { createTokensV2, easings, type AppTokensV2 } from '@/lib/theme'
 import { toAnimatedEasing, usePrefersReducedMotion } from '@/lib/motion'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { PillButton } from '@/components/ui/pill-button'
+import { AstraAvatar } from '@/components/ui/astra-avatar'
 
 interface OnboardingMeetAstraProps {
   onImport?: () => void
@@ -54,22 +55,19 @@ export function OnboardingMeetAstra({ onImport }: Readonly<OnboardingMeetAstraPr
   return (
     <View style={styles.root}>
       <Animated.View
-        style={[
-          styles.heroDisc,
-          {
-            opacity: heroScale,
-            transform: [
-              {
-                scale: heroScale.interpolate({
-                  inputRange: [0, 1],
-                  outputRange: [0.3, 1],
-                }),
-              },
-            ],
-          },
-        ]}
+        style={{
+          opacity: heroScale,
+          transform: [
+            {
+              scale: heroScale.interpolate({
+                inputRange: [0, 1],
+                outputRange: [0.3, 1],
+              }),
+            },
+          ],
+        }}
       >
-        <Sparkles size={54} strokeWidth={1.8} color={tokens.primarySoft} />
+        <AstraAvatar size={116} animate label={t('chat.astraAvatarLabel')} />
       </Animated.View>
 
       <Text style={styles.title}>{t('onboarding.flow.meetAstra.title')}</Text>
@@ -90,9 +88,7 @@ export function OnboardingMeetAstra({ onImport }: Readonly<OnboardingMeetAstraPr
           },
         ]}
       >
-        <View style={styles.avatarDisc}>
-          <Sparkles size={16} color={tokens.primarySoft} />
-        </View>
+        <AstraAvatar size={30} />
         <View style={styles.bubble}>
           <Text style={styles.bubbleText}>
             {t('onboarding.flow.meetAstra.subtitle')}
@@ -122,14 +118,6 @@ function createStyles(tokens: AppTokensV2) {
       paddingTop: 24,
       paddingBottom: 8,
     },
-    heroDisc: {
-      width: 116,
-      height: 116,
-      borderRadius: 999,
-      backgroundColor: tintFromPrimary(tokens, 0.14),
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
     title: {
       fontFamily: 'Rubik_500Medium',
       fontSize: 28,
@@ -144,14 +132,6 @@ function createStyles(tokens: AppTokensV2) {
       gap: 10,
       alignSelf: 'stretch',
       maxWidth: 340,
-    },
-    avatarDisc: {
-      width: 30,
-      height: 30,
-      borderRadius: 999,
-      backgroundColor: tintFromPrimary(tokens, 0.18),
-      alignItems: 'center',
-      justifyContent: 'center',
     },
     bubble: {
       flex: 1,

@@ -9,21 +9,43 @@ import {
   useCreateGoal,
   useUpdateGoal,
   useDeleteGoal,
+  useRestoreGoal,
   useUpdateGoalProgress,
   useUpdateGoalStatus,
   useReorderGoals,
   useLinkHabitsToGoal,
 } from '@/hooks/use-goals'
+import { goalKeys } from '@orbit/shared/query'
 import type { Goal, PaginatedGoalResponse } from '@orbit/shared/types/goal'
 import { createMockGoal } from '@orbit/shared/__tests__/factories'
 
 const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
 
+const mockShowQueued = vi.fn()
+const mockShowSuccess = vi.fn()
+const mockShowError = vi.fn()
+
+vi.mock('next-intl', () => ({
+  useTranslations: () => (key: string) => key,
+}))
+
+vi.mock('@/hooks/use-app-toast', () => ({
+  useAppToast: () => ({
+    showError: mockShowError,
+    showSuccess: mockShowSuccess,
+    showInfo: vi.fn(),
+    showToast: vi.fn(),
+    showQueued: mockShowQueued,
+    dismissToast: vi.fn(),
+  }),
+}))
+
 vi.mock('@/app/actions/goals', () => ({
   createGoal: vi.fn(),
   updateGoal: vi.fn(),
   deleteGoal: vi.fn(),
+  restoreGoal: vi.fn(),
   updateGoalProgress: vi.fn(),
   updateGoalStatus: vi.fn(),
   reorderGoals: vi.fn(),
@@ -237,6 +259,79 @@ describe('useDeleteGoal', () => {
     })
 
     expect(mockedDeleteGoal).toHaveBeenCalledWith('g-1')
+  })
+
+  it('shows an undo snackbar on successful delete and restores when undone', async () => {
+    mockShowQueued.mockReset()
+    const { deleteGoal, restoreGoal } = await import('@/app/actions/goals')
+    vi.mocked(deleteGoal).mockResolvedValue(undefined as never)
+    vi.mocked(restoreGoal).mockResolvedValue(undefined as never)
+
+    const { result } = renderHook(() => useDeleteGoal(), { wrapper: createWrapper() })
+
+    await act(async () => {
+      await result.current.mutateAsync('g-1')
+    })
+
+    expect(mockShowQueued).toHaveBeenCalledWith(
+      'undo.goalDeleted',
+      'undo.action',
+      expect.any(Function),
+      expect.any(Function),
+    )
+
+    const performUndo = mockShowQueued.mock.calls.at(-1)![2] as () => void
+    await act(async () => {
+      performUndo()
+    })
+
+    await waitFor(() => expect(vi.mocked(restoreGoal)).toHaveBeenCalledWith('g-1'))
+  })
+})
+
+describe('useRestoreGoal', () => {
+  beforeEach(() => {
+    mockFetch.mockReset()
+    mockShowSuccess.mockReset()
+    mockShowError.mockReset()
+  })
+
+  it('calls restoreGoal action, invalidates goal lists, and confirms', async () => {
+    const { restoreGoal } = await import('@/app/actions/goals')
+    vi.mocked(restoreGoal).mockResolvedValue(undefined as never)
+
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+    })
+    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries')
+    const wrapper = ({ children }: { children: React.ReactNode }) =>
+      React.createElement(QueryClientProvider, { client: queryClient }, children)
+
+    const { result } = renderHook(() => useRestoreGoal(), { wrapper })
+
+    await act(async () => {
+      await result.current.mutateAsync('g-1')
+    })
+
+    expect(vi.mocked(restoreGoal)).toHaveBeenCalledWith('g-1')
+    expect(invalidateSpy).toHaveBeenCalledWith({ queryKey: goalKeys.lists() })
+    expect(mockShowSuccess).toHaveBeenCalledWith('undo.restored')
+  })
+
+  it('surfaces an error toast when restore fails', async () => {
+    const { restoreGoal } = await import('@/app/actions/goals')
+    vi.mocked(restoreGoal).mockRejectedValue(new Error('nope'))
+
+    const { result } = renderHook(() => useRestoreGoal(), { wrapper: createWrapper() })
+
+    await act(async () => {
+      try {
+        await result.current.mutateAsync('g-1')
+      } catch {
+      }
+    })
+
+    expect(mockShowError).toHaveBeenCalledWith('undo.restoreFailed')
   })
 })
 

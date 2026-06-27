@@ -23,6 +23,8 @@ export const API = {
     colorScheme: '/api/profile/color-scheme',
     reset: '/api/profile/reset',
     export: '/api/profile/export',
+    handle: '/api/profile/handle',
+    socialOptIn: '/api/profile/social-opt-in',
   },
 
   habits: {
@@ -31,6 +33,7 @@ export const API = {
     get: (id: string) => `/api/habits/${id}` as const,
     update: (id: string) => `/api/habits/${id}` as const,
     delete: (id: string) => `/api/habits/${id}` as const,
+    restore: (id: string) => `/api/habits/${id}/restore` as const,
     count: '/api/habits/count',
     widget: '/api/habits/widget',
     detail: (id: string) => `/api/habits/${id}/detail` as const,
@@ -60,6 +63,7 @@ export const API = {
     get: (id: string) => `/api/goals/${id}` as const,
     update: (id: string) => `/api/goals/${id}` as const,
     delete: (id: string) => `/api/goals/${id}` as const,
+    restore: (id: string) => `/api/goals/${id}/restore` as const,
     detail: (id: string) => `/api/goals/${id}/detail` as const,
     progress: (id: string) => `/api/goals/${id}/progress` as const,
     status: (id: string) => `/api/goals/${id}/status` as const,
@@ -74,6 +78,7 @@ export const API = {
     create: '/api/tags',
     update: (id: string) => `/api/tags/${id}` as const,
     delete: (id: string) => `/api/tags/${id}` as const,
+    restore: (id: string) => `/api/tags/${id}/restore` as const,
     assign: (habitId: string) => `/api/tags/${habitId}/assign` as const,
     suggest: '/api/tags/suggest',
   },
@@ -103,6 +108,7 @@ export const API = {
     profile: '/api/gamification/profile',
     achievements: '/api/gamification/achievements',
     streak: '/api/gamification/streak',
+    recap: '/api/gamification/recap',
   },
 
   chat: {
@@ -150,6 +156,18 @@ export const API = {
 
   referral: {
     dashboard: '/api/referrals/dashboard',
+  },
+
+  friends: {
+    list: '/api/friends',
+    requests: '/api/friends/requests',
+    acceptRequest: (id: string) => `/api/friends/requests/${id}/accept` as const,
+    remove: (friendUserId: string) => `/api/friends/${friendUserId}` as const,
+    feed: '/api/friends/feed',
+    cheers: '/api/friends/cheers',
+    block: '/api/friends/block',
+    unblock: (blockedUserId: string) => `/api/friends/block/${blockedUserId}` as const,
+    report: '/api/friends/report',
   },
 
   apiKeys: {

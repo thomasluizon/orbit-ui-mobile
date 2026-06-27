@@ -14,13 +14,13 @@ describe('OnboardingWelcome helpers', () => {
   })
 
   it('keeps the free-user display total one step shorter', () => {
-    expect(getOnboardingDisplayTotal(true)).toBe(6)
-    expect(getOnboardingDisplayTotal(false)).toBe(5)
+    expect(getOnboardingDisplayTotal(true)).toBe(7)
+    expect(getOnboardingDisplayTotal(false)).toBe(6)
   })
 
   it('compresses the display step after the skipped goal step for free users', () => {
     expect(getOnboardingDisplayStep(0, false)).toBe(1)
-    expect(getOnboardingDisplayStep(4, false)).toBe(4)
-    expect(getOnboardingDisplayStep(4, true)).toBe(5)
+    expect(getOnboardingDisplayStep(5, false)).toBe(5)
+    expect(getOnboardingDisplayStep(5, true)).toBe(6)
   })
 })

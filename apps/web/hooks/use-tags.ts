@@ -1,6 +1,7 @@
 'use client'
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
+import { useTranslations } from 'next-intl'
 import { habitKeys, tagKeys, QUERY_STALE_TIMES } from '@orbit/shared/query'
 import type { HabitScheduleItem } from '@orbit/shared/types/habit'
 import {
@@ -11,7 +12,9 @@ import {
   setHabitTags,
   updateTagInList,
 } from '@orbit/shared/utils'
-import { assignTags, createTag, deleteTag, getTags, suggestTags, updateTag } from '@/app/actions/tags'
+import { assignTags, createTag, deleteTag, getTags, restoreTag, suggestTags, updateTag } from '@/app/actions/tags'
+import { useAppToast } from '@/hooks/use-app-toast'
+import { useUndoToast } from '@/hooks/use-undo-toast'
 
 export interface Tag {
   id: string
@@ -208,11 +211,37 @@ export function useUpdateTag() {
   })
 }
 
+export function useRestoreTag() {
+  const queryClient = useQueryClient()
+  const t = useTranslations()
+  const { showSuccess, showError } = useAppToast()
+
+  return useMutation({
+    mutationFn: (tagId: string) => restoreTag(tagId),
+
+    onSuccess: () => {
+      void invalidateTagMutationQueries(queryClient)
+      showSuccess(t('undo.restored'))
+    },
+
+    onError: () => {
+      showError(t('undo.restoreFailed'))
+    },
+  })
+}
+
 export function useDeleteTag() {
   const queryClient = useQueryClient()
+  const t = useTranslations()
+  const restoreTagMutation = useRestoreTag()
+  const showUndoToast = useUndoToast()
 
   return useMutation({
     mutationFn: (tagId: string) => deleteTag(tagId),
+
+    onSuccess: (_data, tagId) => {
+      showUndoToast(t('undo.tagDeleted'), () => restoreTagMutation.mutate(tagId))
+    },
 
     onMutate: async (tagId) => {
       await queryClient.cancelQueries({ queryKey: tagKeys.all })

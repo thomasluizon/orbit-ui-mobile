@@ -39,7 +39,10 @@ import {
   useDeleteHabit,
 } from "@/hooks/use-habits";
 import { useTags } from "@/hooks/use-tags";
+import { useTotalHabitCount } from "@/hooks/use-habit-queries";
+import { useCoachMark } from "@/hooks/use-coach-mark";
 import { useUIStore } from "@/stores/ui-store";
+import { useReferralPromptStore } from "@/stores/referral-prompt-store";
 import { HabitList, type HabitListHandle } from "@/components/habit-list";
 import { CreateHabitModal } from "@/components/habits/create-habit-modal";
 import { HabitDetailDrawer } from "@/components/habits/habit-detail-drawer";
@@ -52,8 +55,11 @@ import { GradientTop } from "@/components/ui/gradient-top";
 import { TrialBanner } from "@/components/ui/trial-banner";
 import { TodayHabitsHeader } from "@/components/today/today-habits-header";
 import { ReviewReminderCard } from "@/components/review-reminder-card";
+import { ReferralCard } from "@/components/referral/referral-card";
+import { ReferralDrawer } from "@/components/referral/referral-drawer";
+import { SetupChecklistCard } from "@/components/today/setup-checklist-card";
 import { useHorizontalSwipe } from "@/hooks/use-horizontal-swipe";
-import type { MenuAnchorRect } from "@/lib/anchored-menu";
+import { useAnchoredMenu } from "@/components/ui/anchored-menu";
 import { useBulkActions } from "@/hooks/use-bulk-actions";
 import { shouldResetSelectionForViewChange } from "@/lib/habit-selection-state";
 import {
@@ -126,6 +132,8 @@ export default function TodayScreen() {
   const { profile } = useProfile();
   const reviewReminder = useReviewReminder(profile);
   const { tags } = useTags();
+  const totalHabitCount = useTotalHabitCount();
+  useCoachMark("coach-today");
   const deleteHabit = useDeleteHabit();
 
   const activeView = useUIStore((s) => s.activeView);
@@ -147,12 +155,20 @@ export default function TodayScreen() {
   const currentActiveView = resolveTodayView(activeView, hasProAccess);
 
   const [showGeneralOnToday, setShowGeneralOnToday] = useState(false);
-  const [showControlsMenu, setShowControlsMenu] = useState(false);
-  const [controlsMenuAnchorRect, setControlsMenuAnchorRect] =
-    useState<MenuAnchorRect | null>(null);
-  const [showFreqMenu, setShowFreqMenu] = useState(false);
-  const [freqMenuAnchorRect, setFreqMenuAnchorRect] =
-    useState<MenuAnchorRect | null>(null);
+  const {
+    anchorRef: controlsButtonRef,
+    visible: showControlsMenu,
+    anchorRect: controlsMenuAnchorRect,
+    close: closeControlsMenu,
+    toggle: toggleControlsMenu,
+  } = useAnchoredMenu();
+  const {
+    anchorRef: freqMenuButtonRef,
+    visible: showFreqMenu,
+    anchorRect: freqMenuAnchorRect,
+    close: closeFreqMenu,
+    toggle: toggleFreqMenu,
+  } = useAnchoredMenu();
   const [showHabitDeleteConfirm, setShowHabitDeleteConfirm] = useState(false);
   const [slideDirection, setSlideDirection] = useState<"left" | "right">(
     "right",
@@ -174,8 +190,6 @@ export default function TodayScreen() {
     "/",
     goalsScrollTo,
   );
-  const controlsButtonRef = useRef<View>(null);
-  const freqMenuButtonRef = useRef<View>(null);
   const previousActiveViewRef = useRef(activeView);
   const dateLabelAnim = useMemo(() => new Animated.Value(0), []);
   const filtersTransitionAnim = useMemo(() => new Animated.Value(1), []);
@@ -586,6 +600,9 @@ export default function TodayScreen() {
   const setShowCreateModal = useUIStore((s) => s.setShowCreateModal);
   const showCreateGoalModal = useUIStore((s) => s.showCreateGoalModal);
   const setShowCreateGoalModal = useUIStore((s) => s.setShowCreateGoalModal);
+  const homeEntryDismissed = useReferralPromptStore((s) => s.homeEntryDismissed);
+  const dismissHomeEntry = useReferralPromptStore((s) => s.dismissHomeEntry);
+  const [showReferral, setShowReferral] = useState(false);
   const [prevFilters, setPrevFilters] = useState(filters);
   if (filters !== prevFilters) {
     setPrevFilters(filters);
@@ -682,9 +699,9 @@ export default function TodayScreen() {
     }
 
     previousActiveViewRef.current = activeView;
-    setShowControlsMenu(false);
+    closeControlsMenu();
     if (isSelectMode) clearSelection();
-  }, [activeView, clearSelection, isSelectMode]);
+  }, [activeView, clearSelection, closeControlsMenu, isSelectMode]);
 
   const handleToggleSelectMode = useCallback(() => {
     if (isSelectMode) {
@@ -692,8 +709,8 @@ export default function TodayScreen() {
     } else {
       toggleSelectMode();
     }
-    setShowControlsMenu(false);
-  }, [clearSelection, isSelectMode, toggleSelectMode]);
+    closeControlsMenu();
+  }, [clearSelection, closeControlsMenu, isSelectMode, toggleSelectMode]);
 
   const handleToggleCollapse = useCallback(() => {
     if (habitListRef.current?.allCollapsed) {
@@ -701,57 +718,25 @@ export default function TodayScreen() {
     } else {
       habitListRef.current?.collapseAll();
     }
-    setShowControlsMenu(false);
-  }, []);
+    closeControlsMenu();
+  }, [closeControlsMenu]);
 
   const handleRefresh = useCallback(() => {
     habitListRef.current?.refetch();
-    setShowControlsMenu(false);
-  }, []);
+    closeControlsMenu();
+  }, [closeControlsMenu]);
 
   const handleToggleCompleted = useCallback(() => {
     setShowCompleted(!showCompleted);
-    setShowControlsMenu(false);
-  }, [setShowCompleted, showCompleted]);
-
-  const measureControlsButton = useCallback(() => {
-    controlsButtonRef.current?.measureInWindow((x, y, width, height) => {
-      setControlsMenuAnchorRect({ x, y, width, height });
-      setShowControlsMenu(true);
-    });
-  }, []);
-
-  const handleToggleControlsMenu = useCallback(() => {
-    if (showControlsMenu) {
-      setShowControlsMenu(false);
-      return;
-    }
-
-    measureControlsButton();
-  }, [measureControlsButton, showControlsMenu]);
-
-  const measureFreqMenuButton = useCallback(() => {
-    freqMenuButtonRef.current?.measureInWindow((x, y, width, height) => {
-      setFreqMenuAnchorRect({ x, y, width, height });
-      setShowFreqMenu(true);
-    });
-  }, []);
-
-  const handleToggleFreqMenu = useCallback(() => {
-    if (showFreqMenu) {
-      setShowFreqMenu(false);
-      return;
-    }
-
-    measureFreqMenuButton();
-  }, [measureFreqMenuButton, showFreqMenu]);
+    closeControlsMenu();
+  }, [closeControlsMenu, setShowCompleted, showCompleted]);
 
   const handleSelectFrequency = useCallback(
     (key: FreqKey | null) => {
       setSelectedFrequency(key);
-      setShowFreqMenu(false);
+      closeFreqMenu();
     },
-    [setSelectedFrequency],
+    [closeFreqMenu, setSelectedFrequency],
   );
 
   const handleSelectAll = useCallback(() => {
@@ -813,8 +798,8 @@ export default function TodayScreen() {
   }, []);
 
   const handleListScrollBeginDrag = useCallback(() => {
-    setShowControlsMenu(false);
-  }, []);
+    closeControlsMenu();
+  }, [closeControlsMenu]);
 
   const handleToggleSearch = useCallback(() => {
     setIsSearchOpen((open) => {
@@ -839,12 +824,23 @@ export default function TodayScreen() {
 
         <TrialBanner />
 
+        {currentActiveView === "today" ? <SetupChecklistCard /> : null}
+
         {reviewReminder.shouldShow ? (
           <ReviewReminderCard
             onDismiss={reviewReminder.dismiss}
             onRate={() => {
               void reviewReminder.requestReview();
             }}
+          />
+        ) : null}
+
+        {currentActiveView === "today" &&
+        isToday(selectedDate) &&
+        !homeEntryDismissed ? (
+          <ReferralCard
+            onOpen={() => setShowReferral(true)}
+            onDismiss={dismissHomeEntry}
           />
         ) : null}
 
@@ -867,6 +863,9 @@ export default function TodayScreen() {
       reviewReminder,
       tabItems,
       t,
+      selectedDate,
+      homeEntryDismissed,
+      dismissHomeEntry,
     ],
   );
 
@@ -895,6 +894,7 @@ export default function TodayScreen() {
         showCompleted={showCompleted}
         isFetching={habitsQuery.isFetching}
         allCollapsed={habitListAllCollapsed}
+        showFilters={totalHabitCount >= 5}
         showControlsMenu={showControlsMenu}
         controlsMenuAnchorRect={controlsMenuAnchorRect}
         showFreqMenu={showFreqMenu}
@@ -909,10 +909,10 @@ export default function TodayScreen() {
         onSearchChange={setSearchQueryStore}
         onSearchFocusChange={setIsSearchFocused}
         onTagToggle={toggleTagFilter}
-        onToggleFreqMenu={handleToggleFreqMenu}
-        onToggleControlsMenu={handleToggleControlsMenu}
-        onCloseControlsMenu={() => setShowControlsMenu(false)}
-        onCloseFreqMenu={() => setShowFreqMenu(false)}
+        onToggleFreqMenu={toggleFreqMenu}
+        onToggleControlsMenu={toggleControlsMenu}
+        onCloseControlsMenu={closeControlsMenu}
+        onCloseFreqMenu={closeFreqMenu}
         onToggleSelect={handleToggleSelectMode}
         onToggleCollapse={handleToggleCollapse}
         onRefresh={handleRefresh}
@@ -940,8 +940,8 @@ export default function TodayScreen() {
       handleSelectFrequency,
       handleToggleCollapse,
       handleToggleCompleted,
-      handleToggleControlsMenu,
-      handleToggleFreqMenu,
+      toggleControlsMenu,
+      toggleFreqMenu,
       handleToggleSearch,
       handleToggleSelectMode,
       isSearchFocused,
@@ -953,8 +953,8 @@ export default function TodayScreen() {
       selectedTagIds,
       setIsSearchFocused,
       setSearchQueryStore,
-      setShowControlsMenu,
-      setShowFreqMenu,
+      closeControlsMenu,
+      closeFreqMenu,
       sharedHeader,
       showCompleted,
       showControlsMenu,
@@ -964,6 +964,7 @@ export default function TodayScreen() {
       swipeGesture,
       tags,
       toggleTagFilter,
+      totalHabitCount,
       freqMenuAnchorRect,
       showFreqMenu,
     ],
@@ -1122,6 +1123,11 @@ export default function TodayScreen() {
       <CreateGoalModal
         open={showCreateGoalModal}
         onClose={() => setShowCreateGoalModal(false)}
+      />
+
+      <ReferralDrawer
+        open={showReferral}
+        onClose={() => setShowReferral(false)}
       />
     </View>
   );

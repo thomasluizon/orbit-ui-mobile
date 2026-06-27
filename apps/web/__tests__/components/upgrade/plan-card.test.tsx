@@ -3,44 +3,58 @@ import { render, screen, fireEvent } from '@testing-library/react'
 import { PlanCard } from '@/components/upgrade/plan-card'
 
 describe('PlanCard', () => {
-  it('renders name, badge, price, sub, and features', () => {
+  it('renders name, badge, price, period, sub, and features', () => {
     render(
       <PlanCard
-        name="Anual"
-        badge="Economize 20%"
-        price="R$ 79,90"
-        sub="por ano"
-        features={['Astra ilimitada', 'Widgets']}
-        selected={false}
-        onSelect={() => {}}
+        variant="anchor"
+        name="Pro Monthly"
+        badge="Save 58%"
+        price="$9.99"
+        period="/mo"
+        sub="Billed monthly"
+        features={['Unlimited habits', '500 AI messages/month']}
+        ctaLabel="Subscribe Monthly"
+        onCta={() => {}}
       />,
     )
-    expect(screen.getByText('Anual')).toBeInTheDocument()
-    expect(screen.getByText('Economize 20%')).toBeInTheDocument()
-    expect(screen.getByText('R$ 79,90')).toBeInTheDocument()
-    expect(screen.getByText('por ano')).toBeInTheDocument()
-    expect(screen.getByText('Astra ilimitada')).toBeInTheDocument()
-    expect(screen.getByText('Widgets')).toBeInTheDocument()
+    expect(screen.getByText('Pro Monthly')).toBeInTheDocument()
+    expect(screen.getByText('Save 58%')).toBeInTheDocument()
+    expect(screen.getByText('$9.99')).toBeInTheDocument()
+    expect(screen.getByText('/mo')).toBeInTheDocument()
+    expect(screen.getByText('Billed monthly')).toBeInTheDocument()
+    expect(screen.getByText('Unlimited habits')).toBeInTheDocument()
   })
 
-  it('fires onSelect when clicked', () => {
-    const onSelect = vi.fn()
+  it('fires onCta when the CTA is clicked', () => {
+    const onCta = vi.fn()
     render(
-      <PlanCard name="Mensal" price="R$ 9,90" selected={false} onSelect={onSelect} />,
+      <PlanCard
+        variant="hero"
+        name="Pro Yearly"
+        price="$4.16"
+        period="/mo"
+        ctaLabel="Subscribe to keep Pro"
+        onCta={onCta}
+      />,
     )
-    fireEvent.click(screen.getByRole('radio'))
-    expect(onSelect).toHaveBeenCalledTimes(1)
+    fireEvent.click(screen.getByRole('button', { name: 'Subscribe to keep Pro' }))
+    expect(onCta).toHaveBeenCalledTimes(1)
   })
 
-  it('exposes the selected state via aria-checked', () => {
-    const { rerender } = render(
-      <PlanCard name="Mensal" price="R$ 9,90" selected={false} onSelect={() => {}} />,
+  it('renders the yearly hero line when provided', () => {
+    render(
+      <PlanCard
+        variant="hero"
+        name="Pro Yearly"
+        price="$4.16"
+        period="/mo"
+        heroLine="Everything in Pro Monthly, plus AI Retrospective."
+        ctaLabel="Upgrade to Pro"
+        onCta={() => {}}
+      />,
     )
-    expect(screen.getByRole('radio')).toHaveAttribute('aria-checked', 'false')
-
-    rerender(
-      <PlanCard name="Mensal" price="R$ 9,90" selected onSelect={() => {}} />,
-    )
-    expect(screen.getByRole('radio')).toHaveAttribute('aria-checked', 'true')
+    expect(
+      screen.getByText('Everything in Pro Monthly, plus AI Retrospective.'),
+    ).toBeInTheDocument()
   })
 })

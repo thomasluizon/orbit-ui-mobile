@@ -1,5 +1,10 @@
 import { useMemo, useRef } from "react";
-import { ChevronLeft, ChevronRight } from "lucide-react-native";
+import {
+  ChevronLeft,
+  ChevronRight,
+  ChevronsLeft,
+  ChevronsRight,
+} from "lucide-react-native";
 import {
   Pressable,
   StyleSheet,
@@ -13,9 +18,13 @@ interface CalendarHeaderProps {
   monthLabel: string;
   previousMonthLabel: string;
   nextMonthLabel: string;
+  previousYearLabel: string;
+  nextYearLabel: string;
   currentMonthLabel: string;
   onPreviousMonth: () => void;
   onNextMonth: () => void;
+  onPreviousYear: () => void;
+  onNextYear: () => void;
   onCurrentMonth: () => void;
   tokens: ReturnType<typeof createTokensV2>;
 }
@@ -37,6 +46,11 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       paddingHorizontal: 20,
       paddingTop: 12,
       paddingBottom: 4,
+    },
+    monthNavGroup: {
+      flexDirection: "row",
+      alignItems: "center",
+      gap: 2,
     },
     monthNavButton: {
       width: 36,
@@ -125,9 +139,13 @@ export function CalendarHeader({
   monthLabel,
   previousMonthLabel,
   nextMonthLabel,
+  previousYearLabel,
+  nextYearLabel,
   currentMonthLabel,
   onPreviousMonth,
   onNextMonth,
+  onPreviousYear,
+  onNextYear,
   onCurrentMonth,
   tokens,
 }: CalendarHeaderProps) {
@@ -137,18 +155,32 @@ export function CalendarHeader({
 
   return (
     <View ref={monthNavRef} collapsable={false} style={styles.headerWrap}>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={previousMonthLabel}
-        onPress={onPreviousMonth}
-        hitSlop={4}
-        style={({ pressed }) => [
-          styles.monthNavButton,
-          pressed && styles.monthNavButtonPressed,
-        ]}
-      >
-        <ChevronLeft size={22} color={tokens.fg2} strokeWidth={1.8} />
-      </Pressable>
+      <View style={styles.monthNavGroup}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={previousYearLabel}
+          onPress={onPreviousYear}
+          hitSlop={4}
+          style={({ pressed }) => [
+            styles.monthNavButton,
+            pressed && styles.monthNavButtonPressed,
+          ]}
+        >
+          <ChevronsLeft size={18} color={tokens.fg3} strokeWidth={1.8} />
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={previousMonthLabel}
+          onPress={onPreviousMonth}
+          hitSlop={4}
+          style={({ pressed }) => [
+            styles.monthNavButton,
+            pressed && styles.monthNavButtonPressed,
+          ]}
+        >
+          <ChevronLeft size={22} color={tokens.fg2} strokeWidth={1.8} />
+        </Pressable>
+      </View>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={currentMonthLabel}
@@ -163,18 +195,32 @@ export function CalendarHeader({
           {monthLabel}
         </Text>
       </Pressable>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={nextMonthLabel}
-        onPress={onNextMonth}
-        hitSlop={4}
-        style={({ pressed }) => [
-          styles.monthNavButton,
-          pressed && styles.monthNavButtonPressed,
-        ]}
-      >
-        <ChevronRight size={22} color={tokens.fg2} strokeWidth={1.8} />
-      </Pressable>
+      <View style={styles.monthNavGroup}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={nextMonthLabel}
+          onPress={onNextMonth}
+          hitSlop={4}
+          style={({ pressed }) => [
+            styles.monthNavButton,
+            pressed && styles.monthNavButtonPressed,
+          ]}
+        >
+          <ChevronRight size={22} color={tokens.fg2} strokeWidth={1.8} />
+        </Pressable>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={nextYearLabel}
+          onPress={onNextYear}
+          hitSlop={4}
+          style={({ pressed }) => [
+            styles.monthNavButton,
+            pressed && styles.monthNavButtonPressed,
+          ]}
+        >
+          <ChevronsRight size={18} color={tokens.fg3} strokeWidth={1.8} />
+        </Pressable>
+      </View>
     </View>
   );
 }

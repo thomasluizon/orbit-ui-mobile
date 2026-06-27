@@ -5,7 +5,7 @@ import {
   Pressable,
   ScrollView,
 } from 'react-native'
-import * as Clipboard from 'expo-clipboard'
+import Clipboard from '@react-native-clipboard/clipboard'
 import { useRouter } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
@@ -92,14 +92,14 @@ export default function AdvancedScreen() {
     })
   }
 
-  async function copyEndpoint() {
-    await Clipboard.setStringAsync(MCP_ENDPOINT_URL)
+  function copyEndpoint() {
+    Clipboard.setString(MCP_ENDPOINT_URL)
     setEndpointCopied(true)
     setTimeout(() => setEndpointCopied(false), 2000)
   }
 
-  async function copyConfig() {
-    await Clipboard.setStringAsync(mcpConfigJson)
+  function copyConfig() {
+    Clipboard.setString(mcpConfigJson)
     setConfigCopied(true)
     setTimeout(() => setConfigCopied(false), 2000)
   }
@@ -245,7 +245,7 @@ export default function AdvancedScreen() {
               <View style={styles.copyRow}>
                 <Pressable
                   onPress={() => {
-                    void onCopy()
+                    onCopy()
                   }}
                   accessibilityRole="button"
                   accessibilityLabel={t('orbitMcp.copyConfig')}

@@ -1,93 +1,180 @@
-import { Check, X as XIcon } from 'lucide-react'
+import type { CSSProperties } from 'react'
+import { Fragment } from 'react'
+import { BarChart3, Check, Flame, MessageSquare, Palette, ShieldCheck } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { UPGRADE_FEATURE_CATEGORIES } from '@orbit/shared/utils/upgrade'
+import type {
+  UpgradeFeatureMatrixRow,
+  UpgradeIconKey,
+} from '@orbit/shared/utils/upgrade'
+import { Badge } from '@/components/ui/badge'
 
-const UPGRADE_FEATURES = UPGRADE_FEATURE_CATEGORIES.flatMap((category) => category.features)
+type Translate = ReturnType<typeof useTranslations>
 
-function PlanColumnRow({ feature, plan, t }: Readonly<{
-  feature: (typeof UPGRADE_FEATURES)[number]
-  plan: 'free' | 'pro'
-  t: ReturnType<typeof useTranslations>
-}>) {
-  const included = feature.type === 'text' ? true : (plan === 'free' ? !!feature.freeEnabled : !!feature.proEnabled)
-  const text = feature.type === 'text'
-    ? t(`upgrade.features.${feature.key}.${plan}`)
-    : t(`upgrade.features.${feature.key}.label`)
+const iconByKey: Record<UpgradeIconKey, typeof Flame> = {
+  flame: Flame,
+  messageSquare: MessageSquare,
+  palette: Palette,
+  shieldCheck: ShieldCheck,
+  barChart3: BarChart3,
+}
 
-  const checkColor = plan === 'pro' ? 'var(--primary)' : 'var(--fg-3)'
-  const textColor = included ? (plan === 'pro' ? 'var(--fg-1)' : 'var(--fg-2)') : 'var(--fg-4)'
+const srOnly: CSSProperties = {
+  position: 'absolute',
+  width: 1,
+  height: 1,
+  padding: 0,
+  margin: -1,
+  overflow: 'hidden',
+  clip: 'rect(0, 0, 0, 0)',
+  whiteSpace: 'nowrap',
+  border: 0,
+}
 
+const headCell: CSSProperties = {
+  position: 'sticky',
+  top: 0,
+  zIndex: 2,
+  background: 'var(--bg)',
+  padding: '10px 8px',
+  borderBottom: '1px solid var(--hairline)',
+  fontFamily: 'var(--font-sans)',
+  fontSize: 12,
+  fontWeight: 500,
+  letterSpacing: '0.06em',
+  textTransform: 'uppercase',
+}
+
+const bodyCell: CSSProperties = {
+  padding: '11px 8px',
+  borderBottom: '1px solid var(--hairline)',
+  verticalAlign: 'middle',
+}
+
+function IncludedCheck({ label }: Readonly<{ label: string }>) {
   return (
-    <li className="flex items-center" style={{ gap: 9, minHeight: 34 }}>
-      {included
-        ? <Check size={15} strokeWidth={2.4} className="shrink-0" style={{ color: checkColor }} aria-hidden="true" />
-        : <XIcon size={15} strokeWidth={1.8} className="shrink-0" style={{ color: 'var(--fg-4)' }} aria-hidden="true" />}
-      <span
-        className="min-w-0 truncate"
-        style={{ fontFamily: 'var(--font-sans)', fontSize: 12.5, lineHeight: 1.4, color: textColor }}
-      >
-        {text}
-      </span>
-    </li>
+    <span className="inline-flex items-center justify-center">
+      <Check size={15} strokeWidth={2.4} style={{ color: 'var(--primary)' }} aria-hidden="true" />
+      <span style={srOnly}>{label}</span>
+    </span>
   )
 }
 
-function PlanColumn({ plan, t }: Readonly<{ plan: 'free' | 'pro'; t: ReturnType<typeof useTranslations> }>) {
-  const isPro = plan === 'pro'
+function NotIncluded({ t }: Readonly<{ t: Translate }>) {
   return (
-    <div
-      className="rounded-[18px]"
+    <span style={{ fontFamily: 'var(--font-sans)', fontSize: 11.5, lineHeight: 1.3, color: 'var(--fg-4)' }}>
+      {t('upgrade.matrix.notIncluded')}
+    </span>
+  )
+}
+
+function ValueText({ text, emphasize }: Readonly<{ text: string; emphasize?: boolean }>) {
+  return (
+    <span
       style={{
-        padding: '16px 14px',
-        background: isPro ? 'rgba(var(--primary-rgb), 0.04)' : 'var(--bg-card)',
-        boxShadow: isPro
-          ? 'inset 0 0 0 1.5px var(--primary), var(--primary-glow)'
-          : 'inset 0 0 0 1px var(--hairline)',
+        fontFamily: 'var(--font-sans)',
+        fontSize: 13,
+        fontWeight: emphasize ? 500 : 400,
+        color: emphasize ? 'var(--fg-1)' : 'var(--fg-2)',
       }}
     >
-      <div className="flex items-center" style={{ gap: 8, minHeight: 26, marginBottom: 14 }}>
-        <span
-          style={{
-            fontFamily: 'var(--font-sans)',
-            fontSize: 16,
-            fontWeight: 600,
-            letterSpacing: '-0.01em',
-            color: isPro ? 'var(--primary-soft)' : 'var(--fg-1)',
-          }}
-        >
-          {isPro ? t('common.proBadge') : t('upgrade.free')}
-        </span>
-        {isPro && (
-          <span
-            className="inline-flex items-center rounded-full uppercase"
-            style={{
-              fontFamily: 'var(--font-sans)',
-              fontSize: 9.5,
-              fontWeight: 600,
-              letterSpacing: '0.05em',
-              padding: '3px 8px',
-              background: 'rgba(var(--primary-rgb), 0.16)',
-              color: 'var(--primary-soft)',
-            }}
-          >
-            {t('upgrade.recommended')}
-          </span>
-        )}
-      </div>
-      <ul className="flex flex-col" style={{ gap: 8 }}>
-        {UPGRADE_FEATURES.map((feature) => (
-          <PlanColumnRow key={feature.key} feature={feature} plan={plan} t={t} />
-        ))}
-      </ul>
-    </div>
+      {text}
+    </span>
   )
 }
 
-export function PlanComparisonCards({ t }: Readonly<{ t: ReturnType<typeof useTranslations> }>) {
+function FreeCell({ row, t }: Readonly<{ row: UpgradeFeatureMatrixRow; t: Translate }>) {
+  if (row.type === 'text') return <ValueText text={t(`upgrade.features.${row.key}.free`)} />
+  return row.free ? <IncludedCheck label={t('upgrade.matrix.included')} /> : <NotIncluded t={t} />
+}
+
+function ProCell({ row, t }: Readonly<{ row: UpgradeFeatureMatrixRow; t: Translate }>) {
+  if (row.type === 'text') return <ValueText text={t(`upgrade.features.${row.key}.pro`)} emphasize />
+  if (row.pro === 'yearly') {
+    return (
+      <span className="inline-flex items-center justify-center gap-1.5">
+        <Check size={15} strokeWidth={2.4} style={{ color: 'var(--primary)' }} aria-hidden="true" />
+        <Badge tone="soft">{t('upgrade.matrix.yearlyTag')}</Badge>
+      </span>
+    )
+  }
+  return row.pro ? <IncludedCheck label={t('upgrade.matrix.included')} /> : <NotIncluded t={t} />
+}
+
+export function PlanComparisonCards({ t }: Readonly<{ t: Translate }>) {
   return (
-    <div className="grid grid-cols-2 items-start" style={{ gap: 10, marginTop: 28 }}>
-      <PlanColumn plan="free" t={t} />
-      <PlanColumn plan="pro" t={t} />
-    </div>
+    <section style={{ marginTop: 30 }}>
+      <h2 className="t-h2" style={{ marginBottom: 8 }}>
+        {t('upgrade.matrix.title')}
+      </h2>
+      <table style={{ width: '100%', borderCollapse: 'separate', borderSpacing: 0 }}>
+        <thead>
+          <tr>
+            <th style={{ ...headCell, textAlign: 'left', color: 'var(--fg-4)' }} />
+            <th style={{ ...headCell, width: 92, textAlign: 'center', color: 'var(--fg-2)' }} scope="col">
+              {t('upgrade.free')}
+            </th>
+            <th style={{ ...headCell, width: 104, textAlign: 'center', color: 'var(--primary-soft)' }} scope="col">
+              {t('common.proBadge')}
+            </th>
+          </tr>
+        </thead>
+        <tbody>
+          {UPGRADE_FEATURE_CATEGORIES.map((category) => {
+            const Icon = iconByKey[category.iconKey]
+            return (
+              <Fragment key={category.category}>
+                <tr>
+                  <th
+                    colSpan={3}
+                    scope="colgroup"
+                    style={{ padding: '18px 8px 8px', textAlign: 'left' }}
+                  >
+                    <span className="flex items-center" style={{ gap: 7 }}>
+                      <Icon size={14} strokeWidth={1.8} style={{ color: 'var(--fg-3)' }} aria-hidden="true" />
+                      <span
+                        style={{
+                          fontFamily: 'var(--font-sans)',
+                          fontSize: 12,
+                          fontWeight: 500,
+                          letterSpacing: '0.06em',
+                          textTransform: 'uppercase',
+                          color: 'var(--fg-3)',
+                        }}
+                      >
+                        {t(`upgrade.categories.${category.category}`)}
+                      </span>
+                    </span>
+                  </th>
+                </tr>
+                {category.features.map((row) => (
+                  <tr key={row.key}>
+                    <th
+                      scope="row"
+                      style={{
+                        ...bodyCell,
+                        textAlign: 'left',
+                        fontFamily: 'var(--font-sans)',
+                        fontSize: 14,
+                        fontWeight: 400,
+                        color: 'var(--fg-1)',
+                      }}
+                    >
+                      {t(`upgrade.features.${row.key}.label`)}
+                    </th>
+                    <td style={{ ...bodyCell, textAlign: 'center' }}>
+                      <FreeCell row={row} t={t} />
+                    </td>
+                    <td style={{ ...bodyCell, textAlign: 'center' }}>
+                      <ProCell row={row} t={t} />
+                    </td>
+                  </tr>
+                ))}
+              </Fragment>
+            )
+          })}
+        </tbody>
+      </table>
+    </section>
   )
 }

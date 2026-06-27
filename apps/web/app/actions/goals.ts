@@ -30,6 +30,12 @@ export async function deleteGoal(goalId: string): Promise<void> {
   })
 }
 
+export async function restoreGoal(goalId: string): Promise<void> {
+  await serverAuthFetch(API.goals.restore(goalId), {
+    method: 'POST',
+  })
+}
+
 export async function updateGoalProgress(
   goalId: string,
   data: UpdateGoalProgressRequest,

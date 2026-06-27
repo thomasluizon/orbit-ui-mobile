@@ -4,7 +4,8 @@ import { goalKeys, habitKeys } from '@orbit/shared/query'
 import type { CreateGoalRequest, Goal, GoalDetailWithMetrics } from '@orbit/shared/types/goal'
 import type { HabitScheduleItem } from '@orbit/shared/types/habit'
 
-import { useCreateGoal , useLinkHabitsToGoal, useUpdateGoalProgress } from '@/hooks/use-goals'
+import { API } from '@orbit/shared/api'
+import { useCreateGoal , useDeleteGoal, useLinkHabitsToGoal, useRestoreGoal, useUpdateGoalProgress } from '@/hooks/use-goals'
 
 
 const mocks = vi.hoisted(() => {
@@ -103,6 +104,9 @@ const mocks = vi.hoisted(() => {
       queuedMutationId: mutationId,
     })),
     invalidateGoalQueries: vi.fn(async () => {}),
+    showSuccess: vi.fn(),
+    showError: vi.fn(),
+    showUndoToast: vi.fn(),
   }
 })
 
@@ -143,6 +147,20 @@ vi.mock('@/lib/goal-mutation-helpers', async () => {
     invalidateGoalQueries: mocks.invalidateGoalQueries,
   }
 })
+
+vi.mock('@/hooks/use-app-toast', () => ({
+  useAppToast: () => ({
+    showSuccess: mocks.showSuccess,
+    showError: mocks.showError,
+    showQueued: vi.fn(),
+    showInfo: vi.fn(),
+    showToast: vi.fn(),
+  }),
+}))
+
+vi.mock('@/hooks/use-undo-toast', () => ({
+  useUndoToast: () => mocks.showUndoToast,
+}))
 
 type MutationConfig<TResult, TVariables, TContext> = {
   mutationFn: (variables: TVariables) => Promise<TResult>
@@ -239,6 +257,9 @@ describe('mobile goal hooks', () => {
     mocks.queueOrExecute.mockReset()
     mocks.withQueuedMarker.mockClear()
     mocks.invalidateGoalQueries.mockClear()
+    mocks.showSuccess.mockClear()
+    mocks.showError.mockClear()
+    mocks.showUndoToast.mockClear()
   })
 
   it('inserts an optimistic temp goal and skips invalidation when the create is queued', async () => {
@@ -348,5 +369,39 @@ describe('mobile goal hooks', () => {
 
     expect(mocks.state.lists[0]?.value[0]?.linkedHabits).toBeUndefined()
     expect(mocks.state.details.get(JSON.stringify(goalKeys.detail('goal-1')))?.goal.linkedHabits).toBeUndefined()
+  })
+
+  it('shows the undo snackbar when a goal delete succeeds', () => {
+    const mutation = useDeleteGoal() as unknown as MutationConfig<unknown, string, undefined>
+
+    mutation.onSuccess?.(undefined, 'goal-1', undefined)
+
+    expect(mocks.showUndoToast).toHaveBeenCalledWith('undo.goalDeleted', expect.any(Function))
+  })
+
+  it('restores a goal through the queued path, targets the restore endpoint, and confirms', async () => {
+    const mutation = useRestoreGoal() as unknown as MutationConfig<unknown, string, undefined>
+
+    mocks.queueOrExecute.mockResolvedValue(undefined)
+
+    const result = await mutation.mutationFn('goal-1')
+    mutation.onSuccess?.(result, 'goal-1', undefined)
+    mutation.onSettled?.(result, null, 'goal-1', undefined)
+
+    expect(mocks.buildQueuedMutation).toHaveBeenCalledWith(expect.objectContaining({
+      type: 'restoreGoal',
+      endpoint: API.goals.restore('goal-1'),
+      method: 'POST',
+    }))
+    expect(mocks.showSuccess).toHaveBeenCalledWith('undo.restored')
+    expect(mocks.invalidateGoalQueries).toHaveBeenCalledTimes(1)
+  })
+
+  it('surfaces an error toast when a goal restore fails', () => {
+    const mutation = useRestoreGoal() as unknown as MutationConfig<unknown, string, undefined>
+
+    mutation.onError?.(new Error('boom'), 'goal-1', undefined)
+
+    expect(mocks.showError).toHaveBeenCalledWith('undo.restoreFailed')
   })
 })

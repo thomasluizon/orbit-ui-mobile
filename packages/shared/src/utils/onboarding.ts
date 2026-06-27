@@ -1,11 +1,12 @@
 export type OnboardingFrequencyUnit = 'Day' | 'Week' | 'Month' | 'Year'
 
-export const ONBOARDING_TOTAL_STEPS = 6
-export const ONBOARDING_CREATE_HABIT_STEP = 1
-export const ONBOARDING_COMPLETE_HABIT_STEP = 2
-export const ONBOARDING_CREATE_GOAL_STEP = 3
-export const ONBOARDING_FEATURES_STEP = 4
-export const ONBOARDING_COMPLETE_STEP = 5
+export const ONBOARDING_TOTAL_STEPS = 7
+export const ONBOARDING_TEMPLATE_PACKS_STEP = 1
+export const ONBOARDING_CREATE_HABIT_STEP = 2
+export const ONBOARDING_COMPLETE_HABIT_STEP = 3
+export const ONBOARDING_CREATE_GOAL_STEP = 4
+export const ONBOARDING_FEATURES_STEP = 5
+export const ONBOARDING_COMPLETE_STEP = 6
 
 export const ONBOARDING_HABIT_SUGGESTIONS: ReadonlyArray<{
   key: string
@@ -112,6 +113,7 @@ export function getOnboardingPreviousStep(
 
 export function shouldHideOnboardingFooter(currentStep: number): boolean {
   return [
+    ONBOARDING_TEMPLATE_PACKS_STEP,
     ONBOARDING_CREATE_HABIT_STEP,
     ONBOARDING_COMPLETE_HABIT_STEP,
     ONBOARDING_CREATE_GOAL_STEP,

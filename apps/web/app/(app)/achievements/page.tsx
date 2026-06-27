@@ -3,11 +3,13 @@
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations, useLocale } from 'next-intl'
-import { useProfile, useHasProAccess } from '@/hooks/use-profile'
+import { deriveNextRewardCarrot } from '@orbit/shared/utils'
+import { useProfile, useCanViewGamification } from '@/hooks/use-profile'
 import { useGamificationProfile } from '@/hooks/use-gamification'
 import { AchievementCategorySection } from './_components/achievement-category-section'
 import { AchievementXpCard } from './_components/achievement-xp-card'
 import { AchievementsLockedState } from './_components/achievements-locked-state'
+import { NextRewardCarrot } from '../profile/_components/next-reward-carrot'
 import { AppBar } from '@/components/ui/app-bar'
 import { ProBadge } from '@/components/ui/pro-badge'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
@@ -19,19 +21,20 @@ export default function AchievementsPage() {
   const router = useRouter()
   const goBackOrFallback = useGoBackOrFallback()
   const { profile: accountProfile, isLoading: profileLoading } = useProfile()
-  const hasProAccess = useHasProAccess()
+  const canViewGamification = useCanViewGamification()
   const {
     profile,
     isLoading,
     xpProgress,
     achievementsByCategory,
-  } = useGamificationProfile(hasProAccess)
+  } = useGamificationProfile(canViewGamification)
+  const nextRewardCarrot = deriveNextRewardCarrot(profile, canViewGamification)
 
   useEffect(() => {
-    if (accountProfile && !hasProAccess) {
+    if (accountProfile && !canViewGamification) {
       router.replace('/upgrade')
     }
-  }, [accountProfile, hasProAccess, router])
+  }, [accountProfile, canViewGamification, router])
 
   const subtitle = profile
     ? `${t('gamification.profileCard.level', { level: profile.level })} · ${profile.levelTitle}`
@@ -49,7 +52,7 @@ export default function AchievementsPage() {
       />
 
       <div className="flex-1 min-h-0 overflow-y-auto">
-        {!profileLoading && !hasProAccess ? (
+        {!profileLoading && !canViewGamification ? (
           <AchievementsLockedState />
         ) : (
           <>
@@ -76,6 +79,8 @@ export default function AchievementsPage() {
                     t={t}
                   />
                 ))}
+
+                <NextRewardCarrot carrot={nextRewardCarrot} />
               </>
             )}
           </>

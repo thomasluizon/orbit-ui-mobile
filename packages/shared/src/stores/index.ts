@@ -9,6 +9,21 @@ export {
   type TourTargetRect,
 } from './tour-store'
 export {
+  REFERRAL_STREAK_MILESTONES,
+  REFERRAL_PROMPT_COOLDOWN_DAYS,
+  getReferralStreakMilestone,
+  getReferralLevelMilestone,
+  parseReferralMilestoneKey,
+  canPromptReferral,
+  createReferralPromptStoreState,
+  getPersistedReferralPromptState,
+  migratePersistedReferralPromptState,
+  type ReferralPromptGuardState,
+  type ReferralPromptStoreState,
+  type PersistedReferralPromptState,
+  type ReferralMilestone,
+} from './referral-prompt-store'
+export {
   createTourUIState,
   createUIStoreState,
   getPersistedUIState,

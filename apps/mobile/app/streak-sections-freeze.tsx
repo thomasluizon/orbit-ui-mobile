@@ -15,7 +15,7 @@ import {
 
 interface FreezeProgressCardProps {
   t: TranslationFn
-  isPro: boolean
+  unlocked: boolean
   streak: number
   streakFreezesAccumulated: number
   maxStreakFreezesAccumulated: number
@@ -33,12 +33,12 @@ interface FreezeProgressCardProps {
  * protected-days list. Free users see a violet-tinted Pro gate card instead.
  */
 export function FreezeProgressCard(props: Readonly<FreezeProgressCardProps>) {
-  const { t, isPro } = props
+  const { t, unlocked } = props
 
   return (
     <View>
       <SectionLabel>{t('streakDisplay.freeze.title')}</SectionLabel>
-      {isPro ? (
+      {unlocked ? (
         <FreezeAutoCard {...props} />
       ) : (
         <FreezeProGate t={t} onUpgrade={props.onUpgrade} />

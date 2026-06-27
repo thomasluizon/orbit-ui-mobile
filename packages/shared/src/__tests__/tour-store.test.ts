@@ -183,4 +183,27 @@ describe('createTourStoreState', () => {
     expect(getState().isActive).toBe(false)
     expect(getState().replaySection).toBeNull()
   })
+
+  it('excludes coach-mark sections from the full tour', () => {
+    getState().startFullTour()
+    const steps = getState().getActiveSteps()
+
+    expect(steps.length).toBeGreaterThan(0)
+    expect(
+      steps.every(
+        (step) =>
+          step.section !== 'coach-today' &&
+          step.section !== 'coach-astra' &&
+          step.section !== 'coach-calendar',
+      ),
+    ).toBe(true)
+  })
+
+  it('replays a single coach-mark section in isolation', () => {
+    getState().startSectionReplay('coach-today')
+    const steps = getState().getActiveSteps()
+
+    expect(steps).toHaveLength(1)
+    expect(steps[0]?.section).toBe('coach-today')
+  })
 })

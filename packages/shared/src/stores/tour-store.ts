@@ -1,4 +1,5 @@
 import type { TourSection, TourStep } from '../types/tour'
+import { COACH_MARK_SECTIONS } from '../types/tour'
 import { TOUR_STEPS, getTourStepsBySection, getSectionStepCount } from '../tour/tour-steps'
 
 type TourStoreSet = {
@@ -60,7 +61,7 @@ export function createTourStoreState(set: TourStoreSet, get: TourStoreGet): Tour
       const visibleSteps = TOUR_STEPS.filter((step) => !hiddenSections.includes(step.section))
       return replaySection
         ? visibleSteps.filter((step) => step.section === replaySection)
-        : visibleSteps
+        : visibleSteps.filter((step) => !COACH_MARK_SECTIONS.includes(step.section))
     },
 
     getCurrentStep: () => {
@@ -156,7 +157,7 @@ export function createTourStoreState(set: TourStoreSet, get: TourStoreGet): Tour
       set((state) => {
         const nextSteps = (state.replaySection
           ? TOUR_STEPS.filter((step) => step.section === state.replaySection)
-          : TOUR_STEPS
+          : TOUR_STEPS.filter((step) => !COACH_MARK_SECTIONS.includes(step.section))
         ).filter((step) => !sections.includes(step.section))
 
         return {

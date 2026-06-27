@@ -1,4 +1,12 @@
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type ReactNode,
+  type RefObject,
+} from 'react'
 import {
   Animated,
   Dimensions,
@@ -11,6 +19,7 @@ import {
 } from 'react-native'
 import {
   getAnchoredMenuPosition,
+  getFallbackAnchorRect,
   type MenuAnchorRect,
 } from '@/lib/anchored-menu'
 import { createTokensV2, easings, radius, shadowsV2 } from '@/lib/theme'
@@ -18,6 +27,76 @@ import { toAnimatedEasing, useResolvedMotionPreset } from '@/lib/motion'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 type AppTokens = ReturnType<typeof createTokensV2>
+
+/**
+ * Single seam for an anchored (popover) menu: owns the trigger ref, open/close
+ * state and the measured anchor rect. `open`/`toggle` flip visibility
+ * synchronously and then refine the anchor position, so the menu never depends
+ * on a native measure callback firing (which silently no-ops on Android Fabric
+ * release builds). Pair with `MenuAnchorHost` on the trigger and `AnchoredMenu`
+ * for the panel.
+ */
+export interface AnchoredMenuController {
+  anchorRef: RefObject<View | null>
+  visible: boolean
+  anchorRect: MenuAnchorRect | null
+  open: () => void
+  close: () => void
+  toggle: () => void
+}
+
+export function useAnchoredMenu(): AnchoredMenuController {
+  const anchorRef = useRef<View>(null)
+  const [visible, setVisible] = useState(false)
+  const [anchorRect, setAnchorRect] = useState<MenuAnchorRect | null>(null)
+
+  const measureAnchor = useCallback(() => {
+    anchorRef.current?.measureInWindow((x, y, width, height) => {
+      setAnchorRect({ x, y, width, height })
+    })
+  }, [])
+
+  const open = useCallback(() => {
+    setVisible(true)
+    measureAnchor()
+  }, [measureAnchor])
+
+  const close = useCallback(() => {
+    setVisible(false)
+  }, [])
+
+  const toggle = useCallback(() => {
+    if (visible) {
+      setVisible(false)
+      return
+    }
+    setVisible(true)
+    measureAnchor()
+  }, [measureAnchor, visible])
+
+  return { anchorRef, visible, anchorRect, open, close, toggle }
+}
+
+interface MenuAnchorHostProps {
+  anchorRef: RefObject<View | null>
+  children: ReactNode
+}
+
+/**
+ * Host wrapper for a menu trigger. Renders a non-collapsible View so the anchor
+ * ref resolves to a real native view (a flattened view can make measurement
+ * no-op on Android), keeping the measure/open invariant in one place.
+ */
+export function MenuAnchorHost({
+  anchorRef,
+  children,
+}: Readonly<MenuAnchorHostProps>) {
+  return (
+    <View ref={anchorRef} collapsable={false}>
+      {children}
+    </View>
+  )
+}
 
 interface AnchoredMenuProps {
   visible: boolean
@@ -93,11 +172,9 @@ export function AnchoredMenu({
   }, [menuMotion.enterDuration, menuMotion.exitDuration, progress, visible])
 
   const position = useMemo(() => {
-    if (!anchorRect) return null
-
     const window = Dimensions.get('window')
     return getAnchoredMenuPosition({
-      anchorRect,
+      anchorRect: anchorRect ?? getFallbackAnchorRect(window.width),
       viewportWidth: window.width,
       viewportHeight: window.height,
       menuWidth: width,
@@ -105,7 +182,7 @@ export function AnchoredMenu({
     })
   }, [anchorRect, menuHeight, width])
 
-  if (!shouldRender || !anchorRect || !position) {
+  if (!shouldRender) {
     return null
   }
 

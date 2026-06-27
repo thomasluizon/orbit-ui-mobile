@@ -81,6 +81,7 @@ export function CreateHabitModal({
   const [reminderTimes, setReminderTimes] = useState<number[]>([0, 15])
   const titleInputRef = useRef<HTMLInputElement | null>(null)
   const [reminderWasManuallyToggled, setReminderWasManuallyToggled] = useState(false)
+  const [expandAdvancedSignal, setExpandAdvancedSignal] = useState(0)
   const [initialSnapshot, setInitialSnapshot] = useState({
     tagIds: '[]',
     goalIds: '[]',
@@ -122,6 +123,7 @@ export function CreateHabitModal({
       const fallbackDate = initialDate ?? formatAPIDate(new Date())
 
       setReminderWasManuallyToggled(false)
+      setExpandAdvancedSignal(0)
       formHelpers.form.reset(buildEmptyHabitFormValues(fallbackDate))
       tags.resetTags()
       setSelectedGoalIds([])
@@ -246,7 +248,15 @@ export function CreateHabitModal({
           formHelpers.form.setValue('emoji', patch.emoji, { shouldDirty: true })
         }
 
-        if (patch.mode === 'recurring') {
+        if (patch.mode === 'flexible') {
+          formHelpers.setFlexible()
+          if (patch.frequencyUnit) {
+            formHelpers.form.setValue('frequencyUnit', patch.frequencyUnit, { shouldDirty: true })
+          }
+          if (patch.frequencyQuantity) {
+            formHelpers.form.setValue('frequencyQuantity', patch.frequencyQuantity, { shouldDirty: true })
+          }
+        } else if (patch.mode === 'recurring') {
           formHelpers.setRecurring()
           if (patch.frequencyUnit) {
             formHelpers.form.setValue('frequencyUnit', patch.frequencyUnit, { shouldDirty: true })
@@ -259,6 +269,20 @@ export function CreateHabitModal({
           formHelpers.setOneTime()
         }
 
+        if (patch.dueTime) {
+          formHelpers.form.setValue('dueTime', patch.dueTime, { shouldDirty: true })
+        }
+
+        const appliedChecklist = patch.checklistItems.length > 0
+        if (appliedChecklist) {
+          const existingChecklist = formHelpers.form.getValues('checklistItems') ?? []
+          formHelpers.form.setValue(
+            'checklistItems',
+            [...existingChecklist, ...patch.checklistItems],
+            { shouldDirty: true },
+          )
+        }
+
         const appliedSubHabits = hasProAccess && patch.subHabitTitles.length > 0
         if (appliedSubHabits) {
           setSubHabits((prev) => [
@@ -267,8 +291,17 @@ export function CreateHabitModal({
           ])
         }
 
+        if (appliedChecklist || appliedSubHabits) {
+          setExpandAdvancedSignal((value) => value + 1)
+        }
+
         const appliedAnything =
-          patch.emoji !== null || patch.frequencyUnit !== null || patch.days.length > 0 || appliedSubHabits
+          patch.emoji !== null ||
+          patch.frequencyUnit !== null ||
+          patch.days.length > 0 ||
+          patch.dueTime !== null ||
+          appliedChecklist ||
+          appliedSubHabits
         if (appliedAnything) {
           showSuccess(t('habits.form.aiSuggestApplied'))
         } else {
@@ -311,7 +344,7 @@ export function CreateHabitModal({
         onAttemptDismiss={dismissGuard.requestDismiss}
         initialFocusRef={titleInputRef}
       >
-        <form className="stagger-enter space-y-10" onSubmit={handleSubmit}>
+        <form className="stagger-enter space-y-7" onSubmit={handleSubmit}>
         <HabitFormFields
           formHelpers={formHelpers}
           titleInputRef={titleInputRef}
@@ -322,6 +355,7 @@ export function CreateHabitModal({
           reminderTimes={reminderTimes}
           onReminderTimesChange={setReminderTimes}
           onReminderEnabledChange={handleReminderEnabledChange}
+          expandAdvancedSignal={expandAdvancedSignal}
           onSuggestSetup={isSubHabitMode ? undefined : handleSuggest}
           isSuggesting={suggestion.isPending}
         >
@@ -340,7 +374,7 @@ export function CreateHabitModal({
         </HabitFormFields>
 
         <div
-          className="flex items-center"
+          className="flex items-center justify-end"
           style={{
             gap: 12,
             paddingTop: 14,
@@ -356,7 +390,7 @@ export function CreateHabitModal({
           </PillButton>
           <PillButton
             type="submit"
-            className="flex-1"
+            glow={false}
             disabled={isPending || !formHelpers.form.formState.isValid}
             dataTestId="habit-create-submit"
             leading={
@@ -367,9 +401,7 @@ export function CreateHabitModal({
               )
             }
           >
-            {isSubHabitMode
-              ? t('habits.createSubHabit')
-              : t('habits.createHabit')}
+            {t('common.create')}
           </PillButton>
         </div>
         </form>

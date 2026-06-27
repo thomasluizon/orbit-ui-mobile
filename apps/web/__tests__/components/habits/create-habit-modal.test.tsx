@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import React from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { CreateHabitModal } from '@/components/habits/create-habit-modal'
@@ -8,11 +8,13 @@ import { createMockHabit } from '@orbit/shared/__tests__/factories'
 
 const mockCreateMutateAsync = vi.fn()
 const mockCreateSubMutateAsync = vi.fn()
+const mockSuggestMutateAsync = vi.fn()
 const mockFormReset = vi.fn()
 const mockFormSetValue = vi.fn()
 const mockFormGetValues = vi.fn()
 const mockFormWatch = vi.fn()
 const mockFormRegister = vi.fn(() => ({ name: 'test', onChange: vi.fn(), onBlur: vi.fn(), ref: vi.fn() }))
+const mockSetFlexible = vi.fn()
 const mockValidateAll = vi.fn()
 const mockResetTags = vi.fn()
 const mockShowError = vi.fn()
@@ -58,6 +60,13 @@ vi.mock('@/hooks/use-profile', () => ({
   }),
 }))
 
+vi.mock('@/hooks/use-habit-suggestion', () => ({
+  useHabitSuggestion: () => ({
+    mutateAsync: mockSuggestMutateAsync,
+    isPending: false,
+  }),
+}))
+
 vi.mock('@/hooks/use-habit-form', () => ({
   useHabitForm: () => ({
     form: {
@@ -78,7 +87,7 @@ vi.mock('@/hooks/use-habit-form', () => ({
     frequencyUnits: [],
     setOneTime: vi.fn(),
     setRecurring: vi.fn(),
-    setFlexible: vi.fn(),
+    setFlexible: mockSetFlexible,
     setGeneral: vi.fn(),
     toggleDay: vi.fn(),
     formatTimeInput: vi.fn((v: string) => v),
@@ -110,6 +119,8 @@ vi.mock('@/stores/ui-store', () => ({
 vi.mock('@/hooks/use-app-toast', () => ({
   useAppToast: () => ({
     showError: mockShowError,
+    showSuccess: vi.fn(),
+    showInfo: vi.fn(),
   }),
 }))
 
@@ -148,14 +159,40 @@ vi.mock('@/components/ui/app-overlay', () => ({
 }))
 
 vi.mock('./habit-form-fields', () => ({
-  HabitFormFields: ({ children }: { children?: React.ReactNode }) => (
-    <div data-testid="habit-form-fields">{children}</div>
+  HabitFormFields: ({
+    children,
+    onSuggestSetup,
+  }: {
+    children?: React.ReactNode
+    onSuggestSetup?: () => void
+  }) => (
+    <div data-testid="habit-form-fields">
+      {onSuggestSetup && (
+        <button type="button" data-testid="suggest-trigger" onClick={() => onSuggestSetup()}>
+          suggest
+        </button>
+      )}
+      {children}
+    </div>
   ),
 }))
 
 vi.mock('@/components/habits/habit-form-fields', () => ({
-  HabitFormFields: ({ children }: { children?: React.ReactNode }) => (
-    <div data-testid="habit-form-fields">{children}</div>
+  HabitFormFields: ({
+    children,
+    onSuggestSetup,
+  }: {
+    children?: React.ReactNode
+    onSuggestSetup?: () => void
+  }) => (
+    <div data-testid="habit-form-fields">
+      {onSuggestSetup && (
+        <button type="button" data-testid="suggest-trigger" onClick={() => onSuggestSetup()}>
+          suggest
+        </button>
+      )}
+      {children}
+    </div>
   ),
 }))
 
@@ -250,13 +287,13 @@ describe('CreateHabitModal', () => {
     expect(screen.getByTestId('habit-form-fields')).toBeDefined()
   })
 
-  it('renders cancel and submit buttons', () => {
+  it('renders cancel and a tight create button', () => {
     renderWithProviders(
       <CreateHabitModal open={true} onOpenChange={vi.fn()} />,
     )
     expect(screen.getByText('common.cancel')).toBeDefined()
-    const submitButtons = screen.getAllByText('habits.createHabit')
-    expect(submitButtons.length).toBeGreaterThanOrEqual(1)
+    const submit = screen.getByTestId('habit-create-submit')
+    expect(submit.textContent).toContain('common.create')
   })
 
   it('calls onOpenChange(false) when cancel is clicked', () => {
@@ -352,5 +389,40 @@ describe('CreateHabitModal', () => {
     expect(mockFormSetValue).toHaveBeenCalledWith('reminderEnabled', false, {
       shouldDirty: true,
     })
+  })
+
+  it('applies due time, flexible cadence, and a checklist from an AI suggestion', async () => {
+    mockFormGetValues.mockImplementation((field?: string) => {
+      if (field === 'title') return 'Swim'
+      if (field === 'checklistItems') return []
+      return { title: 'Swim', checklistItems: [] }
+    })
+    mockSuggestMutateAsync.mockResolvedValue({
+      emoji: '🏊',
+      frequencyUnit: 'Week',
+      frequencyQuantity: 1,
+      days: [],
+      isFlexible: true,
+      flexibleTarget: 3,
+      dueTime: '07:00',
+      subHabits: [],
+      checklistItems: ['Towel', 'Goggles'],
+    })
+
+    renderWithProviders(<CreateHabitModal open={true} onOpenChange={vi.fn()} />)
+    fireEvent.click(screen.getByTestId('suggest-trigger'))
+
+    await waitFor(() => {
+      expect(mockSetFlexible).toHaveBeenCalled()
+    })
+    expect(mockFormSetValue).toHaveBeenCalledWith('dueTime', '07:00', { shouldDirty: true })
+    expect(mockFormSetValue).toHaveBeenCalledWith(
+      'checklistItems',
+      [
+        { text: 'Towel', isChecked: false },
+        { text: 'Goggles', isChecked: false },
+      ],
+      { shouldDirty: true },
+    )
   })
 })

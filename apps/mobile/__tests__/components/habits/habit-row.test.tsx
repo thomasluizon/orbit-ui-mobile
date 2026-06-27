@@ -1,6 +1,11 @@
-import { describe, it, expect, vi } from 'vitest'
+import { afterEach, describe, it, expect, vi } from 'vitest'
 import { createMockHabit } from '@orbit/shared/__tests__/factories'
 import { HabitRow } from '@/components/habits/habit-row'
+import {
+  __resetTestHostConfig,
+  __setHostRefsNull,
+  __setMeasureInWindowImpl,
+} from '@/test-mocks/react-native'
 
 const TestRenderer = require('react-test-renderer')
 
@@ -18,6 +23,14 @@ vi.mock('@/lib/use-app-theme', () => ({
 
 vi.mock('@/lib/motion', () => ({
   usePrefersReducedMotion: () => true,
+  useResolvedMotionPreset: () => ({
+    enterDuration: 0,
+    exitDuration: 0,
+    scaleFrom: 0.96,
+    scaleTo: 1,
+    shift: 8,
+  }),
+  toAnimatedEasing: (value: unknown) => value,
 }))
 
 function collectStrings(node: unknown): string[] {
@@ -67,5 +80,52 @@ describe('HabitRow tags (mobile)', () => {
     expect(texts).toContain('Tag2')
     expect(texts).not.toContain('Tag3')
     expect(texts.join('')).toContain('+7')
+  })
+})
+
+function renderRowWithMenu() {
+  let renderer: ReturnType<typeof TestRenderer.create>
+  TestRenderer.act(() => {
+    renderer = TestRenderer.create(
+      <HabitRow
+        habit={createMockHabit({ title: 'Read' })}
+        actions={{ onEdit: vi.fn() }}
+      />,
+    )
+  })
+  return renderer!
+}
+
+function pressMoreButton(renderer: ReturnType<typeof TestRenderer.create>) {
+  const moreButton = renderer.root.findAll(
+    (node: { props: Record<string, unknown> }) =>
+      node.props.accessibilityLabel === 'habits.actions.more',
+  )[0]
+  TestRenderer.act(() => {
+    ;(moreButton.props.onPress as () => void)()
+  })
+}
+
+describe('HabitRow menu (mobile)', () => {
+  afterEach(() => {
+    __resetTestHostConfig()
+  })
+
+  it('opens the menu even when measureInWindow never invokes its callback', () => {
+    __setMeasureInWindowImpl(() => {})
+    const renderer = renderRowWithMenu()
+
+    pressMoreButton(renderer)
+
+    expect(collectStrings(renderer.toJSON())).toContain('common.edit')
+  })
+
+  it('opens the menu even when the anchor ref is null', () => {
+    __setHostRefsNull(true)
+    const renderer = renderRowWithMenu()
+
+    pressMoreButton(renderer)
+
+    expect(collectStrings(renderer.toJSON())).toContain('common.edit')
   })
 })

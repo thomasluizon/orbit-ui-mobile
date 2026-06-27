@@ -11,12 +11,14 @@ import { SafeAreaView } from 'react-native-safe-area-context'
 import { Lock } from 'lucide-react-native'
 import { createTokensV2, tintFromPrimary } from '@/lib/theme'
 import { buildUpgradeHref } from '@/lib/upgrade-route'
-import { useProfile, useHasProAccess } from '@/hooks/use-profile'
+import { deriveNextRewardCarrot } from '@orbit/shared/utils'
+import { useProfile, useCanViewGamification } from '@/hooks/use-profile'
 import { useGamificationProfile } from '@/hooks/use-gamification'
 import {
   AchievementCategorySection,
   type AchievementCategoryView,
 } from './achievements-sections'
+import { NextRewardCarrot } from './(tabs)/profile/_components/next-reward-carrot'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { AppBar } from '@/components/ui/app-bar'
@@ -37,15 +39,16 @@ export default function AchievementsScreen() {
   )
   const styles = useMemo(() => createStyles(tokens), [tokens])
   const { profile: accountProfile, isLoading: profileLoading } = useProfile()
-  const hasProAccess = useHasProAccess()
+  const canViewGamification = useCanViewGamification()
   const { profile, isLoading, xpProgress, achievementsByCategory } =
-    useGamificationProfile(hasProAccess)
+    useGamificationProfile(canViewGamification)
+  const nextRewardCarrot = deriveNextRewardCarrot(profile, canViewGamification)
 
   useEffect(() => {
-    if (accountProfile && !hasProAccess) {
+    if (accountProfile && !canViewGamification) {
       router.replace('/upgrade')
     }
-  }, [accountProfile, hasProAccess, router])
+  }, [accountProfile, canViewGamification, router])
 
   const levelSubtitle = profile
     ? `${t('gamification.profileCard.level', { level: profile.level })} · ${profile.levelTitle}`
@@ -75,7 +78,7 @@ export default function AchievementsScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {!profileLoading && !hasProAccess ? (
+        {!profileLoading && !canViewGamification ? (
           <View style={styles.lockedBlock}>
             <View
               style={[
@@ -101,7 +104,7 @@ export default function AchievementsScreen() {
           </View>
         ) : null}
 
-        {!profileLoading && hasProAccess && isLoading && !profile ? (
+        {!profileLoading && canViewGamification && isLoading && !profile ? (
           <View style={styles.skeletonStack}>
             <View
               style={[
@@ -124,7 +127,7 @@ export default function AchievementsScreen() {
           </View>
         ) : null}
 
-        {hasProAccess && profile ? (
+        {canViewGamification && profile ? (
           <>
             <View style={styles.levelBlockWrap}>
               <View
@@ -176,6 +179,11 @@ export default function AchievementsScreen() {
                 />
               ),
             )}
+
+            <NextRewardCarrot
+              carrot={nextRewardCarrot}
+              onUpgrade={() => router.push(buildUpgradeHref('/achievements'))}
+            />
           </>
         ) : null}
       </ScrollView>

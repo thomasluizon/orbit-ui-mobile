@@ -2,14 +2,15 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Orbit } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { CHAT_GOAL_ACTION_TYPES } from '@orbit/shared/hooks'
 import { habitDetailToNormalized } from '@orbit/shared/utils'
 import { AppBar } from '@/components/ui/app-bar'
+import { AstraMark } from '@/components/ui/astra-avatar'
 import { GradientTop } from '@/components/ui/gradient-top'
 import { useChatComposer } from '@/hooks/use-chat-composer'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
+import { useCoachMark } from '@/hooks/use-coach-mark'
 import { useHabitDetail } from '@/hooks/use-habits'
 import { MessageBubble } from '@/components/chat/message-bubble'
 import { TypingIndicator } from '@/components/chat/typing-indicator'
@@ -22,6 +23,7 @@ export default function ChatPage() {
   const t = useTranslations()
   const router = useRouter()
   const goBackOrFallback = useGoBackOrFallback()
+  useCoachMark('coach-astra')
   const composer = useChatComposer()
   const {
     chatContainerRef,
@@ -102,7 +104,7 @@ export default function ChatPage() {
           back
           backLabel={t('common.goBack')}
           onBack={() => goBackOrFallback('/')}
-          leadingIcon={<Orbit size={17} strokeWidth={1.5} color="var(--primary)" />}
+          titleIcon={<AstraMark size={18} />}
           title={t('chat.title')}
         />
       </div>

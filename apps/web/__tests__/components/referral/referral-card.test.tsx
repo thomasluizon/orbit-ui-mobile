@@ -65,4 +65,18 @@ describe('ReferralCard', () => {
     const svg = container.querySelector('svg')
     expect(svg).toBeInTheDocument()
   })
+
+  it('renders a dismiss control and calls onDismiss without opening', () => {
+    mockIsLoading = false
+    mockStats = null
+    const onOpen = vi.fn()
+    const onDismiss = vi.fn()
+    render(<ReferralCard onOpen={onOpen} onDismiss={onDismiss} />)
+
+    const dismiss = screen.getByRole('button', { name: 'common.dismiss' })
+    fireEvent.click(dismiss)
+
+    expect(onDismiss).toHaveBeenCalledTimes(1)
+    expect(onOpen).not.toHaveBeenCalled()
+  })
 })

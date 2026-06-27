@@ -386,9 +386,9 @@ describe('CalendarSyncPage', () => {
 
     render(<CalendarSyncPage />)
     await waitFor(() => {
-      expect(screen.getByText('calendar.deselectAll')).toBeInTheDocument()
+      expect(screen.getByLabelText('calendar.deselectAll')).toBeInTheDocument()
     })
-    expect(screen.getByText('calendar.deselectAll').closest('button')).toHaveAttribute('aria-pressed', 'true')
+    expect(screen.getByLabelText('calendar.deselectAll')).toHaveAttribute('aria-pressed', 'true')
   })
 
   it('all events are selected by default', async () => {
@@ -407,7 +407,7 @@ describe('CalendarSyncPage', () => {
       expect(screen.getByText('Event 1')).toBeInTheDocument()
     })
 
-    expect(screen.getByText('calendar.deselectAll')).toBeInTheDocument()
+    expect(screen.getByLabelText('calendar.deselectAll')).toBeInTheDocument()
     expect(document.body.textContent).toContain('calendar.importButton')
   })
 

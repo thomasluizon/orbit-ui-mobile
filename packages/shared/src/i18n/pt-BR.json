@@ -79,6 +79,15 @@
       "default": "Padrão"
     }
   },
+  "persistentReminder": {
+    "label": "Lembrete fixo",
+    "description": "Mantenha uma notificação fixa e silenciosa com sua sequência e o progresso de hoje.",
+    "channelName": "Lembrete fixo",
+    "titleStreak": "Sequência de {streak} dias",
+    "titleNoStreak": "Comece sua sequência hoje",
+    "body": "{completed}/{total} concluídos hoje",
+    "bodyEmpty": "Nada agendado para hoje"
+  },
   "welcome": {
     "backMessage": "Sua sequência de {streak} dias continua firme.",
     "eyebrow": "Que bom te ver de volta"
@@ -141,6 +150,8 @@
     "nextMonth": "Próximo mês",
     "previousYear": "Ano anterior",
     "nextYear": "Próximo ano",
+    "previousWeek": "Semana anterior",
+    "nextWeek": "Próxima semana",
     "continue": "Continuar",
     "unknown": "Desconhecido",
     "failed": "Falhou",
@@ -453,7 +464,11 @@
       "daysOnlyForDaily": "Dias específicos só valem para hábitos diários",
       "tags": "Tags",
       "tagLimit": "Você pode escolher até 5 tags",
-      "badHabitLabel": "Este é um mau hábito (acompanhar para evitar)",
+      "habitType": "Tipo de hábito",
+      "habitTypeBuild": "Construir",
+      "habitTypeAvoid": "Evitar",
+      "habitTypeBuildHint": "Uma rotina que você quer fortalecer.",
+      "habitTypeAvoidHint": "Acompanhado para evitar, não repetir.",
       "generalBadHabit": "Hábitos gerais não podem ser marcados como maus hábitos",
       "subHabits": "Sub-hábitos",
       "subHabitPlaceholder": "Título do sub-hábito",
@@ -593,6 +608,18 @@
     "noHabitsScheduled": "Nenhum hábito agendado para este dia.",
     "goToDay": "Ver este dia",
     "goToCurrentMonth": "Ir para o mês atual",
+    "goToCurrentWeek": "Ir para a semana atual",
+    "view": {
+      "switchLabel": "Visualização do calendário",
+      "month": "Mês",
+      "week": "Semana",
+      "range": "Intervalo"
+    },
+    "timeGrid": {
+      "allDay": "Dia inteiro",
+      "now": "Agora",
+      "pickRangeHint": "Escolha um dia inicial e final acima para definir seu intervalo."
+    },
     "status": {
       "completed": "Concluído",
       "missed": "Perdido",
@@ -652,7 +679,7 @@
       "lastSyncedHoursAgo": "há {n} hora | há {n} horas",
       "lastSyncedYesterday": "Ontem",
       "lastSyncedDaysAgo": "há {n} dia | há {n} dias",
-      "syncNow": "Sincronizar agora",
+      "syncNow": "Sincronizar",
       "syncNowRunning": "Sincronizando...",
       "connectGoogleFirst": "Conecte sua conta Google antes de ativar a sincronização automática.",
       "reconnectTitle": "Google Calendar desconectado",
@@ -756,6 +783,7 @@
     "messagesUsed": "mensagens usadas neste mês",
     "senderYou": "Você",
     "senderOrbit": "Astra",
+    "astraAvatarLabel": "Avatar da Astra",
     "unknownEntity": "Desconhecido",
     "starterChips": {
       "logHabit": "Registrar um hábito",
@@ -959,6 +987,14 @@
       "title": "Vem pro Orbit comigo",
       "text": "Estou usando o Orbit para criar hábitos melhores. Entra também e nós dois ganhamos um cupom de {discount}% de desconto!"
     },
+    "prompt": {
+      "eyebrow": "Você está com tudo",
+      "streakTitle": "Sequência de {count} dias!",
+      "levelTitle": "Você chegou ao nível {level}!",
+      "body": "Convide um amigo e vocês dois ganham um cupom de {discount}% de desconto no Pro.",
+      "cta": "Convidar um amigo",
+      "later": "Agora não"
+    },
     "loginBanner": "Você foi convidado! Cadastre-se e ganhe um cupom de 10% de desconto no Pro"
   },
   "privacy": {
@@ -1059,19 +1095,11 @@
       "heading": "Seu teste Pro acabou",
       "paused": "Pausado",
       "subtitleQuiet": "Estes recursos Pro vão pausar se você não assinar.",
-      "title": "Seu teste Pro acabou",
-      "dontLose": "Não perca o acesso a:",
-      "unlimitedHabits": "Hábitos ilimitados",
       "aiChat": "500 mensagens de IA por mês",
       "allColors": "Todos os 6 temas",
       "aiSummary": "Resumos diários da IA",
       "subHabits": "Sub-hábitos",
       "goals": "Metas e acompanhamento de progresso",
-      "calendar": "Integração com o Google Calendar",
-      "apiKeys": "Chaves de API",
-      "slipAlerts": "Alertas de deslize",
-      "achievements": "Conquistas e XP",
-      "retrospective": "Retrospectivas com IA",
       "subscribe": "Assinar Pro",
       "continueFree": "Continuar no plano grátis"
     }
@@ -1132,6 +1160,75 @@
   },
   "onboarding": {
     "flow": {
+      "templatePacks": {
+        "title": "Comece com um pacote",
+        "subtitle": "Escolha um conjunto de hábitos para começar. Você pode ajustar tudo depois.",
+        "customizeTitle": "Personalize seu pacote",
+        "customizeSubtitle": "Desative o que não quiser. Adicionamos o resto.",
+        "createCta": "Adicionar {count} hábitos",
+        "createCtaOne": "Adicionar 1 hábito",
+        "createOwn": "Prefiro criar o meu",
+        "skip": "Pular por agora",
+        "created": "Seus hábitos estão prontos!",
+        "packs": {
+          "morningRoutine": {
+            "name": "Rotina Matinal",
+            "description": "Comece todo dia com intenção.",
+            "habits": {
+              "makeBed": "Arrume sua cama",
+              "water": "Beba um copo de água",
+              "stretch": "Alongamento de 5 minutos",
+              "breakfast": "Tome um café da manhã saudável",
+              "planDay": "Planeje suas 3 tarefas principais"
+            }
+          },
+          "fitnessMovement": {
+            "name": "Fitness e Movimento",
+            "description": "Mantenha o corpo ativo e forte.",
+            "habits": {
+              "walk": "Caminhada de 30 minutos",
+              "strength": "Treino de força",
+              "mobility": "Mobilidade de 10 minutos",
+              "stairs": "Use as escadas",
+              "steps": "Atinja sua meta de passos"
+            }
+          },
+          "studyFocus": {
+            "name": "Estudo e Foco",
+            "description": "Desenvolva foco profundo, sem distrações.",
+            "habits": {
+              "deepWork": "Bloco de trabalho focado",
+              "read": "Leia por 20 minutos",
+              "reviewNotes": "Revise suas anotações",
+              "phoneFree": "Primeira hora sem celular",
+              "singleTask": "Faça uma tarefa por vez"
+            }
+          },
+          "mindfulnessWellbeing": {
+            "name": "Mindfulness e Bem-estar",
+            "description": "Desacelere e cuide de você.",
+            "habits": {
+              "meditate": "Medite por 10 minutos",
+              "gratitude": "Diário de gratidão",
+              "digitalSunset": "Pôr do sol digital",
+              "breathing": "Respiração profunda",
+              "reachOut": "Fale com alguém"
+            }
+          }
+        },
+        "tags": {
+          "morning": "manhã",
+          "health": "saúde",
+          "movement": "movimento",
+          "focus": "foco",
+          "fitness": "fitness",
+          "learning": "aprendizado",
+          "mindfulness": "mindfulness",
+          "journal": "diário",
+          "sleep": "sono",
+          "social": "social"
+        }
+      },
       "step": "{current} de {total}",
       "skip": "Pular",
       "next": "Continuar",
@@ -1228,8 +1325,8 @@
           "theme": "Tema personalizado",
           "astra": "Assistente de IA"
         },
-        "trialTitle": "Seu teste Pro está ativo",
-        "trialDesc": "Aproveite o acesso Pro completo até {date}."
+        "trialTitle": "7 dias de Pro, grátis",
+        "trialDesc": "Sem cartão. Você tem acesso Pro completo até {date}."
       }
     },
     "wizard": {
@@ -1382,7 +1479,6 @@
   },
   "upgrade": {
     "title": "Upgrade para o Pro",
-    "heroTitle": "Desbloqueie todo seu potencial com o Pro",
     "alreadyPro": "Você está no plano Pro!",
     "manageHint": "Gerencie sua assinatura, troque o pagamento ou cancele quando quiser",
     "feature": "Recurso",
@@ -1390,7 +1486,6 @@
     "subscribe": "Assinar Pro",
     "plan": "Plano",
     "restorePurchase": "Restaurar compra",
-    "recommended": "Recomendado",
     "categories": {
       "habits": "Hábitos",
       "ai": "Recursos de IA",
@@ -1428,12 +1523,6 @@
         "pro": "Todos os 6 temas",
         "tooltip": "Personalize o Orbit com 6 cores de tema: roxo, azul, verde, rosa, laranja e ciano. No plano grátis, você usa o tema roxo padrão."
       },
-      "premiumColors": {
-        "label": "Cores premium",
-        "free": "Não",
-        "pro": "Incluso",
-        "tooltip": "Libere todos os temas premium e personalize o Orbit muito além do tema padrão do plano grátis."
-      },
       "aiMemory": {
         "label": "Memória da IA",
         "free": "Não",
@@ -1457,6 +1546,15 @@
         "free": "Não",
         "pro": "Anual",
         "tooltip": "A IA analisa seus hábitos ao longo de semanas, meses ou trimestres para revelar padrões, conquistas e pontos a melhorar."
+      },
+      "streaks": {
+        "label": "Sequência atual e recorde"
+      },
+      "xpLevels": {
+        "label": "XP e níveis"
+      },
+      "streakFreeze": {
+        "label": "Congelamento de sequência"
       },
       "achievements": {
         "label": "Conquistas e XP",
@@ -1483,28 +1581,47 @@
         "tooltip": "Tire todos os anúncios do app para acompanhar seus hábitos sem distração."
       }
     },
+    "convert": {
+      "promise": "Tudo o que o Orbit faz, em um plano só.",
+      "trialDaysLeft": "Teste Pro · {days} dia restante | Teste Pro · {days} dias restantes",
+      "trialLastDay": "Teste Pro · último dia",
+      "trialHeading": "Mantenha seus recursos Pro",
+      "trialCta": "Assinar para manter o Pro",
+      "freeEyebrow": "Plano grátis",
+      "freeHeading": "Seu teste Pro acabou",
+      "freeCta": "Fazer upgrade para o Pro",
+      "trustLine": "Nenhum cartão foi cobrado, você voltou ao plano grátis automaticamente.",
+      "cancelAnytime": "Cancele quando quiser",
+      "noCardCancel": "Sem cartão · Cancele quando quiser",
+      "stayFree": "Continuar no plano grátis"
+    },
+    "matrix": {
+      "title": "Compare todos os recursos",
+      "included": "Incluído",
+      "notIncluded": "Não incluído",
+      "yearlyTag": "Anual"
+    },
     "plans": {
+      "free": {
+        "note": "Mantenha sequências, XP e congelamento, sempre de graça."
+      },
       "monthly": {
         "name": "Pro Mensal",
         "period": "/mês",
-        "cta": "Assinar Mensal"
+        "cta": "Assinar Mensal",
+        "note": "Cobrado mensalmente"
       },
       "yearly": {
         "name": "Pro Anual",
         "period": "/ano",
-        "cta": "Assinar Anual",
-        "includesMonthly": "Tudo do Pro Mensal, mais:"
+        "heroLine": "Tudo do Pro Mensal, mais a Retrospectiva IA.",
+        "billedSave": "Cobrado {price}/ano, economize {amount} por ano"
       },
       "proFeatures": {
         "unlimited": "Hábitos ilimitados",
         "ai": "500 mensagens IA/mês",
         "goals": "Metas e acompanhamento de progresso",
-        "calendarImport": "Integração com Google Calendar",
-        "apiKeys": "Chaves de API",
-        "slipAlerts": "Alertas de deslize",
-        "achievements": "Conquistas e XP",
         "themes": "Todos os 6 temas",
-        "adFree": "Sem anúncios",
         "retrospective": "Retrospectiva IA"
       },
       "savePercent": "Economize {percent}%",
@@ -1617,6 +1734,14 @@
   "offline": {
     "title": "Você está sem conexão",
     "description": "Confira sua internet e tente de novo."
+  },
+  "undo": {
+    "habitDeleted": "Hábito excluído",
+    "goalDeleted": "Meta excluída",
+    "tagDeleted": "Tag excluída",
+    "action": "Desfazer",
+    "restored": "Restaurado",
+    "restoreFailed": "Não foi possível restaurar. Tente de novo."
   },
   "speech": {
     "micDenied": "Acesso ao microfone negado.",
@@ -1741,6 +1866,14 @@
       "lockedDescription": "Assine o Pro para acompanhar seu progresso, ganhar XP e desbloquear conquistas.",
       "upgradeButton": "Assinar Pro"
     },
+    "carrot": {
+      "title": "Próxima recompensa",
+      "toNextLevel": "{xp} XP para o Nível {level}",
+      "proTeaser": {
+        "title": "Desbloqueie com o Pro",
+        "achievements": "Conquistas e medalhas"
+      }
+    },
     "categories": {
       "GettingStarted": "Primeiros Passos",
       "Consistency": "Consistência",
@@ -1785,6 +1918,14 @@
       "year_of_discipline": {
         "name": "Ano de Disciplina",
         "description": "Alcance uma sequência de 365 dias"
+      },
+      "half_year_hero": {
+        "name": "Herói do Semestre",
+        "description": "Alcance uma sequência de 180 dias"
+      },
+      "streak_titan": {
+        "name": "Titã da Sequência",
+        "description": "Alcance uma sequência de 500 dias"
       },
       "getting_momentum": {
         "name": "Ganhando Ritmo",
@@ -1849,6 +1990,10 @@
       "bad_habit_breaker": {
         "name": "Quebrador de Maus Hábitos",
         "description": "Alcance 30 dias sem um mau hábito"
+      },
+      "first_cheer": {
+        "name": "Boas Energias",
+        "description": "Envie ou receba seu primeiro incentivo"
       }
     },
     "toast": {
@@ -2035,7 +2180,35 @@
     "banner": "Uma nova versão do Orbit está disponível.",
     "refresh": "Atualizar"
   },
+  "today": {
+    "setupChecklist": {
+      "title": "Primeiros passos",
+      "subtitle": "Três passos rápidos para configurar o Orbit.",
+      "items": {
+        "createHabit": "Crie seu primeiro hábito",
+        "logHabit": "Registre um hábito hoje",
+        "tryAstra": "Pergunte algo à Astra"
+      },
+      "progress": "{done} de {total} concluídos",
+      "complete": "Tudo pronto. Bom trabalho!",
+      "dismiss": "Dispensar"
+    }
+  },
   "tour": {
+    "coachmarks": {
+      "today": {
+        "title": "Seu dia, num relance",
+        "description": "Todo hábito de hoje fica aqui. Toque no círculo para concluir."
+      },
+      "astra": {
+        "title": "Conheça a Astra",
+        "description": "Seu assistente de IA. Peça para criar hábitos, planejar ou resumir o dia."
+      },
+      "calendar": {
+        "title": "Veja seu histórico",
+        "description": "Um mapa de calor colorido de tudo que você concluiu ao longo do tempo."
+      }
+    },
     "mockData": {
       "habits": {
         "meditation": {

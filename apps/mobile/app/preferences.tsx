@@ -5,6 +5,7 @@ import { useTranslation } from 'react-i18next'
 import { buildWeekStartOptions } from '@orbit/shared/utils'
 import type { ThemeMode } from '@orbit/shared/types/profile'
 import { usePushNotifications } from '@/hooks/use-push-notifications'
+import { usePersistentReminder } from '@/hooks/use-persistent-reminder'
 import { TrialBanner } from '@/components/ui/trial-banner'
 import { createTokensV2 } from '@/lib/theme'
 import { AppBar } from '@/components/ui/app-bar'
@@ -50,6 +51,7 @@ export default function PreferencesScreen() {
     requestPermission,
     refreshPermissionStatus,
   } = usePushNotifications()
+  const persistentReminder = usePersistentReminder()
 
   useEffect(() => {
     if (!pushSupported) return
@@ -151,6 +153,14 @@ export default function PreferencesScreen() {
             },
             onOpenSettings: () => {
               void Linking.openSettings().catch(() => {})
+            },
+          }}
+          persistentReminder={{
+            isSupported: persistentReminder.isSupported,
+            enabled: persistentReminder.enabled,
+            isLoading: persistentReminder.isLoading,
+            onToggle: () => {
+              void persistentReminder.toggle()
             },
           }}
         />
