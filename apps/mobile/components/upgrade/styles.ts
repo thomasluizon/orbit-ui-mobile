@@ -147,7 +147,8 @@ export const styles = StyleSheet.create({
   },
   planGroup: {
     paddingHorizontal: 20,
-    gap: 14,
+    gap: 16,
+    marginTop: 18,
   },
   actionPad: {
     paddingHorizontal: 20,

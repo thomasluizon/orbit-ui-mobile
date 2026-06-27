@@ -1586,14 +1586,14 @@
       "trialDaysLeft": "Teste Pro · {days} dia restante | Teste Pro · {days} dias restantes",
       "trialLastDay": "Teste Pro · último dia",
       "trialHeading": "Mantenha seus recursos Pro",
-      "trialCta": "Assinar para manter o Pro",
+      "trialCta": "Manter o Pro",
       "freeEyebrow": "Plano grátis",
       "freeHeading": "Seu teste Pro acabou",
-      "freeCta": "Fazer upgrade para o Pro",
+      "freeCta": "Assinar Pro",
       "trustLine": "Nenhum cartão foi cobrado, você voltou ao plano grátis automaticamente.",
       "cancelAnytime": "Cancele quando quiser",
       "noCardCancel": "Sem cartão · Cancele quando quiser",
-      "stayFree": "Continuar no plano grátis"
+      "stayFree": "Continuar grátis"
     },
     "matrix": {
       "title": "Compare todos os recursos",
@@ -1608,7 +1608,7 @@
       "monthly": {
         "name": "Pro Mensal",
         "period": "/mês",
-        "cta": "Assinar Mensal",
+        "cta": "Assinar",
         "note": "Cobrado mensalmente"
       },
       "yearly": {
