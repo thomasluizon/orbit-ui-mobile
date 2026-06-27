@@ -13,6 +13,7 @@ import {
   getRefreshToken,
 } from '@/lib/secure-store'
 import { clearWidgetToken, saveWidgetToken } from '@/lib/orbit-widget'
+import { cancelPersistentReminder } from '@/lib/persistent-reminder'
 import { apiClient } from '@/lib/api-client'
 import * as offlineQueue from '@/lib/offline-queue'
 import { cancelScheduledFlush } from '@/lib/offline-mutations'
@@ -338,6 +339,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     await clearStoredAuthReturnUrl()
     await clearAllTokens()
     await clearWidgetToken().catch(() => {})
+    await cancelPersistentReminder().catch(() => {})
     queryClient.clear()
     await clearPersistedQueryCache()
     await setQueryCacheScope(null)
@@ -352,6 +354,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     let token = await getToken()
     if (!token) {
       await clearWidgetToken().catch(() => {})
+      await cancelPersistentReminder().catch(() => {})
       useReviewReminderStore.getState().setAccountScope(null)
       set({ isAuthenticated: false, user: null, expiresAt: null })
       return false

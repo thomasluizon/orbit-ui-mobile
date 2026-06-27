@@ -46,7 +46,7 @@ export default function StreakScreen() {
   const router = useRouter()
   const { profile } = useProfile()
   const streak = profile?.currentStreak ?? 0
-  const isPro = profile?.hasProAccess ?? false
+  const canViewGamification = profile?.canViewGamification ?? false
   const { displayDate } = useDateFormat()
   const styles = useMemo(() => createStyles(tokens), [tokens])
   const {
@@ -57,7 +57,7 @@ export default function StreakScreen() {
     maxStreakFreezesAccumulated,
     freezesUsedThisMonth,
     maxFreezesPerMonth,
-  } = useStreakFreeze(profile, isPro)
+  } = useStreakFreeze(profile, canViewGamification)
   const freezeCelebrationRef = useRef<StreakFreezeCelebrationHandle>(null)
   const wasFrozenTodayRef = useRef(isFrozenToday)
 
@@ -187,7 +187,7 @@ export default function StreakScreen() {
             <Animated.View entering={sectionEntrance(3)}>
               <FreezeProgressCard
                 t={t}
-                isPro={isPro}
+                unlocked={canViewGamification}
                 streak={streak}
                 streakFreezesAccumulated={streakFreezesAccumulated}
                 maxStreakFreezesAccumulated={maxStreakFreezesAccumulated}

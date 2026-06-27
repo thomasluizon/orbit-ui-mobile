@@ -1,16 +1,12 @@
-import { View } from 'react-native'
+import { Pressable, Text, View } from 'react-native'
 import { applySubscriptionDiscount } from '@orbit/shared/utils'
-import {
-  UPGRADE_PRO_FEATURES,
-  UPGRADE_YEARLY_EXTRA_FEATURES,
-} from '@orbit/shared/utils/upgrade'
 import type { SubscriptionPlans } from '@orbit/shared/types/subscription'
 import { PlanCard } from '@/components/upgrade/plan-card'
 import type { PlayOffer } from '@/hooks/use-play-billing'
 import { formatPrice } from '@/hooks/use-subscription-plans'
 import { styles } from './styles'
 import { monthlyEquivalentPriceLabel } from './types'
-import type { SubscriptionInterval, UpgradeTextFn } from './types'
+import type { SubscriptionInterval, Tokens, UpgradeTextFn } from './types'
 
 export function PlanSelection({
   plans,
@@ -19,7 +15,9 @@ export function PlanSelection({
   yearlyPrice,
   selectedInterval,
   onSelectInterval,
+  onStayFree,
   t,
+  tokens,
 }: Readonly<{
   plans: SubscriptionPlans
   yearlyOffer: PlayOffer | null
@@ -27,18 +25,23 @@ export function PlanSelection({
   yearlyPrice?: string
   selectedInterval: SubscriptionInterval
   onSelectInterval: (interval: SubscriptionInterval) => void
+  onStayFree: () => void
   t: UpgradeTextFn
+  tokens: Tokens
 }>) {
-  const yearlyCharge = yearlyPrice
-    ?? formatPrice(applySubscriptionDiscount(plans.yearly.unitAmount, plans.couponPercentOff), plans.currency)
-  const monthlyCharge = monthlyPrice
-    ?? formatPrice(applySubscriptionDiscount(plans.monthly.unitAmount, plans.couponPercentOff), plans.currency)
-  const discountSuffix = !yearlyPrice && plans.couponPercentOff
-    ? ` · ${t('upgrade.plans.coupon.discountBadge', { percent: plans.couponPercentOff })}`
-    : ''
+  const yearlyCharge =
+    yearlyPrice ??
+    formatPrice(applySubscriptionDiscount(plans.yearly.unitAmount, plans.couponPercentOff), plans.currency)
+  const monthlyCharge =
+    monthlyPrice ??
+    formatPrice(applySubscriptionDiscount(plans.monthly.unitAmount, plans.couponPercentOff), plans.currency)
+  const discountSuffix =
+    !yearlyPrice && plans.couponPercentOff
+      ? ` · ${t('upgrade.plans.coupon.discountBadge', { percent: plans.couponPercentOff })}`
+      : ''
 
   return (
-    <View accessibilityRole="radiogroup" style={styles.planGroup}>
+    <View accessibilityRole="radiogroup" accessibilityLabel={t('upgrade.plan')} style={styles.planGroup}>
       <PlanCard
         name={t('upgrade.plans.yearly.name')}
         badge={t('upgrade.plans.savePercent', { percent: plans.savingsPercent })}
@@ -46,24 +49,19 @@ export function PlanSelection({
           price: monthlyEquivalentPriceLabel(plans, yearlyOffer),
         })}
         sub={`${yearlyCharge}${t('upgrade.plans.yearly.period')}${discountSuffix}`}
-        features={[
-          t('upgrade.plans.yearly.includesMonthly'),
-          ...UPGRADE_YEARLY_EXTRA_FEATURES.map((feature) =>
-            t(`upgrade.plans.proFeatures.${feature.key}`),
-          ),
-        ]}
         selected={selectedInterval === 'yearly'}
         onSelect={() => onSelectInterval('yearly')}
       />
       <PlanCard
         name={t('upgrade.plans.monthly.name')}
         price={`${monthlyCharge}${t('upgrade.plans.monthly.period')}`}
-        features={UPGRADE_PRO_FEATURES.map((feature) =>
-          t(`upgrade.plans.proFeatures.${feature.key}`),
-        )}
+        sub={t('upgrade.plans.monthly.note')}
         selected={selectedInterval === 'monthly'}
         onSelect={() => onSelectInterval('monthly')}
       />
+      <Pressable accessibilityRole="button" onPress={onStayFree} style={styles.freeLink}>
+        <Text style={[styles.freeLinkText, { color: tokens.fg3 }]}>{t('upgrade.convert.stayFree')}</Text>
+      </Pressable>
     </View>
   )
 }

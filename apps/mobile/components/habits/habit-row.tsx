@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useMemo, useRef } from 'react'
 import {
   Pressable,
   Text,
@@ -19,8 +19,7 @@ import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { useTimeFormat } from '@/hooks/use-time-format'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
-import { AnchoredMenu } from '@/components/ui/anchored-menu'
-import type { MenuAnchorRect } from '@/lib/anchored-menu'
+import { AnchoredMenu, useAnchoredMenu } from '@/components/ui/anchored-menu'
 import { SelectCheck } from '@/components/ui/select-check'
 import type { StatusDotState } from '@/components/ui/status-dot'
 import { HabitRowContent, type HabitRowMetaPart } from './habit-row-content'
@@ -136,11 +135,13 @@ export function HabitRow({
 
   const emoji = habit.emoji
 
-  const menuButtonRef = useRef<View>(null)
-  const [menuVisible, setMenuVisible] = useState(false)
-  const [menuAnchorRect, setMenuAnchorRect] = useState<MenuAnchorRect | null>(
-    null,
-  )
+  const {
+    anchorRef: menuButtonRef,
+    visible: menuVisible,
+    anchorRect: menuAnchorRect,
+    open: openAnchoredMenu,
+    close: closeAnchoredMenu,
+  } = useAnchoredMenu()
   const menuActivityAt = useRef(0)
 
   const hasMenuActions =
@@ -156,16 +157,13 @@ export function HabitRow({
 
   const openMenu = useCallback(() => {
     menuActivityAt.current = Date.now()
-    menuButtonRef.current?.measureInWindow((x, y, width, height) => {
-      setMenuAnchorRect({ x, y, width, height })
-      setMenuVisible(true)
-    })
-  }, [])
+    openAnchoredMenu()
+  }, [openAnchoredMenu])
 
   const closeMenu = useCallback(() => {
     menuActivityAt.current = Date.now()
-    setMenuVisible(false)
-  }, [])
+    closeAnchoredMenu()
+  }, [closeAnchoredMenu])
 
   const handlePress = () => {
     if (Date.now() - menuActivityAt.current < 500) return

@@ -90,6 +90,12 @@ export function useHasProAccess(): boolean {
   return profile?.hasProAccess ?? false
 }
 
+/** Computed: can the user see gamification surfaces (Pro, or the free-tier flag is on)? */
+export function useCanViewGamification(): boolean {
+  const { profile } = useProfile()
+  return profile?.canViewGamification ?? false
+}
+
 /** Computed: how many trial days remain (null if not in trial). */
 export function useTrialDaysLeft(): number | null {
   const { profile } = useProfile()

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo, useCallback, useEffect, type ReactNode, type RefObject } from 'react'
-import { X, Plus, Check, ChevronDown, Sparkles, Loader2 } from 'lucide-react'
+import { X, Plus, TrendingUp, TrendingDown, ChevronDown, Sparkles, Loader2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import type { FrequencyUnit, SuggestedTag } from '@orbit/shared/types/habit'
 import {
@@ -48,6 +48,8 @@ interface HabitFormFieldsProps {
   onReminderEnabledChange?: (nextEnabled: boolean) => void
   /** When true, advanced fields are visible by default (used in edit modal) */
   defaultExpanded?: boolean
+  /** Incrementing this opens the advanced section (used to reveal AI-applied checklist / sub-habits). */
+  expandAdvancedSignal?: number
   /** When provided, renders the "Suggest with AI" affordance that requests a setup for the title. */
   onSuggestSetup?: () => void
   isSuggesting?: boolean
@@ -65,6 +67,7 @@ export function HabitFormFields({
   onReminderTimesChange,
   onReminderEnabledChange,
   defaultExpanded = false,
+  expandAdvancedSignal = 0,
   onSuggestSetup,
   isSuggesting = false,
   children,
@@ -145,6 +148,11 @@ export function HabitFormFields({
   }, [onReminderEnabledChange, setValue])
 
   const [showAdvanced, setShowAdvanced] = useState(defaultExpanded)
+  const [prevExpandSignal, setPrevExpandSignal] = useState(expandAdvancedSignal)
+  if (expandAdvancedSignal !== prevExpandSignal) {
+    setPrevExpandSignal(expandAdvancedSignal)
+    if (expandAdvancedSignal > 0) setShowAdvanced(true)
+  }
 
   const watchedDescription = watch('description') ?? ''
   const watchedEmoji = watch('emoji') ?? ''
@@ -656,30 +664,44 @@ export function HabitFormFields({
           )}
 
           {!isGeneral && (
-            <label className="flex items-center gap-3 cursor-pointer py-2">
-              <input
-                type="checkbox"
-                className="peer sr-only"
-                checked={watchedIsBadHabit}
-                onChange={(e) => setValue('isBadHabit', e.target.checked, { shouldDirty: true })}
-              />
-              <span
-                aria-hidden="true"
-                className="flex items-center justify-center transition-[background-color,box-shadow] duration-[var(--dur-fast)] peer-focus-visible:shadow-[inset_0_0_0_2px_var(--fg-3),0_0_0_2px_var(--primary)]"
-                style={{
-                  width: 26,
-                  height: 26,
-                  borderRadius: 8,
-                  background: watchedIsBadHabit ? 'var(--primary)' : 'transparent',
-                  boxShadow: watchedIsBadHabit ? 'none' : 'inset 0 0 0 2px var(--fg-3)',
-                }}
-              >
-                {watchedIsBadHabit && (
-                  <Check size={15} strokeWidth={3} color="var(--fg-on-primary)" />
-                )}
-              </span>
-              <span className="text-sm text-[var(--fg-1)]">{t('habits.form.badHabitLabel')}</span>
-            </label>
+            <div className="space-y-2" role="radiogroup" aria-label={t('habits.form.habitType')}>
+              <span className="form-label">{t('habits.form.habitType')}</span>
+              <div className="grid grid-cols-2 gap-1 rounded-[14px] bg-[var(--bg-field)] p-1 shadow-[inset_0_0_0_1px_var(--hairline)]">
+                <button
+                  type="button"
+                  role="radio"
+                  aria-checked={!watchedIsBadHabit}
+                  onClick={() => setValue('isBadHabit', false, { shouldDirty: true })}
+                  className={`inline-flex h-[42px] items-center justify-center gap-2 rounded-[10px] text-[14px] font-medium transition-[background-color,color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] active:scale-[0.97] ${
+                    watchedIsBadHabit
+                      ? 'text-[var(--fg-3)] hover:text-[var(--fg-1)]'
+                      : 'bg-[rgba(var(--primary-rgb),0.14)] text-[var(--primary)]'
+                  }`}
+                >
+                  <TrendingUp size={16} strokeWidth={2} aria-hidden="true" />
+                  {t('habits.form.habitTypeBuild')}
+                </button>
+                <button
+                  type="button"
+                  role="radio"
+                  aria-checked={watchedIsBadHabit}
+                  onClick={() => setValue('isBadHabit', true, { shouldDirty: true })}
+                  className={`inline-flex h-[42px] items-center justify-center gap-2 rounded-[10px] text-[14px] font-medium transition-[background-color,color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] active:scale-[0.97] ${
+                    watchedIsBadHabit
+                      ? 'bg-[rgba(var(--primary-rgb),0.14)] text-[var(--primary)]'
+                      : 'text-[var(--fg-3)] hover:text-[var(--fg-1)]'
+                  }`}
+                >
+                  <TrendingDown size={16} strokeWidth={2} aria-hidden="true" />
+                  {t('habits.form.habitTypeAvoid')}
+                </button>
+              </div>
+              <p className="text-[13px] text-[var(--fg-3)]">
+                {watchedIsBadHabit
+                  ? t('habits.form.habitTypeAvoidHint')
+                  : t('habits.form.habitTypeBuildHint')}
+              </p>
+            </div>
           )}
 
           {watchedIsBadHabit && (

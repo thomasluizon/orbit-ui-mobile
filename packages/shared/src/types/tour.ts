@@ -1,4 +1,12 @@
-export type TourSection = 'habits' | 'goals' | 'chat' | 'calendar' | 'profile'
+export type TourSection =
+  | 'habits'
+  | 'goals'
+  | 'chat'
+  | 'calendar'
+  | 'profile'
+  | 'coach-today'
+  | 'coach-astra'
+  | 'coach-calendar'
 
 type TourPlacement = 'top' | 'bottom' | 'left' | 'right'
 
@@ -37,10 +45,20 @@ export const TOUR_SECTIONS: TourSection[] = [
   'profile',
 ]
 
+/** First-run coach-mark sections — excluded from the full tour and the replay modal. */
+export const COACH_MARK_SECTIONS: TourSection[] = [
+  'coach-today',
+  'coach-astra',
+  'coach-calendar',
+]
+
 export const TOUR_SECTION_ICONS: Record<TourSection, string> = {
   habits: 'check-circle',
   goals: 'target',
   chat: 'message-circle',
   calendar: 'calendar-days',
   profile: 'user',
+  'coach-today': 'check-circle',
+  'coach-astra': 'message-circle',
+  'coach-calendar': 'calendar-days',
 }

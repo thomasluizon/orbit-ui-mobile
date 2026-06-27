@@ -52,6 +52,7 @@ export const gamificationKeys = {
   profile: () => [...gamificationKeys.all, 'profile'] as const,
   achievements: () => [...gamificationKeys.all, 'achievements'] as const,
   streak: () => [...gamificationKeys.all, 'streak'] as const,
+  recap: (period: string) => [...gamificationKeys.all, 'recap', period] as const,
 }
 
 export const subscriptionKeys = {
@@ -63,6 +64,17 @@ export const subscriptionKeys = {
 
 export const referralKeys = {
   all: ['referral'] as const,
+}
+
+export const friendKeys = {
+  all: ['friends'] as const,
+  list: () => [...friendKeys.all, 'list'] as const,
+  feed: () => [...friendKeys.all, 'feed'] as const,
+}
+
+export const cheerKeys = {
+  all: ['cheers'] as const,
+  list: (direction: 'received' | 'sent') => [...cheerKeys.all, 'list', direction] as const,
 }
 
 export const apiKeyKeys = {

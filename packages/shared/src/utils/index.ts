@@ -153,7 +153,7 @@ export {
   getClientTimeZone,
 } from './client-context'
 export { isVersionBelow } from './version'
-export { buildReferralUrl } from './referral'
+export { buildReferralUrl, buildRecapShareUrl } from './referral'
 export {
   getOnboardingDisplayStep,
   getOnboardingDisplayTotal,
@@ -168,10 +168,21 @@ export {
   ONBOARDING_GOAL_SUGGESTIONS,
   ONBOARDING_HABIT_FREQUENCIES,
   ONBOARDING_HABIT_SUGGESTIONS,
+  ONBOARDING_TEMPLATE_PACKS_STEP,
   ONBOARDING_TOTAL_STEPS,
   ONBOARDING_WEEK_START_OPTIONS,
   shouldHideOnboardingFooter,
 } from './onboarding'
+export {
+  buildBulkItemsFromPack,
+  getTemplatePackById,
+  TEMPLATE_PACKS,
+  templatePackDescriptionKey,
+  templatePackHabitTitleKey,
+  templatePackNameKey,
+  templatePackTagKey,
+} from './template-packs'
+export type { TemplatePack, TemplatePackHabit } from './template-packs'
 export {
   isMissingBillingError,
   isMissingBillingStatus,
@@ -262,6 +273,7 @@ export {
 export {
   calculateXpProgress,
   deriveGamificationProfileState,
+  deriveNextRewardCarrot,
   detectGamificationMilestones,
   deriveStreakFreezeState,
   getAchievementsByCategory,
@@ -272,6 +284,7 @@ export {
 export type {
   GamificationMilestoneState,
   GamificationProfileDerivedState,
+  NextRewardCarrotState,
   StreakFreezeDerivedState,
   StreakFreezeFallback,
 } from './gamification-selectors'
@@ -360,7 +373,6 @@ export {
   resolveUpgradeEntitlementDenial,
   resolveUpgradeEntitlementFromError,
   resolveUpgradeEntitlementFromPolicyDenial,
-  TRIAL_EXPIRED_FEATURE_KEYS,
   UPGRADE_FEATURE_CATEGORIES,
   UPGRADE_PRO_FEATURES,
   UPGRADE_YEARLY_EXTRA_FEATURES,
@@ -375,6 +387,7 @@ export type {
   UpgradeFeatureMatrixRow,
   UpgradeIconKey,
   UpgradePlanFeature,
+  UpgradeProState,
 } from './upgrade'
 export {
   buildWeekStartOptions,

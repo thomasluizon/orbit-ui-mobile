@@ -14,6 +14,8 @@ interface AppBarProps {
   backLabel?: string
   onBack?: () => void
   leadingIcon?: ReactNode
+  /** Mark rendered immediately before the centered title (e.g. Astra's avatar). */
+  titleIcon?: ReactNode
   /** Centered uppercase label. Omit for bars whose content carries its own heading. */
   title?: string
   subtitle?: string
@@ -41,6 +43,7 @@ export function AppBar({
   backLabel,
   onBack,
   leadingIcon,
+  titleIcon,
   title,
   subtitle,
   trailing,
@@ -102,20 +105,25 @@ export function AppBar({
         ) : null}
       </div>
 
-      {title && (
+      {(title || titleIcon) && (
         <div className="flex flex-col justify-center min-w-0" style={{ gap: 2 }}>
-          <div
-            className="overflow-hidden whitespace-nowrap text-ellipsis text-center"
-            style={{
-              fontFamily: 'var(--font-sans)',
-              fontSize: 13,
-              fontWeight: 500,
-              letterSpacing: '0.09em',
-              textTransform: 'uppercase',
-              color: 'var(--fg-1)',
-            }}
-          >
-            {title}
+          <div className="flex items-center justify-center min-w-0" style={{ gap: 8 }}>
+            {titleIcon}
+            {title && (
+              <span
+                className="overflow-hidden whitespace-nowrap text-ellipsis"
+                style={{
+                  fontFamily: 'var(--font-sans)',
+                  fontSize: 13,
+                  fontWeight: 500,
+                  letterSpacing: '0.09em',
+                  textTransform: 'uppercase',
+                  color: 'var(--fg-1)',
+                }}
+              >
+                {title}
+              </span>
+            )}
           </div>
           {subtitle && (
             <div

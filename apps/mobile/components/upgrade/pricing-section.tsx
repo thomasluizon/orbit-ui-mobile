@@ -1,26 +1,36 @@
-import {
-  ActivityIndicator,
-  Pressable,
-  Text,
-  View,
-} from 'react-native'
+import { ActivityIndicator, Pressable, Text, View } from 'react-native'
 import {
   AlertTriangle,
-  Clock,
-  Sparkles,
+  BarChart3,
+  Flame,
+  MessageSquare,
+  Palette,
+  ShieldCheck,
   Tag,
 } from 'lucide-react-native'
+import {
+  UPGRADE_PRO_FEATURES,
+  UPGRADE_YEARLY_EXTRA_FEATURES,
+} from '@orbit/shared/utils/upgrade'
+import type { UpgradeIconKey } from '@orbit/shared/utils/upgrade'
 import type { SubscriptionPlans } from '@orbit/shared/types/subscription'
 import type { PlayOffer } from '@/hooks/use-play-billing'
 import { plural } from '@/lib/plural'
-import { tintFromPrimary } from '@/lib/theme'
+import { Badge } from '@/components/ui/badge'
 import { PlanComparisonCards } from './plan-comparison-cards'
 import { PlanSelection } from './plan-selection'
-import { TrialExpiredCard } from './trial-expired-card'
-import { PillButton } from '@/components/ui/pill-button'
 import { styles } from './styles'
-import { rgbaFromHex } from './types'
 import type { SubscriptionInterval, Tokens, UpgradeTextFn } from './types'
+
+const iconByKey: Record<UpgradeIconKey, typeof Flame> = {
+  flame: Flame,
+  messageSquare: MessageSquare,
+  palette: Palette,
+  shieldCheck: ShieldCheck,
+  barChart3: BarChart3,
+}
+
+const MARQUEE = [...UPGRADE_PRO_FEATURES, ...UPGRADE_YEARLY_EXTRA_FEATURES]
 
 export function PricingSection({
   profile,
@@ -28,19 +38,15 @@ export function PricingSection({
   isLoadingPlans,
   isPlansError,
   isOnline,
-  trialExpired,
   trialDaysLeft,
-  trialUrgent,
   selectedInterval,
   onSelectInterval,
-  checkoutLoading,
-  checkoutError,
+  onStayFree,
   yearlyOffer,
   monthlyDisplayPrice,
   yearlyDisplayPrice,
   isReferralPricing,
   isRestoring,
-  onCheckout,
   onRestore,
   onRetryPlans,
   t,
@@ -51,98 +57,58 @@ export function PricingSection({
   isLoadingPlans: boolean
   isPlansError: boolean
   isOnline: boolean
-  trialExpired: boolean
   trialDaysLeft: number | null
-  trialUrgent: boolean
   selectedInterval: SubscriptionInterval
   onSelectInterval: (interval: SubscriptionInterval) => void
-  checkoutLoading: SubscriptionInterval | null
-  checkoutError: string
+  onStayFree: () => void
   yearlyOffer: PlayOffer | null
   monthlyDisplayPrice?: string
   yearlyDisplayPrice?: string
   isReferralPricing: boolean
   isRestoring: boolean
-  onCheckout: (interval: SubscriptionInterval) => void
   onRestore: () => void
   onRetryPlans: () => void
   t: UpgradeTextFn
   tokens: Tokens
 }>) {
+  const trialActive = !!profile?.isTrialActive
+  const eyebrow = trialActive
+    ? trialDaysLeft === 0
+      ? t('upgrade.convert.trialLastDay')
+      : plural(t('upgrade.convert.trialDaysLeft', { days: trialDaysLeft ?? 0 }), trialDaysLeft ?? 0)
+    : t('upgrade.convert.freeEyebrow')
+  const heading = trialActive ? t('upgrade.convert.trialHeading') : t('upgrade.convert.freeHeading')
+
   return (
     <>
-      <Text style={[styles.heroTitle, { color: tokens.fg1 }]}>
-        {t('upgrade.heroTitle')}
-      </Text>
-
-      {profile?.isTrialActive ? (
-        <View
-          style={[
-            styles.trialStrip,
-            trialUrgent
-              ? {
-                  backgroundColor: rgbaFromHex(tokens.statusOverdue, 0.1),
-                  borderColor: rgbaFromHex(tokens.statusOverdue, 0.28),
-                }
-              : {
-                  backgroundColor: tintFromPrimary(tokens, 0.08),
-                  borderColor: tintFromPrimary(tokens, 0.18),
-                },
-          ]}
-        >
-          <Clock
-            size={16}
-            strokeWidth={1.8}
-            color={trialUrgent ? tokens.statusOverdue : tokens.primarySoft}
-          />
-          <Text
-            style={[
-              styles.trialStripText,
-              { color: trialUrgent ? tokens.statusOverdue : tokens.fg1 },
-            ]}
-          >
-            {trialDaysLeft === 0
-              ? t('trial.banner.lastDay')
-              : plural(
-                  t('trial.banner.daysLeft', { days: trialDaysLeft ?? 0 }),
-                  trialDaysLeft ?? 0,
-                )}
-          </Text>
-        </View>
+      <Text style={[styles.convertEyebrow, { color: tokens.primarySoft }]}>{eyebrow}</Text>
+      <Text style={[styles.convertHeading, { color: tokens.fg1 }]}>{heading}</Text>
+      <Text style={[styles.convertPromise, { color: tokens.fg2 }]}>{t('upgrade.convert.promise')}</Text>
+      {!trialActive ? (
+        <Text style={[styles.convertTrust, { color: tokens.fg3 }]}>{t('upgrade.convert.trustLine')}</Text>
       ) : null}
-
-      {trialExpired ? <TrialExpiredCard t={t} tokens={tokens} /> : null}
 
       {isLoadingPlans ? (
         <View style={styles.padBlock}>
           <ActivityIndicator size="small" color={tokens.primary} />
-          <Text style={[styles.mutedMeta, { color: tokens.fg3 }]}>
-            {t('common.loading')}
-          </Text>
+          <Text style={[styles.mutedMeta, { color: tokens.fg3 }]}>{t('common.loading')}</Text>
         </View>
       ) : null}
 
       {isPlansError && !plans && !isLoadingPlans && isOnline ? (
         <View style={styles.padBlock}>
           <AlertTriangle size={26} strokeWidth={1.8} color={tokens.fg3} />
-          <Text style={[styles.noticeText, { color: tokens.fg2 }]}>
-            {t('upgrade.plans.error')}
-          </Text>
+          <Text style={[styles.noticeText, { color: tokens.fg2 }]}>{t('upgrade.plans.error')}</Text>
           <Pressable
             accessibilityRole="button"
             onPress={onRetryPlans}
             style={({ pressed }) => [
               styles.actionChip,
-              {
-                backgroundColor: pressed ? tokens.bgElev2 : tokens.bgElev,
-                borderColor: tokens.hairline,
-              },
+              { backgroundColor: pressed ? tokens.bgElev2 : tokens.bgElev, borderColor: tokens.hairline },
               pressed ? styles.pressedScale : null,
             ]}
           >
-            <Text style={[styles.link, { color: tokens.fg1 }]}>
-              {t('upgrade.plans.retry')}
-            </Text>
+            <Text style={[styles.link, { color: tokens.fg1 }]}>{t('upgrade.plans.retry')}</Text>
           </Pressable>
         </View>
       ) : null}
@@ -156,75 +122,59 @@ export function PricingSection({
             yearlyPrice={yearlyDisplayPrice}
             selectedInterval={selectedInterval}
             onSelectInterval={onSelectInterval}
+            onStayFree={onStayFree}
             t={t}
+            tokens={tokens}
           />
 
-          <View style={styles.actionPad}>
-            {isReferralPricing ? (
-              <View style={styles.couponRow}>
-                <Tag size={13} strokeWidth={1.8} color={tokens.statusDone} />
-                <Text style={[styles.couponNote, { color: tokens.statusDone }]}>
-                  {t('upgrade.plans.coupon.appliedNote')}
-                </Text>
-              </View>
-            ) : null}
-            <PillButton
-              fullWidth
-              disabled={checkoutLoading !== null}
-              onPress={() => onCheckout(selectedInterval)}
-              leading={
-                checkoutLoading ? (
-                  <ActivityIndicator size="small" color={tokens.fgOnPrimary} />
-                ) : (
-                  <Sparkles size={18} strokeWidth={1.8} color={tokens.fgOnPrimary} />
-                )
-              }
-            >
-              {trialExpired
-                ? t('trial.expired.subscribe')
-                : selectedInterval === 'yearly'
-                  ? t('upgrade.plans.yearly.cta')
-                  : t('upgrade.plans.monthly.cta')}
-            </PillButton>
-            {checkoutLoading ? (
-              <Text style={[styles.mutedMeta, { color: tokens.fg3 }]}>
-                {t('common.loading')}
+          {isReferralPricing ? (
+            <View style={[styles.couponRow, { alignSelf: 'center', marginTop: 2 }]}>
+              <Tag size={13} strokeWidth={1.8} color={tokens.statusDone} />
+              <Text style={[styles.couponNote, { color: tokens.statusDone }]}>
+                {t('upgrade.plans.coupon.appliedNote')}
               </Text>
-            ) : null}
-            {checkoutError ? (
-              <Text style={[styles.errorText, { color: tokens.statusBad }]}>
-                {checkoutError}
-              </Text>
-            ) : null}
-            <Pressable
-              onPress={onRestore}
-              disabled={isRestoring}
-              accessibilityRole="button"
-              style={({ pressed }) => [
-                styles.actionChip,
-                {
-                  backgroundColor: pressed ? tokens.bgElev2 : tokens.bgElev,
-                  borderColor: tokens.hairline,
-                },
-                pressed ? styles.pressedScale : null,
-              ]}
-            >
-              {isRestoring ? (
-                <ActivityIndicator size="small" color={tokens.fg3} />
-              ) : (
-                <Text style={[styles.restoreLink, { color: tokens.fg3 }]}>
-                  {t('upgrade.restorePurchase')}
-                </Text>
-              )}
-            </Pressable>
-            <Text style={[styles.renewalNote, { color: tokens.fg3 }]}>
-              {t('upgrade.plans.renewalNote')}
-            </Text>
+            </View>
+          ) : null}
+
+          <View style={styles.marqueePad}>
+            {MARQUEE.map((feature) => {
+              const Icon = iconByKey[feature.iconKey]
+              return (
+                <View key={feature.key} style={styles.marqueeRow}>
+                  <View style={styles.marqueeIcon}>
+                    <Icon size={20} strokeWidth={1.8} color={tokens.primarySoft} />
+                  </View>
+                  <Text style={[styles.marqueeText, { color: tokens.fg1 }]}>
+                    {t(`upgrade.plans.proFeatures.${feature.key}`)}
+                  </Text>
+                  {feature.key === 'retrospective' ? (
+                    <Badge tone="soft">{t('upgrade.matrix.yearlyTag')}</Badge>
+                  ) : null}
+                </View>
+              )
+            })}
           </View>
+
+          <PlanComparisonCards t={t} tokens={tokens} />
+
+          <Pressable
+            accessibilityRole="button"
+            onPress={onRestore}
+            disabled={isRestoring}
+            style={({ pressed }) => [
+              styles.actionChip,
+              { alignSelf: 'center', marginTop: 20, backgroundColor: pressed ? tokens.bgElev2 : tokens.bgElev, borderColor: tokens.hairline },
+              pressed ? styles.pressedScale : null,
+            ]}
+          >
+            {isRestoring ? (
+              <ActivityIndicator size="small" color={tokens.fg3} />
+            ) : (
+              <Text style={[styles.restoreLink, { color: tokens.fg3 }]}>{t('upgrade.restorePurchase')}</Text>
+            )}
+          </Pressable>
         </>
       ) : null}
-
-      <PlanComparisonCards t={t} tokens={tokens} />
     </>
   )
 }

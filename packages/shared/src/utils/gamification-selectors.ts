@@ -154,6 +154,33 @@ export function deriveStreakFreezeState(
   }
 }
 
+export interface NextRewardCarrotState {
+  nextLevel: number
+  nextLevelTitle: string
+  xpToNextLevel: number
+  showProTeaser: boolean
+}
+
+/**
+ * Display data for the "next reward" carrot, or null when it should not render. The carrot
+ * is shown only to free-unlocked users (gamification visible but not Pro); Pro users and
+ * gamification-locked users get null.
+ */
+export function deriveNextRewardCarrot(
+  profile: Pick<GamificationProfile, 'isPro' | 'nextReward'> | null | undefined,
+  canViewGamification: boolean,
+): NextRewardCarrotState | null {
+  if (!profile || !canViewGamification || profile.isPro) return null
+
+  const { nextReward } = profile
+  return {
+    nextLevel: nextReward.nextLevel,
+    nextLevelTitle: nextReward.nextLevelTitle,
+    xpToNextLevel: nextReward.xpToNextLevel,
+    showProTeaser: nextReward.proTeaser?.locked === true,
+  }
+}
+
 export function deriveGamificationProfileState(
   profile: GamificationProfile | null | undefined,
 ): GamificationProfileDerivedState {

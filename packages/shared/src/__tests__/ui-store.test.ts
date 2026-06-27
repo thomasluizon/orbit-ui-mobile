@@ -162,6 +162,7 @@ describe("shared ui store", () => {
       selectedFrequency: null,
       selectedTagIds: [],
       showCompleted: true,
+      setupChecklistDismissed: false,
     });
   });
 
@@ -218,6 +219,7 @@ describe("shared ui store", () => {
       selectedFrequency: "Month",
       selectedTagIds: ["deep-work"],
       showCompleted: true,
+      setupChecklistDismissed: false,
     });
   });
 });

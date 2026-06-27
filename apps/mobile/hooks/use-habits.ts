@@ -65,8 +65,10 @@ import {
   snapshotHabitLists,
   updateHabitLists,
 } from '@/lib/habit-mutation-helpers'
+import { getReferralStreakMilestone } from '@orbit/shared/stores'
 import { useReviewReminderStore } from '@/stores/review-reminder-store'
 import { useUIStore } from '@/stores/ui-store'
+import { useReferralPromptStore } from '@/stores/referral-prompt-store'
 
 type CreateHabitMutationInput = CreateHabitRequest & { __offlineTempId?: string }
 type BulkCreateHabitMutationInput = BulkCreateRequest & { __offlineTempIds?: string[] }
@@ -161,6 +163,10 @@ export function useLogHabit() {
         queryClient.setQueryData<Profile>(profileKeys.detail(), (old) =>
           old ? { ...old, currentStreak: response.currentStreak } : old,
         )
+        const referralMilestoneKey = getReferralStreakMilestone(response.currentStreak)
+        if (referralMilestoneKey) {
+          useReferralPromptStore.getState().armReferralPrompt(referralMilestoneKey)
+        }
       }
 
       // Apply targeted goal updates from enriched response (instant, no refetch needed)

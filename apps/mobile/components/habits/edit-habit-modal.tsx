@@ -237,7 +237,7 @@ export function EditHabitModal({
               {t('common.cancel')}
             </PillButton>
             <PillButton
-              style={styles.submitButton}
+              glow={false}
               disabled={submitDisabled}
               onPress={handleSubmit}
               leading={
@@ -248,7 +248,7 @@ export function EditHabitModal({
                 )
               }
             >
-              {t('habits.saveChanges')}
+              {t('common.save')}
             </PillButton>
           </View>
         </KeyboardAwareBottomSheetScrollView>
@@ -283,11 +283,9 @@ function createStyles(bottomInset: number) {
     footer: {
       flexDirection: 'row',
       alignItems: 'center',
+      justifyContent: 'flex-end',
       gap: 12,
-      paddingTop: 18,
-    },
-    submitButton: {
-      flex: 1,
+      paddingTop: 14,
     },
   })
 }

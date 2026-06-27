@@ -213,6 +213,7 @@ describe("mobile ui store", () => {
       selectedFrequency: null,
       selectedTagIds: [],
       showCompleted: true,
+      setupChecklistDismissed: false,
     });
   });
 

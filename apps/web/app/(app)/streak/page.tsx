@@ -20,7 +20,7 @@ export default function StreakPage() {
   const { displayDate } = useDateFormat()
   const { profile } = useProfile()
   const streak = profile?.currentStreak ?? 0
-  const isPro = profile?.hasProAccess ?? false
+  const canViewGamification = profile?.canViewGamification ?? false
   const {
     streakQuery,
     streakInfo,
@@ -29,7 +29,7 @@ export default function StreakPage() {
     maxStreakFreezesAccumulated,
     freezesUsedThisMonth,
     maxFreezesPerMonth,
-  } = useStreakFreeze(profile, isPro)
+  } = useStreakFreeze(profile, canViewGamification)
 
   const freezeCelebrationRef = useRef<StreakFreezeCelebrationHandle>(null)
   const wasFrozenTodayRef = useRef(isFrozenToday)
@@ -99,7 +99,7 @@ export default function StreakPage() {
 
           <FreezeProgressCard
             t={t}
-            isPro={isPro}
+            unlocked={canViewGamification}
             streak={streak}
             streakFreezesAccumulated={streakFreezesAccumulated}
             maxStreakFreezesAccumulated={maxStreakFreezesAccumulated}

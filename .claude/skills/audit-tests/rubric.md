@@ -72,6 +72,22 @@ is **High** or **Critical**; off a critical path it's **Medium**.
 
 ---
 
+## Aggregate read & delete-vs-rewrite
+
+The per-test axis scores roll up into the skill's **Suite-health** metric — *what share of the
+suite is Behavior-only vs pins all three axes* — so systemic rot reads as a number, not a pile
+of individual findings.
+
+A smelled test is not only something to add coverage *around* — it is a **delete-or-rewrite**
+action in its own right:
+- **Delete** when it can't fail and there's nothing real to assert (assertion-free, tautological,
+  `expect(mock).toHaveBeenCalled()` with no outcome, a snapshot nobody reads). It is a liability;
+  removing it removes false safety.
+- **Rewrite** when the path *is* worth pinning but the assertion is wrong (asserts internals / call
+  order → assert the observable outcome instead).
+
+---
+
 ## Every finding ships the fix
 
 A finding is not "this test is weak." It is the **concrete test to add or rewrite**:

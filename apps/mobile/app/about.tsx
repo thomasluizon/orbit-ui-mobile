@@ -9,8 +9,6 @@ import { Compass, FileText, Mail, Shield } from 'lucide-react-native'
 import { createTokensV2 } from '@/lib/theme'
 import { AppLogo } from '@/components/ui/app-logo'
 import { FeatureGuideDrawer } from '@/components/onboarding/feature-guide-drawer'
-import { ReferralCard } from '@/components/referral/referral-card'
-import { ReferralDrawer } from '@/components/referral/referral-drawer'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { AppBar } from '@/components/ui/app-bar'
@@ -32,7 +30,6 @@ export default function AboutScreen() {
     [currentScheme, currentTheme],
   )
   const [showGuide, setShowGuide] = useState(false)
-  const [showReferral, setShowReferral] = useState(false)
   const appVersion = Constants.expoConfig?.version
 
   return (
@@ -68,7 +65,6 @@ export default function AboutScreen() {
             label={t('onboarding.featureGuide.openButton')}
             onPress={() => setShowGuide(true)}
           />
-          <ReferralCard onOpen={() => setShowReferral(true)} />
           <SettingsRow
             icon={Mail}
             label={t('profile.support.title')}
@@ -91,10 +87,6 @@ export default function AboutScreen() {
       <FeatureGuideDrawer
         open={showGuide}
         onClose={() => setShowGuide(false)}
-      />
-      <ReferralDrawer
-        open={showReferral}
-        onClose={() => setShowReferral(false)}
       />
     </SafeAreaView>
   )

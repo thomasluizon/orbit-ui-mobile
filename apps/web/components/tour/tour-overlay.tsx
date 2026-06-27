@@ -8,6 +8,7 @@ import { completeTour } from '@/app/actions/profile'
 import { useQueryClient } from '@tanstack/react-query'
 import { profileKeys } from '@orbit/shared/query'
 import type { Profile } from '@orbit/shared/types'
+import { COACH_MARK_SECTIONS } from '@orbit/shared/types'
 import { useOverlayEscape } from '@/hooks/use-overlay-escape'
 
 /**
@@ -38,7 +39,11 @@ export function TourOverlay() {
   const isLastStep = currentStepIndex === totalSteps - 1
 
   const handleEnd = useCallback(() => {
+    const { replaySection } = useTourStore.getState()
     endTour()
+    if (replaySection && COACH_MARK_SECTIONS.includes(replaySection)) {
+      return
+    }
     completeTour().catch(() => {})
     queryClient.setQueryData(profileKeys.detail(), (old: Profile | undefined) => {
       if (!old) return old

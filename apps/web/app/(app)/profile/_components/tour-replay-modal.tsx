@@ -42,7 +42,16 @@ function getSectionCompletion(): Record<TourSection, boolean> {
     if (stored) return JSON.parse(stored)
   } catch {
   }
-  return { habits: false, goals: false, chat: false, calendar: false, profile: false }
+  return {
+    habits: false,
+    goals: false,
+    chat: false,
+    calendar: false,
+    profile: false,
+    'coach-today': false,
+    'coach-astra': false,
+    'coach-calendar': false,
+  }
 }
 
 export function TourReplayModal({ open, onOpenChange }: Readonly<TourReplayModalProps>) {
@@ -83,6 +92,9 @@ export function TourReplayModal({ open, onOpenChange }: Readonly<TourReplayModal
         chat: '/chat',
         calendar: '/calendar',
         profile: '/profile',
+        'coach-today': '/',
+        'coach-astra': '/chat',
+        'coach-calendar': '/calendar',
       }
 
       router.push(routeMap[section])

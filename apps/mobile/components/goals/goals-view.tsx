@@ -1,4 +1,4 @@
-import { useCallback, useMemo, useRef, useState, type ReactElement } from "react";
+import { useCallback, useMemo, useState, type ReactElement } from "react";
 import {
   type FlatList,
   type NativeScrollEvent,
@@ -15,10 +15,13 @@ import { useTranslation } from "react-i18next";
 import type { Goal, GoalStatus } from "@orbit/shared/types/goal";
 import { useGoals } from "@/hooks/use-goals";
 import { GoalList } from "./goal-list";
-import { AnchoredMenu } from "@/components/ui/anchored-menu";
+import {
+  AnchoredMenu,
+  MenuAnchorHost,
+  useAnchoredMenu,
+} from "@/components/ui/anchored-menu";
 import { EmptyState } from "@/components/ui/empty-state";
 import { SectionLabel } from "@/components/ui/section-label";
-import type { MenuAnchorRect } from "@/lib/anchored-menu";
 import { createTokensV2 } from "@/lib/theme";
 import { useAppTheme } from "@/lib/use-app-theme";
 
@@ -67,10 +70,13 @@ export function GoalsView({
   const styles = useMemo(() => createStyles(tokens), [tokens]);
   const [activeFilter, setActiveFilter] = useState<GoalStatus | null>(null);
 
-  const filterMenuButtonRef = useRef<View>(null);
-  const [showFilterMenu, setShowFilterMenu] = useState(false);
-  const [filterMenuAnchorRect, setFilterMenuAnchorRect] =
-    useState<MenuAnchorRect | null>(null);
+  const {
+    anchorRef: filterMenuButtonRef,
+    visible: showFilterMenu,
+    anchorRect: filterMenuAnchorRect,
+    close: closeFilterMenu,
+    toggle: toggleFilterMenu,
+  } = useAnchoredMenu();
 
   const { data, isFetched } = useGoals(activeFilter);
 
@@ -90,21 +96,13 @@ export function GoalsView({
     return data.allGoals.filter((goal) => goal.status === activeFilter);
   }, [activeFilter, data]);
 
-  const handleFilterChange = useCallback((status: GoalStatus | null) => {
-    setActiveFilter(status);
-    setShowFilterMenu(false);
-  }, []);
-
-  const handleToggleFilterMenu = useCallback(() => {
-    if (showFilterMenu) {
-      setShowFilterMenu(false);
-      return;
-    }
-    filterMenuButtonRef.current?.measureInWindow((x, y, width, height) => {
-      setFilterMenuAnchorRect({ x, y, width, height });
-      setShowFilterMenu(true);
-    });
-  }, [showFilterMenu]);
+  const handleFilterChange = useCallback(
+    (status: GoalStatus | null) => {
+      setActiveFilter(status);
+      closeFilterMenu();
+    },
+    [closeFilterMenu],
+  );
 
   const listHeaderElement = (
     <>
@@ -114,9 +112,9 @@ export function GoalsView({
         bottom={12}
         trailing={
           <View style={styles.headerActions}>
-            <View ref={filterMenuButtonRef} collapsable={false}>
+            <MenuAnchorHost anchorRef={filterMenuButtonRef}>
               <Pressable
-                onPress={handleToggleFilterMenu}
+                onPress={toggleFilterMenu}
                 accessibilityRole="button"
                 accessibilityLabel={t("goals.filters.statusFilter")}
                 accessibilityState={{ selected: activeFilter != null }}
@@ -133,7 +131,7 @@ export function GoalsView({
                   strokeWidth={1.8}
                 />
               </Pressable>
-            </View>
+            </MenuAnchorHost>
           </View>
         }
       >
@@ -167,7 +165,7 @@ export function GoalsView({
       <AnchoredMenu
         visible={showFilterMenu}
         anchorRect={filterMenuAnchorRect}
-        onClose={() => setShowFilterMenu(false)}
+        onClose={closeFilterMenu}
         width={200}
         estimatedHeight={200}
       >

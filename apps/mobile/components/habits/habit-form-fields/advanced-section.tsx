@@ -1,6 +1,6 @@
 import { type ReactNode } from "react";
 import { View, Text, TouchableOpacity } from "react-native";
-import { X, Plus, Check } from "lucide-react-native";
+import { X, Plus, TrendingUp, TrendingDown } from "lucide-react-native";
 import { useWatch } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { HABIT_REMINDER_PRESETS } from "@orbit/shared/utils";
@@ -216,30 +216,54 @@ export function AdvancedSection({
       )}
 
       {!isGeneral && (
-        <TouchableOpacity
-          style={styles.checkboxRow}
-          accessibilityRole="checkbox"
-          accessibilityState={{ checked: isBadHabit }}
-          accessibilityLabel={t("habits.form.badHabitLabel")}
-          onPress={() =>
-            setValue("isBadHabit", !isBadHabit, { shouldDirty: true })
-          }
-          activeOpacity={0.7}
-        >
-          <View
-            style={[
-              styles.customCheckbox,
-              isBadHabit && styles.customCheckboxChecked,
-            ]}
-          >
-            {isBadHabit && (
-              <Check size={15} color={tokens.fgOnPrimary} strokeWidth={3} />
-            )}
+        <View style={styles.fieldGroup}>
+          <Text style={styles.label}>{t("habits.form.habitType")}</Text>
+          <View style={styles.segmentGroup}>
+            <TouchableOpacity
+              style={[styles.segment, !isBadHabit && styles.segmentActive]}
+              accessibilityRole="radio"
+              accessibilityState={{ selected: !isBadHabit }}
+              accessibilityLabel={t("habits.form.habitTypeBuild")}
+              onPress={() => setValue("isBadHabit", false, { shouldDirty: true })}
+              activeOpacity={0.7}
+            >
+              <TrendingUp
+                size={16}
+                color={isBadHabit ? tokens.fg3 : tokens.primary}
+                strokeWidth={2}
+              />
+              <Text
+                style={[styles.segmentText, !isBadHabit && styles.segmentTextActive]}
+              >
+                {t("habits.form.habitTypeBuild")}
+              </Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.segment, isBadHabit && styles.segmentActive]}
+              accessibilityRole="radio"
+              accessibilityState={{ selected: isBadHabit }}
+              accessibilityLabel={t("habits.form.habitTypeAvoid")}
+              onPress={() => setValue("isBadHabit", true, { shouldDirty: true })}
+              activeOpacity={0.7}
+            >
+              <TrendingDown
+                size={16}
+                color={isBadHabit ? tokens.primary : tokens.fg3}
+                strokeWidth={2}
+              />
+              <Text
+                style={[styles.segmentText, isBadHabit && styles.segmentTextActive]}
+              >
+                {t("habits.form.habitTypeAvoid")}
+              </Text>
+            </TouchableOpacity>
           </View>
-          <Text style={styles.checkboxLabel}>
-            {t("habits.form.badHabitLabel")}
+          <Text style={styles.hintText}>
+            {isBadHabit
+              ? t("habits.form.habitTypeAvoidHint")
+              : t("habits.form.habitTypeBuildHint")}
           </Text>
-        </TouchableOpacity>
+        </View>
       )}
 
       {isBadHabit && (

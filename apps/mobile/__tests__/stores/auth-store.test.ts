@@ -30,6 +30,7 @@ const {
   fetchMock,
   setQueryCacheScopeMock,
   cancelScheduledFlushMock,
+  cancelPersistentReminderMock,
 } = vi.hoisted(() => ({
   replaceMock: vi.fn(),
   getTokenMock: vi.fn(),
@@ -51,6 +52,7 @@ const {
   fetchMock: vi.fn(),
   setQueryCacheScopeMock: vi.fn(),
   cancelScheduledFlushMock: vi.fn(),
+  cancelPersistentReminderMock: vi.fn(),
 }))
 
 vi.mock('expo-router', () => ({
@@ -71,6 +73,10 @@ vi.mock('@/lib/secure-store', () => ({
 vi.mock('@/lib/orbit-widget', () => ({
   clearWidgetToken: clearWidgetTokenMock,
   saveWidgetToken: saveWidgetTokenMock,
+}))
+
+vi.mock('@/lib/persistent-reminder', () => ({
+  cancelPersistentReminder: cancelPersistentReminderMock,
 }))
 
 vi.mock('@/lib/api-client', () => ({
@@ -143,6 +149,8 @@ describe('mobile auth store security paths', () => {
     fetchMock.mockReset()
     setQueryCacheScopeMock.mockReset()
     cancelScheduledFlushMock.mockReset()
+    cancelPersistentReminderMock.mockReset()
+    cancelPersistentReminderMock.mockResolvedValue(undefined)
     setQueryCacheScopeMock.mockResolvedValue(undefined)
 
     clearWidgetTokenMock.mockResolvedValue(undefined)
@@ -402,6 +410,29 @@ describe('mobile auth store security paths', () => {
     expect(offlineQueueClearMock).toHaveBeenCalledTimes(1)
     expect(clearOfflineStateMock).toHaveBeenCalledTimes(1)
     expect(useAuthStore.getState().isAuthenticated).toBe(false)
+  })
+
+  it('dismisses the persistent reminder on logout so a signed-out tray shows no streak data', async () => {
+    getRefreshTokenMock.mockResolvedValue(null)
+    useAuthStore.setState({
+      isAuthenticated: true,
+      user: { userId: 'user-1', email: 'user@example.com', name: 'User' },
+      isLoading: false,
+      expiresAt: Date.now() + 3600_000,
+    })
+
+    await useAuthStore.getState().logout()
+
+    expect(cancelPersistentReminderMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('dismisses the persistent reminder when checkAuth finds no token', async () => {
+    getTokenMock.mockResolvedValue(null)
+
+    const isValid = await useAuthStore.getState().checkAuth()
+
+    expect(isValid).toBe(false)
+    expect(cancelPersistentReminderMock).toHaveBeenCalledTimes(1)
   })
 
   it('clears the offline queue and offline state before establishing a new session on login', async () => {

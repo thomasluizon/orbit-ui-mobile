@@ -3,6 +3,7 @@ const { defineConfig } = require("eslint/config")
 const expoConfig = require("eslint-config-expo/flat")
 const reactHooks = require("eslint-plugin-react-hooks")
 const noComments = require("../../eslint-rules/no-comments.cjs")
+const noGorhomSheet = require("../../eslint-rules/no-gorhom-sheet.cjs")
 
 // https://github.com/expo/expo/issues/43758 — eslint-config-expo@55 bundles react-hooks v5 (no React-19/Compiler rules); strip its registration and re-register v7.
 const expoConfigArray = Array.isArray(expoConfig) ? expoConfig : [expoConfig]
@@ -19,8 +20,12 @@ module.exports = defineConfig([
   {
     files: ["**/*.{ts,tsx}"],
     ignores: ["**/*.d.ts"],
-    plugins: { local: { rules: { "no-comments": noComments } } },
-    rules: { "local/no-comments": "error" },
+    plugins: {
+      local: {
+        rules: { "no-comments": noComments, "no-gorhom-sheet": noGorhomSheet },
+      },
+    },
+    rules: { "local/no-comments": "error", "local/no-gorhom-sheet": "error" },
   },
   {
     plugins: { "react-hooks": reactHooks },
