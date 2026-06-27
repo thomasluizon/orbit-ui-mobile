@@ -42,7 +42,6 @@ import {
   useHabits,
 } from '@/hooks/use-habits'
 import { useTags } from '@/hooks/use-tags'
-import { useTotalHabitCount } from '@/hooks/use-habit-queries'
 import { useCoachTour } from '@/hooks/use-coach-tour'
 import { useBulkActions } from '@/hooks/use-bulk-actions'
 import {
@@ -72,7 +71,6 @@ export default function TodayPage() {
   const queryClient = useQueryClient()
   const { profile } = useProfile()
   const { tags } = useTags()
-  const totalHabitCount = useTotalHabitCount()
   useCoachTour()
   const listMotionPreset = resolveMotionPreset('list-enter', Boolean(prefersReducedMotion))
   const listTransition = {
@@ -456,32 +454,30 @@ export default function TodayPage() {
 
           {currentActiveView === 'today' && <SetupChecklistCard />}
 
-          {totalHabitCount >= 5 && (
-            <motion.div layout transition={listTransition} data-testid="today-utility-row">
-              <TodayUtilityRow
-                activeView={currentActiveView}
-                searchOpen={searchOpen}
-                searchValue={localSearchQuery}
-                selectedFrequency={selectedFrequency}
-                selectedTagIds={selectedTagIds}
-                tags={tags}
-                frequencyOptions={frequencyOptions}
-                isSelectMode={isSelectMode}
-                showCompleted={showCompleted}
-                isFetching={habitsQuery.isFetching}
-                allCollapsed={habitListAllCollapsed}
-                onSearchToggle={toggleSearch}
-                onSearchChange={setLocalSearchQuery}
-                onSearchClear={() => setLocalSearchQuery('')}
-                onFrequencyChange={setSelectedFrequency}
-                onTagToggle={toggleTagFilter}
-                onToggleSelect={toggleSelectMode}
-                onToggleCollapse={handleToggleCollapse}
-                onRefresh={handleRefresh}
-                onToggleCompleted={() => setShowCompleted(!showCompleted)}
-              />
-            </motion.div>
-          )}
+          <motion.div layout transition={listTransition} data-testid="today-utility-row">
+            <TodayUtilityRow
+              activeView={currentActiveView}
+              searchOpen={searchOpen}
+              searchValue={localSearchQuery}
+              selectedFrequency={selectedFrequency}
+              selectedTagIds={selectedTagIds}
+              tags={tags}
+              frequencyOptions={frequencyOptions}
+              isSelectMode={isSelectMode}
+              showCompleted={showCompleted}
+              isFetching={habitsQuery.isFetching}
+              allCollapsed={habitListAllCollapsed}
+              onSearchToggle={toggleSearch}
+              onSearchChange={setLocalSearchQuery}
+              onSearchClear={() => setLocalSearchQuery('')}
+              onFrequencyChange={setSelectedFrequency}
+              onTagToggle={toggleTagFilter}
+              onToggleSelect={toggleSelectMode}
+              onToggleCollapse={handleToggleCollapse}
+              onRefresh={handleRefresh}
+              onToggleCompleted={() => setShowCompleted(!showCompleted)}
+            />
+          </motion.div>
 
           {!hasFetched && (
             <div className="stagger-enter" style={{ padding: '12px 20px 8px' }}>

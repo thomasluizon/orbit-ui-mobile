@@ -39,7 +39,6 @@ import {
   useDeleteHabit,
 } from "@/hooks/use-habits";
 import { useTags } from "@/hooks/use-tags";
-import { useTotalHabitCount } from "@/hooks/use-habit-queries";
 import { useCoachTour } from "@/hooks/use-coach-tour";
 import { useUIStore } from "@/stores/ui-store";
 import { useReferralPromptStore } from "@/stores/referral-prompt-store";
@@ -132,7 +131,6 @@ export default function TodayScreen() {
   const { profile } = useProfile();
   const reviewReminder = useReviewReminder(profile);
   const { tags } = useTags();
-  const totalHabitCount = useTotalHabitCount();
   useCoachTour();
   const deleteHabit = useDeleteHabit();
 
@@ -894,7 +892,6 @@ export default function TodayScreen() {
         showCompleted={showCompleted}
         isFetching={habitsQuery.isFetching}
         allCollapsed={habitListAllCollapsed}
-        showFilters={totalHabitCount >= 5}
         showControlsMenu={showControlsMenu}
         controlsMenuAnchorRect={controlsMenuAnchorRect}
         showFreqMenu={showFreqMenu}
@@ -964,7 +961,6 @@ export default function TodayScreen() {
       swipeGesture,
       tags,
       toggleTagFilter,
-      totalHabitCount,
       freqMenuAnchorRect,
       showFreqMenu,
     ],
