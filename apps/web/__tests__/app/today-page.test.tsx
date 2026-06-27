@@ -5,9 +5,8 @@ import { createMockHabit, createMockProfile } from '@orbit/shared/__tests__/fact
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { computeHabitCardStatus } from '@orbit/shared/utils'
 
-const { useHabitsMock, totalHabitCountRef } = vi.hoisted(() => ({
+const { useHabitsMock } = vi.hoisted(() => ({
   useHabitsMock: vi.fn(),
-  totalHabitCountRef: { value: 10 },
 }))
 
 const dateParamState = { value: null as string | null }
@@ -129,10 +128,6 @@ vi.mock('@/hooks/use-habits', () => ({
   useBulkSkipHabits: () => ({ mutateAsync: bulkSkipMutateAsync }),
 }))
 
-vi.mock('@/hooks/use-habit-queries', () => ({
-  useTotalHabitCount: () => totalHabitCountRef.value,
-}))
-
 vi.mock('@/hooks/use-coach-tour', () => ({
   useCoachTour: () => {},
 }))
@@ -217,21 +212,13 @@ describe('TodayPage bulk parent prompts', () => {
     uiState.selectedTagIds = []
     uiState.showCompleted = false
     uiState.selectedHabitIds = new Set<string>()
-    totalHabitCountRef.value = 10
   })
 
   afterEach(() => {
     vi.useRealTimers()
   })
 
-  it('hides the advanced filter row until the user has five habits', () => {
-    totalHabitCountRef.value = 4
-    const { unmount } = render(<TodayPage />)
-    expect(screen.queryByTestId('today-utility-row')).toBeNull()
-    expect(screen.getByTestId('habit-list')).toBeInTheDocument()
-    unmount()
-
-    totalHabitCountRef.value = 5
+  it('always shows the filter row regardless of habit count', () => {
     render(<TodayPage />)
     expect(screen.getByTestId('today-utility-row')).toBeInTheDocument()
     expect(screen.getByTestId('habit-list')).toBeInTheDocument()
