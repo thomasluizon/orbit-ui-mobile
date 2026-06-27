@@ -34,14 +34,15 @@ describe('onboarding helpers', () => {
   })
 
   it('derives onboarding progress consistently', () => {
-    expect(getOnboardingDisplayTotal(true)).toBe(6)
-    expect(getOnboardingDisplayTotal(false)).toBe(5)
+    expect(getOnboardingDisplayTotal(true)).toBe(7)
+    expect(getOnboardingDisplayTotal(false)).toBe(6)
     expect(getOnboardingDisplayStep(0, true)).toBe(1)
-    expect(getOnboardingDisplayStep(4, false)).toBe(4)
-    expect(getOnboardingNextStep(2, true)).toBe(3)
-    expect(getOnboardingNextStep(2, false)).toBe(4)
-    expect(getOnboardingPreviousStep(4, false)).toBe(2)
+    expect(getOnboardingDisplayStep(5, false)).toBe(5)
+    expect(getOnboardingNextStep(3, true)).toBe(4)
+    expect(getOnboardingNextStep(3, false)).toBe(5)
+    expect(getOnboardingPreviousStep(5, false)).toBe(3)
     expect(shouldHideOnboardingFooter(1)).toBe(true)
+    expect(shouldHideOnboardingFooter(5)).toBe(false)
     expect(shouldHideOnboardingFooter(0)).toBe(false)
   })
 

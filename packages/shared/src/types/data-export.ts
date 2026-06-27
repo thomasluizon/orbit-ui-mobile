@@ -135,6 +135,44 @@ const exportedApiKeySchema = z.object({
   isRevoked: z.boolean(),
 })
 
+const exportedFriendshipSchema = z.object({
+  requesterId: z.string(),
+  addresseeId: z.string(),
+  status: z.string(),
+  createdAtUtc: z.string(),
+  respondedAtUtc: z.string().nullable(),
+})
+
+const exportedCheerSchema = z.object({
+  senderId: z.string(),
+  recipientId: z.string(),
+  habitId: z.string(),
+  note: z.string().nullable(),
+  createdAtUtc: z.string(),
+})
+
+const exportedBlockedUserSchema = z.object({
+  blockerId: z.string(),
+  blockedId: z.string(),
+  createdAtUtc: z.string(),
+})
+
+const exportedReportSchema = z.object({
+  reportedUserId: z.string(),
+  reason: z.string(),
+  details: z.string().nullable(),
+  cheerId: z.string().nullable(),
+  status: z.string(),
+  createdAtUtc: z.string(),
+})
+
+const exportedFriendFeedEventSchema = z.object({
+  type: z.string(),
+  value: z.number().nullable(),
+  achievementId: z.string().nullable(),
+  createdAtUtc: z.string(),
+})
+
 export const userDataExportSchema = z.object({
   exportedAtUtc: z.string(),
   account: exportedAccountSchema,
@@ -150,6 +188,11 @@ export const userDataExportSchema = z.object({
   streakFreezes: z.array(exportedStreakFreezeSchema),
   referrals: z.array(exportedReferralSchema),
   apiKeys: z.array(exportedApiKeySchema),
+  friendships: z.array(exportedFriendshipSchema),
+  cheers: z.array(exportedCheerSchema),
+  blockedUsers: z.array(exportedBlockedUserSchema),
+  reports: z.array(exportedReportSchema),
+  friendFeedEvents: z.array(exportedFriendFeedEventSchema),
 })
 
 export type UserDataExport = z.infer<typeof userDataExportSchema>

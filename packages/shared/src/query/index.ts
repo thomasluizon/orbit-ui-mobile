@@ -8,6 +8,8 @@ export {
   gamificationKeys,
   subscriptionKeys,
   referralKeys,
+  friendKeys,
+  cheerKeys,
   apiKeyKeys,
   configKeys,
   calendarKeys,

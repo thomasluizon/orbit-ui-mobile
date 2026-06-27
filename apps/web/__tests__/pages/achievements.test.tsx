@@ -28,14 +28,14 @@ vi.mock('next/navigation', () => ({
 }))
 
 let mockProfileLoading = false
-let mockHasProAccess = true
+let mockCanViewGamification = true
 
 vi.mock('@/hooks/use-profile', () => ({
   useProfile: () => ({
     profile: mockProfileLoading ? null : { id: 'u1', currentStreak: 5 },
     isLoading: mockProfileLoading,
   }),
-  useHasProAccess: () => mockHasProAccess,
+  useCanViewGamification: () => mockCanViewGamification,
 }))
 
 let mockGamificationLoading = false
@@ -68,7 +68,7 @@ describe('AchievementsPage', () => {
   beforeEach(() => {
     mockReplace.mockClear()
     mockProfileLoading = false
-    mockHasProAccess = true
+    mockCanViewGamification = true
     mockGamificationLoading = false
     mockGamificationProfile = null
     mockAchievementsByCategory = []
@@ -93,21 +93,21 @@ describe('AchievementsPage', () => {
 
 
   it('shows locked state when user does not have Pro access', () => {
-    mockHasProAccess = false
+    mockCanViewGamification = false
     render(<AchievementsPage />)
     expect(screen.getByText('gamification.page.lockedTitle')).toBeInTheDocument()
     expect(screen.getByText('gamification.page.lockedDescription')).toBeInTheDocument()
   })
 
   it('shows upgrade button in locked state', () => {
-    mockHasProAccess = false
+    mockCanViewGamification = false
     render(<AchievementsPage />)
     const upgradeLink = screen.getByText('gamification.page.upgradeButton')
     expect(upgradeLink.closest('a')).toHaveAttribute('href', '/upgrade')
   })
 
   it('does not show locked state for Pro users', () => {
-    mockHasProAccess = true
+    mockCanViewGamification = true
     render(<AchievementsPage />)
     expect(screen.queryByText('gamification.page.lockedTitle')).not.toBeInTheDocument()
   })
@@ -131,6 +131,7 @@ describe('AchievementsPage', () => {
       achievementsEarned: 3,
       achievementsTotal: 20,
       achievements: [],
+      isPro: true,
     }
     render(<AchievementsPage />)
     expect(document.body.textContent).toContain('gamification.profileCard.level:{"level":5}')
@@ -146,6 +147,7 @@ describe('AchievementsPage', () => {
       achievementsEarned: 3,
       achievementsTotal: 20,
       achievements: [],
+      isPro: true,
     }
     render(<AchievementsPage />)
     expect(document.body.textContent).toContain('gamification.profileCard.xp')
@@ -161,6 +163,7 @@ describe('AchievementsPage', () => {
       achievementsEarned: 3,
       achievementsTotal: 20,
       achievements: [],
+      isPro: true,
     }
     render(<AchievementsPage />)
     expect(document.body.textContent).toContain('gamification.profileCard.earned')
@@ -175,6 +178,7 @@ describe('AchievementsPage', () => {
       achievementsEarned: 2,
       achievementsTotal: 3,
       achievements: [],
+      isPro: true,
     }
     mockAchievementsByCategory = [
       {
@@ -206,6 +210,7 @@ describe('AchievementsPage', () => {
       achievementsEarned: 1,
       achievementsTotal: 2,
       achievements: [],
+      isPro: true,
     }
     mockAchievementsByCategory = [
       {
@@ -232,6 +237,7 @@ describe('AchievementsPage', () => {
       achievementsEarned: 0,
       achievementsTotal: 1,
       achievements: [],
+      isPro: true,
     }
     mockAchievementsByCategory = [
       {
@@ -253,6 +259,7 @@ describe('AchievementsPage', () => {
       achievementsEarned: 1,
       achievementsTotal: 10,
       achievements: [],
+      isPro: true,
     }
     render(<AchievementsPage />)
     const progressBar = screen.getByRole('progressbar')
@@ -261,7 +268,7 @@ describe('AchievementsPage', () => {
 
   it('does not show locked state while profile is still loading', () => {
     mockProfileLoading = true
-    mockHasProAccess = false
+    mockCanViewGamification = false
     render(<AchievementsPage />)
     expect(screen.queryByText('gamification.page.lockedTitle')).not.toBeInTheDocument()
   })

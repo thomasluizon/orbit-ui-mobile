@@ -13,6 +13,13 @@ import TodayScreen, {
   shouldRedirectGoalsTab,
 } from "@/app/(tabs)/index";
 
+vi.mock("@/components/referral/referral-card", () => ({
+  ReferralCard: () => null,
+}));
+vi.mock("@/components/referral/referral-drawer", () => ({
+  ReferralDrawer: () => null,
+}));
+
 
 const TestRenderer: typeof import("react-test-renderer") = require("react-test-renderer");
 type RenderedNode = {
@@ -142,6 +149,18 @@ vi.mock("@react-native-async-storage/async-storage", () => ({
   default: {
     getItem: vi.fn(async () => null),
   },
+}));
+
+vi.mock("@/hooks/use-habit-queries", () => ({
+  useTotalHabitCount: () => 10,
+}));
+
+vi.mock("@/hooks/use-coach-mark", () => ({
+  useCoachMark: () => {},
+}));
+
+vi.mock("@/components/today/setup-checklist-card", () => ({
+  SetupChecklistCard: () => null,
 }));
 
 vi.mock("expo-router", () => ({

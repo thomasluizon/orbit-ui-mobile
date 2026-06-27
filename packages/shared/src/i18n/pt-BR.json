@@ -750,6 +750,7 @@
     "messagesUsed": "mensagens usadas neste mês",
     "senderYou": "Você",
     "senderOrbit": "Astra",
+    "astraAvatarLabel": "Avatar da Astra",
     "unknownEntity": "Desconhecido",
     "starterChips": {
       "logHabit": "Registrar um hábito",
@@ -953,6 +954,14 @@
       "title": "Vem pro Orbit comigo",
       "text": "Estou usando o Orbit para criar hábitos melhores. Entra também e nós dois ganhamos um cupom de {discount}% de desconto!"
     },
+    "prompt": {
+      "eyebrow": "Você está com tudo",
+      "streakTitle": "Sequência de {count} dias!",
+      "levelTitle": "Você chegou ao nível {level}!",
+      "body": "Convide um amigo e vocês dois ganham um cupom de {discount}% de desconto no Pro.",
+      "cta": "Convidar um amigo",
+      "later": "Agora não"
+    },
     "loginBanner": "Você foi convidado! Cadastre-se e ganhe um cupom de 10% de desconto no Pro"
   },
   "privacy": {
@@ -1126,6 +1135,75 @@
   },
   "onboarding": {
     "flow": {
+      "templatePacks": {
+        "title": "Comece com um pacote",
+        "subtitle": "Escolha um conjunto de hábitos para começar. Você pode ajustar tudo depois.",
+        "customizeTitle": "Personalize seu pacote",
+        "customizeSubtitle": "Desative o que não quiser. Adicionamos o resto.",
+        "createCta": "Adicionar {count} hábitos",
+        "createCtaOne": "Adicionar 1 hábito",
+        "createOwn": "Prefiro criar o meu",
+        "skip": "Pular por agora",
+        "created": "Seus hábitos estão prontos!",
+        "packs": {
+          "morningRoutine": {
+            "name": "Rotina Matinal",
+            "description": "Comece todo dia com intenção.",
+            "habits": {
+              "makeBed": "Arrume sua cama",
+              "water": "Beba um copo de água",
+              "stretch": "Alongamento de 5 minutos",
+              "breakfast": "Tome um café da manhã saudável",
+              "planDay": "Planeje suas 3 tarefas principais"
+            }
+          },
+          "fitnessMovement": {
+            "name": "Fitness e Movimento",
+            "description": "Mantenha o corpo ativo e forte.",
+            "habits": {
+              "walk": "Caminhada de 30 minutos",
+              "strength": "Treino de força",
+              "mobility": "Mobilidade de 10 minutos",
+              "stairs": "Use as escadas",
+              "steps": "Atinja sua meta de passos"
+            }
+          },
+          "studyFocus": {
+            "name": "Estudo e Foco",
+            "description": "Desenvolva foco profundo, sem distrações.",
+            "habits": {
+              "deepWork": "Bloco de trabalho focado",
+              "read": "Leia por 20 minutos",
+              "reviewNotes": "Revise suas anotações",
+              "phoneFree": "Primeira hora sem celular",
+              "singleTask": "Faça uma tarefa por vez"
+            }
+          },
+          "mindfulnessWellbeing": {
+            "name": "Mindfulness e Bem-estar",
+            "description": "Desacelere e cuide de você.",
+            "habits": {
+              "meditate": "Medite por 10 minutos",
+              "gratitude": "Diário de gratidão",
+              "digitalSunset": "Pôr do sol digital",
+              "breathing": "Respiração profunda",
+              "reachOut": "Fale com alguém"
+            }
+          }
+        },
+        "tags": {
+          "morning": "manhã",
+          "health": "saúde",
+          "movement": "movimento",
+          "focus": "foco",
+          "fitness": "fitness",
+          "learning": "aprendizado",
+          "mindfulness": "mindfulness",
+          "journal": "diário",
+          "sleep": "sono",
+          "social": "social"
+        }
+      },
       "step": "{current} de {total}",
       "skip": "Pular",
       "next": "Continuar",
@@ -1220,8 +1298,8 @@
           "theme": "Tema personalizado",
           "astra": "Assistente de IA"
         },
-        "trialTitle": "Seu teste Pro está ativo",
-        "trialDesc": "Aproveite o acesso Pro completo até {date}."
+        "trialTitle": "7 dias de Pro, grátis",
+        "trialDesc": "Sem cartão. Você tem acesso Pro completo até {date}."
       }
     },
     "wizard": {
@@ -1733,6 +1811,14 @@
       "lockedDescription": "Assine o Pro para acompanhar seu progresso, ganhar XP e desbloquear conquistas.",
       "upgradeButton": "Assinar Pro"
     },
+    "carrot": {
+      "title": "Próxima recompensa",
+      "toNextLevel": "{xp} XP para o Nível {level}",
+      "proTeaser": {
+        "title": "Desbloqueie com o Pro",
+        "achievements": "Conquistas e medalhas"
+      }
+    },
     "categories": {
       "GettingStarted": "Primeiros Passos",
       "Consistency": "Consistência",
@@ -1777,6 +1863,14 @@
       "year_of_discipline": {
         "name": "Ano de Disciplina",
         "description": "Alcance uma sequência de 365 dias"
+      },
+      "half_year_hero": {
+        "name": "Herói do Semestre",
+        "description": "Alcance uma sequência de 180 dias"
+      },
+      "streak_titan": {
+        "name": "Titã da Sequência",
+        "description": "Alcance uma sequência de 500 dias"
       },
       "getting_momentum": {
         "name": "Ganhando Ritmo",
@@ -1841,6 +1935,10 @@
       "bad_habit_breaker": {
         "name": "Quebrador de Maus Hábitos",
         "description": "Alcance 30 dias sem um mau hábito"
+      },
+      "first_cheer": {
+        "name": "Boas Energias",
+        "description": "Envie ou receba seu primeiro incentivo"
       }
     },
     "toast": {
@@ -2027,7 +2125,35 @@
     "banner": "Uma nova versão do Orbit está disponível.",
     "refresh": "Atualizar"
   },
+  "today": {
+    "setupChecklist": {
+      "title": "Primeiros passos",
+      "subtitle": "Três passos rápidos para configurar o Orbit.",
+      "items": {
+        "createHabit": "Crie seu primeiro hábito",
+        "logHabit": "Registre um hábito hoje",
+        "tryAstra": "Pergunte algo à Astra"
+      },
+      "progress": "{done} de {total} concluídos",
+      "complete": "Tudo pronto. Bom trabalho!",
+      "dismiss": "Dispensar"
+    }
+  },
   "tour": {
+    "coachmarks": {
+      "today": {
+        "title": "Seu dia, num relance",
+        "description": "Todo hábito de hoje fica aqui. Toque no círculo para concluir."
+      },
+      "astra": {
+        "title": "Conheça a Astra",
+        "description": "Seu assistente de IA. Peça para criar hábitos, planejar ou resumir o dia."
+      },
+      "calendar": {
+        "title": "Veja seu histórico",
+        "description": "Um mapa de calor colorido de tudo que você concluiu ao longo do tempo."
+      }
+    },
     "mockData": {
       "habits": {
         "meditation": {

@@ -1,0 +1,116 @@
+import { describe, expect, it } from 'vitest'
+import {
+  gamificationProfileSchema,
+  nextRewardCarrotSchema,
+  recapResponseSchema,
+} from '../types/gamification'
+import { profileSchema } from '../types/profile'
+import { createMockGamificationProfile, createMockProfile } from './factories'
+
+describe('nextRewardCarrotSchema', () => {
+  it('parses a Pro carrot with a null teaser', () => {
+    const parsed = nextRewardCarrotSchema.parse({
+      nextLevel: 11,
+      nextLevelTitle: 'Legend',
+      xpToNextLevel: 2100,
+      proTeaser: null,
+    })
+    expect(parsed.proTeaser).toBeNull()
+  })
+
+  it('parses a free carrot with a locked achievements teaser', () => {
+    const parsed = nextRewardCarrotSchema.parse({
+      nextLevel: 3,
+      nextLevelTitle: 'Orbiter',
+      xpToNextLevel: 50,
+      proTeaser: { kind: 'achievements', locked: true },
+    })
+    expect(parsed.proTeaser).toEqual({ kind: 'achievements', locked: true })
+  })
+})
+
+describe('gamificationProfileSchema', () => {
+  it('round-trips a profile carrying the additive gamification fields', () => {
+    const profile = createMockGamificationProfile({
+      isPro: false,
+      achievementsLocked: true,
+      achievements: [],
+      nextReward: {
+        nextLevel: 4,
+        nextLevelTitle: 'Navigator',
+        xpToNextLevel: 300,
+        proTeaser: { kind: 'achievements', locked: true },
+      },
+    })
+
+    const parsed = gamificationProfileSchema.parse(profile)
+
+    expect(parsed.isPro).toBe(false)
+    expect(parsed.achievementsLocked).toBe(true)
+    expect(parsed.nextReward.nextLevel).toBe(4)
+    expect(parsed.nextReward.proTeaser?.locked).toBe(true)
+  })
+})
+
+describe('profileSchema.canViewGamification', () => {
+  it('parses the additive flag', () => {
+    const parsed = profileSchema.parse(createMockProfile({ canViewGamification: true }))
+    expect(parsed.canViewGamification).toBe(true)
+  })
+
+  it('is optional so older API payloads still parse (rollout safety)', () => {
+    const { canViewGamification: _omit, ...withoutFlag } = createMockProfile()
+    const parsed = profileSchema.parse(withoutFlag)
+    expect(parsed.canViewGamification).toBeUndefined()
+  })
+})
+
+describe('recapResponseSchema', () => {
+  it('parses a metrics-only recap with a share deep link', () => {
+    const parsed = recapResponseSchema.parse({
+      period: 'week',
+      shareDeepLink: 'https://app.useorbit.org/r/ABCD2345?recap=week',
+      metrics: {
+        completionRate: 80,
+        totalCompletions: 12,
+        totalScheduled: 15,
+        activeDays: 5,
+        periodDays: 7,
+        currentStreak: 7,
+        bestStreak: 20,
+        badHabitSlips: 0,
+        weeklyConsistency: [100, 80, 60, 100, 0, 0, 0],
+        topHabits: [
+          { name: 'Read', emoji: '📚', completionRate: 100, completedCount: 7, scheduledCount: 7 },
+        ],
+        needsAttention: [],
+      },
+    })
+
+    expect(parsed.period).toBe('week')
+    expect(parsed.shareDeepLink).toContain('?recap=week')
+    expect(parsed.metrics.topHabits).toHaveLength(1)
+  })
+
+  it('rejects a non-whitelisted period', () => {
+    expect(() =>
+      recapResponseSchema.parse({
+        period: 'quarter',
+        shareDeepLink: 'https://app.useorbit.org/r/ABCD2345?recap=quarter',
+        metrics: {
+          completionRate: 0,
+          totalCompletions: 0,
+          totalScheduled: 0,
+          activeDays: 0,
+          periodDays: 90,
+          currentStreak: 0,
+          bestStreak: 0,
+          badHabitSlips: 0,
+          weeklyConsistency: [0, 0, 0, 0, 0, 0, 0],
+          topHabits: [],
+          needsAttention: [],
+        },
+      }),
+    ).toThrow()
+  })
+})

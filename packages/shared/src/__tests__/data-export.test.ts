@@ -105,6 +105,49 @@ const validExport = {
       isRevoked: false,
     },
   ],
+  friendships: [
+    {
+      requesterId: '55555555-5555-5555-5555-555555555555',
+      addresseeId: '66666666-6666-6666-6666-666666666666',
+      status: 'Accepted',
+      createdAtUtc: '2026-04-01T00:00:00Z',
+      respondedAtUtc: '2026-04-02T00:00:00Z',
+    },
+  ],
+  cheers: [
+    {
+      senderId: '66666666-6666-6666-6666-666666666666',
+      recipientId: '55555555-5555-5555-5555-555555555555',
+      habitId: '11111111-1111-1111-1111-111111111111',
+      note: 'Nice streak!',
+      createdAtUtc: '2026-04-03T00:00:00Z',
+    },
+  ],
+  blockedUsers: [
+    {
+      blockerId: '55555555-5555-5555-5555-555555555555',
+      blockedId: '77777777-7777-7777-7777-777777777777',
+      createdAtUtc: '2026-04-04T00:00:00Z',
+    },
+  ],
+  reports: [
+    {
+      reportedUserId: '77777777-7777-7777-7777-777777777777',
+      reason: 'Spam',
+      details: null,
+      cheerId: null,
+      status: 'Pending',
+      createdAtUtc: '2026-04-05T00:00:00Z',
+    },
+  ],
+  friendFeedEvents: [
+    {
+      type: 'StreakMilestone',
+      value: 30,
+      achievementId: null,
+      createdAtUtc: '2026-04-06T00:00:00Z',
+    },
+  ],
 }
 
 describe('userDataExportSchema', () => {

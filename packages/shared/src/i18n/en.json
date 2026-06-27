@@ -750,6 +750,7 @@
     "messagesUsed": "messages used this month",
     "senderYou": "You",
     "senderOrbit": "Astra",
+    "astraAvatarLabel": "Astra avatar",
     "unknownEntity": "Unknown",
     "starterChips": {
       "logHabit": "Log a habit",
@@ -953,6 +954,14 @@
       "title": "Join me on Orbit",
       "text": "I've been using Orbit to build better habits. Join me and we both get a {discount}% discount coupon!"
     },
+    "prompt": {
+      "eyebrow": "You're on a roll",
+      "streakTitle": "{count}-day streak!",
+      "levelTitle": "You reached level {level}!",
+      "body": "Invite a friend and you both get a {discount}% discount coupon for Pro.",
+      "cta": "Invite a friend",
+      "later": "Maybe later"
+    },
     "loginBanner": "You've been invited! Sign up to get a 10% discount coupon for Pro"
   },
   "privacy": {
@@ -1126,6 +1135,75 @@
   },
   "onboarding": {
     "flow": {
+      "templatePacks": {
+        "title": "Start with a pack",
+        "subtitle": "Pick a set of habits to begin. You can tweak everything later.",
+        "customizeTitle": "Customize your pack",
+        "customizeSubtitle": "Turn off anything you don't want. We'll add the rest.",
+        "createCta": "Add {count} habits",
+        "createCtaOne": "Add 1 habit",
+        "createOwn": "Create my own instead",
+        "skip": "Skip for now",
+        "created": "Your habits are ready!",
+        "packs": {
+          "morningRoutine": {
+            "name": "Morning Routine",
+            "description": "Start every day with intention.",
+            "habits": {
+              "makeBed": "Make your bed",
+              "water": "Drink a glass of water",
+              "stretch": "5-minute stretch",
+              "breakfast": "Eat a healthy breakfast",
+              "planDay": "Plan your top 3 tasks"
+            }
+          },
+          "fitnessMovement": {
+            "name": "Fitness & Movement",
+            "description": "Keep your body active and strong.",
+            "habits": {
+              "walk": "30-minute walk",
+              "strength": "Strength workout",
+              "mobility": "10-minute mobility",
+              "stairs": "Take the stairs",
+              "steps": "Hit your step goal"
+            }
+          },
+          "studyFocus": {
+            "name": "Study & Focus",
+            "description": "Build deep, distraction-free focus.",
+            "habits": {
+              "deepWork": "Deep work block",
+              "read": "Read for 20 minutes",
+              "reviewNotes": "Review your notes",
+              "phoneFree": "Phone-free first hour",
+              "singleTask": "Single-task one session"
+            }
+          },
+          "mindfulnessWellbeing": {
+            "name": "Mindfulness & Wellbeing",
+            "description": "Slow down and check in with yourself.",
+            "habits": {
+              "meditate": "Meditate 10 minutes",
+              "gratitude": "Gratitude journal",
+              "digitalSunset": "Digital sunset",
+              "breathing": "Deep breathing",
+              "reachOut": "Reach out to someone"
+            }
+          }
+        },
+        "tags": {
+          "morning": "morning",
+          "health": "health",
+          "movement": "movement",
+          "focus": "focus",
+          "fitness": "fitness",
+          "learning": "learning",
+          "mindfulness": "mindfulness",
+          "journal": "journal",
+          "sleep": "sleep",
+          "social": "social"
+        }
+      },
       "step": "{current} of {total}",
       "skip": "Skip",
       "next": "Continue",
@@ -1220,8 +1298,8 @@
           "theme": "Theme personalized",
           "astra": "AI assistant"
         },
-        "trialTitle": "Your Pro Trial is Active",
-        "trialDesc": "Enjoy full Pro access until {date}."
+        "trialTitle": "7 days of Pro, free",
+        "trialDesc": "No card required. You have full Pro access until {date}."
       }
     },
     "wizard": {
@@ -1733,6 +1811,14 @@
       "lockedDescription": "Upgrade to Pro to track your progress, earn XP, and unlock achievements.",
       "upgradeButton": "Upgrade to Pro"
     },
+    "carrot": {
+      "title": "Next reward",
+      "toNextLevel": "{xp} XP to Level {level}",
+      "proTeaser": {
+        "title": "Unlock with Pro",
+        "achievements": "Achievements & badges"
+      }
+    },
     "categories": {
       "GettingStarted": "Getting Started",
       "Consistency": "Consistency",
@@ -1777,6 +1863,14 @@
       "year_of_discipline": {
         "name": "Year of Discipline",
         "description": "Achieve a 365-day streak"
+      },
+      "half_year_hero": {
+        "name": "Half-Year Hero",
+        "description": "Achieve a 180-day streak"
+      },
+      "streak_titan": {
+        "name": "Streak Titan",
+        "description": "Achieve a 500-day streak"
       },
       "getting_momentum": {
         "name": "Getting Momentum",
@@ -1841,6 +1935,10 @@
       "bad_habit_breaker": {
         "name": "Bad Habit Breaker",
         "description": "Achieve a 30-day streak on a bad habit"
+      },
+      "first_cheer": {
+        "name": "Good Vibes",
+        "description": "Send or receive your first cheer"
       }
     },
     "toast": {
@@ -2027,7 +2125,35 @@
     "banner": "A new version of Orbit is available.",
     "refresh": "Refresh"
   },
+  "today": {
+    "setupChecklist": {
+      "title": "Get started",
+      "subtitle": "Three quick steps to set up Orbit.",
+      "items": {
+        "createHabit": "Create your first habit",
+        "logHabit": "Log a habit today",
+        "tryAstra": "Ask Astra anything"
+      },
+      "progress": "{done} of {total} done",
+      "complete": "You're all set. Nice work!",
+      "dismiss": "Dismiss"
+    }
+  },
   "tour": {
+    "coachmarks": {
+      "today": {
+        "title": "Your day, at a glance",
+        "description": "Every habit due today lives here. Tap a circle to mark it done."
+      },
+      "astra": {
+        "title": "Meet Astra",
+        "description": "Your AI assistant. Ask it to create habits, plan ahead, or recap your day."
+      },
+      "calendar": {
+        "title": "See your history",
+        "description": "A color-coded heatmap of everything you've completed over time."
+      }
+    },
     "mockData": {
       "habits": {
         "meditation": {

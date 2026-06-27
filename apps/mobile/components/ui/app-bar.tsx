@@ -22,6 +22,8 @@ interface AppBarProps {
   onBack?: () => void
   /** Leading lucide-react-native icon (ignored when `back` is true). */
   LeadingIcon?: LucideIcon
+  /** Mark rendered immediately before the centered title (e.g. Astra's avatar). */
+  titleIcon?: ReactNode
   /** Centered uppercase label. Omit for bars whose content carries its own heading. */
   title?: string
   subtitle?: string
@@ -42,6 +44,7 @@ export function AppBar({
   back = false,
   onBack,
   LeadingIcon,
+  titleIcon,
   title,
   subtitle,
   trailing,
@@ -112,14 +115,19 @@ export function AppBar({
         ) : null}
       </View>
 
-      {title ? (
+      {title || titleIcon ? (
         <View style={styles.titleColumn}>
-          <Text
-            style={[styles.title, { color: tokens.fg1 }]}
-            numberOfLines={1}
-          >
-            {title}
-          </Text>
+          <View style={styles.titleRow}>
+            {titleIcon}
+            {title ? (
+              <Text
+                style={[styles.title, { color: tokens.fg1 }]}
+                numberOfLines={1}
+              >
+                {title}
+              </Text>
+            ) : null}
+          </View>
           {subtitle ? (
             <Text
               style={[styles.subtitle, { color: tokens.fg3 }]}
@@ -168,6 +176,12 @@ const styles = StyleSheet.create({
     minWidth: 0,
     gap: 2,
     justifyContent: 'center',
+  },
+  titleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
   },
   title: {
     fontFamily: 'Rubik_500Medium',

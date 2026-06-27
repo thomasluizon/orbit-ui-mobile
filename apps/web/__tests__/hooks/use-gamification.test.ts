@@ -85,6 +85,14 @@ function makeGamificationProfile(overrides: Partial<GamificationProfile> = {}): 
     currentStreak: 7,
     longestStreak: 14,
     lastActiveDate: '2025-01-15',
+    isPro: true,
+    achievementsLocked: false,
+    nextReward: {
+      nextLevel: 6,
+      nextLevelTitle: 'Pilot',
+      xpToNextLevel: 100,
+      proTeaser: null,
+    },
     ...overrides,
   }
 }
