@@ -124,6 +124,36 @@ export function PushNotificationSection({
   )
 }
 
+interface PersistentReminderControls {
+  isSupported: boolean
+  enabled: boolean
+  isLoading: boolean
+  onToggle: () => void
+}
+
+function PersistentReminderRow({
+  t,
+  enabled,
+  isLoading,
+  onToggle,
+}: Readonly<{ t: TranslationFn } & Omit<PersistentReminderControls, 'isSupported'>>) {
+  return (
+    <SettingsRow
+      label={t('persistentReminder.label')}
+      desc={t('persistentReminder.description')}
+      accessory="none"
+      divider={false}
+    >
+      <Switch
+        on={enabled}
+        onToggle={onToggle}
+        disabled={isLoading}
+        accessibilityLabel={t('persistentReminder.label')}
+      />
+    </SettingsRow>
+  )
+}
+
 interface PreferenceSettingsListProps {
   tokens: Tokens
   t: TranslationFn
@@ -136,6 +166,7 @@ interface PreferenceSettingsListProps {
   onOpenPicker: (picker: PreferencePicker) => void
   onToggleShowGeneral: () => void
   push: Omit<PushNotificationSectionProps, 'tokens' | 't'>
+  persistentReminder: PersistentReminderControls
 }
 
 export function PreferenceSettingsList({
@@ -150,6 +181,7 @@ export function PreferenceSettingsList({
   onOpenPicker,
   onToggleShowGeneral,
   push,
+  persistentReminder,
 }: Readonly<PreferenceSettingsListProps>) {
   return (
     <>
@@ -210,6 +242,14 @@ export function PreferenceSettingsList({
 
       <Animated.View entering={sectionEntrance(2)}>
         <PushNotificationSection tokens={tokens} t={t} {...push} />
+        {persistentReminder.isSupported ? (
+          <PersistentReminderRow
+            t={t}
+            enabled={persistentReminder.enabled}
+            isLoading={persistentReminder.isLoading}
+            onToggle={persistentReminder.onToggle}
+          />
+        ) : null}
       </Animated.View>
     </>
   )

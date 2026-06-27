@@ -79,6 +79,15 @@
       "default": "Default"
     }
   },
+  "persistentReminder": {
+    "label": "Persistent reminder",
+    "description": "Keep a quiet ongoing notification with your streak and today's progress.",
+    "channelName": "Ongoing reminder",
+    "titleStreak": "{streak}-day streak",
+    "titleNoStreak": "Start your streak today",
+    "body": "{completed}/{total} done today",
+    "bodyEmpty": "Nothing scheduled today"
+  },
   "welcome": {
     "backMessage": "Your {streak}-day streak is still alive.",
     "eyebrow": "Welcome back"

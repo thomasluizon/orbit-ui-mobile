@@ -4,6 +4,7 @@ import type {
   OrbitWidgetModuleType,
   WidgetThemeColors,
 } from '../modules/orbit-widget/src/OrbitWidget.types'
+import { refreshPersistentReminder } from './persistent-reminder'
 import type { AppTokensV2 } from './theme'
 
 declare const require: (id: string) => unknown
@@ -98,9 +99,13 @@ export async function syncWidgetData(): Promise<void> {
 
   const { getToken } = await import('./secure-store')
   const token = await getToken()
-  if (!token) return
+  if (!token) {
+    await refreshPersistentReminder(null)
+    return
+  }
 
   const { apiClient } = await import('./api-client')
   const data = await apiClient<unknown>(API.habits.widget)
   await widgetModule.syncWidgetData(JSON.stringify(data))
+  await refreshPersistentReminder(data)
 }

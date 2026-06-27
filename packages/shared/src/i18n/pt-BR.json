@@ -79,6 +79,15 @@
       "default": "Padrão"
     }
   },
+  "persistentReminder": {
+    "label": "Lembrete fixo",
+    "description": "Mantenha uma notificação fixa e silenciosa com sua sequência e o progresso de hoje.",
+    "channelName": "Lembrete fixo",
+    "titleStreak": "Sequência de {streak} dias",
+    "titleNoStreak": "Comece sua sequência hoje",
+    "body": "{completed}/{total} concluídos hoje",
+    "bodyEmpty": "Nada agendado para hoje"
+  },
   "welcome": {
     "backMessage": "Sua sequência de {streak} dias continua firme.",
     "eyebrow": "Que bom te ver de volta"
