@@ -342,7 +342,7 @@
     "autoSkipParentConfirm": "Pular",
     "checklistCompleteTitle": "Checklist concluído!",
     "checklistCompleteMessage": "Você concluiu todos os itens de \"{name}\". Quer registrar este hábito?",
-    "checklistCompleteConfirm": "Registrar hábito",
+    "checklistCompleteConfirm": "Registrar",
     "bulkDeleteTitle": "Excluir hábitos",
     "bulkDeleteMessage": "Quer mesmo excluir {count} hábito? Não dá para desfazer. | Quer mesmo excluir {count} hábitos? Não dá para desfazer.",
     "bulkDeleteConfirm": "Excluir todos",

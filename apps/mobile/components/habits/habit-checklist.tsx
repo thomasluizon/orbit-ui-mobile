@@ -11,7 +11,7 @@ import Animated, {
   withSequence,
   withSpring,
 } from 'react-native-reanimated'
-import { ChevronUp, ChevronDown, X, Copy, Check } from 'lucide-react-native'
+import { ChevronUp, ChevronDown, X, Copy, Check, RotateCcw } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import type { ChecklistItem } from '@orbit/shared/types/habit'
 import { createTokensV2 } from '@/lib/theme'
@@ -379,13 +379,27 @@ export function HabitChecklist({
             {checkedCount}/{items.length}
           </Text>
           {interactive && checkedCount > 0 && (
-            <TouchableOpacity accessibilityRole="button" onPress={onReset} activeOpacity={0.7}>
-              <Text style={styles.resetText}>{t('habits.form.resetChecklist')}</Text>
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel={t('habits.form.resetChecklist')}
+              style={styles.actionButton}
+              onPress={onReset}
+              activeOpacity={0.7}
+              hitSlop={9}
+            >
+              <RotateCcw size={16} color={tokens.primary} strokeWidth={1.8} />
             </TouchableOpacity>
           )}
           {interactive && (
-            <TouchableOpacity accessibilityRole="button" onPress={onClear} activeOpacity={0.7}>
-              <Text style={styles.clearText}>{t('habits.form.clearChecklist')}</Text>
+            <TouchableOpacity
+              accessibilityRole="button"
+              accessibilityLabel={t('habits.form.clearChecklist')}
+              style={styles.actionButton}
+              onPress={onClear}
+              activeOpacity={0.7}
+              hitSlop={9}
+            >
+              <X size={16} color={tokens.statusBad} strokeWidth={1.8} />
             </TouchableOpacity>
           )}
         </View>
@@ -469,10 +483,12 @@ function createStyles(tokens: AppTokens) {
     color: tokens.fg3,
     fontVariant: ['tabular-nums'],
   },
-  resetText: {
-    fontFamily: 'Rubik_500Medium',
-    fontSize: 12,
-    color: tokens.primary,
+  actionButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 999,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   clearText: {
     fontFamily: 'Rubik_500Medium',

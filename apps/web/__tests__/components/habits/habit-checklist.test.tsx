@@ -83,28 +83,28 @@ describe('HabitChecklist', () => {
     it('shows reset button when at least one item is checked', () => {
       const items = makeItems()
       render(<HabitChecklist items={items} interactive />)
-      expect(screen.getByText('habits.form.resetChecklist')).toBeDefined()
+      expect(screen.getByLabelText('habits.form.resetChecklist')).toBeDefined()
     })
 
     it('calls onReset when reset button is clicked', () => {
       const onReset = vi.fn()
       const items = makeItems()
       render(<HabitChecklist items={items} interactive onReset={onReset} />)
-      fireEvent.click(screen.getByText('habits.form.resetChecklist'))
+      fireEvent.click(screen.getByLabelText('habits.form.resetChecklist'))
       expect(onReset).toHaveBeenCalledOnce()
     })
 
     it('shows clear button in interactive mode', () => {
       const items = makeItems()
       render(<HabitChecklist items={items} interactive />)
-      expect(screen.getByText('habits.form.clearChecklist')).toBeDefined()
+      expect(screen.getByLabelText('habits.form.clearChecklist')).toBeDefined()
     })
 
     it('calls onClear when clear button is clicked', () => {
       const onClear = vi.fn()
       const items = makeItems()
       render(<HabitChecklist items={items} interactive onClear={onClear} />)
-      fireEvent.click(screen.getByText('habits.form.clearChecklist'))
+      fireEvent.click(screen.getByLabelText('habits.form.clearChecklist'))
       expect(onClear).toHaveBeenCalledOnce()
     })
 
@@ -114,7 +114,7 @@ describe('HabitChecklist', () => {
         { text: 'B', isChecked: false },
       ]
       render(<HabitChecklist items={items} interactive />)
-      expect(screen.queryByText('habits.form.resetChecklist')).toBeNull()
+      expect(screen.queryByLabelText('habits.form.resetChecklist')).toBeNull()
     })
 
     it('shows line-through for checked items', () => {
