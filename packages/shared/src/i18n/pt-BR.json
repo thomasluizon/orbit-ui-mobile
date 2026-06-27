@@ -1733,6 +1733,14 @@
       "lockedDescription": "Assine o Pro para acompanhar seu progresso, ganhar XP e desbloquear conquistas.",
       "upgradeButton": "Assinar Pro"
     },
+    "carrot": {
+      "title": "Próxima recompensa",
+      "toNextLevel": "{xp} XP para o Nível {level}",
+      "proTeaser": {
+        "title": "Desbloqueie com o Pro",
+        "achievements": "Conquistas e medalhas"
+      }
+    },
     "categories": {
       "GettingStarted": "Primeiros Passos",
       "Consistency": "Consistência",
@@ -1777,6 +1785,14 @@
       "year_of_discipline": {
         "name": "Ano de Disciplina",
         "description": "Alcance uma sequência de 365 dias"
+      },
+      "half_year_hero": {
+        "name": "Herói do Semestre",
+        "description": "Alcance uma sequência de 180 dias"
+      },
+      "streak_titan": {
+        "name": "Titã da Sequência",
+        "description": "Alcance uma sequência de 500 dias"
       },
       "getting_momentum": {
         "name": "Ganhando Ritmo",
@@ -1841,6 +1857,10 @@
       "bad_habit_breaker": {
         "name": "Quebrador de Maus Hábitos",
         "description": "Alcance 30 dias sem um mau hábito"
+      },
+      "first_cheer": {
+        "name": "Boas Energias",
+        "description": "Envie ou receba seu primeiro incentivo"
       }
     },
     "toast": {

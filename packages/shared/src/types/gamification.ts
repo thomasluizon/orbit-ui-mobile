@@ -30,6 +30,17 @@ const userAchievementSchema = z.object({
   earnedAtUtc: z.string(),
 })
 
+export const nextRewardCarrotSchema = z.object({
+  nextLevel: z.number(),
+  nextLevelTitle: z.string(),
+  xpToNextLevel: z.number(),
+  proTeaser: z
+    .object({ kind: z.enum(['achievements']), locked: z.boolean() })
+    .nullable(),
+})
+
+export type NextRewardCarrot = z.infer<typeof nextRewardCarrotSchema>
+
 export const gamificationProfileSchema = z.object({
   totalXp: z.number(),
   level: z.number(),
@@ -44,9 +55,43 @@ export const gamificationProfileSchema = z.object({
   currentStreak: z.number(),
   longestStreak: z.number(),
   lastActiveDate: z.string().nullable(),
+  isPro: z.boolean(),
+  achievementsLocked: z.boolean(),
+  nextReward: nextRewardCarrotSchema,
 })
 
 export type GamificationProfile = z.infer<typeof gamificationProfileSchema>
+
+export const retrospectiveHabitStatSchema = z.object({
+  name: z.string(),
+  emoji: z.string().nullable(),
+  completionRate: z.number(),
+  completedCount: z.number(),
+  scheduledCount: z.number(),
+  isOneTime: z.boolean().optional(),
+})
+
+export const retrospectiveMetricsSchema = z.object({
+  completionRate: z.number(),
+  totalCompletions: z.number(),
+  totalScheduled: z.number(),
+  activeDays: z.number(),
+  periodDays: z.number(),
+  currentStreak: z.number(),
+  bestStreak: z.number(),
+  badHabitSlips: z.number(),
+  weeklyConsistency: z.array(z.number()),
+  topHabits: z.array(retrospectiveHabitStatSchema),
+  needsAttention: z.array(retrospectiveHabitStatSchema),
+})
+
+export const recapResponseSchema = z.object({
+  period: z.enum(['week', 'month', 'year']),
+  metrics: retrospectiveMetricsSchema,
+  shareDeepLink: z.string(),
+})
+
+export type Recap = z.infer<typeof recapResponseSchema>
 
 export const streakInfoSchema = z.object({
   currentStreak: z.number(),

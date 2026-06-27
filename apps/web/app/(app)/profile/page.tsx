@@ -16,11 +16,13 @@ import {
   useTrialExpired,
 } from '@/hooks/use-profile'
 import { useAuthStore } from '@/stores/auth-store'
+import { deriveNextRewardCarrot } from '@orbit/shared/utils'
 import { useGamificationProfile } from '@/hooks/use-gamification'
 import { SectionLabel } from '@/components/ui/section-label'
 import { SubscriptionCard } from './_components/subscription-card'
 import { ProfileIdentityHeader } from './_components/profile-identity-header'
 import { ProfileStatTiles } from './_components/profile-stat-tiles'
+import { NextRewardCarrot } from './_components/next-reward-carrot'
 import { ProfileNavSections } from './_components/profile-nav-sections'
 import { ProfileAccountActions } from './_components/profile-account-actions'
 import { ProfileHeaderBar } from './_components/profile-header-bar'
@@ -37,9 +39,13 @@ export default function ProfilePage() {
   const trialExpired = useTrialExpired()
   const logout = useAuthStore((s) => s.logout)
   const { isExporting, exportError, exportData } = useDataExport()
-  const { profile: gamificationProfile } = useGamificationProfile(
-    profile?.hasProAccess ?? false,
-  )
+  const canViewGamification = profile?.canViewGamification ?? false
+  const { profile: gamificationProfile } = useGamificationProfile(canViewGamification)
+  const nextRewardCarrot = deriveNextRewardCarrot(gamificationProfile, canViewGamification)
+  const achievementsLocked = gamificationProfile?.achievementsLocked ?? false
+  const achievementsTileValue = achievementsLocked
+    ? gamificationProfile?.achievementsTotal ?? 0
+    : gamificationProfile?.achievementsEarned ?? 0
   const streak = profile?.currentStreak ?? 0
   const accountNavItems = PROFILE_NAV_ITEMS.filter(
     (item) => item.section === 'account',
@@ -84,7 +90,7 @@ export default function ProfilePage() {
     : t('common.proBadge')
 
   const identityLine =
-    profile?.hasProAccess && gamificationProfile
+    canViewGamification && gamificationProfile
       ? t('gamification.profileCard.level', { level: gamificationProfile.level })
       : profile?.email
 
@@ -105,7 +111,8 @@ export default function ProfilePage() {
 
         <ProfileStatTiles
           streak={streak}
-          achievementsEarned={gamificationProfile?.achievementsEarned ?? 0}
+          achievementsValue={achievementsTileValue}
+          achievementsLocked={achievementsLocked}
           showAchievements={!!achievementsNavItem}
           achievementsDataTour={
             achievementsNavItem ? navTourMap[achievementsNavItem.id] : undefined
@@ -115,6 +122,8 @@ export default function ProfilePage() {
             if (achievementsNavItem) handleNavClick(achievementsNavItem)
           }}
         />
+
+        <NextRewardCarrot carrot={nextRewardCarrot} />
 
         <ProfileNavSections
           accountNavItems={accountNavItems}

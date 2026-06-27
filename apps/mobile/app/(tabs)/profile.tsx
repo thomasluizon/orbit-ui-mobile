@@ -13,7 +13,8 @@ import {
   shouldRedirectProfileNavItem,
   type ProfileNavItem,
 } from '@orbit/shared/utils/profile-navigation'
-import { CreditCard, Pencil, User as UserIcon } from 'lucide-react-native'
+import { CreditCard, Lock, Pencil, User as UserIcon } from 'lucide-react-native'
+import { deriveNextRewardCarrot } from '@orbit/shared/utils'
 import {
   useProfile,
   useTrialDaysLeft,
@@ -31,10 +32,11 @@ import { ThemeToggle } from '@/components/ui/theme-toggle'
 import { StreakBadge } from '@/components/gamification/streak-badge'
 import { NotificationBell } from '@/components/navigation/notification-bell'
 import { useAppTheme } from '@/lib/use-app-theme'
-import { createTokensV2 } from '@/lib/theme'
+import { createTokensV2, tintFromPrimary } from '@/lib/theme'
 import { buildUpgradeHref } from '@/lib/upgrade-route'
 import { plural } from '@/lib/plural'
 import { ProfileNavIcon } from './profile/_components/profile-nav-icon'
+import { NextRewardCarrot } from './profile/_components/next-reward-carrot'
 import { ProfileAccountActions } from './profile/_components/profile-account-actions'
 import { EditNameSheet } from './profile/_components/edit-name-sheet'
 import { FreshStartModal } from './profile/_components/fresh-start-modal'
@@ -66,9 +68,13 @@ export default function ProfileScreen() {
   const trialDaysLeft = useTrialDaysLeft()
   const trialExpired = useTrialExpired()
   const logout = useAuthStore((s) => s.logout)
-  const { profile: gamificationProfile } = useGamificationProfile(
-    profile?.hasProAccess ?? false,
-  )
+  const canViewGamification = profile?.canViewGamification ?? false
+  const { profile: gamificationProfile } = useGamificationProfile(canViewGamification)
+  const nextRewardCarrot = deriveNextRewardCarrot(gamificationProfile, canViewGamification)
+  const achievementsLocked = gamificationProfile?.achievementsLocked ?? false
+  const achievementsTileValue = achievementsLocked
+    ? gamificationProfile?.achievementsTotal ?? 0
+    : gamificationProfile?.achievementsEarned ?? 0
   const { isExporting, exportError, exportData } = useDataExport()
   const streak = profile?.currentStreak ?? 0
   const styles = useMemo(() => createStyles(tokens), [tokens])
@@ -107,14 +113,14 @@ export default function ProfileScreen() {
     (item: ProfileNavItem): string => {
       if (
         item.hintMode === 'gamificationProfile' &&
-        profile?.hasProAccess &&
+        canViewGamification &&
         gamificationProfile
       ) {
         return `${t('gamification.profileCard.level', { level: gamificationProfile.level })} · ${t('gamification.profileCard.totalXp', { total: gamificationProfile.totalXp })}`
       }
       return t(item.hintKey)
     },
-    [profile?.hasProAccess, gamificationProfile, t],
+    [canViewGamification, gamificationProfile, t],
   )
 
   const [showResetModal, setShowResetModal] = useState(false)
@@ -172,7 +178,7 @@ export default function ProfileScreen() {
     : t('common.proBadge')
 
   const identityLine =
-    profile?.hasProAccess && gamificationProfile
+    canViewGamification && gamificationProfile
       ? t('gamification.profileCard.level', { level: gamificationProfile.level })
       : profile?.email
 
@@ -287,13 +293,28 @@ export default function ProfileScreen() {
               >
                 <StatTile
                   emoji="🏆"
-                  value={gamificationProfile?.achievementsEarned ?? 0}
+                  value={achievementsTileValue}
                   label={t('gamification.profileCard.tileLabel')}
                 />
+                {achievementsLocked ? (
+                  <View
+                    style={[
+                      styles.lockBadge,
+                      { backgroundColor: tintFromPrimary(tokens, 0.12) },
+                    ]}
+                  >
+                    <Lock size={12} strokeWidth={2} color={tokens.primary} />
+                  </View>
+                ) : null}
               </Pressable>
             </View>
           ) : null}
         </Animated.View>
+
+        <NextRewardCarrot
+          carrot={nextRewardCarrot}
+          onUpgrade={() => router.push(buildUpgradeHref('/profile'))}
+        />
 
         <Animated.View entering={sectionEntrance(2)}>
           <SectionLabel>{t('profile.sections.account')}</SectionLabel>
@@ -462,6 +483,16 @@ function createStyles(_tokens: Tokens) {
     statPressed: {
       transform: [{ scale: 0.99 }],
       opacity: 0.92,
+    },
+    lockBadge: {
+      position: 'absolute',
+      top: 10,
+      right: 10,
+      width: 22,
+      height: 22,
+      borderRadius: 999,
+      alignItems: 'center',
+      justifyContent: 'center',
     },
 
     groupWrap: {

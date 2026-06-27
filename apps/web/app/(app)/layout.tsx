@@ -70,6 +70,7 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
   const { profile } = useProfile()
   useTimezoneAutoSync(profile)
   const hasProAccess = profile?.hasProAccess ?? false
+  const canViewGamification = profile?.canViewGamification ?? false
   const totalHabitCount = useTotalHabitCount()
 
   useEffect(() => {
@@ -206,6 +207,7 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
       <GlobalOverlays
         profile={profile}
         hasProAccess={hasProAccess}
+        canViewGamification={canViewGamification}
         streakFreezeRef={streakFreezeRef}
         showCalendarPrompt={showCalendarPrompt}
         onCalendarPromptOpenChange={handleCalendarPromptOpenChange}
@@ -241,6 +243,7 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
 function GlobalOverlays({
   profile,
   hasProAccess,
+  canViewGamification,
   streakFreezeRef,
   showCalendarPrompt,
   onCalendarPromptOpenChange,
@@ -249,6 +252,7 @@ function GlobalOverlays({
 }: Readonly<{
   profile: ReturnType<typeof useProfile>['profile']
   hasProAccess: boolean
+  canViewGamification: boolean
   streakFreezeRef: React.RefObject<{ show: () => void } | null>
   showCalendarPrompt: boolean
   onCalendarPromptOpenChange: (open: boolean) => void
@@ -256,7 +260,7 @@ function GlobalOverlays({
   onDismissCalendarPrompt: () => void
 }>) {
   const t = useTranslations()
-  const gamification = useGamificationProfile(hasProAccess)
+  const gamification = useGamificationProfile(canViewGamification)
 
   return (
     <div className="contents">
@@ -269,7 +273,7 @@ function GlobalOverlays({
       <GoalCompletedCelebration />
       <WelcomeBackToast />
       {hasProAccess && <AchievementToast />}
-      {hasProAccess && (
+      {canViewGamification && (
         <LevelUpOverlay
           leveledUp={gamification.leveledUp}
           newLevel={gamification.newLevel}

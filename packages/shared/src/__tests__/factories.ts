@@ -114,6 +114,7 @@ export function createMockProfile(overrides: Partial<Profile> = {}): Profile {
     googleCalendarAutoSyncEnabled: false,
     googleCalendarAutoSyncStatus: 'Idle',
     googleCalendarLastSyncedAt: null,
+    canViewGamification: false,
     ...overrides,
   }
 }
@@ -172,6 +173,14 @@ export function createMockGamificationProfile(
     currentStreak: 7,
     longestStreak: 14,
     lastActiveDate: '2025-01-15',
+    isPro: true,
+    achievementsLocked: false,
+    nextReward: {
+      nextLevel: 4,
+      nextLevelTitle: 'Navigator',
+      xpToNextLevel: 300,
+      proTeaser: null,
+    },
     ...overrides,
   }
 }

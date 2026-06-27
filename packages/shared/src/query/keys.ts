@@ -52,6 +52,7 @@ export const gamificationKeys = {
   profile: () => [...gamificationKeys.all, 'profile'] as const,
   achievements: () => [...gamificationKeys.all, 'achievements'] as const,
   streak: () => [...gamificationKeys.all, 'streak'] as const,
+  recap: (period: string) => [...gamificationKeys.all, 'recap', period] as const,
 }
 
 export const subscriptionKeys = {

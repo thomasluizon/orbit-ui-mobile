@@ -153,7 +153,7 @@ export {
   getClientTimeZone,
 } from './client-context'
 export { isVersionBelow } from './version'
-export { buildReferralUrl } from './referral'
+export { buildReferralUrl, buildRecapShareUrl } from './referral'
 export {
   getOnboardingDisplayStep,
   getOnboardingDisplayTotal,
@@ -262,6 +262,7 @@ export {
 export {
   calculateXpProgress,
   deriveGamificationProfileState,
+  deriveNextRewardCarrot,
   detectGamificationMilestones,
   deriveStreakFreezeState,
   getAchievementsByCategory,
@@ -272,6 +273,7 @@ export {
 export type {
   GamificationMilestoneState,
   GamificationProfileDerivedState,
+  NextRewardCarrotState,
   StreakFreezeDerivedState,
   StreakFreezeFallback,
 } from './gamification-selectors'

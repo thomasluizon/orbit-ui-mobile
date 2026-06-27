@@ -301,7 +301,8 @@ function GlobalOverlays({
   const streakFreezeRef = useRef<StreakFreezeCelebrationHandle>(null)
   const tourStarted = useRef(false)
   const hasProAccess = profile?.hasProAccess ?? false
-  const gamification = useGamificationProfile(hasProAccess)
+  const canViewGamification = profile?.canViewGamification ?? false
+  const gamification = useGamificationProfile(canViewGamification)
 
   useEffect(() => {
     if (
@@ -331,7 +332,7 @@ function GlobalOverlays({
           <GoalCompletedCelebration />
           {showSharedCelebrations ? <WelcomeBackToast /> : null}
           {showSharedCelebrations && hasProAccess ? <AchievementToast /> : null}
-          {showSharedCelebrations && hasProAccess ? (
+          {showSharedCelebrations && canViewGamification ? (
             <LevelUpOverlay
               leveledUp={gamification.leveledUp}
               newLevel={gamification.newLevel}

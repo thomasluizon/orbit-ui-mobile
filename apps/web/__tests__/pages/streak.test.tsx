@@ -64,7 +64,7 @@ import StreakPage from '@/app/(app)/streak/page'
 
 describe('StreakPage', () => {
   beforeEach(() => {
-    mockProfile = { currentStreak: 10, longestStreak: 30, hasProAccess: true }
+    mockProfile = { currentStreak: 10, longestStreak: 30, hasProAccess: true, canViewGamification: true }
     mockStreakQuery = { isLoading: false, data: null }
     mockStreakInfo = {
       currentStreak: 10,
@@ -119,7 +119,7 @@ describe('StreakPage', () => {
   })
 
   it('renders no encouragement for streak 0', () => {
-    mockProfile = { currentStreak: 0, hasProAccess: true }
+    mockProfile = { currentStreak: 0, hasProAccess: true, canViewGamification: true }
     render(<StreakPage />)
     expect(document.body.textContent).not.toContain('streakDisplay.profile.encouragement1')
     expect(document.body.textContent).not.toContain('streakDisplay.profile.encouragement7')
@@ -237,13 +237,13 @@ describe('StreakPage', () => {
 
 
   it('shows the steady tier in stats for streak >= 7', () => {
-    mockProfile = { currentStreak: 10, hasProAccess: true }
+    mockProfile = { currentStreak: 10, hasProAccess: true, canViewGamification: true }
     render(<StreakPage />)
     expect(screen.getByText('streakDisplay.detail.tierSteady')).toBeInTheDocument()
   })
 
   it('shows the legendary tier in stats for streak >= 100', () => {
-    mockProfile = { currentStreak: 150, hasProAccess: true }
+    mockProfile = { currentStreak: 150, hasProAccess: true, canViewGamification: true }
     render(<StreakPage />)
     expect(screen.getByText('streakDisplay.detail.tierLegendary')).toBeInTheDocument()
   })
