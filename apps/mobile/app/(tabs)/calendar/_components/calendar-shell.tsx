@@ -28,6 +28,17 @@ interface CalendarHeaderProps {
   tokens: ReturnType<typeof createTokensV2>;
 }
 
+interface CalendarWeekNavProps {
+  weekLabel: string;
+  previousWeekLabel: string;
+  nextWeekLabel: string;
+  currentWeekLabel: string;
+  onPreviousWeek: () => void;
+  onNextWeek: () => void;
+  onCurrentWeek: () => void;
+  tokens: ReturnType<typeof createTokensV2>;
+}
+
 interface CalendarLegendProps {
   todayLabel: string;
   doneLabel: string;
@@ -69,6 +80,13 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       alignItems: "center",
       justifyContent: "center",
       paddingHorizontal: 10,
+    },
+    weekLabelButton: {
+      height: 36,
+      borderRadius: 999,
+      alignItems: "center",
+      justifyContent: "center",
+      paddingHorizontal: 16,
     },
     monthLabelButtonPressed: {
       backgroundColor: tokens.bgElev,
@@ -260,6 +278,62 @@ export function CalendarHeader({
           </View>
         </Pressable>
       </Modal>
+    </View>
+  );
+}
+
+export function CalendarWeekNav({
+  weekLabel,
+  previousWeekLabel,
+  nextWeekLabel,
+  currentWeekLabel,
+  onPreviousWeek,
+  onNextWeek,
+  onCurrentWeek,
+  tokens,
+}: CalendarWeekNavProps) {
+  const styles = useMemo(() => createStyles(tokens), [tokens]);
+
+  return (
+    <View style={styles.headerWrap}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={previousWeekLabel}
+        onPress={onPreviousWeek}
+        hitSlop={4}
+        style={({ pressed }) => [
+          styles.monthNavButton,
+          pressed && styles.monthNavButtonPressed,
+        ]}
+      >
+        <ChevronLeft size={22} color={tokens.fg2} strokeWidth={1.8} />
+      </Pressable>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={currentWeekLabel}
+        onPress={onCurrentWeek}
+        hitSlop={4}
+        style={({ pressed }) => [
+          styles.weekLabelButton,
+          pressed && styles.monthLabelButtonPressed,
+        ]}
+      >
+        <Text style={styles.monthTitle} numberOfLines={1}>
+          {weekLabel}
+        </Text>
+      </Pressable>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={nextWeekLabel}
+        onPress={onNextWeek}
+        hitSlop={4}
+        style={({ pressed }) => [
+          styles.monthNavButton,
+          pressed && styles.monthNavButtonPressed,
+        ]}
+      >
+        <ChevronRight size={22} color={tokens.fg2} strokeWidth={1.8} />
+      </Pressable>
     </View>
   );
 }

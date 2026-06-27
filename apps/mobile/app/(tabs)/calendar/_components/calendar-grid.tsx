@@ -6,12 +6,23 @@ import { enUS, ptBR } from "date-fns/locale";
 import type { TFunction } from "i18next";
 import type { CalendarDayEntry } from "@orbit/shared/types/calendar";
 import { GestureDetector, type PanGesture } from "react-native-gesture-handler";
-import { createTokensV2 } from "@/lib/theme";
+import { createTokensV2, tintFromPrimary } from "@/lib/theme";
 
 type Tokens = ReturnType<typeof createTokensV2>;
 type DayStatus = "empty" | "full" | "partial" | "missed";
 
-interface GridDay {
+function isInRange(
+  dateStr: string,
+  start?: string | null,
+  end?: string | null,
+): boolean {
+  if (!start || !end) return false;
+  const lo = start <= end ? start : end;
+  const hi = start <= end ? end : start;
+  return dateStr >= lo && dateStr <= hi;
+}
+
+export interface GridDay {
   date: Date;
   dateStr: string;
   day: number;
@@ -23,7 +34,7 @@ interface GridDay {
   completionRatio: number;
 }
 
-interface WeekdayHeader {
+export interface WeekdayHeader {
   key: string;
   label: string;
 }
@@ -33,11 +44,15 @@ interface CalendarGridProps {
   weekdayHeaders: WeekdayHeader[];
   selectedDay: string | null;
   isLoading: boolean;
-  monthKey: string;
-  monthEntering: EntryOrExitLayoutType | undefined;
-  swipeGesture: PanGesture;
-  gridRef: RefObject<View | null>;
-  todayRef: RefObject<View | null>;
+  /** Inclusive range endpoints (yyyy-MM-dd) for range-pick mode. When set, the
+   *  grid renders an in-range band with highlighted endpoints. */
+  rangeStart?: string | null;
+  rangeEnd?: string | null;
+  monthKey?: string;
+  monthEntering?: EntryOrExitLayoutType | undefined;
+  swipeGesture?: PanGesture;
+  gridRef?: RefObject<View | null>;
+  todayRef?: RefObject<View | null>;
   onSelectDay: (dateStr: string) => void;
   language: string;
   t: TFunction;
@@ -69,6 +84,8 @@ export function CalendarGrid({
   weekdayHeaders,
   selectedDay,
   isLoading,
+  rangeStart = null,
+  rangeEnd = null,
   monthKey,
   monthEntering,
   swipeGesture,
@@ -81,90 +98,97 @@ export function CalendarGrid({
 }: CalendarGridProps) {
   const styles = useMemo(() => createStyles(tokens), [tokens]);
 
-  return (
-    <GestureDetector gesture={swipeGesture}>
-      <View ref={gridRef} collapsable={false} style={styles.calendarGrid}>
-        <Animated.View key={monthKey} entering={monthEntering} style={styles.gridCard}>
-          <View style={styles.weekDayRow}>
-            {weekdayHeaders.map((d) => (
-              <View key={d.key} style={styles.weekDayCell}>
-                <Text style={[styles.weekDayText, { color: tokens.fg3 }]}>
-                  {d.label}
-                </Text>
-              </View>
-            ))}
-          </View>
+  const grid = (
+    <View ref={gridRef} collapsable={false} style={styles.calendarGrid}>
+      <Animated.View key={monthKey} entering={monthEntering} style={styles.gridCard}>
+        <View style={styles.weekDayRow}>
+          {weekdayHeaders.map((d) => (
+            <View key={d.key} style={styles.weekDayCell}>
+              <Text style={[styles.weekDayText, { color: tokens.fg3 }]}>
+                {d.label}
+              </Text>
+            </View>
+          ))}
+        </View>
 
-          <View style={styles.daysGrid}>
-            {gridDays.map((cell) => {
-              const status = dayStatus(cell);
-              const canSelect = cell.isCurrentMonth;
-              const selected = canSelect && cell.dateStr === selectedDay;
-              const statusLabel = dayStatusLabel(status, t);
-              const dayDateLabel = format(cell.date, "EEEE, MMM d", {
-                locale: language === "pt-BR" ? ptBR : enUS,
-              });
-              const dayAccessibilityLabel = statusLabel
-                ? `${dayDateLabel}, ${statusLabel}`
-                : dayDateLabel;
+        <View style={styles.daysGrid}>
+          {gridDays.map((cell) => {
+            const status = dayStatus(cell);
+            const canSelect = cell.isCurrentMonth;
+            const selected = canSelect && cell.dateStr === selectedDay;
+            const inRange = canSelect && isInRange(cell.dateStr, rangeStart, rangeEnd);
+            const isEndpoint =
+              canSelect &&
+              (cell.dateStr === rangeStart || cell.dateStr === rangeEnd);
+            const highlighted = selected || isEndpoint;
+            const statusLabel = dayStatusLabel(status, t);
+            const dayDateLabel = format(cell.date, "EEEE, MMM d", {
+              locale: language === "pt-BR" ? ptBR : enUS,
+            });
+            const dayAccessibilityLabel = statusLabel
+              ? `${dayDateLabel}, ${statusLabel}`
+              : dayDateLabel;
 
-              return (
-                <Pressable
-                  key={cell.dateStr}
-                  ref={cell.isToday ? todayRef : undefined}
-                  onPress={() => canSelect && onSelectDay(cell.dateStr)}
-                  disabled={!canSelect}
-                  hitSlop={4}
-                  accessibilityRole="button"
-                  accessibilityLabel={dayAccessibilityLabel}
-                  accessibilityState={{ selected, disabled: !canSelect }}
-                  style={({ pressed }) => [
-                    styles.dayCell,
-                    pressed && canSelect && styles.dayCellPressed,
+            return (
+              <Pressable
+                key={cell.dateStr}
+                ref={cell.isToday ? todayRef : undefined}
+                onPress={() => canSelect && onSelectDay(cell.dateStr)}
+                disabled={!canSelect}
+                hitSlop={4}
+                accessibilityRole="button"
+                accessibilityLabel={dayAccessibilityLabel}
+                accessibilityState={{ selected: highlighted, disabled: !canSelect }}
+                style={({ pressed }) => [
+                  styles.dayCell,
+                  inRange && { backgroundColor: tintFromPrimary(tokens, 0.12) },
+                  pressed && canSelect && styles.dayCellPressed,
+                ]}
+              >
+                <View
+                  style={[
+                    styles.dayNumPill,
+                    cell.isToday && !highlighted && {
+                      borderWidth: 1.5,
+                      borderColor: tokens.primary,
+                    },
+                    highlighted && {
+                      backgroundColor: tokens.selectionBg,
+                      borderRadius: 14,
+                    },
                   ]}
                 >
-                  <View
+                  <Text
                     style={[
-                      styles.dayNumPill,
-                      cell.isToday && !selected && {
-                        borderWidth: 1.5,
-                        borderColor: tokens.primary,
-                      },
-                      selected && {
-                        backgroundColor: tokens.selectionBg,
-                        borderRadius: 14,
+                      cell.isToday ? styles.dayTextToday : styles.dayText,
+                      {
+                        color:
+                          highlighted || cell.isToday
+                            ? tokens.fg1
+                            : cell.isCurrentMonth
+                              ? tokens.fg2
+                              : tokens.fg4,
                       },
                     ]}
                   >
-                    <Text
-                      style={[
-                        cell.isToday ? styles.dayTextToday : styles.dayText,
-                        {
-                          color:
-                            selected || cell.isToday
-                              ? tokens.fg1
-                              : cell.isCurrentMonth
-                                ? tokens.fg2
-                                : tokens.fg4,
-                        },
-                      ]}
-                    >
-                      {cell.day}
-                    </Text>
-                  </View>
-                  {isLoading ? (
-                    <View style={styles.dayDotSkeleton} />
-                  ) : (
-                    <DayDot status={status} tokens={tokens} />
-                  )}
-                </Pressable>
-              );
-            })}
-          </View>
-        </Animated.View>
-      </View>
-    </GestureDetector>
+                    {cell.day}
+                  </Text>
+                </View>
+                {isLoading ? (
+                  <View style={styles.dayDotSkeleton} />
+                ) : (
+                  <DayDot status={status} tokens={tokens} />
+                )}
+              </Pressable>
+            );
+          })}
+        </View>
+      </Animated.View>
+    </View>
   );
+
+  if (!swipeGesture) return grid;
+  return <GestureDetector gesture={swipeGesture}>{grid}</GestureDetector>;
 }
 
 function DayDot({

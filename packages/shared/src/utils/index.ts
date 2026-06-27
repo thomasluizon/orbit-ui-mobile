@@ -138,6 +138,8 @@ export {
 } from './locale-format'
 export { buildYearRange } from './year-range'
 export { filterRecurringEntries } from './calendar-entries'
+export { clampRangeToMaxDays, MAX_RANGE_DAYS } from './calendar-range'
+export type { ClampedRange } from './calendar-range'
 export { fetchAllPaginatedItems } from './pagination'
 export {
   buildHabitQueryString,

@@ -1,5 +1,5 @@
 import { addDays, differenceInCalendarDays } from 'date-fns'
-import { parseAPIDate, formatAPIDate } from '@orbit/shared/utils'
+import { parseAPIDate, formatAPIDate } from './dates'
 
 export const MAX_RANGE_DAYS = 14
 
@@ -12,7 +12,8 @@ export interface ClampedRange {
 /** Orders the anchor day (first pick) and the newly picked day into a
  *  [start, end] range, clamped to MAX_RANGE_DAYS so the time grid stays
  *  readable. Picks beyond the cap pull the moved endpoint back toward the
- *  anchor and flag that a clamp happened. */
+ *  anchor and flag that a clamp happened. Shared by the web and mobile
+ *  calendar interval views so the 14-day cap behaves identically. */
 export function clampRangeToMaxDays(anchor: string, picked: string): ClampedRange {
   const anchorDate = parseAPIDate(anchor)
   const pickedDate = parseAPIDate(picked)

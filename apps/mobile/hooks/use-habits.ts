@@ -96,7 +96,7 @@ export {
   useHabits,
   useTotalHabitCount,
 } from './use-habit-queries'
-export { useCalendarData } from './use-calendar-data'
+export { useCalendarData, useCalendarRange } from './use-calendar-data'
 export { useSummary } from './use-summary'
 
 export function useLogHabit() {

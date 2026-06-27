@@ -9,8 +9,13 @@ const HOUR_HEIGHT = 48
 const DAY_HEIGHT = HOUR_HEIGHT * 24
 const BLOCK_HEIGHT = 38
 const GUTTER = 56
+const MIN_COL_WIDTH = 80
+const HEADER_HEIGHT = 52
 const BODY_MAX_HEIGHT = 520
+const SCROLLER_MAX_HEIGHT = HEADER_HEIGHT + 40 + BODY_MAX_HEIGHT
 const HOURS = Array.from({ length: 24 }, (_, h) => h)
+
+const CARD_BG = 'var(--bg-card)'
 
 export interface TimeGridColumn {
   date: Date
@@ -191,7 +196,9 @@ function AllDayChip({ entry }: Readonly<{ entry: CalendarDayEntry }>) {
 
 /** Google-Calendar-style time grid: a day column per entry in `columns`, an
  *  untimed all-day band on top, and timed habits placed as blocks by dueTime.
- *  Shared by the week view (7 columns) and custom-range view (N columns). */
+ *  Day columns keep a readable minimum width and scroll horizontally — the left
+ *  time gutter and the header/all-day rows stay pinned — so labels never
+ *  compress. Shared by the week view (7 columns) and custom-range view (N). */
 export function CalendarTimeGrid({
   columns,
   dayMap,
@@ -212,7 +219,8 @@ export function CalendarTimeGrid({
     if (node) node.scrollTop = 7 * HOUR_HEIGHT
   }, [])
 
-  const gridTemplate = `${GUTTER}px repeat(${columns.length}, minmax(0, 1fr))`
+  const gridTemplate = `${GUTTER}px repeat(${columns.length}, minmax(${MIN_COL_WIDTH}px, 1fr))`
+  const gridMinWidth = GUTTER + columns.length * MIN_COL_WIDTH
 
   const perColumn = useMemo(
     () =>
@@ -235,109 +243,130 @@ export function CalendarTimeGrid({
         style={{
           borderRadius: 18,
           overflow: 'hidden',
-          background: 'var(--bg-card)',
+          background: CARD_BG,
           boxShadow: 'inset 0 0 0 1px var(--hairline)',
         }}
       >
-        <div className="grid" style={{ gridTemplateColumns: gridTemplate }}>
-          <div aria-hidden="true" style={{ borderBottom: '1px solid var(--hairline)' }} />
-          {perColumn.map(({ column }) => (
-            <button
-              key={column.dateStr}
-              type="button"
-              data-testid="time-grid-col-header"
-              onClick={() => onSelectDay(column.dateStr)}
-              className="flex flex-col items-center bg-transparent transition-[background-color] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev)]"
+        <div
+          ref={bodyRef}
+          className="thin-scrollbar"
+          style={{ overflow: 'auto', maxHeight: SCROLLER_MAX_HEIGHT }}
+        >
+          <div
+            className="grid sticky top-0 z-[3]"
+            style={{ gridTemplateColumns: gridTemplate, minWidth: gridMinWidth, background: CARD_BG }}
+          >
+            <div
+              aria-hidden="true"
+              className="sticky left-0 z-[1]"
+              style={{ height: HEADER_HEIGHT, borderBottom: '1px solid var(--hairline)', background: CARD_BG }}
+            />
+            {perColumn.map(({ column }) => (
+              <button
+                key={column.dateStr}
+                type="button"
+                data-testid="time-grid-col-header"
+                onClick={() => onSelectDay(column.dateStr)}
+                className="flex flex-col items-center justify-center bg-transparent transition-[background-color] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev)]"
+                style={{
+                  appearance: 'none',
+                  border: 0,
+                  height: HEADER_HEIGHT,
+                  borderLeft: '1px solid var(--hairline)',
+                  borderBottom: '1px solid var(--hairline)',
+                  cursor: 'pointer',
+                  padding: '0 2px',
+                  gap: 2,
+                }}
+              >
+                <span
+                  className="uppercase"
+                  style={{
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: 10,
+                    fontWeight: 500,
+                    letterSpacing: '0.04em',
+                    color: column.isToday ? 'var(--primary)' : 'var(--fg-3)',
+                  }}
+                >
+                  {format(column.date, 'EEE', { locale: dateFnsLocale })}
+                </span>
+                <span
+                  className="inline-flex items-center justify-center rounded-full"
+                  style={{
+                    width: 24,
+                    height: 24,
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: 13,
+                    fontWeight: column.isToday ? 700 : 500,
+                    fontVariantNumeric: 'tabular-nums',
+                    color: column.isToday ? 'var(--fg-on-primary)' : 'var(--fg-1)',
+                    background: column.isToday ? 'var(--primary)' : 'transparent',
+                  }}
+                >
+                  {format(column.date, 'd', { locale: dateFnsLocale })}
+                </span>
+              </button>
+            ))}
+          </div>
+
+          <div
+            className="grid sticky z-[2]"
+            style={{
+              gridTemplateColumns: gridTemplate,
+              minWidth: gridMinWidth,
+              top: HEADER_HEIGHT,
+              background: CARD_BG,
+            }}
+          >
+            <div
+              className="sticky left-0 z-[1] flex items-start justify-end"
               style={{
-                appearance: 'none',
-                border: 0,
-                borderLeft: '1px solid var(--hairline)',
+                padding: '6px 6px 0',
                 borderBottom: '1px solid var(--hairline)',
-                cursor: 'pointer',
-                padding: '8px 2px',
-                gap: 2,
+                background: CARD_BG,
               }}
             >
               <span
                 className="uppercase"
                 style={{
                   fontFamily: 'var(--font-mono)',
-                  fontSize: 10,
+                  fontSize: 9,
                   fontWeight: 500,
                   letterSpacing: '0.04em',
-                  color: column.isToday ? 'var(--primary)' : 'var(--fg-3)',
+                  color: 'var(--fg-4)',
                 }}
               >
-                {format(column.date, 'EEE', { locale: dateFnsLocale })}
+                {allDayLabel}
               </span>
-              <span
-                className="inline-flex items-center justify-center rounded-full"
-                style={{
-                  width: 24,
-                  height: 24,
-                  fontFamily: 'var(--font-mono)',
-                  fontSize: 13,
-                  fontWeight: column.isToday ? 700 : 500,
-                  fontVariantNumeric: 'tabular-nums',
-                  color: column.isToday ? 'var(--fg-on-primary)' : 'var(--fg-1)',
-                  background: column.isToday ? 'var(--primary)' : 'transparent',
-                }}
-              >
-                {format(column.date, 'd', { locale: dateFnsLocale })}
-              </span>
-            </button>
-          ))}
-        </div>
-
-        <div className="grid" style={{ gridTemplateColumns: gridTemplate }}>
-          <div
-            className="flex items-start justify-end"
-            style={{
-              padding: '6px 6px 0',
-              borderBottom: '1px solid var(--hairline)',
-            }}
-          >
-            <span
-              className="uppercase"
-              style={{
-                fontFamily: 'var(--font-mono)',
-                fontSize: 9,
-                fontWeight: 500,
-                letterSpacing: '0.04em',
-                color: 'var(--fg-4)',
-              }}
-            >
-              {allDayLabel}
-            </span>
-          </div>
-          {perColumn.map(({ column, allDay }) => (
-            <div
-              key={column.dateStr}
-              data-testid="time-grid-all-day"
-              data-date={column.dateStr}
-              className="flex flex-col"
-              style={{
-                gap: 3,
-                minHeight: 34,
-                padding: '6px 3px',
-                borderLeft: '1px solid var(--hairline)',
-                borderBottom: '1px solid var(--hairline)',
-              }}
-            >
-              {allDay.map((entry) => (
-                <AllDayChip key={entry.habitId} entry={entry} />
-              ))}
             </div>
-          ))}
-        </div>
+            {perColumn.map(({ column, allDay }) => (
+              <div
+                key={column.dateStr}
+                data-testid="time-grid-all-day"
+                data-date={column.dateStr}
+                className="flex flex-col"
+                style={{
+                  gap: 3,
+                  minHeight: 34,
+                  padding: '6px 3px',
+                  borderLeft: '1px solid var(--hairline)',
+                  borderBottom: '1px solid var(--hairline)',
+                }}
+              >
+                {allDay.map((entry) => (
+                  <AllDayChip key={entry.habitId} entry={entry} />
+                ))}
+              </div>
+            ))}
+          </div>
 
-        <div
-          ref={bodyRef}
-          className="thin-scrollbar overflow-y-auto"
-          style={{ maxHeight: BODY_MAX_HEIGHT }}
-        >
-          <div className="grid" style={{ gridTemplateColumns: gridTemplate }}>
-            <div aria-hidden="true" style={{ position: 'relative', height: DAY_HEIGHT }}>
+          <div className="grid" style={{ gridTemplateColumns: gridTemplate, minWidth: gridMinWidth }}>
+            <div
+              aria-hidden="true"
+              className="sticky left-0 z-[1]"
+              style={{ height: DAY_HEIGHT, background: CARD_BG }}
+            >
               {HOURS.map((hour) => (
                 <span
                   key={hour}
