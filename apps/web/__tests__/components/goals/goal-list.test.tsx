@@ -1,12 +1,14 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
 }))
 
+const reorderMutate = vi.fn()
+
 vi.mock('@/hooks/use-goals', () => ({
-  useReorderGoals: () => ({ mutate: vi.fn() }),
+  useReorderGoals: () => ({ mutate: reorderMutate }),
 }))
 
 vi.mock('./goal-card', () => ({
@@ -24,10 +26,10 @@ vi.mock('@/components/goals/goal-card', () => ({
 import { GoalList } from '@/components/goals/goal-list'
 import type { Goal } from '@orbit/shared/types/goal'
 
-const mockGoals: Goal[] = [
-  {
-    id: 'g1',
-    title: 'Run 100km',
+function makeGoal(id: string, position: number): Goal {
+  return {
+    id,
+    title: `Goal ${id}`,
     description: null,
     targetValue: 100,
     currentValue: 50,
@@ -37,25 +39,25 @@ const mockGoals: Goal[] = [
     progressPercentage: 50,
     createdAtUtc: '2025-01-01T00:00:00Z',
     completedAtUtc: null,
-    position: 0,
-  },
-  {
-    id: 'g2',
-    title: 'Read 12 books',
-    description: null,
-    targetValue: 12,
-    currentValue: 4,
-    unit: 'books',
-    deadline: null,
-    status: 'Active',
-    progressPercentage: 33,
-    createdAtUtc: '2025-01-01T00:00:00Z',
-    completedAtUtc: null,
-    position: 1,
-  },
+    position,
+  }
+}
+
+const mockGoals: Goal[] = [makeGoal('g1', 0), makeGoal('g2', 1)]
+
+const fiveGoals: Goal[] = [
+  makeGoal('a', 0),
+  makeGoal('b', 1),
+  makeGoal('c', 2),
+  makeGoal('d', 3),
+  makeGoal('e', 4),
 ]
 
 describe('GoalList', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
   it('renders all goals', () => {
     render(<GoalList goals={mockGoals} />)
     expect(screen.getByTestId('goal-g1')).toBeInTheDocument()
@@ -84,8 +86,8 @@ describe('GoalList', () => {
     const { container } = render(<GoalList goals={mockGoals} />)
     const sections = container.querySelectorAll('[aria-roledescription="goals.dragItem"]')
     expect(sections).toHaveLength(2)
-    expect(sections[0]).toHaveAttribute('aria-label', 'Run 100km')
-    expect(sections[1]).toHaveAttribute('aria-label', 'Read 12 books')
+    expect(sections[0]).toHaveAttribute('aria-label', 'Goal g1')
+    expect(sections[1]).toHaveAttribute('aria-label', 'Goal g2')
   })
 
   it('applies drag-chosen class on dragStart', () => {
@@ -110,8 +112,42 @@ describe('GoalList', () => {
     fireEvent.dragStart(sections[0]!)
     fireEvent.dragEnter(sections[1]!)
     fireEvent.dragEnd(sections[0]!)
+    expect(reorderMutate).toHaveBeenCalledWith([
+      { id: 'g2', position: 0 },
+      { id: 'g1', position: 1 },
+    ])
     expect(sections[0]!.className).not.toContain('drag-chosen')
     expect(sections[1]!.className).not.toContain('drag-ghost')
+  })
+
+  it('submits arrayMove order for a forward drag (index 1 to 3)', () => {
+    const { container } = render(<GoalList goals={fiveGoals} />)
+    const sections = container.querySelectorAll('[draggable="true"]')
+    fireEvent.dragStart(sections[1]!)
+    fireEvent.dragEnter(sections[3]!)
+    fireEvent.dragEnd(sections[1]!)
+    expect(reorderMutate).toHaveBeenCalledWith([
+      { id: 'a', position: 0 },
+      { id: 'c', position: 1 },
+      { id: 'd', position: 2 },
+      { id: 'b', position: 3 },
+      { id: 'e', position: 4 },
+    ])
+  })
+
+  it('submits arrayMove order for a backward drag (index 3 to 1)', () => {
+    const { container } = render(<GoalList goals={fiveGoals} />)
+    const sections = container.querySelectorAll('[draggable="true"]')
+    fireEvent.dragStart(sections[3]!)
+    fireEvent.dragEnter(sections[1]!)
+    fireEvent.dragEnd(sections[3]!)
+    expect(reorderMutate).toHaveBeenCalledWith([
+      { id: 'a', position: 0 },
+      { id: 'd', position: 1 },
+      { id: 'b', position: 2 },
+      { id: 'c', position: 3 },
+      { id: 'e', position: 4 },
+    ])
   })
 
   it('resets drag state on dragEnd without reorder (same index)', () => {
@@ -119,6 +155,7 @@ describe('GoalList', () => {
     const sections = container.querySelectorAll('[draggable="true"]')
     fireEvent.dragStart(sections[0]!)
     fireEvent.dragEnd(sections[0]!)
+    expect(reorderMutate).not.toHaveBeenCalled()
     expect(sections[0]!.className).not.toContain('drag-chosen')
   })
 

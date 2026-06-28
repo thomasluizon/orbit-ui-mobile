@@ -2,6 +2,7 @@
 
 import { useRef, useCallback, useState } from 'react'
 import { useTranslations } from 'next-intl'
+import { arrayMove } from '@dnd-kit/sortable'
 import { GoalCard } from './goal-card'
 import { useReorderGoals } from '@/hooks/use-goals'
 import type { Goal, GoalPositionItem } from '@orbit/shared/types/goal'
@@ -47,11 +48,7 @@ export function GoalList({ goals, selectedId, onSelect }: Readonly<GoalListProps
       return
     }
 
-    const reordered = [...goals]
-    const [draggedItem] = reordered.splice(dragItemRef.current, 1)
-    if (draggedItem) {
-      reordered.splice(dragOverItemRef.current, 0, draggedItem)
-    }
+    const reordered = arrayMove(goals, dragItemRef.current, dragOverItemRef.current)
 
     const positions: GoalPositionItem[] = reordered.map((g, i) => ({
       id: g.id,
