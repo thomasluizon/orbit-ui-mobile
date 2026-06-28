@@ -114,6 +114,26 @@ describe("CalendarTimeGrid (mobile)", () => {
     expect(hostsByTestID(tree, "time-grid-col-header")).toHaveLength(4);
   });
 
+  it("caps the all-day stack and collapses the overflow into a +N that opens the day", () => {
+    const onSelectDay = vi.fn();
+    const col = column("2025-06-16");
+    const entries = Array.from({ length: 8 }, (_, i) =>
+      makeEntry({ habitId: `ad-${i}`, title: `All ${i}`, dueTime: null }),
+    );
+    const dayMap = new Map<string, CalendarDayEntry[]>([[col.dateStr, entries]]);
+    const tree = renderGrid([col], dayMap, onSelectDay);
+
+    expect(hostsByTestID(tree, "time-grid-all-day-event")).toHaveLength(4);
+    const more = hostsByTestID(tree, "time-grid-all-day-more");
+    expect(more).toHaveLength(1);
+    expect(textValuesWithin(tree, "time-grid-all-day-more")).toContain(4);
+
+    TestRenderer.act(() => {
+      more[0]!.props.onPress();
+    });
+    expect(onSelectDay).toHaveBeenCalledWith("2025-06-16");
+  });
+
   it("opens the tapped day from a column header", () => {
     const onSelectDay = vi.fn();
     const col = column("2025-06-16");

@@ -84,6 +84,23 @@ describe('CalendarTimeGrid', () => {
     expect(onSelectDay).toHaveBeenCalledWith('2025-06-16')
   })
 
+  it('caps the all-day stack and collapses the overflow into a +N that opens the day', () => {
+    const onSelectDay = vi.fn()
+    const col = column(2025, 5, 16)
+    const entries = Array.from({ length: 8 }, (_, i) =>
+      makeEntry({ habitId: `ad-${i}`, title: `All ${i}`, dueTime: null }),
+    )
+    const dayMap = new Map<string, CalendarDayEntry[]>([[col.dateStr, entries]])
+    renderGrid([col], dayMap, onSelectDay)
+
+    expect(screen.getAllByTestId('time-grid-all-day-event')).toHaveLength(4)
+    const more = screen.getByTestId('time-grid-all-day-more')
+    expect(more).toHaveTextContent('+4')
+
+    fireEvent.click(more)
+    expect(onSelectDay).toHaveBeenCalledWith('2025-06-16')
+  })
+
   it('gives the pinned all-day band an opaque backdrop so scrolled hours never bleed through', () => {
     const col = column(2025, 5, 16)
     renderGrid([col], new Map())

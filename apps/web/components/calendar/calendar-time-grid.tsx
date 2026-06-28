@@ -13,7 +13,21 @@ const MIN_COL_WIDTH = 80
 const HEADER_HEIGHT = 52
 const BODY_MAX_HEIGHT = 520
 const SCROLLER_MAX_HEIGHT = HEADER_HEIGHT + 40 + BODY_MAX_HEIGHT
+const ALL_DAY_MAX_VISIBLE = 5
 const HOURS = Array.from({ length: 24 }, (_, h) => h)
+
+/** Caps the all-day stack so a heavy day cannot push the timed grid off-screen:
+ *  the first chips show, the rest collapse into a single tappable "+N". */
+function splitAllDay(allDay: CalendarDayEntry[]): {
+  visible: CalendarDayEntry[]
+  overflow: number
+} {
+  if (allDay.length <= ALL_DAY_MAX_VISIBLE) return { visible: allDay, overflow: 0 }
+  return {
+    visible: allDay.slice(0, ALL_DAY_MAX_VISIBLE - 1),
+    overflow: allDay.length - (ALL_DAY_MAX_VISIBLE - 1),
+  }
+}
 
 const CARD_BG = 'var(--bg-card)'
 const pinnedPaneBackground = {
@@ -198,6 +212,41 @@ function AllDayChip({ entry }: Readonly<{ entry: CalendarDayEntry }>) {
   )
 }
 
+function AllDayMoreChip({
+  count,
+  onSelect,
+}: Readonly<{ count: number; onSelect: () => void }>) {
+  return (
+    <button
+      type="button"
+      data-testid="time-grid-all-day-more"
+      onClick={onSelect}
+      aria-label={`+${count}`}
+      className="flex items-center justify-center bg-transparent transition-[background-color] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev)]"
+      style={{
+        appearance: 'none',
+        cursor: 'pointer',
+        padding: '3px 6px',
+        borderRadius: 6,
+        border: 0,
+        boxShadow: 'inset 0 0 0 1px var(--hairline)',
+      }}
+    >
+      <span
+        style={{
+          fontFamily: 'var(--font-mono)',
+          fontSize: 11,
+          fontWeight: 500,
+          color: 'var(--fg-3)',
+          fontVariantNumeric: 'tabular-nums',
+        }}
+      >
+        +{count}
+      </span>
+    </button>
+  )
+}
+
 /** Google-Calendar-style time grid: a day column per entry in `columns`, an
  *  untimed all-day band on top, and timed habits placed as blocks by dueTime.
  *  Day columns keep a readable minimum width and scroll horizontally — the left
@@ -345,25 +394,31 @@ export function CalendarTimeGrid({
                 {allDayLabel}
               </span>
             </div>
-            {perColumn.map(({ column, allDay }) => (
-              <div
-                key={column.dateStr}
-                data-testid="time-grid-all-day"
-                data-date={column.dateStr}
-                className="flex flex-col"
-                style={{
-                  gap: 3,
-                  minHeight: 34,
-                  padding: '6px 3px',
-                  borderLeft: '1px solid var(--hairline)',
-                  borderBottom: '1px solid var(--hairline)',
-                }}
-              >
-                {allDay.map((entry) => (
-                  <AllDayChip key={entry.habitId} entry={entry} />
-                ))}
-              </div>
-            ))}
+            {perColumn.map(({ column, allDay }) => {
+              const { visible, overflow } = splitAllDay(allDay)
+              return (
+                <div
+                  key={column.dateStr}
+                  data-testid="time-grid-all-day"
+                  data-date={column.dateStr}
+                  className="flex flex-col"
+                  style={{
+                    gap: 3,
+                    minHeight: 34,
+                    padding: '6px 3px',
+                    borderLeft: '1px solid var(--hairline)',
+                    borderBottom: '1px solid var(--hairline)',
+                  }}
+                >
+                  {visible.map((entry) => (
+                    <AllDayChip key={entry.habitId} entry={entry} />
+                  ))}
+                  {overflow > 0 && (
+                    <AllDayMoreChip count={overflow} onSelect={() => onSelectDay(column.dateStr)} />
+                  )}
+                </div>
+              )
+            })}
           </div>
 
           <div className="grid" style={{ gridTemplateColumns: gridTemplate, minWidth: gridMinWidth }}>
