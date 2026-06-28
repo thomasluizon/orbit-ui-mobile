@@ -50,7 +50,9 @@ interface AppSidebarProps {
  * route + `activeView` into `sections` (each a leaf or the expandable Hábitos
  * parent with leaf children) and supplies the create handler. Collapses to an
  * icon rail; width snaps (layout is never animated) while labels fade. Active
- * rows are a full primary-tinted pill, never a side-stripe.
+ * rows are a full primary-tinted pill, never a side-stripe. The outer column
+ * stretches to the full content height so its right seam runs the entire page,
+ * while an inner `sticky` viewport-tall wrapper keeps the nav pinned in view.
  */
 export function AppSidebar({
   sections,
@@ -67,14 +69,20 @@ export function AppSidebar({
       data-sidebar=""
       data-collapsed={collapsed ? '' : undefined}
       aria-label={brandLabel}
-      className="sticky top-0 z-30 hidden h-dvh shrink-0 flex-col md:flex"
+      className="z-30 hidden shrink-0 self-stretch md:block"
       style={{
         width: collapsed ? 'var(--sidebar-w-collapsed)' : 'var(--sidebar-w)',
-        paddingTop: 'calc(var(--safe-top) + 14px)',
-        paddingBottom: 'calc(var(--safe-bottom) + 14px)',
         boxShadow: 'inset -1px 0 0 var(--hairline)',
       }}
     >
+      <div
+        className="sticky top-0 flex max-h-dvh flex-col"
+        style={{
+          height: '100dvh',
+          paddingTop: 'calc(var(--safe-top) + 14px)',
+          paddingBottom: 'calc(var(--safe-bottom) + 14px)',
+        }}
+      >
       <div
         className="flex items-center"
         style={{
@@ -143,6 +151,7 @@ export function AppSidebar({
           <SidebarSectionRow key={section.id} section={section} collapsed={collapsed} />
         ))}
       </nav>
+      </div>
     </aside>
   )
 }

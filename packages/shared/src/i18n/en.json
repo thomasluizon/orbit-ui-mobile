@@ -209,7 +209,8 @@
   "rail": {
     "todayProgress": "Today",
     "allDone": "All done",
-    "progressLabel": "{done} of {total} habits completed"
+    "progressLabel": "{done} of {total} habits completed",
+    "remaining": "Remaining today"
   },
   "astraRail": {
     "open": "Open Astra",
