@@ -15,10 +15,11 @@ import { ProgressBar } from '@/components/ui/progress-bar'
 interface GoalCardProps {
   goal: Goal
   onPress?: (goalId: string) => void
+  onLongPress?: () => void
   tourTargetId?: string
 }
 
-export function GoalCard({ goal, onPress, tourTargetId }: GoalCardProps) {
+export function GoalCard({ goal, onPress, onLongPress, tourTargetId }: GoalCardProps) {
   const { t } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
@@ -162,6 +163,8 @@ export function GoalCard({ goal, onPress, tourTargetId }: GoalCardProps) {
         ref={tourTargetId ? cardRef : undefined}
         style={styles.card}
         onPress={() => onPress?.(goal.id)}
+        onLongPress={onLongPress}
+        delayLongPress={300}
         onPressIn={handlePressIn}
         onPressOut={handlePressOut}
         activeOpacity={0.88}

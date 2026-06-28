@@ -35,11 +35,13 @@ import { CalendarDayDetail } from '@/components/calendar/calendar-day-detail'
 import { CalendarStats } from '@/components/calendar/calendar-stats'
 import { CalendarWeekView } from '@/components/calendar/calendar-week-view'
 import { CalendarRangeView } from '@/components/calendar/calendar-range-view'
+import { CalendarAgendaView } from '@/components/calendar/calendar-agenda-view'
 import type { TimeGridColumn } from '@/components/calendar/calendar-time-grid'
 import { AppOverlay } from '@/components/ui/app-overlay'
 import { GradientTop } from '@/components/ui/gradient-top'
 import { SectionLabel } from '@/components/ui/section-label'
-import { SectionHeadTabs } from '@/components/ui/section-head-tabs'
+import { SectionHeadTabs, type SectionHeadTabItem } from '@/components/ui/section-head-tabs'
+import { useIsDesktop } from '@/components/calendar/use-is-desktop'
 import {
   CalendarHeader,
   CalendarLegend,
@@ -48,7 +50,7 @@ import {
 const SWIPE_THRESHOLD = 50
 
 type MonthSlide = 'left' | 'right' | null
-type CalendarView = 'month' | 'week' | 'range'
+type CalendarView = 'month' | 'week' | 'range' | 'agenda'
 
 export default function CalendarPage() {
   const t = useTranslations()
@@ -57,8 +59,10 @@ export default function CalendarPage() {
   const { displayTime } = useTimeFormat()
   const { profile } = useProfile()
   const weekStartsOn: 0 | 1 = profile?.weekStartDay ?? 1
+  const isDesktop = useIsDesktop()
 
   const [view, setView] = useState<CalendarView>('month')
+  const activeView: CalendarView = !isDesktop && view === 'agenda' ? 'month' : view
   const [currentMonth, setCurrentMonth] = useState(() => startOfMonth(new Date()))
   const [monthSlide, setMonthSlide] = useState<MonthSlide>(null)
   const [weekAnchor, setWeekAnchor] = useState(() => new Date())
@@ -95,7 +99,7 @@ export default function CalendarPage() {
     dayMap: rangeDayMap,
     isLoading: rangeLoading,
     isFetching: rangeFetching,
-  } = useCalendarRange(gridStartDate, gridEndDate, view !== 'month')
+  } = useCalendarRange(gridStartDate, gridEndDate, view === 'week' || view === 'range')
 
   const gridColumns = useMemo<TimeGridColumn[]>(() => {
     const days =
@@ -221,20 +225,30 @@ export default function CalendarPage() {
     [monthStats, t],
   )
 
+  const viewTabs = useMemo<SectionHeadTabItem<CalendarView>[]>(() => {
+    const base: SectionHeadTabItem<CalendarView>[] = [
+      { id: 'month', label: t('calendar.view.month') },
+      { id: 'week', label: t('calendar.view.week') },
+      { id: 'range', label: t('calendar.view.range') },
+    ]
+    if (isDesktop) base.push({ id: 'agenda', label: t('calendar.viewAgenda') })
+    return base
+  }, [t, isDesktop])
+
   const touchStartX = useRef<number | null>(null)
 
   const handleTouchStart = useCallback(
     (e: React.TouchEvent) => {
-      if (view !== 'month') return
+      if (activeView !== 'month') return
       const touch = e.touches[0]
       if (touch) touchStartX.current = touch.clientX
     },
-    [view],
+    [activeView],
   )
 
   const handleTouchEnd = useCallback(
     (e: React.TouchEvent) => {
-      if (view !== 'month' || touchStartX.current === null) return
+      if (activeView !== 'month' || touchStartX.current === null) return
       const touch = e.changedTouches[0]
       if (!touch) return
       const deltaX = touch.clientX - touchStartX.current
@@ -248,7 +262,7 @@ export default function CalendarPage() {
         setCurrentMonth((m) => subMonths(m, 1))
       }
     },
-    [view],
+    [activeView],
   )
 
   const monthSlideClass =
@@ -267,17 +281,13 @@ export default function CalendarPage() {
       <GradientTop height={180} />
       <div className="relative z-[1]">
         <SectionHeadTabs<CalendarView>
-          tabs={[
-            { id: 'month', label: t('calendar.view.month') },
-            { id: 'week', label: t('calendar.view.week') },
-            { id: 'range', label: t('calendar.view.range') },
-          ]}
-          active={view}
+          tabs={viewTabs}
+          active={activeView}
           onChange={setView}
           ariaLabel={t('calendar.view.switchLabel')}
         />
 
-        {(view === 'month' || view === 'range') && (
+        {(activeView === 'month' || activeView === 'range') && (
           <CalendarHeader
             monthLabel={monthLabel}
             year={currentYear}
@@ -298,7 +308,7 @@ export default function CalendarPage() {
           }`}
         />
 
-        {view === 'month' && (
+        {activeView === 'month' && (
           <>
             <div key={format(currentMonth, 'yyyy-MM')} className={monthSlideClass}>
               <CalendarGrid
@@ -360,6 +370,15 @@ export default function CalendarPage() {
             dateFnsLocale={dateFnsLocale}
             allDayLabel={t('calendar.timeGrid.allDay')}
             nowLabel={t('calendar.timeGrid.now')}
+            showRecurring={showRecurring}
+            onShowRecurringChange={setShowRecurring}
+          />
+        )}
+
+        {activeView === 'agenda' && (
+          <CalendarAgendaView
+            displayTime={displayTime}
+            dateFnsLocale={dateFnsLocale}
             showRecurring={showRecurring}
             onShowRecurringChange={setShowRecurring}
           />

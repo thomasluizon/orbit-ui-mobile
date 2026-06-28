@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl'
 import { CalendarDays } from 'lucide-react'
 import { Providers } from '@/lib/providers'
 import { WebNav } from '@/components/navigation/web-nav'
+import { AppShell } from '@/components/shell/app-shell'
 import type { BottomTab } from '@/components/navigation/bottom-tab-bar'
 import { TrialBanner } from '@/components/ui/trial-banner'
 import { UpdateAvailableBanner } from '@/components/ui/update-available-banner'
@@ -160,20 +161,18 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
   )
 
   return (
-    <div className="relative isolate min-h-dvh overflow-x-hidden bg-[var(--bg)] text-[var(--fg-1)] pb-28 pt-[var(--safe-top)]">
-      <main
-        className="relative z-10 mx-auto max-w-[var(--app-max-w)] px-[var(--app-px)]"
-      >
+    <div className="relative isolate min-h-dvh overflow-x-hidden bg-[var(--bg)] text-[var(--fg-1)] pb-28 pt-[var(--safe-top)] md:pb-0">
+      <AppShell onCreate={handleCreate}>
         <TrialBanner />
         <UpdateAvailableBanner />
         <RouteTransitionShell>
           <div>{children}</div>
         </RouteTransitionShell>
-      </main>
+      </AppShell>
 
       <div
         data-bottom-nav=""
-        className="fixed bottom-0 left-0 right-0 z-40"
+        className="fixed bottom-0 left-0 right-0 z-40 md:hidden"
         style={{
           paddingBottom: 'var(--safe-bottom)',
           background: 'var(--bg)',

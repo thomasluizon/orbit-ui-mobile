@@ -14,6 +14,7 @@ import { ProUpgradeLink } from './_components/pro-upgrade-link'
 import { FactsSelectBar } from './_components/facts-select-bar'
 import { UserFactsList } from './_components/user-facts-list'
 import { useUserFacts } from './_components/use-user-facts'
+import { SettingsShell } from '@/components/settings/settings-shell'
 
 export default function AiSettingsPage() {
   const t = useTranslations()
@@ -75,71 +76,73 @@ export default function AiSettingsPage() {
   const showFactsPagination = totalFactsPages > 1
 
   return (
-    <div className="flex flex-col min-h-[100dvh]">
-      <AppBar
-        back
-        backLabel={t('common.backToProfile')}
-        onBack={() => goBackOrFallback('/profile')}
-        title={t('aiSettings.title')}
-      />
-      <div className="flex-1 min-h-0 overflow-y-auto stagger-enter">
-        <AiFeatureToggles
-          hasProAccess={hasProAccess}
-          aiMemoryEnabled={aiMemoryEnabled}
-          aiSummaryEnabled={aiSummaryEnabled}
-          memoryPending={aiMemoryMutation.isPending}
-          summaryPending={aiSummaryMutation.isPending}
-          onToggleMemory={() => aiMemoryMutation.mutate(!aiMemoryEnabled)}
-          onToggleSummary={() => aiSummaryMutation.mutate(!aiSummaryEnabled)}
+    <SettingsShell panel="ai-settings">
+      <div className="flex flex-col min-h-[100dvh]">
+        <AppBar
+          back
+          backLabel={t('common.backToProfile')}
+          onBack={() => goBackOrFallback('/profile')}
+          title={t('aiSettings.title')}
         />
-
-        <SectionLabel
-          trailing={
-            hasProAccess && facts.length > 0 ? (
-              <FactsSelectBar
-                selectMode={selectMode}
-                selectedCount={selectedFactIds.size}
-                allSelected={selectedFactIds.size === facts.length}
-                bulkDeletePending={bulkDeleteMutation.isPending}
-                showPagination={showFactsPagination}
-                page={factsPage}
-                totalPages={totalFactsPages}
-                onPreviousPage={() => setFactsPage((p) => p - 1)}
-                onNextPage={() => setFactsPage((p) => p + 1)}
-                onToggleSelectAll={toggleSelectAll}
-                onBulkDelete={() =>
-                  bulkDeleteMutation.mutate([...selectedFactIds])
-                }
-                onToggleSelectMode={toggleSelectMode}
-              />
-            ) : undefined
-          }
-        >
-          {t('profile.facts.title')}
-        </SectionLabel>
-
-        {!hasProAccess && (
-          <div style={{ padding: '4px 20px 14px' }}>
-            <ProUpgradeLink label={t('common.proBadge')} />
-          </div>
-        )}
-
-        {hasProAccess && (
-          <UserFactsList
-            isLoading={factsQuery.isLoading}
-            hasError={!!factsQuery.error}
-            facts={facts}
-            pagedFacts={pagedFacts}
-            selectMode={selectMode}
-            selectedFactIds={selectedFactIds}
-            onToggleSelection={toggleFactSelection}
-            onDelete={(id) => deleteMutation.mutate(id)}
-            onRetry={() => factsQuery.refetch()}
-            onAskAstra={() => router.push('/chat')}
+        <div className="flex-1 min-h-0 overflow-y-auto stagger-enter">
+          <AiFeatureToggles
+            hasProAccess={hasProAccess}
+            aiMemoryEnabled={aiMemoryEnabled}
+            aiSummaryEnabled={aiSummaryEnabled}
+            memoryPending={aiMemoryMutation.isPending}
+            summaryPending={aiSummaryMutation.isPending}
+            onToggleMemory={() => aiMemoryMutation.mutate(!aiMemoryEnabled)}
+            onToggleSummary={() => aiSummaryMutation.mutate(!aiSummaryEnabled)}
           />
-        )}
-        <div style={{ height: 24 }} />
+
+          <SectionLabel
+            trailing={
+              hasProAccess && facts.length > 0 ? (
+                <FactsSelectBar
+                  selectMode={selectMode}
+                  selectedCount={selectedFactIds.size}
+                  allSelected={selectedFactIds.size === facts.length}
+                  bulkDeletePending={bulkDeleteMutation.isPending}
+                  showPagination={showFactsPagination}
+                  page={factsPage}
+                  totalPages={totalFactsPages}
+                  onPreviousPage={() => setFactsPage((p) => p - 1)}
+                  onNextPage={() => setFactsPage((p) => p + 1)}
+                  onToggleSelectAll={toggleSelectAll}
+                  onBulkDelete={() =>
+                    bulkDeleteMutation.mutate([...selectedFactIds])
+                  }
+                  onToggleSelectMode={toggleSelectMode}
+                />
+              ) : undefined
+            }
+          >
+            {t('profile.facts.title')}
+          </SectionLabel>
+
+          {!hasProAccess && (
+            <div style={{ padding: '4px 20px 14px' }}>
+              <ProUpgradeLink label={t('common.proBadge')} />
+            </div>
+          )}
+
+          {hasProAccess && (
+            <UserFactsList
+              isLoading={factsQuery.isLoading}
+              hasError={!!factsQuery.error}
+              facts={facts}
+              pagedFacts={pagedFacts}
+              selectMode={selectMode}
+              selectedFactIds={selectedFactIds}
+              onToggleSelection={toggleFactSelection}
+              onDelete={(id) => deleteMutation.mutate(id)}
+              onRetry={() => factsQuery.refetch()}
+              onAskAstra={() => router.push('/chat')}
+            />
+          )}
+          <div style={{ height: 24 }} />
+        </div>
       </div>
-    </div>
+    </SettingsShell>
   )
 }

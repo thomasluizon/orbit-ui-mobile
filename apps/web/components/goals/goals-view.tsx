@@ -4,6 +4,8 @@ import { useState, useCallback, useMemo } from 'react'
 import { Check, Filter } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { GoalList } from './goal-list'
+import { GoalsDesktopView } from './goals-desktop-view'
+import { useIsDesktop } from './use-is-desktop'
 import { SkeletonCard } from '@/components/ui/skeleton'
 import { EmptyState } from '@/components/ui/empty-state'
 import { Popover } from '@/components/ui/popover'
@@ -18,6 +20,7 @@ interface StatusFilter {
 
 export function GoalsView() {
   const t = useTranslations()
+  const isDesktop = useIsDesktop()
   const [activeFilter, setActiveFilter] = useState<GoalStatus | null>(null)
 
   const { data, isFetched } = useGoals(activeFilter)
@@ -42,73 +45,86 @@ export function GoalsView() {
     setActiveFilter(status)
   }, [])
 
+  const filterHeader = (
+    <SectionLabel
+      top={16}
+      bottom={12}
+      trailing={
+        <div className="flex items-center" style={{ gap: 8 }}>
+          <Popover
+            placement="bottom-end"
+            className="min-w-[180px]"
+            trigger={
+              <button
+                type="button"
+                aria-label={t('goals.filters.statusFilter')}
+                aria-pressed={activeFilter != null}
+                className={`icon-btn text-[var(--fg-3)] hover:text-[var(--fg-1)] ${
+                  activeFilter ? 'icon-btn-ring bg-[var(--bg-elev)] text-[var(--fg-1)]' : ''
+                }`}
+              >
+                <Filter size={18} strokeWidth={1.8} />
+              </button>
+            }
+          >
+            {(close) => (
+              <>
+                {statusFilters.map((filter) => {
+                  const active = activeFilter === filter.key
+                  return (
+                    <button
+                      key={filter.key ?? 'all'}
+                      type="button"
+                      role="menuitemradio"
+                      aria-checked={active}
+                      onClick={() => {
+                        handleFilterChange(filter.key)
+                        close()
+                      }}
+                      className="w-full appearance-none border-0 bg-transparent cursor-pointer flex items-center transition-colors hover:bg-[var(--bg-sunk)]"
+                      style={{
+                        padding: '8px 10px',
+                        gap: 10,
+                        fontFamily: 'var(--font-sans)',
+                        fontSize: 14,
+                        fontWeight: active ? 600 : 500,
+                        color: active ? 'var(--fg-1)' : 'var(--fg-2)',
+                        textAlign: 'left',
+                        borderRadius: 6,
+                      }}
+                    >
+                      <span
+                        className="inline-flex shrink-0 items-center justify-center"
+                        style={{ width: 14, color: 'var(--primary)' }}
+                      >
+                        {active ? <Check size={14} strokeWidth={2} /> : null}
+                      </span>
+                      {filter.label}
+                    </button>
+                  )
+                })}
+              </>
+            )}
+          </Popover>
+        </div>
+      }
+    >
+      {t('goals.tab')}
+    </SectionLabel>
+  )
+
+  if (isDesktop) {
+    return (
+      <div className="pt-1">
+        {filterHeader}
+        <GoalsDesktopView goals={filteredGoals} isFetched={isFetched} />
+      </div>
+    )
+  }
+
   return (
     <div className="pt-1">
-      <SectionLabel
-        top={16}
-        bottom={12}
-        trailing={
-          <div className="flex items-center" style={{ gap: 8 }}>
-            <Popover
-              placement="bottom-end"
-              className="min-w-[180px]"
-              trigger={
-                <button
-                  type="button"
-                  aria-label={t('goals.filters.statusFilter')}
-                  aria-pressed={activeFilter != null}
-                  className={`icon-btn text-[var(--fg-3)] hover:text-[var(--fg-1)] ${
-                    activeFilter ? 'icon-btn-ring bg-[var(--bg-elev)] text-[var(--fg-1)]' : ''
-                  }`}
-                >
-                  <Filter size={18} strokeWidth={1.8} />
-                </button>
-              }
-            >
-              {(close) => (
-                <>
-                  {statusFilters.map((filter) => {
-                    const active = activeFilter === filter.key
-                    return (
-                      <button
-                        key={filter.key ?? 'all'}
-                        type="button"
-                        role="menuitemradio"
-                        aria-checked={active}
-                        onClick={() => {
-                          handleFilterChange(filter.key)
-                          close()
-                        }}
-                        className="w-full appearance-none border-0 bg-transparent cursor-pointer flex items-center transition-colors hover:bg-[var(--bg-sunk)]"
-                        style={{
-                          padding: '8px 10px',
-                          gap: 10,
-                          fontFamily: 'var(--font-sans)',
-                          fontSize: 14,
-                          fontWeight: active ? 600 : 500,
-                          color: active ? 'var(--fg-1)' : 'var(--fg-2)',
-                          textAlign: 'left',
-                          borderRadius: 6,
-                        }}
-                      >
-                        <span
-                          className="inline-flex shrink-0 items-center justify-center"
-                          style={{ width: 14, color: 'var(--primary)' }}
-                        >
-                          {active ? <Check size={14} strokeWidth={2} /> : null}
-                        </span>
-                        {filter.label}
-                      </button>
-                    )
-                  })}
-                </>
-              )}
-            </Popover>
-          </div>
-        }
-      >
-        {t('goals.tab')}
-      </SectionLabel>
+      {filterHeader}
 
       <div className="px-5">
         {!isFetched && (

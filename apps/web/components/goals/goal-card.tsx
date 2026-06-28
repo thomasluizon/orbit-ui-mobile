@@ -6,12 +6,15 @@ import { useTranslations } from 'next-intl'
 import { plural } from '@/lib/plural'
 import { StatusDot, type StatusDotState } from '@/components/ui/status-dot'
 import { ProgressBar } from '@/components/ui/progress-bar'
-import { GoalDetailDrawer } from './goal-detail-drawer'
+import { useContextMenu, type ContextMenuItem } from '@/components/ui/context-menu'
+import { GoalDetailDrawer, type GoalDrawerInitialAction } from './goal-detail-drawer'
 import { isStreakGoal } from '@orbit/shared/utils/goal-form'
 import type { Goal } from '@orbit/shared/types/goal'
 
 interface GoalCardProps {
   goal: Goal
+  selected?: boolean
+  onSelect?: (goalId: string) => void
 }
 
 const badgeClassName =
@@ -26,10 +29,12 @@ const badgeStyle = {
   boxShadow: 'inset 0 0 0 1px var(--hairline)',
 } as const
 
-export function GoalCard({ goal }: Readonly<GoalCardProps>) {
+export function GoalCard({ goal, selected = false, onSelect }: Readonly<GoalCardProps>) {
   const t = useTranslations()
   const [showDetail, setShowDetail] = useState(false)
+  const [drawerAction, setDrawerAction] = useState<GoalDrawerInitialAction | null>(null)
 
+  const selectable = onSelect !== undefined
   const isStreak = isStreakGoal(goal.type)
 
   const progress = useMemo<{ state: string; color: string; textColor: string }>(() => {
@@ -102,14 +107,43 @@ export function GoalCard({ goal }: Readonly<GoalCardProps>) {
 
   const percentLabel = t('goals.progressPercentage', { pct: goal.progressPercentage })
 
+  function openDrawer(action: GoalDrawerInitialAction | null) {
+    setDrawerAction(action)
+    setShowDetail(true)
+  }
+
+  const contextMenuItems: ContextMenuItem[] = selectable
+    ? []
+    : [
+        { key: 'viewDetails', label: t('contextMenu.viewDetails'), onSelect: () => openDrawer(null) },
+        { key: 'edit', label: t('contextMenu.edit'), onSelect: () => openDrawer('edit') },
+        goal.status === 'Active'
+          ? { key: 'complete', label: t('contextMenu.complete'), onSelect: () => openDrawer('complete') }
+          : null,
+        {
+          key: 'delete',
+          label: t('contextMenu.delete'),
+          onSelect: () => openDrawer('delete'),
+          danger: true,
+        },
+      ].filter((item): item is ContextMenuItem => item !== null)
+
+  const { onContextMenu, contextMenu } = useContextMenu(contextMenuItems)
+
   return (
     <>
       <button
         type="button"
         data-tour="tour-goal-card"
+        aria-current={selectable && selected ? 'true' : undefined}
+        onContextMenu={onContextMenu}
         className="card-int group relative w-full appearance-none overflow-hidden border-0 text-left"
-        style={{ padding: '16px 18px' }}
-        onClick={() => setShowDetail(true)}
+        style={
+          selected
+            ? { padding: '16px 18px', boxShadow: 'inset 0 0 0 1.5px var(--primary)' }
+            : { padding: '16px 18px' }
+        }
+        onClick={selectable ? () => onSelect(goal.id) : () => setShowDetail(true)}
       >
         <div className="flex items-center" style={{ gap: 12, marginBottom: 12 }}>
           <span
@@ -210,11 +244,18 @@ export function GoalCard({ goal }: Readonly<GoalCardProps>) {
         </div>
       </button>
 
-      <GoalDetailDrawer
-        open={showDetail}
-        onOpenChange={setShowDetail}
-        goalId={goal.id}
-      />
+      {!selectable && (
+        <GoalDetailDrawer
+          open={showDetail}
+          onOpenChange={(open) => {
+            setShowDetail(open)
+            if (!open) setDrawerAction(null)
+          }}
+          goalId={goal.id}
+          initialAction={drawerAction}
+        />
+      )}
+      {contextMenu}
     </>
   )
 }

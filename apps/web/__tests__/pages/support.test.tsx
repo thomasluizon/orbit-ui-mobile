@@ -56,6 +56,10 @@ vi.mock('@/components/ui/offline-unavailable-state', () => ({
 
 vi.mock('@/app/actions/profile', () => ({}))
 
+vi.mock('@/components/settings/settings-shell', () => ({
+  SettingsShell: ({ children }: { children: React.ReactNode }) => <>{children}</>,
+}))
+
 import SupportPage from '@/app/(app)/support/page'
 
 describe('SupportPage', () => {

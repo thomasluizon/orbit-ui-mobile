@@ -42,10 +42,16 @@ import {
   useDeleteGoal,
 } from '@/hooks/use-goals'
 
+export type GoalDrawerInitialAction = 'edit' | 'complete' | 'delete'
+
 interface GoalDetailDrawerProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   goalId: string
+  /** When the drawer opens, immediately deep-link into one of its existing actions
+   *  (edit modal, mark-completed, or delete confirm). Applied once per open; omit for
+   *  the normal view-details open. Lets the goal-card context menu reuse these handlers. */
+  initialAction?: GoalDrawerInitialAction | null
 }
 
 type ProgressDismissTarget = 'drawer' | 'form'
@@ -54,6 +60,7 @@ export function GoalDetailDrawer({
   open,
   onOpenChange,
   goalId,
+  initialAction,
 }: Readonly<GoalDetailDrawerProps>) {
   const t = useTranslations()
   const translate = useCallback(
@@ -267,6 +274,20 @@ export function GoalDetailDrawer({
     setPendingProgressDismiss(null)
     setShowProgressDiscardDialog(false)
   }, [])
+
+  const [previousActionOpen, setPreviousActionOpen] = useState(open)
+  if (previousActionOpen !== open) {
+    setPreviousActionOpen(open)
+    if (open && initialAction) {
+      if (initialAction === 'edit') {
+        setShowEditModal(true)
+      } else if (initialAction === 'delete') {
+        setShowDeleteConfirm(true)
+      } else {
+        void markCompleted()
+      }
+    }
+  }
 
   return (
     <>
