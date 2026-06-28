@@ -182,13 +182,13 @@ export function AppShell({ children, onCreate }: Readonly<AppShellProps>) {
   )
 
   const topbarTitle = useMemo(() => {
-    if (onHome) return goalsActive ? t('goals.tab') : t('nav.today')
+    if (onHome) return ''
     if (pathname.startsWith('/calendar')) return t('nav.calendar')
     if (pathname.startsWith('/insights')) return t('nav.insights')
     if (pathname.startsWith('/chat')) return t('nav.astra')
     if (pathname.startsWith('/profile')) return t('nav.profile')
-    return t('nav.today')
-  }, [t, pathname, onHome, goalsActive])
+    return ''
+  }, [t, pathname, onHome])
 
   const railContent = onHome ? <TodayRail /> : null
 

@@ -31,7 +31,7 @@ export function DesktopTopbar({ title }: Readonly<DesktopTopbarProps>) {
       style={{ minHeight: 56, gap: 12, paddingBlock: 8 }}
     >
       <div className="flex min-w-0 flex-1 items-center">
-        {slotNode ?? (
+        {slotNode ?? (title ? (
           <h1
             className="truncate"
             style={{
@@ -45,7 +45,7 @@ export function DesktopTopbar({ title }: Readonly<DesktopTopbarProps>) {
           >
             {title}
           </h1>
-        )}
+        ) : null)}
       </div>
       <div className="flex shrink-0 items-center" style={{ gap: 10 }}>
         <ThemeToggle />

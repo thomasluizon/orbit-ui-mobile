@@ -8,6 +8,7 @@ import {
   Plus,
   type LucideProps,
 } from 'lucide-react'
+import { AppLogo } from '@/components/ui/app-logo'
 
 export interface SidebarNavItem {
   id: string
@@ -92,17 +93,19 @@ export function AppSidebar({
         }}
       >
         {!collapsed && (
-          <span
-            className="select-none"
-            style={{
-              fontFamily: 'var(--font-display)',
-              fontSize: 22,
-              fontWeight: 600,
-              letterSpacing: '-0.01em',
-              color: 'var(--fg-1)',
-            }}
-          >
-            {brandLabel}
+          <span className="flex select-none items-center" style={{ gap: 8 }}>
+            <AppLogo size={26} />
+            <span
+              style={{
+                fontFamily: 'var(--font-display)',
+                fontSize: 22,
+                fontWeight: 600,
+                letterSpacing: '-0.01em',
+                color: 'var(--fg-1)',
+              }}
+            >
+              {brandLabel}
+            </span>
           </span>
         )}
         <button

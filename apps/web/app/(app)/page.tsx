@@ -460,27 +460,28 @@ export default function TodayPage() {
           aria-labelledby={`tab-${currentActiveView}`}
           className="md:max-w-[820px] xl:max-w-none"
         >
-          <SectionLabel
-            top={20}
-            bottom={showDayProgress ? 6 : 0}
-            trailing={
-              showDayProgress ? (
-                <span
-                  className="md:hidden"
-                  style={{
-                    fontFamily: 'var(--font-mono)',
-                    fontSize: 14,
-                    color: 'var(--fg-2)',
-                    fontVariantNumeric: 'tabular-nums',
-                  }}
-                >
-                  {dayProgress.done}/{dayProgress.total}
-                </span>
-              ) : undefined
-            }
-          >
-            {t('habits.sectionLabel')}
-          </SectionLabel>
+          <div className="md:hidden">
+            <SectionLabel
+              top={20}
+              bottom={showDayProgress ? 6 : 0}
+              trailing={
+                showDayProgress ? (
+                  <span
+                    style={{
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: 14,
+                      color: 'var(--fg-2)',
+                      fontVariantNumeric: 'tabular-nums',
+                    }}
+                  >
+                    {dayProgress.done}/{dayProgress.total}
+                  </span>
+                ) : undefined
+              }
+            >
+              {t('habits.sectionLabel')}
+            </SectionLabel>
+          </div>
 
           {showDayProgress && (
             <div className="md:hidden" style={{ padding: '0 20px 6px' }}>
