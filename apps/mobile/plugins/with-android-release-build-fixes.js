@@ -31,7 +31,7 @@ subprojects { subproject ->
 `
 
 const ADS_VERSION_PIN_MARKER = 'orbit-play-services-ads-version-pin'
-const PINNED_PLAY_SERVICES_ADS_VERSION = '25.0.0'
+const PINNED_PLAY_SERVICES_ADS_VERSION = '25.2.0'
 const ADS_VERSION_PIN_SNIPPET = `// ${ADS_VERSION_PIN_MARKER}
 allprojects {
     configurations.all {
@@ -40,7 +40,7 @@ allprojects {
                     && details.requested.name.startsWith('play-services-ads')
                     && details.requested.name != 'play-services-ads-identifier') {
                 details.useVersion '${PINNED_PLAY_SERVICES_ADS_VERSION}'
-                details.because 'play-services-ads 25.4.0 ships Kotlin 2.3 metadata which the Expo SDK 55 (Kotlin 2.1) toolchain cannot compile against'
+                details.because 'play-services-ads 25.3.0+ ships Kotlin 2.3 metadata the Expo SDK 55 (Kotlin 2.1) toolchain cannot read; 25.2.0 is the last release before that bump and still has the AgeRestrictedTreatment API react-native-google-mobile-ads 16.3.3 needs'
             }
         }
     }
