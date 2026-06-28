@@ -35,9 +35,7 @@
     "theme": {
       "switchToLight": "Mudar para o modo claro",
       "switchToDark": "Mudar para o modo escuro"
-    },
-    "shellTitle": "Configurações",
-    "shellSubtitle": "Gerencie sua conta e preferências"
+    }
   },
   "pushPrompt": {
     "title": "Não perca o ritmo",

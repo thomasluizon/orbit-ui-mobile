@@ -14,7 +14,6 @@ import { ProUpgradeLink } from './_components/pro-upgrade-link'
 import { FactsSelectBar } from './_components/facts-select-bar'
 import { UserFactsList } from './_components/user-facts-list'
 import { useUserFacts } from './_components/use-user-facts'
-import { SettingsShell } from '@/components/settings/settings-shell'
 
 export default function AiSettingsPage() {
   const t = useTranslations()
@@ -76,7 +75,7 @@ export default function AiSettingsPage() {
   const showFactsPagination = totalFactsPages > 1
 
   return (
-    <SettingsShell panel="ai-settings">
+    <div className="md:max-w-[760px]">
       <div className="flex flex-col min-h-[100dvh]">
         <AppBar
           back
@@ -143,6 +142,6 @@ export default function AiSettingsPage() {
           <div style={{ height: 24 }} />
         </div>
       </div>
-    </SettingsShell>
+    </div>
   )
 }

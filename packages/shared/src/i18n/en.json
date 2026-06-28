@@ -35,9 +35,7 @@
     "theme": {
       "switchToLight": "Switch to light mode",
       "switchToDark": "Switch to dark mode"
-    },
-    "shellTitle": "Settings",
-    "shellSubtitle": "Manage your account and preferences"
+    }
   },
   "pushPrompt": {
     "title": "Stay on track",

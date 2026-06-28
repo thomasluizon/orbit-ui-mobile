@@ -103,11 +103,6 @@ vi.mock('@/hooks/use-go-back-or-fallback', () => ({
   useGoBackOrFallback: () => vi.fn(),
 }))
 
-vi.mock('@/components/settings/settings-shell', () => ({
-  SettingsShell: ({ children }: { children: React.ReactNode }) => <>{children}</>,
-}))
-
-
 import AdvancedPage from '@/app/(app)/advanced/page'
 
 

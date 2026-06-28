@@ -30,7 +30,6 @@ import { ProfileAccountActions } from './_components/profile-account-actions'
 import { ProfileHeaderBar } from './_components/profile-header-bar'
 import { ProfileModals } from './_components/profile-modals'
 import { useDataExport } from './_components/use-data-export'
-import { SettingsShell } from '@/components/settings/settings-shell'
 
 export default function ProfilePage() {
   const t = useTranslations()
@@ -99,7 +98,7 @@ export default function ProfilePage() {
       : profile?.email
 
   return (
-    <SettingsShell panel="profile">
+    <div className="md:max-w-[760px]">
       <div className="relative">
         <ProfileHeaderBar streak={streak} error={error} />
 
@@ -181,6 +180,6 @@ export default function ProfilePage() {
 
         <ReferralDrawer open={showReferral} onOpenChange={setShowReferral} />
       </div>
-    </SettingsShell>
+    </div>
   )
 }

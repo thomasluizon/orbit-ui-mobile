@@ -6,7 +6,6 @@ interface ShellState {
   railOpen: boolean
   paletteOpen: boolean
   astraOpen: boolean
-  activeSettingsPanel: string | null
   toggleSidebar: () => void
   setSidebarCollapsed: (value: boolean) => void
   setRailOpen: (value: boolean) => void
@@ -15,7 +14,6 @@ interface ShellState {
   togglePalette: () => void
   setAstraOpen: (value: boolean) => void
   toggleAstra: () => void
-  setActiveSettingsPanel: (panel: string | null) => void
 }
 
 const noopStorage = {
@@ -26,10 +24,10 @@ const noopStorage = {
 
 /**
  * Web-only desktop shell state: sidebar collapse, right-rail visibility (the
- * 768–1279 toggle), command-palette open, the docked Astra copilot, and the active
- * two-pane settings panel. Kept out of the shared cross-platform UI store since
- * mobile has no desktop shell. Only `sidebarCollapsed` persists (`astraOpen` is
- * deliberately ephemeral); rehydrated manually in `lib/providers.tsx`.
+ * 768–1279 toggle), command-palette open, and the docked Astra copilot. Kept out
+ * of the shared cross-platform UI store since mobile has no desktop shell. Only
+ * `sidebarCollapsed` persists (`astraOpen` is deliberately ephemeral); rehydrated
+ * manually in `lib/providers.tsx`.
  */
 export const useShellStore = create<ShellState>()(
   persist(
@@ -38,7 +36,6 @@ export const useShellStore = create<ShellState>()(
       railOpen: false,
       paletteOpen: false,
       astraOpen: false,
-      activeSettingsPanel: null,
       toggleSidebar: () => set((state) => ({ sidebarCollapsed: !state.sidebarCollapsed })),
       setSidebarCollapsed: (value) => set({ sidebarCollapsed: value }),
       setRailOpen: (value) => set({ railOpen: value }),
@@ -47,7 +44,6 @@ export const useShellStore = create<ShellState>()(
       togglePalette: () => set((state) => ({ paletteOpen: !state.paletteOpen })),
       setAstraOpen: (value) => set({ astraOpen: value }),
       toggleAstra: () => set((state) => ({ astraOpen: !state.astraOpen })),
-      setActiveSettingsPanel: (panel) => set({ activeSettingsPanel: panel }),
     }),
     {
       name: 'orbit-shell-store',

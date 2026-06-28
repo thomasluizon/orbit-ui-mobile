@@ -14,7 +14,6 @@ import {
 import { PreferenceSettingsList } from './_components/preference-settings-list'
 import { usePreferenceControls } from './_components/use-preference-controls'
 import { derivePreferenceLabels } from './_components/preference-labels'
-import { SettingsShell } from '@/components/settings/settings-shell'
 
 export default function PreferencesPage() {
   const t = useTranslations()
@@ -79,7 +78,7 @@ export default function PreferencesPage() {
   }
 
   return (
-    <SettingsShell panel="preferences">
+    <div className="md:max-w-[760px]">
       <div className="flex flex-col min-h-[100dvh]">
         <AppBar
           back
@@ -125,6 +124,6 @@ export default function PreferencesPage() {
           onWeekStartChange={(day) => weekStartMutation.mutate(day)}
         />
       </div>
-    </SettingsShell>
+    </div>
   )
 }
