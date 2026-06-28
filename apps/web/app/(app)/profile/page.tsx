@@ -31,6 +31,7 @@ import { ProfileHeaderBar } from './_components/profile-header-bar'
 import { ProfileModals } from './_components/profile-modals'
 import { useDataExport } from './_components/use-data-export'
 import { useIsDesktop } from '@/components/goals/use-is-desktop'
+import { ProfileSummaryCard } from './_components/profile-summary-card'
 
 export default function ProfilePage() {
   const t = useTranslations()
@@ -174,21 +175,37 @@ export default function ProfilePage() {
       <ProfileHeaderBar streak={streak} error={error} />
 
       {isDesktop ? (
-        <>
-          <div className="stagger-enter">{identityHeader}</div>
-          <div className="grid grid-cols-2 items-start gap-x-8">
-            <div className="stagger-enter min-w-0">
-              {statTiles}
-              {navSections}
-            </div>
-            <div className="stagger-enter min-w-0">
-              {referral}
-              {nextReward}
-              {subscription}
-              {accountActions}
-            </div>
+        <div className="grid grid-cols-[320px_minmax(0,1fr)] items-start gap-8 pt-2">
+          <aside className="stagger-enter">
+            <ProfileSummaryCard
+              name={profile?.name}
+              isLoading={isLoading}
+              showPlanBadge={!!showPlanBadge}
+              planBadgeTone={planBadgeTone}
+              planBadgeLabel={planBadgeLabel}
+              levelLine={identityLine}
+              streak={streak}
+              achievementsValue={achievementsTileValue}
+              achievementsLocked={achievementsLocked}
+              showAchievements={!!achievementsNavItem}
+              achievementsDataTour={
+                achievementsNavItem ? navTourMap[achievementsNavItem.id] : undefined
+              }
+              onEditName={() => setShowEditName(true)}
+              onStreakClick={() => router.push('/streak')}
+              onAchievementsClick={() => {
+                if (achievementsNavItem) handleNavClick(achievementsNavItem)
+              }}
+              onInvite={() => setShowReferral(true)}
+            />
+          </aside>
+          <div className="stagger-enter min-w-0">
+            {nextReward}
+            {navSections}
+            {subscription}
+            {accountActions}
           </div>
-        </>
+        </div>
       ) : (
         <div className="stagger-enter">
           {identityHeader}
