@@ -27,7 +27,21 @@ const ALL_DAY_MIN_HEIGHT = 34;
 const ALL_DAY_CHIP_HEIGHT = 22;
 const ALL_DAY_GAP = 3;
 const ALL_DAY_PADDING = 12;
+const ALL_DAY_MAX_VISIBLE = 5;
 const HOURS = Array.from({ length: 24 }, (_, h) => h);
+
+/** Caps the all-day stack so a heavy day cannot push the timed grid off-screen:
+ *  the first chips show, the rest collapse into a single tappable "+N". */
+function splitAllDay(allDay: CalendarDayEntry[]): {
+  visible: CalendarDayEntry[];
+  overflow: number;
+} {
+  if (allDay.length <= ALL_DAY_MAX_VISIBLE) return { visible: allDay, overflow: 0 };
+  return {
+    visible: allDay.slice(0, ALL_DAY_MAX_VISIBLE - 1),
+    overflow: allDay.length - (ALL_DAY_MAX_VISIBLE - 1),
+  };
+}
 
 export interface TimeGridColumn {
   date: Date;
@@ -255,6 +269,43 @@ function AllDayChip({
   );
 }
 
+function AllDayMoreChip({
+  count,
+  onPress,
+  tokens,
+}: Readonly<{ count: number; onPress: () => void; tokens: Tokens }>) {
+  return (
+    <Pressable
+      testID="time-grid-all-day-more"
+      accessibilityRole="button"
+      accessibilityLabel={`+${count}`}
+      onPress={onPress}
+      style={({ pressed }) => ({
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "center",
+        height: ALL_DAY_CHIP_HEIGHT - ALL_DAY_GAP,
+        paddingHorizontal: 6,
+        borderRadius: 6,
+        borderWidth: 1,
+        borderColor: tokens.hairline,
+        backgroundColor: pressed ? tokens.bgElev : "transparent",
+      })}
+    >
+      <Text
+        style={{
+          fontFamily: "Roboto_500Medium",
+          fontSize: 11,
+          color: tokens.fg3,
+          fontVariant: ["tabular-nums"],
+        }}
+      >
+        +{count}
+      </Text>
+    </Pressable>
+  );
+}
+
 function ColumnHeader({
   column,
   colWidth,
@@ -356,9 +407,10 @@ export function CalendarTimeGrid({
       0,
     );
     if (maxChips === 0) return ALL_DAY_MIN_HEIGHT;
+    const rows = Math.min(maxChips, ALL_DAY_MAX_VISIBLE);
     return Math.max(
       ALL_DAY_MIN_HEIGHT,
-      ALL_DAY_PADDING + maxChips * ALL_DAY_CHIP_HEIGHT,
+      ALL_DAY_PADDING + rows * ALL_DAY_CHIP_HEIGHT,
     );
   }, [perColumn]);
 
@@ -434,21 +486,31 @@ export function CalendarTimeGrid({
               </View>
 
               <View style={[styles.allDayRow, { height: allDayBandHeight }]}>
-                {perColumn.map(({ column, allDay }) => (
-                  <View
-                    key={column.dateStr}
-                    testID="time-grid-all-day"
-                    style={[styles.allDayCell, { width: colWidth }]}
-                  >
-                    {allDay.map((entry) => (
-                      <AllDayChip
-                        key={entry.habitId}
-                        entry={entry}
-                        tokens={tokens}
-                      />
-                    ))}
-                  </View>
-                ))}
+                {perColumn.map(({ column, allDay }) => {
+                  const { visible, overflow } = splitAllDay(allDay);
+                  return (
+                    <View
+                      key={column.dateStr}
+                      testID="time-grid-all-day"
+                      style={[styles.allDayCell, { width: colWidth }]}
+                    >
+                      {visible.map((entry) => (
+                        <AllDayChip
+                          key={entry.habitId}
+                          entry={entry}
+                          tokens={tokens}
+                        />
+                      ))}
+                      {overflow > 0 ? (
+                        <AllDayMoreChip
+                          count={overflow}
+                          onPress={() => onSelectDay(column.dateStr)}
+                          tokens={tokens}
+                        />
+                      ) : null}
+                    </View>
+                  );
+                })}
               </View>
 
               <ScrollView
