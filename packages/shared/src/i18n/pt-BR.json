@@ -35,7 +35,9 @@
     "theme": {
       "switchToLight": "Mudar para o modo claro",
       "switchToDark": "Mudar para o modo escuro"
-    }
+    },
+    "shellTitle": "Configurações",
+    "shellSubtitle": "Gerencie sua conta e preferências"
   },
   "pushPrompt": {
     "title": "Não perca o ritmo",
@@ -169,7 +171,51 @@
     "home": "Início",
     "astra": "Astra",
     "you": "Você",
-    "create": "Criar"
+    "create": "Criar",
+    "today": "Hoje",
+    "goals": "Metas",
+    "insights": "Análises"
+  },
+  "shell": {
+    "collapseSidebar": "Recolher menu",
+    "expandSidebar": "Expandir menu",
+    "openRail": "Abrir painel",
+    "closeRail": "Fechar painel"
+  },
+  "command": {
+    "placeholder": "Digite um comando ou busque...",
+    "empty": "Nenhum resultado encontrado",
+    "logHabit": "Registrar um hábito",
+    "skipHabit": "Pular um hábito",
+    "createHabit": "Criar hábito",
+    "createGoal": "Criar meta",
+    "groups": {
+      "create": "Criar",
+      "actions": "Ações",
+      "navigate": "Navegar",
+      "search": "Buscar hábitos e metas"
+    }
+  },
+  "contextMenu": {
+    "log": "Registrar",
+    "skip": "Pular",
+    "edit": "Editar",
+    "delete": "Excluir",
+    "duplicate": "Duplicar",
+    "viewDetails": "Ver detalhes",
+    "addSubHabit": "Adicionar sub-hábito",
+    "complete": "Concluir"
+  },
+  "rail": {
+    "todayProgress": "Hoje",
+    "allDone": "Tudo feito",
+    "progressLabel": "{done} de {total} hábitos concluídos"
+  },
+  "astraRail": {
+    "open": "Abrir o Astra",
+    "close": "Recolher o Astra",
+    "title": "Copiloto Astra",
+    "subtitle": "Seu copiloto de hábitos"
   },
   "reviewPrompt": {
     "title": "Está curtindo o Orbit?",
@@ -591,6 +637,15 @@
     }
   },
   "calendar": {
+    "viewAgenda": "Agenda",
+    "rescheduled": "Reagendado",
+    "agenda": {
+      "previousDay": "Dia anterior",
+      "nextDay": "Próximo dia",
+      "today": "Hoje",
+      "dragHint": "Arraste um item para reagendá-lo",
+      "empty": "Nada agendado"
+    },
     "legend": {
       "today": "Hoje",
       "done": "Feito",
@@ -691,6 +746,31 @@
       "enableSuccess": "Sincronização automática ativada",
       "disableSuccess": "Sincronização automática desativada",
       "syncFailed": "A sincronização falhou. Tente de novo."
+    }
+  },
+  "insights": {
+    "title": "Análises",
+    "subtitle": "Tendências e padrões dos seus hábitos",
+    "rangeWeek": "Semana",
+    "rangeMonth": "Mês",
+    "rangeQuarter": "Trimestre",
+    "rangeYear": "Ano",
+    "empty": "Ainda não há dados suficientes. Continue registrando hábitos para ver suas análises.",
+    "loading": "Carregando análises...",
+    "error": "Não foi possível carregar suas análises.",
+    "sections": {
+      "completionTrends": "Tendências de conclusão",
+      "multiHabitComparison": "Comparação de hábitos",
+      "goalProgress": "Progresso das metas",
+      "monthlyHeatmap": "Mapa de calor mensal",
+      "streakHistory": "Histórico de sequências",
+      "achievementsTimeline": "Linha do tempo de conquistas",
+      "xpOverTime": "XP ao longo do tempo",
+      "completionTrendsDesc": "Como sua taxa de conclusão muda ao longo do tempo",
+      "goalProgressDesc": "Progresso em cada meta ativa",
+      "xpOverTimeDesc": "XP que você ganhou no período",
+      "selectGoal": "Selecione uma meta",
+      "noGoals": "Nenhuma meta para mostrar ainda"
     }
   },
   "chat": {

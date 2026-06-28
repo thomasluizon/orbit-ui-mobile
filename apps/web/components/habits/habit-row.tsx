@@ -7,6 +7,7 @@ import { stripInlineMarkdown } from '@orbit/shared/utils'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { ParentRing } from '@/components/ui/parent-ring'
 import { Popover } from '@/components/ui/popover'
+import { useContextMenu, type ContextMenuItem } from '@/components/ui/context-menu'
 import { SelectCheck } from '@/components/ui/select-check'
 import type { StatusDotState } from '@/components/ui/status-dot'
 import { CheckCircle } from './habit-row-check-circle'
@@ -126,6 +127,30 @@ export function HabitRow({
 
   const indentPx = depth * 16
 
+  const contextMenuItems: ContextMenuItem[] = selectMode
+    ? []
+    : [
+        onLog && !isDone && canLog
+          ? { key: 'log', label: t('contextMenu.log'), onSelect: onLog }
+          : null,
+        onSkip ? { key: 'skip', label: t('contextMenu.skip'), onSelect: onSkip } : null,
+        onDetail
+          ? { key: 'viewDetails', label: t('contextMenu.viewDetails'), onSelect: onDetail }
+          : null,
+        onEdit ? { key: 'edit', label: t('contextMenu.edit'), onSelect: onEdit } : null,
+        onDuplicate
+          ? { key: 'duplicate', label: t('contextMenu.duplicate'), onSelect: onDuplicate }
+          : null,
+        onAddSubHabit
+          ? { key: 'addSubHabit', label: t('contextMenu.addSubHabit'), onSelect: onAddSubHabit }
+          : null,
+        onDelete
+          ? { key: 'delete', label: t('contextMenu.delete'), onSelect: onDelete, danger: true }
+          : null,
+      ].filter((item): item is ContextMenuItem => item !== null)
+
+  const { onContextMenu, contextMenu } = useContextMenu(contextMenuItems)
+
   function handleRowClick() {
     if (selectMode) onToggleSelection?.()
     else onDetail?.()
@@ -147,9 +172,10 @@ export function HabitRow({
     return 'var(--fg-1)'
   }
 
-  return (
+  const row = (
     <div
       onClick={handleRowClick}
+      onContextMenu={onContextMenu}
       role="button"
       tabIndex={0}
       onKeyDown={(e) => {
@@ -429,5 +455,12 @@ export function HabitRow({
         )}
       </div>
     </div>
+  )
+
+  return (
+    <>
+      {row}
+      {contextMenu}
+    </>
   )
 }

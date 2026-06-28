@@ -1,6 +1,6 @@
 import { forwardRef, useCallback, useState } from 'react'
 import {
-  FlatList,
+  type FlatListProps,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
   type StyleProp,
@@ -8,15 +8,21 @@ import {
   View,
   type ViewStyle,
 } from 'react-native'
+import type { FlatList } from 'react-native-gesture-handler'
+import DraggableFlatList, {
+  type DragEndParams,
+  type RenderItemParams,
+} from 'react-native-draggable-flatlist'
 import Animated, { FadeInDown, ReduceMotion } from 'react-native-reanimated'
-import type { Goal } from '@orbit/shared/types/goal'
+import type { Goal, GoalPositionItem } from '@orbit/shared/types/goal'
 import { GoalCard } from '@/components/goal-card'
+import { useReorderGoals } from '@/hooks/use-goals'
 import { GoalDetailDrawer } from './goal-detail-drawer'
 
 interface GoalListProps {
   goals: Goal[]
-  ListHeaderComponent?: React.ComponentProps<typeof FlatList>['ListHeaderComponent']
-  ListEmptyComponent?: React.ComponentProps<typeof FlatList>['ListEmptyComponent']
+  ListHeaderComponent?: FlatListProps<Goal>['ListHeaderComponent']
+  ListEmptyComponent?: FlatListProps<Goal>['ListEmptyComponent']
   contentContainerStyle?: StyleProp<ViewStyle>
   onScroll?: (event: NativeSyntheticEvent<NativeScrollEvent>) => void
   onScrollBeginDrag?: (event: NativeSyntheticEvent<NativeScrollEvent>) => void
@@ -34,6 +40,7 @@ export const GoalList = forwardRef<FlatList<Goal>, Readonly<GoalListProps>>(
     },
     ref,
   ) {
+    const reorderGoals = useReorderGoals()
     const [selectedGoalId, setSelectedGoalId] = useState<string | null>(null)
     const [showDetail, setShowDetail] = useState(false)
 
@@ -47,34 +54,50 @@ export const GoalList = forwardRef<FlatList<Goal>, Readonly<GoalListProps>>(
       setSelectedGoalId(null)
     }, [])
 
+    const handleDragEnd = useCallback(
+      ({ data }: DragEndParams<Goal>) => {
+        const positions: GoalPositionItem[] = data.map((goal, index) => ({
+          id: goal.id,
+          position: index,
+        }))
+        reorderGoals.mutate(positions)
+      },
+      [reorderGoals],
+    )
+
     const renderItem = useCallback(
-      ({ item, index }: { item: Goal; index: number }) => (
-        <Animated.View
-          entering={
-            index < 8
-              ? FadeInDown.duration(280)
-                  .delay(index * 40)
-                  .reduceMotion(ReduceMotion.System)
-              : undefined
-          }
-        >
-          <GoalCard
-            goal={item}
-            onPress={handleGoalPress}
-            tourTargetId={index === 0 ? 'tour-goal-card' : undefined}
-          />
-        </Animated.View>
-      ),
+      ({ item, getIndex, drag }: RenderItemParams<Goal>) => {
+        const index = getIndex() ?? 0
+        return (
+          <Animated.View
+            entering={
+              index < 8
+                ? FadeInDown.duration(280)
+                    .delay(index * 40)
+                    .reduceMotion(ReduceMotion.System)
+                : undefined
+            }
+          >
+            <GoalCard
+              goal={item}
+              onPress={handleGoalPress}
+              onLongPress={drag}
+              tourTargetId={index === 0 ? 'tour-goal-card' : undefined}
+            />
+          </Animated.View>
+        )
+      },
       [handleGoalPress],
     )
 
     return (
       <View style={styles.container}>
-        <FlatList
+        <DraggableFlatList
           ref={ref}
           data={goals}
           keyExtractor={(goal) => goal.id}
           renderItem={renderItem}
+          onDragEnd={handleDragEnd}
           ListHeaderComponent={ListHeaderComponent}
           ListEmptyComponent={ListEmptyComponent}
           contentContainerStyle={[styles.listContent, contentContainerStyle]}

@@ -366,6 +366,12 @@
     --app-max-w: 640px;
     --app-px: 1.25rem;
 
+    /* Desktop shell — sidebar+content >=768 (md), +right rail >=1280 (xl), capped/centered */
+    --shell-max-w: 1440px;
+    --sidebar-w: 248px;
+    --sidebar-w-collapsed: 76px;
+    --rail-w: 344px;
+
     /* Safe areas for notch / dynamic island / status bar */
     --safe-top: env(safe-area-inset-top, 0px);
     --safe-bottom: env(safe-area-inset-bottom, 0px);

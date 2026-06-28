@@ -18,6 +18,7 @@ export const habitKeys = {
       : [...habitKeys.all, 'summary', from, to, locale] as const,
   retrospective: (period: string) => [...habitKeys.all, 'retrospective', period] as const,
   rescheduleSuggestion: (id: string) => [...habitKeys.all, 'reschedule-suggestion', id] as const,
+  trends: (range: string) => [...habitKeys.all, 'trends', range] as const,
 }
 
 export const goalKeys = {
@@ -28,6 +29,7 @@ export const goalKeys = {
   detail: (id: string) => [...goalKeys.details(), id] as const,
   metrics: (id: string) => [...goalKeys.all, 'metrics', id] as const,
   review: (id: string) => [...goalKeys.all, 'review', id] as const,
+  progressHistory: (id: string) => [...goalKeys.all, 'progress-history', id] as const,
 }
 
 export const profileKeys = {
@@ -53,6 +55,8 @@ export const gamificationKeys = {
   achievements: () => [...gamificationKeys.all, 'achievements'] as const,
   streak: () => [...gamificationKeys.all, 'streak'] as const,
   recap: (period: string) => [...gamificationKeys.all, 'recap', period] as const,
+  streakHistory: () => [...gamificationKeys.all, 'streak-history'] as const,
+  xpHistory: (range: string) => [...gamificationKeys.all, 'xp-history', range] as const,
 }
 
 export const subscriptionKeys = {

@@ -9,10 +9,10 @@ import {
 import {
   Animated,
   AppState,
-  type FlatList,
   View,
   StyleSheet,
 } from "react-native";
+import type { FlatList } from "react-native-gesture-handler";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";

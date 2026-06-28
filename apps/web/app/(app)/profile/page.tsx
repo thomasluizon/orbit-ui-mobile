@@ -30,6 +30,7 @@ import { ProfileAccountActions } from './_components/profile-account-actions'
 import { ProfileHeaderBar } from './_components/profile-header-bar'
 import { ProfileModals } from './_components/profile-modals'
 import { useDataExport } from './_components/use-data-export'
+import { SettingsShell } from '@/components/settings/settings-shell'
 
 export default function ProfilePage() {
   const t = useTranslations()
@@ -98,86 +99,88 @@ export default function ProfilePage() {
       : profile?.email
 
   return (
-    <div className="relative">
-      <ProfileHeaderBar streak={streak} error={error} />
+    <SettingsShell panel="profile">
+      <div className="relative">
+        <ProfileHeaderBar streak={streak} error={error} />
 
-      <div className="stagger-enter">
-        <ProfileIdentityHeader
-          isLoading={isLoading}
-          showPlanBadge={!!showPlanBadge}
-          planBadgeTone={planBadgeTone}
-          planBadgeLabel={planBadgeLabel}
-          name={profile?.name}
-          identityLine={identityLine}
-          onEditName={() => setShowEditName(true)}
-        />
+        <div className="stagger-enter">
+          <ProfileIdentityHeader
+            isLoading={isLoading}
+            showPlanBadge={!!showPlanBadge}
+            planBadgeTone={planBadgeTone}
+            planBadgeLabel={planBadgeLabel}
+            name={profile?.name}
+            identityLine={identityLine}
+            onEditName={() => setShowEditName(true)}
+          />
 
-        <ProfileStatTiles
-          streak={streak}
-          achievementsValue={achievementsTileValue}
-          achievementsLocked={achievementsLocked}
-          showAchievements={!!achievementsNavItem}
-          achievementsDataTour={
-            achievementsNavItem ? navTourMap[achievementsNavItem.id] : undefined
-          }
-          onStreakClick={() => router.push('/streak')}
-          onAchievementsClick={() => {
-            if (achievementsNavItem) handleNavClick(achievementsNavItem)
-          }}
-        />
+          <ProfileStatTiles
+            streak={streak}
+            achievementsValue={achievementsTileValue}
+            achievementsLocked={achievementsLocked}
+            showAchievements={!!achievementsNavItem}
+            achievementsDataTour={
+              achievementsNavItem ? navTourMap[achievementsNavItem.id] : undefined
+            }
+            onStreakClick={() => router.push('/streak')}
+            onAchievementsClick={() => {
+              if (achievementsNavItem) handleNavClick(achievementsNavItem)
+            }}
+          />
 
-        <ReferralCard onOpen={() => setShowReferral(true)} />
+          <ReferralCard onOpen={() => setShowReferral(true)} />
 
-        <NextRewardCarrot carrot={nextRewardCarrot} />
+          <NextRewardCarrot carrot={nextRewardCarrot} />
 
-        <ProfileNavSections
-          accountNavItems={accountNavItems}
-          featureNavItems={featureNavItems}
-          navTourMap={navTourMap}
-          hasProAccess={profile?.hasProAccess ?? false}
-          gamificationProfile={gamificationProfile}
-          onNavClick={handleNavClick}
-          onTourReplay={() => setShowTourReplay(true)}
-        />
+          <ProfileNavSections
+            accountNavItems={accountNavItems}
+            featureNavItems={featureNavItems}
+            navTourMap={navTourMap}
+            hasProAccess={profile?.hasProAccess ?? false}
+            gamificationProfile={gamificationProfile}
+            onNavClick={handleNavClick}
+            onTourReplay={() => setShowTourReplay(true)}
+          />
 
-        <div>
-          <SectionLabel>{t('profile.sections.subscription')}</SectionLabel>
-          <div data-tour="tour-profile-subscription" className="px-5">
-            <SubscriptionCard
-              profile={profile}
-              trialDaysLeft={trialDaysLeft}
-              trialExpired={trialExpired}
-            />
+          <div>
+            <SectionLabel>{t('profile.sections.subscription')}</SectionLabel>
+            <div data-tour="tour-profile-subscription" className="px-5">
+              <SubscriptionCard
+                profile={profile}
+                trialDaysLeft={trialDaysLeft}
+                trialExpired={trialExpired}
+              />
+            </div>
           </div>
+
+          <ProfileAccountActions
+            isExporting={isExporting}
+            exportError={exportError}
+            onExport={() => {
+              void exportData()
+            }}
+            onFreshStart={() => setShowResetModal(true)}
+            onDeleteAccount={() => setShowDeleteModal(true)}
+            onLogout={() => logout()}
+          />
         </div>
 
-        <ProfileAccountActions
-          isExporting={isExporting}
-          exportError={exportError}
-          onExport={() => {
-            void exportData()
-          }}
-          onFreshStart={() => setShowResetModal(true)}
-          onDeleteAccount={() => setShowDeleteModal(true)}
-          onLogout={() => logout()}
+        <div style={{ height: 24 }} />
+
+        <ProfileModals
+          profile={profile}
+          showEditName={showEditName}
+          showResetModal={showResetModal}
+          showDeleteModal={showDeleteModal}
+          showTourReplay={showTourReplay}
+          onEditNameChange={setShowEditName}
+          onResetChange={setShowResetModal}
+          onDeleteChange={setShowDeleteModal}
+          onTourReplayChange={setShowTourReplay}
         />
+
+        <ReferralDrawer open={showReferral} onOpenChange={setShowReferral} />
       </div>
-
-      <div style={{ height: 24 }} />
-
-      <ProfileModals
-        profile={profile}
-        showEditName={showEditName}
-        showResetModal={showResetModal}
-        showDeleteModal={showDeleteModal}
-        showTourReplay={showTourReplay}
-        onEditNameChange={setShowEditName}
-        onResetChange={setShowResetModal}
-        onDeleteChange={setShowDeleteModal}
-        onTourReplayChange={setShowTourReplay}
-      />
-
-      <ReferralDrawer open={showReferral} onOpenChange={setShowReferral} />
-    </div>
+    </SettingsShell>
   )
 }

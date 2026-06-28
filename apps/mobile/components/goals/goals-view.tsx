@@ -1,6 +1,5 @@
 import { useCallback, useMemo, useState, type ReactElement } from "react";
 import {
-  type FlatList,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
   Pressable,
@@ -10,6 +9,7 @@ import {
   View,
   type ViewStyle,
 } from "react-native";
+import type { FlatList } from "react-native-gesture-handler";
 import { Check, Filter } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import type { Goal, GoalStatus } from "@orbit/shared/types/goal";

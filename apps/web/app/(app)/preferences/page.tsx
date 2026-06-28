@@ -14,6 +14,7 @@ import {
 import { PreferenceSettingsList } from './_components/preference-settings-list'
 import { usePreferenceControls } from './_components/use-preference-controls'
 import { derivePreferenceLabels } from './_components/preference-labels'
+import { SettingsShell } from '@/components/settings/settings-shell'
 
 export default function PreferencesPage() {
   const t = useTranslations()
@@ -78,50 +79,52 @@ export default function PreferencesPage() {
   }
 
   return (
-    <div className="flex flex-col min-h-[100dvh]">
-      <AppBar
-        back
-        backLabel={t('common.backToProfile')}
-        onBack={() => goBackOrFallback('/profile')}
-        title={t('preferences.title')}
-      />
-      <PreferenceSettingsList
-        mounted={mounted}
-        languageLabel={languageLabel}
-        themeLabel={themeLabel}
-        schemeLabel={schemeLabel}
-        weekStartLabel={weekStartLabel}
-        schemeColor={schemeColor}
-        showGeneralOnToday={showGeneralOnToday}
-        onOpenPicker={setActivePicker}
-        onToggleShowGeneral={toggleShowGeneral}
-        push={{
-          supported: pushSupported,
-          subscribed: pushSubscribed,
-          permission: pushPermission,
-          loading: pushLoading,
-          status: pushStatus,
-          onToggle: handleTogglePush,
-        }}
-      />
+    <SettingsShell panel="preferences">
+      <div className="flex flex-col min-h-[100dvh]">
+        <AppBar
+          back
+          backLabel={t('common.backToProfile')}
+          onBack={() => goBackOrFallback('/profile')}
+          title={t('preferences.title')}
+        />
+        <PreferenceSettingsList
+          mounted={mounted}
+          languageLabel={languageLabel}
+          themeLabel={themeLabel}
+          schemeLabel={schemeLabel}
+          weekStartLabel={weekStartLabel}
+          schemeColor={schemeColor}
+          showGeneralOnToday={showGeneralOnToday}
+          onOpenPicker={setActivePicker}
+          onToggleShowGeneral={toggleShowGeneral}
+          push={{
+            supported: pushSupported,
+            subscribed: pushSubscribed,
+            permission: pushPermission,
+            loading: pushLoading,
+            status: pushStatus,
+            onToggle: handleTogglePush,
+          }}
+        />
 
-      <PreferencePickerSheet
-        activePicker={activePicker}
-        mounted={mounted}
-        selectedLanguage={selectedLanguage}
-        currentTheme={currentTheme}
-        currentScheme={currentScheme}
-        weekStartDay={profile?.weekStartDay}
-        themeModeOptions={themeModeOptions}
-        weekStartOptions={weekStartOptions}
-        pickerTitles={pickerTitles}
-        pickerDescriptions={pickerDescriptions}
-        onClose={closePicker}
-        onLanguageChange={(locale) => void handleLanguageChange(locale)}
-        onThemeModeChange={handleThemeModeChange}
-        onSchemeChange={handleSchemeChange}
-        onWeekStartChange={(day) => weekStartMutation.mutate(day)}
-      />
-    </div>
+        <PreferencePickerSheet
+          activePicker={activePicker}
+          mounted={mounted}
+          selectedLanguage={selectedLanguage}
+          currentTheme={currentTheme}
+          currentScheme={currentScheme}
+          weekStartDay={profile?.weekStartDay}
+          themeModeOptions={themeModeOptions}
+          weekStartOptions={weekStartOptions}
+          pickerTitles={pickerTitles}
+          pickerDescriptions={pickerDescriptions}
+          onClose={closePicker}
+          onLanguageChange={(locale) => void handleLanguageChange(locale)}
+          onThemeModeChange={handleThemeModeChange}
+          onSchemeChange={handleSchemeChange}
+          onWeekStartChange={(day) => weekStartMutation.mutate(day)}
+        />
+      </div>
+    </SettingsShell>
   )
 }

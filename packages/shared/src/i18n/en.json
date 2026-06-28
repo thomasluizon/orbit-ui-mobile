@@ -35,7 +35,9 @@
     "theme": {
       "switchToLight": "Switch to light mode",
       "switchToDark": "Switch to dark mode"
-    }
+    },
+    "shellTitle": "Settings",
+    "shellSubtitle": "Manage your account and preferences"
   },
   "pushPrompt": {
     "title": "Stay on track",
@@ -169,7 +171,51 @@
     "home": "Home",
     "astra": "Astra",
     "you": "You",
-    "create": "Create"
+    "create": "Create",
+    "today": "Today",
+    "goals": "Goals",
+    "insights": "Insights"
+  },
+  "shell": {
+    "collapseSidebar": "Collapse sidebar",
+    "expandSidebar": "Expand sidebar",
+    "openRail": "Open panel",
+    "closeRail": "Close panel"
+  },
+  "command": {
+    "placeholder": "Type a command or search...",
+    "empty": "No results found",
+    "logHabit": "Log a habit",
+    "skipHabit": "Skip a habit",
+    "createHabit": "Create habit",
+    "createGoal": "Create goal",
+    "groups": {
+      "create": "Create",
+      "actions": "Actions",
+      "navigate": "Navigate",
+      "search": "Search habits and goals"
+    }
+  },
+  "contextMenu": {
+    "log": "Log",
+    "skip": "Skip",
+    "edit": "Edit",
+    "delete": "Delete",
+    "duplicate": "Duplicate",
+    "viewDetails": "View details",
+    "addSubHabit": "Add sub-habit",
+    "complete": "Complete"
+  },
+  "rail": {
+    "todayProgress": "Today",
+    "allDone": "All done",
+    "progressLabel": "{done} of {total} habits completed"
+  },
+  "astraRail": {
+    "open": "Open Astra",
+    "close": "Collapse Astra",
+    "title": "Astra copilot",
+    "subtitle": "Your habit copilot"
   },
   "reviewPrompt": {
     "title": "Enjoying Orbit?",
@@ -591,6 +637,15 @@
     }
   },
   "calendar": {
+    "viewAgenda": "Agenda",
+    "rescheduled": "Rescheduled",
+    "agenda": {
+      "previousDay": "Previous day",
+      "nextDay": "Next day",
+      "today": "Today",
+      "dragHint": "Drag an item to reschedule it",
+      "empty": "Nothing scheduled"
+    },
     "legend": {
       "today": "Today",
       "done": "Done",
@@ -691,6 +746,31 @@
       "enableSuccess": "Auto-sync enabled",
       "disableSuccess": "Auto-sync disabled",
       "syncFailed": "Sync failed. Please try again."
+    }
+  },
+  "insights": {
+    "title": "Insights",
+    "subtitle": "Trends and patterns across your habits",
+    "rangeWeek": "Week",
+    "rangeMonth": "Month",
+    "rangeQuarter": "Quarter",
+    "rangeYear": "Year",
+    "empty": "Not enough data yet. Keep logging habits to see your insights.",
+    "loading": "Loading insights...",
+    "error": "Couldn't load your insights.",
+    "sections": {
+      "completionTrends": "Completion trends",
+      "multiHabitComparison": "Habit comparison",
+      "goalProgress": "Goal progress",
+      "monthlyHeatmap": "Monthly heatmap",
+      "streakHistory": "Streak history",
+      "achievementsTimeline": "Achievements timeline",
+      "xpOverTime": "XP over time",
+      "completionTrendsDesc": "How your completion rate moves over time",
+      "goalProgressDesc": "Progress toward each active goal",
+      "xpOverTimeDesc": "XP you've earned across the period",
+      "selectGoal": "Select a goal",
+      "noGoals": "No goals to show yet"
     }
   },
   "chat": {

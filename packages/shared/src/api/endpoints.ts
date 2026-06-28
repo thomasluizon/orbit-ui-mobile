@@ -50,6 +50,7 @@ export const API = {
     bulkSkip: '/api/habits/bulk/skip',
     reorder: '/api/habits/reorder',
     summary: '/api/habits/summary',
+    trends: '/api/habits/trends',
     rescheduleSuggestion: (id: string) => `/api/habits/${id}/reschedule-suggestion` as const,
     suggestSetup: '/api/habits/suggest-setup',
     calendarMonth: '/api/habits/calendar-month',
@@ -69,6 +70,7 @@ export const API = {
     status: (id: string) => `/api/goals/${id}/status` as const,
     habits: (id: string) => `/api/goals/${id}/habits` as const,
     metrics: (id: string) => `/api/goals/${id}/metrics` as const,
+    progressHistory: (id: string) => `/api/goals/${id}/progress-history` as const,
     reorder: '/api/goals/reorder',
     review: '/api/goals/review',
   },
@@ -109,6 +111,8 @@ export const API = {
     achievements: '/api/gamification/achievements',
     streak: '/api/gamification/streak',
     recap: '/api/gamification/recap',
+    streakHistory: '/api/gamification/streak-history',
+    xpHistory: '/api/gamification/xp-history',
   },
 
   chat: {

@@ -11,6 +11,7 @@ import { OfflineUnavailableState } from '@/components/ui/offline-unavailable-sta
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { SupportSuccessState } from './_components/support-success-state'
 import { SupportForm } from './_components/support-form'
+import { SettingsShell } from '@/components/settings/settings-shell'
 
 const SUPPORT_DRAFT_STORAGE_KEY = 'orbit-support-draft'
 
@@ -86,39 +87,41 @@ export default function SupportPage() {
   const disabled = isSending || !subject.trim() || !message.trim() || !isOnline
 
   return (
-    <div className="flex flex-col min-h-[100dvh]">
-      <AppBar
-        back
-        backLabel={t('common.backToProfile')}
-        onBack={() => goBackOrFallback('/profile')}
-        title={t('profile.support.title')}
-      />
-      <div className="flex-1 min-h-0 overflow-y-auto" style={{ padding: '16px 20px' }}>
-        {!isOnline && (
-          <div className="mb-4">
-            <OfflineUnavailableState
-              title={t('offline.title')}
-              description={t('offline.description')}
-              compact
-            />
-          </div>
-        )}
+    <SettingsShell panel="support">
+      <div className="flex flex-col min-h-[100dvh]">
+        <AppBar
+          back
+          backLabel={t('common.backToProfile')}
+          onBack={() => goBackOrFallback('/profile')}
+          title={t('profile.support.title')}
+        />
+        <div className="flex-1 min-h-0 overflow-y-auto" style={{ padding: '16px 20px' }}>
+          {!isOnline && (
+            <div className="mb-4">
+              <OfflineUnavailableState
+                title={t('offline.title')}
+                description={t('offline.description')}
+                compact
+              />
+            </div>
+          )}
 
-        {success ? (
-          <SupportSuccessState />
-        ) : (
-          <SupportForm
-            subject={subject}
-            message={message}
-            error={error}
-            isSending={isSending}
-            disabled={disabled}
-            onSubjectChange={setSubject}
-            onMessageChange={setMessage}
-            onSend={() => void handleSend()}
-          />
-        )}
+          {success ? (
+            <SupportSuccessState />
+          ) : (
+            <SupportForm
+              subject={subject}
+              message={message}
+              error={error}
+              isSending={isSending}
+              disabled={disabled}
+              onSubjectChange={setSubject}
+              onMessageChange={setMessage}
+              onSend={() => void handleSend()}
+            />
+          )}
+        </div>
       </div>
-    </div>
+    </SettingsShell>
   )
 }
