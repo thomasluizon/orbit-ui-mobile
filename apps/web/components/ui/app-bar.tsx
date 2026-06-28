@@ -3,6 +3,8 @@
 import { useTranslations } from 'next-intl'
 import { ChevronLeft, HelpCircle, Share2, X } from 'lucide-react'
 import type { CSSProperties, ReactNode } from 'react'
+import { useIsDesktop } from '@/components/goals/use-is-desktop'
+import { useInAppShell } from '@/components/shell/in-app-shell-context'
 
 type AppBarRightVariant = 'help' | 'close' | 'share'
 
@@ -52,7 +54,11 @@ export function AppBar({
   rightLabel,
 }: Readonly<AppBarProps>) {
   const t = useTranslations('common')
+  const inAppShell = useInAppShell()
+  const isDesktop = useIsDesktop()
   const resolvedBackLabel = backLabel ?? t('back')
+
+  if (inAppShell && isDesktop) return null
 
   const rightAction = right ? (
     <button

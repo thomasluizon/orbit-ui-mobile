@@ -17,6 +17,7 @@ import { useUIStore } from '@/stores/ui-store'
 import { useShellStore } from '@/stores/shell-store'
 import { AstraCopilotRail } from './astra-copilot-rail'
 import { DesktopTopbar } from './desktop-topbar'
+import { InAppShellProvider } from './in-app-shell-context'
 import { RailDrawer, RailToggle } from './rail-drawer'
 import { RightRail } from './right-rail'
 import { TodayRail } from './today-rail'
@@ -183,10 +184,20 @@ export function AppShell({ children, onCreate }: Readonly<AppShellProps>) {
 
   const topbarTitle = useMemo(() => {
     if (onHome) return ''
+    if (pathname.startsWith('/calendar-sync')) return t('calendar.title')
     if (pathname.startsWith('/calendar')) return t('nav.calendar')
     if (pathname.startsWith('/insights')) return t('nav.insights')
     if (pathname.startsWith('/chat')) return t('nav.astra')
     if (pathname.startsWith('/profile')) return t('nav.profile')
+    if (pathname.startsWith('/preferences')) return t('preferences.title')
+    if (pathname.startsWith('/ai-settings')) return t('aiSettings.title')
+    if (pathname.startsWith('/advanced')) return t('advancedSettings.title')
+    if (pathname.startsWith('/about')) return t('about.title')
+    if (pathname.startsWith('/support')) return t('profile.support.title')
+    if (pathname.startsWith('/achievements')) return t('gamification.title')
+    if (pathname.startsWith('/streak')) return t('streakDisplay.detail.title')
+    if (pathname.startsWith('/retrospective')) return t('retrospective.title')
+    if (pathname.startsWith('/upgrade')) return t('upgrade.title')
     return ''
   }, [t, pathname, onHome])
 
@@ -194,51 +205,53 @@ export function AppShell({ children, onCreate }: Readonly<AppShellProps>) {
 
   return (
     <TopbarSlotProvider>
-      <div className="md:mx-auto md:flex md:max-w-[var(--shell-max-w)]">
-        <AppSidebar
-          sections={sidebarSections}
-          collapsed={sidebarCollapsed}
-          onToggleCollapsed={toggleSidebar}
-          collapseLabel={t('shell.collapseSidebar')}
-          expandLabel={t('shell.expandSidebar')}
-          onCreate={onCreate}
-          createLabel={t('nav.create')}
-          brandLabel="Orbit"
-        />
-
-        <main className="relative z-10 min-w-0 flex-1">
-          <div
-            aria-hidden
-            className="pointer-events-none absolute inset-x-0 top-0 -z-10 hidden md:block"
-            style={{ height: 260, background: 'var(--gradient-header)' }}
+      <InAppShellProvider>
+        <div className="md:mx-auto md:flex md:max-w-[var(--shell-max-w)]">
+          <AppSidebar
+            sections={sidebarSections}
+            collapsed={sidebarCollapsed}
+            onToggleCollapsed={toggleSidebar}
+            collapseLabel={t('shell.collapseSidebar')}
+            expandLabel={t('shell.expandSidebar')}
+            onCreate={onCreate}
+            createLabel={t('nav.create')}
+            brandLabel="Orbit"
           />
-          <div className="mx-auto max-w-[var(--app-max-w)] px-[var(--app-px)] md:relative md:z-[1] md:max-w-none md:px-8 xl:px-10 md:pb-16">
-            <DesktopTopbar title={topbarTitle} />
-            {children}
-          </div>
-        </main>
 
-        {railContent && <RightRail ariaLabel={t('rail.todayProgress')}>{railContent}</RightRail>}
+          <main className="relative z-10 min-w-0 flex-1">
+            <div
+              aria-hidden
+              className="pointer-events-none absolute inset-x-0 top-0 -z-10 hidden md:block"
+              style={{ height: 260, background: 'var(--gradient-header)' }}
+            />
+            <div className="mx-auto max-w-[var(--app-max-w)] px-[var(--app-px)] md:relative md:z-[1] md:max-w-none md:px-8 xl:px-10 md:pb-16">
+              <DesktopTopbar title={topbarTitle} />
+              {children}
+            </div>
+          </main>
 
-        {railContent && <RailToggle />}
-        <RailDrawer open={railOpen && !!railContent} onClose={() => setRailOpen(false)}>
-          {railContent}
-        </RailDrawer>
+          {railContent && <RightRail ariaLabel={t('rail.todayProgress')}>{railContent}</RightRail>}
 
-        <AstraCopilotRail />
+          {railContent && <RailToggle />}
+          <RailDrawer open={railOpen && !!railContent} onClose={() => setRailOpen(false)}>
+            {railContent}
+          </RailDrawer>
 
-        <CommandPalette
-          navItems={commandItems}
-          onCreateHabit={() => setShowCreateModal(true)}
-          onCreateGoal={() => {
-            if (!hasProAccess) {
-              router.push('/upgrade')
-              return
-            }
-            setShowCreateGoalModal(true)
-          }}
-        />
-      </div>
+          <AstraCopilotRail />
+
+          <CommandPalette
+            navItems={commandItems}
+            onCreateHabit={() => setShowCreateModal(true)}
+            onCreateGoal={() => {
+              if (!hasProAccess) {
+                router.push('/upgrade')
+                return
+              }
+              setShowCreateGoalModal(true)
+            }}
+          />
+        </div>
+      </InAppShellProvider>
     </TopbarSlotProvider>
   )
 }
