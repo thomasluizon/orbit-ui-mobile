@@ -212,7 +212,7 @@ export function AppShell({ children, onCreate }: Readonly<AppShellProps>) {
             className="pointer-events-none absolute inset-x-0 top-0 -z-10 hidden md:block"
             style={{ height: 260, background: 'var(--gradient-header)' }}
           />
-          <div className="mx-auto max-w-[var(--app-max-w)] px-[var(--app-px)] md:relative md:z-[1] md:max-w-none md:px-8 xl:px-10">
+          <div className="mx-auto max-w-[var(--app-max-w)] px-[var(--app-px)] md:relative md:z-[1] md:max-w-none md:px-8 xl:px-10 md:pb-16">
             <DesktopTopbar title={topbarTitle} />
             {children}
           </div>

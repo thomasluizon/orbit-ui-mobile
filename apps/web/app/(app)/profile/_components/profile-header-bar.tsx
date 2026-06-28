@@ -20,7 +20,7 @@ export function ProfileHeaderBar({ streak, error }: Readonly<ProfileHeaderBarPro
     <>
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-y-0 -z-10"
+        className="pointer-events-none absolute inset-y-0 -z-10 md:hidden"
         style={{
           left: 'calc(var(--app-px) * -1)',
           right: 'calc(var(--app-px) * -1)',
