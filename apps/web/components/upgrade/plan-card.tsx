@@ -22,13 +22,13 @@ interface PlanCardProps {
 }
 
 const cardOrder: Record<PlanCardVariant, string> = {
-  hero: 'order-1 sm:order-2',
-  free: 'order-2 sm:order-1',
-  anchor: 'order-3 sm:order-3',
+  hero: 'order-1 lg:order-2',
+  free: 'order-2 lg:order-1',
+  anchor: 'order-3',
 }
 
 const surface: Record<PlanCardVariant, string> = {
-  hero: 'z-10 bg-[rgba(var(--primary-rgb),0.08)] shadow-[inset_0_0_0_1.5px_var(--primary),var(--primary-glow)] sm:-translate-y-3',
+  hero: 'z-10 bg-[rgba(var(--primary-rgb),0.08)] shadow-[inset_0_0_0_1.5px_var(--primary),var(--primary-glow)] lg:-translate-y-3',
   free: 'bg-[var(--bg-elev)] shadow-[inset_0_0_0_1px_var(--hairline)]',
   anchor: 'bg-[var(--bg-card)] shadow-[inset_0_0_0_1px_var(--hairline)]',
 }
