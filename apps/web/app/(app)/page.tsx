@@ -33,6 +33,7 @@ import { SectionLabel } from '@/components/ui/section-label'
 import { SetupChecklistCard } from '@/components/today/setup-checklist-card'
 import { ReferralCard } from '@/components/referral/referral-card'
 import { ReferralDrawer } from '@/components/referral/referral-drawer'
+import { useTopbarSlot } from '@/components/shell/topbar-slot'
 import { useUIStore } from '@/stores/ui-store'
 import { useReferralPromptStore } from '@/stores/referral-prompt-store'
 import { useProfile } from '@/hooks/use-profile'
@@ -361,11 +362,41 @@ export default function TodayPage() {
     onSuccess: clearSelection,
   })
 
+  const desktopDateNav = useMemo(
+    () =>
+      currentActiveView === 'today' ? (
+        <TodayDateNavigation
+          compact
+          visible
+          dateLabel={dateLabel}
+          isTodaySelected={isToday(selectedDate)}
+          slideDirection={slideDirection}
+          onGoToPreviousDay={goToPreviousDay}
+          onGoToToday={goToToday}
+          onGoToNextDay={goToNextDay}
+          previousLabel={t('dates.previousDay')}
+          todayLabel={t('dates.goToToday')}
+          nextLabel={t('dates.nextDay')}
+        />
+      ) : null,
+    [
+      currentActiveView,
+      dateLabel,
+      selectedDate,
+      slideDirection,
+      goToPreviousDay,
+      goToToday,
+      goToNextDay,
+      t,
+    ],
+  )
+  useTopbarSlot(desktopDateNav)
+
   return (
     <div className="relative">
       <div
         aria-hidden
-        className="pointer-events-none absolute inset-y-0 -z-10"
+        className="pointer-events-none absolute inset-y-0 -z-10 md:hidden"
         style={{
           left: 'calc(var(--app-px) * -1)',
           right: 'calc(var(--app-px) * -1)',
@@ -374,39 +405,45 @@ export default function TodayPage() {
         <GradientTop height={260} />
       </div>
 
-      <TodayHeader streak={profile?.currentStreak ?? 0} />
+      <div className="md:hidden">
+        <TodayHeader streak={profile?.currentStreak ?? 0} />
 
-      <TodayTabs
-        tabs={tabItems}
-        activeView={currentActiveView}
-        hasProAccess={hasProAccess}
-        onChangeView={attemptViewChange}
-        viewsLabel={t('habits.viewsLabel')}
-      />
-
-      {currentActiveView === 'today' && isToday(selectedDate) && (
-        <TodayAISummary date={formatAPIDate(selectedDate)} />
-      )}
-
-      {currentActiveView === 'today' && isToday(selectedDate) && !homeEntryDismissed && (
-        <ReferralCard
-          onOpen={() => setShowReferral(true)}
-          onDismiss={dismissHomeEntry}
+        <TodayTabs
+          tabs={tabItems}
+          activeView={currentActiveView}
+          hasProAccess={hasProAccess}
+          onChangeView={attemptViewChange}
+          viewsLabel={t('habits.viewsLabel')}
         />
-      )}
+      </div>
 
-      <TodayDateNavigation
-        visible={currentActiveView === 'today'}
-        dateLabel={dateLabel}
-        isTodaySelected={isToday(selectedDate)}
-        slideDirection={slideDirection}
-        onGoToPreviousDay={goToPreviousDay}
-        onGoToToday={goToToday}
-        onGoToNextDay={goToNextDay}
-        previousLabel={t('dates.previousDay')}
-        todayLabel={t('dates.goToToday')}
-        nextLabel={t('dates.nextDay')}
-      />
+      <div className="md:max-w-[820px] xl:max-w-none">
+        {currentActiveView === 'today' && isToday(selectedDate) && (
+          <TodayAISummary date={formatAPIDate(selectedDate)} />
+        )}
+
+        {currentActiveView === 'today' && isToday(selectedDate) && !homeEntryDismissed && (
+          <ReferralCard
+            onOpen={() => setShowReferral(true)}
+            onDismiss={dismissHomeEntry}
+          />
+        )}
+      </div>
+
+      <div className="md:hidden">
+        <TodayDateNavigation
+          visible={currentActiveView === 'today'}
+          dateLabel={dateLabel}
+          isTodaySelected={isToday(selectedDate)}
+          slideDirection={slideDirection}
+          onGoToPreviousDay={goToPreviousDay}
+          onGoToToday={goToToday}
+          onGoToNextDay={goToNextDay}
+          previousLabel={t('dates.previousDay')}
+          todayLabel={t('dates.goToToday')}
+          nextLabel={t('dates.nextDay')}
+        />
+      </div>
 
       <div
         id="tabpanel-goals"
@@ -421,6 +458,7 @@ export default function TodayPage() {
           id="tabpanel-habits"
           role="tabpanel"
           aria-labelledby={`tab-${currentActiveView}`}
+          className="md:max-w-[820px] xl:max-w-none"
         >
           <SectionLabel
             top={20}
@@ -428,6 +466,7 @@ export default function TodayPage() {
             trailing={
               showDayProgress ? (
                 <span
+                  className="md:hidden"
                   style={{
                     fontFamily: 'var(--font-mono)',
                     fontSize: 14,
@@ -444,7 +483,7 @@ export default function TodayPage() {
           </SectionLabel>
 
           {showDayProgress && (
-            <div style={{ padding: '0 20px 6px' }}>
+            <div className="md:hidden" style={{ padding: '0 20px 6px' }}>
               <ProgressBar
                 progress={dayProgress.done / dayProgress.total}
                 label={`${dayProgress.done}/${dayProgress.total} ${t('habits.completed')}`}
