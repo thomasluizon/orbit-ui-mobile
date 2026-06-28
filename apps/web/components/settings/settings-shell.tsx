@@ -75,7 +75,7 @@ export function SettingsShell({ panel, children }: Readonly<SettingsShellProps>)
   )
 
   return (
-    <div className="contents md:grid md:grid-cols-[200px_minmax(0,1fr)] md:gap-6">
+    <div className="contents md:grid md:grid-cols-[248px_minmax(0,1fr)] md:items-start md:gap-8">
       <SettingsNav
         items={items}
         activeId={activePanel ?? panel}
@@ -83,7 +83,7 @@ export function SettingsShell({ panel, children }: Readonly<SettingsShellProps>)
         subtitle={t('settings.shellSubtitle')}
         ariaLabel={t('settings.shellTitle')}
       />
-      <div className="contents md:block md:min-w-0">{children}</div>
+      <div className="contents md:block md:min-w-0 md:max-w-[760px]">{children}</div>
     </div>
   )
 }
