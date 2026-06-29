@@ -73,7 +73,6 @@ export function AppSidebar({
       className="z-30 hidden shrink-0 self-stretch md:block"
       style={{
         width: collapsed ? 'var(--sidebar-w-collapsed)' : 'var(--sidebar-w)',
-        boxShadow: 'inset -1px 0 0 var(--hairline)',
       }}
     >
       <div
@@ -82,6 +81,7 @@ export function AppSidebar({
           height: '100dvh',
           paddingTop: 'calc(var(--safe-top) + 14px)',
           paddingBottom: 'calc(var(--safe-bottom) + 14px)',
+          boxShadow: 'inset -1px 0 0 var(--hairline)',
         }}
       >
       <div

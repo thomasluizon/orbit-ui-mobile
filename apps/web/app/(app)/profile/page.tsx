@@ -175,7 +175,13 @@ export default function ProfilePage() {
       <ProfileHeaderBar streak={streak} error={error} />
 
       {isDesktop ? (
-        <div className="grid grid-cols-[320px_minmax(0,1fr)] items-start gap-8 pt-2">
+        <div className="grid grid-cols-[minmax(0,1fr)_320px] items-start gap-8 pt-2">
+          <div className="stagger-enter min-w-0">
+            {nextReward}
+            {navSections}
+            {subscription}
+            {accountActions}
+          </div>
           <aside className="stagger-enter">
             <ProfileSummaryCard
               name={profile?.name}
@@ -199,12 +205,6 @@ export default function ProfilePage() {
               onInvite={() => setShowReferral(true)}
             />
           </aside>
-          <div className="stagger-enter min-w-0">
-            {nextReward}
-            {navSections}
-            {subscription}
-            {accountActions}
-          </div>
         </div>
       ) : (
         <div className="stagger-enter">
