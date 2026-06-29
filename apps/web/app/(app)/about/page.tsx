@@ -10,7 +10,6 @@ import { SettingsRow } from '@/components/ui/settings-row'
 import { FeatureGuideDrawer } from '@/components/onboarding/feature-guide-drawer'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import packageJson from '@/package.json'
-import { SettingsShell } from '@/components/settings/settings-shell'
 
 export default function AboutPage() {
   const t = useTranslations()
@@ -19,7 +18,7 @@ export default function AboutPage() {
   const [showGuide, setShowGuide] = useState(false)
 
   return (
-    <SettingsShell panel="about">
+    <div className="md:mx-auto md:max-w-[760px]">
       <div className="flex flex-col min-h-[100dvh]">
         <AppBar
           back
@@ -81,6 +80,6 @@ export default function AboutPage() {
         </div>
         <FeatureGuideDrawer open={showGuide} onOpenChange={setShowGuide} />
       </div>
-    </SettingsShell>
+    </div>
   )
 }

@@ -2,24 +2,45 @@ import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent, within } from '@testing-library/react'
 import type { ComponentProps, ComponentType } from 'react'
 import type { LucideProps } from 'lucide-react'
-import { AppSidebar, type SidebarNavItem } from '@/components/navigation/app-sidebar'
+import {
+  AppSidebar,
+  type SidebarSection,
+} from '@/components/navigation/app-sidebar'
 
 const StubIcon: ComponentType<LucideProps> = () => <svg data-testid="nav-icon" />
 
 type SidebarProps = ComponentProps<typeof AppSidebar>
 
-function buildItems(): SidebarNavItem[] {
+const habitsChildren = {
+  today: vi.fn(),
+  all: vi.fn(),
+  general: vi.fn(),
+}
+
+function buildSections(): SidebarSection[] {
   return [
-    { id: 'today', label: 'Today', icon: StubIcon, onSelect: vi.fn() },
-    { id: 'goals', label: 'Goals', icon: StubIcon, onSelect: vi.fn() },
-    { id: 'profile', label: 'Profile', icon: StubIcon, onSelect: vi.fn() },
+    {
+      id: 'habits',
+      label: 'Habits',
+      icon: StubIcon,
+      active: true,
+      expanded: true,
+      onSelect: vi.fn(),
+      children: [
+        { id: 'today', label: 'Today', active: true, onSelect: habitsChildren.today },
+        { id: 'all', label: 'All', active: false, onSelect: habitsChildren.all },
+        { id: 'general', label: 'General', active: false, onSelect: habitsChildren.general },
+      ],
+    },
+    { id: 'calendar', label: 'Calendar', icon: StubIcon, active: false, onSelect: vi.fn() },
+    { id: 'goals', label: 'Goals', icon: StubIcon, active: false, onSelect: vi.fn() },
+    { id: 'profile', label: 'Profile', icon: StubIcon, active: false, onSelect: vi.fn() },
   ]
 }
 
 function renderSidebar(overrides: Partial<SidebarProps> = {}): SidebarProps {
   const props: SidebarProps = {
-    items: buildItems(),
-    activeId: 'today',
+    sections: buildSections(),
     collapsed: false,
     onToggleCollapsed: vi.fn(),
     collapseLabel: 'Collapse sidebar',
@@ -34,37 +55,94 @@ function renderSidebar(overrides: Partial<SidebarProps> = {}): SidebarProps {
 }
 
 describe('AppSidebar', () => {
-  it('renders one nav button per item with its label', () => {
-    const props = renderSidebar()
+  it('renders each top-level section with its label', () => {
+    renderSidebar()
     const nav = screen.getByRole('navigation')
 
-    expect(within(nav).getAllByRole('button')).toHaveLength(props.items.length)
-    for (const item of props.items) {
-      expect(within(nav).getByRole('button', { name: item.label })).toBeInTheDocument()
+    for (const label of ['Habits', 'Calendar', 'Goals', 'Profile']) {
+      expect(within(nav).getByRole('button', { name: label })).toBeInTheDocument()
     }
   })
 
-  it('marks only the active item with aria-current page', () => {
-    renderSidebar({ activeId: 'goals' })
+  it('expands the Habits group into Today / All / General sub-items', () => {
+    renderSidebar()
     const nav = screen.getByRole('navigation')
 
-    expect(within(nav).getByRole('button', { name: 'Goals' })).toHaveAttribute(
+    expect(within(nav).getByRole('button', { name: 'Today' })).toBeInTheDocument()
+    expect(within(nav).getByRole('button', { name: 'All' })).toBeInTheDocument()
+    expect(within(nav).getByRole('button', { name: 'General' })).toBeInTheDocument()
+  })
+
+  it('marks the Habits parent expanded via aria-expanded', () => {
+    renderSidebar()
+    const nav = screen.getByRole('navigation')
+
+    expect(within(nav).getByRole('button', { name: 'Habits' })).toHaveAttribute(
+      'aria-expanded',
+      'true',
+    )
+  })
+
+  it('collapses the group to the parent when a section is not expanded', () => {
+    const sections = buildSections()
+    sections[0]!.expanded = false
+    renderSidebar({ sections })
+    const nav = screen.getByRole('navigation')
+
+    expect(within(nav).queryByRole('button', { name: 'Today' })).not.toBeInTheDocument()
+    expect(within(nav).queryByRole('button', { name: 'All' })).not.toBeInTheDocument()
+    expect(within(nav).getByRole('button', { name: 'Habits' })).toHaveAttribute(
+      'aria-expanded',
+      'false',
+    )
+  })
+
+  it('fires a sub-item onSelect when a child is clicked', () => {
+    renderSidebar()
+    const nav = screen.getByRole('navigation')
+
+    fireEvent.click(within(nav).getByRole('button', { name: 'All' }))
+
+    expect(habitsChildren.all).toHaveBeenCalledTimes(1)
+    expect(habitsChildren.today).not.toHaveBeenCalled()
+  })
+
+  it('fires a top-level section onSelect when clicked', () => {
+    const sections = buildSections()
+    renderSidebar({ sections })
+    const nav = screen.getByRole('navigation')
+
+    fireEvent.click(within(nav).getByRole('button', { name: 'Calendar' }))
+
+    expect(sections[1]!.onSelect).toHaveBeenCalledTimes(1)
+  })
+
+  it('marks the active leaf section with aria-current page', () => {
+    const sections = buildSections()
+    sections[1]!.active = true
+    renderSidebar({ sections })
+    const nav = screen.getByRole('navigation')
+
+    expect(within(nav).getByRole('button', { name: 'Calendar' })).toHaveAttribute(
       'aria-current',
       'page',
     )
-    expect(within(nav).getByRole('button', { name: 'Today' })).not.toHaveAttribute('aria-current')
-    expect(within(nav).getByRole('button', { name: 'Profile' })).not.toHaveAttribute('aria-current')
+    expect(within(nav).getByRole('button', { name: 'Profile' })).not.toHaveAttribute(
+      'aria-current',
+    )
   })
 
-  it('fires the item onSelect when a nav item is clicked', () => {
-    const items = buildItems()
-    renderSidebar({ items })
+  it('marks the active sub-item with aria-current page, not the expanded parent', () => {
+    renderSidebar()
     const nav = screen.getByRole('navigation')
 
-    fireEvent.click(within(nav).getByRole('button', { name: 'Goals' }))
-
-    expect(items[1]!.onSelect).toHaveBeenCalledTimes(1)
-    expect(items[0]!.onSelect).not.toHaveBeenCalled()
+    expect(within(nav).getByRole('button', { name: 'Today' })).toHaveAttribute(
+      'aria-current',
+      'page',
+    )
+    expect(within(nav).getByRole('button', { name: 'Habits' })).not.toHaveAttribute(
+      'aria-current',
+    )
   })
 
   it('fires onCreate when the create button is clicked', () => {
@@ -78,8 +156,7 @@ describe('AppSidebar', () => {
   it('toggles collapse and labels the control collapse while expanded', () => {
     const props = renderSidebar({ collapsed: false })
 
-    const toggle = screen.getByRole('button', { name: 'Collapse sidebar' })
-    fireEvent.click(toggle)
+    fireEvent.click(screen.getByRole('button', { name: 'Collapse sidebar' }))
 
     expect(props.onToggleCollapsed).toHaveBeenCalledTimes(1)
     expect(screen.queryByRole('button', { name: 'Expand sidebar' })).not.toBeInTheDocument()
@@ -92,19 +169,20 @@ describe('AppSidebar', () => {
     expect(screen.queryByRole('button', { name: 'Collapse sidebar' })).not.toBeInTheDocument()
   })
 
-  it('renders item labels while expanded', () => {
+  it('renders section labels while expanded', () => {
     renderSidebar({ collapsed: false })
 
-    expect(screen.getByText('Today')).toBeInTheDocument()
-    expect(screen.getByText('Goals')).toBeInTheDocument()
+    expect(screen.getByText('Habits')).toBeInTheDocument()
+    expect(screen.getByText('Calendar')).toBeInTheDocument()
     expect(screen.getByText('Profile')).toBeInTheDocument()
   })
 
-  it('hides item labels while collapsed (icon-only rail)', () => {
+  it('hides labels and collapses the group to icons while collapsed', () => {
     renderSidebar({ collapsed: true })
 
+    expect(screen.queryByText('Habits')).not.toBeInTheDocument()
+    expect(screen.queryByText('Calendar')).not.toBeInTheDocument()
     expect(screen.queryByText('Today')).not.toBeInTheDocument()
-    expect(screen.queryByText('Goals')).not.toBeInTheDocument()
-    expect(screen.queryByText('Profile')).not.toBeInTheDocument()
+    expect(screen.queryByText('All')).not.toBeInTheDocument()
   })
 })

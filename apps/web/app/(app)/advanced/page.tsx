@@ -41,7 +41,6 @@ import {
   SubsectionTitle,
   copyToClipboard,
 } from '@/components/advanced/advanced-sections'
-import { SettingsShell } from '@/components/settings/settings-shell'
 
 export default function AdvancedPage() {
   const t = useTranslations()
@@ -97,7 +96,7 @@ export default function AdvancedPage() {
   }
 
   return (
-    <SettingsShell panel="advanced">
+    <div className="md:mx-auto md:max-w-[760px]">
       <div className="flex flex-col min-h-[100dvh]">
         <AppBar
           back
@@ -431,6 +430,6 @@ export default function AdvancedPage() {
           }}
         />
       </div>
-    </SettingsShell>
+    </div>
   )
 }

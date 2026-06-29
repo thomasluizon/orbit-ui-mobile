@@ -91,7 +91,11 @@ export default function UpgradePage() {
 
   return (
     <div className="relative flex min-h-[100dvh] flex-col">
-      {showGradient && <GradientTop height={260} />}
+      {showGradient && (
+        <div className="md:hidden">
+          <GradientTop height={260} />
+        </div>
+      )}
       <div className="relative z-[1] flex min-h-0 flex-1 flex-col">
         <AppBar
           back

@@ -11,7 +11,6 @@ import { OfflineUnavailableState } from '@/components/ui/offline-unavailable-sta
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { SupportSuccessState } from './_components/support-success-state'
 import { SupportForm } from './_components/support-form'
-import { SettingsShell } from '@/components/settings/settings-shell'
 
 const SUPPORT_DRAFT_STORAGE_KEY = 'orbit-support-draft'
 
@@ -87,7 +86,7 @@ export default function SupportPage() {
   const disabled = isSending || !subject.trim() || !message.trim() || !isOnline
 
   return (
-    <SettingsShell panel="support">
+    <div className="md:mx-auto md:max-w-[760px]">
       <div className="flex flex-col min-h-[100dvh]">
         <AppBar
           back
@@ -122,6 +121,6 @@ export default function SupportPage() {
           )}
         </div>
       </div>
-    </SettingsShell>
+    </div>
   )
 }

@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef } from 'react'
 import { format, getHours, getMinutes } from 'date-fns'
 import type { Locale } from 'date-fns'
 import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
+import { useIsDesktop } from './use-is-desktop'
 
 const HOUR_HEIGHT = 48
 const DAY_HEIGHT = HOUR_HEIGHT * 24
@@ -262,6 +263,7 @@ export function CalendarTimeGrid({
   nowLabel,
 }: Readonly<CalendarTimeGridProps>) {
   const bodyRef = useRef<HTMLDivElement>(null)
+  const isDesktop = useIsDesktop()
   const nowMinutes = useMemo(() => {
     const now = new Date()
     return getHours(now) * 60 + getMinutes(now)
@@ -272,8 +274,10 @@ export function CalendarTimeGrid({
     if (node) node.scrollTop = 7 * HOUR_HEIGHT
   }, [])
 
-  const gridTemplate = `${GUTTER}px repeat(${columns.length}, minmax(${MIN_COL_WIDTH}px, 1fr))`
-  const gridMinWidth = GUTTER + columns.length * MIN_COL_WIDTH
+  const columnTrack = isDesktop ? '1fr' : `minmax(${MIN_COL_WIDTH}px, 1fr)`
+  const gridTemplate = `${GUTTER}px repeat(${columns.length}, ${columnTrack})`
+  const gridMinWidth = isDesktop ? undefined : GUTTER + columns.length * MIN_COL_WIDTH
+  const scrollerOverflow = isDesktop ? { overflowX: 'hidden', overflowY: 'auto' } as const : { overflow: 'auto' } as const
 
   const perColumn = useMemo(
     () =>
@@ -303,7 +307,7 @@ export function CalendarTimeGrid({
         <div
           ref={bodyRef}
           className="thin-scrollbar"
-          style={{ overflow: 'auto', maxHeight: SCROLLER_MAX_HEIGHT }}
+          style={{ ...scrollerOverflow, maxHeight: SCROLLER_MAX_HEIGHT }}
         >
           <div
             className="grid sticky top-0 z-[3]"

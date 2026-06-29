@@ -278,7 +278,9 @@ export default function CalendarPage() {
       onTouchStart={handleTouchStart}
       onTouchEnd={handleTouchEnd}
     >
-      <GradientTop height={180} />
+      <div className="md:hidden">
+        <GradientTop height={180} />
+      </div>
       <div className="relative z-[1]">
         <SectionHeadTabs<CalendarView>
           tabs={viewTabs}

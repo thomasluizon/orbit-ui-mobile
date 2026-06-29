@@ -1,10 +1,18 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen } from '@testing-library/react'
 
-const { useHabitsMock, computeDayProgressMock, emptyHabitsById } = vi.hoisted(() => ({
+const {
+  useHabitsMock,
+  computeDayProgressMock,
+  emptyHabitsById,
+  useProfileMock,
+  useGamificationProfileMock,
+} = vi.hoisted(() => ({
   useHabitsMock: vi.fn(),
   computeDayProgressMock: vi.fn(),
   emptyHabitsById: new Map<string, unknown>(),
+  useProfileMock: vi.fn(),
+  useGamificationProfileMock: vi.fn(),
 }))
 
 vi.mock('next-intl', () => ({
@@ -17,23 +25,43 @@ vi.mock('@orbit/shared/utils', () => ({
   formatAPIDate: () => '2026-06-28',
 }))
 
+vi.mock('@/lib/plural', () => ({
+  plural: (text: string) => text,
+}))
+
 vi.mock('@/hooks/use-habits', () => ({
   useHabits: useHabitsMock,
   EMPTY_HABITS_BY_ID: emptyHabitsById,
 }))
 
+vi.mock('@/hooks/use-profile', () => ({
+  useProfile: useProfileMock,
+}))
+
+vi.mock('@/hooks/use-gamification', () => ({
+  useGamificationProfile: useGamificationProfileMock,
+}))
+
 import { TodayRail } from '@/components/shell/today-rail'
+
+const loadedHabits = (done: number, total: number) => {
+  const habitsById = new Map()
+  useHabitsMock.mockReturnValue({ data: { habitsById }, isSuccess: true })
+  computeDayProgressMock.mockReturnValue({ done, total })
+  return habitsById
+}
 
 describe('TodayRail', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    useHabitsMock.mockReturnValue({ data: undefined })
+    useHabitsMock.mockReturnValue({ data: undefined, isSuccess: false })
     computeDayProgressMock.mockReturnValue({ done: 0, total: 0 })
+    useProfileMock.mockReturnValue({ profile: { canViewGamification: false } })
+    useGamificationProfileMock.mockReturnValue({ profile: null, xpProgress: 0 })
   })
 
   it('renders the progress orbit with the computed done and total', () => {
-    useHabitsMock.mockReturnValue({ data: { habitsById: new Map() } })
-    computeDayProgressMock.mockReturnValue({ done: 3, total: 7 })
+    loadedHabits(3, 7)
 
     render(<TodayRail />)
 
@@ -46,8 +74,7 @@ describe('TodayRail', () => {
   })
 
   it('computes progress from the day-query habits and the current date', () => {
-    const habitsById = new Map()
-    useHabitsMock.mockReturnValue({ data: { habitsById } })
+    const habitsById = loadedHabits(0, 0)
 
     render(<TodayRail />)
 
@@ -55,7 +82,7 @@ describe('TodayRail', () => {
   })
 
   it('falls back to the empty habit map when the query has no data', () => {
-    useHabitsMock.mockReturnValue({ data: undefined })
+    useHabitsMock.mockReturnValue({ data: undefined, isSuccess: false })
 
     render(<TodayRail />)
 
@@ -70,5 +97,51 @@ describe('TodayRail', () => {
       dateTo: '2026-06-28',
       includeOverdue: true,
     })
+  })
+
+  it('shows remaining-today from the day progress once the query has loaded', () => {
+    loadedHabits(2, 7)
+
+    render(<TodayRail />)
+
+    expect(screen.getByText('rail.remaining')).toBeInTheDocument()
+    expect(screen.getByText('5')).toBeInTheDocument()
+  })
+
+  it('does not render the stat stack before the habits query resolves', () => {
+    useHabitsMock.mockReturnValue({ data: undefined, isSuccess: false })
+
+    render(<TodayRail />)
+
+    expect(screen.queryByText('rail.remaining')).not.toBeInTheDocument()
+  })
+
+  it('omits gamification stats when the user cannot view gamification', () => {
+    loadedHabits(1, 4)
+    useProfileMock.mockReturnValue({ profile: { canViewGamification: false } })
+    useGamificationProfileMock.mockReturnValue({ profile: null, xpProgress: 0 })
+
+    render(<TodayRail />)
+
+    expect(screen.getByText('rail.remaining')).toBeInTheDocument()
+    expect(screen.queryByText('streakDisplay.title')).not.toBeInTheDocument()
+    expect(screen.queryByText('gamification.profileCard.tileLabel')).not.toBeInTheDocument()
+  })
+
+  it('renders streak, level with XP, and achievements when gamification is loaded', () => {
+    loadedHabits(1, 4)
+    useProfileMock.mockReturnValue({ profile: { canViewGamification: true } })
+    useGamificationProfileMock.mockReturnValue({
+      profile: { currentStreak: 26, level: 19, achievementsEarned: 12 },
+      xpProgress: 64,
+    })
+
+    render(<TodayRail />)
+
+    expect(screen.getByText('26 streakDisplay.daysSuffix')).toBeInTheDocument()
+    expect(screen.getByText('gamification.profileCard.level({"level":19})')).toBeInTheDocument()
+    expect(screen.getByText('64%')).toBeInTheDocument()
+    expect(screen.getByText('gamification.profileCard.tileLabel')).toBeInTheDocument()
+    expect(screen.getByText('12')).toBeInTheDocument()
   })
 })

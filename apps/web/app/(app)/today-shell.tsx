@@ -124,6 +124,9 @@ interface TodayDateNavigationProps {
   previousLabel: string
   todayLabel: string
   nextLabel: string
+  /** Drops the in-page padding and the full-width stretch so the row sits inline
+   *  in the desktop topbar's left slot. */
+  compact?: boolean
 }
 
 export function TodayDateNavigation({
@@ -137,21 +140,23 @@ export function TodayDateNavigation({
   previousLabel,
   todayLabel,
   nextLabel,
+  compact = false,
 }: Readonly<TodayDateNavigationProps>) {
   if (!visible) return null
 
   return (
     <div
       className="shrink-0"
-      data-tour="tour-date-nav"
+      data-tour={compact ? undefined : 'tour-date-nav'}
       style={{
-        padding: '12px 20px 16px',
+        padding: compact ? 0 : '12px 20px 16px',
       }}
     >
       <div
-        className="flex items-center justify-between w-full"
+        className={compact ? 'flex items-center' : 'flex items-center justify-between w-full'}
         style={{
-          padding: '0 4px',
+          padding: compact ? 0 : '0 4px',
+          gap: compact ? 2 : undefined,
         }}
       >
         <button
