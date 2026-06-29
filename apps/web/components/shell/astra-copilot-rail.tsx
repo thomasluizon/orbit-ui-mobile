@@ -1,9 +1,9 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { ChevronDown } from 'lucide-react'
+import { ChevronDown, Maximize2, Minimize2 } from 'lucide-react'
 import { CHAT_GOAL_ACTION_TYPES } from '@orbit/shared/hooks'
 import { habitDetailToNormalized } from '@orbit/shared/utils'
 import { AstraAvatar, AstraMark } from '@/components/ui/astra-avatar'
@@ -59,7 +59,11 @@ function AstraLauncher({ open, onOpen }: Readonly<{ open: boolean; onOpen: () =>
   )
 }
 
-function AstraRailHeader({ onClose }: Readonly<{ onClose: () => void }>) {
+function AstraRailHeader({
+  onClose,
+  maximized,
+  onToggleMaximize,
+}: Readonly<{ onClose: () => void; maximized: boolean; onToggleMaximize: () => void }>) {
   const t = useTranslations()
 
   return (
@@ -69,7 +73,7 @@ function AstraRailHeader({ onClose }: Readonly<{ onClose: () => void }>) {
         className="pointer-events-none absolute inset-x-0 top-0 z-0"
         style={{ height: 96, background: 'var(--gradient-header)' }}
       />
-      <div className="relative z-10 flex items-center gap-3">
+      <div className="relative z-10 mx-auto flex w-full max-w-[var(--content-max-w)] items-center gap-3">
         <span
           className="inline-flex shrink-0 items-center justify-center rounded-full"
           style={{ width: 38, height: 38, background: 'rgba(var(--primary-rgb), 0.16)' }}
@@ -84,15 +88,31 @@ function AstraRailHeader({ onClose }: Readonly<{ onClose: () => void }>) {
             {t('astraRail.subtitle')}
           </span>
         </span>
-        <button
-          type="button"
-          aria-label={t('astraRail.close')}
-          onClick={onClose}
-          className="ml-auto inline-flex shrink-0 items-center justify-center rounded-full text-[var(--fg-2)] transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev)] hover:text-[var(--fg-1)] active:scale-[0.96]"
-          style={{ width: 40, height: 40, boxShadow: 'inset 0 0 0 1.5px var(--hairline-strong)' }}
-        >
-          <ChevronDown size={20} strokeWidth={1.8} aria-hidden />
-        </button>
+        <div className="ml-auto flex shrink-0 items-center gap-2">
+          <button
+            type="button"
+            aria-label={maximized ? t('astraRail.minimize') : t('astraRail.maximize')}
+            title={maximized ? t('astraRail.minimize') : t('astraRail.maximize')}
+            onClick={onToggleMaximize}
+            className="inline-flex items-center justify-center rounded-full text-[var(--fg-2)] transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev)] hover:text-[var(--fg-1)] active:scale-[0.96]"
+            style={{ width: 40, height: 40, boxShadow: 'inset 0 0 0 1.5px var(--hairline-strong)' }}
+          >
+            {maximized ? (
+              <Minimize2 size={18} strokeWidth={1.8} aria-hidden />
+            ) : (
+              <Maximize2 size={18} strokeWidth={1.8} aria-hidden />
+            )}
+          </button>
+          <button
+            type="button"
+            aria-label={t('astraRail.close')}
+            onClick={onClose}
+            className="inline-flex items-center justify-center rounded-full text-[var(--fg-2)] transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev)] hover:text-[var(--fg-1)] active:scale-[0.96]"
+            style={{ width: 40, height: 40, boxShadow: 'inset 0 0 0 1.5px var(--hairline-strong)' }}
+          >
+            <ChevronDown size={20} strokeWidth={1.8} aria-hidden />
+          </button>
+        </div>
       </div>
     </header>
   )
@@ -217,6 +237,9 @@ function AstraRailPanel({ onClose }: Readonly<{ onClose: () => void }>) {
   const router = useRouter()
   const composer = useChatComposer()
   const [entered, setEntered] = useState(false)
+  const maximized = useShellStore((state) => state.astraMaximized)
+  const toggleMaximized = useShellStore((state) => state.toggleAstraMaximized)
+  const sidebarCollapsed = useShellStore((state) => state.sidebarCollapsed)
 
   const [selectedHabitId, setSelectedHabitId] = useState<string | null>(null)
   const [selectedGoalId, setSelectedGoalId] = useState<string | null>(null)
@@ -262,27 +285,51 @@ function AstraRailPanel({ onClose }: Readonly<{ onClose: () => void }>) {
 
   const goToUpgrade = useCallback(() => router.push('/upgrade'), [router])
 
+  const positionStyle: React.CSSProperties = maximized
+    ? {
+        top: 0,
+        right: 0,
+        bottom: 0,
+        left: sidebarCollapsed ? 'var(--sidebar-w-collapsed)' : 'var(--sidebar-w)',
+        borderRadius: 0,
+        boxShadow: 'inset 1px 0 0 var(--hairline)',
+        transform: entered ? 'translateY(0)' : 'translateY(8px)',
+      }
+    : {
+        width: 'min(384px, calc(100vw - 48px))',
+        height: 'min(640px, calc(100dvh - 48px))',
+        right: 24,
+        bottom: 24,
+        borderRadius: 20,
+        boxShadow: 'var(--shadow-3), inset 0 0 0 1px var(--hairline-strong)',
+        transformOrigin: 'bottom right',
+        transform: entered ? 'translateY(0) scale(1)' : 'translateY(8px) scale(0.98)',
+      }
+
   return (
     <div
       role="dialog"
       aria-modal="false"
       aria-label={t('astraRail.title')}
-      className="fixed bottom-6 right-6 z-40 hidden min-h-0 flex-col overflow-hidden md:flex"
+      className="fixed z-40 hidden min-h-0 flex-col overflow-hidden md:flex"
       style={{
-        width: 'min(384px, calc(100vw - 48px))',
-        height: 'min(640px, calc(100dvh - 48px))',
-        borderRadius: 20,
         background: 'var(--bg)',
-        boxShadow: 'var(--shadow-3), inset 0 0 0 1px var(--hairline-strong)',
-        transformOrigin: 'bottom right',
-        transform: entered ? 'translateY(0) scale(1)' : 'translateY(8px) scale(0.98)',
         opacity: entered ? 1 : 0,
         transition: 'transform var(--dur-base) var(--ease-out), opacity var(--dur-base) var(--ease-out)',
+        ...positionStyle,
       }}
     >
-      <AstraRailHeader onClose={onClose} />
-      <AstraRailMessages composer={composer} onActionChipClick={handleActionChipClick} onUpgradeClick={goToUpgrade} />
-      <AstraRailComposer composer={composer} onUpgrade={goToUpgrade} />
+      <AstraRailHeader onClose={onClose} maximized={maximized} onToggleMaximize={toggleMaximized} />
+      <div
+        className={
+          maximized
+            ? 'mx-auto flex min-h-0 w-full max-w-[var(--content-max-w)] flex-1 flex-col'
+            : 'flex min-h-0 flex-1 flex-col'
+        }
+      >
+        <AstraRailMessages composer={composer} onActionChipClick={handleActionChipClick} onUpgradeClick={goToUpgrade} />
+        <AstraRailComposer composer={composer} onUpgrade={goToUpgrade} />
+      </div>
 
       <HabitDetailDrawer open={!!selectedHabitId} onOpenChange={handleHabitDrawerOpenChange} habit={selectedHabit} />
       {selectedGoalId && (
@@ -293,14 +340,21 @@ function AstraRailPanel({ onClose }: Readonly<{ onClose: () => void }>) {
 }
 
 /**
- * Persistent, collapsible Astra copilot docked bottom-right on desktop (md+). Collapsed
- * it is a compact launcher; expanded it is an in-place chat panel that reuses the shared
- * chat store and `useChatComposer` SSE pipeline, so the conversation stays continuous with
- * the `/chat` route. Hidden below 768px, where the phone shell keeps its bottom-nav Astra tab.
+ * Persistent Astra copilot on desktop (md+). Collapsed it is a compact launcher; opened it
+ * is a docked bottom-right chat panel that can maximize to fill the content area beside the
+ * sidebar (and minimize back to the dock). Reuses the shared chat store + `useChatComposer`
+ * SSE pipeline so the conversation is continuous. Navigating away collapses a maximized panel
+ * back to the dock. Hidden below 768px, where the phone shell keeps its bottom-nav Astra tab.
  */
 export function AstraCopilotRail() {
   const astraOpen = useShellStore((state) => state.astraOpen)
   const setAstraOpen = useShellStore((state) => state.setAstraOpen)
+  const setAstraMaximized = useShellStore((state) => state.setAstraMaximized)
+  const pathname = usePathname()
+
+  useEffect(() => {
+    setAstraMaximized(false)
+  }, [pathname, setAstraMaximized])
 
   return (
     <>

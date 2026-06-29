@@ -214,6 +214,8 @@
   "astraRail": {
     "open": "Open Astra",
     "close": "Collapse Astra",
+    "maximize": "Maximize",
+    "minimize": "Minimize",
     "title": "Astra copilot",
     "subtitle": "Your habit copilot"
   },

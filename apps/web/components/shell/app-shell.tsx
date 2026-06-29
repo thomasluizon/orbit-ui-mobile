@@ -31,12 +31,12 @@ interface AppShellProps {
 type HabitSubView = 'today' | 'all' | 'general'
 
 /**
- * Desktop application shell (≥768px): a real three-column layout filling
- * `--shell-max-w` — sidebar | main (flex, min-w-0) | contextual right rail — with
- * each page owning its own content width (no global cap). Main carries the gradient
- * header and a sticky topbar. Below 768px it collapses to the single content column
- * (sidebar, rail, and topbar hide themselves), leaving the phone layout untouched.
- * Today/Goals are `activeView` switches on `/`, not routes.
+ * Desktop application shell (≥768px): a full-bleed three-column layout — sidebar
+ * (left edge) | main (flex, min-w-0, content centered at `--content-max-w`) | contextual
+ * right rail (right edge). Main carries the full-width gradient header and a topbar.
+ * Below 768px it collapses to the single content column (sidebar, rail, and topbar hide
+ * themselves), leaving the phone layout untouched. Today/Goals are `activeView` switches
+ * on `/`, not routes.
  */
 export function AppShell({ children, onCreate }: Readonly<AppShellProps>) {
   const t = useTranslations()
@@ -50,6 +50,9 @@ export function AppShell({ children, onCreate }: Readonly<AppShellProps>) {
   const toggleSidebar = useShellStore((state) => state.toggleSidebar)
   const railOpen = useShellStore((state) => state.railOpen)
   const setRailOpen = useShellStore((state) => state.setRailOpen)
+  const setAstraOpen = useShellStore((state) => state.setAstraOpen)
+  const setAstraMaximized = useShellStore((state) => state.setAstraMaximized)
+  const astraMaximized = useShellStore((state) => state.astraMaximized)
   const setShowCreateModal = useUIStore((state) => state.setShowCreateModal)
   const setShowCreateGoalModal = useUIStore((state) => state.setShowCreateGoalModal)
 
@@ -144,8 +147,11 @@ export function AppShell({ children, onCreate }: Readonly<AppShellProps>) {
         id: 'astra',
         label: t('nav.astra'),
         icon: AstraMark,
-        active: pathname.startsWith('/chat'),
-        onSelect: () => router.push('/chat'),
+        active: astraMaximized,
+        onSelect: () => {
+          setAstraOpen(true)
+          setAstraMaximized(true)
+        },
       },
       {
         id: 'profile',
@@ -165,6 +171,9 @@ export function AppShell({ children, onCreate }: Readonly<AppShellProps>) {
       goalsActive,
       selectHabitView,
       openGoals,
+      astraMaximized,
+      setAstraOpen,
+      setAstraMaximized,
     ],
   )
 
@@ -176,10 +185,18 @@ export function AppShell({ children, onCreate }: Readonly<AppShellProps>) {
       { id: 'calendar', label: t('nav.calendar'), icon: CalendarDays, onSelect: () => router.push('/calendar') },
       { id: 'goals', label: t('nav.goals'), icon: Target, onSelect: openGoals },
       { id: 'insights', label: t('nav.insights'), icon: BarChart3, onSelect: () => router.push('/insights') },
-      { id: 'astra', label: t('nav.astra'), icon: AstraMark, onSelect: () => router.push('/chat') },
+      {
+        id: 'astra',
+        label: t('nav.astra'),
+        icon: AstraMark,
+        onSelect: () => {
+          setAstraOpen(true)
+          setAstraMaximized(true)
+        },
+      },
       { id: 'profile', label: t('nav.profile'), icon: User, onSelect: () => router.push('/profile') },
     ],
-    [t, router, selectHabitView, openGoals],
+    [t, router, selectHabitView, openGoals, setAstraOpen, setAstraMaximized],
   )
 
   const topbarTitle = useMemo(() => {
@@ -206,7 +223,7 @@ export function AppShell({ children, onCreate }: Readonly<AppShellProps>) {
   return (
     <TopbarSlotProvider>
       <InAppShellProvider>
-        <div className="md:mx-auto md:flex md:max-w-[var(--shell-max-w)]">
+        <div className="md:flex">
           <AppSidebar
             sections={sidebarSections}
             collapsed={sidebarCollapsed}
@@ -224,7 +241,7 @@ export function AppShell({ children, onCreate }: Readonly<AppShellProps>) {
               className="pointer-events-none absolute inset-x-0 top-0 -z-10 hidden md:block"
               style={{ height: 260, background: 'var(--gradient-header)' }}
             />
-            <div className="mx-auto max-w-[var(--app-max-w)] px-[var(--app-px)] md:relative md:z-[1] md:max-w-none md:px-8 xl:px-10 md:pb-16">
+            <div className="mx-auto max-w-[var(--app-max-w)] px-[var(--app-px)] md:relative md:z-[1] md:max-w-[var(--content-max-w)] md:px-8 xl:px-10 md:pb-16">
               <DesktopTopbar title={topbarTitle} />
               {children}
             </div>

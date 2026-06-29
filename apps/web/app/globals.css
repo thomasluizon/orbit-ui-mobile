@@ -366,8 +366,8 @@
     --app-max-w: 640px;
     --app-px: 1.25rem;
 
-    /* Desktop shell — sidebar+content >=768 (md), +right rail >=1280 (xl), capped/centered */
-    --shell-max-w: 1440px;
+    /* Desktop shell — full-bleed track; sidebar+content >=768 (md), +right rail >=1280 (xl) */
+    --content-max-w: 60rem;
     --sidebar-w: 248px;
     --sidebar-w-collapsed: 76px;
     --rail-w: 344px;
@@ -383,17 +383,6 @@
     }
   }
 
-  @media (min-width: 1536px) {
-    :root {
-      --shell-max-w: 1600px;
-    }
-  }
-
-  @media (min-width: 1920px) {
-    :root {
-      --shell-max-w: 1680px;
-    }
-  }
 }
 
 html {

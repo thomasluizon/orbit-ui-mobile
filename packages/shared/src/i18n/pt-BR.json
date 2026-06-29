@@ -214,6 +214,8 @@
   "astraRail": {
     "open": "Abrir o Astra",
     "close": "Recolher o Astra",
+    "maximize": "Maximizar",
+    "minimize": "Minimizar",
     "title": "Copiloto Astra",
     "subtitle": "Seu copiloto de hábitos"
   },
