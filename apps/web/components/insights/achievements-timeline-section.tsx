@@ -47,7 +47,9 @@ export function AchievementsTimelineSection({ divider }: Readonly<{ divider?: bo
               key={achievement.id}
               className="flex items-baseline justify-between gap-3"
             >
-              <span className="t-row truncate">{achievement.name}</span>
+              <span className="t-row truncate">
+                {t(`gamification.achievements.${achievement.id}.name`)}
+              </span>
               <span className="t-meta shrink-0">
                 {achievement.earnedAtUtc
                   ? dateFormatter.format(new Date(achievement.earnedAtUtc))
