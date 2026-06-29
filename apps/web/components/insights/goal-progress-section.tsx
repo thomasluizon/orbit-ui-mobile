@@ -1,12 +1,13 @@
 'use client'
 
 import { useState } from 'react'
-import { useTranslations } from 'next-intl'
+import { useTranslations, useLocale } from 'next-intl'
 import { TrendLine } from '@/components/charts/trend-line'
 import { AppSelect } from '@/components/ui/app-select'
 import { useGoals } from '@/hooks/use-goals'
 import { useGoalProgressHistory } from '@/hooks/use-goal-progress-history'
 import { InsightsSection, toSectionStatus, type SectionStatus } from './insights-section'
+import { useDateLabel } from './insights-headline'
 import type { DateRange } from './range'
 
 interface GoalProgressSectionProps {
@@ -17,6 +18,8 @@ interface GoalProgressSectionProps {
 /** Recorded progress for one goal across the selected range, with a goal picker. */
 export function GoalProgressSection({ range, divider }: Readonly<GoalProgressSectionProps>) {
   const t = useTranslations()
+  const locale = useLocale()
+  const formatLabel = useDateLabel()
   const { data: goalsData, isLoading: goalsLoading } = useGoals()
   const goals = goalsData?.allGoals ?? []
   const [selectedId, setSelectedId] = useState<string | null>(null)
@@ -59,7 +62,12 @@ export function GoalProgressSection({ range, divider }: Readonly<GoalProgressSec
       headerAction={picker}
       emptyLabel={hasGoals ? undefined : t('insights.sections.noGoals')}
     >
-      <TrendLine points={points} ariaLabel={title} />
+      <TrendLine
+        points={points}
+        ariaLabel={title}
+        formatValue={(value) => value.toLocaleString(locale)}
+        formatLabel={formatLabel}
+      />
     </InsightsSection>
   )
 }
