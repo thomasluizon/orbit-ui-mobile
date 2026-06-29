@@ -10,6 +10,7 @@ import { AppShell } from '@/components/shell/app-shell'
 import type { BottomTab } from '@/components/navigation/bottom-tab-bar'
 import { TrialBanner } from '@/components/ui/trial-banner'
 import { UpdateAvailableBanner } from '@/components/ui/update-available-banner'
+import { BackToTop } from '@/components/ui/back-to-top'
 import { TrialExpiredModal } from '@/components/ui/trial-expired-modal'
 import { ExpiryWarning } from '@/components/ui/expiry-warning'
 import { PushPrompt } from '@/components/ui/push-prompt'
@@ -161,7 +162,7 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
   )
 
   return (
-    <div className="relative isolate min-h-dvh overflow-x-hidden bg-[var(--bg)] text-[var(--fg-1)] pb-28 pt-[var(--safe-top)] md:pb-0">
+    <div className="relative isolate min-h-dvh overflow-x-clip bg-[var(--bg)] text-[var(--fg-1)] pb-28 pt-[var(--safe-top)] md:pb-0">
       <AppShell onCreate={handleCreate}>
         <TrialBanner />
         <UpdateAvailableBanner />
@@ -190,6 +191,8 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
           />
         </div>
       </div>
+
+      <BackToTop />
 
       <GlobalOverlays
         profile={profile}

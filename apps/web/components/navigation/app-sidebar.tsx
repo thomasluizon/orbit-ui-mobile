@@ -123,7 +123,24 @@ export function AppSidebar({
         </button>
       </div>
 
-      <div style={{ paddingInline: collapsed ? 14 : 16, paddingBlock: 10 }}>
+      <nav
+        aria-label={brandLabel}
+        className="thin-scrollbar flex flex-1 flex-col gap-1 overflow-y-auto"
+        style={{ paddingInline: collapsed ? 14 : 16, paddingTop: 12, paddingBottom: 6 }}
+      >
+        {sections.map((section) => (
+          <SidebarSectionRow key={section.id} section={section} collapsed={collapsed} />
+        ))}
+      </nav>
+
+      <div
+        style={{
+          paddingInline: collapsed ? 14 : 16,
+          paddingTop: 12,
+          paddingBottom: 4,
+          boxShadow: 'inset 0 1px 0 var(--hairline)',
+        }}
+      >
         <button
           type="button"
           onClick={onCreate}
@@ -144,16 +161,6 @@ export function AppSidebar({
           {!collapsed && <span>{createLabel}</span>}
         </button>
       </div>
-
-      <nav
-        aria-label={brandLabel}
-        className="thin-scrollbar flex flex-1 flex-col gap-1 overflow-y-auto"
-        style={{ paddingInline: collapsed ? 14 : 16, paddingBlock: 6 }}
-      >
-        {sections.map((section) => (
-          <SidebarSectionRow key={section.id} section={section} collapsed={collapsed} />
-        ))}
-      </nav>
       </div>
     </aside>
   )

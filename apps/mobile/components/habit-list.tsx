@@ -15,6 +15,8 @@ import {
   TouchableOpacity,
   RefreshControl,
   ActivityIndicator,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
 } from 'react-native'
 import { usePathname, useRouter } from 'expo-router'
 import Animated, { FadeInDown } from 'react-native-reanimated'
@@ -126,6 +128,9 @@ interface HabitListProps {
     onSaved?: () => void | Promise<void>,
   ) => void
   onScrollBeginDrag?: () => void
+  /** Notified with the vertical scroll offset of the active list, so a parent can
+   * gate a scroll-to-top affordance once a long list has been scrolled. */
+  onScroll?: (offsetY: number) => void
   /** Notified whenever the all-collapsed status changes. Parents can mirror
    * this in render-time state (refs cannot be read during render). */
   onAllCollapsedChange?: (allCollapsed: boolean) => void
@@ -164,6 +169,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       onDetailHabit,
       onEditHabit,
       onScrollBeginDrag,
+      onScroll,
       onAllCollapsedChange,
       onAllLoadedIdsChange,
     },
@@ -182,10 +188,24 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     )
     const styles = useMemo(() => createStyles(tokens), [tokens])
     const scrollContainerRef = useRef<GHFlatList<DragItem>>(null)
+    const allViewListRef = useRef<FlatList<HabitListDateGroup>>(null)
     const scrollTo = useCallback((y: number) => {
       scrollContainerRef.current?.scrollToOffset({ offset: y, animated: true })
     }, [])
     const { onTourScroll } = useTourScrollContainer('/', scrollTo)
+    const handleListScroll = useCallback(
+      (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+        onScroll?.(e.nativeEvent.contentOffset.y)
+      },
+      [onScroll],
+    )
+    const handleMainListScroll = useCallback(
+      (e: NativeSyntheticEvent<NativeScrollEvent>) => {
+        onTourScroll(e)
+        onScroll?.(e.nativeEvent.contentOffset.y)
+      },
+      [onScroll, onTourScroll],
+    )
 
     const isTourActive = useTourStore((s) => s.isActive)
     const tourStepIndex = useTourStore((s) => s.currentStepIndex)
@@ -1012,8 +1032,9 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
           refetch()
         },
         scrollToOffset: (offset: number) => {
+          const target = scrollContainerRef.current ?? allViewListRef.current
           try {
-            scrollContainerRef.current?.scrollToOffset?.({
+            target?.scrollToOffset?.({
               offset,
               animated: true,
             })
@@ -1572,6 +1593,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       return (
         <>
           <FlatList
+            ref={allViewListRef}
             data={dateGroups}
             keyExtractor={(item) => item.key}
             renderItem={renderGroupSection}
@@ -1582,6 +1604,8 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
               isSelectMode ? styles.listContentWithBulkBar : null,
             ]}
             refreshControl={refreshControl}
+            onScroll={handleListScroll}
+            scrollEventThrottle={16}
             onScrollBeginDrag={onScrollBeginDrag}
             showsVerticalScrollIndicator={false}
             initialNumToRender={10}
@@ -1611,7 +1635,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
           onDragEnd={handleDragEnd}
           ListHeaderComponent={listHeaderComponent}
           ListEmptyComponent={renderEmptyState(view)}
-          onScroll={onTourScroll}
+          onScroll={handleMainListScroll}
           scrollEventThrottle={16}
           onScrollBeginDrag={onScrollBeginDrag}
           showsVerticalScrollIndicator={false}

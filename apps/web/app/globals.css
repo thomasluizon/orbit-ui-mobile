@@ -382,6 +382,18 @@
       --app-px: 1.5rem;
     }
   }
+
+  @media (min-width: 1536px) {
+    :root {
+      --shell-max-w: 1600px;
+    }
+  }
+
+  @media (min-width: 1920px) {
+    :root {
+      --shell-max-w: 1680px;
+    }
+  }
 }
 
 html {
