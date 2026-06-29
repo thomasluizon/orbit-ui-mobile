@@ -51,6 +51,7 @@ import { GoalsView } from "@/components/goals/goals-view";
 import { CreateGoalModal } from "@/components/goals/create-goal-modal";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { GradientTop } from "@/components/ui/gradient-top";
+import { ScrollToTopButton } from "@/components/ui/scroll-to-top-button";
 import { TrialBanner } from "@/components/ui/trial-banner";
 import { TodayHabitsHeader } from "@/components/today/today-habits-header";
 import { ReviewReminderCard } from "@/components/review-reminder-card";
@@ -175,6 +176,18 @@ export default function TodayScreen() {
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const habitListRef = useRef<HabitListHandle>(null);
   const [habitListAllCollapsed, setHabitListAllCollapsed] = useState(false);
+  const [showScrollTop, setShowScrollTop] = useState(false);
+  const [prevScrollTopView, setPrevScrollTopView] = useState(currentActiveView);
+  if (currentActiveView !== prevScrollTopView) {
+    setPrevScrollTopView(currentActiveView);
+    setShowScrollTop(false);
+  }
+  const handleHabitListScroll = useCallback((offsetY: number) => {
+    setShowScrollTop(offsetY > 600);
+  }, []);
+  const scrollHabitsToTop = useCallback(() => {
+    habitListRef.current?.scrollToOffset(0);
+  }, []);
   const [habitListAllLoadedIds, setHabitListAllLoadedIds] = useState<
     Set<string>
   >(() => new Set());
@@ -1003,6 +1016,7 @@ export default function TodayScreen() {
               onDetailHabit={setDetailHabit}
               onEditHabit={handleEditHabit}
               onScrollBeginDrag={handleListScrollBeginDrag}
+              onScroll={handleHabitListScroll}
               onAllCollapsedChange={setHabitListAllCollapsed}
               onAllLoadedIdsChange={setHabitListAllLoadedIds}
             />
@@ -1041,6 +1055,14 @@ export default function TodayScreen() {
           />
         </Animated.View>
       )}
+
+      {currentActiveView !== "goals" ? (
+        <ScrollToTopButton
+          visible={showScrollTop && !isSelectMode}
+          onPress={scrollHabitsToTop}
+          bottom={insets.bottom + 24}
+        />
+      ) : null}
 
       <CreateHabitModal
         open={showCreateModal}

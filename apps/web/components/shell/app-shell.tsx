@@ -96,7 +96,7 @@ export function AppShell({ children, onCreate }: Readonly<AppShellProps>) {
         label: t('nav.habits'),
         icon: Home,
         active: habitsActive,
-        expanded: onHome,
+        expanded: habitsActive,
         onSelect: () => selectHabitView('today'),
         children: [
           {
