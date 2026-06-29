@@ -7,6 +7,7 @@ import { formatAPIDate, parseAPIDate } from '@orbit/shared/utils'
 import { MultiMonthHeatmap } from '@/components/charts/multi-month-heatmap'
 import { useCalendarRange } from '@/hooks/use-calendar-data'
 import { InsightsSection, toSectionStatus } from './insights-section'
+import { useDateLabel } from './insights-headline'
 import type { DateRange } from './range'
 
 interface MonthlyHeatmapSectionProps {
@@ -17,6 +18,7 @@ interface MonthlyHeatmapSectionProps {
 /** Per-day completion volume across the selected range, as a contribution grid. */
 export function MonthlyHeatmapSection({ range, divider }: Readonly<MonthlyHeatmapSectionProps>) {
   const t = useTranslations()
+  const formatLabel = useDateLabel()
   const fromDate = useMemo(() => parseAPIDate(range.from), [range.from])
   const toDate = useMemo(() => parseAPIDate(range.to), [range.to])
   const { dayMap, isLoading, error } = useCalendarRange(fromDate, toDate)
@@ -40,11 +42,22 @@ export function MonthlyHeatmapSection({ range, divider }: Readonly<MonthlyHeatma
   return (
     <InsightsSection
       title={title}
+      description={t('insights.sections.monthlyHeatmapDesc')}
       divider={divider}
       skeletonHeight={120}
       status={toSectionStatus({ isLoading, isError: Boolean(error), isEmpty })}
     >
-      <MultiMonthHeatmap days={days} ariaLabel={title} />
+      <MultiMonthHeatmap
+        days={days}
+        ariaLabel={title}
+        cellTitle={(date, value) =>
+          t('insights.sections.heatmapCell', { date: formatLabel(date), count: value })
+        }
+        legend={{
+          less: t('insights.sections.heatmapLess'),
+          more: t('insights.sections.heatmapMore'),
+        }}
+      />
     </InsightsSection>
   )
 }

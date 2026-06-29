@@ -5,44 +5,58 @@ export interface BarDatum {
 
 export interface BarChartProps {
   bars: BarDatum[]
-  height?: number
   ariaLabel?: string
+  /** Formats the value shown at the end of each bar (e.g. adds a unit). */
+  formatValue?: (value: number) => string
 }
 
-const PLOT_TOP = 10
-const BAR_GAP = 6
-
 /**
- * Vertical bar chart. Bars fill the parent width and grow from a hairline
- * baseline, rendered as flex columns (CSS keeps the rounded tops crisp at any
- * width). Each bar uses the scheme primary with auto-clamped rounded tops over
- * three hairline gridlines. Empty data renders just the axes frame.
+ * Horizontal labeled bar chart for ranking a handful of named categories. Each row
+ * pairs a truncated label, a proportional primary bar over a sunk track, and the
+ * formatted value, so the comparison reads without a separate axis or legend.
  */
-export function BarChart({ bars, height = 160, ariaLabel }: Readonly<BarChartProps>) {
+export function BarChart({
+  bars,
+  ariaLabel,
+  formatValue = (value) => String(value),
+}: Readonly<BarChartProps>) {
   const max = bars.reduce((peak, bar) => Math.max(peak, bar.value), 0)
 
   return (
-    <div role="img" aria-label={ariaLabel} style={{ position: 'relative', width: '100%', height }}>
-      <div style={{ position: 'absolute', left: 0, right: 0, top: PLOT_TOP, bottom: 0 }}>
-        <div style={{ position: 'absolute', left: 0, right: 0, top: 0, height: 1, background: 'var(--hairline)' }} />
-        <div style={{ position: 'absolute', left: 0, right: 0, top: '50%', height: 1, background: 'var(--hairline)' }} />
-        <div style={{ position: 'absolute', left: 0, right: 0, bottom: 0, height: 1, background: 'var(--hairline)' }} />
-        <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'flex-end', gap: BAR_GAP }}>
-          {bars.map((bar, index) => (
-            <div
-              key={`${bar.label}-${index}`}
-              style={{
-                flex: 1,
-                height: max > 0 ? `${(bar.value / max) * 100}%` : 0,
-                minHeight: bar.value > 0 ? 2 : 0,
-                background: 'var(--primary)',
-                borderTopLeftRadius: 6,
-                borderTopRightRadius: 6,
-              }}
-            />
-          ))}
-        </div>
-      </div>
-    </div>
+    <ul aria-label={ariaLabel} className="flex flex-col" style={{ gap: 11 }}>
+      {bars.map((bar, index) => {
+        const ratio = max > 0 ? bar.value / max : 0
+        return (
+          <li key={`${bar.label}-${index}`} className="flex items-center" style={{ gap: 12 }}>
+            <span
+              className="t-secondary shrink-0 truncate"
+              style={{ width: 136, color: 'var(--fg-2)' }}
+              title={bar.label}
+            >
+              {bar.label}
+            </span>
+            <span
+              aria-hidden
+              className="relative flex-1 overflow-hidden rounded-full"
+              style={{ height: 10, background: 'var(--bg-sunk)' }}
+            >
+              <span
+                className="absolute inset-y-0 left-0 rounded-full"
+                style={{
+                  width: `${Math.max(ratio * 100, bar.value > 0 ? 3 : 0)}%`,
+                  background: 'var(--primary)',
+                }}
+              />
+            </span>
+            <span
+              className="t-num shrink-0 text-right"
+              style={{ width: 52, color: 'var(--fg-1)' }}
+            >
+              {formatValue(bar.value)}
+            </span>
+          </li>
+        )
+      })}
+    </ul>
   )
 }

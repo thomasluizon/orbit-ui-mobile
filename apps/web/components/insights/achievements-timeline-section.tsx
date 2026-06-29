@@ -27,6 +27,7 @@ export function AchievementsTimelineSection({ divider }: Readonly<{ divider?: bo
   return (
     <InsightsSection
       title={title}
+      description={t('insights.sections.achievementsTimelineDesc')}
       divider={divider}
       status={toSectionStatus({ isLoading, isError, isEmpty: recent.length === 0 })}
     >
@@ -35,6 +36,7 @@ export function AchievementsTimelineSection({ divider }: Readonly<{ divider?: bo
           <ChartRing
             value={profile.achievementsEarned}
             max={profile.achievementsTotal}
+            label={t('insights.sections.achievementsOf', { total: profile.achievementsTotal })}
             size={104}
             ariaLabel={title}
           />

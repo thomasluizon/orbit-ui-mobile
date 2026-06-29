@@ -8,6 +8,7 @@ const { useGoalsMock, useGoalProgressHistoryMock } = vi.hoisted(() => ({
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
+  useLocale: () => 'en',
 }))
 
 vi.mock('@/hooks/use-goals', () => ({ useGoals: useGoalsMock }))
