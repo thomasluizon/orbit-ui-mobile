@@ -11,6 +11,8 @@ import type {
   SetThemePreferenceRequest,
   SetColorSchemeRequest,
   UserDataExport,
+  UpdatePublicProfileRequest,
+  PublicProfileSettings,
 } from '@orbit/shared'
 import { API } from '@orbit/shared/api'
 import { serverAuthFetch } from '@/lib/server-fetch'
@@ -105,5 +107,14 @@ export async function resetAccount(): Promise<void> {
 export async function exportUserData(): Promise<UserDataExport> {
   return serverAuthFetch<UserDataExport>(API.profile.export, {
     method: 'GET',
+  })
+}
+
+export async function updatePublicProfile(
+  data: UpdatePublicProfileRequest,
+): Promise<PublicProfileSettings> {
+  return serverAuthFetch<PublicProfileSettings>(API.profile.public, {
+    method: 'PUT',
+    body: JSON.stringify(data),
   })
 }

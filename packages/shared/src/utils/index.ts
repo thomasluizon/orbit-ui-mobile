@@ -30,6 +30,7 @@ export {
   translateErrorKey,
 } from './error-utils'
 export { isFeatureEnabled } from './config'
+export { getSocialErrorKey } from './social-errors'
 export { stripInlineMarkdown } from './markdown'
 export { plural } from './plural'
 export { buildRecentChatHistory } from './chat-history'
@@ -372,6 +373,17 @@ export type {
   RetrospectivePeriod,
   RetrospectiveResponse,
 } from './retrospective'
+export {
+  buildRecapRequestUrl,
+  buildShareCardStats,
+  formatCompletionRate,
+  isRecapShareEmpty,
+  RECAP_SHARE_PERIODS,
+  recapPeriodLabelKey,
+} from './share-card'
+export type { RecapSharePeriod, ShareCardStat } from './share-card'
+export { buildWrappedSlides } from './wrapped'
+export type { WrappedSlide, WrappedSlideId } from './wrapped'
 export {
   canAccessEntitlement,
   DEFAULT_FREE_COLOR_SCHEME,

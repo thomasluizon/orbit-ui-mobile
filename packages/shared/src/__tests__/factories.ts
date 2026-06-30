@@ -2,10 +2,17 @@ import type { NormalizedHabit, RescheduleSuggestion } from '../types/habit'
 import type { Goal } from '../types/goal'
 import type { Profile } from '../types/profile'
 import type { NotificationItem } from '../types/notification'
-import type { Achievement, GamificationProfile } from '../types/gamification'
+import type { Achievement, GamificationProfile, Recap } from '../types/gamification'
 import type { AppConfig } from '../types/config'
 import { DEFAULT_CONFIG } from '../types/config'
-import type { FriendSummary, Cheer, FriendFeedItem } from '../types/social'
+import type {
+  FriendSummary,
+  FriendRequestSummary,
+  Cheer,
+  FriendFeedItem,
+} from '../types/social'
+import type { ChallengeDetail } from '../types/challenge'
+import type { RetrospectiveMetrics } from '../utils/retrospective'
 
 
 export function createMockHabit(overrides: Partial<NormalizedHabit> = {}): NormalizedHabit {
@@ -200,6 +207,40 @@ export function createMockConfig(overrides: Partial<AppConfig> = {}): AppConfig 
 }
 
 
+export function createMockRetrospectiveMetrics(
+  overrides: Partial<RetrospectiveMetrics> = {},
+): RetrospectiveMetrics {
+  return {
+    completionRate: 82,
+    totalCompletions: 96,
+    totalScheduled: 117,
+    activeDays: 6,
+    periodDays: 7,
+    currentStreak: 12,
+    bestStreak: 21,
+    badHabitSlips: 1,
+    weeklyConsistency: [100, 80, 60, 90, 40, 70, 100],
+    topHabits: [
+      { name: 'Morning run', emoji: '🏃', completionRate: 95, completedCount: 19, scheduledCount: 20 },
+      { name: 'Read', emoji: '📚', completionRate: 88, completedCount: 22, scheduledCount: 25 },
+      { name: 'Meditate', emoji: '🧘', completionRate: 80, completedCount: 16, scheduledCount: 20 },
+    ],
+    needsAttention: [],
+    ...overrides,
+  }
+}
+
+
+export function createMockRecap(overrides: Partial<Recap> = {}): Recap {
+  return {
+    period: 'week',
+    metrics: createMockRetrospectiveMetrics(),
+    shareDeepLink: 'https://app.useorbit.org/r/ABC123?recap=week',
+    ...overrides,
+  }
+}
+
+
 export function createMockFriendSummary(overrides: Partial<FriendSummary> = {}): FriendSummary {
   return {
     userId: 'user-1',
@@ -236,6 +277,43 @@ export function createMockFriendFeedItem(overrides: Partial<FriendFeedItem> = {}
     value: 30,
     achievementId: null,
     createdAtUtc: '2026-01-01T00:00:00Z',
+    ...overrides,
+  }
+}
+
+
+export function createMockFriendRequestSummary(
+  overrides: Partial<FriendRequestSummary> = {},
+): FriendRequestSummary {
+  return {
+    id: 'friendship-1',
+    userId: 'user-3',
+    handle: 'katherine_j',
+    displayName: 'Katherine Johnson',
+    createdAtUtc: '2026-01-01T00:00:00Z',
+    ...overrides,
+  }
+}
+
+
+export function createMockChallengeDetail(overrides: Partial<ChallengeDetail> = {}): ChallengeDetail {
+  return {
+    id: 'challenge-1',
+    creatorId: 'user-1',
+    type: 'CoopGoal',
+    title: 'March Together',
+    description: null,
+    status: 'Active',
+    targetCount: 30,
+    currentProgress: 12,
+    isComplete: false,
+    periodStartUtc: '2026-03-01',
+    periodEndUtc: '2026-03-31',
+    joinCode: 'ABC23456',
+    completedAtUtc: null,
+    createdAtUtc: '2026-03-01T00:00:00Z',
+    participants: [{ userId: 'user-1', name: 'Creator', joinedAtUtc: '2026-03-01T00:00:00Z' }],
+    yourLinkedHabitIds: ['habit-1'],
     ...overrides,
   }
 }

@@ -66,6 +66,7 @@ export function PendingOperationCard({
   const [verificationCode, setVerificationCode] = useState('')
   const [challengeId, setChallengeId] = useState<string | null>(null)
   const [confirmationToken, setConfirmationToken] = useState<string | null>(null)
+  const [dismissed, setDismissed] = useState(false)
 
   const needsStepUp = pendingOperation.confirmationRequirement === 'StepUp'
   const riskLabel = t(getRiskLabelKey(pendingOperation.riskClass))
@@ -140,6 +141,10 @@ export function PendingOperationCard({
     } finally {
       setIsLoading(false)
     }
+  }
+
+  if (dismissed) {
+    return null
   }
 
   return (
@@ -229,6 +234,15 @@ export function PendingOperationCard({
             }}
           >
             {primaryActionLabel}
+          </PillButton>
+          <PillButton
+            variant="ghost"
+            className="py-[11px]! text-[14px]! px-[18px]!"
+            disabled={isLoading}
+            dataTestId="pending-op-cancel"
+            onClick={() => setDismissed(true)}
+          >
+            {t('common.cancel')}
           </PillButton>
         </div>
       )}
