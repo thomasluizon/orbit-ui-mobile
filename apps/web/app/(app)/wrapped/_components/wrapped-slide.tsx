@@ -29,7 +29,7 @@ const eyebrowStyle: CSSProperties = {
   fontWeight: 500,
   letterSpacing: '0.08em',
   textTransform: 'uppercase',
-  color: 'var(--fg-3)',
+  color: 'var(--fg-2)',
 }
 
 const heroNumeralStyle: CSSProperties = {
@@ -51,7 +51,7 @@ const labelStyle: CSSProperties = {
 const captionStyle: CSSProperties = {
   fontFamily: 'var(--font-sans)',
   fontSize: 14,
-  color: 'var(--fg-3)',
+  color: 'var(--fg-2)',
   maxWidth: 280,
   textAlign: 'center',
 }

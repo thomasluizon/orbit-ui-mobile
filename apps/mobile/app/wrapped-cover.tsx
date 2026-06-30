@@ -36,15 +36,16 @@ export function WrappedCover({
   return (
     <View style={styles.cover}>
       <LinearGradient
-        colors={[tokens.gradientHeaderFrom, tokens.gradientHeaderTo]}
+        colors={[`rgba(${tokens.primaryRgb}, 0.32)`, `rgba(${tokens.primaryRgb}, 0.1)`, `rgba(${tokens.primaryRgb}, 0)`]}
+        locations={[0, 0.4, 0.72]}
         style={styles.gradientBackdrop}
         pointerEvents="none"
       />
 
       <View style={styles.coverHeader}>
-        <Text style={[styles.eyebrow, { color: tokens.fg3 }]}>{t('wrapped.coverEyebrow')}</Text>
+        <Text style={[styles.eyebrow, { color: tokens.fg2 }]}>{t('wrapped.coverEyebrow')}</Text>
         <Text style={[styles.coverTitle, { color: tokens.fg1 }]}>{t('wrapped.title')}</Text>
-        <Text style={[styles.coverSubtitle, { color: tokens.fg3 }]}>{t('wrapped.coverSubtitle')}</Text>
+        <Text style={[styles.coverSubtitle, { color: tokens.fg2 }]}>{t('wrapped.coverSubtitle')}</Text>
       </View>
 
       <View style={styles.periodRow}>

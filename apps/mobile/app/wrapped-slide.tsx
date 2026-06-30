@@ -38,13 +38,13 @@ export function WrappedSlide({ slide, recap, period, tokens, displayName }: Read
     case 'intro':
       return (
         <View style={styles.slide} testID="wrapped-slide-intro">
-          <Text style={[styles.eyebrow, { color: tokens.fg3 }]}>
+          <Text style={[styles.eyebrow, { color: tokens.fg2 }]}>
             {t('wrapped.slides.intro.eyebrow')}
           </Text>
           <Text style={[styles.title, { color: tokens.fg1 }]}>
             {t(`wrapped.slides.intro.${period}`)}
           </Text>
-          <Text style={[styles.caption, { color: tokens.fg3 }]}>
+          <Text style={[styles.caption, { color: tokens.fg2 }]}>
             {t('wrapped.slides.intro.caption')}
           </Text>
         </View>
@@ -76,14 +76,14 @@ export function WrappedSlide({ slide, recap, period, tokens, displayName }: Read
     case 'consistency':
       return (
         <View style={styles.slide} testID="wrapped-slide-consistency">
-          <Text style={[styles.eyebrow, { color: tokens.fg3 }]}>
+          <Text style={[styles.eyebrow, { color: tokens.fg2 }]}>
             {t('wrapped.slides.consistency.eyebrow')}
           </Text>
           <Text style={[styles.title, { color: tokens.fg1 }]}>
             {t('wrapped.slides.consistency.title')}
           </Text>
           <WeeklyRhythm tokens={tokens} values={slide.weeklyConsistency} />
-          <Text style={[styles.caption, { color: tokens.fg3 }]}>
+          <Text style={[styles.caption, { color: tokens.fg2 }]}>
             {t('wrapped.slides.consistency.caption')}
           </Text>
         </View>
@@ -102,12 +102,12 @@ export function WrappedSlide({ slide, recap, period, tokens, displayName }: Read
     case 'topHabit':
       return (
         <View style={styles.slide} testID="wrapped-slide-topHabit">
-          <Text style={[styles.eyebrow, { color: tokens.fg3 }]}>
+          <Text style={[styles.eyebrow, { color: tokens.fg2 }]}>
             {t('wrapped.slides.topHabit.eyebrow')}
           </Text>
           <Text style={styles.bigEmoji}>{slide.habit.emoji ?? '⭐'}</Text>
           <Text style={[styles.title, { color: tokens.fg1 }]}>{slide.habit.name}</Text>
-          <Text style={[styles.caption, { color: tokens.fg3 }]}>
+          <Text style={[styles.caption, { color: tokens.fg2 }]}>
             {t('wrapped.slides.topHabit.caption', {
               rate: formatCompletionRate(slide.habit.completionRate),
             })}
@@ -131,10 +131,10 @@ interface HeroStatSlideProps {
 function HeroStatSlide({ tokens, testID, eyebrow, value, label, caption }: Readonly<HeroStatSlideProps>) {
   return (
     <View style={styles.slide} testID={testID}>
-      <Text style={[styles.eyebrow, { color: tokens.fg3 }]}>{eyebrow}</Text>
+      <Text style={[styles.eyebrow, { color: tokens.fg2 }]}>{eyebrow}</Text>
       <Text style={[styles.heroNumeral, { color: tokens.fg1 }]}>{value}</Text>
       <Text style={[styles.label, { color: tokens.fg2 }]}>{label}</Text>
-      <Text style={[styles.caption, { color: tokens.fg3 }]}>{caption}</Text>
+      <Text style={[styles.caption, { color: tokens.fg2 }]}>{caption}</Text>
     </View>
   )
 }
@@ -174,7 +174,7 @@ function WrappedShareSlide({ recap, tokens, displayName }: Readonly<WrappedShare
 
   return (
     <View style={styles.shareSlide} testID="wrapped-slide-share">
-      <Text style={[styles.eyebrow, { color: tokens.fg3 }]}>
+      <Text style={[styles.eyebrow, { color: tokens.fg2 }]}>
         {t('wrapped.slides.share.eyebrow')}
       </Text>
       <ShareCard ref={shareRef} recap={recap} displayName={displayName} />
