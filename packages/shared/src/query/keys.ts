@@ -81,6 +81,12 @@ export const cheerKeys = {
   list: (direction: 'received' | 'sent') => [...cheerKeys.all, 'list', direction] as const,
 }
 
+export const accountabilityKeys = {
+  all: ['accountability'] as const,
+  pairs: () => [...accountabilityKeys.all, 'pairs'] as const,
+  checkIns: (pairId: string) => [...accountabilityKeys.all, 'check-ins', pairId] as const,
+}
+
 export const apiKeyKeys = {
   all: ['apiKeys'] as const,
   lists: () => [...apiKeyKeys.all, 'list'] as const,
