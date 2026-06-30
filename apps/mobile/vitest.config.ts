@@ -97,6 +97,18 @@ export default defineConfig({
         replacement: path.resolve(__dirname, './test-mocks/expo-file-system.ts'),
       },
       {
+        find: 'react-native-view-shot',
+        replacement: path.resolve(__dirname, './test-mocks/react-native-view-shot.ts'),
+      },
+      {
+        find: 'expo-sharing',
+        replacement: path.resolve(__dirname, './test-mocks/expo-sharing.ts'),
+      },
+      {
+        find: 'react-native-qrcode-svg',
+        replacement: path.resolve(__dirname, './test-mocks/react-native-qrcode-svg.ts'),
+      },
+      {
         find: 'expo-iap',
         replacement: path.resolve(__dirname, './test-mocks/expo-iap.ts'),
       },

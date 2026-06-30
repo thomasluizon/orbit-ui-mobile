@@ -373,6 +373,17 @@ export type {
   RetrospectiveResponse,
 } from './retrospective'
 export {
+  buildRecapRequestUrl,
+  buildShareCardStats,
+  formatCompletionRate,
+  isRecapShareEmpty,
+  RECAP_SHARE_PERIODS,
+  recapPeriodLabelKey,
+} from './share-card'
+export type { RecapSharePeriod, ShareCardStat } from './share-card'
+export { buildWrappedSlides } from './wrapped'
+export type { WrappedSlide, WrappedSlideId } from './wrapped'
+export {
   canAccessEntitlement,
   DEFAULT_FREE_COLOR_SCHEME,
   resolveAccessibleColorScheme,

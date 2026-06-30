@@ -213,6 +213,7 @@ vi.mock('@/hooks/use-profile', () => ({
 
 vi.mock('@/hooks/use-gamification', () => ({
   useGamificationProfile: mocks.useGamificationProfile,
+  useReportEvent: () => ({ mutate: vi.fn() }),
 }))
 
 vi.mock('@/stores/auth-store', () => ({
@@ -289,6 +290,7 @@ vi.mock('lucide-react-native', () => {
     'Trash2',
     'User',
     'UserX',
+    'Share2',
     'WifiOff',
     'Wrench',
     'X',
