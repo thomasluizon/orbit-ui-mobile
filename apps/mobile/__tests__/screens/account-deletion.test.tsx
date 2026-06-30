@@ -289,6 +289,7 @@ vi.mock('lucide-react-native', () => {
     'Trash2',
     'User',
     'UserX',
+    'Share2',
     'WifiOff',
     'Wrench',
     'X',

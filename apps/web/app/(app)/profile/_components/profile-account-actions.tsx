@@ -3,11 +3,13 @@
 import { Download, LogOut, RotateCcw, UserX } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { SectionLabel } from '@/components/ui/section-label'
+import { ShareCardEntryButton } from '@/components/share/share-card-entry-button'
 import { ProfileActionButton } from './profile-action-button'
 
 interface ProfileAccountActionsProps {
   isExporting: boolean
   exportError: string | null
+  displayName?: string
   onExport: () => void
   onFreshStart: () => void
   onDeleteAccount: () => void
@@ -17,6 +19,7 @@ interface ProfileAccountActionsProps {
 export function ProfileAccountActions({
   isExporting,
   exportError,
+  displayName,
   onExport,
   onFreshStart,
   onDeleteAccount,
@@ -27,6 +30,7 @@ export function ProfileAccountActions({
   return (
     <div>
       <SectionLabel>{t('profile.sections.accountActions')}</SectionLabel>
+      <ShareCardEntryButton variant="row" displayName={displayName} />
       <ProfileActionButton
         icon={Download}
         onClick={onExport}

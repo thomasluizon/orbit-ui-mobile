@@ -163,6 +163,11 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 6,
   },
+  astraActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
   astraEyebrow: {
     fontFamily: 'Roboto_500Medium',
     fontSize: 10.5,

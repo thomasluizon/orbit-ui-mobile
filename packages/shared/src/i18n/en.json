@@ -1087,6 +1087,32 @@
     },
     "loginBanner": "You've been invited! Sign up to get a 10% discount coupon for Pro"
   },
+  "shareCard": {
+    "title": "Share your progress",
+    "entry": "Share progress",
+    "share": "Share",
+    "download": "Download",
+    "scanToJoin": "Scan to join Orbit",
+    "shareTitle": "My Orbit progress",
+    "shareText": "I'm building better habits with Orbit — join me!",
+    "loading": "Preparing your card…",
+    "empty": "Log a few habits first to build a card worth sharing.",
+    "error": "Couldn't load your recap. Please try again.",
+    "shareError": "Couldn't share your card. Please try again.",
+    "periods": {
+      "week": "Week",
+      "month": "Month",
+      "year": "Year"
+    },
+    "stats": {
+      "completionRate": "Completion",
+      "completions": "Completions",
+      "bestStreak": "Best streak",
+      "activeDays": "Active days",
+      "topHabits": "Top habits"
+    },
+    "streak": "{count}-day streak"
+  },
   "privacy": {
     "title": "Privacy Policy",
     "lastUpdated": "Last updated: June 2026",

@@ -14,6 +14,7 @@ import type {
   RetrospectiveResponse,
 } from '@orbit/shared/utils/retrospective'
 import { StatTile } from '@/components/ui/stat-tile'
+import { ShareCardEntryButton } from '@/components/share/share-card-entry-button'
 import { styles, type Tokens } from './retrospective-styles'
 
 const WEEKDAY_KEYS = [
@@ -226,24 +227,27 @@ export function RetrospectiveDashboard({
               {t('retrospective.astraEyebrow').toUpperCase()}
             </Text>
           </View>
-          <Pressable
-            onPress={onRegenerate}
-            disabled={!isOnline}
-            accessibilityRole="button"
-            accessibilityLabel={t('retrospective.regenerate')}
-            style={({ pressed }) => [
-              styles.actionChip,
-              {
-                backgroundColor: pressed ? tokens.bgElev2 : tokens.bgElev,
-                borderColor: tokens.hairline,
-              },
-              pressed ? styles.actionChipPressed : null,
-            ]}
-          >
-            <Text style={[styles.actionChipText, { color: tokens.fg2 }]}>
-              {t('retrospective.regenerate')}
-            </Text>
-          </Pressable>
+          <View style={styles.astraActions}>
+            <ShareCardEntryButton variant="chip" />
+            <Pressable
+              onPress={onRegenerate}
+              disabled={!isOnline}
+              accessibilityRole="button"
+              accessibilityLabel={t('retrospective.regenerate')}
+              style={({ pressed }) => [
+                styles.actionChip,
+                {
+                  backgroundColor: pressed ? tokens.bgElev2 : tokens.bgElev,
+                  borderColor: tokens.hairline,
+                },
+                pressed ? styles.actionChipPressed : null,
+              ]}
+            >
+              <Text style={[styles.actionChipText, { color: tokens.fg2 }]}>
+                {t('retrospective.regenerate')}
+              </Text>
+            </Pressable>
+          </View>
         </View>
 
         <View style={styles.statTilesRow}>
