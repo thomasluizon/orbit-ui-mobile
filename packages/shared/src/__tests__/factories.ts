@@ -6,6 +6,7 @@ import type { Achievement, GamificationProfile } from '../types/gamification'
 import type { AppConfig } from '../types/config'
 import { DEFAULT_CONFIG } from '../types/config'
 import type { FriendSummary, Cheer, FriendFeedItem } from '../types/social'
+import type { ChallengeDetail } from '../types/challenge'
 
 
 export function createMockHabit(overrides: Partial<NormalizedHabit> = {}): NormalizedHabit {
@@ -235,6 +236,28 @@ export function createMockFriendFeedItem(overrides: Partial<FriendFeedItem> = {}
     value: 30,
     achievementId: null,
     createdAtUtc: '2026-01-01T00:00:00Z',
+    ...overrides,
+  }
+}
+
+export function createMockChallengeDetail(overrides: Partial<ChallengeDetail> = {}): ChallengeDetail {
+  return {
+    id: 'challenge-1',
+    creatorId: 'user-1',
+    type: 'CoopGoal',
+    title: 'March Together',
+    description: null,
+    status: 'Active',
+    targetCount: 30,
+    currentProgress: 12,
+    isComplete: false,
+    periodStartUtc: '2026-03-01',
+    periodEndUtc: '2026-03-31',
+    joinCode: 'ABC23456',
+    completedAtUtc: null,
+    createdAtUtc: '2026-03-01T00:00:00Z',
+    participants: [{ userId: 'user-1', name: 'Creator', joinedAtUtc: '2026-03-01T00:00:00Z' }],
+    yourLinkedHabitIds: ['habit-1'],
     ...overrides,
   }
 }
