@@ -6,7 +6,7 @@ const mocks = vi.hoisted(() => ({
   captureRef: vi.fn(),
   isAvailableAsync: vi.fn(),
   shareAsync: vi.fn(),
-  reportCardShared: vi.fn(),
+  reportEvent: vi.fn(),
 }))
 
 vi.mock('react-native-view-shot', () => ({ captureRef: mocks.captureRef }))
@@ -14,7 +14,7 @@ vi.mock('expo-sharing', () => ({
   isAvailableAsync: mocks.isAvailableAsync,
   shareAsync: mocks.shareAsync,
 }))
-vi.mock('@/lib/report-card-shared', () => ({ reportCardShared: mocks.reportCardShared }))
+vi.mock('@/hooks/use-gamification', () => ({ useReportEvent: () => ({ mutate: mocks.reportEvent }) }))
 
 const TestRenderer = require('react-test-renderer')
 
@@ -46,7 +46,7 @@ describe('mobile useShareCard', () => {
     mocks.captureRef.mockReset().mockResolvedValue('file:///cache/share-card.png')
     mocks.isAvailableAsync.mockReset().mockResolvedValue(true)
     mocks.shareAsync.mockReset().mockResolvedValue(undefined)
-    mocks.reportCardShared.mockReset()
+    mocks.reportEvent.mockReset()
   })
 
   it('captures the card and opens the native share sheet, firing the seam once', async () => {
@@ -59,7 +59,8 @@ describe('mobile useShareCard', () => {
     expect(mocks.captureRef).toHaveBeenCalledTimes(1)
     expect(mocks.shareAsync).toHaveBeenCalledTimes(1)
     expect(mocks.shareAsync.mock.calls[0]![0]).toBe('file:///cache/share-card.png')
-    expect(mocks.reportCardShared).toHaveBeenCalledTimes(1)
+    expect(mocks.reportEvent).toHaveBeenCalledTimes(1)
+    expect(mocks.reportEvent).toHaveBeenCalledWith('card_shared')
     expect(hook.current.hasError).toBe(false)
   })
 
@@ -72,7 +73,7 @@ describe('mobile useShareCard', () => {
     })
 
     expect(mocks.shareAsync).not.toHaveBeenCalled()
-    expect(mocks.reportCardShared).not.toHaveBeenCalled()
+    expect(mocks.reportEvent).not.toHaveBeenCalled()
     expect(hook.current.hasError).toBe(true)
   })
 })

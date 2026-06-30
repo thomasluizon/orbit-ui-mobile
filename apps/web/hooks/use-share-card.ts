@@ -2,7 +2,8 @@
 
 import { useMemo, useRef, useState } from 'react'
 import { toPng } from 'html-to-image'
-import { reportCardShared } from '@/lib/report-card-shared'
+import { ACHIEVEMENT_EVENT_KEYS } from '@orbit/shared/types/gamification'
+import { useReportEvent } from '@/hooks/use-gamification'
 
 interface ShareCardPayload {
   shareTitle: string
@@ -15,6 +16,7 @@ export function useShareCard() {
   const captureRef = useRef<HTMLDivElement>(null)
   const [isSharing, setIsSharing] = useState(false)
   const [hasError, setHasError] = useState(false)
+  const { mutate: reportEvent } = useReportEvent()
 
   const canShareFiles = useMemo(
     () => typeof navigator !== 'undefined' && typeof navigator.canShare === 'function',
@@ -55,7 +57,7 @@ export function useShareCard() {
       } else {
         downloadFile(file)
       }
-      reportCardShared()
+      reportEvent(ACHIEVEMENT_EVENT_KEYS.cardShared)
     } catch (error) {
       if (error instanceof DOMException && error.name === 'AbortError') {
         return
@@ -71,7 +73,7 @@ export function useShareCard() {
     setHasError(false)
     try {
       downloadFile(await captureFile())
-      reportCardShared()
+      reportEvent(ACHIEVEMENT_EVENT_KEYS.cardShared)
     } catch {
       setHasError(true)
     } finally {

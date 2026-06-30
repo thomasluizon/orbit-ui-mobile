@@ -1,12 +1,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
 
-const { toPngMock, reportCardSharedMock } = vi.hoisted(() => ({
+const { toPngMock, reportEventMock } = vi.hoisted(() => ({
   toPngMock: vi.fn(),
-  reportCardSharedMock: vi.fn(),
+  reportEventMock: vi.fn(),
 }))
 vi.mock('html-to-image', () => ({ toPng: toPngMock }))
-vi.mock('@/lib/report-card-shared', () => ({ reportCardShared: reportCardSharedMock }))
+vi.mock('@/hooks/use-gamification', () => ({ useReportEvent: () => ({ mutate: reportEventMock }) }))
 
 import { useShareCard } from '@/hooks/use-share-card'
 
@@ -16,7 +16,7 @@ let clickSpy: ReturnType<typeof vi.spyOn>
 
 beforeEach(() => {
   toPngMock.mockReset().mockResolvedValue('data:image/png;base64,AAA')
-  reportCardSharedMock.mockReset()
+  reportEventMock.mockReset()
   vi.stubGlobal(
     'fetch',
     vi.fn().mockResolvedValue({
@@ -46,7 +46,8 @@ describe('useShareCard', () => {
 
     expect(toPngMock).toHaveBeenCalledTimes(1)
     expect(clickSpy).toHaveBeenCalledTimes(1)
-    expect(reportCardSharedMock).toHaveBeenCalledTimes(1)
+    expect(reportEventMock).toHaveBeenCalledTimes(1)
+    expect(reportEventMock).toHaveBeenCalledWith('card_shared')
     expect(result.current.hasError).toBe(false)
   })
 
@@ -64,7 +65,8 @@ describe('useShareCard', () => {
 
     expect(shareMock).toHaveBeenCalledTimes(1)
     expect(clickSpy).not.toHaveBeenCalled()
-    expect(reportCardSharedMock).toHaveBeenCalledTimes(1)
+    expect(reportEventMock).toHaveBeenCalledTimes(1)
+    expect(reportEventMock).toHaveBeenCalledWith('card_shared')
   })
 
   it('ignores a cancelled share without erroring or awarding', async () => {
@@ -80,6 +82,6 @@ describe('useShareCard', () => {
     })
 
     expect(result.current.hasError).toBe(false)
-    expect(reportCardSharedMock).not.toHaveBeenCalled()
+    expect(reportEventMock).not.toHaveBeenCalled()
   })
 })
