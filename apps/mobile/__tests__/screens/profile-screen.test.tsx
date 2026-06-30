@@ -62,6 +62,7 @@ vi.mock('@/hooks/use-profile', () => ({
 
 vi.mock('@/hooks/use-gamification', () => ({
   useGamificationProfile: mockUseGamificationProfile,
+  useReportEvent: () => ({ mutate: vi.fn() }),
 }))
 
 vi.mock('@/stores/auth-store', () => ({
