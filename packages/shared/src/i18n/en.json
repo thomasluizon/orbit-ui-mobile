@@ -1041,6 +1041,8 @@
     "logout": "Log Out",
     "retrospectiveTitle": "Retrospective",
     "retrospectiveHint": "AI insights on your habits over time",
+    "wrappedTitle": "Your Wrapped",
+    "wrappedHint": "A shareable recap of your week, month, or year",
     "widgetTitle": "Home Screen Widget",
     "widgetHint": "See your habits at a glance",
     "widgetHow": {
@@ -1151,6 +1153,93 @@
       "later": "Maybe later"
     },
     "loginBanner": "You've been invited! Sign up to get a 10% discount coupon for Pro"
+  },
+  "shareCard": {
+    "title": "Share your progress",
+    "entry": "Share progress",
+    "share": "Share",
+    "download": "Download",
+    "scanToJoin": "Scan to join Orbit",
+    "shareTitle": "My Orbit progress",
+    "shareText": "I'm building better habits with Orbit — join me!",
+    "loading": "Preparing your card…",
+    "empty": "Log a few habits first to build a card worth sharing.",
+    "error": "Couldn't load your recap. Please try again.",
+    "shareError": "Couldn't share your card. Please try again.",
+    "periods": {
+      "week": "Week",
+      "month": "Month",
+      "quarter": "Quarter",
+      "semester": "Semester",
+      "year": "Year"
+    },
+    "stats": {
+      "completionRate": "Completion",
+      "completions": "Completions",
+      "bestStreak": "Best streak",
+      "activeDays": "Active days",
+      "topHabits": "Top habits"
+    },
+    "streak": "{count}-day streak"
+  },
+  "wrapped": {
+    "title": "Orbit Wrapped",
+    "back": "Back to profile",
+    "entry": "Your Wrapped",
+    "coverEyebrow": "Orbit Wrapped",
+    "coverSubtitle": "A celebratory replay of your habits. Pick a period to begin.",
+    "start": "Start your Wrapped",
+    "close": "Close Wrapped",
+    "next": "Next",
+    "previous": "Previous",
+    "progressLabel": "Slide {current} of {total}",
+    "loading": "Preparing your Wrapped…",
+    "empty": "Log a few habits first to unlock your Wrapped.",
+    "error": "Couldn't load your Wrapped. Please try again.",
+    "retry": "Try again",
+    "periods": {
+      "week": "Week",
+      "month": "Month",
+      "year": "Year"
+    },
+    "slides": {
+      "intro": {
+        "eyebrow": "Orbit Wrapped",
+        "week": "Your week in orbit",
+        "month": "Your month in orbit",
+        "year": "Your year in orbit",
+        "caption": "Tap through your highlights."
+      },
+      "completions": {
+        "eyebrow": "Completions",
+        "label": "Habits logged",
+        "caption": "Every check-in kept you in motion."
+      },
+      "activeDays": {
+        "eyebrow": "Active days",
+        "label": "Days active",
+        "caption": "{rate} completion across the period."
+      },
+      "consistency": {
+        "eyebrow": "Your rhythm",
+        "title": "Your weekly rhythm",
+        "caption": "How your last seven days landed."
+      },
+      "streak": {
+        "eyebrow": "Best streak",
+        "label": "Best streak",
+        "caption": "Currently a {count}-day streak."
+      },
+      "topHabit": {
+        "eyebrow": "Your standout",
+        "caption": "{rate} completion — your most consistent habit."
+      },
+      "share": {
+        "eyebrow": "That's a wrap",
+        "title": "Share your Wrapped",
+        "caption": "Snapshot your recap and pull a friend into orbit."
+      }
+    }
   },
   "privacy": {
     "title": "Privacy Policy",

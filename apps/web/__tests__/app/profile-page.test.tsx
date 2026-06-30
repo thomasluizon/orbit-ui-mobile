@@ -22,6 +22,7 @@ vi.mock('next/navigation', () => ({
 }))
 
 vi.mock('@tanstack/react-query', () => ({
+  useQuery: () => ({ data: undefined, isLoading: false, isError: false }),
   useQueryClient: () => ({
     invalidateQueries: vi.fn(),
   }),
@@ -44,6 +45,7 @@ vi.mock('@/hooks/use-profile', () => ({
 vi.mock('@/hooks/use-gamification', () => ({
   useGamificationProfile: mockUseGamificationProfile,
   useStreakInfo: () => ({ data: { currentStreak: 0 } }),
+  useReportEvent: () => ({ mutate: vi.fn() }),
 }))
 
 vi.mock('@/stores/auth-store', () => ({

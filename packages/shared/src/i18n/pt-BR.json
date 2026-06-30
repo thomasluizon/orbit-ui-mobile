@@ -1041,6 +1041,8 @@
     "logout": "Sair",
     "retrospectiveTitle": "Retrospectiva",
     "retrospectiveHint": "Insights da IA sobre seus hábitos ao longo do tempo",
+    "wrappedTitle": "Seu Wrapped",
+    "wrappedHint": "Um resumo compartilhável da sua semana, mês ou ano",
     "widgetTitle": "Widget na tela inicial",
     "widgetHint": "Veja seus hábitos num relance",
     "widgetHow": {
@@ -1151,6 +1153,93 @@
       "later": "Agora não"
     },
     "loginBanner": "Você foi convidado! Cadastre-se e ganhe um cupom de 10% de desconto no Pro"
+  },
+  "shareCard": {
+    "title": "Compartilhe seu progresso",
+    "entry": "Compartilhar progresso",
+    "share": "Compartilhar",
+    "download": "Baixar",
+    "scanToJoin": "Escaneie para entrar no Orbit",
+    "shareTitle": "Meu progresso no Orbit",
+    "shareText": "Estou construindo hábitos melhores com o Orbit — venha comigo!",
+    "loading": "Preparando seu card…",
+    "empty": "Registre alguns hábitos primeiro para criar um card que valha a pena compartilhar.",
+    "error": "Não foi possível carregar seu resumo. Tente novamente.",
+    "shareError": "Não foi possível compartilhar seu card. Tente novamente.",
+    "periods": {
+      "week": "Semana",
+      "month": "Mês",
+      "quarter": "Trimestre",
+      "semester": "Semestre",
+      "year": "Ano"
+    },
+    "stats": {
+      "completionRate": "Conclusão",
+      "completions": "Conclusões",
+      "bestStreak": "Melhor sequência",
+      "activeDays": "Dias ativos",
+      "topHabits": "Principais hábitos"
+    },
+    "streak": "Sequência de {count} dias"
+  },
+  "wrapped": {
+    "title": "Orbit Wrapped",
+    "back": "Voltar ao perfil",
+    "entry": "Seu Wrapped",
+    "coverEyebrow": "Orbit Wrapped",
+    "coverSubtitle": "Uma retrospectiva comemorativa dos seus hábitos. Escolha um período para começar.",
+    "start": "Iniciar seu Wrapped",
+    "close": "Fechar Wrapped",
+    "next": "Próximo",
+    "previous": "Anterior",
+    "progressLabel": "Slide {current} de {total}",
+    "loading": "Preparando seu Wrapped…",
+    "empty": "Registre alguns hábitos primeiro para liberar seu Wrapped.",
+    "error": "Não foi possível carregar seu Wrapped. Tente novamente.",
+    "retry": "Tentar de novo",
+    "periods": {
+      "week": "Semana",
+      "month": "Mês",
+      "year": "Ano"
+    },
+    "slides": {
+      "intro": {
+        "eyebrow": "Orbit Wrapped",
+        "week": "Sua semana em órbita",
+        "month": "Seu mês em órbita",
+        "year": "Seu ano em órbita",
+        "caption": "Toque para ver seus destaques."
+      },
+      "completions": {
+        "eyebrow": "Conclusões",
+        "label": "Hábitos registrados",
+        "caption": "Cada registro manteve você em movimento."
+      },
+      "activeDays": {
+        "eyebrow": "Dias ativos",
+        "label": "Dias ativos",
+        "caption": "{rate} de conclusão no período."
+      },
+      "consistency": {
+        "eyebrow": "Seu ritmo",
+        "title": "Seu ritmo semanal",
+        "caption": "Como foram seus últimos sete dias."
+      },
+      "streak": {
+        "eyebrow": "Melhor sequência",
+        "label": "Melhor sequência",
+        "caption": "Atualmente uma sequência de {count} dias."
+      },
+      "topHabit": {
+        "eyebrow": "Seu destaque",
+        "caption": "{rate} de conclusão — seu hábito mais consistente."
+      },
+      "share": {
+        "eyebrow": "É isso aí",
+        "title": "Compartilhe seu Wrapped",
+        "caption": "Capture seu resumo e traga um amigo para a órbita."
+      }
+    }
   },
   "privacy": {
     "title": "Política de Privacidade",

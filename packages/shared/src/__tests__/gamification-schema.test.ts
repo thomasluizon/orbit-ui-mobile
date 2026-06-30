@@ -130,11 +130,37 @@ describe('recapResponseSchema', () => {
     expect(parsed.metrics.topHabits).toHaveLength(1)
   })
 
-  it('rejects a non-whitelisted period', () => {
+  it('accepts the full backend period set, including quarter and semester', () => {
+    const baseMetrics = {
+      completionRate: 0,
+      totalCompletions: 0,
+      totalScheduled: 0,
+      activeDays: 0,
+      periodDays: 90,
+      currentStreak: 0,
+      bestStreak: 0,
+      badHabitSlips: 0,
+      weeklyConsistency: [0, 0, 0, 0, 0, 0, 0],
+      topHabits: [],
+      needsAttention: [],
+    }
+
+    for (const period of ['week', 'month', 'quarter', 'semester', 'year'] as const) {
+      expect(
+        recapResponseSchema.parse({
+          period,
+          shareDeepLink: `https://app.useorbit.org/r/ABCD2345?recap=${period}`,
+          metrics: baseMetrics,
+        }).period,
+      ).toBe(period)
+    }
+  })
+
+  it('rejects a period outside the backend set', () => {
     expect(() =>
       recapResponseSchema.parse({
-        period: 'quarter',
-        shareDeepLink: 'https://app.useorbit.org/r/ABCD2345?recap=quarter',
+        period: 'decade',
+        shareDeepLink: 'https://app.useorbit.org/r/ABCD2345?recap=decade',
         metrics: {
           completionRate: 0,
           totalCompletions: 0,
