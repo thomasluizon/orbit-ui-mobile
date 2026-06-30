@@ -909,6 +909,71 @@
       "aboutHelpHint": "Feature guide, support, referral",
       "advancedHint": "Timezone, widget, developer tools"
     },
+    "publicProfile": {
+      "title": "Public profile",
+      "navHint": "Share your progress with a link",
+      "enable": {
+        "title": "Enable public profile",
+        "description": "Create a shareable link that shows your progress. You choose exactly what's visible."
+      },
+      "disabledHint": "Turning this off disables your link. Turning it back on creates a new one.",
+      "visibilityTitle": "What's visible",
+      "fields": {
+        "streak": {
+          "title": "Streak",
+          "description": "Your current and longest streak"
+        },
+        "level": {
+          "title": "Level",
+          "description": "Your level and title"
+        },
+        "achievements": {
+          "title": "Achievements",
+          "description": "The badges you've unlocked"
+        },
+        "topHabits": {
+          "title": "Top habits",
+          "description": "The names of your most-completed habits"
+        }
+      },
+      "link": {
+        "label": "Your public link",
+        "copy": "Copy",
+        "copied": "Copied!",
+        "share": "Share"
+      },
+      "regenerate": {
+        "button": "Generate a new link",
+        "hint": "Creating a new link breaks the old one.",
+        "confirmTitle": "Generate a new link?",
+        "confirmBody": "Your current link will stop working. Anyone who has it won't be able to see your profile.",
+        "confirm": "Generate new link",
+        "cancel": "Cancel"
+      },
+      "privacyHint": "Only the sections you turn on are visible. Your email and account details are never shared.",
+      "error": "Something went wrong. Please try again.",
+      "view": {
+        "tagline": "Habit tracking that keeps you in orbit.",
+        "dayStreakLabel": "Day streak",
+        "longestStreakLabel": "Best: {count}",
+        "level": "Level {level}",
+        "achievementsTitle": "Achievements",
+        "topHabitsTitle": "Top habits",
+        "ctaTitle": "Start your own streak",
+        "ctaBody": "Build habits, keep streaks, and level up with Orbit.",
+        "ctaButton": "Try Orbit free"
+      },
+      "meta": {
+        "title": "{name} on Orbit",
+        "titleFallback": "Public profile on Orbit",
+        "description": "See {name}'s streaks, level, and achievements on Orbit — the habit tracker that keeps you consistent."
+      },
+      "notFound": {
+        "title": "Profile not found",
+        "body": "This profile doesn't exist or is no longer public.",
+        "cta": "Discover Orbit"
+      }
+    },
     "editName": {
       "title": "Edit name",
       "label": "Name",
@@ -976,6 +1041,8 @@
     "logout": "Log Out",
     "retrospectiveTitle": "Retrospective",
     "retrospectiveHint": "AI insights on your habits over time",
+    "wrappedTitle": "Your Wrapped",
+    "wrappedHint": "A shareable recap of your week, month, or year",
     "widgetTitle": "Home Screen Widget",
     "widgetHint": "See your habits at a glance",
     "widgetHow": {
@@ -1086,6 +1153,93 @@
       "later": "Maybe later"
     },
     "loginBanner": "You've been invited! Sign up to get a 10% discount coupon for Pro"
+  },
+  "shareCard": {
+    "title": "Share your progress",
+    "entry": "Share progress",
+    "share": "Share",
+    "download": "Download",
+    "scanToJoin": "Scan to join Orbit",
+    "shareTitle": "My Orbit progress",
+    "shareText": "I'm building better habits with Orbit — join me!",
+    "loading": "Preparing your card…",
+    "empty": "Log a few habits first to build a card worth sharing.",
+    "error": "Couldn't load your recap. Please try again.",
+    "shareError": "Couldn't share your card. Please try again.",
+    "periods": {
+      "week": "Week",
+      "month": "Month",
+      "quarter": "Quarter",
+      "semester": "Semester",
+      "year": "Year"
+    },
+    "stats": {
+      "completionRate": "Completion",
+      "completions": "Completions",
+      "bestStreak": "Best streak",
+      "activeDays": "Active days",
+      "topHabits": "Top habits"
+    },
+    "streak": "{count}-day streak"
+  },
+  "wrapped": {
+    "title": "Orbit Wrapped",
+    "back": "Back to profile",
+    "entry": "Your Wrapped",
+    "coverEyebrow": "Orbit Wrapped",
+    "coverSubtitle": "A celebratory replay of your habits. Pick a period to begin.",
+    "start": "Start your Wrapped",
+    "close": "Close Wrapped",
+    "next": "Next",
+    "previous": "Previous",
+    "progressLabel": "Slide {current} of {total}",
+    "loading": "Preparing your Wrapped…",
+    "empty": "Log a few habits first to unlock your Wrapped.",
+    "error": "Couldn't load your Wrapped. Please try again.",
+    "retry": "Try again",
+    "periods": {
+      "week": "Week",
+      "month": "Month",
+      "year": "Year"
+    },
+    "slides": {
+      "intro": {
+        "eyebrow": "Orbit Wrapped",
+        "week": "Your week in orbit",
+        "month": "Your month in orbit",
+        "year": "Your year in orbit",
+        "caption": "Tap through your highlights."
+      },
+      "completions": {
+        "eyebrow": "Completions",
+        "label": "Habits logged",
+        "caption": "Every check-in kept you in motion."
+      },
+      "activeDays": {
+        "eyebrow": "Active days",
+        "label": "Days active",
+        "caption": "{rate} completion across the period."
+      },
+      "consistency": {
+        "eyebrow": "Your rhythm",
+        "title": "Your weekly rhythm",
+        "caption": "How your last seven days landed."
+      },
+      "streak": {
+        "eyebrow": "Best streak",
+        "label": "Best streak",
+        "caption": "Currently a {count}-day streak."
+      },
+      "topHabit": {
+        "eyebrow": "Your standout",
+        "caption": "{rate} completion — your most consistent habit."
+      },
+      "share": {
+        "eyebrow": "That's a wrap",
+        "title": "Share your Wrapped",
+        "caption": "Snapshot your recap and pull a friend into orbit."
+      }
+    }
   },
   "privacy": {
     "title": "Privacy Policy",

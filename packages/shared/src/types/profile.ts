@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { calendarAutoSyncStatusSchema } from './calendar'
+import { publicProfileSettingsSchema } from './public-profile'
 
 export const planTypeSchema = z.enum(['free', 'pro'])
 
@@ -59,6 +60,7 @@ export const profileSchema = z.object({
   hasCompletedOnboardingChecklist: z.boolean().optional(),
   handle: z.string().nullable().optional(),
   socialOptIn: z.boolean().optional(),
+  publicProfile: publicProfileSettingsSchema.optional(),
 })
 
 export type Profile = z.infer<typeof profileSchema>

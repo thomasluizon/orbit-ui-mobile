@@ -11,7 +11,7 @@ export default [
     files: ["**/*.{ts,tsx}"],
     ignores: ["**/*.d.ts"],
     plugins: { local: { rules: { "no-comments": noComments } } },
-    rules: { "local/no-comments": "error" },
+    rules: { "local/no-comments": "error", "no-console": "error" },
   },
   {
     rules: {

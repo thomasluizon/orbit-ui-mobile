@@ -124,6 +124,7 @@ function AuthGuard() {
 const SLIDE_FROM_RIGHT_SCREENS = [
   'preferences',
   'ai-settings',
+  'public-profile',
   'advanced',
   'about',
   'support',
@@ -131,6 +132,7 @@ const SLIDE_FROM_RIGHT_SCREENS = [
   'streak',
   'upgrade',
   'retrospective',
+  'wrapped',
   'calendar-sync',
   'social',
 ] as const

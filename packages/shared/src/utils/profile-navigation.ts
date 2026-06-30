@@ -13,12 +13,14 @@ export type ProfileNavIconKey =
   | 'settings'
   | 'orbit'
   | 'retrospective'
+  | 'wrapped'
   | 'achievements'
   | 'calendar'
   | 'info'
   | 'wrench'
   | 'compass'
   | 'friends'
+  | 'globe'
 
 export type ProfileNavHintMode = 'static' | 'gamificationProfile'
 
@@ -64,6 +66,19 @@ export const PROFILE_NAV_ITEMS: ProfileNavItem[] = [
     entitlementMode: 'mixed',
   },
   {
+    id: 'public-profile',
+    section: 'account',
+    route: '/public-profile',
+    iconKey: 'globe',
+    titleKey: 'profile.publicProfile.title',
+    hintKey: 'profile.publicProfile.navHint',
+    variant: 'default',
+    proBadge: false,
+    hintMode: 'static',
+    entitlementRequirement: null,
+    entitlementMode: null,
+  },
+  {
     id: 'social',
     section: 'features',
     route: '/social',
@@ -88,6 +103,19 @@ export const PROFILE_NAV_ITEMS: ProfileNavItem[] = [
     hintMode: 'static',
     entitlementRequirement: 'yearlyPro',
     entitlementMode: 'redirect',
+  },
+  {
+    id: 'wrapped',
+    section: 'features',
+    route: '/wrapped',
+    iconKey: 'wrapped',
+    titleKey: 'profile.wrappedTitle',
+    hintKey: 'profile.wrappedHint',
+    variant: 'primary',
+    proBadge: false,
+    hintMode: 'static',
+    entitlementRequirement: null,
+    entitlementMode: null,
   },
   {
     id: 'achievements',

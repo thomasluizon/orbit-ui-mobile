@@ -15,6 +15,8 @@ import type {
   RetrospectiveResponse,
 } from '@orbit/shared/utils/retrospective'
 import { StatTile } from '@/components/ui/stat-tile'
+import { ShareCardEntryButton } from '@/components/share/share-card-entry-button'
+import { WrappedEntryButton } from '@/components/wrapped/wrapped-entry-button'
 
 const sectionTitleStyle: CSSProperties = {
   fontFamily: 'var(--font-sans)',
@@ -234,14 +236,18 @@ export function RetrospectiveDashboard({
           <Orbit size={11} strokeWidth={1.7} color="var(--primary)" />
           {t('retrospective.astraEyebrow')}
         </div>
-        <button
-          type="button"
-          className="chip"
-          onClick={onRegenerate}
-          disabled={!isOnline}
-        >
-          {t('retrospective.regenerate')}
-        </button>
+        <div className="flex items-center" style={{ gap: 6 }}>
+          <WrappedEntryButton />
+          <ShareCardEntryButton variant="chip" />
+          <button
+            type="button"
+            className="chip"
+            onClick={onRegenerate}
+            disabled={!isOnline}
+          >
+            {t('retrospective.regenerate')}
+          </button>
+        </div>
       </div>
 
       <div className="flex" style={{ gap: 10 }}>
