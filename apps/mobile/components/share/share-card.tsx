@@ -92,15 +92,18 @@ export const ShareCard = forwardRef<View, ShareCardProps>(function ShareCard(
         </View>
 
         {topHabits.length > 0 ? (
-          <View style={styles.habitChips}>
-            {topHabits.map((habit) => (
-              <View key={habit.name} style={styles.habitChip}>
-                <Text style={styles.habitEmoji}>{habit.emoji ?? '•'}</Text>
-                <Text style={styles.habitName} numberOfLines={1}>
-                  {habit.name}
-                </Text>
-              </View>
-            ))}
+          <View style={styles.habitSection}>
+            <Text style={styles.habitHeader}>{t('shareCard.stats.topHabits').toUpperCase()}</Text>
+            <View style={styles.habitChips}>
+              {topHabits.map((habit) => (
+                <View key={habit.name} style={styles.habitChip}>
+                  <Text style={styles.habitEmoji}>{habit.emoji ?? '•'}</Text>
+                  <Text style={styles.habitName} numberOfLines={1}>
+                    {habit.name}
+                  </Text>
+                </View>
+              ))}
+            </View>
           </View>
         ) : null}
       </View>
@@ -194,6 +197,15 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
     bar: {
       flex: 1,
       borderRadius: 5,
+    },
+    habitSection: {
+      gap: 8,
+    },
+    habitHeader: {
+      fontFamily: 'Rubik_500Medium',
+      fontSize: 11,
+      letterSpacing: 0.55,
+      color: tokens.fg3,
     },
     habitChips: {
       flexDirection: 'row',

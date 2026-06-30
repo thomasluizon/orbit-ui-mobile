@@ -116,26 +116,39 @@ export const ShareCard = forwardRef<HTMLDivElement, ShareCardProps>(function Sha
         </div>
 
         {topHabits.length > 0 && (
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-            {topHabits.map((habit) => (
-              <span
-                key={habit.name}
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 6,
-                  padding: '6px 10px',
-                  borderRadius: 999,
-                  fontSize: 12.5,
-                  color: 'var(--fg-2)',
-                  background: 'var(--bg-field)',
-                  boxShadow: 'inset 0 0 0 1px var(--hairline)',
-                }}
-              >
-                <span aria-hidden="true">{habit.emoji ?? '•'}</span>
-                {habit.name}
-              </span>
-            ))}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            <p
+              style={{
+                fontSize: 11,
+                fontWeight: 500,
+                color: 'var(--fg-3)',
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em',
+              }}
+            >
+              {t('shareCard.stats.topHabits')}
+            </p>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {topHabits.map((habit) => (
+                <span
+                  key={habit.name}
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6,
+                    padding: '6px 10px',
+                    borderRadius: 999,
+                    fontSize: 12.5,
+                    color: 'var(--fg-2)',
+                    background: 'var(--bg-field)',
+                    boxShadow: 'inset 0 0 0 1px var(--hairline)',
+                  }}
+                >
+                  <span aria-hidden="true">{habit.emoji ?? '•'}</span>
+                  {habit.name}
+                </span>
+              ))}
+            </div>
           </div>
         )}
       </div>
