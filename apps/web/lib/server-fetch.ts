@@ -47,3 +47,29 @@ export async function serverAuthFetch<T = unknown>(path: string, init: RequestIn
   if (!text) return null as T
   return JSON.parse(text) as T
 }
+
+/**
+ * Unauthenticated server fetch for public, no-auth API routes (e.g. public profiles).
+ * Sends no Bearer token, forwards the app version, and returns null on 404 so callers
+ * can render a not-found page. Throws an ApiClientError on other non-OK statuses.
+ */
+export async function serverPublicFetch<T = unknown>(path: string, init: RequestInit = {}): Promise<T | null> {
+  const appVersion = process.env.APP_VERSION
+  const res = await fetch(`${API_BASE}${path}`, {
+    ...init,
+    headers: {
+      'Content-Type': 'application/json',
+      ...(appVersion ? { [APP_VERSION_HEADER]: appVersion } : {}),
+      ...(init.headers as Record<string, string> | undefined),
+    },
+  })
+
+  if (res.status === 404) return null
+  if (!res.ok) {
+    const error = await res.json().catch(() => null) as Record<string, unknown> | null
+    throw createApiClientError(res.status, error, `Failed with status ${res.status}`)
+  }
+  const text = await res.text()
+  if (!text) return null
+  return JSON.parse(text) as T
+}

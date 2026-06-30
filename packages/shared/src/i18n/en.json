@@ -909,6 +909,71 @@
       "aboutHelpHint": "Feature guide, support, referral",
       "advancedHint": "Timezone, widget, developer tools"
     },
+    "publicProfile": {
+      "title": "Public profile",
+      "navHint": "Share your progress with a link",
+      "enable": {
+        "title": "Enable public profile",
+        "description": "Create a shareable link that shows your progress. You choose exactly what's visible."
+      },
+      "disabledHint": "Turning this off disables your link. Turning it back on creates a new one.",
+      "visibilityTitle": "What's visible",
+      "fields": {
+        "streak": {
+          "title": "Streak",
+          "description": "Your current and longest streak"
+        },
+        "level": {
+          "title": "Level",
+          "description": "Your level and title"
+        },
+        "achievements": {
+          "title": "Achievements",
+          "description": "The badges you've unlocked"
+        },
+        "topHabits": {
+          "title": "Top habits",
+          "description": "The names of your most-completed habits"
+        }
+      },
+      "link": {
+        "label": "Your public link",
+        "copy": "Copy",
+        "copied": "Copied!",
+        "share": "Share"
+      },
+      "regenerate": {
+        "button": "Generate a new link",
+        "hint": "Creating a new link breaks the old one.",
+        "confirmTitle": "Generate a new link?",
+        "confirmBody": "Your current link will stop working. Anyone who has it won't be able to see your profile.",
+        "confirm": "Generate new link",
+        "cancel": "Cancel"
+      },
+      "privacyHint": "Only the sections you turn on are visible. Your email and account details are never shared.",
+      "error": "Something went wrong. Please try again.",
+      "view": {
+        "tagline": "Habit tracking that keeps you in orbit.",
+        "dayStreakLabel": "Day streak",
+        "longestStreakLabel": "Best: {count}",
+        "level": "Level {level}",
+        "achievementsTitle": "Achievements",
+        "topHabitsTitle": "Top habits",
+        "ctaTitle": "Start your own streak",
+        "ctaBody": "Build habits, keep streaks, and level up with Orbit.",
+        "ctaButton": "Try Orbit free"
+      },
+      "meta": {
+        "title": "{name} on Orbit",
+        "titleFallback": "Public profile on Orbit",
+        "description": "See {name}'s streaks, level, and achievements on Orbit — the habit tracker that keeps you consistent."
+      },
+      "notFound": {
+        "title": "Profile not found",
+        "body": "This profile doesn't exist or is no longer public.",
+        "cta": "Discover Orbit"
+      }
+    },
     "editName": {
       "title": "Edit name",
       "label": "Name",

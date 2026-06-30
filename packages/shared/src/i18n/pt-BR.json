@@ -909,6 +909,71 @@
       "aboutHelpHint": "Guia de recursos, suporte, indicação",
       "advancedHint": "Fuso horário, widget, ferramentas de desenvolvedor"
     },
+    "publicProfile": {
+      "title": "Perfil público",
+      "navHint": "Compartilhe seu progresso com um link",
+      "enable": {
+        "title": "Ativar perfil público",
+        "description": "Crie um link compartilhável que mostra seu progresso. Você escolhe exatamente o que fica visível."
+      },
+      "disabledHint": "Desativar isso desabilita seu link. Reativar cria um novo.",
+      "visibilityTitle": "O que fica visível",
+      "fields": {
+        "streak": {
+          "title": "Sequência",
+          "description": "Sua sequência atual e a maior"
+        },
+        "level": {
+          "title": "Nível",
+          "description": "Seu nível e título"
+        },
+        "achievements": {
+          "title": "Conquistas",
+          "description": "As medalhas que você desbloqueou"
+        },
+        "topHabits": {
+          "title": "Principais hábitos",
+          "description": "Os nomes dos seus hábitos mais concluídos"
+        }
+      },
+      "link": {
+        "label": "Seu link público",
+        "copy": "Copiar",
+        "copied": "Copiado!",
+        "share": "Compartilhar"
+      },
+      "regenerate": {
+        "button": "Gerar um novo link",
+        "hint": "Gerar um novo link quebra o antigo.",
+        "confirmTitle": "Gerar um novo link?",
+        "confirmBody": "Seu link atual vai parar de funcionar. Quem tiver ele não conseguirá mais ver seu perfil.",
+        "confirm": "Gerar novo link",
+        "cancel": "Cancelar"
+      },
+      "privacyHint": "Apenas as seções que você ativar ficam visíveis. Seu e-mail e os dados da conta nunca são compartilhados.",
+      "error": "Algo deu errado. Tente novamente.",
+      "view": {
+        "tagline": "Controle de hábitos que mantém você em órbita.",
+        "dayStreakLabel": "Dias de sequência",
+        "longestStreakLabel": "Recorde: {count}",
+        "level": "Nível {level}",
+        "achievementsTitle": "Conquistas",
+        "topHabitsTitle": "Principais hábitos",
+        "ctaTitle": "Comece sua própria sequência",
+        "ctaBody": "Crie hábitos, mantenha sequências e suba de nível com o Orbit.",
+        "ctaButton": "Experimente o Orbit grátis"
+      },
+      "meta": {
+        "title": "{name} no Orbit",
+        "titleFallback": "Perfil público no Orbit",
+        "description": "Veja as sequências, o nível e as conquistas de {name} no Orbit — o app de hábitos que mantém você consistente."
+      },
+      "notFound": {
+        "title": "Perfil não encontrado",
+        "body": "Este perfil não existe ou não é mais público.",
+        "cta": "Conheça o Orbit"
+      }
+    },
     "editName": {
       "title": "Editar nome",
       "label": "Nome",

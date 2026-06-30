@@ -25,6 +25,11 @@ export const API = {
     export: '/api/profile/export',
     handle: '/api/profile/handle',
     socialOptIn: '/api/profile/social-opt-in',
+    public: '/api/profile/public',
+  },
+
+  publicProfile: {
+    bySlug: (slug: string) => `/api/u/${slug}` as const,
   },
 
   habits: {

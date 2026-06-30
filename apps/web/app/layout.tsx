@@ -34,6 +34,7 @@ const roboto = Roboto({
 export async function generateMetadata(): Promise<Metadata> {
   const t = await getTranslations('meta')
   return {
+    metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL ?? 'https://app.useorbit.org'),
     title: t('title'),
     description: t('description'),
   }

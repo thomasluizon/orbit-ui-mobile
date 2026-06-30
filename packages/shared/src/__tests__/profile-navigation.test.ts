@@ -14,6 +14,7 @@ describe('profile-navigation', () => {
     expect(PROFILE_NAV_ITEMS.map((item) => item.id)).toEqual([
       'preferences',
       'ai-settings',
+      'public-profile',
       'retrospective',
       'wrapped',
       'achievements',
@@ -25,6 +26,7 @@ describe('profile-navigation', () => {
     expect(PROFILE_NAV_ITEMS.map((item) => item.route)).toEqual([
       '/preferences',
       '/ai-settings',
+      '/public-profile',
       '/retrospective',
       '/wrapped',
       '/achievements',
@@ -57,7 +59,7 @@ describe('profile-navigation', () => {
   it('splits nav items between account and feature sections', () => {
     const account = PROFILE_NAV_ITEMS.filter((item) => item.section === 'account')
     const features = PROFILE_NAV_ITEMS.filter((item) => item.section === 'features')
-    expect(account).toHaveLength(2)
+    expect(account).toHaveLength(3)
     expect(features).toHaveLength(6)
   })
 

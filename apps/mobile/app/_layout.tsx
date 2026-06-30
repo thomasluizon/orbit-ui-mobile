@@ -124,6 +124,7 @@ function AuthGuard() {
 const SLIDE_FROM_RIGHT_SCREENS = [
   'preferences',
   'ai-settings',
+  'public-profile',
   'advanced',
   'about',
   'support',
