@@ -15,6 +15,7 @@ describe('profile-navigation', () => {
       'preferences',
       'ai-settings',
       'public-profile',
+      'social',
       'retrospective',
       'wrapped',
       'achievements',
@@ -27,6 +28,7 @@ describe('profile-navigation', () => {
       '/preferences',
       '/ai-settings',
       '/public-profile',
+      '/social',
       '/retrospective',
       '/wrapped',
       '/achievements',
@@ -34,6 +36,17 @@ describe('profile-navigation', () => {
       '/about',
       '/advanced',
     ])
+  })
+
+  it('exposes an ungated social entry on the features section', () => {
+    const social = PROFILE_NAV_ITEMS.find((item) => item.id === 'social')
+    expect(social?.route).toBe('/social')
+    expect(social?.section).toBe('features')
+    expect(social?.iconKey).toBe('friends')
+    expect(social?.titleKey).toBe('social.profileNav.title')
+    expect(social?.proBadge).toBe(false)
+    expect(social?.entitlementRequirement).toBeNull()
+    expect(social?.entitlementMode).toBeNull()
   })
 
   it('exposes Wrapped as a free, ungated feature entry', () => {
@@ -60,7 +73,7 @@ describe('profile-navigation', () => {
     const account = PROFILE_NAV_ITEMS.filter((item) => item.section === 'account')
     const features = PROFILE_NAV_ITEMS.filter((item) => item.section === 'features')
     expect(account).toHaveLength(3)
-    expect(features).toHaveLength(6)
+    expect(features).toHaveLength(7)
   })
 
   it('marks locked destinations and mixed screens explicitly', () => {

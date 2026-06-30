@@ -2771,5 +2771,116 @@
     "isAiLabel": "IA",
     "isAiTooltip": "A Astra é uma assistente de IA. As respostas são geradas automaticamente.",
     "notMedicalAdvice": "A Astra é IA e pode errar. Isto não é aconselhamento médico ou profissional."
+  },
+  "social": {
+    "title": "Amigos",
+    "profileNav": {
+      "title": "Amigos",
+      "hint": "Incentive seus amigos e mantenham a motivação juntos"
+    },
+    "tabs": {
+      "feed": "Atividade",
+      "friends": "Amigos"
+    },
+    "feed": {
+      "emptyTitle": "Nenhuma atividade ainda",
+      "emptyBody": "Quando seus amigos mantiverem sequências ou atingirem marcos, você verá aqui.",
+      "cheersForYou": "Incentivos para você",
+      "noCheers": "Nenhum incentivo ainda — seja o primeiro a incentivar um amigo.",
+      "loadMore": "Carregar mais",
+      "loading": "Carregando…",
+      "streakMilestone": "{name} manteve uma sequência de {count} dias",
+      "achievementUnlocked": "{name} desbloqueou {achievement}",
+      "habitCompletedMilestone": "{name} chegou a {count} conclusões",
+      "achievementGeneric": "uma conquista",
+      "cheerAction": "Incentivar",
+      "cheeredYouWithNote": "{name}: {note}",
+      "cheeredYou": "{name} torceu por você"
+    },
+    "friends": {
+      "sectionTitle": "Seus amigos",
+      "emptyTitle": "Nenhum amigo ainda",
+      "emptyBody": "Adicione um amigo pelo nome de usuário ou código de indicação para começarem a se incentivar.",
+      "streakLabel": "Sequência de {count} dias",
+      "cheer": "Incentivar",
+      "remove": "Remover",
+      "removeConfirmTitle": "Remover amigo?",
+      "removeConfirmBody": "Remover {name} dos seus amigos? Você pode adicioná-lo de novo depois.",
+      "block": "Bloquear",
+      "report": "Denunciar",
+      "incomingTitle": "Pedidos de amizade",
+      "outgoingTitle": "Pedidos pendentes",
+      "accept": "Aceitar",
+      "decline": "Recusar",
+      "cancel": "Cancelar",
+      "requestedYou": "quer ser seu amigo",
+      "youRequested": "Pedido enviado"
+    },
+    "addFriend": {
+      "title": "Adicionar amigo",
+      "handleLabel": "Nome de usuário",
+      "handlePlaceholder": "usuario",
+      "handleHint": "3 a 20 letras, números ou sublinhados",
+      "referralLabel": "Código de indicação",
+      "referralPlaceholder": "Digite um código de indicação",
+      "or": "ou",
+      "submit": "Enviar pedido",
+      "sending": "Enviando…",
+      "success": "Pedido de amizade enviado"
+    },
+    "cheer": {
+      "title": "Enviar incentivo",
+      "subtitle": "Para {name}",
+      "notePlaceholder": "Adicione uma mensagem (opcional)",
+      "send": "Enviar incentivo",
+      "sending": "Enviando…",
+      "success": "Incentivo enviado!",
+      "reactions": {
+        "clap": "Palmas",
+        "fire": "Fogo",
+        "muscle": "Força",
+        "star": "Estrela",
+        "party": "Comemorar",
+        "heart": "Coração"
+      }
+    },
+    "optInGate": {
+      "title": "Conecte-se com amigos",
+      "body": "Ative o social para adicionar amigos, compartilhar suas conquistas e se incentivarem. Seus hábitos continuam privados — os amigos só veem os marcos que você escolhe comemorar.",
+      "handleLabel": "Escolha seu nome de usuário",
+      "handlePlaceholder": "usuario",
+      "handleHint": "3 a 20 letras, números ou sublinhados. Os amigos usam isso para te encontrar.",
+      "enable": "Ativar social",
+      "enabling": "Ativando…",
+      "success": "Social ativado"
+    },
+    "block": {
+      "confirmTitle": "Bloquear {name}?",
+      "confirmBody": "Vocês não poderão enviar pedidos ou incentivos um ao outro, nem ver a atividade um do outro.",
+      "success": "Usuário bloqueado"
+    },
+    "report": {
+      "title": "Denunciar {name}",
+      "reasonLabel": "Motivo",
+      "detailsLabel": "Detalhes (opcional)",
+      "detailsPlaceholder": "Conte o que aconteceu",
+      "submit": "Enviar denúncia",
+      "success": "Denúncia enviada. Obrigado por manter o Orbit seguro.",
+      "reasons": {
+        "Spam": "Spam",
+        "Harassment": "Assédio",
+        "InappropriateContent": "Conteúdo impróprio",
+        "Impersonation": "Falsidade ideológica",
+        "Other": "Outro"
+      }
+    },
+    "errors": {
+      "rateLimited": "Você está fazendo isso muitas vezes. Tente de novo em instantes.",
+      "generic": "Algo deu errado. Tente de novo.",
+      "userNotFound": "Não encontramos ninguém com esse nome de usuário ou código.",
+      "alreadyFriends": "Você já está conectado com essa pessoa.",
+      "handleTaken": "Esse nome de usuário já está em uso. Tente outro.",
+      "friendLimitReached": "Você atingiu o limite de amigos."
+    }
   }
 }

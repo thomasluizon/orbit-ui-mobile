@@ -1,0 +1,72 @@
+import { useState } from 'react'
+import { ScrollView, StyleSheet } from 'react-native'
+import { SafeAreaView } from 'react-native-safe-area-context'
+import { useTranslation } from 'react-i18next'
+import { AppBar } from '@/components/ui/app-bar'
+import { GradientTop } from '@/components/ui/gradient-top'
+import { SectionHeadTabs } from '@/components/ui/section-head-tabs'
+import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
+import { useProfile } from '@/hooks/use-profile'
+import { createTokensV2 } from '@/lib/theme'
+import { useAppTheme } from '@/lib/use-app-theme'
+import { SocialOptInGate } from './social/_components/social-opt-in-gate'
+import { SocialFeed } from './social/_components/social-feed'
+import { SocialFriends } from './social/_components/social-friends'
+import { CheerComposer, type CheerTarget } from './social/_components/cheer-composer'
+
+type SocialTab = 'feed' | 'friends'
+
+export default function SocialScreen() {
+  const { t } = useTranslation()
+  const goBackOrFallback = useGoBackOrFallback()
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = createTokensV2(currentScheme, currentTheme)
+  const styles = createStyles(tokens)
+  const { profile, isLoading } = useProfile()
+  const [tab, setTab] = useState<SocialTab>('feed')
+  const [cheerTarget, setCheerTarget] = useState<CheerTarget | null>(null)
+
+  const socialEnabled = profile?.socialOptIn ?? false
+  const tabs = [
+    { id: 'feed' as const, label: t('social.tabs.feed') },
+    { id: 'friends' as const, label: t('social.tabs.friends') },
+  ]
+
+  return (
+    <SafeAreaView style={styles.safeArea} edges={['top']}>
+      <GradientTop height={200} />
+      <AppBar
+        back
+        onBack={() => goBackOrFallback('/profile')}
+        title={t('social.title')}
+        backLabel={t('common.goBack')}
+      />
+      {isLoading ? null : !socialEnabled ? (
+        <SocialOptInGate />
+      ) : (
+        <>
+          <SectionHeadTabs tabs={tabs} active={tab} onChange={setTab} />
+          <ScrollView
+            contentContainerStyle={styles.scroll}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
+            {tab === 'feed' ? (
+              <SocialFeed onCheer={setCheerTarget} />
+            ) : (
+              <SocialFriends onCheer={setCheerTarget} />
+            )}
+          </ScrollView>
+        </>
+      )}
+      <CheerComposer target={cheerTarget} onClose={() => setCheerTarget(null)} />
+    </SafeAreaView>
+  )
+}
+
+function createStyles(tokens: ReturnType<typeof createTokensV2>) {
+  return StyleSheet.create({
+    safeArea: { flex: 1, backgroundColor: tokens.bg },
+    scroll: { paddingBottom: 40 },
+  })
+}

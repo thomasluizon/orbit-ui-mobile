@@ -134,6 +134,7 @@ const SLIDE_FROM_RIGHT_SCREENS = [
   'retrospective',
   'wrapped',
   'calendar-sync',
+  'social',
 ] as const
 
 function RootStackScreens({

@@ -5,7 +5,12 @@ import type { NotificationItem } from '../types/notification'
 import type { Achievement, GamificationProfile, Recap } from '../types/gamification'
 import type { AppConfig } from '../types/config'
 import { DEFAULT_CONFIG } from '../types/config'
-import type { FriendSummary, Cheer, FriendFeedItem } from '../types/social'
+import type {
+  FriendSummary,
+  FriendRequestSummary,
+  Cheer,
+  FriendFeedItem,
+} from '../types/social'
 import type { ChallengeDetail } from '../types/challenge'
 import type { RetrospectiveMetrics } from '../utils/retrospective'
 
@@ -274,6 +279,21 @@ export function createMockFriendFeedItem(overrides: Partial<FriendFeedItem> = {}
     ...overrides,
   }
 }
+
+
+export function createMockFriendRequestSummary(
+  overrides: Partial<FriendRequestSummary> = {},
+): FriendRequestSummary {
+  return {
+    id: 'friendship-1',
+    userId: 'user-3',
+    handle: 'katherine_j',
+    displayName: 'Katherine Johnson',
+    createdAtUtc: '2026-01-01T00:00:00Z',
+    ...overrides,
+  }
+}
+
 
 export function createMockChallengeDetail(overrides: Partial<ChallengeDetail> = {}): ChallengeDetail {
   return {
