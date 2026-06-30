@@ -6,7 +6,7 @@ export type Tokens = ReturnType<typeof createTokensV2>
 export const styles = StyleSheet.create({
   safeArea: { flex: 1 },
   player: { flex: 1 },
-  gradientBackdrop: { position: 'absolute', left: 0, right: 0, top: 0, height: 220 },
+  gradientBackdrop: { position: 'absolute', left: 0, right: 0, top: 0, bottom: 0 },
   headerRow: {
     flexDirection: 'row',
     alignItems: 'center',

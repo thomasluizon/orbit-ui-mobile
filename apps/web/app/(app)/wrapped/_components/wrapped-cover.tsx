@@ -33,14 +33,13 @@ export function WrappedCover({
   return (
     <div
       className="relative flex flex-1 flex-col items-center justify-center text-center"
-      style={{ gap: 22, padding: '0 28px 32px' }}
+      style={{
+        gap: 22,
+        padding: '0 28px 32px',
+        background:
+          'radial-gradient(135% 100% at 50% 0%, rgba(var(--primary-rgb), 0.32) 0%, rgba(var(--primary-rgb), 0.1) 40%, transparent 72%), var(--bg)',
+      }}
     >
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-x-0 top-0"
-        style={{ height: 240, background: 'var(--gradient-header)' }}
-      />
-
       <div className="flex flex-col items-center" style={{ gap: 10 }}>
         <span
           style={{
@@ -49,7 +48,7 @@ export function WrappedCover({
             fontWeight: 500,
             letterSpacing: '0.08em',
             textTransform: 'uppercase',
-            color: 'var(--fg-3)',
+            color: 'var(--fg-2)',
           }}
         >
           {t('wrapped.coverEyebrow')}
@@ -70,7 +69,7 @@ export function WrappedCover({
           style={{
             fontFamily: 'var(--font-sans)',
             fontSize: 15,
-            color: 'var(--fg-3)',
+            color: 'var(--fg-2)',
             maxWidth: 300,
           }}
         >

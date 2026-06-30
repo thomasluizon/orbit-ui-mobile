@@ -43,17 +43,14 @@ export function WrappedPlayer({
   return (
     <div
       className="fixed inset-0 z-50 flex flex-col"
-      style={{ background: 'var(--bg)' }}
+      style={{
+        background:
+          'radial-gradient(135% 100% at 50% 0%, rgba(var(--primary-rgb), 0.32) 0%, rgba(var(--primary-rgb), 0.1) 40%, transparent 72%), var(--bg)',
+      }}
       role="dialog"
       aria-modal="true"
       aria-label={t('wrapped.title')}
     >
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-x-0 top-0"
-        style={{ height: 220, background: 'var(--gradient-header)' }}
-      />
-
       <div className="flex items-center" style={{ gap: 6, padding: '12px 16px 4px' }}>
         <div data-testid="wrapped-progress" className="flex flex-1 items-center" style={{ gap: 6 }}>
           {slides.map((slide, slideIndex) => (

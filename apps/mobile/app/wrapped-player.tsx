@@ -53,7 +53,8 @@ export function WrappedPlayer({
     <GestureDetector gesture={swipeDown}>
       <View style={[styles.player, { backgroundColor: tokens.bg }]}>
         <LinearGradient
-          colors={[tokens.gradientHeaderFrom, tokens.gradientHeaderTo]}
+          colors={[`rgba(${tokens.primaryRgb}, 0.32)`, `rgba(${tokens.primaryRgb}, 0.1)`, `rgba(${tokens.primaryRgb}, 0)`]}
+          locations={[0, 0.4, 0.72]}
           style={styles.gradientBackdrop}
           pointerEvents="none"
         />
