@@ -2,11 +2,12 @@ import type { NormalizedHabit, RescheduleSuggestion } from '../types/habit'
 import type { Goal } from '../types/goal'
 import type { Profile } from '../types/profile'
 import type { NotificationItem } from '../types/notification'
-import type { Achievement, GamificationProfile } from '../types/gamification'
+import type { Achievement, GamificationProfile, Recap } from '../types/gamification'
 import type { AppConfig } from '../types/config'
 import { DEFAULT_CONFIG } from '../types/config'
 import type { FriendSummary, Cheer, FriendFeedItem } from '../types/social'
 import type { ChallengeDetail } from '../types/challenge'
+import type { RetrospectiveMetrics } from '../utils/retrospective'
 
 
 export function createMockHabit(overrides: Partial<NormalizedHabit> = {}): NormalizedHabit {
@@ -195,6 +196,40 @@ export function createMockGamificationProfile(
 export function createMockConfig(overrides: Partial<AppConfig> = {}): AppConfig {
   return {
     ...DEFAULT_CONFIG,
+    ...overrides,
+  }
+}
+
+
+export function createMockRetrospectiveMetrics(
+  overrides: Partial<RetrospectiveMetrics> = {},
+): RetrospectiveMetrics {
+  return {
+    completionRate: 82,
+    totalCompletions: 96,
+    totalScheduled: 117,
+    activeDays: 6,
+    periodDays: 7,
+    currentStreak: 12,
+    bestStreak: 21,
+    badHabitSlips: 1,
+    weeklyConsistency: [100, 80, 60, 90, 40, 70, 100],
+    topHabits: [
+      { name: 'Morning run', emoji: '🏃', completionRate: 95, completedCount: 19, scheduledCount: 20 },
+      { name: 'Read', emoji: '📚', completionRate: 88, completedCount: 22, scheduledCount: 25 },
+      { name: 'Meditate', emoji: '🧘', completionRate: 80, completedCount: 16, scheduledCount: 20 },
+    ],
+    needsAttention: [],
+    ...overrides,
+  }
+}
+
+
+export function createMockRecap(overrides: Partial<Recap> = {}): Recap {
+  return {
+    period: 'week',
+    metrics: createMockRetrospectiveMetrics(),
+    shareDeepLink: 'https://app.useorbit.org/r/ABC123?recap=week',
     ...overrides,
   }
 }

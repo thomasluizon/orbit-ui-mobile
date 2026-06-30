@@ -49,6 +49,15 @@ export function ProfileNavIcon({
           <path d="M18 9l-5 5-4-4-3 3" />
         </svg>
       )
+    case 'wrapped':
+      return (
+        <svg {...sharedProps}>
+          <rect x="3" y="8" width="18" height="4" rx="1" />
+          <path d="M12 8v13" />
+          <path d="M19 12v7a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-7" />
+          <path d="M7.5 8a2.5 2.5 0 0 1 0-5A4.8 8 0 0 1 12 8a4.8 8 0 0 1 4.5-5 2.5 2.5 0 0 1 0 5" />
+        </svg>
+      )
     case 'achievements':
       return (
         <svg {...sharedProps}>
@@ -88,6 +97,14 @@ export function ProfileNavIcon({
         <svg {...sharedProps}>
           <circle cx="12" cy="12" r="10" />
           <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" />
+        </svg>
+      )
+    case 'globe':
+      return (
+        <svg {...sharedProps}>
+          <circle cx="12" cy="12" r="10" />
+          <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20" />
+          <path d="M2 12h20" />
         </svg>
       )
     default:
