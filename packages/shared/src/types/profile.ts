@@ -57,6 +57,8 @@ export const profileSchema = z.object({
   hasLoggedFirstHabit: z.boolean().optional(),
   hasTriedAstra: z.boolean().optional(),
   hasCompletedOnboardingChecklist: z.boolean().optional(),
+  handle: z.string().nullable().optional(),
+  socialOptIn: z.boolean().optional(),
 })
 
 export type Profile = z.infer<typeof profileSchema>

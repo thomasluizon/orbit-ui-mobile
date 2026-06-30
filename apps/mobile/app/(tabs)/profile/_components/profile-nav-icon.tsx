@@ -1,4 +1,4 @@
-import { Compass, Settings, Sparkles, CircleHelp, Wrench } from 'lucide-react-native'
+import { Compass, Settings, Sparkles, CircleHelp, Wrench, Users } from 'lucide-react-native'
 import Svg, { Path, Rect } from 'react-native-svg'
 import type { ProfileNavIconKey } from '@orbit/shared/utils/profile-navigation'
 
@@ -47,6 +47,8 @@ export function ProfileNavIcon({
       return <Wrench size={22} color={color} strokeWidth={1.8} />
     case 'compass':
       return <Compass size={22} color={color} strokeWidth={1.8} />
+    case 'friends':
+      return <Users size={22} color={color} strokeWidth={1.8} />
     default:
       return null
   }

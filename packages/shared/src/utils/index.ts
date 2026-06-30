@@ -30,6 +30,7 @@ export {
   translateErrorKey,
 } from './error-utils'
 export { isFeatureEnabled } from './config'
+export { getSocialErrorKey } from './social-errors'
 export { stripInlineMarkdown } from './markdown'
 export { plural } from './plural'
 export { buildRecentChatHistory } from './chat-history'

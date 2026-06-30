@@ -14,6 +14,7 @@ describe('profile-navigation', () => {
     expect(PROFILE_NAV_ITEMS.map((item) => item.id)).toEqual([
       'preferences',
       'ai-settings',
+      'social',
       'retrospective',
       'achievements',
       'calendar-sync',
@@ -24,12 +25,24 @@ describe('profile-navigation', () => {
     expect(PROFILE_NAV_ITEMS.map((item) => item.route)).toEqual([
       '/preferences',
       '/ai-settings',
+      '/social',
       '/retrospective',
       '/achievements',
       '/calendar-sync',
       '/about',
       '/advanced',
     ])
+  })
+
+  it('exposes an ungated social entry on the features section', () => {
+    const social = PROFILE_NAV_ITEMS.find((item) => item.id === 'social')
+    expect(social?.route).toBe('/social')
+    expect(social?.section).toBe('features')
+    expect(social?.iconKey).toBe('friends')
+    expect(social?.titleKey).toBe('social.profileNav.title')
+    expect(social?.proBadge).toBe(false)
+    expect(social?.entitlementRequirement).toBeNull()
+    expect(social?.entitlementMode).toBeNull()
   })
 
   it('keeps achievements title aligned with web source-of-truth key', () => {
@@ -46,7 +59,7 @@ describe('profile-navigation', () => {
     const account = PROFILE_NAV_ITEMS.filter((item) => item.section === 'account')
     const features = PROFILE_NAV_ITEMS.filter((item) => item.section === 'features')
     expect(account).toHaveLength(2)
-    expect(features).toHaveLength(5)
+    expect(features).toHaveLength(6)
   })
 
   it('marks locked destinations and mixed screens explicitly', () => {

@@ -83,7 +83,7 @@ export const cheerSchema = z.object({
   id: z.string(),
   senderId: z.string(),
   recipientId: z.string(),
-  habitId: z.string(),
+  habitId: z.string().nullable(),
   note: z.string().nullable(),
   createdAtUtc: z.string(),
   senderHandle: z.string(),
@@ -94,7 +94,7 @@ export type Cheer = z.infer<typeof cheerSchema>
 
 export const sendCheerRequestSchema = z.object({
   recipientId: z.string(),
-  habitId: z.string(),
+  habitId: z.string().optional(),
   note: z.string().max(200).optional(),
 })
 

@@ -2574,5 +2574,116 @@
     "isAiLabel": "AI",
     "isAiTooltip": "Astra is an AI assistant. Responses are generated automatically.",
     "notMedicalAdvice": "Astra is AI and can be wrong. This is not medical or professional advice."
+  },
+  "social": {
+    "title": "Friends",
+    "profileNav": {
+      "title": "Friends",
+      "hint": "Cheer friends on and stay motivated together"
+    },
+    "tabs": {
+      "feed": "Feed",
+      "friends": "Friends"
+    },
+    "feed": {
+      "emptyTitle": "No activity yet",
+      "emptyBody": "When your friends keep streaks or hit milestones, you'll see it here.",
+      "cheersForYou": "Cheers for you",
+      "noCheers": "No cheers yet — be the first to cheer a friend on.",
+      "loadMore": "Load more",
+      "loading": "Loading…",
+      "streakMilestone": "{name} kept a {count}-day streak",
+      "achievementUnlocked": "{name} unlocked {achievement}",
+      "habitCompletedMilestone": "{name} reached {count} completions",
+      "achievementGeneric": "an achievement",
+      "cheerAction": "Cheer",
+      "cheeredYouWithNote": "{name}: {note}",
+      "cheeredYou": "{name} cheered you on"
+    },
+    "friends": {
+      "sectionTitle": "Your friends",
+      "emptyTitle": "No friends yet",
+      "emptyBody": "Add a friend by their handle or referral code to start cheering each other on.",
+      "streakLabel": "{count}-day streak",
+      "cheer": "Cheer",
+      "remove": "Remove",
+      "removeConfirmTitle": "Remove friend?",
+      "removeConfirmBody": "Remove {name} from your friends? You can always add them again later.",
+      "block": "Block",
+      "report": "Report",
+      "incomingTitle": "Friend requests",
+      "outgoingTitle": "Pending requests",
+      "accept": "Accept",
+      "decline": "Decline",
+      "cancel": "Cancel",
+      "requestedYou": "wants to be friends",
+      "youRequested": "Request sent"
+    },
+    "addFriend": {
+      "title": "Add a friend",
+      "handleLabel": "Handle",
+      "handlePlaceholder": "handle",
+      "handleHint": "3–20 letters, numbers, or underscores",
+      "referralLabel": "Referral code",
+      "referralPlaceholder": "Enter a referral code",
+      "or": "or",
+      "submit": "Send request",
+      "sending": "Sending…",
+      "success": "Friend request sent"
+    },
+    "cheer": {
+      "title": "Send a cheer",
+      "subtitle": "To {name}",
+      "notePlaceholder": "Add a note (optional)",
+      "send": "Send cheer",
+      "sending": "Sending…",
+      "success": "Cheer sent!",
+      "reactions": {
+        "clap": "Clap",
+        "fire": "Fire",
+        "muscle": "Strength",
+        "star": "Star",
+        "party": "Celebrate",
+        "heart": "Heart"
+      }
+    },
+    "optInGate": {
+      "title": "Connect with friends",
+      "body": "Turn on social to add friends, share your wins, and cheer each other on. Your habits stay private — friends only see milestones you choose to celebrate.",
+      "handleLabel": "Choose your handle",
+      "handlePlaceholder": "handle",
+      "handleHint": "3–20 letters, numbers, or underscores. Friends use this to find you.",
+      "enable": "Enable social",
+      "enabling": "Enabling…",
+      "success": "Social enabled"
+    },
+    "block": {
+      "confirmTitle": "Block {name}?",
+      "confirmBody": "They won't be able to send you requests or cheers, and you won't see each other's activity.",
+      "success": "User blocked"
+    },
+    "report": {
+      "title": "Report {name}",
+      "reasonLabel": "Reason",
+      "detailsLabel": "Details (optional)",
+      "detailsPlaceholder": "Tell us what happened",
+      "submit": "Submit report",
+      "success": "Report submitted. Thank you for keeping Orbit safe.",
+      "reasons": {
+        "Spam": "Spam",
+        "Harassment": "Harassment",
+        "InappropriateContent": "Inappropriate content",
+        "Impersonation": "Impersonation",
+        "Other": "Other"
+      }
+    },
+    "errors": {
+      "rateLimited": "You're doing that a lot. Please try again in a moment.",
+      "generic": "Something went wrong. Please try again.",
+      "userNotFound": "We couldn't find anyone with that handle or code.",
+      "alreadyFriends": "You're already connected with this person.",
+      "handleTaken": "That handle is taken. Try another.",
+      "friendLimitReached": "You've reached the friend limit."
+    }
   }
 }
