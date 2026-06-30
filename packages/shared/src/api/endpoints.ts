@@ -180,6 +180,13 @@ export const API = {
     report: '/api/friends/report',
   },
 
+  challenges: {
+    create: '/api/challenges',
+    join: '/api/challenges/join',
+    leave: (id: string) => `/api/challenges/${id}/leave` as const,
+    detail: (id: string) => `/api/challenges/${id}` as const,
+  },
+
   accountability: {
     pairs: '/api/accountability/pairs',
     accept: (id: string) => `/api/accountability/pairs/${id}/accept` as const,
