@@ -10,7 +10,7 @@ import {
   getLockedAchievements,
   getStreakTierLabelKey,
 } from '../utils/gamification-selectors'
-import type { GamificationProfile, StreakInfo } from '../types/gamification'
+import type { Achievement, GamificationProfile, StreakInfo } from '../types/gamification'
 
 describe('getStreakTierLabelKey', () => {
   it('maps streak length to the tier i18n key at each threshold', () => {
@@ -131,6 +131,37 @@ describe('gamification-selectors', () => {
   it('groups achievements by category', () => {
     const groups = getAchievementsByCategory(makeProfile())
     expect(groups.map((group) => group.key)).toEqual(['GettingStarted', 'Consistency', 'Goals'])
+  })
+
+  it('orders the appended Social, Sharing, and Together categories after the originals', () => {
+    const make = (id: string, category: string): Achievement => ({
+      id,
+      name: id,
+      description: id,
+      category,
+      rarity: 'Common',
+      xpReward: 50,
+      iconKey: 'star',
+      isEarned: false,
+      earnedAtUtc: null,
+    })
+    const profile = makeProfile({
+      achievements: [
+        make('together-1', 'Together'),
+        make('social-1', 'Social'),
+        make('sharing-1', 'Sharing'),
+        make('start-1', 'GettingStarted'),
+      ],
+    })
+
+    const groups = getAchievementsByCategory(profile)
+
+    expect(groups.map((group) => group.key)).toEqual([
+      'GettingStarted',
+      'Social',
+      'Sharing',
+      'Together',
+    ])
   })
 
   it('derives the combined gamification profile state', () => {
