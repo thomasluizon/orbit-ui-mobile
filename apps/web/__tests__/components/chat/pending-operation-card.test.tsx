@@ -65,6 +65,23 @@ describe('PendingOperationCard', () => {
     expect(screen.getAllByText('Delete Meditation habit')).toHaveLength(1)
   })
 
+  it('dismisses the card without calling the mutation when Cancel is clicked', () => {
+    const onConfirmExecute = vi.fn()
+    render(
+      <PendingOperationCard
+        pendingOperation={makePendingOperation()}
+        onConfirmExecute={onConfirmExecute}
+        onPrepareStepUp={vi.fn()}
+        onVerifyStepUp={vi.fn()}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'common.cancel' }))
+
+    expect(onConfirmExecute).not.toHaveBeenCalled()
+    expect(screen.queryByTestId('pending-op-card')).not.toBeInTheDocument()
+  })
+
   it('shows an error instead of success when step-up verification returns a failed operation', async () => {
     render(
       <PendingOperationCard
