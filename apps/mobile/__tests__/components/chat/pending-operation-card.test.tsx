@@ -109,6 +109,35 @@ describe('PendingOperationCard (mobile)', () => {
     expect(onConfirmExecute).toHaveBeenCalledWith('pending-1')
   })
 
+  it('dismisses the card without calling the mutation when Cancel is pressed', async () => {
+    const onConfirmExecute = vi.fn()
+    let tree: any
+
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(
+        <PendingOperationCard
+          pendingOperation={makePendingOperation()}
+          onConfirmExecute={onConfirmExecute}
+          onPrepareStepUp={vi.fn()}
+          onVerifyStepUp={vi.fn()}
+        />,
+      )
+    })
+
+    const [cancelButton] = tree.root.findAll(
+      (node: any) =>
+        node.props?.accessibilityLabel === 'common.cancel' &&
+        typeof node.props?.onPress === 'function',
+    )
+
+    await TestRenderer.act(async () => {
+      cancelButton.props.onPress()
+    })
+
+    expect(onConfirmExecute).not.toHaveBeenCalled()
+    expect(findPressables(tree.root)).toHaveLength(0)
+  })
+
   it('starts step-up flow when required', async () => {
     const onPrepareStepUp = vi.fn().mockResolvedValue({
       ok: true,
