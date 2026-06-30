@@ -39,6 +39,7 @@ vi.mock('react-i18next', () => ({
 }))
 
 vi.mock('@tanstack/react-query', () => ({
+  useQuery: () => ({ data: undefined, isLoading: false, isError: false }),
   useQueryClient: () => ({
     invalidateQueries: vi.fn(),
     clear: vi.fn(),
@@ -61,6 +62,7 @@ vi.mock('@/hooks/use-profile', () => ({
 
 vi.mock('@/hooks/use-gamification', () => ({
   useGamificationProfile: mockUseGamificationProfile,
+  useReportEvent: () => ({ mutate: vi.fn() }),
 }))
 
 vi.mock('@/stores/auth-store', () => ({
@@ -228,6 +230,7 @@ vi.mock('lucide-react-native', () => {
     ChevronLeft: createIcon('ChevronLeft'),
     Flame: createIcon('Flame'),
     Download: createIcon('Download'),
+    Share2: createIcon('Share2'),
     Pencil: createIcon('Pencil'),
     UserX: createIcon('UserX'),
     TriangleAlert: createIcon('TriangleAlert'),

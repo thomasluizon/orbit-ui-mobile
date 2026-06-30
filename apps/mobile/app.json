@@ -127,7 +127,8 @@
           "organization": "thomasluizon",
           "project": "orbit-mobile"
         }
-      ]
+      ],
+      "expo-sharing"
     ],
     "experiments": {
       "typedRoutes": true

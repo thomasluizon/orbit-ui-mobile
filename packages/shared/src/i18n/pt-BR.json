@@ -1087,6 +1087,32 @@
     },
     "loginBanner": "Você foi convidado! Cadastre-se e ganhe um cupom de 10% de desconto no Pro"
   },
+  "shareCard": {
+    "title": "Compartilhe seu progresso",
+    "entry": "Compartilhar progresso",
+    "share": "Compartilhar",
+    "download": "Baixar",
+    "scanToJoin": "Escaneie para entrar no Orbit",
+    "shareTitle": "Meu progresso no Orbit",
+    "shareText": "Estou construindo hábitos melhores com o Orbit — venha comigo!",
+    "loading": "Preparando seu card…",
+    "empty": "Registre alguns hábitos primeiro para criar um card que valha a pena compartilhar.",
+    "error": "Não foi possível carregar seu resumo. Tente novamente.",
+    "shareError": "Não foi possível compartilhar seu card. Tente novamente.",
+    "periods": {
+      "week": "Semana",
+      "month": "Mês",
+      "year": "Ano"
+    },
+    "stats": {
+      "completionRate": "Conclusão",
+      "completions": "Conclusões",
+      "bestStreak": "Melhor sequência",
+      "activeDays": "Dias ativos",
+      "topHabits": "Principais hábitos"
+    },
+    "streak": "Sequência de {count} dias"
+  },
   "privacy": {
     "title": "Política de Privacidade",
     "lastUpdated": "Última atualização: Junho de 2026",
