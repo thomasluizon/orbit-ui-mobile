@@ -118,6 +118,7 @@ export const API = {
     recap: '/api/gamification/recap',
     streakHistory: '/api/gamification/streak-history',
     xpHistory: '/api/gamification/xp-history',
+    reportEvent: '/api/achievements/report-event',
   },
 
   chat: {
