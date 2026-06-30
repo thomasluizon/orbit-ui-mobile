@@ -90,6 +90,14 @@ export function ProfileNavIcon({
           <polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76" />
         </svg>
       )
+    case 'globe':
+      return (
+        <svg {...sharedProps}>
+          <circle cx="12" cy="12" r="10" />
+          <path d="M12 2a14.5 14.5 0 0 0 0 20 14.5 14.5 0 0 0 0-20" />
+          <path d="M2 12h20" />
+        </svg>
+      )
     default:
       return null
   }

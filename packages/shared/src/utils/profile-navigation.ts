@@ -18,6 +18,7 @@ export type ProfileNavIconKey =
   | 'info'
   | 'wrench'
   | 'compass'
+  | 'globe'
 
 export type ProfileNavHintMode = 'static' | 'gamificationProfile'
 
@@ -61,6 +62,19 @@ export const PROFILE_NAV_ITEMS: ProfileNavItem[] = [
     hintMode: 'static',
     entitlementRequirement: null,
     entitlementMode: 'mixed',
+  },
+  {
+    id: 'public-profile',
+    section: 'account',
+    route: '/public-profile',
+    iconKey: 'globe',
+    titleKey: 'profile.publicProfile.title',
+    hintKey: 'profile.publicProfile.navHint',
+    variant: 'default',
+    proBadge: false,
+    hintMode: 'static',
+    entitlementRequirement: null,
+    entitlementMode: null,
   },
   {
     id: 'retrospective',
