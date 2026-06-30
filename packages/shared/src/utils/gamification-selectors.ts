@@ -8,6 +8,9 @@ const ACHIEVEMENT_CATEGORIES: AchievementCategory[] = [
   'Goals',
   'Perfection',
   'Special',
+  'Social',
+  'Sharing',
+  'Together',
 ]
 
 export interface StreakFreezeFallback {
