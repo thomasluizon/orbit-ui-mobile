@@ -1,5 +1,6 @@
 import { useState, useMemo, useRef, useCallback, useEffect } from 'react'
 import {
+  useMutation,
   useQuery,
   useQueryClient,
 } from '@tanstack/react-query'
@@ -7,7 +8,9 @@ import { gamificationKeys, QUERY_STALE_TIMES } from '@orbit/shared/query'
 
 import { API } from '@orbit/shared/api'
 import type {
+  AchievementEventKey,
   GamificationProfile,
+  ReportEventResponse,
   StreakInfo,
 } from '@orbit/shared/types/gamification'
 import {
@@ -16,6 +19,7 @@ import {
   deriveStreakFreezeState,
 } from '@orbit/shared/utils'
 import { apiClient } from '@/lib/api-client'
+import { useUIStore } from '@/stores/ui-store'
 
 export function useGamificationProfile(enabled = true) {
   const queryClient = useQueryClient()
@@ -106,4 +110,31 @@ export function useStreakFreeze(profile?: { streakFreezesAvailable?: number; cur
     streakInfo,
     ...state,
   }
+}
+
+/**
+ * Reports a whitelisted client gamification event (a shared card or a viewed Wrapped) to the backend,
+ * which idempotently grants the mapped achievement. On success it celebrates each granted achievement
+ * through the shared celebration queue and refreshes the gamification profile.
+ */
+export function useReportEvent() {
+  const queryClient = useQueryClient()
+  const enqueueCelebration = useUIStore((s) => s.enqueueCelebration)
+
+  return useMutation({
+    mutationFn: (eventKey: AchievementEventKey) =>
+      apiClient<ReportEventResponse>(API.gamification.reportEvent, {
+        method: 'POST',
+        body: JSON.stringify({ eventKey }),
+      }),
+    onSuccess: (response) => {
+      for (const achievement of response.granted) {
+        enqueueCelebration('achievement', {
+          achievementId: achievement.id,
+          xpReward: achievement.xpReward,
+        })
+      }
+      queryClient.invalidateQueries({ queryKey: gamificationKeys.all })
+    },
+  })
 }
