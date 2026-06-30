@@ -1996,7 +1996,10 @@
       "Volume": "Volume",
       "Goals": "Goals",
       "Perfection": "Perfection",
-      "Special": "Special"
+      "Special": "Special",
+      "Social": "Social",
+      "Sharing": "Sharing",
+      "Together": "Together"
     },
     "achievements": {
       "first_orbit": {
@@ -2114,6 +2117,46 @@
       "first_cheer": {
         "name": "Good Vibes",
         "description": "Send or receive your first cheer"
+      },
+      "first_friend": {
+        "name": "First Friend",
+        "description": "Add your first friend"
+      },
+      "squad_goals": {
+        "name": "Squad Goals",
+        "description": "Reach 5 friends"
+      },
+      "cheerleader": {
+        "name": "Cheerleader",
+        "description": "Send 25 cheers"
+      },
+      "show_off": {
+        "name": "Show Off",
+        "description": "Share your first card"
+      },
+      "year_in_review": {
+        "name": "Year in Review",
+        "description": "View your first Wrapped"
+      },
+      "team_player": {
+        "name": "Team Player",
+        "description": "Join your first cooperative challenge"
+      },
+      "mission_accomplished": {
+        "name": "Mission Accomplished",
+        "description": "Complete a cooperative challenge"
+      },
+      "battle_buddy": {
+        "name": "Battle Buddy",
+        "description": "Start a 1:1 accountability pair"
+      },
+      "streak_immortal": {
+        "name": "Streak Immortal",
+        "description": "Achieve a 1000-day streak"
+      },
+      "unstoppable": {
+        "name": "Unstoppable",
+        "description": "Complete 2500 habits total"
       }
     },
     "toast": {

@@ -1996,7 +1996,10 @@
       "Volume": "Volume",
       "Goals": "Metas",
       "Perfection": "Perfeição",
-      "Special": "Especial"
+      "Special": "Especial",
+      "Social": "Social",
+      "Sharing": "Compartilhamento",
+      "Together": "Em Grupo"
     },
     "achievements": {
       "first_orbit": {
@@ -2114,6 +2117,46 @@
       "first_cheer": {
         "name": "Boas Energias",
         "description": "Envie ou receba seu primeiro incentivo"
+      },
+      "first_friend": {
+        "name": "Primeiro Amigo",
+        "description": "Adicione seu primeiro amigo"
+      },
+      "squad_goals": {
+        "name": "Esquadrão Completo",
+        "description": "Alcance 5 amigos"
+      },
+      "cheerleader": {
+        "name": "Líder de Torcida",
+        "description": "Envie 25 incentivos"
+      },
+      "show_off": {
+        "name": "Exibido",
+        "description": "Compartilhe seu primeiro card"
+      },
+      "year_in_review": {
+        "name": "Retrospectiva",
+        "description": "Veja sua primeira Retrospectiva"
+      },
+      "team_player": {
+        "name": "Espírito de Equipe",
+        "description": "Entre no seu primeiro desafio cooperativo"
+      },
+      "mission_accomplished": {
+        "name": "Missão Cumprida",
+        "description": "Complete um desafio cooperativo"
+      },
+      "battle_buddy": {
+        "name": "Parceiro de Batalha",
+        "description": "Inicie uma dupla de responsabilidade"
+      },
+      "streak_immortal": {
+        "name": "Sequência Imortal",
+        "description": "Alcance uma sequência de 1000 dias"
+      },
+      "unstoppable": {
+        "name": "Imbatível",
+        "description": "Complete 2500 hábitos no total"
       }
     },
     "toast": {
