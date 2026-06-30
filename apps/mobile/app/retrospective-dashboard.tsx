@@ -15,6 +15,7 @@ import type {
 } from '@orbit/shared/utils/retrospective'
 import { StatTile } from '@/components/ui/stat-tile'
 import { ShareCardEntryButton } from '@/components/share/share-card-entry-button'
+import { WrappedEntryButton } from '@/components/wrapped/wrapped-entry-button'
 import { styles, type Tokens } from './retrospective-styles'
 
 const WEEKDAY_KEYS = [
@@ -228,6 +229,7 @@ export function RetrospectiveDashboard({
             </Text>
           </View>
           <View style={styles.astraActions}>
+            <WrappedEntryButton />
             <ShareCardEntryButton variant="chip" />
             <Pressable
               onPress={onRegenerate}

@@ -103,7 +103,7 @@ export const retrospectiveMetricsSchema = z.object({
 })
 
 export const recapResponseSchema = z.object({
-  period: z.enum(['week', 'month', 'year']),
+  period: z.enum(['week', 'month', 'quarter', 'semester', 'year']),
   metrics: retrospectiveMetricsSchema,
   shareDeepLink: z.string(),
 })

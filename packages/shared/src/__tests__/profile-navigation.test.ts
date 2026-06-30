@@ -15,6 +15,7 @@ describe('profile-navigation', () => {
       'preferences',
       'ai-settings',
       'retrospective',
+      'wrapped',
       'achievements',
       'calendar-sync',
       'about',
@@ -25,11 +26,22 @@ describe('profile-navigation', () => {
       '/preferences',
       '/ai-settings',
       '/retrospective',
+      '/wrapped',
       '/achievements',
       '/calendar-sync',
       '/about',
       '/advanced',
     ])
+  })
+
+  it('exposes Wrapped as a free, ungated feature entry', () => {
+    const wrapped = PROFILE_NAV_ITEMS.find((item) => item.id === 'wrapped')
+    expect(wrapped?.section).toBe('features')
+    expect(wrapped?.route).toBe('/wrapped')
+    expect(wrapped?.iconKey).toBe('wrapped')
+    expect(wrapped?.proBadge).toBe(false)
+    expect(wrapped?.entitlementRequirement).toBeNull()
+    expect(wrapped?.entitlementMode).toBeNull()
   })
 
   it('keeps achievements title aligned with web source-of-truth key', () => {
@@ -46,7 +58,7 @@ describe('profile-navigation', () => {
     const account = PROFILE_NAV_ITEMS.filter((item) => item.section === 'account')
     const features = PROFILE_NAV_ITEMS.filter((item) => item.section === 'features')
     expect(account).toHaveLength(2)
-    expect(features).toHaveLength(5)
+    expect(features).toHaveLength(6)
   })
 
   it('marks locked destinations and mixed screens explicitly', () => {

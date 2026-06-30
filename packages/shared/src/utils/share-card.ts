@@ -1,4 +1,5 @@
 import { API } from '../api'
+import type { Recap } from '../types/gamification'
 import type { RetrospectiveMetrics } from './retrospective'
 
 export const RECAP_SHARE_PERIODS = ['week', 'month', 'year'] as const
@@ -18,8 +19,8 @@ export function buildRecapRequestUrl(period: RecapSharePeriod): string {
   return `${API.gamification.recap}?${params.toString()}`
 }
 
-/** Returns the i18n key for a recap period label (`shareCard.periods.{period}`). */
-export function recapPeriodLabelKey(period: RecapSharePeriod): string {
+/** Returns the i18n key for a recap period label (`shareCard.periods.{period}`), covering the full backend period set. */
+export function recapPeriodLabelKey(period: Recap['period']): string {
   return `shareCard.periods.${period}`
 }
 

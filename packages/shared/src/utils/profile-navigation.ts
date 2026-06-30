@@ -13,6 +13,7 @@ export type ProfileNavIconKey =
   | 'settings'
   | 'orbit'
   | 'retrospective'
+  | 'wrapped'
   | 'achievements'
   | 'calendar'
   | 'info'
@@ -74,6 +75,19 @@ export const PROFILE_NAV_ITEMS: ProfileNavItem[] = [
     hintMode: 'static',
     entitlementRequirement: 'yearlyPro',
     entitlementMode: 'redirect',
+  },
+  {
+    id: 'wrapped',
+    section: 'features',
+    route: '/wrapped',
+    iconKey: 'wrapped',
+    titleKey: 'profile.wrappedTitle',
+    hintKey: 'profile.wrappedHint',
+    variant: 'primary',
+    proBadge: false,
+    hintMode: 'static',
+    entitlementRequirement: null,
+    entitlementMode: null,
   },
   {
     id: 'achievements',
