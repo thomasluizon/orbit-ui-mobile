@@ -6,6 +6,7 @@ import type {
   SetLanguageRequest,
   SetAiMemoryRequest,
   SetAiSummaryRequest,
+  SetProactiveAstraRequest,
   SetWeekStartDayRequest,
   SetThemePreferenceRequest,
   SetColorSchemeRequest,
@@ -46,6 +47,13 @@ export async function updateAiMemory(data: SetAiMemoryRequest): Promise<void> {
 
 export async function updateAiSummary(data: SetAiSummaryRequest): Promise<void> {
   await serverAuthFetch(API.profile.aiSummary, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  })
+}
+
+export async function updateProactiveAstra(data: SetProactiveAstraRequest): Promise<void> {
+  await serverAuthFetch(API.profile.proactiveAstra, {
     method: 'PUT',
     body: JSON.stringify(data),
   })

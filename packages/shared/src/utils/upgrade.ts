@@ -90,6 +90,7 @@ export const UPGRADE_FEATURE_CATEGORIES: UpgradeFeatureMatrixCategory[] = [
       { key: 'aiMemory', type: 'boolean', free: false, pro: true },
       { key: 'summary', type: 'boolean', free: false, pro: true },
       { key: 'slipAlerts', type: 'boolean', free: false, pro: true },
+      { key: 'proactiveCheckins', type: 'boolean', free: false, pro: true },
       { key: 'apiKeys', type: 'boolean', free: false, pro: true },
     ],
   },

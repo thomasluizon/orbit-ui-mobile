@@ -354,6 +354,7 @@ describe('userDataExportSchema social collections', () => {
       colorScheme: 'blue',
       aiMemoryEnabled: true,
       aiSummaryEnabled: false,
+      proactiveAstraEnabled: false,
     },
     subscription: {
       plan: 'pro',

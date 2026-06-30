@@ -998,6 +998,10 @@
       "title": "Resumo diário",
       "description": "Com isso ativado, o Orbit cria um resumo personalizado do seu dia na tela de hábitos."
     },
+    "proactiveAstra": {
+      "title": "Check-ins proativos",
+      "description": "Deixe a Astra te procurar com um empurrãozinho personalizado quando você ficar para trás — mesmo que você esqueça de abrir o app."
+    },
     "facts": {
       "title": "O que a Astra sabe",
       "empty": "A Astra ainda não aprendeu nada. Converse no Chat para ensinar a ela.",
@@ -1811,6 +1815,12 @@
         "free": "Não",
         "pro": "Incluso",
         "tooltip": "Para os maus hábitos, a IA percebe os seus padrões de recaída e manda mensagens de incentivo antes dos horários mais arriscados."
+      },
+      "proactiveCheckins": {
+        "label": "Check-ins proativos",
+        "free": "Não",
+        "pro": "Incluso",
+        "tooltip": "Quando você fica para trás, a Astra manda um push personalizado para te trazer de volta aos trilhos — mesmo que você esqueça de abrir o app."
       },
       "calendarImport": {
         "label": "Google Calendar",

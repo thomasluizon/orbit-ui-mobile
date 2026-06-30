@@ -16,6 +16,7 @@ export const API = {
     weekStartDay: '/api/profile/week-start-day',
     aiMemory: '/api/profile/ai-memory',
     aiSummary: '/api/profile/ai-summary',
+    proactiveAstra: '/api/profile/proactive-astra',
     onboarding: '/api/profile/onboarding',
     tour: '/api/profile/tour',
     language: '/api/profile/language',

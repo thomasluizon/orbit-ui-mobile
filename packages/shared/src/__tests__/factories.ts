@@ -94,6 +94,7 @@ export function createMockProfile(overrides: Partial<Profile> = {}): Profile {
     timeZone: 'America/Sao_Paulo',
     aiMemoryEnabled: true,
     aiSummaryEnabled: true,
+    proactiveAstraEnabled: false,
     hasCompletedOnboarding: true,
     hasCompletedTour: false,
     language: 'en',

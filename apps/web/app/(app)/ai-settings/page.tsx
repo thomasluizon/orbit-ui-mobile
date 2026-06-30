@@ -7,7 +7,7 @@ import { habitKeys } from '@orbit/shared/query'
 import { useProfile } from '@/hooks/use-profile'
 import { AppBar } from '@/components/ui/app-bar'
 import { SectionLabel } from '@/components/ui/section-label'
-import { updateAiMemory, updateAiSummary } from '@/app/actions/profile'
+import { updateAiMemory, updateAiSummary, updateProactiveAstra } from '@/app/actions/profile'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { AiFeatureToggles } from './_components/ai-feature-toggles'
 import { ProUpgradeLink } from './_components/pro-upgrade-link'
@@ -24,6 +24,7 @@ export default function AiSettingsPage() {
   const hasProAccess = profile?.hasProAccess ?? false
   const aiMemoryEnabled = hasProAccess && (profile?.aiMemoryEnabled ?? false)
   const aiSummaryEnabled = hasProAccess && (profile?.aiSummaryEnabled ?? false)
+  const proactiveAstraEnabled = hasProAccess && (profile?.proactiveAstraEnabled ?? false)
 
   const aiMemoryMutation = useMutation({
     mutationFn: (enabled: boolean) => updateAiMemory({ enabled }),
@@ -53,6 +54,20 @@ export default function AiSettingsPage() {
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: habitKeys.summaryPrefix() })
+    },
+  })
+
+  const proactiveAstraMutation = useMutation({
+    mutationFn: (enabled: boolean) => updateProactiveAstra({ enabled }),
+    onMutate: (enabled) => {
+      const previous = profile?.proactiveAstraEnabled
+      patchProfile({ proactiveAstraEnabled: enabled })
+      return { previous }
+    },
+    onError: (_err, _enabled, context) => {
+      if (context?.previous !== undefined) {
+        patchProfile({ proactiveAstraEnabled: context.previous })
+      }
     },
   })
 
@@ -88,10 +103,13 @@ export default function AiSettingsPage() {
             hasProAccess={hasProAccess}
             aiMemoryEnabled={aiMemoryEnabled}
             aiSummaryEnabled={aiSummaryEnabled}
+            proactiveAstraEnabled={proactiveAstraEnabled}
             memoryPending={aiMemoryMutation.isPending}
             summaryPending={aiSummaryMutation.isPending}
+            proactivePending={proactiveAstraMutation.isPending}
             onToggleMemory={() => aiMemoryMutation.mutate(!aiMemoryEnabled)}
             onToggleSummary={() => aiSummaryMutation.mutate(!aiSummaryEnabled)}
+            onToggleProactive={() => proactiveAstraMutation.mutate(!proactiveAstraEnabled)}
           />
 
           <SectionLabel
