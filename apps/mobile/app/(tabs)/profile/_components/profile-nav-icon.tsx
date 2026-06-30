@@ -1,4 +1,4 @@
-import { Compass, Settings, Sparkles, CircleHelp, Wrench } from 'lucide-react-native'
+import { Compass, Gift, Settings, Sparkles, CircleHelp, Wrench } from 'lucide-react-native'
 import Svg, { Path, Rect } from 'react-native-svg'
 import type { ProfileNavIconKey } from '@orbit/shared/utils/profile-navigation'
 
@@ -21,6 +21,8 @@ export function ProfileNavIcon({
           <Path d="M18 9l-5 5-4-4-3 3" />
         </Svg>
       )
+    case 'wrapped':
+      return <Gift size={22} color={color} strokeWidth={1.8} />
     case 'achievements':
       return (
         <Svg viewBox="0 0 24 24" width={22} height={22} fill="none" stroke={color} strokeWidth={1.8} strokeLinecap="round" strokeLinejoin="round">

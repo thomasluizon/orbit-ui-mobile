@@ -131,6 +131,7 @@ const SLIDE_FROM_RIGHT_SCREENS = [
   'streak',
   'upgrade',
   'retrospective',
+  'wrapped',
   'calendar-sync',
 ] as const
 
