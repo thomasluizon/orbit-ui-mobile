@@ -15,6 +15,7 @@ const exportedSettingsSchema = z.object({
   colorScheme: z.string().nullable(),
   aiMemoryEnabled: z.boolean(),
   aiSummaryEnabled: z.boolean(),
+  proactiveAstraEnabled: z.boolean(),
 })
 
 const exportedHabitLogSchema = z.object({

@@ -1,6 +1,7 @@
 import { View, Text, Pressable } from 'react-native'
 import Animated, { FadeInDown, ReduceMotion } from 'react-native-reanimated'
 import {
+  BellRing,
   Brain,
   ChevronLeft,
   ChevronRight,
@@ -39,10 +40,13 @@ interface AiFeatureTogglesProps {
   hasProAccess: boolean
   aiMemoryEnabled: boolean
   aiSummaryEnabled: boolean
+  proactiveAstraEnabled: boolean
   memoryPending: boolean
   summaryPending: boolean
+  proactivePending: boolean
   onToggleMemory: () => void
   onToggleSummary: () => void
+  onToggleProactive: () => void
   onUpgrade: () => void
 }
 
@@ -52,10 +56,13 @@ export function AiFeatureToggles({
   hasProAccess,
   aiMemoryEnabled,
   aiSummaryEnabled,
+  proactiveAstraEnabled,
   memoryPending,
   summaryPending,
+  proactivePending,
   onToggleMemory,
   onToggleSummary,
+  onToggleProactive,
   onUpgrade,
 }: Readonly<AiFeatureTogglesProps>) {
   return (
@@ -110,6 +117,33 @@ export function AiFeatureToggles({
           icon={Satellite}
           label={t('profile.aiSummary.title')}
           desc={t('profile.aiSummary.description')}
+          onPress={onUpgrade}
+          accessory="chevron"
+          divider={false}
+        >
+          <Lock size={18} color={tokens.fg3} strokeWidth={1.8} />
+        </SettingsRow>
+      )}
+      {hasProAccess ? (
+        <SettingsRow
+          icon={BellRing}
+          label={t('profile.proactiveAstra.title')}
+          desc={t('profile.proactiveAstra.description')}
+          accessory="none"
+          divider={false}
+        >
+          <Switch
+            on={proactiveAstraEnabled}
+            onToggle={onToggleProactive}
+            disabled={proactivePending}
+            accessibilityLabel={t('profile.proactiveAstra.title')}
+          />
+        </SettingsRow>
+      ) : (
+        <SettingsRow
+          icon={BellRing}
+          label={t('profile.proactiveAstra.title')}
+          desc={t('profile.proactiveAstra.description')}
           onPress={onUpgrade}
           accessory="chevron"
           divider={false}

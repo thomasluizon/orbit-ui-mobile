@@ -933,6 +933,10 @@
       "title": "Daily Summary",
       "description": "When enabled, Orbit generates a personalized AI summary of your day on the habits screen."
     },
+    "proactiveAstra": {
+      "title": "Proactive check-ins",
+      "description": "Let Astra reach out with a personalized nudge when you fall behind — even if you forget to open the app."
+    },
     "facts": {
       "title": "What Astra knows",
       "empty": "Astra hasn't learned anything yet. Have a conversation in Chat to teach it.",
@@ -1657,6 +1661,12 @@
         "free": "No",
         "pro": "Included",
         "tooltip": "For bad habits, AI detects your slip patterns and sends motivational notifications before your usual slip times."
+      },
+      "proactiveCheckins": {
+        "label": "Proactive check-ins",
+        "free": "No",
+        "pro": "Included",
+        "tooltip": "When you fall behind, Astra sends a personalized push to coach you back on track — even if you forget to open the app."
       },
       "calendarImport": {
         "label": "Google Calendar",

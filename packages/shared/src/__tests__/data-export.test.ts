@@ -17,6 +17,7 @@ const validExport = {
     colorScheme: 'blue',
     aiMemoryEnabled: true,
     aiSummaryEnabled: false,
+    proactiveAstraEnabled: true,
   },
   subscription: {
     plan: 'pro',

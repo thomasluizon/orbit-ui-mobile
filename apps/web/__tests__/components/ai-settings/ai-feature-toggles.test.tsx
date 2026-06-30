@@ -32,15 +32,18 @@ function baseProps() {
     hasProAccess: true,
     aiMemoryEnabled: true,
     aiSummaryEnabled: false,
+    proactiveAstraEnabled: true,
     memoryPending: false,
     summaryPending: false,
+    proactivePending: false,
     onToggleMemory: vi.fn(),
     onToggleSummary: vi.fn(),
+    onToggleProactive: vi.fn(),
   }
 }
 
 describe('AiFeatureToggles', () => {
-  it('renders memory and summary switches reflecting their on/off state', () => {
+  it('renders memory, summary, and proactive switches reflecting their on/off state', () => {
     render(<AiFeatureToggles {...baseProps()} />)
     expect(
       screen.getByRole('switch', { name: 'profile.aiMemory.title' }),
@@ -48,15 +51,20 @@ describe('AiFeatureToggles', () => {
     expect(
       screen.getByRole('switch', { name: 'profile.aiSummary.title' }),
     ).toHaveAttribute('aria-checked', 'false')
+    expect(
+      screen.getByRole('switch', { name: 'profile.proactiveAstra.title' }),
+    ).toHaveAttribute('aria-checked', 'true')
   })
 
-  it('fires the memory and summary toggle callbacks on click', () => {
+  it('fires the memory, summary, and proactive toggle callbacks on click', () => {
     const props = baseProps()
     render(<AiFeatureToggles {...props} />)
     fireEvent.click(screen.getByRole('switch', { name: 'profile.aiMemory.title' }))
     expect(props.onToggleMemory).toHaveBeenCalled()
     fireEvent.click(screen.getByRole('switch', { name: 'profile.aiSummary.title' }))
     expect(props.onToggleSummary).toHaveBeenCalled()
+    fireEvent.click(screen.getByRole('switch', { name: 'profile.proactiveAstra.title' }))
+    expect(props.onToggleProactive).toHaveBeenCalled()
   })
 
   it('disables a switch while its mutation is pending', () => {
@@ -71,7 +79,7 @@ describe('AiFeatureToggles', () => {
     render(<AiFeatureToggles {...{ ...baseProps(), hasProAccess: false }} />)
     expect(screen.queryByRole('switch')).not.toBeInTheDocument()
     const upgradeLinks = screen.getAllByRole('link')
-    expect(upgradeLinks).toHaveLength(2)
+    expect(upgradeLinks).toHaveLength(3)
     expect(upgradeLinks[0]).toHaveAttribute('href', '/upgrade')
   })
 })

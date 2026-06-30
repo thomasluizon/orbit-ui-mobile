@@ -170,6 +170,7 @@ const LAST_WRITE_WINS_TYPES = new Set<MutationType>([
   'setTimeZone',
   'setAiMemory',
   'setAiSummary',
+  'setProactiveAstra',
   'completeOnboarding',
   'dismissCalendarPrompt',
   'reorderHabits',

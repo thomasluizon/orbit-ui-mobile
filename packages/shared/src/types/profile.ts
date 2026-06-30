@@ -57,6 +57,7 @@ export const profileSchema = z.object({
   hasLoggedFirstHabit: z.boolean().optional(),
   hasTriedAstra: z.boolean().optional(),
   hasCompletedOnboardingChecklist: z.boolean().optional(),
+  proactiveAstraEnabled: z.boolean().optional(),
 })
 
 export type Profile = z.infer<typeof profileSchema>
@@ -78,6 +79,12 @@ export const setAiSummaryRequestSchema = z.object({
 })
 
 export type SetAiSummaryRequest = z.infer<typeof setAiSummaryRequestSchema>
+
+export const setProactiveAstraRequestSchema = z.object({
+  enabled: z.boolean(),
+})
+
+export type SetProactiveAstraRequest = z.infer<typeof setProactiveAstraRequestSchema>
 
 export const setNameRequestSchema = z.object({
   name: z.string().trim().min(1).max(50),
