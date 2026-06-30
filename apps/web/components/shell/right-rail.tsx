@@ -20,7 +20,6 @@ export function RightRail({ children, ariaLabel }: Readonly<RightRailProps>) {
       className="hidden shrink-0 self-stretch xl:block"
       style={{
         width: 'var(--rail-w)',
-        boxShadow: 'inset 1px 0 0 var(--hairline)',
       }}
     >
       <div
@@ -30,6 +29,7 @@ export function RightRail({ children, ariaLabel }: Readonly<RightRailProps>) {
           paddingTop: 'calc(var(--safe-top) + 22px)',
           paddingBottom: 'calc(var(--safe-bottom) + 22px)',
           paddingInline: 20,
+          boxShadow: 'inset 1px 0 0 var(--hairline)',
         }}
       >
         {children}

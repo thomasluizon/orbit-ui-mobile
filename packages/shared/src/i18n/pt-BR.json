@@ -98,6 +98,7 @@
     "add": "Adicionar",
     "back": "Voltar",
     "backToProfile": "Voltar ao perfil",
+    "backToTop": "Voltar ao topo",
     "cancel": "Cancelar",
     "goBack": "Voltar",
     "later": "Talvez depois",
@@ -213,6 +214,8 @@
   "astraRail": {
     "open": "Abrir o Astra",
     "close": "Recolher o Astra",
+    "maximize": "Maximizar",
+    "minimize": "Minimizar",
     "title": "Copiloto Astra",
     "subtitle": "Seu copiloto de hábitos"
   },
@@ -768,6 +771,14 @@
       "completionTrendsDesc": "Como sua taxa de conclusão muda ao longo do tempo",
       "goalProgressDesc": "Progresso em cada meta ativa",
       "xpOverTimeDesc": "XP que você ganhou no período",
+      "streakHistoryDesc": "O tamanho da sua sequência dia a dia",
+      "monthlyHeatmapDesc": "Hábitos que você concluiu a cada dia",
+      "achievementsTimelineDesc": "Conquistas que você desbloqueou, mais recentes primeiro",
+      "multiHabitComparisonDesc": "Seus hábitos por sequência atual",
+      "heatmapCell": "{date}: {count} concluídos",
+      "heatmapLess": "Menos",
+      "heatmapMore": "Mais",
+      "achievementsOf": "de {total}",
       "selectGoal": "Selecione uma meta",
       "noGoals": "Nenhuma meta para mostrar ainda"
     }

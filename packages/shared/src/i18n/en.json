@@ -98,6 +98,7 @@
     "add": "Add",
     "back": "Go back",
     "backToProfile": "Back to profile",
+    "backToTop": "Back to top",
     "cancel": "Cancel",
     "goBack": "Go back",
     "later": "Maybe later",
@@ -213,6 +214,8 @@
   "astraRail": {
     "open": "Open Astra",
     "close": "Collapse Astra",
+    "maximize": "Maximize",
+    "minimize": "Minimize",
     "title": "Astra copilot",
     "subtitle": "Your habit copilot"
   },
@@ -768,6 +771,14 @@
       "completionTrendsDesc": "How your completion rate moves over time",
       "goalProgressDesc": "Progress toward each active goal",
       "xpOverTimeDesc": "XP you've earned across the period",
+      "streakHistoryDesc": "Your streak length day by day",
+      "monthlyHeatmapDesc": "Habits you completed each day",
+      "achievementsTimelineDesc": "Badges you've unlocked, newest first",
+      "multiHabitComparisonDesc": "Your habits ranked by current streak",
+      "heatmapCell": "{date}: {count} completed",
+      "heatmapLess": "Less",
+      "heatmapMore": "More",
+      "achievementsOf": "of {total}",
       "selectGoal": "Select a goal",
       "noGoals": "No goals to show yet"
     }

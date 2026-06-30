@@ -5,6 +5,7 @@ const { useHabitTrendsMock } = vi.hoisted(() => ({ useHabitTrendsMock: vi.fn() }
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
+  useLocale: () => 'en',
 }))
 
 vi.mock('@/hooks/use-habit-trends', () => ({

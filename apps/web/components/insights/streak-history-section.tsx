@@ -2,8 +2,10 @@
 
 import { useTranslations } from 'next-intl'
 import { TrendLine } from '@/components/charts/trend-line'
+import { plural } from '@/lib/plural'
 import { useStreakHistory } from '@/hooks/use-streak-history'
 import { InsightsSection, toSectionStatus } from './insights-section'
+import { InsightsHeadline, trendHeadline, useDateLabel } from './insights-headline'
 import type { DateRange } from './range'
 
 interface StreakHistorySectionProps {
@@ -14,6 +16,7 @@ interface StreakHistorySectionProps {
 /** Streak length day by day across the selected range, as a trend line. */
 export function StreakHistorySection({ range, divider }: Readonly<StreakHistorySectionProps>) {
   const t = useTranslations()
+  const formatLabel = useDateLabel()
   const { data, isLoading, isError } = useStreakHistory(range)
 
   const points = (data?.points ?? []).map((point) => ({
@@ -22,14 +25,23 @@ export function StreakHistorySection({ range, divider }: Readonly<StreakHistoryS
   }))
   const isEmpty = (data?.points ?? []).every((point) => point.streak === 0)
   const title = t('insights.sections.streakHistory')
+  const formatDays = (value: number) => `${value} ${plural(t('streakDisplay.daysSuffix'), value)}`
+  const headline = trendHeadline(points, formatDays)
 
   return (
     <InsightsSection
       title={title}
+      description={t('insights.sections.streakHistoryDesc')}
       divider={divider}
       status={toSectionStatus({ isLoading, isError, isEmpty })}
+      headerAction={headline ? <InsightsHeadline {...headline} /> : undefined}
     >
-      <TrendLine points={points} ariaLabel={title} />
+      <TrendLine
+        points={points}
+        ariaLabel={title}
+        formatValue={formatDays}
+        formatLabel={formatLabel}
+      />
     </InsightsSection>
   )
 }

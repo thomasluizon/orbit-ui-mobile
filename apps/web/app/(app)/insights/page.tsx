@@ -28,8 +28,8 @@ export default function InsightsPage() {
 
   return (
     <div className="min-h-dvh pb-10">
-      <header className="flex flex-col gap-4 pt-6 pb-2">
-        <div className="flex flex-col gap-1.5">
+      <header className="flex flex-col gap-4 pt-6 pb-2 md:pt-2">
+        <div className="flex flex-col gap-1.5 md:hidden">
           <h1 className="t-display text-balance">{t('insights.title')}</h1>
           <p className="t-secondary text-balance">{t('insights.subtitle')}</p>
         </div>

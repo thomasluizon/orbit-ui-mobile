@@ -27,6 +27,7 @@ export function AchievementsTimelineSection({ divider }: Readonly<{ divider?: bo
   return (
     <InsightsSection
       title={title}
+      description={t('insights.sections.achievementsTimelineDesc')}
       divider={divider}
       status={toSectionStatus({ isLoading, isError, isEmpty: recent.length === 0 })}
     >
@@ -35,6 +36,7 @@ export function AchievementsTimelineSection({ divider }: Readonly<{ divider?: bo
           <ChartRing
             value={profile.achievementsEarned}
             max={profile.achievementsTotal}
+            label={t('insights.sections.achievementsOf', { total: profile.achievementsTotal })}
             size={104}
             ariaLabel={title}
           />
@@ -45,7 +47,9 @@ export function AchievementsTimelineSection({ divider }: Readonly<{ divider?: bo
               key={achievement.id}
               className="flex items-baseline justify-between gap-3"
             >
-              <span className="t-row truncate">{achievement.name}</span>
+              <span className="t-row truncate">
+                {t(`gamification.achievements.${achievement.id}.name`)}
+              </span>
               <span className="t-meta shrink-0">
                 {achievement.earnedAtUtc
                   ? dateFormatter.format(new Date(achievement.earnedAtUtc))

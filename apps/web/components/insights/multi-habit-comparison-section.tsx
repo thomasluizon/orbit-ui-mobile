@@ -26,6 +26,7 @@ export function MultiHabitComparisonSection({ divider }: Readonly<{ divider?: bo
   return (
     <InsightsSection
       title={title}
+      description={t('insights.sections.multiHabitComparisonDesc')}
       divider={divider}
       status={toSectionStatus({ isLoading, isError, isEmpty })}
     >
