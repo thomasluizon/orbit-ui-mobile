@@ -10,6 +10,7 @@ import { useProfile } from '@/hooks/use-profile'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { SocialOptInGate } from './social/_components/social-opt-in-gate'
+import { SocialIdentityBar } from './social/_components/social-identity-bar'
 import { SocialFeed } from './social/_components/social-feed'
 import { SocialFriends } from './social/_components/social-friends'
 import { CheerComposer, type CheerTarget } from './social/_components/cheer-composer'
@@ -45,6 +46,7 @@ export default function SocialScreen() {
         <SocialOptInGate />
       ) : (
         <>
+          <SocialIdentityBar />
           <SectionHeadTabs tabs={tabs} active={tab} onChange={setTab} />
           <ScrollView
             contentContainerStyle={styles.scroll}

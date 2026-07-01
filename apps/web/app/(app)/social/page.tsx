@@ -8,6 +8,7 @@ import { GradientTop } from '@/components/ui/gradient-top'
 import { SectionHeadTabs, type SectionHeadTabItem } from '@/components/ui/section-head-tabs'
 import { useProfile } from '@/hooks/use-profile'
 import { SocialOptInGate } from './_components/social-opt-in-gate'
+import { SocialIdentityBar } from './_components/social-identity-bar'
 import { SocialFeed } from './_components/social-feed'
 import { SocialFriends } from './_components/social-friends'
 import { CheerComposer, type CheerTarget } from './_components/cheer-composer'
@@ -39,6 +40,7 @@ export default function SocialPage() {
           <SocialOptInGate />
         ) : (
           <>
+            <SocialIdentityBar />
             <SectionHeadTabs<SocialTab>
               tabs={tabs}
               active={tab}
