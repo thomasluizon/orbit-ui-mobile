@@ -124,6 +124,7 @@ export interface PersistedEngagementPromptState {
   promptedMilestoneKeys: string[]
   lastPromptedAtIso: string | null
   homeEntryDismissed: boolean
+  socialEntryDismissed: boolean
 }
 
 export interface EngagementPromptStoreState extends PersistedEngagementPromptState {
@@ -136,6 +137,7 @@ export interface EngagementPromptStoreState extends PersistedEngagementPromptSta
   clearArmedMilestone: () => void
   markEngagementPrompted: (milestoneKey: string, nowIso: string) => void
   dismissHomeEntry: () => void
+  dismissSocialEntry: () => void
 }
 
 export function getPersistedEngagementPromptState(
@@ -145,6 +147,7 @@ export function getPersistedEngagementPromptState(
     promptedMilestoneKeys: [...state.promptedMilestoneKeys],
     lastPromptedAtIso: state.lastPromptedAtIso,
     homeEntryDismissed: state.homeEntryDismissed,
+    socialEntryDismissed: state.socialEntryDismissed,
   }
 }
 
@@ -166,6 +169,10 @@ export function migratePersistedEngagementPromptState(
     homeEntryDismissed:
       typeof state.homeEntryDismissed === 'boolean'
         ? state.homeEntryDismissed
+        : false,
+    socialEntryDismissed:
+      typeof state.socialEntryDismissed === 'boolean'
+        ? state.socialEntryDismissed
         : false,
   }
 }
@@ -193,6 +200,7 @@ export function createEngagementPromptStoreState(
     promptedMilestoneKeys: [],
     lastPromptedAtIso: null,
     homeEntryDismissed: false,
+    socialEntryDismissed: false,
     armedPrompt: null,
 
     armEngagementPrompt,
@@ -213,6 +221,8 @@ export function createEngagementPromptStoreState(
       })),
 
     dismissHomeEntry: () => set({ homeEntryDismissed: true }),
+
+    dismissSocialEntry: () => set({ socialEntryDismissed: true }),
   }
 }
 

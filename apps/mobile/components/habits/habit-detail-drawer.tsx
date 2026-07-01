@@ -7,7 +7,7 @@ import {
 } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { useRouter } from 'expo-router'
-import { UserPlus } from 'lucide-react-native'
+import { Users } from 'lucide-react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { BottomSheetModal } from '@/components/bottom-sheet-modal'
 import { withDrawerContentInset } from '@/components/ui/drawer-content-inset'
@@ -22,6 +22,7 @@ import { HabitDetailHeader } from './habit-detail-drawer/habit-detail-header'
 import { HabitDetailReminders } from './habit-detail-drawer/habit-detail-reminders'
 import { HabitAskAstraButton } from './habit-detail-drawer/habit-ask-astra-button'
 import { createDrawerStyles } from './habit-detail-drawer/styles'
+import { NewPairFlow } from '@/app/social/_components/new-pair-flow'
 import { useTimeFormat } from '@/hooks/use-time-format'
 import {
   useHabitFullDetail,
@@ -68,7 +69,7 @@ interface HabitDetailContentProps {
   onChecklistReset: () => void
   onChecklistClear: () => void
   onAskAstra: () => void
-  onAddBuddy: () => void
+  onPairBuddy: () => void
 }
 
 function HabitDetailContent({
@@ -88,7 +89,7 @@ function HabitDetailContent({
   onChecklistReset,
   onChecklistClear,
   onAskAstra,
-  onAddBuddy,
+  onPairBuddy,
 }: Readonly<HabitDetailContentProps>) {
   const { t } = useTranslation()
   return (
@@ -191,9 +192,9 @@ function HabitDetailContent({
       </View>
 
       <SettingsRow
-        label={t('habits.detail.addAccountabilityBuddy')}
-        icon={UserPlus}
-        onPress={onAddBuddy}
+        label={t('social.buddies.pairThisHabit')}
+        icon={Users}
+        onPress={onPairBuddy}
       />
 
       <HabitAskAstraButton
@@ -240,6 +241,7 @@ export function HabitDetailDrawer({
   )
 
   const [descriptionViewerOpen, setDescriptionViewerOpen] = useState(false)
+  const [pairFlowOpen, setPairFlowOpen] = useState(false)
   const [showChecklistCompleteConfirm, setShowChecklistCompleteConfirm] =
     useState(false)
 
@@ -262,11 +264,9 @@ export function HabitDetailDrawer({
     router.push('/chat')
   }, [habit, onClose, router, t])
 
-  const handleAddBuddy = useCallback(() => {
-    if (!habit) return
-    onClose()
-    router.push(`/social?tab=buddies&newPairHabitId=${habit.id}`)
-  }, [habit, onClose, router])
+  const handlePairBuddy = useCallback(() => {
+    setPairFlowOpen(true)
+  }, [])
 
   const handleChecklistToggle = useCallback(
     (index: number) => {
@@ -321,6 +321,14 @@ export function HabitDetailDrawer({
         />
       ) : null}
 
+      {habit ? (
+        <NewPairFlow
+          open={pairFlowOpen}
+          onClose={() => setPairFlowOpen(false)}
+          initialHabitId={habit.id}
+        />
+      ) : null}
+
       <ConfirmDialog
         open={showChecklistCompleteConfirm}
         onOpenChange={setShowChecklistCompleteConfirm}
@@ -368,7 +376,7 @@ export function HabitDetailDrawer({
             onChecklistReset={handleChecklistReset}
             onChecklistClear={handleChecklistClear}
             onAskAstra={handleAskAstra}
-            onAddBuddy={handleAddBuddy}
+            onPairBuddy={handlePairBuddy}
           />
         ) : null}
       </BottomSheetModal>

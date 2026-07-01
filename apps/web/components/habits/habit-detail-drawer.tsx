@@ -3,7 +3,7 @@
 import { useState, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations, useLocale } from 'next-intl'
-import { UserPlus } from 'lucide-react'
+import { Users } from 'lucide-react'
 import { AppOverlay } from '@/components/ui/app-overlay'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { SectionLabel } from '@/components/ui/section-label'
@@ -18,6 +18,7 @@ import { HabitDetailHeader } from './habit-detail-drawer/habit-detail-header'
 import { HabitDetailReminders } from './habit-detail-drawer/habit-detail-reminders'
 import { HabitAskAstraButton } from './habit-detail-drawer/habit-ask-astra-button'
 import { DescriptionViewer } from './description-viewer'
+import { NewPairFlow } from '@/app/(app)/social/_components/new-pair-flow'
 import { useTimeFormat } from '@/hooks/use-time-format'
 import { useHabitFullDetail, useUpdateChecklist, useLogHabit } from '@/hooks/use-habits'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
@@ -68,6 +69,7 @@ export function HabitDetailDrawer({
 
   const [showChecklistLogPrompt, setShowChecklistLogPrompt] = useState(false)
   const [descriptionViewerOpen, setDescriptionViewerOpen] = useState(false)
+  const [pairFlowOpen, setPairFlowOpen] = useState(false)
 
   const handleChecklistToggle = useCallback(
     (index: number) => {
@@ -134,6 +136,14 @@ export function HabitDetailDrawer({
         />
       )}
 
+      {habit && (
+        <NewPairFlow
+          open={pairFlowOpen}
+          onOpenChange={setPairFlowOpen}
+          initialHabitId={habit.id}
+        />
+      )}
+
       <AppOverlay
         open={open}
         onOpenChange={onOpenChange}
@@ -194,12 +204,9 @@ export function HabitDetailDrawer({
             </div>
 
             <SettingsRow
-              label={t('habits.detail.addAccountabilityBuddy')}
-              icon={UserPlus}
-              onClick={() => {
-                onOpenChange(false)
-                router.push(`/social?tab=buddies&newPairHabitId=${habit.id}`)
-              }}
+              label={t('social.buddies.pairThisHabit')}
+              icon={Users}
+              onClick={() => setPairFlowOpen(true)}
             />
           </div>
         )}

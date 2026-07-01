@@ -595,8 +595,7 @@
       "askAstraSubHabits": "Quer dividir isso em passos menores?",
       "askAstraDefault": "Quer um olhar sobre este hábito?",
       "askAstraSeedSubHabits": "Me ajuda a dividir o hábito \"{title}\" em sub-hábitos menores.",
-      "askAstraSeedDefault": "Como estou indo no hábito \"{title}\"? Me dá sua análise e uma dica para melhorar.",
-      "addAccountabilityBuddy": "Adicionar parceiro de responsabilidade"
+      "askAstraSeedDefault": "Como estou indo no hábito \"{title}\"? Me dá sua análise e uma dica para melhorar."
     },
     "filter": {
       "daily": "Diário",
@@ -2793,6 +2792,12 @@
       "friends": "Amigos",
       "buddies": "Parceiros"
     },
+    "today": {
+      "entryTitle": "Conecte-se com amigos",
+      "entrySubtitle": "Incentive amigos e formem duplas",
+      "requestsTitle": "Pedidos de amizade",
+      "requestsSubtitle": "{count} pedido esperando você | {count} pedidos esperando você"
+    },
     "feed": {
       "emptyTitle": "Nenhuma atividade ainda",
       "emptyBody": "Quando seus amigos mantiverem sequências ou atingirem marcos, você verá aqui.",
@@ -2830,6 +2835,7 @@
     },
     "buddies": {
       "newPairCta": "Nova dupla",
+      "pairThisHabit": "Formar dupla",
       "incomingTitle": "Convites de parceria",
       "outgoingTitle": "Convites pendentes",
       "activeTitle": "Seus parceiros",

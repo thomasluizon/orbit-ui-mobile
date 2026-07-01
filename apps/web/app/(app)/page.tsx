@@ -33,6 +33,7 @@ import { SectionLabel } from '@/components/ui/section-label'
 import { SetupChecklistCard } from '@/components/today/setup-checklist-card'
 import { ReferralCard } from '@/components/referral/referral-card'
 import { ReferralDrawer } from '@/components/referral/referral-drawer'
+import { SocialEntryCard } from '@/components/social/social-entry-card'
 import { useTopbarSlot } from '@/components/shell/topbar-slot'
 import { useUIStore } from '@/stores/ui-store'
 import { useReferralPromptStore } from '@/stores/referral-prompt-store'
@@ -427,6 +428,10 @@ export default function TodayPage() {
             onOpen={() => setShowReferral(true)}
             onDismiss={dismissHomeEntry}
           />
+        )}
+
+        {currentActiveView === 'today' && isToday(selectedDate) && (
+          <SocialEntryCard />
         )}
       </div>
 

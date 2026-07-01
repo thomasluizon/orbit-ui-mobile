@@ -153,6 +153,22 @@ vi.mock('@/components/habits/description-viewer', () => ({
   DescriptionViewer: () => null,
 }))
 
+vi.mock('@/app/(app)/social/_components/new-pair-flow', () => ({
+  NewPairFlow: ({
+    open,
+    initialHabitId,
+  }: {
+    open: boolean
+    initialHabitId?: string | null
+  }) =>
+    open ? (
+      <div
+        data-testid="new-pair-flow"
+        data-initial-habit-id={initialHabitId ?? ''}
+      />
+    ) : null,
+}))
+
 
 describe('HabitDetailDrawer', () => {
   const defaultHabit = createMockHabit({
@@ -369,6 +385,22 @@ describe('HabitDetailDrawer', () => {
       />,
     )
     expect(screen.getByText(/habits\.detail\.endsOn/)).toBeDefined()
+  })
+
+  it('opens the pair-a-buddy flow prefilled with the habit when the buddy row is clicked', () => {
+    render(
+      <HabitDetailDrawer
+        open={true}
+        onOpenChange={vi.fn()}
+        habit={defaultHabit}
+      />,
+    )
+    expect(screen.queryByTestId('new-pair-flow')).toBeNull()
+    fireEvent.click(screen.getByText('social.buddies.pairThisHabit'))
+    const flow = screen.getByTestId('new-pair-flow')
+    expect(flow).toBeDefined()
+    expect(flow.getAttribute('data-initial-habit-id')).toBe('h-1')
+    expect(mockRouterPush).not.toHaveBeenCalled()
   })
 
   it('renders nothing visible when habit is null', () => {

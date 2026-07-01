@@ -595,8 +595,7 @@
       "askAstraSubHabits": "Want to break this into smaller steps?",
       "askAstraDefault": "Want a perspective on this habit?",
       "askAstraSeedSubHabits": "Help me break my habit \"{title}\" into smaller sub-habits.",
-      "askAstraSeedDefault": "How am I doing with my habit \"{title}\"? Give me your read and one tip to improve.",
-      "addAccountabilityBuddy": "Add accountability buddy"
+      "askAstraSeedDefault": "How am I doing with my habit \"{title}\"? Give me your read and one tip to improve."
     },
     "filter": {
       "daily": "Daily",
@@ -2793,6 +2792,12 @@
       "friends": "Friends",
       "buddies": "Buddies"
     },
+    "today": {
+      "entryTitle": "Connect with friends",
+      "entrySubtitle": "Cheer friends on and pair up on habits",
+      "requestsTitle": "Friend requests",
+      "requestsSubtitle": "{count} request waiting for you | {count} requests waiting for you"
+    },
     "feed": {
       "emptyTitle": "No activity yet",
       "emptyBody": "When your friends keep streaks or hit milestones, you'll see it here.",
@@ -2830,6 +2835,7 @@
     },
     "buddies": {
       "newPairCta": "New pair",
+      "pairThisHabit": "Pair a buddy",
       "incomingTitle": "Buddy invites",
       "outgoingTitle": "Pending invites",
       "activeTitle": "Your buddies",
