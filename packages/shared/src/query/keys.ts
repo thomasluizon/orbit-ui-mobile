@@ -74,6 +74,7 @@ export const friendKeys = {
   all: ['friends'] as const,
   list: () => [...friendKeys.all, 'list'] as const,
   feed: () => [...friendKeys.all, 'feed'] as const,
+  profile: (userId: string) => [...friendKeys.all, 'profile', userId] as const,
 }
 
 export const cheerKeys = {

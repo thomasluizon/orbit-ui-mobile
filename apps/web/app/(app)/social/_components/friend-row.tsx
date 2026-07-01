@@ -16,6 +16,7 @@ import { SettingsGroup, SettingsGroupRow } from '@/components/ui/settings-group'
 import { UserAvatar } from '@/components/ui/user-avatar'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useBlockUser, useRemoveFriend, useReportUser } from '@/hooks/use-friends'
+import { FriendProfileView } from './friend-profile-view'
 import type { CheerTarget } from './cheer-composer'
 
 interface FriendRowProps {
@@ -116,6 +117,7 @@ export function FriendRow({ friend, onCheer }: Readonly<FriendRowProps>) {
   const blockUser = useBlockUser()
   const reportUser = useReportUser()
   const [actionsOpen, setActionsOpen] = useState(false)
+  const [profileOpen, setProfileOpen] = useState(false)
   const [confirmRemove, setConfirmRemove] = useState(false)
   const [confirmBlock, setConfirmBlock] = useState(false)
   const [reportOpen, setReportOpen] = useState(false)
@@ -173,6 +175,14 @@ export function FriendRow({ friend, onCheer }: Readonly<FriendRowProps>) {
 
       <AppOverlay open={actionsOpen} onOpenChange={setActionsOpen} title={friend.displayName}>
         <SettingsGroup>
+          <SettingsGroupRow
+            label={t('social.friends.viewProfile')}
+            accessory="none"
+            onClick={() => {
+              setActionsOpen(false)
+              setProfileOpen(true)
+            }}
+          />
           <SettingsGroupRow
             label={t('social.friends.remove')}
             accessory="none"
@@ -236,6 +246,13 @@ export function FriendRow({ friend, onCheer }: Readonly<FriendRowProps>) {
           )
           setReportOpen(false)
         }}
+      />
+
+      <FriendProfileView
+        userId={friend.userId}
+        displayName={friend.displayName}
+        open={profileOpen}
+        onOpenChange={setProfileOpen}
       />
     </>
   )

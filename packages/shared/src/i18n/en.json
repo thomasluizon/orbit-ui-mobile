@@ -2815,6 +2815,7 @@
       "emptyBody": "Add a friend by their handle or referral code to start cheering each other on.",
       "streakLabel": "{count}-day streak",
       "cheer": "Cheer",
+      "viewProfile": "View profile",
       "remove": "Remove",
       "removeConfirmTitle": "Remove friend?",
       "removeConfirmBody": "Remove {name} from your friends? You can always add them again later.",
@@ -2912,6 +2913,18 @@
       "submit": "Send request",
       "sending": "Sending…",
       "success": "Friend request sent"
+    },
+    "invite": {
+      "title": "Invite friends to Orbit",
+      "subtitle": "Share your link — you both get a Pro discount coupon.",
+      "scanHint": "Scan to join Orbit",
+      "copy": "Copy",
+      "copied": "Copied!",
+      "share": "Share link",
+      "shareText": "I've been using Orbit to build better habits. Join me!"
+    },
+    "friendProfile": {
+      "unavailable": "This profile isn't available."
     },
     "cheer": {
       "title": "Send a cheer",

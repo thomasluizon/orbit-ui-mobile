@@ -16,6 +16,7 @@ import {
   sendFriendRequestSchema,
   blockUserRequestSchema,
   reportUserRequestSchema,
+  friendProfileViewSchema,
 } from '../types/social'
 import { userDataExportSchema } from '../types/data-export'
 import { API } from '../api/endpoints'
@@ -337,6 +338,39 @@ describe('reportUserRequestSchema', () => {
 })
 
 
+describe('friendProfileViewSchema', () => {
+  const validProfile = {
+    userId: 'user-1',
+    handle: 'grace_h',
+    displayName: 'Grace Hopper',
+    currentStreak: 12,
+    level: 4,
+    achievements: [{ name: 'First Habit', iconKey: 'first-habit', rarity: 'Common' }],
+  }
+
+  it('parses a valid friend profile view', () => {
+    expect(friendProfileViewSchema.safeParse(validProfile).success).toBe(true)
+  })
+
+  it('accepts an empty achievements array', () => {
+    expect(friendProfileViewSchema.safeParse({ ...validProfile, achievements: [] }).success).toBe(true)
+  })
+
+  it('rejects a non-string userId', () => {
+    expect(friendProfileViewSchema.safeParse({ ...validProfile, userId: 42 }).success).toBe(false)
+  })
+
+  it('rejects a null handle (the contract sends an empty string, never null)', () => {
+    expect(friendProfileViewSchema.safeParse({ ...validProfile, handle: null }).success).toBe(false)
+  })
+
+  it('rejects a profile missing the level', () => {
+    const { level: _omit, ...withoutLevel } = validProfile
+    expect(friendProfileViewSchema.safeParse(withoutLevel).success).toBe(false)
+  })
+})
+
+
 describe('userDataExportSchema social collections', () => {
   const exportWithSocial = {
     exportedAtUtc: '2026-06-04T10:00:00Z',
@@ -451,6 +485,7 @@ describe('friends API endpoints', () => {
     expect(API.friends.acceptRequest('fr-1')).toBe('/api/friends/requests/fr-1/accept')
     expect(API.friends.remove('user-1')).toBe('/api/friends/user-1')
     expect(API.friends.unblock('user-2')).toBe('/api/friends/block/user-2')
+    expect(API.friends.profile('user-1')).toBe('/api/friends/user-1/profile')
   })
 })
 
@@ -466,6 +501,10 @@ describe('friendKeys', () => {
 
   it('feed returns feed key', () => {
     expect(friendKeys.feed()).toEqual(['friends', 'feed'])
+  })
+
+  it('profile appends the userId', () => {
+    expect(friendKeys.profile('user-1')).toEqual(['friends', 'profile', 'user-1'])
   })
 })
 

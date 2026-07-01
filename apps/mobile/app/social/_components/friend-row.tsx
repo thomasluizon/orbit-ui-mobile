@@ -16,6 +16,7 @@ import { useAppToast } from '@/hooks/use-app-toast'
 import { useBlockUser, useRemoveFriend, useReportUser } from '@/hooks/use-friends'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
+import { FriendProfileSheet } from './friend-profile-sheet'
 import type { CheerTarget } from './cheer-composer'
 
 type AppTokens = ReturnType<typeof createTokensV2>
@@ -107,6 +108,7 @@ export function FriendRow({ friend, onCheer }: Readonly<FriendRowProps>) {
   const blockUser = useBlockUser()
   const reportUser = useReportUser()
   const [actionsOpen, setActionsOpen] = useState(false)
+  const [profileOpen, setProfileOpen] = useState(false)
   const [reportOpen, setReportOpen] = useState(false)
 
   async function runAction(operation: () => Promise<unknown>, successKey?: string) {
@@ -188,10 +190,18 @@ export function FriendRow({ friend, onCheer }: Readonly<FriendRowProps>) {
         open={actionsOpen}
         onClose={() => setActionsOpen(false)}
         title={friend.displayName}
-        snapPoints={['40%']}
+        snapPoints={['46%']}
       >
         <View style={styles.actionsSheet}>
           <SettingsGroup>
+            <SettingsGroupRow
+              label={t('social.friends.viewProfile')}
+              accessory="none"
+              onPress={() => {
+                setActionsOpen(false)
+                setProfileOpen(true)
+              }}
+            />
             <SettingsGroupRow label={t('social.friends.remove')} accessory="none" onPress={confirmRemove} />
             <SettingsGroupRow label={t('social.friends.block')} accessory="none" onPress={confirmBlock} />
             <SettingsGroupRow
@@ -224,6 +234,13 @@ export function FriendRow({ friend, onCheer }: Readonly<FriendRowProps>) {
           )
           setReportOpen(false)
         }}
+      />
+
+      <FriendProfileSheet
+        userId={friend.userId}
+        displayName={friend.displayName}
+        open={profileOpen}
+        onClose={() => setProfileOpen(false)}
       />
     </>
   )

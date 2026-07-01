@@ -7,6 +7,7 @@ import { FieldInput } from '@/components/ui/field-input'
 import { PillButton } from '@/components/ui/pill-button'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useSendFriendRequest } from '@/hooks/use-friends'
+import { InviteHero } from './invite-hero'
 
 /** Add a friend by handle or referral code; sends whichever field the user filled. */
 export function AddFriendForm() {
@@ -37,6 +38,7 @@ export function AddFriendForm() {
 
   return (
     <div className="flex flex-col px-5" style={{ gap: 12 }}>
+      <InviteHero />
       <FieldInput
         label={t('social.addFriend.handleLabel')}
         value={handle}

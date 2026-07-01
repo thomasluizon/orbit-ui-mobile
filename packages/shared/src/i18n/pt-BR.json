@@ -2815,6 +2815,7 @@
       "emptyBody": "Adicione um amigo pelo nome de usuário ou código de indicação para começarem a se incentivar.",
       "streakLabel": "Sequência de {count} dias",
       "cheer": "Incentivar",
+      "viewProfile": "Ver perfil",
       "remove": "Remover",
       "removeConfirmTitle": "Remover amigo?",
       "removeConfirmBody": "Remover {name} dos seus amigos? Você pode adicioná-lo de novo depois.",
@@ -2912,6 +2913,18 @@
       "submit": "Enviar pedido",
       "sending": "Enviando…",
       "success": "Pedido de amizade enviado"
+    },
+    "invite": {
+      "title": "Convide amigos para o Orbit",
+      "subtitle": "Compartilhe seu link — vocês dois ganham um cupom de desconto no Pro.",
+      "scanHint": "Escaneie para entrar no Orbit",
+      "copy": "Copiar",
+      "copied": "Copiado!",
+      "share": "Compartilhar link",
+      "shareText": "Estou usando o Orbit para criar hábitos melhores. Venha comigo!"
+    },
+    "friendProfile": {
+      "unavailable": "Este perfil não está disponível."
     },
     "cheer": {
       "title": "Enviar incentivo",

@@ -179,6 +179,7 @@ export const API = {
     block: '/api/friends/block',
     unblock: (blockedUserId: string) => `/api/friends/block/${blockedUserId}` as const,
     report: '/api/friends/report',
+    profile: (userId: string) => `/api/friends/${userId}/profile` as const,
   },
 
   challenges: {
