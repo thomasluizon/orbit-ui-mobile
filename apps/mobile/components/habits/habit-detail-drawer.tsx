@@ -7,6 +7,7 @@ import {
 } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { useRouter } from 'expo-router'
+import { UserPlus } from 'lucide-react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { BottomSheetModal } from '@/components/bottom-sheet-modal'
 import { withDrawerContentInset } from '@/components/ui/drawer-content-inset'
@@ -67,6 +68,7 @@ interface HabitDetailContentProps {
   onChecklistReset: () => void
   onChecklistClear: () => void
   onAskAstra: () => void
+  onAddBuddy: () => void
 }
 
 function HabitDetailContent({
@@ -86,6 +88,7 @@ function HabitDetailContent({
   onChecklistReset,
   onChecklistClear,
   onAskAstra,
+  onAddBuddy,
 }: Readonly<HabitDetailContentProps>) {
   const { t } = useTranslation()
   return (
@@ -187,6 +190,12 @@ function HabitDetailContent({
         </View>
       </View>
 
+      <SettingsRow
+        label={t('habits.detail.addAccountabilityBuddy')}
+        icon={UserPlus}
+        onPress={onAddBuddy}
+      />
+
       <HabitAskAstraButton
         tokens={tokens}
         styles={styles}
@@ -252,6 +261,12 @@ export function HabitDetailDrawer({
     onClose()
     router.push('/chat')
   }, [habit, onClose, router, t])
+
+  const handleAddBuddy = useCallback(() => {
+    if (!habit) return
+    onClose()
+    router.push(`/social?tab=buddies&newPairHabitId=${habit.id}`)
+  }, [habit, onClose, router])
 
   const handleChecklistToggle = useCallback(
     (index: number) => {
@@ -353,6 +368,7 @@ export function HabitDetailDrawer({
             onChecklistReset={handleChecklistReset}
             onChecklistClear={handleChecklistClear}
             onAskAstra={handleAskAstra}
+            onAddBuddy={handleAddBuddy}
           />
         ) : null}
       </BottomSheetModal>

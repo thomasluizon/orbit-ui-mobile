@@ -1,11 +1,11 @@
 import { create } from 'zustand'
 import { createJSONStorage, persist } from 'zustand/middleware'
 import {
-  createReferralPromptStoreState,
-  getPersistedReferralPromptState,
-  migratePersistedReferralPromptState,
-  type PersistedReferralPromptState,
-  type ReferralPromptStoreState,
+  createEngagementPromptStoreState,
+  getPersistedEngagementPromptState,
+  migratePersistedEngagementPromptState,
+  type EngagementPromptStoreState,
+  type PersistedEngagementPromptState,
 } from '@orbit/shared/stores'
 
 const noopStorage = {
@@ -14,23 +14,25 @@ const noopStorage = {
   removeItem: () => {},
 }
 
-export const useReferralPromptStore = create<ReferralPromptStoreState>()(
+export const useEngagementPromptStore = create<EngagementPromptStoreState>()(
   persist(
     (set) =>
-      createReferralPromptStoreState(
-        set as Parameters<typeof createReferralPromptStoreState>[0],
+      createEngagementPromptStoreState(
+        set as Parameters<typeof createEngagementPromptStoreState>[0],
       ),
     {
       name: 'orbit-referral-prompt-store',
       version: 1,
-      storage: createJSONStorage<PersistedReferralPromptState>(() =>
+      storage: createJSONStorage<PersistedEngagementPromptState>(() =>
         globalThis.localStorage === undefined
           ? noopStorage
           : globalThis.localStorage,
       ),
-      migrate: migratePersistedReferralPromptState,
-      partialize: getPersistedReferralPromptState,
+      migrate: migratePersistedEngagementPromptState,
+      partialize: getPersistedEngagementPromptState,
       skipHydration: true,
     },
   ),
 )
+
+export const useReferralPromptStore = useEngagementPromptStore

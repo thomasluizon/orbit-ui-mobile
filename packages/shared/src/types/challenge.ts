@@ -61,3 +61,28 @@ export const joinChallengeRequestSchema = z.object({
 })
 
 export type JoinChallengeRequest = z.infer<typeof joinChallengeRequestSchema>
+
+export const challengeListItemSchema = z.object({
+  id: z.string(),
+  type: challengeTypeSchema,
+  title: z.string(),
+  status: challengeStatusSchema,
+  targetCount: z.number().nullable(),
+  currentProgress: z.number(),
+  isComplete: z.boolean(),
+  participantCount: z.number(),
+  periodStartUtc: z.string(),
+  periodEndUtc: z.string().nullable(),
+  joinCode: z.string(),
+  hasLinkedHabits: z.boolean(),
+})
+
+export type ChallengeListItem = z.infer<typeof challengeListItemSchema>
+
+export const challengeListSchema = z.array(challengeListItemSchema)
+
+export const setChallengeHabitsRequestSchema = z.object({
+  habitIds: z.array(z.string()).min(1).max(20),
+})
+
+export type SetChallengeHabitsRequest = z.infer<typeof setChallengeHabitsRequestSchema>

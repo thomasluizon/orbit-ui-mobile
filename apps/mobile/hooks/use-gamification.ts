@@ -15,15 +15,18 @@ import type {
 } from '@orbit/shared/types/gamification'
 import {
   deriveGamificationProfileState,
+  detectCrossedStreakMilestones,
   detectGamificationMilestones,
   deriveStreakFreezeState,
 } from '@orbit/shared/utils'
+import { STREAK_CROSSING_MILESTONES } from '@orbit/shared/stores'
 import { apiClient } from '@/lib/api-client'
 import { useUIStore } from '@/stores/ui-store'
 
 export function useGamificationProfile(enabled = true) {
   const queryClient = useQueryClient()
   const previousLevelRef = useRef<number | null>(null)
+  const previousStreakRef = useRef<number | null>(null)
   const previousAchievementIdsRef = useRef<Set<string>>(new Set())
   const [acknowledgedLevel, setAcknowledgedLevel] = useState<number | null>(null)
 
@@ -42,13 +45,10 @@ export function useGamificationProfile(enabled = true) {
     achievementsByCategory,
   } = useMemo(() => deriveGamificationProfileState(profile), [profile])
 
-  // Detect level-ups + new achievements. Refs hold the previous-render snapshot
-  // and are mutated inside an effect — React 19 forbids reading or writing refs
-  // during render. We keep the milestone output in state so consumers see a
-  // stable value across renders until the next effect tick advances it.
-  const [milestones, setMilestones] = useState(() =>
-    detectGamificationMilestones(profile, null, new Set<string>(), acknowledgedLevel),
-  )
+  const [milestones, setMilestones] = useState(() => ({
+    ...detectGamificationMilestones(profile, null, new Set<string>(), acknowledgedLevel),
+    crossedStreakMilestones: [] as number[],
+  }))
 
   useEffect(() => {
     const next = detectGamificationMilestones(
@@ -57,12 +57,18 @@ export function useGamificationProfile(enabled = true) {
       previousAchievementIdsRef.current,
       acknowledgedLevel,
     )
+    const crossedStreakMilestones = detectCrossedStreakMilestones(
+      previousStreakRef.current,
+      profile?.currentStreak ?? null,
+      STREAK_CROSSING_MILESTONES,
+    )
     previousLevelRef.current = profile?.level ?? null
+    previousStreakRef.current = profile?.currentStreak ?? null
     previousAchievementIdsRef.current = next.currentEarnedAchievementIds
-    setMilestones(next)
+    setMilestones({ ...next, crossedStreakMilestones })
   }, [profile, acknowledgedLevel])
 
-  const { leveledUp, newLevel, newAchievements } = milestones
+  const { leveledUp, newLevel, newAchievements, crossedStreakMilestones } = milestones
 
   const clearLevelUp = useCallback(() => {
     setAcknowledgedLevel(profile?.level ?? null)
@@ -82,6 +88,7 @@ export function useGamificationProfile(enabled = true) {
     leveledUp,
     newLevel,
     newAchievements,
+    crossedStreakMilestones,
     clearLevelUp,
     invalidate,
   }

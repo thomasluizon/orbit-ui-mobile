@@ -26,6 +26,7 @@ import { AchievementToast } from '@/components/gamification/achievement-toast'
 import { LevelUpOverlay } from '@/components/gamification/level-up-overlay'
 import { StreakFreezeCelebration } from '@/components/gamification/streak-freeze-celebration'
 import { ReferralPrompt } from '@/components/referral/referral-prompt'
+import { MilestoneSharePrompt } from '@/components/milestone-share/milestone-share-prompt'
 import { useProfile } from '@/hooks/use-profile'
 import { useTimezoneAutoSync } from '@/hooks/use-timezone-auto-sync'
 import { useAuthStore } from '@/stores/auth-store'
@@ -33,7 +34,11 @@ import { useTotalHabitCount } from '@/hooks/use-habits'
 import { useGamificationProfile } from '@/hooks/use-gamification'
 import { useUIStore } from '@/stores/ui-store'
 import { useReferralPromptStore } from '@/stores/referral-prompt-store'
-import { getReferralLevelMilestone } from '@orbit/shared/stores'
+import {
+  getReferralLevelMilestone,
+  getMilestoneShareAchievementKey,
+  getMilestoneShareStreakKey,
+} from '@orbit/shared/stores'
 import { getSupabaseClient } from '@/lib/supabase'
 import { dismissCalendarImport } from '@/app/actions/calendar'
 import { TourProvider } from '@/components/tour/tour-provider'
@@ -41,7 +46,7 @@ import { TourOverlay } from '@/components/tour/tour-overlay'
 import { RouteTransitionShell } from '@/components/motion/route-transition-shell'
 import { ApiFetchI18nProvider } from '@/lib/api-fetch-i18n-provider'
 import { setRouteTransitionIntent } from '@/lib/motion/route-intent'
-import { buildGoogleCalendarOAuthOptions, formatAPIDate } from '@orbit/shared/utils'
+import { buildGoogleCalendarOAuthOptions, formatAPIDate, isShareableAchievement } from '@orbit/shared/utils'
 
 export default function AppLayout({
   children,
@@ -252,12 +257,33 @@ function GlobalOverlays({
   const t = useTranslations()
   const gamification = useGamificationProfile(canViewGamification)
   const armReferralPrompt = useReferralPromptStore((s) => s.armReferralPrompt)
+  const armMilestoneSharePrompt = useReferralPromptStore(
+    (s) => s.armMilestoneSharePrompt,
+  )
 
   useEffect(() => {
     if (gamification.leveledUp && gamification.newLevel) {
       armReferralPrompt(getReferralLevelMilestone(gamification.newLevel))
     }
   }, [gamification.leveledUp, gamification.newLevel, armReferralPrompt])
+
+  useEffect(() => {
+    const crossedStreak = gamification.crossedStreakMilestones.at(-1) ?? null
+    const shareableAchievement = gamification.newAchievements.find(isShareableAchievement)
+    const candidateKey =
+      crossedStreak !== null
+        ? getMilestoneShareStreakKey(crossedStreak)
+        : shareableAchievement
+          ? getMilestoneShareAchievementKey(shareableAchievement.id)
+          : null
+    if (candidateKey) {
+      armMilestoneSharePrompt(candidateKey)
+    }
+  }, [
+    gamification.crossedStreakMilestones,
+    gamification.newAchievements,
+    armMilestoneSharePrompt,
+  ])
 
   return (
     <div className="contents">
@@ -278,6 +304,7 @@ function GlobalOverlays({
         />
       )}
       {profile?.hasCompletedOnboarding && <ReferralPrompt />}
+      {profile?.hasCompletedOnboarding && <MilestoneSharePrompt />}
       <StreakFreezeCelebration ref={streakFreezeRef} />
       <AppOverlay
         open={showCalendarPrompt}

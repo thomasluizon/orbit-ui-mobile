@@ -595,7 +595,8 @@
       "askAstraSubHabits": "Quer dividir isso em passos menores?",
       "askAstraDefault": "Quer um olhar sobre este hábito?",
       "askAstraSeedSubHabits": "Me ajuda a dividir o hábito \"{title}\" em sub-hábitos menores.",
-      "askAstraSeedDefault": "Como estou indo no hábito \"{title}\"? Me dá sua análise e uma dica para melhorar."
+      "askAstraSeedDefault": "Como estou indo no hábito \"{title}\"? Me dá sua análise e uma dica para melhorar.",
+      "addAccountabilityBuddy": "Adicionar parceiro de responsabilidade"
     },
     "filter": {
       "daily": "Diário",
@@ -2790,7 +2791,8 @@
     },
     "tabs": {
       "feed": "Atividade",
-      "friends": "Amigos"
+      "friends": "Amigos",
+      "buddies": "Parceiros"
     },
     "feed": {
       "emptyTitle": "Nenhuma atividade ainda",
@@ -2825,6 +2827,73 @@
       "cancel": "Cancelar",
       "requestedYou": "quer ser seu amigo",
       "youRequested": "Pedido enviado"
+    },
+    "buddies": {
+      "newPairCta": "Nova dupla",
+      "incomingTitle": "Convites de parceria",
+      "outgoingTitle": "Convites pendentes",
+      "activeTitle": "Seus parceiros",
+      "emptyTitle": "Nenhum parceiro ainda",
+      "emptyBody": "Forme dupla com um amigo para manterem um ao outro na linha.",
+      "never": "ainda não",
+      "checkInStatus": "Você {you} · {name} {buddy}",
+      "checkInAction": "Registrar",
+      "checkedInLabel": "Registrado",
+      "checkInSuccess": "Registro de hoje feito",
+      "accept": "Aceitar",
+      "decline": "Recusar",
+      "rescind": "Cancelar",
+      "invitedYou": "convidou você para formar dupla ({cadence})",
+      "youInvited": "Convite enviado",
+      "acceptTitle": "Aceitar convite",
+      "acceptSubtitle": "Escolha os hábitos que você vai acompanhar com {name}.",
+      "acceptSubmit": "Aceitar convite",
+      "acceptSuccess": "Vocês agora são parceiros de responsabilidade",
+      "noHabits": "Você ainda não tem hábitos.",
+      "habitsHint": "Escolha de 1 a 10 hábitos",
+      "habitCount": "{count} selecionado(s)",
+      "checkInTitle": "Registrar",
+      "checkInNotePlaceholder": "Adicione uma nota (opcional)",
+      "checkInSubmit": "Registrar",
+      "cadence": {
+        "Daily": "Diário",
+        "Weekly": "Semanal"
+      },
+      "newPair": {
+        "title": "Nova dupla de responsabilidade",
+        "friendLabel": "Escolha um amigo",
+        "noFriends": "Adicione um amigo primeiro para formar dupla.",
+        "cadenceLabel": "Frequência de registro",
+        "habitsLabel": "Seus hábitos para acompanhar",
+        "submit": "Enviar convite",
+        "success": "Convite enviado"
+      },
+      "detail": {
+        "title": "Responsabilidade",
+        "notFound": "Esta parceria não está mais disponível.",
+        "cadenceLabel": "Frequência",
+        "yourHabits": "Seus hábitos",
+        "editHabits": "Editar seus hábitos",
+        "editHabitsTitle": "Seus hábitos",
+        "editSuccess": "Hábitos atualizados",
+        "buddyHabits": "Hábitos de {name}",
+        "buddyHabitsCount": "{count} hábito(s) acompanhado(s)",
+        "history": "Histórico de registros",
+        "historyEmpty": "Nenhum registro ainda.",
+        "unpair": "Desfazer dupla",
+        "unpairConfirmTitle": "Desfazer dupla com {name}?",
+        "unpairConfirmBody": "Isso encerra sua parceria de responsabilidade. Você pode formar dupla novamente depois.",
+        "unpairSuccess": "Dupla desfeita"
+      },
+      "errors": {
+        "habitRequired": "Escolha pelo menos um hábito.",
+        "rateLimited": "Você está fazendo isso com muita frequência. Tente novamente em instantes.",
+        "notFriends": "Você só pode formar dupla com amigos.",
+        "alreadyPaired": "Você já tem uma dupla com este amigo.",
+        "pairLimitReached": "Você atingiu o limite de duplas de responsabilidade.",
+        "alreadyCheckedIn": "Você já registrou hoje.",
+        "generic": "Algo deu errado. Tente novamente."
+      }
     },
     "addFriend": {
       "title": "Adicionar amigo",
@@ -2903,6 +2972,113 @@
       "alreadyFriends": "Você já está conectado com essa pessoa.",
       "handleTaken": "Esse nome de usuário já está em uso. Tente outro.",
       "friendLimitReached": "Você atingiu o limite de amigos."
+    }
+  },
+  "challenges": {
+    "title": "Desafios",
+    "entryCard": {
+      "title": "Desafios",
+      "description": "Encare metas e sequências em grupo"
+    },
+    "actions": {
+      "create": "Criar",
+      "join": "Entrar"
+    },
+    "sections": {
+      "active": "Ativos",
+      "completed": "Concluídos"
+    },
+    "empty": {
+      "title": "Nenhum desafio ainda",
+      "body": "Comece uma meta ou sequência em grupo, ou entre em uma com um código.",
+      "create": "Criar um desafio",
+      "join": "Entrar com um código"
+    },
+    "type": {
+      "coopGoal": "Meta compartilhada",
+      "streakTogether": "Sequência em grupo",
+      "coopGoalDescription": "Alcancem uma meta juntos registrando os hábitos vinculados.",
+      "streakTogetherDescription": "Mantenham juntos uma sequência diária compartilhada."
+    },
+    "card": {
+      "participants": "{count} participantes",
+      "streakUnit": "dias em sequência",
+      "linkHabitsHint": "Vincule seus hábitos para contribuir"
+    },
+    "create": {
+      "title": "Novo desafio",
+      "typeLabel": "Tipo",
+      "nameLabel": "Nome",
+      "namePlaceholder": "ex.: 30 dias de leitura",
+      "targetLabel": "Meta (total de registros)",
+      "targetPlaceholder": "30",
+      "endDateLabel": "Data de término",
+      "endDatePlaceholder": "Selecione uma data",
+      "habitsLabel": "Seus hábitos",
+      "noHabits": "Você ainda não tem hábitos para vincular.",
+      "inviteLabel": "Convidar amigos",
+      "submit": "Criar desafio",
+      "success": "Desafio criado"
+    },
+    "invite": {
+      "empty": "Adicione amigos primeiro para convidá-los."
+    },
+    "join": {
+      "title": "Entrar em um desafio",
+      "codeLabel": "Código de acesso",
+      "codePlaceholder": "Digite o código",
+      "submit": "Entrar no desafio",
+      "success": "Você entrou no desafio"
+    },
+    "detail": {
+      "progressLabel": "Progresso compartilhado",
+      "sharedStreak": "Sequência compartilhada",
+      "complete": "Concluído",
+      "endsOn": "Termina em {date}",
+      "membersTitle": "Participantes",
+      "linkHabitsTitle": "Vincule seus hábitos",
+      "linkHabitsBody": "Escolha hábitos para que seu progresso conte para este desafio.",
+      "linkHabitsCta": "Vincular hábitos",
+      "editHabits": "Editar hábitos vinculados",
+      "habitsSaved": "Hábitos atualizados",
+      "shareTitle": "Convidar",
+      "copy": "Copiar",
+      "copied": "Copiado",
+      "share": "Compartilhar convite",
+      "leave": "Sair do desafio",
+      "leaveConfirmTitle": "Sair deste desafio?",
+      "leaveConfirmBody": "Você deixará de contribuir e perderá o acesso a ele.",
+      "leaveSuccess": "Você saiu do desafio",
+      "notFound": "Desafio não encontrado"
+    },
+    "share": {
+      "title": "Entre no meu desafio no Orbit",
+      "text": "Entre no meu desafio \"{title}\" no Orbit com o código {code}"
+    },
+    "errors": {
+      "challengeFull": "Este desafio está cheio.",
+      "alreadyJoined": "Você já participa deste desafio.",
+      "closed": "Este desafio está encerrado.",
+      "invalidCode": "Esse código de acesso não é válido.",
+      "rateLimited": "Muitas tentativas. Tente novamente em breve.",
+      "generic": "Algo deu errado. Tente novamente."
+    }
+  },
+  "milestoneShare": {
+    "streakEyebrow": "Marco de sequência",
+    "achievementEyebrow": "Conquista desbloqueada",
+    "streakTitle": "Sequência de {count} dias!",
+    "body": "Compartilhe seu marco e convide um amigo — vocês dois ganham um cupom de desconto no Pro.",
+    "share": "Compartilhar",
+    "download": "Baixar",
+    "later": "Agora não",
+    "shareTitle": "Meu marco no Orbit",
+    "shareText": "Estou construindo hábitos melhores com o Orbit — venha comigo!",
+    "shareError": "Não foi possível compartilhar seu card. Tente novamente.",
+    "rarity": {
+      "Rare": "Raro",
+      "Epic": "Épico",
+      "Legendary": "Lendário"
     }
   }
 }

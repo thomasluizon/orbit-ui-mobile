@@ -4,11 +4,14 @@ import {
   deriveGamificationProfileState,
   deriveNextRewardCarrot,
   deriveStreakFreezeState,
+  detectCrossedStreakMilestones,
   detectGamificationMilestones,
   getAchievementsByCategory,
   getEarnedAchievements,
   getLockedAchievements,
   getStreakTierLabelKey,
+  isShareableAchievement,
+  SHAREABLE_ACHIEVEMENT_RARITIES,
 } from '../utils/gamification-selectors'
 import type { Achievement, GamificationProfile, StreakInfo } from '../types/gamification'
 
@@ -297,5 +300,43 @@ describe('deriveNextRewardCarrot', () => {
 
   it('returns null for a missing profile', () => {
     expect(deriveNextRewardCarrot(null, true)).toBeNull()
+  })
+})
+
+describe('isShareableAchievement', () => {
+  it('treats Rare, Epic, and Legendary as shareable', () => {
+    for (const rarity of SHAREABLE_ACHIEVEMENT_RARITIES) {
+      expect(isShareableAchievement({ rarity })).toBe(true)
+    }
+  })
+
+  it('treats the common tiers and unknown values as not shareable', () => {
+    expect(isShareableAchievement({ rarity: 'Common' })).toBe(false)
+    expect(isShareableAchievement({ rarity: 'Uncommon' })).toBe(false)
+    expect(isShareableAchievement({ rarity: '' })).toBe(false)
+  })
+})
+
+describe('detectCrossedStreakMilestones', () => {
+  const thresholds = [7, 30, 100]
+
+  it('returns each threshold crossed between previous and current', () => {
+    expect(detectCrossedStreakMilestones(6, 7, thresholds)).toEqual([7])
+    expect(detectCrossedStreakMilestones(5, 31, thresholds)).toEqual([7, 30])
+  })
+
+  it('is exclusive of previous and inclusive of current', () => {
+    expect(detectCrossedStreakMilestones(7, 7, thresholds)).toEqual([])
+    expect(detectCrossedStreakMilestones(29, 30, thresholds)).toEqual([30])
+  })
+
+  it('returns an empty list when nothing was crossed', () => {
+    expect(detectCrossedStreakMilestones(8, 29, thresholds)).toEqual([])
+  })
+
+  it('returns an empty list when either value is null (first-load guard)', () => {
+    expect(detectCrossedStreakMilestones(null, 30, thresholds)).toEqual([])
+    expect(detectCrossedStreakMilestones(10, null, thresholds)).toEqual([])
+    expect(detectCrossedStreakMilestones(null, null, thresholds)).toEqual([])
   })
 })

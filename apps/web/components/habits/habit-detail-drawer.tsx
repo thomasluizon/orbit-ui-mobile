@@ -3,6 +3,7 @@
 import { useState, useCallback, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations, useLocale } from 'next-intl'
+import { UserPlus } from 'lucide-react'
 import { AppOverlay } from '@/components/ui/app-overlay'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { SectionLabel } from '@/components/ui/section-label'
@@ -191,6 +192,15 @@ export function HabitDetailDrawer({
             <div style={{ padding: '0 20px 12px' }}>
               <HabitCalendar habitId={habit.id} logs={logs} />
             </div>
+
+            <SettingsRow
+              label={t('habits.detail.addAccountabilityBuddy')}
+              icon={UserPlus}
+              onClick={() => {
+                onOpenChange(false)
+                router.push(`/social?tab=buddies&newPairHabitId=${habit.id}`)
+              }}
+            />
           </div>
         )}
       </AppOverlay>

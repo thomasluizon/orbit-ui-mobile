@@ -11,5 +11,6 @@ describe('query options', () => {
     expect(QUERY_STALE_TIMES.habits).toBe(30 * 1000)
     expect(NOTIFICATIONS_REFETCH_INTERVAL).toBe(5 * 60 * 1000)
     expect(QUERY_STALE_TIMES.notifications).toBe(60 * 1000)
+    expect(QUERY_STALE_TIMES.accountability).toBe(30 * 1000)
   })
 })
