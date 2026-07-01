@@ -1,7 +1,7 @@
 import { useState } from 'react'
-import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
-import { Check } from 'lucide-react-native'
+import { Check, Search, X } from 'lucide-react-native'
 import type { AccountabilityCadence } from '@orbit/shared/types/accountability'
 import { getAccountabilityErrorKey } from '@orbit/shared/utils'
 import { BottomSheetModal } from '@/components/bottom-sheet-modal'
@@ -15,6 +15,7 @@ import { useAppTheme } from '@/lib/use-app-theme'
 import { HabitMultiSelect } from './habit-multi-select'
 
 const CADENCES: AccountabilityCadence[] = ['Daily', 'Weekly']
+const FRIEND_SEARCH_THRESHOLD = 6
 
 interface NewPairFlowProps {
   open: boolean
@@ -36,6 +37,16 @@ export function NewPairFlow({ open, onClose, initialHabitId }: Readonly<NewPairF
   const [buddyUserId, setBuddyUserId] = useState<string | null>(null)
   const [cadence, setCadence] = useState<AccountabilityCadence>('Daily')
   const [habitIds, setHabitIds] = useState<string[]>(initialHabitId ? [initialHabitId] : [])
+  const [friendQuery, setFriendQuery] = useState('')
+
+  const friendSearch = friendQuery.trim().toLowerCase()
+  const visibleFriends = friendSearch
+    ? friends.filter(
+        (friend) =>
+          friend.displayName.toLowerCase().includes(friendSearch) ||
+          friend.handle.toLowerCase().includes(friendSearch),
+      )
+    : friends
 
   const canSubmit =
     buddyUserId !== null && habitIds.length >= 1 && habitIds.length <= 10 && !invite.isPending
@@ -44,6 +55,7 @@ export function NewPairFlow({ open, onClose, initialHabitId }: Readonly<NewPairF
     setBuddyUserId(null)
     setCadence('Daily')
     setHabitIds(initialHabitId ? [initialHabitId] : [])
+    setFriendQuery('')
   }
 
   async function handleSubmit() {
@@ -75,33 +87,60 @@ export function NewPairFlow({ open, onClose, initialHabitId }: Readonly<NewPairF
           <Text style={styles.muted}>{t('social.buddies.newPair.noFriends')}</Text>
         ) : (
           <View style={styles.list}>
-            {friends.map((friend) => {
-              const active = friend.userId === buddyUserId
-              return (
-                <Pressable
-                  key={friend.userId}
-                  accessibilityRole="button"
-                  accessibilityState={{ selected: active }}
-                  onPress={() => setBuddyUserId(friend.userId)}
-                  style={[
-                    styles.friendRow,
-                    {
-                      backgroundColor: active ? tokens.primarySoft : tokens.bgElev,
-                      borderColor: active ? tokens.primary : tokens.hairline,
-                    },
-                  ]}
-                >
-                  <UserAvatar name={friend.displayName} size={36} />
-                  <Text
-                    style={[styles.friendName, { color: active ? tokens.primary : tokens.fg1 }]}
-                    numberOfLines={1}
+            {friends.length > FRIEND_SEARCH_THRESHOLD ? (
+              <View style={styles.search}>
+                <Search size={16} color={tokens.fg3} strokeWidth={2} />
+                <TextInput
+                  value={friendQuery}
+                  onChangeText={setFriendQuery}
+                  placeholder={t('social.buddies.newPair.searchFriends')}
+                  placeholderTextColor={tokens.fg3}
+                  style={styles.searchInput}
+                  autoCorrect={false}
+                />
+                {friendQuery.length > 0 ? (
+                  <Pressable
+                    onPress={() => setFriendQuery('')}
+                    accessibilityLabel={t('common.clear')}
+                    hitSlop={10}
                   >
-                    {friend.displayName}
-                  </Text>
-                  {active ? <Check size={18} color={tokens.primary} strokeWidth={2} /> : null}
-                </Pressable>
-              )
-            })}
+                    <X size={15} color={tokens.fg3} strokeWidth={2} />
+                  </Pressable>
+                ) : null}
+              </View>
+            ) : null}
+            {visibleFriends.length === 0 ? (
+              <Text style={styles.muted}>{t('social.buddies.newPair.noFriendMatch')}</Text>
+            ) : (
+              visibleFriends.map((friend) => {
+                const active = friend.userId === buddyUserId
+                return (
+                  <Pressable
+                    key={friend.userId}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: active }}
+                    onPress={() => setBuddyUserId(friend.userId)}
+                    style={({ pressed }) => [
+                      styles.friendRow,
+                      {
+                        backgroundColor: active ? tokens.primarySoft : tokens.bgElev,
+                        borderColor: active ? tokens.primary : tokens.hairline,
+                      },
+                      pressed && styles.pressed,
+                    ]}
+                  >
+                    <UserAvatar name={friend.displayName} size={36} />
+                    <Text
+                      style={[styles.friendName, { color: active ? tokens.primary : tokens.fg1 }]}
+                      numberOfLines={1}
+                    >
+                      {friend.displayName}
+                    </Text>
+                    {active ? <Check size={18} color={tokens.primary} strokeWidth={2} /> : null}
+                  </Pressable>
+                )
+              })
+            )}
           </View>
         )}
 
@@ -115,12 +154,13 @@ export function NewPairFlow({ open, onClose, initialHabitId }: Readonly<NewPairF
                 accessibilityRole="button"
                 accessibilityState={{ selected: active }}
                 onPress={() => setCadence(option)}
-                style={[
+                style={({ pressed }) => [
                   styles.cadenceChip,
                   {
                     backgroundColor: active ? tokens.primarySoft : tokens.bgElev,
                     borderColor: active ? tokens.primary : tokens.hairline,
                   },
+                  pressed && styles.pressed,
                 ]}
               >
                 <Text style={[styles.cadenceText, { color: active ? tokens.primary : tokens.fg2 }]}>
@@ -148,6 +188,25 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
     fieldLabel: { fontFamily: 'Rubik_500Medium', fontSize: 14, color: tokens.fg2, marginTop: 4 },
     muted: { fontFamily: 'Rubik_400Regular', fontSize: 14, color: tokens.fg3 },
     list: { gap: 6 },
+    search: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+      paddingHorizontal: 12,
+      height: 44,
+      borderRadius: 14,
+      backgroundColor: tokens.bgSunk,
+      borderWidth: 1,
+      borderColor: tokens.hairline,
+      marginBottom: 2,
+    },
+    searchInput: {
+      flex: 1,
+      fontFamily: 'Rubik_400Regular',
+      fontSize: 15,
+      color: tokens.fg1,
+      padding: 0,
+    },
     friendRow: {
       flexDirection: 'row',
       alignItems: 'center',
@@ -167,5 +226,6 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       borderWidth: 1,
     },
     cadenceText: { fontFamily: 'Rubik_500Medium', fontSize: 14 },
+    pressed: { transform: [{ scale: 0.98 }] },
   })
 }

@@ -214,6 +214,11 @@ export {
   sortNormalizedHabits,
 } from './habit-normalization'
 export {
+  buildHabitPickerOptions,
+  filterHabitPickerOptions,
+} from './habit-picker'
+export type { HabitPickerOption } from './habit-picker'
+export {
   buildHabitDateBuckets,
   computeParentPromptProgress,
 } from './habit-list-progress'
