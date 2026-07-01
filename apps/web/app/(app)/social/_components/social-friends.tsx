@@ -1,6 +1,7 @@
 'use client'
 
 import { useTranslations } from 'next-intl'
+import { EmptyState } from '@/components/ui/empty-state'
 import { SectionLabel } from '@/components/ui/section-label'
 import { useFriends } from '@/hooks/use-friends'
 import { AddFriendForm } from './add-friend-form'
@@ -45,14 +46,10 @@ export function SocialFriends({ onCheer }: Readonly<SocialFriendsProps>) {
 
       <SectionLabel>{t('social.friends.sectionTitle')}</SectionLabel>
       {friends.length === 0 ? (
-        <div className="flex flex-col items-center px-8 py-10 text-center" style={{ gap: 8 }}>
-          <p style={{ margin: 0, fontFamily: 'var(--font-sans)', fontSize: 17, fontWeight: 600, color: 'var(--fg-1)' }}>
-            {t('social.friends.emptyTitle')}
-          </p>
-          <p style={{ margin: 0, fontFamily: 'var(--font-sans)', fontSize: 14, lineHeight: 1.5, color: 'var(--fg-3)' }}>
-            {t('social.friends.emptyBody')}
-          </p>
-        </div>
+        <EmptyState
+          title={t('social.friends.emptyTitle')}
+          description={t('social.friends.emptyBody')}
+        />
       ) : (
         friends.map((friend) => <FriendRow key={friend.userId} friend={friend} onCheer={onCheer} />)
       )}

@@ -1,7 +1,9 @@
 'use client'
 
 import { useTranslations } from 'next-intl'
+import { Loader2 } from 'lucide-react'
 import type { Cheer } from '@orbit/shared/types/social'
+import { EmptyState } from '@/components/ui/empty-state'
 import { SectionLabel } from '@/components/ui/section-label'
 import { PillButton } from '@/components/ui/pill-button'
 import { UserAvatar } from '@/components/ui/user-avatar'
@@ -11,6 +13,7 @@ import type { CheerTarget } from './cheer-composer'
 
 interface SocialFeedProps {
   onCheer: (target: CheerTarget) => void
+  onAddFriends: () => void
 }
 
 function CheerRow({ cheer }: Readonly<{ cheer: Cheer }>) {
@@ -32,7 +35,7 @@ function CheerRow({ cheer }: Readonly<{ cheer: Cheer }>) {
 }
 
 /** Feed sub-tab: a "cheers for you" strip above a keyset-paginated activity feed. No ranking. */
-export function SocialFeed({ onCheer }: Readonly<SocialFeedProps>) {
+export function SocialFeed({ onCheer, onAddFriends }: Readonly<SocialFeedProps>) {
   const t = useTranslations()
   const feed = useFriendFeed()
   const cheers = useCheers('received')
@@ -52,15 +55,20 @@ export function SocialFeed({ onCheer }: Readonly<SocialFeedProps>) {
         </div>
       )}
 
-      {isEmpty ? (
-        <div className="flex flex-col items-center px-8 py-12 text-center" style={{ gap: 8 }}>
-          <p style={{ margin: 0, fontFamily: 'var(--font-sans)', fontSize: 17, fontWeight: 600, color: 'var(--fg-1)' }}>
-            {t('social.feed.emptyTitle')}
-          </p>
-          <p style={{ margin: 0, fontFamily: 'var(--font-sans)', fontSize: 14, lineHeight: 1.5, color: 'var(--fg-3)' }}>
-            {t('social.feed.emptyBody')}
-          </p>
+      {feed.isLoading ? (
+        <div className="flex justify-center" style={{ padding: '48px 0' }}>
+          <Loader2 className="size-[22px] animate-spin" style={{ color: 'var(--primary)' }} />
         </div>
+      ) : isEmpty ? (
+        <EmptyState
+          title={t('social.feed.emptyTitle')}
+          description={t('social.feed.emptyBody')}
+          action={{
+            label: t('social.feed.emptyCta'),
+            onClick: onAddFriends,
+            variant: 'secondary',
+          }}
+        />
       ) : (
         <div>
           {items.map((item) => (

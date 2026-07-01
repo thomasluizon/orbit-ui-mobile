@@ -159,15 +159,22 @@ export function FriendRow({ friend, onCheer }: Readonly<FriendRowProps>) {
   return (
     <>
       <View style={styles.row}>
-        <UserAvatar name={friend.displayName} />
-        <View style={styles.identity}>
-          <Text style={styles.name} numberOfLines={1}>
-            {friend.displayName}
-          </Text>
-          <Text style={styles.sub}>
-            {t('social.friends.streakLabel', { count: friend.currentStreak })}
-          </Text>
-        </View>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={t('social.friends.viewProfile')}
+          onPress={() => setProfileOpen(true)}
+          style={({ pressed }) => [styles.identityPress, pressed ? styles.identityPressed : null]}
+        >
+          <UserAvatar name={friend.displayName} />
+          <View style={styles.identity}>
+            <Text style={styles.name} numberOfLines={1}>
+              {friend.displayName}
+            </Text>
+            <Text style={styles.sub}>
+              {t('social.friends.streakLabel', { count: friend.currentStreak })}
+            </Text>
+          </View>
+        </Pressable>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={t('social.friends.cheer')}
@@ -255,7 +262,15 @@ function createStyles(tokens: AppTokens) {
       paddingHorizontal: 20,
       paddingVertical: 12,
     },
-    identity: { flex: 1, gap: 2 },
+    identityPress: {
+      flex: 1,
+      minWidth: 0,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
+    },
+    identityPressed: { opacity: 0.7 },
+    identity: { flex: 1, minWidth: 0, gap: 2 },
     name: { fontFamily: 'Rubik_500Medium', fontSize: 15, color: tokens.fg1 },
     sub: { fontFamily: 'Rubik_400Regular', fontSize: 13, color: tokens.fg3 },
     cheer: {

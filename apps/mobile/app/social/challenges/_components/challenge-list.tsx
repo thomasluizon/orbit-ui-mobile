@@ -2,6 +2,7 @@ import { StyleSheet, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import type { ChallengeListItem } from '@orbit/shared/types/challenge'
 import { PillButton } from '@/components/ui/pill-button'
+import { SatelliteGlyph } from '@/components/ui/satellite-glyph'
 import { SectionLabel } from '@/components/ui/section-label'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -25,6 +26,7 @@ export function ChallengeList({ challenges, onOpen, onCreate, onJoin }: Readonly
   if (challenges.length === 0) {
     return (
       <View style={styles.empty}>
+        <SatelliteGlyph size={96} />
         <Text style={[styles.emptyTitle, { color: tokens.fg1 }]}>{t('challenges.empty.title')}</Text>
         <Text style={[styles.emptyBody, { color: tokens.fg3 }]}>{t('challenges.empty.body')}</Text>
         <View style={styles.emptyActions}>

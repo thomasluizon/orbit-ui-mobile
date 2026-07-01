@@ -24,7 +24,7 @@ vi.mock('@tanstack/react-query', () => ({
   },
   useInfiniteQuery: (options: {
     queryKey: readonly unknown[]
-    queryFn: (context: { pageParam: unknown }) => unknown
+    queryFn: (context?: { pageParam?: unknown }) => unknown
   }) => {
     mocks.queries.push(options)
     return { data: undefined, isLoading: false }

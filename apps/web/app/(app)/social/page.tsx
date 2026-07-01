@@ -22,9 +22,10 @@ export default function SocialPage() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const { profile, isLoading } = useProfile()
-  const [tab, setTab] = useState<SocialTab>(
-    searchParams.get('tab') === 'buddies' ? 'buddies' : 'feed',
-  )
+  const [tab, setTab] = useState<SocialTab>(() => {
+    const tabParam = searchParams.get('tab')
+    return tabParam === 'buddies' || tabParam === 'friends' ? tabParam : 'feed'
+  })
   const newPairHabitId = searchParams.get('newPairHabitId')
   const [cheerTarget, setCheerTarget] = useState<CheerTarget | null>(null)
 
@@ -56,7 +57,7 @@ export default function SocialPage() {
               ariaLabel={t('social.title')}
             />
             {tab === 'feed' ? (
-              <SocialFeed onCheer={setCheerTarget} />
+              <SocialFeed onCheer={setCheerTarget} onAddFriends={() => setTab('friends')} />
             ) : tab === 'friends' ? (
               <SocialFriends onCheer={setCheerTarget} />
             ) : (

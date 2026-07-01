@@ -82,7 +82,12 @@ export function CheerComposer({ target, onClose }: Readonly<CheerComposerProps>)
               accessibilityRole="button"
               accessibilityLabel={t(reaction.labelKey)}
               onPress={() => appendReaction(reaction.emoji)}
-              style={styles.reaction}
+              style={({ pressed }) => [
+                styles.reaction,
+                pressed
+                  ? [styles.reactionPressed, { backgroundColor: tokens.primarySoft, borderColor: tokens.primary }]
+                  : null,
+              ]}
             >
               <Text style={styles.reactionEmoji}>{reaction.emoji}</Text>
             </Pressable>
@@ -119,6 +124,9 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       backgroundColor: tokens.bgElev,
       borderWidth: 1,
       borderColor: tokens.hairline,
+    },
+    reactionPressed: {
+      transform: [{ scale: 0.96 }],
     },
     reactionEmoji: { fontSize: 24 },
     note: {

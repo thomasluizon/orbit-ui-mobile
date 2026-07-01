@@ -2801,6 +2801,7 @@
     "feed": {
       "emptyTitle": "Nenhuma atividade ainda",
       "emptyBody": "Quando seus amigos mantiverem sequências ou atingirem marcos, você verá aqui.",
+      "emptyCta": "Adicionar amigos",
       "cheersForYou": "Incentivos para você",
       "noCheers": "Nenhum incentivo ainda — seja o primeiro a incentivar um amigo.",
       "loadMore": "Carregar mais",
