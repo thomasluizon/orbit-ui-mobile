@@ -51,19 +51,18 @@ describe('persistent reminder', () => {
   })
 
   describe('extractReminderFeed', () => {
-    it('projects streak and top-level progress, mirroring the widget math', () => {
+    it('counts each sub-habit individually so the total matches the Today list', () => {
       const feed = extractReminderFeed({
         currentStreak: 12,
         items: [
           { isCompleted: true, children: [] },
           { isCompleted: false, children: [{ isCompleted: true }, { isCompleted: true }] },
-          { isCompleted: false, children: [{ isCompleted: false }] },
-          { isCompleted: false, children: [] },
+          { isCompleted: false, children: [{ isCompleted: true }, { isCompleted: false }] },
           { isCompleted: false },
         ],
       })
 
-      expect(feed).toEqual({ streak: 12, completed: 2, total: 5 })
+      expect(feed).toEqual({ streak: 12, completed: 4, total: 6 })
     })
 
     it('defaults the streak to zero and rejects non-feed payloads', () => {

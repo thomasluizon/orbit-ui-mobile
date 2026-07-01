@@ -371,17 +371,25 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
             tr(lang, "today")
         }
 
-        // Compute completion stats
-        val topLevelHabits = habits.filter { it.depth == 0 }
-        val topLevelCount = topLevelHabits.size
-        val completedCount = topLevelHabits.count { it.isCompleted }
-        val subtitleText = "$completedCount ${tr(lang, "of")} $topLevelCount ${tr(lang, "completed")}"
+        // Count each sub-habit as its own item so the total matches the Today list
+        var totalCount = 0
+        var completedCount = 0
+        for (habit in habits.filter { it.depth == 0 }) {
+            if (habit.hasChildren) {
+                totalCount += habit.childrenTotal
+                completedCount += habit.childrenDone
+            } else {
+                totalCount += 1
+                if (habit.isCompleted) completedCount += 1
+            }
+        }
+        val subtitleText = "$completedCount ${tr(lang, "of")} $totalCount ${tr(lang, "completed")}"
 
         // Cache header info for the provider to read
         val prefs = context.getSharedPreferences("orbit_widget_cache", Context.MODE_PRIVATE)
         prefs.edit()
             .putString("header_label", headerLabel)
-            .putInt("habit_count", topLevelCount)
+            .putInt("habit_count", totalCount)
             .putInt("completed_count", completedCount)
             .putInt("user_streak", streak)
             .putString("lang", lang)
