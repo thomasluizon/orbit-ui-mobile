@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import {
+  achievementCategorySchema,
   gamificationProfileSchema,
   nextRewardCarrotSchema,
   recapResponseSchema,
+  reportEventResponseSchema,
 } from '../types/gamification'
 import { profileSchema } from '../types/profile'
 import { createMockGamificationProfile, createMockProfile } from './factories'
@@ -52,6 +54,42 @@ describe('gamificationProfileSchema', () => {
   })
 })
 
+describe('achievementCategorySchema', () => {
+  it('accepts the appended Social, Sharing, and Together categories', () => {
+    expect(achievementCategorySchema.parse('Social')).toBe('Social')
+    expect(achievementCategorySchema.parse('Sharing')).toBe('Sharing')
+    expect(achievementCategorySchema.parse('Together')).toBe('Together')
+  })
+})
+
+describe('reportEventResponseSchema', () => {
+  it('round-trips a granted-achievement payload', () => {
+    const parsed = reportEventResponseSchema.parse({
+      granted: [
+        {
+          id: 'show_off',
+          name: 'Show Off',
+          description: 'Share your first card',
+          category: 'Sharing',
+          rarity: 'Uncommon',
+          xpReward: 75,
+          iconKey: 'show_off',
+          isEarned: true,
+          earnedAtUtc: '2026-06-30T00:00:00Z',
+        },
+      ],
+    })
+
+    expect(parsed.granted).toHaveLength(1)
+    expect(parsed.granted[0]?.id).toBe('show_off')
+  })
+
+  it('parses an empty granted list (idempotent no-op grant)', () => {
+    const parsed = reportEventResponseSchema.parse({ granted: [] })
+    expect(parsed.granted).toEqual([])
+  })
+})
+
 describe('profileSchema.canViewGamification', () => {
   it('parses the additive flag', () => {
     const parsed = profileSchema.parse(createMockProfile({ canViewGamification: true }))
@@ -92,11 +130,37 @@ describe('recapResponseSchema', () => {
     expect(parsed.metrics.topHabits).toHaveLength(1)
   })
 
-  it('rejects a non-whitelisted period', () => {
+  it('accepts the full backend period set, including quarter and semester', () => {
+    const baseMetrics = {
+      completionRate: 0,
+      totalCompletions: 0,
+      totalScheduled: 0,
+      activeDays: 0,
+      periodDays: 90,
+      currentStreak: 0,
+      bestStreak: 0,
+      badHabitSlips: 0,
+      weeklyConsistency: [0, 0, 0, 0, 0, 0, 0],
+      topHabits: [],
+      needsAttention: [],
+    }
+
+    for (const period of ['week', 'month', 'quarter', 'semester', 'year'] as const) {
+      expect(
+        recapResponseSchema.parse({
+          period,
+          shareDeepLink: `https://app.useorbit.org/r/ABCD2345?recap=${period}`,
+          metrics: baseMetrics,
+        }).period,
+      ).toBe(period)
+    }
+  })
+
+  it('rejects a period outside the backend set', () => {
     expect(() =>
       recapResponseSchema.parse({
-        period: 'quarter',
-        shareDeepLink: 'https://app.useorbit.org/r/ABCD2345?recap=quarter',
+        period: 'decade',
+        shareDeepLink: 'https://app.useorbit.org/r/ABCD2345?recap=decade',
         metrics: {
           completionRate: 0,
           totalCompletions: 0,

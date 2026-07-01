@@ -25,7 +25,7 @@ module.exports = defineConfig([
         rules: { "no-comments": noComments, "no-gorhom-sheet": noGorhomSheet },
       },
     },
-    rules: { "local/no-comments": "error", "local/no-gorhom-sheet": "error" },
+    rules: { "local/no-comments": "error", "local/no-gorhom-sheet": "error", "no-console": "error" },
   },
   {
     plugins: { "react-hooks": reactHooks },
@@ -69,6 +69,7 @@ module.exports = defineConfig([
     rules: {
       "@typescript-eslint/no-require-imports": "off",
       "expo/no-dynamic-env-var": "off",
+      "no-console": "off",
     },
   },
   {

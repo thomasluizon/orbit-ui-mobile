@@ -14,7 +14,10 @@ describe('profile-navigation', () => {
     expect(PROFILE_NAV_ITEMS.map((item) => item.id)).toEqual([
       'preferences',
       'ai-settings',
+      'public-profile',
+      'social',
       'retrospective',
+      'wrapped',
       'achievements',
       'calendar-sync',
       'about',
@@ -24,12 +27,36 @@ describe('profile-navigation', () => {
     expect(PROFILE_NAV_ITEMS.map((item) => item.route)).toEqual([
       '/preferences',
       '/ai-settings',
+      '/public-profile',
+      '/social',
       '/retrospective',
+      '/wrapped',
       '/achievements',
       '/calendar-sync',
       '/about',
       '/advanced',
     ])
+  })
+
+  it('exposes an ungated social entry on the features section', () => {
+    const social = PROFILE_NAV_ITEMS.find((item) => item.id === 'social')
+    expect(social?.route).toBe('/social')
+    expect(social?.section).toBe('features')
+    expect(social?.iconKey).toBe('friends')
+    expect(social?.titleKey).toBe('social.profileNav.title')
+    expect(social?.proBadge).toBe(false)
+    expect(social?.entitlementRequirement).toBeNull()
+    expect(social?.entitlementMode).toBeNull()
+  })
+
+  it('exposes Wrapped as a free, ungated feature entry', () => {
+    const wrapped = PROFILE_NAV_ITEMS.find((item) => item.id === 'wrapped')
+    expect(wrapped?.section).toBe('features')
+    expect(wrapped?.route).toBe('/wrapped')
+    expect(wrapped?.iconKey).toBe('wrapped')
+    expect(wrapped?.proBadge).toBe(false)
+    expect(wrapped?.entitlementRequirement).toBeNull()
+    expect(wrapped?.entitlementMode).toBeNull()
   })
 
   it('keeps achievements title aligned with web source-of-truth key', () => {
@@ -45,8 +72,8 @@ describe('profile-navigation', () => {
   it('splits nav items between account and feature sections', () => {
     const account = PROFILE_NAV_ITEMS.filter((item) => item.section === 'account')
     const features = PROFILE_NAV_ITEMS.filter((item) => item.section === 'features')
-    expect(account).toHaveLength(2)
-    expect(features).toHaveLength(5)
+    expect(account).toHaveLength(3)
+    expect(features).toHaveLength(7)
   })
 
   it('marks locked destinations and mixed screens explicitly', () => {

@@ -2,6 +2,7 @@ import { StyleSheet, Text } from 'react-native'
 import { Download, LogOut, RotateCcw, UserX } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import { SectionLabel } from '@/components/ui/section-label'
+import { ShareCardEntryButton } from '@/components/share/share-card-entry-button'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { createTokensV2 } from '@/lib/theme'
 import { ProfileActionButton } from './profile-action-button'
@@ -9,6 +10,7 @@ import { ProfileActionButton } from './profile-action-button'
 interface ProfileAccountActionsProps {
   isExporting: boolean
   exportError: string
+  displayName?: string
   onExport: () => void
   onFreshStart: () => void
   onDeleteAccount: () => void
@@ -18,6 +20,7 @@ interface ProfileAccountActionsProps {
 export function ProfileAccountActions({
   isExporting,
   exportError,
+  displayName,
   onExport,
   onFreshStart,
   onDeleteAccount,
@@ -30,6 +33,7 @@ export function ProfileAccountActions({
   return (
     <>
       <SectionLabel>{t('profile.sections.accountActions')}</SectionLabel>
+      <ShareCardEntryButton variant="row" displayName={displayName} />
       <ProfileActionButton
         icon={Download}
         onPress={onExport}

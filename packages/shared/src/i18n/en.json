@@ -909,6 +909,71 @@
       "aboutHelpHint": "Feature guide, support, referral",
       "advancedHint": "Timezone, widget, developer tools"
     },
+    "publicProfile": {
+      "title": "Public profile",
+      "navHint": "Share your progress with a link",
+      "enable": {
+        "title": "Enable public profile",
+        "description": "Create a shareable link that shows your progress. You choose exactly what's visible."
+      },
+      "disabledHint": "Turning this off disables your link. Turning it back on creates a new one.",
+      "visibilityTitle": "What's visible",
+      "fields": {
+        "streak": {
+          "title": "Streak",
+          "description": "Your current and longest streak"
+        },
+        "level": {
+          "title": "Level",
+          "description": "Your level and title"
+        },
+        "achievements": {
+          "title": "Achievements",
+          "description": "The badges you've unlocked"
+        },
+        "topHabits": {
+          "title": "Top habits",
+          "description": "The names of your most-completed habits"
+        }
+      },
+      "link": {
+        "label": "Your public link",
+        "copy": "Copy",
+        "copied": "Copied!",
+        "share": "Share"
+      },
+      "regenerate": {
+        "button": "Generate a new link",
+        "hint": "Creating a new link breaks the old one.",
+        "confirmTitle": "Generate a new link?",
+        "confirmBody": "Your current link will stop working. Anyone who has it won't be able to see your profile.",
+        "confirm": "Generate new link",
+        "cancel": "Cancel"
+      },
+      "privacyHint": "Only the sections you turn on are visible. Your email and account details are never shared.",
+      "error": "Something went wrong. Please try again.",
+      "view": {
+        "tagline": "Habit tracking that keeps you in orbit.",
+        "dayStreakLabel": "Day streak",
+        "longestStreakLabel": "Best: {count}",
+        "level": "Level {level}",
+        "achievementsTitle": "Achievements",
+        "topHabitsTitle": "Top habits",
+        "ctaTitle": "Start your own streak",
+        "ctaBody": "Build habits, keep streaks, and level up with Orbit.",
+        "ctaButton": "Try Orbit free"
+      },
+      "meta": {
+        "title": "{name} on Orbit",
+        "titleFallback": "Public profile on Orbit",
+        "description": "See {name}'s streaks, level, and achievements on Orbit — the habit tracker that keeps you consistent."
+      },
+      "notFound": {
+        "title": "Profile not found",
+        "body": "This profile doesn't exist or is no longer public.",
+        "cta": "Discover Orbit"
+      }
+    },
     "editName": {
       "title": "Edit name",
       "label": "Name",
@@ -932,6 +997,10 @@
     "aiSummary": {
       "title": "Daily Summary",
       "description": "When enabled, Orbit generates a personalized AI summary of your day on the habits screen."
+    },
+    "proactiveAstra": {
+      "title": "Proactive check-ins",
+      "description": "Let Astra reach out with a personalized nudge when you fall behind — even if you forget to open the app."
     },
     "facts": {
       "title": "What Astra knows",
@@ -976,6 +1045,8 @@
     "logout": "Log Out",
     "retrospectiveTitle": "Retrospective",
     "retrospectiveHint": "AI insights on your habits over time",
+    "wrappedTitle": "Your Wrapped",
+    "wrappedHint": "A shareable recap of your week, month, or year",
     "widgetTitle": "Home Screen Widget",
     "widgetHint": "See your habits at a glance",
     "widgetHow": {
@@ -1086,6 +1157,93 @@
       "later": "Maybe later"
     },
     "loginBanner": "You've been invited! Sign up to get a 10% discount coupon for Pro"
+  },
+  "shareCard": {
+    "title": "Share your progress",
+    "entry": "Share progress",
+    "share": "Share",
+    "download": "Download",
+    "scanToJoin": "Scan to join Orbit",
+    "shareTitle": "My Orbit progress",
+    "shareText": "I'm building better habits with Orbit — join me!",
+    "loading": "Preparing your card…",
+    "empty": "Log a few habits first to build a card worth sharing.",
+    "error": "Couldn't load your recap. Please try again.",
+    "shareError": "Couldn't share your card. Please try again.",
+    "periods": {
+      "week": "Week",
+      "month": "Month",
+      "quarter": "Quarter",
+      "semester": "Semester",
+      "year": "Year"
+    },
+    "stats": {
+      "completionRate": "Completion",
+      "completions": "Completions",
+      "bestStreak": "Best streak",
+      "activeDays": "Active days",
+      "topHabits": "Top habits"
+    },
+    "streak": "{count}-day streak"
+  },
+  "wrapped": {
+    "title": "Orbit Wrapped",
+    "back": "Back to profile",
+    "entry": "Your Wrapped",
+    "coverEyebrow": "Orbit Wrapped",
+    "coverSubtitle": "A celebratory replay of your habits. Pick a period to begin.",
+    "start": "Start your Wrapped",
+    "close": "Close Wrapped",
+    "next": "Next",
+    "previous": "Previous",
+    "progressLabel": "Slide {current} of {total}",
+    "loading": "Preparing your Wrapped…",
+    "empty": "Log a few habits first to unlock your Wrapped.",
+    "error": "Couldn't load your Wrapped. Please try again.",
+    "retry": "Try again",
+    "periods": {
+      "week": "Week",
+      "month": "Month",
+      "year": "Year"
+    },
+    "slides": {
+      "intro": {
+        "eyebrow": "Orbit Wrapped",
+        "week": "Your week in orbit",
+        "month": "Your month in orbit",
+        "year": "Your year in orbit",
+        "caption": "Tap through your highlights."
+      },
+      "completions": {
+        "eyebrow": "Completions",
+        "label": "Habits logged",
+        "caption": "Every check-in kept you in motion."
+      },
+      "activeDays": {
+        "eyebrow": "Active days",
+        "label": "Days active",
+        "caption": "{rate} completion across the period."
+      },
+      "consistency": {
+        "eyebrow": "Your rhythm",
+        "title": "Your weekly rhythm",
+        "caption": "How your last seven days landed."
+      },
+      "streak": {
+        "eyebrow": "Best streak",
+        "label": "Best streak",
+        "caption": "Currently a {count}-day streak."
+      },
+      "topHabit": {
+        "eyebrow": "Your standout",
+        "caption": "{rate} completion — your most consistent habit."
+      },
+      "share": {
+        "eyebrow": "That's a wrap",
+        "title": "Share your Wrapped",
+        "caption": "Snapshot your recap and pull a friend into orbit."
+      }
+    }
   },
   "privacy": {
     "title": "Privacy Policy",
@@ -1658,6 +1816,12 @@
         "pro": "Included",
         "tooltip": "For bad habits, AI detects your slip patterns and sends motivational notifications before your usual slip times."
       },
+      "proactiveCheckins": {
+        "label": "Proactive check-ins",
+        "free": "No",
+        "pro": "Included",
+        "tooltip": "When you fall behind, Astra sends a personalized push to coach you back on track — even if you forget to open the app."
+      },
       "calendarImport": {
         "label": "Google Calendar",
         "free": "No",
@@ -1970,7 +2134,10 @@
       "Volume": "Volume",
       "Goals": "Goals",
       "Perfection": "Perfection",
-      "Special": "Special"
+      "Special": "Special",
+      "Social": "Social",
+      "Sharing": "Sharing",
+      "Together": "Together"
     },
     "achievements": {
       "first_orbit": {
@@ -2088,6 +2255,46 @@
       "first_cheer": {
         "name": "Good Vibes",
         "description": "Send or receive your first cheer"
+      },
+      "first_friend": {
+        "name": "First Friend",
+        "description": "Add your first friend"
+      },
+      "squad_goals": {
+        "name": "Squad Goals",
+        "description": "Reach 5 friends"
+      },
+      "cheerleader": {
+        "name": "Cheerleader",
+        "description": "Send 25 cheers"
+      },
+      "show_off": {
+        "name": "Show Off",
+        "description": "Share your first card"
+      },
+      "year_in_review": {
+        "name": "Year in Review",
+        "description": "View your first Wrapped"
+      },
+      "team_player": {
+        "name": "Team Player",
+        "description": "Join your first cooperative challenge"
+      },
+      "mission_accomplished": {
+        "name": "Mission Accomplished",
+        "description": "Complete a cooperative challenge"
+      },
+      "battle_buddy": {
+        "name": "Battle Buddy",
+        "description": "Start a 1:1 accountability pair"
+      },
+      "streak_immortal": {
+        "name": "Streak Immortal",
+        "description": "Achieve a 1000-day streak"
+      },
+      "unstoppable": {
+        "name": "Unstoppable",
+        "description": "Complete 2500 habits total"
       }
     },
     "toast": {
@@ -2574,5 +2781,128 @@
     "isAiLabel": "AI",
     "isAiTooltip": "Astra is an AI assistant. Responses are generated automatically.",
     "notMedicalAdvice": "Astra is AI and can be wrong. This is not medical or professional advice."
+  },
+  "social": {
+    "title": "Friends",
+    "profileNav": {
+      "title": "Friends",
+      "hint": "Cheer friends on and stay motivated together"
+    },
+    "tabs": {
+      "feed": "Feed",
+      "friends": "Friends"
+    },
+    "feed": {
+      "emptyTitle": "No activity yet",
+      "emptyBody": "When your friends keep streaks or hit milestones, you'll see it here.",
+      "cheersForYou": "Cheers for you",
+      "noCheers": "No cheers yet — be the first to cheer a friend on.",
+      "loadMore": "Load more",
+      "loading": "Loading…",
+      "streakMilestone": "{name} kept a {count}-day streak",
+      "achievementUnlocked": "{name} unlocked {achievement}",
+      "habitCompletedMilestone": "{name} reached {count} completions",
+      "achievementGeneric": "an achievement",
+      "cheerAction": "Cheer",
+      "cheeredYouWithNote": "{name}: {note}",
+      "cheeredYou": "{name} cheered you on"
+    },
+    "friends": {
+      "sectionTitle": "Your friends",
+      "emptyTitle": "No friends yet",
+      "emptyBody": "Add a friend by their handle or referral code to start cheering each other on.",
+      "streakLabel": "{count}-day streak",
+      "cheer": "Cheer",
+      "remove": "Remove",
+      "removeConfirmTitle": "Remove friend?",
+      "removeConfirmBody": "Remove {name} from your friends? You can always add them again later.",
+      "block": "Block",
+      "report": "Report",
+      "incomingTitle": "Friend requests",
+      "outgoingTitle": "Pending requests",
+      "accept": "Accept",
+      "decline": "Decline",
+      "cancel": "Cancel",
+      "requestedYou": "wants to be friends",
+      "youRequested": "Request sent"
+    },
+    "addFriend": {
+      "title": "Add a friend",
+      "handleLabel": "Handle",
+      "handlePlaceholder": "handle",
+      "handleHint": "3–20 letters, numbers, or underscores",
+      "referralLabel": "Referral code",
+      "referralPlaceholder": "Enter a referral code",
+      "or": "or",
+      "submit": "Send request",
+      "sending": "Sending…",
+      "success": "Friend request sent"
+    },
+    "cheer": {
+      "title": "Send a cheer",
+      "subtitle": "To {name}",
+      "notePlaceholder": "Add a note (optional)",
+      "send": "Send cheer",
+      "sending": "Sending…",
+      "success": "Cheer sent!",
+      "reactions": {
+        "clap": "Clap",
+        "fire": "Fire",
+        "muscle": "Strength",
+        "star": "Star",
+        "party": "Celebrate",
+        "heart": "Heart"
+      }
+    },
+    "optInGate": {
+      "title": "Connect with friends",
+      "body": "Turn on social to add friends, share your wins, and cheer each other on. Your habits stay private — friends only see milestones you choose to celebrate.",
+      "handleLabel": "Choose your handle",
+      "handlePlaceholder": "handle",
+      "handleHint": "3–20 letters, numbers, or underscores. Friends use this to find you.",
+      "enable": "Enable social",
+      "enabling": "Enabling…",
+      "success": "Social enabled"
+    },
+    "identity": {
+      "caption": "Friends add you by this handle",
+      "edit": "Change",
+      "editAria": "Change your handle"
+    },
+    "editHandle": {
+      "title": "Change handle",
+      "label": "Your handle",
+      "placeholder": "handle",
+      "hint": "3–20 letters, numbers, or underscores. Friends use this to find you.",
+      "success": "Handle updated"
+    },
+    "block": {
+      "confirmTitle": "Block {name}?",
+      "confirmBody": "They won't be able to send you requests or cheers, and you won't see each other's activity.",
+      "success": "User blocked"
+    },
+    "report": {
+      "title": "Report {name}",
+      "reasonLabel": "Reason",
+      "detailsLabel": "Details (optional)",
+      "detailsPlaceholder": "Tell us what happened",
+      "submit": "Submit report",
+      "success": "Report submitted. Thank you for keeping Orbit safe.",
+      "reasons": {
+        "Spam": "Spam",
+        "Harassment": "Harassment",
+        "InappropriateContent": "Inappropriate content",
+        "Impersonation": "Impersonation",
+        "Other": "Other"
+      }
+    },
+    "errors": {
+      "rateLimited": "You're doing that a lot. Please try again in a moment.",
+      "generic": "Something went wrong. Please try again.",
+      "userNotFound": "We couldn't find anyone with that handle or code.",
+      "alreadyFriends": "You're already connected with this person.",
+      "handleTaken": "That handle is taken. Try another.",
+      "friendLimitReached": "You've reached the friend limit."
+    }
   }
 }

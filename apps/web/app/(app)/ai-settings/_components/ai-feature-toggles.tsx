@@ -1,6 +1,6 @@
 'use client'
 
-import { Brain, Satellite } from 'lucide-react'
+import { BellRing, Brain, Satellite } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { SectionLabel } from '@/components/ui/section-label'
 import { SettingsRow, Switch } from '@/components/ui/settings-row'
@@ -11,20 +11,26 @@ interface AiFeatureTogglesProps {
   hasProAccess: boolean
   aiMemoryEnabled: boolean
   aiSummaryEnabled: boolean
+  proactiveAstraEnabled: boolean
   memoryPending: boolean
   summaryPending: boolean
+  proactivePending: boolean
   onToggleMemory: () => void
   onToggleSummary: () => void
+  onToggleProactive: () => void
 }
 
 export function AiFeatureToggles({
   hasProAccess,
   aiMemoryEnabled,
   aiSummaryEnabled,
+  proactiveAstraEnabled,
   memoryPending,
   summaryPending,
+  proactivePending,
   onToggleMemory,
   onToggleSummary,
+  onToggleProactive,
 }: Readonly<AiFeatureTogglesProps>) {
   const t = useTranslations()
 
@@ -64,6 +70,24 @@ export function AiFeatureToggles({
             onToggle={onToggleSummary}
             ariaLabel={t('profile.aiSummary.title')}
             disabled={summaryPending}
+          />
+        ) : (
+          <ProUpgradeLink label={t('common.proBadge')} />
+        )}
+      </SettingsRow>
+      <SettingsRow
+        icon={BellRing}
+        label={t('profile.proactiveAstra.title')}
+        desc={t('profile.proactiveAstra.description')}
+        accessory="none"
+        divider={false}
+      >
+        {hasProAccess ? (
+          <Switch
+            on={proactiveAstraEnabled}
+            onToggle={onToggleProactive}
+            ariaLabel={t('profile.proactiveAstra.title')}
+            disabled={proactivePending}
           />
         ) : (
           <ProUpgradeLink label={t('common.proBadge')} />

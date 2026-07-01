@@ -7,6 +7,9 @@ export const achievementCategorySchema = z.enum([
   'Goals',
   'Perfection',
   'Special',
+  'Social',
+  'Sharing',
+  'Together',
 ])
 
 export type AchievementCategory = z.infer<typeof achievementCategorySchema>
@@ -24,6 +27,20 @@ export const achievementSchema = z.object({
 })
 
 export type Achievement = z.infer<typeof achievementSchema>
+
+export const ACHIEVEMENT_EVENT_KEYS = {
+  cardShared: 'card_shared',
+  wrappedViewed: 'wrapped_viewed',
+} as const
+
+export type AchievementEventKey =
+  (typeof ACHIEVEMENT_EVENT_KEYS)[keyof typeof ACHIEVEMENT_EVENT_KEYS]
+
+export const reportEventResponseSchema = z.object({
+  granted: z.array(achievementSchema),
+})
+
+export type ReportEventResponse = z.infer<typeof reportEventResponseSchema>
 
 const userAchievementSchema = z.object({
   achievementId: z.string(),
@@ -86,7 +103,7 @@ export const retrospectiveMetricsSchema = z.object({
 })
 
 export const recapResponseSchema = z.object({
-  period: z.enum(['week', 'month', 'year']),
+  period: z.enum(['week', 'month', 'quarter', 'semester', 'year']),
   metrics: retrospectiveMetricsSchema,
   shareDeepLink: z.string(),
 })

@@ -37,6 +37,7 @@ export default function AiSettingsScreen() {
   const hasProAccess = profile?.hasProAccess ?? false
   const aiMemoryEnabled = hasProAccess && (profile?.aiMemoryEnabled ?? false)
   const aiSummaryEnabled = hasProAccess && (profile?.aiSummaryEnabled ?? false)
+  const proactiveAstraEnabled = hasProAccess && (profile?.proactiveAstraEnabled ?? false)
 
   const aiMemoryMutation = useMutation({
     mutationFn: (enabled: boolean) =>
@@ -90,6 +91,32 @@ export default function AiSettingsScreen() {
     },
     onSettled: () => {
       queryClient.invalidateQueries({ queryKey: habitKeys.summaryPrefix() })
+    },
+  })
+
+  const proactiveAstraMutation = useMutation({
+    mutationFn: (enabled: boolean) =>
+      performQueuedApiMutation({
+        type: 'setProactiveAstra',
+        scope: 'profile',
+        endpoint: API.profile.proactiveAstra,
+        method: 'PUT',
+        payload: { enabled },
+        dedupeKey: 'profile-proactive-astra',
+      }),
+    onMutate: (enabled) => {
+      const previous = profile?.proactiveAstraEnabled
+      patchProfile({ proactiveAstraEnabled: enabled })
+      return { previous }
+    },
+    onError: (
+      _err: unknown,
+      _enabled: boolean,
+      context: { previous?: boolean } | undefined,
+    ) => {
+      if (context?.previous !== undefined) {
+        patchProfile({ proactiveAstraEnabled: context.previous })
+      }
     },
   })
 
@@ -154,10 +181,13 @@ export default function AiSettingsScreen() {
           hasProAccess={hasProAccess}
           aiMemoryEnabled={aiMemoryEnabled}
           aiSummaryEnabled={aiSummaryEnabled}
+          proactiveAstraEnabled={proactiveAstraEnabled}
           memoryPending={aiMemoryMutation.isPending}
           summaryPending={aiSummaryMutation.isPending}
+          proactivePending={proactiveAstraMutation.isPending}
           onToggleMemory={() => aiMemoryMutation.mutate(!aiMemoryEnabled)}
           onToggleSummary={() => aiSummaryMutation.mutate(!aiSummaryEnabled)}
+          onToggleProactive={() => proactiveAstraMutation.mutate(!proactiveAstraEnabled)}
           onUpgrade={() => router.push(buildUpgradeHref('/ai-settings'))}
         />
 

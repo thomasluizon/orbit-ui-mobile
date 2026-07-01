@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { calendarAutoSyncStatusSchema } from './calendar'
+import { publicProfileSettingsSchema } from './public-profile'
 
 export const planTypeSchema = z.enum(['free', 'pro'])
 
@@ -57,6 +58,10 @@ export const profileSchema = z.object({
   hasLoggedFirstHabit: z.boolean().optional(),
   hasTriedAstra: z.boolean().optional(),
   hasCompletedOnboardingChecklist: z.boolean().optional(),
+  handle: z.string().nullable().optional(),
+  socialOptIn: z.boolean().optional(),
+  publicProfile: publicProfileSettingsSchema.optional(),
+  proactiveAstraEnabled: z.boolean().optional(),
 })
 
 export type Profile = z.infer<typeof profileSchema>
@@ -78,6 +83,12 @@ export const setAiSummaryRequestSchema = z.object({
 })
 
 export type SetAiSummaryRequest = z.infer<typeof setAiSummaryRequestSchema>
+
+export const setProactiveAstraRequestSchema = z.object({
+  enabled: z.boolean(),
+})
+
+export type SetProactiveAstraRequest = z.infer<typeof setProactiveAstraRequestSchema>
 
 export const setNameRequestSchema = z.object({
   name: z.string().trim().min(1).max(50),

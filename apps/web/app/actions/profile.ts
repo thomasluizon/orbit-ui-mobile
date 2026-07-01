@@ -6,10 +6,13 @@ import type {
   SetLanguageRequest,
   SetAiMemoryRequest,
   SetAiSummaryRequest,
+  SetProactiveAstraRequest,
   SetWeekStartDayRequest,
   SetThemePreferenceRequest,
   SetColorSchemeRequest,
   UserDataExport,
+  UpdatePublicProfileRequest,
+  PublicProfileSettings,
 } from '@orbit/shared'
 import { API } from '@orbit/shared/api'
 import { serverAuthFetch } from '@/lib/server-fetch'
@@ -44,6 +47,13 @@ export async function updateAiMemory(data: SetAiMemoryRequest): Promise<void> {
 
 export async function updateAiSummary(data: SetAiSummaryRequest): Promise<void> {
   await serverAuthFetch(API.profile.aiSummary, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  })
+}
+
+export async function updateProactiveAstra(data: SetProactiveAstraRequest): Promise<void> {
+  await serverAuthFetch(API.profile.proactiveAstra, {
     method: 'PUT',
     body: JSON.stringify(data),
   })
@@ -97,5 +107,14 @@ export async function resetAccount(): Promise<void> {
 export async function exportUserData(): Promise<UserDataExport> {
   return serverAuthFetch<UserDataExport>(API.profile.export, {
     method: 'GET',
+  })
+}
+
+export async function updatePublicProfile(
+  data: UpdatePublicProfileRequest,
+): Promise<PublicProfileSettings> {
+  return serverAuthFetch<PublicProfileSettings>(API.profile.public, {
+    method: 'PUT',
+    body: JSON.stringify(data),
   })
 }

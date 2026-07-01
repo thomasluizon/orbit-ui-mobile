@@ -395,6 +395,7 @@ export default function ProfileScreen() {
           <ProfileAccountActions
             isExporting={isExporting}
             exportError={exportError}
+            displayName={profile?.name}
             onExport={() => {
               void exportData()
             }}

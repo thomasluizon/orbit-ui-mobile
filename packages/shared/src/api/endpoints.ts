@@ -16,6 +16,7 @@ export const API = {
     weekStartDay: '/api/profile/week-start-day',
     aiMemory: '/api/profile/ai-memory',
     aiSummary: '/api/profile/ai-summary',
+    proactiveAstra: '/api/profile/proactive-astra',
     onboarding: '/api/profile/onboarding',
     tour: '/api/profile/tour',
     language: '/api/profile/language',
@@ -25,6 +26,11 @@ export const API = {
     export: '/api/profile/export',
     handle: '/api/profile/handle',
     socialOptIn: '/api/profile/social-opt-in',
+    public: '/api/profile/public',
+  },
+
+  publicProfile: {
+    bySlug: (slug: string) => `/api/u/${slug}` as const,
   },
 
   habits: {
@@ -113,6 +119,7 @@ export const API = {
     recap: '/api/gamification/recap',
     streakHistory: '/api/gamification/streak-history',
     xpHistory: '/api/gamification/xp-history',
+    reportEvent: '/api/achievements/report-event',
   },
 
   chat: {
@@ -172,6 +179,21 @@ export const API = {
     block: '/api/friends/block',
     unblock: (blockedUserId: string) => `/api/friends/block/${blockedUserId}` as const,
     report: '/api/friends/report',
+  },
+
+  challenges: {
+    create: '/api/challenges',
+    join: '/api/challenges/join',
+    leave: (id: string) => `/api/challenges/${id}/leave` as const,
+    detail: (id: string) => `/api/challenges/${id}` as const,
+  },
+
+  accountability: {
+    pairs: '/api/accountability/pairs',
+    accept: (id: string) => `/api/accountability/pairs/${id}/accept` as const,
+    end: (id: string) => `/api/accountability/pairs/${id}` as const,
+    habits: (id: string) => `/api/accountability/pairs/${id}/habits` as const,
+    checkIns: (id: string) => `/api/accountability/pairs/${id}/check-ins` as const,
   },
 
   apiKeys: {

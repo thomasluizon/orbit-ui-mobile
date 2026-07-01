@@ -81,6 +81,7 @@ export function PendingOperationCard({
   const [verificationCode, setVerificationCode] = useState("");
   const [challengeId, setChallengeId] = useState<string | null>(null);
   const [confirmationToken, setConfirmationToken] = useState<string | null>(null);
+  const [dismissed, setDismissed] = useState(false);
 
   const needsStepUp = pendingOperation.confirmationRequirement === "StepUp";
   const riskLabel = t(getRiskLabelKey(pendingOperation.riskClass));
@@ -152,6 +153,10 @@ export function PendingOperationCard({
     }
   }
 
+  if (dismissed) {
+    return null;
+  }
+
   return (
     <View style={styles.card}>
       <View style={styles.header}>
@@ -197,20 +202,31 @@ export function PendingOperationCard({
       ) : null}
 
       {!challengeId && !successMessage ? (
-        <PillButton
-          style={styles.compactPill}
-          disabled={isLoading}
-          onPress={() => {
-            void handleStart();
-          }}
-          leading={
-            isLoading ? <ActivityIndicator size="small" color={tokens.fgOnPrimary} /> : undefined
-          }
-        >
-          <Text style={styles.primaryPillLabel}>
-            {needsStepUp ? t("auth.sendCode") : t("common.confirm")}
-          </Text>
-        </PillButton>
+        <View style={styles.actions}>
+          <PillButton
+            style={styles.confirmPill}
+            disabled={isLoading}
+            onPress={() => {
+              void handleStart();
+            }}
+            leading={
+              isLoading ? <ActivityIndicator size="small" color={tokens.fgOnPrimary} /> : undefined
+            }
+          >
+            <Text style={styles.primaryPillLabel}>
+              {needsStepUp ? t("auth.sendCode") : t("common.confirm")}
+            </Text>
+          </PillButton>
+          <PillButton
+            variant="ghost"
+            style={styles.cancelPill}
+            disabled={isLoading}
+            accessibilityLabel={t("common.cancel")}
+            onPress={() => setDismissed(true)}
+          >
+            <Text style={styles.cancelPillLabel}>{t("common.cancel")}</Text>
+          </PillButton>
+        </View>
       ) : null}
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
@@ -284,6 +300,23 @@ function createStyles(tokens: AppTokens) {
     compactPill: {
       paddingVertical: 11,
       alignSelf: "stretch",
+    },
+    actions: {
+      flexDirection: "row",
+      gap: 8,
+    },
+    confirmPill: {
+      flex: 1,
+      paddingVertical: 11,
+    },
+    cancelPill: {
+      paddingVertical: 11,
+      paddingHorizontal: 18,
+    },
+    cancelPillLabel: {
+      fontFamily: 'Rubik_500Medium',
+      fontSize: 14,
+      color: tokens.fg1,
     },
     primaryPillLabel: {
       fontFamily: 'Rubik_500Medium',
