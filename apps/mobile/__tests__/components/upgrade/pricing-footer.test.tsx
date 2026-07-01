@@ -44,7 +44,7 @@ describe('PricingFooter (mobile)', () => {
     const rendered = texts(tree)
     expect(rendered).toContain('upgrade.convert.freeCta')
     expect(rendered).toContain('Pro Yearly · $49.99/yr')
-    expect(rendered).toContain('upgrade.convert.noCardCancel')
+    expect(rendered).toContain('upgrade.convert.cancelAnytime')
   })
 
   it('checks out the selected interval', () => {

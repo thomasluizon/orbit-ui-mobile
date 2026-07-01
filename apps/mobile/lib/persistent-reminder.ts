@@ -93,21 +93,16 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null
 }
 
-function isChildCompleted(value: unknown): boolean {
+function isCompletedItem(value: unknown): boolean {
   return isRecord(value) && value.isCompleted === true
-}
-
-function isTopLevelDone(item: Record<string, unknown>): boolean {
-  if (item.isCompleted === true) return true
-  const children = item.children
-  if (!Array.isArray(children) || children.length === 0) return false
-  return children.every(isChildCompleted)
 }
 
 /**
  * Projects the widget feed payload into the streak + today's progress the
- * reminder displays, mirroring the widget's own "completed of top-level" math.
- * Returns null when the payload is not a feed object.
+ * reminder displays. Counts each sub-habit as its own item — a parent with
+ * children contributes its children (Orbit treats the parent as a container
+ * done when its children are), a childless habit counts as one — so the total
+ * matches the Today list. Returns null when the payload is not a feed object.
  */
 export function extractReminderFeed(data: unknown): ReminderFeed | null {
   if (!isRecord(data)) return null
@@ -115,9 +110,21 @@ export function extractReminderFeed(data: unknown): ReminderFeed | null {
   const rawItems = data.items
   const items = Array.isArray(rawItems) ? rawItems.filter(isRecord) : []
   const streak = typeof data.currentStreak === 'number' ? data.currentStreak : 0
-  const completed = items.filter(isTopLevelDone).length
 
-  return { streak, completed, total: items.length }
+  let total = 0
+  let completed = 0
+  for (const item of items) {
+    const children = Array.isArray(item.children) ? item.children.filter(isRecord) : []
+    if (children.length > 0) {
+      total += children.length
+      completed += children.filter(isCompletedItem).length
+    } else {
+      total += 1
+      if (item.isCompleted === true) completed += 1
+    }
+  }
+
+  return { streak, completed, total }
 }
 
 /**

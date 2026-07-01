@@ -32,7 +32,7 @@ export default function SocialScreen() {
     newPairHabitId?: string
   }>()
   const [tab, setTab] = useState<SocialTab>(
-    tabParam === 'buddies' ? 'buddies' : 'feed',
+    tabParam === 'buddies' || tabParam === 'friends' ? tabParam : 'feed',
   )
   const [cheerTarget, setCheerTarget] = useState<CheerTarget | null>(null)
 
@@ -65,7 +65,7 @@ export default function SocialScreen() {
             showsVerticalScrollIndicator={false}
           >
             {tab === 'feed' ? (
-              <SocialFeed onCheer={setCheerTarget} />
+              <SocialFeed onCheer={setCheerTarget} onAddFriends={() => setTab('friends')} />
             ) : tab === 'friends' ? (
               <SocialFriends onCheer={setCheerTarget} />
             ) : (

@@ -48,7 +48,7 @@ export function PricingFooter({
       >
         {ctaLabel}
       </PillButton>
-      <Text style={[styles.footerTerms, { color: tokens.fg3 }]}>{t('upgrade.convert.noCardCancel')}</Text>
+      <Text style={[styles.footerTerms, { color: tokens.fg3 }]}>{t('upgrade.convert.cancelAnytime')}</Text>
     </View>
   )
 }

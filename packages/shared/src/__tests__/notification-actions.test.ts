@@ -49,6 +49,12 @@ describe('notification-actions', () => {
     expect(getNotificationGlyph({ url: '/profile', habitId: null })).toBe('celebration')
   })
 
+  it('maps social deep-links to their dedicated glyphs', () => {
+    expect(getNotificationGlyph({ url: '/social?tab=friends', habitId: null })).toBe('friend')
+    expect(getNotificationGlyph({ url: '/social?tab=feed', habitId: null })).toBe('cheer')
+    expect(getNotificationGlyph({ url: '/social?tab=buddies', habitId: null })).toBe('buddy')
+  })
+
   it('falls back to the reminder glyph for habit notifications', () => {
     expect(getNotificationGlyph({ url: '/', habitId: 'habit-1' })).toBe('reminder')
     expect(getNotificationGlyph({ url: '/calendar-sync', habitId: null })).toBe('reminder')

@@ -1,7 +1,8 @@
 import { useState } from 'react'
-import { StyleSheet, Text, View } from 'react-native'
+import { StyleSheet, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { UserPlus } from 'lucide-react-native'
+import { EmptyState } from '@/components/ui/empty-state'
 import { SectionLabel } from '@/components/ui/section-label'
 import { PillButton } from '@/components/ui/pill-button'
 import { useAccountabilityPairs } from '@/hooks/use-accountability'
@@ -20,7 +21,6 @@ export function AccountabilitySection({ initialHabitId }: Readonly<Accountabilit
   const { t } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
-  const styles = createStyles(tokens)
   const { data } = useAccountabilityPairs()
   const [newPairOpen, setNewPairOpen] = useState(() => Boolean(initialHabitId))
 
@@ -60,10 +60,15 @@ export function AccountabilitySection({ initialHabitId }: Readonly<Accountabilit
 
       <SectionLabel>{t('social.buddies.activeTitle')}</SectionLabel>
       {activePairs.length === 0 ? (
-        <View style={styles.empty}>
-          <Text style={styles.emptyTitle}>{t('social.buddies.emptyTitle')}</Text>
-          <Text style={styles.emptyBody}>{t('social.buddies.emptyBody')}</Text>
-        </View>
+        <EmptyState
+          title={t('social.buddies.emptyTitle')}
+          description={t('social.buddies.emptyBody')}
+          action={{
+            label: t('social.buddies.newPairCta'),
+            onPress: () => setNewPairOpen(true),
+            variant: 'secondary',
+          }}
+        />
       ) : (
         activePairs.map((pair) => <BuddyRow key={pair.id} pair={pair} />)
       )}
@@ -77,23 +82,7 @@ export function AccountabilitySection({ initialHabitId }: Readonly<Accountabilit
   )
 }
 
-function createStyles(tokens: ReturnType<typeof createTokensV2>) {
-  return StyleSheet.create({
-    container: { paddingBottom: 24 },
-    ctaBlock: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 8 },
-    empty: { alignItems: 'center', paddingHorizontal: 32, paddingVertical: 40, gap: 8 },
-    emptyTitle: {
-      fontFamily: 'Rubik_600SemiBold',
-      fontSize: 17,
-      color: tokens.fg1,
-      textAlign: 'center',
-    },
-    emptyBody: {
-      fontFamily: 'Rubik_400Regular',
-      fontSize: 14,
-      lineHeight: 21,
-      color: tokens.fg3,
-      textAlign: 'center',
-    },
-  })
-}
+const styles = StyleSheet.create({
+  container: { paddingBottom: 24 },
+  ctaBlock: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 8 },
+})

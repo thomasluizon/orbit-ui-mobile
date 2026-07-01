@@ -596,7 +596,7 @@
       "askAstraDefault": "Quer um olhar sobre este hábito?",
       "askAstraSeedSubHabits": "Me ajuda a dividir o hábito \"{title}\" em sub-hábitos menores.",
       "askAstraSeedDefault": "Como estou indo no hábito \"{title}\"? Me dá sua análise e uma dica para melhorar.",
-      "addAccountabilityBuddy": "Adicionar parceiro de responsabilidade"
+      "copyDescription": "Copiar descrição"
     },
     "filter": {
       "daily": "Diário",
@@ -1847,7 +1847,6 @@
       "freeCta": "Assinar Pro",
       "trustLine": "Nenhum cartão foi cobrado, você voltou ao plano grátis automaticamente.",
       "cancelAnytime": "Cancele quando quiser",
-      "noCardCancel": "Sem cartão · Cancele quando quiser",
       "stayFree": "Continuar grátis"
     },
     "matrix": {
@@ -2794,9 +2793,16 @@
       "friends": "Amigos",
       "buddies": "Parceiros"
     },
+    "today": {
+      "entryTitle": "Conecte-se com amigos",
+      "entrySubtitle": "Incentive amigos e formem duplas",
+      "requestsTitle": "Pedidos de amizade",
+      "requestsSubtitle": "{count} pedido esperando você | {count} pedidos esperando você"
+    },
     "feed": {
       "emptyTitle": "Nenhuma atividade ainda",
       "emptyBody": "Quando seus amigos mantiverem sequências ou atingirem marcos, você verá aqui.",
+      "emptyCta": "Adicionar amigos",
       "cheersForYou": "Incentivos para você",
       "noCheers": "Nenhum incentivo ainda — seja o primeiro a incentivar um amigo.",
       "loadMore": "Carregar mais",
@@ -2815,6 +2821,7 @@
       "emptyBody": "Adicione um amigo pelo nome de usuário ou código de indicação para começarem a se incentivar.",
       "streakLabel": "Sequência de {count} dias",
       "cheer": "Incentivar",
+      "viewProfile": "Ver perfil",
       "remove": "Remover",
       "removeConfirmTitle": "Remover amigo?",
       "removeConfirmBody": "Remover {name} dos seus amigos? Você pode adicioná-lo de novo depois.",
@@ -2830,6 +2837,7 @@
     },
     "buddies": {
       "newPairCta": "Nova dupla",
+      "pairThisHabit": "Formar dupla",
       "incomingTitle": "Convites de parceria",
       "outgoingTitle": "Convites pendentes",
       "activeTitle": "Seus parceiros",
@@ -2852,6 +2860,10 @@
       "noHabits": "Você ainda não tem hábitos.",
       "habitsHint": "Escolha de 1 a 10 hábitos",
       "habitCount": "{count} selecionado(s)",
+      "searchHabits": "Buscar seus hábitos",
+      "noHabitMatch": "Nenhum hábito corresponde à busca",
+      "moreHabits": "Mais {count}. Continue digitando para refinar.",
+      "removeHabit": "Remover {title}",
       "checkInTitle": "Registrar",
       "checkInNotePlaceholder": "Adicione uma nota (opcional)",
       "checkInSubmit": "Registrar",
@@ -2862,7 +2874,9 @@
       "newPair": {
         "title": "Nova dupla de responsabilidade",
         "friendLabel": "Escolha um amigo",
+        "searchFriends": "Buscar amigos",
         "noFriends": "Adicione um amigo primeiro para formar dupla.",
+        "noFriendMatch": "Nenhum amigo corresponde à busca",
         "cadenceLabel": "Frequência de registro",
         "habitsLabel": "Seus hábitos para acompanhar",
         "submit": "Enviar convite",
@@ -2906,6 +2920,18 @@
       "submit": "Enviar pedido",
       "sending": "Enviando…",
       "success": "Pedido de amizade enviado"
+    },
+    "invite": {
+      "title": "Convide amigos para o Orbit",
+      "subtitle": "Compartilhe seu link — vocês dois ganham um cupom de desconto no Pro.",
+      "scanHint": "Escaneie para entrar no Orbit",
+      "copy": "Copiar",
+      "copied": "Copiado!",
+      "share": "Compartilhar link",
+      "shareText": "Estou usando o Orbit para criar hábitos melhores. Venha comigo!"
+    },
+    "friendProfile": {
+      "unavailable": "Este perfil não está disponível."
     },
     "cheer": {
       "title": "Enviar incentivo",

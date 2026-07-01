@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { API } from '@orbit/shared/api'
 import { cheerKeys, friendKeys } from '@orbit/shared/query'
 
-import { useCheers, useFriendFeed, useFriends, useSendCheer } from '@/hooks/use-friends'
+import { useCheers, useFriendFeed, useFriendProfile, useFriends, useSendCheer } from '@/hooks/use-friends'
 
 const TestRenderer = require('react-test-renderer')
 
@@ -24,7 +24,7 @@ vi.mock('@tanstack/react-query', () => ({
   },
   useInfiniteQuery: (options: {
     queryKey: readonly unknown[]
-    queryFn: (context: { pageParam: unknown }) => unknown
+    queryFn: (context?: { pageParam?: unknown }) => unknown
   }) => {
     mocks.queries.push(options)
     return { data: undefined, isLoading: false }
@@ -77,6 +77,23 @@ describe('useFriends hooks (mobile)', () => {
     expect(mocks.apiClient).toHaveBeenCalledWith(
       expect.stringContaining('/api/friends/feed?pageSize=20'),
     )
+  })
+
+  it('keys the friend profile query by userId and fetches the profile endpoint', async () => {
+    renderHook(() => useFriendProfile('user-1'))
+    const query = mocks.queries.at(-1)!
+    expect(query.queryKey).toEqual(friendKeys.profile('user-1'))
+
+    mocks.apiClient.mockResolvedValue({
+      userId: '11111111-1111-1111-1111-111111111111',
+      handle: 'grace_h',
+      displayName: 'Grace Hopper',
+      currentStreak: 12,
+      level: 4,
+      achievements: [],
+    })
+    await query.queryFn()
+    expect(mocks.apiClient).toHaveBeenCalledWith('/api/friends/user-1/profile')
   })
 
   it('keys the cheers query by direction and fetches received cheers', async () => {

@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { publicAchievementSchema } from './public-profile'
 
 export const reportReasonSchema = z.enum([
   'Spam',
@@ -127,3 +128,14 @@ export const reportUserRequestSchema = z.object({
 })
 
 export type ReportUserRequest = z.infer<typeof reportUserRequestSchema>
+
+export const friendProfileViewSchema = z.object({
+  userId: z.string(),
+  handle: z.string(),
+  displayName: z.string(),
+  currentStreak: z.number(),
+  level: z.number(),
+  achievements: z.array(publicAchievementSchema),
+})
+
+export type FriendProfileView = z.infer<typeof friendProfileViewSchema>

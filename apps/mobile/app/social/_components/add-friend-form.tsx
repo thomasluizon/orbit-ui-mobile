@@ -8,6 +8,7 @@ import { useAppToast } from '@/hooks/use-app-toast'
 import { useSendFriendRequest } from '@/hooks/use-friends'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
+import { InviteHero } from './invite-hero'
 
 /** Add a friend by handle or referral code; sends whichever field the user filled. */
 export function AddFriendForm() {
@@ -41,6 +42,7 @@ export function AddFriendForm() {
 
   return (
     <View style={styles.container}>
+      <InviteHero />
       <Text style={styles.label}>{t('social.addFriend.handleLabel')}</Text>
       <AppTextInput
         value={handle}

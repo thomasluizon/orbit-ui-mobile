@@ -94,7 +94,7 @@ describe('upgrade utils', () => {
       'upgrade.convert.freeCta',
       'upgrade.convert.trustLine',
       'upgrade.convert.stayFree',
-      'upgrade.convert.noCardCancel',
+      'upgrade.convert.cancelAnytime',
       'upgrade.plans.free.note',
       'upgrade.plans.monthly.note',
       'upgrade.plans.yearly.heroLine',

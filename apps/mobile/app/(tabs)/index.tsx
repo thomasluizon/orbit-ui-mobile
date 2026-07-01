@@ -56,6 +56,7 @@ import { TrialBanner } from "@/components/ui/trial-banner";
 import { TodayHabitsHeader } from "@/components/today/today-habits-header";
 import { ReviewReminderCard } from "@/components/review-reminder-card";
 import { ReferralCard } from "@/components/referral/referral-card";
+import { SocialEntryCard } from "@/components/social/social-entry-card";
 import { ReferralDrawer } from "@/components/referral/referral-drawer";
 import { SetupChecklistCard } from "@/components/today/setup-checklist-card";
 import { useHorizontalSwipe } from "@/hooks/use-horizontal-swipe";
@@ -853,6 +854,10 @@ export default function TodayScreen() {
             onOpen={() => setShowReferral(true)}
             onDismiss={dismissHomeEntry}
           />
+        ) : null}
+
+        {currentActiveView === "today" && isToday(selectedDate) ? (
+          <SocialEntryCard />
         ) : null}
 
         <TodayTabs

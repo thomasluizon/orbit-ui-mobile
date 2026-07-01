@@ -2,7 +2,7 @@
 
 import { useState } from 'react'
 import { useTranslations } from 'next-intl'
-import { Check } from 'lucide-react'
+import { Check, Search, X } from 'lucide-react'
 import type { AccountabilityCadence } from '@orbit/shared/types/accountability'
 import { getAccountabilityErrorKey } from '@orbit/shared/utils'
 import { AppOverlay } from '@/components/ui/app-overlay'
@@ -14,6 +14,7 @@ import { useInviteAccountabilityBuddy } from '@/hooks/use-accountability'
 import { HabitMultiSelect } from './habit-multi-select'
 
 const CADENCES: AccountabilityCadence[] = ['Daily', 'Weekly']
+const FRIEND_SEARCH_THRESHOLD = 6
 
 interface NewPairFlowProps {
   open: boolean
@@ -28,7 +29,7 @@ const fieldLabelStyle = {
   color: 'var(--fg-2)',
 } as const
 
-/** Bottom-sheet flow to invite a friend: pick friend, pick cadence, pick 1–10 of your habits. */
+/** Overlay flow to invite a friend: pick friend, pick cadence, pick 1–10 of your habits. */
 export function NewPairFlow({ open, onOpenChange, initialHabitId }: Readonly<NewPairFlowProps>) {
   const t = useTranslations()
   const { showSuccess, showError } = useAppToast()
@@ -39,6 +40,16 @@ export function NewPairFlow({ open, onOpenChange, initialHabitId }: Readonly<New
   const [buddyUserId, setBuddyUserId] = useState<string | null>(null)
   const [cadence, setCadence] = useState<AccountabilityCadence>('Daily')
   const [habitIds, setHabitIds] = useState<string[]>(initialHabitId ? [initialHabitId] : [])
+  const [friendQuery, setFriendQuery] = useState('')
+
+  const friendSearch = friendQuery.trim().toLowerCase()
+  const visibleFriends = friendSearch
+    ? friends.filter(
+        (friend) =>
+          friend.displayName.toLowerCase().includes(friendSearch) ||
+          friend.handle.toLowerCase().includes(friendSearch),
+      )
+    : friends
 
   const canSubmit =
     buddyUserId !== null && habitIds.length >= 1 && habitIds.length <= 10 && !invite.isPending
@@ -47,6 +58,7 @@ export function NewPairFlow({ open, onOpenChange, initialHabitId }: Readonly<New
     setBuddyUserId(null)
     setCadence('Daily')
     setHabitIds(initialHabitId ? [initialHabitId] : [])
+    setFriendQuery('')
   }
 
   async function handleSubmit() {
@@ -84,44 +96,85 @@ export function NewPairFlow({ open, onOpenChange, initialHabitId }: Readonly<New
               {t('social.buddies.newPair.noFriends')}
             </p>
           ) : (
-            <div className="flex flex-col" style={{ gap: 6, maxHeight: 220, overflowY: 'auto' }}>
-              {friends.map((friend) => {
-                const active = friend.userId === buddyUserId
-                return (
-                  <button
-                    key={friend.userId}
-                    type="button"
-                    aria-pressed={active}
-                    onClick={() => setBuddyUserId(friend.userId)}
-                    className="flex items-center cursor-pointer"
-                    style={{
-                      gap: 12,
-                      padding: '10px 12px',
-                      borderRadius: 14,
-                      border: 0,
-                      textAlign: 'left',
-                      background: active ? 'rgba(var(--primary-rgb), 0.12)' : 'var(--bg-elev)',
-                      boxShadow: active
-                        ? 'inset 0 0 0 1px var(--primary)'
-                        : 'inset 0 0 0 1px var(--hairline)',
-                    }}
-                  >
-                    <UserAvatar name={friend.displayName} />
-                    <span
-                      className="flex-1 min-w-0 truncate"
-                      style={{
-                        fontFamily: 'var(--font-sans)',
-                        fontSize: 15,
-                        fontWeight: 500,
-                        color: active ? 'var(--primary)' : 'var(--fg-1)',
-                      }}
+            <div className="flex flex-col" style={{ gap: 6 }}>
+              {friends.length > FRIEND_SEARCH_THRESHOLD ? (
+                <div
+                  className="flex items-center"
+                  style={{
+                    gap: 8,
+                    padding: '0 12px',
+                    height: 44,
+                    borderRadius: 14,
+                    background: 'var(--bg-sunk)',
+                    boxShadow: 'inset 0 0 0 1px var(--hairline)',
+                  }}
+                >
+                  <Search size={16} strokeWidth={2} style={{ color: 'var(--fg-3)', flexShrink: 0 }} />
+                  <input
+                    value={friendQuery}
+                    onChange={(event) => setFriendQuery(event.target.value)}
+                    placeholder={t('social.buddies.newPair.searchFriends')}
+                    className="flex-1 min-w-0 bg-transparent outline-none"
+                    style={{ fontFamily: 'var(--font-sans)', fontSize: 15, color: 'var(--fg-1)' }}
+                  />
+                  {friendQuery.length > 0 ? (
+                    <button
+                      type="button"
+                      onClick={() => setFriendQuery('')}
+                      aria-label={t('common.clear')}
+                      className="flex cursor-pointer"
+                      style={{ border: 0, background: 'transparent', color: 'var(--fg-3)' }}
                     >
-                      {friend.displayName}
-                    </span>
-                    {active ? <Check size={18} strokeWidth={2} color="var(--primary)" /> : null}
-                  </button>
-                )
-              })}
+                      <X size={15} strokeWidth={2} />
+                    </button>
+                  ) : null}
+                </div>
+              ) : null}
+              {visibleFriends.length === 0 ? (
+                <p style={{ margin: 0, fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--fg-3)' }}>
+                  {t('social.buddies.newPair.noFriendMatch')}
+                </p>
+              ) : (
+                <div className="flex flex-col" style={{ gap: 6, maxHeight: 260, overflowY: 'auto' }}>
+                  {visibleFriends.map((friend) => {
+                    const active = friend.userId === buddyUserId
+                    return (
+                      <button
+                        key={friend.userId}
+                        type="button"
+                        aria-pressed={active}
+                        onClick={() => setBuddyUserId(friend.userId)}
+                        className="flex items-center cursor-pointer transition-transform active:scale-[0.99]"
+                        style={{
+                          gap: 12,
+                          padding: '10px 12px',
+                          borderRadius: 14,
+                          border: 0,
+                          textAlign: 'left',
+                          background: active ? 'rgba(var(--primary-rgb), 0.12)' : 'var(--bg-elev)',
+                          boxShadow: active
+                            ? 'inset 0 0 0 1px var(--primary)'
+                            : 'inset 0 0 0 1px var(--hairline)',
+                        }}
+                      >
+                        <UserAvatar name={friend.displayName} />
+                        <span
+                          className="flex-1 min-w-0 truncate"
+                          style={{
+                            fontFamily: 'var(--font-sans)',
+                            fontSize: 15,
+                            fontWeight: 500,
+                            color: active ? 'var(--primary)' : 'var(--fg-1)',
+                          }}
+                        >
+                          {friend.displayName}
+                        </span>
+                        {active ? <Check size={18} strokeWidth={2} color="var(--primary)" /> : null}
+                      </button>
+                    )
+                  })}
+                </div>
+              )}
             </div>
           )}
         </div>
@@ -137,7 +190,7 @@ export function NewPairFlow({ open, onOpenChange, initialHabitId }: Readonly<New
                   type="button"
                   aria-pressed={active}
                   onClick={() => setCadence(option)}
-                  className="flex-1 cursor-pointer"
+                  className="flex-1 cursor-pointer transition-transform active:scale-[0.98]"
                   style={{
                     padding: '10px 14px',
                     borderRadius: 999,

@@ -16,6 +16,7 @@ import { SettingsGroup, SettingsGroupRow } from '@/components/ui/settings-group'
 import { UserAvatar } from '@/components/ui/user-avatar'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useBlockUser, useRemoveFriend, useReportUser } from '@/hooks/use-friends'
+import { FriendProfileView } from './friend-profile-view'
 import type { CheerTarget } from './cheer-composer'
 
 interface FriendRowProps {
@@ -116,6 +117,7 @@ export function FriendRow({ friend, onCheer }: Readonly<FriendRowProps>) {
   const blockUser = useBlockUser()
   const reportUser = useReportUser()
   const [actionsOpen, setActionsOpen] = useState(false)
+  const [profileOpen, setProfileOpen] = useState(false)
   const [confirmRemove, setConfirmRemove] = useState(false)
   const [confirmBlock, setConfirmBlock] = useState(false)
   const [reportOpen, setReportOpen] = useState(false)
@@ -132,18 +134,26 @@ export function FriendRow({ friend, onCheer }: Readonly<FriendRowProps>) {
   return (
     <>
       <div className="flex items-center" style={{ gap: 12, padding: '12px 20px' }}>
-        <UserAvatar name={friend.displayName} />
-        <div className="flex-1 min-w-0">
-          <p
-            className="truncate"
-            style={{ margin: 0, fontFamily: 'var(--font-sans)', fontSize: 15, fontWeight: 500, color: 'var(--fg-1)' }}
-          >
-            {friend.displayName}
-          </p>
-          <p style={{ margin: 0, fontFamily: 'var(--font-sans)', fontSize: 13, color: 'var(--fg-3)' }}>
-            {t('social.friends.streakLabel', { count: friend.currentStreak })}
-          </p>
-        </div>
+        <button
+          type="button"
+          aria-label={t('social.friends.viewProfile')}
+          onClick={() => setProfileOpen(true)}
+          className="flex min-w-0 flex-1 cursor-pointer appearance-none items-center border-0 bg-transparent p-0 text-left transition-opacity active:opacity-70"
+          style={{ gap: 12 }}
+        >
+          <UserAvatar name={friend.displayName} />
+          <span className="flex min-w-0 flex-1 flex-col">
+            <span
+              className="truncate"
+              style={{ fontFamily: 'var(--font-sans)', fontSize: 15, fontWeight: 500, color: 'var(--fg-1)' }}
+            >
+              {friend.displayName}
+            </span>
+            <span style={{ fontFamily: 'var(--font-sans)', fontSize: 13, color: 'var(--fg-3)' }}>
+              {t('social.friends.streakLabel', { count: friend.currentStreak })}
+            </span>
+          </span>
+        </button>
         <button
           type="button"
           onClick={() => onCheer({ recipientId: friend.userId, displayName: friend.displayName })}
@@ -173,6 +183,14 @@ export function FriendRow({ friend, onCheer }: Readonly<FriendRowProps>) {
 
       <AppOverlay open={actionsOpen} onOpenChange={setActionsOpen} title={friend.displayName}>
         <SettingsGroup>
+          <SettingsGroupRow
+            label={t('social.friends.viewProfile')}
+            accessory="none"
+            onClick={() => {
+              setActionsOpen(false)
+              setProfileOpen(true)
+            }}
+          />
           <SettingsGroupRow
             label={t('social.friends.remove')}
             accessory="none"
@@ -236,6 +254,13 @@ export function FriendRow({ friend, onCheer }: Readonly<FriendRowProps>) {
           )
           setReportOpen(false)
         }}
+      />
+
+      <FriendProfileView
+        userId={friend.userId}
+        displayName={friend.displayName}
+        open={profileOpen}
+        onOpenChange={setProfileOpen}
       />
     </>
   )

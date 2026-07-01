@@ -37,6 +37,7 @@ vi.mock('sonner', () => ({ toast: { error: vi.fn(), success: vi.fn() } }))
 
 vi.mock('@/components/ui/app-bar', () => ({ AppBar: () => null }))
 vi.mock('@/components/ui/gradient-top', () => ({ GradientTop: () => null }))
+vi.mock('@/app/(app)/social/_components/invite-hero', () => ({ InviteHero: () => null }))
 
 vi.mock('@/components/ui/app-overlay', () => ({
   AppOverlay: ({
@@ -63,6 +64,7 @@ vi.mock('@/hooks/use-profile', () => ({
 vi.mock('@/hooks/use-friends', () => ({
   useFriends: () => mocks.friendsReturn,
   useFriendFeed: () => mocks.feedReturn,
+  useFriendProfile: () => ({ data: undefined, isLoading: false, isError: false }),
   useCheers: () => mocks.cheersReturn,
   useSendFriendRequest: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useAcceptFriendRequest: () => ({ mutateAsync: mocks.acceptMutate, isPending: false }),

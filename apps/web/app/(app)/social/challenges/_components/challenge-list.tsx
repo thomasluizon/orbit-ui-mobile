@@ -3,6 +3,7 @@
 import { useTranslations } from 'next-intl'
 import type { ChallengeListItem } from '@orbit/shared/types/challenge'
 import { PillButton } from '@/components/ui/pill-button'
+import { SatelliteGlyph } from '@/components/ui/satellite-glyph'
 import { SectionLabel } from '@/components/ui/section-label'
 import { ChallengeCard } from './challenge-card'
 
@@ -22,6 +23,7 @@ export function ChallengeList({ challenges, onOpen, onCreate, onJoin }: Readonly
   if (challenges.length === 0) {
     return (
       <div className="flex flex-col items-center px-8 py-12 text-center" style={{ gap: 12 }}>
+        <SatelliteGlyph />
         <p style={{ margin: 0, fontFamily: 'var(--font-sans)', fontSize: 17, fontWeight: 600, color: 'var(--fg-1)' }}>
           {t('challenges.empty.title')}
         </p>

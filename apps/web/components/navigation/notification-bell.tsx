@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useMemo, useState, useSyncExternalStore } from 'react'
-import { Bell, BellOff, CheckCheck, Flame, Sparkles, Trash2, Trophy, X } from 'lucide-react'
+import { Bell, BellOff, CheckCheck, Flame, Heart, Sparkles, Trash2, Trophy, UserPlus, Users, X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import {
   formatNotificationRelativeTime,
@@ -32,6 +32,9 @@ const glyphIconMap = {
   streak: Flame,
   celebration: Trophy,
   astra: Sparkles,
+  friend: UserPlus,
+  cheer: Heart,
+  buddy: Users,
   reminder: Bell,
 } as const
 
@@ -39,6 +42,9 @@ const glyphColorMap: Record<NotificationGlyph, string> = {
   streak: 'var(--status-overdue)',
   celebration: 'var(--primary-soft)',
   astra: 'var(--primary-soft)',
+  friend: 'var(--primary-soft)',
+  cheer: 'var(--primary-soft)',
+  buddy: 'var(--primary-soft)',
   reminder: 'var(--fg-3)',
 }
 

@@ -16,6 +16,9 @@ import TodayScreen, {
 vi.mock("@/components/referral/referral-card", () => ({
   ReferralCard: () => null,
 }));
+vi.mock("@/components/social/social-entry-card", () => ({
+  SocialEntryCard: () => null,
+}));
 vi.mock("@/components/referral/referral-drawer", () => ({
   ReferralDrawer: () => null,
 }));

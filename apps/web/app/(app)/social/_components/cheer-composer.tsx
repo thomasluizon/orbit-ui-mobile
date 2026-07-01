@@ -87,12 +87,11 @@ export function CheerComposer({ target, onClose }: Readonly<CheerComposerProps>)
               type="button"
               aria-label={t(reaction.labelKey)}
               onClick={() => appendReaction(reaction.emoji)}
-              className="inline-flex items-center justify-center rounded-full transition-transform active:scale-95"
+              className="inline-flex cursor-pointer items-center justify-center rounded-full bg-[var(--bg-elev)] transition-transform hover:bg-[rgba(var(--primary-rgb),0.12)] active:scale-[0.96]"
               style={{
                 width: 48,
                 height: 48,
                 fontSize: 24,
-                background: 'var(--bg-elev)',
                 boxShadow: 'inset 0 0 0 1px var(--hairline)',
               }}
             >

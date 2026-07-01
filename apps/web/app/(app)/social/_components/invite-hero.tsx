@@ -1,0 +1,135 @@
+'use client'
+
+import { useState } from 'react'
+import { useTranslations } from 'next-intl'
+import { Check, Copy, Share2 } from 'lucide-react'
+import { ShareCardQr } from '@/components/share/share-card-qr'
+import { useReferral } from '@/hooks/use-referral'
+
+/** Invite-link hero on the add-friend surface: the user's referral link with a QR, copy, and
+ *  (where supported) native share — a low-friction way to pull a friend into Orbit. */
+export function InviteHero() {
+  const t = useTranslations()
+  const { referralUrl } = useReferral()
+  const [copied, setCopied] = useState(false)
+
+  if (!referralUrl) return null
+
+  const canShare = typeof navigator !== 'undefined' && typeof navigator.share === 'function'
+
+  async function copyLink() {
+    try {
+      await navigator.clipboard.writeText(referralUrl)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch {
+      setCopied(false)
+    }
+  }
+
+  async function shareLink() {
+    try {
+      await navigator.share({
+        title: t('social.invite.title'),
+        text: t('social.invite.shareText'),
+        url: referralUrl,
+      })
+    } catch {}
+  }
+
+  return (
+    <div
+      className="flex flex-col items-center text-center"
+      style={{
+        borderRadius: 18,
+        background: 'var(--bg-elev)',
+        boxShadow: 'inset 0 0 0 1px var(--hairline)',
+        padding: '20px 18px',
+        gap: 14,
+      }}
+    >
+      <div className="flex flex-col" style={{ gap: 4 }}>
+        <h3 style={{ margin: 0, fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 600, color: 'var(--fg-1)' }}>
+          {t('social.invite.title')}
+        </h3>
+        <p style={{ margin: 0, fontFamily: 'var(--font-sans)', fontSize: 13, lineHeight: 1.5, color: 'var(--fg-3)' }}>
+          {t('social.invite.subtitle')}
+        </p>
+      </div>
+
+      <div style={{ borderRadius: 16, background: '#ffffff', padding: 10, lineHeight: 0 }}>
+        <ShareCardQr value={referralUrl} size={128} />
+      </div>
+      <span style={{ fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--fg-4)' }}>
+        {t('social.invite.scanHint')}
+      </span>
+
+      <div
+        className="flex w-full items-center"
+        style={{
+          gap: 8,
+          borderRadius: 14,
+          background: 'var(--bg-sunk)',
+          boxShadow: 'inset 0 0 0 1px var(--hairline)',
+          padding: '4px 6px 4px 16px',
+        }}
+      >
+        <span
+          className="flex-1 min-w-0 truncate text-left"
+          style={{ fontFamily: 'var(--font-mono)', fontSize: 14, color: 'var(--fg-2)' }}
+        >
+          {referralUrl}
+        </span>
+        <button
+          type="button"
+          onClick={copyLink}
+          aria-label={t('social.invite.copy')}
+          className="inline-flex shrink-0 items-center rounded-full transition-transform active:scale-[0.97]"
+          style={{
+            gap: 7,
+            padding: '0 16px',
+            minHeight: 40,
+            border: 0,
+            cursor: 'pointer',
+            background: 'var(--bg-elev)',
+            boxShadow: 'inset 0 0 0 1px var(--hairline)',
+            fontFamily: 'var(--font-sans)',
+            fontSize: 13,
+            fontWeight: 500,
+            color: 'var(--fg-2)',
+          }}
+        >
+          {copied ? (
+            <Check size={14} strokeWidth={1.8} color="var(--status-done)" />
+          ) : (
+            <Copy size={14} strokeWidth={1.8} />
+          )}
+          {copied ? t('social.invite.copied') : t('social.invite.copy')}
+        </button>
+      </div>
+
+      {canShare ? (
+        <button
+          type="button"
+          onClick={shareLink}
+          className="inline-flex w-full items-center justify-center rounded-full transition-transform active:scale-[0.97]"
+          style={{
+            gap: 8,
+            minHeight: 48,
+            border: 0,
+            cursor: 'pointer',
+            background: 'var(--primary)',
+            color: 'var(--fg-on-primary)',
+            fontFamily: 'var(--font-sans)',
+            fontSize: 15,
+            fontWeight: 600,
+            boxShadow: '0 8px 24px rgba(var(--primary-rgb), 0.35)',
+          }}
+        >
+          <Share2 size={18} strokeWidth={1.8} />
+          {t('social.invite.share')}
+        </button>
+      ) : null}
+    </div>
+  )
+}

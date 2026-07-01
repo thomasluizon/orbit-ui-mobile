@@ -9,9 +9,11 @@ import { cheerKeys, friendKeys, profileKeys } from '@orbit/shared/query'
 import {
   cheersPageSchema,
   friendFeedPageSchema,
+  friendProfileViewSchema,
   friendsResponseSchema,
   type CheersPage,
   type FriendFeedPage,
+  type FriendProfileView,
   type FriendsResponse,
   type ReportReason,
 } from '@orbit/shared/types/social'
@@ -54,6 +56,19 @@ export function useCheers(direction: 'received' | 'sent', options?: { enabled?: 
       cheersPageSchema.parse(await apiClient<unknown>(`${API.friends.cheers}?direction=${direction}`)),
     enabled: options?.enabled ?? true,
     staleTime: 30_000,
+  })
+}
+
+/** A friend's public-facing profile (streak, level, achievements). Gated on `userId` so it only
+ *  fetches once a friend is selected; surfaces the backend 403/404 to the caller for empty states. */
+export function useFriendProfile(userId: string | null) {
+  return useQuery<FriendProfileView>({
+    queryKey: friendKeys.profile(userId ?? ''),
+    queryFn: async () =>
+      friendProfileViewSchema.parse(await apiClient<unknown>(API.friends.profile(userId!))),
+    enabled: !!userId,
+    staleTime: 30_000,
+    retry: false,
   })
 }
 

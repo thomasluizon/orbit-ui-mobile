@@ -236,6 +236,7 @@ describe('engagement prompt store factory', () => {
 
     store.getState().armMilestoneSharePrompt('share-streak-100')
     store.getState().dismissHomeEntry()
+    store.getState().dismissSocialEntry()
 
     const snapshot = getPersistedEngagementPromptState(store.getState())
 
@@ -244,6 +245,7 @@ describe('engagement prompt store factory', () => {
       promptedMilestoneKeys: [],
       lastPromptedAtIso: null,
       homeEntryDismissed: true,
+      socialEntryDismissed: true,
     })
   })
 })
@@ -292,6 +294,7 @@ describe('migratePersistedEngagementPromptState', () => {
       promptedMilestoneKeys: [],
       lastPromptedAtIso: null,
       homeEntryDismissed: false,
+      socialEntryDismissed: false,
     })
 
     expect(
@@ -299,11 +302,13 @@ describe('migratePersistedEngagementPromptState', () => {
         promptedMilestoneKeys: ['share-streak-7', 42, 'level-2'],
         lastPromptedAtIso: 7,
         homeEntryDismissed: 'yes',
+        socialEntryDismissed: 'yes',
       }),
     ).toEqual({
       promptedMilestoneKeys: ['share-streak-7', 'level-2'],
       lastPromptedAtIso: null,
       homeEntryDismissed: false,
+      socialEntryDismissed: false,
     })
   })
 })

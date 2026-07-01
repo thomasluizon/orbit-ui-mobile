@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { UserPlus } from 'lucide-react'
+import { EmptyState } from '@/components/ui/empty-state'
 import { SectionLabel } from '@/components/ui/section-label'
 import { PillButton } from '@/components/ui/pill-button'
 import { useAccountabilityPairs } from '@/hooks/use-accountability'
@@ -58,14 +59,15 @@ export function AccountabilitySection({ initialHabitId }: Readonly<Accountabilit
 
       <SectionLabel>{t('social.buddies.activeTitle')}</SectionLabel>
       {activePairs.length === 0 ? (
-        <div className="flex flex-col items-center px-8 py-10 text-center" style={{ gap: 8 }}>
-          <p style={{ margin: 0, fontFamily: 'var(--font-sans)', fontSize: 17, fontWeight: 600, color: 'var(--fg-1)' }}>
-            {t('social.buddies.emptyTitle')}
-          </p>
-          <p style={{ margin: 0, fontFamily: 'var(--font-sans)', fontSize: 14, lineHeight: 1.5, color: 'var(--fg-3)' }}>
-            {t('social.buddies.emptyBody')}
-          </p>
-        </div>
+        <EmptyState
+          title={t('social.buddies.emptyTitle')}
+          description={t('social.buddies.emptyBody')}
+          action={{
+            label: t('social.buddies.newPairCta'),
+            onClick: () => setNewPairOpen(true),
+            variant: 'secondary',
+          }}
+        />
       ) : (
         activePairs.map((pair) => (
           <BuddyRow key={pair.id} pair={pair} onOpen={setSelectedPairId} />
