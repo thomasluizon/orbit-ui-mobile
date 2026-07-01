@@ -2864,6 +2864,18 @@
       "enabling": "Enabling…",
       "success": "Social enabled"
     },
+    "identity": {
+      "caption": "Friends add you by this handle",
+      "edit": "Change",
+      "editAria": "Change your handle"
+    },
+    "editHandle": {
+      "title": "Change handle",
+      "label": "Your handle",
+      "placeholder": "handle",
+      "hint": "3–20 letters, numbers, or underscores. Friends use this to find you.",
+      "success": "Handle updated"
+    },
     "block": {
       "confirmTitle": "Block {name}?",
       "confirmBody": "They won't be able to send you requests or cheers, and you won't see each other's activity.",
