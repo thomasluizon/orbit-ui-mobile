@@ -1,8 +1,8 @@
 'use client'
 
-import { useRef } from 'react'
+import { useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { ArrowLeft } from 'lucide-react'
+import { ArrowLeft, Check, Copy } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useIsClient } from '@/hooks/use-is-client'
 import { useOverlayEscape } from '@/hooks/use-overlay-escape'
@@ -24,6 +24,7 @@ export function DescriptionViewer({
   const t = useTranslations()
   const mounted = useIsClient()
   const backButtonRef = useRef<HTMLButtonElement>(null)
+  const [copied, setCopied] = useState(false)
 
   useOverlayEscape({
     open,
@@ -32,6 +33,13 @@ export function DescriptionViewer({
   })
 
   if (!mounted || !open) return null
+
+  function copyDescription() {
+    void navigator.clipboard.writeText(description).then(() => {
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    })
+  }
 
   return createPortal(
     <div className="fixed inset-0 z-[10000] bg-[var(--bg)] flex flex-col">
@@ -50,7 +58,7 @@ export function DescriptionViewer({
           <ArrowLeft size={24} strokeWidth={2} />
         </button>
         <h1
-          className="truncate text-[var(--fg-1)]"
+          className="min-w-0 flex-1 truncate text-[var(--fg-1)]"
           style={{
             fontFamily: 'var(--font-sans)',
             fontSize: 20,
@@ -60,6 +68,19 @@ export function DescriptionViewer({
         >
           {title}
         </h1>
+        <button
+          type="button"
+          aria-label={t('habits.detail.copyDescription')}
+          className="icon-btn shrink-0"
+          style={{ width: 44, height: 44 }}
+          onClick={copyDescription}
+        >
+          {copied ? (
+            <Check size={22} strokeWidth={1.8} style={{ color: 'var(--status-done)' }} />
+          ) : (
+            <Copy size={22} strokeWidth={1.8} />
+          )}
+        </button>
       </div>
 
       <div className="flex-1 overflow-y-auto px-5 py-5">

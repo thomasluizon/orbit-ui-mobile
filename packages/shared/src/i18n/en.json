@@ -595,7 +595,10 @@
       "askAstraSubHabits": "Want to break this into smaller steps?",
       "askAstraDefault": "Want a perspective on this habit?",
       "askAstraSeedSubHabits": "Help me break my habit \"{title}\" into smaller sub-habits.",
-      "askAstraSeedDefault": "How am I doing with my habit \"{title}\"? Give me your read and one tip to improve."
+      "askAstraSeedDefault": "How am I doing with my habit \"{title}\"? Give me your read and one tip to improve.",
+      "copyDescription": "Copy description",
+      "copy": "Copy",
+      "copied": "Copied"
     },
     "filter": {
       "daily": "Daily",
