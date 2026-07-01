@@ -1,6 +1,5 @@
 import { Pressable, Text, View } from 'react-native'
 import { Play } from 'lucide-react-native'
-import { LinearGradient } from 'expo-linear-gradient'
 import { useTranslation } from 'react-i18next'
 import { RECAP_SHARE_PERIODS, type RecapSharePeriod } from '@orbit/shared/utils'
 import { Chip } from '@/components/ui/chip'
@@ -35,13 +34,6 @@ export function WrappedCover({
 
   return (
     <View style={styles.cover}>
-      <LinearGradient
-        colors={[`rgba(${tokens.primaryRgb}, 0.32)`, `rgba(${tokens.primaryRgb}, 0.1)`, `rgba(${tokens.primaryRgb}, 0)`]}
-        locations={[0, 0.4, 0.72]}
-        style={styles.gradientBackdrop}
-        pointerEvents="none"
-      />
-
       <View style={styles.coverHeader}>
         <Text style={[styles.eyebrow, { color: tokens.fg2 }]}>{t('wrapped.coverEyebrow')}</Text>
         <Text style={[styles.coverTitle, { color: tokens.fg1 }]}>{t('wrapped.title')}</Text>

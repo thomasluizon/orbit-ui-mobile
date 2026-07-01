@@ -32,13 +32,8 @@ export function WrappedCover({
 
   return (
     <div
-      className="relative flex flex-1 flex-col items-center justify-center text-center"
-      style={{
-        gap: 22,
-        padding: '0 28px 32px',
-        background:
-          'radial-gradient(135% 100% at 50% 0%, rgba(var(--primary-rgb), 0.32) 0%, rgba(var(--primary-rgb), 0.1) 40%, transparent 72%), var(--bg)',
-      }}
+      className="flex flex-1 flex-col items-center justify-center text-center"
+      style={{ gap: 22, padding: '0 28px 32px' }}
     >
       <div className="flex flex-col items-center" style={{ gap: 10 }}>
         <span
