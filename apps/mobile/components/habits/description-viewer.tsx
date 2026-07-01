@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, View } from "react-native";
 import Clipboard from "@react-native-clipboard/clipboard";
 import { Check, Copy } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
@@ -57,23 +57,21 @@ export function DescriptionViewer({
             onPress={copyDescription}
             accessibilityRole="button"
             accessibilityLabel={t("habits.detail.copyDescription")}
+            hitSlop={6}
             style={({ pressed }) => [
-              styles.copyChip,
+              styles.copyButton,
               {
                 backgroundColor: pressed ? tokens.bgElev2 : tokens.bgElev,
                 borderColor: tokens.hairline,
               },
-              pressed ? styles.copyChipPressed : null,
+              pressed ? styles.copyButtonPressed : null,
             ]}
           >
             {copied ? (
-              <Check size={14} color={tokens.statusDone} strokeWidth={1.8} />
+              <Check size={18} color={tokens.statusDone} strokeWidth={1.8} />
             ) : (
-              <Copy size={14} color={tokens.fg2} strokeWidth={1.8} />
+              <Copy size={18} color={tokens.fg2} strokeWidth={1.8} />
             )}
-            <Text style={[styles.copyChipText, { color: tokens.fg2 }]}>
-              {copied ? t("habits.detail.copied") : t("habits.detail.copy")}
-            </Text>
           </Pressable>
         </View>
         <View
@@ -102,22 +100,16 @@ const styles = StyleSheet.create({
     justifyContent: "flex-end",
     paddingBottom: 10,
   },
-  copyChip: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 7,
+  copyButton: {
+    width: 40,
+    height: 40,
     borderRadius: 999,
     borderWidth: 1,
-    paddingHorizontal: 16,
-    minHeight: 40,
+    alignItems: "center",
+    justifyContent: "center",
   },
-  copyChipPressed: {
+  copyButtonPressed: {
     transform: [{ scale: 0.96 }],
-  },
-  copyChipText: {
-    fontFamily: "Rubik_500Medium",
-    fontSize: 13,
   },
   card: {
     borderRadius: 18,

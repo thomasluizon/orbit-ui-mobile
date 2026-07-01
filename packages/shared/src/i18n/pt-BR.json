@@ -596,9 +596,7 @@
       "askAstraDefault": "Quer um olhar sobre este hábito?",
       "askAstraSeedSubHabits": "Me ajuda a dividir o hábito \"{title}\" em sub-hábitos menores.",
       "askAstraSeedDefault": "Como estou indo no hábito \"{title}\"? Me dá sua análise e uma dica para melhorar.",
-      "copyDescription": "Copiar descrição",
-      "copy": "Copiar",
-      "copied": "Copiado"
+      "copyDescription": "Copiar descrição"
     },
     "filter": {
       "daily": "Diário",
