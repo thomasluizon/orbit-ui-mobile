@@ -21,21 +21,21 @@ export function EditHandleSheet({ open, onOpenChange }: Readonly<EditHandleSheet
   const t = useTranslations()
   const { profile } = useProfile()
   const { showSuccess, showError } = useAppToast()
-  const setHandle = useSetHandle()
+  const setHandleMutation = useSetHandle()
 
-  const [handle, setHandleValue] = useState(profile?.handle ?? '')
+  const [handle, setHandle] = useState(profile?.handle ?? '')
   const [error, setError] = useState('')
   const [prevOpen, setPrevOpen] = useState(open)
   if (open !== prevOpen) {
     setPrevOpen(open)
     if (open) {
-      setHandleValue(profile?.handle ?? '')
+      setHandle(profile?.handle ?? '')
       setError('')
     }
   }
 
   function handleChange(value: string) {
-    setHandleValue(value)
+    setHandle(value)
     if (error) setError('')
   }
 
@@ -50,7 +50,7 @@ export function EditHandleSheet({ open, onOpenChange }: Readonly<EditHandleSheet
       return
     }
     try {
-      await setHandle.mutateAsync(trimmed)
+      await setHandleMutation.mutateAsync(trimmed)
       showSuccess(t('social.editHandle.success'))
       onOpenChange(false)
     } catch (err: unknown) {
@@ -103,15 +103,15 @@ export function EditHandleSheet({ open, onOpenChange }: Readonly<EditHandleSheet
           <PillButton
             fullWidth
             onClick={() => void handleSave()}
-            disabled={setHandle.isPending}
-            busy={setHandle.isPending}
+            disabled={setHandleMutation.isPending}
+            busy={setHandleMutation.isPending}
           >
             {t('common.save')}
           </PillButton>
           <PillButton
             variant="ghost"
             fullWidth
-            disabled={setHandle.isPending}
+            disabled={setHandleMutation.isPending}
             onClick={() => onOpenChange(false)}
           >
             {t('common.cancel')}

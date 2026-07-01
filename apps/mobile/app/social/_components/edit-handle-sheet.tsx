@@ -22,23 +22,23 @@ export function EditHandleSheet({ open, onClose }: Readonly<EditHandleSheetProps
   const { t } = useTranslation()
   const { profile } = useProfile()
   const { showSuccess, showError } = useAppToast()
-  const setHandle = useSetHandle()
+  const setHandleMutation = useSetHandle()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
 
-  const [handle, setHandleValue] = useState(() => profile?.handle ?? '')
+  const [handle, setHandle] = useState(() => profile?.handle ?? '')
   const [error, setError] = useState('')
   const [prevOpen, setPrevOpen] = useState(open)
   if (open !== prevOpen) {
     setPrevOpen(open)
     if (open) {
-      setHandleValue(profile?.handle ?? '')
+      setHandle(profile?.handle ?? '')
       setError('')
     }
   }
 
   function handleChange(value: string) {
-    setHandleValue(value)
+    setHandle(value)
     if (error) setError('')
   }
 
@@ -53,7 +53,7 @@ export function EditHandleSheet({ open, onClose }: Readonly<EditHandleSheetProps
       return
     }
     try {
-      await setHandle.mutateAsync(trimmed)
+      await setHandleMutation.mutateAsync(trimmed)
       showSuccess(t('social.editHandle.success'))
       onClose()
     } catch (err: unknown) {
@@ -100,8 +100,8 @@ export function EditHandleSheet({ open, onClose }: Readonly<EditHandleSheetProps
           <PillButton
             fullWidth
             onPress={handleSave}
-            disabled={setHandle.isPending}
-            busy={setHandle.isPending}
+            disabled={setHandleMutation.isPending}
+            busy={setHandleMutation.isPending}
             accessibilityLabel={t('common.save')}
           >
             {t('common.save')}
@@ -109,7 +109,7 @@ export function EditHandleSheet({ open, onClose }: Readonly<EditHandleSheetProps
           <PillButton
             variant="ghost"
             fullWidth
-            disabled={setHandle.isPending}
+            disabled={setHandleMutation.isPending}
             onPress={onClose}
             accessibilityLabel={t('common.cancel')}
           >
