@@ -11,7 +11,7 @@ import type {
   Cheer,
   FriendFeedItem,
 } from '../types/social'
-import type { ChallengeDetail } from '../types/challenge'
+import type { ChallengeDetail, ChallengeListItem } from '../types/challenge'
 import type { RetrospectiveMetrics } from '../utils/retrospective'
 
 
@@ -314,6 +314,25 @@ export function createMockChallengeDetail(overrides: Partial<ChallengeDetail> = 
     createdAtUtc: '2026-03-01T00:00:00Z',
     participants: [{ userId: 'user-1', name: 'Creator', joinedAtUtc: '2026-03-01T00:00:00Z' }],
     yourLinkedHabitIds: ['habit-1'],
+    ...overrides,
+  }
+}
+
+
+export function createMockChallengeListItem(overrides: Partial<ChallengeListItem> = {}): ChallengeListItem {
+  return {
+    id: 'challenge-1',
+    type: 'CoopGoal',
+    title: 'March Together',
+    status: 'Active',
+    targetCount: 30,
+    currentProgress: 5,
+    isComplete: false,
+    participantCount: 2,
+    periodStartUtc: '2026-03-01',
+    periodEndUtc: '2026-03-31',
+    joinCode: 'ABC23456',
+    hasLinkedHabits: true,
     ...overrides,
   }
 }

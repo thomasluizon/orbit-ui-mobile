@@ -43,7 +43,7 @@ function resetStores() {
     promptedMilestoneKeys: [],
     lastPromptedAtIso: null,
     homeEntryDismissed: false,
-    armedMilestoneKey: null,
+    armedPrompt: null,
   })
   useUIStore.setState({ activeCelebration: null, queuedCelebrations: [] })
 }
@@ -113,7 +113,19 @@ describe('ReferralPrompt', () => {
     })
 
     expect(screen.queryByTestId('referral-prompt')).toBeNull()
-    expect(useReferralPromptStore.getState().armedMilestoneKey).toBeNull()
+    expect(useReferralPromptStore.getState().armedPrompt).toBeNull()
+  })
+
+  it('does not render when a milestone-share prompt is armed', async () => {
+    render(<ReferralPrompt />)
+    await act(async () => {
+      useReferralPromptStore.getState().armMilestoneSharePrompt('share-streak-7')
+      await Promise.resolve()
+    })
+
+    await settle()
+
+    expect(screen.queryByTestId('referral-prompt')).toBeNull()
   })
 
   it('opens the drawer from the CTA', async () => {

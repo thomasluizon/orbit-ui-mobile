@@ -4,12 +4,15 @@ import {
   challengeStatusSchema,
   challengeSchema,
   challengeDetailSchema,
+  challengeListItemSchema,
+  challengeListSchema,
   createChallengeRequestSchema,
   joinChallengeRequestSchema,
+  setChallengeHabitsRequestSchema,
 } from '../types/challenge'
 import { API } from '../api/endpoints'
 import { challengeKeys } from '../query/keys'
-import { createMockChallengeDetail } from './factories'
+import { createMockChallengeDetail, createMockChallengeListItem } from './factories'
 
 describe('challengeTypeSchema', () => {
   it('parses both cooperative types', () => {
@@ -54,6 +57,60 @@ describe('challengeDetailSchema', () => {
   })
 })
 
+describe('challengeListItemSchema', () => {
+  it('round-trips the factory', () => {
+    const item = createMockChallengeListItem()
+    expect(challengeListItemSchema.parse(item)).toEqual(item)
+  })
+
+  it('parses a completed streak item with null target and period end', () => {
+    const item = createMockChallengeListItem({
+      type: 'StreakTogether',
+      status: 'Completed',
+      targetCount: null,
+      isComplete: true,
+      periodEndUtc: null,
+      hasLinkedHabits: false,
+    })
+    expect(challengeListItemSchema.safeParse(item).success).toBe(true)
+  })
+
+  it('rejects an item missing the participant count', () => {
+    const { participantCount: _omit, ...withoutCount } = createMockChallengeListItem()
+    expect(challengeListItemSchema.safeParse(withoutCount).success).toBe(false)
+  })
+})
+
+describe('challengeListSchema', () => {
+  it('parses an array of list items', () => {
+    expect(challengeListSchema.safeParse([createMockChallengeListItem()]).success).toBe(true)
+    expect(challengeListSchema.safeParse([]).success).toBe(true)
+  })
+
+  it('rejects a non-array payload', () => {
+    expect(challengeListSchema.safeParse(createMockChallengeListItem()).success).toBe(false)
+  })
+})
+
+describe('setChallengeHabitsRequestSchema', () => {
+  it('accepts a habit id list', () => {
+    expect(setChallengeHabitsRequestSchema.safeParse({ habitIds: ['habit-1'] }).success).toBe(true)
+  })
+
+  it('rejects an empty habit id list', () => {
+    expect(setChallengeHabitsRequestSchema.safeParse({ habitIds: [] }).success).toBe(false)
+  })
+
+  it('rejects more than 20 habit ids', () => {
+    const tooMany = Array.from({ length: 21 }, (_, index) => `habit-${index}`)
+    expect(setChallengeHabitsRequestSchema.safeParse({ habitIds: tooMany }).success).toBe(false)
+  })
+
+  it('rejects a request without habitIds', () => {
+    expect(setChallengeHabitsRequestSchema.safeParse({}).success).toBe(false)
+  })
+})
+
 describe('createChallengeRequestSchema', () => {
   it('accepts a goal challenge with invited friends', () => {
     const request = {
@@ -82,15 +139,18 @@ describe('joinChallengeRequestSchema', () => {
 })
 
 describe('challenge endpoints and keys', () => {
-  it('builds the four challenge routes', () => {
+  it('builds the challenge routes', () => {
+    expect(API.challenges.list).toBe('/api/challenges')
     expect(API.challenges.create).toBe('/api/challenges')
     expect(API.challenges.join).toBe('/api/challenges/join')
     expect(API.challenges.leave('c1')).toBe('/api/challenges/c1/leave')
     expect(API.challenges.detail('c1')).toBe('/api/challenges/c1')
+    expect(API.challenges.setHabits('c1')).toBe('/api/challenges/c1/habits')
   })
 
   it('builds hierarchical query keys', () => {
     expect(challengeKeys.all).toEqual(['challenges'])
+    expect(challengeKeys.list()).toEqual(['challenges', 'list'])
     expect(challengeKeys.detail('c1')).toEqual(['challenges', 'detail', 'c1'])
   })
 })

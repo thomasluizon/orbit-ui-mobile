@@ -58,9 +58,9 @@ import {
   bulkLogHabits as bulkLogHabitsAction,
   bulkSkipHabits as bulkSkipHabitsAction,
 } from '@/app/actions/habits'
-import { getReferralStreakMilestone } from '@orbit/shared/stores'
+import { getMilestoneShareStreakKey } from '@orbit/shared/stores'
 import { useUIStore } from '@/stores/ui-store'
-import { useReferralPromptStore } from '@/stores/referral-prompt-store'
+import { useEngagementPromptStore } from '@/stores/referral-prompt-store'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useUndoToast } from '@/hooks/use-undo-toast'
 
@@ -130,9 +130,9 @@ export function useLogHabit() {
         queryClient.setQueryData<Profile>(profileKeys.detail(), (old) =>
           old ? { ...old, currentStreak: response.currentStreak } : old,
         )
-        const referralMilestoneKey = getReferralStreakMilestone(response.currentStreak)
-        if (referralMilestoneKey) {
-          useReferralPromptStore.getState().armReferralPrompt(referralMilestoneKey)
+        const milestoneShareKey = getMilestoneShareStreakKey(response.currentStreak)
+        if (milestoneShareKey) {
+          useEngagementPromptStore.getState().armMilestoneSharePrompt(milestoneShareKey)
         }
       }
 

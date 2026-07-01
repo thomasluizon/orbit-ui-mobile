@@ -31,6 +31,7 @@ export {
 } from './error-utils'
 export { isFeatureEnabled } from './config'
 export { getSocialErrorKey } from './social-errors'
+export { getAccountabilityErrorKey } from './accountability-errors'
 export { stripInlineMarkdown } from './markdown'
 export { plural } from './plural'
 export { buildRecentChatHistory } from './chat-history'
@@ -281,12 +282,15 @@ export {
   calculateXpProgress,
   deriveGamificationProfileState,
   deriveNextRewardCarrot,
+  detectCrossedStreakMilestones,
   detectGamificationMilestones,
   deriveStreakFreezeState,
   getAchievementsByCategory,
   getEarnedAchievements,
   getLockedAchievements,
   getStreakTierLabelKey,
+  isShareableAchievement,
+  SHAREABLE_ACHIEVEMENT_RARITIES,
 } from './gamification-selectors'
 export type {
   GamificationMilestoneState,

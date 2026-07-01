@@ -38,7 +38,12 @@ import { dismissTopOverlay } from '@/lib/overlay-stack'
 import { buildUpgradeHref } from '@/lib/upgrade-route'
 import { useUIStore } from '@/stores/ui-store'
 import { useReferralPromptStore } from '@/stores/referral-prompt-store'
-import { getReferralLevelMilestone } from '@orbit/shared/stores'
+import {
+  getReferralLevelMilestone,
+  getMilestoneShareStreakKey,
+  getMilestoneShareAchievementKey,
+} from '@orbit/shared/stores'
+import { isShareableAchievement } from '@orbit/shared/utils'
 import { OnboardingFlow } from '@/components/onboarding/onboarding-flow'
 import { CalendarImportPrompt } from '@/components/onboarding/calendar-import-prompt'
 import { BottomTabBar, type BottomTabId } from '@/components/navigation/bottom-tab-bar'
@@ -48,6 +53,7 @@ import { AllDoneCelebration } from '@/components/gamification/all-done-celebrati
 import { GoalCompletedCelebration } from '@/components/gamification/goal-completed-celebration'
 import { LevelUpOverlay } from '@/components/gamification/level-up-overlay'
 import { ReferralPrompt } from '@/components/referral/referral-prompt'
+import { MilestoneSharePrompt } from '@/components/milestone-share/milestone-share-prompt'
 import { StreakCelebration } from '@/components/gamification/streak-celebration'
 import {
   StreakFreezeCelebration,
@@ -135,6 +141,9 @@ const SLIDE_FROM_RIGHT_SCREENS = [
   'wrapped',
   'calendar-sync',
   'social',
+  'accountability-pair',
+  'social/challenges',
+  'social/challenges/[id]',
 ] as const
 
 function RootStackScreens({
@@ -308,12 +317,35 @@ function GlobalOverlays({
   const canViewGamification = profile?.canViewGamification ?? false
   const gamification = useGamificationProfile(canViewGamification)
   const armReferralPrompt = useReferralPromptStore((s) => s.armReferralPrompt)
+  const armMilestoneSharePrompt = useReferralPromptStore(
+    (s) => s.armMilestoneSharePrompt,
+  )
 
   useEffect(() => {
     if (gamification.leveledUp && gamification.newLevel) {
       armReferralPrompt(getReferralLevelMilestone(gamification.newLevel))
     }
   }, [gamification.leveledUp, gamification.newLevel, armReferralPrompt])
+
+  useEffect(() => {
+    const crossedStreak = gamification.crossedStreakMilestones.at(-1) ?? null
+    const shareableAchievement = gamification.newAchievements.find(
+      isShareableAchievement,
+    )
+    const candidateKey =
+      crossedStreak !== null
+        ? getMilestoneShareStreakKey(crossedStreak)
+        : shareableAchievement
+          ? getMilestoneShareAchievementKey(shareableAchievement.id)
+          : null
+    if (candidateKey) {
+      armMilestoneSharePrompt(candidateKey)
+    }
+  }, [
+    gamification.crossedStreakMilestones,
+    gamification.newAchievements,
+    armMilestoneSharePrompt,
+  ])
 
   return (
     <>
@@ -338,6 +370,7 @@ function GlobalOverlays({
             />
           ) : null}
           <ReferralPrompt />
+          <MilestoneSharePrompt />
         </>
       ) : null}
       <StreakFreezeCelebration ref={streakFreezeRef} />

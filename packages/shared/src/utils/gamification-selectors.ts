@@ -233,3 +233,27 @@ export function detectGamificationMilestones(
     currentEarnedAchievementIds,
   }
 }
+
+export const SHAREABLE_ACHIEVEMENT_RARITIES = ['Rare', 'Epic', 'Legendary'] as const
+
+/**
+ * True when an achievement's rarity is uncommon enough to be worth sharing (Rare, Epic, or
+ * Legendary). Common/Uncommon unlocks are excluded so the share prompt stays meaningful.
+ */
+export function isShareableAchievement(achievement: { rarity: string }): boolean {
+  return SHAREABLE_ACHIEVEMENT_RARITIES.some((rarity) => rarity === achievement.rarity)
+}
+
+/**
+ * Returns the milestone thresholds a streak crossed between the previous and current values
+ * (previous < threshold <= current), in the caller's threshold order. Returns [] when either value
+ * is null so a first load with no prior streak never fires a milestone.
+ */
+export function detectCrossedStreakMilestones(
+  previous: number | null,
+  current: number | null,
+  thresholds: readonly number[],
+): number[] {
+  if (previous === null || current === null) return []
+  return thresholds.filter((threshold) => previous < threshold && threshold <= current)
+}

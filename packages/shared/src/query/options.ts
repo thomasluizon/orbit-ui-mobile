@@ -8,6 +8,7 @@ export const QUERY_STALE_TIMES = {
   tags: 2 * 60 * 1000,
   notifications: 60 * 1000,
   checklistTemplates: 5 * 60 * 1000,
+  accountability: 30 * 1000,
 } as const
 
 const ACTIVE_POLLING_INTERVAL = 5 * 60 * 1000

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { ScrollView, StyleSheet } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
+import { useLocalSearchParams } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { AppBar } from '@/components/ui/app-bar'
 import { GradientTop } from '@/components/ui/gradient-top'
@@ -13,9 +14,11 @@ import { SocialOptInGate } from './social/_components/social-opt-in-gate'
 import { SocialIdentityBar } from './social/_components/social-identity-bar'
 import { SocialFeed } from './social/_components/social-feed'
 import { SocialFriends } from './social/_components/social-friends'
+import { AccountabilitySection } from './social/_components/accountability-section'
+import { ChallengesEntryCard } from './social/_components/challenges-entry-card'
 import { CheerComposer, type CheerTarget } from './social/_components/cheer-composer'
 
-type SocialTab = 'feed' | 'friends'
+type SocialTab = 'feed' | 'friends' | 'buddies'
 
 export default function SocialScreen() {
   const { t } = useTranslation()
@@ -24,13 +27,20 @@ export default function SocialScreen() {
   const tokens = createTokensV2(currentScheme, currentTheme)
   const styles = createStyles(tokens)
   const { profile, isLoading } = useProfile()
-  const [tab, setTab] = useState<SocialTab>('feed')
+  const { tab: tabParam, newPairHabitId } = useLocalSearchParams<{
+    tab?: string
+    newPairHabitId?: string
+  }>()
+  const [tab, setTab] = useState<SocialTab>(
+    tabParam === 'buddies' ? 'buddies' : 'feed',
+  )
   const [cheerTarget, setCheerTarget] = useState<CheerTarget | null>(null)
 
   const socialEnabled = profile?.socialOptIn ?? false
   const tabs = [
     { id: 'feed' as const, label: t('social.tabs.feed') },
     { id: 'friends' as const, label: t('social.tabs.friends') },
+    { id: 'buddies' as const, label: t('social.tabs.buddies') },
   ]
 
   return (
@@ -47,6 +57,7 @@ export default function SocialScreen() {
       ) : (
         <>
           <SocialIdentityBar />
+          <ChallengesEntryCard />
           <SectionHeadTabs tabs={tabs} active={tab} onChange={setTab} />
           <ScrollView
             contentContainerStyle={styles.scroll}
@@ -55,8 +66,10 @@ export default function SocialScreen() {
           >
             {tab === 'feed' ? (
               <SocialFeed onCheer={setCheerTarget} />
-            ) : (
+            ) : tab === 'friends' ? (
               <SocialFriends onCheer={setCheerTarget} />
+            ) : (
+              <AccountabilitySection initialHabitId={newPairHabitId ?? null} />
             )}
           </ScrollView>
         </>

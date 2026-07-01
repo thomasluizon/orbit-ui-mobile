@@ -65,13 +65,13 @@ import {
   snapshotHabitLists,
   updateHabitLists,
 } from '@/lib/habit-mutation-helpers'
-import { getReferralStreakMilestone } from '@orbit/shared/stores'
+import { getMilestoneShareStreakKey } from '@orbit/shared/stores'
 import { useReviewReminderStore } from '@/stores/review-reminder-store'
 import { useUIStore } from '@/stores/ui-store'
 import { useTranslation } from 'react-i18next'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useUndoToast } from '@/hooks/use-undo-toast'
-import { useReferralPromptStore } from '@/stores/referral-prompt-store'
+import { useEngagementPromptStore } from '@/stores/referral-prompt-store'
 
 type CreateHabitMutationInput = CreateHabitRequest & { __offlineTempId?: string }
 type BulkCreateHabitMutationInput = BulkCreateRequest & { __offlineTempIds?: string[] }
@@ -166,9 +166,9 @@ export function useLogHabit() {
         queryClient.setQueryData<Profile>(profileKeys.detail(), (old) =>
           old ? { ...old, currentStreak: response.currentStreak } : old,
         )
-        const referralMilestoneKey = getReferralStreakMilestone(response.currentStreak)
-        if (referralMilestoneKey) {
-          useReferralPromptStore.getState().armReferralPrompt(referralMilestoneKey)
+        const milestoneShareKey = getMilestoneShareStreakKey(response.currentStreak)
+        if (milestoneShareKey) {
+          useEngagementPromptStore.getState().armMilestoneSharePrompt(milestoneShareKey)
         }
       }
 

@@ -595,7 +595,8 @@
       "askAstraSubHabits": "Want to break this into smaller steps?",
       "askAstraDefault": "Want a perspective on this habit?",
       "askAstraSeedSubHabits": "Help me break my habit \"{title}\" into smaller sub-habits.",
-      "askAstraSeedDefault": "How am I doing with my habit \"{title}\"? Give me your read and one tip to improve."
+      "askAstraSeedDefault": "How am I doing with my habit \"{title}\"? Give me your read and one tip to improve.",
+      "addAccountabilityBuddy": "Add accountability buddy"
     },
     "filter": {
       "daily": "Daily",
@@ -2790,7 +2791,8 @@
     },
     "tabs": {
       "feed": "Feed",
-      "friends": "Friends"
+      "friends": "Friends",
+      "buddies": "Buddies"
     },
     "feed": {
       "emptyTitle": "No activity yet",
@@ -2825,6 +2827,73 @@
       "cancel": "Cancel",
       "requestedYou": "wants to be friends",
       "youRequested": "Request sent"
+    },
+    "buddies": {
+      "newPairCta": "New pair",
+      "incomingTitle": "Buddy invites",
+      "outgoingTitle": "Pending invites",
+      "activeTitle": "Your buddies",
+      "emptyTitle": "No buddies yet",
+      "emptyBody": "Pair up with a friend to keep each other accountable.",
+      "never": "not yet",
+      "checkInStatus": "You {you} · {name} {buddy}",
+      "checkInAction": "Check in",
+      "checkedInLabel": "Checked in",
+      "checkInSuccess": "Checked in for today",
+      "accept": "Accept",
+      "decline": "Decline",
+      "rescind": "Cancel",
+      "invitedYou": "invited you to pair up ({cadence})",
+      "youInvited": "Invite sent",
+      "acceptTitle": "Accept invite",
+      "acceptSubtitle": "Pick the habits you'll track with {name}.",
+      "acceptSubmit": "Accept invite",
+      "acceptSuccess": "You're now accountability buddies",
+      "noHabits": "You don't have any habits yet.",
+      "habitsHint": "Pick 1–10 habits",
+      "habitCount": "{count} selected",
+      "checkInTitle": "Check in",
+      "checkInNotePlaceholder": "Add a note (optional)",
+      "checkInSubmit": "Check in",
+      "cadence": {
+        "Daily": "Daily",
+        "Weekly": "Weekly"
+      },
+      "newPair": {
+        "title": "New accountability pair",
+        "friendLabel": "Choose a friend",
+        "noFriends": "Add a friend first to pair up with them.",
+        "cadenceLabel": "Check-in cadence",
+        "habitsLabel": "Your habits to track",
+        "submit": "Send invite",
+        "success": "Invite sent"
+      },
+      "detail": {
+        "title": "Accountability",
+        "notFound": "This pairing is no longer available.",
+        "cadenceLabel": "Cadence",
+        "yourHabits": "Your habits",
+        "editHabits": "Edit your habits",
+        "editHabitsTitle": "Your habits",
+        "editSuccess": "Habits updated",
+        "buddyHabits": "{name}'s habits",
+        "buddyHabitsCount": "{count} habits tracked",
+        "history": "Check-in history",
+        "historyEmpty": "No check-ins yet.",
+        "unpair": "Unpair",
+        "unpairConfirmTitle": "Unpair with {name}?",
+        "unpairConfirmBody": "This ends your accountability pairing. You can pair up again later.",
+        "unpairSuccess": "Unpaired"
+      },
+      "errors": {
+        "habitRequired": "Pick at least one habit.",
+        "rateLimited": "You're doing that a lot. Please try again in a moment.",
+        "notFriends": "You can only pair up with friends.",
+        "alreadyPaired": "You're already paired with this friend.",
+        "pairLimitReached": "You've reached the accountability pair limit.",
+        "alreadyCheckedIn": "You've already checked in today.",
+        "generic": "Something went wrong. Please try again."
+      }
     },
     "addFriend": {
       "title": "Add a friend",
@@ -2903,6 +2972,113 @@
       "alreadyFriends": "You're already connected with this person.",
       "handleTaken": "That handle is taken. Try another.",
       "friendLimitReached": "You've reached the friend limit."
+    }
+  },
+  "challenges": {
+    "title": "Challenges",
+    "entryCard": {
+      "title": "Challenges",
+      "description": "Team up on shared goals and streaks"
+    },
+    "actions": {
+      "create": "Create",
+      "join": "Join"
+    },
+    "sections": {
+      "active": "Active",
+      "completed": "Completed"
+    },
+    "empty": {
+      "title": "No challenges yet",
+      "body": "Start a shared goal or streak, or join one with a code.",
+      "create": "Create a challenge",
+      "join": "Join with a code"
+    },
+    "type": {
+      "coopGoal": "Shared goal",
+      "streakTogether": "Streak together",
+      "coopGoalDescription": "Reach a target together by logging your linked habits.",
+      "streakTogetherDescription": "Keep a shared daily streak alive together."
+    },
+    "card": {
+      "participants": "{count} members",
+      "streakUnit": "day streak",
+      "linkHabitsHint": "Link your habits to contribute"
+    },
+    "create": {
+      "title": "New challenge",
+      "typeLabel": "Type",
+      "nameLabel": "Name",
+      "namePlaceholder": "e.g. 30 days of reading",
+      "targetLabel": "Target (total check-ins)",
+      "targetPlaceholder": "30",
+      "endDateLabel": "End date",
+      "endDatePlaceholder": "Select a date",
+      "habitsLabel": "Your habits",
+      "noHabits": "You have no habits to link yet.",
+      "inviteLabel": "Invite friends",
+      "submit": "Create challenge",
+      "success": "Challenge created"
+    },
+    "invite": {
+      "empty": "Add friends first to invite them."
+    },
+    "join": {
+      "title": "Join a challenge",
+      "codeLabel": "Join code",
+      "codePlaceholder": "Enter code",
+      "submit": "Join challenge",
+      "success": "You joined the challenge"
+    },
+    "detail": {
+      "progressLabel": "Shared progress",
+      "sharedStreak": "Shared streak",
+      "complete": "Completed",
+      "endsOn": "Ends {date}",
+      "membersTitle": "Members",
+      "linkHabitsTitle": "Link your habits",
+      "linkHabitsBody": "Choose habits so your progress counts toward this challenge.",
+      "linkHabitsCta": "Link habits",
+      "editHabits": "Edit linked habits",
+      "habitsSaved": "Habits updated",
+      "shareTitle": "Invite",
+      "copy": "Copy",
+      "copied": "Copied",
+      "share": "Share invite",
+      "leave": "Leave challenge",
+      "leaveConfirmTitle": "Leave this challenge?",
+      "leaveConfirmBody": "You'll stop contributing and lose access to it.",
+      "leaveSuccess": "You left the challenge",
+      "notFound": "Challenge not found"
+    },
+    "share": {
+      "title": "Join my Orbit challenge",
+      "text": "Join my challenge \"{title}\" on Orbit with code {code}"
+    },
+    "errors": {
+      "challengeFull": "This challenge is full.",
+      "alreadyJoined": "You've already joined this challenge.",
+      "closed": "This challenge is closed.",
+      "invalidCode": "That join code isn't valid.",
+      "rateLimited": "Too many attempts. Please try again soon.",
+      "generic": "Something went wrong. Please try again."
+    }
+  },
+  "milestoneShare": {
+    "streakEyebrow": "Streak milestone",
+    "achievementEyebrow": "Achievement unlocked",
+    "streakTitle": "{count}-day streak!",
+    "body": "Share your milestone and invite a friend — you both get a discount coupon for Pro.",
+    "share": "Share",
+    "download": "Download",
+    "later": "Maybe later",
+    "shareTitle": "My Orbit milestone",
+    "shareText": "I'm building better habits with Orbit — join me!",
+    "shareError": "Couldn't share your card. Please try again.",
+    "rarity": {
+      "Rare": "Rare",
+      "Epic": "Epic",
+      "Legendary": "Legendary"
     }
   }
 }

@@ -30,9 +30,9 @@ export function ReferralPrompt() {
   )
   const styles = useMemo(() => createStyles(tokens), [tokens])
   const queryClient = useQueryClient()
-  const armedMilestoneKey = useReferralPromptStore((s) => s.armedMilestoneKey)
-  const markReferralPrompted = useReferralPromptStore(
-    (s) => s.markReferralPrompted,
+  const armedPrompt = useReferralPromptStore((s) => s.armedPrompt)
+  const markEngagementPrompted = useReferralPromptStore(
+    (s) => s.markEngagementPrompted,
   )
   const clearArmedMilestone = useReferralPromptStore(
     (s) => s.clearArmedMilestone,
@@ -40,6 +40,9 @@ export function ReferralPrompt() {
   const celebrationInFlight = useUIStore(
     (s) => s.activeCelebration !== null || s.queuedCelebrations.length > 0,
   )
+
+  const armedMilestoneKey =
+    armedPrompt?.kind === 'referral' ? armedPrompt.milestoneKey : null
 
   const [visibleKey, setVisibleKey] = useState<string | null>(null)
   const [showDrawer, setShowDrawer] = useState(false)
@@ -60,7 +63,7 @@ export function ReferralPrompt() {
     }
 
     settleTimerRef.current = setTimeout(() => {
-      markReferralPrompted(armedMilestoneKey, new Date().toISOString())
+      markEngagementPrompted(armedMilestoneKey, new Date().toISOString())
       setVisibleKey(armedMilestoneKey)
     }, SETTLE_DELAY_MS)
 
@@ -71,7 +74,7 @@ export function ReferralPrompt() {
     armedMilestoneKey,
     celebrationInFlight,
     visibleKey,
-    markReferralPrompted,
+    markEngagementPrompted,
     clearArmedMilestone,
   ])
 

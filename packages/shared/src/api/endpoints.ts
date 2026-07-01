@@ -182,10 +182,12 @@ export const API = {
   },
 
   challenges: {
+    list: '/api/challenges',
     create: '/api/challenges',
     join: '/api/challenges/join',
     leave: (id: string) => `/api/challenges/${id}/leave` as const,
     detail: (id: string) => `/api/challenges/${id}` as const,
+    setHabits: (id: string) => `/api/challenges/${id}/habits` as const,
   },
 
   accountability: {
