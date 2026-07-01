@@ -127,11 +127,11 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
     if (!hasProAccess) {
       return (
         <View style={styles.actions}>
-          <PillButton variant="ghost" onPress={() => onOpenChange(false)}>
-            {t('habits.reschedule.dismiss')}
-          </PillButton>
-          <PillButton style={styles.actionPrimary} onPress={() => router.push('/upgrade')}>
+          <PillButton fullWidth onPress={() => router.push('/upgrade')}>
             {t('habits.reschedule.upgrade')}
+          </PillButton>
+          <PillButton variant="ghost" fullWidth onPress={() => onOpenChange(false)}>
+            {t('habits.reschedule.dismiss')}
           </PillButton>
         </View>
       )
@@ -139,11 +139,11 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
     if (error) {
       return (
         <View style={styles.actions}>
-          <PillButton variant="ghost" onPress={() => onOpenChange(false)}>
-            {t('habits.reschedule.dismiss')}
-          </PillButton>
-          <PillButton style={styles.actionPrimary} onPress={() => void refetch()}>
+          <PillButton fullWidth onPress={() => void refetch()}>
             {t('habits.reschedule.retry')}
+          </PillButton>
+          <PillButton variant="ghost" fullWidth onPress={() => onOpenChange(false)}>
+            {t('habits.reschedule.dismiss')}
           </PillButton>
         </View>
       )
@@ -151,19 +151,20 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
     return (
       <View style={styles.actions}>
         <PillButton
-          variant="ghost"
-          disabled={updateHabit.isPending}
-          onPress={() => onOpenChange(false)}
-        >
-          {t('habits.reschedule.dismiss')}
-        </PillButton>
-        <PillButton
-          style={styles.actionPrimary}
+          fullWidth
           disabled={!suggestion || updateHabit.isPending}
           accessibilityLabel={t('habits.reschedule.accept')}
           onPress={() => void handleAccept()}
         >
           {t('habits.reschedule.accept')}
+        </PillButton>
+        <PillButton
+          variant="ghost"
+          fullWidth
+          disabled={updateHabit.isPending}
+          onPress={() => onOpenChange(false)}
+        >
+          {t('habits.reschedule.dismiss')}
         </PillButton>
       </View>
     )
@@ -174,7 +175,7 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
       open={open}
       onClose={() => onOpenChange(false)}
       title={t('habits.reschedule.title')}
-      snapPoints={['55%']}
+      snapPoints={['60%']}
     >
       <View style={styles.content}>
         <View style={styles.headerRow}>
@@ -194,7 +195,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
     content: {
       paddingHorizontal: 22,
       paddingTop: 4,
-      paddingBottom: 24,
+      paddingBottom: 30,
       gap: 14,
     },
     headerRow: {
@@ -276,13 +277,8 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       color: tokens.fg3,
     },
     actions: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 12,
-      marginTop: 4,
-    },
-    actionPrimary: {
-      flex: 1,
+      gap: 10,
+      marginTop: 6,
     },
   })
 }

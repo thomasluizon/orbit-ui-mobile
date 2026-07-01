@@ -204,6 +204,7 @@ function RootLayoutNav() {
     topSegment === 'login' ||
     topSegment === 'auth-callback' ||
     topSegment === 'chat' ||
+    topSegment === 'upgrade' ||
     topSegment === 'privacy' ||
     topSegment === 'terms' ||
     topSegment === 'r'

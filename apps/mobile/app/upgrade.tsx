@@ -148,7 +148,7 @@ export default function UpgradeScreen() {
   return (
     <SafeAreaView
       style={[styles.safe, { backgroundColor: tokens.bg }]}
-      edges={['top']}
+      edges={['top', 'bottom']}
     >
       {showGradient ? <GradientTop height={260} /> : null}
       <AppBar
