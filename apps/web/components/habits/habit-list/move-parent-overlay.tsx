@@ -63,6 +63,7 @@ export function MoveParentOverlay({
           <PillButton
             fullWidth
             disabled={!canSubmit}
+            busy={isMoving}
             onClick={onConfirm}
             className="flex-1"
           >
@@ -79,19 +80,23 @@ export function MoveParentOverlay({
               <button
                 key={option.id ?? '__root__'}
                 type="button"
-                className={`w-full appearance-none border-0 text-left cursor-pointer transition-[background-color,box-shadow,opacity] duration-[var(--dur-fast)] ease-[var(--ease-standard)] ${
-                  option.disabled ? 'opacity-50 cursor-not-allowed' : ''
+                className={`w-full appearance-none border-0 text-left transition-[background-color,box-shadow,transform,opacity] duration-[var(--dur-fast)] ease-[var(--ease-standard)] ${
+                  selected
+                    ? 'bg-[rgba(var(--primary-rgb),0.10)] shadow-[inset_0_0_0_1.5px_var(--primary)]'
+                    : 'bg-[var(--bg-field)] shadow-[inset_0_0_0_1px_var(--hairline)]'
+                } ${
+                  option.disabled
+                    ? 'opacity-50 cursor-not-allowed'
+                    : `cursor-pointer active:scale-[0.99]${
+                        selected
+                          ? ''
+                          : ' hover:bg-[color-mix(in_srgb,var(--fg-1)_8%,transparent)]'
+                      }`
                 }`}
                 style={{
                   borderRadius: 14,
                   padding: '12px 14px',
                   paddingLeft: option.id === null ? 14 : 14 + option.depth * 18,
-                  background: selected
-                    ? 'rgba(var(--primary-rgb), 0.10)'
-                    : 'var(--bg-field)',
-                  boxShadow: selected
-                    ? 'inset 0 0 0 1.5px var(--primary)'
-                    : 'inset 0 0 0 1px var(--hairline)',
                 }}
                 disabled={option.disabled}
                 onClick={() => onSelectOption(option.id)}

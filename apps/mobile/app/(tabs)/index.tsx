@@ -9,8 +9,11 @@ import {
 import {
   Animated,
   AppState,
-  View,
+  BackHandler,
+  ScrollView,
   StyleSheet,
+  Text,
+  View,
 } from "react-native";
 import type { FlatList } from "react-native-gesture-handler";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -51,8 +54,11 @@ import { GoalsView } from "@/components/goals/goals-view";
 import { CreateGoalModal } from "@/components/goals/create-goal-modal";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { GradientTop } from "@/components/ui/gradient-top";
+import { PillButton } from "@/components/ui/pill-button";
+import { SatelliteGlyph } from "@/components/ui/satellite-glyph";
 import { ScrollToTopButton } from "@/components/ui/scroll-to-top-button";
 import { TrialBanner } from "@/components/ui/trial-banner";
+import { DismissibleCard } from "@/components/today/dismissible-card";
 import { TodayHabitsHeader } from "@/components/today/today-habits-header";
 import { ReviewReminderCard } from "@/components/review-reminder-card";
 import { ReferralCard } from "@/components/referral/referral-card";
@@ -202,7 +208,8 @@ export default function TodayScreen() {
     goalsScrollTo,
   );
   const previousActiveViewRef = useRef(activeView);
-  const dateLabelAnim = useMemo(() => new Animated.Value(0), []);
+  const hasAnimatedDateLabelRef = useRef(false);
+  const dateLabelAnim = useMemo(() => new Animated.Value(1), []);
   const filtersTransitionAnim = useMemo(() => new Animated.Value(1), []);
   const listTransitionAnim = useMemo(() => new Animated.Value(1), []);
   const refetchTransitionAnim = useMemo(() => new Animated.Value(0), []);
@@ -383,6 +390,11 @@ export default function TodayScreen() {
   }, [selectedDate, t, locale]);
 
   useEffect(() => {
+    if (!hasAnimatedDateLabelRef.current) {
+      hasAnimatedDateLabelRef.current = true;
+      return;
+    }
+
     dateLabelAnim.setValue(0);
     Animated.timing(dateLabelAnim, {
       toValue: 1,
@@ -473,6 +485,7 @@ export default function TodayScreen() {
   const habitsQuery = useHabits(filters);
   const hasFetchedHabits = habitsQuery.data !== undefined;
   const isRefetching = habitsQuery.isFetching && hasFetchedHabits;
+  const showHabitsLoadError = habitsQuery.isError && !hasFetchedHabits;
   const habitsById = habitsQuery.data?.habitsById ?? EMPTY_HABITS_BY_ID;
   const childrenByParent =
     habitsQuery.data?.childrenByParent ?? EMPTY_CHILDREN_BY_PARENT;
@@ -624,8 +637,7 @@ export default function TodayScreen() {
     setFilters(filters);
   }
 
-  const showSummary =
-    currentActiveView === "today" && isToday(selectedDate) && hasProAccess;
+  const showSummary = currentActiveView === "today" && isToday(selectedDate);
 
   const filtersAnimatedStyle = useMemo(
     () => ({
@@ -717,6 +729,18 @@ export default function TodayScreen() {
     closeControlsMenu();
     if (isSelectMode) clearSelection();
   }, [activeView, clearSelection, closeControlsMenu, isSelectMode]);
+
+  useEffect(() => {
+    if (!isSelectMode) return;
+    const subscription = BackHandler.addEventListener(
+      "hardwareBackPress",
+      () => {
+        clearSelection();
+        return true;
+      },
+    );
+    return () => subscription.remove();
+  }, [clearSelection, isSelectMode]);
 
   const handleToggleSelectMode = useCallback(() => {
     if (isSelectMode) {
@@ -839,25 +863,29 @@ export default function TodayScreen() {
 
         {engagementSlot === "trial" ? <TrialBanner /> : null}
 
-        {engagementSlot === "setupChecklist" ? <SetupChecklistCard /> : null}
+        <DismissibleCard visible={engagementSlot === "setupChecklist"}>
+          <SetupChecklistCard />
+        </DismissibleCard>
 
-        {engagementSlot === "reviewReminder" ? (
+        <DismissibleCard visible={engagementSlot === "reviewReminder"}>
           <ReviewReminderCard
             onDismiss={reviewReminder.dismiss}
             onRate={() => {
               void reviewReminder.requestReview();
             }}
           />
-        ) : null}
+        </DismissibleCard>
 
-        {engagementSlot === "referral" ? (
+        <DismissibleCard visible={engagementSlot === "referral"}>
           <ReferralCard
             onOpen={() => setShowReferral(true)}
             onDismiss={dismissHomeEntry}
           />
-        ) : null}
+        </DismissibleCard>
 
-        {engagementSlot === "socialEntry" ? <SocialEntryCard /> : null}
+        <DismissibleCard visible={engagementSlot === "socialEntry"}>
+          <SocialEntryCard />
+        </DismissibleCard>
 
         <TodayTabs
           tabs={tabItems}
@@ -994,6 +1022,27 @@ export default function TodayScreen() {
           onScroll={onGoalsTourScroll}
           onScrollBeginDrag={handleListScrollBeginDrag}
         />
+      ) : showHabitsLoadError ? (
+        <ScrollView
+          style={styles.listShell}
+          showsVerticalScrollIndicator={false}
+        >
+          {sharedHeader}
+          <View style={styles.loadErrorState}>
+            <SatelliteGlyph size={96} />
+            <Text style={styles.loadErrorText}>{t("habits.loadError")}</Text>
+            <PillButton
+              variant="ghost"
+              style={styles.loadErrorRetry}
+              accessibilityLabel={t("common.retry")}
+              onPress={() => {
+                void habitsQuery.refetch();
+              }}
+            >
+              {t("common.retry")}
+            </PillButton>
+          </View>
+        </ScrollView>
       ) : (
         <Animated.View
           ref={habitsTourRef}
@@ -1045,15 +1094,15 @@ export default function TodayScreen() {
             onSkip={handleOpenBulkSkip}
             onDelete={handleOpenBulkDelete}
             onClose={clearSelection}
-            countLabel={plural(
-              t("common.selected", { n: selectedCount }),
+            countSuffixLabel={plural(
+              t("common.selectedSuffix"),
               selectedCount,
             )}
             selectAllLabel={t("common.selectAll")}
             deselectAllLabel={t("common.deselectAll")}
-            logLabel={t("habits.bulkLogConfirm")}
-            skipLabel={t("habits.bulkSkipConfirm")}
-            deleteLabel={t("habits.bulkDeleteConfirm")}
+            logLabel={t("habits.bulkBar.log")}
+            skipLabel={t("habits.bulkBar.skip")}
+            deleteLabel={t("habits.bulkBar.delete")}
             closeLabel={t("common.cancel")}
           />
         </Animated.View>
@@ -1165,6 +1214,23 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
     },
     listShell: {
       flex: 1,
+    },
+    loadErrorState: {
+      alignItems: "center",
+      paddingVertical: 48,
+      paddingHorizontal: 24,
+    },
+    loadErrorText: {
+      fontFamily: "Rubik_400Regular",
+      fontSize: 14,
+      lineHeight: 21,
+      color: tokens.fg3,
+      marginTop: 14,
+      maxWidth: 280,
+      textAlign: "center",
+    },
+    loadErrorRetry: {
+      marginTop: 22,
     },
     bulkActionBarWrap: {
       position: "absolute",

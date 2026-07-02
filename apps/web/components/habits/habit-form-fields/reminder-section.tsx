@@ -117,7 +117,7 @@ export function ReminderSection({
                   <button
                     key={preset.value}
                     type="button"
-                    className="w-full text-left px-3.5 py-2.5 rounded-[10px] text-[15px] text-[var(--fg-1)] hover:bg-[var(--bg-elev)] transition-colors duration-150"
+                    className="w-full text-left px-3.5 py-2.5 rounded-[10px] text-[15px] text-[var(--fg-1)] hover:bg-[var(--bg-elev)] transition-colors duration-[var(--dur-fast)]"
                     onClick={() => addPreset(preset.value)}
                   >
                     {t(preset.key as Parameters<typeof t>[0])}
@@ -144,7 +144,7 @@ export function ReminderSection({
                     <button
                       type="button"
                       aria-label={t('common.add')}
-                      className="shrink-0 grid size-9 place-items-center rounded-full bg-[var(--primary)] text-[var(--fg-on-primary)] hover:bg-[var(--primary-pressed)] transition-colors duration-150"
+                      className="touch-target shrink-0 grid size-9 place-items-center rounded-full bg-[var(--primary)] text-[var(--fg-on-primary)] hover:bg-[var(--primary-pressed)] transition-[background-color,transform] duration-[var(--dur-fast)] active:scale-[0.96]"
                       onClick={addCustomReminder}
                     >
                       <Plus size={16} strokeWidth={2.2} aria-hidden="true" />
@@ -153,7 +153,7 @@ export function ReminderSection({
                 )}
                 <button
                   type="button"
-                  className="w-full text-left px-3.5 py-2.5 rounded-[10px] text-[15px] text-[var(--primary)] font-medium hover:bg-[var(--bg-elev)] transition-colors duration-150"
+                  className="w-full text-left px-3.5 py-2.5 rounded-[10px] text-[15px] text-[var(--primary)] font-medium hover:bg-[var(--bg-elev)] transition-colors duration-[var(--dur-fast)]"
                   onClick={() => setShowCustomInput(!showCustomInput)}
                 >
                   {t('habits.form.reminderCustom')}

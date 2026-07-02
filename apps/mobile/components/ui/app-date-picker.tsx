@@ -339,7 +339,7 @@ function createStyles(tokens: AppTokens) {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      minHeight: 44,
+      minHeight: 54,
       backgroundColor: tokens.bgField,
       borderWidth: 1,
       borderColor: tokens.hairline,

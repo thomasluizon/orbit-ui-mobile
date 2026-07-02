@@ -353,7 +353,7 @@ function createStyles(tokens: AppTokens) {
       width: '100%',
       flexDirection: 'row',
       alignItems: 'center',
-      minHeight: 44,
+      minHeight: 54,
       backgroundColor: tokens.bgField,
       borderWidth: 1,
       borderColor: tokens.hairline,

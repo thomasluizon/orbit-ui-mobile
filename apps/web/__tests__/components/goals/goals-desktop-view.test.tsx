@@ -60,32 +60,36 @@ const goals = [
   makeGoal({ id: 'g2', title: 'Goal Two', position: 1 }),
 ]
 
+const emptyState = <div data-testid="goals-empty-state">goals.empty</div>
+
 describe('GoalsDesktopView', () => {
   it('shows skeletons before goals are fetched', () => {
-    const { container } = render(<GoalsDesktopView goals={[]} isFetched={false} />)
+    const { container } = render(
+      <GoalsDesktopView goals={[]} isFetched={false} emptyState={emptyState} />,
+    )
     expect(container.querySelectorAll('.skeleton-pulse').length).toBeGreaterThan(0)
   })
 
-  it('shows the empty state when fetched with no goals', () => {
-    render(<GoalsDesktopView goals={[]} isFetched />)
-    expect(screen.getByText('goals.empty')).toBeInTheDocument()
-    expect(screen.getByText('goals.emptyHint')).toBeInTheDocument()
+  it('shows the provided empty state when fetched with no goals', () => {
+    render(<GoalsDesktopView goals={[]} isFetched emptyState={emptyState} />)
+    expect(screen.getByTestId('goals-empty-state')).toBeInTheDocument()
+    expect(screen.queryByTestId('goal-list')).not.toBeInTheDocument()
   })
 
   it('renders both panes and auto-selects the first goal', () => {
-    render(<GoalsDesktopView goals={goals} isFetched />)
+    render(<GoalsDesktopView goals={goals} isFetched emptyState={emptyState} />)
     expect(screen.getByTestId('goal-list')).toBeInTheDocument()
     expect(screen.getByTestId('detail-panel')).toHaveTextContent('g1')
   })
 
   it('shows the chosen goal in the detail panel when selected', () => {
-    render(<GoalsDesktopView goals={goals} isFetched />)
+    render(<GoalsDesktopView goals={goals} isFetched emptyState={emptyState} />)
     fireEvent.click(screen.getByTestId('pick-g2'))
     expect(screen.getByTestId('detail-panel')).toHaveTextContent('g2')
   })
 
   it('keeps the selected id in sync with the list', () => {
-    render(<GoalsDesktopView goals={goals} isFetched />)
+    render(<GoalsDesktopView goals={goals} isFetched emptyState={emptyState} />)
     expect(screen.getByTestId('goal-list')).toHaveAttribute('data-selected', 'g1')
     fireEvent.click(screen.getByTestId('pick-g2'))
     expect(screen.getByTestId('goal-list')).toHaveAttribute('data-selected', 'g2')

@@ -1,13 +1,6 @@
 import { StyleSheet, Text, View } from 'react-native'
 import { Pressable } from 'react-native-gesture-handler'
-import {
-  CheckCircle2,
-  FastForward,
-  MinusCircle,
-  PlusCircle,
-  Trash2,
-  X,
-} from 'lucide-react-native'
+import { CheckCircle2, FastForward, Trash2, X } from 'lucide-react-native'
 import { createTokensV2, shadowsV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
@@ -20,7 +13,7 @@ interface BulkActionBarV2Props {
   onSkip: () => void
   onDelete: () => void
   onClose: () => void
-  countLabel: string
+  countSuffixLabel: string
   selectAllLabel: string
   deselectAllLabel: string
   logLabel: string
@@ -43,7 +36,7 @@ export function BulkActionBarV2({
   onSkip,
   onDelete,
   onClose,
-  countLabel,
+  countSuffixLabel,
   selectAllLabel,
   deselectAllLabel,
   logLabel,
@@ -66,39 +59,47 @@ export function BulkActionBarV2({
         shadowsV2.shadow2,
       ]}
     >
-      <Text style={[styles.count, { color: tokens.fg1 }]}>
-        {countLabel}
-      </Text>
-      <View style={styles.actions}>
+      <View style={styles.captionRow}>
+        <Text style={[styles.countLine, { color: tokens.fg3 }]}>
+          <Text
+            style={[styles.countValue, { color: tokens.fg1 }]}
+          >
+            {count}
+          </Text>
+          {' '}
+          {countSuffixLabel}
+        </Text>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={allSelected ? deselectAllLabel : selectAllLabel}
           onPress={allSelected ? onDeselectAll : onSelectAll}
+          hitSlop={{ top: 11, bottom: 11, left: 6, right: 6 }}
           style={({ pressed }) => [
-            styles.actionBtn,
-            { backgroundColor: pressed ? tokens.bgSunk : 'transparent' },
+            styles.selectAllBtn,
+            pressed ? styles.pressedScale : null,
           ]}
         >
-          {allSelected ? (
-            <MinusCircle size={18} color={tokens.fg2} strokeWidth={1.8} />
-          ) : (
-            <PlusCircle size={18} color={tokens.fg2} strokeWidth={1.8} />
-          )}
+          <Text style={[styles.selectAllText, { color: tokens.fg3 }]}>
+            {allSelected ? deselectAllLabel : selectAllLabel}
+          </Text>
         </Pressable>
+      </View>
+      <View style={styles.actions}>
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={logLabel}
           accessibilityState={{ disabled }}
           disabled={disabled}
+          hitSlop={2}
           onPress={onLog}
           style={({ pressed }) => [
             styles.actionBtn,
             { backgroundColor: pressed ? tokens.bgSunk : 'transparent' },
+            pressed ? styles.pressedScale : null,
             disabled ? styles.disabled : null,
           ]}
         >
           <CheckCircle2
-            size={18}
+            size={22}
             color={tokens.primary}
             strokeWidth={1.8}
           />
@@ -108,15 +109,17 @@ export function BulkActionBarV2({
           accessibilityLabel={skipLabel}
           accessibilityState={{ disabled }}
           disabled={disabled}
+          hitSlop={2}
           onPress={onSkip}
           style={({ pressed }) => [
             styles.actionBtn,
             { backgroundColor: pressed ? tokens.bgSunk : 'transparent' },
+            pressed ? styles.pressedScale : null,
             disabled ? styles.disabled : null,
           ]}
         >
           <FastForward
-            size={18}
+            size={22}
             color={tokens.statusSkip}
             strokeWidth={1.8}
           />
@@ -126,32 +129,34 @@ export function BulkActionBarV2({
           accessibilityLabel={deleteLabel}
           accessibilityState={{ disabled }}
           disabled={disabled}
+          hitSlop={2}
           onPress={onDelete}
           style={({ pressed }) => [
             styles.actionBtn,
             { backgroundColor: pressed ? tokens.bgSunk : 'transparent' },
+            pressed ? styles.pressedScale : null,
             disabled ? styles.disabled : null,
           ]}
         >
           <Trash2
-            size={18}
+            size={22}
             color={tokens.statusBad}
             strokeWidth={1.8}
           />
         </Pressable>
-        <View
-          style={[styles.divider, { backgroundColor: tokens.hairline }]}
-        />
+        <View style={styles.spacer} />
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={closeLabel}
+          hitSlop={2}
           onPress={onClose}
           style={({ pressed }) => [
             styles.actionBtn,
             { backgroundColor: pressed ? tokens.bgSunk : 'transparent' },
+            pressed ? styles.pressedScale : null,
           ]}
         >
-          <X size={18} color={tokens.fg2} strokeWidth={1.8} />
+          <X size={22} color={tokens.fg2} strokeWidth={1.8} />
         </Pressable>
       </View>
     </View>
@@ -166,10 +171,30 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     gap: 8,
   },
-  count: {
+  captionRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 16,
+  },
+  countLine: {
+    fontFamily: 'Roboto_400Regular',
+    fontSize: 12,
+    letterSpacing: 0.24,
+  },
+  countValue: {
+    fontFamily: 'Roboto_500Medium',
+    fontVariant: ['tabular-nums'],
+  },
+  selectAllBtn: {
+    paddingVertical: 4,
+    paddingHorizontal: 6,
+  },
+  selectAllText: {
     fontFamily: 'Rubik_500Medium',
-    fontSize: 13,
-    },
+    fontSize: 12,
+    textDecorationLine: 'underline',
+  },
   actions: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -182,12 +207,13 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
+  pressedScale: {
+    transform: [{ scale: 0.96 }],
+  },
   disabled: {
     opacity: 0.45,
   },
-  divider: {
-    width: 1,
-    height: 20,
-    marginHorizontal: 2,
+  spacer: {
+    flex: 1,
   },
 })

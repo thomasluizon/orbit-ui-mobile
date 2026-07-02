@@ -28,7 +28,13 @@ export function HabitDetailHeader({
               : null,
           ]}
         >
-          <Text style={styles.emojiWellText}>{habit.emoji}</Text>
+          <Text
+            style={styles.emojiWellText}
+            accessibilityElementsHidden
+            importantForAccessibility="no-hide-descendants"
+          >
+            {habit.emoji}
+          </Text>
         </View>
       ) : null}
       {summaryStrip ? (

@@ -12,9 +12,8 @@ import {
   View,
   Text,
   FlatList,
-  TouchableOpacity,
+  Pressable,
   RefreshControl,
-  ActivityIndicator,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
 } from 'react-native'
@@ -25,7 +24,7 @@ import DraggableFlatList, {
 } from 'react-native-draggable-flatlist'
 import { FlatList as GHFlatList } from 'react-native-gesture-handler'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { ChevronLeft } from 'lucide-react-native'
+import { ChevronLeft, Home } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import {
   buildHabitDateBuckets,
@@ -66,6 +65,7 @@ import { useTourStore } from '@/stores/tour-store'
 import { CreateHabitModal } from '@/components/habits/create-habit-modal'
 import { RescheduleSheet } from '@/components/habits/reschedule-sheet'
 import { HabitRow } from '@/components/habits/habit-row'
+import { PillButton } from '@/components/ui/pill-button'
 import { useTourTarget } from '@/hooks/use-tour-target'
 import { HabitListConfirmDialogs } from './habit-list/confirm-dialogs'
 import {
@@ -189,6 +189,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     const styles = useMemo(() => createStyles(tokens), [tokens])
     const scrollContainerRef = useRef<GHFlatList<DragItem>>(null)
     const allViewListRef = useRef<FlatList<HabitListDateGroup>>(null)
+    const drillListRef = useRef<FlatList<NormalizedHabit>>(null)
     const scrollTo = useCallback((y: number) => {
       scrollContainerRef.current?.scrollToOffset({ offset: y, animated: true })
     }, [])
@@ -1032,7 +1033,10 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
           refetch()
         },
         scrollToOffset: (offset: number) => {
-          const target = scrollContainerRef.current ?? allViewListRef.current
+          const target =
+            scrollContainerRef.current ??
+            allViewListRef.current ??
+            drillListRef.current
           try {
             target?.scrollToOffset?.({
               offset,
@@ -1308,10 +1312,16 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         <HabitListDateGroupSection
           group={group}
           overdueLabel={t('habits.overdue')}
-          renderHabit={(habit) => {
+          renderHabit={(habit, index) => {
             const children = getVisibleChildren(habit.id)
             return (
-              <>
+              <Animated.View
+                entering={
+                  prefersReducedMotion
+                    ? undefined
+                    : FadeInDown.duration(280).delay(Math.min(index, 8) * 40)
+                }
+              >
                 {renderHabitCard(
                   habit,
                   0,
@@ -1319,24 +1329,38 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
                   habit.hasSubHabits,
                 )}
                 {renderAllViewChildren(habit.id, 1)}
-              </>
+              </Animated.View>
             )
           }}
         />
       ),
-      [getVisibleChildren, renderAllViewChildren, renderHabitCard, t],
+      [
+        getVisibleChildren,
+        prefersReducedMotion,
+        renderAllViewChildren,
+        renderHabitCard,
+        t,
+      ],
     )
 
     const renderDrillItem = useCallback(
-      ({ item: child }: { item: NormalizedHabit }) => (
-        <DrillHabitItem
-          child={child}
-          styles={styles}
-          getDrillChildren={drill.getDrillChildren}
-          renderHabitCard={renderHabitCard}
-        />
+      ({ item: child, index }: { item: NormalizedHabit; index: number }) => (
+        <Animated.View
+          entering={
+            prefersReducedMotion
+              ? undefined
+              : FadeInDown.duration(280).delay(Math.min(index, 8) * 40)
+          }
+        >
+          <DrillHabitItem
+            child={child}
+            styles={styles}
+            getDrillChildren={drill.getDrillChildren}
+            renderHabitCard={renderHabitCard}
+          />
+        </Animated.View>
       ),
-      [drill.getDrillChildren, renderHabitCard, styles],
+      [drill.getDrillChildren, prefersReducedMotion, renderHabitCard, styles],
     )
 
     const drillFooter = useMemo(
@@ -1458,15 +1482,18 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         <>
           {listHeaderComponent}
           <View style={styles.drillHeader}>
-            <TouchableOpacity
+            <Pressable
               onPress={drill.drillBack}
-              style={styles.drillBackBtn}
-              activeOpacity={0.7}
+              hitSlop={2}
               accessibilityRole="button"
               accessibilityLabel={t('common.back')}
+              style={({ pressed }) => [
+                styles.drillBackBtn,
+                pressed ? styles.drillBackBtnPressed : null,
+              ]}
             >
               <ChevronLeft size={20} color={tokens.fg1} strokeWidth={1.8} />
-            </TouchableOpacity>
+            </Pressable>
             <View style={{ flex: 1 }}>
               <Text style={styles.drillTitle} numberOfLines={1}>
                 {drill.currentParent?.title ?? ''}
@@ -1476,32 +1503,68 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
                 {t('habits.completed')}
               </Text>
             </View>
-            {drill.drillStack.length > 1 ? (
-              <TouchableOpacity
-                onPress={drill.drillReset}
-                activeOpacity={0.7}
-                hitSlop={{ top: 14, bottom: 14, left: 14, right: 14 }}
-                accessibilityRole="button"
-                accessibilityLabel={t('habits.backToHabits')}
-              >
-                <ChevronLeft size={16} color={tokens.fg3} />
-              </TouchableOpacity>
-            ) : null}
           </View>
+          {drill.drillStack.length > 1 ? (
+            <Pressable
+              onPress={drill.drillReset}
+              accessibilityRole="button"
+              style={styles.drillResetRow}
+            >
+              {({ pressed }) => (
+                <>
+                  <Home
+                    size={14}
+                    color={pressed ? tokens.primaryPressed : tokens.primary}
+                    strokeWidth={1.8}
+                  />
+                  <Text
+                    style={[
+                      styles.drillResetText,
+                      pressed ? { color: tokens.primaryPressed } : null,
+                    ]}
+                  >
+                    {t('habits.backToHabits')}
+                  </Text>
+                </>
+              )}
+            </Pressable>
+          ) : null}
         </>
       )
 
       const drillEmptyState = drill.drillLoading ? (
-        <ActivityIndicator color={tokens.primary} style={{ marginTop: 24 }} />
+        <View style={styles.drillSkeletons}>
+          <SkeletonCard styles={styles} />
+          <SkeletonCard styles={styles} />
+          <SkeletonCard styles={styles} />
+        </View>
       ) : drill.drillError ? (
-        <Text style={styles.emptyText}>{drill.drillError}</Text>
+        <View style={styles.drillErrorWrap}>
+          <Text
+            style={[styles.emptyText, { color: tokens.statusBadText }]}
+            accessibilityLiveRegion="polite"
+          >
+            {drill.drillError}
+          </Text>
+          <PillButton
+            variant="ghost"
+            accessibilityLabel={t('common.retry')}
+            style={styles.drillRetryButton}
+            onPress={() => {
+              void drill.refreshCurrent()
+            }}
+          >
+            {t('common.retry')}
+          </PillButton>
+        </View>
       ) : (
-        <Text style={styles.emptyText}>{t('habits.emptyState')}</Text>
+        <Text style={styles.emptyText}>{t('habits.noSubHabits')}</Text>
       )
 
       return (
         <>
           <FlatList
+            ref={drillListRef}
             data={
               drill.drillLoading || drill.drillError ? [] : drill.drillChildren
             }
@@ -1515,6 +1578,8 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
               isSelectMode ? styles.listContentWithBulkBar : null,
             ]}
             refreshControl={refreshControl}
+            onScroll={handleListScroll}
+            scrollEventThrottle={16}
             onScrollBeginDrag={onScrollBeginDrag}
             showsVerticalScrollIndicator={false}
             initialNumToRender={10}
@@ -1531,7 +1596,13 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       return (
         <>
           <FlatList
-            data={['skeleton-1', 'skeleton-2', 'skeleton-3']}
+            data={[
+              'skeleton-1',
+              'skeleton-2',
+              'skeleton-3',
+              'skeleton-4',
+              'skeleton-5',
+            ]}
             keyExtractor={(item) => item}
             renderItem={() => (
               <View style={styles.sectionInset}>

@@ -86,7 +86,7 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
   function renderFooter() {
     if (!hasProAccess) {
       return (
-        <div className="flex flex-col" style={{ gap: 10 }}>
+        <div className="flex flex-col w-full sm:max-w-[360px] sm:mx-auto" style={{ gap: 10 }}>
           <PillButton fullWidth onClick={() => router.push('/upgrade')}>
             {t('habits.reschedule.upgrade')}
           </PillButton>
@@ -98,7 +98,7 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
     }
     if (error) {
       return (
-        <div className="flex flex-col" style={{ gap: 10 }}>
+        <div className="flex flex-col w-full sm:max-w-[360px] sm:mx-auto" style={{ gap: 10 }}>
           <PillButton fullWidth onClick={() => void refetch()}>
             {t('habits.reschedule.retry')}
           </PillButton>
@@ -109,7 +109,7 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
       )
     }
     return (
-      <div className="flex flex-col" style={{ gap: 10 }}>
+      <div className="flex flex-col w-full sm:max-w-[360px] sm:mx-auto" style={{ gap: 10 }}>
         <PillButton
           fullWidth
           disabled={!suggestion || updateHabit.isPending}
@@ -149,7 +149,7 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
             Astra
           </span>
           <span
-            aria-label={t('aiDisclosure.isAiTooltip')}
+            title={t('aiDisclosure.isAiTooltip')}
             style={{
               fontFamily: 'var(--font-mono)',
               fontSize: 10,
@@ -173,9 +173,22 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
             {t('habits.reschedule.freePrompt')}
           </p>
         ) : isLoading ? (
-          <p style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--fg-2)' }}>
-            {t('habits.reschedule.loading')}
-          </p>
+          <div className="flex flex-col" style={{ gap: 14 }}>
+            <p style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--fg-2)' }}>
+              {t('habits.reschedule.loading')}
+            </p>
+            <div
+              data-testid="reschedule-loading-skeleton"
+              aria-hidden="true"
+              className="animate-pulse"
+              style={{
+                height: 76,
+                borderRadius: 18,
+                background: 'var(--bg-field)',
+                boxShadow: 'inset 0 0 0 1px var(--hairline)',
+              }}
+            />
+          </div>
         ) : error ? (
           <p
             data-testid="reschedule-error"

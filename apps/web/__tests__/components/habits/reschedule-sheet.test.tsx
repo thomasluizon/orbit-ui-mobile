@@ -96,4 +96,13 @@ describe('RescheduleSheet', () => {
     fireEvent.click(screen.getByText('habits.reschedule.retry'))
     expect(h.reschedule.refetch).toHaveBeenCalled()
   })
+
+  it('shows a schedule-card placeholder while the suggestion is loading', () => {
+    h.reschedule.isLoading = true
+
+    render(<RescheduleSheet open onOpenChange={vi.fn()} habit={overdueHabit} />)
+
+    expect(screen.getByText('habits.reschedule.loading')).toBeInTheDocument()
+    expect(screen.getByTestId('reschedule-loading-skeleton')).toBeInTheDocument()
+  })
 })

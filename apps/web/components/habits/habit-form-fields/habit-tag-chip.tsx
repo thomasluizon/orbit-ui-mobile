@@ -56,7 +56,7 @@ export function HabitTagChip({
       </button>
       <button
         type="button"
-        className={`pl-0.5 py-2 hover:opacity-60 transition-opacity ${
+        className={`grid min-h-11 min-w-8 -my-2 place-items-center pl-0.5 hover:opacity-60 transition-opacity ${
           selected ? 'text-white/70' : 'text-[var(--fg-3)]'
         }`}
         aria-label={editAriaLabel}
@@ -67,7 +67,7 @@ export function HabitTagChip({
       </button>
       <button
         type="button"
-        className={`pr-2.5 pl-1 py-2 hover:opacity-60 transition-opacity ${
+        className={`grid min-h-11 min-w-8 -my-2 place-items-center pr-2.5 pl-1 hover:opacity-60 transition-opacity ${
           selected ? 'text-white/70' : 'text-[var(--fg-3)]'
         }`}
         aria-label={deleteAriaLabel}

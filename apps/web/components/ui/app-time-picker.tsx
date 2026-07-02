@@ -156,7 +156,7 @@ export function AppTimePicker({
           (displayValue ? t('common.selectedTime', { time: displayValue }) : t('common.selectTime'))
         }
         onClick={() => (isOpen ? closePicker() : openPicker())}
-        className="flex w-full min-h-[44px] items-center justify-between rounded-[14px] bg-[var(--bg-field)] px-4 py-3 text-left text-base text-[var(--fg-1)] shadow-[inset_0_0_0_1px_var(--hairline)] transition-[background-color,box-shadow,color] duration-[var(--dur-fast)] focus:outline-none focus:shadow-[inset_0_0_0_2px_var(--primary)] disabled:opacity-60"
+        className="flex w-full min-h-[54px] items-center justify-between rounded-[14px] bg-[var(--bg-field)] px-4 py-3 text-left text-base text-[var(--fg-1)] shadow-[inset_0_0_0_1px_var(--hairline)] transition-[background-color,box-shadow,color] duration-[var(--dur-fast)] focus:outline-none focus:shadow-[inset_0_0_0_2px_var(--primary)] disabled:opacity-60"
         style={canClear ? { paddingRight: 40 } : undefined}
       >
         <span className={displayValue ? '' : 'text-[var(--fg-3)]'}>
@@ -170,8 +170,8 @@ export function AppTimePicker({
           type="button"
           onClick={onClear}
           aria-label={t('common.clear')}
-          className="absolute right-3 top-1/2 grid -translate-y-1/2 place-items-center rounded-full text-[var(--fg-3)] transition-colors hover:bg-[var(--bg-sunk)] hover:text-[var(--fg-1)] after:content-[''] after:absolute after:-inset-[10px]"
-          style={{ width: 24, height: 24 }}
+          className="absolute right-1 top-1/2 grid -translate-y-1/2 place-items-center rounded-full text-[var(--fg-3)] transition-colors hover:bg-[var(--bg-sunk)] hover:text-[var(--fg-1)]"
+          style={{ width: 44, height: 44 }}
         >
           <X size={16} strokeWidth={1.8} aria-hidden="true" />
         </button>

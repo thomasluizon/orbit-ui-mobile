@@ -146,6 +146,12 @@ export const BackHandler = {
     }
   },
   exitApp: () => {},
+  emitBackPress: (): boolean => {
+    for (const listener of [...backHandlerListeners].reverse()) {
+      if (listener()) return true
+    }
+    return false
+  },
 }
 
 export const AccessibilityInfo = {

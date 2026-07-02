@@ -99,6 +99,14 @@ export function HabitRowMenuBody({
           onPress={run(actions.onEnterSelectMode)}
         />
       ) : null}
+      {canDrillInto ? (
+        <MenuItem
+          icon={ChevronRight}
+          label={t('habits.actions.openSubHabits')}
+          color={tokens.fg1}
+          onPress={run(actions.onDrillInto)}
+        />
+      ) : null}
       {actions.onDelete ? (
         <>
           <View
@@ -111,14 +119,6 @@ export function HabitRowMenuBody({
             onPress={run(actions.onDelete)}
           />
         </>
-      ) : null}
-      {canDrillInto ? (
-        <MenuItem
-          icon={ChevronRight}
-          label={t('habits.actions.openSubHabits')}
-          color={tokens.fg1}
-          onPress={run(actions.onDrillInto)}
-        />
       ) : null}
     </>
   )

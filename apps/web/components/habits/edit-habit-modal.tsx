@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useId, useRef } from 'react'
 import { Check, Loader2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { AppOverlay } from '@/components/ui/app-overlay'
@@ -48,12 +48,16 @@ export function EditHabitModal({
 
   const formHelpers = useHabitForm()
   const tags = useTagSelection()
+  const formId = useId()
+  const titleInputRef = useRef<HTMLInputElement | null>(null)
   const [selectedGoalIds, setSelectedGoalIds] = useState<string[]>([])
   const [originalEndDate, setOriginalEndDate] = useState('')
   const [reminderTimes, setReminderTimes] = useState<number[]>([0, 15])
   const [initialTagIds, setInitialTagIds] = useState('[]')
   const [initialGoalIds, setInitialGoalIds] = useState('[]')
   const [initialReminderTimes, setInitialReminderTimes] = useState('[0,15]')
+
+  const watchedTitle = formHelpers.form.watch('title') ?? ''
 
   const atGoalLimit = selectedGoalIds.length >= MAX_GOALS_PER_HABIT
   const isDirty =
@@ -66,7 +70,12 @@ export function EditHabitModal({
     onDismiss: () => onOpenChange(false),
   })
 
-  const { data: habitDetail, error: detailError } = useHabitDetail(open && habit ? habit.id : null)
+  const {
+    data: habitDetail,
+    isPending: detailPending,
+    error: detailError,
+  } = useHabitDetail(open && habit ? habit.id : null)
+  const detailFieldsPending = open && !!habit && detailPending
 
   const toggleGoal = useCallback((goalId: string) => {
     setSelectedGoalIds((prev) => toggleSelectedId(prev, goalId))
@@ -90,8 +99,9 @@ export function EditHabitModal({
     sessionHabitId !== previousSession.habitId ||
     sessionDetailId !== previousSession.detailId
   ) {
+    const habitChanged = sessionHabitId !== previousSession.habitId
     setPreviousSession({ habitId: sessionHabitId, detailId: sessionDetailId })
-    if (open && habit) {
+    if (open && habit && (habitChanged || !formHelpers.form.formState.isDirty)) {
       const prefill = buildEditHabitFormState(habit, habitDetail)
       formHelpers.form.reset(prefill.formValues)
       setOriginalEndDate(prefill.originalEndDate)
@@ -149,10 +159,50 @@ export function EditHabitModal({
         canDismiss={dismissGuard.canDismiss}
         isDirty={isDirty}
         onAttemptDismiss={dismissGuard.requestDismiss}
+        initialFocusRef={titleInputRef}
+        panelWidth="wide"
+        footer={
+          <div className="flex items-center justify-end" style={{ gap: 12 }}>
+            <PillButton
+              variant="ghost"
+              disabled={updateHabit.isPending}
+              onClick={dismissGuard.requestDismiss}
+            >
+              {t('common.cancel')}
+            </PillButton>
+            <PillButton
+              type="submit"
+              form={formId}
+              glow={false}
+              disabled={
+                updateHabit.isPending ||
+                detailFieldsPending ||
+                watchedTitle.trim().length === 0
+              }
+              leading={
+                updateHabit.isPending ? (
+                  <Loader2 className="size-[18px] animate-spin" />
+                ) : (
+                  <Check size={18} strokeWidth={2.2} aria-hidden="true" />
+                )
+              }
+            >
+              {t('common.save')}
+            </PillButton>
+          </div>
+        }
       >
-        <form className="stagger-enter space-y-7" onSubmit={handleSubmit}>
+        <form id={formId} onSubmit={handleSubmit}>
+        <fieldset
+          disabled={detailFieldsPending}
+          aria-busy={detailFieldsPending || undefined}
+          className={`m-0 min-w-0 border-0 p-0 transition-opacity duration-[var(--dur-base)] ${
+            detailFieldsPending ? 'pointer-events-none opacity-60' : ''
+          }`}
+        >
         <HabitFormFields
           formHelpers={formHelpers}
+          titleInputRef={titleInputRef}
           tags={tags}
           selectedGoalIds={selectedGoalIds}
           atGoalLimit={atGoalLimit}
@@ -161,37 +211,7 @@ export function EditHabitModal({
           onReminderTimesChange={setReminderTimes}
           defaultExpanded
         />
-
-        <div
-          className="flex items-center justify-end"
-          style={{
-            gap: 12,
-            paddingTop: 14,
-            paddingBottom: 8,
-          }}
-        >
-          <PillButton
-            variant="ghost"
-            disabled={updateHabit.isPending}
-            onClick={dismissGuard.requestDismiss}
-          >
-            {t('common.cancel')}
-          </PillButton>
-          <PillButton
-            type="submit"
-            glow={false}
-            disabled={updateHabit.isPending || !formHelpers.form.formState.isValid}
-            leading={
-              updateHabit.isPending ? (
-                <Loader2 className="size-[18px] animate-spin" />
-              ) : (
-                <Check size={18} strokeWidth={2.2} aria-hidden="true" />
-              )
-            }
-          >
-            {t('common.save')}
-          </PillButton>
-        </div>
+        </fieldset>
         </form>
       </AppOverlay>
       <ConfirmDialog

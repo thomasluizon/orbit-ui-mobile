@@ -150,7 +150,7 @@ export function AppDatePicker({
         aria-label={displayValue ? t('common.selectedDate', { date: displayValue }) : t('common.selectDate')}
         aria-expanded={isOpen}
         aria-haspopup="dialog"
-        className="w-full min-h-[44px] bg-[var(--bg-field)] text-[var(--fg-1)] rounded-[14px] py-3 px-4 text-base shadow-[inset_0_0_0_1px_var(--hairline)] text-left flex items-center justify-between focus:outline-none focus:shadow-[inset_0_0_0_2px_var(--primary)] transition-[background-color,box-shadow,color] duration-[var(--dur-fast)]"
+        className="w-full min-h-[54px] bg-[var(--bg-field)] text-[var(--fg-1)] rounded-[14px] py-3 px-4 text-base shadow-[inset_0_0_0_1px_var(--hairline)] text-left flex items-center justify-between focus:outline-none focus:shadow-[inset_0_0_0_2px_var(--primary)] transition-[background-color,box-shadow,color] duration-[var(--dur-fast)]"
         onClick={() => (isOpen ? closePicker() : setIsOpen(true))}
       >
         <span>{displayValue || placeholder || t('common.selectDate')}</span>

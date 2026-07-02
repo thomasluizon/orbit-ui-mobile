@@ -62,8 +62,8 @@ export function SetupChecklistCard() {
             type="button"
             onClick={() => setDismissed(true)}
             aria-label={t('today.setupChecklist.dismiss')}
-            className="flex shrink-0 appearance-none items-center justify-center rounded-full border-0 bg-transparent"
-            style={{ width: 28, height: 28, cursor: 'pointer' }}
+            className="icon-btn touch-target shrink-0"
+            style={{ width: 36, height: 36 }}
           >
             <X size={18} strokeWidth={1.8} color="var(--fg-4)" />
           </button>

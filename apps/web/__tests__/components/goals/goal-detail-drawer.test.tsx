@@ -1,6 +1,6 @@
 import React from 'react'
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string, params?: Record<string, unknown>) => {
@@ -37,6 +37,9 @@ const listGoal = {
 }
 
 let detailGoal = { ...listGoal, progressHistory: [] as Array<unknown> }
+let detailLoadError = false
+const refetchDetail = vi.fn()
+const updateStatusMutateAsync = vi.fn()
 
 vi.mock('@/hooks/use-goals', () => ({
   useGoals: () => ({
@@ -48,11 +51,15 @@ vi.mock('@/hooks/use-goals', () => ({
   useGoalDetail: (id: string | null) => ({
     data: id ? { goal: detailGoal, metrics: null } : null,
     isLoading: false,
-    isError: false,
-    refetch: vi.fn(),
+    isError: detailLoadError,
+    refetch: refetchDetail,
   }),
   useUpdateGoalProgress: () => ({ mutateAsync: vi.fn(), isPending: false, error: null }),
-  useUpdateGoalStatus: () => ({ mutateAsync: vi.fn(), isPending: false, error: null }),
+  useUpdateGoalStatus: () => ({
+    mutateAsync: updateStatusMutateAsync,
+    isPending: false,
+    error: null,
+  }),
   useDeleteGoal: () => ({ mutateAsync: vi.fn(), isPending: false, error: null }),
 }))
 
@@ -70,6 +77,9 @@ describe('GoalDetailDrawer', () => {
   beforeEach(() => {
     document.body.innerHTML = ''
     detailGoal = { ...listGoal, progressHistory: [] }
+    detailLoadError = false
+    refetchDetail.mockClear()
+    updateStatusMutateAsync.mockClear()
   })
 
   it('renders nothing when closed', () => {
@@ -157,5 +167,45 @@ describe('GoalDetailDrawer', () => {
 
     expect(screen.getByText('Read 12 books (synced)')).toBeInTheDocument()
     expect(document.body.textContent).toContain('"current":6')
+  })
+
+  it('opens straight into the progress form for the progress initial action', () => {
+    render(
+      <GoalDetailDrawer
+        open={true}
+        onOpenChange={vi.fn()}
+        goalId="1"
+        initialAction="progress"
+      />,
+    )
+    expect(document.body.textContent).toContain('common.save')
+    expect(document.body.textContent).not.toContain('goals.updateProgress')
+  })
+
+  it('marks the goal completed once for the complete initial action', () => {
+    render(
+      <GoalDetailDrawer
+        open={true}
+        onOpenChange={vi.fn()}
+        goalId="1"
+        initialAction="complete"
+      />,
+    )
+    expect(updateStatusMutateAsync).toHaveBeenCalledTimes(1)
+    expect(updateStatusMutateAsync).toHaveBeenCalledWith({
+      goalId: '1',
+      data: { status: 'Completed' },
+      goalName: 'Read 12 books',
+    })
+  })
+
+  it('offers a retry action when the detail fetch fails', () => {
+    detailLoadError = true
+    render(
+      <GoalDetailDrawer open={true} onOpenChange={vi.fn()} goalId="1" />,
+    )
+    expect(document.body.textContent).toContain('goals.detail.loadError')
+    fireEvent.click(screen.getByRole('button', { name: 'common.retry' }))
+    expect(refetchDetail).toHaveBeenCalledTimes(1)
   })
 })

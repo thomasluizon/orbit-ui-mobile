@@ -1,7 +1,14 @@
 'use client'
 
 import { createPortal } from 'react-dom'
-import { useEffect, useRef, useState, useCallback, type CSSProperties } from 'react'
+import {
+  useEffect,
+  useRef,
+  useState,
+  useCallback,
+  type CSSProperties,
+  type RefObject,
+} from 'react'
 import { useTranslations } from 'next-intl'
 import type { TourStep, TourSection } from '@orbit/shared/types'
 import type { TourTargetRect } from '@orbit/shared/stores'
@@ -15,6 +22,7 @@ import {
   CalendarDays,
   User,
 } from 'lucide-react'
+import { ProBadge } from '@/components/ui/pro-badge'
 
 interface TourTooltipProps {
   step: TourStep
@@ -22,6 +30,7 @@ interface TourTooltipProps {
   sectionProgress: { current: number; total: number; section: TourSection | null }
   isFirstStep: boolean
   isLastStep: boolean
+  dialogRef: RefObject<HTMLDialogElement | null>
   onNext: () => void
   onPrev: () => void
   onSkip: () => void
@@ -188,12 +197,12 @@ export function TourTooltip({
   sectionProgress,
   isFirstStep,
   isLastStep,
+  dialogRef,
   onNext,
   onPrev,
   onSkip,
 }: TourTooltipProps) {
   const t = useTranslations()
-  const tooltipRef = useRef<HTMLDialogElement>(null)
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null)
   const [mode, setMode] = useState<'float' | 'sheet-top' | 'sheet-bottom'>('sheet-bottom')
 
@@ -212,7 +221,7 @@ export function TourTooltip({
     }
     setMode('float')
 
-    const el = tooltipRef.current
+    const el = dialogRef.current
     if (!el) return
 
     const { width: tw, height: th } = el.getBoundingClientRect()
@@ -224,7 +233,7 @@ export function TourTooltip({
       targetRect,
       placement: step.placement,
     }))
-  }, [targetRect, step.placement])
+  }, [targetRect, step.placement, dialogRef])
 
   useEffect(() => {
     window.addEventListener('resize', layout)
@@ -248,8 +257,8 @@ export function TourTooltip({
 
   const modeClassName = (() => {
     if (mode === 'float') return 'fixed z-[9999] w-[360px] rounded-[18px] bg-[var(--bg-sheet)] px-6 py-5'
-    if (mode === 'sheet-top') return 'fixed top-0 left-0 right-0 z-[9999] rounded-b-[18px] bg-[var(--bg-sheet)] px-6 pt-3 pb-5'
-    return 'fixed bottom-0 left-0 right-0 z-[9999] rounded-t-[18px] bg-[var(--bg-sheet)] px-6 pt-3 pb-[calc(1.75rem+var(--safe-bottom))]'
+    if (mode === 'sheet-top') return 'fixed top-0 left-0 right-0 z-[9999] w-full rounded-b-[26px] bg-[var(--bg-sheet)] px-6 pt-3 pb-5'
+    return 'fixed bottom-0 left-0 right-0 z-[9999] w-full rounded-t-[26px] bg-[var(--bg-sheet)] px-6 pt-3 pb-[calc(1.75rem+var(--safe-bottom))]'
   })()
 
   const surfaceStyle = {
@@ -272,14 +281,15 @@ export function TourTooltip({
 
   const content = (
     <dialog
+      key={step.id}
       open
-      ref={tooltipRef}
+      ref={dialogRef}
       className={modeClassName}
       style={{ ...surfaceStyle, ...floatStyle, ...entranceStyle }}
       aria-modal="true"
       aria-label={t(step.titleKey)}
     >
-      {mode !== 'float' && (
+      {mode === 'sheet-bottom' && (
         <div className="mx-auto mb-4 h-[5px] w-11 rounded-full bg-[var(--hairline-strong)]" />
       )}
 
@@ -288,31 +298,29 @@ export function TourTooltip({
         <span className="text-[12px] font-medium uppercase tracking-[0.08em] text-[var(--fg-3)]">
           {sectionName}
         </span>
-        <span className="font-[var(--font-mono)] text-[12px] uppercase tracking-[0.04em] text-[var(--fg-3)] [font-variant-numeric:tabular-nums]">
+        <span aria-hidden="true" className="text-[12px] text-[var(--fg-4)]">
+          ·
+        </span>
+        <span className="font-(family-name:--font-mono) text-[12px] uppercase tracking-[0.04em] text-[var(--fg-3)] [font-variant-numeric:tabular-nums]">
           {t('tour.ui.stepOf', {
             current: sectionProgress.current,
             total: sectionProgress.total,
           })}
         </span>
         {step.proBadge && (
-          <span
-            className="ml-auto rounded-full px-[9px] py-[3px] text-[10.5px] font-semibold uppercase tracking-[0.06em] text-[var(--primary-soft)]"
-            style={{ background: 'rgba(var(--primary-rgb), 0.15)' }}
-          >
-            {t('tour.ui.pro')}
-          </span>
+          <ProBadge alwaysVisible label={t('tour.ui.pro')} className="ml-auto" />
         )}
       </div>
 
-      <h3 className="mb-1.5 text-[16px] font-medium text-[var(--fg-1)]">
+      <h3 className="mb-1.5 text-[16px] font-medium tracking-[-0.01em] text-[var(--fg-1)] [text-wrap:balance]">
         {t(step.titleKey)}
       </h3>
 
-      <p className="mb-4 text-[13.5px] leading-relaxed text-[var(--fg-2)]">
+      <p className="mb-4 text-[14px] leading-[1.55] text-[var(--fg-2)] [text-wrap:pretty]">
         {t(step.descriptionKey)}
       </p>
 
-      <div className="mb-4 flex items-center justify-center gap-1.5">
+      <div aria-hidden="true" className="mb-4 flex items-center justify-center gap-1.5">
         {Array.from({ length: sectionProgress.total }).map((_, i) => {
           let dotStyle: CSSProperties
           if (i === sectionProgress.current - 1) {
@@ -339,10 +347,10 @@ export function TourTooltip({
           <button
             type="button"
             onClick={onPrev}
-            className="flex min-h-[44px] items-center gap-1 rounded-full px-3 text-[14px] text-[var(--fg-2)] transition-colors duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev)] hover:text-[var(--fg-1)]"
+            aria-label={t('tour.ui.back')}
+            className="flex size-11 items-center justify-center rounded-full text-[var(--fg-2)] transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev)] active:scale-[0.96]"
           >
-            <ChevronLeft className="size-4" strokeWidth={1.8} />
-            {t('tour.ui.back')}
+            <ChevronLeft size={22} strokeWidth={1.8} />
           </button>
         )}
         <div className="flex-1" />
@@ -350,7 +358,7 @@ export function TourTooltip({
           ref={nextButtonRef}
           type="button"
           onClick={onNext}
-          className="flex min-h-[44px] items-center gap-1 rounded-full bg-[var(--primary)] px-[18px] text-[15px] font-medium text-[var(--fg-on-primary)] shadow-[0_6px_18px_rgba(var(--primary-rgb),0.35)] transition-[background-color,box-shadow,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:-translate-y-px hover:bg-[var(--primary-pressed)] hover:shadow-[0_8px_22px_rgba(var(--primary-rgb),0.45)] active:translate-y-0 active:scale-[0.97]"
+          className="flex min-h-[44px] items-center gap-1 rounded-full bg-[var(--primary)] px-[18px] text-[15px] font-medium text-[var(--fg-on-primary)] shadow-[var(--primary-glow)] transition-[background-color,box-shadow,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:-translate-y-px hover:bg-[var(--primary-pressed)] hover:shadow-[var(--primary-glow-hover)] active:translate-y-0 active:scale-[0.96]"
         >
           {isLastStep ? t('tour.ui.finish') : t('tour.ui.next')}
           {!isLastStep && <ChevronRight className="size-4" strokeWidth={1.8} />}
@@ -360,10 +368,14 @@ export function TourTooltip({
       <button
         type="button"
         onClick={onSkip}
-        className="mt-2 flex min-h-[44px] w-full items-center justify-center text-center text-[13px] text-[var(--fg-3)] transition-colors duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:text-[var(--fg-2)]"
+        className="mx-auto mt-2 flex min-h-[44px] w-fit items-center justify-center px-6 text-center text-[13px] text-[var(--fg-3)] transition-[color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:text-[var(--fg-2)] active:scale-[0.96]"
       >
         {t('tour.ui.skip')}
       </button>
+
+      {mode === 'sheet-top' && (
+        <div className="mx-auto mt-4 h-[5px] w-11 rounded-full bg-[var(--hairline-strong)]" />
+      )}
     </dialog>
   )
 

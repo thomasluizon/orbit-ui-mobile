@@ -120,7 +120,12 @@ export function HabitRowTrailing({
             accessibilityLabel={t('habits.actions.more')}
             style={({ pressed }) => [
               styles.menuButton,
-              pressed ? { backgroundColor: tokens.bgElevPressed } : null,
+              pressed
+                ? {
+                    backgroundColor: tokens.bgElevPressed,
+                    transform: [{ scale: 0.96 }],
+                  }
+                : null,
             ]}
           >
             <MoreVertical

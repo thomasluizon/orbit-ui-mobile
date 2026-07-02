@@ -94,8 +94,10 @@ export interface AppTokensV2 {
   bg: string
   /** Card fill — dark translucency ladder step 0.04; opaque white on light. */
   bgCard: string
-  /** Field/well fill — dark ladder step 0.05; scheme-tinted sunk on light. */
+  /** Field fill (dark ladder step 0.05; scheme-tinted sunk on light). */
   bgField: string
+  /** Emoji-well fill (dark ladder step 0.06; scheme-tinted sunk on light). */
+  bgWell: string
   bgElev: string
   bgElev2: string
   /** Press/active lift from `bgElev` (elev-2 alpha on dark, sunk on light). */
@@ -181,6 +183,7 @@ export function createTokensV2(
       bg: neutrals.bg,
       bgCard: alpha.bgCard,
       bgField: neutrals.bgSunk,
+      bgWell: neutrals.bgSunk,
       bgElev: alpha.bgElev,
       bgElev2: alpha.bgElev2,
       bgElevPressed: neutrals.bgSunk,
@@ -218,6 +221,7 @@ export function createTokensV2(
     bg: neutrals.bg,
     bgCard: alpha.bgCard,
     bgField: alpha.bgField ?? 'rgba(248, 250, 252, 0.05)',
+    bgWell: alpha.bgElev,
     bgElev: alpha.bgElev,
     bgElev2: alpha.bgElev2,
     bgElevPressed: alpha.bgElev2,

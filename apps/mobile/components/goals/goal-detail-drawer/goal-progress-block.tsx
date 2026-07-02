@@ -60,7 +60,9 @@ export function GoalProgressBlock({
     }),
   }))
 
-  const percentLabel = t('goals.progressPercentage', { pct: progressPercentage })
+  const percentLabel = t('goals.progressPercentage', {
+    pct: Math.round(progressPercentage),
+  })
 
   return (
     <View>

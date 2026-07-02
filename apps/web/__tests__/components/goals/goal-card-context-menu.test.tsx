@@ -41,19 +41,6 @@ vi.mock('motion/react', async () => {
   }
 })
 
-vi.mock('@/components/goals/goal-detail-drawer', () => ({
-  GoalDetailDrawer: ({
-    open,
-    initialAction,
-  }: {
-    open: boolean
-    initialAction?: string | null
-  }) =>
-    open ? (
-      <div data-testid="goal-detail-drawer" data-initial-action={initialAction ?? ''} />
-    ) : null,
-}))
-
 import { GoalCard } from '@/components/goals/goal-card'
 import type { Goal } from '@orbit/shared/types/goal'
 
@@ -75,9 +62,15 @@ function makeGoal(overrides: Partial<Goal> = {}): Goal {
   }
 }
 
+function renderCard(goal: Goal) {
+  const onOpenDetail = vi.fn()
+  render(<GoalCard goal={goal} onOpenDetail={onOpenDetail} />)
+  return onOpenDetail
+}
+
 describe('GoalCard context menu', () => {
   it('opens a menu on right-click with the goal actions', () => {
-    render(<GoalCard goal={makeGoal()} />)
+    renderCard(makeGoal())
 
     fireEvent.contextMenu(screen.getByText('Read 12 books'))
 
@@ -88,27 +81,25 @@ describe('GoalCard context menu', () => {
   })
 
   it('deep-links the drawer into the edit action', () => {
-    render(<GoalCard goal={makeGoal()} />)
+    const onOpenDetail = renderCard(makeGoal())
 
     fireEvent.contextMenu(screen.getByText('Read 12 books'))
     fireEvent.click(screen.getByRole('menuitem', { name: 'contextMenu.edit' }))
 
-    const drawer = screen.getByTestId('goal-detail-drawer')
-    expect(drawer).toBeInTheDocument()
-    expect(drawer).toHaveAttribute('data-initial-action', 'edit')
+    expect(onOpenDetail).toHaveBeenCalledWith('1', 'edit')
   })
 
-  it('opens the drawer with no action for view details', () => {
-    render(<GoalCard goal={makeGoal()} />)
+  it('requests the drawer with no action for view details', () => {
+    const onOpenDetail = renderCard(makeGoal())
 
     fireEvent.contextMenu(screen.getByText('Read 12 books'))
     fireEvent.click(screen.getByRole('menuitem', { name: 'contextMenu.viewDetails' }))
 
-    expect(screen.getByTestId('goal-detail-drawer')).toHaveAttribute('data-initial-action', '')
+    expect(onOpenDetail).toHaveBeenCalledWith('1', null)
   })
 
   it('omits complete for a non-active goal', () => {
-    render(<GoalCard goal={makeGoal({ status: 'Completed' })} />)
+    renderCard(makeGoal({ status: 'Completed' }))
 
     fireEvent.contextMenu(screen.getByText('Read 12 books'))
 

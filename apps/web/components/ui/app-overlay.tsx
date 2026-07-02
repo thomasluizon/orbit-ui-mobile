@@ -48,6 +48,7 @@ interface AppOverlayProps {
   canDismiss?: boolean
   isDirty?: boolean
   expandable?: boolean
+  panelWidth?: 'default' | 'wide'
   children?: ReactNode
   footer?: ReactNode
   onExpandDescription?: () => void
@@ -68,6 +69,7 @@ export function AppOverlay({
   canDismiss = true,
   isDirty = false,
   expandable = false,
+  panelWidth = 'default',
   children,
   footer,
   onExpandDescription,
@@ -266,7 +268,7 @@ export function AppOverlay({
             aria-modal="true"
             aria-labelledby={hasTitle ? titleId : undefined}
             aria-describedby={description ? descriptionId : undefined}
-            className="relative w-full sm:max-w-lg max-h-[82dvh] overflow-clip rounded-t-[26px] bg-[var(--bg-sheet)] shadow-[0_-16px_44px_rgba(0,0,0,0.5)] sm:rounded-[20px] sm:shadow-[var(--shadow-3)] flex flex-col overscroll-contain"
+            className={`relative w-full ${panelWidth === 'wide' ? 'sm:max-w-2xl' : 'sm:max-w-lg'} max-h-[82dvh] overflow-clip rounded-t-[26px] bg-[var(--bg-sheet)] shadow-[0_-16px_44px_rgba(0,0,0,0.5)] sm:rounded-[20px] sm:shadow-[var(--shadow-3)] flex flex-col overscroll-contain`}
             initial={{
               opacity: 0,
               y: motionPreset.shift,

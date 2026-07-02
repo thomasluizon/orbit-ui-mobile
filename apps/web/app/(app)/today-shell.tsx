@@ -118,6 +118,7 @@ interface TodayDateNavigationProps {
   dateLabel: string
   isTodaySelected: boolean
   slideDirection: 'left' | 'right'
+  animateDateChange: boolean
   onGoToPreviousDay: () => void
   onGoToToday: () => void
   onGoToNextDay: () => void
@@ -134,6 +135,7 @@ export function TodayDateNavigation({
   dateLabel,
   isTodaySelected,
   slideDirection,
+  animateDateChange,
   onGoToPreviousDay,
   onGoToToday,
   onGoToNextDay,
@@ -162,7 +164,7 @@ export function TodayDateNavigation({
         <button
           type="button"
           aria-label={previousLabel}
-          className="icon-btn shrink-0"
+          className="icon-btn touch-target-y shrink-0"
           style={{ width: 36, height: 36 }}
           onClick={onGoToPreviousDay}
         >
@@ -172,7 +174,7 @@ export function TodayDateNavigation({
           type="button"
           key={dateLabel}
           aria-label={isTodaySelected ? dateLabel : todayLabel}
-          className={`appearance-none border-0 bg-transparent cursor-pointer inline-flex items-center justify-center rounded-full transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev)] active:scale-[0.98] animate-slide-date-${slideDirection}`}
+          className={`appearance-none border-0 bg-transparent cursor-pointer inline-flex items-center justify-center rounded-full transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev)] active:scale-[0.98]${animateDateChange ? ` animate-slide-date-${slideDirection}` : ''}`}
           style={{
             height: 36,
             padding: '0 16px',
@@ -188,7 +190,7 @@ export function TodayDateNavigation({
         <button
           type="button"
           aria-label={nextLabel}
-          className="icon-btn shrink-0"
+          className="icon-btn touch-target-y shrink-0"
           style={{ width: 36, height: 36 }}
           onClick={onGoToNextDay}
         >
@@ -258,55 +260,38 @@ export function TodayUtilityRow({
       }}
     >
       {searchOpen ? (
-        <div className="flex items-center flex-1" style={{ gap: 8 }}>
-          <div
-            className="flex items-center flex-1 min-w-0 shadow-[inset_0_0_0_1px_var(--hairline)] focus-within:shadow-[inset_0_0_0_2px_var(--primary)] transition-[box-shadow] duration-[var(--dur-fast)] ease-[var(--ease-standard)]"
+        <div
+          className="flex items-center flex-1 min-w-0 shadow-[inset_0_0_0_1px_var(--hairline)] focus-within:shadow-[inset_0_0_0_2px_var(--primary)] transition-[box-shadow] duration-[var(--dur-fast)] ease-[var(--ease-standard)]"
+          style={{
+            gap: 8,
+            minHeight: 44,
+            borderRadius: 999,
+            background: 'var(--bg-elev)',
+            padding: '0 8px 0 16px',
+          }}
+        >
+          <Search size={18} strokeWidth={1.8} color="var(--fg-3)" aria-hidden="true" />
+          <input
+            value={searchValue}
+            onChange={(e) => onSearchChange(e.target.value)}
+            placeholder={t('habits.searchPlaceholder')}
+            autoFocus
+            className="appearance-none border-0 bg-transparent flex-1 min-w-0"
             style={{
-              gap: 8,
-              minHeight: 44,
-              borderRadius: 999,
-              background: 'var(--bg-elev)',
-              padding: '0 8px 0 16px',
+              outline: 'none',
+              fontFamily: 'var(--font-sans)',
+              fontSize: 15,
+              color: 'var(--fg-1)',
             }}
-          >
-            <Search size={18} strokeWidth={1.8} color="var(--fg-3)" aria-hidden="true" />
-            <input
-              value={searchValue}
-              onChange={(e) => onSearchChange(e.target.value)}
-              placeholder={t('habits.searchPlaceholder')}
-              autoFocus
-              className="appearance-none border-0 bg-transparent flex-1 min-w-0"
-              style={{
-                outline: 'none',
-                fontFamily: 'var(--font-sans)',
-                fontSize: 15,
-                color: 'var(--fg-1)',
-              }}
-            />
-            {searchValue && (
-              <button
-                type="button"
-                aria-label={t('common.clear')}
-                onClick={onSearchClear}
-                className="icon-btn shrink-0"
-                style={{ width: 28, height: 28 }}
-              >
-                <X size={16} strokeWidth={1.8} color="var(--fg-3)" aria-hidden="true" />
-              </button>
-            )}
-          </div>
+          />
           <button
             type="button"
-            onClick={onSearchToggle}
-            className="appearance-none border-0 bg-transparent cursor-pointer shrink-0 rounded-full text-[var(--fg-2)] hover:text-[var(--fg-1)] hover:bg-[var(--bg-elev)] active:scale-[0.96] transition-[background-color,color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)]"
-            style={{
-              padding: '8px 12px',
-              fontFamily: 'var(--font-sans)',
-              fontSize: 13,
-              fontWeight: 500,
-            }}
+            aria-label={searchValue ? t('common.clear') : t('habits.closeSearch')}
+            onClick={searchValue ? onSearchClear : onSearchToggle}
+            className="icon-btn touch-target-y shrink-0"
+            style={{ width: 36, height: 36 }}
           >
-            {t('common.cancel')}
+            <X size={16} strokeWidth={1.8} color="var(--fg-3)" aria-hidden="true" />
           </button>
         </div>
       ) : (
@@ -315,7 +300,7 @@ export function TodayUtilityRow({
             type="button"
             aria-label={t('habits.searchPlaceholder')}
             onClick={onSearchToggle}
-            className="icon-btn shrink-0"
+            className="icon-btn touch-target-y shrink-0"
             style={{ width: 36, height: 36 }}
           >
             <Search size={18} strokeWidth={1.8} color="var(--fg-2)" aria-hidden="true" />
@@ -382,7 +367,7 @@ function FrequencyFunnel({
           type="button"
           aria-label={triggerAriaLabel}
           aria-pressed={selected != null}
-          className="icon-btn shrink-0"
+          className="icon-btn touch-target-y shrink-0"
           style={{
             width: 36,
             height: 36,

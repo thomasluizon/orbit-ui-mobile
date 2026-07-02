@@ -8,6 +8,7 @@ import {
 } from "react";
 import {
   Animated,
+  Easing,
   View,
   Text,
   Pressable,
@@ -40,7 +41,11 @@ import { AnchoredMenu, MenuAnchorHost } from "@/components/ui/anchored-menu";
 import { TodayAISummary } from "@/components/habits/today-ai-summary";
 import { TodayDateNavigation } from "@/app/(tabs)/today-shell";
 import type { MenuAnchorRect } from "@/lib/anchored-menu";
-import { createAnimatedTimingConfig, useResolvedMotionPreset } from "@/lib/motion";
+import {
+  createAnimatedTimingConfig,
+  usePrefersReducedMotion,
+  useResolvedMotionPreset,
+} from "@/lib/motion";
 import { createTokensV2, tintFromPrimary } from "@/lib/theme";
 import { useAppTheme } from "@/lib/use-app-theme";
 
@@ -54,7 +59,7 @@ interface TodaySearchBarProps {
   onCancel: () => void;
   placeholder: string;
   clearLabel: string;
-  cancelLabel: string;
+  closeLabel: string;
   focused: boolean;
   tokens: ReturnType<typeof createTokensV2>;
   styles: ReturnType<typeof createStyles>;
@@ -67,7 +72,7 @@ const TodaySearchBar = memo(function TodaySearchBar({
   onCancel,
   placeholder,
   clearLabel,
-  cancelLabel,
+  closeLabel,
   focused,
   tokens,
   styles,
@@ -134,34 +139,25 @@ const TodaySearchBar = memo(function TodaySearchBar({
           returnKeyType="search"
           selectionColor={tokens.primary}
         />
-        {draft.length > 0 ? (
-          <Pressable
-            onPress={() => setDraft("")}
-            accessibilityRole="button"
-            accessibilityLabel={clearLabel}
-            hitSlop={6}
-            style={({ pressed }) => [
-              styles.searchClear,
-              pressed ? { backgroundColor: tokens.bgSunk } : null,
-            ]}
-          >
-            <X size={16} color={tokens.fg3} strokeWidth={1.8} />
-          </Pressable>
-        ) : null}
+        <Pressable
+          onPress={() => {
+            if (draft.length > 0) {
+              setDraft("");
+              return;
+            }
+            onCancel();
+          }}
+          accessibilityRole="button"
+          accessibilityLabel={draft.length > 0 ? clearLabel : closeLabel}
+          hitSlop={8}
+          style={({ pressed }) => [
+            styles.searchClear,
+            pressed ? { backgroundColor: tokens.bgSunk } : null,
+          ]}
+        >
+          <X size={16} color={tokens.fg3} strokeWidth={1.8} />
+        </Pressable>
       </View>
-      <Pressable
-        onPress={onCancel}
-        accessibilityRole="button"
-        hitSlop={6}
-        style={({ pressed }) => [
-          styles.searchCancel,
-          pressed ? { backgroundColor: tokens.bgElev } : null,
-        ]}
-      >
-        <Text style={[styles.searchCancelText, { color: tokens.fg2 }]}>
-          {cancelLabel}
-        </Text>
-      </Pressable>
     </Animated.View>
   );
 });
@@ -270,6 +266,41 @@ export function TodayHabitsHeader({
     [theme.currentScheme, theme.currentTheme],
   );
   const styles = useMemo(() => createStyles(tokens), [tokens]);
+  const prefersReducedMotion = usePrefersReducedMotion();
+  const refreshSpinAnim = useMemo(() => new Animated.Value(0), []);
+
+  useEffect(() => {
+    if (!isFetching || prefersReducedMotion) {
+      refreshSpinAnim.stopAnimation?.();
+      refreshSpinAnim.setValue(0);
+      return;
+    }
+
+    const spinLoop = Animated.loop(
+      Animated.timing(refreshSpinAnim, {
+        toValue: 1,
+        duration: 1000,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      }),
+    );
+    spinLoop.start();
+    return () => spinLoop.stop();
+  }, [isFetching, prefersReducedMotion, refreshSpinAnim]);
+
+  const refreshSpinStyle = useMemo(
+    () => ({
+      transform: [
+        {
+          rotate: refreshSpinAnim.interpolate({
+            inputRange: [0, 1],
+            outputRange: ["0deg", "360deg"],
+          }),
+        },
+      ],
+    }),
+    [refreshSpinAnim],
+  );
 
   return (
     <>
@@ -298,7 +329,7 @@ export function TodayHabitsHeader({
         trailing={
           <View style={styles.sectionTrailing}>
             {showDayProgress ? (
-              <Text style={[styles.dayProgressCount, { color: tokens.fg2 }]}>
+              <Text style={styles.dayProgressCount}>
                 {dayProgress.done}/{dayProgress.total}
               </Text>
             ) : null}
@@ -395,7 +426,7 @@ export function TodayHabitsHeader({
             onCancel={onSearchToggle}
             placeholder={t("habits.searchPlaceholder")}
             clearLabel={t("common.clear")}
-            cancelLabel={t("common.cancel")}
+            closeLabel={t("habits.closeSearch")}
             focused={isSearchFocused}
             tokens={tokens}
             styles={styles}
@@ -467,19 +498,23 @@ export function TodayHabitsHeader({
           <Pressable
             style={({ pressed }) => [
               styles.controlsMenuItem,
+              isFetching ? styles.controlsMenuItemDisabled : null,
               {
                 backgroundColor: pressed ? tokens.bgSunk : "transparent",
               },
             ]}
             onPress={onRefresh}
+            disabled={isFetching}
             accessibilityRole="button"
+            accessibilityState={{ disabled: isFetching }}
           >
-            <RefreshCw
-              size={16}
-              color={tokens.fg2}
-              strokeWidth={1.8}
-              style={isFetching ? styles.rotatingIcon : undefined}
-            />
+            <Animated.View
+              style={
+                isFetching && !prefersReducedMotion ? refreshSpinStyle : null
+              }
+            >
+              <RefreshCw size={16} color={tokens.fg2} strokeWidth={1.8} />
+            </Animated.View>
             <Text style={[styles.controlsMenuLabel, { color: tokens.fg1 }]}>
               {t("habits.refresh")}
             </Text>
@@ -629,15 +664,6 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       fontFamily: "Rubik_400Regular",
       fontSize: 15,
     },
-    searchCancel: {
-      paddingHorizontal: 12,
-      paddingVertical: 8,
-      borderRadius: 999,
-    },
-    searchCancelText: {
-      fontFamily: "Rubik_500Medium",
-      fontSize: 13,
-    },
     filtersContent: {
       flexDirection: "row",
       alignItems: "center",
@@ -658,7 +684,9 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
     },
     dayProgressCount: {
       fontFamily: "Roboto_400Regular",
-      fontSize: 14,
+      fontSize: 12,
+      letterSpacing: 0.24,
+      color: tokens.fg3,
       fontVariant: ["tabular-nums"],
       marginRight: 6,
     },
@@ -674,7 +702,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       justifyContent: "center",
     },
     iconBtnPressed: {
-      transform: [{ scale: 0.92 }],
+      transform: [{ scale: 0.96 }],
     },
 
     controlsMenuItem: {
@@ -685,12 +713,12 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       paddingVertical: 10,
       borderRadius: 8,
     },
+    controlsMenuItemDisabled: {
+      opacity: 0.5,
+    },
     controlsMenuLabel: {
       fontFamily: "Rubik_500Medium",
       fontSize: 14,
-    },
-    rotatingIcon: {
-      transform: [{ rotate: "180deg" }],
     },
   });
 }

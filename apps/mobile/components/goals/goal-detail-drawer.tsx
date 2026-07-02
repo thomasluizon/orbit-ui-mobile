@@ -1,5 +1,5 @@
 import { useState, useCallback, useMemo, useRef } from 'react'
-import { Text, View } from 'react-native'
+import { Pressable, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { useRouter } from 'expo-router'
 import AsyncStorage from '@react-native-async-storage/async-storage'
@@ -357,6 +357,41 @@ export function GoalDetailDrawer({
     ? t('goals.form.typeStreak')
     : `${t('goals.form.typeStandard')}${goal.unit ? `  ·  ${goal.unit}` : ''}`
 
+  const linkedHabitsSection =
+    (goal.linkedHabits ?? []).length > 0 ? (
+      <View>
+        <SectionLabel top={8} bottom={0}>
+          {t('goals.linkedHabits')}
+        </SectionLabel>
+        <GoalLinkedHabitsSection
+          title={t('goals.linkedHabits')}
+          linkedHabits={goal.linkedHabits ?? []}
+        />
+      </View>
+    ) : null
+
+  const progressHistorySection =
+    (detail?.progressHistory ?? []).length > 0 ? (
+      <View>
+        <SectionLabel top={8} bottom={0}>
+          {t('goals.progressHistory')}
+        </SectionLabel>
+        <GoalProgressHistorySection
+          entries={detail?.progressHistory ?? []}
+          formatDate={formatDate}
+          renderEntryLabel={(entry) =>
+            t('goals.progressEntry', {
+              previous: entry.previousValue,
+              value: entry.value,
+              unit: goal.unit,
+            })
+          }
+          showAllLabel={t('goals.detail.showAllHistory')}
+          showLessLabel={t('goals.detail.showLessHistory')}
+        />
+      </View>
+    ) : null
+
   return (
     <>
       <BottomSheetModal
@@ -412,41 +447,35 @@ export function GoalDetailDrawer({
             />
           ) : null}
 
-          {(goal.linkedHabits ?? []).length > 0 ? (
-            <View>
-              <SectionLabel top={8} bottom={0}>
-                {t('goals.linkedHabits')}
-              </SectionLabel>
-              <GoalLinkedHabitsSection
-                title={t('goals.linkedHabits')}
-                linkedHabits={goal.linkedHabits ?? []}
-              />
-            </View>
-          ) : null}
-
-          {(detail?.progressHistory ?? []).length > 0 ? (
-            <View>
-              <SectionLabel top={8} bottom={0}>
-                {t('goals.progressHistory')}
-              </SectionLabel>
-              <GoalProgressHistorySection
-                entries={detail?.progressHistory ?? []}
-                formatDate={formatDate}
-                renderEntryLabel={(entry) =>
-                  t('goals.progressEntry', {
-                    previous: entry.previousValue,
-                    value: entry.value,
-                    unit: goal.unit,
-                  })
-                }
-                showAllLabel={t('goals.detail.showAllHistory')}
-                showLessLabel={t('goals.detail.showLessHistory')}
-              />
-            </View>
-          ) : null}
+          {isStreak ? (
+            <>
+              {linkedHabitsSection}
+              {progressHistorySection}
+            </>
+          ) : (
+            <>
+              {progressHistorySection}
+              {linkedHabitsSection}
+            </>
+          )}
 
           {loadError ? (
-            <Text style={styles.warningText}>{t('goals.detail.loadError')}</Text>
+            <View>
+              <Text style={styles.warningText}>{t('goals.detail.loadError')}</Text>
+              <Pressable
+                onPress={() => {
+                  void refetchDetail()
+                }}
+                accessibilityRole="button"
+                accessibilityLabel={t('common.retry')}
+                style={({ pressed }) => [
+                  styles.retryButton,
+                  pressed ? styles.retryButtonPressed : null,
+                ]}
+              >
+                <Text style={styles.retryText}>{t('common.retry')}</Text>
+              </Pressable>
+            </View>
           ) : null}
 
           <GoalActionFooter

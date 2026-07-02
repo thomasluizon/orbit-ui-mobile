@@ -1,8 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
-import { useTranslations } from 'next-intl'
-import { EmptyState } from '@/components/ui/empty-state'
+import { useMemo, useState, type ReactNode } from 'react'
 import { SkeletonCard } from '@/components/ui/skeleton'
 import type { Goal } from '@orbit/shared/types/goal'
 import { GoalDetailPanel } from './goal-detail-panel'
@@ -11,13 +9,17 @@ import { GoalList } from './goal-list'
 interface GoalsDesktopViewProps {
   goals: Goal[]
   isFetched: boolean
+  emptyState: ReactNode
 }
 
 /** Desktop (>=768px) Goals layout: a master goal list on the left and a detail +
  *  metrics panel on the right for the selected goal. The first goal is selected by
  *  default and the selection follows the list as it is filtered or reordered. */
-export function GoalsDesktopView({ goals, isFetched }: Readonly<GoalsDesktopViewProps>) {
-  const t = useTranslations()
+export function GoalsDesktopView({
+  goals,
+  isFetched,
+  emptyState,
+}: Readonly<GoalsDesktopViewProps>) {
   const [pickedGoalId, setPickedGoalId] = useState<string | null>(null)
 
   const selectedId = useMemo(() => {
@@ -42,11 +44,7 @@ export function GoalsDesktopView({ goals, isFetched }: Readonly<GoalsDesktopView
   }
 
   if (goals.length === 0) {
-    return (
-      <div className="px-5">
-        <EmptyState title={t('goals.empty')} description={t('goals.emptyHint')} />
-      </div>
-    )
+    return <div className="px-5">{emptyState}</div>
   }
 
   return (

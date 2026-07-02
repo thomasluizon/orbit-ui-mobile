@@ -25,19 +25,13 @@ export function GoalAskAstraButton({
       accessibilityLabel={`${t('goals.detail.askAstraEyebrow')}: ${t('goals.detail.askAstraDefault')}`}
       style={styles.askAstra}
     >
-      <View
-        style={[
-          styles.askAstraRule,
-          { backgroundColor: tokens.primary },
-        ]}
-      />
+      <View style={styles.askAstraWell}>
+        <Orbit size={15} color={tokens.primary} strokeWidth={1.9} />
+      </View>
       <View style={styles.askAstraContent}>
-        <View style={styles.askAstraEyebrow}>
-          <Orbit size={12} color={tokens.primary} strokeWidth={1.7} />
-          <Text style={styles.askAstraEyebrowText}>
-            {t('goals.detail.askAstraEyebrow')}
-          </Text>
-        </View>
+        <Text style={styles.askAstraEyebrowText}>
+          {t('goals.detail.askAstraEyebrow')}
+        </Text>
         <Text style={styles.askAstraBody}>
           {t('goals.detail.askAstraDefault')}
         </Text>

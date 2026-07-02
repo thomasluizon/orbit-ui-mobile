@@ -1,5 +1,5 @@
 import { type ReactNode } from "react";
-import { View, Text, TouchableOpacity } from "react-native";
+import { View, Text, Pressable } from "react-native";
 import { X, Plus, TrendingUp, TrendingDown } from "lucide-react-native";
 import { useWatch } from "react-hook-form";
 import { useTranslation } from "react-i18next";
@@ -153,32 +153,37 @@ export function AdvancedSection({
                     }
                   />
                 </View>
-                <TouchableOpacity
-                  style={styles.removeEndDateButton}
+                <Pressable
+                  style={({ pressed }) => [
+                    styles.removeEndDateButton,
+                    pressed && { transform: [{ scale: 0.96 }] },
+                  ]}
                   accessibilityRole="button"
                   accessibilityLabel={t("habits.form.removeEndDate")}
                   onPress={() => setValue("endDate", "", { shouldDirty: true })}
-                  activeOpacity={0.7}
                 >
                   <X size={16} color={tokens.fg3} strokeWidth={1.8} />
-                </TouchableOpacity>
+                </Pressable>
               </View>
               <Text style={styles.hintText}>{t("habits.form.endDateHint")}</Text>
             </View>
           ) : (
-            <TouchableOpacity
-              style={sectionStyles.addButton}
+            <Pressable
+              style={({ pressed }) => [
+                sectionStyles.addButton,
+                pressed && { transform: [{ scale: 0.96 }] },
+              ]}
+              hitSlop={{ top: 4, bottom: 4 }}
               accessibilityRole="button"
               onPress={() =>
                 setValue("endDate", dueDate || "", { shouldDirty: true })
               }
-              activeOpacity={0.7}
             >
               <Plus size={14} color={tokens.fg2} strokeWidth={2} />
               <Text style={sectionStyles.addButtonText}>
                 {t("habits.form.addEndDate")}
               </Text>
-            </TouchableOpacity>
+            </Pressable>
           )}
         </View>
       )}
@@ -219,13 +224,17 @@ export function AdvancedSection({
         <View style={styles.fieldGroup}>
           <Text style={styles.label}>{t("habits.form.habitType")}</Text>
           <View style={styles.segmentGroup}>
-            <TouchableOpacity
-              style={[styles.segment, !isBadHabit && styles.segmentActive]}
+            <Pressable
+              style={({ pressed }) => [
+                styles.segment,
+                !isBadHabit && styles.segmentActive,
+                pressed && { transform: [{ scale: 0.96 }] },
+              ]}
+              hitSlop={{ top: 2, bottom: 2 }}
               accessibilityRole="radio"
-              accessibilityState={{ selected: !isBadHabit }}
+              accessibilityState={{ checked: !isBadHabit }}
               accessibilityLabel={t("habits.form.habitTypeBuild")}
               onPress={() => setValue("isBadHabit", false, { shouldDirty: true })}
-              activeOpacity={0.7}
             >
               <TrendingUp
                 size={16}
@@ -237,14 +246,18 @@ export function AdvancedSection({
               >
                 {t("habits.form.habitTypeBuild")}
               </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[styles.segment, isBadHabit && styles.segmentActive]}
+            </Pressable>
+            <Pressable
+              style={({ pressed }) => [
+                styles.segment,
+                isBadHabit && styles.segmentActive,
+                pressed && { transform: [{ scale: 0.96 }] },
+              ]}
+              hitSlop={{ top: 2, bottom: 2 }}
               accessibilityRole="radio"
-              accessibilityState={{ selected: isBadHabit }}
+              accessibilityState={{ checked: isBadHabit }}
               accessibilityLabel={t("habits.form.habitTypeAvoid")}
               onPress={() => setValue("isBadHabit", true, { shouldDirty: true })}
-              activeOpacity={0.7}
             >
               <TrendingDown
                 size={16}
@@ -256,7 +269,7 @@ export function AdvancedSection({
               >
                 {t("habits.form.habitTypeAvoid")}
               </Text>
-            </TouchableOpacity>
+            </Pressable>
           </View>
           <Text style={styles.hintText}>
             {isBadHabit

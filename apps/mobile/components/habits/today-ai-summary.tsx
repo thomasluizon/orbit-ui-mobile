@@ -133,7 +133,7 @@ export function TodayAISummary({ date }: Readonly<TodayAISummaryProps>) {
                 event.stopPropagation()
                 setExpanded((current) => !current)
               }}
-              hitSlop={8}
+              hitSlop={{ top: 14, bottom: 14, left: 12, right: 12 }}
               accessibilityRole="button"
               accessibilityLabel={expanded ? t('common.seeLess') : t('common.seeMore')}
             >
@@ -197,7 +197,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
     eyebrow: {
       fontFamily: 'Rubik_500Medium',
       fontSize: 12,
-      letterSpacing: 0.6,
+      letterSpacing: 0.96,
       textTransform: 'uppercase',
       color: tokens.primarySoft,
     },

@@ -51,7 +51,7 @@ export function CheckCircle({ state, tone = 'default', onToggle, disabled, ariaL
       style={{ padding: 7, margin: -7, opacity: disabled ? 0.4 : 1 }}
     >
       <span
-        className={`flex items-center justify-center rounded-full transition-transform duration-[160ms] ease-[var(--ease-standard)] ${disabled ? '' : 'hover:scale-105 active:scale-95'} ${justCompleted ? 'animate-check-pop' : ''}`}
+        className={`flex items-center justify-center rounded-full transition-transform duration-[160ms] ease-[var(--ease-standard)] ${disabled ? '' : 'hover:scale-105 active:scale-[0.96]'} ${justCompleted ? 'animate-check-pop' : ''}`}
         style={{
           width: 30,
           height: 30,

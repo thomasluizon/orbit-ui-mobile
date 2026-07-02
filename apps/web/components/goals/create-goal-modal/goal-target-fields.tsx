@@ -2,7 +2,7 @@
 
 import { useTranslations } from 'next-intl'
 import { MAX_GOAL_UNIT_LENGTH } from '@orbit/shared/validation'
-import { FieldWell } from './field-well'
+import { FieldWell } from '../field-well'
 
 interface GoalTargetFieldsProps {
   isStreak: boolean

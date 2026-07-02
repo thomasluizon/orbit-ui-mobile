@@ -71,7 +71,7 @@ export function TodayTabs({
   activeView,
   hasProAccess,
   onChangeView,
-  viewsLabel: _viewsLabel,
+  viewsLabel,
 }: Readonly<{
   tabs: TodayTabItem[]
   activeView: TodayTabView
@@ -101,6 +101,7 @@ export function TodayTabs({
           tabs={chipTabs}
           active={activeView}
           onChange={onChangeView}
+          ariaLabel={viewsLabel}
         />
       </View>
     </View>
@@ -259,7 +260,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   dateChevronPressed: {
-    transform: [{ scale: 0.92 }],
+    transform: [{ scale: 0.96 }],
   },
   dateLabelPress: {
     flex: 1,

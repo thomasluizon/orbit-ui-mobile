@@ -11,6 +11,7 @@ import {
 import { ProgressBar } from '@/components/ui/progress-bar'
 import { SectionLabel } from '@/components/ui/section-label'
 import { SettingsRow } from '@/components/ui/settings-row'
+import { SkeletonLine } from '@/components/ui/skeleton'
 import { StatTile } from '@/components/ui/stat-tile'
 
 interface GoalMetricsPanelProps {
@@ -57,10 +58,7 @@ export function GoalMetricsPanel({
               borderBottom: '1px solid var(--hairline)',
             }}
           >
-            <div
-              className="animate-pulse rounded"
-              style={{ height: 14, width: 120, background: 'var(--bg-elev)' }}
-            />
+            <SkeletonLine width="w-[120px]" height="h-3.5" />
           </div>
         ))}
       </div>

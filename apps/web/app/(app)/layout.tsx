@@ -222,12 +222,10 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
           }
         />
       )}
-      {showCreateGoalModal && (
-        <CreateGoalModal
-          open={showCreateGoalModal}
-          onOpenChange={setShowCreateGoalModal}
-        />
-      )}
+      <CreateGoalModal
+        open={showCreateGoalModal}
+        onOpenChange={setShowCreateGoalModal}
+      />
 
       <ApiFetchI18nProvider />
       <TourProvider />

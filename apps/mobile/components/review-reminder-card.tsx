@@ -34,6 +34,7 @@ export function ReviewReminderCard({
           hitSlop={8}
           accessibilityRole="button"
           accessibilityLabel={t('reviewPrompt.cta')}
+          style={({ pressed }) => [pressed ? styles.actionPressed : null]}
         >
           <Text style={styles.rateText}>{t('reviewPrompt.cta')}</Text>
         </Pressable>
@@ -42,6 +43,7 @@ export function ReviewReminderCard({
           hitSlop={8}
           accessibilityRole="button"
           accessibilityLabel={t('common.later')}
+          style={({ pressed }) => [pressed ? styles.actionPressed : null]}
         >
           <Text style={styles.laterText}>{t('common.later')}</Text>
         </Pressable>
@@ -77,6 +79,9 @@ function createStyles(tokens: AppTokensV2) {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 14,
+    },
+    actionPressed: {
+      opacity: 0.7,
     },
     rateText: {
       fontFamily: 'Rubik_500Medium',

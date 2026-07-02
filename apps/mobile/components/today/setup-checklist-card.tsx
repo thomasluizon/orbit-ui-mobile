@@ -47,6 +47,10 @@ export function SetupChecklistCard() {
           hitSlop={8}
           accessibilityRole="button"
           accessibilityLabel={t('today.setupChecklist.dismiss')}
+          style={({ pressed }) => [
+            styles.dismissButton,
+            pressed ? styles.dismissButtonPressed : null,
+          ]}
         >
           <X size={18} strokeWidth={1.8} color={tokens.fg4} />
         </Pressable>
@@ -100,6 +104,15 @@ function createStyles(tokens: AppTokensV2) {
     headerText: {
       flex: 1,
       gap: 3,
+    },
+    dismissButton: {
+      width: 28,
+      height: 28,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    dismissButtonPressed: {
+      opacity: 0.6,
     },
     title: {
       fontFamily: 'Rubik_500Medium',

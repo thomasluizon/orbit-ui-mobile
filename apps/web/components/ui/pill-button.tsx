@@ -8,6 +8,7 @@ type PillButtonVariant = 'primary' | 'white' | 'ghost'
 interface PillButtonProps {
   variant?: PillButtonVariant
   type?: 'button' | 'submit'
+  form?: string
   onClick?: () => void
   disabled?: boolean
   busy?: boolean
@@ -35,6 +36,7 @@ const variantClasses: Record<PillButtonVariant, string> = {
 export function PillButton({
   variant = 'primary',
   type = 'button',
+  form,
   onClick,
   disabled = false,
   busy = false,
@@ -53,6 +55,7 @@ export function PillButton({
   return (
     <button
       type={type}
+      form={form}
       onClick={busy ? undefined : onClick}
       disabled={disabled}
       aria-busy={busy || undefined}

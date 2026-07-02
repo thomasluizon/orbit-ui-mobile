@@ -16,6 +16,10 @@ const featureNavItems = PROFILE_NAV_ITEMS.filter(
   (item) => item.section === 'features',
 )
 
+const featureTourTargets: Record<string, string> = {
+  retrospective: 'tour-profile-retrospective',
+}
+
 export default function ExplorePage() {
   const t = useTranslations()
   const router = useRouter()
@@ -43,6 +47,7 @@ export default function ExplorePage() {
           profile={profile}
           onItemSelect={handleItemSelect}
           onTourReplay={() => setShowTourReplay(true)}
+          dataTourMap={featureTourTargets}
         />
       </div>
       <TourReplayModal open={showTourReplay} onOpenChange={setShowTourReplay} />

@@ -15,6 +15,7 @@
   --color-bg: var(--bg);
   --color-bg-card: var(--bg-card);
   --color-bg-field: var(--bg-field);
+  --color-bg-well: var(--bg-well);
   --color-bg-elev: var(--bg-elev);
   --color-bg-elev-2: var(--bg-elev-2);
   --color-bg-elev-pressed: var(--bg-elev-pressed);
@@ -173,6 +174,7 @@
   --bg:              oklch(0.1298 calc(0.0425 * var(--chroma-scale-bg)) var(--hue));
   --bg-card:         rgba(248, 250, 252, 0.04);
   --bg-field:        rgba(248, 250, 252, 0.05);
+  --bg-well:         rgba(248, 250, 252, 0.06);
   --bg-elev:         rgba(248, 250, 252, 0.06);
   --bg-elev-2:       rgba(248, 250, 252, 0.10);
   --bg-elev-pressed: rgba(248, 250, 252, 0.10);
@@ -218,6 +220,7 @@
   --bg:              oklch(0.9842 calc(0.0034 * var(--chroma-scale-bg)) calc(var(--hue) - 17.2746));
   --bg-card:         rgb(255, 255, 255);
   --bg-field:        var(--bg-sunk);
+  --bg-well:         var(--bg-sunk);
   --bg-elev:         rgb(255, 255, 255);
   --bg-elev-2:       rgb(255, 255, 255);
   --bg-elev-pressed: oklch(0.9683 calc(0.0069 * var(--chroma-scale-bg)) calc(var(--hue) - 17.2366));
@@ -432,12 +435,12 @@ button {
 
 /* Date navigation slide animations */
 @keyframes slide-date-right {
-  from { opacity: 0; transform: translateX(30px); }
+  from { opacity: 0; transform: translateX(12px); }
   to { opacity: 1; transform: translateX(0); }
 }
 
 @keyframes slide-date-left {
-  from { opacity: 0; transform: translateX(-30px); }
+  from { opacity: 0; transform: translateX(-12px); }
   to { opacity: 1; transform: translateX(0); }
 }
 
@@ -788,6 +791,10 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 }
 .chip:hover { background: var(--bg-elev-2); color: var(--fg-1); }
 .chip:active { transform: scale(0.96); }
+.chip:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
 .chip-active,
 .chip-active:hover {
   background: var(--selection-bg);
@@ -835,6 +842,12 @@ input[type="date"]::-webkit-calendar-picker-indicator {
     background-color var(--dur-fast) var(--ease-standard),
     box-shadow var(--dur-fast) var(--ease-standard),
     transform var(--dur-fast) var(--ease-standard);
+}
+.ai-spark-btn::after {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: inherit;
 }
 .ai-spark-btn:hover:not(:disabled) {
   background: rgba(var(--primary-rgb), 0.18);

@@ -76,7 +76,7 @@ export function CheckCircle({
       accessibilityState={{ disabled }}
       style={({ pressed }) => ({
         opacity: disabled ? 0.4 : pressed ? 0.85 : 1,
-        transform: [{ scale: pressed && !disabled ? 0.9 : 1 }],
+        transform: [{ scale: pressed && !disabled ? 0.96 : 1 }],
       })}
     >
       <Animated.View

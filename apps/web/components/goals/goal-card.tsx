@@ -1,13 +1,14 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useMemo } from 'react'
 import { differenceInDays, parseISO } from 'date-fns'
 import { useTranslations } from 'next-intl'
 import { plural } from '@/lib/plural'
 import { StatusDot, type StatusDotState } from '@/components/ui/status-dot'
 import { ProgressBar } from '@/components/ui/progress-bar'
 import { useContextMenu, type ContextMenuItem } from '@/components/ui/context-menu'
-import { GoalDetailDrawer, type GoalDrawerInitialAction } from './goal-detail-drawer'
+import type { GoalDrawerInitialAction } from './goal-detail-drawer'
+import { GoalStatusBadge } from './goal-status-badge'
 import { isStreakGoal } from '@orbit/shared/utils/goal-form'
 import type { Goal } from '@orbit/shared/types/goal'
 
@@ -15,24 +16,16 @@ interface GoalCardProps {
   goal: Goal
   selected?: boolean
   onSelect?: (goalId: string) => void
+  onOpenDetail: (goalId: string, initialAction: GoalDrawerInitialAction | null) => void
 }
 
-const badgeClassName =
-  'inline-flex shrink-0 items-center rounded-full uppercase'
-
-const badgeStyle = {
-  fontFamily: 'var(--font-sans)',
-  fontSize: 10.5,
-  fontWeight: 600,
-  letterSpacing: '0.06em',
-  padding: '3px 9px',
-  boxShadow: 'inset 0 0 0 1px var(--hairline)',
-} as const
-
-export function GoalCard({ goal, selected = false, onSelect }: Readonly<GoalCardProps>) {
+export function GoalCard({
+  goal,
+  selected = false,
+  onSelect,
+  onOpenDetail,
+}: Readonly<GoalCardProps>) {
   const t = useTranslations()
-  const [showDetail, setShowDetail] = useState(false)
-  const [drawerAction, setDrawerAction] = useState<GoalDrawerInitialAction | null>(null)
 
   const selectable = onSelect !== undefined
   const isStreak = isStreakGoal(goal.type)
@@ -60,7 +53,13 @@ export function GoalCard({ goal, selected = false, onSelect }: Readonly<GoalCard
     if (daysLeft < 0) {
       return {
         text: t('goals.deadline.overdue'),
-        color: 'var(--status-bad)',
+        color: 'var(--status-bad-text)',
+      }
+    }
+    if (daysLeft === 0) {
+      return {
+        text: t('goals.deadline.dueToday'),
+        color: 'var(--status-overdue-text)',
       }
     }
     if (daysLeft <= 7) {
@@ -105,25 +104,34 @@ export function GoalCard({ goal, selected = false, onSelect }: Readonly<GoalCard
     }
   }, [goal.status, goal.trackingStatus, t])
 
-  const percentLabel = t('goals.progressPercentage', { pct: goal.progressPercentage })
-
-  function openDrawer(action: GoalDrawerInitialAction | null) {
-    setDrawerAction(action)
-    setShowDetail(true)
-  }
+  const percentLabel = t('goals.progressPercentage', {
+    pct: Math.round(goal.progressPercentage),
+  })
 
   const contextMenuItems: ContextMenuItem[] = selectable
     ? []
     : [
-        { key: 'viewDetails', label: t('contextMenu.viewDetails'), onSelect: () => openDrawer(null) },
-        { key: 'edit', label: t('contextMenu.edit'), onSelect: () => openDrawer('edit') },
+        {
+          key: 'viewDetails',
+          label: t('contextMenu.viewDetails'),
+          onSelect: () => onOpenDetail(goal.id, null),
+        },
+        {
+          key: 'edit',
+          label: t('contextMenu.edit'),
+          onSelect: () => onOpenDetail(goal.id, 'edit'),
+        },
         goal.status === 'Active'
-          ? { key: 'complete', label: t('contextMenu.complete'), onSelect: () => openDrawer('complete') }
+          ? {
+              key: 'complete',
+              label: t('contextMenu.complete'),
+              onSelect: () => onOpenDetail(goal.id, 'complete'),
+            }
           : null,
         {
           key: 'delete',
           label: t('contextMenu.delete'),
-          onSelect: () => openDrawer('delete'),
+          onSelect: () => onOpenDetail(goal.id, 'delete'),
           danger: true,
         },
       ].filter((item): item is ContextMenuItem => item !== null)
@@ -143,7 +151,7 @@ export function GoalCard({ goal, selected = false, onSelect }: Readonly<GoalCard
             ? { padding: '16px 18px', boxShadow: 'inset 0 0 0 1.5px var(--primary)' }
             : { padding: '16px 18px' }
         }
-        onClick={selectable ? () => onSelect(goal.id) : () => setShowDetail(true)}
+        onClick={selectable ? () => onSelect(goal.id) : () => onOpenDetail(goal.id, null)}
       >
         <div className="flex items-center" style={{ gap: 12, marginBottom: 12 }}>
           <span
@@ -178,9 +186,7 @@ export function GoalCard({ goal, selected = false, onSelect }: Readonly<GoalCard
                 {goal.title}
               </h3>
               {statusBadge ? (
-                <span className={badgeClassName} style={{ ...badgeStyle, color: statusBadge.color }}>
-                  {statusBadge.text}
-                </span>
+                <GoalStatusBadge text={statusBadge.text} color={statusBadge.color} />
               ) : trackingDot ? (
                 <StatusDot state={trackingDot.state} ariaLabel={trackingDot.label} />
               ) : null}
@@ -210,9 +216,7 @@ export function GoalCard({ goal, selected = false, onSelect }: Readonly<GoalCard
                     })}
               </span>
               {deadlineInfo && (
-                <span className={badgeClassName} style={{ ...badgeStyle, color: deadlineInfo.color }}>
-                  {deadlineInfo.text}
-                </span>
+                <GoalStatusBadge text={deadlineInfo.text} color={deadlineInfo.color} />
               )}
             </div>
           </div>
@@ -244,17 +248,6 @@ export function GoalCard({ goal, selected = false, onSelect }: Readonly<GoalCard
         </div>
       </button>
 
-      {!selectable && (
-        <GoalDetailDrawer
-          open={showDetail}
-          onOpenChange={(open) => {
-            setShowDetail(open)
-            if (!open) setDrawerAction(null)
-          }}
-          goalId={goal.id}
-          initialAction={drawerAction}
-        />
-      )}
       {contextMenu}
     </>
   )

@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useCallback, useMemo } from 'react'
+import { Check } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { AppOverlay } from '@/components/ui/app-overlay'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
@@ -20,7 +21,7 @@ import {
 } from '@orbit/shared/utils/goal-form'
 import type { GoalType } from '@orbit/shared/types/goal'
 import { MAX_GOAL_DESCRIPTION_LENGTH } from '@orbit/shared/validation'
-import { FieldWell } from './create-goal-modal/field-well'
+import { FieldWell } from './field-well'
 import { GoalDeadlineField } from './create-goal-modal/goal-deadline-field'
 import { GoalTargetFields } from './create-goal-modal/goal-target-fields'
 import { GoalTypeSelector } from './create-goal-modal/goal-type-selector'
@@ -210,18 +211,7 @@ export function CreateGoalModal({ open, onOpenChange }: Readonly<CreateGoalModal
         onAttemptDismiss={dismissGuard.requestDismiss}
       >
         <form id="create-goal-form" onSubmit={onSubmit} noValidate>
-          <GoalTypeSelector goalType={goalType} onTypeChange={handleTypeChange} />
-
-          <GoalTargetFields
-            isStreak={isStreak}
-            targetValue={targetValue}
-            unit={unit}
-            fieldErrors={fieldErrors}
-            onChangeTarget={setTargetValue}
-            onChangeUnit={setUnit}
-          />
-
-          <div style={{ padding: '16px 0 0' }}>
+          <div style={{ padding: '4px 0 0' }}>
             <FieldWell
               label={t('goals.form.description')}
               id="create-goal-description"
@@ -237,6 +227,19 @@ export function CreateGoalModal({ open, onOpenChange }: Readonly<CreateGoalModal
               onChange={setDescription}
             />
           </div>
+
+          <div style={{ padding: '14px 0 0' }}>
+            <GoalTypeSelector goalType={goalType} onTypeChange={handleTypeChange} />
+          </div>
+
+          <GoalTargetFields
+            isStreak={isStreak}
+            targetValue={targetValue}
+            unit={unit}
+            fieldErrors={fieldErrors}
+            onChangeTarget={setTargetValue}
+            onChangeUnit={setUnit}
+          />
 
           <GoalDeadlineField deadline={deadline} onChangeDeadline={setDeadline} />
 
@@ -254,20 +257,22 @@ export function CreateGoalModal({ open, onOpenChange }: Readonly<CreateGoalModal
             >
               {t('common.cancel')}
             </PillButton>
-            <button
+            <PillButton
               type="submit"
+              className="flex-1"
               disabled={isSubmitting}
-              className="flex-1 inline-flex cursor-pointer items-center justify-center rounded-full border-0 bg-[var(--primary)] text-[var(--fg-on-primary)] transition-[background-color,box-shadow,transform,opacity] duration-[var(--dur-fast)] ease-[var(--ease-standard)] enabled:hover:bg-[var(--primary-pressed)] enabled:hover:-translate-y-px enabled:hover:shadow-[var(--primary-glow-hover)] enabled:active:translate-y-0 enabled:active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
-              style={{
-                fontFamily: 'var(--font-sans)',
-                fontSize: 16,
-                fontWeight: 500,
-                padding: '15px 26px',
-                boxShadow: isSubmitting ? 'none' : 'var(--primary-glow)',
-              }}
+              busy={isSubmitting}
+              leading={
+                <Check
+                  size={18}
+                  strokeWidth={1.8}
+                  color="var(--fg-on-primary)"
+                  aria-hidden="true"
+                />
+              }
             >
-              {isSubmitting ? '...' : t('goals.create')}
-            </button>
+              {t('goals.create')}
+            </PillButton>
           </div>
         </form>
       </AppOverlay>

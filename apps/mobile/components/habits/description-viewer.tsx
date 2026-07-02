@@ -80,7 +80,7 @@ export function DescriptionViewer({
             { backgroundColor: tokens.bgCard, borderColor: tokens.hairline },
           ]}
         >
-          <Markdown tone="muted">{description}</Markdown>
+          <Markdown>{description}</Markdown>
         </View>
       </ScrollView>
     </BottomSheetModal>

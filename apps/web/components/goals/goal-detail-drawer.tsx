@@ -1,15 +1,13 @@
 'use client'
 
-import { useState, useCallback, useMemo } from 'react'
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   ArchiveX,
   CheckCircle2,
-  ChevronRight,
   PencilLine,
   Plus,
   RotateCw,
-  Orbit,
   Trash2,
 } from 'lucide-react'
 import { useTranslations, useLocale } from 'next-intl'
@@ -18,6 +16,7 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { PillButton } from '@/components/ui/pill-button'
 import { SectionLabel } from '@/components/ui/section-label'
 import { EditGoalModal } from './edit-goal-modal'
+import { GoalAskAstraRow } from './goal-ask-astra-row'
 import { GoalMetricsPanel } from './goal-metrics-panel'
 import {
   GoalActionRow,
@@ -42,15 +41,16 @@ import {
   useDeleteGoal,
 } from '@/hooks/use-goals'
 
-export type GoalDrawerInitialAction = 'edit' | 'complete' | 'delete'
+export type GoalDrawerInitialAction = 'edit' | 'complete' | 'delete' | 'progress'
 
 interface GoalDetailDrawerProps {
   open: boolean
   onOpenChange: (open: boolean) => void
   goalId: string
   /** When the drawer opens, immediately deep-link into one of its existing actions
-   *  (edit modal, mark-completed, or delete confirm). Applied once per open; omit for
-   *  the normal view-details open. Lets the goal-card context menu reuse these handlers. */
+   *  (edit modal, mark-completed, delete confirm, or the progress form). Applied once
+   *  per open; omit for the normal view-details open. Lets the goal-card context menu
+   *  and the desktop panel CTAs reuse these handlers. */
   initialAction?: GoalDrawerInitialAction | null
 }
 
@@ -115,7 +115,6 @@ export function GoalDetailDrawer({
   }, [progressNote, progressValue, showProgressForm, initialProgressValue])
 
   const router = useRouter()
-  const askPrompt = t('goals.detail.askAstraDefault')
   function handleAskAstra() {
     if (!goal) return
     const seed = t('goals.detail.askAstraSeedDefault', { title: goal.title })
@@ -127,8 +126,8 @@ export function GoalDetailDrawer({
   }
 
   const [previousSession, setPreviousSession] = useState<{ open: boolean; goalId: string | null }>({
-    open,
-    goalId: open ? goalId : null,
+    open: false,
+    goalId: null,
   })
   if (previousSession.open !== open || previousSession.goalId !== (open ? goalId : null)) {
     setPreviousSession({ open, goalId: open ? goalId : null })
@@ -275,7 +274,7 @@ export function GoalDetailDrawer({
     setShowProgressDiscardDialog(false)
   }, [])
 
-  const [previousActionOpen, setPreviousActionOpen] = useState(open)
+  const [previousActionOpen, setPreviousActionOpen] = useState(false)
   if (previousActionOpen !== open) {
     setPreviousActionOpen(open)
     if (open && initialAction) {
@@ -283,11 +282,23 @@ export function GoalDetailDrawer({
         setShowEditModal(true)
       } else if (initialAction === 'delete') {
         setShowDeleteConfirm(true)
-      } else {
-        void markCompleted()
+      } else if (initialAction === 'progress') {
+        setShowProgressForm(true)
       }
     }
   }
+
+  const completeActionFiredRef = useRef(false)
+  useEffect(() => {
+    if (!open) {
+      completeActionFiredRef.current = false
+      return
+    }
+    if (initialAction === 'complete' && !completeActionFiredRef.current) {
+      completeActionFiredRef.current = true
+      void markCompleted()
+    }
+  }, [open, initialAction, markCompleted])
 
   return (
     <>
@@ -300,82 +311,34 @@ export function GoalDetailDrawer({
         onAttemptDismiss={() => requestProgressDismiss('drawer')}
         footer={
           goal ? (
-            <button
-              type="button"
+            <GoalAskAstraRow
               onClick={handleAskAstra}
-              aria-label={`${t('goals.detail.askAstraEyebrow')}: ${askPrompt}`}
-              className="block w-full text-left appearance-none border-0 bg-transparent cursor-pointer transition-[background-color,transform] duration-150 ease-out hover:bg-[var(--bg-elev-pressed)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-primary active:scale-[0.99]"
               style={{ borderRadius: 8, padding: '8px 10px', margin: '-8px -10px' }}
-            >
-              <div className="flex items-center gap-3">
-                <div className="relative flex-1 min-w-0" style={{ paddingLeft: 14 }}>
-                  <span
-                    aria-hidden="true"
-                    className="absolute rounded-[1px]"
-                    style={{ left: 0, top: 4, bottom: 4, width: 2, background: 'var(--primary)' }}
-                  />
-                  <div className="inline-flex items-center" style={{ gap: 6, marginBottom: 6 }}>
-                    <Orbit size={12} strokeWidth={1.7} color="var(--primary)" />
-                    <span
-                      style={{
-                        fontFamily: 'var(--font-mono)',
-                        fontSize: 10.5,
-                        fontWeight: 500,
-                        letterSpacing: '0.06em',
-                        color: 'var(--fg-3)',
-                      }}
-                    >
-                      {t('goals.detail.askAstraEyebrow')}
-                    </span>
-                  </div>
-                  <div
-                    style={{
-                      fontFamily: 'var(--font-sans)',
-                      fontSize: 15,
-                      lineHeight: 1.5,
-                      color: 'var(--fg-2)',
-                      textWrap: 'pretty',
-                    }}
-                  >
-                    {askPrompt}
-                  </div>
-                </div>
-                <ChevronRight
-                  size={16}
-                  strokeWidth={1.7}
-                  color="var(--fg-3)"
-                  aria-hidden="true"
-                  className="shrink-0"
-                />
-              </div>
-            </button>
+            />
           ) : undefined
         }
       >
         {goal && (
           <div className="overlay-bleed">
-            {isStreak && (
-              <div
-                style={{
-                  padding: '10px 20px',
-                  fontFamily: 'var(--font-mono)',
-                  fontSize: 12,
-                  fontWeight: 500,
-                  color: 'var(--fg-3)',
-                  letterSpacing: '0.04em',
-                  fontVariantNumeric: 'tabular-nums',
-                  borderBottom: '1px solid var(--hairline)',
-                }}
-              >
-                {t('goals.form.typeStreak')}
-              </div>
-            )}
+            <div
+              className="t-eyebrow"
+              style={{
+                padding: '10px 20px',
+                borderBottom: '1px solid var(--hairline)',
+              }}
+            >
+              {isStreak
+                ? t('goals.form.typeStreak')
+                : `${t('goals.form.typeStandard')}${goal.unit ? `  ·  ${goal.unit}` : ''}`}
+            </div>
 
             <SectionLabel>{t('goals.progress')}</SectionLabel>
             <div style={{ padding: '2px 20px 16px' }}>
               <GoalProgressRing
                 progressPercentage={goal.progressPercentage}
-                percentLabel={t('goals.progressPercentage', { pct: goal.progressPercentage })}
+                percentLabel={t('goals.progressPercentage', {
+                  pct: Math.round(goal.progressPercentage),
+                })}
                 progressOfLabel={
                   isStreak
                     ? t('goals.streak.ofTarget', {
@@ -391,26 +354,28 @@ export function GoalDetailDrawer({
                 color={isStreak ? 'var(--status-overdue)' : 'var(--primary)'}
               />
               {goal.status === 'Active' && !showProgressForm && (
-                <PillButton
-                  fullWidth
-                  className="mt-[14px]"
-                  leading={
-                    <Plus
-                      size={18}
-                      strokeWidth={1.8}
-                      color="var(--fg-on-primary)"
-                      aria-hidden="true"
-                    />
-                  }
-                  onClick={() => {
-                    setInitialProgressValue(goal.currentValue)
-                    setProgressValue(goal.currentValue)
-                    setProgressNote('')
-                    setShowProgressForm(true)
-                  }}
-                >
-                  {t('goals.updateProgress')}
-                </PillButton>
+                <div className="flex justify-center">
+                  <PillButton
+                    fullWidth
+                    className="mt-[14px] sm:max-w-[360px]"
+                    leading={
+                      <Plus
+                        size={18}
+                        strokeWidth={1.8}
+                        color="var(--fg-on-primary)"
+                        aria-hidden="true"
+                      />
+                    }
+                    onClick={() => {
+                      setInitialProgressValue(goal.currentValue)
+                      setProgressValue(goal.currentValue)
+                      setProgressNote('')
+                      setShowProgressForm(true)
+                    }}
+                  >
+                    {t('goals.updateProgress')}
+                  </PillButton>
+                </div>
               )}
             </div>
 
@@ -419,7 +384,6 @@ export function GoalDetailDrawer({
                 progressValue={progressValue}
                 progressNote={progressNote}
                 isUpdating={isUpdatingProgress}
-                isStreak={isStreak}
                 progressExceedsTarget={progressExceedsTarget}
                 onProgressValueChange={setProgressValue}
                 onProgressNoteChange={setProgressNote}
@@ -452,7 +416,6 @@ export function GoalDetailDrawer({
             <GoalProgressHistorySection
               title={t('goals.progressHistory')}
               entries={detail?.progressHistory ?? []}
-              unit={goal.unit}
               formatDate={formatDate}
               renderEntryLabel={(entry) =>
                 t('goals.progressEntry', {
@@ -473,16 +436,30 @@ export function GoalDetailDrawer({
             )}
 
             {loadError && (
-              <p
-                style={{
-                  padding: '10px 20px',
-                  fontFamily: 'var(--font-sans)',
-                  fontSize: 13,
-                  color: 'var(--status-overdue-text)',
-                }}
-              >
-                {t('goals.detail.loadError')}
-              </p>
+              <div style={{ padding: '10px 20px 0' }}>
+                <p
+                  style={{
+                    fontFamily: 'var(--font-sans)',
+                    fontSize: 13,
+                    color: 'var(--status-overdue-text)',
+                  }}
+                >
+                  {t('goals.detail.loadError')}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => refetchDetail()}
+                  className="inline-flex appearance-none cursor-pointer items-center border-0 bg-transparent p-0 text-[var(--fg-1)] transition-[color] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:text-[var(--primary)]"
+                  style={{
+                    minHeight: 44,
+                    fontFamily: 'var(--font-sans)',
+                    fontSize: 13,
+                    fontWeight: 500,
+                  }}
+                >
+                  {t('common.retry')}
+                </button>
+              </div>
             )}
 
             <div style={{ marginTop: 16, paddingBottom: 4 }}>

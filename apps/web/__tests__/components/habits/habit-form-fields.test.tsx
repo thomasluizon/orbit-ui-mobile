@@ -344,6 +344,27 @@ describe('HabitFormFields', () => {
     expect(screen.getByText('habits.form.general')).toBeDefined()
   })
 
+  it('exposes the frequency chooser as a radiogroup with the active card checked', () => {
+    const formHelpers = createMockFormHelpers()
+    const tags = createMockTags()
+    renderWithProviders(
+      <HabitFormFields
+        formHelpers={formHelpers}
+        tags={tags}
+        selectedGoalIds={[]}
+        atGoalLimit={false}
+        onToggleGoal={vi.fn()}
+        reminderTimes={[]}
+        onReminderTimesChange={vi.fn()}
+      />,
+    )
+    const radiogroup = screen.getByRole('radiogroup', { name: 'habits.form.frequency' })
+    const radios = within(radiogroup).getAllByRole('radio')
+    expect(radios).toHaveLength(4)
+    expect(within(radiogroup).getByRole('radio', { name: /recurring/, checked: true })).toBeDefined()
+    expect(within(radiogroup).getByRole('radio', { name: /oneTimeTask/, checked: false })).toBeDefined()
+  })
+
   it('shows the habit type toggle', () => {
     const formHelpers = createMockFormHelpers({ isGeneral: false })
     const tags = createMockTags()

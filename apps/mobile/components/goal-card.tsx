@@ -97,7 +97,13 @@ export function GoalCard({ goal, onPress, onLongPress, tourTargetId }: GoalCardP
     if (daysLeft < 0) {
       return {
         text: t('goals.deadline.overdue'),
-        textColor: tokens.statusBad,
+        textColor: tokens.statusBadText,
+      }
+    }
+    if (daysLeft === 0) {
+      return {
+        text: t('goals.deadline.dueToday'),
+        textColor: tokens.statusOverdueText,
       }
     }
     if (daysLeft <= 7) {
@@ -110,7 +116,7 @@ export function GoalCard({ goal, onPress, onLongPress, tourTargetId }: GoalCardP
       text: plural(t('goals.deadline.daysLeft', { n: daysLeft }), daysLeft),
       textColor: tokens.fg3,
     }
-  }, [goal.deadline, goal.status, t, tokens.statusOverdueText, tokens.statusBad, tokens.fg3])
+  }, [goal.deadline, goal.status, t, tokens.statusOverdueText, tokens.statusBadText, tokens.fg3])
 
   const statusBadge = useMemo(() => {
     if (goal.status === 'Completed') {
@@ -154,7 +160,7 @@ export function GoalCard({ goal, onPress, onLongPress, tourTargetId }: GoalCardP
       })
 
   const percentLabel = t('goals.progressPercentage', {
-    pct: goal.progressPercentage,
+    pct: Math.round(goal.progressPercentage),
   })
 
   return (
@@ -171,6 +177,7 @@ export function GoalCard({ goal, onPress, onLongPress, tourTargetId }: GoalCardP
         disabled={!onPress}
         accessibilityRole="button"
         accessibilityLabel={goal.title}
+        accessibilityHint={onLongPress ? t('goals.reorderHint') : undefined}
       >
         <View style={styles.headerRow}>
           <View style={styles.emojiWell}>

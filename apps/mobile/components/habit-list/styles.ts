@@ -114,6 +114,32 @@ export function createStyles(tokens: AppTokens) {
       alignItems: 'center',
       justifyContent: 'center',
     },
+    drillBackBtnPressed: {
+      backgroundColor: tokens.bgElevPressed,
+      transform: [{ scale: 0.96 }],
+    },
+    drillResetRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      alignSelf: 'flex-start',
+      gap: 6,
+      paddingVertical: 10,
+      paddingHorizontal: 20,
+    },
+    drillResetText: {
+      fontFamily: 'Rubik_500Medium',
+      fontSize: 13,
+      color: tokens.primary,
+    },
+    drillSkeletons: {
+      gap: 10,
+    },
+    drillErrorWrap: {
+      alignItems: 'center',
+    },
+    drillRetryButton: {
+      marginTop: 16,
+    },
     drillTitle: {
       fontFamily: 'Rubik_500Medium',
       fontSize: 16,
@@ -132,7 +158,7 @@ export function createStyles(tokens: AppTokens) {
       alignItems: 'center',
       justifyContent: 'center',
       gap: 8,
-      paddingVertical: 12,
+      paddingVertical: 14,
       marginHorizontal: 20,
     },
     drillAddBtnText: {

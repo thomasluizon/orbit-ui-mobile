@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useEffect, useRef } from 'react'
+import { useState, useCallback, useEffect, useId, useRef } from 'react'
 import { Check, Loader2 } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
@@ -89,6 +89,8 @@ export function CreateHabitModal({
     reminderTimes: '[0,15]',
   })
 
+  const formId = useId()
+  const watchedTitle = formHelpers.form.watch('title') ?? ''
   const watchedDueTime = formHelpers.form.watch('dueTime') ?? ''
   const watchedReminderEnabled = formHelpers.form.watch('reminderEnabled') ?? false
   const watchedScheduledReminders = formHelpers.form.watch('scheduledReminders') ?? []
@@ -343,8 +345,36 @@ export function CreateHabitModal({
         isDirty={isDirty}
         onAttemptDismiss={dismissGuard.requestDismiss}
         initialFocusRef={titleInputRef}
+        panelWidth="wide"
+        footer={
+          <div className="flex items-center justify-end" style={{ gap: 12 }}>
+            <PillButton
+              variant="ghost"
+              disabled={isPending}
+              onClick={dismissGuard.requestDismiss}
+            >
+              {t('common.cancel')}
+            </PillButton>
+            <PillButton
+              type="submit"
+              form={formId}
+              glow={false}
+              disabled={isPending || watchedTitle.trim().length === 0}
+              dataTestId="habit-create-submit"
+              leading={
+                isPending ? (
+                  <Loader2 className="size-[18px] animate-spin" />
+                ) : (
+                  <Check size={18} strokeWidth={2.2} aria-hidden="true" />
+                )
+              }
+            >
+              {t('common.create')}
+            </PillButton>
+          </div>
+        }
       >
-        <form className="stagger-enter space-y-7" onSubmit={handleSubmit}>
+        <form id={formId} onSubmit={handleSubmit}>
         <HabitFormFields
           formHelpers={formHelpers}
           titleInputRef={titleInputRef}
@@ -372,38 +402,6 @@ export function CreateHabitModal({
             />
           )}
         </HabitFormFields>
-
-        <div
-          className="flex items-center justify-end"
-          style={{
-            gap: 12,
-            paddingTop: 14,
-            paddingBottom: 8,
-          }}
-        >
-          <PillButton
-            variant="ghost"
-            disabled={isPending}
-            onClick={dismissGuard.requestDismiss}
-          >
-            {t('common.cancel')}
-          </PillButton>
-          <PillButton
-            type="submit"
-            glow={false}
-            disabled={isPending || !formHelpers.form.formState.isValid}
-            dataTestId="habit-create-submit"
-            leading={
-              isPending ? (
-                <Loader2 className="size-[18px] animate-spin" />
-              ) : (
-                <Check size={18} strokeWidth={2.2} aria-hidden="true" />
-              )
-            }
-          >
-            {t('common.create')}
-          </PillButton>
-        </div>
         </form>
       </AppOverlay>
       <ConfirmDialog

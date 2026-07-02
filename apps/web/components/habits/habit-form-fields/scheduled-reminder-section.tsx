@@ -141,7 +141,7 @@ export function ScheduledReminderSection({
                   />
                   <button
                     type="button"
-                    className="shrink-0 rounded-full bg-[var(--primary)] text-[var(--fg-on-primary)] hover:bg-[var(--primary-pressed)] transition-[background-color,opacity] duration-150 disabled:opacity-40"
+                    className="shrink-0 rounded-full bg-[var(--primary)] text-[var(--fg-on-primary)] hover:bg-[var(--primary-pressed)] transition-[background-color,opacity,transform] duration-[var(--dur-fast)] active:scale-[0.96] disabled:opacity-40"
                     style={{
                       padding: '9px 14px',
                       fontFamily: 'var(--font-sans)',
@@ -156,7 +156,7 @@ export function ScheduledReminderSection({
                   <button
                     type="button"
                     aria-label={t('common.cancel')}
-                    className="shrink-0 grid size-10 place-items-center rounded-full text-[var(--fg-3)] hover:text-[var(--fg-1)] transition-colors duration-150"
+                    className="touch-target shrink-0 grid size-10 place-items-center rounded-full text-[var(--fg-3)] hover:text-[var(--fg-1)] transition-colors duration-[var(--dur-fast)]"
                     onClick={() => { setShowForm(false); setTime('') }}
                   >
                     <X size={16} strokeWidth={1.8} aria-hidden="true" />

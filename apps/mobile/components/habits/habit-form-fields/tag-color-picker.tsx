@@ -1,4 +1,4 @@
-import { View, TouchableOpacity } from "react-native";
+import { View, Pressable } from "react-native";
 import { createStyles } from "./styles";
 
 interface TagColorPickerProps {
@@ -19,18 +19,25 @@ export function TagColorPicker({
   return (
     <View style={styles.colorPicker}>
       {colors.map((color) => (
-        <TouchableOpacity
+        <Pressable
           key={color}
-          style={[
-            styles.colorDot,
-            { backgroundColor: color },
-            activeColor === color && styles.colorDotSelected,
+          style={({ pressed }) => [
+            styles.colorCell,
+            pressed && { transform: [{ scale: 0.96 }] },
           ]}
           accessibilityLabel={ariaLabel(color)}
           accessibilityRole="button"
+          accessibilityState={{ selected: activeColor === color }}
           onPress={() => onSelect(color)}
-          activeOpacity={0.7}
-        />
+        >
+          <View
+            style={[
+              styles.colorDot,
+              { backgroundColor: color },
+              activeColor === color && styles.colorDotSelected,
+            ]}
+          />
+        </Pressable>
       ))}
     </View>
   );

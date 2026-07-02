@@ -12,21 +12,25 @@ export function ColorSwatches({
   ariaLabel,
 }: Readonly<ColorSwatchesProps>) {
   return (
-    <div className="flex flex-wrap gap-1.5">
+    <div className="flex flex-wrap gap-0.5">
       {colors.map((color) => (
         <button
           key={color}
           type="button"
           aria-label={ariaLabel(color)}
           aria-pressed={activeColor === color}
-          className="size-5 rounded-full transition-transform hover:scale-110"
-          style={{
-            backgroundColor: color,
-            boxShadow:
-              activeColor === color ? 'inset 0 0 0 2px var(--primary)' : undefined,
-          }}
+          className="group grid size-11 place-items-center"
           onClick={() => onSelect(color)}
-        />
+        >
+          <span
+            className="size-5 rounded-full transition-transform duration-[var(--dur-fast)] group-hover:scale-110 group-active:scale-[0.96]"
+            style={{
+              backgroundColor: color,
+              boxShadow:
+                activeColor === color ? 'inset 0 0 0 2px var(--primary)' : undefined,
+            }}
+          />
+        </button>
       ))}
     </div>
   )

@@ -10,6 +10,12 @@ vi.mock('next-intl', () => ({
   useLocale: () => 'en',
 }))
 
+vi.mock('next/navigation', () => ({
+  useRouter: () => ({
+    push: vi.fn(),
+  }),
+}))
+
 function makeGoal(overrides: Partial<Goal> = {}): Goal {
   return {
     id: '1',
@@ -62,8 +68,16 @@ vi.mock('@/components/goals/goal-metrics-panel', () => ({
 }))
 
 vi.mock('@/components/goals/goal-detail-drawer', () => ({
-  GoalDetailDrawer: ({ open }: { open: boolean }) =>
-    open ? <div data-testid="goal-detail-drawer" /> : null,
+  GoalDetailDrawer: ({
+    open,
+    initialAction,
+  }: {
+    open: boolean
+    initialAction?: string | null
+  }) =>
+    open ? (
+      <div data-testid="goal-detail-drawer" data-initial-action={initialAction ?? ''} />
+    ) : null,
 }))
 
 import { GoalDetailPanel } from '@/components/goals/goal-detail-panel'
@@ -94,11 +108,14 @@ describe('GoalDetailPanel', () => {
     expect(screen.getByTestId('metrics-panel')).toBeInTheDocument()
   })
 
-  it('opens the detail drawer from the update-progress action', () => {
+  it('opens the drawer straight into the progress form from the update-progress action', () => {
     render(<GoalDetailPanel goalId="1" />)
     expect(screen.queryByTestId('goal-detail-drawer')).not.toBeInTheDocument()
     fireEvent.click(screen.getByText('goals.updateProgress'))
-    expect(screen.getByTestId('goal-detail-drawer')).toBeInTheDocument()
+    expect(screen.getByTestId('goal-detail-drawer')).toHaveAttribute(
+      'data-initial-action',
+      'progress',
+    )
   })
 
   it('offers an edit action and hides metrics for non-active goals', () => {
@@ -109,6 +126,28 @@ describe('GoalDetailPanel', () => {
     render(<GoalDetailPanel goalId="1" />)
     expect(screen.getByText('goals.detail.edit')).toBeInTheDocument()
     expect(screen.queryByTestId('metrics-panel')).not.toBeInTheDocument()
+  })
+
+  it('opens the drawer straight into the edit modal for non-active goals', () => {
+    detailData = {
+      goal: { ...makeGoal({ status: 'Completed' }), progressHistory: [] },
+      metrics: null,
+    }
+    render(<GoalDetailPanel goalId="1" />)
+    fireEvent.click(screen.getByText('goals.detail.edit'))
+    expect(screen.getByTestId('goal-detail-drawer')).toHaveAttribute(
+      'data-initial-action',
+      'edit',
+    )
+  })
+
+  it('renders the Ask-Astra prompt row', () => {
+    render(<GoalDetailPanel goalId="1" />)
+    expect(
+      screen.getByRole('button', {
+        name: 'goals.detail.askAstraEyebrow: goals.detail.askAstraDefault',
+      }),
+    ).toBeInTheDocument()
   })
 
   it('renders a progress trend when history has multiple points', () => {

@@ -37,6 +37,7 @@ export function StreakBadge({ streak, isFrozen }: Readonly<StreakBadgeProps>) {
         t('streakDisplay.badge.tooltip', { count: streak }),
         streak,
       )}
+      hitSlop={2}
       onPress={handlePress}
       style={({ pressed }) => [
         styles.badge,

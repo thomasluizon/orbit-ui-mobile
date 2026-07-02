@@ -14,6 +14,7 @@ interface SectionHeadTabsProps<T extends string = string> {
   tabs: readonly SectionHeadTab<T>[]
   active: T
   onChange: (id: T) => void
+  ariaLabel?: string
 }
 
 /**
@@ -25,12 +26,17 @@ export function SectionHeadTabs<T extends string = string>({
   tabs,
   active,
   onChange,
+  ariaLabel,
 }: Readonly<SectionHeadTabsProps<T>>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
 
   return (
-    <View style={styles.wrap}>
+    <View
+      style={styles.wrap}
+      accessibilityRole="tablist"
+      accessibilityLabel={ariaLabel}
+    >
       {tabs.map((tab) => {
         const isActive = tab.id === active
         return (

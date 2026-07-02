@@ -27,7 +27,12 @@ const listGoal = {
   linkedHabits: [],
 }
 
-let detailGoal = { ...listGoal, progressHistory: [] as unknown[] }
+let detailGoal: Record<string, unknown> = {
+  ...listGoal,
+  progressHistory: [] as unknown[],
+}
+let detailLoadError = false
+const refetchDetail = vi.fn()
 
 vi.mock('react-i18next', () => ({
   useTranslation: () => ({
@@ -120,8 +125,8 @@ vi.mock('@/hooks/use-goals', () => ({
   useGoalDetail: (id: string | null) => ({
     data: id ? { goal: detailGoal, metrics: null } : null,
     isLoading: false,
-    isError: false,
-    refetch: vi.fn(),
+    isError: detailLoadError,
+    refetch: refetchDetail,
   }),
   useUpdateGoalProgress: () => ({ mutateAsync: vi.fn(), isPending: false, error: null }),
   useUpdateGoalStatus: () => ({ mutateAsync: vi.fn(), isPending: false, error: null }),
@@ -135,9 +140,22 @@ function collectText(node: any): string {
   return collectText(node.children ?? [])
 }
 
+const historyEntries = [
+  {
+    createdAtUtc: '2025-01-02T00:00:00Z',
+    previousValue: 0,
+    value: 2,
+    note: null,
+  },
+]
+
+const linkedHabits = [{ id: 'h1', title: 'Read every night' }]
+
 describe('GoalDetailDrawer', () => {
   beforeEach(() => {
     detailGoal = { ...listGoal, progressHistory: [] }
+    detailLoadError = false
+    refetchDetail.mockClear()
   })
 
   it('prefers synced detail data over the stale list cache', () => {
@@ -224,5 +242,75 @@ describe('GoalDetailDrawer', () => {
     expect(labels).toContain('goals.detail.markAbandoned')
     expect(labels).toContain('goals.detail.edit')
     expect(labels).toContain('goals.detail.delete')
+  })
+
+  it('orders history before linked habits for standard goals', () => {
+    detailGoal = {
+      ...listGoal,
+      progressHistory: historyEntries,
+      linkedHabits,
+    }
+
+    let tree: any
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <GoalDetailDrawer open={true} onClose={vi.fn()} goalId="1" />,
+      )
+    })
+
+    const textContent = collectText(tree.toJSON())
+    expect(textContent.indexOf('goals.progressHistory')).toBeGreaterThan(-1)
+    expect(textContent.indexOf('goals.progressHistory')).toBeLessThan(
+      textContent.indexOf('goals.linkedHabits'),
+    )
+  })
+
+  it('orders linked habits before history for streak goals', () => {
+    detailGoal = {
+      ...listGoal,
+      type: 'Streak',
+      progressHistory: historyEntries,
+      linkedHabits,
+    }
+
+    let tree: any
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <GoalDetailDrawer open={true} onClose={vi.fn()} goalId="1" />,
+      )
+    })
+
+    const textContent = collectText(tree.toJSON())
+    expect(textContent.indexOf('goals.linkedHabits')).toBeGreaterThan(-1)
+    expect(textContent.indexOf('goals.linkedHabits')).toBeLessThan(
+      textContent.indexOf('goals.progressHistory'),
+    )
+  })
+
+  it('offers a retry action when the detail fetch fails', () => {
+    detailLoadError = true
+
+    let tree: any
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <GoalDetailDrawer open={true} onClose={vi.fn()} goalId="1" />,
+      )
+    })
+
+    const retryButton = tree.root
+      .findAll(
+        (node: any) =>
+          node.props.accessibilityLabel === 'common.retry' &&
+          typeof node.props.onPress === 'function',
+      )
+      .at(0)
+
+    expect(retryButton).toBeDefined()
+
+    TestRenderer.act(() => {
+      retryButton.props.onPress()
+    })
+
+    expect(refetchDetail).toHaveBeenCalledTimes(1)
   })
 })

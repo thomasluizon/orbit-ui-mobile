@@ -2,7 +2,7 @@
 
 import { useTranslations } from 'next-intl'
 import { MAX_GOAL_UNIT_LENGTH } from '@orbit/shared/validation'
-import { FieldWell } from './field-well'
+import { FieldWell } from '../field-well'
 
 interface EditGoalTargetFieldsProps {
   isStreak: boolean
@@ -33,16 +33,7 @@ export function EditGoalTargetFields({
         error={fieldErrors.targetValue}
         onChange={onChangeTarget}
       />
-      {isStreak ? (
-        <FieldWell
-          label={t('goals.form.unit')}
-          id="edit-goal-unit-readonly"
-          type="text"
-          value={unit}
-          readOnly
-          onChange={() => {}}
-        />
-      ) : (
+      {!isStreak && (
         <FieldWell
           label={t('goals.form.unit')}
           id="edit-goal-unit"

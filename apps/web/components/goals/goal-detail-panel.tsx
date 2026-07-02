@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useMemo, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { PencilLine, Plus } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
 import { formatLocaleDateTime } from '@orbit/shared/utils'
@@ -10,13 +11,15 @@ import { SectionLabel } from '@/components/ui/section-label'
 import { SkeletonCard } from '@/components/ui/skeleton'
 import { TrendLine, type TrendPoint } from '@/components/charts/trend-line'
 import { useGoalDetail, useGoals } from '@/hooks/use-goals'
-import { GoalDetailDrawer } from './goal-detail-drawer'
+import { GoalAskAstraRow } from './goal-ask-astra-row'
+import { GoalDetailDrawer, type GoalDrawerInitialAction } from './goal-detail-drawer'
 import {
   GoalLinkedHabitsSection,
   GoalProgressHistorySection,
 } from './goal-detail-sections'
 import { GoalProgressRing } from './goal-detail-drawer/goal-progress-ring'
 import { GoalMetricsPanel } from './goal-metrics-panel'
+import { GoalStatusBadge } from './goal-status-badge'
 
 interface GoalDetailPanelProps {
   goalId: string | null
@@ -25,12 +28,19 @@ interface GoalDetailPanelProps {
 const TREND_MIN_POINTS = 2
 
 /** Desktop master-detail right pane: an always-visible read view of the selected
- *  goal — progress ring, metrics, a progress trend, linked habits and history —
+ *  goal (progress ring, metrics, a progress trend, linked habits and history)
  *  with the full edit/update/delete flow reused from the GoalDetailDrawer modal. */
 export function GoalDetailPanel({ goalId }: Readonly<GoalDetailPanelProps>) {
   const t = useTranslations()
   const locale = useLocale()
+  const router = useRouter()
   const [drawerOpen, setDrawerOpen] = useState(false)
+  const [drawerAction, setDrawerAction] = useState<GoalDrawerInitialAction | null>(null)
+
+  const openDrawer = useCallback((initialAction: GoalDrawerInitialAction | null) => {
+    setDrawerAction(initialAction)
+    setDrawerOpen(true)
+  }, [])
 
   const { data: goalsData } = useGoals()
   const { data: detailData, isLoading } = useGoalDetail(goalId)
@@ -61,6 +71,15 @@ export function GoalDetailPanel({ goalId }: Readonly<GoalDetailPanelProps>) {
       }),
     [locale],
   )
+
+  function handleAskAstra() {
+    if (!goal) return
+    const seed = t('goals.detail.askAstraSeedDefault', { title: goal.title })
+    if (typeof globalThis !== 'undefined' && typeof globalThis.localStorage !== 'undefined') {
+      globalThis.localStorage.setItem('orbit-chat-draft', seed)
+    }
+    router.push('/chat')
+  }
 
   if (!goalId) return null
 
@@ -115,29 +134,16 @@ export function GoalDetailPanel({ goalId }: Readonly<GoalDetailPanelProps>) {
         >
           {goal.title}
         </h2>
-        {statusBadge && (
-          <span
-            className="inline-flex shrink-0 items-center rounded-full uppercase"
-            style={{
-              fontFamily: 'var(--font-sans)',
-              fontSize: 10.5,
-              fontWeight: 600,
-              letterSpacing: '0.06em',
-              padding: '3px 9px',
-              boxShadow: 'inset 0 0 0 1px var(--hairline)',
-              color: statusBadge.color,
-            }}
-          >
-            {statusBadge.text}
-          </span>
-        )}
+        {statusBadge && <GoalStatusBadge text={statusBadge.text} color={statusBadge.color} />}
       </div>
 
       <SectionLabel>{t('goals.progress')}</SectionLabel>
       <div style={{ padding: '2px 20px 16px' }}>
         <GoalProgressRing
           progressPercentage={goal.progressPercentage}
-          percentLabel={t('goals.progressPercentage', { pct: goal.progressPercentage })}
+          percentLabel={t('goals.progressPercentage', {
+            pct: Math.round(goal.progressPercentage),
+          })}
           progressOfLabel={progressOfLabel}
           color={isStreak ? 'var(--status-overdue)' : 'var(--primary)'}
         />
@@ -146,30 +152,32 @@ export function GoalDetailPanel({ goalId }: Readonly<GoalDetailPanelProps>) {
             <TrendLine points={trendPoints} ariaLabel={t('goals.progress')} />
           </div>
         )}
-        {goal.status === 'Active' ? (
-          <PillButton
-            fullWidth
-            className="mt-[14px]"
-            leading={
-              <Plus size={18} strokeWidth={1.8} color="var(--fg-on-primary)" aria-hidden="true" />
-            }
-            onClick={() => setDrawerOpen(true)}
-          >
-            {t('goals.updateProgress')}
-          </PillButton>
-        ) : (
-          <PillButton
-            variant="ghost"
-            fullWidth
-            className="mt-[14px]"
-            leading={
-              <PencilLine size={18} strokeWidth={1.8} color="var(--fg-1)" aria-hidden="true" />
-            }
-            onClick={() => setDrawerOpen(true)}
-          >
-            {t('goals.detail.edit')}
-          </PillButton>
-        )}
+        <div className="flex justify-center">
+          {goal.status === 'Active' ? (
+            <PillButton
+              fullWidth
+              className="mt-[14px] max-w-[360px]"
+              leading={
+                <Plus size={18} strokeWidth={1.8} color="var(--fg-on-primary)" aria-hidden="true" />
+              }
+              onClick={() => openDrawer('progress')}
+            >
+              {t('goals.updateProgress')}
+            </PillButton>
+          ) : (
+            <PillButton
+              variant="ghost"
+              fullWidth
+              className="mt-[14px] max-w-[360px]"
+              leading={
+                <PencilLine size={18} strokeWidth={1.8} color="var(--fg-1)" aria-hidden="true" />
+              }
+              onClick={() => openDrawer('edit')}
+            >
+              {t('goals.detail.edit')}
+            </PillButton>
+          )}
+        </div>
       </div>
 
       {goal.status === 'Active' && (
@@ -189,7 +197,6 @@ export function GoalDetailPanel({ goalId }: Readonly<GoalDetailPanelProps>) {
       <GoalProgressHistorySection
         title={t('goals.progressHistory')}
         entries={detail?.progressHistory ?? []}
-        unit={goal.unit}
         formatDate={formatHistoryDate}
         renderEntryLabel={(entry) =>
           t('goals.progressEntry', {
@@ -202,7 +209,25 @@ export function GoalDetailPanel({ goalId }: Readonly<GoalDetailPanelProps>) {
         showLessLabel={t('goals.detail.showLessHistory')}
       />
 
-      <GoalDetailDrawer open={drawerOpen} onOpenChange={setDrawerOpen} goalId={goal.id} />
+      <div
+        style={{
+          marginTop: 16,
+          borderTop: '1px solid var(--hairline)',
+          padding: '16px 20px 4px',
+        }}
+      >
+        <GoalAskAstraRow onClick={handleAskAstra} />
+      </div>
+
+      <GoalDetailDrawer
+        open={drawerOpen}
+        onOpenChange={(nextOpen) => {
+          setDrawerOpen(nextOpen)
+          if (!nextOpen) setDrawerAction(null)
+        }}
+        goalId={goal.id}
+        initialAction={drawerAction}
+      />
     </section>
   )
 }

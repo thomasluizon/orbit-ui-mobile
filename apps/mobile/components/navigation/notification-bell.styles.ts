@@ -16,7 +16,7 @@ export function createStyles(tokens: AppTokens) {
       justifyContent: 'center',
     },
     bellPressed: {
-      transform: [{ scale: 0.92 }],
+      transform: [{ scale: 0.96 }],
     },
     bellUnreadDot: {
       position: 'absolute',
@@ -105,7 +105,7 @@ export function createStyles(tokens: AppTokens) {
       justifyContent: 'center',
     },
     deleteBtnPressed: {
-      transform: [{ scale: 0.92 }],
+      transform: [{ scale: 0.96 }],
       backgroundColor: tokens.bgElev2,
     },
     emptyContainer: {

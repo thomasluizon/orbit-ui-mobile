@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { usePathname, useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
-import { ChevronRight } from 'lucide-react-native'
+import { ChevronRight, X } from 'lucide-react-native'
 import {
   useProfile,
   useTrialDaysLeft,
@@ -24,7 +24,7 @@ function rgbaFromHex(hex: string, alpha: number): string {
 /**
  * Trial strip: slim primary-tinted band with Rubik lead text, tabular
  * days-left count, and an Upgrade chevron CTA. Urgent state swaps to the
- * amber overdue tint. Long-press dismisses for the session.
+ * amber overdue tint. A visible X dismisses it for the session.
  */
 export function TrialBanner() {
   const { t } = useTranslation()
@@ -78,7 +78,6 @@ export function TrialBanner() {
       <Pressable
         onPress={() => router.push(buildUpgradeHref(pathname || '/'))}
         hitSlop={6}
-        onLongPress={() => setDismissed(true)}
         accessibilityRole="button"
         accessibilityLabel={t('trial.banner.upgrade')}
         style={({ pressed }) => [
@@ -98,6 +97,22 @@ export function TrialBanner() {
           size={14}
           strokeWidth={2.2}
           color={trialUrgent ? tokens.statusOverdue : tokens.primarySoft}
+        />
+      </Pressable>
+      <Pressable
+        onPress={() => setDismissed(true)}
+        hitSlop={2}
+        accessibilityRole="button"
+        accessibilityLabel={t('common.dismiss')}
+        style={({ pressed }) => [
+          styles.dismissButton,
+          pressed ? styles.dismissButtonPressed : null,
+        ]}
+      >
+        <X
+          size={18}
+          strokeWidth={1.8}
+          color={trialUrgent ? tokens.statusOverdue : tokens.fg3}
         />
       </Pressable>
     </View>
@@ -138,11 +153,24 @@ function createStyles(tokens: AppTokensV2) {
     },
     upgradePressed: {
       opacity: 0.7,
-      transform: [{ scale: 0.97 }],
+      transform: [{ scale: 0.96 }],
     },
     upgradeText: {
       fontFamily: 'Rubik_500Medium',
       fontSize: 13,
+    },
+    dismissButton: {
+      width: 40,
+      height: 40,
+      borderRadius: 999,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginVertical: -10,
+      marginRight: -8,
+    },
+    dismissButtonPressed: {
+      transform: [{ scale: 0.96 }],
+      backgroundColor: tokens.bgElev,
     },
   })
 }

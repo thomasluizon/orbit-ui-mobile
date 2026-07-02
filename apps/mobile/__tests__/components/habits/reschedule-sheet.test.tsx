@@ -131,4 +131,14 @@ describe('RescheduleSheet (mobile)', () => {
     })
     expect(mockRefetch).toHaveBeenCalled()
   })
+
+  it('shows a schedule-card placeholder while the suggestion is loading', () => {
+    mockReschedule.isLoading = true
+
+    const tree = render(<RescheduleSheet open onOpenChange={vi.fn()} habit={overdueHabit} />)
+
+    expect(hasText(tree.root, 'habits.reschedule.loading')).toBe(true)
+    const skeletons = tree.root.findAll((node) => node.type === 'AnimatedView')
+    expect(skeletons.length).toBeGreaterThanOrEqual(1)
+  })
 })

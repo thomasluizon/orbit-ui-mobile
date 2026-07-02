@@ -5,11 +5,10 @@ import {
   Pressable,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
 } from 'react-native'
 import { useTranslation } from 'react-i18next'
-import { createTokensV2, easings, shadowsV2 } from '@/lib/theme'
+import { createTokensV2, shadowsV2 } from '@/lib/theme'
 import { toAnimatedEasing, useResolvedMotionPreset } from '@/lib/motion'
 import { useAppTheme } from '@/lib/use-app-theme'
 
@@ -67,7 +66,7 @@ export function ConfirmDialog({
       Animated.timing(progress, {
         toValue: 1,
         duration: dialogMotion.enterDuration,
-        easing: toAnimatedEasing(easings.out),
+        easing: toAnimatedEasing(dialogMotion.enterEasing),
         useNativeDriver: true,
       }).start()
       return
@@ -76,14 +75,21 @@ export function ConfirmDialog({
     Animated.timing(progress, {
       toValue: 0,
       duration: dialogMotion.exitDuration,
-      easing: toAnimatedEasing(easings.out),
+      easing: toAnimatedEasing(dialogMotion.exitEasing),
       useNativeDriver: true,
     }).start(({ finished }) => {
       if (finished) {
         setVisible(false)
       }
     })
-  }, [dialogMotion.enterDuration, dialogMotion.exitDuration, open, progress])
+  }, [
+    dialogMotion.enterDuration,
+    dialogMotion.enterEasing,
+    dialogMotion.exitDuration,
+    dialogMotion.exitEasing,
+    open,
+    progress,
+  ])
 
   function handleConfirm() {
     onConfirm?.()
@@ -119,17 +125,15 @@ export function ConfirmDialog({
       animationType="none"
       onRequestClose={() => onOpenChange(false)}
     >
-      <TouchableOpacity
-        style={styles.root}
-        activeOpacity={1}
-        accessibilityRole="button"
-        accessibilityLabel={t('common.close')}
-        onPress={() => onOpenChange(false)}
-      >
-        <Animated.View
-          pointerEvents="none"
-          style={[styles.backdrop, { opacity: backdropOpacity }]}
-        />
+      <View style={styles.root}>
+        <Animated.View style={[styles.backdrop, { opacity: backdropOpacity }]}>
+          <Pressable
+            style={styles.backdropPress}
+            accessibilityRole="button"
+            accessibilityLabel={t('common.close')}
+            onPress={() => onOpenChange(false)}
+          />
+        </Animated.View>
         <Animated.View
           style={[
             styles.dialog,
@@ -138,7 +142,6 @@ export function ConfirmDialog({
               transform: [{ translateY }, { scale }],
             },
           ]}
-          onStartShouldSetResponder={() => true}
         >
           <Text style={styles.title}>{title}</Text>
           <Text style={styles.description}>{description}</Text>
@@ -183,7 +186,7 @@ export function ConfirmDialog({
             </Pressable>
           </View>
         </Animated.View>
-      </TouchableOpacity>
+      </View>
     </Modal>
   )
 }
@@ -199,6 +202,9 @@ function createStyles(tokens: AppTokens) {
     backdrop: {
       ...StyleSheet.absoluteFillObject,
       backgroundColor: 'rgba(0,0,0,0.6)',
+    },
+    backdropPress: {
+      flex: 1,
     },
     dialog: {
       width: '100%',
@@ -242,7 +248,7 @@ function createStyles(tokens: AppTokens) {
       backgroundColor: tokens.bgField,
     },
     cancelPillPressed: {
-      backgroundColor: tokens.bgElev2,
+      backgroundColor: tokens.bgSunk,
     },
     confirmPill: {
       backgroundColor: tokens.primary,

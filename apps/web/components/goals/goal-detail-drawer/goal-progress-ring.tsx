@@ -1,8 +1,19 @@
 'use client'
 
+import { useEffect, useState } from 'react'
+
 const RING_SIZE = 180
 const RING_RADIUS = 70
 const RING_CIRCUMFERENCE = 2 * Math.PI * RING_RADIUS
+
+type SweepState = 'initial' | 'sweep' | 'static'
+
+function prefersReducedMotion(): boolean {
+  return (
+    typeof window !== 'undefined' &&
+    !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+  )
+}
 
 interface GoalProgressRingProps {
   progressPercentage: number
@@ -11,7 +22,9 @@ interface GoalProgressRingProps {
   color: string
 }
 
-/** MetaDetalhe progress ring: 12px stroke, round caps, dashoffset animated 280ms. */
+/** MetaDetalhe progress ring: 12px stroke, round caps. On mount the arc sweeps
+ *  in from empty to its value over 280ms (stroke-dashoffset, ease-out), skipped
+ *  under prefers-reduced-motion; later value changes animate the same way. */
 export function GoalProgressRing({
   progressPercentage,
   percentLabel,
@@ -19,7 +32,19 @@ export function GoalProgressRing({
   color,
 }: Readonly<GoalProgressRingProps>) {
   const clamped = Math.min(100, Math.max(0, progressPercentage))
-  const dashOffset = RING_CIRCUMFERENCE * (1 - clamped / 100)
+  const [sweepState, setSweepState] = useState<SweepState>(() =>
+    prefersReducedMotion() ? 'static' : 'initial',
+  )
+
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => {
+      setSweepState((current) => (current === 'initial' ? 'sweep' : current))
+    })
+    return () => cancelAnimationFrame(frame)
+  }, [])
+
+  const targetOffset = RING_CIRCUMFERENCE * (1 - clamped / 100)
+  const dashOffset = sweepState === 'initial' ? RING_CIRCUMFERENCE : targetOffset
 
   return (
     <div className="flex justify-center" style={{ paddingBottom: 4 }}>
@@ -56,7 +81,12 @@ export function GoalProgressRing({
             strokeLinecap="round"
             strokeDasharray={RING_CIRCUMFERENCE}
             strokeDashoffset={dashOffset}
-            style={{ transition: 'stroke-dashoffset 280ms var(--ease-out)' }}
+            style={{
+              transition:
+                sweepState === 'sweep'
+                  ? 'stroke-dashoffset 280ms var(--ease-out)'
+                  : undefined,
+            }}
           />
         </svg>
         <div className="absolute text-center">

@@ -40,6 +40,28 @@ describe('HabitRow description preview', () => {
   })
 })
 
+describe('HabitRow check circle accessible name', () => {
+  it('announces the state and the log action when the habit is loggable', () => {
+    render(<HabitRow habit={createMockHabit({ title: 'Meditate' })} />)
+
+    expect(screen.getByTestId('habit-status-toggle')).toHaveAttribute(
+      'aria-label',
+      'habits.statusDot.empty, habits.logHabit',
+    )
+  })
+
+  it('announces the unlog action when the habit is done', () => {
+    render(
+      <HabitRow habit={createMockHabit({ title: 'Meditate' })} state="done" />,
+    )
+
+    expect(screen.getByTestId('habit-status-toggle')).toHaveAttribute(
+      'aria-label',
+      'habits.statusDot.done, habits.actions.unlog',
+    )
+  })
+})
+
 describe('HabitRow tags', () => {
   it('renders the habit tag names on the row', () => {
     render(

@@ -1,6 +1,6 @@
 import {
+  Pressable,
   Text,
-  TouchableOpacity,
   View,
   type StyleProp,
   type TextStyle,
@@ -65,14 +65,16 @@ export function DrillFooter({ styles, label, onAddSubHabit }: DrillFooterProps) 
   const tokens = createTokensV2(currentScheme, currentTheme)
 
   return (
-    <TouchableOpacity
-      style={styles.drillAddBtn}
+    <Pressable
+      style={({ pressed }) => [
+        styles.drillAddBtn,
+        pressed ? { transform: [{ scale: 0.96 }] } : null,
+      ]}
       onPress={onAddSubHabit}
-      activeOpacity={0.7}
       accessibilityRole="button"
     >
       <Plus size={16} color={tokens.fg3} strokeWidth={1.8} />
       <Text style={styles.drillAddBtnText}>{label}</Text>
-    </TouchableOpacity>
+    </Pressable>
   )
 }

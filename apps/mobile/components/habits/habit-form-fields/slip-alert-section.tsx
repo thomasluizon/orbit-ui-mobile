@@ -1,5 +1,5 @@
 import { useMemo } from "react";
-import { View, Text, TouchableOpacity } from "react-native";
+import { View, Text, Pressable } from "react-native";
 import { useRouter } from "expo-router";
 import { ShieldAlert } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
@@ -46,10 +46,12 @@ export function SlipAlertSection({
           />
         </View>
       ) : (
-        <TouchableOpacity
-          style={sectionStyles.headerRow}
+        <Pressable
+          style={({ pressed }) => [
+            sectionStyles.headerRow,
+            pressed && { transform: [{ scale: 0.98 }] },
+          ]}
           onPress={() => router.push("/upgrade")}
-          activeOpacity={0.8}
           accessibilityRole="button"
         >
           <View style={{ flex: 1, gap: 4 }}>
@@ -69,7 +71,7 @@ export function SlipAlertSection({
           <View style={[sectionStyles.disabledSwitch]}>
             <View style={sectionStyles.disabledThumb} />
           </View>
-        </TouchableOpacity>
+        </Pressable>
       )}
     </View>
   );

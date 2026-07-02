@@ -62,6 +62,15 @@ export function createStyles(tokens: CreateGoalTokens, bottomInset: number) {
       borderWidth: 1,
       borderColor: tokens.hairline,
     },
+    typeOptionPressed: {
+      transform: [{ scale: 0.98 }],
+    },
+    typeOptionActivePressed: {
+      backgroundColor: tokens.primaryPressed,
+    },
+    typeOptionInactivePressed: {
+      backgroundColor: tokens.bgElev2,
+    },
     typeOptionText: {
       fontFamily: 'Rubik_500Medium',
       fontSize: 15,

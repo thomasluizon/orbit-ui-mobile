@@ -124,6 +124,8 @@ export function HabitCalendar({
         <TouchableOpacity
           testID="habit-calendar-month-label"
           accessibilityRole="button"
+          accessibilityLabel={monthLabel}
+          accessibilityHint={t('dates.goToToday')}
           style={styles.monthButton}
           onPress={goToToday}
           activeOpacity={0.7}

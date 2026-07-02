@@ -12,6 +12,7 @@ import TodayScreen, {
   resolveTodayView,
   shouldRedirectGoalsTab,
 } from "@/app/(tabs)/index";
+import { BackHandler } from "@/test-mocks/react-native";
 
 vi.mock("@/components/referral/referral-card", () => ({
   ReferralCard: () => null,
@@ -215,6 +216,9 @@ vi.mock("@/hooks/use-gamification", () => ({
 }));
 
 vi.mock("@/hooks/use-habits", () => ({
+  EMPTY_HABITS_BY_ID: new Map(),
+  EMPTY_CHILDREN_BY_PARENT: new Map(),
+  EMPTY_NORMALIZED_HABITS: [],
   useHabits: useHabitsMock,
   useDeleteHabit: () => ({ mutateAsync: vi.fn() }),
   useBulkDeleteHabits: () => ({ mutateAsync: vi.fn() }),
@@ -492,6 +496,17 @@ describe("TodayScreen", () => {
     ).toBeGreaterThanOrEqual(1);
   });
 
+  it("clears the selection when hardware back is pressed in select mode", async () => {
+    uiState.isSelectMode = true;
+
+    await renderTodayScreen();
+
+    const handled = BackHandler.emitBackPress();
+
+    expect(handled).toBe(true);
+    expect(uiState.clearSelection).toHaveBeenCalled();
+  });
+
   it("registers the list shell as the habits tour overview target", async () => {
     await renderTodayScreen();
 
@@ -683,6 +698,39 @@ describe("TodayScreen", () => {
       dateFrom: "2026-04-02",
       dateTo: "2026-04-02",
     });
+  });
+
+  it("renders the load-error state with a working retry when habits fail before any data", async () => {
+    const refetch = vi.fn();
+    useHabitsMock.mockReturnValue({
+      data: undefined,
+      getChildren: () => [],
+      isFetching: false,
+      isError: true,
+      refetch,
+    });
+
+    const tree = await renderTodayScreen();
+
+    expect(tree.root.findAllByType("HabitList")).toHaveLength(0);
+    expect(tree.root.findAllByType("TodayTabs").length).toBeGreaterThanOrEqual(
+      1,
+    );
+
+    const retryPill = tree.root.findAll(
+      (node) =>
+        node.props.accessibilityLabel === "common.retry" &&
+        typeof node.props.onPress === "function",
+    )[0];
+    if (!retryPill) {
+      throw new Error("Expected the retry pill to be rendered");
+    }
+
+    TestRenderer.act(() => {
+      (retryPill.props.onPress as () => void)();
+    });
+
+    expect(refetch).toHaveBeenCalledTimes(1);
   });
 });
 

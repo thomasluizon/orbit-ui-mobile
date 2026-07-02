@@ -82,10 +82,7 @@ describe('CreateGoalModal', () => {
     render(<CreateGoalModal open={true} onOpenChange={vi.fn()} />)
     const descriptionInput = screen.getByLabelText(/goals.form.description/)
     fireEvent.change(descriptionInput, { target: { value: 'Read more books' } })
-    const submitBtn = screen.getAllByText('goals.create').find(
-      (el) => el.tagName === 'BUTTON' && el.getAttribute('type') === 'submit',
-    )
-    if (submitBtn) fireEvent.click(submitBtn)
+    fireEvent.click(screen.getByRole('button', { name: 'goals.create' }))
     expect(mockShowError).toHaveBeenCalledWith('goals.form.targetValueRequired')
     expect(mockMutateAsync).not.toHaveBeenCalled()
   })
@@ -94,10 +91,7 @@ describe('CreateGoalModal', () => {
     render(<CreateGoalModal open={true} onOpenChange={vi.fn()} />)
     const targetInput = screen.getByLabelText('goals.form.targetValue')
     fireEvent.change(targetInput, { target: { value: '10' } })
-    const submitBtn = screen.getAllByText('goals.create').find(
-      (el) => el.tagName === 'BUTTON' && el.getAttribute('type') === 'submit',
-    )
-    if (submitBtn) fireEvent.click(submitBtn)
+    fireEvent.click(screen.getByRole('button', { name: 'goals.create' }))
     expect(mockShowError).toHaveBeenCalledWith('goals.form.unitRequired')
     expect(mockMutateAsync).not.toHaveBeenCalled()
   })

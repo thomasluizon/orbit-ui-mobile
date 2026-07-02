@@ -11,16 +11,38 @@ vi.mock('@/hooks/use-goals', () => ({
   useReorderGoals: () => ({ mutate: reorderMutate }),
 }))
 
-vi.mock('./goal-card', () => ({
-  GoalCard: ({ goal }: { goal: { id: string; title: string } }) => (
-    <div data-testid={`goal-${goal.id}`}>{goal.title}</div>
+interface MockGoalCardProps {
+  goal: { id: string; title: string }
+  onOpenDetail: (goalId: string, initialAction: string | null) => void
+}
+
+vi.mock('@/components/goals/goal-card', () => ({
+  GoalCard: ({ goal, onOpenDetail }: MockGoalCardProps) => (
+    <div data-testid={`goal-${goal.id}`}>
+      <button type="button" onClick={() => onOpenDetail(goal.id, null)}>
+        {goal.title}
+      </button>
+    </div>
   ),
 }))
 
-vi.mock('@/components/goals/goal-card', () => ({
-  GoalCard: ({ goal }: { goal: { id: string; title: string } }) => (
-    <div data-testid={`goal-${goal.id}`}>{goal.title}</div>
-  ),
+vi.mock('@/components/goals/goal-detail-drawer', () => ({
+  GoalDetailDrawer: ({
+    open,
+    goalId,
+    initialAction,
+  }: {
+    open: boolean
+    goalId: string
+    initialAction?: string | null
+  }) =>
+    open ? (
+      <div
+        data-testid="goal-detail-drawer"
+        data-goal-id={goalId}
+        data-initial-action={initialAction ?? ''}
+      />
+    ) : null,
 }))
 
 import { GoalList } from '@/components/goals/goal-list'
@@ -188,5 +210,17 @@ describe('GoalList', () => {
     })
     fireEvent.touchEnd(sections[0]!)
     expect(sections[0]!.className).not.toContain('drag-chosen')
+  })
+
+  it('mounts a single detail drawer for the card that requested it', () => {
+    render(<GoalList goals={mockGoals} />)
+    expect(screen.queryByTestId('goal-detail-drawer')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByText('Goal g2'))
+
+    const drawer = screen.getByTestId('goal-detail-drawer')
+    expect(drawer).toHaveAttribute('data-goal-id', 'g2')
+    expect(drawer).toHaveAttribute('data-initial-action', '')
+    expect(screen.getAllByTestId('goal-detail-drawer')).toHaveLength(1)
   })
 })

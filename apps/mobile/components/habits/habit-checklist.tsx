@@ -1,5 +1,6 @@
 import { useState, useCallback, useMemo } from 'react'
 import {
+  Pressable,
   View,
   Text,
   TouchableOpacity,
@@ -11,9 +12,10 @@ import Animated, {
   withSequence,
   withSpring,
 } from 'react-native-reanimated'
-import { ChevronUp, ChevronDown, X, Copy, Check, RotateCcw } from 'lucide-react-native'
+import { ChevronUp, ChevronDown, X, Copy, Check, Plus, RotateCcw } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import type { ChecklistItem } from '@orbit/shared/types/habit'
+import { usePrefersReducedMotion } from '@/lib/motion'
 import { createTokensV2 } from '@/lib/theme'
 import { BottomSheetAppTextInput } from '@/components/ui/bottom-sheet-app-text-input'
 import { ProgressBar } from '@/components/ui/progress-bar'
@@ -32,60 +34,6 @@ interface HabitChecklistProps {
 }
 
 type AppTokens = ReturnType<typeof createTokensV2>
-
-interface ChecklistCheckboxProps {
-  checked: boolean
-  label: string
-  onPress: () => void
-  styles: ReturnType<typeof createStyles>
-  tokens: AppTokens
-}
-
-function ChecklistCheckbox({
-  checked,
-  label,
-  onPress,
-  styles,
-  tokens,
-}: Readonly<ChecklistCheckboxProps>) {
-  const scale = useSharedValue(1)
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ scale: scale.value }],
-  }))
-
-  function handlePress() {
-    if (!checked) {
-      scale.value = withSequence(
-        withSpring(1.2, { damping: 12, stiffness: 320 }),
-        withSpring(1, { damping: 15, stiffness: 280 }),
-      )
-    }
-    onPress()
-  }
-
-  return (
-    <TouchableOpacity
-      onPress={handlePress}
-      activeOpacity={0.7}
-      hitSlop={9}
-      accessibilityRole="checkbox"
-      accessibilityState={{ checked }}
-      accessibilityLabel={label}
-    >
-      <Animated.View
-        style={[
-          styles.checkbox,
-          checked ? styles.checkboxChecked : styles.checkboxUnchecked,
-          animatedStyle,
-        ]}
-      >
-        {checked && (
-          <Check size={15} color={tokens.fgOnPrimary} strokeWidth={3} />
-        )}
-      </Animated.View>
-    </TouchableOpacity>
-  )
-}
 
 interface EditableChecklistItemProps {
   text: string
@@ -149,7 +97,7 @@ function EditableChecklistItem({
           onPress={onMoveUp}
           disabled={isFirst}
           activeOpacity={0.7}
-          hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+          hitSlop={{ top: 6, bottom: 6, left: 12, right: 12 }}
         >
           <ChevronUp size={14} color={tokens.fg3} style={{ opacity: isFirst ? 0.3 : 1 }} />
         </TouchableOpacity>
@@ -160,7 +108,7 @@ function EditableChecklistItem({
           onPress={onMoveDown}
           disabled={isLast}
           activeOpacity={0.7}
-          hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+          hitSlop={{ top: 6, bottom: 6, left: 12, right: 12 }}
         >
           <ChevronDown size={14} color={tokens.fg3} style={{ opacity: isLast ? 0.3 : 1 }} />
         </TouchableOpacity>
@@ -214,32 +162,66 @@ function InteractiveChecklistItem({
   styles,
   tokens,
 }: Readonly<InteractiveChecklistItemProps>) {
-  return (
-    <View
+  const prefersReducedMotion = usePrefersReducedMotion()
+  const scale = useSharedValue(1)
+  const animatedStyle = useAnimatedStyle(() => ({
+    transform: [{ scale: scale.value }],
+  }))
+
+  function handlePress() {
+    if (!item.isChecked && !prefersReducedMotion) {
+      scale.value = withSequence(
+        withSpring(1.18, { damping: 14 }),
+        withSpring(1),
+      )
+    }
+    onToggle(index)
+  }
+
+  const dividerStyle =
+    index < itemsLength - 1 ? styles.interactiveItemDivider : null
+
+  const itemLabel = (
+    <Text
       style={[
+        styles.itemText,
+        item.isChecked && styles.itemTextChecked,
+      ]}
+      numberOfLines={2}
+    >
+      {item.text}
+    </Text>
+  )
+
+  if (!interactive) {
+    return <View style={[styles.interactiveItem, dividerStyle]}>{itemLabel}</View>
+  }
+
+  return (
+    <Pressable
+      onPress={handlePress}
+      accessibilityRole="checkbox"
+      accessibilityState={{ checked: item.isChecked }}
+      accessibilityLabel={item.text}
+      style={({ pressed }) => [
         styles.interactiveItem,
-        index < itemsLength - 1 ? styles.interactiveItemDivider : null,
+        dividerStyle,
+        pressed ? styles.interactiveItemPressed : null,
       ]}
     >
-      {interactive && (
-        <ChecklistCheckbox
-          checked={item.isChecked}
-          label={item.text}
-          onPress={() => onToggle(index)}
-          styles={styles}
-          tokens={tokens}
-        />
-      )}
-      <Text
+      <Animated.View
         style={[
-          styles.itemText,
-          item.isChecked && styles.itemTextChecked,
+          styles.checkbox,
+          item.isChecked ? styles.checkboxChecked : styles.checkboxUnchecked,
+          animatedStyle,
         ]}
-        numberOfLines={2}
       >
-        {item.text}
-      </Text>
-    </View>
+        {item.isChecked && (
+          <Check size={15} color={tokens.fgOnPrimary} strokeWidth={3} />
+        )}
+      </Animated.View>
+      {itemLabel}
+    </Pressable>
   )
 }
 
@@ -272,6 +254,7 @@ function ChecklistAddRow({
       />
       <TouchableOpacity
         accessibilityRole="button"
+        accessibilityLabel={t('common.add')}
         style={[
           styles.addItemButton,
           !value.trim() && styles.addItemButtonDisabled,
@@ -280,7 +263,7 @@ function ChecklistAddRow({
         onPress={onAdd}
         activeOpacity={0.7}
       >
-        <Text style={styles.addItemButtonText}>{t('common.add')}</Text>
+        <Plus size={18} color={tokens.fgOnPrimary} strokeWidth={1.8} />
       </TouchableOpacity>
     </View>
   )
@@ -445,7 +428,12 @@ export function HabitChecklist({
 
       {editable && items.length > 0 && (
         <View style={styles.clearRow}>
-          <TouchableOpacity accessibilityRole="button" onPress={clearAll} activeOpacity={0.7}>
+          <TouchableOpacity
+            accessibilityRole="button"
+            onPress={clearAll}
+            activeOpacity={0.7}
+            hitSlop={14}
+          >
             <Text style={styles.clearText}>{t('habits.form.clearChecklist')}</Text>
           </TouchableOpacity>
         </View>
@@ -493,7 +481,7 @@ function createStyles(tokens: AppTokens) {
   clearText: {
     fontFamily: 'Rubik_500Medium',
     fontSize: 12,
-    color: tokens.statusBad,
+    color: tokens.statusBadText,
   },
   clearRow: {
     alignItems: 'flex-end',
@@ -518,11 +506,11 @@ function createStyles(tokens: AppTokens) {
     width: 24,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 2,
+    gap: 4,
   },
   moveButton: {
     width: 24,
-    height: 22,
+    height: 26,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -561,6 +549,9 @@ function createStyles(tokens: AppTokens) {
     borderBottomWidth: 1,
     borderBottomColor: tokens.hairline,
   },
+  interactiveItemPressed: {
+    backgroundColor: tokens.bgElevPressed,
+  },
   checkbox: {
     width: 26,
     height: 26,
@@ -587,6 +578,7 @@ function createStyles(tokens: AppTokens) {
   },
   addItemRow: {
     flexDirection: 'row',
+    minHeight: 44,
   },
   addItemInput: {
     flex: 1,
@@ -608,15 +600,11 @@ function createStyles(tokens: AppTokens) {
     borderTopRightRadius: 14,
     borderBottomRightRadius: 14,
     backgroundColor: tokens.primary,
+    alignItems: 'center',
     justifyContent: 'center',
   },
   addItemButtonDisabled: {
     opacity: 0.4,
-  },
-  addItemButtonText: {
-    fontFamily: 'Rubik_500Medium',
-    fontSize: 13,
-    color: tokens.fgOnPrimary,
   },
   })
 }

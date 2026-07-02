@@ -112,6 +112,7 @@ export function HabitCalendar({ habitId, logs: externalLogs }: Readonly<HabitCal
         </button>
         <button
           type="button"
+          aria-label={`${monthLabel}, ${t('dates.goToToday')}`}
           className="capitalize appearance-none border-0 bg-transparent cursor-pointer text-[var(--fg-1)] hover:text-[var(--primary)] transition-colors"
           style={{ fontFamily: 'var(--font-sans)', fontSize: 16, fontWeight: 500 }}
           onClick={goToToday}
@@ -155,20 +156,24 @@ export function HabitCalendar({ habitId, logs: externalLogs }: Readonly<HabitCal
             {day.isCurrentMonth && day.isCompleted ? (
               <button
                 type="button"
-                className={`flex size-9 cursor-pointer items-center justify-center rounded-full bg-[var(--status-done)] text-[var(--fg-on-primary)] transition-[transform,box-shadow] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:scale-105 active:scale-95 ${
-                  selectedDate === day.dateStr
-                    ? 'ring-2 ring-[var(--primary)]/50 ring-offset-2 ring-offset-[var(--bg)]'
-                    : ''
-                }`}
-                style={{
-                  fontFamily: 'var(--font-mono)',
-                  fontSize: 13,
-                  fontWeight: 500,
-                  fontVariantNumeric: 'tabular-nums',
-                }}
+                className="group flex size-full appearance-none border-0 bg-transparent p-0 cursor-pointer items-center justify-center"
                 onClick={() => toggleDay(day.dateStr)}
               >
-                {day.dayNum}
+                <span
+                  className={`flex size-9 items-center justify-center rounded-full bg-[var(--status-done)] text-[var(--fg-on-primary)] transition-[transform,box-shadow] duration-[var(--dur-fast)] ease-[var(--ease-standard)] group-hover:scale-105 group-active:scale-[0.96] ${
+                    selectedDate === day.dateStr
+                      ? 'ring-2 ring-[var(--primary)]/50 ring-offset-2 ring-offset-[var(--bg)]'
+                      : ''
+                  }`}
+                  style={{
+                    fontFamily: 'var(--font-mono)',
+                    fontSize: 13,
+                    fontWeight: 500,
+                    fontVariantNumeric: 'tabular-nums',
+                  }}
+                >
+                  {day.dayNum}
+                </span>
               </button>
             ) : (
               <div
@@ -218,7 +223,6 @@ export function HabitCalendar({ habitId, logs: externalLogs }: Readonly<HabitCal
               type="button"
               aria-label={t('common.close')}
               className="icon-btn text-[var(--fg-3)] hover:text-[var(--fg-1)]"
-              style={{ width: 34, height: 34 }}
               onClick={() => setSelectedDate(null)}
             >
               <X size={16} strokeWidth={1.8} />
@@ -246,7 +250,10 @@ export function HabitCalendar({ habitId, logs: externalLogs }: Readonly<HabitCal
         </div>
       )}
 
-      <div className="flex items-center justify-between mt-3 px-1">
+      <div
+        className="flex items-center justify-between mt-3 px-1"
+        style={{ borderTop: '1px solid var(--hairline)', paddingTop: 12 }}
+      >
         <span
           className="uppercase"
           style={{

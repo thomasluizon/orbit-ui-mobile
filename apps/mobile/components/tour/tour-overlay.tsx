@@ -1,4 +1,5 @@
 import { useCallback } from 'react'
+import { Modal } from 'react-native'
 import { useQueryClient } from '@tanstack/react-query'
 import { profileKeys } from '@orbit/shared/query'
 import type { Profile } from '@orbit/shared/types'
@@ -8,12 +9,13 @@ import { TourSpotlight } from './tour-spotlight'
 import { TourTooltip } from './tour-tooltip'
 import { API } from '@orbit/shared/api'
 import { apiClient } from '@/lib/api-client'
-import { useOverlayBack } from '@/hooks/use-overlay-back'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 
 /**
- * Composes TourSpotlight + TourTooltip for mobile.
- * Only renders when the tour is active and not navigating.
+ * Composes TourSpotlight + TourTooltip for mobile inside a transparent Modal so
+ * accessibility focus and hardware back stay confined to the tour while it runs.
+ * The spotlight scrim stays mounted for the whole active tour (including step
+ * navigation); the tooltip renders only once the current target is measured.
  */
 export function TourOverlay() {
   const store = useTourStore()
@@ -79,25 +81,31 @@ export function TourOverlay() {
     handleEnd()
   }, [handleEnd])
 
-  useOverlayBack(isActive && !isNavigating && !!targetRect && !!step, handleSkip)
-
-  if (!isActive || isNavigating || !targetRect || !step) {
+  if (!isActive) {
     return null
   }
 
   return (
-    <>
+    <Modal
+      transparent
+      statusBarTranslucent
+      navigationBarTranslucent
+      animationType="none"
+      onRequestClose={handleSkip}
+    >
       <TourSpotlight targetRect={targetRect} />
-      <TourTooltip
-        step={step}
-        targetRect={targetRect}
-        sectionProgress={sectionProgress}
-        isFirstStep={isFirstStep}
-        isLastStep={isLastStep}
-        onNext={handleNext}
-        onPrev={prevStep}
-        onSkip={handleSkip}
-      />
-    </>
+      {!isNavigating && targetRect && step ? (
+        <TourTooltip
+          step={step}
+          targetRect={targetRect}
+          sectionProgress={sectionProgress}
+          isFirstStep={isFirstStep}
+          isLastStep={isLastStep}
+          onNext={handleNext}
+          onPrev={prevStep}
+          onSkip={handleSkip}
+        />
+      ) : null}
+    </Modal>
   )
 }

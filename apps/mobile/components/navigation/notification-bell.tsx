@@ -224,6 +224,7 @@ export function NotificationBell() {
           { backgroundColor: pressed ? tokens.bgElev2 : tokens.bgElev },
           pressed ? styles.bellPressed : null,
         ]}
+        hitSlop={2}
         onPress={toggle}
         accessibilityRole="button"
         accessibilityLabel={

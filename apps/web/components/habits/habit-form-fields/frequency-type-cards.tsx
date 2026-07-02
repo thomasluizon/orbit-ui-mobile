@@ -117,7 +117,7 @@ export function FrequencyTypeCards({
           aria-label={t('common.previous')}
           disabled={activeFrequencyIndex === 0}
           onClick={() => goToFrequencyIndex(activeFrequencyIndex - 1)}
-          className="grid size-8 shrink-0 place-items-center rounded-full bg-[var(--bg-elev)] text-[var(--fg-2)] shadow-[inset_0_0_0_1px_var(--hairline)] transition-opacity duration-150 hover:text-[var(--fg-1)] disabled:pointer-events-none disabled:opacity-30"
+          className="touch-target grid size-8 shrink-0 place-items-center rounded-full bg-[var(--bg-elev)] text-[var(--fg-2)] shadow-[inset_0_0_0_1px_var(--hairline)] transition-opacity duration-[var(--dur-fast)] hover:text-[var(--fg-1)] disabled:pointer-events-none disabled:opacity-30 sm:hidden"
         >
           <ChevronLeft size={18} strokeWidth={2} aria-hidden="true" />
         </button>
@@ -125,18 +125,23 @@ export function FrequencyTypeCards({
           ref={frequencyTrackRef}
           data-testid="frequency-carousel-track"
           onScroll={handleFrequencyScroll}
-          className="flex min-w-0 flex-1 snap-x snap-mandatory overflow-x-auto scroll-smooth [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          className="flex min-w-0 flex-1 snap-x snap-mandatory overflow-x-auto scroll-smooth [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:grid sm:snap-none sm:grid-cols-2 sm:gap-2 sm:overflow-visible"
         >
           {FREQUENCY_TYPE_CARDS.map((card) => {
             const isActive = activeFrequencyKey === card.key
             const Icon = card.icon
             return (
-              <div key={card.key} className="w-full shrink-0 snap-center px-1">
+              <div key={card.key} className="w-full shrink-0 snap-center px-1 sm:w-auto sm:min-w-0 sm:px-0">
                 <button
                   type="button"
-                  aria-pressed={isActive}
+                  role="radio"
+                  aria-checked={isActive}
                   onClick={frequencyHandlers[card.key]}
-                  className="appearance-none cursor-pointer text-left w-full rounded-[18px] border-0 bg-[rgba(var(--primary-rgb),0.10)] shadow-[inset_0_0_0_1.5px_var(--primary)] transition-transform duration-[var(--dur-fast)] ease-[var(--ease-standard)] active:scale-[0.99]"
+                  className={`appearance-none cursor-pointer text-left w-full sm:h-full rounded-[18px] border-0 transition-[background-color,box-shadow,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] active:scale-[0.99] ${
+                    isActive
+                      ? 'bg-[rgba(var(--primary-rgb),0.10)] shadow-[inset_0_0_0_1.5px_var(--primary)]'
+                      : 'bg-[var(--bg-elev)] shadow-[inset_0_0_0_1px_var(--hairline)] hover:bg-[var(--bg-elev-2)]'
+                  }`}
                   style={{ padding: '14px 16px' }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
@@ -200,18 +205,18 @@ export function FrequencyTypeCards({
           aria-label={t('common.next')}
           disabled={activeFrequencyIndex === FREQUENCY_TYPE_CARDS.length - 1}
           onClick={() => goToFrequencyIndex(activeFrequencyIndex + 1)}
-          className="grid size-8 shrink-0 place-items-center rounded-full bg-[var(--bg-elev)] text-[var(--fg-2)] shadow-[inset_0_0_0_1px_var(--hairline)] transition-opacity duration-150 hover:text-[var(--fg-1)] disabled:pointer-events-none disabled:opacity-30"
+          className="touch-target grid size-8 shrink-0 place-items-center rounded-full bg-[var(--bg-elev)] text-[var(--fg-2)] shadow-[inset_0_0_0_1px_var(--hairline)] transition-opacity duration-[var(--dur-fast)] hover:text-[var(--fg-1)] disabled:pointer-events-none disabled:opacity-30 sm:hidden"
         >
           <ChevronRight size={18} strokeWidth={2} aria-hidden="true" />
         </button>
       </div>
 
-      <div className="flex items-center justify-center gap-1.5 pt-2.5">
+      <div className="flex items-center justify-center gap-1.5 pt-2.5 sm:hidden">
         {FREQUENCY_TYPE_CARDS.map((card, index) => (
           <span
             key={card.key}
             aria-hidden="true"
-            className={`h-1.5 rounded-full transition-[width,background-color] duration-200 ${
+            className={`h-1.5 rounded-full transition-[background-color] duration-[var(--dur-base)] ${
               index === activeFrequencyIndex
                 ? 'w-4 bg-[var(--primary)]'
                 : 'w-1.5 bg-[var(--hairline-strong)]'

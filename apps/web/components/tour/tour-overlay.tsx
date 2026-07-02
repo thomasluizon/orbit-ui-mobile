@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback } from 'react'
+import { useCallback, useRef } from 'react'
 import { useTourStore } from '@/stores/tour-store'
 import { TourSpotlight } from './tour-spotlight'
 import { TourTooltip } from './tour-tooltip'
@@ -12,12 +12,14 @@ import { COACH_MARK_SECTIONS } from '@orbit/shared/types'
 import { useOverlayEscape } from '@/hooks/use-overlay-escape'
 
 /**
- * Composes TourSpotlight + TourTooltip.
- * Only renders when the tour is active and not navigating.
+ * Composes TourSpotlight + TourTooltip. The spotlight scrim stays mounted for
+ * the whole active tour (including step navigation); the tooltip renders only
+ * once the current target is measured.
  */
 export function TourOverlay() {
   const store = useTourStore()
   const queryClient = useQueryClient()
+  const dialogRef = useRef<HTMLDialogElement>(null)
 
   const {
     isActive,
@@ -77,28 +79,32 @@ export function TourOverlay() {
   }, [handleEnd])
 
   useOverlayEscape({
-    open: isActive && !isNavigating && !!targetRect && !!step,
+    open: isActive,
     onDismiss: handleSkip,
+    panelRef: dialogRef,
     restoreFocus: false,
   })
 
-  if (!isActive || isNavigating || !targetRect || !step) {
+  if (!isActive) {
     return null
   }
 
   return (
     <>
       <TourSpotlight targetRect={targetRect} />
-      <TourTooltip
-        step={step}
-        targetRect={targetRect}
-        sectionProgress={sectionProgress}
-        isFirstStep={isFirstStep}
-        isLastStep={isLastStep}
-        onNext={handleNext}
-        onPrev={prevStep}
-        onSkip={handleSkip}
-      />
+      {!isNavigating && targetRect && step ? (
+        <TourTooltip
+          step={step}
+          targetRect={targetRect}
+          sectionProgress={sectionProgress}
+          isFirstStep={isFirstStep}
+          isLastStep={isLastStep}
+          dialogRef={dialogRef}
+          onNext={handleNext}
+          onPrev={prevStep}
+          onSkip={handleSkip}
+        />
+      ) : null}
     </>
   )
 }

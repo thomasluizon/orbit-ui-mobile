@@ -28,7 +28,9 @@ import { GoalsView } from '@/components/goals/goals-view'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { BulkActionBarV2 } from '@/components/habits/bulk-action-bar-v2'
 import { GradientTop } from '@/components/ui/gradient-top'
+import { PillButton } from '@/components/ui/pill-button'
 import { ProgressBar } from '@/components/ui/progress-bar'
+import { SatelliteGlyph } from '@/components/ui/satellite-glyph'
 import { SectionLabel } from '@/components/ui/section-label'
 import { SetupChecklistCard } from '@/components/today/setup-checklist-card'
 import { ReferralCard } from '@/components/referral/referral-card'
@@ -39,6 +41,7 @@ import { useUIStore } from '@/stores/ui-store'
 import { useReferralPromptStore } from '@/stores/referral-prompt-store'
 import { useProfile } from '@/hooks/use-profile'
 import { useEngagementSlot } from '@/hooks/use-engagement-slot'
+import { useOverlayEscape } from '@/hooks/use-overlay-escape'
 import {
   EMPTY_CHILDREN_BY_PARENT,
   EMPTY_HABITS_BY_ID,
@@ -80,6 +83,10 @@ export default function TodayPage() {
     duration: listMotionPreset.enterDuration / 1000,
     ease: listMotionPreset.enterEasing,
   } as const
+  const engagementExitTransition = {
+    duration: prefersReducedMotion ? 0 : 0.16,
+    ease: [0.2, 0, 0, 1],
+  } as const
 
   const showGeneralOnToday = useMemo(() => {
     if (typeof globalThis === 'undefined' || typeof globalThis.localStorage === 'undefined') return false
@@ -105,6 +112,8 @@ export default function TodayPage() {
   const hasProAccess = profile?.hasProAccess ?? false
   const currentActiveView = !hasProAccess && activeView === 'goals' ? 'today' : activeView
 
+  useOverlayEscape({ open: isSelectMode, onDismiss: toggleSelectMode })
+
   const setShowCreateModal = useUIStore((s) => s.setShowCreateModal)
   const dismissHomeEntry = useReferralPromptStore((s) => s.dismissHomeEntry)
 
@@ -112,6 +121,7 @@ export default function TodayPage() {
   const [localSearchQuery, setLocalSearchQuery] = useState(searchQueryStore)
   const [searchOpen, setSearchOpen] = useState(false)
   const [slideDirection, setSlideDirection] = useState<'left' | 'right'>('right')
+  const [hasNavigatedDate, setHasNavigatedDate] = useState(false)
   const searchDebounceTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const habitListRef = useRef<HabitListHandle>(null)
   const [habitListAllCollapsed, setHabitListAllCollapsed] = useState(false)
@@ -159,16 +169,19 @@ export default function TodayPage() {
 
   const goToPreviousDay = useCallback(() => {
     setSlideDirection('left')
+    setHasNavigatedDate(true)
     router.push(`/?date=${formatAPIDate(subDays(selectedDate, 1))}`)
   }, [router, selectedDate])
 
   const goToNextDay = useCallback(() => {
     setSlideDirection('right')
+    setHasNavigatedDate(true)
     router.push(`/?date=${formatAPIDate(addDays(selectedDate, 1))}`)
   }, [router, selectedDate])
 
   const goToToday = useCallback(() => {
     setSlideDirection(selectedDate > new Date() ? 'left' : 'right')
+    setHasNavigatedDate(true)
     setActiveView('today')
     router.push('/')
   }, [router, selectedDate, setActiveView])
@@ -281,6 +294,7 @@ export default function TodayPage() {
   const habitsCount = habitsById.size
   const hasFetched = habitsQuery.dataUpdatedAt > 0
   const isRefetching = habitsQuery.isFetching && hasFetched
+  const showLoadError = habitsQuery.isError && !hasFetched
 
   const dayProgress = useMemo(
     () => computeDayProgress(habitsById, dateStr),
@@ -377,6 +391,7 @@ export default function TodayPage() {
           dateLabel={dateLabel}
           isTodaySelected={isToday(selectedDate)}
           slideDirection={slideDirection}
+          animateDateChange={hasNavigatedDate}
           onGoToPreviousDay={goToPreviousDay}
           onGoToToday={goToToday}
           onGoToNextDay={goToNextDay}
@@ -388,6 +403,7 @@ export default function TodayPage() {
     [
       currentActiveView,
       dateLabel,
+      hasNavigatedDate,
       selectedDate,
       slideDirection,
       goToPreviousDay,
@@ -423,19 +439,37 @@ export default function TodayPage() {
         />
       </div>
 
-      <div className="md:max-w-[820px] xl:max-w-none">
+      <div className="md:max-w-[820px] md:mx-auto">
         {currentActiveView === 'today' && isToday(selectedDate) && (
           <TodayAISummary date={formatAPIDate(selectedDate)} />
         )}
 
-        {engagementSlot === 'referral' && (
-          <ReferralCard
-            onOpen={() => setShowReferral(true)}
-            onDismiss={dismissHomeEntry}
-          />
-        )}
+        <div className="xl:grid xl:grid-cols-2 xl:gap-3">
+          <AnimatePresence initial={false}>
+            {engagementSlot === 'referral' && (
+              <motion.div
+                key="engagement-referral"
+                exit={{ opacity: 0, y: -4 }}
+                transition={engagementExitTransition}
+              >
+                <ReferralCard
+                  onOpen={() => setShowReferral(true)}
+                  onDismiss={dismissHomeEntry}
+                />
+              </motion.div>
+            )}
 
-        {engagementSlot === 'socialEntry' && <SocialEntryCard />}
+            {engagementSlot === 'socialEntry' && (
+              <motion.div
+                key="engagement-social-entry"
+                exit={{ opacity: 0, y: -4 }}
+                transition={engagementExitTransition}
+              >
+                <SocialEntryCard />
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
       </div>
 
       <div className="md:hidden">
@@ -444,6 +478,7 @@ export default function TodayPage() {
           dateLabel={dateLabel}
           isTodaySelected={isToday(selectedDate)}
           slideDirection={slideDirection}
+          animateDateChange={hasNavigatedDate}
           onGoToPreviousDay={goToPreviousDay}
           onGoToToday={goToToday}
           onGoToNextDay={goToNextDay}
@@ -466,7 +501,7 @@ export default function TodayPage() {
           id="tabpanel-habits"
           role="tabpanel"
           aria-labelledby={`tab-${currentActiveView}`}
-          className="md:max-w-[820px] xl:max-w-none"
+          className="md:max-w-[820px] md:mx-auto"
         >
           <div className="md:hidden">
             <SectionLabel
@@ -474,14 +509,7 @@ export default function TodayPage() {
               bottom={showDayProgress ? 6 : 0}
               trailing={
                 showDayProgress ? (
-                  <span
-                    style={{
-                      fontFamily: 'var(--font-mono)',
-                      fontSize: 14,
-                      color: 'var(--fg-2)',
-                      fontVariantNumeric: 'tabular-nums',
-                    }}
-                  >
+                  <span className="t-meta">
                     {dayProgress.done}/{dayProgress.total}
                   </span>
                 ) : undefined
@@ -500,7 +528,19 @@ export default function TodayPage() {
             </div>
           )}
 
-          {engagementSlot === 'setupChecklist' && <SetupChecklistCard />}
+          <div className="xl:grid xl:grid-cols-2 xl:gap-3">
+            <AnimatePresence initial={false}>
+              {engagementSlot === 'setupChecklist' && (
+                <motion.div
+                  key="engagement-setup-checklist"
+                  exit={{ opacity: 0, y: -4 }}
+                  transition={engagementExitTransition}
+                >
+                  <SetupChecklistCard />
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
 
           <motion.div layout transition={listTransition} data-testid="today-utility-row">
             <TodayUtilityRow
@@ -527,12 +567,39 @@ export default function TodayPage() {
             />
           </motion.div>
 
-          {!hasFetched && (
+          {showLoadError && (
+            <div className="flex flex-col items-center px-6 py-12 text-center">
+              <SatelliteGlyph />
+              <p
+                style={{
+                  fontFamily: 'var(--font-sans)',
+                  fontSize: 14,
+                  color: 'var(--fg-3)',
+                  lineHeight: 1.5,
+                  maxWidth: 280,
+                  marginTop: 14,
+                }}
+              >
+                {t('habits.loadError')}
+              </p>
+              <PillButton
+                variant="ghost"
+                className="mt-[22px]"
+                onClick={() => {
+                  void habitsQuery.refetch()
+                }}
+              >
+                {t('common.retry')}
+              </PillButton>
+            </div>
+          )}
+
+          {!hasFetched && !showLoadError && (
             <div className="stagger-enter" style={{ padding: '12px 20px 8px' }}>
               {SKELETON_KEYS.map((key) => (
                 <div
                   key={key}
-                  className="flex items-center animate-pulse"
+                  className="flex items-center skeleton-pulse"
                   style={{
                     padding: '14px 16px',
                     gap: 14,
@@ -610,7 +677,7 @@ export default function TodayPage() {
               layout
               data-testid="today-list-shell"
               className={`overflow-x-hidden overflow-y-visible ${
-                isSelectMode ? 'pb-20' : ''
+                isSelectMode ? 'pb-48 md:pb-32' : ''
               }`}
               animate={{
                 opacity: isRefetching ? 0.78 : 1,
@@ -682,7 +749,7 @@ export default function TodayPage() {
         description={plural(t('habits.bulkLogMessage', { count: selectedHabitIds.size }), selectedHabitIds.size)}
         confirmLabel={t('habits.bulkLogConfirm')}
         cancelLabel={t('common.cancel')}
-        variant="warning"
+        variant="success"
         onConfirm={confirmBulkLog}
         onCancel={() => setShowBulkLogConfirm(false)}
       />
