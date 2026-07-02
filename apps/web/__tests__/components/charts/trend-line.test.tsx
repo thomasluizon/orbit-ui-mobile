@@ -2,6 +2,8 @@ import { describe, it, expect } from 'vitest'
 import { render, screen } from '@testing-library/react'
 import { TrendLine } from '@/components/charts/trend-line'
 
+const IGNORE_HIDDEN = 'script, style, [aria-hidden="true"], [aria-hidden="true"] *'
+
 describe('TrendLine', () => {
   it('formats the y-axis ticks and renders a date x-axis when given a label formatter', () => {
     render(
@@ -16,10 +18,10 @@ describe('TrendLine', () => {
       />,
     )
 
-    expect(screen.getByText('100%')).toBeInTheDocument()
-    expect(screen.getByText('0%')).toBeInTheDocument()
-    expect(screen.getByText('06-01')).toBeInTheDocument()
-    expect(screen.getByText('06-28')).toBeInTheDocument()
+    expect(screen.getByText('100%', { ignore: IGNORE_HIDDEN })).toBeInTheDocument()
+    expect(screen.getByText('0%', { ignore: IGNORE_HIDDEN })).toBeInTheDocument()
+    expect(screen.getByText('06-01', { ignore: IGNORE_HIDDEN })).toBeInTheDocument()
+    expect(screen.getByText('06-28', { ignore: IGNORE_HIDDEN })).toBeInTheDocument()
   })
 
   it('omits the x-axis when no label formatter is given', () => {
@@ -33,7 +35,7 @@ describe('TrendLine', () => {
       />,
     )
 
-    expect(screen.queryByText('2026-06-01')).toBeNull()
-    expect(screen.getByText('8')).toBeInTheDocument()
+    expect(screen.queryByText('2026-06-01', { ignore: IGNORE_HIDDEN })).toBeNull()
+    expect(screen.getByText('8', { ignore: IGNORE_HIDDEN })).toBeInTheDocument()
   })
 })

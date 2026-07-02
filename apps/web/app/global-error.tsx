@@ -21,7 +21,8 @@ const SCHEME_NAMES = ['purple', 'blue', 'green', 'rose', 'orange', 'cyan']
 
 function readCookie(name: string): string | null {
   const match = document.cookie.match(new RegExp('(?:^|; )' + name + '=([^;]+)'))
-  return match ? decodeURIComponent(match[1]) : null
+  const value = match?.[1]
+  return value !== undefined ? decodeURIComponent(value) : null
 }
 
 function GlobalErrorBody({ reset }: Readonly<{ reset: () => void }>) {

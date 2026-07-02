@@ -51,7 +51,7 @@ describe('OnboardingCreateHabit', () => {
 
   it('disables create button when title is empty', () => {
     render(<OnboardingCreateHabit onCreated={onCreated} />)
-    const createBtn = screen.getByText('onboarding.flow.createHabit.create')
+    const createBtn = screen.getByRole('button', { name: 'onboarding.flow.createHabit.create' })
     expect(createBtn).toBeDisabled()
   })
 
@@ -59,7 +59,7 @@ describe('OnboardingCreateHabit', () => {
     render(<OnboardingCreateHabit onCreated={onCreated} />)
     const input = screen.getByPlaceholderText('onboarding.flow.createHabit.placeholder')
     fireEvent.change(input, { target: { value: 'My Custom Habit' } })
-    const createBtn = screen.getByText('onboarding.flow.createHabit.create')
+    const createBtn = screen.getByRole('button', { name: 'onboarding.flow.createHabit.create' })
     expect(createBtn).not.toBeDisabled()
   })
 

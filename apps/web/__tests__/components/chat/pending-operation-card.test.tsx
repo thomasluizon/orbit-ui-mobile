@@ -77,6 +77,7 @@ describe('PendingOperationCard', () => {
     )
 
     fireEvent.click(screen.getByRole('button', { name: 'common.cancel' }))
+    fireEvent.transitionEnd(screen.getByTestId('pending-op-card'), { propertyName: 'opacity' })
 
     expect(onConfirmExecute).not.toHaveBeenCalled()
     expect(screen.queryByTestId('pending-op-card')).not.toBeInTheDocument()

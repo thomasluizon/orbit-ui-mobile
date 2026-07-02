@@ -123,6 +123,19 @@ export const FadeOut = makeChainableEntering()
 export const ZoomIn = makeChainableEntering()
 export const LinearTransition = makeChainableEntering()
 
+export class Keyframe {
+  constructor(_definition: Record<string, unknown>) {}
+  duration(): this {
+    return this
+  }
+  delay(): this {
+    return this
+  }
+  reduceMotion(): this {
+    return this
+  }
+}
+
 export function runOnJS<Args extends unknown[], Return>(
   callback: (...args: Args) => Return,
 ) {
