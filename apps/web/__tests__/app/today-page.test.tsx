@@ -132,6 +132,10 @@ vi.mock('@/hooks/use-coach-tour', () => ({
   useCoachTour: () => {},
 }))
 
+vi.mock('@/hooks/use-engagement-slot', () => ({
+  useEngagementSlot: () => ({ slot: null }),
+}))
+
 vi.mock('@/components/today/setup-checklist-card', () => ({
   SetupChecklistCard: () => null,
 }))

@@ -185,7 +185,7 @@ vi.mock('@/app/(tabs)/profile/_components/profile-action-button', () => ({
   ProfileActionButton: () => null,
 }))
 
-vi.mock('@/app/(tabs)/profile/_components/profile-nav-icon', () => ({
+vi.mock('@/components/profile/profile-nav-icon', () => ({
   ProfileNavIcon: () => null,
 }))
 
@@ -229,6 +229,7 @@ vi.mock('lucide-react-native', () => {
     User: createIcon('User'),
     ChevronLeft: createIcon('ChevronLeft'),
     Flame: createIcon('Flame'),
+    Lock: createIcon('Lock'),
     Download: createIcon('Download'),
     Share2: createIcon('Share2'),
     Pencil: createIcon('Pencil'),

@@ -182,7 +182,9 @@
     "today": "Today",
     "goals": "Goals",
     "insights": "Insights",
-    "mainNavigation": "Main navigation"
+    "explore": "Explore",
+    "mainNavigation": "Main navigation",
+    "social": "Social"
   },
   "shell": {
     "collapseSidebar": "Collapse sidebar",
@@ -826,6 +828,10 @@
       "averageCaption": "avg",
       "streakDaysShort": "{count}d"
     }
+  },
+  "explore": {
+    "title": "Explore",
+    "subtitle": "Everything Orbit can do, in one place."
   },
   "chat": {
     "title": "Astra",
@@ -2580,8 +2586,12 @@
           "title": "Exercise",
           "description": "Stay active with regular workouts"
         },
-        "pushups": { "title": "Push-ups" },
-        "stretching": { "title": "Stretching" },
+        "pushups": {
+          "title": "Push-ups"
+        },
+        "stretching": {
+          "title": "Stretching"
+        },
         "screenTime": {
           "title": "Reduce Screen Time",
           "description": "Keep screen time under 2 hours per day"

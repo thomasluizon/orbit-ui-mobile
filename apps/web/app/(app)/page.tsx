@@ -38,6 +38,7 @@ import { useTopbarSlot } from '@/components/shell/topbar-slot'
 import { useUIStore } from '@/stores/ui-store'
 import { useReferralPromptStore } from '@/stores/referral-prompt-store'
 import { useProfile } from '@/hooks/use-profile'
+import { useEngagementSlot } from '@/hooks/use-engagement-slot'
 import {
   EMPTY_CHILDREN_BY_PARENT,
   EMPTY_HABITS_BY_ID,
@@ -105,7 +106,6 @@ export default function TodayPage() {
   const currentActiveView = !hasProAccess && activeView === 'goals' ? 'today' : activeView
 
   const setShowCreateModal = useUIStore((s) => s.setShowCreateModal)
-  const homeEntryDismissed = useReferralPromptStore((s) => s.homeEntryDismissed)
   const dismissHomeEntry = useReferralPromptStore((s) => s.dismissHomeEntry)
 
   const [showReferral, setShowReferral] = useState(false)
@@ -133,6 +133,11 @@ export default function TodayPage() {
     () => new Date(selectedDateStr + 'T00:00:00'),
     [selectedDateStr],
   )
+
+  const { slot: engagementSlot } = useEngagementSlot({
+    isTodayView: currentActiveView === 'today',
+    isTodayDate: isToday(selectedDate),
+  })
 
   const [previousPinnedDateStr, setPreviousPinnedDateStr] = useState(pinnedDateStr)
   if (pinnedDateStr !== previousPinnedDateStr) {
@@ -423,16 +428,14 @@ export default function TodayPage() {
           <TodayAISummary date={formatAPIDate(selectedDate)} />
         )}
 
-        {currentActiveView === 'today' && isToday(selectedDate) && !homeEntryDismissed && (
+        {engagementSlot === 'referral' && (
           <ReferralCard
             onOpen={() => setShowReferral(true)}
             onDismiss={dismissHomeEntry}
           />
         )}
 
-        {currentActiveView === 'today' && isToday(selectedDate) && (
-          <SocialEntryCard />
-        )}
+        {engagementSlot === 'socialEntry' && <SocialEntryCard />}
       </div>
 
       <div className="md:hidden">
@@ -497,7 +500,7 @@ export default function TodayPage() {
             </div>
           )}
 
-          {currentActiveView === 'today' && <SetupChecklistCard />}
+          {engagementSlot === 'setupChecklist' && <SetupChecklistCard />}
 
           <motion.div layout transition={listTransition} data-testid="today-utility-row">
             <TodayUtilityRow

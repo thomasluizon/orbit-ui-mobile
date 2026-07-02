@@ -19,6 +19,7 @@ import { useAuthStore } from '@/stores/auth-store'
 import { deriveNextRewardCarrot } from '@orbit/shared/utils'
 import { useGamificationProfile } from '@/hooks/use-gamification'
 import { SectionLabel } from '@/components/ui/section-label'
+import { FeatureTileGrid } from '@/components/profile/feature-tile-grid'
 import { ReferralCard } from '@/components/referral/referral-card'
 import { ReferralDrawer } from '@/components/referral/referral-drawer'
 import { SubscriptionCard } from './_components/subscription-card'
@@ -135,13 +136,24 @@ export default function ProfilePage() {
   const navSections = (
     <ProfileNavSections
       accountNavItems={accountNavItems}
-      featureNavItems={featureNavItems}
       navTourMap={navTourMap}
-      hasProAccess={profile?.hasProAccess ?? false}
-      gamificationProfile={gamificationProfile}
       onNavClick={handleNavClick}
-      onTourReplay={() => setShowTourReplay(true)}
     />
+  )
+
+  const featuresSection = (
+    <div>
+      <SectionLabel>{t('profile.sections.features')}</SectionLabel>
+      <div className="px-5">
+        <FeatureTileGrid
+          items={featureNavItems}
+          profile={profile}
+          onItemSelect={handleNavClick}
+          onTourReplay={() => setShowTourReplay(true)}
+          dataTourMap={navTourMap}
+        />
+      </div>
+    </div>
   )
 
   const subscription = (
@@ -214,6 +226,7 @@ export default function ProfilePage() {
           {referral}
           {nextReward}
           {navSections}
+          {featuresSection}
           {subscription}
           {accountActions}
         </div>

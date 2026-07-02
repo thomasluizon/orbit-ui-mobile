@@ -70,7 +70,7 @@ import {
 } from "@/lib/motion";
 import { createTokensV2, easings } from "@/lib/theme";
 import { useAppTheme } from "@/lib/use-app-theme";
-import { useReviewReminder } from "@/hooks/use-review-reminder";
+import { useEngagementSlot } from "@/hooks/use-engagement-slot";
 import { useTourScrollContainer } from "@/hooks/use-tour-scroll-container";
 import { useTourTarget } from "@/hooks/use-tour-target";
 import { TodayHeader, TodayTabs, type TodayTabItem } from "./today-shell";
@@ -131,7 +131,6 @@ export default function TodayScreen() {
 
   const { showInterstitialIfDue } = useAdMob();
   const { profile } = useProfile();
-  const reviewReminder = useReviewReminder(profile);
   const { tags } = useTags();
   useCoachTour();
   const deleteHabit = useDeleteHabit();
@@ -242,6 +241,11 @@ export default function TodayScreen() {
     () => new Date(selectedDateStr + "T00:00:00"),
     [selectedDateStr],
   );
+
+  const { slot: engagementSlot, reviewReminder } = useEngagementSlot({
+    isTodayView: currentActiveView === "today",
+    isTodayDate: isToday(selectedDate),
+  });
   const filterMotionKey = useMemo(
     () =>
       [
@@ -612,7 +616,6 @@ export default function TodayScreen() {
   const setShowCreateModal = useUIStore((s) => s.setShowCreateModal);
   const showCreateGoalModal = useUIStore((s) => s.showCreateGoalModal);
   const setShowCreateGoalModal = useUIStore((s) => s.setShowCreateGoalModal);
-  const homeEntryDismissed = useReferralPromptStore((s) => s.homeEntryDismissed);
   const dismissHomeEntry = useReferralPromptStore((s) => s.dismissHomeEntry);
   const [showReferral, setShowReferral] = useState(false);
   const [prevFilters, setPrevFilters] = useState(filters);
@@ -834,11 +837,11 @@ export default function TodayScreen() {
           topInset={insets.top}
         />
 
-        <TrialBanner />
+        {engagementSlot === "trial" ? <TrialBanner /> : null}
 
-        {currentActiveView === "today" ? <SetupChecklistCard /> : null}
+        {engagementSlot === "setupChecklist" ? <SetupChecklistCard /> : null}
 
-        {reviewReminder.shouldShow ? (
+        {engagementSlot === "reviewReminder" ? (
           <ReviewReminderCard
             onDismiss={reviewReminder.dismiss}
             onRate={() => {
@@ -847,18 +850,14 @@ export default function TodayScreen() {
           />
         ) : null}
 
-        {currentActiveView === "today" &&
-        isToday(selectedDate) &&
-        !homeEntryDismissed ? (
+        {engagementSlot === "referral" ? (
           <ReferralCard
             onOpen={() => setShowReferral(true)}
             onDismiss={dismissHomeEntry}
           />
         ) : null}
 
-        {currentActiveView === "today" && isToday(selectedDate) ? (
-          <SocialEntryCard />
-        ) : null}
+        {engagementSlot === "socialEntry" ? <SocialEntryCard /> : null}
 
         <TodayTabs
           tabs={tabItems}
@@ -872,6 +871,7 @@ export default function TodayScreen() {
     [
       currentActiveView,
       currentStreak,
+      engagementSlot,
       hasProAccess,
       insets.top,
       goToToday,
@@ -879,8 +879,6 @@ export default function TodayScreen() {
       reviewReminder,
       tabItems,
       t,
-      selectedDate,
-      homeEntryDismissed,
       dismissHomeEntry,
     ],
   );

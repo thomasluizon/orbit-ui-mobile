@@ -12,18 +12,13 @@ const CHECKLIST_ITEMS: readonly { key: string; flag: keyof Profile }[] = [
   { key: 'tryAstra', flag: 'hasTriedAstra' },
 ]
 
-/** Auto-tracked first-run setup checklist on Today; hides once completed or dismissed. */
+/** Auto-tracked first-run setup checklist on Today; renders unconditionally, visibility is arbitrated by useEngagementSlot. */
 export function SetupChecklistCard() {
   const t = useTranslations()
   const { profile } = useProfile()
-  const dismissed = useUIStore((state) => state.setupChecklistDismissed)
   const setDismissed = useUIStore((state) => state.setSetupChecklistDismissed)
 
-  if (!profile || dismissed || profile.hasCompletedOnboardingChecklist) {
-    return null
-  }
-
-  const states = CHECKLIST_ITEMS.map((item) => Boolean(profile[item.flag]))
+  const states = CHECKLIST_ITEMS.map((item) => Boolean(profile?.[item.flag]))
   const doneCount = states.filter(Boolean).length
   const total = CHECKLIST_ITEMS.length
   const allDone = doneCount === total

@@ -11,7 +11,8 @@ import { useProfile } from '@/hooks/use-profile'
 /**
  * Today entry to the Social hub. Shows an actionable "friend requests waiting"
  * card whenever requests are pending; otherwise a one-time dismissible
- * "connect with friends" invitation.
+ * "connect with friends" invitation. Renders unconditionally, visibility is
+ * arbitrated by useEngagementSlot.
  */
 export function SocialEntryCard() {
   const t = useTranslations()
@@ -20,11 +21,9 @@ export function SocialEntryCard() {
   const socialOptIn = profile?.socialOptIn ?? false
   const { data } = useFriends({ enabled: socialOptIn })
   const pendingRequests = data?.incomingRequests.length ?? 0
-  const dismissed = useEngagementPromptStore((s) => s.socialEntryDismissed)
   const dismissSocialEntry = useEngagementPromptStore((s) => s.dismissSocialEntry)
 
   const hasRequests = pendingRequests > 0
-  if (!hasRequests && dismissed) return null
 
   const title = hasRequests
     ? t('social.today.requestsTitle')

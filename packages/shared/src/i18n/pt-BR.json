@@ -182,7 +182,9 @@
     "today": "Hoje",
     "goals": "Metas",
     "insights": "Análises",
-    "mainNavigation": "Navegação principal"
+    "explore": "Explorar",
+    "mainNavigation": "Navegação principal",
+    "social": "Social"
   },
   "shell": {
     "collapseSidebar": "Recolher menu",
@@ -826,6 +828,10 @@
       "averageCaption": "média",
       "streakDaysShort": "{count}d"
     }
+  },
+  "explore": {
+    "title": "Explorar",
+    "subtitle": "Tudo o que o Orbit pode fazer, em um só lugar."
   },
   "chat": {
     "title": "Astra",
@@ -2580,8 +2586,12 @@
           "title": "Exercício",
           "description": "Mantenha-se ativo com treinos regulares"
         },
-        "pushups": { "title": "Flexões" },
-        "stretching": { "title": "Alongamento" },
+        "pushups": {
+          "title": "Flexões"
+        },
+        "stretching": {
+          "title": "Alongamento"
+        },
         "screenTime": {
           "title": "Reduzir Tempo de Tela",
           "description": "Manter o tempo de tela abaixo de 2 horas por dia"

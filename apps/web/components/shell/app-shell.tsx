@@ -3,7 +3,7 @@
 import { useEffect, useMemo, type ReactNode } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { BarChart3, CalendarDays, Home, Infinity as InfinityIcon, ListTodo, Target, User } from 'lucide-react'
+import { BarChart3, CalendarDays, Compass, Home, Infinity as InfinityIcon, ListTodo, Target, User, Users } from 'lucide-react'
 import { AstraMark } from '@/components/ui/astra-avatar'
 import {
   AppSidebar,
@@ -147,6 +147,13 @@ export function AppShell({ children, onCreate }: Readonly<AppShellProps>) {
         onSelect: openGoals,
       },
       {
+        id: 'social',
+        label: t('nav.social'),
+        icon: Users,
+        active: pathname.startsWith('/social'),
+        onSelect: () => navigateTab('/social'),
+      },
+      {
         id: 'insights',
         label: t('nav.insights'),
         icon: BarChart3,
@@ -162,6 +169,13 @@ export function AppShell({ children, onCreate }: Readonly<AppShellProps>) {
           setAstraOpen(true)
           setAstraMaximized(true)
         },
+      },
+      {
+        id: 'explore',
+        label: t('nav.explore'),
+        icon: Compass,
+        active: pathname.startsWith('/explore'),
+        onSelect: () => navigateTab('/explore'),
       },
       {
         id: 'profile',
@@ -194,6 +208,7 @@ export function AppShell({ children, onCreate }: Readonly<AppShellProps>) {
       { id: 'general', label: t('habits.viewGeneral'), icon: InfinityIcon, onSelect: () => selectHabitView('general') },
       { id: 'calendar', label: t('nav.calendar'), icon: CalendarDays, onSelect: () => navigateTab('/calendar') },
       { id: 'goals', label: t('nav.goals'), icon: Target, onSelect: openGoals },
+      { id: 'social', label: t('nav.social'), icon: Users, onSelect: () => navigateTab('/social') },
       { id: 'insights', label: t('nav.insights'), icon: BarChart3, onSelect: () => navigateTab('/insights') },
       {
         id: 'astra',
@@ -204,6 +219,7 @@ export function AppShell({ children, onCreate }: Readonly<AppShellProps>) {
           setAstraMaximized(true)
         },
       },
+      { id: 'explore', label: t('nav.explore'), icon: Compass, onSelect: () => navigateTab('/explore') },
       { id: 'profile', label: t('nav.profile'), icon: User, onSelect: () => navigateTab('/profile') },
     ],
     [t, navigateTab, selectHabitView, openGoals, setAstraOpen, setAstraMaximized],
@@ -215,6 +231,7 @@ export function AppShell({ children, onCreate }: Readonly<AppShellProps>) {
     if (pathname.startsWith('/calendar')) return t('nav.calendar')
     if (pathname.startsWith('/insights')) return t('nav.insights')
     if (pathname.startsWith('/chat')) return t('nav.astra')
+    if (pathname.startsWith('/explore')) return t('nav.explore')
     if (pathname.startsWith('/profile')) return t('nav.profile')
     if (pathname.startsWith('/social/challenges')) return t('challenges.title')
     if (pathname.startsWith('/social')) return t('social.title')

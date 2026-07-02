@@ -209,7 +209,7 @@ vi.mock('@/app/(tabs)/profile/_components/profile-nav-card', () => ({
   ProfileNavCard: () => null,
 }))
 
-vi.mock('@/app/(tabs)/profile/_components/profile-nav-icon', () => ({
+vi.mock('@/components/profile/profile-nav-icon', () => ({
   ProfileNavIcon: () => null,
 }))
 

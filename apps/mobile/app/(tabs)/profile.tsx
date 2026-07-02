@@ -31,13 +31,14 @@ import { StatTile } from '@/components/ui/stat-tile'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
 import { StreakBadge } from '@/components/gamification/streak-badge'
 import { NotificationBell } from '@/components/navigation/notification-bell'
+import { FeatureTileGrid } from '@/components/profile/feature-tile-grid'
+import { ProfileNavIcon } from '@/components/profile/profile-nav-icon'
 import { ReferralCard } from '@/components/referral/referral-card'
 import { ReferralDrawer } from '@/components/referral/referral-drawer'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { createTokensV2, tintFromPrimary } from '@/lib/theme'
 import { buildUpgradeHref } from '@/lib/upgrade-route'
 import { plural } from '@/lib/plural'
-import { ProfileNavIcon } from './profile/_components/profile-nav-icon'
 import { NextRewardCarrot } from './profile/_components/next-reward-carrot'
 import { ProfileAccountActions } from './profile/_components/profile-account-actions'
 import { EditNameSheet } from './profile/_components/edit-name-sheet'
@@ -109,20 +110,6 @@ export default function ProfileScreen() {
   )
   const featureNavItems = PROFILE_NAV_ITEMS.filter(
     (item) => item.section === 'features' && item.id !== 'achievements',
-  )
-
-  const getNavHint = useCallback(
-    (item: ProfileNavItem): string => {
-      if (
-        item.hintMode === 'gamificationProfile' &&
-        canViewGamification &&
-        gamificationProfile
-      ) {
-        return `${t('gamification.profileCard.level', { level: gamificationProfile.level })} · ${t('gamification.profileCard.totalXp', { total: gamificationProfile.totalXp })}`
-      }
-      return t(item.hintKey)
-    },
-    [canViewGamification, gamificationProfile, t],
   )
 
   const [showResetModal, setShowResetModal] = useState(false)
@@ -336,7 +323,7 @@ export default function ProfileScreen() {
                   <SettingsGroupRow
                     icon={<ProfileNavIcon iconKey={item.iconKey} color={tokens.fg1} />}
                     label={t(item.titleKey)}
-                    hint={getNavHint(item)}
+                    hint={t(item.hintKey)}
                     onPress={() => handleNavPress(item)}
                     proBadge={item.proBadge}
                     proBadgeLabel={t('common.proBadge')}
@@ -350,30 +337,13 @@ export default function ProfileScreen() {
         <Animated.View entering={sectionEntrance(3)}>
           <SectionLabel>{t('profile.sections.features')}</SectionLabel>
           <View style={styles.groupWrap}>
-            <SettingsGroup>
-              <SettingsGroupRow
-                icon={<ProfileNavIcon iconKey="compass" color={tokens.fg1} />}
-                label={t('tour.replay.title')}
-                hint={t('tour.replay.hint')}
-                onPress={() => setShowTourReplay(true)}
-              />
-              {featureNavItems.map((item) => (
-                <View
-                  key={item.id}
-                  ref={item.id === 'retrospective' ? retroRef : undefined}
-                  collapsable={false}
-                >
-                  <SettingsGroupRow
-                    icon={<ProfileNavIcon iconKey={item.iconKey} color={tokens.fg1} />}
-                    label={t(item.titleKey)}
-                    hint={getNavHint(item)}
-                    onPress={() => handleNavPress(item)}
-                    proBadge={item.proBadge}
-                    proBadgeLabel={t('common.proBadge')}
-                  />
-                </View>
-              ))}
-            </SettingsGroup>
+            <FeatureTileGrid
+              items={featureNavItems}
+              profile={profile}
+              onItemSelect={handleNavPress}
+              onTourReplay={() => setShowTourReplay(true)}
+              tourTargetRefs={{ retrospective: retroRef }}
+            />
           </View>
         </Animated.View>
 
