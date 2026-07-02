@@ -48,7 +48,7 @@ export function FeedEventCard({ item, onCheer }: Readonly<FeedEventCardProps>) {
       <button
         type="button"
         onClick={() => onCheer({ recipientId: item.actorUserId, displayName: name })}
-        className="shrink-0 cursor-pointer rounded-full transition-[background-color,transform] active:scale-95"
+        className="touch-target-y shrink-0 cursor-pointer rounded-full transition-[background-color,transform] active:scale-[0.96]"
         style={{
           padding: '7px 14px',
           fontFamily: 'var(--font-sans)',

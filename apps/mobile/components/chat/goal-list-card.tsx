@@ -109,7 +109,7 @@ function createStyles(tokens: AppTokens) {
       color: tokens.fg1,
     },
     percentage: {
-      fontFamily: 'Rubik_600SemiBold',
+      fontFamily: 'Roboto_500Medium',
       fontSize: 11,
       color: tokens.primary,
       fontVariant: ['tabular-nums'],
@@ -134,15 +134,16 @@ function createStyles(tokens: AppTokens) {
     progress: {
       flex: 1,
       minWidth: 0,
-      fontFamily: 'Rubik_400Regular',
+      fontFamily: 'Roboto_400Regular',
       fontSize: 11,
       color: tokens.fg3,
       fontVariant: ['tabular-nums'],
     },
     deadline: {
-      fontFamily: 'Rubik_400Regular',
+      fontFamily: 'Roboto_400Regular',
       fontSize: 11,
       color: tokens.fg3,
+      fontVariant: ['tabular-nums'],
     },
   })
 }

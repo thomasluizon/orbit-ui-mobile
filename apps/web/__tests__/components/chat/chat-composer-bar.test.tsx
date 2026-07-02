@@ -19,6 +19,7 @@ function baseProps() {
     setInput: vi.fn(),
     sendError: null,
     imagePreview: null,
+    isOnline: true,
     isRecording: false,
     isTranscribing: false,
     speechSupported: true,
@@ -186,5 +187,22 @@ describe('ChatComposerBar', () => {
     expect(screen.getByLabelText('chat.placeholder')).toBeDisabled()
     fireEvent.click(screen.getByText('upgrade.subscribe'))
     expect(props.onUpgrade).toHaveBeenCalled()
+  })
+
+  it('shows the offline notice and disables the composer while offline', () => {
+    render(<ChatComposerBar {...{ ...baseProps(), isOnline: false }} />)
+    expect(
+      screen.getByRole('alert', { name: 'chat.offline.title. chat.offline.description' }),
+    ).toBeInTheDocument()
+    expect(screen.getByLabelText('chat.placeholder')).toBeDisabled()
+    expect(screen.getByLabelText('chat.attachFile')).toBeDisabled()
+    expect(screen.getByLabelText('chat.attachImage')).toBeDisabled()
+    expect(screen.getByLabelText('chat.toggleMic')).toBeDisabled()
+  })
+
+  it('hides the offline notice when online', () => {
+    render(<ChatComposerBar {...baseProps()} />)
+    expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+    expect(screen.getByLabelText('chat.attachFile')).toBeEnabled()
   })
 })

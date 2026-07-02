@@ -30,19 +30,30 @@ export function SupportForm({
 
   return (
     <div className="flex flex-col stagger-enter" style={{ gap: 16 }}>
+      <p
+        className="md:hidden"
+        style={{
+          fontFamily: 'var(--font-sans)',
+          fontSize: 14,
+          lineHeight: 1.55,
+          color: 'var(--fg-3)',
+        }}
+      >
+        {t('profile.support.description')}
+      </p>
       <SupportField
-        label={t('profile.support.subjectPlaceholder')}
+        label={t('profile.support.subject')}
         value={subject}
         onChange={onSubjectChange}
         placeholder={t('profile.support.subjectPlaceholder')}
-        ariaLabel={t('profile.support.subjectPlaceholder')}
+        ariaLabel={t('profile.support.subject')}
       />
       <SupportField
-        label={t('profile.support.messagePlaceholder')}
+        label={t('profile.support.message')}
         value={message}
         onChange={onMessageChange}
         placeholder={t('profile.support.messagePlaceholder')}
-        ariaLabel={t('profile.support.messagePlaceholder')}
+        ariaLabel={t('profile.support.message')}
         multiline
         rows={6}
       />
@@ -51,7 +62,7 @@ export function SupportForm({
           style={{
             fontFamily: 'var(--font-sans)',
             fontSize: 14,
-            color: 'var(--status-bad)',
+            color: 'var(--status-bad-text)',
           }}
         >
           {error}

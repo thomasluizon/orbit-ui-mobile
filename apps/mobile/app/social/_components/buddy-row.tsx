@@ -7,7 +7,7 @@ import { formatAPIDate, formatLocaleDate, getAccountabilityErrorKey } from '@orb
 import { UserAvatar } from '@/components/ui/user-avatar'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useCheckInAccountability } from '@/hooks/use-accountability'
-import { createTokensV2 } from '@/lib/theme'
+import { createTokensV2, tintFromPrimary } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 interface BuddyRowProps {
@@ -52,7 +52,7 @@ export function BuddyRow({ pair }: Readonly<BuddyRowProps>) {
     <View style={styles.row}>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={pair.buddy.displayName}
+        accessibilityLabel={t('social.buddies.openPairAria', { name: pair.buddy.displayName })}
         onPress={() => router.push(`/accountability-pair?pairId=${pair.id}`)}
         style={styles.identityPress}
       >
@@ -76,9 +76,11 @@ export function BuddyRow({ pair }: Readonly<BuddyRowProps>) {
         accessibilityLabel={t('social.buddies.checkInAction')}
         onPress={handleCheckIn}
         disabled={checkedInToday || checkIn.isPending}
-        style={[
+        hitSlop={{ top: 7, bottom: 7 }}
+        style={({ pressed }) => [
           styles.checkIn,
-          { backgroundColor: checkedInToday ? tokens.bgElev : tokens.primarySoft },
+          { backgroundColor: checkedInToday ? tokens.bgElev : tintFromPrimary(tokens, 0.12) },
+          pressed ? styles.checkInPressed : null,
         ]}
       >
         <Text style={[styles.checkInText, { color: checkedInToday ? tokens.fg3 : tokens.primary }]}>
@@ -112,6 +114,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
     cadenceText: { fontFamily: 'Rubik_500Medium', fontSize: 11, color: tokens.fg3 },
     sub: { fontFamily: 'Rubik_400Regular', fontSize: 13, color: tokens.fg3 },
     checkIn: { paddingHorizontal: 14, paddingVertical: 7, borderRadius: 999 },
+    checkInPressed: { transform: [{ scale: 0.96 }] },
     checkInText: { fontFamily: 'Rubik_500Medium', fontSize: 14 },
   })
 }

@@ -45,7 +45,7 @@ export function StreakCelebration() {
       dismissTimerRef.current = setTimeout(() => {
         setIsVisible(false)
         setStreakCelebration(null)
-        setTimeout(() => setShouldRender(false), 300)
+        setTimeout(() => setShouldRender(false), 280)
       }, 2500)
     }
   }, [streakCelebration, setStreakCelebration])
@@ -75,7 +75,7 @@ export function StreakCelebration() {
       <div
         className="fixed inset-0 z-[10002] flex flex-col"
         style={{
-          transition: 'opacity 300ms var(--ease-out)',
+          transition: 'opacity 280ms var(--ease-out)',
           opacity: isVisible ? 1 : 0,
         }}
       >

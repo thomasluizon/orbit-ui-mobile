@@ -53,6 +53,7 @@ export default function ProfilePage() {
     ? gamificationProfile?.achievementsTotal ?? 0
     : gamificationProfile?.achievementsEarned ?? 0
   const streak = profile?.currentStreak ?? 0
+  const statsLoading = isLoading || (canViewGamification && !gamificationProfile)
   const accountNavItems = PROFILE_NAV_ITEMS.filter(
     (item) => item.section === 'account',
   )
@@ -122,6 +123,7 @@ export default function ProfilePage() {
       achievementsDataTour={
         achievementsNavItem ? navTourMap[achievementsNavItem.id] : undefined
       }
+      isLoading={statsLoading}
       onStreakClick={() => router.push('/streak')}
       onAchievementsClick={() => {
         if (achievementsNavItem) handleNavClick(achievementsNavItem)
@@ -137,6 +139,8 @@ export default function ProfilePage() {
     <ProfileNavSections
       accountNavItems={accountNavItems}
       navTourMap={navTourMap}
+      hasProAccess={profile?.hasProAccess}
+      gamificationProfile={gamificationProfile}
       onNavClick={handleNavClick}
     />
   )
@@ -144,7 +148,7 @@ export default function ProfilePage() {
   const featuresSection = (
     <div>
       <SectionLabel>{t('profile.sections.features')}</SectionLabel>
-      <div className="px-5">
+      <nav aria-label={t('profile.sections.features')} className="px-5">
         <FeatureTileGrid
           items={featureNavItems}
           profile={profile}
@@ -152,7 +156,7 @@ export default function ProfilePage() {
           onTourReplay={() => setShowTourReplay(true)}
           dataTourMap={navTourMap}
         />
-      </div>
+      </nav>
     </div>
   )
 
@@ -192,10 +196,8 @@ export default function ProfilePage() {
           <div className="stagger-enter min-w-0">
             {nextReward}
             {navSections}
-            {subscription}
-            {accountActions}
           </div>
-          <aside className="stagger-enter">
+          <aside className="stagger-enter flex flex-col" style={{ gap: 8 }}>
             <ProfileSummaryCard
               name={profile?.name}
               isLoading={isLoading}
@@ -217,6 +219,8 @@ export default function ProfilePage() {
               }}
               onInvite={() => setShowReferral(true)}
             />
+            {subscription}
+            {accountActions}
           </aside>
         </div>
       ) : (

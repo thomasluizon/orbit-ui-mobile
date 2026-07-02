@@ -63,6 +63,7 @@ vi.mock('@/hooks/use-profile', () => ({
 vi.mock('@/hooks/use-gamification', () => ({
   useGamificationProfile: mockUseGamificationProfile,
   useReportEvent: () => ({ mutate: vi.fn() }),
+  useStreakInfo: () => ({ data: { currentStreak: 0, isFrozenToday: false } }),
 }))
 
 vi.mock('@/stores/auth-store', () => ({

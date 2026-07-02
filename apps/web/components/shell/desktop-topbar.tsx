@@ -7,6 +7,7 @@ import { ThemeToggle } from '@/components/ui/theme-toggle'
 import { StreakBadge } from '@/components/gamification/streak-badge'
 import { NotificationBell } from '@/components/navigation/notification-bell'
 import { useProfile } from '@/hooks/use-profile'
+import { useStreakInfo } from '@/hooks/use-gamification'
 import { useIsDesktop } from '@/components/goals/use-is-desktop'
 import { useShellStore } from '@/stores/shell-store'
 import { RailToggle } from './rail-drawer'
@@ -54,6 +55,7 @@ function PaletteTrigger() {
  */
 export function DesktopTopbar({ title, showRailToggle = false }: Readonly<DesktopTopbarProps>) {
   const { profile } = useProfile()
+  const { data: streakInfo } = useStreakInfo(profile?.canViewGamification ?? false)
   const slotNode = useTopbarSlotNode()
   const isDesktop = useIsDesktop()
   const [stuck, setStuck] = useState(false)
@@ -91,7 +93,7 @@ export function DesktopTopbar({ title, showRailToggle = false }: Readonly<Deskto
             <>
               <PaletteTrigger />
               <ThemeToggle />
-              <StreakBadge streak={profile?.currentStreak ?? 0} />
+              <StreakBadge streak={profile?.currentStreak ?? 0} isFrozen={streakInfo?.isFrozenToday ?? false} />
               <NotificationBell />
               {showRailToggle && (
                 <span className="inline-flex xl:hidden">

@@ -11,7 +11,7 @@ export default function PrivacyPage() {
   const goBackOrFallback = useGoBackOrFallback()
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
 
-  const sections: { label: string; body: string }[] = [
+  const sections: { label: string; body: string | string[] }[] = [
     { label: t('privacy.intro.title'), body: t('privacy.intro.body') },
     { label: t('privacy.controller.title'), body: t('privacy.controller.body') },
     { label: t('privacy.dataCollected.title'), body: [
@@ -19,12 +19,12 @@ export default function PrivacyPage() {
       t('privacy.dataCollected.habits'),
       t('privacy.dataCollected.chat'),
       t('privacy.dataCollected.preferences'),
-    ].join(' ') },
+    ] },
     { label: t('privacy.howWeUse.title'), body: [
       t('privacy.howWeUse.provide'),
       t('privacy.howWeUse.personalize'),
       t('privacy.howWeUse.notifications'),
-    ].join(' ') },
+    ] },
     { label: t('privacy.thirdParty.title'), body: [
       t('privacy.thirdParty.intro'),
       t('privacy.thirdParty.google'),
@@ -32,20 +32,20 @@ export default function PrivacyPage() {
       t('privacy.thirdParty.firebase'),
       t('privacy.thirdParty.openai'),
       t('privacy.thirdParty.resend'),
-    ].join(' ') },
+    ] },
     { label: t('privacy.retention.title'), body: [
       t('privacy.retention.intro'),
       t('privacy.retention.account'),
       t('privacy.retention.sessions'),
       t('privacy.retention.ai'),
       t('privacy.retention.afterDeletion'),
-    ].join(' ') },
+    ] },
     { label: t('privacy.googleScopes.title'), body: [
       t('privacy.googleScopes.intro'),
       t('privacy.googleScopes.auth'),
       t('privacy.googleScopes.calendar'),
       t('privacy.googleScopes.control'),
-    ].join(' ') },
+    ] },
     { label: t('privacy.dataResidency.title'), body: t('privacy.dataResidency.body') },
     { label: t('privacy.automatedProcessing.title'), body: t('privacy.automatedProcessing.body') },
     { label: t('privacy.minors.title'), body: t('privacy.minors.body') },
@@ -58,15 +58,15 @@ export default function PrivacyPage() {
       t('privacy.deletion.step2'),
       t('privacy.deletion.step3'),
       t('privacy.deletion.step4'),
-    ].join(' ') },
+    ] },
     { label: t('privacy.contact.title'), body: t('privacy.contact.body') },
   ]
 
   return (
-    <div className="flex flex-col min-h-[100dvh]">
+    <div className="mx-auto flex min-h-[100dvh] max-w-[var(--app-max-w)] flex-col">
       <AppBar
         back
-        backLabel={t('common.backToProfile')}
+        backLabel={t('common.goBack')}
         onBack={() => goBackOrFallback(isAuthenticated ? '/' : '/login')}
         title={t('privacy.title')}
         subtitle={t('privacy.lastUpdated')}
@@ -75,7 +75,23 @@ export default function PrivacyPage() {
         {sections.map(({ label, body }) => (
           <div key={label}>
             <SectionLabel>{label}</SectionLabel>
-            <div className="t-secondary px-5 pb-[18px]">{body}</div>
+            {Array.isArray(body) ? (
+              <div className="flex flex-col px-5 pb-[18px]" style={{ gap: 6 }}>
+                {body.map((line, index) => (
+                  <div
+                    key={`${label}-${index}`}
+                    className="t-secondary"
+                    style={{ textWrap: 'pretty' }}
+                  >
+                    {line}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="t-secondary px-5 pb-[18px]" style={{ textWrap: 'pretty' }}>
+                {body}
+              </div>
+            )}
           </div>
         ))}
       </div>

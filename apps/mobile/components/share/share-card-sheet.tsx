@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { ScrollView, StyleSheet, Text, View } from 'react-native'
+import Animated, { FadeInDown, ReduceMotion } from 'react-native-reanimated'
 import { Share2 } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import {
@@ -13,6 +14,8 @@ import { useShareCard } from '@/hooks/use-share-card'
 import { BottomSheetModal } from '@/components/bottom-sheet-modal'
 import { Chip } from '@/components/ui/chip'
 import { PillButton } from '@/components/ui/pill-button'
+import { SatelliteGlyph } from '@/components/ui/satellite-glyph'
+import { SkeletonLine } from '@/components/ui/skeleton'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { ShareCard } from './share-card'
@@ -30,7 +33,7 @@ export function ShareCardSheet({ open, onClose, displayName }: Readonly<ShareCar
   const tokens = createTokensV2(currentScheme, currentTheme)
   const styles = useMemo(() => createStyles(tokens), [tokens])
   const [period, setPeriod] = useState<RecapSharePeriod>('week')
-  const { data: recap, isLoading, isError } = useRecap(period, open)
+  const { data: recap, isLoading, isError, refetch } = useRecap(period, open)
   const { shareRef, isSharing, hasError, share } = useShareCard()
 
   const isEmpty = recap ? isRecapShareEmpty(recap.metrics) : false
@@ -56,18 +59,34 @@ export function ShareCardSheet({ open, onClose, displayName }: Readonly<ShareCar
           ))}
         </View>
 
-        {isLoading ? <Text style={styles.stateText}>{t('shareCard.loading')}</Text> : null}
+        {isLoading ? (
+          <View style={styles.loadingStack}>
+            <SkeletonLine width={360} height={430} style={styles.cardSkeleton} />
+            <SkeletonLine width={360} height={54} style={styles.pillSkeleton} />
+          </View>
+        ) : null}
 
         {!isLoading && isError ? (
-          <Text style={styles.errorText}>{t('shareCard.error')}</Text>
+          <View style={styles.errorState}>
+            <Text style={styles.errorText}>{t('shareCard.error')}</Text>
+            <PillButton variant="ghost" onPress={() => void refetch()}>
+              {t('common.retry')}
+            </PillButton>
+          </View>
         ) : null}
 
         {!isLoading && !isError && recap && isEmpty ? (
-          <Text style={styles.stateText}>{t('shareCard.empty')}</Text>
+          <View style={styles.emptyState}>
+            <SatelliteGlyph />
+            <Text style={styles.emptyText}>{t('shareCard.empty')}</Text>
+          </View>
         ) : null}
 
         {showCard ? (
-          <>
+          <Animated.View
+            entering={FadeInDown.duration(220).reduceMotion(ReduceMotion.System)}
+            style={styles.cardBlock}
+          >
             <View style={styles.cardWrap}>
               <ShareCard ref={shareRef} recap={recap} displayName={displayName} />
             </View>
@@ -84,7 +103,7 @@ export function ShareCardSheet({ open, onClose, displayName }: Readonly<ShareCar
             >
               {t('shareCard.share')}
             </PillButton>
-          </>
+          </Animated.View>
         ) : null}
       </ScrollView>
     </BottomSheetModal>
@@ -106,15 +125,37 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       justifyContent: 'center',
       gap: 6,
     },
-    cardWrap: {
+    loadingStack: {
       alignItems: 'center',
+      gap: 14,
     },
-    stateText: {
+    cardSkeleton: {
+      borderRadius: 20,
+    },
+    pillSkeleton: {
+      borderRadius: 999,
+    },
+    errorState: {
       paddingVertical: 32,
+      alignItems: 'center',
+      gap: 12,
+    },
+    emptyState: {
+      paddingVertical: 24,
+      alignItems: 'center',
+      gap: 14,
+    },
+    emptyText: {
       textAlign: 'center',
       fontFamily: 'Rubik_400Regular',
       fontSize: 14,
       color: tokens.fg3,
+    },
+    cardBlock: {
+      gap: 16,
+    },
+    cardWrap: {
+      alignItems: 'center',
     },
     errorText: {
       textAlign: 'center',

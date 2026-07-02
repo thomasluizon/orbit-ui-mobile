@@ -1,13 +1,13 @@
 'use client'
 
 import { useState } from 'react'
-import { usePathname } from 'next/navigation'
-import Link from 'next/link'
+import { usePathname, useRouter } from 'next/navigation'
 import { Crown } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useIsClient } from '@/hooks/use-is-client'
 import { useTrialExpired } from '@/hooks/use-profile'
 import { AppOverlay } from '@/components/ui/app-overlay'
+import { PillButton } from '@/components/ui/pill-button'
 
 const STORAGE_KEY = 'orbit_trial_expired_seen'
 
@@ -21,6 +21,7 @@ const PAUSED_FEATURES = [
 
 export function TrialExpiredModal() {
   const t = useTranslations()
+  const router = useRouter()
   const pathname = usePathname()
   const trialExpired = useTrialExpired()
   const [dismissed, setDismissed] = useState(false)
@@ -49,35 +50,19 @@ export function TrialExpiredModal() {
       title={t('trial.expired.heading')}
       footer={
         <div className="flex flex-col" style={{ gap: 10 }}>
-          <Link
-            href="/upgrade"
-            className="inline-flex w-full cursor-pointer items-center justify-center gap-[9px] rounded-full bg-[var(--primary)] text-center shadow-[var(--primary-glow)] transition-[background-color,box-shadow,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:-translate-y-px hover:bg-[var(--primary-pressed)] hover:shadow-[var(--primary-glow-hover)] active:translate-y-0 active:scale-[0.98]"
-            style={{
-              padding: '15px 26px',
-              color: 'var(--fg-on-primary)',
-              fontFamily: 'var(--font-sans)',
-              fontSize: 16,
-              fontWeight: 500,
+          <PillButton
+            variant="primary"
+            fullWidth
+            onClick={() => {
+              dismiss()
+              router.push('/upgrade')
             }}
-            onClick={dismiss}
           >
             {t('trial.expired.subscribe')}
-          </Link>
-          <button
-            type="button"
-            className="inline-flex w-full cursor-pointer appearance-none items-center justify-center rounded-full border-0 bg-transparent text-center transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-card)] active:scale-[0.98]"
-            onClick={dismiss}
-            style={{
-              padding: '14px 26px',
-              boxShadow: 'inset 0 0 0 1.5px var(--hairline-strong)',
-              fontFamily: 'var(--font-sans)',
-              fontSize: 16,
-              fontWeight: 500,
-              color: 'var(--fg-1)',
-            }}
-          >
+          </PillButton>
+          <PillButton variant="ghost" fullWidth onClick={dismiss}>
             {t('trial.expired.continueFree')}
-          </button>
+          </PillButton>
         </div>
       }
     >
@@ -108,13 +93,16 @@ export function TrialExpiredModal() {
           {t('trial.expired.subtitleQuiet')}
         </p>
         <div>
-          {PAUSED_FEATURES.map((featureKey) => (
+          {PAUSED_FEATURES.map((featureKey, index) => (
             <div
               key={featureKey}
               className="flex items-baseline justify-between"
               style={{
                 padding: '11px 0',
-                borderBottom: '1px solid var(--hairline)',
+                borderBottom:
+                  index === PAUSED_FEATURES.length - 1
+                    ? undefined
+                    : '1px solid var(--hairline)',
               }}
             >
               <span

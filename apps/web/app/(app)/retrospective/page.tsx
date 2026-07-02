@@ -3,7 +3,11 @@
 import { useState, useCallback, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { RETROSPECTIVE_PERIODS } from '@orbit/shared/utils/retrospective'
+import {
+  getRetrospectiveCacheKey,
+  RETROSPECTIVE_PERIODS,
+  type RetrospectiveResponse,
+} from '@orbit/shared/utils/retrospective'
 import { useProfile, useHasProAccess, useIsYearlyPro } from '@/hooks/use-profile'
 import { useOffline } from '@/hooks/use-offline'
 import { useRetrospective, type RetrospectivePeriod } from '@/hooks/use-retrospective'
@@ -13,6 +17,8 @@ import { AppBar } from '@/components/ui/app-bar'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { RetrospectiveLockedStates } from './_components/retrospective-locked-states'
 import { RetrospectiveView } from './_components/retrospective-view'
+
+const CACHE_VERSION_SUFFIX = '_v2'
 
 export default function RetrospectivePage() {
   const t = useTranslations()
@@ -44,19 +50,59 @@ export default function RetrospectivePage() {
   )
 
   const [portalError, setPortalError] = useState('')
+  const [cachedData, setCachedData] = useState<RetrospectiveResponse | null>(null)
+  const [isCacheLoading, setIsCacheLoading] = useState(true)
+  const cacheKey = getRetrospectiveCacheKey(period) + CACHE_VERSION_SUFFIX
+
+  const [prevCacheKey, setPrevCacheKey] = useState(cacheKey)
+  if (cacheKey !== prevCacheKey) {
+    setPrevCacheKey(cacheKey)
+    setIsCacheLoading(true)
+  }
 
   useEffect(() => {
     if (!profile) return
-    if (!hasProAccess || !isYearlyPro) {
+    if (!hasProAccess) {
       router.replace('/upgrade')
     }
-  }, [hasProAccess, isYearlyPro, profile, router])
+  }, [hasProAccess, profile, router])
+
+  useEffect(() => {
+    const stored = globalThis.localStorage.getItem(cacheKey)
+    if (stored) {
+      try {
+        setCachedData(JSON.parse(stored) as RetrospectiveResponse)
+      } catch {
+        setCachedData(null)
+      }
+    } else {
+      setCachedData(null)
+    }
+    setIsCacheLoading(false)
+  }, [cacheKey])
+
+  useEffect(() => {
+    if (!data) return
+    globalThis.localStorage.setItem(cacheKey, JSON.stringify(data))
+  }, [cacheKey, data])
+
+  const displayedData = data ?? (!isOnline && !isLoading ? cachedData : null)
+  const displayedFromCache =
+    fromCache || (!data && !isOnline && !isLoading && cachedData !== null)
 
   function selectPeriod(key: RetrospectivePeriod) {
     setPeriod(key)
     setData(null)
     setError(null)
     setNoData(false)
+  }
+
+  function handleGenerate() {
+    if (!isOnline) {
+      setError(t('offline.title'))
+      return
+    }
+    void generate()
   }
 
   const handleOpenPortal = useCallback(async () => {
@@ -101,14 +147,15 @@ export default function RetrospectivePage() {
         <RetrospectiveView
           periods={periods}
           activePeriod={period}
-          data={data}
+          data={displayedData}
           isLoading={isLoading}
-          hasError={!!error}
+          isCacheLoading={isCacheLoading}
+          errorMessage={error}
           noData={noData}
-          fromCache={fromCache}
+          fromCache={displayedFromCache}
           isOnline={isOnline}
           onSelectPeriod={selectPeriod}
-          onGenerate={generate}
+          onGenerate={handleGenerate}
         />
       )}
     </div>

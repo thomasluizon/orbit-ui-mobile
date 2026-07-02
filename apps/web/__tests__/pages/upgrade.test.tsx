@@ -128,6 +128,13 @@ describe('UpgradePage', () => {
   })
 
   it('exposes matrix feature labels as text with decorative icons hidden', () => {
+    mockPlans = {
+      monthly: { unitAmount: 999 },
+      yearly: { unitAmount: 4999 },
+      currency: 'usd',
+      savingsPercent: 58,
+      couponPercentOff: null,
+    }
     const { container } = render(<UpgradePage />)
 
     expect(screen.getAllByText('upgrade.features.subHabits.label').length).toBeGreaterThan(0)

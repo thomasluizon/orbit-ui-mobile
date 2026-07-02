@@ -9,15 +9,28 @@ import {
 
 const mocks = vi.hoisted(() => ({
   profileReturn: { profile: undefined as unknown, isLoading: false },
-  friendsReturn: { data: undefined as unknown },
+  friendsReturn: {
+    data: undefined as unknown,
+    isLoading: false,
+    isError: false,
+    refetch: vi.fn(),
+  },
   feedReturn: {
     data: undefined as unknown,
     hasNextPage: false,
     isLoading: false,
+    isError: false,
     isFetchingNextPage: false,
     fetchNextPage: vi.fn(),
+    refetch: vi.fn(),
   },
   cheersReturn: { data: undefined as unknown },
+  pairsReturn: {
+    data: undefined as unknown,
+    isLoading: false,
+    isError: false,
+    refetch: vi.fn(),
+  },
   acceptMutate: vi.fn(),
   removeMutate: vi.fn(),
   sendCheerMutate: vi.fn(),
@@ -38,6 +51,15 @@ vi.mock('sonner', () => ({ toast: { error: vi.fn(), success: vi.fn() } }))
 vi.mock('@/components/ui/app-bar', () => ({ AppBar: () => null }))
 vi.mock('@/components/ui/gradient-top', () => ({ GradientTop: () => null }))
 vi.mock('@/app/(app)/social/_components/invite-hero', () => ({ InviteHero: () => null }))
+vi.mock('@/app/(app)/social/_components/new-pair-flow', () => ({ NewPairFlow: () => null }))
+vi.mock('@/app/(app)/social/_components/pair-detail', () => ({ PairDetail: () => null }))
+
+vi.mock('@/hooks/use-accountability', () => ({
+  useAccountabilityPairs: () => mocks.pairsReturn,
+  useAcceptAccountabilityPair: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useEndAccountabilityPair: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useCheckInAccountability: () => ({ mutateAsync: vi.fn(), isPending: false }),
+}))
 
 vi.mock('@/components/ui/app-overlay', () => ({
   AppOverlay: ({
@@ -83,8 +105,14 @@ beforeEach(() => {
   mocks.profileReturn.profile = createMockProfile({ socialOptIn: true, handle: 'me' })
   mocks.profileReturn.isLoading = false
   mocks.friendsReturn.data = { friends: [], incomingRequests: [], outgoingRequests: [] }
+  mocks.friendsReturn.isLoading = false
+  mocks.friendsReturn.isError = false
   mocks.feedReturn.data = { pages: [{ items: [], nextCursor: null }] }
+  mocks.feedReturn.isError = false
   mocks.cheersReturn.data = { items: [] }
+  mocks.pairsReturn.data = { activePairs: [], incomingInvites: [], outgoingInvites: [] }
+  mocks.pairsReturn.isLoading = false
+  mocks.pairsReturn.isError = false
   mocks.acceptMutate.mockResolvedValue(null)
   mocks.removeMutate.mockResolvedValue(null)
   mocks.sendCheerMutate.mockResolvedValue({ id: 'cheer-1' })
@@ -127,6 +155,44 @@ describe('SocialPage', () => {
 
     fireEvent.click(screen.getByText('social.friends.decline'))
     expect(mocks.removeMutate).toHaveBeenCalledWith('user-9')
+  })
+
+  it('shows a retry action when the feed query fails and refetches it', () => {
+    mocks.feedReturn.isError = true
+
+    render(<SocialPage />)
+
+    expect(screen.getByText('social.errors.loadFailed')).toBeInTheDocument()
+    expect(screen.queryByText('social.feed.emptyTitle')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByText('common.retry'))
+    expect(mocks.feedReturn.refetch).toHaveBeenCalled()
+  })
+
+  it('shows a retry action when the friends query fails', () => {
+    mocks.friendsReturn.isError = true
+
+    render(<SocialPage />)
+    fireEvent.click(screen.getByText('social.tabs.friends'))
+
+    expect(screen.getByText('social.errors.loadFailed')).toBeInTheDocument()
+    expect(screen.queryByText('social.friends.emptyTitle')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByText('common.retry'))
+    expect(mocks.friendsReturn.refetch).toHaveBeenCalled()
+  })
+
+  it('shows a retry action when the buddies query fails', () => {
+    mocks.pairsReturn.isError = true
+
+    render(<SocialPage />)
+    fireEvent.click(screen.getByText('social.tabs.buddies'))
+
+    expect(screen.getByText('social.errors.loadFailed')).toBeInTheDocument()
+    expect(screen.queryByText('social.buddies.emptyTitle')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByText('common.retry'))
+    expect(mocks.pairsReturn.refetch).toHaveBeenCalled()
   })
 
   it('sends a cheer from a feed row and surfaces the success toast', async () => {

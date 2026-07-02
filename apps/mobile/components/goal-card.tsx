@@ -1,13 +1,12 @@
-import { useCallback, useMemo, useRef } from 'react'
-import { Animated, View, Text, TouchableOpacity, StyleSheet } from 'react-native'
+import { useMemo, useRef } from 'react'
+import { Pressable, View, Text, StyleSheet } from 'react-native'
 import { useTourTarget } from '@/hooks/use-tour-target'
 import { differenceInDays, parseISO } from 'date-fns'
 import { useTranslation } from 'react-i18next'
 import type { Goal } from '@orbit/shared/types/goal'
 import { isStreakGoal } from '@orbit/shared/utils/goal-form'
 import { plural } from '@/lib/plural'
-import { createTokensV2, easings } from '@/lib/theme'
-import { toAnimatedEasing, useResolvedMotionPreset } from '@/lib/motion'
+import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { StatusDot, type StatusDotState } from '@/components/ui/status-dot'
 import { ProgressBar } from '@/components/ui/progress-bar'
@@ -26,33 +25,13 @@ export function GoalCard({ goal, onPress, onLongPress, tourTargetId }: GoalCardP
     () => createTokensV2(currentScheme, currentTheme),
     [currentScheme, currentTheme],
   )
-  const selectionMotion = useResolvedMotionPreset('selection')
   const progress = Math.min(100, Math.round(goal.progressPercentage))
   const isStreak = isStreakGoal(goal.type)
   const styles = useMemo(() => createStyles(tokens), [tokens])
   const cardRef = useRef<View>(null)
   const progressRef = useRef<View>(null)
-  const pressScale = useMemo(() => new Animated.Value(1), [])
   useTourTarget(tourTargetId ?? '__noop__', cardRef)
   useTourTarget(tourTargetId ? 'tour-goal-progress' : '__noop__', progressRef)
-
-  const handlePressIn = useCallback(() => {
-    Animated.timing(pressScale, {
-      toValue: selectionMotion.reducedMotionEnabled ? 1 : 0.985,
-      duration: 100,
-      easing: toAnimatedEasing(easings.out),
-      useNativeDriver: true,
-    }).start()
-  }, [pressScale, selectionMotion.reducedMotionEnabled])
-
-  const handlePressOut = useCallback(() => {
-    Animated.timing(pressScale, {
-      toValue: 1,
-      duration: selectionMotion.exitDuration,
-      easing: toAnimatedEasing(easings.out),
-      useNativeDriver: true,
-    }).start()
-  }, [pressScale, selectionMotion.exitDuration])
 
   const progressColor = useMemo(() => {
     if (goal.status === 'Completed') return tokens.statusDone
@@ -160,83 +139,88 @@ export function GoalCard({ goal, onPress, onLongPress, tourTargetId }: GoalCardP
       })
 
   const percentLabel = t('goals.progressPercentage', {
-    pct: Math.round(goal.progressPercentage),
+    pct: progress,
   })
 
+  const cardAccessibilityLabel = [
+    goal.title,
+    progressLabel,
+    `${progress}%`,
+    statusBadge?.text,
+    deadlineInfo?.text,
+  ]
+    .filter((part): part is string => part != null)
+    .join(', ')
+
   return (
-    <Animated.View style={{ transform: [{ scale: pressScale }] }}>
-      <TouchableOpacity
-        ref={tourTargetId ? cardRef : undefined}
-        style={styles.card}
-        onPress={() => onPress?.(goal.id)}
-        onLongPress={onLongPress}
-        delayLongPress={300}
-        onPressIn={handlePressIn}
-        onPressOut={handlePressOut}
-        activeOpacity={0.88}
-        disabled={!onPress}
-        accessibilityRole="button"
-        accessibilityLabel={goal.title}
-        accessibilityHint={onLongPress ? t('goals.reorderHint') : undefined}
+    <Pressable
+      ref={tourTargetId ? cardRef : undefined}
+      style={({ pressed }) => [styles.card, pressed ? styles.cardPressed : null]}
+      onPress={() => onPress?.(goal.id)}
+      onLongPress={onLongPress}
+      delayLongPress={300}
+      disabled={!onPress}
+      accessibilityRole="button"
+      accessibilityLabel={cardAccessibilityLabel}
+      accessibilityHint={onLongPress ? t('goals.reorderHint') : undefined}
+    >
+      <View style={styles.headerRow}>
+        <View style={styles.emojiWell}>
+          <Text style={styles.emojiWellText}>{isStreak ? '🔥' : '🎯'}</Text>
+        </View>
+
+        <View style={styles.headerContent}>
+          <View style={styles.titleRow}>
+            <Text
+              style={[
+                styles.title,
+                goal.status === 'Abandoned' && styles.titleAbandoned,
+              ]}
+              numberOfLines={2}
+            >
+              {goal.title}
+            </Text>
+            {statusBadge ? (
+              <View style={styles.badge}>
+                <Text style={[styles.badgeText, { color: statusBadge.textColor }]}>
+                  {statusBadge.text}
+                </Text>
+              </View>
+            ) : trackingDot ? (
+              <StatusDot state={trackingDot.state} accessibilityLabel={trackingDot.label} />
+            ) : null}
+          </View>
+          <View style={styles.metaRow}>
+            <Text style={styles.progressLabel} numberOfLines={1}>
+              {progressLabel}
+            </Text>
+            {deadlineInfo && (
+              <View style={styles.badge}>
+                <Text style={[styles.badgeText, { color: deadlineInfo.textColor }]}>
+                  {deadlineInfo.text}
+                </Text>
+              </View>
+            )}
+          </View>
+        </View>
+
+        <Text style={[styles.percentText, { color: progressTextColor }]}>
+          {progress}%
+        </Text>
+      </View>
+
+      <View
+        ref={tourTargetId ? progressRef : undefined}
+        style={styles.progressRow}
       >
-        <View style={styles.headerRow}>
-          <View style={styles.emojiWell}>
-            <Text style={styles.emojiWellText}>{isStreak ? '🔥' : '🎯'}</Text>
-          </View>
-
-          <View style={styles.headerContent}>
-            <View style={styles.titleRow}>
-              <Text
-                style={[
-                  styles.title,
-                  goal.status === 'Abandoned' && styles.titleAbandoned,
-                ]}
-                numberOfLines={2}
-              >
-                {goal.title}
-              </Text>
-              {statusBadge ? (
-                <View style={styles.badge}>
-                  <Text style={[styles.badgeText, { color: statusBadge.textColor }]}>
-                    {statusBadge.text}
-                  </Text>
-                </View>
-              ) : trackingDot ? (
-                <StatusDot state={trackingDot.state} accessibilityLabel={trackingDot.label} />
-              ) : null}
-            </View>
-            <View style={styles.metaRow}>
-              <Text style={styles.progressLabel} numberOfLines={1}>
-                {progressLabel}
-              </Text>
-              {deadlineInfo && (
-                <View style={styles.badge}>
-                  <Text style={[styles.badgeText, { color: deadlineInfo.textColor }]}>
-                    {deadlineInfo.text}
-                  </Text>
-                </View>
-              )}
-            </View>
-          </View>
-
-          <Text style={[styles.percentText, { color: progressTextColor }]}>
-            {progress}%
-          </Text>
-        </View>
-
-        <View
-          ref={tourTargetId ? progressRef : undefined}
-          style={styles.progressRow}
-        >
-          <ProgressBar
-            style={styles.progressBar}
-            progress={progress / 100}
-            label={percentLabel}
-            color={progressColor}
-          />
-        </View>
-      </TouchableOpacity>
-    </Animated.View>
+        <ProgressBar
+          style={styles.progressBar}
+          progress={progress / 100}
+          label={percentLabel}
+          color={progressColor}
+        />
+      </View>
+    </Pressable>
   )
 }
 
@@ -250,6 +234,11 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       borderWidth: 1,
       borderColor: tokens.hairline,
       overflow: 'hidden',
+    },
+    cardPressed: {
+      transform: [{ scale: 0.99 }],
+      backgroundColor: tokens.bgElevPressed,
+      borderColor: tokens.hairlineStrong,
     },
 
     headerRow: {
@@ -296,7 +285,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       paddingVertical: 3,
       borderRadius: 9999,
       borderWidth: 1,
-      borderColor: tokens.hairline,
+      borderColor: tokens.hairlineStrong,
     },
     badgeText: {
       fontFamily: 'Rubik_600SemiBold',

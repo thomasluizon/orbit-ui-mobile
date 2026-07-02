@@ -1,7 +1,8 @@
-import React, { useEffect, useRef, type ReactNode } from 'react'
+import React, { useEffect, useMemo, type ReactNode } from 'react'
 import { Animated, Pressable, Text, View } from 'react-native'
 import { CalendarDays, Snowflake } from 'lucide-react-native'
 import { primaryGlow } from '@/lib/theme'
+import { usePrefersReducedMotion } from '@/lib/motion'
 import { SectionLabel } from '@/components/ui/section-label'
 import { ProgressBar } from '@/components/ui/progress-bar'
 import { StatusDot } from '@/components/ui/status-dot'
@@ -346,18 +347,23 @@ interface ChargePipProps {
 }
 
 function ChargePip({ filled, delay, tokens }: Readonly<ChargePipProps>) {
-  const progress = useRef(new Animated.Value(0)).current
+  const progress = useMemo(() => new Animated.Value(0), [])
+  const prefersReducedMotion = usePrefersReducedMotion()
 
   useEffect(() => {
+    if (prefersReducedMotion) {
+      progress.setValue(1)
+      return
+    }
     const animation = Animated.timing(progress, {
       toValue: 1,
-      duration: 180,
+      duration: 160,
       delay,
       useNativeDriver: true,
     })
     animation.start()
     return () => animation.stop()
-  }, [progress, delay])
+  }, [progress, delay, prefersReducedMotion])
 
   return (
     <Animated.View

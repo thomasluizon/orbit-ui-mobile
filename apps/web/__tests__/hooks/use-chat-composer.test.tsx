@@ -260,4 +260,35 @@ describe('web useChatComposer streaming send', () => {
     expect(result.current.sendError).toBe('chat.fileError')
     expect(result.current.selectedTextFileName).toBeNull()
   })
+
+  it('blocks sending while offline and re-enables once back online', async () => {
+    Object.defineProperty(globalThis.navigator, 'onLine', {
+      configurable: true,
+      value: false,
+    })
+
+    try {
+      const { result } = renderHook(() => useChatComposer())
+
+      act(() => {
+        result.current.setInput('hello')
+      })
+
+      expect(result.current.isOnline).toBe(false)
+      expect(result.current.canSend).toBe(false)
+
+      act(() => {
+        Object.defineProperty(globalThis.navigator, 'onLine', {
+          configurable: true,
+          value: true,
+        })
+        globalThis.dispatchEvent(new Event('online'))
+      })
+
+      expect(result.current.isOnline).toBe(true)
+      expect(result.current.canSend).toBe(true)
+    } finally {
+      Reflect.deleteProperty(globalThis.navigator, 'onLine')
+    }
+  })
 })

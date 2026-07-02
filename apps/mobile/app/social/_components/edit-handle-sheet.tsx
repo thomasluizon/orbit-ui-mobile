@@ -91,7 +91,7 @@ export function EditHandleSheet({ open, onClose }: Readonly<EditHandleSheetProps
           <Text
             accessibilityRole="alert"
             testID="edit-handle-error"
-            style={[styles.error, { color: tokens.statusBad }]}
+            style={[styles.error, { color: tokens.statusBadText }]}
           >
             {error}
           </Text>

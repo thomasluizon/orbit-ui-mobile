@@ -95,4 +95,13 @@ describe('GoalCard', () => {
     )
     expect(card).toHaveLength(0)
   })
+
+  it('caps the announced percentage at 100 for overflowing progress', () => {
+    const tree = renderCard(makeGoal({ progressPercentage: 120 }))
+    const bars = tree.root.findAll(
+      (node: { props: { accessibilityLabel?: string } }) =>
+        node.props.accessibilityLabel === 'goals.progressPercentage:{"pct":100}',
+    )
+    expect(bars.length).toBeGreaterThan(0)
+  })
 })

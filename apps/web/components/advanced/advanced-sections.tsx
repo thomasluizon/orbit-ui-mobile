@@ -1,6 +1,6 @@
 'use client'
 
-import { Check, Copy } from 'lucide-react'
+import { Check, Clipboard } from 'lucide-react'
 import type { ApiKey } from '@orbit/shared/types'
 
 type TranslationFn = (key: string, params?: Record<string, string | number | Date>) => string
@@ -40,14 +40,14 @@ export function CodeWell({
       <div className="flex justify-end" style={{ marginBottom: 6 }}>
         <button
           type="button"
-          aria-label={copyLabel}
+          aria-label={copied ? copiedLabel : copyLabel}
           className="icon-btn touch-target"
           onClick={onCopy}
         >
           {copied ? (
-            <Check size={16} strokeWidth={1.8} color="var(--status-done)" aria-hidden="true" />
+            <Check size={18} strokeWidth={1.8} color="var(--status-done)" aria-hidden="true" />
           ) : (
-            <Copy size={16} strokeWidth={1.8} aria-hidden="true" />
+            <Clipboard size={18} strokeWidth={1.8} aria-hidden="true" />
           )}
         </button>
         <span aria-live="polite" className="sr-only">

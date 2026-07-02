@@ -48,17 +48,20 @@ export function AchievementToast() {
       Animated.parallel([
         Animated.timing(translateY, {
           toValue: -100,
-          duration: 400,
+          duration: 280,
+          easing: toAnimatedEasing(easings.out),
           useNativeDriver: true,
         }),
         Animated.timing(opacity, {
           toValue: 0,
-          duration: 400,
+          duration: 280,
+          easing: toAnimatedEasing(easings.out),
           useNativeDriver: true,
         }),
         Animated.timing(scale, {
           toValue: 0.96,
-          duration: 400,
+          duration: 280,
+          easing: toAnimatedEasing(easings.out),
           useNativeDriver: true,
         }),
       ]).start(() => {
@@ -104,19 +107,19 @@ export function AchievementToast() {
     Animated.parallel([
       Animated.timing(translateY, {
         toValue: 0,
-        duration: 400,
+        duration: 280,
         easing: toAnimatedEasing(easings.out),
         useNativeDriver: true,
       }),
       Animated.timing(opacity, {
         toValue: 1,
-        duration: 300,
+        duration: 280,
         easing: toAnimatedEasing(easings.out),
         useNativeDriver: true,
       }),
       Animated.timing(scale, {
         toValue: 1,
-        duration: 400,
+        duration: 280,
         easing: toAnimatedEasing(easings.out),
         useNativeDriver: true,
       }),

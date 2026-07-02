@@ -37,6 +37,8 @@ interface SettingsGroupRowProps {
   /** Pre-rendered leading icon (e.g. `<Settings size={22} color={tokens.fg1} />`). */
   icon?: ReactNode
   label: string
+  /** Screen-reader name; defaults to `label` when omitted (e.g. announce plan state on a subscription row). */
+  accessibilityLabel?: string
   /** Optional right-side hint or value text. */
   hint?: string
   /** Optional slot rendered between hint and chevron (toggle, badge). */
@@ -52,6 +54,7 @@ interface SettingsGroupRowProps {
 export function SettingsGroupRow({
   icon,
   label,
+  accessibilityLabel,
   hint,
   trailing,
   accessory,
@@ -68,7 +71,7 @@ export function SettingsGroupRow({
       onPress={onPress}
       disabled={!onPress}
       accessibilityRole={onPress ? 'button' : 'none'}
-      accessibilityLabel={label}
+      accessibilityLabel={accessibilityLabel ?? label}
       style={({ pressed }) => [
         styles.row,
         pressed && onPress ? { backgroundColor: tokens.bgElev } : null,

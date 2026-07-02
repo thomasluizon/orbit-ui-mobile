@@ -1,4 +1,4 @@
-import { Pressable, Text, View, type ViewStyle } from 'react-native'
+import { ActivityIndicator, Pressable, Text, View, type ViewStyle } from 'react-native'
 import { AlertTriangle, CalendarDays, RefreshCw } from 'lucide-react-native'
 import type { TFunction } from 'i18next'
 import { isCalendarAutoSyncStatusReconnectRequired } from '@orbit/shared/utils'
@@ -97,7 +97,11 @@ export function CalendarAutoSyncSection({
               (pressed || isSyncNowPending) && styles.quietActionDim,
             ]}
           >
-            <RefreshCw size={13} color={tokens.fg2} strokeWidth={2} />
+            {isSyncNowPending ? (
+              <ActivityIndicator size={14} color={tokens.fg2} />
+            ) : (
+              <RefreshCw size={13} color={tokens.fg2} strokeWidth={2} />
+            )}
             <Text style={[styles.quietActionText, { color: tokens.fg2 }]}>
               {isSyncNowPending
                 ? t('calendar.autoSync.syncNowRunning')

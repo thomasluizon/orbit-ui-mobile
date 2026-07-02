@@ -66,7 +66,7 @@ export function EmptyState({
           <button
             type="button"
             onClick={action.onClick}
-            className="mt-[22px] inline-flex cursor-pointer items-center border-0 bg-transparent text-[13px] font-medium text-[var(--primary)] hover:text-[var(--primary-pressed)] active:opacity-70"
+            className="mt-2 inline-flex cursor-pointer items-center border-0 bg-transparent px-4 py-[14px] text-[13px] font-medium text-[var(--primary)] hover:text-[var(--primary-pressed)] active:opacity-70"
             style={{ fontFamily: 'var(--font-sans)' }}
           >
             {action.label}

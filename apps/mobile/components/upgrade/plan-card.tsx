@@ -42,7 +42,7 @@ export function PlanCard({
             }
           : {
               backgroundColor: pressed ? tokens.bgElev : tokens.bgCard,
-              borderWidth: 1,
+              borderWidth: 1.5,
               borderColor: pressed ? tokens.hairlineStrong : tokens.hairline,
             },
         pressed ? styles.cardPressed : null,

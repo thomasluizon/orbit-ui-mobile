@@ -54,16 +54,16 @@ describe('MessageBubble', () => {
     push.mockClear()
   })
 
-  it('renders user message with user label', () => {
+  it('renders user message with user label announced exactly once', () => {
     render(<MessageBubble message={makeMessage({ role: 'user', content: 'Hello' })} />)
     expect(screen.getByText('chat.senderYou')).toBeInTheDocument()
-    expect(screen.getByLabelText('chat.senderYou')).toBeInTheDocument()
+    expect(screen.queryByLabelText('chat.senderYou')).not.toBeInTheDocument()
   })
 
-  it('renders AI message with orbit label', () => {
+  it('renders AI message with orbit label announced exactly once', () => {
     render(<MessageBubble message={makeMessage({ role: 'ai', content: 'Hi there' })} />)
     expect(screen.getByText('chat.senderOrbit')).toBeInTheDocument()
-    expect(screen.getByLabelText('chat.senderOrbit')).toBeInTheDocument()
+    expect(screen.queryByLabelText('chat.senderOrbit')).not.toBeInTheDocument()
   })
 
   it('renders message content', () => {

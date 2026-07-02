@@ -39,6 +39,7 @@ function baseProps() {
     onToggleMemory: vi.fn(),
     onToggleSummary: vi.fn(),
     onToggleProactive: vi.fn(),
+    onUpgrade: vi.fn(),
   }
 }
 
@@ -75,11 +76,13 @@ describe('AiFeatureToggles', () => {
     ).toBeDisabled()
   })
 
-  it('renders upgrade links instead of switches for non-pro users', () => {
-    render(<AiFeatureToggles {...{ ...baseProps(), hasProAccess: false }} />)
+  it('renders pressable upgrade rows instead of switches for non-pro users', () => {
+    const props = { ...baseProps(), hasProAccess: false }
+    render(<AiFeatureToggles {...props} />)
     expect(screen.queryByRole('switch')).not.toBeInTheDocument()
-    const upgradeLinks = screen.getAllByRole('link')
-    expect(upgradeLinks).toHaveLength(3)
-    expect(upgradeLinks[0]).toHaveAttribute('href', '/upgrade')
+    const rows = screen.getAllByRole('button')
+    expect(rows).toHaveLength(3)
+    fireEvent.click(rows[0])
+    expect(props.onUpgrade).toHaveBeenCalled()
   })
 })

@@ -8,6 +8,8 @@ interface ProfileActionButtonProps {
   /** Leading lucide icon rendered 22/1.8 in the kit ListRow 26px slot. */
   icon?: LucideIcon
   tone?: 'default' | 'danger'
+  /** Draw the bottom hairline divider. Set `false` on the last row so no stray rule renders. */
+  showDivider?: boolean
 }
 
 /** Kit ListRow action — `tone="danger"` colors icon and label in status-bad. */
@@ -16,6 +18,7 @@ export function ProfileActionButton({
   onClick,
   icon: LeadingIcon,
   tone = 'default',
+  showDivider = true,
 }: Readonly<ProfileActionButtonProps>) {
   const color = tone === 'danger' ? 'var(--status-bad)' : 'var(--fg-1)'
   return (
@@ -28,7 +31,7 @@ export function ProfileActionButton({
         border: 0,
         padding: '16px 20px',
         gap: 14,
-        borderBottom: '1px solid var(--hairline)',
+        borderBottom: showDivider ? '1px solid var(--hairline)' : 'none',
       }}
     >
       {LeadingIcon && (

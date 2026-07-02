@@ -32,7 +32,7 @@ export const MilestoneShareCard = forwardRef<HTMLDivElement, MilestoneShareCardP
         style={{
           width: 360,
           background: 'var(--bg)',
-          borderRadius: 24,
+          borderRadius: 20,
           overflow: 'hidden',
           boxShadow: 'inset 0 0 0 1px var(--hairline)',
           fontFamily: 'var(--font-sans)',
@@ -57,14 +57,14 @@ export const MilestoneShareCard = forwardRef<HTMLDivElement, MilestoneShareCardP
             </span>
           </div>
 
-          <p style={{ marginTop: 18, fontSize: 12, fontWeight: 500, color: 'var(--fg-3)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+          <p style={{ marginTop: 18, fontSize: 12, fontWeight: 500, color: 'var(--fg-3)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
             {eyebrow}
           </p>
 
           {variant.kind === 'streak' ? (
             <>
               <p
-                style={{ marginTop: 6, fontFamily: 'var(--font-display)', fontSize: 56, fontWeight: 700, lineHeight: 1, letterSpacing: '-0.03em' }}
+                style={{ marginTop: 6, fontFamily: 'var(--font-display)', fontSize: 56, fontWeight: 700, lineHeight: 1, letterSpacing: '-0.03em', fontVariantNumeric: 'tabular-nums' }}
               >
                 {variant.streak} 🔥
               </p>
@@ -114,7 +114,7 @@ export const MilestoneShareCard = forwardRef<HTMLDivElement, MilestoneShareCardP
               <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--fg-1)' }}>{t('shareCard.scanToJoin')}</p>
               <p
                 className="truncate"
-                style={{ fontFamily: 'var(--font-mono)', fontSize: 11.5, color: 'var(--fg-3)' }}
+                style={{ fontFamily: 'var(--font-mono)', fontSize: 12, letterSpacing: '0.02em', color: 'var(--fg-3)' }}
               >
                 {shortLink}
               </p>

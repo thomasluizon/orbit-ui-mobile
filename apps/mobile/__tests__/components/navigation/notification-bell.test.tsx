@@ -10,6 +10,7 @@ const TestRenderer = require('react-test-renderer')
 const mocks = vi.hoisted(() => ({
   notifications: [] as NotificationItem[],
   isLoading: false,
+  isError: false,
 }))
 
 vi.mock('react-i18next', () => ({
@@ -20,6 +21,8 @@ vi.mock('@/hooks/use-notifications', () => ({
   useNotifications: () => ({
     notifications: mocks.notifications,
     isLoading: mocks.isLoading,
+    isError: mocks.isError,
+    refetch: vi.fn(),
   }),
   useMarkNotificationRead: () => ({ mutate: vi.fn() }),
   useMarkAllNotificationsRead: () => ({ mutate: vi.fn() }),
@@ -102,18 +105,10 @@ function openSheetAndGetList(tree: ReturnType<typeof render>): FlatListNode {
   return lists[0]!
 }
 
-function findLabel(node: unknown, label: string): boolean {
-  if (!node || typeof node !== 'object') return false
-  const element = node as { props?: Record<string, unknown> }
-  if (element.props?.accessibilityLabel === label) return true
-  const children = element.props?.children
-  if (Array.isArray(children)) return children.some((child) => findLabel(child, label))
-  return findLabel(children, label)
-}
-
 beforeEach(() => {
   mocks.notifications = []
   mocks.isLoading = false
+  mocks.isError = false
 })
 
 describe('NotificationBell list rendering', () => {
@@ -131,12 +126,26 @@ describe('NotificationBell list rendering', () => {
     expect(list.props.keyExtractor(mocks.notifications[0]!)).toBe('n-1')
   })
 
-  it('renders each row via renderItem with the notification title as its label', () => {
+  it('renders each row via renderItem with the title and body as its label', () => {
     mocks.notifications = [createMockNotification({ id: 'n-1', title: 'Streak saved' })]
 
     const list = openSheetAndGetList(render())
-    const row = list.props.renderItem({ item: mocks.notifications[0]!, index: 0 })
-    expect(findLabel(row, 'Streak saved')).toBe(true)
+    const rowElement = list.props.renderItem({ item: mocks.notifications[0]!, index: 0 })
+    let rowTree: {
+      root: {
+        findAll: (
+          predicate: (node: { props: Record<string, unknown> }) => boolean,
+        ) => unknown[]
+      }
+    } | null = null
+    TestRenderer.act(() => {
+      rowTree = TestRenderer.create(rowElement)
+    })
+    const labeled = rowTree!.root.findAll(
+      (node) =>
+        node.props.accessibilityLabel === 'Streak saved. Time to complete your habit!',
+    )
+    expect(labeled.length).toBeGreaterThan(0)
   })
 
   it('passes an empty data set and an empty-state component when there are no notifications', () => {
@@ -145,5 +154,25 @@ describe('NotificationBell list rendering', () => {
     const list = openSheetAndGetList(render())
     expect(list.props.data).toHaveLength(0)
     expect(list.props.ListEmptyComponent).toBeTruthy()
+  })
+
+  it('renders a load-error state with a retry control when the query fails', () => {
+    mocks.isError = true
+
+    const list = openSheetAndGetList(render())
+    let emptyTree: {
+      root: {
+        findAll: (
+          predicate: (node: { props: Record<string, unknown> }) => boolean,
+        ) => unknown[]
+      }
+    } | null = null
+    TestRenderer.act(() => {
+      emptyTree = TestRenderer.create(list.props.ListEmptyComponent)
+    })
+    const retryControls = emptyTree!.root.findAll(
+      (node) => node.props.accessibilityLabel === 'common.retry',
+    )
+    expect(retryControls.length).toBeGreaterThan(0)
   })
 })

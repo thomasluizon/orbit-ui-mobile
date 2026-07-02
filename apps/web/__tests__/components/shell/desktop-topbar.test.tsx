@@ -34,6 +34,10 @@ vi.mock('@/hooks/use-profile', () => ({
   useProfile: () => ({ profile: { currentStreak: 3 } }),
 }))
 
+vi.mock('@/hooks/use-gamification', () => ({
+  useStreakInfo: () => ({ data: { currentStreak: 3, isFrozenToday: false } }),
+}))
+
 vi.mock('@/components/goals/use-is-desktop', () => ({
   useIsDesktop: () => isDesktop,
 }))

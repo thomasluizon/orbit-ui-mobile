@@ -192,7 +192,10 @@ describe('AdvancedPage', () => {
 
   it('shows create key button for Pro users', () => {
     render(<AdvancedPage />)
-    expect(screen.getByText('orbitMcp.createKey')).toBeInTheDocument()
+    expect(screen.getByText('orbitMcp.createKeyShort')).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'orbitMcp.createKey' }),
+    ).toBeInTheDocument()
   })
 
   it('enables create key button when capability scopes load', () => {

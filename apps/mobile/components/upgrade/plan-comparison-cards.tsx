@@ -1,5 +1,13 @@
 import { useState } from 'react'
 import { Pressable, Text, View } from 'react-native'
+import Animated, {
+  Easing,
+  FadeInDown,
+  ReduceMotion,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated'
 import {
   BarChart3,
   Check,
@@ -91,25 +99,41 @@ export function PlanComparisonCards({
   tokens,
 }: Readonly<{ t: UpgradeTextFn; tokens: Tokens }>) {
   const [expanded, setExpanded] = useState(false)
+  const chevronRotation = useSharedValue(0)
+  const chevronStyle = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${chevronRotation.value * 180}deg` }],
+  }))
+
+  function toggleExpanded() {
+    const next = !expanded
+    chevronRotation.value = withTiming(next ? 1 : 0, {
+      duration: 220,
+      easing: Easing.bezier(0.2, 0, 0, 1),
+    })
+    setExpanded(next)
+  }
 
   return (
     <View>
       <Pressable
         accessibilityRole="button"
         accessibilityState={{ expanded }}
-        onPress={() => setExpanded((value) => !value)}
+        onPress={toggleExpanded}
         style={[styles.accordionToggle, { borderTopColor: tokens.hairline }]}
       >
         <Text style={[styles.accordionTitle, { color: tokens.fg1 }]}>
           {t('upgrade.matrix.title')}
         </Text>
-        <View style={{ transform: [{ rotate: expanded ? '180deg' : '0deg' }] }}>
+        <Animated.View style={chevronStyle}>
           <ChevronDown size={20} strokeWidth={1.8} color={tokens.fg3} />
-        </View>
+        </Animated.View>
       </Pressable>
 
       {expanded ? (
-        <View style={styles.matrixPad}>
+        <Animated.View
+          entering={FadeInDown.duration(220).reduceMotion(ReduceMotion.System)}
+          style={styles.matrixPad}
+        >
           <View style={[styles.matrixHeaderRow, { borderBottomColor: tokens.hairline }]}>
             <View style={styles.matrixHeadSpacer} />
             <Text style={[styles.matrixHeadFree, { color: tokens.fg2 }]}>{t('upgrade.free')}</Text>
@@ -141,7 +165,7 @@ export function PlanComparisonCards({
               </View>
             )
           })}
-        </View>
+        </Animated.View>
       ) : null}
     </View>
   )

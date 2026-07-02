@@ -297,6 +297,16 @@ export function AppOverlay({
               <div className="h-[5px] w-11 rounded-full bg-[var(--hairline-strong)]" />
             </div>
 
+            {dismissible && !hasTitle && (
+              <button
+                className="absolute top-2 right-2 z-10 size-11 rounded-full flex items-center justify-center text-[var(--fg-2)] hover:text-[var(--fg-1)] hover:bg-[var(--bg-elev)] active:scale-[0.96] transition-[background-color,color,transform] duration-150"
+                aria-label={t('common.close')}
+                onClick={() => requestClose('close-button')}
+              >
+                <X className="size-6" strokeWidth={1.8} />
+              </button>
+            )}
+
             {hasTitle && (
               <div className="flex items-start justify-between px-[22px] sm:px-7 pt-4 pb-2">
                 <div className="flex-1 min-w-0">
@@ -349,7 +359,7 @@ export function AppOverlay({
             {footer && (
               <div
                 data-slot="overlay-footer"
-                className="shrink-0 px-[18px] sm:px-7 pt-3 pb-[calc(1.25rem+var(--safe-bottom))] sm:pb-6"
+                className="flex shrink-0 flex-col px-[18px] sm:px-7 pt-3 pb-[calc(1.25rem+var(--safe-bottom))] sm:pb-6"
               >
                 {footer}
               </div>

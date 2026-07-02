@@ -199,6 +199,7 @@
   --status-overdue-text: #fe9a00;
   --status-bad-text:     #fb2c36;
   --fg-on-bad:           #020618;
+  --fg-on-overdue:       #020618;
 
   --selection-bg: rgba(var(--primary-rgb), 0.32);
   --gradient-header: linear-gradient(180deg, var(--gradient-header-from) 0%, transparent 100%);
@@ -245,6 +246,7 @@
   --status-overdue-text: #b45b00;
   --status-bad-text:     #e7000b;
   --fg-on-bad:           #ffffff;
+  --fg-on-overdue:       #020618;
 
   --selection-bg: rgba(var(--primary-rgb), 0.18);
   --gradient-header: linear-gradient(180deg, var(--gradient-header-from) 0%, transparent 100%);
@@ -468,6 +470,18 @@ button {
 @keyframes progress-fill {
   from { transform: scaleX(0); }
   to { transform: scaleX(var(--progress, 1)); }
+}
+
+/* Retrospective weekly-consistency bars: rise from the baseline */
+@keyframes bar-rise {
+  from { transform: scaleY(0); }
+  to { transform: scaleY(1); }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .retro-weekly-bar {
+    transform-origin: bottom;
+    animation: bar-rise var(--dur-base) var(--ease-out) both;
+  }
 }
 
 /* Chat AI waiting orb */
@@ -821,6 +835,33 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   cursor: not-allowed;
 }
 
+/* Kit pill CTA rendered as an anchor (shared by the /u viewer + its 404) */
+.pill-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 15px 26px;
+  border-radius: var(--radius-full);
+  background: var(--primary);
+  color: var(--fg-on-primary);
+  font-family: var(--font-sans);
+  font-size: 16px;
+  font-weight: 500;
+  box-shadow: var(--primary-glow);
+  transition:
+    background-color var(--dur-fast) var(--ease-standard),
+    box-shadow var(--dur-fast) var(--ease-standard),
+    transform var(--dur-fast) var(--ease-standard);
+}
+.pill-link:hover {
+  background: var(--primary-pressed);
+  box-shadow: var(--primary-glow-hover);
+  transform: translateY(-1px);
+}
+.pill-link:active {
+  transform: scale(0.98);
+}
+
 /* In-field AI affordance: a violet sparkle well that glows on hover */
 .ai-spark-btn {
   position: absolute;
@@ -1145,6 +1186,7 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 .stagger-enter > *:nth-child(8) { animation-delay: calc(var(--orbit-list-stagger) * 7); }
 .stagger-enter > *:nth-child(9) { animation-delay: calc(var(--orbit-list-stagger) * 8); }
 .stagger-enter > *:nth-child(10) { animation-delay: calc(var(--orbit-list-stagger) * 9); }
+.stagger-enter > *:nth-child(n+11) { animation: none; }
 
 /* Collapsible section animation */
 .collapsible {
@@ -1212,8 +1254,8 @@ input[type="date"]::-webkit-calendar-picker-indicator {
 
 .prose-orbit {
   color: var(--fg-2);
-  font-size: 0.9375rem;
-  line-height: 1.7;
+  font-size: 0.875rem;
+  line-height: 1.55;
 }
 
 .prose-orbit h1 {

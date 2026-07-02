@@ -108,16 +108,43 @@ export default function SupportPage() {
           {success ? (
             <SupportSuccessState />
           ) : (
-            <SupportForm
-              subject={subject}
-              message={message}
-              error={error}
-              isSending={isSending}
-              disabled={disabled}
-              onSubjectChange={setSubject}
-              onMessageChange={setMessage}
-              onSend={() => void handleSend()}
-            />
+            <div className="md:grid md:grid-cols-[minmax(0,560px)_1fr] md:gap-x-10 md:items-start">
+              <SupportForm
+                subject={subject}
+                message={message}
+                error={error}
+                isSending={isSending}
+                disabled={disabled}
+                onSubjectChange={setSubject}
+                onMessageChange={setMessage}
+                onSend={() => void handleSend()}
+              />
+              <aside
+                className="hidden md:flex md:flex-col"
+                style={{ gap: 12, paddingTop: 4 }}
+              >
+                <p
+                  style={{
+                    fontFamily: 'var(--font-sans)',
+                    fontSize: 14,
+                    lineHeight: 1.55,
+                    color: 'var(--fg-3)',
+                  }}
+                >
+                  {t('profile.support.description')}
+                </p>
+                <p
+                  style={{
+                    fontFamily: 'var(--font-sans)',
+                    fontSize: 14,
+                    lineHeight: 1.55,
+                    color: 'var(--fg-3)',
+                  }}
+                >
+                  {t('profile.support.successHint')}
+                </p>
+              </aside>
+            </div>
           )}
         </div>
       </div>

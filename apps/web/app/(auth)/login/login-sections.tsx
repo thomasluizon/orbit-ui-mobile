@@ -31,7 +31,7 @@ export function LoginHeader({
         <h2
           style={{
             fontFamily: 'var(--font-sans)',
-            fontSize: 26,
+            fontSize: 28,
             fontWeight: 500,
             letterSpacing: '-0.01em',
             lineHeight: 1.3,
@@ -89,7 +89,7 @@ export function ReferralBanner({
         style={{
           fontFamily: 'var(--font-mono)',
           fontSize: 11,
-          fontWeight: 600,
+          fontWeight: 500,
           color: 'var(--fg-1)',
           letterSpacing: '0.06em',
         }}

@@ -54,7 +54,7 @@ export function BreakdownHabitRow({
       <button
         type="button"
         aria-label={t('habits.breakdown.removeHabit', { name: habit.title || t('habits.breakdown.habitNamePlaceholder') })}
-        className="shrink-0 p-1.5 rounded-full text-[var(--fg-3)] hover:text-[var(--status-bad)] hover:bg-[var(--status-bad)]/10 transition-colors"
+        className="relative shrink-0 p-1.5 rounded-full text-[var(--fg-3)] hover:text-[var(--status-bad)] hover:bg-[var(--status-bad)]/10 active:scale-[0.96] transition-[color,background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] after:absolute after:-inset-[9px]"
         onClick={onRemove}
       >
         <X className="size-3.5" />

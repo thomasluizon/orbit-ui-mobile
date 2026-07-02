@@ -101,12 +101,13 @@ export function CreateChallengeForm({ onCreated }: Readonly<CreateChallengeFormP
                     accessibilityRole="button"
                     accessibilityState={{ selected }}
                     onPress={() => field.onChange(option)}
-                    style={[
+                    style={({ pressed }) => [
                       styles.typeButton,
                       {
                         backgroundColor: selected ? tintFromPrimary(tokens, 0.12) : tokens.bgElev,
                         borderColor: selected ? tokens.primary : tokens.hairline,
                       },
+                      pressed ? styles.typeButtonPressed : null,
                     ]}
                   >
                     <Text
@@ -132,13 +133,14 @@ export function CreateChallengeForm({ onCreated }: Readonly<CreateChallengeFormP
       <Controller
         control={control}
         name="title"
-        render={({ field }) => (
+        render={({ field, fieldState }) => (
           <FieldInput
             label={t('challenges.create.nameLabel')}
             value={field.value}
             onChangeText={field.onChange}
             placeholder={t('challenges.create.namePlaceholder')}
             maxLength={80}
+            error={fieldState.error ? t('challenges.create.errors.titleRequired') : undefined}
           />
         )}
       />
@@ -148,7 +150,7 @@ export function CreateChallengeForm({ onCreated }: Readonly<CreateChallengeFormP
           <Controller
             control={control}
             name="targetCount"
-            render={({ field }) => (
+            render={({ field, fieldState }) => (
               <FieldInput
                 label={t('challenges.create.targetLabel')}
                 value={field.value ?? ''}
@@ -156,13 +158,14 @@ export function CreateChallengeForm({ onCreated }: Readonly<CreateChallengeFormP
                 placeholder={t('challenges.create.targetPlaceholder')}
                 keyboardType="number-pad"
                 mono
+                error={fieldState.error ? t('challenges.create.errors.targetInvalid') : undefined}
               />
             )}
           />
           <Controller
             control={control}
             name="periodEndUtc"
-            render={({ field }) => (
+            render={({ field, fieldState }) => (
               <View style={styles.field}>
                 <Text style={[styles.label, { color: tokens.fg2 }]}>
                   {t('challenges.create.endDateLabel')}
@@ -172,6 +175,11 @@ export function CreateChallengeForm({ onCreated }: Readonly<CreateChallengeFormP
                   onChange={field.onChange}
                   placeholder={t('challenges.create.endDatePlaceholder')}
                 />
+                {fieldState.error ? (
+                  <Text style={[styles.errorCaption, { color: tokens.statusBadText }]}>
+                    {t('challenges.create.errors.endDateRequired')}
+                  </Text>
+                ) : null}
               </View>
             )}
           />
@@ -211,11 +219,15 @@ const styles = StyleSheet.create({
   typeRow: { flexDirection: 'row', gap: 8 },
   typeButton: {
     flex: 1,
+    minHeight: 44,
     paddingVertical: 10,
     paddingHorizontal: 12,
     borderRadius: 14,
     borderWidth: 1,
     alignItems: 'center',
+    justifyContent: 'center',
   },
+  typeButtonPressed: { transform: [{ scale: 0.98 }] },
   typeButtonText: { fontFamily: 'Rubik_500Medium', fontSize: 14 },
+  errorCaption: { fontFamily: 'Rubik_400Regular', fontSize: 12 },
 })

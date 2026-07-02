@@ -1,5 +1,4 @@
 import {
-  ActivityIndicator,
   Linking,
   Pressable,
   Text,
@@ -18,12 +17,13 @@ import { OfflineUnavailableState } from '@/components/ui/offline-unavailable-sta
 import { PillButton } from '@/components/ui/pill-button'
 import { SectionLabel } from '@/components/ui/section-label'
 import { SettingsRow } from '@/components/ui/settings-row'
+import { SkeletonLine } from '@/components/ui/skeleton'
 import { formatPrice } from '@/hooks/use-subscription-plans'
 import { PlanSummaryCard } from './plan-summary-card'
 import { ProActivePanel } from './pro-active-panel'
 import { UsageCard } from './usage-card'
 import { styles } from './styles'
-import { formatBillingDate, invoiceStatusColor, rgbaFromHex } from './types'
+import { formatBillingDate, invoiceStatusColor } from './types'
 import type { Tokens, UpgradeTextFn } from './types'
 
 function Invoices({
@@ -131,12 +131,21 @@ export function BillingDashboard({
 }>) {
   if (isBillingLoading) {
     return (
-      <View style={styles.padBlock}>
-        <ActivityIndicator size="small" color={tokens.primary} />
-        <Text style={[styles.mutedMeta, { color: tokens.fg3 }]}>
-          {t('common.loading')}
-        </Text>
-      </View>
+      <>
+        <View style={[styles.card, { borderColor: tokens.hairline, backgroundColor: tokens.bgCard }]}>
+          <SkeletonLine width={80} height={14} />
+          <SkeletonLine width={140} height={18} style={{ marginTop: 10 }} />
+          <SkeletonLine width={180} height={12} style={{ marginTop: 8 }} />
+        </View>
+        <View style={[styles.card, { borderColor: tokens.hairline, backgroundColor: tokens.bgCard }]}>
+          <SkeletonLine width={80} height={14} />
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', marginTop: 12 }}>
+            <SkeletonLine width={100} height={14} />
+            <SkeletonLine width={60} height={14} />
+          </View>
+          <SkeletonLine width="100%" height={8} style={{ marginTop: 12, borderRadius: 999 }} />
+        </View>
+      </>
     )
   }
   if (isBillingError && !data) {
@@ -160,6 +169,7 @@ export function BillingDashboard({
         <Pressable
           accessibilityRole="button"
           onPress={onRetryBilling}
+          hitSlop={{ top: 6, bottom: 6 }}
           style={({ pressed }) => [
             styles.actionChip,
             {
@@ -210,16 +220,7 @@ export function BillingDashboard({
               <Badge tone="amber">{t('upgrade.billing.plan.canceledBadge')}</Badge>
             ) : null}
             {data.status === 'past_due' && !data.cancelAtPeriodEnd ? (
-              <View
-                style={[
-                  styles.badBadge,
-                  { backgroundColor: rgbaFromHex(tokens.statusBad, 0.18) },
-                ]}
-              >
-                <Text style={[styles.badBadgeText, { color: tokens.statusBad }]}>
-                  {t('upgrade.billing.plan.pastDue')}
-                </Text>
-              </View>
+              <Badge tone="bad">{t('upgrade.billing.plan.pastDue')}</Badge>
             ) : null}
           </>
         }

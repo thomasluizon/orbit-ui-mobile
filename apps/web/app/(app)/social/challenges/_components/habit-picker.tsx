@@ -32,18 +32,20 @@ export function HabitPicker({ selectedIds, onToggle }: Readonly<HabitPickerProps
             type="button"
             aria-pressed={active}
             onClick={() => onToggle(habit.id)}
+            className={`transition-[background-color,box-shadow,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] active:scale-[0.96] motion-reduce:transition-none ${
+              active
+                ? 'bg-[rgba(var(--primary-rgb),0.12)] shadow-[inset_0_0_0_1px_var(--primary)]'
+                : 'bg-[var(--bg-elev)] shadow-[inset_0_0_0_1px_var(--hairline)] hover:bg-[var(--bg-elev-2)]'
+            }`}
             style={{
               padding: '8px 14px',
+              minHeight: 40,
               borderRadius: 999,
               border: 0,
               cursor: 'pointer',
               fontFamily: 'var(--font-sans)',
               fontSize: 14,
               color: active ? 'var(--primary)' : 'var(--fg-2)',
-              background: active ? 'rgba(var(--primary-rgb), 0.12)' : 'var(--bg-elev)',
-              boxShadow: active
-                ? 'inset 0 0 0 1px var(--primary)'
-                : 'inset 0 0 0 1px var(--hairline)',
             }}
           >
             {habit.title}

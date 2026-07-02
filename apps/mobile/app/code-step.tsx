@@ -1,5 +1,5 @@
-import type { RefObject } from 'react'
-import { Animated, Pressable, Text, View } from 'react-native'
+import { useEffect, type RefObject } from 'react'
+import { Animated, BackHandler, Pressable, Text, View } from 'react-native'
 import type { NativeSyntheticEvent, TextInput, TextInputKeyPressEventData } from 'react-native'
 import { type AppTokensV2 } from '@/lib/theme'
 import { PillButton } from '@/components/ui/pill-button'
@@ -48,6 +48,16 @@ export function CodeStep({
   styles,
   t,
 }: Readonly<CodeStepProps>) {
+  useEffect(() => {
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+      onBackToEmail()
+      return true
+    })
+    return () => subscription.remove()
+  }, [onBackToEmail])
+
+  const resendDisabled = !isOnline || isSubmitting
+
   return (
     <>
       <Text style={styles.codeSentText}>
@@ -81,11 +91,25 @@ export function CodeStep({
         {canResend ? (
           <Pressable
             onPress={onResendCode}
-            disabled={!isOnline}
-            style={styles.textButton}
+            disabled={resendDisabled}
             accessibilityRole="button"
+            accessibilityState={{ disabled: resendDisabled }}
+            style={({ pressed }) => [
+              styles.textButton,
+              pressed && styles.textButtonPressed,
+              resendDisabled && styles.textButtonDisabled,
+            ]}
           >
-            <Text style={styles.resendActiveText}>{t('auth.resendCode')}</Text>
+            {({ pressed }) => (
+              <Text
+                style={[
+                  styles.resendActiveText,
+                  pressed && styles.resendActiveTextPressed,
+                ]}
+              >
+                {t('auth.resendCode')}
+              </Text>
+            )}
           </Pressable>
         ) : (
           <View style={styles.textButton}>
@@ -99,10 +123,20 @@ export function CodeStep({
       <View style={styles.changeEmailRow}>
         <Pressable
           onPress={onBackToEmail}
-          style={styles.textButton}
+          disabled={isSubmitting}
           accessibilityRole="button"
+          accessibilityState={{ disabled: isSubmitting }}
+          style={({ pressed }) => [
+            styles.textButton,
+            pressed && styles.textButtonPressed,
+            isSubmitting && styles.textButtonDisabled,
+          ]}
         >
-          <Text style={styles.quietLink}>{t('auth.changeEmail')}</Text>
+          {({ pressed }) => (
+            <Text style={[styles.quietLink, pressed && styles.quietLinkPressed]}>
+              {t('auth.changeEmail')}
+            </Text>
+          )}
         </Pressable>
       </View>
     </>

@@ -24,7 +24,7 @@ export function ChallengeList({ challenges, onOpen, onCreate, onJoin }: Readonly
     return (
       <div className="flex flex-col items-center px-8 py-12 text-center" style={{ gap: 12 }}>
         <SatelliteGlyph />
-        <p style={{ margin: 0, fontFamily: 'var(--font-sans)', fontSize: 17, fontWeight: 600, color: 'var(--fg-1)' }}>
+        <p style={{ margin: 0, fontFamily: 'var(--font-sans)', fontSize: 17, fontWeight: 500, color: 'var(--fg-1)' }}>
           {t('challenges.empty.title')}
         </p>
         <p style={{ margin: 0, maxWidth: 360, fontFamily: 'var(--font-sans)', fontSize: 14, lineHeight: 1.5, color: 'var(--fg-3)' }}>
@@ -47,7 +47,7 @@ export function ChallengeList({ challenges, onOpen, onCreate, onJoin }: Readonly
       {active.length > 0 ? (
         <>
           <SectionLabel>{t('challenges.sections.active')}</SectionLabel>
-          <div className="flex flex-col" style={{ gap: 10, padding: '0 20px' }}>
+          <div className="stagger-enter flex flex-col md:grid md:grid-cols-2" style={{ gap: 10, padding: '0 20px' }}>
             {active.map((challenge) => (
               <ChallengeCard key={challenge.id} challenge={challenge} onOpen={onOpen} />
             ))}
@@ -58,7 +58,7 @@ export function ChallengeList({ challenges, onOpen, onCreate, onJoin }: Readonly
       {completed.length > 0 ? (
         <>
           <SectionLabel>{t('challenges.sections.completed')}</SectionLabel>
-          <div className="flex flex-col" style={{ gap: 10, padding: '0 20px' }}>
+          <div className="stagger-enter flex flex-col md:grid md:grid-cols-2" style={{ gap: 10, padding: '0 20px' }}>
             {completed.map((challenge) => (
               <ChallengeCard key={challenge.id} challenge={challenge} onOpen={onOpen} />
             ))}

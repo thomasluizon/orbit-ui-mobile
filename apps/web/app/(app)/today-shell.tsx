@@ -10,6 +10,8 @@ import { TagChip } from '@/components/ui/tag-chip'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
 import { StreakBadge } from '@/components/gamification/streak-badge'
 import { NotificationBell } from '@/components/navigation/notification-bell'
+import { useProfile } from '@/hooks/use-profile'
+import { useStreakInfo } from '@/hooks/use-gamification'
 import type { Tag } from '@/hooks/use-tags'
 
 export type TodayTabView = 'today' | 'all' | 'general' | 'goals'
@@ -42,6 +44,9 @@ interface TodayHeaderProps {
 /** Início header: the Orbit mark over the gradient, with the theme toggle,
  *  streak flame, and notification bell clustered top-right. */
 export function TodayHeader({ streak }: Readonly<TodayHeaderProps>) {
+  const { profile } = useProfile()
+  const { data: streakInfo } = useStreakInfo(profile?.canViewGamification ?? false)
+
   return (
     <div
       className="relative z-[1] flex items-center justify-between"
@@ -53,7 +58,7 @@ export function TodayHeader({ streak }: Readonly<TodayHeaderProps>) {
       <div className="flex shrink-0 items-center" style={{ gap: 10 }}>
         <ThemeToggle />
         <span data-tour="tour-streak-badge">
-          <StreakBadge streak={streak} />
+          <StreakBadge streak={streak} isFrozen={streakInfo?.isFrozenToday ?? false} />
         </span>
         <NotificationBell />
       </div>

@@ -88,10 +88,10 @@ export function UserFactsList({
     return (
       <FactsCenteredState
         message={t('profile.facts.factsError')}
-        messageColor="var(--status-bad)"
+        messageColor="var(--status-bad-text)"
         alert
         button={
-          <PillButton fullWidth onClick={onRetry} className="mt-2">
+          <PillButton onClick={onRetry} className="mt-2">
             {t('profile.facts.retry')}
           </PillButton>
         }
@@ -106,7 +106,6 @@ export function UserFactsList({
         messageColor="var(--fg-2)"
         button={
           <PillButton
-            fullWidth
             onClick={onAskAstra}
             leading={<Sparkles size={18} strokeWidth={1.8} aria-hidden="true" />}
             className="mt-2"

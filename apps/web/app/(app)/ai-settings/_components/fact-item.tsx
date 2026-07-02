@@ -1,6 +1,6 @@
 'use client'
 
-import { X } from 'lucide-react'
+import { Trash2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { normalizeUserFactCategory } from '@orbit/shared/utils'
 import { RadioGlyph } from '@/components/ui/select-check'
@@ -77,9 +77,9 @@ export function FactItem({
           onClick={onDelete}
           aria-label={t('common.delete')}
           className="icon-btn shrink-0 hover:text-[var(--status-bad)]"
-          style={{ width: 36, height: 36, margin: -6, color: 'var(--fg-3)' }}
+          style={{ width: 40, height: 40, margin: -8, color: 'var(--fg-3)' }}
         >
-          <X size={18} strokeWidth={1.8} />
+          <Trash2 size={18} strokeWidth={1.8} />
         </button>
       )}
     </>

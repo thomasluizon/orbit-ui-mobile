@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react'
-import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { Animated, Pressable, StyleSheet, Text, View } from 'react-native'
 import { usePathname, useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { ChevronRight, X } from 'lucide-react-native'
+import { motionEasings } from '@orbit/shared/theme'
 import {
   useProfile,
   useTrialDaysLeft,
@@ -11,6 +12,7 @@ import {
 import { plural } from '@/lib/plural'
 import { createTokensV2, tintFromPrimary, type AppTokensV2 } from '@/lib/theme'
 import { buildUpgradeHref } from '@/lib/upgrade-route'
+import { toAnimatedEasing } from '@/lib/motion'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 function rgbaFromHex(hex: string, alpha: number): string {
@@ -40,14 +42,27 @@ export function TrialBanner() {
   )
   const styles = useMemo(() => createStyles(tokens), [tokens])
   const [dismissed, setDismissed] = useState(false)
+  const opacity = useMemo(() => new Animated.Value(1), [])
+
+  function handleDismiss() {
+    Animated.timing(opacity, {
+      toValue: 0,
+      duration: 160,
+      easing: toAnimatedEasing(motionEasings.standard),
+      useNativeDriver: true,
+    }).start(({ finished }) => {
+      if (finished) setDismissed(true)
+    })
+  }
 
   const visible = profile?.isTrialActive && !dismissed
   if (!visible) return null
 
   return (
-    <View
+    <Animated.View
       style={[
         styles.container,
+        { opacity },
         trialUrgent
           ? {
               backgroundColor: rgbaFromHex(tokens.statusOverdue, 0.1),
@@ -62,7 +77,7 @@ export function TrialBanner() {
     >
       <Text style={styles.leadText}>
         {t('trial.banner.trialEyebrow')} ·{' '}
-        {trialUrgent ? (
+        {trialDaysLeft === 0 ? (
           <Text style={styles.urgentText}>
             {t('trial.banner.lastDay')}
           </Text>
@@ -88,7 +103,7 @@ export function TrialBanner() {
         <Text
           style={[
             styles.upgradeText,
-            { color: trialUrgent ? tokens.statusOverdue : tokens.primarySoft },
+            { color: trialUrgent ? tokens.statusOverdueText : tokens.primarySoft },
           ]}
         >
           {t('trial.banner.upgrade')}
@@ -100,7 +115,7 @@ export function TrialBanner() {
         />
       </Pressable>
       <Pressable
-        onPress={() => setDismissed(true)}
+        onPress={handleDismiss}
         hitSlop={2}
         accessibilityRole="button"
         accessibilityLabel={t('common.dismiss')}
@@ -115,7 +130,7 @@ export function TrialBanner() {
           color={trialUrgent ? tokens.statusOverdue : tokens.fg3}
         />
       </Pressable>
-    </View>
+    </Animated.View>
   )
 }
 
@@ -142,7 +157,7 @@ function createStyles(tokens: AppTokensV2) {
       color: tokens.fg1,
     },
     urgentText: {
-      color: tokens.statusOverdue,
+      color: tokens.statusOverdueText,
     },
     upgradePress: {
       flexDirection: 'row',

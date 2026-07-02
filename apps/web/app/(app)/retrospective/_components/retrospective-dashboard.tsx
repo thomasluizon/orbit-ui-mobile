@@ -1,10 +1,11 @@
 'use client'
 
-import type { ComponentType, CSSProperties } from 'react'
+import type { ComponentType, CSSProperties, ReactNode } from 'react'
 import {
   AlertTriangle,
   Lightbulb,
   Orbit,
+  RefreshCw,
   Star,
   TrendingUp,
   type LucideProps,
@@ -31,6 +32,12 @@ const cardStyle: CSSProperties = {
   background: 'var(--bg-card)',
   boxShadow: 'inset 0 0 0 1px var(--hairline)',
   padding: '16px 18px',
+}
+
+const accentCardStyle: CSSProperties = {
+  ...cardStyle,
+  background: 'rgba(var(--primary-rgb), 0.08)',
+  boxShadow: 'inset 0 0 0 1px rgba(var(--primary-rgb), 0.28)',
 }
 
 function renderInlineMarkdown(text: string) {
@@ -77,10 +84,14 @@ function WeeklyConsistency({ values }: Readonly<{ values: number[] }>) {
       >
         {values.map((value, index) => {
           const clamped = Math.max(0, Math.min(100, value))
-          const letter = t(`dates.daysShort.${dayKeys[index]}`).charAt(0)
+          const dayName = t(`dates.daysShort.${dayKeys[index]}`)
+          const label = t('retrospective.weeklyBarLabel', { day: dayName, percent: clamped })
           return (
             <div
               key={dayKeys[index]}
+              role="img"
+              aria-label={label}
+              title={label}
               style={{
                 display: 'flex',
                 flexDirection: 'column',
@@ -92,6 +103,7 @@ function WeeklyConsistency({ values }: Readonly<{ values: number[] }>) {
             >
               <div
                 aria-hidden="true"
+                className="retro-weekly-bar"
                 style={{
                   width: '100%',
                   maxWidth: 22,
@@ -99,6 +111,7 @@ function WeeklyConsistency({ values }: Readonly<{ values: number[] }>) {
                   borderRadius: 6,
                   background: 'var(--primary)',
                   opacity: clamped === 0 ? 0.25 : 1,
+                  animationDelay: `${index * 40}ms`,
                 }}
               />
               <span
@@ -109,7 +122,7 @@ function WeeklyConsistency({ values }: Readonly<{ values: number[] }>) {
                   fontVariantNumeric: 'tabular-nums',
                 }}
               >
-                {letter}
+                {dayName.charAt(0)}
               </span>
             </div>
           )
@@ -174,13 +187,15 @@ function NarrativeSection({
   icon: Icon,
   title,
   body,
+  accent = false,
 }: Readonly<{
   icon: ComponentType<LucideProps>
   title: string
   body: string
+  accent?: boolean
 }>) {
   return (
-    <div style={cardStyle}>
+    <div style={accent ? accentCardStyle : cardStyle}>
       <div className="flex items-center" style={{ gap: 8 }}>
         <Icon size={15} strokeWidth={1.9} color="var(--primary)" aria-hidden="true" />
         <span style={sectionTitleStyle}>{title}</span>
@@ -188,7 +203,7 @@ function NarrativeSection({
       <p
         style={{
           fontFamily: 'var(--font-sans)',
-          fontSize: 14.5,
+          fontSize: 14,
           lineHeight: 1.55,
           color: 'var(--fg-2)',
           marginTop: 10,
@@ -216,121 +231,189 @@ export function RetrospectiveDashboard({
   const t = useTranslations()
   const { metrics, narrative } = data
 
-  return (
-    <div
-      className="flex flex-col animate-scale-in"
-      style={{ gap: 12, padding: '16px 20px 24px' }}
-    >
-      <div className="flex items-center justify-between" style={{ gap: 6 }}>
-        <div
-          className="inline-flex items-center uppercase"
-          style={{
-            fontFamily: 'var(--font-mono)',
-            fontSize: 10.5,
-            fontWeight: 500,
-            color: 'var(--fg-3)',
-            letterSpacing: '0.06em',
-            gap: 6,
-          }}
-        >
-          <Orbit size={11} strokeWidth={1.7} color="var(--primary)" />
-          {t('retrospective.astraEyebrow')}
-        </div>
-        <div className="flex items-center" style={{ gap: 6 }}>
-          <WrappedEntryButton />
-          <ShareCardEntryButton variant="chip" />
-          <button
-            type="button"
-            className="chip"
-            onClick={onRegenerate}
-            disabled={!isOnline}
+  const sections: { key: string; node: ReactNode; wide?: boolean }[] = [
+    {
+      key: 'header',
+      wide: true,
+      node: (
+        <div className="flex items-center justify-between" style={{ gap: 6 }}>
+          <div
+            className="inline-flex items-center uppercase"
+            style={{
+              fontFamily: 'var(--font-mono)',
+              fontSize: 10.5,
+              fontWeight: 500,
+              color: 'var(--fg-3)',
+              letterSpacing: '0.06em',
+              gap: 6,
+            }}
           >
-            {t('retrospective.regenerate')}
-          </button>
+            <Orbit size={11} strokeWidth={1.7} color="var(--primary)" />
+            {t('retrospective.astraEyebrow')}
+          </div>
+          <div className="flex items-center" style={{ gap: 6 }}>
+            <WrappedEntryButton />
+            <ShareCardEntryButton variant="chip" />
+            <button
+              type="button"
+              className="chip"
+              onClick={onRegenerate}
+              disabled={!isOnline}
+              aria-label={t('retrospective.regenerate')}
+            >
+              <RefreshCw size={14} strokeWidth={1.8} aria-hidden="true" />
+            </button>
+          </div>
         </div>
-      </div>
-
-      <div className="flex" style={{ gap: 10 }}>
-        <StatTile
-          emoji="🎯"
-          value={`${metrics.completionRate}%`}
-          label={t('retrospective.metrics.completionRate')}
+      ),
+    },
+    {
+      key: 'stats',
+      wide: true,
+      node: (
+        <div className="flex" style={{ gap: 10 }}>
+          <StatTile
+            emoji="🎯"
+            value={`${metrics.completionRate}%`}
+            label={t('retrospective.metrics.completionRate')}
+          />
+          <StatTile
+            emoji="✅"
+            value={metrics.totalCompletions}
+            label={t('retrospective.metrics.logs')}
+          />
+          <StatTile
+            emoji="🔥"
+            value={metrics.currentStreak}
+            label={t('retrospective.metrics.currentStreak')}
+          />
+        </div>
+      ),
+    },
+    { key: 'weekly', node: <WeeklyConsistency values={metrics.weeklyConsistency} /> },
+    ...(metrics.topHabits.length > 0
+      ? [
+          {
+            key: 'top',
+            node: (
+              <HabitStatList
+                title={t('retrospective.topHabitsTitle')}
+                habits={metrics.topHabits}
+                tone="default"
+              />
+            ),
+          },
+        ]
+      : []),
+    ...(metrics.needsAttention.length > 0
+      ? [
+          {
+            key: 'attention',
+            node: (
+              <HabitStatList
+                title={t('retrospective.needsAttentionTitle')}
+                habits={metrics.needsAttention}
+                tone="attention"
+              />
+            ),
+          },
+        ]
+      : []),
+    {
+      key: 'highlights',
+      node: (
+        <NarrativeSection
+          icon={Star}
+          title={t('retrospective.sections.highlights')}
+          body={narrative.highlights}
         />
-        <StatTile
-          emoji="✅"
-          value={metrics.totalCompletions}
-          label={t('retrospective.metrics.logs')}
+      ),
+    },
+    {
+      key: 'missed',
+      node: (
+        <NarrativeSection
+          icon={AlertTriangle}
+          title={t('retrospective.sections.missed')}
+          body={narrative.missed}
         />
-        <StatTile
-          emoji="🔥"
-          value={metrics.currentStreak}
-          label={t('retrospective.metrics.currentStreak')}
+      ),
+    },
+    {
+      key: 'trends',
+      node: (
+        <NarrativeSection
+          icon={TrendingUp}
+          title={t('retrospective.sections.trends')}
+          body={narrative.trends}
         />
-      </div>
-
-      <WeeklyConsistency values={metrics.weeklyConsistency} />
-
-      {metrics.topHabits.length > 0 && (
-        <HabitStatList
-          title={t('retrospective.topHabitsTitle')}
-          habits={metrics.topHabits}
-          tone="default"
+      ),
+    },
+    {
+      key: 'suggestion',
+      node: (
+        <NarrativeSection
+          icon={Lightbulb}
+          title={t('retrospective.sections.suggestion')}
+          body={narrative.suggestion}
+          accent
         />
-      )}
-
-      {metrics.needsAttention.length > 0 && (
-        <HabitStatList
-          title={t('retrospective.needsAttentionTitle')}
-          habits={metrics.needsAttention}
-          tone="attention"
-        />
-      )}
-
-      <NarrativeSection
-        icon={Star}
-        title={t('retrospective.sections.highlights')}
-        body={narrative.highlights}
-      />
-      <NarrativeSection
-        icon={AlertTriangle}
-        title={t('retrospective.sections.missed')}
-        body={narrative.missed}
-      />
-      <NarrativeSection
-        icon={TrendingUp}
-        title={t('retrospective.sections.trends')}
-        body={narrative.trends}
-      />
-      <NarrativeSection
-        icon={Lightbulb}
-        title={t('retrospective.sections.suggestion')}
-        body={narrative.suggestion}
-      />
-
-      <p
-        style={{
-          fontFamily: 'var(--font-sans)',
-          fontSize: 11,
-          lineHeight: 1.4,
-          color: 'var(--fg-3)',
-          marginTop: 4,
-        }}
-      >
-        {t('aiDisclosure.notMedicalAdvice')}
-      </p>
-      {fromCache && (
+      ),
+    },
+    {
+      key: 'disclaimer',
+      wide: true,
+      node: (
         <p
           style={{
-            fontFamily: 'var(--font-mono)',
+            fontFamily: 'var(--font-sans)',
             fontSize: 11,
-            letterSpacing: '0.02em',
+            lineHeight: 1.4,
             color: 'var(--fg-3)',
-            fontVariantNumeric: 'tabular-nums',
+            marginTop: 4,
           }}
         >
-          {t('retrospective.cached')}
+          {t('aiDisclosure.notMedicalAdvice')}
         </p>
-      )}
+      ),
+    },
+    ...(fromCache
+      ? [
+          {
+            key: 'cached',
+            wide: true,
+            node: (
+              <p
+                style={{
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: 11,
+                  letterSpacing: '0.02em',
+                  color: 'var(--fg-3)',
+                  fontVariantNumeric: 'tabular-nums',
+                }}
+              >
+                {t('retrospective.cached')}
+              </p>
+            ),
+          },
+        ]
+      : []),
+  ]
+
+  return (
+    <div
+      className="flex flex-col md:grid md:grid-cols-2 md:items-start"
+      style={{ gap: 12, padding: '16px 20px 24px' }}
+    >
+      {sections.map((section, index) => (
+        <div
+          key={section.key}
+          className={`motion-safe:animate-scale-in${section.wide ? ' md:col-span-2' : ''}`}
+          style={{ animationDelay: `${index * 50}ms` }}
+        >
+          {section.node}
+        </div>
+      ))}
     </div>
   )
 }

@@ -40,7 +40,7 @@ export function AllDoneCelebration() {
       dismissTimerRef.current = setTimeout(() => {
         setIsVisible(false)
         setAllDoneCelebration(false)
-        setTimeout(() => setShouldRender(false), 300)
+        setTimeout(() => setShouldRender(false), 280)
       }, 3500)
     }
   }, [allDoneCelebration, setAllDoneCelebration])
@@ -58,7 +58,7 @@ export function AllDoneCelebration() {
       <div
         className="fixed inset-0 z-[10003] flex flex-col"
         style={{
-          transition: 'opacity 300ms var(--ease-out)',
+          transition: 'opacity 280ms var(--ease-out)',
           opacity: isVisible ? 1 : 0,
         }}
       >

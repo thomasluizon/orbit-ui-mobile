@@ -40,7 +40,7 @@ export function ProfileAccountActions({
         label={isExporting ? t('dataExport.preparing') : t('dataExport.button')}
       />
       {exportError ? (
-        <Text style={[styles.errorText, { color: tokens.statusBad }]}>
+        <Text style={[styles.errorText, { color: tokens.statusBadText }]}>
           {exportError}
         </Text>
       ) : null}
@@ -59,6 +59,7 @@ export function ProfileAccountActions({
         icon={LogOut}
         onPress={onLogout}
         label={t('profile.logout')}
+        showDivider={false}
       />
     </>
   )

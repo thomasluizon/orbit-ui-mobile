@@ -75,7 +75,6 @@ export function EditNameSheet({ open, onOpenChange }: Readonly<EditNameSheetProp
       open={open}
       onOpenChange={onOpenChange}
       title={t('profile.editName.title')}
-      isDirty={name !== (profile?.name ?? '')}
     >
       <div className="flex flex-col" style={{ gap: 16 }}>
         <FieldInput
@@ -96,13 +95,16 @@ export function EditNameSheet({ open, onOpenChange }: Readonly<EditNameSheetProp
               margin: 0,
               fontFamily: 'var(--font-sans)',
               fontSize: 13,
-              color: 'var(--status-bad)',
+              color: 'var(--status-bad-text)',
             }}
           >
             {error}
           </p>
         )}
-        <div className="flex flex-col" style={{ gap: 12, paddingTop: 8 }}>
+        <div
+          className="flex flex-col sm:mx-auto sm:w-full sm:max-w-[360px]"
+          style={{ gap: 12, paddingTop: 8 }}
+        >
           <PillButton
             fullWidth
             onClick={handleSave}
@@ -110,14 +112,6 @@ export function EditNameSheet({ open, onOpenChange }: Readonly<EditNameSheetProp
             busy={mutation.isPending}
           >
             {t('common.save')}
-          </PillButton>
-          <PillButton
-            variant="ghost"
-            fullWidth
-            disabled={mutation.isPending}
-            onClick={() => onOpenChange(false)}
-          >
-            {t('common.cancel')}
           </PillButton>
         </div>
       </div>

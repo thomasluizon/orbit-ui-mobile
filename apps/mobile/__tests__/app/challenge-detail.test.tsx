@@ -16,7 +16,12 @@ interface TestRoot {
 }
 
 const mocks = vi.hoisted(() => ({
-  detailReturn: { data: undefined as unknown, isLoading: false },
+  detailReturn: {
+    data: undefined as unknown,
+    isLoading: false,
+    isError: false,
+    refetch: vi.fn(),
+  },
   leaveMutate: vi.fn(),
   setHabitsMutate: vi.fn(),
 }))
@@ -42,6 +47,7 @@ vi.mock('@/hooks/use-app-toast', () => ({
 vi.mock('lucide-react-native', () => ({
   Target: () => null,
   Flame: () => null,
+  Pencil: () => null,
 }))
 
 vi.mock('@/components/ui/progress-bar', () => ({
@@ -99,6 +105,7 @@ function pillWith(root: TestNode, text: string): TestNode | undefined {
 beforeEach(() => {
   vi.clearAllMocks()
   mocks.detailReturn.isLoading = false
+  mocks.detailReturn.isError = false
   mocks.leaveMutate.mockResolvedValue(undefined)
   mocks.setHabitsMutate.mockResolvedValue(undefined)
 })
@@ -175,6 +182,35 @@ describe('ChallengeDetail (mobile)', () => {
     })
 
     expect(mocks.setHabitsMutate).toHaveBeenCalledWith({ challengeId: 'c-1', habitIds: ['h-1'] })
+  })
+
+  it('shows a retryable error state instead of not-found when the query fails', () => {
+    mocks.detailReturn.data = undefined
+    mocks.detailReturn.isError = true
+
+    const tree = renderTree(<ChallengeDetail challengeId="c-1" onLeft={vi.fn()} />)
+
+    const text = textContent(tree.root)
+    expect(text).toContain('challenges.errors.loadFailed')
+    expect(text).not.toContain('challenges.detail.notFound')
+
+    TestRenderer.act(() => {
+      ;(pillWith(tree.root, 'common.retry')?.props.onPress as () => void)()
+    })
+
+    expect(mocks.detailReturn.refetch).toHaveBeenCalled()
+  })
+
+  it('exposes an accessible edit affordance when habits are linked', () => {
+    mocks.detailReturn.data = createMockChallengeDetail({ yourLinkedHabitIds: ['h-1'] })
+
+    const tree = renderTree(<ChallengeDetail challengeId="c-1" onLeft={vi.fn()} />)
+
+    const editButton = tree.root
+      .findAll((node) => node.type === 'Pressable')
+      .find((node) => node.props.accessibilityLabel === 'challenges.detail.editHabits')
+    expect(editButton).toBeTruthy()
+    expect(pillWith(tree.root, 'challenges.detail.linkHabitsCta')).toBeUndefined()
   })
 
   it('leaves the challenge after confirmation', async () => {

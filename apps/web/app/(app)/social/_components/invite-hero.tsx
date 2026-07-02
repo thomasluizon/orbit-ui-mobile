@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { Check, Copy, Share2 } from 'lucide-react'
+import { PillButton } from '@/components/ui/pill-button'
 import { ShareCardQr } from '@/components/share/share-card-qr'
 import { useReferral } from '@/hooks/use-referral'
 
@@ -49,7 +50,7 @@ export function InviteHero() {
       }}
     >
       <div className="flex flex-col" style={{ gap: 4 }}>
-        <h3 style={{ margin: 0, fontFamily: 'var(--font-display)', fontSize: 18, fontWeight: 600, color: 'var(--fg-1)' }}>
+        <h3 style={{ margin: 0, fontFamily: 'var(--font-sans)', fontSize: 18, fontWeight: 600, color: 'var(--fg-1)' }}>
           {t('social.invite.title')}
         </h3>
         <p style={{ margin: 0, fontFamily: 'var(--font-sans)', fontSize: 13, lineHeight: 1.5, color: 'var(--fg-3)' }}>
@@ -83,52 +84,38 @@ export function InviteHero() {
         <button
           type="button"
           onClick={copyLink}
-          aria-label={t('social.invite.copy')}
-          className="inline-flex shrink-0 items-center rounded-full transition-transform active:scale-[0.97]"
+          aria-label={copied ? t('social.invite.copied') : t('social.invite.copy')}
+          className="relative inline-flex shrink-0 cursor-pointer items-center justify-center rounded-full border-0 transition-transform active:scale-[0.96]"
           style={{
-            gap: 7,
-            padding: '0 16px',
-            minHeight: 40,
-            border: 0,
-            cursor: 'pointer',
+            width: 44,
+            height: 44,
             background: 'var(--bg-elev)',
             boxShadow: 'inset 0 0 0 1px var(--hairline)',
-            fontFamily: 'var(--font-sans)',
-            fontSize: 13,
-            fontWeight: 500,
             color: 'var(--fg-2)',
           }}
         >
-          {copied ? (
-            <Check size={14} strokeWidth={1.8} color="var(--status-done)" />
-          ) : (
-            <Copy size={14} strokeWidth={1.8} />
-          )}
-          {copied ? t('social.invite.copied') : t('social.invite.copy')}
+          <Copy
+            size={18}
+            strokeWidth={1.8}
+            aria-hidden="true"
+            className="absolute transition-opacity duration-[var(--dur-fast)]"
+            style={{ opacity: copied ? 0 : 1 }}
+          />
+          <Check
+            size={18}
+            strokeWidth={1.8}
+            color="var(--status-done)"
+            aria-hidden="true"
+            className="absolute transition-opacity duration-[var(--dur-fast)]"
+            style={{ opacity: copied ? 1 : 0 }}
+          />
         </button>
       </div>
 
       {canShare ? (
-        <button
-          type="button"
-          onClick={shareLink}
-          className="inline-flex w-full items-center justify-center rounded-full transition-transform active:scale-[0.97]"
-          style={{
-            gap: 8,
-            minHeight: 48,
-            border: 0,
-            cursor: 'pointer',
-            background: 'var(--primary)',
-            color: 'var(--fg-on-primary)',
-            fontFamily: 'var(--font-sans)',
-            fontSize: 15,
-            fontWeight: 600,
-            boxShadow: '0 8px 24px rgba(var(--primary-rgb), 0.35)',
-          }}
-        >
-          <Share2 size={18} strokeWidth={1.8} />
+        <PillButton onClick={shareLink} fullWidth leading={<Share2 size={18} strokeWidth={1.8} />}>
           {t('social.invite.share')}
-        </button>
+        </PillButton>
       ) : null}
     </div>
   )

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Clipboard, Check, Share2, Gift } from 'lucide-react'
+import { Check, Copy, Gift, Loader2, Share2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useReferral } from '@/hooks/use-referral'
 import { AppOverlay } from '@/components/ui/app-overlay'
@@ -60,20 +60,34 @@ export function ReferralDrawer({ open, onOpenChange }: Readonly<ReferralDrawerPr
     <AppOverlay open={open} onOpenChange={onOpenChange} title={t('referral.drawer.title')}>
       <div className="overlay-bleed">
         {isLoading && (
-          <div style={{ padding: '16px 20px' }}>
-            <div
-              className="animate-pulse rounded"
-              style={{ height: 14, width: 160, background: 'var(--bg-elev)' }}
+          <div
+            role="status"
+            aria-label={t('common.loading')}
+            className="flex justify-center"
+            style={{ padding: '40px 0' }}
+          >
+            <Loader2
+              className="size-6 animate-spin"
+              style={{ color: 'var(--fg-3)' }}
+              aria-hidden="true"
             />
           </div>
         )}
 
         {isError && !isLoading && (
-          <div role="alert" style={{ padding: '12px 20px' }}>
+          <div
+            role="alert"
+            style={{
+              margin: '12px 20px',
+              padding: 14,
+              borderRadius: 14,
+              boxShadow: 'inset 0 0 0 1px var(--hairline-strong)',
+            }}
+          >
             <p
               style={{
                 fontFamily: 'var(--font-sans)',
-                fontSize: 13,
+                fontSize: 14,
                 color: 'var(--status-overdue-text)',
               }}
             >
@@ -91,7 +105,7 @@ export function ReferralDrawer({ open, onOpenChange }: Readonly<ReferralDrawerPr
                 style={{
                   width: 64,
                   height: 64,
-                  background: 'rgba(var(--primary-rgb), 0.16)',
+                  background: 'rgba(var(--primary-rgb), 0.15)',
                 }}
               >
                 <Gift size={30} strokeWidth={1.8} color="var(--primary-soft)" />
@@ -104,17 +118,17 @@ export function ReferralDrawer({ open, onOpenChange }: Readonly<ReferralDrawerPr
                 className="flex items-center rounded-[14px]"
                 style={{
                   gap: 8,
-                  padding: '4px 6px 4px 16px',
+                  padding: '5px 6px 5px 16px',
                   background: 'var(--bg-field)',
                   boxShadow: 'inset 0 0 0 1px var(--hairline)',
                 }}
               >
                 <div
-                  aria-label={t('referral.drawer.yourLink')}
                   className="flex-1 overflow-hidden whitespace-nowrap text-ellipsis"
                   style={{
                     fontFamily: 'var(--font-mono)',
                     fontSize: 16,
+                    fontWeight: 500,
                     fontVariantNumeric: 'tabular-nums',
                     color: 'var(--fg-1)',
                   }}
@@ -123,23 +137,25 @@ export function ReferralDrawer({ open, onOpenChange }: Readonly<ReferralDrawerPr
                 </div>
                 <button
                   type="button"
-                  className="chip"
+                  className="icon-btn shrink-0"
+                  style={{ width: 44, height: 44 }}
                   onClick={copyLink}
+                  aria-label={t('referral.drawer.copyLink')}
                 >
                   {copied ? (
-                    <Check size={14} strokeWidth={1.8} color="var(--status-done)" aria-hidden="true" />
+                    <Check size={18} strokeWidth={1.8} color="var(--status-done)" aria-hidden="true" />
                   ) : (
-                    <Clipboard size={14} strokeWidth={1.8} aria-hidden="true" />
+                    <Copy size={18} strokeWidth={1.8} color="var(--fg-2)" aria-hidden="true" />
                   )}
-                  <span>
-                    {copied ? t('referral.drawer.copied') : t('referral.drawer.copy')}
-                  </span>
                 </button>
+                <span aria-live="polite" className="sr-only">
+                  {copied ? t('referral.drawer.linkCopied') : ''}
+                </span>
               </div>
             </div>
 
             {canShare && (
-              <div style={{ padding: '10px 20px 6px' }}>
+              <div className="sm:flex sm:justify-center" style={{ padding: '10px 20px 6px' }}>
                 <PillButton
                   fullWidth
                   leading={<Share2 size={18} strokeWidth={1.8} color="var(--fg-on-primary)" />}
@@ -174,15 +190,10 @@ export function ReferralDrawer({ open, onOpenChange }: Readonly<ReferralDrawerPr
                     mono
                     accessory="none"
                     value={stats.successfulReferrals}
-                    valueColor="var(--fg-1)"
+                    valueColor="var(--status-done)"
                   />
                 )}
-                <div
-                  style={{
-                    padding: '12px 20px',
-                    borderBottom: '1px solid var(--hairline)',
-                  }}
-                >
+                <div style={{ padding: '12px 20px' }}>
                   <ProgressBar
                     progress={stats.successfulReferrals / stats.maxReferrals}
                     label={t('referral.drawer.completed')}
@@ -202,7 +213,7 @@ export function ReferralDrawer({ open, onOpenChange }: Readonly<ReferralDrawerPr
               style={{
                 padding: '12px 20px 20px',
                 fontFamily: 'var(--font-sans)',
-                fontSize: 11,
+                fontSize: 12,
                 color: 'var(--fg-3)',
                 lineHeight: 1.5,
               }}

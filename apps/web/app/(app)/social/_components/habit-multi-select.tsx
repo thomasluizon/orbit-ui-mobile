@@ -70,6 +70,7 @@ export function HabitMultiSelect({ selectedIds, onChange }: Readonly<HabitMultiS
           style={{
             fontFamily: 'var(--font-mono)',
             fontSize: 13,
+            fontWeight: 500,
             color: 'var(--fg-2)',
             fontVariantNumeric: 'tabular-nums',
           }}
@@ -89,7 +90,7 @@ export function HabitMultiSelect({ selectedIds, onChange }: Readonly<HabitMultiS
                 type="button"
                 onClick={() => toggle(id)}
                 aria-label={t('social.buddies.removeHabit', { title: option.title })}
-                className="flex items-center cursor-pointer transition-transform active:scale-[0.96]"
+                className="touch-target-y flex items-center cursor-pointer transition-transform active:scale-[0.96]"
                 style={{
                   gap: 6,
                   padding: '6px 10px 6px 12px',
@@ -104,7 +105,7 @@ export function HabitMultiSelect({ selectedIds, onChange }: Readonly<HabitMultiS
                 }}
               >
                 <span className="truncate">{option.title}</span>
-                <X size={13} strokeWidth={2.4} />
+                <X size={13} strokeWidth={2.2} />
               </button>
             )
           })}
@@ -122,11 +123,12 @@ export function HabitMultiSelect({ selectedIds, onChange }: Readonly<HabitMultiS
           boxShadow: 'inset 0 0 0 1px var(--hairline)',
         }}
       >
-        <Search size={16} strokeWidth={2} style={{ color: 'var(--fg-3)', flexShrink: 0 }} />
+        <Search size={16} strokeWidth={1.8} style={{ color: 'var(--fg-3)', flexShrink: 0 }} />
         <input
           value={query}
           onChange={(event) => setQuery(event.target.value)}
           placeholder={t('social.buddies.searchHabits')}
+          aria-label={t('social.buddies.searchHabits')}
           className="flex-1 min-w-0 bg-transparent outline-none"
           style={{ fontFamily: 'var(--font-sans)', fontSize: 15, color: 'var(--fg-1)' }}
         />
@@ -135,10 +137,10 @@ export function HabitMultiSelect({ selectedIds, onChange }: Readonly<HabitMultiS
             type="button"
             onClick={() => setQuery('')}
             aria-label={t('common.clear')}
-            className="flex cursor-pointer"
+            className="flex size-10 -my-2.5 -mr-2.5 shrink-0 cursor-pointer items-center justify-center rounded-full"
             style={{ border: 0, background: 'transparent', color: 'var(--fg-3)' }}
           >
-            <X size={15} strokeWidth={2} />
+            <X size={15} strokeWidth={1.8} />
           </button>
         ) : null}
       </div>

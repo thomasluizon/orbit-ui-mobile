@@ -1,4 +1,5 @@
 import React, { type ReactNode } from 'react'
+import Link from 'next/link'
 import { CalendarDays, Snowflake } from 'lucide-react'
 import { SectionLabel } from '@/components/ui/section-label'
 import { StatTile } from '@/components/ui/stat-tile'
@@ -192,7 +193,7 @@ function StreakDayCell({
             borderRadius: '50% 50% 50% 0',
             transform: 'rotate(45deg)',
             background: 'var(--status-frozen)',
-            boxShadow: '0 1px 4px rgba(0,0,0,0.4)',
+            boxShadow: 'var(--shadow-1)',
           }}
         >
           <Snowflake
@@ -546,9 +547,9 @@ function FreezeProGate({ t }: Readonly<{ t: TranslationFn }>) {
         >
           {t('streakDisplay.freeze.pro.gate')}
         </span>
-        <a
+        <Link
           href="/upgrade"
-          className="shrink-0 rounded-full transition-[background-color,box-shadow,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:-translate-y-px hover:bg-[var(--primary-pressed)] active:translate-y-0 active:scale-[0.96]"
+          className="relative shrink-0 rounded-full transition-[background-color,box-shadow,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:-translate-y-px hover:bg-[var(--primary-pressed)] active:translate-y-0 active:scale-[0.96] after:absolute after:-inset-y-1.5 after:inset-x-0 after:content-['']"
           style={{
             padding: '9px 16px',
             background: 'var(--primary)',
@@ -560,7 +561,7 @@ function FreezeProGate({ t }: Readonly<{ t: TranslationFn }>) {
           }}
         >
           {t('common.upgrade')}
-        </a>
+        </Link>
       </div>
     </div>
   )

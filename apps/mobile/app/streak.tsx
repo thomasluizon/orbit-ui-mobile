@@ -23,8 +23,11 @@ import {
 import { plural } from '@/lib/plural'
 import { AppBar } from '@/components/ui/app-bar'
 import { SatelliteGlyph } from '@/components/ui/satellite-glyph'
+import { SectionLabel } from '@/components/ui/section-label'
+import { PillButton } from '@/components/ui/pill-button'
 import { buildUpgradeHref } from '@/lib/upgrade-route'
 import { StreakStatsRow, StreakTimelineCard, FreezeProgressCard } from './streak-sections'
+import { rgbaFromHex } from './streak-sections-styles'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 
 function sectionEntrance(index: number) {
@@ -120,8 +123,8 @@ export default function StreakScreen() {
                   style={[
                     styles.frozenBanner,
                     {
-                      backgroundColor: frozenTint(tokens, 0.1),
-                      borderColor: frozenTint(tokens, 0.28),
+                      backgroundColor: rgbaFromHex(tokens.statusFrozen, 0.1),
+                      borderColor: rgbaFromHex(tokens.statusFrozen, 0.28),
                     },
                   ]}
                 >
@@ -147,7 +150,7 @@ export default function StreakScreen() {
               <View
                 style={[
                   styles.heroWell,
-                  { backgroundColor: heroWellTint(tokens.fg1) },
+                  { backgroundColor: rgbaFromHex(tokens.fg1, 0.06) },
                 ]}
                 accessibilityElementsHidden
               >
@@ -185,19 +188,36 @@ export default function StreakScreen() {
             </Animated.View>
 
             <Animated.View entering={sectionEntrance(3)}>
-              <FreezeProgressCard
-                t={t}
-                unlocked={canViewGamification}
-                streak={streak}
-                streakFreezesAccumulated={streakFreezesAccumulated}
-                maxStreakFreezesAccumulated={maxStreakFreezesAccumulated}
-                freezesUsedThisMonth={freezesUsedThisMonth}
-                maxFreezesPerMonth={maxFreezesPerMonth}
-                isFrozenToday={isFrozenToday}
-                protectedDates={streakInfo?.recentFreezeDates ?? []}
-                onUpgrade={() => router.push(buildUpgradeHref('/streak'))}
-                displayDate={displayDate}
-              />
+              {streakQuery.isError && !streakInfo ? (
+                <View>
+                  <SectionLabel>{t('streakDisplay.freeze.title')}</SectionLabel>
+                  <View style={styles.freezeErrorBlock}>
+                    <Text style={[styles.freezeErrorText, { color: tokens.fg2 }]}>
+                      {t('common.error')}
+                    </Text>
+                    <PillButton
+                      variant="ghost"
+                      onPress={() => streakQuery.refetch()}
+                    >
+                      {t('common.retry')}
+                    </PillButton>
+                  </View>
+                </View>
+              ) : (
+                <FreezeProgressCard
+                  t={t}
+                  unlocked={canViewGamification}
+                  streak={streak}
+                  streakFreezesAccumulated={streakFreezesAccumulated}
+                  maxStreakFreezesAccumulated={maxStreakFreezesAccumulated}
+                  freezesUsedThisMonth={freezesUsedThisMonth}
+                  maxFreezesPerMonth={maxFreezesPerMonth}
+                  isFrozenToday={isFrozenToday}
+                  protectedDates={streakInfo?.recentFreezeDates ?? []}
+                  onUpgrade={() => router.push(buildUpgradeHref('/streak'))}
+                  displayDate={displayDate}
+                />
+              )}
             </Animated.View>
 
             <View style={{ height: 24 }} />
@@ -208,22 +228,6 @@ export default function StreakScreen() {
       <StreakFreezeCelebration ref={freezeCelebrationRef} />
     </SafeAreaView>
   )
-}
-
-function frozenTint(tokens: Tokens, alpha: number): string {
-  const normalized = tokens.statusFrozen.replace('#', '')
-  const red = Number.parseInt(normalized.slice(0, 2), 16)
-  const green = Number.parseInt(normalized.slice(2, 4), 16)
-  const blue = Number.parseInt(normalized.slice(4, 6), 16)
-  return `rgba(${red}, ${green}, ${blue}, ${alpha})`
-}
-
-function heroWellTint(fg1Hex: string): string {
-  const normalized = fg1Hex.replace('#', '')
-  const red = Number.parseInt(normalized.slice(0, 2), 16)
-  const green = Number.parseInt(normalized.slice(2, 4), 16)
-  const blue = Number.parseInt(normalized.slice(4, 6), 16)
-  return `rgba(${red}, ${green}, ${blue}, 0.06)`
 }
 
 function createStyles(_tokens: Tokens) {
@@ -302,6 +306,20 @@ function createStyles(_tokens: Tokens) {
     heroEncouragement: {
       fontFamily: 'Rubik_400Regular',
       fontSize: 14,
+      textAlign: 'center',
+    },
+    freezeErrorBlock: {
+      marginHorizontal: 20,
+      borderRadius: 18,
+      paddingVertical: 32,
+      paddingHorizontal: 20,
+      alignItems: 'center',
+      gap: 14,
+    },
+    freezeErrorText: {
+      fontFamily: 'Rubik_400Regular',
+      fontSize: 14,
+      lineHeight: 21,
       textAlign: 'center',
     },
   })

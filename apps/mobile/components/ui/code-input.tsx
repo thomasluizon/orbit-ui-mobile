@@ -92,6 +92,7 @@ const styles = StyleSheet.create({
     textAlign: 'center',
     fontFamily: 'Roboto_500Medium',
     fontSize: 26,
+    fontVariant: ['tabular-nums'],
     paddingVertical: 0,
     paddingHorizontal: 0,
   },

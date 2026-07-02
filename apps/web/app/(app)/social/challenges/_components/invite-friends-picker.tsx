@@ -34,12 +34,11 @@ export function InviteFriendsPicker({ selectedIds, onToggle }: Readonly<InviteFr
             type="button"
             aria-pressed={active}
             onClick={() => onToggle(friend.userId)}
-            className="flex items-center"
+            className="flex items-center rounded-[12px] transition-[background-color] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev)]"
             style={{
               gap: 12,
               padding: '10px 4px',
               border: 0,
-              background: 'transparent',
               cursor: 'pointer',
               textAlign: 'left',
             }}

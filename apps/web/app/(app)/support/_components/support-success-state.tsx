@@ -43,7 +43,7 @@ export function SupportSuccessState() {
           textWrap: 'pretty',
         }}
       >
-        {t('profile.support.description')}
+        {t('profile.support.successHint')}
       </span>
     </div>
   )

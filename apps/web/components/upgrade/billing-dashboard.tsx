@@ -82,7 +82,7 @@ export function BillingDashboard({
           </p>
           <button
             type="button"
-            className="chip"
+            className="chip touch-target"
             style={{ marginTop: 10 }}
             onClick={onRetryBilling}
           >
@@ -92,7 +92,8 @@ export function BillingDashboard({
       )}
 
       {billing && (
-        <>
+        <div className="grid gap-3 md:grid-cols-2 md:items-start md:gap-4">
+          <div className="flex flex-col gap-3">
           <div className="overflow-hidden rounded-[18px]" style={cardSurface}>
             <div style={{ padding: '16px 18px', borderBottom: '1px solid var(--hairline)' }}>
               <div style={cardLabelStyle}>{t('upgrade.billing.plan.title')}</div>
@@ -104,20 +105,7 @@ export function BillingDashboard({
                   <Badge tone="amber">{t('upgrade.billing.plan.canceledBadge')}</Badge>
                 )}
                 {!billing.cancelAtPeriodEnd && billing.status === 'past_due' && (
-                  <span
-                    className="inline-flex items-center rounded-full uppercase"
-                    style={{
-                      fontFamily: 'var(--font-sans)',
-                      fontSize: 10.5,
-                      fontWeight: 600,
-                      letterSpacing: '0.06em',
-                      padding: '3px 9px',
-                      background: 'color-mix(in srgb, var(--status-bad) 18%, transparent)',
-                      color: 'var(--status-bad)',
-                    }}
-                  >
-                    {t('upgrade.billing.plan.pastDue')}
-                  </span>
+                  <Badge tone="bad">{t('upgrade.billing.plan.pastDue')}</Badge>
                 )}
               </div>
             </div>
@@ -156,7 +144,7 @@ export function BillingDashboard({
               </div>
               <button
                 type="button"
-                className="inline-flex shrink-0 cursor-pointer appearance-none items-center justify-center rounded-full border-0 bg-transparent transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev)] active:scale-[0.97]"
+                className="inline-flex shrink-0 cursor-pointer appearance-none items-center justify-center rounded-full border-0 bg-transparent transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev)] active:scale-[0.96]"
                 style={{
                   minHeight: 44,
                   padding: '0 16px',
@@ -173,6 +161,27 @@ export function BillingDashboard({
             </div>
           )}
 
+          <div className="flex flex-col items-stretch" style={{ gap: 10, paddingTop: 6 }}>
+            <PillButton
+              variant="white"
+              fullWidth
+              onClick={onOpenPortal}
+              leading={<Settings size={18} strokeWidth={1.8} aria-hidden="true" />}
+            >
+              {t('upgrade.billing.actions.manage')}
+            </PillButton>
+            <p className="text-center" style={{ margin: 0, fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--fg-3)' }}>
+              {t('upgrade.billing.actions.manageHint')}
+            </p>
+            {portalError && (
+              <p className="text-center" style={{ margin: 0, fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--status-bad)' }}>
+                {portalError}
+              </p>
+            )}
+          </div>
+          </div>
+
+          <div className="flex flex-col gap-3">
           <UsageStats usagePercent={usagePercent} usageUrgent={usageUrgent} profile={profile} t={t} />
 
           {billing.recentInvoices.length > 0 && (
@@ -223,9 +232,10 @@ export function BillingDashboard({
                       href={invoice.invoicePdf ?? invoice.hostedInvoiceUrl ?? undefined}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="icon-btn shrink-0"
+                      className="icon-btn touch-target shrink-0"
                       style={{ width: 40, height: 40, color: 'var(--fg-3)' }}
                       title={t('upgrade.billing.invoices.download')}
+                      aria-label={t('upgrade.billing.invoices.download')}
                     >
                       <Download size={20} strokeWidth={1.8} />
                     </a>
@@ -235,25 +245,8 @@ export function BillingDashboard({
             </div>
           )}
 
-          <div className="flex flex-col items-stretch" style={{ gap: 10, paddingTop: 6 }}>
-            <PillButton
-              variant="white"
-              fullWidth
-              onClick={onOpenPortal}
-              leading={<Settings size={18} strokeWidth={1.8} aria-hidden="true" />}
-            >
-              {t('upgrade.billing.actions.manage')}
-            </PillButton>
-            <p className="text-center" style={{ margin: 0, fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--fg-3)' }}>
-              {t('upgrade.billing.actions.manageHint')}
-            </p>
-            {portalError && (
-              <p className="text-center" style={{ margin: 0, fontFamily: 'var(--font-sans)', fontSize: 12, color: 'var(--status-bad)' }}>
-                {portalError}
-              </p>
-            )}
           </div>
-        </>
+        </div>
       )}
 
       {!isBillingLoading && !isBillingError && !billing && (

@@ -241,7 +241,7 @@ export function AppShell({ children, onCreate }: Readonly<AppShellProps>) {
     if (pathname.startsWith('/about')) return t('about.title')
     if (pathname.startsWith('/support')) return t('profile.support.title')
     if (pathname.startsWith('/achievements')) return t('gamification.title')
-    if (pathname.startsWith('/streak')) return t('streakDisplay.detail.title')
+    if (pathname.startsWith('/streak')) return t('streakDisplay.title')
     if (pathname.startsWith('/retrospective')) return t('retrospective.title')
     if (pathname.startsWith('/upgrade')) return t('upgrade.title')
     if (pathname.startsWith('/wrapped')) return t('wrapped.title')

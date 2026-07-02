@@ -1,59 +1,85 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import * as Sentry from '@sentry/nextjs'
-import { AlertTriangle } from 'lucide-react'
+import { TriangleAlert } from 'lucide-react'
+import { Rubik } from 'next/font/google'
 import { NextIntlClientProvider, useTranslations } from 'next-intl'
 import enMessages from '@orbit/shared/i18n/en.json'
+import ptMessages from '@orbit/shared/i18n/pt-BR.json'
+import { PillButton } from '@/components/ui/pill-button'
 import './globals.css'
+
+const rubik = Rubik({
+  subsets: ['latin'],
+  weight: ['400', '500', '600', '700'],
+  variable: '--font-rubik',
+  display: 'swap',
+})
+
+const SCHEME_NAMES = ['purple', 'blue', 'green', 'rose', 'orange', 'cyan']
+
+function readCookie(name: string): string | null {
+  const match = document.cookie.match(new RegExp('(?:^|; )' + name + '=([^;]+)'))
+  return match ? decodeURIComponent(match[1]) : null
+}
 
 function GlobalErrorBody({ reset }: Readonly<{ reset: () => void }>) {
   const t = useTranslations()
 
   return (
     <div className="flex min-h-[100dvh] flex-col items-center justify-center px-9 py-16 text-center">
-      <div
-        className="flex items-center justify-center rounded-full"
-        style={{
-          width: 80,
-          height: 80,
-          background: 'var(--bg-field)',
-          boxShadow: 'inset 0 0 0 1px var(--hairline)',
-        }}
-      >
-        <AlertTriangle size={34} strokeWidth={1.8} className="text-[var(--fg-3)]" />
+      <div className="flex max-w-[560px] flex-col items-center md:flex-row md:items-center md:gap-8 md:text-left">
+        <div
+          className="flex shrink-0 items-center justify-center rounded-full"
+          style={{
+            width: 80,
+            height: 80,
+            background: 'var(--bg-field)',
+            boxShadow: 'inset 0 0 0 1px var(--hairline)',
+            animation: 'fresh-start-orb 0.28s var(--ease-out) both',
+          }}
+        >
+          <TriangleAlert size={34} strokeWidth={1.8} className="text-[var(--fg-3)]" />
+        </div>
+        <div className="flex flex-col items-center md:items-start">
+          <p
+            style={{
+              margin: '18px 0 0',
+              fontFamily: 'var(--font-sans)',
+              fontSize: 22,
+              fontWeight: 500,
+              lineHeight: 1.3,
+              color: 'var(--fg-1)',
+              animation: 'slide-up-fade 0.28s var(--ease-out) backwards',
+              animationDelay: '160ms',
+            }}
+          >
+            {t('common.somethingWentWrong')}
+          </p>
+          <div
+            style={{
+              marginTop: 22,
+              animation: 'slide-up-fade 0.28s var(--ease-out) backwards',
+              animationDelay: '240ms',
+            }}
+          >
+            <PillButton onClick={reset}>{t('common.retry')}</PillButton>
+          </div>
+          <a
+            href="/"
+            className="inline-flex items-center justify-center gap-[9px] rounded-full px-[26px] py-[14px] text-[16px] font-medium text-[var(--fg-1)] no-underline shadow-[inset_0_0_0_1.5px_var(--hairline-strong)] transition-[background-color,opacity,box-shadow,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-card)] active:scale-[0.98]"
+            style={{
+              marginTop: 12,
+              fontFamily: 'var(--font-sans)',
+              animation: 'slide-up-fade 0.28s var(--ease-out) backwards',
+              animationDelay: '300ms',
+            }}
+          >
+            {t('common.goHome')}
+          </a>
+        </div>
       </div>
-      <p
-        style={{
-          margin: '18px 0 0',
-          fontFamily: 'var(--font-sans)',
-          fontSize: 22,
-          fontWeight: 500,
-          lineHeight: 1.3,
-          color: 'var(--fg-1)',
-        }}
-      >
-        {t('auth.genericError')}
-      </p>
-      <button
-        type="button"
-        onClick={reset}
-        style={{
-          marginTop: 22,
-          minHeight: 52,
-          paddingInline: 28,
-          borderRadius: 999,
-          border: 'none',
-          background: 'var(--primary)',
-          color: 'var(--fg-on-primary)',
-          fontFamily: 'var(--font-sans)',
-          fontSize: 16,
-          fontWeight: 500,
-          cursor: 'pointer',
-        }}
-      >
-        {t('common.retry')}
-      </button>
     </div>
   )
 }
@@ -65,14 +91,30 @@ export default function GlobalError({
   error: Error & { digest?: string }
   reset: () => void
 }>) {
+  const [locale, setLocale] = useState('en')
+  const [htmlClass, setHtmlClass] = useState('dark scheme-purple')
+
   useEffect(() => {
     Sentry.captureException(error)
   }, [error])
 
+  useEffect(() => {
+    const cookieLocale = readCookie('i18n_locale')
+    const resolvedLocale = cookieLocale === 'pt-BR' ? 'pt-BR' : 'en'
+    const theme = readCookie('orbit_theme_mode') === 'light' ? 'light' : 'dark'
+    const schemeCookie = readCookie('orbit_color_scheme')
+    const scheme =
+      schemeCookie && SCHEME_NAMES.includes(schemeCookie) ? schemeCookie : 'purple'
+    setLocale(resolvedLocale)
+    setHtmlClass(`${theme} scheme-${scheme}`)
+  }, [])
+
+  const messages = locale === 'pt-BR' ? ptMessages : enMessages
+
   return (
-    <html lang="en" className="dark scheme-purple">
+    <html lang={locale} className={`${htmlClass} ${rubik.variable}`}>
       <body className="bg-[var(--bg)] text-[var(--fg-1)] font-sans antialiased">
-        <NextIntlClientProvider locale="en" messages={enMessages}>
+        <NextIntlClientProvider locale={locale} messages={messages}>
           <GlobalErrorBody reset={reset} />
         </NextIntlClientProvider>
       </body>

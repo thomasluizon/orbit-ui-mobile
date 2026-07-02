@@ -42,15 +42,15 @@ export function GoalCompletedCelebration() {
       dismissTimerRef.current = setTimeout(() => {
         setIsVisible(false)
         setGoalCompletedCelebration(null)
-        setTimeout(() => setShouldRender(false), 300)
-      }, 3500)
+        setTimeout(() => setShouldRender(false), 280)
+      }, 6000)
     }
   }, [goalCompletedCelebration, setGoalCompletedCelebration])
 
   function dismiss() {
     setIsVisible(false)
     setGoalCompletedCelebration(null)
-    setTimeout(() => setShouldRender(false), 300)
+    setTimeout(() => setShouldRender(false), 280)
   }
 
   if (!mounted || !shouldRender) return null
@@ -60,7 +60,7 @@ export function GoalCompletedCelebration() {
       <div
         className="fixed inset-0 z-[10003] flex flex-col"
         style={{
-          transition: 'opacity 300ms var(--ease-out)',
+          transition: 'opacity 280ms var(--ease-out)',
           opacity: isVisible ? 1 : 0,
         }}
       >
@@ -153,9 +153,11 @@ export function GoalCompletedCelebration() {
             animationDelay: '380ms',
           }}
         >
-          <PillButton fullWidth onClick={dismiss}>
-            {t('common.continue')}
-          </PillButton>
+          <div className="mx-auto w-full max-w-[360px]">
+            <PillButton fullWidth onClick={dismiss}>
+              {t('common.continue')}
+            </PillButton>
+          </div>
         </div>
       </div>
     </div>,

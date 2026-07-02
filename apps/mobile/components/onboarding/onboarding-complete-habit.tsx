@@ -1,10 +1,9 @@
 import { useMemo, useState, useCallback, useRef } from 'react'
-import { Animated, Pressable, StyleSheet, Text, View } from 'react-native'
-import { Check } from 'lucide-react-native'
+import { Animated, StyleSheet, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { useLogHabit } from '@/hooks/use-habits'
-import { toAnimatedEasing } from '@/lib/motion'
-import { createTokensV2, easings, type AppTokensV2 } from '@/lib/theme'
+import { StatusDot } from '@/components/ui/status-dot'
+import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 interface OnboardingCompleteHabitProps {
@@ -33,7 +32,6 @@ export function OnboardingCompleteHabit({
   const [showStreak, setShowStreak] = useState(false)
   const isAnimating = useRef(false)
 
-  const scaleAnim = useMemo(() => new Animated.Value(1), [])
   const streakOpacity = useMemo(() => new Animated.Value(0), [])
   const streakSlide = useMemo(() => new Animated.Value(20), [])
 
@@ -46,21 +44,6 @@ export function OnboardingCompleteHabit({
     setIsCompleted(true)
 
     logHabit.mutate({ habitId })
-
-    Animated.sequence([
-      Animated.timing(scaleAnim, {
-        toValue: 1.2,
-        duration: 100,
-        easing: toAnimatedEasing(easings.out),
-        useNativeDriver: true,
-      }),
-      Animated.timing(scaleAnim, {
-        toValue: 1,
-        duration: 100,
-        easing: toAnimatedEasing(easings.out),
-        useNativeDriver: true,
-      }),
-    ]).start()
 
     setTimeout(() => {
       setShowStreak(true)
@@ -86,7 +69,6 @@ export function OnboardingCompleteHabit({
     isCompleted,
     logHabit,
     onCompleted,
-    scaleAnim,
     streakOpacity,
     streakSlide,
   ])
@@ -110,31 +92,12 @@ export function OnboardingCompleteHabit({
           </Text>
         </View>
 
-        <Pressable
-          disabled={isCompleted}
-          onPress={handleComplete}
-          hitSlop={8}
-          accessibilityRole="button"
+        <StatusDot
+          state={isCompleted ? 'done' : 'empty'}
+          size={30}
+          onToggle={handleComplete}
           accessibilityLabel={t('onboarding.flow.completeHabit.tapHint')}
-          accessibilityState={{ checked: isCompleted }}
-        >
-          <Animated.View
-            style={[
-              styles.dot,
-              {
-                borderColor: isCompleted
-                  ? tokens.primary
-                  : tokens.statusEmpty,
-                backgroundColor: isCompleted ? tokens.primary : 'transparent',
-              },
-              { transform: [{ scale: scaleAnim }] },
-            ]}
-          >
-            {isCompleted && (
-              <Check size={17} color={tokens.fgOnPrimary} strokeWidth={2.6} />
-            )}
-          </Animated.View>
-        </Pressable>
+        />
       </View>
 
       {showStreak && (
@@ -203,14 +166,6 @@ function createStyles(tokens: AppTokensV2) {
       fontSize: 13,
       color: tokens.fg3,
       marginTop: 3,
-    },
-    dot: {
-      width: 30,
-      height: 30,
-      borderRadius: 999,
-      borderWidth: 2,
-      alignItems: 'center',
-      justifyContent: 'center',
     },
     streakRow: {
       alignItems: 'center',

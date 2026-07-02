@@ -17,6 +17,7 @@ const Reanimated = {
   Text: makeAnimatedComponent('AnimatedText'),
   ScrollView: makeAnimatedComponent('AnimatedScrollView'),
   Image: makeAnimatedComponent('AnimatedImage'),
+  FlatList: makeAnimatedComponent('FlatList'),
   createAnimatedComponent: <T,>(component: T): T => component,
 }
 
@@ -118,6 +119,9 @@ export const FadeIn = makeChainableEntering()
 export const FadeInUp = makeChainableEntering()
 export const FadeInLeft = makeChainableEntering()
 export const FadeInRight = makeChainableEntering()
+export const FadeOut = makeChainableEntering()
+export const ZoomIn = makeChainableEntering()
+export const LinearTransition = makeChainableEntering()
 
 export function runOnJS<Args extends unknown[], Return>(
   callback: (...args: Args) => Return,

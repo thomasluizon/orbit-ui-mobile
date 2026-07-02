@@ -2,7 +2,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import type { FriendFeedItem } from '@orbit/shared/types/social'
 import { UserAvatar } from '@/components/ui/user-avatar'
-import { createTokensV2 } from '@/lib/theme'
+import { createTokensV2, tintFromPrimary } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import type { CheerTarget } from './cheer-composer'
 
@@ -41,7 +41,8 @@ export function FeedEventCard({ item, onCheer }: Readonly<FeedEventCardProps>) {
       <Pressable
         accessibilityRole="button"
         onPress={() => onCheer({ recipientId: item.actorUserId, displayName: name })}
-        style={styles.cheer}
+        hitSlop={{ top: 7, bottom: 7 }}
+        style={({ pressed }) => [styles.cheer, pressed ? styles.cheerPressed : null]}
       >
         <Text style={styles.cheerText}>{t('social.feed.cheerAction')}</Text>
       </Pressable>
@@ -63,8 +64,9 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       paddingHorizontal: 14,
       paddingVertical: 7,
       borderRadius: 999,
-      backgroundColor: tokens.primarySoft,
+      backgroundColor: tintFromPrimary(tokens, 0.12),
     },
+    cheerPressed: { transform: [{ scale: 0.96 }] },
     cheerText: { fontFamily: 'Rubik_500Medium', fontSize: 14, color: tokens.primary },
   })
 }

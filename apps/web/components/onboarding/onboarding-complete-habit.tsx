@@ -98,7 +98,7 @@ export function OnboardingCompleteHabit({
         </div>
         <StatusDot
           state={isCompleted ? 'done' : 'empty'}
-          size={26}
+          size={30}
           onToggle={handleComplete}
           ariaLabel={t('onboarding.flow.completeHabit.tapHint')}
         />

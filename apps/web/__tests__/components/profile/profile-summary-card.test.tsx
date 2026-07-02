@@ -62,11 +62,11 @@ describe('ProfileSummaryCard', () => {
     fireEvent.click(screen.getByRole('button', { name: 'profile.editName.title' }))
     expect(onEditName).toHaveBeenCalledOnce()
 
-    fireEvent.click(screen.getByRole('button', { name: 'streakDisplay.title' }))
+    fireEvent.click(screen.getByRole('button', { name: /streakDisplay\.title/ }))
     expect(onStreakClick).toHaveBeenCalledOnce()
 
     fireEvent.click(
-      screen.getByRole('button', { name: 'gamification.profileCard.tileLabel' }),
+      screen.getByRole('button', { name: /gamification\.profileCard\.tileLabel/ }),
     )
     expect(onAchievementsClick).toHaveBeenCalledOnce()
 

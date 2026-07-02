@@ -1,4 +1,5 @@
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native'
+import Animated, { FadeInDown, ReduceMotion } from 'react-native-reanimated'
 import { useTranslation } from 'react-i18next'
 import type { Cheer } from '@orbit/shared/types/social'
 import { EmptyState } from '@/components/ui/empty-state'
@@ -10,6 +11,12 @@ import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { FeedEventCard } from './feed-event-card'
 import type { CheerTarget } from './cheer-composer'
+
+function rowEntrance(index: number) {
+  return FadeInDown.duration(280)
+    .delay(Math.min(index, 8) * 40)
+    .reduceMotion(ReduceMotion.System)
+}
 
 interface SocialFeedProps {
   onCheer: (target: CheerTarget) => void
@@ -50,16 +57,27 @@ export function SocialFeed({ onCheer, onAddFriends }: Readonly<SocialFeedProps>)
       {receivedCheers.length > 0 ? (
         <View>
           <SectionLabel>{t('social.feed.cheersForYou')}</SectionLabel>
-          {receivedCheers.map((cheer) => (
-            <CheerRow key={cheer.id} cheer={cheer} />
+          {receivedCheers.map((cheer, index) => (
+            <Animated.View key={cheer.id} entering={rowEntrance(index)}>
+              <CheerRow cheer={cheer} />
+            </Animated.View>
           ))}
         </View>
       ) : null}
 
       {feed.isLoading ? (
         <View style={styles.loading}>
-          <ActivityIndicator color={tokens.primary} />
+          <ActivityIndicator color={tokens.primary} accessibilityLabel={t('common.loading')} />
         </View>
+      ) : feed.isError ? (
+        <EmptyState
+          description={t('social.errors.loadFailed')}
+          action={{
+            label: t('common.retry'),
+            onPress: () => void feed.refetch(),
+            variant: 'secondary',
+          }}
+        />
       ) : isEmpty ? (
         <EmptyState
           title={t('social.feed.emptyTitle')}
@@ -72,8 +90,10 @@ export function SocialFeed({ onCheer, onAddFriends }: Readonly<SocialFeedProps>)
         />
       ) : (
         <View>
-          {items.map((item) => (
-            <FeedEventCard key={item.id} item={item} onCheer={onCheer} />
+          {items.map((item, index) => (
+            <Animated.View key={item.id} entering={rowEntrance(index)}>
+              <FeedEventCard item={item} onCheer={onCheer} />
+            </Animated.View>
           ))}
         </View>
       )}

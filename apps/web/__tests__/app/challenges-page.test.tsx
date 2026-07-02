@@ -5,7 +5,7 @@ import { createMockChallengeListItem, createMockProfile } from '@orbit/shared/__
 
 const mocks = vi.hoisted(() => ({
   profileReturn: { profile: undefined as unknown, isLoading: false },
-  challengesReturn: { data: undefined as unknown },
+  challengesReturn: { data: undefined as unknown, isError: false, refetch: vi.fn() },
   createMutate: vi.fn(),
   joinMutate: vi.fn(),
   searchCode: null as string | null,
@@ -59,6 +59,7 @@ beforeEach(() => {
   mocks.profileReturn.profile = createMockProfile({ socialOptIn: true, handle: 'me' })
   mocks.profileReturn.isLoading = false
   mocks.challengesReturn.data = []
+  mocks.challengesReturn.isError = false
   mocks.searchCode = null
   mocks.createMutate.mockResolvedValue({ id: 'c-new' })
   mocks.joinMutate.mockResolvedValue(null)
@@ -80,6 +81,40 @@ describe('ChallengesPage', () => {
     expect(screen.getByText('challenges.empty.title')).toBeInTheDocument()
     expect(screen.getByText('challenges.empty.create')).toBeInTheDocument()
     expect(screen.getByText('challenges.empty.join')).toBeInTheDocument()
+  })
+
+  it('renders a labelled loading indicator while the profile loads', () => {
+    mocks.profileReturn.profile = undefined
+    mocks.profileReturn.isLoading = true
+
+    render(<ChallengesPage />)
+
+    expect(screen.getByRole('status', { name: 'common.loading' })).toBeInTheDocument()
+    expect(screen.queryByText('challenges.empty.title')).not.toBeInTheDocument()
+  })
+
+  it('shows a retryable error state when the challenges query fails', () => {
+    mocks.challengesReturn.isError = true
+
+    render(<ChallengesPage />)
+
+    expect(screen.getByText('challenges.errors.loadFailed')).toBeInTheDocument()
+    expect(screen.queryByText('challenges.empty.title')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'common.retry' }))
+
+    expect(mocks.challengesReturn.refetch).toHaveBeenCalled()
+  })
+
+  it('surfaces inline field errors when the create form is submitted empty', async () => {
+    render(<ChallengesPage />)
+
+    fireEvent.click(screen.getByText('challenges.actions.create'))
+    fireEvent.click(screen.getByRole('button', { name: 'challenges.create.submit' }))
+
+    expect(await screen.findByText('challenges.create.errors.titleRequired')).toBeInTheDocument()
+    expect(screen.getByText('challenges.create.errors.targetInvalid')).toBeInTheDocument()
+    expect(screen.getByText('challenges.create.errors.endDateRequired')).toBeInTheDocument()
   })
 
   it('partitions active and completed challenges into sections', () => {

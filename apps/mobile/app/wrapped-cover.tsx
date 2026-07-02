@@ -1,9 +1,11 @@
-import { Pressable, Text, View } from 'react-native'
+import { Text, View } from 'react-native'
 import { Play } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import { RECAP_SHARE_PERIODS, type RecapSharePeriod } from '@orbit/shared/utils'
+import { RingMotif } from '@/components/gamification/ring-motif'
 import { Chip } from '@/components/ui/chip'
 import { PillButton } from '@/components/ui/pill-button'
+import { SatelliteGlyph } from '@/components/ui/satellite-glyph'
 import { styles, type Tokens } from './wrapped-styles'
 
 interface WrappedCoverProps {
@@ -34,11 +36,19 @@ export function WrappedCover({
 
   return (
     <View style={styles.cover}>
-      <View style={styles.coverHeader}>
-        <Text style={[styles.eyebrow, { color: tokens.fg2 }]}>{t('wrapped.coverEyebrow')}</Text>
-        <Text style={[styles.coverTitle, { color: tokens.fg1 }]}>{t('wrapped.title')}</Text>
-        <Text style={[styles.coverSubtitle, { color: tokens.fg2 }]}>{t('wrapped.coverSubtitle')}</Text>
-      </View>
+      <RingMotif
+        dashed
+        ringSize={300}
+        eyebrow={t('wrapped.coverEyebrow')}
+        anchor={
+          <View style={styles.coverHeader}>
+            <Text style={[styles.coverTitle, { color: tokens.fg1 }]}>{t('wrapped.title')}</Text>
+            <Text style={[styles.coverSubtitle, { color: tokens.fg2 }]}>
+              {t('wrapped.coverSubtitle')}
+            </Text>
+          </View>
+        }
+      />
 
       <View style={styles.periodRow}>
         {RECAP_SHARE_PERIODS.map((value) => (
@@ -63,27 +73,21 @@ export function WrappedCover({
 
         {!isLoading && isError ? (
           <>
-            <Text style={[styles.stateText, { color: tokens.statusBad }]}>{t('wrapped.error')}</Text>
-            <Pressable
-              onPress={onRetry}
-              accessibilityRole="button"
-              accessibilityLabel={t('wrapped.retry')}
-              style={({ pressed }) => [
-                styles.retryChip,
-                {
-                  borderColor: tokens.hairline,
-                  backgroundColor: pressed ? tokens.bgElev2 : tokens.bgElev,
-                },
-                pressed ? styles.retryChipPressed : null,
-              ]}
+            <Text
+              style={[styles.stateText, { color: tokens.statusBadText }]}
+              accessibilityRole="alert"
             >
-              <Text style={[styles.retryChipText, { color: tokens.fg1 }]}>{t('wrapped.retry')}</Text>
-            </Pressable>
+              {t('wrapped.error')}
+            </Text>
+            <Chip onPress={onRetry}>{t('wrapped.retry')}</Chip>
           </>
         ) : null}
 
         {!isLoading && !isError && isEmpty ? (
-          <Text style={[styles.stateText, { color: tokens.fg3 }]}>{t('wrapped.empty')}</Text>
+          <View style={styles.emptyState}>
+            <SatelliteGlyph />
+            <Text style={[styles.stateText, { color: tokens.fg3 }]}>{t('wrapped.empty')}</Text>
+          </View>
         ) : null}
       </View>
     </View>

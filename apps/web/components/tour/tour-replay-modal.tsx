@@ -110,15 +110,17 @@ export function TourReplayModal({ open, onOpenChange }: Readonly<TourReplayModal
       title={t('tour.replay.modalTitle')}
     >
       <div className="space-y-5">
-        <PillButton
-          fullWidth
-          onClick={() => {
-            void handleReplayAll()
-          }}
-          leading={<RotateCcw size={18} strokeWidth={1.8} aria-hidden="true" />}
-        >
-          {t('tour.replay.replayAll')}
-        </PillButton>
+        <div className="sm:mx-auto sm:w-full sm:max-w-[360px]">
+          <PillButton
+            fullWidth
+            onClick={() => {
+              void handleReplayAll()
+            }}
+            leading={<RotateCcw size={18} strokeWidth={1.8} aria-hidden="true" />}
+          >
+            {t('tour.replay.replayAll')}
+          </PillButton>
+        </div>
 
         <div>
           {availableSections.map((section, index) => {
@@ -135,7 +137,7 @@ export function TourReplayModal({ open, onOpenChange }: Readonly<TourReplayModal
                 <button
                   type="button"
                   onClick={() => handleReplaySection(section)}
-                  className="w-full flex items-center text-left cursor-pointer bg-transparent transition-colors duration-150 ease-out hover:bg-[var(--bg-elev)]"
+                  className="w-full flex items-center text-left cursor-pointer bg-transparent transition-colors duration-150 ease-out hover:bg-[var(--bg-elev)] active:bg-[var(--bg-elev-pressed)]"
                   style={{
                     appearance: 'none',
                     border: 0,
@@ -188,7 +190,7 @@ export function TourReplayModal({ open, onOpenChange }: Readonly<TourReplayModal
                       size={18}
                       strokeWidth={1.8}
                       className="shrink-0"
-                      color="var(--fg-3)"
+                      color="var(--fg-4)"
                     />
                   )}
                 </button>

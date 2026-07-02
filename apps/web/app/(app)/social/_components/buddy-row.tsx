@@ -84,7 +84,7 @@ export function BuddyRow({ pair, onOpen }: Readonly<BuddyRowProps>) {
         type="button"
         onClick={handleCheckIn}
         disabled={checkedInToday || checkIn.isPending}
-        className="shrink-0 cursor-pointer rounded-full transition-transform enabled:active:scale-95 disabled:cursor-default"
+        className="touch-target-y shrink-0 cursor-pointer rounded-full transition-transform enabled:active:scale-[0.96] disabled:cursor-default"
         style={{
           padding: '7px 14px',
           border: 0,

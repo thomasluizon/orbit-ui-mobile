@@ -91,15 +91,20 @@ export function createStyles(tokens: AppTokens) {
     paddingVertical: 2,
     paddingHorizontal: 6,
     backgroundColor: tokens.bgField,
-    borderRadius: 6,
+    borderRadius: 8,
   },
   removeBtn: {
     padding: 6,
     borderRadius: 999,
   },
+  controlPressed: {
+    transform: [{ scale: 0.96 }],
+  },
   addBtn: {
     flexDirection: 'row',
     alignItems: 'center',
+    alignSelf: 'flex-start',
+    minHeight: 44,
     gap: 6,
   },
   addBtnText: {
@@ -110,6 +115,8 @@ export function createStyles(tokens: AppTokens) {
   checkboxRow: {
     flexDirection: 'row',
     alignItems: 'center',
+    alignSelf: 'flex-start',
+    minHeight: 44,
     gap: 8,
   },
   checkbox: {

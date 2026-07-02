@@ -18,6 +18,7 @@ interface SectionHeadTabsProps<TId extends string> {
   onChange: (id: TId) => void
   ariaLabel?: string
   onKeyDown?: (event: React.KeyboardEvent<HTMLDivElement>) => void
+  className?: string
 }
 
 export function SectionHeadTabs<TId extends string>({
@@ -26,6 +27,7 @@ export function SectionHeadTabs<TId extends string>({
   onChange,
   ariaLabel,
   onKeyDown,
+  className,
 }: Readonly<SectionHeadTabsProps<TId>>) {
   return (
     <div
@@ -33,7 +35,9 @@ export function SectionHeadTabs<TId extends string>({
       tabIndex={0}
       aria-label={ariaLabel}
       onKeyDown={onKeyDown}
-      className="flex items-center justify-center shrink-0"
+      className={['flex items-center justify-center shrink-0', className]
+        .filter(Boolean)
+        .join(' ')}
       style={{
         padding: '12px 20px 16px',
         gap: 8,

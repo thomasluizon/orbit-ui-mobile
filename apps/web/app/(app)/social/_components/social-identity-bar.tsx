@@ -18,11 +18,11 @@ export function SocialIdentityBar() {
   return (
     <div className="px-5" style={{ paddingBottom: 8 }}>
       <div
-        className="flex items-center rounded-[16px]"
+        className="flex items-center rounded-[18px]"
         style={{
           gap: 12,
           padding: '12px 14px 12px 16px',
-          background: 'var(--bg-elev)',
+          background: 'var(--bg-card)',
           boxShadow: 'inset 0 0 0 1px var(--hairline)',
         }}
       >
@@ -31,7 +31,7 @@ export function SocialIdentityBar() {
             className="overflow-hidden text-ellipsis whitespace-nowrap"
             style={{
               fontFamily: 'var(--font-sans)',
-              fontSize: 17,
+              fontSize: 16,
               fontWeight: 600,
               color: 'var(--fg-1)',
             }}
@@ -44,12 +44,11 @@ export function SocialIdentityBar() {
         </div>
         <button
           type="button"
-          className="chip"
+          className="icon-btn shrink-0"
           onClick={() => setShowEdit(true)}
           aria-label={t('social.identity.editAria')}
         >
-          <Pencil size={14} strokeWidth={1.8} aria-hidden="true" />
-          <span>{t('social.identity.edit')}</span>
+          <Pencil size={18} strokeWidth={1.8} aria-hidden="true" />
         </button>
       </div>
 

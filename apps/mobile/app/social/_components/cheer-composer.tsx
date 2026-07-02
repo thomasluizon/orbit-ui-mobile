@@ -6,7 +6,7 @@ import { BottomSheetModal } from '@/components/bottom-sheet-modal'
 import { PillButton } from '@/components/ui/pill-button'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useSendCheer } from '@/hooks/use-friends'
-import { createTokensV2 } from '@/lib/theme'
+import { createTokensV2, tintFromPrimary } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 export interface CheerTarget {
@@ -85,7 +85,10 @@ export function CheerComposer({ target, onClose }: Readonly<CheerComposerProps>)
               style={({ pressed }) => [
                 styles.reaction,
                 pressed
-                  ? [styles.reactionPressed, { backgroundColor: tokens.primarySoft, borderColor: tokens.primary }]
+                  ? [
+                      styles.reactionPressed,
+                      { backgroundColor: tintFromPrimary(tokens, 0.12), borderColor: tokens.primary },
+                    ]
                   : null,
               ]}
             >
@@ -93,17 +96,22 @@ export function CheerComposer({ target, onClose }: Readonly<CheerComposerProps>)
             </Pressable>
           ))}
         </View>
-        <TextInput
-          value={note}
-          onChangeText={(value) => setNote(value.slice(0, MAX_NOTE))}
-          maxLength={MAX_NOTE}
-          placeholder={t('social.cheer.notePlaceholder')}
-          placeholderTextColor={tokens.fg3}
-          multiline
-          style={styles.note}
-        />
+        <View style={styles.noteBlock}>
+          <TextInput
+            value={note}
+            onChangeText={(value) => setNote(value.slice(0, MAX_NOTE))}
+            maxLength={MAX_NOTE}
+            placeholder={t('social.cheer.notePlaceholder')}
+            placeholderTextColor={tokens.fg3}
+            multiline
+            style={styles.note}
+          />
+          <Text style={styles.noteCounter}>
+            {note.length}/{MAX_NOTE}
+          </Text>
+        </View>
         <PillButton onPress={handleSend} disabled={sendCheer.isPending} busy={sendCheer.isPending} fullWidth>
-          {sendCheer.isPending ? t('social.cheer.sending') : t('social.cheer.send')}
+          {t('social.cheer.send')}
         </PillButton>
       </View>
     </BottomSheetModal>
@@ -129,6 +137,14 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       transform: [{ scale: 0.96 }],
     },
     reactionEmoji: { fontSize: 24 },
+    noteBlock: { gap: 4 },
+    noteCounter: {
+      alignSelf: 'flex-end',
+      fontFamily: 'Roboto_400Regular',
+      fontSize: 12,
+      color: tokens.fg4,
+      fontVariant: ['tabular-nums'],
+    },
     note: {
       minHeight: 88,
       borderRadius: 14,

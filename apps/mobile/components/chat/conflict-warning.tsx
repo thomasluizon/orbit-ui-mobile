@@ -3,7 +3,7 @@ import { View, Text, StyleSheet } from "react-native";
 import { AlertTriangle } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import type { ConflictWarning as ConflictWarningType } from "@orbit/shared/types/chat";
-import { createTokensV2 } from '@/lib/theme';
+import { createTokensV2, tintFromPrimary } from '@/lib/theme';
 import { useAppTheme } from "@/lib/use-app-theme";
 
 type AppTokens = ReturnType<typeof createTokensV2>
@@ -32,8 +32,8 @@ function severityColors(
     case "LOW":
       return {
         text: tokens.primary,
-        bg: `${tokens.primary}1A`,
-        border: `${tokens.primary}4D`,
+        bg: tintFromPrimary(tokens, 0.1),
+        border: tintFromPrimary(tokens, 0.3),
       };
     default:
       return {

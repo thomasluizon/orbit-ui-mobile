@@ -125,6 +125,34 @@ describe('AppOverlay', () => {
     expect(onOpenChange).toHaveBeenCalledWith(false)
   })
 
+  it('renders a visible close control on untitled dismissible overlays', () => {
+    const onOpenChange = vi.fn()
+    render(
+      <AppOverlay open={true} onOpenChange={onOpenChange}>
+        <p>Body</p>
+      </AppOverlay>,
+    )
+
+    const closeButtons = screen.getAllByLabelText('common.close')
+    const floatingClose = closeButtons.find(btn => btn.getAttribute('tabindex') !== '-1')
+    expect(floatingClose).toBeDefined()
+
+    fireEvent.click(floatingClose!)
+    expect(onOpenChange).toHaveBeenCalledWith(false)
+  })
+
+  it('renders no visible close control on untitled overlays when not dismissible', () => {
+    render(
+      <AppOverlay open={true} onOpenChange={vi.fn()} dismissible={false}>
+        <p>Body</p>
+      </AppOverlay>,
+    )
+
+    const closeButtons = screen.getAllByLabelText('common.close')
+    expect(closeButtons).toHaveLength(1)
+    expect(closeButtons[0]!.getAttribute('tabindex')).toBe('-1')
+  })
+
   it('renders description text', () => {
     render(
       <AppOverlay open={true} onOpenChange={vi.fn()} title="T" description="Some description">

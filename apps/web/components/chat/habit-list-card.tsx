@@ -25,7 +25,7 @@ export function HabitListCard({ habitList }: Readonly<{ habitList: HabitListCard
   return (
     <div
       data-slot="habit-list-card"
-      className="mt-2 w-full overflow-hidden rounded-[16px]"
+      className="mt-2 w-full md:max-w-[65ch] overflow-hidden rounded-[16px]"
       style={{ background: 'var(--bg-elev)', boxShadow: 'inset 0 0 0 1px var(--hairline)' }}
     >
       {habitList.items.length === 0 ? (

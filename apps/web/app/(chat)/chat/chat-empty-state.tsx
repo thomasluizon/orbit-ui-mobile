@@ -1,7 +1,7 @@
 'use client'
 
-import { Sparkles } from 'lucide-react'
 import { useTranslations } from 'next-intl'
+import { AstraAvatar } from '@/components/ui/astra-avatar'
 import { SuggestionChips } from '@/components/chat/suggestion-chips'
 
 interface ChatEmptyStateProps {
@@ -19,22 +19,12 @@ export function ChatEmptyState({ onSelectSuggestion }: Readonly<ChatEmptyStatePr
       style={{ gap: 16, padding: '32px' }}
     >
       <div className="relative z-10 flex flex-col items-center" style={{ gap: 16 }}>
+        <AstraAvatar size={84} animate style={{ boxShadow: 'var(--primary-glow)' }} />
         <div
-          className="rounded-full flex items-center justify-center"
-          style={{
-            width: 84,
-            height: 84,
-            background: 'rgba(var(--primary-rgb), 0.16)',
-            boxShadow: '0 0 50px rgba(var(--primary-rgb), 0.35)',
-          }}
-        >
-          <Sparkles size={38} strokeWidth={1.8} color="var(--primary-soft)" />
-        </div>
-        <div
-          className="text-center"
+          className="text-center text-balance"
           style={{
             fontFamily: 'var(--font-sans)',
-            fontSize: 24,
+            fontSize: 22,
             fontWeight: 500,
             letterSpacing: '-0.01em',
             color: 'var(--fg-1)',

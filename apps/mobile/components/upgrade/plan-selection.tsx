@@ -59,7 +59,14 @@ export function PlanSelection({
         selected={selectedInterval === 'monthly'}
         onSelect={() => onSelectInterval('monthly')}
       />
-      <Pressable accessibilityRole="button" onPress={onStayFree} style={styles.freeLink}>
+      <Pressable
+        accessibilityRole="button"
+        onPress={onStayFree}
+        style={({ pressed }) => [
+          styles.freeLink,
+          pressed ? { opacity: 0.7, transform: [{ scale: 0.96 }] } : null,
+        ]}
+      >
         <Text style={[styles.freeLinkText, { color: tokens.fg3 }]}>{t('upgrade.convert.stayFree')}</Text>
       </Pressable>
     </View>

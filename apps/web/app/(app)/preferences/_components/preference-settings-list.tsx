@@ -49,55 +49,61 @@ export function PreferenceSettingsList({
   const t = useTranslations()
 
   return (
-    <div className="flex-1 min-h-0 overflow-y-auto stagger-enter">
-      <SectionLabel bottom={4}>{t('preferences.general')}</SectionLabel>
-      <SettingsRow
-        icon={Languages}
-        label={t('profile.language.title')}
-        value={mounted ? languageLabel : undefined}
-        onClick={() => onOpenPicker('language')}
-        divider={false}
-      />
-      <SettingsRow
-        icon={Moon}
-        label={t('preferences.themeMode')}
-        value={mounted ? themeLabel : undefined}
-        onClick={() => onOpenPicker('theme')}
-        divider={false}
-      />
-      <SettingsRow
-        icon={Palette}
-        label={t('profile.colorScheme.title')}
-        value={mounted ? schemeLabel : undefined}
-        onClick={() => onOpenPicker('scheme')}
-        divider={false}
-      >
-        {mounted && schemeColor ? <SchemeDot color={schemeColor} /> : null}
-        <ProBadge />
-      </SettingsRow>
-      <SettingsRow
-        icon={Calendar}
-        label={t('settings.weekStartDay.title')}
-        value={mounted ? weekStartLabel : undefined}
-        onClick={() => onOpenPicker('weekStart')}
-        divider={false}
-      />
+    <div className="flex-1 min-h-0 overflow-y-auto">
+      <div className="md:grid md:grid-cols-2 md:gap-x-10 md:items-start">
+        <div className="stagger-enter">
+          <SectionLabel bottom={4}>{t('preferences.general')}</SectionLabel>
+          <SettingsRow
+            icon={Languages}
+            label={t('profile.language.title')}
+            value={mounted ? languageLabel : undefined}
+            onClick={() => onOpenPicker('language')}
+            divider={false}
+          />
+          <SettingsRow
+            icon={Moon}
+            label={t('preferences.themeMode')}
+            value={mounted ? themeLabel : undefined}
+            onClick={() => onOpenPicker('theme')}
+            divider={false}
+          />
+          <SettingsRow
+            icon={Palette}
+            label={t('profile.colorScheme.title')}
+            value={mounted ? schemeLabel : undefined}
+            onClick={() => onOpenPicker('scheme')}
+            divider={false}
+          >
+            {mounted && schemeColor ? <SchemeDot color={schemeColor} /> : null}
+            <ProBadge />
+          </SettingsRow>
+          <SettingsRow
+            icon={Calendar}
+            label={t('settings.weekStartDay.title')}
+            value={mounted ? weekStartLabel : undefined}
+            onClick={() => onOpenPicker('weekStart')}
+            divider={false}
+          />
 
-      <SectionLabel bottom={4}>{t('settings.homeScreen.title')}</SectionLabel>
-      <SettingsRow
-        label={t('settings.homeScreen.showGeneral')}
-        desc={t('settings.homeScreen.showGeneralDesc')}
-        accessory="none"
-        divider={false}
-      >
-        <Switch
-          on={mounted && showGeneralOnToday}
-          onToggle={onToggleShowGeneral}
-          ariaLabel={t('settings.homeScreen.showGeneral')}
-        />
-      </SettingsRow>
+          <SectionLabel bottom={4}>{t('settings.homeScreen.title')}</SectionLabel>
+          <SettingsRow
+            label={t('settings.homeScreen.showGeneral')}
+            desc={t('settings.homeScreen.showGeneralDesc')}
+            accessory="none"
+            divider={false}
+          >
+            <Switch
+              on={mounted && showGeneralOnToday}
+              onToggle={onToggleShowGeneral}
+              ariaLabel={t('settings.homeScreen.showGeneral')}
+            />
+          </SettingsRow>
+        </div>
 
-      <PushNotificationSection push={push} />
+        <div className="stagger-enter">
+          <PushNotificationSection push={push} />
+        </div>
+      </div>
       <div style={{ height: 24 }} />
     </div>
   )

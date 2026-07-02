@@ -132,6 +132,8 @@ export interface AppTokensV2 {
   statusBadText: string
   /** Foreground for text/icons painted on a `statusBad` fill (ink dark, white light). */
   fgOnBad: string
+  /** Foreground for text/icons painted on a `statusOverdue` (amber) fill: fixed canvas ink both modes (white fails AA on amber). */
+  fgOnOverdue: string
   selectionBg: string
 }
 
@@ -211,6 +213,7 @@ export function createTokensV2(
       statusOverdueText: status.overdueText,
       statusBadText: status.badText,
       fgOnBad: status.fgOnBad,
+      fgOnOverdue: '#020618',
       selectionBg: `rgba(${accent.primaryRgb}, ${selectionAlpha.light})`,
     }
   }

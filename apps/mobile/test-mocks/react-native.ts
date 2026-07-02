@@ -43,6 +43,8 @@ function createHostComponent(name: string) {
         if (callback) measureInWindowImpl(callback)
       },
       setNativeProps: () => {},
+      focus: () => {},
+      blur: () => {},
     }
 
     if (!hostRefsNull) {
@@ -159,6 +161,7 @@ export const AccessibilityInfo = {
   addEventListener: (_event: string, _listener: (enabled: boolean) => void) => ({
     remove: () => {},
   }),
+  announceForAccessibility: (_announcement: string) => {},
 }
 
 export const Vibration = {

@@ -59,6 +59,13 @@ export function ProfileSummaryCard({
         })
       : t('referral.card.hint')
 
+  const streakLabel = t('streakDisplay.title')
+  const streakValue = `${streak} ${plural(t('streakDisplay.daysSuffix'), streak)}`
+  const achievementsLabel = t('gamification.profileCard.tileLabel')
+  const achievementsAccessibleName = `${achievementsValue} · ${achievementsLabel}${
+    achievementsLocked ? ` · ${t('common.locked')}` : ''
+  }`
+
   return (
     <div
       className="rounded-[18px] bg-[var(--bg-card)]"
@@ -104,7 +111,7 @@ export function ProfileSummaryCard({
               onClick={onEditName}
               aria-label={t('profile.editName.title')}
               className="flex max-w-full cursor-pointer appearance-none items-center justify-center border-0 bg-transparent p-0"
-              style={{ gap: 6, minHeight: 36 }}
+              style={{ gap: 6, minHeight: 44 }}
             >
               <span
                 className="overflow-hidden text-ellipsis whitespace-nowrap"
@@ -141,17 +148,17 @@ export function ProfileSummaryCard({
       <div className="grid grid-cols-2" style={{ marginTop: 20, gap: 4 }}>
         <ProfileStatButton
           emoji="🔥"
-          value={`${streak} ${plural(t('streakDisplay.daysSuffix'), streak)}`}
-          label={t('streakDisplay.title')}
-          ariaLabel={t('streakDisplay.title')}
+          value={streakValue}
+          label={streakLabel}
+          ariaLabel={`${streakValue} · ${streakLabel}`}
           onClick={onStreakClick}
         />
         {showAchievements && (
           <ProfileStatButton
             emoji="🏆"
             value={achievementsValue}
-            label={t('gamification.profileCard.tileLabel')}
-            ariaLabel={t('gamification.profileCard.tileLabel')}
+            label={achievementsLabel}
+            ariaLabel={achievementsAccessibleName}
             dataTour={achievementsDataTour}
             locked={achievementsLocked}
             onClick={onAchievementsClick}
@@ -227,7 +234,7 @@ function ProfileStatButton({
       data-tour={dataTour}
       aria-label={ariaLabel}
       onClick={onClick}
-      className="relative flex cursor-pointer appearance-none flex-col items-center border-0 bg-transparent transition-[background-color] duration-[160ms] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev)]"
+      className="relative flex cursor-pointer appearance-none flex-col items-center border-0 bg-transparent transition-[background-color,transform] duration-[160ms] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev)] active:scale-[0.98]"
       style={{ gap: 4, padding: '12px 8px', borderRadius: 14, minHeight: 44 }}
     >
       <span style={{ fontSize: 26, lineHeight: 1 }} aria-hidden="true">

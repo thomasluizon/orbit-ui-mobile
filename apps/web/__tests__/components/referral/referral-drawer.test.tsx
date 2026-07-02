@@ -54,8 +54,10 @@ describe('ReferralDrawer', () => {
   it('shows loading state', () => {
     mockIsLoading = true
     render(<ReferralDrawer open={true} onOpenChange={vi.fn()} />)
-    const pulseElements = document.querySelectorAll('.animate-pulse')
-    expect(pulseElements.length).toBeGreaterThan(0)
+    expect(
+      screen.getByRole('status', { name: 'common.loading' }),
+    ).toBeInTheDocument()
+    expect(document.body.textContent).not.toContain(mockReferralUrl)
   })
 
   it('shows error state', () => {
@@ -72,9 +74,11 @@ describe('ReferralDrawer', () => {
     expect(document.body.textContent).toContain('https://app.useorbit.org/ref/abc123')
   })
 
-  it('shows copy button', () => {
+  it('shows an icon-only copy button with an accessible label', () => {
     render(<ReferralDrawer open={true} onOpenChange={vi.fn()} />)
-    expect(screen.getByText('referral.drawer.copy')).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'referral.drawer.copyLink' }),
+    ).toBeInTheDocument()
   })
 
   it('shows stats when available', () => {

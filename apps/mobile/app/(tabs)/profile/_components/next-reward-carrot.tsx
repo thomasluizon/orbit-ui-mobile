@@ -104,7 +104,7 @@ const styles = StyleSheet.create({
   title: {
     fontFamily: 'Rubik_500Medium',
     fontSize: 12,
-    letterSpacing: 0.48,
+    letterSpacing: 0.96,
   },
   toNextLevel: {
     fontFamily: 'Rubik_500Medium',

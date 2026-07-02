@@ -8,11 +8,13 @@ function ChipActionButton({
   onClick,
   disabled = false,
   destructive = false,
+  ariaLabel,
   children,
 }: Readonly<{
   onClick: () => void
   disabled?: boolean
   destructive?: boolean
+  ariaLabel?: string
   children: React.ReactNode
 }>) {
   return (
@@ -20,12 +22,9 @@ function ChipActionButton({
       type="button"
       onClick={onClick}
       disabled={disabled}
+      aria-label={ariaLabel}
       className="chip disabled:opacity-40 disabled:cursor-not-allowed"
-      style={{
-        fontSize: 12,
-        padding: '7px 12px',
-        ...(destructive ? { color: 'var(--status-bad)' } : null),
-      }}
+      style={destructive ? { color: 'var(--status-bad)' } : undefined}
     >
       {children}
     </button>
@@ -79,7 +78,7 @@ export function FactsSelectBar({
           onClick={onToggleSelectMode}
           aria-label={t('profile.facts.select')}
           className="icon-btn"
-          style={{ width: 32, height: 32, color: 'var(--fg-3)' }}
+          style={{ color: 'var(--fg-3)' }}
         >
           <ListChecks size={18} strokeWidth={1.8} />
         </button>
@@ -99,8 +98,9 @@ export function FactsSelectBar({
           destructive
           disabled={bulkDeletePending}
           onClick={onBulkDelete}
+          ariaLabel={t('profile.facts.deleteSelectedShort')}
         >
-          <Trash2 size={14} strokeWidth={1.8} />
+          <Trash2 size={14} strokeWidth={1.8} aria-hidden="true" />
           {selectedCount}
         </ChipActionButton>
       )}
@@ -109,7 +109,7 @@ export function FactsSelectBar({
         onClick={onToggleSelectMode}
         aria-label={t('profile.facts.cancel')}
         className="icon-btn"
-        style={{ width: 32, height: 32, color: 'var(--fg-3)' }}
+        style={{ color: 'var(--fg-3)' }}
       >
         <X size={18} strokeWidth={1.8} />
       </button>

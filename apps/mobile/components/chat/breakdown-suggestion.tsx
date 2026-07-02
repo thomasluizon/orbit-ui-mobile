@@ -2,7 +2,7 @@ import { useState, useMemo } from 'react'
 import {
   View,
   Text,
-  TouchableOpacity,
+  Pressable,
   ActivityIndicator,
 } from 'react-native'
 import { Check, Plus } from 'lucide-react-native'
@@ -118,20 +118,18 @@ function BreakdownActions({
   const { t } = useTranslation()
   return (
     <>
-      <TouchableOpacity
-        style={styles.addBtn}
-        activeOpacity={0.7}
+      <Pressable
+        style={({ pressed }) => [styles.addBtn, pressed && styles.controlPressed]}
         accessibilityRole="button"
         accessibilityLabel={t('habits.breakdown.addHabit')}
         onPress={onAddHabit}
       >
         <Plus size={14} color={tokens.primary} />
         <Text style={styles.addBtnText}>{t('habits.breakdown.addHabit')}</Text>
-      </TouchableOpacity>
+      </Pressable>
 
-      <TouchableOpacity
-        style={styles.checkboxRow}
-        activeOpacity={0.7}
+      <Pressable
+        style={({ pressed }) => [styles.checkboxRow, pressed && styles.controlPressed]}
         accessibilityRole="checkbox"
         accessibilityState={{ checked: createAsParent }}
         accessibilityLabel={t('habits.breakdown.createAsParent')}
@@ -148,7 +146,7 @@ function BreakdownActions({
         <Text style={styles.checkboxLabel}>
           {t('habits.breakdown.createAsParent')}
         </Text>
-      </TouchableOpacity>
+      </Pressable>
 
       {createError !== '' && (
         <Text style={styles.errorText}>{createError}</Text>

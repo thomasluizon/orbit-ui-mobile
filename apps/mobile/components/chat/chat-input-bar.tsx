@@ -1,5 +1,5 @@
 import { forwardRef, useCallback, useEffect, useState } from "react";
-import { View, Text, TouchableOpacity } from "react-native";
+import { View, Text, Pressable } from "react-native";
 import {
   Image as ImageIcon,
   Lock,
@@ -11,8 +11,10 @@ import { useTranslation } from "react-i18next";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { CHAT_DRAFT_STORAGE_KEY } from "@orbit/shared/hooks";
 import { ChatComposerInput } from "@/components/chat/chat-composer-input";
-import { RecordingVisualizer } from "@/components/chat/chat-animations";
+import { RecordingPulseDot, RecordingVisualizer } from "@/components/chat/chat-animations";
 import type { ChatStyles, Tokens } from "@/app/chat.styles";
+
+const FIELD_ICON_HIT_SLOP = { top: 5, bottom: 5, left: 5, right: 5 };
 
 interface ChatInputBarProps {
   tokens: Tokens;
@@ -138,20 +140,26 @@ export const ChatInputBar = forwardRef<View, Readonly<ChatInputBarProps>>(
           <>
             <View style={styles.recordingContent}>
               {isTranscribing ? (
-                <Text
-                  style={[styles.recordingTime, { color: tokens.fg2 }]}
-                  accessibilityLiveRegion="polite"
-                >
-                  {t("chat.transcribing")}
-                </Text>
+                <View style={styles.recordingStatus}>
+                  <View
+                    style={[
+                      styles.recordingDot,
+                      { backgroundColor: tokens.primary },
+                    ]}
+                  />
+                  <Text
+                    style={[styles.recordingTime, { color: tokens.fg2 }]}
+                    accessibilityLiveRegion="polite"
+                  >
+                    {t("chat.transcribing")}
+                  </Text>
+                </View>
               ) : (
                 <>
                   <View style={styles.recordingStatus}>
-                    <View
-                      style={[
-                        styles.recordingDot,
-                        { backgroundColor: tokens.statusBad },
-                      ]}
+                    <RecordingPulseDot
+                      style={styles.recordingDot}
+                      color={tokens.statusBad}
                     />
                     <Text style={[styles.recordingTime, { color: tokens.fg1 }]}>
                       {recordingTime}
@@ -161,17 +169,20 @@ export const ChatInputBar = forwardRef<View, Readonly<ChatInputBarProps>>(
                 </>
               )}
             </View>
-            <TouchableOpacity
+            <Pressable
               accessibilityRole="button"
               accessibilityLabel={t("chat.stopRecording")}
               accessibilityState={{ disabled: isTranscribing }}
               disabled={isTranscribing}
-              activeOpacity={0.7}
               onPress={onToggleRecording}
-              style={[styles.stopButton, isTranscribing && { opacity: 0.5 }]}
+              style={({ pressed }) => [
+                styles.stopButton,
+                isTranscribing && { opacity: 0.5 },
+                pressed && !isTranscribing && styles.iconPressed,
+              ]}
             >
               <Square size={18} color={tokens.statusBad} fill={tokens.statusBad} />
-            </TouchableOpacity>
+            </Pressable>
           </>
         ) : (
           <ChatComposerInput
@@ -191,40 +202,49 @@ export const ChatInputBar = forwardRef<View, Readonly<ChatInputBarProps>>(
                 </View>
               ) : (
               <>
-                <TouchableOpacity
+                <Pressable
                   accessibilityRole="button"
                   accessibilityLabel={t("chat.attachFile")}
-                  activeOpacity={0.7}
                   disabled={!isOnline}
+                  hitSlop={FIELD_ICON_HIT_SLOP}
                   onPress={onOpenTextFilePicker}
-                  style={styles.fieldIconButton}
+                  style={({ pressed }) => [
+                    styles.fieldIconButton,
+                    pressed && styles.iconPressed,
+                  ]}
                 >
                   <Paperclip size={18} color={tokens.fg3} strokeWidth={1.8} />
-                </TouchableOpacity>
+                </Pressable>
 
-                <TouchableOpacity
+                <Pressable
                   accessibilityRole="button"
                   accessibilityLabel={t("chat.attachImage")}
-                  activeOpacity={0.7}
                   disabled={!isOnline}
+                  hitSlop={FIELD_ICON_HIT_SLOP}
                   onPress={onOpenFilePicker}
-                  style={styles.fieldIconButton}
+                  style={({ pressed }) => [
+                    styles.fieldIconButton,
+                    pressed && styles.iconPressed,
+                  ]}
                 >
                   <ImageIcon size={18} color={tokens.fg3} strokeWidth={1.8} />
-                </TouchableOpacity>
+                </Pressable>
 
                 {speechSupported && (
                   <View ref={voiceRef} collapsable={false}>
-                    <TouchableOpacity
+                    <Pressable
                       accessibilityRole="button"
                       accessibilityLabel={t("chat.toggleMic")}
-                      activeOpacity={0.7}
                       disabled={isTyping || !isOnline}
+                      hitSlop={FIELD_ICON_HIT_SLOP}
                       onPress={onToggleRecording}
-                      style={styles.fieldIconButton}
+                      style={({ pressed }) => [
+                        styles.fieldIconButton,
+                        pressed && styles.iconPressed,
+                      ]}
                     >
                       <Mic size={18} color={tokens.fg3} strokeWidth={1.8} />
-                    </TouchableOpacity>
+                    </Pressable>
                   </View>
                 )}
               </>

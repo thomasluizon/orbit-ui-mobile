@@ -68,7 +68,7 @@ export function PreferencePickerSheet({
             onClick={onClose}
             leading={<Check size={18} strokeWidth={2} aria-hidden="true" />}
           >
-            {t('common.save')}
+            {t('common.done')}
           </PillButton>
         ) : undefined
       }

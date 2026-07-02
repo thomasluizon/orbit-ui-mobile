@@ -75,7 +75,7 @@ export function CheerComposer({ target, onClose }: Readonly<CheerComposerProps>)
           busy={sendCheer.isPending}
           fullWidth
         >
-          {sendCheer.isPending ? t('social.cheer.sending') : t('social.cheer.send')}
+          {t('social.cheer.send')}
         </PillButton>
       }
     >
@@ -87,7 +87,7 @@ export function CheerComposer({ target, onClose }: Readonly<CheerComposerProps>)
               type="button"
               aria-label={t(reaction.labelKey)}
               onClick={() => appendReaction(reaction.emoji)}
-              className="inline-flex cursor-pointer items-center justify-center rounded-full bg-[var(--bg-elev)] transition-transform hover:bg-[rgba(var(--primary-rgb),0.12)] active:scale-[0.96]"
+              className="inline-flex cursor-pointer items-center justify-center rounded-full bg-[var(--bg-elev)] transition-[transform,background-color] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[rgba(var(--primary-rgb),0.12)] active:scale-[0.96]"
               style={{
                 width: 48,
                 height: 48,
@@ -99,27 +99,37 @@ export function CheerComposer({ target, onClose }: Readonly<CheerComposerProps>)
             </button>
           ))}
         </div>
-        <textarea
-          value={note}
-          onChange={(event) => setNote(event.target.value.slice(0, MAX_NOTE))}
-          maxLength={MAX_NOTE}
-          placeholder={t('social.cheer.notePlaceholder')}
-          aria-label={t('social.cheer.notePlaceholder')}
-          rows={3}
-          style={{
-            width: '100%',
-            resize: 'none',
-            borderRadius: 14,
-            background: 'var(--bg-field)',
-            boxShadow: 'inset 0 0 0 1px var(--hairline)',
-            padding: '12px 14px',
-            fontFamily: 'var(--font-sans)',
-            fontSize: 16,
-            lineHeight: 1.45,
-            color: 'var(--fg-1)',
-            outline: 'none',
-          }}
-        />
+        <div className="flex flex-col" style={{ gap: 4 }}>
+          <textarea
+            value={note}
+            onChange={(event) => setNote(event.target.value.slice(0, MAX_NOTE))}
+            maxLength={MAX_NOTE}
+            placeholder={t('social.cheer.notePlaceholder')}
+            aria-label={t('social.cheer.notePlaceholder')}
+            rows={3}
+            className="w-full resize-none outline-none shadow-[inset_0_0_0_1px_var(--hairline)] focus-visible:shadow-[inset_0_0_0_2px_var(--primary)]"
+            style={{
+              borderRadius: 14,
+              background: 'var(--bg-field)',
+              padding: '12px 14px',
+              fontFamily: 'var(--font-sans)',
+              fontSize: 16,
+              lineHeight: 1.45,
+              color: 'var(--fg-1)',
+            }}
+          />
+          <span
+            className="self-end"
+            style={{
+              fontFamily: 'var(--font-mono)',
+              fontSize: 12,
+              color: 'var(--fg-4)',
+              fontVariantNumeric: 'tabular-nums',
+            }}
+          >
+            {note.length}/{MAX_NOTE}
+          </span>
+        </div>
       </div>
     </AppOverlay>
   )

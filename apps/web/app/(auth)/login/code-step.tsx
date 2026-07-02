@@ -2,7 +2,8 @@ import type { useTranslations } from 'next-intl'
 import { motion, useReducedMotion } from 'motion/react'
 import { CodeInput } from '@/components/ui/code-input'
 import { PillButton } from '@/components/ui/pill-button'
-import { QuietLink, Spinner } from './login-atoms'
+import { QuietLink } from '@/components/ui/quiet-link'
+import { Spinner } from './login-atoms'
 
 interface CodeStepProps {
   email: string
@@ -12,6 +13,7 @@ interface CodeStepProps {
   resendCountdown: number
   codeInputRefs: React.RefObject<(HTMLInputElement | null)[]>
   errorSignal?: string | null
+  isOnline: boolean
   onVerifyCode: () => void
   onCodeInput: (index: number, value: string) => void
   onCodeKeydown: (index: number, event: React.KeyboardEvent<HTMLInputElement>) => void
@@ -29,6 +31,7 @@ export function CodeStep({
   resendCountdown,
   codeInputRefs,
   errorSignal = null,
+  isOnline,
   onVerifyCode,
   onCodeInput,
   onCodeKeydown,
@@ -94,7 +97,7 @@ export function CodeStep({
 
       <div className="flex justify-center">
         {canResend ? (
-          <QuietLink emphasized onClick={onResendCode}>
+          <QuietLink emphasized onClick={onResendCode} disabled={!isOnline}>
             {t('auth.resendCode')}
           </QuietLink>
         ) : (

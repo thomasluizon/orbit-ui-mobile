@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { StyleSheet, View } from 'react-native'
+import { ActivityIndicator, StyleSheet, View } from 'react-native'
+import Animated, { FadeInDown, ReduceMotion } from 'react-native-reanimated'
 import { useTranslation } from 'react-i18next'
 import { UserPlus } from 'lucide-react-native'
 import { EmptyState } from '@/components/ui/empty-state'
@@ -16,12 +17,18 @@ interface AccountabilitySectionProps {
   initialHabitId?: string | null
 }
 
+function rowEntrance(index: number) {
+  return FadeInDown.duration(280)
+    .delay(Math.min(index, 8) * 40)
+    .reduceMotion(ReduceMotion.System)
+}
+
 /** Buddies tab: invites, active pairs, and a New-pair flow. Pair detail opens as a full-screen route. */
 export function AccountabilitySection({ initialHabitId }: Readonly<AccountabilitySectionProps>) {
   const { t } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
-  const { data } = useAccountabilityPairs()
+  const { data, isLoading, isError, refetch } = useAccountabilityPairs()
   const [newPairOpen, setNewPairOpen] = useState(() => Boolean(initialHabitId))
 
   const activePairs = data?.activePairs ?? []
@@ -59,7 +66,20 @@ export function AccountabilitySection({ initialHabitId }: Readonly<Accountabilit
       ) : null}
 
       <SectionLabel>{t('social.buddies.activeTitle')}</SectionLabel>
-      {activePairs.length === 0 ? (
+      {isLoading ? (
+        <View style={styles.loading}>
+          <ActivityIndicator color={tokens.primary} accessibilityLabel={t('common.loading')} />
+        </View>
+      ) : isError ? (
+        <EmptyState
+          description={t('social.errors.loadFailed')}
+          action={{
+            label: t('common.retry'),
+            onPress: () => void refetch(),
+            variant: 'secondary',
+          }}
+        />
+      ) : activePairs.length === 0 ? (
         <EmptyState
           title={t('social.buddies.emptyTitle')}
           description={t('social.buddies.emptyBody')}
@@ -70,7 +90,11 @@ export function AccountabilitySection({ initialHabitId }: Readonly<Accountabilit
           }}
         />
       ) : (
-        activePairs.map((pair) => <BuddyRow key={pair.id} pair={pair} />)
+        activePairs.map((pair, index) => (
+          <Animated.View key={pair.id} entering={rowEntrance(index)}>
+            <BuddyRow pair={pair} />
+          </Animated.View>
+        ))
       )}
 
       <NewPairFlow
@@ -85,4 +109,5 @@ export function AccountabilitySection({ initialHabitId }: Readonly<Accountabilit
 const styles = StyleSheet.create({
   container: { paddingBottom: 24 },
   ctaBlock: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 8 },
+  loading: { alignItems: 'center', paddingVertical: 48 },
 })

@@ -38,7 +38,10 @@ export function InviteFriendsPicker({ selectedIds, onToggle }: Readonly<InviteFr
             accessibilityState={{ selected: active }}
             accessibilityLabel={friend.displayName}
             onPress={() => onToggle(friend.userId)}
-            style={styles.row}
+            style={({ pressed }) => [
+              styles.row,
+              pressed ? { backgroundColor: tokens.bgElev } : null,
+            ]}
           >
             <UserAvatar name={friend.displayName} size={36} />
             <Text style={[styles.name, { color: tokens.fg1 }]} numberOfLines={1}>
@@ -63,7 +66,14 @@ export function InviteFriendsPicker({ selectedIds, onToggle }: Readonly<InviteFr
 
 const styles = StyleSheet.create({
   list: { gap: 2 },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 10, paddingHorizontal: 4 },
+  row: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 10,
+    paddingHorizontal: 4,
+    borderRadius: 12,
+  },
   name: { flex: 1, minWidth: 0, fontFamily: 'Rubik_400Regular', fontSize: 15 },
   check: {
     width: 22,

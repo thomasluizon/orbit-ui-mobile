@@ -3,12 +3,14 @@ import Animated, { FadeInDown, ReduceMotion } from 'react-native-reanimated'
 import {
   BellRing,
   Brain,
+  CheckCheck,
   ChevronLeft,
   ChevronRight,
   ListChecks,
   Lock,
   Satellite,
   Sparkles,
+  SquareX,
   Trash2,
   X,
 } from 'lucide-react-native'
@@ -16,8 +18,9 @@ import { normalizeUserFactCategory } from '@orbit/shared/utils'
 import { tintFromPrimary } from '@/lib/theme'
 import { SectionLabel } from '@/components/ui/section-label'
 import { SettingsRow, Switch } from '@/components/ui/settings-row'
-import { SelectCheck } from '@/components/ui/select-check'
+import { RadioGlyph } from '@/components/ui/select-check'
 import { SatelliteGlyph } from '@/components/ui/satellite-glyph'
+import { SkeletonLine } from '@/components/ui/skeleton'
 import { PillButton } from '@/components/ui/pill-button'
 import { ProBadge } from '@/components/ui/pro-badge'
 import type { UseQueryResult } from '@tanstack/react-query'
@@ -195,17 +198,18 @@ export function FactsSelectBar({
       {showPaging ? (
         <>
           <Text style={[styles.pagingText, { color: tokens.fg3 }]}>
-            <Text style={{ color: tokens.fg1 }}>{page}</Text> /{' '}
-            {totalPages}
+            {t('profile.facts.count', { n: page, max: totalPages })}
           </Text>
           <Pressable
             onPress={onPreviousPage}
             disabled={page === 1}
             accessibilityRole="button"
             accessibilityLabel={t('common.previous')}
+            hitSlop={7}
             style={({ pressed }) => [
               styles.pageBtn,
               { backgroundColor: pressed ? tokens.bgElev2 : tokens.bgElev },
+              page === 1 ? { opacity: 0.4 } : null,
               pressed ? styles.pageBtnPressed : null,
             ]}
           >
@@ -220,9 +224,11 @@ export function FactsSelectBar({
             disabled={page === totalPages}
             accessibilityRole="button"
             accessibilityLabel={t('common.next')}
+            hitSlop={7}
             style={({ pressed }) => [
               styles.pageBtn,
               { backgroundColor: pressed ? tokens.bgElev2 : tokens.bgElev },
+              page === totalPages ? { opacity: 0.4 } : null,
               pressed ? styles.pageBtnPressed : null,
             ]}
           >
@@ -240,20 +246,24 @@ export function FactsSelectBar({
           <Pressable
             onPress={onToggleSelectAll}
             accessibilityRole="button"
+            accessibilityLabel={
+              allSelected
+                ? t('profile.facts.deselectAll')
+                : t('profile.facts.selectAll')
+            }
+            accessibilityState={{ selected: allSelected }}
+            hitSlop={{ top: 8, bottom: 8 }}
             style={({ pressed }) => [
-              styles.actionChip,
-              {
-                backgroundColor: pressed ? tokens.bgElev2 : tokens.bgElev,
-                borderColor: tokens.hairline,
-              },
+              styles.iconBtn,
+              { backgroundColor: pressed ? tokens.bgElev2 : tokens.bgElev },
               pressed ? styles.actionChipPressed : null,
             ]}
           >
-            <Text style={[styles.selectActionText, { color: tokens.fg2 }]}>
-              {allSelected
-                ? t('profile.facts.deselectAll')
-                : t('profile.facts.selectAll')}
-            </Text>
+            {allSelected ? (
+              <SquareX size={18} color={tokens.fg2} strokeWidth={1.8} />
+            ) : (
+              <CheckCheck size={18} color={tokens.fg2} strokeWidth={1.8} />
+            )}
           </Pressable>
           {selectedCount > 0 ? (
             <Pressable
@@ -261,6 +271,7 @@ export function FactsSelectBar({
               disabled={bulkDeletePending}
               accessibilityRole="button"
               accessibilityLabel={t('profile.facts.deleteSelectedShort')}
+              hitSlop={{ top: 8, bottom: 8 }}
               style={({ pressed }) => [
                 styles.actionChip,
                 {
@@ -283,6 +294,7 @@ export function FactsSelectBar({
             onPress={onToggleSelectMode}
             accessibilityRole="button"
             accessibilityLabel={t('profile.facts.cancel')}
+            hitSlop={6}
             style={({ pressed }) => [
               styles.iconBtn,
               { backgroundColor: pressed ? tokens.bgElev2 : tokens.bgElev },
@@ -297,6 +309,7 @@ export function FactsSelectBar({
           onPress={onToggleSelectMode}
           accessibilityRole="button"
           accessibilityLabel={t('profile.facts.select')}
+          hitSlop={6}
           style={({ pressed }) => [
             styles.iconBtn,
             { backgroundColor: pressed ? tokens.bgElev2 : tokens.bgElev },
@@ -363,11 +376,7 @@ function FactItem({
       >
         {selectMode ? (
           <View style={styles.checkSlot}>
-            <SelectCheck
-              selected={selected}
-              size={18}
-              onPress={() => onToggleSelection(fact.id)}
-            />
+            <RadioGlyph selected={selected} size={18} tokens={tokens} />
           </View>
         ) : null}
         <View style={styles.factBody}>
@@ -455,30 +464,37 @@ export function UserFactsList({
   if (factsQuery.isLoading) {
     return (
       <View style={styles.skelStack}>
-        <View style={[styles.skelBar, { backgroundColor: tokens.bgElev }]} />
-        <View style={[styles.skelBar, { backgroundColor: tokens.bgElev }]} />
+        <SkeletonLine height={56} style={{ borderRadius: 16 }} />
+        <SkeletonLine height={56} style={{ borderRadius: 16 }} />
       </View>
     )
   }
 
   if (factsQuery.error) {
     return (
-      <View style={styles.emptyBlock} accessibilityRole="alert">
-        <SatelliteGlyph size={104} />
-        <Text style={[styles.emptyBody, { color: tokens.statusBad }]}>
+      <Animated.View
+        entering={FadeInDown.duration(280).reduceMotion(ReduceMotion.System)}
+        style={styles.emptyBlock}
+        accessibilityRole="alert"
+      >
+        <SatelliteGlyph size={96} />
+        <Text style={[styles.emptyBody, { color: tokens.statusBadText }]}>
           {t('profile.facts.factsError')}
         </Text>
         <PillButton fullWidth onPress={() => factsQuery.refetch()}>
           {t('profile.facts.retry')}
         </PillButton>
-      </View>
+      </Animated.View>
     )
   }
 
   if (facts.length === 0) {
     return (
-      <View style={styles.emptyBlock}>
-        <SatelliteGlyph size={104} />
+      <Animated.View
+        entering={FadeInDown.duration(280).reduceMotion(ReduceMotion.System)}
+        style={styles.emptyBlock}
+      >
+        <SatelliteGlyph size={96} />
         <Text style={[styles.emptyBody, { color: tokens.fg2 }]}>
           {t('profile.facts.empty')}
         </Text>
@@ -491,7 +507,7 @@ export function UserFactsList({
         >
           {t('summary.askAstra')}
         </PillButton>
-      </View>
+      </Animated.View>
     )
   }
 

@@ -22,15 +22,7 @@ export function RetrospectiveLockedStates({
 }: Readonly<RetrospectiveLockedStatesProps>) {
   const t = useTranslations()
 
-  if (!hasProAccess) {
-    return (
-      <LockedBlock title={t('retrospective.locked')} hint={t('retrospective.lockedHint')}>
-        <Link href="/upgrade" className={pillLinkClassName}>
-          {t('upgrade.subscribe')}
-        </Link>
-      </LockedBlock>
-    )
-  }
+  if (!hasProAccess) return null
 
   if (!isYearlyPro) {
     return (

@@ -4,6 +4,7 @@ import { createMockProfile } from "@orbit/shared/__tests__/factories";
 
 import AchievementsScreen from "@/app/achievements";
 import RetrospectiveScreen from "@/app/retrospective";
+import { buildUpgradeHref } from "@/lib/upgrade-route";
 
 const TestRenderer = require("react-test-renderer");
 
@@ -195,7 +196,20 @@ describe("mobile upgrade guard redirects", () => {
     expect(mocks.router.push).not.toHaveBeenCalledWith("/upgrade");
   });
 
-  it("replaces to upgrade when retrospective is opened without yearly pro access", async () => {
+  it("replaces to upgrade when retrospective is opened by a free user", async () => {
+    await TestRenderer.act(async () => {
+      TestRenderer.create(<RetrospectiveScreen />);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(mocks.router.replace).toHaveBeenCalledWith(
+      buildUpgradeHref("/retrospective"),
+    );
+    expect(mocks.router.push).not.toHaveBeenCalledWith("/upgrade");
+  });
+
+  it("does not redirect a monthly pro user (change plan stays in place)", async () => {
     mocks.state.profile = createMockProfile({
       hasProAccess: true,
       isTrialActive: false,
@@ -209,7 +223,6 @@ describe("mobile upgrade guard redirects", () => {
       await Promise.resolve();
     });
 
-    expect(mocks.router.replace).toHaveBeenCalledWith("/upgrade");
-    expect(mocks.router.push).not.toHaveBeenCalledWith("/upgrade");
+    expect(mocks.router.replace).not.toHaveBeenCalled();
   });
 });

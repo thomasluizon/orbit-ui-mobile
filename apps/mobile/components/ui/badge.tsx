@@ -15,7 +15,7 @@ import {
 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
-export type BadgeTone = 'violet' | 'soft' | 'outline' | 'amber'
+export type BadgeTone = 'violet' | 'soft' | 'outline' | 'amber' | 'bad'
 
 interface BadgeProps {
   tone?: BadgeTone
@@ -57,13 +57,19 @@ function toneStyles(
       text: { color: tokens.statusOverdueText },
     }
   }
+  if (tone === 'bad') {
+    return {
+      container: { backgroundColor: rgbaFromHex(tokens.statusBad, 0.18) },
+      text: { color: tokens.statusBadText },
+    }
+  }
   return {
     container: { backgroundColor: tokens.primary },
     text: { color: tokens.fgOnPrimary },
   }
 }
 
-/** Kit badge: 10.5/600 uppercase pill in violet, soft, outline, or amber tone. */
+/** Kit badge: 10.5/600 uppercase pill in violet, soft, outline, amber, or bad tone. */
 export function Badge({ tone = 'violet', children, style }: Readonly<BadgeProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)

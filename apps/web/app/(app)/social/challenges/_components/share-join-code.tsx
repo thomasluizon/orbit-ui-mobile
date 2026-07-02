@@ -10,7 +10,7 @@ interface ShareJoinCodeProps {
   joinCode: string
 }
 
-/** Join-code well with copy plus native text share (Web Share API, clipboard fallback — no image capture). */
+/** Join-code well with copy plus native text share (Web Share API, clipboard fallback, no image capture). */
 export function ShareJoinCode({ title, joinCode }: Readonly<ShareJoinCodeProps>) {
   const t = useTranslations()
   const [copied, setCopied] = useState(false)
@@ -55,13 +55,29 @@ export function ShareJoinCode({ title, joinCode }: Readonly<ShareJoinCodeProps>)
         >
           {joinCode}
         </div>
-        <button type="button" className="chip" onClick={copyCode}>
-          {copied ? (
-            <Check size={14} strokeWidth={1.8} color="var(--status-done)" aria-hidden="true" />
-          ) : (
-            <Clipboard size={14} strokeWidth={1.8} aria-hidden="true" />
-          )}
-          <span>{copied ? t('challenges.detail.copied') : t('challenges.detail.copy')}</span>
+        <button
+          type="button"
+          aria-label={copied ? t('challenges.detail.copied') : t('challenges.detail.copy')}
+          onClick={copyCode}
+          className="icon-btn icon-btn-well shrink-0"
+        >
+          <span
+            aria-hidden="true"
+            className={`absolute inset-0 flex items-center justify-center transition-[opacity,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] motion-reduce:transition-none ${
+              copied ? 'scale-[0.25] opacity-0' : 'scale-100 opacity-100'
+            }`}
+          >
+            <Clipboard size={18} strokeWidth={1.8} />
+          </span>
+          <span
+            aria-hidden="true"
+            className={`absolute inset-0 flex items-center justify-center transition-[opacity,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] motion-reduce:transition-none ${
+              copied ? 'scale-100 opacity-100' : 'scale-[0.25] opacity-0'
+            }`}
+            style={{ color: 'var(--status-done)' }}
+          >
+            <Check size={18} strokeWidth={1.8} />
+          </span>
         </button>
       </div>
 

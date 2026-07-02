@@ -17,7 +17,7 @@ export function ShareCardQr({ value, size }: Readonly<ShareCardQrProps>) {
     QRCode.toDataURL(value, {
       margin: 0,
       width: size * 4,
-      color: { dark: '#0b1020', light: '#ffffff' },
+      color: { dark: '#020618', light: '#ffffff' },
     })
       .then((url) => {
         if (active) setDataUrl(url)

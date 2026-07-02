@@ -18,6 +18,7 @@ import { Chip } from '@/components/ui/chip'
 import { SectionLabel } from '@/components/ui/section-label'
 import { FieldInput } from '@/components/ui/field-input'
 import { PillButton } from '@/components/ui/pill-button'
+import { QuietLink } from '@/components/ui/quiet-link'
 
 interface GoalSuggestion {
   key: string
@@ -132,7 +133,7 @@ export function OnboardingCreateGoal({
             width: 56,
             height: 56,
             background: 'var(--primary)',
-            boxShadow: '0 8px 28px rgba(var(--primary-rgb), 0.45)',
+            boxShadow: 'var(--primary-glow)',
             animation: 'fresh-start-orb 0.5s var(--ease-out) both',
           }}
         >
@@ -273,21 +274,11 @@ export function OnboardingCreateGoal({
         </PillButton>
       </div>
 
-      <button
-        type="button"
-        className="inline-flex appearance-none items-center justify-center border-0 bg-transparent cursor-pointer transition-[color] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:text-[var(--fg-1)]"
-        disabled={isCreating}
-        onClick={onSkip}
-        style={{
-          minHeight: 44,
-          padding: '0 12px',
-          fontFamily: 'var(--font-sans)',
-          fontSize: 13,
-          color: 'var(--fg-3)',
-        }}
-      >
-        {t('onboarding.flow.createGoal.skipStep')}
-      </button>
+      <div className="flex justify-center">
+        <QuietLink onClick={onSkip} disabled={isCreating}>
+          {t('onboarding.flow.createGoal.skipStep')}
+        </QuietLink>
+      </div>
     </div>
   )
 }

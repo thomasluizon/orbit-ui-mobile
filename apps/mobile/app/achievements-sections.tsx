@@ -7,6 +7,7 @@ import { SectionLabel } from '@/components/ui/section-label'
 
 type Tokens = ReturnType<typeof createTokensV2>
 type TranslationFn = (key: string, params?: Record<string, unknown>) => string
+type DisplayDateFn = (value: string, options?: Intl.DateTimeFormatOptions) => string
 
 export type AchievementCategoryView = {
   key: string
@@ -21,12 +22,14 @@ interface AchievementCategorySectionProps {
   category: AchievementCategoryView
   t: TranslationFn
   tokens: Tokens
+  displayDate: DisplayDateFn
 }
 
 export function AchievementCategorySection({
   category,
   t,
   tokens,
+  displayDate,
 }: Readonly<AchievementCategorySectionProps>) {
   const { width } = useWindowDimensions()
   const tileWidth =
@@ -52,6 +55,7 @@ export function AchievementCategorySection({
               t={t}
               tokens={tokens}
               width={tileWidth}
+              displayDate={displayDate}
             />
           </Animated.View>
         ))}
@@ -65,6 +69,7 @@ interface AchievementTileProps {
   t: TranslationFn
   tokens: Tokens
   width: number
+  displayDate: DisplayDateFn
 }
 
 function AchievementTile({
@@ -72,6 +77,7 @@ function AchievementTile({
   t,
   tokens,
   width,
+  displayDate,
 }: Readonly<AchievementTileProps>) {
   const earned = achievement.isEarned
   const name = t(`gamification.achievements.${achievement.id}.name`)
@@ -92,9 +98,11 @@ function AchievementTile({
         },
       ]}
     >
-      <Text style={styles.emoji}>
-        {achievementEmoji(achievement.iconKey)}
-      </Text>
+      <View style={!earned ? styles.lockedEmoji : undefined}>
+        <Text style={styles.emoji}>
+          {achievementEmoji(achievement.iconKey)}
+        </Text>
+      </View>
       <Text
         style={[styles.name, { color: earned ? tokens.fg1 : tokens.fg2 }]}
         numberOfLines={2}
@@ -107,6 +115,13 @@ function AchievementTile({
       >
         {description}
       </Text>
+      {earned && achievement.earnedAtUtc ? (
+        <Text style={[styles.earnedMeta, { color: tokens.fg4 }]}>
+          {t('gamification.tile.earned', {
+            date: displayDate(achievement.earnedAtUtc, { month: 'short', day: 'numeric' }),
+          })}
+        </Text>
+      ) : null}
     </View>
   )
 }
@@ -130,6 +145,9 @@ const styles = StyleSheet.create({
   tileLocked: {
     opacity: 0.45,
   },
+  lockedEmoji: {
+    filter: [{ grayscale: 1 }],
+  },
   emoji: {
     fontSize: 30,
     lineHeight: 34,
@@ -147,5 +165,11 @@ const styles = StyleSheet.create({
     fontSize: 11,
     lineHeight: 15,
     textAlign: 'center',
+  },
+  earnedMeta: {
+    fontFamily: 'Roboto_400Regular',
+    fontSize: 11,
+    fontVariant: ['tabular-nums'],
+    marginTop: 6,
   },
 })

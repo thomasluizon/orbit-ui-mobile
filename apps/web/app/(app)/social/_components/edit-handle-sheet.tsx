@@ -93,7 +93,7 @@ export function EditHandleSheet({ open, onOpenChange }: Readonly<EditHandleSheet
               margin: 0,
               fontFamily: 'var(--font-sans)',
               fontSize: 13,
-              color: 'var(--status-bad)',
+              color: 'var(--status-bad-text)',
             }}
           >
             {error}

@@ -1,6 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { Flame, Target, Users } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
+import { plural } from '@orbit/shared/utils'
 import type { ChallengeListItem } from '@orbit/shared/types/challenge'
 import { ProgressBar } from '@/components/ui/progress-bar'
 import { createTokensV2, tintFromPrimary } from '@/lib/theme'
@@ -56,7 +57,10 @@ export function ChallengeCard({ challenge, onOpen }: Readonly<ChallengeCardProps
       <View style={styles.metaRow}>
         <Users size={14} strokeWidth={1.8} color={tokens.fg3} />
         <Text style={[styles.metaText, { color: tokens.fg3 }]}>
-          {t('challenges.card.participants', { count: challenge.participantCount })}
+          {plural(
+            t('challenges.card.participants', { count: challenge.participantCount }),
+            challenge.participantCount,
+          )}
         </Text>
       </View>
 
@@ -87,7 +91,7 @@ export function ChallengeCard({ challenge, onOpen }: Readonly<ChallengeCardProps
 
 const styles = StyleSheet.create({
   card: { padding: 16, borderRadius: 18, borderWidth: 1 },
-  pressed: { opacity: 0.85 },
+  pressed: { transform: [{ scale: 0.98 }] },
   badgeRow: { flexDirection: 'row', alignItems: 'center', gap: 8, marginBottom: 8 },
   badge: {
     flexDirection: 'row',
@@ -109,7 +113,7 @@ const styles = StyleSheet.create({
     fontVariant: ['tabular-nums'],
   },
   streakRow: { flexDirection: 'row', alignItems: 'baseline', gap: 6, marginTop: 12 },
-  streakCount: { fontFamily: 'Rubik_500Medium', fontSize: 24 },
+  streakCount: { fontFamily: 'Inter_700Bold', fontSize: 24, fontVariant: ['tabular-nums'] },
   streakUnit: { fontFamily: 'Rubik_400Regular', fontSize: 13 },
   hint: { marginTop: 10, fontFamily: 'Rubik_400Regular', fontSize: 12 },
 })

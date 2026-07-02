@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native'
-import { Flame, Target } from 'lucide-react-native'
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
+import { Flame, Pencil, Target } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import { formatLocaleDate } from '@orbit/shared/utils'
 import type { ChallengeParticipant } from '@orbit/shared/types/challenge'
@@ -66,7 +66,7 @@ export function ChallengeDetail({ challengeId, onLeft }: Readonly<ChallengeDetai
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const { showError, showSuccess } = useAppToast()
-  const { data: challenge, isLoading } = useChallengeDetail(challengeId)
+  const { data: challenge, isLoading, isError, refetch } = useChallengeDetail(challengeId)
   const leaveChallenge = useLeaveChallenge()
   const setChallengeHabits = useSetChallengeHabits()
   const [confirmLeave, setConfirmLeave] = useState(false)
@@ -77,6 +77,24 @@ export function ChallengeDetail({ challengeId, onLeft }: Readonly<ChallengeDetai
     return (
       <View style={styles.centered}>
         <ActivityIndicator color={tokens.primary} />
+      </View>
+    )
+  }
+
+  if (isError) {
+    return (
+      <View style={styles.errorBlock}>
+        <Text style={[styles.errorBody, { color: tokens.fg3 }]}>
+          {t('challenges.errors.loadFailed')}
+        </Text>
+        <PillButton
+          variant="ghost"
+          onPress={() => {
+            void refetch()
+          }}
+        >
+          {t('common.retry')}
+        </PillButton>
       </View>
     )
   }
@@ -151,9 +169,27 @@ export function ChallengeDetail({ challengeId, onLeft }: Readonly<ChallengeDetai
         </Text>
       ) : null}
 
-      <Text style={[styles.sectionHeader, { color: tokens.fg1 }]}>
-        {isCoop ? t('challenges.detail.progressLabel') : t('challenges.detail.sharedStreak')}
-      </Text>
+      <View style={styles.sectionHeaderRow}>
+        <Text style={[styles.sectionHeader, styles.sectionHeaderInRow, { color: tokens.fg1 }]}>
+          {isCoop ? t('challenges.detail.progressLabel') : t('challenges.detail.sharedStreak')}
+        </Text>
+        {hasLinkedHabits ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={t('challenges.detail.editHabits')}
+            hitSlop={{ top: 2, bottom: 2, left: 2, right: 2 }}
+            onPress={openHabitsEditor}
+            style={({ pressed }) => [
+              styles.editButton,
+              pressed
+                ? { backgroundColor: tokens.bgElev, transform: [{ scale: 0.96 }] }
+                : null,
+            ]}
+          >
+            <Pencil size={18} strokeWidth={1.8} color={tokens.fg1} />
+          </Pressable>
+        ) : null}
+      </View>
 
       {isCoop ? (
         <View style={styles.progressBlock}>
@@ -170,11 +206,7 @@ export function ChallengeDetail({ challengeId, onLeft }: Readonly<ChallengeDetai
         />
       )}
 
-      {hasLinkedHabits ? (
-        <PillButton variant="ghost" fullWidth onPress={openHabitsEditor}>
-          {t('challenges.detail.editHabits')}
-        </PillButton>
-      ) : (
+      {hasLinkedHabits ? null : (
         <View style={[styles.linkCard, { backgroundColor: tokens.bgCard, borderColor: tokens.hairline }]}>
           <Text style={[styles.linkTitle, { color: tokens.fg1 }]}>
             {t('challenges.detail.linkHabitsTitle')}
@@ -239,6 +271,13 @@ export function ChallengeDetail({ challengeId, onLeft }: Readonly<ChallengeDetai
 const styles = StyleSheet.create({
   container: { paddingHorizontal: 20, paddingBottom: 32, gap: 8 },
   centered: { paddingVertical: 48, alignItems: 'center' },
+  errorBlock: { paddingHorizontal: 32, paddingVertical: 48, alignItems: 'center', gap: 12 },
+  errorBody: {
+    fontFamily: 'Rubik_400Regular',
+    fontSize: 14,
+    lineHeight: 21,
+    textAlign: 'center',
+  },
   notFound: { padding: 32, textAlign: 'center', fontFamily: 'Rubik_400Regular' },
   badgeRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   badge: {
@@ -253,11 +292,27 @@ const styles = StyleSheet.create({
   completeText: { marginLeft: 'auto', fontFamily: 'Rubik_500Medium', fontSize: 12 },
   title: { fontFamily: 'Rubik_500Medium', fontSize: 24 },
   subtle: { fontFamily: 'Rubik_400Regular', fontSize: 13 },
-  sectionHeader: { fontFamily: 'Rubik_500Medium', fontSize: 18, marginTop: 16, marginBottom: 8 },
+  sectionHeader: { fontFamily: 'Rubik_500Medium', fontSize: 20, marginTop: 16, marginBottom: 8 },
+  sectionHeaderRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+    marginTop: 16,
+    marginBottom: 8,
+  },
+  sectionHeaderInRow: { marginTop: 0, marginBottom: 0 },
+  editButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 999,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   progressBlock: { gap: 8 },
   progressText: { fontFamily: 'Roboto_400Regular', fontSize: 14, fontVariant: ['tabular-nums'] },
   streakBlock: { alignItems: 'center', gap: 2, paddingVertical: 8 },
-  streakCount: { fontFamily: 'Rubik_500Medium', fontSize: 48, lineHeight: 52 },
+  streakCount: { fontFamily: 'Inter_700Bold', fontSize: 44, lineHeight: 44, fontVariant: ['tabular-nums'] },
   streakLabel: { fontFamily: 'Rubik_400Regular', fontSize: 14 },
   linkCard: { gap: 8, marginTop: 6, padding: 16, borderRadius: 16, borderWidth: 1 },
   linkTitle: { fontFamily: 'Rubik_500Medium', fontSize: 15 },

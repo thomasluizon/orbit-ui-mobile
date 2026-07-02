@@ -105,7 +105,7 @@ export function GoalCard({
   }, [goal.status, goal.trackingStatus, t])
 
   const percentLabel = t('goals.progressPercentage', {
-    pct: Math.round(goal.progressPercentage),
+    pct: Math.min(100, Math.round(goal.progressPercentage)),
   })
 
   const contextMenuItems: ContextMenuItem[] = selectable

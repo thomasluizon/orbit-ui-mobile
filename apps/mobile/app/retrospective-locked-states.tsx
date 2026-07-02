@@ -6,43 +6,6 @@ import { OfflineUnavailableState } from '@/components/ui/offline-unavailable-sta
 import { PillButton } from '@/components/ui/pill-button'
 import { styles, type Tokens } from './retrospective-styles'
 
-interface RetrospectiveLockedFreeProps {
-  tokens: Tokens
-  onSubscribe: () => void
-}
-
-export function RetrospectiveLockedFree({
-  tokens,
-  onSubscribe,
-}: Readonly<RetrospectiveLockedFreeProps>) {
-  const { t } = useTranslation()
-  return (
-    <View style={styles.lockedBlock}>
-      <View
-        style={[
-          styles.lockedIconCircle,
-          { backgroundColor: tintFromPrimary(tokens, 0.16) },
-        ]}
-      >
-        <Lock size={30} color={tokens.primarySoft} strokeWidth={1.8} />
-      </View>
-      <Text style={[styles.lockedTitle, { color: tokens.fg1 }]}>
-        {t('retrospective.locked')}
-      </Text>
-      <Text style={[styles.lockedDescription, { color: tokens.fg3 }]}>
-        {t('retrospective.lockedHint')}
-      </Text>
-      <PillButton
-        onPress={onSubscribe}
-        accessibilityLabel={t('upgrade.subscribe')}
-        style={styles.lockedCta}
-      >
-        {t('upgrade.subscribe')}
-      </PillButton>
-    </View>
-  )
-}
-
 interface RetrospectiveLockedYearlyProps {
   tokens: Tokens
   isTrialActive: boolean

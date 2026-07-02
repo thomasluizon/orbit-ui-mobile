@@ -101,7 +101,7 @@ export default function AdvancedPage() {
   }
 
   return (
-    <div className="md:mx-auto md:max-w-[760px] lg:max-w-none">
+    <div className="md:mx-auto md:max-w-[760px]">
       <div className="flex flex-col min-h-[100dvh]">
         <AppBar
           back
@@ -109,8 +109,8 @@ export default function AdvancedPage() {
           onBack={() => goBackOrFallback('/profile')}
           title={t('advancedSettings.title')}
         />
-        <div className="flex-1 min-h-0 overflow-y-auto">
-          <div className="lg:grid lg:grid-cols-[1fr_1fr] lg:gap-x-10">
+        <div className="flex-1 min-h-0 overflow-y-auto stagger-enter">
+          <div className="md:grid md:grid-cols-2 md:gap-x-10 md:items-start">
             <div>
               <SectionLabel>{t('advancedSettings.widgetSection')}</SectionLabel>
               <SettingsRow
@@ -145,11 +145,12 @@ export default function AdvancedPage() {
                       <button
                         type="button"
                         disabled={!canCreateScopedKey}
+                        aria-label={t('orbitMcp.createKey')}
                         className="chip chip-active min-h-[44px] disabled:cursor-not-allowed disabled:opacity-40"
                         onClick={() => setCreateKeyModalOpen(true)}
                       >
                         <Plus size={14} strokeWidth={2.2} aria-hidden="true" />
-                        {t('orbitMcp.createKey')}
+                        {t('orbitMcp.createKeyShort')}
                       </button>
                     )}
                   </div>
@@ -217,7 +218,7 @@ export default function AdvancedPage() {
             </div>
 
             {profile?.hasProAccess && (
-              <div className="px-5 space-y-3 border-t border-[var(--hairline)] pt-4 lg:border-t-0 lg:pt-6">
+              <div className="px-5 space-y-3 border-t border-[var(--hairline)] pt-4 md:border-t-0 md:pt-6">
                   <button
                     type="button"
                     className="group flex w-full cursor-pointer items-center justify-between border-0 bg-transparent transition-[background-color] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev)] active:bg-[var(--bg-elev-pressed)]"
@@ -237,8 +238,8 @@ export default function AdvancedPage() {
                     />
                   </button>
 
-                  {instructionsOpen && (
-                    <div id="mcp-instructions" className="animate-slide-up space-y-3">
+                  <div className={`collapsible ${instructionsOpen ? 'is-open' : ''}`}>
+                    <div id="mcp-instructions" className="space-y-3">
                       <div className="flex gap-2">
                         {MCP_CONFIG_TABS.map((tab) => (
                           <Chip
@@ -288,7 +289,7 @@ export default function AdvancedPage() {
                             onCopy={() => {
                               void copyConfig()
                             }}
-                            copyLabel={t('orbitMcp.copyConfig')}
+                            copyLabel={t('orbitMcp.copy')}
                             copiedLabel={t('orbitMcp.copied')}
                           />
                           <p className="t-secondary" style={{ color: 'var(--fg-3)' }}>
@@ -297,7 +298,7 @@ export default function AdvancedPage() {
                         </div>
                       )}
                     </div>
-                  )}
+                  </div>
               </div>
             )}
           </div>

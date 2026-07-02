@@ -1,7 +1,7 @@
 'use client'
 
-import { Sparkles } from 'lucide-react'
 import { useTranslations } from 'next-intl'
+import { AstraMark } from '@/components/ui/astra-avatar'
 
 export function TypingIndicator() {
   const t = useTranslations()
@@ -24,7 +24,7 @@ export function TypingIndicator() {
         }}
         aria-hidden="true"
       >
-        <Sparkles size={16} strokeWidth={1.8} color="var(--primary-soft)" />
+        <AstraMark size={16} />
       </div>
       <div>
         <span className="sr-only">{t('chat.senderOrbit')}</span>

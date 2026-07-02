@@ -4,7 +4,6 @@ import { Orbit } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { InfoCard } from '@/components/ui/info-card'
 import { PillButton } from '@/components/ui/pill-button'
-import { OfflineUnavailableState } from '@/components/ui/offline-unavailable-state'
 
 export function RetrospectiveEmptyState({
   isOnline,
@@ -13,7 +12,7 @@ export function RetrospectiveEmptyState({
   const t = useTranslations()
 
   return (
-    <div style={{ padding: '20px 0 0' }}>
+    <div className="md:mx-auto md:max-w-[420px]" style={{ padding: '20px 0 0' }}>
       <div className="px-5">
         <InfoCard
           icon={Orbit}
@@ -21,16 +20,7 @@ export function RetrospectiveEmptyState({
           desc={t('retrospective.empty')}
         />
       </div>
-      {!isOnline && (
-        <div style={{ padding: '14px 20px 0' }}>
-          <OfflineUnavailableState
-            title={t('offline.title')}
-            description={t('offline.description')}
-            compact
-          />
-        </div>
-      )}
-      <div style={{ padding: '18px 20px 24px' }}>
+      <div className="md:mx-auto md:max-w-[360px]" style={{ padding: '18px 20px 24px' }}>
         <PillButton
           onClick={onGenerate}
           disabled={!isOnline}

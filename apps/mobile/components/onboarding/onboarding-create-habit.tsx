@@ -1,6 +1,6 @@
 import { useEffect, useState, useMemo, useCallback } from 'react'
 import { ActivityIndicator, Animated, StyleSheet, Text, View } from 'react-native'
-import { Check } from 'lucide-react-native'
+import { Check, Settings2 } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useCreateHabit } from '@/hooks/use-habits'
@@ -58,6 +58,7 @@ export function OnboardingCreateHabit({
   const [selectedSuggestion, setSelectedSuggestion] = useState<string | null>(
     null,
   )
+  const [showFrequencyPicker, setShowFrequencyPicker] = useState(false)
   const { showError } = useAppToast()
   const prefersReducedMotion = usePrefersReducedMotion()
   const successScale = useMemo(() => new Animated.Value(0), [])
@@ -199,17 +200,29 @@ export function OnboardingCreateHabit({
         onSubmitEditing={handleCreate}
       />
 
-      <View style={styles.chipsRow}>
-        {ONBOARDING_HABIT_FREQUENCIES.map((freq) => (
-          <Chip
-            key={freq.value}
-            active={activeFrequency === freq.value}
-            onPress={() => selectFrequency(freq.value)}
-          >
-            {t(freq.labelKey)}
-          </Chip>
-        ))}
+      <View style={styles.toggleRow}>
+        <Chip
+          active={showFrequencyPicker}
+          leading={<Settings2 size={11} strokeWidth={1.5} color={tokens.fg2} />}
+          onPress={() => setShowFrequencyPicker((value) => !value)}
+        >
+          {t('onboarding.flow.createHabit.useForm')}
+        </Chip>
       </View>
+
+      {showFrequencyPicker && (
+        <View style={styles.chipsRow}>
+          {ONBOARDING_HABIT_FREQUENCIES.map((freq) => (
+            <Chip
+              key={freq.value}
+              active={activeFrequency === freq.value}
+              onPress={() => selectFrequency(freq.value)}
+            >
+              {t(freq.labelKey)}
+            </Chip>
+          ))}
+        </View>
+      )}
 
       <Text style={styles.sectionLabel}>
         {t('onboarding.flow.createHabit.starters')}
@@ -276,6 +289,9 @@ function createStyles(tokens: AppTokensV2) {
       textTransform: 'uppercase',
       color: tokens.fg3,
       marginTop: 6,
+    },
+    toggleRow: {
+      alignItems: 'center',
     },
     chipsRow: {
       flexDirection: 'row',

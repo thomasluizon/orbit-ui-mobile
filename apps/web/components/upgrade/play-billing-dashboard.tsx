@@ -26,6 +26,7 @@ interface PlayBillingDashboardProps {
 export function PlayBillingDashboard({ profile, locale, usagePercent, usageUrgent, t }: Readonly<PlayBillingDashboardProps>) {
   return (
     <div className="space-y-3 stagger-enter">
+      <div className="grid gap-3 md:grid-cols-2 md:items-start md:gap-4">
       <div className="overflow-hidden rounded-[18px]" style={cardSurface}>
         <div style={{ padding: '16px 18px' }}>
           <div style={cardLabelStyle}>{t('upgrade.billing.plan.title')}</div>
@@ -43,13 +44,14 @@ export function PlayBillingDashboard({ profile, locale, usagePercent, usageUrgen
       </div>
 
       <UsageStats usagePercent={usagePercent} usageUrgent={usageUrgent} profile={profile} t={t} />
+      </div>
 
       <div className="flex flex-col items-stretch" style={{ gap: 10, paddingTop: 6 }}>
         <a
           href={playManageSubscriptionUrl()}
           target="_blank"
           rel="noopener noreferrer"
-          className={whitePillLinkClassName}
+          className={`${whitePillLinkClassName} md:max-w-[360px] md:mx-auto`}
           style={{ fontFamily: 'var(--font-sans)' }}
         >
           <Settings size={18} strokeWidth={1.8} aria-hidden="true" />

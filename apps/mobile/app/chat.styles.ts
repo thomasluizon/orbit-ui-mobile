@@ -12,16 +12,17 @@ export function createStyles(tokens: Tokens) {
     keyboardAvoid: {
       flex: 1,
     },
-    iconBtn: {
-      width: 40,
-      height: 40,
-      borderRadius: 999,
-      alignItems: "center",
-      justifyContent: "center",
-    },
     emptyState: {
       flex: 1,
       position: "relative",
+    },
+    gradientBackdrop: {
+      position: "absolute",
+      top: 0,
+      left: 0,
+      right: 0,
+      height: 300,
+      zIndex: 0,
     },
     emptyContent: {
       flex: 1,
@@ -31,19 +32,13 @@ export function createStyles(tokens: Tokens) {
       paddingHorizontal: 32,
       zIndex: 1,
     },
-    emptyAvatar: {
-      width: 84,
-      height: 84,
-      borderRadius: 999,
-      alignItems: "center",
-      justifyContent: "center",
-      backgroundColor: solidTintFromPrimary(tokens, 0.16),
+    emptyAvatarGlow: {
       ...primaryGlow(tokens),
     },
     emptyTitle: {
       fontFamily: 'Rubik_500Medium',
-      fontSize: 24,
-      letterSpacing: -0.24,
+      fontSize: 22,
+      letterSpacing: -0.22,
       textAlign: "center",
       color: tokens.fg1,
     },
@@ -81,6 +76,7 @@ export function createStyles(tokens: Tokens) {
     },
     retryText: {
       fontFamily: 'Rubik_600SemiBold',
+      textDecorationLine: "underline",
       color: tokens.primary,
     },
     permissionAction: {
@@ -228,8 +224,18 @@ export function createStyles(tokens: Tokens) {
       alignItems: "center",
       justifyContent: "center",
     },
+    composerFieldFocused: {
+      borderWidth: 2,
+      borderColor: tokens.primary,
+      paddingLeft: 17,
+      paddingRight: 7,
+      paddingBottom: 7,
+    },
     composerFieldLocked: {
       opacity: 0.45,
+    },
+    iconPressed: {
+      transform: [{ scale: 0.96 }],
     },
     recordingContent: {
       flex: 1,
@@ -270,7 +276,7 @@ export function createStyles(tokens: Tokens) {
       width: 3,
       height: 20,
       backgroundColor: tokens.fg2,
-      borderRadius: 1,
+      borderRadius: 999,
     },
     sendButton: {
       width: 50,
@@ -287,7 +293,7 @@ export function createStyles(tokens: Tokens) {
       backgroundColor: solidTintFromPrimary(tokens, 0.45),
     },
     sendButtonPressed: {
-      transform: [{ scale: 0.94 }],
+      transform: [{ scale: 0.96 }],
     },
     stopButton: {
       width: 50,
@@ -308,6 +314,8 @@ export function createStyles(tokens: Tokens) {
       gap: 8,
     },
     rewardButton: {
+      minHeight: 44,
+      justifyContent: "center",
       paddingHorizontal: 16,
       paddingVertical: 8,
       borderRadius: 999,
@@ -324,7 +332,8 @@ export function createStyles(tokens: Tokens) {
     },
     rewardMeta: {
       fontFamily: 'Roboto_400Regular',
-      fontSize: 10,
+      fontSize: 12,
+      letterSpacing: 0.24,
       textAlign: "center",
       fontVariant: ["tabular-nums"],
     },
@@ -335,7 +344,8 @@ export function createStyles(tokens: Tokens) {
     },
     usageText: {
       fontFamily: 'Roboto_400Regular',
-      fontSize: 10,
+      fontSize: 12,
+      letterSpacing: 0.24,
       textAlign: "center",
       marginTop: 8,
       fontVariant: ["tabular-nums"],

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
-import { ScrollView, Linking } from 'react-native'
+import { ScrollView, View, Linking } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { useRouter } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
@@ -27,10 +27,9 @@ import { buildUpgradeHref } from '@/lib/upgrade-route'
 import { useOffline } from '@/hooks/use-offline'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { AppBar } from '@/components/ui/app-bar'
-import {
-  RetrospectiveLockedFree,
-  RetrospectiveLockedYearly,
-} from './retrospective-locked-states'
+import { Chip } from '@/components/ui/chip'
+import { OfflineUnavailableState } from '@/components/ui/offline-unavailable-state'
+import { RetrospectiveLockedYearly } from './retrospective-locked-states'
 import { RetrospectiveContent } from './retrospective-view'
 import { styles } from './retrospective-styles'
 
@@ -71,10 +70,10 @@ export default function RetrospectiveScreen() {
 
   useEffect(() => {
     if (!profile) return
-    if (!hasProAccess || !isYearlyPro) {
-      router.replace('/upgrade')
+    if (!hasProAccess) {
+      router.replace(buildUpgradeHref('/retrospective'))
     }
-  }, [hasProAccess, isYearlyPro, profile, router])
+  }, [hasProAccess, profile, router])
 
   const [prevCacheKey, setPrevCacheKey] = useState(cacheKey)
   if (cacheKey !== prevCacheKey) {
@@ -172,21 +171,47 @@ export default function RetrospectiveScreen() {
         back
         onBack={() => goBackOrFallback('/profile')}
         title={t('retrospective.title')}
-        backLabel={t('common.goBack')}
+        backLabel={t('common.backToProfile')}
       />
+
+      {isLoaded && isYearlyPro ? (
+        <>
+          {!isOnline ? (
+            <View style={styles.offlinePad}>
+              <OfflineUnavailableState
+                title={t('offline.title')}
+                description={t('offline.description')}
+                compact
+              />
+            </View>
+          ) : null}
+          <View
+            style={[styles.tabsRow, { borderBottomColor: tokens.hairline }]}
+          >
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.chipsScroll}
+            >
+              {periodChips.map((p) => (
+                <Chip
+                  key={p.id}
+                  active={period === p.id}
+                  onPress={() => selectPeriod(p.id)}
+                >
+                  {p.label}
+                </Chip>
+              ))}
+            </ScrollView>
+          </View>
+        </>
+      ) : null}
 
       <ScrollView
         style={styles.container}
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {isLoaded && !hasProAccess ? (
-          <RetrospectiveLockedFree
-            tokens={tokens}
-            onSubscribe={() => router.push(buildUpgradeHref('/retrospective'))}
-          />
-        ) : null}
-
         {isLoaded && hasProAccess && !isYearlyPro ? (
           <RetrospectiveLockedYearly
             tokens={tokens}
@@ -206,13 +231,10 @@ export default function RetrospectiveScreen() {
             isOnline={isOnline}
             isLoading={isLoading}
             isCacheLoading={isCacheLoading}
-            period={period}
-            periodChips={periodChips}
             displayedData={displayedData}
             displayedFromCache={displayedFromCache}
             error={error}
             noData={noData}
-            onSelectPeriod={selectPeriod}
             onGenerate={handleGenerate}
           />
         ) : null}

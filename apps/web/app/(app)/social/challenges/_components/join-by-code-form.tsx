@@ -60,6 +60,7 @@ export function JoinByCodeForm({ initialCode = '', onJoined }: Readonly<JoinByCo
 
       <PillButton
         fullWidth
+        className="sm:mx-auto sm:max-w-[360px]"
         onClick={submit}
         disabled={joinChallenge.isPending || code.trim().length === 0}
         busy={joinChallenge.isPending}

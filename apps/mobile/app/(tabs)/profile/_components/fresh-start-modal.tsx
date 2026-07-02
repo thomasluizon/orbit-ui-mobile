@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { View, Text, Pressable, StyleSheet, Modal } from 'react-native'
+import { View, Text, Pressable, StyleSheet } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { useQueryClient } from '@tanstack/react-query'
@@ -21,8 +21,8 @@ import {
 } from '@/lib/offline-mutations'
 import * as offlineQueue from '@/lib/offline-queue'
 import { clearPersistedQueryCache } from '@/lib/query-client'
+import { BottomSheetModal } from '@/components/bottom-sheet-modal'
 import { AppTextInput } from '@/components/ui/app-text-input'
-import { KeyboardAwareScrollView } from '@/components/ui/keyboard-aware-scroll-view'
 import { PillButton } from '@/components/ui/pill-button'
 import { FreshStartAnimation } from '@/components/ui/fresh-start-animation'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -54,7 +54,7 @@ function AmberPillButton({
         pressed && !disabled ? dangerPillStyles.pressed : null,
       ]}
     >
-      <Text style={[dangerPillStyles.label, { color: tokens.fgOnPrimary }]}>
+      <Text style={[dangerPillStyles.label, { color: tokens.fgOnOverdue }]}>
         {label}
       </Text>
     </Pressable>
@@ -177,164 +177,142 @@ export function FreshStartModal({ open, onClose }: Readonly<FreshStartModalProps
 
   return (
     <>
-      <Modal
-        visible={open}
-        transparent
-        animationType="slide"
-        onRequestClose={onClose}
+      <BottomSheetModal
+        open={open}
+        onClose={onClose}
+        title={
+          resetStep === 'info'
+            ? t('profile.freshStart.heading')
+            : t('profile.freshStart.confirmHeading')
+        }
+        snapPoints={['85%']}
       >
-        <KeyboardAwareScrollView
-          containerStyle={styles.modalOverlay}
-          contentContainerStyle={styles.modalScrollContent}
-          keyboardVerticalOffset={12}
-          showsVerticalScrollIndicator={false}
-        >
-          <View style={[styles.modalContent, { backgroundColor: tokens.bgSheet }]}>
-            <View style={[styles.grabber, { backgroundColor: tokens.hairlineStrong }]} />
-            <View style={styles.modalHeader}>
-              <Text style={[styles.modalTitle, { color: tokens.fg1 }]}>
-                {t('profile.freshStart.title')}
-              </Text>
-              <Pressable
-                onPress={onClose}
-                hitSlop={8}
-                accessibilityRole="button"
-                accessibilityLabel={t('common.close')}
+        {resetStep === 'info' ? (
+          <View style={styles.body}>
+            <View style={styles.destructiveHero}>
+              <View
+                style={[
+                  styles.destructiveHeroCircle,
+                  { backgroundColor: `${tokens.statusOverdue}24` },
+                ]}
               >
-                <X size={24} color={tokens.fg2} strokeWidth={1.8} />
-              </Pressable>
+                <RotateCcw size={34} color={tokens.statusOverdue} strokeWidth={1.8} />
+              </View>
+              <Text
+                style={[
+                  styles.modalDescription,
+                  { color: tokens.fg2, textAlign: 'center' },
+                ]}
+              >
+                {t('profile.freshStart.description')}
+              </Text>
             </View>
 
-            {resetStep === 'info' ? (
-              <View style={{ gap: 16 }}>
-                <View style={styles.destructiveHero}>
-                  <View
-                    style={[
-                      styles.destructiveHeroCircle,
-                      { backgroundColor: `${tokens.statusOverdue}24` },
-                    ]}
-                  >
-                    <RotateCcw size={34} color={tokens.statusOverdue} strokeWidth={1.8} />
-                  </View>
-                  <Text
-                    style={[
-                      styles.modalDescription,
-                      { color: tokens.fg2, textAlign: 'center' },
-                    ]}
-                  >
-                    {t('profile.freshStart.description')}
-                  </Text>
-                </View>
-
-                <View
-                  style={[
-                    styles.freshStartBox,
-                    { backgroundColor: tokens.bgCard, borderColor: tokens.hairline },
-                  ]}
-                >
-                  <Text style={[styles.boxLabel, { color: tokens.fg3 }]}>
-                    {t('profile.freshStart.whatDeleted')}
-                  </Text>
-                  {deletedItems.map((item) => (
-                    <View key={item} style={styles.boxItem}>
-                      <X size={14} color={tokens.statusBad} strokeWidth={1.8} />
-                      <Text style={[styles.boxItemText, { color: tokens.fg2 }]}>
-                        {item}
-                      </Text>
-                    </View>
-                  ))}
-                </View>
-
-                <View
-                  style={[
-                    styles.freshStartBox,
-                    { backgroundColor: tokens.bgCard, borderColor: tokens.hairline },
-                  ]}
-                >
-                  <Text style={[styles.boxLabel, { color: tokens.fg3 }]}>
-                    {t('profile.freshStart.whatPreserved')}
-                  </Text>
-                  {preservedItems.map((item) => (
-                    <View key={item} style={styles.boxItem}>
-                      <Check size={14} color={tokens.statusDone} strokeWidth={1.8} />
-                      <Text style={[styles.boxItemText, { color: tokens.fg2 }]}>
-                        {item}
-                      </Text>
-                    </View>
-                  ))}
-                </View>
-
-                <View style={styles.modalActions}>
-                  <AmberPillButton
-                    label={t('common.continue')}
-                    onPress={() => setResetStep('confirm')}
-                  />
-                  <PillButton
-                    variant="ghost"
-                    fullWidth
-                    onPress={onClose}
-                  >
-                    {t('common.cancel')}
-                  </PillButton>
-                </View>
-              </View>
-            ) : (
-              <View style={{ gap: 16 }}>
-                <Text
-                  style={[
-                    styles.modalDescription,
-                    { color: tokens.fg2, textAlign: 'center' },
-                  ]}
-                >
-                  {t('profile.freshStart.confirmInstruction')}
+            <View style={styles.listRow}>
+              <View
+                style={[
+                  styles.freshStartBox,
+                  { backgroundColor: tokens.bgCard, borderColor: tokens.hairline },
+                ]}
+              >
+                <Text style={[styles.boxLabel, { color: tokens.fg3 }]}>
+                  {t('profile.freshStart.willDelete')}
                 </Text>
-                <AppTextInput
-                  style={styles.confirmInput}
-                  value={resetConfirmText}
-                  onChangeText={setResetConfirmText}
-                  placeholder={t('profile.freshStart.confirmPlaceholder')}
-                  placeholderTextColor={tokens.fg3}
-                  autoCapitalize="characters"
-                  autoCorrect={false}
-                  textAlign="center"
-                  returnKeyType="done"
-                  onSubmitEditing={() => {
-                    if (isResetConfirmed && !resetLoading) {
-                      void handleResetAccount()
-                    }
-                  }}
-                />
-                {resetError ? (
-                  <Text style={[styles.errorTextSmall, { color: tokens.statusBad }]}>
-                    {resetError}
-                  </Text>
-                ) : null}
-                <View style={styles.modalActions}>
-                  <AmberPillButton
-                    label={
-                      resetLoading
-                        ? t('profile.freshStart.processing')
-                        : t('profile.freshStart.confirmButton')
-                    }
-                    disabled={!isResetConfirmed || resetLoading}
-                    onPress={() => {
-                      void handleResetAccount()
-                    }}
-                  />
-                  <PillButton
-                    variant="ghost"
-                    fullWidth
-                    disabled={resetLoading}
-                    onPress={onClose}
-                  >
-                    {t('common.cancel')}
-                  </PillButton>
-                </View>
+                {deletedItems.map((item) => (
+                  <View key={item} style={styles.boxItem}>
+                    <X size={14} color={tokens.statusBad} strokeWidth={1.8} />
+                    <Text style={[styles.boxItemText, { color: tokens.fg2 }]}>
+                      {item}
+                    </Text>
+                  </View>
+                ))}
               </View>
-            )}
+
+              <View
+                style={[
+                  styles.freshStartBox,
+                  { backgroundColor: tokens.bgCard, borderColor: tokens.hairline },
+                ]}
+              >
+                <Text style={[styles.boxLabel, { color: tokens.fg3 }]}>
+                  {t('profile.freshStart.willKeep')}
+                </Text>
+                {preservedItems.map((item) => (
+                  <View key={item} style={styles.boxItem}>
+                    <Check size={14} color={tokens.statusDone} strokeWidth={1.8} />
+                    <Text style={[styles.boxItemText, { color: tokens.fg2 }]}>
+                      {item}
+                    </Text>
+                  </View>
+                ))}
+              </View>
+            </View>
+
+            <View style={styles.modalActions}>
+              <AmberPillButton
+                label={t('common.continue')}
+                onPress={() => setResetStep('confirm')}
+              />
+              <PillButton variant="ghost" fullWidth onPress={onClose}>
+                {t('common.cancel')}
+              </PillButton>
+            </View>
           </View>
-        </KeyboardAwareScrollView>
-      </Modal>
+        ) : (
+          <View style={styles.body}>
+            <Text
+              style={[
+                styles.modalDescription,
+                { color: tokens.fg2, textAlign: 'center' },
+              ]}
+            >
+              {t('profile.freshStart.confirmInstruction')}
+            </Text>
+            <AppTextInput
+              style={styles.confirmInput}
+              value={resetConfirmText}
+              onChangeText={setResetConfirmText}
+              placeholder={t('profile.freshStart.confirmPlaceholder')}
+              placeholderTextColor={tokens.fg3}
+              autoCapitalize="characters"
+              autoCorrect={false}
+              textAlign="center"
+              returnKeyType="done"
+              onSubmitEditing={() => {
+                if (isResetConfirmed && !resetLoading) {
+                  void handleResetAccount()
+                }
+              }}
+            />
+            {resetError ? (
+              <Text style={[styles.errorTextSmall, { color: tokens.statusBadText }]}>
+                {resetError}
+              </Text>
+            ) : null}
+            <View style={styles.modalActions}>
+              <AmberPillButton
+                label={
+                  resetLoading
+                    ? t('profile.freshStart.processing')
+                    : t('profile.freshStart.confirmButton')
+                }
+                disabled={!isResetConfirmed || resetLoading}
+                onPress={() => {
+                  void handleResetAccount()
+                }}
+              />
+              <PillButton
+                variant="ghost"
+                fullWidth
+                disabled={resetLoading}
+                onPress={onClose}
+              >
+                {t('common.cancel')}
+              </PillButton>
+            </View>
+          </View>
+        )}
+      </BottomSheetModal>
 
       {showFreshStartAnim && (
         <FreshStartAnimation onComplete={handleFreshStartComplete} />
@@ -344,41 +322,10 @@ export function FreshStartModal({ open, onClose }: Readonly<FreshStartModalProps
 }
 
 const styles = StyleSheet.create({
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.55)',
-    justifyContent: 'flex-end',
-  },
-  modalScrollContent: {
-    flexGrow: 1,
-    justifyContent: 'flex-end',
-    paddingTop: 24,
-  },
-  modalContent: {
-    borderTopLeftRadius: 26,
-    borderTopRightRadius: 26,
+  body: {
     paddingHorizontal: 22,
-    paddingTop: 12,
-    paddingBottom: 40,
-  },
-  grabber: {
-    alignSelf: 'center',
-    width: 44,
-    height: 5,
-    borderRadius: 999,
-    marginBottom: 14,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    paddingBottom: 8,
     gap: 16,
-    marginBottom: 20,
-  },
-  modalTitle: {
-    flex: 1,
-    fontFamily: 'Rubik_500Medium',
-    fontSize: 24,
   },
   modalDescription: {
     fontFamily: 'Rubik_400Regular',
@@ -390,7 +337,12 @@ const styles = StyleSheet.create({
     paddingTop: 8,
   },
 
+  listRow: {
+    flexDirection: 'row',
+    gap: 12,
+  },
   freshStartBox: {
+    flex: 1,
     borderWidth: 1,
     borderRadius: 16,
     padding: 16,

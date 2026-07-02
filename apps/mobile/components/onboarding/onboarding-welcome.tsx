@@ -153,21 +153,21 @@ export function OnboardingWelcome() {
                 <Pressable
                   key={option.value}
                   onPress={() => handleSchemeSelect(option.value)}
+                  hitSlop={8}
                   accessibilityRole="button"
                   accessibilityLabel={t(
                     `preferences.color${option.value.charAt(0).toUpperCase() + option.value.slice(1)}`,
                   )}
                   accessibilityState={{ selected: isActive }}
                   style={[
-                    styles.schemeBtn,
-                    {
-                      backgroundColor: option.color,
-                      borderColor: isActive
-                        ? tokens.fg1
-                        : tokens.hairlineStrong,
-                    },
+                    styles.schemeWrapper,
+                    isActive && styles.schemeWrapperActive,
                   ]}
-                />
+                >
+                  <View
+                    style={[styles.schemeDisc, { backgroundColor: option.color }]}
+                  />
+                </Pressable>
               )
             })}
           </View>
@@ -223,10 +223,9 @@ function createStyles(tokens: AppTokensV2) {
     },
     chipsRow: {
       flexDirection: 'row',
-      alignSelf: 'stretch',
-      justifyContent: 'space-between',
+      justifyContent: 'center',
       flexWrap: 'wrap',
-      gap: 6,
+      gap: 12,
     },
     schemeRow: {
       flexDirection: 'row',
@@ -234,11 +233,24 @@ function createStyles(tokens: AppTokensV2) {
       justifyContent: 'center',
       flexWrap: 'wrap',
     },
-    schemeBtn: {
+    schemeWrapper: {
+      width: 36,
+      height: 36,
+      borderRadius: 999,
+      alignItems: 'center',
+      justifyContent: 'center',
+      borderWidth: 2,
+      borderColor: 'transparent',
+    },
+    schemeWrapperActive: {
+      borderColor: tokens.fg1,
+    },
+    schemeDisc: {
       width: 28,
       height: 28,
-      borderRadius: 14,
-      borderWidth: 1.5,
+      borderRadius: 999,
+      borderWidth: 1,
+      borderColor: tokens.hairlineStrong,
     },
   })
 }

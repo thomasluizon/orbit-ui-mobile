@@ -21,6 +21,7 @@ vi.mock('@/lib/plural', () => ({
 
 let mockTrialExpired = false
 let mockPathname = '/'
+const mockPush = vi.fn()
 
 vi.mock('@/hooks/use-profile', () => ({
   useTrialExpired: () => mockTrialExpired,
@@ -28,6 +29,7 @@ vi.mock('@/hooks/use-profile', () => ({
 
 vi.mock('next/navigation', () => ({
   usePathname: () => mockPathname,
+  useRouter: () => ({ push: mockPush }),
 }))
 
 vi.mock('@/components/ui/app-overlay', () => ({
@@ -56,6 +58,7 @@ describe('TrialExpiredModal', () => {
   beforeEach(() => {
     mockTrialExpired = false
     mockPathname = '/'
+    mockPush.mockClear()
     localStorage.clear()
   })
 
@@ -102,12 +105,13 @@ describe('TrialExpiredModal', () => {
     expect(screen.getByText('trial.expired.subtitleQuiet')).toBeInTheDocument()
   })
 
-  it('renders the subscribe/upgrade link', () => {
+  it('renders the subscribe button and routes to upgrade on click', () => {
     mockTrialExpired = true
     render(<TrialExpiredModal />)
-    const upgradeLink = screen.getByText('trial.expired.subscribe')
-    expect(upgradeLink).toBeInTheDocument()
-    expect(upgradeLink.closest('a')).toHaveAttribute('href', '/upgrade')
+    const subscribe = screen.getByText('trial.expired.subscribe')
+    expect(subscribe).toBeInTheDocument()
+    fireEvent.click(subscribe)
+    expect(mockPush).toHaveBeenCalledWith('/upgrade')
   })
 
   it('renders the continue free button', () => {

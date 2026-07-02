@@ -136,50 +136,51 @@ export function MilestoneSharePrompt() {
             </p>
           )}
 
-          <div className="flex w-full" style={{ gap: 10 }}>
-            {canShareFiles && (
+          <div className="flex w-full flex-col" style={{ gap: 16, maxWidth: 360, marginInline: 'auto' }}>
+            <div className="flex w-full" style={{ gap: 10 }}>
+              {canShareFiles && (
+                <PillButton
+                  className="flex-1"
+                  busy={isSharing}
+                  disabled={isSharing}
+                  onClick={handleShare}
+                  leading={<Share2 size={18} strokeWidth={1.8} color="var(--fg-on-primary)" />}
+                >
+                  {t('milestoneShare.share')}
+                </PillButton>
+              )}
               <PillButton
-                fullWidth
+                className="flex-1"
+                variant={canShareFiles ? 'ghost' : 'primary'}
                 busy={isSharing}
                 disabled={isSharing}
-                onClick={handleShare}
-                leading={<Share2 size={18} strokeWidth={1.8} color="var(--fg-on-primary)" />}
+                onClick={() => void download()}
+                leading={
+                  <Download
+                    size={18}
+                    strokeWidth={1.8}
+                    color={canShareFiles ? 'var(--fg-1)' : 'var(--fg-on-primary)'}
+                  />
+                }
               >
-                {t('milestoneShare.share')}
+                {t('milestoneShare.download')}
               </PillButton>
-            )}
-            <PillButton
-              fullWidth
-              variant={canShareFiles ? 'ghost' : 'primary'}
-              busy={isSharing}
-              disabled={isSharing}
-              onClick={() => void download()}
-              leading={
-                <Download
-                  size={18}
-                  strokeWidth={1.8}
-                  color={canShareFiles ? 'var(--fg-1)' : 'var(--fg-on-primary)'}
-                />
-              }
-            >
-              {t('milestoneShare.download')}
-            </PillButton>
-          </div>
+            </div>
 
-          <button
-            type="button"
-            onClick={dismiss}
-            className="w-full transition-colors"
-            style={{
-              padding: '10px 0',
-              fontFamily: 'var(--font-sans)',
-              fontSize: 14,
-              fontWeight: 500,
-              color: 'var(--fg-3)',
-            }}
-          >
-            {t('milestoneShare.later')}
-          </button>
+            <button
+              type="button"
+              onClick={dismiss}
+              className="w-full text-[var(--fg-3)] hover:text-[var(--fg-1)] active:scale-[0.98] transition-[color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)]"
+              style={{
+                padding: '12px 0',
+                fontFamily: 'var(--font-sans)',
+                fontSize: 14,
+                fontWeight: 500,
+              }}
+            >
+              {t('milestoneShare.later')}
+            </button>
+          </div>
         </div>
       )}
     </AppOverlay>

@@ -59,11 +59,6 @@ export const styles = StyleSheet.create({
     fontFamily: 'Rubik_400Regular',
     fontSize: 14,
   },
-  skeletonLine: {
-    height: 7,
-    borderRadius: 4,
-    alignSelf: 'stretch',
-  },
   contentWrap: {
     paddingHorizontal: 20,
     paddingTop: 16,
@@ -146,8 +141,8 @@ export const styles = StyleSheet.create({
   },
   narrativeBody: {
     fontFamily: 'Rubik_400Regular',
-    fontSize: 14.5,
-    lineHeight: 23,
+    fontSize: 14,
+    lineHeight: 22,
     marginTop: 10,
   },
   narrativeStrong: {

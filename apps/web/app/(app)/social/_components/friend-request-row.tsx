@@ -12,14 +12,15 @@ interface FriendRequestRowProps {
   direction: 'incoming' | 'outgoing'
 }
 
+const actionButtonClass =
+  'touch-target-y shrink-0 cursor-pointer rounded-full transition-[background-color,transform,opacity] duration-[var(--dur-fast)] ease-[var(--ease-standard)] enabled:active:scale-[0.96] disabled:opacity-40 disabled:cursor-default'
+
 const actionButtonStyle = {
   padding: '8px 14px',
-  borderRadius: 999,
   border: 0,
   fontFamily: 'var(--font-sans)',
   fontSize: 14,
   fontWeight: 500,
-  cursor: 'pointer',
 } as const
 
 /** A pending friend request: accept/decline when incoming, cancel when outgoing. */
@@ -69,7 +70,8 @@ export function FriendRequestRow({ request, direction }: Readonly<FriendRequestR
               type="button"
               onClick={handleAccept}
               disabled={busy}
-              style={{ ...actionButtonStyle, color: 'var(--fg-on-primary)', background: 'var(--primary)' }}
+              className={`${actionButtonClass} bg-[var(--primary)] text-[var(--fg-on-primary)] enabled:hover:bg-[var(--primary-pressed)]`}
+              style={actionButtonStyle}
             >
               {t('social.friends.accept')}
             </button>
@@ -77,7 +79,8 @@ export function FriendRequestRow({ request, direction }: Readonly<FriendRequestR
               type="button"
               onClick={handleRemove}
               disabled={busy}
-              style={{ ...actionButtonStyle, color: 'var(--fg-2)', background: 'var(--bg-elev)' }}
+              className={`${actionButtonClass} bg-[var(--bg-elev)] text-[var(--fg-2)] enabled:hover:bg-[var(--bg-elev-2)]`}
+              style={actionButtonStyle}
             >
               {t('social.friends.decline')}
             </button>
@@ -87,7 +90,8 @@ export function FriendRequestRow({ request, direction }: Readonly<FriendRequestR
             type="button"
             onClick={handleRemove}
             disabled={busy}
-            style={{ ...actionButtonStyle, color: 'var(--fg-2)', background: 'var(--bg-elev)' }}
+            className={`${actionButtonClass} bg-[var(--bg-elev)] text-[var(--fg-2)] enabled:hover:bg-[var(--bg-elev-2)]`}
+            style={actionButtonStyle}
           >
             {t('social.friends.cancel')}
           </button>

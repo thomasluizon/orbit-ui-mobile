@@ -141,7 +141,7 @@ Exact dimensions in `design/handoff/orbit/project/orbit-kit.jsx`. Web in `apps/w
 - Opaque white cards on light — never translucent.
 - Inset 1px hairline rings instead of borders (web `box-shadow: inset 0 0 0 1px var(--hairline)`; RN border with the same color reads equivalently).
 - No opaque card-on-card on dark; surfaces stack by alpha, not by lighter hexes.
-- Gradient-header usage: profile, paywall, auth, onboarding, celebrations, Início, calendar, chat.
+- Gradient-header usage: profile, paywall, auth, onboarding, celebrations, Início, calendar, chat, social.
 
 ## Status, emoji, icons
 

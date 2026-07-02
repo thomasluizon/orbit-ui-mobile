@@ -26,7 +26,7 @@ interface PillButtonProps {
 }
 
 /** Kit pill CTA: glowing primary, inverted white, or hairline ghost variant.
- *  While `busy`, a 16px spinner fills the leading slot, the label dims, and
+ *  While `busy`, a spinner fills the leading slot, the label dims, and
  *  presses no-op. */
 export function PillButton({
   variant = 'primary',
@@ -86,7 +86,7 @@ export function PillButton({
       ]}
     >
       {busy ? (
-        <ActivityIndicator size={16} color={textColorByVariant[variant]} />
+        <ActivityIndicator size="small" color={textColorByVariant[variant]} />
       ) : (
         leading
       )}

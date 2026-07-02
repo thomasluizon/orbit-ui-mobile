@@ -25,7 +25,7 @@ const VISIBILITY_FIELDS: readonly { field: VisibilityField; i18nKey: string }[] 
  *  visibility switches, copy/share of the backend share URL, and slug regeneration. */
 export function PublicProfileSettings() {
   const t = useTranslations()
-  const { profile } = useProfile()
+  const { profile, isLoading } = useProfile()
   const mutation = usePublicProfileSettings()
   const [copied, setCopied] = useState(false)
   const [confirmRegenerate, setConfirmRegenerate] = useState(false)
@@ -69,141 +69,166 @@ export function PublicProfileSettings() {
     }
   }
 
-  return (
-    <div>
-      <SettingsRow
-        label={t('profile.publicProfile.enable.title')}
-        desc={
-          enabled
-            ? t('profile.publicProfile.disabledHint')
-            : t('profile.publicProfile.enable.description')
-        }
-        accessory="none"
-      >
-        <Switch
-          on={enabled}
-          onToggle={() => submit({ enabled: !enabled })}
-          ariaLabel={t('profile.publicProfile.enable.title')}
-          disabled={mutation.isPending}
-        />
-      </SettingsRow>
+  if (isLoading) {
+    return <div aria-busy="true" style={{ minHeight: 320 }} />
+  }
 
-      {enabled && shareUrl && (
-        <>
-          <SectionLabel>{t('profile.publicProfile.link.label')}</SectionLabel>
-          <div style={{ padding: '0 20px 4px' }}>
-            <div
-              className="flex items-center rounded-[14px]"
-              style={{
-                gap: 8,
-                padding: '4px 6px 4px 16px',
-                background: 'var(--bg-field)',
-                boxShadow: 'inset 0 0 0 1px var(--hairline)',
-              }}
-            >
-              <div
-                aria-label={t('profile.publicProfile.link.label')}
-                className="flex-1 overflow-hidden whitespace-nowrap text-ellipsis"
-                style={{ fontFamily: 'var(--font-mono)', fontSize: 15, color: 'var(--fg-1)' }}
-              >
-                {shareUrl}
+  return (
+    <>
+      <div className="md:grid md:grid-cols-2 md:items-start md:gap-x-6">
+        <div>
+          <SettingsRow
+            label={t('profile.publicProfile.enable.title')}
+            desc={
+              enabled
+                ? t('profile.publicProfile.disabledHint')
+                : t('profile.publicProfile.enable.description')
+            }
+            accessory="none"
+            divider={false}
+          >
+            <Switch
+              on={enabled}
+              onToggle={() => submit({ enabled: !enabled })}
+              ariaLabel={t('profile.publicProfile.enable.title')}
+              disabled={mutation.isPending}
+            />
+          </SettingsRow>
+
+          <div className={`collapsible${enabled && shareUrl ? ' is-open' : ''}`}>
+            <div>
+              <SectionLabel>{t('profile.publicProfile.link.label')}</SectionLabel>
+              <div style={{ padding: '0 20px 4px' }}>
+                <div
+                  className="flex items-center rounded-[14px]"
+                  style={{
+                    gap: 8,
+                    padding: '4px 6px 4px 16px',
+                    background: 'var(--bg-field)',
+                    boxShadow: 'inset 0 0 0 1px var(--hairline)',
+                  }}
+                >
+                  <button
+                    type="button"
+                    onClick={copyLink}
+                    title={t('profile.publicProfile.link.copy')}
+                    className="min-w-0 flex-1 cursor-pointer overflow-hidden whitespace-nowrap text-ellipsis border-0 bg-transparent text-left"
+                    style={{ padding: 0, fontFamily: 'var(--font-mono)', fontSize: 15, color: 'var(--fg-1)' }}
+                  >
+                    {shareUrl}
+                  </button>
+                  <button
+                    type="button"
+                    className="icon-btn touch-target"
+                    onClick={copyLink}
+                    aria-label={t('profile.publicProfile.link.copy')}
+                  >
+                    <span className="relative inline-flex items-center justify-center" style={{ width: 16, height: 16 }}>
+                      <Copy
+                        size={16}
+                        strokeWidth={1.8}
+                        aria-hidden="true"
+                        className="absolute transition-[opacity,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)]"
+                        style={{ opacity: copied ? 0 : 1, transform: copied ? 'scale(0.6)' : 'scale(1)' }}
+                      />
+                      <Check
+                        size={16}
+                        strokeWidth={1.8}
+                        color="var(--status-done)"
+                        aria-hidden="true"
+                        className="absolute transition-[opacity,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)]"
+                        style={{ opacity: copied ? 1 : 0, transform: copied ? 'scale(1)' : 'scale(0.6)' }}
+                      />
+                    </span>
+                  </button>
+                  <span aria-live="polite" className="sr-only">
+                    {copied ? t('profile.publicProfile.link.copied') : ''}
+                  </span>
+                </div>
               </div>
-              <button
-                type="button"
-                className="icon-btn touch-target"
-                onClick={copyLink}
-                aria-label={t('profile.publicProfile.link.copy')}
-              >
-                {copied ? (
-                  <Check size={16} strokeWidth={1.8} color="var(--status-done)" aria-hidden="true" />
-                ) : (
-                  <Copy size={16} strokeWidth={1.8} aria-hidden="true" />
-                )}
-              </button>
-              <span aria-live="polite" className="sr-only">
-                {copied ? t('profile.publicProfile.link.copied') : ''}
-              </span>
+
+              {canShare && (
+                <div style={{ padding: '10px 20px 6px' }}>
+                  <PillButton
+                    className="w-full md:w-auto md:max-w-[360px]"
+                    leading={<Share2 size={18} strokeWidth={1.8} color="var(--fg-on-primary)" />}
+                    onClick={shareLink}
+                  >
+                    {t('profile.publicProfile.link.share')}
+                  </PillButton>
+                </div>
+              )}
             </div>
           </div>
 
-          {canShare && (
-            <div style={{ padding: '10px 20px 6px' }}>
-              <PillButton
-                fullWidth
-                leading={<Share2 size={18} strokeWidth={1.8} color="var(--fg-on-primary)" />}
-                onClick={shareLink}
+          {enabled && (
+            <div style={{ padding: '14px 20px 4px' }}>
+              <button
+                type="button"
+                onClick={() => setConfirmRegenerate(true)}
+                disabled={mutation.isPending}
+                className="inline-flex items-center rounded-full bg-transparent px-2 -ml-2 transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev)] active:scale-[0.96] disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{
+                  gap: 8,
+                  appearance: 'none',
+                  border: 0,
+                  cursor: 'pointer',
+                  fontFamily: 'var(--font-sans)',
+                  fontSize: 14,
+                  fontWeight: 500,
+                  color: 'var(--primary-soft)',
+                  minHeight: 44,
+                }}
               >
-                {t('profile.publicProfile.link.share')}
-              </PillButton>
+                <RefreshCw size={16} strokeWidth={1.8} aria-hidden="true" />
+                {t('profile.publicProfile.regenerate.button')}
+              </button>
+              <p
+                style={{
+                  margin: '4px 0 0',
+                  fontFamily: 'var(--font-sans)',
+                  fontSize: 12,
+                  color: 'var(--fg-3)',
+                  lineHeight: 1.5,
+                }}
+              >
+                {t('profile.publicProfile.regenerate.hint')}
+              </p>
             </div>
           )}
-        </>
-      )}
+        </div>
 
-      <SectionLabel>{t('profile.publicProfile.visibilityTitle')}</SectionLabel>
-      {VISIBILITY_FIELDS.map(({ field, i18nKey }) => (
-        <SettingsRow
-          key={field}
-          label={t(`profile.publicProfile.fields.${i18nKey}.title`)}
-          desc={t(`profile.publicProfile.fields.${i18nKey}.description`)}
-          accessory="none"
-        >
-          <Switch
-            on={settings?.[field] ?? false}
-            onToggle={() => submit({ [field]: !(settings?.[field] ?? false) })}
-            ariaLabel={t(`profile.publicProfile.fields.${i18nKey}.title`)}
-            disabled={!enabled || mutation.isPending}
-          />
-        </SettingsRow>
-      ))}
+        <div>
+          <SectionLabel>{t('profile.publicProfile.visibilityTitle')}</SectionLabel>
+          {VISIBILITY_FIELDS.map(({ field, i18nKey }) => (
+            <SettingsRow
+              key={field}
+              label={t(`profile.publicProfile.fields.${i18nKey}.title`)}
+              desc={t(`profile.publicProfile.fields.${i18nKey}.description`)}
+              accessory="none"
+            >
+              <Switch
+                on={settings?.[field] ?? false}
+                onToggle={() => submit({ [field]: !(settings?.[field] ?? false) })}
+                ariaLabel={t(`profile.publicProfile.fields.${i18nKey}.title`)}
+                disabled={!enabled || mutation.isPending}
+              />
+            </SettingsRow>
+          ))}
 
-      {enabled && (
-        <div style={{ padding: '14px 20px 4px' }}>
-          <button
-            type="button"
-            onClick={() => setConfirmRegenerate(true)}
-            disabled={mutation.isPending}
-            className="inline-flex items-center rounded-full bg-transparent px-2 -ml-2 transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev)] active:scale-[0.96] disabled:opacity-50 disabled:cursor-not-allowed"
-            style={{
-              gap: 8,
-              appearance: 'none',
-              border: 0,
-              cursor: 'pointer',
-              fontFamily: 'var(--font-sans)',
-              fontSize: 14,
-              fontWeight: 500,
-              color: 'var(--primary-soft)',
-              minHeight: 44,
-            }}
-          >
-            <RefreshCw size={16} strokeWidth={1.8} aria-hidden="true" />
-            {t('profile.publicProfile.regenerate.button')}
-          </button>
           <p
             style={{
-              margin: '4px 0 0',
+              padding: '12px 20px 20px',
               fontFamily: 'var(--font-sans)',
               fontSize: 12,
               color: 'var(--fg-3)',
               lineHeight: 1.5,
             }}
           >
-            {t('profile.publicProfile.regenerate.hint')}
+            {t('profile.publicProfile.privacyHint')}
           </p>
         </div>
-      )}
-
-      <p
-        style={{
-          padding: '12px 20px 20px',
-          fontFamily: 'var(--font-sans)',
-          fontSize: 12,
-          color: 'var(--fg-3)',
-          lineHeight: 1.5,
-        }}
-      >
-        {t('profile.publicProfile.privacyHint')}
-      </p>
+      </div>
 
       <ConfirmDialog
         open={confirmRegenerate}
@@ -215,6 +240,6 @@ export function PublicProfileSettings() {
         variant="danger"
         onConfirm={() => submit({ enabled: true, regenerate: true })}
       />
-    </div>
+    </>
   )
 }

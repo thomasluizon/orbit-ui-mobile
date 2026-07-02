@@ -16,7 +16,10 @@ interface TestRoot {
 
 const mocks = vi.hoisted(() => ({
   profile: null as ReturnType<typeof createMockProfile> | null,
+  profileLoading: false,
   challengesData: [] as unknown,
+  challengesError: false,
+  refetch: vi.fn(),
   createMutate: vi.fn(),
   joinMutate: vi.fn(),
 }))
@@ -35,9 +38,15 @@ vi.mock('expo-router', () => ({
 }))
 
 vi.mock('@/hooks/use-go-back-or-fallback', () => ({ useGoBackOrFallback: () => vi.fn() }))
-vi.mock('@/hooks/use-profile', () => ({ useProfile: () => ({ profile: mocks.profile, isLoading: false }) }))
+vi.mock('@/hooks/use-profile', () => ({
+  useProfile: () => ({ profile: mocks.profile, isLoading: mocks.profileLoading }),
+}))
 vi.mock('@/hooks/use-challenges', () => ({
-  useChallenges: () => ({ data: mocks.challengesData }),
+  useChallenges: () => ({
+    data: mocks.challengesData,
+    isError: mocks.challengesError,
+    refetch: mocks.refetch,
+  }),
   useCreateChallenge: () => ({ mutateAsync: mocks.createMutate, isPending: false }),
   useJoinChallenge: () => ({ mutateAsync: mocks.joinMutate, isPending: false }),
 }))
@@ -106,7 +115,9 @@ function fieldLabels(root: TestNode): string[] {
 beforeEach(() => {
   vi.clearAllMocks()
   mocks.profile = createMockProfile({ socialOptIn: true, handle: 'me' })
+  mocks.profileLoading = false
   mocks.challengesData = []
+  mocks.challengesError = false
   mocks.createMutate.mockResolvedValue({ id: 'c-new' })
   mocks.joinMutate.mockResolvedValue(undefined)
 })
@@ -128,6 +139,37 @@ describe('ChallengesScreen (mobile)', () => {
     expect(text).toContain('challenges.actions.create')
     expect(text).toContain('challenges.actions.join')
     expect(text).toContain('challenges.empty.create')
+  })
+
+  it('renders a labelled loading indicator while the profile loads', () => {
+    mocks.profileLoading = true
+
+    const tree = renderTree(<ChallengesScreen />)
+
+    const spinner = tree.root.findAll((node) => node.type === 'ActivityIndicator')
+    expect(spinner).toHaveLength(1)
+    expect(spinner[0]?.props.accessibilityLabel).toBe('common.loading')
+    expect(textContent(tree.root)).not.toContain('challenges.empty.title')
+  })
+
+  it('shows a retryable error state when the challenges query fails', () => {
+    mocks.challengesError = true
+
+    const tree = renderTree(<ChallengesScreen />)
+
+    const text = textContent(tree.root)
+    expect(text).toContain('challenges.errors.loadFailed')
+    expect(text).not.toContain('challenges.empty.title')
+
+    const retry = tree.root
+      .findAll((node) => node.type === 'PillButton')
+      .find((node) => String(node.props.children ?? '').includes('common.retry'))!
+
+    TestRenderer.act(() => {
+      ;(retry.props.onPress as () => void)()
+    })
+
+    expect(mocks.refetch).toHaveBeenCalled()
   })
 })
 
@@ -174,6 +216,28 @@ describe('CreateChallengeForm (mobile)', () => {
 
     expect(fieldLabels(tree.root)).not.toContain('challenges.create.targetLabel')
     expect(textContent(tree.root)).not.toContain('challenges.create.endDateLabel')
+  })
+
+  it('surfaces inline field errors when submitted empty', async () => {
+    const tree = renderTree(<CreateChallengeForm onCreated={vi.fn()} />)
+
+    const submit = tree.root
+      .findAll((node) => node.type === 'PillButton')
+      .find((node) => String(node.props.children ?? '').includes('challenges.create.submit'))!
+
+    await TestRenderer.act(async () => {
+      await (submit.props.onPress as () => Promise<void>)()
+    })
+
+    const errorByLabel = (label: string) =>
+      tree.root
+        .findAll((node) => node.type === 'FieldInput')
+        .find((node) => node.props.label === label)?.props.error
+
+    expect(errorByLabel('challenges.create.nameLabel')).toBe('challenges.create.errors.titleRequired')
+    expect(errorByLabel('challenges.create.targetLabel')).toBe('challenges.create.errors.targetInvalid')
+    expect(textContent(tree.root)).toContain('challenges.create.errors.endDateRequired')
+    expect(mocks.createMutate).not.toHaveBeenCalled()
   })
 })
 

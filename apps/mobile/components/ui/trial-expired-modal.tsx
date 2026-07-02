@@ -1,5 +1,5 @@
 import { useMemo, useState, useEffect, useCallback } from 'react'
-import { Modal, ScrollView, StyleSheet, Text, View } from 'react-native'
+import { Animated, Modal, ScrollView, StyleSheet, Text, View } from 'react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { usePathname, useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
@@ -7,7 +7,8 @@ import { Crown } from 'lucide-react-native'
 import { useTrialExpired } from '@/hooks/use-profile'
 import { buildUpgradeHref } from '@/lib/upgrade-route'
 import { PillButton } from '@/components/ui/pill-button'
-import { createTokensV2, tintFromPrimary, type AppTokensV2 } from '@/lib/theme'
+import { createTokensV2, shadowsV2, tintFromPrimary, type AppTokensV2 } from '@/lib/theme'
+import { toAnimatedEasing, useResolvedMotionPreset } from '@/lib/motion'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 const STORAGE_KEY = 'orbit_trial_expired_seen'
@@ -23,7 +24,8 @@ const PAUSED_FEATURES = [
 /**
  * Trial-expired dialog: centered card with a crown hero, paused Pro feature
  * rows, and pill CTAs to subscribe or continue on free. Preserves the
- * AsyncStorage seen-once gating.
+ * AsyncStorage seen-once gating and animates in and out with the shared dialog
+ * motion preset.
  */
 export function TrialExpiredModal() {
   const { t } = useTranslation()
@@ -35,9 +37,12 @@ export function TrialExpiredModal() {
     [currentScheme, currentTheme],
   )
   const styles = useMemo(() => createStyles(tokens), [tokens])
+  const dialogMotion = useResolvedMotionPreset('dialog')
+  const progress = useMemo(() => new Animated.Value(0), [])
   const trialExpired = useTrialExpired()
   const [dismissed, setDismissed] = useState(false)
   const [alreadySeen, setAlreadySeen] = useState(true)
+  const [visible, setVisible] = useState(false)
 
   useEffect(() => {
     AsyncStorage.getItem(STORAGE_KEY).then((value) => {
@@ -48,17 +53,70 @@ export function TrialExpiredModal() {
   const isOpen =
     pathname !== '/upgrade' && !dismissed && trialExpired && !alreadySeen
 
+  const [prevOpen, setPrevOpen] = useState(isOpen)
+  if (isOpen !== prevOpen) {
+    setPrevOpen(isOpen)
+    if (isOpen) setVisible(true)
+  }
+
+  useEffect(() => {
+    if (isOpen) {
+      Animated.timing(progress, {
+        toValue: 1,
+        duration: dialogMotion.enterDuration,
+        easing: toAnimatedEasing(dialogMotion.enterEasing),
+        useNativeDriver: true,
+      }).start()
+      return
+    }
+
+    Animated.timing(progress, {
+      toValue: 0,
+      duration: dialogMotion.exitDuration,
+      easing: toAnimatedEasing(dialogMotion.exitEasing),
+      useNativeDriver: true,
+    }).start(({ finished }) => {
+      if (finished) setVisible(false)
+    })
+  }, [
+    dialogMotion.enterDuration,
+    dialogMotion.enterEasing,
+    dialogMotion.exitDuration,
+    dialogMotion.exitEasing,
+    isOpen,
+    progress,
+  ])
+
   const dismiss = useCallback(() => {
     setDismissed(true)
     AsyncStorage.setItem(STORAGE_KEY, '1')
   }, [])
 
-  if (!isOpen) return null
+  if (!visible) return null
+
+  const backdropOpacity = progress.interpolate({
+    inputRange: [0, 1],
+    outputRange: [0, 1],
+  })
+  const translateY = progress.interpolate({
+    inputRange: [0, 1],
+    outputRange: [dialogMotion.shift, 0],
+  })
+  const scale = progress.interpolate({
+    inputRange: [0, 1],
+    outputRange: [dialogMotion.scaleFrom, dialogMotion.scaleTo],
+  })
 
   return (
-    <Modal visible transparent animationType="fade" onRequestClose={dismiss}>
-      <View style={styles.backdrop}>
-        <View style={styles.dialog}>
+    <Modal visible transparent animationType="none" onRequestClose={dismiss}>
+      <View style={styles.root}>
+        <Animated.View style={[styles.backdrop, { opacity: backdropOpacity }]} />
+        <Animated.View
+          style={[
+            styles.dialog,
+            { opacity: progress, transform: [{ translateY }, { scale }] },
+          ]}
+        >
           <ScrollView
             showsVerticalScrollIndicator={false}
             contentContainerStyle={styles.scrollContent}
@@ -70,8 +128,14 @@ export function TrialExpiredModal() {
             <Text style={styles.subtitle}>{t('trial.expired.subtitleQuiet')}</Text>
 
             <View style={styles.featureList}>
-              {PAUSED_FEATURES.map((feature) => (
-                <View key={feature} style={styles.featureRow}>
+              {PAUSED_FEATURES.map((feature, index) => (
+                <View
+                  key={feature}
+                  style={[
+                    styles.featureRow,
+                    index === PAUSED_FEATURES.length - 1 ? styles.featureRowLast : null,
+                  ]}
+                >
                   <Text style={styles.featureText}>{t(feature)}</Text>
                   <Text style={styles.featurePaused}>
                     {t('trial.expired.paused')}
@@ -95,7 +159,7 @@ export function TrialExpiredModal() {
               {t('trial.expired.continueFree')}
             </PillButton>
           </View>
-        </View>
+        </Animated.View>
       </View>
     </Modal>
   )
@@ -103,12 +167,15 @@ export function TrialExpiredModal() {
 
 function createStyles(tokens: AppTokensV2) {
   return StyleSheet.create({
-    backdrop: {
+    root: {
       flex: 1,
-      backgroundColor: 'rgba(0, 0, 0, 0.6)',
       alignItems: 'center',
       justifyContent: 'center',
       padding: 24,
+    },
+    backdrop: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: 'rgba(0, 0, 0, 0.6)',
     },
     dialog: {
       width: '100%',
@@ -116,14 +183,10 @@ function createStyles(tokens: AppTokensV2) {
       maxHeight: '86%',
       backgroundColor: tokens.bgSheet,
       borderRadius: 24,
-      borderWidth: StyleSheet.hairlineWidth,
+      borderWidth: 1,
       borderColor: tokens.hairline,
       paddingTop: 28,
-      shadowColor: '#000000',
-      shadowOpacity: 0.55,
-      shadowOffset: { width: 0, height: 24 },
-      shadowRadius: 60,
-      elevation: 12,
+      ...shadowsV2.shadow3,
     },
     scrollContent: {
       paddingHorizontal: 22,
@@ -165,6 +228,9 @@ function createStyles(tokens: AppTokensV2) {
       paddingVertical: 11,
       borderBottomWidth: StyleSheet.hairlineWidth,
       borderBottomColor: tokens.hairline,
+    },
+    featureRowLast: {
+      borderBottomWidth: 0,
     },
     featureText: {
       fontFamily: 'Rubik_400Regular',

@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native'
+import Animated, { FadeInDown, ReduceMotion } from 'react-native-reanimated'
 import Clipboard from '@react-native-clipboard/clipboard'
 import { Check, Copy, RefreshCw, Share2 } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
@@ -27,7 +28,7 @@ const VISIBILITY_FIELDS = [
 export default function PublicProfileScreen() {
   const { t } = useTranslation()
   const goBackOrFallback = useGoBackOrFallback()
-  const { profile } = useProfile()
+  const { profile, isLoading } = useProfile()
   const mutation = usePublicProfileSettings()
   const { showError } = useAppToast()
   const { currentScheme, currentTheme } = useAppTheme()
@@ -78,6 +79,9 @@ export default function PublicProfileScreen() {
         title={t('profile.publicProfile.title')}
         backLabel={t('common.goBack')}
       />
+      {isLoading ? (
+        <View style={styles.scroll} />
+      ) : (
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.content}
@@ -98,9 +102,14 @@ export default function PublicProfileScreen() {
         </SettingsRow>
 
         {enabled && shareUrl ? (
-          <View>
+          <Animated.View entering={FadeInDown.duration(220).reduceMotion(ReduceMotion.System)}>
             <SectionLabel>{t('profile.publicProfile.link.label')}</SectionLabel>
-            <View style={styles.linkWell}>
+            <Pressable
+              style={styles.linkWell}
+              onPress={copyLink}
+              accessibilityRole="button"
+              accessibilityHint={t('profile.publicProfile.link.copy')}
+            >
               <Text style={styles.linkText} numberOfLines={1}>
                 {shareUrl}
               </Text>
@@ -121,7 +130,7 @@ export default function PublicProfileScreen() {
                   <Copy size={16} color={tokens.fg2} strokeWidth={1.8} />
                 )}
               </Pressable>
-            </View>
+            </Pressable>
             <View style={styles.shareBlock}>
               <PillButton
                 fullWidth
@@ -131,7 +140,7 @@ export default function PublicProfileScreen() {
                 {t('profile.publicProfile.link.share')}
               </PillButton>
             </View>
-          </View>
+          </Animated.View>
         ) : null}
 
         <SectionLabel>{t('profile.publicProfile.visibilityTitle')}</SectionLabel>
@@ -172,8 +181,8 @@ export default function PublicProfileScreen() {
         ) : null}
 
         <Text style={styles.privacyHint}>{t('profile.publicProfile.privacyHint')}</Text>
-        <View style={{ height: 24 }} />
       </ScrollView>
+      )}
 
       <ConfirmDialog
         open={confirmRegenerate}

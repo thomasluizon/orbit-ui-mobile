@@ -82,7 +82,7 @@ export function PricingSection({
           <p style={{ margin: '10px 0 0', fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--fg-2)' }}>
             {t('upgrade.plans.error')}
           </p>
-          <button type="button" className="chip" style={{ marginTop: 10 }} onClick={onRetryPlans}>
+          <button type="button" className="chip touch-target" style={{ marginTop: 10 }} onClick={onRetryPlans}>
             {t('upgrade.plans.retry')}
           </button>
         </div>
@@ -125,10 +125,10 @@ export function PricingSection({
               {t('upgrade.plans.renewalNote')}
             </p>
           </div>
+
+          <PlanComparisonCards t={t} />
         </>
       ) : null}
-
-      <PlanComparisonCards t={t} />
     </>
   )
 }

@@ -53,6 +53,7 @@ export function EmptyState({
             onPress={action.onPress}
             accessibilityRole="button"
             accessibilityLabel={action.label}
+            hitSlop={{ top: 8, bottom: 8 }}
             style={({ pressed }) => [styles.secondaryAction, pressed ? styles.pressed : null]}
           >
             <Text style={[styles.secondaryActionText, { color: tokens.primary }]}>

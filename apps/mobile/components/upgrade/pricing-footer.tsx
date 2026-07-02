@@ -1,4 +1,4 @@
-import { ActivityIndicator, Text, View } from 'react-native'
+import { Text, View } from 'react-native'
 import { Sparkles } from 'lucide-react-native'
 import { PillButton } from '@/components/ui/pill-button'
 import { styles } from './styles'
@@ -36,19 +36,15 @@ export function PricingFooter({
       )}
       <PillButton
         fullWidth
+        busy={checkoutLoading !== null}
         disabled={disabled || checkoutLoading !== null}
         onPress={() => onCheckout(selectedInterval)}
-        leading={
-          checkoutLoading ? (
-            <ActivityIndicator size="small" color={tokens.fgOnPrimary} />
-          ) : (
-            <Sparkles size={18} strokeWidth={1.8} color={tokens.fgOnPrimary} />
-          )
-        }
+        leading={<Sparkles size={18} strokeWidth={1.8} color={tokens.fgOnPrimary} />}
       >
         {ctaLabel}
       </PillButton>
       <Text style={[styles.footerTerms, { color: tokens.fg3 }]}>{t('upgrade.convert.cancelAnytime')}</Text>
+      <Text style={[styles.renewalNote, { color: tokens.fg3 }]}>{t('upgrade.plans.renewalNote')}</Text>
     </View>
   )
 }

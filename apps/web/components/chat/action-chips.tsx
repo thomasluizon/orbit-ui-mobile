@@ -62,6 +62,7 @@ const NON_NAVIGABLE_ACTION_TYPES = new Set([
 
 interface ChipPalette {
   color: string
+  iconColor: string
   background: string
   ring: string
   Icon: typeof CheckCircle
@@ -70,12 +71,14 @@ interface ChipPalette {
 const CHIP_STYLES: Record<string, ChipPalette> = {
   Success: {
     color: 'var(--status-done)',
+    iconColor: 'var(--status-done)',
     background: 'var(--bg-elev)',
     ring: 'var(--hairline)',
     Icon: CheckCircle,
   },
   Failed: {
-    color: 'var(--status-bad)',
+    color: 'var(--status-bad-text)',
+    iconColor: 'var(--status-bad)',
     background: 'color-mix(in srgb, var(--status-bad) 10%, transparent)',
     ring: 'color-mix(in srgb, var(--status-bad) 30%, transparent)',
     Icon: XCircle,
@@ -84,6 +87,7 @@ const CHIP_STYLES: Record<string, ChipPalette> = {
 
 const DEFAULT_CHIP_STYLE: ChipPalette = {
   color: 'var(--fg-2)',
+  iconColor: 'var(--fg-2)',
   background: 'var(--bg-elev)',
   ring: 'var(--hairline)',
   Icon: Info,
@@ -150,21 +154,21 @@ export function ActionChips({ actions, onChipClick }: Readonly<ActionChipsProps>
                 type="button"
                 onClick={() => onChipClick!(action.entityId!, action.type)}
                 aria-label={t('chat.action.openEntity', { name: actionLabel(action) })}
-                className={`${chipClassName} cursor-pointer border-0 hover:scale-[1.02] active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]/60`}
+                className={`${chipClassName} touch-target-y cursor-pointer border-0 hover:scale-[1.02] active:scale-[0.96] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]/60`}
                 style={chipStyleProps}
               >
-                <IconComponent size={16} strokeWidth={1.8} />
+                <IconComponent size={16} strokeWidth={1.8} color={palette.iconColor} />
                 {actionLabel(action)}
               </button>
             ) : (
               <span className={chipClassName} style={chipStyleProps}>
-                <IconComponent size={16} strokeWidth={1.8} />
+                <IconComponent size={16} strokeWidth={1.8} color={palette.iconColor} />
                 {actionLabel(action)}
               </span>
             )}
 
             {action.status === 'Failed' && action.error && (
-              <p className="text-xs text-[var(--status-bad)] mt-1 pl-1">{action.error}</p>
+              <p className="text-xs text-[var(--status-bad-text)] mt-1 pl-1">{action.error}</p>
             )}
 
             {action.conflictWarning?.hasConflict && (

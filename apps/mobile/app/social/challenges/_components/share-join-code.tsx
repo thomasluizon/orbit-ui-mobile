@@ -1,10 +1,12 @@
-import { useState } from 'react'
-import { Pressable, Share, StyleSheet, Text, View } from 'react-native'
+import { useMemo, useState } from 'react'
+import { Animated, Pressable, Share, StyleSheet, Text, View } from 'react-native'
 import Clipboard from '@react-native-clipboard/clipboard'
 import { Check, Copy, Share2 } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
+import { motionEasings } from '@orbit/shared/theme'
 import { PillButton } from '@/components/ui/pill-button'
-import { createTokensV2, radius } from '@/lib/theme'
+import { createAnimatedTimingConfig } from '@/lib/motion'
+import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 interface ShareJoinCodeProps {
@@ -12,18 +14,39 @@ interface ShareJoinCodeProps {
   joinCode: string
 }
 
-/** Join-code well with copy plus native text share (Share.share + clipboard — no image capture). */
+/** Join-code well with copy plus native text share (Share.share + clipboard, no image capture). */
 export function ShareJoinCode({ title, joinCode }: Readonly<ShareJoinCodeProps>) {
   const { t } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const [copied, setCopied] = useState(false)
+  const copiedProgress = useMemo(() => new Animated.Value(0), [])
   const shareText = t('challenges.share.text', { title, code: joinCode })
+
+  const copyIconStyle = {
+    opacity: copiedProgress.interpolate({ inputRange: [0, 1], outputRange: [1, 0] }),
+    transform: [
+      { scale: copiedProgress.interpolate({ inputRange: [0, 1], outputRange: [1, 0.25] }) },
+    ],
+  }
+  const checkIconStyle = {
+    opacity: copiedProgress,
+    transform: [
+      { scale: copiedProgress.interpolate({ inputRange: [0, 1], outputRange: [0.25, 1] }) },
+    ],
+  }
 
   function copyCode() {
     Clipboard.setString(joinCode)
     setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
+    Animated.timing(copiedProgress, createAnimatedTimingConfig(160, motionEasings.standard)).start()
+    setTimeout(() => {
+      setCopied(false)
+      Animated.timing(copiedProgress, {
+        ...createAnimatedTimingConfig(160, motionEasings.standard),
+        toValue: 0,
+      }).start()
+    }, 2000)
   }
 
   async function shareCode() {
@@ -41,21 +64,21 @@ export function ShareJoinCode({ title, joinCode }: Readonly<ShareJoinCodeProps>)
         </Text>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={t('challenges.detail.copy')}
+          accessibilityLabel={copied ? t('challenges.detail.copied') : t('challenges.detail.copy')}
+          hitSlop={{ top: 2, bottom: 2, left: 2, right: 2 }}
           onPress={copyCode}
           style={({ pressed }) => [
-            styles.copyChip,
-            { borderColor: tokens.hairline, backgroundColor: pressed ? tokens.bgElev2 : tokens.bgElev },
+            styles.copyButton,
+            { backgroundColor: pressed ? tokens.bgElev2 : tokens.bgElev },
+            pressed ? styles.copyButtonPressed : null,
           ]}
         >
-          {copied ? (
-            <Check size={14} color={tokens.statusDone} strokeWidth={1.8} />
-          ) : (
-            <Copy size={14} color={tokens.fg2} strokeWidth={1.8} />
-          )}
-          <Text style={[styles.copyChipText, { color: tokens.fg2 }]}>
-            {copied ? t('challenges.detail.copied') : t('challenges.detail.copy')}
-          </Text>
+          <Animated.View style={[styles.copyIcon, copyIconStyle]}>
+            <Copy size={18} color={tokens.fg2} strokeWidth={1.8} />
+          </Animated.View>
+          <Animated.View style={[styles.copyIcon, checkIconStyle]}>
+            <Check size={18} color={tokens.statusDone} strokeWidth={1.8} />
+          </Animated.View>
         </Pressable>
       </View>
 
@@ -89,15 +112,17 @@ const styles = StyleSheet.create({
     letterSpacing: 1.5,
     fontVariant: ['tabular-nums'],
   },
-  copyChip: {
-    flexDirection: 'row',
+  copyButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 999,
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 7,
-    borderRadius: radius.full,
-    borderWidth: 1,
-    paddingHorizontal: 16,
-    minHeight: 40,
   },
-  copyChipText: { fontFamily: 'Rubik_500Medium', fontSize: 13 },
+  copyButtonPressed: { transform: [{ scale: 0.96 }] },
+  copyIcon: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 })

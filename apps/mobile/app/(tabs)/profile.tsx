@@ -10,6 +10,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { profileKeys } from '@orbit/shared/query'
 import {
   PROFILE_NAV_ITEMS,
+  resolveProfileNavHint,
   shouldRedirectProfileNavItem,
   type ProfileNavItem,
 } from '@orbit/shared/utils/profile-navigation'
@@ -21,12 +22,13 @@ import {
   useTrialExpired,
 } from '@/hooks/use-profile'
 import { useAuthStore } from '@/stores/auth-store'
-import { useGamificationProfile } from '@/hooks/use-gamification'
+import { useGamificationProfile, useStreakInfo } from '@/hooks/use-gamification'
 import { AppBar } from '@/components/ui/app-bar'
 import { Badge, type BadgeTone } from '@/components/ui/badge'
 import { GradientTop } from '@/components/ui/gradient-top'
 import { SectionLabel } from '@/components/ui/section-label'
 import { SettingsGroup, SettingsGroupRow } from '@/components/ui/settings-group'
+import { SkeletonLine } from '@/components/ui/skeleton'
 import { StatTile } from '@/components/ui/stat-tile'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
 import { StreakBadge } from '@/components/gamification/streak-badge'
@@ -73,6 +75,7 @@ export default function ProfileScreen() {
   const logout = useAuthStore((s) => s.logout)
   const canViewGamification = profile?.canViewGamification ?? false
   const { profile: gamificationProfile } = useGamificationProfile(canViewGamification)
+  const { data: streakInfo } = useStreakInfo(canViewGamification)
   const nextRewardCarrot = deriveNextRewardCarrot(gamificationProfile, canViewGamification)
   const achievementsLocked = gamificationProfile?.achievementsLocked ?? false
   const achievementsTileValue = achievementsLocked
@@ -80,6 +83,10 @@ export default function ProfileScreen() {
     : gamificationProfile?.achievementsEarned ?? 0
   const { isExporting, exportError, exportData } = useDataExport()
   const streak = profile?.currentStreak ?? 0
+  const statsLoading = isLoading || (canViewGamification && !gamificationProfile)
+  const streakLabel = t('streakDisplay.title')
+  const streakValue = `${streak} ${plural(t('streakDisplay.daysSuffix'), streak)}`
+  const achievementsLabel = t('gamification.profileCard.tileLabel')
   const styles = useMemo(() => createStyles(tokens), [tokens])
 
   const subscriptionRef = useRef<View>(null)
@@ -180,7 +187,7 @@ export default function ProfileScreen() {
         trailing={
           <>
             <ThemeToggle />
-            <StreakBadge streak={profile?.currentStreak ?? 0} />
+            <StreakBadge streak={profile?.currentStreak ?? 0} isFrozen={streakInfo?.isFrozenToday ?? false} />
             <NotificationBell />
           </>
         }
@@ -194,7 +201,7 @@ export default function ProfileScreen() {
         scrollEventThrottle={16}
       >
         {error ? (
-          <Text style={[styles.errorText, { color: tokens.statusBad }]}>
+          <Text style={[styles.errorText, { color: tokens.statusBadText }]}>
             {__DEV__ && error instanceof Error
               ? error.message
               : t('errors.loadProfile')}
@@ -204,21 +211,9 @@ export default function ProfileScreen() {
         <Animated.View entering={sectionEntrance(0)} style={styles.identityBlock}>
           {isLoading ? (
             <>
-              <View
-                style={[
-                  styles.skeleton,
-                  { width: 76, height: 22, borderRadius: 999, backgroundColor: tokens.bgElev },
-                ]}
-              />
-              <View
-                style={[
-                  styles.skeleton,
-                  { width: 160, height: 30, marginTop: 4, backgroundColor: tokens.bgElev },
-                ]}
-              />
-              <View
-                style={[styles.skeleton, { width: 120, height: 14, backgroundColor: tokens.bgElev }]}
-              />
+              <SkeletonLine width={76} height={22} style={styles.skeletonBadge} />
+              <SkeletonLine width={160} height={30} style={styles.skeletonName} />
+              <SkeletonLine width={120} height={14} />
             </>
           ) : (
             <>
@@ -232,7 +227,10 @@ export default function ProfileScreen() {
                 accessibilityRole="button"
                 accessibilityLabel={t('profile.editName.title')}
                 hitSlop={8}
-                style={styles.identityNameButton}
+                style={({ pressed }) => [
+                  styles.identityNameButton,
+                  pressed ? styles.identityNamePressed : null,
+                ]}
               >
                 <Text
                   style={[styles.identityName, { color: tokens.fg1 }]}
@@ -253,64 +251,77 @@ export default function ProfileScreen() {
         </Animated.View>
 
         <Animated.View entering={sectionEntrance(1)} style={styles.statRow}>
-          <View ref={streakRef} collapsable={false} style={styles.statTileWrap}>
-            <Pressable
-              onPress={handleStreakPress}
-              accessibilityRole="button"
-              accessibilityLabel={t('streakDisplay.title')}
-              style={({ pressed }) => [
-                styles.statPressable,
-                pressed ? styles.statPressed : null,
-              ]}
-            >
-              <StatTile
-                emoji="🔥"
-                value={`${streak} ${plural(t('streakDisplay.daysSuffix'), streak)}`}
-                label={t('streakDisplay.title')}
-              />
-            </Pressable>
-          </View>
-          {achievementsNavItem ? (
-            <View ref={achievementsRef} collapsable={false} style={styles.statTileWrap}>
-              <Pressable
-                onPress={() => handleNavPress(achievementsNavItem)}
-                accessibilityRole="button"
-                accessibilityLabel={t('gamification.profileCard.tileLabel')}
-                style={({ pressed }) => [
-                  styles.statPressable,
-                  pressed ? styles.statPressed : null,
-                ]}
-              >
-                <StatTile
-                  emoji="🏆"
-                  value={achievementsTileValue}
-                  label={t('gamification.profileCard.tileLabel')}
-                />
-                {achievementsLocked ? (
-                  <View
-                    style={[
-                      styles.lockBadge,
-                      { backgroundColor: tintFromPrimary(tokens, 0.12) },
+          {statsLoading ? (
+            <>
+              <View style={styles.statTileWrap}>
+                <SkeletonLine height={110} style={styles.statSkeleton} />
+              </View>
+              <View style={styles.statTileWrap}>
+                <SkeletonLine height={110} style={styles.statSkeleton} />
+              </View>
+            </>
+          ) : (
+            <>
+              <View ref={streakRef} collapsable={false} style={styles.statTileWrap}>
+                <Pressable
+                  onPress={handleStreakPress}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${streakValue} · ${streakLabel}`}
+                  style={({ pressed }) => [
+                    styles.statPressable,
+                    pressed ? styles.statPressed : null,
+                  ]}
+                >
+                  <StatTile emoji="🔥" value={streakValue} label={streakLabel} />
+                </Pressable>
+              </View>
+              {achievementsNavItem ? (
+                <View ref={achievementsRef} collapsable={false} style={styles.statTileWrap}>
+                  <Pressable
+                    onPress={() => handleNavPress(achievementsNavItem)}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${achievementsTileValue} · ${achievementsLabel}${
+                      achievementsLocked ? ` · ${t('common.locked')}` : ''
+                    }`}
+                    style={({ pressed }) => [
+                      styles.statPressable,
+                      pressed ? styles.statPressed : null,
                     ]}
                   >
-                    <Lock size={12} strokeWidth={2} color={tokens.primary} />
-                  </View>
-                ) : null}
-              </Pressable>
-            </View>
-          ) : null}
+                    <StatTile
+                      emoji="🏆"
+                      value={achievementsTileValue}
+                      label={achievementsLabel}
+                    />
+                    {achievementsLocked ? (
+                      <View
+                        style={[
+                          styles.lockBadge,
+                          { backgroundColor: tintFromPrimary(tokens, 0.12) },
+                        ]}
+                      >
+                        <Lock size={12} strokeWidth={2} color={tokens.primary} />
+                      </View>
+                    ) : null}
+                  </Pressable>
+                </View>
+              ) : null}
+            </>
+          )}
         </Animated.View>
 
         <Animated.View entering={sectionEntrance(2)}>
           <ReferralCard onOpen={() => setShowReferral(true)} />
         </Animated.View>
 
-        <NextRewardCarrot
-          carrot={nextRewardCarrot}
-          onUpgrade={() => router.push(buildUpgradeHref('/profile'))}
-        />
+        <Animated.View entering={sectionEntrance(3)}>
+          <NextRewardCarrot
+            carrot={nextRewardCarrot}
+            onUpgrade={() => router.push(buildUpgradeHref('/profile'))}
+          />
+        </Animated.View>
 
-        <Animated.View entering={sectionEntrance(2)}>
+        <Animated.View entering={sectionEntrance(4)}>
           <SectionLabel>{t('profile.sections.account')}</SectionLabel>
           <View style={styles.groupWrap}>
             <SettingsGroup>
@@ -323,7 +334,14 @@ export default function ProfileScreen() {
                   <SettingsGroupRow
                     icon={<ProfileNavIcon iconKey={item.iconKey} color={tokens.fg1} />}
                     label={t(item.titleKey)}
-                    hint={t(item.hintKey)}
+                    hint={resolveProfileNavHint(
+                      item,
+                      {
+                        hasProAccess: profile?.hasProAccess,
+                        gamificationProfile,
+                      },
+                      t,
+                    )}
                     onPress={() => handleNavPress(item)}
                     proBadge={item.proBadge}
                     proBadgeLabel={t('common.proBadge')}
@@ -334,7 +352,7 @@ export default function ProfileScreen() {
           </View>
         </Animated.View>
 
-        <Animated.View entering={sectionEntrance(3)}>
+        <Animated.View entering={sectionEntrance(5)}>
           <SectionLabel>{t('profile.sections.features')}</SectionLabel>
           <View style={styles.groupWrap}>
             <FeatureTileGrid
@@ -347,13 +365,18 @@ export default function ProfileScreen() {
           </View>
         </Animated.View>
 
-        <Animated.View entering={sectionEntrance(4)}>
+        <Animated.View entering={sectionEntrance(6)}>
           <SectionLabel>{t('profile.sections.subscription')}</SectionLabel>
           <View ref={subscriptionRef} collapsable={false} style={styles.groupWrap}>
             <SettingsGroup>
               <SettingsGroupRow
                 icon={<CreditCard size={22} color={tokens.fg1} strokeWidth={1.8} />}
                 label={t('profile.subscription.plan')}
+                accessibilityLabel={
+                  profile?.hasProAccess && !profile.isTrialActive
+                    ? t('profile.subscription.manage')
+                    : t('common.upgrade')
+                }
                 hint={`${subscriptionLabel} · ${subscriptionHint}`}
                 onPress={() => router.push(buildUpgradeHref('/profile'))}
               />
@@ -361,7 +384,7 @@ export default function ProfileScreen() {
           </View>
         </Animated.View>
 
-        <Animated.View entering={sectionEntrance(5)}>
+        <Animated.View entering={sectionEntrance(7)}>
           <ProfileAccountActions
             isExporting={isExporting}
             exportError={exportError}
@@ -435,6 +458,9 @@ function createStyles(_tokens: Tokens) {
       maxWidth: '100%',
       minHeight: 44,
     },
+    identityNamePressed: {
+      opacity: 0.7,
+    },
     identityName: {
       fontFamily: 'Rubik_500Medium',
       fontSize: 32,
@@ -447,8 +473,11 @@ function createStyles(_tokens: Tokens) {
       fontSize: 16,
       maxWidth: '100%',
     },
-    skeleton: {
-      borderRadius: 8,
+    skeletonBadge: {
+      borderRadius: 999,
+    },
+    skeletonName: {
+      marginTop: 4,
     },
 
     statRow: {
@@ -460,6 +489,9 @@ function createStyles(_tokens: Tokens) {
     },
     statTileWrap: {
       flex: 1,
+    },
+    statSkeleton: {
+      borderRadius: 18,
     },
     statPressable: {
       flexDirection: 'row',

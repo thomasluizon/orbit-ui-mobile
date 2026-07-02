@@ -1,13 +1,14 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { Sparkles, ArrowUpRight } from 'lucide-react'
+import { ArrowUpRight } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useRouter } from 'next/navigation'
 import type { ChatMessage } from '@orbit/shared/types/chat'
 import type { AgentExecuteOperationResponse } from '@orbit/shared/types/ai'
 import { getRelatedSurfaces, stripHabitListDirective } from '@orbit/shared/chat'
 import { resolveUpgradeEntitlementFromPolicyDenial } from '@orbit/shared/utils'
+import { AstraMark } from '@/components/ui/astra-avatar'
 import { LocalImage } from '@/components/ui/local-image'
 import { Markdown } from '@/components/ui/markdown'
 import { ActionChips } from './action-chips'
@@ -19,6 +20,7 @@ import { PendingOperationCard } from './pending-operation-card'
 
 interface MessageBubbleProps {
   message: ChatMessage
+  animateEntry?: boolean
   onBreakdownConfirmed?: () => void
   onActionChipClick?: (entityId: string, actionType: string) => void
   onPendingOperationConfirmExecute?: (
@@ -38,6 +40,7 @@ interface MessageBubbleProps {
 
 export function MessageBubble({
   message,
+  animateEntry,
   onBreakdownConfirmed,
   onActionChipClick,
   onPendingOperationConfirmExecute,
@@ -98,9 +101,8 @@ export function MessageBubble({
 
   return (
     <div
-      className={`animate-msg-in flex ${isUser ? 'justify-end' : 'justify-start'}`}
+      className={`${animateEntry ? 'animate-msg-in ' : ''}flex ${isUser ? 'justify-end' : 'justify-start'}`}
       style={{ gap: 10, padding: '0 16px', marginBottom: 16 }}
-      aria-label={isUser ? t('chat.senderYou') : t('chat.senderOrbit')}
     >
       {!isUser && (
         <div
@@ -113,7 +115,7 @@ export function MessageBubble({
           }}
           aria-hidden="true"
         >
-          <Sparkles size={16} strokeWidth={1.8} color="var(--primary-soft)" />
+          <AstraMark size={16} />
         </div>
       )}
 
@@ -133,7 +135,7 @@ export function MessageBubble({
           className={
             isUser
               ? 'bg-[var(--primary)] text-[var(--fg-on-primary)]'
-              : 'inline-block max-w-full bg-[var(--bg-elev)] text-[var(--fg-1)]'
+              : 'inline-block max-w-full md:max-w-[65ch] bg-[var(--bg-elev)] text-[var(--fg-1)]'
           }
           style={{
             padding: '12px 15px',
@@ -144,7 +146,8 @@ export function MessageBubble({
             <LocalImage
               src={message.imageUrl}
               alt={t('chat.attachmentPreview')}
-              className="rounded-[12px] max-h-48 mb-2"
+              className="rounded-[12px] w-[200px] h-48 object-cover mb-2"
+              style={{ border: '1px solid var(--hairline)' }}
             />
           )}
           <Markdown content={stripHabitListDirective(message.content ?? '')} />
@@ -164,7 +167,7 @@ export function MessageBubble({
               className="block"
               style={{
                 fontFamily: 'var(--font-sans)',
-                fontSize: 11,
+                fontSize: 12,
                 fontWeight: 500,
                 color: 'var(--fg-3)',
                 marginBottom: 6,
@@ -194,7 +197,7 @@ export function MessageBubble({
         )}
 
         {!isUser && suggestionActions.length > 0 && (
-          <div className="space-y-3 mt-3 w-full">
+          <div className="space-y-3 mt-3 w-full md:max-w-[65ch]">
             {suggestionActions.map((action) => {
               const actionKey = action.entityId ?? action.entityName ?? 'suggestion'
               return dismissedBreakdowns.has(actionKey) ? null : (
@@ -211,7 +214,7 @@ export function MessageBubble({
         )}
 
         {!isUser && clarificationActions.length > 0 && (
-          <div className="space-y-3 mt-3 w-full">
+          <div className="space-y-3 mt-3 w-full md:max-w-[65ch]">
             {clarificationActions.map((action) => (
               <ClarificationCard
                 key={action.clarificationRequest.operationId}
@@ -223,7 +226,7 @@ export function MessageBubble({
         )}
 
         {!isUser && message.pendingOperations && message.pendingOperations.length > 0 && onPendingOperationConfirmExecute && onPendingOperationPrepareStepUp && onPendingOperationVerifyStepUp && (
-          <div className="mt-3 w-full space-y-3">
+          <div className="mt-3 w-full md:max-w-[65ch] space-y-3">
             {message.pendingOperations.map((pendingOperation) => (
               <PendingOperationCard
                 key={pendingOperation.id}
@@ -237,7 +240,7 @@ export function MessageBubble({
         )}
 
         {!isUser && message.policyDenials && message.policyDenials.length > 0 && (
-          <div className="mt-3 w-full space-y-2">
+          <div className="mt-3 w-full md:max-w-[65ch] space-y-2">
             {message.policyDenials.map((denial) => {
               const upgradeResolution = resolveUpgradeEntitlementFromPolicyDenial(denial)
 
@@ -251,17 +254,17 @@ export function MessageBubble({
                       'inset 0 0 0 1px color-mix(in srgb, var(--status-bad) 20%, transparent)',
                   }}
                 >
-                  <p className="text-xs font-medium text-[var(--status-bad)]">
+                  <p className="text-xs font-medium text-[var(--status-bad-text)]">
                     {upgradeResolution.shouldUpgrade ? t('chat.proGate.title') : denial.sourceName}
                   </p>
-                  <p className="mt-1 text-[11px] text-[var(--status-bad)]/90">
+                  <p className="mt-1 text-[12px] text-[var(--status-bad-text)]">
                     {upgradeResolution.shouldUpgrade ? t('chat.proGate.body') : denial.reason}
                   </p>
                   {upgradeResolution.shouldUpgrade && onUpgradeClick && (
                     <button
                       type="button"
                       onClick={onUpgradeClick}
-                      className="mt-3 inline-flex items-center rounded-full bg-[var(--primary)] px-3 py-1.5 text-[11px] font-semibold text-[var(--fg-on-primary)] transition-colors hover:bg-[var(--primary-pressed)]"
+                      className="touch-target-y mt-3 inline-flex items-center rounded-full bg-[var(--primary)] px-4 py-2 text-[12px] font-semibold text-[var(--fg-on-primary)] transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--primary-pressed)] active:scale-[0.96]"
                     >
                       {t('upgrade.subscribe')}
                     </button>

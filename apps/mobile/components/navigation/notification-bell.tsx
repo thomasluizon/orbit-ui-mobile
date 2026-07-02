@@ -1,12 +1,7 @@
 import { useMemo, useState, useCallback, useSyncExternalStore } from 'react'
-import {
-  View,
-  Text,
-  Pressable,
-  ActivityIndicator,
-  FlatList,
-} from 'react-native'
-import { Bell, BellOff, CheckCheck, Trash2 } from 'lucide-react-native'
+import { View, Text, Pressable } from 'react-native'
+import Animated, { LinearTransition, ReduceMotion, ZoomIn } from 'react-native-reanimated'
+import { Bell, CheckCheck, Trash2 } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import type { NotificationItem } from '@orbit/shared/types/notification'
 import {
@@ -18,6 +13,8 @@ import {
 } from '@/hooks/use-notifications'
 import { BottomSheetModal } from '@/components/bottom-sheet-modal'
 import { withDrawerContentInset } from '@/components/ui/drawer-content-inset'
+import { SatelliteGlyph } from '@/components/ui/satellite-glyph'
+import { SkeletonLine } from '@/components/ui/skeleton'
 import { NotificationDetailModal } from './notification-detail-modal'
 import { NotificationRow } from './notification-row'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
@@ -63,6 +60,7 @@ function NotificationListActions({
             styles.sheetActionBtn,
             pressed ? styles.deleteBtnPressed : null,
           ]}
+          hitSlop={2}
           onPress={onMarkAllRead}
           accessibilityRole="button"
           accessibilityLabel={t('notifications.markAllRead')}
@@ -82,6 +80,7 @@ function NotificationListActions({
             styles.sheetActionBtn,
             pressed ? styles.deleteBtnPressed : null,
           ]}
+          hitSlop={2}
           onPress={onDeleteAll}
           accessibilityRole="button"
           accessibilityLabel={t('notifications.deleteAll')}
@@ -100,29 +99,49 @@ function NotificationListActions({
 }
 
 interface NotificationListEmptyProps {
-  tokens: AppTokens
   styles: NotificationBellStyles
   isLoading: boolean
+  isError: boolean
+  onRetry: () => void
 }
 
 function NotificationListEmpty({
-  tokens,
   styles,
   isLoading,
+  isError,
+  onRetry,
 }: Readonly<NotificationListEmptyProps>) {
   const { t } = useTranslation()
   if (isLoading) {
     return (
+      <View style={styles.loadingState} accessibilityLabel={t('common.loading')}>
+        <SkeletonLine height={48} />
+        <SkeletonLine height={48} />
+      </View>
+    )
+  }
+  if (isError) {
+    return (
       <View style={styles.emptyContainer}>
-        <ActivityIndicator color={tokens.primary} />
+        <Text style={styles.emptyText}>{t('notifications.loadError')}</Text>
+        <Pressable
+          style={({ pressed }) => [
+            styles.retryChip,
+            pressed ? styles.retryChipPressed : null,
+          ]}
+          hitSlop={{ top: 4, bottom: 4 }}
+          onPress={onRetry}
+          accessibilityRole="button"
+          accessibilityLabel={t('common.retry')}
+        >
+          <Text style={styles.retryChipLabel}>{t('common.retry')}</Text>
+        </Pressable>
       </View>
     )
   }
   return (
     <View style={styles.emptyContainer}>
-      <View style={styles.notifGlyphCircle}>
-        <BellOff size={20} color={tokens.fg3} strokeWidth={1.8} />
-      </View>
+      <SatelliteGlyph size={96} />
       <Text style={styles.emptyText}>{t('notifications.empty')}</Text>
     </View>
   )
@@ -135,7 +154,7 @@ export function NotificationBell() {
     () => createTokensV2(currentScheme, currentTheme),
     [currentScheme, currentTheme],
   )
-  const { notifications, isLoading } = useNotifications()
+  const { notifications, isLoading, isError, refetch } = useNotifications()
   const markAsRead = useMarkNotificationRead()
   const markAllAsRead = useMarkAllNotificationsRead()
   const deleteNotification = useDeleteNotification()
@@ -201,19 +220,20 @@ export function NotificationBell() {
     if (notification) {
       requestDeleteNotification(notification)
     }
-    setSelectedNotification(null)
   }
 
   function renderNotification({ item, index }: { item: NotificationItem; index: number }) {
-    return NotificationRow({
-      item,
-      index,
-      tokens,
-      styles,
-      t,
-      onPress: handlePress,
-      onRequestDelete: requestDeleteNotification,
-    })
+    return (
+      <NotificationRow
+        item={item}
+        index={index}
+        tokens={tokens}
+        styles={styles}
+        t={t}
+        onPress={handlePress}
+        onRequestDelete={requestDeleteNotification}
+      />
+    )
   }
 
   return (
@@ -227,6 +247,7 @@ export function NotificationBell() {
         hitSlop={2}
         onPress={toggle}
         accessibilityRole="button"
+        accessibilityState={{ expanded: isOpen }}
         accessibilityLabel={
           visibleUnreadCount > 0
             ? plural(t('notifications.bellWithCount', { count: visibleUnreadCount }), visibleUnreadCount)
@@ -234,7 +255,12 @@ export function NotificationBell() {
         }
       >
         <Bell size={22} color={tokens.fg1} strokeWidth={1.8} />
-        {visibleUnreadCount > 0 && <View style={styles.bellUnreadDot} />}
+        {visibleUnreadCount > 0 && (
+          <Animated.View
+            style={styles.bellUnreadDot}
+            entering={ZoomIn.duration(160).reduceMotion(ReduceMotion.System)}
+          />
+        )}
       </Pressable>
 
       <BottomSheetModal
@@ -243,27 +269,27 @@ export function NotificationBell() {
         title={t('notifications.title')}
         snapPoints={['88%', '96%']}
       >
-        <FlatList
+        <NotificationListActions
+          tokens={tokens}
+          styles={styles}
+          showMarkAllRead={visibleUnreadCount > 0}
+          showDeleteAll={visibleNotifications.length > 0}
+          onMarkAllRead={() => markAllAsRead.mutate()}
+          onDeleteAll={() => setShowDeleteAllConfirm(true)}
+        />
+        <Animated.FlatList
           style={styles.listScroll}
           data={visibleNotifications}
           keyExtractor={(item) => item.id}
           renderItem={renderNotification}
           showsVerticalScrollIndicator={false}
-          ListHeaderComponent={
-            <NotificationListActions
-              tokens={tokens}
-              styles={styles}
-              showMarkAllRead={visibleUnreadCount > 0}
-              showDeleteAll={visibleNotifications.length > 0}
-              onMarkAllRead={() => markAllAsRead.mutate()}
-              onDeleteAll={() => setShowDeleteAllConfirm(true)}
-            />
-          }
+          itemLayoutAnimation={LinearTransition}
           ListEmptyComponent={
             <NotificationListEmpty
-              tokens={tokens}
               styles={styles}
               isLoading={isLoading}
+              isError={isError}
+              onRetry={() => void refetch()}
             />
           }
           contentContainerStyle={[
@@ -277,7 +303,10 @@ export function NotificationBell() {
         <NotificationDetailModal
           open={isDetailOpen}
           onClose={() => setIsDetailOpen(false)}
-          notification={selectedNotification}
+          notification={
+            notifications.find((item) => item.id === selectedNotification.id) ??
+            selectedNotification
+          }
           onMarkAsRead={handleDetailMarkAsRead}
           onDelete={handleDetailDelete}
         />

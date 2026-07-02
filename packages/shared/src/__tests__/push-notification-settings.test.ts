@@ -12,8 +12,8 @@ import {
 
 describe('push notification settings presenters', () => {
   it('maps web push statuses to shared tone classes', () => {
-    expect(getPushStatusToneClass(getWebPushStatusTone('denied'))).toBe('text-[var(--status-bad)]')
-    expect(getPushStatusToneClass(getWebPushStatusTone('sync-failed'))).toBe('text-[var(--status-bad)]')
+    expect(getPushStatusToneClass(getWebPushStatusTone('denied'))).toBe('text-[var(--status-bad-text)]')
+    expect(getPushStatusToneClass(getWebPushStatusTone('sync-failed'))).toBe('text-[var(--status-bad-text)]')
     expect(getPushStatusToneClass(getWebPushStatusTone('registered'))).toBe('text-[var(--primary)]')
     expect(getPushStatusToneClass(getWebPushStatusTone('not-registered'))).toBe('text-[var(--fg-3)]')
   })

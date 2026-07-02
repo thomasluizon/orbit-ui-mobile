@@ -90,7 +90,7 @@ export function OnboardingTemplatePacks({
             <Pressable
               key={pack.id}
               onPress={() => setSelectedPackId(pack.id)}
-              style={styles.packRow}
+              style={({ pressed }) => [styles.packRow, pressed && styles.rowPressed]}
               accessibilityRole="button"
               accessibilityLabel={t(templatePackNameKey(pack.id))}
             >
@@ -109,7 +109,7 @@ export function OnboardingTemplatePacks({
         <View style={styles.secondaryActions}>
           <Pressable
             onPress={onCreateOwn}
-            style={styles.secondaryButton}
+            style={({ pressed }) => [styles.secondaryButton, pressed && styles.textButtonPressed]}
             accessibilityRole="button"
             accessibilityLabel={t('onboarding.flow.templatePacks.createOwn')}
           >
@@ -119,7 +119,7 @@ export function OnboardingTemplatePacks({
           </Pressable>
           <Pressable
             onPress={onSkip}
-            style={styles.secondaryButton}
+            style={({ pressed }) => [styles.secondaryButton, pressed && styles.textButtonPressed]}
             accessibilityRole="button"
             accessibilityLabel={t('onboarding.flow.templatePacks.skip')}
           >
@@ -142,7 +142,11 @@ export function OnboardingTemplatePacks({
             <Pressable
               key={habit.key}
               onPress={() => toggleHabit(habit.key)}
-              style={[styles.habitRow, { opacity: enabled ? 1 : 0.55 }]}
+              style={({ pressed }) => [
+                styles.habitRow,
+                { opacity: enabled ? 1 : 0.55 },
+                pressed && styles.rowPressed,
+              ]}
               accessibilityRole="button"
               accessibilityState={{ selected: enabled }}
               accessibilityLabel={t(templatePackHabitTitleKey(selectedPack.id, habit.key))}
@@ -295,6 +299,14 @@ function createStyles(tokens: AppTokensV2) {
       paddingHorizontal: 12,
       alignItems: 'center',
       justifyContent: 'center',
+    },
+    rowPressed: {
+      backgroundColor: tokens.bgElev2,
+      transform: [{ scale: 0.99 }],
+    },
+    textButtonPressed: {
+      transform: [{ scale: 0.96 }],
+      opacity: 0.7,
     },
     secondaryEmphasis: {
       fontFamily: 'Rubik_500Medium',

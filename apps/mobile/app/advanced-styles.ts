@@ -58,8 +58,9 @@ export const styles = StyleSheet.create({
   },
   keyMeta: {
     fontFamily: 'Roboto_400Regular',
-    fontSize: 12,
+    fontSize: 11,
     lineHeight: 17,
+    letterSpacing: 0.22,
     fontVariant: ['tabular-nums'],
   },
   revokeLink: {

@@ -19,14 +19,15 @@ interface BuddyInviteRowProps {
   direction: 'incoming' | 'outgoing'
 }
 
+const actionButtonClass =
+  'touch-target-y shrink-0 cursor-pointer rounded-full transition-[background-color,transform,opacity] duration-[var(--dur-fast)] ease-[var(--ease-standard)] enabled:active:scale-[0.96] disabled:opacity-40 disabled:cursor-default'
+
 const actionButtonStyle = {
   padding: '8px 14px',
-  borderRadius: 999,
   border: 0,
   fontFamily: 'var(--font-sans)',
   fontSize: 14,
   fontWeight: 500,
-  cursor: 'pointer',
 } as const
 
 /** A pending accountability invite: accept (picking habits) / decline when incoming, rescind when outgoing. */
@@ -85,7 +86,8 @@ export function BuddyInviteRow({ pair, direction }: Readonly<BuddyInviteRowProps
                 type="button"
                 onClick={() => setAcceptOpen(true)}
                 disabled={busy}
-                style={{ ...actionButtonStyle, color: 'var(--fg-on-primary)', background: 'var(--primary)' }}
+                className={`${actionButtonClass} bg-[var(--primary)] text-[var(--fg-on-primary)] enabled:hover:bg-[var(--primary-pressed)]`}
+                style={actionButtonStyle}
               >
                 {t('social.buddies.accept')}
               </button>
@@ -93,7 +95,8 @@ export function BuddyInviteRow({ pair, direction }: Readonly<BuddyInviteRowProps
                 type="button"
                 onClick={handleEnd}
                 disabled={busy}
-                style={{ ...actionButtonStyle, color: 'var(--fg-2)', background: 'var(--bg-elev)' }}
+                className={`${actionButtonClass} bg-[var(--bg-elev)] text-[var(--fg-2)] enabled:hover:bg-[var(--bg-elev-2)]`}
+                style={actionButtonStyle}
               >
                 {t('social.buddies.decline')}
               </button>
@@ -103,7 +106,8 @@ export function BuddyInviteRow({ pair, direction }: Readonly<BuddyInviteRowProps
               type="button"
               onClick={handleEnd}
               disabled={busy}
-              style={{ ...actionButtonStyle, color: 'var(--fg-2)', background: 'var(--bg-elev)' }}
+              className={`${actionButtonClass} bg-[var(--bg-elev)] text-[var(--fg-2)] enabled:hover:bg-[var(--bg-elev-2)]`}
+              style={actionButtonStyle}
             >
               {t('social.buddies.rescind')}
             </button>

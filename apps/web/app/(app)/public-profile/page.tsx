@@ -10,7 +10,7 @@ export default function PublicProfilePage() {
   const goBackOrFallback = useGoBackOrFallback()
 
   return (
-    <div className="md:mx-auto md:max-w-[760px]">
+    <div className="md:mx-auto md:max-w-[880px]">
       <div className="flex flex-col min-h-[100dvh]">
         <AppBar
           back
@@ -18,6 +18,9 @@ export default function PublicProfilePage() {
           onBack={() => goBackOrFallback('/profile')}
           title={t('profile.publicProfile.title')}
         />
+        <h1 className="t-display hidden md:block" style={{ margin: 0, padding: '20px 20px 4px' }}>
+          {t('profile.publicProfile.title')}
+        </h1>
         <PublicProfileSettings />
       </div>
     </div>
