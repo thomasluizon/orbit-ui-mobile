@@ -397,34 +397,25 @@ export default function CalendarPage() {
                     aria-label={dayDetailTitle}
                     style={{ padding: '20px 20px 10px 0' }}
                   >
-                    <div
+                    <h2
+                      className="min-w-0 truncate"
                       style={{
-                        borderRadius: 18,
-                        background: 'var(--bg-card)',
-                        boxShadow: 'inset 0 0 0 1px var(--hairline)',
-                        paddingBottom: 8,
+                        margin: 0,
+                        padding: '0 0 12px',
+                        fontFamily: 'var(--font-sans)',
+                        fontSize: 20,
+                        fontWeight: 500,
+                        color: 'var(--fg-1)',
                       }}
                     >
-                      <h2
-                        className="min-w-0 truncate"
-                        style={{
-                          margin: 0,
-                          padding: '18px 20px 0',
-                          fontFamily: 'var(--font-sans)',
-                          fontSize: 20,
-                          fontWeight: 500,
-                          color: 'var(--fg-1)',
-                        }}
-                      >
-                        {dayDetailTitle}
-                      </h2>
-                      <CalendarDayDetail
-                        dateStr={selectedDay}
-                        entries={selectedEntries}
-                        showRecurring={showRecurring}
-                        onShowRecurringChange={setShowRecurring}
-                      />
-                    </div>
+                      {dayDetailTitle}
+                    </h2>
+                    <CalendarDayDetail
+                      dateStr={selectedDay}
+                      entries={selectedEntries}
+                      showRecurring={showRecurring}
+                      onShowRecurringChange={setShowRecurring}
+                    />
                   </section>
                 )}
               </div>

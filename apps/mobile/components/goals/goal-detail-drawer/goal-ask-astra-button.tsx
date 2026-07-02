@@ -1,4 +1,4 @@
-import { Text, TouchableOpacity, View } from 'react-native'
+import { Pressable, Text, View } from 'react-native'
 import { ChevronRight, Orbit } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import type { AppTokens, createStyles } from './styles'
@@ -18,12 +18,11 @@ export function GoalAskAstraButton({
 }: Readonly<GoalAskAstraButtonProps>) {
   const { t } = useTranslation()
   return (
-    <TouchableOpacity
-      activeOpacity={0.7}
+    <Pressable
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={`${t('goals.detail.askAstraEyebrow')}: ${t('goals.detail.askAstraDefault')}`}
-      style={styles.askAstra}
+      style={({ pressed }) => [styles.askAstra, pressed ? styles.askAstraPressed : null]}
     >
       <View style={styles.askAstraWell}>
         <Orbit size={15} color={tokens.primary} strokeWidth={1.9} />
@@ -37,6 +36,6 @@ export function GoalAskAstraButton({
         </Text>
       </View>
       <ChevronRight size={16} color={tokens.fg3} strokeWidth={1.7} />
-    </TouchableOpacity>
+    </Pressable>
   )
 }

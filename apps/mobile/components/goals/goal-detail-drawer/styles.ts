@@ -109,6 +109,10 @@ export function createStyles(tokens: AppTokens, bottomInset: number) {
       borderTopColor: tokens.hairline,
       marginTop: 8,
     },
+    askAstraPressed: {
+      backgroundColor: tokens.bgElevPressed,
+      transform: [{ scale: 0.99 }],
+    },
     askAstraWell: {
       width: 28,
       height: 28,
