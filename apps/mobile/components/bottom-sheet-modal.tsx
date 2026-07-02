@@ -1,7 +1,8 @@
 import { useEffect, useMemo, useRef, type ReactNode } from 'react'
-import { Dimensions, StyleSheet, Text, TouchableOpacity, View } from 'react-native'
+import { Dimensions, Pressable, StyleSheet, Text, View } from 'react-native'
 import { TrueSheet } from '@lodev09/react-native-true-sheet'
 import { X } from 'lucide-react-native'
+import { useTranslation } from 'react-i18next'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
@@ -48,6 +49,7 @@ export function BottomSheetModal({
   children,
 }: BottomSheetModalProps) {
   const { currentScheme, currentTheme } = useAppTheme()
+  const { t } = useTranslation()
   const tokens = useMemo(
     () => createTokensV2(currentScheme, currentTheme),
     [currentScheme, currentTheme],
@@ -123,15 +125,19 @@ export function BottomSheetModal({
         {title ? (
           <View style={styles.header}>
             <Text style={styles.title}>{title}</Text>
-            <TouchableOpacity
-              style={styles.closeButton}
+            <Pressable
+              style={({ pressed }) => [
+                styles.closeButton,
+                pressed
+                  ? [styles.closeButtonPressed, { backgroundColor: tokens.bgElev }]
+                  : null,
+              ]}
               onPress={() => requestDismiss('close-button')}
-              activeOpacity={0.7}
               accessibilityRole="button"
-              accessibilityLabel={title}
+              accessibilityLabel={t('common.close')}
             >
               <X size={24} color={tokens.fg2} strokeWidth={1.8} />
-            </TouchableOpacity>
+            </Pressable>
           </View>
         ) : null}
         {children}
@@ -179,6 +185,9 @@ function createStyles(tokens: AppTokens) {
       borderRadius: 22,
       alignItems: 'center',
       justifyContent: 'center',
+    },
+    closeButtonPressed: {
+      transform: [{ scale: 0.96 }],
     },
   })
 }

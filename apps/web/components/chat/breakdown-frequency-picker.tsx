@@ -1,6 +1,7 @@
 'use client'
 
 import { useTranslations } from 'next-intl'
+import { ChevronDown } from 'lucide-react'
 import type { FrequencyUnit } from '@orbit/shared/types/habit'
 import { frequencyUnitSchema } from '@orbit/shared/types/habit'
 
@@ -27,26 +28,33 @@ export function BreakdownFrequencyPicker({
   const t = useTranslations()
   return (
     <div className="flex items-center gap-2">
-      <select
-        value={frequencyUnit ?? ''}
-        onChange={(e) => {
-          const rawVal = e.target.value
-          const parsed = frequencyUnitSchema.safeParse(rawVal)
-          const val: FrequencyUnit | null = parsed.success ? parsed.data : null
-          onSelectUnit(val)
-        }}
-        className="bg-transparent text-[11px] text-[var(--fg-2)] outline-none cursor-pointer rounded-sm focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]"
-      >
-        {frequencyOptions.map((opt) => (
-          <option
-            key={opt.value}
-            value={opt.value}
-            className="bg-[var(--bg-elev)] text-[var(--fg-1)]"
-          >
-            {opt.label}
-          </option>
-        ))}
-      </select>
+      <div className="relative">
+        <select
+          value={frequencyUnit ?? ''}
+          onChange={(e) => {
+            const rawVal = e.target.value
+            const parsed = frequencyUnitSchema.safeParse(rawVal)
+            const val: FrequencyUnit | null = parsed.success ? parsed.data : null
+            onSelectUnit(val)
+          }}
+          className="appearance-none bg-transparent pr-4 text-[11px] text-[var(--fg-2)] outline-none cursor-pointer rounded-sm focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)]"
+        >
+          {frequencyOptions.map((opt) => (
+            <option
+              key={opt.value}
+              value={opt.value}
+              className="bg-[var(--bg-elev)] text-[var(--fg-1)]"
+            >
+              {opt.label}
+            </option>
+          ))}
+        </select>
+        <ChevronDown
+          size={12}
+          strokeWidth={1.8}
+          className="pointer-events-none absolute right-0 top-1/2 -translate-y-1/2 text-[var(--fg-4)]"
+        />
+      </div>
       {frequencyUnit && (
         <>
           <span className="text-[11px] text-[var(--fg-3)]">{t('habits.breakdown.every')}</span>

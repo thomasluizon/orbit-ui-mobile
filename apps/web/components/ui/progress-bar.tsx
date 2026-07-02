@@ -20,7 +20,7 @@ export function ProgressBar({ progress, label, color, className }: Readonly<Prog
       aria-label={label}
       className={['h-2 overflow-hidden rounded-full transition-opacity duration-[var(--dur-base)]', className].filter(Boolean).join(' ')}
       style={{
-        background: 'color-mix(in srgb, var(--fg-1) 6%, transparent)',
+        background: 'color-mix(in srgb, var(--fg-1) 8%, transparent)',
         boxShadow: 'inset 0 0 0 1px var(--hairline)',
         opacity: clamped === 0 ? 0.45 : 1,
       }}

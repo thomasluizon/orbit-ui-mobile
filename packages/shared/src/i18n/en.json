@@ -46,7 +46,7 @@
   },
   "notFoundPage": {
     "title": "Page not found",
-    "description": "This page doesn't exist or has moved.",
+    "description": "This page drifted out of orbit.",
     "home": "Back to home"
   },
   "updatePrompt": {
@@ -62,11 +62,13 @@
     "bell": "Notifications",
     "bellWithCount": "{count} unread notification | {count} unread notifications",
     "empty": "No notifications yet",
+    "loadError": "Couldn't load notifications",
     "markAllRead": "Mark all read",
     "markAsRead": "Mark as read",
     "deleteAll": "Delete all",
     "deleteAllConfirmTitle": "Delete all notifications?",
     "deleteAllConfirmDescription": "This will remove every notification from your inbox.",
+    "delete": "Delete",
     "deleteNotification": "Delete notification",
     "deleteUndo": "Undo delete",
     "deleteQueued": "Notification will be deleted",
@@ -99,6 +101,7 @@
     "back": "Go back",
     "backToProfile": "Back to profile",
     "backToTop": "Back to top",
+    "goHome": "Go home",
     "cancel": "Cancel",
     "goBack": "Go back",
     "later": "Maybe later",
@@ -121,15 +124,19 @@
     "create": "Create",
     "search": "Search...",
     "error": "An error occurred",
+    "somethingWentWrong": "Something went wrong",
     "retry": "Retry",
     "selected": "{n} selected | {n} selected",
-    "selectAll": "Select All",
-    "deselectAll": "Deselect All",
+    "selectedSuffix": "selected | selected",
+    "selectAll": "Select all",
+    "deselectAll": "Deselect all",
     "clear": "Clear",
     "never": "Never",
     "yes": "Yes",
     "done": "Done",
     "no": "No",
+    "toggleOn": "On",
+    "toggleOff": "Off",
     "all": "All",
     "select": "Select",
     "previous": "Previous",
@@ -139,6 +146,7 @@
     "codePlaceholder": "123456",
     "upgrade": "Upgrade",
     "proBadge": "Pro",
+    "locked": "Locked",
     "required": "is required",
     "selectDate": "Select date",
     "selectedDate": "Selected date: {date}",
@@ -173,15 +181,18 @@
     "create": "Create",
     "today": "Today",
     "goals": "Goals",
-    "insights": "Insights"
+    "insights": "Insights",
+    "mainNavigation": "Main navigation"
   },
   "shell": {
     "collapseSidebar": "Collapse sidebar",
     "expandSidebar": "Expand sidebar",
     "openRail": "Open panel",
-    "closeRail": "Close panel"
+    "closeRail": "Close panel",
+    "openPalette": "Open command palette"
   },
   "command": {
+    "title": "Commands",
     "placeholder": "Type a command or search...",
     "empty": "No results found",
     "logHabit": "Log a habit",
@@ -192,7 +203,13 @@
       "create": "Create",
       "actions": "Actions",
       "navigate": "Navigate",
-      "search": "Search habits and goals"
+      "search": "Habits"
+    },
+    "hints": {
+      "navigate": "Navigate",
+      "select": "Select",
+      "back": "Back",
+      "close": "Close"
     }
   },
   "contextMenu": {
@@ -209,7 +226,9 @@
     "todayProgress": "Today",
     "allDone": "All done",
     "progressLabel": "{done} of {total} habits completed",
-    "remaining": "Remaining today"
+    "remaining": "Remaining today",
+    "empty": "No habits today",
+    "loadFailed": "Couldn't load progress"
   },
   "astraRail": {
     "open": "Open Astra",
@@ -246,7 +265,7 @@
     "enterCode": "Enter code",
     "email": "Email",
     "emailPlaceholder": "you@example.com",
-    "sendCode": "Send Code",
+    "sendCode": "Send code",
     "codeSent": "Verification code sent! Check your email.",
     "codeSentTo": "We sent a 6-digit code to",
     "verify": "Verify",
@@ -319,6 +338,7 @@
     "sectionLabel": "Habits",
     "frequencyFilter": "Filter by frequency",
     "searchPlaceholder": "Search habits...",
+    "closeSearch": "Close search",
     "showCompleted": "Show completed",
     "collapseAll": "Collapse all",
     "expandAll": "Expand all",
@@ -326,6 +346,7 @@
     "noDueToday": "No habits due today",
     "noHabitsYet": "No habits yet. Create your first one!",
     "reorderFailed": "Couldn't save the new order. Please try again.",
+    "loadError": "Couldn't load your habits.",
     "emptyGeneral": "No general habits yet",
     "allDoneToday": "All done for today!",
     "allDoneHint": "You've completed all your habits. Great job!",
@@ -391,6 +412,8 @@
     "checklistCompleteTitle": "Checklist complete!",
     "checklistCompleteMessage": "All items in \"{name}\" are done. Would you like to log this habit?",
     "checklistCompleteConfirm": "Log",
+    "checklistClearTitle": "Clear checklist?",
+    "checklistClearMessage": "This removes every item from this habit's checklist.",
     "bulkDeleteTitle": "Delete Habits",
     "bulkDeleteMessage": "Are you sure you want to delete {count} habit? This action cannot be undone. | Are you sure you want to delete {count} habits? This action cannot be undone.",
     "bulkDeleteConfirm": "Delete all",
@@ -400,6 +423,11 @@
     "bulkSkipTitle": "Skip Habits",
     "bulkSkipMessage": "Skip/postpone {count} selected habit? Recurring habits advance to next date, one-time tasks move to tomorrow. | Skip/postpone {count} selected habits? Recurring habits advance to next date, one-time tasks move to tomorrow.",
     "bulkSkipConfirm": "Skip all",
+    "bulkBar": {
+      "log": "Log selected",
+      "skip": "Skip selected",
+      "delete": "Delete selected"
+    },
     "skipHabit": "Skip",
     "frequency": {
       "everyDay": "Every day",
@@ -519,6 +547,7 @@
       "generalBadHabit": "General habits cannot be marked as bad habits",
       "subHabits": "Sub-habits",
       "subHabitPlaceholder": "Sub-habit title",
+      "subHabitInputLabel": "Sub-habit {index}",
       "subHabitLimit": "You can add up to 20 sub-habits",
       "subHabitTitleRequired": "Sub-habit title is required",
       "subHabitTitleTooLong": "Sub-habit title must be 200 characters or fewer",
@@ -659,6 +688,8 @@
     "bestStreak": "Best streak",
     "totalLogs": "Total logs",
     "missedCount": "Missed",
+    "emptyMonth": "Nothing logged this month yet. Your days will fill in here.",
+    "loadError": "Could not load the calendar. Please try again.",
     "dayDetail": {
       "completionSummary": "{done} of {total} habit completed | {done} of {total} habits completed"
     },
@@ -676,7 +707,11 @@
       "allDay": "All-day",
       "now": "Now",
       "pickRangeHint": "Pick a start and end day above to set your range.",
-      "rangeMaxDays": "Range limited to {max} days."
+      "pickEndHint": "Now pick the end day",
+      "rangeMaxDays": "Range limited to {max} days.",
+      "empty": "Nothing scheduled",
+      "moreEntries": "{count} more",
+      "moreLabel": "{count} more"
     },
     "status": {
       "completed": "Completed",
@@ -697,13 +732,14 @@
     "deselectAll": "Deselect all",
     "importButton": "Import {count} event | Import {count} events",
     "importing": "Importing events...",
-    "importDone": "Import Complete!",
+    "importDone": "Import complete!",
     "importedCount": "{count} event imported as a habit | {count} events imported as habits",
+    "importPartialFailure": "{count} event could not be imported | {count} events could not be imported",
     "goToHabits": "Go to Habits",
     "errorTitle": "Something went wrong",
     "fetchError": "Could not fetch calendar events. Please try again.",
     "importError": "Could not import events. Please try again.",
-    "retry": "Try Again",
+    "retry": "Try again",
     "recurring": "Recurring",
     "recurrenceDaily": "Daily",
     "recurrenceWeekly": "Weekly",
@@ -761,6 +797,10 @@
     "empty": "Not enough data yet. Keep logging habits to see your insights.",
     "loading": "Loading insights...",
     "error": "Couldn't load your insights.",
+    "lockedTitle": "Unlock Insights",
+    "lockedDescription": "Upgrade to Pro to see trends and patterns across your habits.",
+    "trendUp": "Up",
+    "trendDown": "Down",
     "sections": {
       "completionTrends": "Completion trends",
       "multiHabitComparison": "Habit comparison",
@@ -781,7 +821,10 @@
       "heatmapMore": "More",
       "achievementsOf": "of {total}",
       "selectGoal": "Select a goal",
-      "noGoals": "No goals to show yet"
+      "noGoals": "No goals to show yet",
+      "goalProgressEmpty": "No progress recorded for this goal yet.",
+      "averageCaption": "avg",
+      "streakDaysShort": "{count}d"
     }
   },
   "chat": {
@@ -822,7 +865,7 @@
     "limitReachedError": "You've reached your monthly AI message limit.",
     "aiError": "Sorry, something went wrong. Please try again.",
     "operationDone": "Done.",
-    "operationFailed": "That didn't work — try again.",
+    "operationFailed": "That didn't work. Try again.",
     "proGate": {
       "title": "Pro feature",
       "body": "This action needs Orbit Pro. Upgrade to unlock it."
@@ -962,12 +1005,13 @@
         "topHabitsTitle": "Top habits",
         "ctaTitle": "Start your own streak",
         "ctaBody": "Build habits, keep streaks, and level up with Orbit.",
-        "ctaButton": "Try Orbit free"
+        "ctaButton": "Try Orbit free",
+        "backToOrbit": "Go to Orbit"
       },
       "meta": {
         "title": "{name} on Orbit",
         "titleFallback": "Public profile on Orbit",
-        "description": "See {name}'s streaks, level, and achievements on Orbit — the habit tracker that keeps you consistent."
+        "description": "See {name}'s streaks, level, and achievements on Orbit, the habit tracker that keeps you consistent."
       },
       "notFound": {
         "title": "Profile not found",
@@ -1001,7 +1045,7 @@
     },
     "proactiveAstra": {
       "title": "Proactive check-ins",
-      "description": "Let Astra reach out with a personalized nudge when you fall behind — even if you forget to open the app."
+      "description": "Let Astra reach out with a personalized nudge when you fall behind, even if you forget to open the app."
     },
     "facts": {
       "title": "What Astra knows",
@@ -1022,6 +1066,8 @@
       "selectedCount": "{n} selected",
       "deleteSelected": "Delete ({n})",
       "deleteSelectedShort": "Delete selected",
+      "bulkDeleteConfirmTitle": "Delete selected facts?",
+      "bulkDeleteConfirmBody": "Astra will forget them. This can't be undone.",
       "count": "{n} / {max}",
       "lockedHint": "Upgrade to Pro to let Astra remember the facts you share in chat."
     },
@@ -1136,14 +1182,16 @@
       "title": "Invite Friends",
       "yourLink": "Your referral link",
       "copy": "Copy",
+      "copyLink": "Copy link",
       "copied": "Copied!",
-      "share": "Share with friends",
+      "linkCopied": "Link copied",
+      "share": "Share link",
       "completed": "Successful referrals",
       "pending": "Pending",
       "couponsEarned": "Coupons earned",
       "howItWorks": "How it works",
       "explanation": "Share your link with friends. When they join Orbit and start using the app, you both earn a {discount}% discount coupon for Pro. You can refer up to 10 friends!",
-      "disclaimer": "Each referral earns a one-time {discount}% discount coupon. Coupons apply to a single billing cycle and do not accumulate -- a new referral replaces any unused coupon. If you're already subscribed on the web, the discount is applied to your next invoice automatically. Google Play subscriptions can't be discounted mid-cycle -- your coupon is saved for your next purchase or plan change."
+      "disclaimer": "Each referral earns a one-time {discount}% discount coupon. Coupons apply to a single billing cycle and do not accumulate. A new referral replaces any unused coupon. If you're already subscribed on the web, the discount is applied to your next invoice automatically. Google Play subscriptions can't be discounted mid-cycle, so your coupon is saved for your next purchase or plan change."
     },
     "share": {
       "title": "Join me on Orbit",
@@ -1154,10 +1202,10 @@
       "streakTitle": "{count}-day streak!",
       "levelTitle": "You reached level {level}!",
       "body": "Invite a friend and you both get a {discount}% discount coupon for Pro.",
-      "cta": "Invite a friend",
+      "cta": "Invite friends",
       "later": "Maybe later"
     },
-    "loginBanner": "You've been invited! Sign up to get a 10% discount coupon for Pro"
+    "loginBanner": "You're invited! 10% off Pro when you sign up"
   },
   "shareCard": {
     "title": "Share your progress",
@@ -1166,7 +1214,7 @@
     "download": "Download",
     "scanToJoin": "Scan to join Orbit",
     "shareTitle": "My Orbit progress",
-    "shareText": "I'm building better habits with Orbit — join me!",
+    "shareText": "I'm building better habits with Orbit. Join me!",
     "loading": "Preparing your card…",
     "empty": "Log a few habits first to build a card worth sharing.",
     "error": "Couldn't load your recap. Please try again.",
@@ -1191,9 +1239,9 @@
     "title": "Orbit Wrapped",
     "back": "Back to profile",
     "entry": "Your Wrapped",
-    "coverEyebrow": "Orbit Wrapped",
-    "coverSubtitle": "A celebratory replay of your habits. Pick a period to begin.",
-    "start": "Start your Wrapped",
+    "coverEyebrow": "Your habits, replayed",
+    "coverSubtitle": "Pick a period to begin.",
+    "start": "Start",
     "close": "Close Wrapped",
     "next": "Next",
     "previous": "Previous",
@@ -1237,7 +1285,7 @@
       },
       "topHabit": {
         "eyebrow": "Your standout",
-        "caption": "{rate} completion — your most consistent habit."
+        "caption": "{rate} completion, your most consistent habit."
       },
       "share": {
         "eyebrow": "That's a wrap",
@@ -1335,13 +1383,13 @@
     "proBadge": "Trial",
     "banner": {
       "trialEyebrow": "Pro Trial",
-      "daysLeft": "Pro Trial - {days} day left | Pro Trial - {days} days left",
+      "daysLeft": "{days} day left | {days} days left",
       "lastDay": "Trial ends today!",
       "upgrade": "Upgrade"
     },
     "expired": {
       "eyebrow": "Trial ended",
-      "heading": "Your Pro Trial Has Ended",
+      "heading": "Your Pro trial has ended",
       "paused": "Paused",
       "subtitleQuiet": "These Pro features will pause unless you subscribe.",
       "aiChat": "500 AI messages per month",
@@ -1389,6 +1437,7 @@
       "activeDays": "Active days"
     },
     "weeklyTitle": "Weekly consistency",
+    "weeklyBarLabel": "Completion on {day}: {percent}%",
     "topHabitsTitle": "Top habits",
     "needsAttentionTitle": "Needs attention",
     "completed": "Completed",
@@ -1499,7 +1548,7 @@
         "title": "Create your first habit",
         "subtitle": "Habits are the building blocks. What do you want to track?",
         "placeholder": "e.g., Drink water, Read, Exercise",
-        "create": "Create Habit",
+        "create": "Create habit",
         "creating": "Creating...",
         "success": "Habit created!",
         "useForm": "Use a form",
@@ -1530,7 +1579,7 @@
         "descriptionPlaceholder": "e.g., Read 12 books this year",
         "targetPlaceholder": "Quantity",
         "unitPlaceholder": "Unit (km, books...)",
-        "create": "Create Goal",
+        "create": "Create goal",
         "creating": "Creating...",
         "success": "Goal created!",
         "skipStep": "Skip for now",
@@ -1544,8 +1593,8 @@
       "features": {
         "title": "More to explore",
         "chat": {
-          "title": "AI Chat",
-          "desc": "Ask AI to create habits, get insights, or analyze your progress."
+          "title": "Chat with Astra",
+          "desc": "Ask Astra to create habits, get insights, or analyze your progress."
         },
         "subHabits": {
           "title": "Sub-habits",
@@ -1566,8 +1615,8 @@
       },
       "complete": {
         "title": "You're all set!",
-        "subtitle": "Everything is real -- your habit and progress are already saved.",
-        "start": "Start Using Orbit",
+        "subtitle": "Everything is real. Your habit and progress are already saved.",
+        "start": "Start using Orbit",
         "recap": {
           "habit": "Habit created",
           "goal": "Goal created",
@@ -1581,14 +1630,14 @@
     "wizard": {
       "calendarTitle": "Import from Google Calendar",
       "calendarDescription": "Already have events in Google Calendar? Import them as habits in Orbit with one tap.",
-      "calendarButton": "Import Calendar"
+      "calendarButton": "Import calendar"
     },
     "featureGuide": {
       "title": "Feature Guide",
       "openButton": "Feature Guide",
       "habits": "Habits",
       "calendar": "Calendar",
-      "chat": "AI Chat",
+      "chat": "Astra",
       "settings": "Settings",
       "goals": "Goals",
       "notifications": "Notifications",
@@ -1890,7 +1939,7 @@
     },
     "billing": {
       "plan": {
-        "title": "Current Plan",
+        "title": "Current plan",
         "monthly": "Pro Monthly",
         "yearly": "Pro Yearly",
         "lifetime": "Lifetime Pro",
@@ -1901,18 +1950,18 @@
         "pastDue": "Payment past due"
       },
       "payment": {
-        "title": "Payment Method",
+        "title": "Payment method",
         "card": "{brand} ending in {last4}",
         "expires": "Expires {month}/{year}",
         "change": "Change"
       },
       "usage": {
-        "title": "This Month",
-        "aiMessages": "AI Messages",
+        "title": "This month",
+        "aiMessages": "AI messages",
         "aiMessagesOf": "{used} of {limit}"
       },
       "invoices": {
-        "title": "Invoice History",
+        "title": "Invoice history",
         "download": "Download PDF",
         "statusPaid": "Paid",
         "statusOpen": "Open",
@@ -1951,6 +2000,7 @@
     "fetchHabits": "Failed to load habits",
     "createHabit": "Failed to create habit",
     "updateHabit": "Failed to update habit",
+    "logHabit": "Failed to log habit",
     "bulkCreateHabits": "Failed to create habits",
     "createSubHabit": "Failed to create sub-habit",
     "loadProfile": "Failed to load profile",
@@ -2012,6 +2062,7 @@
     "emptyHint": "Create your first goal to start tracking progress",
     "create": "New Goal",
     "dragItem": "draggable item",
+    "reorderHint": "Hold to reorder",
     "form": {
       "description": "Description",
       "descriptionPlaceholder": "e.g., Read 12 books this year",
@@ -2022,6 +2073,7 @@
       "deadline": "Deadline",
       "deadlineOptional": "Optional",
       "addDeadline": "Add deadline",
+      "removeDeadline": "Remove deadline",
       "deadlineInPast": "This deadline is in the past.",
       "progressExceedsTarget": "Value exceeds the target. It will be capped at 100%.",
       "titleRequired": "Title is required",
@@ -2077,11 +2129,15 @@
       "active": "Active",
       "completed": "Completed",
       "abandoned": "Abandoned",
-      "statusFilter": "Filter by status"
+      "statusFilter": "Filter by status",
+      "clearFilter": "Clear filter",
+      "emptyFiltered": "No goals match this filter",
+      "emptyFilteredHint": "Try another status or clear the filter"
     },
     "deadline": {
       "overdue": "Overdue",
-      "daysLeft": "{n} day left | {n} days left"
+      "daysLeft": "{n} day left | {n} days left",
+      "dueToday": "Due today"
     },
     "errors": {
       "create": "Failed to create goal",
@@ -2105,7 +2161,7 @@
     }
   },
   "gamification": {
-    "title": "Achievements & Level",
+    "title": "Achievements",
     "profileCard": {
       "title": "Achievements & Level",
       "tileLabel": "Achievements",
@@ -2119,6 +2175,9 @@
       "lockedTitle": "Unlock Achievements",
       "lockedDescription": "Upgrade to Pro to track your progress, earn XP, and unlock achievements.",
       "upgradeButton": "Upgrade to Pro"
+    },
+    "tile": {
+      "earned": "Earned · {date}"
     },
     "carrot": {
       "title": "Next reward",
@@ -2376,7 +2435,7 @@
       "tierStrong": "Strong",
       "tierSteady": "Steady",
       "tierNormal": "Normal",
-      "tierTileLabel": "Level",
+      "tierTileLabel": "Rank",
       "dayActive": "Active",
       "dayFrozen": "Frozen",
       "dayMissed": "Missed",
@@ -2390,6 +2449,7 @@
     "apiKeys": "API Keys",
     "apiKeysDescription": "API keys let external tools access your Orbit data on your behalf",
     "createKey": "Create API Key",
+    "createKeyShort": "New key",
     "createHeading": "Create API Key",
     "revealHeading": "API Key Created",
     "noKeys": "No API keys yet",
@@ -2827,6 +2887,7 @@
       "removeConfirmBody": "Remove {name} from your friends? You can always add them again later.",
       "block": "Block",
       "report": "Report",
+      "moreActions": "More actions",
       "incomingTitle": "Friend requests",
       "outgoingTitle": "Pending requests",
       "accept": "Accept",
@@ -2848,6 +2909,7 @@
       "checkInAction": "Check in",
       "checkedInLabel": "Checked in",
       "checkInSuccess": "Checked in for today",
+      "openPairAria": "Open pair with {name}",
       "accept": "Accept",
       "decline": "Decline",
       "rescind": "Cancel",
@@ -2931,7 +2993,10 @@
       "shareText": "I've been using Orbit to build better habits. Join me!"
     },
     "friendProfile": {
-      "unavailable": "This profile isn't available."
+      "unavailable": "This profile isn't available.",
+      "loadError": "Couldn't load this profile.",
+      "levelLabel": "Level",
+      "noAchievements": "No achievements yet"
     },
     "cheer": {
       "title": "Send a cheer",
@@ -2994,6 +3059,7 @@
     "errors": {
       "rateLimited": "You're doing that a lot. Please try again in a moment.",
       "generic": "Something went wrong. Please try again.",
+      "loadFailed": "Couldn't load this right now.",
       "userNotFound": "We couldn't find anyone with that handle or code.",
       "alreadyFriends": "You're already connected with this person.",
       "handleTaken": "That handle is taken. Try another.",
@@ -3027,7 +3093,7 @@
       "streakTogetherDescription": "Keep a shared daily streak alive together."
     },
     "card": {
-      "participants": "{count} members",
+      "participants": "{count} member | {count} members",
       "streakUnit": "day streak",
       "linkHabitsHint": "Link your habits to contribute"
     },
@@ -3036,7 +3102,7 @@
       "typeLabel": "Type",
       "nameLabel": "Name",
       "namePlaceholder": "e.g. 30 days of reading",
-      "targetLabel": "Target (total check-ins)",
+      "targetLabel": "Total check-ins",
       "targetPlaceholder": "30",
       "endDateLabel": "End date",
       "endDatePlaceholder": "Select a date",
@@ -3044,7 +3110,12 @@
       "noHabits": "You have no habits to link yet.",
       "inviteLabel": "Invite friends",
       "submit": "Create challenge",
-      "success": "Challenge created"
+      "success": "Challenge created",
+      "errors": {
+        "titleRequired": "Give your challenge a name.",
+        "targetInvalid": "Enter a target of at least 1.",
+        "endDateRequired": "Pick an end date."
+      }
     },
     "invite": {
       "empty": "Add friends first to invite them."
@@ -3087,19 +3158,20 @@
       "closed": "This challenge is closed.",
       "invalidCode": "That join code isn't valid.",
       "rateLimited": "Too many attempts. Please try again soon.",
-      "generic": "Something went wrong. Please try again."
+      "generic": "Something went wrong. Please try again.",
+      "loadFailed": "Couldn't load challenges."
     }
   },
   "milestoneShare": {
     "streakEyebrow": "Streak milestone",
     "achievementEyebrow": "Achievement unlocked",
     "streakTitle": "{count}-day streak!",
-    "body": "Share your milestone and invite a friend — you both get a discount coupon for Pro.",
+    "body": "Share your milestone and invite a friend. You both get a discount coupon for Pro.",
     "share": "Share",
     "download": "Download",
     "later": "Maybe later",
     "shareTitle": "My Orbit milestone",
-    "shareText": "I'm building better habits with Orbit — join me!",
+    "shareText": "I'm building better habits with Orbit. Join me!",
     "shareError": "Couldn't share your card. Please try again.",
     "rarity": {
       "Rare": "Rare",

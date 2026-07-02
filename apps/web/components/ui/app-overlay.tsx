@@ -313,7 +313,7 @@ export function AppOverlay({
                       />
                       {expandable && (
                         <button
-                          className="shrink-0 size-8 rounded-full icon-btn-ring bg-[var(--bg-sunk)] flex items-center justify-center text-[var(--fg-2)] hover:text-[var(--fg-1)] transition-[background-color,color] duration-150 mt-0.5"
+                          className="relative shrink-0 size-8 rounded-full icon-btn-ring bg-[var(--bg-sunk)] flex items-center justify-center text-[var(--fg-2)] hover:text-[var(--fg-1)] hover:bg-[var(--bg-elev)] active:scale-[0.96] transition-[background-color,color,transform] duration-150 mt-0.5 after:content-[''] after:absolute after:-inset-[6px] after:rounded-full"
                           aria-label={t('common.expandDescription')}
                           onClick={onExpandDescription}
                         >
@@ -325,7 +325,7 @@ export function AppOverlay({
                 </div>
                 {dismissible && (
                   <button
-                    className="shrink-0 size-11 rounded-full flex items-center justify-center text-[var(--fg-2)] hover:text-[var(--fg-1)] ml-2 -mr-2.5 -mt-2"
+                    className="shrink-0 size-11 rounded-full flex items-center justify-center text-[var(--fg-2)] hover:text-[var(--fg-1)] hover:bg-[var(--bg-elev)] active:scale-[0.96] transition-[background-color,color,transform] duration-150 ml-2 -mr-2.5 -mt-2"
                     aria-label={t('common.close')}
                     onClick={() => requestClose('close-button')}
                   >

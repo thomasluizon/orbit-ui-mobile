@@ -166,7 +166,7 @@ export function AppDatePicker({
         <div className="flex items-center justify-between mb-2">
           <button
             type="button"
-            className={`p-1.5 rounded-lg hover:bg-[var(--bg-elev)] ${pickerMode === 'years' ? 'invisible' : ''}`}
+            className={`p-[13px] rounded-lg hover:bg-[var(--bg-elev)] ${pickerMode === 'years' ? 'invisible' : ''}`}
             aria-label={t('common.previousMonth')}
             onClick={prevMonth}
           >
@@ -181,7 +181,7 @@ export function AppDatePicker({
               aria-label={t('common.selectYear')}
               aria-expanded={pickerMode === 'years'}
               onClick={() => setPickerMode((mode) => (mode === 'years' ? 'days' : 'years'))}
-              className="text-xs font-medium rounded-md px-1 py-0.5 hover:bg-[var(--bg-elev)] transition-[background-color,color]"
+              className="relative text-xs font-medium rounded-md px-1 py-0.5 hover:bg-[var(--bg-elev)] transition-[background-color,color] after:content-[''] after:absolute after:-inset-[10px]"
               style={{ color: pickerMode === 'years' ? 'var(--primary)' : 'var(--fg-1)' }}
             >
               {yearLabel}
@@ -189,7 +189,7 @@ export function AppDatePicker({
           </span>
           <button
             type="button"
-            className={`p-1.5 rounded-lg hover:bg-[var(--bg-elev)] ${pickerMode === 'years' ? 'invisible' : ''}`}
+            className={`p-[13px] rounded-lg hover:bg-[var(--bg-elev)] ${pickerMode === 'years' ? 'invisible' : ''}`}
             aria-label={t('common.nextMonth')}
             onClick={nextMonth}
           >

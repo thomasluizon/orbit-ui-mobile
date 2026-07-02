@@ -103,6 +103,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   pressed: {
-    transform: [{ scale: 0.94 }],
+    transform: [{ scale: 0.96 }],
   },
 })

@@ -3,6 +3,8 @@
 import { type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslations } from 'next-intl'
+import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
+import { resolveMotionPreset } from '@orbit/shared/theme'
 import { useIsClient } from '@/hooks/use-is-client'
 import { useOverlayEscape } from '@/hooks/use-overlay-escape'
 
@@ -21,8 +23,9 @@ interface CenteredOverlayProps {
 /** Full-viewport modal scaffold for compact centered dialogs (pickers, emoji
  *  grid). Portals to document.body so the dimming backdrop covers the whole
  *  screen rather than the centered app-shell column, then centers a dialog
- *  panel above it. Owns backdrop-dismiss, Escape (top-of-stack), and focus
- *  restore; callers own the panel content and any initial focus. */
+ *  panel above it, entering and exiting with the shared dialog motion preset.
+ *  Owns backdrop-dismiss, Escape (top-of-stack), and focus restore; callers
+ *  own the panel content and any initial focus. */
 export function CenteredOverlay({
   open,
   onDismiss,
@@ -33,30 +36,74 @@ export function CenteredOverlay({
 }: Readonly<CenteredOverlayProps>) {
   const t = useTranslations()
   const mounted = useIsClient()
+  const prefersReducedMotion = useReducedMotion()
+  const motionPreset = resolveMotionPreset('dialog', Boolean(prefersReducedMotion))
 
   useOverlayEscape({ open, onDismiss })
 
-  if (!mounted || !open) return null
+  if (!mounted) return null
 
   return createPortal(
-    <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
-      <button
-        type="button"
-        tabIndex={-1}
-        aria-label={t('common.close')}
-        className="absolute inset-0 cursor-default bg-black/55"
-        onClick={onDismiss}
-      />
-      <dialog
-        open
-        aria-modal="true"
-        aria-label={ariaLabelledBy ? undefined : ariaLabel}
-        aria-labelledby={ariaLabelledBy}
-        className={`relative m-0 ${panelClassName ?? ''}`}
-      >
-        {children}
-      </dialog>
-    </div>,
+    <AnimatePresence>
+      {open ? (
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center p-4">
+          <motion.button
+            type="button"
+            tabIndex={-1}
+            aria-label={t('common.close')}
+            className="absolute inset-0 cursor-default bg-black/55"
+            onClick={onDismiss}
+            initial={{ opacity: 0 }}
+            animate={{
+              opacity: 1,
+              transition: {
+                duration: motionPreset.enterDuration / 1000,
+                ease: motionPreset.enterEasing,
+              },
+            }}
+            exit={{
+              opacity: 0,
+              transition: {
+                duration: motionPreset.exitDuration / 1000,
+                ease: motionPreset.exitEasing,
+              },
+            }}
+          />
+          <motion.dialog
+            open
+            aria-modal="true"
+            aria-label={ariaLabelledBy ? undefined : ariaLabel}
+            aria-labelledby={ariaLabelledBy}
+            className={`relative m-0 ${panelClassName ?? ''}`}
+            initial={{
+              opacity: 0,
+              scale: motionPreset.scaleFrom,
+              y: motionPreset.shift * 0.5,
+            }}
+            animate={{
+              opacity: 1,
+              scale: motionPreset.scaleTo,
+              y: 0,
+              transition: {
+                duration: motionPreset.enterDuration / 1000,
+                ease: motionPreset.enterEasing,
+              },
+            }}
+            exit={{
+              opacity: 0,
+              scale: 0.97,
+              y: motionPreset.shift * 0.25,
+              transition: {
+                duration: motionPreset.exitDuration / 1000,
+                ease: motionPreset.exitEasing,
+              },
+            }}
+          >
+            {children}
+          </motion.dialog>
+        </div>
+      ) : null}
+    </AnimatePresence>,
     document.body,
   )
 }

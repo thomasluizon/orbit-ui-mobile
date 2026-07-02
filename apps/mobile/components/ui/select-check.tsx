@@ -1,4 +1,5 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { useTranslation } from 'react-i18next'
 import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
@@ -15,7 +16,7 @@ export function RadioGlyph({
         { width: size, height: size },
         selected
           ? { backgroundColor: tokens.primary }
-          : { borderWidth: 2, borderColor: tokens.fg3 },
+          : { borderWidth: 2, borderColor: tokens.fg4 },
       ]}
     >
       {selected ? (
@@ -32,7 +33,7 @@ export function RadioGlyph({
   )
 }
 
-/** Kit Radio: 24px circle — primary fill + white dot when selected, inset 2px fg-3 ring otherwise. */
+/** Kit Radio: 24px circle — primary fill + white dot when selected, inset 2px fg-4 ring otherwise. */
 interface SelectCheckProps {
   selected: boolean
   /** Circle size in px (default 24 per kit spec). */
@@ -49,12 +50,13 @@ export function SelectCheck({
 }: Readonly<SelectCheckProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
+  const { t } = useTranslation()
 
   return (
     <Pressable
       onPress={onPress}
       accessibilityRole="checkbox"
-      accessibilityLabel={accessibilityLabel ?? 'Select'}
+      accessibilityLabel={accessibilityLabel ?? t('common.select')}
       accessibilityState={{ checked: selected }}
       hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
       style={{

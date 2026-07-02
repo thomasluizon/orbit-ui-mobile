@@ -1,6 +1,7 @@
 'use client'
 
 import type { ReactNode } from 'react'
+import { Loader2 } from 'lucide-react'
 
 type PillButtonVariant = 'primary' | 'white' | 'ghost'
 
@@ -27,7 +28,10 @@ const variantClasses: Record<PillButtonVariant, string> = {
     'bg-transparent text-[var(--fg-1)] py-[14px] shadow-[inset_0_0_0_1.5px_var(--hairline-strong)] enabled:hover:bg-[var(--bg-card)] enabled:active:scale-[0.98]',
 }
 
-/** Kit pill CTA: glowing primary, inverted white, or hairline ghost variant. */
+/** Kit pill CTA: glowing primary, inverted white, or hairline ghost variant.
+ *  While `busy`, a 16px spinner fills the leading slot, the label dims, and
+ *  clicks no-op. `fullWidth` spans the phone column but caps at ~360px at the
+ *  desktop breakpoint (full-bleed pills are a phone-shell affordance only). */
 export function PillButton({
   variant = 'primary',
   type = 'button',
@@ -49,7 +53,7 @@ export function PillButton({
   return (
     <button
       type={type}
-      onClick={onClick}
+      onClick={busy ? undefined : onClick}
       disabled={disabled}
       aria-busy={busy || undefined}
       data-testid={dataTestId}
@@ -57,15 +61,15 @@ export function PillButton({
         'inline-flex cursor-pointer items-center justify-center gap-[9px] rounded-full border-0 px-[26px] text-[16px] font-medium transition-[background-color,opacity,box-shadow,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] disabled:cursor-not-allowed disabled:opacity-40',
         variantClasses[variant],
         glowClasses,
-        fullWidth ? 'w-full' : '',
+        fullWidth ? 'w-full md:max-w-[360px]' : '',
         className,
       ]
         .filter(Boolean)
         .join(' ')}
       style={{ fontFamily: 'var(--font-sans)' }}
     >
-      {leading}
-      {children}
+      {busy ? <Loader2 size={16} className="animate-spin" aria-hidden="true" /> : leading}
+      <span className={busy ? 'opacity-60' : undefined}>{children}</span>
     </button>
   )
 }

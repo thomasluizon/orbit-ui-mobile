@@ -87,7 +87,7 @@ function TimeColumn({ values, selected, formatValue, ariaLabel, onSelect }: Read
             role="option"
             aria-selected={isSelected}
             onClick={() => onSelect(value)}
-            className={`w-full snap-center rounded-[10px] py-2 text-center text-base transition-colors ${
+            className={`w-full min-h-[44px] snap-center rounded-[10px] py-2 text-center text-base transition-colors ${
               isSelected
                 ? 'bg-[var(--primary)] text-[var(--fg-on-primary)]'
                 : 'text-[var(--fg-1)] hover:bg-[var(--bg-elev)]'
@@ -170,7 +170,7 @@ export function AppTimePicker({
           type="button"
           onClick={onClear}
           aria-label={t('common.clear')}
-          className="absolute right-3 top-1/2 grid -translate-y-1/2 place-items-center rounded-full text-[var(--fg-3)] transition-colors hover:bg-[var(--bg-sunk)] hover:text-[var(--fg-1)]"
+          className="absolute right-3 top-1/2 grid -translate-y-1/2 place-items-center rounded-full text-[var(--fg-3)] transition-colors hover:bg-[var(--bg-sunk)] hover:text-[var(--fg-1)] after:content-[''] after:absolute after:-inset-[10px]"
           style={{ width: 24, height: 24 }}
         >
           <X size={16} strokeWidth={1.8} aria-hidden="true" />

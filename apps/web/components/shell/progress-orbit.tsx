@@ -86,9 +86,14 @@ export function ProgressOrbit({
         />
         {satellites.map((satellite) => (
           <Fragment key={satellite.key}>
-            {satellite.ignited && (
-              <circle cx={satellite.x} cy={satellite.y} r={7} fill="var(--primary)" opacity={0.18} />
-            )}
+            <circle
+              cx={satellite.x}
+              cy={satellite.y}
+              r={7}
+              fill="var(--primary)"
+              opacity={satellite.ignited ? 0.18 : 0}
+              style={{ transition: 'opacity var(--dur-base) var(--ease-out)' }}
+            />
             <circle
               cx={satellite.x}
               cy={satellite.y}
@@ -104,9 +109,7 @@ export function ProgressOrbit({
 
       <div className="absolute inset-0 flex flex-col items-center justify-center" style={{ gap: 4 }}>
         <span className="flex items-baseline" style={{ gap: 3 }}>
-          <span className="t-num-xl" style={{ fontSize: 42 }}>
-            {safeDone}
-          </span>
+          <span className="t-num-xl">{safeDone}</span>
           <span className="t-num" style={{ fontSize: 18, color: 'var(--fg-3)' }}>
             /{safeTotal}
           </span>

@@ -257,7 +257,7 @@ function createStyles(tokens: AppTokens) {
       opacity: 0.85,
     },
     pillPressedScale: {
-      transform: [{ scale: 0.97 }],
+      transform: [{ scale: 0.96 }],
     },
     cancelLabel: {
       fontFamily: 'Rubik_500Medium',

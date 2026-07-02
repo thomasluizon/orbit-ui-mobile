@@ -149,7 +149,7 @@ export function SettingsGroupRow({
         aria-label={ariaLabel}
         data-tour={dataTour}
         data-testid={dataTestId}
-        className="w-full text-left flex items-center justify-between cursor-pointer bg-transparent transition-[background-color] duration-150 ease-out hover:bg-[var(--bg-elev)]"
+        className="w-full text-left flex items-center justify-between cursor-pointer bg-transparent transition-[background-color] duration-150 ease-out hover:bg-[var(--bg-elev)] active:bg-[var(--bg-elev-pressed)]"
         style={{
           ...sharedStyle,
           appearance: 'none',

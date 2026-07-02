@@ -61,6 +61,7 @@ export function AppBar({
   const rightAction = right ? (
     <Pressable
       onPress={onRight}
+      hitSlop={2}
       accessibilityRole="button"
       accessibilityLabel={
         rightLabel ??
@@ -97,6 +98,7 @@ export function AppBar({
           <Pressable
             onPress={onBack}
             disabled={!onBack}
+            hitSlop={2}
             accessibilityRole={onBack ? 'button' : 'none'}
             accessibilityLabel={resolvedBackLabel}
             style={({ pressed }) => [
@@ -169,7 +171,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   iconBtnPressed: {
-    transform: [{ scale: 0.92 }],
+    transform: [{ scale: 0.96 }],
   },
   titleColumn: {
     flexShrink: 1,

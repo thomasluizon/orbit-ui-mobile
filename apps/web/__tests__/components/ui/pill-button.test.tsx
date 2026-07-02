@@ -37,6 +37,19 @@ describe('PillButton', () => {
     expect(screen.getByTestId('leading-node')).toBeInTheDocument()
   })
 
+  it('no-ops clicks and exposes the busy state while busy', () => {
+    const onClick = vi.fn()
+    render(
+      <PillButton onClick={onClick} busy>
+        Saving
+      </PillButton>,
+    )
+    const button = screen.getByRole('button', { name: 'Saving' })
+    expect(button).toHaveAttribute('aria-busy', 'true')
+    fireEvent.click(button)
+    expect(onClick).not.toHaveBeenCalled()
+  })
+
   it('renders white and ghost variants', () => {
     render(
       <>

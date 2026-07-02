@@ -15,6 +15,7 @@ import { TrialExpiredModal } from '@/components/ui/trial-expired-modal'
 import { ExpiryWarning } from '@/components/ui/expiry-warning'
 import { PushPrompt } from '@/components/ui/push-prompt'
 import { AppOverlay } from '@/components/ui/app-overlay'
+import { PillButton } from '@/components/ui/pill-button'
 import { CreateHabitModal } from '@/components/habits/create-habit-modal'
 import { CreateGoalModal } from '@/components/goals/create-goal-modal'
 import { OnboardingFlow } from '@/components/onboarding/onboarding-flow'
@@ -319,12 +320,9 @@ function GlobalOverlays({
             {t('onboarding.wizard.calendarDescription')}
           </p>
           <div className="flex flex-col gap-3 w-full">
-            <button
-              className="w-full py-3.5 rounded-[12px] bg-[var(--primary)] text-white font-bold text-sm text-center transition-[background-color,box-shadow,transform] duration-200 ease-out hover:bg-[var(--primary-pressed)] active:scale-[0.98]"
-              onClick={onCalendarImport}
-            >
+            <PillButton fullWidth onClick={onCalendarImport} className="md:self-center">
               {t('onboarding.wizard.calendarButton')}
-            </button>
+            </PillButton>
             <button
               className="w-full py-3 text-[var(--fg-2)] text-sm font-medium hover:text-[var(--fg-1)] transition-colors"
               onClick={onDismissCalendarPrompt}

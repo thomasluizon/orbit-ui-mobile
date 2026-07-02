@@ -91,6 +91,8 @@ export function StatusDot({
     )
   }
 
+  const hitPadding = Math.max(0, (44 - size) / 2)
+
   return (
     <button
       type="button"
@@ -99,13 +101,13 @@ export function StatusDot({
       aria-disabled={disabled}
       aria-label={ariaLabel ?? state}
       className={`group appearance-none border-0 bg-transparent shrink-0 flex items-center justify-center ${disabled ? 'cursor-default' : 'cursor-pointer'}`}
-      style={{ padding: 11, margin: -11, opacity: disabled ? 0.4 : 1 }}
+      style={{ padding: hitPadding, margin: -hitPadding, opacity: disabled ? 0.4 : 1 }}
     >
       {playing ? (
         <CompletionSweep size={size} />
       ) : (
         <span
-          className={`block rounded-full transition-transform duration-150 ease-[cubic-bezier(0.25,1,0.5,1)] ${disabled ? '' : 'group-hover:scale-125 group-active:scale-90'}`}
+          className={`block rounded-full transition-transform duration-150 ease-[cubic-bezier(0.25,1,0.5,1)] ${disabled ? '' : 'group-hover:scale-125 group-active:scale-[0.96]'}`}
           style={{
             width: size,
             height: size,

@@ -48,6 +48,7 @@ function renderSidebar(overrides: Partial<SidebarProps> = {}): SidebarProps {
     onCreate: vi.fn(),
     createLabel: 'Create habit',
     brandLabel: 'Orbit',
+    navLabel: 'Main navigation',
     ...overrides,
   }
   render(<AppSidebar {...props} />)

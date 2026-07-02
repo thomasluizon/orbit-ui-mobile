@@ -47,7 +47,7 @@ export function Chip({
     >
       {leading ? <View style={styles.leading}>{leading}</View> : null}
       <Text
-        style={[styles.label, { color: active ? tokens.primary : tokens.fg2 }]}
+        style={[styles.label, { color: active ? tokens.primarySoft : tokens.fg2 }]}
         numberOfLines={1}
       >
         {children}

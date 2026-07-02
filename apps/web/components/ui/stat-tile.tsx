@@ -15,6 +15,7 @@ const numeralValueStyle: CSSProperties = {
   fontWeight: 700,
   color: 'var(--fg-1)',
   letterSpacing: '-0.01em',
+  fontVariantNumeric: 'tabular-nums',
 }
 
 const phraseValueStyle: CSSProperties = {

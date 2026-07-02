@@ -29,7 +29,7 @@ interface ConfirmDialogProps {
 }
 
 const pillBase =
-  'flex-1 appearance-none border-0 cursor-pointer rounded-full transition-[background-color,transform,box-shadow] duration-[var(--dur-fast)] ease-[var(--ease-standard)] active:scale-[0.97]'
+  'flex-1 appearance-none border-0 cursor-pointer rounded-full transition-[background-color,transform,box-shadow] duration-[var(--dur-fast)] ease-[var(--ease-standard)] active:scale-[0.96]'
 
 const actionVariantClasses: Record<'danger' | 'primary', string> = {
   danger:

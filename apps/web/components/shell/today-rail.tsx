@@ -8,6 +8,8 @@ import { plural } from '@/lib/plural'
 import { EMPTY_HABITS_BY_ID, useHabits } from '@/hooks/use-habits'
 import { useProfile } from '@/hooks/use-profile'
 import { useGamificationProfile } from '@/hooks/use-gamification'
+import { ProgressBar } from '@/components/ui/progress-bar'
+import { SatelliteGlyph } from '@/components/ui/satellite-glyph'
 import { ProgressOrbit } from './progress-orbit'
 
 function RailStatRow({
@@ -31,29 +33,15 @@ function RailStatRow({
       >
         <Icon size={18} strokeWidth={1.9} color="var(--primary)" />
       </span>
-      <span className="flex min-w-0 flex-1 flex-col" style={{ gap: 5 }}>
+      <div className="flex min-w-0 flex-1 flex-col" style={{ gap: 5 }}>
         <span
           className="truncate"
           style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--fg-2)' }}
         >
           {label}
         </span>
-        {meter !== undefined && (
-          <span
-            className="block overflow-hidden rounded-full"
-            style={{ height: 4, background: 'var(--hairline-strong)' }}
-          >
-            <span
-              className="block h-full rounded-full"
-              style={{
-                width: `${meter}%`,
-                background: 'var(--primary)',
-                transition: 'width var(--dur-slow) var(--ease-out)',
-              }}
-            />
-          </span>
-        )}
-      </span>
+        {meter !== undefined && <ProgressBar progress={meter / 100} label={label} className="h-1!" />}
+      </div>
       <span className="t-num shrink-0" style={{ fontSize: 15 }}>
         {value}
       </span>
@@ -78,20 +66,45 @@ export function TodayRail() {
   const canViewGamification = profile?.canViewGamification ?? false
   const { profile: gamification, xpProgress } = useGamificationProfile(canViewGamification)
   const showGamification = canViewGamification && !!gamification
+  const showStats = habitsQuery.isSuccess && progress.total > 0
 
   return (
     <div className="flex flex-col" style={{ gap: 20, paddingBlock: 8 }}>
       <div className="flex flex-col items-center" style={{ gap: 16 }}>
-        <ProgressOrbit
-          done={progress.done}
-          total={progress.total}
-          label={t('rail.todayProgress')}
-          completeLabel={t('rail.allDone')}
-          ariaLabel={t('rail.progressLabel', { done: progress.done, total: progress.total })}
-        />
+        {habitsQuery.isPending ? (
+          <div
+            aria-hidden="true"
+            className="skeleton-pulse rounded-full"
+            style={{ width: 200, height: 200, boxShadow: 'inset 0 0 0 4px var(--hairline-strong)' }}
+          />
+        ) : habitsQuery.isError ? (
+          <div className="flex flex-col items-center" style={{ gap: 12, paddingBlock: 24 }}>
+            <span className="t-meta">{t('rail.loadFailed')}</span>
+            <button
+              type="button"
+              onClick={() => habitsQuery.refetch()}
+              className="inline-flex min-h-[44px] items-center justify-center rounded-full px-5 text-[14px] font-medium text-[var(--fg-1)] shadow-[inset_0_0_0_1.5px_var(--hairline-strong)] transition-[transform,background-color] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev)] active:scale-[0.96]"
+            >
+              {t('common.retry')}
+            </button>
+          </div>
+        ) : progress.total === 0 ? (
+          <div className="flex flex-col items-center text-center" style={{ gap: 12, paddingBlock: 16 }}>
+            <SatelliteGlyph />
+            <span className="t-secondary">{t('rail.empty')}</span>
+          </div>
+        ) : (
+          <ProgressOrbit
+            done={progress.done}
+            total={progress.total}
+            label={t('rail.todayProgress')}
+            completeLabel={t('rail.allDone')}
+            ariaLabel={t('rail.progressLabel', { done: progress.done, total: progress.total })}
+          />
+        )}
       </div>
 
-      {habitsQuery.isSuccess && (
+      {showStats && (
         <div
           className="flex flex-col"
           style={{

@@ -1,4 +1,5 @@
 import { Pressable, StyleSheet, Text } from 'react-native'
+import { useTranslation } from 'react-i18next'
 import { createTokensV2, tintFromPrimary } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
@@ -7,9 +8,9 @@ interface MonoToggleProps {
   onPress?: () => void
   disabled?: boolean
   accessibilityLabel?: string
-  /** Text shown when on. Default "ON". */
+  /** Text shown when on. Defaults to t('common.toggleOn'). */
   onLabel?: string
-  /** Text shown when off. Default "OFF". */
+  /** Text shown when off. Defaults to t('common.toggleOff'). */
   offLabel?: string
 }
 
@@ -23,16 +24,20 @@ export function MonoToggle({
   onPress,
   disabled = false,
   accessibilityLabel,
-  onLabel = 'ON',
-  offLabel = 'OFF',
+  onLabel,
+  offLabel,
 }: Readonly<MonoToggleProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
+  const { t } = useTranslation()
+  const resolvedOnLabel = onLabel ?? t('common.toggleOn')
+  const resolvedOffLabel = offLabel ?? t('common.toggleOff')
 
   return (
     <Pressable
       onPress={onPress}
       disabled={disabled || !onPress}
+      hitSlop={{ top: 10, bottom: 10 }}
       accessibilityRole="switch"
       accessibilityLabel={accessibilityLabel}
       accessibilityState={{ checked: on, disabled }}
@@ -50,7 +55,7 @@ export function MonoToggle({
           { color: on ? tokens.primary : tokens.fg3 },
         ]}
       >
-        {on ? onLabel : offLabel}
+        {on ? resolvedOnLabel : resolvedOffLabel}
       </Text>
     </Pressable>
   )
