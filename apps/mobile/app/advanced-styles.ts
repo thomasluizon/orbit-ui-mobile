@@ -50,10 +50,17 @@ export const styles = StyleSheet.create({
     fontSize: 13,
     fontVariant: ['tabular-nums'],
   },
+  keyScopes: {
+    fontFamily: 'Roboto_400Regular',
+    fontSize: 11,
+    lineHeight: 16,
+    letterSpacing: 0.22,
+  },
   keyMeta: {
-    fontFamily: 'Rubik_400Regular',
+    fontFamily: 'Roboto_400Regular',
     fontSize: 12,
     lineHeight: 17,
+    fontVariant: ['tabular-nums'],
   },
   revokeLink: {
     fontFamily: 'Rubik_500Medium',
@@ -134,14 +141,12 @@ export const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   copyBtn: {
+    width: 40,
+    height: 40,
     borderRadius: 999,
     borderWidth: 1,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-  },
-  copyBtnText: {
-    fontFamily: 'Rubik_500Medium',
-    fontSize: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   hintPad: {
     paddingHorizontal: 20,
@@ -149,8 +154,8 @@ export const styles = StyleSheet.create({
   },
   hintText: {
     fontFamily: 'Rubik_400Regular',
-    fontSize: 12.5,
-    lineHeight: 18,
+    fontSize: 14,
+    lineHeight: 21,
   },
   widgetSheetScroll: {
     flexGrow: 0,

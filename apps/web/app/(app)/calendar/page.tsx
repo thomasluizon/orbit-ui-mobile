@@ -28,6 +28,7 @@ import {
 } from '@orbit/shared/utils'
 import { useCalendarData, useCalendarRange } from '@/hooks/use-calendar-data'
 import { useTimeFormat } from '@/hooks/use-time-format'
+import { useDateFormat } from '@/hooks/use-date-format'
 import { useProfile } from '@/hooks/use-profile'
 import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
 import { CalendarGrid } from '@/components/calendar/calendar-grid'
@@ -38,10 +39,12 @@ import { CalendarRangeView } from '@/components/calendar/calendar-range-view'
 import { CalendarAgendaView } from '@/components/calendar/calendar-agenda-view'
 import type { TimeGridColumn } from '@/components/calendar/calendar-time-grid'
 import { AppOverlay } from '@/components/ui/app-overlay'
+import { EmptyState } from '@/components/ui/empty-state'
 import { GradientTop } from '@/components/ui/gradient-top'
+import { PillButton } from '@/components/ui/pill-button'
 import { SectionLabel } from '@/components/ui/section-label'
 import { SectionHeadTabs, type SectionHeadTabItem } from '@/components/ui/section-head-tabs'
-import { useIsDesktop } from '@/components/calendar/use-is-desktop'
+import { useIsDesktop, useIsWideDesktop } from '@/components/calendar/use-is-desktop'
 import {
   CalendarHeader,
   CalendarLegend,
@@ -57,15 +60,18 @@ export default function CalendarPage() {
   const locale = useLocale()
   const dateFnsLocale = locale === 'pt-BR' ? ptBR : enUS
   const { displayTime } = useTimeFormat()
+  const { displayWeekdayDate } = useDateFormat()
   const { profile } = useProfile()
   const weekStartsOn: 0 | 1 = profile?.weekStartDay ?? 1
   const isDesktop = useIsDesktop()
+  const isWideDesktop = useIsWideDesktop()
 
   const [view, setView] = useState<CalendarView>('month')
   const activeView: CalendarView = !isDesktop && view === 'agenda' ? 'month' : view
   const [currentMonth, setCurrentMonth] = useState(() => startOfMonth(new Date()))
   const [monthSlide, setMonthSlide] = useState<MonthSlide>(null)
   const [weekAnchor, setWeekAnchor] = useState(() => new Date())
+  const [weekSlide, setWeekSlide] = useState<MonthSlide>(null)
   const [rangeStart, setRangeStart] = useState(() => formatAPIDate(new Date()))
   const [rangeEnd, setRangeEnd] = useState(() => formatAPIDate(new Date()))
   const [awaitingEnd, setAwaitingEnd] = useState(false)
@@ -76,7 +82,7 @@ export default function CalendarPage() {
   const [isDayDetailOpen, setIsDayDetailOpen] = useState(false)
   const [showRecurring, setShowRecurring] = useState(true)
 
-  const { dayMap, isLoading, isFetching } = useCalendarData(currentMonth)
+  const { dayMap, isLoading, isFetching, error, refresh } = useCalendarData(currentMonth)
 
   const weekStart = useMemo(
     () => startOfWeek(weekAnchor, { weekStartsOn }),
@@ -99,6 +105,8 @@ export default function CalendarPage() {
     dayMap: rangeDayMap,
     isLoading: rangeLoading,
     isFetching: rangeFetching,
+    error: rangeError,
+    refresh: rangeRefresh,
   } = useCalendarRange(gridStartDate, gridEndDate, view === 'week' || view === 'range')
 
   const gridColumns = useMemo<TimeGridColumn[]>(() => {
@@ -136,9 +144,10 @@ export default function CalendarPage() {
     return `${startLabel} - ${endLabel}`
   }, [weekStart, weekEnd, dateFnsLocale])
 
-  const activeDayMap = view === 'month' ? dayMap : rangeDayMap
-  const activeLoading = view === 'month' ? isLoading : rangeLoading
-  const activeFetching = view === 'month' ? isFetching : rangeFetching
+  const activeDayMap = activeView === 'month' ? dayMap : rangeDayMap
+  const activeFetching = activeView === 'month' ? isFetching : rangeFetching
+  const activeError = activeView === 'month' ? error : rangeError
+  const activeRefresh = activeView === 'month' ? refresh : rangeRefresh
 
   const prevMonth = useCallback(() => {
     setMonthSlide('left')
@@ -160,14 +169,28 @@ export default function CalendarPage() {
     setCurrentMonth(startOfMonth(new Date()))
   }, [])
 
-  const prevWeek = useCallback(() => setWeekAnchor((a) => subWeeks(a, 1)), [])
-  const nextWeek = useCallback(() => setWeekAnchor((a) => addWeeks(a, 1)), [])
-  const goToCurrentWeek = useCallback(() => setWeekAnchor(new Date()), [])
-
-  const openDay = useCallback((dateStr: string) => {
-    setSelectedDay(dateStr)
-    setIsDayDetailOpen(true)
+  const prevWeek = useCallback(() => {
+    setWeekSlide('left')
+    setWeekAnchor((a) => subWeeks(a, 1))
   }, [])
+  const nextWeek = useCallback(() => {
+    setWeekSlide('right')
+    setWeekAnchor((a) => addWeeks(a, 1))
+  }, [])
+  const goToCurrentWeek = useCallback(() => {
+    setWeekSlide(null)
+    setWeekAnchor(new Date())
+  }, [])
+
+  const showInlineDayPanel = isWideDesktop && activeView === 'month'
+
+  const openDay = useCallback(
+    (dateStr: string) => {
+      setSelectedDay(dateStr)
+      if (!showInlineDayPanel) setIsDayDetailOpen(true)
+    },
+    [showInlineDayPanel],
+  )
 
   function handleRangePick(dateStr: string) {
     if (!awaitingEnd) {
@@ -189,6 +212,11 @@ export default function CalendarPage() {
     return activeDayMap.get(selectedDay) ?? []
   }, [selectedDay, activeDayMap])
 
+  const dayDetailTitle = useMemo(() => {
+    if (!selectedDay) return ''
+    return capitalizeFirstLetter(displayWeekdayDate(parseAPIDate(selectedDay)))
+  }, [selectedDay, displayWeekdayDate])
+
   const monthStats = useMemo(() => {
     const monthStart = startOfMonth(currentMonth)
     const monthEnd = endOfMonth(currentMonth)
@@ -198,9 +226,11 @@ export default function CalendarPage() {
     let missed = 0
     let bestStreak = 0
     let currentStreak = 0
+    let hasEntries = false
 
     for (const day of days) {
       const entries: CalendarDayEntry[] = dayMap.get(formatAPIDate(day)) ?? []
+      if (entries.length > 0) hasEntries = true
       const completedCount = entries.filter((e) => e.status === 'completed').length
       totalLogs += completedCount
       missed += entries.filter((e) => e.status === 'missed').length
@@ -213,7 +243,7 @@ export default function CalendarPage() {
       }
     }
 
-    return { bestStreak, totalLogs, missed }
+    return { bestStreak, totalLogs, missed, hasEntries }
   }, [currentMonth, dayMap])
 
   const monthStatTiles = useMemo(
@@ -235,35 +265,30 @@ export default function CalendarPage() {
     return base
   }, [t, isDesktop])
 
-  const touchStartX = useRef<number | null>(null)
+  const touchStart = useRef<{ x: number; y: number } | null>(null)
 
-  const handleTouchStart = useCallback(
-    (e: React.TouchEvent) => {
-      if (activeView !== 'month') return
-      const touch = e.touches[0]
-      if (touch) touchStartX.current = touch.clientX
-    },
-    [activeView],
-  )
+  const handleTouchStart = useCallback((e: React.TouchEvent) => {
+    const touch = e.touches[0]
+    if (touch) touchStart.current = { x: touch.clientX, y: touch.clientY }
+  }, [])
 
-  const handleTouchEnd = useCallback(
-    (e: React.TouchEvent) => {
-      if (activeView !== 'month' || touchStartX.current === null) return
-      const touch = e.changedTouches[0]
-      if (!touch) return
-      const deltaX = touch.clientX - touchStartX.current
-      touchStartX.current = null
-      if (Math.abs(deltaX) < SWIPE_THRESHOLD) return
-      if (deltaX < 0) {
-        setMonthSlide('right')
-        setCurrentMonth((m) => addMonths(m, 1))
-      } else {
-        setMonthSlide('left')
-        setCurrentMonth((m) => subMonths(m, 1))
-      }
-    },
-    [activeView],
-  )
+  const handleTouchEnd = useCallback((e: React.TouchEvent) => {
+    if (touchStart.current === null) return
+    const touch = e.changedTouches[0]
+    if (!touch) return
+    const deltaX = touch.clientX - touchStart.current.x
+    const deltaY = touch.clientY - touchStart.current.y
+    touchStart.current = null
+    if (Math.abs(deltaX) < SWIPE_THRESHOLD) return
+    if (Math.abs(deltaX) <= Math.abs(deltaY) * 1.2) return
+    if (deltaX < 0) {
+      setMonthSlide('right')
+      setCurrentMonth((m) => addMonths(m, 1))
+    } else {
+      setMonthSlide('left')
+      setCurrentMonth((m) => subMonths(m, 1))
+    }
+  }, [])
 
   const monthSlideClass =
     monthSlide === 'right'
@@ -272,12 +297,23 @@ export default function CalendarPage() {
         ? 'animate-slide-date-left'
         : ''
 
+  const calendarHeader = (
+    <CalendarHeader
+      monthLabel={monthLabel}
+      year={currentYear}
+      previousMonthLabel={t('common.previousMonth')}
+      nextMonthLabel={t('common.nextMonth')}
+      currentMonthLabel={t('calendar.goToCurrentMonth')}
+      selectYearLabel={t('common.selectYear')}
+      onPreviousMonth={prevMonth}
+      onNextMonth={nextMonth}
+      onCurrentMonth={goToCurrentMonth}
+      onSelectYear={selectYear}
+    />
+  )
+
   return (
-    <div
-      className="relative"
-      onTouchStart={handleTouchStart}
-      onTouchEnd={handleTouchEnd}
-    >
+    <div className="relative">
       <div className="md:hidden">
         <GradientTop height={180} />
       </div>
@@ -289,105 +325,176 @@ export default function CalendarPage() {
           ariaLabel={t('calendar.view.switchLabel')}
         />
 
-        {(activeView === 'month' || activeView === 'range') && (
-          <CalendarHeader
-            monthLabel={monthLabel}
-            year={currentYear}
-            previousMonthLabel={t('common.previousMonth')}
-            nextMonthLabel={t('common.nextMonth')}
-            currentMonthLabel={t('calendar.goToCurrentMonth')}
-            selectYearLabel={t('common.selectYear')}
-            onPreviousMonth={prevMonth}
-            onNextMonth={nextMonth}
-            onCurrentMonth={goToCurrentMonth}
-            onSelectYear={selectYear}
-          />
-        )}
-
         <div
-          className={`loading-bar w-full transition-opacity duration-300 ${
-            activeFetching && !activeLoading ? 'opacity-100' : 'opacity-0 pointer-events-none'
+          className={`loading-bar w-full transition-opacity duration-[var(--dur-slow)] ${
+            activeFetching ? 'opacity-100' : 'opacity-0 pointer-events-none'
           }`}
         />
 
-        {activeView === 'month' && (
-          <>
-            <div key={format(currentMonth, 'yyyy-MM')} className={monthSlideClass}>
-              <CalendarGrid
-                currentMonth={currentMonth}
-                dayMap={dayMap}
-                onSelectDay={openDay}
-                selectedDateStr={selectedDay}
-                isLoading={isLoading}
-              />
+        {activeView === 'range' && calendarHeader}
+
+        {activeError && activeView !== 'agenda' ? (
+          <div style={{ padding: '12px 20px 16px' }}>
+            <div
+              className="flex flex-col items-center text-center"
+              style={{
+                gap: 14,
+                padding: '28px 18px',
+                borderRadius: 18,
+                background: 'var(--bg-card)',
+                boxShadow: 'inset 0 0 0 1px var(--hairline)',
+              }}
+            >
+              <p className="text-sm text-[var(--fg-2)]" style={{ margin: 0 }}>
+                {t('calendar.loadError')}
+              </p>
+              <PillButton variant="ghost" onClick={activeRefresh}>
+                {t('common.retry')}
+              </PillButton>
             </div>
+          </div>
+        ) : (
+          <>
+            {activeView === 'month' && (
+              <div className="lg:grid lg:grid-cols-[minmax(440px,55%)_minmax(0,1fr)] lg:items-start">
+                <div>
+                  {calendarHeader}
+                  <div
+                    key={format(currentMonth, 'yyyy-MM')}
+                    className={monthSlideClass}
+                    onTouchStart={handleTouchStart}
+                    onTouchEnd={handleTouchEnd}
+                  >
+                    <CalendarGrid
+                      currentMonth={currentMonth}
+                      dayMap={dayMap}
+                      onSelectDay={openDay}
+                      selectedDateStr={selectedDay}
+                      isLoading={isLoading}
+                    />
+                  </div>
 
-            <CalendarLegend
-              todayLabel={t('calendar.legend.today')}
-              doneLabel={t('calendar.legend.done')}
-              partialLabel={t('calendar.legend.partial')}
-              missedLabel={t('calendar.legend.missed')}
-            />
+                  <CalendarLegend
+                    todayLabel={t('calendar.legend.today')}
+                    doneLabel={t('calendar.legend.done')}
+                    partialLabel={t('calendar.legend.partial')}
+                    missedLabel={t('calendar.legend.missed')}
+                  />
 
-            <SectionLabel>{t('calendar.thisMonth')}</SectionLabel>
-            <CalendarStats stats={monthStatTiles} />
+                  {!isLoading && !monthStats.hasEntries ? (
+                    <EmptyState description={t('calendar.emptyMonth')} />
+                  ) : (
+                    <>
+                      <SectionLabel>{t('calendar.thisMonth')}</SectionLabel>
+                      <CalendarStats stats={monthStatTiles} />
+                    </>
+                  )}
+                </div>
+
+                {showInlineDayPanel && (
+                  <section
+                    data-testid="calendar-day-panel"
+                    aria-label={dayDetailTitle}
+                    style={{ padding: '20px 20px 10px 0' }}
+                  >
+                    <div
+                      style={{
+                        borderRadius: 18,
+                        background: 'var(--bg-card)',
+                        boxShadow: 'inset 0 0 0 1px var(--hairline)',
+                        paddingBottom: 8,
+                      }}
+                    >
+                      <h2
+                        className="min-w-0 truncate"
+                        style={{
+                          margin: 0,
+                          padding: '18px 20px 0',
+                          fontFamily: 'var(--font-sans)',
+                          fontSize: 20,
+                          fontWeight: 500,
+                          color: 'var(--fg-1)',
+                        }}
+                      >
+                        {dayDetailTitle}
+                      </h2>
+                      <CalendarDayDetail
+                        dateStr={selectedDay}
+                        entries={selectedEntries}
+                        showRecurring={showRecurring}
+                        onShowRecurringChange={setShowRecurring}
+                      />
+                    </div>
+                  </section>
+                )}
+              </div>
+            )}
+
+            {view === 'week' && (
+              <CalendarWeekView
+                columns={gridColumns}
+                dayMap={displayRangeDayMap}
+                weekLabel={weekLabel}
+                previousWeekLabel={t('common.previousWeek')}
+                nextWeekLabel={t('common.nextWeek')}
+                currentWeekLabel={t('calendar.goToCurrentWeek')}
+                slideDirection={weekSlide}
+                isLoading={rangeLoading}
+                onPreviousWeek={prevWeek}
+                onNextWeek={nextWeek}
+                onCurrentWeek={goToCurrentWeek}
+                onSelectDay={openDay}
+                displayTime={displayTime}
+                dateFnsLocale={dateFnsLocale}
+                allDayLabel={t('calendar.timeGrid.allDay')}
+                nowLabel={t('calendar.timeGrid.now')}
+                showRecurring={showRecurring}
+                onShowRecurringChange={setShowRecurring}
+              />
+            )}
+
+            {view === 'range' && (
+              <CalendarRangeView
+                currentMonth={currentMonth}
+                monthDayMap={dayMap}
+                rangeStart={rangeStart}
+                rangeEnd={rangeEnd}
+                onPickDay={handleRangePick}
+                columns={gridColumns}
+                rangeDayMap={displayRangeDayMap}
+                hint={t('calendar.timeGrid.pickRangeHint')}
+                endHint={t('calendar.timeGrid.pickEndHint')}
+                clampedNotice={t('calendar.timeGrid.rangeMaxDays', { max: MAX_RANGE_DAYS })}
+                isClamped={rangeClamped}
+                isAwaitingEnd={awaitingEnd}
+                isRangeLoading={rangeLoading}
+                onSelectDay={openDay}
+                displayTime={displayTime}
+                dateFnsLocale={dateFnsLocale}
+                allDayLabel={t('calendar.timeGrid.allDay')}
+                nowLabel={t('calendar.timeGrid.now')}
+                showRecurring={showRecurring}
+                onShowRecurringChange={setShowRecurring}
+              />
+            )}
+
+            {activeView === 'agenda' && (
+              <CalendarAgendaView
+                displayTime={displayTime}
+                dateFnsLocale={dateFnsLocale}
+                showRecurring={showRecurring}
+                onShowRecurringChange={setShowRecurring}
+              />
+            )}
           </>
-        )}
-
-        {view === 'week' && (
-          <CalendarWeekView
-            columns={gridColumns}
-            dayMap={displayRangeDayMap}
-            weekLabel={weekLabel}
-            previousWeekLabel={t('common.previousWeek')}
-            nextWeekLabel={t('common.nextWeek')}
-            currentWeekLabel={t('calendar.goToCurrentWeek')}
-            onPreviousWeek={prevWeek}
-            onNextWeek={nextWeek}
-            onCurrentWeek={goToCurrentWeek}
-            onSelectDay={openDay}
-            displayTime={displayTime}
-            dateFnsLocale={dateFnsLocale}
-            allDayLabel={t('calendar.timeGrid.allDay')}
-            nowLabel={t('calendar.timeGrid.now')}
-            showRecurring={showRecurring}
-            onShowRecurringChange={setShowRecurring}
-          />
-        )}
-
-        {view === 'range' && (
-          <CalendarRangeView
-            currentMonth={currentMonth}
-            monthDayMap={dayMap}
-            rangeStart={rangeStart}
-            rangeEnd={rangeEnd}
-            onPickDay={handleRangePick}
-            columns={gridColumns}
-            rangeDayMap={displayRangeDayMap}
-            hint={t('calendar.timeGrid.pickRangeHint')}
-            clampedNotice={t('calendar.timeGrid.rangeMaxDays', { max: MAX_RANGE_DAYS })}
-            isClamped={rangeClamped}
-            onSelectDay={openDay}
-            displayTime={displayTime}
-            dateFnsLocale={dateFnsLocale}
-            allDayLabel={t('calendar.timeGrid.allDay')}
-            nowLabel={t('calendar.timeGrid.now')}
-            showRecurring={showRecurring}
-            onShowRecurringChange={setShowRecurring}
-          />
-        )}
-
-        {activeView === 'agenda' && (
-          <CalendarAgendaView
-            displayTime={displayTime}
-            dateFnsLocale={dateFnsLocale}
-            showRecurring={showRecurring}
-            onShowRecurringChange={setShowRecurring}
-          />
         )}
       </div>
 
-      <AppOverlay open={isDayDetailOpen} onOpenChange={setIsDayDetailOpen}>
+      <AppOverlay
+        open={isDayDetailOpen && !showInlineDayPanel}
+        onOpenChange={setIsDayDetailOpen}
+        title={dayDetailTitle}
+      >
         <CalendarDayDetail
           dateStr={selectedDay}
           entries={selectedEntries}

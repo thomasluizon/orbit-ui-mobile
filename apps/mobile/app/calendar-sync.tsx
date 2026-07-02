@@ -9,7 +9,12 @@ import {
 import { useFocusEffect, useLocalSearchParams, useRouter } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
-import { CalendarDays, Link as LinkIcon, WifiOff } from 'lucide-react-native'
+import {
+  AlertTriangle,
+  Check,
+  Link as LinkIcon,
+  WifiOff,
+} from 'lucide-react-native'
 import { calendarKeys } from '@orbit/shared/query'
 import {
   buildCalendarAutoSyncImportRequest,
@@ -24,6 +29,7 @@ import { useBulkCreateHabits } from '@/hooks/use-habits'
 import {
   useCalendarAutoSyncState,
   useCalendarSyncSuggestions,
+  useDismissCalendarSuggestion,
   useRunCalendarSyncNow,
   useSetCalendarAutoSync,
 } from '@/hooks/use-calendar-auto-sync'
@@ -36,6 +42,7 @@ import { useOffline } from '@/hooks/use-offline'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { AppBar } from '@/components/ui/app-bar'
+import { EmptyState } from '@/components/ui/empty-state'
 import { SectionLabel } from '@/components/ui/section-label'
 import { SettingsRow } from '@/components/ui/settings-row'
 import { PillButton } from '@/components/ui/pill-button'
@@ -46,6 +53,14 @@ import { SelectAllToggle } from './calendar-sync-select-all-toggle'
 import { createStyles } from './calendar-sync-styles'
 
 const EVENTS_PAGE_SIZE = 20
+
+function rgbaFromHex(hex: string, alpha: number): string {
+  const normalized = hex.replace('#', '')
+  const r = Number.parseInt(normalized.slice(0, 2), 16)
+  const g = Number.parseInt(normalized.slice(2, 4), 16)
+  const b = Number.parseInt(normalized.slice(4, 6), 16)
+  return `rgba(${r}, ${g}, ${b}, ${alpha})`
+}
 
 type Step =
   | 'loading'
@@ -95,6 +110,7 @@ export default function CalendarSyncScreen() {
   })
   const setAutoSyncMutation = useSetCalendarAutoSync()
   const runSyncNowMutation = useRunCalendarSyncNow()
+  const dismissSuggestion = useDismissCalendarSuggestion()
 
   const autoSyncState = autoSyncStateQuery.data
   const suggestions = useMemo(
@@ -250,7 +266,7 @@ export default function CalendarSyncScreen() {
   const handleToggleAutoSync = useCallback(
     (enabled: boolean) => {
       if (!isOnline) {
-        showError(t('calendarSync.notConnected'))
+        showError(t('errors.offline'))
         return
       }
       setAutoSyncMutation.mutate(
@@ -267,7 +283,7 @@ export default function CalendarSyncScreen() {
 
   const handleSyncNow = useCallback(() => {
     if (!isOnline) {
-      showError(t('calendarSync.notConnected'))
+      showError(t('errors.offline'))
       return
     }
     runSyncNowMutation.mutate(undefined, {
@@ -316,6 +332,15 @@ export default function CalendarSyncScreen() {
         return
       }
 
+      if (failedItems.length > 0) {
+        showError(
+          plural(
+            t('calendar.importPartialFailure', { count: failedItems.length }),
+            failedItems.length,
+          ),
+        )
+      }
+
       setImportResult({
         imported: successCount,
         habits: result.results
@@ -346,6 +371,7 @@ export default function CalendarSyncScreen() {
     selectedCount,
     selectedEvents,
     selectedIds,
+    showError,
     suggestions,
     t,
   ])
@@ -364,6 +390,25 @@ export default function CalendarSyncScreen() {
     }
     void eventsQuery.refetch()
   }, [eventsQuery, isOnline, isReviewMode, queryClient])
+
+  const handleDismissSuggestion = useCallback(
+    async (suggestionId: string) => {
+      try {
+        await dismissSuggestion.mutateAsync({ id: suggestionId })
+      } catch (err: unknown) {
+        showError(getFriendlyErrorMessage(err, t, 'calendar.autoSync.syncFailed', 'generic'))
+      }
+    },
+    [dismissSuggestion, showError, t],
+  )
+
+  const findSuggestionIdForEvent = useCallback(
+    (eventId: string): string | null => {
+      const match = suggestions.find((suggestion) => suggestion.event.id === eventId)
+      return match?.id ?? null
+    },
+    [suggestions],
+  )
 
   const hasConnection = autoSyncState?.hasGoogleConnection === true
   const lastSyncedLabel = formatCalendarAutoSyncLastSynced(
@@ -385,7 +430,7 @@ export default function CalendarSyncScreen() {
         back
         onBack={handleBack}
         title={isReviewMode ? t('calendar.autoSync.reviewModeTitle') : t('calendar.title')}
-        backLabel={t('common.goBack')}
+        backLabel={t('common.backToProfile')}
       />
       <ScrollView
         style={styles.container}
@@ -466,55 +511,33 @@ export default function CalendarSyncScreen() {
           <View
             style={styles.centerBlock}
             accessibilityLiveRegion="polite"
-            accessibilityLabel={t('calendarSync.notConnected')}
+            accessibilityLabel={t('offline.title')}
           >
             <WifiOff size={28} color={tokens.fg3} strokeWidth={1.4} />
-            <Text style={[styles.stateText, { color: tokens.fg2 }]}>
-              {t('calendarSync.notConnected')}
+            <Text style={[styles.stateTitle, { color: tokens.fg1 }]}>
+              {t('offline.title')}
             </Text>
-            <Pressable
-              onPress={handleRetry}
-              accessibilityRole="button"
-              style={({ pressed }) => [
-                styles.quietAction,
-                chipTint,
-                pressed && styles.quietActionDim,
-              ]}
-            >
-              <Text style={[styles.quietActionText, { color: tokens.fg2 }]}>
-                {t('calendar.retry')}
-              </Text>
-            </Pressable>
+            <Text style={[styles.stateText, { color: tokens.fg3 }]}>
+              {t('offline.description')}
+            </Text>
           </View>
         )}
 
         {step === 'select' && (
           <>
             {events.length === 0 ? (
-              <View
-                style={styles.centerBlock}
-                accessibilityLiveRegion="polite"
-              >
-                <CalendarDays size={48} color={tokens.fg3} strokeWidth={1.4} />
-                <Text style={[styles.stateText, { color: tokens.fg2 }]}>
-                  {isReviewMode
+              <EmptyState
+                description={
+                  isReviewMode
                     ? t('calendar.autoSync.reviewModeEmpty')
-                    : t('calendar.noEvents')}
-                </Text>
-                <Pressable
-                  onPress={handleBack}
-                  accessibilityRole="button"
-                  style={({ pressed }) => [
-                    styles.quietAction,
-                    chipTint,
-                    pressed && styles.quietActionDim,
-                  ]}
-                >
-                  <Text style={[styles.quietActionText, { color: tokens.fg2 }]}>
-                    {t('common.goBack')}
-                  </Text>
-                </Pressable>
-              </View>
+                    : t('calendar.noEvents')
+                }
+                action={{
+                  label: t('common.goBack'),
+                  onPress: handleBack,
+                  variant: 'secondary',
+                }}
+              />
             ) : (
               <>
                 <SectionLabel
@@ -540,10 +563,14 @@ export default function CalendarSyncScreen() {
                     event={event}
                     index={index}
                     selected={selectedIds.has(event.id)}
+                    isReviewMode={isReviewMode}
+                    suggestionId={isReviewMode ? findSuggestionIdForEvent(event.id) : null}
+                    dismissPending={dismissSuggestion.isPending}
                     styles={styles}
                     tokens={tokens}
                     t={t}
                     onToggle={toggleEvent}
+                    onDismiss={handleDismissSuggestion}
                   />
                 ))}
                 {events.length > visibleCount ? (
@@ -555,6 +582,7 @@ export default function CalendarSyncScreen() {
                         )
                       }
                       accessibilityRole="button"
+                      hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
                       style={({ pressed }) => [
                         styles.quietAction,
                         chipTint,
@@ -598,21 +626,28 @@ export default function CalendarSyncScreen() {
             accessibilityLiveRegion="polite"
             accessibilityLabel={t('calendar.importing')}
           >
-            <Text style={[styles.stateText, { color: tokens.fg3 }]}>
+            <ActivityIndicator color={tokens.primary} />
+            <Text style={[styles.stateText, { color: tokens.fg2 }]}>
               {t('calendar.importing')}
             </Text>
-            <View
-              style={[styles.progressTrack, { backgroundColor: tokens.bgSunk }]}
-            >
-              <View
-                style={[styles.progressFill, { backgroundColor: tokens.primary }]}
-              />
-            </View>
           </View>
         )}
 
         {step === 'done' && (
           <>
+            <View style={styles.centerBlock}>
+              <View
+                style={[
+                  styles.stateGlyphCircle,
+                  { backgroundColor: tintFromPrimary(tokens, 0.15) },
+                ]}
+              >
+                <Check size={32} color={tokens.statusDone} strokeWidth={2.2} />
+              </View>
+              <Text style={[styles.stateTitle, { color: tokens.fg1 }]}>
+                {t('calendar.importDone')}
+              </Text>
+            </View>
             <SectionLabel>
               {plural(
                 t('calendar.importedCount', {
@@ -622,12 +657,7 @@ export default function CalendarSyncScreen() {
               )}
             </SectionLabel>
             {importResult?.habits.map((habit) => (
-              <SettingsRow
-                key={habit.id}
-                label={habit.title}
-                onPress={() => router.push('/')}
-                accessory="chevron"
-              />
+              <SettingsRow key={habit.id} label={habit.title} accessory="none" />
             ))}
             <View style={styles.actionPad}>
               <PillButton fullWidth onPress={() => router.replace('/')}>
@@ -643,22 +673,26 @@ export default function CalendarSyncScreen() {
             accessibilityRole="alert"
             accessibilityLiveRegion="assertive"
           >
-            <Text style={[styles.stateText, { color: tokens.statusOverdueText }]}>
-              {displayedErrorMessage || t('calendar.errorTitle')}
-            </Text>
-            <Pressable
-              onPress={handleRetry}
-              accessibilityRole="button"
-              style={({ pressed }) => [
-                styles.quietAction,
-                chipTint,
-                pressed && styles.quietActionDim,
+            <View
+              style={[
+                styles.stateGlyphCircle,
+                { backgroundColor: rgbaFromHex(tokens.statusBad, 0.15) },
               ]}
             >
-              <Text style={[styles.quietActionText, { color: tokens.fg2 }]}>
-                {t('calendar.retry')}
-              </Text>
-            </Pressable>
+              <AlertTriangle size={32} color={tokens.statusBad} strokeWidth={1.8} />
+            </View>
+            <Text style={[styles.stateTitle, { color: tokens.fg1 }]}>
+              {t('calendar.errorTitle')}
+            </Text>
+            <Text style={[styles.stateText, { color: tokens.fg2 }]}>
+              {displayedErrorMessage}
+            </Text>
+            <View style={styles.errorActions}>
+              <PillButton onPress={handleRetry}>{t('calendar.retry')}</PillButton>
+              <PillButton variant="ghost" onPress={handleBack}>
+                {t('common.goBack')}
+              </PillButton>
+            </View>
           </View>
         )}
 

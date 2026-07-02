@@ -50,6 +50,11 @@ const pinnedPaneBackground = {
   backgroundImage: 'linear-gradient(var(--bg-card), var(--bg-card))',
 } as const
 
+function currentMinutes(): number {
+  const now = new Date()
+  return getHours(now) * 60 + getMinutes(now)
+}
+
 interface PlacedBlock {
   entry: AgendaEntry
   startMinutes: number
@@ -197,9 +202,12 @@ function AgendaEventBlock({ block, displayTime }: Readonly<AgendaEventBlockProps
     id: entry.habitId,
     data: { minutes: block.startMinutes },
   })
+  const [isHovered, setIsHovered] = useState(false)
   const accent = entryAccent(entry)
   const completed = entry.status === 'completed'
   const endLabel = entry.dueEndTime ? ` - ${displayTime(entry.dueEndTime)}` : ''
+
+  const accentRing = `inset 0 0 0 1px color-mix(in srgb, ${accent} 42%, transparent)`
 
   const style: React.CSSProperties = {
     position: 'absolute',
@@ -213,12 +221,14 @@ function AgendaEventBlock({ block, displayTime }: Readonly<AgendaEventBlockProps
     touchAction: 'none',
     cursor: isDragging ? 'grabbing' : 'grab',
     padding: '6px 8px',
-    borderRadius: 10,
+    borderRadius: 8,
     overflow: 'hidden',
     background: `color-mix(in srgb, ${accent} 16%, transparent)`,
     boxShadow: isDragging
-      ? `inset 3px 0 0 ${accent}, inset 0 0 0 1px color-mix(in srgb, ${accent} 42%, transparent), var(--shadow-2)`
-      : `inset 3px 0 0 ${accent}, inset 0 0 0 1px color-mix(in srgb, ${accent} 30%, transparent)`,
+      ? `${accentRing}, var(--shadow-2)`
+      : isHovered
+        ? `${accentRing}, var(--shadow-1)`
+        : accentRing,
     transition: isDragging
       ? undefined
       : 'box-shadow var(--dur-fast) var(--ease-standard)',
@@ -231,6 +241,8 @@ function AgendaEventBlock({ block, displayTime }: Readonly<AgendaEventBlockProps
       data-habit-id={entry.habitId}
       data-due-time={entry.dueTime ?? ''}
       style={style}
+      onPointerEnter={() => setIsHovered(true)}
+      onPointerLeave={() => setIsHovered(false)}
       {...attributes}
       {...listeners}
     >
@@ -329,16 +341,15 @@ function AgendaDayNav({
         type="button"
         aria-label={previousLabel}
         onClick={onPrevious}
-        className="icon-btn shrink-0"
-        style={{ width: 40, height: 40 }}
+        className="icon-btn touch-target shrink-0"
       >
-        <ChevronLeft size={18} strokeWidth={1.8} color="var(--fg-2)" aria-hidden="true" />
+        <ChevronLeft size={22} strokeWidth={1.8} color="var(--fg-2)" aria-hidden="true" />
       </button>
       <button
         type="button"
         aria-label={todayLabel}
         onClick={onToday}
-        className="appearance-none border-0 bg-transparent cursor-pointer inline-flex items-center justify-center rounded-full transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev)] active:scale-[0.98]"
+        className="touch-target appearance-none border-0 bg-transparent cursor-pointer inline-flex items-center justify-center rounded-full transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev)] active:scale-[0.96]"
         style={{
           height: 40,
           padding: '0 16px',
@@ -355,10 +366,9 @@ function AgendaDayNav({
         type="button"
         aria-label={nextLabel}
         onClick={onNext}
-        className="icon-btn shrink-0"
-        style={{ width: 40, height: 40 }}
+        className="icon-btn touch-target shrink-0"
       >
-        <ChevronRight size={18} strokeWidth={1.8} color="var(--fg-2)" aria-hidden="true" />
+        <ChevronRight size={22} strokeWidth={1.8} color="var(--fg-2)" aria-hidden="true" />
       </button>
     </div>
   )
@@ -415,7 +425,13 @@ export function CalendarAgendaView({
     () => capitalizeFirstLetter(format(selectedDate, 'EEEE, MMM d', { locale: dateFnsLocale })),
     [selectedDate, dateFnsLocale],
   )
-  const nowMinutes = useMemo(() => getHours(new Date()) * 60 + getMinutes(new Date()), [])
+  const [nowMinutes, setNowMinutes] = useState(currentMinutes)
+
+  useEffect(() => {
+    const intervalId = setInterval(() => setNowMinutes(currentMinutes()), 60_000)
+    return () => clearInterval(intervalId)
+  }, [])
+
   const showNowLine = isToday(selectedDate)
 
   const goPreviousDay = useCallback(() => setSelectedDate((day) => subDays(day, 1)), [])
@@ -464,7 +480,7 @@ export function CalendarAgendaView({
   const isEmpty = !isLoading && visibleEntries.length === 0
 
   return (
-    <div className="md:min-h-dvh" style={{ padding: '0 20px 16px' }}>
+    <div style={{ padding: '0 20px 16px' }}>
       <div className="shrink-0" style={{ padding: '12px 0 14px' }}>
         <AgendaDayNav
           label={dayLabel}
@@ -512,7 +528,7 @@ export function CalendarAgendaView({
                   className="uppercase"
                   style={{
                     fontFamily: 'var(--font-mono)',
-                    fontSize: 9,
+                    fontSize: 10,
                     fontWeight: 500,
                     letterSpacing: '0.04em',
                     color: 'var(--fg-4)',

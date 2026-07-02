@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { CalendarDays } from 'lucide-react'
 import { Providers } from '@/lib/providers'
 import { WebNav } from '@/components/navigation/web-nav'
 import { AppShell } from '@/components/shell/app-shell'
@@ -40,14 +39,13 @@ import {
   getMilestoneShareAchievementKey,
   getMilestoneShareStreakKey,
 } from '@orbit/shared/stores'
-import { getSupabaseClient } from '@/lib/supabase'
 import { dismissCalendarImport } from '@/app/actions/calendar'
 import { TourProvider } from '@/components/tour/tour-provider'
 import { TourOverlay } from '@/components/tour/tour-overlay'
 import { RouteTransitionShell } from '@/components/motion/route-transition-shell'
 import { ApiFetchI18nProvider } from '@/lib/api-fetch-i18n-provider'
 import { setRouteTransitionIntent } from '@/lib/motion/route-intent'
-import { buildGoogleCalendarOAuthOptions, formatAPIDate, isShareableAchievement } from '@orbit/shared/utils'
+import { formatAPIDate, isShareableAchievement } from '@orbit/shared/utils'
 
 export default function AppLayout({
   children,
@@ -107,7 +105,8 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
     profile &&
     profile.hasCompletedOnboarding &&
     profile.hasCompletedTour &&
-    !profile.hasImportedCalendar
+    !profile.hasImportedCalendar &&
+    pathname !== '/calendar-sync'
   )
   const [previousCriteriaMet, setPreviousCriteriaMet] = useState(calendarPromptCriteriaMet)
   if (calendarPromptCriteriaMet !== previousCriteriaMet) {
@@ -138,25 +137,12 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
     dismissCalendarImport().catch(() => {})
   }, [])
 
-  const handleCalendarImport = useCallback(async () => {
+  const handleCalendarImport = useCallback(() => {
     setShowCalendarPrompt(false)
     dismissCalendarImport().catch(() => {})
-
-    if (profile?.hasGoogleConnection) {
-      setRouteTransitionIntent('forward')
-      router.push('/calendar-sync')
-      return
-    }
-
-    const supabase = getSupabaseClient()
-    const redirectTo = `${globalThis.location.origin}/auth-callback`
-    sessionStorage.setItem('auth_return_url', '/calendar-sync')
-
-    await supabase.auth.signInWithOAuth({
-      provider: 'google',
-      options: buildGoogleCalendarOAuthOptions({ redirectTo, forceConsent: true }),
-    })
-  }, [profile?.hasGoogleConnection, router])
+    setRouteTransitionIntent('forward')
+    router.push('/calendar-sync')
+  }, [router])
 
   const handleCalendarPromptOpenChange = useCallback(
     (open: boolean) => {
@@ -311,9 +297,6 @@ function GlobalOverlays({
         title={t('onboarding.wizard.calendarTitle')}
       >
         <div className="flex flex-col items-center text-center gap-5 py-2">
-          <div className="size-16 rounded-full bg-[var(--bg-sunk)] flex items-center justify-center">
-            <CalendarDays className="size-8 text-[var(--primary)]" />
-          </div>
           <p className="text-sm text-[var(--fg-2)] leading-relaxed">
             {t('onboarding.wizard.calendarDescription')}
           </p>

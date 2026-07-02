@@ -54,13 +54,23 @@ export function ApiKeyCard({
   formatKeyDate,
   onRevoke,
 }: Readonly<ApiKeyCardProps>) {
+  const scopes = Array.isArray(apiKey.scopes) ? apiKey.scopes : []
+  const expiresAtUtc = apiKey.expiresAtUtc ?? null
   const lastUsed = apiKey.lastUsedAtUtc
     ? `${t('orbitMcp.lastUsed')} ${formatKeyDate(apiKey.lastUsedAtUtc)}`
     : t('orbitMcp.never')
   const perm = apiKey.isReadOnly
     ? t('orbitMcp.permReadOnly')
     : t('orbitMcp.permReadWrite')
-  const meta = `${perm} · ${lastUsed} · ${t('orbitMcp.created')} ${formatKeyDate(apiKey.createdAtUtc)}`
+  const metaParts = [
+    perm,
+    lastUsed,
+    `${t('orbitMcp.created')} ${formatKeyDate(apiKey.createdAtUtc)}`,
+  ]
+  if (expiresAtUtc) {
+    metaParts.push(t('orbitMcp.expiresOn', { date: formatKeyDate(expiresAtUtc) }))
+  }
+  const meta = metaParts.join(' · ')
   return (
     <Animated.View
       entering={rowEntrance(index)}
@@ -94,7 +104,7 @@ export function ApiKeyCard({
           hitSlop={8}
         >
           <Text
-            style={[styles.revokeLink, { color: tokens.statusBad }]}
+            style={[styles.revokeLink, { color: tokens.statusBadText }]}
           >
             {t('orbitMcp.revoke')}
           </Text>
@@ -104,6 +114,12 @@ export function ApiKeyCard({
         style={[styles.keyPrefix, { color: tokens.fg2 }]}
       >
         {`${apiKey.keyPrefix}…`}
+      </Text>
+      <Text
+        style={[styles.keyScopes, { color: tokens.fg3 }]}
+        numberOfLines={2}
+      >
+        {scopes.length > 0 ? scopes.join(', ') : t('orbitMcp.noScopes')}
       </Text>
       <Text
         style={[styles.keyMeta, { color: tokens.fg3 }]}

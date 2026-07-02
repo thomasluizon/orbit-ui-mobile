@@ -151,7 +151,7 @@ describe('CalendarDayDetail', () => {
     expect(document.body.textContent).toContain('08:00')
   })
 
-  it('shows recurring checkbox', () => {
+  it('shows the recurring toggle', () => {
     renderDetail({ dateStr: '2025-06-15', entries: [makeEntry()] })
     expect(document.body.textContent).toContain('calendar.showRecurring')
   })
@@ -169,14 +169,14 @@ describe('CalendarDayDetail', () => {
     expect(screen.getByText('One-time task')).toBeInTheDocument()
   })
 
-  it('calls onShowRecurringChange when the checkbox is toggled', () => {
+  it('calls onShowRecurringChange when the switch is toggled', () => {
     const onShowRecurringChange = vi.fn()
     renderDetail({
       dateStr: '2025-06-15',
       entries: [makeEntry()],
       onShowRecurringChange,
     })
-    fireEvent.click(screen.getByRole('checkbox'))
+    fireEvent.click(screen.getByRole('switch'))
     expect(onShowRecurringChange).toHaveBeenCalledWith(false)
   })
 })

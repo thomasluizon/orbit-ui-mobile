@@ -11,6 +11,7 @@ import {
 } from "react-native";
 import { format } from "date-fns";
 import { enUS, ptBR } from "date-fns/locale";
+import type { TFunction } from "i18next";
 import type { CalendarDayEntry } from "@orbit/shared/types/calendar";
 import { createTokensV2 } from "@/lib/theme";
 
@@ -65,6 +66,8 @@ interface CalendarTimeGridProps {
   language: string;
   allDayLabel: string;
   nowLabel: string;
+  isLoading?: boolean;
+  t: TFunction;
   tokens: Tokens;
 }
 
@@ -93,6 +96,11 @@ function parseMinutes(time: string | null): number | null {
   const minutes = Number(match[2]);
   if (Number.isNaN(hours) || Number.isNaN(minutes)) return null;
   return Math.min(hours * 60 + minutes, 24 * 60 - 1);
+}
+
+function currentMinutesOfDay(): number {
+  const now = new Date();
+  return now.getHours() * 60 + now.getMinutes();
 }
 
 function entryAccent(entry: CalendarDayEntry, tokens: Tokens): string {
@@ -164,19 +172,23 @@ function TimedBlock({
   block,
   colWidth,
   displayTime,
+  onSelect,
   tokens,
 }: Readonly<{
   block: PlacedEntry;
   colWidth: number;
   displayTime: (time: string) => string;
+  onSelect: () => void;
   tokens: Tokens;
 }>) {
   const accent = entryAccent(block.entry, tokens);
   const completed = block.entry.status === "completed";
   return (
-    <View
+    <Pressable
       testID="time-grid-event"
-      style={{
+      accessibilityRole="button"
+      onPress={onSelect}
+      style={({ pressed }) => ({
         position: "absolute",
         top: block.top,
         height: BLOCK_HEIGHT,
@@ -187,12 +199,11 @@ function TimedBlock({
         borderRadius: 8,
         overflow: "hidden",
         justifyContent: "center",
-        backgroundColor: withAlpha(accent, 0.16),
+        backgroundColor: withAlpha(accent, pressed ? 0.24 : 0.16),
         borderWidth: 1,
-        borderColor: withAlpha(accent, 0.3),
-        borderLeftWidth: 3,
-        borderLeftColor: accent,
-      }}
+        borderColor: withAlpha(accent, 0.42),
+        transform: [{ scale: pressed ? 0.98 : 1 }],
+      })}
     >
       <Text
         numberOfLines={1}
@@ -219,7 +230,7 @@ function TimedBlock({
           {displayTime(block.entry.dueTime)}
         </Text>
       ) : null}
-    </View>
+    </Pressable>
   );
 }
 
@@ -238,7 +249,7 @@ function AllDayChip({
         gap: 4,
         height: ALL_DAY_CHIP_HEIGHT - ALL_DAY_GAP,
         paddingHorizontal: 6,
-        borderRadius: 6,
+        borderRadius: 8,
         overflow: "hidden",
         backgroundColor: withAlpha(accent, 0.14),
         borderWidth: 1,
@@ -271,22 +282,29 @@ function AllDayChip({
 
 function AllDayMoreChip({
   count,
+  accessibilityLabel,
   onPress,
   tokens,
-}: Readonly<{ count: number; onPress: () => void; tokens: Tokens }>) {
+}: Readonly<{
+  count: number;
+  accessibilityLabel: string;
+  onPress: () => void;
+  tokens: Tokens;
+}>) {
   return (
     <Pressable
       testID="time-grid-all-day-more"
       accessibilityRole="button"
-      accessibilityLabel={`+${count}`}
+      accessibilityLabel={accessibilityLabel}
       onPress={onPress}
+      hitSlop={{ top: 12, bottom: 12, left: 6, right: 6 }}
       style={({ pressed }) => ({
         flexDirection: "row",
         alignItems: "center",
         justifyContent: "center",
         height: ALL_DAY_CHIP_HEIGHT - ALL_DAY_GAP,
         paddingHorizontal: 6,
-        borderRadius: 6,
+        borderRadius: 8,
         borderWidth: 1,
         borderColor: tokens.hairline,
         backgroundColor: pressed ? tokens.bgElev : "transparent",
@@ -330,7 +348,10 @@ function ColumnHeader({
       style={({ pressed }) => [
         styles.colHeader,
         { width: colWidth },
-        pressed && { backgroundColor: tokens.bgElev },
+        pressed && {
+          backgroundColor: tokens.bgElev,
+          transform: [{ scale: 0.96 }],
+        },
       ]}
     >
       <Text
@@ -376,16 +397,22 @@ export function CalendarTimeGrid({
   language,
   allDayLabel,
   nowLabel,
+  isLoading = false,
+  t,
   tokens,
 }: Readonly<CalendarTimeGridProps>) {
   const styles = useMemo(() => createStyles(tokens), [tokens]);
   const bodyScrollRef = useRef<ScrollView>(null);
   const gutterScrollRef = useRef<ScrollView>(null);
   const [viewportWidth, setViewportWidth] = useState(0);
+  const [nowMinutes, setNowMinutes] = useState(currentMinutesOfDay);
 
-  const nowMinutes = useMemo(() => {
-    const now = new Date();
-    return now.getHours() * 60 + now.getMinutes();
+  useEffect(() => {
+    const interval = setInterval(
+      () => setNowMinutes(currentMinutesOfDay()),
+      60_000,
+    );
+    return () => clearInterval(interval);
   }, []);
 
   const perColumn = useMemo(
@@ -419,6 +446,12 @@ export function CalendarTimeGrid({
       ? Math.max(MIN_COL_WIDTH, viewportWidth / columns.length)
       : MIN_COL_WIDTH;
 
+  const isEmpty =
+    !isLoading &&
+    perColumn.every(
+      ({ allDay, timed }) => allDay.length === 0 && timed.length === 0,
+    );
+
   useEffect(() => {
     const offset = 7 * HOUR_HEIGHT;
     bodyScrollRef.current?.scrollTo?.({ y: offset, animated: false });
@@ -450,6 +483,8 @@ export function CalendarTimeGrid({
               style={{ height: BODY_MAX_HEIGHT }}
               scrollEnabled={false}
               showsVerticalScrollIndicator={false}
+              accessibilityElementsHidden
+              importantForAccessibility="no-hide-descendants"
             >
               <View style={{ height: DAY_HEIGHT }}>
                 {HOURS.map((hour) => (
@@ -504,6 +539,9 @@ export function CalendarTimeGrid({
                       {overflow > 0 ? (
                         <AllDayMoreChip
                           count={overflow}
+                          accessibilityLabel={t("calendar.timeGrid.moreLabel", {
+                            count: overflow,
+                          })}
                           onPress={() => onSelectDay(column.dateStr)}
                           tokens={tokens}
                         />
@@ -539,6 +577,7 @@ export function CalendarTimeGrid({
                           block={block}
                           colWidth={colWidth}
                           displayTime={displayTime}
+                          onSelect={() => onSelectDay(column.dateStr)}
                           tokens={tokens}
                         />
                       ))}
@@ -562,6 +601,12 @@ export function CalendarTimeGrid({
             </View>
           </ScrollView>
         </View>
+
+        {isEmpty ? (
+          <View pointerEvents="none" testID="time-grid-empty" style={styles.emptyOverlay}>
+            <Text style={styles.emptyText}>{t("calendar.timeGrid.empty")}</Text>
+          </View>
+        ) : null}
       </View>
     </View>
   );
@@ -601,8 +646,8 @@ function createStyles(tokens: Tokens) {
     },
     allDayLabel: {
       fontFamily: "Roboto_500Medium",
-      fontSize: 9,
-      letterSpacing: 0.36,
+      fontSize: 10,
+      letterSpacing: 0.4,
       textTransform: "uppercase",
       color: tokens.fg4,
     },
@@ -693,6 +738,17 @@ function createStyles(tokens: Tokens) {
       flex: 1,
       height: 1.5,
       backgroundColor: tokens.primary,
+    },
+    emptyOverlay: {
+      ...StyleSheet.absoluteFillObject,
+      alignItems: "center",
+      justifyContent: "center",
+      padding: 24,
+    },
+    emptyText: {
+      fontFamily: "Rubik_400Regular",
+      fontSize: 14,
+      color: tokens.fg3,
     },
   });
 }

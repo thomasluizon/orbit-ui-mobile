@@ -1,14 +1,18 @@
 'use client'
 
-import { Check, Clipboard } from 'lucide-react'
+import { Check, Copy } from 'lucide-react'
 import type { ApiKey } from '@orbit/shared/types'
 
 type TranslationFn = (key: string, params?: Record<string, string | number | Date>) => string
 
-export async function copyToClipboard(text: string): Promise<void> {
+/** Writes to the clipboard and reports whether the write succeeded, so callers
+ *  only show "Copied!" on success. */
+export async function copyToClipboard(text: string): Promise<boolean> {
   try {
     await navigator.clipboard.writeText(text)
+    return true
   } catch {
+    return false
   }
 }
 
@@ -37,17 +41,18 @@ export function CodeWell({
         <button
           type="button"
           aria-label={copyLabel}
-          className="chip"
+          className="icon-btn touch-target"
           onClick={onCopy}
-          style={{ gap: 6 }}
         >
           {copied ? (
-            <Check size={14} strokeWidth={1.8} color="var(--status-done)" />
+            <Check size={16} strokeWidth={1.8} color="var(--status-done)" aria-hidden="true" />
           ) : (
-            <Clipboard size={14} strokeWidth={1.8} />
+            <Copy size={16} strokeWidth={1.8} aria-hidden="true" />
           )}
-          {copied ? copiedLabel : copyLabel}
         </button>
+        <span aria-live="polite" className="sr-only">
+          {copied ? copiedLabel : ''}
+        </span>
       </div>
       <pre
         className="overflow-x-auto"
@@ -92,7 +97,7 @@ export function QueryStateMessage({
 }: Readonly<{ tone: 'error' | 'empty'; children: React.ReactNode }>) {
   if (tone === 'error') {
     return (
-      <p style={{ fontFamily: 'var(--font-sans)', fontSize: 13, color: 'var(--status-bad)' }}>
+      <p style={{ fontFamily: 'var(--font-sans)', fontSize: 13, color: 'var(--status-bad-text)' }}>
         {children}
       </p>
     )
@@ -201,8 +206,8 @@ export function ApiKeyCard({
       <div className="flex justify-end">
         <button
           type="button"
-          className="chip"
-          style={{ color: 'var(--status-bad)' }}
+          className="chip min-h-[44px]"
+          style={{ color: 'var(--status-bad-text)' }}
           onClick={() => onRevoke(apiKey.id)}
         >
           {t('orbitMcp.revoke')}

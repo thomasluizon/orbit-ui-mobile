@@ -7,7 +7,6 @@ import {
   Clock,
   List,
   RotateCcw,
-  ChevronRight,
   ChevronDown,
   Plus,
   Lock,
@@ -15,6 +14,8 @@ import {
 } from 'lucide-react'
 import { AppBar } from '@/components/ui/app-bar'
 import { SectionLabel } from '@/components/ui/section-label'
+import { SettingsRow } from '@/components/ui/settings-row'
+import { useIsDesktop } from '@/components/goals/use-is-desktop'
 import { useQueryClient } from '@tanstack/react-query'
 import { formatDistanceToNow, parseISO } from 'date-fns'
 import { enUS, ptBR } from 'date-fns/locale'
@@ -72,7 +73,9 @@ export default function AdvancedPage() {
     t,
   })
 
-  const [instructionsOpen, setInstructionsOpen] = useState(false)
+  const isDesktop = useIsDesktop()
+  const [instructionsToggled, setInstructionsToggled] = useState<boolean | null>(null)
+  const instructionsOpen = instructionsToggled ?? isDesktop
   const [activeConfigTab, setActiveConfigTab] = useState<(typeof MCP_CONFIG_TABS)[number]>('web')
   const [configCopied, setConfigCopied] = useState(false)
   const [endpointCopied, setEndpointCopied] = useState(false)
@@ -80,13 +83,15 @@ export default function AdvancedPage() {
   const mcpConfigJson = buildMcpConfigJson()
 
   async function copyConfig() {
-    await copyToClipboard(mcpConfigJson)
+    const didCopy = await copyToClipboard(mcpConfigJson)
+    if (!didCopy) return
     setConfigCopied(true)
     setTimeout(() => setConfigCopied(false), 2000)
   }
 
   async function copyEndpoint() {
-    await copyToClipboard(MCP_ENDPOINT_URL)
+    const didCopy = await copyToClipboard(MCP_ENDPOINT_URL)
+    if (!didCopy) return
     setEndpointCopied(true)
     setTimeout(() => setEndpointCopied(false), 2000)
   }
@@ -96,7 +101,7 @@ export default function AdvancedPage() {
   }
 
   return (
-    <div className="md:mx-auto md:max-w-[760px]">
+    <div className="md:mx-auto md:max-w-[760px] lg:max-w-none">
       <div className="flex flex-col min-h-[100dvh]">
         <AppBar
           back
@@ -105,76 +110,42 @@ export default function AdvancedPage() {
           title={t('advancedSettings.title')}
         />
         <div className="flex-1 min-h-0 overflow-y-auto">
-          <SectionLabel>{t('advancedSettings.widgetSection')}</SectionLabel>
-          <button
-            type="button"
-            onClick={() => setShowWidgetInfo(true)}
-            aria-haspopup="dialog"
-            aria-expanded={showWidgetInfo}
-            aria-controls="widget-info-dialog"
-            aria-label={t('profile.widgetTitle')}
-            className="flex w-full cursor-pointer items-center justify-between border-0 bg-transparent text-left transition-[background-color] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev)] active:bg-[var(--bg-elev-pressed)]"
-            style={{ padding: '16px 20px', gap: 14, minHeight: 56 }}
-          >
-            <span className="flex min-w-0 flex-1 items-center" style={{ gap: 14 }}>
-              <span
-                className="flex shrink-0 items-center justify-center"
-                style={{ width: 26 }}
-                aria-hidden="true"
-              >
-                <Smartphone size={22} strokeWidth={1.8} color="var(--fg-1)" />
-              </span>
-              <span className="flex min-w-0 flex-col" style={{ gap: 3 }}>
-                <span
-                  style={{
-                    fontFamily: 'var(--font-sans)',
-                    fontSize: 18,
-                    lineHeight: 1.25,
-                    color: 'var(--fg-1)',
-                  }}
-                >
-                  {t('profile.widgetTitle')}
-                </span>
-                <span
-                  style={{
-                    fontFamily: 'var(--font-sans)',
-                    fontSize: 14,
-                    lineHeight: 1.35,
-                    color: 'var(--fg-3)',
-                  }}
-                >
-                  {t('profile.widgetHint')}
-                </span>
-              </span>
-            </span>
-            <ChevronRight size={22} strokeWidth={1.8} color="var(--fg-3)" />
-          </button>
+          <div className="lg:grid lg:grid-cols-[1fr_1fr] lg:gap-x-10">
+            <div>
+              <SectionLabel>{t('advancedSettings.widgetSection')}</SectionLabel>
+              <SettingsRow
+                label={t('profile.widgetTitle')}
+                desc={t('profile.widgetHint')}
+                icon={Smartphone}
+                accessory="chevron"
+                onClick={() => setShowWidgetInfo(true)}
+                divider={false}
+              />
 
-          <SectionLabel trailing={<ProBadge />}>{t('orbitMcp.title')}</SectionLabel>
-          <div style={{ padding: '0 20px 14px' }}>
-            {!profile?.hasProAccess && (
-              <div className="flex items-center justify-end" style={{ marginBottom: 8 }}>
-                <Link href="/upgrade" className="chip">
-                  <Lock size={14} strokeWidth={1.8} aria-hidden="true" />
-                  {t('common.proBadge')}
-                </Link>
+              <SectionLabel trailing={<ProBadge />}>{t('orbitMcp.title')}</SectionLabel>
+              <div style={{ padding: '0 20px 14px' }}>
+                {!profile?.hasProAccess && (
+                  <div className="flex items-center justify-end" style={{ marginBottom: 8 }}>
+                    <Link href="/upgrade" className="chip min-h-[44px]">
+                      <Lock size={14} strokeWidth={1.8} aria-hidden="true" />
+                      {t('common.proBadge')}
+                    </Link>
+                  </div>
+                )}
+
+                <p className="t-secondary" style={{ color: 'var(--fg-3)' }}>
+                  {t('orbitMcp.description')}
+                </p>
               </div>
-            )}
-
-            <p className="t-secondary" style={{ color: 'var(--fg-3)' }}>
-              {t('orbitMcp.description')}
-            </p>
-          </div>
-          {profile?.hasProAccess && (
-            <div className="px-5 space-y-4" style={{ paddingBottom: 8 }}>
-                <div className="space-y-3">
+              {profile?.hasProAccess && (
+                <div className="px-5 space-y-3" style={{ paddingBottom: 8 }}>
                   <div className="flex items-center justify-between">
                     <SubsectionTitle>{t('orbitMcp.apiKeys')}</SubsectionTitle>
                     {canCreateKey && (
                       <button
                         type="button"
                         disabled={!canCreateScopedKey}
-                        className="chip chip-active disabled:cursor-not-allowed disabled:opacity-40"
+                        className="chip chip-active min-h-[44px] disabled:cursor-not-allowed disabled:opacity-40"
                         onClick={() => setCreateKeyModalOpen(true)}
                       >
                         <Plus size={14} strokeWidth={2.2} aria-hidden="true" />
@@ -214,17 +185,13 @@ export default function AdvancedPage() {
                     </div>
                   )}
 
-                  {apiKeysQuery.error && !apiKeysQuery.isLoading && (
-                    <QueryStateMessage tone="error">
-                      {t('orbitMcp.apiKeysError')}
-                    </QueryStateMessage>
-                  )}
-
-                  {capabilitiesQuery.error && !capabilitiesQuery.isLoading && (
-                    <QueryStateMessage tone="error">
-                      {t('orbitMcp.apiKeysError')}
-                    </QueryStateMessage>
-                  )}
+                  {(apiKeysQuery.error || capabilitiesQuery.error) &&
+                    !apiKeysQuery.isLoading &&
+                    !capabilitiesQuery.isLoading && (
+                      <QueryStateMessage tone="error">
+                        {t('orbitMcp.apiKeysError')}
+                      </QueryStateMessage>
+                    )}
 
                   {!apiKeysQuery.isLoading && !apiKeysQuery.error && apiKeys.length === 0 && (
                     <QueryStateMessage tone="empty">
@@ -246,13 +213,16 @@ export default function AdvancedPage() {
                     </div>
                   )}
                 </div>
+              )}
+            </div>
 
-                <div className="space-y-3" style={{ borderTop: '1px solid var(--hairline)', paddingTop: 16 }}>
+            {profile?.hasProAccess && (
+              <div className="px-5 space-y-3 border-t border-[var(--hairline)] pt-4 lg:border-t-0 lg:pt-6">
                   <button
                     type="button"
-                    className="group flex w-full cursor-pointer items-center justify-between border-0 bg-transparent transition-opacity duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:opacity-80 active:opacity-70"
+                    className="group flex w-full cursor-pointer items-center justify-between border-0 bg-transparent transition-[background-color] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev)] active:bg-[var(--bg-elev-pressed)]"
                     style={{ padding: '4px 0' }}
-                    onClick={() => setInstructionsOpen(!instructionsOpen)}
+                    onClick={() => setInstructionsToggled(!instructionsOpen)}
                     aria-expanded={instructionsOpen}
                     aria-controls="mcp-instructions"
                   >
@@ -268,7 +238,7 @@ export default function AdvancedPage() {
                   </button>
 
                   {instructionsOpen && (
-                    <div id="mcp-instructions" className="space-y-3">
+                    <div id="mcp-instructions" className="animate-slide-up space-y-3">
                       <div className="flex gap-2">
                         {MCP_CONFIG_TABS.map((tab) => (
                           <Chip
@@ -285,13 +255,10 @@ export default function AdvancedPage() {
 
                       {activeConfigTab === 'web' ? (
                         <div className="space-y-2.5">
-                          <p style={{ fontFamily: 'var(--font-sans)', fontSize: 12.5, lineHeight: 1.5, color: 'var(--fg-3)' }}>
+                          <p className="t-secondary" style={{ color: 'var(--fg-3)' }}>
                             {t('orbitMcp.webInstructions')}
                           </p>
-                          <ol
-                            className="list-decimal list-inside space-y-2"
-                            style={{ fontFamily: 'var(--font-sans)', fontSize: 12.5, lineHeight: 1.5, color: 'var(--fg-2)' }}
-                          >
+                          <ol className="t-secondary list-decimal list-inside space-y-2">
                             <li>{t('orbitMcp.webStep1')}</li>
                             <li>{t('orbitMcp.webStep2')}</li>
                             <li>{t('orbitMcp.webStep3')}</li>
@@ -306,13 +273,13 @@ export default function AdvancedPage() {
                             copyLabel={t('orbitMcp.copy')}
                             copiedLabel={t('orbitMcp.copied')}
                           />
-                          <p style={{ fontFamily: 'var(--font-sans)', fontSize: 12.5, lineHeight: 1.5, color: 'var(--fg-3)' }}>
+                          <p className="t-secondary" style={{ color: 'var(--fg-3)' }}>
                             {t('orbitMcp.webNoApiKey')}
                           </p>
                         </div>
                       ) : (
                         <div className="space-y-2.5">
-                          <p style={{ fontFamily: 'var(--font-sans)', fontSize: 12.5, lineHeight: 1.5, color: 'var(--fg-3)' }}>
+                          <p className="t-secondary" style={{ color: 'var(--fg-3)' }}>
                             {t('orbitMcp.configInstructions')}
                           </p>
                           <CodeWell
@@ -324,16 +291,16 @@ export default function AdvancedPage() {
                             copyLabel={t('orbitMcp.copyConfig')}
                             copiedLabel={t('orbitMcp.copied')}
                           />
-                          <p style={{ fontFamily: 'var(--font-sans)', fontSize: 12.5, lineHeight: 1.5, color: 'var(--fg-3)' }}>
+                          <p className="t-secondary" style={{ color: 'var(--fg-3)' }}>
                             {t('orbitMcp.replaceKey')}
                           </p>
                         </div>
                       )}
                     </div>
                   )}
-                </div>
-            </div>
-          )}
+              </div>
+            )}
+          </div>
           <div style={{ height: 24 }} />
         </div>
 
@@ -342,7 +309,7 @@ export default function AdvancedPage() {
           onOpenChange={setShowWidgetInfo}
           title={t('profile.widgetTitle')}
         >
-          <div id="widget-info-dialog" className="space-y-5" style={{ paddingBottom: 8 }}>
+          <div className="space-y-5" style={{ paddingBottom: 8 }}>
             <div>
               <h3
                 style={{

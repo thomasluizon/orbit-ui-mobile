@@ -10,7 +10,7 @@ import { useRouter } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
 import { enUS, ptBR } from 'date-fns/locale'
-import { Lock, Plus, Smartphone } from 'lucide-react-native'
+import { Check, Copy, Lock, Plus, Smartphone } from 'lucide-react-native'
 import { useQueryClient } from '@tanstack/react-query'
 import { buildUpgradeHref } from '@/lib/upgrade-route'
 import { formatDistanceToNow, parseISO } from 'date-fns'
@@ -151,17 +151,12 @@ export default function AdvancedScreen() {
               </View>
             ) : null}
 
-            {apiKeysQuery.error && !apiKeysQuery.isLoading ? (
+            {(apiKeysQuery.error || capabilitiesQuery.error) &&
+            !apiKeysQuery.isLoading &&
+            !capabilitiesQuery.isLoading ? (
               <QueryStateMessage
                 text={t('orbitMcp.apiKeysError')}
-                color={tokens.statusBad}
-              />
-            ) : null}
-
-            {capabilitiesQuery.error && !capabilitiesQuery.isLoading ? (
-              <QueryStateMessage
-                text={t('orbitMcp.apiKeysError')}
-                color={tokens.statusBad}
+                color={tokens.statusBadText}
               />
             ) : null}
 
@@ -248,7 +243,9 @@ export default function AdvancedScreen() {
                     onCopy()
                   }}
                   accessibilityRole="button"
-                  accessibilityLabel={t('orbitMcp.copyConfig')}
+                  accessibilityLabel={
+                    activeConfigTab === 'web' ? t('orbitMcp.copy') : t('orbitMcp.copyConfig')
+                  }
                   style={({ pressed }) => [
                     styles.copyBtn,
                     {
@@ -257,16 +254,13 @@ export default function AdvancedScreen() {
                     },
                     pressed ? styles.actionChipPressed : null,
                   ]}
-                  hitSlop={8}
+                  hitSlop={4}
                 >
-                  <Text
-                    style={[
-                      styles.copyBtnText,
-                      { color: codeCopied ? tokens.statusDone : tokens.fg2 },
-                    ]}
-                  >
-                    {codeCopied ? t('orbitMcp.copied') : t('orbitMcp.copyConfig')}
-                  </Text>
+                  {codeCopied ? (
+                    <Check size={16} color={tokens.statusDone} strokeWidth={1.8} />
+                  ) : (
+                    <Copy size={16} color={tokens.fg2} strokeWidth={1.8} />
+                  )}
                 </Pressable>
               </View>
               <Text

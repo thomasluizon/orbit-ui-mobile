@@ -1,5 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterAll } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
+import { calendarKeys } from '@orbit/shared/query'
+import { toast } from 'sonner'
 
 
 vi.mock('next-intl', () => ({
@@ -227,6 +230,22 @@ const originalFetch = globalThis.fetch
 
 import CalendarSyncPage from '@/app/(app)/calendar-sync/page'
 
+function renderPage() {
+  const queryClient = new QueryClient()
+  const view = render(
+    <QueryClientProvider client={queryClient}>
+      <CalendarSyncPage />
+    </QueryClientProvider>,
+  )
+  return { ...view, queryClient }
+}
+
+function setNavigatorOnline(value: boolean) {
+  Object.defineProperty(globalThis.navigator, 'onLine', {
+    value,
+    configurable: true,
+  })
+}
 
 describe('CalendarSyncPage', () => {
   beforeEach(() => {
@@ -234,7 +253,7 @@ describe('CalendarSyncPage', () => {
     mockHasProAccess = true
     mockPush.mockClear()
     mockReplace.mockClear()
-    mockBulkMutate.mockClear()
+    mockBulkMutate.mockReset()
     mockFetchResponse = null
     mockSearchParams.delete('mode')
     mockAutoSyncState = {
@@ -251,6 +270,8 @@ describe('CalendarSyncPage', () => {
     mockRunSyncNow.mockClear()
     mockDismissSuggestion.mockClear()
     mockSignInWithOAuth.mockClear()
+    vi.mocked(toast.error).mockClear()
+    setNavigatorOnline(true)
 
     globalThis.fetch = vi.fn().mockImplementation(() => {
       if (mockFetchResponse) return Promise.resolve(mockFetchResponse)
@@ -267,12 +288,12 @@ describe('CalendarSyncPage', () => {
   })
 
   it('renders without crashing', () => {
-    const { container } = render(<CalendarSyncPage />)
+    const { container } = renderPage()
     expect(container).toBeTruthy()
   })
 
   it('renders the page header with title and back button', () => {
-    render(<CalendarSyncPage />)
+    renderPage()
     expect(screen.getAllByText('calendar.title').length).toBeGreaterThan(0)
     expect(screen.getByRole('button', { name: 'common.backToProfile' })).toBeInTheDocument()
   })
@@ -281,7 +302,7 @@ describe('CalendarSyncPage', () => {
   it('redirects non-Pro users to upgrade', async () => {
     mockHasProAccess = false
     mockProfile = { id: 'u1', hasProAccess: false }
-    render(<CalendarSyncPage />)
+    renderPage()
     await waitFor(() => {
       expect(mockReplace).toHaveBeenCalledWith('/upgrade')
     })
@@ -290,7 +311,7 @@ describe('CalendarSyncPage', () => {
 
   it('shows loading state initially for Pro users', () => {
     globalThis.fetch = vi.fn().mockReturnValue(new Promise(() => {})) as unknown as typeof fetch
-    render(<CalendarSyncPage />)
+    renderPage()
     expect(screen.getByText('calendar.fetchingEvents')).toBeInTheDocument()
     expect(screen.getByRole('status')).toBeInTheDocument()
   })
@@ -303,7 +324,7 @@ describe('CalendarSyncPage', () => {
       json: () => Promise.resolve({ error: 'Not connected' }),
     }) as unknown as typeof fetch
 
-    render(<CalendarSyncPage />)
+    renderPage()
     await waitFor(() => {
       expect(screen.getByText('calendar.notConnectedTitle')).toBeInTheDocument()
     })
@@ -319,7 +340,7 @@ describe('CalendarSyncPage', () => {
       json: () => Promise.resolve({ error: 'Google Calendar connection expired. Please reconnect.' }),
     }) as unknown as typeof fetch
 
-    render(<CalendarSyncPage />)
+    renderPage()
 
     const connectButton = await screen.findByText('auth.signInWithGoogle')
     fireEvent.click(connectButton)
@@ -346,7 +367,7 @@ describe('CalendarSyncPage', () => {
       json: () => Promise.resolve([]),
     }) as unknown as typeof fetch
 
-    render(<CalendarSyncPage />)
+    renderPage()
     await waitFor(() => {
       expect(screen.getByText('calendar.noEvents')).toBeInTheDocument()
     })
@@ -365,7 +386,7 @@ describe('CalendarSyncPage', () => {
       json: () => Promise.resolve(events),
     }) as unknown as typeof fetch
 
-    render(<CalendarSyncPage />)
+    renderPage()
     await waitFor(() => {
       expect(screen.getByText('Morning Workout')).toBeInTheDocument()
     })
@@ -384,7 +405,7 @@ describe('CalendarSyncPage', () => {
       json: () => Promise.resolve(events),
     }) as unknown as typeof fetch
 
-    render(<CalendarSyncPage />)
+    renderPage()
     await waitFor(() => {
       expect(screen.getByLabelText('calendar.deselectAll')).toBeInTheDocument()
     })
@@ -402,7 +423,7 @@ describe('CalendarSyncPage', () => {
       json: () => Promise.resolve(events),
     }) as unknown as typeof fetch
 
-    render(<CalendarSyncPage />)
+    renderPage()
     await waitFor(() => {
       expect(screen.getByText('Event 1')).toBeInTheDocument()
     })
@@ -422,7 +443,7 @@ describe('CalendarSyncPage', () => {
       json: () => Promise.resolve(events),
     }) as unknown as typeof fetch
 
-    render(<CalendarSyncPage />)
+    renderPage()
     await waitFor(() => {
       expect(document.body.textContent).toContain('calendar.importButton')
     })
@@ -436,7 +457,7 @@ describe('CalendarSyncPage', () => {
       json: () => Promise.resolve({ error: 'Server Error' }),
     }) as unknown as typeof fetch
 
-    render(<CalendarSyncPage />)
+    renderPage()
     await waitFor(() => {
       expect(screen.getByText('calendar.errorTitle')).toBeInTheDocument()
     })
@@ -454,7 +475,7 @@ describe('CalendarSyncPage', () => {
       json: () => Promise.resolve(events),
     }) as unknown as typeof fetch
 
-    render(<CalendarSyncPage />)
+    renderPage()
     await waitFor(() => {
       expect(screen.getByText('Daily Standup')).toBeInTheDocument()
     })
@@ -464,7 +485,97 @@ describe('CalendarSyncPage', () => {
   it('renders with null profile without crashing', () => {
     mockProfile = null
     mockHasProAccess = true
-    const { container } = render(<CalendarSyncPage />)
+    const { container } = renderPage()
     expect(container).toBeTruthy()
+  })
+
+  it('shows the offline state instead of the wizard when the browser is offline', () => {
+    setNavigatorOnline(false)
+    renderPage()
+    expect(screen.getByText('offline.title')).toBeInTheDocument()
+    expect(screen.getByText('offline.description')).toBeInTheDocument()
+    expect(screen.queryByText('calendar.fetchingEvents')).not.toBeInTheDocument()
+  })
+
+  it('lists imported habits on the done step and toasts partial failures', async () => {
+    const events = [
+      { id: 'e1', title: 'Morning Workout', description: null, startDate: '2025-06-01', startTime: '08:00', endTime: '09:00', isRecurring: false, recurrenceRule: null, reminders: [], calendarName: null },
+      { id: 'e2', title: 'Team Meeting', description: null, startDate: '2025-06-01', startTime: '10:00', endTime: '11:00', isRecurring: false, recurrenceRule: null, reminders: [], calendarName: null },
+    ]
+    globalThis.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      status: 200,
+      json: () => Promise.resolve(events),
+    }) as unknown as typeof fetch
+    mockBulkMutate.mockImplementation(
+      (
+        _variables: unknown,
+        options: {
+          onSuccess: (result: {
+            results: { status: string; habitId: string | null; title: string | null; error: string | null }[]
+          }) => void
+        },
+      ) => {
+        options.onSuccess({
+          results: [
+            { status: 'Success', habitId: 'h1', title: 'Morning Workout', error: null },
+            { status: 'Failed', habitId: null, title: 'Team Meeting', error: 'boom' },
+          ],
+        })
+      },
+    )
+
+    renderPage()
+    await waitFor(() => {
+      expect(screen.getByText('Morning Workout')).toBeInTheDocument()
+    })
+
+    fireEvent.click(screen.getByText(/calendar\.importButton/))
+
+    await waitFor(() => {
+      expect(screen.getByText('calendar.importDone')).toBeInTheDocument()
+    })
+    expect(screen.getByText('Morning Workout')).toBeInTheDocument()
+    expect(screen.queryByText('Team Meeting')).not.toBeInTheDocument()
+    expect(toast.error).toHaveBeenCalledWith('calendar.importPartialFailure:{"count":1}')
+  })
+
+  it('invalidates sync suggestions after a review-mode import', async () => {
+    mockSearchParams.set('mode', 'review')
+    mockSuggestions = {
+      data: [
+        {
+          id: 'sug-1',
+          event: { id: 'e1', title: 'Morning Workout', description: null, startDate: '2025-06-01', startTime: '08:00', endTime: '09:00', isRecurring: false, recurrenceRule: null, reminders: [], calendarName: null },
+        },
+      ],
+      isLoading: false,
+    }
+    mockBulkMutate.mockImplementation(
+      (
+        _variables: unknown,
+        options: {
+          onSuccess: (result: {
+            results: { status: string; habitId: string | null; title: string | null; error: string | null }[]
+          }) => void
+        },
+      ) => {
+        options.onSuccess({
+          results: [{ status: 'Success', habitId: 'h1', title: 'Morning Workout', error: null }],
+        })
+      },
+    )
+
+    const { queryClient } = renderPage()
+    const invalidateSpy = vi.spyOn(queryClient, 'invalidateQueries')
+
+    fireEvent.click(await screen.findByText(/calendar\.importButton/))
+
+    await waitFor(() => {
+      expect(screen.getByText('calendar.importDone')).toBeInTheDocument()
+    })
+    expect(invalidateSpy).toHaveBeenCalledWith({
+      queryKey: calendarKeys.syncSuggestions(),
+    })
   })
 })

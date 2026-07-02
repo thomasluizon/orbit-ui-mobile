@@ -72,6 +72,10 @@ vi.mock('@/components/ui/pill-button', () => ({
   PillButton: (props: Record<string, unknown>) => React.createElement('PillButton', props),
 }))
 
+vi.mock('@/components/ui/confirm-dialog', () => ({
+  ConfirmDialog: (props: Record<string, unknown>) => React.createElement('ConfirmDialog', props),
+}))
+
 vi.mock('lucide-react-native', () => {
   const make = (name: string) => (props: Record<string, unknown>) => React.createElement(name, props)
   return { Check: make('Check'), Copy: make('Copy'), RefreshCw: make('RefreshCw'), Share2: make('Share2') }
@@ -79,7 +83,7 @@ vi.mock('lucide-react-native', () => {
 
 vi.mock('react-native', async (importOriginal) => {
   const actual = await importOriginal<typeof import('react-native')>()
-  return { ...actual, Share: { share: mocks.share }, Alert: { alert: vi.fn() } }
+  return { ...actual, Share: { share: mocks.share } }
 })
 
 import PublicProfileScreen from '@/app/public-profile'
@@ -170,6 +174,32 @@ describe('PublicProfileScreen', () => {
 
     expect(mocks.share).toHaveBeenCalledWith(
       expect.objectContaining({ message: enabledSettings.shareUrl }),
+    )
+  })
+
+  it('regenerate asks for confirmation and submits regenerate on confirm', () => {
+    const tree = renderScreen()
+
+    const regenerateButton = tree.root.find(
+      (n) =>
+        n.props.accessibilityLabel === 'profile.publicProfile.regenerate.button' &&
+        typeof n.props.onPress === 'function',
+    )
+    TestRenderer.act(() => {
+      ;(regenerateButton.props.onPress as () => void)()
+    })
+
+    const dialog = tree.root.find((n) => n.type === 'ConfirmDialog')
+    expect(dialog.props.open).toBe(true)
+    expect(mocks.mutate).not.toHaveBeenCalled()
+
+    TestRenderer.act(() => {
+      ;(dialog.props.onConfirm as () => void)()
+    })
+
+    expect(mocks.mutate).toHaveBeenCalledWith(
+      expect.objectContaining({ enabled: true, regenerate: true }),
+      expect.anything(),
     )
   })
 })

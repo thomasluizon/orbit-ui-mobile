@@ -51,17 +51,16 @@ export function CalendarHeader({
           type="button"
           aria-label={previousMonthLabel}
           onClick={onPreviousMonth}
-          className="icon-btn shrink-0"
-          style={{ width: 36, height: 36 }}
+          className="icon-btn touch-target shrink-0"
         >
-          <ChevronLeft size={18} strokeWidth={1.8} color="var(--fg-2)" aria-hidden="true" />
+          <ChevronLeft size={22} strokeWidth={1.8} color="var(--fg-2)" aria-hidden="true" />
         </button>
         <div className="flex items-center" style={{ gap: 2 }}>
           <button
             type="button"
             aria-label={currentMonthLabel}
             onClick={onCurrentMonth}
-            className="appearance-none border-0 bg-transparent cursor-pointer inline-flex items-center justify-center rounded-full transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev)] active:scale-[0.98]"
+            className="touch-target appearance-none border-0 bg-transparent cursor-pointer inline-flex items-center justify-center rounded-full transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev)] active:scale-[0.96]"
             style={{
               height: 36,
               padding: '0 10px',
@@ -80,7 +79,7 @@ export function CalendarHeader({
             aria-expanded={isYearOpen}
             aria-haspopup="dialog"
             onClick={() => setIsYearOpen(true)}
-            className="appearance-none border-0 bg-transparent cursor-pointer inline-flex items-center justify-center rounded-full transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev)] active:scale-[0.98]"
+            className="touch-target appearance-none border-0 bg-transparent cursor-pointer inline-flex items-center justify-center rounded-full transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev)] active:scale-[0.96]"
             style={{
               height: 36,
               padding: '0 10px',
@@ -98,10 +97,9 @@ export function CalendarHeader({
           type="button"
           aria-label={nextMonthLabel}
           onClick={onNextMonth}
-          className="icon-btn shrink-0"
-          style={{ width: 36, height: 36 }}
+          className="icon-btn touch-target shrink-0"
         >
-          <ChevronRight size={18} strokeWidth={1.8} color="var(--fg-2)" aria-hidden="true" />
+          <ChevronRight size={22} strokeWidth={1.8} color="var(--fg-2)" aria-hidden="true" />
         </button>
       </div>
 
@@ -145,16 +143,15 @@ export function CalendarWeekNav({
           type="button"
           aria-label={previousWeekLabel}
           onClick={onPreviousWeek}
-          className="icon-btn shrink-0"
-          style={{ width: 36, height: 36 }}
+          className="icon-btn touch-target shrink-0"
         >
-          <ChevronLeft size={18} strokeWidth={1.8} color="var(--fg-2)" aria-hidden="true" />
+          <ChevronLeft size={22} strokeWidth={1.8} color="var(--fg-2)" aria-hidden="true" />
         </button>
         <button
           type="button"
           aria-label={currentWeekLabel}
           onClick={onCurrentWeek}
-          className="appearance-none border-0 bg-transparent cursor-pointer inline-flex items-center justify-center rounded-full transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev)] active:scale-[0.98]"
+          className="touch-target appearance-none border-0 bg-transparent cursor-pointer inline-flex items-center justify-center rounded-full transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev)] active:scale-[0.96]"
           style={{
             height: 36,
             padding: '0 16px',
@@ -171,10 +168,9 @@ export function CalendarWeekNav({
           type="button"
           aria-label={nextWeekLabel}
           onClick={onNextWeek}
-          className="icon-btn shrink-0"
-          style={{ width: 36, height: 36 }}
+          className="icon-btn touch-target shrink-0"
         >
-          <ChevronRight size={18} strokeWidth={1.8} color="var(--fg-2)" aria-hidden="true" />
+          <ChevronRight size={22} strokeWidth={1.8} color="var(--fg-2)" aria-hidden="true" />
         </button>
       </div>
     </div>

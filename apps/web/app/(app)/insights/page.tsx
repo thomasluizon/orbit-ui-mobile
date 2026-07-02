@@ -3,6 +3,10 @@
 import { useMemo, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { useProfile } from '@/hooks/use-profile'
+import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
+import { useIsDesktop } from '@/components/goals/use-is-desktop'
+import { useTopbarSlot } from '@/components/shell/topbar-slot'
+import { AppBar } from '@/components/ui/app-bar'
 import { RangeSelector } from '@/components/insights/range-selector'
 import { computeRange, type RangePreset } from '@/components/insights/range'
 import { CompletionTrendsSection } from '@/components/insights/completion-trends-section'
@@ -17,32 +21,53 @@ import { InsightsLockedState } from '@/components/insights/insights-locked-state
 export default function InsightsPage() {
   const t = useTranslations()
   const { profile, isLoading: profileLoading } = useProfile()
+  const goBackOrFallback = useGoBackOrFallback()
+  const isDesktop = useIsDesktop()
   const [preset, setPreset] = useState<RangePreset>('month')
   const range = useMemo(() => computeRange(preset), [preset])
 
   const hasProAccess = profile?.hasProAccess ?? false
 
+  const topbarRangeSelector = useMemo(
+    () =>
+      isDesktop && hasProAccess ? <RangeSelector value={preset} onChange={setPreset} /> : null,
+    [isDesktop, hasProAccess, preset],
+  )
+  useTopbarSlot(topbarRangeSelector)
+
+  const phoneBackBar = (
+    <div className="md:hidden">
+      <AppBar back backLabel={t('common.goBack')} onBack={() => goBackOrFallback('/')} />
+    </div>
+  )
+
   if (!profileLoading && !hasProAccess) {
-    return <InsightsLockedState />
+    return (
+      <>
+        {phoneBackBar}
+        <InsightsLockedState />
+      </>
+    )
   }
 
   return (
-    <div className="min-h-dvh pb-10">
-      <header className="flex flex-col gap-4 pt-6 pb-2 md:pt-2">
-        <div className="flex flex-col gap-1.5 md:hidden">
+    <div className="stagger-enter min-h-dvh pb-10 lg:grid lg:grid-cols-2 lg:content-start lg:gap-x-12">
+      {phoneBackBar}
+      <header className="flex flex-col gap-4 pt-6 pb-2 md:hidden">
+        <div className="flex flex-col gap-1.5">
           <h1 className="t-display text-balance">{t('insights.title')}</h1>
           <p className="t-secondary text-balance">{t('insights.subtitle')}</p>
         </div>
         <RangeSelector value={preset} onChange={setPreset} />
       </header>
 
-      <CompletionTrendsSection range={range} divider={false} />
+      <CompletionTrendsSection range={range} divider={false} className="lg:col-span-2" />
       <XpOverTimeSection range={range} />
       <StreakHistorySection range={range} />
       <GoalProgressSection range={range} />
-      <MonthlyHeatmapSection range={range} />
-      <AchievementsTimelineSection />
       <MultiHabitComparisonSection />
+      <MonthlyHeatmapSection range={range} className="lg:col-span-2" />
+      <AchievementsTimelineSection className="lg:col-span-2" />
     </div>
   )
 }

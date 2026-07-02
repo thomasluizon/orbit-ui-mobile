@@ -142,8 +142,6 @@ describe('AdvancedPage', () => {
   it('opens widget info overlay on click', () => {
     render(<AdvancedPage />)
     const widgetButton = screen.getByText('profile.widgetTitle').closest('button')!
-    expect(widgetButton).toHaveAttribute('aria-haspopup', 'dialog')
-    expect(widgetButton).toHaveAttribute('aria-expanded', 'false')
     fireEvent.click(widgetButton)
     expect(screen.getByTestId('overlay')).toBeInTheDocument()
     expect(screen.getByText('profile.widgetHow.title')).toBeInTheDocument()

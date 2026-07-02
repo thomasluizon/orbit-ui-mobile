@@ -17,7 +17,7 @@ export function XpOverTimeSection({ range, divider }: Readonly<XpOverTimeSection
   const t = useTranslations()
   const locale = useLocale()
   const formatLabel = useDateLabel()
-  const { data, isLoading, isError } = useXpHistory(range)
+  const { data, isLoading, isError, refetch } = useXpHistory(range)
 
   const points = (data?.points ?? []).map((point) => ({
     label: point.date,
@@ -34,11 +34,12 @@ export function XpOverTimeSection({ range, divider }: Readonly<XpOverTimeSection
       description={t('insights.sections.xpOverTimeDesc')}
       divider={divider}
       status={toSectionStatus({ isLoading, isError, isEmpty })}
+      onRetry={() => void refetch()}
       headerAction={headline ? <InsightsHeadline {...headline} /> : undefined}
     >
       <TrendLine
         points={points}
-        ariaLabel={title}
+        ariaLabel={headline ? `${title}: ${headline.value}` : title}
         formatValue={formatXp}
         formatLabel={formatLabel}
       />

@@ -20,7 +20,7 @@ export function SelectAllToggle({
   return (
     <button
       type="button"
-      className="icon-btn shrink-0"
+      className="icon-btn touch-target shrink-0"
       style={{ width: 36, height: 36 }}
       onClick={onToggle}
       aria-pressed={allSelected}

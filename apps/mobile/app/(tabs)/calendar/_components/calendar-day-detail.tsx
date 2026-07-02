@@ -1,16 +1,17 @@
 import { useMemo } from "react";
-import { View, Text, StyleSheet, Switch } from "react-native";
+import { View, Text, StyleSheet } from "react-native";
 import Animated, {
   FadeInDown,
   ReduceMotion,
 } from "react-native-reanimated";
+import { ArrowRight } from "lucide-react-native";
 import type { TFunction } from "i18next";
 import type { CalendarDayEntry } from "@orbit/shared/types/calendar";
 import { plural } from "@/lib/plural";
 import { PillButton } from "@/components/ui/pill-button";
-import type { StatusDotState } from "@/components/ui/status-dot";
 import { createTokensV2 } from "@/lib/theme";
 import { CalendarDayEntryRow } from "./calendar-day-entry";
+import { ShowRecurringToggle } from "./show-recurring-toggle";
 
 type Tokens = ReturnType<typeof createTokensV2>;
 
@@ -24,13 +25,6 @@ interface CalendarDayDetailProps {
   displayTime: (time: string) => string;
   t: TFunction;
   tokens: Tokens;
-}
-
-function entryDotState(entry: CalendarDayEntry): StatusDotState {
-  if (entry.status === "completed") return "done";
-  if (entry.status === "missed") return "overdue";
-  if (entry.isBadHabit) return "bad";
-  return "empty";
 }
 
 function statusBadge(
@@ -49,9 +43,9 @@ function statusBadge(
 
 function statusBadgeColor(entry: CalendarDayEntry, tokens: Tokens): string {
   if (entry.isBadHabit) {
-    return entry.status === "completed" ? tokens.statusBad : tokens.statusDone;
+    return entry.status === "completed" ? tokens.statusBadText : tokens.statusDone;
   }
-  return entry.status === "completed" ? tokens.statusDone : tokens.statusOverdue;
+  return entry.status === "completed" ? tokens.statusDone : tokens.statusOverdueText;
 }
 
 export function CalendarDayDetail({
@@ -94,7 +88,6 @@ export function CalendarDayDetail({
         <CalendarDayEntryRow
           entry={item}
           tokens={tokens}
-          dotState={entryDotState(item)}
           statusText={badge}
           statusColor={statusBadgeColor(item, tokens)}
           statusAccessibilityLabel={badge ?? t("calendar.status.upcoming")}
@@ -109,18 +102,12 @@ export function CalendarDayDetail({
     <>
       {selectedEntries.length > 0 ? (
         <View style={styles.recurringToggleRow}>
-          <Switch
-            value={showRecurring}
-            onValueChange={onShowRecurringChange}
-            trackColor={{
-              false: tokens.bgSunk,
-              true: tokens.primary,
-            }}
-            thumbColor={tokens.fgOnPrimary}
+          <ShowRecurringToggle
+            checked={showRecurring}
+            onChange={onShowRecurringChange}
+            label={t("calendar.showRecurring")}
+            tokens={tokens}
           />
-          <Text style={[styles.recurringToggleText, { color: tokens.fg2 }]}>
-            {t("calendar.showRecurring")}
-          </Text>
         </View>
       ) : null}
 
@@ -149,6 +136,7 @@ export function CalendarDayDetail({
         variant="ghost"
         style={styles.goToDayButton}
         onPress={onGoToDay}
+        leading={<ArrowRight size={18} strokeWidth={1.8} color={tokens.fg1} />}
       >
         {t("calendar.goToDay")}
       </PillButton>
@@ -160,13 +148,7 @@ function createStyles(tokens: Tokens) {
   return StyleSheet.create({
     recurringToggleRow: {
       flexDirection: "row",
-      alignItems: "center",
-      gap: 8,
-      flexShrink: 0,
-    },
-    recurringToggleText: {
-      fontFamily: 'Rubik_400Regular',
-      fontSize: 12,
+      justifyContent: "flex-end",
     },
     summaryText: {
       fontFamily: 'Rubik_400Regular',

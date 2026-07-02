@@ -3,17 +3,24 @@
 import { useSyncExternalStore } from 'react'
 
 const DESKTOP_QUERY = '(min-width: 768px)'
+const WIDE_DESKTOP_QUERY = '(min-width: 1024px)'
 
-function subscribe(callback: () => void): () => void {
-  if (typeof window === 'undefined' || !window.matchMedia) return () => {}
-  const mql = window.matchMedia(DESKTOP_QUERY)
-  mql.addEventListener('change', callback)
-  return () => mql.removeEventListener('change', callback)
+function createViewportMatch(query: string) {
+  return {
+    subscribe(callback: () => void): () => void {
+      if (typeof window === 'undefined' || !window.matchMedia) return () => {}
+      const mql = window.matchMedia(query)
+      mql.addEventListener('change', callback)
+      return () => mql.removeEventListener('change', callback)
+    },
+    getSnapshot(): boolean {
+      return window.matchMedia(query).matches
+    },
+  }
 }
 
-function getSnapshot(): boolean {
-  return window.matchMedia(DESKTOP_QUERY).matches
-}
+const desktopMatch = createViewportMatch(DESKTOP_QUERY)
+const wideDesktopMatch = createViewportMatch(WIDE_DESKTOP_QUERY)
 
 function getServerSnapshot(): boolean {
   return false
@@ -26,5 +33,18 @@ function getServerSnapshot(): boolean {
  * desktop-only calendar surfaces never render below 768px or during hydration.
  */
 export function useIsDesktop(): boolean {
-  return useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot)
+  return useSyncExternalStore(desktopMatch.subscribe, desktopMatch.getSnapshot, getServerSnapshot)
+}
+
+/**
+ * Returns true once the viewport is at or above the 1024px wide-desktop breakpoint,
+ * where the calendar month view swaps its day-detail overlay for the persistent
+ * inline side panel. Same SSR-safe semantics as useIsDesktop.
+ */
+export function useIsWideDesktop(): boolean {
+  return useSyncExternalStore(
+    wideDesktopMatch.subscribe,
+    wideDesktopMatch.getSnapshot,
+    getServerSnapshot,
+  )
 }

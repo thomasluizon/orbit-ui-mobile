@@ -6,8 +6,9 @@ export async function connectGoogle(): Promise<void> {
   const redirectTo = `${globalThis.location.origin}/auth-callback`
   sessionStorage.setItem('auth_return_url', '/calendar-sync')
 
-  await supabase.auth.signInWithOAuth({
+  const { error } = await supabase.auth.signInWithOAuth({
     provider: 'google',
     options: buildGoogleCalendarOAuthOptions({ redirectTo, forceConsent: true }),
   })
+  if (error) throw error
 }

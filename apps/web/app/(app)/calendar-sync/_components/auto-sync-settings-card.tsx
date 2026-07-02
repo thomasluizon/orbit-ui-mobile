@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import {
   Loader2,
   CalendarDays,
@@ -11,6 +11,7 @@ import { useTranslations } from 'next-intl'
 import { SectionLabel } from '@/components/ui/section-label'
 import { SettingsDescription } from '@/components/ui/settings-description'
 import { Switch } from '@/components/ui/settings-row'
+import { useOffline } from '@/hooks/use-offline'
 import {
   useCalendarAutoSyncState,
   useRunCalendarSyncNow,
@@ -30,6 +31,8 @@ export function AutoSyncSettingsCard() {
   const { data: state, isLoading } = useCalendarAutoSyncState()
   const setAutoSync = useSetCalendarAutoSync()
   const runSyncNow = useRunCalendarSyncNow()
+  const { isOnline } = useOffline()
+  const [isConnecting, setIsConnecting] = useState(false)
 
   const lastSyncedLabel = useMemo(
     () =>
@@ -42,10 +45,14 @@ export function AutoSyncSettingsCard() {
 
   const showReconnect = isCalendarAutoSyncStatusReconnectRequired(state?.status)
   const hasConnection = state?.hasGoogleConnection === true
-  const toggleDisabled = !hasConnection || setAutoSync.isPending
+  const toggleDisabled = !hasConnection || setAutoSync.isPending || !isOnline
   const enabled = state?.enabled ?? false
 
   async function handleToggle() {
+    if (!isOnline) {
+      toast.error(t('errors.offline'))
+      return
+    }
     if (toggleDisabled) return
     const next = !enabled
     try {
@@ -57,10 +64,26 @@ export function AutoSyncSettingsCard() {
   }
 
   async function handleSyncNow() {
+    if (!isOnline) {
+      toast.error(t('errors.offline'))
+      return
+    }
     try {
       await runSyncNow.mutateAsync()
     } catch (err: unknown) {
       toast.error(getFriendlyErrorMessage(err, t, 'calendar.autoSync.syncFailed', 'generic'))
+    }
+  }
+
+  async function handleReconnect() {
+    if (!isOnline || isConnecting) return
+    setIsConnecting(true)
+    try {
+      await connectGoogle()
+    } catch {
+      toast.error(t('auth.googleError'))
+    } finally {
+      setIsConnecting(false)
     }
   }
 
@@ -180,7 +203,7 @@ export function AutoSyncSettingsCard() {
               </p>
             </div>
           </div>
-          <QuietActionButton onClick={connectGoogle} tone="warning">
+          <QuietActionButton onClick={handleReconnect} disabled={isConnecting} tone="warning">
             {t('calendar.autoSync.reconnectCta')}
           </QuietActionButton>
         </div>

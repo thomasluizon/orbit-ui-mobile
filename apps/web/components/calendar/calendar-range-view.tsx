@@ -18,10 +18,15 @@ interface CalendarRangeViewProps {
   /** Range-scoped entries powering the time grid. */
   rangeDayMap: Map<string, CalendarDayEntry[]>
   hint: string
+  /** Hint shown after the first tap, prompting for the range's end day. */
+  endHint: string
   /** Notice shown in place of the hint when the picked range was clamped to the
    *  maximum number of days. */
   clampedNotice: string
   isClamped: boolean
+  /** True between the first and second taps of a range pick. */
+  isAwaitingEnd: boolean
+  isRangeLoading?: boolean
   onSelectDay: (dateStr: string) => void
   displayTime: (time: string) => string
   dateFnsLocale: Locale
@@ -42,8 +47,11 @@ export function CalendarRangeView({
   columns,
   rangeDayMap,
   hint,
+  endHint,
   clampedNotice,
   isClamped,
+  isAwaitingEnd,
+  isRangeLoading = false,
   onSelectDay,
   displayTime,
   dateFnsLocale,
@@ -52,43 +60,50 @@ export function CalendarRangeView({
   showRecurring,
   onShowRecurringChange,
 }: Readonly<CalendarRangeViewProps>) {
+  const hintText = isAwaitingEnd ? endHint : isClamped ? clampedNotice : hint
+
   return (
-    <>
-      <CalendarGrid
-        currentMonth={currentMonth}
-        dayMap={monthDayMap}
-        onSelectDay={onPickDay}
-        rangeStart={rangeStart}
-        rangeEnd={rangeEnd}
-      />
-      <div
-        className="flex items-center justify-between"
-        style={{ gap: 12, padding: '0 20px 6px' }}
-      >
-        <p
-          style={{
-            margin: 0,
-            fontFamily: 'var(--font-sans)',
-            fontSize: 13,
-            color: isClamped ? 'var(--status-overdue-text)' : 'var(--fg-3)',
-          }}
+    <div className="xl:grid xl:grid-cols-[minmax(360px,45%)_minmax(0,1fr)] xl:items-start">
+      <div>
+        <CalendarGrid
+          currentMonth={currentMonth}
+          dayMap={monthDayMap}
+          onSelectDay={onPickDay}
+          rangeStart={rangeStart}
+          rangeEnd={rangeEnd}
+        />
+        <div
+          className="flex items-center justify-between"
+          style={{ gap: 12, padding: '0 20px 6px' }}
         >
-          {isClamped ? clampedNotice : hint}
-        </p>
-        <ShowRecurringToggle
-          checked={showRecurring}
-          onChange={onShowRecurringChange}
+          <p
+            style={{
+              margin: 0,
+              fontFamily: 'var(--font-sans)',
+              fontSize: 13,
+              color: isClamped && !isAwaitingEnd ? 'var(--status-overdue-text)' : 'var(--fg-3)',
+            }}
+          >
+            {hintText}
+          </p>
+          <ShowRecurringToggle
+            checked={showRecurring}
+            onChange={onShowRecurringChange}
+          />
+        </div>
+      </div>
+      <div className="xl:pt-4">
+        <CalendarTimeGrid
+          columns={columns}
+          dayMap={rangeDayMap}
+          onSelectDay={onSelectDay}
+          displayTime={displayTime}
+          dateFnsLocale={dateFnsLocale}
+          allDayLabel={allDayLabel}
+          nowLabel={nowLabel}
+          isLoading={isRangeLoading}
         />
       </div>
-      <CalendarTimeGrid
-        columns={columns}
-        dayMap={rangeDayMap}
-        onSelectDay={onSelectDay}
-        displayTime={displayTime}
-        dateFnsLocale={dateFnsLocale}
-        allDayLabel={allDayLabel}
-        nowLabel={nowLabel}
-      />
-    </>
+    </div>
   )
 }

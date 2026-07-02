@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Clipboard, Check, Share2, RefreshCw } from 'lucide-react'
+import { Copy, Check, Share2, RefreshCw } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { toast } from 'sonner'
 import type { UpdatePublicProfileRequest } from '@orbit/shared/types/public-profile'
@@ -108,16 +108,21 @@ export function PublicProfileSettings() {
               >
                 {shareUrl}
               </div>
-              <button type="button" className="chip" onClick={copyLink}>
+              <button
+                type="button"
+                className="icon-btn touch-target"
+                onClick={copyLink}
+                aria-label={t('profile.publicProfile.link.copy')}
+              >
                 {copied ? (
-                  <Check size={14} strokeWidth={1.8} color="var(--status-done)" aria-hidden="true" />
+                  <Check size={16} strokeWidth={1.8} color="var(--status-done)" aria-hidden="true" />
                 ) : (
-                  <Clipboard size={14} strokeWidth={1.8} aria-hidden="true" />
+                  <Copy size={16} strokeWidth={1.8} aria-hidden="true" />
                 )}
-                <span>
-                  {copied ? t('profile.publicProfile.link.copied') : t('profile.publicProfile.link.copy')}
-                </span>
               </button>
+              <span aria-live="polite" className="sr-only">
+                {copied ? t('profile.publicProfile.link.copied') : ''}
+              </span>
             </div>
           </div>
 
@@ -158,12 +163,11 @@ export function PublicProfileSettings() {
             type="button"
             onClick={() => setConfirmRegenerate(true)}
             disabled={mutation.isPending}
-            className="inline-flex items-center disabled:opacity-50 disabled:cursor-not-allowed"
+            className="inline-flex items-center rounded-full bg-transparent px-2 -ml-2 transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev)] active:scale-[0.96] disabled:opacity-50 disabled:cursor-not-allowed"
             style={{
               gap: 8,
               appearance: 'none',
               border: 0,
-              background: 'transparent',
               cursor: 'pointer',
               fontFamily: 'var(--font-sans)',
               fontSize: 14,

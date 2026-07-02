@@ -125,9 +125,10 @@ export function CalendarGrid({
             const dayDateLabel = format(cell.date, "EEEE, MMM d", {
               locale: language === "pt-BR" ? ptBR : enUS,
             });
-            const dayAccessibilityLabel = statusLabel
-              ? `${dayDateLabel}, ${statusLabel}`
-              : dayDateLabel;
+            const labelParts = [dayDateLabel];
+            if (cell.isToday) labelParts.push(t("calendar.legend.today"));
+            if (statusLabel) labelParts.push(statusLabel);
+            const dayAccessibilityLabel = labelParts.join(", ");
 
             return (
               <Pressable
@@ -141,6 +142,7 @@ export function CalendarGrid({
                 accessibilityState={{ selected: highlighted, disabled: !canSelect }}
                 style={({ pressed }) => [
                   styles.dayCell,
+                  !cell.isCurrentMonth && { opacity: 0.5 },
                   inRange && { backgroundColor: tintFromPrimary(tokens, 0.12) },
                   pressed && canSelect && styles.dayCellPressed,
                 ]}
@@ -283,7 +285,7 @@ function createStyles(tokens: Tokens) {
     },
     dayCellPressed: {
       backgroundColor: tokens.bgElev,
-      transform: [{ scale: 0.92 }],
+      transform: [{ scale: 0.96 }],
     },
     dayNumPill: {
       width: 28,

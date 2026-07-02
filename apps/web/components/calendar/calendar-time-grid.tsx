@@ -1,8 +1,9 @@
 'use client'
 
-import { useEffect, useMemo, useRef } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { format, getHours, getMinutes } from 'date-fns'
 import type { Locale } from 'date-fns'
+import { useTranslations } from 'next-intl'
 import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
 import { useIsDesktop } from './use-is-desktop'
 
@@ -50,6 +51,7 @@ interface CalendarTimeGridProps {
   dateFnsLocale: Locale
   allDayLabel: string
   nowLabel: string
+  isLoading?: boolean
 }
 
 interface PlacedEntry {
@@ -68,6 +70,11 @@ function parseMinutes(time: string | null): number | null {
   const minutes = Number(match[2])
   if (Number.isNaN(hours) || Number.isNaN(minutes)) return null
   return Math.min(hours * 60 + minutes, 24 * 60 - 1)
+}
+
+function currentMinutesOfDay(): number {
+  const now = new Date()
+  return getHours(now) * 60 + getMinutes(now)
 }
 
 function entryAccent(entry: CalendarDayEntry): string {
@@ -129,14 +136,21 @@ function layoutTimed(entries: CalendarDayEntry[]): PlacedEntry[] {
 function TimedBlock({
   block,
   displayTime,
-}: Readonly<{ block: PlacedEntry; displayTime: (time: string) => string }>) {
+  onSelect,
+}: Readonly<{
+  block: PlacedEntry
+  displayTime: (time: string) => string
+  onSelect: () => void
+}>) {
   const accent = entryAccent(block.entry)
   const completed = block.entry.status === 'completed'
   return (
-    <div
+    <button
+      type="button"
       data-testid="time-grid-event"
       data-hour={block.hour}
-      className="absolute flex flex-col justify-center overflow-hidden"
+      onClick={onSelect}
+      className="absolute flex flex-col justify-center overflow-hidden text-left cursor-pointer bg-[color-mix(in_srgb,var(--tg-accent)_16%,transparent)] hover:bg-[color-mix(in_srgb,var(--tg-accent)_24%,transparent)] transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] active:scale-[0.98]"
       style={{
         top: block.top,
         height: BLOCK_HEIGHT,
@@ -144,9 +158,11 @@ function TimedBlock({
         width: `calc(${100 / block.laneCount}% - 4px)`,
         padding: '4px 6px',
         borderRadius: 8,
-        background: `color-mix(in srgb, ${accent} 16%, transparent)`,
-        boxShadow: `inset 3px 0 0 ${accent}, inset 0 0 0 1px color-mix(in srgb, ${accent} 30%, transparent)`,
-      }}
+        border: 0,
+        appearance: 'none',
+        boxShadow: `inset 0 0 0 1px color-mix(in srgb, ${accent} 42%, transparent)`,
+        '--tg-accent': accent,
+      } as React.CSSProperties}
     >
       <span
         className="truncate"
@@ -174,7 +190,7 @@ function TimedBlock({
           {displayTime(block.entry.dueTime)}
         </span>
       )}
-    </div>
+    </button>
   )
 }
 
@@ -187,7 +203,7 @@ function AllDayChip({ entry }: Readonly<{ entry: CalendarDayEntry }>) {
       className="flex items-center gap-1 overflow-hidden"
       style={{
         padding: '3px 6px',
-        borderRadius: 6,
+        borderRadius: 8,
         background: `color-mix(in srgb, ${accent} 14%, transparent)`,
         boxShadow: `inset 0 0 0 1px color-mix(in srgb, ${accent} 28%, transparent)`,
       }}
@@ -215,20 +231,21 @@ function AllDayChip({ entry }: Readonly<{ entry: CalendarDayEntry }>) {
 
 function AllDayMoreChip({
   count,
+  accessibilityLabel,
   onSelect,
-}: Readonly<{ count: number; onSelect: () => void }>) {
+}: Readonly<{ count: number; accessibilityLabel: string; onSelect: () => void }>) {
   return (
     <button
       type="button"
       data-testid="time-grid-all-day-more"
       onClick={onSelect}
-      aria-label={`+${count}`}
-      className="flex items-center justify-center bg-transparent transition-[background-color] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev)]"
+      aria-label={accessibilityLabel}
+      className="touch-target-y flex items-center justify-center bg-transparent transition-[background-color] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev)]"
       style={{
         appearance: 'none',
         cursor: 'pointer',
         padding: '3px 6px',
-        borderRadius: 6,
+        borderRadius: 8,
         border: 0,
         boxShadow: 'inset 0 0 0 1px var(--hairline)',
       }}
@@ -261,12 +278,16 @@ export function CalendarTimeGrid({
   dateFnsLocale,
   allDayLabel,
   nowLabel,
+  isLoading = false,
 }: Readonly<CalendarTimeGridProps>) {
+  const t = useTranslations()
   const bodyRef = useRef<HTMLDivElement>(null)
   const isDesktop = useIsDesktop()
-  const nowMinutes = useMemo(() => {
-    const now = new Date()
-    return getHours(now) * 60 + getMinutes(now)
+  const [nowMinutes, setNowMinutes] = useState(currentMinutesOfDay)
+
+  useEffect(() => {
+    const interval = setInterval(() => setNowMinutes(currentMinutesOfDay()), 60_000)
+    return () => clearInterval(interval)
   }, [])
 
   useEffect(() => {
@@ -292,11 +313,16 @@ export function CalendarTimeGrid({
     [columns, dayMap],
   )
 
+  const isEmpty =
+    !isLoading &&
+    perColumn.every(({ allDay, timed }) => allDay.length === 0 && timed.length === 0)
+
   return (
     <div style={{ padding: '4px 20px 16px' }}>
       <div
         data-testid="calendar-time-grid"
         data-columns={columns.length}
+        className="relative"
         style={{
           borderRadius: 18,
           overflow: 'hidden',
@@ -324,7 +350,7 @@ export function CalendarTimeGrid({
                 type="button"
                 data-testid="time-grid-col-header"
                 onClick={() => onSelectDay(column.dateStr)}
-                className="flex flex-col items-center justify-center bg-transparent transition-[background-color] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev)]"
+                className="flex flex-col items-center justify-center bg-transparent transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev)] active:scale-[0.96]"
                 style={{
                   appearance: 'none',
                   border: 0,
@@ -389,7 +415,7 @@ export function CalendarTimeGrid({
                 className="uppercase"
                 style={{
                   fontFamily: 'var(--font-mono)',
-                  fontSize: 9,
+                  fontSize: 10,
                   fontWeight: 500,
                   letterSpacing: '0.04em',
                   color: 'var(--fg-4)',
@@ -418,7 +444,11 @@ export function CalendarTimeGrid({
                     <AllDayChip key={entry.habitId} entry={entry} />
                   ))}
                   {overflow > 0 && (
-                    <AllDayMoreChip count={overflow} onSelect={() => onSelectDay(column.dateStr)} />
+                    <AllDayMoreChip
+                      count={overflow}
+                      accessibilityLabel={t('calendar.timeGrid.moreLabel', { count: overflow })}
+                      onSelect={() => onSelectDay(column.dateStr)}
+                    />
                   )}
                 </div>
               )
@@ -461,7 +491,12 @@ export function CalendarTimeGrid({
                 }}
               >
                 {timed.map((block) => (
-                  <TimedBlock key={block.entry.habitId} block={block} displayTime={displayTime} />
+                  <TimedBlock
+                    key={block.entry.habitId}
+                    block={block}
+                    displayTime={displayTime}
+                    onSelect={() => onSelectDay(column.dateStr)}
+                  />
                 ))}
                 {column.isToday && (
                   <div
@@ -480,6 +515,18 @@ export function CalendarTimeGrid({
             ))}
           </div>
         </div>
+
+        {isEmpty && (
+          <div
+            data-testid="time-grid-empty"
+            className="absolute inset-0 flex items-center justify-center"
+            style={{ pointerEvents: 'none', padding: 24 }}
+          >
+            <span style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--fg-3)' }}>
+              {t('calendar.timeGrid.empty')}
+            </span>
+          </div>
+        )}
       </div>
     </div>
   )

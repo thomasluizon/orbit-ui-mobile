@@ -12,6 +12,10 @@ vi.mock('next/link', () => ({
   ),
 }))
 
+vi.mock('@/hooks/use-go-back-or-fallback', () => ({
+  useGoBackOrFallback: () => vi.fn(),
+}))
+
 let mockHasProAccess = true
 let mockProfileLoading = false
 
@@ -150,5 +154,18 @@ describe('InsightsPage', () => {
     expect(
       screen.getByRole('heading', { level: 2, name: 'insights.sections.completionTrends' }),
     ).toBeInTheDocument()
+  })
+
+  it('renders a labeled back control above the dashboard', () => {
+    render(<InsightsPage />)
+
+    expect(screen.getByRole('button', { name: 'common.goBack' })).toBeInTheDocument()
+  })
+
+  it('keeps the back control on the upgrade paywall', () => {
+    mockHasProAccess = false
+    render(<InsightsPage />)
+
+    expect(screen.getByRole('button', { name: 'common.goBack' })).toBeInTheDocument()
   })
 })

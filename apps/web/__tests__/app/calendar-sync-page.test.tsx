@@ -1,6 +1,7 @@
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { fireEvent, render, screen } from '@testing-library/react'
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import type { CalendarSyncEvent } from '@orbit/shared'
 
@@ -58,6 +59,15 @@ vi.mock('sonner', () => ({ toast: { error: vi.fn(), success: vi.fn() } }))
 
 import CalendarSyncPage from '@/app/(app)/calendar-sync/page'
 
+function renderPage() {
+  const queryClient = new QueryClient()
+  return render(
+    <QueryClientProvider client={queryClient}>
+      <CalendarSyncPage />
+    </QueryClientProvider>,
+  )
+}
+
 function buildEvents(count: number): CalendarSyncEvent[] {
   return Array.from({ length: count }, (_value, index) => ({
     id: `ev-${index}`,
@@ -90,7 +100,7 @@ describe('CalendarSyncPage pagination', () => {
       refetch: vi.fn(),
     })
 
-    render(<CalendarSyncPage />)
+    renderPage()
 
     expect(countEventRows()).toBe(20)
     expect(
@@ -118,7 +128,7 @@ describe('CalendarSyncPage pagination', () => {
       refetch: vi.fn(),
     })
 
-    render(<CalendarSyncPage />)
+    renderPage()
 
     expect(countEventRows()).toBe(8)
     expect(screen.queryByText('calendar.showMore')).not.toBeInTheDocument()
@@ -132,7 +142,7 @@ describe('CalendarSyncPage pagination', () => {
       refetch: vi.fn(),
     })
 
-    render(<CalendarSyncPage />)
+    renderPage()
 
     expect(screen.getByText('Work')).toBeInTheDocument()
   })

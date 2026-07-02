@@ -9,7 +9,7 @@ export default async function PublicProfileNotFound() {
       className="flex flex-col items-center justify-center text-center"
       style={{ minHeight: '70dvh', gap: 14, padding: 24 }}
     >
-      <h1 style={{ margin: 0, fontFamily: 'var(--font-display)', fontSize: 24, fontWeight: 600, color: 'var(--fg-1)' }}>
+      <h1 className="t-h2" style={{ margin: 0 }}>
         {t('title')}
       </h1>
       <p style={{ margin: 0, maxWidth: 320, fontFamily: 'var(--font-sans)', fontSize: 15, lineHeight: 1.5, color: 'var(--fg-3)' }}>
@@ -17,15 +17,15 @@ export default async function PublicProfileNotFound() {
       </p>
       <Link
         href="/login"
-        className="inline-flex items-center justify-center rounded-full"
+        className="inline-flex items-center justify-center rounded-full shadow-[var(--primary-glow)] transition-[background-color,box-shadow,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:-translate-y-px hover:bg-[var(--primary-pressed)] hover:shadow-[var(--primary-glow-hover)] active:translate-y-0 active:scale-[0.98]"
         style={{
           marginTop: 6,
-          padding: '12px 24px',
+          padding: '15px 26px',
           background: 'var(--primary)',
           color: 'var(--fg-on-primary)',
           fontFamily: 'var(--font-sans)',
-          fontSize: 15,
-          fontWeight: 600,
+          fontSize: 16,
+          fontWeight: 500,
         }}
       >
         {t('cta')}

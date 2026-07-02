@@ -14,7 +14,7 @@ const MAX_BARS = 8
  */
 export function MultiHabitComparisonSection({ divider }: Readonly<{ divider?: boolean }>) {
   const t = useTranslations()
-  const { data, isLoading, isError } = useHabits({})
+  const { data, isLoading, isError, refetch } = useHabits({})
 
   const bars = (data?.topLevelHabits ?? [])
     .map((habit) => ({ label: habit.title, value: habit.currentStreak ?? 0 }))
@@ -29,8 +29,13 @@ export function MultiHabitComparisonSection({ divider }: Readonly<{ divider?: bo
       description={t('insights.sections.multiHabitComparisonDesc')}
       divider={divider}
       status={toSectionStatus({ isLoading, isError, isEmpty })}
+      onRetry={() => void refetch()}
     >
-      <BarChart bars={bars} ariaLabel={title} />
+      <BarChart
+        bars={bars}
+        ariaLabel={title}
+        formatValue={(value) => t('insights.sections.streakDaysShort', { count: value })}
+      />
     </InsightsSection>
   )
 }

@@ -1,27 +1,37 @@
 import { useMemo } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View, type ViewStyle } from "react-native";
+import { Check } from "lucide-react-native";
 import type { CalendarDayEntry } from "@orbit/shared/types/calendar";
-import {
-  StatusDot,
-  type StatusDotState,
-} from "@/components/ui/status-dot";
 import { createTokensV2 } from "@/lib/theme";
+
+type Tokens = ReturnType<typeof createTokensV2>;
 
 interface CalendarDayEntryRowProps {
   entry: CalendarDayEntry;
-  tokens: ReturnType<typeof createTokensV2>;
-  dotState: StatusDotState;
+  tokens: Tokens;
   /** Visible outcome badge; null for upcoming habits (no badge shown). */
   statusText: string | null;
   /** Status-token color for the outcome badge text. */
   statusColor: string;
-  /** Always-present label for the status dot's screen-reader announcement. */
+  /** Always-present label for the status circle's screen-reader announcement. */
   statusAccessibilityLabel: string;
   displayTime: (time: string) => string;
   isLast: boolean;
 }
 
-function createStyles(tokens: ReturnType<typeof createTokensV2>) {
+function statusCircleStyle(entry: CalendarDayEntry, tokens: Tokens): ViewStyle {
+  if (entry.status === "completed") {
+    return {
+      backgroundColor: entry.isBadHabit ? tokens.statusBad : tokens.statusDone,
+    };
+  }
+  if (entry.status === "missed" && !entry.isBadHabit) {
+    return { borderWidth: 2, borderColor: tokens.statusOverdue };
+  }
+  return { borderWidth: 2, borderColor: tokens.statusEmpty };
+}
+
+function createStyles(tokens: Tokens) {
   return StyleSheet.create({
     row: {
       flexDirection: "row",
@@ -29,6 +39,14 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       paddingHorizontal: 18,
       paddingVertical: 15,
       gap: 12,
+    },
+    statusCircle: {
+      width: 24,
+      height: 24,
+      borderRadius: 999,
+      alignItems: "center",
+      justifyContent: "center",
+      flexShrink: 0,
     },
     content: {
       flex: 1,
@@ -57,6 +75,14 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       color: tokens.fg3,
       fontVariant: ["tabular-nums"],
     },
+    statusPill: {
+      flexShrink: 0,
+      paddingVertical: 3,
+      paddingHorizontal: 9,
+      borderRadius: 999,
+      borderWidth: 1,
+      borderColor: tokens.hairline,
+    },
     statusText: {
       fontFamily: 'Rubik_600SemiBold',
       fontSize: 10.5,
@@ -72,7 +98,6 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
 export function CalendarDayEntryRow({
   entry,
   tokens,
-  dotState,
   statusText,
   statusColor,
   statusAccessibilityLabel,
@@ -84,11 +109,14 @@ export function CalendarDayEntryRow({
   return (
     <View>
       <View style={styles.row}>
-        <StatusDot
-          state={dotState}
-          size={9}
+        <View
           accessibilityLabel={statusAccessibilityLabel}
-        />
+          style={[styles.statusCircle, statusCircleStyle(entry, tokens)]}
+        >
+          {entry.status === "completed" ? (
+            <Check size={15} strokeWidth={2.5} color={tokens.fgOnPrimary} />
+          ) : null}
+        </View>
         <View style={styles.content}>
           <View style={styles.titleRow}>
             <Text
@@ -106,9 +134,11 @@ export function CalendarDayEntryRow({
           </View>
         </View>
         {statusText ? (
-          <Text style={[styles.statusText, { color: statusColor }]}>
-            {statusText}
-          </Text>
+          <View style={styles.statusPill}>
+            <Text style={[styles.statusText, { color: statusColor }]}>
+              {statusText}
+            </Text>
+          </View>
         ) : null}
       </View>
       {!isLast ? (
