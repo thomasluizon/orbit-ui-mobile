@@ -37,7 +37,7 @@ vi.mock('@/lib/overlay-stack', () => ({
   hasOpenOverlay: () => overlayOpen,
 }))
 
-vi.mock('@/components/goals/use-is-desktop', () => ({
+vi.mock('@/hooks/use-is-desktop', () => ({
   useIsDesktop: () => isDesktop,
 }))
 

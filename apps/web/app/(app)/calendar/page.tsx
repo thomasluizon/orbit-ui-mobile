@@ -44,7 +44,7 @@ import { GradientTop } from '@/components/ui/gradient-top'
 import { PillButton } from '@/components/ui/pill-button'
 import { SectionLabel } from '@/components/ui/section-label'
 import { SectionHeadTabs, type SectionHeadTabItem } from '@/components/ui/section-head-tabs'
-import { useIsDesktop, useIsWideDesktop } from '@/components/calendar/use-is-desktop'
+import { useIsDesktop, useIsWideDesktop } from '@/hooks/use-is-desktop'
 import {
   CalendarHeader,
   CalendarLegend,

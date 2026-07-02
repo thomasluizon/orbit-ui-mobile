@@ -5,7 +5,7 @@ import { format, getHours, getMinutes } from 'date-fns'
 import type { Locale } from 'date-fns'
 import { useTranslations } from 'next-intl'
 import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
-import { useIsDesktop } from './use-is-desktop'
+import { useIsDesktop } from '@/hooks/use-is-desktop'
 
 const HOUR_HEIGHT = 48
 const DAY_HEIGHT = HOUR_HEIGHT * 24

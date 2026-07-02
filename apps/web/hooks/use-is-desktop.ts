@@ -30,7 +30,7 @@ function getServerSnapshot(): boolean {
  * Returns true once the viewport is at or above the 768px desktop breakpoint.
  *
  * SSR-safe via useSyncExternalStore: the server snapshot is always false, so the
- * desktop-only calendar surfaces never render below 768px or during hydration.
+ * desktop-only surfaces never render below 768px or during hydration.
  */
 export function useIsDesktop(): boolean {
   return useSyncExternalStore(desktopMatch.subscribe, desktopMatch.getSnapshot, getServerSnapshot)

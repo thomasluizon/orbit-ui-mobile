@@ -15,7 +15,7 @@ import {
 import { AppBar } from '@/components/ui/app-bar'
 import { SectionLabel } from '@/components/ui/section-label'
 import { SettingsRow } from '@/components/ui/settings-row'
-import { useIsDesktop } from '@/components/goals/use-is-desktop'
+import { useIsDesktop } from '@/hooks/use-is-desktop'
 import { useQueryClient } from '@tanstack/react-query'
 import { formatDistanceToNow, parseISO } from 'date-fns'
 import { enUS, ptBR } from 'date-fns/locale'

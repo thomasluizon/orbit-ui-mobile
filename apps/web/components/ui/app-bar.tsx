@@ -3,7 +3,7 @@
 import { useTranslations } from 'next-intl'
 import { ChevronLeft, HelpCircle, Share2, X } from 'lucide-react'
 import type { ReactNode } from 'react'
-import { useIsDesktop } from '@/components/goals/use-is-desktop'
+import { useIsDesktop } from '@/hooks/use-is-desktop'
 import { useInAppShell } from '@/components/shell/in-app-shell-context'
 
 type AppBarRightVariant = 'help' | 'close' | 'share'

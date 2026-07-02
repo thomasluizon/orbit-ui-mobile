@@ -12,7 +12,7 @@ import { useTourStore } from '@/stores/tour-store'
 import { useUIStore } from '@/stores/ui-store'
 import { useTourMockData } from '@/hooks/use-tour-mock-data'
 import { useProfile } from '@/hooks/use-profile'
-import { useIsDesktop } from '@/components/goals/use-is-desktop'
+import { useIsDesktop } from '@/hooks/use-is-desktop'
 
 const TARGET_FIND_TIMEOUT = 5000
 const SCROLL_SETTLE_DELAY = 350

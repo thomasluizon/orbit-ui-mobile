@@ -31,7 +31,7 @@ import { ProfileAccountActions } from './_components/profile-account-actions'
 import { ProfileHeaderBar } from './_components/profile-header-bar'
 import { ProfileModals } from './_components/profile-modals'
 import { useDataExport } from './_components/use-data-export'
-import { useIsDesktop } from '@/components/goals/use-is-desktop'
+import { useIsDesktop } from '@/hooks/use-is-desktop'
 import { ProfileSummaryCard } from './_components/profile-summary-card'
 
 export default function ProfilePage() {

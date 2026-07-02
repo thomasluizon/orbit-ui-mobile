@@ -712,7 +712,6 @@
       "pickEndHint": "Agora escolha o dia final",
       "rangeMaxDays": "Intervalo limitado a {max} dias.",
       "empty": "Nada agendado",
-      "moreEntries": "mais {count}",
       "moreLabel": "mais {count}"
     },
     "status": {
@@ -2874,7 +2873,6 @@
       "emptyBody": "Quando seus amigos mantiverem sequências ou atingirem marcos, você verá aqui.",
       "emptyCta": "Adicionar amigos",
       "cheersForYou": "Incentivos para você",
-      "noCheers": "Nenhum incentivo ainda — seja o primeiro a incentivar um amigo.",
       "loadMore": "Carregar mais",
       "loading": "Carregando…",
       "streakMilestone": "{name} manteve uma sequência de {count} dias",

@@ -15,7 +15,7 @@ vi.mock('next/navigation', () => ({
   useRouter: () => ({ replace: mocks.replace, push: mocks.push }),
 }))
 
-vi.mock('@/components/calendar/use-is-desktop', () => ({
+vi.mock('@/hooks/use-is-desktop', () => ({
   useIsDesktop: () => mocks.isDesktop,
 }))
 

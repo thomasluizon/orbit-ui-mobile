@@ -712,7 +712,6 @@
       "pickEndHint": "Now pick the end day",
       "rangeMaxDays": "Range limited to {max} days.",
       "empty": "Nothing scheduled",
-      "moreEntries": "{count} more",
       "moreLabel": "{count} more"
     },
     "status": {
@@ -2874,7 +2873,6 @@
       "emptyBody": "When your friends keep streaks or hit milestones, you'll see it here.",
       "emptyCta": "Add friends",
       "cheersForYou": "Cheers for you",
-      "noCheers": "No cheers yet — be the first to cheer a friend on.",
       "loadMore": "Load more",
       "loading": "Loading…",
       "streakMilestone": "{name} kept a {count}-day streak",

@@ -1416,32 +1416,6 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   transform: translateY(100%);
 }
 
-/* Date navigation slide animations */
-.slide-date-right-enter-active,
-.slide-date-right-leave-active,
-.slide-date-left-enter-active,
-.slide-date-left-leave-active {
-  transition: opacity var(--dur-base) ease, transform var(--dur-base) ease;
-}
-
-.slide-date-right-enter-from {
-  opacity: 0;
-  transform: translateX(30px);
-}
-.slide-date-right-leave-to {
-  opacity: 0;
-  transform: translateX(-30px);
-}
-
-.slide-date-left-enter-from {
-  opacity: 0;
-  transform: translateX(-30px);
-}
-.slide-date-left-leave-to {
-  opacity: 0;
-  transform: translateX(30px);
-}
-
 /* ═══════════════════════════════════════════════════════
    SONNER TOASTS — toast-success/error/info/queued artboards.
    Solid sheet card, 32px status icon disc, Rubik 15/500 title.

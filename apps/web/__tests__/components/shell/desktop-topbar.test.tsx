@@ -38,7 +38,7 @@ vi.mock('@/hooks/use-gamification', () => ({
   useStreakInfo: () => ({ data: { currentStreak: 3, isFrozenToday: false } }),
 }))
 
-vi.mock('@/components/goals/use-is-desktop', () => ({
+vi.mock('@/hooks/use-is-desktop', () => ({
   useIsDesktop: () => isDesktop,
 }))
 

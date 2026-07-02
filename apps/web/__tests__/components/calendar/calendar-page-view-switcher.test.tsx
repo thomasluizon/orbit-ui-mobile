@@ -14,7 +14,7 @@ vi.mock('next-intl', () => ({
   useLocale: () => 'en',
 }))
 
-vi.mock('@/components/calendar/use-is-desktop', () => ({
+vi.mock('@/hooks/use-is-desktop', () => ({
   useIsDesktop: () => isDesktopValue,
   useIsWideDesktop: () => isWideDesktopValue,
 }))

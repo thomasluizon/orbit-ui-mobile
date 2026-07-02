@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from 'react'
 import { useRouter } from 'next/navigation'
-import { useIsDesktop } from '@/components/goals/use-is-desktop'
+import { useIsDesktop } from '@/hooks/use-is-desktop'
 import { setRouteTransitionIntent } from '@/lib/motion/route-intent'
 import { useShellStore } from '@/stores/shell-store'
 import { useUIStore } from '@/stores/ui-store'
