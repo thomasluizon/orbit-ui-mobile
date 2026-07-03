@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useMemo, useSyncExternalStore } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import {
@@ -19,6 +19,8 @@ import { RetrospectiveLockedStates } from './_components/retrospective-locked-st
 import { RetrospectiveView } from './_components/retrospective-view'
 
 const CACHE_VERSION_SUFFIX = '_v2'
+
+const emptySubscribe = () => () => {}
 
 export default function RetrospectivePage() {
   const t = useTranslations()
@@ -50,15 +52,21 @@ export default function RetrospectivePage() {
   )
 
   const [portalError, setPortalError] = useState('')
-  const [cachedData, setCachedData] = useState<RetrospectiveResponse | null>(null)
-  const [isCacheLoading, setIsCacheLoading] = useState(true)
   const cacheKey = getRetrospectiveCacheKey(period) + CACHE_VERSION_SUFFIX
 
-  const [prevCacheKey, setPrevCacheKey] = useState(cacheKey)
-  if (cacheKey !== prevCacheKey) {
-    setPrevCacheKey(cacheKey)
-    setIsCacheLoading(true)
-  }
+  const cachedRaw = useSyncExternalStore(
+    emptySubscribe,
+    () => globalThis.localStorage.getItem(cacheKey),
+    () => null,
+  )
+  const cachedData = useMemo(() => {
+    if (!cachedRaw) return null
+    try {
+      return JSON.parse(cachedRaw) as RetrospectiveResponse
+    } catch {
+      return null
+    }
+  }, [cachedRaw])
 
   useEffect(() => {
     if (!profile) return
@@ -66,20 +74,6 @@ export default function RetrospectivePage() {
       router.replace('/upgrade')
     }
   }, [hasProAccess, profile, router])
-
-  useEffect(() => {
-    const stored = globalThis.localStorage.getItem(cacheKey)
-    if (stored) {
-      try {
-        setCachedData(JSON.parse(stored) as RetrospectiveResponse)
-      } catch {
-        setCachedData(null)
-      }
-    } else {
-      setCachedData(null)
-    }
-    setIsCacheLoading(false)
-  }, [cacheKey])
 
   useEffect(() => {
     if (!data) return
@@ -149,7 +143,6 @@ export default function RetrospectivePage() {
           activePeriod={period}
           data={displayedData}
           isLoading={isLoading}
-          isCacheLoading={isCacheLoading}
           errorMessage={error}
           noData={noData}
           fromCache={displayedFromCache}

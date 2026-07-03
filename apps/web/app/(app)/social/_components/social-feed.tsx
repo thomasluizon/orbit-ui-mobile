@@ -46,7 +46,7 @@ export function SocialFeed({ onCheer, onAddFriends }: Readonly<SocialFeedProps>)
 
   return (
     <div
-      className="flex flex-col xl:col-start-1 xl:row-start-2 xl:row-span-3 xl:max-w-[65ch]"
+      className="flex flex-col"
       style={{ paddingBottom: 24 }}
     >
       {receivedCheers.length > 0 && (

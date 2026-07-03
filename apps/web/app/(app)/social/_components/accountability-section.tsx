@@ -29,7 +29,7 @@ export function AccountabilitySection({ initialHabitId }: Readonly<Accountabilit
 
   return (
     <>
-      <div className="xl:col-start-2 xl:row-start-3">
+      <div>
         <div style={{ padding: '16px 20px 8px' }}>
           <PillButton
             onClick={() => setNewPairOpen(true)}
@@ -60,7 +60,7 @@ export function AccountabilitySection({ initialHabitId }: Readonly<Accountabilit
       </div>
 
       <div
-        className="flex flex-col xl:col-start-1 xl:row-start-2 xl:row-span-3 xl:max-w-[65ch]"
+        className="flex flex-col"
         style={{ gap: 4, paddingBottom: 24 }}
       >
         <SectionLabel>{t('social.buddies.activeTitle')}</SectionLabel>

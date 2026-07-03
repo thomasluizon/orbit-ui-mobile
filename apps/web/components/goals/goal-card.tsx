@@ -14,20 +14,12 @@ import type { Goal } from '@orbit/shared/types/goal'
 
 interface GoalCardProps {
   goal: Goal
-  selected?: boolean
-  onSelect?: (goalId: string) => void
   onOpenDetail: (goalId: string, initialAction: GoalDrawerInitialAction | null) => void
 }
 
-export function GoalCard({
-  goal,
-  selected = false,
-  onSelect,
-  onOpenDetail,
-}: Readonly<GoalCardProps>) {
+export function GoalCard({ goal, onOpenDetail }: Readonly<GoalCardProps>) {
   const t = useTranslations()
 
-  const selectable = onSelect !== undefined
   const isStreak = isStreakGoal(goal.type)
 
   const progress = useMemo<{ state: string; color: string; textColor: string }>(() => {
@@ -108,9 +100,7 @@ export function GoalCard({
     pct: Math.min(100, Math.round(goal.progressPercentage)),
   })
 
-  const contextMenuItems: ContextMenuItem[] = selectable
-    ? []
-    : [
+  const contextMenuItems: ContextMenuItem[] = [
         {
           key: 'viewDetails',
           label: t('contextMenu.viewDetails'),
@@ -134,7 +124,7 @@ export function GoalCard({
           onSelect: () => onOpenDetail(goal.id, 'delete'),
           danger: true,
         },
-      ].filter((item): item is ContextMenuItem => item !== null)
+  ].filter((item): item is ContextMenuItem => item !== null)
 
   const { onContextMenu, contextMenu } = useContextMenu(contextMenuItems)
 
@@ -143,15 +133,10 @@ export function GoalCard({
       <button
         type="button"
         data-tour="tour-goal-card"
-        aria-current={selectable && selected ? 'true' : undefined}
         onContextMenu={onContextMenu}
         className="card-int group relative w-full appearance-none overflow-hidden border-0 text-left"
-        style={
-          selected
-            ? { padding: '16px 18px', boxShadow: 'inset 0 0 0 1.5px var(--primary)' }
-            : { padding: '16px 18px' }
-        }
-        onClick={selectable ? () => onSelect(goal.id) : () => onOpenDetail(goal.id, null)}
+        style={{ padding: '16px 18px' }}
+        onClick={() => onOpenDetail(goal.id, null)}
       >
         <div className="flex items-center" style={{ gap: 12, marginBottom: 12 }}>
           <span

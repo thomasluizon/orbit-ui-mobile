@@ -830,7 +830,14 @@
   },
   "explore": {
     "title": "Explorar",
-    "subtitle": "Tudo o que o Orbit pode fazer, em um só lugar."
+    "subtitle": "Tudo o que o Orbit pode fazer, em um só lugar.",
+    "tourHint": "Reveja o tour guiado de cada área",
+    "sections": {
+      "discover": "Descobrir",
+      "progress": "Seu progresso",
+      "integrations": "Integrações",
+      "more": "Mais"
+    }
   },
   "chat": {
     "title": "Astra",

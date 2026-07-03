@@ -32,7 +32,7 @@ export function PlanSelection({
   const marquee = UPGRADE_PRO_FEATURES.map((feature) => t(`upgrade.plans.proFeatures.${feature.key}`))
 
   return (
-    <div className="grid grid-cols-1 items-stretch stagger-enter lg:grid-cols-3" style={{ gap: 16 }}>
+    <div className="grid grid-cols-1 items-stretch stagger-enter" style={{ gap: 16 }}>
       <PlanCard
         variant="free"
         name={t('upgrade.free')}

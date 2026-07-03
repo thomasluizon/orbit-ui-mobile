@@ -196,7 +196,7 @@ export default function ProfilePage() {
         {referral}
         {nextReward}
         {navSections}
-        {featuresSection}
+        {!isDesktop && featuresSection}
         {subscription}
         {accountActions}
       </div>

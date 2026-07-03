@@ -92,7 +92,7 @@ export function BillingDashboard({
       )}
 
       {billing && (
-        <div className="grid gap-3 lg:grid-cols-2 lg:items-start lg:gap-4">
+        <div className="grid gap-3">
           <div className="flex flex-col gap-3">
           <div className="overflow-hidden rounded-[18px]" style={cardSurface}>
             <div style={{ padding: '16px 18px', borderBottom: '1px solid var(--hairline)' }}>

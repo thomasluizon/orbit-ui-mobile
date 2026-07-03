@@ -4,8 +4,6 @@ import { useState, useCallback, useMemo } from 'react'
 import { Check, Filter } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { GoalList } from './goal-list'
-import { GoalsDesktopView } from './goals-desktop-view'
-import { useIsDesktop } from '@/hooks/use-is-desktop'
 import { SkeletonCard } from '@/components/ui/skeleton'
 import { EmptyState } from '@/components/ui/empty-state'
 import { Popover } from '@/components/ui/popover'
@@ -21,7 +19,6 @@ interface StatusFilter {
 
 export function GoalsView() {
   const t = useTranslations()
-  const isDesktop = useIsDesktop()
   const setShowCreateGoalModal = useUIStore((s) => s.setShowCreateGoalModal)
   const [activeFilter, setActiveFilter] = useState<GoalStatus | null>(null)
 
@@ -152,15 +149,6 @@ export function GoalsView() {
       {t('goals.tab')}
     </SectionLabel>
   )
-
-  if (isDesktop) {
-    return (
-      <div className="pt-1">
-        {filterHeader}
-        <GoalsDesktopView goals={filteredGoals} isFetched={isFetched} emptyState={emptyState} />
-      </div>
-    )
-  }
 
   return (
     <div className="pt-1">

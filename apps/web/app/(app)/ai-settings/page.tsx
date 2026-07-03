@@ -101,7 +101,7 @@ export default function AiSettingsPage() {
           onBack={() => goBackOrFallback('/profile')}
           title={t('aiSettings.title')}
         />
-        <div className="flex-1 min-h-0 overflow-y-auto md:grid md:grid-cols-[320px_1fr] md:gap-x-10 md:items-start">
+        <div className="flex-1 min-h-0 overflow-y-auto">
           <div className="stagger-enter">
             <AiFeatureToggles
               hasProAccess={hasProAccess}

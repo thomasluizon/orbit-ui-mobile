@@ -61,13 +61,13 @@ export default function InsightsPage() {
         <RangeSelector value={preset} onChange={setPreset} />
       </header>
 
-      <CompletionTrendsSection range={range} divider={false} className="lg:col-span-2" />
+      <CompletionTrendsSection range={range} divider={false} />
       <XpOverTimeSection range={range} />
       <StreakHistorySection range={range} />
       <GoalProgressSection range={range} />
       <MultiHabitComparisonSection />
-      <MonthlyHeatmapSection range={range} className="lg:col-span-2" />
-      <AchievementsTimelineSection className="lg:col-span-2" />
+      <MonthlyHeatmapSection range={range} />
+      <AchievementsTimelineSection />
     </div>
   )
 }

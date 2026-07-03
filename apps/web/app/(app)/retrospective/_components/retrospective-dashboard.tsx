@@ -231,10 +231,9 @@ export function RetrospectiveDashboard({
   const t = useTranslations()
   const { metrics, narrative } = data
 
-  const sections: { key: string; node: ReactNode; wide?: boolean }[] = [
+  const sections: { key: string; node: ReactNode }[] = [
     {
       key: 'header',
-      wide: true,
       node: (
         <div className="flex items-center justify-between" style={{ gap: 6 }}>
           <div
@@ -269,7 +268,6 @@ export function RetrospectiveDashboard({
     },
     {
       key: 'stats',
-      wide: true,
       node: (
         <div className="flex" style={{ gap: 10 }}>
           <StatTile
@@ -362,7 +360,6 @@ export function RetrospectiveDashboard({
     },
     {
       key: 'disclaimer',
-      wide: true,
       node: (
         <p
           style={{
@@ -381,7 +378,6 @@ export function RetrospectiveDashboard({
       ? [
           {
             key: 'cached',
-            wide: true,
             node: (
               <p
                 style={{
@@ -408,7 +404,7 @@ export function RetrospectiveDashboard({
       {sections.map((section, index) => (
         <div
           key={section.key}
-          className={`motion-safe:animate-scale-in${section.wide ? ' md:col-span-2' : ''}`}
+          className="motion-safe:animate-scale-in"
           style={{ animationDelay: `${index * 50}ms` }}
         >
           {section.node}

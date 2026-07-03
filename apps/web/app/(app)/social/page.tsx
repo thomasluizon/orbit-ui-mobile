@@ -48,22 +48,15 @@ export default function SocialPage() {
         {isLoading ? null : !socialEnabled ? (
           <SocialOptInGate />
         ) : (
-          <div className="xl:grid xl:grid-cols-[minmax(0,1fr)_340px] xl:grid-rows-[auto_auto_auto_1fr] xl:items-start xl:gap-x-8">
-            <div className="xl:col-start-2 xl:row-start-1">
-              <SocialIdentityBar />
-            </div>
-            <div className="xl:col-start-2 xl:row-start-2">
-              <ChallengesEntryCard />
-            </div>
-            <div className="xl:col-start-1 xl:row-start-1">
-              <SectionHeadTabs<SocialTab>
-                tabs={tabs}
-                active={tab}
-                onChange={setTab}
-                ariaLabel={t('social.title')}
-                className="md:justify-start"
-              />
-            </div>
+          <div>
+            <SocialIdentityBar />
+            <ChallengesEntryCard />
+            <SectionHeadTabs<SocialTab>
+              tabs={tabs}
+              active={tab}
+              onChange={setTab}
+              ariaLabel={t('social.title')}
+            />
             {tab === 'feed' ? (
               <SocialFeed onCheer={setCheerTarget} onAddFriends={() => setTab('friends')} />
             ) : tab === 'friends' ? (

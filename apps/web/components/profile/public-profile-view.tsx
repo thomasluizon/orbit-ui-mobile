@@ -29,7 +29,7 @@ export function PublicProfileView({ view, t }: Readonly<PublicProfileViewProps>)
 
   return (
     <div
-      className="stagger-enter relative mx-auto flex w-full max-w-[var(--app-max-w)] flex-col py-8 md:max-w-[920px]"
+      className="stagger-enter relative mx-auto flex w-full max-w-[var(--app-max-w)] flex-col py-8"
       style={{ gap: 18 }}
     >
       <GradientTop height={260} />
@@ -84,7 +84,7 @@ export function PublicProfileView({ view, t }: Readonly<PublicProfileViewProps>)
         )}
       </header>
 
-      <div className="relative z-[1] flex flex-col md:grid md:grid-cols-2 md:items-start" style={{ gap: 18 }}>
+      <div className="relative z-[1] flex flex-col" style={{ gap: 18 }}>
         <div className="flex flex-col" style={{ gap: 18 }}>
           {(view.currentStreak != null || view.level != null) && (
             <div className="flex flex-col" style={{ gap: 8 }}>

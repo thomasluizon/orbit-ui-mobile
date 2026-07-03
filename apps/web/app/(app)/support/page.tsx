@@ -108,7 +108,7 @@ export default function SupportPage() {
           {success ? (
             <SupportSuccessState />
           ) : (
-            <div className="md:grid md:grid-cols-[minmax(0,560px)_1fr] md:gap-x-10 md:items-start">
+            <div>
               <SupportForm
                 subject={subject}
                 message={message}

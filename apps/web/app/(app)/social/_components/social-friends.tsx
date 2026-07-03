@@ -24,13 +24,13 @@ export function SocialFriends({ onCheer }: Readonly<SocialFriendsProps>) {
 
   return (
     <>
-      <div className="xl:col-start-2 xl:row-start-3">
+      <div>
         <SectionLabel>{t('social.addFriend.title')}</SectionLabel>
         <AddFriendForm />
       </div>
 
       <div
-        className="flex flex-col xl:col-start-1 xl:row-start-2 xl:row-span-3 xl:max-w-[65ch]"
+        className="flex flex-col"
         style={{ gap: 4, paddingBottom: 24 }}
       >
         {incoming.length > 0 && (

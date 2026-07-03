@@ -1,8 +1,9 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useEffect, useSyncExternalStore } from 'react'
 import * as Sentry from '@sentry/nextjs'
 import { TriangleAlert } from 'lucide-react'
+import Link from 'next/link'
 import { Rubik } from 'next/font/google'
 import { NextIntlClientProvider, useTranslations } from 'next-intl'
 import enMessages from '@orbit/shared/i18n/en.json'
@@ -23,6 +24,19 @@ function readCookie(name: string): string | null {
   const match = document.cookie.match(new RegExp('(?:^|; )' + name + '=([^;]+)'))
   const value = match?.[1]
   return value !== undefined ? decodeURIComponent(value) : null
+}
+
+const DEFAULT_CLIENT_PREFS = 'en|dark scheme-purple'
+
+const emptySubscribe = () => () => {}
+
+function readClientPrefs(): string {
+  const locale = readCookie('i18n_locale') === 'pt-BR' ? 'pt-BR' : 'en'
+  const theme = readCookie('orbit_theme_mode') === 'light' ? 'light' : 'dark'
+  const schemeCookie = readCookie('orbit_color_scheme')
+  const scheme =
+    schemeCookie && SCHEME_NAMES.includes(schemeCookie) ? schemeCookie : 'purple'
+  return `${locale}|${theme} scheme-${scheme}`
 }
 
 function GlobalErrorBody({ reset }: Readonly<{ reset: () => void }>) {
@@ -67,7 +81,7 @@ function GlobalErrorBody({ reset }: Readonly<{ reset: () => void }>) {
           >
             <PillButton onClick={reset}>{t('common.retry')}</PillButton>
           </div>
-          <a
+          <Link
             href="/"
             className="inline-flex items-center justify-center gap-[9px] rounded-full px-[26px] py-[14px] text-[16px] font-medium text-[var(--fg-1)] no-underline shadow-[inset_0_0_0_1.5px_var(--hairline-strong)] transition-[background-color,opacity,box-shadow,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-card)] active:scale-[0.98]"
             style={{
@@ -78,7 +92,7 @@ function GlobalErrorBody({ reset }: Readonly<{ reset: () => void }>) {
             }}
           >
             {t('common.goHome')}
-          </a>
+          </Link>
         </div>
       </div>
     </div>
@@ -92,23 +106,16 @@ export default function GlobalError({
   error: Error & { digest?: string }
   reset: () => void
 }>) {
-  const [locale, setLocale] = useState('en')
-  const [htmlClass, setHtmlClass] = useState('dark scheme-purple')
+  const clientPrefs = useSyncExternalStore(
+    emptySubscribe,
+    readClientPrefs,
+    () => DEFAULT_CLIENT_PREFS,
+  )
+  const [locale = 'en', htmlClass = 'dark scheme-purple'] = clientPrefs.split('|')
 
   useEffect(() => {
     Sentry.captureException(error)
   }, [error])
-
-  useEffect(() => {
-    const cookieLocale = readCookie('i18n_locale')
-    const resolvedLocale = cookieLocale === 'pt-BR' ? 'pt-BR' : 'en'
-    const theme = readCookie('orbit_theme_mode') === 'light' ? 'light' : 'dark'
-    const schemeCookie = readCookie('orbit_color_scheme')
-    const scheme =
-      schemeCookie && SCHEME_NAMES.includes(schemeCookie) ? schemeCookie : 'purple'
-    setLocale(resolvedLocale)
-    setHtmlClass(`${theme} scheme-${scheme}`)
-  }, [])
 
   const messages = locale === 'pt-BR' ? ptMessages : enMessages
 

@@ -10,8 +10,6 @@ import type { Goal, GoalPositionItem } from '@orbit/shared/types/goal'
 
 interface GoalListProps {
   goals: Goal[]
-  selectedId?: string | null
-  onSelect?: (goalId: string) => void
 }
 
 /** Delay before touch drag starts (ms). */
@@ -20,7 +18,7 @@ const TOUCH_HOLD_DELAY = 300
 /** Minimum movement (px) before cancelling hold. */
 const TOUCH_MOVE_THRESHOLD = 5
 
-export function GoalList({ goals, selectedId, onSelect }: Readonly<GoalListProps>) {
+export function GoalList({ goals }: Readonly<GoalListProps>) {
   const t = useTranslations()
   const listRef = useRef<HTMLDivElement>(null)
   const reorderGoals = useReorderGoals()
@@ -194,12 +192,7 @@ export function GoalList({ goals, selectedId, onSelect }: Readonly<GoalListProps
             onTouchMove={handleTouchMove}
             onTouchEnd={handleTouchEnd}
           >
-            <GoalCard
-              goal={goal}
-              selected={onSelect !== undefined && goal.id === selectedId}
-              onSelect={onSelect}
-              onOpenDetail={handleOpenDetail}
-            />
+            <GoalCard goal={goal} onOpenDetail={handleOpenDetail} />
           </section>
         ))}
       </div>

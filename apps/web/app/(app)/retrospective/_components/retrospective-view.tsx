@@ -14,7 +14,6 @@ interface RetrospectiveViewProps {
   activePeriod: RetrospectivePeriod
   data: RetrospectiveResponse | null
   isLoading: boolean
-  isCacheLoading: boolean
   errorMessage: string | null
   noData: boolean
   fromCache: boolean
@@ -28,7 +27,6 @@ export function RetrospectiveView({
   activePeriod,
   data,
   isLoading,
-  isCacheLoading,
   errorMessage,
   noData,
   fromCache,
@@ -116,7 +114,7 @@ export function RetrospectiveView({
           </div>
         )}
 
-        {!isLoading && !data && !noData && !errorMessage && !isCacheLoading && (
+        {!isLoading && !data && !noData && !errorMessage && (
           <RetrospectiveEmptyState isOnline={isOnline} onGenerate={onGenerate} />
         )}
       </div>
