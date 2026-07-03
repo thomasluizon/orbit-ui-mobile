@@ -38,8 +38,12 @@ export function FriendProfileSheet({
   const styles = createStyles(tokens)
   const { data: view, isLoading, isError, error, refetch } = useFriendProfile(open ? userId : null)
 
-  const profileUnavailable =
-    !isError || (error instanceof ApiClientError && (error.status === 403 || error.status === 404))
+  const missingView = !isError && !view
+  const isPermanentError =
+    isError &&
+    error instanceof ApiClientError &&
+    (error.status === 403 || error.status === 404)
+  const profileUnavailable = missingView || isPermanentError
 
   return (
     <BottomSheetModal open={open} onClose={onClose} title={displayName} snapPoints={['60%', '85%']}>

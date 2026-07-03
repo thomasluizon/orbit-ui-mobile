@@ -299,7 +299,7 @@ export function createStyles(tokens: AppTokens) {
       borderRadius: 14,
       alignItems: "center",
       justifyContent: "center",
-      backgroundColor: fgTint(tokens, 0.06),
+      backgroundColor: tokens.bgWell,
     },
     emojiWellText: {
       fontSize: 26,

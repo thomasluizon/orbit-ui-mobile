@@ -47,7 +47,7 @@ export function HabitEmojiSelector({ selectedEmoji, onSelect }: Readonly<HabitEm
           height: 56,
           borderRadius: 14,
           fontSize: 26,
-          background: 'color-mix(in srgb, var(--fg-1) 6%, transparent)',
+          background: 'var(--bg-well)',
         }}
         onClick={() => setPickerOpen(true)}
         aria-haspopup="dialog"

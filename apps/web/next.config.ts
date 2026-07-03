@@ -33,8 +33,6 @@ const nextConfig: NextConfig = {
 
 const intlConfig = withNextIntl(nextConfig)
 
-// Sentry's webpack plugin instruments every module and is only needed to build
-// production source maps; skip it in dev so Turbopack compiles routes fast.
 export default process.env.NODE_ENV === 'development'
   ? intlConfig
   : withSentryConfig(intlConfig, {

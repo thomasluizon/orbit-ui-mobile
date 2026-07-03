@@ -28,6 +28,9 @@ function statusCircleStyle(entry: CalendarDayEntry, tokens: Tokens): ViewStyle {
   if (entry.status === "missed" && !entry.isBadHabit) {
     return { borderWidth: 2, borderColor: tokens.statusOverdue };
   }
+  if (entry.status === "missed" && entry.isBadHabit) {
+    return { borderWidth: 2, borderColor: tokens.statusDone };
+  }
   return { borderWidth: 2, borderColor: tokens.statusEmpty };
 }
 

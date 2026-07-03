@@ -10,8 +10,7 @@ interface GoalAskAstraRowProps {
 }
 
 /** Ask-Astra prompt row: Orbit glyph in a 28px primary-tint well, eyebrow and
- *  prompt copy beside it, chevron trailing. Shared by the goal drawer footer
- *  and the desktop detail panel. */
+ *  prompt copy beside it, chevron trailing. Rendered in the goal drawer footer. */
 export function GoalAskAstraRow({ onClick, className, style }: Readonly<GoalAskAstraRowProps>) {
   const t = useTranslations()
   const prompt = t('goals.detail.askAstraDefault')

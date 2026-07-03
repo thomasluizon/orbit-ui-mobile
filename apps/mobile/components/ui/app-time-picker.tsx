@@ -14,7 +14,7 @@ import {
 import { Clock3, X } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import { detectDefaultTimeFormat, formatLocaleTime } from '@orbit/shared/utils'
-import { createTokensV2, easings, radius, shadowsV2 } from '@/lib/theme'
+import { createTokensV2, radius, shadowsV2 } from '@/lib/theme'
 import { toAnimatedEasing, useResolvedMotionPreset } from '@/lib/motion'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useProfile } from '@/hooks/use-profile'
@@ -153,7 +153,7 @@ export function AppTimePicker({
       Animated.timing(progress, {
         toValue: 1,
         duration: dialogMotion.enterDuration,
-        easing: toAnimatedEasing(easings.out),
+        easing: toAnimatedEasing(dialogMotion.enterEasing),
         useNativeDriver: true,
       }).start()
       return
@@ -162,14 +162,21 @@ export function AppTimePicker({
     Animated.timing(progress, {
       toValue: 0,
       duration: dialogMotion.exitDuration,
-      easing: toAnimatedEasing(easings.out),
+      easing: toAnimatedEasing(dialogMotion.exitEasing),
       useNativeDriver: true,
     }).start(({ finished }) => {
       if (finished) {
         setVisible(false)
       }
     })
-  }, [dialogMotion.enterDuration, dialogMotion.exitDuration, isOpen, progress])
+  }, [
+    dialogMotion.enterDuration,
+    dialogMotion.enterEasing,
+    dialogMotion.exitDuration,
+    dialogMotion.exitEasing,
+    isOpen,
+    progress,
+  ])
 
   const displayValue = value
     ? formatLocaleTime(value, locale, { hour: 'numeric', minute: '2-digit', hour12: !is24Hour })

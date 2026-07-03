@@ -32,6 +32,7 @@ import type {
 } from '@orbit/shared/types/habit'
 import { useUpdateHabit } from '@/hooks/use-habits'
 import { useAppToast } from '@/hooks/use-app-toast'
+import { CalendarLoadError } from './calendar-load-error'
 import { ShowRecurringToggle } from './show-recurring-toggle'
 import { useAgendaDay, type AgendaEntry } from './use-agenda-day'
 
@@ -398,7 +399,7 @@ export function CalendarAgendaView({
 
   const [selectedDate, setSelectedDate] = useState(() => new Date())
   const dateStr = formatAPIDate(selectedDate)
-  const { entries, habitsById, isLoading } = useAgendaDay(selectedDate, true)
+  const { entries, habitsById, isLoading, error, refresh } = useAgendaDay(selectedDate, true)
 
   const bodyRef = useRef<HTMLDivElement>(null)
   const sensors = useSensors(
@@ -493,6 +494,10 @@ export function CalendarAgendaView({
         />
       </div>
 
+      {error ? (
+        <CalendarLoadError onRetry={refresh} />
+      ) : (
+        <>
       <div className="flex items-center justify-between" style={{ gap: 12, padding: '0 0 8px' }}>
         <p style={{ margin: 0, fontFamily: 'var(--font-sans)', fontSize: 13, color: 'var(--fg-3)' }}>
           {t('calendar.agenda.dragHint')}
@@ -618,6 +623,8 @@ export function CalendarAgendaView({
           </div>
         </div>
       </DndContext>
+        </>
+      )}
     </div>
   )
 }

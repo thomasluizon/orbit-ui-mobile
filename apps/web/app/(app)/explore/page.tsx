@@ -10,6 +10,7 @@ import {
   type ProfileNavItem,
 } from '@orbit/shared/utils/profile-navigation'
 import { useProfile } from '@/hooks/use-profile'
+import { useGamificationProfile } from '@/hooks/use-gamification'
 import { SectionLabel } from '@/components/ui/section-label'
 import { SettingsGroup, SettingsGroupRow } from '@/components/ui/settings-group'
 import { ProfileNavIcon } from '@/components/profile/profile-nav-icon'
@@ -32,6 +33,8 @@ export default function ExplorePage() {
   const t = useTranslations()
   const router = useRouter()
   const { profile } = useProfile()
+  const canViewGamification = profile?.canViewGamification ?? false
+  const { profile: gamificationProfile } = useGamificationProfile(canViewGamification)
   const [showTourReplay, setShowTourReplay] = useState(false)
 
   function handleItemSelect(item: ProfileNavItem) {
@@ -73,7 +76,7 @@ export default function ExplorePage() {
                     label={t(item.titleKey)}
                     hint={resolveProfileNavHint(
                       item,
-                      { hasProAccess: profile?.hasProAccess, gamificationProfile: null },
+                      { hasProAccess: profile?.hasProAccess, gamificationProfile },
                       t,
                     )}
                     proBadge={item.proBadge}

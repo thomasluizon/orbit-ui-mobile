@@ -34,11 +34,14 @@ function statusCircleStyle(entry: CalendarDayEntry): React.CSSProperties {
   if (entry.status === 'missed' && !entry.isBadHabit) {
     return { boxShadow: 'inset 0 0 0 2px var(--status-overdue)' }
   }
+  if (entry.status === 'missed' && entry.isBadHabit) {
+    return { boxShadow: 'inset 0 0 0 2px var(--status-done)' }
+  }
   return { boxShadow: 'inset 0 0 0 2px var(--status-empty)' }
 }
 
-/** Inline selected-day section under the Agenda grid: date heading 20/500,
- *  the day's entries in a kit card, and the go-to-day ghost pill. */
+/** Inline selected-day section: the day's entries in a kit card with per-entry
+ *  status rings, and the go-to-day ghost pill. */
 export function CalendarDayDetail({
   dateStr,
   entries,

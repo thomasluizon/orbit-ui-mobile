@@ -1,47 +1,33 @@
 'use client'
 
-import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
+import { useState, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
-import {
-  ArchiveX,
-  CheckCircle2,
-  PencilLine,
-  Plus,
-  RotateCw,
-  Trash2,
-} from 'lucide-react'
 import { useTranslations, useLocale } from 'next-intl'
 import { AppOverlay } from '@/components/ui/app-overlay'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
-import { PillButton } from '@/components/ui/pill-button'
-import { SectionLabel } from '@/components/ui/section-label'
 import { EditGoalModal } from './edit-goal-modal'
 import { GoalAskAstraRow } from './goal-ask-astra-row'
 import { GoalMetricsPanel } from './goal-metrics-panel'
+import { GoalProgressForm } from './goal-detail-sections'
+import { GoalActionFooter } from './goal-detail-drawer/goal-action-footer'
+import { GoalDetailCollections } from './goal-detail-drawer/goal-detail-collections'
+import { GoalLoadError } from './goal-detail-drawer/goal-load-error'
+import { GoalProgressBlock } from './goal-detail-drawer/goal-progress-block'
 import {
-  GoalActionRow,
-  GoalLinkedHabitsSection,
-  GoalProgressHistorySection,
-  GoalProgressForm,
-} from './goal-detail-sections'
-import { GoalProgressRing } from './goal-detail-drawer/goal-progress-ring'
+  useGoalDrawerInitialAction,
+  type GoalDrawerInitialAction,
+} from './goal-detail-drawer/use-goal-drawer-initial-action'
+import { useGoalProgressFormState } from './goal-detail-drawer/use-goal-progress-form-state'
+import { useGoalStatusActions } from './goal-detail-drawer/use-goal-status-actions'
 import {
   formatLocaleDateTime,
   getFriendlyErrorMessage,
-  translateErrorKey,
-  validateGoalProgressInput,
 } from '@orbit/shared/utils'
 import { isStreakGoal } from '@orbit/shared/utils/goal-form'
 import { useAppToast } from '@/hooks/use-app-toast'
-import {
-  useGoals,
-  useGoalDetail,
-  useUpdateGoalProgress,
-  useUpdateGoalStatus,
-  useDeleteGoal,
-} from '@/hooks/use-goals'
+import { useGoals, useGoalDetail, useDeleteGoal } from '@/hooks/use-goals'
 
-export type GoalDrawerInitialAction = 'edit' | 'complete' | 'delete' | 'progress'
+export type { GoalDrawerInitialAction } from './goal-detail-drawer/use-goal-drawer-initial-action'
 
 interface GoalDetailDrawerProps {
   open: boolean
@@ -53,8 +39,6 @@ interface GoalDetailDrawerProps {
    *  and the desktop panel CTAs reuse these handlers. */
   initialAction?: GoalDrawerInitialAction | null
 }
-
-type ProgressDismissTarget = 'drawer' | 'form'
 
 export function GoalDetailDrawer({
   open,
@@ -78,9 +62,6 @@ export function GoalDetailDrawer({
     isError: loadError,
     refetch: refetchDetail,
   } = useGoalDetail(open ? goalId : null)
-
-  const updateProgress = useUpdateGoalProgress()
-  const updateStatus = useUpdateGoalStatus()
   const deleteGoalMut = useDeleteGoal()
 
   const detail = detailData?.goal ?? null
@@ -91,28 +72,43 @@ export function GoalDetailDrawer({
 
   const [showEditModal, setShowEditModal] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
-  const [progressValue, setProgressValue] = useState<number | null>(null)
-  const [progressNote, setProgressNote] = useState('')
-  const [showProgressForm, setShowProgressForm] = useState(false)
-  const [showProgressDiscardDialog, setShowProgressDiscardDialog] = useState(false)
-  const [initialProgressValue, setInitialProgressValue] = useState<number | null>(null)
-  const [pendingProgressDismiss, setPendingProgressDismiss] = useState<ProgressDismissTarget | null>(null)
 
-  const isUpdatingProgress = updateProgress.isPending
-  const isUpdatingStatus = updateStatus.isPending
+  const {
+    progressValue,
+    setProgressValue,
+    progressNote,
+    setProgressNote,
+    showProgressForm,
+    showProgressDiscardDialog,
+    isProgressDirty,
+    progressExceedsTarget,
+    isUpdatingProgress,
+    openProgressForm,
+    submitProgress,
+    requestProgressDismiss,
+    confirmProgressDismiss,
+    cancelProgressDismiss,
+  } = useGoalProgressFormState({
+    open,
+    goalId,
+    goalCurrentValue: goal?.currentValue,
+    goalTargetValue: goal?.targetValue,
+    refetchDetail,
+    onOpenChange,
+  })
 
-  const progressExceedsTarget = useMemo(() => {
-    if (progressValue === null || !goal) return false
-    return progressValue > goal.targetValue
-  }, [progressValue, goal])
+  const { markCompleted, markAbandoned, reactivate, isUpdatingStatus } =
+    useGoalStatusActions({ goalId, goalName: goal?.title, refetchDetail })
 
-  const isProgressDirty = useMemo(() => {
-    if (!showProgressForm) return false
-    return (
-      progressValue !== initialProgressValue ||
-      progressNote.trim().length > 0
-    )
-  }, [progressNote, progressValue, showProgressForm, initialProgressValue])
+  const confirmDelete = useCallback(async () => {
+    try {
+      await deleteGoalMut.mutateAsync(goalId)
+      onOpenChange(false)
+      setShowDeleteConfirm(false)
+    } catch (error: unknown) {
+      showError(getFriendlyErrorMessage(error, translate, 'goals.errors.delete', 'goal'))
+    }
+  }, [deleteGoalMut, goalId, onOpenChange, showError, translate])
 
   const router = useRouter()
   function handleAskAstra() {
@@ -123,23 +119,6 @@ export function GoalDetailDrawer({
     }
     onOpenChange(false)
     router.push('/chat')
-  }
-
-  const [previousSession, setPreviousSession] = useState<{ open: boolean; goalId: string | null }>({
-    open: false,
-    goalId: null,
-  })
-  if (previousSession.open !== open || previousSession.goalId !== (open ? goalId : null)) {
-    setPreviousSession({ open, goalId: open ? goalId : null })
-    if (open) {
-      const nextInitial = goal?.currentValue ?? null
-      setInitialProgressValue(nextInitial)
-      setPendingProgressDismiss(null)
-      setProgressValue(nextInitial)
-      setShowProgressForm(false)
-      setProgressNote('')
-      setShowProgressDiscardDialog(false)
-    }
   }
 
   const formatDate = useCallback(
@@ -155,150 +134,27 @@ export function GoalDetailDrawer({
     [locale],
   )
 
-  const submitProgress = useCallback(async () => {
-    const validationError = translateErrorKey(
-      translate,
-      validateGoalProgressInput(progressValue),
-    )
-    if (validationError) {
-      showError(validationError)
-      return
-    }
+  useGoalDrawerInitialAction({
+    open,
+    initialAction,
+    openEditModal: () => setShowEditModal(true),
+    openDeleteConfirm: () => setShowDeleteConfirm(true),
+    openProgressForm,
+    markCompleted,
+  })
 
-    if (progressValue === null) return
-    try {
-      await updateProgress.mutateAsync({
-        goalId,
-        data: {
-          currentValue: progressValue,
-          note: progressNote.trim() || undefined,
-        },
-      })
-      setProgressValue(null)
-      setProgressNote('')
-      setShowProgressForm(false)
-      refetchDetail()
-    } catch (error: unknown) {
-      showError(getFriendlyErrorMessage(error, translate, 'goals.errors.progress', 'goalProgress'))
-    }
-  }, [goalId, progressNote, progressValue, refetchDetail, showError, translate, updateProgress])
-
-  const markCompleted = useCallback(async () => {
-    if (isUpdatingStatus) return
-    try {
-      await updateStatus.mutateAsync({
-        goalId,
-        data: { status: 'Completed' },
-        goalName: goal?.title,
-      })
-      refetchDetail()
-    } catch (error: unknown) {
-      showError(getFriendlyErrorMessage(error, translate, 'goals.errors.update', 'goal'))
-    }
-  }, [goalId, goal, isUpdatingStatus, refetchDetail, showError, translate, updateStatus])
-
-  const markAbandoned = useCallback(async () => {
-    if (isUpdatingStatus) return
-    try {
-      await updateStatus.mutateAsync({
-        goalId,
-        data: { status: 'Abandoned' },
-        goalName: goal?.title,
-      })
-      refetchDetail()
-    } catch (error: unknown) {
-      showError(getFriendlyErrorMessage(error, translate, 'goals.errors.update', 'goal'))
-    }
-  }, [goalId, goal, isUpdatingStatus, refetchDetail, showError, translate, updateStatus])
-
-  const reactivate = useCallback(async () => {
-    if (isUpdatingStatus) return
-    try {
-      await updateStatus.mutateAsync({
-        goalId,
-        data: { status: 'Active' },
-        goalName: goal?.title,
-      })
-      refetchDetail()
-    } catch (error: unknown) {
-      showError(getFriendlyErrorMessage(error, translate, 'goals.errors.update', 'goal'))
-    }
-  }, [goalId, goal, isUpdatingStatus, refetchDetail, showError, translate, updateStatus])
-
-  const confirmDelete = useCallback(async () => {
-    try {
-      await deleteGoalMut.mutateAsync(goalId)
-      onOpenChange(false)
-      setShowDeleteConfirm(false)
-    } catch (error: unknown) {
-      showError(getFriendlyErrorMessage(error, translate, 'goals.errors.delete', 'goal'))
-    }
-  }, [deleteGoalMut, goalId, onOpenChange, showError, translate])
-
-  const closeProgressForm = useCallback(() => {
-    setProgressValue(initialProgressValue)
-    setProgressNote('')
-    setShowProgressForm(false)
-  }, [initialProgressValue])
-
-  const requestProgressDismiss = useCallback((target: ProgressDismissTarget) => {
-    if (isProgressDirty) {
-      setPendingProgressDismiss(target)
-      setShowProgressDiscardDialog(true)
-      return
-    }
-
-    if (target === 'drawer') {
-      onOpenChange(false)
-      return
-    }
-
-    closeProgressForm()
-  }, [closeProgressForm, isProgressDirty, onOpenChange])
-
-  const confirmProgressDismiss = useCallback(() => {
-    const target = pendingProgressDismiss
-    setPendingProgressDismiss(null)
-    setShowProgressDiscardDialog(false)
-
-    if (target === 'drawer') {
-      onOpenChange(false)
-      return
-    }
-
-    closeProgressForm()
-  }, [closeProgressForm, onOpenChange, pendingProgressDismiss])
-
-  const cancelProgressDismiss = useCallback(() => {
-    setPendingProgressDismiss(null)
-    setShowProgressDiscardDialog(false)
-  }, [])
-
-  const [previousActionOpen, setPreviousActionOpen] = useState(false)
-  if (previousActionOpen !== open) {
-    setPreviousActionOpen(open)
-    if (open && initialAction) {
-      if (initialAction === 'edit') {
-        setShowEditModal(true)
-      } else if (initialAction === 'delete') {
-        setShowDeleteConfirm(true)
-      } else if (initialAction === 'progress') {
-        setShowProgressForm(true)
-      }
-    }
-  }
-
-  const completeActionFiredRef = useRef(false)
-  useEffect(() => {
-    if (!open) {
-      completeActionFiredRef.current = false
-      return
-    }
-    if (initialAction === 'complete' && !completeActionFiredRef.current) {
-      completeActionFiredRef.current = true
-      void markCompleted()
-    }
-  }, [open, initialAction, markCompleted])
+  const progressText = goal
+    ? isStreak
+      ? t('goals.streak.ofTarget', {
+          current: goal.currentValue,
+          target: goal.targetValue,
+        })
+      : t('goals.progressOf', {
+          current: goal.currentValue,
+          target: goal.targetValue,
+          unit: goal.unit,
+        })
+    : ''
 
   return (
     <>
@@ -332,52 +188,13 @@ export function GoalDetailDrawer({
                 : `${t('goals.form.typeStandard')}${goal.unit ? `  ·  ${goal.unit}` : ''}`}
             </div>
 
-            <SectionLabel>{t('goals.progress')}</SectionLabel>
-            <div style={{ padding: '2px 20px 16px' }}>
-              <GoalProgressRing
-                progressPercentage={goal.progressPercentage}
-                percentLabel={t('goals.progressPercentage', {
-                  pct: Math.round(goal.progressPercentage),
-                })}
-                progressOfLabel={
-                  isStreak
-                    ? t('goals.streak.ofTarget', {
-                        current: goal.currentValue,
-                        target: goal.targetValue,
-                      })
-                    : t('goals.progressOf', {
-                        current: goal.currentValue,
-                        target: goal.targetValue,
-                        unit: goal.unit,
-                      })
-                }
-                color={isStreak ? 'var(--status-overdue)' : 'var(--primary)'}
-              />
-              {goal.status === 'Active' && !showProgressForm && (
-                <div className="flex justify-center">
-                  <PillButton
-                    fullWidth
-                    className="mt-[14px] sm:max-w-[360px]"
-                    leading={
-                      <Plus
-                        size={18}
-                        strokeWidth={1.8}
-                        color="var(--fg-on-primary)"
-                        aria-hidden="true"
-                      />
-                    }
-                    onClick={() => {
-                      setInitialProgressValue(goal.currentValue)
-                      setProgressValue(goal.currentValue)
-                      setProgressNote('')
-                      setShowProgressForm(true)
-                    }}
-                  >
-                    {t('goals.updateProgress')}
-                  </PillButton>
-                </div>
-              )}
-            </div>
+            <GoalProgressBlock
+              progressPercentage={goal.progressPercentage}
+              progressFillColor={isStreak ? 'var(--status-overdue)' : 'var(--primary)'}
+              progressText={progressText}
+              showEdit={goal.status === 'Active' && !showProgressForm}
+              onEdit={openProgressForm}
+            />
 
             {showProgressForm && goal.status === 'Active' && (
               <GoalProgressForm
@@ -406,98 +223,25 @@ export function GoalDetailDrawer({
               />
             )}
 
-            {isStreak && (goal.linkedHabits ?? []).length > 0 && (
-              <GoalLinkedHabitsSection
-                title={t('goals.linkedHabits')}
-                linkedHabits={goal.linkedHabits ?? []}
-              />
-            )}
-
-            <GoalProgressHistorySection
-              title={t('goals.progressHistory')}
+            <GoalDetailCollections
+              isStreak={isStreak}
+              linkedHabits={goal.linkedHabits ?? []}
               entries={detail?.progressHistory ?? []}
+              unit={goal.unit}
               formatDate={formatDate}
-              renderEntryLabel={(entry) =>
-                t('goals.progressEntry', {
-                  previous: entry.previousValue,
-                  value: entry.value,
-                  unit: goal.unit,
-                })
-              }
-              showAllLabel={t('goals.detail.showAllHistory')}
-              showLessLabel={t('goals.detail.showLessHistory')}
             />
 
-            {!isStreak && (
-              <GoalLinkedHabitsSection
-                title={t('goals.linkedHabits')}
-                linkedHabits={goal.linkedHabits ?? []}
-              />
-            )}
+            {loadError && <GoalLoadError onRetry={() => refetchDetail()} />}
 
-            {loadError && (
-              <div style={{ padding: '10px 20px 0' }}>
-                <p
-                  style={{
-                    fontFamily: 'var(--font-sans)',
-                    fontSize: 13,
-                    color: 'var(--status-overdue-text)',
-                  }}
-                >
-                  {t('goals.detail.loadError')}
-                </p>
-                <button
-                  type="button"
-                  onClick={() => refetchDetail()}
-                  className="inline-flex appearance-none cursor-pointer items-center border-0 bg-transparent p-0 text-[var(--fg-1)] transition-[color] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:text-[var(--primary)]"
-                  style={{
-                    minHeight: 44,
-                    fontFamily: 'var(--font-sans)',
-                    fontSize: 13,
-                    fontWeight: 500,
-                  }}
-                >
-                  {t('common.retry')}
-                </button>
-              </div>
-            )}
-
-            <div style={{ marginTop: 16, paddingBottom: 4 }}>
-              {goal.status === 'Active' ? (
-                <>
-                  <GoalActionRow
-                    label={t('goals.detail.markCompleted')}
-                    icon={CheckCircle2}
-                    onClick={markCompleted}
-                    disabled={isUpdatingStatus}
-                  />
-                  <GoalActionRow
-                    label={t('goals.detail.markAbandoned')}
-                    icon={ArchiveX}
-                    onClick={markAbandoned}
-                    disabled={isUpdatingStatus}
-                  />
-                </>
-              ) : (
-                <GoalActionRow
-                  label={t('goals.detail.reactivate')}
-                  icon={RotateCw}
-                  onClick={reactivate}
-                  disabled={isUpdatingStatus}
-                />
-              )}
-              <GoalActionRow
-                label={t('goals.detail.edit')}
-                icon={PencilLine}
-                onClick={() => setShowEditModal(true)}
-              />
-              <GoalActionRow
-                label={t('goals.detail.delete')}
-                icon={Trash2}
-                destructive
-                onClick={() => setShowDeleteConfirm(true)}
-              />
-            </div>
+            <GoalActionFooter
+              isActive={goal.status === 'Active'}
+              isUpdatingStatus={isUpdatingStatus}
+              onMarkCompleted={markCompleted}
+              onMarkAbandoned={markAbandoned}
+              onReactivate={reactivate}
+              onEdit={() => setShowEditModal(true)}
+              onDelete={() => setShowDeleteConfirm(true)}
+            />
           </div>
         )}
       </AppOverlay>

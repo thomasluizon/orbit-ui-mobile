@@ -59,6 +59,157 @@ function MembersList({
   )
 }
 
+function ChallengeHeader({
+  isCoop,
+  typeLabel,
+  completeLabel,
+  title,
+  endsOnText,
+  tokens,
+}: Readonly<{
+  isCoop: boolean
+  typeLabel: string
+  completeLabel: string | null
+  title: string
+  endsOnText: string | null
+  tokens: AppTokensV2
+}>) {
+  return (
+    <>
+      <View style={styles.badgeRow}>
+        <View style={[styles.badge, { backgroundColor: tintFromPrimary(tokens, 0.12) }]}>
+          {isCoop ? (
+            <Target size={13} strokeWidth={2} color={tokens.primary} />
+          ) : (
+            <Flame size={13} strokeWidth={2} color={tokens.primary} />
+          )}
+          <Text style={[styles.badgeText, { color: tokens.primary }]}>{typeLabel}</Text>
+        </View>
+        {completeLabel ? (
+          <Text style={[styles.completeText, { color: tokens.statusDone }]}>{completeLabel}</Text>
+        ) : null}
+      </View>
+
+      <Text style={[styles.title, { color: tokens.fg1 }]}>{title}</Text>
+
+      {endsOnText ? (
+        <Text style={[styles.subtle, { color: tokens.fg3 }]}>{endsOnText}</Text>
+      ) : null}
+    </>
+  )
+}
+
+function SharedProgressSection({
+  isCoop,
+  current,
+  target,
+  heading,
+  editLabel,
+  onEdit,
+  tokens,
+}: Readonly<{
+  isCoop: boolean
+  current: number
+  target: number
+  heading: string
+  editLabel: string
+  onEdit?: () => void
+  tokens: AppTokensV2
+}>) {
+  const ratio = target > 0 ? Math.min(1, current / target) : 0
+  return (
+    <>
+      <View style={styles.sectionHeaderRow}>
+        <Text style={[styles.sectionHeader, styles.sectionHeaderInRow, { color: tokens.fg1 }]}>
+          {heading}
+        </Text>
+        {onEdit ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={editLabel}
+            hitSlop={{ top: 2, bottom: 2, left: 2, right: 2 }}
+            onPress={onEdit}
+            style={({ pressed }) => [
+              styles.editButton,
+              pressed
+                ? { backgroundColor: tokens.bgElev, transform: [{ scale: 0.96 }] }
+                : null,
+            ]}
+          >
+            <Pencil size={18} strokeWidth={1.8} color={tokens.fg1} />
+          </Pressable>
+        ) : null}
+      </View>
+
+      {isCoop ? (
+        <View style={styles.progressBlock}>
+          <ProgressBar progress={ratio} label={heading} />
+          <Text style={[styles.progressText, { color: tokens.fg2 }]}>
+            {current} / {target}
+          </Text>
+        </View>
+      ) : (
+        <StreakCounterView days={current} label={heading} tokens={tokens} />
+      )}
+    </>
+  )
+}
+
+function LinkHabitsCard({
+  title,
+  body,
+  cta,
+  onLink,
+  tokens,
+}: Readonly<{
+  title: string
+  body: string
+  cta: string
+  onLink: () => void
+  tokens: AppTokensV2
+}>) {
+  return (
+    <View style={[styles.linkCard, { backgroundColor: tokens.bgCard, borderColor: tokens.hairline }]}>
+      <Text style={[styles.linkTitle, { color: tokens.fg1 }]}>{title}</Text>
+      <Text style={[styles.linkBody, { color: tokens.fg3 }]}>{body}</Text>
+      <PillButton fullWidth onPress={onLink}>
+        {cta}
+      </PillButton>
+    </View>
+  )
+}
+
+function HabitsEditorSheet({
+  open,
+  onClose,
+  title,
+  saveLabel,
+  selectedIds,
+  onToggle,
+  onSave,
+  saving,
+}: Readonly<{
+  open: boolean
+  onClose: () => void
+  title: string
+  saveLabel: string
+  selectedIds: string[]
+  onToggle: (id: string) => void
+  onSave: () => void
+  saving: boolean
+}>) {
+  return (
+    <BottomSheetModal open={open} onClose={onClose} title={title} snapPoints={['55%', '85%']}>
+      <ScrollView contentContainerStyle={styles.sheetContent} keyboardShouldPersistTaps="handled">
+        <HabitPicker selectedIds={selectedIds} onToggle={onToggle} />
+        <PillButton fullWidth onPress={onSave} disabled={saving} busy={saving}>
+          {saveLabel}
+        </PillButton>
+      </ScrollView>
+    </BottomSheetModal>
+  )
+}
+
 /** Challenge detail: type-appropriate shared viz (no per-person numbers), members, link-habits CTA,
  *  invite share, and leave. */
 export function ChallengeDetail({ challengeId, onLeft }: Readonly<ChallengeDetailProps>) {
@@ -104,8 +255,6 @@ export function ChallengeDetail({ challengeId, onLeft }: Readonly<ChallengeDetai
   }
 
   const isCoop = challenge.type === 'CoopGoal'
-  const target = challenge.targetCount ?? 0
-  const ratio = target > 0 ? Math.min(1, challenge.currentProgress / target) : 0
   const hasLinkedHabits = challenge.yourLinkedHabitIds.length > 0
 
   function openHabitsEditor() {
@@ -141,83 +290,39 @@ export function ChallengeDetail({ challengeId, onLeft }: Readonly<ChallengeDetai
 
   return (
     <View style={styles.container}>
-      <View style={styles.badgeRow}>
-        <View style={[styles.badge, { backgroundColor: tintFromPrimary(tokens, 0.12) }]}>
-          {isCoop ? (
-            <Target size={13} strokeWidth={2} color={tokens.primary} />
-          ) : (
-            <Flame size={13} strokeWidth={2} color={tokens.primary} />
-          )}
-          <Text style={[styles.badgeText, { color: tokens.primary }]}>
-            {isCoop ? t('challenges.type.coopGoal') : t('challenges.type.streakTogether')}
-          </Text>
-        </View>
-        {challenge.isComplete ? (
-          <Text style={[styles.completeText, { color: tokens.statusDone }]}>
-            {t('challenges.detail.complete')}
-          </Text>
-        ) : null}
-      </View>
+      <ChallengeHeader
+        isCoop={isCoop}
+        typeLabel={isCoop ? t('challenges.type.coopGoal') : t('challenges.type.streakTogether')}
+        completeLabel={challenge.isComplete ? t('challenges.detail.complete') : null}
+        title={challenge.title}
+        endsOnText={
+          isCoop && challenge.periodEndUtc
+            ? t('challenges.detail.endsOn', {
+                date: formatLocaleDate(challenge.periodEndUtc, i18n.language),
+              })
+            : null
+        }
+        tokens={tokens}
+      />
 
-      <Text style={[styles.title, { color: tokens.fg1 }]}>{challenge.title}</Text>
-
-      {isCoop && challenge.periodEndUtc ? (
-        <Text style={[styles.subtle, { color: tokens.fg3 }]}>
-          {t('challenges.detail.endsOn', {
-            date: formatLocaleDate(challenge.periodEndUtc, i18n.language),
-          })}
-        </Text>
-      ) : null}
-
-      <View style={styles.sectionHeaderRow}>
-        <Text style={[styles.sectionHeader, styles.sectionHeaderInRow, { color: tokens.fg1 }]}>
-          {isCoop ? t('challenges.detail.progressLabel') : t('challenges.detail.sharedStreak')}
-        </Text>
-        {hasLinkedHabits ? (
-          <Pressable
-            accessibilityRole="button"
-            accessibilityLabel={t('challenges.detail.editHabits')}
-            hitSlop={{ top: 2, bottom: 2, left: 2, right: 2 }}
-            onPress={openHabitsEditor}
-            style={({ pressed }) => [
-              styles.editButton,
-              pressed
-                ? { backgroundColor: tokens.bgElev, transform: [{ scale: 0.96 }] }
-                : null,
-            ]}
-          >
-            <Pencil size={18} strokeWidth={1.8} color={tokens.fg1} />
-          </Pressable>
-        ) : null}
-      </View>
-
-      {isCoop ? (
-        <View style={styles.progressBlock}>
-          <ProgressBar progress={ratio} label={t('challenges.detail.progressLabel')} />
-          <Text style={[styles.progressText, { color: tokens.fg2 }]}>
-            {challenge.currentProgress} / {target}
-          </Text>
-        </View>
-      ) : (
-        <StreakCounterView
-          days={challenge.currentProgress}
-          label={t('challenges.detail.sharedStreak')}
-          tokens={tokens}
-        />
-      )}
+      <SharedProgressSection
+        isCoop={isCoop}
+        current={challenge.currentProgress}
+        target={challenge.targetCount ?? 0}
+        heading={isCoop ? t('challenges.detail.progressLabel') : t('challenges.detail.sharedStreak')}
+        editLabel={t('challenges.detail.editHabits')}
+        onEdit={hasLinkedHabits ? openHabitsEditor : undefined}
+        tokens={tokens}
+      />
 
       {hasLinkedHabits ? null : (
-        <View style={[styles.linkCard, { backgroundColor: tokens.bgCard, borderColor: tokens.hairline }]}>
-          <Text style={[styles.linkTitle, { color: tokens.fg1 }]}>
-            {t('challenges.detail.linkHabitsTitle')}
-          </Text>
-          <Text style={[styles.linkBody, { color: tokens.fg3 }]}>
-            {t('challenges.detail.linkHabitsBody')}
-          </Text>
-          <PillButton fullWidth onPress={openHabitsEditor}>
-            {t('challenges.detail.linkHabitsCta')}
-          </PillButton>
-        </View>
+        <LinkHabitsCard
+          title={t('challenges.detail.linkHabitsTitle')}
+          body={t('challenges.detail.linkHabitsBody')}
+          cta={t('challenges.detail.linkHabitsCta')}
+          onLink={openHabitsEditor}
+          tokens={tokens}
+        />
       )}
 
       <Text style={[styles.sectionHeader, { color: tokens.fg1 }]}>
@@ -236,24 +341,16 @@ export function ChallengeDetail({ challengeId, onLeft }: Readonly<ChallengeDetai
         </PillButton>
       </View>
 
-      <BottomSheetModal
+      <HabitsEditorSheet
         open={habitsOpen}
         onClose={() => setHabitsOpen(false)}
         title={t('challenges.detail.linkHabitsTitle')}
-        snapPoints={['55%', '85%']}
-      >
-        <ScrollView contentContainerStyle={styles.sheetContent} keyboardShouldPersistTaps="handled">
-          <HabitPicker selectedIds={editorHabitIds} onToggle={toggleEditorHabit} />
-          <PillButton
-            fullWidth
-            onPress={saveHabits}
-            disabled={setChallengeHabits.isPending}
-            busy={setChallengeHabits.isPending}
-          >
-            {t('common.save')}
-          </PillButton>
-        </ScrollView>
-      </BottomSheetModal>
+        saveLabel={t('common.save')}
+        selectedIds={editorHabitIds}
+        onToggle={toggleEditorHabit}
+        onSave={saveHabits}
+        saving={setChallengeHabits.isPending}
+      />
 
       <ConfirmDialog
         open={confirmLeave}

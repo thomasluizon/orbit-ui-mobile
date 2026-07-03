@@ -37,11 +37,11 @@ import { CalendarStats } from '@/components/calendar/calendar-stats'
 import { CalendarWeekView } from '@/components/calendar/calendar-week-view'
 import { CalendarRangeView } from '@/components/calendar/calendar-range-view'
 import { CalendarAgendaView } from '@/components/calendar/calendar-agenda-view'
+import { CalendarLoadError } from '@/components/calendar/calendar-load-error'
 import type { TimeGridColumn } from '@/components/calendar/calendar-time-grid'
 import { AppOverlay } from '@/components/ui/app-overlay'
 import { EmptyState } from '@/components/ui/empty-state'
 import { GradientTop } from '@/components/ui/gradient-top'
-import { PillButton } from '@/components/ui/pill-button'
 import { SectionLabel } from '@/components/ui/section-label'
 import { SectionHeadTabs, type SectionHeadTabItem } from '@/components/ui/section-head-tabs'
 import { useIsDesktop, useIsWideDesktop } from '@/hooks/use-is-desktop'
@@ -335,23 +335,7 @@ export default function CalendarPage() {
 
         {activeError && activeView !== 'agenda' ? (
           <div style={{ padding: '12px 20px 16px' }}>
-            <div
-              className="flex flex-col items-center text-center"
-              style={{
-                gap: 14,
-                padding: '28px 18px',
-                borderRadius: 18,
-                background: 'var(--bg-card)',
-                boxShadow: 'inset 0 0 0 1px var(--hairline)',
-              }}
-            >
-              <p className="text-sm text-[var(--fg-2)]" style={{ margin: 0 }}>
-                {t('calendar.loadError')}
-              </p>
-              <PillButton variant="ghost" onClick={activeRefresh}>
-                {t('common.retry')}
-              </PillButton>
-            </div>
+            <CalendarLoadError onRetry={activeRefresh} />
           </div>
         ) : (
           <>

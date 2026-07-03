@@ -8,7 +8,7 @@ import {
   StyleSheet,
 } from 'react-native'
 import { ChevronDown, Check } from 'lucide-react-native'
-import { createTokensV2, easings, radius, shadowsV2, tintFromPrimary } from '@/lib/theme'
+import { createTokensV2, radius, shadowsV2, tintFromPrimary } from '@/lib/theme'
 import { toAnimatedEasing, useResolvedMotionPreset } from '@/lib/motion'
 import { useAppTheme } from '@/lib/use-app-theme'
 
@@ -54,7 +54,7 @@ export function AppSelect({
       Animated.timing(progress, {
         toValue: 1,
         duration: dialogMotion.enterDuration,
-        easing: toAnimatedEasing(easings.out),
+        easing: toAnimatedEasing(dialogMotion.enterEasing),
         useNativeDriver: true,
       }).start()
       return
@@ -63,14 +63,21 @@ export function AppSelect({
     Animated.timing(progress, {
       toValue: 0,
       duration: dialogMotion.exitDuration,
-      easing: toAnimatedEasing(easings.out),
+      easing: toAnimatedEasing(dialogMotion.exitEasing),
       useNativeDriver: true,
     }).start(({ finished }) => {
       if (finished) {
         setVisible(false)
       }
     })
-  }, [dialogMotion.enterDuration, dialogMotion.exitDuration, isOpen, progress])
+  }, [
+    dialogMotion.enterDuration,
+    dialogMotion.enterEasing,
+    dialogMotion.exitDuration,
+    dialogMotion.exitEasing,
+    isOpen,
+    progress,
+  ])
 
   const selectedOption = options.find((o) => o.value === value)
 

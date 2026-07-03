@@ -22,6 +22,11 @@ vi.mock('@/hooks/use-profile', () => ({
   useProfile: () => ({ profile: mockProfile }),
 }))
 
+let mockGamificationProfile: { level: number; totalXp: number } | null = null
+vi.mock('@/hooks/use-gamification', () => ({
+  useGamificationProfile: () => ({ profile: mockGamificationProfile }),
+}))
+
 vi.mock('@/components/tour/tour-replay-modal', () => ({
   TourReplayModal: ({ open }: { open: boolean }) =>
     open ? <div data-testid="tour-replay-modal" /> : null,
@@ -32,7 +37,13 @@ import ExplorePage from '@/app/(app)/explore/page'
 describe('ExplorePage', () => {
   beforeEach(() => {
     mockPush.mockReset()
-    mockProfile = { hasProAccess: true, isLifetimePro: false, subscriptionInterval: 'yearly' }
+    mockProfile = {
+      hasProAccess: true,
+      isLifetimePro: false,
+      subscriptionInterval: 'yearly',
+      canViewGamification: true,
+    }
+    mockGamificationProfile = null
   })
 
   it('renders the grouped sections with every feature row except Social', () => {
@@ -60,6 +71,15 @@ describe('ExplorePage', () => {
     expect(screen.getByText('explore.tourHint')).toBeInTheDocument()
     expect(screen.getByText('profile.retrospectiveHint')).toBeInTheDocument()
     expect(screen.getByText('calendar.profileHint')).toBeInTheDocument()
+  })
+
+  it('shows the personalized level hint on achievements when gamification is loaded', () => {
+    mockGamificationProfile = { level: 4, totalXp: 1200 }
+    render(<ExplorePage />)
+
+    expect(
+      screen.getByText((content) => content.startsWith('gamification.profileCard.level:')),
+    ).toBeInTheDocument()
   })
 
   it('marks the gated features with the PRO badge', () => {

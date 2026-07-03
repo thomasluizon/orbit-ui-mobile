@@ -111,6 +111,171 @@ function MembersList({ participants }: Readonly<{ participants: ChallengePartici
   )
 }
 
+function ChallengeHeader({
+  isCoop,
+  typeLabel,
+  completeLabel,
+  title,
+  endsOnText,
+}: Readonly<{
+  isCoop: boolean
+  typeLabel: string
+  completeLabel: string | null
+  title: string
+  endsOnText: string | null
+}>) {
+  return (
+    <>
+      <div className="flex items-center" style={{ gap: 8 }}>
+        <span
+          className="inline-flex items-center"
+          style={{
+            gap: 6,
+            padding: '4px 10px',
+            borderRadius: 999,
+            background: 'rgba(var(--primary-rgb), 0.12)',
+            color: 'var(--primary)',
+            fontFamily: 'var(--font-sans)',
+            fontSize: 12,
+            fontWeight: 500,
+          }}
+        >
+          {isCoop ? <Target size={13} strokeWidth={2} /> : <Flame size={13} strokeWidth={2} />}
+          {typeLabel}
+        </span>
+        {completeLabel ? (
+          <span style={{ marginLeft: 'auto', fontFamily: 'var(--font-sans)', fontSize: 12, fontWeight: 500, color: 'var(--status-done)' }}>
+            {completeLabel}
+          </span>
+        ) : null}
+      </div>
+
+      <h1
+        className="text-balance"
+        style={{ margin: 0, fontFamily: 'var(--font-sans)', fontSize: 24, fontWeight: 500, color: 'var(--fg-1)' }}
+      >
+        {title}
+      </h1>
+
+      {endsOnText ? (
+        <p style={{ margin: 0, fontFamily: 'var(--font-sans)', fontSize: 13, color: 'var(--fg-3)' }}>
+          {endsOnText}
+        </p>
+      ) : null}
+    </>
+  )
+}
+
+function SharedProgressSection({
+  isCoop,
+  current,
+  target,
+  heading,
+  editLabel,
+  onEdit,
+}: Readonly<{
+  isCoop: boolean
+  current: number
+  target: number
+  heading: string
+  editLabel: string
+  onEdit?: () => void
+}>) {
+  return (
+    <div style={{ marginTop: 10 }}>
+      <SectionHeader
+        action={
+          onEdit ? (
+            <button
+              type="button"
+              aria-label={editLabel}
+              onClick={onEdit}
+              className="icon-btn"
+            >
+              <Pencil size={18} strokeWidth={1.8} />
+            </button>
+          ) : undefined
+        }
+      >
+        {heading}
+      </SectionHeader>
+      {isCoop ? (
+        <CoopProgressView current={current} target={target} label={heading} />
+      ) : (
+        <StreakCounterView days={current} label={heading} />
+      )}
+    </div>
+  )
+}
+
+function LinkHabitsCard({
+  title,
+  body,
+  cta,
+  onLink,
+}: Readonly<{ title: string; body: string; cta: string; onLink: () => void }>) {
+  return (
+    <div
+      className="flex flex-col"
+      style={{
+        gap: 8,
+        marginTop: 6,
+        padding: 16,
+        borderRadius: 16,
+        background: 'var(--bg-card)',
+        boxShadow: 'inset 0 0 0 1px var(--hairline)',
+      }}
+    >
+      <span style={{ fontFamily: 'var(--font-sans)', fontSize: 15, fontWeight: 500, color: 'var(--fg-1)' }}>
+        {title}
+      </span>
+      <span style={{ fontFamily: 'var(--font-sans)', fontSize: 13, lineHeight: 1.45, color: 'var(--fg-3)' }}>
+        {body}
+      </span>
+      <PillButton fullWidth onClick={onLink}>
+        {cta}
+      </PillButton>
+    </div>
+  )
+}
+
+function HabitsEditorSheet({
+  open,
+  onOpenChange,
+  title,
+  saveLabel,
+  selectedIds,
+  onToggle,
+  onSave,
+  saving,
+}: Readonly<{
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  title: string
+  saveLabel: string
+  selectedIds: string[]
+  onToggle: (id: string) => void
+  onSave: () => void
+  saving: boolean
+}>) {
+  return (
+    <AppOverlay open={open} onOpenChange={onOpenChange} title={title}>
+      <div className="flex flex-col" style={{ gap: 16 }}>
+        <HabitPicker selectedIds={selectedIds} onToggle={onToggle} />
+        <PillButton
+          fullWidth
+          className="sm:mx-auto sm:max-w-[360px]"
+          onClick={onSave}
+          disabled={saving}
+          busy={saving}
+        >
+          {saveLabel}
+        </PillButton>
+      </div>
+    </AppOverlay>
+  )
+}
+
 /** Challenge detail: type-appropriate shared viz (no per-person numbers), members, link-habits CTA,
  *  invite share, and leave. */
 export function ChallengeDetail({ challengeId, onLeft }: Readonly<ChallengeDetailProps>) {
@@ -202,93 +367,34 @@ export function ChallengeDetail({ challengeId, onLeft }: Readonly<ChallengeDetai
         style={{ padding: '4px 20px 32px' }}
       >
         <div className="flex min-w-0 flex-col gap-2">
-          <div className="flex items-center" style={{ gap: 8 }}>
-            <span
-              className="inline-flex items-center"
-              style={{
-                gap: 6,
-                padding: '4px 10px',
-                borderRadius: 999,
-                background: 'rgba(var(--primary-rgb), 0.12)',
-                color: 'var(--primary)',
-                fontFamily: 'var(--font-sans)',
-                fontSize: 12,
-                fontWeight: 500,
-              }}
-            >
-              {isCoop ? <Target size={13} strokeWidth={2} /> : <Flame size={13} strokeWidth={2} />}
-              {isCoop ? t('challenges.type.coopGoal') : t('challenges.type.streakTogether')}
-            </span>
-            {challenge.isComplete ? (
-              <span style={{ marginLeft: 'auto', fontFamily: 'var(--font-sans)', fontSize: 12, fontWeight: 500, color: 'var(--status-done)' }}>
-                {t('challenges.detail.complete')}
-              </span>
-            ) : null}
-          </div>
+          <ChallengeHeader
+            isCoop={isCoop}
+            typeLabel={isCoop ? t('challenges.type.coopGoal') : t('challenges.type.streakTogether')}
+            completeLabel={challenge.isComplete ? t('challenges.detail.complete') : null}
+            title={challenge.title}
+            endsOnText={
+              isCoop && challenge.periodEndUtc
+                ? t('challenges.detail.endsOn', { date: formatLocaleDate(challenge.periodEndUtc, locale) })
+                : null
+            }
+          />
 
-          <h1
-            className="text-balance"
-            style={{ margin: 0, fontFamily: 'var(--font-sans)', fontSize: 24, fontWeight: 500, color: 'var(--fg-1)' }}
-          >
-            {challenge.title}
-          </h1>
-
-          {isCoop && challenge.periodEndUtc ? (
-            <p style={{ margin: 0, fontFamily: 'var(--font-sans)', fontSize: 13, color: 'var(--fg-3)' }}>
-              {t('challenges.detail.endsOn', { date: formatLocaleDate(challenge.periodEndUtc, locale) })}
-            </p>
-          ) : null}
-
-          <div style={{ marginTop: 10 }}>
-            <SectionHeader
-              action={
-                hasLinkedHabits ? (
-                  <button
-                    type="button"
-                    aria-label={t('challenges.detail.editHabits')}
-                    onClick={openHabitsEditor}
-                    className="icon-btn"
-                  >
-                    <Pencil size={18} strokeWidth={1.8} />
-                  </button>
-                ) : undefined
-              }
-            >
-              {isCoop ? t('challenges.detail.progressLabel') : t('challenges.detail.sharedStreak')}
-            </SectionHeader>
-            {isCoop ? (
-              <CoopProgressView
-                current={challenge.currentProgress}
-                target={challenge.targetCount ?? 0}
-                label={t('challenges.detail.progressLabel')}
-              />
-            ) : (
-              <StreakCounterView days={challenge.currentProgress} label={t('challenges.detail.sharedStreak')} />
-            )}
-          </div>
+          <SharedProgressSection
+            isCoop={isCoop}
+            current={challenge.currentProgress}
+            target={challenge.targetCount ?? 0}
+            heading={isCoop ? t('challenges.detail.progressLabel') : t('challenges.detail.sharedStreak')}
+            editLabel={t('challenges.detail.editHabits')}
+            onEdit={hasLinkedHabits ? openHabitsEditor : undefined}
+          />
 
           {hasLinkedHabits ? null : (
-            <div
-              className="flex flex-col"
-              style={{
-                gap: 8,
-                marginTop: 6,
-                padding: 16,
-                borderRadius: 16,
-                background: 'var(--bg-card)',
-                boxShadow: 'inset 0 0 0 1px var(--hairline)',
-              }}
-            >
-              <span style={{ fontFamily: 'var(--font-sans)', fontSize: 15, fontWeight: 500, color: 'var(--fg-1)' }}>
-                {t('challenges.detail.linkHabitsTitle')}
-              </span>
-              <span style={{ fontFamily: 'var(--font-sans)', fontSize: 13, lineHeight: 1.45, color: 'var(--fg-3)' }}>
-                {t('challenges.detail.linkHabitsBody')}
-              </span>
-              <PillButton fullWidth onClick={openHabitsEditor}>
-                {t('challenges.detail.linkHabitsCta')}
-              </PillButton>
-            </div>
+            <LinkHabitsCard
+              title={t('challenges.detail.linkHabitsTitle')}
+              body={t('challenges.detail.linkHabitsBody')}
+              cta={t('challenges.detail.linkHabitsCta')}
+              onLink={openHabitsEditor}
+            />
           )}
         </div>
 
@@ -310,20 +416,16 @@ export function ChallengeDetail({ challengeId, onLeft }: Readonly<ChallengeDetai
         </PillButton>
       </div>
 
-      <AppOverlay open={habitsOpen} onOpenChange={setHabitsOpen} title={t('challenges.detail.linkHabitsTitle')}>
-        <div className="flex flex-col" style={{ gap: 16 }}>
-          <HabitPicker selectedIds={editorHabitIds} onToggle={toggleEditorHabit} />
-          <PillButton
-            fullWidth
-            className="sm:mx-auto sm:max-w-[360px]"
-            onClick={saveHabits}
-            disabled={setChallengeHabits.isPending}
-            busy={setChallengeHabits.isPending}
-          >
-            {t('common.save')}
-          </PillButton>
-        </div>
-      </AppOverlay>
+      <HabitsEditorSheet
+        open={habitsOpen}
+        onOpenChange={setHabitsOpen}
+        title={t('challenges.detail.linkHabitsTitle')}
+        saveLabel={t('common.save')}
+        selectedIds={editorHabitIds}
+        onToggle={toggleEditorHabit}
+        onSave={saveHabits}
+        saving={setChallengeHabits.isPending}
+      />
 
       <ConfirmDialog
         open={confirmLeave}
