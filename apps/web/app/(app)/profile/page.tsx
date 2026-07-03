@@ -6,6 +6,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { profileKeys } from '@orbit/shared/query'
 import {
   PROFILE_NAV_ITEMS,
+  resolveProfileNavHint,
   shouldRedirectProfileNavItem,
   type ProfileNavItem,
 } from '@orbit/shared/utils/profile-navigation'
@@ -19,7 +20,8 @@ import { useAuthStore } from '@/stores/auth-store'
 import { deriveNextRewardCarrot } from '@orbit/shared/utils'
 import { useGamificationProfile } from '@/hooks/use-gamification'
 import { SectionLabel } from '@/components/ui/section-label'
-import { FeatureTileGrid } from '@/components/profile/feature-tile-grid'
+import { SettingsGroup, SettingsGroupRow } from '@/components/ui/settings-group'
+import { ProfileNavIcon } from '@/components/profile/profile-nav-icon'
 import { ReferralCard } from '@/components/referral/referral-card'
 import { ReferralDrawer } from '@/components/referral/referral-drawer'
 import { SubscriptionCard } from './_components/subscription-card'
@@ -32,6 +34,16 @@ import { ProfileHeaderBar } from './_components/profile-header-bar'
 import { ProfileModals } from './_components/profile-modals'
 import { useDataExport } from './_components/use-data-export'
 import { useIsDesktop } from '@/hooks/use-is-desktop'
+
+const PROFILE_FEATURE_SECTIONS = [
+  { labelKey: 'nav.social', ids: ['social'] },
+  { labelKey: 'explore.sections.progress', ids: ['retrospective', 'wrapped'] },
+  { labelKey: 'explore.sections.integrations', ids: ['calendar-sync'] },
+  { labelKey: 'explore.sections.more', ids: ['about', 'advanced'] },
+].map((section) => ({
+  labelKey: section.labelKey,
+  items: PROFILE_NAV_ITEMS.filter((item) => section.ids.includes(item.id)),
+}))
 
 export default function ProfilePage() {
   const t = useTranslations()
@@ -58,9 +70,6 @@ export default function ProfilePage() {
   )
   const achievementsNavItem = PROFILE_NAV_ITEMS.find(
     (item) => item.id === 'achievements',
-  )
-  const featureNavItems = PROFILE_NAV_ITEMS.filter(
-    (item) => item.section === 'features' && item.id !== 'achievements',
   )
 
   const navTourMap: Record<string, string> = {
@@ -146,16 +155,42 @@ export default function ProfilePage() {
 
   const featuresSection = (
     <div>
-      <SectionLabel>{t('profile.sections.features')}</SectionLabel>
-      <nav aria-label={t('profile.sections.features')} className="px-5">
-        <FeatureTileGrid
-          items={featureNavItems}
-          profile={profile}
-          onItemSelect={handleNavClick}
-          onTourReplay={() => setShowTourReplay(true)}
-          dataTourMap={navTourMap}
-        />
+      <SectionLabel>{t('explore.sections.discover')}</SectionLabel>
+      <nav aria-label={t('explore.sections.discover')} className="px-5">
+        <SettingsGroup>
+          <SettingsGroupRow
+            icon={<ProfileNavIcon iconKey="compass" />}
+            label={t('tour.replay.title')}
+            hint={t('explore.tourHint')}
+            onClick={() => setShowTourReplay(true)}
+          />
+        </SettingsGroup>
       </nav>
+      {PROFILE_FEATURE_SECTIONS.map((section) => (
+        <div key={section.labelKey}>
+          <SectionLabel>{t(section.labelKey)}</SectionLabel>
+          <nav aria-label={t(section.labelKey)} className="px-5">
+            <SettingsGroup>
+              {section.items.map((item) => (
+                <SettingsGroupRow
+                  key={item.id}
+                  icon={<ProfileNavIcon iconKey={item.iconKey} />}
+                  label={t(item.titleKey)}
+                  hint={resolveProfileNavHint(
+                    item,
+                    { hasProAccess: profile?.hasProAccess, gamificationProfile },
+                    t,
+                  )}
+                  proBadge={item.proBadge}
+                  proBadgeLabel={t('common.proBadge')}
+                  dataTour={navTourMap[item.id]}
+                  onClick={() => handleNavClick(item)}
+                />
+              ))}
+            </SettingsGroup>
+          </nav>
+        </div>
+      ))}
     </div>
   )
 

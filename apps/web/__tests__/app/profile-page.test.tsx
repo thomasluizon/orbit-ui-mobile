@@ -125,6 +125,21 @@ describe('ProfilePage', () => {
     expect(document.body.textContent).toContain('13')
   })
 
+  it('renders the phone features section as grouped settings rows including Social', () => {
+    render(<ProfilePage />)
+
+    expect(screen.getByText('explore.sections.discover')).toBeInTheDocument()
+    expect(screen.getByText('nav.social')).toBeInTheDocument()
+    expect(screen.getByText('explore.sections.progress')).toBeInTheDocument()
+    expect(screen.getByText('explore.sections.integrations')).toBeInTheDocument()
+    expect(screen.getByText('explore.sections.more')).toBeInTheDocument()
+
+    expect(screen.getByText('tour.replay.title')).toBeInTheDocument()
+    expect(screen.getByText('social.profileNav.title')).toBeInTheDocument()
+    expect(screen.getByText('profile.wrappedTitle')).toBeInTheDocument()
+    expect(screen.getByText('profile.retrospectiveHint')).toBeInTheDocument()
+  })
+
   it('mounts the referral card on profile and opens the drawer when tapped', () => {
     render(<ProfilePage />)
 

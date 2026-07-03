@@ -122,7 +122,8 @@ export function TodayAISummary({ date }: Readonly<TodayAISummaryProps>) {
             <View style={styles.insightPill}>
               <Text
                 style={styles.insightText}
-                numberOfLines={2}
+                numberOfLines={1}
+                ellipsizeMode="tail"
                 accessibilityLabel={`${t('summary.insightLabel')}: ${insight}`}
               >
                 {insight}
@@ -188,6 +189,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
     insightPill: {
       alignSelf: 'flex-start',
       maxWidth: '100%',
+      flexShrink: 1,
       borderRadius: 999,
       paddingVertical: 4,
       paddingHorizontal: 11,

@@ -134,7 +134,7 @@ export function TodayAISummary({ date }: Readonly<TodayAISummaryProps>) {
         </div>
         {isSummaryText && insight ? (
           <div
-            className="line-clamp-2"
+            className="overflow-hidden whitespace-nowrap text-ellipsis"
             style={{
               width: 'fit-content',
               maxWidth: '100%',
@@ -148,7 +148,6 @@ export function TodayAISummary({ date }: Readonly<TodayAISummaryProps>) {
               fontWeight: 500,
               lineHeight: 1.35,
               color: 'var(--primary-soft)',
-              textWrap: 'pretty',
             }}
           >
             <span className="sr-only">{`${t('summary.insightLabel')}: `}</span>

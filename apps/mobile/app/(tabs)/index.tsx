@@ -877,10 +877,12 @@ export default function TodayScreen() {
         </DismissibleCard>
 
         <DismissibleCard visible={engagementSlot === "referral"}>
-          <ReferralCard
-            onOpen={() => setShowReferral(true)}
-            onDismiss={dismissHomeEntry}
-          />
+          <View style={styles.referralCardSpacing}>
+            <ReferralCard
+              onOpen={() => setShowReferral(true)}
+              onDismiss={dismissHomeEntry}
+            />
+          </View>
         </DismissibleCard>
 
         <DismissibleCard visible={engagementSlot === "socialEntry"}>
@@ -905,6 +907,7 @@ export default function TodayScreen() {
       goToToday,
       handleChangeView,
       reviewReminder,
+      styles.referralCardSpacing,
       tabItems,
       t,
       dismissHomeEntry,
@@ -1211,6 +1214,9 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
     },
     scrollContentWithBulkBar: {
       paddingBottom: 220,
+    },
+    referralCardSpacing: {
+      paddingTop: 10,
     },
     listShell: {
       flex: 1,

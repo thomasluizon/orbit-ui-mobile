@@ -234,7 +234,7 @@ function WrappedShareSlide({ recap, displayName }: Readonly<WrappedShareSlidePro
       <div className="flex w-full" style={{ gap: 10, maxWidth: 360 }}>
         {canShareFiles && (
           <PillButton
-            fullWidth
+            className="min-w-0 flex-1"
             busy={isSharing}
             disabled={isSharing}
             onClick={handleShare}
@@ -244,7 +244,7 @@ function WrappedShareSlide({ recap, displayName }: Readonly<WrappedShareSlidePro
           </PillButton>
         )}
         <PillButton
-          fullWidth
+          className="min-w-0 flex-1"
           variant={canShareFiles ? 'ghost' : 'primary'}
           busy={isSharing}
           disabled={isSharing}

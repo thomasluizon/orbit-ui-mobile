@@ -1,5 +1,6 @@
 import { useEffect, useMemo } from 'react'
-import { BackHandler, Pressable, View } from 'react-native'
+import { BackHandler, Pressable, ScrollView, View } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Gesture, GestureDetector } from 'react-native-gesture-handler'
 import { runOnJS } from 'react-native-reanimated'
 import Svg, { Defs, RadialGradient, Rect, Stop } from 'react-native-svg'
@@ -30,6 +31,7 @@ export function WrappedPlayer({
   onClose,
 }: Readonly<WrappedPlayerProps>) {
   const { t } = useTranslation()
+  const insets = useSafeAreaInsets()
   const { index, isFirst, isLast, next, prev } = useWrappedStory(slides.length)
   const current = slides[index]
 
@@ -71,7 +73,7 @@ export function WrappedPlayer({
           <Rect x="0" y="0" width="100%" height="100%" fill="url(#wrappedWash)" />
         </Svg>
 
-        <View style={styles.headerRow}>
+        <View style={[styles.headerRow, { paddingTop: insets.top + 12 }]}>
           {isLast ? (
             <Pressable
               onPress={prev}
@@ -115,7 +117,12 @@ export function WrappedPlayer({
           </Pressable>
         </View>
 
-        <View key={current.id} style={styles.player}>
+        <ScrollView
+          key={current.id}
+          style={styles.player}
+          contentContainerStyle={styles.slideScrollContent}
+          showsVerticalScrollIndicator={false}
+        >
           <WrappedSlide
             slide={current}
             recap={recap}
@@ -123,25 +130,25 @@ export function WrappedPlayer({
             tokens={tokens}
             displayName={displayName}
           />
-        </View>
 
-        {!isLast ? (
-          <View style={styles.tapZones} pointerEvents="box-none">
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={t('wrapped.previous')}
-              disabled={isFirst}
-              onPress={prev}
-              style={styles.prevZone}
-            />
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={t('wrapped.next')}
-              onPress={next}
-              style={styles.nextZone}
-            />
-          </View>
-        ) : null}
+          {!isLast ? (
+            <View style={styles.tapZones} pointerEvents="box-none">
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t('wrapped.previous')}
+                disabled={isFirst}
+                onPress={prev}
+                style={styles.prevZone}
+              />
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t('wrapped.next')}
+                onPress={next}
+                style={styles.nextZone}
+              />
+            </View>
+          ) : null}
+        </ScrollView>
       </View>
     </GestureDetector>
   )

@@ -102,7 +102,7 @@ export function WrappedPlayer({
           </button>
         </div>
 
-        <div key={current.id} className="flex flex-1 flex-col" style={{ minHeight: 0 }}>
+        <div key={current.id} className="flex flex-1 flex-col">
           <WrappedSlide slide={current} recap={recap} period={period} displayName={displayName} />
         </div>
       </div>

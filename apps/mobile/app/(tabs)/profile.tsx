@@ -33,7 +33,6 @@ import { StatTile } from '@/components/ui/stat-tile'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
 import { StreakBadge } from '@/components/gamification/streak-badge'
 import { NotificationBell } from '@/components/navigation/notification-bell'
-import { FeatureTileGrid } from '@/components/profile/feature-tile-grid'
 import { ProfileNavIcon } from '@/components/profile/profile-nav-icon'
 import { ReferralCard } from '@/components/referral/referral-card'
 import { ReferralDrawer } from '@/components/referral/referral-drawer'
@@ -50,6 +49,16 @@ import { useDataExport } from './profile/_components/use-data-export'
 import { TourReplayModal } from '@/components/tour/tour-replay-modal'
 
 type Tokens = ReturnType<typeof createTokensV2>
+
+const PROFILE_FEATURE_SECTIONS = [
+  { labelKey: 'nav.social', ids: ['social'] },
+  { labelKey: 'explore.sections.progress', ids: ['retrospective', 'wrapped'] },
+  { labelKey: 'explore.sections.integrations', ids: ['calendar-sync'] },
+  { labelKey: 'explore.sections.more', ids: ['about', 'advanced'] },
+].map((section) => ({
+  labelKey: section.labelKey,
+  items: PROFILE_NAV_ITEMS.filter((item) => section.ids.includes(item.id)),
+}))
 
 function sectionEntrance(index: number) {
   return FadeInDown.duration(280)
@@ -114,9 +123,6 @@ export default function ProfileScreen() {
   )
   const achievementsNavItem = PROFILE_NAV_ITEMS.find(
     (item) => item.id === 'achievements',
-  )
-  const featureNavItems = PROFILE_NAV_ITEMS.filter(
-    (item) => item.section === 'features' && item.id !== 'achievements',
   )
 
   const [showResetModal, setShowResetModal] = useState(false)
@@ -353,19 +359,56 @@ export default function ProfileScreen() {
         </Animated.View>
 
         <Animated.View entering={sectionEntrance(5)}>
-          <SectionLabel>{t('profile.sections.features')}</SectionLabel>
+          <SectionLabel>{t('explore.sections.discover')}</SectionLabel>
           <View style={styles.groupWrap}>
-            <FeatureTileGrid
-              items={featureNavItems}
-              profile={profile}
-              onItemSelect={handleNavPress}
-              onTourReplay={() => setShowTourReplay(true)}
-              tourTargetRefs={{ retrospective: retroRef }}
-            />
+            <SettingsGroup>
+              <SettingsGroupRow
+                icon={<ProfileNavIcon iconKey="compass" color={tokens.fg1} />}
+                label={t('tour.replay.title')}
+                hint={t('explore.tourHint')}
+                onPress={() => setShowTourReplay(true)}
+              />
+            </SettingsGroup>
           </View>
         </Animated.View>
 
-        <Animated.View entering={sectionEntrance(6)}>
+        {PROFILE_FEATURE_SECTIONS.map((section, sectionIndex) => (
+          <Animated.View
+            key={section.labelKey}
+            entering={sectionEntrance(6 + sectionIndex)}
+          >
+            <SectionLabel>{t(section.labelKey)}</SectionLabel>
+            <View style={styles.groupWrap}>
+              <SettingsGroup>
+                {section.items.map((item) => (
+                  <View
+                    key={item.id}
+                    ref={item.id === 'retrospective' ? retroRef : undefined}
+                    collapsable={false}
+                  >
+                    <SettingsGroupRow
+                      icon={<ProfileNavIcon iconKey={item.iconKey} color={tokens.fg1} />}
+                      label={t(item.titleKey)}
+                      hint={resolveProfileNavHint(
+                        item,
+                        {
+                          hasProAccess: profile?.hasProAccess,
+                          gamificationProfile,
+                        },
+                        t,
+                      )}
+                      onPress={() => handleNavPress(item)}
+                      proBadge={item.proBadge}
+                      proBadgeLabel={t('common.proBadge')}
+                    />
+                  </View>
+                ))}
+              </SettingsGroup>
+            </View>
+          </Animated.View>
+        ))}
+
+        <Animated.View entering={sectionEntrance(10)}>
           <SectionLabel>{t('profile.sections.subscription')}</SectionLabel>
           <View ref={subscriptionRef} collapsable={false} style={styles.groupWrap}>
             <SettingsGroup>
@@ -384,7 +427,7 @@ export default function ProfileScreen() {
           </View>
         </Animated.View>
 
-        <Animated.View entering={sectionEntrance(7)}>
+        <Animated.View entering={sectionEntrance(11)}>
           <ProfileAccountActions
             isExporting={isExporting}
             exportError={exportError}
