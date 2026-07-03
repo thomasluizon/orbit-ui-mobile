@@ -1,4 +1,5 @@
 import { redirect } from 'next/navigation'
+import { isValidReferralCode } from '@orbit/shared/utils'
 import { resolveServerSession } from '@/lib/auth-api'
 
 interface ReferralRedirectPageProps {
@@ -8,7 +9,7 @@ interface ReferralRedirectPageProps {
 export default async function ReferralRedirectPage({ params }: Readonly<ReferralRedirectPageProps>) {
   const { code } = await params
 
-  if (!code || !/^[a-zA-Z0-9_-]+$/.test(code)) {
+  if (!isValidReferralCode(code)) {
     redirect('/login')
   }
 

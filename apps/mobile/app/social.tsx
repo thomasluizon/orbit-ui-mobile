@@ -3,6 +3,7 @@ import { ScrollView, StyleSheet } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
+import { isValidReferralCode } from '@orbit/shared/utils'
 import { AppBar } from '@/components/ui/app-bar'
 import { GradientTop } from '@/components/ui/gradient-top'
 import { SectionHeadTabs } from '@/components/ui/section-head-tabs'
@@ -21,8 +22,6 @@ import { InviteConfirmSheet } from './social/_components/invite-confirm-sheet'
 
 type SocialTab = 'feed' | 'friends' | 'buddies'
 
-const REFERRAL_CODE_PATTERN = /^[a-zA-Z0-9_-]+$/
-
 export default function SocialScreen() {
   const { t } = useTranslation()
   const goBackOrFallback = useGoBackOrFallback()
@@ -36,8 +35,7 @@ export default function SocialScreen() {
     newPairHabitId?: string
     invite?: string
   }>()
-  const inviteCode =
-    typeof inviteParam === 'string' && REFERRAL_CODE_PATTERN.test(inviteParam) ? inviteParam : null
+  const inviteCode = isValidReferralCode(inviteParam) ? inviteParam : null
   const [tab, setTab] = useState<SocialTab>(
     tabParam === 'buddies' || tabParam === 'friends' ? tabParam : 'feed',
   )

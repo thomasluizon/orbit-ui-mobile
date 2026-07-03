@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
+import { isValidReferralCode } from '@orbit/shared/utils'
 import { AppBar } from '@/components/ui/app-bar'
 import { GradientTop } from '@/components/ui/gradient-top'
 import { SectionHeadTabs, type SectionHeadTabItem } from '@/components/ui/section-head-tabs'
@@ -19,8 +20,6 @@ import { InviteConfirmSheet } from './_components/invite-confirm-sheet'
 
 type SocialTab = 'feed' | 'friends' | 'buddies'
 
-const REFERRAL_CODE_PATTERN = /^[a-zA-Z0-9_-]+$/
-
 export default function SocialPage() {
   const t = useTranslations()
   const goBackOrFallback = useGoBackOrFallback()
@@ -35,7 +34,7 @@ export default function SocialPage() {
   const [cheerTarget, setCheerTarget] = useState<CheerTarget | null>(null)
   const [inviteCode, setInviteCode] = useState<string | null>(() => {
     const raw = searchParams.get('invite')
-    return raw && REFERRAL_CODE_PATTERN.test(raw) ? raw : null
+    return isValidReferralCode(raw) ? raw : null
   })
 
   function closeInvite() {

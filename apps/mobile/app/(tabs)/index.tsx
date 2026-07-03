@@ -282,7 +282,7 @@ export default function TodayScreen() {
   }, []);
 
   const [previousPinnedDateStr, setPreviousPinnedDateStr] =
-    useState(pinnedDateStr);
+    useState<string | null>(null);
   if (pinnedDateStr !== previousPinnedDateStr) {
     setPreviousPinnedDateStr(pinnedDateStr);
     if (pinnedDateStr) setActiveView("today");
