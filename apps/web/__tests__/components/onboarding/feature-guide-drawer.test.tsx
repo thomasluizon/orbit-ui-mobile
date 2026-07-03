@@ -30,22 +30,49 @@ describe('FeatureGuideDrawer', () => {
     expect(screen.getByText('onboarding.featureGuide.title')).toBeInTheDocument()
   })
 
-  it('renders all six tabs', () => {
+  it('renders all nine tabs', () => {
     render(
       <FeatureGuideDrawer open={true} onOpenChange={vi.fn()} />,
     )
+    expect(screen.getByText('onboarding.featureGuide.astra')).toBeInTheDocument()
+    expect(screen.getByText('onboarding.featureGuide.connect')).toBeInTheDocument()
+    expect(screen.getByText('onboarding.featureGuide.social')).toBeInTheDocument()
     expect(screen.getByText('onboarding.featureGuide.habits')).toBeInTheDocument()
     expect(screen.getByText('onboarding.featureGuide.goals')).toBeInTheDocument()
-    expect(screen.getByText('onboarding.featureGuide.chat')).toBeInTheDocument()
     expect(screen.getByText('onboarding.featureGuide.calendar')).toBeInTheDocument()
+    expect(screen.getByText('onboarding.featureGuide.rewards')).toBeInTheDocument()
     expect(screen.getByText('onboarding.featureGuide.settings')).toBeInTheDocument()
     expect(screen.getByText('onboarding.featureGuide.notifications')).toBeInTheDocument()
   })
 
-  it('shows habits section by default', () => {
+  it('shows astra section by default', () => {
     render(
       <FeatureGuideDrawer open={true} onOpenChange={vi.fn()} />,
     )
+    expect(document.body.textContent).toContain('onboarding.featureGuide.astraSection.canDoTitle')
+  })
+
+  it('switches to connect section when connect tab clicked', () => {
+    render(
+      <FeatureGuideDrawer open={true} onOpenChange={vi.fn()} />,
+    )
+    fireEvent.click(screen.getByText('onboarding.featureGuide.connect'))
+    expect(document.body.textContent).toContain('onboarding.featureGuide.connectSection.mcpTitle')
+  })
+
+  it('switches to social section when social tab clicked', () => {
+    render(
+      <FeatureGuideDrawer open={true} onOpenChange={vi.fn()} />,
+    )
+    fireEvent.click(screen.getByText('onboarding.featureGuide.social'))
+    expect(document.body.textContent).toContain('onboarding.featureGuide.socialSection.optInTitle')
+  })
+
+  it('switches to habits section when habits tab clicked', () => {
+    render(
+      <FeatureGuideDrawer open={true} onOpenChange={vi.fn()} />,
+    )
+    fireEvent.click(screen.getByText('onboarding.featureGuide.habits'))
     expect(document.body.textContent).toContain('onboarding.featureGuide.habitsSection.creatingTitle')
   })
 
@@ -57,20 +84,20 @@ describe('FeatureGuideDrawer', () => {
     expect(document.body.textContent).toContain('onboarding.featureGuide.goalsSection.creatingTitle')
   })
 
-  it('switches to chat section when chat tab clicked', () => {
-    render(
-      <FeatureGuideDrawer open={true} onOpenChange={vi.fn()} />,
-    )
-    fireEvent.click(screen.getByText('onboarding.featureGuide.chat'))
-    expect(document.body.textContent).toContain('onboarding.featureGuide.chatSection.canDoTitle')
-  })
-
   it('switches to calendar section', () => {
     render(
       <FeatureGuideDrawer open={true} onOpenChange={vi.fn()} />,
     )
     fireEvent.click(screen.getByText('onboarding.featureGuide.calendar'))
     expect(document.body.textContent).toContain('onboarding.featureGuide.calendarSection.colorsTitle')
+  })
+
+  it('switches to rewards section', () => {
+    render(
+      <FeatureGuideDrawer open={true} onOpenChange={vi.fn()} />,
+    )
+    fireEvent.click(screen.getByText('onboarding.featureGuide.rewards'))
+    expect(document.body.textContent).toContain('onboarding.featureGuide.rewardsSection.xpLevelsTitle')
   })
 
   it('switches to settings section', () => {
@@ -93,8 +120,8 @@ describe('FeatureGuideDrawer', () => {
     render(
       <FeatureGuideDrawer open={true} onOpenChange={vi.fn()} />,
     )
-    const habitsTab = screen.getByText('onboarding.featureGuide.habits')
-    expect(habitsTab).toHaveAttribute('aria-selected', 'true')
+    const astraTab = screen.getByText('onboarding.featureGuide.astra')
+    expect(astraTab).toHaveAttribute('aria-selected', 'true')
     const goalsTab = screen.getByText('onboarding.featureGuide.goals')
     expect(goalsTab).toHaveAttribute('aria-selected', 'false')
   })
