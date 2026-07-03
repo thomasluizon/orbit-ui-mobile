@@ -21,13 +21,70 @@ export interface HabitVisibilityHelpers {
   getVisibleChildren: (parentId: string, view: HabitVisibilityView) => NormalizedHabit[]
 }
 
+/** A completed non-recurring (one-time) habit: it is done and has no future
+ *  occurrence, so it drops out of the All view and out of destination pickers. */
+export function isCompletedOneTimeHabit(
+  habit: Pick<NormalizedHabit, 'isCompleted' | 'frequencyUnit'>,
+): boolean {
+  return habit.isCompleted && habit.frequencyUnit === null
+}
+
 export function isHabitVisibleInAllView(
   habit: Pick<NormalizedHabit, 'frequencyUnit' | 'isCompleted' | 'isGeneral'>,
   showCompleted: boolean,
 ): boolean {
   if (habit.isGeneral) return false
   if (showCompleted) return true
-  return !habit.isCompleted || habit.frequencyUnit !== null
+  return !isCompletedOneTimeHabit(habit)
+}
+
+/** Whether a habit may be offered as a move/link destination. A completed
+ *  one-time habit is hidden unless a descendant is still active, so a finished
+ *  project that still holds open children stays selectable and disappears only
+ *  once its whole subtree is done. */
+export function isHabitSelectableAsMoveTarget(
+  habit: NormalizedHabit,
+  getChildren: (habitId: string) => NormalizedHabit[],
+): boolean {
+  if (!isCompletedOneTimeHabit(habit)) return true
+  return getChildren(habit.id).some((child) =>
+    isHabitSelectableAsMoveTarget(child, getChildren),
+  )
+}
+
+function normalizeMoveTargetSearch(value: string): string {
+  return value
+    .trim()
+    .toLocaleLowerCase()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+}
+
+/** Filters a flat, pre-order move-target list by a title query: keeps the root
+ *  row plus any row that matches or has a matching descendant, so a match keeps
+ *  its ancestor chain visible for context and a matching parent collapses to
+ *  itself. Diacritic- and case-insensitive. */
+export function filterMoveTargetsBySearch<
+  T extends { id: string | null; label: string; depth: number },
+>(rows: T[], query: string): T[] {
+  const normalizedQuery = normalizeMoveTargetSearch(query)
+  if (!normalizedQuery) return rows
+
+  const matches = rows.map(
+    (row) =>
+      row.id !== null &&
+      normalizeMoveTargetSearch(row.label).includes(normalizedQuery),
+  )
+
+  return rows.filter((row, index) => {
+    if (row.id === null) return true
+    if (matches[index]) return true
+    for (let next = index + 1; next < rows.length; next++) {
+      if (rows[next]!.depth <= row.depth) break
+      if (matches[next]) return true
+    }
+    return false
+  })
 }
 
 function isChildVisibleInAllView(

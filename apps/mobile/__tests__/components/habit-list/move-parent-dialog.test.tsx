@@ -58,15 +58,38 @@ function flattenInstanceText(node: unknown): string {
 }
 
 const defaultOptions: MoveParentOption[] = [
-  { id: null, label: 'Top level', depth: 0, disabled: false, reason: null },
+  {
+    id: null,
+    label: 'Top level',
+    emoji: null,
+    depth: 0,
+    childCount: 0,
+    disabled: false,
+    reason: null,
+  },
   {
     id: 'blocked',
     label: 'Blocked branch',
+    emoji: '🚫',
     depth: 1,
+    childCount: 0,
     disabled: true,
     reason: 'Too deep',
   },
 ]
+
+function makeOption(overrides: Partial<MoveParentOption>): MoveParentOption {
+  return {
+    id: 'option',
+    label: 'Option',
+    emoji: '⭐️',
+    depth: 0,
+    childCount: 0,
+    disabled: false,
+    reason: null,
+    ...overrides,
+  }
+}
 
 function renderDialog(
   overrides: Partial<Parameters<typeof MoveParentDialog>[0]> = {},
@@ -98,10 +121,16 @@ function renderDialog(
 function findOptionRows(tree: RenderedTree): RenderedNode[] {
   return tree.root.findAll(
     (node) =>
-      node.props.accessibilityRole === 'button' &&
+      node.props.accessibilityRole === 'radio' &&
       typeof node.props.accessibilityState === 'object' &&
       node.props.accessibilityState !== null &&
       'selected' in (node.props.accessibilityState as Record<string, unknown>),
+  )
+}
+
+function findSearchInputs(tree: RenderedTree): RenderedNode[] {
+  return tree.root.findAll(
+    (node) => node.props.placeholder === 'habits.moveParent.searchPlaceholder',
   )
 }
 
@@ -159,6 +188,72 @@ describe('MoveParentDialog', () => {
       ;(confirmPill.props.onPress as () => void)()
     })
     expect(props.onConfirm).toHaveBeenCalled()
+  })
+
+  it('renders a selectable root row even with no destinations', () => {
+    const { tree, props } = renderDialog({
+      options: [makeOption({ id: null, label: 'Top level' })],
+    })
+
+    const rows = findOptionRows(tree)
+    expect(rows.length).toBeGreaterThan(0)
+    expect(flattenRenderedText(tree.toJSON())).not.toContain(
+      'habits.moveParent.destinations',
+    )
+
+    TestRenderer.act(() => {
+      ;(rows[0]!.props.onPress as () => void)()
+    })
+    expect(props.onSelectOption).toHaveBeenCalledWith(null)
+  })
+
+  it('shows the child count for a habit with children', () => {
+    const { tree } = renderDialog({
+      options: [
+        makeOption({ id: null, label: 'Top level' }),
+        makeOption({ id: 'parent', label: 'Parent', childCount: 12 }),
+      ],
+    })
+
+    expect(flattenRenderedText(tree.toJSON())).toContain('12')
+  })
+
+  it('reveals the search field only when destinations exceed eight', () => {
+    const { tree: few } = renderDialog()
+    expect(findSearchInputs(few).length).toBe(0)
+
+    const manyOptions: MoveParentOption[] = [
+      makeOption({ id: null, label: 'Top level' }),
+      ...Array.from({ length: 9 }, (_, index) =>
+        makeOption({ id: `d${index}`, label: `Zeta ${index}` }),
+      ),
+    ]
+    const { tree: many } = renderDialog({ options: manyOptions })
+    expect(findSearchInputs(many).length).toBeGreaterThan(0)
+  })
+
+  it('filters the tree by search while keeping the ancestor chain', () => {
+    const options: MoveParentOption[] = [
+      makeOption({ id: null, label: 'Top level' }),
+      makeOption({ id: 'alpha', label: 'Alpha', depth: 0, childCount: 1 }),
+      makeOption({ id: 'bravo', label: 'Bravo', depth: 1 }),
+      ...Array.from({ length: 9 }, (_, index) =>
+        makeOption({ id: `zeta${index}`, label: `Zeta ${index}` }),
+      ),
+    ]
+    const { tree } = renderDialog({ options })
+
+    const searchInput = findSearchInputs(tree)[0]
+    if (!searchInput) throw new Error('Expected the search field')
+
+    TestRenderer.act(() => {
+      ;(searchInput.props.onChangeText as (value: string) => void)('bravo')
+    })
+
+    const rendered = flattenRenderedText(tree.toJSON())
+    expect(rendered).toContain('Alpha')
+    expect(rendered).toContain('Bravo')
+    expect(rendered).not.toContain('Zeta')
   })
 
   it('locks the sheet and swaps to the moving label while pending', () => {

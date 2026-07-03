@@ -1,5 +1,8 @@
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
-import type { ReorderableHabitItem } from '@orbit/shared/utils'
+import {
+  isHabitSelectableAsMoveTarget,
+  type ReorderableHabitItem,
+} from '@orbit/shared/utils'
 import type { MoveParentOption } from './move-parent-dialog'
 
 export interface DragItem extends ReorderableHabitItem {
@@ -135,7 +138,9 @@ export function validateMoveTarget(
 }
 
 /** Builds the flattened, depth-ordered list of move-parent targets (root plus
- *  every habit in pre-order), each tagged with its validation result. */
+ *  every selectable habit in pre-order), each tagged with its validation result,
+ *  emoji, and count of selectable children. Completed one-time habits are
+ *  omitted unless a descendant is still active. */
 export function buildMoveParentOptions(
   deps: MoveParentOptionsDeps,
   movingHabitId: string,
@@ -148,29 +153,37 @@ export function buildMoveParentOptions(
   options.push({
     id: null,
     label: t('habits.moveParent.toRoot'),
+    emoji: null,
     depth: 0,
+    childCount: 0,
     disabled: !rootValidation.valid,
     reason: rootValidation.reason,
   })
 
   function addOption(habit: NormalizedHabit, depth: number) {
+    const selectableChildren = getChildren(habit.id).filter((child) =>
+      isHabitSelectableAsMoveTarget(child, getChildren),
+    )
     const validation = validate(habit.id, movingHabitId)
     options.push({
       id: habit.id,
       label: habit.title,
+      emoji: habit.emoji ?? null,
       depth,
+      childCount: selectableChildren.length,
       disabled: !validation.valid,
       reason: validation.reason,
     })
 
-    const children = getChildren(habit.id)
-    for (const child of children) {
+    for (const child of selectableChildren) {
       addOption(child, depth + 1)
     }
   }
 
   for (const habit of topLevelHabits) {
-    addOption(habit, 0)
+    if (isHabitSelectableAsMoveTarget(habit, getChildren)) {
+      addOption(habit, 0)
+    }
   }
 
   return options

@@ -1,5 +1,6 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
+import { isCompletedOneTimeHabit } from '@orbit/shared/utils'
 import { useHabits } from '@/hooks/use-habits'
 import { createTokensV2, tintFromPrimary } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -15,7 +16,9 @@ export function HabitPicker({ selectedIds, onToggle }: Readonly<HabitPickerProps
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const { data } = useHabits({})
-  const habits = data?.topLevelHabits ?? []
+  const habits = (data?.topLevelHabits ?? []).filter(
+    (habit) => !isCompletedOneTimeHabit(habit),
+  )
 
   if (habits.length === 0) {
     return (

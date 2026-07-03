@@ -1,4 +1,5 @@
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
+import { isHabitSelectableAsMoveTarget } from '@orbit/shared/utils'
 import type { MoveParentOption } from './move-parent-overlay'
 
 export type HabitView = 'today' | 'all' | 'general'
@@ -109,7 +110,9 @@ export function validateMoveTarget(
 }
 
 /** Builds the flattened, depth-ordered list of move-parent targets (root plus
- *  every habit in pre-order), each tagged with its validation result. */
+ *  every selectable habit in pre-order), each tagged with its validation result,
+ *  emoji, and count of selectable children. Completed one-time habits are
+ *  omitted unless a descendant is still active. */
 export function buildMoveParentOptions(
   deps: MoveParentOptionsDeps,
   movingHabitId: string,
@@ -121,33 +124,32 @@ export function buildMoveParentOptions(
   options.push({
     id: null,
     label: t('habits.moveParent.toRoot'),
+    emoji: null,
     depth: 0,
+    childCount: 0,
     disabled: !rootValidation.valid,
     reason: rootValidation.reason,
   })
 
-  const stack: Array<{ habit: NormalizedHabit; depth: number }> = []
-  for (let i = topLevelHabits.length - 1; i >= 0; i--) {
-    const habit = topLevelHabits[i]
-    if (habit) stack.push({ habit, depth: 0 })
-  }
-  while (stack.length > 0) {
-    const top = stack.pop()
-    if (!top) break
-    const { habit, depth } = top
+  const visit = (habit: NormalizedHabit, depth: number): void => {
+    const selectableChildren = getChildren(habit.id).filter((child) =>
+      isHabitSelectableAsMoveTarget(child, getChildren),
+    )
     const validation = validate(habit.id, movingHabitId)
     options.push({
       id: habit.id,
       label: habit.title,
+      emoji: habit.emoji ?? null,
       depth,
+      childCount: selectableChildren.length,
       disabled: !validation.valid,
       reason: validation.reason,
     })
-    const children = getChildren(habit.id)
-    for (let i = children.length - 1; i >= 0; i--) {
-      const child = children[i]
-      if (child) stack.push({ habit: child, depth: depth + 1 })
-    }
+    for (const child of selectableChildren) visit(child, depth + 1)
+  }
+
+  for (const habit of topLevelHabits) {
+    if (isHabitSelectableAsMoveTarget(habit, getChildren)) visit(habit, 0)
   }
 
   return options

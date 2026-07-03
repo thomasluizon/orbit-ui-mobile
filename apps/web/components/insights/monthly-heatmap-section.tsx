@@ -5,7 +5,7 @@ import { useTranslations } from 'next-intl'
 import { eachDayOfInterval } from 'date-fns'
 import { formatAPIDate, parseAPIDate } from '@orbit/shared/utils'
 import { MultiMonthHeatmap } from '@/components/charts/multi-month-heatmap'
-import { useCalendarRange } from '@/hooks/use-calendar-data'
+import { useCalendarRangeChunked } from '@/hooks/use-calendar-data'
 import { useProfile } from '@/hooks/use-profile'
 import { InsightsSection, toSectionStatus } from './insights-section'
 import { useDateLabel } from './insights-headline'
@@ -28,7 +28,7 @@ export function MonthlyHeatmapSection({
   const { profile } = useProfile()
   const fromDate = useMemo(() => parseAPIDate(range.from), [range.from])
   const toDate = useMemo(() => parseAPIDate(range.to), [range.to])
-  const { dayMap, isLoading, error, refresh } = useCalendarRange(fromDate, toDate)
+  const { dayMap, isLoading, error, refresh } = useCalendarRangeChunked(fromDate, toDate)
 
   const days = useMemo(
     () =>

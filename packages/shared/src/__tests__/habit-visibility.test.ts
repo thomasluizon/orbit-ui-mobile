@@ -2,13 +2,22 @@ import { describe, expect, it } from 'vitest'
 import { createMockHabit } from './factories'
 import {
   createHabitVisibilityHelpers,
+  filterMoveTargetsBySearch,
   getChildrenFromIndex,
+  isCompletedOneTimeHabit,
+  isHabitSelectableAsMoveTarget,
   isHabitVisibleInAllView,
 } from '../utils/habit-visibility'
 import type { NormalizedHabit } from '../types/habit'
 
 function buildHabitMap(habits: NormalizedHabit[]): Map<string, NormalizedHabit> {
   return new Map(habits.map((habit) => [habit.id, habit]))
+}
+
+function childrenGetter(
+  habits: NormalizedHabit[],
+): (habitId: string) => NormalizedHabit[] {
+  return (habitId) => habits.filter((habit) => habit.parentId === habitId)
 }
 
 describe('habit-visibility', () => {
@@ -246,6 +255,108 @@ describe('habit-visibility', () => {
     expect(
       withCompletedOneTime.getVisibleChildren('parent', 'all').map((habit) => habit.id),
     ).toEqual(['completed-one-time', 'completed-recurring', 'open'])
+  })
+
+  it('identifies completed one-time habits', () => {
+    expect(
+      isCompletedOneTimeHabit(createMockHabit({ isCompleted: true, frequencyUnit: null })),
+    ).toBe(true)
+    expect(
+      isCompletedOneTimeHabit(createMockHabit({ isCompleted: true, frequencyUnit: 'Day' })),
+    ).toBe(false)
+    expect(
+      isCompletedOneTimeHabit(createMockHabit({ isCompleted: false, frequencyUnit: null })),
+    ).toBe(false)
+  })
+
+  describe('isHabitSelectableAsMoveTarget', () => {
+    it('offers active habits and hides finished one-time habits', () => {
+      const active = createMockHabit({ id: 'active' })
+      const done = createMockHabit({
+        id: 'done',
+        isCompleted: true,
+        frequencyUnit: null,
+      })
+      const getChildren = childrenGetter([active, done])
+
+      expect(isHabitSelectableAsMoveTarget(active, getChildren)).toBe(true)
+      expect(isHabitSelectableAsMoveTarget(done, getChildren)).toBe(false)
+    })
+
+    it('keeps a finished container that still holds an active descendant', () => {
+      const container = createMockHabit({
+        id: 'container',
+        isCompleted: true,
+        frequencyUnit: null,
+      })
+      const activeChild = createMockHabit({ id: 'child', parentId: 'container' })
+      const getChildren = childrenGetter([container, activeChild])
+
+      expect(isHabitSelectableAsMoveTarget(container, getChildren)).toBe(true)
+    })
+
+    it('keeps a finished container when the active descendant is deep', () => {
+      const container = createMockHabit({
+        id: 'container',
+        isCompleted: true,
+        frequencyUnit: null,
+      })
+      const doneChild = createMockHabit({
+        id: 'child',
+        parentId: 'container',
+        isCompleted: true,
+        frequencyUnit: null,
+      })
+      const activeGrandchild = createMockHabit({ id: 'grandchild', parentId: 'child' })
+      const getChildren = childrenGetter([container, doneChild, activeGrandchild])
+
+      expect(isHabitSelectableAsMoveTarget(container, getChildren)).toBe(true)
+    })
+
+    it('drops a finished container once its whole subtree is done', () => {
+      const container = createMockHabit({
+        id: 'container',
+        isCompleted: true,
+        frequencyUnit: null,
+      })
+      const doneChild = createMockHabit({
+        id: 'child',
+        parentId: 'container',
+        isCompleted: true,
+        frequencyUnit: null,
+      })
+      const getChildren = childrenGetter([container, doneChild])
+
+      expect(isHabitSelectableAsMoveTarget(container, getChildren)).toBe(false)
+    })
+  })
+
+  describe('filterMoveTargetsBySearch', () => {
+    const rows = [
+      { id: null, label: 'root', depth: 0 },
+      { id: 'health', label: 'Saúde', depth: 0 },
+      { id: 'run', label: 'Correr', depth: 1 },
+      { id: 'work', label: 'Trabalho', depth: 0 },
+    ]
+
+    it('returns every row for an empty query', () => {
+      expect(filterMoveTargetsBySearch(rows, '  ')).toEqual(rows)
+    })
+
+    it('keeps the ancestor chain of a matching descendant', () => {
+      const result = filterMoveTargetsBySearch(rows, 'correr').map((row) => row.id)
+      expect(result).toEqual([null, 'health', 'run'])
+    })
+
+    it('collapses a matching parent to itself, dropping non-matching children', () => {
+      const result = filterMoveTargetsBySearch(rows, 'saude').map((row) => row.id)
+      expect(result).toEqual([null, 'health'])
+    })
+
+    it('always keeps the root row even with no matches', () => {
+      const result = filterMoveTargetsBySearch(rows, 'zzz').map((row) => row.id)
+      expect(result).toEqual([null])
+    })
   })
 
   it('applies all-view top-level visibility rules', () => {

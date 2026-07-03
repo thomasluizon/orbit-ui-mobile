@@ -1,13 +1,20 @@
+import { useMemo, useState } from 'react'
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
+import { Home, Search } from 'lucide-react-native'
+import { filterMoveTargetsBySearch } from '@orbit/shared/utils'
 import { BottomSheetModal } from '@/components/bottom-sheet-modal'
+import { AppTextInput } from '@/components/ui/app-text-input'
 import { PillButton } from '@/components/ui/pill-button'
-import { createTokensV2, tintFromPrimary } from '@/lib/theme'
+import { RadioGlyph } from '@/components/ui/select-check'
+import { createTokensV2, tintFromPrimary, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 export interface MoveParentOption {
   id: string | null
   label: string
+  emoji: string | null
   depth: number
+  childCount: number
   disabled: boolean
   reason: string | null
 }
@@ -24,6 +31,80 @@ interface MoveParentDialogProps {
   onClose: () => void
   onConfirm: () => void
   onSelectOption: (optionId: string | null) => void
+}
+
+const SEARCH_THRESHOLD = 8
+
+type Styles = ReturnType<typeof createStyles>
+
+function MoveTargetRow({
+  option,
+  selected,
+  isCurrentParent,
+  currentLabel,
+  tokens,
+  styles,
+  onSelect,
+}: Readonly<{
+  option: MoveParentOption
+  selected: boolean
+  isCurrentParent: boolean
+  currentLabel: string
+  tokens: AppTokensV2
+  styles: Styles
+  onSelect: (optionId: string | null) => void
+}>) {
+  const isRoot = option.id === null
+
+  return (
+    <Pressable
+      style={({ pressed }) => [
+        styles.moveOption,
+        selected
+          ? styles.moveOptionSelected
+          : isRoot
+            ? styles.moveOptionRoot
+            : styles.moveOptionDefault,
+        option.disabled && styles.moveOptionDisabled,
+        pressed && !option.disabled && !selected ? styles.moveOptionPressed : null,
+      ]}
+      disabled={option.disabled}
+      onPress={() => onSelect(option.id)}
+      accessibilityRole="radio"
+      accessibilityLabel={option.label}
+      accessibilityState={{ selected, disabled: option.disabled }}
+    >
+      <View style={styles.moveOptionHeader}>
+        {Array.from({ length: option.depth }, (_, index) => (
+          <View key={index} style={styles.rail}>
+            <View style={styles.railLine} />
+          </View>
+        ))}
+        <View style={[styles.well, isRoot ? styles.wellRoot : styles.wellFilled]}>
+          {isRoot ? (
+            <Home size={18} strokeWidth={1.8} color={tokens.fg2} />
+          ) : (
+            <Text style={styles.wellEmoji}>{option.emoji ?? '·'}</Text>
+          )}
+        </View>
+        <Text style={styles.moveOptionLabel} numberOfLines={1}>
+          {option.label}
+        </Text>
+        {option.childCount > 0 ? (
+          <Text style={styles.moveOptionCount}>{option.childCount}</Text>
+        ) : null}
+        {isCurrentParent ? (
+          <Text style={styles.moveOptionCurrent}>{currentLabel}</Text>
+        ) : null}
+        {selected ? <RadioGlyph selected size={22} tokens={tokens} /> : null}
+      </View>
+      {option.reason ? (
+        <Text style={[styles.moveOptionReason, { paddingLeft: option.depth * 20 }]}>
+          {option.reason}
+        </Text>
+      ) : null}
+    </Pressable>
+  )
 }
 
 /** Move-parent picker sheet (mobile). Presentational: the parent HabitList
@@ -45,85 +126,105 @@ export function MoveParentDialog({
   const tokens = createTokensV2(currentScheme, currentTheme)
   const styles = createStyles(tokens)
 
+  const [searchQuery, setSearchQuery] = useState('')
+
+  const rootOption = useMemo(
+    () => options.find((option) => option.id === null) ?? null,
+    [options],
+  )
+  const destinationCount = useMemo(
+    () => options.reduce((total, option) => (option.id === null ? total : total + 1), 0),
+    [options],
+  )
+  const showSearch = destinationCount > SEARCH_THRESHOLD
+
+  const treeRows = useMemo(() => {
+    const rows = showSearch ? filterMoveTargetsBySearch(options, searchQuery) : options
+    return rows.filter((option) => option.id !== null)
+  }, [options, showSearch, searchQuery])
+
+  const isSearchEmpty = showSearch && searchQuery.trim().length > 0 && treeRows.length === 0
+
+  const handleClose = () => {
+    setSearchQuery('')
+    onClose()
+  }
+
   return (
     <BottomSheetModal
       open={visible}
-      onClose={onClose}
+      onClose={handleClose}
       title={t('habits.moveParent.title')}
       canDismiss={!isPending}
     >
       <View style={styles.sheetBody}>
         {movingHabitTitle ? (
           <Text style={styles.moveDialogDescription}>
-            {t('habits.moveParent.description', {
-              name: movingHabitTitle,
-            })}
+            {t('habits.moveParent.description', { name: movingHabitTitle })}
           </Text>
         ) : null}
 
-        {options.length > 0 ? (
-          <ScrollView
-            style={styles.moveOptionsList}
-            contentContainerStyle={styles.moveOptionsContent}
-            showsVerticalScrollIndicator={false}
-          >
-            {options.map((option) => {
-              const isSelectedOption = option.id === selectedMoveParentId
-              return (
-                <Pressable
-                  key={option.id ?? '__root__'}
-                  style={({ pressed }) => [
-                    styles.moveOption,
-                    isSelectedOption && styles.moveOptionSelected,
-                    option.disabled && styles.moveOptionDisabled,
-                    pressed && !option.disabled
-                      ? styles.moveOptionPressed
-                      : null,
-                    option.id !== null
-                      ? { paddingLeft: 14 + option.depth * 18 }
-                      : null,
-                  ]}
-                  disabled={option.disabled}
-                  onPress={() => onSelectOption(option.id)}
-                  accessibilityRole="button"
-                  accessibilityState={{
-                    selected: isSelectedOption,
-                    disabled: option.disabled,
-                  }}
-                >
-                  <View style={styles.moveOptionHeader}>
-                    <Text
-                      style={styles.moveOptionLabel}
-                      numberOfLines={1}
-                    >
-                      {option.label}
-                    </Text>
-                    {option.id === movingHabitParentId ? (
-                      <Text style={styles.moveOptionCurrent}>
-                        {t('habits.moveParent.currentParent')}
-                      </Text>
-                    ) : null}
-                  </View>
-                  {option.reason ? (
-                    <Text style={styles.moveOptionReason}>
-                      {option.reason}
-                    </Text>
-                  ) : null}
-                </Pressable>
-              )
-            })}
-          </ScrollView>
-        ) : (
-          <Text style={styles.moveDialogEmpty}>
-            {t('habits.moveParent.noOptions')}
-          </Text>
-        )}
+        {showSearch ? (
+          <View style={styles.searchWrap}>
+            <AppTextInput
+              value={searchQuery}
+              onChangeText={setSearchQuery}
+              placeholder={t('habits.moveParent.searchPlaceholder')}
+              accessibilityLabel={t('habits.moveParent.searchPlaceholder')}
+              autoCorrect={false}
+            />
+            <View style={styles.searchIcon} pointerEvents="none">
+              <Search size={18} strokeWidth={1.8} color={tokens.fg3} />
+            </View>
+          </View>
+        ) : null}
+
+        {rootOption ? (
+          <MoveTargetRow
+            option={rootOption}
+            selected={rootOption.id === selectedMoveParentId}
+            isCurrentParent={rootOption.id === movingHabitParentId}
+            currentLabel={t('habits.moveParent.currentParent')}
+            tokens={tokens}
+            styles={styles}
+            onSelect={onSelectOption}
+          />
+        ) : null}
+
+        {treeRows.length > 0 ? (
+          <Text style={styles.eyebrow}>{t('habits.moveParent.destinations')}</Text>
+        ) : null}
+
+        <ScrollView
+          style={styles.moveOptionsList}
+          contentContainerStyle={styles.moveOptionsContent}
+          showsVerticalScrollIndicator={false}
+          keyboardShouldPersistTaps="handled"
+        >
+          {treeRows.map((option) => (
+            <MoveTargetRow
+              key={option.id}
+              option={option}
+              selected={option.id === selectedMoveParentId}
+              isCurrentParent={option.id === movingHabitParentId}
+              currentLabel={t('habits.moveParent.currentParent')}
+              tokens={tokens}
+              styles={styles}
+              onSelect={onSelectOption}
+            />
+          ))}
+          {isSearchEmpty ? (
+            <Text style={styles.moveDialogEmpty}>
+              {t('habits.moveParent.noSearchResults')}
+            </Text>
+          ) : null}
+        </ScrollView>
 
         <View style={styles.footer}>
           <PillButton
             variant="ghost"
             disabled={isPending}
-            onPress={onClose}
+            onPress={handleClose}
             style={styles.footerPill}
           >
             {t('common.cancel')}
@@ -134,9 +235,7 @@ export function MoveParentDialog({
             onPress={onConfirm}
             style={styles.footerPill}
           >
-            {isPending
-              ? t('habits.moveParent.moving')
-              : t('habits.moveParent.confirm')}
+            {isPending ? t('habits.moveParent.moving') : t('habits.moveParent.confirm')}
           </PillButton>
         </View>
       </View>
@@ -144,9 +243,7 @@ export function MoveParentDialog({
   )
 }
 
-type AppTokens = ReturnType<typeof createTokensV2>
-
-function createStyles(tokens: AppTokens) {
+function createStyles(tokens: AppTokensV2) {
   return StyleSheet.create({
     sheetBody: {
       flex: 1,
@@ -161,20 +258,46 @@ function createStyles(tokens: AppTokens) {
       color: tokens.fg2,
       marginBottom: 16,
     },
+    searchWrap: {
+      position: 'relative',
+      justifyContent: 'center',
+      marginBottom: 12,
+    },
+    searchIcon: {
+      position: 'absolute',
+      right: 16,
+    },
+    eyebrow: {
+      fontFamily: 'Rubik_500Medium',
+      fontSize: 12,
+      letterSpacing: 0.96,
+      textTransform: 'uppercase',
+      color: tokens.fg3,
+      marginTop: 4,
+      marginBottom: 2,
+    },
     moveOptionsList: {
       flex: 1,
     },
     moveOptionsContent: {
-      gap: 10,
+      gap: 6,
+      paddingTop: 6,
       paddingBottom: 8,
     },
     moveOption: {
       borderRadius: 14,
       borderWidth: 1,
+      paddingHorizontal: 12,
+      paddingVertical: 9,
+    },
+    moveOptionDefault: {
       borderColor: tokens.hairline,
       backgroundColor: tokens.bgField,
-      paddingHorizontal: 14,
-      paddingVertical: 12,
+    },
+    moveOptionRoot: {
+      borderStyle: 'dashed',
+      borderColor: tokens.hairlineStrong,
+      backgroundColor: 'transparent',
     },
     moveOptionSelected: {
       borderWidth: 1.5,
@@ -190,14 +313,49 @@ function createStyles(tokens: AppTokens) {
     moveOptionHeader: {
       flexDirection: 'row',
       alignItems: 'center',
-      justifyContent: 'space-between',
-      gap: 12,
+      gap: 10,
+    },
+    rail: {
+      width: 20,
+      alignSelf: 'stretch',
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    railLine: {
+      width: 1,
+      height: '100%',
+      backgroundColor: tokens.hairline,
+    },
+    well: {
+      width: 30,
+      height: 30,
+      borderRadius: 10,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    wellFilled: {
+      backgroundColor: tokens.bgWell,
+    },
+    wellRoot: {
+      backgroundColor: 'transparent',
+      borderWidth: 1,
+      borderColor: tokens.hairline,
+    },
+    wellEmoji: {
+      fontSize: 16,
+      lineHeight: 20,
     },
     moveOptionLabel: {
       flex: 1,
       fontFamily: 'Rubik_500Medium',
       fontSize: 14,
       color: tokens.fg1,
+    },
+    moveOptionCount: {
+      fontFamily: 'Roboto_400Regular',
+      fontSize: 12,
+      fontVariant: ['tabular-nums'],
+      color: tokens.fg3,
     },
     moveOptionCurrent: {
       fontFamily: 'Rubik_600SemiBold',

@@ -140,8 +140,13 @@ export {
 } from './locale-format'
 export { buildYearRange } from './year-range'
 export { filterRecurringEntries } from './calendar-entries'
-export { clampRangeToMaxDays, MAX_RANGE_DAYS } from './calendar-range'
-export type { ClampedRange } from './calendar-range'
+export {
+  CALENDAR_MONTH_MAX_RANGE_DAYS,
+  clampRangeToMaxDays,
+  MAX_RANGE_DAYS,
+  splitCalendarMonthRange,
+} from './calendar-range'
+export type { CalendarRangeChunk, ClampedRange } from './calendar-range'
 export { fetchAllPaginatedItems } from './pagination'
 export {
   buildHabitQueryString,
@@ -372,7 +377,10 @@ export {
 } from './pending-notification-deletes'
 export {
   createHabitVisibilityHelpers,
+  filterMoveTargetsBySearch,
   getChildrenFromIndex,
+  isCompletedOneTimeHabit,
+  isHabitSelectableAsMoveTarget,
   isHabitVisibleInAllView,
 } from './habit-visibility'
 export type {
