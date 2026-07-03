@@ -14,16 +14,8 @@ export function ChallengesEntryCard() {
       <button
         type="button"
         onClick={() => router.push('/social/challenges')}
-        className="flex w-full items-center text-left"
-        style={{
-          gap: 14,
-          padding: 16,
-          border: 0,
-          cursor: 'pointer',
-          background: 'var(--bg-card)',
-          boxShadow: 'inset 0 0 0 1px var(--hairline)',
-          borderRadius: 18,
-        }}
+        className="card-int flex w-full appearance-none items-center border-0 text-left"
+        style={{ gap: 14, padding: 16 }}
       >
         <span
           aria-hidden="true"

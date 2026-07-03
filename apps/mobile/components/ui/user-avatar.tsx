@@ -1,5 +1,5 @@
 import { StyleSheet, Text, View } from 'react-native'
-import { createTokensV2 } from '@/lib/theme'
+import { createTokensV2, tintFromPrimary } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 interface UserAvatarProps {
@@ -27,7 +27,7 @@ export function UserAvatar({ name, size = 44 }: Readonly<UserAvatarProps>) {
           width: size,
           height: size,
           borderRadius: size / 2,
-          backgroundColor: tokens.primarySoft,
+          backgroundColor: tintFromPrimary(tokens, 0.14),
         },
       ]}
     >

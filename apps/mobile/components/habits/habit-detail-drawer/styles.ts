@@ -56,26 +56,35 @@ export function createDrawerStyles(tokens: ReturnType<typeof createTokensV2>) {
       lineHeight: 20,
       textAlign: 'center',
     },
-    description: {
+    descriptionRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 10,
       paddingHorizontal: 20,
       paddingVertical: 12,
+      borderBottomWidth: StyleSheet.hairlineWidth,
+      borderBottomColor: tokens.hairline,
+    },
+    descriptionRowPressed: {
+      backgroundColor: tokens.bgElevPressed,
+      transform: [{ scale: 0.99 }],
+    },
+    description: {
+      flex: 1,
       fontFamily: 'Rubik_400Regular',
       fontSize: 14,
       lineHeight: 21,
       color: tokens.fg2,
-      borderBottomWidth: StyleSheet.hairlineWidth,
-      borderBottomColor: tokens.hairline,
     },
     sectionInset: {
       paddingHorizontal: 20,
       paddingBottom: 8,
     },
     askAstra: {
-      position: 'relative',
       flexDirection: 'row',
       alignItems: 'center',
       gap: 12,
-      paddingLeft: 34,
+      paddingLeft: 20,
       paddingRight: 20,
       paddingTop: 16,
       paddingBottom: 24,
@@ -83,13 +92,9 @@ export function createDrawerStyles(tokens: ReturnType<typeof createTokensV2>) {
       borderTopColor: tokens.hairline,
       marginTop: 8,
     },
-    askAstraRule: {
-      position: 'absolute',
-      left: 20,
-      top: 20,
-      bottom: 28,
-      width: 2,
-      borderRadius: 1,
+    askAstraPressed: {
+      backgroundColor: tokens.bgElevPressed,
+      transform: [{ scale: 0.99 }],
     },
     askAstraContent: {
       flex: 1,

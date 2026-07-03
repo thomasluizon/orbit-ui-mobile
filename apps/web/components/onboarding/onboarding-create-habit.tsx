@@ -109,7 +109,7 @@ export function OnboardingCreateHabit({ onCreated }: Readonly<OnboardingCreateHa
             width: 56,
             height: 56,
             background: 'var(--primary)',
-            boxShadow: '0 8px 28px rgba(var(--primary-rgb), 0.45)',
+            boxShadow: 'var(--primary-glow)',
             animation: 'fresh-start-orb 0.5s var(--ease-out) both',
           }}
         >
@@ -201,36 +201,15 @@ export function OnboardingCreateHabit({ onCreated }: Readonly<OnboardingCreateHa
       </div>
 
       {showFrequencyPicker && (
-        <div className="flex" style={{ gap: 8 }}>
+        <div className="flex flex-wrap justify-center" style={{ gap: 6 }}>
           {ONBOARDING_HABIT_FREQUENCIES.map((freq) => (
-            <button
-              type="button"
+            <Chip
               key={freq.value}
-              className={
-                'flex-1 appearance-none border-0 cursor-pointer transition-[background-color,color] duration-[var(--dur-fast)] ease-[var(--ease-standard)] ' +
-                (activeFrequency === freq.value
-                  ? ''
-                  : 'hover:bg-[var(--bg-elev-2)] hover:text-[var(--fg-1)]')
-              }
-              disabled={isCreating}
+              active={activeFrequency === freq.value}
               onClick={() => selectFrequency(freq.value)}
-              style={{
-                height: 42,
-                padding: '0 12px',
-                borderRadius: 12,
-                background:
-                  activeFrequency === freq.value ? 'var(--primary)' : 'var(--bg-elev)',
-                color:
-                  activeFrequency === freq.value
-                    ? 'var(--fg-on-primary)'
-                    : 'var(--fg-3)',
-                fontFamily: 'var(--font-sans)',
-                fontSize: 13,
-                fontWeight: 500,
-              }}
             >
               {t(freq.labelKey)}
-            </button>
+            </Chip>
           ))}
         </div>
       )}

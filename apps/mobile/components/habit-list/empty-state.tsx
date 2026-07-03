@@ -1,8 +1,17 @@
+import { useEffect } from 'react'
 import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native'
+import Animated, {
+  cancelAnimation,
+  useAnimatedStyle,
+  useSharedValue,
+  withRepeat,
+  withTiming,
+} from 'react-native-reanimated'
 import { Plus, Sparkles } from 'lucide-react-native'
 import { getHabitEmptyStateKey } from '@orbit/shared/utils'
 import { PillButton } from '@/components/ui/pill-button'
 import { SatelliteGlyph } from '@/components/ui/satellite-glyph'
+import { usePrefersReducedMotion } from '@/lib/motion'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
@@ -101,15 +110,29 @@ interface SkeletonCardStyles {
 }
 
 export function SkeletonCard({ styles: cardStyles }: { styles: SkeletonCardStyles }) {
+  const prefersReducedMotion = usePrefersReducedMotion()
+  const pulse = useSharedValue(1)
+
+  useEffect(() => {
+    if (prefersReducedMotion) return
+    pulse.value = withRepeat(withTiming(0.55, { duration: 550 }), -1, true)
+    return () => {
+      cancelAnimation(pulse)
+      pulse.value = 1
+    }
+  }, [prefersReducedMotion, pulse])
+
+  const pulseStyle = useAnimatedStyle(() => ({ opacity: pulse.value }))
+
   return (
-    <View style={cardStyles.skeletonCard}>
+    <Animated.View style={[cardStyles.skeletonCard, pulseStyle]}>
       <View style={cardStyles.skeletonCircle} />
       <View style={cardStyles.skeletonContent}>
         <View style={cardStyles.skeletonTitle} />
         <View style={cardStyles.skeletonSubtitle} />
       </View>
       <View style={cardStyles.skeletonCheck} />
-    </View>
+    </Animated.View>
   )
 }
 
@@ -147,7 +170,7 @@ const styles = StyleSheet.create({
   },
   linkAction: {
     marginTop: 6,
-    paddingVertical: 6,
+    paddingVertical: 12,
     paddingHorizontal: 8,
   },
   linkActionText: {

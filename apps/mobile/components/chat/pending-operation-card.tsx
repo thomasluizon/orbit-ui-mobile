@@ -6,6 +6,7 @@ import {
   TextInput,
   ActivityIndicator,
 } from "react-native";
+import Animated, { Keyframe, ReduceMotion } from "react-native-reanimated";
 import { ShieldAlert } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import type { AgentExecuteOperationResponse, PendingAgentOperation } from "@orbit/shared/types";
@@ -15,6 +16,13 @@ import { createTokensV2 } from '@/lib/theme';
 import { useAppTheme } from "@/lib/use-app-theme"
 
 type AppTokens = ReturnType<typeof createTokensV2>;
+
+const CARD_EXIT = new Keyframe({
+  0: { opacity: 1, transform: [{ translateY: 0 }] },
+  100: { opacity: 0, transform: [{ translateY: -4 }] },
+})
+  .duration(160)
+  .reduceMotion(ReduceMotion.System);
 
 type PendingOperationExecutionResult = {
   ok: boolean;
@@ -158,7 +166,7 @@ export function PendingOperationCard({
   }
 
   return (
-    <View style={styles.card}>
+    <Animated.View exiting={CARD_EXIT} style={styles.card}>
       <View style={styles.header}>
         <View style={styles.iconWell}>
           <ShieldAlert size={20} color={tokens.statusOverdue} strokeWidth={1.8} />
@@ -231,7 +239,7 @@ export function PendingOperationCard({
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
       {successMessage ? <Text style={styles.success}>{successMessage}</Text> : null}
-    </View>
+    </Animated.View>
   );
 }
 

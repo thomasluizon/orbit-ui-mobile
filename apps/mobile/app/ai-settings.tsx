@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { View, ScrollView } from 'react-native'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
@@ -14,6 +14,7 @@ import { useAppTheme } from '@/lib/use-app-theme'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { AppBar } from '@/components/ui/app-bar'
 import { SectionLabel } from '@/components/ui/section-label'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { createStyles } from './ai-settings-styles'
 import { useUserFacts } from './use-user-facts'
 import {
@@ -137,6 +138,7 @@ export default function AiSettingsScreen() {
   } = useUserFacts(hasProAccess)
 
   const showPaging = totalFactsPages > 1 && !selectMode
+  const [bulkDeleteConfirmOpen, setBulkDeleteConfirmOpen] = useState(false)
 
   const factsTrailing =
     !hasProAccess || facts.length === 0 ? undefined : (
@@ -154,7 +156,7 @@ export default function AiSettingsScreen() {
         onPreviousPage={() => setFactsPage((p) => Math.max(1, p - 1))}
         onNextPage={() => setFactsPage((p) => Math.min(totalFactsPages, p + 1))}
         onToggleSelectAll={toggleSelectAll}
-        onBulkDelete={() => bulkDeleteMutation.mutate([...selectedFactIds])}
+        onBulkDelete={() => setBulkDeleteConfirmOpen(true)}
         onToggleSelectMode={toggleSelectMode}
       />
     )
@@ -168,7 +170,7 @@ export default function AiSettingsScreen() {
         back
         onBack={() => goBackOrFallback('/profile')}
         title={t('aiSettings.title')}
-        backLabel={t('common.goBack')}
+        backLabel={t('common.backToProfile')}
       />
       <ScrollView
         style={styles.container}
@@ -212,6 +214,15 @@ export default function AiSettingsScreen() {
 
         <View style={{ height: 24 }} />
       </ScrollView>
+
+      <ConfirmDialog
+        open={bulkDeleteConfirmOpen}
+        onOpenChange={setBulkDeleteConfirmOpen}
+        title={t('profile.facts.bulkDeleteConfirmTitle')}
+        description={t('profile.facts.bulkDeleteConfirmBody')}
+        confirmLabel={t('profile.facts.deleteSelected', { n: selectedFactIds.size })}
+        onConfirm={() => bulkDeleteMutation.mutate([...selectedFactIds])}
+      />
     </SafeAreaView>
   )
 }

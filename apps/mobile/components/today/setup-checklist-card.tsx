@@ -14,7 +14,7 @@ const CHECKLIST_ITEMS: readonly { key: string; flag: keyof Profile }[] = [
   { key: 'tryAstra', flag: 'hasTriedAstra' },
 ]
 
-/** Auto-tracked first-run setup checklist on Today; hides once completed or dismissed. */
+/** Auto-tracked first-run setup checklist on Today; renders unconditionally, visibility is arbitrated by useEngagementSlot. */
 export function SetupChecklistCard() {
   const { t } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
@@ -24,14 +24,9 @@ export function SetupChecklistCard() {
   )
   const styles = useMemo(() => createStyles(tokens), [tokens])
   const { profile } = useProfile()
-  const dismissed = useUIStore((state) => state.setupChecklistDismissed)
   const setDismissed = useUIStore((state) => state.setSetupChecklistDismissed)
 
-  if (!profile || dismissed || profile.hasCompletedOnboardingChecklist) {
-    return null
-  }
-
-  const states = CHECKLIST_ITEMS.map((item) => Boolean(profile[item.flag]))
+  const states = CHECKLIST_ITEMS.map((item) => Boolean(profile?.[item.flag]))
   const doneCount = states.filter(Boolean).length
   const total = CHECKLIST_ITEMS.length
   const allDone = doneCount === total
@@ -52,6 +47,10 @@ export function SetupChecklistCard() {
           hitSlop={8}
           accessibilityRole="button"
           accessibilityLabel={t('today.setupChecklist.dismiss')}
+          style={({ pressed }) => [
+            styles.dismissButton,
+            pressed ? styles.dismissButtonPressed : null,
+          ]}
         >
           <X size={18} strokeWidth={1.8} color={tokens.fg4} />
         </Pressable>
@@ -105,6 +104,15 @@ function createStyles(tokens: AppTokensV2) {
     headerText: {
       flex: 1,
       gap: 3,
+    },
+    dismissButton: {
+      width: 28,
+      height: 28,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    dismissButtonPressed: {
+      opacity: 0.6,
     },
     title: {
       fontFamily: 'Rubik_500Medium',

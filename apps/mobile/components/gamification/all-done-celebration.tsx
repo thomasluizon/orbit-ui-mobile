@@ -7,8 +7,9 @@ import {
   View,
 } from 'react-native'
 import { useTranslation } from 'react-i18next'
-import { createTokensV2, tintFromPrimary } from '@/lib/theme'
+import { createTokensV2, easings, tintFromPrimary } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
+import { toAnimatedEasing } from '@/lib/motion'
 import { useUIStore } from '@/stores/ui-store'
 import { GradientTop } from '@/components/ui/gradient-top'
 import { useCelebrationEntrance } from './celebration-motion'
@@ -34,7 +35,8 @@ export function AllDoneCelebration() {
     if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current)
     Animated.timing(overlayOpacity, {
       toValue: 0,
-      duration: 300,
+      duration: 280,
+      easing: toAnimatedEasing(easings.out),
       useNativeDriver: true,
     }).start(() => {
       setAllDoneCelebration(false)
@@ -48,7 +50,8 @@ export function AllDoneCelebration() {
 
     Animated.timing(overlayOpacity, {
       toValue: 1,
-      duration: 300,
+      duration: 280,
+      easing: toAnimatedEasing(easings.out),
       useNativeDriver: true,
     }).start()
 

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { ShieldAlert } from 'lucide-react'
+import { Loader2, ShieldAlert } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import type { AgentExecuteOperationResponse, PendingAgentOperation } from '@orbit/shared/types/ai'
 import { Badge } from '@/components/ui/badge'
@@ -67,14 +67,12 @@ export function PendingOperationCard({
   const [challengeId, setChallengeId] = useState<string | null>(null)
   const [confirmationToken, setConfirmationToken] = useState<string | null>(null)
   const [dismissed, setDismissed] = useState(false)
+  const [isExiting, setIsExiting] = useState(false)
 
   const needsStepUp = pendingOperation.confirmationRequirement === 'StepUp'
   const riskLabel = t(getRiskLabelKey(pendingOperation.riskClass))
-  const primaryActionLabel = isLoading
-    ? t('common.loading')
-    : needsStepUp
-      ? t('auth.sendCode')
-      : t('common.confirm')
+  const primaryActionLabel = needsStepUp ? t('auth.sendCode') : t('common.confirm')
+  const loadingSpinner = isLoading ? <Loader2 className="size-3.5 animate-spin" /> : undefined
 
   async function handleStart() {
     setIsLoading(true)
@@ -150,10 +148,19 @@ export function PendingOperationCard({
   return (
     <div
       data-testid="pending-op-card"
-      className="rounded-[16px] bg-[var(--bg-field)]"
+      className="rounded-[16px] bg-[var(--bg-card)]"
       style={{
         padding: '14px 16px',
         boxShadow: 'inset 0 0 0 1px var(--hairline)',
+        opacity: isExiting ? 0 : 1,
+        transform: isExiting ? 'translateY(-4px)' : 'none',
+        transition:
+          'opacity var(--dur-fast) var(--ease-standard), transform var(--dur-fast) var(--ease-standard)',
+      }}
+      onTransitionEnd={(event) => {
+        if (isExiting && event.target === event.currentTarget && event.propertyName === 'opacity') {
+          setDismissed(true)
+        }
       }}
     >
       <div className="flex items-center" style={{ gap: 12, marginBottom: 12 }}>
@@ -210,11 +217,12 @@ export function PendingOperationCard({
             <PillButton
               className="flex-1 py-[11px]! text-[14px]!"
               disabled={isLoading || verificationCode.trim().length < 6}
+              leading={loadingSpinner}
               onClick={() => {
                 void handleVerify()
               }}
             >
-              {isLoading ? t('common.loading') : t('auth.verify')}
+              {t('auth.verify')}
             </PillButton>
           </div>
           <p className="text-[11px] text-[var(--fg-3)]">
@@ -229,6 +237,7 @@ export function PendingOperationCard({
             className="flex-1 py-[11px]! text-[14px]!"
             disabled={isLoading}
             dataTestId="pending-op-confirm"
+            leading={loadingSpinner}
             onClick={() => {
               void handleStart()
             }}
@@ -240,7 +249,7 @@ export function PendingOperationCard({
             className="py-[11px]! text-[14px]! px-[18px]!"
             disabled={isLoading}
             dataTestId="pending-op-cancel"
-            onClick={() => setDismissed(true)}
+            onClick={() => setIsExiting(true)}
           >
             {t('common.cancel')}
           </PillButton>

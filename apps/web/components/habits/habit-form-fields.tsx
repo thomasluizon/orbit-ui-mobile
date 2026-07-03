@@ -200,7 +200,9 @@ export function HabitFormFields({
   }
 
   return (
-    <>
+    <div className="space-y-7">
+      <div className="space-y-7">
+      <div className="stagger-enter space-y-7">
       <div className="space-y-2">
         <label htmlFor="habit-form-title" className="form-label">
           {t('habits.form.title')}
@@ -289,7 +291,6 @@ export function HabitFormFields({
               id="habit-form-frequency-qty"
               type="number"
               min={1}
-              required
               className="form-input"
               {...register('frequencyQuantity', { valueAsNumber: true })}
             />
@@ -364,7 +365,9 @@ export function HabitFormFields({
           </div>
         </div>
       )}
+      </div>
 
+      <div className="stagger-enter space-y-7">
       <div className="space-y-2" role="group" aria-labelledby="habit-form-tags-label">
         <span id="habit-form-tags-label" className="form-label">
           {t('habits.form.tags')}
@@ -526,6 +529,8 @@ export function HabitFormFields({
           </div>
         )}
       </div>
+      </div>
+      </div>
 
       <div className="border-t border-[var(--hairline)] pt-4 mt-2">
         <button
@@ -534,10 +539,10 @@ export function HabitFormFields({
           onClick={() => setShowAdvanced(!showAdvanced)}
           className="flex items-center gap-2 text-sm font-medium text-[var(--fg-2)] hover:text-[var(--fg-1)] transition-colors w-full py-3"
         >
-          <ChevronDown className={`size-4 transition-transform duration-200 ${showAdvanced ? 'rotate-180' : ''}`} />
+          <ChevronDown className={`size-4 transition-transform duration-[var(--dur-base)] ${showAdvanced ? 'rotate-180' : ''}`} />
           {t('habits.form.moreOptions' as Parameters<typeof t>[0])}
           {advancedFieldCount > 0 && (
-            <span className="text-xs text-[var(--primary)]">{t('habits.form.moreOptionsCount' as Parameters<typeof t>[0], { count: advancedFieldCount })}</span>
+            <span className="font-mono text-xs tabular-nums text-[var(--primary)]">{t('habits.form.moreOptionsCount' as Parameters<typeof t>[0], { count: advancedFieldCount })}</span>
           )}
         </button>
       </div>
@@ -608,7 +613,7 @@ export function HabitFormFields({
                     <button
                       type="button"
                       aria-label={t('habits.form.removeEndDate')}
-                      className="shrink-0 p-2 text-[var(--fg-3)] hover:text-[var(--status-bad)] hover:bg-[var(--status-bad)]/10 transition-colors rounded-full"
+                      className="shrink-0 grid size-11 place-items-center text-[var(--fg-3)] hover:text-[var(--status-bad)] hover:bg-[var(--status-bad)]/10 transition-colors rounded-full"
                       onClick={() => setValue('endDate', '', { shouldDirty: true })}
                     >
                       <X className="size-4" />
@@ -672,7 +677,7 @@ export function HabitFormFields({
                   role="radio"
                   aria-checked={!watchedIsBadHabit}
                   onClick={() => setValue('isBadHabit', false, { shouldDirty: true })}
-                  className={`inline-flex h-[42px] items-center justify-center gap-2 rounded-[10px] text-[14px] font-medium transition-[background-color,color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] active:scale-[0.97] ${
+                  className={`inline-flex h-[42px] items-center justify-center gap-2 rounded-[10px] text-[14px] font-medium transition-[background-color,color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] active:scale-[0.96] ${
                     watchedIsBadHabit
                       ? 'text-[var(--fg-3)] hover:text-[var(--fg-1)]'
                       : 'bg-[rgba(var(--primary-rgb),0.14)] text-[var(--primary)]'
@@ -686,7 +691,7 @@ export function HabitFormFields({
                   role="radio"
                   aria-checked={watchedIsBadHabit}
                   onClick={() => setValue('isBadHabit', true, { shouldDirty: true })}
-                  className={`inline-flex h-[42px] items-center justify-center gap-2 rounded-[10px] text-[14px] font-medium transition-[background-color,color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] active:scale-[0.97] ${
+                  className={`inline-flex h-[42px] items-center justify-center gap-2 rounded-[10px] text-[14px] font-medium transition-[background-color,color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] active:scale-[0.96] ${
                     watchedIsBadHabit
                       ? 'bg-[rgba(var(--primary-rgb),0.14)] text-[var(--primary)]'
                       : 'text-[var(--fg-3)] hover:text-[var(--fg-1)]'
@@ -716,6 +721,6 @@ export function HabitFormFields({
           {children}
         </div>
       </div>
-    </>
+    </div>
   )
 }

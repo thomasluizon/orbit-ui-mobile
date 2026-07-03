@@ -24,8 +24,6 @@ export function PushNotificationSection({
 }: Readonly<{ push: PushSectionState }>) {
   const t = useTranslations()
 
-  if (!push.supported) return null
-
   return (
     <>
       <SectionLabel bottom={4}>{t('settings.notifications.title')}</SectionLabel>
@@ -34,7 +32,7 @@ export function PushNotificationSection({
         accessory="none"
         divider={false}
       >
-        {push.permission !== 'denied' && (
+        {push.supported && push.permission !== 'denied' && (
           <Switch
             on={push.subscribed}
             onToggle={push.onToggle}
@@ -55,7 +53,9 @@ export function PushNotificationSection({
           fontWeight: 500,
         }}
       >
-        {t(getPushStatusMessageKey(push.status, push.permission))}
+        {push.supported
+          ? t(getPushStatusMessageKey(push.status, push.permission))
+          : t('settings.notifications.unsupported')}
       </div>
     </>
   )

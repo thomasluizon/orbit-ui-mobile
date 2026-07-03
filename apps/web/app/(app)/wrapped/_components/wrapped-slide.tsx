@@ -1,6 +1,6 @@
 'use client'
 
-import type { CSSProperties, ReactNode } from 'react'
+import type { ReactNode } from 'react'
 import { Download, Share2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import type { Recap } from '@orbit/shared/types/gamification'
@@ -12,6 +12,14 @@ import {
 import { ShareCard } from '@/components/share/share-card'
 import { PillButton } from '@/components/ui/pill-button'
 import { useShareCard } from '@/hooks/use-share-card'
+import {
+  captionStyle,
+  dayLabelStyle,
+  eyebrowStyle,
+  heroNumeralStyle,
+  labelStyle,
+  titleStyle,
+} from './wrapped-styles'
 
 const WEEKDAY_KEYS = [
   'monday',
@@ -22,49 +30,6 @@ const WEEKDAY_KEYS = [
   'saturday',
   'sunday',
 ] as const
-
-const eyebrowStyle: CSSProperties = {
-  fontFamily: 'var(--font-mono)',
-  fontSize: 12,
-  fontWeight: 500,
-  letterSpacing: '0.08em',
-  textTransform: 'uppercase',
-  color: 'var(--fg-2)',
-}
-
-const heroNumeralStyle: CSSProperties = {
-  fontFamily: 'var(--font-display)',
-  fontSize: 76,
-  lineHeight: 1,
-  fontWeight: 700,
-  letterSpacing: '-0.03em',
-  color: 'var(--fg-1)',
-}
-
-const labelStyle: CSSProperties = {
-  fontFamily: 'var(--font-sans)',
-  fontSize: 17,
-  fontWeight: 500,
-  color: 'var(--fg-2)',
-}
-
-const captionStyle: CSSProperties = {
-  fontFamily: 'var(--font-sans)',
-  fontSize: 14,
-  color: 'var(--fg-2)',
-  maxWidth: 280,
-  textAlign: 'center',
-}
-
-const titleStyle: CSSProperties = {
-  fontFamily: 'var(--font-display)',
-  fontSize: 34,
-  lineHeight: 1.1,
-  fontWeight: 700,
-  letterSpacing: '-0.02em',
-  color: 'var(--fg-1)',
-  textAlign: 'center',
-}
 
 interface WrappedSlideProps {
   slide: WrappedSlideModel
@@ -134,7 +99,17 @@ export function WrappedSlide({ slide, recap, period, displayName }: Readonly<Wra
           <span style={{ fontSize: 72, lineHeight: 1 }} aria-hidden="true">
             {slide.habit.emoji ?? '⭐'}
           </span>
-          <h2 style={titleStyle}>{slide.habit.name}</h2>
+          <h2
+            style={{
+              ...titleStyle,
+              display: '-webkit-box',
+              WebkitLineClamp: 2,
+              WebkitBoxOrient: 'vertical',
+              overflow: 'hidden',
+            }}
+          >
+            {slide.habit.name}
+          </h2>
           <p style={captionStyle}>
             {t('wrapped.slides.topHabit.caption', {
               rate: formatCompletionRate(slide.habit.completionRate),
@@ -156,7 +131,7 @@ function SlideShell({ children, testId }: Readonly<SlideShellProps>) {
   return (
     <div
       data-testid={testId}
-      className="flex flex-1 flex-col items-center justify-center text-center"
+      className="stagger-enter flex flex-1 flex-col items-center justify-center text-center"
       style={{ gap: 18, padding: '0 28px' }}
     >
       {children}
@@ -184,32 +159,40 @@ function HeroStatSlide({ testId, eyebrow, value, label, caption }: Readonly<Hero
 }
 
 function WeeklyRhythm({ values }: Readonly<{ values: number[] }>) {
+  const t = useTranslations()
   return (
     <div
       style={{
         display: 'grid',
         gridTemplateColumns: 'repeat(7, 1fr)',
         gap: 10,
-        alignItems: 'end',
-        height: 132,
         width: '100%',
         maxWidth: 320,
         marginTop: 6,
       }}
     >
-      {values.map((value, index) => {
+      {values.slice(0, 7).map((value, index) => {
         const clamped = Math.max(0, Math.min(100, value))
         return (
           <div
             key={WEEKDAY_KEYS[index]}
-            aria-hidden="true"
-            style={{
-              height: `${Math.max(8, (clamped / 100) * 132)}px`,
-              borderRadius: 7,
-              background: 'var(--primary)',
-              opacity: clamped === 0 ? 0.25 : 1,
-            }}
-          />
+            className="flex flex-col items-center"
+            style={{ gap: 8 }}
+          >
+            <div className="flex w-full items-end" style={{ height: 132 }}>
+              <div
+                aria-hidden="true"
+                style={{
+                  width: '100%',
+                  height: `${Math.max(8, (clamped / 100) * 132)}px`,
+                  borderRadius: 7,
+                  background: 'var(--primary)',
+                  opacity: clamped === 0 ? 0.25 : 1,
+                }}
+              />
+            </div>
+            <span style={dayLabelStyle}>{t(`dates.daysShort.${WEEKDAY_KEYS[index]}`)}</span>
+          </div>
         )
       })}
     </div>
@@ -236,14 +219,14 @@ function WrappedShareSlide({ recap, displayName }: Readonly<WrappedShareSlidePro
   return (
     <div
       data-testid="wrapped-slide-share"
-      className="flex flex-1 flex-col items-center justify-center"
+      className="stagger-enter flex flex-1 flex-col items-center justify-center"
       style={{ gap: 16, padding: '8px 22px 28px' }}
     >
       <span style={eyebrowStyle}>{t('wrapped.slides.share.eyebrow')}</span>
       <ShareCard ref={captureRef} recap={recap} displayName={displayName} />
 
       {hasError && (
-        <p role="alert" style={{ textAlign: 'center', fontSize: 13, color: 'var(--status-bad)' }}>
+        <p role="alert" style={{ textAlign: 'center', fontSize: 13, color: 'var(--status-bad-text)' }}>
           {t('shareCard.shareError')}
         </p>
       )}
@@ -251,7 +234,7 @@ function WrappedShareSlide({ recap, displayName }: Readonly<WrappedShareSlidePro
       <div className="flex w-full" style={{ gap: 10, maxWidth: 360 }}>
         {canShareFiles && (
           <PillButton
-            fullWidth
+            className="min-w-0 flex-1"
             busy={isSharing}
             disabled={isSharing}
             onClick={handleShare}
@@ -261,7 +244,7 @@ function WrappedShareSlide({ recap, displayName }: Readonly<WrappedShareSlidePro
           </PillButton>
         )}
         <PillButton
-          fullWidth
+          className="min-w-0 flex-1"
           variant={canShareFiles ? 'ghost' : 'primary'}
           busy={isSharing}
           disabled={isSharing}

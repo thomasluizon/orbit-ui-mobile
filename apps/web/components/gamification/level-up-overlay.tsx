@@ -69,7 +69,7 @@ export function LevelUpOverlay({
         setShouldRender(false)
         completeActiveCelebration(id)
         onClear()
-      }, 400)
+      }, 280)
     },
     [completeActiveCelebration, onClear],
   )
@@ -80,7 +80,7 @@ export function LevelUpOverlay({
     requestAnimationFrame(() => setIsVisible(true))
     timerRef.current = setTimeout(() => {
       dismiss(activeLevelUp.id)
-    }, 3000)
+    }, 6000)
   }, [activeLevelUp, dismiss])
 
   useOverlayEscape({
@@ -97,18 +97,20 @@ export function LevelUpOverlay({
       aria-atomic="true"
       className="fixed inset-0 z-[10001] flex flex-col"
       style={{
-        transition: 'opacity 300ms var(--ease-out)',
+        transition: 'opacity 280ms var(--ease-out)',
         opacity: isVisible ? 1 : 0,
       }}
     >
-      <div
-        aria-hidden="true"
-        className="absolute inset-0"
+      <button
+        type="button"
+        aria-label={t('gamification.levelUp.title')}
+        className="absolute inset-0 w-full cursor-pointer appearance-none border-none p-0"
         style={{ background: 'var(--bg)', opacity: 0.96 }}
+        onClick={() => dismiss(activeLevelUp?.id)}
       />
       <GradientTop height={520} />
       <div
-        className="relative z-[1] flex flex-1 flex-col items-center justify-center"
+        className="pointer-events-none relative z-[1] flex flex-1 flex-col items-center justify-center"
         style={{ gap: 12, padding: '0 32px' }}
       >
         <div
@@ -202,16 +204,18 @@ export function LevelUpOverlay({
         </p>
       </div>
       <div
-        className="relative z-[1]"
+        className="pointer-events-auto relative z-[1]"
         style={{
           padding: '0 24px calc(24px + var(--safe-bottom, 0px))',
           animation: 'slide-up-fade 0.28s var(--ease-out) backwards',
           animationDelay: '380ms',
         }}
       >
-        <PillButton fullWidth onClick={() => dismiss(activeLevelUp?.id)}>
-          {t('common.continue')}
-        </PillButton>
+        <div className="mx-auto w-full max-w-[360px]">
+          <PillButton fullWidth onClick={() => dismiss(activeLevelUp?.id)}>
+            {t('common.continue')}
+          </PillButton>
+        </div>
       </div>
     </div>,
     document.body,

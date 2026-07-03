@@ -22,6 +22,7 @@ import { useHasProAccess } from '@/hooks/use-profile'
 import { completeOnboarding } from '@/app/actions/profile'
 import { GradientTop } from '@/components/ui/gradient-top'
 import { PillButton } from '@/components/ui/pill-button'
+import { QuietLink } from '@/components/ui/quiet-link'
 import { OnboardingWelcome } from './onboarding-welcome'
 import { OnboardingMeetAstra } from './onboarding-meet-astra'
 import { OnboardingCreateHabit } from './onboarding-create-habit'
@@ -234,8 +235,6 @@ export function OnboardingFlow() {
 
   if (!mounted) return null
 
-  const progressLabel = `Orbit · ${String(displayStep).padStart(2, '0')} / ${String(displayTotal).padStart(2, '0')}`
-
   const isFinalStep = sharedStep === ONBOARDING_COMPLETE_STEP
   const isStarter = sharedStep === 0 && !viewingAstra && !astraStepShown
 
@@ -265,23 +264,14 @@ export function OnboardingFlow() {
               fontVariantNumeric: 'tabular-nums',
             }}
           >
-            {progressLabel}
+            Orbit ·{' '}
+            <span style={{ color: 'var(--fg-1)' }}>
+              {String(displayStep).padStart(2, '0')}
+            </span>{' '}
+            / {String(displayTotal).padStart(2, '0')}
           </span>
           {!isFinalStep && (
-            <button
-              type="button"
-              className="inline-flex appearance-none items-center border-0 bg-transparent cursor-pointer transition-[color] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:text-[var(--fg-1)]"
-              style={{
-                fontFamily: 'var(--font-sans)',
-                fontSize: 13,
-                color: 'var(--fg-3)',
-                minHeight: 44,
-                padding: '0 4px',
-              }}
-              onClick={handleSkip}
-            >
-              {t('onboarding.flow.skip')}
-            </button>
+            <QuietLink onClick={handleSkip}>{t('onboarding.flow.skip')}</QuietLink>
           )}
         </div>
 
@@ -312,28 +302,20 @@ export function OnboardingFlow() {
             >
               {t('onboarding.flow.step', { current: displayStep, total: displayTotal })}
             </progress>
-            <div className="flex w-full flex-col items-center" style={{ gap: 4 }}>
-              {canAdvance && (
-                <PillButton onClick={goNext}>
-                  {isStarter ? t('onboarding.flow.begin') : t('onboarding.flow.next')}
-                </PillButton>
-              )}
-              {hasPrev && (
-                <button
-                  type="button"
-                  className="inline-flex appearance-none items-center justify-center border-0 bg-transparent cursor-pointer transition-[color] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:text-[var(--fg-1)]"
-                  style={{
-                    fontFamily: 'var(--font-sans)',
-                    fontSize: 13,
-                    color: 'var(--fg-3)',
-                    minHeight: 44,
-                    padding: '0 12px',
-                  }}
-                  onClick={goPrev}
-                >
-                  {t('onboarding.flow.back')}
-                </button>
-              )}
+            <div className="flex w-full items-center" style={{ gap: 4 }}>
+              <div className="flex flex-1 justify-start">
+                {hasPrev && (
+                  <QuietLink onClick={goPrev}>{t('onboarding.flow.back')}</QuietLink>
+                )}
+              </div>
+              <div className="flex flex-[2] justify-center">
+                {canAdvance && (
+                  <PillButton onClick={goNext}>
+                    {isStarter ? t('onboarding.flow.begin') : t('onboarding.flow.next')}
+                  </PillButton>
+                )}
+              </div>
+              <div className="flex-1" aria-hidden="true" />
             </div>
           </div>
         )}

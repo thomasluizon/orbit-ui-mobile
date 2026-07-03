@@ -133,6 +133,7 @@ function ChatInputNotices({
             void Linking.openSettings().catch(() => {});
           }}
           activeOpacity={0.75}
+          hitSlop={{ top: 5, bottom: 5 }}
           accessibilityRole="button"
         >
           <Text style={[styles.permissionActionText, { color: tokens.fg1 }]}>
@@ -149,18 +150,19 @@ function ChatInputNotices({
               resizeMethod="resize"
               style={[styles.imagePreview, { borderColor: tokens.hairline }]}
             />
-            <TouchableOpacity
+            <Pressable
               accessibilityRole="button"
               accessibilityLabel={t("chat.removeImage")}
-              activeOpacity={0.8}
+              hitSlop={12}
               onPress={onRemoveImage}
-              style={[
+              style={({ pressed }) => [
                 styles.imageRemoveButton,
                 { backgroundColor: tokens.bgElev, borderColor: tokens.hairlineStrong },
+                pressed && styles.iconPressed,
               ]}
             >
               <X size={12} color={tokens.fg1} />
-            </TouchableOpacity>
+            </Pressable>
           </View>
         </View>
       )}
@@ -172,15 +174,18 @@ function ChatInputNotices({
             <Text style={styles.textFileChipText} numberOfLines={1}>
               {selectedTextFileName}
             </Text>
-            <TouchableOpacity
+            <Pressable
               accessibilityRole="button"
               accessibilityLabel={t("chat.removeFile")}
-              activeOpacity={0.8}
+              hitSlop={12}
               onPress={onRemoveTextFile}
-              style={styles.textFileChipRemove}
+              style={({ pressed }) => [
+                styles.textFileChipRemove,
+                pressed && styles.iconPressed,
+              ]}
             >
               <X size={12} color={tokens.fg1} />
-            </TouchableOpacity>
+            </Pressable>
           </View>
         </View>
       )}
@@ -262,6 +267,7 @@ function ChatLimitNotice({ tokens, styles, reward, onUpgrade }: Readonly<ChatLim
             onPress={reward.onWatchAd}
             disabled={!reward.canWatchRewardAd}
             activeOpacity={0.7}
+            hitSlop={{ top: 5, bottom: 5 }}
             accessibilityRole="button"
             accessibilityState={{ disabled: !reward.canWatchRewardAd }}
           >

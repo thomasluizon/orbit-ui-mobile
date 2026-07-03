@@ -11,15 +11,15 @@ export const styles = StyleSheet.create({
   convertEyebrow: {
     fontFamily: 'Rubik_500Medium',
     fontSize: 12,
-    letterSpacing: 0.72,
+    letterSpacing: 0.96,
     textTransform: 'uppercase',
     marginHorizontal: 20,
   },
   convertHeading: {
     fontFamily: 'Rubik_500Medium',
-    fontSize: 28,
-    lineHeight: 34,
-    letterSpacing: -0.28,
+    fontSize: 34,
+    lineHeight: 39,
+    letterSpacing: -0.34,
     marginHorizontal: 20,
     marginTop: 6,
   },
@@ -65,17 +65,6 @@ export const styles = StyleSheet.create({
     fontSize: 13,
     fontVariant: ['tabular-nums'],
     marginTop: 8,
-  },
-  badBadge: {
-    borderRadius: 999,
-    paddingHorizontal: 9,
-    paddingVertical: 3,
-  },
-  badBadgeText: {
-    fontFamily: 'Rubik_600SemiBold',
-    fontSize: 10.5,
-    letterSpacing: 0.63,
-    textTransform: 'uppercase',
   },
   usageRow: {
     flexDirection: 'row',
@@ -208,11 +197,6 @@ export const styles = StyleSheet.create({
   noticeText: {
     fontFamily: 'Rubik_400Regular',
     fontSize: 14,
-    textAlign: 'center',
-  },
-  mutedMeta: {
-    fontFamily: 'Roboto_400Regular',
-    fontSize: 12,
     textAlign: 'center',
   },
   centerMuted: {

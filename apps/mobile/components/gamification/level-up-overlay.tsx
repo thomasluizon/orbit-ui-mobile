@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo, useRef, useCallback } from 'react'
 import {
   Animated,
   Easing,
+  Pressable,
   StyleSheet,
   Text,
   View,
@@ -9,8 +10,8 @@ import {
 import Svg, { Ellipse } from 'react-native-svg'
 import { useTranslation } from 'react-i18next'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { usePrefersReducedMotion } from '@/lib/motion'
-import { createTokensV2, tintFromPrimary } from '@/lib/theme'
+import { toAnimatedEasing, usePrefersReducedMotion } from '@/lib/motion'
+import { createTokensV2, easings, tintFromPrimary } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useUIStore } from '@/stores/ui-store'
 import { useOverlayBack } from '@/hooks/use-overlay-back'
@@ -86,7 +87,8 @@ export function LevelUpOverlay({
 
       Animated.timing(overlayOpacity, {
         toValue: 0,
-        duration: 400,
+        duration: 280,
+        easing: toAnimatedEasing(easings.out),
         useNativeDriver: true,
       }).start(() => {
         setShouldRender(false)
@@ -113,13 +115,14 @@ export function LevelUpOverlay({
 
     Animated.timing(overlayOpacity, {
       toValue: 1,
-      duration: 400,
+      duration: 280,
+      easing: toAnimatedEasing(easings.out),
       useNativeDriver: true,
     }).start()
 
     timerRef.current = setTimeout(() => {
       dismiss(activeLevelUp.id)
-    }, 3000)
+    }, 6000)
 
     return () => {
       if (timerRef.current) clearTimeout(timerRef.current)
@@ -141,62 +144,69 @@ export function LevelUpOverlay({
       accessibilityRole="alert"
       accessibilityLiveRegion="assertive"
     >
-      <View style={[styles.backdrop, { backgroundColor: tokens.bg }]} />
-      <GradientTop height={520} />
-      <View style={styles.content}>
-        <Text style={[styles.eyebrow, { color: tokens.fg3 }]}>
-          {t('gamification.levelUp.title')}
-        </Text>
+      <Pressable
+        style={styles.pressable}
+        onPress={() => dismiss(activeLevelUp?.id)}
+        accessibilityRole="button"
+        accessibilityLabel={t('gamification.levelUp.title')}
+      >
+        <View style={[styles.backdrop, { backgroundColor: tokens.bg }]} />
+        <GradientTop height={520} />
+        <View style={styles.content} pointerEvents="none">
+          <Text style={[styles.eyebrow, { color: tokens.fg3 }]}>
+            {t('gamification.levelUp.title')}
+          </Text>
 
-        <Animated.View
-          style={[
-            styles.heroDisc,
-            {
-              backgroundColor: tintFromPrimary(tokens, 0.16),
-              shadowColor: tokens.primary,
-            },
-            orbStyle,
-          ]}
-        >
-          <Text style={styles.heroEmoji}>⭐</Text>
-        </Animated.View>
-
-        <Animated.View style={[styles.ringWrapper, titleStyle]}>
           <Animated.View
             style={[
-              styles.ringContainer,
-              { transform: [{ rotate: spin }] },
+              styles.heroDisc,
+              {
+                backgroundColor: tintFromPrimary(tokens, 0.16),
+                shadowColor: tokens.primary,
+              },
+              orbStyle,
             ]}
-            pointerEvents="none"
           >
-            <Svg width={150} height={150}>
-              <Ellipse
-                cx={75}
-                cy={75}
-                rx={72}
-                ry={26}
-                fill="none"
-                stroke={tokens.primary}
-                strokeWidth={1.5}
-              />
-            </Svg>
+            <Text style={styles.heroEmoji}>⭐</Text>
           </Animated.View>
-          <Text style={[styles.levelNumber, { color: tokens.fg1 }]}>
-            {String(level).padStart(2, '0')}
-          </Text>
-        </Animated.View>
 
-        <Animated.Text style={[styles.subtitle, { color: tokens.fg2 }, subtitleStyle]}>
-          {t('gamification.levelUp.steadyHand')}
-        </Animated.Text>
-      </View>
-      <Animated.View
-        style={[styles.footer, { paddingBottom: insets.bottom + 24 }, footerStyle]}
-      >
-        <PillButton fullWidth onPress={() => dismiss(activeLevelUp?.id)}>
-          {t('common.continue')}
-        </PillButton>
-      </Animated.View>
+          <Animated.View style={[styles.ringWrapper, titleStyle]}>
+            <Animated.View
+              style={[
+                styles.ringContainer,
+                { transform: [{ rotate: spin }] },
+              ]}
+              pointerEvents="none"
+            >
+              <Svg width={150} height={150}>
+                <Ellipse
+                  cx={75}
+                  cy={75}
+                  rx={72}
+                  ry={26}
+                  fill="none"
+                  stroke={tokens.primary}
+                  strokeWidth={1.5}
+                />
+              </Svg>
+            </Animated.View>
+            <Text style={[styles.levelNumber, { color: tokens.fg1 }]}>
+              {String(level).padStart(2, '0')}
+            </Text>
+          </Animated.View>
+
+          <Animated.Text style={[styles.subtitle, { color: tokens.fg2 }, subtitleStyle]}>
+            {t('gamification.levelUp.steadyHand')}
+          </Animated.Text>
+        </View>
+        <Animated.View
+          style={[styles.footer, { paddingBottom: insets.bottom + 24 }, footerStyle]}
+        >
+          <PillButton fullWidth onPress={() => dismiss(activeLevelUp?.id)}>
+            {t('common.continue')}
+          </PillButton>
+        </Animated.View>
+      </Pressable>
     </Animated.View>
   )
 }
@@ -205,6 +215,9 @@ const styles = StyleSheet.create({
   overlay: {
     ...StyleSheet.absoluteFillObject,
     zIndex: 10001,
+  },
+  pressable: {
+    flex: 1,
   },
   backdrop: {
     ...StyleSheet.absoluteFillObject,

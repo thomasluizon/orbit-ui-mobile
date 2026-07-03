@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { View, Text, TouchableOpacity } from "react-native";
+import { View, Text, Pressable } from "react-native";
 import { X, Plus, Bell } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import type { ScheduledReminderWhen } from "@orbit/shared/types/habit";
@@ -103,32 +103,37 @@ export function ScheduledReminderSection({
                   <Text style={sectionStyles.chipText}>
                     {scheduledReminderLabel(sr)}
                   </Text>
-                  <TouchableOpacity
+                  <Pressable
+                    style={({ pressed }) =>
+                      pressed ? { transform: [{ scale: 0.96 }] } : null
+                    }
                     hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
                     accessibilityRole="button"
                     accessibilityLabel={t("habits.form.removeScheduledReminder")}
                     onPress={() => removeScheduledReminder(idx)}
-                    activeOpacity={0.7}
                   >
                     <X size={13} color={tokens.primary} strokeWidth={2.2} />
-                  </TouchableOpacity>
+                  </Pressable>
                 </View>
               ))}
             </View>
           )}
 
           {!showForm && !atLimit && (
-            <TouchableOpacity
-              style={sectionStyles.addButton}
+            <Pressable
+              style={({ pressed }) => [
+                sectionStyles.addButton,
+                pressed && { transform: [{ scale: 0.96 }] },
+              ]}
+              hitSlop={{ top: 4, bottom: 4 }}
               accessibilityRole="button"
               onPress={() => setShowForm(true)}
-              activeOpacity={0.7}
             >
               <Plus size={14} color={tokens.fg2} strokeWidth={2} />
               <Text style={sectionStyles.addButtonText}>
                 {t("habits.form.scheduledReminderAdd")}
               </Text>
-            </TouchableOpacity>
+            </Pressable>
           )}
 
           {atLimit && (
@@ -140,15 +145,16 @@ export function ScheduledReminderSection({
           {showForm && (
             <View style={sectionStyles.formBody}>
               <View style={sectionStyles.whenRow}>
-                <TouchableOpacity
-                  style={[
+                <Pressable
+                  style={({ pressed }) => [
                     sectionStyles.whenButton,
                     when === "day_before" && sectionStyles.whenButtonActive,
+                    pressed && { transform: [{ scale: 0.96 }] },
                   ]}
+                  hitSlop={{ top: 3, bottom: 3 }}
                   accessibilityRole="button"
                   accessibilityState={{ selected: when === "day_before" }}
                   onPress={() => setWhen("day_before")}
-                  activeOpacity={0.7}
                 >
                   <Text
                     style={[
@@ -159,16 +165,17 @@ export function ScheduledReminderSection({
                   >
                     {t("habits.form.scheduledReminderDayBefore")}
                   </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={[
+                </Pressable>
+                <Pressable
+                  style={({ pressed }) => [
                     sectionStyles.whenButton,
                     when === "same_day" && sectionStyles.whenButtonActive,
+                    pressed && { transform: [{ scale: 0.96 }] },
                   ]}
+                  hitSlop={{ top: 3, bottom: 3 }}
                   accessibilityRole="button"
                   accessibilityState={{ selected: when === "same_day" }}
                   onPress={() => setWhen("same_day")}
-                  activeOpacity={0.7}
                 >
                   <Text
                     style={[
@@ -178,7 +185,7 @@ export function ScheduledReminderSection({
                   >
                     {t("habits.form.scheduledReminderSameDay")}
                   </Text>
-                </TouchableOpacity>
+                </Pressable>
               </View>
 
               <View style={sectionStyles.timeRow}>
@@ -193,32 +200,36 @@ export function ScheduledReminderSection({
                   )}
                   onChange={setTime}
                 />
-                <TouchableOpacity
-                  style={[
+                <Pressable
+                  style={({ pressed }) => [
                     sectionStyles.timeAddButton,
-                    !time && { opacity: 0.4 },
+                    !time && { opacity: 0.45 },
+                    pressed && { transform: [{ scale: 0.96 }] },
                   ]}
+                  hitSlop={{ top: 3, bottom: 3 }}
                   disabled={!time}
                   accessibilityRole="button"
                   onPress={addScheduledReminder}
-                  activeOpacity={0.7}
                 >
                   <Text style={sectionStyles.timeAddButtonText}>
                     {t("common.add")}
                   </Text>
-                </TouchableOpacity>
-                <TouchableOpacity
-                  style={sectionStyles.timeCancelButton}
+                </Pressable>
+                <Pressable
+                  style={({ pressed }) => [
+                    sectionStyles.timeCancelButton,
+                    pressed && { transform: [{ scale: 0.96 }] },
+                  ]}
+                  hitSlop={2}
                   accessibilityRole="button"
                   accessibilityLabel={t("common.cancel")}
                   onPress={() => {
                     setShowForm(false);
                     setTime("");
                   }}
-                  activeOpacity={0.7}
                 >
                   <X size={16} color={tokens.fg3} strokeWidth={1.8} />
-                </TouchableOpacity>
+                </Pressable>
               </View>
             </View>
           )}

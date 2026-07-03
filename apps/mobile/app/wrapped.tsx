@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import type { RecapSharePeriod } from '@orbit/shared/utils'
@@ -34,7 +35,7 @@ export default function WrappedScreen() {
 
   if (isPlaying && recap) {
     return (
-      <SafeAreaView style={[styles.safeArea, { backgroundColor: tokens.bg }]} edges={['top']}>
+      <View style={[styles.safeArea, { backgroundColor: tokens.bg }]}>
         <WrappedPlayer
           slides={slides}
           recap={recap}
@@ -43,18 +44,13 @@ export default function WrappedScreen() {
           displayName={profile?.name ?? undefined}
           onClose={() => setIsPlaying(false)}
         />
-      </SafeAreaView>
+      </View>
     )
   }
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: tokens.bg }]} edges={['top']}>
-      <AppBar
-        back
-        onBack={() => goBackOrFallback('/profile')}
-        title={t('wrapped.title')}
-        backLabel={t('wrapped.back')}
-      />
+      <AppBar back onBack={() => goBackOrFallback('/profile')} backLabel={t('wrapped.back')} />
       <WrappedCover
         tokens={tokens}
         period={period}

@@ -5,14 +5,23 @@ import { createPortal } from 'react-dom'
 import { type TourTargetRect } from '@orbit/shared/stores'
 
 interface TourSpotlightProps {
-  targetRect: TourTargetRect
+  targetRect: TourTargetRect | null
   padding?: number
 }
 
 const BORDER_RADIUS = 12
+const GEOMETRY_TRANSITION =
+  'x 280ms var(--ease-standard), y 280ms var(--ease-standard), width 280ms var(--ease-standard), height 280ms var(--ease-standard)'
 
 export function TourSpotlight({ targetRect, padding = 8 }: Readonly<TourSpotlightProps>) {
   const [viewport, setViewport] = useState({ w: 0, h: 0 })
+  const [lastTargetRect, setLastTargetRect] = useState(targetRect)
+
+  if (targetRect && targetRect !== lastTargetRect) {
+    setLastTargetRect(targetRect)
+  }
+
+  const rect = targetRect ?? lastTargetRect
 
   useEffect(() => {
     const update = () => setViewport({ w: window.innerWidth, h: window.innerHeight })
@@ -23,10 +32,14 @@ export function TourSpotlight({ targetRect, padding = 8 }: Readonly<TourSpotligh
 
   if (viewport.w === 0) return null
 
-  const x = targetRect.x - padding
-  const y = targetRect.y - padding
-  const w = targetRect.width + padding * 2
-  const h = targetRect.height + padding * 2
+  const cutout = rect
+    ? {
+        x: rect.x - padding,
+        y: rect.y - padding,
+        width: Math.max(rect.width + padding * 2, 0),
+        height: Math.max(rect.height + padding * 2, 0),
+      }
+    : null
 
   return createPortal(
     <div
@@ -39,40 +52,50 @@ export function TourSpotlight({ targetRect, padding = 8 }: Readonly<TourSpotligh
         viewBox={`0 0 ${viewport.w} ${viewport.h}`}
         className="absolute inset-0"
       >
-        <defs>
-          <mask id="tour-spotlight-mask">
-            <rect x="0" y="0" width={viewport.w} height={viewport.h} fill="white" />
+        {cutout ? (
+          <>
+            <defs>
+              <mask id="tour-spotlight-mask">
+                <rect x="0" y="0" width={viewport.w} height={viewport.h} fill="white" />
+                <rect
+                  x={cutout.x}
+                  y={cutout.y}
+                  width={cutout.width}
+                  height={cutout.height}
+                  rx={BORDER_RADIUS}
+                  ry={BORDER_RADIUS}
+                  fill="black"
+                  style={{ transition: GEOMETRY_TRANSITION }}
+                />
+              </mask>
+            </defs>
             <rect
-              x={x}
-              y={y}
-              width={Math.max(w, 0)}
-              height={Math.max(h, 0)}
+              x="0"
+              y="0"
+              width={viewport.w}
+              height={viewport.h}
+              fill="rgba(0, 0, 0, 0.55)"
+              mask="url(#tour-spotlight-mask)"
+            />
+            <rect
+              x={cutout.x}
+              y={cutout.y}
+              width={cutout.width}
+              height={cutout.height}
               rx={BORDER_RADIUS}
               ry={BORDER_RADIUS}
-              fill="black"
+              fill="none"
+              stroke="rgba(var(--primary-rgb), 0.7)"
+              strokeWidth={1.5}
+              style={{
+                filter: 'drop-shadow(0 0 12px rgba(var(--primary-rgb), 0.45))',
+                transition: GEOMETRY_TRANSITION,
+              }}
             />
-          </mask>
-        </defs>
-        <rect
-          x="0"
-          y="0"
-          width={viewport.w}
-          height={viewport.h}
-          fill="rgba(0, 0, 0, 0.6)"
-          mask="url(#tour-spotlight-mask)"
-        />
-        <rect
-          x={x}
-          y={y}
-          width={Math.max(w, 0)}
-          height={Math.max(h, 0)}
-          rx={BORDER_RADIUS}
-          ry={BORDER_RADIUS}
-          fill="none"
-          stroke="rgba(var(--primary-rgb), 0.7)"
-          strokeWidth={1.5}
-          style={{ filter: 'drop-shadow(0 0 12px rgba(var(--primary-rgb), 0.45))' }}
-        />
+          </>
+        ) : (
+          <rect x="0" y="0" width={viewport.w} height={viewport.h} fill="rgba(0, 0, 0, 0.55)" />
+        )}
       </svg>
     </div>,
     document.body,

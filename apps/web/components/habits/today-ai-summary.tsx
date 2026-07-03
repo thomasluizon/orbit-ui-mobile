@@ -2,9 +2,10 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
-import { Sparkles } from 'lucide-react'
+import { ArrowUpRight, Sparkles } from 'lucide-react'
 import { useLocale, useTranslations } from 'next-intl'
 import { AI_SUMMARY_CLAMP_CHARS } from '@orbit/shared/utils'
+import { Badge } from '@/components/ui/badge'
 import { useSummary } from '@/hooks/use-summary'
 import { useProfile } from '@/hooks/use-profile'
 
@@ -86,20 +87,21 @@ export function TodayAISummary({ date }: Readonly<TodayAISummaryProps>) {
   const showDisclaimer = isSummaryText && (expanded || !clampable)
 
   return (
-    <button
-      type="button"
-      onClick={resolved.onClick}
-      aria-label={resolved.label}
-      className="group relative z-[1] w-full text-left appearance-none border-0 bg-transparent cursor-pointer"
-      style={{ padding: '14px 20px 6px' }}
-    >
+    <div className="group relative z-[1] w-full md:max-w-[640px] text-left" style={{ padding: '14px 20px 6px' }}>
       <div
-        className="bg-[rgba(var(--primary-rgb),0.10)] shadow-[inset_0_0_0_1px_rgba(var(--primary-rgb),0.28)] group-hover:shadow-[inset_0_0_0_1px_rgba(var(--primary-rgb),0.45)] group-hover:-translate-y-px group-active:translate-y-0 group-active:scale-[0.99] transition-[box-shadow,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)]"
+        className="relative bg-[rgba(var(--primary-rgb),0.10)] shadow-[inset_0_0_0_1px_rgba(var(--primary-rgb),0.28)] group-hover:shadow-[inset_0_0_0_1px_rgba(var(--primary-rgb),0.45)] group-hover:-translate-y-px group-active:translate-y-0 group-active:scale-[0.99] transition-[box-shadow,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)]"
         style={{
           borderRadius: 18,
           padding: '12px 16px',
         }}
       >
+        <button
+          type="button"
+          onClick={resolved.onClick}
+          aria-label={resolved.label}
+          className="absolute inset-0 z-[1] appearance-none border-0 bg-transparent cursor-pointer"
+          style={{ borderRadius: 18 }}
+        />
         <div className="flex items-center" style={{ gap: 8, marginBottom: 6 }}>
           <Sparkles
             size={16}
@@ -112,32 +114,27 @@ export function TodayAISummary({ date }: Readonly<TodayAISummaryProps>) {
               fontFamily: 'var(--font-sans)',
               fontSize: 12,
               fontWeight: 500,
-              letterSpacing: '0.05em',
+              letterSpacing: '0.08em',
               textTransform: 'uppercase',
               color: 'var(--primary-soft)',
             }}
           >
             Astra
           </span>
-          <span
-            aria-label={t('aiDisclosure.isAiTooltip')}
-            style={{
-              fontFamily: 'var(--font-mono)',
-              fontSize: 10,
-              fontWeight: 500,
-              letterSpacing: '0.06em',
-              color: 'var(--fg-3)',
-              boxShadow: 'inset 0 0 0 1px var(--hairline)',
-              borderRadius: 999,
-              padding: '1px 7px',
-            }}
-          >
-            {t('aiDisclosure.isAiLabel')}
+          <span title={t('aiDisclosure.isAiTooltip')}>
+            <Badge tone="outline">{t('aiDisclosure.isAiLabel')}</Badge>
           </span>
+          <ArrowUpRight
+            size={16}
+            strokeWidth={1.8}
+            color="var(--fg-3)"
+            aria-hidden="true"
+            style={{ marginLeft: 'auto' }}
+          />
         </div>
         {isSummaryText && insight ? (
           <div
-            aria-label={`${t('summary.insightLabel')}: ${insight}`}
+            className="overflow-hidden whitespace-nowrap text-ellipsis"
             style={{
               width: 'fit-content',
               maxWidth: '100%',
@@ -151,9 +148,9 @@ export function TodayAISummary({ date }: Readonly<TodayAISummaryProps>) {
               fontWeight: 500,
               lineHeight: 1.35,
               color: 'var(--primary-soft)',
-              textWrap: 'pretty',
             }}
           >
+            <span className="sr-only">{`${t('summary.insightLabel')}: `}</span>
             {insight}
           </div>
         ) : null}
@@ -165,52 +162,45 @@ export function TodayAISummary({ date }: Readonly<TodayAISummaryProps>) {
             lineHeight: 1.45,
             color: 'var(--fg-1)',
             textWrap: 'pretty',
+            maxWidth: '68ch',
           }}
         >
           {resolved.text}
         </div>
         {clampable && (
-          <span
-            role="button"
-            tabIndex={0}
+          <button
+            type="button"
             aria-label={expanded ? t('common.seeLess') : t('common.seeMore')}
-            onClick={(event) => {
-              event.stopPropagation()
-              setExpanded((current) => !current)
-            }}
-            onKeyDown={(event) => {
-              if (event.key === 'Enter' || event.key === ' ') {
-                event.preventDefault()
-                event.stopPropagation()
-                setExpanded((current) => !current)
-              }
-            }}
-            className="inline-block cursor-pointer hover:text-[var(--primary)]"
+            onClick={() => setExpanded((current) => !current)}
+            className="relative z-[2] inline-flex items-center appearance-none border-0 bg-transparent p-0 cursor-pointer hover:text-[var(--primary)]"
             style={{
               fontFamily: 'var(--font-sans)',
               fontSize: 12,
               fontWeight: 500,
               color: 'var(--primary-soft)',
-              marginTop: 6,
+              minHeight: 44,
+              marginTop: -7,
+              marginBottom: -13,
             }}
           >
             {expanded ? t('common.seeLess') : t('common.seeMore')}
-          </span>
+          </button>
         )}
         {showDisclaimer && (
           <div
             style={{
               fontFamily: 'var(--font-sans)',
-              fontSize: 11,
+              fontSize: 12,
               lineHeight: 1.4,
               color: 'var(--fg-3)',
               marginTop: 6,
+              maxWidth: '68ch',
             }}
           >
             {t('aiDisclosure.notMedicalAdvice')}
           </div>
         )}
       </div>
-    </button>
+    </div>
   )
 }

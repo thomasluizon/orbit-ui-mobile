@@ -15,8 +15,11 @@ export function HabitDetailReminders({
   displayTime,
 }: Readonly<HabitDetailRemindersProps>) {
   const t = useTranslations()
+  const hasScheduledReminders = (habit.scheduledReminders?.length ?? 0) > 0
+  if (!habit.dueTime && !hasScheduledReminders) return null
   return (
     <>
+      <SectionLabel>{t('habits.detail.reminders')}</SectionLabel>
       {habit.dueTime && (
         <SettingsRow
           label={t('habits.form.dueTime')}
@@ -25,25 +28,19 @@ export function HabitDetailReminders({
           accessory="none"
         />
       )}
-
-      {habit.scheduledReminders && habit.scheduledReminders.length > 0 && (
-        <>
-          <SectionLabel>{t('habits.detail.reminders')}</SectionLabel>
-          {habit.scheduledReminders.map((sr, idx) => (
-            <SettingsRow
-              key={`${sr.when}-${sr.time}-${idx}`}
-              label={
-                sr.when === 'day_before'
-                  ? t('habits.form.scheduledReminderDayBefore')
-                  : t('habits.form.scheduledReminderSameDay')
-              }
-              value={displayTime(sr.time)}
-              mono
-              accessory="none"
-            />
-          ))}
-        </>
-      )}
+      {habit.scheduledReminders?.map((sr, idx) => (
+        <SettingsRow
+          key={`${sr.when}-${sr.time}-${idx}`}
+          label={
+            sr.when === 'day_before'
+              ? t('habits.form.scheduledReminderDayBefore')
+              : t('habits.form.scheduledReminderSameDay')
+          }
+          value={displayTime(sr.time)}
+          mono
+          accessory="none"
+        />
+      ))}
     </>
   )
 }

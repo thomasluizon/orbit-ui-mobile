@@ -35,13 +35,15 @@ export function HabitPicker({ selectedIds, onToggle }: Readonly<HabitPickerProps
             accessibilityRole="button"
             accessibilityState={{ selected: active }}
             accessibilityLabel={habit.title}
+            hitSlop={{ top: 6, bottom: 6 }}
             onPress={() => onToggle(habit.id)}
-            style={[
+            style={({ pressed }) => [
               styles.chip,
               {
                 backgroundColor: active ? tintFromPrimary(tokens, 0.12) : tokens.bgElev,
                 borderColor: active ? tokens.primary : tokens.hairline,
               },
+              pressed ? styles.chipPressed : null,
             ]}
           >
             <Text style={[styles.chipText, { color: active ? tokens.primary : tokens.fg2 }]}>
@@ -57,5 +59,6 @@ export function HabitPicker({ selectedIds, onToggle }: Readonly<HabitPickerProps
 const styles = StyleSheet.create({
   wrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
   chip: { paddingVertical: 8, paddingHorizontal: 14, borderRadius: 999, borderWidth: 1 },
+  chipPressed: { transform: [{ scale: 0.96 }] },
   chipText: { fontFamily: 'Rubik_400Regular', fontSize: 14 },
 })

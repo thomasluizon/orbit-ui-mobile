@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
-import { Alert, Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native'
+import { Pressable, ScrollView, Share, StyleSheet, Text, View } from 'react-native'
+import Animated, { FadeInDown, ReduceMotion } from 'react-native-reanimated'
 import Clipboard from '@react-native-clipboard/clipboard'
 import { Check, Copy, RefreshCw, Share2 } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
@@ -12,6 +13,7 @@ import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { AppBar } from '@/components/ui/app-bar'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { SectionLabel } from '@/components/ui/section-label'
 import { SettingsRow, Switch } from '@/components/ui/settings-row'
 import { PillButton } from '@/components/ui/pill-button'
@@ -26,13 +28,14 @@ const VISIBILITY_FIELDS = [
 export default function PublicProfileScreen() {
   const { t } = useTranslation()
   const goBackOrFallback = useGoBackOrFallback()
-  const { profile } = useProfile()
+  const { profile, isLoading } = useProfile()
   const mutation = usePublicProfileSettings()
   const { showError } = useAppToast()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(() => createTokensV2(currentScheme, currentTheme), [currentScheme, currentTheme])
   const styles = useMemo(() => createStyles(tokens), [tokens])
   const [copied, setCopied] = useState(false)
+  const [confirmRegenerate, setConfirmRegenerate] = useState(false)
 
   const settings = profile?.publicProfile
   const enabled = settings?.enabled ?? false
@@ -68,21 +71,6 @@ export default function PublicProfileScreen() {
     }
   }
 
-  function confirmRegenerate() {
-    Alert.alert(
-      t('profile.publicProfile.regenerate.confirmTitle'),
-      t('profile.publicProfile.regenerate.confirmBody'),
-      [
-        { text: t('profile.publicProfile.regenerate.cancel'), style: 'cancel' },
-        {
-          text: t('profile.publicProfile.regenerate.confirm'),
-          style: 'destructive',
-          onPress: () => submit({ enabled: true, regenerate: true }),
-        },
-      ],
-    )
-  }
-
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: tokens.bg }]} edges={['top']}>
       <AppBar
@@ -91,6 +79,9 @@ export default function PublicProfileScreen() {
         title={t('profile.publicProfile.title')}
         backLabel={t('common.goBack')}
       />
+      {isLoading ? (
+        <View style={styles.scroll} />
+      ) : (
       <ScrollView
         style={styles.scroll}
         contentContainerStyle={styles.content}
@@ -111,9 +102,14 @@ export default function PublicProfileScreen() {
         </SettingsRow>
 
         {enabled && shareUrl ? (
-          <View>
+          <Animated.View entering={FadeInDown.duration(220).reduceMotion(ReduceMotion.System)}>
             <SectionLabel>{t('profile.publicProfile.link.label')}</SectionLabel>
-            <View style={styles.linkWell}>
+            <Pressable
+              style={styles.linkWell}
+              onPress={copyLink}
+              accessibilityRole="button"
+              accessibilityHint={t('profile.publicProfile.link.copy')}
+            >
               <Text style={styles.linkText} numberOfLines={1}>
                 {shareUrl}
               </Text>
@@ -121,21 +117,20 @@ export default function PublicProfileScreen() {
                 style={({ pressed }) => [
                   styles.copyChip,
                   { backgroundColor: pressed ? tokens.bgElev2 : tokens.bgElev },
+                  pressed ? styles.copyChipPressed : null,
                 ]}
                 onPress={copyLink}
+                hitSlop={4}
                 accessibilityRole="button"
                 accessibilityLabel={t('profile.publicProfile.link.copy')}
               >
                 {copied ? (
-                  <Check size={14} color={tokens.statusDone} strokeWidth={1.8} />
+                  <Check size={16} color={tokens.statusDone} strokeWidth={1.8} />
                 ) : (
-                  <Copy size={14} color={tokens.fg2} strokeWidth={1.8} />
+                  <Copy size={16} color={tokens.fg2} strokeWidth={1.8} />
                 )}
-                <Text style={styles.copyChipText}>
-                  {copied ? t('profile.publicProfile.link.copied') : t('profile.publicProfile.link.copy')}
-                </Text>
               </Pressable>
-            </View>
+            </Pressable>
             <View style={styles.shareBlock}>
               <PillButton
                 fullWidth
@@ -145,7 +140,7 @@ export default function PublicProfileScreen() {
                 {t('profile.publicProfile.link.share')}
               </PillButton>
             </View>
-          </View>
+          </Animated.View>
         ) : null}
 
         <SectionLabel>{t('profile.publicProfile.visibilityTitle')}</SectionLabel>
@@ -168,11 +163,15 @@ export default function PublicProfileScreen() {
         {enabled ? (
           <View style={styles.regenBlock}>
             <Pressable
-              onPress={confirmRegenerate}
+              onPress={() => setConfirmRegenerate(true)}
               disabled={mutation.isPending}
               accessibilityRole="button"
               accessibilityLabel={t('profile.publicProfile.regenerate.button')}
-              style={({ pressed }) => [styles.regenButton, { opacity: pressed || mutation.isPending ? 0.6 : 1 }]}
+              style={({ pressed }) => [
+                styles.regenButton,
+                pressed ? styles.regenButtonPressed : null,
+                mutation.isPending ? styles.regenButtonDisabled : null,
+              ]}
             >
               <RefreshCw size={16} color={tokens.primarySoft} strokeWidth={1.8} />
               <Text style={styles.regenText}>{t('profile.publicProfile.regenerate.button')}</Text>
@@ -182,8 +181,19 @@ export default function PublicProfileScreen() {
         ) : null}
 
         <Text style={styles.privacyHint}>{t('profile.publicProfile.privacyHint')}</Text>
-        <View style={{ height: 24 }} />
       </ScrollView>
+      )}
+
+      <ConfirmDialog
+        open={confirmRegenerate}
+        onOpenChange={setConfirmRegenerate}
+        title={t('profile.publicProfile.regenerate.confirmTitle')}
+        description={t('profile.publicProfile.regenerate.confirmBody')}
+        cancelLabel={t('profile.publicProfile.regenerate.cancel')}
+        confirmLabel={t('profile.publicProfile.regenerate.confirm')}
+        variant="danger"
+        onConfirm={() => submit({ enabled: true, regenerate: true })}
+      />
     </SafeAreaView>
   )
 }
@@ -219,20 +229,16 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       color: tokens.fg1,
     },
     copyChip: {
-      flexDirection: 'row',
+      width: 40,
+      height: 40,
       alignItems: 'center',
       justifyContent: 'center',
-      gap: 7,
       borderRadius: 999,
       borderWidth: 1,
       borderColor: tokens.hairline,
-      paddingHorizontal: 16,
-      minHeight: 40,
     },
-    copyChipText: {
-      fontFamily: 'Rubik_500Medium',
-      fontSize: 13,
-      color: tokens.fg2,
+    copyChipPressed: {
+      transform: [{ scale: 0.96 }],
     },
     shareBlock: {
       paddingHorizontal: 20,
@@ -246,8 +252,15 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
     regenButton: {
       flexDirection: 'row',
       alignItems: 'center',
+      alignSelf: 'flex-start',
       gap: 8,
       minHeight: 44,
+    },
+    regenButtonPressed: {
+      transform: [{ scale: 0.96 }],
+    },
+    regenButtonDisabled: {
+      opacity: 0.6,
     },
     regenText: {
       fontFamily: 'Rubik_500Medium',

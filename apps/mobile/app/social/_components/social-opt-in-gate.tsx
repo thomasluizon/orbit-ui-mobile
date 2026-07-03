@@ -72,7 +72,14 @@ export function SocialOptInGate() {
 function createStyles(tokens: ReturnType<typeof createTokensV2>) {
   return StyleSheet.create({
     container: { paddingHorizontal: 24, paddingVertical: 28, gap: 18, alignItems: 'center' },
-    title: { fontFamily: 'Rubik_600SemiBold', fontSize: 24, color: tokens.fg1, textAlign: 'center' },
+    title: {
+      fontFamily: 'Rubik_500Medium',
+      fontSize: 28,
+      lineHeight: 36,
+      letterSpacing: -0.28,
+      color: tokens.fg1,
+      textAlign: 'center',
+    },
     body: {
       fontFamily: 'Rubik_400Regular',
       fontSize: 15,

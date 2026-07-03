@@ -1,4 +1,4 @@
-import { View, Text, TouchableOpacity } from 'react-native'
+import { View, Text, Pressable } from 'react-native'
 import { X } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import type { BreakdownEditableHabit } from '@orbit/shared/utils'
@@ -66,9 +66,9 @@ export function BreakdownHabitRow({
           </View>
         ) : null}
       </View>
-      <TouchableOpacity
-        style={styles.removeBtn}
-        activeOpacity={0.7}
+      <Pressable
+        style={({ pressed }) => [styles.removeBtn, pressed && styles.controlPressed]}
+        hitSlop={9}
         accessibilityRole="button"
         accessibilityLabel={t('habits.breakdown.removeHabit', {
           name: habit.title || t('habits.breakdown.habitNamePlaceholder'),
@@ -76,7 +76,7 @@ export function BreakdownHabitRow({
         onPress={onRemove}
       >
         <X size={14} color={tokens.fg3} />
-      </TouchableOpacity>
+      </Pressable>
     </View>
   )
 }

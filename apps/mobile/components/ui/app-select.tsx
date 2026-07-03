@@ -1,7 +1,7 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
+  Animated,
   Modal,
-  View,
   Text,
   TouchableOpacity,
   FlatList,
@@ -9,6 +9,7 @@ import {
 } from 'react-native'
 import { ChevronDown, Check } from 'lucide-react-native'
 import { createTokensV2, radius, shadowsV2, tintFromPrimary } from '@/lib/theme'
+import { toAnimatedEasing, useResolvedMotionPreset } from '@/lib/motion'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 type AppTokens = ReturnType<typeof createTokensV2>
@@ -32,12 +33,51 @@ export function AppSelect({
   label,
 }: Readonly<AppSelectProps>) {
   const [isOpen, setIsOpen] = useState(false)
+  const [visible, setVisible] = useState(false)
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
     () => createTokensV2(currentScheme, currentTheme),
     [currentScheme, currentTheme],
   )
   const styles = useMemo(() => createStyles(tokens), [tokens])
+  const dialogMotion = useResolvedMotionPreset('dialog')
+  const progress = useMemo(() => new Animated.Value(0), [])
+
+  const [prevOpen, setPrevOpen] = useState(isOpen)
+  if (isOpen !== prevOpen) {
+    setPrevOpen(isOpen)
+    if (isOpen) setVisible(true)
+  }
+
+  useEffect(() => {
+    if (isOpen) {
+      Animated.timing(progress, {
+        toValue: 1,
+        duration: dialogMotion.enterDuration,
+        easing: toAnimatedEasing(dialogMotion.enterEasing),
+        useNativeDriver: true,
+      }).start()
+      return
+    }
+
+    Animated.timing(progress, {
+      toValue: 0,
+      duration: dialogMotion.exitDuration,
+      easing: toAnimatedEasing(dialogMotion.exitEasing),
+      useNativeDriver: true,
+    }).start(({ finished }) => {
+      if (finished) {
+        setVisible(false)
+      }
+    })
+  }, [
+    dialogMotion.enterDuration,
+    dialogMotion.enterEasing,
+    dialogMotion.exitDuration,
+    dialogMotion.exitEasing,
+    isOpen,
+    progress,
+  ])
 
   const selectedOption = options.find((o) => o.value === value)
 
@@ -45,6 +85,15 @@ export function AppSelect({
     onChange(optionValue)
     setIsOpen(false)
   }
+
+  const translateY = progress.interpolate({
+    inputRange: [0, 1],
+    outputRange: [dialogMotion.shift, 0],
+  })
+  const scale = progress.interpolate({
+    inputRange: [0, 1],
+    outputRange: [dialogMotion.scaleFrom, dialogMotion.scaleTo],
+  })
 
   return (
     <>
@@ -67,59 +116,71 @@ export function AppSelect({
         <ChevronDown size={20} strokeWidth={1.8} color={tokens.fg4} />
       </TouchableOpacity>
 
-      <Modal
-        visible={isOpen}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setIsOpen(false)}
-      >
-        <TouchableOpacity
-          style={styles.backdrop}
-          activeOpacity={1}
-          onPress={() => setIsOpen(false)}
-          importantForAccessibility="no"
+      {visible ? (
+        <Modal
+          visible
+          transparent
+          animationType="none"
+          onRequestClose={() => setIsOpen(false)}
         >
-          <View
-            style={styles.sheet}
-            onStartShouldSetResponder={() => true}
+          <TouchableOpacity
+            style={styles.root}
+            activeOpacity={1}
+            onPress={() => setIsOpen(false)}
+            importantForAccessibility="no"
           >
-            {label ? <Text style={styles.sheetTitle}>{label}</Text> : null}
-
-            <FlatList
-              data={options}
-              keyExtractor={(item) => item.value}
-              style={styles.list}
-              renderItem={({ item }) => {
-                const isSelected = item.value === value
-                return (
-                  <TouchableOpacity
-                    style={[
-                      styles.option,
-                      isSelected && styles.optionSelected,
-                    ]}
-                    onPress={() => handleSelect(item.value)}
-                    activeOpacity={0.7}
-                    accessibilityRole="button"
-                    accessibilityState={{ selected: isSelected }}
-                  >
-                    <Text
-                      style={[
-                        styles.optionText,
-                        isSelected && styles.optionTextSelected,
-                      ]}
-                    >
-                      {item.label}
-                    </Text>
-                    {isSelected ? (
-                      <Check size={18} strokeWidth={1.8} color={tokens.primary} />
-                    ) : null}
-                  </TouchableOpacity>
-                )
-              }}
+            <Animated.View
+              pointerEvents="none"
+              style={[styles.backdrop, { opacity: progress }]}
             />
-          </View>
-        </TouchableOpacity>
-      </Modal>
+            <Animated.View
+              style={[
+                styles.sheet,
+                {
+                  opacity: progress,
+                  transform: [{ translateY }, { scale }],
+                },
+              ]}
+              onStartShouldSetResponder={() => true}
+            >
+              {label ? <Text style={styles.sheetTitle}>{label}</Text> : null}
+
+              <FlatList
+                data={options}
+                keyExtractor={(item) => item.value}
+                style={styles.list}
+                renderItem={({ item }) => {
+                  const isSelected = item.value === value
+                  return (
+                    <TouchableOpacity
+                      style={[
+                        styles.option,
+                        isSelected && styles.optionSelected,
+                      ]}
+                      onPress={() => handleSelect(item.value)}
+                      activeOpacity={0.7}
+                      accessibilityRole="button"
+                      accessibilityState={{ selected: isSelected }}
+                    >
+                      <Text
+                        style={[
+                          styles.optionText,
+                          isSelected && styles.optionTextSelected,
+                        ]}
+                      >
+                        {item.label}
+                      </Text>
+                      {isSelected ? (
+                        <Check size={18} strokeWidth={1.8} color={tokens.primary} />
+                      ) : null}
+                    </TouchableOpacity>
+                  )
+                }}
+              />
+            </Animated.View>
+          </TouchableOpacity>
+        </Modal>
+      ) : null}
     </>
   )
 }
@@ -148,12 +209,15 @@ function createStyles(tokens: AppTokens) {
     triggerPlaceholder: {
       color: tokens.fg3,
     },
-    backdrop: {
+    root: {
       flex: 1,
-      backgroundColor: 'rgba(0,0,0,0.50)',
       justifyContent: 'center',
       alignItems: 'center',
       padding: 24,
+    },
+    backdrop: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: 'rgba(0,0,0,0.50)',
     },
     sheet: {
       width: '100%',

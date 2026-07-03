@@ -35,8 +35,18 @@ interface ProfileStatTilesProps {
   achievementsLocked: boolean
   showAchievements: boolean
   achievementsDataTour?: string
+  isLoading: boolean
   onStreakClick: () => void
   onAchievementsClick: () => void
+}
+
+function StatTileSkeleton() {
+  return (
+    <div
+      className="flex-1 animate-pulse rounded-[18px] bg-[var(--bg-elev)]"
+      style={{ height: 110 }}
+    />
+  )
 }
 
 export function ProfileStatTiles({
@@ -45,34 +55,47 @@ export function ProfileStatTiles({
   achievementsLocked,
   showAchievements,
   achievementsDataTour,
+  isLoading,
   onStreakClick,
   onAchievementsClick,
 }: Readonly<ProfileStatTilesProps>) {
   const t = useTranslations()
 
+  const streakLabel = t('streakDisplay.title')
+  const streakValue = `${streak} ${plural(t('streakDisplay.daysSuffix'), streak)}`
+  const achievementsLabel = t('gamification.profileCard.tileLabel')
+  const achievementsAccessibleName = `${achievementsValue} · ${achievementsLabel}${
+    achievementsLocked ? ` · ${t('common.locked')}` : ''
+  }`
+
+  if (isLoading) {
+    return (
+      <div className="flex px-5" style={{ gap: 14, marginTop: 24, marginBottom: 18 }}>
+        <StatTileSkeleton />
+        <StatTileSkeleton />
+      </div>
+    )
+  }
+
   return (
     <div className="flex px-5" style={{ gap: 14, marginTop: 24, marginBottom: 18 }}>
       <StatTileButton
         dataTour="tour-profile-streak"
-        ariaLabel={t('streakDisplay.title')}
+        ariaLabel={`${streakValue} · ${streakLabel}`}
         onClick={onStreakClick}
       >
-        <StatTile
-          emoji="🔥"
-          value={`${streak} ${plural(t('streakDisplay.daysSuffix'), streak)}`}
-          label={t('streakDisplay.title')}
-        />
+        <StatTile emoji="🔥" value={streakValue} label={streakLabel} />
       </StatTileButton>
       {showAchievements && (
         <StatTileButton
           dataTour={achievementsDataTour}
-          ariaLabel={t('gamification.profileCard.tileLabel')}
+          ariaLabel={achievementsAccessibleName}
           onClick={onAchievementsClick}
         >
           <StatTile
             emoji="🏆"
             value={achievementsValue}
-            label={t('gamification.profileCard.tileLabel')}
+            label={achievementsLabel}
           />
           {achievementsLocked && (
             <span

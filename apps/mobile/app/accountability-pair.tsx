@@ -1,6 +1,7 @@
 import { useState } from 'react'
-import { ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
+import { Pencil } from 'lucide-react-native'
 import { useLocalSearchParams } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import type { AccountabilityPair } from '@orbit/shared/types/accountability'
@@ -103,7 +104,7 @@ export default function AccountabilityPairScreen() {
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: tokens.bg }]} edges={['top']}>
-      <GradientTop height={160} />
+      <GradientTop height={200} />
       <AppBar
         back
         onBack={() => goBackOrFallback('/social')}
@@ -124,8 +125,33 @@ export default function AccountabilityPairScreen() {
               <Text style={styles.cadenceLabel}>{t('social.buddies.detail.cadenceLabel')}</Text>
               <Text style={styles.cadenceValue}>{t(`social.buddies.cadence.${pair.cadence}`)}</Text>
             </View>
+            <View style={styles.cadenceRow}>
+              <Text style={styles.cadenceLabel}>
+                {t('social.buddies.detail.buddyHabits', { name: pair.buddy.displayName })}
+              </Text>
+              <Text style={styles.buddyHabitsValue}>{pair.buddyHabitIds.length}</Text>
+            </View>
 
-            <SectionLabel bottom={8}>{t('social.buddies.detail.yourHabits')}</SectionLabel>
+            <SectionLabel
+              bottom={8}
+              inset={false}
+              trailing={
+                <Pressable
+                  onPress={openEdit}
+                  accessibilityRole="button"
+                  accessibilityLabel={t('social.buddies.detail.editHabits')}
+                  hitSlop={2}
+                  style={({ pressed }) => [
+                    styles.editHabitsButton,
+                    pressed && styles.editHabitsButtonPressed,
+                  ]}
+                >
+                  <Pencil size={18} color={tokens.fg2} strokeWidth={1.8} />
+                </Pressable>
+              }
+            >
+              {t('social.buddies.detail.yourHabits')}
+            </SectionLabel>
             <View style={styles.chips}>
               {myHabitTitles.map((title) => (
                 <View key={title} style={styles.chip}>
@@ -133,31 +159,28 @@ export default function AccountabilityPairScreen() {
                 </View>
               ))}
             </View>
-            <Text style={styles.linkAction} onPress={openEdit}>
-              {t('social.buddies.detail.editHabits')}
-            </Text>
 
-            <SectionLabel bottom={8}>
-              {t('social.buddies.detail.buddyHabits', { name: pair.buddy.displayName })}
+            <SectionLabel bottom={8} inset={false}>
+              {t('social.buddies.checkInTitle')}
             </SectionLabel>
-            <Text style={styles.muted}>
-              {t('social.buddies.detail.buddyHabitsCount', { count: pair.buddyHabitIds.length })}
-            </Text>
-
-            <SectionLabel bottom={8}>{t('social.buddies.checkInTitle')}</SectionLabel>
             {checkedInToday ? (
               <Text style={styles.muted}>{t('social.buddies.checkedInLabel')}</Text>
             ) : (
               <View style={styles.composer}>
-                <TextInput
-                  value={note}
-                  onChangeText={(value) => setNote(value.slice(0, MAX_NOTE))}
-                  maxLength={MAX_NOTE}
-                  placeholder={t('social.buddies.checkInNotePlaceholder')}
-                  placeholderTextColor={tokens.fg3}
-                  multiline
-                  style={styles.note}
-                />
+                <View style={styles.noteBlock}>
+                  <TextInput
+                    value={note}
+                    onChangeText={(value) => setNote(value.slice(0, MAX_NOTE))}
+                    maxLength={MAX_NOTE}
+                    placeholder={t('social.buddies.checkInNotePlaceholder')}
+                    placeholderTextColor={tokens.fg3}
+                    multiline
+                    style={styles.note}
+                  />
+                  <Text style={styles.noteCounter}>
+                    {note.length}/{MAX_NOTE}
+                  </Text>
+                </View>
                 <PillButton
                   onPress={handleCheckIn}
                   disabled={checkIn.isPending}
@@ -169,8 +192,10 @@ export default function AccountabilityPairScreen() {
               </View>
             )}
 
-            <SectionLabel bottom={8}>{t('social.buddies.detail.history')}</SectionLabel>
-            {(checkInsQuery.data?.items.length ?? 0) === 0 ? (
+            <SectionLabel bottom={8} inset={false}>
+              {t('social.buddies.detail.history')}
+            </SectionLabel>
+            {checkInsQuery.isPending ? null : (checkInsQuery.data?.items.length ?? 0) === 0 ? (
               <Text style={styles.muted}>{t('social.buddies.detail.historyEmpty')}</Text>
             ) : (
               <View style={styles.history}>
@@ -190,9 +215,13 @@ export default function AccountabilityPairScreen() {
               </View>
             )}
 
-            <Text style={styles.unpairAction} onPress={() => setConfirmUnpair(true)}>
-              {t('social.buddies.detail.unpair')}
-            </Text>
+            <Pressable
+              onPress={() => setConfirmUnpair(true)}
+              accessibilityRole="button"
+              style={({ pressed }) => [styles.unpairAction, pressed && styles.unpairActionPressed]}
+            >
+              <Text style={styles.unpairText}>{t('social.buddies.detail.unpair')}</Text>
+            </Pressable>
           </>
         )}
         <View style={{ height: 24 }} />
@@ -204,16 +233,25 @@ export default function AccountabilityPairScreen() {
         title={t('social.buddies.detail.editHabitsTitle')}
         snapPoints={['70%', '92%']}
       >
-        <View style={styles.sheetBody}>
-          <HabitMultiSelect selectedIds={editHabitIds} onChange={setEditHabitIds} />
-          <PillButton
-            onPress={handleSaveHabits}
-            disabled={editHabitIds.length === 0 || setHabits.isPending}
-            busy={setHabits.isPending}
-            fullWidth
+        <View style={styles.sheetContainer}>
+          <ScrollView
+            style={styles.sheetScroll}
+            contentContainerStyle={styles.sheetBody}
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
           >
-            {t('common.save')}
-          </PillButton>
+            <HabitMultiSelect selectedIds={editHabitIds} onChange={setEditHabitIds} />
+          </ScrollView>
+          <View style={styles.sheetFooter}>
+            <PillButton
+              onPress={handleSaveHabits}
+              disabled={editHabitIds.length === 0 || setHabits.isPending}
+              busy={setHabits.isPending}
+              fullWidth
+            >
+              {t('common.save')}
+            </PillButton>
+          </View>
         </View>
       </BottomSheetModal>
 
@@ -244,8 +282,31 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       justifyContent: 'space-between',
       paddingTop: 12,
     },
-    cadenceLabel: { fontFamily: 'Rubik_400Regular', fontSize: 14, color: tokens.fg3 },
+    cadenceLabel: {
+      flexShrink: 1,
+      fontFamily: 'Rubik_400Regular',
+      fontSize: 14,
+      color: tokens.fg3,
+    },
     cadenceValue: { fontFamily: 'Rubik_500Medium', fontSize: 14, color: tokens.fg1 },
+    buddyHabitsValue: {
+      fontFamily: 'Roboto_500Medium',
+      fontSize: 14,
+      color: tokens.fg1,
+      fontVariant: ['tabular-nums'],
+    },
+    editHabitsButton: {
+      width: 40,
+      height: 40,
+      marginVertical: -8,
+      borderRadius: 20,
+      alignItems: 'center',
+      justifyContent: 'center',
+    },
+    editHabitsButtonPressed: {
+      backgroundColor: tokens.bgElev,
+      transform: [{ scale: 0.96 }],
+    },
     chips: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
     chip: {
       paddingHorizontal: 12,
@@ -256,14 +317,16 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       borderColor: tokens.hairline,
     },
     chipText: { fontFamily: 'Rubik_400Regular', fontSize: 13, color: tokens.fg2 },
-    linkAction: {
-      marginTop: 10,
-      fontFamily: 'Rubik_500Medium',
-      fontSize: 14,
-      color: tokens.primary,
-    },
     muted: { fontFamily: 'Rubik_400Regular', fontSize: 14, color: tokens.fg3 },
     composer: { gap: 10 },
+    noteBlock: { gap: 4 },
+    noteCounter: {
+      alignSelf: 'flex-end',
+      fontFamily: 'Roboto_400Regular',
+      fontSize: 12,
+      color: tokens.fg4,
+      fontVariant: ['tabular-nums'],
+    },
     note: {
       minHeight: 72,
       borderRadius: 14,
@@ -288,11 +351,26 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
     },
     historyNote: { fontFamily: 'Rubik_400Regular', fontSize: 14, color: tokens.fg2 },
     unpairAction: {
+      alignSelf: 'flex-start',
       marginTop: 20,
+      marginLeft: -16,
+      minHeight: 44,
+      paddingHorizontal: 16,
+      borderRadius: 999,
+      justifyContent: 'center',
+    },
+    unpairActionPressed: {
+      backgroundColor: `${tokens.statusBad}1A`,
+      transform: [{ scale: 0.96 }],
+    },
+    unpairText: {
       fontFamily: 'Rubik_500Medium',
       fontSize: 14,
-      color: tokens.statusBad,
+      color: tokens.statusBadText,
     },
-    sheetBody: { paddingHorizontal: 22, paddingTop: 4, paddingBottom: 24, gap: 16 },
+    sheetContainer: { flex: 1 },
+    sheetScroll: { flex: 1 },
+    sheetBody: { paddingHorizontal: 22, paddingTop: 4, paddingBottom: 16 },
+    sheetFooter: { paddingHorizontal: 22, paddingTop: 12, paddingBottom: 24 },
   })
 }

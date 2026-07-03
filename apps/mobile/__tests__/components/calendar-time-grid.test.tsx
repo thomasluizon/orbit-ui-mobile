@@ -1,5 +1,6 @@
 import React from "react";
 import { describe, it, expect, vi } from "vitest";
+import type { TFunction } from "i18next";
 import type { CalendarDayEntry } from "@orbit/shared/types/calendar";
 
 const TestRenderer = require("react-test-renderer");
@@ -33,11 +34,14 @@ function column(dateStr: string): TimeGridColumn {
 
 const displayTime = (time: string) => time;
 const tokens = createTokensV2("purple", "dark");
+const translate = ((key: string, params?: Record<string, unknown>) =>
+  params ? `${key}:${JSON.stringify(params)}` : key) as unknown as TFunction;
 
 function renderGrid(
   columns: TimeGridColumn[],
   dayMap: Map<string, CalendarDayEntry[]>,
   onSelectDay = vi.fn(),
+  isLoading = false,
 ): Tree {
   let tree: Tree;
   TestRenderer.act(() => {
@@ -50,6 +54,8 @@ function renderGrid(
         language="en"
         allDayLabel="All-day"
         nowLabel="Now"
+        isLoading={isLoading}
+        t={translate}
         tokens={tokens}
       />,
     ) as unknown as Tree;
@@ -144,5 +150,59 @@ describe("CalendarTimeGrid (mobile)", () => {
       headers[0]!.props.onPress();
     });
     expect(onSelectDay).toHaveBeenCalledWith("2025-06-16");
+  });
+
+  it("opens the tapped day from a timed event block", () => {
+    const onSelectDay = vi.fn();
+    const col = column("2025-06-16");
+    const dayMap = new Map<string, CalendarDayEntry[]>([
+      [col.dateStr, [makeEntry({ habitId: "a", title: "Standup", dueTime: "08:00" })]],
+    ]);
+    const tree = renderGrid([col], dayMap, onSelectDay);
+
+    const blocks = hostsByTestID(tree, "time-grid-event");
+    expect(blocks).toHaveLength(1);
+    TestRenderer.act(() => {
+      blocks[0]!.props.onPress();
+    });
+    expect(onSelectDay).toHaveBeenCalledWith("2025-06-16");
+  });
+
+  it("labels the +N overflow chip with a localized count for screen readers", () => {
+    const col = column("2025-06-16");
+    const entries = Array.from({ length: 8 }, (_, i) =>
+      makeEntry({ habitId: `ad-${i}`, title: `All ${i}`, dueTime: null }),
+    );
+    const tree = renderGrid([col], new Map([[col.dateStr, entries]]));
+
+    const more = hostsByTestID(tree, "time-grid-all-day-more");
+    expect(more[0]!.props.accessibilityLabel).toBe(
+      'calendar.timeGrid.moreLabel:{"count":4}',
+    );
+  });
+
+  it("shows the empty message when no visible day has entries", () => {
+    const tree = renderGrid([column("2025-06-16")], new Map());
+
+    expect(hostsByTestID(tree, "time-grid-empty")).toHaveLength(1);
+    expect(textValuesWithin(tree, "time-grid-empty")).toContain(
+      "calendar.timeGrid.empty",
+    );
+  });
+
+  it("hides the empty message while the range is loading", () => {
+    const tree = renderGrid([column("2025-06-16")], new Map(), vi.fn(), true);
+
+    expect(hostsByTestID(tree, "time-grid-empty")).toHaveLength(0);
+  });
+
+  it("hides the empty message when any visible day has an entry", () => {
+    const col = column("2025-06-16");
+    const dayMap = new Map<string, CalendarDayEntry[]>([
+      [col.dateStr, [makeEntry({ habitId: "a", dueTime: "08:00" })]],
+    ]);
+    const tree = renderGrid([col], dayMap);
+
+    expect(hostsByTestID(tree, "time-grid-empty")).toHaveLength(0);
   });
 });

@@ -58,7 +58,7 @@ export function ClarificationCard({
 
   if (resolved) {
     return (
-      <div className="rounded-[16px] bg-[var(--bg-field)] p-4 shadow-[inset_0_0_0_1px_var(--hairline)]">
+      <div className="rounded-[16px] bg-[var(--bg-card)] p-4 shadow-[inset_0_0_0_1px_var(--hairline)]">
         <div className="flex items-center gap-2 py-1">
           <div className="size-6 rounded-full bg-[var(--status-done)]/20 flex items-center justify-center">
             <Check className="size-3.5 text-[var(--status-done)]" />
@@ -72,7 +72,7 @@ export function ClarificationCard({
   }
 
   return (
-    <div className="rounded-[16px] bg-[var(--bg-field)] p-4 space-y-3 shadow-[inset_0_0_0_1px_var(--hairline)]">
+    <div className="rounded-[16px] bg-[var(--bg-card)] p-4 space-y-3 shadow-[inset_0_0_0_1px_var(--hairline)]">
       <p
         style={{
           fontFamily: 'var(--font-sans)',

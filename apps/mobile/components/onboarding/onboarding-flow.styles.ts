@@ -59,8 +59,16 @@ export function createStyles(tokens: AppTokensV2) {
       gap: 8,
     },
     footerActions: {
+      flexDirection: 'row',
       width: '100%',
-      gap: 4,
+      alignItems: 'center',
+    },
+    footerSide: {
+      flex: 1,
+      alignItems: 'flex-start',
+    },
+    footerCenter: {
+      flex: 2,
       alignItems: 'center',
     },
     backButton: {
@@ -68,6 +76,10 @@ export function createStyles(tokens: AppTokensV2) {
       alignItems: 'center',
       justifyContent: 'center',
       paddingHorizontal: 12,
+    },
+    textButtonPressed: {
+      transform: [{ scale: 0.96 }],
+      opacity: 0.7,
     },
     backText: {
       fontFamily: 'Rubik_400Regular',

@@ -12,11 +12,6 @@ vi.mock('@/lib/plural', () => ({
   plural: (text: string) => text,
 }))
 
-vi.mock('@/components/goals/goal-detail-drawer', () => ({
-  GoalDetailDrawer: ({ open }: { open: boolean }) =>
-    open ? <div data-testid="goal-detail-drawer" /> : null,
-}))
-
 import { GoalCard } from '@/components/goals/goal-card'
 import type { Goal } from '@orbit/shared/types/goal'
 
@@ -38,41 +33,53 @@ function makeGoal(overrides: Partial<Goal> = {}): Goal {
   }
 }
 
+function renderCard(goal: Goal, onOpenDetail = vi.fn()) {
+  render(<GoalCard goal={goal} onOpenDetail={onOpenDetail} />)
+  return onOpenDetail
+}
+
 describe('GoalCard', () => {
   it('renders goal title', () => {
-    render(<GoalCard goal={makeGoal()} />)
+    renderCard(makeGoal())
     expect(screen.getByText('Read 12 books')).toBeInTheDocument()
   })
 
   it('renders progress bar', () => {
-    render(<GoalCard goal={makeGoal({ progressPercentage: 50 })} />)
+    renderCard(makeGoal({ progressPercentage: 50 }))
     const progressbar = screen.getByRole('progressbar')
     expect(progressbar).toBeInTheDocument()
     expect(progressbar).toHaveAttribute('aria-valuenow', '50')
   })
 
   it('renders progress text', () => {
-    render(<GoalCard goal={makeGoal()} />)
+    renderCard(makeGoal())
     expect(document.body.textContent).toContain('goals.progressOf')
   })
 
   it('renders percentage', () => {
-    render(<GoalCard goal={makeGoal()} />)
+    renderCard(makeGoal())
     expect(document.body.textContent).toContain('25%')
   })
 
+  it('announces a rounded percentage to assistive tech', () => {
+    renderCard(makeGoal({ progressPercentage: 66.66666 }))
+    expect(
+      screen.getByRole('progressbar', { name: 'goals.progressPercentage:{"pct":67}' }),
+    ).toBeInTheDocument()
+  })
+
   it('shows completed badge for completed goals', () => {
-    render(<GoalCard goal={makeGoal({ status: 'Completed' })} />)
+    renderCard(makeGoal({ status: 'Completed' }))
     expect(document.body.textContent).toContain('goals.status.completed')
   })
 
   it('shows abandoned badge for abandoned goals', () => {
-    render(<GoalCard goal={makeGoal({ status: 'Abandoned' })} />)
+    renderCard(makeGoal({ status: 'Abandoned' }))
     expect(document.body.textContent).toContain('goals.status.abandoned')
   })
 
   it('applies line-through for abandoned goals', () => {
-    render(<GoalCard goal={makeGoal({ status: 'Abandoned' })} />)
+    renderCard(makeGoal({ status: 'Abandoned' }))
     const title = screen.getByText('Read 12 books')
     expect(title.className).toContain('line-through')
   })
@@ -80,40 +87,53 @@ describe('GoalCard', () => {
   it('shows deadline info when deadline is set', () => {
     const future = new Date()
     future.setDate(future.getDate() + 5)
-    render(<GoalCard goal={makeGoal({ deadline: future.toISOString().split('T')[0] })} />)
+    renderCard(makeGoal({ deadline: future.toISOString().split('T')[0] }))
     expect(document.body.textContent).toContain('goals.deadline.daysLeft')
   })
 
   it('shows overdue badge when past deadline', () => {
-    render(<GoalCard goal={makeGoal({ deadline: '2020-01-01' })} />)
+    renderCard(makeGoal({ deadline: '2020-01-01' }))
     expect(document.body.textContent).toContain('goals.deadline.overdue')
   })
 
+  it('shows due-today badge when the deadline is today', () => {
+    const withinToday = new Date(Date.now() + 60_000).toISOString()
+    renderCard(makeGoal({ deadline: withinToday }))
+    expect(document.body.textContent).toContain('goals.deadline.dueToday')
+  })
+
   it('shows on_track tracking dot', () => {
-    render(<GoalCard goal={makeGoal({ trackingStatus: 'on_track' })} />)
+    renderCard(makeGoal({ trackingStatus: 'on_track' }))
     expect(screen.getByLabelText('goals.metrics.onTrack')).toBeInTheDocument()
   })
 
   it('shows at_risk tracking dot', () => {
-    render(<GoalCard goal={makeGoal({ trackingStatus: 'at_risk' })} />)
+    renderCard(makeGoal({ trackingStatus: 'at_risk' }))
     expect(screen.getByLabelText('goals.metrics.atRisk')).toBeInTheDocument()
   })
 
-  it('opens detail drawer on click', () => {
-    render(<GoalCard goal={makeGoal()} />)
+  it('requests the detail drawer on click', () => {
+    const onOpenDetail = renderCard(makeGoal())
     fireEvent.click(screen.getByText('Read 12 books'))
-    expect(screen.getByTestId('goal-detail-drawer')).toBeInTheDocument()
+    expect(onOpenDetail).toHaveBeenCalledWith('1', null)
   })
 
   it('marks high progress with the completion state', () => {
-    render(<GoalCard goal={makeGoal({ progressPercentage: 80 })} />)
+    renderCard(makeGoal({ progressPercentage: 80 }))
     const bar = document.querySelector('[data-progress-state="high"]')
     expect(bar).toBeInTheDocument()
   })
 
   it('caps progress bar width at 100%', () => {
-    render(<GoalCard goal={makeGoal({ progressPercentage: 120 })} />)
+    renderCard(makeGoal({ progressPercentage: 120 }))
     const progressbar = screen.getByRole('progressbar')
     expect(progressbar).toHaveAttribute('aria-valuenow', '100')
+  })
+
+  it('caps the announced percentage at 100 for overflowing progress', () => {
+    renderCard(makeGoal({ progressPercentage: 120 }))
+    expect(
+      screen.getByRole('progressbar', { name: 'goals.progressPercentage:{"pct":100}' }),
+    ).toBeInTheDocument()
   })
 })

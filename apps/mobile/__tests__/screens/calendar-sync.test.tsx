@@ -41,6 +41,12 @@ const mocks = vi.hoisted(() => {
       replace: vi.fn(),
     },
     profile: null as ReturnType<typeof createMockProfile> | null,
+    searchParams: {} as { mode?: string },
+    suggestions: [] as unknown[],
+    isOnline: true,
+    bulkMutateAsync: vi.fn(),
+    dismissMutateAsync: vi.fn(),
+    showError: vi.fn(),
   };
 });
 
@@ -49,7 +55,7 @@ vi.mock("expo-router", async () => {
 
   return {
     useRouter: () => mocks.router,
-    useLocalSearchParams: () => ({}),
+    useLocalSearchParams: () => mocks.searchParams,
     useFocusEffect: (callback: () => void | (() => void)) => {
       React.useEffect(() => callback(), [callback]);
     },
@@ -76,7 +82,7 @@ vi.mock("@/hooks/use-profile", () => ({
 
 vi.mock("@/hooks/use-habits", () => ({
   useBulkCreateHabits: () => ({
-    mutateAsync: vi.fn(),
+    mutateAsync: mocks.bulkMutateAsync,
   }),
 }));
 
@@ -91,7 +97,7 @@ vi.mock("@/hooks/use-calendar-auto-sync", () => ({
     isLoading: false,
   }),
   useCalendarSyncSuggestions: () => ({
-    data: [],
+    data: mocks.suggestions,
     isLoading: false,
     isError: false,
     error: null,
@@ -102,6 +108,10 @@ vi.mock("@/hooks/use-calendar-auto-sync", () => ({
   }),
   useRunCalendarSyncNow: () => ({
     mutate: vi.fn(),
+    isPending: false,
+  }),
+  useDismissCalendarSuggestion: () => ({
+    mutateAsync: mocks.dismissMutateAsync,
     isPending: false,
   }),
 }));
@@ -149,13 +159,13 @@ vi.mock("@/lib/theme", async (importOriginal) => {
 
 vi.mock("@/hooks/use-offline", () => ({
   useOffline: () => ({
-    isOnline: true,
+    isOnline: mocks.isOnline,
   }),
 }));
 
 vi.mock("@/hooks/use-app-toast", () => ({
   useAppToast: () => ({
-    showError: vi.fn(),
+    showError: mocks.showError,
   }),
 }));
 
@@ -179,6 +189,7 @@ vi.mock("lucide-react-native", () => {
     Loader2: createIcon("Loader2"),
     RefreshCw: createIcon("RefreshCw"),
     WifiOff: createIcon("WifiOff"),
+    X: createIcon("X"),
   };
 });
 
@@ -191,16 +202,26 @@ vi.mock("@/components/ui/section-label", () => ({
 }));
 
 vi.mock("@/components/ui/settings-row", () => ({
-  SettingsRow: () => null,
+  SettingsRow: ({ label, accessory }: { label: string; accessory?: string }) =>
+    React.createElement("SettingsRow", { accessory }, label),
   Switch: () => null,
 }));
 
 vi.mock("@/components/ui/select-check", () => ({
   SelectCheck: () => null,
+  RadioGlyph: () => null,
 }));
 
 vi.mock("@/components/ui/pill-button", () => ({
-  PillButton: () => null,
+  PillButton: ({
+    children,
+    onPress,
+    disabled,
+  }: {
+    children?: unknown;
+    onPress?: () => void;
+    disabled?: boolean;
+  }) => React.createElement("PillButton", { onPress, disabled }, children as never),
 }));
 
 vi.mock("react-native", async (importOriginal) => {
@@ -221,6 +242,11 @@ describe("CalendarSyncScreen", () => {
     mocks.eventsQuery.isLoading = false;
     mocks.eventsQuery.isError = false;
     mocks.eventsQuery.error = null;
+    mocks.searchParams = {};
+    mocks.suggestions = [];
+    mocks.isOnline = true;
+    mocks.bulkMutateAsync.mockReset();
+    mocks.dismissMutateAsync.mockReset();
   });
 
   it("refetches calendar events through the cached query once the screen settles", async () => {
@@ -343,5 +369,109 @@ describe("CalendarSyncScreen", () => {
         (node.props.children as string).includes("Work"),
     );
     expect(metaNodes.length).toBeGreaterThan(0);
+  });
+
+  it("shows the offline state without a retry chip when disconnected", async () => {
+    mocks.isOnline = false;
+
+    let tree: any;
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(<CalendarSyncScreen />);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(
+      tree.root.findAll(
+        (node: TestNode) => node.props.children === "offline.title",
+      ).length,
+    ).toBeGreaterThan(0);
+    expect(
+      tree.root.findAll(
+        (node: TestNode) => node.props.children === "offline.description",
+      ).length,
+    ).toBeGreaterThan(0);
+    expect(
+      tree.root.findAll(
+        (node: TestNode) => node.props.children === "calendar.retry",
+      ).length,
+    ).toBe(0);
+  });
+
+  it("dismisses a suggestion from the review list", async () => {
+    mocks.searchParams = { mode: "review" };
+    mocks.suggestions = [{ id: "sug-0", event: buildEvents(1)[0] }];
+    mocks.dismissMutateAsync.mockResolvedValue(undefined);
+
+    let tree: any;
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(<CalendarSyncScreen />);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    const dismiss = tree.root.find(
+      (node: TestNode) =>
+        node.props.accessibilityLabel === "calendar.autoSync.dismissSuggestion" &&
+        typeof node.props.onPress === "function",
+    );
+
+    await TestRenderer.act(async () => {
+      (dismiss.props.onPress as () => void)();
+      await Promise.resolve();
+    });
+
+    expect(mocks.dismissMutateAsync).toHaveBeenCalledWith({ id: "sug-0" });
+  });
+
+  it("lists imported habits on the done step and toasts partial failures", async () => {
+    mocks.eventsQuery.data = { status: "connected", events: buildEvents(2) };
+    mocks.bulkMutateAsync.mockResolvedValue({
+      results: [
+        { status: "Success", habitId: "h1", title: "Event 0", error: null },
+        { status: "Failed", habitId: null, title: "Event 1", error: "boom" },
+      ],
+    });
+
+    let tree: any;
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(<CalendarSyncScreen />);
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    const importPill = tree.root.find(
+      (node: TestNode) =>
+        typeof node.props.onPress === "function" &&
+        typeof node.props.children === "string" &&
+        (node.props.children as string).includes("calendar.importButton"),
+    );
+
+    await TestRenderer.act(async () => {
+      (importPill.props.onPress as () => void)();
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(mocks.showError).toHaveBeenCalledWith(
+      'calendar.importPartialFailure({"count":1})',
+    );
+    expect(
+      tree.root.findAll(
+        (node: TestNode) => node.props.children === "calendar.importDone",
+      ).length,
+    ).toBeGreaterThan(0);
+    const doneRows = tree.root.findAll(
+      (node: TestNode & { type?: unknown }) =>
+        node.type === "SettingsRow" && node.props.children === "Event 0",
+    );
+    expect(doneRows.length).toBe(1);
+    expect(doneRows[0]!.props.accessory).toBe("none");
+    expect(
+      tree.root.findAll(
+        (node: TestNode & { type?: unknown }) =>
+          node.type === "SettingsRow" && node.props.children === "Event 1",
+      ).length,
+    ).toBe(0);
   });
 });

@@ -92,6 +92,11 @@ vi.mock('@/lib/supabase', () => ({
   }),
 }))
 
+const { mockIsOnline } = vi.hoisted(() => ({ mockIsOnline: { value: true } }))
+vi.mock('@/hooks/use-offline', () => ({
+  useOffline: () => ({ isOnline: mockIsOnline.value }),
+}))
+
 import LoginPage from '@/app/(auth)/login/page'
 
 describe('LoginPage', () => {
@@ -101,6 +106,7 @@ describe('LoginPage', () => {
     mockResolveMotionPreset.mockClear()
     mockUseReducedMotion.mockReset()
     mockUseReducedMotion.mockReturnValue(true)
+    mockIsOnline.value = true
     searchParamValues = {
       email: 'person@example.com',
       code: '123456',
@@ -168,5 +174,20 @@ describe('LoginPage', () => {
       expect(mockShowError).toHaveBeenCalledWith('auth.errors.invalidEmail')
     })
     expect(screen.queryByRole('alert')).not.toBeInTheDocument()
+  })
+
+  it('surfaces the offline state and disables sending when the device is offline', () => {
+    searchParamValues = {
+      email: null,
+      code: null,
+      returnUrl: '/',
+    }
+    mockIsOnline.value = false
+
+    render(<LoginPage />)
+
+    expect(screen.getByRole('alert')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'auth.sendCode' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'auth.signInWithGoogle' })).toBeDisabled()
   })
 })

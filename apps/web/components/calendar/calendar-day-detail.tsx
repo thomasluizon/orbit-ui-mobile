@@ -20,9 +20,9 @@ interface CalendarDayDetailProps {
 
 function statusBadgeColor(entry: CalendarDayEntry): string {
   if (entry.isBadHabit) {
-    return entry.status === 'completed' ? 'var(--status-bad)' : 'var(--status-done)'
+    return entry.status === 'completed' ? 'var(--status-bad-text)' : 'var(--status-done)'
   }
-  return entry.status === 'completed' ? 'var(--status-done)' : 'var(--status-overdue)'
+  return entry.status === 'completed' ? 'var(--status-done)' : 'var(--status-overdue-text)'
 }
 
 function statusCircleStyle(entry: CalendarDayEntry): React.CSSProperties {
@@ -34,11 +34,14 @@ function statusCircleStyle(entry: CalendarDayEntry): React.CSSProperties {
   if (entry.status === 'missed' && !entry.isBadHabit) {
     return { boxShadow: 'inset 0 0 0 2px var(--status-overdue)' }
   }
+  if (entry.status === 'missed' && entry.isBadHabit) {
+    return { boxShadow: 'inset 0 0 0 2px var(--status-done)' }
+  }
   return { boxShadow: 'inset 0 0 0 2px var(--status-empty)' }
 }
 
-/** Inline selected-day section under the Agenda grid: date heading 20/500,
- *  the day's entries in a kit card, and the go-to-day ghost pill. */
+/** Inline selected-day section: the day's entries in a kit card with per-entry
+ *  status rings, and the go-to-day ghost pill. */
 export function CalendarDayDetail({
   dateStr,
   entries,
@@ -77,29 +80,14 @@ export function CalendarDayDetail({
 
   return (
     <section aria-label={formattedDate} style={{ padding: '12px 20px 12px' }}>
-      <div
-        className="flex items-end justify-between"
-        style={{ gap: 12, marginBottom: 12 }}
-      >
-        <h2
-          className="capitalize min-w-0 truncate"
-          style={{
-            margin: 0,
-            fontFamily: 'var(--font-sans)',
-            fontSize: 20,
-            fontWeight: 500,
-            color: 'var(--fg-1)',
-          }}
-        >
-          {formattedDate}
-        </h2>
-        {entries.length > 0 && (
+      {entries.length > 0 && (
+        <div className="flex justify-end" style={{ marginBottom: 12 }}>
           <ShowRecurringToggle
             checked={showRecurring}
             onChange={onShowRecurringChange}
           />
-        )}
-      </div>
+        </div>
+      )}
 
       {entries.length === 0 && (
         <div
@@ -232,7 +220,7 @@ export function CalendarDayDetail({
 
       <Link
         href={`/?date=${dateStr}`}
-        className="flex w-full items-center justify-center gap-[9px] rounded-full bg-transparent text-[var(--fg-1)] transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev)] active:scale-[0.98]"
+        className="flex w-full sm:max-w-[360px] sm:mx-auto items-center justify-center gap-[9px] rounded-full bg-transparent text-[var(--fg-1)] transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev)] active:scale-[0.98]"
         style={{
           marginTop: 16,
           padding: '14px 26px',

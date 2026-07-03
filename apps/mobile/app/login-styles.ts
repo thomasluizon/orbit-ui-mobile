@@ -63,9 +63,9 @@ export function createLoginStyles(tokens: AppTokensV2) {
     },
     stepTitle: {
       fontFamily: 'Rubik_500Medium',
-      fontSize: 26,
-      lineHeight: 34,
-      letterSpacing: -0.26,
+      fontSize: 28,
+      lineHeight: 36,
+      letterSpacing: -0.28,
       color: tokens.fg1,
       textAlign: 'center',
     },
@@ -141,10 +141,19 @@ export function createLoginStyles(tokens: AppTokensV2) {
       justifyContent: 'center',
       paddingHorizontal: 12,
     },
+    textButtonPressed: {
+      transform: [{ scale: 0.96 }],
+    },
+    textButtonDisabled: {
+      opacity: 0.5,
+    },
     resendActiveText: {
       fontFamily: 'Rubik_500Medium',
       fontSize: 14,
       color: tokens.fg2,
+    },
+    resendActiveTextPressed: {
+      color: tokens.fg1,
     },
     resendCountdownText: {
       fontFamily: 'Rubik_400Regular',
@@ -156,6 +165,9 @@ export function createLoginStyles(tokens: AppTokensV2) {
       fontFamily: 'Rubik_400Regular',
       fontSize: 13,
       color: tokens.fg3,
+    },
+    quietLinkPressed: {
+      color: tokens.fg1,
     },
   })
 }

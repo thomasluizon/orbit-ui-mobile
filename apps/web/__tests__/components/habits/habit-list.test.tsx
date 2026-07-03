@@ -1040,6 +1040,29 @@ describe('HabitList', () => {
     expect(drillRefreshCurrent).toHaveBeenCalledTimes(1)
   })
 
+  it('retries loading drill children from the drill error state', () => {
+    const parent = createMockHabit({
+      id: 'parent',
+      title: 'Parent',
+      hasSubHabits: true,
+    })
+
+    mockHabitsData.habitsById.set(parent.id, parent)
+    mockHabitsData.topLevelHabits = [parent]
+
+    mockDrillState.drillStack = ['parent']
+    mockDrillState.currentParentId = 'parent'
+    mockDrillState.currentParent = parent
+    mockDrillState.drillError = 'boom'
+
+    renderWithProviders(<HabitList filters={defaultFilters} />)
+
+    expect(screen.getByRole('alert')).toHaveTextContent('boom')
+
+    fireEvent.click(screen.getByRole('button', { name: 'common.retry' }))
+    expect(drillRefreshCurrent).toHaveBeenCalledTimes(1)
+  })
+
   it('logs an overdue habit directly with no date', () => {
     const overdue = createMockHabit({
       id: 'overdue-1',

@@ -8,8 +8,9 @@ import {
 } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { createTokensV2, tintFromPrimary } from '@/lib/theme'
+import { createTokensV2, easings, tintFromPrimary } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
+import { toAnimatedEasing } from '@/lib/motion'
 import { useUIStore } from '@/stores/ui-store'
 import { GradientTop } from '@/components/ui/gradient-top'
 import { PillButton } from '@/components/ui/pill-button'
@@ -40,7 +41,8 @@ export function GoalCompletedCelebration() {
     if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current)
     Animated.timing(overlayOpacity, {
       toValue: 0,
-      duration: 300,
+      duration: 280,
+      easing: toAnimatedEasing(easings.out),
       useNativeDriver: true,
     }).start(() => {
       setGoalCompletedCelebration(null)
@@ -64,11 +66,12 @@ export function GoalCompletedCelebration() {
 
     Animated.timing(overlayOpacity, {
       toValue: 1,
-      duration: 300,
+      duration: 280,
+      easing: toAnimatedEasing(easings.out),
       useNativeDriver: true,
     }).start()
 
-    dismissTimerRef.current = setTimeout(dismiss, 3500)
+    dismissTimerRef.current = setTimeout(dismiss, 6000)
 
     return () => {
       if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current)

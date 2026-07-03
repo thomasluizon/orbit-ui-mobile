@@ -9,6 +9,7 @@ interface EmailStepProps {
   onEmailChange: (email: string) => void
   isSubmitting: boolean
   isGoogleLoading: boolean
+  isOnline: boolean
   onSendCode: () => void
   onSignInWithGoogle: () => void
   t: ReturnType<typeof useTranslations>
@@ -19,6 +20,7 @@ export function EmailStep({
   onEmailChange,
   isSubmitting,
   isGoogleLoading,
+  isOnline,
   onSendCode,
   onSignInWithGoogle,
   t,
@@ -50,7 +52,7 @@ export function EmailStep({
         <PillButton
           type="submit"
           fullWidth
-          disabled={isSubmitting || !email.trim()}
+          disabled={isSubmitting || !email.trim() || !isOnline}
           busy={isSubmitting}
           leading={isSubmitting ? <Spinner /> : undefined}
           dataTestId="auth-send-code"
@@ -76,7 +78,7 @@ export function EmailStep({
       <PillButton
         variant="ghost"
         fullWidth
-        disabled={isGoogleLoading}
+        disabled={isGoogleLoading || !isOnline}
         busy={isGoogleLoading}
         onClick={onSignInWithGoogle}
         leading={isGoogleLoading ? <Spinner size={5} /> : <GoogleIcon />}

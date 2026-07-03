@@ -1,11 +1,12 @@
 'use client'
 
 import { useState } from 'react'
-import { useRouter, useSearchParams } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { AppBar } from '@/components/ui/app-bar'
 import { GradientTop } from '@/components/ui/gradient-top'
 import { SectionHeadTabs, type SectionHeadTabItem } from '@/components/ui/section-head-tabs'
+import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { useProfile } from '@/hooks/use-profile'
 import { SocialOptInGate } from './_components/social-opt-in-gate'
 import { SocialIdentityBar } from './_components/social-identity-bar'
@@ -19,7 +20,7 @@ type SocialTab = 'feed' | 'friends' | 'buddies'
 
 export default function SocialPage() {
   const t = useTranslations()
-  const router = useRouter()
+  const goBackOrFallback = useGoBackOrFallback()
   const searchParams = useSearchParams()
   const { profile, isLoading } = useProfile()
   const [tab, setTab] = useState<SocialTab>(() => {
@@ -40,14 +41,14 @@ export default function SocialPage() {
   return (
     <div className="relative">
       <div className="md:hidden">
-        <GradientTop height={160} />
+        <GradientTop height={200} />
       </div>
       <div className="relative z-[1]">
-        <AppBar back onBack={() => router.back()} title={t('social.title')} />
+        <AppBar back onBack={() => goBackOrFallback('/profile')} title={t('social.title')} />
         {isLoading ? null : !socialEnabled ? (
           <SocialOptInGate />
         ) : (
-          <>
+          <div>
             <SocialIdentityBar />
             <ChallengesEntryCard />
             <SectionHeadTabs<SocialTab>
@@ -63,7 +64,7 @@ export default function SocialPage() {
             ) : (
               <AccountabilitySection initialHabitId={newPairHabitId} />
             )}
-          </>
+          </div>
         )}
       </div>
 

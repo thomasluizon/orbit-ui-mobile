@@ -181,9 +181,11 @@ export function EditGoalModal({ open, onClose, goal }: EditGoalModalProps) {
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="always"
         >
-          {isStreak ? (
-            <Text style={styles.eyebrow}>{t('goals.form.typeStreak')}</Text>
-          ) : null}
+          <Text style={styles.eyebrow}>
+            {isStreak
+              ? t('goals.form.typeStreak')
+              : `${t('goals.form.typeStandard')}${goal.unit ? `  ·  ${goal.unit}` : ''}`}
+          </Text>
 
           <View>
             <Text style={styles.fieldLabel}>{t('goals.form.description')}</Text>

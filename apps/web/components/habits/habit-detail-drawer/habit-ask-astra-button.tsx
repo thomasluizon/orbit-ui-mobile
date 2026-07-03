@@ -19,15 +19,14 @@ export function HabitAskAstraButton({
       onClick={onPress}
       aria-label={`${t('habits.detail.askAstraEyebrow')}: ${askPrompt}`}
       className="block w-full text-left appearance-none border-0 bg-transparent cursor-pointer transition-[background-color,transform] duration-150 ease-out hover:bg-[var(--bg-elev-pressed)] focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-primary active:scale-[0.99]"
-      style={{ borderRadius: 8, padding: '8px 10px', margin: '-8px -10px' }}
+      style={{
+        padding: '16px 20px 24px',
+        marginTop: 8,
+        borderTop: '1px solid var(--hairline)',
+      }}
     >
       <div className="flex items-center gap-3">
-        <div className="relative flex-1 min-w-0" style={{ paddingLeft: 14 }}>
-          <span
-            aria-hidden="true"
-            className="absolute rounded-[1px]"
-            style={{ left: 0, top: 4, bottom: 4, width: 2, background: 'var(--primary)' }}
-          />
+        <div className="flex-1 min-w-0">
           <div className="inline-flex items-center" style={{ gap: 6, marginBottom: 6 }}>
             <Orbit size={12} strokeWidth={1.7} color="var(--primary)" />
             <span

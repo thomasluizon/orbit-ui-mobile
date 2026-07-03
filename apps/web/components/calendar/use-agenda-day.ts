@@ -22,6 +22,8 @@ export interface AgendaDayData {
   habitsById: Map<string, HabitScheduleItem>
   isLoading: boolean
   isFetching: boolean
+  error: string | null
+  refresh: () => void
 }
 
 /**
@@ -32,7 +34,7 @@ export interface AgendaDayData {
  */
 export function useAgendaDay(date: Date, enabled: boolean): AgendaDayData {
   const dateStr = formatAPIDate(date)
-  const { dayMap, isLoading, isFetching } = useCalendarRange(date, date, enabled)
+  const { dayMap, isLoading, isFetching, error, refresh } = useCalendarRange(date, date, enabled)
   const queryClient = useQueryClient()
   const raw = queryClient.getQueryData<CalendarMonthResponse>(
     habitKeys.calendar(dateStr, dateStr),
@@ -52,5 +54,5 @@ export function useAgendaDay(date: Date, enabled: boolean): AgendaDayData {
     }))
   }, [dayMap, dateStr, habitsById])
 
-  return { entries, habitsById, isLoading, isFetching }
+  return { entries, habitsById, isLoading, isFetching, error, refresh }
 }

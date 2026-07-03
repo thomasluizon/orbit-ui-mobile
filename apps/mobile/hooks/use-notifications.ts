@@ -41,7 +41,6 @@ export function useNotifications() {
   const notifications = query.data?.items ?? []
   const unreadCount = query.data?.unreadCount ?? 0
 
-  // Poll on a conservative cadence, pausing while the app is backgrounded.
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   useEffect(() => {

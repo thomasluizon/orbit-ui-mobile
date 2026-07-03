@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { Pressable, ScrollView, StyleSheet, Text } from 'react-native'
+import Animated, { FadeInDown, ReduceMotion } from 'react-native-reanimated'
 import { useTranslation } from 'react-i18next'
 import { useQueryClient } from '@tanstack/react-query'
 import { Gift } from 'lucide-react-native'
@@ -19,6 +20,12 @@ import { useReferralPromptStore } from '@/stores/referral-prompt-store'
 
 const SETTLE_DELAY_MS = 500
 const DEFAULT_DISCOUNT_PERCENT = 10
+
+function enterAnimation(delayMs: number) {
+  return FadeInDown.duration(220)
+    .delay(delayMs)
+    .reduceMotion(ReduceMotion.System)
+}
 
 /** One-shot milestone nudge: shows once no celebration is in flight and the re-prompt guard allows it, then hands off to the referral drawer. */
 export function ReferralPrompt() {
@@ -101,18 +108,25 @@ export function ReferralPrompt() {
       <BottomSheetModal
         open={visibleKey !== null}
         onClose={dismiss}
-        snapPoints={['50%']}
+        title={title}
+        contentKey={visibleKey ?? undefined}
+        snapPoints={['60%']}
       >
-        <View style={styles.content}>
-          <Text style={styles.eyebrow}>{t('referral.prompt.eyebrow')}</Text>
-          <View style={styles.heroDisc}>
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={styles.content}
+          showsVerticalScrollIndicator={false}
+        >
+          <Animated.Text entering={enterAnimation(70)} style={styles.eyebrow}>
+            {t('referral.prompt.eyebrow')}
+          </Animated.Text>
+          <Animated.View entering={enterAnimation(0)} style={styles.heroDisc}>
             <Gift size={30} strokeWidth={1.8} color={tokens.primarySoft} />
-          </View>
-          <Text style={styles.title}>{title}</Text>
-          <Text style={styles.body}>
+          </Animated.View>
+          <Animated.Text entering={enterAnimation(70)} style={styles.body}>
             {t('referral.prompt.body', { discount })}
-          </Text>
-          <View style={styles.actions}>
+          </Animated.Text>
+          <Animated.View entering={enterAnimation(140)} style={styles.actions}>
             <PillButton fullWidth onPress={openDrawer}>
               {t('referral.prompt.cta')}
             </PillButton>
@@ -120,12 +134,15 @@ export function ReferralPrompt() {
               onPress={dismiss}
               accessibilityRole="button"
               accessibilityLabel={t('referral.prompt.later')}
-              style={styles.laterButton}
+              style={({ pressed }) => [
+                styles.laterButton,
+                pressed ? styles.laterButtonPressed : null,
+              ]}
             >
               <Text style={styles.laterText}>{t('referral.prompt.later')}</Text>
             </Pressable>
-          </View>
-        </View>
+          </Animated.View>
+        </ScrollView>
       </BottomSheetModal>
       <ReferralDrawer open={showDrawer} onClose={() => setShowDrawer(false)} />
     </>
@@ -134,11 +151,14 @@ export function ReferralPrompt() {
 
 function createStyles(tokens: ReturnType<typeof createTokensV2>) {
   return StyleSheet.create({
-    content: {
+    scroll: {
       flex: 1,
+    },
+    content: {
       alignItems: 'center',
       paddingHorizontal: 24,
-      paddingTop: 24,
+      paddingTop: 8,
+      paddingBottom: 24,
       gap: 16,
     },
     eyebrow: {
@@ -154,13 +174,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       borderRadius: 999,
       alignItems: 'center',
       justifyContent: 'center',
-      backgroundColor: tintFromPrimary(tokens, 0.16),
-    },
-    title: {
-      fontFamily: 'Rubik_500Medium',
-      fontSize: 22,
-      textAlign: 'center',
-      color: tokens.fg1,
+      backgroundColor: tintFromPrimary(tokens, 0.15),
     },
     body: {
       fontFamily: 'Rubik_400Regular',
@@ -177,6 +191,9 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
     laterButton: {
       alignItems: 'center',
       paddingVertical: 12,
+    },
+    laterButtonPressed: {
+      opacity: 0.6,
     },
     laterText: {
       fontFamily: 'Rubik_500Medium',

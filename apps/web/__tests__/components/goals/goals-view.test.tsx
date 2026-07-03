@@ -1,4 +1,4 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 
 vi.mock('next-intl', () => ({
@@ -22,12 +22,17 @@ vi.mock('@/components/goals/goal-list', () => ({
 }))
 
 import { GoalsView } from '@/components/goals/goals-view'
+import { useUIStore } from '@/stores/ui-store'
 
 function openFilterMenu() {
   fireEvent.click(screen.getByRole('button', { name: 'goals.filters.statusFilter' }))
 }
 
 describe('GoalsView', () => {
+  afterEach(() => {
+    useUIStore.setState({ showCreateGoalModal: false })
+  })
+
   it('renders the status filter trigger', () => {
     mockGoalsData = { allGoals: [] }
     mockIsFetched = true
@@ -51,6 +56,43 @@ describe('GoalsView', () => {
     render(<GoalsView />)
     expect(screen.getByText('goals.empty')).toBeInTheDocument()
     expect(screen.getByText('goals.emptyHint')).toBeInTheDocument()
+  })
+
+  it('offers a create action on the unfiltered empty state', () => {
+    mockGoalsData = { allGoals: [] }
+    mockIsFetched = true
+    render(<GoalsView />)
+    fireEvent.click(screen.getByRole('button', { name: 'goals.create' }))
+    expect(useUIStore.getState().showCreateGoalModal).toBe(true)
+  })
+
+  it('shows the filtered empty state with a clear-filter action', () => {
+    mockGoalsData = {
+      allGoals: [{ id: '1', title: 'Active Goal', status: 'Active' }],
+    }
+    mockIsFetched = true
+    render(<GoalsView />)
+    openFilterMenu()
+    fireEvent.click(screen.getByRole('menuitemradio', { name: 'goals.filters.completed' }))
+
+    expect(screen.getByText('goals.filters.emptyFiltered')).toBeInTheDocument()
+    expect(screen.getByText('goals.filters.emptyFilteredHint')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'goals.filters.clearFilter' }))
+    expect(screen.getByText('Active Goal')).toBeInTheDocument()
+  })
+
+  it('shows the active filter label beside the funnel trigger', () => {
+    mockGoalsData = { allGoals: [] }
+    mockIsFetched = true
+    render(<GoalsView />)
+    expect(screen.queryByText('goals.filters.active')).not.toBeInTheDocument()
+    openFilterMenu()
+    fireEvent.click(screen.getByRole('menuitemradio', { name: 'goals.filters.active' }))
+    const labelsOutsideMenu = screen
+      .getAllByText('goals.filters.active')
+      .filter((element) => !element.closest('[role="dialog"]'))
+    expect(labelsOutsideMenu).toHaveLength(1)
   })
 
   it('renders goal list when goals exist', () => {

@@ -60,7 +60,13 @@ export function FriendRequestRow({ request, direction }: Readonly<FriendRequestR
               accessibilityRole="button"
               onPress={handleAccept}
               disabled={busy}
-              style={[styles.actionButton, { backgroundColor: tokens.primary }]}
+              hitSlop={{ top: 6, bottom: 6 }}
+              style={({ pressed }) => [
+                styles.actionButton,
+                { backgroundColor: pressed ? tokens.primaryPressed : tokens.primary },
+                busy ? styles.actionBusy : null,
+                pressed ? styles.actionPressed : null,
+              ]}
             >
               <Text style={[styles.actionText, { color: tokens.fgOnPrimary }]}>
                 {t('social.friends.accept')}
@@ -70,7 +76,13 @@ export function FriendRequestRow({ request, direction }: Readonly<FriendRequestR
               accessibilityRole="button"
               onPress={handleRemove}
               disabled={busy}
-              style={[styles.actionButton, { backgroundColor: tokens.bgElev }]}
+              hitSlop={{ top: 6, bottom: 6 }}
+              style={({ pressed }) => [
+                styles.actionButton,
+                { backgroundColor: tokens.bgElev },
+                busy ? styles.actionBusy : null,
+                pressed ? styles.actionPressed : null,
+              ]}
             >
               <Text style={[styles.actionText, { color: tokens.fg2 }]}>
                 {t('social.friends.decline')}
@@ -82,7 +94,13 @@ export function FriendRequestRow({ request, direction }: Readonly<FriendRequestR
             accessibilityRole="button"
             onPress={handleRemove}
             disabled={busy}
-            style={[styles.actionButton, { backgroundColor: tokens.bgElev }]}
+            hitSlop={{ top: 6, bottom: 6 }}
+            style={({ pressed }) => [
+              styles.actionButton,
+              { backgroundColor: tokens.bgElev },
+              busy ? styles.actionBusy : null,
+              pressed ? styles.actionPressed : null,
+            ]}
           >
             <Text style={[styles.actionText, { color: tokens.fg2 }]}>
               {t('social.friends.cancel')}
@@ -108,6 +126,8 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
     sub: { fontFamily: 'Rubik_400Regular', fontSize: 13, color: tokens.fg3 },
     actions: { flexDirection: 'row', alignItems: 'center', gap: 8 },
     actionButton: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999 },
+    actionPressed: { transform: [{ scale: 0.96 }] },
+    actionBusy: { opacity: 0.4 },
     actionText: { fontFamily: 'Rubik_500Medium', fontSize: 14 },
   })
 }

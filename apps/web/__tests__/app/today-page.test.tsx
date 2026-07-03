@@ -122,6 +122,8 @@ function defaultUseHabitsReturn() {
 }
 
 vi.mock('@/hooks/use-habits', () => ({
+  EMPTY_HABITS_BY_ID: new Map(),
+  EMPTY_CHILDREN_BY_PARENT: new Map(),
   useHabits: useHabitsMock,
   useBulkDeleteHabits: () => ({ mutateAsync: vi.fn() }),
   useBulkLogHabits: () => ({ mutateAsync: bulkLogMutateAsync }),
@@ -130,6 +132,10 @@ vi.mock('@/hooks/use-habits', () => ({
 
 vi.mock('@/hooks/use-coach-tour', () => ({
   useCoachTour: () => {},
+}))
+
+vi.mock('@/hooks/use-engagement-slot', () => ({
+  useEngagementSlot: () => ({ slot: null }),
 }))
 
 vi.mock('@/components/today/setup-checklist-card', () => ({
@@ -269,6 +275,14 @@ describe('TodayPage bulk parent prompts', () => {
 
     expect(screen.getByTestId('today-list-shell')).toBeInTheDocument()
     expect(screen.getByTestId('bulk-action-bar')).toBeInTheDocument()
+  })
+
+  it('exits select mode when Escape is pressed', () => {
+    render(<TodayPage />)
+
+    fireEvent.keyDown(document, { key: 'Escape' })
+
+    expect(uiState.toggleSelectMode).toHaveBeenCalled()
   })
 
   it('routes free users to upgrade when they click goals', async () => {
@@ -546,5 +560,63 @@ describe('TodayPage overdue date gating', () => {
     render(<TodayPage />)
 
     expect(lastFilters()).toMatchObject({ includeOverdue: false })
+  })
+})
+
+describe('TodayPage habits load error', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.useRealTimers()
+    mockProfile = createMockProfile({ hasProAccess: false, aiSummaryEnabled: false })
+    mockHabitsData.habitsById = new Map()
+    mockHabitsData.childrenByParent = new Map()
+    mockHabitsData.topLevelHabits = []
+    dateParamState.value = null
+    uiState.activeView = 'today'
+    uiState.isSelectMode = false
+    uiState.searchQuery = ''
+    uiState.selectedFrequency = null
+    uiState.selectedTagIds = []
+    uiState.showCompleted = false
+    uiState.selectedHabitIds = new Set<string>()
+  })
+
+  it('renders the load-error state with a working retry instead of the skeleton or list', () => {
+    const refetch = vi.fn()
+    useHabitsMock.mockReturnValue({
+      data: undefined,
+      getChildren: () => [],
+      isFetching: false,
+      dataUpdatedAt: 0,
+      isError: true,
+      refetch,
+    })
+
+    render(<TodayPage />)
+
+    expect(screen.getByText('habits.loadError')).toBeInTheDocument()
+    expect(screen.queryByTestId('habit-list')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'common.retry' }))
+
+    expect(refetch).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps the skeleton, not the error state, while the first load is in flight', () => {
+    useHabitsMock.mockReturnValue({
+      data: undefined,
+      getChildren: () => [],
+      isFetching: true,
+      dataUpdatedAt: 0,
+      isError: false,
+      refetch: vi.fn(),
+    })
+
+    render(<TodayPage />)
+
+    expect(screen.queryByText('habits.loadError')).not.toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: 'common.retry' }),
+    ).not.toBeInTheDocument()
   })
 })

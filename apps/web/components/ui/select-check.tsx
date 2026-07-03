@@ -1,6 +1,7 @@
 'use client'
 
 import type { MouseEvent } from 'react'
+import { useTranslations } from 'next-intl'
 
 /** Kit Radio glyph (visual only) — for rows that manage their own press target. */
 export function RadioGlyph({ selected, size }: Readonly<{ selected: boolean; size: number }>) {
@@ -11,7 +12,7 @@ export function RadioGlyph({ selected, size }: Readonly<{ selected: boolean; siz
         width: size,
         height: size,
         background: selected ? 'var(--primary)' : 'transparent',
-        boxShadow: selected ? 'none' : 'inset 0 0 0 2px var(--fg-3)',
+        boxShadow: selected ? 'none' : 'inset 0 0 0 2px var(--fg-4)',
       }}
     >
       {selected && (
@@ -28,7 +29,7 @@ export function RadioGlyph({ selected, size }: Readonly<{ selected: boolean; siz
   )
 }
 
-/** Kit Radio: 24px circle — primary fill + white dot when selected, inset 2px fg-3 ring otherwise. */
+/** Kit Radio: 24px circle, primary fill + white dot when selected, inset 2px fg-4 ring otherwise. */
 interface SelectCheckProps {
   selected: boolean
   size?: number
@@ -42,6 +43,8 @@ export function SelectCheck({
   onClick,
   ariaLabel,
 }: Readonly<SelectCheckProps>) {
+  const t = useTranslations('common')
+
   function handleClick(event: MouseEvent<HTMLButtonElement>) {
     event.stopPropagation()
     onClick?.()
@@ -51,9 +54,9 @@ export function SelectCheck({
     <button
       type="button"
       onClick={handleClick}
-      aria-label={ariaLabel ?? 'select'}
+      aria-label={ariaLabel ?? t('select')}
       aria-pressed={selected}
-      className="appearance-none border-0 bg-transparent cursor-pointer p-0 shrink-0 inline-flex items-center justify-center"
+      className="touch-target appearance-none border-0 bg-transparent cursor-pointer p-0 shrink-0 inline-flex items-center justify-center"
       style={{ width: size, height: size }}
     >
       <RadioGlyph selected={selected} size={size} />

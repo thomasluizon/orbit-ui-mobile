@@ -61,7 +61,7 @@ export function RouteTransitionShell({
       <motion.div
         key={pathname}
         className={className}
-        style={{ transformOrigin: 'center bottom', willChange: 'transform, opacity' }}
+        style={{ transformOrigin: 'center bottom' }}
         initial={{
           opacity: 0,
           x: enterX,

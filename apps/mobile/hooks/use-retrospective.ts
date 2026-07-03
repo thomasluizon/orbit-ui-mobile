@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react'
+import { useState, useCallback, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import { i18n } from '@/lib/i18n'
 import {
@@ -24,8 +24,13 @@ export function useRetrospective() {
   const [noData, setNoData] = useState(false)
   const [fromCache, setFromCache] = useState(false)
   const [period, setPeriod] = useState<RetrospectivePeriod>('week')
+  const requestIdRef = useRef(0)
 
   const generate = useCallback(async () => {
+    const requestId = requestIdRef.current + 1
+    requestIdRef.current = requestId
+    const isStale = () => requestIdRef.current !== requestId
+
     setIsLoading(true)
     setError(null)
     setNoData(false)
@@ -35,16 +40,18 @@ export function useRetrospective() {
       const response = await apiClient<RetrospectiveResponse>(
         buildRetrospectiveRequestUrl(period, i18n.language ?? 'en'),
       )
+      if (isStale()) return
       setData(response)
       setFromCache(response.fromCache)
     } catch (err: unknown) {
+      if (isStale()) return
       if (extractBackendErrorCode(err) === NO_HABITS_FOR_PERIOD) {
         setNoData(true)
       } else {
         setError(getFriendlyErrorMessage(err, t, 'retrospective.error', 'generic'))
       }
     } finally {
-      setIsLoading(false)
+      if (!isStale()) setIsLoading(false)
     }
   }, [period, t])
 

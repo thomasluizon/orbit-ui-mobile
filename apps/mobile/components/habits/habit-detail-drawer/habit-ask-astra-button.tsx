@@ -1,4 +1,4 @@
-import { Text, TouchableOpacity, View } from 'react-native'
+import { Pressable, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { ChevronRight, Orbit } from 'lucide-react-native'
 import type { createTokensV2 } from '@/lib/theme'
@@ -19,19 +19,15 @@ export function HabitAskAstraButton({
 }: Readonly<HabitAskAstraButtonProps>) {
   const { t } = useTranslation()
   return (
-    <TouchableOpacity
-      activeOpacity={0.7}
+    <Pressable
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={`${t('habits.detail.askAstraEyebrow')}: ${askPrompt}`}
-      style={styles.askAstra}
+      style={({ pressed }) => [
+        styles.askAstra,
+        pressed ? styles.askAstraPressed : null,
+      ]}
     >
-      <View
-        style={[
-          styles.askAstraRule,
-          { backgroundColor: tokens.primary },
-        ]}
-      />
       <View style={styles.askAstraContent}>
         <View style={styles.askAstraEyebrow}>
           <Orbit size={12} color={tokens.primary} strokeWidth={1.7} />
@@ -49,6 +45,6 @@ export function HabitAskAstraButton({
         </Text>
       </View>
       <ChevronRight size={16} color={tokens.fg3} strokeWidth={1.7} />
-    </TouchableOpacity>
+    </Pressable>
   )
 }

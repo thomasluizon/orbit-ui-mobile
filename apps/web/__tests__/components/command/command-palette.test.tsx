@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 
 Element.prototype.scrollIntoView = vi.fn()
 
@@ -16,6 +16,14 @@ const mockPush = vi.fn()
 const mockSetPaletteOpen = vi.fn()
 const mockSetActiveView = vi.fn()
 let paletteOpen = true
+
+interface HabitsQueryState {
+  data?: { topLevelHabits: { id: string; title: string; emoji: string }[] }
+  isPending: boolean
+  isSuccess: boolean
+}
+
+let habitsQuery: HabitsQueryState
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
@@ -40,7 +48,7 @@ vi.mock('@/stores/ui-store', () => ({
 }))
 
 vi.mock('@/hooks/use-habits', () => ({
-  useHabits: () => ({ data: { topLevelHabits: [{ id: 'h1', title: 'Run', emoji: '🏃' }] } }),
+  useHabits: () => habitsQuery,
   useLogHabit: () => ({ mutate: vi.fn() }),
   useSkipHabit: () => ({ mutate: vi.fn() }),
 }))
@@ -60,6 +68,11 @@ function renderPalette() {
 
 beforeEach(() => {
   paletteOpen = true
+  habitsQuery = {
+    data: { topLevelHabits: [{ id: 'h1', title: 'Run', emoji: '🏃' }] },
+    isPending: false,
+    isSuccess: true,
+  }
   mockPush.mockClear()
   mockSetPaletteOpen.mockClear()
   mockSetActiveView.mockClear()
@@ -69,6 +82,11 @@ describe('CommandPalette', () => {
   it('renders the search input when the palette is open', () => {
     renderPalette()
     expect(screen.getByPlaceholderText('command.placeholder')).toBeInTheDocument()
+  })
+
+  it('names the dialog after the palette title instead of the input placeholder', () => {
+    renderPalette()
+    expect(screen.getByRole('dialog', { name: 'command.title' })).toBeInTheDocument()
   })
 
   it('does not render the menu when the palette is closed', () => {
@@ -95,5 +113,63 @@ describe('CommandPalette', () => {
     renderPalette()
     fireEvent.keyDown(document, { key: 'Escape' })
     expect(mockSetPaletteOpen).toHaveBeenCalledWith(false)
+  })
+
+  it('shows the key-hint footer with the back hint only on a sub-page', () => {
+    renderPalette()
+    expect(screen.getByText('command.hints.navigate')).toBeInTheDocument()
+    expect(screen.getByText('command.hints.select')).toBeInTheDocument()
+    expect(screen.getByText('command.hints.close')).toBeInTheDocument()
+    expect(screen.queryByText('command.hints.back')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByText('command.logHabit'))
+
+    expect(screen.getByText('command.hints.back')).toBeInTheDocument()
+  })
+
+  it('returns from a sub-page through the breadcrumb back button', () => {
+    renderPalette()
+    fireEvent.click(screen.getByText('command.skipHabit'))
+    expect(screen.queryByText('command.createHabit')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByLabelText('common.back'))
+
+    expect(screen.getByText('command.createHabit')).toBeInTheDocument()
+  })
+
+  it('does not claim no results while the habits query is still loading', () => {
+    habitsQuery = { data: undefined, isPending: true, isSuccess: false }
+    renderPalette()
+    fireEvent.click(screen.getByText('command.logHabit'))
+
+    expect(screen.queryByText('command.empty')).not.toBeInTheDocument()
+    expect(screen.queryByText('Run')).not.toBeInTheDocument()
+  })
+
+  it('focuses the search input on open and keeps Tab inside the panel', async () => {
+    renderPalette()
+    const input = screen.getByPlaceholderText('command.placeholder')
+    await waitFor(() => expect(input).toHaveFocus())
+
+    fireEvent.keyDown(document, { key: 'Tab' })
+
+    expect(input).toHaveFocus()
+  })
+
+  it('restores focus to the previously focused element on close', async () => {
+    const trigger = document.createElement('button')
+    document.body.appendChild(trigger)
+    trigger.focus()
+
+    const { rerender } = renderPalette()
+    await waitFor(() =>
+      expect(screen.getByPlaceholderText('command.placeholder')).toHaveFocus(),
+    )
+
+    paletteOpen = false
+    rerender(<CommandPalette navItems={navItems} onCreateHabit={vi.fn()} onCreateGoal={vi.fn()} />)
+
+    expect(trigger).toHaveFocus()
+    trigger.remove()
   })
 })

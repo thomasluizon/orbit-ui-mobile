@@ -1,7 +1,7 @@
 'use client'
 
-import { useEffect } from 'react'
-import { X } from 'lucide-react'
+import { useEffect, useRef } from 'react'
+import { ChevronLeft, X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import type { Recap } from '@orbit/shared/types/gamification'
 import type { RecapSharePeriod } from '@orbit/shared/utils'
@@ -27,6 +27,11 @@ export function WrappedPlayer({
   const t = useTranslations()
   const { index, isFirst, isLast, next, prev } = useWrappedStory(slides.length)
   const current = slides[index]
+  const closeRef = useRef<HTMLButtonElement>(null)
+
+  useEffect(() => {
+    closeRef.current?.focus()
+  }, [])
 
   useEffect(() => {
     function handleKey(event: KeyboardEvent) {
@@ -42,7 +47,7 @@ export function WrappedPlayer({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex flex-col"
+      className="fixed inset-0 z-50 flex flex-col overflow-y-auto"
       style={{
         background:
           'radial-gradient(135% 100% at 50% 0%, rgba(var(--primary-rgb), 0.32) 0%, rgba(var(--primary-rgb), 0.1) 40%, transparent 72%), var(--bg)',
@@ -51,39 +56,59 @@ export function WrappedPlayer({
       aria-modal="true"
       aria-label={t('wrapped.title')}
     >
-      <div className="flex items-center" style={{ gap: 6, padding: '12px 16px 4px' }}>
-        <div data-testid="wrapped-progress" className="flex flex-1 items-center" style={{ gap: 6 }}>
-          {slides.map((slide, slideIndex) => (
-            <span
-              key={slide.id}
-              aria-hidden="true"
-              style={{
-                flex: 1,
-                height: 3,
-                borderRadius: 2,
-                background: slideIndex <= index ? 'var(--primary)' : 'var(--bg-elev-2)',
-                opacity: slideIndex <= index ? 1 : 0.6,
-              }}
-            />
-          ))}
+      <div className="mx-auto flex w-full flex-1 flex-col md:max-w-[480px]">
+        <div className="flex items-center" style={{ gap: 6, padding: '12px 16px 4px' }}>
+          {isLast && (
+            <button
+              type="button"
+              aria-label={t('wrapped.previous')}
+              onClick={prev}
+              className="icon-btn"
+            >
+              <ChevronLeft size={22} strokeWidth={1.8} />
+            </button>
+          )}
+          <div
+            data-testid="wrapped-progress"
+            role="img"
+            aria-label={t('wrapped.progressLabel', { current: index + 1, total: slides.length })}
+            className="flex flex-1 items-center"
+            style={{ gap: 6 }}
+          >
+            {slides.map((slide, slideIndex) => (
+              <span
+                key={slide.id}
+                aria-hidden="true"
+                style={{
+                  flex: 1,
+                  height: 3,
+                  borderRadius: 2,
+                  background: slideIndex <= index ? 'var(--primary)' : 'var(--bg-elev-2)',
+                  opacity: slideIndex <= index ? 1 : 0.6,
+                  transition:
+                    'background-color var(--dur-fast) var(--ease-standard), opacity var(--dur-fast) var(--ease-standard)',
+                }}
+              />
+            ))}
+          </div>
+          <button
+            ref={closeRef}
+            type="button"
+            aria-label={t('wrapped.close')}
+            onClick={onClose}
+            className="icon-btn"
+          >
+            <X size={22} strokeWidth={1.8} />
+          </button>
         </div>
-        <button
-          type="button"
-          aria-label={t('wrapped.close')}
-          onClick={onClose}
-          className="inline-flex items-center justify-center"
-          style={{ width: 36, height: 36, borderRadius: 999, color: 'var(--fg-1)' }}
-        >
-          <X size={22} strokeWidth={1.8} />
-        </button>
-      </div>
 
-      <div key={current.id} className="animate-slide-up flex flex-1 flex-col" style={{ minHeight: 0 }}>
-        <WrappedSlide slide={current} recap={recap} period={period} displayName={displayName} />
+        <div key={current.id} className="flex flex-1 flex-col">
+          <WrappedSlide slide={current} recap={recap} period={period} displayName={displayName} />
+        </div>
       </div>
 
       {!isLast && (
-        <div aria-hidden={false} className="absolute inset-0 flex" style={{ top: 56 }}>
+        <div className="absolute inset-0 flex" style={{ top: 56 }}>
           <button
             type="button"
             aria-label={t('wrapped.previous')}

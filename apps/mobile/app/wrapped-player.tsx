@@ -1,9 +1,10 @@
-import { useMemo } from 'react'
-import { Pressable, View } from 'react-native'
+import { useEffect, useMemo } from 'react'
+import { BackHandler, Pressable, ScrollView, View } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Gesture, GestureDetector } from 'react-native-gesture-handler'
-import Animated, { FadeInDown, ReduceMotion, runOnJS } from 'react-native-reanimated'
-import { LinearGradient } from 'expo-linear-gradient'
-import { X } from 'lucide-react-native'
+import { runOnJS } from 'react-native-reanimated'
+import Svg, { Defs, RadialGradient, Rect, Stop } from 'react-native-svg'
+import { ChevronLeft, X } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import type { Recap } from '@orbit/shared/types/gamification'
 import type { RecapSharePeriod } from '@orbit/shared/utils'
@@ -30,6 +31,7 @@ export function WrappedPlayer({
   onClose,
 }: Readonly<WrappedPlayerProps>) {
   const { t } = useTranslation()
+  const insets = useSafeAreaInsets()
   const { index, isFirst, isLast, next, prev } = useWrappedStory(slides.length)
   const current = slides[index]
 
@@ -47,20 +49,50 @@ export function WrappedPlayer({
     [onClose],
   )
 
+  useEffect(() => {
+    const subscription = BackHandler.addEventListener('hardwareBackPress', () => {
+      onClose()
+      return true
+    })
+    return () => subscription.remove()
+  }, [onClose])
+
   if (!current) return null
 
   return (
     <GestureDetector gesture={swipeDown}>
       <View style={[styles.player, { backgroundColor: tokens.bg }]}>
-        <LinearGradient
-          colors={[`rgba(${tokens.primaryRgb}, 0.32)`, `rgba(${tokens.primaryRgb}, 0.1)`, `rgba(${tokens.primaryRgb}, 0)`]}
-          locations={[0, 0.4, 0.72]}
-          style={styles.gradientBackdrop}
-          pointerEvents="none"
-        />
+        <Svg style={styles.gradientBackdrop} width="100%" height="100%" pointerEvents="none">
+          <Defs>
+            <RadialGradient id="wrappedWash" cx="50%" cy="0%" rx="135%" ry="100%">
+              <Stop offset="0" stopColor={`rgb(${tokens.primaryRgb})`} stopOpacity={0.32} />
+              <Stop offset="0.4" stopColor={`rgb(${tokens.primaryRgb})`} stopOpacity={0.1} />
+              <Stop offset="0.72" stopColor={`rgb(${tokens.primaryRgb})`} stopOpacity={0} />
+            </RadialGradient>
+          </Defs>
+          <Rect x="0" y="0" width="100%" height="100%" fill="url(#wrappedWash)" />
+        </Svg>
 
-        <View style={styles.headerRow}>
-          <View style={styles.progressRow}>
+        <View style={[styles.headerRow, { paddingTop: insets.top + 12 }]}>
+          {isLast ? (
+            <Pressable
+              onPress={prev}
+              accessibilityRole="button"
+              accessibilityLabel={t('wrapped.previous')}
+              hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+              style={({ pressed }) => [styles.closeBtn, pressed ? styles.closeBtnPressed : null]}
+            >
+              <ChevronLeft size={22} color={tokens.fg1} strokeWidth={1.8} />
+            </Pressable>
+          ) : null}
+          <View
+            style={styles.progressRow}
+            accessible
+            accessibilityLabel={t('wrapped.progressLabel', {
+              current: index + 1,
+              total: slides.length,
+            })}
+          >
             {slides.map((slide, slideIndex) => (
               <View
                 key={slide.id}
@@ -78,16 +110,18 @@ export function WrappedPlayer({
             onPress={onClose}
             accessibilityRole="button"
             accessibilityLabel={t('wrapped.close')}
+            hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
             style={({ pressed }) => [styles.closeBtn, pressed ? styles.closeBtnPressed : null]}
           >
             <X size={22} color={tokens.fg1} strokeWidth={1.8} />
           </Pressable>
         </View>
 
-        <Animated.View
+        <ScrollView
           key={current.id}
-          entering={FadeInDown.duration(280).reduceMotion(ReduceMotion.System)}
           style={styles.player}
+          contentContainerStyle={styles.slideScrollContent}
+          showsVerticalScrollIndicator={false}
         >
           <WrappedSlide
             slide={current}
@@ -96,25 +130,25 @@ export function WrappedPlayer({
             tokens={tokens}
             displayName={displayName}
           />
-        </Animated.View>
 
-        {!isLast ? (
-          <View style={styles.tapZones} pointerEvents="box-none">
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={t('wrapped.previous')}
-              disabled={isFirst}
-              onPress={prev}
-              style={styles.prevZone}
-            />
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel={t('wrapped.next')}
-              onPress={next}
-              style={styles.nextZone}
-            />
-          </View>
-        ) : null}
+          {!isLast ? (
+            <View style={styles.tapZones} pointerEvents="box-none">
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t('wrapped.previous')}
+                disabled={isFirst}
+                onPress={prev}
+                style={styles.prevZone}
+              />
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={t('wrapped.next')}
+                onPress={next}
+                style={styles.nextZone}
+              />
+            </View>
+          ) : null}
+        </ScrollView>
       </View>
     </GestureDetector>
   )

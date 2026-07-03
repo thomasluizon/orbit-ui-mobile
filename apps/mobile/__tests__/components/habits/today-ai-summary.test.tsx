@@ -39,11 +39,14 @@ vi.mock("@/lib/use-app-theme", () => ({
 }));
 
 vi.mock("@/lib/theme", () => ({
+  radius: { full: 9999 },
   createTokensV2: () => ({
     primarySoft: "#b794f6",
     fg1: "#ffffff",
+    fg2: "#cccccc",
     fg3: "#999999",
     hairline: "#333333",
+    hairlineStrong: "#444444",
   }),
   tintFromPrimary: () => "rgba(127,70,247,0.16)",
 }));
@@ -51,6 +54,8 @@ vi.mock("@/lib/theme", () => ({
 vi.mock("lucide-react-native", () => ({
   Sparkles: (props: Record<string, unknown>) =>
     React.createElement("Sparkles", props),
+  ArrowUpRight: (props: Record<string, unknown>) =>
+    React.createElement("ArrowUpRight", props),
 }));
 
 import { TodayAISummary } from "@/components/habits/today-ai-summary";

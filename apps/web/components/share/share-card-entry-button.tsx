@@ -24,9 +24,13 @@ export function ShareCardEntryButton({
       {variant === 'row' ? (
         <ProfileActionButton icon={Share2} onClick={() => setOpen(true)} label={t('shareCard.entry')} />
       ) : (
-        <button type="button" className="chip" onClick={() => setOpen(true)}>
-          <Share2 size={14} strokeWidth={1.8} aria-hidden="true" />
-          {t('shareCard.entry')}
+        <button
+          type="button"
+          className="chip"
+          onClick={() => setOpen(true)}
+          aria-label={t('shareCard.entry')}
+        >
+          <Share2 size={16} strokeWidth={1.8} aria-hidden="true" />
         </button>
       )}
       <ShareCardSheet open={open} onOpenChange={setOpen} displayName={displayName} />

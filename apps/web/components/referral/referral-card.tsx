@@ -73,14 +73,13 @@ export function ReferralCard({ onOpen, onDismiss }: Readonly<ReferralCardProps>)
             type="button"
             onClick={onDismiss}
             aria-label={t('common.dismiss')}
-            className="absolute flex appearance-none items-center justify-center rounded-full border-0 bg-transparent"
+            className="icon-btn touch-target"
             style={{
-              top: '50%',
-              right: 14,
-              transform: 'translateY(-50%)',
-              width: 28,
-              height: 28,
-              cursor: 'pointer',
+              position: 'absolute',
+              top: 'calc(50% - 18px)',
+              right: 12,
+              width: 36,
+              height: 36,
             }}
           >
             <X size={18} strokeWidth={1.8} color="var(--fg-4)" />

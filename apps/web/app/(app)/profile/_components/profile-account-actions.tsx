@@ -39,10 +39,11 @@ export function ProfileAccountActions({
       {exportError && (
         <p
           style={{
-            margin: '0 20px 8px',
+            margin: '12px 20px',
             fontFamily: 'var(--font-sans)',
-            fontSize: 12,
-            color: 'var(--status-bad)',
+            fontSize: 13,
+            textAlign: 'center',
+            color: 'var(--status-bad-text)',
           }}
         >
           {exportError}
@@ -63,6 +64,7 @@ export function ProfileAccountActions({
         icon={LogOut}
         onClick={onLogout}
         label={t('profile.logout')}
+        showDivider={false}
       />
     </div>
   )

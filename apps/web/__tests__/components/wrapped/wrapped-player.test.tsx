@@ -59,15 +59,28 @@ describe('WrappedPlayer', () => {
     expect(screen.getByTestId('wrapped-slide-share')).toBeInTheDocument()
   })
 
-  it('swaps tap zones for the share CTA on the final slide', () => {
+  it('swaps the tap zones for a header previous control and the share CTA on the final slide', () => {
     renderPlayer()
     const lastIndex = buildWrappedSlides(createMockRecap()).length - 1
     for (let step = 0; step < lastIndex; step += 1) {
       fireEvent.click(screen.getByLabelText('wrapped.next'))
     }
     expect(screen.queryByLabelText('wrapped.next')).not.toBeInTheDocument()
-    expect(screen.queryByLabelText('wrapped.previous')).not.toBeInTheDocument()
+    expect(screen.getByLabelText('wrapped.previous')).toBeInTheDocument()
     expect(screen.getByText('shareCard.download')).toBeInTheDocument()
+  })
+
+  it('steps back from the last slide with the header previous control', () => {
+    renderPlayer()
+    const slides = buildWrappedSlides(createMockRecap())
+    const lastIndex = slides.length - 1
+    for (let step = 0; step < lastIndex; step += 1) {
+      fireEvent.click(screen.getByLabelText('wrapped.next'))
+    }
+    expect(screen.getByTestId('wrapped-slide-share')).toBeInTheDocument()
+
+    fireEvent.click(screen.getByLabelText('wrapped.previous'))
+    expect(screen.getByTestId(`wrapped-slide-${slides[lastIndex - 1]!.id}`)).toBeInTheDocument()
   })
 
   it('steps backward with the previous zone and clamps at the first slide', () => {

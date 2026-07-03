@@ -2,14 +2,17 @@
 
 import { useTranslations } from 'next-intl'
 import { ChevronLeft, HelpCircle, Share2, X } from 'lucide-react'
-import type { CSSProperties, ReactNode } from 'react'
-import { useIsDesktop } from '@/components/goals/use-is-desktop'
+import type { ReactNode } from 'react'
+import { useIsDesktop } from '@/hooks/use-is-desktop'
 import { useInAppShell } from '@/components/shell/in-app-shell-context'
 
 type AppBarRightVariant = 'help' | 'close' | 'share'
 
 /** Kit NavHeader: 56px transparent bar — equal flexible side slots (min 40px)
- *  keep the uppercase title truly centered regardless of trailing cluster width. */
+ *  keep the uppercase title truly centered regardless of trailing cluster width.
+ *  Inside the desktop app shell it renders as a compact ~48px back/action row
+ *  (title suppressed; desktop pages carry their own headings) and renders
+ *  nothing only when it would be empty. */
 interface AppBarProps {
   back?: boolean
   /** Accessibility label for the back/leading button. Defaults to t('common.back'). */
@@ -30,16 +33,6 @@ interface AppBarProps {
   rightLabel?: string
 }
 
-const iconButtonClass =
-  'appearance-none border-0 bg-transparent cursor-pointer p-0 inline-flex items-center justify-center transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev)] active:scale-[0.92]'
-
-const iconButtonStyle: CSSProperties = {
-  width: 40,
-  height: 40,
-  borderRadius: 999,
-  color: 'var(--fg-1)',
-}
-
 export function AppBar({
   back = false,
   backLabel,
@@ -57,8 +50,7 @@ export function AppBar({
   const inAppShell = useInAppShell()
   const isDesktop = useIsDesktop()
   const resolvedBackLabel = backLabel ?? t('back')
-
-  if (inAppShell && isDesktop) return null
+  const hasBack = back || !!onBack
 
   const rightAction = right ? (
     <button
@@ -68,15 +60,7 @@ export function AppBar({
         (right === 'help' ? t('help') : right === 'close' ? t('close') : t('share'))
       }
       onClick={onRight}
-      className={iconButtonClass}
-      style={
-        right === 'help'
-          ? {
-              ...iconButtonStyle,
-              boxShadow: 'inset 0 0 0 1.5px var(--hairline-strong)',
-            }
-          : iconButtonStyle
-      }
+      className={right === 'help' ? 'icon-btn icon-btn-ring' : 'icon-btn'}
     >
       {right === 'help' && <HelpCircle size={22} strokeWidth={1.8} />}
       {right === 'close' && <X size={24} strokeWidth={1.8} />}
@@ -84,31 +68,49 @@ export function AppBar({
     </button>
   ) : null
 
+  const backButton = hasBack ? (
+    <button
+      type="button"
+      aria-label={resolvedBackLabel}
+      onClick={onBack}
+      className="icon-btn"
+    >
+      {back ? <ChevronLeft size={26} strokeWidth={2} /> : leadingIcon}
+    </button>
+  ) : null
+
+  if (inAppShell && isDesktop) {
+    const trailingCluster = trailing ?? rightAction
+    if (!backButton && !trailingCluster) return null
+    return (
+      <div
+        className="flex items-center justify-between shrink-0"
+        style={{ minHeight: 48 }}
+      >
+        <div className="flex items-center justify-start">{backButton}</div>
+        <div className="flex items-center justify-end" style={{ gap: 10 }}>
+          {trailingCluster}
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div
       className="flex items-center shrink-0"
       style={{ minHeight: 56, padding: '8px 14px', gap: 4 }}
     >
       <div className="flex justify-start" style={{ flex: '1 0 0%', minWidth: 40 }}>
-        {back || onBack ? (
-          <button
-            type="button"
-            aria-label={resolvedBackLabel}
-            onClick={onBack}
-            className={iconButtonClass}
-            style={iconButtonStyle}
-          >
-            {back ? <ChevronLeft size={26} strokeWidth={2} /> : leadingIcon}
-          </button>
-        ) : leadingIcon ? (
-          <span
-            aria-hidden="true"
-            className="inline-flex items-center justify-center"
-            style={{ width: 40, height: 40, color: 'var(--fg-1)' }}
-          >
-            {leadingIcon}
-          </span>
-        ) : null}
+        {backButton ??
+          (leadingIcon ? (
+            <span
+              aria-hidden="true"
+              className="inline-flex items-center justify-center"
+              style={{ width: 40, height: 40, color: 'var(--fg-1)' }}
+            >
+              {leadingIcon}
+            </span>
+          ) : null)}
       </div>
 
       {(title || titleIcon) && (

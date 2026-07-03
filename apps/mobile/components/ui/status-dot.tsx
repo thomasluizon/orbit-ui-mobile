@@ -158,12 +158,12 @@ export function StatusDot({
     <Pressable
       onPress={onToggle}
       disabled={disabled}
-      hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+      hitSlop={Math.max(0, (44 - size) / 2)}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? state}
       accessibilityState={{ disabled }}
       style={({ pressed }) => ({
-        transform: [{ scale: pressed && !disabled ? 0.9 : 1 }],
+        transform: [{ scale: pressed && !disabled ? 0.96 : 1 }],
         opacity: disabled ? 0.4 : pressed ? 0.85 : 1,
       })}
     >

@@ -28,6 +28,33 @@ vi.mock('next/link', () => ({
   ),
 }))
 
+vi.mock('motion/react', async () => {
+  const React = await import('react')
+  const cache = new Map<string, unknown>()
+  return {
+    AnimatePresence: ({ children }: { children: React.ReactNode }) => children,
+    useReducedMotion: () => false,
+    motion: new Proxy({} as Record<string, unknown>, {
+      get(_target, tag) {
+        if (typeof tag !== 'string') return undefined
+        if (!cache.has(tag)) {
+          cache.set(
+            tag,
+            React.forwardRef(function MotionMock(
+              props: Record<string, unknown> & { children?: React.ReactNode },
+              ref: React.Ref<HTMLElement>,
+            ) {
+              const { children, initial, animate, exit, transition, ...rest } = props
+              return React.createElement(tag, { ...rest, ref }, children)
+            }),
+          )
+        }
+        return cache.get(tag)
+      },
+    }),
+  }
+})
+
 import { TrialBanner } from '@/components/ui/trial-banner'
 
 describe('TrialBanner', () => {

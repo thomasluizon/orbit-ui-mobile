@@ -17,7 +17,6 @@ interface GoalProgressHistoryEntry {
 interface GoalProgressHistorySectionProps {
   title: string
   entries: GoalProgressHistoryEntry[]
-  unit: string
   formatDate: (dateStr: string) => string
   renderEntryLabel: (entry: GoalProgressHistoryEntry) => string
   showAllLabel: string
@@ -31,7 +30,6 @@ const HISTORY_PREVIEW_COUNT = 3
 export function GoalProgressHistorySection({
   title,
   entries,
-  unit: _unit,
   formatDate,
   renderEntryLabel,
   showAllLabel,
@@ -99,15 +97,15 @@ export function GoalProgressHistorySection({
         </div>
       ))}
       {entries.length > HISTORY_PREVIEW_COUNT && (
-        <div style={{ padding: '10px 20px' }}>
+        <div style={{ padding: '2px 20px' }}>
           <button
             type="button"
-            className="appearance-none border-0 bg-transparent cursor-pointer"
+            className="appearance-none border-0 bg-transparent cursor-pointer inline-flex items-center text-[var(--fg-1)] transition-[color] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:text-[var(--primary)]"
             style={{
               fontFamily: 'var(--font-sans)',
               fontSize: 13,
               fontWeight: 500,
-              color: 'var(--fg-1)',
+              minHeight: 44,
               padding: 0,
             }}
             onClick={() => setShowAllHistory((prev) => !prev)}
@@ -126,7 +124,6 @@ interface GoalProgressFormProps {
   progressValue: number | null
   progressNote: string
   isUpdating: boolean
-  isStreak: boolean
   progressExceedsTarget: boolean
   onProgressValueChange: (value: number | null) => void
   onProgressNoteChange: (note: string) => void
@@ -145,7 +142,6 @@ export function GoalProgressForm({
   progressValue,
   progressNote,
   isUpdating,
-  isStreak: _isStreak,
   progressExceedsTarget,
   onProgressValueChange,
   onProgressNoteChange,
@@ -201,9 +197,10 @@ export function GoalProgressForm({
         <PillButton
           className="flex-1"
           disabled={progressValue === null || isUpdating}
+          busy={isUpdating}
           onClick={onSubmit}
         >
-          {isUpdating ? '...' : labelSave}
+          {labelSave}
         </PillButton>
       </div>
     </div>
@@ -215,7 +212,7 @@ interface GoalLinkedHabitsSectionProps {
   linkedHabits: NonNullable<Goal['linkedHabits']>
 }
 
-/** Linked-habits list: ListRow language — icon well, Rubik 16 title, hairline dividers. */
+/** Linked-habits list: ListRow language, icon well, Rubik 16 title, hairline dividers. */
 export function GoalLinkedHabitsSection({
   title,
   linkedHabits,
@@ -227,35 +224,37 @@ export function GoalLinkedHabitsSection({
   return (
     <div data-tour="tour-goal-link">
       <SectionLabel>{title}</SectionLabel>
-      {linkedHabits.map((habit) => (
-        <div
-          key={habit.id}
-          className="flex items-center"
-          style={{
-            padding: '10px 20px',
-            borderBottom: '1px solid var(--hairline)',
-            gap: 14,
-          }}
-        >
-          <span
-            className="inline-flex shrink-0 items-center justify-center rounded-[12px] bg-[var(--bg-field)]"
-            style={{ width: 36, height: 36, boxShadow: 'inset 0 0 0 1px var(--hairline)' }}
-            aria-hidden="true"
-          >
-            <Repeat size={18} strokeWidth={1.8} color="var(--fg-2)" />
-          </span>
-          <span
-            className="flex-1 overflow-hidden whitespace-nowrap text-ellipsis"
+      <ul className="list-none" style={{ margin: 0, padding: 0 }}>
+        {linkedHabits.map((habit) => (
+          <li
+            key={habit.id}
+            className="flex items-center"
             style={{
-              fontFamily: 'var(--font-sans)',
-              fontSize: 16,
-              color: 'var(--fg-1)',
+              padding: '10px 20px',
+              borderBottom: '1px solid var(--hairline)',
+              gap: 14,
             }}
           >
-            {habit.title}
-          </span>
-        </div>
-      ))}
+            <span
+              className="inline-flex shrink-0 items-center justify-center rounded-[12px] bg-[var(--bg-field)]"
+              style={{ width: 36, height: 36, boxShadow: 'inset 0 0 0 1px var(--hairline)' }}
+              aria-hidden="true"
+            >
+              <Repeat size={18} strokeWidth={1.8} color="var(--fg-2)" />
+            </span>
+            <span
+              className="flex-1 overflow-hidden whitespace-nowrap text-ellipsis"
+              style={{
+                fontFamily: 'var(--font-sans)',
+                fontSize: 16,
+                color: 'var(--fg-1)',
+              }}
+            >
+              {habit.title}
+            </span>
+          </li>
+        ))}
+      </ul>
     </div>
   )
 }
@@ -269,7 +268,7 @@ interface GoalActionRowProps {
 }
 
 /** Menu-item action row: leading icon + label, pressed-token hover,
- *  status-bad label + icon when destructive. No dividers — spacing groups the cluster. */
+ *  status-bad label + icon when destructive. No dividers, spacing groups the cluster. */
 export function GoalActionRow({
   label,
   icon: Icon,

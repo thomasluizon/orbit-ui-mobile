@@ -46,6 +46,7 @@ export function HabitListEmptyState({
           fontSize: 22,
           fontWeight: 500,
           color: 'var(--fg-1)',
+          textWrap: 'balance',
         }}
       >
         {title}
@@ -96,11 +97,11 @@ export function HabitListEmptyState({
             onClick={onAction}
             className="appearance-none border-0 bg-transparent cursor-pointer text-[var(--fg-1)] hover:text-[var(--primary)] transition-[color] duration-[var(--dur-fast)] ease-[var(--ease-standard)]"
             style={{
-              marginTop: 6,
               fontFamily: 'var(--font-sans)',
               fontSize: 13,
               fontWeight: 500,
-              padding: 0,
+              padding: '12px 16px',
+              margin: '-6px 0',
               textDecoration: 'underline',
               textUnderlineOffset: 4,
               textDecorationThickness: 1,

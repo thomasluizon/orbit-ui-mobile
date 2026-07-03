@@ -1,5 +1,6 @@
 import { useEffect, useState, useMemo, useCallback } from 'react'
 import { Animated, Modal, Pressable, Text, View } from 'react-native'
+import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { usePathname, useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { useQueryClient } from '@tanstack/react-query'
@@ -207,24 +208,32 @@ function OnboardingFooter({
       </View>
 
       <View style={styles.footerActions}>
-        {canAdvance && (
-          <PillButton onPress={onNext}>
-            {isStarter
-              ? t('onboarding.flow.begin')
-              : t('onboarding.flow.next')}
-          </PillButton>
-        )}
-        {hasPrev && (
-          <Pressable
-            onPress={onPrev}
-            style={styles.backButton}
-            accessibilityRole="button"
-          >
-            <Text style={styles.backText}>
-              {t('onboarding.flow.back')}
-            </Text>
-          </Pressable>
-        )}
+        <View style={styles.footerSide}>
+          {hasPrev && (
+            <Pressable
+              onPress={onPrev}
+              style={({ pressed }) => [
+                styles.backButton,
+                pressed && styles.textButtonPressed,
+              ]}
+              accessibilityRole="button"
+            >
+              <Text style={styles.backText}>
+                {t('onboarding.flow.back')}
+              </Text>
+            </Pressable>
+          )}
+        </View>
+        <View style={styles.footerCenter}>
+          {canAdvance && (
+            <PillButton onPress={onNext}>
+              {isStarter
+                ? t('onboarding.flow.begin')
+                : t('onboarding.flow.next')}
+            </PillButton>
+          )}
+        </View>
+        <View style={styles.footerSide} />
       </View>
     </View>
   )
@@ -234,6 +243,7 @@ export function OnboardingFlow() {
   const { t } = useTranslation()
   const router = useRouter()
   const pathname = usePathname()
+  const insets = useSafeAreaInsets()
   const queryClient = useQueryClient()
   const hasProAccess = useHasProAccess()
   const { currentScheme, currentTheme } = useAppTheme()
@@ -368,13 +378,12 @@ export function OnboardingFlow() {
   }
 
   function handleSkip() {
+    setStepDirection('forward')
     setViewingAstra(false)
     setSharedStep(ONBOARDING_COMPLETE_STEP)
   }
 
   const hideFooter = !viewingAstra && shouldHideOnboardingFooter(sharedStep)
-
-  const progressLabel = `Orbit · ${String(displayStep).padStart(2, '0')} / ${String(displayTotal).padStart(2, '0')}`
 
   function handleRequestClose() {
     if (hasPrev) goPrev()
@@ -390,10 +399,29 @@ export function OnboardingFlow() {
     >
       <View style={styles.container}>
         <GradientTop height={520} />
-        <View style={styles.header}>
-          <Text style={styles.progressLabel}>{progressLabel}</Text>
+        <View
+          style={[
+            styles.header,
+            { paddingTop: insets.top > 0 ? insets.top + 8 : 48 },
+          ]}
+        >
+          <Text style={styles.progressLabel}>
+            Orbit ·{' '}
+            <Text style={{ color: tokens.fg1 }}>
+              {String(displayStep).padStart(2, '0')}
+            </Text>{' '}
+            / {String(displayTotal).padStart(2, '0')}
+          </Text>
           {!isFinalStep && (
-            <Pressable onPress={handleSkip} hitSlop={8} style={styles.skipButton} accessibilityRole="button">
+            <Pressable
+              onPress={handleSkip}
+              hitSlop={8}
+              style={({ pressed }) => [
+                styles.skipButton,
+                pressed && styles.textButtonPressed,
+              ]}
+              accessibilityRole="button"
+            >
               <Text style={styles.skipText}>
                 {t('onboarding.flow.skip')}
               </Text>

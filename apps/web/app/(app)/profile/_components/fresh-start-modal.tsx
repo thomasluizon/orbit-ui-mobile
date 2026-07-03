@@ -3,7 +3,7 @@
 import { useState, useCallback } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
 import { useTranslations } from 'next-intl'
-import { RotateCcw } from 'lucide-react'
+import { Check, RotateCcw, X } from 'lucide-react'
 import {
   buildFreshStartDeletedItems,
   buildFreshStartPreservedItems,
@@ -33,7 +33,7 @@ function AmberPillButton({
       style={{
         fontFamily: 'var(--font-sans)',
         background: 'var(--status-overdue)',
-        color: 'var(--fg-on-primary)',
+        color: 'var(--fg-on-overdue)',
       }}
     >
       {children}
@@ -164,7 +164,11 @@ export function FreshStartModal({ open, onOpenChange }: Readonly<FreshStartModal
   )
 }
 
-function ListBlock({ title, items }: Readonly<{ title: string; items: string[] }>) {
+function ListBlock({
+  title,
+  items,
+  itemIcon,
+}: Readonly<{ title: string; items: string[]; itemIcon: 'delete' | 'keep' }>) {
   return (
     <div
       className="flex flex-col rounded-[16px]"
@@ -187,18 +191,38 @@ function ListBlock({ title, items }: Readonly<{ title: string; items: string[] }
       >
         {title}
       </div>
-      <div className="flex flex-col" style={{ gap: 4 }}>
+      <div className="flex flex-col" style={{ gap: 6 }}>
         {items.map((item) => (
-          <span
-            key={item}
-            style={{
-              fontFamily: 'var(--font-sans)',
-              fontSize: 13,
-              lineHeight: 1.4,
-              color: 'var(--fg-2)',
-            }}
-          >
-            {item}
+          <span key={item} className="flex items-start" style={{ gap: 8 }}>
+            {itemIcon === 'delete' ? (
+              <X
+                size={14}
+                strokeWidth={1.8}
+                color="var(--status-bad)"
+                aria-hidden="true"
+                className="shrink-0"
+                style={{ marginTop: 2 }}
+              />
+            ) : (
+              <Check
+                size={14}
+                strokeWidth={1.8}
+                color="var(--status-done)"
+                aria-hidden="true"
+                className="shrink-0"
+                style={{ marginTop: 2 }}
+              />
+            )}
+            <span
+              style={{
+                fontFamily: 'var(--font-sans)',
+                fontSize: 13,
+                lineHeight: 1.4,
+                color: 'var(--fg-2)',
+              }}
+            >
+              {item}
+            </span>
           </span>
         ))}
       </div>
@@ -223,10 +247,21 @@ function FreshStartInfoStep({
     <div className="flex flex-col" style={{ gap: 16 }}>
       <FreshStartHero body={t('profile.freshStart.description')} />
       <div className="grid" style={{ gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-        <ListBlock title={t('profile.freshStart.willDelete')} items={deletedItems} />
-        <ListBlock title={t('profile.freshStart.willKeep')} items={preservedItems} />
+        <ListBlock
+          title={t('profile.freshStart.willDelete')}
+          items={deletedItems}
+          itemIcon="delete"
+        />
+        <ListBlock
+          title={t('profile.freshStart.willKeep')}
+          items={preservedItems}
+          itemIcon="keep"
+        />
       </div>
-      <div className="flex flex-col" style={{ gap: 12, paddingTop: 8 }}>
+      <div
+        className="flex flex-col sm:mx-auto sm:w-full sm:max-w-[360px]"
+        style={{ gap: 12, paddingTop: 8 }}
+      >
         <AmberPillButton onClick={onContinue}>
           {t('common.continue')}
         </AmberPillButton>
@@ -289,13 +324,16 @@ function FreshStartConfirmStep({
           style={{
             fontFamily: 'var(--font-sans)',
             fontSize: 13,
-            color: 'var(--status-overdue-text)',
+            color: 'var(--status-bad-text)',
           }}
         >
           {error}
         </p>
       )}
-      <div className="flex flex-col" style={{ gap: 12, paddingTop: 8 }}>
+      <div
+        className="flex flex-col sm:mx-auto sm:w-full sm:max-w-[360px]"
+        style={{ gap: 12, paddingTop: 8 }}
+      >
         <AmberPillButton disabled={!isConfirmed || loading} onClick={onReset}>
           {loading ? t('profile.freshStart.processing') : t('profile.freshStart.confirmButton')}
         </AmberPillButton>

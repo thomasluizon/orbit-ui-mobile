@@ -1,5 +1,10 @@
 import { useMemo } from "react";
-import { View, Text, TouchableOpacity } from "react-native";
+import { View, Text, Pressable } from "react-native";
+import Animated, {
+  ReduceMotion,
+  useAnimatedStyle,
+  withTiming,
+} from "react-native-reanimated";
 import { ChevronDown } from "lucide-react-native";
 import { useWatch } from "react-hook-form";
 import { useTranslation } from "react-i18next";
@@ -48,18 +53,31 @@ export function MoreOptionsToggle({
     isBadHabit,
   ]);
 
+  const chevronStyle = useAnimatedStyle(() => ({
+    transform: [
+      {
+        rotate: withTiming(expanded ? "180deg" : "0deg", {
+          duration: 220,
+          reduceMotion: ReduceMotion.System,
+        }),
+      },
+    ],
+  }), [expanded]);
+
   return (
     <View style={styles.moreOptionsDivider}>
-      <TouchableOpacity
-        style={styles.moreOptionsButton}
+      <Pressable
+        style={({ pressed }) => [
+          styles.moreOptionsButton,
+          pressed && { transform: [{ scale: 0.98 }] },
+        ]}
         accessibilityRole="button"
         accessibilityState={{ expanded }}
         onPress={onToggle}
-        activeOpacity={0.7}
       >
-        <View style={expanded ? styles.chevronRotated : undefined}>
+        <Animated.View style={chevronStyle}>
           <ChevronDown size={16} color={tokens.fg2} strokeWidth={1.8} />
-        </View>
+        </Animated.View>
         <Text style={styles.moreOptionsLabel}>
           {t("habits.form.moreOptions")}
         </Text>
@@ -68,7 +86,7 @@ export function MoreOptionsToggle({
             {t("habits.form.moreOptionsCount", { count: advancedFieldCount })}
           </Text>
         )}
-      </TouchableOpacity>
+      </Pressable>
     </View>
   );
 }

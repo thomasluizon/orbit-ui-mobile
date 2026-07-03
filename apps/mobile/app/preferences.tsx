@@ -119,7 +119,7 @@ export default function PreferencesScreen() {
         back
         onBack={() => goBackOrFallback('/profile')}
         title={t('preferences.title')}
-        backLabel={t('common.goBack')}
+        backLabel={t('common.backToProfile')}
       />
       <ScrollView
         style={styles.container}

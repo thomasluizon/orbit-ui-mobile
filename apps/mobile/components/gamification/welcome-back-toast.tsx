@@ -52,17 +52,20 @@ export function WelcomeBackToast() {
     Animated.parallel([
       Animated.timing(translateY, {
         toValue: -20,
-        duration: 300,
+        duration: 280,
+        easing: toAnimatedEasing(easings.out),
         useNativeDriver: true,
       }),
       Animated.timing(opacity, {
         toValue: 0,
-        duration: 300,
+        duration: 280,
+        easing: toAnimatedEasing(easings.out),
         useNativeDriver: true,
       }),
       Animated.timing(scale, {
         toValue: 0.95,
-        duration: 300,
+        duration: 280,
+        easing: toAnimatedEasing(easings.out),
         useNativeDriver: true,
       }),
     ]).start(() => {
@@ -79,19 +82,19 @@ export function WelcomeBackToast() {
       Animated.parallel([
         Animated.timing(translateY, {
           toValue: 0,
-          duration: 400,
+          duration: 280,
           easing: toAnimatedEasing(easings.out),
           useNativeDriver: true,
         }),
         Animated.timing(opacity, {
           toValue: 1,
-          duration: 300,
+          duration: 280,
           easing: toAnimatedEasing(easings.out),
           useNativeDriver: true,
         }),
         Animated.timing(scale, {
           toValue: 1,
-          duration: 400,
+          duration: 280,
           easing: toAnimatedEasing(easings.out),
           useNativeDriver: true,
         }),

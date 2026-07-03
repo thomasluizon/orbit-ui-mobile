@@ -46,7 +46,7 @@ describe('OnboardingCreateGoal', () => {
 
   it('disables create button when form is incomplete', () => {
     render(<OnboardingCreateGoal {...defaultProps} />)
-    const createBtn = screen.getByText('onboarding.flow.createGoal.create')
+    const createBtn = screen.getByRole('button', { name: 'onboarding.flow.createGoal.create' })
     expect(createBtn).toBeDisabled()
   })
 
@@ -56,7 +56,7 @@ describe('OnboardingCreateGoal', () => {
     const unitInput = screen.getByPlaceholderText('onboarding.flow.createGoal.unitPlaceholder')
     fireEvent.change(targetInput, { target: { value: '50' } })
     fireEvent.change(unitInput, { target: { value: 'km' } })
-    const createBtn = screen.getByText('onboarding.flow.createGoal.create')
+    const createBtn = screen.getByRole('button', { name: 'onboarding.flow.createGoal.create' })
     expect(createBtn).not.toBeDisabled()
   })
 

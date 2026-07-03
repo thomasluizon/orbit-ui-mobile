@@ -72,7 +72,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
     },
     monthNavButtonPressed: {
       backgroundColor: tokens.bgElev,
-      transform: [{ scale: 0.92 }],
+      transform: [{ scale: 0.96 }],
     },
     monthLabelButton: {
       height: 36,
@@ -90,6 +90,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
     },
     monthLabelButtonPressed: {
       backgroundColor: tokens.bgElev,
+      transform: [{ scale: 0.96 }],
     },
     monthTitle: {
       fontFamily: 'Rubik_500Medium',
@@ -113,7 +114,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
     },
     yearBackdrop: {
       flex: 1,
-      backgroundColor: 'rgba(0,0,0,0.50)',
+      backgroundColor: 'rgba(0,0,0,0.55)',
       justifyContent: 'center',
       alignItems: 'center',
       padding: 24,

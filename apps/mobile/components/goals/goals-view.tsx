@@ -22,8 +22,10 @@ import {
 } from "@/components/ui/anchored-menu";
 import { EmptyState } from "@/components/ui/empty-state";
 import { SectionLabel } from "@/components/ui/section-label";
+import { SkeletonLine } from "@/components/ui/skeleton";
 import { createTokensV2 } from "@/lib/theme";
 import { useAppTheme } from "@/lib/use-app-theme";
+import { useUIStore } from "@/stores/ui-store";
 
 type AppTokens = ReturnType<typeof createTokensV2>;
 
@@ -47,9 +49,9 @@ function SkeletonCard({
 }>) {
   return (
     <View style={styles.skeletonCard}>
-      <View style={styles.skeletonTitle} />
-      <View style={styles.skeletonBody} />
-      <View style={styles.skeletonBar} />
+      <SkeletonLine width="66%" height={20} />
+      <SkeletonLine width="100%" height={12} />
+      <SkeletonLine width="100%" height={8} />
     </View>
   );
 }
@@ -68,6 +70,7 @@ export function GoalsView({
     [currentScheme, currentTheme],
   );
   const styles = useMemo(() => createStyles(tokens), [tokens]);
+  const setShowCreateGoalModal = useUIStore((s) => s.setShowCreateGoalModal);
   const [activeFilter, setActiveFilter] = useState<GoalStatus | null>(null);
 
   const {
@@ -112,6 +115,11 @@ export function GoalsView({
         bottom={12}
         trailing={
           <View style={styles.headerActions}>
+            {activeFilter != null ? (
+              <Text style={styles.activeFilterLabel}>
+                {statusFilters.find((filter) => filter.key === activeFilter)?.label}
+              </Text>
+            ) : null}
             <MenuAnchorHost anchorRef={filterMenuButtonRef}>
               <Pressable
                 onPress={toggleFilterMenu}
@@ -146,8 +154,25 @@ export function GoalsView({
       <SkeletonCard styles={styles} />
       <SkeletonCard styles={styles} />
     </View>
+  ) : activeFilter != null ? (
+    <EmptyState
+      title={t("goals.filters.emptyFiltered")}
+      description={t("goals.filters.emptyFilteredHint")}
+      action={{
+        label: t("goals.filters.clearFilter"),
+        onPress: () => handleFilterChange(null),
+        variant: "secondary",
+      }}
+    />
   ) : (
-    <EmptyState title={t("goals.empty")} description={t("goals.emptyHint")} />
+    <EmptyState
+      title={t("goals.empty")}
+      description={t("goals.emptyHint")}
+      action={{
+        label: t("goals.create"),
+        onPress: () => setShowCreateGoalModal(true),
+      }}
+    />
   );
 
   return (
@@ -230,12 +255,18 @@ function createStyles(tokens: AppTokens) {
     },
     iconBtnPressed: {
       backgroundColor: tokens.bgElev,
-      transform: [{ scale: 0.92 }],
+      transform: [{ scale: 0.96 }],
+    },
+    activeFilterLabel: {
+      fontFamily: 'Rubik_400Regular',
+      fontSize: 13,
+      color: tokens.fg2,
     },
     menuItem: {
       flexDirection: "row",
       alignItems: "center",
       gap: 8,
+      minHeight: 44,
       paddingVertical: 10,
       paddingHorizontal: 12,
     },
@@ -264,24 +295,6 @@ function createStyles(tokens: AppTokens) {
       borderColor: tokens.hairline,
       padding: 20,
       gap: 10,
-    },
-    skeletonTitle: {
-      height: 20,
-      width: "66%",
-      borderRadius: 999,
-      backgroundColor: tokens.bgElev,
-    },
-    skeletonBody: {
-      height: 12,
-      width: "100%",
-      borderRadius: 999,
-      backgroundColor: tokens.bgElev,
-    },
-    skeletonBar: {
-      height: 8,
-      width: "100%",
-      borderRadius: 999,
-      backgroundColor: tokens.bgElev,
     },
   });
 }

@@ -20,7 +20,10 @@ export function ChallengesEntryCard() {
         onPress={() => router.push('/social/challenges')}
         style={({ pressed }) => [
           styles.card,
-          { backgroundColor: tokens.bgCard, borderColor: tokens.hairline },
+          {
+            backgroundColor: pressed ? tokens.bgElev : tokens.bgCard,
+            borderColor: pressed ? tokens.hairlineStrong : tokens.hairline,
+          },
           pressed ? styles.pressed : null,
         ]}
       >
@@ -49,7 +52,7 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     borderWidth: 1,
   },
-  pressed: { opacity: 0.85 },
+  pressed: { transform: [{ scale: 0.99 }] },
   iconDisc: {
     width: 44,
     height: 44,

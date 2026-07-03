@@ -5,6 +5,7 @@ import {
   userCalendarsSchema,
   type UserCalendar,
 } from '@orbit/shared/types/calendar'
+import { isCalendarSyncNotConnectedMessage } from '@orbit/shared/utils'
 import { apiClient } from '@/lib/api-client'
 
 interface CalendarsQueryOptions {
@@ -12,8 +13,18 @@ interface CalendarsQueryOptions {
 }
 
 async function fetchUserCalendars(): Promise<UserCalendar[]> {
-  const raw = await apiClient<unknown>(API.calendar.calendars)
-  return userCalendarsSchema.parse(raw)
+  try {
+    const raw = await apiClient<unknown>(API.calendar.calendars)
+    return userCalendarsSchema.parse(raw)
+  } catch (error) {
+    if (
+      error instanceof Error &&
+      isCalendarSyncNotConnectedMessage(error.message.toLowerCase())
+    ) {
+      return []
+    }
+    throw error
+  }
 }
 
 /**

@@ -1,5 +1,5 @@
 import { StyleSheet } from 'react-native'
-import { createTokensV2 } from '@/lib/theme'
+import { createTokensV2, tintFromPrimary } from '@/lib/theme'
 
 export type AppTokens = ReturnType<typeof createTokensV2>
 
@@ -15,11 +15,11 @@ export function createStyles(tokens: AppTokens, bottomInset: number) {
       paddingHorizontal: 20,
       paddingTop: 4,
       paddingBottom: 14,
-      fontFamily: 'Roboto_500Medium',
+      fontFamily: 'Rubik_500Medium',
       fontSize: 12,
       color: tokens.fg3,
-      letterSpacing: 0.48,
-      fontVariant: ['tabular-nums'],
+      letterSpacing: 0.96,
+      textTransform: 'uppercase',
       borderBottomWidth: StyleSheet.hairlineWidth,
       borderBottomColor: tokens.hairline,
     },
@@ -83,12 +83,25 @@ export function createStyles(tokens: AppTokens, bottomInset: number) {
       fontSize: 13,
       color: tokens.statusOverdueText,
     },
+    retryButton: {
+      alignSelf: 'flex-start',
+      minHeight: 44,
+      justifyContent: 'center',
+      paddingHorizontal: 20,
+    },
+    retryButtonPressed: {
+      opacity: 0.7,
+    },
+    retryText: {
+      fontFamily: 'Rubik_500Medium',
+      fontSize: 13,
+      color: tokens.fg1,
+    },
     askAstra: {
-      position: 'relative',
       flexDirection: 'row',
       alignItems: 'center',
       gap: 12,
-      paddingLeft: 34,
+      paddingLeft: 20,
       paddingRight: 20,
       paddingTop: 16,
       paddingBottom: 24,
@@ -96,28 +109,30 @@ export function createStyles(tokens: AppTokens, bottomInset: number) {
       borderTopColor: tokens.hairline,
       marginTop: 8,
     },
-    askAstraRule: {
-      position: 'absolute',
-      left: 20,
-      top: 20,
-      bottom: 28,
-      width: 2,
-      borderRadius: 1,
+    askAstraPressed: {
+      backgroundColor: tokens.bgElevPressed,
+      transform: [{ scale: 0.99 }],
+    },
+    askAstraWell: {
+      width: 28,
+      height: 28,
+      borderRadius: 9,
+      backgroundColor: tintFromPrimary(tokens, 0.1),
+      borderWidth: 1,
+      borderColor: tintFromPrimary(tokens, 0.28),
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexShrink: 0,
     },
     askAstraContent: {
       flex: 1,
-    },
-    askAstraEyebrow: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 6,
-      marginBottom: 4,
     },
     askAstraEyebrowText: {
       fontFamily: 'Roboto_500Medium',
       fontSize: 10.5,
       letterSpacing: 0.63,
       color: tokens.fg3,
+      marginBottom: 4,
     },
     askAstraBody: {
       fontFamily: 'Rubik_400Regular',

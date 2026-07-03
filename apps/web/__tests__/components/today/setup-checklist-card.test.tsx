@@ -43,22 +43,19 @@ describe('SetupChecklistCard', () => {
     setDismissed.mockClear()
   })
 
-  it('renders nothing while the profile is loading', () => {
+  it('renders all items pending while the profile is loading', () => {
     mockProfile = undefined
-    const { container } = render(<SetupChecklistCard />)
-    expect(container.innerHTML).toBe('')
+    render(<SetupChecklistCard />)
+    expect(screen.getByTestId('setup-checklist-progress').textContent).toBe(
+      'today.setupChecklist.progress({"done":0,"total":3})',
+    )
   })
 
-  it('renders nothing once the checklist is completed server-side', () => {
+  it('renders even when dismissed or completed server-side, visibility is owned by the engagement slot', () => {
     mockProfile = createMockProfile({ hasCompletedOnboardingChecklist: true })
-    const { container } = render(<SetupChecklistCard />)
-    expect(container.innerHTML).toBe('')
-  })
-
-  it('renders nothing when dismissed', () => {
     mockDismissed = true
-    const { container } = render(<SetupChecklistCard />)
-    expect(container.innerHTML).toBe('')
+    render(<SetupChecklistCard />)
+    expect(screen.getByTestId('setup-checklist-card')).toBeTruthy()
   })
 
   it('reflects per-item completion and progress from the profile flags', () => {

@@ -1,5 +1,5 @@
-import { View, Text, TouchableOpacity, Pressable } from 'react-native'
-import Animated, { FadeInDown, ReduceMotion } from 'react-native-reanimated'
+import { View, Text, Pressable } from 'react-native'
+import Animated, { FadeInDown, FadeOut, ReduceMotion } from 'react-native-reanimated'
 import { Bell, Flame, Heart, Sparkles, Trophy, UserPlus, Users, X } from 'lucide-react-native'
 import {
   formatNotificationRelativeTime,
@@ -56,13 +56,19 @@ export function NotificationRow({
   const glyph = getNotificationGlyph(item)
   const GlyphIcon = glyphIconMap[glyph]
   return (
-    <Animated.View entering={rowEntrance(index)}>
-      <TouchableOpacity
-        style={[styles.notifRow, !item.isRead && styles.notifUnread]}
-        activeOpacity={0.7}
+    <Animated.View
+      entering={rowEntrance(index)}
+      exiting={FadeOut.duration(160).reduceMotion(ReduceMotion.System)}
+    >
+      <Pressable
+        style={({ pressed }) => [
+          styles.notifRow,
+          !item.isRead && styles.notifUnread,
+          item.isRead && pressed && styles.notifRowPressed,
+        ]}
         onPress={() => onPress(item)}
         accessibilityRole="button"
-        accessibilityLabel={item.title}
+        accessibilityLabel={`${item.title}. ${item.body}`}
       >
         <View style={styles.notifGlyphCircle}>
           <GlyphIcon size={20} color={glyphColor(glyph, tokens)} strokeWidth={1.8} />
@@ -100,7 +106,7 @@ export function NotificationRow({
             />
           )}
         </Pressable>
-      </TouchableOpacity>
+      </Pressable>
     </Animated.View>
   )
 }

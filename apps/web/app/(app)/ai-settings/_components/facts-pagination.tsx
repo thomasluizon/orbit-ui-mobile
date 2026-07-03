@@ -36,7 +36,7 @@ export function FactsPagination({
         onClick={onPrevious}
         aria-label={t('common.previousPage')}
         className="icon-btn disabled:opacity-40 disabled:cursor-not-allowed"
-        style={{ width: 30, height: 30, color: 'var(--fg-3)' }}
+        style={{ color: 'var(--fg-3)' }}
       >
         <ChevronLeft size={17} strokeWidth={1.8} />
       </button>
@@ -46,7 +46,7 @@ export function FactsPagination({
         onClick={onNext}
         aria-label={t('common.nextPage')}
         className="icon-btn disabled:opacity-40 disabled:cursor-not-allowed"
-        style={{ width: 30, height: 30, color: 'var(--fg-3)' }}
+        style={{ color: 'var(--fg-3)' }}
       >
         <ChevronRight size={17} strokeWidth={1.8} />
       </button>

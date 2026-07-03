@@ -1,5 +1,6 @@
-import { useCallback, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import {
+  Animated,
   Modal,
   Pressable,
   ScrollView,
@@ -14,6 +15,7 @@ import { Clock3, X } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import { detectDefaultTimeFormat, formatLocaleTime } from '@orbit/shared/utils'
 import { createTokensV2, radius, shadowsV2 } from '@/lib/theme'
+import { toAnimatedEasing, useResolvedMotionPreset } from '@/lib/motion'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useProfile } from '@/hooks/use-profile'
 
@@ -134,8 +136,47 @@ export function AppTimePicker({
   const { profile } = useProfile()
   const is24Hour = profile?.uses24HourClock ?? detectDefaultTimeFormat(locale) === '24h'
   const [isOpen, setIsOpen] = useState(false)
+  const [visible, setVisible] = useState(false)
   const [openNonce, setOpenNonce] = useState(0)
   const [draft, setDraft] = useState({ hour24: 9, minute: 0 })
+  const dialogMotion = useResolvedMotionPreset('dialog')
+  const progress = useMemo(() => new Animated.Value(0), [])
+
+  const [prevOpen, setPrevOpen] = useState(isOpen)
+  if (isOpen !== prevOpen) {
+    setPrevOpen(isOpen)
+    if (isOpen) setVisible(true)
+  }
+
+  useEffect(() => {
+    if (isOpen) {
+      Animated.timing(progress, {
+        toValue: 1,
+        duration: dialogMotion.enterDuration,
+        easing: toAnimatedEasing(dialogMotion.enterEasing),
+        useNativeDriver: true,
+      }).start()
+      return
+    }
+
+    Animated.timing(progress, {
+      toValue: 0,
+      duration: dialogMotion.exitDuration,
+      easing: toAnimatedEasing(dialogMotion.exitEasing),
+      useNativeDriver: true,
+    }).start(({ finished }) => {
+      if (finished) {
+        setVisible(false)
+      }
+    })
+  }, [
+    dialogMotion.enterDuration,
+    dialogMotion.enterEasing,
+    dialogMotion.exitDuration,
+    dialogMotion.exitEasing,
+    isOpen,
+    progress,
+  ])
 
   const displayValue = value
     ? formatLocaleTime(value, locale, { hour: 'numeric', minute: '2-digit', hour12: !is24Hour })
@@ -210,20 +251,47 @@ export function AppTimePicker({
         )}
       </View>
 
-      <Modal
-        visible={isOpen}
-        transparent
-        animationType="fade"
-        onRequestClose={closePicker}
-      >
+      {visible ? (
+        <Modal
+          visible
+          transparent
+          animationType="none"
+          onRequestClose={closePicker}
+        >
         <TouchableOpacity
-          style={styles.backdrop}
+          style={styles.root}
           activeOpacity={1}
           onPress={closePicker}
           accessibilityRole="button"
           accessibilityLabel={t('common.close')}
         >
-          <View style={styles.dialog} onStartShouldSetResponder={() => true}>
+          <Animated.View
+            pointerEvents="none"
+            style={[styles.backdrop, { opacity: progress }]}
+          />
+          <Animated.View
+            style={[
+              styles.dialog,
+              {
+                opacity: progress,
+                transform: [
+                  {
+                    translateY: progress.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [dialogMotion.shift, 0],
+                    }),
+                  },
+                  {
+                    scale: progress.interpolate({
+                      inputRange: [0, 1],
+                      outputRange: [dialogMotion.scaleFrom, dialogMotion.scaleTo],
+                    }),
+                  },
+                ],
+              },
+            ]}
+            onStartShouldSetResponder={() => true}
+          >
             <View style={styles.dialogHeader}>
               <Text style={styles.dialogTitle}>{t('common.selectTime')}</Text>
               <TouchableOpacity
@@ -278,9 +346,10 @@ export function AppTimePicker({
                 />
               )}
             </View>
-          </View>
+          </Animated.View>
         </TouchableOpacity>
-      </Modal>
+        </Modal>
+      ) : null}
     </>
   )
 }
@@ -291,7 +360,7 @@ function createStyles(tokens: AppTokens) {
       width: '100%',
       flexDirection: 'row',
       alignItems: 'center',
-      minHeight: 44,
+      minHeight: 54,
       backgroundColor: tokens.bgField,
       borderWidth: 1,
       borderColor: tokens.hairline,
@@ -323,12 +392,15 @@ function createStyles(tokens: AppTokens) {
     triggerPlaceholder: {
       color: tokens.fg3,
     },
-    backdrop: {
+    root: {
       flex: 1,
-      backgroundColor: 'rgba(0,0,0,0.65)',
       justifyContent: 'center',
       alignItems: 'center',
       padding: 24,
+    },
+    backdrop: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: 'rgba(0,0,0,0.65)',
     },
     dialog: {
       width: '100%',

@@ -66,6 +66,7 @@ function ReportSheet({
                   type="button"
                   aria-pressed={active}
                   onClick={() => setReason(option)}
+                  className="transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] active:scale-[0.96]"
                   style={{
                     padding: '8px 14px',
                     borderRadius: 999,
@@ -84,26 +85,27 @@ function ReportSheet({
             })}
           </div>
         </div>
-        <textarea
-          value={details}
-          onChange={(event) => setDetails(event.target.value.slice(0, 500))}
-          maxLength={500}
-          placeholder={t('social.report.detailsPlaceholder')}
-          aria-label={t('social.report.detailsLabel')}
-          rows={3}
-          style={{
-            width: '100%',
-            resize: 'none',
-            borderRadius: 14,
-            background: 'var(--bg-field)',
-            boxShadow: 'inset 0 0 0 1px var(--hairline)',
-            padding: '12px 14px',
-            fontFamily: 'var(--font-sans)',
-            fontSize: 16,
-            color: 'var(--fg-1)',
-            outline: 'none',
-          }}
-        />
+        <label className="flex flex-col" style={{ gap: 8 }}>
+          <span style={{ fontFamily: 'var(--font-sans)', fontSize: 14, fontWeight: 500, color: 'var(--fg-2)' }}>
+            {t('social.report.detailsLabel')}
+          </span>
+          <textarea
+            value={details}
+            onChange={(event) => setDetails(event.target.value.slice(0, 500))}
+            maxLength={500}
+            placeholder={t('social.report.detailsPlaceholder')}
+            rows={3}
+            className="w-full resize-none outline-none shadow-[inset_0_0_0_1px_var(--hairline)] focus-visible:shadow-[inset_0_0_0_2px_var(--primary)]"
+            style={{
+              borderRadius: 14,
+              background: 'var(--bg-field)',
+              padding: '12px 14px',
+              fontFamily: 'var(--font-sans)',
+              fontSize: 16,
+              color: 'var(--fg-1)',
+            }}
+          />
+        </label>
       </div>
     </AppOverlay>
   )
@@ -157,7 +159,7 @@ export function FriendRow({ friend, onCheer }: Readonly<FriendRowProps>) {
         <button
           type="button"
           onClick={() => onCheer({ recipientId: friend.userId, displayName: friend.displayName })}
-          className="shrink-0 cursor-pointer rounded-full transition-transform active:scale-95"
+          className="touch-target-y shrink-0 cursor-pointer rounded-full transition-transform active:scale-[0.96]"
           style={{
             padding: '7px 14px',
             border: 0,
@@ -172,10 +174,10 @@ export function FriendRow({ friend, onCheer }: Readonly<FriendRowProps>) {
         </button>
         <button
           type="button"
-          aria-label={t('social.friends.remove')}
+          aria-label={t('social.friends.moreActions')}
           onClick={() => setActionsOpen(true)}
-          className="inline-flex shrink-0 items-center justify-center rounded-full"
-          style={{ width: 36, height: 36, border: 0, background: 'transparent', color: 'var(--fg-3)', cursor: 'pointer' }}
+          className="icon-btn shrink-0"
+          style={{ color: 'var(--fg-3)' }}
         >
           <MoreVertical size={20} strokeWidth={1.8} />
         </button>

@@ -7,6 +7,7 @@ import { createMockHabit } from '@orbit/shared/__tests__/factories'
 
 const mockUpdateChecklistMutate = vi.fn()
 const mockLogHabitMutateAsync = vi.fn()
+const mockShowError = vi.fn()
 
 vi.mock('next-intl', () => ({
   useTranslations: () => {
@@ -32,6 +33,10 @@ vi.mock('@/hooks/use-time-format', () => ({
     currentFormat: '24h' as const,
     toggleFormat: vi.fn(),
   }),
+}))
+
+vi.mock('@/hooks/use-app-toast', () => ({
+  useAppToast: () => ({ showError: mockShowError }),
 }))
 
 vi.mock('@/hooks/use-habits', () => ({
@@ -355,6 +360,71 @@ describe('HabitDetailDrawer', () => {
     fireEvent.click(screen.getByText('toggle-0'))
     expect(screen.getByTestId('confirm-dialog')).toBeDefined()
     expect(screen.getByText('habits.checklistCompleteTitle')).toBeDefined()
+  })
+
+  it('gates checklist clear behind a confirmation and only clears on confirm', () => {
+    const habit = createMockHabit({
+      id: 'h-1',
+      checklistItems: [
+        { text: 'Warm up', isChecked: false },
+        { text: 'Main set', isChecked: true },
+      ],
+    })
+    render(
+      <HabitDetailDrawer
+        open={true}
+        onOpenChange={vi.fn()}
+        habit={habit}
+      />,
+    )
+    fireEvent.click(screen.getByText('clear'))
+    expect(mockUpdateChecklistMutate).not.toHaveBeenCalled()
+    expect(screen.getByTestId('confirm-dialog')).toBeDefined()
+    expect(screen.getByText('habits.checklistClearTitle')).toBeDefined()
+    fireEvent.click(screen.getByText('habits.form.clearChecklist'))
+    expect(mockUpdateChecklistMutate).toHaveBeenCalledWith({
+      habitId: 'h-1',
+      items: [],
+    })
+  })
+
+  it('surfaces an error toast when logging from the checklist-complete confirm fails', async () => {
+    mockLogHabitMutateAsync.mockRejectedValue(new Error('offline'))
+    const habit = createMockHabit({
+      id: 'h-1',
+      isCompleted: false,
+      checklistItems: [{ text: 'Only item', isChecked: false }],
+    })
+    render(
+      <HabitDetailDrawer
+        open={true}
+        onOpenChange={vi.fn()}
+        habit={habit}
+      />,
+    )
+    fireEvent.click(screen.getByText('toggle-0'))
+    fireEvent.click(screen.getByText('habits.checklistCompleteConfirm'))
+    await waitFor(() => expect(mockShowError).toHaveBeenCalledTimes(1))
+  })
+
+  it('lists linked goals with a section label', () => {
+    const habit = createMockHabit({
+      currentStreak: 3,
+      linkedGoals: [
+        { id: 'g-1', title: 'Run a marathon' },
+        { id: 'g-2', title: 'Sleep better' },
+      ],
+    })
+    render(
+      <HabitDetailDrawer
+        open={true}
+        onOpenChange={vi.fn()}
+        habit={habit}
+      />,
+    )
+    expect(screen.getByText('habits.detail.linkedGoal')).toBeDefined()
+    expect(screen.getByText('Run a marathon')).toBeDefined()
+    expect(screen.getByText('Sleep better')).toBeDefined()
   })
 
   it('shows scheduled reminders when habit has them', () => {

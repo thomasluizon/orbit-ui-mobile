@@ -1,5 +1,5 @@
 import { useCallback } from "react";
-import { View, Text, TouchableOpacity, ActivityIndicator } from "react-native";
+import { View, Text, Pressable, ActivityIndicator } from "react-native";
 import { Plus, Sparkles } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import type { SuggestedTag } from "@orbit/shared/types/habit";
@@ -125,21 +125,30 @@ export function TagsSection({
           );
         })}
         {!tags.showNewTag && !tags.atTagLimit && (
-          <TouchableOpacity
-            style={styles.newTagButton}
+          <Pressable
+            style={({ pressed }) => [
+              styles.newTagButton,
+              isTagMutationPending && { opacity: 0.45 },
+              pressed && { transform: [{ scale: 0.96 }] },
+            ]}
+            hitSlop={{ top: 4, bottom: 4 }}
             disabled={isTagMutationPending}
             accessibilityRole="button"
             onPress={() => tags.setShowNewTag(true)}
-            activeOpacity={0.7}
           >
             <Plus size={14} color={tokens.fg2} strokeWidth={2} />
             <Text style={styles.newTagButtonText}>
               {t("habits.form.newTag")}
             </Text>
-          </TouchableOpacity>
+          </Pressable>
         )}
-        <TouchableOpacity
-          style={[styles.aiChip, !tagSuggestions.canSuggest && { opacity: 0.5 }]}
+        <Pressable
+          style={({ pressed }) => [
+            styles.aiChip,
+            !tagSuggestions.canSuggest && { opacity: 0.45 },
+            pressed && { transform: [{ scale: 0.96 }] },
+          ]}
+          hitSlop={{ top: 4, bottom: 4 }}
           disabled={!tagSuggestions.canSuggest}
           accessibilityRole="button"
           accessibilityLabel={t("habits.form.suggestTags")}
@@ -148,7 +157,6 @@ export function TagsSection({
             busy: tagSuggestions.isPending,
           }}
           onPress={handleSuggest}
-          activeOpacity={0.7}
         >
           {tagSuggestions.isPending ? (
             <ActivityIndicator size="small" color={tokens.primary} />
@@ -160,7 +168,7 @@ export function TagsSection({
               ? t("habits.form.suggestingTags")
               : t("habits.form.suggestTags")}
           </Text>
-        </TouchableOpacity>
+        </Pressable>
       </View>
 
       {tagSuggestions.suggestions.length > 0 && (
@@ -170,13 +178,15 @@ export function TagsSection({
           </Text>
           <View style={styles.tagsRow}>
             {tagSuggestions.suggestions.map((suggestion) => (
-              <TouchableOpacity
+              <Pressable
                 key={`${suggestion.name}-${suggestion.id ?? "new"}`}
-                style={[
+                style={({ pressed }) => [
                   styles.tagChip,
                   styles.tagChipInactive,
-                  tags.atTagLimit && { opacity: 0.3 },
+                  tags.atTagLimit && { opacity: 0.45 },
+                  pressed && { transform: [{ scale: 0.96 }] },
                 ]}
+                hitSlop={{ top: 4, bottom: 4 }}
                 disabled={tags.atTagLimit}
                 accessibilityRole="button"
                 accessibilityLabel={suggestion.name}
@@ -184,7 +194,6 @@ export function TagsSection({
                   handleAcceptSuggestion(suggestion);
                   tagSuggestions.dismiss(suggestion);
                 }}
-                activeOpacity={0.7}
               >
                 <View style={styles.tagChipMain}>
                   <View
@@ -192,7 +201,7 @@ export function TagsSection({
                   />
                   <Text style={styles.tagChipText}>{suggestion.name}</Text>
                 </View>
-              </TouchableOpacity>
+              </Pressable>
             ))}
           </View>
         </>

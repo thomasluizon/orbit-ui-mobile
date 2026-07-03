@@ -4,6 +4,7 @@ import {
   Text,
   View,
 } from 'react-native'
+import Animated, { FadeInDown, ReduceMotion } from 'react-native-reanimated'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { Check } from 'lucide-react-native'
@@ -87,6 +88,7 @@ function SupportSuccessState({ tokens }: Readonly<{ tokens: Tokens }>) {
 interface SupportFormProps {
   tokens: Tokens
   isOnline: boolean
+  sending: boolean
   subject: string
   message: string
   error: string | null
@@ -99,6 +101,7 @@ interface SupportFormProps {
 function SupportForm({
   tokens,
   isOnline,
+  sending,
   subject,
   message,
   error,
@@ -109,7 +112,10 @@ function SupportForm({
 }: Readonly<SupportFormProps>) {
   const { t } = useTranslation()
   return (
-    <View style={styles.formBlock}>
+    <Animated.View
+      style={styles.formBlock}
+      entering={FadeInDown.duration(280).reduceMotion(ReduceMotion.System)}
+    >
       {!isOnline ? (
         <OfflineUnavailableState
           title={t('offline.title')}
@@ -117,6 +123,9 @@ function SupportForm({
           compact
         />
       ) : null}
+      <Text style={[styles.formDescription, { color: tokens.fg3 }]}>
+        {t('profile.support.description')}
+      </Text>
       <SupportField
         label={t('profile.support.subject')}
         value={subject}
@@ -133,7 +142,7 @@ function SupportForm({
         tokens={tokens}
       />
       {error ? (
-        <Text style={[styles.formErrorText, { color: tokens.statusBad }]}>
+        <Text style={[styles.formErrorText, { color: tokens.statusBadText }]}>
           {error}
         </Text>
       ) : null}
@@ -141,13 +150,14 @@ function SupportForm({
         <PillButton
           onPress={onSend}
           disabled={!canSend}
+          busy={sending}
           fullWidth
           accessibilityLabel={t('profile.support.send')}
         >
           {t('profile.support.send')}
         </PillButton>
       </View>
-    </View>
+    </Animated.View>
   )
 }
 
@@ -247,7 +257,7 @@ export default function SupportScreen() {
         back
         onBack={() => goBackOrFallback('/profile')}
         title={t('profile.support.title')}
-        backLabel={t('common.goBack')}
+        backLabel={t('common.backToProfile')}
       />
       <KeyboardAwareScrollView
         style={styles.container}
@@ -262,6 +272,7 @@ export default function SupportScreen() {
           <SupportForm
             tokens={tokens}
             isOnline={isOnline}
+            sending={sending}
             subject={subject}
             message={message}
             error={error}
@@ -294,6 +305,11 @@ const styles = StyleSheet.create({
   fieldLabel: {
     fontFamily: 'Rubik_500Medium',
     fontSize: 14,
+  },
+  formDescription: {
+    fontFamily: 'Rubik_400Regular',
+    fontSize: 14,
+    lineHeight: 21,
   },
   inputMultiline: {
     minHeight: 132,

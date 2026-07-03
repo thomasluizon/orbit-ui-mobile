@@ -75,6 +75,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Inter_700Bold',
     fontSize: 24,
     letterSpacing: -0.24,
+    fontVariant: ['tabular-nums'],
   },
   valuePhrase: {
     fontFamily: 'Rubik_600SemiBold',

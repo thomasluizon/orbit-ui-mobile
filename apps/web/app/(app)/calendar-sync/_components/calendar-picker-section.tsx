@@ -20,7 +20,7 @@ interface CalendarPickerSectionProps {
  */
 export function CalendarPickerSection({ enabled }: Readonly<CalendarPickerSectionProps>) {
   const t = useTranslations()
-  const { data: calendars, isLoading, isError } = useCalendars({ enabled })
+  const { data: calendars, isLoading, isError, refetch } = useCalendars({ enabled })
   const setSelectedCalendars = useSetSelectedCalendars()
 
   if (!enabled) return null
@@ -52,17 +52,25 @@ export function CalendarPickerSection({ enabled }: Readonly<CalendarPickerSectio
       )}
 
       {isError && !isLoading && (
-        <p
-          style={{
-            fontFamily: 'var(--font-sans)',
-            fontSize: 14,
-            color: 'var(--status-bad-text)',
-            padding: '6px 20px 0',
-          }}
+        <div
+          className="flex items-center"
+          style={{ gap: 8, padding: '6px 20px 0' }}
           role="alert"
         >
-          {t('calendar.calendars.error')}
-        </p>
+          <span
+            style={{
+              fontFamily: 'var(--font-sans)',
+              fontSize: 14,
+              color: 'var(--status-bad-text)',
+              flex: 1,
+            }}
+          >
+            {t('calendar.calendars.error')}
+          </span>
+          <button type="button" className="chip shrink-0" onClick={() => void refetch()}>
+            {t('calendar.retry')}
+          </button>
+        </div>
       )}
 
       {!isLoading && !isError && calendars && calendars.length === 0 && (

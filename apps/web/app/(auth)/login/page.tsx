@@ -1,5 +1,6 @@
 'use client'
 
+import { OfflineUnavailableState } from '@/components/ui/offline-unavailable-state'
 import { EmailStep } from './email-step'
 import { CodeStep } from './code-step'
 import { useLoginFlow } from './use-login-flow'
@@ -21,6 +22,7 @@ export default function LoginPage() {
     errorMessage,
     successMessage,
     referralCode,
+    isOnline,
     authStepMotion,
     feedbackMotion,
     codeDigits,
@@ -39,15 +41,22 @@ export default function LoginPage() {
 
   return (
     <div className="w-full max-w-[26rem] min-[480px]:min-w-[22rem]">
+      {referralCode && <ReferralBanner motionPreset={feedbackMotion} t={t} />}
       <div
         className="flex flex-col"
         style={{ padding: '40px 28px 24px', gap: 18 }}
       >
         <LoginHeader step={step} t={t} />
 
-        {referralCode && <ReferralBanner motionPreset={feedbackMotion} t={t} />}
-
         <LoginSuccessMessage message={successMessage} motionPreset={feedbackMotion} />
+
+        {!isOnline && (
+          <OfflineUnavailableState
+            title={t('offline.title')}
+            description={t('offline.description')}
+            compact
+          />
+        )}
 
         <LoginStepStage
           step={step}
@@ -58,6 +67,7 @@ export default function LoginPage() {
               onEmailChange={setEmail}
               isSubmitting={isSubmitting}
               isGoogleLoading={isGoogleLoading}
+              isOnline={isOnline}
               onSendCode={sendCode}
               onSignInWithGoogle={signInWithGoogle}
               t={t}
@@ -72,6 +82,7 @@ export default function LoginPage() {
               resendCountdown={resendCountdown}
               codeInputRefs={codeInputRefs}
               errorSignal={errorMessage}
+              isOnline={isOnline}
               onVerifyCode={verifyCode}
               onCodeInput={onCodeInput}
               onCodeKeydown={onCodeKeydown}

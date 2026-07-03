@@ -55,6 +55,7 @@ export function HabitRowMenu({
       {onEdit && <MenuItem icon={Pencil} label={t('common.edit')} onClick={run(onEdit)} />}
       {onDuplicate && <MenuItem icon={Copy} label={t('habits.actions.duplicate')} onClick={run(onDuplicate)} />}
       {onEnterSelectMode && <MenuItem icon={CheckCircle2} label={t('common.select')} onClick={run(onEnterSelectMode)} />}
+      {onDrillInto && <MenuItem icon={ChevronRight} label={t('habits.actions.openSubHabits')} onClick={run(onDrillInto)} />}
       {onDelete && (
         <>
           <div
@@ -68,7 +69,6 @@ export function HabitRowMenu({
           <MenuItem icon={Trash2} label={t('habits.deleteHabit')} onClick={run(onDelete)} tone="danger" />
         </>
       )}
-      {onDrillInto && <MenuItem icon={ChevronRight} label={t('habits.actions.openSubHabits')} onClick={run(onDrillInto)} />}
     </div>
   )
 }
@@ -95,17 +95,17 @@ function MenuItem({ icon: Icon, label, onClick, tone = 'default' }: Readonly<Men
         event.stopPropagation()
         onClick()
       }}
-      className="appearance-none border-0 bg-transparent w-full flex items-center text-left transition-colors hover:bg-[var(--bg-sunk)]"
+      className="appearance-none border-0 bg-transparent w-full flex items-center text-left transition-colors hover:bg-[var(--bg-elev-pressed)]"
       style={{
         gap: 10,
-        padding: '8px 12px',
+        padding: '11px 12px',
         color,
         fontFamily: 'var(--font-sans)',
         fontSize: 14,
         cursor: 'pointer',
       }}
     >
-      <Icon size={14} strokeWidth={1.8} />
+      <Icon size={16} strokeWidth={1.8} />
       <span>{label}</span>
     </button>
   )

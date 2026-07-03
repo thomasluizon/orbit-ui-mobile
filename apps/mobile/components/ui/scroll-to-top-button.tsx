@@ -36,7 +36,7 @@ export function ScrollToTopButton({
   useEffect(() => {
     Animated.timing(anim, {
       toValue: visible ? 1 : 0,
-      duration: prefersReducedMotion ? 0 : 200,
+      duration: prefersReducedMotion ? 0 : 220,
       easing: toAnimatedEasing(easings.out),
       useNativeDriver: true,
     }).start()
@@ -76,7 +76,7 @@ export function ScrollToTopButton({
           styles.button,
           shadowsV2.shadow2,
           {
-            backgroundColor: tokens.bgElev2,
+            backgroundColor: tokens.bgSheet,
             borderColor: tokens.hairlineStrong,
           },
           pressed ? styles.pressed : null,
@@ -103,6 +103,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
   },
   pressed: {
-    transform: [{ scale: 0.94 }],
+    transform: [{ scale: 0.96 }],
   },
 })

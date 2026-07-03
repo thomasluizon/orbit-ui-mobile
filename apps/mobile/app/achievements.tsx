@@ -20,9 +20,11 @@ import {
 } from './achievements-sections'
 import { NextRewardCarrot } from './(tabs)/profile/_components/next-reward-carrot'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
+import { useDateFormat } from '@/hooks/use-date-format'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { AppBar } from '@/components/ui/app-bar'
 import { PillButton } from '@/components/ui/pill-button'
+import { ProBadge } from '@/components/ui/pro-badge'
 import { ProgressBar } from '@/components/ui/progress-bar'
 
 type Tokens = ReturnType<typeof createTokensV2>
@@ -30,6 +32,7 @@ type Tokens = ReturnType<typeof createTokensV2>
 export default function AchievementsScreen() {
   const { t, i18n } = useTranslation()
   const formatNum = (n: number) => new Intl.NumberFormat(i18n.language).format(n)
+  const { displayDate } = useDateFormat()
   const router = useRouter()
   const goBackOrFallback = useGoBackOrFallback()
   const { currentScheme, currentTheme } = useAppTheme()
@@ -40,7 +43,7 @@ export default function AchievementsScreen() {
   const styles = useMemo(() => createStyles(tokens), [tokens])
   const { profile: accountProfile, isLoading: profileLoading } = useProfile()
   const canViewGamification = useCanViewGamification()
-  const { profile, isLoading, xpProgress, achievementsByCategory } =
+  const { profile, isLoading, isError, refetch, xpProgress, achievementsByCategory } =
     useGamificationProfile(canViewGamification)
   const nextRewardCarrot = deriveNextRewardCarrot(profile, canViewGamification)
 
@@ -72,6 +75,7 @@ export default function AchievementsScreen() {
         title={t('gamification.title')}
         subtitle={levelSubtitle}
         backLabel={t('common.goBack')}
+        trailing={<ProBadge />}
       />
       <ScrollView
         style={styles.container}
@@ -109,21 +113,32 @@ export default function AchievementsScreen() {
             <View
               style={[
                 styles.skeletonBar,
-                { width: 128, height: 32, backgroundColor: tokens.bgSunk },
+                { width: 128, height: 32, backgroundColor: tokens.bgCard },
               ]}
             />
             <View
               style={[
                 styles.skeletonBar,
-                { width: 192, height: 16, backgroundColor: tokens.bgSunk },
+                { width: 192, height: 16, backgroundColor: tokens.bgCard },
               ]}
             />
             <View
               style={[
                 styles.skeletonBarFull,
-                { backgroundColor: tokens.bgSunk },
+                { backgroundColor: tokens.bgCard },
               ]}
             />
+          </View>
+        ) : null}
+
+        {!profileLoading && canViewGamification && isError && !profile ? (
+          <View style={styles.errorBlock}>
+            <Text style={[styles.errorText, { color: tokens.fg2 }]}>
+              {t('common.error')}
+            </Text>
+            <PillButton variant="ghost" onPress={() => refetch()}>
+              {t('common.retry')}
+            </PillButton>
           </View>
         ) : null}
 
@@ -160,12 +175,19 @@ export default function AchievementsScreen() {
 
                 <ProgressBar progress={xpProgress / 100} label={xpLine} />
 
-                <Text style={[styles.earnedCount, { color: tokens.fg3 }]}>
-                  {t('gamification.profileCard.earned', {
-                    count: profile.achievementsEarned,
-                    total: profile.achievementsTotal,
-                  })}
-                </Text>
+                <View style={styles.xpTotalRow}>
+                  <Text style={[styles.earnedCount, { color: tokens.fg3 }]}>
+                    {t('gamification.profileCard.totalXp', {
+                      total: formatNum(profile.totalXp),
+                    })}
+                  </Text>
+                  <Text style={[styles.earnedCount, { color: tokens.fg3 }]}>
+                    {t('gamification.profileCard.earned', {
+                      count: profile.achievementsEarned,
+                      total: profile.achievementsTotal,
+                    })}
+                  </Text>
+                </View>
               </View>
             </View>
 
@@ -176,6 +198,7 @@ export default function AchievementsScreen() {
                   category={category}
                   t={t}
                   tokens={tokens}
+                  displayDate={displayDate}
                 />
               ),
             )}
@@ -226,8 +249,20 @@ function createStyles(_tokens: Tokens) {
     },
     lockedTitle: {
       fontFamily: 'Rubik_500Medium',
-      fontSize: 17,
-      letterSpacing: -0.17,
+      fontSize: 16,
+      letterSpacing: -0.16,
+      textAlign: 'center',
+    },
+    errorBlock: {
+      paddingHorizontal: 24,
+      paddingVertical: 64,
+      alignItems: 'center',
+      gap: 16,
+    },
+    errorText: {
+      fontFamily: 'Rubik_400Regular',
+      fontSize: 16,
+      lineHeight: 24,
       textAlign: 'center',
     },
     lockedDescription: {
@@ -275,11 +310,15 @@ function createStyles(_tokens: Tokens) {
       fontVariant: ['tabular-nums'],
       marginTop: 2,
     },
+    xpTotalRow: {
+      flexDirection: 'row',
+      justifyContent: 'space-between',
+      marginTop: 10,
+    },
     earnedCount: {
       fontFamily: 'Roboto_400Regular',
       fontSize: 12,
       fontVariant: ['tabular-nums'],
-      marginTop: 10,
     },
   })
 }

@@ -101,8 +101,8 @@ function createStyles(tokens: AppTokensV2) {
     },
     description: {
       fontFamily: 'Rubik_400Regular',
-      fontSize: 15,
-      lineHeight: 23,
+      fontSize: 14,
+      lineHeight: 21,
       color: tokens.fg2,
     },
     spacer: {
@@ -116,8 +116,8 @@ function createStyles(tokens: AppTokensV2) {
     },
     quietText: {
       fontFamily: 'Rubik_400Regular',
-      fontSize: 13,
-      color: tokens.fg3,
+      fontSize: 14,
+      color: tokens.fg2,
     },
   })
 }

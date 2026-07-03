@@ -1,19 +1,13 @@
 import { useState, useMemo, useCallback } from "react";
-import {
-  View,
-  Text,
-  TouchableOpacity,
-  Modal,
-  Pressable,
-  ScrollView,
-  TextInput,
-} from "react-native";
+import { View, Text, Pressable, ScrollView } from "react-native";
 import { Plus, X } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import {
   HABIT_EMOJI_CATEGORIES,
   filterHabitEmojiCategories,
 } from "@orbit/shared/utils";
+import { BottomSheetModal } from "@/components/bottom-sheet-modal";
+import { BottomSheetAppTextInput } from "@/components/ui/bottom-sheet-app-text-input";
 import { type AppTokens, createStyles } from "./styles";
 
 interface HabitEmojiSelectorProps {
@@ -79,129 +73,103 @@ export function HabitEmojiSelector({
         )}
       </Pressable>
 
-      {pickerOpen ? (
-        <Modal
-          visible
-          transparent
-          animationType="slide"
-          onRequestClose={closePicker}
-        >
-          <Pressable
-            style={styles.emojiModalBackdrop}
-            onPress={closePicker}
-            accessibilityRole="button"
-            accessibilityLabel={t('common.close')}
-          >
-            <Pressable
-              style={styles.emojiModalSheet}
-              onPress={(event) => event.stopPropagation()}
-              importantForAccessibility="no"
+      <BottomSheetModal
+        open={pickerOpen}
+        onClose={closePicker}
+        title={t("habits.form.emojiPickerTitle")}
+        snapPoints={["82%"]}
+      >
+        {pickerOpen ? (
+          <View style={styles.emojiSheetContent}>
+            <Text style={styles.hintText}>{t("habits.form.emojiDescription")}</Text>
+            <BottomSheetAppTextInput
+              value={query}
+              onChangeText={setQuery}
+              placeholder={t("habits.form.emojiSearchPlaceholder")}
+              autoCapitalize="none"
+              autoCorrect={false}
+              accessibilityLabel={t("habits.form.emojiSearchPlaceholder")}
+            />
+
+            {selectedEmoji ? (
+              <Pressable
+                style={({ pressed }) => [
+                  styles.emojiRemoveButton,
+                  pressed ? { transform: [{ scale: 0.96 }] } : null,
+                ]}
+                hitSlop={{ top: 6, bottom: 6 }}
+                onPress={() => handleSelectEmoji("")}
+                accessibilityRole="button"
+                accessibilityLabel={t("habits.form.emojiRemove")}
+              >
+                <X size={14} color={tokens.fg2} strokeWidth={1.8} />
+                <Text style={styles.emojiRemoveButtonText}>{t("habits.form.emojiRemove")}</Text>
+              </Pressable>
+            ) : null}
+
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.emojiCategoryTabs}
+              accessibilityLabel={t("habits.form.emojiCategories")}
             >
-              <View style={styles.emojiModalHeader}>
-                <View style={styles.emojiModalTitleRow}>
-                  <View style={styles.emojiPreviewCompact}>
-                    {selectedEmoji ? (
-                      <Text style={styles.emojiPreviewCompactText}>{selectedEmoji}</Text>
-                    ) : (
-                      <Plus size={16} color={tokens.fg3} strokeWidth={1.8} />
-                    )}
-                  </View>
-                  <View style={{ flex: 1 }}>
-                    <Text style={styles.emojiModalTitle}>{t("habits.form.emojiPickerTitle")}</Text>
-                    <Text style={styles.hintText}>{t("habits.form.emojiDescription")}</Text>
+              {HABIT_EMOJI_CATEGORIES.map((category) => {
+                const selected = selectedCategoryId === category.id;
+                return (
+                  <Pressable
+                    key={category.id}
+                    style={({ pressed }) => [
+                      styles.emojiCategoryTab,
+                      selected ? styles.emojiCategoryTabActive : null,
+                      pressed ? { transform: [{ scale: 0.96 }] } : null,
+                    ]}
+                    hitSlop={{ top: 4, bottom: 4 }}
+                    onPress={() => handleSelectCategory(category.id)}
+                    accessibilityRole="button"
+                    accessibilityLabel={t(category.labelKey)}
+                    accessibilityState={{ selected }}
+                  >
+                    <Text style={[styles.emojiCategoryTabText, selected ? styles.emojiCategoryTabTextActive : null]}>
+                      {t(category.labelKey)}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </ScrollView>
+
+            <ScrollView style={styles.emojiModalList} showsVerticalScrollIndicator>
+              {filteredCategories.length === 0 ? (
+                <Text style={styles.emojiEmptyText}>{t("habits.form.emojiPickerEmpty")}</Text>
+              ) : filteredCategories.map((category) => (
+                <View key={category.id} style={styles.emojiCategorySection}>
+                  <Text style={styles.emojiCategoryTitle}>{t(category.labelKey)}</Text>
+                  <View style={styles.emojiGrid} accessibilityRole="list" accessibilityLabel={t(category.labelKey)}>
+                    {category.emojis.map((emoji) => {
+                      const selected = selectedEmoji === emoji;
+                      return (
+                        <Pressable
+                          key={`${category.id}-${emoji}`}
+                          style={({ pressed }) => [
+                            styles.emojiOption,
+                            selected ? styles.emojiOptionSelected : null,
+                            pressed ? { transform: [{ scale: 0.96 }] } : null,
+                          ]}
+                          onPress={() => handleSelectEmoji(emoji)}
+                          accessibilityRole="button"
+                          accessibilityState={{ selected }}
+                          accessibilityLabel={`${t("habits.form.emoji")}: ${emoji}`}
+                        >
+                          <Text style={[styles.emojiOptionText, { color: tokens.fg1 }]}>{emoji}</Text>
+                        </Pressable>
+                      );
+                    })}
                   </View>
                 </View>
-                <TouchableOpacity
-                  style={styles.emojiCloseButton}
-                  onPress={closePicker}
-                  accessibilityRole="button"
-                  accessibilityLabel={t("common.close")}
-                >
-                  <X size={20} color={tokens.fg2} strokeWidth={1.8} />
-                </TouchableOpacity>
-              </View>
-
-              <TextInput
-                value={query}
-                onChangeText={setQuery}
-                placeholder={t("habits.form.emojiSearchPlaceholder")}
-                placeholderTextColor={tokens.fg3}
-                style={styles.emojiSearchInput}
-                autoCapitalize="none"
-                autoCorrect={false}
-                accessibilityLabel={t("habits.form.emojiSearchPlaceholder")}
-              />
-
-              {selectedEmoji ? (
-                <TouchableOpacity
-                  style={styles.emojiRemoveButton}
-                  onPress={() => handleSelectEmoji("")}
-                  activeOpacity={0.75}
-                  accessibilityRole="button"
-                  accessibilityLabel={t("habits.form.emojiRemove")}
-                >
-                  <X size={14} color={tokens.fg2} strokeWidth={1.8} />
-                  <Text style={styles.emojiRemoveButtonText}>{t("habits.form.emojiRemove")}</Text>
-                </TouchableOpacity>
-              ) : null}
-
-              <ScrollView
-                horizontal
-                showsHorizontalScrollIndicator={false}
-                contentContainerStyle={styles.emojiCategoryTabs}
-                accessibilityLabel={t("habits.form.emojiCategories")}
-              >
-                {HABIT_EMOJI_CATEGORIES.map((category) => {
-                  const selected = selectedCategoryId === category.id;
-                  return (
-                    <TouchableOpacity
-                      key={category.id}
-                      style={[styles.emojiCategoryTab, selected ? styles.emojiCategoryTabActive : null]}
-                      onPress={() => handleSelectCategory(category.id)}
-                      activeOpacity={0.75}
-                      accessibilityRole="button"
-                      accessibilityLabel={t(category.labelKey)}
-                      accessibilityState={{ selected }}
-                    >
-                      <Text style={[styles.emojiCategoryTabText, selected ? styles.emojiCategoryTabTextActive : null]}>
-                        {t(category.labelKey)}
-                      </Text>
-                    </TouchableOpacity>
-                  );
-                })}
-              </ScrollView>
-
-              <ScrollView style={styles.emojiModalList} showsVerticalScrollIndicator>
-                {filteredCategories.length === 0 ? (
-                  <Text style={styles.emojiEmptyText}>{t("habits.form.emojiPickerEmpty")}</Text>
-                ) : filteredCategories.map((category) => (
-                  <View key={category.id} style={styles.emojiCategorySection}>
-                    <Text style={styles.emojiCategoryTitle}>{t(category.labelKey)}</Text>
-                    <View style={styles.emojiGrid} accessibilityRole="list" accessibilityLabel={t(category.labelKey)}>
-                      {category.emojis.map((emoji) => {
-                        const selected = selectedEmoji === emoji;
-                        return (
-                          <TouchableOpacity
-                            key={`${category.id}-${emoji}`}
-                            style={[styles.emojiOption, selected ? styles.emojiOptionSelected : null]}
-                            onPress={() => handleSelectEmoji(emoji)}
-                            activeOpacity={0.75}
-                            accessibilityRole="button"
-                            accessibilityState={{ selected }}
-                            accessibilityLabel={`${t("habits.form.emoji")}: ${emoji}`}
-                          >
-                            <Text style={[styles.emojiOptionText, { color: tokens.fg1 }]}>{emoji}</Text>
-                          </TouchableOpacity>
-                        );
-                      })}
-                    </View>
-                  </View>
-                ))}
-              </ScrollView>
-            </Pressable>
-          </Pressable>
-        </Modal>
-      ) : null}
+              ))}
+            </ScrollView>
+          </View>
+        ) : null}
+      </BottomSheetModal>
     </>
   );
 }

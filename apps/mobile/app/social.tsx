@@ -56,14 +56,14 @@ export default function SocialScreen() {
         <SocialOptInGate />
       ) : (
         <>
-          <SocialIdentityBar />
-          <ChallengesEntryCard />
-          <SectionHeadTabs tabs={tabs} active={tab} onChange={setTab} />
+          <SectionHeadTabs tabs={tabs} active={tab} onChange={setTab} ariaLabel={t('social.title')} />
           <ScrollView
             contentContainerStyle={styles.scroll}
             keyboardShouldPersistTaps="handled"
             showsVerticalScrollIndicator={false}
           >
+            <SocialIdentityBar />
+            <ChallengesEntryCard />
             {tab === 'feed' ? (
               <SocialFeed onCheer={setCheerTarget} onAddFriends={() => setTab('friends')} />
             ) : tab === 'friends' ? (

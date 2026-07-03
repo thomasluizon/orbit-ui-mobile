@@ -12,18 +12,13 @@ const CHECKLIST_ITEMS: readonly { key: string; flag: keyof Profile }[] = [
   { key: 'tryAstra', flag: 'hasTriedAstra' },
 ]
 
-/** Auto-tracked first-run setup checklist on Today; hides once completed or dismissed. */
+/** Auto-tracked first-run setup checklist on Today; renders unconditionally, visibility is arbitrated by useEngagementSlot. */
 export function SetupChecklistCard() {
   const t = useTranslations()
   const { profile } = useProfile()
-  const dismissed = useUIStore((state) => state.setupChecklistDismissed)
   const setDismissed = useUIStore((state) => state.setSetupChecklistDismissed)
 
-  if (!profile || dismissed || profile.hasCompletedOnboardingChecklist) {
-    return null
-  }
-
-  const states = CHECKLIST_ITEMS.map((item) => Boolean(profile[item.flag]))
+  const states = CHECKLIST_ITEMS.map((item) => Boolean(profile?.[item.flag]))
   const doneCount = states.filter(Boolean).length
   const total = CHECKLIST_ITEMS.length
   const allDone = doneCount === total
@@ -67,8 +62,8 @@ export function SetupChecklistCard() {
             type="button"
             onClick={() => setDismissed(true)}
             aria-label={t('today.setupChecklist.dismiss')}
-            className="flex shrink-0 appearance-none items-center justify-center rounded-full border-0 bg-transparent"
-            style={{ width: 28, height: 28, cursor: 'pointer' }}
+            className="icon-btn touch-target shrink-0"
+            style={{ width: 36, height: 36 }}
           >
             <X size={18} strokeWidth={1.8} color="var(--fg-4)" />
           </button>

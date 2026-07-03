@@ -7,6 +7,8 @@ import { GradientTop } from '@/components/ui/gradient-top'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
 import { StreakBadge } from '@/components/gamification/streak-badge'
 import { NotificationBell } from '@/components/navigation/notification-bell'
+import { useProfile } from '@/hooks/use-profile'
+import { useStreakInfo } from '@/hooks/use-gamification'
 
 interface ProfileHeaderBarProps {
   streak: number
@@ -15,6 +17,8 @@ interface ProfileHeaderBarProps {
 
 export function ProfileHeaderBar({ streak, error }: Readonly<ProfileHeaderBarProps>) {
   const t = useTranslations()
+  const { profile } = useProfile()
+  const { data: streakInfo } = useStreakInfo(profile?.canViewGamification ?? false)
 
   return (
     <>
@@ -30,12 +34,12 @@ export function ProfileHeaderBar({ streak, error }: Readonly<ProfileHeaderBarPro
       </div>
 
       <AppBar
-        leadingIcon={<User size={17} strokeWidth={1.5} color="var(--fg-2)" />}
+        leadingIcon={<User size={22} strokeWidth={1.8} color="var(--fg-1)" />}
         trailing={
           <>
             <ThemeToggle />
             <span data-tour="tour-streak-badge">
-              <StreakBadge streak={streak} />
+              <StreakBadge streak={streak} isFrozen={streakInfo?.isFrozenToday ?? false} />
             </span>
             <NotificationBell />
           </>

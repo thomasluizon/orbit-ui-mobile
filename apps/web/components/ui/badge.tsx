@@ -1,6 +1,6 @@
 import type { CSSProperties, ReactNode } from 'react'
 
-export type BadgeTone = 'violet' | 'soft' | 'outline' | 'amber'
+export type BadgeTone = 'violet' | 'soft' | 'outline' | 'amber' | 'bad'
 
 interface BadgeProps {
   tone?: BadgeTone
@@ -23,9 +23,13 @@ const toneStyles: Record<BadgeTone, CSSProperties> = {
     background: 'color-mix(in srgb, var(--status-overdue) 18%, transparent)',
     color: 'var(--status-overdue-text)',
   },
+  bad: {
+    background: 'color-mix(in srgb, var(--status-bad) 18%, transparent)',
+    color: 'var(--status-bad-text)',
+  },
 }
 
-/** Kit badge: 10.5/600 uppercase pill in violet, soft, outline, or amber tone. */
+/** Kit badge: 10.5/600 uppercase pill in violet, soft, outline, amber, or bad tone. */
 export function Badge({ tone = 'violet', children, className }: Readonly<BadgeProps>) {
   return (
     <span

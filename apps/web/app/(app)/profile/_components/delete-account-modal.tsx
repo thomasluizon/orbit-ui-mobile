@@ -194,7 +194,7 @@ function DangerPillButton({
       style={{
         fontFamily: 'var(--font-sans)',
         background: 'var(--status-bad)',
-        color: 'var(--fg-on-primary)',
+        color: 'var(--fg-on-bad)',
       }}
     >
       {children}
@@ -276,15 +276,18 @@ function DeleteConfirmStep({
           style={{
             fontFamily: 'var(--font-sans)',
             fontSize: 13,
-            color: 'var(--status-overdue-text)',
+            color: 'var(--status-bad-text)',
           }}
         >
           {error}
         </p>
       )}
-      <div className="flex flex-col" style={{ gap: 12, paddingTop: 8 }}>
+      <div
+        className="flex flex-col sm:mx-auto sm:w-full sm:max-w-[360px]"
+        style={{ gap: 12, paddingTop: 8 }}
+      >
         <DangerPillButton disabled={loading} onClick={onRequestDeletion}>
-          {loading ? t('profile.deleteAccount.sending') : t('common.continue')}
+          {loading ? t('profile.deleteAccount.sending') : t('profile.deleteAccount.sendCode')}
         </DangerPillButton>
         <PillButton variant="ghost" fullWidth disabled={loading} onClick={onCancel}>
           {t('common.cancel')}
@@ -343,18 +346,21 @@ function DeleteCodeStep({
           style={{
             fontFamily: 'var(--font-sans)',
             fontSize: 13,
-            color: 'var(--status-overdue-text)',
+            color: 'var(--status-bad-text)',
           }}
         >
           {error}
         </p>
       )}
-      <div className="flex flex-col" style={{ gap: 12, paddingTop: 8 }}>
+      <div
+        className="flex flex-col sm:mx-auto sm:w-full sm:max-w-[360px]"
+        style={{ gap: 12, paddingTop: 8 }}
+      >
         <DangerPillButton
           disabled={loading || code.join('').length !== 6}
           onClick={onConfirmDeletion}
         >
-          {loading ? t('profile.deleteAccount.deleting') : t('auth.verify')}
+          {loading ? t('profile.deleteAccount.deleting') : t('profile.deleteAccount.confirmDelete')}
         </DangerPillButton>
         <PillButton variant="ghost" fullWidth disabled={loading} onClick={onBack}>
           {t('common.back')}
@@ -385,7 +391,10 @@ function DeleteDeactivatedStep({
       >
         {t('profile.deleteAccount.deactivated', { date: formattedDeletionDate })}
       </p>
-      <div className="flex flex-col" style={{ paddingTop: 8 }}>
+      <div
+        className="flex flex-col sm:mx-auto sm:w-full sm:max-w-[360px]"
+        style={{ paddingTop: 8 }}
+      >
         <PillButton fullWidth onClick={onLogout}>
           {t('profile.logout')}
         </PillButton>

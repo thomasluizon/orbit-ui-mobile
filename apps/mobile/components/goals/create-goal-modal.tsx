@@ -1,5 +1,6 @@
 import { useState, useCallback, useMemo } from 'react'
-import { ActivityIndicator, Text, View } from 'react-native'
+import { Text, View } from 'react-native'
+import { Check } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { BottomSheetModal } from '@/components/bottom-sheet-modal'
@@ -250,13 +251,13 @@ export function CreateGoalModal({ open, onClose }: CreateGoalModalProps) {
               style={styles.footerButton}
               onPress={onSubmit}
               disabled={isSubmitting}
+              busy={isSubmitting}
+              leading={
+                <Check size={18} strokeWidth={1.8} color={tokens.fgOnPrimary} />
+              }
               accessibilityLabel={t('goals.create')}
             >
-              {isSubmitting ? (
-                <ActivityIndicator size="small" color={tokens.fgOnPrimary} />
-              ) : (
-                t('goals.create')
-              )}
+              {t('goals.create')}
             </PillButton>
           </View>
         </KeyboardAwareBottomSheetScrollView>

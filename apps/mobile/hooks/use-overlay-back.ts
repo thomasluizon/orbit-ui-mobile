@@ -2,7 +2,7 @@ import { useEffect, useId, useRef } from 'react'
 import { registerOverlay, unregisterOverlay } from '@/lib/overlay-stack'
 
 /**
- * Registers a non-Modal blocking layer (tour, level-up) in the shared overlay
+ * Registers a non-Modal blocking layer (level-up) in the shared overlay
  * stack while it is active, so the root hardware-back handler dismisses the
  * top-most layer LIFO and returns true instead of falling through to
  * navigation. Surfaces backed by a RN Modal use onRequestClose instead.

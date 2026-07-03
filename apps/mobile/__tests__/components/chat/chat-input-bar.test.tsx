@@ -22,7 +22,10 @@ vi.mock('lucide-react-native', () => {
 
 vi.mock('@/components/chat/chat-animations', () => {
   const React = require('react')
-  return { RecordingVisualizer: () => React.createElement('RecordingVisualizer') }
+  return {
+    RecordingVisualizer: () => React.createElement('RecordingVisualizer'),
+    RecordingPulseDot: () => React.createElement('RecordingPulseDot'),
+  }
 })
 
 import { createTokensV2 } from '@/lib/theme'

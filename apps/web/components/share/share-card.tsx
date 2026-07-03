@@ -43,7 +43,7 @@ export const ShareCard = forwardRef<HTMLDivElement, ShareCardProps>(function Sha
       style={{
         width: 360,
         background: 'var(--bg)',
-        borderRadius: 24,
+        borderRadius: 20,
         overflow: 'hidden',
         boxShadow: 'inset 0 0 0 1px var(--hairline)',
         fontFamily: 'var(--font-sans)',
@@ -67,12 +67,12 @@ export const ShareCard = forwardRef<HTMLDivElement, ShareCardProps>(function Sha
             Orbit
           </span>
         </div>
-        <p style={{ marginTop: 16, fontSize: 12, fontWeight: 500, color: 'var(--fg-3)', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+        <p style={{ marginTop: 16, fontSize: 12, fontWeight: 500, color: 'var(--fg-3)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
           {eyebrow}
         </p>
         <p
           data-testid="share-card-streak"
-          style={{ marginTop: 4, fontFamily: 'var(--font-display)', fontSize: 30, fontWeight: 700, letterSpacing: '-0.02em' }}
+          style={{ marginTop: 4, fontFamily: 'var(--font-display)', fontSize: 28, fontWeight: 700, letterSpacing: '-0.02em', fontVariantNumeric: 'tabular-nums' }}
         >
           {t('shareCard.streak', { count: metrics.currentStreak })} 🔥
         </p>
@@ -100,10 +100,16 @@ export const ShareCard = forwardRef<HTMLDivElement, ShareCardProps>(function Sha
         >
           {metrics.weeklyConsistency.slice(0, 7).map((value, index) => {
             const clamped = Math.max(0, Math.min(100, value))
+            const barLabel = t('retrospective.weeklyBarLabel', {
+              day: t(`dates.daysShort.${WEEKDAY_KEYS[index]!}`),
+              percent: Math.round(clamped),
+            })
             return (
               <div
                 key={WEEKDAY_KEYS[index]}
-                aria-hidden="true"
+                role="img"
+                aria-label={barLabel}
+                title={barLabel}
                 style={{
                   height: `${Math.max(6, (clamped / 100) * 44)}px`,
                   borderRadius: 5,
@@ -119,11 +125,11 @@ export const ShareCard = forwardRef<HTMLDivElement, ShareCardProps>(function Sha
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             <p
               style={{
-                fontSize: 11,
+                fontSize: 12,
                 fontWeight: 500,
                 color: 'var(--fg-3)',
                 textTransform: 'uppercase',
-                letterSpacing: '0.05em',
+                letterSpacing: '0.08em',
               }}
             >
               {t('shareCard.stats.topHabits')}
@@ -138,7 +144,7 @@ export const ShareCard = forwardRef<HTMLDivElement, ShareCardProps>(function Sha
                     gap: 6,
                     padding: '6px 10px',
                     borderRadius: 999,
-                    fontSize: 12.5,
+                    fontSize: 13,
                     color: 'var(--fg-2)',
                     background: 'var(--bg-field)',
                     boxShadow: 'inset 0 0 0 1px var(--hairline)',
@@ -165,7 +171,7 @@ export const ShareCard = forwardRef<HTMLDivElement, ShareCardProps>(function Sha
             <p style={{ fontSize: 13, fontWeight: 500, color: 'var(--fg-1)' }}>{t('shareCard.scanToJoin')}</p>
             <p
               className="truncate"
-              style={{ fontFamily: 'var(--font-mono)', fontSize: 11.5, color: 'var(--fg-3)' }}
+              style={{ fontFamily: 'var(--font-mono)', fontSize: 12, letterSpacing: '0.02em', color: 'var(--fg-3)' }}
             >
               {shortLink}
             </p>

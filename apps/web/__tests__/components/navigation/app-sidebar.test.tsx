@@ -34,6 +34,8 @@ function buildSections(): SidebarSection[] {
     },
     { id: 'calendar', label: 'Calendar', icon: StubIcon, active: false, onSelect: vi.fn() },
     { id: 'goals', label: 'Goals', icon: StubIcon, active: false, onSelect: vi.fn() },
+    { id: 'social', label: 'Friends', icon: StubIcon, active: false, onSelect: vi.fn() },
+    { id: 'explore', label: 'Explore', icon: StubIcon, active: false, onSelect: vi.fn() },
     { id: 'profile', label: 'Profile', icon: StubIcon, active: false, onSelect: vi.fn() },
   ]
 }
@@ -48,6 +50,7 @@ function renderSidebar(overrides: Partial<SidebarProps> = {}): SidebarProps {
     onCreate: vi.fn(),
     createLabel: 'Create habit',
     brandLabel: 'Orbit',
+    navLabel: 'Main navigation',
     ...overrides,
   }
   render(<AppSidebar {...props} />)
@@ -59,7 +62,7 @@ describe('AppSidebar', () => {
     renderSidebar()
     const nav = screen.getByRole('navigation')
 
-    for (const label of ['Habits', 'Calendar', 'Goals', 'Profile']) {
+    for (const label of ['Habits', 'Calendar', 'Goals', 'Friends', 'Explore', 'Profile']) {
       expect(within(nav).getByRole('button', { name: label })).toBeInTheDocument()
     }
   })
@@ -174,6 +177,8 @@ describe('AppSidebar', () => {
 
     expect(screen.getByText('Habits')).toBeInTheDocument()
     expect(screen.getByText('Calendar')).toBeInTheDocument()
+    expect(screen.getByText('Friends')).toBeInTheDocument()
+    expect(screen.getByText('Explore')).toBeInTheDocument()
     expect(screen.getByText('Profile')).toBeInTheDocument()
   })
 

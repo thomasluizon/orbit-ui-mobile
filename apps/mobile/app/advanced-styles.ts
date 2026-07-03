@@ -50,10 +50,18 @@ export const styles = StyleSheet.create({
     fontSize: 13,
     fontVariant: ['tabular-nums'],
   },
+  keyScopes: {
+    fontFamily: 'Roboto_400Regular',
+    fontSize: 11,
+    lineHeight: 16,
+    letterSpacing: 0.22,
+  },
   keyMeta: {
-    fontFamily: 'Rubik_400Regular',
-    fontSize: 12,
+    fontFamily: 'Roboto_400Regular',
+    fontSize: 11,
     lineHeight: 17,
+    letterSpacing: 0.22,
+    fontVariant: ['tabular-nums'],
   },
   revokeLink: {
     fontFamily: 'Rubik_500Medium',
@@ -90,6 +98,35 @@ export const styles = StyleSheet.create({
   actionLink: {
     fontFamily: 'Rubik_500Medium',
     fontSize: 13,
+  },
+  apiKeysHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingTop: 4,
+    paddingBottom: 8,
+    gap: 12,
+  },
+  subsectionTitle: {
+    fontFamily: 'Rubik_500Medium',
+    fontSize: 16,
+    letterSpacing: -0.16,
+  },
+  apiKeysDescription: {
+    fontFamily: 'Rubik_400Regular',
+    fontSize: 13,
+    lineHeight: 19,
+    paddingHorizontal: 20,
+    paddingBottom: 8,
+  },
+  disclosureHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    gap: 12,
   },
   lockedRow: {
     flexDirection: 'row',
@@ -134,14 +171,12 @@ export const styles = StyleSheet.create({
     justifyContent: 'flex-end',
   },
   copyBtn: {
+    width: 40,
+    height: 40,
     borderRadius: 999,
     borderWidth: 1,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
-  },
-  copyBtnText: {
-    fontFamily: 'Rubik_500Medium',
-    fontSize: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   hintPad: {
     paddingHorizontal: 20,
@@ -149,8 +184,8 @@ export const styles = StyleSheet.create({
   },
   hintText: {
     fontFamily: 'Rubik_400Regular',
-    fontSize: 12.5,
-    lineHeight: 18,
+    fontSize: 14,
+    lineHeight: 21,
   },
   widgetSheetScroll: {
     flexGrow: 0,

@@ -120,7 +120,10 @@ export function FeatureGuideDrawer({
 }: Readonly<FeatureGuideDrawerProps>) {
   const { t } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
-  const tokens = createTokensV2(currentScheme, currentTheme)
+  const tokens = useMemo(
+    () => createTokensV2(currentScheme, currentTheme),
+    [currentScheme, currentTheme],
+  )
   const styles = useMemo(() => createStyles(tokens), [tokens])
   const [activeSection, setActiveSection] = useState<SectionKey>('habits')
 

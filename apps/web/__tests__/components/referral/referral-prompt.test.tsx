@@ -14,16 +14,16 @@ vi.mock('@/components/ui/app-overlay', () => ({
   AppOverlay: ({
     open,
     children,
-    titleContent,
+    title,
   }: {
     open: boolean
     children?: React.ReactNode
-    titleContent?: React.ReactNode
+    title?: string
     onOpenChange?: (open: boolean) => void
   }) =>
     open ? (
       <div data-testid="referral-prompt">
-        {titleContent}
+        {title}
         {children}
       </div>
     ) : null,

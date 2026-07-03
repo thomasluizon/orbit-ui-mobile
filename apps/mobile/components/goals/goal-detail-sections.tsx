@@ -63,6 +63,7 @@ export function GoalProgressHistorySection({
         <TouchableOpacity
           onPress={() => setShowAllHistory((prev) => !prev)}
           activeOpacity={0.7}
+          hitSlop={{ top: 6, bottom: 6, left: 8, right: 8 }}
           style={styles.toggleAll}
           accessibilityRole="button"
           accessibilityLabel={showAllHistory ? showLessLabel : showAllLabel}

@@ -131,9 +131,10 @@ export function FrequencyTypeCards({
       <Text style={styles.label}>{t("habits.form.frequency")}</Text>
       <View style={styles.frequencyCarouselRow}>
         <Pressable
-          style={[
+          style={({ pressed }) => [
             styles.frequencyArrow,
             activeIndex === 0 ? styles.frequencyArrowDisabled : null,
+            pressed ? { transform: [{ scale: 0.96 }] } : null,
           ]}
           disabled={activeIndex === 0}
           onPress={() => goToIndex(activeIndex - 1)}
@@ -162,11 +163,14 @@ export function FrequencyTypeCards({
                 style={[styles.frequencySlide, { width: pageWidth }]}
               >
                 <Pressable
-                  style={styles.frequencyCardCarousel}
+                  style={({ pressed }) => [
+                    styles.frequencyCardCarousel,
+                    pressed ? { transform: [{ scale: 0.98 }] } : null,
+                  ]}
                   onPress={frequencyHandlers[index]}
-                  accessibilityRole="button"
+                  accessibilityRole="radio"
                   accessibilityLabel={t(card.titleKey)}
-                  accessibilityState={{ selected: index === activeIndex }}
+                  accessibilityState={{ checked: index === activeIndex }}
                 >
                   <View style={styles.frequencyCardIconWell}>
                     <CardIcon
@@ -193,11 +197,12 @@ export function FrequencyTypeCards({
         </ScrollView>
 
         <Pressable
-          style={[
+          style={({ pressed }) => [
             styles.frequencyArrow,
             activeIndex === FREQUENCY_TYPE_CARDS.length - 1
               ? styles.frequencyArrowDisabled
               : null,
+            pressed ? { transform: [{ scale: 0.96 }] } : null,
           ]}
           disabled={activeIndex === FREQUENCY_TYPE_CARDS.length - 1}
           onPress={() => goToIndex(activeIndex + 1)}

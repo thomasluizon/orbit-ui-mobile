@@ -59,11 +59,11 @@ export function BottomTabBar({
             'absolute appearance-none border-0 flex items-center justify-center -translate-x-1/2 transition-[background-color,transform] duration-[160ms] ease-[var(--ease-standard)] ' +
             (fabDisabled
               ? 'bg-[var(--bg-sheet)] text-[var(--fg-3)]'
-              : 'bg-[var(--primary)] text-[var(--fg-on-primary)] hover:bg-[var(--primary-pressed)] active:scale-95')
+              : 'bg-[var(--primary)] text-[var(--fg-on-primary)] hover:bg-[var(--primary-pressed)] active:scale-[0.96]')
           }
           style={{
             left: '50%',
-            top: -22,
+            top: -30,
             width: 60,
             height: 60,
             borderRadius: 999,
@@ -124,13 +124,14 @@ function TabBtn({ tab, label, active, onClick, unread = false }: Readonly<TabBtn
       aria-label={label}
       aria-current={active ? 'page' : undefined}
       className={
-        'appearance-none border-0 bg-transparent cursor-pointer flex flex-col items-center transition-colors duration-[160ms] ease-[var(--ease-standard)] ' +
+        'appearance-none border-0 bg-transparent cursor-pointer flex flex-col items-center transition-colors duration-[160ms] ease-[var(--ease-standard)] active:opacity-70 ' +
         (active
           ? 'text-[var(--primary)]'
-          : 'text-[var(--fg-3)] hover:text-[var(--fg-2)]')
+          : 'text-[var(--fg-4)] hover:text-[var(--fg-2)]')
       }
       style={{
-        padding: '18px 0 20px',
+        padding: '10px 0 12px',
+        gap: 5,
       }}
     >
       <span className="relative">
@@ -149,6 +150,15 @@ function TabBtn({ tab, label, active, onClick, unread = false }: Readonly<TabBtn
             }}
           />
         )}
+      </span>
+      <span
+        style={{
+          fontFamily: 'var(--font-sans)',
+          fontSize: 11,
+          fontWeight: active ? 500 : 400,
+        }}
+      >
+        {label}
       </span>
     </button>
   )

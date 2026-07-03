@@ -41,6 +41,7 @@ const mockDrillState = {
   drillInto: vi.fn(async () => {}),
   drillBack: vi.fn(),
   drillReset: vi.fn(),
+  refreshCurrent: vi.fn(async () => {}),
   getDrillChildren: vi.fn(() => [] as NormalizedHabit[]),
 }
 
@@ -156,6 +157,11 @@ vi.mock('@/components/habits/reschedule-sheet', () => ({
   RescheduleSheet: () => null,
 }))
 
+vi.mock('@/components/bottom-sheet-modal', () => ({
+  BottomSheetModal: ({ open, children, title }: any) =>
+    open ? React.createElement('BottomSheetModal', { title }, children) : null,
+}))
+
 vi.mock('@/hooks/use-time-format', () => ({
   useTimeFormat: () => ({
     displayTime: (value: string | null | undefined) => value ?? '',
@@ -230,6 +236,8 @@ describe('HabitList', () => {
     mockDrillState.currentParent = null
     mockDrillState.drillChildren = []
     mockDrillState.drillStack = []
+    mockDrillState.drillLoading = false
+    mockDrillState.drillError = null
     seedHabits([createMockHabit({ id: 'habit-1', title: 'Exercise', position: 0 })])
   })
 
@@ -709,6 +717,48 @@ describe('HabitList', () => {
 
     expect(tree.root.findAllByType('DraggableFlatList')).toHaveLength(0)
     expect(tree.root.findAllByType('FlatList')).toHaveLength(1)
+  })
+
+  it('retries loading drill children from the drill error state', () => {
+    const parent = createMockHabit({
+      id: 'parent',
+      title: 'Parent',
+      hasSubHabits: true,
+    })
+    seedHabits([parent])
+    mockDrillState.currentParentId = 'parent'
+    mockDrillState.currentParent = parent
+    mockDrillState.drillStack = ['parent']
+    mockDrillState.drillError = 'boom'
+
+    let tree: any
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <HabitList
+          view="today"
+          filters={{}}
+          showCompleted
+          onCreatePress={vi.fn()}
+        />,
+      )
+    })
+
+    const flatList = tree.root.findByType('FlatList')
+    let emptyStateTree: any
+    TestRenderer.act(() => {
+      emptyStateTree = TestRenderer.create(flatList.props.ListEmptyComponent)
+    })
+
+    expect(flattenRenderedText(emptyStateTree.toJSON())).toContain('boom')
+
+    const retryButton = emptyStateTree.root.findAll(
+      (node: any) => node.props?.accessibilityLabel === 'common.retry',
+    )[0]
+    TestRenderer.act(() => {
+      retryButton.props.onPress()
+    })
+
+    expect(mockDrillState.refreshCurrent).toHaveBeenCalledTimes(1)
   })
 
   it('submits reordered positions on drag end', async () => {

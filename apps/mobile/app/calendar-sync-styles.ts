@@ -51,6 +51,16 @@ export function createStyles() {
       gap: 8,
       alignItems: 'flex-start',
     },
+    reconnectTitleRow: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 8,
+    },
+    reconnectTitle: {
+      fontFamily: 'Rubik_500Medium',
+      fontSize: 14,
+      lineHeight: 19.6,
+    },
     stateText: {
       fontFamily: 'Rubik_400Regular',
       fontSize: 14,
@@ -96,6 +106,29 @@ export function createStyles() {
       fontFamily: 'Roboto_400Regular',
       fontSize: 12,
       fontVariant: ['tabular-nums'],
+    },
+    eventMetaRow: {
+      flexDirection: 'row',
+      flexWrap: 'wrap',
+      alignItems: 'center',
+      gap: 8,
+    },
+    eventReminders: {
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 3,
+    },
+    eventDescription: {
+      fontFamily: 'Rubik_400Regular',
+      fontSize: 13,
+    },
+    dismissButton: {
+      width: 40,
+      height: 40,
+      borderRadius: 999,
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexShrink: 0,
     },
     quietAction: {
       flexDirection: 'row',
@@ -154,16 +187,10 @@ export function createStyles() {
       fontFamily: 'Rubik_400Regular',
       fontSize: 12,
     },
-    progressTrack: {
-      width: 200,
-      height: 8,
-      borderRadius: 999,
-      overflow: 'hidden',
-    },
-    progressFill: {
-      width: '60%',
-      height: '100%',
-      borderRadius: 999,
+    errorActions: {
+      flexDirection: 'row',
+      gap: 12,
+      marginTop: 6,
     },
   })
 }

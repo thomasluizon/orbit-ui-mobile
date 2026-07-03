@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { View, Text, TouchableOpacity } from "react-native";
+import { View, Text, Pressable } from "react-native";
 import { X, Plus, Bell } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import { HABIT_REMINDER_PRESETS } from "@orbit/shared/utils";
@@ -85,52 +85,60 @@ export function ReminderSection({
                 <Text style={sectionStyles.chipText}>
                   {reminderLabel(time)}
                 </Text>
-                <TouchableOpacity
+                <Pressable
                   disabled={reminderTimes.length <= 1}
-                  style={
-                    reminderTimes.length <= 1 ? { opacity: 0.3 } : undefined
-                  }
+                  style={({ pressed }) => [
+                    reminderTimes.length <= 1 && { opacity: 0.45 },
+                    pressed && { transform: [{ scale: 0.96 }] },
+                  ]}
                   hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
                   accessibilityRole="button"
                   accessibilityLabel={t("habits.form.removeReminder")}
                   onPress={() => removeReminder(time)}
-                  activeOpacity={0.7}
                 >
                   <X size={13} color={tokens.primary} strokeWidth={2.2} />
-                </TouchableOpacity>
+                </Pressable>
               </View>
             ))}
           </View>
 
-          <TouchableOpacity
-            style={sectionStyles.addButton}
+          <Pressable
+            style={({ pressed }) => [
+              sectionStyles.addButton,
+              pressed && { transform: [{ scale: 0.96 }] },
+            ]}
+            hitSlop={{ top: 4, bottom: 4 }}
             accessibilityRole="button"
             onPress={() => {
               setShowAddReminder(!showAddReminder);
               setShowCustomInput(false);
             }}
-            activeOpacity={0.7}
           >
             <Plus size={14} color={tokens.fg2} strokeWidth={2} />
             <Text style={sectionStyles.addButtonText}>
               {t("habits.form.reminderAdd")}
             </Text>
-          </TouchableOpacity>
+          </Pressable>
 
           {showAddReminder && (
             <View style={sectionStyles.dropdown}>
               {availablePresets.map((preset) => (
-                <TouchableOpacity
+                <Pressable
                   key={preset.value}
-                  style={sectionStyles.dropdownItem}
+                  style={({ pressed }) => [
+                    sectionStyles.dropdownItem,
+                    pressed && {
+                      backgroundColor: tokens.bgElev,
+                      transform: [{ scale: 0.98 }],
+                    },
+                  ]}
                   accessibilityRole="button"
                   onPress={() => addPreset(preset.value)}
-                  activeOpacity={0.7}
                 >
                   <Text style={sectionStyles.dropdownItemText}>
                     {t(preset.key)}
                   </Text>
-                </TouchableOpacity>
+                </Pressable>
               ))}
               {showCustomInput && (
                 <View style={sectionStyles.customRow}>
@@ -144,15 +152,16 @@ export function ReminderSection({
                   />
                   <View style={sectionStyles.unitRow}>
                     {(["min", "hours", "days"] as const).map((unit) => (
-                      <TouchableOpacity
+                      <Pressable
                         key={unit}
-                        style={[
+                        style={({ pressed }) => [
                           sectionStyles.unitButton,
                           customUnit === unit && sectionStyles.unitButtonActive,
+                          pressed && { transform: [{ scale: 0.96 }] },
                         ]}
+                        hitSlop={{ top: 6, bottom: 6 }}
                         accessibilityRole="button"
                         onPress={() => setCustomUnit(unit)}
-                        activeOpacity={0.7}
                       >
                         <Text
                           style={[
@@ -165,30 +174,38 @@ export function ReminderSection({
                             `habits.form.reminderUnit${unit.charAt(0).toUpperCase() + unit.slice(1)}` as "habits.form.reminderUnitMin",
                           )}
                         </Text>
-                      </TouchableOpacity>
+                      </Pressable>
                     ))}
                   </View>
-                  <TouchableOpacity
-                    style={sectionStyles.customAddButton}
+                  <Pressable
+                    style={({ pressed }) => [
+                      sectionStyles.customAddButton,
+                      pressed && { transform: [{ scale: 0.96 }] },
+                    ]}
+                    hitSlop={4}
                     accessibilityRole="button"
                     accessibilityLabel={t("common.add")}
                     onPress={addCustomReminder}
-                    activeOpacity={0.7}
                   >
                     <Plus size={16} color={tokens.fgOnPrimary} strokeWidth={2.2} />
-                  </TouchableOpacity>
+                  </Pressable>
                 </View>
               )}
-              <TouchableOpacity
-                style={sectionStyles.dropdownItem}
+              <Pressable
+                style={({ pressed }) => [
+                  sectionStyles.dropdownItem,
+                  pressed && {
+                    backgroundColor: tokens.bgElev,
+                    transform: [{ scale: 0.98 }],
+                  },
+                ]}
                 accessibilityRole="button"
                 onPress={() => setShowCustomInput(!showCustomInput)}
-                activeOpacity={0.7}
               >
                 <Text style={sectionStyles.dropdownItemTextAccent}>
                   {t("habits.form.reminderCustom")}
                 </Text>
-              </TouchableOpacity>
+              </Pressable>
             </View>
           )}
         </View>

@@ -44,6 +44,19 @@ describe('PillButton (mobile)', () => {
     expect(button.props.accessibilityState).toEqual({ disabled: true, busy: false })
   })
 
+  it('no-ops presses and shows a spinner while busy', () => {
+    const onPress = vi.fn()
+    const tree = renderPill(
+      <PillButton onPress={onPress} busy>
+        Saving
+      </PillButton>,
+    )
+    const button = tree.root.findByType('Pressable')
+    expect(button.props.accessibilityState).toEqual({ disabled: false, busy: true })
+    expect(button.props.onPress).toBeUndefined()
+    expect(tree.root.findAllByType('ActivityIndicator')).toHaveLength(1)
+  })
+
   it('renders white and ghost variants with a leading node', () => {
     const tree = renderPill(
       <>

@@ -50,11 +50,7 @@ describe('TodayAISummary insight chip (web)', () => {
     expect(
       screen.getByText('A short walk could lift the afternoon.'),
     ).toBeInTheDocument()
-    expect(
-      screen.getByLabelText(
-        'summary.insightLabel: A short walk could lift the afternoon.',
-      ),
-    ).toBeInTheDocument()
+    expect(screen.getByText(/^summary\.insightLabel:/)).toBeInTheDocument()
   })
 
   it('does not render the insight pill when there is no insight', () => {
@@ -72,7 +68,7 @@ describe('TodayAISummary insight chip (web)', () => {
     expect(
       screen.getByText('You completed 3 of 4 habits today.'),
     ).toBeInTheDocument()
-    expect(screen.queryByLabelText(/^summary\.insightLabel:/)).toBeNull()
+    expect(screen.queryByText(/^summary\.insightLabel:/)).toBeNull()
   })
 
   it('does not render the insight pill for free users even when an insight is present', () => {
@@ -90,6 +86,6 @@ describe('TodayAISummary insight chip (web)', () => {
     render(<TodayAISummary date="2026-04-07" />)
 
     expect(screen.queryByText('should not show')).toBeNull()
-    expect(screen.queryByLabelText(/^summary\.insightLabel:/)).toBeNull()
+    expect(screen.queryByText(/^summary\.insightLabel:/)).toBeNull()
   })
 })

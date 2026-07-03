@@ -78,7 +78,7 @@ describe('LevelUpOverlay', () => {
     )
     expect(onClear).not.toHaveBeenCalled()
     act(() => {
-      vi.advanceTimersByTime(3400)
+      vi.advanceTimersByTime(6300)
     })
     expect(onClear).toHaveBeenCalled()
   })

@@ -133,22 +133,27 @@ export function OnboardingWelcome() {
                 <button
                   type="button"
                   key={option.value}
-                  className="appearance-none border-0 cursor-pointer"
-                  style={{
-                    width: 28,
-                    height: 28,
-                    borderRadius: 999,
-                    background: option.color,
-                    boxShadow: isActive
-                      ? 'inset 0 0 0 2px var(--bg), 0 0 0 2px var(--fg-1)'
-                      : 'inset 0 0 0 1px var(--hairline-strong)',
-                  }}
+                  className="inline-flex items-center justify-center appearance-none border-0 bg-transparent cursor-pointer"
+                  style={{ width: 44, height: 44 }}
                   aria-label={t(
                     `preferences.color${option.value.charAt(0).toUpperCase() + option.value.slice(1)}` as Parameters<typeof t>[0],
                   )}
                   aria-pressed={isActive}
                   onClick={() => handleSchemeSelect(option.value)}
-                />
+                >
+                  <span
+                    aria-hidden="true"
+                    style={{
+                      width: 28,
+                      height: 28,
+                      borderRadius: 999,
+                      background: option.color,
+                      boxShadow: isActive
+                        ? 'inset 0 0 0 2px var(--bg), 0 0 0 2px var(--fg-1)'
+                        : 'inset 0 0 0 1px var(--hairline-strong)',
+                    }}
+                  />
+                </button>
               )
             })}
           </div>

@@ -16,12 +16,12 @@ export function createStyles(tokens: AppTokens) {
       justifyContent: 'center',
     },
     bellPressed: {
-      transform: [{ scale: 0.92 }],
+      transform: [{ scale: 0.96 }],
     },
     bellUnreadDot: {
       position: 'absolute',
-      top: 5,
-      right: 5,
+      top: 7,
+      right: 7,
       width: 8,
       height: 8,
       borderRadius: 999,
@@ -57,6 +57,9 @@ export function createStyles(tokens: AppTokens) {
     notifUnread: {
       backgroundColor: tintFromPrimary(tokens, 0.06),
     },
+    notifRowPressed: {
+      backgroundColor: tokens.bgElev,
+    },
     notifGlyphCircle: {
       width: 42,
       height: 42,
@@ -84,9 +87,11 @@ export function createStyles(tokens: AppTokens) {
       color: tokens.fg1,
     },
     notifTime: {
-      fontFamily: 'Rubik_400Regular',
+      fontFamily: 'Roboto_400Regular',
       fontSize: 12,
       color: tokens.fg3,
+      letterSpacing: 0.24,
+      fontVariant: ['tabular-nums'],
       flexShrink: 0,
     },
     notifBody: {
@@ -105,19 +110,41 @@ export function createStyles(tokens: AppTokens) {
       justifyContent: 'center',
     },
     deleteBtnPressed: {
-      transform: [{ scale: 0.92 }],
+      transform: [{ scale: 0.96 }],
       backgroundColor: tokens.bgElev2,
     },
     emptyContainer: {
       alignItems: 'center',
       justifyContent: 'center',
       paddingVertical: 40,
-      gap: 8,
+      gap: 10,
     },
     emptyText: {
       fontFamily: 'Rubik_400Regular',
       fontSize: 14,
       color: tokens.fg3,
+    },
+    loadingState: {
+      paddingHorizontal: 20,
+      paddingVertical: 16,
+      gap: 12,
+    },
+    retryChip: {
+      borderRadius: 999,
+      borderWidth: 1,
+      borderColor: tokens.hairline,
+      backgroundColor: tokens.bgElev,
+      paddingVertical: 9,
+      paddingHorizontal: 16,
+    },
+    retryChipPressed: {
+      transform: [{ scale: 0.96 }],
+      backgroundColor: tokens.bgElev2,
+    },
+    retryChipLabel: {
+      fontFamily: 'Rubik_500Medium',
+      fontSize: 13,
+      color: tokens.fg2,
     },
     listScroll: {
       flex: 1,

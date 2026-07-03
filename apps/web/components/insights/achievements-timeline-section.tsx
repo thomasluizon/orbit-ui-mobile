@@ -8,10 +8,13 @@ import { InsightsSection, toSectionStatus } from './insights-section'
 const MAX_TIMELINE_ITEMS = 8
 
 /** Lifetime achievement-progress ring plus the most recently earned badges. */
-export function AchievementsTimelineSection({ divider }: Readonly<{ divider?: boolean }>) {
+export function AchievementsTimelineSection({
+  divider,
+  className,
+}: Readonly<{ divider?: boolean; className?: string }>) {
   const t = useTranslations()
   const locale = useLocale()
-  const { profile, earnedAchievements, isLoading, isError } = useGamificationProfile()
+  const { profile, earnedAchievements, isLoading, isError, refetch } = useGamificationProfile()
 
   const recent = [...earnedAchievements]
     .sort((a, b) => (b.earnedAtUtc ?? '').localeCompare(a.earnedAtUtc ?? ''))
@@ -29,7 +32,9 @@ export function AchievementsTimelineSection({ divider }: Readonly<{ divider?: bo
       title={title}
       description={t('insights.sections.achievementsTimelineDesc')}
       divider={divider}
+      className={className}
       status={toSectionStatus({ isLoading, isError, isEmpty: recent.length === 0 })}
+      onRetry={() => void refetch()}
     >
       <div className="flex items-start gap-6">
         {profile ? (

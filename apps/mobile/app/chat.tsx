@@ -7,6 +7,7 @@ import {
   Platform,
 } from "react-native";
 import { SafeAreaView, useSafeAreaInsets } from "react-native-safe-area-context";
+import Animated, { FadeOut, ReduceMotion } from "react-native-reanimated";
 import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import type { ChatMessage } from "@orbit/shared/types";
@@ -89,6 +90,7 @@ export default function ChatScreen() {
     verifyStepUpForBubble,
   } = useChatComposer({ isOnline, offlineTitle });
 
+  const [initialMessageIds] = useState(() => new Set(messages.map((message) => message.id)));
   const [keyboardInset, setKeyboardInset] = useState(0);
   const [selectedHabitId, setSelectedHabitId] = useState<string | null>(null);
   const [selectedGoalId, setSelectedGoalId] = useState<string | null>(null);
@@ -157,6 +159,7 @@ export default function ChatScreen() {
     ({ item }: { item: ChatMessage }) => (
       <MessageBubble
         message={item}
+        animateEntry={!initialMessageIds.has(item.id)}
         onBreakdownConfirmed={handleBreakdownConfirmed}
         onActionChipClick={handleActionChipClick}
         onUpgradeClick={() => router.push("/upgrade")}
@@ -169,6 +172,7 @@ export default function ChatScreen() {
       confirmAndExecutePendingOperation,
       handleActionChipClick,
       handleBreakdownConfirmed,
+      initialMessageIds,
       prepareStepUpForBubble,
       router,
       verifyStepUpForBubble,
@@ -179,7 +183,15 @@ export default function ChatScreen() {
 
   return (
     <SafeAreaView style={[styles.safeArea, { backgroundColor: tokens.bg }]} edges={["top"]}>
-      {showSuggestions ? <GradientTop height={420} /> : null}
+      {showSuggestions ? (
+        <Animated.View
+          pointerEvents="none"
+          style={styles.gradientBackdrop}
+          exiting={FadeOut.duration(280).reduceMotion(ReduceMotion.System)}
+        >
+          <GradientTop height={300} />
+        </Animated.View>
+      ) : null}
       <KeyboardAvoidingView
         style={styles.keyboardAvoid}
         behavior={Platform.OS === "ios" ? "padding" : undefined}
@@ -196,7 +208,6 @@ export default function ChatScreen() {
         {showSuggestions ? (
           <ChatEmptyState
             ref={chatAreaRef}
-            tokens={tokens}
             styles={styles}
             onSelectSuggestion={(suggestion) => {
               void sendMessage(suggestion);

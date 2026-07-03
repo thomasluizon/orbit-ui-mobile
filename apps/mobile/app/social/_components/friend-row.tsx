@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Alert, Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
+import { Pressable, StyleSheet, Text, TextInput, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { MoreVertical } from 'lucide-react-native'
 import {
@@ -9,12 +9,13 @@ import {
 } from '@orbit/shared/types/social'
 import { getSocialErrorKey } from '@orbit/shared/utils'
 import { BottomSheetModal } from '@/components/bottom-sheet-modal'
+import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { PillButton } from '@/components/ui/pill-button'
 import { SettingsGroup, SettingsGroupRow } from '@/components/ui/settings-group'
 import { UserAvatar } from '@/components/ui/user-avatar'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useBlockUser, useRemoveFriend, useReportUser } from '@/hooks/use-friends'
-import { createTokensV2 } from '@/lib/theme'
+import { createTokensV2, tintFromPrimary } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { FriendProfileSheet } from './friend-profile-sheet'
 import type { CheerTarget } from './cheer-composer'
@@ -64,12 +65,13 @@ function ReportSheet({
                 accessibilityRole="button"
                 accessibilityState={{ selected: active }}
                 onPress={() => setReason(option)}
-                style={[
+                style={({ pressed }) => [
                   styles.reasonChip,
                   {
-                    backgroundColor: active ? tokens.primarySoft : tokens.bgElev,
+                    backgroundColor: active ? tintFromPrimary(tokens, 0.12) : tokens.bgElev,
                     borderColor: active ? tokens.primary : tokens.hairline,
                   },
+                  pressed ? styles.reasonChipPressed : null,
                 ]}
               >
                 <Text style={[styles.reasonText, { color: active ? tokens.primary : tokens.fg2 }]}>
@@ -109,6 +111,8 @@ export function FriendRow({ friend, onCheer }: Readonly<FriendRowProps>) {
   const reportUser = useReportUser()
   const [actionsOpen, setActionsOpen] = useState(false)
   const [profileOpen, setProfileOpen] = useState(false)
+  const [confirmRemove, setConfirmRemove] = useState(false)
+  const [confirmBlock, setConfirmBlock] = useState(false)
   const [reportOpen, setReportOpen] = useState(false)
 
   async function runAction(operation: () => Promise<unknown>, successKey?: string) {
@@ -118,42 +122,6 @@ export function FriendRow({ friend, onCheer }: Readonly<FriendRowProps>) {
     } catch (error: unknown) {
       showError(t(getSocialErrorKey(error)))
     }
-  }
-
-  function confirmRemove() {
-    Alert.alert(
-      t('social.friends.removeConfirmTitle'),
-      t('social.friends.removeConfirmBody', { name: friend.displayName }),
-      [
-        { text: t('social.friends.cancel'), style: 'cancel' },
-        {
-          text: t('social.friends.remove'),
-          style: 'destructive',
-          onPress: () => {
-            setActionsOpen(false)
-            void runAction(() => removeFriend.mutateAsync(friend.userId))
-          },
-        },
-      ],
-    )
-  }
-
-  function confirmBlock() {
-    Alert.alert(
-      t('social.block.confirmTitle', { name: friend.displayName }),
-      t('social.block.confirmBody'),
-      [
-        { text: t('social.friends.cancel'), style: 'cancel' },
-        {
-          text: t('social.friends.block'),
-          style: 'destructive',
-          onPress: () => {
-            setActionsOpen(false)
-            void runAction(() => blockUser.mutateAsync(friend.userId), 'social.block.success')
-          },
-        },
-      ],
-    )
   }
 
   return (
@@ -179,15 +147,17 @@ export function FriendRow({ friend, onCheer }: Readonly<FriendRowProps>) {
           accessibilityRole="button"
           accessibilityLabel={t('social.friends.cheer')}
           onPress={() => onCheer({ recipientId: friend.userId, displayName: friend.displayName })}
-          style={styles.cheer}
+          hitSlop={{ top: 7, bottom: 7 }}
+          style={({ pressed }) => [styles.cheer, pressed ? styles.cheerPressed : null]}
         >
           <Text style={styles.cheerText}>{t('social.friends.cheer')}</Text>
         </Pressable>
         <Pressable
           accessibilityRole="button"
-          accessibilityLabel={friend.displayName}
+          accessibilityLabel={t('social.friends.moreActions')}
           onPress={() => setActionsOpen(true)}
-          style={styles.more}
+          hitSlop={4}
+          style={({ pressed }) => [styles.more, pressed ? styles.morePressed : null]}
         >
           <MoreVertical size={20} color={tokens.fg3} strokeWidth={1.8} />
         </Pressable>
@@ -209,8 +179,22 @@ export function FriendRow({ friend, onCheer }: Readonly<FriendRowProps>) {
                 setProfileOpen(true)
               }}
             />
-            <SettingsGroupRow label={t('social.friends.remove')} accessory="none" onPress={confirmRemove} />
-            <SettingsGroupRow label={t('social.friends.block')} accessory="none" onPress={confirmBlock} />
+            <SettingsGroupRow
+              label={t('social.friends.remove')}
+              accessory="none"
+              onPress={() => {
+                setActionsOpen(false)
+                setConfirmRemove(true)
+              }}
+            />
+            <SettingsGroupRow
+              label={t('social.friends.block')}
+              accessory="none"
+              onPress={() => {
+                setActionsOpen(false)
+                setConfirmBlock(true)
+              }}
+            />
             <SettingsGroupRow
               label={t('social.friends.report')}
               accessory="none"
@@ -222,6 +206,27 @@ export function FriendRow({ friend, onCheer }: Readonly<FriendRowProps>) {
           </SettingsGroup>
         </View>
       </BottomSheetModal>
+
+      <ConfirmDialog
+        open={confirmRemove}
+        onOpenChange={setConfirmRemove}
+        title={t('social.friends.removeConfirmTitle')}
+        description={t('social.friends.removeConfirmBody', { name: friend.displayName })}
+        confirmLabel={t('social.friends.remove')}
+        onConfirm={() => void runAction(() => removeFriend.mutateAsync(friend.userId))}
+        variant="danger"
+      />
+      <ConfirmDialog
+        open={confirmBlock}
+        onOpenChange={setConfirmBlock}
+        title={t('social.block.confirmTitle', { name: friend.displayName })}
+        description={t('social.block.confirmBody')}
+        confirmLabel={t('social.friends.block')}
+        onConfirm={() =>
+          void runAction(() => blockUser.mutateAsync(friend.userId), 'social.block.success')
+        }
+        variant="danger"
+      />
 
       <ReportSheet
         open={reportOpen}
@@ -277,15 +282,18 @@ function createStyles(tokens: AppTokens) {
       paddingHorizontal: 14,
       paddingVertical: 7,
       borderRadius: 999,
-      backgroundColor: tokens.primarySoft,
+      backgroundColor: tintFromPrimary(tokens, 0.12),
     },
+    cheerPressed: { transform: [{ scale: 0.96 }] },
     cheerText: { fontFamily: 'Rubik_500Medium', fontSize: 14, color: tokens.primary },
     more: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
+    morePressed: { transform: [{ scale: 0.96 }] },
     actionsSheet: { paddingHorizontal: 20, paddingBottom: 24 },
     sheetBody: { paddingHorizontal: 22, paddingTop: 4, paddingBottom: 24, gap: 12 },
     fieldLabel: { fontFamily: 'Rubik_500Medium', fontSize: 14, color: tokens.fg2 },
     reasonRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 8 },
     reasonChip: { paddingHorizontal: 14, paddingVertical: 8, borderRadius: 999, borderWidth: 1 },
+    reasonChipPressed: { transform: [{ scale: 0.96 }] },
     reasonText: { fontFamily: 'Rubik_400Regular', fontSize: 14 },
     details: {
       minHeight: 80,

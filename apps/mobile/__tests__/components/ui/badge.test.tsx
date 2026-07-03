@@ -19,7 +19,7 @@ describe('Badge (mobile)', () => {
     expect(texts).toContain('premium')
   })
 
-  it.each<BadgeTone>(['violet', 'soft', 'outline', 'amber'])('renders the %s tone', (tone) => {
+  it.each<BadgeTone>(['violet', 'soft', 'outline', 'amber', 'bad'])('renders the %s tone', (tone) => {
     const tree = renderBadge(tone)
     const texts = tree.root.findAllByType('Text').map((node: any) => node.props.children)
     expect(texts).toContain(tone)

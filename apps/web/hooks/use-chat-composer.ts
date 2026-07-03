@@ -6,6 +6,7 @@ import {
   useCallback,
   useEffect,
   useMemo,
+  useSyncExternalStore,
   type KeyboardEvent,
 } from 'react'
 import { useQueryClient } from '@tanstack/react-query'
@@ -58,6 +59,23 @@ interface StreamSendFailure {
 
 function isAbortError(error: unknown): boolean {
   return error instanceof DOMException && error.name === 'AbortError'
+}
+
+function subscribeToNetworkStatus(onStoreChange: () => void): () => void {
+  globalThis.addEventListener('online', onStoreChange)
+  globalThis.addEventListener('offline', onStoreChange)
+  return () => {
+    globalThis.removeEventListener('online', onStoreChange)
+    globalThis.removeEventListener('offline', onStoreChange)
+  }
+}
+
+function readNetworkStatus(): boolean {
+  return globalThis.navigator.onLine
+}
+
+function readServerNetworkStatus(): boolean {
+  return true
 }
 
 async function* streamTextChunks(
@@ -146,6 +164,12 @@ export function useChatComposer() {
     }
   }
 
+  const isOnline = useSyncExternalStore(
+    subscribeToNetworkStatus,
+    readNetworkStatus,
+    readServerNetworkStatus,
+  )
+
   const hasProAccess = profile?.hasProAccess ?? false
   const aiMessagesUsed = profile?.aiMessagesUsed ?? 0
   const aiMessagesLimit = profile?.aiMessagesLimit ?? 20
@@ -153,7 +177,8 @@ export function useChatComposer() {
   const canSend =
     (input.trim().length > 0 || selectedImage !== null || selectedTextFile !== null) &&
     !isTyping &&
-    !atMessageLimit
+    !atMessageLimit &&
+    isOnline
   const showSuggestions = messages.length === 0 && !isTyping
 
   const starterChips = useMemo(
@@ -316,8 +341,20 @@ export function useChatComposer() {
   useEffect(() => {
     const textarea = textareaRef.current
     if (!textarea) return
-    textarea.style.height = 'auto'
-    textarea.style.height = `${Math.min(textarea.scrollHeight, 120)}px`
+    const fit = () => {
+      textarea.style.height = 'auto'
+      textarea.style.height = `${Math.min(textarea.scrollHeight, 120)}px`
+    }
+    fit()
+    let lastWidth = textarea.clientWidth
+    const observer = new ResizeObserver((entries) => {
+      const width = entries[0]?.contentRect.width ?? lastWidth
+      if (Math.abs(width - lastWidth) < 0.5) return
+      lastWidth = width
+      fit()
+    })
+    observer.observe(textarea)
+    return () => observer.disconnect()
   }, [input])
 
 
@@ -568,6 +605,7 @@ export function useChatComposer() {
     aiMessagesLimit,
     atMessageLimit,
     canSend,
+    isOnline,
     showSuggestions,
     openFilePicker,
     handleFileSelect,

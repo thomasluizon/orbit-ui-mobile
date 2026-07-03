@@ -20,6 +20,7 @@ interface HabitListDrillContentProps {
     options?: { isDrillCard?: boolean; isDraggingList?: boolean },
   ) => React.ReactNode
   onAddSubHabit: (parentId: string) => void
+  onRetry: () => void
 }
 
 /** Drill-panel body: the sub-habit list (or error/empty prompt) shown when the
@@ -34,6 +35,7 @@ export function HabitListDrillContent({
   getDrillChildren,
   renderHabitCard,
   onAddSubHabit,
+  onRetry,
 }: Readonly<HabitListDrillContentProps>) {
   if (drillLoading) {
     return <HabitListSkeleton />
@@ -48,18 +50,21 @@ export function HabitListDrillContent({
             margin: 0,
             fontFamily: 'var(--font-sans)',
             fontSize: 14,
-            color: 'var(--status-bad)',
+            color: 'var(--status-bad-text)',
           }}
         >
           {drillError}
         </p>
+        <PillButton variant="ghost" className="mt-[18px]" onClick={onRetry}>
+          {t('common.retry')}
+        </PillButton>
       </div>
     )
   }
 
   if (drillChildren.length > 0) {
     return (
-      <div>
+      <div className="stagger-enter">
         {drillChildren.map((child) =>
           renderHabitCard(
             child,

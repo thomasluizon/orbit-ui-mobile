@@ -65,7 +65,7 @@ export function PricingSection({
       </header>
 
       {isLoadingPlans ? (
-        <div className="grid grid-cols-1 lg:grid-cols-3" style={{ gap: 16 }}>
+        <div className="grid grid-cols-1" style={{ gap: 16 }}>
           {[1, 2, 3].map((i) => (
             <div key={i} className="rounded-[18px]" style={{ padding: '22px', ...cardSurface }}>
               <div className="skeleton-pulse h-4 w-20 rounded" style={{ background: 'var(--bg-elev-2)' }} />
@@ -82,7 +82,7 @@ export function PricingSection({
           <p style={{ margin: '10px 0 0', fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--fg-2)' }}>
             {t('upgrade.plans.error')}
           </p>
-          <button type="button" className="chip" style={{ marginTop: 10 }} onClick={onRetryPlans}>
+          <button type="button" className="chip touch-target" style={{ marginTop: 10 }} onClick={onRetryPlans}>
             {t('upgrade.plans.retry')}
           </button>
         </div>
@@ -125,10 +125,10 @@ export function PricingSection({
               {t('upgrade.plans.renewalNote')}
             </p>
           </div>
+
+          <PlanComparisonCards t={t} />
         </>
       ) : null}
-
-      <PlanComparisonCards t={t} />
     </>
   )
 }

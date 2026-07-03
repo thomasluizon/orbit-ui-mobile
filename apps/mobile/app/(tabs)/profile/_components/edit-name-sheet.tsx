@@ -84,7 +84,6 @@ export function EditNameSheet({ open, onClose }: Readonly<EditNameSheetProps>) {
       open={open}
       onClose={onClose}
       title={t('profile.editName.title')}
-      isDirty={name !== (profile?.name ?? '')}
       snapPoints={['55%']}
     >
       <View style={styles.body}>
@@ -106,7 +105,7 @@ export function EditNameSheet({ open, onClose }: Readonly<EditNameSheetProps>) {
           <Text
             accessibilityRole="alert"
             testID="edit-name-error"
-            style={[styles.error, { color: tokens.statusBad }]}
+            style={[styles.error, { color: tokens.statusBadText }]}
           >
             {error}
           </Text>
@@ -120,15 +119,6 @@ export function EditNameSheet({ open, onClose }: Readonly<EditNameSheetProps>) {
             accessibilityLabel={t('common.save')}
           >
             {t('common.save')}
-          </PillButton>
-          <PillButton
-            variant="ghost"
-            fullWidth
-            disabled={mutation.isPending}
-            onPress={onClose}
-            accessibilityLabel={t('common.cancel')}
-          >
-            {t('common.cancel')}
           </PillButton>
         </View>
       </View>

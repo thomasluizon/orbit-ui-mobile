@@ -6,6 +6,12 @@ import {
   type StyleProp,
   type ViewStyle,
 } from 'react-native'
+import Animated, {
+  Easing,
+  ReduceMotion,
+  useAnimatedStyle,
+  withTiming,
+} from 'react-native-reanimated'
 import { useTranslation } from 'react-i18next'
 import { ChevronDown } from 'lucide-react-native'
 import {
@@ -17,7 +23,7 @@ import {
 } from '@orbit/shared/utils'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { useTimeFormat } from '@/hooks/use-time-format'
-import { createTokensV2 } from '@/lib/theme'
+import { createTokensV2, easings } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { AnchoredMenu, useAnchoredMenu } from '@/components/ui/anchored-menu'
 import { SelectCheck } from '@/components/ui/select-check'
@@ -198,6 +204,18 @@ export function HabitRow({
     return parts.join(', ')
   }, [habit.title, dotState, linkedGoal, showStreak, streak, t])
 
+  const expandChevronStyle = useAnimatedStyle(() => ({
+    transform: [
+      {
+        rotate: withTiming(isExpanded ? '0deg' : '-90deg', {
+          duration: 160,
+          easing: Easing.bezier(...easings.smooth),
+          reduceMotion: ReduceMotion.System,
+        }),
+      },
+    ],
+  }))
+
   const indentPx = depth * 16
 
   return (
@@ -230,23 +248,22 @@ export function HabitRow({
           <SelectCheck
             selected={isSelected}
             onPress={actions.onToggleSelection}
-            accessibilityLabel={t('common.select')}
+            accessibilityLabel={habit.title}
           />
         ) : null}
 
         {hasChildren && !isSelectMode ? (
           <Pressable
             onPress={actions.onToggleExpand}
-            hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+            hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
             accessibilityRole="button"
             accessibilityLabel={
               isExpanded ? t('common.collapse') : t('common.expand')
             }
-            style={{
-              transform: [{ rotate: isExpanded ? '0deg' : '-90deg' }],
-            }}
           >
-            <ChevronDown size={14} color={tokens.fg3} strokeWidth={1.8} />
+            <Animated.View style={expandChevronStyle}>
+              <ChevronDown size={14} color={tokens.fg3} strokeWidth={1.8} />
+            </Animated.View>
           </Pressable>
         ) : null}
 
@@ -257,7 +274,7 @@ export function HabitRow({
               width: wellSize,
               height: wellSize,
               borderRadius: wellRadius,
-              backgroundColor: tokens.bgField,
+              backgroundColor: tokens.bgWell,
             },
           ]}
         >

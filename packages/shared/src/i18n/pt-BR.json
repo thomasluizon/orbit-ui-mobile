@@ -6,7 +6,7 @@
   "settings": {
     "notifications": {
       "title": "Notificações push",
-      "allowed": "Notificações push",
+      "allowed": "Permitir notificações",
       "description": "Receba lembretes e novidades mesmo com o app fechado",
       "enabled": "Notificações ativadas",
       "disabled": "Notificações desativadas",
@@ -28,7 +28,7 @@
     },
     "weekStartDay": {
       "title": "Semana começa em",
-      "description": "Escolha em que dia sua semana começa — vale para os calendários e seletores.",
+      "description": "Escolha em que dia sua semana começa. Vale para os calendários e seletores.",
       "monday": "Segunda-feira",
       "sunday": "Domingo"
     },
@@ -46,7 +46,7 @@
   },
   "notFoundPage": {
     "title": "Página não encontrada",
-    "description": "Esta página não existe ou mudou de lugar.",
+    "description": "Esta página saiu de órbita.",
     "home": "Voltar ao início"
   },
   "updatePrompt": {
@@ -62,11 +62,13 @@
     "bell": "Notificações",
     "bellWithCount": "{count} notificação não lida | {count} notificações não lidas",
     "empty": "Nenhuma notificação por aqui",
+    "loadError": "Não foi possível carregar as notificações",
     "markAllRead": "Marcar todas como lidas",
     "markAsRead": "Marcar como lida",
     "deleteAll": "Excluir todas",
     "deleteAllConfirmTitle": "Excluir todas as notificações?",
     "deleteAllConfirmDescription": "Isso remove todas as notificações da sua caixa de entrada.",
+    "delete": "Excluir",
     "deleteNotification": "Excluir notificação",
     "deleteUndo": "Desfazer",
     "deleteQueued": "A notificação será excluída",
@@ -99,6 +101,7 @@
     "back": "Voltar",
     "backToProfile": "Voltar ao perfil",
     "backToTop": "Voltar ao topo",
+    "goHome": "Ir ao início",
     "cancel": "Cancelar",
     "goBack": "Voltar",
     "later": "Talvez depois",
@@ -121,8 +124,10 @@
     "create": "Criar",
     "search": "Buscar...",
     "error": "Ocorreu um erro",
+    "somethingWentWrong": "Algo deu errado",
     "retry": "Tentar de novo",
     "selected": "{n} selecionado | {n} selecionados",
+    "selectedSuffix": "selecionado | selecionados",
     "selectAll": "Selecionar tudo",
     "deselectAll": "Desmarcar tudo",
     "clear": "Limpar",
@@ -130,6 +135,8 @@
     "yes": "Sim",
     "done": "Concluir",
     "no": "Não",
+    "toggleOn": "Ligado",
+    "toggleOff": "Desligado",
     "all": "Todos",
     "select": "Selecionar",
     "previous": "Anterior",
@@ -139,6 +146,7 @@
     "codePlaceholder": "123456",
     "upgrade": "Fazer upgrade",
     "proBadge": "Pro",
+    "locked": "Bloqueado",
     "required": "é obrigatório",
     "selectDate": "Selecionar data",
     "selectedDate": "Data selecionada: {date}",
@@ -173,15 +181,20 @@
     "create": "Criar",
     "today": "Hoje",
     "goals": "Metas",
-    "insights": "Análises"
+    "insights": "Análises",
+    "explore": "Explorar",
+    "mainNavigation": "Navegação principal",
+    "social": "Social"
   },
   "shell": {
     "collapseSidebar": "Recolher menu",
     "expandSidebar": "Expandir menu",
     "openRail": "Abrir painel",
-    "closeRail": "Fechar painel"
+    "closeRail": "Fechar painel",
+    "openPalette": "Abrir paleta de comandos"
   },
   "command": {
+    "title": "Comandos",
     "placeholder": "Digite um comando ou busque...",
     "empty": "Nenhum resultado encontrado",
     "logHabit": "Registrar um hábito",
@@ -192,7 +205,13 @@
       "create": "Criar",
       "actions": "Ações",
       "navigate": "Navegar",
-      "search": "Buscar hábitos e metas"
+      "search": "Hábitos"
+    },
+    "hints": {
+      "navigate": "Navegar",
+      "select": "Selecionar",
+      "back": "Voltar",
+      "close": "Fechar"
     }
   },
   "contextMenu": {
@@ -209,7 +228,9 @@
     "todayProgress": "Hoje",
     "allDone": "Tudo feito",
     "progressLabel": "{done} de {total} hábitos concluídos",
-    "remaining": "Restantes hoje"
+    "remaining": "Restantes hoje",
+    "empty": "Sem hábitos hoje",
+    "loadFailed": "Erro ao carregar o progresso"
   },
   "astraRail": {
     "open": "Abrir o Astra",
@@ -242,7 +263,7 @@
   },
   "auth": {
     "signIn": "Entrar",
-    "signInSubtitle": "Enviamos um código de acesso para o seu e-mail.",
+    "signInSubtitle": "Enviaremos um código de acesso para o seu e-mail.",
     "enterCode": "Digite o código",
     "email": "E-mail",
     "emailPlaceholder": "voce@exemplo.com",
@@ -319,6 +340,7 @@
     "sectionLabel": "Hábitos",
     "frequencyFilter": "Filtrar por frequência",
     "searchPlaceholder": "Buscar hábitos...",
+    "closeSearch": "Fechar busca",
     "showCompleted": "Mostrar concluídos",
     "collapseAll": "Recolher todos",
     "expandAll": "Expandir todos",
@@ -326,6 +348,7 @@
     "noDueToday": "Nenhum hábito para hoje",
     "noHabitsYet": "Nenhum hábito ainda. Crie o primeiro!",
     "reorderFailed": "Não foi possível salvar a nova ordem. Tente de novo.",
+    "loadError": "Não foi possível carregar seus hábitos.",
     "emptyGeneral": "Nenhum hábito geral ainda",
     "allDoneToday": "Tudo feito por hoje!",
     "allDoneHint": "Você concluiu todos os seus hábitos. Mandou muito bem!",
@@ -391,6 +414,8 @@
     "checklistCompleteTitle": "Checklist concluído!",
     "checklistCompleteMessage": "Você concluiu todos os itens de \"{name}\". Quer registrar este hábito?",
     "checklistCompleteConfirm": "Registrar",
+    "checklistClearTitle": "Limpar checklist?",
+    "checklistClearMessage": "Isso remove todos os itens do checklist deste hábito.",
     "bulkDeleteTitle": "Excluir hábitos",
     "bulkDeleteMessage": "Quer mesmo excluir {count} hábito? Não dá para desfazer. | Quer mesmo excluir {count} hábitos? Não dá para desfazer.",
     "bulkDeleteConfirm": "Excluir todos",
@@ -400,6 +425,11 @@
     "bulkSkipTitle": "Pular hábitos",
     "bulkSkipMessage": "Pular ou adiar {count} hábito selecionado? Os recorrentes vão para a próxima data; as tarefas únicas, para amanhã. | Pular ou adiar {count} hábitos selecionados? Os recorrentes vão para a próxima data; as tarefas únicas, para amanhã.",
     "bulkSkipConfirm": "Pular todos",
+    "bulkBar": {
+      "log": "Registrar selecionados",
+      "skip": "Pular selecionados",
+      "delete": "Excluir selecionados"
+    },
     "skipHabit": "Pular",
     "frequency": {
       "everyDay": "Todo dia",
@@ -519,6 +549,7 @@
       "generalBadHabit": "Hábitos gerais não podem ser marcados como maus hábitos",
       "subHabits": "Sub-hábitos",
       "subHabitPlaceholder": "Título do sub-hábito",
+      "subHabitInputLabel": "Sub-hábito {index}",
       "subHabitLimit": "Você pode adicionar até 20 sub-hábitos",
       "subHabitTitleRequired": "Dê um título ao sub-hábito",
       "subHabitTitleTooLong": "O título do sub-hábito pode ter no máximo 200 caracteres",
@@ -659,6 +690,8 @@
     "bestStreak": "Melhor sequência",
     "totalLogs": "Total de registros",
     "missedCount": "Perdidos",
+    "emptyMonth": "Nada registrado neste mês ainda. Seus dias vão aparecer aqui.",
+    "loadError": "Não foi possível carregar o calendário. Tente de novo.",
     "dayDetail": {
       "completionSummary": "{done} de {total} hábito concluído | {done} de {total} hábitos concluídos"
     },
@@ -676,7 +709,10 @@
       "allDay": "Dia inteiro",
       "now": "Agora",
       "pickRangeHint": "Escolha um dia inicial e final acima para definir seu intervalo.",
-      "rangeMaxDays": "Intervalo limitado a {max} dias."
+      "pickEndHint": "Agora escolha o dia final",
+      "rangeMaxDays": "Intervalo limitado a {max} dias.",
+      "empty": "Nada agendado",
+      "moreLabel": "mais {count}"
     },
     "status": {
       "completed": "Concluído",
@@ -699,6 +735,7 @@
     "importing": "Importando eventos...",
     "importDone": "Importação concluída!",
     "importedCount": "{count} evento importado como hábito | {count} eventos importados como hábitos",
+    "importPartialFailure": "{count} evento não pôde ser importado | {count} eventos não puderam ser importados",
     "goToHabits": "Ir para Hábitos",
     "errorTitle": "Algo deu errado",
     "fetchError": "Não foi possível buscar os eventos. Tente de novo.",
@@ -761,6 +798,10 @@
     "empty": "Ainda não há dados suficientes. Continue registrando hábitos para ver suas análises.",
     "loading": "Carregando análises...",
     "error": "Não foi possível carregar suas análises.",
+    "lockedTitle": "Desbloqueie as Análises",
+    "lockedDescription": "Assine o Pro para ver tendências e padrões dos seus hábitos.",
+    "trendUp": "Em alta",
+    "trendDown": "Em queda",
     "sections": {
       "completionTrends": "Tendências de conclusão",
       "multiHabitComparison": "Comparação de hábitos",
@@ -781,7 +822,21 @@
       "heatmapMore": "Mais",
       "achievementsOf": "de {total}",
       "selectGoal": "Selecione uma meta",
-      "noGoals": "Nenhuma meta para mostrar ainda"
+      "noGoals": "Nenhuma meta para mostrar ainda",
+      "goalProgressEmpty": "Nenhum progresso registrado para esta meta ainda.",
+      "averageCaption": "média",
+      "streakDaysShort": "{count}d"
+    }
+  },
+  "explore": {
+    "title": "Explorar",
+    "subtitle": "Tudo o que o Orbit pode fazer, em um só lugar.",
+    "tourHint": "Reveja o tour guiado de cada área",
+    "sections": {
+      "discover": "Descobrir",
+      "progress": "Seu progresso",
+      "integrations": "Integrações",
+      "more": "Mais"
     }
   },
   "chat": {
@@ -822,7 +877,7 @@
     "limitReachedError": "Você atingiu o limite mensal de mensagens de IA.",
     "aiError": "Desculpe, algo deu errado. Tente de novo.",
     "operationDone": "Pronto.",
-    "operationFailed": "Não funcionou — tente de novo.",
+    "operationFailed": "Não funcionou. Tente de novo.",
     "proGate": {
       "title": "Recurso Pro",
       "body": "Esta ação é do Orbit Pro. Faça upgrade para liberar."
@@ -900,7 +955,6 @@
       "account": "Conta",
       "preferences": "Preferências",
       "aiFeatures": "Recursos de IA",
-      "features": "Recursos",
       "aboutHelp": "Sobre e Ajuda",
       "advanced": "Avançado",
       "accountActions": "Ações da conta",
@@ -962,12 +1016,13 @@
         "topHabitsTitle": "Principais hábitos",
         "ctaTitle": "Comece sua própria sequência",
         "ctaBody": "Crie hábitos, mantenha sequências e suba de nível com o Orbit.",
-        "ctaButton": "Experimente o Orbit grátis"
+        "ctaButton": "Experimente o Orbit grátis",
+        "backToOrbit": "Ir para o Orbit"
       },
       "meta": {
         "title": "{name} no Orbit",
         "titleFallback": "Perfil público no Orbit",
-        "description": "Veja as sequências, o nível e as conquistas de {name} no Orbit — o app de hábitos que mantém você consistente."
+        "description": "Veja as sequências, o nível e as conquistas de {name} no Orbit, o app de hábitos que mantém você consistente."
       },
       "notFound": {
         "title": "Perfil não encontrado",
@@ -1001,7 +1056,7 @@
     },
     "proactiveAstra": {
       "title": "Check-ins proativos",
-      "description": "Deixe a Astra te procurar com um empurrãozinho personalizado quando você ficar para trás — mesmo que você esqueça de abrir o app."
+      "description": "Deixe a Astra te procurar com um empurrãozinho personalizado quando você ficar para trás, mesmo que você esqueça de abrir o app."
     },
     "facts": {
       "title": "O que a Astra sabe",
@@ -1022,6 +1077,8 @@
       "selectedCount": "{n} selecionado(s)",
       "deleteSelected": "Excluir ({n})",
       "deleteSelectedShort": "Excluir selecionados",
+      "bulkDeleteConfirmTitle": "Excluir os fatos selecionados?",
+      "bulkDeleteConfirmBody": "A Astra vai esquecer esses fatos. Isso não pode ser desfeito.",
       "count": "{n} / {max}",
       "lockedHint": "Faça upgrade para o Pro e deixe a Astra lembrar do que você conta no chat."
     },
@@ -1075,13 +1132,11 @@
     },
     "freshStart": {
       "button": "Recomeçar",
-      "title": "Recomeçar",
       "heading": "Recomeçar",
       "confirmHeading": "Tem certeza?",
       "willDelete": "O que será excluído",
       "willKeep": "O que continua",
       "description": "Comece do zero. Isso apaga todos os seus dados para sempre.",
-      "whatDeleted": "O que será excluído:",
       "deleteHabits": "Todos os hábitos, sub-hábitos e o histórico de conclusão",
       "deleteGoals": "Todas as metas e os registros de progresso",
       "deleteChat": "As conversas com a IA",
@@ -1090,7 +1145,6 @@
       "deleteNotifications": "Todas as notificações",
       "deleteChecklist": "Os modelos de checklist salvos",
       "deleteOnboarding": "O progresso da introdução (o fluxo de boas-vindas volta a aparecer)",
-      "whatPreserved": "O que continua:",
       "preserveAccount": "Sua conta (e-mail, nome, senha)",
       "preserveSubscription": "O status da assinatura Pro",
       "preservePreferences": "Tema, cor de destaque, idioma e fuso horário",
@@ -1136,14 +1190,16 @@
       "title": "Convidar amigos",
       "yourLink": "Seu link de indicação",
       "copy": "Copiar",
+      "copyLink": "Copiar link",
       "copied": "Copiado!",
-      "share": "Compartilhar com amigos",
+      "linkCopied": "Link copiado",
+      "share": "Compartilhar link",
       "completed": "Indicações concluídas",
       "pending": "Pendentes",
       "couponsEarned": "Cupons ganhos",
       "howItWorks": "Como funciona",
       "explanation": "Compartilhe seu link com os amigos. Quando eles entrarem no Orbit e começarem a usar o app, vocês dois ganham um cupom de {discount}% de desconto no Pro. Dá para indicar até 10 amigos!",
-      "disclaimer": "Cada indicação rende um cupom de {discount}% de desconto, de uso único. O cupom vale para um único ciclo de cobrança e não acumula — uma nova indicação substitui qualquer cupom que você não tenha usado. Se você já assina pela web, o desconto entra automaticamente na sua próxima fatura. Assinaturas do Google Play não podem ter desconto no meio do ciclo — nesse caso, o cupom fica guardado para a próxima compra ou troca de plano."
+      "disclaimer": "Cada indicação rende um cupom de {discount}% de desconto, de uso único. O cupom vale para um único ciclo de cobrança e não acumula. Uma nova indicação substitui qualquer cupom que você não tenha usado. Se você já assina pela web, o desconto entra automaticamente na sua próxima fatura. Assinaturas do Google Play não podem ter desconto no meio do ciclo. Nesse caso, o cupom fica guardado para a próxima compra ou troca de plano."
     },
     "share": {
       "title": "Vem pro Orbit comigo",
@@ -1154,10 +1210,10 @@
       "streakTitle": "Sequência de {count} dias!",
       "levelTitle": "Você chegou ao nível {level}!",
       "body": "Convide um amigo e vocês dois ganham um cupom de {discount}% de desconto no Pro.",
-      "cta": "Convidar um amigo",
+      "cta": "Convidar amigos",
       "later": "Agora não"
     },
-    "loginBanner": "Você foi convidado! Cadastre-se e ganhe um cupom de 10% de desconto no Pro"
+    "loginBanner": "Você foi convidado! 10% de desconto no Pro ao se cadastrar"
   },
   "shareCard": {
     "title": "Compartilhe seu progresso",
@@ -1166,7 +1222,7 @@
     "download": "Baixar",
     "scanToJoin": "Escaneie para entrar no Orbit",
     "shareTitle": "Meu progresso no Orbit",
-    "shareText": "Estou construindo hábitos melhores com o Orbit — venha comigo!",
+    "shareText": "Estou construindo hábitos melhores com o Orbit. Venha comigo!",
     "loading": "Preparando seu card…",
     "empty": "Registre alguns hábitos primeiro para criar um card que valha a pena compartilhar.",
     "error": "Não foi possível carregar seu resumo. Tente novamente.",
@@ -1191,9 +1247,9 @@
     "title": "Orbit Wrapped",
     "back": "Voltar ao perfil",
     "entry": "Seu Wrapped",
-    "coverEyebrow": "Orbit Wrapped",
-    "coverSubtitle": "Uma retrospectiva comemorativa dos seus hábitos. Escolha um período para começar.",
-    "start": "Iniciar seu Wrapped",
+    "coverEyebrow": "Seus hábitos em replay",
+    "coverSubtitle": "Escolha um período para começar.",
+    "start": "Começar",
     "close": "Fechar Wrapped",
     "next": "Próximo",
     "previous": "Anterior",
@@ -1201,7 +1257,7 @@
     "loading": "Preparando seu Wrapped…",
     "empty": "Registre alguns hábitos primeiro para liberar seu Wrapped.",
     "error": "Não foi possível carregar seu Wrapped. Tente novamente.",
-    "retry": "Tentar de novo",
+    "retry": "Tentar novamente",
     "periods": {
       "week": "Semana",
       "month": "Mês",
@@ -1237,7 +1293,7 @@
       },
       "topHabit": {
         "eyebrow": "Seu destaque",
-        "caption": "{rate} de conclusão — seu hábito mais consistente."
+        "caption": "{rate} de conclusão, seu hábito mais consistente."
       },
       "share": {
         "eyebrow": "É isso aí",
@@ -1335,7 +1391,7 @@
     "proBadge": "Período de teste",
     "banner": {
       "trialEyebrow": "Teste Pro",
-      "daysLeft": "Teste Pro - {days} dia restante | Teste Pro - {days} dias restantes",
+      "daysLeft": "{days} dia restante | {days} dias restantes",
       "lastDay": "O teste acaba hoje!",
       "upgrade": "Upgrade"
     },
@@ -1389,6 +1445,7 @@
       "activeDays": "Dias ativos"
     },
     "weeklyTitle": "Consistência semanal",
+    "weeklyBarLabel": "Conclusão em {day}: {percent}%",
     "topHabitsTitle": "Melhores hábitos",
     "needsAttentionTitle": "Precisa de atenção",
     "completed": "Concluído",
@@ -1544,8 +1601,8 @@
       "features": {
         "title": "Mais para explorar",
         "chat": {
-          "title": "Chat com IA",
-          "desc": "Peça à IA para criar hábitos, trazer insights ou analisar seu progresso."
+          "title": "Converse com a Astra",
+          "desc": "Peça à Astra para criar hábitos, obter insights ou analisar seu progresso."
         },
         "subHabits": {
           "title": "Sub-hábitos",
@@ -1566,7 +1623,7 @@
       },
       "complete": {
         "title": "Tudo pronto!",
-        "subtitle": "É tudo de verdade — seu hábito e seu progresso já estão salvos.",
+        "subtitle": "É tudo de verdade. Seu hábito e seu progresso já estão salvos.",
         "start": "Começar a usar o Orbit",
         "recap": {
           "habit": "Hábito criado",
@@ -1588,7 +1645,7 @@
       "openButton": "Guia de recursos",
       "habits": "Hábitos",
       "calendar": "Calendário",
-      "chat": "Chat com IA",
+      "chat": "Astra",
       "settings": "Configurações",
       "goals": "Metas",
       "notifications": "Notificações",
@@ -1890,7 +1947,7 @@
     },
     "billing": {
       "plan": {
-        "title": "Plano Atual",
+        "title": "Plano atual",
         "monthly": "Pro Mensal",
         "yearly": "Pro Anual",
         "lifetime": "Pro Vitalício",
@@ -1901,18 +1958,18 @@
         "pastDue": "Pagamento em atraso"
       },
       "payment": {
-        "title": "Método de Pagamento",
+        "title": "Método de pagamento",
         "card": "{brand} final {last4}",
         "expires": "Expira {month}/{year}",
         "change": "Alterar"
       },
       "usage": {
-        "title": "Este Mês",
+        "title": "Este mês",
         "aiMessages": "Mensagens de IA",
         "aiMessagesOf": "{used} de {limit}"
       },
       "invoices": {
-        "title": "Histórico de Faturas",
+        "title": "Histórico de faturas",
         "download": "Baixar PDF",
         "statusPaid": "Pago",
         "statusOpen": "Em aberto",
@@ -1951,6 +2008,7 @@
     "fetchHabits": "Não foi possível carregar os hábitos",
     "createHabit": "Não foi possível criar o hábito",
     "updateHabit": "Não foi possível atualizar o hábito",
+    "logHabit": "Não foi possível registrar o hábito",
     "bulkCreateHabits": "Não foi possível criar os hábitos",
     "createSubHabit": "Não foi possível criar o sub-hábito",
     "loadProfile": "Não foi possível carregar o perfil",
@@ -2012,6 +2070,7 @@
     "emptyHint": "Crie sua primeira meta para começar a acompanhar o progresso",
     "create": "Nova meta",
     "dragItem": "item arrastável",
+    "reorderHint": "Segure para reordenar",
     "form": {
       "description": "Descrição",
       "descriptionPlaceholder": "ex: Ler 12 livros este ano",
@@ -2022,6 +2081,7 @@
       "deadline": "Prazo",
       "deadlineOptional": "Opcional",
       "addDeadline": "Adicionar prazo",
+      "removeDeadline": "Remover prazo",
       "deadlineInPast": "Esse prazo já passou.",
       "progressExceedsTarget": "Valor acima da meta. Vai ser limitado a 100%.",
       "titleRequired": "Dê um título à meta",
@@ -2077,11 +2137,15 @@
       "active": "Ativas",
       "completed": "Concluídas",
       "abandoned": "Abandonadas",
-      "statusFilter": "Filtrar por status"
+      "statusFilter": "Filtrar por status",
+      "clearFilter": "Limpar filtro",
+      "emptyFiltered": "Nenhuma meta corresponde a este filtro",
+      "emptyFilteredHint": "Tente outro status ou limpe o filtro"
     },
     "deadline": {
       "overdue": "Atrasada",
-      "daysLeft": "{n} dia restante | {n} dias restantes"
+      "daysLeft": "{n} dia restante | {n} dias restantes",
+      "dueToday": "Vence hoje"
     },
     "errors": {
       "create": "Não foi possível criar a meta",
@@ -2105,7 +2169,7 @@
     }
   },
   "gamification": {
-    "title": "Conquistas & Nível",
+    "title": "Conquistas",
     "profileCard": {
       "title": "Conquistas & Nível",
       "tileLabel": "Conquistas",
@@ -2119,6 +2183,9 @@
       "lockedTitle": "Libere as conquistas",
       "lockedDescription": "Assine o Pro para acompanhar seu progresso, ganhar XP e desbloquear conquistas.",
       "upgradeButton": "Assinar Pro"
+    },
+    "tile": {
+      "earned": "Conquistada · {date}"
     },
     "carrot": {
       "title": "Próxima recompensa",
@@ -2376,7 +2443,7 @@
       "tierStrong": "Forte",
       "tierSteady": "Constante",
       "tierNormal": "Normal",
-      "tierTileLabel": "Nível",
+      "tierTileLabel": "Rank",
       "dayActive": "Ativo",
       "dayFrozen": "Congelado",
       "dayMissed": "Perdido",
@@ -2390,6 +2457,7 @@
     "apiKeys": "Chaves de API",
     "apiKeysDescription": "As chaves de API deixam ferramentas externas acessarem seus dados do Orbit",
     "createKey": "Criar chave de API",
+    "createKeyShort": "Nova chave",
     "createHeading": "Criar chave de API",
     "revealHeading": "Chave de API criada",
     "noKeys": "Nenhuma chave de API ainda",
@@ -2520,8 +2588,12 @@
           "title": "Exercício",
           "description": "Mantenha-se ativo com treinos regulares"
         },
-        "pushups": { "title": "Flexões" },
-        "stretching": { "title": "Alongamento" },
+        "pushups": {
+          "title": "Flexões"
+        },
+        "stretching": {
+          "title": "Alongamento"
+        },
         "screenTime": {
           "title": "Reduzir Tempo de Tela",
           "description": "Manter o tempo de tela abaixo de 2 horas por dia"
@@ -2804,7 +2876,6 @@
       "emptyBody": "Quando seus amigos mantiverem sequências ou atingirem marcos, você verá aqui.",
       "emptyCta": "Adicionar amigos",
       "cheersForYou": "Incentivos para você",
-      "noCheers": "Nenhum incentivo ainda — seja o primeiro a incentivar um amigo.",
       "loadMore": "Carregar mais",
       "loading": "Carregando…",
       "streakMilestone": "{name} manteve uma sequência de {count} dias",
@@ -2827,6 +2898,7 @@
       "removeConfirmBody": "Remover {name} dos seus amigos? Você pode adicioná-lo de novo depois.",
       "block": "Bloquear",
       "report": "Denunciar",
+      "moreActions": "Mais ações",
       "incomingTitle": "Pedidos de amizade",
       "outgoingTitle": "Pedidos pendentes",
       "accept": "Aceitar",
@@ -2848,6 +2920,7 @@
       "checkInAction": "Registrar",
       "checkedInLabel": "Registrado",
       "checkInSuccess": "Registro de hoje feito",
+      "openPairAria": "Abrir dupla com {name}",
       "accept": "Aceitar",
       "decline": "Recusar",
       "rescind": "Cancelar",
@@ -2931,7 +3004,10 @@
       "shareText": "Estou usando o Orbit para criar hábitos melhores. Venha comigo!"
     },
     "friendProfile": {
-      "unavailable": "Este perfil não está disponível."
+      "unavailable": "Este perfil não está disponível.",
+      "loadError": "Não foi possível carregar este perfil.",
+      "levelLabel": "Nível",
+      "noAchievements": "Nenhuma conquista ainda"
     },
     "cheer": {
       "title": "Enviar incentivo",
@@ -2994,6 +3070,7 @@
     "errors": {
       "rateLimited": "Você está fazendo isso muitas vezes. Tente de novo em instantes.",
       "generic": "Algo deu errado. Tente de novo.",
+      "loadFailed": "Não foi possível carregar agora.",
       "userNotFound": "Não encontramos ninguém com esse nome de usuário ou código.",
       "alreadyFriends": "Você já está conectado com essa pessoa.",
       "handleTaken": "Esse nome de usuário já está em uso. Tente outro.",
@@ -3027,7 +3104,7 @@
       "streakTogetherDescription": "Mantenham juntos uma sequência diária compartilhada."
     },
     "card": {
-      "participants": "{count} participantes",
+      "participants": "{count} participante | {count} participantes",
       "streakUnit": "dias em sequência",
       "linkHabitsHint": "Vincule seus hábitos para contribuir"
     },
@@ -3036,7 +3113,7 @@
       "typeLabel": "Tipo",
       "nameLabel": "Nome",
       "namePlaceholder": "ex.: 30 dias de leitura",
-      "targetLabel": "Meta (total de registros)",
+      "targetLabel": "Total de registros",
       "targetPlaceholder": "30",
       "endDateLabel": "Data de término",
       "endDatePlaceholder": "Selecione uma data",
@@ -3044,7 +3121,12 @@
       "noHabits": "Você ainda não tem hábitos para vincular.",
       "inviteLabel": "Convidar amigos",
       "submit": "Criar desafio",
-      "success": "Desafio criado"
+      "success": "Desafio criado",
+      "errors": {
+        "titleRequired": "Dê um nome ao seu desafio.",
+        "targetInvalid": "Informe uma meta de pelo menos 1.",
+        "endDateRequired": "Escolha uma data de término."
+      }
     },
     "invite": {
       "empty": "Adicione amigos primeiro para convidá-los."
@@ -3087,19 +3169,20 @@
       "closed": "Este desafio está encerrado.",
       "invalidCode": "Esse código de acesso não é válido.",
       "rateLimited": "Muitas tentativas. Tente novamente em breve.",
-      "generic": "Algo deu errado. Tente novamente."
+      "generic": "Algo deu errado. Tente novamente.",
+      "loadFailed": "Não foi possível carregar os desafios."
     }
   },
   "milestoneShare": {
     "streakEyebrow": "Marco de sequência",
     "achievementEyebrow": "Conquista desbloqueada",
     "streakTitle": "Sequência de {count} dias!",
-    "body": "Compartilhe seu marco e convide um amigo — vocês dois ganham um cupom de desconto no Pro.",
+    "body": "Compartilhe seu marco e convide um amigo. Vocês dois ganham um cupom de desconto no Pro.",
     "share": "Compartilhar",
     "download": "Baixar",
     "later": "Agora não",
     "shareTitle": "Meu marco no Orbit",
-    "shareText": "Estou construindo hábitos melhores com o Orbit — venha comigo!",
+    "shareText": "Estou construindo hábitos melhores com o Orbit. Venha comigo!",
     "shareError": "Não foi possível compartilhar seu card. Tente novamente.",
     "rarity": {
       "Rare": "Raro",

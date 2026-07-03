@@ -10,23 +10,23 @@ export function InsightsLockedState() {
 
   return (
     <div
-      className="flex min-h-dvh flex-col items-center justify-center text-center"
+      className="flex min-h-[70dvh] flex-col items-center justify-center text-center"
       style={{ padding: '40px 24px', gap: 14 }}
     >
       <span
         aria-hidden="true"
         className="flex items-center justify-center rounded-full"
-        style={{ width: 56, height: 56, background: 'var(--bg-field)' }}
+        style={{ width: 56, height: 56, background: 'var(--bg-elev)' }}
       >
-        <Lock size={28} strokeWidth={1.4} className="text-[var(--fg-3)]" />
+        <Lock size={28} strokeWidth={1.8} className="text-[var(--fg-3)]" />
       </span>
 
-      <h1 className="t-h2 text-balance">{t('insights.title')}</h1>
-      <p className="t-secondary max-w-[320px] text-balance">{t('insights.subtitle')}</p>
+      <h1 className="t-h2 text-balance">{t('insights.lockedTitle')}</h1>
+      <p className="t-secondary max-w-[320px] text-balance">{t('insights.lockedDescription')}</p>
 
       <Link
         href="/upgrade"
-        className="inline-flex items-center justify-center rounded-full transition-[background-color,box-shadow,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:-translate-y-px hover:bg-[var(--primary-pressed)] active:translate-y-0 active:scale-[0.98]"
+        className="inline-flex items-center justify-center rounded-full shadow-[var(--primary-glow)] transition-[background-color,box-shadow,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:-translate-y-px hover:bg-[var(--primary-pressed)] hover:shadow-[var(--primary-glow-hover)] active:translate-y-0 active:scale-[0.98]"
         style={{
           marginTop: 8,
           padding: '15px 26px',
@@ -35,7 +35,6 @@ export function InsightsLockedState() {
           fontFamily: 'var(--font-sans)',
           fontSize: 16,
           fontWeight: 500,
-          boxShadow: 'var(--primary-glow)',
         }}
       >
         {t('upgrade.title')}

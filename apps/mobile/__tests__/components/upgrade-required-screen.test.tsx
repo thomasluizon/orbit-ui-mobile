@@ -33,6 +33,7 @@ const { openUrlMock, stateRef } = vi.hoisted(() => ({
 }))
 
 vi.mock('react-native', () => ({
+  ActivityIndicator: 'ActivityIndicator',
   Linking: { openURL: openUrlMock },
   Pressable: 'Pressable',
   StyleSheet: {
@@ -63,12 +64,16 @@ vi.mock('@/lib/theme', () => ({
     ),
 }))
 
-vi.mock('lucide-react-native', () => {
+vi.mock('@/lib/use-app-theme', () => ({
+  useAppTheme: () => ({ currentScheme: 'purple', currentTheme: 'dark' }),
+}))
+
+vi.mock('@/components/ui/satellite-glyph', () => {
 
   const React = require('react')
   return {
-    ArrowUpCircle: (props: Record<string, unknown>) =>
-      React.createElement('ArrowUpCircle', props),
+    SatelliteGlyph: (props: Record<string, unknown>) =>
+      React.createElement('SatelliteGlyph', props),
   }
 })
 

@@ -55,11 +55,13 @@ export function YearPicker({
               styles.yearCell,
               isSelected && { backgroundColor: tokens.primary },
               pressed && !isSelected && { backgroundColor: tokens.bgElev },
+              pressed && styles.yearCellPressed,
             ]}
           >
             <Text
               style={[
                 styles.yearText,
+                isSelected && styles.yearTextSelected,
                 { color: isSelected ? tokens.fgOnPrimary : tokens.fg1 },
               ]}
             >
@@ -88,9 +90,15 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     backgroundColor: 'transparent',
   },
+  yearCellPressed: {
+    transform: [{ scale: 0.96 }],
+  },
   yearText: {
     fontFamily: 'Roboto_500Medium',
     fontSize: 14,
     fontVariant: ['tabular-nums'],
+  },
+  yearTextSelected: {
+    fontFamily: 'Roboto_700Bold',
   },
 })

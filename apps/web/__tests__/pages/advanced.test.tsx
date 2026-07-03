@@ -142,8 +142,6 @@ describe('AdvancedPage', () => {
   it('opens widget info overlay on click', () => {
     render(<AdvancedPage />)
     const widgetButton = screen.getByText('profile.widgetTitle').closest('button')!
-    expect(widgetButton).toHaveAttribute('aria-haspopup', 'dialog')
-    expect(widgetButton).toHaveAttribute('aria-expanded', 'false')
     fireEvent.click(widgetButton)
     expect(screen.getByTestId('overlay')).toBeInTheDocument()
     expect(screen.getByText('profile.widgetHow.title')).toBeInTheDocument()
@@ -194,7 +192,10 @@ describe('AdvancedPage', () => {
 
   it('shows create key button for Pro users', () => {
     render(<AdvancedPage />)
-    expect(screen.getByText('orbitMcp.createKey')).toBeInTheDocument()
+    expect(screen.getByText('orbitMcp.createKeyShort')).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'orbitMcp.createKey' }),
+    ).toBeInTheDocument()
   })
 
   it('enables create key button when capability scopes load', () => {

@@ -41,7 +41,7 @@ export default function AboutScreen() {
         back
         onBack={() => goBackOrFallback('/profile')}
         title={t('about.title')}
-        backLabel={t('common.goBack')}
+        backLabel={t('common.backToProfile')}
       />
       <ScrollView
         style={styles.container}
@@ -105,6 +105,7 @@ const styles = StyleSheet.create({
   appName: {
     fontFamily: 'Rubik_500Medium',
     fontSize: 22,
+    letterSpacing: -0.22,
   },
   appVersion: {
     fontFamily: 'Roboto_400Regular',

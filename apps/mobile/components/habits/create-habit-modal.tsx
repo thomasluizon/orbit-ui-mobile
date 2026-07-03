@@ -451,31 +451,31 @@ export function CreateHabitModal({
               />
             ) : null}
           </HabitFormFields>
-
-          <View style={styles.footer}>
-            <PillButton
-              variant="ghost"
-              disabled={isPending}
-              onPress={dismissGuard.requestDismiss}
-            >
-              {t('common.cancel')}
-            </PillButton>
-            <PillButton
-              glow={false}
-              disabled={submitDisabled}
-              onPress={handleSubmit}
-              leading={
-                isPending ? (
-                  <ActivityIndicator size="small" color={tokens.fgOnPrimary} />
-                ) : (
-                  <Check size={18} color={tokens.fgOnPrimary} strokeWidth={2.2} />
-                )
-              }
-            >
-              {t('common.create')}
-            </PillButton>
-          </View>
         </KeyboardAwareBottomSheetScrollView>
+
+        <View style={styles.footer}>
+          <PillButton
+            variant="ghost"
+            disabled={isPending}
+            onPress={dismissGuard.requestDismiss}
+          >
+            {t('common.cancel')}
+          </PillButton>
+          <PillButton
+            glow={false}
+            disabled={submitDisabled}
+            onPress={handleSubmit}
+            leading={
+              isPending ? (
+                <ActivityIndicator size="small" color={tokens.fgOnPrimary} />
+              ) : (
+                <Check size={18} color={tokens.fgOnPrimary} strokeWidth={2.2} />
+              )
+            }
+          >
+            {t('common.create')}
+          </PillButton>
+        </View>
       </BottomSheetModal>
       <ConfirmDialog
         open={dismissGuard.showDiscardDialog}
@@ -504,7 +504,7 @@ function createStyles(
     },
     scrollContent: {
       paddingHorizontal: 20,
-      paddingBottom: Math.max(bottomInset, 16) + 20,
+      paddingBottom: 20,
       gap: 22,
     },
     fieldLabel: {
@@ -548,7 +548,7 @@ function createStyles(
       flexDirection: 'row',
       alignItems: 'center',
       gap: 10,
-      minHeight: 48,
+      minHeight: 54,
       borderRadius: 14,
       backgroundColor: tokens.bgField,
       borderWidth: 1,
@@ -561,6 +561,8 @@ function createStyles(
       textAlign: 'right',
       fontFamily: 'Roboto_400Regular',
       fontSize: 12,
+      fontVariant: ['tabular-nums'],
+      letterSpacing: 0.24,
       color: tokens.fg3,
     },
     subHabitInput: {
@@ -604,6 +606,8 @@ function createStyles(
       justifyContent: 'flex-end',
       gap: 12,
       paddingTop: 14,
+      paddingHorizontal: 20,
+      paddingBottom: Math.max(bottomInset, 16),
     },
   })
 }

@@ -1,11 +1,10 @@
 'use client'
 
-import { BellRing, Brain, Satellite } from 'lucide-react'
+import { BellRing, Brain, Lock, Satellite } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { SectionLabel } from '@/components/ui/section-label'
 import { SettingsRow, Switch } from '@/components/ui/settings-row'
 import { ProBadge } from '@/components/ui/pro-badge'
-import { ProUpgradeLink } from './pro-upgrade-link'
 
 interface AiFeatureTogglesProps {
   hasProAccess: boolean
@@ -18,6 +17,7 @@ interface AiFeatureTogglesProps {
   onToggleMemory: () => void
   onToggleSummary: () => void
   onToggleProactive: () => void
+  onUpgrade: () => void
 }
 
 export function AiFeatureToggles({
@@ -31,6 +31,7 @@ export function AiFeatureToggles({
   onToggleMemory,
   onToggleSummary,
   onToggleProactive,
+  onUpgrade,
 }: Readonly<AiFeatureTogglesProps>) {
   const t = useTranslations()
 
@@ -39,60 +40,87 @@ export function AiFeatureToggles({
       <SectionLabel bottom={4} trailing={<ProBadge />}>
         {t('profile.sections.aiFeatures')}
       </SectionLabel>
-      <SettingsRow
-        icon={Brain}
-        label={t('profile.aiMemory.title')}
-        desc={t('profile.aiMemory.description')}
-        accessory="none"
-        divider={false}
-      >
-        {hasProAccess ? (
+      {hasProAccess ? (
+        <SettingsRow
+          icon={Brain}
+          label={t('profile.aiMemory.title')}
+          desc={t('profile.aiMemory.description')}
+          accessory="none"
+          divider={false}
+        >
           <Switch
             on={aiMemoryEnabled}
             onToggle={onToggleMemory}
             ariaLabel={t('profile.aiMemory.title')}
             disabled={memoryPending}
           />
-        ) : (
-          <ProUpgradeLink label={t('common.proBadge')} />
-        )}
-      </SettingsRow>
-      <SettingsRow
-        icon={Satellite}
-        label={t('profile.aiSummary.title')}
-        desc={t('profile.aiSummary.description')}
-        accessory="none"
-        divider={false}
-      >
-        {hasProAccess ? (
+        </SettingsRow>
+      ) : (
+        <SettingsRow
+          icon={Brain}
+          label={t('profile.aiMemory.title')}
+          desc={t('profile.aiMemory.description')}
+          onClick={onUpgrade}
+          accessory="chevron"
+          divider={false}
+        >
+          <Lock size={18} strokeWidth={1.8} color="var(--fg-3)" aria-hidden="true" />
+        </SettingsRow>
+      )}
+      {hasProAccess ? (
+        <SettingsRow
+          icon={Satellite}
+          label={t('profile.aiSummary.title')}
+          desc={t('profile.aiSummary.description')}
+          accessory="none"
+          divider={false}
+        >
           <Switch
             on={aiSummaryEnabled}
             onToggle={onToggleSummary}
             ariaLabel={t('profile.aiSummary.title')}
             disabled={summaryPending}
           />
-        ) : (
-          <ProUpgradeLink label={t('common.proBadge')} />
-        )}
-      </SettingsRow>
-      <SettingsRow
-        icon={BellRing}
-        label={t('profile.proactiveAstra.title')}
-        desc={t('profile.proactiveAstra.description')}
-        accessory="none"
-        divider={false}
-      >
-        {hasProAccess ? (
+        </SettingsRow>
+      ) : (
+        <SettingsRow
+          icon={Satellite}
+          label={t('profile.aiSummary.title')}
+          desc={t('profile.aiSummary.description')}
+          onClick={onUpgrade}
+          accessory="chevron"
+          divider={false}
+        >
+          <Lock size={18} strokeWidth={1.8} color="var(--fg-3)" aria-hidden="true" />
+        </SettingsRow>
+      )}
+      {hasProAccess ? (
+        <SettingsRow
+          icon={BellRing}
+          label={t('profile.proactiveAstra.title')}
+          desc={t('profile.proactiveAstra.description')}
+          accessory="none"
+          divider={false}
+        >
           <Switch
             on={proactiveAstraEnabled}
             onToggle={onToggleProactive}
             ariaLabel={t('profile.proactiveAstra.title')}
             disabled={proactivePending}
           />
-        ) : (
-          <ProUpgradeLink label={t('common.proBadge')} />
-        )}
-      </SettingsRow>
+        </SettingsRow>
+      ) : (
+        <SettingsRow
+          icon={BellRing}
+          label={t('profile.proactiveAstra.title')}
+          desc={t('profile.proactiveAstra.description')}
+          onClick={onUpgrade}
+          accessory="chevron"
+          divider={false}
+        >
+          <Lock size={18} strokeWidth={1.8} color="var(--fg-3)" aria-hidden="true" />
+        </SettingsRow>
+      )}
     </>
   )
 }

@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { StyleSheet } from 'react-native'
-import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
+import { createTokensV2, shadowsV2, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 export type Tokens = AppTokensV2
@@ -110,6 +110,7 @@ export const styles = StyleSheet.create({
     transform: [{ rotate: '45deg' }],
     alignItems: 'center',
     justifyContent: 'center',
+    ...shadowsV2.shadow1,
   },
   freezeDropIcon: {
     transform: [{ rotate: '-45deg' }],

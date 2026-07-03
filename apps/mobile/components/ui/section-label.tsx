@@ -11,6 +11,8 @@ interface SectionLabelProps {
   bottom?: number
   /** Optional trailing slot rendered on the right side of the row. */
   trailing?: ReactNode
+  /** Set false to drop the horizontal gutter inside an already-padded container. */
+  inset?: boolean
 }
 
 /** Kit SectionTitle: Rubik 20/500 fg-1 with 24/20/14 padding and an optional trailing slot. */
@@ -19,6 +21,7 @@ export function SectionLabel({
   top = 24,
   bottom = 14,
   trailing,
+  inset = true,
 }: Readonly<SectionLabelProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
@@ -27,6 +30,7 @@ export function SectionLabel({
     <View
       style={[
         styles.row,
+        !inset && styles.flush,
         { paddingTop: top, paddingBottom: bottom },
       ]}
     >
@@ -43,6 +47,9 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: 12,
+  },
+  flush: {
+    paddingHorizontal: 0,
   },
   label: {
     fontFamily: 'Rubik_500Medium',

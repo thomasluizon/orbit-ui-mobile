@@ -296,78 +296,20 @@ export function createStyles(tokens: AppTokens) {
     emojiWell: {
       width: 56,
       height: 56,
-      borderRadius: 16,
+      borderRadius: 14,
       alignItems: "center",
       justifyContent: "center",
-      backgroundColor: fgTint(tokens, 0.06),
+      backgroundColor: tokens.bgWell,
     },
     emojiWellText: {
       fontSize: 26,
       lineHeight: 32,
     },
-    emojiModalBackdrop: {
+    emojiSheetContent: {
       flex: 1,
-      justifyContent: "flex-end",
-      backgroundColor: "rgba(0, 0, 0, 0.55)",
-    },
-    emojiModalSheet: {
-      maxHeight: "82%",
-      borderTopLeftRadius: radius.sheet,
-      borderTopRightRadius: radius.sheet,
-      backgroundColor: tokens.bgSheet,
-      paddingHorizontal: 16,
-      paddingTop: 14,
+      paddingHorizontal: 20,
       paddingBottom: 24,
       gap: 12,
-    },
-    emojiModalHeader: {
-      flexDirection: "row",
-      alignItems: "center",
-      justifyContent: "space-between",
-      gap: 12,
-    },
-    emojiModalTitleRow: {
-      flex: 1,
-      flexDirection: "row",
-      alignItems: "center",
-      gap: 10,
-    },
-    emojiModalTitle: {
-      fontFamily: "Rubik_500Medium",
-      fontSize: 18,
-      color: tokens.fg1,
-    },
-    emojiPreviewCompact: {
-      width: 40,
-      height: 40,
-      borderRadius: 12,
-      alignItems: "center",
-      justifyContent: "center",
-      backgroundColor: tokens.bgElev,
-    },
-    emojiPreviewCompactText: {
-      fontSize: 20,
-      lineHeight: 25,
-    },
-    emojiCloseButton: {
-      width: 40,
-      height: 40,
-      borderRadius: radius.full,
-      alignItems: "center",
-      justifyContent: "center",
-      borderWidth: 1.5,
-      borderColor: tokens.hairlineStrong,
-    },
-    emojiSearchInput: {
-      minHeight: 50,
-      borderRadius: 14,
-      borderWidth: 1,
-      borderColor: tokens.hairline,
-      backgroundColor: tokens.bgField,
-      color: tokens.fg1,
-      paddingHorizontal: 16,
-      fontFamily: "Rubik_400Regular",
-      fontSize: 16,
     },
     emojiRemoveButton: {
       flexDirection: "row",
@@ -411,7 +353,7 @@ export function createStyles(tokens: AppTokens) {
       color: tokens.primary,
     },
     emojiModalList: {
-      maxHeight: 430,
+      flex: 1,
     },
     emojiCategorySection: {
       paddingBottom: 18,
@@ -660,7 +602,13 @@ export function createStyles(tokens: AppTokens) {
     colorPicker: {
       flexDirection: "row",
       flexWrap: "wrap",
-      gap: 6,
+      gap: 2,
+    },
+    colorCell: {
+      width: 44,
+      height: 44,
+      alignItems: "center",
+      justifyContent: "center",
     },
     colorDot: {
       width: 20,
@@ -703,6 +651,7 @@ export function createStyles(tokens: AppTokens) {
       flexDirection: "row",
       alignItems: "center",
       gap: 8,
+      minHeight: 44,
       paddingVertical: 12,
     },
     moreOptionsLabel: {
@@ -712,12 +661,11 @@ export function createStyles(tokens: AppTokens) {
       flex: 1,
     },
     moreOptionsBadge: {
-      fontFamily: "Rubik_400Regular",
+      fontFamily: "Roboto_400Regular",
       fontSize: 12,
+      fontVariant: ["tabular-nums"],
+      letterSpacing: 0.24,
       color: tokens.primary,
-    },
-    chevronRotated: {
-      transform: [{ rotate: "180deg" }],
     },
     advancedSection: {
       gap: 24,

@@ -4,13 +4,12 @@ import { useState, useCallback, useMemo } from 'react'
 import { Check, Filter } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { GoalList } from './goal-list'
-import { GoalsDesktopView } from './goals-desktop-view'
-import { useIsDesktop } from './use-is-desktop'
 import { SkeletonCard } from '@/components/ui/skeleton'
 import { EmptyState } from '@/components/ui/empty-state'
 import { Popover } from '@/components/ui/popover'
 import { SectionLabel } from '@/components/ui/section-label'
 import { useGoals } from '@/hooks/use-goals'
+import { useUIStore } from '@/stores/ui-store'
 import type { GoalStatus } from '@orbit/shared/types/goal'
 
 interface StatusFilter {
@@ -20,7 +19,7 @@ interface StatusFilter {
 
 export function GoalsView() {
   const t = useTranslations()
-  const isDesktop = useIsDesktop()
+  const setShowCreateGoalModal = useUIStore((s) => s.setShowCreateGoalModal)
   const [activeFilter, setActiveFilter] = useState<GoalStatus | null>(null)
 
   const { data, isFetched } = useGoals(activeFilter)
@@ -45,12 +44,50 @@ export function GoalsView() {
     setActiveFilter(status)
   }, [])
 
+  const activeFilterLabel =
+    activeFilter != null
+      ? statusFilters.find((filter) => filter.key === activeFilter)?.label
+      : null
+
+  const emptyState =
+    activeFilter != null ? (
+      <EmptyState
+        title={t('goals.filters.emptyFiltered')}
+        description={t('goals.filters.emptyFilteredHint')}
+        action={{
+          label: t('goals.filters.clearFilter'),
+          onClick: () => handleFilterChange(null),
+          variant: 'secondary',
+        }}
+      />
+    ) : (
+      <EmptyState
+        title={t('goals.empty')}
+        description={t('goals.emptyHint')}
+        action={{
+          label: t('goals.create'),
+          onClick: () => setShowCreateGoalModal(true),
+        }}
+      />
+    )
+
   const filterHeader = (
     <SectionLabel
       top={16}
       bottom={12}
       trailing={
         <div className="flex items-center" style={{ gap: 8 }}>
+          {activeFilterLabel && (
+            <span
+              style={{
+                fontFamily: 'var(--font-sans)',
+                fontSize: 13,
+                color: 'var(--fg-2)',
+              }}
+            >
+              {activeFilterLabel}
+            </span>
+          )}
           <Popover
             placement="bottom-end"
             className="min-w-[180px]"
@@ -83,7 +120,7 @@ export function GoalsView() {
                       }}
                       className="w-full appearance-none border-0 bg-transparent cursor-pointer flex items-center transition-colors hover:bg-[var(--bg-sunk)]"
                       style={{
-                        padding: '8px 10px',
+                        padding: '12px 12px',
                         gap: 10,
                         fontFamily: 'var(--font-sans)',
                         fontSize: 14,
@@ -113,15 +150,6 @@ export function GoalsView() {
     </SectionLabel>
   )
 
-  if (isDesktop) {
-    return (
-      <div className="pt-1">
-        {filterHeader}
-        <GoalsDesktopView goals={filteredGoals} isFetched={isFetched} />
-      </div>
-    )
-  }
-
   return (
     <div className="pt-1">
       {filterHeader}
@@ -136,16 +164,7 @@ export function GoalsView() {
         )}
 
         {isFetched && (
-          <>
-            {filteredGoals.length > 0 ? (
-              <GoalList goals={filteredGoals} />
-            ) : (
-              <EmptyState
-                title={t('goals.empty')}
-                description={t('goals.emptyHint')}
-              />
-            )}
-          </>
+          <>{filteredGoals.length > 0 ? <GoalList goals={filteredGoals} /> : emptyState}</>
         )}
       </div>
     </div>

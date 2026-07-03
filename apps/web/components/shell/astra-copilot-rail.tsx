@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { ChevronDown, Maximize2, Minimize2 } from 'lucide-react'
@@ -131,6 +131,17 @@ function AstraRailEmptyState({ onSelectSuggestion }: Readonly<{ onSelectSuggesti
         {t('chat.empty.title')}
       </p>
       <SuggestionChips onSelect={onSelectSuggestion} />
+      <p
+        style={{
+          fontFamily: 'var(--font-sans)',
+          fontSize: 11,
+          color: 'var(--fg-3)',
+          maxWidth: 300,
+          lineHeight: 1.4,
+        }}
+      >
+        {t('aiDisclosure.notMedicalAdvice')}
+      </p>
     </div>
   )
 }
@@ -154,6 +165,7 @@ function AstraRailMessages({ composer, onActionChipClick, onUpgradeClick }: Read
     prepareStepUpForBubble,
     verifyStepUpForBubble,
   } = composer
+  const [initialMessageIds] = useState(() => new Set(messages.map((message) => message.id)))
 
   return (
     <div
@@ -174,6 +186,7 @@ function AstraRailMessages({ composer, onActionChipClick, onUpgradeClick }: Read
             <MessageBubble
               key={message.id}
               message={message}
+              animateEntry={!initialMessageIds.has(message.id)}
               onBreakdownConfirmed={handleBreakdownConfirmed}
               onActionChipClick={onActionChipClick}
               onUpgradeClick={onUpgradeClick}
@@ -194,12 +207,14 @@ function AstraRailComposer({ composer, onUpgrade }: Readonly<{ composer: Compose
 
   return (
     <ChatComposerBar
+      singleLine
       textareaRef={composer.textareaRef}
       fileInputRef={composer.fileInputRef}
       input={composer.input}
       setInput={composer.setInput}
       sendError={composer.sendError}
       imagePreview={composer.imagePreview}
+      isOnline={composer.isOnline}
       isRecording={composer.isRecording}
       isTranscribing={composer.isTranscribing}
       speechSupported={composer.speechSupported}
@@ -237,9 +252,12 @@ function AstraRailPanel({ onClose }: Readonly<{ onClose: () => void }>) {
   const router = useRouter()
   const composer = useChatComposer()
   const [entered, setEntered] = useState(false)
+  const [closing, setClosing] = useState(false)
   const maximized = useShellStore((state) => state.astraMaximized)
   const toggleMaximized = useShellStore((state) => state.toggleAstraMaximized)
   const sidebarCollapsed = useShellStore((state) => state.sidebarCollapsed)
+
+  const requestClose = useCallback(() => setClosing(true), [])
 
   const [selectedHabitId, setSelectedHabitId] = useState<string | null>(null)
   const [selectedGoalId, setSelectedGoalId] = useState<string | null>(null)
@@ -249,7 +267,7 @@ function AstraRailPanel({ onClose }: Readonly<{ onClose: () => void }>) {
     [habitDetailQuery.data],
   )
 
-  useOverlayEscape({ open: true, onDismiss: onClose, restoreFocus: true })
+  useOverlayEscape({ open: true, onDismiss: requestClose, restoreFocus: true })
 
   const focusComposer = composer.textareaRef
   useEffect(() => {
@@ -285,6 +303,7 @@ function AstraRailPanel({ onClose }: Readonly<{ onClose: () => void }>) {
 
   const goToUpgrade = useCallback(() => router.push('/upgrade'), [router])
 
+  const visible = entered && !closing
   const positionStyle: React.CSSProperties = maximized
     ? {
         top: 0,
@@ -293,7 +312,8 @@ function AstraRailPanel({ onClose }: Readonly<{ onClose: () => void }>) {
         left: sidebarCollapsed ? 'var(--sidebar-w-collapsed)' : 'var(--sidebar-w)',
         borderRadius: 0,
         boxShadow: 'inset 1px 0 0 var(--hairline)',
-        transform: entered ? 'translateY(0)' : 'translateY(8px)',
+        transformOrigin: 'bottom right',
+        transform: visible ? 'translateY(0)' : 'translateY(8px)',
       }
     : {
         width: 'min(384px, calc(100vw - 48px))',
@@ -303,7 +323,7 @@ function AstraRailPanel({ onClose }: Readonly<{ onClose: () => void }>) {
         borderRadius: 20,
         boxShadow: 'var(--shadow-3), inset 0 0 0 1px var(--hairline-strong)',
         transformOrigin: 'bottom right',
-        transform: entered ? 'translateY(0) scale(1)' : 'translateY(8px) scale(0.98)',
+        transform: visible ? 'translateY(0) scale(1)' : 'translateY(8px) scale(0.98)',
       }
 
   return (
@@ -314,12 +334,17 @@ function AstraRailPanel({ onClose }: Readonly<{ onClose: () => void }>) {
       className="fixed z-40 hidden min-h-0 flex-col overflow-hidden md:flex"
       style={{
         background: 'var(--bg)',
-        opacity: entered ? 1 : 0,
+        opacity: visible ? 1 : 0,
         transition: 'transform var(--dur-base) var(--ease-out), opacity var(--dur-base) var(--ease-out)',
         ...positionStyle,
       }}
+      onTransitionEnd={(event) => {
+        if (closing && event.target === event.currentTarget && event.propertyName === 'opacity') {
+          onClose()
+        }
+      }}
     >
-      <AstraRailHeader onClose={onClose} maximized={maximized} onToggleMaximize={toggleMaximized} />
+      <AstraRailHeader onClose={requestClose} maximized={maximized} onToggleMaximize={toggleMaximized} />
       <div
         className={
           maximized
@@ -351,9 +376,13 @@ export function AstraCopilotRail() {
   const setAstraOpen = useShellStore((state) => state.setAstraOpen)
   const setAstraMaximized = useShellStore((state) => state.setAstraMaximized)
   const pathname = usePathname()
+  const previousPathnameRef = useRef(pathname)
 
   useEffect(() => {
-    setAstraMaximized(false)
+    if (previousPathnameRef.current !== pathname) {
+      setAstraMaximized(false)
+    }
+    previousPathnameRef.current = pathname
   }, [pathname, setAstraMaximized])
 
   return (

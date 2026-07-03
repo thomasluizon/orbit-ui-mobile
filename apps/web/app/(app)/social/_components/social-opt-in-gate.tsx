@@ -48,9 +48,12 @@ export function SocialOptInGate() {
         style={{
           margin: 0,
           fontFamily: 'var(--font-sans)',
-          fontSize: 24,
-          fontWeight: 600,
+          fontSize: 28,
+          fontWeight: 500,
+          lineHeight: 1.3,
+          letterSpacing: '-0.01em',
           color: 'var(--fg-1)',
+          textWrap: 'balance',
         }}
       >
         {t('social.optInGate.title')}
@@ -80,7 +83,7 @@ export function SocialOptInGate() {
           {t('social.optInGate.handleHint')}
         </span>
       </div>
-      <div className="w-full" style={{ maxWidth: 420 }}>
+      <div className="w-full" style={{ maxWidth: 360 }}>
         <PillButton onClick={handleEnable} disabled={isSubmitting} busy={isSubmitting} fullWidth>
           {isSubmitting ? t('social.optInGate.enabling') : t('social.optInGate.enable')}
         </PillButton>

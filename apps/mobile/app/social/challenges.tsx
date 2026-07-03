@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { ScrollView, StyleSheet, View } from 'react-native'
+import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
@@ -28,7 +28,7 @@ export default function ChallengesScreen() {
   const styles = createStyles(tokens)
   const { profile, isLoading } = useProfile()
   const socialEnabled = profile?.socialOptIn ?? false
-  const { data: challenges } = useChallenges({ enabled: socialEnabled })
+  const { data: challenges, isError, refetch } = useChallenges({ enabled: socialEnabled })
   const [createOpen, setCreateOpen] = useState(false)
   const [joinOpen, setJoinOpen] = useState(deepLinkCode.length > 0)
 
@@ -43,8 +43,26 @@ export default function ChallengesScreen() {
         title={t('challenges.title')}
         backLabel={t('common.goBack')}
       />
-      {isLoading ? null : !socialEnabled ? (
+      {isLoading ? (
+        <View style={styles.centered}>
+          <ActivityIndicator color={tokens.primary} accessibilityLabel={t('common.loading')} />
+        </View>
+      ) : !socialEnabled ? (
         <SocialOptInGate />
+      ) : isError ? (
+        <View style={styles.errorBlock}>
+          <Text style={[styles.errorBody, { color: tokens.fg3 }]}>
+            {t('challenges.errors.loadFailed')}
+          </Text>
+          <PillButton
+            variant="ghost"
+            onPress={() => {
+              void refetch()
+            }}
+          >
+            {t('common.retry')}
+          </PillButton>
+        </View>
       ) : (
         <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
           <View style={styles.actions}>
@@ -98,6 +116,14 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
   return StyleSheet.create({
     safeArea: { flex: 1, backgroundColor: tokens.bg },
     scroll: { paddingBottom: 40 },
+    centered: { paddingVertical: 48, alignItems: 'center' },
+    errorBlock: { paddingHorizontal: 32, paddingVertical: 48, alignItems: 'center', gap: 12 },
+    errorBody: {
+      fontFamily: 'Rubik_400Regular',
+      fontSize: 14,
+      lineHeight: 21,
+      textAlign: 'center',
+    },
     actions: { flexDirection: 'row', gap: 8, paddingHorizontal: 20, paddingTop: 8, paddingBottom: 4 },
     actionButton: { flex: 1 },
     sheet: { paddingHorizontal: 20, paddingTop: 8, paddingBottom: 32 },

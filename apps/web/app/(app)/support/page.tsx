@@ -86,7 +86,7 @@ export default function SupportPage() {
   const disabled = isSending || !subject.trim() || !message.trim() || !isOnline
 
   return (
-    <div className="md:mx-auto md:max-w-[760px]">
+    <div className="md:mx-auto md:max-w-[900px]">
       <div className="flex flex-col min-h-[100dvh]">
         <AppBar
           back
@@ -108,16 +108,43 @@ export default function SupportPage() {
           {success ? (
             <SupportSuccessState />
           ) : (
-            <SupportForm
-              subject={subject}
-              message={message}
-              error={error}
-              isSending={isSending}
-              disabled={disabled}
-              onSubjectChange={setSubject}
-              onMessageChange={setMessage}
-              onSend={() => void handleSend()}
-            />
+            <div>
+              <SupportForm
+                subject={subject}
+                message={message}
+                error={error}
+                isSending={isSending}
+                disabled={disabled}
+                onSubjectChange={setSubject}
+                onMessageChange={setMessage}
+                onSend={() => void handleSend()}
+              />
+              <aside
+                className="hidden md:flex md:flex-col"
+                style={{ gap: 12, paddingTop: 4 }}
+              >
+                <p
+                  style={{
+                    fontFamily: 'var(--font-sans)',
+                    fontSize: 14,
+                    lineHeight: 1.55,
+                    color: 'var(--fg-3)',
+                  }}
+                >
+                  {t('profile.support.description')}
+                </p>
+                <p
+                  style={{
+                    fontFamily: 'var(--font-sans)',
+                    fontSize: 14,
+                    lineHeight: 1.55,
+                    color: 'var(--fg-3)',
+                  }}
+                >
+                  {t('profile.support.successHint')}
+                </p>
+              </aside>
+            </div>
           )}
         </div>
       </div>

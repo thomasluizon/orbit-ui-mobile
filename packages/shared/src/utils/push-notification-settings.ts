@@ -43,7 +43,7 @@ export interface NativePushPromptSnapshot extends NativePushStatusSnapshot {
 
 export function getPushStatusToneClass(tone: PushStatusTone): string {
   if (tone === 'critical') {
-    return 'text-[var(--status-bad)]'
+    return 'text-[var(--status-bad-text)]'
   }
 
   if (tone === 'accent') {

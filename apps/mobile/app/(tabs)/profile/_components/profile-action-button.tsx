@@ -12,6 +12,8 @@ interface ProfileActionButtonProps {
   /** Leading lucide icon rendered 22/1.8 in the kit ListRow 26px slot. */
   icon?: LucideIcon
   tone?: 'default' | 'danger'
+  /** Draw the bottom hairline divider. Set `false` on the last row so no stray rule renders. */
+  showDivider?: boolean
 }
 
 /** Kit ListRow action — `tone="danger"` colors icon and label in status-bad. */
@@ -20,6 +22,7 @@ export function ProfileActionButton({
   onPress,
   icon: LeadingIcon,
   tone = 'default',
+  showDivider = true,
 }: Readonly<ProfileActionButtonProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
@@ -36,6 +39,7 @@ export function ProfileActionButton({
         {
           backgroundColor: pressed ? tokens.bgElev : 'transparent',
           borderBottomColor: tokens.hairline,
+          borderBottomWidth: showDivider ? StyleSheet.hairlineWidth : 0,
         },
       ]}
     >
@@ -57,7 +61,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 20,
     paddingVertical: 16,
     minHeight: 48,
-    borderBottomWidth: StyleSheet.hairlineWidth,
   },
   iconSlot: {
     width: 26,

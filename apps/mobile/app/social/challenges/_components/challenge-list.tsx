@@ -1,9 +1,12 @@
 import { StyleSheet, Text, View } from 'react-native'
+import Animated, { FadeInDown, ReduceMotion } from 'react-native-reanimated'
 import { useTranslation } from 'react-i18next'
+import { motionDurations } from '@orbit/shared/theme'
 import type { ChallengeListItem } from '@orbit/shared/types/challenge'
 import { PillButton } from '@/components/ui/pill-button'
 import { SatelliteGlyph } from '@/components/ui/satellite-glyph'
 import { SectionLabel } from '@/components/ui/section-label'
+import { useResolvedMotionPreset } from '@/lib/motion'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { ChallengeCard } from './challenge-card'
@@ -20,8 +23,16 @@ export function ChallengeList({ challenges, onOpen, onCreate, onJoin }: Readonly
   const { t } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
+  const listMotion = useResolvedMotionPreset('list-enter')
   const active = challenges.filter((challenge) => challenge.status === 'Active')
   const completed = challenges.filter((challenge) => challenge.status === 'Completed')
+
+  const enteringFor = (index: number) =>
+    index < 8
+      ? FadeInDown.duration(listMotion.enterDuration)
+          .delay(index * motionDurations.listStagger)
+          .reduceMotion(ReduceMotion.System)
+      : undefined
 
   if (challenges.length === 0) {
     return (
@@ -47,8 +58,10 @@ export function ChallengeList({ challenges, onOpen, onCreate, onJoin }: Readonly
         <>
           <SectionLabel>{t('challenges.sections.active')}</SectionLabel>
           <View style={styles.cards}>
-            {active.map((challenge) => (
-              <ChallengeCard key={challenge.id} challenge={challenge} onOpen={onOpen} />
+            {active.map((challenge, index) => (
+              <Animated.View key={challenge.id} entering={enteringFor(index)}>
+                <ChallengeCard challenge={challenge} onOpen={onOpen} />
+              </Animated.View>
             ))}
           </View>
         </>
@@ -58,8 +71,10 @@ export function ChallengeList({ challenges, onOpen, onCreate, onJoin }: Readonly
         <>
           <SectionLabel>{t('challenges.sections.completed')}</SectionLabel>
           <View style={styles.cards}>
-            {completed.map((challenge) => (
-              <ChallengeCard key={challenge.id} challenge={challenge} onOpen={onOpen} />
+            {completed.map((challenge, index) => (
+              <Animated.View key={challenge.id} entering={enteringFor(active.length + index)}>
+                <ChallengeCard challenge={challenge} onOpen={onOpen} />
+              </Animated.View>
             ))}
           </View>
         </>

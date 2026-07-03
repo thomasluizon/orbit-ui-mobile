@@ -143,17 +143,20 @@ vi.mock('@/components/ui/app-overlay', () => ({
     children,
     title,
     description,
+    footer,
   }: {
     open: boolean
     children: React.ReactNode
     title?: string
     description?: string
+    footer?: React.ReactNode
   }) =>
     open ? (
       <div data-testid="app-overlay">
         {title && <h2>{title}</h2>}
         {description && <p>{description}</p>}
         {children}
+        {footer && <div data-testid="overlay-footer">{footer}</div>}
       </div>
     ) : null,
 }))

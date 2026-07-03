@@ -1,13 +1,7 @@
-import {
-  ActivityIndicator,
-  Modal,
-  ScrollView,
-  StyleSheet,
-  Text,
-  TouchableOpacity,
-  View,
-} from 'react-native'
-import { createTokensV2, shadowsV2, tintFromPrimary } from '@/lib/theme'
+import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
+import { BottomSheetModal } from '@/components/bottom-sheet-modal'
+import { PillButton } from '@/components/ui/pill-button'
+import { createTokensV2, tintFromPrimary } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 export interface MoveParentOption {
@@ -32,7 +26,7 @@ interface MoveParentDialogProps {
   onSelectOption: (optionId: string | null) => void
 }
 
-/** Move-parent picker dialog (mobile). Presentational — the parent HabitList
+/** Move-parent picker sheet (mobile). Presentational: the parent HabitList
  *  owns the move state and supplies the validated option list plus handlers. */
 export function MoveParentDialog({
   t,
@@ -52,124 +46,101 @@ export function MoveParentDialog({
   const styles = createStyles(tokens)
 
   return (
-    <Modal
-      visible={visible}
-      transparent
-      animationType="fade"
-      onRequestClose={onClose}
+    <BottomSheetModal
+      open={visible}
+      onClose={onClose}
+      title={t('habits.moveParent.title')}
+      canDismiss={!isPending}
     >
-      <TouchableOpacity
-        style={styles.dialogBackdrop}
-        activeOpacity={1}
-        accessibilityRole="button"
-        accessibilityLabel={t('common.close')}
-        onPress={onClose}
-      >
-        <View
-          style={styles.moveDialog}
-          onStartShouldSetResponder={() => true}
-        >
-          <Text style={styles.moveDialogTitle}>
-            {t('habits.moveParent.title')}
+      <View style={styles.sheetBody}>
+        {movingHabitTitle ? (
+          <Text style={styles.moveDialogDescription}>
+            {t('habits.moveParent.description', {
+              name: movingHabitTitle,
+            })}
           </Text>
-          {movingHabitTitle ? (
-            <Text style={styles.moveDialogDescription}>
-              {t('habits.moveParent.description', {
-                name: movingHabitTitle,
-              })}
-            </Text>
-          ) : null}
+        ) : null}
 
-          {options.length > 0 ? (
-            <ScrollView
-              style={styles.moveOptionsList}
-              contentContainerStyle={styles.moveOptionsContent}
-              showsVerticalScrollIndicator={false}
-            >
-              {options.map((option) => {
-                const isSelectedOption = option.id === selectedMoveParentId
-                return (
-                  <TouchableOpacity
-                    key={option.id ?? '__root__'}
-                    style={[
-                      styles.moveOption,
-                      isSelectedOption && styles.moveOptionSelected,
-                      option.disabled && styles.moveOptionDisabled,
-                      option.id !== null
-                        ? { paddingLeft: 14 + option.depth * 18 }
-                        : null,
-                    ]}
-                    disabled={option.disabled}
-                    onPress={() => onSelectOption(option.id)}
-                    activeOpacity={0.75}
-                    accessibilityRole="button"
-                    accessibilityState={{
-                      selected: isSelectedOption,
-                      disabled: option.disabled,
-                    }}
-                  >
-                    <View style={styles.moveOptionHeader}>
-                      <Text
-                        style={styles.moveOptionLabel}
-                        numberOfLines={1}
-                      >
-                        {option.label}
-                      </Text>
-                      {option.id === movingHabitParentId ? (
-                        <Text style={styles.moveOptionCurrent}>
-                          {t('habits.moveParent.currentParent')}
-                        </Text>
-                      ) : null}
-                    </View>
-                    {option.reason ? (
-                      <Text style={styles.moveOptionReason}>
-                        {option.reason}
+        {options.length > 0 ? (
+          <ScrollView
+            style={styles.moveOptionsList}
+            contentContainerStyle={styles.moveOptionsContent}
+            showsVerticalScrollIndicator={false}
+          >
+            {options.map((option) => {
+              const isSelectedOption = option.id === selectedMoveParentId
+              return (
+                <Pressable
+                  key={option.id ?? '__root__'}
+                  style={({ pressed }) => [
+                    styles.moveOption,
+                    isSelectedOption && styles.moveOptionSelected,
+                    option.disabled && styles.moveOptionDisabled,
+                    pressed && !option.disabled
+                      ? styles.moveOptionPressed
+                      : null,
+                    option.id !== null
+                      ? { paddingLeft: 14 + option.depth * 18 }
+                      : null,
+                  ]}
+                  disabled={option.disabled}
+                  onPress={() => onSelectOption(option.id)}
+                  accessibilityRole="button"
+                  accessibilityState={{
+                    selected: isSelectedOption,
+                    disabled: option.disabled,
+                  }}
+                >
+                  <View style={styles.moveOptionHeader}>
+                    <Text
+                      style={styles.moveOptionLabel}
+                      numberOfLines={1}
+                    >
+                      {option.label}
+                    </Text>
+                    {option.id === movingHabitParentId ? (
+                      <Text style={styles.moveOptionCurrent}>
+                        {t('habits.moveParent.currentParent')}
                       </Text>
                     ) : null}
-                  </TouchableOpacity>
-                )
-              })}
-            </ScrollView>
-          ) : (
-            <Text style={styles.moveDialogEmpty}>
-              {t('habits.moveParent.noOptions')}
-            </Text>
-          )}
+                  </View>
+                  {option.reason ? (
+                    <Text style={styles.moveOptionReason}>
+                      {option.reason}
+                    </Text>
+                  ) : null}
+                </Pressable>
+              )
+            })}
+          </ScrollView>
+        ) : (
+          <Text style={styles.moveDialogEmpty}>
+            {t('habits.moveParent.noOptions')}
+          </Text>
+        )}
 
-          <View style={styles.moveDialogActions}>
-            <TouchableOpacity
-              style={styles.moveDialogCancel}
-              disabled={isPending}
-              onPress={onClose}
-              activeOpacity={0.75}
-              accessibilityRole="button"
-            >
-              <Text style={styles.moveDialogCancelText}>
-                {t('common.cancel')}
-              </Text>
-            </TouchableOpacity>
-            <TouchableOpacity
-              style={[
-                styles.moveDialogConfirm,
-                !canSubmit && styles.moveDialogConfirmDisabled,
-              ]}
-              disabled={!canSubmit}
-              onPress={onConfirm}
-              activeOpacity={0.8}
-              accessibilityRole="button"
-            >
-              {isPending ? (
-                <ActivityIndicator size="small" color={tokens.fgOnPrimary} />
-              ) : (
-                <Text style={styles.moveDialogConfirmText}>
-                  {t('habits.moveParent.confirm')}
-                </Text>
-              )}
-            </TouchableOpacity>
-          </View>
+        <View style={styles.footer}>
+          <PillButton
+            variant="ghost"
+            disabled={isPending}
+            onPress={onClose}
+            style={styles.footerPill}
+          >
+            {t('common.cancel')}
+          </PillButton>
+          <PillButton
+            disabled={!canSubmit}
+            busy={isPending}
+            onPress={onConfirm}
+            style={styles.footerPill}
+          >
+            {isPending
+              ? t('habits.moveParent.moving')
+              : t('habits.moveParent.confirm')}
+          </PillButton>
         </View>
-      </TouchableOpacity>
-    </Modal>
+      </View>
+    </BottomSheetModal>
   )
 }
 
@@ -177,41 +148,21 @@ type AppTokens = ReturnType<typeof createTokensV2>
 
 function createStyles(tokens: AppTokens) {
   return StyleSheet.create({
-    dialogBackdrop: {
+    sheetBody: {
       flex: 1,
-      backgroundColor: 'rgba(0,0,0,0.6)',
-      justifyContent: 'center',
-      alignItems: 'center',
-      padding: 24,
-    },
-    moveDialog: {
-      width: '100%',
-      maxWidth: 380,
-      maxHeight: '75%',
-      backgroundColor: tokens.bgSheet,
-      borderWidth: 1,
-      borderColor: tokens.hairline,
-      borderRadius: 24,
-      paddingTop: 24,
       paddingHorizontal: 22,
-      paddingBottom: 18,
-      ...shadowsV2.shadow3,
-    },
-    moveDialogTitle: {
-      fontFamily: 'Rubik_500Medium',
-      fontSize: 20,
-      color: tokens.fg1,
+      paddingTop: 4,
+      paddingBottom: 24,
     },
     moveDialogDescription: {
       fontFamily: 'Rubik_400Regular',
       fontSize: 15,
       lineHeight: 22,
       color: tokens.fg2,
-      marginTop: 8,
       marginBottom: 16,
     },
     moveOptionsList: {
-      flexGrow: 0,
+      flex: 1,
     },
     moveOptionsContent: {
       gap: 10,
@@ -232,6 +183,9 @@ function createStyles(tokens: AppTokens) {
     },
     moveOptionDisabled: {
       opacity: 0.5,
+    },
+    moveOptionPressed: {
+      backgroundColor: tokens.bgElevPressed,
     },
     moveOptionHeader: {
       flexDirection: 'row',
@@ -266,42 +220,13 @@ function createStyles(tokens: AppTokens) {
       textAlign: 'center',
       paddingVertical: 16,
     },
-    moveDialogActions: {
+    footer: {
       flexDirection: 'row',
       gap: 12,
       marginTop: 16,
     },
-    moveDialogCancel: {
+    footerPill: {
       flex: 1,
-      alignItems: 'center',
-      justifyContent: 'center',
-      borderRadius: 999,
-      borderWidth: 1.5,
-      borderColor: tokens.hairlineStrong,
-      paddingVertical: 12,
-      minHeight: 46,
-    },
-    moveDialogCancelText: {
-      fontFamily: 'Rubik_500Medium',
-      fontSize: 15,
-      color: tokens.fg1,
-    },
-    moveDialogConfirm: {
-      flex: 1,
-      alignItems: 'center',
-      justifyContent: 'center',
-      borderRadius: 999,
-      backgroundColor: tokens.primary,
-      paddingVertical: 12,
-      minHeight: 46,
-    },
-    moveDialogConfirmDisabled: {
-      opacity: 0.5,
-    },
-    moveDialogConfirmText: {
-      fontFamily: 'Rubik_500Medium',
-      fontSize: 15,
-      color: tokens.fgOnPrimary,
     },
   })
 }

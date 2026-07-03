@@ -100,9 +100,14 @@ export function CreateChallengeForm({ onCreated }: Readonly<CreateChallengeFormP
                     type="button"
                     aria-pressed={selected}
                     onClick={() => field.onChange(option)}
-                    className="flex-1"
+                    className={`flex-1 transition-[background-color,box-shadow,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] active:scale-[0.98] motion-reduce:transition-none ${
+                      selected
+                        ? 'bg-[rgba(var(--primary-rgb),0.12)] shadow-[inset_0_0_0_1px_var(--primary)]'
+                        : 'bg-[var(--bg-elev)] shadow-[inset_0_0_0_1px_var(--hairline)] hover:bg-[var(--bg-elev-2)]'
+                    }`}
                     style={{
                       padding: '10px 12px',
+                      minHeight: 44,
                       borderRadius: 14,
                       border: 0,
                       cursor: 'pointer',
@@ -110,10 +115,6 @@ export function CreateChallengeForm({ onCreated }: Readonly<CreateChallengeFormP
                       fontSize: 14,
                       fontWeight: 500,
                       color: selected ? 'var(--primary)' : 'var(--fg-2)',
-                      background: selected ? 'rgba(var(--primary-rgb), 0.12)' : 'var(--bg-elev)',
-                      boxShadow: selected
-                        ? 'inset 0 0 0 1px var(--primary)'
-                        : 'inset 0 0 0 1px var(--hairline)',
                     }}
                   >
                     {option === 'CoopGoal'
@@ -135,7 +136,7 @@ export function CreateChallengeForm({ onCreated }: Readonly<CreateChallengeFormP
       <Controller
         control={control}
         name="title"
-        render={({ field }) => (
+        render={({ field, fieldState }) => (
           <FieldInput
             label={t('challenges.create.nameLabel')}
             value={field.value}
@@ -143,6 +144,7 @@ export function CreateChallengeForm({ onCreated }: Readonly<CreateChallengeFormP
             placeholder={t('challenges.create.namePlaceholder')}
             ariaLabel={t('challenges.create.nameLabel')}
             maxLength={80}
+            error={fieldState.error ? t('challenges.create.errors.titleRequired') : undefined}
           />
         )}
       />
@@ -152,7 +154,7 @@ export function CreateChallengeForm({ onCreated }: Readonly<CreateChallengeFormP
           <Controller
             control={control}
             name="targetCount"
-            render={({ field }) => (
+            render={({ field, fieldState }) => (
               <FieldInput
                 label={t('challenges.create.targetLabel')}
                 value={field.value ?? ''}
@@ -162,19 +164,21 @@ export function CreateChallengeForm({ onCreated }: Readonly<CreateChallengeFormP
                 type="number"
                 inputMode="numeric"
                 mono
+                error={fieldState.error ? t('challenges.create.errors.targetInvalid') : undefined}
               />
             )}
           />
           <Controller
             control={control}
             name="periodEndUtc"
-            render={({ field }) => (
+            render={({ field, fieldState }) => (
               <FieldInput
                 label={t('challenges.create.endDateLabel')}
                 value={field.value ?? ''}
                 onChange={field.onChange}
                 ariaLabel={t('challenges.create.endDateLabel')}
                 type="date"
+                error={fieldState.error ? t('challenges.create.errors.endDateRequired') : undefined}
               />
             )}
           />
@@ -203,6 +207,7 @@ export function CreateChallengeForm({ onCreated }: Readonly<CreateChallengeFormP
 
       <PillButton
         fullWidth
+        className="sm:mx-auto sm:max-w-[360px]"
         type="submit"
         disabled={createChallenge.isPending}
         busy={createChallenge.isPending}

@@ -1,5 +1,5 @@
 import { Fragment, type ComponentType } from 'react'
-import { Pressable, StyleSheet, View } from 'react-native'
+import { Pressable, StyleSheet, Text, View } from 'react-native'
 import {
   CalendarDays,
   Home,
@@ -141,7 +141,7 @@ function TabButton({
   onPress: () => void
   showUnread: boolean
 }>) {
-  const color = isActive ? tokens.primary : tokens.fg3
+  const color = isActive ? tokens.primary : tokens.fg4
 
   return (
     <Pressable
@@ -168,6 +168,15 @@ function TabButton({
           />
         ) : null}
       </View>
+      <Text
+        style={[
+          styles.tabLabel,
+          isActive ? styles.tabLabelActive : null,
+          { color },
+        ]}
+      >
+        {label}
+      </Text>
     </Pressable>
   )
 }
@@ -180,7 +189,7 @@ const styles = StyleSheet.create({
   fab: {
     position: 'absolute',
     left: '50%',
-    top: -22,
+    top: -30,
     marginLeft: -30,
     width: 60,
     height: 60,
@@ -190,7 +199,7 @@ const styles = StyleSheet.create({
     zIndex: 2,
   },
   fabPressed: {
-    transform: [{ scale: 0.94 }],
+    transform: [{ scale: 0.96 }],
   },
   fabRing: {
     position: 'absolute',
@@ -223,22 +232,30 @@ const styles = StyleSheet.create({
   tabBtn: {
     flex: 1,
     alignItems: 'center',
-    paddingTop: 18,
-    paddingBottom: 20,
+    gap: 5,
+    paddingTop: 10,
+    paddingBottom: 12,
   },
   tabBtnPressed: {
     opacity: 0.7,
+  },
+  tabLabel: {
+    fontFamily: 'Rubik_400Regular',
+    fontSize: 11,
+  },
+  tabLabelActive: {
+    fontFamily: 'Rubik_500Medium',
   },
   iconWrap: {
     position: 'relative',
   },
   unreadDot: {
     position: 'absolute',
-    top: -2,
-    right: -3,
-    width: 6,
-    height: 6,
-    borderRadius: 3,
+    top: -4,
+    right: -5,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
     borderWidth: 2,
   },
 })

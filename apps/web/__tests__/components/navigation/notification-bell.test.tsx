@@ -16,6 +16,8 @@ vi.mock('@/lib/plural', () => ({
 let mockNotifications: Array<{ id: string; title: string; body: string; isRead: boolean; createdAtUtc: string; url: string | null; habitId: string | null }> = []
 let mockUnreadCount = 0
 let mockIsLoading = false
+let mockIsError = false
+const refetchMock = vi.fn()
 const markAsReadMutate = vi.fn()
 const markAllAsReadMutate = vi.fn()
 const deleteNotificationMutate = vi.fn()
@@ -27,6 +29,8 @@ vi.mock('@/hooks/use-notifications', () => ({
     notifications: mockNotifications,
     unreadCount: mockUnreadCount,
     isLoading: mockIsLoading,
+    isError: mockIsError,
+    refetch: refetchMock,
   }),
   useMarkNotificationRead: () => ({ mutate: markAsReadMutate }),
   useMarkAllNotificationsRead: () => ({ mutate: markAllAsReadMutate }),
@@ -57,6 +61,8 @@ describe('NotificationBell', () => {
     mockNotifications = []
     mockUnreadCount = 0
     mockIsLoading = false
+    mockIsError = false
+    refetchMock.mockReset()
     markAsReadMutate.mockReset()
     markAllAsReadMutate.mockReset()
     deleteNotificationMutate.mockReset()
@@ -130,6 +136,18 @@ describe('NotificationBell', () => {
     fireEvent.click(screen.getByLabelText('notifications.bell'))
     const pulseElements = document.querySelectorAll('.animate-pulse')
     expect(pulseElements.length).toBeGreaterThan(0)
+  })
+
+  it('shows a load-error state with a retry that refetches when the query fails', () => {
+    mockUnreadCount = 0
+    mockNotifications = []
+    mockIsLoading = false
+    mockIsError = true
+    render(<NotificationBell />)
+    fireEvent.click(screen.getByLabelText('notifications.bell'))
+    expect(screen.getByText('notifications.loadError')).toBeInTheDocument()
+    fireEvent.click(screen.getByRole('button', { name: 'common.retry' }))
+    expect(refetchMock).toHaveBeenCalled()
   })
 
   it('renders notification items', () => {

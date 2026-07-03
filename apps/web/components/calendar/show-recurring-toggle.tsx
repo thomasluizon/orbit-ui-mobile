@@ -1,14 +1,14 @@
 'use client'
 
-import { Check } from 'lucide-react'
 import { useTranslations } from 'next-intl'
+import { Switch } from '@/components/ui/settings-row'
 
 interface ShowRecurringToggleProps {
   checked: boolean
   onChange: (checked: boolean) => void
 }
 
-/** Checkbox + label controlling whether recurring habits appear in a calendar
+/** Kit Switch + label controlling whether recurring habits appear in a calendar
  *  surface. Shared by the day detail and the week/interval views so the control
  *  reads and behaves identically everywhere. */
 export function ShowRecurringToggle({
@@ -17,27 +17,21 @@ export function ShowRecurringToggle({
 }: Readonly<ShowRecurringToggleProps>) {
   const t = useTranslations()
   return (
-    <label className="flex shrink-0 items-center gap-2 text-sm text-[var(--fg-2)] cursor-pointer select-none">
-      <input
-        type="checkbox"
-        checked={checked}
-        onChange={(e) => onChange(e.target.checked)}
-        className="peer sr-only"
+    <span className="flex shrink-0 items-center gap-2" style={{ minHeight: 44 }}>
+      <Switch
+        on={checked}
+        onToggle={() => onChange(!checked)}
+        ariaLabel={t('calendar.showRecurring')}
       />
-      <span
+      <button
+        type="button"
+        tabIndex={-1}
         aria-hidden="true"
-        className="flex items-center justify-center shrink-0 transition-[background-color,box-shadow] duration-[var(--dur-fast)] peer-focus-visible:outline peer-focus-visible:outline-2 peer-focus-visible:outline-offset-2 peer-focus-visible:outline-[var(--primary)]"
-        style={{
-          width: 20,
-          height: 20,
-          borderRadius: 6,
-          background: checked ? 'var(--primary)' : 'transparent',
-          boxShadow: checked ? 'none' : 'inset 0 0 0 2px var(--fg-3)',
-        }}
+        onClick={() => onChange(!checked)}
+        className="appearance-none border-0 bg-transparent p-0 cursor-pointer select-none text-sm text-[var(--fg-2)]"
       >
-        {checked && <Check size={13} strokeWidth={3} color="var(--fg-on-primary)" />}
-      </span>
-      {t('calendar.showRecurring')}
-    </label>
+        {t('calendar.showRecurring')}
+      </button>
+    </span>
   )
 }

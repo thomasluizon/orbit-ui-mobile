@@ -67,7 +67,7 @@ export function AchievementToast() {
         setShouldRender(false)
         setCurrentAchievement(null)
         completeActiveCelebration(achievementId)
-      }, 400)
+      }, 280)
     },
     [completeActiveCelebration],
   )
@@ -102,7 +102,7 @@ export function AchievementToast() {
         top: 56,
         maxWidth: 380,
         width: 'calc(100% - 32px)',
-        transition: 'opacity 400ms ease-out, transform 400ms ease-out',
+        transition: 'opacity 280ms var(--ease-out), transform 280ms var(--ease-out)',
         opacity: isVisible ? 1 : 0,
         transform: isVisible
           ? 'translate(-50%, 0) scale(1)'

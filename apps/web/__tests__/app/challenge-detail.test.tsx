@@ -4,7 +4,12 @@ import { fireEvent, render, screen } from '@testing-library/react'
 import { createMockChallengeDetail } from '@orbit/shared/__tests__/factories'
 
 const mocks = vi.hoisted(() => ({
-  detailReturn: { data: undefined as unknown, isLoading: false },
+  detailReturn: {
+    data: undefined as unknown,
+    isLoading: false,
+    isError: false,
+    refetch: vi.fn(),
+  },
   leaveMutate: vi.fn(),
   setHabitsMutate: vi.fn(),
   onLeft: vi.fn(),
@@ -49,6 +54,7 @@ import { ChallengeDetail } from '@/app/(app)/social/challenges/_components/chall
 beforeEach(() => {
   vi.clearAllMocks()
   mocks.detailReturn.isLoading = false
+  mocks.detailReturn.isError = false
   mocks.leaveMutate.mockResolvedValue(null)
   mocks.setHabitsMutate.mockResolvedValue(null)
 })
@@ -64,9 +70,34 @@ describe('ChallengeDetail', () => {
     render(<ChallengeDetail challengeId="c-1" onLeft={mocks.onLeft} />)
 
     const bar = screen.getByRole('progressbar')
-    expect(bar).toHaveAttribute('aria-valuenow', '12')
-    expect(bar).toHaveAttribute('aria-valuemax', '30')
+    expect(bar).toHaveAttribute('aria-valuenow', '40')
+    expect(bar).toHaveAttribute('aria-valuemax', '100')
     expect(screen.getByText('12 / 30')).toBeInTheDocument()
+  })
+
+  it('shows a retryable error state instead of not-found when the query fails', () => {
+    mocks.detailReturn.data = undefined
+    mocks.detailReturn.isError = true
+
+    render(<ChallengeDetail challengeId="c-1" onLeft={mocks.onLeft} />)
+
+    expect(screen.getByText('challenges.errors.loadFailed')).toBeInTheDocument()
+    expect(screen.queryByText('challenges.detail.notFound')).not.toBeInTheDocument()
+
+    fireEvent.click(screen.getByRole('button', { name: 'common.retry' }))
+
+    expect(mocks.detailReturn.refetch).toHaveBeenCalled()
+  })
+
+  it('exposes an accessible edit affordance for linked habits', () => {
+    mocks.detailReturn.data = createMockChallengeDetail({ yourLinkedHabitIds: ['h-1'] })
+
+    render(<ChallengeDetail challengeId="c-1" onLeft={mocks.onLeft} />)
+
+    expect(
+      screen.getByRole('button', { name: 'challenges.detail.editHabits' }),
+    ).toBeInTheDocument()
+    expect(screen.queryByText('challenges.detail.linkHabitsCta')).not.toBeInTheDocument()
   })
 
   it('renders a StreakTogether shared-streak counter and no progress bar', () => {

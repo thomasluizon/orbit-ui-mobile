@@ -1,4 +1,4 @@
-import { View, Text, TouchableOpacity } from 'react-native'
+import { View, Text, Pressable } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import type { FrequencyUnit } from '@orbit/shared/types/habit'
 import { frequencyUnitSchema } from '@orbit/shared/types/habit'
@@ -30,13 +30,14 @@ export function BreakdownFrequencyPicker({
         const isActive =
           opt.value === '' ? !frequencyUnit : frequencyUnit === opt.value
         return (
-          <TouchableOpacity
+          <Pressable
             key={opt.value}
-            style={[
+            style={({ pressed }) => [
               styles.freqChip,
               isActive && styles.freqChipActive,
+              pressed && styles.controlPressed,
             ]}
-            activeOpacity={0.7}
+            hitSlop={{ top: 6, bottom: 6 }}
             accessibilityRole="button"
             accessibilityState={{ selected: isActive }}
             onPress={() => {
@@ -53,7 +54,7 @@ export function BreakdownFrequencyPicker({
             >
               {t(opt.labelKey)}
             </Text>
-          </TouchableOpacity>
+          </Pressable>
         )
       })}
     </View>

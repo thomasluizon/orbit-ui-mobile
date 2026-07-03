@@ -94,7 +94,7 @@ describe('NotificationDetailModal', () => {
 
   it('calls onDelete and closes when delete clicked', () => {
     render(<NotificationDetailModal {...defaultProps} />)
-    fireEvent.click(screen.getByText('notifications.deleteNotification'))
+    fireEvent.click(screen.getByText('notifications.delete'))
     expect(defaultProps.onDelete).toHaveBeenCalledWith('n1')
     expect(defaultProps.onOpenChange).toHaveBeenCalledWith(false)
   })

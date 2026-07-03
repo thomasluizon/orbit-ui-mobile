@@ -7,17 +7,19 @@ import {
   getPersistedUIState,
   type PersistedUIState,
 } from '@orbit/shared/stores'
+import type { TourStep } from '@orbit/shared/types'
 import { useTourStore } from '@/stores/tour-store'
 import { useUIStore } from '@/stores/ui-store'
 import { useTourMockData } from '@/hooks/use-tour-mock-data'
 import { useProfile } from '@/hooks/use-profile'
-import { completeTour } from '@/app/actions/profile'
-import { useQueryClient } from '@tanstack/react-query'
-import { profileKeys } from '@orbit/shared/query'
-import type { Profile } from '@orbit/shared/types'
+import { useIsDesktop } from '@/hooks/use-is-desktop'
 
 const TARGET_FIND_TIMEOUT = 5000
 const SCROLL_SETTLE_DELAY = 350
+
+const DESKTOP_STEP_ROUTE_OVERRIDES: Record<string, string> = {
+  'profile-retrospective': '/explore',
+}
 
 /**
  * Tour orchestrator: handles navigation, element detection, mock data,
@@ -26,10 +28,10 @@ const SCROLL_SETTLE_DELAY = 350
 export function TourProvider() {
   const router = useRouter()
   const pathname = usePathname()
-  const queryClient = useQueryClient()
   const { inject, restore } = useTourMockData()
   const { profile } = useProfile()
   const hasProAccess = profile?.hasProAccess ?? false
+  const isDesktop = useIsDesktop()
 
   const store = useTourStore()
   const {
@@ -37,10 +39,15 @@ export function TourProvider() {
     getCurrentStep,
     setTargetRect,
     setNavigating,
-    endTour,
     nextStep,
     setHiddenSections,
   } = store
+
+  const resolveStepRoute = useCallback(
+    (step: TourStep) =>
+      (isDesktop ? DESKTOP_STEP_ROUTE_OVERRIDES[step.id] : undefined) ?? step.route,
+    [isDesktop],
+  )
 
   const prevStepIdRef = useRef<string | null>(null)
   const uiSnapshotRef = useRef<PersistedUIState | null>(null)
@@ -109,42 +116,6 @@ export function TourProvider() {
       restoreTourSession()
     }
   }, [isActive, inject, resetSessionState, restoreTourSession])
-
-  const handleEndTour = useCallback(async () => {
-    endTour()
-
-    try {
-      await completeTour()
-    } catch {
-    }
-
-    queryClient.setQueryData(
-      profileKeys.detail(),
-      (old: Profile | undefined) => {
-        if (!old) return old
-        return { ...old, hasCompletedTour: true }
-      },
-    )
-
-    try {
-      localStorage.setItem(
-        'orbit_tour_sections',
-        JSON.stringify({
-          habits: true,
-          goals: true,
-          chat: true,
-          calendar: true,
-          profile: true,
-        }),
-      )
-    } catch {
-    }
-  }, [endTour, queryClient])
-
-  const endTourRef = useRef(handleEndTour)
-  useEffect(() => {
-    endTourRef.current = handleEndTour
-  }, [handleEndTour])
 
   const executePreAction = useCallback(
     (preAction: string) => {
@@ -229,7 +200,7 @@ export function TourProvider() {
     }
 
     const normalizedPathname = pathname === '/' ? '/' : pathname
-    const normalizedRoute = currentStep.route === '/' ? '/' : currentStep.route
+    const normalizedRoute = resolveStepRoute(currentStep)
 
     if (normalizedPathname === normalizedRoute) {
       setNavigating(true)
@@ -248,6 +219,7 @@ export function TourProvider() {
     executePreAction,
     waitForTarget,
     scheduleTimeout,
+    resolveStepRoute,
   ])
 
   useEffect(() => {
@@ -255,7 +227,7 @@ export function TourProvider() {
     if (!isActive || !step) return
 
     const normalizedPathname = pathname === '/' ? '/' : pathname
-    const normalizedRoute = step.route === '/' ? '/' : step.route
+    const normalizedRoute = resolveStepRoute(step)
 
     if (
       normalizedPathname === normalizedRoute &&
@@ -263,7 +235,7 @@ export function TourProvider() {
     ) {
       scheduleTimeout(() => waitForTarget(step.targetId), 200)
     }
-  }, [pathname, isActive, getCurrentStep, waitForTarget, scheduleTimeout])
+  }, [pathname, isActive, getCurrentStep, waitForTarget, scheduleTimeout, resolveStepRoute])
 
   useEffect(() => {
     if (!isActive) return

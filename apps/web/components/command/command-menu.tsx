@@ -1,9 +1,9 @@
 'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useState, type RefObject } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { CheckCircle2, Plus, Search, SkipForward, Target } from 'lucide-react'
+import { ArrowLeft, CheckCircle2, Plus, Search, SkipForward, Target } from 'lucide-react'
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandList } from 'cmdk'
 import type { SidebarNavItem } from '@/components/navigation/app-sidebar'
 import { useUIStore } from '@/stores/ui-store'
@@ -14,39 +14,71 @@ import { CommandHabitItems } from './command-habit-items'
 type CommandPage = 'log' | 'skip'
 
 const GROUP_CLASS =
-  'mb-1 [&_[cmdk-group-heading]]:px-2.5 [&_[cmdk-group-heading]]:pb-1 [&_[cmdk-group-heading]]:pt-2 [&_[cmdk-group-heading]]:text-[11px] [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-[0.08em] [&_[cmdk-group-heading]]:text-[var(--fg-3)]'
+  'mb-1 [&_[cmdk-group-heading]]:px-2.5 [&_[cmdk-group-heading]]:pb-1 [&_[cmdk-group-heading]]:pt-2 [&_[cmdk-group-heading]]:text-[12px] [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:uppercase [&_[cmdk-group-heading]]:tracking-[0.08em] [&_[cmdk-group-heading]]:text-[var(--fg-3)]'
 
 const ICON_CLASS = 'size-[22px]'
+
+const SKELETON_ROW_WIDTHS = ['62%', '48%', '71%'] as const
+
+function CommandHabitSkeleton({ heading }: Readonly<{ heading: string }>) {
+  return (
+    <div aria-hidden="true" className="mb-1">
+      <div className="px-2.5 pb-1 pt-2 text-[12px] font-medium uppercase tracking-[0.08em] text-[var(--fg-3)]">
+        {heading}
+      </div>
+      {SKELETON_ROW_WIDTHS.map((width) => (
+        <div key={width} className="flex min-h-[44px] items-center gap-3 px-2.5">
+          <span className="skeleton-pulse size-[26px] shrink-0 rounded-[8px] bg-[var(--bg-elev)]" />
+          <span className="skeleton-pulse h-3.5 rounded-full bg-[var(--bg-elev)]" style={{ width }} />
+        </div>
+      ))}
+    </div>
+  )
+}
+
+function CommandKeyHint({ keys, label }: Readonly<{ keys: readonly string[]; label: string }>) {
+  return (
+    <span className="flex items-center" style={{ gap: 6 }}>
+      {keys.map((key) => (
+        <kbd
+          key={key}
+          className="t-meta flex h-[18px] min-w-[18px] items-center justify-center rounded-[8px] px-1"
+          style={{ background: 'var(--bg-elev)', boxShadow: 'inset 0 0 0 1px var(--hairline)' }}
+        >
+          {key}
+        </kbd>
+      ))}
+      <span className="t-meta">{label}</span>
+    </span>
+  )
+}
 
 interface CommandMenuProps {
   navItems: readonly SidebarNavItem[]
   onCreateHabit: () => void
   onCreateGoal: () => void
   onClose: () => void
+  inputRef: RefObject<HTMLInputElement | null>
 }
 
 /**
  * The cmdk command list mounted inside the palette overlay: the search input, the
- * grouped commands (create, actions, navigate, habit search), and the log/skip
- * habit-picker sub-pages. Only mounted while the palette is open.
+ * grouped commands (create, actions, navigate, habit search), the log/skip
+ * habit-picker sub-pages with a breadcrumb back strip, and a key-hint footer.
+ * Only mounted while the palette is open; the palette owns focus via `inputRef`.
  */
-export function CommandMenu({ navItems, onCreateHabit, onCreateGoal, onClose }: Readonly<CommandMenuProps>) {
+export function CommandMenu({ navItems, onCreateHabit, onCreateGoal, onClose, inputRef }: Readonly<CommandMenuProps>) {
   const t = useTranslations()
   const router = useRouter()
   const setActiveView = useUIStore((state) => state.setActiveView)
-  const inputRef = useRef<HTMLInputElement>(null)
   const [search, setSearch] = useState('')
   const [pages, setPages] = useState<CommandPage[]>([])
   const activePage = pages.at(-1) ?? null
 
-  const { data } = useHabits({})
+  const { data, isPending, isSuccess } = useHabits({})
   const logHabit = useLogHabit()
   const skipHabit = useSkipHabit()
   const habits = data?.topLevelHabits ?? []
-
-  useEffect(() => {
-    inputRef.current?.focus()
-  }, [])
 
   function run(action: () => void) {
     action()
@@ -75,8 +107,33 @@ export function CommandMenu({ navItems, onCreateHabit, onCreateGoal, onClose }: 
     }
   }
 
+  const activePageLabel =
+    activePage === null ? null : t(activePage === 'log' ? 'command.logHabit' : 'command.skipHabit')
+
   return (
-    <Command label={t('command.placeholder')} className="flex flex-col overflow-hidden">
+    <Command label={t('command.title')} className="flex flex-col overflow-hidden">
+      {activePageLabel !== null && (
+        <div className="flex items-center border-b border-[var(--hairline)] px-2" style={{ gap: 4, paddingBlock: 6 }}>
+          <button
+            type="button"
+            aria-label={t('common.back')}
+            onClick={() => {
+              popPage()
+              inputRef.current?.focus()
+            }}
+            className="flex size-11 shrink-0 items-center justify-center rounded-full text-[var(--fg-3)] transition-[color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:text-[var(--fg-1)] active:scale-[0.96]"
+          >
+            <ArrowLeft size={18} strokeWidth={1.8} aria-hidden />
+          </button>
+          <span
+            className="rounded-full px-2.5 py-1 text-[12px] font-medium text-[var(--fg-2)]"
+            style={{ background: 'var(--bg-elev)', boxShadow: 'inset 0 0 0 1px var(--hairline)' }}
+          >
+            {activePageLabel}
+          </span>
+        </div>
+      )}
+
       <div className="flex items-center gap-2.5 border-b border-[var(--hairline)] px-4">
         <Search className="size-[18px] shrink-0 text-[var(--fg-3)]" strokeWidth={1.8} aria-hidden />
         <CommandInput
@@ -90,9 +147,11 @@ export function CommandMenu({ navItems, onCreateHabit, onCreateGoal, onClose }: 
       </div>
 
       <CommandList className="max-h-[min(60vh,400px)] overflow-y-auto overflow-x-hidden overscroll-contain p-2">
-        <CommandEmpty className="px-3 py-6 text-center text-[14px] text-[var(--fg-3)]">
-          {t('command.empty')}
-        </CommandEmpty>
+        {isSuccess && (
+          <CommandEmpty className="px-3 py-6 text-center text-[14px] text-[var(--fg-3)]">
+            {t('command.empty')}
+          </CommandEmpty>
+        )}
 
         {activePage === null ? (
           <>
@@ -138,17 +197,18 @@ export function CommandMenu({ navItems, onCreateHabit, onCreateGoal, onClose }: 
               ))}
             </CommandGroup>
 
-            {habits.length > 0 && (
+            {isPending ? (
+              <CommandHabitSkeleton heading={t('command.groups.search')} />
+            ) : habits.length > 0 ? (
               <CommandGroup heading={t('command.groups.search')} className={GROUP_CLASS}>
                 <CommandHabitItems habits={habits} onSelectHabit={() => run(jumpToToday)} />
               </CommandGroup>
-            )}
+            ) : null}
           </>
+        ) : isPending ? (
+          <CommandHabitSkeleton heading={activePageLabel ?? ''} />
         ) : (
-          <CommandGroup
-            heading={t(activePage === 'log' ? 'command.logHabit' : 'command.skipHabit')}
-            className={GROUP_CLASS}
-          >
+          <CommandGroup heading={activePageLabel} className={GROUP_CLASS}>
             <CommandHabitItems
               habits={habits}
               onSelectHabit={(habit) =>
@@ -161,6 +221,16 @@ export function CommandMenu({ navItems, onCreateHabit, onCreateGoal, onClose }: 
           </CommandGroup>
         )}
       </CommandList>
+
+      <div
+        className="flex flex-wrap items-center border-t border-[var(--hairline)] px-4"
+        style={{ gap: 16, paddingBlock: 10 }}
+      >
+        <CommandKeyHint keys={['↑', '↓']} label={t('command.hints.navigate')} />
+        <CommandKeyHint keys={['↵']} label={t('command.hints.select')} />
+        <CommandKeyHint keys={['Esc']} label={t('command.hints.close')} />
+        {activePage !== null && <CommandKeyHint keys={['⌫']} label={t('command.hints.back')} />}
+      </div>
     </Command>
   )
 }

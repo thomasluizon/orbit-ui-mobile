@@ -14,6 +14,7 @@ export function ThemeToggle() {
   return (
     <Pressable
       onPress={toggleTheme}
+      hitSlop={2}
       accessibilityRole="button"
       accessibilityLabel={
         isDark
@@ -48,6 +49,6 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   pressed: {
-    transform: [{ scale: 0.92 }],
+    transform: [{ scale: 0.96 }],
   },
 })

@@ -78,9 +78,12 @@ export function EditHabitModal({
     onDismiss: onClose,
   })
 
-  const { data: habitDetail, error: detailError } = useHabitDetail(
-    open && habit ? habit.id : null,
-  )
+  const {
+    data: habitDetail,
+    isPending: detailPending,
+    error: detailError,
+  } = useHabitDetail(open && habit ? habit.id : null)
+  const detailFieldsPending = open && !!habit && detailPending
 
   const toggleGoal = useCallback((goalId: string) => {
     setSelectedGoalIds((prev) => toggleSelectedId(prev, goalId))
@@ -113,8 +116,9 @@ export function EditHabitModal({
     sessionHabitId !== previousSession.habitId ||
     sessionDetailId !== previousSession.detailId
   ) {
+    const habitChanged = sessionHabitId !== previousSession.habitId
     setPreviousSession({ habitId: sessionHabitId, detailId: sessionDetailId })
-    if (open && habit) {
+    if (open && habit && (habitChanged || !formHelpers.form.formState.isDirty)) {
       const prefill = buildEditHabitFormState(habit, habitDetail)
       formHelpers.form.reset(prefill.formValues)
       setOriginalEndDate(prefill.originalEndDate)
@@ -197,7 +201,10 @@ export function EditHabitModal({
 
   const watchedTitle =
     useWatch({ control: formHelpers.form.control, name: 'title' }) ?? ''
-  const submitDisabled = updateHabit.isPending || watchedTitle.trim().length === 0
+  const submitDisabled =
+    updateHabit.isPending ||
+    detailFieldsPending ||
+    watchedTitle.trim().length === 0
 
   return (
     <>
@@ -216,42 +223,48 @@ export function EditHabitModal({
           showsVerticalScrollIndicator={false}
           keyboardShouldPersistTaps="always"
         >
-          <HabitFormFields
-            formHelpers={formHelpers}
-            tags={tags}
-            selectedGoalIds={selectedGoalIds}
-            atGoalLimit={atGoalLimit}
-            onToggleGoal={toggleGoal}
-            reminderTimes={reminderTimes}
-            onReminderTimesChange={setReminderTimes}
-            onFlushBufferedInputsReady={handleBufferedInputsReady}
-            defaultExpanded={true}
-          />
-
-          <View style={styles.footer}>
-            <PillButton
-              variant="ghost"
-              disabled={updateHabit.isPending}
-              onPress={dismissGuard.requestDismiss}
-            >
-              {t('common.cancel')}
-            </PillButton>
-            <PillButton
-              glow={false}
-              disabled={submitDisabled}
-              onPress={handleSubmit}
-              leading={
-                updateHabit.isPending ? (
-                  <ActivityIndicator size="small" color={tokens.fgOnPrimary} />
-                ) : (
-                  <Check size={18} color={tokens.fgOnPrimary} strokeWidth={2.2} />
-                )
-              }
-            >
-              {t('common.save')}
-            </PillButton>
+          <View
+            pointerEvents={detailFieldsPending ? 'none' : 'auto'}
+            style={detailFieldsPending ? styles.fieldsPending : null}
+            accessibilityElementsHidden={detailFieldsPending}
+          >
+            <HabitFormFields
+              formHelpers={formHelpers}
+              tags={tags}
+              selectedGoalIds={selectedGoalIds}
+              atGoalLimit={atGoalLimit}
+              onToggleGoal={toggleGoal}
+              reminderTimes={reminderTimes}
+              onReminderTimesChange={setReminderTimes}
+              onFlushBufferedInputsReady={handleBufferedInputsReady}
+              defaultExpanded={true}
+            />
           </View>
         </KeyboardAwareBottomSheetScrollView>
+
+        <View style={styles.footer}>
+          <PillButton
+            variant="ghost"
+            disabled={updateHabit.isPending}
+            onPress={dismissGuard.requestDismiss}
+          >
+            {t('common.cancel')}
+          </PillButton>
+          <PillButton
+            glow={false}
+            disabled={submitDisabled}
+            onPress={handleSubmit}
+            leading={
+              updateHabit.isPending ? (
+                <ActivityIndicator size="small" color={tokens.fgOnPrimary} />
+              ) : (
+                <Check size={18} color={tokens.fgOnPrimary} strokeWidth={2.2} />
+              )
+            }
+          >
+            {t('common.save')}
+          </PillButton>
+        </View>
       </BottomSheetModal>
       <ConfirmDialog
         open={dismissGuard.showDiscardDialog}
@@ -277,8 +290,11 @@ function createStyles(bottomInset: number) {
     },
     scrollContent: {
       paddingHorizontal: 20,
-      paddingBottom: Math.max(bottomInset, 16) + 20,
+      paddingBottom: 20,
       gap: 20,
+    },
+    fieldsPending: {
+      opacity: 0.6,
     },
     footer: {
       flexDirection: 'row',
@@ -286,6 +302,8 @@ function createStyles(bottomInset: number) {
       justifyContent: 'flex-end',
       gap: 12,
       paddingTop: 14,
+      paddingHorizontal: 20,
+      paddingBottom: Math.max(bottomInset, 16),
     },
   })
 }

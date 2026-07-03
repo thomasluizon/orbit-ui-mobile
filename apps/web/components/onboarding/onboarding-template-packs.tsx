@@ -15,6 +15,7 @@ import {
 import { useBulkCreateHabits } from '@/hooks/use-habits'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { PillButton } from '@/components/ui/pill-button'
+import { QuietLink } from '@/components/ui/quiet-link'
 
 interface OnboardingTemplatePacksProps {
   onCreated: () => void
@@ -106,12 +107,12 @@ export function OnboardingTemplatePacks({
         </div>
 
         <div className="flex flex-col items-center" style={{ gap: 4, marginTop: 4 }}>
-          <SecondaryAction onClick={onCreateOwn} emphasis>
+          <QuietLink onClick={onCreateOwn} emphasized>
             {t('onboarding.flow.templatePacks.createOwn')}
-          </SecondaryAction>
-          <SecondaryAction onClick={onSkip}>
+          </QuietLink>
+          <QuietLink onClick={onSkip}>
             {t('onboarding.flow.templatePacks.skip')}
-          </SecondaryAction>
+          </QuietLink>
         </div>
       </div>
     )
@@ -137,14 +138,12 @@ export function OnboardingTemplatePacks({
               data-enabled={enabled}
               aria-pressed={enabled}
               onClick={() => toggleHabit(habit.key)}
-              className="flex w-full appearance-none items-center border-0 text-left"
+              className="flex w-full appearance-none items-center border-0 text-left bg-[var(--bg-elev)] cursor-pointer transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev-2)] active:scale-[0.99]"
               style={{
                 gap: 12,
                 padding: '12px 14px',
                 borderRadius: 14,
-                background: 'var(--bg-elev)',
                 opacity: enabled ? 1 : 0.55,
-                cursor: 'pointer',
               }}
             >
               <span aria-hidden="true" style={{ fontSize: 20 }}>
@@ -185,9 +184,9 @@ export function OnboardingTemplatePacks({
             ? t('onboarding.flow.templatePacks.createCtaOne')
             : t('onboarding.flow.templatePacks.createCta', { count: enabledCount })}
         </PillButton>
-        <SecondaryAction onClick={() => setSelectedPackId(null)}>
+        <QuietLink onClick={() => setSelectedPackId(null)}>
           {t('onboarding.flow.back')}
-        </SecondaryAction>
+        </QuietLink>
       </div>
     </div>
   )
@@ -224,29 +223,3 @@ function Heading({ title, subtitle }: Readonly<HeadingProps>) {
   )
 }
 
-interface SecondaryActionProps {
-  onClick: () => void
-  emphasis?: boolean
-  children: string
-}
-
-function SecondaryAction({ onClick, emphasis, children }: Readonly<SecondaryActionProps>) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      className="inline-flex appearance-none items-center justify-center border-0 bg-transparent"
-      style={{
-        fontFamily: 'var(--font-sans)',
-        fontSize: 13,
-        fontWeight: emphasis ? 500 : 400,
-        color: emphasis ? 'var(--primary-soft)' : 'var(--fg-3)',
-        minHeight: 44,
-        padding: '0 12px',
-        cursor: 'pointer',
-      }}
-    >
-      {children}
-    </button>
-  )
-}

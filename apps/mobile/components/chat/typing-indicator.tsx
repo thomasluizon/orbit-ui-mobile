@@ -1,9 +1,9 @@
 import { useEffect, useMemo } from "react";
 import { View, StyleSheet, Animated } from "react-native";
 import Reanimated, { FadeInUp, ReduceMotion } from "react-native-reanimated";
-import { Sparkles } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import { usePrefersReducedMotion } from "@/lib/motion";
+import { AstraMark } from "@/components/ui/astra-avatar";
 import { createTokensV2, tintFromPrimary } from '@/lib/theme'
 import { useAppTheme } from "@/lib/use-app-theme";
 
@@ -61,7 +61,7 @@ export function TypingIndicator() {
         accessibilityElementsHidden
         importantForAccessibility="no-hide-descendants"
       >
-        <Sparkles size={16} color={tokens.primarySoft} strokeWidth={1.8} />
+        <AstraMark size={16} />
       </View>
 
       <View style={[styles.typingBubble, { backgroundColor: tokens.bgElev }]}>

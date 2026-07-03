@@ -90,14 +90,15 @@ describe('SetupChecklistCard (mobile)', () => {
     setDismissed.mockClear()
   })
 
-  it('renders nothing while the profile is loading', () => {
+  it('renders all items pending while the profile is loading', () => {
     mockProfile = undefined
-    expect(renderCard().toJSON()).toBeNull()
+    const texts = textValues(renderCard())
+    expect(texts).toContain('today.setupChecklist.progress({"done":0,"total":3})')
   })
 
-  it('renders nothing once the checklist is completed server-side', () => {
+  it('renders even once the checklist is completed server-side, visibility is owned by the engagement slot', () => {
     mockProfile = createMockProfile({ hasCompletedOnboardingChecklist: true })
-    expect(renderCard().toJSON()).toBeNull()
+    expect(renderCard().toJSON()).not.toBeNull()
   })
 
   it('renders the three items and progress from the flags', () => {

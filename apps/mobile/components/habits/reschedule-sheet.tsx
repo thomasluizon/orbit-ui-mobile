@@ -1,5 +1,5 @@
 import { useCallback, useMemo } from 'react'
-import { StyleSheet, Text, View } from 'react-native'
+import { ScrollView, StyleSheet, Text, View } from 'react-native'
 import { CalendarClock, Sparkles } from 'lucide-react-native'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
@@ -11,6 +11,7 @@ import {
 } from '@orbit/shared/utils'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { BottomSheetModal } from '@/components/bottom-sheet-modal'
+import { SkeletonLine } from '@/components/ui/skeleton'
 import { PillButton } from '@/components/ui/pill-button'
 import { useProfile } from '@/hooks/use-profile'
 import { useTimeFormat } from '@/hooks/use-time-format'
@@ -92,13 +93,18 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
   function renderBody() {
     if (!hasProAccess) {
       return (
-        <Text style={styles.bodyText} accessibilityLabel={t('habits.reschedule.freePrompt')}>
+        <Text style={styles.bodyText}>
           {t('habits.reschedule.freePrompt')}
         </Text>
       )
     }
     if (isLoading) {
-      return <Text style={styles.bodyText}>{t('habits.reschedule.loading')}</Text>
+      return (
+        <View style={styles.suggestionBlock}>
+          <Text style={styles.bodyText}>{t('habits.reschedule.loading')}</Text>
+          <SkeletonLine height={76} style={styles.loadingCard} />
+        </View>
+      )
     }
     if (error) {
       return <Text style={styles.bodyText}>{t('habits.reschedule.error')}</Text>
@@ -153,7 +159,7 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
         <PillButton
           fullWidth
           disabled={!suggestion || updateHabit.isPending}
-          accessibilityLabel={t('habits.reschedule.accept')}
+          busy={updateHabit.isPending}
           onPress={() => void handleAccept()}
         >
           {t('habits.reschedule.accept')}
@@ -175,27 +181,35 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
       open={open}
       onClose={() => onOpenChange(false)}
       title={t('habits.reschedule.title')}
-      snapPoints={['60%']}
+      snapPoints={['60%', '90%']}
     >
-      <View style={styles.content}>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={false}
+      >
         <View style={styles.headerRow}>
           <Sparkles size={16} color={tokens.primarySoft} strokeWidth={1.9} />
           <Text style={styles.eyebrow}>Astra</Text>
           <Text style={styles.aiBadge}>{t('aiDisclosure.isAiLabel')}</Text>
         </View>
         {renderBody()}
-        {renderActions()}
-      </View>
+      </ScrollView>
+      <View style={styles.actionsFooter}>{renderActions()}</View>
     </BottomSheetModal>
   )
 }
 
 function createStyles(tokens: ReturnType<typeof createTokensV2>) {
   return StyleSheet.create({
-    content: {
+    scroll: {
+      flex: 1,
+    },
+    scrollContent: {
+      flexGrow: 1,
       paddingHorizontal: 22,
       paddingTop: 4,
-      paddingBottom: 30,
+      paddingBottom: 14,
       gap: 14,
     },
     headerRow: {
@@ -230,6 +244,12 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
     },
     suggestionBlock: {
       gap: 14,
+    },
+    loadingCard: {
+      borderRadius: 18,
+      backgroundColor: tokens.bgField,
+      borderWidth: 1,
+      borderColor: tokens.hairline,
     },
     scheduleCard: {
       flexDirection: 'row',
@@ -278,7 +298,11 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
     },
     actions: {
       gap: 10,
-      marginTop: 6,
+    },
+    actionsFooter: {
+      paddingHorizontal: 22,
+      paddingTop: 6,
+      paddingBottom: 30,
     },
   })
 }

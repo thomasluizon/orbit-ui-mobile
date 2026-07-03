@@ -1,8 +1,46 @@
-import { ActivityIndicator } from 'react-native'
-import Svg, { Path } from 'react-native-svg'
+import { useEffect, useMemo } from 'react'
+import { Animated, Easing } from 'react-native'
+import Svg, { Circle, Path } from 'react-native-svg'
 
-export function Spinner({ size = 16, color = '#fff' }: { size?: number; color?: string }) {
-  return <ActivityIndicator size="small" color={color} style={{ width: size, height: size }} />
+const AnimatedSvg = Animated.createAnimatedComponent(Svg)
+
+export function Spinner({ size = 16, color }: { size?: number; color: string }) {
+  const rotation = useMemo(() => new Animated.Value(0), [])
+
+  useEffect(() => {
+    const animation = Animated.loop(
+      Animated.timing(rotation, {
+        toValue: 1,
+        duration: 1000,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      }),
+    )
+    animation.start()
+    return () => animation.stop()
+  }, [rotation])
+
+  const spin = rotation.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '360deg'],
+  })
+
+  return (
+    <AnimatedSvg
+      width={size}
+      height={size}
+      viewBox="0 0 24 24"
+      fill="none"
+      style={{ transform: [{ rotate: spin }] }}
+    >
+      <Circle cx={12} cy={12} r={10} stroke={color} strokeWidth={4} opacity={0.25} />
+      <Path
+        d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"
+        fill={color}
+        opacity={0.75}
+      />
+    </AnimatedSvg>
+  )
 }
 
 export function GoogleIcon() {

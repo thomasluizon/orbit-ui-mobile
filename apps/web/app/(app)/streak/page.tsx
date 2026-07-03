@@ -8,6 +8,8 @@ import { useStreakFreeze } from '@/hooks/use-gamification'
 import { useDateFormat } from '@/hooks/use-date-format'
 import { StreakFreezeCelebration, type StreakFreezeCelebrationHandle } from '@/components/gamification/streak-freeze-celebration'
 import { AppBar } from '@/components/ui/app-bar'
+import { SectionLabel } from '@/components/ui/section-label'
+import { PillButton } from '@/components/ui/pill-button'
 import { FreezeProgressCard, StreakStatsRow, StreakTimelineCard } from './_components/streak-sections'
 import { StreakHero } from './_components/streak-hero'
 import { StreakFrozenBanner } from './_components/streak-frozen-banner'
@@ -70,45 +72,70 @@ export default function StreakPage() {
         back
         backLabel={t('common.backToProfile')}
         onBack={() => goBackOrFallback('/profile')}
-        title={t('streakDisplay.detail.title')}
+        title={t('streakDisplay.title')}
       />
 
       {isLoading ? (
         <div className="flex-1 px-5 py-8 space-y-4">
-          <div className="h-48 bg-[var(--bg-card)] rounded-[18px] animate-pulse" />
-          <div className="h-28 bg-[var(--bg-card)] rounded-[18px] animate-pulse" />
-          <div className="h-40 bg-[var(--bg-card)] rounded-[18px] animate-pulse" />
+          <div className="h-48 bg-[var(--bg-card)] rounded-[18px] skeleton-pulse" />
+          <div className="h-28 bg-[var(--bg-card)] rounded-[18px] skeleton-pulse" />
+          <div className="h-40 bg-[var(--bg-card)] rounded-[18px] skeleton-pulse" />
         </div>
       ) : (
         <div className="stagger-enter flex-1 min-h-0 overflow-y-auto">
           {isFrozenToday && <StreakFrozenBanner />}
 
-          <StreakHero
-            streak={streak}
-            isFrozenToday={isFrozenToday}
-            encouragement={encouragement}
-          />
+          <div>
+            <div>
+              <StreakHero
+                streak={streak}
+                isFrozenToday={isFrozenToday}
+                encouragement={encouragement}
+              />
 
-          <StreakStatsRow
-            t={t}
-            streak={streak}
-            longestStreak={profile?.longestStreak ?? 0}
-          />
+              <StreakStatsRow
+                t={t}
+                streak={streak}
+                longestStreak={profile?.longestStreak ?? 0}
+              />
+            </div>
 
-          <StreakTimelineCard t={t} weekDays={weekDays} />
+            <div>
+              <StreakTimelineCard t={t} weekDays={weekDays} />
 
-          <FreezeProgressCard
-            t={t}
-            unlocked={canViewGamification}
-            streak={streak}
-            streakFreezesAccumulated={streakFreezesAccumulated}
-            maxStreakFreezesAccumulated={maxStreakFreezesAccumulated}
-            freezesUsedThisMonth={freezesUsedThisMonth}
-            maxFreezesPerMonth={maxFreezesPerMonth}
-            isFrozenToday={isFrozenToday}
-            streakInfo={streakInfo}
-            displayDate={displayDate}
-          />
+              {streakQuery.isError && !streakInfo ? (
+                <div>
+                  <SectionLabel>{t('streakDisplay.freeze.title')}</SectionLabel>
+                  <div className="px-5" style={{ paddingBottom: 14 }}>
+                    <div
+                      className="flex flex-col items-center gap-3 rounded-[18px] px-5 py-8 text-center"
+                      style={{ background: 'var(--bg-card)', boxShadow: 'inset 0 0 0 1px var(--hairline)' }}
+                    >
+                      <p style={{ margin: 0, fontFamily: 'var(--font-sans)', fontSize: 14, lineHeight: 1.55, color: 'var(--fg-2)' }}>
+                        {t('common.error')}
+                      </p>
+                      <PillButton variant="ghost" onClick={() => streakQuery.refetch()}>
+                        {t('common.retry')}
+                      </PillButton>
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <FreezeProgressCard
+                  t={t}
+                  unlocked={canViewGamification}
+                  streak={streak}
+                  streakFreezesAccumulated={streakFreezesAccumulated}
+                  maxStreakFreezesAccumulated={maxStreakFreezesAccumulated}
+                  freezesUsedThisMonth={freezesUsedThisMonth}
+                  maxFreezesPerMonth={maxFreezesPerMonth}
+                  isFrozenToday={isFrozenToday}
+                  streakInfo={streakInfo}
+                  displayDate={displayDate}
+                />
+              )}
+            </div>
+          </div>
         </div>
       )}
 

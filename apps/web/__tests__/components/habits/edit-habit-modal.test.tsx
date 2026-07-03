@@ -29,16 +29,19 @@ vi.mock('next-intl', () => ({
   useLocale: () => 'en',
 }))
 
+let mockHabitDetailResult: {
+  data: unknown
+  isPending: boolean
+  error: unknown
+} = { data: null, isPending: false, error: null }
+
 vi.mock('@/hooks/use-habits', () => ({
   useUpdateHabit: () => ({
     mutateAsync: mockUpdateMutateAsync,
     isPending: false,
     error: null,
   }),
-  useHabitDetail: () => ({
-    data: null,
-    error: null,
-  }),
+  useHabitDetail: () => mockHabitDetailResult,
 }))
 
 vi.mock('@/hooks/use-habit-form', () => ({
@@ -118,17 +121,20 @@ vi.mock('@/components/ui/app-overlay', () => ({
     children,
     title,
     description,
+    footer,
   }: {
     open: boolean
     children: React.ReactNode
     title?: string
     description?: string
+    footer?: React.ReactNode
   }) =>
     open ? (
       <div data-testid="app-overlay">
         {title && <h2>{title}</h2>}
         {description && <p>{description}</p>}
         {children}
+        {footer && <div data-testid="overlay-footer">{footer}</div>}
       </div>
     ) : null,
 }))
@@ -155,6 +161,7 @@ describe('EditHabitModal', () => {
 
   beforeEach(() => {
     vi.clearAllMocks()
+    mockHabitDetailResult = { data: null, isPending: false, error: null }
     mockUpdateMutateAsync.mockResolvedValue({})
     mockValidateAll.mockReturnValue(null)
     mockFormGetValues.mockReturnValue({
@@ -257,6 +264,28 @@ describe('EditHabitModal', () => {
       <EditHabitModal open={true} onOpenChange={vi.fn()} habit={null} />,
     )
     expect(screen.getByTestId('app-overlay')).toBeDefined()
+  })
+
+  it('disables the fields and the save button while the habit detail is loading', () => {
+    mockHabitDetailResult = { data: null, isPending: true, error: null }
+    renderWithProviders(
+      <EditHabitModal open={true} onOpenChange={vi.fn()} habit={defaultHabit} />,
+    )
+    expect(screen.getByRole('group')).toBeDisabled()
+    const saveButton = screen.getByText('common.save').closest('button')
+    expect(saveButton).toBeDisabled()
+  })
+
+  it('enables the fields once the habit detail has loaded', () => {
+    mockHabitDetailResult = {
+      data: { ...defaultHabit, checklistItems: [] },
+      isPending: false,
+      error: null,
+    }
+    renderWithProviders(
+      <EditHabitModal open={true} onOpenChange={vi.fn()} habit={defaultHabit} />,
+    )
+    expect(screen.getByRole('group')).not.toBeDisabled()
   })
 
   it('calls onSaved after a successful save', async () => {

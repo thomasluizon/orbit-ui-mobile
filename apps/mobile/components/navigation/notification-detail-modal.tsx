@@ -9,7 +9,7 @@ import {
 } from '@orbit/shared/utils'
 import type { NotificationItem } from '@orbit/shared/types/notification'
 import { BottomSheetModal } from '@/components/bottom-sheet-modal'
-import { createTokensV2 } from '@/lib/theme'
+import { createTokensV2, tintFromPrimary } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 interface NotificationDetailModalProps {
@@ -31,7 +31,10 @@ export function NotificationDetailModal({
   const { t } = useTranslation()
   const router = useRouter()
   const { currentScheme, currentTheme } = useAppTheme()
-  const tokens = createTokensV2(currentScheme, currentTheme)
+  const tokens = useMemo(
+    () => createTokensV2(currentScheme, currentTheme),
+    [currentScheme, currentTheme],
+  )
   const styles = useMemo(() => createStyles(tokens), [tokens])
   const { canView, canMarkAsRead } = getNotificationDetailActionVisibility(
     notification,
@@ -55,7 +58,7 @@ export function NotificationDetailModal({
       open={open}
       onClose={onClose}
       title={notification.title}
-      snapPoints={['78%', '92%']}
+      snapPoints={['50%', '92%']}
     >
       <View style={styles.container}>
         <Text style={styles.timestamp}>
@@ -70,8 +73,9 @@ export function NotificationDetailModal({
           {canView ? (
             <QuietAction
               label={t('notifications.view')}
-              color={tokens.fg2}
+              color={tokens.primary}
               onPress={handleView}
+              primary
             />
           ) : null}
           {canMarkAsRead ? (
@@ -82,7 +86,7 @@ export function NotificationDetailModal({
             />
           ) : null}
           <QuietAction
-            label={t('notifications.deleteNotification')}
+            label={t('notifications.delete')}
             color={tokens.statusBad}
             onPress={handleDelete}
           />
@@ -96,19 +100,29 @@ function QuietAction({
   label,
   color,
   onPress,
-}: Readonly<{ label: string; color: string; onPress: () => void }>) {
+  primary = false,
+}: Readonly<{ label: string; color: string; onPress: () => void; primary?: boolean }>) {
   const { currentScheme, currentTheme } = useAppTheme()
-  const tokens = createTokensV2(currentScheme, currentTheme)
+  const tokens = useMemo(
+    () => createTokensV2(currentScheme, currentTheme),
+    [currentScheme, currentTheme],
+  )
+  const surface = {
+    rest: primary ? tintFromPrimary(tokens, 0.1) : tokens.bgElev,
+    pressed: primary ? tintFromPrimary(tokens, 0.16) : tokens.bgElev2,
+    border: primary ? tintFromPrimary(tokens, 0.28) : tokens.hairline,
+  }
   return (
     <Pressable
       onPress={onPress}
       accessibilityRole="button"
       accessibilityLabel={label}
+      hitSlop={{ top: 4, bottom: 4 }}
       style={({ pressed }) => [
         quietActionStyles.chip,
         {
-          backgroundColor: pressed ? tokens.bgElev2 : tokens.bgElev,
-          borderColor: tokens.hairline,
+          backgroundColor: pressed ? surface.pressed : surface.rest,
+          borderColor: surface.border,
         },
         pressed && quietActionStyles.pressed,
       ]}

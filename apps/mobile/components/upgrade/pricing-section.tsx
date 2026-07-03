@@ -1,4 +1,5 @@
 import { ActivityIndicator, Pressable, Text, View } from 'react-native'
+import Animated, { FadeInDown, ReduceMotion } from 'react-native-reanimated'
 import {
   AlertTriangle,
   BarChart3,
@@ -17,6 +18,7 @@ import type { SubscriptionPlans } from '@orbit/shared/types/subscription'
 import type { PlayOffer } from '@/hooks/use-play-billing'
 import { plural } from '@/lib/plural'
 import { Badge } from '@/components/ui/badge'
+import { SkeletonLine } from '@/components/ui/skeleton'
 import { PlanComparisonCards } from './plan-comparison-cards'
 import { PlanSelection } from './plan-selection'
 import { styles } from './styles'
@@ -31,6 +33,12 @@ const iconByKey: Record<UpgradeIconKey, typeof Flame> = {
 }
 
 const MARQUEE = [...UPGRADE_PRO_FEATURES, ...UPGRADE_YEARLY_EXTRA_FEATURES]
+
+function sectionEntrance(index: number) {
+  return FadeInDown.duration(280)
+    .delay(index * 40)
+    .reduceMotion(ReduceMotion.System)
+}
 
 export function PricingSection({
   profile,
@@ -81,17 +89,27 @@ export function PricingSection({
 
   return (
     <>
-      <Text style={[styles.convertEyebrow, { color: tokens.primarySoft }]}>{eyebrow}</Text>
-      <Text style={[styles.convertHeading, { color: tokens.fg1 }]}>{heading}</Text>
-      <Text style={[styles.convertPromise, { color: tokens.fg2 }]}>{t('upgrade.convert.promise')}</Text>
-      {!trialActive ? (
-        <Text style={[styles.convertTrust, { color: tokens.fg3 }]}>{t('upgrade.convert.trustLine')}</Text>
-      ) : null}
+      <Animated.View entering={sectionEntrance(0)}>
+        <Text style={[styles.convertEyebrow, { color: tokens.primarySoft }]}>{eyebrow}</Text>
+        <Text style={[styles.convertHeading, { color: tokens.fg1 }]}>{heading}</Text>
+        <Text style={[styles.convertPromise, { color: tokens.fg2 }]}>{t('upgrade.convert.promise')}</Text>
+        {!trialActive ? (
+          <Text style={[styles.convertTrust, { color: tokens.fg3 }]}>{t('upgrade.convert.trustLine')}</Text>
+        ) : null}
+      </Animated.View>
 
       {isLoadingPlans ? (
-        <View style={styles.padBlock}>
-          <ActivityIndicator size="small" color={tokens.primary} />
-          <Text style={[styles.mutedMeta, { color: tokens.fg3 }]}>{t('common.loading')}</Text>
+        <View style={{ marginTop: 18 }}>
+          {[0, 1].map((index) => (
+            <View
+              key={index}
+              style={[styles.card, { borderColor: tokens.hairline, backgroundColor: tokens.bgCard }]}
+            >
+              <SkeletonLine width={80} height={16} />
+              <SkeletonLine width={120} height={26} style={{ marginTop: 12 }} />
+              <SkeletonLine width="100%" height={40} style={{ marginTop: 18, borderRadius: 999 }} />
+            </View>
+          ))}
         </View>
       ) : null}
 
@@ -102,6 +120,7 @@ export function PricingSection({
           <Pressable
             accessibilityRole="button"
             onPress={onRetryPlans}
+            hitSlop={{ top: 6, bottom: 6 }}
             style={({ pressed }) => [
               styles.actionChip,
               { backgroundColor: pressed ? tokens.bgElev2 : tokens.bgElev, borderColor: tokens.hairline },
@@ -115,17 +134,19 @@ export function PricingSection({
 
       {plans ? (
         <>
-          <PlanSelection
-            plans={plans}
-            yearlyOffer={yearlyOffer}
-            monthlyPrice={monthlyDisplayPrice}
-            yearlyPrice={yearlyDisplayPrice}
-            selectedInterval={selectedInterval}
-            onSelectInterval={onSelectInterval}
-            onStayFree={onStayFree}
-            t={t}
-            tokens={tokens}
-          />
+          <Animated.View entering={sectionEntrance(1)}>
+            <PlanSelection
+              plans={plans}
+              yearlyOffer={yearlyOffer}
+              monthlyPrice={monthlyDisplayPrice}
+              yearlyPrice={yearlyDisplayPrice}
+              selectedInterval={selectedInterval}
+              onSelectInterval={onSelectInterval}
+              onStayFree={onStayFree}
+              t={t}
+              tokens={tokens}
+            />
+          </Animated.View>
 
           {isReferralPricing ? (
             <View style={[styles.couponRow, { alignSelf: 'center', marginTop: 2 }]}>
@@ -136,7 +157,7 @@ export function PricingSection({
             </View>
           ) : null}
 
-          <View style={styles.marqueePad}>
+          <Animated.View style={styles.marqueePad} entering={sectionEntrance(2)}>
             {MARQUEE.map((feature) => {
               const Icon = iconByKey[feature.iconKey]
               return (
@@ -153,7 +174,7 @@ export function PricingSection({
                 </View>
               )
             })}
-          </View>
+          </Animated.View>
 
           <PlanComparisonCards t={t} tokens={tokens} />
 
@@ -161,6 +182,7 @@ export function PricingSection({
             accessibilityRole="button"
             onPress={onRestore}
             disabled={isRestoring}
+            hitSlop={{ top: 6, bottom: 6 }}
             style={({ pressed }) => [
               styles.actionChip,
               { alignSelf: 'center', marginTop: 20, backgroundColor: pressed ? tokens.bgElev2 : tokens.bgElev, borderColor: tokens.hairline },

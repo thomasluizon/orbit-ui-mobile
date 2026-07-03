@@ -55,20 +55,18 @@ export function InviteHero() {
         <Pressable
           onPress={copyLink}
           accessibilityRole="button"
-          accessibilityLabel={t('social.invite.copy')}
+          accessibilityLabel={copied ? t('social.invite.copied') : t('social.invite.copy')}
           style={({ pressed }) => [
-            styles.copyChip,
+            styles.copyButton,
             { backgroundColor: pressed ? tokens.bgElev2 : tokens.bgElev },
+            pressed ? styles.copyButtonPressed : null,
           ]}
         >
           {copied ? (
-            <Check size={14} color={tokens.statusDone} strokeWidth={1.8} />
+            <Check size={18} color={tokens.statusDone} strokeWidth={1.8} />
           ) : (
-            <Copy size={14} color={tokens.fg2} strokeWidth={1.8} />
+            <Copy size={18} color={tokens.fg2} strokeWidth={1.8} />
           )}
-          <Text style={styles.copyChipText}>
-            {copied ? t('social.invite.copied') : t('social.invite.copy')}
-          </Text>
         </Pressable>
       </View>
 
@@ -119,17 +117,16 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       paddingVertical: 4,
     },
     linkText: { flex: 1, fontFamily: 'Roboto_400Regular', fontSize: 14, color: tokens.fg2 },
-    copyChip: {
-      flexDirection: 'row',
+    copyButton: {
+      width: 44,
+      height: 44,
       alignItems: 'center',
       justifyContent: 'center',
-      gap: 7,
       borderRadius: 999,
       borderWidth: 1,
       borderColor: tokens.hairline,
-      paddingHorizontal: 16,
-      minHeight: 40,
+      flexShrink: 0,
     },
-    copyChipText: { fontFamily: 'Rubik_500Medium', fontSize: 13, color: tokens.fg2 },
+    copyButtonPressed: { transform: [{ scale: 0.96 }] },
   })
 }

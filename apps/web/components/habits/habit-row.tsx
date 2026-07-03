@@ -218,7 +218,7 @@ export function HabitRow({
           onClick={handleExpand}
           aria-label={expanded ? t('common.collapse') : t('common.expand')}
           aria-expanded={expanded}
-          className="appearance-none border-0 bg-transparent cursor-pointer flex shrink-0 items-center justify-center text-[var(--fg-3)] transition-[transform,color] duration-150 ease-out hover:text-[var(--fg-1)]"
+          className="appearance-none border-0 bg-transparent cursor-pointer flex shrink-0 items-center justify-center text-[var(--fg-3)] transition-[transform,color] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:text-[var(--fg-1)]"
           style={{
             width: 44,
             height: 44,
@@ -237,7 +237,7 @@ export function HabitRow({
           width: wellSize,
           height: wellSize,
           borderRadius: wellRadius,
-          background: 'var(--bg-field)',
+          background: 'var(--bg-well)',
           fontSize: habit.emoji ? emojiSize : emojiSize - 4,
           lineHeight: 1,
           ...(habit.emoji
@@ -323,7 +323,7 @@ export function HabitRow({
               <span
                 className="shrink-0"
                 style={{
-                  fontFamily: 'var(--font-sans)',
+                  fontFamily: 'var(--font-mono)',
                   fontSize: 12,
                   color: 'var(--fg-3)',
                   fontVariantNumeric: 'tabular-nums',
@@ -393,7 +393,6 @@ export function HabitRow({
                   done={childProgress?.done ?? 0}
                   total={childProgress?.total ?? 0}
                   size={30}
-                  ariaLabel={t('goals.progress')}
                   color={habit.isBadHabit ? 'var(--status-bad)' : undefined}
                   trackColor={
                     habit.isBadHabit
@@ -411,7 +410,9 @@ export function HabitRow({
               tone={habit.isBadHabit ? 'bad' : 'default'}
               onToggle={handleToggleStatus}
               disabled={!canLog && !isDone}
-              ariaLabel={t(`habits.statusDot.${state}` as Parameters<typeof t>[0])}
+              ariaLabel={`${t(`habits.statusDot.${state}` as Parameters<typeof t>[0])}, ${
+                isDone ? t('habits.actions.unlog') : t('habits.logHabit')
+              }`}
             />
           )
         )}
@@ -424,7 +425,7 @@ export function HabitRow({
                 type="button"
                 aria-label={t('habits.actions.more')}
                 onClick={(event) => event.stopPropagation()}
-                className="appearance-none border-0 bg-transparent flex items-center justify-center rounded-full text-[var(--fg-3)] transition-[background-color,color,transform] duration-[160ms] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev-pressed)] hover:text-[var(--fg-1)] active:scale-90"
+                className="touch-target appearance-none border-0 bg-transparent flex items-center justify-center rounded-full text-[var(--fg-3)] transition-[background-color,color,transform] duration-[160ms] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev-pressed)] hover:text-[var(--fg-1)] active:scale-[0.96]"
                 style={{
                   width: 34,
                   height: 34,

@@ -61,6 +61,11 @@ export function NewPairFlow({ open, onOpenChange, initialHabitId }: Readonly<New
     setFriendQuery('')
   }
 
+  function handleOpenChange(next: boolean) {
+    if (!next) resetState()
+    onOpenChange(next)
+  }
+
   async function handleSubmit() {
     if (!buddyUserId) return
     if (habitIds.length === 0) {
@@ -70,8 +75,7 @@ export function NewPairFlow({ open, onOpenChange, initialHabitId }: Readonly<New
     try {
       await invite.mutateAsync({ buddyUserId, cadence, habitIds })
       showSuccess(t('social.buddies.newPair.success'))
-      resetState()
-      onOpenChange(false)
+      handleOpenChange(false)
     } catch (error: unknown) {
       showError(t(getAccountabilityErrorKey(error)))
     }
@@ -80,7 +84,7 @@ export function NewPairFlow({ open, onOpenChange, initialHabitId }: Readonly<New
   return (
     <AppOverlay
       open={open}
-      onOpenChange={onOpenChange}
+      onOpenChange={handleOpenChange}
       title={t('social.buddies.newPair.title')}
       footer={
         <PillButton onClick={handleSubmit} disabled={!canSubmit} busy={invite.isPending} fullWidth>
@@ -114,6 +118,7 @@ export function NewPairFlow({ open, onOpenChange, initialHabitId }: Readonly<New
                     value={friendQuery}
                     onChange={(event) => setFriendQuery(event.target.value)}
                     placeholder={t('social.buddies.newPair.searchFriends')}
+                    aria-label={t('social.buddies.newPair.searchFriends')}
                     className="flex-1 min-w-0 bg-transparent outline-none"
                     style={{ fontFamily: 'var(--font-sans)', fontSize: 15, color: 'var(--fg-1)' }}
                   />
@@ -122,7 +127,7 @@ export function NewPairFlow({ open, onOpenChange, initialHabitId }: Readonly<New
                       type="button"
                       onClick={() => setFriendQuery('')}
                       aria-label={t('common.clear')}
-                      className="flex cursor-pointer"
+                      className="flex size-10 -my-2.5 -mr-2.5 shrink-0 cursor-pointer items-center justify-center rounded-full"
                       style={{ border: 0, background: 'transparent', color: 'var(--fg-3)' }}
                     >
                       <X size={15} strokeWidth={2} />
@@ -144,7 +149,7 @@ export function NewPairFlow({ open, onOpenChange, initialHabitId }: Readonly<New
                         type="button"
                         aria-pressed={active}
                         onClick={() => setBuddyUserId(friend.userId)}
-                        className="flex items-center cursor-pointer transition-transform active:scale-[0.99]"
+                        className="flex items-center cursor-pointer transition-[transform,background-color,box-shadow] duration-[var(--dur-fast)] ease-[var(--ease-standard)] active:scale-[0.99]"
                         style={{
                           gap: 12,
                           padding: '10px 12px',
@@ -190,9 +195,9 @@ export function NewPairFlow({ open, onOpenChange, initialHabitId }: Readonly<New
                   type="button"
                   aria-pressed={active}
                   onClick={() => setCadence(option)}
-                  className="flex-1 cursor-pointer transition-transform active:scale-[0.98]"
+                  className="flex-1 cursor-pointer transition-[transform,background-color,box-shadow] duration-[var(--dur-fast)] ease-[var(--ease-standard)] active:scale-[0.96]"
                   style={{
-                    padding: '10px 14px',
+                    padding: '12px 14px',
                     borderRadius: 999,
                     border: 0,
                     fontFamily: 'var(--font-sans)',

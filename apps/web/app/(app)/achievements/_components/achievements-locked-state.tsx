@@ -38,7 +38,7 @@ export function AchievementsLockedState() {
       </span>
       <Link
         href="/upgrade"
-        className="inline-flex items-center justify-center transition-[background-color] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--primary-pressed)]"
+        className="inline-flex items-center justify-center transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:-translate-y-px hover:bg-[var(--primary-pressed)] active:translate-y-0 active:scale-[0.98]"
         style={{
           marginTop: 8,
           padding: '15px 26px',

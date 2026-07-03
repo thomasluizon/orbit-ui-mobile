@@ -28,6 +28,8 @@ interface InsightsSectionProps {
   emptyLabel?: string
   divider?: boolean
   skeletonHeight?: number
+  className?: string
+  onRetry?: () => void
   children: ReactNode
 }
 
@@ -44,13 +46,17 @@ export function InsightsSection({
   headerAction,
   emptyLabel,
   divider = true,
-  skeletonHeight = 160,
+  skeletonHeight = 188,
+  className,
+  onRetry,
   children,
 }: Readonly<InsightsSectionProps>) {
   const t = useTranslations()
 
   return (
-    <section className={`py-7 ${divider ? 'border-t border-[var(--hairline)]' : ''}`}>
+    <section
+      className={`py-7 ${divider ? 'border-t border-[var(--hairline)]' : ''} ${className ?? ''}`}
+    >
       <div className="mb-4 flex items-start justify-between gap-4">
         <div className="flex min-w-0 flex-col gap-1">
           <h2 className="t-h2 text-balance">{title}</h2>
@@ -70,14 +76,21 @@ export function InsightsSection({
           </>
         ) : null}
         {status === 'error' ? (
-          <p className="t-secondary" style={{ color: 'var(--status-bad-text)' }}>
-            {t('insights.error')}
-          </p>
+          <div className="flex items-center gap-3">
+            <p className="t-secondary" style={{ color: 'var(--status-bad-text)' }}>
+              {t('insights.error')}
+            </p>
+            {onRetry ? (
+              <button type="button" className="chip min-h-[44px]" onClick={onRetry}>
+                {t('common.retry')}
+              </button>
+            ) : null}
+          </div>
         ) : null}
         {status === 'empty' ? (
           <p className="t-secondary">{emptyLabel ?? t('insights.empty')}</p>
         ) : null}
-        {status === 'ready' ? children : null}
+        {status === 'ready' ? <div className="animate-slide-up">{children}</div> : null}
       </div>
     </section>
   )

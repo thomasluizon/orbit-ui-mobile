@@ -6,6 +6,7 @@ import { useQueryClient } from '@tanstack/react-query'
 import { profileKeys } from '@orbit/shared/query'
 import {
   PROFILE_NAV_ITEMS,
+  resolveProfileNavHint,
   shouldRedirectProfileNavItem,
   type ProfileNavItem,
 } from '@orbit/shared/utils/profile-navigation'
@@ -19,6 +20,8 @@ import { useAuthStore } from '@/stores/auth-store'
 import { deriveNextRewardCarrot } from '@orbit/shared/utils'
 import { useGamificationProfile } from '@/hooks/use-gamification'
 import { SectionLabel } from '@/components/ui/section-label'
+import { SettingsGroup, SettingsGroupRow } from '@/components/ui/settings-group'
+import { ProfileNavIcon } from '@/components/profile/profile-nav-icon'
 import { ReferralCard } from '@/components/referral/referral-card'
 import { ReferralDrawer } from '@/components/referral/referral-drawer'
 import { SubscriptionCard } from './_components/subscription-card'
@@ -30,8 +33,17 @@ import { ProfileAccountActions } from './_components/profile-account-actions'
 import { ProfileHeaderBar } from './_components/profile-header-bar'
 import { ProfileModals } from './_components/profile-modals'
 import { useDataExport } from './_components/use-data-export'
-import { useIsDesktop } from '@/components/goals/use-is-desktop'
-import { ProfileSummaryCard } from './_components/profile-summary-card'
+import { useIsDesktop } from '@/hooks/use-is-desktop'
+
+const PROFILE_FEATURE_SECTIONS = [
+  { labelKey: 'nav.social', ids: ['social'] },
+  { labelKey: 'explore.sections.progress', ids: ['retrospective', 'wrapped'] },
+  { labelKey: 'explore.sections.integrations', ids: ['calendar-sync'] },
+  { labelKey: 'explore.sections.more', ids: ['about', 'advanced'] },
+].map((section) => ({
+  labelKey: section.labelKey,
+  items: PROFILE_NAV_ITEMS.filter((item) => section.ids.includes(item.id)),
+}))
 
 export default function ProfilePage() {
   const t = useTranslations()
@@ -52,14 +64,12 @@ export default function ProfilePage() {
     ? gamificationProfile?.achievementsTotal ?? 0
     : gamificationProfile?.achievementsEarned ?? 0
   const streak = profile?.currentStreak ?? 0
+  const statsLoading = isLoading || (canViewGamification && !gamificationProfile)
   const accountNavItems = PROFILE_NAV_ITEMS.filter(
     (item) => item.section === 'account',
   )
   const achievementsNavItem = PROFILE_NAV_ITEMS.find(
     (item) => item.id === 'achievements',
-  )
-  const featureNavItems = PROFILE_NAV_ITEMS.filter(
-    (item) => item.section === 'features' && item.id !== 'achievements',
   )
 
   const navTourMap: Record<string, string> = {
@@ -121,6 +131,7 @@ export default function ProfilePage() {
       achievementsDataTour={
         achievementsNavItem ? navTourMap[achievementsNavItem.id] : undefined
       }
+      isLoading={statsLoading}
       onStreakClick={() => router.push('/streak')}
       onAchievementsClick={() => {
         if (achievementsNavItem) handleNavClick(achievementsNavItem)
@@ -135,13 +146,52 @@ export default function ProfilePage() {
   const navSections = (
     <ProfileNavSections
       accountNavItems={accountNavItems}
-      featureNavItems={featureNavItems}
       navTourMap={navTourMap}
-      hasProAccess={profile?.hasProAccess ?? false}
+      hasProAccess={profile?.hasProAccess}
       gamificationProfile={gamificationProfile}
       onNavClick={handleNavClick}
-      onTourReplay={() => setShowTourReplay(true)}
     />
+  )
+
+  const featuresSection = (
+    <div>
+      <SectionLabel>{t('explore.sections.discover')}</SectionLabel>
+      <nav aria-label={t('explore.sections.discover')} className="px-5">
+        <SettingsGroup>
+          <SettingsGroupRow
+            icon={<ProfileNavIcon iconKey="compass" />}
+            label={t('tour.replay.title')}
+            hint={t('explore.tourHint')}
+            onClick={() => setShowTourReplay(true)}
+          />
+        </SettingsGroup>
+      </nav>
+      {PROFILE_FEATURE_SECTIONS.map((section) => (
+        <div key={section.labelKey}>
+          <SectionLabel>{t(section.labelKey)}</SectionLabel>
+          <nav aria-label={t(section.labelKey)} className="px-5">
+            <SettingsGroup>
+              {section.items.map((item) => (
+                <SettingsGroupRow
+                  key={item.id}
+                  icon={<ProfileNavIcon iconKey={item.iconKey} />}
+                  label={t(item.titleKey)}
+                  hint={resolveProfileNavHint(
+                    item,
+                    { hasProAccess: profile?.hasProAccess, gamificationProfile },
+                    t,
+                  )}
+                  proBadge={item.proBadge}
+                  proBadgeLabel={t('common.proBadge')}
+                  dataTour={navTourMap[item.id]}
+                  onClick={() => handleNavClick(item)}
+                />
+              ))}
+            </SettingsGroup>
+          </nav>
+        </div>
+      ))}
+    </div>
   )
 
   const subscription = (
@@ -173,51 +223,18 @@ export default function ProfilePage() {
 
   return (
     <div className="relative">
-      <ProfileHeaderBar streak={streak} error={error} />
+      {!isDesktop && <ProfileHeaderBar streak={streak} error={error} />}
 
-      {isDesktop ? (
-        <div className="grid grid-cols-[minmax(0,1fr)_320px] items-start gap-8 pt-2">
-          <div className="stagger-enter min-w-0">
-            {nextReward}
-            {navSections}
-            {subscription}
-            {accountActions}
-          </div>
-          <aside className="stagger-enter">
-            <ProfileSummaryCard
-              name={profile?.name}
-              isLoading={isLoading}
-              showPlanBadge={!!showPlanBadge}
-              planBadgeTone={planBadgeTone}
-              planBadgeLabel={planBadgeLabel}
-              levelLine={identityLine}
-              streak={streak}
-              achievementsValue={achievementsTileValue}
-              achievementsLocked={achievementsLocked}
-              showAchievements={!!achievementsNavItem}
-              achievementsDataTour={
-                achievementsNavItem ? navTourMap[achievementsNavItem.id] : undefined
-              }
-              onEditName={() => setShowEditName(true)}
-              onStreakClick={() => router.push('/streak')}
-              onAchievementsClick={() => {
-                if (achievementsNavItem) handleNavClick(achievementsNavItem)
-              }}
-              onInvite={() => setShowReferral(true)}
-            />
-          </aside>
-        </div>
-      ) : (
-        <div className="stagger-enter">
-          {identityHeader}
-          {statTiles}
-          {referral}
-          {nextReward}
-          {navSections}
-          {subscription}
-          {accountActions}
-        </div>
-      )}
+      <div className="stagger-enter">
+        {identityHeader}
+        {statTiles}
+        {referral}
+        {nextReward}
+        {navSections}
+        {!isDesktop && featuresSection}
+        {subscription}
+        {accountActions}
+      </div>
 
       <div style={{ height: 24 }} />
 

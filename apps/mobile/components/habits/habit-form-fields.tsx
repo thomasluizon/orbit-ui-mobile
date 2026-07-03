@@ -168,6 +168,7 @@ export function HabitFormFields({
             <Pressable
               onPress={onSuggestSetup}
               disabled={isSuggesting || watchedTitle.trim().length === 0}
+              hitSlop={3}
               accessibilityRole="button"
               accessibilityLabel={t("habits.form.aiSuggest")}
               accessibilityState={{
@@ -177,7 +178,7 @@ export function HabitFormFields({
               style={({ pressed }) => [
                 styles.aiSparkButton,
                 (isSuggesting || watchedTitle.trim().length === 0) && { opacity: 0.45 },
-                pressed && { transform: [{ scale: 0.92 }] },
+                pressed && { transform: [{ scale: 0.96 }] },
               ]}
             >
               {isSuggesting ? (

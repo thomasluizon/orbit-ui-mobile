@@ -284,6 +284,14 @@ export {
   getTrialUrgent,
 } from './profile-selectors'
 export {
+  ENGAGEMENT_SLOT_PRIORITY,
+  resolveEngagementSlot,
+} from './engagement-slot'
+export type {
+  EngagementSlotCard,
+  EngagementSlotEligibility,
+} from './engagement-slot'
+export {
   calculateXpProgress,
   deriveGamificationProfileState,
   deriveNextRewardCarrot,

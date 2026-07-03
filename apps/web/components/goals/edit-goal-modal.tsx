@@ -21,7 +21,7 @@ import {
 import { MAX_GOAL_DESCRIPTION_LENGTH } from '@orbit/shared/validation'
 import { EditGoalDeadlineField } from './edit-goal-modal/edit-goal-deadline-field'
 import { EditGoalTargetFields } from './edit-goal-modal/edit-goal-target-fields'
-import { FieldWell } from './edit-goal-modal/field-well'
+import { FieldWell } from './field-well'
 
 interface EditGoalModalProps {
   open: boolean
@@ -154,32 +154,13 @@ export function EditGoalModal({
         onAttemptDismiss={dismissGuard.requestDismiss}
       >
         <form onSubmit={onSubmit} noValidate>
-          {isStreak && (
-            <div
-              style={{
-                padding: '10px 0',
-                fontFamily: 'var(--font-mono)',
-                fontSize: 12,
-                fontWeight: 500,
-                color: 'var(--fg-3)',
-                letterSpacing: '0.04em',
-                borderBottom: '1px solid var(--hairline)',
-              }}
-            >
-              {t('goals.form.typeStreak')}
-            </div>
-          )}
+          <div className="t-eyebrow" style={{ padding: '10px 0' }}>
+            {isStreak
+              ? t('goals.form.typeStreak')
+              : `${t('goals.form.typeStandard')}${goal.unit ? `  ·  ${goal.unit}` : ''}`}
+          </div>
 
-          <EditGoalTargetFields
-            isStreak={isStreak}
-            targetValue={targetValue}
-            unit={unit}
-            fieldErrors={fieldErrors}
-            onChangeTarget={setTargetValue}
-            onChangeUnit={setUnit}
-          />
-
-          <div style={{ padding: '16px 0 0' }}>
+          <div style={{ padding: '6px 0 0' }}>
             <FieldWell
               label={t('goals.form.description')}
               id="edit-goal-description"
@@ -191,6 +172,15 @@ export function EditGoalModal({
               onChange={setDescription}
             />
           </div>
+
+          <EditGoalTargetFields
+            isStreak={isStreak}
+            targetValue={targetValue}
+            unit={unit}
+            fieldErrors={fieldErrors}
+            onChangeTarget={setTargetValue}
+            onChangeUnit={setUnit}
+          />
 
           <EditGoalDeadlineField deadline={deadline} onChangeDeadline={setDeadline} />
 
@@ -208,20 +198,14 @@ export function EditGoalModal({
             >
               {t('common.cancel')}
             </PillButton>
-            <button
+            <PillButton
               type="submit"
+              className="flex-1"
               disabled={isSubmitting}
-              className="flex-1 inline-flex cursor-pointer items-center justify-center rounded-full border-0 bg-[var(--primary)] text-[var(--fg-on-primary)] transition-[background-color,box-shadow,transform,opacity] duration-[var(--dur-fast)] ease-[var(--ease-standard)] enabled:hover:bg-[var(--primary-pressed)] enabled:hover:-translate-y-px enabled:hover:shadow-[var(--primary-glow-hover)] enabled:active:translate-y-0 enabled:active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
-              style={{
-                fontFamily: 'var(--font-sans)',
-                fontSize: 16,
-                fontWeight: 500,
-                padding: '15px 26px',
-                boxShadow: isSubmitting ? 'none' : 'var(--primary-glow)',
-              }}
+              busy={isSubmitting}
             >
-              {isSubmitting ? '...' : t('common.save')}
-            </button>
+              {t('common.save')}
+            </PillButton>
           </div>
         </form>
       </AppOverlay>

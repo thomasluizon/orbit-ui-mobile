@@ -3,7 +3,7 @@
 import { useEffect, useMemo, type ReactNode } from 'react'
 import { usePathname, useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { BarChart3, CalendarDays, Home, Target, User } from 'lucide-react'
+import { BarChart3, CalendarDays, Compass, Home, Infinity as InfinityIcon, ListTodo, Target, User, Users } from 'lucide-react'
 import { AstraMark } from '@/components/ui/astra-avatar'
 import {
   AppSidebar,
@@ -13,12 +13,13 @@ import {
 import { CommandPalette } from '@/components/command/command-palette'
 import { useProfile } from '@/hooks/use-profile'
 import { useKeyboardShortcuts } from '@/hooks/use-keyboard-shortcuts'
+import { setRouteTransitionIntent } from '@/lib/motion/route-intent'
 import { useUIStore } from '@/stores/ui-store'
 import { useShellStore } from '@/stores/shell-store'
 import { AstraCopilotRail } from './astra-copilot-rail'
 import { DesktopTopbar } from './desktop-topbar'
 import { InAppShellProvider } from './in-app-shell-context'
-import { RailDrawer, RailToggle } from './rail-drawer'
+import { RailDrawer } from './rail-drawer'
 import { RightRail } from './right-rail'
 import { TodayRail } from './today-rail'
 import { TopbarSlotProvider } from './topbar-slot'
@@ -52,7 +53,6 @@ export function AppShell({ children, onCreate }: Readonly<AppShellProps>) {
   const setRailOpen = useShellStore((state) => state.setRailOpen)
   const setAstraOpen = useShellStore((state) => state.setAstraOpen)
   const setAstraMaximized = useShellStore((state) => state.setAstraMaximized)
-  const astraMaximized = useShellStore((state) => state.astraMaximized)
   const setShowCreateModal = useUIStore((state) => state.setShowCreateModal)
   const setShowCreateGoalModal = useUIStore((state) => state.setShowCreateGoalModal)
 
@@ -71,25 +71,35 @@ export function AppShell({ children, onCreate }: Readonly<AppShellProps>) {
   const onHome = pathname === '/'
   const goalsActive = onHome && activeView === 'goals'
   const habitsActive = onHome && activeView !== 'goals'
+  const isWideRoute = pathname.startsWith('/calendar') && !pathname.startsWith('/calendar-sync')
+
+  const navigateTab = useMemo(
+    () => (path: string) => {
+      setRouteTransitionIntent('tab')
+      router.push(path)
+    },
+    [router],
+  )
 
   const selectHabitView = useMemo(
     () => (view: HabitSubView) => {
       setActiveView(view)
-      router.push('/')
+      navigateTab('/')
     },
-    [router, setActiveView],
+    [navigateTab, setActiveView],
   )
 
   const openGoals = useMemo(
     () => () => {
       if (!hasProAccess) {
+        setRouteTransitionIntent('forward')
         router.push('/upgrade')
         return
       }
       setActiveView('goals')
-      router.push('/')
+      navigateTab('/')
     },
-    [router, setActiveView, hasProAccess],
+    [router, navigateTab, setActiveView, hasProAccess],
   )
 
   const sidebarSections = useMemo<SidebarSection[]>(
@@ -127,7 +137,7 @@ export function AppShell({ children, onCreate }: Readonly<AppShellProps>) {
         label: t('nav.calendar'),
         icon: CalendarDays,
         active: pathname.startsWith('/calendar'),
-        onSelect: () => router.push('/calendar'),
+        onSelect: () => navigateTab('/calendar'),
       },
       {
         id: 'goals',
@@ -137,33 +147,47 @@ export function AppShell({ children, onCreate }: Readonly<AppShellProps>) {
         onSelect: openGoals,
       },
       {
+        id: 'social',
+        label: t('nav.social'),
+        icon: Users,
+        active: pathname.startsWith('/social'),
+        onSelect: () => navigateTab('/social'),
+      },
+      {
         id: 'insights',
         label: t('nav.insights'),
         icon: BarChart3,
         active: pathname.startsWith('/insights'),
-        onSelect: () => router.push('/insights'),
+        onSelect: () => navigateTab('/insights'),
       },
       {
         id: 'astra',
         label: t('nav.astra'),
         icon: AstraMark,
-        active: astraMaximized,
+        active: false,
         onSelect: () => {
           setAstraOpen(true)
           setAstraMaximized(true)
         },
       },
       {
+        id: 'explore',
+        label: t('nav.explore'),
+        icon: Compass,
+        active: pathname.startsWith('/explore'),
+        onSelect: () => navigateTab('/explore'),
+      },
+      {
         id: 'profile',
         label: t('nav.profile'),
         icon: User,
         active: pathname.startsWith('/profile'),
-        onSelect: () => router.push('/profile'),
+        onSelect: () => navigateTab('/profile'),
       },
     ],
     [
       t,
-      router,
+      navigateTab,
       pathname,
       onHome,
       activeView,
@@ -171,7 +195,6 @@ export function AppShell({ children, onCreate }: Readonly<AppShellProps>) {
       goalsActive,
       selectHabitView,
       openGoals,
-      astraMaximized,
       setAstraOpen,
       setAstraMaximized,
     ],
@@ -180,11 +203,12 @@ export function AppShell({ children, onCreate }: Readonly<AppShellProps>) {
   const commandItems = useMemo<SidebarNavItem[]>(
     () => [
       { id: 'today', label: t('habits.viewToday'), icon: Home, onSelect: () => selectHabitView('today') },
-      { id: 'all', label: t('habits.viewAll'), icon: Home, onSelect: () => selectHabitView('all') },
-      { id: 'general', label: t('habits.viewGeneral'), icon: Home, onSelect: () => selectHabitView('general') },
-      { id: 'calendar', label: t('nav.calendar'), icon: CalendarDays, onSelect: () => router.push('/calendar') },
+      { id: 'all', label: t('habits.viewAll'), icon: ListTodo, onSelect: () => selectHabitView('all') },
+      { id: 'general', label: t('habits.viewGeneral'), icon: InfinityIcon, onSelect: () => selectHabitView('general') },
+      { id: 'calendar', label: t('nav.calendar'), icon: CalendarDays, onSelect: () => navigateTab('/calendar') },
       { id: 'goals', label: t('nav.goals'), icon: Target, onSelect: openGoals },
-      { id: 'insights', label: t('nav.insights'), icon: BarChart3, onSelect: () => router.push('/insights') },
+      { id: 'social', label: t('nav.social'), icon: Users, onSelect: () => navigateTab('/social') },
+      { id: 'insights', label: t('nav.insights'), icon: BarChart3, onSelect: () => navigateTab('/insights') },
       {
         id: 'astra',
         label: t('nav.astra'),
@@ -194,9 +218,10 @@ export function AppShell({ children, onCreate }: Readonly<AppShellProps>) {
           setAstraMaximized(true)
         },
       },
-      { id: 'profile', label: t('nav.profile'), icon: User, onSelect: () => router.push('/profile') },
+      { id: 'explore', label: t('nav.explore'), icon: Compass, onSelect: () => navigateTab('/explore') },
+      { id: 'profile', label: t('nav.profile'), icon: User, onSelect: () => navigateTab('/profile') },
     ],
-    [t, router, selectHabitView, openGoals, setAstraOpen, setAstraMaximized],
+    [t, navigateTab, selectHabitView, openGoals, setAstraOpen, setAstraMaximized],
   )
 
   const topbarTitle = useMemo(() => {
@@ -205,20 +230,25 @@ export function AppShell({ children, onCreate }: Readonly<AppShellProps>) {
     if (pathname.startsWith('/calendar')) return t('nav.calendar')
     if (pathname.startsWith('/insights')) return t('nav.insights')
     if (pathname.startsWith('/chat')) return t('nav.astra')
+    if (pathname.startsWith('/explore')) return t('nav.explore')
     if (pathname.startsWith('/profile')) return t('nav.profile')
+    if (pathname.startsWith('/social/challenges')) return t('challenges.title')
+    if (pathname.startsWith('/social')) return t('social.title')
     if (pathname.startsWith('/preferences')) return t('preferences.title')
     if (pathname.startsWith('/ai-settings')) return t('aiSettings.title')
     if (pathname.startsWith('/advanced')) return t('advancedSettings.title')
     if (pathname.startsWith('/about')) return t('about.title')
     if (pathname.startsWith('/support')) return t('profile.support.title')
     if (pathname.startsWith('/achievements')) return t('gamification.title')
-    if (pathname.startsWith('/streak')) return t('streakDisplay.detail.title')
+    if (pathname.startsWith('/streak')) return t('streakDisplay.title')
     if (pathname.startsWith('/retrospective')) return t('retrospective.title')
     if (pathname.startsWith('/upgrade')) return t('upgrade.title')
+    if (pathname.startsWith('/wrapped')) return t('wrapped.title')
+    if (pathname.startsWith('/public-profile')) return t('profile.publicProfile.title')
     return ''
   }, [t, pathname, onHome])
 
-  const railContent = onHome ? <TodayRail /> : null
+  const railContent = onHome && !goalsActive ? <TodayRail /> : null
 
   return (
     <TopbarSlotProvider>
@@ -233,23 +263,23 @@ export function AppShell({ children, onCreate }: Readonly<AppShellProps>) {
             onCreate={onCreate}
             createLabel={t('nav.create')}
             brandLabel="Orbit"
+            navLabel={t('nav.mainNavigation')}
           />
 
-          <main className="relative z-10 min-w-0 flex-1">
+          <main className="relative z-10 min-w-0 flex-1 md:[container-type:inline-size]">
             <div
               aria-hidden
               className="pointer-events-none absolute inset-x-0 top-0 -z-10 hidden md:block"
               style={{ height: 260, background: 'var(--gradient-header)' }}
             />
-            <div className="mx-auto max-w-[var(--app-max-w)] px-[var(--app-px)] md:relative md:z-[1] md:max-w-[var(--content-max-w)] md:px-8 xl:px-10 md:pb-16">
-              <DesktopTopbar title={topbarTitle} />
+            <div className={`mx-auto max-w-[var(--app-max-w)] px-[var(--app-px)] md:relative md:z-[1] md:px-8 xl:px-10 md:pb-16 ${isWideRoute ? 'md:max-w-[var(--content-max-w)]' : ''}`}>
+              <DesktopTopbar title={topbarTitle} showRailToggle={!!railContent} />
               {children}
             </div>
           </main>
 
           {railContent && <RightRail ariaLabel={t('rail.todayProgress')}>{railContent}</RightRail>}
 
-          {railContent && <RailToggle />}
           <RailDrawer open={railOpen && !!railContent} onClose={() => setRailOpen(false)}>
             {railContent}
           </RailDrawer>
@@ -261,6 +291,7 @@ export function AppShell({ children, onCreate }: Readonly<AppShellProps>) {
             onCreateHabit={() => setShowCreateModal(true)}
             onCreateGoal={() => {
               if (!hasProAccess) {
+                setRouteTransitionIntent('forward')
                 router.push('/upgrade')
                 return
               }

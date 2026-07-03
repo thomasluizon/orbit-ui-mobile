@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react'
-import { Pressable, StyleSheet, Text } from 'react-native'
+import { useState } from 'react'
+import { Pressable, StyleSheet } from 'react-native'
 import { Share2 } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import { createTokensV2, radius } from '@/lib/theme'
@@ -12,7 +12,7 @@ interface ShareCardEntryButtonProps {
   displayName?: string
 }
 
-/** Opens the recap share sheet. `row` renders a profile action row; `chip` renders a kit chip for the retrospective header. */
+/** Opens the recap share sheet. `row` renders a profile action row; `chip` renders an icon-only kit chip for the retrospective header. */
 export function ShareCardEntryButton({
   variant = 'row',
   displayName,
@@ -20,7 +20,6 @@ export function ShareCardEntryButton({
   const { t } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
-  const styles = useMemo(() => createStyles(tokens), [tokens])
   const [open, setOpen] = useState(false)
 
   return (
@@ -32,14 +31,17 @@ export function ShareCardEntryButton({
           onPress={() => setOpen(true)}
           accessibilityRole="button"
           accessibilityLabel={t('shareCard.entry')}
+          hitSlop={{ top: 6, bottom: 6 }}
           style={({ pressed }) => [
             styles.chip,
-            { backgroundColor: pressed ? tokens.bgElev2 : tokens.bgElev, borderColor: tokens.hairline },
+            {
+              backgroundColor: pressed ? tokens.bgElev2 : tokens.bgElev,
+              borderColor: tokens.hairline,
+            },
             pressed ? styles.chipPressed : null,
           ]}
         >
-          <Share2 size={14} strokeWidth={1.8} color={tokens.fg2} />
-          <Text style={styles.chipText}>{t('shareCard.entry')}</Text>
+          <Share2 size={16} strokeWidth={1.8} color={tokens.fg2} />
         </Pressable>
       )}
       <ShareCardSheet open={open} onClose={() => setOpen(false)} displayName={displayName} />
@@ -47,24 +49,17 @@ export function ShareCardEntryButton({
   )
 }
 
-function createStyles(tokens: ReturnType<typeof createTokensV2>) {
-  return StyleSheet.create({
-    chip: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 7,
-      paddingHorizontal: 14,
-      paddingVertical: 8,
-      borderRadius: radius.full,
-      borderWidth: 1,
-    },
-    chipPressed: {
-      transform: [{ scale: 0.96 }],
-    },
-    chipText: {
-      fontFamily: 'Rubik_500Medium',
-      fontSize: 13,
-      color: tokens.fg2,
-    },
-  })
-}
+const styles = StyleSheet.create({
+  chip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 9,
+    borderRadius: radius.full,
+    borderWidth: 1,
+  },
+  chipPressed: {
+    transform: [{ scale: 0.96 }],
+  },
+})

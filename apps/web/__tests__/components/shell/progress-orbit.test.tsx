@@ -50,16 +50,16 @@ describe('ProgressOrbit', () => {
     expect(screen.getByText('All done')).toBeInTheDocument()
   })
 
-  it('renders one satellite per habit at or below the cap and none above it', () => {
+  it('renders one satellite (halo plus dot) per habit at or below the cap and none above it', () => {
     const { container: aboveCap } = render(
       <ProgressOrbit {...baseProps} done={0} total={13} />,
     )
     const baseCircles = aboveCap.querySelectorAll('circle').length
 
     const { container: atCap } = render(<ProgressOrbit {...baseProps} done={0} total={12} />)
-    expect(atCap.querySelectorAll('circle').length).toBe(baseCircles + 12)
+    expect(atCap.querySelectorAll('circle').length).toBe(baseCircles + 12 * 2)
 
     const { container: belowCap } = render(<ProgressOrbit {...baseProps} done={0} total={5} />)
-    expect(belowCap.querySelectorAll('circle').length).toBe(baseCircles + 5)
+    expect(belowCap.querySelectorAll('circle').length).toBe(baseCircles + 5 * 2)
   })
 })

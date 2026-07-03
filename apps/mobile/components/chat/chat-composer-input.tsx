@@ -1,4 +1,4 @@
-import { memo, type ReactNode } from "react";
+import { memo, useState, type ReactNode } from "react";
 import { Pressable, View } from "react-native";
 import { ArrowUp } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
@@ -31,10 +31,17 @@ export const ChatComposerInput = memo(function ChatComposerInput({
   onSubmit,
 }: Readonly<ChatComposerInputProps>) {
   const { t } = useTranslation();
+  const [fieldFocused, setFieldFocused] = useState(false);
 
   return (
     <>
-      <View style={[styles.composerField, limitLocked && styles.composerFieldLocked]}>
+      <View
+        style={[
+          styles.composerField,
+          fieldFocused && styles.composerFieldFocused,
+          limitLocked && styles.composerFieldLocked,
+        ]}
+      >
         <AppTextInput
           style={[styles.textInput, { color: tokens.fg1 }]}
           value={draft}
@@ -47,6 +54,8 @@ export const ChatComposerInput = memo(function ChatComposerInput({
           returnKeyType="default"
           blurOnSubmit={false}
           onSubmitEditing={onSubmit}
+          onFocus={() => setFieldFocused(true)}
+          onBlur={() => setFieldFocused(false)}
         />
         {fieldAccessories}
       </View>

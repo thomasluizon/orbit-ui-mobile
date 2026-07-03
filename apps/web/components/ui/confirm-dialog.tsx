@@ -29,7 +29,7 @@ interface ConfirmDialogProps {
 }
 
 const pillBase =
-  'flex-1 appearance-none border-0 cursor-pointer rounded-full transition-[background-color,transform,box-shadow] duration-[var(--dur-fast)] ease-[var(--ease-standard)] active:scale-[0.97]'
+  'flex-1 appearance-none border-0 cursor-pointer rounded-full transition-[background-color,transform,box-shadow] duration-[var(--dur-fast)] ease-[var(--ease-standard)] active:scale-[0.96]'
 
 const actionVariantClasses: Record<'danger' | 'primary', string> = {
   danger:
@@ -84,13 +84,6 @@ export function ConfirmDialog({
         onOpenChange(false)
         return
       }
-      if (e.key === 'Enter') {
-        e.preventDefault()
-        e.stopPropagation()
-        onConfirm?.()
-        onOpenChange(false)
-        return
-      }
       if (e.key !== 'Tab') return
       const focusable = Array.from(
         panelRef.current?.querySelectorAll<HTMLElement>('button:not([disabled])') ?? [],
@@ -116,7 +109,7 @@ export function ConfirmDialog({
         previouslyFocusedElement.current = null
       }
     }
-  }, [open, overlayId, onOpenChange, onConfirm])
+  }, [open, overlayId, onOpenChange])
 
   function handleConfirm() {
     onConfirm?.()
@@ -138,7 +131,7 @@ export function ConfirmDialog({
             type="button"
             tabIndex={-1}
             aria-label={t('common.close')}
-            className="absolute inset-0 cursor-default bg-black/60"
+            className="absolute inset-0 cursor-default bg-black/60 backdrop-blur-[2px]"
             onClick={() => {
               if (isTopOverlay(overlayId)) onOpenChange(false)
             }}
@@ -202,6 +195,7 @@ export function ConfirmDialog({
                 fontWeight: 500,
                 lineHeight: 1.3,
                 color: 'var(--fg-1)',
+                textWrap: 'balance',
               }}
             >
               {title}
@@ -214,6 +208,7 @@ export function ConfirmDialog({
                 fontSize: 15,
                 lineHeight: 1.5,
                 color: 'var(--fg-2)',
+                textWrap: 'pretty',
               }}
             >
               {description}
@@ -223,7 +218,7 @@ export function ConfirmDialog({
                 <button
                   type="button"
                   onClick={handleCancel}
-                  className={`${pillBase} bg-[color-mix(in_srgb,var(--fg-1)_6%,transparent)] hover:bg-[var(--bg-elev-2)]`}
+                  className={`${pillBase} bg-[color-mix(in_srgb,var(--fg-1)_6%,transparent)] hover:bg-[color-mix(in_srgb,var(--fg-1)_10%,transparent)]`}
                   style={{
                     fontFamily: 'var(--font-sans)',
                     fontSize: 15,

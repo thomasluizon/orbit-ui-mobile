@@ -11,7 +11,8 @@ import { useProfile } from '@/hooks/use-profile'
 /**
  * Today entry to the Social hub. Shows an actionable "friend requests waiting"
  * card whenever requests are pending; otherwise a one-time dismissible
- * "connect with friends" invitation.
+ * "connect with friends" invitation. Renders unconditionally, visibility is
+ * arbitrated by useEngagementSlot.
  */
 export function SocialEntryCard() {
   const t = useTranslations()
@@ -20,11 +21,9 @@ export function SocialEntryCard() {
   const socialOptIn = profile?.socialOptIn ?? false
   const { data } = useFriends({ enabled: socialOptIn })
   const pendingRequests = data?.incomingRequests.length ?? 0
-  const dismissed = useEngagementPromptStore((s) => s.socialEntryDismissed)
   const dismissSocialEntry = useEngagementPromptStore((s) => s.dismissSocialEntry)
 
   const hasRequests = pendingRequests > 0
-  if (!hasRequests && dismissed) return null
 
   const title = hasRequests
     ? t('social.today.requestsTitle')
@@ -83,14 +82,13 @@ export function SocialEntryCard() {
             type="button"
             onClick={dismissSocialEntry}
             aria-label={t('common.dismiss')}
-            className="absolute flex appearance-none items-center justify-center rounded-full border-0 bg-transparent"
+            className="icon-btn touch-target"
             style={{
-              top: '50%',
-              right: 14,
-              transform: 'translateY(-50%)',
-              width: 28,
-              height: 28,
-              cursor: 'pointer',
+              position: 'absolute',
+              top: 'calc(50% - 18px)',
+              right: 12,
+              width: 36,
+              height: 36,
             }}
           >
             <X size={18} strokeWidth={1.8} color="var(--fg-4)" />

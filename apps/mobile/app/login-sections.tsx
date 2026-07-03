@@ -1,9 +1,37 @@
-import { Text, View } from 'react-native'
+import { useEffect, useMemo } from 'react'
+import { Animated, Text, View } from 'react-native'
 import { AppLogo } from '@/components/ui/app-logo'
+import { easings } from '@/lib/theme'
+import { toAnimatedEasing, usePrefersReducedMotion } from '@/lib/motion'
 import type { LoginStyles } from './login-styles'
 
 type LoginStep = 'email' | 'code'
 type TranslationFn = (key: string, params?: Record<string, unknown>) => string
+
+function useEntrance(
+  duration: number,
+  prefersReducedMotion: boolean,
+): Animated.Value {
+  const progress = useMemo(() => new Animated.Value(0), [])
+
+  useEffect(() => {
+    if (prefersReducedMotion) {
+      progress.setValue(1)
+      return
+    }
+    progress.setValue(0)
+    const animation = Animated.timing(progress, {
+      toValue: 1,
+      duration,
+      easing: toAnimatedEasing(easings.out),
+      useNativeDriver: true,
+    })
+    animation.start()
+    return () => animation.stop()
+  }, [duration, prefersReducedMotion, progress])
+
+  return progress
+}
 
 interface LoginHeaderProps {
   step: LoginStep
@@ -12,14 +40,31 @@ interface LoginHeaderProps {
 }
 
 export function LoginHeader({ step, t, styles }: Readonly<LoginHeaderProps>) {
+  const prefersReducedMotion = usePrefersReducedMotion()
+  const logoEntrance = useEntrance(280, prefersReducedMotion)
+
   return (
     <>
       <View style={styles.brandingHeader}>
-        <AppLogo size={64} />
+        <Animated.View
+          style={{
+            opacity: logoEntrance,
+            transform: [
+              {
+                scale: logoEntrance.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: [0.9, 1],
+                }),
+              },
+            ],
+          }}
+        >
+          <AppLogo size={64} />
+        </Animated.View>
       </View>
 
       <View style={styles.titleBlock}>
-        <Text style={styles.stepTitle}>
+        <Text style={styles.stepTitle} accessibilityRole="header">
           {step === 'email' ? t('auth.signIn') : t('auth.enterCode')}
         </Text>
         {step === 'email' && (
@@ -36,10 +81,29 @@ interface ReferralBannerProps {
 }
 
 export function ReferralBanner({ t, styles }: Readonly<ReferralBannerProps>) {
+  const prefersReducedMotion = usePrefersReducedMotion()
+  const entrance = useEntrance(220, prefersReducedMotion)
+
   return (
-    <View style={styles.referralBanner}>
+    <Animated.View
+      accessibilityLiveRegion="polite"
+      style={[
+        styles.referralBanner,
+        {
+          opacity: entrance,
+          transform: [
+            {
+              translateY: entrance.interpolate({
+                inputRange: [0, 1],
+                outputRange: [8, 0],
+              }),
+            },
+          ],
+        },
+      ]}
+    >
       <Text style={styles.referralBannerText}>{t('referral.loginBanner')}</Text>
-    </View>
+    </Animated.View>
   )
 }
 
@@ -52,5 +116,26 @@ export function LoginSuccessMessage({
   message,
   styles,
 }: Readonly<LoginSuccessMessageProps>) {
-  return <Text style={styles.successText}>{message}</Text>
+  const prefersReducedMotion = usePrefersReducedMotion()
+  const entrance = useEntrance(220, prefersReducedMotion)
+
+  return (
+    <Animated.View
+      style={{
+        opacity: entrance,
+        transform: [
+          {
+            translateY: entrance.interpolate({
+              inputRange: [0, 1],
+              outputRange: [8, 0],
+            }),
+          },
+        ],
+      }}
+    >
+      <Text style={styles.successText} accessibilityLiveRegion="polite">
+        {message}
+      </Text>
+    </Animated.View>
+  )
 }

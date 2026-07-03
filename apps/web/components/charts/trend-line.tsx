@@ -141,7 +141,7 @@ export function TrendLine({
           </>
         )}
 
-        {hoverIndex !== null && activePoint && (
+        {activePoint && (
           <span
             aria-hidden
             className="pointer-events-none absolute"
@@ -151,6 +151,8 @@ export function TrendLine({
               height: plotBottom - plotTop,
               width: 1,
               background: 'var(--hairline-strong)',
+              opacity: hoverIndex !== null ? 1 : 0,
+              transition: 'opacity var(--dur-fast) var(--ease-standard)',
             }}
           />
         )}
@@ -171,7 +173,7 @@ export function TrendLine({
           />
         )}
 
-        {hoverIndex !== null && activePoint && (
+        {activePoint && (
           <div
             aria-hidden
             className="pointer-events-none absolute z-10 whitespace-nowrap rounded-[10px] px-2.5 py-1.5"
@@ -183,6 +185,8 @@ export function TrendLine({
               backdropFilter: 'blur(8px)',
               WebkitBackdropFilter: 'blur(8px)',
               boxShadow: 'var(--shadow-2), inset 0 0 0 1px var(--hairline-strong)',
+              opacity: hoverIndex !== null ? 1 : 0,
+              transition: 'opacity var(--dur-fast) var(--ease-standard)',
             }}
           >
             <span className="t-num block" style={{ fontSize: 14, color: 'var(--fg-1)' }}>

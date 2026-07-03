@@ -1,4 +1,4 @@
-import { ActivityIndicator, Text, View } from 'react-native'
+import { ActivityIndicator, Pressable, Text, View } from 'react-native'
 import type { TFunction } from 'i18next'
 import { getFriendlyErrorMessage } from '@orbit/shared/utils'
 import type { AppTokensV2 } from '@/lib/theme'
@@ -27,7 +27,7 @@ export function CalendarPickerSection({
   t,
   enabled,
 }: Readonly<CalendarPickerSectionProps>) {
-  const { data: calendars, isLoading, isError } = useCalendars({ enabled })
+  const { data: calendars, isLoading, isError, refetch } = useCalendars({ enabled })
   const setSelectedCalendars = useSetSelectedCalendars()
   const { showError } = useAppToast()
 
@@ -63,9 +63,28 @@ export function CalendarPickerSection({
 
       {isError && !isLoading ? (
         <View style={styles.pickerStateRow} accessibilityRole="alert">
-          <Text style={[styles.pickerStateText, { color: tokens.statusBadText }]}>
+          <Text
+            style={[
+              styles.pickerStateText,
+              { color: tokens.statusBadText, flex: 1 },
+            ]}
+          >
             {t('calendar.calendars.error')}
           </Text>
+          <Pressable
+            onPress={() => refetch()}
+            accessibilityRole="button"
+            hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+            style={({ pressed }) => [
+              styles.quietAction,
+              { backgroundColor: tokens.bgElev, borderColor: tokens.hairline },
+              pressed && styles.quietActionDim,
+            ]}
+          >
+            <Text style={[styles.quietActionText, { color: tokens.fg2 }]}>
+              {t('calendar.retry')}
+            </Text>
+          </Pressable>
         </View>
       ) : null}
 

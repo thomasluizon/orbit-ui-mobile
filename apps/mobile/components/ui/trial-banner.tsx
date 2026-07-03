@@ -1,8 +1,9 @@
 import { useMemo, useState } from 'react'
-import { Pressable, StyleSheet, Text, View } from 'react-native'
+import { Animated, Pressable, StyleSheet, Text, View } from 'react-native'
 import { usePathname, useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
-import { ChevronRight } from 'lucide-react-native'
+import { ChevronRight, X } from 'lucide-react-native'
+import { motionEasings } from '@orbit/shared/theme'
 import {
   useProfile,
   useTrialDaysLeft,
@@ -11,6 +12,7 @@ import {
 import { plural } from '@/lib/plural'
 import { createTokensV2, tintFromPrimary, type AppTokensV2 } from '@/lib/theme'
 import { buildUpgradeHref } from '@/lib/upgrade-route'
+import { toAnimatedEasing } from '@/lib/motion'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 function rgbaFromHex(hex: string, alpha: number): string {
@@ -24,7 +26,7 @@ function rgbaFromHex(hex: string, alpha: number): string {
 /**
  * Trial strip: slim primary-tinted band with Rubik lead text, tabular
  * days-left count, and an Upgrade chevron CTA. Urgent state swaps to the
- * amber overdue tint. Long-press dismisses for the session.
+ * amber overdue tint. A visible X dismisses it for the session.
  */
 export function TrialBanner() {
   const { t } = useTranslation()
@@ -40,14 +42,27 @@ export function TrialBanner() {
   )
   const styles = useMemo(() => createStyles(tokens), [tokens])
   const [dismissed, setDismissed] = useState(false)
+  const opacity = useMemo(() => new Animated.Value(1), [])
+
+  function handleDismiss() {
+    Animated.timing(opacity, {
+      toValue: 0,
+      duration: 160,
+      easing: toAnimatedEasing(motionEasings.standard),
+      useNativeDriver: true,
+    }).start(({ finished }) => {
+      if (finished) setDismissed(true)
+    })
+  }
 
   const visible = profile?.isTrialActive && !dismissed
   if (!visible) return null
 
   return (
-    <View
+    <Animated.View
       style={[
         styles.container,
+        { opacity },
         trialUrgent
           ? {
               backgroundColor: rgbaFromHex(tokens.statusOverdue, 0.1),
@@ -62,7 +77,7 @@ export function TrialBanner() {
     >
       <Text style={styles.leadText}>
         {t('trial.banner.trialEyebrow')} ·{' '}
-        {trialUrgent ? (
+        {trialDaysLeft === 0 ? (
           <Text style={styles.urgentText}>
             {t('trial.banner.lastDay')}
           </Text>
@@ -78,7 +93,6 @@ export function TrialBanner() {
       <Pressable
         onPress={() => router.push(buildUpgradeHref(pathname || '/'))}
         hitSlop={6}
-        onLongPress={() => setDismissed(true)}
         accessibilityRole="button"
         accessibilityLabel={t('trial.banner.upgrade')}
         style={({ pressed }) => [
@@ -89,7 +103,7 @@ export function TrialBanner() {
         <Text
           style={[
             styles.upgradeText,
-            { color: trialUrgent ? tokens.statusOverdue : tokens.primarySoft },
+            { color: trialUrgent ? tokens.statusOverdueText : tokens.primarySoft },
           ]}
         >
           {t('trial.banner.upgrade')}
@@ -100,7 +114,23 @@ export function TrialBanner() {
           color={trialUrgent ? tokens.statusOverdue : tokens.primarySoft}
         />
       </Pressable>
-    </View>
+      <Pressable
+        onPress={handleDismiss}
+        hitSlop={2}
+        accessibilityRole="button"
+        accessibilityLabel={t('common.dismiss')}
+        style={({ pressed }) => [
+          styles.dismissButton,
+          pressed ? styles.dismissButtonPressed : null,
+        ]}
+      >
+        <X
+          size={18}
+          strokeWidth={1.8}
+          color={trialUrgent ? tokens.statusOverdue : tokens.fg3}
+        />
+      </Pressable>
+    </Animated.View>
   )
 }
 
@@ -127,7 +157,7 @@ function createStyles(tokens: AppTokensV2) {
       color: tokens.fg1,
     },
     urgentText: {
-      color: tokens.statusOverdue,
+      color: tokens.statusOverdueText,
     },
     upgradePress: {
       flexDirection: 'row',
@@ -138,11 +168,24 @@ function createStyles(tokens: AppTokensV2) {
     },
     upgradePressed: {
       opacity: 0.7,
-      transform: [{ scale: 0.97 }],
+      transform: [{ scale: 0.96 }],
     },
     upgradeText: {
       fontFamily: 'Rubik_500Medium',
       fontSize: 13,
+    },
+    dismissButton: {
+      width: 40,
+      height: 40,
+      borderRadius: 999,
+      alignItems: 'center',
+      justifyContent: 'center',
+      marginVertical: -10,
+      marginRight: -8,
+    },
+    dismissButtonPressed: {
+      transform: [{ scale: 0.96 }],
+      backgroundColor: tokens.bgElev,
     },
   })
 }

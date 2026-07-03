@@ -34,7 +34,7 @@ export function WelcomeBackToast() {
     if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current)
     dismissTimerRef.current = setTimeout(() => {
       setIsVisible(false)
-      setTimeout(() => setShouldRender(false), 300)
+      setTimeout(() => setShouldRender(false), 280)
     }, 4000)
   }
 
@@ -92,7 +92,7 @@ export function WelcomeBackToast() {
         background: 'var(--bg-sheet)',
         borderRadius: 18,
         boxShadow: '0 14px 36px rgba(0, 0, 0, 0.5), inset 0 0 0 1px var(--hairline)',
-        transition: 'opacity 400ms var(--ease-out), transform 400ms var(--ease-out)',
+        transition: 'opacity 280ms var(--ease-out), transform 280ms var(--ease-out)',
         opacity: isVisible ? 1 : 0,
         transform: isVisible
           ? 'translate(-50%, 0) scale(1)'

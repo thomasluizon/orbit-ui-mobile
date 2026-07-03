@@ -9,7 +9,7 @@ import {
   EMPTY_NORMALIZED_HABITS,
   useHabits,
 } from '@/hooks/use-habits'
-import { createTokensV2 } from '@/lib/theme'
+import { createTokensV2, tintFromPrimary } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 const MAX_HABITS = 10
@@ -80,12 +80,13 @@ export function HabitMultiSelect({ selectedIds, onChange }: Readonly<HabitMultiS
                 onPress={() => toggle(id)}
                 accessibilityRole="button"
                 accessibilityLabel={t('social.buddies.removeHabit', { title: option.title })}
-                style={({ pressed }) => [styles.chip, pressed && styles.pressed]}
+                hitSlop={{ top: 6, bottom: 6 }}
+                style={({ pressed }) => [styles.chip, pressed && styles.chipPressed]}
               >
                 <Text style={styles.chipText} numberOfLines={1}>
                   {option.title}
                 </Text>
-                <X size={13} color={tokens.primary} strokeWidth={2.4} />
+                <X size={13} color={tokens.primary} strokeWidth={2.2} />
               </Pressable>
             )
           })}
@@ -93,7 +94,7 @@ export function HabitMultiSelect({ selectedIds, onChange }: Readonly<HabitMultiS
       ) : null}
 
       <View style={styles.search}>
-        <Search size={16} color={tokens.fg3} strokeWidth={2} />
+        <Search size={16} color={tokens.fg3} strokeWidth={1.8} />
         <TextInput
           value={query}
           onChangeText={setQuery}
@@ -103,8 +104,13 @@ export function HabitMultiSelect({ selectedIds, onChange }: Readonly<HabitMultiS
           autoCorrect={false}
         />
         {query.length > 0 ? (
-          <Pressable onPress={() => setQuery('')} accessibilityLabel={t('common.clear')} hitSlop={10}>
-            <X size={15} color={tokens.fg3} strokeWidth={2} />
+          <Pressable
+            onPress={() => setQuery('')}
+            accessibilityRole="button"
+            accessibilityLabel={t('common.clear')}
+            hitSlop={15}
+          >
+            <X size={15} color={tokens.fg3} strokeWidth={1.8} />
           </Pressable>
         ) : null}
       </View>
@@ -126,7 +132,7 @@ export function HabitMultiSelect({ selectedIds, onChange }: Readonly<HabitMultiS
                 style={({ pressed }) => [
                   styles.row,
                   {
-                    backgroundColor: active ? tokens.primarySoft : tokens.bgElev,
+                    backgroundColor: active ? tintFromPrimary(tokens, 0.12) : tokens.bgElev,
                     borderColor: active ? tokens.primary : tokens.hairline,
                     opacity: disabled ? 0.4 : 1,
                   },
@@ -188,7 +194,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       paddingRight: 10,
       paddingVertical: 7,
       borderRadius: 999,
-      backgroundColor: tokens.primarySoft,
+      backgroundColor: tintFromPrimary(tokens, 0.12),
     },
     chipText: { fontFamily: 'Rubik_500Medium', fontSize: 13, color: tokens.primary, flexShrink: 1 },
     search: {
@@ -231,5 +237,6 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       textAlign: 'center',
     },
     pressed: { transform: [{ scale: 0.98 }] },
+    chipPressed: { transform: [{ scale: 0.96 }] },
   })
 }

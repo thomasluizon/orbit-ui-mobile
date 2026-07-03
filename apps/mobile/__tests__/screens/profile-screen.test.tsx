@@ -19,14 +19,15 @@ vi.mock('@/components/referral/referral-drawer', () => ({
 
 const TestRenderer = require('react-test-renderer')
 
-const { mockUseGamificationProfile } = vi.hoisted(() => ({
+const { mockUseGamificationProfile, mockRouterPush } = vi.hoisted(() => ({
   mockUseGamificationProfile: vi.fn(() => ({ profile: null })),
+  mockRouterPush: vi.fn(),
 }))
 
 vi.mock('expo-router', () => ({
   useLocalSearchParams: () => ({}),
   useRouter: () => ({
-    push: vi.fn(),
+    push: mockRouterPush,
     replace: vi.fn(),
   }),
 }))
@@ -63,6 +64,7 @@ vi.mock('@/hooks/use-profile', () => ({
 vi.mock('@/hooks/use-gamification', () => ({
   useGamificationProfile: mockUseGamificationProfile,
   useReportEvent: () => ({ mutate: vi.fn() }),
+  useStreakInfo: () => ({ data: { currentStreak: 0, isFrozenToday: false } }),
 }))
 
 vi.mock('@/stores/auth-store', () => ({
@@ -174,7 +176,8 @@ vi.mock('@/components/ui/fresh-start-animation', () => ({
 }))
 
 vi.mock('@/components/tour/tour-replay-modal', () => ({
-  TourReplayModal: () => null,
+  TourReplayModal: ({ visible }: { visible: boolean }) =>
+    visible ? React.createElement('TourReplayModalOpen', {}) : null,
 }))
 
 vi.mock('@/app/(tabs)/profile/_components/profile-nav-card', () => ({
@@ -185,7 +188,7 @@ vi.mock('@/app/(tabs)/profile/_components/profile-action-button', () => ({
   ProfileActionButton: () => null,
 }))
 
-vi.mock('@/app/(tabs)/profile/_components/profile-nav-icon', () => ({
+vi.mock('@/components/profile/profile-nav-icon', () => ({
   ProfileNavIcon: () => null,
 }))
 
@@ -209,7 +212,15 @@ vi.mock('@/components/ui/section-label', () => ({
 
 vi.mock('@/components/ui/settings-group', () => ({
   SettingsGroup: ({ children }: { children: React.ReactNode }) => <>{children}</>,
-  SettingsGroupRow: () => null,
+  SettingsGroupRow: ({
+    label,
+    hint,
+    onPress,
+  }: {
+    label: string
+    hint?: string
+    onPress?: () => void
+  }) => React.createElement('SettingsRowStub', { label, hint, onPress }),
 }))
 
 vi.mock('lucide-react-native', () => {
@@ -229,6 +240,7 @@ vi.mock('lucide-react-native', () => {
     User: createIcon('User'),
     ChevronLeft: createIcon('ChevronLeft'),
     Flame: createIcon('Flame'),
+    Lock: createIcon('Lock'),
     Download: createIcon('Download'),
     Share2: createIcon('Share2'),
     Pencil: createIcon('Pencil'),
@@ -247,9 +259,40 @@ vi.mock('react-native-svg', () => ({
   Rect: () => null,
 }))
 
+interface SettingsRowStubNode {
+  type: unknown
+  props: {
+    label?: string
+    hint?: string
+    onPress?: () => void
+  }
+}
+
+async function renderProfileScreen() {
+  let tree: ReturnType<typeof TestRenderer.create>
+  await TestRenderer.act(async () => {
+    tree = TestRenderer.create(<ProfileScreen />)
+    await Promise.resolve()
+  })
+  return tree!
+}
+
+function findRowByLabel(
+  tree: ReturnType<typeof TestRenderer.create>,
+  label: string,
+): SettingsRowStubNode {
+  const [row] = tree.root.findAll(
+    (node: SettingsRowStubNode) =>
+      node.type === 'SettingsRowStub' && node.props.label === label,
+  )
+  if (!row) throw new Error(`No settings row with label "${label}"`)
+  return row
+}
+
 describe('ProfileScreen', () => {
   beforeEach(() => {
     mockUseGamificationProfile.mockClear()
+    mockRouterPush.mockClear()
   })
 
   it('disables the gamification profile query for free users', async () => {
@@ -284,5 +327,73 @@ describe('ProfileScreen', () => {
     expect(
       tree!.root.findAll((node: { type: unknown }) => node.type === 'ReferralDrawerOpen'),
     ).toHaveLength(1)
+  })
+
+  it('renders every feature destination as a grouped settings row with its hint', async () => {
+    const tree = await renderProfileScreen()
+
+    expect(findRowByLabel(tree, 'tour.replay.title').props.hint).toBe(
+      'explore.tourHint',
+    )
+    expect(findRowByLabel(tree, 'social.profileNav.title').props.hint).toBe(
+      'social.profileNav.hint',
+    )
+    expect(findRowByLabel(tree, 'profile.retrospectiveTitle').props.hint).toBe(
+      'profile.retrospectiveHint',
+    )
+    expect(findRowByLabel(tree, 'profile.wrappedTitle').props.hint).toBe(
+      'profile.wrappedHint',
+    )
+    expect(findRowByLabel(tree, 'calendar.profileButton').props.hint).toBe(
+      'calendar.profileHint',
+    )
+    expect(findRowByLabel(tree, 'profile.sections.aboutHelp').props.hint).toBe(
+      'profile.sections.aboutHelpHint',
+    )
+    expect(findRowByLabel(tree, 'profile.sections.advanced').props.hint).toBe(
+      'profile.sections.advancedHint',
+    )
+  })
+
+  it('opens the tour replay modal from the discover row', async () => {
+    const tree = await renderProfileScreen()
+
+    expect(
+      tree.root.findAll((node: { type: unknown }) => node.type === 'TourReplayModalOpen'),
+    ).toHaveLength(0)
+
+    await TestRenderer.act(async () => {
+      findRowByLabel(tree, 'tour.replay.title').props.onPress?.()
+      await Promise.resolve()
+    })
+
+    expect(
+      tree.root.findAll((node: { type: unknown }) => node.type === 'TourReplayModalOpen'),
+    ).toHaveLength(1)
+  })
+
+  it('redirects gated feature rows to upgrade for free users', async () => {
+    const tree = await renderProfileScreen()
+
+    await TestRenderer.act(async () => {
+      findRowByLabel(tree, 'profile.retrospectiveTitle').props.onPress?.()
+      await Promise.resolve()
+    })
+
+    expect(mockRouterPush).toHaveBeenCalledWith({
+      pathname: '/upgrade',
+      params: { from: '/profile' },
+    })
+  })
+
+  it('navigates directly to ungated feature rows', async () => {
+    const tree = await renderProfileScreen()
+
+    await TestRenderer.act(async () => {
+      findRowByLabel(tree, 'profile.wrappedTitle').props.onPress?.()
+      await Promise.resolve()
+    })
+
+    expect(mockRouterPush).toHaveBeenCalledWith('/wrapped')
   })
 })

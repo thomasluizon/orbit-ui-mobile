@@ -30,9 +30,9 @@ export function NextRewardCarrot({ carrot }: Readonly<NextRewardCarrotProps>) {
           <span
             style={{
               fontFamily: 'var(--font-sans)',
-              fontSize: 13,
-              fontWeight: 600,
-              letterSpacing: '0.02em',
+              fontSize: 12,
+              fontWeight: 500,
+              letterSpacing: '0.08em',
               textTransform: 'uppercase',
               color: 'var(--fg-2)',
             }}
@@ -90,7 +90,7 @@ export function NextRewardCarrot({ carrot }: Readonly<NextRewardCarrotProps>) {
             </span>
             <Link
               href="/upgrade"
-              className="shrink-0 rounded-full transition-[background-color,box-shadow,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:-translate-y-px hover:bg-[var(--primary-pressed)] active:translate-y-0 active:scale-[0.96]"
+              className="touch-target-y shrink-0 rounded-full transition-[background-color,box-shadow,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:-translate-y-px hover:bg-[var(--primary-pressed)] active:translate-y-0 active:scale-[0.96]"
               style={{
                 padding: '9px 16px',
                 background: 'var(--primary)',

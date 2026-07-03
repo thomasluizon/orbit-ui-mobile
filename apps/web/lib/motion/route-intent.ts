@@ -83,3 +83,9 @@ export function getRouteDirectionForIntent(intent: MotionNavigationIntent): -1 |
       return 1
   }
 }
+
+if (typeof window !== 'undefined') {
+  window.addEventListener('popstate', () => {
+    setRouteTransitionIntent('back')
+  })
+}

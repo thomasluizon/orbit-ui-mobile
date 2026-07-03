@@ -1,9 +1,7 @@
-import { Pressable, ScrollView, Text, View } from 'react-native'
+import { Pressable, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import type { RetrospectiveResponse } from '@orbit/shared/utils/retrospective'
-import type { RetrospectivePeriod } from '@/hooks/use-retrospective'
-import { Chip } from '@/components/ui/chip'
-import { OfflineUnavailableState } from '@/components/ui/offline-unavailable-state'
+import { SkeletonLine } from '@/components/ui/skeleton'
 import { RetrospectiveDashboard } from './retrospective-dashboard'
 import { RetrospectiveEmptyState } from './retrospective-empty-state'
 import { RetrospectiveNoDataState } from './retrospective-no-data-state'
@@ -14,13 +12,10 @@ interface RetrospectiveContentProps {
   isOnline: boolean
   isLoading: boolean
   isCacheLoading: boolean
-  period: RetrospectivePeriod
-  periodChips: { id: RetrospectivePeriod; label: string }[]
   displayedData: RetrospectiveResponse | null
   displayedFromCache: boolean
   error: string | null
   noData: boolean
-  onSelectPeriod: (next: RetrospectivePeriod) => void
   onGenerate: () => void
 }
 
@@ -29,76 +24,23 @@ export function RetrospectiveContent({
   isOnline,
   isLoading,
   isCacheLoading,
-  period,
-  periodChips,
   displayedData,
   displayedFromCache,
   error,
   noData,
-  onSelectPeriod,
   onGenerate,
 }: Readonly<RetrospectiveContentProps>) {
   const { t } = useTranslation()
   return (
     <>
-      {!isOnline ? (
-        <View style={styles.offlinePad}>
-          <OfflineUnavailableState
-            title={t('offline.title')}
-            description={t('offline.description')}
-            compact
-          />
-        </View>
-      ) : null}
-
-      <View
-        style={[
-          styles.tabsRow,
-          { borderBottomColor: tokens.hairline },
-        ]}
-      >
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.chipsScroll}
-        >
-          {periodChips.map((p) => (
-            <Chip
-              key={p.id}
-              active={period === p.id}
-              onPress={() => onSelectPeriod(p.id)}
-            >
-              {p.label}
-            </Chip>
-          ))}
-        </ScrollView>
-      </View>
-
       {isLoading ? (
         <View style={styles.skeletonStack}>
-          <Text
-            style={[styles.skeletonLabel, { color: tokens.fg3 }]}
-          >
+          <Text style={[styles.skeletonLabel, { color: tokens.fg3 }]}>
             {t('retrospective.generating')}
           </Text>
-          <View
-            style={[
-              styles.skeletonLine,
-              { width: '60%', backgroundColor: tokens.bgCard },
-            ]}
-          />
-          <View
-            style={[
-              styles.skeletonLine,
-              { width: '80%', backgroundColor: tokens.bgCard },
-            ]}
-          />
-          <View
-            style={[
-              styles.skeletonLine,
-              { width: '40%', backgroundColor: tokens.bgCard },
-            ]}
-          />
+          <SkeletonLine width="60%" height={7} />
+          <SkeletonLine width="80%" height={7} />
+          <SkeletonLine width="40%" height={7} />
         </View>
       ) : null}
 
@@ -120,19 +62,23 @@ export function RetrospectiveContent({
         />
       ) : null}
 
-      {!isLoading && !displayedData && !noData && error && (!displayedData || isOnline) ? (
+      {!isLoading && !displayedData && !noData && error ? (
         <View style={styles.errorWrap}>
           <Text style={[styles.errorText, { color: tokens.statusBad }]}>
-            {t('retrospective.error')}
+            {error || t('retrospective.error')}
           </Text>
           <Pressable
             onPress={onGenerate}
+            disabled={!isOnline}
             accessibilityRole="button"
+            accessibilityState={{ disabled: !isOnline }}
+            hitSlop={{ top: 5, bottom: 5 }}
             style={({ pressed }) => [
               styles.actionChip,
               {
                 backgroundColor: pressed ? tokens.bgElev2 : tokens.bgElev,
                 borderColor: tokens.hairline,
+                opacity: isOnline ? 1 : 0.5,
               },
               pressed ? styles.actionChipPressed : null,
             ]}

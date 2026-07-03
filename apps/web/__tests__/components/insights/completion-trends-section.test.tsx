@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 
 const { useHabitTrendsMock } = vi.hoisted(() => ({ useHabitTrendsMock: vi.fn() }))
 
@@ -37,6 +37,17 @@ describe('CompletionTrendsSection', () => {
     expect(screen.getByText('insights.error')).toBeInTheDocument()
   })
 
+  it('retries the query from the error state', () => {
+    const refetch = vi.fn()
+    useHabitTrendsMock.mockReturnValue({ data: undefined, isLoading: false, isError: true, refetch })
+
+    render(<CompletionTrendsSection range={range} />)
+
+    fireEvent.click(screen.getByRole('button', { name: 'common.retry' }))
+
+    expect(refetch).toHaveBeenCalled()
+  })
+
   it('shows the empty label when nothing was completed in range', () => {
     useHabitTrendsMock.mockReturnValue({
       data: {
@@ -65,7 +76,7 @@ describe('CompletionTrendsSection', () => {
     render(<CompletionTrendsSection range={range} />)
 
     expect(
-      screen.getByRole('img', { name: 'insights.sections.completionTrends' }),
+      screen.getByRole('img', { name: /insights\.sections\.completionTrends/ }),
     ).toBeInTheDocument()
     expect(screen.queryByText('insights.empty')).toBeNull()
   })

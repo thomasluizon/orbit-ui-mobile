@@ -8,27 +8,31 @@ type AchievementCategoryView = {
 }
 
 type TranslationFn = (key: string, params?: Record<string, string | number | Date>) => string
+type DisplayDateFn = (value: string | Date, options?: Intl.DateTimeFormatOptions) => string
 
 interface AchievementCategorySectionProps {
   category: AchievementCategoryView
   t: TranslationFn
+  displayDate: DisplayDateFn
 }
 
 export function AchievementCategorySection({
   category,
   t,
+  displayDate,
 }: Readonly<AchievementCategorySectionProps>) {
   return (
     <>
       <SectionLabel>
         {t(`gamification.categories.${category.key}`)}
       </SectionLabel>
-      <div className="stagger-enter grid grid-cols-2 gap-3 px-5">
+      <div className="stagger-enter grid grid-cols-2 gap-3 px-5 md:[grid-template-columns:repeat(auto-fill,minmax(170px,1fr))]">
         {category.items.map((achievement) => (
           <AchievementTile
             key={achievement.id}
             achievement={achievement}
             t={t}
+            displayDate={displayDate}
           />
         ))}
       </div>
@@ -39,31 +43,25 @@ export function AchievementCategorySection({
 interface AchievementTileProps {
   achievement: Achievement
   t: TranslationFn
+  displayDate: DisplayDateFn
 }
 
-function AchievementTile({ achievement, t }: Readonly<AchievementTileProps>) {
+function AchievementTile({ achievement, t, displayDate }: Readonly<AchievementTileProps>) {
   const earned = achievement.isEarned
   const name = t(`gamification.achievements.${achievement.id}.name`)
   const description = t(`gamification.achievements.${achievement.id}.description`)
 
-  const lockedSurface = earned
-    ? undefined
-    : {
-        background: 'var(--bg-card)',
-        boxShadow: 'inset 0 0 0 1px var(--hairline)',
-        opacity: 0.45,
-      }
-
   return (
     <div
       data-testid={`achievement-${achievement.id}`}
-      className={`flex flex-col items-center text-center ${earned ? 'card-int' : ''}`}
+      className="flex flex-col items-center text-center"
       style={{
         minHeight: 156,
         padding: '18px 12px 14px',
         borderRadius: 16,
-        cursor: 'default',
-        ...lockedSurface,
+        background: 'var(--bg-card)',
+        boxShadow: 'inset 0 0 0 1px var(--hairline)',
+        opacity: earned ? 1 : 0.45,
       }}
     >
       <span
@@ -99,6 +97,21 @@ function AchievementTile({ achievement, t }: Readonly<AchievementTileProps>) {
       >
         {description}
       </span>
+      {earned && achievement.earnedAtUtc && (
+        <span
+          style={{
+            marginTop: 6,
+            fontFamily: 'var(--font-mono)',
+            fontSize: 11,
+            color: 'var(--fg-4)',
+            fontVariantNumeric: 'tabular-nums',
+          }}
+        >
+          {t('gamification.tile.earned', {
+            date: displayDate(achievement.earnedAtUtc, { month: 'short', day: 'numeric' }),
+          })}
+        </span>
+      )}
     </div>
   )
 }

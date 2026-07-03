@@ -28,7 +28,7 @@ const cardOrder: Record<PlanCardVariant, string> = {
 }
 
 const surface: Record<PlanCardVariant, string> = {
-  hero: 'z-10 bg-[rgba(var(--primary-rgb),0.08)] shadow-[inset_0_0_0_1.5px_var(--primary),var(--primary-glow)] lg:-translate-y-3',
+  hero: 'z-10 bg-[rgba(var(--primary-rgb),0.10)] shadow-[inset_0_0_0_1.5px_var(--primary),var(--primary-glow)] lg:-translate-y-3',
   free: 'bg-[var(--bg-elev)] shadow-[inset_0_0_0_1px_var(--hairline)]',
   anchor: 'bg-[var(--bg-card)] shadow-[inset_0_0_0_1px_var(--hairline)]',
 }
@@ -70,7 +70,7 @@ export function PlanCard({
         <span
           style={{
             fontFamily: 'var(--font-display)',
-            fontSize: 30,
+            fontSize: 22,
             fontWeight: 700,
             letterSpacing: '-0.02em',
             color: 'var(--fg-1)',

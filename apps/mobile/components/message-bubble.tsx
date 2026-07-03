@@ -2,7 +2,7 @@ import { useState, useMemo } from "react";
 import { View, Text, Image, StyleSheet, Pressable } from "react-native";
 import Animated, { FadeInUp, ReduceMotion } from "react-native-reanimated";
 import { useRouter } from "expo-router";
-import { Sparkles, ArrowUpRight } from "lucide-react-native";
+import { ArrowUpRight } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import type { ChatMessage } from "@orbit/shared/types/chat";
 import type { AgentExecuteOperationResponse } from "@orbit/shared/types";
@@ -15,11 +15,13 @@ import { GoalListCard } from "@/components/chat/goal-list-card";
 import { HabitListCard } from "@/components/chat/habit-list-card";
 import { PendingOperationCard } from "@/components/chat/pending-operation-card";
 import { Markdown } from "@/components/ui/markdown";
+import { AstraMark } from "@/components/ui/astra-avatar";
 import { createTokensV2, tintFromPrimary } from '@/lib/theme'
 import { useAppTheme } from "@/lib/use-app-theme";
 
 interface MessageBubbleProps {
   message: ChatMessage;
+  animateEntry?: boolean;
   onBreakdownConfirmed?: () => void;
   onActionChipClick?: (entityId: string, actionType: string) => void;
   onPendingOperationConfirmExecute?: (
@@ -39,6 +41,7 @@ interface MessageBubbleProps {
 
 export function MessageBubble({
   message,
+  animateEntry,
   onBreakdownConfirmed,
   onActionChipClick,
   onPendingOperationConfirmExecute,
@@ -104,18 +107,17 @@ export function MessageBubble({
     setDismissedBreakdowns((prev) => new Set([...prev, key]));
   }
 
-  return (
-    <Animated.View
-      entering={FadeInUp.duration(220).reduceMotion(ReduceMotion.System)}
-      style={[
-        styles.container,
-        isUser ? styles.userContainer : styles.aiContainer,
-      ]}
-      accessibilityLabel={isUser ? t("chat.senderYou") : t("chat.senderOrbit")}
-    >
+  const senderLabel = isUser ? t("chat.senderYou") : t("chat.senderOrbit");
+  const containerStyle = [
+    styles.container,
+    isUser ? styles.userContainer : styles.aiContainer,
+  ];
+
+  const bubbleContent = (
+    <>
       {!isUser && (
         <View style={styles.aiAvatar} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-          <Sparkles size={16} color={tokens.primarySoft} strokeWidth={1.8} />
+          <AstraMark size={16} />
         </View>
       )}
 
@@ -160,7 +162,12 @@ export function MessageBubble({
                   onPress={() => router.push(surface.mobileRoute)}
                   style={({ pressed }) => [
                     styles.relatedChip,
-                    { opacity: pressed ? 0.7 : 1 },
+                    pressed
+                      ? {
+                          transform: [{ scale: 0.96 }],
+                          backgroundColor: tokens.bgElev2,
+                        }
+                      : null,
                   ]}
                 >
                   <Text style={styles.relatedChipText}>{t(surface.labelKey)}</Text>
@@ -248,13 +255,24 @@ export function MessageBubble({
                       : denial.reason}
                   </Text>
                   {upgradeResolution.shouldUpgrade && onUpgradeClick ? (
-                    <Text
-                      style={styles.denialUpgrade}
+                    <Pressable
                       onPress={onUpgradeClick}
                       accessibilityRole="button"
+                      hitSlop={{ top: 6, bottom: 6 }}
+                      style={({ pressed }) => [
+                        styles.denialUpgrade,
+                        {
+                          backgroundColor: pressed
+                            ? tokens.primaryPressed
+                            : tokens.primary,
+                        },
+                        pressed ? styles.denialUpgradePressed : null,
+                      ]}
                     >
-                      {t("upgrade.subscribe")}
-                    </Text>
+                      <Text style={styles.denialUpgradeText}>
+                        {t("upgrade.subscribe")}
+                      </Text>
+                    </Pressable>
                   ) : null}
                 </View>
               );
@@ -262,6 +280,24 @@ export function MessageBubble({
           </View>
         )}
       </View>
+    </>
+  );
+
+  if (!animateEntry) {
+    return (
+      <View style={containerStyle} accessibilityLabel={senderLabel}>
+        {bubbleContent}
+      </View>
+    );
+  }
+
+  return (
+    <Animated.View
+      entering={FadeInUp.duration(220).reduceMotion(ReduceMotion.System)}
+      style={containerStyle}
+      accessibilityLabel={senderLabel}
+    >
+      {bubbleContent}
     </Animated.View>
   );
 }
@@ -329,6 +365,8 @@ function createStyles(tokens: AppTokens) {
       width: 200,
       height: 192,
       borderRadius: 12,
+      borderWidth: 1,
+      borderColor: tokens.hairline,
       marginBottom: 8,
     },
 
@@ -338,7 +376,7 @@ function createStyles(tokens: AppTokens) {
     },
     relatedTitle: {
       fontFamily: 'Rubik_500Medium',
-      fontSize: 11,
+      fontSize: 12,
       color: tokens.fg3,
       marginBottom: 6,
       paddingHorizontal: 4,
@@ -353,7 +391,7 @@ function createStyles(tokens: AppTokens) {
       alignItems: "center",
       gap: 6,
       minHeight: 44,
-      paddingHorizontal: 14,
+      paddingHorizontal: 16,
       borderRadius: 999,
       backgroundColor: tokens.bgElev,
       borderWidth: 1,
@@ -363,7 +401,7 @@ function createStyles(tokens: AppTokens) {
     relatedChipText: {
       fontFamily: 'Rubik_500Medium',
       fontSize: 13,
-      color: tokens.fg1,
+      color: tokens.fg2,
     },
 
     breakdownContainer: {
@@ -392,15 +430,24 @@ function createStyles(tokens: AppTokens) {
     },
     denialReason: {
       fontFamily: 'Rubik_400Regular',
-      fontSize: 11,
-      lineHeight: 16,
+      fontSize: 12,
+      lineHeight: 17,
       color: tokens.statusBadText,
     },
     denialUpgrade: {
-      fontFamily: 'Rubik_600SemiBold',
-      fontSize: 11,
-      color: tokens.primary,
+      alignSelf: "flex-start",
+      paddingVertical: 8,
+      paddingHorizontal: 16,
+      borderRadius: 999,
       marginTop: 8,
+    },
+    denialUpgradePressed: {
+      transform: [{ scale: 0.96 }],
+    },
+    denialUpgradeText: {
+      fontFamily: 'Rubik_600SemiBold',
+      fontSize: 12,
+      color: tokens.fgOnPrimary,
     },
   });
 }

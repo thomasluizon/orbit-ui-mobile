@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
@@ -57,13 +57,15 @@ describe('AppDatePicker', () => {
     expect(onChange).toHaveBeenCalled()
   })
 
-  it('closes calendar after selecting a day', () => {
+  it('closes calendar after selecting a day', async () => {
     const onChange = vi.fn()
     render(<AppDatePicker value="2025-06-15" onChange={onChange} />)
     fireEvent.click(screen.getByRole('button'))
     const dayButtons = document.querySelectorAll('td button')
     fireEvent.click(dayButtons[10]!)
-    expect(screen.queryByLabelText('common.previousMonth')).not.toBeInTheDocument()
+    await waitFor(() =>
+      expect(screen.queryByLabelText('common.previousMonth')).not.toBeInTheDocument(),
+    )
   })
 
   it('renders weekday headers', () => {

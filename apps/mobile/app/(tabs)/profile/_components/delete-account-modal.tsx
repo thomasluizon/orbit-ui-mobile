@@ -4,12 +4,11 @@ import {
   Text,
   Pressable,
   StyleSheet,
-  Modal,
   type TextInput,
 } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { parseISO } from 'date-fns'
-import { TriangleAlert, X } from 'lucide-react-native'
+import { TriangleAlert } from 'lucide-react-native'
 import { getFriendlyErrorMessage } from '@orbit/shared/utils'
 import type { Profile } from '@orbit/shared/types/profile'
 import { API } from '@orbit/shared/api'
@@ -18,8 +17,8 @@ import { useOffline } from '@/hooks/use-offline'
 import { useDateFormat } from '@/hooks/use-date-format'
 import { useAuthStore } from '@/stores/auth-store'
 import { OfflineUnavailableState } from '@/components/ui/offline-unavailable-state'
-import { AppTextInput } from '@/components/ui/app-text-input'
-import { KeyboardAwareScrollView } from '@/components/ui/keyboard-aware-scroll-view'
+import { BottomSheetModal } from '@/components/bottom-sheet-modal'
+import { CodeInput } from '@/components/ui/code-input'
 import { PillButton } from '@/components/ui/pill-button'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { createTokensV2 } from '@/lib/theme'
@@ -50,7 +49,7 @@ function DangerPillButton({
         pressed && !disabled ? dangerPillStyles.pressed : null,
       ]}
     >
-      <Text style={[dangerPillStyles.label, { color: tokens.fgOnPrimary }]}>
+      <Text style={[dangerPillStyles.label, { color: tokens.fgOnBad }]}>
         {label}
       </Text>
     </Pressable>
@@ -205,228 +204,161 @@ export function DeleteAccountModal({
   }
 
   return (
-    <Modal
-      visible={open}
-      transparent
-      animationType="slide"
-      onRequestClose={onClose}
+    <BottomSheetModal
+      open={open}
+      onClose={onClose}
+      title={t('profile.deleteAccount.title')}
+      snapPoints={['70%']}
     >
-      <KeyboardAwareScrollView
-        containerStyle={styles.modalOverlay}
-        contentContainerStyle={styles.modalScrollContent}
-        keyboardVerticalOffset={12}
-        showsVerticalScrollIndicator={false}
-      >
-        <View style={[styles.modalContent, { backgroundColor: tokens.bgSheet }]}>
-          <View style={[styles.grabber, { backgroundColor: tokens.hairlineStrong }]} />
-          <View style={styles.modalHeader}>
-            <Text style={[styles.modalTitle, { color: tokens.fg1 }]}>
+      {!isOnline ? (
+        <View style={styles.body}>
+          <OfflineUnavailableState
+            title={t('profile.deleteAccount.offlineTitle')}
+            description={t('profile.deleteAccount.offlineDescription')}
+            compact
+          />
+        </View>
+      ) : deleteStep === 'confirm' ? (
+        <View style={styles.body}>
+          <View style={styles.destructiveHero}>
+            <View
+              style={[
+                styles.destructiveHeroCircle,
+                { backgroundColor: `${tokens.statusBad}24` },
+              ]}
+            >
+              <TriangleAlert size={34} color={tokens.statusBad} strokeWidth={1.8} />
+            </View>
+            <View style={styles.destructiveHeroBody}>
+              <Text style={[styles.deleteWarningTitle, { color: tokens.fg1 }]}>
+                {profile?.hasProAccess && profile.planExpiresAt
+                  ? t('profile.deleteAccount.warningPro', {
+                      date: displayDate(parseISO(profile.planExpiresAt)),
+                    })
+                  : t('profile.deleteAccount.warningFree')}
+              </Text>
+              <Text style={[styles.deleteWarningDetail, { color: tokens.fg2 }]}>
+                {t('profile.deleteAccount.warningDetail')}
+              </Text>
+            </View>
+          </View>
+          {deleteError ? (
+            <Text style={[styles.errorTextSmall, { color: tokens.statusBadText }]}>
+              {deleteError}
+            </Text>
+          ) : null}
+          <View style={styles.modalActions}>
+            <DangerPillButton
+              label={
+                deleteLoading
+                  ? t('profile.deleteAccount.sending')
+                  : t('profile.deleteAccount.sendCode')
+              }
+              disabled={deleteLoading}
+              onPress={() => {
+                void handleRequestDeletion()
+              }}
+            />
+            <PillButton
+              variant="ghost"
+              fullWidth
+              disabled={deleteLoading}
+              onPress={onClose}
+            >
+              {t('common.cancel')}
+            </PillButton>
+          </View>
+        </View>
+      ) : deleteStep === 'code' ? (
+        <View style={styles.body}>
+          <Text
+            style={[
+              styles.modalDescription,
+              { color: tokens.fg2, textAlign: 'center' },
+            ]}
+          >
+            {t('profile.deleteAccount.codeInstructions')}
+          </Text>
+          <CodeInput
+            digits={deleteCodeDigits}
+            inputRefs={deleteCodeRefs}
+            onChange={setDeleteCodeValue}
+            onKeyPress={(index, event) =>
+              handleDeleteCodeKeyPress(index, event.nativeEvent.key)
+            }
+            ariaLabelForIndex={(n) => t('auth.codeDigit', { n: n + 1 })}
+          />
+          {deleteError ? (
+            <Text style={[styles.errorTextSmall, { color: tokens.statusBadText }]}>
+              {deleteError}
+            </Text>
+          ) : null}
+          <View style={styles.modalActions}>
+            <DangerPillButton
+              label={
+                deleteLoading
+                  ? t('profile.deleteAccount.deleting')
+                  : t('profile.deleteAccount.confirmDelete')
+              }
+              disabled={deleteLoading || deleteCodeDigits.join('').length !== 6}
+              onPress={() => {
+                void handleConfirmDeletion()
+              }}
+            />
+            <PillButton
+              variant="ghost"
+              fullWidth
+              disabled={deleteLoading}
+              onPress={backToDeleteConfirmStep}
+            >
+              {t('common.back')}
+            </PillButton>
+          </View>
+        </View>
+      ) : (
+        <View style={styles.body}>
+          <View
+            style={[
+              styles.freshStartBox,
+              {
+                backgroundColor: tokens.bgCard,
+                borderColor: tokens.hairline,
+                alignItems: 'center',
+              },
+            ]}
+          >
+            <Text style={[styles.boxLabel, { color: tokens.statusOverdueText }]}>
               {t('profile.deleteAccount.title')}
             </Text>
-            <Pressable
-              onPress={onClose}
-              hitSlop={8}
-              accessibilityRole="button"
-              accessibilityLabel={t('common.close')}
+            <Text
+              style={[
+                styles.boxItemText,
+                { color: tokens.fg2, textAlign: 'center' },
+              ]}
             >
-              <X size={24} color={tokens.fg2} strokeWidth={1.8} />
-            </Pressable>
+              {t('profile.deleteAccount.deactivated', {
+                date: scheduledDeletionDate
+                  ? displayDate(parseISO(scheduledDeletionDate))
+                  : '',
+              })}
+            </Text>
           </View>
-
-          {!isOnline ? (
-            <OfflineUnavailableState
-              title={t('profile.deleteAccount.offlineTitle')}
-              description={t('profile.deleteAccount.offlineDescription')}
-              compact
-            />
-          ) : deleteStep === 'confirm' ? (
-            <View style={{ gap: 16 }}>
-              <View style={styles.destructiveHero}>
-                <View
-                  style={[
-                    styles.destructiveHeroCircle,
-                    { backgroundColor: `${tokens.statusBad}24` },
-                  ]}
-                >
-                  <TriangleAlert size={34} color={tokens.statusBad} strokeWidth={1.8} />
-                </View>
-                <View style={styles.destructiveHeroBody}>
-                  <Text style={[styles.deleteWarningTitle, { color: tokens.fg1 }]}>
-                    {profile?.hasProAccess && profile.planExpiresAt
-                      ? t('profile.deleteAccount.warningPro', {
-                          date: displayDate(parseISO(profile.planExpiresAt)),
-                        })
-                      : t('profile.deleteAccount.warningFree')}
-                  </Text>
-                  <Text style={[styles.deleteWarningDetail, { color: tokens.fg2 }]}>
-                    {t('profile.deleteAccount.warningDetail')}
-                  </Text>
-                </View>
-              </View>
-              {deleteError ? (
-                <Text style={[styles.errorTextSmall, { color: tokens.statusBad }]}>
-                  {deleteError}
-                </Text>
-              ) : null}
-              <View style={styles.modalActions}>
-                <DangerPillButton
-                  label={
-                    deleteLoading
-                      ? t('profile.deleteAccount.sending')
-                      : t('profile.deleteAccount.sendCode')
-                  }
-                  disabled={deleteLoading}
-                  onPress={() => {
-                    void handleRequestDeletion()
-                  }}
-                />
-                <PillButton
-                  variant="ghost"
-                  fullWidth
-                  disabled={deleteLoading}
-                  onPress={onClose}
-                >
-                  {t('common.cancel')}
-                </PillButton>
-              </View>
-            </View>
-          ) : deleteStep === 'code' ? (
-            <View style={{ gap: 16 }}>
-              <Text
-                style={[
-                  styles.modalDescription,
-                  { color: tokens.fg2, textAlign: 'center' },
-                ]}
-              >
-                {t('profile.deleteAccount.codeInstructions')}
-              </Text>
-              <View style={styles.deleteCodeRow}>
-                {deleteCodeDigits.map((digit, index) => (
-                  <AppTextInput
-                    key={`digit-${index}`}
-                    ref={(node) => {
-                      deleteCodeRefs.current[index] = node
-                    }}
-                    style={styles.deleteCodeInput}
-                    value={digit}
-                    onChangeText={(text) => setDeleteCodeValue(index, text)}
-                    onKeyPress={({ nativeEvent }) =>
-                      handleDeleteCodeKeyPress(index, nativeEvent.key)
-                    }
-                    keyboardType="number-pad"
-                    textContentType="oneTimeCode"
-                    autoComplete="one-time-code"
-                    maxLength={1}
-                    placeholder="0"
-                    placeholderTextColor={tokens.fg3}
-                    textAlign="center"
-                  />
-                ))}
-              </View>
-              {deleteError ? (
-                <Text style={[styles.errorTextSmall, { color: tokens.statusBad }]}>
-                  {deleteError}
-                </Text>
-              ) : null}
-              <View style={styles.modalActions}>
-                <DangerPillButton
-                  label={
-                    deleteLoading
-                      ? t('profile.deleteAccount.deleting')
-                      : t('profile.deleteAccount.confirmDelete')
-                  }
-                  disabled={deleteLoading || deleteCodeDigits.join('').length !== 6}
-                  onPress={() => {
-                    void handleConfirmDeletion()
-                  }}
-                />
-                <PillButton
-                  variant="ghost"
-                  fullWidth
-                  disabled={deleteLoading}
-                  onPress={backToDeleteConfirmStep}
-                >
-                  {t('common.back')}
-                </PillButton>
-              </View>
-            </View>
-          ) : (
-            <View style={{ gap: 16 }}>
-              <View
-                style={[
-                  styles.freshStartBox,
-                  {
-                    backgroundColor: tokens.bgCard,
-                    borderColor: tokens.hairline,
-                    alignItems: 'center',
-                  },
-                ]}
-              >
-                <Text style={[styles.boxLabel, { color: tokens.statusOverdueText }]}>
-                  {t('profile.deleteAccount.title')}
-                </Text>
-                <Text
-                  style={[
-                    styles.boxItemText,
-                    { color: tokens.fg2, textAlign: 'center' },
-                  ]}
-                >
-                  {t('profile.deleteAccount.deactivated', {
-                    date: scheduledDeletionDate
-                      ? displayDate(parseISO(scheduledDeletionDate))
-                      : '',
-                  })}
-                </Text>
-              </View>
-              <View style={styles.modalActions}>
-                <PillButton fullWidth onPress={() => logout()}>
-                  {t('profile.logout')}
-                </PillButton>
-              </View>
-            </View>
-          )}
+          <View style={styles.modalActions}>
+            <PillButton fullWidth onPress={() => logout()}>
+              {t('profile.logout')}
+            </PillButton>
+          </View>
         </View>
-      </KeyboardAwareScrollView>
-    </Modal>
+      )}
+    </BottomSheetModal>
   )
 }
 
 const styles = StyleSheet.create({
-  modalOverlay: {
-    flex: 1,
-    backgroundColor: 'rgba(0,0,0,0.55)',
-    justifyContent: 'flex-end',
-  },
-  modalScrollContent: {
-    flexGrow: 1,
-    justifyContent: 'flex-end',
-    paddingTop: 24,
-  },
-  modalContent: {
-    borderTopLeftRadius: 26,
-    borderTopRightRadius: 26,
+  body: {
     paddingHorizontal: 22,
-    paddingTop: 12,
-    paddingBottom: 40,
-  },
-  grabber: {
-    alignSelf: 'center',
-    width: 44,
-    height: 5,
-    borderRadius: 999,
-    marginBottom: 14,
-  },
-  modalHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'space-between',
+    paddingBottom: 8,
     gap: 16,
-    marginBottom: 20,
-  },
-  modalTitle: {
-    flex: 1,
-    fontFamily: 'Rubik_500Medium',
-    fontSize: 24,
   },
   modalDescription: {
     fontFamily: 'Rubik_400Regular',
@@ -486,20 +418,6 @@ const styles = StyleSheet.create({
     textAlign: 'center',
   },
 
-  deleteCodeRow: {
-    flexDirection: 'row',
-    justifyContent: 'center',
-    gap: 10,
-  },
-  deleteCodeInput: {
-    width: 48,
-    height: 58,
-    borderRadius: 14,
-    paddingHorizontal: 0,
-    paddingVertical: 0,
-    fontFamily: 'Roboto_500Medium',
-    fontSize: 26,
-  },
   errorTextSmall: {
     fontFamily: 'Rubik_400Regular',
     fontSize: 12,

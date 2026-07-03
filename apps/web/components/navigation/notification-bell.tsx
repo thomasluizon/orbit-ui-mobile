@@ -1,7 +1,8 @@
 'use client'
 
 import { useCallback, useMemo, useState, useSyncExternalStore } from 'react'
-import { Bell, BellOff, CheckCheck, Flame, Heart, Sparkles, Trash2, Trophy, UserPlus, Users, X } from 'lucide-react'
+import { AnimatePresence, motion } from 'motion/react'
+import { Bell, CheckCheck, Flame, Heart, Sparkles, Trash2, Trophy, UserPlus, Users, X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import {
   formatNotificationRelativeTime,
@@ -18,6 +19,7 @@ import {
   useDeleteAllNotifications,
 } from '@/hooks/use-notifications'
 import { Popover } from '@/components/ui/popover'
+import { SatelliteGlyph } from '@/components/ui/satellite-glyph'
 import { NotificationDetailModal } from './notification-detail-modal'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { useAppToast } from '@/hooks/use-app-toast'
@@ -66,7 +68,7 @@ function NotificationGlyphCircle({
 
 export function NotificationBell() {
   const t = useTranslations()
-  const { notifications, isLoading } = useNotifications()
+  const { notifications, isLoading, isError, refetch } = useNotifications()
   const markAsRead = useMarkNotificationRead()
   const markAllAsRead = useMarkAllNotificationsRead()
   const deleteNotification = useDeleteNotification()
@@ -126,7 +128,6 @@ export function NotificationBell() {
     if (notification) {
       requestDeleteNotification(notification)
     }
-    setSelectedNotification(null)
   }
 
   const trigger = (
@@ -143,7 +144,7 @@ export function NotificationBell() {
       {visibleUnreadCount > 0 && (
         <span
           aria-hidden="true"
-          className="absolute"
+          className="absolute animate-scale-in"
           style={{
             top: 7,
             right: 7,
@@ -165,7 +166,7 @@ export function NotificationBell() {
         open={isOpen}
         onOpenChange={setIsOpen}
         placement="bottom-end"
-        className="w-80 max-h-96 flex flex-col overflow-hidden"
+        className="w-80 md:w-[380px] max-h-96 md:max-h-[min(60dvh,520px)] flex flex-col overflow-hidden"
       >
         <div
           className="flex items-center justify-between"
@@ -192,7 +193,7 @@ export function NotificationBell() {
                 type="button"
                 aria-label={t('notifications.markAllRead')}
                 title={t('notifications.markAllRead')}
-                className="icon-btn hover:text-[var(--primary-soft)]"
+                className="touch-target icon-btn hover:text-[var(--primary-soft)]"
                 style={{ width: 36, height: 36, color: 'var(--fg-3)' }}
                 onClick={() => markAllAsRead.mutate()}
               >
@@ -203,7 +204,8 @@ export function NotificationBell() {
               <button
                 type="button"
                 aria-label={t('notifications.deleteAll')}
-                className="icon-btn hover:text-[var(--status-bad)]"
+                title={t('notifications.deleteAll')}
+                className="touch-target icon-btn hover:text-[var(--status-bad)]"
                 style={{ width: 36, height: 36, color: 'var(--fg-3)' }}
                 onClick={() => setShowDeleteAllConfirm(true)}
               >
@@ -230,15 +232,25 @@ export function NotificationBell() {
               />
             </li>
           )}
-          {!isLoading && visibleNotifications.length === 0 && (
+          {!isLoading && isError && visibleNotifications.length === 0 && (
             <li className="flex flex-col items-center p-6 text-center" style={{ gap: 10 }}>
-              <span
-                aria-hidden="true"
-                className="inline-flex items-center justify-center rounded-full bg-[var(--bg-elev)]"
-                style={{ width: 42, height: 42 }}
+              <p
+                style={{
+                  fontFamily: 'var(--font-sans)',
+                  fontSize: 14,
+                  color: 'var(--fg-3)',
+                }}
               >
-                <BellOff size={20} strokeWidth={1.8} color="var(--fg-3)" />
-              </span>
+                {t('notifications.loadError')}
+              </p>
+              <button type="button" className="chip" onClick={() => void refetch()}>
+                {t('common.retry')}
+              </button>
+            </li>
+          )}
+          {!isLoading && !isError && visibleNotifications.length === 0 && (
+            <li className="flex flex-col items-center p-6 text-center" style={{ gap: 10 }}>
+              <SatelliteGlyph size={96} />
               <p
                 style={{
                   fontFamily: 'var(--font-sans)',
@@ -250,79 +262,91 @@ export function NotificationBell() {
               </p>
             </li>
           )}
-          {visibleNotifications.length > 0 &&
-            visibleNotifications.map((item) => (
-              <li
-                key={item.id}
-                className="flex items-start transition-[background-color] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev)] active:bg-[var(--bg-elev-pressed)]"
-                style={{
-                  gap: 12,
-                  padding: '14px 16px',
-                  borderBottom: '1px solid var(--hairline)',
-                  background: item.isRead
-                    ? 'transparent'
-                    : 'rgba(var(--primary-rgb), 0.06)',
-                }}
-              >
-                <NotificationGlyphCircle notification={item} />
-                <button
-                  type="button"
-                  className="flex-1 min-w-0 text-left appearance-none border-0 bg-transparent cursor-pointer p-0"
-                  aria-label={item.title}
-                  onClick={() => handleClick(item)}
-                >
-                  <span className="flex items-baseline justify-between" style={{ gap: 8 }}>
-                    <span
-                      className="truncate"
-                      style={{
-                        fontFamily: 'var(--font-sans)',
-                        fontSize: 15,
-                        fontWeight: 500,
-                        color: 'var(--fg-1)',
-                      }}
-                    >
-                      {item.title}
-                    </span>
-                    <span
-                      className="shrink-0"
-                      style={{
-                        fontFamily: 'var(--font-sans)',
-                        fontSize: 12,
-                        color: 'var(--fg-3)',
-                      }}
-                    >
-                      {formatNotificationRelativeTime(item.createdAtUtc, (key, values) =>
-                        t(`notifications.${key}`, values),
-                      )}
-                    </span>
-                  </span>
-                  <span
-                    className="block"
-                    style={{
-                      fontFamily: 'var(--font-sans)',
-                      fontSize: 14,
-                      lineHeight: 1.4,
-                      color: 'var(--fg-3)',
-                      marginTop: 3,
-                    }}
-                  >
-                    {item.body}
-                  </span>
-                </button>
-                <button
-                  type="button"
-                  aria-label={t('notifications.deleteNotification')}
-                  className="icon-btn icon-btn-well shrink-0 hover:text-[var(--status-bad)]"
-                  style={{ width: 36, height: 36, margin: -2, color: 'var(--fg-4)' }}
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    requestDeleteNotification(item)
+          {visibleNotifications.length > 0 && (
+            <AnimatePresence initial={false}>
+              {visibleNotifications.map((item) => (
+                <motion.li
+                  key={item.id}
+                  exit={{
+                    opacity: 0,
+                    y: -6,
+                    transition: { duration: 0.16, ease: [0.2, 0, 0, 1] },
+                  }}
+                  className="flex items-start transition-[background-color] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev)] active:bg-[var(--bg-elev-pressed)]"
+                  style={{
+                    gap: 12,
+                    padding: '14px 16px',
+                    borderBottom: '1px solid var(--hairline)',
+                    background: item.isRead
+                      ? 'transparent'
+                      : 'rgba(var(--primary-rgb), 0.06)',
                   }}
                 >
-                  <X size={18} strokeWidth={1.8} aria-hidden="true" />
-                </button>
-              </li>
-            ))}
+                  <button
+                    type="button"
+                    className="flex flex-1 min-w-0 items-start text-left appearance-none border-0 bg-transparent cursor-pointer p-0"
+                    style={{ gap: 12 }}
+                    onClick={() => handleClick(item)}
+                  >
+                    <NotificationGlyphCircle notification={item} />
+                    <span className="flex-1 min-w-0">
+                      <span className="flex items-baseline justify-between" style={{ gap: 8 }}>
+                        <span
+                          className="truncate"
+                          style={{
+                            fontFamily: 'var(--font-sans)',
+                            fontSize: 15,
+                            fontWeight: 500,
+                            color: 'var(--fg-1)',
+                          }}
+                        >
+                          {item.title}
+                        </span>
+                        <span
+                          className="shrink-0"
+                          style={{
+                            fontFamily: 'var(--font-mono)',
+                            fontSize: 12,
+                            color: 'var(--fg-3)',
+                            fontVariantNumeric: 'tabular-nums',
+                            letterSpacing: '0.02em',
+                          }}
+                        >
+                          {formatNotificationRelativeTime(item.createdAtUtc, (key, values) =>
+                            t(`notifications.${key}`, values),
+                          )}
+                        </span>
+                      </span>
+                      <span
+                        className="line-clamp-2"
+                        style={{
+                          fontFamily: 'var(--font-sans)',
+                          fontSize: 14,
+                          lineHeight: 1.4,
+                          color: 'var(--fg-3)',
+                          marginTop: 3,
+                        }}
+                      >
+                        {item.body}
+                      </span>
+                    </span>
+                  </button>
+                  <button
+                    type="button"
+                    aria-label={t('notifications.deleteNotification')}
+                    className="touch-target icon-btn icon-btn-well shrink-0 hover:text-[var(--status-bad)]"
+                    style={{ width: 36, height: 36, margin: -2, color: 'var(--fg-4)' }}
+                    onClick={(e) => {
+                      e.stopPropagation()
+                      requestDeleteNotification(item)
+                    }}
+                  >
+                    <X size={18} strokeWidth={1.8} aria-hidden="true" />
+                  </button>
+                </motion.li>
+              ))}
+            </AnimatePresence>
+          )}
         </ul>
       </Popover>
 
@@ -330,7 +354,10 @@ export function NotificationBell() {
         <NotificationDetailModal
           open={isModalOpen}
           onOpenChange={setIsModalOpen}
-          notification={selectedNotification}
+          notification={
+            notifications.find((item) => item.id === selectedNotification.id) ??
+            selectedNotification
+          }
           onMarkAsRead={handleModalMarkAsRead}
           onDelete={handleModalDelete}
         />

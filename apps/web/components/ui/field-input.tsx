@@ -1,9 +1,10 @@
 'use client'
 
-import type { ChangeEvent, InputHTMLAttributes, ReactNode } from 'react'
+import { useId, type ChangeEvent, type InputHTMLAttributes, type ReactNode } from 'react'
 
 /** Kit Field: optional Rubik 14/500 label above a 54px filled well (radius 14,
- *  inset hairline ring, primary ring on focus) with an optional trailing node. */
+ *  inset hairline ring, primary ring on focus, status-bad ring + caption when
+ *  `error` is set, dimmed well when disabled) with an optional trailing node. */
 interface FieldInputProps {
   label?: ReactNode
   value?: string
@@ -21,6 +22,8 @@ interface FieldInputProps {
   onKeyDown?: (event: React.KeyboardEvent<HTMLInputElement>) => void
   autoFocus?: boolean
   trailing?: ReactNode
+  /** Validation message rendered below the well; also paints the status-bad ring. */
+  error?: string
 }
 
 export function FieldInput({
@@ -40,10 +43,17 @@ export function FieldInput({
   onKeyDown,
   autoFocus = false,
   trailing,
+  error,
 }: Readonly<FieldInputProps>) {
+  const errorId = useId()
+
   function handleChange(event: ChangeEvent<HTMLInputElement>) {
     onChange?.(event.target.value)
   }
+
+  const wellRingClass = error
+    ? 'shadow-[inset_0_0_0_2px_var(--status-bad)]'
+    : 'shadow-[inset_0_0_0_1px_var(--hairline)] focus-within:shadow-[inset_0_0_0_2px_var(--primary)]'
 
   return (
     <label className="flex w-full flex-col" style={{ gap: 8 }}>
@@ -60,7 +70,7 @@ export function FieldInput({
         </span>
       )}
       <div
-        className="flex items-center rounded-[14px] bg-[var(--bg-field)] shadow-[inset_0_0_0_1px_var(--hairline)] focus-within:shadow-[inset_0_0_0_2px_var(--primary)]"
+        className={`flex items-center rounded-[14px] bg-[var(--bg-field)] ${wellRingClass} ${disabled ? 'opacity-60' : ''}`}
         style={{ minHeight: 54, gap: 10, padding: '0 16px' }}
       >
         <input
@@ -74,6 +84,8 @@ export function FieldInput({
           disabled={disabled}
           maxLength={maxLength}
           aria-label={ariaLabel}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={error ? errorId : undefined}
           onChange={handleChange}
           onKeyDown={onKeyDown}
           autoFocus={autoFocus}
@@ -93,6 +105,18 @@ export function FieldInput({
         />
         {trailing}
       </div>
+      {error && (
+        <span
+          id={errorId}
+          style={{
+            fontFamily: 'var(--font-sans)',
+            fontSize: 12,
+            color: 'var(--status-bad-text)',
+          }}
+        >
+          {error}
+        </span>
+      )}
     </label>
   )
 }

@@ -4,6 +4,8 @@ import { useEffect, useRef, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { useQueryClient } from '@tanstack/react-query'
 import { Gift } from 'lucide-react'
+import { motion, useReducedMotion } from 'motion/react'
+import { motionDurations, motionEasings } from '@orbit/shared/theme'
 import { referralKeys } from '@orbit/shared/query'
 import type { ReferralDashboard } from '@orbit/shared/types/referral'
 import {
@@ -19,9 +21,18 @@ import { useReferralPromptStore } from '@/stores/referral-prompt-store'
 const SETTLE_DELAY_MS = 500
 const DEFAULT_DISCOUNT_PERCENT = 10
 
+function enterTransition(delayMs: number) {
+  return {
+    duration: motionDurations.base / 1000,
+    ease: motionEasings.enter,
+    delay: delayMs / 1000,
+  }
+}
+
 /** One-shot milestone nudge: shows once no celebration is in flight and the re-prompt guard allows it, then hands off to the referral drawer. */
 export function ReferralPrompt() {
   const t = useTranslations()
+  const prefersReducedMotion = useReducedMotion()
   const queryClient = useQueryClient()
   const armedPrompt = useReferralPromptStore((s) => s.armedPrompt)
   const markEngagementPrompted = useReferralPromptStore(
@@ -96,39 +107,36 @@ export function ReferralPrompt() {
         onOpenChange={(open) => {
           if (!open) dismiss()
         }}
-        titleContent={
-          <span className="flex flex-col" style={{ gap: 2 }}>
-            <span
-              style={{
-                fontSize: 12,
-                fontWeight: 500,
-                letterSpacing: '0.08em',
-                textTransform: 'uppercase',
-                color: 'var(--fg-3)',
-              }}
-            >
-              {t('referral.prompt.eyebrow')}
-            </span>
-            <span>{title}</span>
-          </span>
-        }
+        title={title}
       >
         <div
           className="flex flex-col items-center text-center"
           style={{ gap: 16, padding: '4px 0 4px' }}
         >
-          <span
+          <motion.p
+            className="t-eyebrow"
+            style={{ margin: 0 }}
+            initial={prefersReducedMotion ? false : { opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={enterTransition(70)}
+          >
+            {t('referral.prompt.eyebrow')}
+          </motion.p>
+          <motion.span
             aria-hidden="true"
             className="flex items-center justify-center rounded-full"
             style={{
               width: 64,
               height: 64,
-              background: 'rgba(var(--primary-rgb), 0.16)',
+              background: 'rgba(var(--primary-rgb), 0.15)',
             }}
+            initial={prefersReducedMotion ? false : { opacity: 0, scale: 0.8 }}
+            animate={{ opacity: 1, scale: 1 }}
+            transition={enterTransition(0)}
           >
             <Gift size={30} strokeWidth={1.8} color="var(--primary-soft)" />
-          </span>
-          <p
+          </motion.span>
+          <motion.p
             style={{
               margin: 0,
               fontFamily: 'var(--font-sans)',
@@ -136,28 +144,36 @@ export function ReferralPrompt() {
               lineHeight: 1.5,
               color: 'var(--fg-2)',
             }}
+            initial={prefersReducedMotion ? false : { opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={enterTransition(70)}
           >
             {t('referral.prompt.body', { discount })}
-          </p>
-          <div className="flex w-full flex-col" style={{ gap: 8, paddingTop: 4 }}>
+          </motion.p>
+          <motion.div
+            className="flex w-full flex-col"
+            style={{ gap: 8, paddingTop: 4 }}
+            initial={prefersReducedMotion ? false : { opacity: 0, y: 8 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={enterTransition(140)}
+          >
             <PillButton fullWidth onClick={openDrawer}>
               {t('referral.prompt.cta')}
             </PillButton>
             <button
               type="button"
               onClick={dismiss}
-              className="w-full transition-colors"
+              className="w-full text-[var(--fg-3)] transition-[color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:text-[var(--fg-1)] active:scale-[0.96]"
               style={{
-                padding: '10px 0',
+                padding: '12px 0',
                 fontFamily: 'var(--font-sans)',
                 fontSize: 14,
                 fontWeight: 500,
-                color: 'var(--fg-3)',
               }}
             >
               {t('referral.prompt.later')}
             </button>
-          </div>
+          </motion.div>
         </div>
       </AppOverlay>
       <ReferralDrawer open={showDrawer} onOpenChange={setShowDrawer} />

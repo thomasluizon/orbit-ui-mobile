@@ -48,7 +48,7 @@ export function BackToTop() {
       className={[
         'fixed right-4 z-40 inline-flex items-center justify-center md:right-6',
         'transition-[opacity,transform] duration-[var(--dur-base)] ease-[var(--ease-standard)]',
-        'hover:scale-105 active:scale-95',
+        'hover:scale-105 active:scale-[0.96]',
         visible ? 'opacity-100' : 'pointer-events-none translate-y-2 opacity-0',
       ].join(' ')}
       style={{

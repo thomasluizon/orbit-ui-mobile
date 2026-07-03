@@ -1,4 +1,10 @@
 import { StyleSheet, View } from "react-native";
+import Animated, {
+  FadeInLeft,
+  FadeInRight,
+  ReduceMotion,
+} from "react-native-reanimated";
+import type { TFunction } from "i18next";
 import type { CalendarDayEntry } from "@orbit/shared/types/calendar";
 import { createTokensV2 } from "@/lib/theme";
 import { CalendarWeekNav } from "./calendar-shell";
@@ -14,6 +20,9 @@ interface CalendarWeekViewProps {
   previousWeekLabel: string;
   nextWeekLabel: string;
   currentWeekLabel: string;
+  /** Direction of the last week-nav step, driving the grid's slide-in motion. */
+  slideDirection: "left" | "right" | null;
+  isLoading?: boolean;
   onPreviousWeek: () => void;
   onNextWeek: () => void;
   onCurrentWeek: () => void;
@@ -25,6 +34,7 @@ interface CalendarWeekViewProps {
   showRecurring: boolean;
   onShowRecurringChange: (value: boolean) => void;
   showRecurringLabel: string;
+  t: TFunction;
   tokens: Tokens;
 }
 
@@ -37,6 +47,8 @@ export function CalendarWeekView({
   previousWeekLabel,
   nextWeekLabel,
   currentWeekLabel,
+  slideDirection,
+  isLoading = false,
   onPreviousWeek,
   onNextWeek,
   onCurrentWeek,
@@ -48,8 +60,16 @@ export function CalendarWeekView({
   showRecurring,
   onShowRecurringChange,
   showRecurringLabel,
+  t,
   tokens,
 }: Readonly<CalendarWeekViewProps>) {
+  const weekEntering =
+    slideDirection === "right"
+      ? FadeInRight.duration(220).reduceMotion(ReduceMotion.System)
+      : slideDirection === "left"
+        ? FadeInLeft.duration(220).reduceMotion(ReduceMotion.System)
+        : undefined;
+
   return (
     <>
       <CalendarWeekNav
@@ -70,16 +90,23 @@ export function CalendarWeekView({
           tokens={tokens}
         />
       </View>
-      <CalendarTimeGrid
-        columns={columns}
-        dayMap={dayMap}
-        onSelectDay={onSelectDay}
-        displayTime={displayTime}
-        language={language}
-        allDayLabel={allDayLabel}
-        nowLabel={nowLabel}
-        tokens={tokens}
-      />
+      <Animated.View
+        key={columns[0]?.dateStr ?? "week"}
+        entering={weekEntering}
+      >
+        <CalendarTimeGrid
+          columns={columns}
+          dayMap={dayMap}
+          onSelectDay={onSelectDay}
+          displayTime={displayTime}
+          language={language}
+          allDayLabel={allDayLabel}
+          nowLabel={nowLabel}
+          isLoading={isLoading}
+          t={t}
+          tokens={tokens}
+        />
+      </Animated.View>
     </>
   );
 }

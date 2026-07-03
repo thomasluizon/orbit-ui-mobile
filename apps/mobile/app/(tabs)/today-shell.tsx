@@ -12,6 +12,8 @@ import { SectionHeadTabs, type SectionHeadTab } from '@/components/ui/section-he
 import { ThemeToggle } from '@/components/ui/theme-toggle'
 import { StreakBadge } from '@/components/gamification/streak-badge'
 import { NotificationBell } from '@/components/navigation/notification-bell'
+import { useProfile } from '@/hooks/use-profile'
+import { useStreakInfo } from '@/hooks/use-gamification'
 import { useTourTarget } from '@/hooks/use-tour-target'
 import { useResolvedMotionPreset } from '@/lib/motion'
 import { createTokensV2 } from '@/lib/theme'
@@ -41,6 +43,8 @@ export function TodayHeader({
   const bellRef = useRef<View>(null)
   useTourTarget('tour-streak-badge', streakRef)
   useTourTarget('tour-notification-bell', bellRef)
+  const { profile } = useProfile()
+  const { data: streakInfo } = useStreakInfo(profile?.canViewGamification ?? false)
 
   return (
     <Pressable
@@ -55,7 +59,7 @@ export function TodayHeader({
       <View style={styles.greetingActions}>
         <ThemeToggle />
         <View ref={streakRef} collapsable={false}>
-          <StreakBadge streak={currentStreak} />
+          <StreakBadge streak={currentStreak} isFrozen={streakInfo?.isFrozenToday ?? false} />
         </View>
         <View ref={bellRef} collapsable={false}>
           <NotificationBell />
@@ -71,7 +75,7 @@ export function TodayTabs({
   activeView,
   hasProAccess,
   onChangeView,
-  viewsLabel: _viewsLabel,
+  viewsLabel,
 }: Readonly<{
   tabs: TodayTabItem[]
   activeView: TodayTabView
@@ -101,6 +105,7 @@ export function TodayTabs({
           tabs={chipTabs}
           active={activeView}
           onChange={onChangeView}
+          ariaLabel={viewsLabel}
         />
       </View>
     </View>
@@ -259,7 +264,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
   },
   dateChevronPressed: {
-    transform: [{ scale: 0.92 }],
+    transform: [{ scale: 0.96 }],
   },
   dateLabelPress: {
     flex: 1,

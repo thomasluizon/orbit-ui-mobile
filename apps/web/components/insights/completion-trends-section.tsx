@@ -10,6 +10,7 @@ import type { DateRange } from './range'
 interface CompletionTrendsSectionProps {
   range: DateRange
   divider?: boolean
+  className?: string
 }
 
 const formatPercent = (value: number) => `${value}%`
@@ -18,10 +19,11 @@ const formatPercent = (value: number) => `${value}%`
 export function CompletionTrendsSection({
   range,
   divider,
+  className,
 }: Readonly<CompletionTrendsSectionProps>) {
   const t = useTranslations()
   const formatLabel = useDateLabel()
-  const { data, isLoading, isError } = useHabitTrends(range)
+  const { data, isLoading, isError, refetch } = useHabitTrends(range)
 
   const points = (data?.points ?? []).map((point) => ({
     label: point.date,
@@ -38,12 +40,21 @@ export function CompletionTrendsSection({
       title={title}
       description={t('insights.sections.completionTrendsDesc')}
       divider={divider}
+      className={className}
       status={toSectionStatus({ isLoading, isError, isEmpty })}
-      headerAction={points.length ? <InsightsHeadline value={formatPercent(average)} /> : undefined}
+      onRetry={() => void refetch()}
+      headerAction={
+        points.length ? (
+          <InsightsHeadline
+            value={formatPercent(average)}
+            caption={t('insights.sections.averageCaption')}
+          />
+        ) : undefined
+      }
     >
       <TrendLine
         points={points}
-        ariaLabel={title}
+        ariaLabel={`${title}: ${formatPercent(average)}`}
         formatValue={formatPercent}
         formatLabel={formatLabel}
       />

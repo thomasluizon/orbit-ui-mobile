@@ -196,11 +196,12 @@ export function CalendarGrid({
                 aria-label={dayLabel}
                 aria-current={cell.isToday ? 'date' : undefined}
                 aria-disabled={!canSelect}
+                tabIndex={!canSelect ? -1 : undefined}
                 data-in-range={inRange ? 'true' : undefined}
                 onClick={() => canSelect && onSelectDay(cell.dateStr)}
                 className={
                   'relative flex flex-col items-center justify-center bg-transparent transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] ' +
-                  (canSelect ? 'hover:bg-[var(--bg-elev)] active:scale-[0.92]' : '')
+                  (canSelect ? 'hover:bg-[var(--bg-elev)] active:scale-[0.96]' : '')
                 }
                 style={{
                   appearance: 'none',

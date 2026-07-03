@@ -138,9 +138,16 @@ export function MilestoneSharePrompt() {
               onPress={dismiss}
               accessibilityRole="button"
               accessibilityLabel={t('milestoneShare.later')}
-              style={styles.laterButton}
+              style={({ pressed }) => [
+                styles.laterButton,
+                pressed ? styles.laterButtonPressed : null,
+              ]}
             >
-              <Text style={styles.laterText}>{t('milestoneShare.later')}</Text>
+              {({ pressed }) => (
+                <Text style={[styles.laterText, pressed ? styles.laterTextPressed : null]}>
+                  {t('milestoneShare.later')}
+                </Text>
+              )}
             </Pressable>
           </View>
         </ScrollView>
@@ -186,10 +193,16 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       alignItems: 'center',
       paddingVertical: 12,
     },
+    laterButtonPressed: {
+      transform: [{ scale: 0.98 }],
+    },
     laterText: {
       fontFamily: 'Rubik_500Medium',
       fontSize: 14,
       color: tokens.fg3,
+    },
+    laterTextPressed: {
+      color: tokens.fg1,
     },
   })
 }

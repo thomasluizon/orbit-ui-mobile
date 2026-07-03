@@ -10,7 +10,7 @@ export default function PublicLayout({
 }>) {
   return (
     <div className="min-h-dvh bg-[var(--bg)] text-[var(--fg-1)] pt-[var(--safe-top)]">
-      <main className="mx-auto max-w-[var(--app-max-w)] px-[var(--app-px)]">
+      <main className="px-[var(--app-px)]">
         <RouteTransitionShell>
           {children}
         </RouteTransitionShell>

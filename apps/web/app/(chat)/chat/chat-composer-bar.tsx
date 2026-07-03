@@ -24,6 +24,7 @@ import {
 } from '@orbit/shared/chat'
 import { InfoCard } from '@/components/ui/info-card'
 import { LocalImage } from '@/components/ui/local-image'
+import { OfflineUnavailableState } from '@/components/ui/offline-unavailable-state'
 import { PillButton } from '@/components/ui/pill-button'
 
 interface ChatComposerBarProps {
@@ -33,6 +34,7 @@ interface ChatComposerBarProps {
   setInput: (value: string) => void
   sendError: string | null
   imagePreview: string | null
+  isOnline: boolean
   isRecording: boolean
   isTranscribing: boolean
   speechSupported: boolean
@@ -61,6 +63,7 @@ interface ChatComposerBarProps {
   retryLastSend: () => void
   canRetryLastSend: boolean
   onUpgrade: () => void
+  singleLine?: boolean
 }
 
 interface ChatComposerNoticesProps {
@@ -72,6 +75,7 @@ interface ChatComposerNoticesProps {
   selectedTextFileName: string | null
   removeTextFile: () => void
   hasMessages: boolean
+  isOnline: boolean
   starterChips: string[]
   sendMessage: (content?: string) => void
 }
@@ -85,6 +89,7 @@ function ChatComposerNotices({
   selectedTextFileName,
   removeTextFile,
   hasMessages,
+  isOnline,
   starterChips,
   sendMessage,
 }: Readonly<ChatComposerNoticesProps>) {
@@ -92,6 +97,15 @@ function ChatComposerNotices({
 
   return (
     <>
+      {!isOnline && (
+        <div style={{ paddingBottom: 8 }}>
+          <OfflineUnavailableState
+            title={t('chat.offline.title')}
+            description={t('chat.offline.description')}
+            compact
+          />
+        </div>
+      )}
       {sendError && (
         <div
           role="alert"
@@ -133,7 +147,7 @@ function ChatComposerNotices({
               type="button"
               aria-label={t('chat.removeImage')}
               onClick={removeImage}
-              className="absolute -top-1.5 -right-1.5 rounded-full p-0.5 bg-[var(--bg-elev)] transition-[background-color,transform] duration-150 ease-out hover:bg-[var(--bg-sunk)] hover:scale-110"
+              className="absolute -top-1.5 -right-1.5 rounded-full p-0.5 bg-[var(--bg-elev)] transition-[background-color,transform] duration-150 ease-out hover:bg-[var(--bg-sunk)] hover:scale-110 after:absolute after:-inset-3.5"
               style={{
                 boxShadow: 'inset 0 0 0 1px var(--hairline-strong)',
               }}
@@ -173,7 +187,7 @@ function ChatComposerNotices({
               type="button"
               aria-label={t('chat.removeFile')}
               onClick={removeTextFile}
-              className="rounded-full p-0.5 bg-[var(--bg-elev)] transition-[background-color,transform] duration-150 ease-out hover:bg-[var(--bg-sunk)] hover:scale-110"
+              className="relative rounded-full p-0.5 bg-[var(--bg-elev)] transition-[background-color,transform] duration-150 ease-out hover:bg-[var(--bg-sunk)] hover:scale-110 after:absolute after:-inset-3.5"
               style={{
                 boxShadow: 'inset 0 0 0 1px var(--hairline-strong)',
               }}
@@ -186,7 +200,7 @@ function ChatComposerNotices({
 
       {hasMessages && starterChips.length > 0 && (
         <div
-          className="overflow-x-auto"
+          className="overflow-x-auto [scrollbar-width:none]"
           style={{ paddingBottom: 10 }}
         >
           <div className="flex" style={{ gap: 8, minWidth: 'max-content' }}>
@@ -234,26 +248,28 @@ function ChatRecordingBar({
         }}
       >
         <span
-          className="rounded-full shrink-0"
+          className={`rounded-full shrink-0 ${isTranscribing ? '' : 'animate-gentle-pulse'}`}
           style={{
             width: 8,
             height: 8,
             background: isTranscribing ? 'var(--primary)' : 'var(--status-bad)',
           }}
         />
-        <div
-          className="mic-visualizer flex-1 min-w-0"
-          style={{ color: 'var(--fg-2)' }}
-          aria-label={isTranscribing ? t('chat.transcribing') : t('chat.listening')}
-        >
-          {VISUALIZER_BAR_OFFSETS.map((offset) => (
-            <span
-              key={`bar-${offset}`}
-              className="mic-visualizer__bar"
-              style={{ animationDelay: `${offset}s` }}
-            />
-          ))}
-        </div>
+        {!isTranscribing && (
+          <div
+            className="mic-visualizer flex-1 min-w-0"
+            style={{ color: 'var(--fg-2)' }}
+            aria-label={t('chat.listening')}
+          >
+            {VISUALIZER_BAR_OFFSETS.map((offset) => (
+              <span
+                key={`bar-${offset}`}
+                className="mic-visualizer__bar"
+                style={{ animationDelay: `${offset}s` }}
+              />
+            ))}
+          </div>
+        )}
         <span
           style={{
             fontFamily: isTranscribing ? 'var(--font-sans)' : 'var(--font-mono)',
@@ -271,7 +287,7 @@ function ChatRecordingBar({
         disabled={isTranscribing}
         aria-label={t('chat.stopRecording')}
         onClick={toggleRecording}
-        className="appearance-none border-0 flex items-center justify-center shrink-0 rounded-full bg-[var(--bg-elev)] disabled:cursor-not-allowed enabled:cursor-pointer"
+        className="appearance-none border-0 flex items-center justify-center shrink-0 rounded-full bg-[var(--bg-elev)] transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] enabled:hover:bg-[var(--bg-elev-2)] enabled:active:scale-[0.96] disabled:cursor-not-allowed enabled:cursor-pointer"
         style={{
           width: 50,
           height: 50,
@@ -286,10 +302,12 @@ function ChatRecordingBar({
 }
 
 interface ChatTextInputRowProps {
+  singleLine?: boolean
   textareaRef: RefObject<HTMLTextAreaElement | null>
   input: string
   setInput: (value: string) => void
   limitLocked: boolean
+  isOnline: boolean
   isTyping: boolean
   speechSupported: boolean
   toggleRecording: () => void
@@ -302,10 +320,12 @@ interface ChatTextInputRowProps {
 }
 
 function ChatTextInputRow({
+  singleLine,
   textareaRef,
   input,
   setInput,
   limitLocked,
+  isOnline,
   isTyping,
   speechSupported,
   toggleRecording,
@@ -321,7 +341,7 @@ function ChatTextInputRow({
   return (
     <>
       <div
-        className="flex items-center flex-1 min-w-0 rounded-full focus-within:outline-2 focus-within:-outline-offset-2 focus-within:outline-[var(--primary)]"
+        className="flex items-center flex-1 min-w-0 rounded-[26px] focus-within:outline-2 focus-within:-outline-offset-2 focus-within:outline-[var(--primary)]"
         style={{
           gap: 2,
           minHeight: 50,
@@ -334,15 +354,16 @@ function ChatTextInputRow({
         <textarea
           ref={textareaRef}
           rows={1}
+          wrap={singleLine ? 'off' : undefined}
           data-testid="chat-input"
-          disabled={limitLocked}
+          disabled={limitLocked || !isOnline}
           placeholder={limitLocked ? t('chat.limitReachedError') : t('chat.placeholder')}
           aria-label={t('chat.placeholder')}
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
           onPaste={handlePaste}
-          className="appearance-none border-0 bg-transparent flex-1 min-w-0 resize-none"
+          className={`appearance-none border-0 bg-transparent flex-1 min-w-0 resize-none${singleLine ? ' whitespace-nowrap overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden' : ''}`}
           style={{
             outline: 'none',
             fontFamily: 'var(--font-sans)',
@@ -365,9 +386,9 @@ function ChatTextInputRow({
           <button
             type="button"
             aria-label={t('chat.attachFile')}
+            disabled={!isOnline}
             onClick={openTextFilePicker}
-            className="icon-btn shrink-0 text-[var(--fg-3)] hover:text-[var(--fg-1)]"
-            style={{ width: 34, height: 34 }}
+            className="icon-btn shrink-0 text-[var(--fg-3)] hover:text-[var(--fg-1)] disabled:opacity-50"
           >
             <Paperclip size={18} strokeWidth={1.8} />
           </button>
@@ -376,9 +397,9 @@ function ChatTextInputRow({
           <button
             type="button"
             aria-label={t('chat.attachImage')}
+            disabled={!isOnline}
             onClick={openFilePicker}
-            className="icon-btn shrink-0 text-[var(--fg-3)] hover:text-[var(--fg-1)]"
-            style={{ width: 34, height: 34 }}
+            className="icon-btn shrink-0 text-[var(--fg-3)] hover:text-[var(--fg-1)] disabled:opacity-50"
           >
             <ImageIcon size={18} strokeWidth={1.8} />
           </button>
@@ -388,10 +409,9 @@ function ChatTextInputRow({
             type="button"
             data-tour="tour-chat-voice"
             aria-label={t('chat.toggleMic')}
-            disabled={isTyping}
+            disabled={isTyping || !isOnline}
             onClick={toggleRecording}
             className="icon-btn shrink-0 text-[var(--fg-3)] hover:text-[var(--fg-1)] disabled:opacity-50"
-            style={{ width: 34, height: 34 }}
           >
             <Mic size={18} strokeWidth={1.8} />
           </button>
@@ -403,7 +423,7 @@ function ChatTextInputRow({
         data-testid="chat-send"
         aria-label={t('chat.send')}
         onClick={() => sendMessage()}
-        className="appearance-none border-0 cursor-pointer inline-flex items-center justify-center shrink-0 rounded-full bg-[var(--primary)] enabled:hover:bg-[var(--primary-pressed)] enabled:hover:scale-105 enabled:hover:shadow-[var(--primary-glow-hover)] enabled:active:scale-95 transition-[background-color,box-shadow,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] disabled:cursor-not-allowed"
+        className="appearance-none border-0 cursor-pointer inline-flex items-center justify-center shrink-0 rounded-full bg-[var(--primary)] enabled:hover:bg-[var(--primary-pressed)] enabled:hover:scale-105 enabled:hover:shadow-[var(--primary-glow-hover)] enabled:active:scale-[0.96] transition-[background-color,box-shadow,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] disabled:cursor-not-allowed"
         style={{
           width: 50,
           height: 50,
@@ -428,6 +448,7 @@ export function ChatComposerBar({
   setInput,
   sendError,
   imagePreview,
+  isOnline,
   isRecording,
   isTranscribing,
   speechSupported,
@@ -456,6 +477,7 @@ export function ChatComposerBar({
   retryLastSend,
   canRetryLastSend,
   onUpgrade,
+  singleLine = false,
 }: Readonly<ChatComposerBarProps>) {
   const t = useTranslations()
 
@@ -482,6 +504,7 @@ export function ChatComposerBar({
           selectedTextFileName={selectedTextFileName}
           removeTextFile={removeTextFile}
           hasMessages={hasMessages}
+          isOnline={isOnline}
           starterChips={starterChips}
           sendMessage={sendMessage}
         />
@@ -514,10 +537,12 @@ export function ChatComposerBar({
             />
           ) : (
             <ChatTextInputRow
+              singleLine={singleLine}
               textareaRef={textareaRef}
               input={input}
               setInput={setInput}
               limitLocked={limitLocked}
+              isOnline={isOnline}
               isTyping={isTyping}
               speechSupported={speechSupported}
               toggleRecording={toggleRecording}
@@ -539,13 +564,15 @@ export function ChatComposerBar({
             style={{ paddingTop: 12, gap: 12 }}
           >
             <InfoCard title={t('chat.limitReachedError')} />
-            <PillButton
-              fullWidth
-              leading={<Crown size={18} strokeWidth={1.8} aria-hidden="true" />}
-              onClick={onUpgrade}
-            >
-              {t('upgrade.subscribe')}
-            </PillButton>
+            <div className="w-full md:mx-auto md:max-w-[360px]">
+              <PillButton
+                fullWidth
+                leading={<Crown size={18} strokeWidth={1.8} aria-hidden="true" />}
+                onClick={onUpgrade}
+              >
+                {t('upgrade.subscribe')}
+              </PillButton>
+            </div>
           </div>
         )}
         {!hasProAccess && !atMessageLimit && (
@@ -554,10 +581,10 @@ export function ChatComposerBar({
             style={{
               paddingTop: 8,
               fontFamily: 'var(--font-mono)',
-              fontSize: 11,
+              fontSize: 12,
               color: 'var(--fg-3)',
               fontVariantNumeric: 'tabular-nums',
-              letterSpacing: '0.04em',
+              letterSpacing: '0.02em',
             }}
           >
             {aiMessagesUsed}/{aiMessagesLimit} {t('chat.messagesUsed')}

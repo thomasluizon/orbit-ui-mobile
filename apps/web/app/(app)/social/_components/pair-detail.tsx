@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useLocale, useTranslations } from 'next-intl'
+import { Pencil } from 'lucide-react'
 import type { AccountabilityPair } from '@orbit/shared/types/accountability'
 import { formatAPIDate, formatLocaleDate, getAccountabilityErrorKey } from '@orbit/shared/utils'
 import { AppOverlay } from '@/components/ui/app-overlay'
@@ -123,8 +124,38 @@ export function PairDetail({ pairId, onClose }: Readonly<PairDetailProps>) {
                 {t(`social.buddies.cadence.${pair.cadence}`)}
               </span>
             </div>
+            <div className="flex items-center justify-between" style={{ gap: 10, padding: '8px 0' }}>
+              <span style={rowLabelStyle}>
+                {t('social.buddies.detail.buddyHabits', { name: pair.buddy.displayName })}
+              </span>
+              <span
+                style={{
+                  fontFamily: 'var(--font-mono)',
+                  fontSize: 14,
+                  fontWeight: 500,
+                  color: 'var(--fg-1)',
+                  fontVariantNumeric: 'tabular-nums',
+                }}
+              >
+                {pair.buddyHabitIds.length}
+              </span>
+            </div>
 
-            <SectionLabel>{t('social.buddies.detail.yourHabits')}</SectionLabel>
+            <SectionLabel
+              inset={false}
+              trailing={
+                <button
+                  type="button"
+                  onClick={openEdit}
+                  aria-label={t('social.buddies.detail.editHabits')}
+                  className="touch-target flex size-10 -my-2 shrink-0 cursor-pointer items-center justify-center rounded-full border-0 bg-transparent text-[var(--fg-2)] transition-[background-color,color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev)] hover:text-[var(--fg-1)] active:scale-[0.96]"
+                >
+                  <Pencil size={18} strokeWidth={1.8} />
+                </button>
+              }
+            >
+              {t('social.buddies.detail.yourHabits')}
+            </SectionLabel>
             <div className="flex flex-wrap" style={{ gap: 8, paddingBottom: 4 }}>
               {myHabitTitles.map((title) => (
                 <span
@@ -143,56 +174,44 @@ export function PairDetail({ pairId, onClose }: Readonly<PairDetailProps>) {
                 </span>
               ))}
             </div>
-            <button
-              type="button"
-              onClick={openEdit}
-              className="self-start cursor-pointer"
-              style={{
-                marginTop: 4,
-                padding: 0,
-                border: 0,
-                background: 'transparent',
-                fontFamily: 'var(--font-sans)',
-                fontSize: 14,
-                fontWeight: 500,
-                color: 'var(--primary)',
-              }}
-            >
-              {t('social.buddies.detail.editHabits')}
-            </button>
 
-            <SectionLabel>{t('social.buddies.detail.buddyHabits', { name: pair.buddy.displayName })}</SectionLabel>
-            <p style={{ margin: 0, fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--fg-3)' }}>
-              {t('social.buddies.detail.buddyHabitsCount', { count: pair.buddyHabitIds.length })}
-            </p>
-
-            <SectionLabel>{t('social.buddies.checkInTitle')}</SectionLabel>
+            <SectionLabel inset={false}>{t('social.buddies.checkInTitle')}</SectionLabel>
             {checkedInToday ? (
               <p style={{ margin: 0, fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--fg-3)' }}>
                 {t('social.buddies.checkedInLabel')}
               </p>
             ) : (
               <div className="flex flex-col" style={{ gap: 10 }}>
-                <textarea
-                  value={note}
-                  onChange={(event) => setNote(event.target.value.slice(0, MAX_NOTE))}
-                  maxLength={MAX_NOTE}
-                  placeholder={t('social.buddies.checkInNotePlaceholder')}
-                  aria-label={t('social.buddies.checkInNotePlaceholder')}
-                  rows={2}
-                  style={{
-                    width: '100%',
-                    resize: 'none',
-                    borderRadius: 14,
-                    background: 'var(--bg-field)',
-                    boxShadow: 'inset 0 0 0 1px var(--hairline)',
-                    padding: '12px 14px',
-                    fontFamily: 'var(--font-sans)',
-                    fontSize: 16,
-                    color: 'var(--fg-1)',
-                    outline: 'none',
-                  }}
-                />
+                <div className="flex flex-col" style={{ gap: 4 }}>
+                  <textarea
+                    value={note}
+                    onChange={(event) => setNote(event.target.value.slice(0, MAX_NOTE))}
+                    maxLength={MAX_NOTE}
+                    placeholder={t('social.buddies.checkInNotePlaceholder')}
+                    aria-label={t('social.buddies.checkInNotePlaceholder')}
+                    rows={2}
+                    className="w-full resize-none outline-none shadow-[inset_0_0_0_1px_var(--hairline)] focus-visible:shadow-[inset_0_0_0_2px_var(--primary)]"
+                    style={{
+                      borderRadius: 14,
+                      background: 'var(--bg-field)',
+                      padding: '12px 14px',
+                      fontFamily: 'var(--font-sans)',
+                      fontSize: 16,
+                      color: 'var(--fg-1)',
+                    }}
+                  />
+                  <span
+                    className="self-end"
+                    style={{
+                      fontFamily: 'var(--font-mono)',
+                      fontSize: 12,
+                      color: 'var(--fg-4)',
+                      fontVariantNumeric: 'tabular-nums',
+                    }}
+                  >
+                    {note.length}/{MAX_NOTE}
+                  </span>
+                </div>
                 <PillButton
                   onClick={handleCheckIn}
                   disabled={checkIn.isPending}
@@ -204,8 +223,8 @@ export function PairDetail({ pairId, onClose }: Readonly<PairDetailProps>) {
               </div>
             )}
 
-            <SectionLabel>{t('social.buddies.detail.history')}</SectionLabel>
-            {(checkInsQuery.data?.items.length ?? 0) === 0 ? (
+            <SectionLabel inset={false}>{t('social.buddies.detail.history')}</SectionLabel>
+            {checkInsQuery.isPending ? null : (checkInsQuery.data?.items.length ?? 0) === 0 ? (
               <p style={{ margin: 0, fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--fg-3)' }}>
                 {t('social.buddies.detail.historyEmpty')}
               </p>
@@ -234,15 +253,15 @@ export function PairDetail({ pairId, onClose }: Readonly<PairDetailProps>) {
             <button
               type="button"
               onClick={() => setConfirmUnpair(true)}
-              className="self-start cursor-pointer"
+              className="self-start cursor-pointer rounded-full border-0 bg-transparent transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[color-mix(in_srgb,var(--status-bad)_10%,transparent)] active:scale-[0.96]"
               style={{
+                margin: '-12px -16px',
                 marginTop: 16,
-                padding: 0,
-                border: 0,
-                background: 'transparent',
+                padding: '12px 16px',
                 fontFamily: 'var(--font-sans)',
                 fontSize: 14,
                 fontWeight: 500,
+                lineHeight: '20px',
                 color: 'var(--status-bad)',
               }}
             >

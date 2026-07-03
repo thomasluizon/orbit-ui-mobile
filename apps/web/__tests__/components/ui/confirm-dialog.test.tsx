@@ -124,7 +124,7 @@ describe('ConfirmDialog', () => {
     expect(onOpenChange).toHaveBeenCalledWith(false)
   })
 
-  it('confirms and closes when Enter is pressed', () => {
+  it('does not confirm on a document-level Enter press, so Cancel-focused Enter cannot trigger the destructive action', () => {
     const onConfirm = vi.fn()
     const onOpenChange = vi.fn()
     render(
@@ -136,9 +136,11 @@ describe('ConfirmDialog', () => {
         onConfirm={onConfirm}
       />,
     )
+    const cancelButton = screen.getByText('common.cancel') as HTMLElement
+    cancelButton.focus()
     fireEvent.keyDown(document, { key: 'Enter' })
-    expect(onConfirm).toHaveBeenCalled()
-    expect(onOpenChange).toHaveBeenCalledWith(false)
+    expect(onConfirm).not.toHaveBeenCalled()
+    expect(onOpenChange).not.toHaveBeenCalled()
   })
 
   it('renders the destructive (danger) confirm action as a status-bad fill pill — dlg-delete artboard', () => {

@@ -43,6 +43,8 @@ function createHostComponent(name: string) {
         if (callback) measureInWindowImpl(callback)
       },
       setNativeProps: () => {},
+      focus: () => {},
+      blur: () => {},
     }
 
     if (!hostRefsNull) {
@@ -146,6 +148,12 @@ export const BackHandler = {
     }
   },
   exitApp: () => {},
+  emitBackPress: (): boolean => {
+    for (const listener of [...backHandlerListeners].reverse()) {
+      if (listener()) return true
+    }
+    return false
+  },
 }
 
 export const AccessibilityInfo = {
@@ -153,6 +161,7 @@ export const AccessibilityInfo = {
   addEventListener: (_event: string, _listener: (enabled: boolean) => void) => ({
     remove: () => {},
   }),
+  announceForAccessibility: (_announcement: string) => {},
 }
 
 export const Vibration = {

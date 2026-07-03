@@ -20,7 +20,7 @@ export function RetrospectiveNoDataState({
           desc={t('retrospective.noData')}
         />
       </div>
-      <div style={{ padding: '18px 20px 24px' }}>
+      <div className="md:mx-auto md:max-w-[360px]" style={{ padding: '18px 20px 24px' }}>
         <PillButton
           onClick={onGenerate}
           disabled={!isOnline}

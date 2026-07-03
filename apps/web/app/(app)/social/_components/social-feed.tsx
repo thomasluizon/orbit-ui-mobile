@@ -45,20 +45,39 @@ export function SocialFeed({ onCheer, onAddFriends }: Readonly<SocialFeedProps>)
   const isEmpty = !feed.isLoading && items.length === 0 && receivedCheers.length === 0
 
   return (
-    <div className="flex flex-col" style={{ paddingBottom: 24 }}>
+    <div
+      className="flex flex-col"
+      style={{ paddingBottom: 24 }}
+    >
       {receivedCheers.length > 0 && (
         <div>
           <SectionLabel>{t('social.feed.cheersForYou')}</SectionLabel>
-          {receivedCheers.map((cheer) => (
-            <CheerRow key={cheer.id} cheer={cheer} />
-          ))}
+          <div className="stagger-enter">
+            {receivedCheers.map((cheer) => (
+              <CheerRow key={cheer.id} cheer={cheer} />
+            ))}
+          </div>
         </div>
       )}
 
       {feed.isLoading ? (
-        <div className="flex justify-center" style={{ padding: '48px 0' }}>
+        <div
+          role="status"
+          aria-label={t('common.loading')}
+          className="flex justify-center"
+          style={{ padding: '48px 0' }}
+        >
           <Loader2 className="size-[22px] animate-spin" style={{ color: 'var(--primary)' }} />
         </div>
+      ) : feed.isError ? (
+        <EmptyState
+          description={t('social.errors.loadFailed')}
+          action={{
+            label: t('common.retry'),
+            onClick: () => void feed.refetch(),
+            variant: 'secondary',
+          }}
+        />
       ) : isEmpty ? (
         <EmptyState
           title={t('social.feed.emptyTitle')}
@@ -70,7 +89,7 @@ export function SocialFeed({ onCheer, onAddFriends }: Readonly<SocialFeedProps>)
           }}
         />
       ) : (
-        <div>
+        <div className="stagger-enter">
           {items.map((item) => (
             <FeedEventCard key={item.id} item={item} onCheer={onCheer} />
           ))}

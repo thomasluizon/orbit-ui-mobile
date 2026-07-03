@@ -18,10 +18,15 @@ interface CalendarRangeViewProps {
   /** Range-scoped entries powering the time grid. */
   rangeDayMap: Map<string, CalendarDayEntry[]>
   hint: string
+  /** Hint shown after the first tap, prompting for the range's end day. */
+  endHint: string
   /** Notice shown in place of the hint when the picked range was clamped to the
    *  maximum number of days. */
   clampedNotice: string
   isClamped: boolean
+  /** True between the first and second taps of a range pick. */
+  isAwaitingEnd: boolean
+  isRangeLoading?: boolean
   onSelectDay: (dateStr: string) => void
   displayTime: (time: string) => string
   dateFnsLocale: Locale
@@ -42,8 +47,11 @@ export function CalendarRangeView({
   columns,
   rangeDayMap,
   hint,
+  endHint,
   clampedNotice,
   isClamped,
+  isAwaitingEnd,
+  isRangeLoading = false,
   onSelectDay,
   displayTime,
   dateFnsLocale,
@@ -52,6 +60,8 @@ export function CalendarRangeView({
   showRecurring,
   onShowRecurringChange,
 }: Readonly<CalendarRangeViewProps>) {
+  const hintText = isAwaitingEnd ? endHint : isClamped ? clampedNotice : hint
+
   return (
     <>
       <CalendarGrid
@@ -70,10 +80,10 @@ export function CalendarRangeView({
             margin: 0,
             fontFamily: 'var(--font-sans)',
             fontSize: 13,
-            color: isClamped ? 'var(--status-overdue-text)' : 'var(--fg-3)',
+            color: isClamped && !isAwaitingEnd ? 'var(--status-overdue-text)' : 'var(--fg-3)',
           }}
         >
-          {isClamped ? clampedNotice : hint}
+          {hintText}
         </p>
         <ShowRecurringToggle
           checked={showRecurring}
@@ -88,6 +98,7 @@ export function CalendarRangeView({
         dateFnsLocale={dateFnsLocale}
         allDayLabel={allDayLabel}
         nowLabel={nowLabel}
+        isLoading={isRangeLoading}
       />
     </>
   )

@@ -44,6 +44,8 @@ interface AppSidebarProps {
   onCreate: () => void
   createLabel: string
   brandLabel: string
+  /** Accessible name for the <nav> landmark, distinct from the aside's brand label. */
+  navLabel: string
 }
 
 /**
@@ -64,6 +66,7 @@ export function AppSidebar({
   onCreate,
   createLabel,
   brandLabel,
+  navLabel,
 }: Readonly<AppSidebarProps>) {
   return (
     <aside
@@ -124,7 +127,7 @@ export function AppSidebar({
       </div>
 
       <nav
-        aria-label={brandLabel}
+        aria-label={navLabel}
         className="thin-scrollbar flex flex-1 flex-col gap-1 overflow-y-auto"
         style={{ paddingInline: collapsed ? 14 : 16, paddingTop: 12, paddingBottom: 6 }}
       >
@@ -138,7 +141,6 @@ export function AppSidebar({
           paddingInline: collapsed ? 14 : 16,
           paddingTop: 12,
           paddingBottom: 4,
-          boxShadow: 'inset 0 1px 0 var(--hairline)',
         }}
       >
         <button
@@ -186,8 +188,9 @@ function SidebarSectionRow({
         aria-expanded={hasChildren && !collapsed ? expanded : undefined}
         aria-controls={hasChildren && !collapsed ? subListId : undefined}
         title={collapsed ? section.label : undefined}
+        data-tooltip={collapsed ? section.label : undefined}
         className={
-          'flex items-center rounded-[12px] transition-[background-color,color] duration-[160ms] ease-[var(--ease-standard)] ' +
+          'relative flex items-center rounded-[12px] transition-[background-color,color] duration-[160ms] ease-[var(--ease-standard)] ' +
           (parentActive
             ? 'text-[var(--primary)]'
             : 'text-[var(--fg-3)] hover:bg-[var(--bg-elev)] hover:text-[var(--fg-1)]')
@@ -208,7 +211,9 @@ function SidebarSectionRow({
           strokeWidth={parentActive ? 2.2 : 1.8}
           color={parentActive ? 'var(--primary)' : 'currentColor'}
         />
-        {!collapsed && <span className="flex-1 truncate text-left">{section.label}</span>}
+        {!collapsed && (
+          <span className="sidebar-label-fade flex-1 truncate text-left">{section.label}</span>
+        )}
         {!collapsed && hasChildren && (
           <ChevronRight
             size={16}
@@ -236,7 +241,7 @@ function SidebarSectionRow({
                     : 'text-[var(--fg-3)] hover:bg-[var(--bg-elev)] hover:text-[var(--fg-1)]')
                 }
                 style={{
-                  minHeight: 40,
+                  minHeight: 44,
                   paddingInline: 12,
                   background: child.active ? 'var(--selection-bg)' : undefined,
                   fontFamily: 'var(--font-sans)',

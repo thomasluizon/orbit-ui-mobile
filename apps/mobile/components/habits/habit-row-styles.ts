@@ -29,7 +29,7 @@ export const styles = StyleSheet.create({
   title: {
     fontFamily: 'Rubik_500Medium',
     letterSpacing: -0.08,
-    lineHeight: 21,
+    lineHeight: 20,
   },
   meta: {
     fontFamily: 'Rubik_400Regular',
@@ -62,11 +62,12 @@ export const styles = StyleSheet.create({
   tagName: {
     fontFamily: 'Rubik_400Regular',
     fontSize: 12,
-    maxWidth: 96,
+    maxWidth: 132,
   },
   tagOverflow: {
     fontFamily: 'Roboto_400Regular',
     fontSize: 12,
+    fontVariant: ['tabular-nums'],
     flexShrink: 0,
   },
   trailing: {
@@ -104,7 +105,7 @@ export const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 10,
     paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingVertical: 12,
     borderRadius: 6,
   },
   menuItemLabel: {

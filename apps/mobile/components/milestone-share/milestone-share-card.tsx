@@ -74,7 +74,7 @@ export const MilestoneShareCard = forwardRef<View, MilestoneShareCardProps>(
         {referralUrl ? (
           <View style={styles.footer}>
             <View style={styles.qrTile}>
-              <QRCode value={referralUrl} size={56} color="#0b1020" backgroundColor="#ffffff" />
+              <QRCode value={referralUrl} size={56} color="#020618" backgroundColor="#ffffff" />
             </View>
             <View style={styles.footerText}>
               <Text style={styles.scanText}>{t('shareCard.scanToJoin')}</Text>
@@ -93,7 +93,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
   return StyleSheet.create({
     card: {
       width: 360,
-      borderRadius: 24,
+      borderRadius: 20,
       overflow: 'hidden',
       backgroundColor: tokens.bg,
       borderWidth: 1,
@@ -123,7 +123,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       marginTop: 18,
       fontFamily: 'Rubik_500Medium',
       fontSize: 12,
-      letterSpacing: 0.7,
+      letterSpacing: 0.96,
       color: tokens.fg3,
     },
     streakNumber: {
@@ -132,6 +132,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       fontSize: 56,
       lineHeight: 60,
       letterSpacing: -1.6,
+      fontVariant: ['tabular-nums'],
       color: tokens.fg1,
     },
     streakTitle: {
@@ -197,7 +198,8 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
     shortLink: {
       marginTop: 2,
       fontFamily: 'Roboto_400Regular',
-      fontSize: 11.5,
+      fontSize: 12,
+      letterSpacing: 0.24,
       color: tokens.fg3,
     },
   })

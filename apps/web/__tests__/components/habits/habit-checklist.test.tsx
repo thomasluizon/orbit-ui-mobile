@@ -80,6 +80,14 @@ describe('HabitChecklist', () => {
       expect(onToggle).toHaveBeenCalledWith(0)
     })
 
+    it('calls onToggle when the item text is clicked', () => {
+      const onToggle = vi.fn()
+      const items = makeItems()
+      render(<HabitChecklist items={items} interactive onToggle={onToggle} />)
+      fireEvent.click(screen.getByText('Step 3'))
+      expect(onToggle).toHaveBeenCalledWith(2)
+    })
+
     it('shows reset button when at least one item is checked', () => {
       const items = makeItems()
       render(<HabitChecklist items={items} interactive />)
@@ -162,7 +170,7 @@ describe('HabitChecklist', () => {
       render(<HabitChecklist items={[]} editable onItemsChange={onItemsChange} />)
       const input = screen.getByPlaceholderText('habits.form.checklistPlaceholder')
       fireEvent.change(input, { target: { value: 'New item' } })
-      const addButton = screen.getByText('common.add')
+      const addButton = screen.getByLabelText('common.add')
       fireEvent.click(addButton)
       expect(onItemsChange).toHaveBeenCalledWith([{ text: 'New item', isChecked: false }])
     })
@@ -178,7 +186,7 @@ describe('HabitChecklist', () => {
 
     it('disables add button when new item text is empty', () => {
       render(<HabitChecklist items={[]} editable />)
-      const addButton = screen.getByText('common.add')
+      const addButton = screen.getByLabelText('common.add')
       expect(addButton.hasAttribute('disabled')).toBe(true)
     })
 
@@ -187,7 +195,7 @@ describe('HabitChecklist', () => {
       render(<HabitChecklist items={[]} editable onItemsChange={onItemsChange} />)
       const input = screen.getByPlaceholderText('habits.form.checklistPlaceholder')
       fireEvent.change(input, { target: { value: '   ' } })
-      const addButton = screen.getByText('common.add')
+      const addButton = screen.getByLabelText('common.add')
       fireEvent.click(addButton)
       expect(onItemsChange).not.toHaveBeenCalled()
     })

@@ -24,7 +24,7 @@ export function GoalProgressSection({ range, divider }: Readonly<GoalProgressSec
   const goals = goalsData?.allGoals ?? []
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const activeGoalId = selectedId ?? goals[0]?.id ?? ''
-  const { data, isLoading, isError } = useGoalProgressHistory(activeGoalId, range)
+  const { data, isLoading, isError, refetch } = useGoalProgressHistory(activeGoalId, range)
 
   const points = (data?.points ?? []).map((point) => ({
     label: point.date,
@@ -32,6 +32,7 @@ export function GoalProgressSection({ range, divider }: Readonly<GoalProgressSec
   }))
   const hasGoals = goals.length > 0
   const title = t('insights.sections.goalProgress')
+  const latestPoint = points[points.length - 1]
 
   let status: SectionStatus
   if (goalsLoading) {
@@ -59,12 +60,15 @@ export function GoalProgressSection({ range, divider }: Readonly<GoalProgressSec
       description={t('insights.sections.goalProgressDesc')}
       divider={divider}
       status={status}
+      onRetry={() => void refetch()}
       headerAction={picker}
-      emptyLabel={hasGoals ? undefined : t('insights.sections.noGoals')}
+      emptyLabel={
+        hasGoals ? t('insights.sections.goalProgressEmpty') : t('insights.sections.noGoals')
+      }
     >
       <TrendLine
         points={points}
-        ariaLabel={title}
+        ariaLabel={latestPoint ? `${title}: ${latestPoint.value.toLocaleString(locale)}` : title}
         formatValue={(value) => value.toLocaleString(locale)}
         formatLabel={formatLabel}
       />

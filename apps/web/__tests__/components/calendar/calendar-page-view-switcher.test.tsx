@@ -3,19 +3,37 @@ import { render, screen, fireEvent } from '@testing-library/react'
 import React from 'react'
 
 let isDesktopValue = true
+let isWideDesktopValue = false
+const monthQueryState: { error: string | null; refresh: ReturnType<typeof vi.fn> } = {
+  error: null,
+  refresh: vi.fn(),
+}
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
   useLocale: () => 'en',
 }))
 
-vi.mock('@/components/calendar/use-is-desktop', () => ({
+vi.mock('@/hooks/use-is-desktop', () => ({
   useIsDesktop: () => isDesktopValue,
+  useIsWideDesktop: () => isWideDesktopValue,
 }))
 
 vi.mock('@/hooks/use-calendar-data', () => ({
-  useCalendarData: () => ({ dayMap: new Map(), isLoading: false, isFetching: false }),
-  useCalendarRange: () => ({ dayMap: new Map(), isLoading: false, isFetching: false }),
+  useCalendarData: () => ({
+    dayMap: new Map(),
+    isLoading: false,
+    isFetching: false,
+    error: monthQueryState.error,
+    refresh: monthQueryState.refresh,
+  }),
+  useCalendarRange: () => ({
+    dayMap: new Map(),
+    isLoading: false,
+    isFetching: false,
+    error: null,
+    refresh: vi.fn(),
+  }),
 }))
 
 vi.mock('@/hooks/use-time-format', () => ({
@@ -52,7 +70,13 @@ vi.mock('@/app/(app)/calendar/_components/calendar-shell', () => ({
 }))
 
 vi.mock('@/components/calendar/calendar-grid', () => ({
-  CalendarGrid: () => <div data-testid="month-view" />,
+  CalendarGrid: ({ onSelectDay }: { onSelectDay?: (dateStr: string) => void }) => (
+    <button
+      type="button"
+      data-testid="month-view"
+      onClick={() => onSelectDay?.('2026-01-05')}
+    />
+  ),
 }))
 
 vi.mock('@/components/calendar/calendar-stats', () => ({
@@ -60,7 +84,7 @@ vi.mock('@/components/calendar/calendar-stats', () => ({
 }))
 
 vi.mock('@/components/calendar/calendar-day-detail', () => ({
-  CalendarDayDetail: () => null,
+  CalendarDayDetail: () => <div data-testid="day-detail" />,
 }))
 
 vi.mock('@/components/calendar/calendar-week-view', () => ({
@@ -80,6 +104,9 @@ import CalendarPage from '@/app/(app)/calendar/page'
 describe('CalendarPage view switcher', () => {
   beforeEach(() => {
     isDesktopValue = true
+    isWideDesktopValue = false
+    monthQueryState.error = null
+    monthQueryState.refresh = vi.fn()
   })
 
   it('offers the Agenda tab only on desktop', () => {
@@ -117,5 +144,34 @@ describe('CalendarPage view switcher', () => {
 
     fireEvent.click(screen.getByRole('tab', { name: 'calendar.view.range' }))
     expect(screen.getByTestId('range-view')).toBeDefined()
+  })
+
+  it('renders the day detail as a persistent inline panel at wide desktop', () => {
+    isWideDesktopValue = true
+    render(<CalendarPage />)
+
+    expect(screen.getByTestId('calendar-day-panel')).toBeDefined()
+    expect(screen.getByTestId('day-detail')).toBeDefined()
+  })
+
+  it('opens the day detail as an overlay below the wide-desktop breakpoint', () => {
+    render(<CalendarPage />)
+
+    expect(screen.queryByTestId('calendar-day-panel')).toBeNull()
+    expect(screen.queryByTestId('day-detail')).toBeNull()
+
+    fireEvent.click(screen.getByTestId('month-view'))
+    expect(screen.getByTestId('day-detail')).toBeDefined()
+  })
+
+  it('shows a retryable error card when the calendar query fails', () => {
+    monthQueryState.error = 'network down'
+    render(<CalendarPage />)
+
+    expect(screen.queryByTestId('month-view')).toBeNull()
+    expect(screen.getByText('calendar.loadError')).toBeDefined()
+
+    fireEvent.click(screen.getByRole('button', { name: 'common.retry' }))
+    expect(monthQueryState.refresh).toHaveBeenCalledTimes(1)
   })
 })

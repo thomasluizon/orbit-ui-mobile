@@ -141,7 +141,7 @@ Exact dimensions in `design/handoff/orbit/project/orbit-kit.jsx`. Web in `apps/w
 - Opaque white cards on light — never translucent.
 - Inset 1px hairline rings instead of borders (web `box-shadow: inset 0 0 0 1px var(--hairline)`; RN border with the same color reads equivalently).
 - No opaque card-on-card on dark; surfaces stack by alpha, not by lighter hexes.
-- Gradient-header usage: profile, paywall, auth, onboarding, celebrations, Início, calendar, chat.
+- Gradient-header usage: profile, paywall, auth, onboarding, celebrations, Início, calendar, chat, social.
 
 ## Status, emoji, icons
 
@@ -149,6 +149,22 @@ Exact dimensions in `design/handoff/orbit/project/orbit-kit.jsx`. Web in `apps/w
 - Dots, rings and icons use the base status tokens; status-colored TEXT uses `--status-overdue-text` / `--status-bad-text` (mobile `statusOverdueText` / `statusBadText`) — AA ≥4.5 on the mode canvas (only light overdue differs from base).
 - Emoji deliberately, where the artboards show them: habit emoji wells, stat tiles, streak flame, celebration heroes. Never as decoration elsewhere.
 - Lucide 22px, strokeWidth 1.8 (2.2 active/emphasis).
+
+## Icons & copy economy
+
+- Prefer an icon over a text label wherever a universal glyph exists (add, close, copy, share, edit, delete, search, back, more, settings). Icon-only controls MUST carry a localized accessible label (`aria-label` / `accessibilityLabel`) in both locales. `BulkActionBarV2` is the house pattern.
+- Words are reserved for: primary and destructive CTAs that commit something (pill buttons keep words), menu and list rows, and actions with no established glyph.
+- Strings stay short: 1-2 words on buttons, chips, tabs and labels. Sentences live only in body, description, and empty-state copy.
+
+## Desktop density & orientation
+
+- At the desktop breakpoint, content composes **horizontally**: multi-column layouts, side rails, and grids. A single stretched mobile column is a defect, not a layout.
+- Pill CTAs never span a wide content column: intrinsic width + padding, max-width ~360px. Full-width pills are a phone-shell affordance only.
+- Primary app sections are one click away in the desktop sidebar - a section reachable only through Profile is buried.
+
+## Sub-screen navigation
+
+- Every sub-screen (anything that is not a top-level tab/sidebar destination) shows a visible back affordance (NavHeader back chevron), on both platforms and at every breakpoint. Hardware/browser back is never the only way out.
 
 ## Motion
 
@@ -167,6 +183,8 @@ SVG `stroke-dashoffset` ring/progress sweeps are sanctioned (paint-only property
 - No new font families, radii, or colors outside this spec. The old Vercel sans/mono families are gone — Rubik/Inter/Roboto only.
 - No per-component scheme branches — schemes resolve through tokens only.
 - No em dashes in copy. Use a comma, period, or hyphen.
+- No text button where a universal glyph exists; no icon-only control without an accessible label.
+- No full-bleed pill CTAs at the desktop breakpoint.
 
 ## Working model (from `impeccable`)
 

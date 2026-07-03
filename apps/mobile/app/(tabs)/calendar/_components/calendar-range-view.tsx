@@ -26,6 +26,9 @@ interface CalendarRangeViewProps {
    *  maximum number of days. */
   clampedNotice: string;
   isClamped: boolean;
+  /** True between the first and second taps of a range pick. */
+  isAwaitingEnd: boolean;
+  isRangeLoading?: boolean;
   onSelectDay: (dateStr: string) => void;
   displayTime: (time: string) => string;
   language: string;
@@ -53,6 +56,8 @@ export function CalendarRangeView({
   hint,
   clampedNotice,
   isClamped,
+  isAwaitingEnd,
+  isRangeLoading = false,
   onSelectDay,
   displayTime,
   language,
@@ -64,6 +69,12 @@ export function CalendarRangeView({
   t,
   tokens,
 }: Readonly<CalendarRangeViewProps>) {
+  const hintText = isAwaitingEnd
+    ? t("calendar.timeGrid.pickEndHint")
+    : isClamped
+      ? clampedNotice
+      : hint;
+
   return (
     <>
       <CalendarGrid
@@ -82,10 +93,15 @@ export function CalendarRangeView({
         <Text
           style={[
             styles.hintText,
-            { color: isClamped ? tokens.statusOverdueText : tokens.fg3 },
+            {
+              color:
+                isClamped && !isAwaitingEnd
+                  ? tokens.statusOverdueText
+                  : tokens.fg3,
+            },
           ]}
         >
-          {isClamped ? clampedNotice : hint}
+          {hintText}
         </Text>
         <ShowRecurringToggle
           checked={showRecurring}
@@ -102,6 +118,8 @@ export function CalendarRangeView({
         language={language}
         allDayLabel={allDayLabel}
         nowLabel={nowLabel}
+        isLoading={isRangeLoading}
+        t={t}
         tokens={tokens}
       />
     </>

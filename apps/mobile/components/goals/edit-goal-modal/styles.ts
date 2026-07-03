@@ -16,9 +16,9 @@ export function createStyles(tokens: EditGoalTokens, bottomInset: number) {
       gap: 18,
     },
     eyebrow: {
-      fontFamily: 'Roboto_500Medium',
-      fontSize: 11,
-      letterSpacing: 0.66,
+      fontFamily: 'Rubik_500Medium',
+      fontSize: 12,
+      letterSpacing: 0.96,
       color: tokens.fg3,
       textTransform: 'uppercase',
     },

@@ -7,6 +7,12 @@ const TestRenderer = require("react-test-renderer");
 
 const state = vi.hoisted(() => ({
   rangeMap: new Map<string, CalendarDayEntry[]>(),
+  monthError: null as string | null,
+  monthRefresh: () => {},
+}));
+
+const calendarGridProps = vi.hoisted(() => ({
+  current: null as Record<string, any> | null,
 }));
 
 const tokensProxy: any = new Proxy({}, { get: () => "#222222" });
@@ -38,7 +44,13 @@ vi.mock("@/hooks/use-horizontal-swipe", () => ({
 }));
 
 vi.mock("@/hooks/use-habits", () => ({
-  useCalendarData: () => ({ dayMap: new Map(), isLoading: false }),
+  useCalendarData: () => ({
+    dayMap: new Map(),
+    isLoading: false,
+    isFetching: false,
+    error: state.monthError,
+    refresh: state.monthRefresh,
+  }),
   useCalendarRange: () => ({ dayMap: state.rangeMap }),
 }));
 
@@ -49,6 +61,11 @@ vi.mock("@/lib/use-app-theme", () => ({
 vi.mock("@/lib/theme", () => ({
   createTokensV2: () => tokensProxy,
   tintFromPrimary: () => "rgba(0,0,0,0.1)",
+  easings: {
+    spring: [0.2, 0, 0, 1],
+    out: [0.16, 1, 0.3, 1],
+    smooth: [0.2, 0, 0, 1],
+  },
   radius: { sm: 8, md: 12, lg: 16, xl: 20, "2xl": 24, full: 9999 },
   shadowsV2: {
     shadow1: { elevation: 1 },
@@ -67,7 +84,10 @@ vi.mock("@/app/(tabs)/calendar/_components/calendar-shell", () => ({
   CalendarLegend: () => null,
 }));
 vi.mock("@/app/(tabs)/calendar/_components/calendar-grid", () => ({
-  CalendarGrid: () => null,
+  CalendarGrid: (props: Record<string, any>) => {
+    calendarGridProps.current = props;
+    return null;
+  },
 }));
 vi.mock("@/app/(tabs)/calendar/_components/calendar-stats", () => ({
   CalendarStats: () => null,
@@ -122,6 +142,9 @@ function pressTab(tree: Tree, label: string) {
 
 describe("CalendarScreen views (mobile)", () => {
   beforeEach(() => {
+    calendarGridProps.current = null;
+    state.monthError = null;
+    state.monthRefresh = () => {};
     const todayStr = formatAPIDate(new Date());
     state.rangeMap = new Map<string, CalendarDayEntry[]>([
       [
@@ -176,11 +199,13 @@ describe("CalendarScreen views (mobile)", () => {
     expect(hostTexts(tree!)).toContain("Recurring");
 
     const switches = tree!.root.findAll(
-      (node) => typeof node.type === "string" && node.type === "Switch",
+      (node) =>
+        typeof node.type === "string" &&
+        node.props.accessibilityRole === "switch",
     );
     expect(switches.length).toBeGreaterThan(0);
     TestRenderer.act(() => {
-      switches[0]!.props.onValueChange(false);
+      switches[0]!.props.onPress();
     });
 
     expect(hostTexts(tree!)).not.toContain("Recurring");
@@ -196,5 +221,70 @@ describe("CalendarScreen views (mobile)", () => {
     pressTab(tree!, "calendar.view.range");
 
     expect(hostTexts(tree!)).toContain("calendar.timeGrid.pickRangeHint");
+  });
+
+  it("asks for the end day after the first interval pick", () => {
+    let tree: Tree;
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<CalendarScreen />) as unknown as Tree;
+    });
+
+    pressTab(tree!, "calendar.view.range");
+    expect(hostTexts(tree!)).toContain("calendar.timeGrid.pickRangeHint");
+    expect(calendarGridProps.current).not.toBeNull();
+
+    TestRenderer.act(() => {
+      calendarGridProps.current!.onSelectDay("2026-01-05");
+    });
+
+    expect(hostTexts(tree!)).toContain("calendar.timeGrid.pickEndHint");
+    expect(hostTexts(tree!)).not.toContain("calendar.timeGrid.pickRangeHint");
+  });
+
+  it("shows the empty-month state in place of the stat tiles when nothing is logged", () => {
+    let tree: Tree;
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<CalendarScreen />) as unknown as Tree;
+    });
+
+    const flatLists = tree!.root.findAll(
+      (node) => typeof node.type === "string" && node.type === "FlatList",
+    );
+    expect(flatLists).toHaveLength(1);
+
+    let footerTree: Tree;
+    TestRenderer.act(() => {
+      footerTree = TestRenderer.create(
+        flatLists[0]!.props.ListFooterComponent,
+      ) as unknown as Tree;
+    });
+
+    expect(hostTexts(footerTree!)).toContain("calendar.emptyMonth");
+  });
+
+  it("shows a retryable error card when the calendar query fails", () => {
+    state.monthError = "network down";
+    const refreshCalls: number[] = [];
+    state.monthRefresh = () => {
+      refreshCalls.push(1);
+    };
+
+    let tree: Tree;
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(<CalendarScreen />) as unknown as Tree;
+    });
+
+    expect(hostTexts(tree!)).toContain("calendar.loadError");
+
+    const retryButtons = tree!.root.findAll(
+      (node) =>
+        typeof node.type === "string" &&
+        node.props.accessibilityRole === "button",
+    );
+    expect(retryButtons).toHaveLength(1);
+    TestRenderer.act(() => {
+      retryButtons[0]!.props.onPress();
+    });
+    expect(refreshCalls).toHaveLength(1);
   });
 });

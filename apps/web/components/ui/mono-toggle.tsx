@@ -1,13 +1,15 @@
 'use client'
 
+import { useTranslations } from 'next-intl'
+
 interface MonoToggleProps {
   on: boolean
   onToggle: () => void
   ariaLabel: string
   disabled?: boolean
-  /** Text shown when on. Default "ON". */
+  /** Text shown when on. Defaults to t('common.toggleOn'). */
   onLabel?: string
-  /** Text shown when off. Default "OFF". */
+  /** Text shown when off. Defaults to t('common.toggleOff'). */
   offLabel?: string
 }
 
@@ -17,9 +19,13 @@ export function MonoToggle({
   onToggle,
   ariaLabel,
   disabled = false,
-  onLabel = 'ON',
-  offLabel = 'OFF',
+  onLabel,
+  offLabel,
 }: Readonly<MonoToggleProps>) {
+  const t = useTranslations('common')
+  const resolvedOnLabel = onLabel ?? t('toggleOn')
+  const resolvedOffLabel = offLabel ?? t('toggleOff')
+
   return (
     <button
       type="button"
@@ -28,7 +34,7 @@ export function MonoToggle({
       aria-label={ariaLabel}
       disabled={disabled}
       onClick={onToggle}
-      className="appearance-none border-0 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 shrink-0"
+      className="touch-target-y appearance-none border-0 cursor-pointer disabled:cursor-not-allowed disabled:opacity-50 shrink-0 active:scale-[0.96]"
       style={{
         minWidth: 44,
         padding: '4px 12px',
@@ -39,10 +45,10 @@ export function MonoToggle({
         fontSize: 13,
         fontWeight: 500,
         transition:
-          'background-color var(--dur-fast) var(--ease-standard), color var(--dur-fast) var(--ease-standard)',
+          'background-color var(--dur-fast) var(--ease-standard), color var(--dur-fast) var(--ease-standard), transform var(--dur-fast) var(--ease-standard)',
       }}
     >
-      {on ? onLabel : offLabel}
+      {on ? resolvedOnLabel : resolvedOffLabel}
     </button>
   )
 }

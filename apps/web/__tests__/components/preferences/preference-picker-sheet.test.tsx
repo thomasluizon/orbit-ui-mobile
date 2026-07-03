@@ -78,10 +78,10 @@ describe('PreferencePickerSheet', () => {
     expect(props.onClose).not.toHaveBeenCalled()
   })
 
-  it('shows a save footer for the scheme picker that closes on click', () => {
+  it('shows a done footer for the scheme picker that closes on click', () => {
     const props = { ...baseProps(), activePicker: 'scheme' as const }
     render(<PreferencePickerSheet {...props} />)
-    fireEvent.click(screen.getByText('common.save'))
+    fireEvent.click(screen.getByText('common.done'))
     expect(props.onClose).toHaveBeenCalled()
   })
 

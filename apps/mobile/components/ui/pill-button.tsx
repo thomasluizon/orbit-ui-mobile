@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import {
+  ActivityIndicator,
   Pressable,
   StyleSheet,
   Text,
@@ -24,7 +25,9 @@ interface PillButtonProps {
   style?: StyleProp<ViewStyle>
 }
 
-/** Kit pill CTA: glowing primary, inverted white, or hairline ghost variant. */
+/** Kit pill CTA: glowing primary, inverted white, or hairline ghost variant.
+ *  While `busy`, a spinner fills the leading slot, the label dims, and
+ *  presses no-op. */
 export function PillButton({
   variant = 'primary',
   onPress,
@@ -66,7 +69,7 @@ export function PillButton({
 
   return (
     <Pressable
-      onPress={onPress}
+      onPress={busy ? undefined : onPress}
       disabled={disabled}
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel}
@@ -82,9 +85,21 @@ export function PillButton({
         style,
       ]}
     >
-      {leading}
+      {busy ? (
+        <ActivityIndicator size="small" color={textColorByVariant[variant]} />
+      ) : (
+        leading
+      )}
       {typeof children === 'string' || typeof children === 'number' ? (
-        <Text style={[styles.label, { color: textColorByVariant[variant] }]}>{children}</Text>
+        <Text
+          style={[
+            styles.label,
+            { color: textColorByVariant[variant] },
+            busy ? styles.labelBusy : null,
+          ]}
+        >
+          {children}
+        </Text>
       ) : (
         children
       )}
@@ -117,5 +132,8 @@ const styles = StyleSheet.create({
   label: {
     fontFamily: 'Rubik_500Medium',
     fontSize: 16,
+  },
+  labelBusy: {
+    opacity: 0.6,
   },
 })

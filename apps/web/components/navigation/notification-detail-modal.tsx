@@ -51,7 +51,9 @@ export function NotificationDetailModal({
       footer={
         <div className="flex flex-wrap items-center justify-end" style={{ gap: 10 }}>
           {canView && (
-            <QuietLink onClick={handleView}>{t('notifications.view')}</QuietLink>
+            <QuietLink primary onClick={handleView}>
+              {t('notifications.view')}
+            </QuietLink>
           )}
           {canMarkAsRead && (
             <QuietLink onClick={() => onMarkAsRead(notification.id)}>
@@ -59,7 +61,7 @@ export function NotificationDetailModal({
             </QuietLink>
           )}
           <QuietLink destructive onClick={handleDelete}>
-            {t('notifications.deleteNotification')}
+            {t('notifications.delete')}
           </QuietLink>
         </div>
       }
@@ -102,14 +104,20 @@ interface QuietLinkProps {
   children: React.ReactNode
   onClick: () => void
   destructive?: boolean
+  primary?: boolean
 }
 
-function QuietLink({ children, onClick, destructive = false }: Readonly<QuietLinkProps>) {
+function QuietLink({
+  children,
+  onClick,
+  destructive = false,
+  primary = false,
+}: Readonly<QuietLinkProps>) {
   return (
     <button
       type="button"
       onClick={onClick}
-      className="chip"
+      className={primary ? 'chip chip-ai' : 'chip'}
       style={destructive ? { color: 'var(--status-bad)' } : undefined}
     >
       {children}

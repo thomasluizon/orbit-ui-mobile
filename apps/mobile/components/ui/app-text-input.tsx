@@ -6,18 +6,21 @@ import {
   useState,
   type ComponentProps,
 } from 'react'
-import { StyleSheet, TextInput } from 'react-native'
+import { StyleSheet, Text, TextInput } from 'react-native'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useKeyboardAwareInputReveal } from './keyboard-aware-scroll-view'
 
 type AppTokens = ReturnType<typeof createTokensV2>
 
-type AppTextInputProps = ComponentProps<typeof TextInput>
+type AppTextInputProps = ComponentProps<typeof TextInput> & {
+  /** Validation message rendered as a sibling caption; also paints the status-bad ring. */
+  error?: string
+}
 
 export const AppTextInput = forwardRef<TextInput, AppTextInputProps>(
   function AppTextInput(
-    { onBlur, onFocus, placeholderTextColor, style, ...props },
+    { onBlur, onFocus, placeholderTextColor, style, error, ...props },
     ref,
   ) {
     const localRef = useRef<TextInput>(null)
@@ -29,6 +32,7 @@ export const AppTextInput = forwardRef<TextInput, AppTextInputProps>(
     )
     const [focused, setFocused] = useState(false)
     const styles = useMemo(() => createStyles(tokens), [tokens])
+    const dimmed = props.editable === false
 
     const assignRef = useCallback(
       (node: TextInput | null) => {
@@ -64,14 +68,23 @@ export const AppTextInput = forwardRef<TextInput, AppTextInputProps>(
     )
 
     return (
-      <TextInput
-        ref={assignRef}
-        placeholderTextColor={placeholderTextColor ?? tokens.fg3}
-        {...props}
-        style={[styles.input, focused ? styles.inputFocused : null, style]}
-        onBlur={handleBlur}
-        onFocus={handleFocus}
-      />
+      <>
+        <TextInput
+          ref={assignRef}
+          placeholderTextColor={placeholderTextColor ?? tokens.fg3}
+          {...props}
+          style={[
+            styles.input,
+            focused ? styles.inputFocused : null,
+            error ? styles.inputError : null,
+            dimmed ? styles.inputDisabled : null,
+            style,
+          ]}
+          onBlur={handleBlur}
+          onFocus={handleFocus}
+        />
+        {error ? <Text style={styles.errorCaption}>{error}</Text> : null}
+      </>
     )
   },
 )
@@ -95,6 +108,21 @@ function createStyles(tokens: AppTokens) {
       borderColor: tokens.primary,
       paddingHorizontal: 15,
       paddingVertical: 13,
+    },
+    inputError: {
+      borderWidth: 2,
+      borderColor: tokens.statusBad,
+      paddingHorizontal: 15,
+      paddingVertical: 13,
+    },
+    inputDisabled: {
+      opacity: 0.6,
+    },
+    errorCaption: {
+      fontFamily: 'Rubik_400Regular',
+      fontSize: 12,
+      marginTop: 4,
+      color: tokens.statusBadText,
     },
   })
 }

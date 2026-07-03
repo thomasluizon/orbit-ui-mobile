@@ -10,11 +10,15 @@ vi.mock('@sentry/nextjs', () => ({
   captureException: vi.fn(),
 }))
 
+vi.mock('next/font/google', () => ({
+  Rubik: () => ({ variable: 'font-rubik', className: 'font-rubik' }),
+}))
+
 vi.mock('lucide-react', async (importOriginal) => {
   const actual = await importOriginal<typeof import('lucide-react')>()
   return {
     ...actual,
-    AlertTriangle: (props: Record<string, unknown>) => <svg data-testid="alert-triangle" {...props} />,
+    TriangleAlert: (props: Record<string, unknown>) => <svg data-testid="triangle-alert" {...props} />,
   }
 })
 
@@ -33,19 +37,19 @@ describe('AppError', () => {
   it('renders generic error message in non-development env', () => {
     const error = new Error('Something went wrong') as Error & { digest?: string }
     render(<AppError error={error} reset={mockReset} />)
-    expect(screen.getByText('auth.genericError')).toBeInTheDocument()
+    expect(screen.getByText('common.somethingWentWrong')).toBeInTheDocument()
   })
 
   it('renders the alert triangle icon', () => {
     const error = new Error('fail') as Error & { digest?: string }
     render(<AppError error={error} reset={mockReset} />)
-    expect(screen.getByTestId('alert-triangle')).toBeInTheDocument()
+    expect(screen.getByTestId('triangle-alert')).toBeInTheDocument()
   })
 
   it('falls back to generic error key when message is empty', () => {
     const error = new Error('') as Error & { digest?: string }
     render(<AppError error={error} reset={mockReset} />)
-    expect(screen.getByText('auth.genericError')).toBeInTheDocument()
+    expect(screen.getByText('common.somethingWentWrong')).toBeInTheDocument()
   })
 
   it('renders the retry button with correct label', () => {
@@ -64,7 +68,7 @@ describe('AppError', () => {
   it('handles error with digest property', () => {
     const error = Object.assign(new Error('Server error'), { digest: 'abc123' })
     render(<AppError error={error} reset={mockReset} />)
-    expect(screen.getByText('auth.genericError')).toBeInTheDocument()
+    expect(screen.getByText('common.somethingWentWrong')).toBeInTheDocument()
   })
 })
 
@@ -126,7 +130,14 @@ describe('GlobalError', () => {
   it('renders the generic error message through i18n', () => {
     const error = new Error('Boom') as Error & { digest?: string }
     render(<GlobalError error={error} reset={mockReset} />)
-    expect(screen.getByText('auth.genericError')).toBeInTheDocument()
+    expect(screen.getByText('common.somethingWentWrong')).toBeInTheDocument()
+  })
+
+  it('renders a go-home escape link to the site root', () => {
+    const error = new Error('Boom') as Error & { digest?: string }
+    render(<GlobalError error={error} reset={mockReset} />)
+    const link = screen.getByRole('link', { name: 'common.goHome' })
+    expect(link).toHaveAttribute('href', '/')
   })
 
   it('renders the retry button label through i18n', () => {
@@ -145,6 +156,6 @@ describe('GlobalError', () => {
   it('handles error with digest property', () => {
     const error = Object.assign(new Error('Server error'), { digest: 'abc123' })
     render(<GlobalError error={error} reset={mockReset} />)
-    expect(screen.getByText('auth.genericError')).toBeInTheDocument()
+    expect(screen.getByText('common.somethingWentWrong')).toBeInTheDocument()
   })
 })

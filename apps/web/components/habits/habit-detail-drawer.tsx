@@ -21,8 +21,13 @@ import { DescriptionViewer } from './description-viewer'
 import { NewPairFlow } from '@/app/(app)/social/_components/new-pair-flow'
 import { useTimeFormat } from '@/hooks/use-time-format'
 import { useHabitFullDetail, useUpdateChecklist, useLogHabit } from '@/hooks/use-habits'
+import { useAppToast } from '@/hooks/use-app-toast'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
-import { formatHabitDetailSummary, formatLocaleDate } from '@orbit/shared/utils'
+import {
+  formatHabitDetailSummary,
+  formatLocaleDate,
+  getFriendlyErrorMessage,
+} from '@orbit/shared/utils'
 
 interface HabitDetailDrawerProps {
   open: boolean
@@ -40,6 +45,7 @@ export function HabitDetailDrawer({
   const t = useTranslations()
   const locale = useLocale()
   const { displayTime } = useTimeFormat()
+  const { showError } = useAppToast()
   const habitId = habit?.id ?? ''
 
   const { data: fullDetail, isLoading: metricsLoading } = useHabitFullDetail(
@@ -68,6 +74,7 @@ export function HabitDetailDrawer({
   }, [habit, liveChecklist, t])
 
   const [showChecklistLogPrompt, setShowChecklistLogPrompt] = useState(false)
+  const [showChecklistClearConfirm, setShowChecklistClearConfirm] = useState(false)
   const [descriptionViewerOpen, setDescriptionViewerOpen] = useState(false)
   const [pairFlowOpen, setPairFlowOpen] = useState(false)
 
@@ -92,9 +99,17 @@ export function HabitDetailDrawer({
     try {
       await logHabit.mutateAsync({ habitId: habit.id })
       onLogged?.(habit.id)
-    } catch {
+    } catch (error: unknown) {
+      showError(
+        getFriendlyErrorMessage(
+          error,
+          (key, values) => t(key, values),
+          'errors.logHabit',
+          'habit',
+        ),
+      )
     }
-  }, [habit, logHabit, onLogged])
+  }, [habit, logHabit, onLogged, showError, t])
 
   const handleChecklistReset = useCallback(() => {
     if (!habit) return
@@ -103,7 +118,12 @@ export function HabitDetailDrawer({
   }, [habit, liveChecklist, updateChecklist])
 
   const handleChecklistClear = useCallback(() => {
+    setShowChecklistClearConfirm(true)
+  }, [])
+
+  const confirmChecklistClear = useCallback(() => {
     if (!habit) return
+    setShowChecklistClearConfirm(false)
     updateChecklist.mutate({ habitId: habit.id, items: [] })
   }, [habit, updateChecklist])
 
@@ -156,12 +176,33 @@ export function HabitDetailDrawer({
         description={habit?.description ?? undefined}
         expandable
         onExpandDescription={() => setDescriptionViewerOpen(true)}
-        footer={
-          <HabitAskAstraButton askPrompt={askPrompt} onPress={handleAskAstra} />
-        }
       >
         {habit && (
           <div className="overlay-bleed">
+            {liveChecklist.length > 0 && (
+              <>
+                <SectionLabel>{t('habits.form.checklist')}</SectionLabel>
+                <div style={{ padding: '0 20px 12px' }}>
+                  <HabitChecklist
+                    items={liveChecklist}
+                    interactive
+                    onToggle={handleChecklistToggle}
+                    onReset={handleChecklistReset}
+                    onClear={handleChecklistClear}
+                  />
+                </div>
+              </>
+            )}
+
+            {habit.frequencyUnit || habit.isGeneral ? (
+              <HabitDetailStatsGrid
+                metrics={metrics}
+                loading={metricsLoading}
+                isBadHabit={habit.isBadHabit}
+                t={t as TranslationFn}
+              />
+            ) : null}
+
             <HabitDetailReminders habit={habit} displayTime={displayTime} />
 
             {habit.endDate && (
@@ -177,25 +218,13 @@ export function HabitDetailDrawer({
               />
             )}
 
-            {habit.frequencyUnit || habit.isGeneral ? (
-              <HabitDetailStatsGrid
-                metrics={metrics}
-                loading={metricsLoading}
-                isBadHabit={habit.isBadHabit}
-                t={t as TranslationFn}
-              />
-            ) : null}
-
-            {liveChecklist.length > 0 && (
-              <div style={{ padding: '0 20px 12px' }}>
-                <HabitChecklist
-                  items={liveChecklist}
-                  interactive
-                  onToggle={handleChecklistToggle}
-                  onReset={handleChecklistReset}
-                  onClear={handleChecklistClear}
-                />
-              </div>
+            {habit.linkedGoals && habit.linkedGoals.length > 0 && (
+              <>
+                <SectionLabel>{t('habits.detail.linkedGoal')}</SectionLabel>
+                {habit.linkedGoals.map((goal) => (
+                  <SettingsRow key={goal.id} label={goal.title} accessory="none" />
+                ))}
+              </>
             )}
 
             <SectionLabel>{t('habits.detail.activity')}</SectionLabel>
@@ -208,6 +237,8 @@ export function HabitDetailDrawer({
               icon={Users}
               onClick={() => setPairFlowOpen(true)}
             />
+
+            <HabitAskAstraButton askPrompt={askPrompt} onPress={handleAskAstra} />
           </div>
         )}
       </AppOverlay>
@@ -224,6 +255,18 @@ export function HabitDetailDrawer({
         onConfirm={confirmChecklistLog}
         onCancel={() => setShowChecklistLogPrompt(false)}
         variant="success"
+      />
+
+      <ConfirmDialog
+        open={showChecklistClearConfirm}
+        onOpenChange={setShowChecklistClearConfirm}
+        title={t('habits.checklistClearTitle')}
+        description={t('habits.checklistClearMessage')}
+        confirmLabel={t('habits.form.clearChecklist')}
+        cancelLabel={t('common.cancel')}
+        onConfirm={confirmChecklistClear}
+        onCancel={() => setShowChecklistClearConfirm(false)}
+        variant="danger"
       />
     </>
   )

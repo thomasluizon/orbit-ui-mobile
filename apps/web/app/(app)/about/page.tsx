@@ -37,6 +37,7 @@ export default function AboutPage() {
                 fontFamily: 'var(--font-sans)',
                 fontSize: 22,
                 fontWeight: 500,
+                letterSpacing: '-0.01em',
                 color: 'var(--fg-1)',
               }}
             >
@@ -53,30 +54,32 @@ export default function AboutPage() {
               {t('about.version', { version: packageJson.version })}
             </span>
           </div>
-          <SettingsRow
-            icon={Compass}
-            label={t('onboarding.featureGuide.openButton')}
-            onClick={() => setShowGuide(true)}
-            ariaLabel={t('onboarding.featureGuide.openButton')}
-          />
-          <SettingsRow
-            icon={Mail}
-            label={t('profile.support.title')}
-            onClick={() => router.push('/support')}
-            ariaLabel={t('profile.support.title')}
-          />
-          <SettingsRow
-            icon={FileText}
-            label={t('terms.title')}
-            onClick={() => router.push('/terms')}
-            ariaLabel={t('terms.title')}
-          />
-          <SettingsRow
-            icon={Shield}
-            label={t('privacy.title')}
-            onClick={() => router.push('/privacy')}
-            ariaLabel={t('privacy.title')}
-          />
+          <div>
+            <SettingsRow
+              icon={Compass}
+              label={t('onboarding.featureGuide.openButton')}
+              onClick={() => setShowGuide(true)}
+              ariaLabel={t('onboarding.featureGuide.openButton')}
+            />
+            <SettingsRow
+              icon={Mail}
+              label={t('profile.support.title')}
+              onClick={() => router.push('/support')}
+              ariaLabel={t('profile.support.title')}
+            />
+            <SettingsRow
+              icon={FileText}
+              label={t('terms.title')}
+              onClick={() => router.push('/terms')}
+              ariaLabel={t('terms.title')}
+            />
+            <SettingsRow
+              icon={Shield}
+              label={t('privacy.title')}
+              onClick={() => router.push('/privacy')}
+              ariaLabel={t('privacy.title')}
+            />
+          </div>
         </div>
         <FeatureGuideDrawer open={showGuide} onOpenChange={setShowGuide} />
       </div>

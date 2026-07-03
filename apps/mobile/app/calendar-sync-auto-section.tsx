@@ -1,5 +1,5 @@
-import { Pressable, Text, View, type ViewStyle } from 'react-native'
-import { CalendarDays, RefreshCw } from 'lucide-react-native'
+import { ActivityIndicator, Pressable, Text, View, type ViewStyle } from 'react-native'
+import { AlertTriangle, CalendarDays, RefreshCw } from 'lucide-react-native'
 import type { TFunction } from 'i18next'
 import { isCalendarAutoSyncStatusReconnectRequired } from '@orbit/shared/utils'
 import type { CalendarAutoSyncState } from '@orbit/shared/types'
@@ -90,13 +90,18 @@ export function CalendarAutoSyncSection({
             disabled={isSyncNowPending}
             accessibilityRole="button"
             accessibilityLabel={t('calendar.autoSync.syncNow')}
+            hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
             style={({ pressed }) => [
               styles.quietAction,
               chipTint,
               (pressed || isSyncNowPending) && styles.quietActionDim,
             ]}
           >
-            <RefreshCw size={13} color={tokens.fg2} strokeWidth={2} />
+            {isSyncNowPending ? (
+              <ActivityIndicator size={14} color={tokens.fg2} />
+            ) : (
+              <RefreshCw size={13} color={tokens.fg2} strokeWidth={2} />
+            )}
             <Text style={[styles.quietActionText, { color: tokens.fg2 }]}>
               {isSyncNowPending
                 ? t('calendar.autoSync.syncNowRunning')
@@ -107,13 +112,24 @@ export function CalendarAutoSyncSection({
       ) : null}
       {isCalendarAutoSyncStatusReconnectRequired(autoSyncState?.status) ? (
         <View style={styles.reconnectBlock}>
-          <Text style={[styles.stateText, { color: tokens.statusOverdueText }]}>
+          <View style={styles.reconnectTitleRow}>
+            <AlertTriangle
+              size={16}
+              color={tokens.statusOverdueText}
+              strokeWidth={1.8}
+            />
+            <Text style={[styles.reconnectTitle, { color: tokens.statusOverdueText }]}>
+              {t('calendar.autoSync.reconnectTitle')}
+            </Text>
+          </View>
+          <Text style={[styles.stateText, { color: tokens.fg3 }]}>
             {t('calendar.autoSync.reconnectBody')}
           </Text>
           <Pressable
             onPress={onReconnect}
             disabled={isConnecting}
             accessibilityRole="button"
+            hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
             style={({ pressed }) => [
               styles.quietAction,
               chipTint,

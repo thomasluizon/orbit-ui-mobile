@@ -32,10 +32,10 @@ export function SocialIdentityBar() {
           onPress={() => setShowEdit(true)}
           accessibilityRole="button"
           accessibilityLabel={t('social.identity.editAria')}
+          hitSlop={2}
           style={({ pressed }) => [styles.editButton, pressed ? styles.editButtonPressed : null]}
         >
-          <Pencil size={14} strokeWidth={1.8} color={tokens.fg1} />
-          <Text style={styles.editText}>{t('social.identity.edit')}</Text>
+          <Pencil size={18} strokeWidth={1.8} color={tokens.fg1} />
         </Pressable>
       </View>
 
@@ -54,26 +54,25 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       paddingVertical: 12,
       paddingLeft: 16,
       paddingRight: 14,
-      borderRadius: 16,
-      backgroundColor: tokens.bgElev,
+      borderRadius: 18,
+      backgroundColor: tokens.bgCard,
       borderWidth: 1,
       borderColor: tokens.hairline,
     },
     textCol: { flex: 1, minWidth: 0, gap: 2 },
-    handle: { fontFamily: 'Rubik_600SemiBold', fontSize: 17, color: tokens.fg1 },
+    handle: { fontFamily: 'Rubik_600SemiBold', fontSize: 16, color: tokens.fg1 },
     caption: { fontFamily: 'Rubik_400Regular', fontSize: 13, color: tokens.fg3 },
     editButton: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 6,
-      paddingHorizontal: 14,
-      paddingVertical: 9,
+      width: 40,
+      height: 40,
       borderRadius: 999,
-      borderWidth: 1,
-      borderColor: tokens.hairline,
-      backgroundColor: tokens.bgElev2,
+      alignItems: 'center',
+      justifyContent: 'center',
+      flexShrink: 0,
     },
-    editButtonPressed: { transform: [{ scale: 0.96 }] },
-    editText: { fontFamily: 'Rubik_500Medium', fontSize: 13, color: tokens.fg1 },
+    editButtonPressed: {
+      transform: [{ scale: 0.96 }],
+      backgroundColor: tokens.bgElev,
+    },
   })
 }

@@ -9,6 +9,7 @@ import {
 } from '@orbit/shared/utils'
 import { resolveMotionPreset } from '@orbit/shared/theme'
 import { useAppToast } from '@/hooks/use-app-toast'
+import { useOffline } from '@/hooks/use-offline'
 import { useAuthStore } from '@/stores/auth-store'
 import { getSupabaseClient } from '@/lib/supabase'
 import { useLoginCodeEntry } from '@/hooks/use-login-code-entry'
@@ -28,6 +29,7 @@ export function useLoginFlow() {
   const locale = useLocale()
   const { setAuth } = useAuthStore()
   const { showError } = useAppToast()
+  const { isOnline } = useOffline()
   const prefersReducedMotion = useReducedMotion()
 
   const [step, setStep] = useState<'email' | 'code'>('email')
@@ -214,6 +216,7 @@ export function useLoginFlow() {
     errorMessage,
     successMessage,
     referralCode,
+    isOnline,
     authStepMotion,
     feedbackMotion,
     codeDigits,

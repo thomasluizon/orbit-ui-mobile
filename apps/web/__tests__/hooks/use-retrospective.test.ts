@@ -213,4 +213,39 @@ describe('useRetrospective', () => {
     expect(result.current.data).toEqual(second)
     expect(result.current.fromCache).toBe(true)
   })
+
+  it('ignores a stale generation that resolves after a newer one', async () => {
+    const stale = buildResponse()
+    const fresh = buildResponse({
+      fromCache: true,
+      metrics: { ...buildResponse().metrics, completionRate: 42 },
+    })
+
+    let resolveStale: () => void = () => {}
+    const stalePromise = new Promise((resolve) => {
+      resolveStale = () =>
+        resolve({ ok: true, json: () => Promise.resolve(stale) })
+    })
+    mockFetch
+      .mockReturnValueOnce(stalePromise)
+      .mockResolvedValueOnce({ ok: true, json: () => Promise.resolve(fresh) })
+
+    const { result } = renderHook(() => useRetrospective())
+
+    let firstCall: Promise<void> = Promise.resolve()
+    await act(async () => {
+      firstCall = result.current.generate()
+      await result.current.generate()
+    })
+
+    expect(result.current.data).toEqual(fresh)
+
+    await act(async () => {
+      resolveStale()
+      await firstCall
+    })
+
+    expect(result.current.data).toEqual(fresh)
+    expect(result.current.fromCache).toBe(true)
+  })
 })

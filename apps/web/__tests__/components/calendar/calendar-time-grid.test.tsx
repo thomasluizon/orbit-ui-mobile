@@ -2,6 +2,13 @@ import { describe, it, expect, vi } from 'vitest'
 import { render, screen, fireEvent } from '@testing-library/react'
 import { enUS } from 'date-fns/locale'
 
+vi.mock('next-intl', () => ({
+  useTranslations: () => (key: string, params?: Record<string, unknown>) => {
+    if (params) return `${key}:${JSON.stringify(params)}`
+    return key
+  },
+}))
+
 import { CalendarTimeGrid, type TimeGridColumn } from '@/components/calendar/calendar-time-grid'
 import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
 
@@ -28,7 +35,12 @@ function column(year: number, month: number, day: number): TimeGridColumn {
   }
 }
 
-function renderGrid(columns: TimeGridColumn[], dayMap: Map<string, CalendarDayEntry[]>, onSelectDay = vi.fn()) {
+function renderGrid(
+  columns: TimeGridColumn[],
+  dayMap: Map<string, CalendarDayEntry[]>,
+  onSelectDay = vi.fn(),
+  isLoading = false,
+) {
   return render(
     <CalendarTimeGrid
       columns={columns}
@@ -38,6 +50,7 @@ function renderGrid(columns: TimeGridColumn[], dayMap: Map<string, CalendarDayEn
       dateFnsLocale={enUS}
       allDayLabel="All-day"
       nowLabel="Now"
+      isLoading={isLoading}
     />,
   )
 }
@@ -84,6 +97,18 @@ describe('CalendarTimeGrid', () => {
     expect(onSelectDay).toHaveBeenCalledWith('2025-06-16')
   })
 
+  it('opens the tapped day from a timed event block', () => {
+    const onSelectDay = vi.fn()
+    const col = column(2025, 5, 16)
+    const dayMap = new Map<string, CalendarDayEntry[]>([
+      [col.dateStr, [makeEntry({ habitId: 'a', title: 'Standup', dueTime: '08:00' })]],
+    ])
+    renderGrid([col], dayMap, onSelectDay)
+
+    fireEvent.click(screen.getByRole('button', { name: /Standup/ }))
+    expect(onSelectDay).toHaveBeenCalledWith('2025-06-16')
+  })
+
   it('caps the all-day stack and collapses the overflow into a +N that opens the day', () => {
     const onSelectDay = vi.fn()
     const col = column(2025, 5, 16)
@@ -107,5 +132,40 @@ describe('CalendarTimeGrid', () => {
 
     const band = screen.getByTestId('time-grid-all-day-band')
     expect(band.getAttribute('style')).toContain('var(--bg)')
+  })
+
+  it('labels the +N overflow chip with a localized count for screen readers', () => {
+    const col = column(2025, 5, 16)
+    const entries = Array.from({ length: 8 }, (_, i) =>
+      makeEntry({ habitId: `ad-${i}`, title: `All ${i}`, dueTime: null }),
+    )
+    renderGrid([col], new Map([[col.dateStr, entries]]))
+
+    expect(screen.getByTestId('time-grid-all-day-more')).toHaveAttribute(
+      'aria-label',
+      'calendar.timeGrid.moreLabel:{"count":4}',
+    )
+  })
+
+  it('shows the empty message when no visible day has entries', () => {
+    renderGrid([column(2025, 5, 16)], new Map())
+
+    expect(screen.getByTestId('time-grid-empty')).toHaveTextContent('calendar.timeGrid.empty')
+  })
+
+  it('hides the empty message while the range is loading', () => {
+    renderGrid([column(2025, 5, 16)], new Map(), vi.fn(), true)
+
+    expect(screen.queryByTestId('time-grid-empty')).toBeNull()
+  })
+
+  it('hides the empty message when any visible day has an entry', () => {
+    const col = column(2025, 5, 16)
+    const dayMap = new Map<string, CalendarDayEntry[]>([
+      [col.dateStr, [makeEntry({ habitId: 'a', dueTime: '08:00' })]],
+    ])
+    renderGrid([col], dayMap)
+
+    expect(screen.queryByTestId('time-grid-empty')).toBeNull()
   })
 })

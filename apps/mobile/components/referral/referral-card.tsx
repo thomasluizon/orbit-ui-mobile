@@ -61,7 +61,10 @@ export function ReferralCard({ onOpen, onDismiss }: Readonly<ReferralCardProps>)
             accessibilityRole="button"
             accessibilityLabel={t('common.dismiss')}
             hitSlop={8}
-            style={styles.dismissButton}
+            style={({ pressed }) => [
+              styles.dismissButton,
+              pressed ? styles.dismissButtonPressed : null,
+            ]}
           >
             <X size={18} strokeWidth={1.8} color={tokens.fg4} />
           </Pressable>
@@ -108,6 +111,9 @@ const styles = StyleSheet.create({
     height: 28,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  dismissButtonPressed: {
+    opacity: 0.6,
   },
   title: {
     fontFamily: 'Rubik_500Medium',

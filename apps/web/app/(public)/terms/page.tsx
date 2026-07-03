@@ -11,7 +11,7 @@ export default function TermsPage() {
   const goBackOrFallback = useGoBackOrFallback()
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
 
-  const sections: { label: string; body: string }[] = [
+  const sections: { label: string; body: string | string[] }[] = [
     { label: t('terms.intro.title'), body: t('terms.intro.body') },
     { label: t('terms.provider.title'), body: t('terms.provider.body') },
     { label: t('terms.eligibility.title'), body: t('terms.eligibility.body') },
@@ -21,7 +21,7 @@ export default function TermsPage() {
       t('terms.subscription.autoRenew'),
       t('terms.subscription.cancel'),
       t('terms.subscription.refunds'),
-    ].join(' ') },
+    ] },
     { label: t('terms.ai.title'), body: t('terms.ai.body') },
     { label: t('terms.noMedicalAdvice.title'), body: t('terms.noMedicalAdvice.body') },
     { label: t('terms.warranty.title'), body: t('terms.warranty.body') },
@@ -33,10 +33,10 @@ export default function TermsPage() {
   ]
 
   return (
-    <div className="flex flex-col min-h-[100dvh]">
+    <div className="mx-auto flex min-h-[100dvh] max-w-[var(--app-max-w)] flex-col">
       <AppBar
         back
-        backLabel={t('common.backToProfile')}
+        backLabel={t('common.goBack')}
         onBack={() => goBackOrFallback(isAuthenticated ? '/' : '/login')}
         title={t('terms.title')}
         subtitle={t('terms.lastUpdated')}
@@ -45,7 +45,23 @@ export default function TermsPage() {
         {sections.map(({ label, body }) => (
           <div key={label}>
             <SectionLabel>{label}</SectionLabel>
-            <div className="t-secondary px-5 pb-[18px]">{body}</div>
+            {Array.isArray(body) ? (
+              <div className="flex flex-col px-5 pb-[18px]" style={{ gap: 6 }}>
+                {body.map((line, index) => (
+                  <div
+                    key={`${label}-${index}`}
+                    className="t-secondary"
+                    style={{ textWrap: 'pretty' }}
+                  >
+                    {line}
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="t-secondary px-5 pb-[18px]" style={{ textWrap: 'pretty' }}>
+                {body}
+              </div>
+            )}
           </div>
         ))}
       </div>

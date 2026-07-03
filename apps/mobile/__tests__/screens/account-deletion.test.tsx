@@ -186,7 +186,7 @@ vi.mock('@/app/(tabs)/profile/_components/profile-nav-card', () => ({
   ProfileNavCard: () => null,
 }))
 
-vi.mock('@/app/(tabs)/profile/_components/profile-nav-icon', () => ({
+vi.mock('@/components/profile/profile-nav-icon', () => ({
   ProfileNavIcon: () => null,
 }))
 
@@ -214,6 +214,7 @@ vi.mock('@/hooks/use-profile', () => ({
 vi.mock('@/hooks/use-gamification', () => ({
   useGamificationProfile: mocks.useGamificationProfile,
   useReportEvent: () => ({ mutate: vi.fn() }),
+  useStreakInfo: () => ({ data: { currentStreak: 0, isFrozenToday: false } }),
 }))
 
 vi.mock('@/stores/auth-store', () => ({

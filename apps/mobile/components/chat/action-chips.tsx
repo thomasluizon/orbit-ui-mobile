@@ -129,8 +129,8 @@ export function ActionChips({ actions, onChipClick }: Readonly<ActionChipsProps>
                   {
                     backgroundColor: style.bg,
                     borderColor: style.border,
-                    opacity: pressed ? 0.7 : 1,
                   },
+                  pressed && styles.chipPressed,
                 ]}
               >
                 <IconComponent size={16} color={style.text} strokeWidth={1.8} />
@@ -209,6 +209,10 @@ function createStyles(tokens: AppTokens) {
       borderRadius: radius.full,
       borderWidth: 1,
       alignSelf: "flex-start",
+    },
+    chipPressed: {
+      transform: [{ scale: 0.96 }],
+      backgroundColor: tokens.bgElev2,
     },
     chipText: {
       fontFamily: 'Rubik_500Medium',

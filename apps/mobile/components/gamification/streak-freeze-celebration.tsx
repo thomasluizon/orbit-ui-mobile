@@ -15,10 +15,12 @@ import {
   View,
 } from 'react-native'
 import { useTranslation } from 'react-i18next'
-import { createTokensV2 } from '@/lib/theme'
+import { createTokensV2, easings } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
+import { toAnimatedEasing } from '@/lib/motion'
 import { useDateFormat } from '@/hooks/use-date-format'
 import { useProfile } from '@/hooks/use-profile'
+import { rgbaFromHex } from '@/app/streak-sections-styles'
 import { GradientTop } from '@/components/ui/gradient-top'
 import { useCelebrationEntrance } from './celebration-motion'
 import { RingMotif } from './ring-motif'
@@ -43,7 +45,7 @@ export const StreakFreezeCelebration = forwardRef<StreakFreezeCelebrationHandle>
     const { profile } = useProfile()
     const { displayDate } = useDateFormat()
 
-    const overlayOpacity = useRef(new Animated.Value(0)).current
+    const overlayOpacity = useMemo(() => new Animated.Value(0), [])
     const dismissTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
     const isShowingRef = useRef(false)
     const [celebrationActive, setCelebrationActive] = useState(false)
@@ -54,7 +56,8 @@ export const StreakFreezeCelebration = forwardRef<StreakFreezeCelebrationHandle>
       if (dismissTimerRef.current) clearTimeout(dismissTimerRef.current)
       Animated.timing(overlayOpacity, {
         toValue: 0,
-        duration: 300,
+        duration: 280,
+        easing: toAnimatedEasing(easings.out),
         useNativeDriver: true,
       }).start(() => {
         isShowingRef.current = false
@@ -70,7 +73,8 @@ export const StreakFreezeCelebration = forwardRef<StreakFreezeCelebrationHandle>
       overlayOpacity.setValue(0)
       Animated.timing(overlayOpacity, {
         toValue: 1,
-        duration: 300,
+        duration: 280,
+        easing: toAnimatedEasing(easings.out),
         useNativeDriver: true,
       }).start()
 
@@ -117,7 +121,7 @@ export const StreakFreezeCelebration = forwardRef<StreakFreezeCelebrationHandle>
                   style={[
                     styles.heroDisc,
                     {
-                      backgroundColor: `${tokens.statusFrozen}29`,
+                      backgroundColor: rgbaFromHex(tokens.statusFrozen, 0.16),
                       shadowColor: tokens.statusFrozen,
                     },
                     orbStyle,

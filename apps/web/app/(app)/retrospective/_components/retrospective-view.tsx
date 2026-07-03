@@ -4,6 +4,7 @@ import { useTranslations } from 'next-intl'
 import type { RetrospectivePeriod } from '@/hooks/use-retrospective'
 import type { RetrospectiveResponse } from '@orbit/shared/utils/retrospective'
 import { Chip } from '@/components/ui/chip'
+import { OfflineUnavailableState } from '@/components/ui/offline-unavailable-state'
 import { RetrospectiveDashboard } from './retrospective-dashboard'
 import { RetrospectiveEmptyState } from './retrospective-empty-state'
 import { RetrospectiveNoDataState } from './retrospective-no-data-state'
@@ -13,7 +14,7 @@ interface RetrospectiveViewProps {
   activePeriod: RetrospectivePeriod
   data: RetrospectiveResponse | null
   isLoading: boolean
-  hasError: boolean
+  errorMessage: string | null
   noData: boolean
   fromCache: boolean
   isOnline: boolean
@@ -26,7 +27,7 @@ export function RetrospectiveView({
   activePeriod,
   data,
   isLoading,
-  hasError,
+  errorMessage,
   noData,
   fromCache,
   isOnline,
@@ -37,6 +38,16 @@ export function RetrospectiveView({
 
   return (
     <>
+      {!isOnline && (
+        <div style={{ padding: '14px 20px 0' }}>
+          <OfflineUnavailableState
+            title={t('offline.title')}
+            description={t('offline.description')}
+            compact
+          />
+        </div>
+      )}
+
       <div
         className="flex items-center"
         style={{
@@ -67,9 +78,9 @@ export function RetrospectiveView({
             >
               {t('retrospective.generating')}
             </span>
-            <div className="animate-pulse" style={{ width: '60%', height: 7, background: 'var(--bg-card)', borderRadius: 4 }} />
-            <div className="animate-pulse" style={{ width: '80%', height: 7, background: 'var(--bg-card)', borderRadius: 4 }} />
-            <div className="animate-pulse" style={{ width: '40%', height: 7, background: 'var(--bg-card)', borderRadius: 4 }} />
+            <div className="animate-pulse" style={{ width: '60%', height: 7, background: 'var(--bg-card)', borderRadius: 999 }} />
+            <div className="animate-pulse" style={{ width: '80%', height: 7, background: 'var(--bg-card)', borderRadius: 999 }} />
+            <div className="animate-pulse" style={{ width: '40%', height: 7, background: 'var(--bg-card)', borderRadius: 999 }} />
           </div>
         )}
 
@@ -86,14 +97,15 @@ export function RetrospectiveView({
           <RetrospectiveNoDataState isOnline={isOnline} onGenerate={onGenerate} />
         )}
 
-        {!isLoading && !data && !noData && hasError && (
+        {!isLoading && !data && !noData && errorMessage && (
           <div style={{ padding: '32px 20px', textAlign: 'center' }}>
             <p style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--status-bad)' }}>
-              {t('retrospective.error')}
+              {errorMessage || t('retrospective.error')}
             </p>
             <button
               type="button"
               onClick={onGenerate}
+              disabled={!isOnline}
               className="chip"
               style={{ marginTop: 10 }}
             >
@@ -102,7 +114,7 @@ export function RetrospectiveView({
           </div>
         )}
 
-        {!isLoading && !data && !noData && !hasError && (
+        {!isLoading && !data && !noData && !errorMessage && (
           <RetrospectiveEmptyState isOnline={isOnline} onGenerate={onGenerate} />
         )}
       </div>

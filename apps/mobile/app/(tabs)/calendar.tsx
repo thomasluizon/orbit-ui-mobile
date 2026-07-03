@@ -3,6 +3,7 @@ import { useTourTarget } from "@/hooks/use-tour-target";
 import { useTourScrollContainer } from "@/hooks/use-tour-scroll-container";
 import {
   View,
+  Text,
   StyleSheet,
   FlatList,
   ScrollView,
@@ -49,13 +50,16 @@ import { createTokensV2 } from "@/lib/theme";
 import { useAppTheme } from "@/lib/use-app-theme";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { BottomSheetModal } from "@/components/bottom-sheet-modal";
+import { EmptyState } from "@/components/ui/empty-state";
 import { GradientTop } from "@/components/ui/gradient-top";
+import { PillButton } from "@/components/ui/pill-button";
 import { SectionLabel } from "@/components/ui/section-label";
 import { SectionHeadTabs } from "@/components/ui/section-head-tabs";
 import {
   CalendarHeader,
   CalendarLegend,
 } from "./calendar/_components/calendar-shell";
+import { CalendarLoadingBar } from "./calendar/_components/calendar-loading-bar";
 import {
   CalendarGrid,
   type GridDay,
@@ -103,6 +107,7 @@ export default function CalendarScreen() {
   );
   const [monthSlide, setMonthSlide] = useState<MonthSlide>(null);
   const [weekAnchor, setWeekAnchor] = useState(() => new Date());
+  const [weekSlide, setWeekSlide] = useState<MonthSlide>(null);
   const [rangeStart, setRangeStart] = useState(() => formatAPIDate(new Date()));
   const [rangeEnd, setRangeEnd] = useState(() => formatAPIDate(new Date()));
   const [awaitingEnd, setAwaitingEnd] = useState(false);
@@ -113,7 +118,8 @@ export default function CalendarScreen() {
   const [isDayDetailOpen, setIsDayDetailOpen] = useState(false);
   const [showRecurring, setShowRecurring] = useState(true);
 
-  const { dayMap, isLoading } = useCalendarData(currentMonth);
+  const { dayMap, isLoading, isFetching, error, refresh } =
+    useCalendarData(currentMonth);
 
   const weekStart = useMemo(
     () => startOfWeek(weekAnchor, { weekStartsOn }),
@@ -132,11 +138,13 @@ export default function CalendarScreen() {
   const gridStartDate = view === "week" ? weekStart : rangeBounds.lo;
   const gridEndDate = view === "week" ? weekEnd : rangeBounds.hi;
 
-  const { dayMap: rangeDayMap } = useCalendarRange(
-    gridStartDate,
-    gridEndDate,
-    view !== "month",
-  );
+  const {
+    dayMap: rangeDayMap,
+    isLoading: rangeLoading,
+    isFetching: rangeFetching,
+    error: rangeError,
+    refresh: rangeRefresh,
+  } = useCalendarRange(gridStartDate, gridEndDate, view !== "month");
 
   const gridColumns = useMemo<TimeGridColumn[]>(() => {
     const days =
@@ -196,9 +204,18 @@ export default function CalendarScreen() {
     setCurrentMonth(startOfMonth(new Date()));
   }, []);
 
-  const prevWeek = useCallback(() => setWeekAnchor((a) => subWeeks(a, 1)), []);
-  const nextWeek = useCallback(() => setWeekAnchor((a) => addWeeks(a, 1)), []);
-  const goToCurrentWeek = useCallback(() => setWeekAnchor(new Date()), []);
+  const prevWeek = useCallback(() => {
+    setWeekSlide("left");
+    setWeekAnchor((a) => subWeeks(a, 1));
+  }, []);
+  const nextWeek = useCallback(() => {
+    setWeekSlide("right");
+    setWeekAnchor((a) => addWeeks(a, 1));
+  }, []);
+  const goToCurrentWeek = useCallback(() => {
+    setWeekSlide(null);
+    setWeekAnchor(new Date());
+  }, []);
 
   const swipeGesture = useHorizontalSwipe({
     onSwipeLeft: nextMonth,
@@ -291,6 +308,9 @@ export default function CalendarScreen() {
   }, [currentMonth, dayMap, weekStartsOn]);
 
   const activeDayMap = view === "month" ? dayMap : rangeDayMap;
+  const activeFetching = view === "month" ? isFetching : rangeFetching;
+  const activeError = view === "month" ? error : rangeError;
+  const activeRefresh = view === "month" ? refresh : rangeRefresh;
 
   const selectedEntries = useMemo(() => {
     if (!selectedDay) return [];
@@ -305,7 +325,9 @@ export default function CalendarScreen() {
   const formattedSelectedDate = useMemo(() => {
     if (!selectedDay) return "";
     const date = parseAPIDate(selectedDay);
-    return format(date, "EEEE, MMM d", { locale: dateFnsLocale });
+    return capitalizeFirstLetter(
+      format(date, "EEEE, MMM d", { locale: dateFnsLocale }),
+    );
   }, [dateFnsLocale, selectedDay]);
 
   const completedCount = filteredEntries.filter(
@@ -337,7 +359,8 @@ export default function CalendarScreen() {
         currentStreak = 0;
       }
     }
-    return { totalLogs, missed, bestStreak };
+    const hasEntries = monthDays.some((d) => d.totalCount > 0);
+    return { totalLogs, missed, bestStreak, hasEntries };
   }, [gridDays]);
 
   const monthStatTiles = useMemo(
@@ -401,8 +424,14 @@ export default function CalendarScreen() {
 
   const listFooter = (
     <View style={styles.listFooter}>
-      <SectionLabel>{t("calendar.thisMonth")}</SectionLabel>
-      <CalendarStats stats={monthStatTiles} />
+      {!isLoading && !monthStats.hasEntries ? (
+        <EmptyState description={t("calendar.emptyMonth")} />
+      ) : (
+        <>
+          <SectionLabel>{t("calendar.thisMonth")}</SectionLabel>
+          <CalendarStats stats={monthStatTiles} />
+        </>
+      )}
 
       <View style={{ height: 24 }} />
     </View>
@@ -428,7 +457,25 @@ export default function CalendarScreen() {
         />
       ) : null}
 
-      {view === "month" ? (
+      <CalendarLoadingBar active={activeFetching} tokens={tokens} />
+
+      {activeError ? (
+        <View style={styles.errorWrap}>
+          <View
+            style={[
+              styles.errorCard,
+              { backgroundColor: tokens.bgCard, borderColor: tokens.hairline },
+            ]}
+          >
+            <Text style={[styles.errorText, { color: tokens.fg2 }]}>
+              {t("calendar.loadError")}
+            </Text>
+            <PillButton variant="ghost" onPress={activeRefresh}>
+              {t("common.retry")}
+            </PillButton>
+          </View>
+        </View>
+      ) : view === "month" ? (
         <FlatList
           ref={calendarScrollRef}
           style={styles.container}
@@ -455,6 +502,8 @@ export default function CalendarScreen() {
               previousWeekLabel={t("common.previousWeek")}
               nextWeekLabel={t("common.nextWeek")}
               currentWeekLabel={t("calendar.goToCurrentWeek")}
+              slideDirection={weekSlide}
+              isLoading={rangeLoading}
               onPreviousWeek={prevWeek}
               onNextWeek={nextWeek}
               onCurrentWeek={goToCurrentWeek}
@@ -466,6 +515,7 @@ export default function CalendarScreen() {
               showRecurring={showRecurring}
               onShowRecurringChange={setShowRecurring}
               showRecurringLabel={t("calendar.showRecurring")}
+              t={t}
               tokens={tokens}
             />
           ) : (
@@ -483,6 +533,8 @@ export default function CalendarScreen() {
                 max: MAX_RANGE_DAYS,
               })}
               isClamped={rangeClamped}
+              isAwaitingEnd={awaitingEnd}
+              isRangeLoading={rangeLoading}
               onSelectDay={onSelectDay}
               displayTime={displayTime}
               language={i18n.language}
@@ -537,6 +589,24 @@ function createStyles() {
 
     listFooter: {
       paddingTop: 4,
+    },
+
+    errorWrap: {
+      paddingHorizontal: 20,
+      paddingVertical: 12,
+    },
+    errorCard: {
+      alignItems: "center",
+      gap: 14,
+      paddingVertical: 28,
+      paddingHorizontal: 18,
+      borderRadius: 18,
+      borderWidth: 1,
+    },
+    errorText: {
+      fontFamily: "Rubik_400Regular",
+      fontSize: 14,
+      textAlign: "center",
     },
 
     sheetScroll: {

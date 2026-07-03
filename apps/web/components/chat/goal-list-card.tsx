@@ -16,7 +16,7 @@ export function GoalListCard({ goalList }: Readonly<{ goalList: GoalListCardData
   return (
     <div
       data-slot="goal-list-card"
-      className="mt-2 w-full overflow-hidden rounded-[16px]"
+      className="mt-2 w-full md:max-w-[65ch] overflow-hidden rounded-[16px]"
       style={{ background: 'var(--bg-elev)', boxShadow: 'inset 0 0 0 1px var(--hairline)' }}
     >
       {goalList.items.length === 0 ? (
@@ -44,8 +44,13 @@ export function GoalListCard({ goalList }: Readonly<{ goalList: GoalListCardData
                   {item.title}
                 </span>
                 <span
-                  className="shrink-0 text-[11px] font-semibold"
-                  style={{ color: 'var(--primary)', fontVariantNumeric: 'tabular-nums' }}
+                  className="shrink-0 text-[11px]"
+                  style={{
+                    fontFamily: 'var(--font-mono)',
+                    fontWeight: 500,
+                    color: 'var(--primary)',
+                    fontVariantNumeric: 'tabular-nums',
+                  }}
                 >
                   {t('chat.goalList.percentage', { pct: percentage })}
                 </span>
@@ -69,7 +74,11 @@ export function GoalListCard({ goalList }: Readonly<{ goalList: GoalListCardData
               <div className="flex items-center gap-2">
                 <span
                   className="min-w-0 flex-1 truncate text-[11px]"
-                  style={{ color: 'var(--fg-3)', fontVariantNumeric: 'tabular-nums' }}
+                  style={{
+                    fontFamily: 'var(--font-mono)',
+                    color: 'var(--fg-3)',
+                    fontVariantNumeric: 'tabular-nums',
+                  }}
                 >
                   {t('chat.goalList.progress', {
                     current: item.current,
@@ -78,7 +87,14 @@ export function GoalListCard({ goalList }: Readonly<{ goalList: GoalListCardData
                   })}
                 </span>
                 {item.deadline && (
-                  <span className="shrink-0 text-[11px]" style={{ color: 'var(--fg-3)' }}>
+                  <span
+                    className="shrink-0 text-[11px]"
+                    style={{
+                      fontFamily: 'var(--font-mono)',
+                      color: 'var(--fg-3)',
+                      fontVariantNumeric: 'tabular-nums',
+                    }}
+                  >
                     {t('chat.goalList.deadline', {
                       date: formatGoalMetricsDate(item.deadline, locale),
                     })}

@@ -22,6 +22,7 @@ import {
   translateErrorKey,
   validateGoalDraftInput,
 } from '@orbit/shared/utils'
+import { MAX_GOAL_TITLE_LENGTH, MAX_GOAL_UNIT_LENGTH } from '@orbit/shared/validation'
 import { createTokensV2, primaryGlow, type AppTokensV2 } from '@/lib/theme'
 import { usePrefersReducedMotion } from '@/lib/motion'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -212,7 +213,7 @@ export function OnboardingCreateGoal({
         value={description}
         onChangeText={setDescription}
         placeholder={t('onboarding.flow.createGoal.descriptionPlaceholder')}
-        maxLength={200}
+        maxLength={MAX_GOAL_TITLE_LENGTH}
         editable={!isCreating}
       />
 
@@ -232,7 +233,7 @@ export function OnboardingCreateGoal({
             value={unit}
             onChangeText={setUnit}
             placeholder={t('onboarding.flow.createGoal.unitPlaceholder')}
-            maxLength={50}
+            maxLength={MAX_GOAL_UNIT_LENGTH}
             editable={!isCreating}
           />
         </View>
@@ -274,7 +275,7 @@ export function OnboardingCreateGoal({
       <Pressable
         disabled={isCreating}
         onPress={onSkip}
-        style={styles.skipBtn}
+        style={({ pressed }) => [styles.skipBtn, pressed && styles.textButtonPressed]}
         accessibilityRole="button"
       >
         <Text style={styles.skipBtnText}>
@@ -338,6 +339,10 @@ function createStyles(tokens: AppTokensV2) {
       minHeight: 44,
       alignItems: 'center',
       justifyContent: 'center',
+    },
+    textButtonPressed: {
+      transform: [{ scale: 0.96 }],
+      opacity: 0.7,
     },
     skipBtnText: {
       fontFamily: 'Rubik_400Regular',

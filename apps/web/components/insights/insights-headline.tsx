@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo } from 'react'
-import { useLocale } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import { TrendingDown, TrendingUp } from 'lucide-react'
 import { parseAPIDate } from '@orbit/shared/utils'
 
@@ -11,6 +11,8 @@ interface InsightsHeadlineProps {
   /** The change versus the start of the range, already formatted (absolute). */
   delta?: string
   direction?: 'up' | 'down'
+  /** Optional qualifier rendered as a meta line under the value (e.g. "avg"). */
+  caption?: string
 }
 
 /**
@@ -18,17 +20,28 @@ interface InsightsHeadlineProps {
  * plus a small change chip versus the start of the range, so the chart below
  * reads as the supporting detail rather than the only number on screen.
  */
-export function InsightsHeadline({ value, delta, direction }: Readonly<InsightsHeadlineProps>) {
+export function InsightsHeadline({
+  value,
+  delta,
+  direction,
+  caption,
+}: Readonly<InsightsHeadlineProps>) {
+  const t = useTranslations()
+
   return (
     <div className="flex flex-col items-end gap-0.5">
       <span className="t-num" style={{ fontSize: 22, lineHeight: 1.1, color: 'var(--fg-1)' }}>
         {value}
       </span>
+      {caption ? <span className="t-meta">{caption}</span> : null}
       {delta && direction ? (
         <span
           className="t-meta inline-flex items-center gap-1"
           style={{ color: direction === 'up' ? 'var(--primary)' : 'var(--fg-3)' }}
         >
+          <span className="sr-only">
+            {t(direction === 'up' ? 'insights.trendUp' : 'insights.trendDown')}
+          </span>
           {direction === 'up' ? (
             <TrendingUp size={13} strokeWidth={2} aria-hidden />
           ) : (

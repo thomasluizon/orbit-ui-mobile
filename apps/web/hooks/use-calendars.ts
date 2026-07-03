@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { calendarKeys } from '@orbit/shared/query'
 import { userCalendarsSchema } from '@orbit/shared/types/calendar'
 import type { UserCalendar } from '@orbit/shared/types/calendar'
+import { isCalendarSyncNotConnectedMessage } from '@orbit/shared/utils'
 import {
   getUserCalendars as getUserCalendarsAction,
   setSelectedCalendars as setSelectedCalendarsAction,
@@ -21,8 +22,18 @@ export function useCalendars(options?: CalendarsQueryOptions) {
   return useQuery<UserCalendar[]>({
     queryKey: calendarKeys.calendars(),
     queryFn: async () => {
-      const raw = await getUserCalendarsAction()
-      return userCalendarsSchema.parse(raw)
+      try {
+        const raw = await getUserCalendarsAction()
+        return userCalendarsSchema.parse(raw)
+      } catch (error) {
+        if (
+          error instanceof Error &&
+          isCalendarSyncNotConnectedMessage(error.message.toLowerCase())
+        ) {
+          return []
+        }
+        throw error
+      }
     },
     enabled: options?.enabled ?? true,
     staleTime: 30 * 1000,

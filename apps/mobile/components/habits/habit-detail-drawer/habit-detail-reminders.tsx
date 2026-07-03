@@ -14,18 +14,21 @@ export function HabitDetailReminders({
   displayTime,
 }: Readonly<HabitDetailRemindersProps>) {
   const { t } = useTranslation()
-  if (!habit.dueTime) return null
+  const hasScheduledReminders = (habit.scheduledReminders?.length ?? 0) > 0
+  if (!habit.dueTime && !hasScheduledReminders) return null
   return (
     <View>
       <SectionLabel top={8} bottom={0}>
         {t('habits.detail.reminders')}
       </SectionLabel>
-      <SettingsRow
-        label={t('habits.form.dueTime')}
-        value={displayTime(habit.dueTime)}
-        mono
-        accessory="none"
-      />
+      {habit.dueTime ? (
+        <SettingsRow
+          label={t('habits.form.dueTime')}
+          value={displayTime(habit.dueTime)}
+          mono
+          accessory="none"
+        />
+      ) : null}
       {habit.scheduledReminders?.map((sr, idx) => (
         <SettingsRow
           key={`${sr.when}-${sr.time}-${idx}`}

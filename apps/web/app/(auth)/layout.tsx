@@ -11,7 +11,7 @@ export default function AuthLayout({
 }>) {
   return (
     <div
-      className="relative flex flex-col items-center justify-center overflow-hidden"
+      className="relative flex flex-col items-center overflow-x-hidden overflow-y-auto"
       style={{
         minHeight: '100dvh',
         background: 'var(--bg)',
@@ -20,7 +20,7 @@ export default function AuthLayout({
       }}
     >
       <GradientTop height={320} />
-      <RouteTransitionShell className="relative z-[1] w-full flex justify-center">
+      <RouteTransitionShell className="relative z-[1] my-auto w-full flex justify-center">
         {children}
       </RouteTransitionShell>
     </div>

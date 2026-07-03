@@ -87,7 +87,7 @@ describe('StreakPage', () => {
 
   it('renders the page header with title and back button', () => {
     render(<StreakPage />)
-    expect(screen.getByText('streakDisplay.detail.title')).toBeInTheDocument()
+    expect(screen.getByText('streakDisplay.title')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'common.backToProfile' })).toBeInTheDocument()
   })
 
@@ -96,7 +96,7 @@ describe('StreakPage', () => {
     mockStreakQuery = { isLoading: true, data: null }
     mockStreakInfo = null
     const { container } = render(<StreakPage />)
-    const pulseElements = container.querySelectorAll('.animate-pulse')
+    const pulseElements = container.querySelectorAll('.skeleton-pulse')
     expect(pulseElements.length).toBeGreaterThan(0)
   })
 

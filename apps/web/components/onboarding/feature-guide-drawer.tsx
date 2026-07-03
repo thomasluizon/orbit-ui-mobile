@@ -126,23 +126,7 @@ export function FeatureGuideDrawer({ open, onOpenChange }: Readonly<FeatureGuide
                 type="button"
                 role="tab"
                 aria-selected={isActive}
-                tabIndex={isActive ? 0 : -1}
-                className={
-                  'appearance-none cursor-pointer inline-flex items-center whitespace-nowrap shrink-0 transition-[background-color,color,box-shadow] duration-[var(--dur-fast)] ease-[var(--ease-standard)] ' +
-                  (isActive
-                    ? 'bg-[var(--bg-elev)] text-[var(--fg-1)]'
-                    : 'bg-transparent text-[var(--fg-3)] hover:bg-[var(--bg-elev)] hover:text-[var(--fg-1)]')
-                }
-                style={{
-                  height: 30,
-                  padding: '0 14px',
-                  borderRadius: 999,
-                  boxShadow: isActive ? undefined : 'inset 0 0 0 1px var(--hairline)',
-                  border: 0,
-                  fontFamily: 'var(--font-sans)',
-                  fontSize: 13,
-                  fontWeight: 500,
-                }}
+                className={isActive ? 'chip chip-active' : 'chip'}
                 onClick={() => setActiveSection(tab.key)}
               >
                 {t(tab.labelKey)}

@@ -54,7 +54,7 @@ describe('GoalProgressSection', () => {
     expect(screen.getByLabelText('insights.sections.selectGoal')).toBeInTheDocument()
     expect(screen.getByRole('option', { name: 'Run a marathon' })).toBeInTheDocument()
     expect(
-      screen.getByRole('img', { name: 'insights.sections.goalProgress' }),
+      screen.getByRole('img', { name: /insights\.sections\.goalProgress/ }),
     ).toBeInTheDocument()
   })
 })

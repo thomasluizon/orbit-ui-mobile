@@ -8,7 +8,7 @@ describe('Badge', () => {
     expect(screen.getByText('Premium')).toBeInTheDocument()
   })
 
-  it.each<BadgeTone>(['violet', 'soft', 'outline', 'amber'])(
+  it.each<BadgeTone>(['violet', 'soft', 'outline', 'amber', 'bad'])(
     'renders the %s tone',
     (tone) => {
       render(<Badge tone={tone}>{tone}</Badge>)

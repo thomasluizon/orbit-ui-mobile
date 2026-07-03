@@ -34,12 +34,11 @@ function baseProps() {
 }
 
 describe('RetrospectiveLockedStates', () => {
-  it('renders the pro-locked block with an upgrade link when not pro', () => {
-    render(<RetrospectiveLockedStates {...{ ...baseProps(), hasProAccess: false }} />)
-    expect(screen.getByText('retrospective.locked')).toBeInTheDocument()
-    expect(
-      screen.getByRole('link', { name: 'upgrade.subscribe' }),
-    ).toHaveAttribute('href', '/upgrade')
+  it('renders nothing when the user lacks pro access (the page redirects to upgrade)', () => {
+    const { container } = render(
+      <RetrospectiveLockedStates {...{ ...baseProps(), hasProAccess: false }} />,
+    )
+    expect(container.innerHTML).toBe('')
   })
 
   it('renders the yearly-locked block with a change-plan button for paid monthly users', () => {

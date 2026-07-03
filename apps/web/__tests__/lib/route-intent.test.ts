@@ -28,4 +28,13 @@ describe('route intent helpers', () => {
 
     expect(getCurrentRouteTransitionIntent()).toBe('neutral')
   })
+
+  it('marks browser history traversal as a back navigation', () => {
+    resetRouteTransitionIntent()
+
+    window.dispatchEvent(new PopStateEvent('popstate'))
+
+    expect(getCurrentRouteTransitionIntent()).toBe('back')
+    resetRouteTransitionIntent()
+  })
 })

@@ -1,6 +1,8 @@
-import { View, Text, TouchableOpacity } from "react-native";
+import { View, Text, Pressable } from "react-native";
 import { X, PenSquare } from "lucide-react-native";
 import { type AppTokens, createStyles } from "./styles";
+
+const SELECTED_TAG_FOREGROUND = "#FFFFFF";
 
 interface HabitTagChipProps {
   tag: { id: string; name: string; color: string };
@@ -35,57 +37,69 @@ export function HabitTagChip({
         styles.tagChip,
         selected && { backgroundColor: tag.color },
         !selected && styles.tagChipInactive,
-        !selected && atLimit && { opacity: 0.3 },
+        !selected && atLimit && { opacity: 0.45 },
       ]}
     >
-      <TouchableOpacity
-        style={styles.tagChipMain}
+      <Pressable
+        style={({ pressed }) => [
+          styles.tagChipMain,
+          pressed && { transform: [{ scale: 0.96 }] },
+        ]}
+        hitSlop={{ top: 4, bottom: 4 }}
         disabled={!selected && atLimit}
         accessibilityRole="button"
         accessibilityState={{ selected }}
         accessibilityLabel={tag.name}
         onPress={onToggle}
-        activeOpacity={0.7}
       >
         {!selected && (
           <View style={[styles.tagDot, { backgroundColor: tag.color }]} />
         )}
         <Text
-          style={[styles.tagChipText, selected && { color: tokens.fgOnPrimary }]}
+          style={[
+            styles.tagChipText,
+            selected && { color: SELECTED_TAG_FOREGROUND },
+          ]}
         >
           {tag.name}
         </Text>
-      </TouchableOpacity>
-      <TouchableOpacity
-        style={styles.tagAction}
+      </Pressable>
+      <Pressable
+        style={({ pressed }) => [
+          styles.tagAction,
+          disabled && { opacity: 0.45 },
+          pressed && { transform: [{ scale: 0.96 }] },
+        ]}
         disabled={disabled}
         accessibilityRole="button"
         accessibilityLabel={editAriaLabel}
         hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
         onPress={onEdit}
-        activeOpacity={0.7}
       >
         <PenSquare
           size={13}
           strokeWidth={1.8}
-          color={selected ? tokens.fgOnPrimary : tokens.fg3}
+          color={selected ? SELECTED_TAG_FOREGROUND : tokens.fg3}
         />
-      </TouchableOpacity>
-      <TouchableOpacity
-        style={styles.tagAction}
+      </Pressable>
+      <Pressable
+        style={({ pressed }) => [
+          styles.tagAction,
+          disabled && { opacity: 0.45 },
+          pressed && { transform: [{ scale: 0.96 }] },
+        ]}
         disabled={disabled}
         accessibilityRole="button"
         accessibilityLabel={deleteAriaLabel}
         hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
         onPress={onDelete}
-        activeOpacity={0.7}
       >
         <X
           size={13}
           strokeWidth={1.8}
-          color={selected ? tokens.fgOnPrimary : tokens.fg3}
+          color={selected ? SELECTED_TAG_FOREGROUND : tokens.fg3}
         />
-      </TouchableOpacity>
+      </Pressable>
     </View>
   );
 }

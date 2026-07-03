@@ -1,9 +1,10 @@
 import { useMemo, useState } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
-import { Sparkles } from 'lucide-react-native'
+import { ArrowUpRight, Sparkles } from 'lucide-react-native'
 import { useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { AI_SUMMARY_CLAMP_CHARS } from '@orbit/shared/utils'
+import { Badge } from '@/components/ui/badge'
 import { useProfile } from '@/hooks/use-profile'
 import { useSummary } from '@/hooks/use-habits'
 import { createTokensV2, tintFromPrimary } from '@/lib/theme'
@@ -108,13 +109,21 @@ export function TodayAISummary({ date }: Readonly<TodayAISummaryProps>) {
           <View style={styles.headerRow}>
             <Sparkles size={16} color={tokens.primarySoft} strokeWidth={1.9} />
             <Text style={styles.eyebrow}>Astra</Text>
-            <Text style={styles.aiBadge}>{t('aiDisclosure.isAiLabel')}</Text>
+            <Badge tone="outline">{t('aiDisclosure.isAiLabel')}</Badge>
+            <View
+              style={styles.headerCue}
+              accessibilityElementsHidden
+              importantForAccessibility="no-hide-descendants"
+            >
+              <ArrowUpRight size={16} strokeWidth={1.8} color={tokens.fg3} />
+            </View>
           </View>
           {isSummaryText && insight ? (
             <View style={styles.insightPill}>
               <Text
                 style={styles.insightText}
-                numberOfLines={2}
+                numberOfLines={1}
+                ellipsizeMode="tail"
                 accessibilityLabel={`${t('summary.insightLabel')}: ${insight}`}
               >
                 {insight}
@@ -133,7 +142,7 @@ export function TodayAISummary({ date }: Readonly<TodayAISummaryProps>) {
                 event.stopPropagation()
                 setExpanded((current) => !current)
               }}
-              hitSlop={8}
+              hitSlop={{ top: 14, bottom: 14, left: 24, right: 24 }}
               accessibilityRole="button"
               accessibilityLabel={expanded ? t('common.seeLess') : t('common.seeMore')}
             >
@@ -180,6 +189,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
     insightPill: {
       alignSelf: 'flex-start',
       maxWidth: '100%',
+      flexShrink: 1,
       borderRadius: 999,
       paddingVertical: 4,
       paddingHorizontal: 11,
@@ -197,21 +207,12 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
     eyebrow: {
       fontFamily: 'Rubik_500Medium',
       fontSize: 12,
-      letterSpacing: 0.6,
+      letterSpacing: 0.96,
       textTransform: 'uppercase',
       color: tokens.primarySoft,
     },
-    aiBadge: {
-      fontFamily: 'Roboto_500Medium',
-      fontSize: 10,
-      letterSpacing: 0.6,
-      color: tokens.fg3,
-      borderWidth: 1,
-      borderColor: tokens.hairline,
-      borderRadius: 999,
-      paddingHorizontal: 7,
-      paddingVertical: 1,
-      overflow: 'hidden',
+    headerCue: {
+      marginLeft: 'auto',
     },
     message: {
       fontFamily: 'Rubik_400Regular',
@@ -227,8 +228,8 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
     },
     disclaimer: {
       fontFamily: 'Rubik_400Regular',
-      fontSize: 11,
-      lineHeight: 15,
+      fontSize: 12,
+      lineHeight: 17,
       color: tokens.fg3,
       marginTop: 6,
     },

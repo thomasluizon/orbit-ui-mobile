@@ -381,7 +381,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(function Ha
         assumeCompletedId,
       })
     },
-    [promptDataRef],
+    [promptDataRef, skippedChildIdsRef],
   )
 
   const dateGroups = useMemo<HabitListDateGroup[]>(() => {
@@ -918,7 +918,7 @@ const isPostponeAction = useMemo(() => {
           <div className="flex items-center" style={{ padding: '4px 20px 10px', gap: 12 }}>
             <button
               aria-label={t('common.goBack')}
-              className="shrink-0 appearance-none border-0 bg-transparent cursor-pointer flex items-center justify-center text-[var(--fg-1)] transition-[background-color] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev)]"
+              className="touch-target shrink-0 appearance-none border-0 bg-transparent cursor-pointer flex items-center justify-center text-[var(--fg-1)] transition-[background-color] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev)]"
               style={{
                 width: 40,
                 height: 40,
@@ -963,14 +963,14 @@ const isPostponeAction = useMemo(() => {
               className="flex items-center appearance-none border-0 bg-transparent cursor-pointer text-[var(--primary)] hover:text-[var(--primary-pressed)] transition-colors"
               style={{
                 gap: 6,
-                padding: '0 20px 10px',
+                padding: '10px 20px',
                 fontFamily: 'var(--font-sans)',
                 fontSize: 13,
                 fontWeight: 500,
               }}
               onClick={drill.drillReset}
             >
-              <Home size={13} aria-hidden="true" />
+              <Home size={13} strokeWidth={1.8} aria-hidden="true" />
               {t('habits.backToHabits')}
             </button>
           )}
@@ -984,6 +984,9 @@ const isPostponeAction = useMemo(() => {
             getDrillChildren={drill.getDrillChildren}
             renderHabitCard={renderHabitCard}
             onAddSubHabit={startAddSubHabit}
+            onRetry={() => {
+              void drill.refreshCurrent()
+            }}
           />
         </>
       )
@@ -1019,17 +1022,19 @@ const isPostponeAction = useMemo(() => {
         <>
           {dateGroups.map((group) => (
             <HabitListDateGroupSection key={group.key} group={group} overdueLabel={t('habits.overdue')}>
-              {group.habits.map((habit) => (
-                <div key={habit.id}>
-                  {renderHabitCard(
-                    habit,
-                    0,
-                    getChildren(habit.id).length > 0,
-                    habit.hasSubHabits,
-                  )}
-                  {renderAllViewChildren(habit.id, 1)}
-                </div>
-              ))}
+              <div className="stagger-enter">
+                {group.habits.map((habit) => (
+                  <div key={habit.id}>
+                    {renderHabitCard(
+                      habit,
+                      0,
+                      getChildren(habit.id).length > 0,
+                      habit.hasSubHabits,
+                    )}
+                    {renderAllViewChildren(habit.id, 1)}
+                  </div>
+                ))}
+              </div>
             </HabitListDateGroupSection>
           ))}
         </>

@@ -39,7 +39,7 @@ export function GoalDeadlineField({
               onPress={() => onChangeDeadline('')}
               activeOpacity={0.7}
               accessibilityRole="button"
-              accessibilityLabel={t('common.clear')}
+              accessibilityLabel={t('goals.form.removeDeadline')}
             >
               <X size={16} color={tokens.fg4} strokeWidth={1.8} />
             </TouchableOpacity>
@@ -55,6 +55,7 @@ export function GoalDeadlineField({
           style={styles.addDeadlineButton}
           onPress={() => onChangeDeadline(formatAPIDate(new Date()))}
           activeOpacity={0.7}
+          hitSlop={{ top: 6, bottom: 6, left: 8, right: 8 }}
           accessibilityRole="button"
           accessibilityLabel={t('goals.form.addDeadline')}
         >

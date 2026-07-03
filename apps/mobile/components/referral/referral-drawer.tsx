@@ -1,5 +1,6 @@
 import { useMemo, useState, useCallback } from 'react'
 import {
+  AccessibilityInfo,
   ActivityIndicator,
   Pressable,
   ScrollView,
@@ -59,9 +60,10 @@ export function ReferralDrawer({ open, onClose }: Readonly<ReferralDrawerProps>)
   const copyLink = useCallback(() => {
     if (!referralUrl) return
     Clipboard.setString(referralUrl)
+    AccessibilityInfo.announceForAccessibility(t('referral.drawer.linkCopied'))
     setCopied(true)
     setTimeout(() => setCopied(false), 2000)
-  }, [referralUrl])
+  }, [referralUrl, t])
 
   return (
     <BottomSheetModal
@@ -82,7 +84,11 @@ export function ReferralDrawer({ open, onClose }: Readonly<ReferralDrawerProps>)
         ) : null}
 
         {isError && !isLoading ? (
-          <View style={styles.errorContainer}>
+          <View
+            style={styles.errorContainer}
+            accessibilityRole="alert"
+            accessibilityLiveRegion="polite"
+          >
             <Text style={styles.errorText}>
               {error?.message ?? t('errors.loadReferral')}
             </Text>
@@ -95,7 +101,7 @@ export function ReferralDrawer({ open, onClose }: Readonly<ReferralDrawerProps>)
               <View
                 style={[
                   styles.heroDisc,
-                  { backgroundColor: tintFromPrimary(tokens, 0.16) },
+                  { backgroundColor: tintFromPrimary(tokens, 0.15) },
                 ]}
               >
                 <Gift size={30} strokeWidth={1.8} color={tokens.primarySoft} />
@@ -112,33 +118,33 @@ export function ReferralDrawer({ open, onClose }: Readonly<ReferralDrawerProps>)
                 </Text>
                 <Pressable
                   style={({ pressed }) => [
-                    styles.copyChip,
-                    { backgroundColor: pressed ? tokens.bgElev2 : tokens.bgElev },
-                    pressed ? styles.copyChipPressed : null,
+                    styles.copyButton,
+                    pressed
+                      ? [styles.copyButtonPressed, { backgroundColor: tokens.bgElev }]
+                      : null,
                   ]}
-                  onPress={() => copyLink()}
+                  onPress={copyLink}
                   accessibilityRole="button"
-                  accessibilityLabel={t('referral.drawer.copy')}
+                  accessibilityLabel={t('referral.drawer.copyLink')}
                 >
                   {copied ? (
-                    <Check size={14} color={tokens.statusDone} strokeWidth={1.8} />
+                    <Check size={18} color={tokens.statusDone} strokeWidth={1.8} />
                   ) : (
-                    <Copy size={14} color={tokens.fg2} strokeWidth={1.8} />
+                    <Copy size={18} color={tokens.fg2} strokeWidth={1.8} />
                   )}
-                  <Text style={styles.copyChipText}>
-                    {copied ? t('referral.drawer.copied') : t('referral.drawer.copy')}
-                  </Text>
                 </Pressable>
               </View>
             </View>
 
-            <PillButton
-              fullWidth
-              onPress={doShare}
-              leading={<Share2 size={18} strokeWidth={1.8} color={tokens.fgOnPrimary} />}
-            >
-              {t('referral.drawer.share')}
-            </PillButton>
+            <View style={styles.gutter}>
+              <PillButton
+                fullWidth
+                onPress={doShare}
+                leading={<Share2 size={18} strokeWidth={1.8} color={tokens.fgOnPrimary} />}
+              >
+                {t('referral.drawer.share')}
+              </PillButton>
+            </View>
 
             {stats ? (
               <View>
@@ -147,6 +153,7 @@ export function ReferralDrawer({ open, onClose }: Readonly<ReferralDrawerProps>)
                   value={`${stats.successfulReferrals} / ${stats.maxReferrals}`}
                   mono
                   accessory="none"
+                  valueColor={tokens.fg1}
                 />
                 {stats.pendingReferrals > 0 ? (
                   <SettingsRow
@@ -175,12 +182,14 @@ export function ReferralDrawer({ open, onClose }: Readonly<ReferralDrawerProps>)
               </View>
             ) : null}
 
-            <InfoCard
-              title={t('referral.drawer.howItWorks')}
-              desc={t('referral.drawer.explanation', {
-                discount: discountPercent,
-              })}
-            />
+            <View style={styles.gutter}>
+              <InfoCard
+                title={t('referral.drawer.howItWorks')}
+                desc={t('referral.drawer.explanation', {
+                  discount: discountPercent,
+                })}
+              />
+            </View>
 
             <Text style={styles.disclaimer}>
               {t('referral.drawer.disclaimer', { discount: discountPercent })}
@@ -198,15 +207,19 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       flex: 1,
     },
     content: {
-      paddingHorizontal: 20,
       gap: 16,
       paddingBottom: 24,
     },
+    gutter: {
+      paddingHorizontal: 20,
+    },
     loadingContainer: {
       paddingVertical: 40,
+      paddingHorizontal: 20,
       alignItems: 'center',
     },
     errorContainer: {
+      marginHorizontal: 20,
       borderWidth: 1,
       borderColor: tokens.hairlineStrong,
       borderRadius: 14,
@@ -232,49 +245,42 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       flexDirection: 'row',
       alignItems: 'center',
       gap: 8,
+      marginHorizontal: 20,
       borderRadius: 14,
       borderWidth: 1,
       borderColor: tokens.hairline,
       backgroundColor: tokens.bgField,
       paddingLeft: 16,
       paddingRight: 6,
-      paddingVertical: 4,
+      paddingVertical: 5,
     },
     linkText: {
       flex: 1,
-      fontFamily: 'Roboto_400Regular',
+      fontFamily: 'Roboto_500Medium',
       fontSize: 16,
       fontVariant: ['tabular-nums'],
       color: tokens.fg1,
     },
-    copyChip: {
-      flexDirection: 'row',
+    copyButton: {
+      width: 44,
+      height: 44,
+      borderRadius: radius.full,
       alignItems: 'center',
       justifyContent: 'center',
-      gap: 7,
-      borderRadius: radius.full,
-      borderWidth: 1,
-      borderColor: tokens.hairline,
-      paddingHorizontal: 16,
-      minHeight: 40,
     },
-    copyChipPressed: {
+    copyButtonPressed: {
       transform: [{ scale: 0.96 }],
-    },
-    copyChipText: {
-      fontFamily: 'Rubik_500Medium',
-      fontSize: 13,
-      color: tokens.fg2,
     },
     progressBlock: {
       paddingHorizontal: 20,
       paddingVertical: 14,
     },
     disclaimer: {
+      paddingHorizontal: 20,
       fontFamily: 'Rubik_400Regular',
-      fontSize: 11,
+      fontSize: 12,
       color: tokens.fg3,
-      lineHeight: 16,
+      lineHeight: 18,
     },
   })
 }

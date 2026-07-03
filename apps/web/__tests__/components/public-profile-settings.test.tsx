@@ -100,7 +100,7 @@ describe('PublicProfileSettings', () => {
     setSettings(enabledSettings)
     render(<PublicProfileSettings />)
 
-    fireEvent.click(screen.getByText('profile.publicProfile.link.copy'))
+    fireEvent.click(screen.getByRole('button', { name: 'profile.publicProfile.link.copy' }))
 
     expect(writeText).toHaveBeenCalledWith(enabledSettings.shareUrl)
   })

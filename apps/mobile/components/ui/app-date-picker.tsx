@@ -1,5 +1,6 @@
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback, useEffect } from 'react'
 import {
+  Animated,
   Modal,
   View,
   Text,
@@ -23,6 +24,7 @@ import { useTranslation } from 'react-i18next'
 import { formatLocaleDate, splitMonthYear } from '@orbit/shared/utils'
 import { useProfile } from '@/hooks/use-profile'
 import { createTokensV2, radius, shadowsV2 } from '@/lib/theme'
+import { toAnimatedEasing, useResolvedMotionPreset } from '@/lib/motion'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { YearPicker } from '@/components/ui/year-picker'
 
@@ -49,8 +51,47 @@ export function AppDatePicker({
   const weekStartsOn = (profile?.weekStartDay ?? 0) as 0 | 1
   const locale = i18n.language
   const [isOpen, setIsOpen] = useState(false)
+  const [visible, setVisible] = useState(false)
   const [pickerMode, setPickerMode] = useState<'days' | 'years'>('days')
   const [viewDate, setViewDate] = useState(new Date())
+  const dialogMotion = useResolvedMotionPreset('dialog')
+  const progress = useMemo(() => new Animated.Value(0), [])
+
+  const [prevOpen, setPrevOpen] = useState(isOpen)
+  if (isOpen !== prevOpen) {
+    setPrevOpen(isOpen)
+    if (isOpen) setVisible(true)
+  }
+
+  useEffect(() => {
+    if (isOpen) {
+      Animated.timing(progress, {
+        toValue: 1,
+        duration: dialogMotion.enterDuration,
+        easing: toAnimatedEasing(dialogMotion.enterEasing),
+        useNativeDriver: true,
+      }).start()
+      return
+    }
+
+    Animated.timing(progress, {
+      toValue: 0,
+      duration: dialogMotion.exitDuration,
+      easing: toAnimatedEasing(dialogMotion.exitEasing),
+      useNativeDriver: true,
+    }).start(({ finished }) => {
+      if (finished) {
+        setVisible(false)
+      }
+    })
+  }, [
+    dialogMotion.enterDuration,
+    dialogMotion.enterEasing,
+    dialogMotion.exitDuration,
+    dialogMotion.exitEasing,
+    isOpen,
+    progress,
+  ])
 
   const selectedDate = value ? parseISO(value) : null
 
@@ -108,7 +149,11 @@ export function AppDatePicker({
 
   const closePicker = useCallback(() => {
     setIsOpen(false)
+  }, [])
+
+  const openPicker = useCallback(() => {
     setPickerMode('days')
+    setIsOpen(true)
   }, [])
 
   function selectDay(day: Date) {
@@ -118,11 +163,20 @@ export function AppDatePicker({
 
   const displayValue = value ? formatLocaleDate(value, locale) : ''
 
+  const dialogTranslateY = progress.interpolate({
+    inputRange: [0, 1],
+    outputRange: [dialogMotion.shift, 0],
+  })
+  const dialogScale = progress.interpolate({
+    inputRange: [0, 1],
+    outputRange: [dialogMotion.scaleFrom, dialogMotion.scaleTo],
+  })
+
   return (
     <>
       <TouchableOpacity
         style={styles.trigger}
-        onPress={() => setIsOpen(true)}
+        onPress={openPicker}
         activeOpacity={0.7}
         accessibilityLabel={
           displayValue
@@ -143,27 +197,38 @@ export function AppDatePicker({
         <Calendar size={20} strokeWidth={1.8} color={tokens.fg4} />
       </TouchableOpacity>
 
-      <Modal
-        visible={isOpen}
-        transparent
-        animationType="fade"
-        onRequestClose={closePicker}
-      >
+      {visible ? (
+        <Modal
+          visible
+          transparent
+          animationType="none"
+          onRequestClose={closePicker}
+        >
         <TouchableOpacity
-          style={styles.backdrop}
+          style={styles.root}
           activeOpacity={1}
           onPress={closePicker}
           accessibilityRole="button"
           accessibilityLabel={t('common.close')}
         >
-          <View
-            style={styles.dialog}
+          <Animated.View
+            pointerEvents="none"
+            style={[styles.backdrop, { opacity: progress }]}
+          />
+          <Animated.View
+            style={[
+              styles.dialog,
+              {
+                opacity: progress,
+                transform: [{ translateY: dialogTranslateY }, { scale: dialogScale }],
+              },
+            ]}
             onStartShouldSetResponder={() => true}
           >
             <View style={styles.monthNav}>
               <TouchableOpacity
                 onPress={prevMonth}
-                hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
+                hitSlop={{ top: 13, bottom: 13, left: 13, right: 13 }}
                 accessibilityRole="button"
                 accessibilityLabel={t('common.previousMonth')}
                 disabled={pickerMode === 'years'}
@@ -180,7 +245,7 @@ export function AppDatePicker({
                   onPress={() =>
                     setPickerMode((mode) => (mode === 'years' ? 'days' : 'years'))
                   }
-                  hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
+                  hitSlop={{ top: 13, bottom: 13, left: 13, right: 13 }}
                   accessibilityRole="button"
                   accessibilityLabel={t('common.selectYear')}
                 >
@@ -197,7 +262,7 @@ export function AppDatePicker({
 
               <TouchableOpacity
                 onPress={nextMonth}
-                hitSlop={{ top: 8, bottom: 8, left: 6, right: 6 }}
+                hitSlop={{ top: 13, bottom: 13, left: 13, right: 13 }}
                 accessibilityRole="button"
                 accessibilityLabel={t('common.nextMonth')}
                 disabled={pickerMode === 'years'}
@@ -265,9 +330,10 @@ export function AppDatePicker({
                 ))}
               </>
             )}
-          </View>
+          </Animated.View>
         </TouchableOpacity>
-      </Modal>
+        </Modal>
+      ) : null}
     </>
   )
 }
@@ -280,7 +346,7 @@ function createStyles(tokens: AppTokens) {
       flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'space-between',
-      minHeight: 44,
+      minHeight: 54,
       backgroundColor: tokens.bgField,
       borderWidth: 1,
       borderColor: tokens.hairline,
@@ -298,12 +364,15 @@ function createStyles(tokens: AppTokens) {
     triggerPlaceholder: {
       color: tokens.fg3,
     },
-    backdrop: {
+    root: {
       flex: 1,
-      backgroundColor: 'rgba(0,0,0,0.50)',
       justifyContent: 'center',
       alignItems: 'center',
       padding: 24,
+    },
+    backdrop: {
+      ...StyleSheet.absoluteFillObject,
+      backgroundColor: 'rgba(0,0,0,0.50)',
     },
     dialog: {
       width: '100%',

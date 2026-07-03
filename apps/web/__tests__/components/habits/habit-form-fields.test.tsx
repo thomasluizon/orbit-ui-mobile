@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, within } from '@testing-library/react'
+import { render, screen, fireEvent, within, waitFor } from '@testing-library/react'
 import React from 'react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { HabitFormFields } from '@/components/habits/habit-form-fields'
@@ -239,7 +239,7 @@ describe('HabitFormFields', () => {
     expect(screen.getByText('habits.form.description')).toBeDefined()
   })
 
-  it('opens a searchable emoji picker from the whole emoji field', () => {
+  it('opens a searchable emoji picker from the whole emoji field', async () => {
     const setValue = vi.fn()
     const formHelpers = createMockFormHelpers()
     formHelpers.form.setValue = setValue
@@ -266,7 +266,9 @@ describe('HabitFormFields', () => {
     fireEvent.click(screen.getByRole('option', { name: 'habits.form.emoji: 🏃' }))
 
     expect(setValue).toHaveBeenCalledWith('emoji', '🏃', { shouldDirty: true })
-    expect(screen.queryByText('habits.form.emojiPickerTitle')).toBeNull()
+    await waitFor(() =>
+      expect(screen.queryByText('habits.form.emojiPickerTitle')).toBeNull(),
+    )
   })
 
   it('filters emojis by category when clicking a category chip', () => {
@@ -292,7 +294,7 @@ describe('HabitFormFields', () => {
     expect(screen.queryByRole('option', { name: 'habits.form.emoji: 🏃' })).toBeNull()
   })
 
-  it('clears the selected emoji from the picker remove button', () => {
+  it('clears the selected emoji from the picker remove button', async () => {
     const setValue = vi.fn()
     const formHelpers = createMockFormHelpers()
     formHelpers.form.setValue = setValue
@@ -317,7 +319,9 @@ describe('HabitFormFields', () => {
     fireEvent.click(screen.getByRole('button', { name: 'habits.form.emojiRemove' }))
 
     expect(setValue).toHaveBeenCalledWith('emoji', '', { shouldDirty: true })
-    expect(screen.queryByText('habits.form.emojiPickerTitle')).toBeNull()
+    await waitFor(() =>
+      expect(screen.queryByText('habits.form.emojiPickerTitle')).toBeNull(),
+    )
   })
 
   it('shows schedule type buttons', () => {
@@ -338,6 +342,27 @@ describe('HabitFormFields', () => {
     expect(screen.getByText('habits.form.recurring')).toBeDefined()
     expect(screen.getByText('habits.form.flexible')).toBeDefined()
     expect(screen.getByText('habits.form.general')).toBeDefined()
+  })
+
+  it('exposes the frequency chooser as a radiogroup with the active card checked', () => {
+    const formHelpers = createMockFormHelpers()
+    const tags = createMockTags()
+    renderWithProviders(
+      <HabitFormFields
+        formHelpers={formHelpers}
+        tags={tags}
+        selectedGoalIds={[]}
+        atGoalLimit={false}
+        onToggleGoal={vi.fn()}
+        reminderTimes={[]}
+        onReminderTimesChange={vi.fn()}
+      />,
+    )
+    const radiogroup = screen.getByRole('radiogroup', { name: 'habits.form.frequency' })
+    const radios = within(radiogroup).getAllByRole('radio')
+    expect(radios).toHaveLength(4)
+    expect(within(radiogroup).getByRole('radio', { name: /recurring/, checked: true })).toBeDefined()
+    expect(within(radiogroup).getByRole('radio', { name: /oneTimeTask/, checked: false })).toBeDefined()
   })
 
   it('shows the habit type toggle', () => {

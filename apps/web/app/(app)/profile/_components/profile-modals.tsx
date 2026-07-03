@@ -4,7 +4,7 @@ import type { Profile } from '@orbit/shared/types/profile'
 import { EditNameSheet } from './edit-name-sheet'
 import { FreshStartModal } from './fresh-start-modal'
 import { DeleteAccountModal } from './delete-account-modal'
-import { TourReplayModal } from './tour-replay-modal'
+import { TourReplayModal } from '@/components/tour/tour-replay-modal'
 
 interface ProfileModalsProps {
   profile?: Profile

@@ -4,13 +4,12 @@ import { useRef, useCallback, useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { arrayMove } from '@dnd-kit/sortable'
 import { GoalCard } from './goal-card'
+import { GoalDetailDrawer, type GoalDrawerInitialAction } from './goal-detail-drawer'
 import { useReorderGoals } from '@/hooks/use-goals'
 import type { Goal, GoalPositionItem } from '@orbit/shared/types/goal'
 
 interface GoalListProps {
   goals: Goal[]
-  selectedId?: string | null
-  onSelect?: (goalId: string) => void
 }
 
 /** Delay before touch drag starts (ms). */
@@ -19,7 +18,7 @@ const TOUCH_HOLD_DELAY = 300
 /** Minimum movement (px) before cancelling hold. */
 const TOUCH_MOVE_THRESHOLD = 5
 
-export function GoalList({ goals, selectedId, onSelect }: Readonly<GoalListProps>) {
+export function GoalList({ goals }: Readonly<GoalListProps>) {
   const t = useTranslations()
   const listRef = useRef<HTMLDivElement>(null)
   const reorderGoals = useReorderGoals()
@@ -34,6 +33,19 @@ export function GoalList({ goals, selectedId, onSelect }: Readonly<GoalListProps
   const touchStartPos = useRef<{ x: number; y: number } | null>(null)
   const touchDragging = useRef(false)
   const touchItemRef = useRef<HTMLElement | null>(null)
+
+  const [detailGoalId, setDetailGoalId] = useState<string | null>(null)
+  const [detailOpen, setDetailOpen] = useState(false)
+  const [detailAction, setDetailAction] = useState<GoalDrawerInitialAction | null>(null)
+
+  const handleOpenDetail = useCallback(
+    (goalId: string, initialAction: GoalDrawerInitialAction | null) => {
+      setDetailGoalId(goalId)
+      setDetailAction(initialAction)
+      setDetailOpen(true)
+    },
+    [],
+  )
 
   const commitReorder = useCallback(() => {
     if (
@@ -163,29 +175,39 @@ export function GoalList({ goals, selectedId, onSelect }: Readonly<GoalListProps
   )
 
   return (
-    <div ref={listRef} className="space-y-3 stagger-enter">
-      {goals.map((goal, index) => (
-        <section
-          key={goal.id}
-          aria-roledescription={t('goals.dragItem')}
-          aria-label={goal.title}
-          draggable
-          className={getDragClasses(index)}
-          onDragStart={() => handleDragStart(index)}
-          onDragEnter={() => handleDragEnter(index)}
-          onDragEnd={handleDragEnd}
-          onDragOver={(e) => e.preventDefault()}
-          onTouchStart={(e) => handleTouchStart(index, e)}
-          onTouchMove={handleTouchMove}
-          onTouchEnd={handleTouchEnd}
-        >
-          <GoalCard
-            goal={goal}
-            selected={onSelect !== undefined && goal.id === selectedId}
-            onSelect={onSelect}
-          />
-        </section>
-      ))}
-    </div>
+    <>
+      <div ref={listRef} className="space-y-3 stagger-enter">
+        {goals.map((goal, index) => (
+          <section
+            key={goal.id}
+            aria-roledescription={t('goals.dragItem')}
+            aria-label={goal.title}
+            draggable
+            className={getDragClasses(index)}
+            onDragStart={() => handleDragStart(index)}
+            onDragEnter={() => handleDragEnter(index)}
+            onDragEnd={handleDragEnd}
+            onDragOver={(e) => e.preventDefault()}
+            onTouchStart={(e) => handleTouchStart(index, e)}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
+          >
+            <GoalCard goal={goal} onOpenDetail={handleOpenDetail} />
+          </section>
+        ))}
+      </div>
+
+      {detailGoalId ? (
+        <GoalDetailDrawer
+          open={detailOpen}
+          onOpenChange={(nextOpen) => {
+            setDetailOpen(nextOpen)
+            if (!nextOpen) setDetailAction(null)
+          }}
+          goalId={detailGoalId}
+          initialAction={detailAction}
+        />
+      ) : null}
+    </>
   )
 }

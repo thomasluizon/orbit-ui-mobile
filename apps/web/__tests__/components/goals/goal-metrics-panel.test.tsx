@@ -24,7 +24,7 @@ describe('GoalMetricsPanel', () => {
     const { container } = render(
       <GoalMetricsPanel metrics={null} unit="km" isLoading={true} />,
     )
-    const pulseElements = container.querySelectorAll('.animate-pulse')
+    const pulseElements = container.querySelectorAll('.skeleton-pulse')
     expect(pulseElements.length).toBeGreaterThan(0)
   })
 

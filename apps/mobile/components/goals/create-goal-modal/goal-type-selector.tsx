@@ -50,14 +50,22 @@ export function GoalTypeSelector({
           return (
             <Pressable
               key={option.key}
-              style={[
+              style={({ pressed }) => [
                 styles.typeOption,
                 isActive ? styles.typeOptionActive : styles.typeOptionInactive,
+                pressed
+                  ? [
+                      styles.typeOptionPressed,
+                      isActive
+                        ? styles.typeOptionActivePressed
+                        : styles.typeOptionInactivePressed,
+                    ]
+                  : null,
               ]}
               onPress={() => onTypeChange(option.key)}
-              accessibilityRole="button"
+              accessibilityRole="radio"
               accessibilityLabel={t(option.titleKey)}
-              accessibilityState={{ selected: isActive }}
+              accessibilityState={{ checked: isActive }}
             >
               <OptionIcon
                 size={18}

@@ -1,13 +1,13 @@
 import { useState, useCallback, useMemo } from 'react'
 import {
+  Pressable,
   ScrollView,
   Text,
-  TouchableOpacity,
   View,
 } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { useRouter } from 'expo-router'
-import { Users } from 'lucide-react-native'
+import { Expand, Users } from 'lucide-react-native'
 import AsyncStorage from '@react-native-async-storage/async-storage'
 import { BottomSheetModal } from '@/components/bottom-sheet-modal'
 import { withDrawerContentInset } from '@/components/ui/drawer-content-inset'
@@ -29,8 +29,13 @@ import {
   useUpdateChecklist,
   useLogHabit,
 } from '@/hooks/use-habits'
+import { useAppToast } from '@/hooks/use-app-toast'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
-import { formatHabitDetailSummary, formatLocaleDate } from '@orbit/shared/utils'
+import {
+  formatHabitDetailSummary,
+  formatLocaleDate,
+  getFriendlyErrorMessage,
+} from '@orbit/shared/utils'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
@@ -107,16 +112,25 @@ function HabitDetailContent({
       />
 
       {habit.description ? (
-        <TouchableOpacity
+        <Pressable
           onPress={onOpenDescription}
-          activeOpacity={0.7}
           accessibilityRole="button"
           accessibilityLabel={t('habits.detail.viewDescription')}
+          style={({ pressed }) => [
+            styles.descriptionRow,
+            pressed ? styles.descriptionRowPressed : null,
+          ]}
         >
           <Text style={styles.description} numberOfLines={2}>
             {habit.description}
           </Text>
-        </TouchableOpacity>
+          <Expand
+            size={14}
+            color={tokens.fg4}
+            strokeWidth={1.8}
+            importantForAccessibility="no"
+          />
+        </Pressable>
       ) : null}
 
       {liveChecklist.length > 0 ? (
@@ -175,7 +189,7 @@ function HabitDetailContent({
             <SettingsRow
               key={g.id}
               label={g.title}
-              accessory="chevron"
+              accessory="none"
             />
           ))}
         </View>
@@ -209,8 +223,8 @@ function HabitDetailContent({
 
 /**
  * Habit Detail Drawer. Covers all variants by data-driven section presence:
- * active, skipped (checklist hidden when empty), checklist, bad, slip alert
- * (when `slipAlertEnabled`), linked goal (when `linkedGoals` non empty).
+ * active, skipped (checklist hidden when empty), checklist, bad, linked goal
+ * (when `linkedGoals` non empty).
  */
 export function HabitDetailDrawer({
   open,
@@ -221,6 +235,7 @@ export function HabitDetailDrawer({
   const { t, i18n } = useTranslation()
   const locale = i18n.language
   const { displayTime } = useTimeFormat()
+  const { showError } = useAppToast()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const styles = useMemo(() => createDrawerStyles(tokens), [tokens])
@@ -243,6 +258,8 @@ export function HabitDetailDrawer({
   const [descriptionViewerOpen, setDescriptionViewerOpen] = useState(false)
   const [pairFlowOpen, setPairFlowOpen] = useState(false)
   const [showChecklistCompleteConfirm, setShowChecklistCompleteConfirm] =
+    useState(false)
+  const [showChecklistClearConfirm, setShowChecklistClearConfirm] =
     useState(false)
 
   const router = useRouter()
@@ -294,7 +311,12 @@ export function HabitDetailDrawer({
   }, [habit, liveChecklist, updateChecklist])
 
   const handleChecklistClear = useCallback(() => {
+    setShowChecklistClearConfirm(true)
+  }, [])
+
+  const confirmChecklistClear = useCallback(() => {
     if (!habit) return
+    setShowChecklistClearConfirm(false)
     updateChecklist.mutate({ habitId: habit.id, items: [] })
   }, [habit, updateChecklist])
 
@@ -344,11 +366,31 @@ export function HabitDetailDrawer({
           try {
             await logHabit.mutateAsync({ habitId: habit.id })
             onLogged?.(habit.id)
-          } catch {
+          } catch (error: unknown) {
+            showError(
+              getFriendlyErrorMessage(
+                error,
+                (key, values) => t(key, values),
+                'errors.logHabit',
+                'habit',
+              ),
+            )
           } finally {
             setShowChecklistCompleteConfirm(false)
           }
         }}
+      />
+
+      <ConfirmDialog
+        open={showChecklistClearConfirm}
+        onOpenChange={setShowChecklistClearConfirm}
+        title={t('habits.checklistClearTitle')}
+        description={t('habits.checklistClearMessage')}
+        confirmLabel={t('habits.form.clearChecklist')}
+        cancelLabel={t('common.cancel')}
+        variant="danger"
+        onConfirm={confirmChecklistClear}
+        onCancel={() => setShowChecklistClearConfirm(false)}
       />
 
       <BottomSheetModal

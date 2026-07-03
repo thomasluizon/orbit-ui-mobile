@@ -45,9 +45,9 @@ export function HabitEmojiSelector({ selectedEmoji, onSelect }: Readonly<HabitEm
         style={{
           width: 56,
           height: 56,
-          borderRadius: 16,
+          borderRadius: 14,
           fontSize: 26,
-          background: 'color-mix(in srgb, var(--fg-1) 6%, transparent)',
+          background: 'var(--bg-well)',
         }}
         onClick={() => setPickerOpen(true)}
         aria-haspopup="dialog"
@@ -83,7 +83,7 @@ export function HabitEmojiSelector({ selectedEmoji, onSelect }: Readonly<HabitEm
           </div>
           <button
             type="button"
-            className="grid size-10 place-items-center rounded-full text-[var(--fg-2)] hover:text-[var(--fg-1)] focus-visible:outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--primary)] transition-colors duration-150"
+            className="touch-target grid size-10 place-items-center rounded-full text-[var(--fg-2)] hover:text-[var(--fg-1)] focus-visible:outline-none focus-visible:shadow-[inset_0_0_0_2px_var(--primary)] transition-colors duration-[var(--dur-fast)]"
             onClick={closePicker}
             aria-label={t('common.close')}
           >
@@ -97,7 +97,7 @@ export function HabitEmojiSelector({ selectedEmoji, onSelect }: Readonly<HabitEm
             value={query}
             onChange={(event) => setQuery(event.target.value)}
             placeholder={t('habits.form.emojiSearchPlaceholder')}
-            className="form-input h-11 py-2"
+            className="form-input"
           />
           {selectedEmoji && (
             <button
@@ -147,7 +147,7 @@ export function HabitEmojiSelector({ selectedEmoji, onSelect }: Readonly<HabitEm
                         role="option"
                         aria-selected={isSelected}
                         aria-label={`${t('habits.form.emoji')}: ${emoji}`}
-                        className={`grid place-items-center rounded-[12px] text-xl transition-[background-color,box-shadow] duration-150 ${
+                        className={`grid place-items-center rounded-[12px] text-xl transition-[background-color,box-shadow] duration-[var(--dur-fast)] ${
                           isSelected
                             ? 'bg-[rgba(var(--primary-rgb),0.10)] shadow-[inset_0_0_0_2px_var(--primary)]'
                             : 'hover:bg-[var(--bg-elev)]'

@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import {
   View,
   Text,
-  TouchableOpacity,
+  Pressable,
   ActivityIndicator,
   StyleSheet,
 } from 'react-native'
@@ -100,10 +100,14 @@ export function ClarificationCard({
           const disabled = resolve.isPending
 
           return (
-            <TouchableOpacity
+            <Pressable
               key={action.value}
-              style={[styles.chip, isActive && styles.chipActive, disabled && styles.chipDisabled]}
-              activeOpacity={0.7}
+              style={({ pressed }) => [
+                styles.chip,
+                isActive && styles.chipActive,
+                disabled && styles.chipDisabled,
+                pressed && !disabled && styles.chipPressed,
+              ]}
               disabled={disabled}
               onPress={() => handleSelect(label, action.value)}
               accessibilityRole="button"
@@ -111,7 +115,7 @@ export function ClarificationCard({
             >
               {isActive && <ActivityIndicator size="small" color={tokens.primary} />}
               <Text style={styles.chipText}>{label}</Text>
-            </TouchableOpacity>
+            </Pressable>
           )
         })}
       </View>
@@ -165,6 +169,10 @@ function createStyles(tokens: AppTokens) {
     chipActive: {
       borderColor: tokens.hairlineStrong,
       backgroundColor: tokens.bgElev,
+    },
+    chipPressed: {
+      transform: [{ scale: 0.96 }],
+      backgroundColor: tokens.bgElev2,
     },
     chipDisabled: {
       opacity: 0.5,
