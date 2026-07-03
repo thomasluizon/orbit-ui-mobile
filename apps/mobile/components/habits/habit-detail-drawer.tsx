@@ -399,6 +399,7 @@ export function HabitDetailDrawer({
         title={habit?.title}
         contentKey={habitId}
         snapPoints={['68%', '92%']}
+        contentManagesScroll
       >
         {habit ? (
           <HabitDetailContent

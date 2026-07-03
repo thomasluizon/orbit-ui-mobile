@@ -78,6 +78,7 @@ export function HabitEmojiSelector({
         onClose={closePicker}
         title={t("habits.form.emojiPickerTitle")}
         snapPoints={["82%"]}
+        contentManagesScroll
       >
         {pickerOpen ? (
           <View style={styles.emojiSheetContent}>

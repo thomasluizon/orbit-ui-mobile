@@ -111,6 +111,7 @@ export function ReferralPrompt() {
         title={title}
         contentKey={visibleKey ?? undefined}
         snapPoints={['60%']}
+        contentManagesScroll
       >
         <ScrollView
           style={styles.scroll}

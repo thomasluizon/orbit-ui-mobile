@@ -394,6 +394,7 @@ export function CreateApiKeyModal({
       contentKey={isRevealState ? 'reveal' : 'create'}
       snapPoints={['80%', '95%']}
       canDismiss={!isRevealState}
+      contentManagesScroll
     >
       <KeyboardAwareBottomSheetScrollView
         style={styles.scroll}

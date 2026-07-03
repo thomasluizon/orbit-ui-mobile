@@ -135,6 +135,7 @@ export function FeatureGuideDrawer({
       onClose={onClose}
       title={t('onboarding.featureGuide.title')}
       snapPoints={['70%', '90%']}
+      contentManagesScroll
     >
       <View style={styles.tabBarWrap}>
         <ScrollView

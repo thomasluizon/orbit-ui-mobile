@@ -199,7 +199,7 @@ function HabitsEditorSheet({
   saving: boolean
 }>) {
   return (
-    <BottomSheetModal open={open} onClose={onClose} title={title} snapPoints={['55%', '85%']}>
+    <BottomSheetModal open={open} onClose={onClose} title={title} snapPoints={['55%', '85%']} contentManagesScroll>
       <ScrollView contentContainerStyle={styles.sheetContent} keyboardShouldPersistTaps="handled">
         <HabitPicker selectedIds={selectedIds} onToggle={onToggle} />
         <PillButton fullWidth onPress={onSave} disabled={saving} busy={saving}>

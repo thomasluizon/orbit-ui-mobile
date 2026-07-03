@@ -268,6 +268,7 @@ export function NotificationBell() {
         onClose={() => setIsOpen(false)}
         title={t('notifications.title')}
         snapPoints={['88%', '96%']}
+        contentManagesScroll
       >
         <NotificationListActions
           tokens={tokens}

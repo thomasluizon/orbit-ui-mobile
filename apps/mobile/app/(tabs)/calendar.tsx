@@ -555,6 +555,7 @@ export default function CalendarScreen() {
         onClose={closeDayDetail}
         title={formattedSelectedDate}
         contentKey={selectedDay ?? undefined}
+        contentManagesScroll
       >
         <ScrollView
           style={styles.sheetScroll}

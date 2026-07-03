@@ -174,6 +174,7 @@ export function EditGoalModal({ open, onClose, goal }: EditGoalModalProps) {
         canDismiss={dismissGuard.canDismiss}
         isDirty={isDirty}
         onAttemptDismiss={dismissGuard.requestDismiss}
+        contentManagesScroll
       >
         <KeyboardAwareBottomSheetScrollView
           style={styles.scroll}

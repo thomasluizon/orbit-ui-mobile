@@ -45,6 +45,7 @@ export function ShareCardSheet({ open, onClose, displayName }: Readonly<ShareCar
       onClose={onClose}
       title={t('shareCard.title')}
       snapPoints={['70%', '92%']}
+      contentManagesScroll
     >
       <ScrollView
         style={styles.scroll}

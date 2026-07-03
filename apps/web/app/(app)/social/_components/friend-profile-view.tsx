@@ -149,7 +149,7 @@ function ProfileBody({
 
       <motion.div
         className="grid"
-        style={{ gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 10 }}
+        style={{ gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: 10 }}
         {...section(1)}
       >
         <StatTile emoji="🔥" value={view.currentStreak} label={t('profile.publicProfile.view.dayStreakLabel')} />

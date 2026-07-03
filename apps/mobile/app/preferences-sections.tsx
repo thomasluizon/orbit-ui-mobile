@@ -299,6 +299,7 @@ export function PreferencePickerSheet({
       title={activePicker ? pickerTitles[activePicker] : undefined}
       contentKey={activePicker ?? 'none'}
       snapPoints={['55%']}
+      contentManagesScroll
     >
       <ScrollView
         style={styles.sheetScroll}

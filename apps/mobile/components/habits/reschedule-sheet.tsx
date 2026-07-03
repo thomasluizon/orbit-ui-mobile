@@ -182,6 +182,7 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
       onClose={() => onOpenChange(false)}
       title={t('habits.reschedule.title')}
       snapPoints={['60%', '90%']}
+      contentManagesScroll
     >
       <ScrollView
         style={styles.scroll}

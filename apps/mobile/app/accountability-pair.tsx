@@ -232,6 +232,7 @@ export default function AccountabilityPairScreen() {
         onClose={() => setEditOpen(false)}
         title={t('social.buddies.detail.editHabitsTitle')}
         snapPoints={['70%', '92%']}
+        contentManagesScroll
       >
         <View style={styles.sheetContainer}>
           <ScrollView

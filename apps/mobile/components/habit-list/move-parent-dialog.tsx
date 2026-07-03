@@ -156,6 +156,7 @@ export function MoveParentDialog({
       onClose={handleClose}
       title={t('habits.moveParent.title')}
       canDismiss={!isPending}
+      contentManagesScroll
     >
       <View style={styles.sheetBody}>
         {movingHabitTitle ? (

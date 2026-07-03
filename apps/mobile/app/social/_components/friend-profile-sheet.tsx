@@ -120,11 +120,11 @@ function ProfileBody({
         ) : null}
       </Animated.View>
 
-      <Animated.View entering={sectionEntrance(1)} style={styles.statsRow}>
-        <StatTile emoji="🔥" value={view.currentStreak} label={t('profile.publicProfile.view.dayStreakLabel')} />
-        <StatTile emoji="🥇" value={view.longestStreak} label={t('social.friendProfile.longestStreakLabel')} />
-        <StatTile emoji="🏆" value={view.level} label={view.levelTitle} />
-        <StatTile emoji="✨" value={view.totalXp} label={t('social.friendProfile.xpLabel')} />
+      <Animated.View entering={sectionEntrance(1)} style={styles.statsGrid}>
+        <StatTile emoji="🔥" value={view.currentStreak} label={t('profile.publicProfile.view.dayStreakLabel')} style={styles.statTile} />
+        <StatTile emoji="🥇" value={view.longestStreak} label={t('social.friendProfile.longestStreakLabel')} style={styles.statTile} />
+        <StatTile emoji="🏆" value={view.level} label={view.levelTitle} style={styles.statTile} />
+        <StatTile emoji="✨" value={view.totalXp} label={t('social.friendProfile.xpLabel')} style={styles.statTile} />
       </Animated.View>
 
       <Animated.View entering={sectionEntrance(2)} style={styles.card}>
@@ -235,7 +235,8 @@ function createStyles(tokens: Tokens) {
     identity: { alignItems: 'center', gap: 6 },
     handle: { fontFamily: 'Roboto_400Regular', fontSize: 14, color: tokens.fg3 },
     meta: { fontFamily: 'Rubik_400Regular', fontSize: 13, color: tokens.fg3 },
-    statsRow: { flexDirection: 'row', gap: 10 },
+    statsGrid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },
+    statTile: { flexBasis: '46%', flexGrow: 1 },
     card: {
       borderRadius: 18,
       backgroundColor: tokens.bgElev,

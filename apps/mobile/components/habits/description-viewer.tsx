@@ -46,6 +46,7 @@ export function DescriptionViewer({
       onClose={handleClose}
       title={title}
       snapPoints={["70%", "90%"]}
+      contentManagesScroll
     >
       <ScrollView
         style={styles.scrollContainer}
