@@ -35,7 +35,7 @@ export function WrappedCover({
 
   return (
     <div
-      className="flex flex-1 flex-col items-center justify-center text-center lg:grid lg:grid-cols-2 lg:content-center lg:items-center lg:text-left"
+      className="flex flex-1 flex-col items-center justify-center text-center md:flex-none md:justify-start"
       style={{ gap: 28, padding: '0 28px 32px' }}
     >
       <RingMotif
@@ -50,7 +50,7 @@ export function WrappedCover({
         }
       />
 
-      <div className="flex flex-col items-center md:items-start" style={{ gap: 22 }}>
+      <div className="flex flex-col items-center" style={{ gap: 22 }}>
         <div className="flex items-center justify-center" style={{ gap: 8, flexWrap: 'wrap' }}>
           {RECAP_SHARE_PERIODS.map((value) => (
             <Chip
@@ -64,7 +64,7 @@ export function WrappedCover({
           ))}
         </div>
 
-        <div className="flex flex-col items-center md:items-start" style={{ gap: 12, minHeight: 84 }}>
+        <div className="flex flex-col items-center" style={{ gap: 12, minHeight: 84 }}>
           <PillButton
             disabled={!canStart}
             onClick={onStart}
@@ -80,7 +80,7 @@ export function WrappedCover({
           )}
 
           {!isLoading && isError && (
-            <div className="flex flex-col items-center md:items-start" style={{ gap: 8 }}>
+            <div className="flex flex-col items-center" style={{ gap: 8 }}>
               <p
                 role="alert"
                 style={{ fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--status-bad-text)' }}

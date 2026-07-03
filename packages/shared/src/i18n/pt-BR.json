@@ -6,7 +6,7 @@
   "settings": {
     "notifications": {
       "title": "Notificações push",
-      "allowed": "Notificações push",
+      "allowed": "Permitir notificações",
       "description": "Receba lembretes e novidades mesmo com o app fechado",
       "enabled": "Notificações ativadas",
       "disabled": "Notificações desativadas",

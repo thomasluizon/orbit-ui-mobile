@@ -37,11 +37,25 @@ export function CodeWell({
         boxShadow: 'inset 0 0 0 1px var(--hairline)',
       }}
     >
-      <div className="flex justify-end" style={{ marginBottom: 6 }}>
+      <div className="flex items-center" style={{ gap: 8 }}>
+        <pre
+          className="min-w-0 flex-1 overflow-x-auto"
+          style={{
+            margin: 0,
+            fontFamily: 'var(--font-mono)',
+            fontSize: 12,
+            lineHeight: 1.55,
+            color: 'var(--fg-2)',
+            fontVariantNumeric: 'tabular-nums',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {content}
+        </pre>
         <button
           type="button"
           aria-label={copied ? copiedLabel : copyLabel}
-          className="icon-btn touch-target"
+          className="icon-btn touch-target shrink-0"
           onClick={onCopy}
         >
           {copied ? (
@@ -54,19 +68,6 @@ export function CodeWell({
           {copied ? copiedLabel : ''}
         </span>
       </div>
-      <pre
-        className="overflow-x-auto"
-        style={{
-          margin: 0,
-          fontFamily: 'var(--font-mono)',
-          fontSize: 12,
-          lineHeight: 1.55,
-          color: 'var(--fg-2)',
-          fontVariantNumeric: 'tabular-nums',
-        }}
-      >
-        {content}
-      </pre>
     </div>
   )
 }

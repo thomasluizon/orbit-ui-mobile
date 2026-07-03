@@ -252,6 +252,7 @@ export function createTokensV2(
     statusOverdueText: status.overdueText,
     statusBadText: status.badText,
     fgOnBad: status.fgOnBad,
+    fgOnOverdue: '#020618',
     selectionBg: `rgba(${accent.primaryRgb}, ${selectionAlpha.dark})`,
   }
 }

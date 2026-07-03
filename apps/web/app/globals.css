@@ -752,6 +752,22 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   transition: opacity var(--dur-fast) var(--ease-standard);
 }
 .desktop-topbar-divider[data-stuck='true']::after { opacity: 1; }
+.desktop-topbar-divider::before {
+  content: '';
+  position: absolute;
+  inset-block: 0;
+  left: 50%;
+  width: 100cqw;
+  transform: translateX(-50%);
+  z-index: -1;
+  opacity: 0;
+  pointer-events: none;
+  background: color-mix(in srgb, var(--bg) 78%, transparent);
+  -webkit-backdrop-filter: blur(12px);
+  backdrop-filter: blur(12px);
+  transition: opacity var(--dur-fast) var(--ease-standard);
+}
+.desktop-topbar-divider[data-stuck='true']::before { opacity: 1; }
 .icon-btn:active { transform: scale(0.96); }
 .icon-btn-ring { box-shadow: inset 0 0 0 1.5px var(--hairline-strong); }
 .icon-btn-well { background: var(--bg-elev); }

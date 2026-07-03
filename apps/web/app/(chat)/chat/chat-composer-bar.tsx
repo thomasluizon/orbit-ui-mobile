@@ -63,6 +63,7 @@ interface ChatComposerBarProps {
   retryLastSend: () => void
   canRetryLastSend: boolean
   onUpgrade: () => void
+  singleLine?: boolean
 }
 
 interface ChatComposerNoticesProps {
@@ -301,6 +302,7 @@ function ChatRecordingBar({
 }
 
 interface ChatTextInputRowProps {
+  singleLine?: boolean
   textareaRef: RefObject<HTMLTextAreaElement | null>
   input: string
   setInput: (value: string) => void
@@ -318,6 +320,7 @@ interface ChatTextInputRowProps {
 }
 
 function ChatTextInputRow({
+  singleLine,
   textareaRef,
   input,
   setInput,
@@ -351,6 +354,7 @@ function ChatTextInputRow({
         <textarea
           ref={textareaRef}
           rows={1}
+          wrap={singleLine ? 'off' : undefined}
           data-testid="chat-input"
           disabled={limitLocked || !isOnline}
           placeholder={limitLocked ? t('chat.limitReachedError') : t('chat.placeholder')}
@@ -359,7 +363,7 @@ function ChatTextInputRow({
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={handleKeyDown}
           onPaste={handlePaste}
-          className="appearance-none border-0 bg-transparent flex-1 min-w-0 resize-none"
+          className={`appearance-none border-0 bg-transparent flex-1 min-w-0 resize-none${singleLine ? ' whitespace-nowrap overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden' : ''}`}
           style={{
             outline: 'none',
             fontFamily: 'var(--font-sans)',
@@ -473,6 +477,7 @@ export function ChatComposerBar({
   retryLastSend,
   canRetryLastSend,
   onUpgrade,
+  singleLine = false,
 }: Readonly<ChatComposerBarProps>) {
   const t = useTranslations()
 
@@ -532,6 +537,7 @@ export function ChatComposerBar({
             />
           ) : (
             <ChatTextInputRow
+              singleLine={singleLine}
               textareaRef={textareaRef}
               input={input}
               setInput={setInput}

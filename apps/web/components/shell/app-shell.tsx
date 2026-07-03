@@ -53,7 +53,6 @@ export function AppShell({ children, onCreate }: Readonly<AppShellProps>) {
   const setRailOpen = useShellStore((state) => state.setRailOpen)
   const setAstraOpen = useShellStore((state) => state.setAstraOpen)
   const setAstraMaximized = useShellStore((state) => state.setAstraMaximized)
-  const astraMaximized = useShellStore((state) => state.astraMaximized)
   const setShowCreateModal = useUIStore((state) => state.setShowCreateModal)
   const setShowCreateGoalModal = useUIStore((state) => state.setShowCreateGoalModal)
 
@@ -72,6 +71,7 @@ export function AppShell({ children, onCreate }: Readonly<AppShellProps>) {
   const onHome = pathname === '/'
   const goalsActive = onHome && activeView === 'goals'
   const habitsActive = onHome && activeView !== 'goals'
+  const isWideRoute = pathname.startsWith('/calendar') && !pathname.startsWith('/calendar-sync')
 
   const navigateTab = useMemo(
     () => (path: string) => {
@@ -164,7 +164,7 @@ export function AppShell({ children, onCreate }: Readonly<AppShellProps>) {
         id: 'astra',
         label: t('nav.astra'),
         icon: AstraMark,
-        active: astraMaximized,
+        active: false,
         onSelect: () => {
           setAstraOpen(true)
           setAstraMaximized(true)
@@ -195,7 +195,6 @@ export function AppShell({ children, onCreate }: Readonly<AppShellProps>) {
       goalsActive,
       selectHabitView,
       openGoals,
-      astraMaximized,
       setAstraOpen,
       setAstraMaximized,
     ],
@@ -273,7 +272,7 @@ export function AppShell({ children, onCreate }: Readonly<AppShellProps>) {
               className="pointer-events-none absolute inset-x-0 top-0 -z-10 hidden md:block"
               style={{ height: 260, background: 'var(--gradient-header)' }}
             />
-            <div className="mx-auto max-w-[var(--app-max-w)] px-[var(--app-px)] md:relative md:z-[1] md:max-w-[var(--content-max-w)] md:px-8 xl:px-10 md:pb-16">
+            <div className={`mx-auto max-w-[var(--app-max-w)] px-[var(--app-px)] md:relative md:z-[1] md:px-8 xl:px-10 md:pb-16 ${isWideRoute ? 'md:max-w-[var(--content-max-w)]' : ''}`}>
               <DesktopTopbar title={topbarTitle} showRailToggle={!!railContent} />
               {children}
             </div>

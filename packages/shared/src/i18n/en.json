@@ -6,7 +6,7 @@
   "settings": {
     "notifications": {
       "title": "Push Notifications",
-      "allowed": "Push notifications",
+      "allowed": "Allow notifications",
       "description": "Receive reminders and updates even when the app is closed",
       "enabled": "Notifications are enabled",
       "disabled": "Notifications are turned off",

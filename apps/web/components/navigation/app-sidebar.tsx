@@ -141,7 +141,6 @@ export function AppSidebar({
           paddingInline: collapsed ? 14 : 16,
           paddingTop: 12,
           paddingBottom: 4,
-          boxShadow: 'inset 0 1px 0 var(--hairline)',
         }}
       >
         <button

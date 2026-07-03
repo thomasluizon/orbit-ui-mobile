@@ -51,7 +51,7 @@ export default function InsightsPage() {
   }
 
   return (
-    <div className="stagger-enter min-h-dvh pb-10 lg:grid lg:grid-cols-2 lg:content-start lg:gap-x-12">
+    <div className="stagger-enter min-h-dvh pb-10">
       {phoneBackBar}
       <header className="flex flex-col gap-4 pt-6 pb-2 md:hidden">
         <div className="flex flex-col gap-1.5">

@@ -50,7 +50,7 @@ export function PreferenceSettingsList({
 
   return (
     <div className="flex-1 min-h-0 overflow-y-auto">
-      <div className="md:grid md:grid-cols-2 md:gap-x-10 md:items-start">
+      <div>
         <div className="stagger-enter">
           <SectionLabel bottom={4}>{t('preferences.general')}</SectionLabel>
           <SettingsRow

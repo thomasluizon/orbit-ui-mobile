@@ -110,7 +110,7 @@ export default function AdvancedPage() {
           title={t('advancedSettings.title')}
         />
         <div className="flex-1 min-h-0 overflow-y-auto stagger-enter">
-          <div className={profile?.hasProAccess ? 'md:grid md:grid-cols-2 md:gap-x-10 md:items-start' : ''}>
+          <div>
             <div>
               <SectionLabel>{t('advancedSettings.widgetSection')}</SectionLabel>
               <SettingsRow

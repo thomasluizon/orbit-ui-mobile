@@ -207,6 +207,7 @@ function AstraRailComposer({ composer, onUpgrade }: Readonly<{ composer: Compose
 
   return (
     <ChatComposerBar
+      singleLine
       textareaRef={composer.textareaRef}
       fileInputRef={composer.fileInputRef}
       input={composer.input}

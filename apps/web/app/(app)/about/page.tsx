@@ -54,7 +54,7 @@ export default function AboutPage() {
               {t('about.version', { version: packageJson.version })}
             </span>
           </div>
-          <div className="md:grid md:grid-cols-2 md:gap-x-10 md:items-start">
+          <div>
             <SettingsRow
               icon={Compass}
               label={t('onboarding.featureGuide.openButton')}

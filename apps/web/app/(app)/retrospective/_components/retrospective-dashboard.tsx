@@ -402,7 +402,7 @@ export function RetrospectiveDashboard({
 
   return (
     <div
-      className="flex flex-col md:grid md:grid-cols-2 md:items-start"
+      className="flex flex-col"
       style={{ gap: 12, padding: '16px 20px 24px' }}
     >
       {sections.map((section, index) => (

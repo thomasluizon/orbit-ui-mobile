@@ -89,8 +89,6 @@ export function TodayRail() {
           </div>
         ) : progress.total === 0 ? (
           <div
-            role="img"
-            aria-label={t('rail.empty')}
             className="relative inline-flex items-center justify-center"
             style={{ width: 200, height: 200 }}
           >

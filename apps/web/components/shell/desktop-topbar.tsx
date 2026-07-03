@@ -81,10 +81,6 @@ export function DesktopTopbar({ title, showRailToggle = false }: Readonly<Deskto
           minHeight: 56,
           gap: 12,
           paddingBlock: 8,
-          background: stuck ? 'color-mix(in srgb, var(--bg) 78%, transparent)' : 'transparent',
-          backdropFilter: stuck ? 'blur(12px)' : 'none',
-          WebkitBackdropFilter: stuck ? 'blur(12px)' : 'none',
-          transition: 'background-color var(--dur-fast) var(--ease-standard)',
         }}
       >
         <div className="flex min-w-0 flex-1 items-center">

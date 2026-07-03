@@ -75,7 +75,7 @@ export function PublicProfileSettings() {
 
   return (
     <>
-      <div className={enabled ? 'md:grid md:grid-cols-2 md:items-start md:gap-x-6' : ''}>
+      <div>
         <div>
           <SettingsRow
             label={t('profile.publicProfile.enable.title')}
@@ -151,6 +151,7 @@ export function PublicProfileSettings() {
                 <div style={{ padding: '10px 20px 6px' }}>
                   <PillButton
                     className="w-full md:w-auto md:max-w-[360px]"
+                    glow={false}
                     leading={<Share2 size={18} strokeWidth={1.8} color="var(--fg-on-primary)" />}
                     onClick={shareLink}
                   >

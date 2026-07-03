@@ -32,7 +32,6 @@ import { ProfileHeaderBar } from './_components/profile-header-bar'
 import { ProfileModals } from './_components/profile-modals'
 import { useDataExport } from './_components/use-data-export'
 import { useIsDesktop } from '@/hooks/use-is-desktop'
-import { ProfileSummaryCard } from './_components/profile-summary-card'
 
 export default function ProfilePage() {
   const t = useTranslations()
@@ -189,52 +188,18 @@ export default function ProfilePage() {
 
   return (
     <div className="relative">
-      <ProfileHeaderBar streak={streak} error={error} />
+      {!isDesktop && <ProfileHeaderBar streak={streak} error={error} />}
 
-      {isDesktop ? (
-        <div className="grid grid-cols-[minmax(0,1fr)_320px] items-start gap-8 pt-2">
-          <div className="stagger-enter min-w-0">
-            {nextReward}
-            {navSections}
-            {subscription}
-          </div>
-          <aside className="stagger-enter flex flex-col" style={{ gap: 8 }}>
-            <ProfileSummaryCard
-              name={profile?.name}
-              isLoading={isLoading}
-              showPlanBadge={!!showPlanBadge}
-              planBadgeTone={planBadgeTone}
-              planBadgeLabel={planBadgeLabel}
-              levelLine={identityLine}
-              streak={streak}
-              achievementsValue={achievementsTileValue}
-              achievementsLocked={achievementsLocked}
-              showAchievements={!!achievementsNavItem}
-              achievementsDataTour={
-                achievementsNavItem ? navTourMap[achievementsNavItem.id] : undefined
-              }
-              onEditName={() => setShowEditName(true)}
-              onStreakClick={() => router.push('/streak')}
-              onAchievementsClick={() => {
-                if (achievementsNavItem) handleNavClick(achievementsNavItem)
-              }}
-              onInvite={() => setShowReferral(true)}
-            />
-            {accountActions}
-          </aside>
-        </div>
-      ) : (
-        <div className="stagger-enter">
-          {identityHeader}
-          {statTiles}
-          {referral}
-          {nextReward}
-          {navSections}
-          {featuresSection}
-          {subscription}
-          {accountActions}
-        </div>
-      )}
+      <div className="stagger-enter">
+        {identityHeader}
+        {statTiles}
+        {referral}
+        {nextReward}
+        {navSections}
+        {featuresSection}
+        {subscription}
+        {accountActions}
+      </div>
 
       <div style={{ height: 24 }} />
 

@@ -444,7 +444,7 @@ export default function TodayPage() {
           <TodayAISummary date={formatAPIDate(selectedDate)} />
         )}
 
-        <div className="xl:grid xl:grid-cols-2 xl:gap-3">
+        <div>
           <AnimatePresence initial={false}>
             {engagementSlot === 'referral' && (
               <motion.div
@@ -528,7 +528,7 @@ export default function TodayPage() {
             </div>
           )}
 
-          <div className="xl:grid xl:grid-cols-2 xl:gap-3">
+          <div>
             <AnimatePresence initial={false}>
               {engagementSlot === 'setupChecklist' && (
                 <motion.div

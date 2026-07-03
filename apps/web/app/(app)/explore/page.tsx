@@ -13,7 +13,7 @@ import { FeatureTileGrid } from '@/components/profile/feature-tile-grid'
 import { TourReplayModal } from '@/components/tour/tour-replay-modal'
 
 const featureNavItems = PROFILE_NAV_ITEMS.filter(
-  (item) => item.section === 'features',
+  (item) => item.section === 'features' && item.id !== 'social',
 )
 
 const featureTourTargets: Record<string, string> = {

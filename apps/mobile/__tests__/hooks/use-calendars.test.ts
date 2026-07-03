@@ -96,6 +96,24 @@ describe('mobile calendar picker hooks', () => {
     expect(mocks.apiClient).toHaveBeenCalledWith('/api/calendar/calendars')
   })
 
+  it('useCalendars returns an empty list when Google is not connected', async () => {
+    let capturedFn: (() => Promise<UserCalendar[]>) | null = null
+    mocks.useQuery.mockImplementation(
+      (config: { queryKey: readonly unknown[]; queryFn: () => Promise<UserCalendar[]> }) => {
+        capturedFn = config.queryFn
+        return { data: undefined }
+      },
+    )
+
+    mocks.apiClient.mockRejectedValue(
+      new Error('Google Calendar connection expired. Please reconnect.'),
+    )
+
+    useCalendars()
+
+    await expect(capturedFn!()).resolves.toEqual([])
+  })
+
   it('useSetSelectedCalendars sends the ids of every synced calendar after the toggle', async () => {
     const mutation = useSetSelectedCalendars() as unknown as MutationConfig<
       void,

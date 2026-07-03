@@ -12,7 +12,7 @@ export function RetrospectiveNoDataState({
   const t = useTranslations()
 
   return (
-    <div className="md:mx-auto md:max-w-[420px]" style={{ padding: '20px 0 0' }}>
+    <div style={{ padding: '20px 0 0' }}>
       <div className="px-5">
         <InfoCard
           icon={Orbit}

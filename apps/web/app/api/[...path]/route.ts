@@ -29,6 +29,8 @@ const ALLOWED_PREFIXES = [
   'sync/',
   'habits/',
   'friends/',
+  'accountability/',
+  'challenges/',
 ]
 
 function isAllowedPath(path: string): boolean {
