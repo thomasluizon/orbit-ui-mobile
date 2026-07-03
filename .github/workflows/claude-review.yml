@@ -52,4 +52,4 @@ jobs:
             Medium / Low / Info findings ride along in the report body but NEVER downgrade an APPROVE. Default to APPROVE — a clean PR earns a plain approval, say so. Never manufacture a Critical/High finding to avoid approving. Add inline comments (mcp__github_inline_comment__create_inline_comment, confirmed: true) only for Critical/High items tied to a specific line.
 
             The PR branch is checked out in the current working directory.
-          claude_args: '--allowedTools "mcp__github_inline_comment__create_inline_comment,Bash(gh pr review:*),Bash(gh pr comment:*),Bash(gh pr view:*),Bash(gh pr diff:*)"'
+          claude_args: '--allowedTools "Skill,Task,Read,Grep,Glob,Write,mcp__github_inline_comment__create_inline_comment,Bash(gh pr review:*),Bash(gh pr comment:*),Bash(gh pr view:*),Bash(gh pr diff:*)"'
