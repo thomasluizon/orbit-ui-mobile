@@ -17,7 +17,7 @@ import { useAppToast } from '@/hooks/use-app-toast'
 import { useBlockUser, useRemoveFriend, useReportUser } from '@/hooks/use-friends'
 import { createTokensV2, tintFromPrimary } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
-import { FriendProfileSheet } from './friend-profile-sheet'
+import type { ProfileTarget } from './friend-profile-sheet'
 import type { CheerTarget } from './cheer-composer'
 
 type AppTokens = ReturnType<typeof createTokensV2>
@@ -25,6 +25,7 @@ type AppTokens = ReturnType<typeof createTokensV2>
 interface FriendRowProps {
   friend: FriendSummary
   onCheer: (target: CheerTarget) => void
+  onOpenProfile: (target: ProfileTarget) => void
 }
 
 function ReportSheet({
@@ -100,7 +101,7 @@ function ReportSheet({
 }
 
 /** One accepted friend: cheer them, or open an action sheet to remove, block, or report. */
-export function FriendRow({ friend, onCheer }: Readonly<FriendRowProps>) {
+export function FriendRow({ friend, onCheer, onOpenProfile }: Readonly<FriendRowProps>) {
   const { t } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
@@ -110,7 +111,6 @@ export function FriendRow({ friend, onCheer }: Readonly<FriendRowProps>) {
   const blockUser = useBlockUser()
   const reportUser = useReportUser()
   const [actionsOpen, setActionsOpen] = useState(false)
-  const [profileOpen, setProfileOpen] = useState(false)
   const [confirmRemove, setConfirmRemove] = useState(false)
   const [confirmBlock, setConfirmBlock] = useState(false)
   const [reportOpen, setReportOpen] = useState(false)
@@ -130,7 +130,7 @@ export function FriendRow({ friend, onCheer }: Readonly<FriendRowProps>) {
         <Pressable
           accessibilityRole="button"
           accessibilityLabel={t('social.friends.viewProfile')}
-          onPress={() => setProfileOpen(true)}
+          onPress={() => onOpenProfile({ userId: friend.userId, displayName: friend.displayName })}
           style={({ pressed }) => [styles.identityPress, pressed ? styles.identityPressed : null]}
         >
           <UserAvatar name={friend.displayName} />
@@ -176,7 +176,7 @@ export function FriendRow({ friend, onCheer }: Readonly<FriendRowProps>) {
               accessory="none"
               onPress={() => {
                 setActionsOpen(false)
-                setProfileOpen(true)
+                onOpenProfile({ userId: friend.userId, displayName: friend.displayName })
               }}
             />
             <SettingsGroupRow
@@ -246,13 +246,6 @@ export function FriendRow({ friend, onCheer }: Readonly<FriendRowProps>) {
           )
           setReportOpen(false)
         }}
-      />
-
-      <FriendProfileSheet
-        userId={friend.userId}
-        displayName={friend.displayName}
-        open={profileOpen}
-        onClose={() => setProfileOpen(false)}
       />
     </>
   )

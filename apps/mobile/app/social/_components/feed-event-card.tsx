@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import type { FriendFeedItem } from '@orbit/shared/types/social'
@@ -6,22 +5,22 @@ import { UserAvatar } from '@/components/ui/user-avatar'
 import { createTokensV2, tintFromPrimary } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import type { CheerTarget } from './cheer-composer'
-import { FriendProfileSheet } from './friend-profile-sheet'
+import type { ProfileTarget } from './friend-profile-sheet'
 
 interface FeedEventCardProps {
   item: FriendFeedItem
   onCheer: (target: CheerTarget) => void
+  onOpenProfile: (target: ProfileTarget) => void
 }
 
 /** One warm activity-feed row (streak kept / achievement / completion milestone). The identity opens
  *  the actor's friend profile; the Cheer action stays a separate, non-overlapping hit target. */
-export function FeedEventCard({ item, onCheer }: Readonly<FeedEventCardProps>) {
+export function FeedEventCard({ item, onCheer, onOpenProfile }: Readonly<FeedEventCardProps>) {
   const { t, i18n } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const styles = createStyles(tokens)
   const name = item.actorDisplayName
-  const [profileOpen, setProfileOpen] = useState(false)
 
   function eventText(): string {
     switch (item.type) {
@@ -43,7 +42,7 @@ export function FeedEventCard({ item, onCheer }: Readonly<FeedEventCardProps>) {
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={t('social.feed.viewProfile', { name })}
-        onPress={() => setProfileOpen(true)}
+        onPress={() => onOpenProfile({ userId: item.actorUserId, displayName: name })}
         style={({ pressed }) => [styles.identity, pressed ? styles.identityPressed : null]}
       >
         <UserAvatar name={name} />
@@ -57,13 +56,6 @@ export function FeedEventCard({ item, onCheer }: Readonly<FeedEventCardProps>) {
       >
         <Text style={styles.cheerText}>{t('social.feed.cheerAction')}</Text>
       </Pressable>
-
-      <FriendProfileSheet
-        userId={item.actorUserId}
-        displayName={name}
-        open={profileOpen}
-        onClose={() => setProfileOpen(false)}
-      />
     </View>
   )
 }

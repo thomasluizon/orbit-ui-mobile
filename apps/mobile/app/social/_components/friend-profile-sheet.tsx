@@ -13,6 +13,11 @@ import { useFriendProfile } from '@/hooks/use-friends'
 import { createTokensV2, tintFromPrimary } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
+export interface ProfileTarget {
+  userId: string
+  displayName: string
+}
+
 interface FriendProfileSheetProps {
   userId: string | null
   displayName: string
