@@ -1,9 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
 
 const useSummaryMock = vi.fn()
 const useProfileMock = vi.fn()
 const pushMock = vi.fn()
+const isDesktopMock = vi.fn()
+const setAstraOpen = vi.fn()
+const setAstraMaximized = vi.fn()
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
@@ -22,70 +25,55 @@ vi.mock('@/hooks/use-profile', () => ({
   useProfile: () => useProfileMock(),
 }))
 
+vi.mock('@/hooks/use-is-desktop', () => ({
+  useIsDesktop: () => isDesktopMock(),
+}))
+
+vi.mock('@/stores/shell-store', () => ({
+  useShellStore: (selector: (state: Record<string, unknown>) => unknown) =>
+    selector({ setAstraOpen, setAstraMaximized }),
+}))
+
 import { TodayAISummary } from '@/components/habits/today-ai-summary'
 
-function mockProEnabled() {
+function mockSummaryReady() {
   useProfileMock.mockReturnValue({
     profile: { hasProAccess: true, aiSummaryEnabled: true, language: 'en' },
   })
+  useSummaryMock.mockReturnValue({
+    summary: 'You completed 3 of 4 habits today.',
+    isLoading: false,
+    error: null,
+    refetch: vi.fn(),
+  })
 }
 
-describe('TodayAISummary insight chip (web)', () => {
+describe('TodayAISummary click target', () => {
   beforeEach(() => {
     vi.clearAllMocks()
   })
 
-  it('renders the insight pill when pro, enabled, and an insight is present', () => {
-    mockProEnabled()
-    useSummaryMock.mockReturnValue({
-      summary: 'You completed 3 of 4 habits today.',
-      insight: 'A short walk could lift the afternoon.',
-      isLoading: false,
-      error: null,
-      refetch: vi.fn(),
-    })
+  it('opens and maximizes the docked Astra copilot on desktop without navigating', () => {
+    isDesktopMock.mockReturnValue(true)
+    mockSummaryReady()
 
     render(<TodayAISummary date="2026-04-07" />)
+    fireEvent.click(screen.getByRole('button', { name: 'summary.askAstra' }))
 
-    expect(
-      screen.getByText('A short walk could lift the afternoon.'),
-    ).toBeInTheDocument()
-    expect(screen.getByText(/^summary\.insightLabel:/)).toBeInTheDocument()
+    expect(setAstraOpen).toHaveBeenCalledWith(true)
+    expect(setAstraMaximized).toHaveBeenCalledWith(true)
+    expect(pushMock).not.toHaveBeenCalled()
   })
 
-  it('does not render the insight pill when there is no insight', () => {
-    mockProEnabled()
-    useSummaryMock.mockReturnValue({
-      summary: 'You completed 3 of 4 habits today.',
-      insight: null,
-      isLoading: false,
-      error: null,
-      refetch: vi.fn(),
-    })
+  it('navigates to /chat at mobile width without touching the shell store', () => {
+    isDesktopMock.mockReturnValue(false)
+    mockSummaryReady()
 
     render(<TodayAISummary date="2026-04-07" />)
+    fireEvent.click(screen.getByRole('button', { name: 'summary.askAstra' }))
 
-    expect(
-      screen.getByText('You completed 3 of 4 habits today.'),
-    ).toBeInTheDocument()
-    expect(screen.queryByText(/^summary\.insightLabel:/)).toBeNull()
-  })
-
-  it('does not render the insight pill for free users even when an insight is present', () => {
-    useProfileMock.mockReturnValue({
-      profile: { hasProAccess: false, aiSummaryEnabled: false, language: 'en' },
-    })
-    useSummaryMock.mockReturnValue({
-      summary: null,
-      insight: 'should not show',
-      isLoading: false,
-      error: null,
-      refetch: vi.fn(),
-    })
-
-    render(<TodayAISummary date="2026-04-07" />)
-
-    expect(screen.queryByText('should not show')).toBeNull()
-    expect(screen.queryByText(/^summary\.insightLabel:/)).toBeNull()
+    expect(pushMock).toHaveBeenCalledWith('/chat')
+    expect(setAstraOpen).not.toHaveBeenCalled()
+    expect(setAstraMaximized).not.toHaveBeenCalled()
   })
 })

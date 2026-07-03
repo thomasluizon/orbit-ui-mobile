@@ -46,6 +46,21 @@
               "pathPrefix": "/auth-callback"
             }
           ]
+        },
+        {
+          "action": "VIEW",
+          "autoVerify": true,
+          "category": [
+            "BROWSABLE",
+            "DEFAULT"
+          ],
+          "data": [
+            {
+              "scheme": "https",
+              "host": "app.useorbit.org",
+              "pathPrefix": "/r/"
+            }
+          ]
         }
       ],
       "permissions": [

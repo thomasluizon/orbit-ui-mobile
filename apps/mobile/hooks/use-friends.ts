@@ -9,10 +9,12 @@ import { cheerKeys, friendKeys, profileKeys } from '@orbit/shared/query'
 import {
   cheersPageSchema,
   friendFeedPageSchema,
+  friendInvitePreviewSchema,
   friendProfileViewSchema,
   friendsResponseSchema,
   type CheersPage,
   type FriendFeedPage,
+  type FriendInvitePreview,
   type FriendProfileView,
   type FriendsResponse,
   type ReportReason,
@@ -67,6 +69,19 @@ export function useFriendProfile(userId: string | null) {
     queryFn: async () =>
       friendProfileViewSchema.parse(await apiClient<unknown>(API.friends.profile(userId!))),
     enabled: !!userId,
+    staleTime: 30_000,
+    retry: false,
+  })
+}
+
+/** Preview of an invite link's owner before sending a request. Gated on `code` so it only fetches
+ *  while the confirm surface is open; surfaces the backend 404 to the caller for the unknown-code state. */
+export function useInvitePreview(code: string | null) {
+  return useQuery<FriendInvitePreview>({
+    queryKey: friendKeys.invitePreview(code ?? ''),
+    queryFn: async () =>
+      friendInvitePreviewSchema.parse(await apiClient<unknown>(API.friends.invitePreview(code!))),
+    enabled: !!code,
     staleTime: 30_000,
     retry: false,
   })

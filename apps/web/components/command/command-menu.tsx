@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, type RefObject } from 'react'
+import { useMemo, useState, type RefObject } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { ArrowLeft, CheckCircle2, Plus, Search, SkipForward, Target } from 'lucide-react'
@@ -10,6 +10,7 @@ import { useUIStore } from '@/stores/ui-store'
 import { useHabits, useLogHabit, useSkipHabit } from '@/hooks/use-habits'
 import { CommandRow } from './command-row'
 import { CommandHabitItems } from './command-habit-items'
+import { buildCommandHabitList } from './build-command-habit-list'
 
 type CommandPage = 'log' | 'skip'
 
@@ -78,7 +79,7 @@ export function CommandMenu({ navItems, onCreateHabit, onCreateGoal, onClose, in
   const { data, isPending, isSuccess } = useHabits({})
   const logHabit = useLogHabit()
   const skipHabit = useSkipHabit()
-  const habits = data?.topLevelHabits ?? []
+  const habitEntries = useMemo(() => (data ? buildCommandHabitList(data) : []), [data])
 
   function run(action: () => void) {
     action()
@@ -199,9 +200,9 @@ export function CommandMenu({ navItems, onCreateHabit, onCreateGoal, onClose, in
 
             {isPending ? (
               <CommandHabitSkeleton heading={t('command.groups.search')} />
-            ) : habits.length > 0 ? (
+            ) : habitEntries.length > 0 ? (
               <CommandGroup heading={t('command.groups.search')} className={GROUP_CLASS}>
-                <CommandHabitItems habits={habits} onSelectHabit={() => run(jumpToToday)} />
+                <CommandHabitItems entries={habitEntries} onSelectHabit={() => run(jumpToToday)} />
               </CommandGroup>
             ) : null}
           </>
@@ -210,7 +211,7 @@ export function CommandMenu({ navItems, onCreateHabit, onCreateGoal, onClose, in
         ) : (
           <CommandGroup heading={activePageLabel} className={GROUP_CLASS}>
             <CommandHabitItems
-              habits={habits}
+              entries={habitEntries}
               onSelectHabit={(habit) =>
                 run(() => {
                   if (activePage === 'log') logHabit.mutate({ habitId: habit.id })

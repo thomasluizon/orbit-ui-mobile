@@ -233,6 +233,7 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     gap: 12,
     paddingHorizontal: 20,
+    paddingBottom: 10,
   },
   greetingBlock: {
     flex: 1,

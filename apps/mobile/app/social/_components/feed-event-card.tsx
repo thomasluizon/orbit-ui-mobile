@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import type { FriendFeedItem } from '@orbit/shared/types/social'
@@ -5,19 +6,22 @@ import { UserAvatar } from '@/components/ui/user-avatar'
 import { createTokensV2, tintFromPrimary } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import type { CheerTarget } from './cheer-composer'
+import { FriendProfileSheet } from './friend-profile-sheet'
 
 interface FeedEventCardProps {
   item: FriendFeedItem
   onCheer: (target: CheerTarget) => void
 }
 
-/** One warm activity-feed row (streak kept / achievement / completion milestone) with a Cheer action. */
+/** One warm activity-feed row (streak kept / achievement / completion milestone). The identity opens
+ *  the actor's friend profile; the Cheer action stays a separate, non-overlapping hit target. */
 export function FeedEventCard({ item, onCheer }: Readonly<FeedEventCardProps>) {
   const { t, i18n } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const styles = createStyles(tokens)
   const name = item.actorDisplayName
+  const [profileOpen, setProfileOpen] = useState(false)
 
   function eventText(): string {
     switch (item.type) {
@@ -36,8 +40,15 @@ export function FeedEventCard({ item, onCheer }: Readonly<FeedEventCardProps>) {
 
   return (
     <View style={styles.row}>
-      <UserAvatar name={name} />
-      <Text style={styles.text}>{eventText()}</Text>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={t('social.feed.viewProfile', { name })}
+        onPress={() => setProfileOpen(true)}
+        style={({ pressed }) => [styles.identity, pressed ? styles.identityPressed : null]}
+      >
+        <UserAvatar name={name} />
+        <Text style={styles.text}>{eventText()}</Text>
+      </Pressable>
       <Pressable
         accessibilityRole="button"
         onPress={() => onCheer({ recipientId: item.actorUserId, displayName: name })}
@@ -46,6 +57,13 @@ export function FeedEventCard({ item, onCheer }: Readonly<FeedEventCardProps>) {
       >
         <Text style={styles.cheerText}>{t('social.feed.cheerAction')}</Text>
       </Pressable>
+
+      <FriendProfileSheet
+        userId={item.actorUserId}
+        displayName={name}
+        open={profileOpen}
+        onClose={() => setProfileOpen(false)}
+      />
     </View>
   )
 }
@@ -59,6 +77,14 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       paddingHorizontal: 20,
       paddingVertical: 12,
     },
+    identity: {
+      flex: 1,
+      flexDirection: 'row',
+      alignItems: 'center',
+      gap: 12,
+      borderRadius: 12,
+    },
+    identityPressed: { opacity: 0.7 },
     text: { flex: 1, fontFamily: 'Rubik_400Regular', fontSize: 15, lineHeight: 21, color: tokens.fg1 },
     cheer: {
       paddingHorizontal: 14,

@@ -11,6 +11,7 @@ vi.mock('next-intl', () => ({
     translate.has = () => false
     return translate
   },
+  useLocale: () => 'en',
 }))
 
 vi.mock('@/components/ui/app-overlay', () => ({
@@ -42,8 +43,16 @@ const profileView: FriendProfileViewData = {
   handle: 'ada',
   displayName: 'Ada Lovelace',
   currentStreak: 12,
+  longestStreak: 40,
   level: 4,
+  levelTitle: 'Navigator',
+  totalXp: 820,
+  friendsSinceUtc: '2026-05-01T00:00:00Z',
+  weeklyActivity: [0, 1, 0, 2, 0, 3, 1],
   achievements: [],
+  topHabits: [],
+  isAccountabilityPartner: false,
+  sharedChallenges: [],
 }
 
 const refetch = vi.fn()
@@ -109,12 +118,46 @@ describe('FriendProfileView', () => {
     expect(screen.getByRole('button', { name: 'common.retry' })).toBeInTheDocument()
   })
 
-  it('renders the level numeral with its label and the empty achievements line', () => {
+  it('renders the enriched stat tiles and the empty achievements line', () => {
     setProfileReturn({ data: profileView })
     renderView()
-    expect(screen.getByText('4')).toBeInTheDocument()
-    expect(screen.getByText('social.friendProfile.levelLabel')).toBeInTheDocument()
+    expect(screen.getByText('12')).toBeInTheDocument()
+    expect(screen.getByText('40')).toBeInTheDocument()
+    expect(screen.getByText('820')).toBeInTheDocument()
+    expect(screen.getByText('Navigator')).toBeInTheDocument()
     expect(screen.getByText('social.friendProfile.noAchievements')).toBeInTheDocument()
+  })
+
+  it('renders top habits with their completion counts', () => {
+    setProfileReturn({
+      data: {
+        ...profileView,
+        topHabits: [{ title: 'Reading', emoji: '📖', completionCount: 33 }],
+      },
+    })
+    renderView()
+    expect(screen.getByText('Reading')).toBeInTheDocument()
+    expect(screen.getByText('33')).toBeInTheDocument()
+  })
+
+  it('renders shared context when the friend is a partner and shares challenges', () => {
+    setProfileReturn({
+      data: {
+        ...profileView,
+        isAccountabilityPartner: true,
+        sharedChallenges: [{ id: 'c-1', title: 'Sunrise Sprint' }],
+      },
+    })
+    renderView()
+    expect(screen.getByText('social.friendProfile.accountabilityPartner')).toBeInTheDocument()
+    expect(screen.getByText('Sunrise Sprint')).toBeInTheDocument()
+  })
+
+  it('omits the shared context section when there is nothing to show', () => {
+    setProfileReturn({ data: profileView })
+    renderView()
+    expect(screen.queryByText('social.friendProfile.accountabilityPartner')).not.toBeInTheDocument()
+    expect(screen.queryByText('social.friendProfile.sharedChallengesTitle')).not.toBeInTheDocument()
   })
 
   it('prefixes achievement chips with the shared achievement glyph', () => {

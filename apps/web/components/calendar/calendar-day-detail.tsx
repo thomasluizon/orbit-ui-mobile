@@ -16,6 +16,9 @@ interface CalendarDayDetailProps {
   entries: CalendarDayEntry[]
   showRecurring: boolean
   onShowRecurringChange: (value: boolean) => void
+  /** Desktop side-panel mode: the entries list scrolls within the viewport, a
+   *  bottom fade hints at more content, and the go-to-day CTA stays pinned below. */
+  fitViewport?: boolean
 }
 
 function statusBadgeColor(entry: CalendarDayEntry): string {
@@ -47,6 +50,7 @@ export function CalendarDayDetail({
   entries,
   showRecurring,
   onShowRecurringChange,
+  fitViewport = false,
 }: Readonly<CalendarDayDetailProps>) {
   const t = useTranslations()
   const { displayTime } = useTimeFormat()
@@ -78,17 +82,17 @@ export function CalendarDayDetail({
 
   if (!dateStr) return null
 
-  return (
-    <section aria-label={formattedDate} style={{ padding: '12px 20px 12px' }}>
-      {entries.length > 0 && (
-        <div className="flex justify-end" style={{ marginBottom: 12 }}>
-          <ShowRecurringToggle
-            checked={showRecurring}
-            onChange={onShowRecurringChange}
-          />
-        </div>
-      )}
+  const recurringToggle = entries.length > 0 && (
+    <div className="flex shrink-0 justify-end" style={{ marginBottom: 12 }}>
+      <ShowRecurringToggle
+        checked={showRecurring}
+        onChange={onShowRecurringChange}
+      />
+    </div>
+  )
 
+  const body = (
+    <>
       {entries.length === 0 && (
         <div
           className="text-[var(--fg-3)] text-sm text-center"
@@ -217,22 +221,58 @@ export function CalendarDayDetail({
           )}
         </div>
       )}
+    </>
+  )
 
-      <Link
-        href={`/?date=${dateStr}`}
-        className="flex w-full sm:max-w-[360px] sm:mx-auto items-center justify-center gap-[9px] rounded-full bg-transparent text-[var(--fg-1)] transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev)] active:scale-[0.98]"
-        style={{
-          marginTop: 16,
-          padding: '14px 26px',
-          fontFamily: 'var(--font-sans)',
-          fontSize: 16,
-          fontWeight: 500,
-          boxShadow: 'inset 0 0 0 1.5px var(--hairline-strong)',
-        }}
+  const goToDay = (
+    <Link
+      href={`/?date=${dateStr}`}
+      className="flex w-full shrink-0 sm:max-w-[360px] sm:mx-auto items-center justify-center gap-[9px] rounded-full bg-transparent text-[var(--fg-1)] transition-[background-color,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev)] active:scale-[0.98]"
+      style={{
+        marginTop: 16,
+        padding: '14px 26px',
+        fontFamily: 'var(--font-sans)',
+        fontSize: 16,
+        fontWeight: 500,
+        boxShadow: 'inset 0 0 0 1.5px var(--hairline-strong)',
+      }}
+    >
+      <ArrowRight size={18} strokeWidth={1.8} aria-hidden="true" />
+      {t('calendar.goToDay')}
+    </Link>
+  )
+
+  if (fitViewport) {
+    return (
+      <section
+        aria-label={formattedDate}
+        className="flex min-h-0 flex-1 flex-col"
+        style={{ padding: '12px 20px 12px' }}
       >
-        <ArrowRight size={18} strokeWidth={1.8} aria-hidden="true" />
-        {t('calendar.goToDay')}
-      </Link>
+        {recurringToggle}
+        <div className="relative min-h-0 flex-1">
+          <div
+            className="h-full overflow-y-auto overscroll-contain"
+            style={{ paddingBottom: 8 }}
+          >
+            {body}
+          </div>
+          <div
+            aria-hidden="true"
+            className="pointer-events-none absolute inset-x-0 bottom-0"
+            style={{ height: 24, background: 'linear-gradient(to top, var(--bg), transparent)' }}
+          />
+        </div>
+        {goToDay}
+      </section>
+    )
+  }
+
+  return (
+    <section aria-label={formattedDate} style={{ padding: '12px 20px 12px' }}>
+      {recurringToggle}
+      {body}
+      {goToDay}
     </section>
   )
 }

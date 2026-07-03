@@ -1,19 +1,23 @@
 'use client'
 
+import { useState } from 'react'
 import { useTranslations } from 'next-intl'
 import type { FriendFeedItem } from '@orbit/shared/types/social'
 import { UserAvatar } from '@/components/ui/user-avatar'
 import type { CheerTarget } from './cheer-composer'
+import { FriendProfileView } from './friend-profile-view'
 
 interface FeedEventCardProps {
   item: FriendFeedItem
   onCheer: (target: CheerTarget) => void
 }
 
-/** One warm activity-feed row (streak kept / achievement / completion milestone) with a Cheer action. */
+/** One warm activity-feed row (streak kept / achievement / completion milestone). The identity opens
+ *  the actor's friend profile; the Cheer action stays a separate, non-overlapping hit target. */
 export function FeedEventCard({ item, onCheer }: Readonly<FeedEventCardProps>) {
   const t = useTranslations()
   const name = item.actorDisplayName
+  const [profileOpen, setProfileOpen] = useState(false)
 
   function eventText(): string {
     switch (item.type) {
@@ -32,19 +36,27 @@ export function FeedEventCard({ item, onCheer }: Readonly<FeedEventCardProps>) {
 
   return (
     <div className="flex items-center" style={{ gap: 12, padding: '12px 20px' }}>
-      <UserAvatar name={name} />
-      <p
-        className="flex-1 min-w-0"
-        style={{
-          margin: 0,
-          fontFamily: 'var(--font-sans)',
-          fontSize: 15,
-          lineHeight: 1.4,
-          color: 'var(--fg-1)',
-        }}
+      <button
+        type="button"
+        aria-label={t('social.feed.viewProfile', { name })}
+        onClick={() => setProfileOpen(true)}
+        className="flex min-w-0 flex-1 cursor-pointer appearance-none items-center rounded-[12px] border-0 bg-transparent p-0 text-left transition-[background-color,transform] hover:bg-[var(--bg-elev)] active:scale-[0.99]"
+        style={{ gap: 12 }}
       >
-        {eventText()}
-      </p>
+        <UserAvatar name={name} />
+        <p
+          className="min-w-0 flex-1"
+          style={{
+            margin: 0,
+            fontFamily: 'var(--font-sans)',
+            fontSize: 15,
+            lineHeight: 1.4,
+            color: 'var(--fg-1)',
+          }}
+        >
+          {eventText()}
+        </p>
+      </button>
       <button
         type="button"
         onClick={() => onCheer({ recipientId: item.actorUserId, displayName: name })}
@@ -61,6 +73,13 @@ export function FeedEventCard({ item, onCheer }: Readonly<FeedEventCardProps>) {
       >
         {t('social.feed.cheerAction')}
       </button>
+
+      <FriendProfileView
+        userId={item.actorUserId}
+        displayName={name}
+        open={profileOpen}
+        onOpenChange={setProfileOpen}
+      />
     </div>
   )
 }

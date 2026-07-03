@@ -13,5 +13,9 @@ setup('authenticate and reset the smoke account', async ({ page }) => {
 
   await warmBackend(page.request)
 
+  await page.evaluate(() => {
+    window.localStorage.setItem('orbit_trial_expired_seen', '1')
+  })
+
   await page.context().storageState({ path: STORAGE_STATE_PATH })
 })

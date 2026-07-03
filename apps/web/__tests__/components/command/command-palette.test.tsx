@@ -1,5 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { createMockHabit } from '@orbit/shared/__tests__/factories'
+import type { NormalizedHabit } from '@orbit/shared/types/habit'
 
 Element.prototype.scrollIntoView = vi.fn()
 
@@ -17,13 +19,35 @@ const mockSetPaletteOpen = vi.fn()
 const mockSetActiveView = vi.fn()
 let paletteOpen = true
 
+interface NormalizedHabitQueryData {
+  topLevelHabits: NormalizedHabit[]
+  habitsById: Map<string, NormalizedHabit>
+  childrenByParent: Map<string, string[]>
+}
+
 interface HabitsQueryState {
-  data?: { topLevelHabits: { id: string; title: string; emoji: string }[] }
+  data?: NormalizedHabitQueryData
   isPending: boolean
   isSuccess: boolean
 }
 
 let habitsQuery: HabitsQueryState
+
+function buildQueryData(habits: NormalizedHabit[]): NormalizedHabitQueryData {
+  const habitsById = new Map(habits.map((habit) => [habit.id, habit]))
+  const childrenByParent = new Map<string, string[]>()
+  for (const habit of habits) {
+    if (habit.parentId === null) continue
+    const siblings = childrenByParent.get(habit.parentId) ?? []
+    siblings.push(habit.id)
+    childrenByParent.set(habit.parentId, siblings)
+  }
+  return {
+    habitsById,
+    childrenByParent,
+    topLevelHabits: habits.filter((habit) => habit.parentId === null),
+  }
+}
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
@@ -69,7 +93,9 @@ function renderPalette() {
 beforeEach(() => {
   paletteOpen = true
   habitsQuery = {
-    data: { topLevelHabits: [{ id: 'h1', title: 'Run', emoji: '🏃' }] },
+    data: buildQueryData([
+      createMockHabit({ id: 'h1', title: 'Run', emoji: '🏃', isOverdue: true }),
+    ]),
     isPending: false,
     isSuccess: true,
   }

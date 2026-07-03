@@ -1420,8 +1420,7 @@
     "retry": "Try again",
     "askAstra": "Ask Astra",
     "upgrade": "Upgrade",
-    "freePrompt": "Pro gets a daily summary of your habits.",
-    "insightLabel": "Nudge"
+    "freePrompt": "Pro gets a daily summary of your habits."
   },
   "retrospective": {
     "title": "Retrospective",
@@ -2883,6 +2882,7 @@
       "habitCompletedMilestone": "{name} reached {count} completions",
       "achievementGeneric": "an achievement",
       "cheerAction": "Cheer",
+      "viewProfile": "View {name}'s profile",
       "cheeredYouWithNote": "{name}: {note}",
       "cheeredYou": "{name} cheered you on"
     },
@@ -3001,12 +3001,24 @@
       "copy": "Copy",
       "copied": "Copied!",
       "share": "Share link",
-      "shareText": "I've been using Orbit to build better habits. Join me!"
+      "shareText": "I've been using Orbit to build better habits. Join me!",
+      "confirmTitle": "Add friend",
+      "self": "This is your own invite link.",
+      "alreadyFriends": "You're already friends with @{handle}.",
+      "pending": "You already have a pending request with @{handle}.",
+      "unknownCode": "This invite link isn't valid or has expired.",
+      "loadError": "Couldn't load this invite. Please try again.",
+      "sendRequest": "Send request"
     },
     "friendProfile": {
       "unavailable": "This profile isn't available.",
       "loadError": "Couldn't load this profile.",
-      "levelLabel": "Level",
+      "longestStreakLabel": "Best streak",
+      "xpLabel": "XP",
+      "activityLabel": "Last 7 days",
+      "friendsSince": "Friends since {date}",
+      "accountabilityPartner": "Accountability partners",
+      "sharedChallengesTitle": "Shared challenges",
       "noAchievements": "No achievements yet"
     },
     "cheer": {

@@ -91,6 +91,14 @@ describe('useFriends hooks (mobile)', () => {
       currentStreak: 12,
       level: 4,
       achievements: [],
+      longestStreak: 20,
+      levelTitle: 'Explorer',
+      totalXp: 1450,
+      friendsSinceUtc: '2026-05-01T00:00:00Z',
+      weeklyActivity: [1, 0, 2, 3, 0, 1, 4],
+      topHabits: [],
+      isAccountabilityPartner: false,
+      sharedChallenges: [],
     })
     await query.queryFn()
     expect(mocks.apiClient).toHaveBeenCalledWith('/api/friends/user-1/profile')

@@ -379,10 +379,11 @@ export default function CalendarPage() {
                   <section
                     data-testid="calendar-day-panel"
                     aria-label={dayDetailTitle}
+                    className="sticky top-[72px] flex max-h-[calc(100dvh-84px)] flex-col"
                     style={{ padding: '20px 0 10px 4px' }}
                   >
                     <h2
-                      className="min-w-0 truncate"
+                      className="min-w-0 shrink-0 truncate"
                       style={{
                         margin: 0,
                         padding: '0 0 12px',
@@ -399,6 +400,7 @@ export default function CalendarPage() {
                       entries={selectedEntries}
                       showRecurring={showRecurring}
                       onShowRecurringChange={setShowRecurring}
+                      fitViewport
                     />
                   </section>
                 )}

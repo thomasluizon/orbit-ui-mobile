@@ -1420,8 +1420,7 @@
     "retry": "Tentar de novo",
     "askAstra": "Pergunte à Astra",
     "upgrade": "Fazer upgrade",
-    "freePrompt": "No Pro, você recebe um resumo diário dos seus hábitos.",
-    "insightLabel": "Toque"
+    "freePrompt": "No Pro, você recebe um resumo diário dos seus hábitos."
   },
   "retrospective": {
     "title": "Retrospectiva",
@@ -2883,6 +2882,7 @@
       "habitCompletedMilestone": "{name} chegou a {count} conclusões",
       "achievementGeneric": "uma conquista",
       "cheerAction": "Incentivar",
+      "viewProfile": "Ver o perfil de {name}",
       "cheeredYouWithNote": "{name}: {note}",
       "cheeredYou": "{name} torceu por você"
     },
@@ -3001,12 +3001,24 @@
       "copy": "Copiar",
       "copied": "Copiado!",
       "share": "Compartilhar link",
-      "shareText": "Estou usando o Orbit para criar hábitos melhores. Venha comigo!"
+      "shareText": "Estou usando o Orbit para criar hábitos melhores. Venha comigo!",
+      "confirmTitle": "Adicionar amigo",
+      "self": "Este é o seu próprio link de convite.",
+      "alreadyFriends": "Você já é amigo de @{handle}.",
+      "pending": "Você já tem um pedido pendente com @{handle}.",
+      "unknownCode": "Este link de convite não é válido ou expirou.",
+      "loadError": "Não foi possível carregar este convite. Tente novamente.",
+      "sendRequest": "Enviar pedido"
     },
     "friendProfile": {
       "unavailable": "Este perfil não está disponível.",
       "loadError": "Não foi possível carregar este perfil.",
-      "levelLabel": "Nível",
+      "longestStreakLabel": "Melhor sequência",
+      "xpLabel": "XP",
+      "activityLabel": "Últimos 7 dias",
+      "friendsSince": "Amigos desde {date}",
+      "accountabilityPartner": "Parceiros de responsabilidade",
+      "sharedChallengesTitle": "Desafios em conjunto",
       "noAchievements": "Nenhuma conquista ainda"
     },
     "cheer": {
