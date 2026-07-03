@@ -2,15 +2,18 @@
 
 import {
   createContext,
+  useCallback,
   useContext,
   useEffect,
+  useId,
   useState,
   type ReactNode,
 } from 'react'
 
 interface TopbarSlotContextValue {
   node: ReactNode
-  setNode: (node: ReactNode) => void
+  setSlot: (ownerId: string, node: ReactNode) => void
+  clearSlot: (ownerId: string) => void
 }
 
 const TopbarSlotContext = createContext<TopbarSlotContextValue | null>(null)
@@ -18,12 +21,27 @@ const TopbarSlotContext = createContext<TopbarSlotContextValue | null>(null)
 /**
  * Lets a page contribute the left content of the desktop topbar (e.g. Today's
  * date navigation) while the shell owns the bar's layout and the right cluster.
- * The page keeps its own state; only the rendered node crosses the seam.
+ * The page keeps its own state; only the rendered node crosses the seam. Each
+ * contributor is tracked by an owner id so a late-unmounting page (route
+ * transitions keep the outgoing page mounted through its exit animation) only
+ * clears the slot while it still owns it, never the incoming page's node.
  */
 export function TopbarSlotProvider({ children }: Readonly<{ children: ReactNode }>) {
-  const [node, setNode] = useState<ReactNode>(null)
+  const [state, setState] = useState<{ node: ReactNode; ownerId: string | null }>({
+    node: null,
+    ownerId: null,
+  })
+
+  const setSlot = useCallback((ownerId: string, node: ReactNode) => {
+    setState({ node, ownerId })
+  }, [])
+
+  const clearSlot = useCallback((ownerId: string) => {
+    setState((previous) => (previous.ownerId === ownerId ? { node: null, ownerId: null } : previous))
+  }, [])
+
   return (
-    <TopbarSlotContext.Provider value={{ node, setNode }}>
+    <TopbarSlotContext.Provider value={{ node: state.node, setSlot, clearSlot }}>
       {children}
     </TopbarSlotContext.Provider>
   )
@@ -36,16 +54,19 @@ export function useTopbarSlotNode(): ReactNode {
 
 /**
  * Registers `node` as the desktop topbar's left content for as long as the
- * calling component is mounted, clearing it on unmount. Safe outside a provider
- * (renders nothing extra). Pass `null` to contribute nothing.
+ * calling component is mounted, clearing it on unmount only if this contributor
+ * still owns the slot. Safe outside a provider (renders nothing extra). Pass
+ * `null` to contribute nothing.
  */
 export function useTopbarSlot(node: ReactNode): void {
   const ctx = useContext(TopbarSlotContext)
-  const setNode = ctx?.setNode
+  const setSlot = ctx?.setSlot
+  const clearSlot = ctx?.clearSlot
+  const ownerId = useId()
 
   useEffect(() => {
-    if (!setNode) return
-    setNode(node)
-    return () => setNode(null)
-  }, [setNode, node])
+    if (!setSlot || !clearSlot) return
+    setSlot(ownerId, node)
+    return () => clearSlot(ownerId)
+  }, [setSlot, clearSlot, ownerId, node])
 }

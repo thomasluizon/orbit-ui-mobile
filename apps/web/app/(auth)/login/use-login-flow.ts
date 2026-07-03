@@ -5,6 +5,7 @@ import { useTranslations, useLocale } from 'next-intl'
 import {
   buildGoogleCalendarOAuthOptions,
   isValidEmail,
+  isValidReferralCode,
   isValidVerificationCode,
 } from '@orbit/shared/utils'
 import { resolveMotionPreset } from '@orbit/shared/theme'
@@ -59,7 +60,7 @@ export function useLoginFlow() {
 
   useEffect(() => {
     const refParam = searchParams.get('ref')
-    if (refParam && /^[a-zA-Z0-9_-]+$/.test(refParam)) {
+    if (isValidReferralCode(refParam)) {
       document.cookie = `referral_code=${encodeURIComponent(refParam)};max-age=${7 * 24 * 60 * 60};path=/;samesite=strict;secure`
     }
   }, [searchParams])

@@ -23,6 +23,8 @@ interface NormalizedHabitQueryData {
  * visibility semantics: a habit (parent or sub-habit) counts toward the day
  * only when it has own content on the selected date — general, scheduled, or
  * overdue — and counts as done when it is completed or logged on that date.
+ * Bad (avoid) habits are excluded entirely: a slip on one is not progress, so
+ * it never enters the total or the done count.
  */
 export function computeDayProgress(
   habitsById: Map<string, NormalizedHabit>,
@@ -31,6 +33,7 @@ export function computeDayProgress(
   let done = 0
   let total = 0
   for (const habit of habitsById.values()) {
+    if (habit.isBadHabit) continue
     const countsForDay =
       habit.isGeneral || habit.isOverdue || hasHabitScheduleOnDate(habit, selectedDate)
     if (!countsForDay) continue

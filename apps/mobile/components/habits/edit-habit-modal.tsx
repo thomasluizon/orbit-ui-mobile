@@ -301,9 +301,9 @@ function createStyles(bottomInset: number) {
       alignItems: 'center',
       justifyContent: 'flex-end',
       gap: 12,
-      paddingTop: 14,
+      paddingTop: 16,
       paddingHorizontal: 20,
-      paddingBottom: Math.max(bottomInset, 16),
+      paddingBottom: Math.max(bottomInset + 12, 28),
     },
   })
 }

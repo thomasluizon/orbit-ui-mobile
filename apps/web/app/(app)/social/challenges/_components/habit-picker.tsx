@@ -1,6 +1,7 @@
 'use client'
 
 import { useTranslations } from 'next-intl'
+import { isCompletedOneTimeHabit } from '@orbit/shared/utils'
 import { useHabits } from '@/hooks/use-habits'
 
 interface HabitPickerProps {
@@ -12,7 +13,9 @@ interface HabitPickerProps {
 export function HabitPicker({ selectedIds, onToggle }: Readonly<HabitPickerProps>) {
   const t = useTranslations()
   const { data } = useHabits({})
-  const habits = data?.topLevelHabits ?? []
+  const habits = (data?.topLevelHabits ?? []).filter(
+    (habit) => !isCompletedOneTimeHabit(habit),
+  )
 
   if (habits.length === 0) {
     return (

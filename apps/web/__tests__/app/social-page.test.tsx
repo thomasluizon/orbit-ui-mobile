@@ -87,6 +87,7 @@ vi.mock('@/hooks/use-friends', () => ({
   useFriends: () => mocks.friendsReturn,
   useFriendFeed: () => mocks.feedReturn,
   useFriendProfile: () => ({ data: undefined, isLoading: false, isError: false }),
+  useInvitePreview: () => ({ data: undefined, isLoading: false, isError: false, error: null }),
   useCheers: () => mocks.cheersReturn,
   useSendFriendRequest: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useAcceptFriendRequest: () => ({ mutateAsync: mocks.acceptMutate, isPending: false }),

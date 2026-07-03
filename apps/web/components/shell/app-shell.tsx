@@ -75,10 +75,11 @@ export function AppShell({ children, onCreate }: Readonly<AppShellProps>) {
 
   const navigateTab = useMemo(
     () => (path: string) => {
+      setAstraMaximized(false)
       setRouteTransitionIntent('tab')
       router.push(path)
     },
-    [router],
+    [router, setAstraMaximized],
   )
 
   const selectHabitView = useMemo(

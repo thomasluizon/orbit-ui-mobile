@@ -14,6 +14,7 @@ import {
   sendCheerRequestSchema,
   cheersPageSchema,
   sendFriendRequestSchema,
+  friendInvitePreviewSchema,
   blockUserRequestSchema,
   reportUserRequestSchema,
   friendProfileViewSchema,
@@ -289,6 +290,30 @@ describe('sendFriendRequestSchema', () => {
 })
 
 
+describe('friendInvitePreviewSchema', () => {
+  const base = {
+    handle: 'grace_h',
+    displayName: 'Grace Hopper',
+    isSelf: false,
+    isAlreadyFriend: false,
+    hasPendingRequest: false,
+  }
+
+  it('parses a full preview payload', () => {
+    expect(friendInvitePreviewSchema.safeParse(base).success).toBe(true)
+  })
+
+  it('rejects a payload missing a relationship flag', () => {
+    const { hasPendingRequest: _omitted, ...withoutFlag } = base
+    expect(friendInvitePreviewSchema.safeParse(withoutFlag).success).toBe(false)
+  })
+
+  it('rejects a non-boolean isSelf', () => {
+    expect(friendInvitePreviewSchema.safeParse({ ...base, isSelf: 'yes' }).success).toBe(false)
+  })
+})
+
+
 describe('blockUserRequestSchema', () => {
   it('parses a valid block request', () => {
     expect(blockUserRequestSchema.safeParse({ blockedUserId: 'user-7' }).success).toBe(true)
@@ -344,8 +369,16 @@ describe('friendProfileViewSchema', () => {
     handle: 'grace_h',
     displayName: 'Grace Hopper',
     currentStreak: 12,
+    longestStreak: 40,
     level: 4,
+    levelTitle: 'Navigator',
+    totalXp: 820,
+    friendsSinceUtc: '2026-05-01T00:00:00Z',
+    weeklyActivity: [0, 1, 2, 0, 3, 1, 2],
     achievements: [{ name: 'First Habit', iconKey: 'first-habit', rarity: 'Common' }],
+    topHabits: [{ title: 'Reading', emoji: '📖', completionCount: 40 }],
+    isAccountabilityPartner: true,
+    sharedChallenges: [{ id: 'challenge-1', title: 'Sunrise Sprint' }],
   }
 
   it('parses a valid friend profile view', () => {
@@ -354,6 +387,19 @@ describe('friendProfileViewSchema', () => {
 
   it('accepts an empty achievements array', () => {
     expect(friendProfileViewSchema.safeParse({ ...validProfile, achievements: [] }).success).toBe(true)
+  })
+
+  it('accepts a null friendsSinceUtc', () => {
+    expect(friendProfileViewSchema.safeParse({ ...validProfile, friendsSinceUtc: null }).success).toBe(true)
+  })
+
+  it('accepts a null top-habit emoji', () => {
+    const topHabits = [{ title: 'Meditate', emoji: null, completionCount: 3 }]
+    expect(friendProfileViewSchema.safeParse({ ...validProfile, topHabits }).success).toBe(true)
+  })
+
+  it('rejects a weekly activity array that is not seven days', () => {
+    expect(friendProfileViewSchema.safeParse({ ...validProfile, weeklyActivity: [1, 2, 3] }).success).toBe(false)
   })
 
   it('rejects a non-string userId', () => {
@@ -487,6 +533,11 @@ describe('friends API endpoints', () => {
     expect(API.friends.unblock('user-2')).toBe('/api/friends/block/user-2')
     expect(API.friends.profile('user-1')).toBe('/api/friends/user-1/profile')
   })
+
+  it('encodes the invite-preview code into the query string', () => {
+    expect(API.friends.invitePreview('REF123')).toBe('/api/friends/invite-preview?code=REF123')
+    expect(API.friends.invitePreview('a b&c')).toBe('/api/friends/invite-preview?code=a%20b%26c')
+  })
 })
 
 
@@ -505,6 +556,10 @@ describe('friendKeys', () => {
 
   it('profile appends the userId', () => {
     expect(friendKeys.profile('user-1')).toEqual(['friends', 'profile', 'user-1'])
+  })
+
+  it('invitePreview appends the code', () => {
+    expect(friendKeys.invitePreview('REF123')).toEqual(['friends', 'invitePreview', 'REF123'])
   })
 })
 

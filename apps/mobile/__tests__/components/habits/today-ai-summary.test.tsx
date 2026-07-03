@@ -10,9 +10,10 @@ type RenderedTree = {
 
 const useSummaryMock = vi.fn();
 const useProfileMock = vi.fn();
+const pushMock = vi.fn();
 
 vi.mock("expo-router", () => ({
-  useRouter: () => ({ push: vi.fn() }),
+  useRouter: () => ({ push: pushMock }),
 }));
 
 vi.mock("react-i18next", () => ({
@@ -62,7 +63,7 @@ import { TodayAISummary } from "@/components/habits/today-ai-summary";
 
 type CardRenderProp = (state: { pressed: boolean }) => React.ReactElement;
 
-function renderCardBody(): RenderedTree | null {
+function getCard(): RenderedNode | null {
   let outer: RenderedTree | null = null;
   TestRenderer.act(() => {
     outer = TestRenderer.create(
@@ -78,85 +79,48 @@ function renderCardBody(): RenderedTree | null {
       typeof node.props.children === "function" &&
       node.props.accessibilityRole === "button",
   );
-  if (cards.length === 0) {
-    return null;
-  }
-  const renderChild = cards[0]!.props.children as CardRenderProp;
+  return cards[0] ?? null;
+}
+
+function summaryTextNodes(card: RenderedNode, summary: string): RenderedNode[] {
+  const renderChild = card.props.children as CardRenderProp;
   let inner: RenderedTree | null = null;
   TestRenderer.act(() => {
     inner = TestRenderer.create(
       renderChild({ pressed: false }),
     ) as unknown as RenderedTree;
   });
-  return inner;
-}
-
-function insightNodes(tree: RenderedTree | null): RenderedNode[] {
-  if (!tree) {
-    return [];
-  }
-  return tree.root.findAll(
+  return (inner as unknown as RenderedTree).root.findAll(
     (node) =>
-      typeof node.type === "string" &&
-      typeof node.props?.accessibilityLabel === "string" &&
-      (node.props.accessibilityLabel as string).startsWith(
-        "summary.insightLabel:",
-      ),
+      typeof node.type === "string" && node.props.children === summary,
   );
 }
 
-describe("TodayAISummary insight chip (mobile)", () => {
+describe("TodayAISummary (mobile)", () => {
   beforeEach(() => {
     vi.clearAllMocks();
-  });
-
-  it("renders the insight pill when pro, enabled, and an insight is present", () => {
     useProfileMock.mockReturnValue({
       profile: { hasProAccess: true, aiSummaryEnabled: true, language: "en" },
     });
     useSummaryMock.mockReturnValue({
       summary: "You completed 3 of 4 habits today.",
-      insight: "A short walk could lift the afternoon.",
       isLoading: false,
       error: null,
       refetch: vi.fn(),
     });
-
-    const nodes = insightNodes(renderCardBody());
-
-    expect(nodes).toHaveLength(1);
-    expect(nodes[0]!.props.accessibilityLabel).toBe(
-      "summary.insightLabel: A short walk could lift the afternoon.",
-    );
   });
 
-  it("does not render the insight pill when there is no insight", () => {
-    useProfileMock.mockReturnValue({
-      profile: { hasProAccess: true, aiSummaryEnabled: true, language: "en" },
-    });
-    useSummaryMock.mockReturnValue({
-      summary: "You completed 3 of 4 habits today.",
-      insight: null,
-      isLoading: false,
-      error: null,
-      refetch: vi.fn(),
-    });
-
-    expect(insightNodes(renderCardBody())).toHaveLength(0);
+  it("renders the summary message", () => {
+    const card = getCard();
+    expect(card).not.toBeNull();
+    expect(
+      summaryTextNodes(card!, "You completed 3 of 4 habits today."),
+    ).toHaveLength(1);
   });
 
-  it("does not render the insight pill for free users even when an insight is present", () => {
-    useProfileMock.mockReturnValue({
-      profile: { hasProAccess: false, aiSummaryEnabled: false, language: "en" },
-    });
-    useSummaryMock.mockReturnValue({
-      summary: null,
-      insight: "should not show",
-      isLoading: false,
-      error: null,
-      refetch: vi.fn(),
-    });
-
-    expect(insightNodes(renderCardBody())).toHaveLength(0);
+  it("routes to /chat when the card is pressed", () => {
+    const card = getCard();
+    (card!.props.onPress as () => void)();
+    expect(pushMock).toHaveBeenCalledWith("/chat");
   });
 });

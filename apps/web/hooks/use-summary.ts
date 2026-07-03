@@ -10,7 +10,6 @@ import {
 
 interface SummaryResponse {
   summary: string
-  insight: string
   fromCache: boolean
 }
 
@@ -59,7 +58,6 @@ export function useSummary({
 
   return {
     summary: query.data?.summary ?? null,
-    insight: query.data?.insight ?? null,
     isLoading: query.isLoading,
     error: query.error,
     refetch: query.refetch,

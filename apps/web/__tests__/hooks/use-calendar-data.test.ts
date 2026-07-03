@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { renderHook, waitFor } from '@testing-library/react'
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import React from 'react'
-import { useCalendarData } from '@/hooks/use-calendar-data'
+import { useCalendarData, useCalendarRangeChunked } from '@/hooks/use-calendar-data'
 
 const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
@@ -221,5 +221,94 @@ describe('useCalendarData', () => {
     const entry = result.current.dayMap.get('2020-03-10')
     expect(entry).toBeDefined()
     expect(entry![0]!.isOneTime).toBe(true)
+  })
+})
+
+describe('useCalendarRangeChunked', () => {
+  beforeEach(() => {
+    mockFetch.mockReset()
+  })
+
+  function habitScheduledOn(id: string, date: string) {
+    return {
+      id,
+      title: 'Chunked',
+      isBadHabit: false,
+      dueTime: null,
+      frequencyUnit: 'Day',
+      frequencyQuantity: 1,
+      scheduledDates: [date],
+      instances: null,
+      isCompleted: false,
+      isGeneral: false,
+      isFlexible: false,
+      days: [],
+      dueDate: date,
+      dueEndTime: null,
+      endDate: null,
+      position: 0,
+      checklistItems: [],
+      createdAtUtc: '2025-01-01T00:00:00Z',
+      isOverdue: false,
+      reminderEnabled: false,
+      reminderTimes: [],
+      scheduledReminders: [],
+      slipAlertEnabled: false,
+      tags: [],
+      children: [],
+      hasSubHabits: false,
+      description: null,
+      flexibleTarget: null,
+      flexibleCompleted: null,
+    }
+  }
+
+  it('splits a beyond-cap range into chunked requests and merges the day maps', async () => {
+    mockFetch.mockImplementation((input: RequestInfo | URL) => {
+      const url = String(input)
+      const from = new URL(url, 'http://localhost').searchParams.get('dateFrom') ?? '2025-01-01'
+      return Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve({ habits: [habitScheduledOn('h-' + from, from)], logs: {} }),
+      })
+    })
+
+    const { result } = renderHook(
+      () => useCalendarRangeChunked(new Date(2025, 0, 1), new Date(2025, 5, 30)),
+      { wrapper: createWrapper() },
+    )
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+
+    expect(mockFetch.mock.calls.length).toBeGreaterThan(1)
+    for (const call of mockFetch.mock.calls) {
+      const url = new URL(String(call[0]), 'http://localhost')
+      const from = new Date(url.searchParams.get('dateFrom') + 'T00:00:00Z')
+      const to = new Date(url.searchParams.get('dateTo') + 'T00:00:00Z')
+      const diffDays = (to.getTime() - from.getTime()) / 86_400_000
+      expect(diffDays).toBeLessThanOrEqual(62)
+    }
+
+    expect(result.current.dayMap.size).toBe(mockFetch.mock.calls.length)
+    expect(result.current.error).toBeNull()
+  })
+
+  it('surfaces a chunk failure as the aggregate error', async () => {
+    let callCount = 0
+    mockFetch.mockImplementation(() => {
+      callCount += 1
+      if (callCount === 1) {
+        return Promise.resolve({ ok: false, status: 500, json: () => Promise.resolve({}) })
+      }
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({ habits: [], logs: {} }) })
+    })
+
+    const { result } = renderHook(
+      () => useCalendarRangeChunked(new Date(2025, 0, 1), new Date(2025, 5, 30)),
+      { wrapper: createWrapper() },
+    )
+
+    await waitFor(() => expect(result.current.isLoading).toBe(false))
+    expect(result.current.error).not.toBeNull()
   })
 })

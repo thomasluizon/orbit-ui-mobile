@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import { ScrollView, StyleSheet } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
-import { useLocalSearchParams } from 'expo-router'
+import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
+import { isValidReferralCode } from '@orbit/shared/utils'
 import { AppBar } from '@/components/ui/app-bar'
 import { GradientTop } from '@/components/ui/gradient-top'
 import { SectionHeadTabs } from '@/components/ui/section-head-tabs'
@@ -17,20 +18,24 @@ import { SocialFriends } from './social/_components/social-friends'
 import { AccountabilitySection } from './social/_components/accountability-section'
 import { ChallengesEntryCard } from './social/_components/challenges-entry-card'
 import { CheerComposer, type CheerTarget } from './social/_components/cheer-composer'
+import { InviteConfirmSheet } from './social/_components/invite-confirm-sheet'
 
 type SocialTab = 'feed' | 'friends' | 'buddies'
 
 export default function SocialScreen() {
   const { t } = useTranslation()
   const goBackOrFallback = useGoBackOrFallback()
+  const router = useRouter()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const styles = createStyles(tokens)
   const { profile, isLoading } = useProfile()
-  const { tab: tabParam, newPairHabitId } = useLocalSearchParams<{
+  const { tab: tabParam, newPairHabitId, invite: inviteParam } = useLocalSearchParams<{
     tab?: string
     newPairHabitId?: string
+    invite?: string
   }>()
+  const inviteCode = isValidReferralCode(inviteParam) ? inviteParam : null
   const [tab, setTab] = useState<SocialTab>(
     tabParam === 'buddies' || tabParam === 'friends' ? tabParam : 'feed',
   )
@@ -75,6 +80,10 @@ export default function SocialScreen() {
         </>
       )}
       <CheerComposer target={cheerTarget} onClose={() => setCheerTarget(null)} />
+      <InviteConfirmSheet
+        code={inviteCode}
+        onClose={() => router.setParams({ invite: undefined })}
+      />
     </SafeAreaView>
   )
 }

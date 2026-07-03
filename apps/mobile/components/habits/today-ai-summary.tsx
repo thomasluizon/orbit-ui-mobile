@@ -37,7 +37,7 @@ export function TodayAISummary({ date }: Readonly<TodayAISummaryProps>) {
   const locale = profile?.language ?? i18n.language
   const [expanded, setExpanded] = useState(false)
 
-  const { summary, insight, isLoading, error, refetch } = useSummary({
+  const { summary, isLoading, error, refetch } = useSummary({
     date,
     locale,
     hasProAccess,
@@ -118,18 +118,6 @@ export function TodayAISummary({ date }: Readonly<TodayAISummaryProps>) {
               <ArrowUpRight size={16} strokeWidth={1.8} color={tokens.fg3} />
             </View>
           </View>
-          {isSummaryText && insight ? (
-            <View style={styles.insightPill}>
-              <Text
-                style={styles.insightText}
-                numberOfLines={1}
-                ellipsizeMode="tail"
-                accessibilityLabel={`${t('summary.insightLabel')}: ${insight}`}
-              >
-                {insight}
-              </Text>
-            </View>
-          ) : null}
           <Text
             style={styles.message}
             numberOfLines={clampable && !expanded ? 3 : undefined}
@@ -185,24 +173,6 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       alignItems: 'center',
       gap: 8,
       marginBottom: 6,
-    },
-    insightPill: {
-      alignSelf: 'flex-start',
-      maxWidth: '100%',
-      flexShrink: 1,
-      borderRadius: 999,
-      paddingVertical: 4,
-      paddingHorizontal: 11,
-      marginBottom: 8,
-      backgroundColor: tintFromPrimary(tokens, 0.16),
-      borderWidth: 1,
-      borderColor: tintFromPrimary(tokens, 0.32),
-    },
-    insightText: {
-      fontFamily: 'Rubik_500Medium',
-      fontSize: 12,
-      lineHeight: 16,
-      color: tokens.primarySoft,
     },
     eyebrow: {
       fontFamily: 'Rubik_500Medium',

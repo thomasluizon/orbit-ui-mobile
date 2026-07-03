@@ -23,7 +23,7 @@ describe('validation constants', () => {
   })
 
   it('has correct habit description max length', () => {
-    expect(MAX_HABIT_DESCRIPTION_LENGTH).toBe(2000)
+    expect(MAX_HABIT_DESCRIPTION_LENGTH).toBe(10000)
   })
 
   it('has correct habit emoji max length', () => {

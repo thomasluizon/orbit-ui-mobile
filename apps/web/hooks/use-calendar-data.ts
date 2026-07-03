@@ -1,14 +1,18 @@
 'use client'
 
 import { useMemo } from 'react'
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueries } from '@tanstack/react-query'
 import {
   startOfMonth,
   endOfMonth,
 } from 'date-fns'
 import { habitKeys, QUERY_STALE_TIMES } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
-import { buildCalendarDayMap, formatAPIDate } from '@orbit/shared/utils'
+import {
+  buildCalendarDayMap,
+  formatAPIDate,
+  splitCalendarMonthRange,
+} from '@orbit/shared/utils'
 import type { CalendarMonthResponse } from '@orbit/shared/types/habit'
 import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
 
@@ -61,4 +65,44 @@ export function useCalendarRange(rangeStart: Date, rangeEnd: Date, enabled = tru
     formatAPIDate(rangeEnd),
     enabled,
   )
+}
+
+/** Calendar entries for a date range that may span more than the calendar-month
+ *  endpoint's 62-day cap (e.g. the insights quarter/year heatmap). Splits the
+ *  range into ≤62-day chunks, fetches each as its own cached query, and merges
+ *  the per-day results so no single request breaches the API limit. */
+export function useCalendarRangeChunked(rangeStart: Date, rangeEnd: Date, enabled = true) {
+  const startStr = formatAPIDate(rangeStart)
+  const endStr = formatAPIDate(rangeEnd)
+  const chunks = useMemo(
+    () => splitCalendarMonthRange(startStr, endStr),
+    [startStr, endStr],
+  )
+
+  return useQueries({
+    queries: chunks.map((chunk) => ({
+      queryKey: habitKeys.calendar(chunk.from, chunk.to),
+      queryFn: () => fetchCalendarMonth(chunk.from, chunk.to),
+      staleTime: QUERY_STALE_TIMES.habits,
+      enabled,
+    })),
+    combine: (results) => {
+      const dayMap = new Map<string, CalendarDayEntry[]>()
+      for (const result of results) {
+        if (!result.data) continue
+        for (const [day, entries] of buildCalendarDayMap(result.data)) {
+          dayMap.set(day, entries)
+        }
+      }
+      return {
+        dayMap,
+        isLoading: results.some((result) => result.isLoading),
+        isFetching: results.some((result) => result.isFetching),
+        error: results.find((result) => result.error)?.error?.message ?? null,
+        refresh: () => {
+          for (const result of results) void result.refetch()
+        },
+      }
+    },
+  })
 }

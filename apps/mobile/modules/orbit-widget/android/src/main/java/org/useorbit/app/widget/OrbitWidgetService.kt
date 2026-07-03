@@ -371,14 +371,15 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
             tr(lang, "today")
         }
 
-        // Count each sub-habit as its own item so the total matches the Today list
+        // Count each sub-habit as its own item so the total matches the Today list.
+        // Bad (avoid) habits never count toward progress: a slip is not a completion.
         var totalCount = 0
         var completedCount = 0
         for (habit in habits.filter { it.depth == 0 }) {
             if (habit.hasChildren) {
                 totalCount += habit.childrenTotal
                 completedCount += habit.childrenDone
-            } else {
+            } else if (!habit.isBadHabit) {
                 totalCount += 1
                 if (habit.isCompleted) completedCount += 1
             }
@@ -502,9 +503,12 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
         val result = mutableListOf<HabitItem>()
         for (habit in apiHabits) {
             val children = habit.children ?: emptyList()
-            val allChildrenDone = children.isNotEmpty() && children.all { isDoneForRange(it) }
+            // Bad (avoid) sub-habits never count toward the parent's progress badge
+            // or auto-completion: a slip is not a completion.
+            val countingChildren = children.filter { !it.isBadHabit }
+            val allChildrenDone = countingChildren.isNotEmpty() && countingChildren.all { isDoneForRange(it) }
             val done = isDoneForRange(habit) || allChildrenDone
-            val childrenDone = children.count { isDoneForRange(it) }
+            val childrenDone = countingChildren.count { isDoneForRange(it) }
             result.add(
                 HabitItem(
                     id = habit.id,
@@ -518,7 +522,7 @@ class OrbitWidgetFactory(private val context: Context) : RemoteViewsService.Remo
                     depth = 0,
                     hasChildren = children.isNotEmpty(),
                     childrenDone = childrenDone,
-                    childrenTotal = children.size,
+                    childrenTotal = countingChildren.size,
                     hasDeeper = false
                 )
             )

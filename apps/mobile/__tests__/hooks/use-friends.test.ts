@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { API } from '@orbit/shared/api'
 import { cheerKeys, friendKeys } from '@orbit/shared/query'
 
-import { useCheers, useFriendFeed, useFriendProfile, useFriends, useSendCheer } from '@/hooks/use-friends'
+import { useCheers, useFriendFeed, useFriendProfile, useFriends, useInvitePreview, useSendCheer } from '@/hooks/use-friends'
 
 const TestRenderer = require('react-test-renderer')
 
@@ -91,9 +91,33 @@ describe('useFriends hooks (mobile)', () => {
       currentStreak: 12,
       level: 4,
       achievements: [],
+      longestStreak: 20,
+      levelTitle: 'Explorer',
+      totalXp: 1450,
+      friendsSinceUtc: '2026-05-01T00:00:00Z',
+      weeklyActivity: [1, 0, 2, 3, 0, 1, 4],
+      topHabits: [],
+      isAccountabilityPartner: false,
+      sharedChallenges: [],
     })
     await query.queryFn()
     expect(mocks.apiClient).toHaveBeenCalledWith('/api/friends/user-1/profile')
+  })
+
+  it('keys the invite preview by code and fetches the invite-preview endpoint', async () => {
+    renderHook(() => useInvitePreview('ABCD2345'))
+    const query = mocks.queries.at(-1)!
+    expect(query.queryKey).toEqual(friendKeys.invitePreview('ABCD2345'))
+
+    mocks.apiClient.mockResolvedValue({
+      handle: 'grace_h',
+      displayName: 'Grace Hopper',
+      isSelf: false,
+      isAlreadyFriend: false,
+      hasPendingRequest: false,
+    })
+    await query.queryFn()
+    expect(mocks.apiClient).toHaveBeenCalledWith('/api/friends/invite-preview?code=ABCD2345')
   })
 
   it('keys the cheers query by direction and fetches received cheers', async () => {

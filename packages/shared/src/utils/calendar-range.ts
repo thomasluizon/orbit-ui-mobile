@@ -1,7 +1,36 @@
-import { addDays, differenceInCalendarDays } from 'date-fns'
+import { addDays, differenceInCalendarDays, min } from 'date-fns'
 import { parseAPIDate, formatAPIDate } from './dates'
 
 export const MAX_RANGE_DAYS = 14
+
+/** Maximum dateFrom→dateTo span the calendar-month endpoint accepts, mirroring
+ *  orbit-api `AppConstants.MaxCalendarRangeDays`. The API rejects any request
+ *  whose `DateTo - DateFrom` day difference exceeds this. */
+export const CALENDAR_MONTH_MAX_RANGE_DAYS = 62
+
+export interface CalendarRangeChunk {
+  from: string
+  to: string
+}
+
+/** Splits an inclusive [from, to] date range into contiguous, non-overlapping
+ *  chunks each spanning at most CALENDAR_MONTH_MAX_RANGE_DAYS days (dateTo minus
+ *  dateFrom), so no single calendar-month request breaches the API's 62-day cap.
+ *  A range already within the cap yields a single chunk identical to its input.
+ *  Assumes from <= to (callers order the endpoints before requesting). */
+export function splitCalendarMonthRange(from: string, to: string): CalendarRangeChunk[] {
+  const end = parseAPIDate(to)
+  const chunks: CalendarRangeChunk[] = []
+
+  let chunkStart = parseAPIDate(from)
+  while (chunkStart <= end) {
+    const chunkEnd = min([addDays(chunkStart, CALENDAR_MONTH_MAX_RANGE_DAYS), end])
+    chunks.push({ from: formatAPIDate(chunkStart), to: formatAPIDate(chunkEnd) })
+    chunkStart = addDays(chunkEnd, 1)
+  }
+
+  return chunks
+}
 
 export interface ClampedRange {
   start: string

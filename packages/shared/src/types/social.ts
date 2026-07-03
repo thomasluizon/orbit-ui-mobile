@@ -114,6 +114,16 @@ export const sendFriendRequestSchema = z.object({
 
 export type SendFriendRequest = z.infer<typeof sendFriendRequestSchema>
 
+export const friendInvitePreviewSchema = z.object({
+  handle: z.string(),
+  displayName: z.string(),
+  isSelf: z.boolean(),
+  isAlreadyFriend: z.boolean(),
+  hasPendingRequest: z.boolean(),
+})
+
+export type FriendInvitePreview = z.infer<typeof friendInvitePreviewSchema>
+
 export const blockUserRequestSchema = z.object({
   blockedUserId: z.string(),
 })
@@ -129,13 +139,36 @@ export const reportUserRequestSchema = z.object({
 
 export type ReportUserRequest = z.infer<typeof reportUserRequestSchema>
 
+export const friendTopHabitSchema = z.object({
+  title: z.string(),
+  emoji: z.string().nullable(),
+  completionCount: z.number().int(),
+})
+
+export type FriendTopHabit = z.infer<typeof friendTopHabitSchema>
+
+export const friendSharedChallengeSchema = z.object({
+  id: z.string(),
+  title: z.string(),
+})
+
+export type FriendSharedChallenge = z.infer<typeof friendSharedChallengeSchema>
+
 export const friendProfileViewSchema = z.object({
   userId: z.string(),
   handle: z.string(),
   displayName: z.string(),
   currentStreak: z.number(),
+  longestStreak: z.number(),
   level: z.number(),
+  levelTitle: z.string(),
+  totalXp: z.number(),
+  friendsSinceUtc: z.string().nullable(),
+  weeklyActivity: z.array(z.number().int()).length(7),
   achievements: z.array(publicAchievementSchema),
+  topHabits: z.array(friendTopHabitSchema),
+  isAccountabilityPartner: z.boolean(),
+  sharedChallenges: z.array(friendSharedChallengeSchema),
 })
 
 export type FriendProfileView = z.infer<typeof friendProfileViewSchema>

@@ -149,7 +149,7 @@ export default function TodayPage() {
     isTodayDate: isToday(selectedDate),
   })
 
-  const [previousPinnedDateStr, setPreviousPinnedDateStr] = useState(pinnedDateStr)
+  const [previousPinnedDateStr, setPreviousPinnedDateStr] = useState<string | null>(null)
   if (pinnedDateStr !== previousPinnedDateStr) {
     setPreviousPinnedDateStr(pinnedDateStr)
     if (pinnedDateStr) setActiveView('today')
@@ -439,7 +439,7 @@ export default function TodayPage() {
         />
       </div>
 
-      <div className="md:max-w-[820px] md:mx-auto">
+      <div className="pt-1.5 md:pt-2.5">
         {currentActiveView === 'today' && isToday(selectedDate) && (
           <TodayAISummary date={formatAPIDate(selectedDate)} />
         )}
@@ -501,7 +501,6 @@ export default function TodayPage() {
           id="tabpanel-habits"
           role="tabpanel"
           aria-labelledby={`tab-${currentActiveView}`}
-          className="md:max-w-[820px] md:mx-auto"
         >
           <div className="md:hidden">
             <SectionLabel

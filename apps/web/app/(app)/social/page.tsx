@@ -1,8 +1,9 @@
 'use client'
 
 import { useState } from 'react'
-import { useSearchParams } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
+import { isValidReferralCode } from '@orbit/shared/utils'
 import { AppBar } from '@/components/ui/app-bar'
 import { GradientTop } from '@/components/ui/gradient-top'
 import { SectionHeadTabs, type SectionHeadTabItem } from '@/components/ui/section-head-tabs'
@@ -15,12 +16,14 @@ import { SocialFriends } from './_components/social-friends'
 import { AccountabilitySection } from './_components/accountability-section'
 import { ChallengesEntryCard } from './_components/challenges-entry-card'
 import { CheerComposer, type CheerTarget } from './_components/cheer-composer'
+import { InviteConfirmSheet } from './_components/invite-confirm-sheet'
 
 type SocialTab = 'feed' | 'friends' | 'buddies'
 
 export default function SocialPage() {
   const t = useTranslations()
   const goBackOrFallback = useGoBackOrFallback()
+  const router = useRouter()
   const searchParams = useSearchParams()
   const { profile, isLoading } = useProfile()
   const [tab, setTab] = useState<SocialTab>(() => {
@@ -29,6 +32,18 @@ export default function SocialPage() {
   })
   const newPairHabitId = searchParams.get('newPairHabitId')
   const [cheerTarget, setCheerTarget] = useState<CheerTarget | null>(null)
+  const [inviteCode, setInviteCode] = useState<string | null>(() => {
+    const raw = searchParams.get('invite')
+    return isValidReferralCode(raw) ? raw : null
+  })
+
+  function closeInvite() {
+    setInviteCode(null)
+    const next = new URLSearchParams(searchParams.toString())
+    next.delete('invite')
+    const query = next.toString()
+    router.replace(query ? `/social?${query}` : '/social')
+  }
 
   const socialEnabled = profile?.socialOptIn ?? false
 
@@ -69,6 +84,7 @@ export default function SocialPage() {
       </div>
 
       <CheerComposer target={cheerTarget} onClose={() => setCheerTarget(null)} />
+      <InviteConfirmSheet code={inviteCode} onClose={closeInvite} />
     </div>
   )
 }

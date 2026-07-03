@@ -49,6 +49,13 @@ vi.mock('@/hooks/use-calendar-data', () => ({
     error: null,
     refresh: vi.fn(),
   }),
+  useCalendarRangeChunked: () => ({
+    dayMap: new Map(),
+    isLoading: false,
+    isFetching: false,
+    error: null,
+    refresh: vi.fn(),
+  }),
 }))
 vi.mock('@/hooks/use-gamification', () => ({
   useGamificationProfile: () => ({

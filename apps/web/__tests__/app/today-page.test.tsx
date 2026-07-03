@@ -412,6 +412,48 @@ describe('TodayPage bulk parent prompts', () => {
   })
 })
 
+describe('TodayPage pinned-date deep link', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    useHabitsMock.mockImplementation(defaultUseHabitsReturn)
+    vi.useRealTimers()
+    mockProfile = createMockProfile({ hasProAccess: false, aiSummaryEnabled: false })
+    mockHabitsData.habitsById = new Map()
+    mockHabitsData.childrenByParent = new Map()
+    mockHabitsData.topLevelHabits = []
+    dateParamState.value = null
+    uiState.activeView = 'today'
+    uiState.isSelectMode = false
+    uiState.searchQuery = ''
+    uiState.selectedFrequency = null
+    uiState.selectedTagIds = []
+    uiState.showCompleted = false
+    uiState.selectedHabitIds = new Set<string>()
+  })
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('forces the today view when mounted on a pinned-date deep link with a non-today view', () => {
+    dateParamState.value = '2026-04-06'
+    uiState.activeView = 'all'
+
+    render(<TodayPage />)
+
+    expect(uiState.setActiveView).toHaveBeenCalledWith('today')
+  })
+
+  it('does not force the today view on the bare route', () => {
+    dateParamState.value = null
+    uiState.activeView = 'all'
+
+    render(<TodayPage />)
+
+    expect(uiState.setActiveView).not.toHaveBeenCalledWith('today')
+  })
+})
+
 describe('TodayPage overdue bulk selection', () => {
   function seedOverdueHabit(): NormalizedHabit {
     const overdue = createMockHabit({

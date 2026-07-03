@@ -4,6 +4,7 @@ import type { ReactNode } from 'react'
 import { Circle } from 'lucide-react'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { CommandRow } from './command-row'
+import type { CommandHabitEntry } from './build-command-habit-list'
 
 function habitLeading(emoji: string | null | undefined): ReactNode {
   if (emoji) {
@@ -17,20 +18,25 @@ function habitLeading(emoji: string | null | undefined): ReactNode {
 }
 
 interface CommandHabitItemsProps {
-  habits: readonly NormalizedHabit[]
+  entries: readonly CommandHabitEntry[]
   onSelectHabit: (habit: NormalizedHabit) => void
 }
 
-/** Renders the habit rows shared by the search/jump, log, and skip palette pages. */
-export function CommandHabitItems({ habits, onSelectHabit }: Readonly<CommandHabitItemsProps>) {
+/** Renders the habit rows shared by the search/jump, log, and skip palette pages.
+ *  Sub-habits show a "Parent · Child" label so they read distinctly in the flat list. */
+export function CommandHabitItems({ entries, onSelectHabit }: Readonly<CommandHabitItemsProps>) {
   return (
     <>
-      {habits.map((habit) => (
+      {entries.map(({ habit, parentTitle }) => (
         <CommandRow
           key={habit.id}
           leading={habitLeading(habit.emoji)}
-          label={habit.title}
-          value={`${habit.title} ${habit.id}`}
+          label={parentTitle ? `${parentTitle} · ${habit.title}` : habit.title}
+          value={
+            parentTitle
+              ? `${parentTitle} ${habit.title} ${habit.id}`
+              : `${habit.title} ${habit.id}`
+          }
           onSelect={() => onSelectHabit(habit)}
         />
       ))}

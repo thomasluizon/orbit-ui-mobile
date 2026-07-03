@@ -388,6 +388,12 @@
     }
   }
 
+  @media (min-width: 1024px) {
+    :root {
+      --app-max-w: clamp(640px, 34vw + 190px, 920px);
+    }
+  }
+
 }
 
 html {

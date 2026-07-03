@@ -1,4 +1,5 @@
 import type { NormalizedHabit } from '../types/habit'
+import { isCompletedOneTimeHabit } from './habit-visibility'
 
 /** One selectable habit in the accountability habit picker, tagged with its parent for context. */
 export interface HabitPickerOption {
@@ -11,6 +12,8 @@ export interface HabitPickerOption {
  * Flattens the habit tree into a picker list: every parent followed by its
  * sub-habits (recursively), each sub-habit carrying its parent's title for
  * context. Preserves the top-level sort order so the picker matches the list.
+ * Completed one-time habits are skipped (they have no future occurrence to
+ * link), while their still-active descendants remain selectable.
  */
 export function buildHabitPickerOptions(
   topLevelHabits: NormalizedHabit[],
@@ -19,7 +22,9 @@ export function buildHabitPickerOptions(
 ): HabitPickerOption[] {
   const options: HabitPickerOption[] = []
   const visit = (habit: NormalizedHabit, parentTitle: string | null): void => {
-    options.push({ id: habit.id, title: habit.title, parentTitle })
+    if (!isCompletedOneTimeHabit(habit)) {
+      options.push({ id: habit.id, title: habit.title, parentTitle })
+    }
     for (const childId of childrenByParent.get(habit.id) ?? []) {
       const child = habitsById.get(childId)
       if (child) visit(child, habit.title)

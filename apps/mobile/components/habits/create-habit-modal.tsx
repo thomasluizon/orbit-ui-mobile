@@ -413,7 +413,7 @@ export function CreateHabitModal({
         title={
           isSubHabitMode ? t('habits.createSubHabit') : t('habits.createHabit')
         }
-        snapPoints={['80%', '95%']}
+        snapPoints={['62%', '95%']}
         canDismiss={dismissGuard.canDismiss}
         isDirty={isDirty}
         onAttemptDismiss={dismissGuard.requestDismiss}
@@ -605,9 +605,9 @@ function createStyles(
       alignItems: 'center',
       justifyContent: 'flex-end',
       gap: 12,
-      paddingTop: 14,
+      paddingTop: 16,
       paddingHorizontal: 20,
-      paddingBottom: Math.max(bottomInset, 16),
+      paddingBottom: Math.max(bottomInset + 12, 28),
     },
   })
 }

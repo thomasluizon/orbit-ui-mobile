@@ -45,8 +45,16 @@ const profileView: FriendProfileView = {
   handle: 'ada',
   displayName: 'Ada Lovelace',
   currentStreak: 12,
+  longestStreak: 40,
   level: 4,
+  levelTitle: 'Navigator',
+  totalXp: 820,
+  friendsSinceUtc: '2026-05-01T00:00:00Z',
+  weeklyActivity: [0, 1, 0, 2, 0, 3, 1],
   achievements: [],
+  topHabits: [],
+  isAccountabilityPartner: false,
+  sharedChallenges: [],
 }
 
 function setProfileReturn(overrides: Record<string, unknown>) {
@@ -114,15 +122,51 @@ describe('FriendProfileSheet', () => {
     expect(mocks.refetch).toHaveBeenCalledTimes(1)
   })
 
-  it('renders the level numeral with its label and the empty achievements line', async () => {
+  it('renders the enriched stat tiles and the empty achievements line', async () => {
     setProfileReturn({ data: profileView })
     const tree = await renderSheet()
     expect(textContents(tree)).toEqual(
       expect.arrayContaining([
+        12,
+        40,
+        820,
         4,
-        'social.friendProfile.levelLabel',
+        'Navigator',
         'social.friendProfile.noAchievements',
       ]),
+    )
+  })
+
+  it('renders top habits with their completion counts', async () => {
+    setProfileReturn({
+      data: {
+        ...profileView,
+        topHabits: [{ title: 'Reading', emoji: '📖', completionCount: 40 }],
+      },
+    })
+    const tree = await renderSheet()
+    expect(textContents(tree)).toEqual(expect.arrayContaining(['Reading', '🔥 40']))
+  })
+
+  it('renders shared context when the friend is a partner and shares challenges', async () => {
+    setProfileReturn({
+      data: {
+        ...profileView,
+        isAccountabilityPartner: true,
+        sharedChallenges: [{ id: 'c-1', title: 'Sunrise Sprint' }],
+      },
+    })
+    const tree = await renderSheet()
+    expect(textContents(tree)).toEqual(
+      expect.arrayContaining(['social.friendProfile.accountabilityPartner', 'Sunrise Sprint']),
+    )
+  })
+
+  it('omits the shared context section when there is nothing to show', async () => {
+    setProfileReturn({ data: profileView })
+    const tree = await renderSheet()
+    expect(textContents(tree)).not.toEqual(
+      expect.arrayContaining(['social.friendProfile.accountabilityPartner']),
     )
   })
 
