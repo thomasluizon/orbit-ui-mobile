@@ -80,7 +80,7 @@ describe('WrappedPlayer', () => {
     expect(screen.getByTestId('wrapped-slide-share')).toBeInTheDocument()
 
     fireEvent.click(screen.getByLabelText('wrapped.previous'))
-    expect(screen.getByTestId(`wrapped-slide-${slides[lastIndex - 1].id}`)).toBeInTheDocument()
+    expect(screen.getByTestId(`wrapped-slide-${slides[lastIndex - 1]!.id}`)).toBeInTheDocument()
   })
 
   it('steps backward with the previous zone and clamps at the first slide', () => {

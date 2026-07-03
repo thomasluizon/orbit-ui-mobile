@@ -9,7 +9,6 @@ import { EMPTY_HABITS_BY_ID, useHabits } from '@/hooks/use-habits'
 import { useProfile } from '@/hooks/use-profile'
 import { useGamificationProfile } from '@/hooks/use-gamification'
 import { ProgressBar } from '@/components/ui/progress-bar'
-import { SatelliteGlyph } from '@/components/ui/satellite-glyph'
 import { ProgressOrbit } from './progress-orbit'
 
 function RailStatRow({
@@ -89,9 +88,30 @@ export function TodayRail() {
             </button>
           </div>
         ) : progress.total === 0 ? (
-          <div className="flex flex-col items-center text-center" style={{ gap: 12, paddingBlock: 16 }}>
-            <SatelliteGlyph />
-            <span className="t-secondary">{t('rail.empty')}</span>
+          <div
+            role="img"
+            aria-label={t('rail.empty')}
+            className="relative inline-flex items-center justify-center"
+            style={{ width: 200, height: 200 }}
+          >
+            <svg width={200} height={200} viewBox="0 0 200 200" aria-hidden="true">
+              <circle
+                cx={100}
+                cy={100}
+                r={88}
+                fill="none"
+                stroke="var(--hairline-strong)"
+                strokeWidth={4}
+                strokeLinecap="round"
+                strokeDasharray="2 14"
+              />
+            </svg>
+            <span
+              className="t-secondary absolute text-center"
+              style={{ maxWidth: 150, color: 'var(--fg-3)' }}
+            >
+              {t('rail.empty')}
+            </span>
           </div>
         ) : (
           <ProgressOrbit

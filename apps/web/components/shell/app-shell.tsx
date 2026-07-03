@@ -249,7 +249,7 @@ export function AppShell({ children, onCreate }: Readonly<AppShellProps>) {
     return ''
   }, [t, pathname, onHome])
 
-  const railContent = onHome ? <TodayRail /> : null
+  const railContent = onHome && !goalsActive ? <TodayRail /> : null
 
   return (
     <TopbarSlotProvider>
@@ -267,7 +267,7 @@ export function AppShell({ children, onCreate }: Readonly<AppShellProps>) {
             navLabel={t('nav.mainNavigation')}
           />
 
-          <main className="relative z-10 min-w-0 flex-1">
+          <main className="relative z-10 min-w-0 flex-1 md:[container-type:inline-size]">
             <div
               aria-hidden
               className="pointer-events-none absolute inset-x-0 top-0 -z-10 hidden md:block"

@@ -75,13 +75,15 @@ export function DesktopTopbar({ title, showRailToggle = false }: Readonly<Deskto
     <>
       <div ref={sentinelRef} aria-hidden className="hidden md:block" style={{ height: 1, marginBottom: -1 }} />
       <div
-        className="sticky top-0 z-[5] hidden items-center justify-between md:flex"
+        className="desktop-topbar-divider sticky top-0 z-[5] hidden items-center justify-between md:flex"
+        data-stuck={stuck ? 'true' : 'false'}
         style={{
           minHeight: 56,
           gap: 12,
           paddingBlock: 8,
-          background: stuck ? 'var(--bg)' : 'transparent',
-          boxShadow: stuck ? 'inset 0 -1px 0 var(--hairline)' : 'none',
+          background: stuck ? 'color-mix(in srgb, var(--bg) 78%, transparent)' : 'transparent',
+          backdropFilter: stuck ? 'blur(12px)' : 'none',
+          WebkitBackdropFilter: stuck ? 'blur(12px)' : 'none',
           transition: 'background-color var(--dur-fast) var(--ease-standard)',
         }}
       >

@@ -125,7 +125,7 @@ export function FrequencyTypeCards({
           ref={frequencyTrackRef}
           data-testid="frequency-carousel-track"
           onScroll={handleFrequencyScroll}
-          className="flex min-w-0 flex-1 snap-x snap-mandatory overflow-x-auto scroll-smooth [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:grid sm:snap-none sm:grid-cols-2 sm:gap-2 sm:overflow-visible"
+          className="flex min-w-0 flex-1 snap-x snap-mandatory overflow-x-auto scroll-smooth [scrollbar-width:none] [&::-webkit-scrollbar]:hidden sm:grid sm:snap-none sm:grid-cols-1 sm:gap-2 sm:overflow-visible"
         >
           {FREQUENCY_TYPE_CARDS.map((card) => {
             const isActive = activeFrequencyKey === card.key

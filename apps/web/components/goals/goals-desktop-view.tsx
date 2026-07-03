@@ -30,13 +30,13 @@ export function GoalsDesktopView({
 
   if (!isFetched) {
     return (
-      <div className="grid items-start gap-6 px-5 md:grid-cols-[272px_minmax(0,1fr)]">
+      <div className="grid items-start gap-6 px-5 lg:grid-cols-[272px_minmax(0,1fr)]">
         <div className="space-y-3">
           {[1, 2, 3].map((index) => (
             <SkeletonCard key={`goal-skeleton-${index}`} lines={3} className="rounded-[18px]" />
           ))}
         </div>
-        <div className="hidden md:block">
+        <div className="hidden lg:block">
           <SkeletonCard lines={6} className="rounded-[18px]" />
         </div>
       </div>
@@ -48,7 +48,7 @@ export function GoalsDesktopView({
   }
 
   return (
-    <div className="grid items-start gap-6 px-5 md:grid-cols-[272px_minmax(0,1fr)]">
+    <div className="grid items-start gap-6 px-5 lg:grid-cols-[272px_minmax(0,1fr)]">
       <div className="min-w-0">
         <GoalList goals={goals} selectedId={selectedId} onSelect={setPickedGoalId} />
       </div>

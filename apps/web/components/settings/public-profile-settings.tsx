@@ -75,7 +75,7 @@ export function PublicProfileSettings() {
 
   return (
     <>
-      <div className="md:grid md:grid-cols-2 md:items-start md:gap-x-6">
+      <div className={enabled ? 'md:grid md:grid-cols-2 md:items-start md:gap-x-6' : ''}>
         <div>
           <SettingsRow
             label={t('profile.publicProfile.enable.title')}

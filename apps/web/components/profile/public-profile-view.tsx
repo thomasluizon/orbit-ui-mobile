@@ -88,7 +88,7 @@ export function PublicProfileView({ view, t }: Readonly<PublicProfileViewProps>)
         <div className="flex flex-col" style={{ gap: 18 }}>
           {(view.currentStreak != null || view.level != null) && (
             <div className="flex flex-col" style={{ gap: 8 }}>
-              <div className="flex" style={{ gap: 12 }}>
+              <div className="grid grid-cols-2" style={{ gap: 12 }}>
                 {view.currentStreak != null && (
                   <StatTile
                     emoji="🔥"

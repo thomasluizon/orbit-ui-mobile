@@ -63,47 +63,43 @@ export function CalendarRangeView({
   const hintText = isAwaitingEnd ? endHint : isClamped ? clampedNotice : hint
 
   return (
-    <div className="xl:grid xl:grid-cols-[minmax(360px,45%)_minmax(0,1fr)] xl:items-start">
-      <div>
-        <CalendarGrid
-          currentMonth={currentMonth}
-          dayMap={monthDayMap}
-          onSelectDay={onPickDay}
-          rangeStart={rangeStart}
-          rangeEnd={rangeEnd}
-        />
-        <div
-          className="flex items-center justify-between"
-          style={{ gap: 12, padding: '0 20px 6px' }}
+    <>
+      <CalendarGrid
+        currentMonth={currentMonth}
+        dayMap={monthDayMap}
+        onSelectDay={onPickDay}
+        rangeStart={rangeStart}
+        rangeEnd={rangeEnd}
+      />
+      <div
+        className="flex items-center justify-between"
+        style={{ gap: 12, padding: '0 20px 6px' }}
+      >
+        <p
+          style={{
+            margin: 0,
+            fontFamily: 'var(--font-sans)',
+            fontSize: 13,
+            color: isClamped && !isAwaitingEnd ? 'var(--status-overdue-text)' : 'var(--fg-3)',
+          }}
         >
-          <p
-            style={{
-              margin: 0,
-              fontFamily: 'var(--font-sans)',
-              fontSize: 13,
-              color: isClamped && !isAwaitingEnd ? 'var(--status-overdue-text)' : 'var(--fg-3)',
-            }}
-          >
-            {hintText}
-          </p>
-          <ShowRecurringToggle
-            checked={showRecurring}
-            onChange={onShowRecurringChange}
-          />
-        </div>
-      </div>
-      <div className="xl:pt-4">
-        <CalendarTimeGrid
-          columns={columns}
-          dayMap={rangeDayMap}
-          onSelectDay={onSelectDay}
-          displayTime={displayTime}
-          dateFnsLocale={dateFnsLocale}
-          allDayLabel={allDayLabel}
-          nowLabel={nowLabel}
-          isLoading={isRangeLoading}
+          {hintText}
+        </p>
+        <ShowRecurringToggle
+          checked={showRecurring}
+          onChange={onShowRecurringChange}
         />
       </div>
-    </div>
+      <CalendarTimeGrid
+        columns={columns}
+        dayMap={rangeDayMap}
+        onSelectDay={onSelectDay}
+        displayTime={displayTime}
+        dateFnsLocale={dateFnsLocale}
+        allDayLabel={allDayLabel}
+        nowLabel={nowLabel}
+        isLoading={isRangeLoading}
+      />
+    </>
   )
 }

@@ -85,7 +85,7 @@ export default function StreakPage() {
         <div className="stagger-enter flex-1 min-h-0 overflow-y-auto">
           {isFrozenToday && <StreakFrozenBanner />}
 
-          <div className="md:grid md:grid-cols-2 md:gap-x-8 md:items-start">
+          <div className="lg:grid lg:grid-cols-2 lg:gap-x-8 lg:items-start">
             <div>
               <StreakHero
                 streak={streak}

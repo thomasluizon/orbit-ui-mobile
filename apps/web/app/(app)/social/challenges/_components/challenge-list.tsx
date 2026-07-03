@@ -47,7 +47,7 @@ export function ChallengeList({ challenges, onOpen, onCreate, onJoin }: Readonly
       {active.length > 0 ? (
         <>
           <SectionLabel>{t('challenges.sections.active')}</SectionLabel>
-          <div className="stagger-enter flex flex-col md:grid md:grid-cols-2" style={{ gap: 10, padding: '0 20px' }}>
+          <div className="stagger-enter flex flex-col lg:grid lg:grid-cols-2" style={{ gap: 10, padding: '0 20px' }}>
             {active.map((challenge) => (
               <ChallengeCard key={challenge.id} challenge={challenge} onOpen={onOpen} />
             ))}
@@ -58,7 +58,7 @@ export function ChallengeList({ challenges, onOpen, onCreate, onJoin }: Readonly
       {completed.length > 0 ? (
         <>
           <SectionLabel>{t('challenges.sections.completed')}</SectionLabel>
-          <div className="stagger-enter flex flex-col md:grid md:grid-cols-2" style={{ gap: 10, padding: '0 20px' }}>
+          <div className="stagger-enter flex flex-col lg:grid lg:grid-cols-2" style={{ gap: 10, padding: '0 20px' }}>
             {completed.map((challenge) => (
               <ChallengeCard key={challenge.id} challenge={challenge} onOpen={onOpen} />
             ))}

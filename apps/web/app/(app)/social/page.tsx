@@ -48,14 +48,14 @@ export default function SocialPage() {
         {isLoading ? null : !socialEnabled ? (
           <SocialOptInGate />
         ) : (
-          <div className="md:grid md:grid-cols-[minmax(0,1fr)_340px] md:grid-rows-[auto_auto_auto_1fr] md:items-start md:gap-x-8">
-            <div className="md:col-start-2 md:row-start-1">
+          <div className="xl:grid xl:grid-cols-[minmax(0,1fr)_340px] xl:grid-rows-[auto_auto_auto_1fr] xl:items-start xl:gap-x-8">
+            <div className="xl:col-start-2 xl:row-start-1">
               <SocialIdentityBar />
             </div>
-            <div className="md:col-start-2 md:row-start-2">
+            <div className="xl:col-start-2 xl:row-start-2">
               <ChallengesEntryCard />
             </div>
-            <div className="md:col-start-1 md:row-start-1">
+            <div className="xl:col-start-1 xl:row-start-1">
               <SectionHeadTabs<SocialTab>
                 tabs={tabs}
                 active={tab}

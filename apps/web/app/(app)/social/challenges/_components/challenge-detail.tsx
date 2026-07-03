@@ -198,10 +198,10 @@ export function ChallengeDetail({ challengeId, onLeft }: Readonly<ChallengeDetai
   return (
     <>
       <div
-        className="flex flex-col gap-2 md:grid md:grid-cols-[2fr_1fr] md:items-start md:gap-x-7 md:gap-y-4"
+        className="flex flex-col gap-2 xl:grid xl:grid-cols-[2fr_1fr] xl:items-start xl:gap-x-7 xl:gap-y-4"
         style={{ padding: '4px 20px 32px' }}
       >
-        <div className="flex min-w-0 flex-col gap-2 md:col-start-1 md:row-start-1">
+        <div className="flex min-w-0 flex-col gap-2 xl:col-start-1 xl:row-start-1">
           <div className="flex items-center" style={{ gap: 8 }}>
             <span
               className="inline-flex items-center"
@@ -292,7 +292,7 @@ export function ChallengeDetail({ challengeId, onLeft }: Readonly<ChallengeDetai
           )}
         </div>
 
-        <div className="flex min-w-0 flex-col gap-2 md:col-start-2 md:row-span-2 md:row-start-1">
+        <div className="flex min-w-0 flex-col gap-2 xl:col-start-2 xl:row-span-2 xl:row-start-1">
           <SectionHeader>{t('challenges.detail.membersTitle')}</SectionHeader>
           <MembersList participants={challenge.participants} />
 
@@ -303,7 +303,7 @@ export function ChallengeDetail({ challengeId, onLeft }: Readonly<ChallengeDetai
         <PillButton
           variant="ghost"
           fullWidth
-          className="md:col-start-1 md:row-start-2 md:justify-self-start"
+          className="xl:col-start-1 xl:row-start-2 sm:mx-0"
           onClick={() => setConfirmLeave(true)}
         >
           {t('challenges.detail.leave')}

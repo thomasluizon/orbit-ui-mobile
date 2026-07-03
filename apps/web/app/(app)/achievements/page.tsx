@@ -81,8 +81,8 @@ export default function AchievementsPage() {
             )}
 
             {profile && (
-              <div className="md:grid md:grid-cols-[340px_1fr] md:gap-8 md:items-start">
-                <div className="md:col-start-1 md:row-start-1 md:sticky md:top-4">
+              <div className="lg:grid lg:grid-cols-[340px_1fr] lg:gap-8 lg:items-start">
+                <div className="lg:col-start-1 lg:row-start-1 lg:sticky lg:top-4">
                   <AchievementXpCard
                     profile={profile}
                     xpProgress={xpProgress}
@@ -90,7 +90,7 @@ export default function AchievementsPage() {
                   />
                 </div>
 
-                <div className="md:col-start-2 md:row-start-1 md:row-span-2">
+                <div className="lg:col-start-2 lg:row-start-1 lg:row-span-2">
                   {achievementsByCategory.map((category) => (
                     <AchievementCategorySection
                       key={category.key}
@@ -101,7 +101,7 @@ export default function AchievementsPage() {
                   ))}
                 </div>
 
-                <div className="md:col-start-1 md:row-start-2">
+                <div className="lg:col-start-1 lg:row-start-2">
                   <NextRewardCarrot carrot={nextRewardCarrot} />
                 </div>
               </div>

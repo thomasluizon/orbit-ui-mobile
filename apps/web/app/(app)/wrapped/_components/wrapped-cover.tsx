@@ -35,7 +35,7 @@ export function WrappedCover({
 
   return (
     <div
-      className="flex flex-1 flex-col items-center justify-center text-center md:grid md:grid-cols-2 md:content-center md:items-center md:text-left"
+      className="flex flex-1 flex-col items-center justify-center text-center lg:grid lg:grid-cols-2 lg:content-center lg:items-center lg:text-left"
       style={{ gap: 28, padding: '0 28px 32px' }}
     >
       <RingMotif

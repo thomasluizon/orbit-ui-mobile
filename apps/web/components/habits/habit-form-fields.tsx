@@ -200,7 +200,8 @@ export function HabitFormFields({
   }
 
   return (
-    <div className="sm:grid sm:grid-cols-2 sm:items-start sm:gap-x-7">
+    <div className="space-y-7">
+      <div className="sm:grid sm:grid-cols-2 sm:items-start sm:gap-x-7">
       <div className="stagger-enter space-y-7">
       <div className="space-y-2">
         <label htmlFor="habit-form-title" className="form-label">
@@ -279,7 +280,7 @@ export function HabitFormFields({
       )}
 
       {!isOneTime && !isGeneral && (
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-1">
           <div className="space-y-2">
             <label htmlFor="habit-form-frequency-qty" className="form-label">
               {isFlexible
@@ -336,7 +337,7 @@ export function HabitFormFields({
       )}
 
       {!isGeneral && (
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-1">
           <div className="space-y-2">
             <span id="habit-form-due-date-label" className="form-label">
               {t('habits.form.dueDate')}
@@ -528,6 +529,8 @@ export function HabitFormFields({
           </div>
         )}
       </div>
+      </div>
+      </div>
 
       <div className="border-t border-[var(--hairline)] pt-4 mt-2">
         <button
@@ -717,7 +720,6 @@ export function HabitFormFields({
 
           {children}
         </div>
-      </div>
       </div>
     </div>
   )

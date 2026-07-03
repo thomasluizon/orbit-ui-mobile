@@ -395,7 +395,7 @@ export default function CalendarPage() {
                   <section
                     data-testid="calendar-day-panel"
                     aria-label={dayDetailTitle}
-                    style={{ padding: '20px 20px 10px 0' }}
+                    style={{ padding: '20px 0 10px 4px' }}
                   >
                     <h2
                       className="min-w-0 truncate"

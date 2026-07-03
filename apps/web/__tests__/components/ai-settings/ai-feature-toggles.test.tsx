@@ -82,7 +82,7 @@ describe('AiFeatureToggles', () => {
     expect(screen.queryByRole('switch')).not.toBeInTheDocument()
     const rows = screen.getAllByRole('button')
     expect(rows).toHaveLength(3)
-    fireEvent.click(rows[0])
+    fireEvent.click(rows[0]!)
     expect(props.onUpgrade).toHaveBeenCalled()
   })
 })

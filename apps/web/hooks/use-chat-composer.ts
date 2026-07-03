@@ -341,8 +341,20 @@ export function useChatComposer() {
   useEffect(() => {
     const textarea = textareaRef.current
     if (!textarea) return
-    textarea.style.height = 'auto'
-    textarea.style.height = `${Math.min(textarea.scrollHeight, 120)}px`
+    const fit = () => {
+      textarea.style.height = 'auto'
+      textarea.style.height = `${Math.min(textarea.scrollHeight, 120)}px`
+    }
+    fit()
+    let lastWidth = textarea.clientWidth
+    const observer = new ResizeObserver((entries) => {
+      const width = entries[0]?.contentRect.width ?? lastWidth
+      if (Math.abs(width - lastWidth) < 0.5) return
+      lastWidth = width
+      fit()
+    })
+    observer.observe(textarea)
+    return () => observer.disconnect()
   }, [input])
 
 

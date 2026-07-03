@@ -196,6 +196,7 @@ export default function ProfilePage() {
           <div className="stagger-enter min-w-0">
             {nextReward}
             {navSections}
+            {subscription}
           </div>
           <aside className="stagger-enter flex flex-col" style={{ gap: 8 }}>
             <ProfileSummaryCard
@@ -219,7 +220,6 @@ export default function ProfilePage() {
               }}
               onInvite={() => setShowReferral(true)}
             />
-            {subscription}
             {accountActions}
           </aside>
         </div>

@@ -737,6 +737,21 @@ input[type="date"]::-webkit-calendar-picker-indicator {
   border-radius: inherit;
 }
 .icon-btn:hover { background: var(--bg-elev); }
+
+.desktop-topbar-divider::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  width: 100cqw;
+  height: 1px;
+  transform: translateX(-50%);
+  background: var(--hairline);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity var(--dur-fast) var(--ease-standard);
+}
+.desktop-topbar-divider[data-stuck='true']::after { opacity: 1; }
 .icon-btn:active { transform: scale(0.96); }
 .icon-btn-ring { box-shadow: inset 0 0 0 1.5px var(--hairline-strong); }
 .icon-btn-well { background: var(--bg-elev); }

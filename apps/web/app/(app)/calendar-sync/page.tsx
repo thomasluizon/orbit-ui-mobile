@@ -277,7 +277,7 @@ export default function CalendarSyncPage() {
         title={isReviewMode ? t('calendar.autoSync.reviewModeTitle') : t('calendar.title')}
       />
 
-      <div className="flex-1 min-h-0 overflow-y-auto pb-8 md:grid md:grid-cols-[360px_1fr] md:gap-8 md:items-start">
+      <div className="flex-1 min-h-0 overflow-y-auto pb-8 lg:grid lg:grid-cols-[360px_1fr] lg:gap-8 lg:items-start">
         <div>
           {hasProAccess && <AutoSyncSettingsCard />}
           {hasProAccess && <CalendarPickerSection enabled={googleConnected && isOnline} />}
