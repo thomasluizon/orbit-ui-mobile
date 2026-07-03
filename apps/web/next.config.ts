@@ -31,10 +31,16 @@ const nextConfig: NextConfig = {
   },
 }
 
-export default withSentryConfig(withNextIntl(nextConfig), {
-  org: process.env.SENTRY_ORG,
-  project: process.env.SENTRY_PROJECT,
-  silent: !process.env.CI,
-  widenClientFileUpload: true,
-  tunnelRoute: '/monitoring',
-})
+const intlConfig = withNextIntl(nextConfig)
+
+// Sentry's webpack plugin instruments every module and is only needed to build
+// production source maps; skip it in dev so Turbopack compiles routes fast.
+export default process.env.NODE_ENV === 'development'
+  ? intlConfig
+  : withSentryConfig(intlConfig, {
+      org: process.env.SENTRY_ORG,
+      project: process.env.SENTRY_PROJECT,
+      silent: !process.env.CI,
+      widenClientFileUpload: true,
+      tunnelRoute: '/monitoring',
+    })
