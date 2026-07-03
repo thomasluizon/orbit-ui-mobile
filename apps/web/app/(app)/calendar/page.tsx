@@ -379,7 +379,7 @@ export default function CalendarPage() {
                   <section
                     data-testid="calendar-day-panel"
                     aria-label={dayDetailTitle}
-                    className="sticky top-[72px] flex max-h-[calc(100dvh-84px)] flex-col"
+                    className="sticky top-[72px] flex h-[calc(100dvh-84px)] flex-col"
                     style={{ padding: '20px 0 10px 4px' }}
                   >
                     <h2

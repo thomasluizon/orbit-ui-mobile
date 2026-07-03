@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
+import { render, screen, fireEvent, within } from '@testing-library/react'
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string, params?: Record<string, unknown>) => {
@@ -178,5 +178,44 @@ describe('CalendarDayDetail', () => {
     })
     fireEvent.click(screen.getByRole('switch'))
     expect(onShowRecurringChange).toHaveBeenCalledWith(false)
+  })
+
+  describe('fitViewport desktop panel', () => {
+    function renderFitViewport(entries: CalendarDayEntry[]) {
+      return render(
+        <CalendarDayDetail
+          dateStr="2025-06-15"
+          entries={entries}
+          showRecurring
+          onShowRecurringChange={() => {}}
+          fitViewport
+        />,
+      )
+    }
+
+    it('renders the entry rows inside the overflow scroll region', () => {
+      const { container } = renderFitViewport([makeEntry({ title: 'Read' })])
+      const scroller = container.querySelector('.overflow-y-auto')
+      expect(scroller).not.toBeNull()
+      expect(within(scroller as HTMLElement).getByText('Read')).toBeInTheDocument()
+    })
+
+    it('keeps the go-to-day CTA outside the scroll region, after it', () => {
+      const { container } = renderFitViewport([makeEntry({ title: 'Read' })])
+      const scroller = container.querySelector('.overflow-y-auto') as HTMLElement
+      const cta = container.querySelector('a[href="/?date=2025-06-15"]') as HTMLElement
+      expect(scroller.contains(cta)).toBe(false)
+      const scrollWrapper = scroller.parentElement as HTMLElement
+      expect(scrollWrapper.nextElementSibling).toBe(cta)
+    })
+
+    it('renders a non-interactive bottom fade over the scroll region', () => {
+      const { container } = renderFitViewport([makeEntry({ title: 'Read' })])
+      const scroller = container.querySelector('.overflow-y-auto') as HTMLElement
+      const scrollWrapper = scroller.parentElement as HTMLElement
+      const fade = scrollWrapper.querySelector('[aria-hidden="true"].pointer-events-none')
+      expect(fade).not.toBeNull()
+      expect(fade).not.toBe(scroller)
+    })
   })
 })
