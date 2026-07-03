@@ -1,4 +1,5 @@
-import { ActivityIndicator, StyleSheet, Text, View } from 'react-native'
+import { useState } from 'react'
+import { ActivityIndicator, Pressable, StyleSheet, Text, View } from 'react-native'
 import Animated, { FadeInDown, ReduceMotion } from 'react-native-reanimated'
 import { useTranslation } from 'react-i18next'
 import type { Cheer } from '@orbit/shared/types/social'
@@ -10,6 +11,7 @@ import { useCheers, useFriendFeed } from '@/hooks/use-friends'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { FeedEventCard } from './feed-event-card'
+import { FriendProfileSheet } from './friend-profile-sheet'
 import type { CheerTarget } from './cheer-composer'
 
 function rowEntrance(index: number) {
@@ -23,18 +25,46 @@ interface SocialFeedProps {
   onAddFriends: () => void
 }
 
+/** A received-cheer row. When the sender is a known user the identity opens their friend profile,
+ *  mirroring the activity feed rows; a cheer without a sender id stays a plain, non-interactive row. */
 function CheerRow({ cheer }: Readonly<{ cheer: Cheer }>) {
   const { t } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const styles = createStyles(tokens)
+  const [profileOpen, setProfileOpen] = useState(false)
+  const name = cheer.senderDisplayName
   const text = cheer.note
-    ? t('social.feed.cheeredYouWithNote', { name: cheer.senderDisplayName, note: cheer.note })
-    : t('social.feed.cheeredYou', { name: cheer.senderDisplayName })
+    ? t('social.feed.cheeredYouWithNote', { name, note: cheer.note })
+    : t('social.feed.cheeredYou', { name })
+
+  if (!cheer.senderId) {
+    return (
+      <View style={styles.cheerRow}>
+        <UserAvatar name={name} size={38} />
+        <Text style={styles.cheerText}>{text}</Text>
+      </View>
+    )
+  }
+
   return (
-    <View style={styles.cheerRow}>
-      <UserAvatar name={cheer.senderDisplayName} size={38} />
-      <Text style={styles.cheerText}>{text}</Text>
+    <View>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel={t('social.feed.viewProfile', { name })}
+        onPress={() => setProfileOpen(true)}
+        style={({ pressed }) => [styles.cheerRow, pressed ? styles.cheerRowPressed : null]}
+      >
+        <UserAvatar name={name} size={38} />
+        <Text style={styles.cheerText}>{text}</Text>
+      </Pressable>
+
+      <FriendProfileSheet
+        userId={cheer.senderId}
+        displayName={name}
+        open={profileOpen}
+        onClose={() => setProfileOpen(false)}
+      />
     </View>
   )
 }
@@ -124,6 +154,7 @@ function createStyles(tokens: ReturnType<typeof createTokensV2>) {
       paddingHorizontal: 20,
       paddingVertical: 10,
     },
+    cheerRowPressed: { opacity: 0.7 },
     cheerText: { flex: 1, fontFamily: 'Rubik_400Regular', fontSize: 14, color: tokens.fg2 },
     loading: { alignItems: 'center', paddingVertical: 48 },
     loadMore: { paddingHorizontal: 20, paddingVertical: 12, alignItems: 'center' },

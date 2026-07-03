@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { Loader2 } from 'lucide-react'
 import type { Cheer } from '@orbit/shared/types/social'
@@ -9,6 +10,7 @@ import { PillButton } from '@/components/ui/pill-button'
 import { UserAvatar } from '@/components/ui/user-avatar'
 import { useCheers, useFriendFeed } from '@/hooks/use-friends'
 import { FeedEventCard } from './feed-event-card'
+import { FriendProfileView } from './friend-profile-view'
 import type { CheerTarget } from './cheer-composer'
 
 interface SocialFeedProps {
@@ -16,20 +18,54 @@ interface SocialFeedProps {
   onAddFriends: () => void
 }
 
+/** A received-cheer row. When the sender is a known user the identity opens their friend profile,
+ *  mirroring the activity feed rows; a cheer without a sender id stays a plain, non-interactive row. */
 function CheerRow({ cheer }: Readonly<{ cheer: Cheer }>) {
   const t = useTranslations()
+  const [profileOpen, setProfileOpen] = useState(false)
+  const name = cheer.senderDisplayName
   const text = cheer.note
-    ? t('social.feed.cheeredYouWithNote', { name: cheer.senderDisplayName, note: cheer.note })
-    : t('social.feed.cheeredYou', { name: cheer.senderDisplayName })
+    ? t('social.feed.cheeredYouWithNote', { name, note: cheer.note })
+    : t('social.feed.cheeredYou', { name })
+  const textStyle = {
+    margin: 0,
+    fontFamily: 'var(--font-sans)',
+    fontSize: 14,
+    color: 'var(--fg-2)',
+  } as const
+
+  if (!cheer.senderId) {
+    return (
+      <div className="flex items-center" style={{ gap: 12, padding: '10px 20px' }}>
+        <UserAvatar name={name} size={38} />
+        <p className="flex-1 min-w-0" style={textStyle}>
+          {text}
+        </p>
+      </div>
+    )
+  }
+
   return (
-    <div className="flex items-center" style={{ gap: 12, padding: '10px 20px' }}>
-      <UserAvatar name={cheer.senderDisplayName} size={38} />
-      <p
-        className="flex-1 min-w-0"
-        style={{ margin: 0, fontFamily: 'var(--font-sans)', fontSize: 14, color: 'var(--fg-2)' }}
+    <div>
+      <button
+        type="button"
+        aria-label={t('social.feed.viewProfile', { name })}
+        onClick={() => setProfileOpen(true)}
+        className="flex w-full min-w-0 cursor-pointer appearance-none items-center border-0 bg-transparent text-left transition-[background-color,transform] hover:bg-[var(--bg-elev)] active:scale-[0.99]"
+        style={{ gap: 12, padding: '10px 20px' }}
       >
-        {text}
-      </p>
+        <UserAvatar name={name} size={38} />
+        <p className="min-w-0 flex-1" style={textStyle}>
+          {text}
+        </p>
+      </button>
+
+      <FriendProfileView
+        userId={cheer.senderId}
+        displayName={name}
+        open={profileOpen}
+        onOpenChange={setProfileOpen}
+      />
     </div>
   )
 }
