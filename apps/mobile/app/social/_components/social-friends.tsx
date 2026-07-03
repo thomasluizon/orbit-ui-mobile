@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { ActivityIndicator, StyleSheet, View } from 'react-native'
 import Animated, { FadeInDown, ReduceMotion } from 'react-native-reanimated'
 import { useTranslation } from 'react-i18next'
@@ -7,6 +8,7 @@ import { useFriends } from '@/hooks/use-friends'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { AddFriendForm } from './add-friend-form'
+import { FriendProfileSheet, type ProfileTarget } from './friend-profile-sheet'
 import { FriendRequestRow } from './friend-request-row'
 import { FriendRow } from './friend-row'
 import type { CheerTarget } from './cheer-composer'
@@ -27,6 +29,7 @@ export function SocialFriends({ onCheer }: Readonly<SocialFriendsProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const { data, isLoading, isError, refetch } = useFriends()
+  const [profileTarget, setProfileTarget] = useState<ProfileTarget | null>(null)
   const friends = data?.friends ?? []
   const incoming = data?.incomingRequests ?? []
   const outgoing = data?.outgoingRequests ?? []
@@ -76,10 +79,17 @@ export function SocialFriends({ onCheer }: Readonly<SocialFriendsProps>) {
       ) : (
         friends.map((friend, index) => (
           <Animated.View key={friend.userId} entering={rowEntrance(index)}>
-            <FriendRow friend={friend} onCheer={onCheer} />
+            <FriendRow friend={friend} onCheer={onCheer} onOpenProfile={setProfileTarget} />
           </Animated.View>
         ))
       )}
+
+      <FriendProfileSheet
+        userId={profileTarget?.userId ?? null}
+        displayName={profileTarget?.displayName ?? ''}
+        open={profileTarget !== null}
+        onClose={() => setProfileTarget(null)}
+      />
     </View>
   )
 }

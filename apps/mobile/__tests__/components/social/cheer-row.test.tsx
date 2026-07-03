@@ -1,10 +1,12 @@
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import type { FriendFeedItem } from '@orbit/shared/types/social'
 import { createMockCheer } from '@orbit/shared/__tests__/factories'
 import { SocialFeed } from '@/app/social/_components/social-feed'
 
 const mocks = vi.hoisted(() => ({
   cheersReturn: { data: undefined as unknown },
+  feedReturn: {} as Record<string, unknown>,
 }))
 
 vi.mock('react-i18next', () => ({
@@ -17,22 +19,26 @@ vi.mock('react-i18next', () => ({
 
 vi.mock('@/hooks/use-friends', () => ({
   useCheers: () => mocks.cheersReturn,
-  useFriendFeed: () => ({
-    data: { pages: [{ items: [], nextCursor: null }] },
-    hasNextPage: false,
-    isLoading: false,
-    isError: false,
-    isFetchingNextPage: false,
-    fetchNextPage: vi.fn(),
-    refetch: vi.fn(),
-  }),
+  useFriendFeed: () => mocks.feedReturn,
 }))
 
 vi.mock('@/app/social/_components/friend-profile-sheet', () => ({
-  FriendProfileSheet: ({ open, userId }: { open: boolean; userId: string | null }) => {
+  FriendProfileSheet: ({
+    open,
+    userId,
+    onClose,
+  }: {
+    open: boolean
+    userId: string | null
+    onClose: () => void
+  }) => {
     if (!open) return null
     const react = require('react')
-    return react.createElement('Text', null, `profile:${userId}`)
+    return react.createElement(
+      'Pressable',
+      { accessibilityLabel: 'close-profile', onPress: onClose },
+      react.createElement('Text', null, `profile:${userId}`),
+    )
   },
 }))
 
@@ -55,8 +61,34 @@ interface TestRendererApi {
 
 const TestRenderer: TestRendererApi = require('react-test-renderer')
 
+const feedItem: FriendFeedItem = {
+  id: 'feed-1',
+  actorUserId: 'user-9',
+  actorHandle: 'grace',
+  actorDisplayName: 'Grace',
+  type: 'StreakMilestone',
+  value: 7,
+  achievementId: null,
+  createdAtUtc: '2026-05-01T00:00:00Z',
+}
+
 function textContents(tree: TestTree): unknown[] {
   return tree.root.findAllByType('Text').map((node) => node.props.children)
+}
+
+function openSheets(tree: TestTree): TestNode[] {
+  return tree.root.findAll(
+    (node) => node.type === 'Pressable' && node.props.accessibilityLabel === 'close-profile',
+  )
+}
+
+function pressWithLabel(tree: TestTree, label: string): Promise<void> {
+  const target = tree.root.find(
+    (node) => node.type === 'Pressable' && node.props.accessibilityLabel === label,
+  )
+  return TestRenderer.act(async () => {
+    ;(target.props as { onPress: () => void }).onPress()
+  })
 }
 
 async function renderFeed(): Promise<TestTree> {
@@ -70,27 +102,52 @@ async function renderFeed(): Promise<TestTree> {
 beforeEach(() => {
   vi.clearAllMocks()
   mocks.cheersReturn = { data: { items: [] } }
+  mocks.feedReturn = {
+    data: { pages: [{ items: [], nextCursor: null }] },
+    hasNextPage: false,
+    isLoading: false,
+    isError: false,
+    isFetchingNextPage: false,
+    fetchNextPage: vi.fn(),
+    refetch: vi.fn(),
+  }
 })
 
-describe('SocialFeed received cheers', () => {
-  it('opens the sender profile from a cheer identity press target', async () => {
+describe('SocialFeed shared profile sheet', () => {
+  it('opens one shared sheet from a cheer identity and closes it', async () => {
     mocks.cheersReturn = {
       data: { items: [createMockCheer({ senderId: 'user-7', senderDisplayName: 'Grace' })] },
     }
 
     const tree = await renderFeed()
-    expect(textContents(tree)).not.toEqual(expect.arrayContaining(['profile:user-7']))
+    expect(openSheets(tree)).toHaveLength(0)
 
-    const identity = tree.root.find(
-      (node) =>
-        node.type === 'Pressable' &&
-        node.props.accessibilityLabel === 'social.feed.viewProfile:{"name":"Grace"}',
-    )
+    await pressWithLabel(tree, 'social.feed.viewProfile:{"name":"Grace"}')
+
+    expect(openSheets(tree)).toHaveLength(1)
+    expect(textContents(tree)).toEqual(expect.arrayContaining(['profile:user-7']))
+
     await TestRenderer.act(async () => {
-      ;(identity.props as { onPress: () => void }).onPress()
+      ;(openSheets(tree)[0]!.props as { onPress: () => void }).onPress()
     })
 
-    expect(textContents(tree)).toEqual(expect.arrayContaining(['profile:user-7']))
+    expect(openSheets(tree)).toHaveLength(0)
+    expect(textContents(tree)).not.toEqual(expect.arrayContaining(['profile:user-7']))
+  })
+
+  it('opens the same shared sheet from a feed actor identity', async () => {
+    mocks.feedReturn = {
+      ...mocks.feedReturn,
+      data: { pages: [{ items: [feedItem], nextCursor: null }] },
+    }
+
+    const tree = await renderFeed()
+    expect(openSheets(tree)).toHaveLength(0)
+
+    await pressWithLabel(tree, 'social.feed.viewProfile:{"name":"Grace"}')
+
+    expect(openSheets(tree)).toHaveLength(1)
+    expect(textContents(tree)).toEqual(expect.arrayContaining(['profile:user-9']))
   })
 
   it('renders a cheer without a sender id as a non-interactive row', async () => {

@@ -79,6 +79,14 @@ export const queryClient = new QueryClient({
 const CACHE_KEY_PREFIX = '@orbit/query-cache'
 const LEGACY_CACHE_KEY = '@orbit/query-cache'
 
+/**
+ * Version stamp for the persisted query cache. Restored entries bypass the
+ * hooks' Zod parsing, so a cache written by an older build can carry response
+ * shapes the current UI no longer tolerates. Bump this whenever a persisted
+ * response schema changes shape; mismatched caches are discarded on restore.
+ */
+export const QUERY_CACHE_VERSION = 2
+
 let cacheScopeUserId: string | null = null
 
 function getCacheKey(): string | null {
@@ -114,7 +122,10 @@ export async function persistQueryCache(): Promise<void> {
           dataUpdatedAt: query.state.dataUpdatedAt,
         },
       }))
-    await AsyncStorage.setItem(key, JSON.stringify(serializable))
+    await AsyncStorage.setItem(
+      key,
+      JSON.stringify({ version: QUERY_CACHE_VERSION, entries: serializable }),
+    )
   } catch {}
 }
 
@@ -132,11 +143,15 @@ export async function restoreQueryCache(): Promise<void> {
   try {
     const raw = await AsyncStorage.getItem(key)
     if (!raw) return
-    const entries = JSON.parse(raw) as {
-      queryKey: unknown[]
-      state: { data: unknown; dataUpdatedAt: number }
-    }[]
-    for (const entry of entries) {
+    const parsed = JSON.parse(raw) as {
+      version?: number
+      entries?: { queryKey: unknown[]; state: { data: unknown; dataUpdatedAt: number } }[]
+    }
+    if (parsed.version !== QUERY_CACHE_VERSION || !Array.isArray(parsed.entries)) {
+      await AsyncStorage.removeItem(key)
+      return
+    }
+    for (const entry of parsed.entries) {
       queryClient.setQueryData(entry.queryKey, entry.state.data, {
         updatedAt: entry.state.dataUpdatedAt,
       })

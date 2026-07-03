@@ -11,7 +11,7 @@ import { useCheers, useFriendFeed } from '@/hooks/use-friends'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { FeedEventCard } from './feed-event-card'
-import { FriendProfileSheet } from './friend-profile-sheet'
+import { FriendProfileSheet, type ProfileTarget } from './friend-profile-sheet'
 import type { CheerTarget } from './cheer-composer'
 
 function rowEntrance(index: number) {
@@ -27,18 +27,21 @@ interface SocialFeedProps {
 
 /** A received-cheer row. When the sender is a known user the identity opens their friend profile,
  *  mirroring the activity feed rows; a cheer without a sender id stays a plain, non-interactive row. */
-function CheerRow({ cheer }: Readonly<{ cheer: Cheer }>) {
+function CheerRow({
+  cheer,
+  onOpenProfile,
+}: Readonly<{ cheer: Cheer; onOpenProfile: (target: ProfileTarget) => void }>) {
   const { t } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const styles = createStyles(tokens)
-  const [profileOpen, setProfileOpen] = useState(false)
   const name = cheer.senderDisplayName
+  const senderId = cheer.senderId
   const text = cheer.note
     ? t('social.feed.cheeredYouWithNote', { name, note: cheer.note })
     : t('social.feed.cheeredYou', { name })
 
-  if (!cheer.senderId) {
+  if (!senderId) {
     return (
       <View style={styles.cheerRow}>
         <UserAvatar name={name} size={38} />
@@ -48,24 +51,15 @@ function CheerRow({ cheer }: Readonly<{ cheer: Cheer }>) {
   }
 
   return (
-    <View>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={t('social.feed.viewProfile', { name })}
-        onPress={() => setProfileOpen(true)}
-        style={({ pressed }) => [styles.cheerRow, pressed ? styles.cheerRowPressed : null]}
-      >
-        <UserAvatar name={name} size={38} />
-        <Text style={styles.cheerText}>{text}</Text>
-      </Pressable>
-
-      <FriendProfileSheet
-        userId={cheer.senderId}
-        displayName={name}
-        open={profileOpen}
-        onClose={() => setProfileOpen(false)}
-      />
-    </View>
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={t('social.feed.viewProfile', { name })}
+      onPress={() => onOpenProfile({ userId: senderId, displayName: name })}
+      style={({ pressed }) => [styles.cheerRow, pressed ? styles.cheerRowPressed : null]}
+    >
+      <UserAvatar name={name} size={38} />
+      <Text style={styles.cheerText}>{text}</Text>
+    </Pressable>
   )
 }
 
@@ -77,6 +71,7 @@ export function SocialFeed({ onCheer, onAddFriends }: Readonly<SocialFeedProps>)
   const styles = createStyles(tokens)
   const feed = useFriendFeed()
   const cheers = useCheers('received')
+  const [profileTarget, setProfileTarget] = useState<ProfileTarget | null>(null)
 
   const items = feed.data?.pages.flatMap((page) => page.items) ?? []
   const receivedCheers = cheers.data?.items ?? []
@@ -89,7 +84,7 @@ export function SocialFeed({ onCheer, onAddFriends }: Readonly<SocialFeedProps>)
           <SectionLabel>{t('social.feed.cheersForYou')}</SectionLabel>
           {receivedCheers.map((cheer, index) => (
             <Animated.View key={cheer.id} entering={rowEntrance(index)}>
-              <CheerRow cheer={cheer} />
+              <CheerRow cheer={cheer} onOpenProfile={setProfileTarget} />
             </Animated.View>
           ))}
         </View>
@@ -122,7 +117,7 @@ export function SocialFeed({ onCheer, onAddFriends }: Readonly<SocialFeedProps>)
         <View>
           {items.map((item, index) => (
             <Animated.View key={item.id} entering={rowEntrance(index)}>
-              <FeedEventCard item={item} onCheer={onCheer} />
+              <FeedEventCard item={item} onCheer={onCheer} onOpenProfile={setProfileTarget} />
             </Animated.View>
           ))}
         </View>
@@ -140,6 +135,13 @@ export function SocialFeed({ onCheer, onAddFriends }: Readonly<SocialFeedProps>)
           </PillButton>
         </View>
       ) : null}
+
+      <FriendProfileSheet
+        userId={profileTarget?.userId ?? null}
+        displayName={profileTarget?.displayName ?? ''}
+        open={profileTarget !== null}
+        onClose={() => setProfileTarget(null)}
+      />
     </View>
   )
 }

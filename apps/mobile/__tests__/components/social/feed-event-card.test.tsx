@@ -11,14 +11,6 @@ vi.mock('react-i18next', () => ({
   }),
 }))
 
-vi.mock('@/app/social/_components/friend-profile-sheet', () => ({
-  FriendProfileSheet: ({ open, userId }: { open: boolean; userId: string | null }) => {
-    if (!open) return null
-    const react = require('react')
-    return react.createElement('Text', null, `profile:${userId}`)
-  },
-}))
-
 interface TestNode {
   type: unknown
   props: Record<string, unknown>
@@ -49,28 +41,29 @@ const item: FriendFeedItem = {
   createdAtUtc: '2026-05-01T00:00:00Z',
 }
 
-function textContents(tree: TestTree): unknown[] {
-  return tree.root.findAllByType('Text').map((node) => node.props.children)
-}
-
 function pressables(tree: TestTree): TestNode[] {
   return tree.root.findAll(
     (node) => node.type === 'Pressable' && node.props.accessibilityRole === 'button',
   )
 }
 
-async function renderCard(onCheer: (target: unknown) => void) {
+async function renderCard(
+  onCheer: (target: unknown) => void,
+  onOpenProfile: (target: unknown) => void,
+) {
   let tree!: TestTree
   await TestRenderer.act(async () => {
-    tree = TestRenderer.create(<FeedEventCard item={item} onCheer={onCheer} />)
+    tree = TestRenderer.create(
+      <FeedEventCard item={item} onCheer={onCheer} onOpenProfile={onOpenProfile} />,
+    )
   })
   return tree
 }
 
 describe('FeedEventCard', () => {
-  it('opens the actor profile from the identity press target', async () => {
-    const tree = await renderCard(vi.fn())
-    expect(textContents(tree)).not.toEqual(expect.arrayContaining(['profile:user-9']))
+  it('routes the identity press to the profile callback with the actor', async () => {
+    const onOpenProfile = vi.fn()
+    const tree = await renderCard(vi.fn(), onOpenProfile)
 
     const identity = tree.root.find(
       (node) =>
@@ -81,12 +74,13 @@ describe('FeedEventCard', () => {
       ;(identity.props as { onPress: () => void }).onPress()
     })
 
-    expect(textContents(tree)).toEqual(expect.arrayContaining(['profile:user-9']))
+    expect(onOpenProfile).toHaveBeenCalledWith({ userId: 'user-9', displayName: 'Grace' })
   })
 
   it('keeps Cheer a separate action that does not open the profile', async () => {
     const onCheer = vi.fn()
-    const tree = await renderCard(onCheer)
+    const onOpenProfile = vi.fn()
+    const tree = await renderCard(onCheer, onOpenProfile)
 
     const cheer = pressables(tree).find((node) => node.props.accessibilityLabel === undefined)
     expect(cheer).toBeDefined()
@@ -95,6 +89,6 @@ describe('FeedEventCard', () => {
     })
 
     expect(onCheer).toHaveBeenCalledWith({ recipientId: 'user-9', displayName: 'Grace' })
-    expect(textContents(tree)).not.toEqual(expect.arrayContaining(['profile:user-9']))
+    expect(onOpenProfile).not.toHaveBeenCalled()
   })
 })

@@ -5,6 +5,7 @@ import {
   persistQueryCache,
   restoreQueryCache,
   setQueryCacheScope,
+  QUERY_CACHE_VERSION,
 } from '@/lib/query-client'
 
 const { getItemMock, setItemMock, removeItemMock } = vi.hoisted(() => ({
@@ -55,36 +56,73 @@ describe('mobile query client', () => {
 
     expect(setItemMock).toHaveBeenCalledWith(
       '@orbit/query-cache:user-1',
-      JSON.stringify([
-        {
-          queryKey: ['good'],
-          state: {
-            data: { ok: true },
-            dataUpdatedAt: 123,
+      JSON.stringify({
+        version: QUERY_CACHE_VERSION,
+        entries: [
+          {
+            queryKey: ['good'],
+            state: {
+              data: { ok: true },
+              dataUpdatedAt: 123,
+            },
           },
-        },
-      ]),
+        ],
+      }),
     )
   })
 
   it('restores cached query results for the active account scope', async () => {
     await setQueryCacheScope('user-1')
     getItemMock.mockResolvedValue(
-      JSON.stringify([
-        {
-          queryKey: ['restored'],
-          state: {
-            data: { value: 1 },
-            dataUpdatedAt: 456,
+      JSON.stringify({
+        version: QUERY_CACHE_VERSION,
+        entries: [
+          {
+            queryKey: ['restored'],
+            state: {
+              data: { value: 1 },
+              dataUpdatedAt: 456,
+            },
           },
-        },
-      ]),
+        ],
+      }),
     )
 
     await restoreQueryCache()
 
     expect(getItemMock).toHaveBeenCalledWith('@orbit/query-cache:user-1')
     expect(queryClient.getQueryData(['restored'])).toEqual({ value: 1 })
+  })
+
+  it('discards a persisted cache written by an older schema version', async () => {
+    await setQueryCacheScope('user-1')
+    getItemMock.mockResolvedValue(
+      JSON.stringify({
+        version: QUERY_CACHE_VERSION - 1,
+        entries: [
+          { queryKey: ['stale'], state: { data: { old: true }, dataUpdatedAt: 1 } },
+        ],
+      }),
+    )
+
+    await restoreQueryCache()
+
+    expect(queryClient.getQueryData(['stale'])).toBeUndefined()
+    expect(removeItemMock).toHaveBeenCalledWith('@orbit/query-cache:user-1')
+  })
+
+  it('discards the legacy unversioned array cache format', async () => {
+    await setQueryCacheScope('user-1')
+    getItemMock.mockResolvedValue(
+      JSON.stringify([
+        { queryKey: ['legacy'], state: { data: { old: true }, dataUpdatedAt: 1 } },
+      ]),
+    )
+
+    await restoreQueryCache()
+
+    expect(queryClient.getQueryData(['legacy'])).toBeUndefined()
+    expect(removeItemMock).toHaveBeenCalledWith('@orbit/query-cache:user-1')
   })
 
   it('does not persist or restore when no account scope is set', async () => {
