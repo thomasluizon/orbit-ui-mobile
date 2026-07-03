@@ -366,7 +366,6 @@
       "currentParent": "Atual",
       "confirm": "Mover",
       "moving": "Movendo...",
-      "noOptions": "Nenhum hábito principal disponível",
       "noSearchResults": "Nenhum hábito corresponde à busca",
       "invalidSelf": "Não dá para mover para dentro de si mesmo",
       "invalidDescendant": "Não dá para mover para dentro de um sub-hábito dele",

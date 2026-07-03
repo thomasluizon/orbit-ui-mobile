@@ -118,7 +118,7 @@ function ProfileBody({
       <Animated.View entering={sectionEntrance(1)} style={styles.statsRow}>
         <StatTile emoji="🔥" value={view.currentStreak} label={t('profile.publicProfile.view.dayStreakLabel')} />
         <StatTile emoji="🥇" value={view.longestStreak} label={t('social.friendProfile.longestStreakLabel')} />
-        <StatTile emoji="🏆" value={view.level} label={view.levelTitle} phraseValue />
+        <StatTile emoji="🏆" value={view.level} label={view.levelTitle} />
         <StatTile emoji="✨" value={view.totalXp} label={t('social.friendProfile.xpLabel')} />
       </Animated.View>
 

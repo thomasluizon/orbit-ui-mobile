@@ -366,7 +366,6 @@
       "currentParent": "Current",
       "confirm": "Move",
       "moving": "Moving...",
-      "noOptions": "No available parent targets",
       "noSearchResults": "No habits match your search",
       "invalidSelf": "Cannot move under itself",
       "invalidDescendant": "Cannot move under a descendant",
