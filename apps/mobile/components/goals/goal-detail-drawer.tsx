@@ -174,6 +174,7 @@ export function GoalDetailDrawer({
         canDismiss={!isProgressDirty}
         isDirty={isProgressDirty}
         onAttemptDismiss={() => requestProgressDismiss('drawer')}
+        contentManagesScroll
       >
         <KeyboardAwareBottomSheetScrollView
           style={styles.scroll}

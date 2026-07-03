@@ -71,6 +71,7 @@ export function ReferralDrawer({ open, onClose }: Readonly<ReferralDrawerProps>)
       onClose={onClose}
       title={t('referral.drawer.title')}
       snapPoints={['65%', '85%']}
+      contentManagesScroll
     >
       <ScrollView
         style={styles.scroll}

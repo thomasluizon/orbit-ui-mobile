@@ -87,6 +87,7 @@ export default function ChallengesScreen() {
         onClose={() => setCreateOpen(false)}
         title={t('challenges.create.title')}
         snapPoints={['70%', '92%']}
+        contentManagesScroll
       >
         <ScrollView contentContainerStyle={styles.sheet} keyboardShouldPersistTaps="handled">
           <CreateChallengeForm
@@ -103,6 +104,7 @@ export default function ChallengesScreen() {
         onClose={() => setJoinOpen(false)}
         title={t('challenges.join.title')}
         snapPoints={['60%', '90%']}
+        contentManagesScroll
       >
         <ScrollView contentContainerStyle={styles.sheet} keyboardShouldPersistTaps="handled">
           <JoinByCodeForm initialCode={deepLinkCode} onJoined={() => setJoinOpen(false)} />

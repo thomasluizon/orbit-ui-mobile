@@ -29,8 +29,13 @@ vi.mock('@/lib/use-app-theme', () => ({
   useAppTheme: () => ({ currentScheme: 'purple', currentTheme: 'dark' }),
 }))
 
+interface TestNode {
+  type: unknown
+}
+
 interface TestTree {
   update(element: React.ReactNode): void
+  root: { findAll(predicate: (node: TestNode) => boolean): TestNode[] }
 }
 
 interface TestRendererApi {
@@ -101,6 +106,32 @@ describe('BottomSheetModal', () => {
     await setOpen(tree, false)
 
     expect(dismiss).toHaveBeenCalledTimes(1)
+  })
+
+  it('wraps sheet content in a scroll container by default', async () => {
+    let tree!: TestTree
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(
+        <BottomSheetModal open onClose={() => {}}>
+          <></>
+        </BottomSheetModal>,
+      )
+    })
+
+    expect(tree.root.findAll((node) => node.type === 'ScrollView')).toHaveLength(1)
+  })
+
+  it('renders children without a scroll container when the content manages scrolling', async () => {
+    let tree!: TestTree
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(
+        <BottomSheetModal open onClose={() => {}} contentManagesScroll>
+          <></>
+        </BottomSheetModal>,
+      )
+    })
+
+    expect(tree.root.findAll((node) => node.type === 'ScrollView')).toHaveLength(0)
   })
 
   it('does not dismiss after a present that failed, since the sheet was never shown', async () => {

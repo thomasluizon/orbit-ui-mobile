@@ -84,6 +84,7 @@ export function NewPairFlow({ open, onClose, initialHabitId }: Readonly<NewPairF
       onClose={handleClose}
       title={t('social.buddies.newPair.title')}
       snapPoints={['70%', '92%']}
+      contentManagesScroll
     >
       <View style={styles.container}>
         <ScrollView

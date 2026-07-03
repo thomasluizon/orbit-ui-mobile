@@ -216,6 +216,7 @@ export function EditHabitModal({
         canDismiss={dismissGuard.canDismiss}
         isDirty={isDirty}
         onAttemptDismiss={dismissGuard.requestDismiss}
+        contentManagesScroll
       >
         <KeyboardAwareBottomSheetScrollView
           style={styles.scroll}

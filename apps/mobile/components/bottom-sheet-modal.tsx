@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, type ReactNode } from 'react'
-import { Dimensions, Pressable, StyleSheet, Text, View } from 'react-native'
+import { Dimensions, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { TrueSheet } from '@lodev09/react-native-true-sheet'
 import { X } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
@@ -19,6 +19,8 @@ interface BottomSheetModalProps {
   canDismiss?: boolean
   isDirty?: boolean
   onAttemptDismiss?: (reason: DismissReason) => void
+  /** Set when the children render their own ScrollView/FlatList; the wrapper then skips its default scroll container so the two never nest. */
+  contentManagesScroll?: boolean
   children: ReactNode
 }
 
@@ -35,7 +37,9 @@ const MIN_DETENT = 0.1
  * mis-coordinate on the New Architecture. The public props are unchanged so every
  * caller keeps working: `snapPoints` map to detents, and the dirty guard blocks
  * interactive dismissal (drag/backdrop) and routes the close button + back press
- * to `onAttemptDismiss` so the caller can confirm before discarding.
+ * to `onAttemptDismiss` so the caller can confirm before discarding. Children scroll by
+ * default so content taller than the presented detent stays reachable; callers that render
+ * their own scroll container opt out via `contentManagesScroll`.
  */
 export function BottomSheetModal({
   open,
@@ -46,6 +50,7 @@ export function BottomSheetModal({
   canDismiss = true,
   isDirty = false,
   onAttemptDismiss,
+  contentManagesScroll = false,
   children,
 }: BottomSheetModalProps) {
   const { currentScheme, currentTheme } = useAppTheme()
@@ -140,7 +145,19 @@ export function BottomSheetModal({
             </Pressable>
           </View>
         ) : null}
-        {children}
+        {contentManagesScroll ? (
+          children
+        ) : (
+          <ScrollView
+            style={styles.scroll}
+            contentContainerStyle={styles.scrollContent}
+            nestedScrollEnabled
+            keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={false}
+          >
+            {children}
+          </ScrollView>
+        )}
       </View>
     </TrueSheet>
   )
@@ -163,6 +180,12 @@ function createStyles(tokens: AppTokens) {
   return StyleSheet.create({
     content: {
       flex: 1,
+    },
+    scroll: {
+      flex: 1,
+    },
+    scrollContent: {
+      flexGrow: 1,
     },
     header: {
       flexDirection: 'row',

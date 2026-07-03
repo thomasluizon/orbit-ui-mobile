@@ -106,7 +106,7 @@ export function MilestoneSharePrompt() {
   }
 
   return (
-    <BottomSheetModal open={variant !== null} onClose={dismiss} snapPoints={['85%']}>
+    <BottomSheetModal open={variant !== null} onClose={dismiss} snapPoints={['85%']} contentManagesScroll>
       {variant ? (
         <ScrollView
           style={styles.scroll}

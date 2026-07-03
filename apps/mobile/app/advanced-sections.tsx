@@ -438,6 +438,7 @@ export function WidgetInfoSheet({
       title={t('profile.widgetTitle')}
       contentKey="widget-info"
       snapPoints={['70%']}
+      contentManagesScroll
     >
       <ScrollView
         style={styles.widgetSheetScroll}
