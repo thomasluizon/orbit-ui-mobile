@@ -68,6 +68,29 @@ describe('useCalendars', () => {
 
     expect(getUserCalendars).not.toHaveBeenCalled()
   })
+
+  it('returns an empty list instead of an error when Google is not connected', async () => {
+    getUserCalendars.mockRejectedValueOnce(
+      new Error('Google Calendar connection expired. Please reconnect.'),
+    )
+
+    const { Wrapper } = createWrapper()
+    const { result } = renderHook(() => useCalendars(), { wrapper: Wrapper })
+
+    await waitFor(() => expect(result.current.isSuccess).toBe(true))
+
+    expect(result.current.data).toEqual([])
+    expect(result.current.isError).toBe(false)
+  })
+
+  it('still surfaces unrelated failures as errors', async () => {
+    getUserCalendars.mockRejectedValueOnce(new Error('network exploded'))
+
+    const { Wrapper } = createWrapper()
+    const { result } = renderHook(() => useCalendars(), { wrapper: Wrapper })
+
+    await waitFor(() => expect(result.current.isError).toBe(true))
+  })
 })
 
 describe('useSetSelectedCalendars', () => {
