@@ -113,14 +113,14 @@ export function AllDoneCelebration() {
 
 const styles = StyleSheet.create({
   overlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     zIndex: 10003,
   },
   pressable: {
     flex: 1,
   },
   backdrop: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     opacity: 0.96,
   },
   content: {

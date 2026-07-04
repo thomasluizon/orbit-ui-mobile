@@ -251,11 +251,11 @@ function createStyles(tokens: AppTokens) {
       flex: 1,
     },
     backdrop: {
-      ...StyleSheet.absoluteFillObject,
+      ...StyleSheet.absoluteFill,
       backgroundColor: 'rgba(0, 0, 0, 0.16)',
     },
     backdropPressTarget: {
-      ...StyleSheet.absoluteFillObject,
+      ...StyleSheet.absoluteFill,
     },
     panel: {
       position: 'absolute',

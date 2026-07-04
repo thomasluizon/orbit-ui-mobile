@@ -1,5 +1,5 @@
 import { Tabs } from 'expo-router'
-import { SceneStyleInterpolators, TransitionSpecs } from '@react-navigation/bottom-tabs'
+import { SceneStyleInterpolators, TransitionSpecs } from 'expo-router/js-tabs'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 export default function TabLayout() {

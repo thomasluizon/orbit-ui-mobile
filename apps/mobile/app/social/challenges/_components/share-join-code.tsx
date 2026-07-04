@@ -121,7 +121,7 @@ const styles = StyleSheet.create({
   },
   copyButtonPressed: { transform: [{ scale: 0.96 }] },
   copyIcon: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     alignItems: 'center',
     justifyContent: 'center',
   },

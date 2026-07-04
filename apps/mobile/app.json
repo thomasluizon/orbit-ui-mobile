@@ -7,7 +7,6 @@
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "automatic",
     "scheme": "orbit",
-    "newArchEnabled": true,
     "updates": {
       "enabled": false,
       "checkAutomatically": "NEVER"

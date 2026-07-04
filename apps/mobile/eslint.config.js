@@ -5,14 +5,26 @@ const reactHooks = require("eslint-plugin-react-hooks")
 const noComments = require("../../eslint-rules/no-comments.cjs")
 const noGorhomSheet = require("../../eslint-rules/no-gorhom-sheet.cjs")
 
-// https://github.com/expo/expo/issues/43758 — eslint-config-expo@55 bundles react-hooks v5 (no React-19/Compiler rules); strip its registration and re-register v7.
+// https://github.com/expo/expo/issues/43758 — eslint-config-expo@56 bundles react-hooks v7 and
+// turns on its full recommended set (refs, immutability, purity, …) at error. This project owns
+// the react-hooks rule surface (the curated subset re-registered below), so strip both the plugin
+// registration and its rule entries from the Expo config before re-registering v7 with only the
+// rules we opt into.
 const expoConfigArray = Array.isArray(expoConfig) ? expoConfig : [expoConfig]
 const patchedExpoConfig = expoConfigArray.map((c) => {
-  if (c && c.plugins && c.plugins["react-hooks"]) {
+  if (!c) return c
+  let next = c
+  if (c.plugins && c.plugins["react-hooks"]) {
     const { ["react-hooks"]: _stripped, ...rest } = c.plugins
-    return { ...c, plugins: rest }
+    next = { ...next, plugins: rest }
   }
-  return c
+  if (c.rules && Object.keys(c.rules).some((key) => key.startsWith("react-hooks/"))) {
+    const rules = Object.fromEntries(
+      Object.entries(c.rules).filter(([key]) => !key.startsWith("react-hooks/")),
+    )
+    next = { ...next, rules }
+  }
+  return next
 })
 
 module.exports = defineConfig([

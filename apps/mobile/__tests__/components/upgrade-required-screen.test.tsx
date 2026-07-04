@@ -38,7 +38,7 @@ vi.mock('react-native', () => ({
   Pressable: 'Pressable',
   StyleSheet: {
     create: (styles: Record<string, unknown>) => styles,
-    absoluteFillObject: {},
+    absoluteFill: {},
   },
   Text: 'Text',
   View: 'View',
