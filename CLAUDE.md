@@ -95,6 +95,15 @@ C# LSP (OmniSharp/Roslyn) is wired into this repo's `.mcp.json` so this session 
 
 TypeScript LSP is built into Claude Code — works without setup for `apps/web`, `apps/mobile`, `packages/shared`.
 
+## opencode compatibility
+
+The workflow is tool-agnostic between Claude Code and opencode; `.claude/` stays the single source of truth.
+
+- opencode reads this `CLAUDE.md` natively (fallback when no `AGENTS.md` exists) and discovers `.claude/skills/**` as-is. **Never create an `AGENTS.md`** — it would shadow this file and fork the rules.
+- `opencode.json` (committed) loads `WORKFLOW.md`, `DESIGN.md`, and the scoped workspace `CLAUDE.md` files, and mirrors the `.mcp.json` MCP servers via `{env:VAR}` substitution — the same env vars `.claude/mcp.json.example` documents must be set in the shell.
+- `.opencode/agents/*.md` are thin pointers to the matching `.claude/agents/*.md` bodies. Edit behavior in `.claude/agents/` only; when adding a new agent, create both the body and its pointer.
+- Claude-Code-only machinery (hooks in `.claude/hooks/`, persistent memory, Workflow orchestration) does not run under opencode — skills degrade to sequential single-thread behavior there.
+
 ## Git workflow
 
 - Branch naming: `feature/xxx`, `fix/xxx`, `chore/xxx`.
