@@ -60,7 +60,6 @@ import { ScrollToTopButton } from "@/components/ui/scroll-to-top-button";
 import { TrialBanner } from "@/components/ui/trial-banner";
 import { DismissibleCard } from "@/components/today/dismissible-card";
 import { TodayHabitsHeader } from "@/components/today/today-habits-header";
-import { ReviewReminderCard } from "@/components/review-reminder-card";
 import { ReferralCard } from "@/components/referral/referral-card";
 import { SocialEntryCard } from "@/components/social/social-entry-card";
 import { ReferralDrawer } from "@/components/referral/referral-drawer";
@@ -249,7 +248,7 @@ export default function TodayScreen() {
     [selectedDateStr],
   );
 
-  const { slot: engagementSlot, reviewReminder } = useEngagementSlot({
+  const { slot: engagementSlot } = useEngagementSlot({
     isTodayView: currentActiveView === "today",
     isTodayDate: isToday(selectedDate),
   });
@@ -867,15 +866,6 @@ export default function TodayScreen() {
           <SetupChecklistCard />
         </DismissibleCard>
 
-        <DismissibleCard visible={engagementSlot === "reviewReminder"}>
-          <ReviewReminderCard
-            onDismiss={reviewReminder.dismiss}
-            onRate={() => {
-              void reviewReminder.requestReview();
-            }}
-          />
-        </DismissibleCard>
-
         <DismissibleCard visible={engagementSlot === "referral"}>
           <ReferralCard
             onOpen={() => setShowReferral(true)}
@@ -904,7 +894,6 @@ export default function TodayScreen() {
       insets.top,
       goToToday,
       handleChangeView,
-      reviewReminder,
       tabItems,
       t,
       dismissHomeEntry,

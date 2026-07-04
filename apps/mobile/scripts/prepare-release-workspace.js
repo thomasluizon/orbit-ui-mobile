@@ -71,6 +71,20 @@ function prepareReleaseWorkspace(targetRoot) {
   ensureParentDir(targetBaseTsConfigPath);
   fs.copyFileSync(path.join(repoRoot, "tsconfig.base.json"), targetBaseTsConfigPath);
 
+  // SDK 56 @expo/cli resolves the tsconfig `extends` chain through Metro's file
+  // map and crashes ("Invariant Violation: Failed to collapse") when the target
+  // sits above the project root in this isolated workspace, so keep the chain
+  // inside apps/mobile: https://github.com/expo/expo/blob/main/packages/%40expo/cli/src/start/server/metro/createTypescriptResolver.ts
+  fs.copyFileSync(
+    path.join(repoRoot, "tsconfig.base.json"),
+    path.join(targetMobileDir, "tsconfig.base.json"),
+  );
+
+  const mobileTsConfigPath = path.join(targetMobileDir, "tsconfig.json");
+  const mobileTsConfig = JSON.parse(fs.readFileSync(mobileTsConfigPath, "utf8"));
+  mobileTsConfig.extends = "./tsconfig.base.json";
+  fs.writeFileSync(mobileTsConfigPath, `${JSON.stringify(mobileTsConfig, null, 2)}\n`);
+
   const mobilePackageJsonPath = path.join(targetMobileDir, "package.json");
   const mobilePackageJson = JSON.parse(fs.readFileSync(mobilePackageJsonPath, "utf8"));
 

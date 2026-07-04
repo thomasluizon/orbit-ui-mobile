@@ -15,8 +15,7 @@ export interface EngagementSlotContext {
  * Arbitrates Today's single engagement slot (D2): at most one of trial banner,
  * setup checklist, referral entry, or social entry is visible, in that priority.
  * The trial banner itself renders app-wide from the layout; a 'trial' win means
- * Today renders no promo card beneath it. The review reminder is a mobile-only
- * card, so its eligibility is always false on web.
+ * Today renders no promo card beneath it.
  */
 export function useEngagementSlot({
   isTodayView,
@@ -37,7 +36,6 @@ export function useEngagementSlot({
         !setupChecklistDismissed &&
         !profile.hasCompletedOnboardingChecklist,
     ),
-    reviewReminder: false,
     referral: isTodayView && isTodayDate && !homeEntryDismissed,
     socialEntry:
       isTodayView &&

@@ -14,15 +14,18 @@ type EngagementPromptStoreSet = {
 }
 
 /** The engagement-prompt families that share one cooldown budget and one armed slot. */
-export type EngagementPromptKind = 'referral' | 'milestone-share'
+export type EngagementPromptKind = 'referral' | 'milestone-share' | 'review'
 
-/** Arbiter weights: a milestone-share prompt outranks a referral prompt for the single armed slot. */
+/** Arbiter weights: a review moment outranks a milestone-share prompt, which outranks a referral prompt, for the single armed slot. */
 export const ENGAGEMENT_PROMPT_PRIORITY: Record<EngagementPromptKind, number> = {
+  review: 3,
   'milestone-share': 2,
   referral: 1,
 }
 
 export const STREAK_CROSSING_MILESTONES = [7, 30, 100] as const
+
+export const REVIEW_MOMENT_STREAK_MILESTONES = [7, 14, 30, 100, 365] as const
 
 export const REFERRAL_PROMPT_COOLDOWN_DAYS = 14
 
@@ -72,6 +75,42 @@ export function parseMilestoneShareKey(milestoneKey: string): MilestoneShareKey 
 /** Builds the referral-prompt milestone key for a newly reached level. */
 export function getReferralLevelMilestone(level: number): string {
   return `level-${level}`
+}
+
+/** Maps a freshly-reached streak length to its review-moment key, or null when the length is not a review-worthy milestone (7/14/30/100/365). */
+export function getReviewMomentStreakKey(streak: number): string | null {
+  return (REVIEW_MOMENT_STREAK_MILESTONES as readonly number[]).includes(streak)
+    ? `review-streak-${streak}`
+    : null
+}
+
+/** Builds the review-moment key for a newly reached level, namespaced so it never collides with referral or share keys. */
+export function getReviewMomentLevelKey(level: number): string {
+  return `review-level-${level}`
+}
+
+export type ReviewMomentKey =
+  | { kind: 'streak'; value: number }
+  | { kind: 'level'; value: number }
+
+/** Parses a review-moment key (`review-streak-N` / `review-level-N`) back into its kind and numeric value, or null when malformed. */
+export function parseReviewMomentKey(milestoneKey: string): ReviewMomentKey | null {
+  const streakPrefix = 'review-streak-'
+  const levelPrefix = 'review-level-'
+
+  const kind = milestoneKey.startsWith(streakPrefix)
+    ? 'streak'
+    : milestoneKey.startsWith(levelPrefix)
+      ? 'level'
+      : null
+  if (!kind) return null
+
+  const raw = milestoneKey.slice(
+    kind === 'streak' ? streakPrefix.length : levelPrefix.length,
+  )
+  const value = Number(raw)
+  if (raw === '' || !Number.isFinite(value)) return null
+  return { kind, value }
 }
 
 export interface ReferralMilestone {
@@ -134,6 +173,7 @@ export interface EngagementPromptStoreState extends PersistedEngagementPromptSta
   armEngagementPrompt: (kind: EngagementPromptKind, milestoneKey: string) => void
   armReferralPrompt: (milestoneKey: string) => void
   armMilestoneSharePrompt: (milestoneKey: string) => void
+  armReviewPrompt: (milestoneKey: string) => void
   clearArmedMilestone: () => void
   markEngagementPrompted: (milestoneKey: string, nowIso: string) => void
   dismissHomeEntry: () => void
@@ -208,6 +248,7 @@ export function createEngagementPromptStoreState(
       armEngagementPrompt('referral', milestoneKey),
     armMilestoneSharePrompt: (milestoneKey) =>
       armEngagementPrompt('milestone-share', milestoneKey),
+    armReviewPrompt: (milestoneKey) => armEngagementPrompt('review', milestoneKey),
 
     clearArmedMilestone: () => set({ armedPrompt: null }),
 

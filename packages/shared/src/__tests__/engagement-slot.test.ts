@@ -12,7 +12,6 @@ function eligibilityOf(
   return {
     trial: eligible.includes('trial'),
     setupChecklist: eligible.includes('setupChecklist'),
-    reviewReminder: eligible.includes('reviewReminder'),
     referral: eligible.includes('referral'),
     socialEntry: eligible.includes('socialEntry'),
   }
@@ -23,7 +22,6 @@ describe('ENGAGEMENT_SLOT_PRIORITY', () => {
     expect(ENGAGEMENT_SLOT_PRIORITY).toEqual([
       'trial',
       'setupChecklist',
-      'reviewReminder',
       'referral',
       'socialEntry',
     ])
@@ -35,7 +33,7 @@ describe('resolveEngagementSlot', () => {
     expect(resolveEngagementSlot(eligibilityOf())).toBeNull()
   })
 
-  it('returns the sole eligible card for each of the five cards', () => {
+  it('returns the sole eligible card for each of the four cards', () => {
     for (const card of ENGAGEMENT_SLOT_PRIORITY) {
       expect(resolveEngagementSlot(eligibilityOf(card))).toBe(card)
     }
@@ -44,29 +42,15 @@ describe('resolveEngagementSlot', () => {
   it('picks trial over every other card', () => {
     expect(
       resolveEngagementSlot(
-        eligibilityOf(
-          'trial',
-          'setupChecklist',
-          'reviewReminder',
-          'referral',
-          'socialEntry',
-        ),
+        eligibilityOf('trial', 'setupChecklist', 'referral', 'socialEntry'),
       ),
     ).toBe('trial')
   })
 
-  it('picks setupChecklist over reviewReminder, referral, and socialEntry', () => {
+  it('picks setupChecklist over referral and socialEntry', () => {
     expect(
-      resolveEngagementSlot(
-        eligibilityOf('setupChecklist', 'reviewReminder', 'referral', 'socialEntry'),
-      ),
+      resolveEngagementSlot(eligibilityOf('setupChecklist', 'referral', 'socialEntry')),
     ).toBe('setupChecklist')
-  })
-
-  it('picks reviewReminder over referral and socialEntry', () => {
-    expect(
-      resolveEngagementSlot(eligibilityOf('reviewReminder', 'referral', 'socialEntry')),
-    ).toBe('reviewReminder')
   })
 
   it('picks referral over socialEntry', () => {
@@ -75,7 +59,7 @@ describe('resolveEngagementSlot', () => {
     )
   })
 
-  it('resolves all 32 eligibility combinations to the highest-priority eligible card', () => {
+  it('resolves all 16 eligibility combinations to the highest-priority eligible card', () => {
     for (let mask = 0; mask < 1 << ENGAGEMENT_SLOT_PRIORITY.length; mask += 1) {
       const eligible = ENGAGEMENT_SLOT_PRIORITY.filter(
         (_, index) => (mask & (1 << index)) !== 0,

@@ -65,8 +65,14 @@ import {
   snapshotHabitLists,
   updateHabitLists,
 } from '@/lib/habit-mutation-helpers'
-import { getMilestoneShareStreakKey } from '@orbit/shared/stores'
-import { useReviewReminderStore } from '@/stores/review-reminder-store'
+import {
+  getMilestoneShareStreakKey,
+  getReviewMomentStreakKey,
+} from '@orbit/shared/stores'
+import {
+  isReviewMomentEligible,
+  useReviewReminderStore,
+} from '@/stores/review-reminder-store'
 import { useUIStore } from '@/stores/ui-store'
 import { useTranslation } from 'react-i18next'
 import { useAppToast } from '@/hooks/use-app-toast'
@@ -169,6 +175,18 @@ export function useLogHabit() {
         const milestoneShareKey = getMilestoneShareStreakKey(response.currentStreak)
         if (milestoneShareKey) {
           useEngagementPromptStore.getState().armMilestoneSharePrompt(milestoneShareKey)
+        }
+        const reviewMomentKey = getReviewMomentStreakKey(response.currentStreak)
+        if (
+          reviewMomentKey &&
+          isReviewMomentEligible(
+            useReviewReminderStore.getState(),
+            queryClient.getQueryData<Profile>(profileKeys.detail())
+              ?.hasCompletedOnboarding ?? false,
+            formatAPIDate(new Date()),
+          )
+        ) {
+          useEngagementPromptStore.getState().armReviewPrompt(reviewMomentKey)
         }
       }
 

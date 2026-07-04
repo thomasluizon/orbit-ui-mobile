@@ -1,7 +1,6 @@
 import { resolveEngagementSlot, type EngagementSlotCard } from '@orbit/shared/utils'
 import { useProfile } from '@/hooks/use-profile'
 import { useFriends } from '@/hooks/use-friends'
-import { useReviewReminder } from '@/hooks/use-review-reminder'
 import { useUIStore } from '@/stores/ui-store'
 import { useEngagementPromptStore } from '@/stores/referral-prompt-store'
 
@@ -12,19 +11,13 @@ export interface EngagementSlotContext {
 
 /**
  * Arbitrates Today's single engagement slot (D2): at most one of trial banner,
- * setup checklist, review reminder, referral entry, or social entry is visible,
- * in that priority. Also exposes the single review-reminder instance so the
- * screen can wire its dismiss and rate actions.
+ * setup checklist, referral entry, or social entry is visible, in that priority.
  */
 export function useEngagementSlot({
   isTodayView,
   isTodayDate,
-}: EngagementSlotContext): {
-  slot: EngagementSlotCard | null
-  reviewReminder: ReturnType<typeof useReviewReminder>
-} {
+}: EngagementSlotContext): { slot: EngagementSlotCard | null } {
   const { profile } = useProfile()
-  const reviewReminder = useReviewReminder(profile)
   const setupChecklistDismissed = useUIStore((s) => s.setupChecklistDismissed)
   const homeEntryDismissed = useEngagementPromptStore((s) => s.homeEntryDismissed)
   const socialEntryDismissed = useEngagementPromptStore((s) => s.socialEntryDismissed)
@@ -39,7 +32,6 @@ export function useEngagementSlot({
         !setupChecklistDismissed &&
         !profile.hasCompletedOnboardingChecklist,
     ),
-    reviewReminder: reviewReminder.shouldShow,
     referral: isTodayView && isTodayDate && !homeEntryDismissed,
     socialEntry:
       isTodayView &&
@@ -47,5 +39,5 @@ export function useEngagementSlot({
       (pendingFriendRequests > 0 || !socialEntryDismissed),
   })
 
-  return { slot, reviewReminder }
+  return { slot }
 }

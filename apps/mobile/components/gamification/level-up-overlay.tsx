@@ -9,14 +9,12 @@ import {
 } from 'react-native'
 import Svg, { Ellipse } from 'react-native-svg'
 import { useTranslation } from 'react-i18next'
-import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { toAnimatedEasing, usePrefersReducedMotion } from '@/lib/motion'
 import { createTokensV2, easings, tintFromPrimary } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useUIStore } from '@/stores/ui-store'
 import { useOverlayBack } from '@/hooks/use-overlay-back'
 import { GradientTop } from '@/components/ui/gradient-top'
-import { PillButton } from '@/components/ui/pill-button'
 import { useCelebrationEntrance } from './celebration-motion'
 
 interface LevelUpOverlayProps {
@@ -26,8 +24,8 @@ interface LevelUpOverlayProps {
 }
 
 /**
- * Level-up overlay: star hero disc, rotating orbit ellipse around the big
- * Inter level numeral, and a continue pill.
+ * Level-up overlay: star hero disc and a rotating orbit ellipse around the big
+ * Inter level numeral. Dismissed by tap, back press, or the auto-dismiss timer.
  * Preserves queue contract (enqueueCelebration / completeActiveCelebration).
  */
 export function LevelUpOverlay({
@@ -36,7 +34,6 @@ export function LevelUpOverlay({
   onClear,
 }: Readonly<LevelUpOverlayProps>) {
   const { t } = useTranslation()
-  const insets = useSafeAreaInsets()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
     () => createTokensV2(currentScheme, currentTheme),
@@ -54,8 +51,9 @@ export function LevelUpOverlay({
   const timerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
   const activeLevelUp =
     activeCelebration?.kind === 'level-up' ? activeCelebration : null
-  const { orbStyle, titleStyle, subtitleStyle, footerStyle } =
-    useCelebrationEntrance(Boolean(activeLevelUp))
+  const { orbStyle, titleStyle, subtitleStyle } = useCelebrationEntrance(
+    Boolean(activeLevelUp),
+  )
 
   useEffect(() => {
     if (prefersReducedMotion) return
@@ -199,13 +197,6 @@ export function LevelUpOverlay({
             {t('gamification.levelUp.steadyHand')}
           </Animated.Text>
         </View>
-        <Animated.View
-          style={[styles.footer, { paddingBottom: insets.bottom + 24 }, footerStyle]}
-        >
-          <PillButton fullWidth onPress={() => dismiss(activeLevelUp?.id)}>
-            {t('common.continue')}
-          </PillButton>
-        </Animated.View>
       </Pressable>
     </Animated.View>
   )
@@ -273,8 +264,5 @@ const styles = StyleSheet.create({
     fontSize: 16,
     lineHeight: 24,
     textAlign: 'center',
-  },
-  footer: {
-    paddingHorizontal: 24,
   },
 })

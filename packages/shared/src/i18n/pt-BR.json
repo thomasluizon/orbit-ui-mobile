@@ -240,9 +240,14 @@
     "title": "Copiloto Astra",
     "subtitle": "Seu copiloto de hábitos"
   },
-  "reviewPrompt": {
-    "title": "Está curtindo o Orbit?",
-    "cta": "Avaliar Orbit"
+  "reviewMoment": {
+    "eyebrow": "Um recado da Astra",
+    "streakTitle": "{count} dias seguidos!",
+    "levelTitle": "Nível {level}!",
+    "streakBody": "Você apareceu {count} dias seguidos — isso é ritmo de verdade. Que tal avaliar o Orbit no Google Play? Ajuda mais pessoas a encontrarem sua órbita.",
+    "levelBody": "Você acabou de alcançar o nível {level} — isso exigiu constância. Que tal avaliar o Orbit no Google Play? Ajuda mais pessoas a encontrarem sua órbita.",
+    "cta": "Avaliar Orbit",
+    "notNow": "Agora não"
   },
   "dates": {
     "today": "Hoje",

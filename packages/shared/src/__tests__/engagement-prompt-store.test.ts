@@ -7,9 +7,12 @@ import {
   getMilestoneShareStreakKey,
   getPersistedEngagementPromptState,
   getReferralLevelMilestone,
+  getReviewMomentLevelKey,
+  getReviewMomentStreakKey,
   migratePersistedEngagementPromptState,
   parseMilestoneShareKey,
   parseReferralMilestoneKey,
+  parseReviewMomentKey,
   type EngagementPromptStoreState,
 } from '../stores/engagement-prompt-store'
 
@@ -99,6 +102,44 @@ describe('referral milestone keys', () => {
     expect(parseReferralMilestoneKey('streak')).toBeNull()
     expect(parseReferralMilestoneKey('badge-3')).toBeNull()
     expect(parseReferralMilestoneKey('streak-abc')).toBeNull()
+  })
+})
+
+describe('review-moment keys', () => {
+  it('returns review keys for the 7/14/30/100/365 milestones', () => {
+    expect(getReviewMomentStreakKey(7)).toBe('review-streak-7')
+    expect(getReviewMomentStreakKey(14)).toBe('review-streak-14')
+    expect(getReviewMomentStreakKey(30)).toBe('review-streak-30')
+    expect(getReviewMomentStreakKey(100)).toBe('review-streak-100')
+    expect(getReviewMomentStreakKey(365)).toBe('review-streak-365')
+  })
+
+  it('returns null for non-milestone streaks', () => {
+    for (const streak of [0, 1, 6, 8, 15, 29, 99, 101, 364, 366]) {
+      expect(getReviewMomentStreakKey(streak)).toBeNull()
+    }
+  })
+
+  it('builds a level key namespaced apart from referral and share keys', () => {
+    expect(getReviewMomentLevelKey(5)).toBe('review-level-5')
+  })
+
+  it('parses streak and level keys back into kind and value', () => {
+    expect(parseReviewMomentKey('review-streak-14')).toEqual({
+      kind: 'streak',
+      value: 14,
+    })
+    expect(parseReviewMomentKey('review-level-8')).toEqual({
+      kind: 'level',
+      value: 8,
+    })
+  })
+
+  it('returns null for malformed review-moment keys', () => {
+    expect(parseReviewMomentKey('review-streak-')).toBeNull()
+    expect(parseReviewMomentKey('review-level-abc')).toBeNull()
+    expect(parseReviewMomentKey('share-streak-7')).toBeNull()
+    expect(parseReviewMomentKey('level-5')).toBeNull()
   })
 })
 
@@ -284,6 +325,31 @@ describe('engagement prompt arbiter', () => {
     expect(store.getState().armedPrompt).toEqual({
       kind: 'milestone-share',
       milestoneKey: 'share-achv-centurion',
+    })
+  })
+
+  it('lets a review prompt outrank an armed milestone-share prompt', () => {
+    const store = createStoreHarness()
+
+    store.getState().armMilestoneSharePrompt('share-streak-7')
+    store.getState().armReviewPrompt('review-streak-7')
+
+    expect(store.getState().armedPrompt).toEqual({
+      kind: 'review',
+      milestoneKey: 'review-streak-7',
+    })
+  })
+
+  it('keeps an armed review prompt when share and referral prompts arm after', () => {
+    const store = createStoreHarness()
+
+    store.getState().armReviewPrompt('review-level-5')
+    store.getState().armMilestoneSharePrompt('share-streak-7')
+    store.getState().armReferralPrompt('level-5')
+
+    expect(store.getState().armedPrompt).toEqual({
+      kind: 'review',
+      milestoneKey: 'review-level-5',
     })
   })
 })

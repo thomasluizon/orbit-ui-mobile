@@ -82,4 +82,29 @@ describe('LevelUpOverlay', () => {
     })
     expect(onClear).toHaveBeenCalled()
   })
+
+  it('renders no continue button', () => {
+    render(
+      <LevelUpOverlay leveledUp={true} newLevel={5} onClear={vi.fn()} />,
+    )
+    expect(document.body.textContent).not.toContain('common.continue')
+  })
+
+  it('dismisses on backdrop click', () => {
+    const onClear = vi.fn()
+    render(
+      <LevelUpOverlay leveledUp={true} newLevel={5} onClear={onClear} />,
+    )
+    const backdrop = document.querySelector<HTMLButtonElement>(
+      'button[aria-label="gamification.levelUp.title"]',
+    )
+    expect(backdrop).toBeInTheDocument()
+    act(() => {
+      backdrop!.click()
+    })
+    act(() => {
+      vi.advanceTimersByTime(300)
+    })
+    expect(onClear).toHaveBeenCalled()
+  })
 })
