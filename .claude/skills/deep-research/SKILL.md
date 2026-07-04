@@ -110,7 +110,7 @@ Offer (don't do unsolicited):
 
 ## Orbit context (frame every subagent with the relevant slice of this)
 
-- **Dual repo, launched from `orbit-ui-mobile`** (reach `orbit-api` via absolute paths). `orbit-ui-mobile`: Turborepo — `apps/web` (Next.js), `apps/mobile` (Expo SDK 55, **Android only**), `packages/shared` (Zod types/i18n/endpoints). `orbit-api`: .NET, EF Core, Postgres, MediatR CQRS.
+- **Dual repo, launched from `orbit-ui-mobile`** (reach `orbit-api` via absolute paths). `orbit-ui-mobile`: Turborepo — `apps/web` (Next.js), `apps/mobile` (Expo SDK 56, **Android only**), `packages/shared` (Zod types/i18n/endpoints). `orbit-api`: .NET, EF Core, Postgres, MediatR CQRS.
 - **Vendors in play** (so research is grounded, not abstract): Supabase (Postgres + Auth), Render (.NET API), Vercel (web), OpenAI (Astra/AI), Resend (email), Sentry + Discord (observability), Google Play Billing + Stripe (subscriptions).
 - **Audience calibration:** solo developer, cost-sensitive, pre-full-prod-launch. Recommend at **solo-dev scale**, not enterprise — always price the option and prefer the cheapest path that isn't a footgun.
 - **Cross-cutting rules** the answer must respect when relevant: cross-platform parity (web ↔ mobile), backward-compat / deploy-order for shared contracts, and `DESIGN.md` for any UI/design question.
