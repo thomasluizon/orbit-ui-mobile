@@ -75,6 +75,7 @@ const Image = createHostComponent('Image')
 const Modal = createHostComponent('Modal')
 const ActivityIndicator = createHostComponent('ActivityIndicator')
 const AnimatedView = createHostComponent('AnimatedView')
+const AnimatedText = createHostComponent('AnimatedText')
 const KeyboardAvoidingView = createHostComponent('KeyboardAvoidingView')
 
 export const Animated = {
@@ -94,6 +95,7 @@ export const Animated = {
     }
   },
   View: AnimatedView,
+  Text: AnimatedText,
   timing: () => ({ start: () => {}, stop: () => {} }),
   spring: () => ({ start: () => {}, stop: () => {} }),
   sequence: (animations: { start?: () => void; stop?: () => void }[]) => ({

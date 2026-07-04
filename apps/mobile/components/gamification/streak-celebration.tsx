@@ -28,7 +28,7 @@ export function StreakCelebration() {
   const tokens = createTokensV2(currentScheme, currentTheme)
   const streakCelebration = useUIStore((s) => s.streakCelebration)
   const setStreakCelebration = useUIStore((s) => s.setStreakCelebration)
-  const [streakCount, setStreakCount] = useState(0)
+  const [streakCount, setStreakCount] = useState(() => streakCelebration?.streak ?? 0)
 
   const overlayOpacity = useMemo(() => new Animated.Value(0), [])
   const dismissTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined)
@@ -59,7 +59,8 @@ export function StreakCelebration() {
     })
   }, [overlayOpacity, setStreakCelebration])
 
-  const [prevCelebration, setPrevCelebration] = useState(streakCelebration)
+  const [prevCelebration, setPrevCelebration] =
+    useState<typeof streakCelebration>(null)
   if (streakCelebration !== prevCelebration) {
     setPrevCelebration(streakCelebration)
     if (streakCelebration) {
