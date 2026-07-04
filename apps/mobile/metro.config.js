@@ -22,37 +22,4 @@ config.server = { ...config.server, unstable_serverRoot: __dirname };
 // Resolve node_modules from the app first, then monorepo root
 config.resolver.nodeModulesPaths = Array.from(new Set([mobileModules, rootModules, realRootModules]));
 
-// Force single copies of React ecosystem packages from mobile's node_modules
-const singletonPackages = [
-  "react",
-  "react-native",
-  "react-native-safe-area-context",
-  "react-native-screens",
-  "react-native-gesture-handler",
-  "react-native-reanimated",
-  "react-native-svg",
-  "react-native-worklets",
-];
-
-const extraNodeModules = {};
-for (const pkg of singletonPackages) {
-  const mobilePath = path.resolve(mobileModules, pkg);
-  if (fs.existsSync(mobilePath)) {
-    extraNodeModules[pkg] = mobilePath;
-  }
-}
-config.resolver.extraNodeModules = extraNodeModules;
-
-config.resolver.resolveRequest = (context, moduleName, platform) => {
-  if (singletonPackages.includes(moduleName)) {
-    try {
-      return {
-        filePath: require.resolve(moduleName, { paths: [mobileModules] }),
-        type: "sourceFile",
-      };
-    } catch {}
-  }
-  return context.resolveRequest(context, moduleName, platform);
-};
-
 module.exports = config;
