@@ -25,6 +25,14 @@ vi.mock('@orbit/shared/utils', () => ({
   formatAPIDate: () => '2026-06-28',
 }))
 
+vi.mock('@tanstack/react-query', () => ({
+  useQueryClient: () => ({ invalidateQueries: vi.fn() }),
+}))
+
+vi.mock('@orbit/shared/query', () => ({
+  gamificationKeys: { all: ['gamification'] },
+}))
+
 vi.mock('@/lib/plural', () => ({
   plural: (text: string) => text,
 }))
@@ -43,6 +51,11 @@ vi.mock('@/hooks/use-gamification', () => ({
 }))
 
 import { TodayRail } from '@/components/shell/today-rail'
+import { TodayProvider } from '@/app/(app)/today-provider'
+
+function renderRail() {
+  return render(<TodayRail />, { wrapper: TodayProvider })
+}
 
 const pendingQuery = () => ({
   data: undefined,
@@ -77,7 +90,7 @@ describe('TodayRail', () => {
   it('renders the progress orbit with the computed done and total', () => {
     loadedHabits(3, 7)
 
-    render(<TodayRail />)
+    renderRail()
 
     expect(
       screen.getByRole('img', { name: 'rail.progressLabel({"done":3,"total":7})' }),
@@ -90,7 +103,7 @@ describe('TodayRail', () => {
   it('computes progress from the day-query habits and the current date', () => {
     const habitsById = loadedHabits(0, 0)
 
-    render(<TodayRail />)
+    renderRail()
 
     expect(computeDayProgressMock).toHaveBeenCalledWith(habitsById, '2026-06-28')
   })
@@ -98,7 +111,7 @@ describe('TodayRail', () => {
   it('falls back to the empty habit map when the query has no data', () => {
     useHabitsMock.mockReturnValue(pendingQuery())
 
-    render(<TodayRail />)
+    renderRail()
 
     expect(computeDayProgressMock).toHaveBeenCalledWith(emptyHabitsById, '2026-06-28')
   })
@@ -106,7 +119,7 @@ describe('TodayRail', () => {
   it('shows no orbit numerals while the habits query is pending', () => {
     useHabitsMock.mockReturnValue(pendingQuery())
 
-    render(<TodayRail />)
+    renderRail()
 
     expect(screen.queryByRole('img')).not.toBeInTheDocument()
     expect(screen.queryByText('rail.todayProgress')).not.toBeInTheDocument()
@@ -122,7 +135,7 @@ describe('TodayRail', () => {
       refetch,
     })
 
-    render(<TodayRail />)
+    renderRail()
 
     expect(screen.getByText('rail.loadFailed')).toBeInTheDocument()
     expect(screen.queryByRole('img')).not.toBeInTheDocument()
@@ -133,7 +146,7 @@ describe('TodayRail', () => {
   it('shows the satellite empty state and hides the stat stack when the loaded day has no habits', () => {
     loadedHabits(0, 0)
 
-    render(<TodayRail />)
+    renderRail()
 
     expect(screen.getByText('rail.empty')).toBeInTheDocument()
     expect(screen.queryByRole('img')).not.toBeInTheDocument()
@@ -141,7 +154,7 @@ describe('TodayRail', () => {
   })
 
   it('requests the current day habits including overdue', () => {
-    render(<TodayRail />)
+    renderRail()
 
     expect(useHabitsMock).toHaveBeenCalledWith({
       dateFrom: '2026-06-28',
@@ -153,7 +166,7 @@ describe('TodayRail', () => {
   it('shows remaining-today from the day progress once the query has loaded', () => {
     loadedHabits(2, 7)
 
-    render(<TodayRail />)
+    renderRail()
 
     expect(screen.getByText('rail.remaining')).toBeInTheDocument()
     expect(screen.getByText('5')).toBeInTheDocument()
@@ -162,7 +175,7 @@ describe('TodayRail', () => {
   it('does not render the stat stack before the habits query resolves', () => {
     useHabitsMock.mockReturnValue(pendingQuery())
 
-    render(<TodayRail />)
+    renderRail()
 
     expect(screen.queryByText('rail.remaining')).not.toBeInTheDocument()
   })
@@ -172,7 +185,7 @@ describe('TodayRail', () => {
     useProfileMock.mockReturnValue({ profile: { canViewGamification: false } })
     useGamificationProfileMock.mockReturnValue({ profile: null, xpProgress: 0 })
 
-    render(<TodayRail />)
+    renderRail()
 
     expect(screen.getByText('rail.remaining')).toBeInTheDocument()
     expect(screen.queryByText('streakDisplay.title')).not.toBeInTheDocument()
@@ -187,7 +200,7 @@ describe('TodayRail', () => {
       xpProgress: 64,
     })
 
-    render(<TodayRail />)
+    renderRail()
 
     expect(screen.getByText('26 streakDisplay.daysSuffix')).toBeInTheDocument()
     expect(screen.getByText('gamification.profileCard.level({"level":19})')).toBeInTheDocument()

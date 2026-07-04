@@ -83,6 +83,9 @@ vi.mock('@orbit/shared/query', () => ({
   habitKeys: {
     lists: () => ['habits'],
   },
+  gamificationKeys: {
+    all: ['gamification'],
+  },
 }))
 
 vi.mock('@/stores/ui-store', () => ({
@@ -200,6 +203,11 @@ vi.mock('@/components/ui/confirm-dialog', () => ({
 }))
 
 import TodayPage from '@/app/(app)/page'
+import { TodayProvider } from '@/app/(app)/today-provider'
+
+function renderPage() {
+  return render(<TodayPage />, { wrapper: TodayProvider })
+}
 
 describe('TodayPage bulk parent prompts', () => {
   beforeEach(() => {
@@ -229,7 +237,7 @@ describe('TodayPage bulk parent prompts', () => {
   })
 
   it('always shows the filter row regardless of habit count', () => {
-    render(<TodayPage />)
+    renderPage()
     expect(screen.getByTestId('today-utility-row')).toBeInTheDocument()
     expect(screen.getByTestId('habit-list')).toBeInTheDocument()
   })
@@ -258,7 +266,7 @@ describe('TodayPage bulk parent prompts', () => {
       ],
     })
 
-    render(<TodayPage />)
+    renderPage()
 
     fireEvent.click(screen.getByTestId('confirm-dialog-habits.bulkLogTitle'))
 
@@ -271,14 +279,14 @@ describe('TodayPage bulk parent prompts', () => {
   })
 
   it('renders the animated list shell and bulk action bar in select mode', () => {
-    render(<TodayPage />)
+    renderPage()
 
     expect(screen.getByTestId('today-list-shell')).toBeInTheDocument()
     expect(screen.getByTestId('bulk-action-bar')).toBeInTheDocument()
   })
 
   it('exits select mode when Escape is pressed', () => {
-    render(<TodayPage />)
+    renderPage()
 
     fireEvent.keyDown(document, { key: 'Escape' })
 
@@ -286,7 +294,7 @@ describe('TodayPage bulk parent prompts', () => {
   })
 
   it('routes free users to upgrade when they click goals', async () => {
-    render(<TodayPage />)
+    renderPage()
 
     fireEvent.click(screen.getByText('goals.tab'))
 
@@ -297,7 +305,7 @@ describe('TodayPage bulk parent prompts', () => {
   it('lets pro users switch to goals', async () => {
     mockProfile = createMockProfile({ hasProAccess: true, aiSummaryEnabled: false })
 
-    render(<TodayPage />)
+    renderPage()
 
     fireEvent.click(screen.getByText('goals.tab'))
 
@@ -308,7 +316,7 @@ describe('TodayPage bulk parent prompts', () => {
   it('recovers a stale free goals view back to today', async () => {
     uiState.activeView = 'goals'
 
-    render(<TodayPage />)
+    renderPage()
 
     expect(screen.queryByText('Goals view')).not.toBeInTheDocument()
     expect(screen.getByTestId('habit-list')).toHaveTextContent('"today"')
@@ -323,7 +331,7 @@ describe('TodayPage bulk parent prompts', () => {
     dateParamState.value = null
     uiState.isSelectMode = false
 
-    render(<TodayPage />)
+    renderPage()
 
     expect(useHabitsMock.mock.calls.at(-1)?.[0]).toMatchObject({
       dateFrom: '2026-04-07',
@@ -346,7 +354,7 @@ describe('TodayPage bulk parent prompts', () => {
     dateParamState.value = '2026-04-06'
     uiState.isSelectMode = false
 
-    render(<TodayPage />)
+    renderPage()
 
     await act(async () => {
       await vi.advanceTimersByTimeAsync(6_000)
@@ -362,7 +370,7 @@ describe('TodayPage bulk parent prompts', () => {
     dateParamState.value = '2026-04-07'
     uiState.isSelectMode = false
 
-    render(<TodayPage />)
+    renderPage()
 
     fireEvent.click(screen.getByLabelText('dates.previousDay'))
 
@@ -373,7 +381,7 @@ describe('TodayPage bulk parent prompts', () => {
     dateParamState.value = '2026-04-07'
     uiState.isSelectMode = false
 
-    render(<TodayPage />)
+    renderPage()
 
     fireEvent.click(screen.getByLabelText('dates.nextDay'))
 
@@ -384,7 +392,7 @@ describe('TodayPage bulk parent prompts', () => {
     dateParamState.value = '2026-04-06'
     uiState.isSelectMode = false
 
-    render(<TodayPage />)
+    renderPage()
 
     fireEvent.click(screen.getByLabelText('dates.goToToday'))
 
@@ -397,7 +405,7 @@ describe('TodayPage bulk parent prompts', () => {
     uiState.isSelectMode = false
 
     dateParamState.value = null
-    const { rerender } = render(<TodayPage />)
+    const { rerender } = render(<TodayPage />, { wrapper: TodayProvider })
     expect(useHabitsMock.mock.calls.at(-1)?.[0]).toMatchObject({
       dateFrom: '2026-04-07',
       dateTo: '2026-04-07',
@@ -439,7 +447,7 @@ describe('TodayPage pinned-date deep link', () => {
     dateParamState.value = '2026-04-06'
     uiState.activeView = 'all'
 
-    render(<TodayPage />)
+    renderPage()
 
     expect(uiState.setActiveView).toHaveBeenCalledWith('today')
   })
@@ -448,7 +456,7 @@ describe('TodayPage pinned-date deep link', () => {
     dateParamState.value = null
     uiState.activeView = 'all'
 
-    render(<TodayPage />)
+    renderPage()
 
     expect(uiState.setActiveView).not.toHaveBeenCalledWith('today')
   })
@@ -501,7 +509,7 @@ describe('TodayPage overdue bulk selection', () => {
     const overdue = seedOverdueHabit()
     habitListHandle.allLoadedIds = new Set([overdue.id])
 
-    render(<TodayPage />)
+    renderPage()
 
     fireEvent.click(screen.getByText('common.selectAll'))
 
@@ -517,7 +525,7 @@ describe('TodayPage overdue bulk selection', () => {
       results: [{ habitId: overdue.id, status: 'Success' }],
     })
 
-    render(<TodayPage />)
+    renderPage()
 
     fireEvent.click(screen.getByTestId('confirm-dialog-habits.bulkLogTitle'))
 
@@ -533,7 +541,7 @@ describe('TodayPage overdue bulk selection', () => {
       results: [{ habitId: overdue.id, status: 'Success' }],
     })
 
-    render(<TodayPage />)
+    renderPage()
 
     fireEvent.click(screen.getByTestId('confirm-dialog-habits.bulkSkipTitle'))
 
@@ -575,7 +583,7 @@ describe('TodayPage overdue date gating', () => {
     vi.setSystemTime(new Date('2026-04-07T12:00:00'))
     dateParamState.value = null
 
-    render(<TodayPage />)
+    renderPage()
 
     expect(lastFilters()).toMatchObject({
       dateFrom: '2026-04-07',
@@ -589,7 +597,7 @@ describe('TodayPage overdue date gating', () => {
     vi.setSystemTime(new Date('2026-04-07T12:00:00'))
     dateParamState.value = '2026-04-09'
 
-    render(<TodayPage />)
+    renderPage()
 
     expect(lastFilters()).toMatchObject({ includeOverdue: false })
   })
@@ -599,7 +607,7 @@ describe('TodayPage overdue date gating', () => {
     vi.setSystemTime(new Date('2026-04-07T12:00:00'))
     dateParamState.value = '2026-04-05'
 
-    render(<TodayPage />)
+    renderPage()
 
     expect(lastFilters()).toMatchObject({ includeOverdue: false })
   })
@@ -634,7 +642,7 @@ describe('TodayPage habits load error', () => {
       refetch,
     })
 
-    render(<TodayPage />)
+    renderPage()
 
     expect(screen.getByText('habits.loadError')).toBeInTheDocument()
     expect(screen.queryByTestId('habit-list')).not.toBeInTheDocument()
@@ -654,7 +662,7 @@ describe('TodayPage habits load error', () => {
       refetch: vi.fn(),
     })
 
-    render(<TodayPage />)
+    renderPage()
 
     expect(screen.queryByText('habits.loadError')).not.toBeInTheDocument()
     expect(
