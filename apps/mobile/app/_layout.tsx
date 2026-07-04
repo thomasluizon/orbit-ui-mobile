@@ -1,21 +1,19 @@
 import { useEffect, lazy, Suspense, useMemo, useRef } from 'react'
 import { BackHandler, Platform, StyleSheet, View } from 'react-native'
-import {
-  DarkTheme,
-  DefaultTheme,
-  ThemeProvider as NavigationThemeProvider,
-  type Theme as NavigationTheme,
-} from '@react-navigation/native'
 import { GestureHandlerRootView } from 'react-native-gesture-handler'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import {
+  DarkTheme,
+  DefaultTheme,
   Stack,
+  ThemeProvider as NavigationThemeProvider,
   useGlobalSearchParams,
   usePathname,
   useRouter,
   useSegments,
   type ErrorBoundaryProps,
 } from 'expo-router'
+import { type Theme as NavigationTheme } from 'expo-router/react-navigation'
 import { StatusBar } from 'expo-status-bar'
 import Constants from 'expo-constants'
 import { Providers } from '@/lib/providers'
