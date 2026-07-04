@@ -52,7 +52,7 @@ packages/
 - Node.js 20 or newer
 - npm 11 or newer
 - The separate `orbit-api` service if you want local backend access
-- Expo tooling plus Android Studio and/or Xcode for native development
+- Expo tooling plus Android Studio for native builds (Orbit mobile ships Android only)
 
 ### Install
 

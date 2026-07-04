@@ -8,7 +8,7 @@ argument-hint: <research question> [--quick | --deep]
 
 **Input**: $ARGUMENTS
 
-Turn an open question — *"find the best possible way to create a QA environment for this project"* — into a **decision-ready, evidence-backed recommendation**. The method is **orchestrator-worker**: you (the orchestrator) frame and decompose the question, fan out narrow research subagents in parallel, verify the claims the answer hinges on, loop until the picture saturates, and synthesize **one opinionated recommendation** with sources, concrete numbers, and confidence notes. You stay in the main session and interact; the subagents do the heavy reading so their raw dumps never bloat this context.
+Turn an open question — *"find the best possible way to make this project's background jobs durable across restarts and retries"* — into a **decision-ready, evidence-backed recommendation**. The method is **orchestrator-worker**: you (the orchestrator) frame and decompose the question, fan out narrow research subagents in parallel, verify the claims the answer hinges on, loop until the picture saturates, and synthesize **one opinionated recommendation** with sources, concrete numbers, and confidence notes. You stay in the main session and interact; the subagents do the heavy reading so their raw dumps never bloat this context.
 
 **Golden rule**: every load-bearing claim in the final answer traces to a **source fetched this run** (URL + "as of <date>"), or it's explicitly flagged as inference. Pricing, limits, and features change — training memory is a starting hypothesis, never the evidence.
 
