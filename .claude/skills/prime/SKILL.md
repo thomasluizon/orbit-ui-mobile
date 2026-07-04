@@ -88,7 +88,13 @@ User passed 2+ issue numbers. Create one paired worktree per issue, prime each o
 
 ### Step 2: Create paired worktrees
 
-For each issue `N`, invoke the `worktree-work` skill to create matched branches in BOTH repos:
+For each issue `N`, create matched `issue-<N>` worktrees in BOTH repos with `git worktree add` (branch name mirrors the issue number):
+
+```bash
+git -C "C:\Users\thoma\Documents\Programming\Projects\orbit-ui-mobile" worktree add ".claude/worktrees/issue-<N>" -b issue-<N>
+# only if the issue's Repos label is `backend` or `both`:
+git -C "C:\Users\thoma\Documents\Programming\Projects\orbit-api" worktree add ".claude/worktrees/issue-<N>" -b issue-<N>
+```
 
 - Branch name: `issue-<N>` (mirroring the issue number)
 - Worktree paths:
