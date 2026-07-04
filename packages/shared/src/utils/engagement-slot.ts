@@ -2,7 +2,6 @@
 export const ENGAGEMENT_SLOT_PRIORITY = [
   'trial',
   'setupChecklist',
-  'reviewReminder',
   'referral',
   'socialEntry',
 ] as const
@@ -13,7 +12,7 @@ export type EngagementSlotEligibility = Record<EngagementSlotCard, boolean>
 
 /**
  * Resolves Today's single engagement slot: the highest-priority eligible card
- * (trial > setupChecklist > reviewReminder > referral > socialEntry), or null
+ * (trial > setupChecklist > referral > socialEntry), or null
  * when no card is eligible. All other cards stay fully hidden.
  */
 export function resolveEngagementSlot(

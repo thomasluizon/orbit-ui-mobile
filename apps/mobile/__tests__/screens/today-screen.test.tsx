@@ -162,13 +162,6 @@ vi.mock("@/hooks/use-coach-tour", () => ({
 vi.mock("@/hooks/use-engagement-slot", () => ({
   useEngagementSlot: () => ({
     slot: null,
-    reviewReminder: {
-      shouldShow: false,
-      completionCount: 0,
-      activeDaysCount: 0,
-      dismiss: vi.fn(),
-      requestReview: vi.fn(async () => false),
-    },
   }),
 }));
 

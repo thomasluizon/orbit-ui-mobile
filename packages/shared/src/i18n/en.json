@@ -240,9 +240,14 @@
     "title": "Astra copilot",
     "subtitle": "Your habit copilot"
   },
-  "reviewPrompt": {
-    "title": "Enjoying Orbit?",
-    "cta": "Rate Orbit"
+  "reviewMoment": {
+    "eyebrow": "A word from Astra",
+    "streakTitle": "{count} days straight!",
+    "levelTitle": "Level {level}!",
+    "streakBody": "You showed up {count} days in a row — that's real momentum. Mind rating Orbit on Google Play? It helps more people find their orbit.",
+    "levelBody": "You just reached level {level} — that took consistency. Mind rating Orbit on Google Play? It helps more people find their orbit.",
+    "cta": "Rate Orbit",
+    "notNow": "Not now"
   },
   "dates": {
     "today": "Today",

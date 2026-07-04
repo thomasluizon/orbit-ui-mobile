@@ -1,13 +1,20 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
-import { AppState, Linking, Platform, type AppStateStatus } from 'react-native'
+import { useCallback, useMemo } from 'react'
+import { Linking, Platform } from 'react-native'
 import * as StoreReview from 'expo-store-review'
 import { formatAPIDate } from '@orbit/shared/utils'
 import type { Profile } from '@orbit/shared/types/profile'
-import { useReviewReminderStore } from '@/stores/review-reminder-store'
-import { useUIStore } from '@/stores/ui-store'
+import {
+  isReviewMomentEligible,
+  useReviewReminderStore,
+} from '@/stores/review-reminder-store'
 
 const FALLBACK_PLAY_STORE_URL = 'https://play.google.com/store/apps/details?id=org.useorbit.app'
 
+/**
+ * Review-moment mechanics: eligibility (engagement floor + snooze + one-shot
+ * accept) plus the native Play in-app review flow with a store-URL fallback.
+ * Dismissing snoozes for 120 days; accepting never re-prompts.
+ */
 export function useReviewReminder(profile?: Profile | null) {
   const completionCount = useReviewReminderStore((s) => s.completionCount)
   const activeDays = useReviewReminderStore((s) => s.activeDays)
@@ -15,41 +22,22 @@ export function useReviewReminder(profile?: Profile | null) {
   const acceptedAt = useReviewReminderStore((s) => s.acceptedAt)
   const dismissStore = useReviewReminderStore((s) => s.dismiss)
   const acceptStore = useReviewReminderStore((s) => s.accept)
-  const activeCelebration = useUIStore((s) => s.activeCelebration)
-  const queuedCelebrations = useUIStore((s) => s.queuedCelebrations)
-  const queuedCelebrationCount = queuedCelebrations?.length ?? 0
-  const [appState, setAppState] = useState<AppStateStatus>(AppState.currentState)
 
-  useEffect(() => {
-    const subscription = AppState.addEventListener('change', (nextState) => {
-      setAppState(nextState)
-    })
-
-    return () => subscription.remove()
-  }, [])
-
-  const shouldShow = useMemo(() => {
-    const today = formatAPIDate(new Date())
-    const isForeground = appState === 'active'
-
-    if (!profile?.hasCompletedOnboarding) return false
-    if (completionCount < 20 || activeDays.length < 5) return false
-    if (acceptedAt) return false
-    if (dismissedUntil && dismissedUntil >= today) return false
-    if (!isForeground) return false
-    if (activeCelebration || queuedCelebrationCount > 0) return false
-
-    return true
-  }, [
-    acceptedAt,
-    activeCelebration,
-    activeDays.length,
-    appState,
-    completionCount,
-    dismissedUntil,
-    profile?.hasCompletedOnboarding,
-    queuedCelebrationCount,
-  ])
+  const isEligible = useMemo(
+    () =>
+      isReviewMomentEligible(
+        { completionCount, activeDays, dismissedUntil, acceptedAt },
+        profile?.hasCompletedOnboarding ?? false,
+        formatAPIDate(new Date()),
+      ),
+    [
+      acceptedAt,
+      activeDays,
+      completionCount,
+      dismissedUntil,
+      profile?.hasCompletedOnboarding,
+    ],
+  )
 
   const dismiss = useCallback(() => {
     dismissStore()
@@ -82,9 +70,7 @@ export function useReviewReminder(profile?: Profile | null) {
   }, [acceptStore])
 
   return {
-    shouldShow,
-    completionCount,
-    activeDaysCount: activeDays.length,
+    isEligible,
     dismiss,
     requestReview,
   }

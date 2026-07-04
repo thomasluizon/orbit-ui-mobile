@@ -7,7 +7,6 @@ import { useIsClient } from '@/hooks/use-is-client'
 import { useOverlayEscape } from '@/hooks/use-overlay-escape'
 import { useUIStore } from '@/stores/ui-store'
 import { GradientTop } from '@/components/ui/gradient-top'
-import { PillButton } from '@/components/ui/pill-button'
 
 interface LevelUpOverlayProps {
   leveledUp: boolean
@@ -202,20 +201,6 @@ export function LevelUpOverlay({
         >
           {t('gamification.levelUp.steadyHand')}
         </p>
-      </div>
-      <div
-        className="pointer-events-auto relative z-[1]"
-        style={{
-          padding: '0 24px calc(24px + var(--safe-bottom, 0px))',
-          animation: 'slide-up-fade 0.28s var(--ease-out) backwards',
-          animationDelay: '380ms',
-        }}
-      >
-        <div className="mx-auto w-full max-w-[360px]">
-          <PillButton fullWidth onClick={() => dismiss(activeLevelUp?.id)}>
-            {t('common.continue')}
-          </PillButton>
-        </div>
       </div>
     </div>,
     document.body,

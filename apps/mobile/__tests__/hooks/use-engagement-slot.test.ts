@@ -9,8 +9,6 @@ const TestRenderer = require('react-test-renderer')
 
 const state = vi.hoisted(() => ({
   profile: undefined as Profile | undefined,
-  reviewReminderShouldShow: false,
-  reviewReminderProfile: undefined as Profile | null | undefined,
   setupChecklistDismissed: false,
   homeEntryDismissed: false,
   socialEntryDismissed: false,
@@ -18,26 +16,8 @@ const state = vi.hoisted(() => ({
   friendsEnabled: undefined as boolean | undefined,
 }))
 
-const reviewReminderControls = vi.hoisted(() => ({
-  dismiss: () => {},
-  requestReview: async () => false,
-}))
-
 vi.mock('@/hooks/use-profile', () => ({
   useProfile: () => ({ profile: state.profile }),
-}))
-
-vi.mock('@/hooks/use-review-reminder', () => ({
-  useReviewReminder: (profile?: Profile | null) => {
-    state.reviewReminderProfile = profile
-    return {
-      shouldShow: state.reviewReminderShouldShow,
-      completionCount: 0,
-      activeDaysCount: 0,
-      dismiss: reviewReminderControls.dismiss,
-      requestReview: reviewReminderControls.requestReview,
-    }
-  },
 }))
 
 vi.mock('@/hooks/use-friends', () => ({
@@ -94,8 +74,6 @@ function renderEngagementSlot(
 describe('useEngagementSlot (mobile)', () => {
   beforeEach(() => {
     state.profile = createMockProfile()
-    state.reviewReminderShouldShow = false
-    state.reviewReminderProfile = undefined
     state.setupChecklistDismissed = false
     state.homeEntryDismissed = false
     state.socialEntryDismissed = false
@@ -105,34 +83,18 @@ describe('useEngagementSlot (mobile)', () => {
 
   it('resolves the trial slot above every other card while the trial is active', () => {
     state.profile = createMockProfile({ isTrialActive: true })
-    state.reviewReminderShouldShow = true
     state.incomingRequestCount = 3
 
     expect(renderEngagementSlot().slot).toBe('trial')
   })
 
-  it('resolves the setup checklist before the review reminder', () => {
-    state.reviewReminderShouldShow = true
+  it('resolves the setup checklist before referral and social entry', () => {
+    state.incomingRequestCount = 3
 
     expect(renderEngagementSlot().slot).toBe('setupChecklist')
   })
 
-  it('resolves the review reminder before referral and social entry', () => {
-    state.setupChecklistDismissed = true
-    state.reviewReminderShouldShow = true
-
-    expect(renderEngagementSlot().slot).toBe('reviewReminder')
-  })
-
-  it('keeps the review reminder eligible off the today view', () => {
-    state.reviewReminderShouldShow = true
-
-    expect(
-      renderEngagementSlot({ isTodayView: false, isTodayDate: true }).slot,
-    ).toBe('reviewReminder')
-  })
-
-  it('falls to referral when the checklist is dismissed and no reminder is due', () => {
+  it('falls to referral when the checklist is dismissed', () => {
     state.setupChecklistDismissed = true
 
     expect(renderEngagementSlot().slot).toBe('referral')
@@ -168,14 +130,6 @@ describe('useEngagementSlot (mobile)', () => {
     expect(
       renderEngagementSlot({ isTodayView: true, isTodayDate: false }).slot,
     ).toBeNull()
-  })
-
-  it('passes the profile to the review reminder and returns its controls', () => {
-    const { reviewReminder } = renderEngagementSlot()
-
-    expect(state.reviewReminderProfile).toBe(state.profile)
-    expect(reviewReminder.dismiss).toBe(reviewReminderControls.dismiss)
-    expect(reviewReminder.requestReview).toBe(reviewReminderControls.requestReview)
   })
 
   it('enables the friends query only when the profile opted into social', () => {

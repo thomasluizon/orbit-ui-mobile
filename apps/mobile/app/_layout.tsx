@@ -40,8 +40,13 @@ import {
   getReferralLevelMilestone,
   getMilestoneShareStreakKey,
   getMilestoneShareAchievementKey,
+  getReviewMomentLevelKey,
 } from '@orbit/shared/stores'
-import { isShareableAchievement } from '@orbit/shared/utils'
+import { formatAPIDate, isShareableAchievement } from '@orbit/shared/utils'
+import {
+  isReviewMomentEligible,
+  useReviewReminderStore,
+} from '@/stores/review-reminder-store'
 import { OnboardingFlow } from '@/components/onboarding/onboarding-flow'
 import { CalendarImportPrompt } from '@/components/onboarding/calendar-import-prompt'
 import { BottomTabBar, type BottomTabId } from '@/components/navigation/bottom-tab-bar'
@@ -52,6 +57,7 @@ import { GoalCompletedCelebration } from '@/components/gamification/goal-complet
 import { LevelUpOverlay } from '@/components/gamification/level-up-overlay'
 import { ReferralPrompt } from '@/components/referral/referral-prompt'
 import { MilestoneSharePrompt } from '@/components/milestone-share/milestone-share-prompt'
+import { ReviewMomentSheet } from '@/components/review-moment/review-moment-sheet'
 import { StreakCelebration } from '@/components/gamification/streak-celebration'
 import {
   StreakFreezeCelebration,
@@ -319,12 +325,29 @@ function GlobalOverlays({
   const armMilestoneSharePrompt = useReferralPromptStore(
     (s) => s.armMilestoneSharePrompt,
   )
+  const armReviewPrompt = useReferralPromptStore((s) => s.armReviewPrompt)
+  const hasCompletedOnboarding = profile?.hasCompletedOnboarding ?? false
 
   useEffect(() => {
     if (gamification.leveledUp && gamification.newLevel) {
       armReferralPrompt(getReferralLevelMilestone(gamification.newLevel))
+      if (
+        isReviewMomentEligible(
+          useReviewReminderStore.getState(),
+          hasCompletedOnboarding,
+          formatAPIDate(new Date()),
+        )
+      ) {
+        armReviewPrompt(getReviewMomentLevelKey(gamification.newLevel))
+      }
     }
-  }, [gamification.leveledUp, gamification.newLevel, armReferralPrompt])
+  }, [
+    gamification.leveledUp,
+    gamification.newLevel,
+    armReferralPrompt,
+    armReviewPrompt,
+    hasCompletedOnboarding,
+  ])
 
   useEffect(() => {
     const crossedStreak = gamification.crossedStreakMilestones.at(-1) ?? null
@@ -370,6 +393,7 @@ function GlobalOverlays({
           ) : null}
           <ReferralPrompt />
           <MilestoneSharePrompt />
+          <ReviewMomentSheet />
         </>
       ) : null}
       <StreakFreezeCelebration ref={streakFreezeRef} />

@@ -1,6 +1,9 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { useReviewReminderStore } from '@/stores/review-reminder-store'
+import {
+  isReviewMomentEligible,
+  useReviewReminderStore,
+} from '@/stores/review-reminder-store'
 
 const asyncStorageState = vi.hoisted(() => ({
   data: new Map<string, string>(),
@@ -87,5 +90,65 @@ describe('review reminder store', () => {
       dismissedUntil: null,
       acceptedAt: null,
     })
+  })
+})
+
+describe('isReviewMomentEligible', () => {
+  const TODAY = '2026-07-04'
+
+  function eligibleState() {
+    return {
+      completionCount: 10,
+      activeDays: ['d1', 'd2'],
+      dismissedUntil: null,
+      acceptedAt: null,
+    }
+  }
+
+  it('passes at the engagement floor with onboarding complete', () => {
+    expect(isReviewMomentEligible(eligibleState(), true, TODAY)).toBe(true)
+  })
+
+  it('fails without completed onboarding', () => {
+    expect(isReviewMomentEligible(eligibleState(), false, TODAY)).toBe(false)
+  })
+
+  it('fails below 10 completions', () => {
+    expect(
+      isReviewMomentEligible({ ...eligibleState(), completionCount: 9 }, true, TODAY),
+    ).toBe(false)
+  })
+
+  it('fails below 2 distinct active days', () => {
+    expect(
+      isReviewMomentEligible(
+        { ...eligibleState(), activeDays: ['d1'] },
+        true,
+        TODAY,
+      ),
+    ).toBe(false)
+  })
+
+  it('fails forever once a review was accepted', () => {
+    expect(
+      isReviewMomentEligible(
+        { ...eligibleState(), acceptedAt: '2026-01-01T00:00:00.000Z' },
+        true,
+        TODAY,
+      ),
+    ).toBe(false)
+  })
+
+  it('fails inside the snooze window and passes once it lapses', () => {
+    expect(
+      isReviewMomentEligible({ ...eligibleState(), dismissedUntil: TODAY }, true, TODAY),
+    ).toBe(false)
+    expect(
+      isReviewMomentEligible(
+        { ...eligibleState(), dismissedUntil: '2026-07-03' },
+        true,
+        TODAY,
+      ),
+    ).toBe(true)
   })
 })
