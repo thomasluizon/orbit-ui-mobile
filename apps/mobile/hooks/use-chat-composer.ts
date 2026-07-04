@@ -42,18 +42,7 @@ import { useProfile } from "@/hooks/use-profile";
 import { useSpeechToText } from "@/hooks/use-speech-to-text";
 import { usePendingOperationExecution } from "@/hooks/use-pending-operation-execution";
 import { useChatStore } from "@/stores/chat-store";
-
-interface RNFileUpload {
-  uri: string;
-  type: string;
-  name: string;
-}
-
-declare global {
-  interface FormData {
-    append(name: string, value: RNFileUpload): void;
-  }
-}
+import { File } from "expo-file-system";
 
 interface AttemptedSend {
   content: string;
@@ -99,7 +88,7 @@ async function* streamTextChunks(
   }
 }
 
-function buildImageUpload(asset: ImagePicker.ImagePickerAsset): RNFileUpload {
+function buildImageFileName(asset: ImagePicker.ImagePickerAsset): string {
   const mimeType =
     resolveChatImageMimeType({
       mimeType: asset.mimeType,
@@ -109,11 +98,7 @@ function buildImageUpload(asset: ImagePicker.ImagePickerAsset): RNFileUpload {
 
   const extension = mimeType.split("/")[1] ?? "jpg";
 
-  return {
-    uri: asset.uri,
-    type: mimeType,
-    name: asset.fileName ?? `orbit-chat-image.${extension}`,
-  };
+  return asset.fileName ?? `orbit-chat-image.${extension}`;
 }
 
 interface UseChatComposerOptions {
@@ -460,7 +445,11 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
       const formData = new FormData();
       if (attempted.content) formData.append("message", attempted.content);
       if (attempted.image) {
-        formData.append("image", buildImageUpload(attempted.image));
+        formData.append(
+          "image",
+          new File(attempted.image.uri),
+          buildImageFileName(attempted.image),
+        );
       }
 
       const recentHistory = buildRecentChatHistory(useChatStore.getState().messages);

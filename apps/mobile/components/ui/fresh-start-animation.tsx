@@ -214,7 +214,7 @@ function createStyles(tokens: AppTokens) {
       flex: 1,
     },
     backdrop: {
-      ...StyleSheet.absoluteFillObject,
+      ...StyleSheet.absoluteFill,
       backgroundColor: `${tokens.bg}E6`,
     },
     center: {

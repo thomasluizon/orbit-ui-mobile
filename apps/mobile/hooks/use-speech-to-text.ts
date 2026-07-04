@@ -12,20 +12,9 @@ import {
   VOICE_SILENCE_TIMEOUT_MS,
 } from '@orbit/shared/chat'
 import { getFriendlyErrorMessage } from '@orbit/shared/utils'
+import { File } from 'expo-file-system'
 import { apiClient } from '@/lib/api-client'
 export { CHAT_VISUALIZER_BAR_OFFSETS as VISUALIZER_BAR_OFFSETS } from '@orbit/shared/chat'
-
-interface RecordingUpload {
-  uri: string
-  name: string
-  type: string
-}
-
-declare global {
-  interface FormData {
-    append(name: string, value: RecordingUpload): void
-  }
-}
 
 interface TranscriptionResponse {
   text: string
@@ -41,12 +30,11 @@ const audioStudio = AudioStudioModule as {
 
 const ALLOWED_AUDIO_EXTENSIONS = ['wav', 'webm', 'm4a', 'mp4', 'mp3', 'ogg', 'oga', 'flac']
 
-function buildRecordingUpload(uri: string): RecordingUpload {
+function buildRecordingFileName(uri: string): string {
   const path = uri.split('?')[0] ?? uri
   const candidate = path.includes('.') ? path.split('.').pop()?.toLowerCase() : undefined
   const extension = candidate && ALLOWED_AUDIO_EXTENSIONS.includes(candidate) ? candidate : 'wav'
-  const type = extension === 'm4a' || extension === 'mp4' ? 'audio/mp4' : `audio/${extension}`
-  return { uri, name: `recording.${extension}`, type }
+  return `recording.${extension}`
 }
 
 /**
@@ -96,7 +84,7 @@ export function useSpeechToText() {
       setIsTranscribing(true)
       try {
         const formData = new FormData()
-        formData.append('audio', buildRecordingUpload(uri))
+        formData.append('audio', new File(uri), buildRecordingFileName(uri))
         const { text } = await apiClient<TranscriptionResponse>(API.chat.transcribe, {
           method: 'POST',
           body: formData,

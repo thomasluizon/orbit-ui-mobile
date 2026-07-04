@@ -1,21 +1,20 @@
-export class File {
+export class File extends Blob {
   readonly uri: string
 
-  size = 1024
-
   constructor(...segments: Array<{ uri: string } | string>) {
+    super(['mock-file-content'])
     this.uri = segments
       .map((segment) => (typeof segment === 'string' ? segment : segment.uri))
       .join('/')
   }
 
+  get name() {
+    return this.uri.split('/').pop() ?? 'file'
+  }
+
   create() {}
 
   write() {}
-
-  async text() {
-    return 'mock-file-content'
-  }
 }
 
 export const Paths = {

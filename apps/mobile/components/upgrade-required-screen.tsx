@@ -58,7 +58,7 @@ export function UpgradeRequiredScreen() {
 
 const styles = StyleSheet.create({
   root: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     zIndex: 9999,
     alignItems: 'center',
     justifyContent: 'center',

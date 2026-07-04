@@ -71,7 +71,7 @@ export function TourSpotlight({ targetRect }: TourSpotlightProps) {
     () =>
       StyleSheet.create({
         container: {
-          ...StyleSheet.absoluteFillObject,
+          ...StyleSheet.absoluteFill,
           zIndex: 9998,
         },
       }),
