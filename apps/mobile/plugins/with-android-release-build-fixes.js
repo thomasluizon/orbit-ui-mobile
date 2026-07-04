@@ -1,4 +1,10 @@
-const { withAppBuildGradle, withProjectBuildGradle } = require('@expo/config-plugins')
+const {
+  withAppBuildGradle,
+  withProjectBuildGradle,
+  withGradleProperties,
+} = require('@expo/config-plugins')
+
+const KSP_MAX_METASPACE_SIZE = '2048m'
 
 const STAGING_DIR_MARKER = 'orbit.cmakeBuildStagingDirectory'
 
@@ -97,7 +103,35 @@ function withAndroidReleaseBuildFixes(config) {
     return mod
   })
 
+  nextConfig = withRaisedKspMetaspace(nextConfig)
+
   return nextConfig
+}
+
+// expo-updates' KSP AA worker exhausts the template's default MaxMetaspaceSize
+// during the release build. https://github.com/google/ksp/issues/1922
+function withRaisedKspMetaspace(config) {
+  return withGradleProperties(config, (mod) => {
+    const metaspaceFlag = `-XX:MaxMetaspaceSize=${KSP_MAX_METASPACE_SIZE}`
+    const jvmArgs = mod.modResults.find(
+      (item) => item.type === 'property' && item.key === 'org.gradle.jvmargs',
+    )
+
+    if (!jvmArgs) {
+      mod.modResults.push({
+        type: 'property',
+        key: 'org.gradle.jvmargs',
+        value: `-Xmx4096m ${metaspaceFlag}`,
+      })
+      return mod
+    }
+
+    jvmArgs.value = /-XX:MaxMetaspaceSize=\S+/.test(jvmArgs.value)
+      ? jvmArgs.value.replace(/-XX:MaxMetaspaceSize=\S+/, metaspaceFlag)
+      : `${jvmArgs.value} ${metaspaceFlag}`.trim()
+
+    return mod
+  })
 }
 
 module.exports = withAndroidReleaseBuildFixes
