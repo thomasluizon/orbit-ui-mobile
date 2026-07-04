@@ -26,7 +26,7 @@ not micro-optimizations that don't move the needle on a habit tracker. No premat
 The API patterns below come from EF Core + Postgres performance canon; the frontend
 patterns from **react-patterns / performance skill bases on claudeskills.info**
 (https://claudeskills.info) and the React/Next.js + TanStack Query render-and-cache canon,
-specialized to Orbit's stack (Next.js 16 web, Expo SDK 55 mobile, TanStack Query, EF Core
+specialized to Orbit's stack (Next.js 16 web, Expo SDK 56 mobile, TanStack Query, EF Core
 10 / MediatR CQRS). That URL is the single WHY-with-URL the comment policy allows.
 
 **Self-contained**: no network call, no profiler, no marketplace dependency at run time.

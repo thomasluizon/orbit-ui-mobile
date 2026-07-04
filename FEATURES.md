@@ -23,7 +23,7 @@ Free-tier limits (source: `AppConstants.cs`): **10** top-level habits, **20** AI
 Astra is a conversational coach that can actually *act*, not just talk. Tell it "I ran today" and it logs the run; ask "how am I doing?" and it analyzes your real streaks and completion rates. It has **61 built-in tools** spanning habits, sub-habits, goals, tags, checklists, logging, reminders, calendar, memory, and your account — so almost anything you can do by tapping, you can do by asking. It takes typed messages, **voice input** (speak instead of type, multi-language), and **images** (photograph a schedule and it extracts habits for review).
 
 ### Connect your assistant — Orbit speaks MCP
-Orbit exposes a full **Model Context Protocol** server, so you can connect Claude, ChatGPT, or any MCP-capable assistant straight to your account and manage your habits and goals from wherever you already chat with AI. **94 MCP tools across 15 tool classes**, scoped to your account, secured by OAuth 2.0 dynamic client registration or scoped, hashed API keys. This is a rare consumer feature: Orbit is a habit tracker your favorite AI assistant can drive.
+Orbit exposes a full **Model Context Protocol** server, so you can connect Claude, ChatGPT, or any MCP-capable assistant straight to your account and manage your habits and goals from wherever you already chat with AI. **79 MCP tools across 15 tool classes**, scoped to your account, secured by OAuth 2.0 dynamic client registration or scoped, hashed API keys. This is a rare consumer feature: Orbit is a habit tracker your favorite AI assistant can drive.
 
 ### A social layer built for support, not ranking
 Opt in and you unlock accountability buddies with mutual check-ins, co-op challenges you join by code, cheers to celebrate a friend's streak, a friends feed, public profiles, milestone sharing, and referral invite links. Deliberately **no leaderboards** — the social layer is about encouragement, not competition. It is **off by default**; your habits stay private until you choose to share.
@@ -66,28 +66,28 @@ Astra is the in-app assistant on the chat surface (web `/chat`, mobile `chat`). 
 
 ## MCP / Automation
 
-Orbit's MCP server lets external assistants (Claude, ChatGPT, any MCP client) drive your account. Endpoint `POST /mcp` (`orbit-api/.../WebApplicationExtensions.cs`). Tools defined in `orbit-api/src/Orbit.Api/Mcp/Tools/*.cs` — **94 `[McpServerTool]` methods across 15 tool classes**.
+Orbit's MCP server lets external assistants (Claude, ChatGPT, any MCP client) drive your account. Endpoint `POST /mcp` (`orbit-api/.../WebApplicationExtensions.cs`). Tools defined in `orbit-api/src/Orbit.Api/Mcp/Tools/*.cs` — **79 `[McpServerTool]` methods across 15 tool classes**.
 
 **MCP access is effectively Pro-gated:** a working credential requires an API key, and API-key create/read/manage is a Pro capability (`PayGateService.cs` → `CanReadApiKeys`/`CanManageApiKeys`). OAuth is also supported for dynamic client registration.
 
 | Feature | Description | Gating | Platform | Locale notes |
 |---|---|---|---|---|
 | MCP server endpoint | `POST /mcp` — connect any MCP-capable assistant to your Orbit account | Pro (needs an API key) | Both (server-side; setup UI in AI Settings) | — |
-| Habit tools | 23 tools — the largest surface: create/update/log/skip/reorder/move, sub-habits, checklists, metrics | Pro (via key); actions inherit feature gates | Both | — |
-| Goal tools | 12 tools — create, query, update, status, progress, link | Pro | Both | — |
+| Habit tools | 22 tools — the largest surface: create/update/log/skip/reorder/move, sub-habits, checklists, metrics | Pro (via key); actions inherit feature gates | Both | — |
+| Goal tools | 11 tools — create, query, update, status, progress, link | Pro | Both | — |
 | Agent-ops tools | 8 tools — batched/agentic operations and clarification handling | Pro | Both | — |
-| Notification tools | 8 tools — read and manage reminders | Pro | Both | — |
-| Profile tools | 8 tools — profile and preference reads/writes | Pro | Both | — |
-| Tag tools | 6 tools — full tag CRUD and assignment | Pro | Both | — |
-| Subscription tools | 5 tools — subscription state and management | Pro | Both | — |
-| Checklist-template tools | 4 tools — reusable checklist templates | Pro | Both | — |
-| Gamification tools | 4 tools — XP, levels, achievements, streaks reads | Pro | Both | — |
-| API-key tools | 3 tools — manage keys from within MCP | Pro | Both | — |
-| Calendar tools | 3 tools — calendar overview and sync | Pro | Both | — |
-| User-fact tools | 3 tools — read/write AI memory facts | Pro | Both | — |
-| Account tools | 2 tools — account-level operations | Pro | Both | — |
-| Feature tools | 2 tools — feature discovery/description | Pro | Both | — |
-| Support tools | 2 tools — submit support requests | Pro | Both | — |
+| Notification tools | 7 tools — read and manage reminders | Pro | Both | — |
+| Profile tools | 7 tools — profile and preference reads/writes | Pro | Both | — |
+| Tag tools | 5 tools — full tag CRUD and assignment | Pro | Both | — |
+| Subscription tools | 4 tools — subscription state and management | Pro | Both | — |
+| Checklist-template tools | 3 tools — reusable checklist templates | Pro | Both | — |
+| Gamification tools | 3 tools — XP, levels, achievements, streaks reads | Pro | Both | — |
+| API-key tools | 2 tools — manage keys from within MCP | Pro | Both | — |
+| Calendar tools | 2 tools — calendar overview and sync | Pro | Both | — |
+| User-fact tools | 2 tools — read/write AI memory facts | Pro | Both | — |
+| Account tools | 1 tool — account-level operations | Pro | Both | — |
+| Feature tools | 1 tool — feature discovery/description | Pro | Both | — |
+| Support tools | 1 tool — submit support requests | Pro | Both | — |
 | Auth: OAuth 2.0 | Dynamic client registration (`OAuthController.cs`) | Pro | Both | — |
 | Auth: API keys | Scoped, BCrypt-hashed keys (`ApiKeyAuthenticationHandler.cs`); read-only or full, per-scope, revocable | Pro | Both (managed in AI Settings) | — |
 
@@ -271,4 +271,4 @@ Play-required public URLs — they look unused in-app but must never be deleted.
 
 ---
 
-*Counts and gating in this document are verified against `orbit-api` source: `PayGateService.cs`, `AppConstants.cs`, `ServiceCollectionExtensions.AiServices.cs` (61 AI tools), and `Mcp/Tools/*.cs` (94 MCP tools across 15 classes). Re-verify against source before restating a gating claim.*
+*Counts and gating in this document are verified against `orbit-api` source: `PayGateService.cs`, `AppConstants.cs`, `ServiceCollectionExtensions.AiServices.cs` (61 AI tools), and `Mcp/Tools/*.cs` (79 MCP tools across 15 classes). Re-verify against source before restating a gating claim.*
