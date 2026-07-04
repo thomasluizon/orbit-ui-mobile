@@ -135,7 +135,7 @@ Scannable summary:
 - **Issue** (if loaded): #N — title — repos label — parity flag
 - **Acceptance criteria**: bulleted list from issue body
 - **Project purpose**: Orbit habit tracker, dual-repo, Turborepo + .NET
-- **Frontend stack**: Next.js 15 (web) + Expo SDK 55 (mobile) + Zustand + TanStack Query + shared Zod schemas
+- **Frontend stack**: Next.js 16 (web) + Expo SDK 56 (mobile) + Zustand + TanStack Query + shared Zod schemas
 - **Backend stack**: .NET 10, EF Core, MediatR CQRS, FluentValidation, JWT, PostgreSQL
 - **Recent commits**: 3-5 from each repo
 - **Current branches**: ui-mobile vs api
