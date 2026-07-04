@@ -121,7 +121,7 @@ export default function SupportPage() {
               />
               <aside
                 className="hidden md:flex md:flex-col"
-                style={{ gap: 12, paddingTop: 4 }}
+                style={{ gap: 12, paddingTop: 28 }}
               >
                 <p
                   style={{

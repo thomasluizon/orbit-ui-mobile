@@ -4,13 +4,25 @@ import { useState } from 'react'
 import { useTranslations } from 'next-intl'
 import { AppOverlay } from '@/components/ui/app-overlay'
 
-type SectionKey = 'habits' | 'goals' | 'chat' | 'calendar' | 'settings' | 'notifications'
+type SectionKey =
+  | 'astra'
+  | 'connect'
+  | 'social'
+  | 'habits'
+  | 'goals'
+  | 'calendar'
+  | 'rewards'
+  | 'settings'
+  | 'notifications'
 
 const tabs: { key: SectionKey; labelKey: string }[] = [
+  { key: 'astra', labelKey: 'onboarding.featureGuide.astra' },
+  { key: 'connect', labelKey: 'onboarding.featureGuide.connect' },
+  { key: 'social', labelKey: 'onboarding.featureGuide.social' },
   { key: 'habits', labelKey: 'onboarding.featureGuide.habits' },
   { key: 'goals', labelKey: 'onboarding.featureGuide.goals' },
-  { key: 'chat', labelKey: 'onboarding.featureGuide.chat' },
   { key: 'calendar', labelKey: 'onboarding.featureGuide.calendar' },
+  { key: 'rewards', labelKey: 'onboarding.featureGuide.rewards' },
   { key: 'settings', labelKey: 'onboarding.featureGuide.settings' },
   { key: 'notifications', labelKey: 'onboarding.featureGuide.notifications' },
 ]
@@ -21,6 +33,33 @@ interface SectionItem {
 }
 
 const sectionItems: Record<SectionKey, SectionItem[]> = {
+  astra: [
+    { titleKey: 'onboarding.featureGuide.astraSection.canDoTitle', descKey: 'onboarding.featureGuide.astraSection.canDoDesc' },
+    { titleKey: 'onboarding.featureGuide.astraSection.toolsBreadthTitle', descKey: 'onboarding.featureGuide.astraSection.toolsBreadthDesc' },
+    { titleKey: 'onboarding.featureGuide.astraSection.manageTitle', descKey: 'onboarding.featureGuide.astraSection.manageDesc' },
+    { titleKey: 'onboarding.featureGuide.astraSection.insightsTitle', descKey: 'onboarding.featureGuide.astraSection.insightsDesc' },
+    { titleKey: 'onboarding.featureGuide.astraSection.reschedulingTitle', descKey: 'onboarding.featureGuide.astraSection.reschedulingDesc' },
+    { titleKey: 'onboarding.featureGuide.astraSection.imageTitle', descKey: 'onboarding.featureGuide.astraSection.imageDesc' },
+    { titleKey: 'onboarding.featureGuide.astraSection.voiceTitle', descKey: 'onboarding.featureGuide.astraSection.voiceDesc' },
+    { titleKey: 'onboarding.featureGuide.astraSection.cannotDoTitle', descKey: 'onboarding.featureGuide.astraSection.cannotDoDesc' },
+    { titleKey: 'onboarding.featureGuide.astraSection.tipsTitle', descKey: 'onboarding.featureGuide.astraSection.tipsDesc' },
+  ],
+  connect: [
+    { titleKey: 'onboarding.featureGuide.connectSection.mcpTitle', descKey: 'onboarding.featureGuide.connectSection.mcpDesc' },
+    { titleKey: 'onboarding.featureGuide.connectSection.assistantCanDoTitle', descKey: 'onboarding.featureGuide.connectSection.assistantCanDoDesc' },
+    { titleKey: 'onboarding.featureGuide.connectSection.apiKeysTitle', descKey: 'onboarding.featureGuide.connectSection.apiKeysDesc' },
+    { titleKey: 'onboarding.featureGuide.connectSection.setupTitle', descKey: 'onboarding.featureGuide.connectSection.setupDesc' },
+  ],
+  social: [
+    { titleKey: 'onboarding.featureGuide.socialSection.optInTitle', descKey: 'onboarding.featureGuide.socialSection.optInDesc' },
+    { titleKey: 'onboarding.featureGuide.socialSection.buddiesTitle', descKey: 'onboarding.featureGuide.socialSection.buddiesDesc' },
+    { titleKey: 'onboarding.featureGuide.socialSection.challengesTitle', descKey: 'onboarding.featureGuide.socialSection.challengesDesc' },
+    { titleKey: 'onboarding.featureGuide.socialSection.cheersTitle', descKey: 'onboarding.featureGuide.socialSection.cheersDesc' },
+    { titleKey: 'onboarding.featureGuide.socialSection.friendsTitle', descKey: 'onboarding.featureGuide.socialSection.friendsDesc' },
+    { titleKey: 'onboarding.featureGuide.socialSection.publicProfileTitle', descKey: 'onboarding.featureGuide.socialSection.publicProfileDesc' },
+    { titleKey: 'onboarding.featureGuide.socialSection.milestoneShareTitle', descKey: 'onboarding.featureGuide.socialSection.milestoneShareDesc' },
+    { titleKey: 'onboarding.featureGuide.socialSection.referralsTitle', descKey: 'onboarding.featureGuide.socialSection.referralsDesc' },
+  ],
   habits: [
     { titleKey: 'onboarding.featureGuide.habitsSection.creatingTitle', descKey: 'onboarding.featureGuide.habitsSection.creatingDesc' },
     { titleKey: 'onboarding.featureGuide.habitsSection.frequenciesTitle', descKey: 'onboarding.featureGuide.habitsSection.frequenciesDesc' },
@@ -41,7 +80,6 @@ const sectionItems: Record<SectionKey, SectionItem[]> = {
     { titleKey: 'onboarding.featureGuide.habitsSection.oneTimeTasksTitle', descKey: 'onboarding.featureGuide.habitsSection.oneTimeTasksDesc' },
     { titleKey: 'onboarding.featureGuide.habitsSection.duplicateTitle', descKey: 'onboarding.featureGuide.habitsSection.duplicateDesc' },
     { titleKey: 'onboarding.featureGuide.habitsSection.dateNavTitle', descKey: 'onboarding.featureGuide.habitsSection.dateNavDesc' },
-    { titleKey: 'onboarding.featureGuide.habitsSection.retrospectiveTitle', descKey: 'onboarding.featureGuide.habitsSection.retrospectiveDesc' },
     { titleKey: 'onboarding.featureGuide.habitsSection.flexibleTitle', descKey: 'onboarding.featureGuide.habitsSection.flexibleDesc' },
     { titleKey: 'onboarding.featureGuide.habitsSection.generalTitle', descKey: 'onboarding.featureGuide.habitsSection.generalDesc' },
     { titleKey: 'onboarding.featureGuide.habitsSection.skipTitle', descKey: 'onboarding.featureGuide.habitsSection.skipDesc' },
@@ -54,22 +92,22 @@ const sectionItems: Record<SectionKey, SectionItem[]> = {
     { titleKey: 'onboarding.featureGuide.goalsSection.aiReviewTitle', descKey: 'onboarding.featureGuide.goalsSection.aiReviewDesc' },
     { titleKey: 'onboarding.featureGuide.goalsSection.statusTitle', descKey: 'onboarding.featureGuide.goalsSection.statusDesc' },
   ],
-  chat: [
-    { titleKey: 'onboarding.featureGuide.chatSection.canDoTitle', descKey: 'onboarding.featureGuide.chatSection.canDoDesc' },
-    { titleKey: 'onboarding.featureGuide.chatSection.manageTitle', descKey: 'onboarding.featureGuide.chatSection.manageDesc' },
-    { titleKey: 'onboarding.featureGuide.chatSection.insightsTitle', descKey: 'onboarding.featureGuide.chatSection.insightsDesc' },
-    { titleKey: 'onboarding.featureGuide.chatSection.imageTitle', descKey: 'onboarding.featureGuide.chatSection.imageDesc' },
-    { titleKey: 'onboarding.featureGuide.chatSection.voiceTitle', descKey: 'onboarding.featureGuide.chatSection.voiceDesc' },
-    { titleKey: 'onboarding.featureGuide.chatSection.cannotDoTitle', descKey: 'onboarding.featureGuide.chatSection.cannotDoDesc' },
-    { titleKey: 'onboarding.featureGuide.chatSection.tipsTitle', descKey: 'onboarding.featureGuide.chatSection.tipsDesc' },
-    { titleKey: 'onboarding.featureGuide.chatSection.reschedulingTitle', descKey: 'onboarding.featureGuide.chatSection.reschedulingDesc' },
-  ],
   calendar: [
     { titleKey: 'onboarding.featureGuide.calendarSection.colorsTitle', descKey: 'onboarding.featureGuide.calendarSection.colorsDesc' },
     { titleKey: 'onboarding.featureGuide.calendarSection.dayDetailsTitle', descKey: 'onboarding.featureGuide.calendarSection.dayDetailsDesc' },
     { titleKey: 'onboarding.featureGuide.calendarSection.navigationTitle', descKey: 'onboarding.featureGuide.calendarSection.navigationDesc' },
     { titleKey: 'onboarding.featureGuide.calendarSection.streaksTitle', descKey: 'onboarding.featureGuide.calendarSection.streaksDesc' },
     { titleKey: 'onboarding.featureGuide.calendarSection.googleCalendarTitle', descKey: 'onboarding.featureGuide.calendarSection.googleCalendarDesc' },
+  ],
+  rewards: [
+    { titleKey: 'onboarding.featureGuide.rewardsSection.xpLevelsTitle', descKey: 'onboarding.featureGuide.rewardsSection.xpLevelsDesc' },
+    { titleKey: 'onboarding.featureGuide.rewardsSection.achievementsTitle', descKey: 'onboarding.featureGuide.rewardsSection.achievementsDesc' },
+    { titleKey: 'onboarding.featureGuide.rewardsSection.streaksTitle', descKey: 'onboarding.featureGuide.rewardsSection.streaksDesc' },
+    { titleKey: 'onboarding.featureGuide.rewardsSection.streakFreezeTitle', descKey: 'onboarding.featureGuide.rewardsSection.streakFreezeDesc' },
+    { titleKey: 'onboarding.featureGuide.rewardsSection.wrappedTitle', descKey: 'onboarding.featureGuide.rewardsSection.wrappedDesc' },
+    { titleKey: 'onboarding.featureGuide.rewardsSection.widgetTitle', descKey: 'onboarding.featureGuide.rewardsSection.widgetDesc' },
+    { titleKey: 'onboarding.featureGuide.rewardsSection.insightsTitle', descKey: 'onboarding.featureGuide.rewardsSection.insightsDesc' },
+    { titleKey: 'onboarding.featureGuide.rewardsSection.retrospectiveTitle', descKey: 'onboarding.featureGuide.rewardsSection.retrospectiveDesc' },
   ],
   settings: [
     { titleKey: 'onboarding.featureGuide.settingsSection.colorSchemeTitle', descKey: 'onboarding.featureGuide.settingsSection.colorSchemeDesc' },
@@ -81,11 +119,7 @@ const sectionItems: Record<SectionKey, SectionItem[]> = {
     { titleKey: 'onboarding.featureGuide.settingsSection.supportTitle', descKey: 'onboarding.featureGuide.settingsSection.supportDesc' },
     { titleKey: 'onboarding.featureGuide.settingsSection.pushNotificationsTitle', descKey: 'onboarding.featureGuide.settingsSection.pushNotificationsDesc' },
     { titleKey: 'onboarding.featureGuide.settingsSection.subscriptionTitle', descKey: 'onboarding.featureGuide.settingsSection.subscriptionDesc' },
-    { titleKey: 'onboarding.featureGuide.settingsSection.retrospectiveTitle', descKey: 'onboarding.featureGuide.settingsSection.retrospectiveDesc' },
     { titleKey: 'onboarding.featureGuide.settingsSection.weekStartDayTitle', descKey: 'onboarding.featureGuide.settingsSection.weekStartDayDesc' },
-    { titleKey: 'onboarding.featureGuide.settingsSection.referralTitle', descKey: 'onboarding.featureGuide.settingsSection.referralDesc' },
-    { titleKey: 'onboarding.featureGuide.settingsSection.gamificationTitle', descKey: 'onboarding.featureGuide.settingsSection.gamificationDesc' },
-    { titleKey: 'onboarding.featureGuide.settingsSection.widgetTitle', descKey: 'onboarding.featureGuide.settingsSection.widgetDesc' },
     { titleKey: 'onboarding.featureGuide.settingsSection.showGeneralTodayTitle', descKey: 'onboarding.featureGuide.settingsSection.showGeneralTodayDesc' },
   ],
   notifications: [
@@ -102,7 +136,7 @@ interface FeatureGuideDrawerProps {
 
 export function FeatureGuideDrawer({ open, onOpenChange }: Readonly<FeatureGuideDrawerProps>) {
   const t = useTranslations()
-  const [activeSection, setActiveSection] = useState<SectionKey>('habits')
+  const [activeSection, setActiveSection] = useState<SectionKey>('astra')
 
   const items = sectionItems[activeSection]
 
