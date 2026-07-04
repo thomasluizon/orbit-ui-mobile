@@ -4,7 +4,8 @@ const {
   withGradleProperties,
 } = require('@expo/config-plugins')
 
-const KSP_MAX_METASPACE_SIZE = '2048m'
+const RELEASE_BUILD_HEAP_SIZE = '6144m'
+const RELEASE_BUILD_METASPACE_SIZE = '2048m'
 
 const STAGING_DIR_MARKER = 'orbit.cmakeBuildStagingDirectory'
 
@@ -103,16 +104,25 @@ function withAndroidReleaseBuildFixes(config) {
     return mod
   })
 
-  nextConfig = withRaisedKspMetaspace(nextConfig)
+  nextConfig = withRaisedReleaseBuildJvmMemory(nextConfig)
 
   return nextConfig
 }
 
-// expo-updates' KSP AA worker exhausts the template's default MaxMetaspaceSize
-// during the release build. https://github.com/google/ksp/issues/1922
-function withRaisedKspMetaspace(config) {
+function forceJvmFlag(value, pattern, flag) {
+  return pattern.test(value)
+    ? value.replace(pattern, flag)
+    : `${value} ${flag}`.trim()
+}
+
+// The template's default org.gradle.jvmargs is too small for the SDK 56 release
+// build: R8 minification of the Hermes bundle exhausts the default heap, and the
+// expo-updates KSP AA worker exhausts the default metaspace
+// (https://github.com/google/ksp/issues/1922). Force both flags authoritatively.
+function withRaisedReleaseBuildJvmMemory(config) {
   return withGradleProperties(config, (mod) => {
-    const metaspaceFlag = `-XX:MaxMetaspaceSize=${KSP_MAX_METASPACE_SIZE}`
+    const heapFlag = `-Xmx${RELEASE_BUILD_HEAP_SIZE}`
+    const metaspaceFlag = `-XX:MaxMetaspaceSize=${RELEASE_BUILD_METASPACE_SIZE}`
     const jvmArgs = mod.modResults.find(
       (item) => item.type === 'property' && item.key === 'org.gradle.jvmargs',
     )
@@ -121,14 +131,14 @@ function withRaisedKspMetaspace(config) {
       mod.modResults.push({
         type: 'property',
         key: 'org.gradle.jvmargs',
-        value: `-Xmx4096m ${metaspaceFlag}`,
+        value: `${heapFlag} ${metaspaceFlag}`,
       })
       return mod
     }
 
-    jvmArgs.value = /-XX:MaxMetaspaceSize=\S+/.test(jvmArgs.value)
-      ? jvmArgs.value.replace(/-XX:MaxMetaspaceSize=\S+/, metaspaceFlag)
-      : `${jvmArgs.value} ${metaspaceFlag}`.trim()
+    let value = forceJvmFlag(jvmArgs.value, /-Xmx\S+/, heapFlag)
+    value = forceJvmFlag(value, /-XX:MaxMetaspaceSize=\S+/, metaspaceFlag)
+    jvmArgs.value = value
 
     return mod
   })
