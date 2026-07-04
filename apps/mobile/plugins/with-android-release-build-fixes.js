@@ -40,7 +40,7 @@ allprojects {
                     && details.requested.name.startsWith('play-services-ads')
                     && details.requested.name != 'play-services-ads-identifier') {
                 details.useVersion '${PINNED_PLAY_SERVICES_ADS_VERSION}'
-                details.because 'play-services-ads 25.3.0+ ships Kotlin 2.3 metadata the Expo SDK 55 (Kotlin 2.1) toolchain cannot read; 25.2.0 is the last release before that bump and still has the AgeRestrictedTreatment API react-native-google-mobile-ads 16.3.3 needs'
+                details.because 'play-services-ads 25.3.0+ ships Kotlin 2.3 metadata the Expo SDK 56 (Kotlin 2.1.20) toolchain cannot read; 25.2.0 is the last release before that bump and still has the AgeRestrictedTreatment API react-native-google-mobile-ads 16.3.3 needs'
             }
         }
     }
