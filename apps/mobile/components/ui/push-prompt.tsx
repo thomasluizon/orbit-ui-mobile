@@ -176,7 +176,7 @@ export function PushPrompt() {
 function createStyles(tokens: AppTokensV2) {
   return StyleSheet.create({
     backdrop: {
-      ...StyleSheet.absoluteFillObject,
+      ...StyleSheet.absoluteFill,
       backgroundColor: 'rgba(0, 0, 0, 0.55)',
     },
     wrapper: {

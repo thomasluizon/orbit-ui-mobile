@@ -371,7 +371,7 @@ function createStyles(tokens: AppTokens) {
       padding: 24,
     },
     backdrop: {
-      ...StyleSheet.absoluteFillObject,
+      ...StyleSheet.absoluteFill,
       backgroundColor: 'rgba(0,0,0,0.50)',
     },
     dialog: {
