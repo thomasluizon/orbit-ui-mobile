@@ -3,8 +3,9 @@
 import { useMemo, type ComponentType } from 'react'
 import { useTranslations } from 'next-intl'
 import { Flame, ListChecks, Sparkles, Trophy, type LucideProps } from 'lucide-react'
-import { computeDayProgress, formatAPIDate } from '@orbit/shared/utils'
+import { computeDayProgress } from '@orbit/shared/utils'
 import { plural } from '@/lib/plural'
+import { useToday } from '@/app/(app)/today-provider'
 import { EMPTY_HABITS_BY_ID, useHabits } from '@/hooks/use-habits'
 import { useProfile } from '@/hooks/use-profile'
 import { useGamificationProfile } from '@/hooks/use-gamification'
@@ -51,7 +52,7 @@ function RailStatRow({
 /** Today's contextual rail content: the day's completion orbit over a calm stat stack. */
 export function TodayRail() {
   const t = useTranslations()
-  const today = useMemo(() => formatAPIDate(new Date()), [])
+  const today = useToday()
   const filters = useMemo(
     () => ({ dateFrom: today, dateTo: today, includeOverdue: true }),
     [today],

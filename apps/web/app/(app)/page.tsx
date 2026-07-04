@@ -58,15 +58,11 @@ import {
   getTodayTabLabel,
   type TodayTabItem,
 } from './today-shell'
-import { useTodayTick } from './use-follow-today-sync'
+import { useToday } from './today-provider'
 import type { HabitsFilter } from '@orbit/shared/types/habit'
 
 const TAB_VIEWS = ['today', 'all', 'general', 'goals'] as const
 const SKELETON_KEYS = ['sk-1', 'sk-2', 'sk-3', 'sk-4', 'sk-5'] as const
-
-function getTodayDate(): string {
-  return formatAPIDate(new Date())
-}
 
 export default function TodayPage() {
   const t = useTranslations()
@@ -132,12 +128,7 @@ export default function TodayPage() {
     return null
   }, [dateParam])
 
-  const [today, setToday] = useState(getTodayDate)
-  const handleTodayRollover = useCallback(() => {
-    setToday(getTodayDate())
-  }, [])
-  useTodayTick(handleTodayRollover)
-
+  const today = useToday()
   const selectedDateStr = pinnedDateStr ?? today
   const selectedDate = useMemo(
     () => new Date(selectedDateStr + 'T00:00:00'),

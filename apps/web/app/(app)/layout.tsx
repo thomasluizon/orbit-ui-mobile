@@ -43,6 +43,7 @@ import { dismissCalendarImport } from '@/app/actions/calendar'
 import { TourProvider } from '@/components/tour/tour-provider'
 import { TourOverlay } from '@/components/tour/tour-overlay'
 import { RouteTransitionShell } from '@/components/motion/route-transition-shell'
+import { TodayProvider } from './today-provider'
 import { ApiFetchI18nProvider } from '@/lib/api-fetch-i18n-provider'
 import { setRouteTransitionIntent } from '@/lib/motion/route-intent'
 import { formatAPIDate, isShareableAchievement } from '@orbit/shared/utils'
@@ -54,7 +55,9 @@ export default function AppLayout({
 }>) {
   return (
     <Providers>
-      <AppLayoutContent>{children}</AppLayoutContent>
+      <TodayProvider>
+        <AppLayoutContent>{children}</AppLayoutContent>
+      </TodayProvider>
     </Providers>
   )
 }
