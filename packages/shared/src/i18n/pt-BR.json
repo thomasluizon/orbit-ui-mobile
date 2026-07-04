@@ -1737,7 +1737,7 @@
         "mcpTitle": "Conecte seu assistente de IA",
         "mcpDesc": "O Orbit fala MCP (Model Context Protocol), então você pode conectar o Claude, o ChatGPT ou qualquer assistente compatível com MCP direto à sua conta do Orbit. Gerencie seus hábitos e metas de onde você já conversa com IA -- sem precisar abrir o app.",
         "assistantCanDoTitle": "O que o seu assistente pode fazer",
-        "assistantCanDoDesc": "Depois de conectado, o seu assistente pode criar e registrar hábitos, gerenciar metas, tags e checklists, ler o seu progresso, ajustar notificações e muito mais -- são 94 ferramentas em 15 áreas do app. Cada ação fica restrita à sua conta e segue as mesmas permissões do app.",
+        "assistantCanDoDesc": "Depois de conectado, o seu assistente pode criar e registrar hábitos, gerenciar metas, tags e checklists, ler o seu progresso, ajustar notificações e muito mais -- são 79 ferramentas em 15 áreas do app. Cada ação fica restrita à sua conta e segue as mesmas permissões do app.",
         "apiKeysTitle": "Chaves de API (Pro)",
         "apiKeysDesc": "O acesso ao MCP é liberado com o Orbit Pro. Crie e gerencie chaves de API com escopo nas Configurações de IA e cole uma no seu assistente para conectá-lo. As chaves podem ser somente leitura ou de acesso total, e você pode revogá-las quando quiser.",
         "setupTitle": "Como configurar",
