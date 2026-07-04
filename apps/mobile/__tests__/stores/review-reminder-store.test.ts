@@ -98,8 +98,8 @@ describe('isReviewMomentEligible', () => {
 
   function eligibleState() {
     return {
-      completionCount: 20,
-      activeDays: ['d1', 'd2', 'd3', 'd4', 'd5'],
+      completionCount: 10,
+      activeDays: ['d1', 'd2'],
       dismissedUntil: null,
       acceptedAt: null,
     }
@@ -113,16 +113,16 @@ describe('isReviewMomentEligible', () => {
     expect(isReviewMomentEligible(eligibleState(), false, TODAY)).toBe(false)
   })
 
-  it('fails below 20 completions', () => {
+  it('fails below 10 completions', () => {
     expect(
-      isReviewMomentEligible({ ...eligibleState(), completionCount: 19 }, true, TODAY),
+      isReviewMomentEligible({ ...eligibleState(), completionCount: 9 }, true, TODAY),
     ).toBe(false)
   })
 
-  it('fails below 5 distinct active days', () => {
+  it('fails below 2 distinct active days', () => {
     expect(
       isReviewMomentEligible(
-        { ...eligibleState(), activeDays: ['d1', 'd2', 'd3', 'd4'] },
+        { ...eligibleState(), activeDays: ['d1'] },
         true,
         TODAY,
       ),

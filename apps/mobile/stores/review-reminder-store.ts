@@ -7,8 +7,8 @@ import { formatAPIDate } from '@orbit/shared/utils'
 const REVIEW_REMINDER_STORAGE_KEY = 'orbit-review-reminder'
 const REVIEW_REMINDER_COOLDOWN_DAYS = 120
 const MAX_DISTINCT_ACTIVE_DAYS = 365
-const REVIEW_MIN_COMPLETIONS = 20
-const REVIEW_MIN_ACTIVE_DAYS = 5
+const REVIEW_MIN_COMPLETIONS = 10
+const REVIEW_MIN_ACTIVE_DAYS = 2
 
 interface ReviewReminderSnapshot {
   accountKey: string | null
@@ -45,7 +45,7 @@ function createReviewReminderSnapshot(
 
 /**
  * Engagement floor + guards for the post-celebration review moment: onboarding
- * complete, 20+ completions across 5+ distinct active days, never accepted,
+ * complete, 10+ completions across 2+ distinct active days, never accepted,
  * and outside the 120-day snooze window. Used at arm time (so an ineligible
  * review never displaces another engagement prompt) and re-checked at display time.
  */
