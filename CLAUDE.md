@@ -111,7 +111,7 @@ TypeScript LSP is built into Claude Code — works without setup for `apps/web`,
 - **Factories:** `packages/shared/src/__tests__/factories.ts`.
 - **Run:** `npm test` per workspace.
 - Unit tests only by default — the old broad Playwright E2E suite was removed as outdated; don't add per-PR E2E, integration suites, or a real-DB harness.
-- Exception: a scoped ~5-test web Playwright **smoke suite** (signup, create+log habit, Astra-creates-habit, paywall) runs against the QA env post-deploy and blocks prod promotion (see #227). This is the only sanctioned E2E. A flaky smoke test is fix-or-delete same day — never retry-to-green; keep it ≤~5 tests. No per-PR E2E and no mobile E2E (Detox/Maestro).
+- Exception: a scoped ~5-test web Playwright **smoke suite** (signup, create+log habit, Astra-creates-habit, paywall) runs post-deploy against prod (SMOKE_BASE_URL, the live web origin) and blocks prod promotion (see #227). This is the only sanctioned E2E. A flaky smoke test is fix-or-delete same day — never retry-to-green; keep it ≤~5 tests. No per-PR E2E and no mobile E2E (Detox/Maestro).
 - Review tooling: `/pr-review` is the canonical local diff-review skill — it replaces and absorbs the old `/review` + `/security-review` (it orchestrates security-reviewer / contract-aligner / parity-checker / i18n-syncer and runs the backward-compat guard above) (#206). Don't invoke `/review` or `/security-review` separately.
 - Every new feature needs tests. Tests asserting behavior, not implementation details.
 

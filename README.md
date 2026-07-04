@@ -34,7 +34,7 @@ This repo is the product frontend monorepo. The backend lives in a separate `orb
 | Workspace | Purpose | Main tech |
 | --- | --- | --- |
 | `apps/web` | Browser app | Next.js 16, React 19, App Router |
-| `apps/mobile` | Native app | Expo 55, React Native 0.83, Expo Router |
+| `apps/mobile` | Native app | Expo 56, React Native 0.85, Expo Router |
 | `packages/shared` | Shared product logic | Zod schemas, API paths, query keys, i18n, theme, validation |
 
 ```text
@@ -52,7 +52,7 @@ packages/
 - Node.js 20 or newer
 - npm 11 or newer
 - The separate `orbit-api` service if you want local backend access
-- Expo tooling plus Android Studio and/or Xcode for native development
+- Expo tooling plus Android Studio for native builds (Orbit mobile ships Android only)
 
 ### Install
 
@@ -107,7 +107,6 @@ Useful workspace commands:
 npm --workspace @orbit/web run test
 
 npm --workspace @orbit/mobile run android
-npm --workspace @orbit/mobile run ios
 npm --workspace @orbit/mobile run android:apk
 
 npm --workspace @orbit/shared run test
