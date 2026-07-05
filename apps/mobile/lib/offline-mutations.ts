@@ -368,6 +368,7 @@ function inferScope(type: MutationType): MutationScope {
     case 'setAiMemory':
     case 'setAiSummary':
     case 'setProactiveAstra':
+    case 'setMarketingConsent':
     case 'completeOnboarding':
     case 'resetProfile':
       return 'profile'

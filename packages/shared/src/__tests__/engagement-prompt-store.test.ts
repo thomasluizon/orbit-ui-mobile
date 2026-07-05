@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import {
+  MARKETING_CONSENT_MILESTONE_KEY,
   REFERRAL_PROMPT_COOLDOWN_DAYS,
   canPromptEngagement,
   createEngagementPromptStoreState,
@@ -351,6 +352,58 @@ describe('engagement prompt arbiter', () => {
       kind: 'review',
       milestoneKey: 'review-level-5',
     })
+  })
+
+  it('lets the consent prompt outrank every other kind for the armed slot', () => {
+    const store = createStoreHarness()
+
+    store.getState().armReviewPrompt('review-streak-7')
+    store.getState().armMilestoneSharePrompt('share-streak-7')
+    store.getState().armReferralPrompt('level-5')
+    store.getState().armConsentPrompt(MARKETING_CONSENT_MILESTONE_KEY)
+
+    expect(store.getState().armedPrompt).toEqual({
+      kind: 'consent',
+      milestoneKey: MARKETING_CONSENT_MILESTONE_KEY,
+    })
+  })
+
+  it('keeps the armed consent prompt when any lower-priority prompt arms after', () => {
+    const store = createStoreHarness()
+
+    store.getState().armConsentPrompt(MARKETING_CONSENT_MILESTONE_KEY)
+    store.getState().armReviewPrompt('review-streak-7')
+
+    expect(store.getState().armedPrompt).toEqual({
+      kind: 'consent',
+      milestoneKey: MARKETING_CONSENT_MILESTONE_KEY,
+    })
+  })
+})
+
+describe('consent prompt cooldown bypass', () => {
+  it('arms even when another prompt fired inside the shared cooldown window', () => {
+    const store = createStoreHarness()
+
+    store.getState().markEngagementPrompted('share-streak-7', '2026-06-27T12:00:00.000Z')
+    store.getState().armConsentPrompt(MARKETING_CONSENT_MILESTONE_KEY)
+
+    expect(store.getState().armedPrompt).toEqual({
+      kind: 'consent',
+      milestoneKey: MARKETING_CONSENT_MILESTONE_KEY,
+    })
+  })
+
+  it('records markEngagementPrompted on show so other prompts treat consent as recent', () => {
+    const store = createStoreHarness()
+    const now = '2026-06-27T12:00:00.000Z'
+
+    store.getState().armConsentPrompt(MARKETING_CONSENT_MILESTONE_KEY)
+    store.getState().markEngagementPrompted(MARKETING_CONSENT_MILESTONE_KEY, now)
+
+    expect(store.getState().lastPromptedAtIso).toBe(now)
+    expect(store.getState().armedPrompt).toBeNull()
+    expect(canPromptEngagement(store.getState(), 'level-3', now)).toBe(false)
   })
 })
 

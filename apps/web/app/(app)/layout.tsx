@@ -27,6 +27,7 @@ import { LevelUpOverlay } from '@/components/gamification/level-up-overlay'
 import { StreakFreezeCelebration } from '@/components/gamification/streak-freeze-celebration'
 import { ReferralPrompt } from '@/components/referral/referral-prompt'
 import { MilestoneSharePrompt } from '@/components/milestone-share/milestone-share-prompt'
+import { MarketingConsentPrompt } from '@/components/marketing-consent/marketing-consent-prompt'
 import { useProfile } from '@/hooks/use-profile'
 import { useTimezoneAutoSync } from '@/hooks/use-timezone-auto-sync'
 import { useAuthStore } from '@/stores/auth-store'
@@ -38,6 +39,7 @@ import {
   getReferralLevelMilestone,
   getMilestoneShareAchievementKey,
   getMilestoneShareStreakKey,
+  MARKETING_CONSENT_MILESTONE_KEY,
 } from '@orbit/shared/stores'
 import { dismissCalendarImport } from '@/app/actions/calendar'
 import { TourProvider } from '@/components/tour/tour-provider'
@@ -248,6 +250,20 @@ function GlobalOverlays({
   const armMilestoneSharePrompt = useReferralPromptStore(
     (s) => s.armMilestoneSharePrompt,
   )
+  const armConsentPrompt = useReferralPromptStore((s) => s.armConsentPrompt)
+
+  useEffect(() => {
+    if (
+      profile?.hasCompletedOnboarding &&
+      profile.marketingEmailConsent === null
+    ) {
+      armConsentPrompt(MARKETING_CONSENT_MILESTONE_KEY)
+    }
+  }, [
+    profile?.hasCompletedOnboarding,
+    profile?.marketingEmailConsent,
+    armConsentPrompt,
+  ])
 
   useEffect(() => {
     if (gamification.leveledUp && gamification.newLevel) {
@@ -291,6 +307,7 @@ function GlobalOverlays({
           onClear={gamification.clearLevelUp}
         />
       )}
+      {profile?.hasCompletedOnboarding && <MarketingConsentPrompt />}
       {profile?.hasCompletedOnboarding && <ReferralPrompt />}
       {profile?.hasCompletedOnboarding && <MilestoneSharePrompt />}
       <StreakFreezeCelebration ref={streakFreezeRef} />
