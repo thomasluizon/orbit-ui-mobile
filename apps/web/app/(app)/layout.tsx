@@ -51,6 +51,12 @@ import { TourProvider } from '@/components/tour/tour-provider'
 import { TourOverlay } from '@/components/tour/tour-overlay'
 import { RouteTransitionShell } from '@/components/motion/route-transition-shell'
 import { TodayProvider } from './today-provider'
+import {
+  isCalendarPromptCriteriaMet,
+  isImportPromptCriteriaMet,
+  shouldShowRetainedOnboardingOverlay,
+  shouldSuppressOnboardingOverlay,
+} from './onboarding-overlay-state'
 import { ApiFetchI18nProvider } from '@/lib/api-fetch-i18n-provider'
 import { setRouteTransitionIntent } from '@/lib/motion/route-intent'
 import { formatAPIDate, isShareableAchievement } from '@orbit/shared/utils'
@@ -115,13 +121,7 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
 
   const [showCalendarPrompt, setShowCalendarPrompt] = useState(false)
 
-  const calendarPromptCriteriaMet = !!(
-    profile &&
-    profile.hasCompletedOnboarding &&
-    profile.hasCompletedTour &&
-    !profile.hasImportedCalendar &&
-    pathname !== '/calendar-sync'
-  )
+  const calendarPromptCriteriaMet = isCalendarPromptCriteriaMet(profile, pathname)
   const [previousCriteriaMet, setPreviousCriteriaMet] = useState(calendarPromptCriteriaMet)
   if (calendarPromptCriteriaMet !== previousCriteriaMet) {
     setPreviousCriteriaMet(calendarPromptCriteriaMet)
@@ -130,13 +130,11 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
 
   const [showImportPrompt, setShowImportPrompt] = useState(false)
 
-  const importPromptCriteriaMet = !!(
-    profile &&
-    profile.hasCompletedOnboarding &&
-    !profile.hasSeenImportPrompt &&
-    !calendarPromptCriteriaMet &&
-    !showCalendarPrompt
-  )
+  const importPromptCriteriaMet = isImportPromptCriteriaMet(profile, {
+    calendarPromptCriteriaMet,
+    showCalendarPrompt,
+    hasPendingOnboardingAnswers,
+  })
   const [previousImportCriteriaMet, setPreviousImportCriteriaMet] = useState(importPromptCriteriaMet)
   if (importPromptCriteriaMet !== previousImportCriteriaMet) {
     setPreviousImportCriteriaMet(importPromptCriteriaMet)
@@ -249,7 +247,10 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
         hasProAccess={hasProAccess}
         canViewGamification={canViewGamification}
         streakFreezeRef={streakFreezeRef}
-        suppressOnboardingOverlay={!draftHydrated || hasPendingOnboardingAnswers}
+        suppressOnboardingOverlay={shouldSuppressOnboardingOverlay({
+          draftHydrated,
+          hasPendingOnboardingAnswers,
+        })}
         showCalendarPrompt={showCalendarPrompt}
         onCalendarPromptOpenChange={handleCalendarPromptOpenChange}
         onCalendarImport={handleCalendarImport}
@@ -348,7 +349,7 @@ function GlobalOverlays({
       <ExpiryWarning />
       <TrialExpiredModal />
       {profile?.hasCompletedOnboarding && <PushPrompt />}
-      {profile && !profile.hasCompletedOnboarding && !suppressOnboardingOverlay && (
+      {shouldShowRetainedOnboardingOverlay(profile, suppressOnboardingOverlay) && (
         <RetainedOnboardingOverlay />
       )}
       <StreakCelebration />

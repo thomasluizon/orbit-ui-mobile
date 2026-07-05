@@ -4,14 +4,17 @@ import { useTranslation } from 'react-i18next'
 import { colorSchemeOptions, type ColorScheme } from '@orbit/shared/theme'
 import { ONBOARDING_WEEK_START_OPTIONS } from '@orbit/shared/utils/onboarding'
 import type { OnboardingWeekStartDay } from '@orbit/shared/stores'
-import { useProfile, useHasProAccess } from '@/hooks/use-profile'
+import { useProfile } from '@/hooks/use-profile'
 import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
 import { createTokensV2, tintFromPrimary, type AppTokensV2 } from '@/lib/theme'
 import { usePrefersReducedMotion } from '@/lib/motion'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { Chip } from '@/components/ui/chip'
 import { AppLogo } from '@/components/ui/app-logo'
-import { useOnboardingActions } from './onboarding-actions-context'
+import {
+  useOnboardingActions,
+  useOnboardingHasProAccess,
+} from './onboarding-actions-context'
 
 interface OnboardingProfileState {
   colorScheme?: string
@@ -27,7 +30,7 @@ interface OnboardingProfileState {
 export function OnboardingWelcome() {
   const { t } = useTranslation()
   const { profile } = useProfile()
-  const hasProAccess = useHasProAccess()
+  const hasProAccess = useOnboardingHasProAccess()
   const actions = useOnboardingActions()
   const draftWeekStartDay = useOnboardingDraftStore((s) => s.weekStartDay)
   const draftColorScheme = useOnboardingDraftStore((s) => s.colorScheme)

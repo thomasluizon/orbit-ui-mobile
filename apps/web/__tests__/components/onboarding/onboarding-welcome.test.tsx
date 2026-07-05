@@ -20,6 +20,7 @@ import { OnboardingWelcome } from '@/components/onboarding/onboarding-welcome'
 
 const stubActions: OnboardingActions = {
   createHabit: vi.fn().mockResolvedValue({ id: '0', title: 'x' }),
+  createHabitsBulk: vi.fn().mockResolvedValue(undefined),
   logHabit: vi.fn().mockResolvedValue(undefined),
   createGoal: vi.fn().mockResolvedValue(undefined),
   setWeekStartDay: vi.fn().mockResolvedValue(undefined),

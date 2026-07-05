@@ -88,7 +88,9 @@ export function OnboardingComplete({
             animationDelay: '180ms',
           }}
         >
-          {t('onboarding.flow.complete.title')}
+          {isLive
+            ? t('onboarding.flow.complete.title')
+            : t('onboarding.flow.saveYourPlan.title')}
         </h1>
         <p
           className="text-center"
@@ -103,7 +105,9 @@ export function OnboardingComplete({
             animationDelay: '240ms',
           }}
         >
-          {t('onboarding.flow.complete.subtitle')}
+          {isLive
+            ? t('onboarding.flow.complete.subtitle')
+            : t('onboarding.flow.saveYourPlan.subtitle')}
         </p>
       </div>
 

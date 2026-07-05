@@ -4,6 +4,7 @@ import { useCallback, useState } from 'react'
 import { Check, ChevronRight, Loader2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import {
+  buildBulkItemsFromPack,
   getFriendlyErrorMessage,
   getTemplatePackById,
   TEMPLATE_PACKS,
@@ -11,7 +12,6 @@ import {
   templatePackHabitTitleKey,
   templatePackNameKey,
 } from '@orbit/shared/utils'
-import type { CreateHabitRequest } from '@orbit/shared/types/habit'
 import { useOnboardingActions } from './onboarding-actions-context'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { PillButton } from '@/components/ui/pill-button'
@@ -56,20 +56,10 @@ export function OnboardingTemplatePacks({
 
   const handleAdd = useCallback(async () => {
     if (!selectedPack || enabledCount === 0 || isCreating) return
-    const items: CreateHabitRequest[] = selectedPack.habits
-      .filter((habit) => !disabledKeys.has(habit.key))
-      .map((habit) => ({
-        title: translate(templatePackHabitTitleKey(selectedPack.id, habit.key)),
-        emoji: habit.emoji,
-        frequencyUnit: habit.frequencyUnit,
-        frequencyQuantity: habit.frequencyQuantity,
-        isGeneral: false,
-      }))
+    const items = buildBulkItemsFromPack(selectedPack, disabledKeys, translate)
     setIsCreating(true)
     try {
-      for (const item of items) {
-        await actions.createHabit(item)
-      }
+      await actions.createHabitsBulk(items)
       onCreated()
     } catch (error: unknown) {
       showError(getFriendlyErrorMessage(error, translate, 'errors.createHabit', 'habit'))

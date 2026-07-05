@@ -23,6 +23,7 @@ import { i18n } from '@/lib/i18n'
 import { setRuntimeTheme } from '@/lib/theme'
 import { useChatStore } from './chat-store'
 import { useReviewReminderStore } from './review-reminder-store'
+import { useOnboardingDraftStore } from './onboarding-draft-store'
 
 const MOBILE_API_BASE = process.env.EXPO_PUBLIC_API_BASE ?? 'https://api.useorbit.org'
 
@@ -129,6 +130,7 @@ export async function clearSessionAndResetAuth(): Promise<void> {
   await clearOfflineState()
   useChatStore.getState().clearMessages()
   useReviewReminderStore.getState().setAccountScope(null)
+  useOnboardingDraftStore.getState().reset()
   useAuthStore.setState({ isAuthenticated: false, user: null, expiresAt: null })
 }
 
@@ -348,6 +350,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     await clearOfflineState()
     useChatStore.getState().clearMessages()
     useReviewReminderStore.getState().setAccountScope(null)
+    useOnboardingDraftStore.getState().reset()
   },
 
   checkAuth: async () => {

@@ -13,10 +13,10 @@ import {
   ONBOARDING_CREATE_HABIT_STEP,
   shouldHideOnboardingFooter,
 } from '@orbit/shared/utils/onboarding'
-import { useAuthStore } from '@/stores/auth-store'
 import {
   useOnboardingActions,
   useOnboardingHasProAccess,
+  useOnboardingIsLive,
 } from './onboarding-actions-context'
 import { OnboardingWelcome } from './onboarding-welcome'
 import { OnboardingMeetAstra } from './onboarding-meet-astra'
@@ -94,6 +94,7 @@ interface OnboardingStepContentProps {
   onAdvancePastHabits: () => void
   onFinish: () => void
   onImport?: () => void
+  finishLabel?: string
 }
 
 function OnboardingStepContent({
@@ -110,6 +111,7 @@ function OnboardingStepContent({
   onAdvancePastHabits,
   onFinish,
   onImport,
+  finishLabel,
 }: Readonly<OnboardingStepContentProps>) {
   if (viewingAstra) return <OnboardingMeetAstra key="meet-astra" onImport={onImport} />
   switch (sharedStep) {
@@ -156,6 +158,7 @@ function OnboardingStepContent({
           key="complete"
           createdHabit={createdHabitTitle}
           createdGoal={createdGoal}
+          finishLabel={finishLabel}
           onFinish={onFinish}
         />
       )
@@ -260,7 +263,7 @@ export function OnboardingFlow() {
   const pathname = usePathname()
   const insets = useSafeAreaInsets()
   const actions = useOnboardingActions()
-  const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
+  const isLive = useOnboardingIsLive()
   const hasProAccess = useOnboardingHasProAccess()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
@@ -462,6 +465,9 @@ export function OnboardingFlow() {
               onAdvancePastHabits={advancePastHabitSteps}
               onFinish={handleFinish}
               onImport={actions.onImport}
+              finishLabel={
+                !isLive ? t('onboarding.flow.saveYourPlan.cta') : undefined
+              }
             />
           </Animated.View>
         </KeyboardAwareScrollView>
@@ -479,7 +485,7 @@ export function OnboardingFlow() {
             onNext={goNext}
             onPrev={goPrev}
             onHaveAccount={
-              isStarter && !isAuthenticated ? handleHaveAccount : undefined
+              isStarter && !isLive ? handleHaveAccount : undefined
             }
           />
         )}

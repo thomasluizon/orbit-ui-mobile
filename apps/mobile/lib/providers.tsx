@@ -27,7 +27,7 @@ import { ThemeProvider } from './theme-provider'
 import { useOffline } from '@/hooks/use-offline'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useTranslation } from 'react-i18next'
-import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
+import { useOnboardingDraftHydrated } from '@/stores/onboarding-draft-store'
 import './i18n'
 
 void SplashScreen.preventAutoHideAsync()
@@ -74,7 +74,7 @@ function OfflineManager() {
 function AuthInitializer({ children }: Readonly<{ children: ReactNode }>) {
   const initialize = useAuthStore((s) => s.initialize)
   const [ready, setReady] = useState(false)
-  const onboardingDraftHydrated = useOnboardingDraftStore((s) => s._hasHydrated)
+  const onboardingDraftHydrated = useOnboardingDraftHydrated()
   const runtimeTheme = getRuntimeTheme()
   const runtimeTokens = createTokensV2(runtimeTheme.scheme, runtimeTheme.themeMode)
   const [fontsLoaded] = useFonts({

@@ -3,6 +3,7 @@ import {
   TEMPLATE_PACKS,
   templatePackHabitTitleKey,
   templatePackNameKey,
+  templatePackTagKey,
 } from '@orbit/shared/utils'
 
 import { OnboardingTemplatePacks } from '@/components/onboarding/onboarding-template-packs'
@@ -10,10 +11,7 @@ import { PillButton } from '@/components/ui/pill-button'
 
 const TestRenderer = require('react-test-renderer')
 
-const createHabit = vi.fn(async (input: { title: string }) => ({
-  id: 'habit-id',
-  title: input.title,
-}))
+const createHabitsBulk = vi.fn(async () => {})
 const onCreated = vi.fn()
 const onCreateOwn = vi.fn()
 const onSkip = vi.fn()
@@ -51,7 +49,7 @@ vi.mock('@/lib/theme', async (importOriginal) => {
 })
 
 vi.mock('@/components/onboarding/onboarding-actions-context', () => ({
-  useOnboardingActions: () => ({ createHabit }),
+  useOnboardingActions: () => ({ createHabitsBulk }),
 }))
 
 vi.mock('@/hooks/use-app-toast', () => ({
@@ -82,7 +80,7 @@ function pressByLabel(tree: ReturnType<typeof TestRenderer.create>, label: strin
 
 describe('OnboardingTemplatePacks (mobile)', () => {
   beforeEach(() => {
-    createHabit.mockClear()
+    createHabitsBulk.mockClear()
     onCreated.mockClear()
     onCreateOwn.mockClear()
     onSkip.mockClear()
@@ -105,7 +103,7 @@ describe('OnboardingTemplatePacks (mobile)', () => {
     expect(onCreateOwn).toHaveBeenCalledTimes(1)
   })
 
-  it('selects a pack, drops a toggled-off habit, and creates each remaining habit', async () => {
+  it('selects a pack, drops a toggled-off habit, and bulk-creates the rest with tags', async () => {
     const pack = TEMPLATE_PACKS[0]
     if (!pack) throw new Error('expected a template pack')
     const firstHabit = pack.habits[0]
@@ -121,20 +119,26 @@ describe('OnboardingTemplatePacks (mobile)', () => {
       await (cta.props.onPress as () => Promise<void>)()
     })
 
-    expect(createHabit).toHaveBeenCalledTimes(pack.habits.length - 1)
-    const titles = createHabit.mock.calls.map(
-      (call) => (call[0] as { title: string }).title,
-    )
+    expect(createHabitsBulk).toHaveBeenCalledTimes(1)
+    const items = createHabitsBulk.mock.calls[0]![0] as Array<{
+      title: string
+      emoji?: string | null
+      tags?: string[] | null
+    }>
+    expect(items).toHaveLength(pack.habits.length - 1)
+
+    const titles = items.map((item) => item.title)
     expect(titles).not.toContain(
       templatePackHabitTitleKey(pack.id, firstHabit.key),
     )
 
-    const secondCall = createHabit.mock.calls.find(
-      (call) =>
-        (call[0] as { title: string }).title ===
-        templatePackHabitTitleKey(pack.id, secondHabit.key),
+    const secondItem = items.find(
+      (item) => item.title === templatePackHabitTitleKey(pack.id, secondHabit.key),
     )
-    expect((secondCall?.[0] as { emoji?: string }).emoji).toBe(secondHabit.emoji)
+    expect(secondItem?.emoji).toBe(secondHabit.emoji)
+    expect(secondItem?.tags).toEqual(
+      secondHabit.tags.map((slug) => templatePackTagKey(slug)),
+    )
 
     expect(onCreated).toHaveBeenCalledTimes(1)
   })

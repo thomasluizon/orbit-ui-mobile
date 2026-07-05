@@ -90,6 +90,7 @@ const finishOnboarding = vi.fn().mockResolvedValue(undefined)
 
 const liveActions: OnboardingActions = {
   createHabit: vi.fn().mockResolvedValue({ id: 'h1', title: 'Test Habit' }),
+  createHabitsBulk: vi.fn().mockResolvedValue(undefined),
   logHabit: vi.fn().mockResolvedValue(undefined),
   createGoal: vi.fn().mockResolvedValue(undefined),
   setWeekStartDay: vi.fn().mockResolvedValue(undefined),

@@ -18,6 +18,7 @@ const mocks = vi.hoisted(() => ({
     markOnboardingLocallyDone: vi.fn(),
   },
   createHabitMutateAsync: vi.fn(async () => ({ id: 'server-id' })),
+  bulkCreateHabitsMutateAsync: vi.fn(async () => ({ results: [] })),
   logHabitMutateAsync: vi.fn(async () => undefined),
   createGoalMutateAsync: vi.fn(async () => ({ id: 'goal-id' })),
   performQueuedApiMutation: vi.fn(async () => undefined),
@@ -52,6 +53,7 @@ vi.mock('@/stores/onboarding-draft-store', () => {
 
 vi.mock('@/hooks/use-habits', () => ({
   useCreateHabit: () => ({ mutateAsync: mocks.createHabitMutateAsync }),
+  useBulkCreateHabits: () => ({ mutateAsync: mocks.bulkCreateHabitsMutateAsync }),
   useLogHabit: () => ({ mutateAsync: mocks.logHabitMutateAsync }),
 }))
 
@@ -99,6 +101,17 @@ describe('onboarding action provider factories', () => {
     expect(created).toEqual({ id: '2', title: 'Read' })
     expect(mocks.draftState.bufferHabit).toHaveBeenCalledWith({ title: 'Read' })
 
+    await actions.createHabitsBulk([
+      { title: 'Walk', emoji: '🚶', isGeneral: false, tags: ['movement'] },
+      { title: 'Read' },
+    ])
+    expect(mocks.draftState.bufferHabit).toHaveBeenCalledWith({
+      title: 'Walk',
+      emoji: '🚶',
+      isGeneral: false,
+    })
+    expect(mocks.draftState.bufferHabit).toHaveBeenCalledWith({ title: 'Read' })
+
     await actions.logHabit('2')
     expect(mocks.draftState.bufferFirstLog).toHaveBeenCalledWith(2, expect.any(String))
 
@@ -118,6 +131,13 @@ describe('onboarding action provider factories', () => {
     const created = await actions.createHabit({ title: 'Run' })
     expect(mocks.createHabitMutateAsync).toHaveBeenCalledWith({ title: 'Run' })
     expect(created).toEqual({ id: 'server-id', title: 'Run' })
+
+    await actions.createHabitsBulk([
+      { title: 'Walk', tags: ['movement'] },
+    ])
+    expect(mocks.bulkCreateHabitsMutateAsync).toHaveBeenCalledWith({
+      habits: [{ title: 'Walk', tags: ['movement'] }],
+    })
 
     await actions.setColorScheme('blue')
     expect(mocks.applyScheme).toHaveBeenCalledWith('blue')

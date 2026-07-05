@@ -1,9 +1,12 @@
-import type { CreateGoalRequest } from '../types/goal'
-import type {
-  ApplyOnboardingFirstLog,
-  ApplyOnboardingHabit,
-  ApplyOnboardingRequest,
+import { createGoalRequestSchema, type CreateGoalRequest } from '../types/goal'
+import {
+  applyOnboardingFirstLogSchema,
+  applyOnboardingHabitSchema,
+  type ApplyOnboardingFirstLog,
+  type ApplyOnboardingHabit,
+  type ApplyOnboardingRequest,
 } from '../types/onboarding'
+import { isRecord } from '../utils/is-record'
 
 export const ONBOARDING_DRAFT_STORAGE_VERSION = 1
 
@@ -19,10 +22,6 @@ type OnboardingDraftSet = {
 type OnboardingDraftGet = () => OnboardingDraftState
 
 export type OnboardingWeekStartDay = 0 | 1
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === 'object'
-}
 
 export interface PersistedOnboardingDraft {
   step: number
@@ -79,17 +78,20 @@ export function migrateOnboardingDraft(
   const initial = createInitialDraft()
   if (!isRecord(persistedState)) return initial
 
+  const habits = Array.isArray(persistedState.habits)
+    ? persistedState.habits.flatMap((habit) => {
+        const parsed = applyOnboardingHabitSchema.safeParse(habit)
+        return parsed.success ? [parsed.data] : []
+      })
+    : []
+  const firstLogResult = applyOnboardingFirstLogSchema.safeParse(persistedState.firstLog)
+  const goalResult = createGoalRequestSchema.safeParse(persistedState.goal)
+
   return {
     step: typeof persistedState.step === 'number' ? persistedState.step : 0,
-    habits: Array.isArray(persistedState.habits)
-      ? (persistedState.habits.filter(isRecord) as ApplyOnboardingHabit[])
-      : [],
-    firstLog: isRecord(persistedState.firstLog)
-      ? (persistedState.firstLog as ApplyOnboardingFirstLog)
-      : null,
-    goal: isRecord(persistedState.goal)
-      ? (persistedState.goal as CreateGoalRequest)
-      : null,
+    habits,
+    firstLog: firstLogResult.success ? firstLogResult.data : null,
+    goal: goalResult.success ? goalResult.data : null,
     weekStartDay:
       persistedState.weekStartDay === 0 || persistedState.weekStartDay === 1
         ? persistedState.weekStartDay

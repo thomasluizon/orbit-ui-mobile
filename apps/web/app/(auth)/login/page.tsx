@@ -78,6 +78,9 @@ export default function LoginPage() {
               onSendCode={sendCode}
               onSignInWithGoogle={signInWithGoogle}
               t={t}
+              sendCodeLabel={
+                fromOnboarding ? t('onboarding.flow.saveYourPlan.cta') : undefined
+              }
             />
           }
           codeStep={

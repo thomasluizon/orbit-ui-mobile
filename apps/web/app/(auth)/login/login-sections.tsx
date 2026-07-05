@@ -26,11 +26,13 @@ export function LoginHeader({
     : step === 'email'
       ? t('auth.signIn')
       : t('auth.enterCode')
-  const emailSubtitle = showPlanSummary
-    ? pendingHabitCount === 1
-      ? t('onboarding.flow.saveYourPlan.habitSummaryOne')
-      : t('onboarding.flow.saveYourPlan.habitSummary', { count: pendingHabitCount })
-    : t('auth.signInSubtitle')
+  const subtitleStyle = {
+    fontFamily: 'var(--font-sans)',
+    fontSize: 15,
+    lineHeight: 1.55,
+    color: 'var(--fg-2)',
+    margin: 0,
+  } as const
 
   return (
     <>
@@ -60,18 +62,23 @@ export function LoginHeader({
         >
           {title}
         </h2>
-        {step === 'email' && (
-          <p
-            style={{
-              fontFamily: 'var(--font-sans)',
-              fontSize: 15,
-              lineHeight: 1.55,
-              color: 'var(--fg-2)',
-              margin: 0,
-            }}
-          >
-            {emailSubtitle}
-          </p>
+        {showPlanSummary ? (
+          <>
+            <p style={subtitleStyle}>{t('onboarding.flow.saveYourPlan.subtitle')}</p>
+            {pendingHabitCount > 0 && (
+              <p style={subtitleStyle}>
+                {pendingHabitCount === 1
+                  ? t('onboarding.flow.saveYourPlan.habitSummaryOne')
+                  : t('onboarding.flow.saveYourPlan.habitSummary', {
+                      count: pendingHabitCount,
+                    })}
+              </p>
+            )}
+          </>
+        ) : (
+          step === 'email' && (
+            <p style={subtitleStyle}>{t('auth.signInSubtitle')}</p>
+          )
         )}
       </div>
     </>

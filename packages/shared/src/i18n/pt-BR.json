@@ -1654,7 +1654,7 @@
       "calendarDescription": "Já tem eventos no Google Calendar? Importe como hábitos no Orbit com um toque.",
       "calendarButton": "Importar calendário",
       "importTitle": "Importar de outro app?",
-      "importDescription": "Vindo de outro app de hábitos? A Astra pode recriar seus hábitos — anexe um arquivo ou cole sua lista.",
+      "importDescription": "Vindo de outro app de hábitos? A Astra pode recriar seus hábitos. Anexe um arquivo ou cole sua lista.",
       "importButton": "Importar com a Astra",
       "importNotNow": "Agora não"
     },

@@ -19,6 +19,7 @@ import { VerifiedBadge } from '@/components/ui/verified-badge'
 interface OnboardingCompleteProps {
   createdHabit: string
   createdGoal: boolean
+  finishLabel?: string
   onFinish: () => void
 }
 
@@ -29,6 +30,7 @@ interface OnboardingCompleteProps {
 export function OnboardingComplete({
   createdHabit,
   createdGoal,
+  finishLabel,
   onFinish,
 }: Readonly<OnboardingCompleteProps>) {
   const { t } = useTranslation()
@@ -162,10 +164,14 @@ export function OnboardingComplete({
           <VerifiedBadge size={96} />
         </Animated.View>
         <Animated.Text style={[styles.title, riseSlot(0, 0.45)]}>
-          {t('onboarding.flow.complete.title')}
+          {isLive
+            ? t('onboarding.flow.complete.title')
+            : t('onboarding.flow.saveYourPlan.title')}
         </Animated.Text>
         <Animated.Text style={[styles.subtitle, riseSlot(0.1, 0.55)]}>
-          {t('onboarding.flow.complete.subtitle')}
+          {isLive
+            ? t('onboarding.flow.complete.subtitle')
+            : t('onboarding.flow.saveYourPlan.subtitle')}
         </Animated.Text>
       </View>
 
@@ -191,7 +197,7 @@ export function OnboardingComplete({
 
       <Animated.View style={[styles.startBtnWrap, riseSlot(0.55, 1)]}>
         <PillButton fullWidth onPress={onFinish}>
-          {t('onboarding.flow.complete.start')}
+          {finishLabel ?? t('onboarding.flow.complete.start')}
         </PillButton>
       </Animated.View>
     </View>

@@ -25,6 +25,8 @@ const mocks = vi.hoisted(() => {
     authState: { isAuthenticated: true },
     draftState,
     queryClient,
+    profile: { hasCompletedOnboarding: false } as { hasCompletedOnboarding: boolean },
+    captureError: vi.fn(),
     applyOnboarding: vi.fn(async () => ({
       applied: true,
       createdHabitCount: 1,
@@ -47,8 +49,19 @@ vi.mock('@/stores/onboarding-draft-store', () => {
   const store = (selector: (state: typeof mocks.draftState) => unknown) =>
     selector(mocks.draftState)
   store.getState = () => mocks.draftState
-  return { useOnboardingDraftStore: store }
+  return {
+    useOnboardingDraftStore: store,
+    useOnboardingDraftHydrated: () => mocks.draftState._hasHydrated,
+  }
 })
+
+vi.mock('@/hooks/use-profile', () => ({
+  useProfile: () => ({ profile: mocks.profile }),
+}))
+
+vi.mock('@/lib/sentry', () => ({
+  captureError: mocks.captureError,
+}))
 
 vi.mock('@/hooks/use-apply-onboarding', () => ({
   useApplyOnboarding: () => mocks.applyOnboarding,
@@ -72,6 +85,8 @@ describe('useOnboardingFlush', () => {
     mocks.authState.isAuthenticated = true
     mocks.draftState._hasHydrated = true
     mocks.draftState.pending = true
+    mocks.profile.hasCompletedOnboarding = false
+    mocks.captureError.mockClear()
     mocks.draftState.reset.mockClear()
     mocks.queryClient.setQueryData.mockClear()
     mocks.queryClient.invalidateQueries.mockClear()
@@ -104,7 +119,7 @@ describe('useOnboardingFlush', () => {
     expect(patched?.hasCompletedOnboarding).toBe(true)
   })
 
-  it('retains the draft when the apply fails', async () => {
+  it('retains the draft and reports the error when the apply fails', async () => {
     mocks.applyOnboarding.mockRejectedValueOnce(new Error('network'))
 
     await renderFlush()
@@ -112,6 +127,16 @@ describe('useOnboardingFlush', () => {
     expect(mocks.applyOnboarding).toHaveBeenCalledTimes(1)
     expect(mocks.draftState.reset).not.toHaveBeenCalled()
     expect(mocks.queryClient.setQueryData).not.toHaveBeenCalled()
+    expect(mocks.captureError).toHaveBeenCalledTimes(1)
+  })
+
+  it('does nothing when the account has already completed onboarding', async () => {
+    mocks.profile.hasCompletedOnboarding = true
+
+    await renderFlush()
+
+    expect(mocks.applyOnboarding).not.toHaveBeenCalled()
+    expect(mocks.draftState.reset).not.toHaveBeenCalled()
   })
 
   it('does nothing when there are no pending answers', async () => {

@@ -13,6 +13,7 @@ interface EmailStepProps {
   onSendCode: () => void
   onSignInWithGoogle: () => void
   t: ReturnType<typeof useTranslations>
+  sendCodeLabel?: string
 }
 
 export function EmailStep({
@@ -24,6 +25,7 @@ export function EmailStep({
   onSendCode,
   onSignInWithGoogle,
   t,
+  sendCodeLabel,
 }: Readonly<EmailStepProps>) {
   return (
     <div
@@ -57,7 +59,7 @@ export function EmailStep({
           leading={isSubmitting ? <Spinner /> : undefined}
           dataTestId="auth-send-code"
         >
-          {t('auth.sendCode')}
+          {sendCodeLabel ?? t('auth.sendCode')}
         </PillButton>
       </form>
 

@@ -24,6 +24,7 @@ const { routerMock, pathnameState, actionsMock, captured } = vi.hoisted(() => {
         id: '0',
         title: input.title,
       })),
+      createHabitsBulk: vi.fn(async () => undefined),
       logHabit: vi.fn(async () => undefined),
       createGoal: vi.fn(async () => undefined),
       setWeekStartDay: vi.fn(async () => undefined),

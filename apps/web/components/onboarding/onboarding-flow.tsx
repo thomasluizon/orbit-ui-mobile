@@ -17,6 +17,7 @@ import {
 import {
   useOnboardingActions,
   useOnboardingHasProAccess,
+  useOnboardingIsLive,
 } from './onboarding-actions-context'
 import { GradientTop } from '@/components/ui/gradient-top'
 import { PillButton } from '@/components/ui/pill-button'
@@ -37,7 +38,7 @@ export function OnboardingFlow() {
   const router = useRouter()
   const actions = useOnboardingActions()
   const hasProAccess = useOnboardingHasProAccess()
-  const isPreAuth = actions.onImport === undefined
+  const isLive = useOnboardingIsLive()
 
   const [sharedStep, setSharedStep] = useState(0)
   const [astraStepShown, setAstraStepShown] = useState(false)
@@ -142,7 +143,7 @@ export function OnboardingFlow() {
           <OnboardingWelcome
             key="welcome"
             hasProAccess={hasProAccess}
-            onHaveAccount={isPreAuth ? () => router.push('/login') : undefined}
+            onHaveAccount={!isLive ? () => router.push('/login') : undefined}
           />
         )
       case 1:
@@ -182,7 +183,7 @@ export function OnboardingFlow() {
             createdHabit={createdHabitTitle}
             createdGoal={createdGoal}
             hasProAccess={hasProAccess}
-            finishLabel={isPreAuth ? t('onboarding.flow.saveYourPlan.cta') : undefined}
+            finishLabel={!isLive ? t('onboarding.flow.saveYourPlan.cta') : undefined}
             onFinish={handleFinish}
           />
         )

@@ -51,13 +51,5 @@ export function useOnboardingDraftHydrated(): boolean {
 
 /** Reactive selector: true when the draft store holds unflushed pre-auth onboarding answers. */
 export function useOnboardingHasPendingAnswers(): boolean {
-  return useOnboardingDraftStore(
-    (state) =>
-      state.onboardingLocallyDone ||
-      state.habits.length > 0 ||
-      state.goal !== null ||
-      state.firstLog !== null ||
-      state.weekStartDay !== null ||
-      state.colorScheme !== null,
-  )
+  return useOnboardingDraftStore((state) => state.hasPendingAnswers())
 }

@@ -7,12 +7,12 @@ import { useTranslations } from 'next-intl'
 import { formatAPIDate } from '@orbit/shared/utils'
 import { profileKeys } from '@orbit/shared/query'
 import { CHAT_DRAFT_STORAGE_KEY } from '@orbit/shared/hooks'
-import type { CreateHabitRequest } from '@orbit/shared/types/habit'
+import type { BulkHabitItem, CreateHabitRequest } from '@orbit/shared/types/habit'
 import type { CreateGoalRequest } from '@orbit/shared/types/goal'
 import type { Profile } from '@orbit/shared/types/profile'
 import type { OnboardingWeekStartDay } from '@orbit/shared/stores'
 import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
-import { useCreateHabit, useLogHabit } from '@/hooks/use-habits'
+import { useBulkCreateHabits, useCreateHabit, useLogHabit } from '@/hooks/use-habits'
 import { useCreateGoal } from '@/hooks/use-goals'
 import {
   completeOnboarding,
@@ -23,6 +23,7 @@ import {
 /** Canonical mode-blind action surface consumed by every onboarding step. */
 export interface OnboardingActions {
   createHabit: (input: CreateHabitRequest) => Promise<{ id: string; title: string }>
+  createHabitsBulk: (items: BulkHabitItem[]) => Promise<void>
   logHabit: (habitId: string) => Promise<void>
   createGoal: (input: CreateGoalRequest) => Promise<void>
   setWeekStartDay: (day: OnboardingWeekStartDay) => Promise<void>
@@ -95,6 +96,20 @@ export function useBufferOnboardingActions(): OnboardingActions {
         const index = useOnboardingDraftStore.getState().bufferHabit(input)
         return { id: String(index), title: input.title }
       },
+      createHabitsBulk: async (items) => {
+        const store = useOnboardingDraftStore.getState()
+        for (const item of items) {
+          store.bufferHabit({
+            title: item.title,
+            ...(item.emoji != null ? { emoji: item.emoji } : {}),
+            ...(item.frequencyUnit != null ? { frequencyUnit: item.frequencyUnit } : {}),
+            ...(item.frequencyQuantity != null
+              ? { frequencyQuantity: item.frequencyQuantity }
+              : {}),
+            ...(item.isGeneral != null ? { isGeneral: item.isGeneral } : {}),
+          })
+        }
+      },
       logHabit: async (habitId) => {
         useOnboardingDraftStore
           .getState()
@@ -124,6 +139,7 @@ export function useLiveOnboardingActions(): OnboardingActions {
   const queryClient = useQueryClient()
   const t = useTranslations()
   const createHabit = useCreateHabit()
+  const bulkCreateHabits = useBulkCreateHabits()
   const logHabit = useLogHabit()
   const createGoal = useCreateGoal()
 
@@ -132,6 +148,9 @@ export function useLiveOnboardingActions(): OnboardingActions {
       createHabit: async (input) => {
         const result = await createHabit.mutateAsync(input)
         return { id: result.id, title: input.title }
+      },
+      createHabitsBulk: async (items) => {
+        await bulkCreateHabits.mutateAsync({ habits: items })
       },
       logHabit: async (habitId) => {
         await logHabit.mutateAsync({ habitId })
@@ -173,6 +192,6 @@ export function useLiveOnboardingActions(): OnboardingActions {
         router.push('/chat')
       },
     }),
-    [createHabit, logHabit, createGoal, queryClient, router, t],
+    [bulkCreateHabits, createHabit, logHabit, createGoal, queryClient, router, t],
   )
 }

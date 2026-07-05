@@ -6,6 +6,7 @@ import { useTranslation } from 'react-i18next'
 import { API } from '@orbit/shared/api'
 import { CHAT_DRAFT_STORAGE_KEY } from '@orbit/shared/hooks'
 import { useProfile } from '@/hooks/use-profile'
+import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
 import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
 import { BottomSheetModal } from '@/components/bottom-sheet-modal'
 import { PillButton } from '@/components/ui/pill-button'
@@ -30,6 +31,9 @@ export function AstraImportPrompt() {
   )
   const styles = useMemo(() => createStyles(tokens), [tokens])
   const [dismissed, setDismissed] = useState(false)
+  const pendingOnboardingAnswers = useOnboardingDraftStore((s) =>
+    s.hasPendingAnswers(),
+  )
 
   const calendarPromptWouldShow = Boolean(
     profile?.hasCompletedOnboarding &&
@@ -41,6 +45,7 @@ export function AstraImportPrompt() {
     profile?.hasCompletedOnboarding &&
       !profile?.hasSeenImportPrompt &&
       !calendarPromptWouldShow &&
+      !pendingOnboardingAnswers &&
       !pathname.startsWith('/chat') &&
       pathname !== '/calendar-sync' &&
       !dismissed,

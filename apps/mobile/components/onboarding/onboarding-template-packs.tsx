@@ -69,17 +69,7 @@ export function OnboardingTemplatePacks({
     const items = buildBulkItemsFromPack(selectedPack, disabledKeys, translate)
     setIsCreating(true)
     try {
-      for (const item of items) {
-        await actions.createHabit({
-          title: item.title,
-          ...(item.frequencyQuantity != null
-            ? { frequencyQuantity: item.frequencyQuantity }
-            : {}),
-          ...(item.frequencyUnit ? { frequencyUnit: item.frequencyUnit } : {}),
-          ...(item.emoji ? { emoji: item.emoji } : {}),
-          isGeneral: false,
-        })
-      }
+      await actions.createHabitsBulk(items)
       onCreated()
     } catch (error: unknown) {
       setIsCreating(false)

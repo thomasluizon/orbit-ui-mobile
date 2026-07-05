@@ -1,5 +1,6 @@
 import type { HabitsFilter } from "../types/habit";
 import { formatAPIDate } from "../utils/dates";
+import { isRecord } from "../utils/is-record";
 import {
   activateNextCelebration,
   clearCelebrationKind,
@@ -34,10 +35,6 @@ type UIStoreGet = () => UIStoreState;
 
 export type HabitFrequencyFilter = "Day" | "Week" | "Month" | "Year" | "none";
 export type ActiveView = "today" | "all" | "general" | "goals";
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === "object";
-}
 
 function isHabitFrequencyFilter(value: unknown): value is HabitFrequencyFilter {
   return (
