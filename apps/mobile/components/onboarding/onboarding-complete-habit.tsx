@@ -1,7 +1,7 @@
 import { useMemo, useState, useCallback, useRef } from 'react'
 import { Animated, StyleSheet, Text, View } from 'react-native'
 import { useTranslation } from 'react-i18next'
-import { useLogHabit } from '@/hooks/use-habits'
+import { useOnboardingActions } from './onboarding-actions-context'
 import { StatusDot } from '@/components/ui/status-dot'
 import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -35,7 +35,7 @@ export function OnboardingCompleteHabit({
   const streakOpacity = useMemo(() => new Animated.Value(0), [])
   const streakSlide = useMemo(() => new Animated.Value(20), [])
 
-  const logHabit = useLogHabit()
+  const actions = useOnboardingActions()
 
   const handleComplete = useCallback(() => {
     if (!habitId || isCompleted || isAnimating.current) return
@@ -43,7 +43,7 @@ export function OnboardingCompleteHabit({
     isAnimating.current = true
     setIsCompleted(true)
 
-    logHabit.mutate({ habitId })
+    void actions.logHabit(habitId)
 
     setTimeout(() => {
       setShowStreak(true)
@@ -67,7 +67,7 @@ export function OnboardingCompleteHabit({
   }, [
     habitId,
     isCompleted,
-    logHabit,
+    actions,
     onCompleted,
     streakOpacity,
     streakSlide,

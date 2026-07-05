@@ -30,6 +30,8 @@ export default function LoginScreen() {
     isGoogleLoading,
     successMessage,
     showReferralBanner,
+    fromOnboarding,
+    plannedHabitCount,
     isOnline,
     isCodeStep,
     isAndroidKeyboardOpen,
@@ -87,7 +89,13 @@ export default function LoginScreen() {
             },
           ]}
         >
-          <LoginHeader step={step} t={t} styles={styles} />
+          <LoginHeader
+            step={step}
+            t={t}
+            styles={styles}
+            fromOnboarding={fromOnboarding}
+            plannedHabitCount={plannedHabitCount}
+          />
 
           {successMessage && (
             <LoginSuccessMessage message={successMessage} styles={styles} />
@@ -116,6 +124,11 @@ export default function LoginScreen() {
               tokens={tokens}
               styles={styles}
               t={t}
+              sendCodeLabel={
+                fromOnboarding
+                  ? t('onboarding.flow.saveYourPlan.cta')
+                  : undefined
+              }
             />
           ) : (
             <CodeStep

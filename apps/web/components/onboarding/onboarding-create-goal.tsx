@@ -4,7 +4,7 @@ import { useState, useMemo, useCallback } from 'react'
 import { Loader2, Check } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useAppToast } from '@/hooks/use-app-toast'
-import { useCreateGoal } from '@/hooks/use-goals'
+import { useOnboardingActions } from './onboarding-actions-context'
 import {
   getFriendlyErrorMessage,
   ONBOARDING_GOAL_SUGGESTIONS,
@@ -46,10 +46,9 @@ export function OnboardingCreateGoal({
   const [unit, setUnit] = useState('')
   const [isCreated, setIsCreated] = useState(false)
   const [selectedSuggestion, setSelectedSuggestion] = useState<string | null>(null)
+  const [isCreating, setIsCreating] = useState(false)
   const { showError } = useAppToast()
-
-  const createGoal = useCreateGoal()
-  const isCreating = createGoal.isPending
+  const actions = useOnboardingActions()
 
   const suggestions = useMemo<GoalSuggestion[]>(
     () =>
@@ -88,29 +87,25 @@ export function OnboardingCreateGoal({
     if (parsedTargetValue === null) return
 
     const title = description.trim() || `${parsedTargetValue} ${unit.trim()}`
-    createGoal.mutate(
-      {
+    setIsCreating(true)
+    try {
+      await actions.createGoal({
         title,
         targetValue: parsedTargetValue,
         unit: unit.trim(),
-      },
-      {
-        onSuccess: () => {
-          setIsCreated(true)
-          setTimeout(() => {
-            onCreated()
-          }, 1500)
-        },
-        onError: (err: unknown) => {
-          showError(
-            getFriendlyErrorMessage(err, translate, 'goals.errors.create', 'goal'),
-          )
-        },
-      },
-    )
+      })
+      setIsCreated(true)
+      setTimeout(() => {
+        onCreated()
+      }, 1500)
+    } catch (err: unknown) {
+      showError(getFriendlyErrorMessage(err, translate, 'goals.errors.create', 'goal'))
+    } finally {
+      setIsCreating(false)
+    }
   }, [
     canCreate,
-    createGoal,
+    actions,
     description,
     isCreating,
     onCreated,

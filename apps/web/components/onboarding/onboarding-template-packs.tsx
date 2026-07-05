@@ -4,7 +4,6 @@ import { useCallback, useState } from 'react'
 import { Check, ChevronRight, Loader2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import {
-  buildBulkItemsFromPack,
   getFriendlyErrorMessage,
   getTemplatePackById,
   TEMPLATE_PACKS,
@@ -12,7 +11,8 @@ import {
   templatePackHabitTitleKey,
   templatePackNameKey,
 } from '@orbit/shared/utils'
-import { useBulkCreateHabits } from '@/hooks/use-habits'
+import type { CreateHabitRequest } from '@orbit/shared/types/habit'
+import { useOnboardingActions } from './onboarding-actions-context'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { PillButton } from '@/components/ui/pill-button'
 import { QuietLink } from '@/components/ui/quiet-link'
@@ -34,12 +34,12 @@ export function OnboardingTemplatePacks({
     [t],
   )
   const { showError } = useAppToast()
-  const bulkCreate = useBulkCreateHabits()
+  const actions = useOnboardingActions()
   const [selectedPackId, setSelectedPackId] = useState<string | null>(null)
   const [disabledKeys, setDisabledKeys] = useState<ReadonlySet<string>>(new Set())
+  const [isCreating, setIsCreating] = useState(false)
 
   const selectedPack = selectedPackId ? getTemplatePackById(selectedPackId) : undefined
-  const isCreating = bulkCreate.isPending
 
   const toggleHabit = useCallback((key: string) => {
     setDisabledKeys((previous) => {
@@ -54,20 +54,29 @@ export function OnboardingTemplatePacks({
     ? selectedPack.habits.filter((habit) => !disabledKeys.has(habit.key)).length
     : 0
 
-  const handleAdd = useCallback(() => {
+  const handleAdd = useCallback(async () => {
     if (!selectedPack || enabledCount === 0 || isCreating) return
-    const items = buildBulkItemsFromPack(selectedPack, disabledKeys, translate)
-    bulkCreate.mutate(
-      { habits: items },
-      {
-        onSuccess: () => onCreated(),
-        onError: (error: unknown) =>
-          showError(
-            getFriendlyErrorMessage(error, translate, 'errors.createHabit', 'habit'),
-          ),
-      },
-    )
-  }, [selectedPack, enabledCount, isCreating, disabledKeys, translate, bulkCreate, onCreated, showError])
+    const items: CreateHabitRequest[] = selectedPack.habits
+      .filter((habit) => !disabledKeys.has(habit.key))
+      .map((habit) => ({
+        title: translate(templatePackHabitTitleKey(selectedPack.id, habit.key)),
+        emoji: habit.emoji,
+        frequencyUnit: habit.frequencyUnit,
+        frequencyQuantity: habit.frequencyQuantity,
+        isGeneral: false,
+      }))
+    setIsCreating(true)
+    try {
+      for (const item of items) {
+        await actions.createHabit(item)
+      }
+      onCreated()
+    } catch (error: unknown) {
+      showError(getFriendlyErrorMessage(error, translate, 'errors.createHabit', 'habit'))
+    } finally {
+      setIsCreating(false)
+    }
+  }, [selectedPack, enabledCount, isCreating, disabledKeys, translate, actions, onCreated, showError])
 
   if (!selectedPack) {
     return (

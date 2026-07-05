@@ -18,7 +18,7 @@ async function fetchProfile(): Promise<Profile> {
   return apiClient<Profile>(API.profile.get)
 }
 
-export function useProfile() {
+export function useProfile(options?: { enabled?: boolean }) {
   const queryClient = useQueryClient()
   const { i18n } = useTranslation()
   const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
@@ -26,7 +26,7 @@ export function useProfile() {
   const query = useQuery({
     queryKey: profileKeys.detail(),
     queryFn: fetchProfile,
-    enabled: isAuthenticated,
+    enabled: isAuthenticated && (options?.enabled ?? true),
     staleTime: QUERY_STALE_TIMES.profile,
     gcTime: 24 * 60 * 60 * 1000,
   })

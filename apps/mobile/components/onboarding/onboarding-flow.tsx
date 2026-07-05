@@ -3,7 +3,6 @@ import { Animated, Modal, Pressable, Text, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { usePathname, useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
-import { useQueryClient } from '@tanstack/react-query'
 import {
   getOnboardingDisplayStep,
   getOnboardingDisplayTotal,
@@ -14,13 +13,11 @@ import {
   ONBOARDING_CREATE_HABIT_STEP,
   shouldHideOnboardingFooter,
 } from '@orbit/shared/utils/onboarding'
-import { profileKeys } from '@orbit/shared/query'
-import { API } from '@orbit/shared/api'
-import type { Profile } from '@orbit/shared/types/profile'
-import { useHasProAccess } from '@/hooks/use-profile'
-import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
-import AsyncStorage from '@react-native-async-storage/async-storage'
-import { CHAT_DRAFT_STORAGE_KEY } from '@orbit/shared/hooks'
+import { useAuthStore } from '@/stores/auth-store'
+import {
+  useOnboardingActions,
+  useOnboardingHasProAccess,
+} from './onboarding-actions-context'
 import { OnboardingWelcome } from './onboarding-welcome'
 import { OnboardingMeetAstra } from './onboarding-meet-astra'
 import { OnboardingCreateHabit } from './onboarding-create-habit'
@@ -96,7 +93,7 @@ interface OnboardingStepContentProps {
   onPackCreateOwn: () => void
   onAdvancePastHabits: () => void
   onFinish: () => void
-  onImport: () => void
+  onImport?: () => void
 }
 
 function OnboardingStepContent({
@@ -178,6 +175,7 @@ interface OnboardingFooterProps {
   isStarter: boolean
   onNext: () => void
   onPrev: () => void
+  onHaveAccount?: () => void
 }
 
 function OnboardingFooter({
@@ -191,6 +189,7 @@ function OnboardingFooter({
   isStarter,
   onNext,
   onPrev,
+  onHaveAccount,
 }: Readonly<OnboardingFooterProps>) {
   const { t } = useTranslation()
   return (
@@ -235,6 +234,22 @@ function OnboardingFooter({
         </View>
         <View style={styles.footerSide} />
       </View>
+
+      {onHaveAccount && (
+        <Pressable
+          onPress={onHaveAccount}
+          hitSlop={8}
+          style={({ pressed }) => [
+            styles.haveAccountButton,
+            pressed && styles.textButtonPressed,
+          ]}
+          accessibilityRole="button"
+        >
+          <Text style={styles.haveAccountText}>
+            {t('onboarding.flow.saveYourPlan.haveAccount')}
+          </Text>
+        </Pressable>
+      )}
     </View>
   )
 }
@@ -244,8 +259,9 @@ export function OnboardingFlow() {
   const router = useRouter()
   const pathname = usePathname()
   const insets = useSafeAreaInsets()
-  const queryClient = useQueryClient()
-  const hasProAccess = useHasProAccess()
+  const actions = useOnboardingActions()
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
+  const hasProAccess = useOnboardingHasProAccess()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
     () => createTokensV2(currentScheme, currentTheme),
@@ -351,30 +367,12 @@ export function OnboardingFlow() {
     setSharedStep(ONBOARDING_CREATE_HABIT_STEP)
   }
 
-  async function handleFinish() {
-    try {
-      await performQueuedApiMutation({
-        type: 'completeOnboarding',
-        scope: 'profile',
-        endpoint: API.profile.onboarding,
-        method: 'PUT',
-        payload: undefined,
-        dedupeKey: 'profile-onboarding-complete',
-      })
-    } catch {
-    }
-    queryClient.setQueryData<Profile>(profileKeys.detail(), (old) =>
-      old ? { ...old, hasCompletedOnboarding: true } : old,
-    )
-    router.replace('/')
+  function handleFinish() {
+    void actions.finishOnboarding()
   }
 
-  async function handleImport() {
-    await AsyncStorage.setItem(
-      CHAT_DRAFT_STORAGE_KEY,
-      t('onboarding.flow.meetAstra.importPrompt'),
-    )
-    router.replace('/chat')
+  function handleHaveAccount() {
+    router.replace('/login')
   }
 
   function handleSkip() {
@@ -463,7 +461,7 @@ export function OnboardingFlow() {
               onPackCreateOwn={handleCreateOwnInstead}
               onAdvancePastHabits={advancePastHabitSteps}
               onFinish={handleFinish}
-              onImport={handleImport}
+              onImport={actions.onImport}
             />
           </Animated.View>
         </KeyboardAwareScrollView>
@@ -480,6 +478,9 @@ export function OnboardingFlow() {
             isStarter={isStarter}
             onNext={goNext}
             onPrev={goPrev}
+            onHaveAccount={
+              isStarter && !isAuthenticated ? handleHaveAccount : undefined
+            }
           />
         )}
       </View>

@@ -1,5 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import { render, screen, fireEvent } from '@testing-library/react'
+import {
+  OnboardingActionsProvider,
+  type OnboardingActions,
+} from '@/components/onboarding/onboarding-actions-context'
 
 const mocks = vi.hoisted(() => ({ routerPush: vi.fn() }))
 
@@ -12,22 +16,6 @@ vi.mock('next-intl', () => ({
 
 vi.mock('next/navigation', () => ({
   useRouter: () => ({ push: mocks.routerPush }),
-}))
-
-vi.mock('@tanstack/react-query', () => ({
-  useQueryClient: () => ({ setQueryData: vi.fn() }),
-}))
-
-vi.mock('@orbit/shared/query', () => ({
-  profileKeys: { detail: () => ['profile'] },
-}))
-
-vi.mock('@/hooks/use-profile', () => ({
-  useHasProAccess: () => true,
-}))
-
-vi.mock('@/app/actions/profile', () => ({
-  completeOnboarding: vi.fn().mockResolvedValue({}),
 }))
 
 vi.mock('@/components/onboarding/onboarding-welcome', () => ({
@@ -95,68 +83,74 @@ vi.mock('@/components/onboarding/onboarding-complete', () => ({
   ),
 }))
 
-import { completeOnboarding } from '@/app/actions/profile'
 import { OnboardingFlow } from '@/components/onboarding/onboarding-flow'
+
+const onImport = vi.fn()
+const finishOnboarding = vi.fn().mockResolvedValue(undefined)
+
+const liveActions: OnboardingActions = {
+  createHabit: vi.fn().mockResolvedValue({ id: 'h1', title: 'Test Habit' }),
+  logHabit: vi.fn().mockResolvedValue(undefined),
+  createGoal: vi.fn().mockResolvedValue(undefined),
+  setWeekStartDay: vi.fn().mockResolvedValue(undefined),
+  setColorScheme: vi.fn().mockResolvedValue(undefined),
+  finishOnboarding,
+  onImport,
+}
+
+function renderFlow() {
+  return render(
+    <OnboardingActionsProvider actions={liveActions} hasProAccess isLive>
+      <OnboardingFlow />
+    </OnboardingActionsProvider>,
+  )
+}
 
 describe('OnboardingFlow', () => {
   beforeEach(() => {
     document.body.innerHTML = ''
     mocks.routerPush.mockClear()
-    vi.mocked(completeOnboarding).mockClear()
+    onImport.mockClear()
+    finishOnboarding.mockClear()
     globalThis.localStorage.clear()
   })
 
   it('renders the first step (welcome)', () => {
-    render(<OnboardingFlow />)
+    renderFlow()
     expect(screen.getByTestId('step-welcome')).toBeInTheDocument()
   })
 
   it('shows step counter', () => {
-    render(<OnboardingFlow />)
+    renderFlow()
     expect(document.body.textContent).toContain('onboarding.flow.step')
   })
 
   it('shows skip button', () => {
-    render(<OnboardingFlow />)
+    renderFlow()
     expect(screen.getByText('onboarding.flow.skip')).toBeInTheDocument()
   })
 
   it('shows the begin label on the welcome step', () => {
-    render(<OnboardingFlow />)
+    renderFlow()
     expect(screen.getByText('onboarding.flow.begin')).toBeInTheDocument()
   })
 
   it('advances to the meet-astra interstitial first', () => {
-    render(<OnboardingFlow />)
+    renderFlow()
     fireEvent.click(screen.getByText('onboarding.flow.begin'))
     expect(screen.getByTestId('step-meet-astra')).toBeInTheDocument()
   })
 
-  it('imports from another app: routes into Astra without completing onboarding', async () => {
-    render(<OnboardingFlow />)
+  it('delegates import to the action surface without finishing onboarding', () => {
+    renderFlow()
     fireEvent.click(screen.getByText('onboarding.flow.begin'))
     fireEvent.click(screen.getByText('onboarding.flow.meetAstra.import'))
-    await waitFor(() => expect(mocks.routerPush).toHaveBeenCalledWith('/chat'))
-    expect(globalThis.localStorage.getItem('orbit-chat-draft')).toBe(
-      'onboarding.flow.meetAstra.importPrompt',
-    )
-    expect(completeOnboarding).not.toHaveBeenCalled()
-  })
-
-  it('resumes onboarding when the user returns to the app after the import handoff', async () => {
-    const handoff = render(<OnboardingFlow />)
-    fireEvent.click(screen.getByText('onboarding.flow.begin'))
-    fireEvent.click(screen.getByText('onboarding.flow.meetAstra.import'))
-    await waitFor(() => expect(mocks.routerPush).toHaveBeenCalledWith('/chat'))
-    handoff.unmount()
-    document.body.innerHTML = ''
-
-    render(<OnboardingFlow />)
-    expect(screen.getByTestId('step-welcome')).toBeInTheDocument()
+    expect(onImport).toHaveBeenCalledTimes(1)
+    expect(finishOnboarding).not.toHaveBeenCalled()
   })
 
   it('advances through the create-my-own branch via interactions', () => {
-    render(<OnboardingFlow />)
+    renderFlow()
     fireEvent.click(screen.getByText('onboarding.flow.begin'))
     expect(screen.getByTestId('step-meet-astra')).toBeInTheDocument()
 
@@ -174,7 +168,7 @@ describe('OnboardingFlow', () => {
   })
 
   it('jumps past the manual habit steps after a pack is created', () => {
-    render(<OnboardingFlow />)
+    renderFlow()
     fireEvent.click(screen.getByText('onboarding.flow.begin'))
     fireEvent.click(screen.getByText('onboarding.flow.next'))
     expect(screen.getByTestId('step-template-packs')).toBeInTheDocument()
@@ -183,20 +177,27 @@ describe('OnboardingFlow', () => {
     expect(screen.getByTestId('step-create-goal')).toBeInTheDocument()
   })
 
+  it('finishes onboarding through the action surface', () => {
+    renderFlow()
+    fireEvent.click(screen.getByText('onboarding.flow.skip'))
+    fireEvent.click(screen.getByText('Finish'))
+    expect(finishOnboarding).toHaveBeenCalledTimes(1)
+  })
+
   it('skips to final step when skip is clicked', () => {
-    render(<OnboardingFlow />)
+    renderFlow()
     fireEvent.click(screen.getByText('onboarding.flow.skip'))
     expect(screen.getByTestId('step-complete')).toBeInTheDocument()
   })
 
   it('renders progress bar', () => {
-    render(<OnboardingFlow />)
+    renderFlow()
     const progress = document.querySelector('progress')
     expect(progress).toBeInTheDocument()
   })
 
   it('renders the onboarding as a fullscreen portal dialog container', () => {
-    render(<OnboardingFlow />)
+    renderFlow()
     const dialog = screen.getByRole('dialog')
     expect(dialog.tagName).toBe('DIV')
     expect(dialog).toHaveClass('fixed', 'inset-0')

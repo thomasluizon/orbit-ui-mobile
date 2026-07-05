@@ -10,7 +10,7 @@ import {
 import { Check } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import { useAppToast } from '@/hooks/use-app-toast'
-import { useCreateGoal } from '@/hooks/use-goals'
+import { useOnboardingActions } from './onboarding-actions-context'
 import { FieldInput } from '@/components/ui/field-input'
 import { Chip } from '@/components/ui/chip'
 import { PillButton } from '@/components/ui/pill-button'
@@ -65,6 +65,7 @@ export function OnboardingCreateGoal({
   const [selectedSuggestion, setSelectedSuggestion] = useState<string | null>(
     null,
   )
+  const [isCreating, setIsCreating] = useState(false)
   const { showError } = useAppToast()
   const prefersReducedMotion = usePrefersReducedMotion()
   const successScale = useMemo(() => new Animated.Value(0), [])
@@ -86,8 +87,7 @@ export function OnboardingCreateGoal({
     return () => animation.stop()
   }, [isCreated, prefersReducedMotion, successScale])
 
-  const createGoal = useCreateGoal()
-  const isCreating = createGoal.isPending
+  const actions = useOnboardingActions()
 
   const suggestions = useMemo<GoalSuggestion[]>(
     () =>
@@ -111,7 +111,7 @@ export function OnboardingCreateGoal({
   const canCreate =
     !!parsedTargetValue && parsedTargetValue > 0 && unit.trim().length > 0
 
-  const handleCreate = useCallback(() => {
+  const handleCreate = useCallback(async () => {
     if (!canCreate || isCreating) return
 
     const validationError = translateErrorKey(
@@ -126,29 +126,26 @@ export function OnboardingCreateGoal({
     if (parsedTargetValue === null) return
 
     const title = description.trim() || `${parsedTargetValue} ${unit.trim()}`
-    createGoal.mutate(
-      {
+    setIsCreating(true)
+    try {
+      await actions.createGoal({
         title,
         targetValue: parsedTargetValue,
         unit: unit.trim(),
-      },
-      {
-        onSuccess: () => {
-          setIsCreated(true)
-          setTimeout(() => {
-            onCreated()
-          }, 1500)
-        },
-        onError: (err: unknown) => {
-          showError(
-            getFriendlyErrorMessage(err, translate, 'goals.errors.create', 'goal'),
-          )
-        },
-      },
-    )
+      })
+      setIsCreated(true)
+      setTimeout(() => {
+        onCreated()
+      }, 1500)
+    } catch (err: unknown) {
+      setIsCreating(false)
+      showError(
+        getFriendlyErrorMessage(err, translate, 'goals.errors.create', 'goal'),
+      )
+    }
   }, [
     canCreate,
-    createGoal,
+    actions,
     description,
     isCreating,
     onCreated,

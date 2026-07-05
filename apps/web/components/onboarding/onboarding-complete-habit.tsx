@@ -2,7 +2,7 @@
 
 import { useState, useCallback, useRef } from 'react'
 import { useTranslations } from 'next-intl'
-import { useLogHabit } from '@/hooks/use-habits'
+import { useOnboardingActions } from './onboarding-actions-context'
 import { StatusDot } from '@/components/ui/status-dot'
 
 interface OnboardingCompleteHabitProps {
@@ -20,19 +20,19 @@ export function OnboardingCompleteHabit({
   const [isCompleted, setIsCompleted] = useState(false)
   const isAnimating = useRef(false)
 
-  const logHabit = useLogHabit()
+  const actions = useOnboardingActions()
 
   const handleComplete = useCallback(() => {
     if (!habitId || isCompleted || isAnimating.current) return
 
     isAnimating.current = true
     setIsCompleted(true)
-    logHabit.mutate({ habitId })
+    void actions.logHabit(habitId)
 
     setTimeout(() => {
       onCompleted()
     }, 1500)
-  }, [habitId, isCompleted, logHabit, onCompleted])
+  }, [habitId, isCompleted, actions, onCompleted])
 
   return (
     <div

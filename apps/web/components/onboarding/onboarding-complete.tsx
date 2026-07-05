@@ -4,7 +4,8 @@ import { useMemo } from 'react'
 import { parseISO } from 'date-fns'
 import { Check } from 'lucide-react'
 import { useTranslations } from 'next-intl'
-import { useProfile, useHasProAccess } from '@/hooks/use-profile'
+import { useProfile } from '@/hooks/use-profile'
+import { useOnboardingIsLive } from '@/components/onboarding/onboarding-actions-context'
 import { useDateFormat } from '@/hooks/use-date-format'
 import { InfoCard } from '@/components/ui/info-card'
 import { PillButton } from '@/components/ui/pill-button'
@@ -13,18 +14,22 @@ import { VerifiedBadge } from '@/components/ui/verified-badge'
 interface OnboardingCompleteProps {
   createdHabit: string
   createdGoal: boolean
+  hasProAccess: boolean
+  finishLabel?: string
   onFinish: () => void
 }
 
 export function OnboardingComplete({
   createdHabit,
   createdGoal,
+  hasProAccess,
+  finishLabel,
   onFinish,
 }: Readonly<OnboardingCompleteProps>) {
   const t = useTranslations()
   const { displayDate } = useDateFormat()
-  const { profile } = useProfile()
-  const hasProAccess = useHasProAccess()
+  const isLive = useOnboardingIsLive()
+  const { profile } = useProfile({ enabled: isLive })
 
   const trialEndsAt = profile?.trialEndsAt
   const formattedTrialEnd = useMemo(() => {
@@ -148,7 +153,7 @@ export function OnboardingComplete({
         }}
       >
         <PillButton fullWidth onClick={onFinish}>
-          {t('onboarding.flow.complete.start')}
+          {finishLabel ?? t('onboarding.flow.complete.start')}
         </PillButton>
       </div>
     </div>

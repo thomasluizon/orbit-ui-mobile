@@ -4,7 +4,6 @@ import { useState, useMemo, useCallback, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
 import { useRouter } from 'next/navigation'
 import { useTranslations } from 'next-intl'
-import { useQueryClient } from '@tanstack/react-query'
 import {
   getOnboardingDisplayStep,
   getOnboardingDisplayTotal,
@@ -15,11 +14,10 @@ import {
   ONBOARDING_CREATE_HABIT_STEP,
   shouldHideOnboardingFooter,
 } from '@orbit/shared/utils'
-import { profileKeys } from '@orbit/shared/query'
-import { CHAT_DRAFT_STORAGE_KEY } from '@orbit/shared/hooks'
-import type { Profile } from '@orbit/shared/types/profile'
-import { useHasProAccess } from '@/hooks/use-profile'
-import { completeOnboarding } from '@/app/actions/profile'
+import {
+  useOnboardingActions,
+  useOnboardingHasProAccess,
+} from './onboarding-actions-context'
 import { GradientTop } from '@/components/ui/gradient-top'
 import { PillButton } from '@/components/ui/pill-button'
 import { QuietLink } from '@/components/ui/quiet-link'
@@ -37,8 +35,9 @@ const WEB_ASTRA_OFFSET = 1
 export function OnboardingFlow() {
   const t = useTranslations()
   const router = useRouter()
-  const queryClient = useQueryClient()
-  const hasProAccess = useHasProAccess()
+  const actions = useOnboardingActions()
+  const hasProAccess = useOnboardingHasProAccess()
+  const isPreAuth = actions.onImport === undefined
 
   const [sharedStep, setSharedStep] = useState(0)
   const [astraStepShown, setAstraStepShown] = useState(false)
@@ -123,25 +122,8 @@ export function OnboardingFlow() {
     setSharedStep(ONBOARDING_CREATE_HABIT_STEP)
   }
 
-  async function handleFinish() {
-    try {
-      await completeOnboarding()
-    } catch {
-    }
-    queryClient.setQueryData<Profile>(profileKeys.detail(), (old) =>
-      old ? { ...old, hasCompletedOnboarding: true } : old,
-    )
-    router.push('/')
-  }
-
-  function handleImport() {
-    if (typeof globalThis !== 'undefined' && typeof globalThis.localStorage !== 'undefined') {
-      globalThis.localStorage.setItem(
-        CHAT_DRAFT_STORAGE_KEY,
-        t('onboarding.flow.meetAstra.importPrompt'),
-      )
-    }
-    router.push('/chat')
+  function handleFinish() {
+    void actions.finishOnboarding()
   }
 
   function handleSkip() {
@@ -153,10 +135,16 @@ export function OnboardingFlow() {
   const hideFooter = !viewingAstra && shouldHideOnboardingFooter(sharedStep)
 
   const stepContent = (() => {
-    if (viewingAstra) return <OnboardingMeetAstra key="meet-astra" onImport={handleImport} />
+    if (viewingAstra) return <OnboardingMeetAstra key="meet-astra" onImport={actions.onImport} />
     switch (sharedStep) {
       case 0:
-        return <OnboardingWelcome key="welcome" />
+        return (
+          <OnboardingWelcome
+            key="welcome"
+            hasProAccess={hasProAccess}
+            onHaveAccount={isPreAuth ? () => router.push('/login') : undefined}
+          />
+        )
       case 1:
         return (
           <OnboardingTemplatePacks
@@ -193,6 +181,8 @@ export function OnboardingFlow() {
             key="complete"
             createdHabit={createdHabitTitle}
             createdGoal={createdGoal}
+            hasProAccess={hasProAccess}
+            finishLabel={isPreAuth ? t('onboarding.flow.saveYourPlan.cta') : undefined}
             onFinish={handleFinish}
           />
         )

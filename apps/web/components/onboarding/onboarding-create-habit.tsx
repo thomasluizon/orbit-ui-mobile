@@ -4,7 +4,7 @@ import { useState, useCallback, useEffect } from 'react'
 import { Loader2, Check, Settings2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useAppToast } from '@/hooks/use-app-toast'
-import { useCreateHabit } from '@/hooks/use-habits'
+import { useOnboardingActions } from './onboarding-actions-context'
 import {
   getFriendlyErrorMessage,
   getOnboardingHabitFrequencyLabelKey,
@@ -41,7 +41,9 @@ export function OnboardingCreateHabit({ onCreated }: Readonly<OnboardingCreateHa
   const isCreated = createdInfo !== null
   const [selectedSuggestion, setSelectedSuggestion] = useState<string | null>(null)
   const [showFrequencyPicker, setShowFrequencyPicker] = useState(false)
+  const [isCreating, setIsCreating] = useState(false)
   const { showError } = useAppToast()
+  const actions = useOnboardingActions()
 
   useEffect(() => {
     if (!createdInfo) return
@@ -50,9 +52,6 @@ export function OnboardingCreateHabit({ onCreated }: Readonly<OnboardingCreateHa
     }, 1500)
     return () => clearTimeout(timer)
   }, [createdInfo, onCreated])
-
-  const createHabit = useCreateHabit()
-  const isCreating = createHabit.isPending
 
   const activeFrequency = frequencyUnit ?? 'one-time'
 
@@ -83,22 +82,20 @@ export function OnboardingCreateHabit({ onCreated }: Readonly<OnboardingCreateHa
       return
     }
 
-    createHabit.mutate(
-      {
+    setIsCreating(true)
+    try {
+      const result = await actions.createHabit({
         title: title.trim(),
         frequencyQuantity: 1,
         ...(frequencyUnit ? { frequencyUnit } : {}),
-      },
-      {
-        onSuccess: (result) => {
-          setCreatedInfo({ id: result.id, title: title.trim() })
-        },
-        onError: (err: unknown) => {
-          showError(getFriendlyErrorMessage(err, translate, 'errors.createHabit', 'habit'))
-        },
-      },
-    )
-  }, [title, frequencyUnit, isCreating, createHabit, showError, translate])
+      })
+      setCreatedInfo({ id: result.id, title: title.trim() })
+    } catch (err: unknown) {
+      showError(getFriendlyErrorMessage(err, translate, 'errors.createHabit', 'habit'))
+    } finally {
+      setIsCreating(false)
+    }
+  }, [title, frequencyUnit, isCreating, actions, showError, translate])
 
   if (isCreated) {
     return (

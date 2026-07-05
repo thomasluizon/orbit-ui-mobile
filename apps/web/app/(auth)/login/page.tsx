@@ -22,6 +22,8 @@ export default function LoginPage() {
     errorMessage,
     successMessage,
     referralCode,
+    fromOnboarding,
+    pendingHabitCount,
     isOnline,
     authStepMotion,
     feedbackMotion,
@@ -46,7 +48,12 @@ export default function LoginPage() {
         className="flex flex-col"
         style={{ padding: '40px 28px 24px', gap: 18 }}
       >
-        <LoginHeader step={step} t={t} />
+        <LoginHeader
+          step={step}
+          t={t}
+          fromOnboarding={fromOnboarding}
+          pendingHabitCount={pendingHabitCount}
+        />
 
         <LoginSuccessMessage message={successMessage} motionPreset={feedbackMotion} />
 

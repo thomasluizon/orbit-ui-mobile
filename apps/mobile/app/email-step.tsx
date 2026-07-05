@@ -21,6 +21,7 @@ interface EmailStepProps {
   tokens: AppTokensV2
   styles: LoginStyles
   t: TranslationFn
+  sendCodeLabel?: string
 }
 
 export function EmailStep({
@@ -37,6 +38,7 @@ export function EmailStep({
   tokens,
   styles,
   t,
+  sendCodeLabel,
 }: Readonly<EmailStepProps>) {
   return (
     <>
@@ -63,7 +65,7 @@ export function EmailStep({
         busy={isSubmitting}
         leading={isSubmitting ? <Spinner color={tokens.fgOnPrimary} /> : undefined}
       >
-        {t('auth.sendCode')}
+        {sendCodeLabel ?? t('auth.sendCode')}
       </PillButton>
 
       <View style={styles.divider}>

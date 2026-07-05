@@ -1,18 +1,17 @@
 import { useEffect, useMemo } from 'react'
 import { Animated, Pressable, StyleSheet, Text, View } from 'react-native'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
-import { profileKeys } from '@orbit/shared/query'
 import { colorSchemeOptions, type ColorScheme } from '@orbit/shared/theme'
 import { ONBOARDING_WEEK_START_OPTIONS } from '@orbit/shared/utils/onboarding'
+import type { OnboardingWeekStartDay } from '@orbit/shared/stores'
 import { useProfile, useHasProAccess } from '@/hooks/use-profile'
-import { API } from '@orbit/shared/api'
-import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
+import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
 import { createTokensV2, tintFromPrimary, type AppTokensV2 } from '@/lib/theme'
 import { usePrefersReducedMotion } from '@/lib/motion'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { Chip } from '@/components/ui/chip'
 import { AppLogo } from '@/components/ui/app-logo'
+import { useOnboardingActions } from './onboarding-actions-context'
 
 interface OnboardingProfileState {
   colorScheme?: string
@@ -21,14 +20,18 @@ interface OnboardingProfileState {
 
 /**
  * ob-1 Welcome step: tinted hero disc + logo, week-start chips, scheme
- * swatches. Pure visual rewrite -- preserves the week-start mutation.
+ * swatches. Writes selections through the onboarding action provider (buffered
+ * pre-auth, live post-auth) and reflects the active selection from whichever
+ * source is authoritative in the current mode.
  */
 export function OnboardingWelcome() {
   const { t } = useTranslation()
-  const queryClient = useQueryClient()
   const { profile } = useProfile()
   const hasProAccess = useHasProAccess()
-  const { currentScheme, currentTheme, applyScheme } = useAppTheme()
+  const actions = useOnboardingActions()
+  const draftWeekStartDay = useOnboardingDraftStore((s) => s.weekStartDay)
+  const draftColorScheme = useOnboardingDraftStore((s) => s.colorScheme)
+  const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
     () => createTokensV2(currentScheme, currentTheme),
     [currentScheme, currentTheme],
@@ -54,51 +57,19 @@ export function OnboardingWelcome() {
   }, [heroScale, prefersReducedMotion])
 
   const selectedScheme =
-    (profile as OnboardingProfileState | null)?.colorScheme ?? 'purple'
+    (profile as OnboardingProfileState | null)?.colorScheme ??
+    draftColorScheme ??
+    'purple'
 
-  const weekStartDayMutation = useMutation({
-    mutationFn: (day: number) =>
-      performQueuedApiMutation({
-        type: 'setWeekStartDay',
-        scope: 'profile',
-        endpoint: API.profile.weekStartDay,
-        method: 'PUT',
-        payload: { weekStartDay: day },
-        dedupeKey: 'onboarding-week-start-day',
-      }),
-    onMutate: async (newDay) => {
-      await queryClient.cancelQueries({ queryKey: profileKeys.all })
-      const prev = queryClient.getQueryData<OnboardingProfileState>(
-        profileKeys.detail(),
-      )
-      queryClient.setQueryData<OnboardingProfileState>(
-        profileKeys.detail(),
-        (old) => (old ? { ...old, weekStartDay: newDay } : old),
-      )
-      return { prev }
-    },
-    onError: (_err, _newDay, context) => {
-      if (context?.prev) {
-        queryClient.setQueryData<OnboardingProfileState>(
-          profileKeys.detail(),
-          context.prev,
-        )
-      }
-    },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: profileKeys.all })
-    },
-  })
-
-  function handleWeekStartDaySelect(day: number) {
-    weekStartDayMutation.mutate(day)
+  function handleWeekStartDaySelect(day: OnboardingWeekStartDay) {
+    void actions.setWeekStartDay(day)
   }
 
   function handleSchemeSelect(scheme: ColorScheme) {
-    applyScheme(scheme)
+    void actions.setColorScheme(scheme)
   }
 
-  const weekStartDay = profile?.weekStartDay ?? 1
+  const weekStartDay = profile?.weekStartDay ?? draftWeekStartDay ?? 1
 
   return (
     <View style={styles.container}>

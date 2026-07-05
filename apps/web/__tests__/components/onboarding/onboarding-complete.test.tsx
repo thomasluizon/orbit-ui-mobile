@@ -19,12 +19,17 @@ vi.mock('@/hooks/use-profile', () => ({
   useHasProAccess: () => false,
 }))
 
+vi.mock('@/components/onboarding/onboarding-actions-context', () => ({
+  useOnboardingIsLive: () => true,
+}))
+
 import { OnboardingComplete } from '@/components/onboarding/onboarding-complete'
 
 describe('OnboardingComplete', () => {
   const defaultProps = {
     createdHabit: 'Exercise',
     createdGoal: true,
+    hasProAccess: false,
     onFinish: vi.fn(),
   }
 

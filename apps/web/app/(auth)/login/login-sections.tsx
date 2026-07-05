@@ -12,7 +12,26 @@ type Translate = ReturnType<typeof useTranslations>
 export function LoginHeader({
   step,
   t,
-}: Readonly<{ step: LoginStep; t: Translate }>) {
+  fromOnboarding = false,
+  pendingHabitCount = 0,
+}: Readonly<{
+  step: LoginStep
+  t: Translate
+  fromOnboarding?: boolean
+  pendingHabitCount?: number
+}>) {
+  const showPlanSummary = fromOnboarding && step === 'email'
+  const title = showPlanSummary
+    ? t('onboarding.flow.saveYourPlan.title')
+    : step === 'email'
+      ? t('auth.signIn')
+      : t('auth.enterCode')
+  const emailSubtitle = showPlanSummary
+    ? pendingHabitCount === 1
+      ? t('onboarding.flow.saveYourPlan.habitSummaryOne')
+      : t('onboarding.flow.saveYourPlan.habitSummary', { count: pendingHabitCount })
+    : t('auth.signInSubtitle')
+
   return (
     <>
       <div
@@ -39,7 +58,7 @@ export function LoginHeader({
             margin: 0,
           }}
         >
-          {step === 'email' ? t('auth.signIn') : t('auth.enterCode')}
+          {title}
         </h2>
         {step === 'email' && (
           <p
@@ -51,7 +70,7 @@ export function LoginHeader({
               margin: 0,
             }}
           >
-            {t('auth.signInSubtitle')}
+            {emailSubtitle}
           </p>
         )}
       </div>
