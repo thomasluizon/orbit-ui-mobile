@@ -889,6 +889,11 @@ export function useBulkLogHabits() {
       await queryClient.cancelQueries({ queryKey: habitKeys.lists() })
 
       const previousLists = snapshotHabitLists(queryClient)
+      for (const item of items) {
+        useReviewReminderStore
+          .getState()
+          .trackCompletion(item.date ?? formatAPIDate(new Date()))
+      }
       const immediateIds = items
         .filter((item) => !item.date)
         .map((item) => item.habitId)

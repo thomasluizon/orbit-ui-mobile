@@ -4,6 +4,7 @@ import { habitKeys, goalKeys, tagKeys } from '@orbit/shared/query'
 import type { ChecklistItem, CreateHabitRequest, HabitScheduleChild, HabitScheduleItem } from '@orbit/shared/types/habit'
 
 import {
+  useBulkLogHabits,
   useCreateHabit,
   useCreateSubHabit,
   useDeleteHabit,
@@ -320,6 +321,29 @@ describe('mobile habit hooks', () => {
     mocks.showSuccess.mockClear()
     mocks.showError.mockClear()
     mocks.showUndoToast.mockClear()
+  })
+
+  it('counts every bulk-completed habit toward the review floor at mutate time', async () => {
+    seedHabitState(
+      [
+        makeHabit({ id: 'habit-1', isCompleted: false }),
+        makeHabit({ id: 'habit-2', isCompleted: false }),
+      ],
+      2,
+    )
+    useReviewReminderStore.getState().reset()
+
+    const mutation = useBulkLogHabits() as unknown as MutationConfig<
+      unknown,
+      { habitId: string; date?: string }[],
+      { previousLists: readonly (readonly [readonly unknown[], HabitScheduleItem[] | undefined])[] }
+    >
+
+    await mutation.onMutate?.([{ habitId: 'habit-1' }, { habitId: 'habit-2' }])
+
+    const reviewState = useReviewReminderStore.getState()
+    expect(reviewState.completionCount).toBe(2)
+    expect(reviewState.activeDays).toHaveLength(1)
   })
 
   it('counts the completion toward the review floor at mutate time, so queued completions are never missed', () => {
