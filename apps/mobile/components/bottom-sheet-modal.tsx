@@ -63,7 +63,9 @@ export function BottomSheetModal({
 
   const sheetRef = useRef<TrueSheet>(null)
   const openRef = useRef(open)
-  openRef.current = open
+  useEffect(() => {
+    openRef.current = open
+  }, [open])
   const presentedRef = useRef(false)
 
   const detents = useMemo(
