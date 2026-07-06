@@ -45,7 +45,6 @@ export function createStyles(tokens: AppTokensV2) {
       alignSelf: 'center',
       flexGrow: 1,
       justifyContent: 'center',
-      backgroundColor: tokens.bg,
     },
     footer: {
       paddingHorizontal: 28,
