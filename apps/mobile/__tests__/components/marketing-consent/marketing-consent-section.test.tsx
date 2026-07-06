@@ -63,7 +63,9 @@ type RenderedTree = {
 let currentTree: RenderedTree | null = null
 
 function getSwitch(tree: RenderedTree) {
-  return tree.root.findAll((node) => node.type === 'SwitchStub')[0]
+  const node = tree.root.findAll((candidate) => candidate.type === 'SwitchStub')[0]
+  if (!node) throw new Error('SwitchStub not rendered')
+  return node
 }
 
 async function render() {

@@ -40,6 +40,22 @@ jobs:
       - name: Run tests with coverage thresholds
         run: npx turbo run test -- --coverage
 
+  type-check:
+    name: Type Check
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - run: npx turbo run type-check
+
   dependency-audit:
     name: Dependency Audit
     runs-on: ubuntu-latest

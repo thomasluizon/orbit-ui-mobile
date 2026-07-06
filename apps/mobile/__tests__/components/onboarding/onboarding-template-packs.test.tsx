@@ -11,7 +11,9 @@ import { PillButton } from '@/components/ui/pill-button'
 
 const TestRenderer = require('react-test-renderer')
 
-const createHabitsBulk = vi.fn(async () => {})
+const createHabitsBulk = vi.fn<
+  (items: Array<{ title: string; emoji?: string | null; tags?: string[] | null }>) => Promise<void>
+>(async () => {})
 const onCreated = vi.fn()
 const onCreateOwn = vi.fn()
 const onSkip = vi.fn()
@@ -120,11 +122,7 @@ describe('OnboardingTemplatePacks (mobile)', () => {
     })
 
     expect(createHabitsBulk).toHaveBeenCalledTimes(1)
-    const items = createHabitsBulk.mock.calls[0]![0] as Array<{
-      title: string
-      emoji?: string | null
-      tags?: string[] | null
-    }>
+    const items = createHabitsBulk.mock.calls[0]![0]
     expect(items).toHaveLength(pack.habits.length - 1)
 
     const titles = items.map((item) => item.title)
