@@ -237,6 +237,7 @@ XP/gamification is **Free**, enabled by a feature flag (migration `EnableGamific
 | Language | English / Brazilian Portuguese; app, AI, and emails follow | Free | Both | Full en + pt-BR parity |
 | AI memory | AI learns preferences/routines from conversations | Pro | Both | — |
 | AI daily summary toggle | Enable the Today summary card | Pro | Both | — |
+| Marketing email consent | One-time opt-in prompt + "Product updates by email" toggle; consent stored in-app (DB is the source of truth for the code-based sender), self-hosted unsubscribe flips it back | Free | Both | en + pt-BR |
 | What Orbit Knows | Manually add facts the AI uses to personalize (max 50) | Pro | Both | — |
 | Timezone | Auto-detected; drives due dates and "today" | Free | Both | — |
 | Week start day | Monday or Sunday across all calendars | Free | Both | — |

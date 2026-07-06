@@ -15,6 +15,7 @@ import { SectionLabel } from '@/components/ui/section-label'
 import { SettingsRow, Switch } from '@/components/ui/settings-row'
 import { RadioRow } from '@/components/ui/select-check'
 import { ProBadge } from '@/components/ui/pro-badge'
+import { MarketingConsentSection } from '@/components/marketing-consent/marketing-consent-section'
 import { styles, type Tokens } from './preferences-styles'
 
 export type PreferencePicker = 'language' | 'theme' | 'scheme' | 'weekStart'
@@ -250,6 +251,10 @@ export function PreferenceSettingsList({
             onToggle={persistentReminder.onToggle}
           />
         ) : null}
+      </Animated.View>
+
+      <Animated.View entering={sectionEntrance(3)}>
+        <MarketingConsentSection />
       </Animated.View>
     </>
   )

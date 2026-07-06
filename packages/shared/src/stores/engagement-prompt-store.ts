@@ -15,15 +15,19 @@ type EngagementPromptStoreSet = {
   ): void
 }
 
-/** The engagement-prompt families that share one cooldown budget and one armed slot. */
-export type EngagementPromptKind = 'referral' | 'milestone-share' | 'review'
+/** The engagement-prompt families that share one armed slot. */
+export type EngagementPromptKind = 'consent' | 'referral' | 'milestone-share' | 'review'
 
-/** Arbiter weights: a review moment outranks a milestone-share prompt, which outranks a referral prompt, for the single armed slot. */
+/** Arbiter weights for the single armed slot: the one-time marketing-consent prompt outranks a review moment, which outranks a milestone-share prompt, which outranks a referral prompt. */
 export const ENGAGEMENT_PROMPT_PRIORITY: Record<EngagementPromptKind, number> = {
+  consent: 4,
   review: 3,
   'milestone-share': 2,
   referral: 1,
 }
+
+/** Fixed key for the one-time marketing-email consent prompt: it is asked at most once per account, so it needs no per-milestone namespacing. */
+export const MARKETING_CONSENT_MILESTONE_KEY = 'marketing-consent'
 
 export const STREAK_CROSSING_MILESTONES = [7, 30, 100] as const
 
@@ -169,6 +173,7 @@ export interface EngagementPromptStoreState extends PersistedEngagementPromptSta
   armedPrompt: ArmedEngagementPrompt | null
 
   armEngagementPrompt: (kind: EngagementPromptKind, milestoneKey: string) => void
+  armConsentPrompt: (milestoneKey: string) => void
   armReferralPrompt: (milestoneKey: string) => void
   armMilestoneSharePrompt: (milestoneKey: string) => void
   armReviewPrompt: (milestoneKey: string) => void
@@ -242,6 +247,8 @@ export function createEngagementPromptStoreState(
     armedPrompt: null,
 
     armEngagementPrompt,
+    armConsentPrompt: (milestoneKey) =>
+      armEngagementPrompt('consent', milestoneKey),
     armReferralPrompt: (milestoneKey) =>
       armEngagementPrompt('referral', milestoneKey),
     armMilestoneSharePrompt: (milestoneKey) =>

@@ -10,6 +10,7 @@ import {
   PushNotificationSection,
   type PushSectionState,
 } from './push-notification-section'
+import { MarketingConsentSection } from './marketing-consent-section'
 
 function SchemeDot({ color }: Readonly<{ color: string }>) {
   return (
@@ -102,6 +103,10 @@ export function PreferenceSettingsList({
 
         <div className="stagger-enter">
           <PushNotificationSection push={push} />
+        </div>
+
+        <div className="stagger-enter">
+          <MarketingConsentSection />
         </div>
       </div>
       <div style={{ height: 24 }} />

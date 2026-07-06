@@ -40,6 +40,7 @@ import {
   getMilestoneShareStreakKey,
   getMilestoneShareAchievementKey,
   getReviewMomentLevelKey,
+  MARKETING_CONSENT_MILESTONE_KEY,
 } from '@orbit/shared/stores'
 import { formatAPIDate, isShareableAchievement } from '@orbit/shared/utils'
 import {
@@ -63,6 +64,7 @@ import { GoalCompletedCelebration } from '@/components/gamification/goal-complet
 import { LevelUpOverlay } from '@/components/gamification/level-up-overlay'
 import { ReferralPrompt } from '@/components/referral/referral-prompt'
 import { MilestoneSharePrompt } from '@/components/milestone-share/milestone-share-prompt'
+import { MarketingConsentPrompt } from '@/components/marketing-consent/marketing-consent-prompt'
 import { ReviewMomentSheet } from '@/components/review-moment/review-moment-sheet'
 import { StreakCelebration } from '@/components/gamification/streak-celebration'
 import {
@@ -293,7 +295,16 @@ function GlobalOverlays({
     (s) => s.armMilestoneSharePrompt,
   )
   const armReviewPrompt = useReferralPromptStore((s) => s.armReviewPrompt)
+  const armConsentPrompt = useReferralPromptStore((s) => s.armConsentPrompt)
   const hasCompletedOnboarding = profile?.hasCompletedOnboarding ?? false
+  const marketingEmailConsent = profile?.marketingEmailConsent
+
+  useEffect(() => {
+    if (hasCompletedOnboarding && marketingEmailConsent === null) {
+      armConsentPrompt(MARKETING_CONSENT_MILESTONE_KEY)
+    }
+  }, [hasCompletedOnboarding, marketingEmailConsent, armConsentPrompt])
+
   const pendingOnboardingAnswers = useOnboardingDraftStore((s) =>
     s.hasPendingAnswers(),
   )
@@ -370,6 +381,7 @@ function GlobalOverlays({
               onClear={gamification.clearLevelUp}
             />
           ) : null}
+          <MarketingConsentPrompt />
           <ReferralPrompt />
           <MilestoneSharePrompt />
           <ReviewMomentSheet />

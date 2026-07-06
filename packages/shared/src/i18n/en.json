@@ -981,6 +981,7 @@
     "sections": {
       "account": "Account",
       "preferences": "Preferences",
+      "communication": "Communication",
       "aiFeatures": "AI Features",
       "aboutHelp": "About & Help",
       "advanced": "Advanced",
@@ -1084,6 +1085,10 @@
     "proactiveAstra": {
       "title": "Proactive check-ins",
       "description": "Let Astra reach out with a personalized nudge when you fall behind, even if you forget to open the app."
+    },
+    "marketingEmails": {
+      "title": "Product updates by email",
+      "description": "Get occasional emails about new Orbit features and improvements. No spam, unsubscribe anytime."
     },
     "facts": {
       "title": "What Astra knows",
@@ -1241,6 +1246,15 @@
       "later": "Maybe later"
     },
     "loginBanner": "You're invited! 10% off Pro when you sign up"
+  },
+  "marketingConsent": {
+    "prompt": {
+      "eyebrow": "Stay in the loop",
+      "title": "Product updates by email?",
+      "body": "We'll occasionally email you about new Orbit features and improvements. No spam, and you can unsubscribe anytime.",
+      "accept": "Yes, keep me posted",
+      "decline": "No thanks"
+    }
   },
   "shareCard": {
     "title": "Share your progress",

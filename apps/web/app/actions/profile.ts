@@ -7,6 +7,7 @@ import type {
   SetAiMemoryRequest,
   SetAiSummaryRequest,
   SetProactiveAstraRequest,
+  SetMarketingEmailConsentRequest,
   SetWeekStartDayRequest,
   SetThemePreferenceRequest,
   SetColorSchemeRequest,
@@ -54,6 +55,15 @@ export async function updateAiSummary(data: SetAiSummaryRequest): Promise<void> 
 
 export async function updateProactiveAstra(data: SetProactiveAstraRequest): Promise<void> {
   await serverAuthFetch(API.profile.proactiveAstra, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  })
+}
+
+export async function updateMarketingConsent(
+  data: SetMarketingEmailConsentRequest,
+): Promise<void> {
+  await serverAuthFetch(API.profile.marketingConsent, {
     method: 'PUT',
     body: JSON.stringify(data),
   })

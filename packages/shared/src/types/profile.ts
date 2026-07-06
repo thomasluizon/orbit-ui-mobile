@@ -63,6 +63,7 @@ export const profileSchema = z.object({
   socialOptIn: z.boolean().optional(),
   publicProfile: publicProfileSettingsSchema.optional(),
   proactiveAstraEnabled: z.boolean().optional(),
+  marketingEmailConsent: z.boolean().nullable().optional(),
 })
 
 export type Profile = z.infer<typeof profileSchema>
@@ -90,6 +91,12 @@ export const setProactiveAstraRequestSchema = z.object({
 })
 
 export type SetProactiveAstraRequest = z.infer<typeof setProactiveAstraRequestSchema>
+
+export const setMarketingEmailConsentRequestSchema = z.object({
+  enabled: z.boolean(),
+})
+
+export type SetMarketingEmailConsentRequest = z.infer<typeof setMarketingEmailConsentRequestSchema>
 
 export const setNameRequestSchema = z.object({
   name: z.string().trim().min(1).max(50),

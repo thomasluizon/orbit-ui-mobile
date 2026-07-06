@@ -28,6 +28,7 @@ export const API = {
     export: '/api/profile/export',
     handle: '/api/profile/handle',
     socialOptIn: '/api/profile/social-opt-in',
+    marketingConsent: '/api/profile/marketing-consent',
     public: '/api/profile/public',
   },
 
