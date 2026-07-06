@@ -1,10 +1,11 @@
 #!/usr/bin/env node
-// PostToolUse hook: when an EF migration is edited that adds a new table /
-// DbSet<>, verify there's a matching FluentConfig in Persistence/Configurations/.
+// PostToolUse hook: when OrbitDbContext gains a DbSet<T>, require an explicit
+// modelBuilder.Entity<T>(...) block in OnModelCreating. This repo's convention
+// is that every mapped entity is configured explicitly (keys, indexes, column
+// types), not left to EF convention inference.
 // Any unexpected error exits 0 so the hook never surfaces as a crash.
 
-import { readFileSync, existsSync, readdirSync } from "node:fs"
-import { dirname, join } from "node:path"
+import { readFileSync, existsSync } from "node:fs"
 
 try {
   let input
@@ -18,8 +19,7 @@ try {
   if (!filePath || !existsSync(filePath)) process.exit(0)
 
   const normalized = String(filePath).replace(/\\/g, "/")
-  if (!/\/orbit-api\/src\/Orbit\.Infrastructure\/Migrations\/.*\.cs$/.test(normalized)) process.exit(0)
-  if (/\.Designer\.cs$/.test(normalized)) process.exit(0)
+  if (!/\/orbit-api\/src\/Orbit\.Infrastructure\/Persistence\/OrbitDbContext\.cs$/.test(normalized)) process.exit(0)
 
   let contents
   try {
@@ -28,41 +28,16 @@ try {
     process.exit(0)
   }
 
-  const createTablePattern = /migrationBuilder\.CreateTable\s*\(\s*name:\s*"([^"]+)"/g
-  const newTables = []
-  for (const match of contents.matchAll(createTablePattern)) {
-    newTables.push(match[1])
-  }
+  const dbSets = new Set([...contents.matchAll(/DbSet<([A-Za-z0-9_]+)>/g)].map((match) => match[1]))
+  const configured = new Set([...contents.matchAll(/modelBuilder\.Entity<([A-Za-z0-9_]+)>/g)].map((match) => match[1]))
 
-  if (newTables.length === 0) process.exit(0)
-
-  const migrationsDir = dirname(filePath)
-  const infraDir = dirname(migrationsDir)
-  const configurationsDir = join(infraDir, "Persistence", "Configurations")
-  if (!existsSync(configurationsDir)) process.exit(0)
-
-  let configFiles
-  try {
-    configFiles = readdirSync(configurationsDir).filter((f) => /\.cs$/.test(f))
-  } catch {
-    process.exit(0)
-  }
-
-  const missing = []
-  for (const table of newTables) {
-    const entityGuess = table.replace(/s$/, "")
-    const hasConfig = configFiles.some((f) =>
-      new RegExp(`(${table}|${entityGuess})Configuration\\.cs$`, "i").test(f),
-    )
-    if (!hasConfig) missing.push(table)
-  }
-
+  const missing = [...dbSets].filter((type) => !configured.has(type))
   if (missing.length === 0) process.exit(0)
 
   process.stderr.write(
-    `Migration ${filePath} adds tables without a matching FluentConfig:\n` +
-      missing.map((t) => `  - ${t} → expected Persistence/Configurations/${t.replace(/s$/, "")}Configuration.cs`).join("\n") +
-      `\n\nEF will infer the schema if no FluentConfig exists. Add IEntityTypeConfiguration<T> for every new entity.\n`,
+    `OrbitDbContext exposes a DbSet<T> without an explicit configuration:\n` +
+      missing.map((type) => `  - ${type} → add modelBuilder.Entity<${type}>(entity => { ... }) in OnModelCreating`).join("\n") +
+      `\n\nEvery mapped entity is configured explicitly here (keys, indexes, column types) — don't rely on EF convention inference.\n`,
   )
   process.exit(2)
 } catch {

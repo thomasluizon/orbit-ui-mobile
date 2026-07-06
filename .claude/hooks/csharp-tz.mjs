@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 // PostToolUse hook: warn on raw DateTime.UtcNow or DateOnly.FromDateTime(DateTime.UtcNow)
-// in orbit-api Application code. User-facing dates MUST use
-// IUserDateService.GetUserTodayAsync(userId).
+// in orbit-api Application AND Domain code. User-facing "today" MUST come from
+// IUserDateService.GetUserTodayAsync(userId) (Application) or be passed into the
+// Domain method as a parameter — Domain never derives "today" from the clock.
 // Any unexpected error exits 0 so the hook never surfaces as a crash.
 
 import { readFileSync, existsSync } from "node:fs"
@@ -18,7 +19,7 @@ try {
   if (!filePath || !existsSync(filePath)) process.exit(0)
 
   const normalized = String(filePath).replace(/\\/g, "/")
-  if (!/\/orbit-api\/src\/Orbit\.Application\/.*\.cs$/.test(normalized)) process.exit(0)
+  if (!/\/orbit-api\/src\/Orbit\.(Application|Domain)\/.*\.cs$/.test(normalized)) process.exit(0)
 
   let contents
   try {
@@ -31,11 +32,19 @@ try {
   const utcNowPattern = /DateTime\.UtcNow/g
   const dateOnlyPattern = /DateOnly\.FromDateTime\s*\(\s*DateTime\.UtcNow/g
 
-  for (const match of contents.matchAll(utcNowPattern)) {
-    const lineNumber = contents.slice(0, match.index).split("\n").length
-    const line = contents.split("\n")[lineNumber - 1]
-    if (/[A-Za-z]*AtUtc|cache(Key)?/i.test(line)) continue
-    findings.push(`${filePath}:${lineNumber} — DateTime.UtcNow`)
+  // Domain legitimately uses DateTime.UtcNow for instant comparisons and
+  // absolute timestamps; only deriving a calendar day from the clock
+  // (DateOnly.FromDateTime) is the anti-pattern there. Application forbids
+  // both, since it owns IUserDateService.
+  const isDomain = /\/orbit-api\/src\/Orbit\.Domain\//.test(normalized)
+
+  if (!isDomain) {
+    for (const match of contents.matchAll(utcNowPattern)) {
+      const lineNumber = contents.slice(0, match.index).split("\n").length
+      const line = contents.split("\n")[lineNumber - 1]
+      if (/[A-Za-z]*AtUtc|cache(Key)?/i.test(line)) continue
+      findings.push(`${filePath}:${lineNumber} — DateTime.UtcNow`)
+    }
   }
 
   for (const match of contents.matchAll(dateOnlyPattern)) {

@@ -44,6 +44,13 @@ module.exports = defineConfig([
     rules: {
       "react-hooks/rules-of-hooks": "error",
       "react-hooks/set-state-in-effect": "error",
+      "react-hooks/preserve-manual-memoization": "error",
+      "react-hooks/static-components": "error",
+      // refs stays "warn": the 19 current hits are idiomatic Animated.Value
+      // .interpolate()/.timing() during render, not React ref reads. Surfaces
+      // them at edit time without blocking CI; graduate to error after a
+      // focused Animated audit.
+      "react-hooks/refs": "warn",
       "react-hooks/exhaustive-deps": "warn",
       "@typescript-eslint/no-unused-vars": [
         "warn",
