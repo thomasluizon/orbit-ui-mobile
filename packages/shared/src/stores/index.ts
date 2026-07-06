@@ -40,6 +40,16 @@ export {
   type ReferralMilestone,
 } from './engagement-prompt-store'
 export {
+  ONBOARDING_DRAFT_STORAGE_VERSION,
+  buildApplyOnboardingPayload,
+  createOnboardingDraftState,
+  getPersistedOnboardingDraft,
+  migrateOnboardingDraft,
+  type OnboardingDraftState,
+  type OnboardingWeekStartDay,
+  type PersistedOnboardingDraft,
+} from './onboarding-draft'
+export {
   createTourUIState,
   createUIStoreState,
   getPersistedUIState,

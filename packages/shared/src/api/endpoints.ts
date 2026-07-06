@@ -18,6 +18,8 @@ export const API = {
     aiSummary: '/api/profile/ai-summary',
     proactiveAstra: '/api/profile/proactive-astra',
     onboarding: '/api/profile/onboarding',
+    onboardingApply: '/api/profile/onboarding/apply',
+    importPromptDismiss: '/api/profile/import-prompt/dismiss',
     tour: '/api/profile/tour',
     language: '/api/profile/language',
     themePreference: '/api/profile/theme-preference',

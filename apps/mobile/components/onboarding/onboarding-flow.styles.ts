@@ -86,5 +86,16 @@ export function createStyles(tokens: AppTokensV2) {
       fontSize: 13,
       color: tokens.fg3,
     },
+    haveAccountButton: {
+      minHeight: 44,
+      alignItems: 'center',
+      justifyContent: 'center',
+      paddingHorizontal: 12,
+    },
+    haveAccountText: {
+      fontFamily: 'Rubik_500Medium',
+      fontSize: 13,
+      color: tokens.primarySoft,
+    },
   })
 }

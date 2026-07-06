@@ -36,6 +36,7 @@ export const profileSchema = z.object({
   aiMessagesUsed: z.number(),
   aiMessagesLimit: z.number(),
   hasImportedCalendar: z.boolean(),
+  hasSeenImportPrompt: z.boolean(),
   hasGoogleConnection: z.boolean(),
   subscriptionInterval: subscriptionIntervalSchema.nullable(),
   subscriptionSource: subscriptionSourceSchema.nullable(),

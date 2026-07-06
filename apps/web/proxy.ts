@@ -10,6 +10,7 @@ import {
 
 const PUBLIC_PATHS = [
   '/login',
+  '/onboarding',
   '/auth-callback',
   '/r/',
   '/u/',

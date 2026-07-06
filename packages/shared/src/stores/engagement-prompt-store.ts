@@ -1,3 +1,5 @@
+import { isRecord } from '../utils/is-record'
+
 type EngagementPromptStoreSet = {
   (
     partial:
@@ -30,10 +32,6 @@ export const REVIEW_MOMENT_STREAK_MILESTONES = [7, 14, 30, 100, 365] as const
 export const REFERRAL_PROMPT_COOLDOWN_DAYS = 14
 
 const COOLDOWN_MS = REFERRAL_PROMPT_COOLDOWN_DAYS * 24 * 60 * 60 * 1000
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return value !== null && typeof value === 'object'
-}
 
 /** Maps a freshly-reached streak length to its milestone-share key, or null when the length is not a shareable milestone (7/30/100). */
 export function getMilestoneShareStreakKey(streak: number): string | null {

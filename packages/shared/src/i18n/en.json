@@ -1578,6 +1578,14 @@
         "weekStart": "When does your week start?",
         "colorScheme": "Pick your color"
       },
+      "saveYourPlan": {
+        "title": "Save your plan",
+        "subtitle": "Create your account to keep everything you just set up.",
+        "habitSummary": "{count} habits ready to go",
+        "habitSummaryOne": "1 habit ready to go",
+        "cta": "Create account & save",
+        "haveAccount": "I already have an account"
+      },
       "createHabit": {
         "title": "Create your first habit",
         "subtitle": "Habits are the building blocks. What do you want to track?",
@@ -1664,7 +1672,11 @@
     "wizard": {
       "calendarTitle": "Import from Google Calendar",
       "calendarDescription": "Already have events in Google Calendar? Import them as habits in Orbit with one tap.",
-      "calendarButton": "Import calendar"
+      "calendarButton": "Import calendar",
+      "importTitle": "Import from another app?",
+      "importDescription": "Coming from another habit tracker? Astra can recreate your habits. Attach a file or paste your list.",
+      "importButton": "Import with Astra",
+      "importNotNow": "Not now"
     },
     "featureGuide": {
       "title": "Feature Guide",
