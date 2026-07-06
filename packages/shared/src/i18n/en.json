@@ -244,8 +244,8 @@
     "eyebrow": "A word from Astra",
     "streakTitle": "{count} days straight!",
     "levelTitle": "Level {level}!",
-    "streakBody": "You showed up {count} days in a row — that's real momentum. Mind rating Orbit on Google Play? It helps more people find their orbit.",
-    "levelBody": "You just reached level {level} — that took consistency. Mind rating Orbit on Google Play? It helps more people find their orbit.",
+    "streakBody": "You showed up {count} days in a row. That's real momentum. Mind rating Orbit on Google Play? It helps more people find their orbit.",
+    "levelBody": "You just reached level {level}. That took consistency. Mind rating Orbit on Google Play? It helps more people find their orbit.",
     "cta": "Rate Orbit",
     "notNow": "Not now"
   },
@@ -455,7 +455,7 @@
       "aiSuggesting": "Thinking…",
       "aiSuggestApplied": "AI suggestion applied",
       "aiSuggestError": "Couldn't generate a suggestion. Please try again.",
-      "aiSuggestEmpty": "No suggestion for this one — add the details yourself.",
+      "aiSuggestEmpty": "No suggestion for this one. Add the details yourself.",
       "aiSuggestLimitReached": "You've reached your monthly AI message limit.",
       "title": "Title",
       "titlePlaceholder": "e.g. Morning run",
@@ -873,7 +873,7 @@
         "account-manage": "Manage account"
       },
       "summary": "{name} requested via chat",
-      "confirmed": "Confirmed — done.",
+      "confirmed": "Confirmed. Done.",
       "errors": {
         "confirmation_required": "That confirmation expired. Tap Confirm again.",
         "step_up_required": "Extra verification is needed. Tap Confirm again."
@@ -1971,7 +1971,7 @@
         "label": "Proactive check-ins",
         "free": "No",
         "pro": "Included",
-        "tooltip": "When you fall behind, Astra sends a personalized push to coach you back on track — even if you forget to open the app."
+        "tooltip": "When you fall behind, Astra sends a personalized push to coach you back on track, even if you forget to open the app."
       },
       "calendarImport": {
         "label": "Google Calendar",
@@ -3090,7 +3090,7 @@
     },
     "invite": {
       "title": "Invite friends to Orbit",
-      "subtitle": "Share your link — you both get a Pro discount coupon.",
+      "subtitle": "Share your link, and you both get a Pro discount coupon.",
       "scanHint": "Scan to join Orbit",
       "copy": "Copy",
       "copied": "Copied!",
@@ -3133,7 +3133,7 @@
     },
     "optInGate": {
       "title": "Connect with friends",
-      "body": "Turn on social to add friends, share your wins, and cheer each other on. Your habits stay private — friends only see milestones you choose to celebrate.",
+      "body": "Turn on social to add friends, share your wins, and cheer each other on. Your habits stay private. Friends only see milestones you choose to celebrate.",
       "handleLabel": "Choose your handle",
       "handlePlaceholder": "handle",
       "handleHint": "3–20 letters, numbers, or underscores. Friends use this to find you.",

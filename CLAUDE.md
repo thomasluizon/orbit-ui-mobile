@@ -6,7 +6,6 @@ Cross-cutting rules only live here. Each workspace has a scoped `CLAUDE.md` Clau
 
 ## Quick orientation
 
-- Turborepo. Three workspaces: `apps/web`, `apps/mobile`, `packages/shared`.
 - Shared package (`@orbit/shared`) owns all Zod types, utils, i18n locales, theme data, API endpoint constants, TanStack query keys, and validation schemas. Both apps import from it.
 - The .NET API is a sibling repo at `C:\Users\thoma\Documents\Programming\Projects\orbit-api`. Claude is always launched from THIS repo and reaches into orbit-api via absolute paths when the work needs backend changes.
 
@@ -22,8 +21,6 @@ Every change MUST land in BOTH `apps/web` AND `apps/mobile`. No exceptions. A ta
 
 Allowed differences: platform adapters only — BFF vs direct API, cookie vs SecureStore, shadcn vs NativeWind, next-intl vs i18next. Logic, features, behavior, data flow, error handling: identical.
 
-Before marking any task done, ask: *"Did I update both apps/web and apps/mobile?"*
-
 ## Code Standards
 
 **Overriding principle — best implementation, always.** Ship the most correct, most complete, most robust solution. NEVER scope down — cutting a required step, a real fix, or the proper workflow — to save effort, setup, or time. When a genuine tradeoff exists (effort/time/cost), surface it and let the user decide; never pick the cheaper or faster path silently. "Best" means correct and complete, **not** more code — the simplicity and no-premature-abstraction rules below still hold.
@@ -34,11 +31,7 @@ These ten rules apply everywhere — `apps/web`, `apps/mobile`, `packages/shared
 2. **Delete unused code immediately.** No "just in case" exports, dead branches, commented-out blocks, stub functions, or speculative parameters. If the linter can't see it's used, delete it.
 3. **No `any`.** Use `unknown` with narrowing. No `as any`, no `as unknown as X` escape hatches.
 4. **No `console.log` in production code.** Use the project logger if one exists, or don't log.
-5. **Comments — strict policy (lint-enforced via `local/no-comments`; autofix strips violations).**
-   - Allowed: `/** */` JSDoc on **exported** functions, hooks, and types — one short paragraph on intent and contract.
-   - Allowed: a WHY comment ONLY when it links an upstream issue/PR/doc URL (an external constraint you cannot fix here). No link → no comment.
-   - Allowed: tooling directives (`eslint-disable`, `@ts-expect-error`, `/// <reference>`).
-   - Banned: everything else. No `//` narration, no restating code, no task/PR/fix references, no TODOs. To explain code, rename it or extract a well-named function instead.
+5. **Comments — strict policy (lint-enforced via `local/no-comments`; autofix strips violations).** Allowed: `/** */` JSDoc on exported functions/hooks/types; a WHY comment only when it links an upstream issue/PR/doc URL; tooling directives (`eslint-disable`, `@ts-expect-error`, `/// <reference>`). Everything else is stripped — to explain code, rename or extract instead.
 6. **No premature abstraction.** Extract on the third real use, not the second. Three similar lines beats a premature helper.
 7. **Function size & nesting.** Soft cap: ~50 lines per function, ~3 levels of nesting. Hard cap: ~100 lines. Going beyond means the function is doing too much — split it.
 8. **Error handling at boundaries only.** Validate at trust boundaries (user input, external APIs). Inside the codebase, trust your types. Never swallow errors silently — surface them, or don't catch them.
@@ -47,22 +40,7 @@ These ten rules apply everywhere — `apps/web`, `apps/mobile`, `packages/shared
 
 ## Subagent delegation — default to delegating
 
-When work is independent and can run in parallel, OR when it would consume context the main session shouldn't carry, delegate to subagents by default. Don't ask permission.
-
-**Delegate by default:**
-- **Research / exploration / audits** — use an `Explore` subagent instead of running multiple Grep/Read in the main session.
-- **Multi-issue work** — when the user references 2+ issues, spawn one subagent per issue (paired with a worktree if implementation is involved).
-- **Independent file edits** — multiple unrelated edits run in parallel subagents, not sequentially in the main session.
-- **Long-running tasks** (builds, tests, deploys) — spawn as background agents so the main session stays interactive.
-
-**Don't delegate:**
-- Single-file edits where the main session already has the context loaded.
-- Conversational responses (questions, explanations, design discussions, planning chats).
-- Tightly-coupled work where the subagent's context isolation would force re-reading the same files.
-
-**Parallelism cap:** 3 concurrent subagents by default. Raise per-task only if explicitly told ("run all of them at once", "no cap").
-
-See `WORKFLOW.md` for the multi-issue paired-worktree path.
+Delegate independent or context-heavy work by default; don't ask permission. Research/audits → `Explore` subagent. Multi-issue work (2+ issues) → one subagent per issue, paired with a worktree if implementing. Independent edits → parallel subagents. Long tasks (builds/tests/deploys) → background agents. Act directly only on single-file edits already loaded, conversational replies, and tightly-coupled work where isolation would force re-reading. Cap: 3 concurrent by default; raise only if told. See `WORKFLOW.md` for the multi-issue paired-worktree path.
 
 ## Security boundaries
 
@@ -83,17 +61,14 @@ Read `DESIGN.md` at the repo root before any frontend work. It's the source of t
 
 ## API repository access
 
-- Treat `C:\Users\thoma\Documents\Programming\Projects\orbit-api` as part of the working context when a feature needs backend support.
-- Update the API repo in the SAME task — don't stop at frontend-only changes.
-- Keep frontend and API contracts aligned: shared endpoints, Zod types, request/response handling, and API implementation move together.
-- Don't invent API fields or behavior. Inspect and modify the API repository directly.
-- Preserve separate git histories: edits in `orbit-ui-mobile` and `orbit-api` belong to different repositories, different branches, different PRs.
+- `C:\Users\thoma\Documents\Programming\Projects\orbit-api` is part of the working context — update it in the SAME task when a feature needs backend support, don't stop at frontend-only.
+- Keep contracts aligned: endpoints, Zod types, request/response handling, and API implementation move together. Inspect the API repo directly rather than inventing fields or behavior.
+- Separate git histories: `orbit-ui-mobile` and `orbit-api` are different repos, branches, and PRs.
 
 ## LSP
 
-C# LSP (OmniSharp/Roslyn) is wired into this repo's `.mcp.json` so this session can read symbols from `orbit-api` even though it's launched from here. If `.mcp.json` is missing on your machine (it's gitignored — local-only), copy from `.claude/mcp.json.example` and set env vars. Fallback wrapper: `.claude/scripts/csharp-lsp.mjs` if the registered MCP package fails to install.
-
-TypeScript LSP is built into Claude Code — works without setup for `apps/web`, `apps/mobile`, `packages/shared`.
+- C# LSP (OmniSharp/Roslyn) reads `orbit-api` symbols in this session via `.mcp.json` (gitignored — copy from `.claude/mcp.json.example` and set env vars if missing; fallback wrapper `.claude/scripts/csharp-lsp.mjs`).
+- TypeScript LSP is built into Claude Code — no setup for `apps/web`, `apps/mobile`, `packages/shared`.
 
 ## opencode compatibility
 
