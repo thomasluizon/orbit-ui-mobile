@@ -380,7 +380,9 @@ function GlobalOverlays({
           onClear={gamification.clearLevelUp}
         />
       )}
-      {profile?.hasCompletedOnboarding && <MarketingConsentPrompt />}
+      {profile?.hasCompletedOnboarding &&
+        profile?.hasCompletedTour &&
+        profile?.hasSeenImportPrompt && <MarketingConsentPrompt />}
       {profile?.hasCompletedOnboarding && <ReferralPrompt />}
       {profile?.hasCompletedOnboarding && <MilestoneSharePrompt />}
       <StreakFreezeCelebration ref={streakFreezeRef} />
