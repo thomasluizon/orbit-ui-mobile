@@ -19,7 +19,7 @@ export default function PrivacyScreen() {
   )
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
 
-  const dataCollectedKeys = ['account', 'habits', 'chat', 'preferences'] as const
+  const dataCollectedKeys = ['account', 'habits', 'chat', 'preferences', 'device'] as const
   const howWeUseKeys = ['provide', 'personalize', 'notifications'] as const
   const thirdPartyKeys = [
     'google',
@@ -27,6 +27,9 @@ export default function PrivacyScreen() {
     'firebase',
     'openai',
     'resend',
+    'googlePlay',
+    'admob',
+    'sentry',
   ] as const
   const retentionKeys = [
     'account',
