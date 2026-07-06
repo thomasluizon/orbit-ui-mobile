@@ -11,6 +11,9 @@ setup('authenticate and reset the smoke account', async ({ page }) => {
   const onboarding = await page.request.put('/api/profile/onboarding')
   expect(onboarding.ok()).toBeTruthy()
 
+  const importPrompt = await page.request.put('/api/profile/import-prompt/dismiss')
+  expect(importPrompt.ok()).toBeTruthy()
+
   await warmBackend(page.request)
 
   await page.evaluate(() => {
