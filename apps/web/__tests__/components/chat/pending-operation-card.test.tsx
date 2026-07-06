@@ -59,10 +59,56 @@ describe('PendingOperationCard', () => {
     fireEvent.click(screen.getByRole('button', { name: 'common.confirm' }))
 
     await waitFor(() => {
-      expect(screen.getByText('missing_scope:delete_habits')).toBeInTheDocument()
+      expect(screen.getByText('chat.sendError')).toBeInTheDocument()
     })
 
-    expect(screen.getAllByText('Delete Meditation habit')).toHaveLength(1)
+    expect(screen.queryByText('missing_scope:delete_habits')).not.toBeInTheDocument()
+    expect(screen.queryByText('chat.pendingOp.confirmed')).not.toBeInTheDocument()
+  })
+
+  it('shows friendly copy for known policy reasons instead of the raw code', async () => {
+    render(
+      <PendingOperationCard
+        pendingOperation={makePendingOperation()}
+        onConfirmExecute={vi.fn().mockResolvedValue({
+          ok: true,
+          response: makeExecutionResponse('Denied', {
+            operation: {
+              ...makeExecutionResponse('Denied').operation,
+              policyReason: 'confirmation_required',
+            },
+          }),
+        })}
+        onPrepareStepUp={vi.fn()}
+        onVerifyStepUp={vi.fn()}
+      />,
+    )
+
+    fireEvent.click(screen.getByRole('button', { name: 'common.confirm' }))
+
+    await waitFor(() => {
+      expect(
+        screen.getByText('chat.pendingOp.errors.confirmation_required'),
+      ).toBeInTheDocument()
+    })
+
+    expect(screen.queryByText('confirmation_required')).not.toBeInTheDocument()
+  })
+
+  it('localizes the capability title for confirmation-gated capabilities', () => {
+    render(
+      <PendingOperationCard
+        pendingOperation={makePendingOperation({ capabilityId: 'habits.bulk.write' })}
+        onConfirmExecute={vi.fn()}
+        onPrepareStepUp={vi.fn()}
+        onVerifyStepUp={vi.fn()}
+      />,
+    )
+
+    expect(
+      screen.getByText('chat.pendingOp.capability.habits-bulk-write'),
+    ).toBeInTheDocument()
+    expect(screen.queryByText('Delete habit')).not.toBeInTheDocument()
   })
 
   it('dismisses the card without calling the mutation when Cancel is clicked', () => {
@@ -115,9 +161,9 @@ describe('PendingOperationCard', () => {
     fireEvent.click(screen.getByRole('button', { name: 'auth.verify' }))
 
     await waitFor(() => {
-      expect(screen.getByText('verification_failed')).toBeInTheDocument()
+      expect(screen.getByText('chat.sendError')).toBeInTheDocument()
     })
 
-    expect(screen.getAllByText('Delete Meditation habit')).toHaveLength(1)
+    expect(screen.queryByText('verification_failed')).not.toBeInTheDocument()
   })
 })

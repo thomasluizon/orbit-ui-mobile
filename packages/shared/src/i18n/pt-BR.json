@@ -857,6 +857,26 @@
         "high": "Risco alto",
         "destructive": "Destrutivo",
         "low": "Risco baixo"
+      },
+      "capability": {
+        "habits-delete": "Excluir hábitos",
+        "habits-bulk-write": "Alterações de hábitos em lote",
+        "habits-bulk-delete": "Exclusão de hábitos em lote",
+        "goals-delete": "Excluir metas",
+        "tags-delete": "Excluir tags",
+        "notifications-delete": "Excluir notificações",
+        "calendar-sync-manage": "Gerenciar sincronização de agenda",
+        "user-facts-delete": "Excluir memórias da IA",
+        "subscriptions-manage": "Gerenciar assinatura",
+        "api-keys-manage": "Gerenciar chaves de API",
+        "sync-write": "Gravar dados de sincronização",
+        "account-manage": "Gerenciar conta"
+      },
+      "summary": "{name} solicitado via chat",
+      "confirmed": "Confirmado — concluído.",
+      "errors": {
+        "confirmation_required": "A confirmação expirou. Toque em Confirmar novamente.",
+        "step_up_required": "Verificação extra necessária. Toque em Confirmar novamente."
       }
     },
     "empty": {
