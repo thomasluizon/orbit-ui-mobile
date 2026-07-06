@@ -857,6 +857,26 @@
         "high": "High risk",
         "destructive": "Destructive",
         "low": "Low risk"
+      },
+      "capability": {
+        "habits-delete": "Delete habits",
+        "habits-bulk-write": "Bulk habit changes",
+        "habits-bulk-delete": "Bulk habit delete",
+        "goals-delete": "Delete goals",
+        "tags-delete": "Delete tags",
+        "notifications-delete": "Delete notifications",
+        "calendar-sync-manage": "Manage calendar sync",
+        "user-facts-delete": "Delete AI memory facts",
+        "subscriptions-manage": "Manage subscription",
+        "api-keys-manage": "Manage API keys",
+        "sync-write": "Write sync data",
+        "account-manage": "Manage account"
+      },
+      "summary": "{name} requested via chat",
+      "confirmed": "Confirmed — done.",
+      "errors": {
+        "confirmation_required": "That confirmation expired. Tap Confirm again.",
+        "step_up_required": "Extra verification is needed. Tap Confirm again."
       }
     },
     "empty": {
@@ -2223,8 +2243,8 @@
       "hint": "Track your progress and unlock achievements",
       "level": "Level {level}",
       "xp": "{current} / {next} XP",
-      "totalXp": "{total} XP total",
-      "earned": "{count} / {total} achievements earned"
+      "totalXp": "{total} XP",
+      "earned": "{count}/{total} achievements"
     },
     "page": {
       "lockedTitle": "Unlock Achievements",

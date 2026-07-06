@@ -4,6 +4,10 @@ import { useState } from 'react'
 import { Loader2, ShieldAlert } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import type { AgentExecuteOperationResponse, PendingAgentOperation } from '@orbit/shared/types/ai'
+import {
+  getAgentCapabilityLabelKey,
+  getAgentPolicyReasonKey,
+} from '@orbit/shared/utils'
 import { Badge } from '@/components/ui/badge'
 import { PillButton } from '@/components/ui/pill-button'
 
@@ -42,15 +46,14 @@ function getRiskLabelKey(
 
 function resolveExecutionError(
   result: PendingOperationExecutionResult,
+  translate: (key: string) => string,
   fallback: string,
 ): string {
-  return (
-    result.error ??
-    result.response?.operation.policyReason ??
-    result.response?.policyDenial?.reason ??
-    result.response?.operation.summary ??
-    fallback
+  const reasonKey = getAgentPolicyReasonKey(
+    result.response?.operation.policyReason ?? result.response?.policyDenial?.reason,
   )
+  if (reasonKey) return translate(reasonKey)
+  return result.error ?? fallback
 }
 
 export function PendingOperationCard({
@@ -71,6 +74,9 @@ export function PendingOperationCard({
 
   const needsStepUp = pendingOperation.confirmationRequirement === 'StepUp'
   const riskLabel = t(getRiskLabelKey(pendingOperation.riskClass))
+  const capabilityLabelKey = getAgentCapabilityLabelKey(pendingOperation.capabilityId)
+  const operationName = capabilityLabelKey ? t(capabilityLabelKey) : pendingOperation.displayName
+  const operationSummary = t('chat.pendingOp.summary', { name: operationName })
   const primaryActionLabel = needsStepUp ? t('auth.sendCode') : t('common.confirm')
   const loadingSpinner = isLoading ? <Loader2 className="size-3.5 animate-spin" /> : undefined
 
@@ -98,11 +104,11 @@ export function PendingOperationCard({
       }
 
       if (result.response && result.response.operation.status !== 'Succeeded') {
-        setError(resolveExecutionError(result, t('chat.sendError')))
+        setError(resolveExecutionError(result, t, t('chat.sendError')))
         return
       }
 
-      setSuccessMessage(pendingOperation.summary)
+      setSuccessMessage(t('chat.pendingOp.confirmed'))
     } finally {
       setIsLoading(false)
     }
@@ -131,11 +137,11 @@ export function PendingOperationCard({
       }
 
       if (result.response && result.response.operation.status !== 'Succeeded') {
-        setError(resolveExecutionError(result, t('chat.sendError')))
+        setError(resolveExecutionError(result, t, t('chat.sendError')))
         return
       }
 
-      setSuccessMessage(pendingOperation.summary)
+      setSuccessMessage(t('chat.pendingOp.confirmed'))
     } finally {
       setIsLoading(false)
     }
@@ -181,7 +187,7 @@ export function PendingOperationCard({
                 color: 'var(--fg-1)',
               }}
             >
-              {pendingOperation.displayName}
+              {operationName}
             </p>
             <Badge tone="amber">{riskLabel}</Badge>
           </div>
@@ -194,7 +200,7 @@ export function PendingOperationCard({
               lineHeight: 1.4,
             }}
           >
-            {pendingOperation.summary}
+            {operationSummary}
           </p>
         </div>
       </div>

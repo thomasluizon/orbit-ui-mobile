@@ -200,6 +200,68 @@ describe('PendingOperationCard (mobile)', () => {
       await button.props.onPress()
     })
 
-    expect(findTexts(tree.root, 'missing_scope:delete_habits').length).toBeGreaterThan(0)
+    expect(findTexts(tree.root, 'missing_scope:delete_habits').length).toBe(0)
+    expect(findTexts(tree.root, 'chat.sendError').length).toBeGreaterThan(0)
+    expect(findTexts(tree.root, 'chat.pendingOp.confirmed').length).toBe(0)
+  })
+
+  it('shows friendly copy for known policy reasons instead of the raw code', async () => {
+    const onConfirmExecute = vi.fn().mockResolvedValue({
+      ok: true,
+      response: {
+        operation: {
+          operationId: 'habit.delete',
+          sourceName: 'Delete habit',
+          riskClass: 'Destructive',
+          confirmationRequirement: 'FreshConfirmation',
+          status: 'Denied',
+          summary: 'Delete Meditation habit',
+          policyReason: 'confirmation_required',
+          payload: null,
+        },
+      },
+    })
+    let tree: any
+
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(
+        <PendingOperationCard
+          pendingOperation={makePendingOperation()}
+          onConfirmExecute={onConfirmExecute}
+          onPrepareStepUp={vi.fn()}
+          onVerifyStepUp={vi.fn()}
+        />,
+      )
+    })
+
+    const [button] = findPressables(tree.root)
+    await TestRenderer.act(async () => {
+      await button.props.onPress()
+    })
+
+    expect(findTexts(tree.root, 'confirmation_required').length).toBe(0)
+    expect(
+      findTexts(tree.root, 'chat.pendingOp.errors.confirmation_required').length,
+    ).toBeGreaterThan(0)
+  })
+
+  it('localizes the capability title for confirmation-gated capabilities', async () => {
+    let tree: any
+
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(
+        <PendingOperationCard
+          pendingOperation={makePendingOperation({ capabilityId: 'habits.bulk.write' })}
+          onConfirmExecute={vi.fn()}
+          onPrepareStepUp={vi.fn()}
+          onVerifyStepUp={vi.fn()}
+        />,
+      )
+    })
+
+    expect(
+      findTexts(tree.root, 'chat.pendingOp.capability.habits-bulk-write').length,
+    ).toBeGreaterThan(0)
+    expect(findTexts(tree.root, 'Delete habit').length).toBe(0)
   })
 })

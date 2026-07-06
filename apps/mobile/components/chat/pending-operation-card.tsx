@@ -10,6 +10,10 @@ import Animated, { Keyframe, ReduceMotion } from "react-native-reanimated";
 import { ShieldAlert } from "lucide-react-native";
 import { useTranslation } from "react-i18next";
 import type { AgentExecuteOperationResponse, PendingAgentOperation } from "@orbit/shared/types";
+import {
+  getAgentCapabilityLabelKey,
+  getAgentPolicyReasonKey,
+} from "@orbit/shared/utils";
 import { Badge } from "@/components/ui/badge";
 import { PillButton } from "@/components/ui/pill-button";
 import { createTokensV2 } from '@/lib/theme';
@@ -59,15 +63,14 @@ function getRiskLabelKey(
 
 function resolveExecutionError(
   result: PendingOperationExecutionResult,
+  translate: (key: string) => string,
   fallback: string,
 ): string {
-  return (
-    result.error ??
-    result.response?.operation.policyReason ??
-    result.response?.policyDenial?.reason ??
-    result.response?.operation.summary ??
-    fallback
+  const reasonKey = getAgentPolicyReasonKey(
+    result.response?.operation.policyReason ?? result.response?.policyDenial?.reason,
   );
+  if (reasonKey) return translate(reasonKey);
+  return result.error ?? fallback;
 }
 
 export function PendingOperationCard({
@@ -93,6 +96,11 @@ export function PendingOperationCard({
 
   const needsStepUp = pendingOperation.confirmationRequirement === "StepUp";
   const riskLabel = t(getRiskLabelKey(pendingOperation.riskClass));
+  const capabilityLabelKey = getAgentCapabilityLabelKey(pendingOperation.capabilityId);
+  const operationName = capabilityLabelKey
+    ? t(capabilityLabelKey)
+    : pendingOperation.displayName;
+  const operationSummary = t("chat.pendingOp.summary", { name: operationName });
 
   async function handleStart() {
     setIsLoading(true);
@@ -118,11 +126,11 @@ export function PendingOperationCard({
       }
 
       if (result.response && result.response.operation.status !== "Succeeded") {
-        setError(resolveExecutionError(result, t("chat.sendError")));
+        setError(resolveExecutionError(result, t, t("chat.sendError")));
         return;
       }
 
-      setSuccessMessage(pendingOperation.summary);
+      setSuccessMessage(t("chat.pendingOp.confirmed"));
     } finally {
       setIsLoading(false);
     }
@@ -151,11 +159,11 @@ export function PendingOperationCard({
       }
 
       if (result.response && result.response.operation.status !== "Succeeded") {
-        setError(resolveExecutionError(result, t("chat.sendError")));
+        setError(resolveExecutionError(result, t, t("chat.sendError")));
         return;
       }
 
-      setSuccessMessage(pendingOperation.summary);
+      setSuccessMessage(t("chat.pendingOp.confirmed"));
     } finally {
       setIsLoading(false);
     }
@@ -173,10 +181,10 @@ export function PendingOperationCard({
         </View>
         <View style={styles.headerText}>
           <View style={styles.headerRow}>
-            <Text style={styles.title}>{pendingOperation.displayName}</Text>
+            <Text style={styles.title}>{operationName}</Text>
             <Badge tone="amber">{riskLabel}</Badge>
           </View>
-          <Text style={styles.summary}>{pendingOperation.summary}</Text>
+          <Text style={styles.summary}>{operationSummary}</Text>
         </View>
       </View>
 
