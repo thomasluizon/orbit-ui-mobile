@@ -6,8 +6,7 @@ Cross-platform code consumed by both `apps/web` and `apps/mobile`. Types, utils,
 
 - **Pure TypeScript.** No React, no Next.js, no React Native imports. If you need a DOM API, this isn't the right place.
 - **Named exports only.**
-- **Zero `any`** — root `CLAUDE.md` Code Standards rule 3.
-- **No narration comments** (lint-enforced `local/no-comments`) — rule 5. Only `/** */` JSDoc on exports, WHY notes linking an upstream URL, and tooling directives.
+- **Root Code Standards (rules 1-10) apply** — `any` and narration comments are auto-blocked by hook + `local/no-comments` lint.
 - **All public surfaces typed.** This is the contract — narrow at the boundary, trust within.
 
 ## Layout
