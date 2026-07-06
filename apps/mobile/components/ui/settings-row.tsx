@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useEffect, useState } from 'react'
 import type { ComponentType, ReactNode } from 'react'
 import { Animated, Pressable, StyleSheet, Text, View } from 'react-native'
 import { ChevronRight, type LucideProps } from 'lucide-react-native'
@@ -137,11 +137,7 @@ export function Switch({
 }: Readonly<SwitchProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
-  const thumbProgressRef = useRef<Animated.Value | null>(null)
-  if (thumbProgressRef.current === null) {
-    thumbProgressRef.current = new Animated.Value(on ? 1 : 0)
-  }
-  const thumbProgress = thumbProgressRef.current
+  const [thumbProgress] = useState(() => new Animated.Value(on ? 1 : 0))
 
   useEffect(() => {
     Animated.timing(thumbProgress, {

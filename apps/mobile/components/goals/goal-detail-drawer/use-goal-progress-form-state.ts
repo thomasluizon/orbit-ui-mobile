@@ -1,4 +1,4 @@
-import { useState, useCallback, useMemo, useRef } from 'react'
+import { useState, useCallback, useEffect, useMemo, useRef } from 'react'
 import { useTranslation } from 'react-i18next'
 import {
   getFriendlyErrorMessage,
@@ -73,7 +73,6 @@ export function useGoalProgressFormState({
     if (open) {
       const nextInitial =
         goalCurrentValue !== undefined ? String(goalCurrentValue) : ''
-      pendingProgressDismissRef.current = null
       setInitialProgressValue(nextInitial)
       setProgressValue(nextInitial)
       setShowProgressForm(false)
@@ -81,6 +80,10 @@ export function useGoalProgressFormState({
       setShowProgressDiscardDialog(false)
     }
   }
+
+  useEffect(() => {
+    pendingProgressDismissRef.current = null
+  }, [resetKey])
 
   const submitProgress = useCallback(async () => {
     const validationError = translateErrorKey(

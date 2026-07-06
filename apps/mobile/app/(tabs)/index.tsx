@@ -212,11 +212,7 @@ export default function TodayScreen() {
   const filtersTransitionAnim = useMemo(() => new Animated.Value(1), []);
   const listTransitionAnim = useMemo(() => new Animated.Value(1), []);
   const refetchTransitionAnim = useMemo(() => new Animated.Value(0), []);
-  const bulkBarAnimRef = useRef<Animated.Value | null>(null);
-  if (bulkBarAnimRef.current === null) {
-    bulkBarAnimRef.current = new Animated.Value(isSelectMode ? 1 : 0);
-  }
-  const bulkBarAnim = bulkBarAnimRef.current;
+  const [bulkBarAnim] = useState(() => new Animated.Value(isSelectMode ? 1 : 0));
   const hasAnimatedFiltersRef = useRef(false);
   const [renderBulkActionBar, setRenderBulkActionBar] = useState(isSelectMode);
   const [prevIsSelectMode, setPrevIsSelectMode] = useState(isSelectMode);

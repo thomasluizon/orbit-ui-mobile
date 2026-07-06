@@ -3,7 +3,6 @@ import {
   useState,
   useMemo,
   useEffect,
-  useRef,
   type ReactNode,
 } from "react";
 import {
@@ -79,11 +78,7 @@ const TodaySearchBar = memo(function TodaySearchBar({
 }: Readonly<TodaySearchBarProps>) {
   const [draft, setDraft] = useState(initialValue);
   const focusMotion = useResolvedMotionPreset("selection");
-  const focusAnimRef = useRef<Animated.Value | null>(null);
-  if (focusAnimRef.current === null) {
-    focusAnimRef.current = new Animated.Value(focused ? 1 : 0);
-  }
-  const focusAnim = focusAnimRef.current;
+  const [focusAnim] = useState(() => new Animated.Value(focused ? 1 : 0));
 
   const [previousInitialValue, setPreviousInitialValue] = useState(initialValue);
   if (initialValue !== previousInitialValue) {
