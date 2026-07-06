@@ -20,6 +20,8 @@ import { API } from '@orbit/shared/api'
 import type { ColorScheme } from '@orbit/shared/theme'
 import type { ThemeMode } from '@orbit/shared/types/profile'
 import { useProfile } from '@/hooks/use-profile'
+import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
+import { resolveActiveScheme } from './resolve-active-scheme'
 import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
 import {
   createSurfaces,
@@ -79,8 +81,9 @@ function persistThemePreference(theme: ThemeMode): Promise<unknown> {
 export function ThemeProvider({ children }: Readonly<{ children: ReactNode }>) {
   const systemScheme = useSystemColorScheme()
   const { profile, patchProfile } = useProfile()
+  const draftColorScheme = useOnboardingDraftStore((s) => s.colorScheme)
   const [currentScheme, setCurrentScheme] = useState<ColorScheme>(
-    resolveAccessibleColorScheme(profile?.colorScheme, profile?.hasProAccess ?? false),
+    () => resolveActiveScheme(profile, draftColorScheme) ?? resolveAccessibleColorScheme(null, true),
   )
   const [currentTheme, setCurrentTheme] = useState<ThemeMode>(
     systemScheme === 'light' ? 'light' : 'dark',
@@ -164,9 +167,7 @@ export function ThemeProvider({ children }: Readonly<{ children: ReactNode }>) {
   // Sync local state from profile via the "Adjusting state when a prop changes"
   // pattern (compare prev-snapshot during render, setState only on transitions).
   // React 19 forbids setState in effects when the cause is a prop change.
-  const targetScheme = profile
-    ? resolveAccessibleColorScheme(profile.colorScheme, profile.hasProAccess)
-    : null
+  const targetScheme = resolveActiveScheme(profile, draftColorScheme)
   const [previousTargetScheme, setPreviousTargetScheme] = useState<ColorScheme | null>(targetScheme)
   if (targetScheme !== null && targetScheme !== previousTargetScheme) {
     setPreviousTargetScheme(targetScheme)
