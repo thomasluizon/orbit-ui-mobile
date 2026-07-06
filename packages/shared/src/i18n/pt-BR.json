@@ -2223,8 +2223,8 @@
       "hint": "Acompanhe seu progresso e desbloqueie conquistas",
       "level": "Nível {level}",
       "xp": "{current} / {next} XP",
-      "totalXp": "{total} XP no total",
-      "earned": "{count} / {total} conquistas desbloqueadas"
+      "totalXp": "{total} XP",
+      "earned": "{count}/{total} conquistas"
     },
     "page": {
       "lockedTitle": "Libere as conquistas",

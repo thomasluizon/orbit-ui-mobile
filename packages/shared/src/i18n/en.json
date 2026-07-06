@@ -2223,8 +2223,8 @@
       "hint": "Track your progress and unlock achievements",
       "level": "Level {level}",
       "xp": "{current} / {next} XP",
-      "totalXp": "{total} XP total",
-      "earned": "{count} / {total} achievements earned"
+      "totalXp": "{total} XP",
+      "earned": "{count}/{total} achievements"
     },
     "page": {
       "lockedTitle": "Unlock Achievements",

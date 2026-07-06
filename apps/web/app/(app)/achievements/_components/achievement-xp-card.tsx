@@ -82,6 +82,7 @@ export function AchievementXpCard({
           className="flex items-center justify-between"
           style={{
             marginTop: 10,
+            gap: 12,
             fontFamily: 'var(--font-mono)',
             fontSize: 12,
             color: 'var(--fg-3)',

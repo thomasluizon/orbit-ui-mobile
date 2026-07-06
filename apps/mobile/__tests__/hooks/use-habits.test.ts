@@ -13,6 +13,7 @@ import {
   useSkipHabit,
   useUpdateChecklist,
 } from '@/hooks/use-habits'
+import { useReviewReminderStore } from '@/stores/review-reminder-store'
 
 const mocks = vi.hoisted(() => {
   const state = {
@@ -319,6 +320,23 @@ describe('mobile habit hooks', () => {
     mocks.showSuccess.mockClear()
     mocks.showError.mockClear()
     mocks.showUndoToast.mockClear()
+  })
+
+  it('counts the completion toward the review floor at mutate time, so queued completions are never missed', () => {
+    seedHabitState([makeHabit({ id: 'habit-1', isCompleted: false })], 1)
+    useReviewReminderStore.getState().reset()
+
+    const mutation = useLogHabit() as unknown as MutationConfig<
+      unknown,
+      { habitId: string; date?: string },
+      { previousLists: readonly (readonly [readonly unknown[], HabitScheduleItem[] | undefined])[] }
+    >
+
+    void mutation.onMutate?.({ habitId: 'habit-1' })
+
+    const reviewState = useReviewReminderStore.getState()
+    expect(reviewState.completionCount).toBe(1)
+    expect(reviewState.activeDays).toHaveLength(1)
   })
 
   it('optimistically completes before query cancellation resolves', () => {

@@ -5,7 +5,7 @@ import { plural } from '@/lib/plural'
 describe('mobile i18n interpolation', () => {
   it('interpolates single-brace placeholders', () => {
     expect(i18n.t('gamification.profileCard.level', { level: 5 })).toBe('Level 5')
-    expect(i18n.t('gamification.profileCard.totalXp', { total: 1200 })).toBe('1200 XP total')
+    expect(i18n.t('gamification.profileCard.totalXp', { total: 1200 })).toBe('1200 XP')
   })
 
   it('works with the plural helper for pipe-separated forms', () => {

@@ -138,6 +138,10 @@ export function useLogHabit() {
         updateHabitLists(queryClient, (items) => optimisticToggleCompletion(items, habitId))
       }
 
+      useReviewReminderStore
+        .getState()
+        .trackCompletion(date ?? formatAPIDate(new Date()))
+
       return { previousLists }
     },
 
@@ -162,10 +166,6 @@ export function useLogHabit() {
         .getQueriesData<HabitScheduleItem[]>({ queryKey: habitKeys.lists() })
         .flatMap(([, items]) => items ?? [])
         .find((item) => item.id === variables.habitId)
-
-      useReviewReminderStore
-        .getState()
-        .trackCompletion(variables.date ?? formatAPIDate(new Date()))
 
       if (!loggedHabit?.isBadHabit && response?.isFirstCompletionToday && response.currentStreak > 0) {
         setStreakCelebration({ streak: response.currentStreak })
