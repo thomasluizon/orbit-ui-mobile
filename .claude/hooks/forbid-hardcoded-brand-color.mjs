@@ -16,8 +16,15 @@ try {
     process.exit(0)
   }
 
-  const filePath = input?.tool_input?.file_path ?? input?.tool_response?.filePath
-  if (!filePath || !existsSync(filePath)) process.exit(0)
+  const toolInput = input?.tool_input ?? {}
+  const filePath = toolInput.file_path ?? input?.tool_response?.filePath
+  if (!filePath) process.exit(0)
+
+  let added = ""
+  if (typeof toolInput.new_string === "string") added = toolInput.new_string
+  else if (Array.isArray(toolInput.edits)) added = toolInput.edits.map((edit) => edit?.new_string ?? "").join("\n")
+  else if (typeof toolInput.content === "string") added = toolInput.content
+  if (!added) process.exit(0)
 
   const normalized = String(filePath).replace(/\\/g, "/")
   if (!/\/apps\/(web|mobile)\/.*\.(ts|tsx|css)$/.test(normalized)) process.exit(0)
@@ -44,30 +51,20 @@ try {
   )
   if (bannedHex.size === 0 && bannedRgb.size === 0) process.exit(0)
 
-  let contents
-  try {
-    contents = readFileSync(filePath, "utf8")
-  } catch {
-    process.exit(0)
-  }
-
   const findings = []
-  const lines = contents.split("\n")
-  lines.forEach((line, index) => {
-    const lower = line.toLowerCase()
-    for (const hex of bannedHex) {
-      if (lower.includes(hex)) findings.push(`${filePath}:${index + 1} — ${hex} → use var(--primary)`)
-    }
-    const compact = line.replace(/\s+/g, "")
-    for (const rgb of bannedRgb) {
-      if (compact.includes(rgb)) findings.push(`${filePath}:${index + 1} — rgb(${rgb}) → use rgba(var(--primary-rgb), a)`)
-    }
-  })
+  const lowerAdded = added.toLowerCase()
+  for (const hex of bannedHex) {
+    if (lowerAdded.includes(hex)) findings.push(`${hex} → use var(--primary)`)
+  }
+  const compactAdded = added.replace(/\s+/g, "")
+  for (const rgb of bannedRgb) {
+    if (compactAdded.includes(rgb)) findings.push(`rgb(${rgb}) → use rgba(var(--primary-rgb), a)`)
+  }
 
   if (findings.length === 0) process.exit(0)
 
   process.stderr.write(
-    `Hardcoded brand-accent color in ${filePath}:\n` +
+    `Hardcoded brand-accent color newly written into ${filePath}:\n` +
       findings.map((f) => `  - ${f}`).join("\n") +
       `\n\nDESIGN.md: accents come from tokens. Use var(--primary) / var(--primary-pressed) or rgba(var(--primary-rgb), a), never a raw scheme literal.\n`,
   )

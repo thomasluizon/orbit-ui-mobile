@@ -244,8 +244,8 @@
     "eyebrow": "Um recado da Astra",
     "streakTitle": "{count} dias seguidos!",
     "levelTitle": "Nível {level}!",
-    "streakBody": "Você apareceu {count} dias seguidos — isso é ritmo de verdade. Que tal avaliar o Orbit no Google Play? Ajuda mais pessoas a encontrarem sua órbita.",
-    "levelBody": "Você acabou de alcançar o nível {level} — isso exigiu constância. Que tal avaliar o Orbit no Google Play? Ajuda mais pessoas a encontrarem sua órbita.",
+    "streakBody": "Você apareceu {count} dias seguidos. Isso é ritmo de verdade. Que tal avaliar o Orbit no Google Play? Ajuda mais pessoas a encontrarem sua órbita.",
+    "levelBody": "Você acabou de alcançar o nível {level}. Isso exigiu constância. Que tal avaliar o Orbit no Google Play? Ajuda mais pessoas a encontrarem sua órbita.",
     "cta": "Avaliar Orbit",
     "notNow": "Agora não"
   },
@@ -455,7 +455,7 @@
       "aiSuggesting": "Pensando…",
       "aiSuggestApplied": "Sugestão de IA aplicada",
       "aiSuggestError": "Não foi possível gerar uma sugestão. Tente novamente.",
-      "aiSuggestEmpty": "Sem sugestão para esse — adicione os detalhes você mesmo.",
+      "aiSuggestEmpty": "Sem sugestão para esse. Adicione os detalhes você mesmo.",
       "aiSuggestLimitReached": "Você atingiu seu limite mensal de mensagens de IA.",
       "title": "Título",
       "titlePlaceholder": "ex. Corrida matinal",
@@ -873,7 +873,7 @@
         "account-manage": "Gerenciar conta"
       },
       "summary": "{name} solicitado via chat",
-      "confirmed": "Confirmado — concluído.",
+      "confirmed": "Confirmado. Concluído.",
       "errors": {
         "confirmation_required": "A confirmação expirou. Toque em Confirmar novamente.",
         "step_up_required": "Verificação extra necessária. Toque em Confirmar novamente."
@@ -1738,15 +1738,15 @@
         "dateNavTitle": "Navegação por data",
         "dateNavDesc": "Use as setas para a esquerda e para a direita no Hoje para passar de um dia para outro. O Hoje também mostra os hábitos atrasados que ainda precisam de atenção.",
         "endDatesTitle": "Datas de término",
-        "endDatesDesc": "Defina uma data de término opcional em hábitos recorrentes. O hábito para de aparecer na sua agenda depois dessa data — ótimo para desafios temporários ou rotinas com prazo.",
+        "endDatesDesc": "Defina uma data de término opcional em hábitos recorrentes. O hábito para de aparecer na sua agenda depois dessa data. Ótimo para desafios temporários ou rotinas com prazo.",
         "goalLinkingTitle": "Vincular a metas",
         "goalLinkingDesc": "Vincule hábitos às suas metas pelo formulário do hábito. Hábitos vinculados entram no acompanhamento da meta e mostram como suas ações diárias empurram os objetivos maiores.",
         "tagDisplayTitle": "Tags nos cartões",
         "tagDisplayDesc": "As tags que você dá aos hábitos aparecem como badges coloridos no próprio cartão. Identifique as categorias num relance, sem abrir cada hábito.",
         "flexibleTitle": "Hábitos flexíveis",
-        "flexibleDesc": "Conclua X vezes por semana ou por mês, no seu ritmo — sem dias fixos. Hábitos flexíveis contam quantas vezes você os conclui dentro de um período, dando liberdade para escolher quando.",
+        "flexibleDesc": "Conclua X vezes por semana ou por mês, no seu ritmo, sem dias fixos. Hábitos flexíveis contam quantas vezes você os conclui dentro de um período, dando liberdade para escolher quando.",
         "generalTitle": "Hábitos gerais",
-        "generalDesc": "Hábitos sem agendamento — sempre à vista, sem data de vencimento. Perfeitos para hábitos contínuos, como escrever ou ler, que você quer acompanhar sem prender a dias específicos. Ative 'Mostrar gerais no Hoje' nas Configurações.",
+        "generalDesc": "Hábitos sem agendamento, sempre à vista, sem data de vencimento. Perfeitos para hábitos contínuos, como escrever ou ler, que você quer acompanhar sem prender a dias específicos. Ative 'Mostrar gerais no Hoje' nas Configurações.",
         "skipTitle": "Pular x Registrar",
         "skipDesc": "Pular marca um hábito como deixado de propósito naquele dia, sem quebrar a sua sequência. Use quando você escolheu não fazer um hábito de propósito (dia de descanso, viagem etc.), e não quando simplesmente esqueceu."
       },
@@ -1844,11 +1844,11 @@
       },
       "settingsSection": {
         "colorSchemeTitle": "Cor do tema",
-        "colorSchemeDesc": "Escolha entre 6 cores de destaque (roxo, azul, verde, rosa, laranja, ciano). O app inteiro se adapta — fundos, botões, sombras e o orbe do chat da IA mudam para combinar.",
+        "colorSchemeDesc": "Escolha entre 6 cores de destaque (roxo, azul, verde, rosa, laranja, ciano). O app inteiro se adapta: fundos, botões, sombras e o orbe do chat da IA mudam para combinar.",
         "languageTitle": "Idioma",
         "languageDesc": "Alterne entre inglês e português. O app, as respostas da IA e os e-mails se adaptam ao idioma escolhido.",
         "aiMemoryTitle": "Memória da IA",
-        "aiMemoryDesc": "Quando ativada, a IA aprende com as suas conversas — suas preferências, rotinas e objetivos. Ela usa isso para dar sugestões mais personalizadas. Você pode ver e gerenciar tudo em 'O que o Orbit sabe'. Recurso Pro.",
+        "aiMemoryDesc": "Quando ativada, a IA aprende com as suas conversas: suas preferências, rotinas e objetivos. Ela usa isso para dar sugestões mais personalizadas. Você pode ver e gerenciar tudo em 'O que o Orbit sabe'. Recurso Pro.",
         "aiSummaryTitle": "Resumo diário da IA",
         "aiSummaryDesc": "Ativa um cartão de resumo diário feito pela IA na sua página Hoje, com insights sobre seus hábitos e uma dose de incentivo. Recurso Pro.",
         "userFactsTitle": "O que o Orbit sabe",
@@ -1872,7 +1872,7 @@
         "managingTitle": "Gerenciando notificações",
         "managingDesc": "Marque notificações como lidas ou exclua uma a uma. Use 'Marcar todas como lidas' ou 'Excluir todas' para ações em massa. As notificações surgem quando os lembretes de hábitos disparam.",
         "configuringRemindersTitle": "Configurando lembretes",
-        "configuringRemindersDesc": "Configure os lembretes no formulário de edição do hábito. Escolha um momento antes da hora — na hora, ou minutos, horas ou até 1 dia antes. Você pode adicionar vários lembretes por hábito."
+        "configuringRemindersDesc": "Configure os lembretes no formulário de edição do hábito. Escolha um momento antes da hora: na hora, ou minutos, horas ou até 1 dia antes. Você pode adicionar vários lembretes por hábito."
       }
     }
   },
@@ -1971,7 +1971,7 @@
         "label": "Check-ins proativos",
         "free": "Não",
         "pro": "Incluso",
-        "tooltip": "Quando você fica para trás, a Astra manda um push personalizado para te trazer de volta aos trilhos — mesmo que você esqueça de abrir o app."
+        "tooltip": "Quando você fica para trás, a Astra manda um push personalizado para te trazer de volta aos trilhos, mesmo que você esqueça de abrir o app."
       },
       "calendarImport": {
         "label": "Google Calendar",
@@ -3090,7 +3090,7 @@
     },
     "invite": {
       "title": "Convide amigos para o Orbit",
-      "subtitle": "Compartilhe seu link — vocês dois ganham um cupom de desconto no Pro.",
+      "subtitle": "Compartilhe seu link e vocês dois ganham um cupom de desconto no Pro.",
       "scanHint": "Escaneie para entrar no Orbit",
       "copy": "Copiar",
       "copied": "Copiado!",
@@ -3133,7 +3133,7 @@
     },
     "optInGate": {
       "title": "Conecte-se com amigos",
-      "body": "Ative o social para adicionar amigos, compartilhar suas conquistas e se incentivarem. Seus hábitos continuam privados — os amigos só veem os marcos que você escolhe comemorar.",
+      "body": "Ative o social para adicionar amigos, compartilhar suas conquistas e se incentivarem. Seus hábitos continuam privados. Os amigos só veem os marcos que você escolhe comemorar.",
       "handleLabel": "Escolha seu nome de usuário",
       "handlePlaceholder": "usuario",
       "handleHint": "3 a 20 letras, números ou sublinhados. Os amigos usam isso para te encontrar.",
