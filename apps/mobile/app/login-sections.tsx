@@ -37,11 +37,26 @@ interface LoginHeaderProps {
   step: LoginStep
   t: TranslationFn
   styles: LoginStyles
+  fromOnboarding?: boolean
+  plannedHabitCount?: number
 }
 
-export function LoginHeader({ step, t, styles }: Readonly<LoginHeaderProps>) {
+export function LoginHeader({
+  step,
+  t,
+  styles,
+  fromOnboarding = false,
+  plannedHabitCount = 0,
+}: Readonly<LoginHeaderProps>) {
   const prefersReducedMotion = usePrefersReducedMotion()
   const logoEntrance = useEntrance(280, prefersReducedMotion)
+  const showPlanSummary = fromOnboarding && step === 'email'
+
+  const title = showPlanSummary
+    ? t('onboarding.flow.saveYourPlan.title')
+    : step === 'email'
+      ? t('auth.signIn')
+      : t('auth.enterCode')
 
   return (
     <>
@@ -65,10 +80,27 @@ export function LoginHeader({ step, t, styles }: Readonly<LoginHeaderProps>) {
 
       <View style={styles.titleBlock}>
         <Text style={styles.stepTitle} accessibilityRole="header">
-          {step === 'email' ? t('auth.signIn') : t('auth.enterCode')}
+          {title}
         </Text>
-        {step === 'email' && (
-          <Text style={styles.stepSubtitle}>{t('auth.signInSubtitle')}</Text>
+        {showPlanSummary ? (
+          <>
+            <Text style={styles.stepSubtitle}>
+              {t('onboarding.flow.saveYourPlan.subtitle')}
+            </Text>
+            {plannedHabitCount > 0 && (
+              <Text style={styles.stepSubtitle}>
+                {plannedHabitCount === 1
+                  ? t('onboarding.flow.saveYourPlan.habitSummaryOne')
+                  : t('onboarding.flow.saveYourPlan.habitSummary', {
+                      count: plannedHabitCount,
+                    })}
+              </Text>
+            )}
+          </>
+        ) : (
+          step === 'email' && (
+            <Text style={styles.stepSubtitle}>{t('auth.signInSubtitle')}</Text>
+          )
         )}
       </View>
     </>

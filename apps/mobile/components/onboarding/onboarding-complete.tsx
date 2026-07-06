@@ -3,7 +3,11 @@ import { Animated, StyleSheet, Text, View } from 'react-native'
 import { parseISO } from 'date-fns'
 import { Check } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
-import { useProfile, useHasProAccess } from '@/hooks/use-profile'
+import { useProfile } from '@/hooks/use-profile'
+import {
+  useOnboardingHasProAccess,
+  useOnboardingIsLive,
+} from './onboarding-actions-context'
 import { useDateFormat } from '@/hooks/use-date-format'
 import { createTokensV2, easings, type AppTokensV2 } from '@/lib/theme'
 import { toAnimatedEasing, usePrefersReducedMotion } from '@/lib/motion'
@@ -15,6 +19,7 @@ import { VerifiedBadge } from '@/components/ui/verified-badge'
 interface OnboardingCompleteProps {
   createdHabit: string
   createdGoal: boolean
+  finishLabel?: string
   onFinish: () => void
 }
 
@@ -25,12 +30,14 @@ interface OnboardingCompleteProps {
 export function OnboardingComplete({
   createdHabit,
   createdGoal,
+  finishLabel,
   onFinish,
 }: Readonly<OnboardingCompleteProps>) {
   const { t } = useTranslation()
   const { displayDate } = useDateFormat()
-  const { profile } = useProfile()
-  const hasProAccess = useHasProAccess()
+  const isLive = useOnboardingIsLive()
+  const { profile } = useProfile({ enabled: isLive })
+  const hasProAccess = useOnboardingHasProAccess()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(
     () => createTokensV2(currentScheme, currentTheme),
@@ -157,10 +164,14 @@ export function OnboardingComplete({
           <VerifiedBadge size={96} />
         </Animated.View>
         <Animated.Text style={[styles.title, riseSlot(0, 0.45)]}>
-          {t('onboarding.flow.complete.title')}
+          {isLive
+            ? t('onboarding.flow.complete.title')
+            : t('onboarding.flow.saveYourPlan.title')}
         </Animated.Text>
         <Animated.Text style={[styles.subtitle, riseSlot(0.1, 0.55)]}>
-          {t('onboarding.flow.complete.subtitle')}
+          {isLive
+            ? t('onboarding.flow.complete.subtitle')
+            : t('onboarding.flow.saveYourPlan.subtitle')}
         </Animated.Text>
       </View>
 
@@ -186,7 +197,7 @@ export function OnboardingComplete({
 
       <Animated.View style={[styles.startBtnWrap, riseSlot(0.55, 1)]}>
         <PillButton fullWidth onPress={onFinish}>
-          {t('onboarding.flow.complete.start')}
+          {finishLabel ?? t('onboarding.flow.complete.start')}
         </PillButton>
       </Animated.View>
     </View>

@@ -31,6 +31,7 @@ import {
 } from '@/lib/auth-flow'
 import { startMobileGoogleAuth } from '@/lib/google-auth'
 import { useOffline } from '@/hooks/use-offline'
+import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
 
 interface AuthErrorState {
   message: string
@@ -43,11 +44,17 @@ export function useLoginFlow() {
     returnUrl?: string
     email?: string
     code?: string
+    from?: string
   }>()
   const router = useRouter()
   const login = useAuthStore((s) => s.login)
   const { isOnline } = useOffline()
   const { showError } = useAppToast()
+  const onboardingLocallyDone = useOnboardingDraftStore(
+    (s) => s.onboardingLocallyDone,
+  )
+  const plannedHabitCount = useOnboardingDraftStore((s) => s.habits.length)
+  const fromOnboarding = params.from === 'onboarding' || onboardingLocallyDone
 
   const [step, setStep] = useState<'email' | 'code'>('email')
   const [email, setEmail] = useState('')
@@ -340,6 +347,8 @@ export function useLoginFlow() {
     isGoogleLoading,
     successMessage,
     showReferralBanner,
+    fromOnboarding,
+    plannedHabitCount,
     isOnline,
     isCodeStep,
     isAndroidKeyboardOpen,

@@ -72,6 +72,7 @@ const defaultProfile = {
   aiMessagesUsed: 0,
       aiMessagesLimit: 20,
   hasImportedCalendar: false,
+  hasSeenImportPrompt: false,
   hasGoogleConnection: false,
   subscriptionInterval: null,
   subscriptionSource: null,

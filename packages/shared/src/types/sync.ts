@@ -8,7 +8,7 @@ export const mutationTypeSchema = z.enum([
   'createTag', 'updateTag', 'deleteTag', 'restoreTag', 'assignTags',
   'markNotificationRead', 'markAllNotificationsRead', 'deleteNotification', 'deleteAllNotifications',
   'setName', 'setLanguage', 'setWeekStartDay', 'setColorScheme', 'setThemePreference', 'setTimeZone', 'setAiMemory', 'setAiSummary', 'setProactiveAstra', 'setMarketingConsent',
-  'completeOnboarding', 'dismissCalendarPrompt', 'resetProfile',
+  'completeOnboarding', 'dismissCalendarPrompt', 'dismissImportPrompt', 'resetProfile',
   'deleteUserFact', 'bulkDeleteUserFacts',
   'createApiKey', 'deleteApiKey',
 ])

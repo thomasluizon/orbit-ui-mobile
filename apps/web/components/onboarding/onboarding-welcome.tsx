@@ -1,62 +1,40 @@
 'use client'
 
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useState } from 'react'
 import { useTranslations } from 'next-intl'
-import { profileKeys } from '@orbit/shared/query'
-import type { Profile } from '@orbit/shared/types/profile'
 import { colorSchemeOptions, type ColorScheme } from '@orbit/shared/theme'
 import { ONBOARDING_WEEK_START_OPTIONS } from '@orbit/shared/utils'
-import { useProfile, useHasProAccess } from '@/hooks/use-profile'
+import type { OnboardingWeekStartDay } from '@orbit/shared/stores'
 import { useColorScheme } from '@/hooks/use-color-scheme'
-import {
-  updateWeekStartDay,
-  updateColorScheme as updateColorSchemeAction,
-} from '@/app/actions/profile'
+import { useOnboardingActions } from './onboarding-actions-context'
 import type { ReactNode } from 'react'
 import { AppLogo } from '@/components/ui/app-logo'
 import { Chip } from '@/components/ui/chip'
+import { QuietLink } from '@/components/ui/quiet-link'
 
-export function OnboardingWelcome() {
+interface OnboardingWelcomeProps {
+  hasProAccess: boolean
+  onHaveAccount?: () => void
+}
+
+export function OnboardingWelcome({
+  hasProAccess,
+  onHaveAccount,
+}: Readonly<OnboardingWelcomeProps>) {
   const t = useTranslations()
-  const queryClient = useQueryClient()
-  const { profile } = useProfile()
-  const hasProAccess = useHasProAccess()
+  const actions = useOnboardingActions()
   const { currentScheme, applyScheme } = useColorScheme()
+  const [selectedWeekStart, setSelectedWeekStart] = useState<OnboardingWeekStartDay>(1)
 
-  const weekStartDayMutation = useMutation({
-    mutationFn: (day: 0 | 1) => updateWeekStartDay({ weekStartDay: day }),
-    onMutate: async (newDay) => {
-      await queryClient.cancelQueries({ queryKey: profileKeys.all })
-      const prev = queryClient.getQueryData<Profile>(profileKeys.detail())
-      queryClient.setQueryData<Profile>(profileKeys.detail(), (old) =>
-        old ? { ...old, weekStartDay: newDay } : old,
-      )
-      return { prev }
-    },
-    onError: (_err, _newDay, context) => {
-      if (context?.prev) {
-        queryClient.setQueryData<Profile>(profileKeys.detail(), context.prev)
-      }
-    },
-    onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: profileKeys.all })
-    },
-  })
-
-  const colorSchemeMutation = useMutation({
-    mutationFn: (scheme: string) => updateColorSchemeAction({ colorScheme: scheme }),
-  })
-
-  function handleWeekStartDaySelect(day: 0 | 1) {
-    weekStartDayMutation.mutate(day)
+  function handleWeekStartDaySelect(day: OnboardingWeekStartDay) {
+    setSelectedWeekStart(day)
+    void actions.setWeekStartDay(day)
   }
 
   function handleSchemeSelect(scheme: ColorScheme) {
-    applyScheme(scheme)
-    colorSchemeMutation.mutate(scheme)
+    applyScheme(scheme, false)
+    void actions.setColorScheme(scheme)
   }
-
-  const weekStartDay = profile?.weekStartDay ?? 1
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 24, padding: '16px 0' }}>
@@ -112,7 +90,7 @@ export function OnboardingWelcome() {
           {ONBOARDING_WEEK_START_OPTIONS.map((option) => (
             <Chip
               key={option.value}
-              active={weekStartDay === option.value}
+              active={selectedWeekStart === option.value}
               onClick={() => handleWeekStartDaySelect(option.value)}
             >
               {t(option.labelKey)}
@@ -157,6 +135,14 @@ export function OnboardingWelcome() {
               )
             })}
           </div>
+        </div>
+      )}
+
+      {onHaveAccount && (
+        <div className="flex justify-center">
+          <QuietLink onClick={onHaveAccount}>
+            {t('onboarding.flow.saveYourPlan.haveAccount')}
+          </QuietLink>
         </div>
       )}
     </div>

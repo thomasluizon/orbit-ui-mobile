@@ -370,6 +370,7 @@ function inferScope(type: MutationType): MutationScope {
     case 'setProactiveAstra':
     case 'setMarketingConsent':
     case 'completeOnboarding':
+    case 'dismissImportPrompt':
     case 'resetProfile':
       return 'profile'
     default:

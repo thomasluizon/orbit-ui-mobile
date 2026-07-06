@@ -251,6 +251,8 @@ XP/gamification is **Free**, enabled by a feature flag (migration `EnableGamific
 
 | Feature | Description | Gating | Platform | Locale notes |
 |---|---|---|---|---|
+| Onboarding before auth | Pre-auth setup (habits, first log, optional goal, week-start/color prefs) buffered locally; signup is the final "save your plan" step, applied server-side exactly once | Free | Both | en + pt-BR |
+| Import from another app | One-time post-login prompt to hand an existing routine to Astra | Free | Both | en + pt-BR |
 | Email code login | Passwordless email verification code (max 3 attempts/15 min) | Free | Both | — |
 | Google sign-in | OAuth via Google | Free | Both | — |
 | Session — web | httpOnly, sameSite-strict, secure cookie via BFF | — | Web | — |

@@ -1,17 +1,12 @@
 import { describe, it, expect, vi } from 'vitest'
-import { render, screen, fireEvent } from '@testing-library/react'
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import React from 'react'
+import { render, screen } from '@testing-library/react'
+import {
+  OnboardingActionsProvider,
+  type OnboardingActions,
+} from '@/components/onboarding/onboarding-actions-context'
 
 vi.mock('next-intl', () => ({
   useTranslations: () => (key: string) => key,
-}))
-
-vi.mock('@/hooks/use-profile', () => ({
-  useProfile: () => ({
-    profile: { weekStartDay: 1 },
-  }),
-  useHasProAccess: () => false,
 }))
 
 vi.mock('@/hooks/use-color-scheme', () => ({
@@ -21,33 +16,39 @@ vi.mock('@/hooks/use-color-scheme', () => ({
   }),
 }))
 
-vi.mock('@/app/actions/profile', () => ({
-  updateWeekStartDay: vi.fn().mockResolvedValue(undefined),
-  updateColorScheme: vi.fn().mockResolvedValue(undefined),
-}))
-
 import { OnboardingWelcome } from '@/components/onboarding/onboarding-welcome'
 
-function createWrapper() {
-  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } })
-  return function Wrapper({ children }: { children: React.ReactNode }) {
-    return React.createElement(QueryClientProvider, { client: queryClient }, children)
-  }
+const stubActions: OnboardingActions = {
+  createHabit: vi.fn().mockResolvedValue({ id: '0', title: 'x' }),
+  createHabitsBulk: vi.fn().mockResolvedValue(undefined),
+  logHabit: vi.fn().mockResolvedValue(undefined),
+  createGoal: vi.fn().mockResolvedValue(undefined),
+  setWeekStartDay: vi.fn().mockResolvedValue(undefined),
+  setColorScheme: vi.fn().mockResolvedValue(undefined),
+  finishOnboarding: vi.fn().mockResolvedValue(undefined),
+}
+
+function renderWelcome(hasProAccess: boolean) {
+  return render(
+    <OnboardingActionsProvider actions={stubActions} hasProAccess={hasProAccess} isLive={false}>
+      <OnboardingWelcome hasProAccess={hasProAccess} />
+    </OnboardingActionsProvider>,
+  )
 }
 
 describe('OnboardingWelcome', () => {
   it('renders welcome title heading', () => {
-    render(<OnboardingWelcome />, { wrapper: createWrapper() })
+    renderWelcome(false)
     expect(screen.getByText('onboarding.flow.welcome.title')).toBeInTheDocument()
   })
 
   it('renders the week start day section label', () => {
-    render(<OnboardingWelcome />, { wrapper: createWrapper() })
+    renderWelcome(false)
     expect(screen.getByText('onboarding.flow.welcome.weekStart')).toBeInTheDocument()
   })
 
   it('renders exactly the monday and sunday week-start choices', () => {
-    render(<OnboardingWelcome />, { wrapper: createWrapper() })
+    renderWelcome(false)
     expect(
       screen.getByRole('button', { name: 'settings.weekStartDay.monday' }),
     ).toBeInTheDocument()
@@ -57,7 +58,12 @@ describe('OnboardingWelcome', () => {
   })
 
   it('does not show color scheme for non-pro users', () => {
-    render(<OnboardingWelcome />, { wrapper: createWrapper() })
+    renderWelcome(false)
     expect(screen.queryByText('onboarding.flow.welcome.colorScheme')).not.toBeInTheDocument()
+  })
+
+  it('shows color scheme for pro users', () => {
+    renderWelcome(true)
+    expect(screen.getByText('onboarding.flow.welcome.colorScheme')).toBeInTheDocument()
   })
 })

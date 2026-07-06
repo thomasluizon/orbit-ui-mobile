@@ -857,6 +857,26 @@
         "high": "Risco alto",
         "destructive": "Destrutivo",
         "low": "Risco baixo"
+      },
+      "capability": {
+        "habits-delete": "Excluir hábitos",
+        "habits-bulk-write": "Alterações de hábitos em lote",
+        "habits-bulk-delete": "Exclusão de hábitos em lote",
+        "goals-delete": "Excluir metas",
+        "tags-delete": "Excluir tags",
+        "notifications-delete": "Excluir notificações",
+        "calendar-sync-manage": "Gerenciar sincronização de agenda",
+        "user-facts-delete": "Excluir memórias da IA",
+        "subscriptions-manage": "Gerenciar assinatura",
+        "api-keys-manage": "Gerenciar chaves de API",
+        "sync-write": "Gravar dados de sincronização",
+        "account-manage": "Gerenciar conta"
+      },
+      "summary": "{name} solicitado via chat",
+      "confirmed": "Confirmado — concluído.",
+      "errors": {
+        "confirmation_required": "A confirmação expirou. Toque em Confirmar novamente.",
+        "step_up_required": "Verificação extra necessária. Toque em Confirmar novamente."
       }
     },
     "empty": {
@@ -1572,6 +1592,14 @@
         "weekStart": "Quando sua semana começa?",
         "colorScheme": "Escolha sua cor"
       },
+      "saveYourPlan": {
+        "title": "Salve seu plano",
+        "subtitle": "Crie sua conta para manter tudo o que você acabou de configurar.",
+        "habitSummary": "{count} hábitos prontos",
+        "habitSummaryOne": "1 hábito pronto",
+        "cta": "Criar conta e salvar",
+        "haveAccount": "Já tenho uma conta"
+      },
       "createHabit": {
         "title": "Crie seu primeiro hábito",
         "subtitle": "Os hábitos são a base de tudo. O que você quer acompanhar?",
@@ -1658,7 +1686,11 @@
     "wizard": {
       "calendarTitle": "Importar do Google Calendar",
       "calendarDescription": "Já tem eventos no Google Calendar? Importe como hábitos no Orbit com um toque.",
-      "calendarButton": "Importar calendário"
+      "calendarButton": "Importar calendário",
+      "importTitle": "Importar de outro app?",
+      "importDescription": "Vindo de outro app de hábitos? A Astra pode recriar seus hábitos. Anexe um arquivo ou cole sua lista.",
+      "importButton": "Importar com a Astra",
+      "importNotNow": "Agora não"
     },
     "featureGuide": {
       "title": "Guia de recursos",
@@ -2237,8 +2269,8 @@
       "hint": "Acompanhe seu progresso e desbloqueie conquistas",
       "level": "Nível {level}",
       "xp": "{current} / {next} XP",
-      "totalXp": "{total} XP no total",
-      "earned": "{count} / {total} conquistas desbloqueadas"
+      "totalXp": "{total} XP",
+      "earned": "{count}/{total} conquistas"
     },
     "page": {
       "lockedTitle": "Libere as conquistas",

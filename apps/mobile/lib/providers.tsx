@@ -1,4 +1,5 @@
 import { type ReactNode, useEffect, useRef, useState } from 'react'
+import * as SplashScreen from 'expo-splash-screen'
 import { QueryClientProvider } from '@tanstack/react-query'
 import {
   useFonts,
@@ -26,7 +27,10 @@ import { ThemeProvider } from './theme-provider'
 import { useOffline } from '@/hooks/use-offline'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useTranslation } from 'react-i18next'
+import { useOnboardingDraftHydrated } from '@/stores/onboarding-draft-store'
 import './i18n'
+
+void SplashScreen.preventAutoHideAsync()
 
 interface ProvidersProps {
   children: ReactNode
@@ -70,6 +74,7 @@ function OfflineManager() {
 function AuthInitializer({ children }: Readonly<{ children: ReactNode }>) {
   const initialize = useAuthStore((s) => s.initialize)
   const [ready, setReady] = useState(false)
+  const onboardingDraftHydrated = useOnboardingDraftHydrated()
   const runtimeTheme = getRuntimeTheme()
   const runtimeTokens = createTokensV2(runtimeTheme.scheme, runtimeTheme.themeMode)
   const [fontsLoaded] = useFonts({
@@ -123,7 +128,13 @@ function AuthInitializer({ children }: Readonly<{ children: ReactNode }>) {
     return () => subscription.remove()
   }, [])
 
-  if (!ready || !fontsLoaded) {
+  const appReady = ready && fontsLoaded && onboardingDraftHydrated
+
+  useEffect(() => {
+    if (appReady) void SplashScreen.hideAsync()
+  }, [appReady])
+
+  if (!appReady) {
     return (
       <View style={{ flex: 1, backgroundColor: runtimeTokens.bg, justifyContent: 'center', alignItems: 'center' }}>
         <ActivityIndicator size="large" color={runtimeTokens.primary} />

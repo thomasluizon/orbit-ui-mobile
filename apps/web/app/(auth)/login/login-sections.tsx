@@ -12,7 +12,28 @@ type Translate = ReturnType<typeof useTranslations>
 export function LoginHeader({
   step,
   t,
-}: Readonly<{ step: LoginStep; t: Translate }>) {
+  fromOnboarding = false,
+  pendingHabitCount = 0,
+}: Readonly<{
+  step: LoginStep
+  t: Translate
+  fromOnboarding?: boolean
+  pendingHabitCount?: number
+}>) {
+  const showPlanSummary = fromOnboarding && step === 'email'
+  const title = showPlanSummary
+    ? t('onboarding.flow.saveYourPlan.title')
+    : step === 'email'
+      ? t('auth.signIn')
+      : t('auth.enterCode')
+  const subtitleStyle = {
+    fontFamily: 'var(--font-sans)',
+    fontSize: 15,
+    lineHeight: 1.55,
+    color: 'var(--fg-2)',
+    margin: 0,
+  } as const
+
   return (
     <>
       <div
@@ -39,20 +60,25 @@ export function LoginHeader({
             margin: 0,
           }}
         >
-          {step === 'email' ? t('auth.signIn') : t('auth.enterCode')}
+          {title}
         </h2>
-        {step === 'email' && (
-          <p
-            style={{
-              fontFamily: 'var(--font-sans)',
-              fontSize: 15,
-              lineHeight: 1.55,
-              color: 'var(--fg-2)',
-              margin: 0,
-            }}
-          >
-            {t('auth.signInSubtitle')}
-          </p>
+        {showPlanSummary ? (
+          <>
+            <p style={subtitleStyle}>{t('onboarding.flow.saveYourPlan.subtitle')}</p>
+            {pendingHabitCount > 0 && (
+              <p style={subtitleStyle}>
+                {pendingHabitCount === 1
+                  ? t('onboarding.flow.saveYourPlan.habitSummaryOne')
+                  : t('onboarding.flow.saveYourPlan.habitSummary', {
+                      count: pendingHabitCount,
+                    })}
+              </p>
+            )}
+          </>
+        ) : (
+          step === 'email' && (
+            <p style={subtitleStyle}>{t('auth.signInSubtitle')}</p>
+          )
         )}
       </div>
     </>

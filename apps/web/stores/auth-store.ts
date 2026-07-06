@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import type { User, LoginResponse } from '@orbit/shared/types/auth'
+import { useOnboardingDraftStore } from './onboarding-draft-store'
 
 const EXPIRY_CHECK_INTERVAL = 60 * 1000
 
@@ -77,6 +78,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
 
     set({ isAuthenticated: false, user: null, expiresAt: null })
+    useOnboardingDraftStore.getState().reset()
 
     if (typeof globalThis !== 'undefined' && typeof globalThis.location !== 'undefined') {
       globalThis.location.href = '/login'

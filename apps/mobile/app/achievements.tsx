@@ -313,9 +313,11 @@ function createStyles(_tokens: Tokens) {
     xpTotalRow: {
       flexDirection: 'row',
       justifyContent: 'space-between',
+      gap: 12,
       marginTop: 10,
     },
     earnedCount: {
+      flexShrink: 1,
       fontFamily: 'Roboto_400Regular',
       fontSize: 12,
       fontVariant: ['tabular-nums'],

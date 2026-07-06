@@ -106,6 +106,7 @@ export function createMockProfile(overrides: Partial<Profile> = {}): Profile {
     aiMessagesUsed: 0,
     aiMessagesLimit: 20,
     hasImportedCalendar: false,
+    hasSeenImportPrompt: false,
     hasGoogleConnection: false,
     subscriptionInterval: null,
     subscriptionSource: null,

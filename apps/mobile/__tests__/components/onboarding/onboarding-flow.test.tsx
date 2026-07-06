@@ -9,36 +9,54 @@ import {
   shouldHideOnboardingFooter,
 } from '@orbit/shared/utils'
 
-const { routerMock, pathnameState, performQueuedApiMutationMock, captured } =
-  vi.hoisted(() => {
-    const capturedState: {
-      beginPress?: () => void
-      importPress?: () => void | Promise<void>
-      welcomeRendered: boolean
-    } = { welcomeRendered: false }
-    return {
-      routerMock: { replace: vi.fn(), push: vi.fn(), navigate: vi.fn() },
-      pathnameState: { value: '/' },
-      performQueuedApiMutationMock: vi.fn(),
-      captured: capturedState,
-    }
-  })
+const { routerMock, pathnameState, actionsMock, captured } = vi.hoisted(() => {
+  const router = { replace: vi.fn(), push: vi.fn(), navigate: vi.fn() }
+  const capturedState: {
+    beginPress?: () => void
+    importPress?: () => void | Promise<void>
+    welcomeRendered: boolean
+  } = { welcomeRendered: false }
+  return {
+    routerMock: router,
+    pathnameState: { value: '/' },
+    actionsMock: {
+      createHabit: vi.fn(async (input: { title: string }) => ({
+        id: '0',
+        title: input.title,
+      })),
+      createHabitsBulk: vi.fn(async () => undefined),
+      logHabit: vi.fn(async () => undefined),
+      createGoal: vi.fn(async () => undefined),
+      setWeekStartDay: vi.fn(async () => undefined),
+      setColorScheme: vi.fn(async () => undefined),
+      finishOnboarding: vi.fn(async () => undefined),
+      onImport: () => router.replace('/chat'),
+    },
+    captured: capturedState,
+  }
+})
 
 vi.mock('expo-router', () => ({
   useRouter: () => routerMock,
   usePathname: () => pathnameState.value,
 }))
 
-vi.mock('@tanstack/react-query', () => ({
-  useQueryClient: () => ({ setQueryData: vi.fn() }),
-}))
-
 vi.mock('@/hooks/use-profile', () => ({
   useHasProAccess: () => true,
 }))
 
-vi.mock('@/lib/queued-api-mutation', () => ({
-  performQueuedApiMutation: performQueuedApiMutationMock,
+vi.mock('@/stores/auth-store', () => ({
+  useAuthStore: (selector: (state: { isAuthenticated: boolean }) => unknown) =>
+    selector({ isAuthenticated: false }),
+}))
+
+vi.mock('@/components/onboarding/onboarding-actions-context', () => ({
+  OnboardingActionsProvider: ({
+    children,
+  }: Readonly<{ children?: React.ReactNode }>) => children,
+  useOnboardingActions: () => actionsMock,
+  useOnboardingHasProAccess: () => true,
+  useOnboardingIsLive: () => false,
 }))
 
 vi.mock('@/components/ui/gradient-top', () => ({
@@ -131,7 +149,7 @@ describe('OnboardingFlow import handoff + resume', () => {
   beforeEach(() => {
     routerMock.replace.mockClear()
     routerMock.push.mockClear()
-    performQueuedApiMutationMock.mockClear()
+    actionsMock.finishOnboarding.mockClear()
     captured.beginPress = undefined
     captured.importPress = undefined
     captured.welcomeRendered = false
@@ -152,7 +170,7 @@ describe('OnboardingFlow import handoff + resume', () => {
     })
 
     expect(routerMock.replace).toHaveBeenCalledWith('/chat')
-    expect(performQueuedApiMutationMock).not.toHaveBeenCalled()
+    expect(actionsMock.finishOnboarding).not.toHaveBeenCalled()
   })
 
   it('hides the overlay while on the chat route and restores it after leaving chat', async () => {

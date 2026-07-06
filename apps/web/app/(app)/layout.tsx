@@ -17,7 +17,7 @@ import { AppOverlay } from '@/components/ui/app-overlay'
 import { PillButton } from '@/components/ui/pill-button'
 import { CreateHabitModal } from '@/components/habits/create-habit-modal'
 import { CreateGoalModal } from '@/components/goals/create-goal-modal'
-import { OnboardingFlow } from '@/components/onboarding/onboarding-flow'
+import { RetainedOnboardingOverlay } from '@/components/onboarding/retained-onboarding-overlay'
 import { StreakCelebration } from '@/components/gamification/streak-celebration'
 import { AllDoneCelebration } from '@/components/gamification/all-done-celebration'
 import { GoalCompletedCelebration } from '@/components/gamification/goal-completed-celebration'
@@ -42,10 +42,23 @@ import {
   MARKETING_CONSENT_MILESTONE_KEY,
 } from '@orbit/shared/stores'
 import { dismissCalendarImport } from '@/app/actions/calendar'
+import { dismissImportPrompt } from '@/app/actions/onboarding'
+import { useOnboardingFlush } from '@/hooks/use-onboarding-flush'
+import {
+  useOnboardingDraftHydrated,
+  useOnboardingHasPendingAnswers,
+} from '@/stores/onboarding-draft-store'
+import { CHAT_DRAFT_STORAGE_KEY } from '@orbit/shared/hooks'
 import { TourProvider } from '@/components/tour/tour-provider'
 import { TourOverlay } from '@/components/tour/tour-overlay'
 import { RouteTransitionShell } from '@/components/motion/route-transition-shell'
 import { TodayProvider } from './today-provider'
+import {
+  isCalendarPromptCriteriaMet,
+  isImportPromptCriteriaMet,
+  shouldShowRetainedOnboardingOverlay,
+  shouldSuppressOnboardingOverlay,
+} from './onboarding-overlay-state'
 import { ApiFetchI18nProvider } from '@/lib/api-fetch-i18n-provider'
 import { setRouteTransitionIntent } from '@/lib/motion/route-intent'
 import { formatAPIDate, isShareableAchievement } from '@orbit/shared/utils'
@@ -80,8 +93,12 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
   const router = useRouter()
   const pathname = usePathname()
   const searchParams = useSearchParams()
-  const { profile } = useProfile()
+  const t = useTranslations()
+  const { profile, patchProfile } = useProfile()
   useTimezoneAutoSync(profile)
+  useOnboardingFlush()
+  const draftHydrated = useOnboardingDraftHydrated()
+  const hasPendingOnboardingAnswers = useOnboardingHasPendingAnswers()
   const hasProAccess = profile?.hasProAccess ?? false
   const canViewGamification = profile?.canViewGamification ?? false
   const totalHabitCount = useTotalHabitCount()
@@ -106,17 +123,24 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
 
   const [showCalendarPrompt, setShowCalendarPrompt] = useState(false)
 
-  const calendarPromptCriteriaMet = !!(
-    profile &&
-    profile.hasCompletedOnboarding &&
-    profile.hasCompletedTour &&
-    !profile.hasImportedCalendar &&
-    pathname !== '/calendar-sync'
-  )
+  const calendarPromptCriteriaMet = isCalendarPromptCriteriaMet(profile, pathname)
   const [previousCriteriaMet, setPreviousCriteriaMet] = useState(calendarPromptCriteriaMet)
   if (calendarPromptCriteriaMet !== previousCriteriaMet) {
     setPreviousCriteriaMet(calendarPromptCriteriaMet)
     if (calendarPromptCriteriaMet) setShowCalendarPrompt(true)
+  }
+
+  const [showImportPrompt, setShowImportPrompt] = useState(false)
+
+  const importPromptCriteriaMet = isImportPromptCriteriaMet(profile, {
+    calendarPromptCriteriaMet,
+    showCalendarPrompt,
+    hasPendingOnboardingAnswers,
+  })
+  const [previousImportCriteriaMet, setPreviousImportCriteriaMet] = useState(importPromptCriteriaMet)
+  if (importPromptCriteriaMet !== previousImportCriteriaMet) {
+    setPreviousImportCriteriaMet(importPromptCriteriaMet)
+    if (importPromptCriteriaMet) setShowImportPrompt(true)
   }
 
   const handleCreate = useCallback(() => {
@@ -158,6 +182,35 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
     [showCalendarPrompt, handleDismissCalendarPrompt],
   )
 
+  const handleDismissImportPrompt = useCallback(() => {
+    setShowImportPrompt(false)
+    dismissImportPrompt().catch(() => {})
+    patchProfile({ hasSeenImportPrompt: true })
+  }, [patchProfile])
+
+  const handleImportWithAstra = useCallback(() => {
+    setShowImportPrompt(false)
+    dismissImportPrompt().catch(() => {})
+    patchProfile({ hasSeenImportPrompt: true })
+    if (typeof globalThis !== 'undefined' && typeof globalThis.localStorage !== 'undefined') {
+      globalThis.localStorage.setItem(
+        CHAT_DRAFT_STORAGE_KEY,
+        t('onboarding.flow.meetAstra.importPrompt'),
+      )
+    }
+    setRouteTransitionIntent('forward')
+    router.push('/chat')
+  }, [patchProfile, router, t])
+
+  const handleImportPromptOpenChange = useCallback(
+    (open: boolean) => {
+      if (!open && showImportPrompt) {
+        handleDismissImportPrompt()
+      }
+    },
+    [showImportPrompt, handleDismissImportPrompt],
+  )
+
   return (
     <div className="relative isolate min-h-dvh overflow-x-clip bg-[var(--bg)] text-[var(--fg-1)] pb-28 pt-[var(--safe-top)] md:pb-0">
       <AppShell onCreate={handleCreate}>
@@ -196,10 +249,18 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
         hasProAccess={hasProAccess}
         canViewGamification={canViewGamification}
         streakFreezeRef={streakFreezeRef}
+        suppressOnboardingOverlay={shouldSuppressOnboardingOverlay({
+          draftHydrated,
+          hasPendingOnboardingAnswers,
+        })}
         showCalendarPrompt={showCalendarPrompt}
         onCalendarPromptOpenChange={handleCalendarPromptOpenChange}
         onCalendarImport={handleCalendarImport}
         onDismissCalendarPrompt={handleDismissCalendarPrompt}
+        showImportPrompt={showImportPrompt}
+        onImportPromptOpenChange={handleImportPromptOpenChange}
+        onImportWithAstra={handleImportWithAstra}
+        onDismissImportPrompt={handleDismissImportPrompt}
       />
 
       {showCreateModal && (
@@ -230,19 +291,29 @@ function GlobalOverlays({
   hasProAccess,
   canViewGamification,
   streakFreezeRef,
+  suppressOnboardingOverlay,
   showCalendarPrompt,
   onCalendarPromptOpenChange,
   onCalendarImport,
   onDismissCalendarPrompt,
+  showImportPrompt,
+  onImportPromptOpenChange,
+  onImportWithAstra,
+  onDismissImportPrompt,
 }: Readonly<{
   profile: ReturnType<typeof useProfile>['profile']
   hasProAccess: boolean
   canViewGamification: boolean
   streakFreezeRef: React.RefObject<{ show: () => void } | null>
+  suppressOnboardingOverlay: boolean
   showCalendarPrompt: boolean
   onCalendarPromptOpenChange: (open: boolean) => void
   onCalendarImport: () => void
   onDismissCalendarPrompt: () => void
+  showImportPrompt: boolean
+  onImportPromptOpenChange: (open: boolean) => void
+  onImportWithAstra: () => void
+  onDismissImportPrompt: () => void
 }>) {
   const t = useTranslations()
   const gamification = useGamificationProfile(canViewGamification)
@@ -294,7 +365,9 @@ function GlobalOverlays({
       <ExpiryWarning />
       <TrialExpiredModal />
       {profile?.hasCompletedOnboarding && <PushPrompt />}
-      {profile && !profile.hasCompletedOnboarding && <OnboardingFlow />}
+      {shouldShowRetainedOnboardingOverlay(profile, suppressOnboardingOverlay) && (
+        <RetainedOnboardingOverlay />
+      )}
       <StreakCelebration />
       <AllDoneCelebration />
       <GoalCompletedCelebration />
@@ -329,6 +402,28 @@ function GlobalOverlays({
               onClick={onDismissCalendarPrompt}
             >
               {t('common.later')}
+            </button>
+          </div>
+        </div>
+      </AppOverlay>
+      <AppOverlay
+        open={showImportPrompt}
+        onOpenChange={onImportPromptOpenChange}
+        title={t('onboarding.wizard.importTitle')}
+      >
+        <div className="flex flex-col items-center text-center gap-5 py-2">
+          <p className="text-sm text-[var(--fg-2)] leading-relaxed">
+            {t('onboarding.wizard.importDescription')}
+          </p>
+          <div className="flex flex-col gap-3 w-full">
+            <PillButton fullWidth onClick={onImportWithAstra} className="md:self-center">
+              {t('onboarding.wizard.importButton')}
+            </PillButton>
+            <button
+              className="w-full py-3 text-[var(--fg-2)] text-sm font-medium hover:text-[var(--fg-1)] transition-colors"
+              onClick={onDismissImportPrompt}
+            >
+              {t('onboarding.wizard.importNotNow')}
             </button>
           </div>
         </div>

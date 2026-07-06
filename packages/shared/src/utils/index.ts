@@ -2,6 +2,7 @@ export { achievementEmoji } from './achievement-emoji'
 export { parseAPIDate, formatAPIDate } from './dates'
 export { getTimezoneList } from './timezones'
 export { isValidEmail } from './email'
+export { isRecord } from './is-record'
 export {
   AUTH_BACKEND_ERROR_MAP,
   createVerificationCodeDigits,
@@ -296,6 +297,10 @@ export type {
   EngagementSlotCard,
   EngagementSlotEligibility,
 } from './engagement-slot'
+export {
+  getAgentCapabilityLabelKey,
+  getAgentPolicyReasonKey,
+} from './agent-pending-operation'
 export {
   calculateXpProgress,
   deriveGamificationProfileState,

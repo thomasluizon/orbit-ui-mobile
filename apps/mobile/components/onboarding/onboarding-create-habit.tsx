@@ -3,7 +3,7 @@ import { ActivityIndicator, Animated, StyleSheet, Text, View } from 'react-nativ
 import { Check, Settings2 } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import { useAppToast } from '@/hooks/use-app-toast'
-import { useCreateHabit } from '@/hooks/use-habits'
+import { useOnboardingActions } from './onboarding-actions-context'
 import { FieldInput } from '@/components/ui/field-input'
 import { Chip } from '@/components/ui/chip'
 import { PillButton } from '@/components/ui/pill-button'
@@ -59,6 +59,7 @@ export function OnboardingCreateHabit({
     null,
   )
   const [showFrequencyPicker, setShowFrequencyPicker] = useState(false)
+  const [isCreating, setIsCreating] = useState(false)
   const { showError } = useAppToast()
   const prefersReducedMotion = usePrefersReducedMotion()
   const successScale = useMemo(() => new Animated.Value(0), [])
@@ -80,8 +81,7 @@ export function OnboardingCreateHabit({
     return () => animation.stop()
   }, [isCreated, prefersReducedMotion, successScale])
 
-  const createHabit = useCreateHabit()
-  const isCreating = createHabit.isPending
+  const actions = useOnboardingActions()
 
   const activeFrequency = frequencyUnit ?? 'one-time'
 
@@ -100,7 +100,7 @@ export function OnboardingCreateHabit({
     setSelectedSuggestion(null)
   }
 
-  const handleCreate = useCallback(() => {
+  const handleCreate = useCallback(async () => {
     if (!title.trim() || isCreating) return
 
     const validationError = translateErrorKey(
@@ -116,31 +116,28 @@ export function OnboardingCreateHabit({
       return
     }
 
-    createHabit.mutate(
-      {
+    setIsCreating(true)
+    try {
+      const created = await actions.createHabit({
         title: title.trim(),
         frequencyQuantity: 1,
         ...(frequencyUnit ? { frequencyUnit } : {}),
-      },
-      {
-        onSuccess: (result) => {
-          setIsCreated(true)
-          setTimeout(() => {
-            onCreated(result.id, title.trim())
-          }, 1500)
-        },
-        onError: (err: unknown) => {
-          showError(
-            getFriendlyErrorMessage(err, translate, 'errors.createHabit', 'habit'),
-          )
-        },
-      },
-    )
+      })
+      setIsCreated(true)
+      setTimeout(() => {
+        onCreated(created.id, created.title)
+      }, 1500)
+    } catch (err: unknown) {
+      setIsCreating(false)
+      showError(
+        getFriendlyErrorMessage(err, translate, 'errors.createHabit', 'habit'),
+      )
+    }
   }, [
     title,
     frequencyUnit,
     isCreating,
-    createHabit,
+    actions,
     onCreated,
     showError,
     translate,

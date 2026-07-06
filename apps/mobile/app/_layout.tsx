@@ -17,7 +17,6 @@ import { type Theme as NavigationTheme } from 'expo-router/react-navigation'
 import { StatusBar } from 'expo-status-bar'
 import Constants from 'expo-constants'
 import { Providers } from '@/lib/providers'
-import { usePendingGoogleAuthSession } from '@/lib/google-auth-callback'
 import { useAuthStore } from '@/stores/auth-store'
 import { useGamificationProfile } from '@/hooks/use-gamification'
 import { useHasProAccess, useProfile } from '@/hooks/use-profile'
@@ -49,7 +48,14 @@ import {
   useReviewReminderStore,
 } from '@/stores/review-reminder-store'
 import { OnboardingFlow } from '@/components/onboarding/onboarding-flow'
+import {
+  OnboardingActionsProvider,
+  useLiveOnboardingActions,
+} from '@/components/onboarding/onboarding-actions-context'
 import { CalendarImportPrompt } from '@/components/onboarding/calendar-import-prompt'
+import { AstraImportPrompt } from '@/components/onboarding/astra-import-prompt'
+import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
+import { useOnboardingFlush } from '@/hooks/use-onboarding-flush'
 import { BottomTabBar, type BottomTabId } from '@/components/navigation/bottom-tab-bar'
 import { useTourTarget } from '@/hooks/use-tour-target'
 import { AchievementToast } from '@/components/gamification/achievement-toast'
@@ -86,53 +92,6 @@ const PushPrompt = isExpoGo
       })),
     )
 
-function AuthGuard() {
-  const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
-  const isLoading = useAuthStore((s) => s.isLoading)
-  const {
-    callbackUrl: pendingGoogleAuthCallbackUrl,
-    isPending: isPendingGoogleAuthSession,
-  } = usePendingGoogleAuthSession()
-  const segments = useSegments()
-  const router = useRouter()
-  const firstSegment = segments[0] as string | undefined
-
-  useEffect(() => {
-    if (isLoading) return
-
-    const inPublicRoute =
-      firstSegment === 'login' ||
-      firstSegment === 'auth-callback' ||
-      firstSegment === 'r' ||
-      firstSegment === 'privacy' ||
-      firstSegment === 'terms'
-    const allowAuthCallbackWhileResolving =
-      firstSegment === 'auth-callback' &&
-      (isPendingGoogleAuthSession || Boolean(pendingGoogleAuthCallbackUrl))
-
-    if (!isAuthenticated && !inPublicRoute) {
-      router.replace('/login')
-    } else if (isAuthenticated && firstSegment === 'login') {
-      router.replace('/')
-    } else if (
-      isAuthenticated &&
-      firstSegment === 'auth-callback' &&
-      !allowAuthCallbackWhileResolving
-    ) {
-      router.replace('/')
-    }
-  }, [
-    firstSegment,
-    isAuthenticated,
-    isLoading,
-    isPendingGoogleAuthSession,
-    pendingGoogleAuthCallbackUrl,
-    router,
-  ])
-
-  return null
-}
-
 const SLIDE_FROM_RIGHT_SCREENS = [
   'preferences',
   'ai-settings',
@@ -155,6 +114,11 @@ const SLIDE_FROM_RIGHT_SCREENS = [
 function RootStackScreens({
   screenBackgroundColor,
 }: Readonly<{ screenBackgroundColor: string }>) {
+  const isAuthenticated = useAuthStore((s) => s.isAuthenticated)
+  const onboardingLocallyDone = useOnboardingDraftStore(
+    (s) => s.onboardingLocallyDone,
+  )
+
   return (
     <Stack
       screenOptions={{
@@ -166,25 +130,36 @@ function RootStackScreens({
         contentStyle: { backgroundColor: screenBackgroundColor },
       }}
     >
-      <Stack.Screen name="(tabs)" />
-      <Stack.Screen name="chat" options={{ animation: 'slide_from_right' }} />
-      <Stack.Screen
-        name="login"
-        options={{ animation: 'fade', gestureEnabled: false }}
-      />
+      <Stack.Screen name="privacy" options={{ animation: 'fade' }} />
+      <Stack.Screen name="terms" options={{ animation: 'fade' }} />
+      <Stack.Screen name="r" />
       <Stack.Screen
         name="auth-callback"
         options={{ animation: 'fade', gestureEnabled: false }}
       />
-      {SLIDE_FROM_RIGHT_SCREENS.map((name) => (
+
+      <Stack.Protected guard={!isAuthenticated && !onboardingLocallyDone}>
+        <Stack.Screen name="(onboarding)" />
+      </Stack.Protected>
+
+      <Stack.Protected guard={!isAuthenticated}>
         <Stack.Screen
-          key={name}
-          name={name}
-          options={{ animation: 'slide_from_right' }}
+          name="login"
+          options={{ animation: 'fade', gestureEnabled: false }}
         />
-      ))}
-      <Stack.Screen name="privacy" options={{ animation: 'fade' }} />
-      <Stack.Screen name="terms" options={{ animation: 'fade' }} />
+      </Stack.Protected>
+
+      <Stack.Protected guard={isAuthenticated}>
+        <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="chat" options={{ animation: 'slide_from_right' }} />
+        {SLIDE_FROM_RIGHT_SCREENS.map((name) => (
+          <Stack.Screen
+            key={name}
+            name={name}
+            options={{ animation: 'slide_from_right' }}
+          />
+        ))}
+      </Stack.Protected>
     </Stack>
   )
 }
@@ -204,6 +179,7 @@ function RootLayoutNav() {
   const activeView = useUIStore((s) => s.activeView)
   const setShowCreateModal = useUIStore((s) => s.setShowCreateModal)
   const setShowCreateGoalModal = useUIStore((s) => s.setShowCreateGoalModal)
+  useOnboardingFlush()
 
   const topSegment = segments[0] as string | undefined
   const hideAppShellChrome =
@@ -216,7 +192,6 @@ function RootLayoutNav() {
     topSegment === 'r'
 
   const showBottomNav = isAuthenticated && !hideAppShellChrome
-  const showSharedCelebrations = pathname !== '/'
   const androidBackFallbackRoute = useMemo(
     () =>
       getAndroidBackFallbackRoute(pathname, {
@@ -286,7 +261,6 @@ function RootLayoutNav() {
 
   return (
     <>
-      <AuthGuard />
       <StatusBar animated style={currentTheme === 'dark' ? 'light' : 'dark'} />
 
       <View style={{ flex: 1 }}>
@@ -301,12 +275,7 @@ function RootLayoutNav() {
         ) : null}
       </View>
 
-      {isAuthenticated ? (
-        <GlobalOverlays
-          profile={profile}
-          showSharedCelebrations={showSharedCelebrations}
-        />
-      ) : null}
+      {isAuthenticated ? <GlobalOverlays profile={profile} /> : null}
       <AppToast />
     </>
   )
@@ -314,10 +283,8 @@ function RootLayoutNav() {
 
 function GlobalOverlays({
   profile,
-  showSharedCelebrations,
 }: Readonly<{
   profile: ReturnType<typeof useProfile>['profile']
-  showSharedCelebrations: boolean
 }>) {
   const streakFreezeRef = useRef<StreakFreezeCelebrationHandle>(null)
   const hasProAccess = profile?.hasProAccess ?? false
@@ -337,6 +304,11 @@ function GlobalOverlays({
       armConsentPrompt(MARKETING_CONSENT_MILESTONE_KEY)
     }
   }, [hasCompletedOnboarding, marketingEmailConsent, armConsentPrompt])
+
+  const pendingOnboardingAnswers = useOnboardingDraftStore((s) =>
+    s.hasPendingAnswers(),
+  )
+  const liveOnboardingActions = useLiveOnboardingActions()
 
   useEffect(() => {
     if (gamification.leveledUp && gamification.newLevel) {
@@ -383,18 +355,26 @@ function GlobalOverlays({
     <>
       <ExpiryWarning />
       <TrialExpiredModal />
-      {profile && !profile.hasCompletedOnboarding ? <OnboardingFlow /> : null}
+      {profile && !profile.hasCompletedOnboarding && !pendingOnboardingAnswers ? (
+        <OnboardingActionsProvider
+          actions={liveOnboardingActions}
+          hasProAccess={hasProAccess}
+          isLive
+        >
+          <OnboardingFlow />
+        </OnboardingActionsProvider>
+      ) : null}
       <Suspense fallback={null}>
         {profile?.hasCompletedOnboarding ? <PushPrompt /> : null}
       </Suspense>
       {profile?.hasCompletedOnboarding ? (
         <>
-          {showSharedCelebrations ? <StreakCelebration /> : null}
-          {showSharedCelebrations ? <AllDoneCelebration /> : null}
+          <StreakCelebration />
+          <AllDoneCelebration />
           <GoalCompletedCelebration />
-          {showSharedCelebrations ? <WelcomeBackToast /> : null}
-          {showSharedCelebrations && hasProAccess ? <AchievementToast /> : null}
-          {showSharedCelebrations && canViewGamification ? (
+          <WelcomeBackToast />
+          {hasProAccess ? <AchievementToast /> : null}
+          {canViewGamification ? (
             <LevelUpOverlay
               leveledUp={gamification.leveledUp}
               newLevel={gamification.newLevel}
@@ -409,6 +389,7 @@ function GlobalOverlays({
       ) : null}
       <StreakFreezeCelebration ref={streakFreezeRef} />
       <CalendarImportPrompt />
+      <AstraImportPrompt />
       <VersionUpdateDrawer />
       <TourProvider>
         <TourOverlay />

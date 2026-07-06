@@ -12,6 +12,7 @@ import { resolveMotionPreset } from '@orbit/shared/theme'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useOffline } from '@/hooks/use-offline'
 import { useAuthStore } from '@/stores/auth-store'
+import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
 import { getSupabaseClient } from '@/lib/supabase'
 import { useLoginCodeEntry } from '@/hooks/use-login-code-entry'
 import {
@@ -57,6 +58,12 @@ export function useLoginFlow() {
   const feedbackMotion = resolveMotionPreset('success-feedback', Boolean(prefersReducedMotion))
 
   const referralCode = getCookieValue('referral_code')
+  const fromOnboarding = searchParams.get('from') === 'onboarding'
+  const pendingHabitCount = useOnboardingDraftStore((state) => state.habits.length)
+
+  useEffect(() => {
+    void useOnboardingDraftStore.persist.rehydrate()
+  }, [])
 
   useEffect(() => {
     const refParam = searchParams.get('ref')
@@ -217,6 +224,8 @@ export function useLoginFlow() {
     errorMessage,
     successMessage,
     referralCode,
+    fromOnboarding,
+    pendingHabitCount,
     isOnline,
     authStepMotion,
     feedbackMotion,
