@@ -298,6 +298,10 @@ export type {
   EngagementSlotEligibility,
 } from './engagement-slot'
 export {
+  getAgentCapabilityLabelKey,
+  getAgentPolicyReasonKey,
+} from './agent-pending-operation'
+export {
   calculateXpProgress,
   deriveGamificationProfileState,
   deriveNextRewardCarrot,

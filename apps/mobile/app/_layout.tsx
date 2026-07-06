@@ -190,7 +190,6 @@ function RootLayoutNav() {
     topSegment === 'r'
 
   const showBottomNav = isAuthenticated && !hideAppShellChrome
-  const showSharedCelebrations = pathname !== '/'
   const androidBackFallbackRoute = useMemo(
     () =>
       getAndroidBackFallbackRoute(pathname, {
@@ -274,12 +273,7 @@ function RootLayoutNav() {
         ) : null}
       </View>
 
-      {isAuthenticated ? (
-        <GlobalOverlays
-          profile={profile}
-          showSharedCelebrations={showSharedCelebrations}
-        />
-      ) : null}
+      {isAuthenticated ? <GlobalOverlays profile={profile} /> : null}
       <AppToast />
     </>
   )
@@ -287,10 +281,8 @@ function RootLayoutNav() {
 
 function GlobalOverlays({
   profile,
-  showSharedCelebrations,
 }: Readonly<{
   profile: ReturnType<typeof useProfile>['profile']
-  showSharedCelebrations: boolean
 }>) {
   const streakFreezeRef = useRef<StreakFreezeCelebrationHandle>(null)
   const hasProAccess = profile?.hasProAccess ?? false
@@ -366,12 +358,12 @@ function GlobalOverlays({
       </Suspense>
       {profile?.hasCompletedOnboarding ? (
         <>
-          {showSharedCelebrations ? <StreakCelebration /> : null}
-          {showSharedCelebrations ? <AllDoneCelebration /> : null}
+          <StreakCelebration />
+          <AllDoneCelebration />
           <GoalCompletedCelebration />
-          {showSharedCelebrations ? <WelcomeBackToast /> : null}
-          {showSharedCelebrations && hasProAccess ? <AchievementToast /> : null}
-          {showSharedCelebrations && canViewGamification ? (
+          <WelcomeBackToast />
+          {hasProAccess ? <AchievementToast /> : null}
+          {canViewGamification ? (
             <LevelUpOverlay
               leveledUp={gamification.leveledUp}
               newLevel={gamification.newLevel}
