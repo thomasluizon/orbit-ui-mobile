@@ -44,6 +44,7 @@ import {
 import { dismissCalendarImport } from '@/app/actions/calendar'
 import { dismissImportPrompt } from '@/app/actions/onboarding'
 import { useOnboardingFlush } from '@/hooks/use-onboarding-flush'
+import { useRetainedOnboardingGuard } from '@/hooks/use-retained-onboarding-guard'
 import {
   useOnboardingDraftHydrated,
   useOnboardingHasPendingAnswers,
@@ -56,7 +57,6 @@ import { TodayProvider } from './today-provider'
 import {
   isCalendarPromptCriteriaMet,
   isImportPromptCriteriaMet,
-  shouldShowRetainedOnboardingOverlay,
   shouldSuppressOnboardingOverlay,
 } from './onboarding-overlay-state'
 import { ApiFetchI18nProvider } from '@/lib/api-fetch-i18n-provider'
@@ -322,6 +322,10 @@ function GlobalOverlays({
     (s) => s.armMilestoneSharePrompt,
   )
   const armConsentPrompt = useReferralPromptStore((s) => s.armConsentPrompt)
+  const showRetainedOnboarding = useRetainedOnboardingGuard(
+    profile,
+    suppressOnboardingOverlay,
+  )
 
   useEffect(() => {
     if (
@@ -369,9 +373,7 @@ function GlobalOverlays({
       <ExpiryWarning />
       <TrialExpiredModal />
       {profile?.hasCompletedOnboarding && <PushPrompt />}
-      {shouldShowRetainedOnboardingOverlay(profile, suppressOnboardingOverlay) && (
-        <RetainedOnboardingOverlay />
-      )}
+      {showRetainedOnboarding && <RetainedOnboardingOverlay />}
       <StreakCelebration />
       <AllDoneCelebration />
       <GoalCompletedCelebration />
