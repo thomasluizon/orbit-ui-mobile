@@ -27,10 +27,6 @@ jobs:
 
             You are the SOLE automated reviewer of this PR. You MUST finish with exactly ONE decisive GitHub review — APPROVE or REQUEST_CHANGES. A bare comment is never an acceptable terminal state.
 
-            ## Single-turn execution — this runtime has NO background wake-ups
-
-            This GitHub Action runs you for a single execution. It does NOT deliver a notification when a forked skill or a background subagent finishes — if you end your turn waiting to be "notified when it completes", the job simply exits and the review is never posted. Therefore: run everything to completion in this one run. When `/pr-review` fans out its subagents (parity-checker, i18n-syncer, …), block on their results in-turn; never fire-and-forget and yield. Do NOT end your turn while any subagent, forked skill, or background task is still pending — block on it, or run its check inline. You are not done until `gh pr review … --approve` or `--request-changes` has actually been called.
-
             ## Step 1 — Review via the /pr-review skill (single source of truth)
 
             Run the repo's `/pr-review` skill against PR #${{ github.event.pull_request.number }}. The skill walks `.claude/skills/pr-review/rubric.md` and produces a severity-ranked report. This workflow does NOT maintain its own rubric — the skill and rubric own all criteria. You only run the skill and post the decision.
