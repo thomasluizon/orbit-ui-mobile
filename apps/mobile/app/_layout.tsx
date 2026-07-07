@@ -56,6 +56,7 @@ import { CalendarImportPrompt } from '@/components/onboarding/calendar-import-pr
 import { AstraImportPrompt } from '@/components/onboarding/astra-import-prompt'
 import { useOnboardingDraftStore } from '@/stores/onboarding-draft-store'
 import { useOnboardingFlush } from '@/hooks/use-onboarding-flush'
+import { useRetainedOnboardingGuard } from '@/hooks/use-retained-onboarding-guard'
 import { BottomTabBar, type BottomTabId } from '@/components/navigation/bottom-tab-bar'
 import { useTourTarget } from '@/hooks/use-tour-target'
 import { AchievementToast } from '@/components/gamification/achievement-toast'
@@ -320,6 +321,10 @@ function GlobalOverlays({
     s.hasPendingAnswers(),
   )
   const liveOnboardingActions = useLiveOnboardingActions()
+  const showRetainedOnboarding = useRetainedOnboardingGuard(
+    profile,
+    pendingOnboardingAnswers,
+  )
 
   useEffect(() => {
     if (gamification.leveledUp && gamification.newLevel) {
@@ -366,7 +371,7 @@ function GlobalOverlays({
     <>
       <ExpiryWarning />
       <TrialExpiredModal />
-      {profile && !profile.hasCompletedOnboarding && !pendingOnboardingAnswers ? (
+      {showRetainedOnboarding ? (
         <OnboardingActionsProvider
           actions={liveOnboardingActions}
           hasProAccess={hasProAccess}

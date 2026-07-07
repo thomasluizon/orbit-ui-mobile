@@ -3,7 +3,6 @@ import { createMockProfile } from '@orbit/shared/__tests__/factories'
 import {
   isCalendarPromptCriteriaMet,
   isImportPromptCriteriaMet,
-  shouldShowRetainedOnboardingOverlay,
   shouldSuppressOnboardingOverlay,
 } from '@/app/(app)/onboarding-overlay-state'
 
@@ -146,27 +145,6 @@ describe('onboarding overlay state machine', () => {
           hasPendingOnboardingAnswers: false,
         }),
       ).toBe(false)
-    })
-  })
-
-  describe('shouldShowRetainedOnboardingOverlay', () => {
-    it('shows for a profile mid-onboarding once not suppressed', () => {
-      const profile = createMockProfile({ hasCompletedOnboarding: false })
-      expect(shouldShowRetainedOnboardingOverlay(profile, false)).toBe(true)
-    })
-
-    it('does not show while suppressed', () => {
-      const profile = createMockProfile({ hasCompletedOnboarding: false })
-      expect(shouldShowRetainedOnboardingOverlay(profile, true)).toBe(false)
-    })
-
-    it('does not show once onboarding is complete', () => {
-      const profile = createMockProfile({ hasCompletedOnboarding: true })
-      expect(shouldShowRetainedOnboardingOverlay(profile, false)).toBe(false)
-    })
-
-    it('does not show without a profile', () => {
-      expect(shouldShowRetainedOnboardingOverlay(undefined, false)).toBe(false)
     })
   })
 })

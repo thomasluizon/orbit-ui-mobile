@@ -169,6 +169,7 @@ export {
 export { isVersionBelow } from './version'
 export { buildReferralUrl, buildRecapShareUrl, isValidReferralCode } from './referral'
 export {
+  canSnapshotOnboardingEntry,
   getOnboardingDisplayStep,
   getOnboardingDisplayTotal,
   getOnboardingHabitFrequencyLabelKey,
@@ -185,8 +186,10 @@ export {
   ONBOARDING_TEMPLATE_PACKS_STEP,
   ONBOARDING_TOTAL_STEPS,
   ONBOARDING_WEEK_START_OPTIONS,
+  resolveRetainedOnboarding,
   shouldHideOnboardingFooter,
 } from './onboarding'
+export type { RetainedOnboardingAction } from './onboarding'
 export {
   buildBulkItemsFromPack,
   getTemplatePackById,

@@ -40,11 +40,3 @@ export function shouldSuppressOnboardingOverlay(
 ): boolean {
   return !input.draftHydrated || input.hasPendingOnboardingAnswers
 }
-
-/** Whether to mount the retained (post-auth) onboarding overlay for a profile that has not finished onboarding. */
-export function shouldShowRetainedOnboardingOverlay(
-  profile: Profile | null | undefined,
-  suppressOnboardingOverlay: boolean,
-): boolean {
-  return !!(profile && !profile.hasCompletedOnboarding && !suppressOnboardingOverlay)
-}

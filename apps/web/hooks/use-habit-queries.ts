@@ -141,8 +141,8 @@ export function useHabitFullDetail(id: string | null) {
   })
 }
 
-export function useTotalHabitCount(): number {
-  const query = useQuery({
+function useHabitCountQuery() {
+  return useQuery({
     queryKey: habitKeys.count(),
     queryFn: async () => {
       const data = await fetchJson<{ count: number }>(API.habits.count)
@@ -150,8 +150,16 @@ export function useTotalHabitCount(): number {
     },
     staleTime: QUERY_STALE_TIMES.habits,
   })
+}
 
-  return query.data ?? 0
+export function useTotalHabitCount(): number {
+  return useHabitCountQuery().data ?? 0
+}
+
+/** Total habit count plus whether the count query has settled, for gating first-run decisions. */
+export function useHabitCountLoaded(): { count: number; isLoaded: boolean } {
+  const query = useHabitCountQuery()
+  return { count: query.data ?? 0, isLoaded: query.isSuccess }
 }
 
 export {
