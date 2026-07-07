@@ -326,12 +326,16 @@ function GlobalOverlays({
   useEffect(() => {
     if (
       profile?.hasCompletedOnboarding &&
+      profile.hasCompletedTour &&
+      profile.hasSeenImportPrompt &&
       profile.marketingEmailConsent === null
     ) {
       armConsentPrompt(MARKETING_CONSENT_MILESTONE_KEY)
     }
   }, [
     profile?.hasCompletedOnboarding,
+    profile?.hasCompletedTour,
+    profile?.hasSeenImportPrompt,
     profile?.marketingEmailConsent,
     armConsentPrompt,
   ])

@@ -45,6 +45,7 @@ describe('onboarding overlay state machine', () => {
     const onboardedProfile = () =>
       createMockProfile({
         hasCompletedOnboarding: true,
+        hasCompletedTour: true,
         hasSeenImportPrompt: false,
       })
 
@@ -56,6 +57,23 @@ describe('onboarding overlay state machine', () => {
           hasPendingOnboardingAnswers: false,
         }),
       ).toBe(true)
+    })
+
+    it('defers while the feature tour is still running', () => {
+      expect(
+        isImportPromptCriteriaMet(
+          createMockProfile({
+            hasCompletedOnboarding: true,
+            hasCompletedTour: false,
+            hasSeenImportPrompt: false,
+          }),
+          {
+            calendarPromptCriteriaMet: false,
+            showCalendarPrompt: false,
+            hasPendingOnboardingAnswers: false,
+          },
+        ),
+      ).toBe(false)
     })
 
     it('defers while the calendar prompt is eligible', () => {

@@ -19,6 +19,7 @@ export default function PrivacyPage() {
       t('privacy.dataCollected.habits'),
       t('privacy.dataCollected.chat'),
       t('privacy.dataCollected.preferences'),
+      t('privacy.dataCollected.device'),
     ] },
     { label: t('privacy.howWeUse.title'), body: [
       t('privacy.howWeUse.provide'),
@@ -32,6 +33,9 @@ export default function PrivacyPage() {
       t('privacy.thirdParty.firebase'),
       t('privacy.thirdParty.openai'),
       t('privacy.thirdParty.resend'),
+      t('privacy.thirdParty.googlePlay'),
+      t('privacy.thirdParty.admob'),
+      t('privacy.thirdParty.sentry'),
     ] },
     { label: t('privacy.retention.title'), body: [
       t('privacy.retention.intro'),

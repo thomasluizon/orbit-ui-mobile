@@ -127,6 +127,15 @@ at a time** (mirrors `/implement` Phase 4 and the root CLAUDE.md delegation cap)
 each the list of changed files. Fold every result back into the Phase 3 findings under
 the matching rubric dimension.
 
+**Await them synchronously — this is a blocking fan-out, not fire-and-forget.** Spawn the
+gated subagents, then wait for every one to return *within this same turn* and fold its
+result in before moving to Phase 5. Never end your turn with a subagent still running on
+the expectation that a completion notification will wake you back up: the CI wrapper
+(`.github/workflows/claude-review.yml`) runs a single execution and delivers **no**
+background-completion wake-up, so yielding there strands the review half-done and posts
+nothing. If for any reason you cannot block on a subagent, run its check inline yourself
+rather than deferring — the review is not finished until every gated subagent has returned.
+
 | Subagent | Gate (fire when…) | Folds into rubric dimension |
 |---|---|---|
 | `parity-checker` | any `apps/web/**` or `apps/mobile/**` file changed | Parity (#9) |

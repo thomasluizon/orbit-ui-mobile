@@ -26,6 +26,7 @@ export function isImportPromptCriteriaMet(
   return !!(
     profile &&
     profile.hasCompletedOnboarding &&
+    profile.hasCompletedTour &&
     !profile.hasSeenImportPrompt &&
     !context.calendarPromptCriteriaMet &&
     !context.showCalendarPrompt &&
