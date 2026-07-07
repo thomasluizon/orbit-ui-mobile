@@ -209,25 +209,27 @@ function sortSiblingsByPosition<T extends ReorderableHabitItem>(siblings: T[]): 
 }
 
 /**
- * Computes the new position list after a drag-and-drop reorder.
- *
- * Handles filtered views correctly: when the visible `items` array is a subset
- * of all siblings (e.g. the Today view hides habits not scheduled today), this
- * function merges the moved item into the FULL sibling list (preserving hidden
- * siblings' relative order) and emits contiguous 0..N-1 positions for every
- * affected parent group. This prevents hidden siblings from drifting to the
- * end on every reorder.
- *
- * Also supports parent changes: if the dragged item lands next to an anchor
- * with a different parentId, both the old and new parent groups are re-emitted.
+ * Nearest neighbour of the moved item in the reordered flat list — walking from
+ * `start` in `step` direction — that is an actual sibling (same effective
+ * parentId). Sub-habit rows of other expanded parents are skipped so a same-level
+ * reorder is never anchored to a different group's expanded children.
  */
-function resolveAnchorParent(
-  anchor: ReorderableHabitItem | undefined,
+function findSameLevelAnchor(
+  list: ReorderableHabitItem[],
+  start: number,
+  step: 1 | -1,
+  parentId: string | null,
   movedId: string,
   habitsById: Map<string, ReorderableHabitItem>,
-): string | null | undefined {
-  if (!anchor || anchor.id === movedId) return undefined
-  return habitsById.get(anchor.id)?.parentId ?? anchor.parentId
+): ReorderableHabitItem | undefined {
+  for (let i = start; i >= 0 && i < list.length; i += step) {
+    const candidate = list[i]
+    if (!candidate || candidate.id === movedId) continue
+    const candidateParent =
+      habitsById.get(candidate.id)?.parentId ?? candidate.parentId ?? null
+    if (candidateParent === parentId) return candidate
+  }
+  return undefined
 }
 
 function resolveInsertIndex(
@@ -266,6 +268,22 @@ function siblingsToPositions(siblings: ReorderableHabitItem[]): HabitReorderPosi
   return siblings.map((sibling, index) => ({ habitId: sibling.id, position: index }))
 }
 
+/**
+ * Computes the new position list after a drag-and-drop reorder.
+ *
+ * Drag reorder is **position-only and same-parent**: the payload carries no
+ * parentId and the API renumbers by position, so a drag never re-parents (that is
+ * a separate "move to parent" flow). The moved item therefore always stays in its
+ * own group, and its insert index is resolved from **same-level** neighbours only
+ * — sub-habit rows of other expanded parents in the flat `items` list are skipped
+ * so they can't pull the moved item into the wrong group.
+ *
+ * Handles filtered views correctly: when the visible `items` array is a subset of
+ * all siblings (e.g. the Today view hides habits not scheduled today), the moved
+ * item is merged into the FULL sibling list (preserving hidden siblings' relative
+ * order) before emitting contiguous 0..N-1 positions, so hidden siblings don't
+ * drift to the end on every reorder.
+ */
 export function computeHabitReorderPositions<T extends ReorderableHabitItem>(
   items: T[],
   oldIndex: number,
@@ -288,22 +306,21 @@ export function computeHabitReorderPositions<T extends ReorderableHabitItem>(
 
   const movedId = movedVisible.id
   const movedHabit = habitsById.get(movedId) ?? movedVisible
-  const originalParentId = movedHabit.parentId
+  const parentId = movedHabit.parentId ?? null
 
-  const visibleReordered = [...items]
+  const visibleReordered: ReorderableHabitItem[] = [...items]
   visibleReordered.splice(oldIndex, 1)
   visibleReordered.splice(newIndex, 0, movedVisible)
 
-  const afterAnchor = visibleReordered[newIndex + 1]
-  const beforeAnchor = newIndex > 0 ? visibleReordered[newIndex - 1] : undefined
-
-  const destinationParentId =
-    resolveAnchorParent(afterAnchor, movedId, habitsById) ??
-    resolveAnchorParent(beforeAnchor, movedId, habitsById) ??
-    originalParentId
+  const afterAnchor = findSameLevelAnchor(
+    visibleReordered, newIndex + 1, 1, parentId, movedId, habitsById,
+  )
+  const beforeAnchor = findSameLevelAnchor(
+    visibleReordered, newIndex - 1, -1, parentId, movedId, habitsById,
+  )
 
   const destinationSiblings = sortSiblingsByPosition(
-    getAllSiblings(destinationParentId, habitsById, getChildren)
+    getAllSiblings(parentId, habitsById, getChildren)
       .filter((sibling) => sibling.id !== movedId),
   )
 
@@ -312,17 +329,7 @@ export function computeHabitReorderPositions<T extends ReorderableHabitItem>(
   )
 
   const mergedDestination: ReorderableHabitItem[] = [...destinationSiblings]
-  mergedDestination.splice(fullInsertIndex, 0, { ...movedHabit, parentId: destinationParentId })
+  mergedDestination.splice(fullInsertIndex, 0, movedHabit)
 
-  const positions = siblingsToPositions(mergedDestination)
-
-  if (destinationParentId !== originalParentId) {
-    const oldSiblings = sortSiblingsByPosition(
-      getAllSiblings(originalParentId, habitsById, getChildren)
-        .filter((sibling) => sibling.id !== movedId),
-    )
-    positions.push(...siblingsToPositions(oldSiblings))
-  }
-
-  return positions
+  return siblingsToPositions(mergedDestination)
 }
