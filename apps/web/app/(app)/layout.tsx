@@ -326,12 +326,16 @@ function GlobalOverlays({
   useEffect(() => {
     if (
       profile?.hasCompletedOnboarding &&
+      profile.hasCompletedTour &&
+      profile.hasSeenImportPrompt &&
       profile.marketingEmailConsent === null
     ) {
       armConsentPrompt(MARKETING_CONSENT_MILESTONE_KEY)
     }
   }, [
     profile?.hasCompletedOnboarding,
+    profile?.hasCompletedTour,
+    profile?.hasSeenImportPrompt,
     profile?.marketingEmailConsent,
     armConsentPrompt,
   ])
@@ -380,9 +384,7 @@ function GlobalOverlays({
           onClear={gamification.clearLevelUp}
         />
       )}
-      {profile?.hasCompletedOnboarding &&
-        profile?.hasCompletedTour &&
-        profile?.hasSeenImportPrompt && <MarketingConsentPrompt />}
+      {profile?.hasCompletedOnboarding && <MarketingConsentPrompt />}
       {profile?.hasCompletedOnboarding && <ReferralPrompt />}
       {profile?.hasCompletedOnboarding && <MilestoneSharePrompt />}
       <StreakFreezeCelebration ref={streakFreezeRef} />
