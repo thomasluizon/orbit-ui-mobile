@@ -1359,7 +1359,8 @@
       "account": "Account information: name and email address (via email signup or Google OAuth)",
       "habits": "Habit data: habits you create, completion logs, schedules, tags, and goals",
       "chat": "AI chat messages: conversations with the Orbit AI assistant",
-      "preferences": "Preferences: language, timezone, color scheme, notification settings, and AI memory facts you provide"
+      "preferences": "Preferences: language, timezone, color scheme, notification settings, and AI memory facts you provide",
+      "device": "Device data: a push notification token (to deliver reminders), your device advertising identifier (used by Google AdMob to show ads to free users), and crash diagnostics with personal identifiers removed"
     },
     "howWeUse": {
       "title": "How We Use Your Data",
@@ -1374,7 +1375,10 @@
       "stripe": "Stripe - for subscription payment processing",
       "firebase": "Firebase Cloud Messaging - for push notifications",
       "openai": "OpenAI - for AI chat features and daily summaries",
-      "resend": "Resend - for transactional emails"
+      "resend": "Resend - for transactional emails",
+      "googlePlay": "Google Play Billing - for subscription purchases on Android",
+      "admob": "Google AdMob - shows ads to free (non-Pro) users and uses your device advertising identifier",
+      "sentry": "Sentry - for crash and error diagnostics, with personal identifiers removed"
     },
     "noSell": {
       "title": "We Do Not Sell Your Data",
@@ -1421,7 +1425,7 @@
       "step1": "1. Go to Profile and tap \"Delete account\"",
       "step2": "2. A confirmation code will be sent to your email",
       "step3": "3. Enter the code to confirm deletion",
-      "step4": "All data is permanently deleted immediately, including habits, completion history, AI conversations, user facts, and settings. This action is irreversible."
+      "step4": "After a 7-day grace period (or the end of your current paid period, whichever is later), all data is permanently deleted, including habits, completion history, AI conversations, user facts, and settings. This action is irreversible."
     },
     "contact": {
       "title": "Contact",

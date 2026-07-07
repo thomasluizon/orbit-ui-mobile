@@ -300,10 +300,21 @@ function GlobalOverlays({
   const marketingEmailConsent = profile?.marketingEmailConsent
 
   useEffect(() => {
-    if (hasCompletedOnboarding && marketingEmailConsent === null) {
+    if (
+      hasCompletedOnboarding &&
+      profile?.hasCompletedTour &&
+      profile?.hasSeenImportPrompt &&
+      marketingEmailConsent === null
+    ) {
       armConsentPrompt(MARKETING_CONSENT_MILESTONE_KEY)
     }
-  }, [hasCompletedOnboarding, marketingEmailConsent, armConsentPrompt])
+  }, [
+    hasCompletedOnboarding,
+    profile?.hasCompletedTour,
+    profile?.hasSeenImportPrompt,
+    marketingEmailConsent,
+    armConsentPrompt,
+  ])
 
   const pendingOnboardingAnswers = useOnboardingDraftStore((s) =>
     s.hasPendingAnswers(),

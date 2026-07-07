@@ -1359,7 +1359,8 @@
       "account": "Informações da conta: nome e e-mail (pelo cadastro por e-mail ou pelo Google OAuth)",
       "habits": "Dados de hábitos: hábitos que você cria, registros de conclusão, agendamentos, tags e metas",
       "chat": "Mensagens do chat com a IA: suas conversas com o assistente de IA do Orbit",
-      "preferences": "Preferências: idioma, fuso horário, cor do tema, configurações de notificação e o que você ensina para a memória da IA"
+      "preferences": "Preferências: idioma, fuso horário, cor do tema, configurações de notificação e o que você ensina para a memória da IA",
+      "device": "Dados do dispositivo: um token de notificação push (para enviar lembretes), o identificador de publicidade do seu dispositivo (usado pelo Google AdMob para exibir anúncios a usuários gratuitos) e diagnósticos de falhas com identificadores pessoais removidos"
     },
     "howWeUse": {
       "title": "Como usamos seus dados",
@@ -1374,7 +1375,10 @@
       "stripe": "Stripe - para processamento de pagamentos de assinatura",
       "firebase": "Firebase Cloud Messaging - para notificações push",
       "openai": "OpenAI - para recursos de chat com IA e resumos diários",
-      "resend": "Resend - para e-mails transacionais"
+      "resend": "Resend - para e-mails transacionais",
+      "googlePlay": "Google Play Billing - para compras de assinatura no Android",
+      "admob": "Google AdMob - exibe anúncios a usuários gratuitos (sem Pro) e usa o identificador de publicidade do seu dispositivo",
+      "sentry": "Sentry - para diagnósticos de falhas e erros, com identificadores pessoais removidos"
     },
     "noSell": {
       "title": "Não vendemos seus dados",
@@ -1421,7 +1425,7 @@
       "step1": "1. Vá ao Perfil e toque em \"Excluir conta\"",
       "step2": "2. Enviamos um código de confirmação para o seu e-mail",
       "step3": "3. Digite o código para confirmar a exclusão",
-      "step4": "Todos os dados são apagados de vez na hora: hábitos, histórico de conclusão, conversas com a IA, o que a IA sabe sobre você e as configurações. Esta ação não tem volta."
+      "step4": "Após um período de carência de 7 dias (ou o fim do seu período pago atual, o que ocorrer por último), todos os dados são apagados de forma permanente: hábitos, histórico de conclusão, conversas com a IA, o que a IA sabe sobre você e as configurações. Esta ação não tem volta."
     },
     "contact": {
       "title": "Contato",
