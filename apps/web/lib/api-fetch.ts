@@ -69,7 +69,7 @@ async function getStatusError(
 ): Promise<ApiError | null> {
   if (status === 401) {
     const { useAuthStore } = await import('@/stores/auth-store')
-    useAuthStore.getState().logout()
+    void useAuthStore.getState().logout()
     return new ApiError(status, 'Unauthorized', body)
   }
 
@@ -110,7 +110,7 @@ export async function apiFetch<T>(url: string, options?: RequestInit): Promise<T
   })
 
   if (!res.ok) {
-    const body = await res.json().catch(() => null)
+    const body: unknown = await res.json().catch(() => null)
     const status = res.status
 
     const statusError = await getStatusError(status, body)

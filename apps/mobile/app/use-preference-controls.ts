@@ -42,7 +42,7 @@ export function usePreferenceControls() {
   async function handleLanguageChange(locale: 'en' | 'pt-BR') {
     const previousLanguage = selectedLanguage
     setSelectedLanguage(locale)
-    i18n.changeLanguage(locale)
+    void i18n.changeLanguage(locale)
     try {
       await performQueuedApiMutation({
         type: 'setLanguage',
@@ -55,7 +55,7 @@ export function usePreferenceControls() {
       patchProfile({ language: locale })
     } catch {
       setSelectedLanguage(previousLanguage)
-      i18n.changeLanguage(previousLanguage)
+      void i18n.changeLanguage(previousLanguage)
     }
   }
 
@@ -80,9 +80,9 @@ export function usePreferenceControls() {
       }
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: habitKeys.calendarPrefix() })
-      queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
-      queryClient.invalidateQueries({ queryKey: habitKeys.summaryPrefix() })
+      void queryClient.invalidateQueries({ queryKey: habitKeys.calendarPrefix() })
+      void queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
+      void queryClient.invalidateQueries({ queryKey: habitKeys.summaryPrefix() })
     },
   })
 

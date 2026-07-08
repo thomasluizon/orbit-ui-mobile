@@ -139,7 +139,7 @@ export function ReferralDrawer({ open, onOpenChange }: Readonly<ReferralDrawerPr
                   type="button"
                   className="icon-btn shrink-0"
                   style={{ width: 44, height: 44 }}
-                  onClick={copyLink}
+                  onClick={() => void copyLink()}
                   aria-label={t('referral.drawer.copyLink')}
                 >
                   {copied ? (
@@ -159,7 +159,7 @@ export function ReferralDrawer({ open, onOpenChange }: Readonly<ReferralDrawerPr
                 <PillButton
                   fullWidth
                   leading={<Share2 size={18} strokeWidth={1.8} color="var(--fg-on-primary)" />}
-                  onClick={shareLink}
+                  onClick={() => void shareLink()}
                 >
                   {t('referral.drawer.share')}
                 </PillButton>

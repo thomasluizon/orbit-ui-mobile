@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
       body: JSON.stringify(body),
     })
 
-    const data = await response.json().catch(() => null)
+    const data: unknown = await response.json().catch(() => null)
     const backendRequestId = resolveResponseRequestId(response, requestId)
     responseHeaders.set(ORBIT_REQUEST_ID_HEADER, backendRequestId)
 

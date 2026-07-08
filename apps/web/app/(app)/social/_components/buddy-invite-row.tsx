@@ -93,7 +93,7 @@ export function BuddyInviteRow({ pair, direction }: Readonly<BuddyInviteRowProps
               </button>
               <button
                 type="button"
-                onClick={handleEnd}
+                onClick={() => void handleEnd()}
                 disabled={busy}
                 className={`${actionButtonClass} bg-[var(--bg-elev)] text-[var(--fg-2)] enabled:hover:bg-[var(--bg-elev-2)]`}
                 style={actionButtonStyle}
@@ -104,7 +104,7 @@ export function BuddyInviteRow({ pair, direction }: Readonly<BuddyInviteRowProps
           ) : (
             <button
               type="button"
-              onClick={handleEnd}
+              onClick={() => void handleEnd()}
               disabled={busy}
               className={`${actionButtonClass} bg-[var(--bg-elev)] text-[var(--fg-2)] enabled:hover:bg-[var(--bg-elev-2)]`}
               style={actionButtonStyle}
@@ -122,7 +122,7 @@ export function BuddyInviteRow({ pair, direction }: Readonly<BuddyInviteRowProps
         description={t('social.buddies.acceptSubtitle', { name: pair.buddy.displayName })}
         footer={
           <PillButton
-            onClick={handleAccept}
+            onClick={() => void handleAccept()}
             disabled={habitIds.length === 0 || accept.isPending}
             busy={accept.isPending}
             fullWidth

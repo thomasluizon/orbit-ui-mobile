@@ -91,7 +91,7 @@ export function useSetCalendarAutoSync() {
     },
 
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: calendarKeys.autoSyncState() })
+      void queryClient.invalidateQueries({ queryKey: calendarKeys.autoSyncState() })
     },
   })
 }
@@ -110,8 +110,8 @@ export function useRunCalendarSyncNow() {
     },
 
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: calendarKeys.all })
-      queryClient.invalidateQueries({ queryKey: notificationKeys.all })
+      void queryClient.invalidateQueries({ queryKey: calendarKeys.all })
+      void queryClient.invalidateQueries({ queryKey: notificationKeys.all })
     },
   })
 }
@@ -152,7 +152,7 @@ export function useDismissCalendarSuggestion() {
     },
 
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: calendarKeys.syncSuggestions() })
+      void queryClient.invalidateQueries({ queryKey: calendarKeys.syncSuggestions() })
     },
   })
 }

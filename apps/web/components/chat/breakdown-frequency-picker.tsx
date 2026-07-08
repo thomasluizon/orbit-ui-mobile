@@ -67,7 +67,7 @@ export function BreakdownFrequencyPicker({
             className="w-8 bg-transparent text-[11px] text-[var(--fg-2)] text-center outline-none rounded-sm focus-visible:outline-1 focus-visible:outline-offset-2 focus-visible:outline-[var(--primary)] [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none"
           />
           <span className="text-[11px] text-[var(--fg-3)]">
-            {t(`habits.form.unit${frequencyUnit}` as Parameters<typeof t>[0])}
+            {t(`habits.form.unit${frequencyUnit}`)}
           </span>
         </>
       )}

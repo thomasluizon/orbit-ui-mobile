@@ -82,7 +82,7 @@ export function BuddyRow({ pair, onOpen }: Readonly<BuddyRowProps>) {
       </button>
       <button
         type="button"
-        onClick={handleCheckIn}
+        onClick={() => void handleCheckIn()}
         disabled={checkedInToday || checkIn.isPending}
         className="touch-target-y shrink-0 cursor-pointer rounded-full transition-transform enabled:active:scale-[0.96] disabled:cursor-default"
         style={{

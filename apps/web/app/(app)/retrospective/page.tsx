@@ -133,7 +133,7 @@ export default function RetrospectivePage() {
           isYearlyPro={isYearlyPro}
           isTrialActive={profile?.isTrialActive ?? false}
           portalError={portalError}
-          onOpenPortal={handleOpenPortal}
+          onOpenPortal={() => void handleOpenPortal()}
         />
       )}
 

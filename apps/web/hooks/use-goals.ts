@@ -41,7 +41,7 @@ export function useCreateGoal() {
     mutationFn: (data: CreateGoalRequest) => createGoalAction(data),
 
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: goalKeys.lists() })
+      void queryClient.invalidateQueries({ queryKey: goalKeys.lists() })
     },
   })
 }
@@ -54,8 +54,8 @@ export function useUpdateGoal() {
       updateGoalAction(goalId, data),
 
     onSettled: (_data, _err, { goalId }) => {
-      queryClient.invalidateQueries({ queryKey: goalKeys.lists() })
-      queryClient.invalidateQueries({ queryKey: goalKeys.detail(goalId) })
+      void queryClient.invalidateQueries({ queryKey: goalKeys.lists() })
+      void queryClient.invalidateQueries({ queryKey: goalKeys.detail(goalId) })
     },
   })
 }
@@ -69,7 +69,7 @@ export function useRestoreGoal() {
     mutationFn: (goalId: string) => restoreGoalAction(goalId),
 
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: goalKeys.lists() })
+      void queryClient.invalidateQueries({ queryKey: goalKeys.lists() })
       showSuccess(t('undo.restored'))
     },
 
@@ -119,7 +119,7 @@ export function useDeleteGoal() {
     },
 
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: goalKeys.lists() })
+      void queryClient.invalidateQueries({ queryKey: goalKeys.lists() })
     },
   })
 }
@@ -137,9 +137,9 @@ export function useUpdateGoalProgress() {
     }) => updateGoalProgressAction(goalId, data),
 
     onSettled: (_data, _err, { goalId }) => {
-      queryClient.invalidateQueries({ queryKey: goalKeys.lists() })
-      queryClient.invalidateQueries({ queryKey: goalKeys.detail(goalId) })
-      queryClient.invalidateQueries({ queryKey: goalKeys.metrics(goalId) })
+      void queryClient.invalidateQueries({ queryKey: goalKeys.lists() })
+      void queryClient.invalidateQueries({ queryKey: goalKeys.detail(goalId) })
+      void queryClient.invalidateQueries({ queryKey: goalKeys.metrics(goalId) })
     },
   })
 }
@@ -165,9 +165,9 @@ export function useUpdateGoalStatus() {
     },
 
     onSettled: (_data, _err, { goalId }) => {
-      queryClient.invalidateQueries({ queryKey: goalKeys.lists() })
-      queryClient.invalidateQueries({ queryKey: goalKeys.detail(goalId) })
-      queryClient.invalidateQueries({ queryKey: goalKeys.metrics(goalId) })
+      void queryClient.invalidateQueries({ queryKey: goalKeys.lists() })
+      void queryClient.invalidateQueries({ queryKey: goalKeys.detail(goalId) })
+      void queryClient.invalidateQueries({ queryKey: goalKeys.metrics(goalId) })
     },
   })
 }
@@ -209,7 +209,7 @@ export function useReorderGoals() {
     },
 
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: goalKeys.lists() })
+      void queryClient.invalidateQueries({ queryKey: goalKeys.lists() })
     },
   })
 }
@@ -227,9 +227,9 @@ export function useLinkHabitsToGoal() {
     }) => linkHabitsToGoalAction(goalId, habitIds),
 
     onSettled: (_data, _err, { goalId }) => {
-      queryClient.invalidateQueries({ queryKey: goalKeys.lists() })
-      queryClient.invalidateQueries({ queryKey: goalKeys.detail(goalId) })
-      queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
+      void queryClient.invalidateQueries({ queryKey: goalKeys.lists() })
+      void queryClient.invalidateQueries({ queryKey: goalKeys.detail(goalId) })
+      void queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
     },
   })
 }

@@ -103,7 +103,7 @@ export function PushPrompt() {
       setShow(false)
     })
     setIsDismissed(true)
-    AsyncStorage.setItem(STORAGE_KEY, '1')
+    void AsyncStorage.setItem(STORAGE_KEY, '1')
   }, [fadeAnim, slideAnim])
 
   const handleEnable = useCallback(async () => {
@@ -161,7 +161,7 @@ export function PushPrompt() {
         <Text style={styles.retryText}>{t('pushPrompt.retryHint')}</Text>
       )}
       <View style={styles.buttons}>
-        <PillButton fullWidth onPress={handleEnable}>
+        <PillButton fullWidth onPress={() => void handleEnable()}>
           {t('pushPrompt.enable')}
         </PillButton>
         <PillButton variant="ghost" fullWidth onPress={dismiss}>

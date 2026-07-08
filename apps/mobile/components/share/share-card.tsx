@@ -1,5 +1,5 @@
 import { forwardRef, useMemo } from 'react'
-import { Image, StyleSheet, Text, View } from 'react-native'
+import { Image, StyleSheet, Text, View, type ImageSourcePropType } from 'react-native'
 import { LinearGradient } from 'expo-linear-gradient'
 import QRCode from 'react-native-qrcode-svg'
 import { useTranslation } from 'react-i18next'
@@ -19,7 +19,7 @@ const WEEKDAY_KEYS = [
   'sunday',
 ] as const
 
-const logoSource = require('../../assets/logo-no-bg.png')
+const logoSource = require('../../assets/logo-no-bg.png') as ImageSourcePropType
 
 interface ShareCardProps {
   recap: Recap

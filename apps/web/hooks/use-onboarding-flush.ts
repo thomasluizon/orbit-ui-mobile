@@ -39,10 +39,10 @@ export function useOnboardingFlush(): void {
       .then(() => {
         store.reset()
         patchProfile({ hasCompletedOnboarding: true })
-        queryClient.invalidateQueries({ queryKey: habitKeys.all })
-        queryClient.invalidateQueries({ queryKey: goalKeys.all })
-        queryClient.invalidateQueries({ queryKey: gamificationKeys.all })
-        queryClient.invalidateQueries({ queryKey: profileKeys.all })
+        void queryClient.invalidateQueries({ queryKey: habitKeys.all })
+        void queryClient.invalidateQueries({ queryKey: goalKeys.all })
+        void queryClient.invalidateQueries({ queryKey: gamificationKeys.all })
+        void queryClient.invalidateQueries({ queryKey: profileKeys.all })
       })
       .catch((error: unknown) => {
         Sentry.captureException(error)

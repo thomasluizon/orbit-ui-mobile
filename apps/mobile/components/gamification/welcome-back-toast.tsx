@@ -149,7 +149,7 @@ export function WelcomeBackToast() {
       }
     }
 
-    checkVisit()
+    void checkVisit()
   }, [profile, t, showToast])
 
   if (!shouldRender) return null

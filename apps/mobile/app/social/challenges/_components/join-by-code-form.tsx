@@ -60,7 +60,7 @@ export function JoinByCodeForm({ initialCode = '', onJoined }: Readonly<JoinByCo
 
       <PillButton
         fullWidth
-        onPress={submit}
+        onPress={() => void submit()}
         disabled={joinChallenge.isPending || code.trim().length === 0}
         busy={joinChallenge.isPending}
       >

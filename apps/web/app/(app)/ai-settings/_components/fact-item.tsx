@@ -24,7 +24,7 @@ export function FactItem({
   const t = useTranslations()
   const category = fact.category ? normalizeUserFactCategory(fact.category) : null
   const categoryLabel = category
-    ? t(`profile.facts.${category}` as Parameters<typeof t>[0]).toUpperCase()
+    ? t(`profile.facts.${category}`).toUpperCase()
     : null
 
   const cardStyle: React.CSSProperties = {

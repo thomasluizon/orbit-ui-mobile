@@ -188,7 +188,7 @@ export function NewPairFlow({ open, onClose, initialHabitId }: Readonly<NewPairF
         </ScrollView>
 
         <View style={styles.footer}>
-          <PillButton onPress={handleSubmit} disabled={!canSubmit} busy={invite.isPending} fullWidth>
+          <PillButton onPress={() => void handleSubmit()} disabled={!canSubmit} busy={invite.isPending} fullWidth>
             {t('social.buddies.newPair.submit')}
           </PillButton>
         </View>

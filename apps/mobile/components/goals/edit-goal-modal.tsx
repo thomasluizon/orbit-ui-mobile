@@ -234,7 +234,7 @@ export function EditGoalModal({ open, onClose, goal }: EditGoalModalProps) {
             </PillButton>
             <PillButton
               style={styles.footerButton}
-              onPress={onSubmit}
+              onPress={() => void onSubmit()}
               disabled={isSubmitting}
               accessibilityLabel={t('common.save')}
             >

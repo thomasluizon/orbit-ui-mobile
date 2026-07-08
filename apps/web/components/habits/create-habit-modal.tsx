@@ -190,8 +190,8 @@ export function CreateHabitModal({
     })
   }, [formHelpers.form])
 
-  const handleSubmit = useCallback<NonNullable<React.ComponentProps<'form'>['onSubmit']>>(
-    async (e) => {
+  const handleSubmit = useCallback(
+    async (e: React.FormEvent<HTMLFormElement>) => {
       e.preventDefault()
 
       if (isSubHabitMode && !hasProAccess) {
@@ -374,7 +374,7 @@ export function CreateHabitModal({
           </div>
         }
       >
-        <form id={formId} onSubmit={handleSubmit}>
+        <form id={formId} onSubmit={(e) => void handleSubmit(e)}>
         <HabitFormFields
           formHelpers={formHelpers}
           titleInputRef={titleInputRef}
@@ -386,7 +386,7 @@ export function CreateHabitModal({
           onReminderTimesChange={setReminderTimes}
           onReminderEnabledChange={handleReminderEnabledChange}
           expandAdvancedSignal={expandAdvancedSignal}
-          onSuggestSetup={isSubHabitMode ? undefined : handleSuggest}
+          onSuggestSetup={isSubHabitMode ? undefined : () => void handleSuggest()}
           isSuggesting={suggestion.isPending}
         >
           {!isSubHabitMode && (

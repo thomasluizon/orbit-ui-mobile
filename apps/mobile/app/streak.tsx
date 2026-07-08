@@ -197,7 +197,7 @@ export default function StreakScreen() {
                     </Text>
                     <PillButton
                       variant="ghost"
-                      onPress={() => streakQuery.refetch()}
+                      onPress={() => void streakQuery.refetch()}
                     >
                       {t('common.retry')}
                     </PillButton>

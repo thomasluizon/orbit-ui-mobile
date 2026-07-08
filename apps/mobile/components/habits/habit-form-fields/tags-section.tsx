@@ -105,7 +105,7 @@ export function TagsSection({
               onToggle={() => tags.toggleTag(tag.id)}
               onEdit={() => tags.startEditTag(tag)}
               onDelete={() =>
-                tags.deleteTag(tag.id, async (id) => {
+                void tags.deleteTag(tag.id, async (id) => {
                   try {
                     await deleteTag.mutateAsync(id);
                   } catch (error: unknown) {
@@ -156,7 +156,7 @@ export function TagsSection({
             disabled: !tagSuggestions.canSuggest,
             busy: tagSuggestions.isPending,
           }}
-          onPress={handleSuggest}
+          onPress={() => void handleSuggest()}
         >
           {tagSuggestions.isPending ? (
             <ActivityIndicator size="small" color={tokens.primary} />

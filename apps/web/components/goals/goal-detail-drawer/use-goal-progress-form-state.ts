@@ -17,7 +17,7 @@ interface GoalProgressFormStateInput {
   goalId: string
   goalCurrentValue: number | undefined
   goalTargetValue: number | undefined
-  refetchDetail: () => void
+  refetchDetail: () => void | Promise<unknown>
   onOpenChange: (open: boolean) => void
 }
 
@@ -110,7 +110,7 @@ export function useGoalProgressFormState({
       setProgressValue(null)
       setProgressNote('')
       setShowProgressForm(false)
-      refetchDetail()
+      void refetchDetail()
     } catch (error: unknown) {
       showError(getFriendlyErrorMessage(error, translate, 'goals.errors.progress', 'goalProgress'))
     }

@@ -27,7 +27,7 @@ export function usePublicProfileSettings() {
     },
 
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: profileKeys.all })
+      void queryClient.invalidateQueries({ queryKey: profileKeys.all })
     },
   })
 }

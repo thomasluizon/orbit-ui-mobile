@@ -65,7 +65,7 @@ export function useCreateChecklistTemplate() {
     },
 
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: checklistTemplateKeys.lists() })
+      void queryClient.invalidateQueries({ queryKey: checklistTemplateKeys.lists() })
     },
   })
 }
@@ -95,7 +95,7 @@ export function useDeleteChecklistTemplate() {
     },
 
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: checklistTemplateKeys.lists() })
+      void queryClient.invalidateQueries({ queryKey: checklistTemplateKeys.lists() })
     },
   })
 }

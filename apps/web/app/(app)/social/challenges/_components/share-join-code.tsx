@@ -58,7 +58,7 @@ export function ShareJoinCode({ title, joinCode }: Readonly<ShareJoinCodeProps>)
         <button
           type="button"
           aria-label={copied ? t('challenges.detail.copied') : t('challenges.detail.copy')}
-          onClick={copyCode}
+          onClick={() => void copyCode()}
           className="icon-btn icon-btn-well shrink-0"
         >
           <span
@@ -85,7 +85,7 @@ export function ShareJoinCode({ title, joinCode }: Readonly<ShareJoinCodeProps>)
         <PillButton
           fullWidth
           leading={<Share2 size={18} strokeWidth={1.8} color="var(--fg-on-primary)" />}
-          onClick={shareCode}
+          onClick={() => void shareCode()}
         >
           {t('challenges.detail.share')}
         </PillButton>

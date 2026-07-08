@@ -36,7 +36,7 @@ const ALLOWED_ATTR = ['href', 'target', 'rel']
 export function Markdown({ content, className }: Readonly<MarkdownProps>) {
   const html = useMemo(() => {
     if (!content) return ''
-    const raw = marked.parse(content, { async: false }) as string
+    const raw = marked.parse(content, { async: false })
     return DOMPurify.sanitize(raw, {
       ALLOWED_TAGS,
       ALLOWED_ATTR,

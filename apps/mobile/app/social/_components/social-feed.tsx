@@ -127,7 +127,7 @@ export function SocialFeed({ onCheer, onAddFriends }: Readonly<SocialFeedProps>)
         <View style={styles.loadMore}>
           <PillButton
             variant="ghost"
-            onPress={() => feed.fetchNextPage()}
+            onPress={() => void feed.fetchNextPage()}
             disabled={feed.isFetchingNextPage}
             busy={feed.isFetchingNextPage}
           >

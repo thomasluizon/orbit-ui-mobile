@@ -49,7 +49,7 @@ function Harness({ profile }: Readonly<{ profile: Profile | undefined }>) {
 }
 
 async function renderHookHarness(profile: Profile | undefined) {
-  let renderer: InstanceType<typeof TestRenderer.create> | null = null
+  let renderer: ReturnType<typeof TestRenderer.create> = null
 
   await TestRenderer.act(async () => {
     renderer = TestRenderer.create(<Harness profile={profile} />)

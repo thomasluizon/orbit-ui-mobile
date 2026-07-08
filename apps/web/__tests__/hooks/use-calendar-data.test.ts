@@ -265,7 +265,7 @@ describe('useCalendarRangeChunked', () => {
 
   it('splits a beyond-cap range into chunked requests and merges the day maps', async () => {
     mockFetch.mockImplementation((input: RequestInfo | URL) => {
-      const url = String(input)
+      const url = input instanceof Request ? input.url : String(input)
       const from = new URL(url, 'http://localhost').searchParams.get('dateFrom') ?? '2025-01-01'
       return Promise.resolve({
         ok: true,

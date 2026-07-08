@@ -44,7 +44,7 @@ export function useSummary({
 
       const res = await fetch(`${API.habits.summary}?${params.toString()}`)
       if (!res.ok) {
-        const body = await res.json().catch(() => null)
+        const body = (await res.json().catch(() => null)) as { error?: string } | null
         throw new Error(body?.error ?? 'Failed to fetch summary')
       }
       return (await res.json()) as SummaryResponse

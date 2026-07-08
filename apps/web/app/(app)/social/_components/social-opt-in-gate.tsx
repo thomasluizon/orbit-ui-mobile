@@ -84,7 +84,7 @@ export function SocialOptInGate() {
         </span>
       </div>
       <div className="w-full" style={{ maxWidth: 360 }}>
-        <PillButton onClick={handleEnable} disabled={isSubmitting} busy={isSubmitting} fullWidth>
+        <PillButton onClick={() => void handleEnable()} disabled={isSubmitting} busy={isSubmitting} fullWidth>
           {isSubmitting ? t('social.optInGate.enabling') : t('social.optInGate.enable')}
         </PillButton>
       </div>

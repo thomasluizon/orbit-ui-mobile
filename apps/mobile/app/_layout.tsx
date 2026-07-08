@@ -15,7 +15,7 @@ import {
 } from 'expo-router'
 import { type Theme as NavigationTheme } from 'expo-router/react-navigation'
 import { StatusBar } from 'expo-status-bar'
-import Constants from 'expo-constants'
+import Constants, { AppOwnership } from 'expo-constants'
 import { Providers } from '@/lib/providers'
 import { useAuthStore } from '@/stores/auth-store'
 import { useGamificationProfile } from '@/hooks/use-gamification'
@@ -84,7 +84,7 @@ import { UpgradeRequiredScreen } from '@/components/upgrade-required-screen'
 import { TourProvider } from '@/components/tour/tour-provider'
 import { TourOverlay } from '@/components/tour/tour-overlay'
 
-const isExpoGo = Constants.appOwnership === 'expo'
+const isExpoGo = Constants.appOwnership === AppOwnership.Expo
 const PushPrompt = isExpoGo
   ? () => null
   : lazy(() =>

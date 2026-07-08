@@ -60,7 +60,7 @@ export function useUserFacts(hasProAccess: boolean) {
     },
     onSuccess: () => {
       if (isOnline) {
-        queryClient.invalidateQueries({ queryKey: userFactKeys.all })
+        void queryClient.invalidateQueries({ queryKey: userFactKeys.all })
       }
     },
   })
@@ -92,7 +92,7 @@ export function useUserFacts(hasProAccess: boolean) {
     },
     onSuccess: () => {
       if (isOnline) {
-        queryClient.invalidateQueries({ queryKey: userFactKeys.all })
+        void queryClient.invalidateQueries({ queryKey: userFactKeys.all })
       }
       setSelectedFactIds(new Set())
       const remaining =

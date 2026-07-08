@@ -144,7 +144,7 @@ export default function ChatPage() {
         aria-busy={isTyping}
         aria-label={t('chat.title')}
       >
-        {showSuggestions && <ChatEmptyState onSelectSuggestion={(s) => sendMessage(s)} />}
+        {showSuggestions && <ChatEmptyState onSelectSuggestion={(s) => void sendMessage(s)} />}
 
         {messages.map((msg) => (
           <MessageBubble
@@ -193,10 +193,10 @@ export default function ChatPage() {
         textFileInputRef={composer.textFileInputRef}
         selectedTextFileName={composer.selectedTextFileName}
         openTextFilePicker={composer.openTextFilePicker}
-        handleTextFileSelect={composer.handleTextFileSelect}
+        handleTextFileSelect={(event) => void composer.handleTextFileSelect(event)}
         removeTextFile={composer.removeTextFile}
-        sendMessage={sendMessage}
-        retryLastSend={composer.retryLastSend}
+        sendMessage={() => void sendMessage()}
+        retryLastSend={() => void composer.retryLastSend()}
         canRetryLastSend={composer.canRetryLastSend}
         onUpgrade={() => router.push('/upgrade')}
       />

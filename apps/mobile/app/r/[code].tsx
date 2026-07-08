@@ -1,6 +1,6 @@
 import { useEffect, useMemo } from 'react'
 import { View } from 'react-native'
-import { useLocalSearchParams, useRouter, type Href } from 'expo-router'
+import { useLocalSearchParams, useRouter } from 'expo-router'
 import { isValidReferralCode } from '@/lib/auth-flow'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -30,7 +30,7 @@ export default function ReferralRedirectScreen() {
     }
 
     const href = validCode ? `/login?ref=${encodeURIComponent(validCode)}` : '/login'
-    router.replace(href as Href)
+    router.replace(href)
   }, [params.code, router, isAuthenticated])
 
   return <View style={{ flex: 1, backgroundColor: tokens.bg }} />

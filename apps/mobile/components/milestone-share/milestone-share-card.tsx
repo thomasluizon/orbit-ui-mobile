@@ -1,5 +1,5 @@
 import { forwardRef, useMemo } from 'react'
-import { Image, StyleSheet, Text, View } from 'react-native'
+import { Image, StyleSheet, Text, View, type ImageSourcePropType } from 'react-native'
 import { LinearGradient } from 'expo-linear-gradient'
 import QRCode from 'react-native-qrcode-svg'
 import { useTranslation } from 'react-i18next'
@@ -7,7 +7,7 @@ import { achievementEmoji } from '@orbit/shared/utils'
 import { createTokensV2, tintFromPrimary } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
-const logoSource = require('../../assets/logo-no-bg.png')
+const logoSource = require('../../assets/logo-no-bg.png') as ImageSourcePropType
 
 export type MilestoneShareVariant =
   | { kind: 'streak'; streak: number }

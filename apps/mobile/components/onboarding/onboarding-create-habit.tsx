@@ -194,7 +194,7 @@ export function OnboardingCreateHabit({
         maxLength={MAX_HABIT_TITLE_LENGTH}
         editable={!isCreating}
         returnKeyType="done"
-        onSubmitEditing={handleCreate}
+        onSubmitEditing={() => void handleCreate()}
       />
 
       <View style={styles.toggleRow}>
@@ -241,7 +241,7 @@ export function OnboardingCreateHabit({
           fullWidth
           disabled={!title.trim() || isCreating}
           busy={isCreating}
-          onPress={handleCreate}
+          onPress={() => void handleCreate()}
           leading={
             isCreating ? (
               <ActivityIndicator size="small" color={tokens.fgOnPrimary} />
