@@ -103,6 +103,8 @@ jobs:
   contract-drift:
     name: Contract Drift
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
 
     steps:
       - uses: actions/checkout@v7
