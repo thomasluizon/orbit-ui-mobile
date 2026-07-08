@@ -69,7 +69,7 @@ export function normalizeDrillDetailChild(
     dueEndTime: child.dueEndTime ?? '',
     endDate: child.endDate ?? '',
     position: child.position ?? 0,
-    checklistItems: child.checklistItems ?? [],
+    checklistItems: child.checklistItems,
     createdAtUtc: '',
     parentId,
     scheduledDates: [],
@@ -79,7 +79,7 @@ export function normalizeDrillDetailChild(
     scheduledReminders: [],
     slipAlertEnabled: false,
     tags: [],
-    hasSubHabits: (child.children?.length ?? 0) > 0,
+    hasSubHabits: child.children.length > 0,
     flexibleTarget: null,
     flexibleCompleted: 0,
     isLoggedInRange: false,
@@ -93,7 +93,7 @@ export function normalizeHabitDetailForDrill(
   detail: HabitDetail,
   today: string,
 ): NormalizedDrillDetail {
-  const safeChildren = detail.children ?? []
+  const safeChildren = detail.children
   const parent = normalizeDrillDetailChild(
     { ...detail, children: safeChildren },
     null,
@@ -112,7 +112,7 @@ export function normalizeHabitDetailForDrill(
   childrenByParent.set(detail.id, children)
 
   for (const child of safeChildren) {
-    const grandChildren = child.children ?? []
+    const grandChildren = child.children
     if (grandChildren.length === 0) continue
     childrenByParent.set(
       child.id,
