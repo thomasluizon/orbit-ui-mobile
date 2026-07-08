@@ -109,7 +109,7 @@ export function HabitFormFields({
   }, []);
 
   const watchedEmoji = useWatch({ control: form.control, name: "emoji" }) ?? "";
-  const watchedTitle = useWatch({ control: form.control, name: "title" }) ?? "";
+  const watchedTitle = useWatch({ control: form.control, name: "title" });
   const watchedDescription =
     useWatch({ control: form.control, name: "description" }) ?? "";
 

@@ -1036,7 +1036,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
             allViewListRef.current ??
             drillListRef.current
           try {
-            target?.scrollToOffset?.({
+            target?.scrollToOffset({
               offset,
               animated: true,
             })

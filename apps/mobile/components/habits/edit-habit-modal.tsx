@@ -199,8 +199,10 @@ export function EditHabitModal({
     translate,
   ])
 
-  const watchedTitle =
-    useWatch({ control: formHelpers.form.control, name: 'title' }) ?? ''
+  const watchedTitle = useWatch({
+    control: formHelpers.form.control,
+    name: 'title',
+  })
   const submitDisabled =
     updateHabit.isPending ||
     detailFieldsPending ||

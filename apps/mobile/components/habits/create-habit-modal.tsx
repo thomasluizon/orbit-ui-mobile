@@ -151,8 +151,10 @@ export function CreateHabitModal({
   const [initialReminderTimesSnapshot, setInitialReminderTimesSnapshot] =
     useState('[0,15]')
 
-  const watchedTitle =
-    useWatch({ control: formHelpers.form.control, name: 'title' }) ?? ''
+  const watchedTitle = useWatch({
+    control: formHelpers.form.control,
+    name: 'title',
+  })
   const watchedDueTime =
     useWatch({ control: formHelpers.form.control, name: 'dueTime' }) ?? ''
   const watchedReminderEnabled =
@@ -310,7 +312,7 @@ export function CreateHabitModal({
     const data = habitFormSchema.parse(formHelpers.form.getValues())
 
     try {
-      if (isSubHabitMode && parentHabit) {
+      if (isSubHabitMode) {
         const subRequest = buildSubHabitRequest(
           data,
           reminderTimes,
@@ -360,7 +362,7 @@ export function CreateHabitModal({
 
   const handleSuggest = useCallback(async () => {
     flushBufferedInputsRef.current()
-    const title = formHelpers.form.getValues('title')?.trim() ?? ''
+    const title = formHelpers.form.getValues('title').trim()
     if (title.length === 0) return
 
     try {

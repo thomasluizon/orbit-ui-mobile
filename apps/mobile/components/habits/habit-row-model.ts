@@ -45,7 +45,7 @@ export function buildHabitRowMetaParts({
     const due = displayTime(habit.dueTime)
     metaParts.push(habit.dueEndTime ? `${due} - ${displayTime(habit.dueEndTime)}` : due)
   }
-  if (habit.checklistItems && habit.checklistItems.length > 0) {
+  if (habit.checklistItems.length > 0) {
     const checked = habit.checklistItems.filter((item) => item.isChecked).length
     metaParts.push(`${checked}/${habit.checklistItems.length}`)
   }

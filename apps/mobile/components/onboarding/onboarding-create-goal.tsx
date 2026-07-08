@@ -123,8 +123,6 @@ export function OnboardingCreateGoal({
       return
     }
 
-    if (parsedTargetValue === null) return
-
     const title = description.trim() || `${parsedTargetValue} ${unit.trim()}`
     setIsCreating(true)
     try {

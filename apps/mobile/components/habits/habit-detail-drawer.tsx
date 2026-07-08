@@ -265,7 +265,7 @@ export function HabitDetailDrawer({
   const router = useRouter()
   const askPrompt = useMemo(() => {
     if (!habit) return ''
-    return (habit.checklistItems?.length ?? 0) > 0
+    return habit.checklistItems.length > 0
       ? t('habits.detail.askAstraSubHabits')
       : t('habits.detail.askAstraDefault')
   }, [habit, t])
@@ -273,7 +273,7 @@ export function HabitDetailDrawer({
   const handleAskAstra = useCallback(() => {
     if (!habit) return
     const seed =
-      (habit.checklistItems?.length ?? 0) > 0
+      habit.checklistItems.length > 0
         ? t('habits.detail.askAstraSeedSubHabits', { title: habit.title })
         : t('habits.detail.askAstraSeedDefault', { title: habit.title })
     void AsyncStorage.setItem('orbit-chat-draft', seed)

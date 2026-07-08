@@ -28,7 +28,7 @@ export function TitleSection({
   styles,
 }: Readonly<TitleSectionProps>) {
   const { t } = useTranslation();
-  const watchedTitle = useWatch({ control, name: "title" }) ?? "";
+  const watchedTitle = useWatch({ control, name: "title" });
 
   return (
     <View style={styles.fieldGroup}>

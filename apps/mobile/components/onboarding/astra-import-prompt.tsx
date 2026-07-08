@@ -37,14 +37,14 @@ export function AstraImportPrompt() {
 
   const calendarPromptWouldShow = Boolean(
     profile?.hasCompletedOnboarding &&
-      profile?.hasCompletedTour &&
-      !profile?.hasImportedCalendar,
+      profile.hasCompletedTour &&
+      !profile.hasImportedCalendar,
   )
 
   const shouldShow = Boolean(
     profile?.hasCompletedOnboarding &&
-      profile?.hasCompletedTour &&
-      !profile?.hasSeenImportPrompt &&
+      profile.hasCompletedTour &&
+      !profile.hasSeenImportPrompt &&
       !calendarPromptWouldShow &&
       !pendingOnboardingAnswers &&
       !pathname.startsWith('/chat') &&
