@@ -4,7 +4,9 @@
     "WORKFLOW.md",
     "DESIGN.md",
     "apps/*/CLAUDE.md",
-    "packages/*/CLAUDE.md"
+    "packages/*/CLAUDE.md",
+    "~/Documents/Programming/Projects/orbit-api/CLAUDE.md",
+    "~/Documents/Programming/Projects/orbit-landing-page/CLAUDE.md"
   ],
   "mcp": {
     "postgres-local": {

@@ -1,6 +1,6 @@
 ---
 name: pr-review
-description: Deep code review of a diff across both Orbit repos against one shared rubric, orchestrating the four review subagents and a backward-compat guard. Use when the user asks to review a PR, file, folder, or staged changes in orbit-ui-mobile or orbit-api. Replaces /review and /security-review.
+description: Deep code review of a diff across both Orbit repos against one shared rubric, orchestrating the five review subagents and a backward-compat guard. Use when the user asks to review a PR, file, folder, or staged changes in orbit-ui-mobile or orbit-api. Replaces /review and /security-review.
 argument-hint: <pr-number | api#N | pr-url | file | folder | blank=staged>
 context: fork
 ---
@@ -9,7 +9,7 @@ context: fork
 
 **Input**: $ARGUMENTS
 
-Review a diff end-to-end against `rubric.md`, fold in the four review subagents, guard
+Review a diff end-to-end against `rubric.md`, fold in the five review subagents, guard
 against changes that break already-shipped mobile clients, and produce one
 severity-ranked report — posted to the PR when the scope is a PR.
 
@@ -122,7 +122,7 @@ Apply the rubric's **Signal gate**: post Critical/High and concretely-actionable
 
 ## Phase 4 — Orchestrate subagents
 
-Delegate the four specialist subagents, gated by what the diff touches, **3 concurrent
+Delegate the five specialist subagents, gated by what the diff touches, **3 concurrent
 at a time** (mirrors `/implement` Phase 4 and the root CLAUDE.md delegation cap). Pass
 each the list of changed files. Fold every result back into the Phase 3 findings under
 the matching rubric dimension.
@@ -142,8 +142,9 @@ rather than deferring — the review is not finished until every gated subagent 
 | `i18n-syncer` | user-facing strings or `packages/shared/src/i18n/*.json` changed | i18n (#10) |
 | `contract-aligner` | **both** repos changed, or `packages/shared/src/types/*` / `endpoints.ts` changed | Contract drift (#11) |
 | `security-reviewer` | `orbit-api` code changed | Security (#12, API side) |
+| `design-reviewer` | any `apps/web/**`, `apps/mobile/**`, or `orbit-landing-page/src/**` UI file changed | DESIGN.md / AI-slop (#8) |
 
-The four are independent — launch them together (respecting the 3-cap; queue the fourth
+The five are independent — launch them together (respecting the 3-cap; queue the extras
 behind the first three). `security-reviewer` covers orbit-api security; the rubric's
 frontend-security checks (XSS, auth-state leakage) cover what that agent explicitly does
 not.
@@ -256,6 +257,7 @@ mkdir -p .claude/reviews
 | i18n-syncer | IN SYNC / DRIFT / N/A |
 | contract-aligner | MATCH / DRIFT / N/A |
 | security-reviewer | PASS / FAIL / N/A |
+| design-reviewer | PASS / ISSUES / N/A |
 
 ## Validation
 
