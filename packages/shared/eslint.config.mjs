@@ -60,6 +60,12 @@ export default [
     },
   },
   {
-    ignores: ["node_modules/**", "dist/**", "coverage/**", "*.config.{js,mjs,cjs,ts}"],
+    ignores: [
+      "node_modules/**",
+      "dist/**",
+      "coverage/**",
+      "src/types/__generated__/**",
+      "*.config.{js,mjs,cjs,ts}",
+    ],
   },
 ]
