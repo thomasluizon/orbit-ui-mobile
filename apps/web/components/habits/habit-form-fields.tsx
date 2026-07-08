@@ -25,6 +25,7 @@ import { ReminderSection } from './habit-form-fields/reminder-section'
 import { ScheduledReminderSection } from './habit-form-fields/scheduled-reminder-section'
 import { SlipAlertSection } from './habit-form-fields/slip-alert-section'
 import { TagEditorRow } from './habit-form-fields/tag-editor-row'
+import { useExpandAdvancedSignal } from './habit-form-fields/use-expand-advanced-signal'
 import { AppDatePicker } from '@/components/ui/app-date-picker'
 import { AppTimePicker } from '@/components/ui/app-time-picker'
 import { AppSelect } from '@/components/ui/app-select'
@@ -151,11 +152,7 @@ export function HabitFormFields({
   }, [onReminderEnabledChange, setValue])
 
   const [showAdvanced, setShowAdvanced] = useState(defaultExpanded)
-  const [prevExpandSignal, setPrevExpandSignal] = useState(expandAdvancedSignal)
-  if (expandAdvancedSignal !== prevExpandSignal) {
-    setPrevExpandSignal(expandAdvancedSignal)
-    if (expandAdvancedSignal > 0) setShowAdvanced(true)
-  }
+  useExpandAdvancedSignal(expandAdvancedSignal, () => setShowAdvanced(true))
 
   const watchedDescription = watch('description') ?? ''
   const watchedEmoji = watch('emoji') ?? ''
