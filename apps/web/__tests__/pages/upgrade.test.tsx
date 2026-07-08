@@ -403,6 +403,6 @@ describe('UpgradePage', () => {
     const requestInit = call?.[1] as RequestInit | undefined
     expect(requestUrl.startsWith('/api/subscriptions/checkout')).toBe(true)
     expect(requestInit?.method).toBe('POST')
-    expect(JSON.parse(String(requestInit?.body))).toEqual({ interval: 'yearly' })
+    expect(JSON.parse(requestInit?.body as string)).toEqual({ interval: 'yearly' })
   })
 })

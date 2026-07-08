@@ -130,7 +130,7 @@ export function DeleteAccountModal({
           error={error}
           loading={loading}
           onCancel={() => onOpenChange(false)}
-          onRequestDeletion={handleRequestDeletion}
+          onRequestDeletion={() => void handleRequestDeletion()}
         />
       )
     }
@@ -150,7 +150,7 @@ export function DeleteAccountModal({
             setCode(['', '', '', '', '', ''])
             setError('')
           }}
-          onConfirmDeletion={handleConfirmDeletion}
+          onConfirmDeletion={() => void handleConfirmDeletion()}
         />
       )
     }
@@ -158,7 +158,7 @@ export function DeleteAccountModal({
     return (
       <DeleteDeactivatedStep
         formattedDeletionDate={formattedDeletionDate}
-        onLogout={() => logout()}
+        onLogout={() => void logout()}
       />
     )
   }

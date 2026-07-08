@@ -250,7 +250,7 @@ export function CreateGoalModal({ open, onClose }: CreateGoalModalProps) {
             </PillButton>
             <PillButton
               style={styles.footerButton}
-              onPress={onSubmit}
+              onPress={() => void onSubmit()}
               disabled={isSubmitting}
               busy={isSubmitting}
               leading={

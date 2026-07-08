@@ -12,7 +12,7 @@ async function fetchBillingDetails(): Promise<BillingDetails | null> {
     return null
   }
   if (!res.ok) {
-    const body = await res.json().catch(() => null)
+    const body = (await res.json().catch(() => null)) as { error?: string; message?: string } | null
     throw new Error(body?.error ?? body?.message ?? `Failed with status ${res.status}`)
   }
   return res.json() as Promise<BillingDetails>

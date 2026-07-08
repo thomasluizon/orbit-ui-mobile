@@ -102,7 +102,7 @@ export default function PreferencesPage() {
             permission: pushPermission,
             loading: pushLoading,
             status: pushStatus,
-            onToggle: handleTogglePush,
+            onToggle: () => void handleTogglePush(),
           }}
         />
 

@@ -35,7 +35,7 @@ export function derivePreferenceLabels(
       ?.label,
     themeLabel: themeModeOptions.find((mode) => mode.value === currentTheme)?.label,
     schemeLabel: schemeOption
-      ? t(`preferences.color${capitalize(schemeOption.value)}` as Parameters<typeof t>[0])
+      ? t(`preferences.color${capitalize(schemeOption.value)}`)
       : undefined,
     schemeColor: schemeOption?.color,
     weekStartLabel: weekStartOptions.find((option) => option.value === weekStartDay)

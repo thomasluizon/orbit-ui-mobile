@@ -453,7 +453,7 @@ export default function CalendarSyncScreen() {
             isConnecting={isConnecting}
             onToggleAutoSync={handleToggleAutoSync}
             onSyncNow={handleSyncNow}
-            onReconnect={handleConnect}
+            onReconnect={() => void handleConnect()}
           />
         ) : null}
 
@@ -570,7 +570,7 @@ export default function CalendarSyncScreen() {
                     tokens={tokens}
                     t={t}
                     onToggle={toggleEvent}
-                    onDismiss={handleDismissSuggestion}
+                    onDismiss={(suggestionId) => void handleDismissSuggestion(suggestionId)}
                   />
                 ))}
                 {events.length > visibleCount ? (

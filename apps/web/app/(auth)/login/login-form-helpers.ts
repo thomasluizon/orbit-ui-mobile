@@ -8,9 +8,16 @@ import { setRouteTransitionIntent } from '@/lib/motion/route-intent'
 import { hydrateProfilePresentation } from '@/lib/profile-presentation'
 import type { LoginResponse } from '@orbit/shared/types/auth'
 
-interface AuthFetchError {
+class AuthFetchError extends Error {
   status: number
   body: unknown
+
+  constructor(status: number, body: unknown) {
+    super(`Auth request failed with status ${status}`)
+    this.name = 'AuthFetchError'
+    this.status = status
+    this.body = body
+  }
 }
 
 interface AuthErrorState {
@@ -76,12 +83,11 @@ export async function fetchAuthEndpoint(
     body: JSON.stringify(body),
   })
   if (!response.ok) {
-    const data = await response.json().catch(() => null)
-    const err: AuthFetchError = {
-      status: response.status,
-      body: mergeRequestIdIntoBody(data, response.headers.get('x-orbit-request-id')),
-    }
-    throw err
+    const data: unknown = await response.json().catch(() => null)
+    throw new AuthFetchError(
+      response.status,
+      mergeRequestIdIntoBody(data, response.headers.get('x-orbit-request-id')),
+    )
   }
   return response.json()
 }

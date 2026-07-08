@@ -1030,7 +1030,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
         markRecentlyCompleted,
         checkAndPromptParentLog,
         refetch: () => {
-          refetch()
+          void refetch()
         },
         scrollToOffset: (offset: number) => {
           const target =
@@ -1299,7 +1299,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       () => (
         <RefreshControl
           refreshing={isFetching && !isLoading}
-          onRefresh={refetch}
+          onRefresh={() => void refetch()}
           tintColor={tokens.primary}
           progressViewOffset={insets.top}
         />
@@ -1410,7 +1410,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
               setHabitToDelete(null)
             }
           }}
-          onConfirmDelete={confirmDelete}
+          onConfirmDelete={() => void confirmDelete()}
           onCancelDelete={() => {
             setHabitToDelete(null)
             setShowDeleteConfirm(false)
@@ -1423,7 +1423,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
             }
           }}
           duplicateName={habitToDuplicate?.title ?? ''}
-          onConfirmDuplicate={confirmDuplicate}
+          onConfirmDuplicate={() => void confirmDuplicate()}
           onCancelDuplicate={() => {
             setHabitToDuplicate(null)
             setShowDuplicateConfirm(false)
@@ -1432,14 +1432,14 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
           onSkipOpenChange={setShowSkipConfirm}
           isPostponeAction={isPostponeAction}
           skipConfirmMessage={skipConfirmMessage}
-          onConfirmSkip={confirmSkip}
+          onConfirmSkip={() => void confirmSkip()}
           onCancelSkip={() => {
             setHabitToSkip(null)
             setShowSkipConfirm(false)
           }}
           showForceLogConfirm={showForceLogConfirm}
           onForceLogOpenChange={setShowForceLogConfirm}
-          onConfirmForceLog={confirmForceLog}
+          onConfirmForceLog={() => void confirmForceLog()}
           onCancelForceLog={() => {
             setForceLogHabitId(null)
             setShowForceLogConfirm(false)
@@ -1448,7 +1448,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
           autoLogParentMode={autoLogParentMode}
           onAutoLogParentOpenChange={setShowAutoLogParent}
           autoLogParentName={autoLogParentHabit?.title ?? ''}
-          onConfirmAutoLogParent={confirmAutoLogParent}
+          onConfirmAutoLogParent={() => void confirmAutoLogParent()}
           onCancelAutoLogParent={() => {
             setAutoLogParentId(null)
             setShowAutoLogParent(false)
@@ -1703,7 +1703,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
             isSelectMode ? styles.listContentWithBulkBar : null,
           ]}
           refreshControl={refreshControl}
-          onDragEnd={handleDragEnd}
+          onDragEnd={(params) => void handleDragEnd(params)}
           ListHeaderComponent={listHeaderComponent}
           ListEmptyComponent={renderEmptyState(view)}
           onScroll={handleMainListScroll}

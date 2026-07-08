@@ -1,4 +1,5 @@
 import { getRequestConfig } from 'next-intl/server'
+import { IntlErrorCode } from 'next-intl'
 import { cookies, headers } from 'next/headers'
 import { resolveSystemLocale } from '@orbit/shared/utils'
 
@@ -12,13 +13,16 @@ export default getRequestConfig(async () => {
       ? cookieLocale
     : resolveSystemLocale(acceptLanguage)
 
-  const messages = (await import(`@orbit/shared/i18n/${validLocale}.json`)).default
+  const messagesModule = (await import(`@orbit/shared/i18n/${validLocale}.json`)) as {
+    default: typeof import('@orbit/shared/i18n/en.json')
+  }
+  const messages = messagesModule.default
 
   return {
     locale: validLocale,
     messages,
     onError(error) {
-      if (error.code === 'MISSING_MESSAGE') return
+      if (error.code === IntlErrorCode.MISSING_MESSAGE) return
     },
     getMessageFallback({ namespace: _namespace, key }) {
       return key

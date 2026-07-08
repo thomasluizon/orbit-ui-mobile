@@ -92,7 +92,7 @@ export function useSetSelectedCalendars() {
     },
 
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: calendarKeys.all })
+      void queryClient.invalidateQueries({ queryKey: calendarKeys.all })
     },
   })
 }

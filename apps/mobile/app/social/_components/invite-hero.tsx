@@ -72,7 +72,7 @@ export function InviteHero() {
 
       <PillButton
         fullWidth
-        onPress={shareLink}
+        onPress={() => void shareLink()}
         leading={<Share2 size={18} strokeWidth={1.8} color={tokens.fgOnPrimary} />}
       >
         {t('social.invite.share')}

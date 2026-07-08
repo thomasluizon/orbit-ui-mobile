@@ -180,7 +180,7 @@ export function OnboardingCreateHabit({ onCreated }: Readonly<OnboardingCreateHa
         maxLength={MAX_HABIT_TITLE_LENGTH}
         disabled={isCreating}
         onKeyDown={(e) => {
-          if (e.key === 'Enter') handleCreate()
+          if (e.key === 'Enter') void handleCreate()
         }}
         ariaLabel={t('onboarding.flow.createHabit.placeholder')}
       />
@@ -231,7 +231,7 @@ export function OnboardingCreateHabit({ onCreated }: Readonly<OnboardingCreateHa
           fullWidth
           disabled={!title.trim() || isCreating}
           busy={isCreating}
-          onClick={handleCreate}
+          onClick={() => void handleCreate()}
           leading={isCreating ? <Loader2 className="size-4 animate-spin" /> : undefined}
         >
           {isCreating

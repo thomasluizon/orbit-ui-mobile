@@ -134,7 +134,7 @@ export default function PublicProfileScreen() {
             <View style={styles.shareBlock}>
               <PillButton
                 fullWidth
-                onPress={shareLink}
+                onPress={() => void shareLink()}
                 leading={<Share2 size={18} strokeWidth={1.8} color={tokens.fgOnPrimary} />}
               >
                 {t('profile.publicProfile.link.share')}

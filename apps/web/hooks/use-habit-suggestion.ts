@@ -21,8 +21,8 @@ export function useHabitSuggestion() {
     mutationFn: async (data) =>
       habitSetupSuggestionSchema.parse(await suggestHabitSetup(data)),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: subscriptionKeys.status() })
-      queryClient.invalidateQueries({ queryKey: profileKeys.detail() })
+      void queryClient.invalidateQueries({ queryKey: subscriptionKeys.status() })
+      void queryClient.invalidateQueries({ queryKey: profileKeys.detail() })
     },
   })
 }

@@ -260,7 +260,7 @@ export function OnboardingCreateGoal({
           fullWidth
           disabled={!canCreate || isCreating}
           busy={isCreating}
-          onClick={handleCreate}
+          onClick={() => void handleCreate()}
           leading={isCreating ? <Loader2 className="size-4 animate-spin" /> : undefined}
         >
           {isCreating

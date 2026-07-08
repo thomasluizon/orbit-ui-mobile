@@ -75,8 +75,8 @@ export default function LoginPage() {
               isSubmitting={isSubmitting}
               isGoogleLoading={isGoogleLoading}
               isOnline={isOnline}
-              onSendCode={sendCode}
-              onSignInWithGoogle={signInWithGoogle}
+              onSendCode={() => void sendCode()}
+              onSignInWithGoogle={() => void signInWithGoogle()}
               t={t}
               sendCodeLabel={
                 fromOnboarding ? t('onboarding.flow.saveYourPlan.cta') : undefined
@@ -93,12 +93,12 @@ export default function LoginPage() {
               codeInputRefs={codeInputRefs}
               errorSignal={errorMessage}
               isOnline={isOnline}
-              onVerifyCode={verifyCode}
+              onVerifyCode={() => void verifyCode()}
               onCodeInput={onCodeInput}
               onCodeKeydown={onCodeKeydown}
               onCodePaste={onCodePaste}
               onBackToEmail={backToEmail}
-              onResendCode={resendCode}
+              onResendCode={() => void resendCode()}
               t={t}
             />
           }

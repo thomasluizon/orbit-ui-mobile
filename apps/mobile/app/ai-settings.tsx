@@ -91,7 +91,7 @@ export default function AiSettingsScreen() {
       }
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: habitKeys.summaryPrefix() })
+      void queryClient.invalidateQueries({ queryKey: habitKeys.summaryPrefix() })
     },
   })
 

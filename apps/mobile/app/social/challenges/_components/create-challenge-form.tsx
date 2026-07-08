@@ -201,7 +201,7 @@ export function CreateChallengeForm({ onCreated }: Readonly<CreateChallengeFormP
 
       <PillButton
         fullWidth
-        onPress={handleSubmit(onSubmit)}
+        onPress={() => void handleSubmit(onSubmit)()}
         disabled={createChallenge.isPending}
         busy={createChallenge.isPending}
       >

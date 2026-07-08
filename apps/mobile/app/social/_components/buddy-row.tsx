@@ -74,7 +74,7 @@ export function BuddyRow({ pair }: Readonly<BuddyRowProps>) {
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={t('social.buddies.checkInAction')}
-        onPress={handleCheckIn}
+        onPress={() => void handleCheckIn()}
         disabled={checkedInToday || checkIn.isPending}
         hitSlop={{ top: 7, bottom: 7 }}
         style={({ pressed }) => [
