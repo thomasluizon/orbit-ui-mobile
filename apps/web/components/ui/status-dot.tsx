@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState, type CSSProperties, type MouseEvent } from 'react'
+import { resolveStatusDotFill } from '@/components/ui/status-dot-fill'
 
 /** Single desaturated status dot. Hollow when state === 'empty'. */
 export type StatusDotState =
@@ -51,6 +52,7 @@ export function StatusDot({
 }: Readonly<StatusDotProps>) {
   const isFilled = FILLED_STATES.has(state)
   const color = COLOR_VAR[state]
+  const fill = resolveStatusDotFill(isFilled, color)
   const interactive = !disabled && !!onToggle
 
   const [prevState, setPrevState] = useState(state)
@@ -83,8 +85,7 @@ export function StatusDot({
         style={{
           width: size,
           height: size,
-          background: isFilled ? color : 'transparent',
-          boxShadow: isFilled ? 'none' : `inset 0 0 0 1.5px ${color}`,
+          ...fill,
           opacity: disabled ? 0.4 : 1,
         }}
       />
@@ -111,8 +112,7 @@ export function StatusDot({
           style={{
             width: size,
             height: size,
-            background: isFilled ? color : 'transparent',
-            boxShadow: isFilled ? 'none' : `inset 0 0 0 1.5px ${color}`,
+            ...fill,
           }}
         />
       )}
