@@ -8,7 +8,7 @@ import {
 } from '@orbit/shared/types/public-profile'
 import type { SupportedLocale } from '@orbit/shared/types/profile'
 import { serverPublicFetch } from '@/lib/server-fetch'
-import { PublicProfileView } from '@/components/profile/public-profile-view'
+import { PublicProfileView, type PublicProfileTranslator } from '@/components/profile/public-profile-view'
 
 export const revalidate = 60
 
@@ -27,7 +27,10 @@ async function fetchView(slug: string): Promise<PublicProfileViewData | null> {
 }
 
 async function loadMessages(locale: SupportedLocale) {
-  return (await import(`@orbit/shared/i18n/${locale}.json`)).default
+  const messagesModule = (await import(`@orbit/shared/i18n/${locale}.json`)) as {
+    default: typeof import('@orbit/shared/i18n/en.json')
+  }
+  return messagesModule.default
 }
 
 export async function generateMetadata({ params }: PageParams): Promise<Metadata> {
@@ -67,5 +70,5 @@ export default async function PublicProfileSlugPage({ params }: PageParams) {
   const messages = await loadMessages(locale)
   const t = createTranslator({ locale, messages })
 
-  return <PublicProfileView view={view} t={t} />
+  return <PublicProfileView view={view} t={t as PublicProfileTranslator} />
 }

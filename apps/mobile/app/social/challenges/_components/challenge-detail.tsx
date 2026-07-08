@@ -348,7 +348,7 @@ export function ChallengeDetail({ challengeId, onLeft }: Readonly<ChallengeDetai
         saveLabel={t('common.save')}
         selectedIds={editorHabitIds}
         onToggle={toggleEditorHabit}
-        onSave={saveHabits}
+        onSave={() => void saveHabits()}
         saving={setChallengeHabits.isPending}
       />
 
@@ -359,7 +359,7 @@ export function ChallengeDetail({ challengeId, onLeft }: Readonly<ChallengeDetai
         description={t('challenges.detail.leaveConfirmBody')}
         confirmLabel={t('challenges.detail.leave')}
         variant="danger"
-        onConfirm={leave}
+        onConfirm={() => void leave()}
       />
     </View>
   )

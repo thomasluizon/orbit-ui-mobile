@@ -197,7 +197,7 @@ export default function UpgradeScreen() {
               profile={profile ?? null}
               portalLoading={portalLoading}
               portalError={portalError}
-              onPortal={handlePortal}
+              onPortal={() => void handlePortal()}
               onRetryBilling={() => {
                 refetchBilling().catch(() => {})
               }}

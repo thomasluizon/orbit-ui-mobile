@@ -39,11 +39,11 @@ declare module '@testing-library/react-native' {
     getByPlaceholderText: (text: string) => unknown
     getByDisplayValue: (text: string) => unknown
     getByTestId: (text: string) => unknown
-    queryByText: (text: string) => unknown | null
-    queryByLabelText: (text: string) => unknown | null
-    queryByPlaceholderText: (text: string) => unknown | null
-    queryByDisplayValue: (text: string) => unknown | null
-    queryByTestId: (text: string) => unknown | null
+    queryByText: (text: string) => unknown
+    queryByLabelText: (text: string) => unknown
+    queryByPlaceholderText: (text: string) => unknown
+    queryByDisplayValue: (text: string) => unknown
+    queryByTestId: (text: string) => unknown
     [key: string]: TestingLibraryMethod
   }
 }

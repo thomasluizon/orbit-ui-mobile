@@ -136,7 +136,7 @@ export default function AchievementsScreen() {
             <Text style={[styles.errorText, { color: tokens.fg2 }]}>
               {t('common.error')}
             </Text>
-            <PillButton variant="ghost" onPress={() => refetch()}>
+            <PillButton variant="ghost" onPress={() => void refetch()}>
               {t('common.retry')}
             </PillButton>
           </View>

@@ -182,7 +182,7 @@ export default function AccountabilityPairScreen() {
                   </Text>
                 </View>
                 <PillButton
-                  onPress={handleCheckIn}
+                  onPress={() => void handleCheckIn()}
                   disabled={checkIn.isPending}
                   busy={checkIn.isPending}
                   fullWidth
@@ -245,7 +245,7 @@ export default function AccountabilityPairScreen() {
           </ScrollView>
           <View style={styles.sheetFooter}>
             <PillButton
-              onPress={handleSaveHabits}
+              onPress={() => void handleSaveHabits()}
               disabled={editHabitIds.length === 0 || setHabits.isPending}
               busy={setHabits.isPending}
               fullWidth
@@ -264,7 +264,7 @@ export default function AccountabilityPairScreen() {
         })}
         description={t('social.buddies.detail.unpairConfirmBody')}
         confirmLabel={t('social.buddies.detail.unpair')}
-        onConfirm={handleUnpair}
+        onConfirm={() => void handleUnpair()}
         variant="danger"
       />
     </SafeAreaView>

@@ -195,7 +195,7 @@ export default function CalendarSyncPage() {
     }
   }
 
-  async function importSelected() {
+  function importSelected() {
     if (!isOnline) return
     if (selectedIds.size === 0) return
     setWizardStage('importing')
@@ -412,7 +412,7 @@ export default function CalendarSyncPage() {
                     suggestionId={isReviewMode ? findSuggestionIdForEvent(event.id) : null}
                     dismissPending={dismissSuggestion.isPending}
                     onToggle={toggleEvent}
-                    onDismiss={handleDismissSuggestion}
+                    onDismiss={(suggestionId) => void handleDismissSuggestion(suggestionId)}
                     t={t}
                   />
                 ))}
@@ -454,7 +454,7 @@ export default function CalendarSyncPage() {
                 <PillButton
                   fullWidth
                   disabled={selectedIds.size === 0 || !isOnline}
-                  onClick={importSelected}
+                  onClick={() => void importSelected()}
                 >
                   {plural(t('calendar.importButton', { count: selectedIds.size }), selectedIds.size)}
                 </PillButton>

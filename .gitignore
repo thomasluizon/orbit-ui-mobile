@@ -33,6 +33,11 @@ Thumbs.db
 # Coverage
 coverage/
 
+# Mutation testing (StrykerJS)
+.stryker-tmp/
+packages/shared/.stryker-tmp/
+packages/shared/reports/
+
 # Playwright smoke (apps/web/e2e)
 apps/web/e2e/.auth/
 apps/web/e2e/.report/

@@ -66,7 +66,7 @@ export function StatusDot({
 
   useEffect(() => {
     let active = true
-    AccessibilityInfo.isReduceMotionEnabled().then((enabled) => {
+    void AccessibilityInfo.isReduceMotionEnabled().then((enabled) => {
       if (active) setReduceMotion(enabled)
     })
     const subscription = AccessibilityInfo.addEventListener(

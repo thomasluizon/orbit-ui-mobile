@@ -84,7 +84,7 @@ export default function RetrospectiveScreen() {
   useEffect(() => {
     let active = true
 
-    AsyncStorage.getItem(cacheKey)
+    void AsyncStorage.getItem(cacheKey)
       .then((value) => {
         if (!active) return
         if (!value) {

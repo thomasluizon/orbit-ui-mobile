@@ -82,7 +82,7 @@ export function TodayRail() {
             <span className="t-meta">{t('rail.loadFailed')}</span>
             <button
               type="button"
-              onClick={() => habitsQuery.refetch()}
+              onClick={() => void habitsQuery.refetch()}
               className="inline-flex min-h-[44px] items-center justify-center rounded-full px-5 text-[14px] font-medium text-[var(--fg-1)] shadow-[inset_0_0_0_1.5px_var(--hairline-strong)] transition-[transform,background-color] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev)] active:scale-[0.96]"
             >
               {t('common.retry')}

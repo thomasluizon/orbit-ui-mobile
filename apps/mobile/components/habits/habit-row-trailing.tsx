@@ -29,6 +29,38 @@ interface HabitRowTrailingProps {
   onMenuActivity: () => void
 }
 
+function runParentProgressAction(
+  isDoneForRange: boolean,
+  childrenDone: number,
+  childrenTotal: number,
+  actions: HabitRowActions,
+) {
+  if (isDoneForRange) {
+    actions.onUnlog?.()
+  } else if (childrenDone >= childrenTotal) {
+    actions.onLog?.()
+  } else {
+    actions.onForceLogParent?.()
+  }
+}
+
+function resolveParentRingTrackColor(
+  habit: NormalizedHabit,
+  dotState: StatusDotState,
+  tokens: ReturnType<typeof createTokensV2>,
+) {
+  if (habit.isBadHabit) return `${tokens.statusBad}66`
+  if (dotState === 'overdue') return `${tokens.statusOverdue}66`
+  return undefined
+}
+
+function resolveParentRingColor(
+  isBadHabit: boolean,
+  tokens: ReturnType<typeof createTokensV2>,
+) {
+  return isBadHabit ? tokens.statusBad : undefined
+}
+
 export function HabitRowTrailing({
   habit,
   isSelectMode,
@@ -65,15 +97,9 @@ export function HabitRowTrailing({
               {childrenDone}/{childrenTotal}
             </Text>
             <Pressable
-              onPress={() => {
-                if (isDoneForRange) {
-                  actions.onUnlog?.()
-                } else if (childrenDone >= childrenTotal) {
-                  actions.onLog?.()
-                } else {
-                  actions.onForceLogParent?.()
-                }
-              }}
+              onPress={() =>
+                runParentProgressAction(isDoneForRange, childrenDone, childrenTotal, actions)
+              }
               hitSlop={{ top: 14, bottom: 14, left: 14, right: 14 }}
               accessibilityRole="button"
               accessibilityLabel={`${habit.title} ${childrenDone}/${childrenTotal}`}
@@ -82,14 +108,8 @@ export function HabitRowTrailing({
                 done={childrenDone}
                 total={childrenTotal}
                 size={30}
-                color={habit.isBadHabit ? tokens.statusBad : undefined}
-                trackColor={
-                  habit.isBadHabit
-                    ? `${tokens.statusBad}66`
-                    : dotState === 'overdue'
-                      ? `${tokens.statusOverdue}66`
-                      : undefined
-                }
+                color={resolveParentRingColor(habit.isBadHabit, tokens)}
+                trackColor={resolveParentRingTrackColor(habit, dotState, tokens)}
               />
             </Pressable>
           </>

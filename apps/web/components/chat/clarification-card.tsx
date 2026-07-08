@@ -94,7 +94,7 @@ export function ClarificationCard({
               key={action.value}
               type="button"
               disabled={disabled}
-              onClick={() => handleSelect(label, action.value)}
+              onClick={() => void handleSelect(label, action.value)}
               className="chip focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--primary)]/60 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {isActive && <Loader2 className="size-3 animate-spin" />}
@@ -106,7 +106,7 @@ export function ClarificationCard({
 
       {errorKey && (
         <p className="text-xs text-[var(--status-bad)]" role="alert">
-          {t(errorKey as IntlKey)}
+          {t(errorKey)}
         </p>
       )}
     </div>

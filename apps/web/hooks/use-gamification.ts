@@ -84,7 +84,7 @@ export function useGamificationProfile(enabled = true) {
   }, [profile?.level])
 
   const invalidate = useCallback(() => {
-    queryClient.invalidateQueries({ queryKey: gamificationKeys.all })
+    void queryClient.invalidateQueries({ queryKey: gamificationKeys.all })
   }, [queryClient])
 
   return {
@@ -146,7 +146,7 @@ export function useReportEvent() {
           xpReward: achievement.xpReward,
         })
       }
-      queryClient.invalidateQueries({ queryKey: gamificationKeys.all })
+      void queryClient.invalidateQueries({ queryKey: gamificationKeys.all })
     },
   })
 }

@@ -361,7 +361,8 @@ export function HabitDetailDrawer({
         confirmLabel={t('habits.checklistCompleteConfirm')}
         cancelLabel={t('common.cancel')}
         variant="success"
-        onConfirm={async () => {
+        onConfirm={() => {
+          void (async () => {
           if (!habit) return
           try {
             await logHabit.mutateAsync({ habitId: habit.id })
@@ -378,6 +379,7 @@ export function HabitDetailDrawer({
           } finally {
             setShowChecklistCompleteConfirm(false)
           }
+          })()
         }}
       />
 

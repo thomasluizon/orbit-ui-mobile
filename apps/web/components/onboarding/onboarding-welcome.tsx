@@ -114,7 +114,7 @@ export function OnboardingWelcome({
                   className="inline-flex items-center justify-center appearance-none border-0 bg-transparent cursor-pointer"
                   style={{ width: 44, height: 44 }}
                   aria-label={t(
-                    `preferences.color${option.value.charAt(0).toUpperCase() + option.value.slice(1)}` as Parameters<typeof t>[0],
+                    `preferences.color${option.value.charAt(0).toUpperCase() + option.value.slice(1)}`,
                   )}
                   aria-pressed={isActive}
                   onClick={() => handleSchemeSelect(option.value)}

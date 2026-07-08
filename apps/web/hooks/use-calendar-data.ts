@@ -23,10 +23,10 @@ async function fetchCalendarMonth(
   const url = `${API.habits.calendarMonth}?dateFrom=${monthStart}&dateTo=${monthEnd}`
   const res = await fetch(url)
   if (!res.ok) {
-    const body = await res.json().catch(() => null)
+    const body = (await res.json().catch(() => null)) as { error?: string } | null
     throw new Error(body?.error ?? `Failed with status ${res.status}`)
   }
-  return res.json()
+  return res.json() as Promise<CalendarMonthResponse>
 }
 
 function useCalendarRangeQuery(rangeStart: string, rangeEnd: string, enabled = true) {

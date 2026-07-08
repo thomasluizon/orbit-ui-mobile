@@ -254,7 +254,7 @@ export function EditHabitModal({
           <PillButton
             glow={false}
             disabled={submitDisabled}
-            onPress={handleSubmit}
+            onPress={() => void handleSubmit()}
             leading={
               updateHabit.isPending ? (
                 <ActivityIndicator size="small" color={tokens.fgOnPrimary} />

@@ -186,7 +186,7 @@ export default function TodayPage() {
   }, [habitListAllCollapsed])
 
   const handleRefresh = useCallback(() => {
-    queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
+    void queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
   }, [queryClient])
 
   const dateLabel = useMemo(() => {
@@ -728,7 +728,7 @@ export default function TodayPage() {
         confirmLabel={t('habits.bulkDeleteConfirm')}
         cancelLabel={t('common.cancel')}
         variant="danger"
-        onConfirm={confirmBulkDelete}
+        onConfirm={() => void confirmBulkDelete()}
         onCancel={() => setShowBulkDeleteConfirm(false)}
       />
 
@@ -740,7 +740,7 @@ export default function TodayPage() {
         confirmLabel={t('habits.bulkLogConfirm')}
         cancelLabel={t('common.cancel')}
         variant="success"
-        onConfirm={confirmBulkLog}
+        onConfirm={() => void confirmBulkLog()}
         onCancel={() => setShowBulkLogConfirm(false)}
       />
 
@@ -752,7 +752,7 @@ export default function TodayPage() {
         confirmLabel={t('habits.bulkSkipConfirm')}
         cancelLabel={t('common.cancel')}
         variant="warning"
-        onConfirm={confirmBulkSkip}
+        onConfirm={() => void confirmBulkSkip()}
         onCancel={() => setShowBulkSkipConfirm(false)}
       />
 

@@ -1,6 +1,8 @@
 // https://docs.expo.dev/guides/using-eslint/
 const { defineConfig } = require("eslint/config")
 const expoConfig = require("eslint-config-expo/flat")
+const tseslint = require("typescript-eslint")
+const sonarjs = require("eslint-plugin-sonarjs")
 const reactHooks = require("eslint-plugin-react-hooks")
 const noComments = require("../../eslint-rules/no-comments.cjs")
 const noGorhomSheet = require("../../eslint-rules/no-gorhom-sheet.cjs")
@@ -29,6 +31,27 @@ const patchedExpoConfig = expoConfigArray.map((c) => {
 
 module.exports = defineConfig([
   ...patchedExpoConfig,
+  ...tseslint.configs.recommendedTypeChecked,
+  {
+    languageOptions: {
+      parserOptions: {
+        projectService: true,
+        tsconfigRootDir: __dirname,
+      },
+    },
+  },
+  {
+    files: ["**/*.{ts,tsx}"],
+    plugins: { sonarjs },
+    rules: {
+      "@typescript-eslint/no-unnecessary-condition": "warn",
+      "sonarjs/cognitive-complexity": ["warn", 15],
+    },
+  },
+  {
+    files: ["**/*.{js,mjs,cjs}"],
+    ...tseslint.configs.disableTypeChecked,
+  },
   {
     files: ["**/*.{ts,tsx}"],
     ignores: ["**/*.d.ts"],
@@ -69,6 +92,12 @@ module.exports = defineConfig([
       "@typescript-eslint/no-require-imports": "off",
       "@typescript-eslint/no-explicit-any": "off",
       "@typescript-eslint/no-unused-vars": "off",
+      "@typescript-eslint/no-unsafe-argument": "off",
+      "@typescript-eslint/no-unsafe-assignment": "off",
+      "@typescript-eslint/no-unsafe-call": "off",
+      "@typescript-eslint/no-unsafe-member-access": "off",
+      "@typescript-eslint/no-unsafe-return": "off",
+      "@typescript-eslint/unbound-method": "off",
       "react/display-name": "off",
     },
   },

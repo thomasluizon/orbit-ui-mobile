@@ -1,0 +1,21 @@
+{
+  "$schema": "./node_modules/@stryker-mutator/core/schema/stryker-schema.json",
+  "testRunner": "vitest",
+  "reporters": ["html", "json", "progress", "clear-text"],
+  "incremental": true,
+  "mutate": [
+    "src/utils/dates.ts",
+    "src/utils/habits.ts",
+    "src/utils/habit-card-helpers.ts",
+    "src/utils/habit-list-progress.ts",
+    "src/utils/habit-optimistic.ts",
+    "src/utils/gamification-selectors.ts",
+    "src/utils/streak-week.ts",
+    "src/validation/*.ts"
+  ],
+  "thresholds": {
+    "high": 80,
+    "low": 60,
+    "break": null
+  }
+}

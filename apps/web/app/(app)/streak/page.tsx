@@ -114,7 +114,7 @@ export default function StreakPage() {
                       <p style={{ margin: 0, fontFamily: 'var(--font-sans)', fontSize: 14, lineHeight: 1.55, color: 'var(--fg-2)' }}>
                         {t('common.error')}
                       </p>
-                      <PillButton variant="ghost" onClick={() => streakQuery.refetch()}>
+                      <PillButton variant="ghost" onClick={() => void streakQuery.refetch()}>
                         {t('common.retry')}
                       </PillButton>
                     </div>

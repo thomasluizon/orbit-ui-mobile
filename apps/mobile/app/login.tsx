@@ -117,8 +117,8 @@ export default function LoginScreen() {
               canSubmitEmail={canSubmitEmail}
               isGoogleLoading={isGoogleLoading}
               isOnline={isOnline}
-              onSendCode={sendCode}
-              onSignInWithGoogle={signInWithGoogle}
+              onSendCode={() => void sendCode()}
+              onSignInWithGoogle={() => void signInWithGoogle()}
               onOpenTerms={openTerms}
               onOpenPrivacy={openPrivacyPolicy}
               tokens={tokens}
@@ -142,8 +142,8 @@ export default function LoginScreen() {
               canResend={canResend}
               resendCountdown={resendCountdown}
               isOnline={isOnline}
-              onVerifyCode={verifyCode}
-              onResendCode={resendCode}
+              onVerifyCode={() => void verifyCode()}
+              onResendCode={() => void resendCode()}
               onBackToEmail={backToEmail}
               shakeOffset={shakeOffset}
               tokens={tokens}

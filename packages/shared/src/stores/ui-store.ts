@@ -71,9 +71,7 @@ export function migratePersistedUIState(
   const state = isRecord(persistedState) ? persistedState : {};
 
   return {
-    activeFilters: isRecord(state.activeFilters)
-      ? (state.activeFilters as HabitsFilter)
-      : {},
+    activeFilters: isRecord(state.activeFilters) ? state.activeFilters : {},
     activeView: isActiveView(state.activeView) ? state.activeView : "today",
     searchQuery: typeof state.searchQuery === "string" ? state.searchQuery : "",
     selectedFrequency: isHabitFrequencyFilter(state.selectedFrequency)

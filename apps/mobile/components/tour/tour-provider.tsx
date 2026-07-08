@@ -286,7 +286,7 @@ export function TourProvider({ children }: { children: React.ReactNode }) {
       normalizedPathname !== mobileRoute
     ) {
       setNavigating(true)
-      router.push(mobileRoute as never)
+      router.push(mobileRoute)
       scheduleTimeout(
         () => waitForTarget(currentStep.targetId, currentStep.route),
         SCROLL_SETTLE_DELAY + 100,

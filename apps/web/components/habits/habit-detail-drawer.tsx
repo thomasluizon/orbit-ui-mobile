@@ -252,7 +252,7 @@ export function HabitDetailDrawer({
         })}
         confirmLabel={t('habits.checklistCompleteConfirm')}
         cancelLabel={t('common.cancel')}
-        onConfirm={confirmChecklistLog}
+        onConfirm={() => void confirmChecklistLog()}
         onCancel={() => setShowChecklistLogPrompt(false)}
         variant="success"
       />

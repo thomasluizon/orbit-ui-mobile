@@ -481,7 +481,7 @@ export function UserFactsList({
         <Text style={[styles.emptyBody, { color: tokens.statusBadText }]}>
           {t('profile.facts.factsError')}
         </Text>
-        <PillButton fullWidth onPress={() => factsQuery.refetch()}>
+        <PillButton fullWidth onPress={() => void factsQuery.refetch()}>
           {t('profile.facts.retry')}
         </PillButton>
       </Animated.View>

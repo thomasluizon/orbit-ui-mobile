@@ -140,7 +140,7 @@ export function ReferralDrawer({ open, onClose }: Readonly<ReferralDrawerProps>)
             <View style={styles.gutter}>
               <PillButton
                 fullWidth
-                onPress={doShare}
+                onPress={() => void doShare()}
                 leading={<Share2 size={18} strokeWidth={1.8} color={tokens.fgOnPrimary} />}
               >
                 {t('referral.drawer.share')}

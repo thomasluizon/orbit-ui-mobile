@@ -291,7 +291,7 @@ export function KeyboardAwareScrollView({
 }: Readonly<KeyboardAwareScrollViewProps>) {
   const scrollRef = useRef<ScrollView>(null)
   const keyboardAwareContext = useKeyboardAwareContextValue(
-    scrollRef as RefObject<KeyboardAwareScrollable | null>,
+    scrollRef,
     keyboardVerticalOffset,
   )
   const handleScroll = useCallback(
@@ -332,7 +332,7 @@ export function KeyboardAwareBottomSheetScrollView({
 }: Readonly<KeyboardAwareBottomSheetScrollViewProps>) {
   const scrollRef = useRef<ScrollView>(null)
   const keyboardAwareContext = useKeyboardAwareContextValue(
-    scrollRef as RefObject<KeyboardAwareScrollable | null>,
+    scrollRef,
     keyboardVerticalOffset,
   )
   const handleScroll = useCallback(

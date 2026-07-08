@@ -213,7 +213,7 @@ export function PairDetail({ pairId, onClose }: Readonly<PairDetailProps>) {
                   </span>
                 </div>
                 <PillButton
-                  onClick={handleCheckIn}
+                  onClick={() => void handleCheckIn()}
                   disabled={checkIn.isPending}
                   busy={checkIn.isPending}
                   fullWidth
@@ -277,7 +277,7 @@ export function PairDetail({ pairId, onClose }: Readonly<PairDetailProps>) {
         title={t('social.buddies.detail.editHabitsTitle')}
         footer={
           <PillButton
-            onClick={handleSaveHabits}
+            onClick={() => void handleSaveHabits()}
             disabled={editHabitIds.length === 0 || setHabits.isPending}
             busy={setHabits.isPending}
             fullWidth
@@ -295,7 +295,7 @@ export function PairDetail({ pairId, onClose }: Readonly<PairDetailProps>) {
         title={t('social.buddies.detail.unpairConfirmTitle', { name: pair?.buddy.displayName ?? '' })}
         description={t('social.buddies.detail.unpairConfirmBody')}
         confirmLabel={t('social.buddies.detail.unpair')}
-        onConfirm={handleUnpair}
+        onConfirm={() => void handleUnpair()}
         variant="danger"
       />
     </>

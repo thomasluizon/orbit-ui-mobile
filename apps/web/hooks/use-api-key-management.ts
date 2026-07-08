@@ -23,7 +23,7 @@ async function fetchApiKeys(): Promise<ApiKey[]> {
   if (!res.ok) {
     throw new Error('Failed to load API keys')
   }
-  return res.json()
+  return res.json() as Promise<ApiKey[]>
 }
 
 async function fetchCapabilities(): Promise<AgentCapability[]> {
@@ -31,7 +31,7 @@ async function fetchCapabilities(): Promise<AgentCapability[]> {
   if (!res.ok) {
     throw new Error('Failed to load AI capabilities')
   }
-  return res.json()
+  return res.json() as Promise<AgentCapability[]>
 }
 
 interface UseApiKeyManagementParams {
@@ -95,7 +95,7 @@ export function useApiKeyManagement({
     mutationFn: revokeApiKey,
     onSuccess: () => {
       setRevokingKeyId(null)
-      queryClient.invalidateQueries({ queryKey: apiKeyKeys.all })
+      void queryClient.invalidateQueries({ queryKey: apiKeyKeys.all })
     },
   })
 
@@ -105,7 +105,7 @@ export function useApiKeyManagement({
     setCreateKeyError(null)
     try {
       const result = await createApiKey(request)
-      queryClient.invalidateQueries({ queryKey: apiKeyKeys.all })
+      void queryClient.invalidateQueries({ queryKey: apiKeyKeys.all })
       return result
     } catch {
       setCreateKeyError(t('orbitMcp.createKeyError'))

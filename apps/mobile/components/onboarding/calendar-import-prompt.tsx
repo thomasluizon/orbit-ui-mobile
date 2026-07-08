@@ -55,7 +55,7 @@ export function CalendarImportPrompt() {
 
   const handleImport = useCallback(async () => {
     await dismissPrompt()
-    router.push('/calendar-sync' as never)
+    router.push('/calendar-sync')
   }, [dismissPrompt, router])
 
   if (!shouldShow) return null
@@ -74,7 +74,7 @@ export function CalendarImportPrompt() {
           {t('onboarding.wizard.calendarDescription')}
         </Text>
         <View style={styles.spacer} />
-        <PillButton fullWidth onPress={handleImport}>
+        <PillButton fullWidth onPress={() => void handleImport()}>
           {t('onboarding.wizard.calendarButton')}
         </PillButton>
         <Pressable

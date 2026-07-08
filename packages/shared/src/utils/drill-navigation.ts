@@ -95,7 +95,7 @@ export function normalizeHabitDetailForDrill(
 ): NormalizedDrillDetail {
   const safeChildren = detail.children ?? []
   const parent = normalizeDrillDetailChild(
-    { ...detail, children: safeChildren } as HabitDetailChild,
+    { ...detail, children: safeChildren },
     null,
     today,
   )

@@ -43,7 +43,7 @@ export function HabitCalendar({
     [externalLogs, fetchedLogs],
   )
   const { profile } = useProfile()
-  const weekStartsOn = (profile?.weekStartDay ?? 1) as 0 | 1
+  const weekStartsOn = profile?.weekStartDay ?? 1
 
   const [currentMonth, setCurrentMonth] = useState(new Date())
   const [selectedDate, setSelectedDate] = useState<string | null>(null)

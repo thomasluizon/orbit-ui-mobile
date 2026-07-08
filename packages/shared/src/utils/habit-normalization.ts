@@ -60,7 +60,7 @@ export function sortNormalizedHabits(a: NormalizedHabit, b: NormalizedHabit): nu
   return a.createdAtUtc.localeCompare(b.createdAtUtc)
 }
 
-function fallbackChildOverdue(
+export function fallbackChildOverdue(
   child: Pick<NormalizedHabit, 'isCompleted' | 'frequencyUnit' | 'dueDate'>,
   todayStr: string,
 ): boolean {

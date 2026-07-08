@@ -8,5 +8,6 @@
       "vitest/globals"
     ]
   },
-  "include": ["src"]
+  "include": ["src"],
+  "exclude": ["src/types/__generated__"]
 }

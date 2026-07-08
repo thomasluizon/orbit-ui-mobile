@@ -1132,7 +1132,7 @@ export default function TodayScreen() {
           selectedCount,
         )}
         confirmLabel={t("habits.bulkDeleteConfirm")}
-        onConfirm={confirmBulkDelete}
+        onConfirm={() => void confirmBulkDelete()}
         variant="danger"
       />
 
@@ -1145,7 +1145,7 @@ export default function TodayScreen() {
           selectedCount,
         )}
         confirmLabel={t("habits.bulkLogConfirm")}
-        onConfirm={confirmBulkLog}
+        onConfirm={() => void confirmBulkLog()}
         variant="success"
       />
 
@@ -1158,7 +1158,7 @@ export default function TodayScreen() {
           selectedCount,
         )}
         confirmLabel={t("habits.bulkSkipConfirm")}
-        onConfirm={confirmBulkSkip}
+        onConfirm={() => void confirmBulkSkip()}
         variant="warning"
       />
 
@@ -1171,7 +1171,7 @@ export default function TodayScreen() {
         title={t("habits.deleteConfirmTitle")}
         description={t("habits.deleteConfirmMessage")}
         confirmLabel={t("common.delete")}
-        onConfirm={confirmHabitDelete}
+        onConfirm={() => void confirmHabitDelete()}
         variant="danger"
       />
 

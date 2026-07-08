@@ -256,7 +256,7 @@ export function OnboardingCreateGoal({
           fullWidth
           disabled={!canCreate || isCreating}
           busy={isCreating}
-          onPress={handleCreate}
+          onPress={() => void handleCreate()}
           leading={
             isCreating ? (
               <ActivityIndicator size="small" color={tokens.fgOnPrimary} />
