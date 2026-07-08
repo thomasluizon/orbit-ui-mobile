@@ -46,8 +46,7 @@ export function useChatImageAttachment(setSendError: (message: string | null) =>
   }
 
   function handlePaste(event: ClipboardEvent<HTMLTextAreaElement>) {
-    const items = event.clipboardData?.items
-    if (!items) return
+    const items = event.clipboardData.items
 
     for (const item of Array.from(items)) {
       if (!item.type.startsWith('image/')) continue

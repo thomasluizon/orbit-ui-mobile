@@ -23,7 +23,7 @@ export function useGoBackOrFallback() {
       }
 
       let hasSameOriginReferrer = false
-      const referrer = globalThis.document?.referrer
+      const referrer = globalThis.document.referrer
       if (referrer) {
         try {
           hasSameOriginReferrer =

@@ -40,7 +40,7 @@ export function useWrapped(period: RecapSharePeriod, options: UseWrappedOptions 
   useEffect(() => {
     if (!active || period !== 'year' || !recap || isEmpty) return
     const storage = globalThis.localStorage
-    if (!storage || storage.getItem(WRAPPED_YEAR_SEEN_STORAGE_KEY)) return
+    if (storage.getItem(WRAPPED_YEAR_SEEN_STORAGE_KEY)) return
     storage.setItem(WRAPPED_YEAR_SEEN_STORAGE_KEY, '1')
     reportEvent(ACHIEVEMENT_EVENT_KEYS.wrappedViewed)
   }, [active, period, recap, isEmpty, reportEvent])
