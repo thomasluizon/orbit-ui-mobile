@@ -70,10 +70,10 @@ export function useTourMockData() {
 
     queryClient.setQueryDefaults(gamificationKeys.all, { staleTime: undefined })
 
-    queryClient.invalidateQueries({ queryKey: habitKeys.all })
-    queryClient.invalidateQueries({ queryKey: goalKeys.all })
-    queryClient.invalidateQueries({ queryKey: tagKeys.all })
-    queryClient.invalidateQueries({ queryKey: gamificationKeys.all })
+    void queryClient.invalidateQueries({ queryKey: habitKeys.all })
+    void queryClient.invalidateQueries({ queryKey: goalKeys.all })
+    void queryClient.invalidateQueries({ queryKey: tagKeys.all })
+    void queryClient.invalidateQueries({ queryKey: gamificationKeys.all })
   }, [queryClient])
 
   return { inject, restore }

@@ -104,7 +104,7 @@ export function PreferencePickerSheet({
           <RadioRow
             key={option.value}
             label={t(
-              `preferences.color${capitalize(option.value)}` as Parameters<typeof t>[0],
+              `preferences.color${capitalize(option.value)}`,
             )}
             selected={mounted && currentScheme === option.value}
             dot={option.color}

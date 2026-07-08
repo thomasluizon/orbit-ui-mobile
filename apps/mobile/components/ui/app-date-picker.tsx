@@ -48,7 +48,7 @@ export function AppDatePicker({
     () => createTokensV2(currentScheme, currentTheme),
     [currentScheme, currentTheme],
   )
-  const weekStartsOn = (profile?.weekStartDay ?? 0) as 0 | 1
+  const weekStartsOn = profile?.weekStartDay ?? 0
   const locale = i18n.language
   const [isOpen, setIsOpen] = useState(false)
   const [visible, setVisible] = useState(false)

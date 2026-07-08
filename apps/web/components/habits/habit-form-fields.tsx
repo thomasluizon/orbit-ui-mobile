@@ -273,7 +273,7 @@ export function HabitFormFields({
           {t('habits.form.flexibleDescription', {
             n: watchedFrequencyQuantity ?? 3,
             unit: watchedFrequencyUnit
-              ? t(`habits.form.unit${watchedFrequencyUnit}` as Parameters<typeof t>[0])
+              ? t(`habits.form.unit${watchedFrequencyUnit}`)
               : '',
           })}
         </p>
@@ -415,7 +415,7 @@ export function HabitFormFields({
             className="chip chip-ai"
             disabled={!tagSuggestions.canSuggest}
             aria-busy={tagSuggestions.isPending || undefined}
-            onClick={handleSuggestTags}
+            onClick={() => void handleSuggestTags()}
           >
             {tagSuggestions.isPending ? (
               <Loader2 className="size-[14px] animate-spin" aria-hidden="true" />
@@ -540,9 +540,9 @@ export function HabitFormFields({
           className="flex items-center gap-2 text-sm font-medium text-[var(--fg-2)] hover:text-[var(--fg-1)] transition-colors w-full py-3"
         >
           <ChevronDown className={`size-4 transition-transform duration-[var(--dur-base)] ${showAdvanced ? 'rotate-180' : ''}`} />
-          {t('habits.form.moreOptions' as Parameters<typeof t>[0])}
+          {t('habits.form.moreOptions')}
           {advancedFieldCount > 0 && (
-            <span className="font-mono text-xs tabular-nums text-[var(--primary)]">{t('habits.form.moreOptionsCount' as Parameters<typeof t>[0], { count: advancedFieldCount })}</span>
+            <span className="font-mono text-xs tabular-nums text-[var(--primary)]">{t('habits.form.moreOptionsCount', { count: advancedFieldCount })}</span>
           )}
         </button>
       </div>

@@ -68,7 +68,7 @@ export function FriendRequestRow({ request, direction }: Readonly<FriendRequestR
           <>
             <button
               type="button"
-              onClick={handleAccept}
+              onClick={() => void handleAccept()}
               disabled={busy}
               className={`${actionButtonClass} bg-[var(--primary)] text-[var(--fg-on-primary)] enabled:hover:bg-[var(--primary-pressed)]`}
               style={actionButtonStyle}
@@ -77,7 +77,7 @@ export function FriendRequestRow({ request, direction }: Readonly<FriendRequestR
             </button>
             <button
               type="button"
-              onClick={handleRemove}
+              onClick={() => void handleRemove()}
               disabled={busy}
               className={`${actionButtonClass} bg-[var(--bg-elev)] text-[var(--fg-2)] enabled:hover:bg-[var(--bg-elev-2)]`}
               style={actionButtonStyle}
@@ -88,7 +88,7 @@ export function FriendRequestRow({ request, direction }: Readonly<FriendRequestR
         ) : (
           <button
             type="button"
-            onClick={handleRemove}
+            onClick={() => void handleRemove()}
             disabled={busy}
             className={`${actionButtonClass} bg-[var(--bg-elev)] text-[var(--fg-2)] enabled:hover:bg-[var(--bg-elev-2)]`}
             style={actionButtonStyle}

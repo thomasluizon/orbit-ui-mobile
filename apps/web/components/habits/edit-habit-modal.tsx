@@ -119,8 +119,8 @@ export function EditHabitModal({
     }
   }
 
-  const handleSubmit = useCallback<NonNullable<React.ComponentProps<'form'>['onSubmit']>>(
-    async (e) => {
+  const handleSubmit = useCallback(
+    async (e: React.FormEvent<HTMLFormElement>) => {
       e.preventDefault()
       if (!habit) return
 
@@ -192,7 +192,7 @@ export function EditHabitModal({
           </div>
         }
       >
-        <form id={formId} onSubmit={handleSubmit}>
+        <form id={formId} onSubmit={(e) => void handleSubmit(e)}>
         <fieldset
           disabled={detailFieldsPending}
           aria-busy={detailFieldsPending || undefined}

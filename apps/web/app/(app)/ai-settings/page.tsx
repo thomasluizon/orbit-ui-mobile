@@ -55,7 +55,7 @@ export default function AiSettingsPage() {
       }
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: habitKeys.summaryPrefix() })
+      void queryClient.invalidateQueries({ queryKey: habitKeys.summaryPrefix() })
     },
   })
 
@@ -173,7 +173,7 @@ export default function AiSettingsPage() {
                 selectedFactIds={selectedFactIds}
                 onToggleSelection={toggleFactSelection}
                 onDelete={(id) => deleteMutation.mutate(id)}
-                onRetry={() => factsQuery.refetch()}
+                onRetry={() => void factsQuery.refetch()}
                 onAskAstra={() => router.push('/chat')}
               />
             )}

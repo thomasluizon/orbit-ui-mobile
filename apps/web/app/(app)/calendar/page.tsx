@@ -335,7 +335,7 @@ export default function CalendarPage() {
 
         {activeError && activeView !== 'agenda' ? (
           <div style={{ padding: '12px 20px 16px' }}>
-            <CalendarLoadError onRetry={activeRefresh} />
+            <CalendarLoadError onRetry={() => void activeRefresh()} />
           </div>
         ) : (
           <>

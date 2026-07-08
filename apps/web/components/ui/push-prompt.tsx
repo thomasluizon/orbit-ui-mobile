@@ -181,7 +181,7 @@ export function PushPrompt() {
           </span>
         )}
         <div className="flex flex-col" style={{ gap: 10, paddingTop: 10 }}>
-          <PillButton fullWidth onClick={handleEnable}>
+          <PillButton fullWidth onClick={() => void handleEnable()}>
             {t('pushPrompt.enable')}
           </PillButton>
           <PillButton variant="ghost" fullWidth onClick={dismiss}>

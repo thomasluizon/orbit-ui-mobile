@@ -36,7 +36,7 @@ export function ScheduledReminderSection({
     const candidate = [...current, { when, time }]
     const validationErrorKey = validateScheduledReminders(candidate)
     if (validationErrorKey) {
-      onValidationError(t(validationErrorKey as Parameters<typeof t>[0]))
+      onValidationError(t(validationErrorKey))
       return
     }
     onSetScheduledReminders(candidate)

@@ -90,7 +90,7 @@ export function BuddyInviteRow({ pair, direction }: Readonly<BuddyInviteRowProps
               </Pressable>
               <Pressable
                 accessibilityRole="button"
-                onPress={handleEnd}
+                onPress={() => void handleEnd()}
                 disabled={busy}
                 hitSlop={{ top: 6, bottom: 6 }}
                 style={({ pressed }) => [
@@ -108,7 +108,7 @@ export function BuddyInviteRow({ pair, direction }: Readonly<BuddyInviteRowProps
           ) : (
             <Pressable
               accessibilityRole="button"
-              onPress={handleEnd}
+              onPress={() => void handleEnd()}
               disabled={busy}
               hitSlop={{ top: 6, bottom: 6 }}
               style={({ pressed }) => [
@@ -138,7 +138,7 @@ export function BuddyInviteRow({ pair, direction }: Readonly<BuddyInviteRowProps
           </Text>
           <HabitMultiSelect selectedIds={habitIds} onChange={setHabitIds} />
           <PillButton
-            onPress={handleAccept}
+            onPress={() => void handleAccept()}
             disabled={habitIds.length === 0 || accept.isPending}
             busy={accept.isPending}
             fullWidth

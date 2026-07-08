@@ -108,8 +108,8 @@ export function EditGoalModal({
     }
   }
 
-  const onSubmit = useCallback<NonNullable<React.ComponentProps<'form'>['onSubmit']>>(
-    async (e) => {
+  const onSubmit = useCallback(
+    async (e: React.FormEvent<HTMLFormElement>) => {
       e.preventDefault()
       setSubmitted(true)
 
@@ -153,7 +153,7 @@ export function EditGoalModal({
         isDirty={isDirty}
         onAttemptDismiss={dismissGuard.requestDismiss}
       >
-        <form onSubmit={onSubmit} noValidate>
+        <form onSubmit={(e) => void onSubmit(e)} noValidate>
           <div className="t-eyebrow" style={{ padding: '10px 0' }}>
             {isStreak
               ? t('goals.form.typeStreak')

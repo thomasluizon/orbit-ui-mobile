@@ -879,7 +879,7 @@ const isPostponeAction = useMemo(() => {
             : undefined,
           onDelete: () => promptDelete(habit.id),
           onDetail: () => openDetail(habit),
-          onDrillInto: () => drill.drillInto(habit.id),
+          onDrillInto: () => void drill.drillInto(habit.id),
           onAddSubHabit: () => startAddSubHabit(habit.id),
           onToggleExpand: () => toggleExpand(habit.id),
           onToggleSelection: () => onToggleSelection?.(habit.id),
@@ -1126,7 +1126,7 @@ const isPostponeAction = useMemo(() => {
         t={t}
         showDeleteConfirm={showDeleteConfirm}
         onDeleteOpenChange={setShowDeleteConfirm}
-        onConfirmDelete={confirmDelete}
+        onConfirmDelete={() => void confirmDelete()}
         onCancelDelete={() => {
           setHabitToDelete(null)
           setShowDeleteConfirm(false)
@@ -1137,7 +1137,7 @@ const isPostponeAction = useMemo(() => {
           if (!open) setHabitToDuplicate(null)
         }}
         duplicateName={habitToDuplicate?.title ?? ''}
-        onConfirmDuplicate={confirmDuplicate}
+        onConfirmDuplicate={() => void confirmDuplicate()}
         onCancelDuplicate={() => {
           setHabitToDuplicate(null)
           setShowDuplicateConfirm(false)
@@ -1146,14 +1146,14 @@ const isPostponeAction = useMemo(() => {
         onSkipOpenChange={setShowSkipConfirm}
         isPostponeAction={isPostponeAction}
         skipConfirmMessage={skipConfirmMessage}
-        onConfirmSkip={confirmSkip}
+        onConfirmSkip={() => void confirmSkip()}
         onCancelSkip={() => {
           setHabitToSkip(null)
           setShowSkipConfirm(false)
         }}
         showForceLogConfirm={showForceLogConfirm}
         onForceLogOpenChange={setShowForceLogConfirm}
-        onConfirmForceLog={confirmForceLog}
+        onConfirmForceLog={() => void confirmForceLog()}
         onCancelForceLog={() => {
           setForceLogHabitId(null)
           setShowForceLogConfirm(false)
@@ -1162,7 +1162,7 @@ const isPostponeAction = useMemo(() => {
         autoLogParentMode={autoLogParentMode}
         onAutoLogParentOpenChange={setShowAutoLogParent}
         autoLogParentName={autoLogParentHabit?.title ?? ''}
-        onConfirmAutoLogParent={confirmAutoLogParent}
+        onConfirmAutoLogParent={() => void confirmAutoLogParent()}
         onCancelAutoLogParent={() => {
           setAutoLogParentId(null)
           setShowAutoLogParent(false)
@@ -1179,7 +1179,7 @@ const isPostponeAction = useMemo(() => {
         selectedMoveParentId={selectedMoveParentId}
         canSubmit={canSubmitMoveParent}
         onClose={closeMoveParentPicker}
-        onConfirm={confirmMoveParent}
+        onConfirm={() => void confirmMoveParent()}
         onSelectOption={setSelectedMoveParentId}
       />
     </div>

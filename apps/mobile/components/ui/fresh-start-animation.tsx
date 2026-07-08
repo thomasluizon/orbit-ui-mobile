@@ -42,7 +42,7 @@ export function FreshStartAnimation({ onComplete }: Readonly<FreshStartAnimation
     const easeOut = toAnimatedEasing(easings.out)
     let cancelled = false
 
-    AccessibilityInfo.isReduceMotionEnabled().then((reduceMotion) => {
+    void AccessibilityInfo.isReduceMotionEnabled().then((reduceMotion) => {
       if (cancelled) return
 
       if (reduceMotion) {

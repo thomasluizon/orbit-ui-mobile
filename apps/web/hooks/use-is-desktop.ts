@@ -7,13 +7,13 @@ const WIDE_DESKTOP_QUERY = '(min-width: 1024px)'
 
 function createViewportMatch(query: string) {
   return {
-    subscribe(callback: () => void): () => void {
+    subscribe: (callback: () => void): (() => void) => {
       if (typeof window === 'undefined' || !window.matchMedia) return () => {}
       const mql = window.matchMedia(query)
       mql.addEventListener('change', callback)
       return () => mql.removeEventListener('change', callback)
     },
-    getSnapshot(): boolean {
+    getSnapshot: (): boolean => {
       return window.matchMedia(query).matches
     },
   }

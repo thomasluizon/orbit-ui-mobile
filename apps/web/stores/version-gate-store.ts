@@ -5,5 +5,5 @@ import {
 } from '@orbit/shared/stores'
 
 export const useVersionGateStore = create<VersionGateStoreState>((set) =>
-  createVersionGateStoreState(set as Parameters<typeof createVersionGateStoreState>[0]),
+  createVersionGateStoreState(set),
 )

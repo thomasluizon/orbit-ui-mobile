@@ -23,7 +23,7 @@ export const useOnboardingDraftStore = create<OnboardingDraftState>()(
     (set, get) =>
       createOnboardingDraftState(
         set as Parameters<typeof createOnboardingDraftState>[0],
-        get as Parameters<typeof createOnboardingDraftState>[1],
+        get,
       ),
     {
       name: 'orbit-onboarding-draft',

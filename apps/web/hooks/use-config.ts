@@ -10,7 +10,7 @@ async function fetchConfig(): Promise<AppConfig> {
   if (!res.ok) {
     return DEFAULT_CONFIG
   }
-  return res.json()
+  return res.json() as Promise<AppConfig>
 }
 
 export function useConfig() {

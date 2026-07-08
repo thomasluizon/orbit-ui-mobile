@@ -136,7 +136,7 @@ export function SocialFeed({ onCheer, onAddFriends }: Readonly<SocialFeedProps>)
         <div className="flex justify-center" style={{ padding: '12px 20px' }}>
           <PillButton
             variant="ghost"
-            onClick={() => feed.fetchNextPage()}
+            onClick={() => void feed.fetchNextPage()}
             disabled={feed.isFetchingNextPage}
             busy={feed.isFetchingNextPage}
           >

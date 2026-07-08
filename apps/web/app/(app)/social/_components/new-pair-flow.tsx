@@ -87,7 +87,7 @@ export function NewPairFlow({ open, onOpenChange, initialHabitId }: Readonly<New
       onOpenChange={handleOpenChange}
       title={t('social.buddies.newPair.title')}
       footer={
-        <PillButton onClick={handleSubmit} disabled={!canSubmit} busy={invite.isPending} fullWidth>
+        <PillButton onClick={() => void handleSubmit()} disabled={!canSubmit} busy={invite.isPending} fullWidth>
           {t('social.buddies.newPair.submit')}
         </PillButton>
       }

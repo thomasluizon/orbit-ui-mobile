@@ -436,7 +436,7 @@ export function CreateHabitModal({
             onReminderEnabledChange={handleReminderEnabledChange}
             onFlushBufferedInputsReady={handleBufferedInputsReady}
             expandAdvancedSignal={expandAdvancedSignal}
-            onSuggestSetup={isSubHabitMode ? undefined : handleSuggest}
+            onSuggestSetup={isSubHabitMode ? undefined : () => void handleSuggest()}
             isSuggesting={suggestion.isPending}
           >
             {!isSubHabitMode ? (
@@ -465,7 +465,7 @@ export function CreateHabitModal({
           <PillButton
             glow={false}
             disabled={submitDisabled}
-            onPress={handleSubmit}
+            onPress={() => void handleSubmit()}
             leading={
               isPending ? (
                 <ActivityIndicator size="small" color={tokens.fgOnPrimary} />

@@ -110,7 +110,7 @@ export function PublicProfileSettings() {
                 >
                   <button
                     type="button"
-                    onClick={copyLink}
+                    onClick={() => void copyLink()}
                     title={t('profile.publicProfile.link.copy')}
                     className="min-w-0 flex-1 cursor-pointer overflow-hidden whitespace-nowrap text-ellipsis border-0 bg-transparent text-left"
                     style={{ padding: 0, fontFamily: 'var(--font-mono)', fontSize: 15, color: 'var(--fg-1)' }}
@@ -120,7 +120,7 @@ export function PublicProfileSettings() {
                   <button
                     type="button"
                     className="icon-btn touch-target"
-                    onClick={copyLink}
+                    onClick={() => void copyLink()}
                     aria-label={t('profile.publicProfile.link.copy')}
                   >
                     <span className="relative inline-flex items-center justify-center" style={{ width: 16, height: 16 }}>
@@ -153,7 +153,7 @@ export function PublicProfileSettings() {
                     className="w-full md:w-auto md:max-w-[360px]"
                     glow={false}
                     leading={<Share2 size={18} strokeWidth={1.8} color="var(--fg-on-primary)" />}
-                    onClick={shareLink}
+                    onClick={() => void shareLink()}
                   >
                     {t('profile.publicProfile.link.share')}
                   </PillButton>

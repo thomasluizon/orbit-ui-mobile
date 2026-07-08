@@ -57,7 +57,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   startExpiryMonitor: () => {
-    get().checkSession()
+    void get().checkSession()
 
     const intervalId = setInterval(() => {
       const { isAuthenticated } = get()

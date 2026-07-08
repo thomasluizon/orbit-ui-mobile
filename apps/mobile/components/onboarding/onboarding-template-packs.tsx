@@ -168,7 +168,7 @@ export function OnboardingTemplatePacks({
           fullWidth
           disabled={enabledCount === 0 || isCreating}
           busy={isCreating}
-          onPress={handleAdd}
+          onPress={() => void handleAdd()}
           leading={
             isCreating ? <ActivityIndicator size="small" color={tokens.fgOnPrimary} /> : undefined
           }

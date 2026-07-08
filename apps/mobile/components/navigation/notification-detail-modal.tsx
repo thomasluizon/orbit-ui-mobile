@@ -44,7 +44,7 @@ export function NotificationDetailModal({
     const url = notification.url
     if (isViewableNotificationUrl(url)) {
       onClose()
-      router.push(url as never)
+      router.push(url)
     }
   }
 

@@ -204,7 +204,7 @@ export function GoalDetailDrawer({
                 progressExceedsTarget={progressExceedsTarget}
                 onProgressValueChange={setProgressValue}
                 onProgressNoteChange={setProgressNote}
-                onSubmit={submitProgress}
+                onSubmit={() => void submitProgress()}
                 onCancel={() => requestProgressDismiss('form')}
                 labelValue={isStreak ? t('goals.form.streakTarget') : t('goals.form.targetValue')}
                 labelNote={t('goals.progressNote')}
@@ -231,14 +231,14 @@ export function GoalDetailDrawer({
               formatDate={formatDate}
             />
 
-            {loadError && <GoalLoadError onRetry={() => refetchDetail()} />}
+            {loadError && <GoalLoadError onRetry={() => void refetchDetail()} />}
 
             <GoalActionFooter
               isActive={goal.status === 'Active'}
               isUpdatingStatus={isUpdatingStatus}
-              onMarkCompleted={markCompleted}
-              onMarkAbandoned={markAbandoned}
-              onReactivate={reactivate}
+              onMarkCompleted={() => void markCompleted()}
+              onMarkAbandoned={() => void markAbandoned()}
+              onReactivate={() => void reactivate()}
               onEdit={() => setShowEditModal(true)}
               onDelete={() => setShowDeleteConfirm(true)}
             />
@@ -276,7 +276,7 @@ export function GoalDetailDrawer({
         confirmLabel={t('common.delete')}
         cancelLabel={t('common.cancel')}
         variant="danger"
-        onConfirm={confirmDelete}
+        onConfirm={() => void confirmDelete()}
         onCancel={() => setShowDeleteConfirm(false)}
       />
     </>

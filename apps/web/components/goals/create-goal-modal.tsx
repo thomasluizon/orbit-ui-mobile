@@ -163,8 +163,8 @@ export function CreateGoalModal({ open, onOpenChange }: Readonly<CreateGoalModal
     [t],
   )
 
-  const onSubmit = useCallback<NonNullable<React.ComponentProps<'form'>['onSubmit']>>(
-    async (e) => {
+  const onSubmit = useCallback(
+    async (e: React.FormEvent<HTMLFormElement>) => {
       e.preventDefault()
       setSubmitted(true)
 
@@ -210,7 +210,7 @@ export function CreateGoalModal({ open, onOpenChange }: Readonly<CreateGoalModal
         isDirty={isDirty}
         onAttemptDismiss={dismissGuard.requestDismiss}
       >
-        <form id="create-goal-form" onSubmit={onSubmit} noValidate>
+        <form id="create-goal-form" onSubmit={(e) => void onSubmit(e)} noValidate>
           <div style={{ padding: '4px 0 0' }}>
             <FieldWell
               label={t('goals.form.description')}

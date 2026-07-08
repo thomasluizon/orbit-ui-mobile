@@ -324,13 +324,13 @@ export function useChatComposer() {
 
     const invalidations = selectActionInvalidations(response.actions)
     if (invalidations.habits) {
-      queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
+      void queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
     }
     if (invalidations.goals) {
-      queryClient.invalidateQueries({ queryKey: goalKeys.lists() })
+      void queryClient.invalidateQueries({ queryKey: goalKeys.lists() })
     }
     if (invalidations.tags) {
-      queryClient.invalidateQueries({ queryKey: tagKeys.lists() })
+      void queryClient.invalidateQueries({ queryKey: tagKeys.lists() })
     }
 
     if (response.operations?.some((operation) => operation.status === 'Succeeded')) {
@@ -573,12 +573,12 @@ export function useChatComposer() {
   function handleKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
     if (event.key === 'Enter' && !event.shiftKey) {
       event.preventDefault()
-      sendMessage()
+      void sendMessage()
     }
   }
 
   function handleBreakdownConfirmed() {
-    queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
+    void queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
   }
 
   return {

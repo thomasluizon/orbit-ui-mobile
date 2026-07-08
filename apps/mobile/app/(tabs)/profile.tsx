@@ -3,7 +3,7 @@ import { useTourTarget } from '@/hooks/use-tour-target'
 import { useTourScrollContainer } from '@/hooks/use-tour-scroll-container'
 import { View, Text, Pressable, StyleSheet, ScrollView } from 'react-native'
 import Animated, { FadeInDown, ReduceMotion } from 'react-native-reanimated'
-import { useLocalSearchParams, useRouter, type Href } from 'expo-router'
+import { useLocalSearchParams, useRouter } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
 import { useQueryClient } from '@tanstack/react-query'
@@ -144,7 +144,7 @@ export default function ProfileScreen() {
         return
       }
 
-      router.push(item.route as Href)
+      router.push(item.route)
     },
     [profile, router],
   )
@@ -437,7 +437,7 @@ export default function ProfileScreen() {
             }}
             onFreshStart={() => setShowResetModal(true)}
             onDeleteAccount={() => setShowDeleteModal(true)}
-            onLogout={() => logout()}
+            onLogout={() => void logout()}
           />
         </Animated.View>
 

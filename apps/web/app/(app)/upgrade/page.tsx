@@ -63,7 +63,7 @@ export default function UpgradePage() {
         body: JSON.stringify({ interval }),
       })
       if (!response.ok) {
-        const errorBody = await response.json().catch(() => null)
+        const errorBody: unknown = await response.json().catch(() => null)
         throw createApiClientError(response.status, errorBody, `Failed with status ${response.status}`)
       }
       const data = (await response.json()) as { url?: string }
@@ -124,8 +124,8 @@ export default function UpgradePage() {
               usagePercent={usagePercent}
               usageUrgent={usageUrgent}
               portalError={portalError}
-              onOpenPortal={handleOpenPortal}
-              onRetryBilling={() => refetchBilling()}
+              onOpenPortal={() => void handleOpenPortal()}
+              onRetryBilling={() => void refetchBilling()}
               t={t}
             />
           )
@@ -139,9 +139,9 @@ export default function UpgradePage() {
             checkoutLoading={checkoutLoading}
             checkoutError={checkoutError}
             discountedAmount={discountedAmount}
-            onCheckout={handleCheckout}
+            onCheckout={(interval) => void handleCheckout(interval)}
             onStayFree={() => goBackOrFallback('/profile')}
-            onRetryPlans={() => refetchPlans()}
+            onRetryPlans={() => void refetchPlans()}
             t={t}
           />
         )}

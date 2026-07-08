@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { View, Text, ActivityIndicator, StyleSheet } from 'react-native'
 import { TriangleAlert } from 'lucide-react-native'
 import * as Linking from 'expo-linking'
-import { useLocalSearchParams, useRouter, type Href } from 'expo-router'
+import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import {
   ApiClientError,
@@ -121,7 +121,7 @@ export default function AuthCallbackScreen() {
         const callbackParams = extractGoogleAuthParams(resolvedCallbackUrl)
         if (callbackParams.error === 'access_denied') {
           const storedReturnUrl = await consumeStoredAuthReturnUrl()
-          router.replace((storedReturnUrl ? getSafeReturnUrl(storedReturnUrl) : '/login') as Href)
+          router.replace(storedReturnUrl ? getSafeReturnUrl(storedReturnUrl) : '/login')
           return
         }
 
@@ -144,7 +144,7 @@ export default function AuthCallbackScreen() {
         }
 
         const returnUrl = getSafeReturnUrl(await consumeStoredAuthReturnUrl())
-        router.replace(returnUrl as Href)
+        router.replace(returnUrl)
       } catch (error: unknown) {
         const nextErrorState = resolveCallbackError(error)
         setErrorState(nextErrorState)
@@ -161,7 +161,7 @@ export default function AuthCallbackScreen() {
     if (processedRef.current || errorState || callbackUrl || isPendingGoogleAuthSession) return
 
     const timeout = setTimeout(() => {
-      router.replace('/login' as Href)
+      router.replace('/login')
     }, 250)
 
     return () => {
@@ -178,7 +178,7 @@ export default function AuthCallbackScreen() {
             <TriangleAlert size={34} color={tokens.fg3} strokeWidth={1.8} />
           </View>
           <Text style={styles.errorTitle}>{errorState.message}</Text>
-          <PillButton onPress={() => router.replace('/login' as Href)}>
+          <PillButton onPress={() => router.replace('/login')}>
             {t('auth.backToLogin')}
           </PillButton>
         </>

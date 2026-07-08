@@ -62,7 +62,7 @@ export function SocialOptInGate() {
         />
         <Text style={styles.hint}>{t('social.optInGate.handleHint')}</Text>
       </View>
-      <PillButton onPress={handleEnable} disabled={isSubmitting} busy={isSubmitting} fullWidth>
+      <PillButton onPress={() => void handleEnable()} disabled={isSubmitting} busy={isSubmitting} fullWidth>
         {isSubmitting ? t('social.optInGate.enabling') : t('social.optInGate.enable')}
       </PillButton>
     </ScrollView>

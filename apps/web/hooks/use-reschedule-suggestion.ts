@@ -32,7 +32,7 @@ export function useRescheduleSuggestion({
         `${API.habits.rescheduleSuggestion(habitId)}?${params.toString()}`,
       )
       if (!res.ok) {
-        const body = await res.json().catch(() => null)
+        const body = (await res.json().catch(() => null)) as { error?: string } | null
         throw new Error(body?.error ?? 'Failed to fetch reschedule suggestion')
       }
       const data = (await res.json()) as RescheduleSuggestionResponse
