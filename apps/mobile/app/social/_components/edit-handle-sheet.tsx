@@ -82,7 +82,7 @@ export function EditHandleSheet({ open, onClose }: Readonly<EditHandleSheetProps
           maxLength={20}
           autoFocus
           returnKeyType="done"
-          onSubmitEditing={handleSave}
+          onSubmitEditing={() => void handleSave()}
           accessibilityLabel={t('social.editHandle.label')}
           testID="edit-handle-input"
         />
@@ -99,7 +99,7 @@ export function EditHandleSheet({ open, onClose }: Readonly<EditHandleSheetProps
         <View style={styles.actions}>
           <PillButton
             fullWidth
-            onPress={handleSave}
+            onPress={() => void handleSave()}
             disabled={setHandleMutation.isPending}
             busy={setHandleMutation.isPending}
             accessibilityLabel={t('common.save')}

@@ -38,7 +38,9 @@ export function useRetrospective() {
       const res = await fetch(buildRetrospectiveRequestUrl(period, locale))
       if (isStale()) return
       if (!res.ok) {
-        const body = await res.json().catch(() => null)
+        const body = (await res.json().catch(() => null)) as
+          | { errorCode?: string; code?: string; error?: string; message?: string }
+          | null
         if (isStale()) return
         if ((body?.errorCode ?? body?.code) === NO_HABITS_FOR_PERIOD) {
           setNoData(true)
@@ -46,7 +48,7 @@ export function useRetrospective() {
         }
         throw new Error(body?.error ?? body?.message ?? `Request failed with status ${res.status}`)
       }
-      const response: RetrospectiveResponse = await res.json()
+      const response = (await res.json()) as RetrospectiveResponse
       if (isStale()) return
       setData(response)
       setFromCache(response.fromCache)

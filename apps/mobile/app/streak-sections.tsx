@@ -140,6 +140,25 @@ interface StreakDayCellProps {
   runEnd: boolean
 }
 
+function resolveNumeralColor(status: StreakDayView['status'], tokens: Tokens) {
+  if (status === 'active' || status === 'frozen' || status === 'today') {
+    return tokens.fg1
+  }
+  return tokens.fg3
+}
+
+function buildRunBandStyle(tokens: Tokens, runStart: boolean, runEnd: boolean) {
+  return {
+    backgroundColor: rgbaFromHex(tokens.statusOverdue, 0.16),
+    left: runStart ? 5 : 0,
+    right: runEnd ? 5 : 0,
+    borderTopLeftRadius: runStart ? 999 : 0,
+    borderBottomLeftRadius: runStart ? 999 : 0,
+    borderTopRightRadius: runEnd ? 999 : 0,
+    borderBottomRightRadius: runEnd ? 999 : 0,
+  }
+}
+
 function StreakDayCell({
   day,
   tokens,
@@ -147,29 +166,12 @@ function StreakDayCell({
   runEnd,
 }: Readonly<StreakDayCellProps>) {
   const inRun = isInRun(day.status)
-
-  let numeralColor = tokens.fg3
-  if (day.status === 'active' || day.status === 'frozen' || day.status === 'today') {
-    numeralColor = tokens.fg1
-  }
+  const numeralColor = resolveNumeralColor(day.status, tokens)
 
   return (
     <View style={styles.dayCell}>
       {inRun ? (
-        <View
-          style={[
-            styles.runBand,
-            {
-              backgroundColor: rgbaFromHex(tokens.statusOverdue, 0.16),
-              left: runStart ? 5 : 0,
-              right: runEnd ? 5 : 0,
-              borderTopLeftRadius: runStart ? 999 : 0,
-              borderBottomLeftRadius: runStart ? 999 : 0,
-              borderTopRightRadius: runEnd ? 999 : 0,
-              borderBottomRightRadius: runEnd ? 999 : 0,
-            },
-          ]}
-        />
+        <View style={[styles.runBand, buildRunBandStyle(tokens, runStart, runEnd)]} />
       ) : null}
       <View
         style={[

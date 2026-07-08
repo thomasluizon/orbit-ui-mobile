@@ -234,17 +234,19 @@ export function FriendRow({ friend, onCheer, onOpenProfile }: Readonly<FriendRow
         displayName={friend.displayName}
         busy={reportUser.isPending}
         tokens={tokens}
-        onSubmit={async (reason, details) => {
-          await runAction(
-            () =>
-              reportUser.mutateAsync({
-                reportedUserId: friend.userId,
-                reason,
-                details: details.trim() || undefined,
-              }),
-            'social.report.success',
-          )
-          setReportOpen(false)
+        onSubmit={(reason, details) => {
+          void (async () => {
+            await runAction(
+              () =>
+                reportUser.mutateAsync({
+                  reportedUserId: friend.userId,
+                  reason,
+                  details: details.trim() || undefined,
+                }),
+              'social.report.success',
+            )
+            setReportOpen(false)
+          })()
         }}
       />
     </>

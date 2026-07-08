@@ -88,8 +88,8 @@ export function CreateApiKeyModal({
     )
   }
 
-  const handleSubmit = useCallback<NonNullable<React.ComponentProps<'form'>['onSubmit']>>(
-    async (e) => {
+  const handleSubmit = useCallback(
+    async (e: React.FormEvent<HTMLFormElement>) => {
       e.preventDefault()
       if (!validate()) return
 
@@ -141,7 +141,7 @@ export function CreateApiKeyModal({
         <RevealStep
           createdKey={createdKey}
           copied={copied}
-          onCopy={copyKey}
+          onCopy={() => void copyKey()}
           onDone={handleDone}
         />
       ) : (
@@ -162,7 +162,7 @@ export function CreateApiKeyModal({
           validationError={validationError}
           apiError={apiError ?? null}
           isSubmitting={isSubmitting}
-          onSubmit={handleSubmit}
+          onSubmit={(e) => void handleSubmit(e)}
           onCancel={() => onOpenChange(false)}
         />
       )}

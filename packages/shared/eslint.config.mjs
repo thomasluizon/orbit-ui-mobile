@@ -1,8 +1,29 @@
 import tseslint from "typescript-eslint"
+import sonarjs from "eslint-plugin-sonarjs"
 import noComments from "../../eslint-rules/no-comments.cjs"
 
 export default [
-  ...tseslint.configs.recommended,
+  ...tseslint.configs.recommendedTypeChecked,
+  {
+    languageOptions: {
+      parserOptions: {
+        projectService: true,
+        tsconfigRootDir: import.meta.dirname,
+      },
+    },
+  },
+  {
+    files: ["**/*.{ts,tsx}"],
+    plugins: { sonarjs },
+    rules: {
+      "@typescript-eslint/no-unnecessary-condition": "warn",
+      "sonarjs/cognitive-complexity": ["warn", 15],
+    },
+  },
+  {
+    files: ["**/*.{js,mjs,cjs}"],
+    ...tseslint.configs.disableTypeChecked,
+  },
   {
     files: ["src/**/*.ts"],
     ignores: ["**/*.d.ts"],
@@ -28,6 +49,14 @@ export default [
       "@typescript-eslint/no-explicit-any": "off",
       "@typescript-eslint/no-require-imports": "off",
       "@typescript-eslint/no-unused-vars": "off",
+      "@typescript-eslint/no-unsafe-argument": "off",
+      "@typescript-eslint/no-unsafe-assignment": "off",
+      "@typescript-eslint/no-unsafe-call": "off",
+      "@typescript-eslint/no-unsafe-member-access": "off",
+      "@typescript-eslint/no-unsafe-return": "off",
+      "@typescript-eslint/unbound-method": "off",
+      "@typescript-eslint/require-await": "off",
+      "@typescript-eslint/no-unnecessary-type-assertion": "off",
     },
   },
   {

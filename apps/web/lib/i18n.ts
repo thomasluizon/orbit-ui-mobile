@@ -14,7 +14,7 @@ type IntlKey = Parameters<Translator>[0]
  */
 export function safeT(t: Translator, keyOrLiteral: string): string {
   try {
-    return t(keyOrLiteral as IntlKey)
+    return t(keyOrLiteral)
   } catch {
     return keyOrLiteral
   }

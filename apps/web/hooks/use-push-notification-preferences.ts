@@ -175,7 +175,7 @@ export function usePushNotificationPreferences(): UsePushNotificationPreferences
   const [state, setState] = useState<UsePushNotificationPreferencesResult>({
     ...createUnsupportedSnapshot(),
     loading: false,
-    togglePush: async () => undefined,
+    togglePush: () => Promise.resolve(undefined),
   })
 
   useEffect(() => {

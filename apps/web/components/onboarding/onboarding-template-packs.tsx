@@ -176,7 +176,7 @@ export function OnboardingTemplatePacks({
           fullWidth
           disabled={enabledCount === 0 || isCreating}
           busy={isCreating}
-          onClick={handleAdd}
+          onClick={() => void handleAdd()}
           leading={isCreating ? <Loader2 className="size-4 animate-spin" /> : undefined}
         >
           {enabledCount === 1

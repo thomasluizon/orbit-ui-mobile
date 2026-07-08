@@ -344,7 +344,7 @@ export function DeleteAccountModal({
             </Text>
           </View>
           <View style={styles.modalActions}>
-            <PillButton fullWidth onPress={() => logout()}>
+            <PillButton fullWidth onPress={() => void logout()}>
               {t('profile.logout')}
             </PillButton>
           </View>

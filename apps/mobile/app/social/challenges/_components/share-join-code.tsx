@@ -84,7 +84,7 @@ export function ShareJoinCode({ title, joinCode }: Readonly<ShareJoinCodeProps>)
 
       <PillButton
         fullWidth
-        onPress={shareCode}
+        onPress={() => void shareCode()}
         leading={<Share2 size={18} strokeWidth={1.8} color={tokens.fgOnPrimary} />}
       >
         {t('challenges.detail.share')}

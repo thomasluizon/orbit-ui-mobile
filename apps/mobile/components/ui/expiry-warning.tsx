@@ -109,7 +109,7 @@ export function ExpiryWarning() {
             </>
           )}
         </Text>
-        <Pressable onPress={handleLogin} hitSlop={6} style={styles.actionPress} accessibilityRole="button">
+        <Pressable onPress={() => void handleLogin()} hitSlop={6} style={styles.actionPress} accessibilityRole="button">
           <Text style={styles.actionText}>
             {isExpired ? t('auth.login') : t('auth.refresh')}
           </Text>

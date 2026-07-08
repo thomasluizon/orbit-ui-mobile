@@ -105,7 +105,7 @@ export function useApiKeyManagement({
     onSettled: () => {
       setRevokingKeyId(null)
       if (isOnline) {
-        queryClient.invalidateQueries({ queryKey: apiKeyKeys.all })
+        void queryClient.invalidateQueries({ queryKey: apiKeyKeys.all })
       }
     },
   })

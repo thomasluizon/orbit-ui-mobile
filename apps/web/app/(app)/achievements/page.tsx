@@ -74,7 +74,7 @@ export default function AchievementsPage() {
                 <p style={{ margin: 0, fontFamily: 'var(--font-sans)', fontSize: 16, lineHeight: 1.55, color: 'var(--fg-2)' }}>
                   {t('common.error')}
                 </p>
-                <PillButton variant="ghost" onClick={() => refetch()}>
+                <PillButton variant="ghost" onClick={() => void refetch()}>
                   {t('common.retry')}
                 </PillButton>
               </div>

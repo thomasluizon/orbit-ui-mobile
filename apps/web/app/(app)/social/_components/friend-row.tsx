@@ -226,7 +226,7 @@ export function FriendRow({ friend, onCheer }: Readonly<FriendRowProps>) {
         title={t('social.friends.removeConfirmTitle')}
         description={t('social.friends.removeConfirmBody', { name: friend.displayName })}
         confirmLabel={t('social.friends.remove')}
-        onConfirm={() => runAction(() => removeFriend.mutateAsync(friend.userId))}
+        onConfirm={() => void runAction(() => removeFriend.mutateAsync(friend.userId))}
         variant="danger"
       />
       <ConfirmDialog
@@ -235,7 +235,7 @@ export function FriendRow({ friend, onCheer }: Readonly<FriendRowProps>) {
         title={t('social.block.confirmTitle', { name: friend.displayName })}
         description={t('social.block.confirmBody')}
         confirmLabel={t('social.friends.block')}
-        onConfirm={() => runAction(() => blockUser.mutateAsync(friend.userId), 'social.block.success')}
+        onConfirm={() => void runAction(() => blockUser.mutateAsync(friend.userId), 'social.block.success')}
         variant="danger"
       />
 
@@ -244,17 +244,19 @@ export function FriendRow({ friend, onCheer }: Readonly<FriendRowProps>) {
         onOpenChange={setReportOpen}
         displayName={friend.displayName}
         busy={reportUser.isPending}
-        onSubmit={async (reason, details) => {
-          await runAction(
-            () =>
-              reportUser.mutateAsync({
-                reportedUserId: friend.userId,
-                reason,
-                details: details.trim() || undefined,
-              }),
-            'social.report.success',
-          )
-          setReportOpen(false)
+        onSubmit={(reason, details) => {
+          void (async () => {
+            await runAction(
+              () =>
+                reportUser.mutateAsync({
+                  reportedUserId: friend.userId,
+                  reason,
+                  details: details.trim() || undefined,
+                }),
+              'social.report.success',
+            )
+            setReportOpen(false)
+          })()
         }}
       />
 

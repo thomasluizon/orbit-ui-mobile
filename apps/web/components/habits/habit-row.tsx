@@ -410,7 +410,7 @@ export function HabitRow({
               tone={habit.isBadHabit ? 'bad' : 'default'}
               onToggle={handleToggleStatus}
               disabled={!canLog && !isDone}
-              ariaLabel={`${t(`habits.statusDot.${state}` as Parameters<typeof t>[0])}, ${
+              ariaLabel={`${t(`habits.statusDot.${state}`)}, ${
                 isDone ? t('habits.actions.unlog') : t('habits.logHabit')
               }`}
             />

@@ -71,14 +71,14 @@ export function TourOverlay() {
 
   const handleNext = useCallback(() => {
     if (isLastStep) {
-      handleEnd()
+      void handleEnd()
       return
     }
     nextStep()
   }, [isLastStep, nextStep, handleEnd])
 
   const handleSkip = useCallback(() => {
-    handleEnd()
+    void handleEnd()
   }, [handleEnd])
 
   if (!isActive) {

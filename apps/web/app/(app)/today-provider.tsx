@@ -37,7 +37,7 @@ export function TodayProvider({ children }: Readonly<{ children: ReactNode }>) {
     if (next === todayRef.current) return
     todayRef.current = next
     setToday(next)
-    queryClient.invalidateQueries({ queryKey: gamificationKeys.all })
+    void queryClient.invalidateQueries({ queryKey: gamificationKeys.all })
   }, [queryClient])
 
   useTodayTick(handleRollover)

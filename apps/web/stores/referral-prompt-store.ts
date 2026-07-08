@@ -18,7 +18,7 @@ export const useEngagementPromptStore = create<EngagementPromptStoreState>()(
   persist(
     (set) =>
       createEngagementPromptStoreState(
-        set as Parameters<typeof createEngagementPromptStoreState>[0],
+        set,
       ),
     {
       name: 'orbit-referral-prompt-store',

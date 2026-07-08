@@ -61,7 +61,7 @@ export function AddFriendForm() {
         placeholder={t('social.addFriend.referralPlaceholder')}
         autoComplete="off"
       />
-      <PillButton onClick={handleSubmit} disabled={!canSubmit} busy={sendRequest.isPending} fullWidth>
+      <PillButton onClick={() => void handleSubmit()} disabled={!canSubmit} busy={sendRequest.isPending} fullWidth>
         {sendRequest.isPending ? t('social.addFriend.sending') : t('social.addFriend.submit')}
       </PillButton>
     </div>

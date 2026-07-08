@@ -73,9 +73,9 @@ export function usePreferenceControls() {
       }
     },
     onSettled: () => {
-      queryClient.invalidateQueries({ queryKey: habitKeys.calendarPrefix() })
-      queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
-      queryClient.invalidateQueries({ queryKey: habitKeys.summaryPrefix() })
+      void queryClient.invalidateQueries({ queryKey: habitKeys.calendarPrefix() })
+      void queryClient.invalidateQueries({ queryKey: habitKeys.lists() })
+      void queryClient.invalidateQueries({ queryKey: habitKeys.summaryPrefix() })
     },
   })
 

@@ -58,7 +58,7 @@ function isErrorWithData(err: unknown): err is ErrorWithData {
 
 function asBackendErrorData(value: unknown): BackendErrorData | undefined {
   if (value && typeof value === 'object') {
-    return value as BackendErrorData
+    return value
   }
   return undefined
 }

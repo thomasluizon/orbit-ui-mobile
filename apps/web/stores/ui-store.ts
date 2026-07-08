@@ -18,8 +18,8 @@ export const useUIStore = create<UIStoreState>()(
   persist(
     (set, get) =>
       createUIStoreState(
-        set as Parameters<typeof createUIStoreState>[0],
-        get as Parameters<typeof createUIStoreState>[1],
+        set,
+        get,
       ),
     {
       name: 'orbit-ui-store',

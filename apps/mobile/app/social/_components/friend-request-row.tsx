@@ -58,7 +58,7 @@ export function FriendRequestRow({ request, direction }: Readonly<FriendRequestR
           <>
             <Pressable
               accessibilityRole="button"
-              onPress={handleAccept}
+              onPress={() => void handleAccept()}
               disabled={busy}
               hitSlop={{ top: 6, bottom: 6 }}
               style={({ pressed }) => [
@@ -74,7 +74,7 @@ export function FriendRequestRow({ request, direction }: Readonly<FriendRequestR
             </Pressable>
             <Pressable
               accessibilityRole="button"
-              onPress={handleRemove}
+              onPress={() => void handleRemove()}
               disabled={busy}
               hitSlop={{ top: 6, bottom: 6 }}
               style={({ pressed }) => [
@@ -92,7 +92,7 @@ export function FriendRequestRow({ request, direction }: Readonly<FriendRequestR
         ) : (
           <Pressable
             accessibilityRole="button"
-            onPress={handleRemove}
+            onPress={() => void handleRemove()}
             disabled={busy}
             hitSlop={{ top: 6, bottom: 6 }}
             style={({ pressed }) => [

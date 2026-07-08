@@ -143,7 +143,7 @@ export function AutoSyncSettingsCard() {
           </div>
           <Switch
             on={enabled}
-            onToggle={handleToggle}
+            onToggle={() => void handleToggle()}
             ariaLabel={t('calendar.autoSync.toggleLabel')}
             disabled={toggleDisabled}
           />
@@ -153,7 +153,7 @@ export function AutoSyncSettingsCard() {
 
       {!isLoading && hasConnection && (
         <div className="flex justify-end" style={{ padding: '0 20px 6px' }}>
-          <QuietActionButton onClick={handleSyncNow} disabled={runSyncNow.isPending}>
+          <QuietActionButton onClick={() => void handleSyncNow()} disabled={runSyncNow.isPending}>
             {runSyncNow.isPending ? (
               <>
                 <Loader2 className="size-3 animate-spin" aria-hidden />
@@ -203,7 +203,7 @@ export function AutoSyncSettingsCard() {
               </p>
             </div>
           </div>
-          <QuietActionButton onClick={handleReconnect} disabled={isConnecting} tone="warning">
+          <QuietActionButton onClick={() => void handleReconnect()} disabled={isConnecting} tone="warning">
             {t('calendar.autoSync.reconnectCta')}
           </QuietActionButton>
         </div>

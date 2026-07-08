@@ -45,7 +45,7 @@ export function TrialExpiredModal() {
   const [visible, setVisible] = useState(false)
 
   useEffect(() => {
-    AsyncStorage.getItem(STORAGE_KEY).then((value) => {
+    void AsyncStorage.getItem(STORAGE_KEY).then((value) => {
       setAlreadySeen(value === '1')
     })
   }, [])
@@ -89,7 +89,7 @@ export function TrialExpiredModal() {
 
   const dismiss = useCallback(() => {
     setDismissed(true)
-    AsyncStorage.setItem(STORAGE_KEY, '1')
+    void AsyncStorage.setItem(STORAGE_KEY, '1')
   }, [])
 
   if (!visible) return null

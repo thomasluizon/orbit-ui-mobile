@@ -92,11 +92,11 @@ export function useBufferOnboardingActions(): OnboardingActions {
 
   return useMemo(
     () => ({
-      createHabit: async (input) => {
+      createHabit: (input) => {
         const index = useOnboardingDraftStore.getState().bufferHabit(input)
-        return { id: String(index), title: input.title }
+        return Promise.resolve({ id: String(index), title: input.title })
       },
-      createHabitsBulk: async (items) => {
+      createHabitsBulk: (items) => {
         const store = useOnboardingDraftStore.getState()
         for (const item of items) {
           store.bufferHabit({
@@ -109,24 +109,30 @@ export function useBufferOnboardingActions(): OnboardingActions {
             ...(item.isGeneral != null ? { isGeneral: item.isGeneral } : {}),
           })
         }
+        return Promise.resolve()
       },
-      logHabit: async (habitId) => {
+      logHabit: (habitId) => {
         useOnboardingDraftStore
           .getState()
           .bufferFirstLog(Number(habitId), formatAPIDate(new Date()))
+        return Promise.resolve()
       },
-      createGoal: async (input) => {
+      createGoal: (input) => {
         useOnboardingDraftStore.getState().bufferGoal(input)
+        return Promise.resolve()
       },
-      setWeekStartDay: async (day) => {
+      setWeekStartDay: (day) => {
         useOnboardingDraftStore.getState().bufferWeekStartDay(day)
+        return Promise.resolve()
       },
-      setColorScheme: async (scheme) => {
+      setColorScheme: (scheme) => {
         useOnboardingDraftStore.getState().bufferColorScheme(scheme)
+        return Promise.resolve()
       },
-      finishOnboarding: async () => {
+      finishOnboarding: () => {
         useOnboardingDraftStore.getState().markOnboardingLocallyDone()
         router.push('/login?from=onboarding')
+        return Promise.resolve()
       },
     }),
     [router],
@@ -163,7 +169,7 @@ export function useLiveOnboardingActions(): OnboardingActions {
           old ? { ...old, weekStartDay: day } : old,
         )
         await updateWeekStartDayAction({ weekStartDay: day })
-        queryClient.invalidateQueries({ queryKey: profileKeys.all })
+        void queryClient.invalidateQueries({ queryKey: profileKeys.all })
       },
       setColorScheme: async (scheme) => {
         await updateColorSchemeAction({ colorScheme: scheme })

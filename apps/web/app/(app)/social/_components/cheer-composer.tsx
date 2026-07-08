@@ -70,7 +70,7 @@ export function CheerComposer({ target, onClose }: Readonly<CheerComposerProps>)
       description={target ? t('social.cheer.subtitle', { name: target.displayName }) : undefined}
       footer={
         <PillButton
-          onClick={handleSend}
+          onClick={() => void handleSend()}
           disabled={sendCheer.isPending}
           busy={sendCheer.isPending}
           fullWidth

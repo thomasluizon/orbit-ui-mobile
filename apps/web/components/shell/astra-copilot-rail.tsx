@@ -179,7 +179,7 @@ function AstraRailMessages({ composer, onActionChipClick, onUpgradeClick }: Read
       aria-label={t('astraRail.title')}
     >
       {showSuggestions ? (
-        <AstraRailEmptyState onSelectSuggestion={(suggestion) => sendMessage(suggestion)} />
+        <AstraRailEmptyState onSelectSuggestion={(suggestion) => void sendMessage(suggestion)} />
       ) : (
         <>
           {messages.map((message) => (
@@ -237,10 +237,10 @@ function AstraRailComposer({ composer, onUpgrade }: Readonly<{ composer: Compose
       textFileInputRef={composer.textFileInputRef}
       selectedTextFileName={composer.selectedTextFileName}
       openTextFilePicker={composer.openTextFilePicker}
-      handleTextFileSelect={composer.handleTextFileSelect}
+      handleTextFileSelect={(event) => void composer.handleTextFileSelect(event)}
       removeTextFile={composer.removeTextFile}
-      sendMessage={composer.sendMessage}
-      retryLastSend={composer.retryLastSend}
+      sendMessage={() => void composer.sendMessage()}
+      retryLastSend={() => void composer.retryLastSend()}
       canRetryLastSend={composer.canRetryLastSend}
       onUpgrade={onUpgrade}
     />

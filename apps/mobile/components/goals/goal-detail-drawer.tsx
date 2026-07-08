@@ -103,7 +103,7 @@ export function GoalDetailDrawer({
   })
 
   const { markCompleted, markAbandoned, reactivate, isUpdatingStatus } =
-    useGoalStatusActions({ goalId, goalName: goal?.title, refetchDetail })
+    useGoalStatusActions({ goalId, goalName: goal?.title, refetchDetail: () => void refetchDetail() })
 
   const formatDate = useCallback(
     (dateStr: string) =>
@@ -205,7 +205,7 @@ export function GoalDetailDrawer({
               progressExceedsTarget={progressExceedsTarget}
               isUpdatingProgress={isUpdatingProgress}
               onCancel={() => requestProgressDismiss('form')}
-              onSubmit={submitProgress}
+              onSubmit={() => void submitProgress()}
               styles={styles}
               tokens={tokens}
             />
@@ -242,9 +242,9 @@ export function GoalDetailDrawer({
             isUpdatingStatus={isUpdatingStatus}
             iconColor={tokens.fg3}
             dangerColor={tokens.statusBad}
-            onMarkCompleted={markCompleted}
-            onMarkAbandoned={markAbandoned}
-            onReactivate={reactivate}
+            onMarkCompleted={() => void markCompleted()}
+            onMarkAbandoned={() => void markAbandoned()}
+            onReactivate={() => void reactivate()}
             onEdit={() => setShowEditModal(true)}
             onDelete={confirmDelete}
             styles={styles}
@@ -288,7 +288,7 @@ export function GoalDetailDrawer({
         confirmLabel={t('common.delete')}
         cancelLabel={t('common.cancel')}
         variant="danger"
-        onConfirm={handleDeleteConfirm}
+        onConfirm={() => void handleDeleteConfirm()}
       />
     </>
   )

@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Animated, Keyboard, Platform } from 'react-native'
-import { useLocalSearchParams, useRouter, type Href } from 'expo-router'
+import { useLocalSearchParams, useRouter } from 'expo-router'
 import { useTranslation } from 'react-i18next'
 import { API } from '@orbit/shared/api'
 import {
@@ -259,7 +259,7 @@ export function useLoginFlow() {
         setShowReferralBanner(false)
       }
       const returnUrl = getSafeReturnUrl(await consumeStoredAuthReturnUrl())
-      router.replace(returnUrl as Href)
+      router.replace(returnUrl)
     } catch (err: unknown) {
       reportError(resolveLoginErrorState(err).message)
       resetCodeDigits()

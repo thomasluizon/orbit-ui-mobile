@@ -13,7 +13,7 @@ async function fetchUserFacts(): Promise<UserFact[]> {
   if (!res.ok) {
     throw new Error('Failed to load user facts')
   }
-  return res.json()
+  return res.json() as Promise<UserFact[]>
 }
 
 export function useUserFacts(hasProAccess: boolean) {
@@ -37,14 +37,14 @@ export function useUserFacts(hasProAccess: boolean) {
   const deleteMutation = useMutation({
     mutationFn: deleteUserFact,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: userFactKeys.all })
+      void queryClient.invalidateQueries({ queryKey: userFactKeys.all })
     },
   })
 
   const bulkDeleteMutation = useMutation({
     mutationFn: bulkDeleteUserFacts,
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: userFactKeys.all })
+      void queryClient.invalidateQueries({ queryKey: userFactKeys.all })
       setSelectedFactIds(new Set())
       if (facts.length === 0) setSelectMode(false)
     },

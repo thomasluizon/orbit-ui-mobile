@@ -52,7 +52,7 @@ export function GoalTypeSelector({
               type="button"
               role="radio"
               aria-checked={isActive}
-              onClick={() => onTypeChange(option.key as GoalType)}
+              onClick={() => onTypeChange(option.key)}
               className="flex flex-1 cursor-pointer appearance-none items-center justify-center transition-[background-color,color,box-shadow,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] enabled:active:scale-[0.98]"
               style={{
                 gap: 8,

@@ -226,6 +226,16 @@ export function validateTagSelection(tagIds: string[]): string | null {
   return null
 }
 
+function validateTimes(data: HabitFormData): string | null {
+  const timeErr = validateTime(data.dueTime)
+  if (timeErr) return timeErr
+
+  const endTimeValidation = validateTime(data.dueEndTime)
+  if (endTimeValidation) return endTimeValidation
+
+  return validateEndTime(data.dueTime, data.dueEndTime)
+}
+
 /**
  * Run all habit form validations. Returns the first error i18n key or null.
  */
@@ -270,14 +280,8 @@ export function validateHabitForm(data: HabitFormData): string | null {
   const endDateErr = validateEndDate(data.dueDate, data.endDate)
   if (endDateErr) return endDateErr
 
-  const timeErr = validateTime(data.dueTime)
+  const timeErr = validateTimes(data)
   if (timeErr) return timeErr
-
-  const endTimeValidation = validateTime(data.dueEndTime)
-  if (endTimeValidation) return endTimeValidation
-
-  const endTimeErr = validateEndTime(data.dueTime, data.dueEndTime)
-  if (endTimeErr) return endTimeErr
 
   if (data.reminderEnabled) {
     const scheduledErr = validateScheduledReminders(data.scheduledReminders)

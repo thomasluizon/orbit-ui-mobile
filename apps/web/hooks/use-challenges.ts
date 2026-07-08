@@ -23,7 +23,7 @@ import {
 async function getChallenges<T>(url: string, parse: (raw: unknown) => T): Promise<T> {
   const res = await fetch(url)
   if (!res.ok) {
-    const body = await res.json().catch(() => null)
+    const body: unknown = await res.json().catch(() => null)
     throw createApiClientError(res.status, body, `Request failed: ${res.status}`)
   }
   return parse(await res.json())

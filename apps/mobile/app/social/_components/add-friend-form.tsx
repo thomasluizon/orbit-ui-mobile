@@ -65,7 +65,7 @@ export function AddFriendForm() {
         autoCapitalize="none"
         autoCorrect={false}
       />
-      <PillButton onPress={handleSubmit} disabled={!canSubmit} busy={sendRequest.isPending} fullWidth>
+      <PillButton onPress={() => void handleSubmit()} disabled={!canSubmit} busy={sendRequest.isPending} fullWidth>
         {sendRequest.isPending ? t('social.addFriend.sending') : t('social.addFriend.submit')}
       </PillButton>
     </View>

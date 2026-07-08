@@ -109,7 +109,7 @@ export function ClarificationCard({
                 pressed && !disabled && styles.chipPressed,
               ]}
               disabled={disabled}
-              onPress={() => handleSelect(label, action.value)}
+              onPress={() => void handleSelect(label, action.value)}
               accessibilityRole="button"
               accessibilityState={{ disabled }}
             >

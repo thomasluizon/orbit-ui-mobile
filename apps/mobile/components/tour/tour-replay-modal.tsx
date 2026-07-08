@@ -69,8 +69,8 @@ export function TourReplayModal({ visible, onClose }: TourReplayModalProps) {
 
   useEffect(() => {
     if (visible) {
-      AsyncStorage.getItem('orbit_tour_sections').then((stored) => {
-        if (stored) setSectionCompletion(JSON.parse(stored))
+      void AsyncStorage.getItem('orbit_tour_sections').then((stored) => {
+        if (stored) setSectionCompletion(JSON.parse(stored) as Record<TourSection, boolean>)
       })
     }
   }, [visible])
@@ -112,7 +112,7 @@ export function TourReplayModal({ visible, onClose }: TourReplayModalProps) {
       <View style={styles.body}>
         <PillButton
           fullWidth
-          onPress={handleReplayAll}
+          onPress={() => void handleReplayAll()}
           leading={<RotateCcw size={18} color={tokens.fgOnPrimary} strokeWidth={1.8} />}
           style={styles.replayAll}
         >

@@ -82,7 +82,7 @@ export function CreateChallengeForm({ onCreated }: Readonly<CreateChallengeFormP
   }
 
   return (
-    <form onSubmit={handleSubmit(onSubmit)} className="flex flex-col" style={{ gap: 14 }}>
+    <form onSubmit={(e) => void handleSubmit(onSubmit)(e)} className="flex flex-col" style={{ gap: 14 }}>
       <Controller
         control={control}
         name="type"

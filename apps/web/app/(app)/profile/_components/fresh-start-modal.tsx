@@ -154,7 +154,7 @@ export function FreshStartModal({ open, onOpenChange }: Readonly<FreshStartModal
             loading={loading}
             error={error}
             onCancel={() => onOpenChange(false)}
-            onReset={handleReset}
+            onReset={() => void handleReset()}
           />
         )}
       </AppOverlay>

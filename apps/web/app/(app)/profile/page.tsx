@@ -80,7 +80,7 @@ export default function ProfilePage() {
 
   useEffect(() => {
     if (searchParams.get('subscription') === 'success') {
-      queryClient.invalidateQueries({ queryKey: profileKeys.all })
+      void queryClient.invalidateQueries({ queryKey: profileKeys.all })
     }
   }, [searchParams, queryClient])
 
@@ -217,7 +217,7 @@ export default function ProfilePage() {
       }}
       onFreshStart={() => setShowResetModal(true)}
       onDeleteAccount={() => setShowDeleteModal(true)}
-      onLogout={() => logout()}
+      onLogout={() => void logout()}
     />
   )
 

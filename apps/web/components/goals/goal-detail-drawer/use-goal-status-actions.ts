@@ -9,7 +9,7 @@ import { useUpdateGoalStatus } from '@/hooks/use-goals'
 interface GoalStatusActionsInput {
   goalId: string
   goalName: string | undefined
-  refetchDetail: () => void
+  refetchDetail: () => void | Promise<unknown>
 }
 
 /** Owns the drawer's goal-status mutations — mark completed, mark abandoned,
@@ -38,7 +38,7 @@ export function useGoalStatusActions({
         data: { status: 'Completed' },
         goalName,
       })
-      refetchDetail()
+      void refetchDetail()
     } catch (error: unknown) {
       showError(getFriendlyErrorMessage(error, translate, 'goals.errors.update', 'goal'))
     }
@@ -52,7 +52,7 @@ export function useGoalStatusActions({
         data: { status: 'Abandoned' },
         goalName,
       })
-      refetchDetail()
+      void refetchDetail()
     } catch (error: unknown) {
       showError(getFriendlyErrorMessage(error, translate, 'goals.errors.update', 'goal'))
     }
@@ -66,7 +66,7 @@ export function useGoalStatusActions({
         data: { status: 'Active' },
         goalName,
       })
-      refetchDetail()
+      void refetchDetail()
     } catch (error: unknown) {
       showError(getFriendlyErrorMessage(error, translate, 'goals.errors.update', 'goal'))
     }
