@@ -8,6 +8,60 @@ import { useInAppShell } from '@/components/shell/in-app-shell-context'
 
 type AppBarRightVariant = 'help' | 'close' | 'share'
 
+export function resolveAppBarRightActionLabel(
+  right: AppBarRightVariant | undefined,
+  rightLabel: string | undefined,
+  t: (key: string) => string,
+): string | undefined {
+  if (!right) return undefined
+  if (rightLabel) return rightLabel
+  if (right === 'help') return t('help')
+  if (right === 'close') return t('close')
+  return t('share')
+}
+
+interface AppBarRightActionProps {
+  right: AppBarRightVariant
+  rightLabel?: string
+  onRight?: () => void
+  t: (key: string) => string
+}
+
+function AppBarRightAction({ right, rightLabel, onRight, t }: Readonly<AppBarRightActionProps>) {
+  return (
+    <button
+      type="button"
+      aria-label={resolveAppBarRightActionLabel(right, rightLabel, t)}
+      onClick={onRight}
+      className={right === 'help' ? 'icon-btn icon-btn-ring' : 'icon-btn'}
+    >
+      {right === 'help' && <HelpCircle size={22} strokeWidth={1.8} />}
+      {right === 'close' && <X size={24} strokeWidth={1.8} />}
+      {right === 'share' && <Share2 size={21} strokeWidth={1.8} />}
+    </button>
+  )
+}
+
+interface AppBarBackButtonProps {
+  back: boolean
+  leadingIcon?: ReactNode
+  resolvedBackLabel: string
+  onBack?: () => void
+}
+
+function AppBarBackButton({
+  back,
+  leadingIcon,
+  resolvedBackLabel,
+  onBack,
+}: Readonly<AppBarBackButtonProps>) {
+  return (
+    <button type="button" aria-label={resolvedBackLabel} onClick={onBack} className="icon-btn">
+      {back ? <ChevronLeft size={26} strokeWidth={2} /> : leadingIcon}
+    </button>
+  )
+}
+
 /** Kit NavHeader: 56px transparent bar — equal flexible side slots (min 40px)
  *  keep the uppercase title truly centered regardless of trailing cluster width.
  *  Inside the desktop app shell it renders as a compact ~48px back/action row
@@ -53,30 +107,16 @@ export function AppBar({
   const hasBack = back || !!onBack
 
   const rightAction = right ? (
-    <button
-      type="button"
-      aria-label={
-        rightLabel ??
-        (right === 'help' ? t('help') : right === 'close' ? t('close') : t('share'))
-      }
-      onClick={onRight}
-      className={right === 'help' ? 'icon-btn icon-btn-ring' : 'icon-btn'}
-    >
-      {right === 'help' && <HelpCircle size={22} strokeWidth={1.8} />}
-      {right === 'close' && <X size={24} strokeWidth={1.8} />}
-      {right === 'share' && <Share2 size={21} strokeWidth={1.8} />}
-    </button>
+    <AppBarRightAction right={right} rightLabel={rightLabel} onRight={onRight} t={t} />
   ) : null
 
   const backButton = hasBack ? (
-    <button
-      type="button"
-      aria-label={resolvedBackLabel}
-      onClick={onBack}
-      className="icon-btn"
-    >
-      {back ? <ChevronLeft size={26} strokeWidth={2} /> : leadingIcon}
-    </button>
+    <AppBarBackButton
+      back={back}
+      leadingIcon={leadingIcon}
+      resolvedBackLabel={resolvedBackLabel}
+      onBack={onBack}
+    />
   ) : null
 
   if (inAppShell && isDesktop) {

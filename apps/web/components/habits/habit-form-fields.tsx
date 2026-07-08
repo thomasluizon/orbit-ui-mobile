@@ -35,6 +35,21 @@ import { useHasProAccess } from '@/hooks/use-profile'
 import { useCreateTag, useDeleteTag, useTags, useUpdateTag } from '@/hooks/use-tags'
 import { useTagSuggestions } from '@/hooks/use-tag-suggestions'
 
+export function resolveReminderLabel(
+  minutes: number,
+  t: ReturnType<typeof useTranslations>,
+): string {
+  const preset = HABIT_REMINDER_PRESETS.find((p) => p.value === minutes)
+  if (preset) return t(preset.key as Parameters<typeof t>[0])
+  if (minutes < 60) return `${minutes} ${t('habits.form.reminderMinutes')}`
+  if (minutes < 1440) {
+    const h = Math.floor(minutes / 60)
+    return `${h} ${t((h === 1 ? 'habits.form.reminderHour' : 'habits.form.reminderHours') as Parameters<typeof t>[0])}`
+  }
+  const d = Math.floor(minutes / 1440)
+  return `${d} ${t((d === 1 ? 'habits.form.reminderDay' : 'habits.form.reminderDays') as Parameters<typeof t>[0])}`
+}
+
 interface HabitFormFieldsProps {
   formHelpers: HabitFormHelpers
   titleInputRef?: RefObject<HTMLInputElement | null>
@@ -119,18 +134,6 @@ export function HabitFormFields({
   const updateTag = useUpdateTag()
   const deleteTag = useDeleteTag()
   const isTagMutationPending = createTag.isPending || updateTag.isPending || deleteTag.isPending
-
-  function reminderLabel(minutes: number): string {
-    const preset = HABIT_REMINDER_PRESETS.find((p) => p.value === minutes)
-    if (preset) return t(preset.key as Parameters<typeof t>[0])
-    if (minutes < 60) return `${minutes} ${t('habits.form.reminderMinutes')}`
-    if (minutes < 1440) {
-      const h = Math.floor(minutes / 60)
-      return `${h} ${t((h === 1 ? 'habits.form.reminderHour' : 'habits.form.reminderHours') as Parameters<typeof t>[0])}`
-    }
-    const d = Math.floor(minutes / 1440)
-    return `${d} ${t((d === 1 ? 'habits.form.reminderDay' : 'habits.form.reminderDays') as Parameters<typeof t>[0])}`
-  }
 
   useEffect(() => {
     if (!watchedDueTime && watchedDueEndTime) {
@@ -644,7 +647,7 @@ export function HabitFormFields({
               reminderTimes={reminderTimes}
               onReminderTimesChange={onReminderTimesChange}
               onToggleReminder={() => handleReminderEnabledChange(!watchedReminderEnabled)}
-              reminderLabel={reminderLabel}
+              reminderLabel={(minutes) => resolveReminderLabel(minutes, t)}
               t={t}
             />
           )}

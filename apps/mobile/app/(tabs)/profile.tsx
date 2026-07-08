@@ -1,8 +1,8 @@
 import { useEffect, useState, useMemo, useRef, useCallback } from 'react'
 import { useTourTarget } from '@/hooks/use-tour-target'
 import { useTourScrollContainer } from '@/hooks/use-tour-scroll-container'
-import { View, Text, Pressable, StyleSheet, ScrollView } from 'react-native'
-import Animated, { FadeInDown, ReduceMotion } from 'react-native-reanimated'
+import { View, Text, ScrollView } from 'react-native'
+import Animated from 'react-native-reanimated'
 import { useLocalSearchParams, useRouter } from 'expo-router'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useTranslation } from 'react-i18next'
@@ -10,11 +10,10 @@ import { useQueryClient } from '@tanstack/react-query'
 import { profileKeys } from '@orbit/shared/query'
 import {
   PROFILE_NAV_ITEMS,
-  resolveProfileNavHint,
   shouldRedirectProfileNavItem,
   type ProfileNavItem,
 } from '@orbit/shared/utils/profile-navigation'
-import { CreditCard, Lock, Pencil, User as UserIcon } from 'lucide-react-native'
+import { User as UserIcon } from 'lucide-react-native'
 import { deriveNextRewardCarrot } from '@orbit/shared/utils'
 import {
   useProfile,
@@ -24,20 +23,14 @@ import {
 import { useAuthStore } from '@/stores/auth-store'
 import { useGamificationProfile, useStreakInfo } from '@/hooks/use-gamification'
 import { AppBar } from '@/components/ui/app-bar'
-import { Badge, type BadgeTone } from '@/components/ui/badge'
 import { GradientTop } from '@/components/ui/gradient-top'
-import { SectionLabel } from '@/components/ui/section-label'
-import { SettingsGroup, SettingsGroupRow } from '@/components/ui/settings-group'
-import { SkeletonLine } from '@/components/ui/skeleton'
-import { StatTile } from '@/components/ui/stat-tile'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
 import { StreakBadge } from '@/components/gamification/streak-badge'
 import { NotificationBell } from '@/components/navigation/notification-bell'
-import { ProfileNavIcon } from '@/components/profile/profile-nav-icon'
 import { ReferralCard } from '@/components/referral/referral-card'
 import { ReferralDrawer } from '@/components/referral/referral-drawer'
 import { useAppTheme } from '@/lib/use-app-theme'
-import { createTokensV2, tintFromPrimary } from '@/lib/theme'
+import { createTokensV2 } from '@/lib/theme'
 import { buildUpgradeHref } from '@/lib/upgrade-route'
 import { plural } from '@/lib/plural'
 import { NextRewardCarrot } from './profile/_components/next-reward-carrot'
@@ -47,24 +40,12 @@ import { FreshStartModal } from './profile/_components/fresh-start-modal'
 import { DeleteAccountModal } from './profile/_components/delete-account-modal'
 import { useDataExport } from './profile/_components/use-data-export'
 import { TourReplayModal } from '@/components/tour/tour-replay-modal'
-
-type Tokens = ReturnType<typeof createTokensV2>
-
-const PROFILE_FEATURE_SECTIONS = [
-  { labelKey: 'nav.social', ids: ['social'] },
-  { labelKey: 'explore.sections.progress', ids: ['retrospective', 'wrapped'] },
-  { labelKey: 'explore.sections.integrations', ids: ['calendar-sync'] },
-  { labelKey: 'explore.sections.more', ids: ['about', 'advanced'] },
-].map((section) => ({
-  labelKey: section.labelKey,
-  items: PROFILE_NAV_ITEMS.filter((item) => section.ids.includes(item.id)),
-}))
-
-function sectionEntrance(index: number) {
-  return FadeInDown.duration(280)
-    .delay(index * 50)
-    .reduceMotion(ReduceMotion.System)
-}
+import { createProfileStyles } from './profile/_components/profile-styles'
+import { sectionEntrance } from './profile/_components/profile-section-entrance'
+import { resolveProfileSubscriptionDisplay } from './profile/_components/profile-subscription-display'
+import { ProfileIdentity } from './profile/_components/profile-identity'
+import { ProfileStatRow } from './profile/_components/profile-stat-row'
+import { ProfileSections } from './profile/_components/profile-sections'
 
 export default function ProfileScreen() {
   const { t } = useTranslation()
@@ -96,7 +77,7 @@ export default function ProfileScreen() {
   const streakLabel = t('streakDisplay.title')
   const streakValue = `${streak} ${plural(t('streakDisplay.daysSuffix'), streak)}`
   const achievementsLabel = t('gamification.profileCard.tileLabel')
-  const styles = useMemo(() => createStyles(tokens), [tokens])
+  const styles = useMemo(() => createProfileStyles(tokens), [tokens])
 
   const subscriptionRef = useRef<View>(null)
   const preferencesRef = useRef<View>(null)
@@ -153,32 +134,12 @@ export default function ProfileScreen() {
     router.push('/streak')
   }, [router])
 
-  const subscriptionLabel = profile?.isTrialActive
-    ? t('profile.subscription.trial')
-    : profile?.hasProAccess
-      ? t('profile.subscription.pro')
-      : trialExpired
-        ? t('profile.subscription.trialEnded')
-        : t('profile.subscription.free')
-
-  const subscriptionHint = profile?.isTrialActive
-    ? plural(
-        t('profile.subscription.trialDaysLeft', {
-          days: trialDaysLeft ?? 0,
-        }),
-        trialDaysLeft ?? 0,
-      )
-    : profile?.hasProAccess
-      ? t('profile.subscription.proHint')
-      : trialExpired
-        ? t('profile.subscription.trialEndedHint')
-        : t('profile.subscription.freeHint')
-
-  const showPlanBadge = profile?.isTrialActive || profile?.hasProAccess
-  const planBadgeTone: BadgeTone = profile?.isTrialActive ? 'soft' : 'violet'
-  const planBadgeLabel = profile?.isTrialActive
-    ? t('trial.proBadge')
-    : t('common.proBadge')
+  const subscriptionDisplay = resolveProfileSubscriptionDisplay(
+    profile,
+    trialExpired,
+    trialDaysLeft,
+    t,
+  )
 
   const identityLine =
     canViewGamification && gamificationProfile
@@ -214,107 +175,35 @@ export default function ProfileScreen() {
           </Text>
         ) : null}
 
-        <Animated.View entering={sectionEntrance(0)} style={styles.identityBlock}>
-          {isLoading ? (
-            <>
-              <SkeletonLine width={76} height={22} style={styles.skeletonBadge} />
-              <SkeletonLine width={160} height={30} style={styles.skeletonName} />
-              <SkeletonLine width={120} height={14} />
-            </>
-          ) : (
-            <>
-              {showPlanBadge ? (
-                <Badge tone={planBadgeTone} style={styles.planBadge}>
-                  {planBadgeLabel}
-                </Badge>
-              ) : null}
-              <Pressable
-                onPress={() => setShowEditName(true)}
-                accessibilityRole="button"
-                accessibilityLabel={t('profile.editName.title')}
-                hitSlop={8}
-                style={({ pressed }) => [
-                  styles.identityNameButton,
-                  pressed ? styles.identityNamePressed : null,
-                ]}
-              >
-                <Text
-                  style={[styles.identityName, { color: tokens.fg1 }]}
-                  numberOfLines={1}
-                >
-                  {profile?.name}
-                </Text>
-                <Pencil size={16} strokeWidth={1.8} color={tokens.fg3} />
-              </Pressable>
-              <Text
-                style={[styles.identityLine, { color: tokens.fg2 }]}
-                numberOfLines={1}
-              >
-                {identityLine}
-              </Text>
-            </>
-          )}
-        </Animated.View>
+        <ProfileIdentity
+          isLoading={isLoading}
+          showBadge={subscriptionDisplay.showBadge}
+          badgeTone={subscriptionDisplay.badgeTone}
+          badgeLabel={subscriptionDisplay.badgeLabel}
+          name={profile?.name}
+          identityLine={identityLine}
+          tokens={tokens}
+          styles={styles}
+          onEditName={() => setShowEditName(true)}
+        />
 
-        <Animated.View entering={sectionEntrance(1)} style={styles.statRow}>
-          {statsLoading ? (
-            <>
-              <View style={styles.statTileWrap}>
-                <SkeletonLine height={110} style={styles.statSkeleton} />
-              </View>
-              <View style={styles.statTileWrap}>
-                <SkeletonLine height={110} style={styles.statSkeleton} />
-              </View>
-            </>
-          ) : (
-            <>
-              <View ref={streakRef} collapsable={false} style={styles.statTileWrap}>
-                <Pressable
-                  onPress={handleStreakPress}
-                  accessibilityRole="button"
-                  accessibilityLabel={`${streakValue} · ${streakLabel}`}
-                  style={({ pressed }) => [
-                    styles.statPressable,
-                    pressed ? styles.statPressed : null,
-                  ]}
-                >
-                  <StatTile emoji="🔥" value={streakValue} label={streakLabel} />
-                </Pressable>
-              </View>
-              {achievementsNavItem ? (
-                <View ref={achievementsRef} collapsable={false} style={styles.statTileWrap}>
-                  <Pressable
-                    onPress={() => handleNavPress(achievementsNavItem)}
-                    accessibilityRole="button"
-                    accessibilityLabel={`${achievementsTileValue} · ${achievementsLabel}${
-                      achievementsLocked ? ` · ${t('common.locked')}` : ''
-                    }`}
-                    style={({ pressed }) => [
-                      styles.statPressable,
-                      pressed ? styles.statPressed : null,
-                    ]}
-                  >
-                    <StatTile
-                      emoji="🏆"
-                      value={achievementsTileValue}
-                      label={achievementsLabel}
-                    />
-                    {achievementsLocked ? (
-                      <View
-                        style={[
-                          styles.lockBadge,
-                          { backgroundColor: tintFromPrimary(tokens, 0.12) },
-                        ]}
-                      >
-                        <Lock size={12} strokeWidth={2} color={tokens.primary} />
-                      </View>
-                    ) : null}
-                  </Pressable>
-                </View>
-              ) : null}
-            </>
-          )}
-        </Animated.View>
+        <ProfileStatRow
+          statsLoading={statsLoading}
+          streakValue={streakValue}
+          streakLabel={streakLabel}
+          achievementsNavItem={achievementsNavItem}
+          achievementsTileValue={achievementsTileValue}
+          achievementsLabel={achievementsLabel}
+          achievementsLocked={achievementsLocked}
+          tokens={tokens}
+          styles={styles}
+          streakRef={streakRef}
+          achievementsRef={achievementsRef}
+          onStreakPress={handleStreakPress}
+          onAchievementsPress={() => {
+            if (achievementsNavItem) handleNavPress(achievementsNavItem)
+          }}
+        />
 
         <Animated.View entering={sectionEntrance(2)}>
           <ReferralCard onOpen={() => setShowReferral(true)} />
@@ -327,105 +216,21 @@ export default function ProfileScreen() {
           />
         </Animated.View>
 
-        <Animated.View entering={sectionEntrance(4)}>
-          <SectionLabel>{t('profile.sections.account')}</SectionLabel>
-          <View style={styles.groupWrap}>
-            <SettingsGroup>
-              {accountNavItems.map((item) => (
-                <View
-                  key={item.id}
-                  ref={item.id === 'preferences' ? preferencesRef : undefined}
-                  collapsable={false}
-                >
-                  <SettingsGroupRow
-                    icon={<ProfileNavIcon iconKey={item.iconKey} color={tokens.fg1} />}
-                    label={t(item.titleKey)}
-                    hint={resolveProfileNavHint(
-                      item,
-                      {
-                        hasProAccess: profile?.hasProAccess,
-                        gamificationProfile,
-                      },
-                      t,
-                    )}
-                    onPress={() => handleNavPress(item)}
-                    proBadge={item.proBadge}
-                    proBadgeLabel={t('common.proBadge')}
-                  />
-                </View>
-              ))}
-            </SettingsGroup>
-          </View>
-        </Animated.View>
-
-        <Animated.View entering={sectionEntrance(5)}>
-          <SectionLabel>{t('explore.sections.discover')}</SectionLabel>
-          <View style={styles.groupWrap}>
-            <SettingsGroup>
-              <SettingsGroupRow
-                icon={<ProfileNavIcon iconKey="compass" color={tokens.fg1} />}
-                label={t('tour.replay.title')}
-                hint={t('explore.tourHint')}
-                onPress={() => setShowTourReplay(true)}
-              />
-            </SettingsGroup>
-          </View>
-        </Animated.View>
-
-        {PROFILE_FEATURE_SECTIONS.map((section, sectionIndex) => (
-          <Animated.View
-            key={section.labelKey}
-            entering={sectionEntrance(6 + sectionIndex)}
-          >
-            <SectionLabel>{t(section.labelKey)}</SectionLabel>
-            <View style={styles.groupWrap}>
-              <SettingsGroup>
-                {section.items.map((item) => (
-                  <View
-                    key={item.id}
-                    ref={item.id === 'retrospective' ? retroRef : undefined}
-                    collapsable={false}
-                  >
-                    <SettingsGroupRow
-                      icon={<ProfileNavIcon iconKey={item.iconKey} color={tokens.fg1} />}
-                      label={t(item.titleKey)}
-                      hint={resolveProfileNavHint(
-                        item,
-                        {
-                          hasProAccess: profile?.hasProAccess,
-                          gamificationProfile,
-                        },
-                        t,
-                      )}
-                      onPress={() => handleNavPress(item)}
-                      proBadge={item.proBadge}
-                      proBadgeLabel={t('common.proBadge')}
-                    />
-                  </View>
-                ))}
-              </SettingsGroup>
-            </View>
-          </Animated.View>
-        ))}
-
-        <Animated.View entering={sectionEntrance(10)}>
-          <SectionLabel>{t('profile.sections.subscription')}</SectionLabel>
-          <View ref={subscriptionRef} collapsable={false} style={styles.groupWrap}>
-            <SettingsGroup>
-              <SettingsGroupRow
-                icon={<CreditCard size={22} color={tokens.fg1} strokeWidth={1.8} />}
-                label={t('profile.subscription.plan')}
-                accessibilityLabel={
-                  profile?.hasProAccess && !profile.isTrialActive
-                    ? t('profile.subscription.manage')
-                    : t('common.upgrade')
-                }
-                hint={`${subscriptionLabel} · ${subscriptionHint}`}
-                onPress={() => router.push(buildUpgradeHref('/profile'))}
-              />
-            </SettingsGroup>
-          </View>
-        </Animated.View>
+        <ProfileSections
+          accountNavItems={accountNavItems}
+          profile={profile}
+          gamificationProfile={gamificationProfile}
+          subscriptionLabel={subscriptionDisplay.label}
+          subscriptionHint={subscriptionDisplay.hint}
+          tokens={tokens}
+          styles={styles}
+          preferencesRef={preferencesRef}
+          retroRef={retroRef}
+          subscriptionRef={subscriptionRef}
+          onNavPress={handleNavPress}
+          onUpgrade={() => router.push(buildUpgradeHref('/profile'))}
+          onShowTourReplay={() => setShowTourReplay(true)}
+        />
 
         <Animated.View entering={sectionEntrance(11)}>
           <ProfileAccountActions
@@ -468,94 +273,4 @@ export default function ProfileScreen() {
       />
     </SafeAreaView>
   )
-}
-
-function createStyles(_tokens: Tokens) {
-  return StyleSheet.create({
-    safeArea: { flex: 1 },
-    container: { flex: 1 },
-    scrollContent: {
-      paddingBottom: 80,
-    },
-
-    errorText: {
-      fontFamily: 'Rubik_400Regular',
-      fontSize: 13,
-      textAlign: 'center',
-      marginVertical: 12,
-    },
-
-    identityBlock: {
-      alignItems: 'center',
-      paddingHorizontal: 20,
-      paddingTop: 18,
-      gap: 6,
-    },
-    planBadge: {
-      alignSelf: 'center',
-    },
-    identityNameButton: {
-      flexDirection: 'row',
-      alignItems: 'center',
-      gap: 8,
-      maxWidth: '100%',
-      minHeight: 44,
-    },
-    identityNamePressed: {
-      opacity: 0.7,
-    },
-    identityName: {
-      fontFamily: 'Rubik_500Medium',
-      fontSize: 32,
-      letterSpacing: -0.32,
-      lineHeight: 38,
-      flexShrink: 1,
-    },
-    identityLine: {
-      fontFamily: 'Rubik_400Regular',
-      fontSize: 16,
-      maxWidth: '100%',
-    },
-    skeletonBadge: {
-      borderRadius: 999,
-    },
-    skeletonName: {
-      marginTop: 4,
-    },
-
-    statRow: {
-      flexDirection: 'row',
-      gap: 14,
-      paddingHorizontal: 20,
-      marginTop: 24,
-      marginBottom: 18,
-    },
-    statTileWrap: {
-      flex: 1,
-    },
-    statSkeleton: {
-      borderRadius: 18,
-    },
-    statPressable: {
-      flexDirection: 'row',
-    },
-    statPressed: {
-      transform: [{ scale: 0.99 }],
-      opacity: 0.92,
-    },
-    lockBadge: {
-      position: 'absolute',
-      top: 10,
-      right: 10,
-      width: 22,
-      height: 22,
-      borderRadius: 999,
-      alignItems: 'center',
-      justifyContent: 'center',
-    },
-
-    groupWrap: {
-      paddingHorizontal: 20,
-    },
-  })
 }

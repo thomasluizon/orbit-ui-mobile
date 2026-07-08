@@ -22,15 +22,12 @@ import {
   addWeeks,
   subWeeks,
   startOfMonth,
-  endOfMonth,
   startOfWeek,
   endOfWeek,
   eachDayOfInterval,
-  addDays,
   isSameMonth,
   isToday,
   format,
-  getDate,
 } from "date-fns";
 import { enUS, ptBR } from "date-fns/locale";
 import {
@@ -48,6 +45,7 @@ import { useTimeFormat } from "@/hooks/use-time-format";
 import { useHorizontalSwipe } from "@/hooks/use-horizontal-swipe";
 import { createTokensV2 } from "@/lib/theme";
 import { useAppTheme } from "@/lib/use-app-theme";
+import { buildCalendarMonthModel } from "@/lib/calendar-month-model";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { BottomSheetModal } from "@/components/bottom-sheet-modal";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -60,10 +58,7 @@ import {
   CalendarLegend,
 } from "./calendar/_components/calendar-shell";
 import { CalendarLoadingBar } from "./calendar/_components/calendar-loading-bar";
-import {
-  CalendarGrid,
-  type GridDay,
-} from "./calendar/_components/calendar-grid";
+import { CalendarGrid } from "./calendar/_components/calendar-grid";
 import { CalendarDayDetail } from "./calendar/_components/calendar-day-detail";
 import { CalendarStats } from "./calendar/_components/calendar-stats";
 import { CalendarWeekView } from "./calendar/_components/calendar-week-view";
@@ -74,6 +69,14 @@ type MonthSlide = "left" | "right" | null;
 type CalendarView = "month" | "week" | "range";
 
 const EMPTY_LIST: readonly CalendarDayEntry[] = [];
+
+function resolveMonthEntering(monthSlide: MonthSlide) {
+  if (monthSlide === "right")
+    return FadeInRight.duration(220).reduceMotion(ReduceMotion.System);
+  if (monthSlide === "left")
+    return FadeInLeft.duration(220).reduceMotion(ReduceMotion.System);
+  return undefined;
+}
 
 export default function CalendarScreen() {
   const { t, i18n } = useTranslation();
@@ -135,8 +138,8 @@ export default function CalendarScreen() {
     return rangeStart <= rangeEnd ? { lo: a, hi: b } : { lo: b, hi: a };
   }, [rangeStart, rangeEnd]);
 
-  const gridStartDate = view === "week" ? weekStart : rangeBounds.lo;
-  const gridEndDate = view === "week" ? weekEnd : rangeBounds.hi;
+  const [gridStartDate, gridEndDate] =
+    view === "week" ? [weekStart, weekEnd] : [rangeBounds.lo, rangeBounds.hi];
 
   const {
     dayMap: rangeDayMap,
@@ -274,43 +277,25 @@ export default function CalendarScreen() {
     return mondayFirst;
   }, [t, weekStartsOn]);
 
-  const gridDays = useMemo<GridDay[]>(() => {
-    const monthStart = startOfMonth(currentMonth);
-    const monthEnd = endOfMonth(currentMonth);
-    const gridStart = startOfWeek(monthStart, { weekStartsOn });
-    const gridEnd = endOfWeek(monthEnd, { weekStartsOn });
+  const { gridDays, monthStats } = useMemo(
+    () => buildCalendarMonthModel(currentMonth, dayMap, weekStartsOn),
+    [currentMonth, dayMap, weekStartsOn],
+  );
 
-    const days: GridDay[] = [];
-    let day = gridStart;
-    while (day <= gridEnd) {
-      const dateStr = formatAPIDate(day);
-      const entries: CalendarDayEntry[] = dayMap.get(dateStr) ?? [];
-      const completedCount = entries.filter(
-        (entry: CalendarDayEntry) => entry.status === "completed",
-      ).length;
-      const totalCount = entries.length;
-
-      days.push({
-        date: day,
-        dateStr,
-        day: getDate(day),
-        isCurrentMonth: isSameMonth(day, currentMonth),
-        isToday: isToday(day),
-        entries,
-        completedCount,
-        totalCount,
-        completionRatio: totalCount > 0 ? completedCount / totalCount : 0,
-      });
-      day = addDays(day, 1);
-    }
-
-    return days;
-  }, [currentMonth, dayMap, weekStartsOn]);
-
-  const activeDayMap = view === "month" ? dayMap : rangeDayMap;
-  const activeFetching = view === "month" ? isFetching : rangeFetching;
-  const activeError = view === "month" ? error : rangeError;
-  const activeRefresh = view === "month" ? refresh : rangeRefresh;
+  const {
+    dayMap: activeDayMap,
+    isFetching: activeFetching,
+    error: activeError,
+    refresh: activeRefresh,
+  } =
+    view === "month"
+      ? { dayMap, isFetching, error, refresh }
+      : {
+          dayMap: rangeDayMap,
+          isFetching: rangeFetching,
+          error: rangeError,
+          refresh: rangeRefresh,
+        };
 
   const selectedEntries = useMemo(() => {
     if (!selectedDay) return [];
@@ -340,29 +325,6 @@ export default function CalendarScreen() {
     router.push(`/?date=${selectedDay}`);
   };
 
-  const monthStats = useMemo(() => {
-    const monthDays = gridDays.filter((d) => d.isCurrentMonth);
-    const totalLogs = monthDays.reduce((acc, d) => acc + d.completedCount, 0);
-    const missed = monthDays.reduce(
-      (acc, d) =>
-        acc +
-        d.entries.filter((e: CalendarDayEntry) => e.status === "missed").length,
-      0,
-    );
-    let bestStreak = 0;
-    let currentStreak = 0;
-    for (const d of monthDays) {
-      if (d.totalCount > 0 && d.completedCount === d.totalCount) {
-        currentStreak += 1;
-        if (currentStreak > bestStreak) bestStreak = currentStreak;
-      } else {
-        currentStreak = 0;
-      }
-    }
-    const hasEntries = monthDays.some((d) => d.totalCount > 0);
-    return { totalLogs, missed, bestStreak, hasEntries };
-  }, [gridDays]);
-
   const monthStatTiles = useMemo(
     () => [
       {
@@ -387,12 +349,7 @@ export default function CalendarScreen() {
     [monthStats, t],
   );
 
-  const monthEntering =
-    monthSlide === "right"
-      ? FadeInRight.duration(220).reduceMotion(ReduceMotion.System)
-      : monthSlide === "left"
-        ? FadeInLeft.duration(220).reduceMotion(ReduceMotion.System)
-        : undefined;
+  const monthEntering = resolveMonthEntering(monthSlide);
 
   const listHeader = (
     <>
