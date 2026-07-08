@@ -24,6 +24,7 @@
     "type-check": "tsc --noEmit",
     "lint": "eslint .",
     "test": "vitest run",
+    "mutation": "stryker run",
     "clean": "rm -rf dist"
   },
   "dependencies": {
@@ -32,6 +33,9 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@fast-check/vitest": "^0.4.1",
+    "@stryker-mutator/core": "9.6.1",
+    "@stryker-mutator/vitest-runner": "9.6.1",
     "@types/node": "^26.1.0",
     "@vitest/coverage-v8": "^4.1.9",
     "eslint": "^10.6.0",
