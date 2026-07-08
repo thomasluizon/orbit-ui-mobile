@@ -23,7 +23,8 @@ try {
   const normalized = String(filePath).replace(/\\/g, "/")
   const isLocaleJson = /\/i18n\/[^/]*\.json$/.test(normalized)
   const isEmailCopy = /\/[Ee]mail\//.test(normalized) || /ResendEmailService\.cs$/.test(normalized)
-  if (!isLocaleJson && !isEmailCopy) process.exit(0)
+  const isLandingCopy = /\/orbit-landing-page\/src\/.*\.astro$/.test(normalized)
+  if (!isLocaleJson && !isEmailCopy && !isLandingCopy) process.exit(0)
 
   let added = ""
   if (typeof toolInput.new_string === "string") added = toolInput.new_string

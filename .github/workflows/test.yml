@@ -76,3 +76,26 @@ jobs:
       - name: Report high and moderate advisories (non-blocking)
         if: always()
         run: npm audit --audit-level=moderate || true
+
+  design-guard:
+    name: Design Token Guard
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Ban raw --slate-*, transition-all, h-screen in app code
+        run: |
+          # DESIGN.md bans semantic-token violations. Accent-color literals are caught at
+          # edit time by the forbid-hardcoded-brand-color hook; this gate covers hand edits.
+          hits=$(grep -rnE '\-\-slate-|transition-all|\bh-screen\b' apps/web apps/mobile \
+            --include='*.ts' --include='*.tsx' --include='*.css' \
+            --exclude-dir=node_modules --exclude-dir=__tests__ \
+            --exclude='globals.css' --exclude='theme.ts' \
+            --exclude='*.test.ts' --exclude='*.test.tsx' --exclude='*.spec.ts' --exclude='*.spec.tsx' || true)
+          if [ -n "$hits" ]; then
+            echo "::error::DESIGN.md ban: use semantic tokens (var(--fg-*)/var(--primary)), transform+opacity transitions, and min-h-dvh."
+            echo "$hits"
+            exit 1
+          fi
+          echo "Design token guard passed."

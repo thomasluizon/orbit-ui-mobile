@@ -1,104 +1,54 @@
 # Orbit
 
-Personal habit tracker. Turborepo monorepo: `apps/web` (Next.js 16) + `apps/mobile` (Expo SDK 56) + `packages/shared`.
+Personal habit tracker. Turborepo monorepo: `apps/web` (Next.js 16), `apps/mobile` (Expo SDK 56, Android-only), `packages/shared`. Sibling repos worked from this session: `orbit-api` (.NET 10 / EF Core / MediatR CQRS) + `orbit-landing-page` (Astro 6 + Tailwind v4).
 
-Cross-cutting rules only live here. Each workspace has a scoped `CLAUDE.md` Claude auto-loads when touching files in that subtree. Read them before writing code in those areas.
+<!-- Sibling guidance lives in each repo; it loads here because Orbit sessions always launch from orbit-ui-mobile. @-imports load in full every session and survive /compact. -->
+@../orbit-api/CLAUDE.md
+@../orbit-landing-page/CLAUDE.md
 
-## Quick orientation
+Each workspace has a scoped `CLAUDE.md` that loads when you touch its files — per-stack detail lives there. This root holds only cross-cutting Orbit rules.
 
-- Shared package (`@orbit/shared`) owns all Zod types, utils, i18n locales, theme data, API endpoint constants, TanStack query keys, and validation schemas. Both apps import from it.
-- The .NET API is a sibling repo at `C:\Users\thoma\Documents\Programming\Projects\orbit-api`. Claude is always launched from THIS repo and reaches into orbit-api via absolute paths when the work needs backend changes.
+## Maximum implementation (overrides global rule 4, "surgical changes")
+
+While building or fixing, see something broken, stale, or wrong? Fix it immediately, in the same PR — never report it as "out of scope" or "pre-existing." Exception: the review and audit skills (`/pr-review`, `/audit-*`) stay scoped to their own rubric — they report findings, they don't remediate mid-pass. Do everything in your power yourself (MCP servers, CLIs, APIs); only involve me when there is genuinely no way for you to do it.
 
 ## Cross-platform parity (MANDATORY)
 
-Every change MUST land in BOTH `apps/web` AND `apps/mobile`. No exceptions. A task is NOT complete until both platforms are updated.
+Every change lands in BOTH `apps/web` AND `apps/mobile` in the same task — logic, features, behavior, and error handling identical; reverts included. Allowed differences: platform adapters only (BFF vs direct API, cookie vs SecureStore, shadcn vs NativeWind, next-intl vs i18next). i18n keys land in `en.json` AND `pt-BR.json` in the same edit. The `parity-nudge` hook + `parity-checker` subagent flag drift.
 
-- Modify a hook in `apps/web/hooks/`? Update the equivalent in `apps/mobile/hooks/`.
-- Add a feature to a web page? Add it to the mobile screen too.
-- Fix a bug in one platform? Check and fix in the other too.
-- Add an i18n key? Add it to both `en.json` AND `pt-BR.json` in the same edit.
-- Change validation logic? It lives in `packages/shared/` or is duplicated identically.
+## Code standards
 
-Allowed differences: platform adapters only — BFF vs direct API, cookie vs SecureStore, shadcn vs NativeWind, next-intl vs i18next. Logic, features, behavior, data flow, error handling: identical.
+Ten rules, applied everywhere. The checkable ones (3, 4, 5, plus the em-dash and hardcoded-brand-color bans) are enforced by gates — ESLint `local/*` + the `.claude/hooks/forbid-*` hooks, Roslyn `ORBIT0001` in orbit-api — so trust them rather than re-checking by eye; the rest need judgment.
 
-## Code Standards
+1. **Root cause over workarounds.** No fallbacks or defensive branches for a problem that belongs to an upstream config, type, or util. A genuinely unavoidable workaround gets a one-line WHY comment linking the issue.
+2. **Delete unused code immediately.** No "just in case" exports, dead branches, or stub functions.
+3. **No `any`.** Use `unknown` with narrowing; no `as any` / `as unknown as X`. (lint-enforced)
+4. **No `console.log` in production code.** Use the logger or don't log. (lint-enforced)
+5. **Comments — strict policy** (lint-enforced via `local/no-comments`): only JSDoc on exports, a WHY comment linking an issue/PR/doc URL, or tooling directives. Everything else is stripped — rename or extract instead.
+6. **No premature abstraction.** Extract on the third real use, not the second.
+7. **Function size & nesting.** Soft cap ~50 lines / ~3 nesting levels; hard cap ~100. Beyond means split.
+8. **Error handling at boundaries only.** Validate at trust boundaries (user input, external APIs); inside, trust your types. Never swallow errors silently.
+9. **Naming.** Descriptive, no abbreviations, never `data`/`info`/`stuff`/`temp`/`obj`/`helper`/`util` as a final name.
+10. **DRY at the right level.** Cross-app duplication → `packages/shared`; cross-component → `apps/<platform>/components/`; don't lift to shared for one caller.
 
-**Overriding principle — best implementation, always.** Ship the most correct, most complete, most robust solution. NEVER scope down — cutting a required step, a real fix, or the proper workflow — to save effort, setup, or time. When a genuine tradeoff exists (effort/time/cost), surface it and let the user decide; never pick the cheaper or faster path silently. "Best" means correct and complete, **not** more code — the simplicity and no-premature-abstraction rules below still hold.
+## Security & contracts
 
-These ten rules apply everywhere — `apps/web`, `apps/mobile`, `packages/shared`, and any contributions to `orbit-api`. The PR review bot enforces them.
+Auth: web cookie is httpOnly + sameSite strict + secure; mobile tokens live in SecureStore, never AsyncStorage. API contract types live in `packages/shared/src/types/*` (Zod) — never invent a field the API doesn't return. Shared/DTO changes are **append-only and deploy-API-first**: add optional fields; never rename/remove/retype a field old mobile clients still read (mobile lags via the Play store). Breaking changes use expand-contract plus the `AppConfig.MinSupportedVersion` gate — raise it only after the carrying build is live in the Play fleet (#210). `/pr-review` runs the backward-compat guard (#206); the `contract-aligner` subagent flags endpoint drift.
 
-1. **Root cause over workarounds.** If something is broken upstream, fix it upstream. Don't add fallbacks, defensive branches, or local patches for problems that belong to a config, a type, or a shared util. If a workaround is genuinely unavoidable, write a one-line WHY comment.
-2. **Delete unused code immediately.** No "just in case" exports, dead branches, commented-out blocks, stub functions, or speculative parameters. If the linter can't see it's used, delete it.
-3. **No `any`.** Use `unknown` with narrowing. No `as any`, no `as unknown as X` escape hatches.
-4. **No `console.log` in production code.** Use the project logger if one exists, or don't log.
-5. **Comments — strict policy (lint-enforced via `local/no-comments`; autofix strips violations).** Allowed: `/** */` JSDoc on exported functions/hooks/types; a WHY comment only when it links an upstream issue/PR/doc URL; tooling directives (`eslint-disable`, `@ts-expect-error`, `/// <reference>`). Everything else is stripped — to explain code, rename or extract instead.
-6. **No premature abstraction.** Extract on the third real use, not the second. Three similar lines beats a premature helper.
-7. **Function size & nesting.** Soft cap: ~50 lines per function, ~3 levels of nesting. Hard cap: ~100 lines. Going beyond means the function is doing too much — split it.
-8. **Error handling at boundaries only.** Validate at trust boundaries (user input, external APIs). Inside the codebase, trust your types. Never swallow errors silently — surface them, or don't catch them.
-9. **Naming.** Descriptive, no abbreviations, no `data` / `info` / `stuff` / `temp` / `obj` / `helper` / `util` as final names. A name is good if a stranger can guess its purpose from the call site alone.
-10. **DRY at the right level.** Cross-app duplication belongs in `packages/shared`. Cross-function-in-file duplication belongs in a local helper. Cross-component duplication belongs in `apps/<platform>/components/`. Don't lift to `shared` for one caller.
+## Brand & design
 
-## Subagent delegation — default to delegating
+"Orbit" and "Astra" are never translated. `DESIGN.md` (repo root) is authoritative for all UI — navy-violet orbital anchor, semantic tokens only (`--bg`, `--bg-elev`, `--fg-1..4`, `--primary`, `--primary-rgb`, `--gradient-header`, ...), mobile-first 412px shell. Read it before any frontend work; apply the `impeccable` skill when shaping or reviewing a surface.
 
-Delegate independent or context-heavy work by default; don't ask permission. Research/audits → `Explore` subagent. Multi-issue work (2+ issues) → one subagent per issue, paired with a worktree if implementing. Independent edits → parallel subagents. Long tasks (builds/tests/deploys) → background agents. Act directly only on single-file edits already loaded, conversational replies, and tightly-coupled work where isolation would force re-reading. Cap: 3 concurrent by default; raise only if told. See `WORKFLOW.md` for the multi-issue paired-worktree path.
+## Conventions & tooling
 
-## Security boundaries
+- `orbit-api` is a sibling at `C:\Users\thoma\Documents\Programming\Projects\orbit-api`; update it in the same task when a feature needs backend support. Separate git histories, branches, and PRs.
+- Never create an `AGENTS.md` — opencode reads this CLAUDE.md natively; an AGENTS.md would shadow it.
+- `.opencode/agents/*.md` are thin pointers to the `.claude/agents/*.md` bodies — when adding an agent, create BOTH. Hooks and memory are Claude-Code-only machinery (inert under opencode).
+- C# LSP for orbit-api is wired via `.mcp.json` (copy from `.claude/mcp.json.example`, set env vars).
+- Git: one feature/fix per PR (cross-repo work opens paired PRs, cross-linked); branches `feature/`|`fix/`|`chore/`; `main` is protected (no direct or force push — enforced by the `git-guardrails` hook); squash-merge only; never `--no-verify`/`--no-gpg-sign`; never reuse a squash-merged branch.
+- Testing: Vitest unit tests only; every feature needs behavior tests. The only sanctioned E2E is the post-deploy web smoke suite. Configs live in each workspace.
+- `/pr-review` is the canonical local diff review (orchestrates security-reviewer / contract-aligner / parity-checker / i18n-syncer + the backward-compat guard).
 
-- **Auth cookie** (web): httpOnly, sameSite strict, secure always.
-- **Mobile auth:** SecureStore. Never persist tokens to AsyncStorage.
-- **API contract:** types live in `packages/shared/src/types/*.ts` (Zod schemas). Never invent fields the API doesn't return.
-- **Cross-repo contract:** changing an endpoint here needs the matching change in `orbit-api`. The `contract-aligner` subagent flags drift.
-- **Backward compatibility (append-only + deploy-order):** shared/DTO contract changes are additive by default — add new optional fields, never rename/remove/retype a field old mobile clients still read (mobile updates ship through the Play store and lag). Breaking changes use expand-contract, not `/v1`,`/v2` versioning. Deploy the API **before** any client depends on the new contract. When a break is unavoidable (or a client fix old versions MUST take), the min-supported-version gate is the lever: raise `AppConfig.MinSupportedVersion` (a DB row, default `0.0.0`=open) to the version carrying the fix — but only **after** that build is live in the Play fleet, never mid-rollout (raising it early strands users who can't upgrade yet). Below the floor → 426 → mobile hard-blocks, web shows a refresh banner; clients not sending `X-App-Version` are always allowed (fail-safe). See #210. `/pr-review` flags breaking `packages/shared`/DTO changes that would break old mobile clients (#206).
+## Path-picking & delegation
 
-## Frontend design
-
-Read `DESIGN.md` at the repo root before any frontend work. It's the source of truth for tokens, primitives, motion, and bans. The full design canon (artboards, kit, token CSS) is vendored at `design/handoff/`.
-
-- Anchor is **navy-violet orbital**, locked: slate-950 canvas, violet accent, gradient headers, translucent cards on dark / white cards on light, pill CTAs with glow, Rubik/Inter/Roboto. Do not re-pick per session, do not hybridise. DESIGN.md is authoritative over user-global design defaults (documented deviation: Inter display + violet accent are deliberate).
-- The `impeccable` skill is the running design-review philosophy (anchor / differentiator / AI-slop test / scene-sentence test). Apply it when reviewing or shaping new surfaces.
-- Semantic tokens (`--bg`, `--bg-elev`, `--fg-1..4`, `--primary`, `--primary-rgb`, `--hairline`, `--status-*`, `--gradient-header`) are canonical. Never reference raw slate values or hardcode violet rgba in app code — see the derivation + mapping rules in `DESIGN.md`.
-- Mobile-first. Canvas is a 412px phone shell on both platforms; web caps at `--app-max-w: 640px`.
-
-## API repository access
-
-- `C:\Users\thoma\Documents\Programming\Projects\orbit-api` is part of the working context — update it in the SAME task when a feature needs backend support, don't stop at frontend-only.
-- Keep contracts aligned: endpoints, Zod types, request/response handling, and API implementation move together. Inspect the API repo directly rather than inventing fields or behavior.
-- Separate git histories: `orbit-ui-mobile` and `orbit-api` are different repos, branches, and PRs.
-
-## LSP
-
-- C# LSP (OmniSharp/Roslyn) reads `orbit-api` symbols in this session via `.mcp.json` (gitignored — copy from `.claude/mcp.json.example` and set env vars if missing; fallback wrapper `.claude/scripts/csharp-lsp.mjs`).
-- TypeScript LSP is built into Claude Code — no setup for `apps/web`, `apps/mobile`, `packages/shared`.
-
-## opencode compatibility
-
-The workflow is tool-agnostic between Claude Code and opencode; `.claude/` stays the single source of truth.
-
-- opencode reads this `CLAUDE.md` natively (fallback when no `AGENTS.md` exists) and discovers `.claude/skills/**` as-is. **Never create an `AGENTS.md`** — it would shadow this file and fork the rules.
-- `opencode.json` (committed) loads `WORKFLOW.md`, `DESIGN.md`, and the scoped workspace `CLAUDE.md` files, and mirrors the `.mcp.json` MCP servers via `{env:VAR}` substitution — the same env vars `.claude/mcp.json.example` documents must be set in the shell.
-- `.opencode/agents/*.md` are thin pointers to the matching `.claude/agents/*.md` bodies. Edit behavior in `.claude/agents/` only; when adding a new agent, create both the body and its pointer.
-- Claude-Code-only machinery (hooks in `.claude/hooks/`, persistent memory, Workflow orchestration) does not run under opencode — skills degrade to sequential single-thread behavior there.
-
-## Git workflow
-
-- Branch naming: `feature/xxx`, `fix/xxx`, `chore/xxx`.
-- Branch protection on `main`. No direct pushes. Squash-merge only. Head branches auto-delete after merge.
-- Never reuse a branch after its PR is squash-merged.
-- Never `--no-verify`, `--no-gpg-sign`, or force-push to `main`.
-- One feature or fix per PR. Cross-repo work opens paired PRs (one per repo) cross-linked in descriptions.
-
-## Testing
-
-- **Web unit:** Vitest + React Testing Library. Config: `apps/web/vitest.config.ts`.
-- **Mobile unit:** Vitest. Config: `apps/mobile/vitest.config.ts`.
-- **Shared:** Vitest. Config: `packages/shared/vitest.config.ts`.
-- **Factories:** `packages/shared/src/__tests__/factories.ts`.
-- **Run:** `npm test` per workspace.
-- Unit tests only by default — the old broad Playwright E2E suite was removed as outdated; don't add per-PR E2E, integration suites, or a real-DB harness.
-- Exception: a scoped ~5-test web Playwright **smoke suite** (signup, create+log habit, Astra-creates-habit, paywall) runs post-deploy against prod (SMOKE_BASE_URL, the live web origin) and blocks prod promotion (see #227). This is the only sanctioned E2E. A flaky smoke test is fix-or-delete same day — never retry-to-green; keep it ≤~5 tests. No per-PR E2E and no mobile E2E (Detox/Maestro).
-- Review tooling: `/pr-review` is the canonical local diff-review skill — it replaces and absorbs the old `/review` + `/security-review` (it orchestrates security-reviewer / contract-aligner / parity-checker / i18n-syncer and runs the backward-compat guard above) (#206). Don't invoke `/review` or `/security-review` separately.
-- Every new feature needs tests. Tests asserting behavior, not implementation details.
-
-## Path-picking
-
-`WORKFLOW.md` at the repo root is the path-picking guide — tiny bug, real bug, medium feature, multi-issue. Read it before starting non-trivial work.
+`WORKFLOW.md` (repo root) is the path-picking guide (tiny bug / real bug / medium feature / multi-issue) — read it before non-trivial work. Delegate independent/heavy work by default (3 concurrent cap; `Explore` for audits; paired worktrees for multi-issue).
