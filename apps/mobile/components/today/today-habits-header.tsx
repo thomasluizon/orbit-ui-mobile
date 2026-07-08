@@ -157,6 +157,238 @@ const TodaySearchBar = memo(function TodaySearchBar({
   );
 });
 
+interface TodayControlsMenuProps {
+  visible: boolean;
+  anchorRect: MenuAnchorRect | null;
+  onClose: () => void;
+  isSelectMode: boolean;
+  allCollapsed: boolean;
+  isFetching: boolean;
+  showCompleted: boolean;
+  prefersReducedMotion: boolean;
+  refreshSpinStyle: Animated.WithAnimatedValue<StyleProp<ViewStyle>>;
+  onToggleSelect: () => void;
+  onToggleCollapse: () => void;
+  onRefresh: () => void;
+  onToggleCompleted: () => void;
+  tokens: ReturnType<typeof createTokensV2>;
+  styles: ReturnType<typeof createStyles>;
+}
+
+function TodayControlsMenu({
+  visible,
+  anchorRect,
+  onClose,
+  isSelectMode,
+  allCollapsed,
+  isFetching,
+  showCompleted,
+  prefersReducedMotion,
+  refreshSpinStyle,
+  onToggleSelect,
+  onToggleCollapse,
+  onRefresh,
+  onToggleCompleted,
+  tokens,
+  styles,
+}: Readonly<TodayControlsMenuProps>) {
+  const { t } = useTranslation();
+
+  return (
+    <AnchoredMenu
+      visible={visible}
+      anchorRect={anchorRect}
+      onClose={onClose}
+      width={220}
+      estimatedHeight={220}
+    >
+      <Pressable
+        style={({ pressed }) => [
+          styles.controlsMenuItem,
+          {
+            backgroundColor: pressed ? tokens.bgSunk : "transparent",
+          },
+        ]}
+        onPress={onToggleSelect}
+        accessibilityRole="button"
+      >
+        {isSelectMode ? (
+          <X size={16} color={tokens.fg2} strokeWidth={1.8} />
+        ) : (
+          <CheckCircle2 size={16} color={tokens.fg2} strokeWidth={1.8} />
+        )}
+        <Text style={[styles.controlsMenuLabel, { color: tokens.fg1 }]}>
+          {isSelectMode ? t("common.cancel") : t("common.select")}
+        </Text>
+      </Pressable>
+
+      <Pressable
+        style={({ pressed }) => [
+          styles.controlsMenuItem,
+          {
+            backgroundColor: pressed ? tokens.bgSunk : "transparent",
+          },
+        ]}
+        onPress={onToggleCollapse}
+        accessibilityRole="button"
+      >
+        {allCollapsed ? (
+          <ChevronsUpDown size={16} color={tokens.fg2} strokeWidth={1.8} />
+        ) : (
+          <ChevronsDownUp size={16} color={tokens.fg2} strokeWidth={1.8} />
+        )}
+        <Text style={[styles.controlsMenuLabel, { color: tokens.fg1 }]}>
+          {allCollapsed ? t("habits.expandAll") : t("habits.collapseAll")}
+        </Text>
+      </Pressable>
+
+      <Pressable
+        style={({ pressed }) => [
+          styles.controlsMenuItem,
+          isFetching ? styles.controlsMenuItemDisabled : null,
+          {
+            backgroundColor: pressed ? tokens.bgSunk : "transparent",
+          },
+        ]}
+        onPress={onRefresh}
+        disabled={isFetching}
+        accessibilityRole="button"
+        accessibilityState={{ disabled: isFetching }}
+      >
+        <Animated.View
+          style={isFetching && !prefersReducedMotion ? refreshSpinStyle : null}
+        >
+          <RefreshCw size={16} color={tokens.fg2} strokeWidth={1.8} />
+        </Animated.View>
+        <Text style={[styles.controlsMenuLabel, { color: tokens.fg1 }]}>
+          {t("habits.refresh")}
+        </Text>
+      </Pressable>
+
+      <Pressable
+        style={({ pressed }) => [
+          styles.controlsMenuItem,
+          {
+            backgroundColor: pressed ? tokens.bgSunk : "transparent",
+          },
+        ]}
+        onPress={onToggleCompleted}
+        accessibilityRole="button"
+      >
+        {showCompleted ? (
+          <Check size={16} color={tokens.fg2} strokeWidth={1.8} />
+        ) : (
+          <Eye size={16} color={tokens.fg2} strokeWidth={1.8} />
+        )}
+        <Text style={[styles.controlsMenuLabel, { color: tokens.fg1 }]}>
+          {t("habits.showCompleted")}
+        </Text>
+      </Pressable>
+    </AnchoredMenu>
+  );
+}
+
+interface TodayFrequencyMenuProps {
+  visible: boolean;
+  anchorRect: MenuAnchorRect | null;
+  onClose: () => void;
+  selectedFrequency: FreqKey | null;
+  frequencyOptions: { key: FreqKey; label: string }[];
+  onSelectFrequency: (key: FreqKey | null) => void;
+  tokens: ReturnType<typeof createTokensV2>;
+  styles: ReturnType<typeof createStyles>;
+}
+
+function TodayFrequencyMenu({
+  visible,
+  anchorRect,
+  onClose,
+  selectedFrequency,
+  frequencyOptions,
+  onSelectFrequency,
+  tokens,
+  styles,
+}: Readonly<TodayFrequencyMenuProps>) {
+  const { t } = useTranslation();
+
+  return (
+    <AnchoredMenu
+      visible={visible}
+      anchorRect={anchorRect}
+      onClose={onClose}
+      width={200}
+      estimatedHeight={260}
+    >
+      <Pressable
+        style={({ pressed }) => [
+          styles.controlsMenuItem,
+          {
+            backgroundColor: pressed ? tokens.bgSunk : "transparent",
+          },
+        ]}
+        onPress={() => onSelectFrequency(null)}
+        accessibilityRole="menuitem"
+        accessibilityState={{ selected: !selectedFrequency }}
+      >
+        <View style={styles.freqMenuCheck}>
+          {!selectedFrequency ? (
+            <Check size={16} color={tokens.primary} strokeWidth={2} />
+          ) : null}
+        </View>
+        <Text
+          style={[
+            styles.controlsMenuLabel,
+            {
+              color: !selectedFrequency ? tokens.fg1 : tokens.fg2,
+              fontFamily: !selectedFrequency
+                ? "Rubik_600SemiBold"
+                : "Rubik_500Medium",
+            },
+          ]}
+        >
+          {t("common.all")}
+        </Text>
+      </Pressable>
+      {frequencyOptions.map((opt) => {
+        const active = selectedFrequency === opt.key;
+        return (
+          <Pressable
+            key={opt.key}
+            style={({ pressed }) => [
+              styles.controlsMenuItem,
+              {
+                backgroundColor: pressed ? tokens.bgSunk : "transparent",
+              },
+            ]}
+            onPress={() => onSelectFrequency(active ? null : opt.key)}
+            accessibilityRole="menuitem"
+            accessibilityState={{ selected: active }}
+          >
+            <View style={styles.freqMenuCheck}>
+              {active ? (
+                <Check size={16} color={tokens.primary} strokeWidth={2} />
+              ) : null}
+            </View>
+            <Text
+              style={[
+                styles.controlsMenuLabel,
+                {
+                  color: active ? tokens.fg1 : tokens.fg2,
+                  fontFamily: active
+                    ? "Rubik_600SemiBold"
+                    : "Rubik_500Medium",
+                },
+              ]}
+            >
+              {opt.label}
+            </Text>
+          </Pressable>
+        );
+      })}
+    </AnchoredMenu>
+  );
+}
+
 interface TodayHabitsHeaderProps {
   header: ReactNode;
   showSummary: boolean;
@@ -443,173 +675,34 @@ export function TodayHabitsHeader({
           ))}
         </ScrollView>
 
-        <AnchoredMenu
+        <TodayControlsMenu
           visible={showControlsMenu}
           anchorRect={controlsMenuAnchorRect}
           onClose={onCloseControlsMenu}
-          width={220}
-          estimatedHeight={220}
-        >
-          <Pressable
-            style={({ pressed }) => [
-              styles.controlsMenuItem,
-              {
-                backgroundColor: pressed ? tokens.bgSunk : "transparent",
-              },
-            ]}
-            onPress={onToggleSelect}
-            accessibilityRole="button"
-          >
-            {isSelectMode ? (
-              <X size={16} color={tokens.fg2} strokeWidth={1.8} />
-            ) : (
-              <CheckCircle2 size={16} color={tokens.fg2} strokeWidth={1.8} />
-            )}
-            <Text style={[styles.controlsMenuLabel, { color: tokens.fg1 }]}>
-              {isSelectMode ? t("common.cancel") : t("common.select")}
-            </Text>
-          </Pressable>
+          isSelectMode={isSelectMode}
+          allCollapsed={allCollapsed}
+          isFetching={isFetching}
+          showCompleted={showCompleted}
+          prefersReducedMotion={prefersReducedMotion}
+          refreshSpinStyle={refreshSpinStyle}
+          onToggleSelect={onToggleSelect}
+          onToggleCollapse={onToggleCollapse}
+          onRefresh={onRefresh}
+          onToggleCompleted={onToggleCompleted}
+          tokens={tokens}
+          styles={styles}
+        />
 
-          <Pressable
-            style={({ pressed }) => [
-              styles.controlsMenuItem,
-              {
-                backgroundColor: pressed ? tokens.bgSunk : "transparent",
-              },
-            ]}
-            onPress={onToggleCollapse}
-            accessibilityRole="button"
-          >
-            {allCollapsed ? (
-              <ChevronsUpDown size={16} color={tokens.fg2} strokeWidth={1.8} />
-            ) : (
-              <ChevronsDownUp size={16} color={tokens.fg2} strokeWidth={1.8} />
-            )}
-            <Text style={[styles.controlsMenuLabel, { color: tokens.fg1 }]}>
-              {allCollapsed ? t("habits.expandAll") : t("habits.collapseAll")}
-            </Text>
-          </Pressable>
-
-          <Pressable
-            style={({ pressed }) => [
-              styles.controlsMenuItem,
-              isFetching ? styles.controlsMenuItemDisabled : null,
-              {
-                backgroundColor: pressed ? tokens.bgSunk : "transparent",
-              },
-            ]}
-            onPress={onRefresh}
-            disabled={isFetching}
-            accessibilityRole="button"
-            accessibilityState={{ disabled: isFetching }}
-          >
-            <Animated.View
-              style={
-                isFetching && !prefersReducedMotion ? refreshSpinStyle : null
-              }
-            >
-              <RefreshCw size={16} color={tokens.fg2} strokeWidth={1.8} />
-            </Animated.View>
-            <Text style={[styles.controlsMenuLabel, { color: tokens.fg1 }]}>
-              {t("habits.refresh")}
-            </Text>
-          </Pressable>
-
-          <Pressable
-            style={({ pressed }) => [
-              styles.controlsMenuItem,
-              {
-                backgroundColor: pressed ? tokens.bgSunk : "transparent",
-              },
-            ]}
-            onPress={onToggleCompleted}
-            accessibilityRole="button"
-          >
-            {showCompleted ? (
-              <Check size={16} color={tokens.fg2} strokeWidth={1.8} />
-            ) : (
-              <Eye size={16} color={tokens.fg2} strokeWidth={1.8} />
-            )}
-            <Text style={[styles.controlsMenuLabel, { color: tokens.fg1 }]}>
-              {t("habits.showCompleted")}
-            </Text>
-          </Pressable>
-        </AnchoredMenu>
-
-        <AnchoredMenu
+        <TodayFrequencyMenu
           visible={showFreqMenu}
           anchorRect={freqMenuAnchorRect}
           onClose={onCloseFreqMenu}
-          width={200}
-          estimatedHeight={260}
-        >
-          <Pressable
-            style={({ pressed }) => [
-              styles.controlsMenuItem,
-              {
-                backgroundColor: pressed ? tokens.bgSunk : "transparent",
-              },
-            ]}
-            onPress={() => onSelectFrequency(null)}
-            accessibilityRole="menuitem"
-            accessibilityState={{ selected: !selectedFrequency }}
-          >
-            <View style={styles.freqMenuCheck}>
-              {!selectedFrequency ? (
-                <Check size={16} color={tokens.primary} strokeWidth={2} />
-              ) : null}
-            </View>
-            <Text
-              style={[
-                styles.controlsMenuLabel,
-                {
-                  color: !selectedFrequency ? tokens.fg1 : tokens.fg2,
-                  fontFamily: !selectedFrequency
-                    ? "Rubik_600SemiBold"
-                    : "Rubik_500Medium",
-                },
-              ]}
-            >
-              {t("common.all")}
-            </Text>
-          </Pressable>
-          {frequencyOptions.map((opt) => {
-            const active = selectedFrequency === opt.key;
-            return (
-              <Pressable
-                key={opt.key}
-                style={({ pressed }) => [
-                  styles.controlsMenuItem,
-                  {
-                    backgroundColor: pressed ? tokens.bgSunk : "transparent",
-                  },
-                ]}
-                onPress={() => onSelectFrequency(active ? null : opt.key)}
-                accessibilityRole="menuitem"
-                accessibilityState={{ selected: active }}
-              >
-                <View style={styles.freqMenuCheck}>
-                  {active ? (
-                    <Check size={16} color={tokens.primary} strokeWidth={2} />
-                  ) : null}
-                </View>
-                <Text
-                  style={[
-                    styles.controlsMenuLabel,
-                    {
-                      color: active ? tokens.fg1 : tokens.fg2,
-                      fontFamily: active
-                        ? "Rubik_600SemiBold"
-                        : "Rubik_500Medium",
-                    },
-                  ]}
-                >
-                  {opt.label}
-                </Text>
-              </Pressable>
-            );
-          })}
-        </AnchoredMenu>
+          selectedFrequency={selectedFrequency}
+          frequencyOptions={frequencyOptions}
+          onSelectFrequency={onSelectFrequency}
+          tokens={tokens}
+          styles={styles}
+        />
       </Animated.View>
     </>
   );
