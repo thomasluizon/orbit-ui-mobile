@@ -25,6 +25,70 @@ interface RescheduleSheetProps {
   habit: NormalizedHabit | null
 }
 
+interface RescheduleSuggestionCardProps {
+  dateLabel: string
+  timeLabel: string | null
+  scheduleLabel: string
+  rationale: string
+}
+
+function RescheduleSuggestionCard({
+  dateLabel,
+  timeLabel,
+  scheduleLabel,
+  rationale,
+}: Readonly<RescheduleSuggestionCardProps>) {
+  const t = useTranslations()
+
+  return (
+    <div className="flex flex-col" style={{ gap: 14 }}>
+      <div
+        className="flex items-center rounded-[18px]"
+        style={{
+          padding: '14px 16px',
+          gap: 12,
+          background: 'rgba(var(--primary-rgb), 0.10)',
+          boxShadow: 'inset 0 0 0 1px rgba(var(--primary-rgb), 0.28)',
+        }}
+      >
+        <CalendarClock size={22} strokeWidth={1.9} className="shrink-0 text-[var(--primary-soft)]" aria-hidden="true" />
+        <div className="min-w-0 flex-1">
+          <div
+            style={{
+              fontFamily: 'var(--font-sans)',
+              fontSize: 12,
+              fontWeight: 500,
+              letterSpacing: '0.04em',
+              textTransform: 'uppercase',
+              color: 'var(--fg-3)',
+            }}
+          >
+            {t('habits.reschedule.proposedScheduleLabel')}
+          </div>
+          <div
+            data-testid="reschedule-proposed-schedule"
+            style={{ fontFamily: 'var(--font-sans)', fontSize: 16, fontWeight: 500, color: 'var(--fg-1)', marginTop: 2 }}
+          >
+            {dateLabel}
+            {timeLabel ? ` · ${timeLabel}` : ''}
+          </div>
+          <div style={{ fontFamily: 'var(--font-sans)', fontSize: 13.5, color: 'var(--fg-3)', marginTop: 2 }}>
+            {scheduleLabel}
+          </div>
+        </div>
+      </div>
+
+      <p style={{ fontFamily: 'var(--font-sans)', fontSize: 14, lineHeight: 1.5, color: 'var(--fg-1)', textWrap: 'pretty' }}>
+        {rationale}
+      </p>
+
+      <p style={{ fontFamily: 'var(--font-sans)', fontSize: 11, lineHeight: 1.4, color: 'var(--fg-3)' }}>
+        {t('aiDisclosure.notMedicalAdvice')}
+      </p>
+    </div>
+  )
+}
+
 /**
  * Astra-branded sheet that proposes an AI reschedule for an overdue habit. Pro users see the
  * suggested schedule plus rationale and can accept it in one tap (applied through the existing
@@ -197,51 +261,12 @@ export function RescheduleSheet({ open, onOpenChange, habit }: Readonly<Reschedu
             {t('habits.reschedule.error')}
           </p>
         ) : suggestion ? (
-          <div className="flex flex-col" style={{ gap: 14 }}>
-            <div
-              className="flex items-center rounded-[18px]"
-              style={{
-                padding: '14px 16px',
-                gap: 12,
-                background: 'rgba(var(--primary-rgb), 0.10)',
-                boxShadow: 'inset 0 0 0 1px rgba(var(--primary-rgb), 0.28)',
-              }}
-            >
-              <CalendarClock size={22} strokeWidth={1.9} className="shrink-0 text-[var(--primary-soft)]" aria-hidden="true" />
-              <div className="min-w-0 flex-1">
-                <div
-                  style={{
-                    fontFamily: 'var(--font-sans)',
-                    fontSize: 12,
-                    fontWeight: 500,
-                    letterSpacing: '0.04em',
-                    textTransform: 'uppercase',
-                    color: 'var(--fg-3)',
-                  }}
-                >
-                  {t('habits.reschedule.proposedScheduleLabel')}
-                </div>
-                <div
-                  data-testid="reschedule-proposed-schedule"
-                  style={{ fontFamily: 'var(--font-sans)', fontSize: 16, fontWeight: 500, color: 'var(--fg-1)', marginTop: 2 }}
-                >
-                  {dateLabel}
-                  {timeLabel ? ` · ${timeLabel}` : ''}
-                </div>
-                <div style={{ fontFamily: 'var(--font-sans)', fontSize: 13.5, color: 'var(--fg-3)', marginTop: 2 }}>
-                  {scheduleLabel}
-                </div>
-              </div>
-            </div>
-
-            <p style={{ fontFamily: 'var(--font-sans)', fontSize: 14, lineHeight: 1.5, color: 'var(--fg-1)', textWrap: 'pretty' }}>
-              {suggestion.rationale}
-            </p>
-
-            <p style={{ fontFamily: 'var(--font-sans)', fontSize: 11, lineHeight: 1.4, color: 'var(--fg-3)' }}>
-              {t('aiDisclosure.notMedicalAdvice')}
-            </p>
-          </div>
+          <RescheduleSuggestionCard
+            dateLabel={dateLabel}
+            timeLabel={timeLabel}
+            scheduleLabel={scheduleLabel}
+            rationale={suggestion.rationale}
+          />
         ) : null}
       </div>
     </AppOverlay>
