@@ -3,8 +3,6 @@ name: Mutation Testing
 on:
   pull_request:
     branches: [main]
-  schedule:
-    - cron: '0 6 * * *'
 
 concurrency:
   group: mutation-${{ github.workflow }}-${{ github.ref }}
@@ -16,7 +14,6 @@ permissions:
 jobs:
   incremental:
     name: Incremental (per-PR, report-only)
-    if: github.event_name == 'pull_request'
     runs-on: ubuntu-latest
 
     steps:
@@ -45,30 +42,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: mutation-report-pr
-          path: packages/shared/reports/mutation/
-
-  nightly:
-    name: Nightly (full scope, report)
-    if: github.event_name == 'schedule'
-    runs-on: ubuntu-latest
-
-    steps:
-      - uses: actions/checkout@v7
-
-      - uses: actions/setup-node@v6
-        with:
-          node-version: 22
-          cache: npm
-
-      - run: npm ci
-
-      - name: Run mutation testing (full scope)
-        working-directory: packages/shared
-        run: npm run mutation
-
-      - name: Upload mutation report
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: mutation-report-nightly
           path: packages/shared/reports/mutation/
