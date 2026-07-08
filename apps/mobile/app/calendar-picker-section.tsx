@@ -61,7 +61,7 @@ export function CalendarPickerSection({
         </View>
       ) : null}
 
-      {isError && !isLoading ? (
+      {isError ? (
         <View style={styles.pickerStateRow} accessibilityRole="alert">
           <Text
             style={[

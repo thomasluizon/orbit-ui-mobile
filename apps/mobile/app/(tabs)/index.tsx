@@ -386,8 +386,8 @@ export default function TodayScreen() {
       listMotion.enterEasing,
     );
 
-    filtersTransitionAnim.stopAnimation?.();
-    listTransitionAnim.stopAnimation?.();
+    filtersTransitionAnim.stopAnimation();
+    listTransitionAnim.stopAnimation();
     filtersTransitionAnim.setValue(startValue);
     listTransitionAnim.setValue(startValue);
 
@@ -540,7 +540,7 @@ export default function TodayScreen() {
 
   useEffect(() => {
     if (isSelectMode) {
-      bulkBarAnim.stopAnimation?.();
+      bulkBarAnim.stopAnimation();
       bulkBarAnim.setValue(selectionMotion.reducedMotionEnabled ? 1 : 0);
       Animated.timing(
         bulkBarAnim,
@@ -552,7 +552,7 @@ export default function TodayScreen() {
       return;
     }
 
-    bulkBarAnim.stopAnimation?.();
+    bulkBarAnim.stopAnimation();
     Animated.timing(bulkBarAnim, {
       toValue: 0,
       duration: selectionMotion.exitDuration,

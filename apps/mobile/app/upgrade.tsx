@@ -181,7 +181,7 @@ export default function UpgradeScreen() {
         {showBilling ? (
           isPlaySource ? (
             <PlayBillingDashboard
-              profile={profile ?? null}
+              profile={profile}
               locale={locale}
               usagePercent={usagePercent}
               usageProfile={usageProfile}

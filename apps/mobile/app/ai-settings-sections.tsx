@@ -347,7 +347,7 @@ function FactItem({
   onDelete,
 }: Readonly<FactItemProps>) {
   function categoryLabel(category: string | null): string {
-    const norm = normalizeUserFactCategory(category) ?? 'context'
+    const norm = normalizeUserFactCategory(category)
     return t(`profile.facts.${norm}`, { defaultValue: norm }).toUpperCase()
   }
 

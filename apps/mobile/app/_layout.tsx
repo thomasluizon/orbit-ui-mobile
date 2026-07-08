@@ -304,7 +304,7 @@ function GlobalOverlays({
     if (
       hasCompletedOnboarding &&
       profile?.hasCompletedTour &&
-      profile?.hasSeenImportPrompt &&
+      profile.hasSeenImportPrompt &&
       marketingEmailConsent === null
     ) {
       armConsentPrompt(MARKETING_CONSENT_MILESTONE_KEY)
@@ -491,7 +491,7 @@ function AppBottomTabBar({
     }
     if (id === 'chat') router.navigate('/chat')
     else if (id === 'calendar') router.navigate('/calendar')
-    else if (id === 'profile') router.navigate('/profile')
+    else router.navigate('/profile')
   }
 
   return (
