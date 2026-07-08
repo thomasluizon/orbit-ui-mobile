@@ -6,15 +6,7 @@ import {
   useEffect,
   type ReactElement,
 } from "react";
-import {
-  Animated,
-  AppState,
-  BackHandler,
-  ScrollView,
-  StyleSheet,
-  Text,
-  View,
-} from "react-native";
+import { Animated, AppState, BackHandler, StyleSheet, View } from "react-native";
 import type { FlatList } from "react-native-gesture-handler";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { useLocalSearchParams, useRouter } from "expo-router";
@@ -45,17 +37,14 @@ import { useTags } from "@/hooks/use-tags";
 import { useCoachTour } from "@/hooks/use-coach-tour";
 import { useUIStore } from "@/stores/ui-store";
 import { useReferralPromptStore } from "@/stores/referral-prompt-store";
-import { HabitList, type HabitListHandle } from "@/components/habit-list";
+import { type HabitListHandle } from "@/components/habit-list";
 import { CreateHabitModal } from "@/components/habits/create-habit-modal";
 import { HabitDetailDrawer } from "@/components/habits/habit-detail-drawer";
 import { EditHabitModal } from "@/components/habits/edit-habit-modal";
 import { BulkActionBarV2 } from "@/components/habits/bulk-action-bar-v2";
-import { GoalsView } from "@/components/goals/goals-view";
 import { CreateGoalModal } from "@/components/goals/create-goal-modal";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { GradientTop } from "@/components/ui/gradient-top";
-import { PillButton } from "@/components/ui/pill-button";
-import { SatelliteGlyph } from "@/components/ui/satellite-glyph";
 import { ScrollToTopButton } from "@/components/ui/scroll-to-top-button";
 import { TrialBanner } from "@/components/ui/trial-banner";
 import { DismissibleCard } from "@/components/today/dismissible-card";
@@ -79,9 +68,12 @@ import { useEngagementSlot } from "@/hooks/use-engagement-slot";
 import { useTourScrollContainer } from "@/hooks/use-tour-scroll-container";
 import { useTourTarget } from "@/hooks/use-tour-target";
 import { TodayHeader, TodayTabs, type TodayTabItem } from "./today-shell";
+import { buildTodayFilters } from "./today-model";
+import { useTodayViewSync } from "./use-today-view-sync";
+import { TodayScreenBody } from "./today-sections";
 
 const TAB_VIEWS = ["today", "all", "general", "goals"] as const;
-type TodayView = (typeof TAB_VIEWS)[number];
+export type TodayView = (typeof TAB_VIEWS)[number];
 
 function getMillisecondsUntilNextLocalMidnight(): number {
   const now = new Date();
@@ -182,11 +174,6 @@ export default function TodayScreen() {
   const habitListRef = useRef<HabitListHandle>(null);
   const [habitListAllCollapsed, setHabitListAllCollapsed] = useState(false);
   const [showScrollTop, setShowScrollTop] = useState(false);
-  const [prevScrollTopView, setPrevScrollTopView] = useState(currentActiveView);
-  if (currentActiveView !== prevScrollTopView) {
-    setPrevScrollTopView(currentActiveView);
-    setShowScrollTop(false);
-  }
   const handleHabitListScroll = useCallback((offsetY: number) => {
     setShowScrollTop(offsetY > 600);
   }, []);
@@ -215,11 +202,6 @@ export default function TodayScreen() {
   const [bulkBarAnim] = useState(() => new Animated.Value(isSelectMode ? 1 : 0));
   const hasAnimatedFiltersRef = useRef(false);
   const [renderBulkActionBar, setRenderBulkActionBar] = useState(isSelectMode);
-  const [prevIsSelectMode, setPrevIsSelectMode] = useState(isSelectMode);
-  if (isSelectMode !== prevIsSelectMode) {
-    setPrevIsSelectMode(isSelectMode);
-    if (isSelectMode) setRenderBulkActionBar(true);
-  }
 
   const [detailHabit, setDetailHabit] = useState<NormalizedHabit | null>(null);
   const [editHabit, setEditHabit] = useState<NormalizedHabit | null>(null);
@@ -275,13 +257,6 @@ export default function TodayScreen() {
         setShowGeneralOnToday(false);
       });
   }, []);
-
-  const [previousPinnedDateStr, setPreviousPinnedDateStr] =
-    useState<string | null>(null);
-  if (pinnedDateStr !== previousPinnedDateStr) {
-    setPreviousPinnedDateStr(pinnedDateStr);
-    if (pinnedDateStr) setActiveView("today");
-  }
 
   const frequencyOptions = useMemo<{ key: FreqKey; label: string }[]>(
     () => [
@@ -443,39 +418,27 @@ export default function TodayScreen() {
   );
 
   const dateStr = formatAPIDate(selectedDate);
-  const filters = useMemo<HabitsFilter>(() => {
-    if (currentActiveView === "general") {
-      const f: HabitsFilter = { isGeneral: true };
-      if (searchQueryStore.trim()) f.search = searchQueryStore.trim();
-      if (selectedTagIds.length > 0) f.tagIds = selectedTagIds;
-      return f;
-    }
-    if (currentActiveView === "today") {
-      const f: HabitsFilter = {
-        dateFrom: dateStr,
-        dateTo: dateStr,
-        includeOverdue: isToday(selectedDate),
-        includeGeneral: showGeneralOnToday || undefined,
-      };
-      if (searchQueryStore.trim()) f.search = searchQueryStore.trim();
-      if (selectedFrequency) f.frequencyUnit = selectedFrequency;
-      if (selectedTagIds.length > 0) f.tagIds = selectedTagIds;
-      return f;
-    }
-    const f: HabitsFilter = {};
-    if (searchQueryStore.trim()) f.search = searchQueryStore.trim();
-    if (selectedFrequency) f.frequencyUnit = selectedFrequency;
-    if (selectedTagIds.length > 0) f.tagIds = selectedTagIds;
-    return f;
-  }, [
-    currentActiveView,
-    dateStr,
-    selectedDate,
-    searchQueryStore,
-    selectedFrequency,
-    selectedTagIds,
-    showGeneralOnToday,
-  ]);
+  const filters = useMemo<HabitsFilter>(
+    () =>
+      buildTodayFilters({
+        view: currentActiveView,
+        dateStr,
+        isTodayDate: isToday(selectedDate),
+        searchQuery: searchQueryStore,
+        selectedFrequency,
+        selectedTagIds,
+        showGeneralOnToday,
+      }),
+    [
+      currentActiveView,
+      dateStr,
+      selectedDate,
+      searchQueryStore,
+      selectedFrequency,
+      selectedTagIds,
+      showGeneralOnToday,
+    ],
+  );
 
   const habitsQuery = useHabits(filters);
   const hasFetchedHabits = habitsQuery.data !== undefined;
@@ -626,11 +589,17 @@ export default function TodayScreen() {
   const setShowCreateGoalModal = useUIStore((s) => s.setShowCreateGoalModal);
   const dismissHomeEntry = useReferralPromptStore((s) => s.dismissHomeEntry);
   const [showReferral, setShowReferral] = useState(false);
-  const [prevFilters, setPrevFilters] = useState(filters);
-  if (filters !== prevFilters) {
-    setPrevFilters(filters);
-    setFilters(filters);
-  }
+
+  useTodayViewSync({
+    currentActiveView,
+    isSelectMode,
+    pinnedDateStr,
+    filters,
+    setShowScrollTop,
+    setRenderBulkActionBar,
+    setActiveView,
+    setFilters,
+  });
 
   const showSummary = currentActiveView === "today" && isToday(selectedDate);
 
@@ -997,69 +966,36 @@ export default function TodayScreen() {
 
   return (
     <View style={styles.safeArea}>
-      {currentActiveView === "goals" ? (
-        <GoalsView
-          listHeader={sharedHeader}
-          scrollRef={goalsScrollRef}
-          contentContainerStyle={
-            isSelectMode ? styles.scrollContentWithBulkBar : undefined
-          }
-          onScroll={onGoalsTourScroll}
-          onScrollBeginDrag={handleListScrollBeginDrag}
-        />
-      ) : showHabitsLoadError ? (
-        <ScrollView
-          style={styles.listShell}
-          showsVerticalScrollIndicator={false}
-        >
-          {sharedHeader}
-          <View style={styles.loadErrorState}>
-            <SatelliteGlyph size={96} />
-            <Text style={styles.loadErrorText}>{t("habits.loadError")}</Text>
-            <PillButton
-              variant="ghost"
-              style={styles.loadErrorRetry}
-              accessibilityLabel={t("common.retry")}
-              onPress={() => {
-                void habitsQuery.refetch();
-              }}
-            >
-              {t("common.retry")}
-            </PillButton>
-          </View>
-        </ScrollView>
-      ) : (
-        <Animated.View
-          ref={habitsTourRef}
-          collapsable={false}
-          testID="today-list-shell"
-          style={[styles.listShell, listAnimatedStyle]}
-        >
-          <Animated.View style={refetchAnimatedStyle}>
-            <HabitList
-              ref={habitListRef}
-              view={currentActiveView}
-              filters={filters}
-              selectedDate={
-                currentActiveView === "today" ? selectedDate : undefined
-              }
-              showCompleted={showCompleted}
-              searchQuery={searchQueryStore}
-              isSelectMode={isSelectMode}
-              selectedHabitIds={selectedHabitIds}
-              listHeader={habitsHeader}
-              onCreatePress={() => setShowCreateModal(true)}
-              onSeeUpcoming={goToNextDay}
-              onDetailHabit={setDetailHabit}
-              onEditHabit={handleEditHabit}
-              onScrollBeginDrag={handleListScrollBeginDrag}
-              onScroll={handleHabitListScroll}
-              onAllCollapsedChange={setHabitListAllCollapsed}
-              onAllLoadedIdsChange={setHabitListAllLoadedIds}
-            />
-          </Animated.View>
-        </Animated.View>
-      )}
+      <TodayScreenBody
+        currentActiveView={currentActiveView}
+        showHabitsLoadError={showHabitsLoadError}
+        sharedHeader={sharedHeader}
+        habitsHeader={habitsHeader}
+        styles={styles}
+        goalsScrollRef={goalsScrollRef}
+        habitsTourRef={habitsTourRef}
+        habitListRef={habitListRef}
+        isSelectMode={isSelectMode}
+        listAnimatedStyle={listAnimatedStyle}
+        refetchAnimatedStyle={refetchAnimatedStyle}
+        filters={filters}
+        selectedDate={selectedDate}
+        showCompleted={showCompleted}
+        searchQuery={searchQueryStore}
+        selectedHabitIds={selectedHabitIds}
+        onGoalsScroll={onGoalsTourScroll}
+        onScrollBeginDrag={handleListScrollBeginDrag}
+        onRetry={() => {
+          void habitsQuery.refetch();
+        }}
+        onCreatePress={() => setShowCreateModal(true)}
+        onSeeUpcoming={goToNextDay}
+        onDetailHabit={setDetailHabit}
+        onEditHabit={handleEditHabit}
+        onScroll={handleHabitListScroll}
+        onAllCollapsedChange={setHabitListAllCollapsed}
+        onAllLoadedIdsChange={setHabitListAllLoadedIds}
+      />
 
       {renderBulkActionBar && (
         <Animated.View
@@ -1188,7 +1124,7 @@ export default function TodayScreen() {
   );
 }
 
-function createStyles(tokens: ReturnType<typeof createTokensV2>) {
+export function createStyles(tokens: ReturnType<typeof createTokensV2>) {
   return StyleSheet.create({
     safeArea: {
       flex: 1,

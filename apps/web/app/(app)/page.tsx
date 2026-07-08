@@ -22,20 +22,13 @@ import {
   parseShowGeneralOnTodayPreference,
 } from '@orbit/shared/utils'
 import { plural } from '@/lib/plural'
-import { HabitList, type HabitListHandle } from '@/components/habits/habit-list'
+import { type HabitListHandle } from '@/components/habits/habit-list'
 import { TodayAISummary } from '@/components/habits/today-ai-summary'
 import { GoalsView } from '@/components/goals/goals-view'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { BulkActionBarV2 } from '@/components/habits/bulk-action-bar-v2'
 import { GradientTop } from '@/components/ui/gradient-top'
-import { PillButton } from '@/components/ui/pill-button'
-import { ProgressBar } from '@/components/ui/progress-bar'
-import { SatelliteGlyph } from '@/components/ui/satellite-glyph'
-import { SectionLabel } from '@/components/ui/section-label'
-import { SetupChecklistCard } from '@/components/today/setup-checklist-card'
-import { ReferralCard } from '@/components/referral/referral-card'
 import { ReferralDrawer } from '@/components/referral/referral-drawer'
-import { SocialEntryCard } from '@/components/social/social-entry-card'
 import { useTopbarSlot } from '@/components/shell/topbar-slot'
 import { useUIStore } from '@/stores/ui-store'
 import { useReferralPromptStore } from '@/stores/referral-prompt-store'
@@ -59,10 +52,17 @@ import {
   type TodayTabItem,
 } from './today-shell'
 import { useToday } from './today-provider'
+import { buildTodayFilters } from './today-model'
+import { useTodayViewSync } from './use-today-view-sync'
+import {
+  TodayEngagementCards,
+  TodayHabitsProgressHeader,
+  TodayHabitsStates,
+  TodayHabitsListShell,
+} from './today-sections'
 import type { HabitsFilter } from '@orbit/shared/types/habit'
 
 const TAB_VIEWS = ['today', 'all', 'general', 'goals'] as const
-const SKELETON_KEYS = ['sk-1', 'sk-2', 'sk-3', 'sk-4', 'sk-5'] as const
 
 export default function TodayPage() {
   const t = useTranslations()
@@ -140,11 +140,15 @@ export default function TodayPage() {
     isTodayDate: isToday(selectedDate),
   })
 
-  const [previousPinnedDateStr, setPreviousPinnedDateStr] = useState<string | null>(null)
-  if (pinnedDateStr !== previousPinnedDateStr) {
-    setPreviousPinnedDateStr(pinnedDateStr)
-    if (pinnedDateStr) setActiveView('today')
-  }
+  useTodayViewSync({
+    pinnedDateStr,
+    searchQueryStore,
+    activeView,
+    isSelectMode,
+    setActiveView,
+    setLocalSearchQuery,
+    clearSelection,
+  })
 
   type FreqKey = 'Day' | 'Week' | 'Month' | 'Year' | 'none'
   const frequencyOptions = useMemo<Array<{ key: FreqKey; label: string }>>(
@@ -234,12 +238,6 @@ export default function TodayPage() {
     }
   }, [localSearchQuery, setSearchQuery])
 
-  const [previousStoreSearch, setPreviousStoreSearch] = useState(searchQueryStore)
-  if (searchQueryStore !== previousStoreSearch) {
-    setPreviousStoreSearch(searchQueryStore)
-    setLocalSearchQuery(searchQueryStore)
-  }
-
   const toggleSearch = useCallback(() => {
     setSearchOpen((open) => {
       if (open && localSearchQuery) {
@@ -251,33 +249,19 @@ export default function TodayPage() {
 
   const dateStr = formatAPIDate(selectedDate)
 
-  const filters = useMemo<HabitsFilter>(() => {
-    if (currentActiveView === 'general') {
-      const f: HabitsFilter = { isGeneral: true }
-      if (searchQueryStore.trim()) f.search = searchQueryStore.trim()
-      if (selectedTagIds.length > 0) f.tagIds = selectedTagIds
-      return f
-    }
-
-    if (currentActiveView === 'today') {
-      const f: HabitsFilter = {
-        dateFrom: dateStr,
-        dateTo: dateStr,
-        includeOverdue: isToday(selectedDate),
-        includeGeneral: showGeneralOnToday || undefined,
-      }
-      if (searchQueryStore.trim()) f.search = searchQueryStore.trim()
-      if (selectedFrequency) f.frequencyUnit = selectedFrequency
-      if (selectedTagIds.length > 0) f.tagIds = selectedTagIds
-      return f
-    }
-
-    const f: HabitsFilter = {}
-    if (searchQueryStore.trim()) f.search = searchQueryStore.trim()
-    if (selectedFrequency) f.frequencyUnit = selectedFrequency
-    if (selectedTagIds.length > 0) f.tagIds = selectedTagIds
-    return f
-  }, [currentActiveView, dateStr, selectedDate, searchQueryStore, selectedFrequency, selectedTagIds, showGeneralOnToday])
+  const filters = useMemo<HabitsFilter>(
+    () =>
+      buildTodayFilters({
+        view: currentActiveView,
+        dateStr,
+        isTodayDate: isToday(selectedDate),
+        searchQuery: searchQueryStore,
+        selectedFrequency,
+        selectedTagIds,
+        showGeneralOnToday,
+      }),
+    [currentActiveView, dateStr, selectedDate, searchQueryStore, selectedFrequency, selectedTagIds, showGeneralOnToday],
+  )
 
   const habitsQuery = useHabits(filters)
   const habitsById = habitsQuery.data?.habitsById ?? EMPTY_HABITS_BY_ID
@@ -329,12 +313,6 @@ export default function TodayPage() {
       setActiveView('today')
     }
   }, [activeView, hasProAccess, setActiveView])
-
-  const [previousActiveView, setPreviousActiveView] = useState(activeView)
-  if (activeView !== previousActiveView) {
-    setPreviousActiveView(activeView)
-    if (isSelectMode) clearSelection()
-  }
 
   const toggleTagFilter = useCallback((tagId: string) => {
     const idx = selectedTagIds.indexOf(tagId)
@@ -435,32 +413,12 @@ export default function TodayPage() {
           <TodayAISummary date={formatAPIDate(selectedDate)} />
         )}
 
-        <div>
-          <AnimatePresence initial={false}>
-            {engagementSlot === 'referral' && (
-              <motion.div
-                key="engagement-referral"
-                exit={{ opacity: 0, y: -4 }}
-                transition={engagementExitTransition}
-              >
-                <ReferralCard
-                  onOpen={() => setShowReferral(true)}
-                  onDismiss={dismissHomeEntry}
-                />
-              </motion.div>
-            )}
-
-            {engagementSlot === 'socialEntry' && (
-              <motion.div
-                key="engagement-social-entry"
-                exit={{ opacity: 0, y: -4 }}
-                transition={engagementExitTransition}
-              >
-                <SocialEntryCard />
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
+        <TodayEngagementCards
+          engagementSlot={engagementSlot}
+          exitTransition={engagementExitTransition}
+          onOpenReferral={() => setShowReferral(true)}
+          onDismissReferral={dismissHomeEntry}
+        />
       </div>
 
       <div className="md:hidden">
@@ -493,44 +451,12 @@ export default function TodayPage() {
           role="tabpanel"
           aria-labelledby={`tab-${currentActiveView}`}
         >
-          <div className="md:hidden">
-            <SectionLabel
-              top={20}
-              bottom={showDayProgress ? 6 : 0}
-              trailing={
-                showDayProgress ? (
-                  <span className="t-meta">
-                    {dayProgress.done}/{dayProgress.total}
-                  </span>
-                ) : undefined
-              }
-            >
-              {t('habits.sectionLabel')}
-            </SectionLabel>
-          </div>
-
-          {showDayProgress && (
-            <div className="md:hidden" style={{ padding: '0 20px 6px' }}>
-              <ProgressBar
-                progress={dayProgress.done / dayProgress.total}
-                label={`${dayProgress.done}/${dayProgress.total} ${t('habits.completed')}`}
-              />
-            </div>
-          )}
-
-          <div>
-            <AnimatePresence initial={false}>
-              {engagementSlot === 'setupChecklist' && (
-                <motion.div
-                  key="engagement-setup-checklist"
-                  exit={{ opacity: 0, y: -4 }}
-                  transition={engagementExitTransition}
-                >
-                  <SetupChecklistCard />
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
+          <TodayHabitsProgressHeader
+            showDayProgress={showDayProgress}
+            dayProgress={dayProgress}
+            engagementSlot={engagementSlot}
+            exitTransition={engagementExitTransition}
+          />
 
           <motion.div layout transition={listTransition} data-testid="today-utility-row">
             <TodayUtilityRow
@@ -557,151 +483,35 @@ export default function TodayPage() {
             />
           </motion.div>
 
-          {showLoadError && (
-            <div className="flex flex-col items-center px-6 py-12 text-center">
-              <SatelliteGlyph />
-              <p
-                style={{
-                  fontFamily: 'var(--font-sans)',
-                  fontSize: 14,
-                  color: 'var(--fg-3)',
-                  lineHeight: 1.5,
-                  maxWidth: 280,
-                  marginTop: 14,
-                }}
-              >
-                {t('habits.loadError')}
-              </p>
-              <PillButton
-                variant="ghost"
-                className="mt-[22px]"
-                onClick={() => {
-                  void habitsQuery.refetch()
-                }}
-              >
-                {t('common.retry')}
-              </PillButton>
-            </div>
-          )}
+          <TodayHabitsStates
+            showLoadError={showLoadError}
+            onRetry={() => {
+              void habitsQuery.refetch()
+            }}
+            hasFetched={hasFetched}
+            isRefetching={isRefetching}
+            listTransition={listTransition}
+          />
 
-          {!hasFetched && !showLoadError && (
-            <div className="stagger-enter" style={{ padding: '12px 20px 8px' }}>
-              {SKELETON_KEYS.map((key) => (
-                <div
-                  key={key}
-                  className="flex items-center skeleton-pulse"
-                  style={{
-                    padding: '14px 16px',
-                    gap: 14,
-                    borderRadius: 18,
-                    background: 'var(--bg-card)',
-                    boxShadow: 'inset 0 0 0 1px var(--hairline)',
-                    marginBottom: 10,
-                  }}
-                >
-                  <div
-                    className="shrink-0"
-                    style={{
-                      width: 46,
-                      height: 46,
-                      borderRadius: 14,
-                      background: 'color-mix(in srgb, var(--fg-1) 8%, transparent)',
-                    }}
-                  />
-                  <div className="flex-1 flex flex-col" style={{ gap: 8 }}>
-                    <div
-                      style={{
-                        width: '55%',
-                        height: 12,
-                        borderRadius: 6,
-                        background: 'color-mix(in srgb, var(--fg-1) 8%, transparent)',
-                      }}
-                    />
-                    <div
-                      style={{
-                        width: '32%',
-                        height: 12,
-                        borderRadius: 6,
-                        background: 'color-mix(in srgb, var(--fg-1) 8%, transparent)',
-                      }}
-                    />
-                  </div>
-                  <div
-                    className="rounded-full shrink-0"
-                    style={{
-                      width: 30,
-                      height: 30,
-                      background: 'color-mix(in srgb, var(--fg-1) 8%, transparent)',
-                    }}
-                  />
-                </div>
-              ))}
-            </div>
-          )}
-
-          <AnimatePresence initial={false}>
-            {isRefetching ? (
-              <motion.div
-                key="today-refetch-indicator"
-                className="overflow-hidden px-5 pt-1 origin-top"
-                style={{ height: 8 }}
-                initial={{ opacity: 0, scaleY: 0 }}
-                animate={{ opacity: 1, scaleY: 1 }}
-                exit={{ opacity: 0, scaleY: 0 }}
-                transition={listTransition}
-              >
-                <motion.div
-                  data-testid="today-refetch-indicator"
-                  className="loading-bar h-1 w-full rounded-full origin-center"
-                  initial={{ opacity: 0.7, scaleX: 0.92 }}
-                  animate={{ opacity: 1, scaleX: 1 }}
-                  exit={{ opacity: 0, scaleX: 0.96 }}
-                  transition={listTransition}
-                />
-              </motion.div>
-            ) : null}
-          </AnimatePresence>
-
-          {hasFetched && (
-            <motion.div
-              layout
-              data-testid="today-list-shell"
-              className={`overflow-x-hidden overflow-y-visible ${
-                isSelectMode ? 'pb-48 md:pb-32' : ''
-              }`}
-              animate={{
-                opacity: isRefetching ? 0.78 : 1,
-                y: isRefetching ? Math.round(listMotionPreset.shift / 2) : 0,
-                scale: isRefetching ? 0.995 : 1,
-              }}
-              transition={listTransition}
-            >
-              <HabitList
-                ref={habitListRef}
-                view={
-                  currentActiveView === 'today' ||
-                  currentActiveView === 'all' ||
-                  currentActiveView === 'general'
-                    ? currentActiveView
-                    : 'today'
-                }
-                selectedDate={selectedDate}
-                showCompleted={showCompleted}
-                isSelectMode={isSelectMode}
-                selectedHabitIds={selectedHabitIds}
-                searchQuery={searchQueryStore}
-                filters={filters}
-                onToggleSelection={handleToggleSelection}
-                onEnterSelectMode={(habitId) => {
-                  if (!isSelectMode) toggleSelectMode()
-                  handleToggleSelection(habitId)
-                }}
-                onCreate={() => setShowCreateModal(true)}
-                onSeeUpcoming={goToNextDay}
-                onAllCollapsedChange={setHabitListAllCollapsed}
-              />
-            </motion.div>
-          )}
+          <TodayHabitsListShell
+            hasFetched={hasFetched}
+            isRefetching={isRefetching}
+            refetchShift={Math.round(listMotionPreset.shift / 2)}
+            listTransition={listTransition}
+            isSelectMode={isSelectMode}
+            habitListRef={habitListRef}
+            view={currentActiveView}
+            selectedDate={selectedDate}
+            showCompleted={showCompleted}
+            selectedHabitIds={selectedHabitIds}
+            searchQuery={searchQueryStore}
+            filters={filters}
+            onToggleSelection={handleToggleSelection}
+            onToggleSelectMode={toggleSelectMode}
+            onCreate={() => setShowCreateModal(true)}
+            onSeeUpcoming={goToNextDay}
+            onAllCollapsedChange={setHabitListAllCollapsed}
+          />
         </div>
       )}
 
