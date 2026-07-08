@@ -9,6 +9,7 @@ import {
   type LucideProps,
 } from 'lucide-react'
 import { AppLogo } from '@/components/ui/app-logo'
+import { resolveSidebarSectionRowPresentation } from '@/components/navigation/app-sidebar-presentation'
 
 export interface SidebarNavItem {
   id: string
@@ -178,6 +179,12 @@ function SidebarSectionRow({
   const subListId = useId()
   const childrenOwnActiveHighlight = hasChildren && !collapsed
   const parentActive = childrenOwnActiveHighlight ? false : section.active
+  const {
+    className: sectionButtonClassName,
+    style: sectionButtonStyle,
+    iconStrokeWidth,
+    iconColor,
+  } = resolveSidebarSectionRowPresentation({ collapsed, parentActive })
 
   return (
     <div className="flex flex-col" style={{ gap: 2 }}>
@@ -189,28 +196,10 @@ function SidebarSectionRow({
         aria-controls={hasChildren && !collapsed ? subListId : undefined}
         title={collapsed ? section.label : undefined}
         data-tooltip={collapsed ? section.label : undefined}
-        className={
-          'relative flex items-center rounded-[12px] transition-[background-color,color] duration-[160ms] ease-[var(--ease-standard)] ' +
-          (parentActive
-            ? 'text-[var(--primary)]'
-            : 'text-[var(--fg-3)] hover:bg-[var(--bg-elev)] hover:text-[var(--fg-1)]')
-        }
-        style={{
-          minHeight: 44,
-          gap: collapsed ? 0 : 12,
-          paddingInline: collapsed ? 0 : 12,
-          justifyContent: collapsed ? 'center' : 'flex-start',
-          background: parentActive ? 'var(--selection-bg)' : undefined,
-          fontFamily: 'var(--font-sans)',
-          fontSize: 15,
-          fontWeight: parentActive ? 500 : 400,
-        }}
+        className={sectionButtonClassName}
+        style={sectionButtonStyle}
       >
-        <Icon
-          size={22}
-          strokeWidth={parentActive ? 2.2 : 1.8}
-          color={parentActive ? 'var(--primary)' : 'currentColor'}
-        />
+        <Icon size={22} strokeWidth={iconStrokeWidth} color={iconColor} />
         {!collapsed && (
           <span className="sidebar-label-fade flex-1 truncate text-left">{section.label}</span>
         )}
