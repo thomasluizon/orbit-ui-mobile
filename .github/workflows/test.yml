@@ -99,3 +99,29 @@ jobs:
             exit 1
           fi
           echo "Design token guard passed."
+
+  contract-drift:
+    name: Contract Drift
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Regenerate Zod contract snapshot from orbit-api main
+        run: npm run generate:zod -w @orbit/shared
+
+      - name: Fail if the API contract drifted from the committed snapshot
+        run: |
+          if ! git diff --quiet -- packages/shared/src/types/__generated__/api.generated.ts; then
+            echo "::error::API contract drift: orbit-api's OpenAPI spec changed since the committed Zod snapshot was last regenerated. Review the orbit-api change, hand-update packages/shared/src/types/* if the contract you consume changed, then run 'npm run generate:zod -w @orbit/shared' and commit the updated api.generated.ts to re-baseline. See packages/shared/CONTRACT_DRIFT.md."
+            git diff -- packages/shared/src/types/__generated__/api.generated.ts
+            exit 1
+          fi
+          echo "No contract drift: committed snapshot matches orbit-api main."
