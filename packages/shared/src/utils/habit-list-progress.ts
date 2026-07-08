@@ -30,7 +30,7 @@ export function buildHabitDateBuckets(
       continue
     }
 
-    const due = habit.dueDate ?? ''
+    const due = habit.dueDate
     if (!due) {
       const group = groups.get('') ?? []
       group.push(habit)
