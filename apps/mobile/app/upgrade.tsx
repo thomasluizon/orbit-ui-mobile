@@ -10,8 +10,6 @@ import { useTranslation } from 'react-i18next'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { API } from '@orbit/shared/api'
 import {
-  applySubscriptionDiscount,
-  formatPrice,
   getFriendlyErrorMessage,
   playManageSubscriptionUrl,
 } from '@orbit/shared/utils'
@@ -30,6 +28,10 @@ import { useOffline } from '@/hooks/use-offline'
 import { OfflineUnavailableState } from '@/components/ui/offline-unavailable-state'
 import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 import { getUpgradeFallbackRoute } from '@/lib/upgrade-route'
+import {
+  resolveUpgradeProPanelVisibility,
+  resolveUpgradeSelectedCharge,
+} from '@/app/upgrade-model'
 import { AppBar } from '@/components/ui/app-bar'
 import { GradientTop } from '@/components/ui/gradient-top'
 import { BillingDashboard } from '@/components/upgrade/billing-dashboard'
@@ -96,17 +98,20 @@ export default function UpgradeScreen() {
       }
     : null
 
-  const showsProPanel =
-    showBilling && !isPlaySource && !billing && !isBillingLoading && !isBillingError
-  const showGradient = !showBilling || showsProPanel
+  const { showGradient } = resolveUpgradeProPanelVisibility({
+    showBilling,
+    isPlaySource,
+    hasBillingData: Boolean(billing),
+    isBillingLoading,
+    isBillingError,
+  })
 
-  const selectedCharge = plans
-    ? selectedInterval === 'yearly'
-      ? playBilling.yearlyOffer?.displayPrice ??
-        formatPrice(applySubscriptionDiscount(plans.yearly.unitAmount, plans.couponPercentOff), plans.currency)
-      : playBilling.monthlyOffer?.displayPrice ??
-        formatPrice(applySubscriptionDiscount(plans.monthly.unitAmount, plans.couponPercentOff), plans.currency)
-    : ''
+  const selectedCharge = resolveUpgradeSelectedCharge({
+    plans,
+    selectedInterval,
+    yearlyDisplayPrice: playBilling.yearlyOffer?.displayPrice,
+    monthlyDisplayPrice: playBilling.monthlyOffer?.displayPrice,
+  })
   const priceEcho = plans
     ? `${t(`upgrade.plans.${selectedInterval}.name`)} · ${selectedCharge}${t(`upgrade.plans.${selectedInterval}.period`)}`
     : ''
