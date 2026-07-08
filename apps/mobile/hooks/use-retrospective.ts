@@ -38,7 +38,7 @@ export function useRetrospective() {
 
     try {
       const response = await apiClient<RetrospectiveResponse>(
-        buildRetrospectiveRequestUrl(period, i18n.language ?? 'en'),
+        buildRetrospectiveRequestUrl(period, i18n.language),
       )
       if (isStale()) return
       setData(response)

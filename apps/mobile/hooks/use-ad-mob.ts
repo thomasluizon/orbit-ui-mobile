@@ -327,7 +327,7 @@ export function useAdMob() {
         current
           ? {
               ...current,
-              adRewardsClaimedToday: (current.adRewardsClaimedToday ?? 0) + 1,
+              adRewardsClaimedToday: current.adRewardsClaimedToday + 1,
             }
           : current,
     )

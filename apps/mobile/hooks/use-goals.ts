@@ -108,11 +108,9 @@ export function useCreateGoal() {
     },
 
     onSuccess: (result, _data, context) => {
-      if (context?.request) {
-        pendingCreateGoalIds.delete(context.request)
-      }
+      pendingCreateGoalIds.delete(context.request)
       if (isQueuedResult(result)) return
-      if (!context?.tempId) return
+      if (!context.tempId) return
 
       queryClient.setQueriesData<Goal[]>(
         { queryKey: goalKeys.lists() },

@@ -77,11 +77,11 @@ async function* streamTextChunks(
   const reader = body.getReader();
   const decoder = new TextDecoder();
   try {
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
+    let chunk = await reader.read();
+    while (!chunk.done) {
       onActivity();
-      if (value) yield decoder.decode(value, { stream: true });
+      if (chunk.value) yield decoder.decode(chunk.value, { stream: true });
+      chunk = await reader.read();
     }
   } finally {
     reader.releaseLock();
@@ -407,7 +407,7 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
           current
             ? {
                 ...current,
-                aiMessagesUsed: (current.aiMessagesUsed ?? 0) + 1,
+                aiMessagesUsed: current.aiMessagesUsed + 1,
               }
             : current,
         );
