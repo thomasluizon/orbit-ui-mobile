@@ -12,6 +12,7 @@ import {
 import Clipboard from '@react-native-clipboard/clipboard'
 import { Check, Copy, Gift, Share2 } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
+import type { ReferralStats } from '@orbit/shared/types/referral'
 import { useReferral } from '@/hooks/use-referral'
 import { BottomSheetModal } from '@/components/bottom-sheet-modal'
 import { withDrawerContentInset } from '@/components/ui/drawer-content-inset'
@@ -26,6 +27,56 @@ import { useAppTheme } from '@/lib/use-app-theme'
 interface ReferralDrawerProps {
   open: boolean
   onClose: () => void
+}
+
+interface ReferralStatsSectionProps {
+  stats: ReferralStats
+  tokens: ReturnType<typeof createTokensV2>
+  styles: ReturnType<typeof createStyles>
+}
+
+function ReferralStatsSection({
+  stats,
+  tokens,
+  styles,
+}: Readonly<ReferralStatsSectionProps>) {
+  const { t } = useTranslation()
+
+  return (
+    <View>
+      <SettingsRow
+        label={t('referral.drawer.completed')}
+        value={`${stats.successfulReferrals} / ${stats.maxReferrals}`}
+        mono
+        accessory="none"
+        valueColor={tokens.fg1}
+      />
+      {stats.pendingReferrals > 0 ? (
+        <SettingsRow
+          label={t('referral.drawer.pending')}
+          value={String(stats.pendingReferrals)}
+          mono
+          accessory="none"
+          valueColor={tokens.fg1}
+        />
+      ) : null}
+      {stats.successfulReferrals > 0 ? (
+        <SettingsRow
+          label={t('referral.drawer.couponsEarned')}
+          value={String(stats.successfulReferrals)}
+          mono
+          accessory="none"
+          valueColor={tokens.statusDone}
+        />
+      ) : null}
+      <View style={styles.progressBlock}>
+        <ProgressBar
+          progress={stats.successfulReferrals / stats.maxReferrals}
+          label={t('referral.drawer.completed')}
+        />
+      </View>
+    </View>
+  )
 }
 
 /** Referral sheet: hero icon disc, mono link well with copy, primary share pill,
@@ -148,39 +199,11 @@ export function ReferralDrawer({ open, onClose }: Readonly<ReferralDrawerProps>)
             </View>
 
             {stats ? (
-              <View>
-                <SettingsRow
-                  label={t('referral.drawer.completed')}
-                  value={`${stats.successfulReferrals} / ${stats.maxReferrals}`}
-                  mono
-                  accessory="none"
-                  valueColor={tokens.fg1}
-                />
-                {stats.pendingReferrals > 0 ? (
-                  <SettingsRow
-                    label={t('referral.drawer.pending')}
-                    value={String(stats.pendingReferrals)}
-                    mono
-                    accessory="none"
-                    valueColor={tokens.fg1}
-                  />
-                ) : null}
-                {stats.successfulReferrals > 0 ? (
-                  <SettingsRow
-                    label={t('referral.drawer.couponsEarned')}
-                    value={String(stats.successfulReferrals)}
-                    mono
-                    accessory="none"
-                    valueColor={tokens.statusDone}
-                  />
-                ) : null}
-                <View style={styles.progressBlock}>
-                  <ProgressBar
-                    progress={stats.successfulReferrals / stats.maxReferrals}
-                    label={t('referral.drawer.completed')}
-                  />
-                </View>
-              </View>
+              <ReferralStatsSection
+                stats={stats}
+                tokens={tokens}
+                styles={styles}
+              />
             ) : null}
 
             <View style={styles.gutter}>
