@@ -7,6 +7,7 @@ import { ChevronRight, X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { plural } from '@/lib/plural'
 import { useProfile, useTrialDaysLeft, useTrialUrgent } from '@/hooks/use-profile'
+import { resolveTrialBannerColors } from '@/components/ui/trial-banner-colors'
 
 export function TrialBanner() {
   const t = useTranslations()
@@ -17,6 +18,7 @@ export function TrialBanner() {
   const shouldReduceMotion = useReducedMotion()
 
   const visible = profile?.isTrialActive && !dismissed
+  const bannerColors = resolveTrialBannerColors(!!trialUrgent)
 
   return (
     <AnimatePresence initial={false}>
@@ -31,12 +33,8 @@ export function TrialBanner() {
           style={{
             padding: '9px 14px',
             gap: 12,
-            background: trialUrgent
-              ? 'color-mix(in srgb, var(--status-overdue) 10%, transparent)'
-              : 'rgba(var(--primary-rgb), 0.08)',
-            boxShadow: trialUrgent
-              ? 'inset 0 0 0 1px color-mix(in srgb, var(--status-overdue) 28%, transparent)'
-              : 'inset 0 0 0 1px rgba(var(--primary-rgb), 0.18)',
+            background: bannerColors.background,
+            boxShadow: bannerColors.boxShadow,
           }}
         >
           <span
@@ -77,7 +75,7 @@ export function TrialBanner() {
               fontFamily: 'var(--font-sans)',
               fontSize: 13,
               fontWeight: 500,
-              color: trialUrgent ? 'var(--status-overdue-text)' : 'var(--primary-soft)',
+              color: bannerColors.accentColor,
               padding: '0 4px',
             }}
           >
@@ -92,7 +90,7 @@ export function TrialBanner() {
               width: 40,
               height: 40,
               margin: '-10px -8px',
-              color: trialUrgent ? 'var(--status-overdue)' : 'var(--fg-3)',
+              color: bannerColors.dismissColor,
             }}
             onClick={() => setDismissed(true)}
           >

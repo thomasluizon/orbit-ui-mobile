@@ -16,6 +16,7 @@ import { useAssignTags } from '@/hooks/use-tags'
 import {
   applyHabitFormMode,
   buildEditHabitFormState,
+  coalesceFormText,
   getFriendlyErrorMessage,
   toggleSelectedId,
 } from '@orbit/shared/utils'
@@ -57,7 +58,7 @@ export function EditHabitModal({
   const [initialGoalIds, setInitialGoalIds] = useState('[]')
   const [initialReminderTimes, setInitialReminderTimes] = useState('[0,15]')
 
-  const watchedTitle = formHelpers.form.watch('title') ?? ''
+  const watchedTitle = coalesceFormText(formHelpers.form.watch('title'))
 
   const atGoalLimit = selectedGoalIds.length >= MAX_GOALS_PER_HABIT
   const isDirty =

@@ -11,12 +11,7 @@ import {
   type OnboardingDraftState,
   type PersistedOnboardingDraft,
 } from '@orbit/shared/stores'
-
-const noopStorage = {
-  getItem: () => null,
-  setItem: () => {},
-  removeItem: () => {},
-}
+import { getPersistStorage } from '@/lib/persist-storage'
 
 export const useOnboardingDraftStore = create<OnboardingDraftState>()(
   persist(
@@ -28,11 +23,7 @@ export const useOnboardingDraftStore = create<OnboardingDraftState>()(
     {
       name: 'orbit-onboarding-draft',
       version: ONBOARDING_DRAFT_STORAGE_VERSION,
-      storage: createJSONStorage<PersistedOnboardingDraft>(() =>
-        globalThis.localStorage === undefined
-          ? noopStorage
-          : globalThis.localStorage,
-      ),
+      storage: createJSONStorage<PersistedOnboardingDraft>(getPersistStorage),
       migrate: migrateOnboardingDraft,
       partialize: getPersistedOnboardingDraft,
       skipHydration: true,

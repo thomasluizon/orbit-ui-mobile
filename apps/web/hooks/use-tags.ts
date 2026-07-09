@@ -168,7 +168,7 @@ export function useCreateTag() {
     },
 
     onSuccess: (result, _vars, context) => {
-      if (!context?.tempId) return
+      if (!context.tempId) return
 
       syncCreatedTagId(queryClient, context.tempId, result.id)
     },

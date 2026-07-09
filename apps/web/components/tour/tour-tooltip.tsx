@@ -206,7 +206,7 @@ export function TourTooltip({
   const [pos, setPos] = useState<{ top: number; left: number } | null>(null)
   const [mode, setMode] = useState<'float' | 'sheet-top' | 'sheet-bottom'>('sheet-bottom')
 
-  const iconKey = step.section ? TOUR_SECTION_ICONS[step.section] : undefined
+  const iconKey = TOUR_SECTION_ICONS[step.section]
   const SectionIcon = iconKey
     ? SECTION_ICON_MAP[iconKey as keyof typeof SECTION_ICON_MAP]
     : undefined

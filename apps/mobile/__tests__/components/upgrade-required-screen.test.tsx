@@ -84,7 +84,7 @@ vi.mock('@/stores/version-gate-store', () => ({
 
 function findPressables(root: TestTreeRoot): TestNode[] {
   return root.findAll(
-    (node) => node.props != null && typeof node.props.onPress === 'function',
+    (node) => typeof node.props.onPress === 'function',
   )
 }
 

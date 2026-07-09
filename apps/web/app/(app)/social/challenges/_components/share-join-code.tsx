@@ -27,7 +27,7 @@ export function ShareJoinCode({ title, joinCode }: Readonly<ShareJoinCodeProps>)
   }
 
   async function shareCode() {
-    if (!navigator.share) {
+    if (!('share' in navigator)) {
       await copyCode()
       return
     }

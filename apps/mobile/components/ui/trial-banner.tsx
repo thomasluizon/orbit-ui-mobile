@@ -10,18 +10,11 @@ import {
   useTrialUrgent,
 } from '@/hooks/use-profile'
 import { plural } from '@/lib/plural'
-import { createTokensV2, tintFromPrimary, type AppTokensV2 } from '@/lib/theme'
+import { createTokensV2, type AppTokensV2 } from '@/lib/theme'
 import { buildUpgradeHref } from '@/lib/upgrade-route'
 import { toAnimatedEasing } from '@/lib/motion'
 import { useAppTheme } from '@/lib/use-app-theme'
-
-function rgbaFromHex(hex: string, alpha: number): string {
-  const normalized = hex.replace('#', '')
-  const r = Number.parseInt(normalized.slice(0, 2), 16)
-  const g = Number.parseInt(normalized.slice(2, 4), 16)
-  const b = Number.parseInt(normalized.slice(4, 6), 16)
-  return `rgba(${r}, ${g}, ${b}, ${alpha})`
-}
+import { resolveTrialBannerColors } from '@/components/ui/trial-banner-colors'
 
 /**
  * Trial strip: slim primary-tinted band with Rubik lead text, tabular
@@ -58,21 +51,11 @@ export function TrialBanner() {
   const visible = profile?.isTrialActive && !dismissed
   if (!visible) return null
 
+  const bannerColors = resolveTrialBannerColors(!!trialUrgent, tokens)
+
   return (
     <Animated.View
-      style={[
-        styles.container,
-        { opacity },
-        trialUrgent
-          ? {
-              backgroundColor: rgbaFromHex(tokens.statusOverdue, 0.1),
-              borderColor: rgbaFromHex(tokens.statusOverdue, 0.28),
-            }
-          : {
-              backgroundColor: tintFromPrimary(tokens, 0.08),
-              borderColor: tintFromPrimary(tokens, 0.18),
-            },
-      ]}
+      style={[styles.container, { opacity }, bannerColors.container]}
       accessibilityRole="alert"
     >
       <Text style={styles.leadText}>
@@ -101,17 +84,14 @@ export function TrialBanner() {
         ]}
       >
         <Text
-          style={[
-            styles.upgradeText,
-            { color: trialUrgent ? tokens.statusOverdueText : tokens.primarySoft },
-          ]}
+          style={[styles.upgradeText, { color: bannerColors.accentColor }]}
         >
           {t('trial.banner.upgrade')}
         </Text>
         <ChevronRight
           size={14}
           strokeWidth={2.2}
-          color={trialUrgent ? tokens.statusOverdue : tokens.primarySoft}
+          color={bannerColors.chevronColor}
         />
       </Pressable>
       <Pressable
@@ -127,7 +107,7 @@ export function TrialBanner() {
         <X
           size={18}
           strokeWidth={1.8}
-          color={trialUrgent ? tokens.statusOverdue : tokens.fg3}
+          color={bannerColors.dismissColor}
         />
       </Pressable>
     </Animated.View>

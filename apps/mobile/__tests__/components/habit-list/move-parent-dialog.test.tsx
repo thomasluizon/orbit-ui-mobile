@@ -177,7 +177,8 @@ describe('MoveParentDialog', () => {
         node.props.accessibilityRole === 'button' &&
         typeof node.props.onPress === 'function' &&
         'busy' in
-          ((node.props.accessibilityState as Record<string, unknown>) ?? {}),
+          ((node.props.accessibilityState as Record<string, unknown> | undefined) ??
+            {}),
     )
     const confirmPill = footerPills.find((pill) =>
       flattenInstanceText(pill).includes('habits.moveParent.confirm'),

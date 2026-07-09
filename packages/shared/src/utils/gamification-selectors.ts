@@ -82,7 +82,7 @@ export function getEarnedAchievements(
       ...achievement,
       earnedAtUtc: earnedMap.get(achievement.id) ?? '',
     }))
-    .sort((left, right) => (right.earnedAtUtc ?? '').localeCompare(left.earnedAtUtc ?? ''))
+    .sort((left, right) => right.earnedAtUtc.localeCompare(left.earnedAtUtc))
 }
 
 export function getLockedAchievements(

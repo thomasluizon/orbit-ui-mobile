@@ -139,9 +139,7 @@ export function TourReplayModal({ visible, onClose }: TourReplayModalProps) {
                   accessibilityRole="button"
                 >
                   <View style={styles.sectionIconSlot}>
-                    {Icon ? (
-                      <Icon size={22} color={tokens.fg1} strokeWidth={1.8} />
-                    ) : null}
+                    <Icon size={22} color={tokens.fg1} strokeWidth={1.8} />
                   </View>
                   <View style={styles.sectionBody}>
                     <Text style={styles.sectionTitle}>

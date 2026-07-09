@@ -4,6 +4,7 @@ import Svg, { Circle } from 'react-native-svg'
 import { createTokensV2, easings } from '@/lib/theme'
 import { toAnimatedEasing } from '@/lib/motion'
 import { useAppTheme } from '@/lib/use-app-theme'
+import { resolveStatusDotFill } from '@/components/ui/status-dot-fill'
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle)
 
@@ -135,9 +136,7 @@ export function StatusDot({
         width: size,
         height: size,
         borderRadius: 999,
-        backgroundColor: isFilled ? color : 'transparent',
-        borderWidth: isFilled ? 0 : 1.5,
-        borderColor: isFilled ? 'transparent' : color,
+        ...resolveStatusDotFill(isFilled, color),
       }}
     />
   )

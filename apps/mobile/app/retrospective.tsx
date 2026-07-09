@@ -135,7 +135,7 @@ export default function RetrospectiveScreen() {
       const portal = await apiClient<{ url?: string }>(API.subscription.portal, {
         method: 'POST',
       })
-      if (portal?.url) {
+      if (portal.url) {
         await Linking.openURL(portal.url)
       }
     } catch (err: unknown) {
@@ -215,7 +215,7 @@ export default function RetrospectiveScreen() {
         {isLoaded && hasProAccess && !isYearlyPro ? (
           <RetrospectiveLockedYearly
             tokens={tokens}
-            isTrialActive={!!profile?.isTrialActive}
+            isTrialActive={!!profile.isTrialActive}
             isOnline={isOnline}
             portalError={portalError}
             onSubscribe={() => router.push(buildUpgradeHref('/retrospective'))}

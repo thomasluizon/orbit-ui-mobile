@@ -64,7 +64,7 @@ function findInputByAccessibilityLabel(tree: ReturnType<typeof renderBreakdown>,
   return tree.root.findAll(
     (node) =>
       node.props?.accessibilityLabel === label &&
-      typeof node.props?.onChangeText === 'function',
+      typeof node.props.onChangeText === 'function',
   )
 }
 

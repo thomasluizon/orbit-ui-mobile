@@ -7,12 +7,7 @@ import {
   type EngagementPromptStoreState,
   type PersistedEngagementPromptState,
 } from '@orbit/shared/stores'
-
-const noopStorage = {
-  getItem: () => null,
-  setItem: () => {},
-  removeItem: () => {},
-}
+import { getPersistStorage } from '@/lib/persist-storage'
 
 export const useEngagementPromptStore = create<EngagementPromptStoreState>()(
   persist(
@@ -23,11 +18,7 @@ export const useEngagementPromptStore = create<EngagementPromptStoreState>()(
     {
       name: 'orbit-referral-prompt-store',
       version: 1,
-      storage: createJSONStorage<PersistedEngagementPromptState>(() =>
-        globalThis.localStorage === undefined
-          ? noopStorage
-          : globalThis.localStorage,
-      ),
+      storage: createJSONStorage<PersistedEngagementPromptState>(getPersistStorage),
       migrate: migratePersistedEngagementPromptState,
       partialize: getPersistedEngagementPromptState,
       skipHydration: true,

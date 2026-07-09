@@ -18,7 +18,7 @@ export { optimisticPatchHabit } from '@orbit/shared/utils'
 function toggleHabitCompletion(item: HabitScheduleItem): HabitScheduleItem {
   const wasCompleted = item.isCompleted
   const updated = { ...item, isCompleted: !item.isCompleted }
-  if (!wasCompleted && item.frequencyUnit && item.checklistItems?.length > 0) {
+  if (!wasCompleted && item.frequencyUnit && item.checklistItems.length > 0) {
     updated.checklistItems = item.checklistItems.map((entry) => ({
       ...entry,
       isChecked: false,
@@ -34,7 +34,7 @@ function toggleChildCompletion(
   if (child.id === habitId) {
     const wasCompleted = child.isCompleted
     const updated = { ...child, isCompleted: !child.isCompleted }
-    if (!wasCompleted && child.frequencyUnit && child.checklistItems?.length > 0) {
+    if (!wasCompleted && child.frequencyUnit && child.checklistItems.length > 0) {
       updated.checklistItems = child.checklistItems.map((entry) => ({
         ...entry,
         isChecked: false,

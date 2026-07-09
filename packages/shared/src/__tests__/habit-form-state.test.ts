@@ -114,6 +114,7 @@ describe('habit-form-state', () => {
         frequencyUnit: 'Week',
         frequencyQuantity: 3,
         reminderTimes: [30],
+        dueDate: '2025-06-20',
       }),
       '2025-01-05',
     )
@@ -123,6 +124,19 @@ describe('habit-form-state', () => {
     expect(state.reminderTimes).toEqual([30])
     expect(state.selectedTagIds).toEqual(['tag-1'])
     expect(state.selectedGoalIds).toEqual(['goal-1'])
+  })
+
+  it('seeds sub-habit dueDate from the provided initial date, not the parent due date', () => {
+    const state = buildParentHabitFormState(
+      makeHabit({ dueDate: '2025-06-20' }),
+      '2025-01-05',
+    )
+    expect(state.formValues.dueDate).toBe('2025-01-05')
+  })
+
+  it('falls back to the parent due date when no initial date is provided', () => {
+    const state = buildParentHabitFormState(makeHabit({ dueDate: '2025-06-20' }))
+    expect(state.formValues.dueDate).toBe('2025-06-20')
   })
 
   it('falls back to default reminder times when parent has none', () => {

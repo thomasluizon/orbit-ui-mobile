@@ -28,10 +28,10 @@ vi.mock('@orbit/shared/utils', () => ({
   buildClientTimeZoneHeaders: vi.fn(() => ({
     'X-Orbit-Time-Zone': 'America/Sao_Paulo',
   })),
-  extractBackendError: vi.fn((err: { data?: { error?: string } }) => err?.data?.error ?? undefined),
+  extractBackendError: vi.fn((err: { data?: { error?: string } }) => err.data?.error ?? undefined),
   extractBackendErrorCode: vi.fn(
     (err: { data?: { code?: string; errorCode?: string } }) =>
-      err?.data?.code ?? err?.data?.errorCode ?? undefined,
+      err.data?.code ?? err.data?.errorCode ?? undefined,
   ),
 }))
 

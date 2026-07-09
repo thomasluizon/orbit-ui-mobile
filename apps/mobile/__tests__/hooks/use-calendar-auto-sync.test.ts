@@ -202,7 +202,7 @@ describe('mobile calendar auto-sync hooks', () => {
     const context = await mutation.onMutate?.({ enabled: true })
 
     // Optimistic update is applied immediately.
-    expect(mocks.store.state?.enabled).toBe(true)
+    expect(mocks.store.state.enabled).toBe(true)
 
     const result = await mutation.mutationFn({ enabled: true })
     mutation.onSettled?.(result, null, { enabled: true }, context)
@@ -232,7 +232,7 @@ describe('mobile calendar auto-sync hooks', () => {
     const context = await mutation.onMutate?.({ enabled: true })
 
     // Optimistic update toggled it on.
-    expect(mocks.store.state?.enabled).toBe(true)
+    expect(mocks.store.state.enabled).toBe(true)
 
     await expect(mutation.mutationFn({ enabled: true })).rejects.toThrow('Toggle failed')
     mutation.onError?.(new Error('Toggle failed'), { enabled: true }, context)
@@ -299,11 +299,11 @@ describe('mobile calendar auto-sync hooks', () => {
     mocks.apiClient.mockRejectedValue(new Error('Dismiss failed'))
 
     const context = await mutation.onMutate?.({ id: 's-1' })
-    expect(mocks.store.suggestions?.map((s) => s.id)).toEqual(['s-2'])
+    expect(mocks.store.suggestions.map((s) => s.id)).toEqual(['s-2'])
 
     await expect(mutation.mutationFn({ id: 's-1' })).rejects.toThrow('Dismiss failed')
     mutation.onError?.(new Error('Dismiss failed'), { id: 's-1' }, context)
 
-    expect(mocks.store.suggestions?.map((s) => s.id)).toEqual(['s-1', 's-2'])
+    expect(mocks.store.suggestions.map((s) => s.id)).toEqual(['s-1', 's-2'])
   })
 })

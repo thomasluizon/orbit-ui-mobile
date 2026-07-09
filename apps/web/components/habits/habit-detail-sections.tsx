@@ -53,7 +53,7 @@ export function HabitDetailStatsGrid({
     )
   }
 
-  if (!metrics && loading) {
+  if (loading) {
     return (
       <div>
         <SectionLabel>{t('habits.detail.stats')}</SectionLabel>

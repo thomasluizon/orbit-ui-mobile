@@ -94,19 +94,23 @@ function findCachedGoals(
     .filter((goal): goal is { id: string; title: string } => goal !== null)
 }
 
-export function buildOptimisticHabitPatch(
-  queryClient: ReturnType<typeof useQueryClient>,
+function applyOptionalHabitContentPatch(
+  patch: Partial<HabitScheduleItem>,
   data: UpdateHabitRequest,
-): Partial<HabitScheduleItem> {
-  const patch: Partial<HabitScheduleItem> = {
-    title: data.title,
-    isBadHabit: data.isBadHabit,
-  }
-
+  queryClient: ReturnType<typeof useQueryClient>,
+): void {
   if ('description' in data) patch.description = data.description ?? null
   if ('emoji' in data) patch.emoji = data.emoji ?? null
   if ('isGeneral' in data) patch.isGeneral = data.isGeneral ?? false
   if ('isFlexible' in data) patch.isFlexible = data.isFlexible ?? false
+  if ('checklistItems' in data) patch.checklistItems = data.checklistItems ?? []
+  if ('goalIds' in data) patch.linkedGoals = findCachedGoals(queryClient, data.goalIds)
+}
+
+function applyOptionalHabitSchedulePatch(
+  patch: Partial<HabitScheduleItem>,
+  data: UpdateHabitRequest,
+): void {
   if ('frequencyUnit' in data) patch.frequencyUnit = data.frequencyUnit ?? null
   if ('frequencyQuantity' in data) patch.frequencyQuantity = data.frequencyQuantity ?? null
   if ('days' in data) patch.days = data.days ?? []
@@ -117,9 +121,20 @@ export function buildOptimisticHabitPatch(
   if ('reminderTimes' in data) patch.reminderTimes = data.reminderTimes ?? []
   if ('scheduledReminders' in data) patch.scheduledReminders = data.scheduledReminders ?? []
   if ('slipAlertEnabled' in data) patch.slipAlertEnabled = data.slipAlertEnabled ?? false
-  if ('checklistItems' in data) patch.checklistItems = data.checklistItems ?? []
-  if ('goalIds' in data) patch.linkedGoals = findCachedGoals(queryClient, data.goalIds)
   if ('endDate' in data) patch.endDate = data.endDate ?? null
+}
+
+export function buildOptimisticHabitPatch(
+  queryClient: ReturnType<typeof useQueryClient>,
+  data: UpdateHabitRequest,
+): Partial<HabitScheduleItem> {
+  const patch: Partial<HabitScheduleItem> = {
+    title: data.title,
+    isBadHabit: data.isBadHabit,
+  }
+
+  applyOptionalHabitContentPatch(patch, data, queryClient)
+  applyOptionalHabitSchedulePatch(patch, data)
 
   if (data.clearEndDate) {
     patch.endDate = null

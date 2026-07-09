@@ -128,7 +128,7 @@ describe('ChallengeDetail', () => {
     const members = screen.getByTestId('challenge-members')
     expect(members).toHaveTextContent('Ada')
     expect(members).toHaveTextContent('Grace')
-    expect(members.textContent ?? '').not.toMatch(/[0-9]/)
+    expect(members.textContent).not.toMatch(/[0-9]/)
   })
 
   it('shows the link-habits CTA when the user has none linked and saves the selection', async () => {

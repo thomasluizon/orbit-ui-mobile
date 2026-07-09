@@ -36,8 +36,6 @@ export function useTimezoneAutoSync(profile: Profile | undefined) {
     if (profile) checkAndSync()
 
     const browserWindow = globalThis.window
-    if (browserWindow === undefined) return
-
     browserWindow.addEventListener('focus', checkAndSync)
     return () => browserWindow.removeEventListener('focus', checkAndSync)
   }, [profile, queryClient])

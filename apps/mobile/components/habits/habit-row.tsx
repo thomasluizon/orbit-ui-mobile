@@ -1,36 +1,27 @@
 import { useCallback, useMemo, useRef } from 'react'
-import {
-  Pressable,
-  Text,
-  View,
-  type StyleProp,
-  type ViewStyle,
-} from 'react-native'
-import Animated, {
-  Easing,
-  ReduceMotion,
-  useAnimatedStyle,
-  withTiming,
-} from 'react-native-reanimated'
+import { Pressable, View, type StyleProp, type ViewStyle } from 'react-native'
 import { useTranslation } from 'react-i18next'
-import { ChevronDown } from 'lucide-react-native'
 import {
   canLogHabitOnDate,
   computeHabitCardStatus,
   computeHabitFrequencyLabel,
-  computeHabitFutureHint,
   formatAPIDate,
 } from '@orbit/shared/utils'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
 import { useTimeFormat } from '@/hooks/use-time-format'
-import { createTokensV2, easings } from '@/lib/theme'
+import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { AnchoredMenu, useAnchoredMenu } from '@/components/ui/anchored-menu'
-import { SelectCheck } from '@/components/ui/select-check'
-import type { StatusDotState } from '@/components/ui/status-dot'
-import { HabitRowContent, type HabitRowMetaPart } from './habit-row-content'
+import { HabitRowContent } from './habit-row-content'
+import { HabitRowLeading } from './habit-row-leading'
 import { HabitRowTrailing } from './habit-row-trailing'
 import { HabitRowMenuBody } from './habit-row-menu'
+import {
+  buildHabitRowAccessibilityLabel,
+  buildHabitRowMetaParts,
+  hasHabitRowMenuActions,
+  resolveHabitRowDotState,
+} from './habit-row-model'
 import { styles } from './habit-row-styles'
 
 /**
@@ -110,34 +101,21 @@ export function HabitRow({
   const isOverdue = status === 'overdue'
   const canLog = canLogHabitOnDate(habit, selectedDateStr, todayStr)
 
-  const metaParts: HabitRowMetaPart[] = []
-  if (!habit.isGeneral && frequencyLabel) metaParts.push(frequencyLabel)
-  if (habit.dueTime) {
-    const due = displayTime(habit.dueTime)
-    metaParts.push(
-      habit.dueEndTime ? `${due} - ${displayTime(habit.dueEndTime)}` : due,
-    )
-  }
-  if (habit.checklistItems && habit.checklistItems.length > 0) {
-    const checked = habit.checklistItems.filter((i) => i.isChecked).length
-    metaParts.push(`${checked}/${habit.checklistItems.length}`)
-  }
-  if (isOverdue) metaParts.push({ kind: 'overdue' })
-  if (!habit.isCompleted && selectedDateStr === todayStr) {
-    const futureHint = computeHabitFutureHint(habit, todayStr, t, locale)
-    if (futureHint) metaParts.push({ kind: 'future', label: futureHint })
-  }
+  const metaParts = buildHabitRowMetaParts({
+    habit,
+    frequencyLabel,
+    isOverdue,
+    selectedDateStr,
+    todayStr,
+    displayTime,
+    t,
+    locale,
+  })
 
   const streak = habit.currentStreak ?? 0
   const showStreak = streak >= 2 && !isChild && !isSelectMode
 
-  const dotState: StatusDotState = isDoneForRange
-    ? 'done'
-    : habit.isBadHabit
-      ? 'bad'
-      : isOverdue
-        ? 'overdue'
-        : 'empty'
+  const dotState = resolveHabitRowDotState(isDoneForRange, habit.isBadHabit, isOverdue)
 
   const emoji = habit.emoji
 
@@ -150,16 +128,7 @@ export function HabitRow({
   } = useAnchoredMenu()
   const menuActivityAt = useRef(0)
 
-  const hasMenuActions =
-    !!actions.onEdit ||
-    !!actions.onDuplicate ||
-    !!actions.onMoveParent ||
-    !!actions.onAddSubHabit ||
-    !!actions.onSkip ||
-    !!actions.onReschedule ||
-    !!actions.onDelete ||
-    (!isSelectMode && !!actions.onEnterSelectMode) ||
-    (hasChildren && !!actions.onDrillInto)
+  const hasMenuActions = hasHabitRowMenuActions(actions, isSelectMode, hasChildren)
 
   const openMenu = useCallback(() => {
     menuActivityAt.current = Date.now()
@@ -197,24 +166,18 @@ export function HabitRow({
 
   const linkedGoal = (habit.linkedGoals?.length ?? 0) > 0
 
-  const rowAccessibilityLabel = useMemo(() => {
-    const parts = [habit.title, t(`habits.statusDot.${dotState}` as const)]
-    if (linkedGoal) parts.push(t('habits.detail.linkedGoal'))
-    if (showStreak) parts.push(`🔥 ${streak}`)
-    return parts.join(', ')
-  }, [habit.title, dotState, linkedGoal, showStreak, streak, t])
-
-  const expandChevronStyle = useAnimatedStyle(() => ({
-    transform: [
-      {
-        rotate: withTiming(isExpanded ? '0deg' : '-90deg', {
-          duration: 160,
-          easing: Easing.bezier(...easings.smooth),
-          reduceMotion: ReduceMotion.System,
-        }),
-      },
-    ],
-  }))
+  const rowAccessibilityLabel = useMemo(
+    () =>
+      buildHabitRowAccessibilityLabel({
+        title: habit.title,
+        dotState,
+        linkedGoal,
+        showStreak,
+        streak,
+        t,
+      }),
+    [habit.title, dotState, linkedGoal, showStreak, streak, t],
+  )
 
   const indentPx = depth * 16
 
@@ -244,57 +207,20 @@ export function HabitRow({
           pressed ? styles.rowPressed : null,
         ]}
       >
-        {isSelectMode ? (
-          <SelectCheck
-            selected={isSelected}
-            onPress={actions.onToggleSelection}
-            accessibilityLabel={habit.title}
-          />
-        ) : null}
-
-        {hasChildren && !isSelectMode ? (
-          <Pressable
-            onPress={actions.onToggleExpand}
-            hitSlop={{ top: 15, bottom: 15, left: 15, right: 15 }}
-            accessibilityRole="button"
-            accessibilityLabel={
-              isExpanded ? t('common.collapse') : t('common.expand')
-            }
-          >
-            <Animated.View style={expandChevronStyle}>
-              <ChevronDown size={14} color={tokens.fg3} strokeWidth={1.8} />
-            </Animated.View>
-          </Pressable>
-        ) : null}
-
-        <View
-          style={[
-            styles.emojiWell,
-            {
-              width: wellSize,
-              height: wellSize,
-              borderRadius: wellRadius,
-              backgroundColor: tokens.bgWell,
-            },
-          ]}
-        >
-          {emoji ? (
-            <Text style={{ fontSize: emojiSize, lineHeight: emojiSize + 2 }}>
-              {emoji}
-            </Text>
-          ) : (
-            <Text
-              style={{
-                fontSize: emojiSize - 4,
-                lineHeight: emojiSize + 2,
-                color: tokens.fg3,
-                fontFamily: 'Rubik_500Medium',
-              }}
-            >
-              {[...habit.title.trim().toUpperCase()][0]}
-            </Text>
-          )}
-        </View>
+        <HabitRowLeading
+          habitTitle={habit.title}
+          emoji={emoji}
+          emojiSize={emojiSize}
+          wellSize={wellSize}
+          wellRadius={wellRadius}
+          isSelectMode={isSelectMode}
+          isSelected={isSelected}
+          hasChildren={hasChildren}
+          isExpanded={isExpanded}
+          onToggleSelection={actions.onToggleSelection}
+          onToggleExpand={actions.onToggleExpand}
+          tokens={tokens}
+        />
 
         <HabitRowContent
           habit={habit}

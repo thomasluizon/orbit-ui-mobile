@@ -85,11 +85,11 @@ async function* streamTextChunks(
   const reader = body.getReader()
   const decoder = new TextDecoder()
   try {
-    while (true) {
-      const { done, value } = await reader.read()
-      if (done) break
+    let result = await reader.read()
+    while (!result.done) {
       onActivity()
-      yield decoder.decode(value, { stream: true })
+      yield decoder.decode(result.value, { stream: true })
+      result = await reader.read()
     }
   } finally {
     reader.releaseLock()
@@ -318,7 +318,7 @@ export function useChatComposer() {
 
     if (!hasProAccess) {
       queryClient.setQueryData<Profile>(profileKeys.detail(), (old) =>
-        old ? { ...old, aiMessagesUsed: (old.aiMessagesUsed ?? 0) + 1 } : old,
+        old ? { ...old, aiMessagesUsed: old.aiMessagesUsed + 1 } : old,
       )
     }
 
@@ -359,7 +359,6 @@ export function useChatComposer() {
 
 
   useEffect(() => {
-    if (globalThis.localStorage === undefined) return
     const trimmedDraft = input.trim()
     if (!trimmedDraft) {
       globalThis.localStorage.removeItem(CHAT_DRAFT_STORAGE_KEY)

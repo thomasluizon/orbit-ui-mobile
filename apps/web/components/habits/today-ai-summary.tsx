@@ -95,7 +95,7 @@ export function TodayAISummary({ date }: Readonly<TodayAISummaryProps>) {
 
   const isSummaryText =
     hasProAccess && aiSummaryEnabled && !isLoading && !error && !!summary
-  const clampable = isSummaryText && (summary?.length ?? 0) > AI_SUMMARY_CLAMP_CHARS
+  const clampable = isSummaryText && summary.length > AI_SUMMARY_CLAMP_CHARS
 
   if (!resolved) return null
 

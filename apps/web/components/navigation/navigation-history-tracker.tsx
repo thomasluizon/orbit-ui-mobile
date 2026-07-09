@@ -45,7 +45,7 @@ export function NavigationHistoryTracker() {
   }, [])
 
   const entry = useMemo(
-    () => createAppNavigationEntry(pathname, searchParams?.toString() ?? ''),
+    () => createAppNavigationEntry(pathname, searchParams.toString()),
     [pathname, searchParams],
   )
 

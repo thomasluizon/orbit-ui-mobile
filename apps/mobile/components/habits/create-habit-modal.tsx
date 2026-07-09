@@ -13,7 +13,7 @@ import { HabitFormFields } from './habit-form-fields'
 import { SubHabitEditor, type SubHabitEntry } from './create-habit-modal/sub-habit-editor'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useDismissGuard } from '@/hooks/use-dismiss-guard'
-import { useHabitForm } from '@/hooks/use-habit-form'
+import { useHabitForm, type HabitFormHelpers } from '@/hooks/use-habit-form'
 import { useProfile } from '@/hooks/use-profile'
 import { useTagSelection } from '@/hooks/use-tag-selection'
 import { useCreateHabit, useCreateSubHabit } from '@/hooks/use-habits'
@@ -23,6 +23,7 @@ import {
   buildEmptyHabitFormValues,
   buildHabitFormPatchFromSuggestion,
   buildParentHabitFormState,
+  coalesceFormText,
   extractBackendErrorCode,
   formatAPIDate,
   getFriendlyErrorMessage,
@@ -31,6 +32,7 @@ import {
 } from '@orbit/shared/utils'
 import { useUIStore } from '@/stores/ui-store'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
+import type { HabitFormSuggestionPatch } from '@orbit/shared/utils'
 import {
   buildSubHabitRequest,
   buildCreateHabitRequest,
@@ -43,6 +45,57 @@ let subHabitCounter = 0
 function createSubHabitEntry(value = ''): SubHabitEntry {
   subHabitCounter += 1
   return { id: `sub-${subHabitCounter}-${Date.now()}`, value }
+}
+
+type SuggestionScheduleTarget = Pick<
+  HabitFormHelpers,
+  'form' | 'setFlexible' | 'setRecurring' | 'setOneTime'
+>
+
+function applySuggestionSchedule(
+  patch: HabitFormSuggestionPatch,
+  target: SuggestionScheduleTarget,
+): void {
+  if (patch.emoji) {
+    target.form.setValue('emoji', patch.emoji, { shouldDirty: true })
+  }
+
+  if (patch.mode === 'flexible') {
+    target.setFlexible()
+    if (patch.frequencyUnit) {
+      target.form.setValue('frequencyUnit', patch.frequencyUnit, { shouldDirty: true })
+    }
+    if (patch.frequencyQuantity) {
+      target.form.setValue('frequencyQuantity', patch.frequencyQuantity, { shouldDirty: true })
+    }
+  } else if (patch.mode === 'recurring') {
+    target.setRecurring()
+    if (patch.frequencyUnit) {
+      target.form.setValue('frequencyUnit', patch.frequencyUnit, { shouldDirty: true })
+    }
+    if (patch.frequencyQuantity) {
+      target.form.setValue('frequencyQuantity', patch.frequencyQuantity, { shouldDirty: true })
+    }
+    target.form.setValue('days', patch.days, { shouldDirty: true })
+  } else {
+    target.setOneTime()
+  }
+
+  if (patch.dueTime) {
+    target.form.setValue('dueTime', patch.dueTime, { shouldDirty: true })
+  }
+}
+
+function applySuggestionChecklist(
+  patch: HabitFormSuggestionPatch,
+  form: HabitFormHelpers['form'],
+): boolean {
+  if (patch.checklistItems.length === 0) return false
+  const existingChecklist = form.getValues('checklistItems') ?? []
+  form.setValue('checklistItems', [...existingChecklist, ...patch.checklistItems], {
+    shouldDirty: true,
+  })
+  return true
 }
 
 interface CreateHabitModalProps {
@@ -99,8 +152,12 @@ export function CreateHabitModal({
   const [initialReminderTimesSnapshot, setInitialReminderTimesSnapshot] =
     useState('[0,15]')
 
-  const watchedTitle =
-    useWatch({ control: formHelpers.form.control, name: 'title' }) ?? ''
+  const watchedTitle = coalesceFormText(
+    useWatch({
+      control: formHelpers.form.control,
+      name: 'title',
+    }),
+  )
   const watchedDueTime =
     useWatch({ control: formHelpers.form.control, name: 'dueTime' }) ?? ''
   const watchedReminderEnabled =
@@ -258,7 +315,7 @@ export function CreateHabitModal({
     const data = habitFormSchema.parse(formHelpers.form.getValues())
 
     try {
-      if (isSubHabitMode && parentHabit) {
+      if (isSubHabitMode) {
         const subRequest = buildSubHabitRequest(
           data,
           reminderTimes,
@@ -308,7 +365,7 @@ export function CreateHabitModal({
 
   const handleSuggest = useCallback(async () => {
     flushBufferedInputsRef.current()
-    const title = formHelpers.form.getValues('title')?.trim() ?? ''
+    const title = coalesceFormText(formHelpers.form.getValues('title')).trim()
     if (title.length === 0) return
 
     try {
@@ -316,44 +373,9 @@ export function CreateHabitModal({
         await suggestion.mutateAsync({ title, language: i18n.language }),
       )
 
-      if (patch.emoji) {
-        formHelpers.form.setValue('emoji', patch.emoji, { shouldDirty: true })
-      }
+      applySuggestionSchedule(patch, formHelpers)
 
-      if (patch.mode === 'flexible') {
-        formHelpers.setFlexible()
-        if (patch.frequencyUnit) {
-          formHelpers.form.setValue('frequencyUnit', patch.frequencyUnit, { shouldDirty: true })
-        }
-        if (patch.frequencyQuantity) {
-          formHelpers.form.setValue('frequencyQuantity', patch.frequencyQuantity, { shouldDirty: true })
-        }
-      } else if (patch.mode === 'recurring') {
-        formHelpers.setRecurring()
-        if (patch.frequencyUnit) {
-          formHelpers.form.setValue('frequencyUnit', patch.frequencyUnit, { shouldDirty: true })
-        }
-        if (patch.frequencyQuantity) {
-          formHelpers.form.setValue('frequencyQuantity', patch.frequencyQuantity, { shouldDirty: true })
-        }
-        formHelpers.form.setValue('days', patch.days, { shouldDirty: true })
-      } else {
-        formHelpers.setOneTime()
-      }
-
-      if (patch.dueTime) {
-        formHelpers.form.setValue('dueTime', patch.dueTime, { shouldDirty: true })
-      }
-
-      const appliedChecklist = patch.checklistItems.length > 0
-      if (appliedChecklist) {
-        const existingChecklist = formHelpers.form.getValues('checklistItems') ?? []
-        formHelpers.form.setValue(
-          'checklistItems',
-          [...existingChecklist, ...patch.checklistItems],
-          { shouldDirty: true },
-        )
-      }
+      const appliedChecklist = applySuggestionChecklist(patch, formHelpers.form)
 
       const appliedSubHabits = hasProAccess && patch.subHabitTitles.length > 0
       if (appliedSubHabits) {

@@ -91,7 +91,7 @@ export function TourTooltip({
     return () => animation.stop()
   }, [entrance, prefersReducedMotion, step.id])
 
-  const iconKey = step.section ? TOUR_SECTION_ICONS[step.section] : undefined
+  const iconKey = TOUR_SECTION_ICONS[step.section]
   const SectionIcon = iconKey
     ? SECTION_ICON_MAP[iconKey as keyof typeof SECTION_ICON_MAP]
     : undefined

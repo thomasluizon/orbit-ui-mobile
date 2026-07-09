@@ -3,6 +3,7 @@ import { View, Text } from "react-native";
 import { useWatch } from "react-hook-form";
 import { useTranslation } from "react-i18next";
 import { MAX_HABIT_TITLE_LENGTH } from "@orbit/shared/validation";
+import { coalesceFormText } from "@orbit/shared/utils";
 import { BufferedSheetInput } from "./buffered-sheet-input";
 import type { HabitFormControl, HabitFormStyles } from "./types";
 
@@ -28,7 +29,7 @@ export function TitleSection({
   styles,
 }: Readonly<TitleSectionProps>) {
   const { t } = useTranslation();
-  const watchedTitle = useWatch({ control, name: "title" }) ?? "";
+  const watchedTitle = coalesceFormText(useWatch({ control, name: "title" }));
 
   return (
     <View style={styles.fieldGroup}>

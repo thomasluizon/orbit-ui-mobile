@@ -68,9 +68,7 @@ function validatePath(path: string | undefined): string | null {
 function buildCleanQuery(url: URL): string {
   const params = new URLSearchParams()
   url.searchParams.forEach((value, key) => {
-    if (value !== undefined && value !== null) {
-      params.append(key, value)
-    }
+    params.append(key, value)
   })
   return params.toString()
 }

@@ -232,7 +232,7 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
       >
         <div className="max-w-[var(--app-max-w)] mx-auto">
           <WebNav
-            active={pathnameToTab(pathname ?? '/')}
+            active={pathnameToTab(pathname)}
             onTab={(id) => {
               if (id === 'today') router.push('/')
               else router.push(`/${id}`)

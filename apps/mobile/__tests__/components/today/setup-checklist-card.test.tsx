@@ -74,7 +74,7 @@ function findDismissButton(tree: ReturnType<typeof TestRenderer.create>) {
     (node: { props?: Record<string, unknown>; type: unknown }) =>
       Boolean(node.props) &&
       node.props?.accessibilityRole === 'button' &&
-      typeof node.props?.onPress === 'function' &&
+      typeof node.props.onPress === 'function' &&
       typeof node.type !== 'string',
   )[0]
 }

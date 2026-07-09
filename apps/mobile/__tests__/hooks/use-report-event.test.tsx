@@ -45,17 +45,17 @@ vi.mock('@/stores/ui-store', () => ({
 }))
 
 async function callHook<T>(hook: () => T): Promise<T> {
-  let value: T | null = null
+  const valueHolder: { current: T | null } = { current: null }
   function Harness() {
-    value = hook()
+    valueHolder.current = hook()
     return null
   }
   await TestRenderer.act(async () => {
     TestRenderer.create(<Harness />)
     await Promise.resolve()
   })
-  if (!value) throw new Error('hook did not render')
-  return value
+  if (!valueHolder.current) throw new Error('hook did not render')
+  return valueHolder.current
 }
 
 describe('mobile useReportEvent', () => {

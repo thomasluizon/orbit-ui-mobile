@@ -116,7 +116,7 @@ describe('useCreateChecklistTemplate', () => {
   })
 
   it('optimistically appends a placeholder template to the cache', async () => {
-    let resolveCreate: ((value: { id: string }) => void) | null = null
+    let resolveCreate: ((value: { id: string }) => void) | undefined
     vi.mocked(createChecklistTemplateAction).mockImplementation(
       () => new Promise((resolve) => { resolveCreate = resolve }),
     )
@@ -145,7 +145,7 @@ describe('useCreateChecklistTemplate', () => {
     expect(data?.[1]?.items).toEqual(['B'])
     expect(data?.[1]?.id.startsWith('optimistic-')).toBe(true)
 
-    if (resolveCreate) (resolveCreate as (v: { id: string }) => void)({ id: 'real-id' })
+    if (resolveCreate) resolveCreate({ id: 'real-id' })
   })
 
   it('rolls back the optimistic insert on error', async () => {
@@ -182,7 +182,7 @@ describe('useDeleteChecklistTemplate', () => {
   })
 
   it('optimistically removes the template from the cache', async () => {
-    let resolveDelete: (() => void) | null = null
+    let resolveDelete: (() => void) | undefined
     vi.mocked(deleteChecklistTemplateAction).mockImplementation(
       () => new Promise<void>((resolve) => { resolveDelete = resolve }),
     )
@@ -207,7 +207,7 @@ describe('useDeleteChecklistTemplate', () => {
       client.getQueryData<ChecklistTemplate[]>(checklistTemplateKeys.lists()),
     ).toEqual([{ id: 't2', name: 'B', items: [] }])
 
-    if (resolveDelete) (resolveDelete as () => void)()
+    if (resolveDelete) resolveDelete()
   })
 
   it('rolls back the cache on error', async () => {

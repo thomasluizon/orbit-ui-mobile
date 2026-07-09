@@ -21,10 +21,10 @@ export default function SupportPage() {
   const { isOnline } = useOffline()
 
   const initialDraft = (() => {
-    if (typeof globalThis === 'undefined' || globalThis.localStorage === undefined) {
+    if (typeof localStorage === 'undefined') {
       return { subject: '', message: '' }
     }
-    const stored = globalThis.localStorage.getItem(SUPPORT_DRAFT_STORAGE_KEY)
+    const stored = localStorage.getItem(SUPPORT_DRAFT_STORAGE_KEY)
     if (!stored) return { subject: '', message: '' }
     try {
       const draft = JSON.parse(stored) as Partial<Record<'subject' | 'message', string>>
@@ -33,7 +33,7 @@ export default function SupportPage() {
         message: draft.message ?? '',
       }
     } catch {
-      globalThis.localStorage.removeItem(SUPPORT_DRAFT_STORAGE_KEY)
+      localStorage.removeItem(SUPPORT_DRAFT_STORAGE_KEY)
       return { subject: '', message: '' }
     }
   })()
@@ -44,7 +44,6 @@ export default function SupportPage() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    if (globalThis.localStorage === undefined) return
     const draft = { subject, message }
     const hasDraft = Object.values(draft).some((value) => value.trim().length > 0)
     if (!hasDraft) {
@@ -73,9 +72,7 @@ export default function SupportPage() {
       setSuccess(true)
       setSubject('')
       setMessage('')
-      if (globalThis.localStorage !== undefined) {
-        globalThis.localStorage.removeItem(SUPPORT_DRAFT_STORAGE_KEY)
-      }
+      globalThis.localStorage.removeItem(SUPPORT_DRAFT_STORAGE_KEY)
     } catch (err: unknown) {
       setError(getFriendlyErrorMessage(err, t, 'auth.genericError', 'generic'))
     } finally {

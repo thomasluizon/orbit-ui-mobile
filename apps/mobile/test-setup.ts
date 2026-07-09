@@ -163,7 +163,7 @@ vi.mock('@/components/ui/app-date-picker', () => ({
     }),
 }))
 
-if (typeof require !== 'undefined' && require.extensions) {
+if (typeof require !== 'undefined') {
   require.extensions['.png'] = (module: NodeModule) => {
     ;(module as NodeModule & { exports: string }).exports = 'test-asset'
   }

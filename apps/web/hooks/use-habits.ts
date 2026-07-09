@@ -125,7 +125,7 @@ export function useLogHabit() {
         .flatMap(([, items]) => items ?? [])
         .find((item) => item.id === variables.habitId)
 
-      if (!loggedHabit?.isBadHabit && response?.isFirstCompletionToday && response.currentStreak > 0) {
+      if (!loggedHabit?.isBadHabit && response.isFirstCompletionToday && response.currentStreak > 0) {
         setStreakCelebration({ streak: response.currentStreak })
         queryClient.setQueryData<Profile>(profileKeys.detail(), (old) =>
           old ? { ...old, currentStreak: response.currentStreak } : old,
@@ -136,14 +136,14 @@ export function useLogHabit() {
         }
       }
 
-      if (response?.linkedGoalUpdates?.length) {
+      if (response.linkedGoalUpdates?.length) {
         queryClient.setQueriesData<Goal[]>(
           { queryKey: goalKeys.lists() },
           (old) => old ? applyLinkedGoalUpdates(old, response.linkedGoalUpdates!) : old,
         )
       }
 
-      if (!loggedHabit?.isBadHabit && (response?.xpEarned || response?.newAchievementIds?.length)) {
+      if (!loggedHabit?.isBadHabit && (response.xpEarned || response.newAchievementIds?.length)) {
         queryClient.setQueryData<GamificationProfile>(gamificationKeys.profile(), (old) => {
           if (!old) return old
           return { ...old, totalXp: old.totalXp + (response.xpEarned ?? 0) }

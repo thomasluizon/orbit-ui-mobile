@@ -36,6 +36,166 @@ interface AppDatePickerProps {
   placeholder?: string
 }
 
+interface DatePickerMonthNavProps {
+  pickerMode: 'days' | 'years'
+  monthLead: string
+  yearLabel: string
+  onPrevMonth: () => void
+  onNextMonth: () => void
+  onToggleMode: () => void
+  tokens: AppTokens
+  styles: ReturnType<typeof createStyles>
+}
+
+function DatePickerMonthNav({
+  pickerMode,
+  monthLead,
+  yearLabel,
+  onPrevMonth,
+  onNextMonth,
+  onToggleMode,
+  tokens,
+  styles,
+}: Readonly<DatePickerMonthNavProps>) {
+  const { t } = useTranslation()
+
+  return (
+    <View style={styles.monthNav}>
+      <TouchableOpacity
+        onPress={onPrevMonth}
+        hitSlop={{ top: 13, bottom: 13, left: 13, right: 13 }}
+        accessibilityRole="button"
+        accessibilityLabel={t('common.previousMonth')}
+        disabled={pickerMode === 'years'}
+        style={pickerMode === 'years' ? styles.navHidden : undefined}
+      >
+        <ChevronLeft size={18} strokeWidth={1.8} color={tokens.fg3} />
+      </TouchableOpacity>
+
+      <View style={styles.monthLabelGroup}>
+        {monthLead ? (
+          <Text style={styles.monthLabel}>{monthLead}</Text>
+        ) : null}
+        <TouchableOpacity
+          onPress={onToggleMode}
+          hitSlop={{ top: 13, bottom: 13, left: 13, right: 13 }}
+          accessibilityRole="button"
+          accessibilityLabel={t('common.selectYear')}
+        >
+          <Text
+            style={[
+              styles.yearLabel,
+              pickerMode === 'years' && { color: tokens.primary },
+            ]}
+          >
+            {yearLabel}
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      <TouchableOpacity
+        onPress={onNextMonth}
+        hitSlop={{ top: 13, bottom: 13, left: 13, right: 13 }}
+        accessibilityRole="button"
+        accessibilityLabel={t('common.nextMonth')}
+        disabled={pickerMode === 'years'}
+        style={pickerMode === 'years' ? styles.navHidden : undefined}
+      >
+        <ChevronRight size={18} strokeWidth={1.8} color={tokens.fg3} />
+      </TouchableOpacity>
+    </View>
+  )
+}
+
+interface DatePickerBodyProps {
+  pickerMode: 'days' | 'years'
+  viewDate: Date
+  weekDays: string[]
+  calendarWeeks: Date[][]
+  selectedDate: Date | null
+  locale: string
+  onSelectYear: (year: number) => void
+  onSelectDay: (day: Date) => void
+  tokens: AppTokens
+  styles: ReturnType<typeof createStyles>
+}
+
+function DatePickerBody({
+  pickerMode,
+  viewDate,
+  weekDays,
+  calendarWeeks,
+  selectedDate,
+  locale,
+  onSelectYear,
+  onSelectDay,
+  tokens,
+  styles,
+}: Readonly<DatePickerBodyProps>) {
+  if (pickerMode === 'years') {
+    return (
+      <YearPicker
+        selectedYear={viewDate.getFullYear()}
+        onSelectYear={onSelectYear}
+        tokens={tokens}
+      />
+    )
+  }
+
+  return (
+    <>
+      <View style={styles.weekRow}>
+        {weekDays.map((day, i) => (
+          <View key={`wh-${i}`} style={styles.dayCell}>
+            <Text style={styles.weekDayText}>{day}</Text>
+          </View>
+        ))}
+      </View>
+
+      {calendarWeeks.map((week) => (
+        <View key={week[0]?.toISOString()} style={styles.weekRow}>
+          {week.map((day) => {
+            const isSelected =
+              selectedDate != null && isSameDay(day, selectedDate)
+            const isToday = isSameDay(day, new Date())
+            const isCurrentMonth = isSameMonth(day, viewDate)
+
+            return (
+              <TouchableOpacity
+                key={day.toISOString()}
+                style={[
+                  styles.dayCell,
+                  isSelected && styles.dayCellSelected,
+                  isToday && !isSelected && styles.dayCellToday,
+                ]}
+                onPress={() => onSelectDay(day)}
+                activeOpacity={0.7}
+                accessibilityRole="button"
+                accessibilityState={{ selected: isSelected }}
+                accessibilityLabel={formatLocaleDate(day, locale, {
+                  month: 'long',
+                  day: 'numeric',
+                  year: 'numeric',
+                })}
+              >
+                <Text
+                  style={[
+                    styles.dayText,
+                    !isCurrentMonth && styles.dayTextOutside,
+                    isSelected && styles.dayTextSelected,
+                  ]}
+                >
+                  {format(day, 'd')}
+                </Text>
+              </TouchableOpacity>
+            )
+          })}
+        </View>
+      ))}
+    </>
+  )
+}
+
 export function AppDatePicker({
   value,
   onChange,
@@ -225,111 +385,31 @@ export function AppDatePicker({
             ]}
             onStartShouldSetResponder={() => true}
           >
-            <View style={styles.monthNav}>
-              <TouchableOpacity
-                onPress={prevMonth}
-                hitSlop={{ top: 13, bottom: 13, left: 13, right: 13 }}
-                accessibilityRole="button"
-                accessibilityLabel={t('common.previousMonth')}
-                disabled={pickerMode === 'years'}
-                style={pickerMode === 'years' ? styles.navHidden : undefined}
-              >
-                <ChevronLeft size={18} strokeWidth={1.8} color={tokens.fg3} />
-              </TouchableOpacity>
+            <DatePickerMonthNav
+              pickerMode={pickerMode}
+              monthLead={monthLead}
+              yearLabel={yearLabel}
+              onPrevMonth={prevMonth}
+              onNextMonth={nextMonth}
+              onToggleMode={() =>
+                setPickerMode((mode) => (mode === 'years' ? 'days' : 'years'))
+              }
+              tokens={tokens}
+              styles={styles}
+            />
 
-              <View style={styles.monthLabelGroup}>
-                {monthLead ? (
-                  <Text style={styles.monthLabel}>{monthLead}</Text>
-                ) : null}
-                <TouchableOpacity
-                  onPress={() =>
-                    setPickerMode((mode) => (mode === 'years' ? 'days' : 'years'))
-                  }
-                  hitSlop={{ top: 13, bottom: 13, left: 13, right: 13 }}
-                  accessibilityRole="button"
-                  accessibilityLabel={t('common.selectYear')}
-                >
-                  <Text
-                    style={[
-                      styles.yearLabel,
-                      pickerMode === 'years' && { color: tokens.primary },
-                    ]}
-                  >
-                    {yearLabel}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-
-              <TouchableOpacity
-                onPress={nextMonth}
-                hitSlop={{ top: 13, bottom: 13, left: 13, right: 13 }}
-                accessibilityRole="button"
-                accessibilityLabel={t('common.nextMonth')}
-                disabled={pickerMode === 'years'}
-                style={pickerMode === 'years' ? styles.navHidden : undefined}
-              >
-                <ChevronRight size={18} strokeWidth={1.8} color={tokens.fg3} />
-              </TouchableOpacity>
-            </View>
-
-            {pickerMode === 'years' ? (
-              <YearPicker
-                selectedYear={viewDate.getFullYear()}
-                onSelectYear={selectYear}
-                tokens={tokens}
-              />
-            ) : (
-              <>
-                <View style={styles.weekRow}>
-                  {weekDays.map((day, i) => (
-                    <View key={`wh-${i}`} style={styles.dayCell}>
-                      <Text style={styles.weekDayText}>{day}</Text>
-                    </View>
-                  ))}
-                </View>
-
-                {calendarWeeks.map((week) => (
-                  <View key={week[0]?.toISOString()} style={styles.weekRow}>
-                    {week.map((day) => {
-                      const isSelected =
-                        selectedDate != null && isSameDay(day, selectedDate)
-                      const isToday = isSameDay(day, new Date())
-                      const isCurrentMonth = isSameMonth(day, viewDate)
-
-                      return (
-                        <TouchableOpacity
-                          key={day.toISOString()}
-                          style={[
-                            styles.dayCell,
-                            isSelected && styles.dayCellSelected,
-                            isToday && !isSelected && styles.dayCellToday,
-                          ]}
-                          onPress={() => selectDay(day)}
-                          activeOpacity={0.7}
-                          accessibilityRole="button"
-                          accessibilityState={{ selected: isSelected }}
-                          accessibilityLabel={formatLocaleDate(day, locale, {
-                            month: 'long',
-                            day: 'numeric',
-                            year: 'numeric',
-                          })}
-                        >
-                          <Text
-                            style={[
-                              styles.dayText,
-                              !isCurrentMonth && styles.dayTextOutside,
-                              isSelected && styles.dayTextSelected,
-                            ]}
-                          >
-                            {format(day, 'd')}
-                          </Text>
-                        </TouchableOpacity>
-                      )
-                    })}
-                  </View>
-                ))}
-              </>
-            )}
+            <DatePickerBody
+              pickerMode={pickerMode}
+              viewDate={viewDate}
+              weekDays={weekDays}
+              calendarWeeks={calendarWeeks}
+              selectedDate={selectedDate}
+              locale={locale}
+              onSelectYear={selectYear}
+              onSelectDay={selectDay}
+              tokens={tokens}
+              styles={styles}
+            />
           </Animated.View>
         </TouchableOpacity>
         </Modal>

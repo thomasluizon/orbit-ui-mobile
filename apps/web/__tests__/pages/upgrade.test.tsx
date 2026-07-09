@@ -146,7 +146,7 @@ describe('UpgradePage', () => {
     })
 
     screen.getAllByRole('button').forEach((button) => {
-      const accessibleName = button.getAttribute('aria-label') ?? button.textContent?.trim()
+      const accessibleName = button.getAttribute('aria-label') ?? button.textContent.trim()
       expect(accessibleName).toBeTruthy()
     })
   })

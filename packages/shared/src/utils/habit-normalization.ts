@@ -97,11 +97,11 @@ function normalizeChildren(
       reminderTimes: [],
       scheduledReminders: [],
       slipAlertEnabled: false,
-      hasSubHabits: child.hasSubHabits ?? grandchildren.length > 0,
+      hasSubHabits: child.hasSubHabits,
       flexibleTarget: null,
       flexibleCompleted: null,
       isLoggedInRange: child.isLoggedInRange ?? hasCompletedInstance(child.instances),
-      instances: child.instances ?? [],
+      instances: child.instances,
       searchMatches: child.searchMatches ?? null,
     })
 
@@ -126,7 +126,7 @@ export function normalizeHabits(
       flexibleTarget: item.flexibleTarget ?? null,
       flexibleCompleted: item.flexibleCompleted ?? null,
       isLoggedInRange: item.isLoggedInRange ?? hasCompletedInstance(item.instances),
-      instances: item.instances ?? [],
+      instances: item.instances,
       searchMatches: item.searchMatches ?? null,
     })
 

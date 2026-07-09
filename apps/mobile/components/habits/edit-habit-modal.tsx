@@ -18,6 +18,7 @@ import { useAssignTags } from '@/hooks/use-tags'
 import {
   applyHabitFormMode,
   buildEditHabitFormState,
+  coalesceFormText,
   getFriendlyErrorMessage,
   toggleSelectedId,
 } from '@orbit/shared/utils'
@@ -199,8 +200,12 @@ export function EditHabitModal({
     translate,
   ])
 
-  const watchedTitle =
-    useWatch({ control: formHelpers.form.control, name: 'title' }) ?? ''
+  const watchedTitle = coalesceFormText(
+    useWatch({
+      control: formHelpers.form.control,
+      name: 'title',
+    }),
+  )
   const submitDisabled =
     updateHabit.isPending ||
     detailFieldsPending ||

@@ -32,7 +32,7 @@ export function ActiveDaysSection({
         options={daysList.map((day) => ({
           key: day.value,
           label: day.label,
-          active: watchedDays?.includes(day.value) ?? false,
+          active: watchedDays.includes(day.value),
           onPress: () => onToggleDay(day.value),
         }))}
       />

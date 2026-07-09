@@ -15,6 +15,101 @@ type LucideIcon = ComponentType<LucideProps>
 
 type AppBarRightVariant = 'help' | 'close' | 'share'
 
+type AppBarTokens = ReturnType<typeof createTokensV2>
+
+export function resolveAppBarRightActionLabel(
+  right: AppBarRightVariant | undefined,
+  rightLabel: string | undefined,
+  t: (key: string) => string,
+): string | undefined {
+  if (!right) return undefined
+  if (rightLabel) return rightLabel
+  if (right === 'help') return t('common.help')
+  if (right === 'close') return t('common.close')
+  return t('common.share')
+}
+
+interface AppBarRightActionProps {
+  right: AppBarRightVariant
+  rightLabel?: string
+  onRight?: () => void
+  tokens: AppBarTokens
+  t: (key: string) => string
+}
+
+function AppBarRightAction({
+  right,
+  rightLabel,
+  onRight,
+  tokens,
+  t,
+}: Readonly<AppBarRightActionProps>) {
+  return (
+    <Pressable
+      onPress={onRight}
+      hitSlop={2}
+      accessibilityRole="button"
+      accessibilityLabel={resolveAppBarRightActionLabel(right, rightLabel, t)}
+      style={({ pressed }) => [
+        styles.iconBtn,
+        right === 'help'
+          ? { borderWidth: 1.5, borderColor: tokens.hairlineStrong }
+          : null,
+        pressed
+          ? [styles.iconBtnPressed, { backgroundColor: tokens.bgElev }]
+          : null,
+      ]}
+    >
+      {right === 'help' ? (
+        <HelpCircle size={22} color={tokens.fg1} strokeWidth={1.8} />
+      ) : right === 'close' ? (
+        <X size={24} color={tokens.fg1} strokeWidth={1.8} />
+      ) : (
+        <Share2 size={21} color={tokens.fg1} strokeWidth={1.8} />
+      )}
+    </Pressable>
+  )
+}
+
+interface AppBarLeadingProps {
+  back: boolean
+  LeadingIcon?: LucideIcon
+  onBack?: () => void
+  resolvedBackLabel: string
+  tokens: AppBarTokens
+}
+
+function AppBarLeading({
+  back,
+  LeadingIcon,
+  onBack,
+  resolvedBackLabel,
+  tokens,
+}: Readonly<AppBarLeadingProps>) {
+  if (!back && !LeadingIcon) return null
+  return (
+    <Pressable
+      onPress={onBack}
+      disabled={!onBack}
+      hitSlop={2}
+      accessibilityRole={onBack ? 'button' : 'none'}
+      accessibilityLabel={resolvedBackLabel}
+      style={({ pressed }) => [
+        styles.iconBtn,
+        pressed
+          ? [styles.iconBtnPressed, { backgroundColor: tokens.bgElev }]
+          : null,
+      ]}
+    >
+      {back ? (
+        <ChevronLeft size={26} color={tokens.fg1} strokeWidth={2} />
+      ) : LeadingIcon ? (
+        <LeadingIcon size={22} color={tokens.fg1} strokeWidth={1.8} />
+      ) : null}
+    </Pressable>
+  )
+}
+
 interface AppBarProps {
   /** Show a back chevron in the leading slot. Takes precedence over `LeadingIcon`. */
   back?: boolean
@@ -59,62 +154,25 @@ export function AppBar({
   const resolvedBackLabel = backLabel ?? t('common.back')
 
   const rightAction = right ? (
-    <Pressable
-      onPress={onRight}
-      hitSlop={2}
-      accessibilityRole="button"
-      accessibilityLabel={
-        rightLabel ??
-        (right === 'help'
-          ? t('common.help')
-          : right === 'close'
-            ? t('common.close')
-            : t('common.share'))
-      }
-      style={({ pressed }) => [
-        styles.iconBtn,
-        right === 'help'
-          ? { borderWidth: 1.5, borderColor: tokens.hairlineStrong }
-          : null,
-        pressed
-          ? [styles.iconBtnPressed, { backgroundColor: tokens.bgElev }]
-          : null,
-      ]}
-    >
-      {right === 'help' ? (
-        <HelpCircle size={22} color={tokens.fg1} strokeWidth={1.8} />
-      ) : right === 'close' ? (
-        <X size={24} color={tokens.fg1} strokeWidth={1.8} />
-      ) : (
-        <Share2 size={21} color={tokens.fg1} strokeWidth={1.8} />
-      )}
-    </Pressable>
+    <AppBarRightAction
+      right={right}
+      rightLabel={rightLabel}
+      onRight={onRight}
+      tokens={tokens}
+      t={t}
+    />
   ) : null
 
   return (
     <View style={styles.row}>
       <View style={styles.leadingSlot}>
-        {back || LeadingIcon ? (
-          <Pressable
-            onPress={onBack}
-            disabled={!onBack}
-            hitSlop={2}
-            accessibilityRole={onBack ? 'button' : 'none'}
-            accessibilityLabel={resolvedBackLabel}
-            style={({ pressed }) => [
-              styles.iconBtn,
-              pressed
-                ? [styles.iconBtnPressed, { backgroundColor: tokens.bgElev }]
-                : null,
-            ]}
-          >
-            {back ? (
-              <ChevronLeft size={26} color={tokens.fg1} strokeWidth={2} />
-            ) : LeadingIcon ? (
-              <LeadingIcon size={22} color={tokens.fg1} strokeWidth={1.8} />
-            ) : null}
-          </Pressable>
-        ) : null}
+        <AppBarLeading
+          back={back}
+          LeadingIcon={LeadingIcon}
+          onBack={onBack}
+          resolvedBackLabel={resolvedBackLabel}
+          tokens={tokens}
+        />
       </View>
 
       {title || titleIcon ? (

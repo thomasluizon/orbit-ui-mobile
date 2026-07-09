@@ -173,6 +173,18 @@ export function buildHabitFormPatchFromSuggestion(
   }
 }
 
+/**
+ * Coalesces a react-hook-form text field to an empty string. `watch` / `useWatch`
+ * / `getValues` type a required string field (e.g. the habit title) as `string`,
+ * but return `undefined` before RHF applies `defaultValues`, so callers pass the
+ * `string`-typed read into this honest `string | undefined` boundary rather than
+ * guarding a value the type claims is always present.
+ * https://github.com/thomasluizon/orbit-ui-mobile/issues/424
+ */
+export function coalesceFormText(value: string | undefined): string {
+  return value ?? ''
+}
+
 export function formatHabitTimeInput(value: string): string {
   let nextValue = value.replaceAll(/\D/g, '')
   if (nextValue.length > 4) nextValue = nextValue.slice(0, 4)

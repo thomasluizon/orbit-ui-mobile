@@ -23,6 +23,7 @@ import { RailDrawer } from './rail-drawer'
 import { RightRail } from './right-rail'
 import { TodayRail } from './today-rail'
 import { TopbarSlotProvider } from './topbar-slot'
+import { resolveTopbarTitleKey } from './topbar-title'
 
 interface AppShellProps {
   children: ReactNode
@@ -42,7 +43,7 @@ type HabitSubView = 'today' | 'all' | 'general'
 export function AppShell({ children, onCreate }: Readonly<AppShellProps>) {
   const t = useTranslations()
   const router = useRouter()
-  const pathname = usePathname() ?? '/'
+  const pathname = usePathname()
   const { profile } = useProfile()
   const hasProAccess = profile?.hasProAccess ?? false
   const activeView = useUIStore((state) => state.activeView)
@@ -226,27 +227,8 @@ export function AppShell({ children, onCreate }: Readonly<AppShellProps>) {
   )
 
   const topbarTitle = useMemo(() => {
-    if (onHome) return ''
-    if (pathname.startsWith('/calendar-sync')) return t('calendar.title')
-    if (pathname.startsWith('/calendar')) return t('nav.calendar')
-    if (pathname.startsWith('/insights')) return t('nav.insights')
-    if (pathname.startsWith('/chat')) return t('nav.astra')
-    if (pathname.startsWith('/explore')) return t('nav.explore')
-    if (pathname.startsWith('/profile')) return t('nav.profile')
-    if (pathname.startsWith('/social/challenges')) return t('challenges.title')
-    if (pathname.startsWith('/social')) return t('social.title')
-    if (pathname.startsWith('/preferences')) return t('preferences.title')
-    if (pathname.startsWith('/ai-settings')) return t('aiSettings.title')
-    if (pathname.startsWith('/advanced')) return t('advancedSettings.title')
-    if (pathname.startsWith('/about')) return t('about.title')
-    if (pathname.startsWith('/support')) return t('profile.support.title')
-    if (pathname.startsWith('/achievements')) return t('gamification.title')
-    if (pathname.startsWith('/streak')) return t('streakDisplay.title')
-    if (pathname.startsWith('/retrospective')) return t('retrospective.title')
-    if (pathname.startsWith('/upgrade')) return t('upgrade.title')
-    if (pathname.startsWith('/wrapped')) return t('wrapped.title')
-    if (pathname.startsWith('/public-profile')) return t('profile.publicProfile.title')
-    return ''
+    const titleKey = resolveTopbarTitleKey(pathname, onHome)
+    return titleKey ? t(titleKey) : ''
   }, [t, pathname, onHome])
 
   const railContent = onHome && !goalsActive ? <TodayRail /> : null

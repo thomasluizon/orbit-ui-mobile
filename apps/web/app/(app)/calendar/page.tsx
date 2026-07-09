@@ -8,7 +8,6 @@ import {
   addWeeks,
   subWeeks,
   startOfMonth,
-  endOfMonth,
   startOfWeek,
   endOfWeek,
   eachDayOfInterval,
@@ -30,6 +29,7 @@ import { useCalendarData, useCalendarRange } from '@/hooks/use-calendar-data'
 import { useTimeFormat } from '@/hooks/use-time-format'
 import { useDateFormat } from '@/hooks/use-date-format'
 import { useProfile } from '@/hooks/use-profile'
+import { buildCalendarMonthModel } from '@/lib/calendar-month-model'
 import type { CalendarDayEntry } from '@orbit/shared/types/calendar'
 import { CalendarGrid } from '@/components/calendar/calendar-grid'
 import { CalendarDayDetail } from '@/components/calendar/calendar-day-detail'
@@ -54,6 +54,12 @@ const SWIPE_THRESHOLD = 50
 
 type MonthSlide = 'left' | 'right' | null
 type CalendarView = 'month' | 'week' | 'range' | 'agenda'
+
+function resolveMonthSlideClass(monthSlide: MonthSlide): string {
+  if (monthSlide === 'right') return 'animate-slide-date-right'
+  if (monthSlide === 'left') return 'animate-slide-date-left'
+  return ''
+}
 
 export default function CalendarPage() {
   const t = useTranslations()
@@ -98,8 +104,8 @@ export default function CalendarPage() {
     return rangeStart <= rangeEnd ? { lo: a, hi: b } : { lo: b, hi: a }
   }, [rangeStart, rangeEnd])
 
-  const gridStartDate = view === 'week' ? weekStart : rangeBounds.lo
-  const gridEndDate = view === 'week' ? weekEnd : rangeBounds.hi
+  const [gridStartDate, gridEndDate] =
+    view === 'week' ? [weekStart, weekEnd] : [rangeBounds.lo, rangeBounds.hi]
 
   const {
     dayMap: rangeDayMap,
@@ -144,10 +150,20 @@ export default function CalendarPage() {
     return `${startLabel} - ${endLabel}`
   }, [weekStart, weekEnd, dateFnsLocale])
 
-  const activeDayMap = activeView === 'month' ? dayMap : rangeDayMap
-  const activeFetching = activeView === 'month' ? isFetching : rangeFetching
-  const activeError = activeView === 'month' ? error : rangeError
-  const activeRefresh = activeView === 'month' ? refresh : rangeRefresh
+  const {
+    dayMap: activeDayMap,
+    isFetching: activeFetching,
+    error: activeError,
+    refresh: activeRefresh,
+  } =
+    activeView === 'month'
+      ? { dayMap, isFetching, error, refresh }
+      : {
+          dayMap: rangeDayMap,
+          isFetching: rangeFetching,
+          error: rangeError,
+          refresh: rangeRefresh,
+        }
 
   const prevMonth = useCallback(() => {
     setMonthSlide('left')
@@ -217,34 +233,10 @@ export default function CalendarPage() {
     return capitalizeFirstLetter(displayWeekdayDate(parseAPIDate(selectedDay)))
   }, [selectedDay, displayWeekdayDate])
 
-  const monthStats = useMemo(() => {
-    const monthStart = startOfMonth(currentMonth)
-    const monthEnd = endOfMonth(currentMonth)
-    const days = eachDayOfInterval({ start: monthStart, end: monthEnd })
-
-    let totalLogs = 0
-    let missed = 0
-    let bestStreak = 0
-    let currentStreak = 0
-    let hasEntries = false
-
-    for (const day of days) {
-      const entries: CalendarDayEntry[] = dayMap.get(formatAPIDate(day)) ?? []
-      if (entries.length > 0) hasEntries = true
-      const completedCount = entries.filter((e) => e.status === 'completed').length
-      totalLogs += completedCount
-      missed += entries.filter((e) => e.status === 'missed').length
-
-      if (entries.length > 0 && completedCount === entries.length) {
-        currentStreak += 1
-        if (currentStreak > bestStreak) bestStreak = currentStreak
-      } else {
-        currentStreak = 0
-      }
-    }
-
-    return { bestStreak, totalLogs, missed, hasEntries }
-  }, [currentMonth, dayMap])
+  const { monthStats } = useMemo(
+    () => buildCalendarMonthModel(currentMonth, dayMap),
+    [currentMonth, dayMap],
+  )
 
   const monthStatTiles = useMemo(
     () => [
@@ -290,12 +282,7 @@ export default function CalendarPage() {
     }
   }, [])
 
-  const monthSlideClass =
-    monthSlide === 'right'
-      ? 'animate-slide-date-right'
-      : monthSlide === 'left'
-        ? 'animate-slide-date-left'
-        : ''
+  const monthSlideClass = resolveMonthSlideClass(monthSlide)
 
   const calendarHeader = (
     <CalendarHeader

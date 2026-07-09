@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl'
 import type { FrequencyUnit, SuggestedTag } from '@orbit/shared/types/habit'
 import {
   HABIT_REMINDER_PRESETS,
+  coalesceFormText,
   getFriendlyErrorMessage,
 } from '@orbit/shared/utils'
 import {
@@ -25,6 +26,7 @@ import { ReminderSection } from './habit-form-fields/reminder-section'
 import { ScheduledReminderSection } from './habit-form-fields/scheduled-reminder-section'
 import { SlipAlertSection } from './habit-form-fields/slip-alert-section'
 import { TagEditorRow } from './habit-form-fields/tag-editor-row'
+import { useExpandAdvancedSignal } from './habit-form-fields/use-expand-advanced-signal'
 import { AppDatePicker } from '@/components/ui/app-date-picker'
 import { AppTimePicker } from '@/components/ui/app-time-picker'
 import { AppSelect } from '@/components/ui/app-select'
@@ -34,6 +36,21 @@ import type { HabitFormHelpers } from '@/hooks/use-habit-form'
 import { useHasProAccess } from '@/hooks/use-profile'
 import { useCreateTag, useDeleteTag, useTags, useUpdateTag } from '@/hooks/use-tags'
 import { useTagSuggestions } from '@/hooks/use-tag-suggestions'
+
+export function resolveReminderLabel(
+  minutes: number,
+  t: ReturnType<typeof useTranslations>,
+): string {
+  const preset = HABIT_REMINDER_PRESETS.find((p) => p.value === minutes)
+  if (preset) return t(preset.key as Parameters<typeof t>[0])
+  if (minutes < 60) return `${minutes} ${t('habits.form.reminderMinutes')}`
+  if (minutes < 1440) {
+    const h = Math.floor(minutes / 60)
+    return `${h} ${t((h === 1 ? 'habits.form.reminderHour' : 'habits.form.reminderHours') as Parameters<typeof t>[0])}`
+  }
+  const d = Math.floor(minutes / 1440)
+  return `${d} ${t((d === 1 ? 'habits.form.reminderDay' : 'habits.form.reminderDays') as Parameters<typeof t>[0])}`
+}
 
 interface HabitFormFieldsProps {
   formHelpers: HabitFormHelpers
@@ -100,7 +117,7 @@ export function HabitFormFields({
   const { register, watch, setValue, formState: { errors } } = form
   const titleRegister = register('title')
 
-  const watchedTitle = watch('title') ?? ''
+  const watchedTitle = coalesceFormText(watch('title'))
   const watchedFrequencyUnit = watch('frequencyUnit') ?? null
   const watchedFrequencyQuantity = watch('frequencyQuantity') ?? null
   const watchedDays = watch('days') ?? []
@@ -120,18 +137,6 @@ export function HabitFormFields({
   const deleteTag = useDeleteTag()
   const isTagMutationPending = createTag.isPending || updateTag.isPending || deleteTag.isPending
 
-  function reminderLabel(minutes: number): string {
-    const preset = HABIT_REMINDER_PRESETS.find((p) => p.value === minutes)
-    if (preset) return t(preset.key as Parameters<typeof t>[0])
-    if (minutes < 60) return `${minutes} ${t('habits.form.reminderMinutes')}`
-    if (minutes < 1440) {
-      const h = Math.floor(minutes / 60)
-      return `${h} ${t((h === 1 ? 'habits.form.reminderHour' : 'habits.form.reminderHours') as Parameters<typeof t>[0])}`
-    }
-    const d = Math.floor(minutes / 1440)
-    return `${d} ${t((d === 1 ? 'habits.form.reminderDay' : 'habits.form.reminderDays') as Parameters<typeof t>[0])}`
-  }
-
   useEffect(() => {
     if (!watchedDueTime && watchedDueEndTime) {
       setValue('dueEndTime', '', { shouldDirty: true })
@@ -148,11 +153,7 @@ export function HabitFormFields({
   }, [onReminderEnabledChange, setValue])
 
   const [showAdvanced, setShowAdvanced] = useState(defaultExpanded)
-  const [prevExpandSignal, setPrevExpandSignal] = useState(expandAdvancedSignal)
-  if (expandAdvancedSignal !== prevExpandSignal) {
-    setPrevExpandSignal(expandAdvancedSignal)
-    if (expandAdvancedSignal > 0) setShowAdvanced(true)
-  }
+  useExpandAdvancedSignal(expandAdvancedSignal, () => setShowAdvanced(true))
 
   const watchedDescription = watch('description') ?? ''
   const watchedEmoji = watch('emoji') ?? ''
@@ -329,7 +330,7 @@ export function HabitFormFields({
             options={daysList.map((day) => ({
               key: day.value,
               label: day.label,
-              active: watchedDays?.includes(day.value) ?? false,
+              active: watchedDays.includes(day.value),
               onClick: () => toggleDay(day.value),
             }))}
           />
@@ -568,13 +569,13 @@ export function HabitFormFields({
               {t('habits.form.checklist')}
             </span>
             <HabitChecklist
-              items={watchedChecklistItems ?? []}
+              items={watchedChecklistItems}
               editable
               onItemsChange={(items) => setValue('checklistItems', items, { shouldDirty: true })}
             />
             <div className="mt-4">
               <ChecklistTemplates
-                items={watchedChecklistItems ?? []}
+                items={watchedChecklistItems}
                 onLoad={(items) => setValue('checklistItems', items, { shouldDirty: true })}
               />
             </div>
@@ -644,7 +645,7 @@ export function HabitFormFields({
               reminderTimes={reminderTimes}
               onReminderTimesChange={onReminderTimesChange}
               onToggleReminder={() => handleReminderEnabledChange(!watchedReminderEnabled)}
-              reminderLabel={reminderLabel}
+              reminderLabel={(minutes) => resolveReminderLabel(minutes, t)}
               t={t}
             />
           )}

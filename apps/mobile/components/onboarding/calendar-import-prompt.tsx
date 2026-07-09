@@ -29,8 +29,8 @@ export function CalendarImportPrompt() {
 
   const shouldShow = Boolean(
     profile?.hasCompletedOnboarding &&
-      profile?.hasCompletedTour &&
-      !profile?.hasImportedCalendar &&
+      profile.hasCompletedTour &&
+      !profile.hasImportedCalendar &&
       pathname !== '/calendar-sync' &&
       !dismissed,
   )

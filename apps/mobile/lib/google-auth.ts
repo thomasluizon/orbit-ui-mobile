@@ -112,7 +112,7 @@ export async function startMobileGoogleAuth({
       }),
     })
 
-    if (error || !data?.url) {
+    if (error || !data.url) {
       throw new Error(error?.message ?? 'Authentication failed')
     }
 

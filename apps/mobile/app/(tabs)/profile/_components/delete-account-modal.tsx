@@ -1,10 +1,12 @@
-import { useRef, useState } from 'react'
+import { useRef, useState, type MutableRefObject } from 'react'
 import {
   View,
   Text,
   Pressable,
   StyleSheet,
   type TextInput,
+  type NativeSyntheticEvent,
+  type TextInputKeyPressEventData,
 } from 'react-native'
 import { useTranslation } from 'react-i18next'
 import { parseISO } from 'date-fns'
@@ -79,6 +81,202 @@ const dangerPillStyles = StyleSheet.create({
   },
 })
 
+interface DeleteConfirmStepProps {
+  profile: Profile | undefined
+  deleteError: string
+  deleteLoading: boolean
+  onRequestDeletion: () => void
+  onClose: () => void
+}
+
+function DeleteConfirmStep({
+  profile,
+  deleteError,
+  deleteLoading,
+  onRequestDeletion,
+  onClose,
+}: Readonly<DeleteConfirmStepProps>) {
+  const { t } = useTranslation()
+  const { displayDate } = useDateFormat()
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = createTokensV2(currentScheme, currentTheme)
+
+  return (
+    <View style={styles.body}>
+      <View style={styles.destructiveHero}>
+        <View
+          style={[
+            styles.destructiveHeroCircle,
+            { backgroundColor: `${tokens.statusBad}24` },
+          ]}
+        >
+          <TriangleAlert size={34} color={tokens.statusBad} strokeWidth={1.8} />
+        </View>
+        <View style={styles.destructiveHeroBody}>
+          <Text style={[styles.deleteWarningTitle, { color: tokens.fg1 }]}>
+            {profile?.hasProAccess && profile.planExpiresAt
+              ? t('profile.deleteAccount.warningPro', {
+                  date: displayDate(parseISO(profile.planExpiresAt)),
+                })
+              : t('profile.deleteAccount.warningFree')}
+          </Text>
+          <Text style={[styles.deleteWarningDetail, { color: tokens.fg2 }]}>
+            {t('profile.deleteAccount.warningDetail')}
+          </Text>
+        </View>
+      </View>
+      {deleteError ? (
+        <Text style={[styles.errorTextSmall, { color: tokens.statusBadText }]}>
+          {deleteError}
+        </Text>
+      ) : null}
+      <View style={styles.modalActions}>
+        <DangerPillButton
+          label={
+            deleteLoading
+              ? t('profile.deleteAccount.sending')
+              : t('profile.deleteAccount.sendCode')
+          }
+          disabled={deleteLoading}
+          onPress={onRequestDeletion}
+        />
+        <PillButton
+          variant="ghost"
+          fullWidth
+          disabled={deleteLoading}
+          onPress={onClose}
+        >
+          {t('common.cancel')}
+        </PillButton>
+      </View>
+    </View>
+  )
+}
+
+interface DeleteCodeStepProps {
+  deleteCodeDigits: string[]
+  deleteCodeRefs: MutableRefObject<(TextInput | null)[]>
+  deleteError: string
+  deleteLoading: boolean
+  onChangeDigit: (index: number, value: string) => void
+  onKeyPressDigit: (
+    index: number,
+    event: NativeSyntheticEvent<TextInputKeyPressEventData>,
+  ) => void
+  onConfirm: () => void
+  onBack: () => void
+}
+
+function DeleteCodeStep({
+  deleteCodeDigits,
+  deleteCodeRefs,
+  deleteError,
+  deleteLoading,
+  onChangeDigit,
+  onKeyPressDigit,
+  onConfirm,
+  onBack,
+}: Readonly<DeleteCodeStepProps>) {
+  const { t } = useTranslation()
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = createTokensV2(currentScheme, currentTheme)
+
+  return (
+    <View style={styles.body}>
+      <Text
+        style={[
+          styles.modalDescription,
+          { color: tokens.fg2, textAlign: 'center' },
+        ]}
+      >
+        {t('profile.deleteAccount.codeInstructions')}
+      </Text>
+      <CodeInput
+        digits={deleteCodeDigits}
+        inputRefs={deleteCodeRefs}
+        onChange={onChangeDigit}
+        onKeyPress={onKeyPressDigit}
+        ariaLabelForIndex={(n) => t('auth.codeDigit', { n: n + 1 })}
+      />
+      {deleteError ? (
+        <Text style={[styles.errorTextSmall, { color: tokens.statusBadText }]}>
+          {deleteError}
+        </Text>
+      ) : null}
+      <View style={styles.modalActions}>
+        <DangerPillButton
+          label={
+            deleteLoading
+              ? t('profile.deleteAccount.deleting')
+              : t('profile.deleteAccount.confirmDelete')
+          }
+          disabled={deleteLoading || deleteCodeDigits.join('').length !== 6}
+          onPress={onConfirm}
+        />
+        <PillButton
+          variant="ghost"
+          fullWidth
+          disabled={deleteLoading}
+          onPress={onBack}
+        >
+          {t('common.back')}
+        </PillButton>
+      </View>
+    </View>
+  )
+}
+
+interface DeleteDeactivatedStepProps {
+  scheduledDeletionDate: string | null
+  onLogout: () => void
+}
+
+function DeleteDeactivatedStep({
+  scheduledDeletionDate,
+  onLogout,
+}: Readonly<DeleteDeactivatedStepProps>) {
+  const { t } = useTranslation()
+  const { displayDate } = useDateFormat()
+  const { currentScheme, currentTheme } = useAppTheme()
+  const tokens = createTokensV2(currentScheme, currentTheme)
+
+  return (
+    <View style={styles.body}>
+      <View
+        style={[
+          styles.freshStartBox,
+          {
+            backgroundColor: tokens.bgCard,
+            borderColor: tokens.hairline,
+            alignItems: 'center',
+          },
+        ]}
+      >
+        <Text style={[styles.boxLabel, { color: tokens.statusOverdueText }]}>
+          {t('profile.deleteAccount.title')}
+        </Text>
+        <Text
+          style={[
+            styles.boxItemText,
+            { color: tokens.fg2, textAlign: 'center' },
+          ]}
+        >
+          {t('profile.deleteAccount.deactivated', {
+            date: scheduledDeletionDate
+              ? displayDate(parseISO(scheduledDeletionDate))
+              : '',
+          })}
+        </Text>
+      </View>
+      <View style={styles.modalActions}>
+        <PillButton fullWidth onPress={onLogout}>
+          {t('profile.logout')}
+        </PillButton>
+      </View>
+    </View>
+  )
+}
+
 interface DeleteAccountModalProps {
   open: boolean
   onClose: () => void
@@ -92,10 +290,7 @@ export function DeleteAccountModal({
 }: Readonly<DeleteAccountModalProps>) {
   const { t } = useTranslation()
   const { isOnline } = useOffline()
-  const { displayDate } = useDateFormat()
   const logout = useAuthStore((s) => s.logout)
-  const { currentScheme, currentTheme } = useAppTheme()
-  const tokens = createTokensV2(currentScheme, currentTheme)
 
   const [deleteStep, setDeleteStep] = useState<'confirm' | 'code' | 'deactivated'>('confirm')
   const [deleteCodeDigits, setDeleteCodeDigits] = useState(['', '', '', '', '', ''])
@@ -219,136 +414,35 @@ export function DeleteAccountModal({
           />
         </View>
       ) : deleteStep === 'confirm' ? (
-        <View style={styles.body}>
-          <View style={styles.destructiveHero}>
-            <View
-              style={[
-                styles.destructiveHeroCircle,
-                { backgroundColor: `${tokens.statusBad}24` },
-              ]}
-            >
-              <TriangleAlert size={34} color={tokens.statusBad} strokeWidth={1.8} />
-            </View>
-            <View style={styles.destructiveHeroBody}>
-              <Text style={[styles.deleteWarningTitle, { color: tokens.fg1 }]}>
-                {profile?.hasProAccess && profile.planExpiresAt
-                  ? t('profile.deleteAccount.warningPro', {
-                      date: displayDate(parseISO(profile.planExpiresAt)),
-                    })
-                  : t('profile.deleteAccount.warningFree')}
-              </Text>
-              <Text style={[styles.deleteWarningDetail, { color: tokens.fg2 }]}>
-                {t('profile.deleteAccount.warningDetail')}
-              </Text>
-            </View>
-          </View>
-          {deleteError ? (
-            <Text style={[styles.errorTextSmall, { color: tokens.statusBadText }]}>
-              {deleteError}
-            </Text>
-          ) : null}
-          <View style={styles.modalActions}>
-            <DangerPillButton
-              label={
-                deleteLoading
-                  ? t('profile.deleteAccount.sending')
-                  : t('profile.deleteAccount.sendCode')
-              }
-              disabled={deleteLoading}
-              onPress={() => {
-                void handleRequestDeletion()
-              }}
-            />
-            <PillButton
-              variant="ghost"
-              fullWidth
-              disabled={deleteLoading}
-              onPress={onClose}
-            >
-              {t('common.cancel')}
-            </PillButton>
-          </View>
-        </View>
+        <DeleteConfirmStep
+          profile={profile}
+          deleteError={deleteError}
+          deleteLoading={deleteLoading}
+          onRequestDeletion={() => {
+            void handleRequestDeletion()
+          }}
+          onClose={onClose}
+        />
       ) : deleteStep === 'code' ? (
-        <View style={styles.body}>
-          <Text
-            style={[
-              styles.modalDescription,
-              { color: tokens.fg2, textAlign: 'center' },
-            ]}
-          >
-            {t('profile.deleteAccount.codeInstructions')}
-          </Text>
-          <CodeInput
-            digits={deleteCodeDigits}
-            inputRefs={deleteCodeRefs}
-            onChange={setDeleteCodeValue}
-            onKeyPress={(index, event) =>
-              handleDeleteCodeKeyPress(index, event.nativeEvent.key)
-            }
-            ariaLabelForIndex={(n) => t('auth.codeDigit', { n: n + 1 })}
-          />
-          {deleteError ? (
-            <Text style={[styles.errorTextSmall, { color: tokens.statusBadText }]}>
-              {deleteError}
-            </Text>
-          ) : null}
-          <View style={styles.modalActions}>
-            <DangerPillButton
-              label={
-                deleteLoading
-                  ? t('profile.deleteAccount.deleting')
-                  : t('profile.deleteAccount.confirmDelete')
-              }
-              disabled={deleteLoading || deleteCodeDigits.join('').length !== 6}
-              onPress={() => {
-                void handleConfirmDeletion()
-              }}
-            />
-            <PillButton
-              variant="ghost"
-              fullWidth
-              disabled={deleteLoading}
-              onPress={backToDeleteConfirmStep}
-            >
-              {t('common.back')}
-            </PillButton>
-          </View>
-        </View>
+        <DeleteCodeStep
+          deleteCodeDigits={deleteCodeDigits}
+          deleteCodeRefs={deleteCodeRefs}
+          deleteError={deleteError}
+          deleteLoading={deleteLoading}
+          onChangeDigit={setDeleteCodeValue}
+          onKeyPressDigit={(index, event) =>
+            handleDeleteCodeKeyPress(index, event.nativeEvent.key)
+          }
+          onConfirm={() => {
+            void handleConfirmDeletion()
+          }}
+          onBack={backToDeleteConfirmStep}
+        />
       ) : (
-        <View style={styles.body}>
-          <View
-            style={[
-              styles.freshStartBox,
-              {
-                backgroundColor: tokens.bgCard,
-                borderColor: tokens.hairline,
-                alignItems: 'center',
-              },
-            ]}
-          >
-            <Text style={[styles.boxLabel, { color: tokens.statusOverdueText }]}>
-              {t('profile.deleteAccount.title')}
-            </Text>
-            <Text
-              style={[
-                styles.boxItemText,
-                { color: tokens.fg2, textAlign: 'center' },
-              ]}
-            >
-              {t('profile.deleteAccount.deactivated', {
-                date: scheduledDeletionDate
-                  ? displayDate(parseISO(scheduledDeletionDate))
-                  : '',
-              })}
-            </Text>
-          </View>
-          <View style={styles.modalActions}>
-            <PillButton fullWidth onPress={() => void logout()}>
-              {t('profile.logout')}
-            </PillButton>
-          </View>
-        </View>
+        <DeleteDeactivatedStep
+          scheduledDeletionDate={scheduledDeletionDate}
+          onLogout={() => void logout()}
+        />
       )}
     </BottomSheetModal>
   )

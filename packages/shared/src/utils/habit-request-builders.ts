@@ -28,7 +28,7 @@ function applyScheduleFields(
   } else if (data.frequencyUnit) {
     req.frequencyUnit = data.frequencyUnit
     req.frequencyQuantity = data.frequencyQuantity ?? undefined
-    if (data.days?.length) req.days = data.days
+    if (data.days.length) req.days = data.days
     if (data.endDate) req.endDate = data.endDate
   }
 }
@@ -45,9 +45,9 @@ function applyReminderFields(
     req.reminderTimes = reminderTimes
     return
   }
-  if (data.reminderEnabled && (data.scheduledReminders?.length ?? 0) > 0) {
+  if (data.reminderEnabled && data.scheduledReminders.length > 0) {
     req.reminderEnabled = true
-    req.scheduledReminders = data.scheduledReminders ?? undefined
+    req.scheduledReminders = data.scheduledReminders
   }
 }
 
@@ -68,7 +68,7 @@ export function buildSubHabitRequest(
     req.isBadHabit = true
     req.slipAlertEnabled = data.slipAlertEnabled
   }
-  if (data.checklistItems?.length) req.checklistItems = data.checklistItems
+  if (data.checklistItems.length) req.checklistItems = data.checklistItems
   if (tagIds.length) req.tagIds = tagIds
   return req
 }
@@ -95,7 +95,7 @@ export function buildCreateHabitRequest(
     applyReminderFields(req, data, reminderTimes)
   }
   if (data.isBadHabit) req.slipAlertEnabled = data.slipAlertEnabled
-  if (data.checklistItems?.length) req.checklistItems = data.checklistItems
+  if (data.checklistItems.length) req.checklistItems = data.checklistItems
   if (tagIds.length) req.tagIds = tagIds
   if (goalIds.length) req.goalIds = goalIds
   const filtered = subHabits.filter((s) => s.trim())
@@ -113,7 +113,7 @@ function applyUpdateScheduleFields(
   if (isOneTime) return
   request.frequencyUnit = data.frequencyUnit ?? undefined
   request.frequencyQuantity = data.frequencyQuantity ?? undefined
-  if (data.days?.length) request.days = data.days
+  if (data.days.length) request.days = data.days
   if (data.endDate) {
     request.endDate = data.endDate
   } else if (originalEndDate) {
@@ -134,7 +134,7 @@ function applyUpdateReminderFields(
     request.scheduledReminders = []
     return
   }
-  if (data.reminderEnabled && (data.scheduledReminders?.length ?? 0) > 0) {
+  if (data.reminderEnabled && data.scheduledReminders.length > 0) {
     request.reminderEnabled = true
     request.reminderTimes = []
     request.scheduledReminders = data.scheduledReminders
@@ -201,7 +201,7 @@ export function buildUpdateHabitRequest(
   }
 
   request.slipAlertEnabled = data.isBadHabit ? data.slipAlertEnabled : false
-  if (data.checklistItems?.length) request.checklistItems = data.checklistItems
+  if (data.checklistItems.length) request.checklistItems = data.checklistItems
   request.goalIds = selectedGoalIds
   return request
 }

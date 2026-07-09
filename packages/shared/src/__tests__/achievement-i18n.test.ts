@@ -56,8 +56,8 @@ describe('achievement i18n coverage', () => {
     'has en name and description for "%s"',
     (key) => {
       const copy = achievementCopy(en, key)
-      expect(copy?.name?.trim()).toBeTruthy()
-      expect(copy?.description?.trim()).toBeTruthy()
+      expect(copy?.name.trim()).toBeTruthy()
+      expect(copy?.description.trim()).toBeTruthy()
     },
   )
 
@@ -65,8 +65,8 @@ describe('achievement i18n coverage', () => {
     'has pt-BR name and description for "%s"',
     (key) => {
       const copy = achievementCopy(ptBR, key)
-      expect(copy?.name?.trim()).toBeTruthy()
-      expect(copy?.description?.trim()).toBeTruthy()
+      expect(copy?.name.trim()).toBeTruthy()
+      expect(copy?.description.trim()).toBeTruthy()
     },
   )
 

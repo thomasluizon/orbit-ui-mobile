@@ -108,7 +108,7 @@ export default function RetrospectivePage() {
     setPortalError('')
     try {
       const data = await openCustomerPortal()
-      if (data?.url) {
+      if (data.url) {
         globalThis.location.href = data.url
       }
     } catch (err: unknown) {
@@ -131,7 +131,7 @@ export default function RetrospectivePage() {
         <RetrospectiveLockedStates
           hasProAccess={hasProAccess}
           isYearlyPro={isYearlyPro}
-          isTrialActive={profile?.isTrialActive ?? false}
+          isTrialActive={profile.isTrialActive}
           portalError={portalError}
           onOpenPortal={() => void handleOpenPortal()}
         />

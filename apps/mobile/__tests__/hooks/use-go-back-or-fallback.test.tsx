@@ -36,10 +36,10 @@ type GoBackOrFallback = (
 ) => void
 
 async function renderHookHarness(): Promise<GoBackOrFallback> {
-  let callback: GoBackOrFallback | null = null
+  const callbackHolder: { current: GoBackOrFallback | null } = { current: null }
 
   function Harness() {
-    callback = useGoBackOrFallback() as GoBackOrFallback
+    callbackHolder.current = useGoBackOrFallback() as GoBackOrFallback
     return null
   }
 
@@ -48,11 +48,11 @@ async function renderHookHarness(): Promise<GoBackOrFallback> {
     await Promise.resolve()
   })
 
-  if (!callback) {
+  if (!callbackHolder.current) {
     throw new Error('Expected useGoBackOrFallback to initialize')
   }
 
-  return callback
+  return callbackHolder.current
 }
 
 describe('mobile useGoBackOrFallback', () => {

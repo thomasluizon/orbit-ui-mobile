@@ -1,22 +1,16 @@
 'use client'
 
 import { type MouseEvent } from 'react'
-import { ChevronDown, MoreVertical } from 'lucide-react'
 import { useTranslations } from 'next-intl'
-import { stripInlineMarkdown } from '@orbit/shared/utils'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
-import { ParentRing } from '@/components/ui/parent-ring'
-import { Popover } from '@/components/ui/popover'
-import { useContextMenu, type ContextMenuItem } from '@/components/ui/context-menu'
-import { SelectCheck } from '@/components/ui/select-check'
+import { useContextMenu } from '@/components/ui/context-menu'
 import type { StatusDotState } from '@/components/ui/status-dot'
-import { CheckCircle } from './habit-row-check-circle'
-import { HabitRowMenu } from './habit-row-menu'
-import { MetaStrip, TitleText, type HabitRowMetaToken } from './habit-row-content'
+import { HabitRowContent, type HabitRowMetaToken } from './habit-row-content'
+import { HabitRowLeading } from './habit-row-leading'
+import { HabitRowTrailing } from './habit-row-trailing'
+import { buildHabitRowContextMenuItems } from './habit-row-context-menu-items'
 
 export type { HabitRowMetaToken }
-
-const MAX_VISIBLE_TAGS = 3
 
 /** Action callbacks consumed by HabitRow. Mirrors the mobile shape so that
  *  cross-platform call sites can pass the same handler bag. */
@@ -95,11 +89,9 @@ export function HabitRow({
     onToggleExpand,
     onEdit,
     onDuplicate,
-    onMoveParent,
-    onAddSubHabit,
     onSkip,
-    onReschedule,
     onDelete,
+    onAddSubHabit,
     onEnterSelectMode,
     onDrillInto,
   } = actions
@@ -108,10 +100,10 @@ export function HabitRow({
   const hasMenuActions = !!(
     onEdit ||
     onDuplicate ||
-    onMoveParent ||
+    actions.onMoveParent ||
     onAddSubHabit ||
     onSkip ||
-    onReschedule ||
+    actions.onReschedule ||
     onDelete ||
     canSelect ||
     canDrillInto
@@ -127,27 +119,19 @@ export function HabitRow({
 
   const indentPx = depth * 16
 
-  const contextMenuItems: ContextMenuItem[] = selectMode
-    ? []
-    : [
-        onLog && !isDone && canLog
-          ? { key: 'log', label: t('contextMenu.log'), onSelect: onLog }
-          : null,
-        onSkip ? { key: 'skip', label: t('contextMenu.skip'), onSelect: onSkip } : null,
-        onDetail
-          ? { key: 'viewDetails', label: t('contextMenu.viewDetails'), onSelect: onDetail }
-          : null,
-        onEdit ? { key: 'edit', label: t('contextMenu.edit'), onSelect: onEdit } : null,
-        onDuplicate
-          ? { key: 'duplicate', label: t('contextMenu.duplicate'), onSelect: onDuplicate }
-          : null,
-        onAddSubHabit
-          ? { key: 'addSubHabit', label: t('contextMenu.addSubHabit'), onSelect: onAddSubHabit }
-          : null,
-        onDelete
-          ? { key: 'delete', label: t('contextMenu.delete'), onSelect: onDelete, danger: true }
-          : null,
-      ].filter((item): item is ContextMenuItem => item !== null)
+  const contextMenuItems = buildHabitRowContextMenuItems({
+    selectMode,
+    isDone,
+    canLog,
+    onLog,
+    onSkip,
+    onDetail,
+    onEdit,
+    onDuplicate,
+    onAddSubHabit,
+    onDelete,
+    t,
+  })
 
   const { onContextMenu, contextMenu } = useContextMenu(contextMenuItems)
 
@@ -203,258 +187,45 @@ export function HabitRow({
         marginBottom: 10,
       }}
     >
+      <HabitRowLeading
+        title={habit.title}
+        emoji={habit.emoji}
+        emojiSize={emojiSize}
+        wellSize={wellSize}
+        wellRadius={wellRadius}
+        selectMode={selectMode}
+        selected={selected}
+        hasChildren={hasChildren}
+        expanded={expanded}
+        onToggleSelection={onToggleSelection}
+        onExpand={handleExpand}
+      />
 
-      {selectMode && (
-        <SelectCheck
-          selected={selected}
-          onClick={onToggleSelection}
-          ariaLabel={habit.title}
-        />
-      )}
+      <HabitRowContent
+        habit={habit}
+        titleSize={titleSize}
+        titleColor={getTitleColor()}
+        isDone={isDone}
+        meta={meta}
+        showStreak={showStreak}
+        streak={streak}
+      />
 
-      {hasChildren && !selectMode && (
-        <button
-          type="button"
-          onClick={handleExpand}
-          aria-label={expanded ? t('common.collapse') : t('common.expand')}
-          aria-expanded={expanded}
-          className="appearance-none border-0 bg-transparent cursor-pointer flex shrink-0 items-center justify-center text-[var(--fg-3)] transition-[transform,color] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:text-[var(--fg-1)]"
-          style={{
-            width: 44,
-            height: 44,
-            margin: '-15px -14px',
-            transform: expanded ? 'rotate(0deg)' : 'rotate(-90deg)',
-          }}
-        >
-          <ChevronDown size={14} strokeWidth={1.8} aria-hidden="true" />
-        </button>
-      )}
-
-      <span
-        aria-hidden="true"
-        className="shrink-0 inline-flex items-center justify-center"
-        style={{
-          width: wellSize,
-          height: wellSize,
-          borderRadius: wellRadius,
-          background: 'var(--bg-well)',
-          fontSize: habit.emoji ? emojiSize : emojiSize - 4,
-          lineHeight: 1,
-          ...(habit.emoji
-            ? {}
-            : {
-                fontFamily: 'var(--font-sans)',
-                fontWeight: 500,
-                color: 'var(--fg-3)',
-              }),
-        }}
-      >
-        {habit.emoji ?? [...habit.title.trim().toUpperCase()][0]}
-      </span>
-
-      <div
-        className="flex-1 min-w-0 flex flex-col"
-        style={{ gap: 2 }}
-      >
-        <TitleText
-          title={habit.title}
-          size={titleSize}
-          color={getTitleColor()}
-          strikethrough={isDone}
-        />
-        {habit.description?.trim() && (
-          <span
-            className="overflow-hidden whitespace-nowrap text-ellipsis"
-            style={{
-              fontFamily: 'var(--font-sans)',
-              fontSize: 13,
-              color: 'var(--fg-3)',
-              lineHeight: 1.3,
-            }}
-          >
-            {stripInlineMarkdown(habit.description)}
-          </span>
-        )}
-        {(meta.length > 0 || showStreak) && (
-          <span className="flex items-center" style={{ gap: 8 }}>
-            {meta.length > 0 && <MetaStrip tokens={meta} />}
-            {showStreak && (
-              <span
-                className="shrink-0"
-                style={{
-                  fontFamily: 'var(--font-sans)',
-                  fontSize: 13,
-                  color: 'var(--status-overdue-text)',
-                  fontVariantNumeric: 'tabular-nums',
-                }}
-              >
-                🔥 {streak}
-              </span>
-            )}
-          </span>
-        )}
-        {habit.tags.length > 0 && (
-          <span className="flex items-center overflow-hidden" style={{ gap: 8, marginTop: 1 }}>
-            {habit.tags.slice(0, MAX_VISIBLE_TAGS).map((tag) => (
-              <span
-                key={tag.id}
-                className="inline-flex items-center shrink-0 min-w-0"
-                style={{ gap: 5, maxWidth: 132 }}
-              >
-                <span
-                  aria-hidden="true"
-                  className="rounded-full shrink-0"
-                  style={{ width: 6, height: 6, background: tag.color }}
-                />
-                <span
-                  className="truncate"
-                  style={{
-                    fontFamily: 'var(--font-sans)',
-                    fontSize: 12,
-                    color: 'var(--fg-3)',
-                    lineHeight: 1.2,
-                  }}
-                >
-                  {tag.name}
-                </span>
-              </span>
-            ))}
-            {habit.tags.length > MAX_VISIBLE_TAGS && (
-              <span
-                className="shrink-0"
-                style={{
-                  fontFamily: 'var(--font-mono)',
-                  fontSize: 12,
-                  color: 'var(--fg-3)',
-                  fontVariantNumeric: 'tabular-nums',
-                }}
-              >
-                +{habit.tags.length - MAX_VISIBLE_TAGS}
-              </span>
-            )}
-          </span>
-        )}
-      </div>
-
-      <div className="flex items-center shrink-0" style={{ gap: 10 }}>
-        {showLinkedGoalDot && (
-          <span
-            role="img"
-            aria-label={t('habits.detail.linkedGoal')}
-            className="rounded-full"
-            style={{
-              width: 5,
-              height: 5,
-              background: 'var(--primary)',
-            }}
-          />
-        )}
-        {!selectMode && (
-          hasChildren ? (
-            <>
-              {childProgress && childProgress.total > 0 && (
-                <span
-                  aria-hidden="true"
-                  style={{
-                    fontFamily: 'var(--font-mono)',
-                    fontSize: 12,
-                    fontVariantNumeric: 'tabular-nums',
-                    color: 'var(--fg-3)',
-                  }}
-                >
-                  {childProgress.done}/{childProgress.total}
-                </span>
-              )}
-              <button
-                type="button"
-                aria-label={
-                  childProgress
-                    ? `${habit.title} ${childProgress.done}/${childProgress.total}`
-                    : habit.title
-                }
-                onClick={(event) => {
-                  event.stopPropagation()
-                  if (isDone) {
-                    actions.onUnlog?.()
-                  } else if (
-                    childProgress &&
-                    childProgress.total > 0 &&
-                    childProgress.done >= childProgress.total
-                  ) {
-                    actions.onLog?.()
-                  } else {
-                    actions.onForceLogParent?.()
-                  }
-                }}
-                className="appearance-none border-0 bg-transparent flex items-center justify-center cursor-pointer"
-                style={{ padding: 7, margin: -7 }}
-              >
-                <ParentRing
-                  done={childProgress?.done ?? 0}
-                  total={childProgress?.total ?? 0}
-                  size={30}
-                  color={habit.isBadHabit ? 'var(--status-bad)' : undefined}
-                  trackColor={
-                    habit.isBadHabit
-                      ? 'color-mix(in srgb, var(--status-bad) 40%, transparent)'
-                      : state === 'overdue'
-                        ? 'color-mix(in srgb, var(--status-overdue) 40%, transparent)'
-                        : undefined
-                  }
-                />
-              </button>
-            </>
-          ) : (
-            <CheckCircle
-              state={state}
-              tone={habit.isBadHabit ? 'bad' : 'default'}
-              onToggle={handleToggleStatus}
-              disabled={!canLog && !isDone}
-              ariaLabel={`${t(`habits.statusDot.${state}`)}, ${
-                isDone ? t('habits.actions.unlog') : t('habits.logHabit')
-              }`}
-            />
-          )
-        )}
-        {!selectMode && hasMenuActions && (
-          <Popover
-            placement="bottom-end"
-            className="min-w-[180px]"
-            trigger={
-              <button
-                type="button"
-                aria-label={t('habits.actions.more')}
-                onClick={(event) => event.stopPropagation()}
-                className="touch-target appearance-none border-0 bg-transparent flex items-center justify-center rounded-full text-[var(--fg-3)] transition-[background-color,color,transform] duration-[160ms] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev-pressed)] hover:text-[var(--fg-1)] active:scale-[0.96]"
-                style={{
-                  width: 34,
-                  height: 34,
-                  margin: '-3px',
-                  cursor: 'pointer',
-                }}
-              >
-                <MoreVertical size={18} strokeWidth={1.8} />
-              </button>
-            }
-          >
-            {(close) => (
-              <HabitRowMenu
-                close={close}
-                onEdit={onEdit}
-                onDuplicate={onDuplicate}
-                onAddSubHabit={onAddSubHabit}
-                onMoveParent={onMoveParent}
-                onSkip={onSkip}
-                onReschedule={onReschedule}
-                onDelete={onDelete}
-                onEnterSelectMode={canSelect ? onEnterSelectMode : undefined}
-                onDrillInto={canDrillInto ? onDrillInto : undefined}
-                t={t}
-              />
-            )}
-          </Popover>
-        )}
-      </div>
+      <HabitRowTrailing
+        habit={habit}
+        selectMode={selectMode}
+        hasChildren={hasChildren}
+        childProgress={childProgress}
+        showLinkedGoalDot={showLinkedGoalDot}
+        state={state}
+        isDone={isDone}
+        canLog={canLog}
+        hasMenuActions={hasMenuActions}
+        canSelect={canSelect}
+        canDrillInto={canDrillInto}
+        actions={actions}
+        onToggleStatus={handleToggleStatus}
+      />
     </div>
   )
 

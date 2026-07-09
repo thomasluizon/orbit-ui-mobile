@@ -24,7 +24,11 @@ export function useSpeechToText() {
   const [isTranscribing, setIsTranscribing] = useState(false)
   const [isSupported] = useState(() => {
     if (typeof navigator === 'undefined') return false
-    return !!navigator.mediaDevices?.getUserMedia && typeof MediaRecorder !== 'undefined'
+    return (
+      typeof navigator.mediaDevices !== 'undefined' &&
+      typeof navigator.mediaDevices.getUserMedia === 'function' &&
+      typeof MediaRecorder !== 'undefined'
+    )
   })
   const [transcript, setTranscript] = useState('')
   const [error, setError] = useState<string | null>(null)

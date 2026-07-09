@@ -62,14 +62,12 @@ function canUseNativeAds() {
   return Platform.OS !== 'web' && Constants.appOwnership !== 'expo'
 }
 
+type ConstantsWithAdMobConfig = {
+  expoConfig: { extra?: { adMob?: AdMobExtra } } | null
+}
+
 function getAdMobConfig(): AdMobExtra {
-  const expoConfig = (Constants as typeof Constants & {
-    expoConfig?: {
-      extra?: {
-        adMob?: AdMobExtra
-      }
-    }
-  }).expoConfig
+  const { expoConfig } = Constants as ConstantsWithAdMobConfig
 
   return expoConfig?.extra?.adMob ?? {}
 }
@@ -327,7 +325,7 @@ export function useAdMob() {
         current
           ? {
               ...current,
-              adRewardsClaimedToday: (current.adRewardsClaimedToday ?? 0) + 1,
+              adRewardsClaimedToday: current.adRewardsClaimedToday + 1,
             }
           : current,
     )

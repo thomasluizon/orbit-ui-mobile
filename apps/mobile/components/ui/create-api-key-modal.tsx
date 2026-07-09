@@ -402,7 +402,7 @@ export function CreateApiKeyModal({
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="always"
       >
-        {isRevealState && createdKey ? (
+        {isRevealState ? (
           <ApiKeyRevealPanel
             tokens={tokens}
             styles={styles}

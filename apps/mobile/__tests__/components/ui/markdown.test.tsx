@@ -38,8 +38,12 @@ interface CapturedRenderer {
   link(children: unknown, href: string): ReactElement & LinkElement
 }
 
-function renderMarkdown(props: Parameters<typeof Markdown>[0]): Record<string, unknown> {
+function resetCapturedMarkedProps(): void {
   markedProps.current = null
+}
+
+function renderMarkdown(props: Parameters<typeof Markdown>[0]): Record<string, unknown> {
+  resetCapturedMarkedProps()
   TestRenderer.act(() => {
     TestRenderer.create(<Markdown {...props} />)
   })

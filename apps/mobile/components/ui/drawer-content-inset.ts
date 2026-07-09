@@ -7,7 +7,7 @@ export function withDrawerContentInset(
 ): StyleProp<ViewStyle> {
   const flattened = StyleSheet.flatten(style)
   const paddingBottom =
-    typeof flattened?.paddingBottom === 'number'
+    typeof flattened.paddingBottom === 'number'
       ? flattened.paddingBottom
       : 0
 

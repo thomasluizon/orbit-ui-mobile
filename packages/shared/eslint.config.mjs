@@ -16,8 +16,8 @@ export default [
     files: ["**/*.{ts,tsx}"],
     plugins: { sonarjs },
     rules: {
-      "@typescript-eslint/no-unnecessary-condition": "warn",
-      "sonarjs/cognitive-complexity": ["warn", 15],
+      "@typescript-eslint/no-unnecessary-condition": "error",
+      "sonarjs/cognitive-complexity": ["error", 15],
     },
   },
   {

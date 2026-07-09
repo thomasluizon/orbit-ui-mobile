@@ -4,7 +4,7 @@ export const APP_VERSION_HEADER = 'X-App-Version'
 
 export function getClientTimeZone(): string | null {
   try {
-    const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone?.trim()
+    const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone.trim()
     return timeZone ? timeZone : null
   } catch {
     return null

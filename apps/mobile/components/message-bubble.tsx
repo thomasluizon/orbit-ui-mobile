@@ -138,7 +138,7 @@ export function MessageBubble({
           )}
 
           <Markdown tone={isUser ? "onPrimary" : "default"}>
-            {stripHabitListDirective(message.content ?? "")}
+            {stripHabitListDirective(message.content)}
           </Markdown>
         </View>
 

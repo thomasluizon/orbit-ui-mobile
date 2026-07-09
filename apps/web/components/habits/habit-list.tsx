@@ -889,7 +889,7 @@ const isPostponeAction = useMemo(() => {
     )
   }
 
-  if (habitsQuery.isLoading && !habitsQuery.data) {
+  if (habitsQuery.isLoading) {
     return <HabitListSkeleton />
   }
 

@@ -10,9 +10,7 @@ import {
 } from 'react'
 import {
   View,
-  Text,
   FlatList,
-  Pressable,
   RefreshControl,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
@@ -24,7 +22,6 @@ import DraggableFlatList, {
 } from 'react-native-draggable-flatlist'
 import { FlatList as GHFlatList } from 'react-native-gesture-handler'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
-import { ChevronLeft, Home } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
 import {
   buildHabitDateBuckets,
@@ -65,7 +62,6 @@ import { useTourStore } from '@/stores/tour-store'
 import { CreateHabitModal } from '@/components/habits/create-habit-modal'
 import { RescheduleSheet } from '@/components/habits/reschedule-sheet'
 import { HabitRow } from '@/components/habits/habit-row'
-import { PillButton } from '@/components/ui/pill-button'
 import { useTourTarget } from '@/hooks/use-tour-target'
 import { HabitListConfirmDialogs } from './habit-list/confirm-dialogs'
 import {
@@ -79,6 +75,7 @@ import {
   type HabitListDateGroup,
 } from './habit-list/date-group-section'
 import { DrillFooter, DrillHabitItem } from './habit-list/drill-panel'
+import { HabitListDrillView } from './habit-list/drill-view'
 import {
   MoveParentDialog,
   type MoveParentOption,
@@ -187,6 +184,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       [currentScheme, currentTheme],
     )
     const styles = useMemo(() => createStyles(tokens), [tokens])
+    const bulkBarStyle = isSelectMode ? styles.listContentWithBulkBar : null
     const scrollContainerRef = useRef<GHFlatList<DragItem>>(null)
     const allViewListRef = useRef<FlatList<HabitListDateGroup>>(null)
     const drillListRef = useRef<FlatList<NormalizedHabit>>(null)
@@ -1033,7 +1031,9 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
           void refetch()
         },
         scrollToOffset: (offset: number) => {
-          const target =
+          const target:
+            | { scrollToOffset?: (params: { offset: number; animated?: boolean }) => void }
+            | null =
             scrollContainerRef.current ??
             allViewListRef.current ??
             drillListRef.current
@@ -1474,118 +1474,19 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
     )
 
     if (drill.currentParentId) {
-      const completedCount = drill.drillChildren.filter(
-        (c) => c.isCompleted || c.isLoggedInRange,
-      ).length
-
-      const drillListHeader = (
-        <>
-          {listHeaderComponent}
-          <View style={styles.drillHeader}>
-            <Pressable
-              onPress={drill.drillBack}
-              hitSlop={2}
-              accessibilityRole="button"
-              accessibilityLabel={t('common.back')}
-              style={({ pressed }) => [
-                styles.drillBackBtn,
-                pressed ? styles.drillBackBtnPressed : null,
-              ]}
-            >
-              <ChevronLeft size={20} color={tokens.fg1} strokeWidth={1.8} />
-            </Pressable>
-            <View style={{ flex: 1 }}>
-              <Text style={styles.drillTitle} numberOfLines={1}>
-                {drill.currentParent?.title ?? ''}
-              </Text>
-              <Text style={styles.drillProgress}>
-                {completedCount}/{drill.drillChildren.length}{' '}
-                {t('habits.completed')}
-              </Text>
-            </View>
-          </View>
-          {drill.drillStack.length > 1 ? (
-            <Pressable
-              onPress={drill.drillReset}
-              accessibilityRole="button"
-              style={styles.drillResetRow}
-            >
-              {({ pressed }) => (
-                <>
-                  <Home
-                    size={14}
-                    color={pressed ? tokens.primaryPressed : tokens.primary}
-                    strokeWidth={1.8}
-                  />
-                  <Text
-                    style={[
-                      styles.drillResetText,
-                      pressed ? { color: tokens.primaryPressed } : null,
-                    ]}
-                  >
-                    {t('habits.backToHabits')}
-                  </Text>
-                </>
-              )}
-            </Pressable>
-          ) : null}
-        </>
-      )
-
-      const drillEmptyState = drill.drillLoading ? (
-        <View style={styles.drillSkeletons}>
-          <SkeletonCard styles={styles} />
-          <SkeletonCard styles={styles} />
-          <SkeletonCard styles={styles} />
-        </View>
-      ) : drill.drillError ? (
-        <View style={styles.drillErrorWrap}>
-          <Text
-            style={[styles.emptyText, { color: tokens.statusBadText }]}
-            accessibilityLiveRegion="polite"
-          >
-            {drill.drillError}
-          </Text>
-          <PillButton
-            variant="ghost"
-            accessibilityLabel={t('common.retry')}
-            style={styles.drillRetryButton}
-            onPress={() => {
-              void drill.refreshCurrent()
-            }}
-          >
-            {t('common.retry')}
-          </PillButton>
-        </View>
-      ) : (
-        <Text style={styles.emptyText}>{t('habits.noSubHabits')}</Text>
-      )
-
       return (
         <>
-          <FlatList
-            ref={drillListRef}
-            data={
-              drill.drillLoading || drill.drillError ? [] : drill.drillChildren
-            }
-            keyExtractor={(item) => item.id}
-            renderItem={renderDrillItem}
-            ListHeaderComponent={drillListHeader}
-            ListEmptyComponent={drillEmptyState}
-            ListFooterComponent={drillFooter}
-            contentContainerStyle={[
-              styles.listContent,
-              isSelectMode ? styles.listContentWithBulkBar : null,
-            ]}
+          <HabitListDrillView
+            drill={drill}
+            styles={styles}
+            listHeaderComponent={listHeaderComponent}
+            drillListRef={drillListRef}
+            renderDrillItem={renderDrillItem}
+            drillFooter={drillFooter}
             refreshControl={refreshControl}
-            onScroll={handleListScroll}
-            scrollEventThrottle={16}
+            onListScroll={handleListScroll}
             onScrollBeginDrag={onScrollBeginDrag}
-            showsVerticalScrollIndicator={false}
-            initialNumToRender={10}
-            maxToRenderPerBatch={5}
-            windowSize={5}
-            removeClippedSubviews={true}
+            bulkBarStyle={bulkBarStyle}
           />
           {commonOverlays}
         </>
@@ -1612,7 +1513,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
             ListHeaderComponent={listHeaderComponent}
             contentContainerStyle={[
               styles.skeletonContainer,
-              isSelectMode ? styles.listContentWithBulkBar : null,
+              bulkBarStyle,
             ]}
             refreshControl={refreshControl}
             onScrollBeginDrag={onScrollBeginDrag}
@@ -1649,7 +1550,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
             }
             contentContainerStyle={[
               styles.listContent,
-              isSelectMode ? styles.listContentWithBulkBar : null,
+              bulkBarStyle,
             ]}
             refreshControl={refreshControl}
             onScrollBeginDrag={onScrollBeginDrag}
@@ -1672,7 +1573,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
             ListEmptyComponent={renderEmptyState('all')}
             contentContainerStyle={[
               styles.groupedList,
-              isSelectMode ? styles.listContentWithBulkBar : null,
+              bulkBarStyle,
             ]}
             refreshControl={refreshControl}
             onScroll={handleListScroll}
@@ -1700,7 +1601,7 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
           testID={isDraggingList ? 'dragging-habit-list' : 'habit-list'}
           contentContainerStyle={[
             styles.listContent,
-            isSelectMode ? styles.listContentWithBulkBar : null,
+            bulkBarStyle,
           ]}
           refreshControl={refreshControl}
           onDragEnd={(params) => void handleDragEnd(params)}

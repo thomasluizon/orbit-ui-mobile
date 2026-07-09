@@ -28,6 +28,12 @@ import {
   useDismissCalendarSuggestion,
 } from '@/hooks/use-calendar-auto-sync'
 import { useCalendarEvents } from '@/hooks/use-calendar-events'
+import {
+  resolveCalendarSyncStep,
+  resolveDisplayedErrorMessage,
+  resolveSyncedSelection,
+  type WizardStage,
+} from '@/lib/calendar-sync-state'
 import { CalendarPickerSection } from './_components/calendar-picker-section'
 import { AutoSyncSettingsCard } from './_components/auto-sync-settings-card'
 import { CalendarSyncEventRow } from './_components/calendar-sync-event-row'
@@ -49,15 +55,6 @@ interface ImportResult {
 
 const EVENTS_PAGE_SIZE = 20
 
-type Step =
-  | 'loading'
-  | 'select'
-  | 'importing'
-  | 'done'
-  | 'error'
-  | 'not-connected'
-  | 'offline'
-type WizardStage = 'browse' | 'importing' | 'done' | 'error'
 type CalendarEvent = CalendarSyncEvent
 
 export default function CalendarSyncPage() {
@@ -113,41 +110,32 @@ export default function CalendarSyncPage() {
     setPreviousEventsKey(eventsKey)
     setEvents(incomingEvents)
     setVisibleCount(EVENTS_PAGE_SIZE)
-    if (isReviewMode && previousEventsKey !== null) {
-      setSelectedIds((prev) => {
-        const next = new Set<string>()
-        for (const ev of incomingEvents) {
-          if (prev.has(ev.id)) next.add(ev.id)
-        }
-        return next
-      })
-    } else {
-      setSelectedIds(new Set(incomingEvents.map((e) => e.id)))
-    }
+    setSelectedIds(
+      resolveSyncedSelection(selectedIds, incomingEvents, isReviewMode, previousEventsKey),
+    )
   }
 
   const allSelected = events.length > 0 && selectedIds.size === events.length
 
   const activeQuery = isReviewMode ? suggestionsQuery : eventsQuery
-  const step: Step = ((): Step => {
-    if (wizardStage === 'importing') return 'importing'
-    if (wizardStage === 'done') return 'done'
-    if (wizardStage === 'error') return 'error'
-    if (!isOnline) return 'offline'
-    if (activeQuery.isLoading) return 'loading'
-    if (activeQuery.isError) return 'error'
-    if (!isReviewMode && eventsQuery.data?.status === 'not-connected') {
-      return 'not-connected'
-    }
-    return 'select'
-  })()
+  const step = resolveCalendarSyncStep({
+    wizardStage,
+    isOnline,
+    isReviewMode,
+    isQueryLoading: activeQuery.isLoading,
+    isQueryError: activeQuery.isError,
+    eventsStatus: eventsQuery.data?.status,
+  })
 
-  const displayedErrorMessage =
-    wizardStage === 'error'
-      ? errorMessage
-      : activeQuery.isError
-        ? getFriendlyErrorMessage(activeQuery.error, t, 'calendar.fetchError', 'generic')
-        : ''
+  const displayedErrorMessage = resolveDisplayedErrorMessage({
+    wizardStage,
+    errorMessage,
+    isQueryError: activeQuery.isError,
+    queryError: activeQuery.error,
+    translate: t,
+  })
+
+  const importedCount = importResult?.imported ?? 0
 
   useEffect(() => {
     if (profile && !hasProAccess) {
@@ -279,8 +267,12 @@ export default function CalendarSyncPage() {
 
       <div className="flex-1 min-h-0 overflow-y-auto pb-8">
         <div>
-          {hasProAccess && <AutoSyncSettingsCard />}
-          {hasProAccess && <CalendarPickerSection enabled={googleConnected && isOnline} />}
+          {hasProAccess && (
+            <>
+              <AutoSyncSettingsCard />
+              <CalendarPickerSection enabled={googleConnected && isOnline} />
+            </>
+          )}
         </div>
 
         <div>
@@ -510,7 +502,7 @@ export default function CalendarSyncPage() {
                 color: 'var(--fg-2)',
               }}
             >
-              {plural(t('calendar.importedCount', { count: importResult?.imported ?? 0 }), importResult?.imported ?? 0)}
+              {plural(t('calendar.importedCount', { count: importedCount }), importedCount)}
             </p>
           </div>
           {importResult && importResult.habits.length > 0 && (

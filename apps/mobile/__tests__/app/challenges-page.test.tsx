@@ -100,7 +100,7 @@ function textContent(root: TestNode): string {
   return root
     .findAll(() => true)
     .map((node) => {
-      const child = node.props?.children
+      const child = node.props.children
       return typeof child === 'string' || typeof child === 'number' ? String(child) : ''
     })
     .join('\n')

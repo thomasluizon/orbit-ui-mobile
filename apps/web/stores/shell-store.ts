@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { createJSONStorage, persist } from 'zustand/middleware'
+import { getPersistStorage } from '@/lib/persist-storage'
 
 interface ShellState {
   sidebarCollapsed: boolean
@@ -17,12 +18,6 @@ interface ShellState {
   toggleAstra: () => void
   setAstraMaximized: (value: boolean) => void
   toggleAstraMaximized: () => void
-}
-
-const noopStorage = {
-  getItem: () => null,
-  setItem: () => {},
-  removeItem: () => {},
 }
 
 /**
@@ -55,9 +50,7 @@ export const useShellStore = create<ShellState>()(
     {
       name: 'orbit-shell-store',
       version: 1,
-      storage: createJSONStorage<Pick<ShellState, 'sidebarCollapsed'>>(() =>
-        globalThis.localStorage === undefined ? noopStorage : globalThis.localStorage,
-      ),
+      storage: createJSONStorage<Pick<ShellState, 'sidebarCollapsed'>>(getPersistStorage),
       partialize: (state) => ({ sidebarCollapsed: state.sidebarCollapsed }),
       skipHydration: true,
     },

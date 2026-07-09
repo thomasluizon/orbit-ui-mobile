@@ -31,10 +31,12 @@ vi.mock('@/lib/api-client', () => ({
 }))
 
 async function renderUseSubscriptionPlans(): Promise<ReturnType<typeof useSubscriptionPlans>> {
-  let latestValue: ReturnType<typeof useSubscriptionPlans> | null = null
+  const latestValueHolder: {
+    current: ReturnType<typeof useSubscriptionPlans> | null
+  } = { current: null }
 
   function Harness() {
-    latestValue = useSubscriptionPlans()
+    latestValueHolder.current = useSubscriptionPlans()
     return null
   }
 
@@ -43,11 +45,11 @@ async function renderUseSubscriptionPlans(): Promise<ReturnType<typeof useSubscr
     await Promise.resolve()
   })
 
-  if (!latestValue) {
+  if (!latestValueHolder.current) {
     throw new Error('useSubscriptionPlans did not render')
   }
 
-  return latestValue
+  return latestValueHolder.current
 }
 
 describe('mobile useSubscriptionPlans', () => {

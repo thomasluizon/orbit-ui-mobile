@@ -50,8 +50,7 @@ export function buildCalendarDayMap(
 
     const dates =
       instanceDates ??
-      habit.scheduledDates ??
-      []
+      habit.scheduledDates
 
     for (const dateStr of dates) {
       const date = parseAPIDate(dateStr)

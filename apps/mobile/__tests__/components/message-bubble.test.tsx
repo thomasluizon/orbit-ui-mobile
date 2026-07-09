@@ -109,10 +109,9 @@ describe('MessageBubble trace footer (mobile)', () => {
 
     const traceNodes = tree.root.findAll(
       (node) =>
-        node.props != null &&
-        (node.props.accessibilityLabel === 'chat.trace.copy' ||
+        node.props.accessibilityLabel === 'chat.trace.copy' ||
           (typeof node.props.children === 'string' &&
-            node.props.children.includes('req-abc-123'))),
+            node.props.children.includes('req-abc-123')),
     )
     expect(traceNodes).toHaveLength(0)
   })
@@ -121,7 +120,6 @@ describe('MessageBubble trace footer (mobile)', () => {
 function findSurfaceLinks(root: TestTreeRoot, label: string): TestNode[] {
   return root.findAll(
     (node) =>
-      node.props != null &&
       typeof node.type !== 'string' &&
       typeof node.props.onPress === 'function' &&
       node.props.accessibilityLabel === label,
@@ -172,7 +170,7 @@ describe('MessageBubble related-surfaces footer (mobile)', () => {
 
 function collectStrings(root: TestTreeRoot): string[] {
   return root
-    .findAll((node) => typeof node.props?.children === 'string')
+    .findAll((node) => typeof node.props.children === 'string')
     .map((node) => node.props.children as string)
 }
 

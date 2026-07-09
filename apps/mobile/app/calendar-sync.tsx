@@ -36,6 +36,13 @@ import {
 import { useCalendarEvents } from '@/hooks/use-calendar-events'
 import { plural } from '@/lib/plural'
 import { startMobileGoogleAuth } from '@/lib/google-auth'
+import {
+  resolveCalendarSyncStep,
+  resolveDisplayedErrorMessage,
+  resolveSyncedSelection,
+  type Step,
+  type WizardStage,
+} from '@/lib/calendar-sync-state'
 import { createTokensV2, tintFromPrimary } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 import { useOffline } from '@/hooks/use-offline'
@@ -61,17 +68,6 @@ function rgbaFromHex(hex: string, alpha: number): string {
   const b = Number.parseInt(normalized.slice(4, 6), 16)
   return `rgba(${r}, ${g}, ${b}, ${alpha})`
 }
-
-type Step =
-  | 'loading'
-  | 'select'
-  | 'importing'
-  | 'done'
-  | 'error'
-  | 'not-connected'
-  | 'offline'
-
-type WizardStage = 'browse' | 'importing' | 'done' | 'error'
 
 type CalendarEvent = CalendarSyncEvent
 
@@ -102,11 +98,14 @@ export default function CalendarSyncScreen() {
   const queryClient = useQueryClient()
   const { showError } = useAppToast()
 
+  const hasProAccess = profile?.hasProAccess ?? false
+  const showProSection = hasProAccess && !isProfileLoading
+
   const autoSyncStateQuery = useCalendarAutoSyncState({
-    enabled: profile?.hasProAccess ?? false,
+    enabled: hasProAccess,
   })
   const suggestionsQuery = useCalendarSyncSuggestions({
-    enabled: (profile?.hasProAccess ?? false) && isReviewMode,
+    enabled: hasProAccess && isReviewMode,
   })
   const setAutoSyncMutation = useSetCalendarAutoSync()
   const runSyncNowMutation = useRunCalendarSyncNow()
@@ -128,7 +127,7 @@ export default function CalendarSyncScreen() {
   const [visibleCount, setVisibleCount] = useState(EVENTS_PAGE_SIZE)
 
   const eventsQuery = useCalendarEvents({
-    enabled: (profile?.hasProAccess ?? false) && !isReviewMode && isOnline,
+    enabled: hasProAccess && !isReviewMode && isOnline,
   })
 
   const incomingEvents = useMemo<CalendarEvent[]>(() => {
@@ -144,17 +143,14 @@ export default function CalendarSyncScreen() {
     setPreviousEventsKey(eventsKey)
     setEvents(incomingEvents)
     setVisibleCount(EVENTS_PAGE_SIZE)
-    if (isReviewMode && previousEventsKey !== null) {
-      setSelectedIds((prev) => {
-        const next = new Set<string>()
-        for (const event of incomingEvents) {
-          if (prev.has(event.id)) next.add(event.id)
-        }
-        return next
-      })
-    } else {
-      setSelectedIds(new Set(incomingEvents.map((event) => event.id)))
-    }
+    setSelectedIds(
+      resolveSyncedSelection(
+        selectedIds,
+        incomingEvents,
+        isReviewMode,
+        previousEventsKey,
+      ),
+    )
   }
 
   const allSelected = events.length > 0 && selectedIds.size === events.length
@@ -193,26 +189,25 @@ export default function CalendarSyncScreen() {
   )
 
   const activeQuery = isReviewMode ? suggestionsQuery : eventsQuery
-  const step: Step = ((): Step => {
-    if (wizardStage === 'importing') return 'importing'
-    if (wizardStage === 'done') return 'done'
-    if (wizardStage === 'error') return 'error'
-    if (isProfileLoading) return 'loading'
-    if (!isOnline) return 'offline'
-    if (activeQuery.isLoading) return 'loading'
-    if (activeQuery.isError) return 'error'
-    if (!isReviewMode && eventsQuery.data?.status === 'not-connected') {
-      return 'not-connected'
-    }
-    return 'select'
-  })()
+  const step = resolveCalendarSyncStep({
+    wizardStage,
+    isProfileLoading,
+    isOnline,
+    isReviewMode,
+    isQueryLoading: activeQuery.isLoading,
+    isQueryError: activeQuery.isError,
+    eventsStatus: eventsQuery.data?.status,
+  })
 
-  const displayedErrorMessage =
-    wizardStage === 'error'
-      ? errorMessage
-      : activeQuery.isError
-        ? getFriendlyErrorMessage(activeQuery.error, t, 'calendar.fetchError', 'generic')
-        : ''
+  const displayedErrorMessage = resolveDisplayedErrorMessage({
+    wizardStage,
+    errorMessage,
+    isQueryError: activeQuery.isError,
+    queryError: activeQuery.error,
+    translate: t,
+  })
+
+  const importedCount = importResult?.imported ?? 0
 
   const handleBack = useCallback(() => {
     goBackOrFallback('/profile')
@@ -437,33 +432,32 @@ export default function CalendarSyncScreen() {
         contentContainerStyle={styles.scrollContent}
         showsVerticalScrollIndicator={false}
       >
-        {profile?.hasProAccess && !isProfileLoading ? (
-          <CalendarAutoSyncSection
-            styles={styles}
-            tokens={tokens}
-            chipTint={chipTint}
-            t={t}
-            autoSyncState={autoSyncState}
-            isStateLoading={autoSyncStateQuery.isLoading}
-            hasConnection={hasConnection}
-            connectionMeta={connectionMeta}
-            isOnline={isOnline}
-            isTogglePending={setAutoSyncMutation.isPending}
-            isSyncNowPending={runSyncNowMutation.isPending}
-            isConnecting={isConnecting}
-            onToggleAutoSync={handleToggleAutoSync}
-            onSyncNow={handleSyncNow}
-            onReconnect={() => void handleConnect()}
-          />
-        ) : null}
-
-        {profile?.hasProAccess && !isProfileLoading ? (
-          <CalendarPickerSection
-            styles={styles}
-            tokens={tokens}
-            t={t}
-            enabled={hasConnection && isOnline}
-          />
+        {showProSection ? (
+          <>
+            <CalendarAutoSyncSection
+              styles={styles}
+              tokens={tokens}
+              chipTint={chipTint}
+              t={t}
+              autoSyncState={autoSyncState}
+              isStateLoading={autoSyncStateQuery.isLoading}
+              hasConnection={hasConnection}
+              connectionMeta={connectionMeta}
+              isOnline={isOnline}
+              isTogglePending={setAutoSyncMutation.isPending}
+              isSyncNowPending={runSyncNowMutation.isPending}
+              isConnecting={isConnecting}
+              onToggleAutoSync={handleToggleAutoSync}
+              onSyncNow={handleSyncNow}
+              onReconnect={() => void handleConnect()}
+            />
+            <CalendarPickerSection
+              styles={styles}
+              tokens={tokens}
+              t={t}
+              enabled={hasConnection && isOnline}
+            />
+          </>
         ) : null}
 
         {(isProfileLoading || step === 'loading') && (
@@ -650,10 +644,8 @@ export default function CalendarSyncScreen() {
             </View>
             <SectionLabel>
               {plural(
-                t('calendar.importedCount', {
-                  count: importResult?.imported ?? 0,
-                }),
-                importResult?.imported ?? 0,
+                t('calendar.importedCount', { count: importedCount }),
+                importedCount,
               )}
             </SectionLabel>
             {importResult?.habits.map((habit) => (

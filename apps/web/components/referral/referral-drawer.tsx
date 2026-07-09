@@ -45,7 +45,7 @@ export function ReferralDrawer({ open, onOpenChange }: Readonly<ReferralDrawerPr
   }
 
   async function shareLink() {
-    if (!referralUrl || !navigator.share) return
+    if (!referralUrl || !('share' in navigator)) return
     try {
       await navigator.share({
         title: t('referral.share.title'),
@@ -74,7 +74,7 @@ export function ReferralDrawer({ open, onOpenChange }: Readonly<ReferralDrawerPr
           </div>
         )}
 
-        {isError && !isLoading && (
+        {isError && (
           <div
             role="alert"
             style={{
@@ -91,7 +91,7 @@ export function ReferralDrawer({ open, onOpenChange }: Readonly<ReferralDrawerPr
                 color: 'var(--status-overdue-text)',
               }}
             >
-              {error?.message ?? t('errors.loadReferral')}
+              {error.message}
             </p>
           </div>
         )}
