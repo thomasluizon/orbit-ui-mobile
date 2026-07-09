@@ -258,13 +258,11 @@ export function GoalDetailDrawer({
         </KeyboardAwareBottomSheetScrollView>
       </BottomSheetModal>
 
-      {goal ? (
-        <EditGoalModal
-          open={showEditModal}
-          onClose={() => setShowEditModal(false)}
-          goal={goal}
-        />
-      ) : null}
+      <EditGoalModal
+        open={showEditModal}
+        onClose={() => setShowEditModal(false)}
+        goal={goal}
+      />
 
       <ConfirmDialog
         open={showProgressDiscardDialog}

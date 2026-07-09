@@ -498,7 +498,7 @@ export function TodayHabitsHeader({
 
   useEffect(() => {
     if (!isFetching || prefersReducedMotion) {
-      refreshSpinAnim.stopAnimation?.();
+      refreshSpinAnim.stopAnimation();
       refreshSpinAnim.setValue(0);
       return;
     }

@@ -135,14 +135,14 @@ export function ReferralDrawer({ open, onClose }: Readonly<ReferralDrawerProps>)
           </View>
         ) : null}
 
-        {isError && !isLoading ? (
+        {isError ? (
           <View
             style={styles.errorContainer}
             accessibilityRole="alert"
             accessibilityLiveRegion="polite"
           >
             <Text style={styles.errorText}>
-              {error?.message ?? t('errors.loadReferral')}
+              {error.message}
             </Text>
           </View>
         ) : null}

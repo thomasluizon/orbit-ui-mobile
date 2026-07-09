@@ -25,7 +25,7 @@ export function DismissibleCard({ visible, children }: Readonly<DismissibleCardP
 
   useEffect(() => {
     if (visible) {
-      exitAnim.stopAnimation?.()
+      exitAnim.stopAnimation()
       exitAnim.setValue(1)
       return
     }

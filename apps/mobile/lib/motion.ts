@@ -55,7 +55,7 @@ export function usePrefersReducedMotion(): boolean {
       }
     })
 
-    const subscription = AccessibilityInfo.addEventListener?.(
+    const subscription = AccessibilityInfo.addEventListener(
       'reduceMotionChanged',
       (nextValue) => {
         cachedReducedMotionPreference = nextValue
@@ -68,7 +68,7 @@ export function usePrefersReducedMotion(): boolean {
 
     return () => {
       active = false
-      subscription?.remove?.()
+      subscription.remove()
     }
   }, [])
 

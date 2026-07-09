@@ -86,7 +86,7 @@ export function GoalTypeSelector({
       </View>
       <View style={styles.typeCaption}>
         <Text style={styles.typeDesc}>{t(activeTypeOption.descKey)}</Text>
-        {'hintKey' in activeTypeOption && activeTypeOption.hintKey ? (
+        {'hintKey' in activeTypeOption ? (
           <Text style={styles.typeHint}>{t(activeTypeOption.hintKey)}</Text>
         ) : null}
       </View>
