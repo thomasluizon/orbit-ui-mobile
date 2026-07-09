@@ -203,7 +203,7 @@ describe('PreferencesPage', () => {
     render(<PreferencesPage />)
     fireEvent.click(screen.getByRole('button', { name: /profile.colorScheme.title/ }))
     const colorRadios = screen.getAllByRole('radio').filter(
-      (radio) => radio.textContent?.startsWith('preferences.color'),
+      (radio) => radio.textContent.startsWith('preferences.color'),
     )
     expect(colorRadios.length).toBe(3)
   })

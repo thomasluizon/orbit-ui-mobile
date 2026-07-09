@@ -40,7 +40,7 @@ type GoBackOrFallback = (
 ) => void
 
 function renderHookHarness(): GoBackOrFallback {
-  let callback: GoBackOrFallback | null = null
+  let callback: GoBackOrFallback | undefined
 
   function Harness() {
     callback = useGoBackOrFallback() as GoBackOrFallback

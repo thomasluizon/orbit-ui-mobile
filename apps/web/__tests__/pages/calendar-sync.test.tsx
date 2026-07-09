@@ -154,11 +154,11 @@ vi.mock('@/hooks/use-calendar-events', async () => {
       })
       useEffect(() => {
         if (!enabled) return
-        let cancelled = false
+        const cancelled = { current: false }
         void (async () => {
           try {
             const res = await globalThis.fetch('/api/calendar/events')
-            if (cancelled) return
+            if (cancelled.current) return
             if (!res.ok) {
               const body = (await res.json().catch(() => null)) as
                 | { error?: string; message?: string }
@@ -190,7 +190,7 @@ vi.mock('@/hooks/use-calendar-events', async () => {
               error: null,
             })
           } catch (err) {
-            if (cancelled) return
+            if (cancelled.current) return
             setState({
               data: undefined,
               isLoading: false,
@@ -200,7 +200,7 @@ vi.mock('@/hooks/use-calendar-events', async () => {
           }
         })()
         return () => {
-          cancelled = true
+          cancelled.current = true
         }
       }, [enabled])
       return { ...state, refetch: vi.fn() }
