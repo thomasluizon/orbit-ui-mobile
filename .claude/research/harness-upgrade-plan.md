@@ -83,24 +83,135 @@ The generic, one-mechanism fix for "why do you violate instructions" — targets
 - [x] **Fixed `security-reviewer` frontmatter + body.** Confirmed `/pr-review` Phase-4 auto-fires it when the diff touches orbit-api code (SKILL.md:144). Aligned the description + body line to the reality (auto-invoke during /pr-review; also explicit) in BOTH repos' copies, mirroring `contract-aligner`'s phrasing.
 - [x] **Lockstep-gate (NOT dedup) for the `contract-aligner`/`security-reviewer` twins.** **Dedup is impossible**: orbit-api has its own `.github/workflows/claude-review.yml` + `pr-review` skill, so `/pr-review` runs from the orbit-api checkout in CI (no ui-mobile sibling), and subagents resolve from the launch repo's own `.claude/agents/` — both copies are load-bearing across two separate repos + CIs. Added a one-line HTML-comment **lockstep note** to all four files (behavior must stay identical; documented the sanctioned divergences: path style + the orbit-api copy's `NOT_VERIFIABLE` sibling-absent fallback). Also reconciled the ui-mobile copies' *stale* file refs to reality (verified: `TokenService.cs`→`JwtTokenService.cs`, `Program.cs`→`ServiceCollectionExtensions.Infrastructure.cs`, non-existent `Common/DTOs/`→feature-local). orbit-api touched → paired + cross-linked PR.
 
-## Stage 7 — Generalize & port to other PCs (do LAST, after the Orbit harness is proven)
+## Stage 7 — Generalize into a smart, AI-installed harness (do LAST — the final stage)
 
-**Goal:** extract a machine-agnostic CORE you can drop onto any PC (incl. the work machine), then layer machine-specific rules on top — e.g. that PC's specific SDLC git-flow process.
+**Revised 2026-07-09** with the full requirements below. This is no longer just "extract a CORE and copy it" — it is a **smart, AI-driven installer**: a `/setup-harness` skill that *researches the target machine*, *interviews the user*, *fetches + decodes the company's own rule docs*, and then *generates a tailored harness* by the same tier-decomposition this whole upgrade used (enforcement→hook, procedure→skill, facts→CLAUDE.md/rule, tool-defaults→rule). The Orbit harness (Stages 1–6 + the Stage-4 second-opinion) is the *proven reference*; Stage 7 turns it into a reusable, self-configuring product.
 
-- [ ] **Factor the harness into two layers:**
-  - **CORE (portable):** the proactivity guard (Stage 1), the steering-tier discipline, the generic skills (`grill-me`, `handoff`, `ship`, `clean`, `impeccable`), the `rules/` scaffolding, `WORKFLOW.md` conventions, session-hygiene defaults. No Orbit specifics.
-  - **OVERLAY (per-machine/per-project):** the specific hooks (`git-guardrails`, `forbid-*`), MCP servers, CLAUDE.md facts, and the company SDLC rules.
-- [ ] **Package the CORE as a distributable:** either a git "harness template" repo cloned into `~/.claude` + a project `.claude`, or an Anthropic **plugin** (bundles skills + hooks + MCP + rules; the sanctioned way to share harness components across machines).
+### Target repo (MODIFY — do not create new)
+
+`C:\Users\thoma\Documents\Programming\Projects\agentic-dev-workflow` (`thomasluizon/agentic-dev-workflow`, public, MIT). It already exists as a **config-YAML-driven pack** (single commit, 2026-07-03): generic skill bodies in `core/` (no project strings, guarded by `scripts/check-genericity.mjs` in CI), a hand-filled `workflow.config.yaml`, and `core/` mechanically generated into per-tool `adapters/` (claude-code / opencode / **codex**) by `scripts/gen-adapters.mjs`, vendored by `install.mjs` / `sync.mjs`. **It is outdated** — the `core/` skills are a 2026-07-03 snapshot that predates Stages 1–6 (Workflow-driven audits, the adversarial Phase 6 + second-opinion in pr-review, `/investigate`, the proactivity guard, `/handoff`, `/lesson`, model/effort routing). **Rewrite from scratch where needed**; keep the genericity guarantee. Orbit itself does **not** consume the pack (locked); the pack targets *other* machines/projects. See memory `agentic-dev-workflow-pack-repo`.
+
+### Locked design decisions (2026-07-09, user-confirmed)
+
+1. **Architecture = HYBRID.** Keep generic skill bodies in `core/` + a `workflow.config.yaml` for the *mechanical* values (repos, test/lint/typecheck/build commands, issue tracker, worktree, execution/capability flags, audit anchors). **On top**, `/setup-harness` *generates per project* the **policy** artifacts — `CLAUDE.md` facts, `.claude/rules/*.md`, and `.claude/hooks/*.mjs` — decoded from the interview + company docs. Skills stay reusable-at-rest; policy becomes enforced. (Not fully-AI-native, not config-only.)
+2. **Distribution = clone + bootstrap script.** `git clone` the repo → `node bootstrap.mjs` installs `/setup-harness` (+ the CORE skills/agents) globally into `~/.claude` → the user runs `/setup-harness` inside any target project. No marketplace/npm dependency; works offline. (Revisit an Anthropic plugin later if desired.)
+3. **Tools = Claude Code driver + opencode compat; Codex dropped.** `adapters/claude-code/` is the full driver (skills + agents + hooks + rules); `adapters/opencode/` is a thin compat layer (opencode reads `.claude/skills` natively + the `.opencode/agents` pointers, and is what the second-opinion step shells out to). **Delete the codex adapter, its prompts, and the gen-adapters codex path** (Codex is a locked-out decision).
+4. **Setup mode = gated propose-then-write.** `/setup-harness` researches + decodes, then **presents the tier-decomposition table for approval BEFORE writing anything enforcing** (hooks especially). Mirrors the harness's own "autonomy within a phase, human gate between phases." After approval it writes the artifacts and wires the pipeline.
+
+### Grilled design decisions (2026-07-09, `/grill-me`) — the full spec
+
+Resolved across a full grilling pass. These bind the build.
+
+**A. Architecture & layers**
+- **Artifacts land in BOTH scopes:** `~/.claude` (machine-wide — the CORE skills, the tool-default rules, the proactivity guard) + `<project>/.claude` (repo-specific — `CLAUDE.md`, `workflow.config.yaml`, hooks, repo rules).
+- **Config = two layers, machine-maintained.** A global `~/.claude/workflow.config.yaml` (company/machine defaults: tracker, branch pattern, tool defaults) + a `<project>/workflow.config.yaml` (overrides + `repos[]`); **project overrides global**. Monorepo/multi-repo = `repos[]` in the project config. **The user NEVER hand-edits config** — it is an AI-managed artifact (like a lockfile): `setup` populates it, `prime` re-detects + updates it each session, and a session maintenance hook catches drift. Trivial drift → silent update; a policy change (new tracker, new protected branch) → flagged for a quick confirm.
+- **Pipeline skills stay GENERIC and read config at runtime** (one source of truth in `core/`; `sync` updates every project at once). Only `CLAUDE.md`/rules/hooks + machine-specific skill *content* are generated per project.
+
+**B. Enforcement — dual-target, strongest-layer**
+- **Every enforceable invariant is DUAL-TARGET via a shared logic core + two thin adapters:** the check is written once (runtime-agnostic, e.g. `isCommitToProtectedBranch(payload)`), with a Claude Code `.mjs` command-hook adapter (`exit 2` / `decision:block`) AND an opencode plugin adapter (`tool.execute.before` → `output.abort`). Fix the rule once, both tools enforce — avoids the twin-drift the pr-review copies show.
+- **Enforce each rule at its STRONGEST available layer** (this is the *definitive* harness, not an MVP): git-action hooks (branch/protected/ticket-ref/no-`--no-verify`/no-`Co-Authored-By`) + content hooks (em-dash, banned phrases, secret patterns) + **REAL lint/analyzer rules** (ESLint / Roslyn / ruff) for code-level policies when the stack supports it (content-scan hook only as fallback where no stack linter exists).
+- **Hooks are Node `.mjs`; `bootstrap.mjs` hard-checks Node.** The proactivity guard ships in CORE, **model-configurable, dual-target** (CC `Stop`-hook + opencode `session.idle` plugin).
+- **opencode gets FULL enforcement parity** (plugin hooks), and **this is applied to the current Orbit machine too** — a paired Orbit deliverable (below).
+
+**C. The `/setup-harness` experience — a `grill-me` session, not a questionnaire**
+- **It IS a grill-me session:** long, adaptive, discoverable — a fixed core question set PLUS auto-discovered branching follow-ups. Never a rigid fixed form.
+- **Detection = read-only inspect + safe read-only probes** (`git remote -v`, `gh auth status`, `which`/`where`); NEVER runs test/build/install; every inferred command is shown for the user to confirm/correct.
+- **Repo discovery = detect current repo + workspace members + scan a configured projects-root for sibling repos + ASK the user** (who can just point at a "projects folder with all repos inside"). Confirm the set once, then auto-maintain.
+- **Greenfield vs adopt:** on a bloated existing setup, **ASK reset-vs-adopt**. Adopt = **back up** the existing `CLAUDE.md`/hooks/rules to a timestamped folder → **decompose the old content as a decode source** (enforceable → hooks/lint, proactive → rules, facts → a trimmed `CLAUDE.md`, dedupe) → gate → **rewrite lean**. Nothing lost, bloat refactored into tiers.
+- **Doc sources = explicit links + a taught doc-source it searches.** The user pastes specific URLs (e.g. a "Python package standards" Confluence page) AND can teach *where* docs live (a Confluence space, a docs repo, a wiki base URL); the AI reads the explicit ones and **searches the taught source** for relevant standards. **Doc decode:** fetch each (Confluence/Notion MCP or WebFetch), extract EVERY normative statement ("must/never/always/required"), propose a tier per item. `/update-harness` re-checks the taught source for new/changed standards over time.
+- **Tracker = per-tracker best-tool driver, resolved at setup by availability** (GitHub → `gh`, Jira → Atlassian MCP or `jira` CLI, Linear → MCP…). Not a blanket "MCP-first" rule — the best tool *for that tracker*.
+- **Gate = ONE editable decomposition table** (rule → proposed tier → enforce/soften/drop, conflicts flagged inline). The user edits toggles + fixes tiers in the file, then says "go". **Precedence: always ASK on conflict** — every disagreement (interview vs config vs doc) surfaces in the table, never auto-resolved.
+- **Customization = ANY skill can be specialized per machine** from workflow questions; **`investigate` especially** ("how do you investigate prod here?" — log groups via AWS CLI, which dashboards/DB → a machine-specific runbook). A generated skill **specializes the generic template in place, manifest-tracked** (one skill, no dual copies).
+- **New skills:** when the grill surfaces a repeatable flow the user describes, **propose a `SKILL.md`** (name/trigger/steps + dual-target hooks for any enforceable bits) in the gate; write on approval.
+- **MCP/secrets:** declare which MCPs the workflow uses + generate the tool-default rules; **NEVER store secrets** — for an interactive auth it can't script, give the exact command to run.
+- **Post-generation SELF-VERIFY:** config parses, skills + hooks load, AND **dry-run a guardrail** (simulate a commit to a protected branch → expect BLOCK); pass/fail report per artifact.
+- **Failure policy = never block:** dead doc URL → skip + flag "retry"; down MCP → fall back to the tracker CLI or an interview question; ambiguous detection → confirm question. Always completes, ending with a **gaps/deferred report**.
+
+**D. Distribution & lifecycle**
+- **Clone + `node bootstrap.mjs`** COPIES CORE into `~/.claude` + installs `/setup-harness` globally + records a **manifest + version** (copy, not symlink — survives moving/deleting the clone).
+- **Re-run `/setup-harness` = idempotent incremental update — and the reactive "a process changed" path.** It detects the existing harness, **skips the full grill**, and offers a focused **"what changed?"** entry (add/change a rule, link a new doc, add a flow); it decodes only the **delta** → gate → apply (manifest-tracked; never clobbers hand-edits; asks before overwriting a changed file). **Division of labor:** setup re-run = **reactive, the user is the source of truth** (you know a doc/process changed and bring it); `/update-harness` = **proactive, the web is the source of truth** (it discovers drift you don't know about). No third skill.
+- **Saved answers = a versioned `<project>/.claude/harness.answers.yaml`** (the interview + the approved decomposition; **no secrets**) — the durable record; `sync`/re-run re-decode from it deterministically, and it explains *why* each artifact exists.
+- **`sync` (script)** updates CORE, then re-applies the overlay by re-decoding from the saved answers, preserving edits via the manifest.
+- **Cross-platform: Windows + macOS + Linux, Node-based, no bash-isms.**
+
+**E. `/update-harness` — the maintenance counterpart (monthly, manual, web-grounded)**
+- A **manual monthly skill** (NOT a headless Action — that would violate the "never a self-improving loop" rule) + a **monthly reminder** (dep-sweep-style). It audits harness staleness and **proposes behind the gate**; the user applies.
+- **All staleness is WEB-RESEARCHED, never from memory** (hard requirement): stale **model pins** (check the live model roster / release notes — e.g. a skill pins Sonnet 5 but a newer Sonnet shipped), **deprecated APIs/flags/tools** (vendor docs), **drifted file/version references**, **installed-overlay-behind-pack**, and **new Claude Code / opencode capabilities** worth adopting. Every "X is stale" claim **cites a live web source**.
+- **Scope:** fixes **this machine's install** behind the gate; if the drift is in a **CORE** skill (affects all machines), **also emits a proposed upstream change** to the `agentic-dev-workflow` pack repo.
+
+**F. Interview / hooks / genericity — finer mechanics**
+- **Interview = thorough by default, resumable, with `--express`.** The full grill is the default; answers are written **incrementally** to `harness.answers.yaml` so a long session **resumes** anytime. An `--express` path covers just the essentials (repos / commands / tracker / git-flow) for a fast start you can deepen later. Fixed core set (each with adaptive follow-ups): scale · projects-root + repos · per-repo test/lint/typecheck/build · VCS host + tracker · git-flow (branch pattern, protected refs, merge strategy, ticket-ref, review reqs, **commit-trailer/co-author policy**) · text/style bans · code-level policies · tool defaults · doc sources · prod-investigation workflow · deploy/ship flow · bespoke flows.
+- **Hook engine = template library + bespoke dual-target generator.** Common invariants ship as parameterized templates (git-action: branch-name, protected-ref-no-commit/push, ticket-ref, no-`--no-verify`, no-`Co-Authored-By`, commit-msg-format · content: em-dash, banned-phrases, secret-scan, large-binary · the proactivity guard). Anything a template doesn't cover is **generated bespoke** (shared logic core → CC `.mjs` + opencode plugin) from the described rule — every enforceable rule becomes a real gate, never just a note. **Templates take optional path-scopes + exception lists** (em-dash banned except `CHANGELOG.md`; branch rule exempts `hotfix/*`), captured at the gate — a carve-out never forces disabling the whole rule.
+- **Genericity CI extended to enforce zero-leakage.** `check-genericity.mjs` fails not only on project names / brands / absolute paths but also on **hardcoded policy constants** that belong in config — a `Co-Authored-By` trailer, a `feature/|fix/|chore/` branch prefix, `gh` as the tracker, squash-only. Operationalizes the zero-Orbit-leakage requirement as a gate.
+
+**Paired Orbit deliverable (current machine):** port Orbit's Claude Code hooks (`git-guardrails`, `forbid-*`, the proactivity guard, `parity-nudge`, `csharp-tz`/`csharp-authz`) to `.opencode/plugin/` equivalents using the shared-logic-core + adapter pattern, so Orbit gets opencode enforcement parity here. (Uses the same dual-target design the pack standardizes.)
+
+### The centerpiece — the `/setup-harness` skill (the "one command to run with AI")
+
+A gated runbook skill that stands up the whole harness in a project through these phases:
+
+1. **Research the machine (detect, don't ask what you can see).** OS/shell; installed CLIs (`git`, `gh`, `az`, `glab`, `jira`, `docker`, node/python/dotnet + package managers); git remotes + host (GitHub / GitLab / Azure DevOps / Bitbucket); existing CI (`.github/workflows`, `azure-pipelines.yml`, `.gitlab-ci.yml`); existing `CLAUDE.md`; connected MCP servers (`~/.claude.json`); and inferred `test`/`lint`/`typecheck`/`build` commands from `package.json` / `*.csproj` / `Makefile` / `pyproject.toml`.
+2. **Interview (confirm detection + ask what detection can't know).** Issue tracker (Jira / GitHub Issues / Azure Boards / Linear / GitLab); branch-naming convention; protected branches; merge strategy (squash / rebase / merge); PR/review requirements; ticket-ref format; monorepo vs multi-repo; scale (`solo` / `team` / `enterprise`, for audit calibration); which tools (Claude Code / +opencode).
+3. **Collect company policy + doc links.** Free-form rules the user wants enforced, **plus URLs to company docs / wikis / Confluence / engineering handbooks** that carry policy. The skill **proactively fetches** them (WebFetch, or a Confluence/Notion MCP if connected) and reads them — the same "go get the source yourself" behavior as this upgrade.
+4. **Decode into tiers → propose (GATE).** Build the **decomposition table** (below) mapping every rule / instruction / doc-derived policy to its authority tier, and **present it for approval**. Nothing enforcing is written before the user signs off.
+5. **Generate + wire (after approval).** Write `CLAUDE.md` facts, `.claude/rules/*.md`, `.claude/hooks/*.mjs` (instantiated from the pack's **parameterized hook templates** — a generic `git-guardrails`/branch-name/protected-ref/ticket-ref/no-`--no-verify` library), fill `workflow.config.yaml`, install the chosen adapter, and drop a **customized `WORKFLOW.md`**. Then **wire the toolchain into the pipeline** (next section).
+
+### Wire the gathered knowledge into `/execute` (prime → grill → plan → implement) and the rest
+
+The interview/config parameterizes the pipeline so it adapts to the user's real toolchain (hybrid decision 1 — mechanical values via config, read by the generic skill bodies):
+
+- **`prime`** loads the machine's conventions docs + the tracker context it detected.
+- **`plan` / `implement`** respect the branch / merge / protected-ref conventions (which are *also* hook-enforced, per tier).
+- **`stories` / `feature`** create issues in the **chosen tracker** (GitHub / Jira / Azure Boards / Linear / GitLab) via that tracker's CLI or MCP — not hardcoded to `gh`.
+- **`validate`** runs the **detected/confirmed** commands (empty command → step skipped).
+- **`pr-review`** activates parity / i18n / contract dimensions only when configured; its adversarial Phase 6 + `/second-opinion` ship generically (opencode-gated, degrade to UNAVAILABLE when absent).
+- **`ship`** follows the chosen merge strategy + branch convention.
+
+Do **NOT** bake the flow into `/execute` — decompose by tier so enforcement holds no matter how work is invoked.
+
+### CORE vs OVERLAY (the two layers)
+
+- **CORE (ships in the repo, portable, no project strings):** the **behavioral best-practices baseline** — never-guess / verify-or-ask / research-first / maximum-autonomy / simplicity / surgical-changes (the global-`CLAUDE.md` behavioral rules), **auto-applied by `bootstrap` on every machine, independent of and before the company overlay** — plus the **proactivity guard** (genericized) that *enforces* that disposition, steering-tier discipline, the generic pipeline/review/intake/research skills (`prime` `grill` `plan` `implement` `validate` `execute` `ship` `clean` + `pr-review` + audits + `feature`/`prd`/`stories` + `deep-research`/`llm-council` + `thermo-nuclear`/`prod-readiness`), `handoff`, `lesson`, `impeccable`, the **`second-opinion`** skill, the `_shared/verification-protocol.md`, the `rules/` scaffolding, a generic `WORKFLOW.md`, session-hygiene defaults, the **parameterized hook-template library**, and the **`/setup-harness`** + **`/update-harness`** skills themselves. The company interview only *adds* to this baseline; it never replaces it.
+- **OVERLAY (generated per machine/project by `/setup-harness`):** the instantiated `git-guardrails`/`forbid-*` hooks, MCP-server config, `CLAUDE.md` facts, and the company SDLC rules — all decoded from the interview + docs.
 
 ### How to encode a company SDLC git-flow (the key design — decompose by tier, do NOT bake it all into `/execute`)
 
+This table is exactly the decoding logic `/setup-harness` applies in phase 4:
+
 | Part of the SDLC flow | Where it goes | Why |
 |---|---|---|
-| **Enforceable invariants** — branch name must match `feature/JIRA-####`, no commit to protected branches, ticket ref required, squash-only, no `--no-verify` | **HOOK** (`PreToolUse` on Bash git, `exit 2`) | Deterministic, portable, works no matter how you invoke. This is exactly what Orbit's `git-guardrails` hook already is — clone + adapt it. |
-| **The procedure** — create branch → open PR → link Jira → request reviewers → merge strategy | **SKILL** (a company `/ship` or `/flow` skill, or an `/execute` variant) | Procedures are skills. Keeps the steps repeatable and invocable, decoupled from enforcement. |
+| **Enforceable invariants** — branch name must match `feature/JIRA-####`, no commit to protected branches, ticket ref required, squash-only, no `--no-verify` | **HOOK** (`PreToolUse` on Bash git, `exit 2`) | Deterministic, portable, works no matter how you invoke. This is exactly what Orbit's `git-guardrails` hook already is — the pack ships it as a **parameterized template**; `/setup-harness` fills the branch regex / protected refs / ticket format. |
+| **The procedure** — create branch → open PR → link the tracker → request reviewers → merge strategy | **SKILL** (a company `/ship` or `/flow` skill, or an `/execute` variant) | Procedures are skills. Keeps the steps repeatable and invocable, decoupled from enforcement. |
 | **Conventions / facts** — "we use Jira", ticket format, main protected, required reviewers | **CLAUDE.md** (project facts) or a **rule** if you want re-injection on compaction / path scoping | Facts that shape behavior but need no enforcement. |
 | **Proactive tool defaults** — use the AWS CLI, use the Confluence MCP for docs | **Unscoped `~/.claude/rules/`** | Loads every session automatically; the "never tell it again" tier. |
 
 **Rule of thumb:** *enforcement → hook* (portable + deterministic), *procedure → skill*, *facts/conventions → CLAUDE.md or rule*, *proactive defaults → rule*. Baking the whole flow into `/execute` couples enforcement to one entry point and breaks the moment you work outside it.
 
-- [ ] Provide a one-command bootstrap (install CORE + prompt for the machine OVERLAY) so a new PC is set up in minutes.
+#### Worked example — the acceptance test for the decode logic (a real job machine's rules)
+
+`/setup-harness` must take free-form instructions like these and classify each to the right tier (this is the target behavior to build against):
+
+| User types in the interview | → Tier | → Generated artifact |
+|---|---|---|
+| "never use EM dashes" | HOOK | `forbid-em-dash` PreToolUse hook (Orbit's existing hook, genericized) + one CLAUDE.md line |
+| "always create the branch with `TB-XXXX` (Jira issue #)" | HOOK | `git-guardrails` branch-name regex parameterized to `TB-\d+` + CLAUDE.md fact |
+| "never co-author commits / PRs" | HOOK + FACT | hook blocking any commit/PR body containing `Co-Authored-By`; the `/ship`+commit procedure emits **no** trailer |
+| "always use the standards of these Confluence docs" (+ URLs) | FETCH → DECODE | fetch (Confluence MCP / WebFetch), decompose **each** policy inside into its own hook/rule/CLAUDE.md; a rule links the doc for re-injection |
+| "always use the AWS CLI" | RULE (proactive default) | unscoped `~/.claude/rules/` line |
+| "always use the Jira MCP" | RULE + CONFIG | rules line + `issueTracker: jira` → `stories`/`feature` create Jira tickets, not `gh` issues |
+
+**Hard requirement this example proves — zero Orbit leakage.** The pack must hardcode **none** of Orbit's own conventions. The user's "never co-author" is the *opposite* of Orbit (which adds `Co-Authored-By`), so the **commit-trailer, branch prefix/pattern, and merge strategy are interview-set policy fields, never constants**. The generic commit/`ship` procedure emits a trailer only if the config says to. (This also means: audit every generic skill body for a hardcoded `Co-Authored-By`, `feature/|fix/|chore/`, `gh`, or squash-only assumption and lift it to config.)
+
+### Build checklist (land incrementally — this stage may span sessions)
+
+- [ ] **7a — Purge + refresh CORE.** Delete the codex adapter + prompts + gen-adapters codex path. Re-sync `core/` from the *current* Orbit `.claude/skills` (genericized): Workflow-driven audits, pr-review's adversarial Phase 6 + `/second-opinion`, `/investigate`, `/handoff`, `/lesson`, model/effort routing. Add the generic `second-opinion` skill + helper and the **behavioral best-practices baseline** (never-guess/research-first/ask + the proactivity guard). Keep `check-genericity.mjs` green.
+- [ ] **7b — Dual-target hook engine.** The shared runtime-agnostic **logic core** + the **parameterized hook-template library** (branch/protected/ticket/no-`--no-verify`/no-co-author/em-dash/secret) + a **Claude Code `.mjs` adapter** and an **opencode plugin adapter** off the same logic. The proactivity guard as a dual-target pair. Stack-detected **lint/analyzer-rule** generators (ESLint/Roslyn/ruff) for code-level policies.
+- [ ] **7c — Detection + `grill-me` interview.** Read-only detectors + safe probes; repo discovery (detect + scan projects-root + ask); the adaptive grill-me interview (fixed core Qs + discovered follow-ups); **doc sources** (explicit links + taught source, fetch + decode); the **per-tracker best-tool driver**.
+- [ ] **7d — Decode + gate + generate.** Extract-every-normative decode → the **editable decomposition-table gate** (always-ask-on-conflict) → generators (CLAUDE.md facts / rules / hooks-from-templates / lint-analyzer rules / filled config / **machine-specialized skills** / **new skills from described flows**) → **adopt-vs-reset** with backup → the versioned **`harness.answers.yaml` + manifest** → **post-generation self-verify** (incl. a guardrail dry-run) → gaps report.
+- [ ] **7e — Wire the pipeline.** Generic skills read config (tracker-agnostic issue creation, detected commands, conventions); `investigate` + a company `ship`/`flow` machine-specialized from the interview.
+- [ ] **7f — Bootstrap + lifecycle.** `bootstrap.mjs` (copy CORE + install `/setup-harness` + `/update-harness` globally + Node hard-check + manifest/version); `sync` (re-decode from answers, preserve edits, ask before clobber); cross-platform (Windows/macOS/Linux); rewrite `README.md`; keep the genericity CI gate green.
+- [ ] **7g — `/update-harness`.** The web-grounded monthly staleness audit (model pins / deprecations / drifted refs / behind-pack / new capabilities — each claim citing a live source) → gated proposal → fix this machine's install + flag CORE drift upstream → the monthly reminder.
+- [ ] **7h — Paired Orbit deliverable.** Port Orbit's Claude Code hooks (`git-guardrails`, `forbid-*`, proactivity guard, `parity-nudge`, `csharp-tz`/`csharp-authz`) to `.opencode/plugin/` equivalents via the shared-logic-core + adapter pattern, giving Orbit opencode enforcement parity on this machine.
+- [ ] **7i — Dogfood.** Run `/setup-harness` end-to-end on a real target (a fresh project / the work machine's SDLC), run `/update-harness`, fix what breaks.
+
+**After Stage 7 lands, the harness-upgrade plan is complete — note that here.**
