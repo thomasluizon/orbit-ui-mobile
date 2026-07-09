@@ -196,5 +196,5 @@ export function shouldShowNativePushPrompt({
     return false
   }
 
-  return permissionStatus === 'undetermined' || permissionStatus === 'granted'
+  return true
 }
