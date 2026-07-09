@@ -95,7 +95,8 @@ const rank = (s) => {
 }
 const isSeriousOps = (f) => /blocker|high/i.test(f.severity || '')
 
-const scope = args?.scope || 'both'
+const parsedArgs = typeof args === 'string' ? JSON.parse(args) : args || {}
+const scope = parsedArgs.scope || 'both'
 const AUDIT_KINDS = ['security', 'tests', 'performance', 'code-quality']
 
 phase('Audits')

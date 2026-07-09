@@ -86,10 +86,10 @@ Parse `$ARGUMENTS` into one `{scope}` token, forwarded to every child audit:
 Invoke the `Workflow` tool (this skill's instructions are the opt-in):
 
 ```
-Workflow({ name: 'prod-readiness', args: { scope: '<resolved {scope}>' } })
+Workflow({ scriptPath: '.claude/workflows/prod-readiness.mjs', args: { scope: '<resolved {scope}>' } })
 ```
 
-(If `name` does not resolve, use `scriptPath: '.claude/workflows/prod-readiness.mjs'`.)
+(`scriptPath` is canonical — named workflow resolution is not available in this Claude Code build.)
 
 It runs the four `audit` workflows in parallel (each self-caps its own fan-out + verify +
 loop), then fans out the **ops-layer** checks — observability · multi-instance · background

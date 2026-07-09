@@ -73,22 +73,20 @@ const CRITIC_SCHEMA = {
 const KIND = {
   security: {
     ladder: 'Tier 1 (must fix — exploitable now, real blast radius) / Tier 2 (should fix before launch) / Tier 3 (enterprise — OUT of scope, mention once)',
-    verify: ['tier 1', 'tier 2'],
     rationale: 'threat — who reaches it (other user / anon / forged webhook / crafted prompt) and what they get',
     checklist: `${UI}\\.claude\\skills\\audit-security\\checklist.md`,
     extra: 'For cross-user access, PROVE the query is NOT scoped to the caller userId by citing the exact line. Payment/webhook handlers: verify the signature check exists. Secrets: cite the committed line. AI/MCP tools must derive userId from the session and accept no target-user parameter.',
     surfaces: [
-      { label: 'authz-isolation', where: 'orbit-api controllers + every CQRS query/command handler in src/Orbit.Application — each must scope its query by the authenticated userId (from the JWT, never a client-controlled field)', sections: 'A' },
-      { label: 'ai-mcp-scoping', where: 'the agent/MCP tool handlers in orbit-api (execute_agent_operation_v2, bulk_delete_habits, bulk_log_habits, delete_goal, manage_account, and the per-entity mutators) — each must resolve the caller userId and cannot touch another user rows', sections: 'A, F' },
-      { label: 'injection', where: 'raw or interpolated SQL/EF, dangerouslySetInnerHTML (web), Process.Start, path building from user input', sections: 'B' },
-      { label: 'secrets-config', where: 'hardcoded keys / JWT secrets / connection strings, .env-shaped values in source, debug flags, security headers + CORS in Program.cs and the Extensions', sections: 'C, D' },
-      { label: 'ratelimit-ai-abuse', where: 'rate-limit coverage on auth (send-code / verify-code), password-reset, and the AI/chat endpoints; request-size limits; prompt-injection and unbounded-cost paths in the AI flow', sections: 'E, F' },
-      { label: 'error-web-auth', where: 'stack traces / DB schema leaked in API responses; web auth cookie flags (httpOnly + sameSite strict + secure); mobile token storage (SecureStore, never AsyncStorage)', sections: 'G, H' },
+      { label: 'authz-isolation', repos: 'both', where: 'orbit-api controllers + every CQRS query/command handler in src/Orbit.Application — each must scope its query by the authenticated userId (from the JWT, never a client-controlled field)', sections: 'A' },
+      { label: 'ai-mcp-scoping', repos: 'api', where: 'the agent/MCP tool handlers in orbit-api (execute_agent_operation_v2, bulk_delete_habits, bulk_log_habits, delete_goal, manage_account, and the per-entity mutators) — each must resolve the caller userId and cannot touch another user rows', sections: 'A, F' },
+      { label: 'injection', repos: 'both', where: 'raw or interpolated SQL/EF, dangerouslySetInnerHTML (web), Process.Start, path building from user input', sections: 'B' },
+      { label: 'secrets-config', repos: 'both', where: 'hardcoded keys / JWT secrets / connection strings, .env-shaped values in source, debug flags, security headers + CORS in Program.cs and the Extensions', sections: 'C, D' },
+      { label: 'ratelimit-ai-abuse', repos: 'both', where: 'rate-limit coverage on auth (send-code / verify-code), password-reset, and the AI/chat endpoints; request-size limits; prompt-injection and unbounded-cost paths in the AI flow', sections: 'E, F' },
+      { label: 'error-web-auth', repos: 'both', where: 'stack traces / DB schema leaked in API responses; web auth cookie flags (httpOnly + sameSite strict + secure); mobile token storage (SecureStore, never AsyncStorage)', sections: 'G, H' },
     ],
   },
   tests: {
     ladder: 'Critical (untested critical path) / High (happy-path-only or rubber-stamp on a critical path) / Medium (missing edge/failure off the critical path)',
-    verify: ['critical', 'high'],
     rationale: 'what a real behavior break this test would NOT catch',
     checklist: `${UI}\\.claude\\skills\\audit-tests\\rubric.md`,
     extra: 'Judge tests by what they would FAIL on, never by count/coverage. For each test decide if it covers a critical path (auth, billing/subscription, AI/MCP tools, data-isolation, timezone/dates, validation) and score Behavior/Edge/Failure. Flag happy-path-only, rubber-stamp (asserts a mock was called / tautological / assertion-free), over-mocked (the unit never runs), implementation-coupled (asserts private state or call order). For each gap write the CONCRETE missing test — name + arrange/act/assert + the real factory from packages/shared/src/__tests__/factories.ts. Unit-tests-only policy: flag any integration/E2E/real-DB harness as out-of-policy, do not reward it.',
@@ -102,7 +100,6 @@ const KIND = {
   },
   performance: {
     ladder: 'High (degrades with scale — fix before it bites) / Medium (measurable but bounded) / Low or Info (micro, or only-at-enterprise-scale — noted, not prioritized)',
-    verify: ['critical', 'high'],
     rationale: 'impact — how it scales, concrete (e.g. "50-habit user → 50 round-trips")',
     checklist: `${UI}\\.claude\\skills\\audit-performance\\SKILL.md`,
     extra: 'Flag ONLY patterns that degrade quadratically/linearly with data or traffic: N+1 queries (missing .Include / projecting after materializing), missing index on a hot Where/OrderBy/FK, unbounded list rendered in full, sync slow work (HTTP/AI/email/push) inline in a request path, blocking async (.Result/.Wait), IQueryable materialized too early, missing AsNoTracking on hot reads; frontend render thrash, bundle bloat, over-eager or stale caching, waterfalls. CONFIRM every index claim against the EF migrations (read them, cite the migration). Do NOT micro-optimize, do NOT over-prescribe memoization/virtualization, do NOT list enterprise-only tuning (note once).',
@@ -115,7 +112,6 @@ const KIND = {
   },
   'code-quality': {
     ladder: 'Critical / High / Medium / Low / Info (a deep audit KEEPS Low/Info — the sanctioned rubric exception — but bucket them separately)',
-    verify: ['critical', 'high'],
     rationale: 'the rubric dimension it breaks and why it is real debt',
     checklist: `${UI}\\.claude\\skills\\pr-review\\rubric.md`,
     extra: 'Hunt dead/stale code and PROVE each with a zero-reference grep (cite the command and its empty result — never guess). Flag SOLID/clean-arch (functions over the ~50-line soft cap / ~100 hard cap, nesting past ~3), premature abstraction, DRY-at-the-wrong-level, comment-policy breaks (fix is rename-the-symbol or extract, never reword), naming (data/info/temp/helper/util as final names, abbreviations), and DESIGN.md drift on apps/* UI files only. Rank by blast-radius × churn — a smell in a hot handler outranks the same in a stable leaf. Do NOT re-derive security/contract findings (owned by /audit-security and /pr-review).',
@@ -132,7 +128,7 @@ const KIND = {
 const EXCLUDE = 'Exclude generated/vendored dirs (node_modules, .next, dist, build, bin, obj, coverage, .turbo, Migrations/ except when reading them to confirm an index, design/handoff/).'
 
 const isApiSurface = (s) => s.label.startsWith('api-') || /orbit-api/.test(s.where)
-const isUiSurface = (s) => !isApiSurface(s)
+const surfaceRepos = (s) => s.repos || (isApiSurface(s) ? 'api' : 'ui')
 
 function scopeLabelFor(scope) {
   if (!scope || scope === 'both') return 'both repos'
@@ -144,8 +140,8 @@ function scopeLabelFor(scope) {
 function resolveSurfaces(kind, scope) {
   const all = KIND[kind].surfaces
   if (!scope || scope === 'both') return all
-  if (['api', 'backend'].includes(scope)) return all.filter(isApiSurface)
-  if (['ui', 'web', 'mobile', 'frontend'].includes(scope)) return all.filter(isUiSurface)
+  if (['api', 'backend'].includes(scope)) return all.filter((s) => ['api', 'both'].includes(surfaceRepos(s)))
+  if (['ui', 'web', 'mobile', 'frontend'].includes(scope)) return all.filter((s) => ['ui', 'both'].includes(surfaceRepos(s)))
   return all.map((s) => ({ ...s, where: `${s.where} — but ONLY within the path "${scope}"` }))
 }
 
@@ -177,6 +173,7 @@ function criticPrompt(kind, scope, sweptLabels, count) {
     `Completeness critic for the ${kind} audit of ${scopeLabelFor(scope)}.`,
     `Surfaces swept so far: ${sweptLabels.join(', ')} — producing ${count} findings.`,
     `What did this audit NOT examine — a surface never swept, a file/handler/route skipped, or a claim left unverified (a dead-code grep not run, a userId scope unchecked, an index-in-migration unconfirmed, a critical-path test unmapped)?`,
+    `Stay strictly within this audit's calibration — ${KIND[kind].ladder}. Do NOT propose gaps outside the in-scope tiers (for security, enterprise/Tier-3 controls — GDPR/SOC2, dependency-CVE scanning, SIEM/attack-monitoring — are deliberately out of scope; for tests, coverage-percentage). Propose at most 6 gaps, highest-value first.`,
     `Return gaps as {label, prompt}, where prompt is a ready-to-run finder objective for that gap (same finding shape as the finders). Return an EMPTY gaps array if coverage is genuinely complete — do not invent gaps.`,
   ].join('\n')
 }
@@ -198,12 +195,12 @@ const countBy = (findings) => {
   return out
 }
 
-const kind = args?.kind
-const scope = args?.scope || 'both'
+const parsedArgs = typeof args === 'string' ? JSON.parse(args) : args || {}
+const kind = parsedArgs.kind
+const scope = parsedArgs.scope || 'both'
 if (!KIND[kind]) throw new Error(`audit workflow: unknown kind "${kind}" (expected security | tests | performance | code-quality)`)
 const cfg = KIND[kind]
-const verifySet = new Set(cfg.verify)
-const isSerious = (f) => verifySet.has((f.severity || '').toLowerCase().trim())
+const isSerious = (f) => rank(f.severity) <= 1
 
 const seen = new Set()
 const dedupeFresh = (findings) => {
@@ -259,7 +256,7 @@ log(`verified: ${kept.length} kept · ${capped.length} deferred (cap)`)
 phase('Complete')
 let round = 0
 let dry = 0
-const maxDry = args?.loop?.maxDryRounds ?? 2
+const maxDry = parsedArgs.loop?.maxDryRounds ?? 2
 while (dry < maxDry && round < HARD_ROUNDS) {
   round += 1
   const critic = await agent(criticPrompt(kind, scope, sweptLabels, kept.length), { label: `critic:round-${round}`, phase: 'Complete', model: 'haiku', effort: 'low', schema: CRITIC_SCHEMA })

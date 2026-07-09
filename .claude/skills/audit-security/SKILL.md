@@ -79,10 +79,10 @@ return (§4/§5).
 Invoke the `Workflow` tool (this skill's instructions are the opt-in):
 
 ```
-Workflow({ name: 'audit', args: { kind: 'security', scope: '<resolved {scope}>' } })
+Workflow({ scriptPath: '.claude/workflows/audit.mjs', args: { kind: 'security', scope: '<resolved {scope}>' } })
 ```
 
-(If `name` does not resolve, use `scriptPath: '.claude/workflows/audit.mjs'`.)
+(`scriptPath` is canonical — named workflow resolution is not available in this Claude Code build.)
 
 It fans out **one Haiku finder per attack surface** — authz & data-isolation · AI/MCP tool
 scoping · injection · secrets & config · rate-limit & AI-abuse · error-leakage & web/mobile
