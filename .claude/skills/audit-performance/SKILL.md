@@ -2,7 +2,6 @@
 name: audit-performance
 description: Performance-risk audit across both Orbit repos. API — N+1 queries, missing indexes, synchronous slow work in request paths. Frontend — bundle bloat, render thrash, over-eager or stale caching. Each finding carries file:line evidence and a remediation, calibrated to Orbit's solo-dev scale. Use when the user asks to audit performance, find slowdowns, or check for scaling risks. Not for running benchmarks.
 argument-hint: <path | repo | blank=both repos>
-context: fork
 ---
 
 # Audit Performance
@@ -14,6 +13,10 @@ API side is where Orbit's real risk lives (database round-trips per request); th
 side is render and cache hygiene. Output: one report, each finding pinned to a file:line
 with the fix.
 
+The fan-out, the adversarial verify, and the loop-until-dry run as the **`audit` dynamic
+workflow** (`.claude/workflows/audit.mjs`) — **Haiku finders + Haiku skeptics**,
+deterministic orchestration — so Opus spends tokens only on **this synthesis**.
+
 **Golden rule**: every finding is a concrete, located risk with a remediation, **sized to
 Orbit's actual scale** (solo dev, modest data per user, Postgres on Supabase). Flag the
 patterns that get *quadratically* worse with data (N+1, unindexed scans, render loops) —
@@ -23,135 +26,109 @@ not micro-optimizations that don't move the needle on a habit tracker. No premat
 
 ## Phase 0 — Provenance, scale & self-containment
 
-The API patterns below come from EF Core + Postgres performance canon; the frontend
-patterns from **react-patterns / performance skill bases on claudeskills.info**
-(https://claudeskills.info) and the React/Next.js + TanStack Query render-and-cache canon,
-specialized to Orbit's stack (Next.js 16 web, Expo SDK 56 mobile, TanStack Query, EF Core
-10 / MediatR CQRS). That URL is the single WHY-with-URL the comment policy allows.
+The API patterns come from EF Core + Postgres performance canon; the frontend patterns from
+**react-patterns / performance skill bases on claudeskills.info** (https://claudeskills.info)
+and the React/Next.js + TanStack Query render-and-cache canon, specialized to Orbit's stack
+(Next.js 16 web, Expo mobile, TanStack Query, EF Core 10 / MediatR CQRS). That URL is the
+single WHY-with-URL the comment policy allows.
 
-**Self-contained**: no network call, no profiler, no marketplace dependency at run time.
-It **reads** code and runs `git` / `rg`; it does not execute a benchmark or a load test
-(that's the separate load-test work, #230). Works unchanged in CI.
+**Self-contained**: the workflow's finder/skeptic agents **read** code and run `git` / `rg`;
+they do not execute a benchmark or load test (that's #230). **CI / headless fallback**: if
+the `Workflow` tool is unavailable, run the fan-out inline per Phase 2's fallback.
 
-**Scale calibration**: Orbit is solo-dev, pre-full-scale, with bounded per-user data
-(dozens of habits, not millions of rows). Rank by **how badly a pattern degrades as data
-or traffic grows**, and explicitly *skip* tuning that only matters at enterprise volume —
-say so rather than listing it.
+**Scale calibration**: Orbit is solo-dev, pre-full-scale, with bounded per-user data (dozens
+of habits, not millions of rows). Rank by **how badly a pattern degrades as data or traffic
+grows**, and explicitly *skip* tuning that only matters at enterprise volume.
 
 ---
 
-## Phase 1 — Resolve scope & load context
+## Phase 1 — Resolve scope
 
-Parse `$ARGUMENTS`: blank → **both repos**; `api`/`backend` → orbit-api; `frontend`/`web`/
-`mobile` → orbit-ui-mobile; a path → just that path.
+Parse `$ARGUMENTS` into a `{scope}` token: blank → `both`; `api`/`backend` → `api`;
+`frontend`/`web`/`mobile` → `ui`; a path → the path itself.
 
 | Repo | Hot zones |
 |---|---|
 | `orbit-api` | CQRS query handlers (`src/Orbit.Application/**/Queries`), the generic repository + EF `DbContext` usage, controller request paths |
 | `orbit-ui-mobile` | TanStack Query hooks (`apps/*/hooks`), list-rendering screens/pages, `next.config`/Metro bundle surface, heavy client components |
 
-Load root + scoped `CLAUDE.md`, `orbit-api/CLAUDE.md` (if backend in scope), and
-**`.claude/skills/_shared/verification-protocol.md`** (the shared reliability contract —
-its Verify phase and Deferred ledger run below). Exclude generated/vendored dirs
-(`node_modules`, `bin`, `obj`, `Migrations/` — but **do read** migrations to confirm which
-**indexes exist**, since that's load-bearing for the index checks). Source globs:
-`**/*.{ts,tsx}`, `**/*.cs`.
+The workflow's finders **read the EF migrations** to confirm which indexes exist (load-bearing
+for the index checks), and exclude other generated/vendored dirs. Load
+**`.claude/skills/_shared/verification-protocol.md`** — the workflow executes §1/§2/§3; you
+emit the Verify summary + Deferred ledger (§4/§5).
 
 ---
 
-## Phase 2 — Fan out by side
+## Phase 2 — Run the audit workflow (Haiku fan-out + adversarial verify)
 
-Delegate to **`Explore` subagents, 3 concurrent**. Two API slices + two frontend slices,
-non-overlapping. Each subagent prompt embeds:
+Invoke the `Workflow` tool (this skill's instructions are the opt-in):
 
-> **Objective**: audit `<slice>` for the performance patterns in this skill's Phase-3 / 4
-> checklist. For each risk emit a finding with an exact `file:line`, the **evidence** (the
-> code that causes it), the **impact** (how it scales — "1 query per habit → 50 round-trips
-> for a 50-habit user"), and the **fix**. Calibrate to solo-dev scale; skip enterprise-only
-> tuning. Confirm index claims against the EF migrations. Findings only.
+```
+Workflow({ name: 'audit', args: { kind: 'performance', scope: '<resolved {scope}>' } })
+```
+
+(If `name` does not resolve, use `scriptPath: '.claude/workflows/audit.mjs'`.)
+
+It fans out **one Haiku finder per slice** — `api-queries` (N+1, index coverage vs the
+migrations) · `api-requestpath` (sync slow work, blocking async, over-fetch, AsNoTracking) ·
+`fe-web` (TanStack cache hygiene, render thrash, bundle) · `fe-mobile` (long lists, Metro
+bundle, asset weight) — against the Phase-3/4 checklist below; runs a **Haiku skeptic** per
+**High** finding (default-refuted — the impact is bounded at Orbit's scale, the index
+actually exists, the query is already projected); loops until dry. It returns:
+
+```
+{ findings: [{ severity, title, category, location, evidence, rationale, fix, reference }],
+  counts, coverage, deferred, rounds, scopeLabel }
+```
+
+`rationale` carries the scaling **impact** (concrete: "50-habit user → 50 round-trips").
+
+**Fallback (no `Workflow` tool):** run the fan-out inline — `Explore` finders (Haiku, 3
+concurrent) over the four slices against the checklist below, Haiku skeptics per High
+finding, a completeness pass — same findings shape.
 
 ---
 
-## Phase 3 — API performance checklist
+## Phase 3 — API performance checklist (the finders apply this)
 
 > The flagship for Orbit: a habit tracker is read-heavy, and the killer is **round-trips
 > per request**.
 
-- [ ] **N+1 queries** — the #1 risk. A query that loads a list, then lazy-loads a relation
-  per item (a `foreach` issuing a query, or navigation access without `.Include()`). In EF
-  Core: missing `.Include()` / `.ThenInclude()`, or projecting after materializing.
-  **Impact scales with the user's row count.** Fix: eager-load with `.Include`, or project
-  to a DTO in one query with `.Select`.
-- [ ] **Missing indexes** — a `Where` / `OrderBy` / join on a column with no index →
-  sequential scan that worsens as the table grows. Check the EF migrations for an index on:
-  every foreign key used in a filter (`UserId`, `HabitId`, `GoalId`), and any column in a
-  hot `Where`/`OrderBy` (e.g. `DueDate`, `Date` on logs). A filtered/partial-unique index
-  where the schema needs one (e.g. the `HabitLogs` Value>0 partial constraint — see memory).
-  Fix: add the `HasIndex` in a migration.
-- [ ] **Over-fetching** — `SELECT *` / full-entity loads where a projection would do;
-  loading a graph to read one field; no pagination on a list that grows unbounded.
-- [ ] **Synchronous slow work in the request path** — CPU-heavy loops, an external HTTP/AI
-  call, email send, or push dispatch done *inline* in a handler instead of offloaded. The
-  AI/chat call is inherently slow — confirm it isn't blocking unrelated work and is
-  size/time-bounded. Fix: move fire-and-forget work to the background queue.
-- [ ] **Blocking async** — `.Result` / `.Wait()` / `.GetAwaiter().GetResult()` on a Task in
-  a request path (thread-pool starvation). Async all the way down.
-- [ ] **`IQueryable` materialized too early** — `.ToList()` then `.Where()` in memory
-  instead of composing the predicate into the SQL.
-- [ ] **Missing `AsNoTracking()`** on read-only queries — change-tracking overhead on hot
-  read paths. (Tier-2: matters more as throughput grows.)
+- **N+1 queries** — a query that loads a list then lazy-loads a relation per item; missing
+  `.Include()`/`.ThenInclude()`, or projecting after materializing. Fix: eager-load or project
+  with `.Select`.
+- **Missing indexes** — a `Where`/`OrderBy`/join on an unindexed column → sequential scan.
+  Check the EF migrations for an index on every filtered FK (`UserId`, `HabitId`, `GoalId`)
+  and hot `Where`/`OrderBy` columns (`DueDate`, `Date`), plus filtered/partial-unique where
+  the schema needs it (the `HabitLogs` Value>0 partial constraint). Fix: add the `HasIndex`.
+- **Over-fetching** — full-entity loads where a projection would do; no pagination on an
+  unbounded list.
+- **Synchronous slow work in the request path** — CPU loops, an HTTP/AI call, email, or push
+  done inline instead of offloaded to the background queue.
+- **Blocking async** — `.Result`/`.Wait()`/`.GetAwaiter().GetResult()` in a request path.
+- **`IQueryable` materialized too early** — `.ToList()` then `.Where()` in memory.
+- **Missing `AsNoTracking()`** on read-only hot paths.
 
-## Phase 4 — Frontend performance checklist
+## Phase 4 — Frontend performance checklist (the finders apply this)
 
-- [ ] **Bundle bloat** — a heavy library pulled into the client bundle for a small need;
-  a non-tree-shakeable default import (`import _ from 'lodash'` vs `lodash/pick`); a large
-  dep that could be dynamic-`import()`ed / server-only. Check `next.config` and the import
-  graph of the heaviest routes. Mobile: the Metro bundle for the same smell.
-- [ ] **Render thrash** — a new object/array/function literal passed as a prop every render
-  defeating memoization; a `useEffect` with an unstable dependency looping; a missing
-  `key`/stable key forcing list remounts; expensive work in render instead of `useMemo`.
-  **Don't over-flag**: only call out memoization where the render is demonstrably hot (a
-  large list, a frequently-updated subtree), not every component — premature `memo` is its
-  own smell.
-- [ ] **List virtualization** — a long, unbounded list rendered in full (mobile especially:
-  `.map()` over a large array instead of a `FlatList`). Bounded-small lists are fine; flag
-  only genuinely large ones.
-- [ ] **Over-eager caching** — refetching on every mount/focus where the data is stable
-  (TanStack `staleTime`/`gcTime` left at aggressive defaults for slow-changing data); a
-  query firing on every keystroke without debounce.
-- [ ] **Stale caching** — the opposite: a mutation that doesn't invalidate the query it
-  changed (`queryClient.invalidateQueries` missing), so the UI shows stale data; a too-long
-  `staleTime` on data that must feel live. Both directions are findings.
-- [ ] **Waterfalls** — sequential awaits/queries that could run in parallel
-  (`Promise.all`); a client fetch that should be server-rendered (web) to cut a round-trip.
-- [ ] **Image / asset weight** — unoptimized large images shipped to a 412px phone shell.
+- **Bundle bloat** — a heavy or non-tree-shakeable import for a small need; a large dep that
+  could be dynamic-`import()`ed / server-only. Check `next.config` and the Metro bundle.
+- **Render thrash** — a new object/array/function literal as a prop every render defeating
+  memoization; an unstable-dependency `useEffect`; a missing stable `key`. Only flag where the
+  render is demonstrably hot — premature `memo` is its own smell.
+- **List virtualization** — a long unbounded list rendered in full (mobile: `.map()` over a
+  large array vs a `FlatList`). Bounded-small lists are fine.
+- **Over-eager caching** — refetch on every mount/focus for stable data; a query per keystroke
+  without debounce.
+- **Stale caching** — a mutation that doesn't `invalidateQueries` the data it changed; a
+  too-long `staleTime` on data that must feel live.
+- **Waterfalls** — sequential awaits that could `Promise.all`; a client fetch that should be
+  server-rendered.
+- **Image / asset weight** — unoptimized large images to a 412px phone shell.
 
 ---
 
-## Phase 5 — Verify (adversarial + completeness)
-
-Before writing the report, run `.claude/skills/_shared/verification-protocol.md` — a risk
-ships only after it survives a challenge, and the sweep must prove it covered the hot
-zones.
-
-1. **Adversarial pass (§2).** For every **High / Medium** finding, spawn an independent
-   skeptic subagent (3 concurrent) whose only job is to *refute* it — read the cited
-   `file:line` in full context and argue it is a false positive (the impact is bounded at
-   Orbit's scale, the index actually exists — cite the migration, the query is already
-   projected/parallelized, the list is bounded-small, a duplicate). Default to refuted
-   when uncertain. Drop or downgrade anything the skeptic disproves; survivors ship with
-   confidence.
-2. **Completeness critic + loop-until-dry (§3).** Run a fresh critic asking *"what did this
-   audit NOT examine — a hot zone never swept, a handler or query skipped, an index claim
-   unchecked against the migrations?"* Spawn a focused finder round on each gap it names;
-   repeat until a round surfaces nothing new (cap: 2 dry rounds — log it).
-3. **Deferred ledger (§4).** Roll everything in scope but un-verdicted (enterprise-only
-   tuning, load-test territory #230, a slice left unswept) into the report's **Deferred**
-   section, one reason each — never implied as clean.
-
----
-
-## Phase 6 — Report
+## Phase 5 — Synthesize the report (Opus)
 
 ```bash
 mkdir -p .claude/audits
@@ -159,10 +136,13 @@ mkdir -p .claude/audits
 
 **Output path**: `.claude/audits/performance-{scope}.md`
 
+Bucket the workflow's `findings` by severity, build the Hotspots table from the highest-impact
+findings, carry `deferred` verbatim:
+
 ```markdown
 # Performance Audit: {SCOPE}
 
-**Scope**: {both repos / repo / path}
+**Scope**: {scopeLabel}
 **Calibration**: solo-dev scale — patterns that degrade with data/traffic; enterprise-only tuning skipped.
 **Verdict**: {1 line — e.g. "One N+1 in the summary query; web bundle clean; 1 missing log index"}
 
@@ -185,9 +165,9 @@ mkdir -p .claude/audits
 
 ## Deferred — in scope but not verdicted
 
-{Per the verification protocol §4: hot zones or slices the sweep did not reach with a
-verdict, enterprise-only tuning, load-test territory (#230) — each with a one-line reason.
-"Nothing deferred — full coverage" if the contract was met.}
+{From the workflow's `deferred` + enterprise-only tuning + load-test territory (#230) + any
+slice the run did not reach — each with a one-line reason. "Nothing deferred — full coverage"
+if empty.}
 
 ## What's efficient
 
@@ -212,12 +192,14 @@ Each finding uses:
 - **Micro-optimize.** Flag patterns that get *quadratically/linearly* worse with data or
   traffic. A one-off `O(n)` loop over 20 items is not a finding on a solo-scale app.
 - **Over-prescribe memoization / virtualization.** Only where the render is demonstrably
-  hot. Premature `memo`/`useCallback` everywhere is itself a smell — don't recommend it.
+  hot. Premature `memo`/`useCallback` everywhere is itself a smell.
 - **List enterprise tuning as findings.** Connection-pool sizing, read-replicas, CDN
   strategy, sharding — note as "out of scope at current scale," don't itemize.
-- **Claim an index is missing without checking the migrations.** Read them; cite the
-  migration that does (or doesn't) add it.
+- **Claim an index is missing without checking the migrations.** The finders read them and
+  cite the migration; drop any index finding that skipped that.
 - **Run a benchmark or load test.** This reads code; load testing is #230.
+- **Re-run the workflow's analysis.** It owns the fan-out, the skeptic pass, and the loop;
+  you synthesize its return. Only re-invoke for a coverage gap.
 - **Optimize during the audit.** Findings first; change code only if the user asks after.
 
 ---
