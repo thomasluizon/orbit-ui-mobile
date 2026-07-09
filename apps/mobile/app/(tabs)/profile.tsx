@@ -20,7 +20,7 @@ import {
   useTrialDaysLeft,
   useTrialExpired,
 } from '@/hooks/use-profile'
-import { useAuthStore } from '@/stores/auth-store'
+import { useLogout } from '@/hooks/use-logout'
 import { useGamificationProfile, useStreakInfo } from '@/hooks/use-gamification'
 import { AppBar } from '@/components/ui/app-bar'
 import { GradientTop } from '@/components/ui/gradient-top'
@@ -62,7 +62,7 @@ export default function ProfileScreen() {
   const { profile, isLoading, error } = useProfile()
   const trialDaysLeft = useTrialDaysLeft()
   const trialExpired = useTrialExpired()
-  const logout = useAuthStore((s) => s.logout)
+  const handleLogout = useLogout()
   const canViewGamification = profile?.canViewGamification ?? false
   const { profile: gamificationProfile } = useGamificationProfile(canViewGamification)
   const { data: streakInfo } = useStreakInfo(canViewGamification)
@@ -242,7 +242,7 @@ export default function ProfileScreen() {
             }}
             onFreshStart={() => setShowResetModal(true)}
             onDeleteAccount={() => setShowDeleteModal(true)}
-            onLogout={() => void logout()}
+            onLogout={() => void handleLogout()}
           />
         </Animated.View>
 

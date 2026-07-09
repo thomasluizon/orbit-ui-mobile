@@ -131,14 +131,6 @@ function RootStackScreens({
         contentStyle: { backgroundColor: screenBackgroundColor },
       }}
     >
-      <Stack.Screen name="privacy" options={{ animation: 'fade' }} />
-      <Stack.Screen name="terms" options={{ animation: 'fade' }} />
-      <Stack.Screen name="r" />
-      <Stack.Screen
-        name="auth-callback"
-        options={{ animation: 'fade', gestureEnabled: false }}
-      />
-
       <Stack.Protected guard={!isAuthenticated && !onboardingLocallyDone}>
         <Stack.Screen name="(onboarding)" />
       </Stack.Protected>
@@ -161,6 +153,18 @@ function RootStackScreens({
           />
         ))}
       </Stack.Protected>
+
+      {/* Public, unguarded screens MUST stay declared LAST: Expo Router anchors the
+          stack to the first AVAILABLE screen, so after login flips the guards the
+          user lands on (tabs), not /privacy. Regression from #400; fix #431.
+          https://docs.expo.dev/router/advanced/protected/ */}
+      <Stack.Screen name="privacy" options={{ animation: 'fade' }} />
+      <Stack.Screen name="terms" options={{ animation: 'fade' }} />
+      <Stack.Screen name="r" />
+      <Stack.Screen
+        name="auth-callback"
+        options={{ animation: 'fade', gestureEnabled: false }}
+      />
     </Stack>
   )
 }

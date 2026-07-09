@@ -17,7 +17,7 @@ import { API } from '@orbit/shared/api'
 import { apiClient } from '@/lib/api-client'
 import { useOffline } from '@/hooks/use-offline'
 import { useDateFormat } from '@/hooks/use-date-format'
-import { useAuthStore } from '@/stores/auth-store'
+import { useLogout } from '@/hooks/use-logout'
 import { OfflineUnavailableState } from '@/components/ui/offline-unavailable-state'
 import { BottomSheetModal } from '@/components/bottom-sheet-modal'
 import { CodeInput } from '@/components/ui/code-input'
@@ -290,7 +290,7 @@ export function DeleteAccountModal({
 }: Readonly<DeleteAccountModalProps>) {
   const { t } = useTranslation()
   const { isOnline } = useOffline()
-  const logout = useAuthStore((s) => s.logout)
+  const handleLogout = useLogout()
 
   const [deleteStep, setDeleteStep] = useState<'confirm' | 'code' | 'deactivated'>('confirm')
   const [deleteCodeDigits, setDeleteCodeDigits] = useState(['', '', '', '', '', ''])
@@ -441,7 +441,7 @@ export function DeleteAccountModal({
       ) : (
         <DeleteDeactivatedStep
           scheduledDeletionDate={scheduledDeletionDate}
-          onLogout={() => void logout()}
+          onLogout={() => void handleLogout()}
         />
       )}
     </BottomSheetModal>

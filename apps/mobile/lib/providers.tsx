@@ -1,5 +1,6 @@
 import { type ReactNode, useEffect, useRef, useState } from 'react'
 import * as SplashScreen from 'expo-splash-screen'
+import { reconcileSessionOnForeground } from './session-resume'
 import { QueryClientProvider } from '@tanstack/react-query'
 import {
   useFonts,
@@ -119,7 +120,7 @@ function AuthInitializer({ children }: Readonly<{ children: ReactNode }>) {
       }
 
       if (nextState === 'active') {
-        useAuthStore.getState().checkAuth()
+        reconcileSessionOnForeground()
           .then(() => { void syncWidgetData().catch(() => {}) })
           .catch(() => {})
       }
