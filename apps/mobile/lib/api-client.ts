@@ -149,6 +149,11 @@ async function parseApiResponse<T>(
   return JSON.parse(text) as T
 }
 
+async function redirectToLogin(): Promise<void> {
+  const { router } = await import('expo-router')
+  router.replace('/login')
+}
+
 export async function apiClient<T = unknown>(
   path: string,
   options: ApiRequestOptions = {},
@@ -180,12 +185,14 @@ export async function apiClient<T = unknown>(
 
       if (!isAuthTransitionInFlight()) {
         await clearSessionAndResetAuth()
+        await redirectToLogin()
       }
       throw toUnauthorizedError(retry.requestId)
     }
 
     if (refreshOutcome.status === 'unauthorized' && !isAuthTransitionInFlight()) {
       await clearSessionAndResetAuth()
+      await redirectToLogin()
     }
     throw toUnauthorizedError(requestId)
   }
