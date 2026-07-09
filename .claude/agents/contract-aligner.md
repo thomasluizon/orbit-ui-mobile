@@ -6,9 +6,11 @@ model: sonnet
 effort: medium
 ---
 
+<!-- LOCKSTEP COPY — twin lives at orbit-api/.claude/agents/contract-aligner.md. /pr-review runs from EITHER repo root (orbit-api CI fires it via .github/workflows/claude-review.yml), and subagents resolve from the launch repo's own .claude/agents/, so both copies are load-bearing — dedup is impossible across two separate git repos + CI. Keep BEHAVIOR identical (steps, drift categories, output format, frontmatter). Sanctioned divergences: (1) path style — this copy is ui-mobile-rooted/relative, the orbit-api copy uses absolute paths; (2) the orbit-api copy adds a NOT_VERIFIABLE fallback for when the ui-mobile sibling isn't checked out (orbit-api CI). -->
+
 # Contract aligner
 
-The TypeScript Zod schemas in `packages/shared/src/types/` and the .NET DTOs in `C:\Users\thoma\Documents\Programming\Projects\orbit-api\src\Orbit.Application\Common\DTOs\` (or feature-local DTOs) MUST match. The endpoint paths in `packages/shared/src/api/endpoints.ts` MUST match the controller routes in `C:\Users\thoma\Documents\Programming\Projects\orbit-api\src\Orbit.Api\Controllers\`.
+The TypeScript Zod schemas in `packages/shared/src/types/` and the .NET DTOs — feature-local under `C:\Users\thoma\Documents\Programming\Projects\orbit-api\src\Orbit.Application\` (records/classes in each feature's folder or its `Models\` subfolder, plus the request/response records declared alongside their commands and queries) — MUST match. The endpoint paths in `packages/shared/src/api/endpoints.ts` MUST match the controller routes in `C:\Users\thoma\Documents\Programming\Projects\orbit-api\src\Orbit.Api\Controllers\`.
 
 This subagent detects drift between them.
 
@@ -25,7 +27,7 @@ For each shared type referenced by an edited file, find its API counterpart and 
 1. **List the surface area:**
    - Read `packages/shared/src/types/*.ts` → extract Zod schema field names + types.
    - Read `packages/shared/src/api/endpoints.ts` → extract path tree.
-   - Read `orbit-api/src/Orbit.Application/**/DTOs/*.cs` → extract record/class field names + types.
+   - Read the feature-local DTO/model files under `orbit-api/src/Orbit.Application/` (e.g. `*Dtos.cs`, `**/Models/*.cs`, and the request/response records defined with their commands/queries) → extract record/class field names + types.
    - Read `orbit-api/src/Orbit.Api/Controllers/*.cs` → extract `[HttpGet/Post/Put/Delete/Patch("...")]` route attributes.
 2. **For each Zod schema with a matching name in DTOs:**
    - Field names: do they match? Casing convention (PascalCase C# vs camelCase TS) is expected — System.Text.Json default camelCases.

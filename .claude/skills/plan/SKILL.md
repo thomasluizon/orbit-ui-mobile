@@ -84,7 +84,7 @@ Use the Explore subagent for breadth. Search areas based on `Repos`:
 - Domain entities: `C:\Users\thoma\Documents\Programming\Projects\orbit-api\src\Orbit.Domain\`
 - Validators: `Orbit.Application\<Feature>\Validators\` and `Orbit.Application\Habits\Validators\SharedHabitRules.cs`
 - Controllers: `Orbit.Api\Controllers\`
-- Integration tests: `tests\Orbit.IntegrationTests\`
+- Unit tests: `tests\Orbit.Application.Tests\` (+ `Orbit.Domain.Tests`, `Orbit.Infrastructure.Tests`) — unit tests only, no integration suite
 
 ### Document Patterns
 
@@ -94,7 +94,7 @@ Use the Explore subagent for breadth. Search areas based on `Repos`:
 | FRONTEND_HOOK | ui-mobile | `apps/mobile/hooks/...` | ... |
 | BACKEND_CQRS | api | `src/Orbit.Application/...` | ... |
 | BACKEND_VALIDATOR | api | `src/Orbit.Application/.../Validators/...` | ... |
-| TESTS | both | `apps/web/__tests__/...` + `tests/Orbit.IntegrationTests/...` | ... |
+| TESTS | both | `apps/web/__tests__/...` + `tests/Orbit.Application.Tests/...` | ... |
 
 ---
 

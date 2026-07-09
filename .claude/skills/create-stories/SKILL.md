@@ -98,7 +98,7 @@ As a {user type}, I want to {action}, so that {benefit}.
 
 - Files likely to change: {paths}
 - Patterns to follow: {reference CLAUDE.md sections, e.g. "Add a new API endpoint"}
-- Validation: lint, type-check, unit tests; integration tests if backend
+- Validation: lint, type-check, unit tests (both repos are unit-tests-only)
 - For `repo:both`: backend changes first, then shared types, then frontend
 - For `parity-required: yes`: update both `apps/web` and `apps/mobile`
 
