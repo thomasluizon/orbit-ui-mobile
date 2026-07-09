@@ -454,12 +454,12 @@ export function CalendarTimeGrid({
 
   useEffect(() => {
     const offset = 7 * HOUR_HEIGHT;
-    bodyScrollRef.current?.scrollTo({ y: offset, animated: false });
-    gutterScrollRef.current?.scrollTo({ y: offset, animated: false });
+    bodyScrollRef.current?.scrollTo?.({ y: offset, animated: false });
+    gutterScrollRef.current?.scrollTo?.({ y: offset, animated: false });
   }, []);
 
   const syncGutter = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-    gutterScrollRef.current?.scrollTo({
+    gutterScrollRef.current?.scrollTo?.({
       y: event.nativeEvent.contentOffset.y,
       animated: false,
     });
