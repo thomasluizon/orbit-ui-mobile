@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 // PreToolUse(Bash) hook: block npm commands that would bump an Expo-SDK-pinned
-// package or bulk-update the mobile dependency tree. The Expo SDK 56 set is
+// package or bulk-update the mobile dependency tree. The Expo SDK 57 set is
 // version-locked (worklets<->reanimated ABI, RNGMA/Kotlin, the expo-* family);
 // a stray `npm update` or `npm install <pkg>@<ver>` breaks the native build and
 // drops RN transitive deps. Use `npx expo install <pkg>` (SDK-correct versions)
@@ -35,7 +35,7 @@ try {
   ) {
     process.stderr.write(
       `BLOCKED npm command (Expo SDK pin):\n  ${command}\n\n` +
-        "That package's version is managed by the Expo SDK 56 pin. Install it with `npx expo install <pkg>` so it resolves to the SDK-correct, ABI-compatible version.\n",
+        "That package's version is managed by the Expo SDK 57 pin. Install it with `npx expo install <pkg>` so it resolves to the SDK-correct, ABI-compatible version.\n",
     )
     process.exit(2)
   }

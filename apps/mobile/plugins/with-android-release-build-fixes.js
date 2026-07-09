@@ -47,7 +47,7 @@ allprojects {
                     && details.requested.name.startsWith('play-services-ads')
                     && details.requested.name != 'play-services-ads-identifier') {
                 details.useVersion '${PINNED_PLAY_SERVICES_ADS_VERSION}'
-                details.because 'play-services-ads 25.3.0+ ships Kotlin 2.3 metadata the Expo SDK 56 (Kotlin 2.1.20) toolchain cannot read; 25.2.0 is the last release before that bump and still has the AgeRestrictedTreatment API react-native-google-mobile-ads 16.3.3 needs'
+                details.because 'play-services-ads 25.3.0+ ships Kotlin 2.3 metadata the Expo SDK 57 (Kotlin 2.1.20) toolchain cannot read; 25.2.0 is the last release before that bump and still has the AgeRestrictedTreatment API react-native-google-mobile-ads 16.3.3 needs'
             }
         }
     }
@@ -115,7 +115,7 @@ function forceJvmFlag(value, pattern, flag) {
     : `${value} ${flag}`.trim()
 }
 
-// The template's default org.gradle.jvmargs is too small for the SDK 56 release
+// The template's default org.gradle.jvmargs is too small for the SDK 57 release
 // build: R8 minification of the Hermes bundle exhausts the default heap, and the
 // expo-updates KSP AA worker exhausts the default metaspace
 // (https://github.com/google/ksp/issues/1922). Force both flags authoritatively.
