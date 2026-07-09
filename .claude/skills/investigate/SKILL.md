@@ -2,8 +2,6 @@
 name: investigate
 description: Root-cause a production incident end to end — pull the Sentry issue, correlate it to a Render deploy and its runtime logs, inspect the Postgres rows it implicates, localize the fault to code via csharp-lsp, then propose the minimal fix behind a human gate. Use when a production error, crash, Sentry alert, or "why is X broken in prod" needs diagnosing. Not for a local dev bug you already have a reproducible stack trace for — just read the code.
 argument-hint: <sentry-issue-id | sentry-url | short description of the incident>
-model: claude-fable-5
-effort: medium
 ---
 
 # Investigate: Production Incident Root-Cause
