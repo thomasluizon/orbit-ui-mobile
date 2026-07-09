@@ -95,7 +95,7 @@ export function DeleteAccountModal({
   }
 
   function handleCodePaste(event: React.ClipboardEvent<HTMLInputElement>) {
-    const paste = event.clipboardData?.getData('text')?.replaceAll(/\D/g, '')?.slice(0, 6)
+    const paste = event.clipboardData.getData('text').replaceAll(/\D/g, '').slice(0, 6)
     if (paste) {
       const next = [...code]
       for (let i = 0; i < 6; i++) {

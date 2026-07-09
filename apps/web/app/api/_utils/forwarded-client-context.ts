@@ -35,7 +35,7 @@ function countryCodeFromAcceptLanguage(value: string | null): string | null {
   if (!value) return null
 
   for (const entry of value.split(',')) {
-    const languageTag = entry.split(';', 2)[0]?.trim()?.replaceAll('_', '-') ?? ''
+    const languageTag = entry.split(';', 2)[0]?.trim().replaceAll('_', '-') ?? ''
     const parts = languageTag.split('-').map((part) => part.trim()).filter(Boolean)
     if (parts.length < 2) continue
     const countryCode = sanitizeClientCountryCode(parts.at(-1) ?? null)

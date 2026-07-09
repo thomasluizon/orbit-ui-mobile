@@ -51,7 +51,7 @@ export function CalendarPickerSection({ enabled }: Readonly<CalendarPickerSectio
         </div>
       )}
 
-      {isError && !isLoading && (
+      {isError && (
         <div
           className="flex items-center"
           style={{ gap: 8, padding: '6px 20px 0' }}

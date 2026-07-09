@@ -44,7 +44,6 @@ export default function SupportPage() {
   const [error, setError] = useState<string | null>(null)
 
   useEffect(() => {
-    if (globalThis.localStorage === undefined) return
     const draft = { subject, message }
     const hasDraft = Object.values(draft).some((value) => value.trim().length > 0)
     if (!hasDraft) {
@@ -73,9 +72,7 @@ export default function SupportPage() {
       setSuccess(true)
       setSubject('')
       setMessage('')
-      if (globalThis.localStorage !== undefined) {
-        globalThis.localStorage.removeItem(SUPPORT_DRAFT_STORAGE_KEY)
-      }
+      globalThis.localStorage.removeItem(SUPPORT_DRAFT_STORAGE_KEY)
     } catch (err: unknown) {
       setError(getFriendlyErrorMessage(err, t, 'auth.genericError', 'generic'))
     } finally {

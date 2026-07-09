@@ -81,7 +81,7 @@ export default function UpgradePage() {
     setPortalError('')
     try {
       const data = await openCustomerPortal()
-      if (data?.url) {
+      if (data.url) {
         globalThis.location.href = data.url
       }
     } catch (err: unknown) {
@@ -108,7 +108,7 @@ export default function UpgradePage() {
         {isManageView ? (
           isPlaySource ? (
             <PlayBillingDashboard
-              profile={profile ?? null}
+              profile={profile}
               locale={locale}
               usagePercent={usagePercent}
               usageUrgent={usageUrgent}

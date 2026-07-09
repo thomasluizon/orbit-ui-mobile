@@ -98,7 +98,7 @@ export default function ChatPage() {
         return
       }
 
-      if (target instanceof HTMLElement && target.isContentEditable && target.textContent?.trim()) {
+      if (target instanceof HTMLElement && target.isContentEditable && target.textContent.trim()) {
         return
       }
 
