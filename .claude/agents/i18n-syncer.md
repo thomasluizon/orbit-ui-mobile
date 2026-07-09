@@ -3,6 +3,7 @@ name: i18n-syncer
 description: Ensures every i18n key exists in both packages/shared/src/i18n/en.json and pt-BR.json. Auto-invoke when the user touches user-facing strings, adds an i18n key, or removes one.
 tools: Read, Edit, Grep
 model: haiku
+effort: low
 ---
 
 # i18n syncer

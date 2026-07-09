@@ -2,7 +2,6 @@
 name: audit-code-quality
 description: Repo-wide code-quality audit across both Orbit repos against the same rubric /pr-review uses. Reports dead/stale code, SOLID/clean-arch violations, comment-policy breaks, DRY, naming, function size, and DESIGN.md drift — each finding evidence-backed with file:line. Use when the user asks to audit code quality, find tech debt, or check the codebase against the standards. Not for a single diff (use /pr-review).
 argument-hint: <path | workspace | repo | blank=both repos>
-context: fork
 ---
 
 # Audit Code Quality
@@ -12,6 +11,10 @@ context: fork
 Walk the **whole repo** (or a scoped path) against `rubric.md` — the *same* rubric
 `/pr-review` walks over a diff — and produce one severity-ranked report of real
 quality debt. `/pr-review` reviews what changed; this audits what *exists*.
+
+The fan-out, the adversarial verify, and the loop-until-dry run as the **`audit` dynamic
+workflow** (`.claude/workflows/audit.mjs`) — **Haiku finders + Haiku skeptics**,
+deterministic orchestration — so Opus spends tokens only on **this synthesis**.
 
 **Golden rule**: every finding cites a file:line and the rubric rule it traces to, and
 carries a concrete fix. No vibes, no "consider maybe" — if it can't be pinned to a line,
@@ -30,22 +33,22 @@ to Orbit's ten Code Standards, the orbit-api hard rules, `eslint-rules/no-commen
 and `DESIGN.md` — see the rubric's Phase 0 note. That URL is the single WHY-with-URL the
 comment policy allows.
 
-**Self-contained**: no network call at run time, no marketplace dependency. It reads
-local repo files and runs `git` / `rg` against the project's own checkout, so it works
-unchanged in CI.
+**Self-contained**: the workflow's finder/skeptic agents read local repo files and run
+`git` / `rg` against the project's own checkout. **CI / headless fallback**: if the
+`Workflow` tool is unavailable, run the fan-out inline per Phase 3's fallback.
 
 ---
 
 ## Phase 1 — Resolve scope
 
-Parse `$ARGUMENTS` into a target and the repos it covers.
+Parse `$ARGUMENTS` into a `{scope}` token for the workflow.
 
-| Input | Scope |
+| Input | `{scope}` |
 |---|---|
-| Blank | **both repos**, source dirs only (see exclusions) |
-| `frontend` / `ui` / `mobile` / `web` | `orbit-ui-mobile` (the matching workspace, or all three) |
-| `backend` / `api` | `orbit-api/src` |
-| A path | just that file or folder |
+| Blank | `both` (both repos, source dirs only) |
+| `frontend` / `ui` / `mobile` / `web` | `ui` |
+| `backend` / `api` | `api` |
+| A path | the path itself |
 
 **Repo roots:**
 
@@ -54,117 +57,64 @@ Parse `$ARGUMENTS` into a target and the repos it covers.
 | `orbit-ui-mobile` | `C:\Users\thoma\Documents\Programming\Projects\orbit-ui-mobile` |
 | `orbit-api` | `C:\Users\thoma\Documents\Programming\Projects\orbit-api` |
 
-**Exclude from the walk** (never audit generated / vendored / test-fixture code):
-`node_modules`, `.next`, `dist`, `build`, `bin`, `obj`, `coverage`, `.turbo`,
-`Migrations/` (EF-generated), `design/handoff/` (vendored canon), `*.lock`, `.claude/`.
-Source globs: `**/*.{ts,tsx}` (frontend), `**/*.cs` (backend). Test files (`*.test.ts`,
-`*.spec.ts`, `tests/**`, `*Tests.cs`) are in-scope for naming/size/dead-code but exempt
-from the `console.log` and comment-narration rules.
+The workflow excludes generated / vendored / test-fixture code (`node_modules`, `.next`,
+`dist`, `build`, `bin`, `obj`, `coverage`, `.turbo`, `Migrations/`, `design/handoff/`,
+`.claude/`). Load **`.claude/skills/_shared/verification-protocol.md`** — the workflow
+executes §1/§2/§3; you emit the Verify summary + Deferred ledger (§4/§5).
 
 ---
 
-## Phase 2 — Load context
+## Phase 2 — Run the audit workflow (Haiku fan-out + adversarial verify)
 
-In parallel:
+Invoke the `Workflow` tool (this skill's instructions are the opt-in):
 
-- **`.claude/skills/pr-review/rubric.md`** — the dimensions, severities, and finding
-  template this audit walks. **This is the contract; read it first.**
-- Root `CLAUDE.md` (+ the scoped workspace `CLAUDE.md` for each workspace in scope) in
-  `orbit-ui-mobile`.
-- `orbit-api/CLAUDE.md` (+ scoped project `CLAUDE.md`) — only if backend is in scope.
-- `DESIGN.md` (repo root) — only if `apps/*` UI files are in scope (dimension 8).
-- `eslint-rules/no-comments.cjs` — the exact comment rule dimension 4 mirrors.
-- **`.claude/skills/_shared/verification-protocol.md`** — the shared reliability contract;
-  its Verify phase and Deferred ledger run below.
+```
+Workflow({ name: 'audit', args: { kind: 'code-quality', scope: '<resolved {scope}>' } })
+```
 
----
+(If `name` does not resolve, use `scriptPath: '.claude/workflows/audit.mjs'`.)
 
-## Phase 3 — Fan out the audit by area
+It fans out **one Haiku finder per area** — `apps/web` · `apps/mobile` · `packages/shared`
+· `orbit-api/src/Orbit.Application` · `orbit-api/src/{Orbit.Domain,Orbit.Infrastructure,
+Orbit.Api}` — each reading `.claude/skills/pr-review/rubric.md`; runs a **Haiku skeptic**
+per **Critical/High** finding (default-refuted, re-runs the zero-reference grep for dead-code
+claims); loops a completeness critic until dry (cap 2 dry rounds). It returns:
 
-A whole-repo walk is large; delegate it the way the root CLAUDE.md prescribes — fan out
-**`Explore` subagents**, **3 concurrent at a time**, each owning a non-overlapping slice
-and returning findings in the rubric's finding template. Slice by area so two agents
-never read the same files:
+```
+{ findings: [{ severity, title, category, location, evidence, rationale, fix, reference }],
+  counts, coverage, deferred, rounds, scopeLabel }
+```
 
-| Slice | Target | Rubric dimensions in focus |
-|---|---|---|
-| Web app | `apps/web/` | 2, 3, 4, 6, 7, 8, 9, 10 |
-| Mobile app | `apps/mobile/` | 2, 3, 4, 6, 7, 8, 9, 10 |
-| Shared | `packages/shared/` | 2, 3, 4, 6, 9, 10, 11 |
-| API application | `orbit-api/src/Orbit.Application/` | 2, 3, 4, 5, 6, 13 |
-| API domain + infra + api | `orbit-api/src/{Orbit.Domain,Orbit.Infrastructure,Orbit.Api}/` | 2, 3, 4, 6, 13 |
+The workflow **keeps Low/Info** (the sanctioned deep-audit exception) and ranks by
+blast-radius × churn. Diff-only dimensions — contract drift / backward-compat (#11) and the
+security orchestration — are **not** re-derived here; note them as "covered by
+/audit-security" in the report.
 
-Queue slices past the third. Each subagent prompt embeds:
-
-> **Objective**: audit `<slice path>` against `.claude/skills/pr-review/rubric.md`,
-> dimensions <list>. **Read the rubric first.** For every issue, emit the rubric's
-> finding template with an exact `file:line`, a severity from the ladder, and a concrete
-> fix. **Run zero-reference greps to prove dead code** (don't guess). Exclude
-> generated/vendored dirs. Return findings only — no narration, no padding.
-
-Skip parity (#9) for a single-app scope (nothing to mirror against) and DESIGN.md (#8)
-when the slice has no UI. Drop the diff-only dimensions: **contract drift /
-backward-compat (#11)** and the **security** orchestration belong to `/pr-review` and
-`/audit-security` respectively — note them as "covered by /audit-security" rather than
-re-deriving here.
+**Fallback (no `Workflow` tool):** run the fan-out inline — `Explore` finders (Haiku, 3
+concurrent) over the five areas against the shared rubric, Haiku skeptics per Critical/High
+finding, a completeness pass — same findings shape.
 
 ---
 
-## Phase 4 — Apply the rubric (what changes for a repo-wide audit)
+## Phase 3 — Apply the rubric (what a repo-wide audit recalibrates)
 
-The rubric was written for a diff; two of its rules need recalibration when the surface
-is the entire repo:
+The rubric was written for a diff; the workflow's finders already recalibrate two rules —
+**confirm the return reflects them:**
 
-- **Signal gate (rubric):** on a PR, Low/Info are noise and get dropped. **A deep audit
-  is the sanctioned exception** — the rubric itself says "a local deep audit may list
-  Low/Info." So **keep** Low/Info here, but bucket them separately so the Critical/High
-  debt stays legible. Still never manufacture a finding to pad the list.
-- **"Focus on changed code":** there is no diff — every source line is fair game. But
-  **rank by blast radius and churn**: a SOLID violation in a hot, frequently-edited
-  handler outranks the same smell in a stable leaf file. Lead with what hurts most.
+- **Signal gate:** Low/Info are **kept** here (the sanctioned deep-audit exception),
+  bucketed separately so Critical/High debt stays legible. Never manufactured to pad.
+- **"Focus on changed code":** there is no diff — every source line is fair game, ranked by
+  blast radius × churn (a smell in a hot handler outranks the same in a stable leaf).
 
-Walk every in-scope dimension. The high-value ones for a standing codebase:
-
-- **Dead / stale code (#2)** — the audit's flagship. Hunt orphaned exports, unreachable
-  branches, commented-out blocks, stub functions, and speculative parameters across the
-  *whole* tree (a diff can't see these; an audit can). **Prove each with a
-  zero-reference grep** — cite the command and its empty result.
-- **SOLID / clean-arch (#3)** — functions over the ~50-line soft cap / ~100 hard cap,
-  nesting past ~3, premature abstraction, and DRY-at-the-wrong-level. List the worst
-  offenders by line count.
-- **Comment policy (#4)** — flag a comment exactly where `no-comments.cjs` would. The fix
-  is rename-the-symbol / extract-a-function, never "reword."
-- **Naming (#9 in CLAUDE.md → rubric #3 family)** — `data` / `info` / `temp` / `helper`
-  / `util` as final names, abbreviations, names a stranger can't guess from the call site.
-- **DESIGN.md drift (#8)** — raw `--slate-*`, hardcoded violet rgba, `transition-all`,
-  `h-screen`, cards-in-cards, the AI-slop tells. Gated to `apps/*` UI files.
+High-value dimensions for a standing codebase (the finders lead with these): **dead/stale
+code (#2)** proven by a zero-reference grep · **SOLID/clean-arch (#3)** (functions over the
+~50/~100-line caps, nesting past ~3, premature abstraction, DRY-at-the-wrong-level) ·
+**comment policy (#4)** (fix = rename/extract) · **naming** (`data`/`info`/`temp`/`helper`/
+`util` finals, abbreviations) · **DESIGN.md drift (#8)** on `apps/*` UI.
 
 ---
 
-## Phase 5 — Verify (adversarial + completeness)
-
-Before writing the report, run `.claude/skills/_shared/verification-protocol.md` — a
-finding ships only after it survives a challenge, and the sweep must prove it covered the
-tree.
-
-1. **Adversarial pass (§2).** For every **Critical / High** finding, spawn an independent
-   skeptic subagent (3 concurrent) whose only job is to *refute* it — read the cited
-   `file:line` in full context and argue it is a false positive (the reference actually
-   exists so it is not dead — re-run the grep, the function is within the cap, the
-   abstraction is intentional and defensible, a duplicate). Default to refuted when
-   uncertain. Drop or downgrade anything the skeptic disproves; survivors ship with
-   confidence.
-2. **Completeness critic + loop-until-dry (§3).** Run a fresh critic asking *"what did this
-   audit NOT examine — a code slice never swept, a directory skipped, a dead-code claim
-   unproven by a grep?"* Spawn a focused finder round on each gap it names; repeat until a
-   round surfaces nothing new (cap: 2 dry rounds — log it).
-3. **Deferred ledger (§4).** Roll everything in scope but un-verdicted (dimensions owned by
-   `/audit-security` and `/pr-review`, a slice left unswept) into the report's **Deferred**
-   section, one reason each — never implied as clean.
-
----
-
-## Phase 6 — Report
+## Phase 4 — Synthesize the report (Opus)
 
 ```bash
 mkdir -p .claude/audits
@@ -172,10 +122,14 @@ mkdir -p .claude/audits
 
 **Output path**: `.claude/audits/code-quality-{scope}.md`
 
+Bucket the workflow's `findings` by severity (keeping the Low/Info bucket), rank the
+Hotspots from the highest-debt files, fill coverage from `coverage`, carry `deferred`
+verbatim:
+
 ```markdown
 # Code-Quality Audit: {SCOPE}
 
-**Scope**: {both repos / workspace / path}
+**Scope**: {scopeLabel}
 **Rubric**: `.claude/skills/pr-review/rubric.md` (shared with /pr-review)
 **Health**: {1-line verdict — e.g. "Solid; 2 dead exports + 1 oversized handler"}
 
@@ -208,33 +162,36 @@ mkdir -p .claude/audits
 
 ## Deferred — in scope but not verdicted
 
-{Per the verification protocol §4: slices the sweep did not reach with a verdict,
-dimensions deferred to `/audit-security` or `/pr-review`, capped coverage — each with a
-one-line reason. "Nothing deferred — full coverage" if the contract was met.}
+{From the workflow's `deferred` + dimensions deferred to `/audit-security` or `/pr-review`
++ any slice the run did not reach — each with a one-line reason. "Nothing deferred — full
+coverage" if empty.}
 
 ## What's good
 
 {Genuine strengths — patterns worth keeping. Not filler.}
 ```
 
-For a `frontend` audit, cross-check parity intent: a dead export in `apps/web` whose
+For a `frontend`/`ui` scope, cross-check parity intent: a dead export in `apps/web` whose
 mirror is still live in `apps/mobile` (or vice-versa) is a parity finding, not just dead
 code — call it out.
+
+Each finding uses the rubric's finding template.
 
 ---
 
 ## Guardrails — do NOT
 
-- **Fork the rubric.** Read `.claude/skills/pr-review/rubric.md`; never inline a copy of
-  the dimensions here. One file, zero drift — that is the whole point of #228.
+- **Fork the rubric.** The workflow's finders read `.claude/skills/pr-review/rubric.md`;
+  never inline a copy of the dimensions here. One file, zero drift — the whole point of #228.
 - **Re-run /pr-review's diff job.** This audits the repo as it stands, not a change.
 - **Re-derive security or contract findings.** Point at `/audit-security` and
   `/audit-tests`; stay in the quality lane.
-- **Guess at dead code.** Every dead-code finding carries the zero-reference grep that
-  proves it.
+- **Re-run the workflow's analysis.** It owns the fan-out, the grep-proof skeptic pass, and
+  the loop; you synthesize its return. Only re-invoke for a coverage gap.
+- **Trust an un-proven dead-code claim.** Every dead-code finding carries the zero-reference
+  grep that proves it (the skeptic re-runs it) — drop any that lack one.
 - **Refactor during the audit.** Findings first; write code only if the user asks after.
 - **Pad the list.** A clean area gets "None," not invented Low nits.
-- **Audit generated / vendored code** (`Migrations/`, `design/handoff/`, `node_modules`).
 
 ---
 

@@ -2,6 +2,8 @@
 name: design-reviewer
 description: Reviews a frontend diff against DESIGN.md — token adherence, the AI-slop test, the scene-sentence test, responsive + a11y. Auto-invoke on any diff touching apps/web, apps/mobile, or orbit-landing-page UI, or when the user asks for a design review.
 tools: Glob, Grep, Read
+model: sonnet
+effort: medium
 ---
 
 # design-reviewer

@@ -2,7 +2,6 @@
 name: audit-security
 description: Repo-wide security audit across both Orbit repos (orbit-ui-mobile + orbit-api). Checks authz / data-isolation (incl. AI & MCP tool scoping), injection, secrets, CORS, rate-limit coverage, AI-abuse, and error leakage. Each finding carries severity, file:line evidence, threat model, and remediation, calibrated to Tier 1+2 (Tier 3 marked out-of-scope). Self-contained — runs in CI. Use when the user asks for a security audit, threat review, or pre-launch hardening pass.
 argument-hint: <path | repo | blank=both repos>
-context: fork
 ---
 
 # Audit Security
@@ -12,6 +11,11 @@ context: fork
 Run a repo-wide security audit across **both** Orbit repos and produce one
 severity-ranked, evidence-backed report of real risks — each finding pinned to a
 file:line, with the threat it enables and the fix that closes it.
+
+The fan-out, the adversarial verify, and the loop-until-dry now run as the **`audit`
+dynamic workflow** (`.claude/workflows/audit.mjs`) — **Haiku finders + Haiku skeptics**,
+deterministic orchestration — so Opus spends tokens only on **this synthesis**. That is the
+model-routing win: cheap discovery, expensive judgment only where it pays.
 
 **Golden rule**: every finding is a *concrete, exploitable-or-not* claim tied to a
 file:line and a threat, calibrated to Orbit's actual scale. No theater — a finding either
@@ -31,8 +35,10 @@ backend `[Authorize]`-by-default rule, CORS/Stripe/webhook config, and the **AI/
 scoping** surface). That URL is the single WHY-with-URL the comment policy allows.
 
 **Self-contained**: no network call at run time, no marketplace dependency, no live
-scanner. It reads local repo files and runs `git` / `rg` against the project's own
-checkout — so it works unchanged in CI (the #212 requirement).
+scanner. The workflow's finder/skeptic agents read local repo files and run `git` / `rg`
+against the project's own checkout. **CI / headless fallback**: if the `Workflow` tool is
+unavailable (e.g. a headless runner whose tool allowlist omits it), run the fan-out inline
+per **Phase 2's fallback** — the audit still completes against the same checkout.
 
 ### Severity tiers — calibrate every finding
 
@@ -51,106 +57,80 @@ lower tier with a "verify" note — never inflate to Tier 1 to look thorough.
 
 ---
 
-## Phase 1 — Resolve scope & load context
+## Phase 1 — Resolve scope
 
-Parse `$ARGUMENTS`: blank → **both repos**; `api`/`backend` → orbit-api; `frontend`/`web`/
-`mobile` → orbit-ui-mobile; a path → just that path.
+Parse `$ARGUMENTS` into a `{scope}` token to pass to the workflow: blank → `both`;
+`api`/`backend` → `api`; `frontend`/`web`/`mobile` → `ui`; a path → the path itself.
 
 | Repo | Root |
 |---|---|
 | `orbit-ui-mobile` | `C:\Users\thoma\Documents\Programming\Projects\orbit-ui-mobile` |
 | `orbit-api` | `C:\Users\thoma\Documents\Programming\Projects\orbit-api` |
 
-Load in parallel: **`checklist.md`** (this skill's category list — read it first), root
-`CLAUDE.md` "Security boundaries", `orbit-api/CLAUDE.md` "Cross-cutting hard rules"
-(if backend in scope), and **`.claude/skills/_shared/verification-protocol.md`** (the
-shared reliability contract — its Verify phase and Deferred ledger run below). Exclude
-generated/vendored dirs (`node_modules`, `bin`, `obj`, `Migrations/`, `design/handoff/`,
-`.next`, `dist`).
+Load **`.claude/skills/_shared/verification-protocol.md`** — the shared reliability
+contract. The workflow *executes* its coverage contract (§1), adversarial verify (§2), and
+loop-until-dry (§3); you *emit* the Verify summary + Deferred ledger from the workflow's
+return (§4/§5).
 
 ---
 
-## Phase 2 — Fan out by attack surface
+## Phase 2 — Run the audit workflow (Haiku fan-out + adversarial verify)
 
-Delegate to **`Explore` subagents, 3 concurrent**, each owning one non-overlapping
-surface and returning findings in the template below. The threat surfaces, mapped to
-where Orbit's risk actually concentrates:
+Invoke the `Workflow` tool (this skill's instructions are the opt-in):
 
-| Surface | Where to look | Checklist sections |
-|---|---|---|
-| AuthZ & data-isolation | `orbit-api` controllers + CQRS handlers — every handler must scope its query by the authenticated `userId` | A |
-| **AI / MCP tool scoping** | the agent/MCP tool handlers in `orbit-api` (the `*_agent_operation_v2`, `bulk_*`, and per-entity mutators the Orbit MCP exposes) — confirm each resolves the caller's `userId` and cannot touch another user's rows | A, F |
-| Injection | raw/interpolated SQL or EF, `dangerouslySetInnerHTML`, `Process.Start`, path building from user input | B |
-| Secrets & config | hardcoded keys/JWT secrets/connection strings; `.env`-shaped values in source; debug flags; security headers/CORS in `Program.cs` | C, D |
-| Rate-limit & AI-abuse | coverage on auth, password-reset, and the AI/chat endpoints; request-size limits; prompt-injection / unbounded-cost paths in the AI flow | E, F |
-| Error leakage & web auth | stack traces / DB schema in responses; cookie flags (httpOnly+strict+secure); mobile token storage (SecureStore, never AsyncStorage) | G, H |
+```
+Workflow({ name: 'audit', args: { kind: 'security', scope: '<resolved {scope}>' } })
+```
 
-Each subagent prompt embeds:
+(If `name` does not resolve, use `scriptPath: '.claude/workflows/audit.mjs'`.)
 
-> **Objective**: audit `<surface>` in `<repo>` against `checklist.md` sections <list>.
-> **Read the checklist first.** For every issue emit the finding template with an exact
-> `file:line`, a tier (1/2/3), the **threat** (who reaches it and what they get), and a
-> concrete **fix**. Prove cross-user-access risk by showing the query is *not* scoped to
-> the caller's userId (cite the line). Skip Tier-3 enterprise controls — note them once.
-> Findings only, no padding.
+It fans out **one Haiku finder per attack surface** — authz & data-isolation · AI/MCP tool
+scoping · injection · secrets & config · rate-limit & AI-abuse · error-leakage & web/mobile
+auth — each reading `checklist.md`; runs a **Haiku adversarial skeptic** per **Tier-1/Tier-2**
+finding (default-refuted); runs a **completeness critic** and loops until dry (cap 2 dry
+rounds). It returns:
 
----
+```
+{ findings: [{ severity, title, category, location, evidence, rationale, fix, reference }],
+  counts, coverage, deferred, rounds, scopeLabel }
+```
 
-## Phase 3 — The Orbit-specific must-checks (do not skip)
+`rationale` carries the **threat**. The surfaces + the completeness critic together own the
+Orbit-specific must-checks (Phase 3) — if the returned `coverage` omits one, add it as a
+gap and re-invoke the workflow with a narrowed scope.
 
-These are where a habit tracker with AI tools and billing actually bleeds — verify each
-explicitly even if a subagent didn't surface it:
-
-1. **Every data query is user-scoped.** Each orbit-api query/command handler filters by
-   the authenticated `userId` (from the JWT, never from a request field the client
-   controls). A handler that takes an `id` and loads it without an ownership check is a
-   **Tier 1 IDOR** — another user reads/writes your habits.
-2. **AI / MCP tools cannot cross users.** The agent operations (`execute_agent_operation_v2`,
-   `bulk_delete_habits`, `bulk_log_habits`, `delete_goal`, `manage_account`, …) run
-   *on behalf of* the authenticated user. Confirm the tool layer derives `userId` from the
-   session and that no tool accepts a target-user parameter. A tool that mutates by raw id
-   without ownership scoping is **Tier 1**.
-3. **AI-abuse / prompt-injection.** User text reaches the model. Check: is the AI endpoint
-   rate-limited and size-capped (chat 20MB / Kestrel 10MB per the rubric)? Can a crafted
-   prompt make a tool act outside the user's own data, or run an unbounded-cost loop? The
-   model output must not be trusted to *authorize* — authorization stays server-side.
-4. **`[Authorize]` by default.** Every new controller endpoint requires JWT Bearer unless
-   it is `/health` or `/api/auth/*`. An endpoint with neither `[Authorize]` nor an explicit
-   `[AllowAnonymous]` is a **Tier 1** hole.
-5. **Payment & webhook integrity.** Stripe/Play webhook handlers verify their signature
-   (`WebhookSecret`); the Stripe key is set globally in `Program.cs`, never per-request.
-   An unverified webhook = forged subscription state (**Tier 1**).
-6. **Secrets never in source.** No JWT secret, DB password, OpenAI/Stripe/Play key, or
-   VAPID private key committed. Config comes from env. A committed secret is **Tier 1**.
-7. **Boundary flags intact.** Web auth cookie httpOnly + sameSite strict + secure always;
-   mobile tokens in SecureStore (never AsyncStorage); CORS not `AllowAnyOrigin()` with
-   `AllowCredentials()`; security-headers middleware not disabled.
+**Fallback (no `Workflow` tool — headless/CI):** run the fan-out inline instead — spawn
+`Explore` finders (Haiku, 3 concurrent) over the six surfaces against `checklist.md`, then
+Haiku skeptics per Tier-1/2 finding, then a completeness pass — exactly the workflow's
+phases, per verification-protocol §2/§3. Same findings shape.
 
 ---
 
-## Phase 4 — Verify (adversarial + completeness)
+## Phase 3 — The Orbit-specific must-checks (the workflow encodes these; confirm the return covers them)
 
-Before writing the report, run `.claude/skills/_shared/verification-protocol.md` — a
-finding ships only after it survives a challenge, and the sweep must prove it covered the
-ground.
+These are where a habit tracker with AI tools and billing actually bleeds. The workflow's
+surfaces target each; **confirm the returned findings/coverage address every one**, and
+re-invoke for any gap:
 
-1. **Adversarial pass (§2).** For every **Tier 1 / Tier 2** finding, spawn an independent
-   skeptic subagent (3 concurrent) whose only job is to *refute* it — read the cited
-   `file:line` in full context and argue it is a false positive (the query is actually
-   `userId`-scoped, the route unreachable, the input already validated, a duplicate, the
-   tier inflated). Default to refuted when uncertain. Drop or downgrade anything the
-   skeptic disproves; survivors ship with confidence.
-2. **Completeness critic + loop-until-dry (§3).** Run a fresh critic asking *"what did this
-   audit NOT examine — an attack surface never swept, a handler skipped, an ownership
-   claim unverified?"* Spawn a focused finder round on each gap it names; repeat until a
-   round surfaces nothing new (cap: 2 dry rounds — log it).
-3. **Deferred ledger (§4).** Roll everything in scope but un-verdicted (a surface left
-   unswept, a repo not checked out in CI, Tier-3 controls) into the report's **Deferred**
-   section, one reason each — never implied as clean.
+1. **Every data query is user-scoped** — each orbit-api handler filters by the JWT `userId`,
+   never a client field. An `id` loaded without an ownership check is a **Tier 1 IDOR**.
+2. **AI / MCP tools cannot cross users** — the agent operations derive `userId` from the
+   session; no tool accepts a target-user parameter. A raw-id mutator is **Tier 1**.
+3. **AI-abuse / prompt-injection** — the AI endpoint is rate-limited + size-capped; a crafted
+   prompt cannot make a tool act outside the user's data or run an unbounded-cost loop; model
+   output never *authorizes*.
+4. **`[Authorize]` by default** — every endpoint requires JWT Bearer unless `/health` or
+   `/api/auth/*`. Neither `[Authorize]` nor `[AllowAnonymous]` = **Tier 1**.
+5. **Payment & webhook integrity** — Stripe/Play webhooks verify their signature; the Stripe
+   key is set globally, never per-request. Unverified webhook = **Tier 1**.
+6. **Secrets never in source** — no JWT secret, DB password, OpenAI/Stripe/Play key, or VAPID
+   private key committed. A committed secret is **Tier 1**.
+7. **Boundary flags intact** — web cookie httpOnly+strict+secure; mobile tokens in SecureStore;
+   CORS not `AllowAnyOrigin()` with `AllowCredentials()`; security-headers middleware live.
 
 ---
 
-## Phase 5 — Report
+## Phase 4 — Synthesize the report (Opus)
 
 ```bash
 mkdir -p .claude/audits
@@ -158,10 +138,14 @@ mkdir -p .claude/audits
 
 **Output path**: `.claude/audits/security-{scope}.md`
 
+Bucket the workflow's `findings` onto the tiers (Tier 1 = `Tier 1` severities, Tier 2 =
+`Tier 2`), render each in the finding template, fill the coverage table from `coverage`, and
+carry `deferred` verbatim into the Deferred ledger:
+
 ```markdown
 # Security Audit: {SCOPE}
 
-**Scope**: {both repos / repo / path}
+**Scope**: {scopeLabel}
 **Calibration**: Tier 1 (must fix) + Tier 2 (should fix); Tier 3 listed as out-of-scope.
 **Posture**: {1-line verdict — e.g. "No cross-user holes found; 1 unrated AI endpoint missing a rate limit"}
 
@@ -189,10 +173,9 @@ mkdir -p .claude/audits
 
 ## Deferred — in scope but not verdicted
 
-{Per the verification protocol §4: any surface the sweep did not reach with a verdict, a
-repo not checked out in CI, capped coverage — each with a one-line reason. "Nothing
-deferred — full coverage" if the contract was met. (Tier-3 enterprise controls stay in
-their section above.)}
+{From the workflow's `deferred` (verify-cap overflow, loop bound) + any surface the run did
+not reach + Tier-3 controls — each with a one-line reason. "Nothing deferred — full
+coverage" if empty.}
 
 ## What's solid
 
@@ -224,9 +207,9 @@ their section above.)}
   it's an observation, not a security finding.
 - **Trust the model for authz.** Flag any path where an AI tool's output decides access —
   authorization is server-side, always.
-- **Guess at unscoped queries.** Cite the exact line where the `userId` filter is missing.
+- **Re-run the workflow's analysis.** It owns the fan-out, the skeptic pass, and the loop;
+  you synthesize its return. Only re-invoke for a coverage gap.
 - **Remediate during the audit.** Findings first; fix only if the user asks after.
-- **Audit generated / vendored code** (`Migrations/`, `design/handoff/`, `node_modules`).
 
 ---
 
