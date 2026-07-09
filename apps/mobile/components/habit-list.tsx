@@ -1031,7 +1031,9 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
           void refetch()
         },
         scrollToOffset: (offset: number) => {
-          const target =
+          const target:
+            | { scrollToOffset?: (params: { offset: number; animated?: boolean }) => void }
+            | null =
             scrollContainerRef.current ??
             allViewListRef.current ??
             drillListRef.current

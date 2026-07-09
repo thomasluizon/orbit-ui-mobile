@@ -23,10 +23,9 @@ type RequestExecution = {
 }
 
 function getResponseHeader(
-  response: Response,
+  headers: { get?: (name: string) => string | null } | null | undefined,
   headerName: string,
 ): string | null {
-  const headers = response.headers
   if (!headers || typeof headers.get !== 'function') {
     return null
   }
@@ -88,7 +87,7 @@ async function executeRequest(
 
   return {
     response,
-    requestId: getResponseHeader(response, 'x-orbit-request-id'),
+    requestId: getResponseHeader(response.headers, 'x-orbit-request-id'),
     tokenUsed: token,
   }
 }

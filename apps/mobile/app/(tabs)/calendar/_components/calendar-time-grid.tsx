@@ -384,6 +384,11 @@ function ColumnHeader({
   );
 }
 
+function scrollViewToY(scrollView: ScrollView | null, y: number): void {
+  const scrollable: { scrollTo?: ScrollView["scrollTo"] } | null = scrollView;
+  scrollable?.scrollTo?.({ y, animated: false });
+}
+
 /** Google-Calendar-style time grid: a day column per entry in `columns`, an
  *  untimed all-day band on top, and timed habits placed by dueTime. Day columns
  *  keep a readable minimum width and scroll horizontally (the left time gutter
@@ -454,15 +459,12 @@ export function CalendarTimeGrid({
 
   useEffect(() => {
     const offset = 7 * HOUR_HEIGHT;
-    bodyScrollRef.current?.scrollTo?.({ y: offset, animated: false });
-    gutterScrollRef.current?.scrollTo?.({ y: offset, animated: false });
+    scrollViewToY(bodyScrollRef.current, offset);
+    scrollViewToY(gutterScrollRef.current, offset);
   }, []);
 
   const syncGutter = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-    gutterScrollRef.current?.scrollTo?.({
-      y: event.nativeEvent.contentOffset.y,
-      animated: false,
-    });
+    scrollViewToY(gutterScrollRef.current, event.nativeEvent.contentOffset.y);
   };
 
   const onColumnsLayout = (event: LayoutChangeEvent) => {
