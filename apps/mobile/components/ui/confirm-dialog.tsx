@@ -9,7 +9,7 @@ import {
 } from 'react-native'
 import { Check, Trash2 } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
-import { createTokensV2, shadowsV2 } from '@/lib/theme'
+import { createTokensV2, darkenHex, shadowsV2 } from '@/lib/theme'
 import { toAnimatedEasing, useResolvedMotionPreset } from '@/lib/motion'
 import { useAppTheme } from '@/lib/use-app-theme'
 
@@ -182,10 +182,13 @@ export function ConfirmDialog({
               accessibilityRole="button"
               style={({ pressed }) => [
                 styles.actionPill,
-                destructive ? styles.confirmPillDestructive : null,
+                destructive
+                  ? pressed
+                    ? styles.confirmPillDestructivePressed
+                    : styles.confirmPillDestructive
+                  : null,
                 !destructive && (pressed ? styles.confirmPillPressed : styles.confirmPill),
                 pressed ? styles.pillPressedScale : null,
-                destructive && pressed ? styles.destructivePressed : null,
               ]}
               onPress={handleConfirm}
             >
@@ -278,8 +281,8 @@ function createStyles(tokens: AppTokens) {
     confirmPillDestructive: {
       backgroundColor: tokens.statusBad,
     },
-    destructivePressed: {
-      opacity: 0.85,
+    confirmPillDestructivePressed: {
+      backgroundColor: darkenHex(tokens.statusBad, 0.15),
     },
     pillPressedScale: {
       transform: [{ scale: 0.96 }],
