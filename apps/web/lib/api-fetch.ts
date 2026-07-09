@@ -75,7 +75,7 @@ async function getStatusError(
 
   if (status === 403 && extractBackendErrorCode({ data: body }) === 'PAY_GATE') {
     if (
-      globalThis.location !== undefined &&
+      typeof location !== 'undefined' &&
       globalThis.location.pathname !== '/upgrade'
     ) {
       globalThis.location.href = '/upgrade'

@@ -45,7 +45,7 @@ export function ReferralDrawer({ open, onOpenChange }: Readonly<ReferralDrawerPr
   }
 
   async function shareLink() {
-    if (!referralUrl || !navigator.share) return
+    if (!referralUrl || !('share' in navigator)) return
     try {
       await navigator.share({
         title: t('referral.share.title'),

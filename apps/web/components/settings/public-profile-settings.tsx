@@ -62,7 +62,7 @@ export function PublicProfileSettings() {
   }
 
   async function shareLink() {
-    if (!shareUrl || !navigator.share) return
+    if (!shareUrl || !('share' in navigator)) return
     try {
       await navigator.share({ title: t('profile.publicProfile.title'), url: shareUrl })
     } catch {

@@ -7,12 +7,7 @@ import {
   type PersistedUIState,
   type UIStoreState,
 } from '@orbit/shared/stores'
-
-const noopStorage = {
-  getItem: () => null,
-  setItem: () => {},
-  removeItem: () => {},
-}
+import { getPersistStorage } from '@/lib/persist-storage'
 
 export const useUIStore = create<UIStoreState>()(
   persist(
@@ -24,11 +19,7 @@ export const useUIStore = create<UIStoreState>()(
     {
       name: 'orbit-ui-store',
       version: 2,
-      storage: createJSONStorage<PersistedUIState>(() =>
-        globalThis.localStorage === undefined
-          ? noopStorage
-          : globalThis.localStorage,
-      ),
+      storage: createJSONStorage<PersistedUIState>(getPersistStorage),
       migrate: migratePersistedUIState,
       partialize: getPersistedUIState,
       skipHydration: true,
