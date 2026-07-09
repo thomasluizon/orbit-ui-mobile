@@ -193,7 +193,72 @@ If the plan has no E2E section, perform a smoke test: start the relevant app(s),
 mkdir -p .claude/reports
 ```
 
-(Report template — branches, tasks completed, validation results, parity check, files changed, deviations, tests written. Keep the structure unchanged from the prior version of this skill.)
+```markdown
+# Implementation Report
+
+**Plan**: `{plan-path}`
+**Issue**: #{N} (or "N/A")
+**Status**: COMPLETE
+
+## Branches
+
+| Repo | Branch |
+|---|---|
+| orbit-ui-mobile | `feature/{name}` (or "N/A") |
+| orbit-api | `feature/{name}` (or "N/A") |
+
+## Summary
+
+{Brief description of what was implemented}
+
+## Tasks Completed
+
+| # | Repo | Task | File | Status |
+|---|---|---|---|---|
+| 1 | ui-mobile | {desc} | `path` | PASS |
+| 2 | api | {desc} | `path` | PASS |
+
+## Validation Results
+
+### orbit-ui-mobile
+
+| Check | Result |
+|---|---|
+| Lint | PASS / FAIL |
+| Type check | PASS / FAIL |
+| Unit tests | PASS ({N}) / FAIL |
+| E2E | PASS / SKIPPED |
+
+### orbit-api
+
+| Check | Result |
+|---|---|
+| Build | PASS / FAIL |
+| Tests | PASS ({N}) / FAIL |
+
+## Parity Check (if applicable)
+
+- [ ] Web ↔ mobile hooks match
+- [ ] i18n keys in both locales
+- [ ] Shared validation used
+
+## Files Changed
+
+| Repo | File | Action | Lines |
+|---|---|---|---|
+| ui-mobile | `src/x.ts` | CREATE | +{N} |
+| api | `src/Orbit.Application/...` | UPDATE | +{N}/-{M} |
+
+## Deviations from Plan
+
+{list with rationale, or "None"}
+
+## Tests Written
+
+| Repo | Test File | Cases |
+|---|---|---|
+| ... | ... | ... |
+```
 
 ### Archive Plan
 

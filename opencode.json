@@ -56,11 +56,12 @@
     },
     "csharp-lsp": {
       "type": "local",
-      "command": ["node", ".claude/scripts/csharp-lsp.mjs"],
-      "enabled": true,
-      "environment": {
-        "ORBIT_API_ROOT": "C:/Users/thoma/Documents/Programming/Projects/orbit-api"
-      }
+      "command": [
+        "C:/Users/thoma/.dotnet/tools/cwm-roslyn-navigator.exe",
+        "--solution",
+        "C:/Users/thoma/Documents/Programming/Projects/orbit-api/Orbit.slnx"
+      ],
+      "enabled": true
     }
   }
 }
