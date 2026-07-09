@@ -50,6 +50,17 @@ jobs:
       SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
 
     steps:
+      # The isolated node_modules copy + Expo prebuild + a full Gradle release
+      # bundle (with Sentry sourcemaps) overrun the ~14 GB free on ubuntu-latest,
+      # crashing the runner with "No space left on device" mid-build:
+      # https://github.com/thomasluizon/orbit-ui-mobile/actions/runs/29030329772
+      # Reclaim the unused preinstalled toolchains, but keep the Android SDK this
+      # build depends on (android: false).
+      - name: Free disk space for the Android release build
+        uses: jlumbroso/free-disk-space@54081f138730dfa15788a46383842cd2f914a1be # v1.3.1
+        with:
+          android: false
+
       - uses: actions/checkout@v7
 
       - uses: actions/setup-node@v6
