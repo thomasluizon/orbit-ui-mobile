@@ -197,6 +197,17 @@ describe('mobile apiClient', () => {
     expect(routerReplaceMock).toHaveBeenCalledWith('/login')
   })
 
+  it('clears the session and redirects when the retried request still 401s after a refresh', async () => {
+    getTokenMock.mockResolvedValue('token-123')
+    refreshSessionMock.mockResolvedValue({ status: 'refreshed', token: 'token-456' })
+    fetchMock.mockResolvedValue({ ok: false, status: 401 })
+
+    await expect(apiClient('/secure')).rejects.toThrow('Unauthorized')
+
+    expect(clearSessionAndResetAuthMock).toHaveBeenCalledTimes(1)
+    expect(routerReplaceMock).toHaveBeenCalledWith('/login')
+  })
+
   it('does not clear the session on a 401 caused by a transient refresh network blip', async () => {
     getTokenMock.mockResolvedValue('token-123')
     refreshSessionMock.mockResolvedValue({ status: 'network-error' })
