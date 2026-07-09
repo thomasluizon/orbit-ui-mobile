@@ -116,8 +116,6 @@ export function buildParentHabitFormState(
   parent: NormalizedHabit,
   initialDate?: string | null,
 ): HabitFormStateSnapshot {
-  const fallbackDate = initialDate ?? parent.dueDate
-
   return {
     formValues: {
       title: '',
@@ -129,7 +127,7 @@ export function buildParentHabitFormState(
       isBadHabit: parent.isBadHabit,
       isGeneral: parent.isGeneral,
       isFlexible: parent.isFlexible,
-      dueDate: parent.dueDate ?? fallbackDate,
+      dueDate: initialDate ?? parent.dueDate,
       dueTime: parent.dueTime?.slice(0, 5) ?? '',
       dueEndTime: parent.dueEndTime?.slice(0, 5) ?? '',
       endDate: parent.endDate ?? '',
