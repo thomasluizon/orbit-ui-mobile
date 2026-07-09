@@ -23,6 +23,7 @@ import {
   buildEmptyHabitFormValues,
   buildHabitFormPatchFromSuggestion,
   buildParentHabitFormState,
+  coalesceFormText,
   extractBackendErrorCode,
   formatAPIDate,
   getFriendlyErrorMessage,
@@ -151,10 +152,12 @@ export function CreateHabitModal({
   const [initialReminderTimesSnapshot, setInitialReminderTimesSnapshot] =
     useState('[0,15]')
 
-  const watchedTitle = useWatch({
-    control: formHelpers.form.control,
-    name: 'title',
-  })
+  const watchedTitle = coalesceFormText(
+    useWatch({
+      control: formHelpers.form.control,
+      name: 'title',
+    }),
+  )
   const watchedDueTime =
     useWatch({ control: formHelpers.form.control, name: 'dueTime' }) ?? ''
   const watchedReminderEnabled =
@@ -362,7 +365,7 @@ export function CreateHabitModal({
 
   const handleSuggest = useCallback(async () => {
     flushBufferedInputsRef.current()
-    const title = formHelpers.form.getValues('title').trim()
+    const title = coalesceFormText(formHelpers.form.getValues('title')).trim()
     if (title.length === 0) return
 
     try {

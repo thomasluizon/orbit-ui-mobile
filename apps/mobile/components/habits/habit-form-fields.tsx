@@ -11,6 +11,7 @@ import Animated, { FadeInDown, ReduceMotion } from "react-native-reanimated";
 import { Sparkles } from "lucide-react-native";
 import { useWatch } from "react-hook-form";
 import { useTranslation } from "react-i18next";
+import { coalesceFormText } from "@orbit/shared/utils";
 import type { TagSelectionState } from "@/hooks/use-tag-selection";
 import type { HabitFormHelpers } from "@/hooks/use-habit-form";
 import { useAppToast } from "@/hooks/use-app-toast";
@@ -109,7 +110,9 @@ export function HabitFormFields({
   }, []);
 
   const watchedEmoji = useWatch({ control: form.control, name: "emoji" }) ?? "";
-  const watchedTitle = useWatch({ control: form.control, name: "title" });
+  const watchedTitle = coalesceFormText(
+    useWatch({ control: form.control, name: "title" }),
+  );
   const watchedDescription =
     useWatch({ control: form.control, name: "description" }) ?? "";
 

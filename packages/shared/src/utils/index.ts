@@ -98,6 +98,7 @@ export {
   buildHabitDaysList,
   buildHabitFormPatchFromSuggestion,
   buildHabitFrequencyUnits,
+  coalesceFormText,
   HABIT_REMINDER_PRESETS,
   formatHabitTimeInput,
   getHabitFormFlags,

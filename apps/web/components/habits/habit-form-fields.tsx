@@ -6,6 +6,7 @@ import { useTranslations } from 'next-intl'
 import type { FrequencyUnit, SuggestedTag } from '@orbit/shared/types/habit'
 import {
   HABIT_REMINDER_PRESETS,
+  coalesceFormText,
   getFriendlyErrorMessage,
 } from '@orbit/shared/utils'
 import {
@@ -116,7 +117,7 @@ export function HabitFormFields({
   const { register, watch, setValue, formState: { errors } } = form
   const titleRegister = register('title')
 
-  const watchedTitle = watch('title') ?? ''
+  const watchedTitle = coalesceFormText(watch('title'))
   const watchedFrequencyUnit = watch('frequencyUnit') ?? null
   const watchedFrequencyQuantity = watch('frequencyQuantity') ?? null
   const watchedDays = watch('days') ?? []
