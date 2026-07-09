@@ -8,7 +8,7 @@ import {
   type ViewStyle,
 } from 'react-native'
 import { BUTTON_SIZES, type ButtonSize, type ButtonVariant } from '@orbit/shared/theme'
-import { createTokensV2, primaryGlow, radius } from '@/lib/theme'
+import { createTokensV2, darkenHex, primaryGlow, radius } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 interface PillButtonProps {
@@ -67,14 +67,16 @@ export function PillButton({
       }
     }
     if (variant === 'destructive') {
-      return { backgroundColor: tokens.statusBad }
+      return {
+        backgroundColor: pressed ? darkenHex(tokens.statusBad, 0.15) : tokens.statusBad,
+      }
     }
     return {
       backgroundColor: pressed ? tokens.primaryPressed : tokens.primary,
     }
   }
 
-  const quietsOnPress = variant === 'secondary' || variant === 'destructive'
+  const quietsOnPress = variant === 'secondary'
 
   return (
     <Pressable

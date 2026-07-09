@@ -96,4 +96,18 @@ describe('PillButton (mobile)', () => {
     expect(pressableHeight(renderPill(<PillButton onPress={() => {}}>Medium</PillButton>))).toBe(50)
     expect(pressableHeight(renderPill(<PillButton size="lg" onPress={() => {}}>Large</PillButton>))).toBe(56)
   })
+
+  it('darkens the destructive fill on press instead of dimming opacity (web parity)', () => {
+    const tree = renderPill(
+      <PillButton variant="destructive" onPress={() => {}}>
+        Delete
+      </PillButton>,
+    )
+    const pressable = tree.root.findByType('Pressable')
+    const rest = flattenStyle(pressable.props.style({ pressed: false }))
+    const pressed = flattenStyle(pressable.props.style({ pressed: true }))
+
+    expect(pressed.backgroundColor).not.toBe(rest.backgroundColor)
+    expect(pressed.opacity).toBeUndefined()
+  })
 })

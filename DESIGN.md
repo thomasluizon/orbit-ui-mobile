@@ -34,6 +34,7 @@ Canonical CSS lives in `apps/web/app/globals.css`; the mobile equivalent is `cre
 --status-done var(--primary) · empty rgba(248,250,252,0.22) · skip rgb(144,161,185)
 --status-overdue rgb(254,154,0) · bad rgb(251,44,54) · frozen rgb(0,211,243)
 --status-overdue-text rgb(254,154,0) · bad-text rgb(251,44,54)   /* = base; AA ≥4.5 on canvas */
+--fg-on-bad rgb(2,6,24) · --fg-on-overdue rgb(2,6,24)   /* text/icon painted ON the bad|overdue fill; per-mode, see hand-tune log */
 --selection-bg rgba(var(--primary-rgb),0.32)
 --gradient-header linear-gradient(180deg, rgb(34,9,79) 0%, rgba(2,6,24,0) 100%)   /* violet-950 → transparent */
 ```
@@ -46,6 +47,7 @@ Canonical CSS lives in `apps/web/app/globals.css`; the mobile equivalent is `cre
 --fg-1 rgb(15,23,43) · --fg-2 rgb(49,65,88) · --fg-3 rgb(98,116,142) · --fg-4 rgb(144,161,185)
 --status-empty rgba(2,6,24,0.18) · skip rgb(98,116,142) · overdue rgb(225,113,0) · bad rgb(231,0,11) · frozen rgb(0,146,184)
 --status-overdue-text rgb(180,91,0) · bad-text rgb(231,0,11)   /* overdue darkened to AA; bad = base */
+--fg-on-bad rgb(255,255,255) · --fg-on-overdue rgb(2,6,24)   /* text/icon painted ON the bad|overdue fill; per-mode, see hand-tune log */
 --selection-bg rgba(var(--primary-rgb),0.18)
 --gradient-header linear-gradient(180deg, rgb(233,212,255) 0%, rgba(248,250,252,0) 100%)
 ```
@@ -90,6 +92,7 @@ Hand-tune log (rule 3):
 - **blue / cyan:** canvas chroma gamut-clamped at the locked L (scaleBg 0.6226 / 0.5167); cyan fg ramp also clamped (scaleFg 0.843). Values are the sRGB gamut ceiling ×0.985 so web CSS and the TS pipeline resolve identical bytes.
 - **Light gradient stops:** purple keeps the handoff's +21.71° lilac rotation from the accent hue (byte-exact `#e9d4ff`); the rotation misreads on rose (peach) and cyan (periwinkle), so all non-purple schemes use their light accent hue directly at the locked L/C, chroma gamut-clamped.
 - **fg-on-primary (scheme×mode):** white fails 4.5:1 AA on green/orange/cyan (both modes) and blue/rose (dark), so those eight resolve to the locked canvas ink rgb(2,6,24) (≥5.36:1 on every flipped accent); white stays on purple (both modes), blue light, rose light (4.53–7.03:1). Data in `color-schemes.ts` `fgOnPrimary`, mirrored per scheme×mode in `globals.css`.
+- **fg-on-bad / fg-on-overdue (per mode):** the fixed status-bad / overdue fills flip lightness across modes, so their text flips too. `fg-on-bad` = canvas ink rgb(2,6,24) on the lighter dark-mode red (5.29:1) and white on the deeper light-mode red (4.77:1); `fg-on-overdue` stays canvas ink both modes (white fails AA on amber). Defined per mode in `globals.css`; mobile mirrors `fg-on-bad` via `statusConstants.fgOnBad` and pins `fg-on-overdue` to canvas ink.
 
 ## Type roles
 
@@ -140,7 +143,7 @@ Exact dimensions in `design/handoff/orbit/project/orbit-kit.jsx`. Web in `apps/w
 `PillButton` (`ui/pill-button.tsx`, mirrored web + mobile) is the one pill CTA. Its geometry is shared data in `packages/shared/src/theme/button.ts` (`BUTTON_SIZES`) so the two platform mirrors cannot drift. Over-wide and over-wordy buttons are the two AI-slop tells this rule kills.
 
 - **Variants** — `primary` (accent fill + glow), `secondary` (fg-1 fill, canvas text), `ghost` (transparent, inset 1.5px hairline-strong ring), `destructive` (status-bad fill, fg-on-bad text). `ConfirmDialog` reuses the `primary` / `destructive` fills for its paired action row.
-- **Sizes** — `sm` (h40, 18px pad, 14px label, 16 icon), `md` (h50, 26px pad, 16px label, 18 icon; the default and the historical look), `lg` (h56, 30px pad, 17px label, 20 icon). A size is a fixed height + horizontal padding + label / icon / gap set; never hand-tune per call.
+- **Sizes** — `sm` (h40, 18px pad, 14px label, 16 icon, 7 gap), `md` (h50, 26px pad, 16px label, 18 icon, 9 gap; the default and the historical look), `lg` (h56, 30px pad, 17px label, 20 icon, 10 gap). A size is a fixed height + horizontal padding + label / icon / gap set; never hand-tune per call.
 - **Width, hug by default.** A pill sizes to its content. A lone CTA in a wide container caps at ~360px (the `fullWidth` desktop cap) and never spans a desktop content column. Full-width (`fullWidth`, or a phone-shell stretch) is sanctioned ONLY in: (1) the single primary action of a mobile bottom-sheet or dialog, (2) a form submit at or below the mobile breakpoint (auth, onboarding, support, create flows), (3) a full-screen empty-state primary CTA. `ConfirmDialog`'s paired action row is also allowed. Everywhere else the pill hugs. The `local/no-fullbleed-button` ESLint gate enforces this on web (`fullWidth` on `PillButton`, or `w-full` / `flex-1` on a `rounded-full` button); mobile StyleSheet width (`alignSelf: 'stretch'` / `width: '100%'`) is not statically linkable, so the design-reviewer checklist covers it.
 - **Labels, 1-2 words, action-first.** Strip words the surrounding dialog title or section header already carries ("Log all" becomes "Log", "Delete all" becomes "Delete", "Registrar todos" becomes "Registrar"). pt-BR runs longer than en, so the size scale must absorb the longer string without going full-bleed.
 - **Icons, a leading glyph where it aids recognition** (create → plus, confirm → check, destructive → trash), sized and gapped from the size token. Icon-only pills (for example the collapsed sidebar rail) MUST carry a localized `aria-label` / `accessibilityLabel`. No decorative icons.

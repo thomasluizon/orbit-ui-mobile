@@ -451,3 +451,13 @@ export function lightenHex(hex: string, amount: number): string {
     Math.round(channel + (255 - channel) * amount)
   return `rgb(${blend(r)},${blend(g)},${blend(b)})`
 }
+
+/**
+ * Simulates `color-mix(in srgb, hex, black amount%)` — the web destructive
+ * pressed fill. amount is 0-1 (0 = original, 1 = black).
+ */
+export function darkenHex(hex: string, amount: number): string {
+  const [r, g, b] = hexChannels(hex)
+  const blend = (channel: number) => Math.round(channel * (1 - amount))
+  return `rgb(${blend(r)},${blend(g)},${blend(b)})`
+}

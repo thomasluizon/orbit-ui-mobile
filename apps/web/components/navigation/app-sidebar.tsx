@@ -147,16 +147,27 @@ export function AppSidebar({
           justifyContent: collapsed ? 'center' : 'flex-start',
         }}
       >
-        <PillButton
-          variant="primary"
-          size="md"
-          onClick={onCreate}
-          ariaLabel={collapsed ? createLabel : undefined}
-          title={collapsed ? createLabel : undefined}
-          leading={collapsed ? undefined : <Plus size={18} strokeWidth={2.2} />}
-        >
-          {collapsed ? <Plus size={18} strokeWidth={2.2} /> : createLabel}
-        </PillButton>
+        {collapsed ? (
+          <button
+            type="button"
+            onClick={onCreate}
+            aria-label={createLabel}
+            title={createLabel}
+            className="inline-flex shrink-0 cursor-pointer items-center justify-center rounded-full border-0 bg-[var(--primary)] text-[var(--fg-on-primary)] shadow-[var(--primary-glow)] transition-[background-color,box-shadow,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] enabled:hover:bg-[var(--primary-pressed)] enabled:hover:-translate-y-px enabled:hover:shadow-[var(--primary-glow-hover)] enabled:active:translate-y-0 enabled:active:scale-[0.98]"
+            style={{ width: 46, height: 46 }}
+          >
+            <Plus size={20} strokeWidth={2.2} />
+          </button>
+        ) : (
+          <PillButton
+            variant="primary"
+            size="md"
+            onClick={onCreate}
+            leading={<Plus size={18} strokeWidth={2.2} />}
+          >
+            {createLabel}
+          </PillButton>
+        )}
       </div>
       </div>
     </aside>
