@@ -116,7 +116,7 @@ export function HabitFormFields({
   const { register, watch, setValue, formState: { errors } } = form
   const titleRegister = register('title')
 
-  const watchedTitle = watch('title') ?? ''
+  const watchedTitle = watch('title')
   const watchedFrequencyUnit = watch('frequencyUnit') ?? null
   const watchedFrequencyQuantity = watch('frequencyQuantity') ?? null
   const watchedDays = watch('days') ?? []
