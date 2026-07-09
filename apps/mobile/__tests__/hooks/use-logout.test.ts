@@ -61,4 +61,13 @@ describe('useLogout (mobile)', () => {
 
     expect(order).toEqual(['logout', 'replace'])
   })
+
+  it('still routes to /login when logout teardown rejects', async () => {
+    mocks.logout.mockRejectedValue(new Error('teardown failed'))
+
+    const logoutAndRedirect = renderHookValue(() => useLogout())
+    await expect(logoutAndRedirect()).rejects.toThrow('teardown failed')
+
+    expect(mocks.replace).toHaveBeenCalledWith('/login')
+  })
 })
