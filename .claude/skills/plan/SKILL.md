@@ -172,10 +172,133 @@ So that {benefit}
 | Web Affected | yes / no |
 | Mobile Affected | yes / no |
 
-(rest of plan body — see Phase 4 template details below.)
+---
+
+## Patterns to Follow
+
+### Frontend (skip if backend-only)
+
+#### Naming
+```
+// SOURCE: apps/web/.../file.ts:lines
+{actual snippet}
 ```
 
-The full plan template (Patterns / Files to Change / Tasks / Validation Commands / E2E / Acceptance Criteria) is unchanged from the earlier version of this skill — preserve its structure.
+#### Hooks
+```
+// SOURCE: apps/mobile/hooks/use-X.ts:lines
+{actual snippet}
+```
+
+#### Server Action / API call
+```
+// SOURCE: apps/web/app/actions/X.ts:lines
+{actual snippet}
+```
+
+### Backend (skip if frontend-only)
+
+#### Command / Query
+```csharp
+// SOURCE: orbit-api/src/Orbit.Application/Habits/Commands/CreateHabit.cs:lines
+{actual snippet}
+```
+
+#### Validator
+```csharp
+// SOURCE: orbit-api/src/Orbit.Application/Habits/Validators/CreateHabitValidator.cs:lines
+{actual snippet}
+```
+
+#### Controller
+```csharp
+// SOURCE: orbit-api/src/Orbit.Api/Controllers/HabitsController.cs:lines
+{actual snippet}
+```
+
+### Tests
+
+```
+// SOURCE: apps/web/__tests__/use-X.test.ts:lines (frontend unit) / orbit-api tests/.../CreateXHandlerTests.cs:lines (backend unit)
+{actual snippet}
+```
+
+---
+
+## Files to Change
+
+| Repo | File | Action | Purpose |
+|---|---|---|---|
+| ui-mobile | `packages/shared/src/types/X.ts` | CREATE | Zod type |
+| ui-mobile | `packages/shared/src/api/endpoints.ts` | UPDATE | Add endpoint |
+| ui-mobile | `apps/web/app/actions/X.ts` | CREATE | Server action |
+| ui-mobile | `apps/web/hooks/use-X.ts` | CREATE | TanStack hook |
+| ui-mobile | `apps/mobile/hooks/use-X.ts` | CREATE | Mobile hook (parity) |
+| api | `src/Orbit.Application/X/Commands/CreateX.cs` | CREATE | CQRS command |
+| api | `src/Orbit.Api/Controllers/XController.cs` | UPDATE | Add endpoint |
+| api | `src/Orbit.Infrastructure/Migrations/AddX.cs` | CREATE | EF migration |
+
+---
+
+## Tasks
+
+Execute in order. Each task is atomic and verifiable. Group by repo for clarity, but list cross-repo dependencies.
+
+### Task 1: {Description}
+
+- **Repo**: ui-mobile / api
+- **File**: `path/to/file`
+- **Action**: CREATE / UPDATE
+- **Implement**: {what to do}
+- **Mirror**: `path/to/example:lines` — follow this pattern
+- **Validate**: `npm run type-check` (ui-mobile) / `dotnet build` (api)
+
+### Task 2: {Description}
+
+- ...
+
+{Continue for each task.}
+
+---
+
+## Validation Commands
+
+### orbit-ui-mobile (run from repo root)
+
+```bash
+npm run lint
+npm run type-check
+npm test
+```
+
+### orbit-api (run from repo root)
+
+```bash
+dotnet build
+dotnet test
+```
+
+### End-to-End Tests
+
+List concrete E2E steps `/implement` must execute. Examples:
+
+- [ ] Start API: `dotnet run --project src/Orbit.Api` in `orbit-api`
+- [ ] Start web: `npm run web` in `orbit-ui-mobile`
+- [ ] Log in as test user, navigate to {route}
+- [ ] Trigger {action} — expect {observable result}
+- [ ] Repeat on mobile if `parity-required: yes`
+
+---
+
+## Acceptance Criteria
+
+- [ ] All tasks completed
+- [ ] Validation passes in every affected repo
+- [ ] Parity verified if `Parity Required: yes` (both web and mobile updated and behave the same)
+- [ ] Tests written for new code
+- [ ] E2E checklist passes
+- [ ] Follows existing patterns
+```
 
 ---
 

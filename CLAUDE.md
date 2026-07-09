@@ -44,7 +44,7 @@ Auth: web cookie is httpOnly + sameSite strict + secure; mobile tokens live in S
 - `orbit-api` is a sibling at `C:\Users\thoma\Documents\Programming\Projects\orbit-api`; update it in the same task when a feature needs backend support. Separate git histories, branches, and PRs.
 - Never create an `AGENTS.md` — opencode reads this CLAUDE.md natively; an AGENTS.md would shadow it.
 - `.opencode/agents/*.md` are thin pointers to the `.claude/agents/*.md` bodies — when adding an agent, create BOTH. Hooks and memory are Claude-Code-only machinery (inert under opencode).
-- C# LSP for orbit-api is wired via `.mcp.json` (copy from `.claude/mcp.json.example`, set env vars).
+- C# LSP for orbit-api is wired via `.mcp.json` — the Roslyn-backed CWM.RoslynNavigator MCP server (install once: `dotnet tool install -g CWM.RoslynNavigator`) pointed at orbit-api's `Orbit.slnx`; copy from `.claude/mcp.json.example`.
 - Git: one feature/fix per PR (cross-repo work opens paired PRs, cross-linked); branches `feature/`|`fix/`|`chore/`; `main` is protected (no direct or force push — enforced by the `git-guardrails` hook); squash-merge only; never `--no-verify`/`--no-gpg-sign`; never reuse a squash-merged branch.
 - Testing: Vitest unit tests only; every feature needs behavior tests. The only sanctioned E2E is the post-deploy web smoke suite. Configs live in each workspace.
 - `/pr-review` is the canonical local diff review (orchestrates security-reviewer / contract-aligner / parity-checker / i18n-syncer + the backward-compat guard).

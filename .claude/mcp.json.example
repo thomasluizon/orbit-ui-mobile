@@ -1,5 +1,5 @@
 {
-  "_comment": "Copy this file to .mcp.json (gitignored) and fill in the ${...} env vars / tokens. Declares the MCP servers this repo uses: postgres-local and postgres (local + Supabase Postgres via @modelcontextprotocol/server-postgres), vercel/render/stripe/stitch (hosted HTTP integrations), sonarqube (Dockerized), and csharp-lsp — which runs the local wrapper .claude/scripts/csharp-lsp.mjs to give Claude symbol-precise C# navigation across orbit-api even when this session is launched from orbit-ui-mobile.",
+  "_comment": "Copy this file to .mcp.json (gitignored) and fill in the ${...} env vars / tokens. Declares the MCP servers this repo uses: postgres-local and postgres (local + Supabase Postgres via @modelcontextprotocol/server-postgres), vercel/render/stripe/stitch/sentry (hosted HTTP integrations), sonarqube (Dockerized), and csharp-lsp — the Roslyn-backed CWM.RoslynNavigator MCP server (install once with `dotnet tool install -g CWM.RoslynNavigator`; needs the .NET 10 SDK) pointed at orbit-api's Orbit.slnx via --solution, giving Claude symbol-precise C# navigation across orbit-api even when this session is launched from orbit-ui-mobile.",
   "mcpServers": {
     "postgres-local": {
       "command": "cmd",
@@ -44,12 +44,13 @@
         "X-Goog-Api-Key": "${STITCH_API_KEY}"
       }
     },
+    "sentry": {
+      "type": "http",
+      "url": "https://mcp.sentry.dev/mcp"
+    },
     "csharp-lsp": {
-      "command": "node",
-      "args": [".claude/scripts/csharp-lsp.mjs"],
-      "env": {
-        "ORBIT_API_ROOT": "C:/Users/thoma/Documents/Programming/Projects/orbit-api"
-      },
+      "command": "C:/Users/thoma/.dotnet/tools/cwm-roslyn-navigator.exe",
+      "args": ["--solution", "C:/Users/thoma/Documents/Programming/Projects/orbit-api/Orbit.slnx"],
       "timeout": 60000
     }
   }

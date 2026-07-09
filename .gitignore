@@ -22,7 +22,6 @@ dist/
 .claude/reviews/
 .claude/reports/
 .mcp.json
-.codex/config.toml
 *.swp
 *.swo
 
