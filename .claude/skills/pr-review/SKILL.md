@@ -196,10 +196,30 @@ that will decide the outcome has to survive a challenge first.
    duplicate, the severity inflated). Default to refuted when uncertain. Drop or downgrade
    anything the skeptic disproves — a false Critical that blocks a clean PR is as costly as
    a missed one. The survivors decide the recommendation.
-2. **Completeness pass (§3).** One pass only — a diff is its own boundary, so no loop: ask
+2. **Cross-model second opinion (§2, Critical survivors — interactive only).** For each
+   **Critical** finding that survives step 1 (including any `⚠️ breaks old mobile clients`),
+   fire **`/second-opinion`** so a *different* model (GLM-5.2 via opencode) independently
+   judges it — pipe the finding dossier (title · severity · `repo/path:line` · the claimed
+   defect · the cited code hunk) to `node .claude/skills/second-opinion/second-opinion.mjs`
+   and apply the JSON verdict it prints:
+   - **AGREE** → the finding is cross-model corroborated; keep the severity, note the
+     confirmation.
+   - **DISAGREE** → tag the finding **`CONTESTED`** and record GLM's `reasoning` beside
+     Claude's; surface **both** verdicts in the report. It stays Critical — the
+     disagreement is the human's to resolve. **Never** let it force a merge or silently drop
+     the finding (the skeptic in step 1 already owns the drop decision).
+   - **UNSURE** → note it; the finding stands as step 1 left it.
+   - **UNAVAILABLE** (opencode absent — **always the case in CI**, or capped / offline) →
+     skip the second opinion, leave the finding unchanged, and state it in one line. Never
+     read "couldn't ask" as agreement. This graceful-degradation path keeps the CI review
+     (no opencode) byte-for-byte identical to today.
+   Scope to **Critical only** (not High) — cross-model time/cost is reserved for the findings
+   that actually block, per the on-demand-diversity budget (research.md). CONTESTED never
+   changes the deterministic recommendation: a surviving Critical still means NEEDS WORK.
+3. **Completeness pass (§3).** One pass only — a diff is its own boundary, so no loop: ask
    *"what changed file or hunk did I not give a verdict, what dimension did I mark N/A
    without checking its surface?"* and close the gap before reporting.
-3. **Deferred ledger (§4).** Every dimension marked N/A and every changed file not
+4. **Deferred ledger (§4).** Every dimension marked N/A and every changed file not
    verdicted goes into the report's **Deferred** line with a one-line reason — so "clean"
    never hides "not looked at."
 
@@ -238,7 +258,10 @@ mkdir -p .claude/reviews
 ## Findings
 
 ### Critical
-{findings in the rubric template, or "None" — `⚠️ breaks old mobile clients` findings sort here first}
+{findings in the rubric template, or "None" — `⚠️ breaks old mobile clients` findings sort here first.
+A finding a cross-model second opinion disputed carries a **`CONTESTED`** tag with both
+verdicts inline — e.g. "Claude: Critical · GLM-5.2: DISAGREE — {GLM's reasoning}" — so the
+human sees the disagreement. It stays Critical; the tag never downgrades it.}
 
 ### High
 {… or "None"}
