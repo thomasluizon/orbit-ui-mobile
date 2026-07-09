@@ -21,7 +21,8 @@ interface PillButtonProps {
   glow?: boolean
   leading?: ReactNode
   accessibilityLabel?: string
-  children: ReactNode
+  /** Omit (with a `leading` icon + `accessibilityLabel`) for an icon-only square control. */
+  children?: ReactNode
   style?: StyleProp<ViewStyle>
 }
 
@@ -30,7 +31,8 @@ interface PillButtonProps {
  *  `md` / `lg`) drives a fixed height + horizontal padding + label/icon scale
  *  from the shared `BUTTON_SIZES` geometry so the web mirror cannot drift.
  *  While `busy`, a spinner fills the leading slot, the label dims, and presses
- *  no-op. */
+ *  no-op. With a `leading` icon and no label child it renders an icon-only
+ *  square (width = the size's height); pass `accessibilityLabel` for its name. */
 export function PillButton({
   variant = 'primary',
   size = 'md',
@@ -47,6 +49,8 @@ export function PillButton({
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const sizeSpec = BUTTON_SIZES[size]
+  const hasLabel = children !== undefined && children !== null && children !== ''
+  const iconOnly = !hasLabel && leading != null
 
   const textColorByVariant: Record<ButtonVariant, string> = {
     primary: tokens.fgOnPrimary,
@@ -87,7 +91,9 @@ export function PillButton({
       accessibilityState={{ disabled, busy }}
       style={({ pressed }) => [
         styles.base,
-        { height: sizeSpec.height, paddingHorizontal: sizeSpec.paddingX, gap: sizeSpec.gap },
+        iconOnly
+          ? { height: sizeSpec.height, width: sizeSpec.height, paddingHorizontal: 0, gap: 0 }
+          : { height: sizeSpec.height, paddingHorizontal: sizeSpec.paddingX, gap: sizeSpec.gap },
         variantStyle(pressed),
         variant === 'primary' && glow && !disabled ? primaryGlow(tokens) : null,
         fullWidth ? styles.fullWidth : null,
@@ -102,7 +108,7 @@ export function PillButton({
       ) : (
         leading
       )}
-      {typeof children === 'string' || typeof children === 'number' ? (
+      {!hasLabel ? null : typeof children === 'string' || typeof children === 'number' ? (
         <Text
           style={[
             styles.label,

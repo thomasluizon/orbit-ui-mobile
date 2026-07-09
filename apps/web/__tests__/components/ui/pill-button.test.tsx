@@ -69,6 +69,16 @@ describe('PillButton', () => {
     expect(screen.getByRole('button', { name: 'Delete' })).toBeInTheDocument()
   })
 
+  it('renders an icon-only square (width = height) when given a leading icon and no label', () => {
+    render(
+      <PillButton ariaLabel="Create" leading={<span data-testid="icon-only-leading" />} />,
+    )
+    const button = screen.getByRole('button', { name: 'Create' })
+    expect(button).toHaveStyle({ width: '50px', height: '50px' })
+    expect(button).toHaveTextContent('')
+    expect(screen.getByTestId('icon-only-leading')).toBeInTheDocument()
+  })
+
   it('drives the pill height from the size scale (sm < md < lg)', () => {
     render(
       <>

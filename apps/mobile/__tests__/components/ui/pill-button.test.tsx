@@ -91,6 +91,17 @@ describe('PillButton (mobile)', () => {
     expect(labels).toContain('Delete')
   })
 
+  it('renders an icon-only square (width = height) when given a leading icon and no label', () => {
+    const tree = renderPill(
+      <PillButton accessibilityLabel="Create" leading={<></>} />,
+    )
+    const pressable = tree.root.findByType('Pressable')
+    const flat = flattenStyle(pressable.props.style({ pressed: false }))
+    expect(flat.width).toBe(50)
+    expect(flat.height).toBe(50)
+    expect(tree.root.findAllByType('Text')).toHaveLength(0)
+  })
+
   it('drives the pill height from the size scale (sm < md < lg)', () => {
     expect(pressableHeight(renderPill(<PillButton size="sm" onPress={() => {}}>Small</PillButton>))).toBe(40)
     expect(pressableHeight(renderPill(<PillButton onPress={() => {}}>Medium</PillButton>))).toBe(50)

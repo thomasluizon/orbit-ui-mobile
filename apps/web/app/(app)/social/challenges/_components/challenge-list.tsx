@@ -34,7 +34,7 @@ export function ChallengeList({ challenges, onOpen, onCreate, onJoin }: Readonly
           <PillButton fullWidth onClick={onCreate}>
             {t('challenges.empty.create')}
           </PillButton>
-          <PillButton fullWidth variant="ghost" onClick={onJoin}>
+          <PillButton variant="ghost" className="self-center" onClick={onJoin}>
             {t('challenges.empty.join')}
           </PillButton>
         </div>

@@ -564,9 +564,8 @@ export function ChatComposerBar({
             style={{ paddingTop: 12, gap: 12 }}
           >
             <InfoCard title={t('chat.limitReachedError')} />
-            <div className="w-full md:mx-auto md:max-w-[360px]">
+            <div className="flex justify-center">
               <PillButton
-                fullWidth
                 leading={<Crown size={18} strokeWidth={1.8} aria-hidden="true" />}
                 onClick={onUpgrade}
               >

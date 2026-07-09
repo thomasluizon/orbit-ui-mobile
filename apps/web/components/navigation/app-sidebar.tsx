@@ -141,23 +141,21 @@ export function AppSidebar({
       <div
         className="flex"
         style={{
-          paddingInline: collapsed ? 14 : 16,
+          paddingInline: collapsed ? 13 : 16,
           paddingTop: 12,
           paddingBottom: 4,
           justifyContent: collapsed ? 'center' : 'flex-start',
         }}
       >
         {collapsed ? (
-          <button
-            type="button"
+          <PillButton
+            variant="primary"
+            size="md"
             onClick={onCreate}
-            aria-label={createLabel}
+            ariaLabel={createLabel}
             title={createLabel}
-            className="inline-flex shrink-0 cursor-pointer items-center justify-center rounded-full border-0 bg-[var(--primary)] text-[var(--fg-on-primary)] shadow-[var(--primary-glow)] transition-[background-color,box-shadow,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] enabled:hover:bg-[var(--primary-pressed)] enabled:hover:-translate-y-px enabled:hover:shadow-[var(--primary-glow-hover)] enabled:active:translate-y-0 enabled:active:scale-[0.98]"
-            style={{ width: 46, height: 46 }}
-          >
-            <Plus size={20} strokeWidth={2.2} />
-          </button>
+            leading={<Plus size={20} strokeWidth={2.2} />}
+          />
         ) : (
           <PillButton
             variant="primary"

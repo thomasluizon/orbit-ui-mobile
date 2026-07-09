@@ -251,8 +251,7 @@ function ChatLimitNotice({ tokens, styles, reward, onUpgrade }: Readonly<ChatLim
     <View style={styles.limitBlock} accessibilityLiveRegion="polite">
       <InfoCard title={t("chat.limitReachedError")} />
       <PillButton
-        // eslint-disable-next-line local/no-fullbleed-button -- chat composer upsell notice CTA
-        fullWidth
+        style={{ alignSelf: 'center' }}
         leading={<Crown size={18} strokeWidth={1.8} color={tokens.fgOnPrimary} />}
         onPress={onUpgrade}
       >

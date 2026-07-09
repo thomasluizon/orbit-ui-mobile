@@ -15,7 +15,8 @@ interface PillButtonProps {
   fullWidth?: boolean
   glow?: boolean
   leading?: ReactNode
-  children: ReactNode
+  /** Omit (with a `leading` icon + `ariaLabel`) for an icon-only square control. */
+  children?: ReactNode
   className?: string
   dataTestId?: string
   /** Accessible name — required when the pill is icon-only (no visible label). */
@@ -41,7 +42,10 @@ const variantClasses: Record<ButtonVariant, string> = {
  *  from the shared `BUTTON_SIZES` geometry so the mobile mirror cannot drift.
  *  While `busy`, a spinner fills the leading slot, the label dims, and clicks
  *  no-op. `fullWidth` spans the phone column but caps at ~360px at the desktop
- *  breakpoint (full-bleed pills are a phone-shell affordance only). */
+ *  breakpoint (full-bleed pills are a phone-shell affordance only). With a
+ *  `leading` icon and no label child it renders an icon-only square (width =
+ *  the size's height), the canonical collapsed-sidebar-rail control — pass
+ *  `ariaLabel` for its accessible name. */
 export function PillButton({
   variant = 'primary',
   size = 'md',
@@ -60,6 +64,8 @@ export function PillButton({
   title,
 }: Readonly<PillButtonProps>) {
   const sizeSpec = BUTTON_SIZES[size]
+  const hasLabel = children !== undefined && children !== null && children !== ''
+  const iconOnly = !hasLabel && leading != null
   const glowClasses =
     variant === 'primary' && glow && !disabled
       ? 'shadow-[var(--primary-glow)] enabled:hover:shadow-[var(--primary-glow-hover)]'
@@ -87,9 +93,10 @@ export function PillButton({
       style={{
         fontFamily: 'var(--font-sans)',
         height: sizeSpec.height,
-        paddingInline: sizeSpec.paddingX,
+        width: iconOnly ? sizeSpec.height : undefined,
+        paddingInline: iconOnly ? 0 : sizeSpec.paddingX,
         fontSize: sizeSpec.fontSize,
-        gap: sizeSpec.gap,
+        gap: iconOnly ? 0 : sizeSpec.gap,
       }}
     >
       {busy ? (
@@ -97,7 +104,7 @@ export function PillButton({
       ) : (
         leading
       )}
-      <span className={busy ? 'opacity-60' : undefined}>{children}</span>
+      {hasLabel ? <span className={busy ? 'opacity-60' : undefined}>{children}</span> : null}
     </button>
   )
 }

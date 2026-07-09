@@ -148,9 +148,8 @@ export function PublicProfileSettings() {
               </div>
 
               {canShare && (
-                <div style={{ padding: '10px 20px 6px' }}>
+                <div className="flex" style={{ padding: '10px 20px 6px' }}>
                   <PillButton
-                    className="w-full md:w-auto md:max-w-[360px]"
                     glow={false}
                     leading={<Share2 size={18} strokeWidth={1.8} color="var(--fg-on-primary)" />}
                     onClick={() => void shareLink()}
