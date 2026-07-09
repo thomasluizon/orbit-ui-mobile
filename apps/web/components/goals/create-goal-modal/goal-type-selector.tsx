@@ -84,7 +84,7 @@ export function GoalTypeSelector({
         >
           {t(activeTypeOption.descKey)}
         </div>
-        {'hintKey' in activeTypeOption && activeTypeOption.hintKey && (
+        {'hintKey' in activeTypeOption && (
           <div
             style={{
               marginTop: 4,

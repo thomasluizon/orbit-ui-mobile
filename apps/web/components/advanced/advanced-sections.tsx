@@ -157,7 +157,7 @@ export function ApiKeyCard({
   onRevoke,
 }: Readonly<ApiKeyCardProps>) {
   const scopes = Array.isArray(apiKey.scopes) ? apiKey.scopes : []
-  const isReadOnly = apiKey.isReadOnly ?? false
+  const isReadOnly = apiKey.isReadOnly
   const expiresAtUtc = apiKey.expiresAtUtc ?? null
 
   return (

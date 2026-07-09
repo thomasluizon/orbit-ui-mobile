@@ -116,7 +116,7 @@ export function HabitFormFields({
   const { register, watch, setValue, formState: { errors } } = form
   const titleRegister = register('title')
 
-  const watchedTitle = watch('title') ?? ''
+  const watchedTitle = watch('title')
   const watchedFrequencyUnit = watch('frequencyUnit') ?? null
   const watchedFrequencyQuantity = watch('frequencyQuantity') ?? null
   const watchedDays = watch('days') ?? []
@@ -329,7 +329,7 @@ export function HabitFormFields({
             options={daysList.map((day) => ({
               key: day.value,
               label: day.label,
-              active: watchedDays?.includes(day.value) ?? false,
+              active: watchedDays.includes(day.value),
               onClick: () => toggleDay(day.value),
             }))}
           />
@@ -568,13 +568,13 @@ export function HabitFormFields({
               {t('habits.form.checklist')}
             </span>
             <HabitChecklist
-              items={watchedChecklistItems ?? []}
+              items={watchedChecklistItems}
               editable
               onItemsChange={(items) => setValue('checklistItems', items, { shouldDirty: true })}
             />
             <div className="mt-4">
               <ChecklistTemplates
-                items={watchedChecklistItems ?? []}
+                items={watchedChecklistItems}
                 onLoad={(items) => setValue('checklistItems', items, { shouldDirty: true })}
               />
             </div>

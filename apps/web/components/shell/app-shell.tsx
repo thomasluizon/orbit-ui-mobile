@@ -43,7 +43,7 @@ type HabitSubView = 'today' | 'all' | 'general'
 export function AppShell({ children, onCreate }: Readonly<AppShellProps>) {
   const t = useTranslations()
   const router = useRouter()
-  const pathname = usePathname() ?? '/'
+  const pathname = usePathname()
   const { profile } = useProfile()
   const hasProAccess = profile?.hasProAccess ?? false
   const activeView = useUIStore((state) => state.activeView)

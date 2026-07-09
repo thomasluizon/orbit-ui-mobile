@@ -145,15 +145,13 @@ export function TourReplayModal({ open, onOpenChange }: Readonly<TourReplayModal
                     gap: 14,
                   }}
                 >
-                  {Icon && (
-                    <span
-                      aria-hidden="true"
-                      className="inline-flex shrink-0 justify-center"
-                      style={{ width: 26 }}
-                    >
-                      <Icon size={22} strokeWidth={1.8} color="var(--fg-1)" />
-                    </span>
-                  )}
+                  <span
+                    aria-hidden="true"
+                    className="inline-flex shrink-0 justify-center"
+                    style={{ width: 26 }}
+                  >
+                    <Icon size={22} strokeWidth={1.8} color="var(--fg-1)" />
+                  </span>
                   <div className="flex-1 min-w-0">
                     <p
                       style={{

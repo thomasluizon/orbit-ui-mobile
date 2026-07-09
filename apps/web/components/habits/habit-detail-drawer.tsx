@@ -135,7 +135,7 @@ export function HabitDetailDrawer({
   function handleAskAstra() {
     if (!habit) return
     const seed =
-      habit.checklistItems && habit.checklistItems.length > 0
+      habit.checklistItems.length > 0
         ? t('habits.detail.askAstraSeedSubHabits', { title: habit.title })
         : t('habits.detail.askAstraSeedDefault', { title: habit.title })
     if (typeof globalThis !== 'undefined' && typeof globalThis.localStorage !== 'undefined') {

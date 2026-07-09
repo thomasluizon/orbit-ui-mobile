@@ -64,7 +64,7 @@ export function WelcomeBackToast() {
     if (
       lastVisit > 0 &&
       now - lastVisit > twentyFourHours &&
-      (profile.currentStreak ?? 0) > 0
+      profile.currentStreak > 0
     ) {
       setTimeout(() => {
         showToast(t('welcome.backMessage', { streak: profile.currentStreak }), 'welcome')

@@ -150,7 +150,7 @@ export function MessageBubble({
               style={{ border: '1px solid var(--hairline)' }}
             />
           )}
-          <Markdown content={stripHabitListDirective(message.content ?? '')} />
+          <Markdown content={stripHabitListDirective(message.content)} />
         </div>
 
         {!isUser && message.habitList && (

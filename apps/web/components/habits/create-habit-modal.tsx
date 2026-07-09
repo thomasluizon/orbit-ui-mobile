@@ -142,7 +142,7 @@ export function CreateHabitModal({
   })
 
   const formId = useId()
-  const watchedTitle = formHelpers.form.watch('title') ?? ''
+  const watchedTitle = formHelpers.form.watch('title')
   const watchedDueTime = formHelpers.form.watch('dueTime') ?? ''
   const watchedReminderEnabled = formHelpers.form.watch('reminderEnabled') ?? false
   const watchedScheduledReminders = formHelpers.form.watch('scheduledReminders') ?? []
@@ -267,7 +267,7 @@ export function CreateHabitModal({
       const data = habitFormSchema.parse(formHelpers.form.getValues())
 
       try {
-        if (isSubHabitMode && parentHabit) {
+        if (isSubHabitMode) {
           const subRequest = buildSubHabitRequest(data, reminderTimes, tags.selectedTagIds)
           await createSubHabit.mutateAsync({ parentId: parentHabit.id, data: subRequest })
         } else {
@@ -291,7 +291,7 @@ export function CreateHabitModal({
 
   const handleSuggest = useCallback(
     async () => {
-      const title = formHelpers.form.getValues('title')?.trim() ?? ''
+      const title = formHelpers.form.getValues('title').trim()
       if (title.length === 0) return
       try {
         const patch = buildHabitFormPatchFromSuggestion(

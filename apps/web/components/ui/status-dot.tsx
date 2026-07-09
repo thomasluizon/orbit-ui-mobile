@@ -36,7 +36,7 @@ const SWEEP_MS = 420
 function prefersReducedMotion(): boolean {
   return (
     typeof window !== 'undefined' &&
-    !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+    !!window.matchMedia('(prefers-reduced-motion: reduce)').matches
   )
 }
 
