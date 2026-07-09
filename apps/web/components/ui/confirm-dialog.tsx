@@ -1,8 +1,9 @@
 'use client'
 
-import { useEffect, useId, useRef } from 'react'
+import { useEffect, useId, useRef, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { useTranslations } from 'next-intl'
+import { Check, Trash2 } from 'lucide-react'
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react'
 import { resolveMotionPreset } from '@orbit/shared/theme'
 import { useIsClient } from '@/hooks/use-is-client'
@@ -26,16 +27,29 @@ interface ConfirmDialogProps {
   /** 'danger' renders the confirm action as a status-bad fill pill (dlg-delete
    *  artboard). 'info' renders a single close action and hides the cancel button. */
   variant?: Variant
+  /** Leading glyph on the confirm action. Overrides the per-variant default
+   *  (trash for 'danger', check for 'success'/'warning', none for 'info'). */
+  leadingIcon?: ReactNode
 }
 
 const pillBase =
-  'flex-1 appearance-none border-0 cursor-pointer rounded-full transition-[background-color,transform,box-shadow] duration-[var(--dur-fast)] ease-[var(--ease-standard)] active:scale-[0.96]'
+  'flex-1 flex items-center justify-center gap-[6px] appearance-none border-0 cursor-pointer rounded-full transition-[background-color,transform,box-shadow] duration-[var(--dur-fast)] ease-[var(--ease-standard)] active:scale-[0.96]'
 
-const actionVariantClasses: Record<'danger' | 'primary', string> = {
-  danger:
+const actionVariantClasses: Record<'destructive' | 'primary', string> = {
+  destructive:
     'bg-[var(--status-bad)] hover:bg-[color-mix(in_srgb,var(--status-bad)_85%,black)] hover:-translate-y-px active:translate-y-0',
   primary:
     'bg-[var(--primary)] hover:bg-[var(--primary-pressed)] hover:-translate-y-px active:translate-y-0',
+}
+
+function defaultConfirmIcon(variant: Variant): { key: string; node: ReactNode } | null {
+  if (variant === 'danger') {
+    return { key: 'trash', node: <Trash2 size={16} strokeWidth={2} aria-hidden="true" /> }
+  }
+  if (variant === 'success' || variant === 'warning') {
+    return { key: 'check', node: <Check size={17} strokeWidth={2.4} aria-hidden="true" /> }
+  }
+  return null
 }
 
 export function ConfirmDialog({
@@ -48,6 +62,7 @@ export function ConfirmDialog({
   onConfirm,
   onCancel,
   variant = 'danger',
+  leadingIcon,
 }: Readonly<ConfirmDialogProps>) {
   const t = useTranslations()
   const overlayId = useId()
@@ -60,6 +75,8 @@ export function ConfirmDialog({
   const mounted = useIsClient()
   const destructive = variant === 'danger'
   const infoOnly = variant === 'info'
+  const defaultIcon = defaultConfirmIcon(variant)
+  const confirmIcon = leadingIcon ?? defaultIcon?.node
 
   useEffect(() => {
     if (!open) return
@@ -234,8 +251,8 @@ export function ConfirmDialog({
               <button
                 type="button"
                 onClick={handleConfirm}
-                data-variant={destructive ? 'danger' : 'primary'}
-                className={`${pillBase} ${actionVariantClasses[destructive ? 'danger' : 'primary']}`}
+                data-variant={destructive ? 'destructive' : 'primary'}
+                className={`${pillBase} ${actionVariantClasses[destructive ? 'destructive' : 'primary']}`}
                 style={{
                   fontFamily: 'var(--font-sans)',
                   fontSize: 15,
@@ -245,6 +262,15 @@ export function ConfirmDialog({
                   minHeight: 44,
                 }}
               >
+                {confirmIcon ? (
+                  <span
+                    aria-hidden="true"
+                    data-confirm-icon={leadingIcon ? 'custom' : defaultIcon?.key}
+                    className="inline-flex shrink-0"
+                  >
+                    {confirmIcon}
+                  </span>
+                ) : null}
                 {confirmLabel || (infoOnly ? t('common.close') : t('common.confirm'))}
               </button>
             </div>

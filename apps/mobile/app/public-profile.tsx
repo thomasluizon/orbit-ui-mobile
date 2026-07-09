@@ -133,7 +133,7 @@ export default function PublicProfileScreen() {
             </Pressable>
             <View style={styles.shareBlock}>
               <PillButton
-                fullWidth
+                style={{ alignSelf: 'flex-start' }}
                 onPress={() => void shareLink()}
                 leading={<Share2 size={18} strokeWidth={1.8} color={tokens.fgOnPrimary} />}
               >

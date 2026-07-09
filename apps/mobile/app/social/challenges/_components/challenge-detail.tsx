@@ -172,6 +172,7 @@ function LinkHabitsCard({
     <View style={[styles.linkCard, { backgroundColor: tokens.bgCard, borderColor: tokens.hairline }]}>
       <Text style={[styles.linkTitle, { color: tokens.fg1 }]}>{title}</Text>
       <Text style={[styles.linkBody, { color: tokens.fg3 }]}>{body}</Text>
+      {/* eslint-disable-next-line local/no-fullbleed-button -- link-habits prompt card CTA */}
       <PillButton fullWidth onPress={onLink}>
         {cta}
       </PillButton>
@@ -202,6 +203,7 @@ function HabitsEditorSheet({
     <BottomSheetModal open={open} onClose={onClose} title={title} snapPoints={['55%', '85%']} contentManagesScroll>
       <ScrollView contentContainerStyle={styles.sheetContent} keyboardShouldPersistTaps="handled">
         <HabitPicker selectedIds={selectedIds} onToggle={onToggle} />
+        {/* eslint-disable-next-line local/no-fullbleed-button -- HabitsEditorSheet footer primary action */}
         <PillButton fullWidth onPress={onSave} disabled={saving} busy={saving}>
           {saveLabel}
         </PillButton>
@@ -336,6 +338,7 @@ export function ChallengeDetail({ challengeId, onLeft }: Readonly<ChallengeDetai
       <ShareJoinCode title={challenge.title} joinCode={challenge.joinCode} />
 
       <View style={styles.leaveBlock}>
+        {/* eslint-disable-next-line local/no-fullbleed-button -- full-screen leave action at page bottom */}
         <PillButton variant="ghost" fullWidth onPress={() => setConfirmLeave(true)}>
           {t('challenges.detail.leave')}
         </PillButton>

@@ -1,6 +1,7 @@
 import tseslint from "typescript-eslint"
 import sonarjs from "eslint-plugin-sonarjs"
 import noComments from "../../eslint-rules/no-comments.cjs"
+import noFullbleedButton from "../../eslint-rules/no-fullbleed-button.cjs"
 
 export default [
   ...tseslint.configs.recommendedTypeChecked,
@@ -25,10 +26,12 @@ export default [
     ...tseslint.configs.disableTypeChecked,
   },
   {
-    files: ["src/**/*.ts"],
+    files: ["src/**/*.{ts,tsx}"],
     ignores: ["**/*.d.ts"],
-    plugins: { local: { rules: { "no-comments": noComments } } },
-    rules: { "local/no-comments": "error" },
+    plugins: {
+      local: { rules: { "no-comments": noComments, "no-fullbleed-button": noFullbleedButton } },
+    },
+    rules: { "local/no-comments": "error", "local/no-fullbleed-button": "error" },
   },
   {
     rules: {

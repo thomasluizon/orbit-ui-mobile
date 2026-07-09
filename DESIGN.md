@@ -34,6 +34,7 @@ Canonical CSS lives in `apps/web/app/globals.css`; the mobile equivalent is `cre
 --status-done var(--primary) · empty rgba(248,250,252,0.22) · skip rgb(144,161,185)
 --status-overdue rgb(254,154,0) · bad rgb(251,44,54) · frozen rgb(0,211,243)
 --status-overdue-text rgb(254,154,0) · bad-text rgb(251,44,54)   /* = base; AA ≥4.5 on canvas */
+--fg-on-bad rgb(2,6,24) · --fg-on-overdue rgb(2,6,24)   /* text/icon painted ON the bad|overdue fill; per-mode, see hand-tune log */
 --selection-bg rgba(var(--primary-rgb),0.32)
 --gradient-header linear-gradient(180deg, rgb(34,9,79) 0%, rgba(2,6,24,0) 100%)   /* violet-950 → transparent */
 ```
@@ -46,6 +47,7 @@ Canonical CSS lives in `apps/web/app/globals.css`; the mobile equivalent is `cre
 --fg-1 rgb(15,23,43) · --fg-2 rgb(49,65,88) · --fg-3 rgb(98,116,142) · --fg-4 rgb(144,161,185)
 --status-empty rgba(2,6,24,0.18) · skip rgb(98,116,142) · overdue rgb(225,113,0) · bad rgb(231,0,11) · frozen rgb(0,146,184)
 --status-overdue-text rgb(180,91,0) · bad-text rgb(231,0,11)   /* overdue darkened to AA; bad = base */
+--fg-on-bad rgb(255,255,255) · --fg-on-overdue rgb(2,6,24)   /* text/icon painted ON the bad|overdue fill; per-mode, see hand-tune log */
 --selection-bg rgba(var(--primary-rgb),0.18)
 --gradient-header linear-gradient(180deg, rgb(233,212,255) 0%, rgba(248,250,252,0) 100%)
 ```
@@ -90,6 +92,7 @@ Hand-tune log (rule 3):
 - **blue / cyan:** canvas chroma gamut-clamped at the locked L (scaleBg 0.6226 / 0.5167); cyan fg ramp also clamped (scaleFg 0.843). Values are the sRGB gamut ceiling ×0.985 so web CSS and the TS pipeline resolve identical bytes.
 - **Light gradient stops:** purple keeps the handoff's +21.71° lilac rotation from the accent hue (byte-exact `#e9d4ff`); the rotation misreads on rose (peach) and cyan (periwinkle), so all non-purple schemes use their light accent hue directly at the locked L/C, chroma gamut-clamped.
 - **fg-on-primary (scheme×mode):** white fails 4.5:1 AA on green/orange/cyan (both modes) and blue/rose (dark), so those eight resolve to the locked canvas ink rgb(2,6,24) (≥5.36:1 on every flipped accent); white stays on purple (both modes), blue light, rose light (4.53–7.03:1). Data in `color-schemes.ts` `fgOnPrimary`, mirrored per scheme×mode in `globals.css`.
+- **fg-on-bad / fg-on-overdue (per mode):** the fixed status-bad / overdue fills flip lightness across modes, so their text flips too. `fg-on-bad` = canvas ink rgb(2,6,24) on the lighter dark-mode red (5.29:1) and white on the deeper light-mode red (4.77:1); `fg-on-overdue` stays canvas ink both modes (white fails AA on amber). Defined per mode in `globals.css`; mobile mirrors `fg-on-bad` via `statusConstants.fgOnBad` and pins `fg-on-overdue` to canvas ink.
 
 ## Type roles
 
@@ -122,7 +125,7 @@ Exact dimensions in `design/handoff/orbit/project/orbit-kit.jsx`. Web in `apps/w
 | Switch | 48×28 pill, 22px white thumb, on=primary / off=rgba(fg,0.16) | inside settings-row | inside settings-row |
 | Radio/RadioRow | 24px, selected=primary fill + 9px white dot, else inset 2px fg-4 ring | `ui/select-check.tsx` | `ui/select-check.tsx` |
 | Badge | pill 3/9px, 10.5/600 +0.06em UPPERCASE; tones violet/soft/outline/amber | `ui/badge.tsx` (+ pro-badge) | same |
-| Pill / WhitePill / GhostPill | pill CTA: primary bg + glow, 15/26 padding, Rubik 16/500; white: fg-1 bg + canvas text; ghost: inset 1.5px hairline-strong | `ui/pill-button.tsx` | `ui/pill-button.tsx` |
+| PillButton | pill CTA, 4 variants × 3 sizes off the shared `BUTTON_SIZES` geometry: primary (accent bg + glow) / secondary (fg-1 bg + canvas text) / ghost (inset 1.5px hairline-strong) / destructive (status-bad fill + fg-on-bad); md = h50·26px pad·Rubik 16/500·18 icon·9 gap (default), sm = h40, lg = h56. Hugs content; caps ~360px at desktop. Full canon in **Buttons** below | `ui/pill-button.tsx` | `ui/pill-button.tsx` |
 | StatTile | radius 18, rgba(fg,0.05) + inset hairline ring, emoji 28, value Inter 24/700, label 15 fg-2 | `ui/stat-tile.tsx` | same |
 | PlanCard | radius 18, selected = primary 0.10 tint + inset 1.5px primary ring; price Inter 22/700 | `upgrade/plan-card.tsx` | same |
 | InfoCard | radius 18, primary 0.08 tint bg + inset ring primary 0.28, icon 24/1.9 accent | `ui/info-card.tsx` | same |
@@ -134,6 +137,16 @@ Exact dimensions in `design/handoff/orbit/project/orbit-kit.jsx`. Web in `apps/w
 | VerifiedBadge | scalloped check, primary 0.15 disc | `ui/verified-badge.tsx` | same |
 | ProgressBar | 8px pill track rgba(fg,0.08), primary fill | `ui/progress-bar.tsx` | same |
 | HabitCard | radius 18 translucent card 0.04 + inset hairline, 46px emoji well radius 14 fill 0.06, name Rubik 16/500, meta 13 fg-3 + streak flame, trailing 30px check circle | `habits/habit-row.tsx` | `habits/habit-row.tsx` |
+
+## Buttons
+
+`PillButton` (`ui/pill-button.tsx`, mirrored web + mobile) is the one pill CTA. Its geometry is shared data in `packages/shared/src/theme/button.ts` (`BUTTON_SIZES`) so the two platform mirrors cannot drift. Over-wide and over-wordy buttons are the two AI-slop tells this rule kills.
+
+- **Variants** — `primary` (accent fill + glow), `secondary` (fg-1 fill, canvas text), `ghost` (transparent, inset 1.5px hairline-strong ring), `destructive` (status-bad fill, fg-on-bad text). `ConfirmDialog` reuses the `primary` / `destructive` fills for its paired action row.
+- **Sizes** — `sm` (h40, 18px pad, 14px label, 16 icon, 7 gap), `md` (h50, 26px pad, 16px label, 18 icon, 9 gap; the default and the historical look), `lg` (h56, 30px pad, 17px label, 20 icon, 10 gap). A size is a fixed height + horizontal padding + label / icon / gap set; never hand-tune per call.
+- **Width, hug by default.** A pill sizes to its content. A lone CTA in a wide container caps at ~360px (the `fullWidth` desktop cap) and never spans a desktop content column. Full-width (`fullWidth`, or a phone-shell stretch) is sanctioned ONLY in: (1) the single primary action of a mobile bottom-sheet or dialog, (2) a form submit at or below the mobile breakpoint (auth, onboarding, support, create flows), (3) a full-screen empty-state primary CTA. `ConfirmDialog`'s paired action row is also allowed. Everywhere else the pill hugs. The `local/no-fullbleed-button` ESLint gate enforces this on web (`fullWidth` on `PillButton`, or `w-full` / `flex-1` on a `rounded-full` button); mobile StyleSheet width (`alignSelf: 'stretch'` / `width: '100%'`) is not statically linkable, so the design-reviewer checklist covers it.
+- **Labels, 1-2 words, action-first.** Strip words the surrounding dialog title or section header already carries ("Log all" becomes "Log", "Delete all" becomes "Delete", "Registrar todos" becomes "Registrar"). pt-BR runs longer than en, so the size scale must absorb the longer string without going full-bleed.
+- **Icons, a leading glyph where it aids recognition** (create → plus, confirm → check, destructive → trash), sized and gapped from the size token. Icon-only pills (for example the collapsed sidebar rail) MUST carry a localized `aria-label` / `accessibilityLabel`. No decorative icons.
 
 ## Surface rules
 
@@ -159,7 +172,7 @@ Exact dimensions in `design/handoff/orbit/project/orbit-kit.jsx`. Web in `apps/w
 ## Desktop density & orientation
 
 - At the desktop breakpoint, content composes **horizontally**: multi-column layouts, side rails, and grids. A single stretched mobile column is a defect, not a layout.
-- Pill CTAs never span a wide content column: intrinsic width + padding, max-width ~360px. Full-width pills are a phone-shell affordance only.
+- Pill CTAs never span a wide content column: intrinsic width + padding, max-width ~360px. Full-width pills are a phone-shell affordance only, restricted to the **Buttons** allowlist.
 - Primary app sections are one click away in the desktop sidebar - a section reachable only through Profile is buried.
 
 ## Sub-screen navigation
@@ -184,7 +197,8 @@ SVG `stroke-dashoffset` ring/progress sweeps are sanctioned (paint-only property
 - No per-component scheme branches — schemes resolve through tokens only.
 - No em dashes in copy. Use a comma, period, or hyphen.
 - No text button where a universal glyph exists; no icon-only control without an accessible label.
-- No full-bleed pill CTAs at the desktop breakpoint.
+- No full-bleed pill CTAs outside the **Buttons** allowlist, and never at the desktop breakpoint.
+- No ad-hoc raw pill button, no hand-tuned button height/padding, no `variant="white"` — use `PillButton` with a canonical variant (`primary`/`secondary`/`ghost`/`destructive`) and size (`sm`/`md`/`lg`).
 
 ## Working model (from `impeccable`)
 

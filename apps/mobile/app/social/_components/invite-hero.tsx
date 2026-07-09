@@ -71,7 +71,6 @@ export function InviteHero() {
       </View>
 
       <PillButton
-        fullWidth
         onPress={() => void shareLink()}
         leading={<Share2 size={18} strokeWidth={1.8} color={tokens.fgOnPrimary} />}
       >

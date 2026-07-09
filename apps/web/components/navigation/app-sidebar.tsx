@@ -9,6 +9,7 @@ import {
   type LucideProps,
 } from 'lucide-react'
 import { AppLogo } from '@/components/ui/app-logo'
+import { PillButton } from '@/components/ui/pill-button'
 import { resolveSidebarSectionRowPresentation } from '@/components/navigation/app-sidebar-presentation'
 
 export interface SidebarNavItem {
@@ -138,31 +139,33 @@ export function AppSidebar({
       </nav>
 
       <div
+        className="flex"
         style={{
-          paddingInline: collapsed ? 14 : 16,
+          paddingInline: collapsed ? 13 : 16,
           paddingTop: 12,
           paddingBottom: 4,
+          justifyContent: collapsed ? 'center' : 'flex-start',
         }}
       >
-        <button
-          type="button"
-          onClick={onCreate}
-          aria-label={createLabel}
-          title={collapsed ? createLabel : undefined}
-          className="flex w-full items-center justify-center gap-2 font-medium text-[var(--fg-on-primary)] transition-[background-color,transform] duration-[160ms] ease-[var(--ease-standard)] hover:bg-[var(--primary-pressed)] active:scale-[0.96]"
-          style={{
-            height: 48,
-            borderRadius: 999,
-            background: 'var(--primary)',
-            boxShadow: 'var(--primary-glow)',
-            fontFamily: 'var(--font-sans)',
-            fontSize: 15,
-            paddingInline: collapsed ? 0 : 14,
-          }}
-        >
-          <Plus size={20} strokeWidth={2.2} color="var(--fg-on-primary)" />
-          {!collapsed && <span>{createLabel}</span>}
-        </button>
+        {collapsed ? (
+          <PillButton
+            variant="primary"
+            size="md"
+            onClick={onCreate}
+            ariaLabel={createLabel}
+            title={createLabel}
+            leading={<Plus size={20} strokeWidth={2.2} />}
+          />
+        ) : (
+          <PillButton
+            variant="primary"
+            size="md"
+            onClick={onCreate}
+            leading={<Plus size={18} strokeWidth={2.2} />}
+          >
+            {createLabel}
+          </PillButton>
+        )}
       </div>
       </div>
     </aside>

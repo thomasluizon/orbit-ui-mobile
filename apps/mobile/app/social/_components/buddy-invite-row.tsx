@@ -141,6 +141,7 @@ export function BuddyInviteRow({ pair, direction }: Readonly<BuddyInviteRowProps
             onPress={() => void handleAccept()}
             disabled={habitIds.length === 0 || accept.isPending}
             busy={accept.isPending}
+            // eslint-disable-next-line local/no-fullbleed-button -- accept sheet footer primary action
             fullWidth
           >
             {t('social.buddies.acceptSubmit')}

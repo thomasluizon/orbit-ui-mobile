@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 import {
   Animated,
   Modal,
@@ -7,8 +7,9 @@ import {
   Text,
   View,
 } from 'react-native'
+import { Check, Trash2 } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
-import { createTokensV2, shadowsV2 } from '@/lib/theme'
+import { createTokensV2, darkenHex, shadowsV2 } from '@/lib/theme'
 import { toAnimatedEasing, useResolvedMotionPreset } from '@/lib/motion'
 import { useAppTheme } from '@/lib/use-app-theme'
 
@@ -28,6 +29,19 @@ interface ConfirmDialogProps {
   /** 'danger' renders the confirm action as a status-bad fill pill (dlg-delete
    *  artboard). 'info' renders a single close action and hides the cancel button. */
   variant?: Variant
+  /** Leading glyph on the confirm action. Overrides the per-variant default
+   *  (trash for 'danger', check for 'success'/'warning', none for 'info'). */
+  leadingIcon?: ReactNode
+}
+
+function defaultConfirmIcon(variant: Variant, color: string): ReactNode {
+  if (variant === 'danger') {
+    return <Trash2 size={16} strokeWidth={2} color={color} />
+  }
+  if (variant === 'success' || variant === 'warning') {
+    return <Check size={17} strokeWidth={2.4} color={color} />
+  }
+  return null
 }
 
 export function ConfirmDialog({
@@ -40,6 +54,7 @@ export function ConfirmDialog({
   onConfirm,
   onCancel,
   variant = 'danger',
+  leadingIcon,
 }: Readonly<ConfirmDialogProps>) {
   const { t } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
@@ -167,13 +182,18 @@ export function ConfirmDialog({
               accessibilityRole="button"
               style={({ pressed }) => [
                 styles.actionPill,
-                destructive ? styles.confirmPillDestructive : null,
+                destructive
+                  ? pressed
+                    ? styles.confirmPillDestructivePressed
+                    : styles.confirmPillDestructive
+                  : null,
                 !destructive && (pressed ? styles.confirmPillPressed : styles.confirmPill),
                 pressed ? styles.pillPressedScale : null,
-                destructive && pressed ? styles.destructivePressed : null,
               ]}
               onPress={handleConfirm}
             >
+              {leadingIcon ??
+                defaultConfirmIcon(variant, destructive ? tokens.fgOnBad : tokens.fgOnPrimary)}
               <Text
                 style={[
                   styles.confirmLabel,
@@ -241,8 +261,10 @@ function createStyles(tokens: AppTokens) {
       minHeight: 44,
       borderRadius: 999,
       paddingVertical: 13,
+      flexDirection: 'row',
       alignItems: 'center',
       justifyContent: 'center',
+      gap: 6,
     },
     cancelPill: {
       backgroundColor: tokens.bgField,
@@ -259,8 +281,8 @@ function createStyles(tokens: AppTokens) {
     confirmPillDestructive: {
       backgroundColor: tokens.statusBad,
     },
-    destructivePressed: {
-      opacity: 0.85,
+    confirmPillDestructivePressed: {
+      backgroundColor: darkenHex(tokens.statusBad, 0.15),
     },
     pillPressedScale: {
       transform: [{ scale: 0.96 }],

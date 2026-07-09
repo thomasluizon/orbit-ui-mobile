@@ -481,6 +481,7 @@ export function UserFactsList({
         <Text style={[styles.emptyBody, { color: tokens.statusBadText }]}>
           {t('profile.facts.factsError')}
         </Text>
+        {/* eslint-disable-next-line local/no-fullbleed-button -- empty-state retry CTA */}
         <PillButton fullWidth onPress={() => void factsQuery.refetch()}>
           {t('profile.facts.retry')}
         </PillButton>
@@ -499,6 +500,7 @@ export function UserFactsList({
           {t('profile.facts.empty')}
         </Text>
         <PillButton
+          // eslint-disable-next-line local/no-fullbleed-button -- empty-state primary CTA
           fullWidth
           onPress={onAskAstra}
           leading={

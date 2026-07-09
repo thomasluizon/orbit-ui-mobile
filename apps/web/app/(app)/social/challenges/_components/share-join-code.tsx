@@ -83,7 +83,7 @@ export function ShareJoinCode({ title, joinCode }: Readonly<ShareJoinCodeProps>)
 
       {canShare ? (
         <PillButton
-          fullWidth
+          className="self-start"
           leading={<Share2 size={18} strokeWidth={1.8} color="var(--fg-on-primary)" />}
           onClick={() => void shareCode()}
         >

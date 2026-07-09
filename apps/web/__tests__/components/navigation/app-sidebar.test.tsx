@@ -156,6 +156,17 @@ describe('AppSidebar', () => {
     expect(props.onCreate).toHaveBeenCalledTimes(1)
   })
 
+  it('renders the collapsed create control as an icon-only square PillButton that fires onCreate', () => {
+    const props = renderSidebar({ collapsed: true })
+
+    const create = screen.getByRole('button', { name: 'Create habit' })
+    expect(create).toHaveStyle({ width: '50px', height: '50px' })
+    expect(create).not.toHaveTextContent('Create habit')
+
+    fireEvent.click(create)
+    expect(props.onCreate).toHaveBeenCalledTimes(1)
+  })
+
   it('toggles collapse and labels the control collapse while expanded', () => {
     const props = renderSidebar({ collapsed: false })
 

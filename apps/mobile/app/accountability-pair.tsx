@@ -185,6 +185,7 @@ export default function AccountabilityPairScreen() {
                   onPress={() => void handleCheckIn()}
                   disabled={checkIn.isPending}
                   busy={checkIn.isPending}
+                  // eslint-disable-next-line local/no-fullbleed-button -- full-screen check-in submit (allowlist: form submit)
                   fullWidth
                 >
                   {t('social.buddies.checkInSubmit')}
@@ -248,6 +249,7 @@ export default function AccountabilityPairScreen() {
               onPress={() => void handleSaveHabits()}
               disabled={editHabitIds.length === 0 || setHabits.isPending}
               busy={setHabits.isPending}
+              // eslint-disable-next-line local/no-fullbleed-button -- BottomSheetModal edit-habits footer primary action
               fullWidth
             >
               {t('common.save')}

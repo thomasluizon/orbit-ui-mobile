@@ -113,7 +113,7 @@ export function InviteHero() {
       </div>
 
       {canShare ? (
-        <PillButton onClick={() => void shareLink()} fullWidth leading={<Share2 size={18} strokeWidth={1.8} />}>
+        <PillButton onClick={() => void shareLink()} leading={<Share2 size={18} strokeWidth={1.8} />}>
           {t('social.invite.share')}
         </PillButton>
       ) : null}

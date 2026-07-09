@@ -83,7 +83,7 @@ export function ShareJoinCode({ title, joinCode }: Readonly<ShareJoinCodeProps>)
       </View>
 
       <PillButton
-        fullWidth
+        style={{ alignSelf: 'flex-start' }}
         onPress={() => void shareCode()}
         leading={<Share2 size={18} strokeWidth={1.8} color={tokens.fgOnPrimary} />}
       >

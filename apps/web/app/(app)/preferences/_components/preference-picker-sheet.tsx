@@ -63,7 +63,7 @@ export function PreferencePickerSheet({
       footer={
         activePicker === 'scheme' ? (
           <PillButton
-            variant="white"
+            variant="secondary"
             fullWidth
             onClick={onClose}
             leading={<Check size={18} strokeWidth={2} aria-hidden="true" />}

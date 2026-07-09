@@ -6,6 +6,7 @@ const sonarjs = require("eslint-plugin-sonarjs")
 const reactHooks = require("eslint-plugin-react-hooks")
 const noComments = require("../../eslint-rules/no-comments.cjs")
 const noGorhomSheet = require("../../eslint-rules/no-gorhom-sheet.cjs")
+const noFullbleedButton = require("../../eslint-rules/no-fullbleed-button.cjs")
 
 // https://github.com/expo/expo/issues/43758 — eslint-config-expo@56 bundles react-hooks v7 and
 // turns on its full recommended set (refs, immutability, purity, …) at error. This project owns
@@ -57,10 +58,43 @@ module.exports = defineConfig([
     ignores: ["**/*.d.ts"],
     plugins: {
       local: {
-        rules: { "no-comments": noComments, "no-gorhom-sheet": noGorhomSheet },
+        rules: {
+          "no-comments": noComments,
+          "no-gorhom-sheet": noGorhomSheet,
+          "no-fullbleed-button": noFullbleedButton,
+        },
       },
     },
-    rules: { "local/no-comments": "error", "local/no-gorhom-sheet": "error", "no-console": "error" },
+    rules: {
+      "local/no-comments": "error",
+      "local/no-gorhom-sheet": "error",
+      "local/no-fullbleed-button": ["error", { flagFullWidthProp: true }],
+      "no-console": "error",
+    },
+  },
+  {
+    files: [
+      "**/*-sheet.tsx",
+      "**/*-modal.tsx",
+      "**/*-dialog.tsx",
+      "**/*-drawer.tsx",
+      "**/*-overlay.tsx",
+      "**/*-prompt.tsx",
+      "**/*-form.tsx",
+      "**/*-celebration.tsx",
+      "**/*-picker.tsx",
+      "**/*-gate.tsx",
+      "**/upgrade/**",
+      "**/goal-detail-drawer/**",
+      "**/calendar-sync.tsx",
+      "**/wrapped-slide.tsx",
+      "**/onboarding/**",
+      "**/email-step.tsx",
+      "**/code-step.tsx",
+      "**/*empty-state.tsx",
+      "**/*-no-data-state.tsx",
+    ],
+    rules: { "local/no-fullbleed-button": "off" },
   },
   {
     plugins: { "react-hooks": reactHooks },
@@ -89,6 +123,7 @@ module.exports = defineConfig([
   {
     files: ["__tests__/**/*.{ts,tsx}", "**/*.test.{ts,tsx}", "**/*.spec.{ts,tsx}"],
     rules: {
+      "local/no-fullbleed-button": "off",
       "@typescript-eslint/no-require-imports": "off",
       "@typescript-eslint/no-explicit-any": "off",
       "@typescript-eslint/no-unused-vars": "off",

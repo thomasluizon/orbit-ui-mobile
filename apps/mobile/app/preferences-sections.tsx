@@ -358,7 +358,8 @@ export function PreferencePickerSheet({
             ))}
             <View style={styles.sheetFooter}>
               <PillButton
-                variant="white"
+                variant="secondary"
+                // eslint-disable-next-line local/no-fullbleed-button -- picker sheet footer primary action
                 fullWidth
                 onPress={onClose}
                 leading={<Check size={18} color={tokens.bg} strokeWidth={2} />}

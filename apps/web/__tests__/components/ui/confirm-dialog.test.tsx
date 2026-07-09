@@ -154,7 +154,35 @@ describe('ConfirmDialog', () => {
       />,
     )
     const confirmBtn = screen.getByText('common.confirm') as HTMLElement
-    expect(confirmBtn.getAttribute('data-variant')).toBe('danger')
+    expect(confirmBtn.getAttribute('data-variant')).toBe('destructive')
+  })
+
+  it('shows a trash glyph on the destructive confirm and a check glyph on the success confirm', () => {
+    const { rerender } = render(
+      <ConfirmDialog
+        open={true}
+        onOpenChange={vi.fn()}
+        title="Delete?"
+        description="Sure?"
+        onConfirm={vi.fn()}
+      />,
+    )
+    expect(document.querySelector('[data-confirm-icon]')?.getAttribute('data-confirm-icon')).toBe(
+      'trash',
+    )
+    rerender(
+      <ConfirmDialog
+        open={true}
+        onOpenChange={vi.fn()}
+        title="Complete?"
+        description="Mark done?"
+        onConfirm={vi.fn()}
+        variant="success"
+      />,
+    )
+    expect(document.querySelector('[data-confirm-icon]')?.getAttribute('data-confirm-icon')).toBe(
+      'check',
+    )
   })
 
   it('renders non-destructive variants as a primary fill pill', () => {

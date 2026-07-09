@@ -50,18 +50,49 @@ describe('PillButton', () => {
     expect(onClick).not.toHaveBeenCalled()
   })
 
-  it('renders white and ghost variants', () => {
+  it('renders secondary, ghost, and destructive variants', () => {
     render(
       <>
-        <PillButton variant="white" onClick={() => {}}>
-          White
+        <PillButton variant="secondary" onClick={() => {}}>
+          Secondary
         </PillButton>
         <PillButton variant="ghost" onClick={() => {}}>
           Ghost
         </PillButton>
+        <PillButton variant="destructive" onClick={() => {}}>
+          Delete
+        </PillButton>
       </>,
     )
-    expect(screen.getByRole('button', { name: 'White' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Secondary' })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Ghost' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Delete' })).toBeInTheDocument()
+  })
+
+  it('renders an icon-only square (width = height) when given a leading icon and no label', () => {
+    render(
+      <PillButton ariaLabel="Create" leading={<span data-testid="icon-only-leading" />} />,
+    )
+    const button = screen.getByRole('button', { name: 'Create' })
+    expect(button).toHaveStyle({ width: '50px', height: '50px' })
+    expect(button).toHaveTextContent('')
+    expect(screen.getByTestId('icon-only-leading')).toBeInTheDocument()
+  })
+
+  it('drives the pill height from the size scale (sm < md < lg)', () => {
+    render(
+      <>
+        <PillButton size="sm" onClick={() => {}}>
+          Small
+        </PillButton>
+        <PillButton onClick={() => {}}>Medium</PillButton>
+        <PillButton size="lg" onClick={() => {}}>
+          Large
+        </PillButton>
+      </>,
+    )
+    expect(screen.getByRole('button', { name: 'Small' })).toHaveStyle({ height: '40px' })
+    expect(screen.getByRole('button', { name: 'Medium' })).toHaveStyle({ height: '50px' })
+    expect(screen.getByRole('button', { name: 'Large' })).toHaveStyle({ height: '56px' })
   })
 })
