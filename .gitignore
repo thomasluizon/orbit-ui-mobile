@@ -21,6 +21,7 @@ dist/
 .claude/plans/
 .claude/reviews/
 .claude/reports/
+.claude/audits/
 .mcp.json
 *.swp
 *.swo
