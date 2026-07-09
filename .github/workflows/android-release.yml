@@ -105,7 +105,7 @@ jobs:
 
       # The isolated workspace is a copy of apps/mobile only, so the repo-root
       # .npmrc (legacy-peer-deps=true) does not apply here. Pass the flag
-      # explicitly: worklets 0.8.3 is the ABI pair for reanimated 4.3.1 and must
+      # explicitly: worklets 0.10.0 is the ABI pair for reanimated 4.5.0 and must
       # not be "fixed" to a newer patch to satisfy an advisory peer range.
       - name: Install isolated mobile dependencies
         working-directory: ${{ env.RELEASE_WORKDIR }}/apps/mobile
@@ -119,8 +119,8 @@ jobs:
           node <<'NODE'
           const pkg = require('./package.json')
 
-          // Keep the verified coherent set together: reanimated 4.3.1 is built
-          // against worklets 0.8.3 (ABI), and the Expo SDK 56.0.14 module set is
+          // Keep the verified coherent set together: reanimated 4.5.0 is built
+          // against worklets 0.10.0 (ABI), and the Expo SDK 57.0.4 module set is
           // the one verified to build the release AAB. A from-scratch resolve can
           // drift these to newer patches and break reanimated or the build. Fail
           // here instead of shipping a broken AAB to Google Play.
@@ -143,7 +143,7 @@ jobs:
           if (mismatches.length > 0) {
             console.error(
               `::error::Pinned native module versions drifted: ${mismatches.join('; ')}. ` +
-                'This is the verified coherent reanimated + Expo SDK 56.0.14 set; a newer ' +
+                'This is the verified coherent reanimated + Expo SDK 57.0.4 set; a newer ' +
                 'resolve can break reanimated or the release build. Fix the pins/overrides in apps/mobile/package.json.'
             )
             process.exit(1)
