@@ -41,16 +41,16 @@ vi.mock('@/lib/api-client', () => ({
 type CalendarDataResult = ReturnType<typeof useCalendarData>
 
 function renderCalendarData(currentMonth: Date): CalendarDataResult {
-  let captured: CalendarDataResult | null = null
+  const capturedHolder: { current: CalendarDataResult | null } = { current: null }
   function Probe() {
-    captured = useCalendarData(currentMonth)
+    capturedHolder.current = useCalendarData(currentMonth)
     return null
   }
   TestRenderer.act(() => {
     TestRenderer.create(React.createElement(Probe))
   })
-  if (!captured) throw new Error('hook did not render')
-  return captured
+  if (!capturedHolder.current) throw new Error('hook did not render')
+  return capturedHolder.current
 }
 
 function buildHabit(overrides: Record<string, unknown> = {}) {

@@ -68,10 +68,10 @@ async function renderHookValue<T>(hook: () => T): Promise<{
   readonly value: T
   rerender: () => Promise<void>
 }> {
-  let latestValue: T | null = null
+  const latestValueHolder: { current: T | null } = { current: null }
 
   function Harness() {
-    latestValue = hook()
+    latestValueHolder.current = hook()
     return null
   }
 
@@ -81,16 +81,16 @@ async function renderHookValue<T>(hook: () => T): Promise<{
     await Promise.resolve()
   })
 
-  if (!latestValue) {
+  if (!latestValueHolder.current) {
     throw new Error('hook did not render')
   }
 
   return {
     get value() {
-      if (!latestValue) {
+      if (!latestValueHolder.current) {
         throw new Error('hook did not render')
       }
-      return latestValue
+      return latestValueHolder.current
     },
     rerender: async () => {
       if (!root) {
@@ -101,7 +101,7 @@ async function renderHookValue<T>(hook: () => T): Promise<{
         renderer.update(<Harness />)
         await Promise.resolve()
       })
-      if (!latestValue) {
+      if (!latestValueHolder.current) {
         throw new Error('hook did not render')
       }
     },

@@ -20,13 +20,15 @@ async function renderLoginCodeEntry(onComplete?: (code: string) => void): Promis
     return null
   }
 
-  let renderer: { unmount: () => void } | null = null
+  const rendererHolder: { current: { unmount: () => void } | null } = {
+    current: null,
+  }
   await TestRenderer.act(async () => {
-    renderer = TestRenderer.create(React.createElement(Component))
+    rendererHolder.current = TestRenderer.create(React.createElement(Component))
     await Promise.resolve()
   })
 
-  if (!holder.current || !renderer) {
+  if (!holder.current || !rendererHolder.current) {
     throw new Error('Expected useLoginCodeEntry to initialize')
   }
 
@@ -35,7 +37,7 @@ async function renderLoginCodeEntry(onComplete?: (code: string) => void): Promis
       if (!holder.current) throw new Error('hook not rendered')
       return holder.current
     },
-    unmount: () => (renderer as { unmount: () => void }).unmount(),
+    unmount: () => (rendererHolder.current as { unmount: () => void }).unmount(),
   }
 }
 

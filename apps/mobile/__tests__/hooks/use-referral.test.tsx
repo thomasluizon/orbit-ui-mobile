@@ -31,10 +31,12 @@ vi.mock('@/lib/api-client', () => ({
 }))
 
 async function renderUseReferral(): Promise<ReturnType<typeof useReferral>> {
-  let latestValue: ReturnType<typeof useReferral> | null = null
+  const holder: { latestValue: ReturnType<typeof useReferral> | null } = {
+    latestValue: null,
+  }
 
   function Harness() {
-    latestValue = useReferral()
+    holder.latestValue = useReferral()
     return null
   }
 
@@ -43,11 +45,11 @@ async function renderUseReferral(): Promise<ReturnType<typeof useReferral>> {
     await Promise.resolve()
   })
 
-  if (!latestValue) {
+  if (!holder.latestValue) {
     throw new Error('useReferral did not render')
   }
 
-  return latestValue
+  return holder.latestValue
 }
 
 describe('mobile useReferral', () => {

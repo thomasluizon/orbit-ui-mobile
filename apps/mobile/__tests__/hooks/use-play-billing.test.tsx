@@ -70,16 +70,18 @@ import {
 } from '@/hooks/use-play-billing'
 
 function renderUsePlayBilling(options?: { preferReferralOffer?: boolean }): ReturnType<typeof usePlayBilling> {
-  let value: ReturnType<typeof usePlayBilling> | null = null
+  const valueHolder: { current: ReturnType<typeof usePlayBilling> | null } = {
+    current: null,
+  }
   function Harness() {
-    value = usePlayBilling(options)
+    valueHolder.current = usePlayBilling(options)
     return null
   }
   TestRenderer.act(() => {
     TestRenderer.create(<Harness />)
   })
-  if (!value) throw new Error('usePlayBilling did not render')
-  return value
+  if (!valueHolder.current) throw new Error('usePlayBilling did not render')
+  return valueHolder.current
 }
 
 function renderUsePlayBillingLive(): { current: ReturnType<typeof usePlayBilling> } {

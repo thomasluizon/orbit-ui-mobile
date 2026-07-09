@@ -66,11 +66,11 @@ vi.mock('@/lib/queued-api-mutation', () => ({
 
 async function renderHookValue<T>(hook: () => T): Promise<T> {
   let latestValue: T | undefined
-  let rendered = false
+  const renderedHolder = { current: false }
 
   function Harness() {
     latestValue = hook()
-    rendered = true
+    renderedHolder.current = true
     return null
   }
 
@@ -79,7 +79,7 @@ async function renderHookValue<T>(hook: () => T): Promise<T> {
     await Promise.resolve()
   })
 
-  if (!rendered) {
+  if (!renderedHolder.current) {
     throw new Error('hook did not render')
   }
 

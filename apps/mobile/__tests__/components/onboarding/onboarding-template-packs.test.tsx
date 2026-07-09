@@ -72,7 +72,7 @@ function pressByLabel(tree: ReturnType<typeof TestRenderer.create>, label: strin
   const node = tree.root.findAll(
     (candidate: { props?: Record<string, unknown>; type: unknown }) =>
       candidate.props?.accessibilityLabel === label &&
-      typeof candidate.props?.onPress === 'function' &&
+      typeof candidate.props.onPress === 'function' &&
       typeof candidate.type !== 'string',
   )[0]
   TestRenderer.act(() => {

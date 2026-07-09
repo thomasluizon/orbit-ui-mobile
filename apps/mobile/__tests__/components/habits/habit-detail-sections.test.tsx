@@ -8,7 +8,7 @@ const TestRenderer = require('react-test-renderer')
 function findTextNodes(tree: ReturnType<typeof TestRenderer.create>, text: string) {
   return tree.root.findAll((node: { props: { children?: unknown } }) => {
     const props = node.props
-    if (!props || typeof props.children !== 'string') {
+    if (typeof props.children !== 'string') {
       return false
     }
     return props.children === text

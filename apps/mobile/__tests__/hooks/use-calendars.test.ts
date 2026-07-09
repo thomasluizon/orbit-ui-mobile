@@ -149,7 +149,7 @@ describe('mobile calendar picker hooks', () => {
 
     await mutation.onMutate?.({ id: 'cal-1', isSynced: false })
 
-    expect(mocks.store.calendars?.[0]?.isSynced).toBe(false)
+    expect(mocks.store.calendars[0]?.isSynced).toBe(false)
   })
 
   it('useSetSelectedCalendars rolls back the optimistic update when the api fails', async () => {
@@ -164,14 +164,14 @@ describe('mobile calendar picker hooks', () => {
     mocks.apiClient.mockRejectedValue(new Error('Save failed'))
 
     const context = await mutation.onMutate?.({ id: 'cal-1', isSynced: false })
-    expect(mocks.store.calendars?.[0]?.isSynced).toBe(false)
+    expect(mocks.store.calendars[0]?.isSynced).toBe(false)
 
     await expect(mutation.mutationFn({ id: 'cal-1', isSynced: false })).rejects.toThrow(
       'Save failed',
     )
     mutation.onError?.(new Error('Save failed'), { id: 'cal-1', isSynced: false }, context)
 
-    expect(mocks.store.calendars?.[0]?.isSynced).toBe(true)
+    expect(mocks.store.calendars[0]?.isSynced).toBe(true)
   })
 
   it('useSetSelectedCalendars invalidates every calendar query after settling', () => {

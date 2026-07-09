@@ -93,7 +93,6 @@ vi.mock('@/hooks/use-resolve-clarification', () => ({
 function findPressables(root: TestTreeRoot): TestNode[] {
   return root.findAll(
     (node) =>
-      node.props != null &&
       typeof node.props.onPress === 'function' &&
       typeof node.type !== 'string',
   )
@@ -102,7 +101,7 @@ function findPressables(root: TestTreeRoot): TestNode[] {
 function findTextNodesWithChild(root: TestTreeRoot, text: string): TestNode[] {
   return root.findAll((node) => {
     if (typeof node.type !== 'function' && node.type !== 'Text') return false
-    const children = node.props?.children
+    const children = node.props.children
     if (typeof children === 'string' && children === text) return true
     if (Array.isArray(children) && children.includes(text)) return true
     return false

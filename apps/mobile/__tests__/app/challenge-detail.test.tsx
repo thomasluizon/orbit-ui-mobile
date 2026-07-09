@@ -92,7 +92,7 @@ function collectStrings(value: unknown, acc: string[]): void {
 
 function textContent(root: TestNode): string {
   const acc: string[] = []
-  root.findAll(() => true).forEach((node) => collectStrings(node.props?.children, acc))
+  root.findAll(() => true).forEach((node) => collectStrings(node.props.children, acc))
   return acc.join('')
 }
 

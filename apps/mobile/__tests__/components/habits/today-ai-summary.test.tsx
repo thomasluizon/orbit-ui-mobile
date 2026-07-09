@@ -64,16 +64,16 @@ import { TodayAISummary } from "@/components/habits/today-ai-summary";
 type CardRenderProp = (state: { pressed: boolean }) => React.ReactElement;
 
 function getCard(): RenderedNode | null {
-  let outer: RenderedTree | null = null;
+  const outerHolder: { current: RenderedTree | null } = { current: null };
   TestRenderer.act(() => {
-    outer = TestRenderer.create(
+    outerHolder.current = TestRenderer.create(
       React.createElement(TodayAISummary, { date: "2026-04-07" }),
     ) as unknown as RenderedTree;
   });
-  if (!outer) {
+  if (!outerHolder.current) {
     throw new Error("Expected the card to render");
   }
-  const cards = (outer as RenderedTree).root.findAll(
+  const cards = (outerHolder.current as RenderedTree).root.findAll(
     (node) =>
       typeof node.type !== "string" &&
       typeof node.props.children === "function" &&

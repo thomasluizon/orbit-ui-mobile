@@ -13,10 +13,11 @@ vi.mock('react-i18next', () => ({
 }))
 
 async function renderUseTimeFormat(): Promise<ReturnType<typeof useTimeFormat>> {
-  let latestValue: ReturnType<typeof useTimeFormat> | null = null
+  const latestValueHolder: { current: ReturnType<typeof useTimeFormat> | null } =
+    { current: null }
 
   function Harness() {
-    latestValue = useTimeFormat()
+    latestValueHolder.current = useTimeFormat()
     return null
   }
 
@@ -25,11 +26,11 @@ async function renderUseTimeFormat(): Promise<ReturnType<typeof useTimeFormat>> 
     await Promise.resolve()
   })
 
-  if (!latestValue) {
+  if (!latestValueHolder.current) {
     throw new Error('useTimeFormat did not render')
   }
 
-  return latestValue
+  return latestValueHolder.current
 }
 
 describe('mobile useTimeFormat', () => {
