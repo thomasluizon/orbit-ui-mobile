@@ -49,7 +49,8 @@ vi.mock('motion/react', () => {
   }
 })
 
-vi.mock('@orbit/shared/theme', () => ({
+vi.mock('@orbit/shared/theme', async (importActual) => ({
+  ...(await importActual<typeof import('@orbit/shared/theme')>()),
   resolveMotionPreset: mockResolveMotionPreset,
 }))
 

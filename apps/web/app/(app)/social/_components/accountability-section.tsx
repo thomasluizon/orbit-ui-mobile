@@ -33,7 +33,6 @@ export function AccountabilitySection({ initialHabitId }: Readonly<Accountabilit
         <div style={{ padding: '16px 20px 8px' }}>
           <PillButton
             onClick={() => setNewPairOpen(true)}
-            fullWidth
             leading={<UserPlus size={18} strokeWidth={1.8} />}
           >
             {t('social.buddies.newPairCta')}

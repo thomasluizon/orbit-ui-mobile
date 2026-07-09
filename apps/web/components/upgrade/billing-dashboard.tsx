@@ -163,7 +163,7 @@ export function BillingDashboard({
 
           <div className="flex flex-col items-stretch" style={{ gap: 10, paddingTop: 6 }}>
             <PillButton
-              variant="white"
+              variant="secondary"
               fullWidth
               onClick={onOpenPortal}
               leading={<Settings size={18} strokeWidth={1.8} aria-hidden="true" />}

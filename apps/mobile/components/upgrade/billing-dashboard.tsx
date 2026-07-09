@@ -266,7 +266,7 @@ export function BillingDashboard({
 
       <View style={styles.actionPad}>
         <PillButton
-          variant="white"
+          variant="secondary"
           fullWidth
           onPress={onPortal}
           disabled={portalLoading || !isOnline}

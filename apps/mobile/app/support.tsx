@@ -151,6 +151,7 @@ function SupportForm({
           onPress={onSend}
           disabled={!canSend}
           busy={sending}
+          // eslint-disable-next-line local/no-fullbleed-button -- support form submit (allowlist: form submit)
           fullWidth
           accessibilityLabel={t('profile.support.send')}
         >

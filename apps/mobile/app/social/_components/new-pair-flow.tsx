@@ -188,6 +188,7 @@ export function NewPairFlow({ open, onClose, initialHabitId }: Readonly<NewPairF
         </ScrollView>
 
         <View style={styles.footer}>
+          {/* eslint-disable-next-line local/no-fullbleed-button -- new-pair sheet footer submit */}
           <PillButton onPress={() => void handleSubmit()} disabled={!canSubmit} busy={invite.isPending} fullWidth>
             {t('social.buddies.newPair.submit')}
           </PillButton>

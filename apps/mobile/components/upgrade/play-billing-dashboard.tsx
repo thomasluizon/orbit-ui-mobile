@@ -56,7 +56,7 @@ export function PlayBillingDashboard({
       />
       <View style={styles.actionPad}>
         <PillButton
-          variant="white"
+          variant="secondary"
           fullWidth
           onPress={onManagePlay}
           leading={<Settings size={18} strokeWidth={1.8} color={tokens.bg} />}

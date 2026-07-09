@@ -4,6 +4,7 @@ import nextTypeScript from "eslint-config-next/typescript"
 import tseslint from "typescript-eslint"
 import sonarjs from "eslint-plugin-sonarjs"
 import noComments from "../../eslint-rules/no-comments.cjs"
+import noFullbleedButton from "../../eslint-rules/no-fullbleed-button.cjs"
 
 export default [
   ...nextConfig,
@@ -33,8 +34,36 @@ export default [
   {
     files: ["**/*.{ts,tsx}"],
     ignores: ["**/*.d.ts"],
-    plugins: { local: { rules: { "no-comments": noComments } } },
-    rules: { "local/no-comments": "error", "no-console": "error" },
+    plugins: {
+      local: { rules: { "no-comments": noComments, "no-fullbleed-button": noFullbleedButton } },
+    },
+    rules: {
+      "local/no-comments": "error",
+      "local/no-fullbleed-button": ["error", { flagFullWidthProp: false }],
+      "no-console": "error",
+    },
+  },
+  {
+    files: [
+      "**/*-sheet.tsx",
+      "**/*-modal.tsx",
+      "**/*-dialog.tsx",
+      "**/*-drawer.tsx",
+      "**/*-overlay.tsx",
+      "**/*-prompt.tsx",
+      "**/*-form.tsx",
+      "**/*-celebration.tsx",
+      "**/*-picker.tsx",
+      "**/*-gate.tsx",
+      "**/upgrade/**",
+      "**/goal-detail-drawer/**",
+      "**/calendar-sync/**",
+      "**/onboarding/**",
+      "**/(auth)/**",
+      "**/*empty-state.tsx",
+      "**/*-no-data-state.tsx",
+    ],
+    rules: { "local/no-fullbleed-button": "off" },
   },
   {
     rules: {
@@ -52,6 +81,7 @@ export default [
   {
     files: ["__tests__/**/*.{ts,tsx}", "**/*.test.{ts,tsx}", "**/*.spec.{ts,tsx}"],
     rules: {
+      "local/no-fullbleed-button": "off",
       "@typescript-eslint/no-explicit-any": "off",
       "@typescript-eslint/no-require-imports": "off",
       "@typescript-eslint/no-unused-vars": "off",

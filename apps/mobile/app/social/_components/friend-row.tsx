@@ -92,6 +92,7 @@ function ReportSheet({
           multiline
           style={styles.details}
         />
+        {/* eslint-disable-next-line local/no-fullbleed-button -- report sheet footer submit */}
         <PillButton onPress={() => onSubmit(reason, details)} disabled={busy} busy={busy} fullWidth>
           {t('social.report.submit')}
         </PillButton>

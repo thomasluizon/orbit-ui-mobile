@@ -40,7 +40,6 @@ export function AccountabilitySection({ initialHabitId }: Readonly<Accountabilit
       <View style={styles.ctaBlock}>
         <PillButton
           onPress={() => setNewPairOpen(true)}
-          fullWidth
           leading={<UserPlus size={18} strokeWidth={1.8} color={tokens.fgOnPrimary} />}
         >
           {t('social.buddies.newPairCta')}
@@ -108,6 +107,6 @@ export function AccountabilitySection({ initialHabitId }: Readonly<Accountabilit
 
 const styles = StyleSheet.create({
   container: { paddingBottom: 24 },
-  ctaBlock: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 8 },
+  ctaBlock: { paddingHorizontal: 20, paddingTop: 16, paddingBottom: 8, alignItems: 'flex-start' },
   loading: { alignItems: 'center', paddingVertical: 48 },
 })

@@ -110,6 +110,7 @@ export function CheerComposer({ target, onClose }: Readonly<CheerComposerProps>)
             {note.length}/{MAX_NOTE}
           </Text>
         </View>
+        {/* eslint-disable-next-line local/no-fullbleed-button -- cheer composer sheet footer primary action */}
         <PillButton onPress={() => void handleSend()} disabled={sendCheer.isPending} busy={sendCheer.isPending} fullWidth>
           {t('social.cheer.send')}
         </PillButton>

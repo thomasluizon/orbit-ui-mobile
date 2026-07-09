@@ -71,6 +71,7 @@ export function InviteHero() {
       </View>
 
       <PillButton
+        // eslint-disable-next-line local/no-fullbleed-button -- share CTA matches the copy-link row in the invite card
         fullWidth
         onPress={() => void shareLink()}
         leading={<Share2 size={18} strokeWidth={1.8} color={tokens.fgOnPrimary} />}

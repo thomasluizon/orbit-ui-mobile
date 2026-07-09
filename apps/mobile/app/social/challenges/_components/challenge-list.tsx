@@ -41,9 +41,11 @@ export function ChallengeList({ challenges, onOpen, onCreate, onJoin }: Readonly
         <Text style={[styles.emptyTitle, { color: tokens.fg1 }]}>{t('challenges.empty.title')}</Text>
         <Text style={[styles.emptyBody, { color: tokens.fg3 }]}>{t('challenges.empty.body')}</Text>
         <View style={styles.emptyActions}>
+          {/* eslint-disable-next-line local/no-fullbleed-button -- full-screen empty-state paired CTA */}
           <PillButton fullWidth onPress={onCreate}>
             {t('challenges.empty.create')}
           </PillButton>
+          {/* eslint-disable-next-line local/no-fullbleed-button -- full-screen empty-state paired CTA */}
           <PillButton fullWidth variant="ghost" onPress={onJoin}>
             {t('challenges.empty.join')}
           </PillButton>

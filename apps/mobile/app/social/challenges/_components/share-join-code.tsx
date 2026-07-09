@@ -83,6 +83,7 @@ export function ShareJoinCode({ title, joinCode }: Readonly<ShareJoinCodeProps>)
       </View>
 
       <PillButton
+        // eslint-disable-next-line local/no-fullbleed-button -- share CTA matches the join-code row in the share card
         fullWidth
         onPress={() => void shareCode()}
         leading={<Share2 size={18} strokeWidth={1.8} color={tokens.fgOnPrimary} />}
