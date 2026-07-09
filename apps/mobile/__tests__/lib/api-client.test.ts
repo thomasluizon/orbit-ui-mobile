@@ -11,6 +11,7 @@ const {
   isAuthTransitionInFlightMock,
   buildAppVersionHeadersMock,
   markUpgradeRequiredMock,
+  routerReplaceMock,
 } = vi.hoisted(() => ({
   getTokenMock: vi.fn(),
   clearAllTokensMock: vi.fn(),
@@ -20,6 +21,7 @@ const {
   isAuthTransitionInFlightMock: vi.fn(() => false),
   buildAppVersionHeadersMock: vi.fn(() => ({ 'X-App-Version': '1.1.4' })),
   markUpgradeRequiredMock: vi.fn(),
+  routerReplaceMock: vi.fn(),
 }))
 
 vi.mock('@/lib/secure-store', () => ({
@@ -41,6 +43,10 @@ vi.mock('@/stores/auth-store', () => ({
   isAuthTransitionInFlight: isAuthTransitionInFlightMock,
 }))
 
+vi.mock('expo-router', () => ({
+  router: { replace: routerReplaceMock },
+}))
+
 vi.stubGlobal('fetch', fetchMock)
 
 describe('mobile apiClient', () => {
@@ -53,6 +59,7 @@ describe('mobile apiClient', () => {
     isAuthTransitionInFlightMock.mockReset()
     isAuthTransitionInFlightMock.mockReturnValue(false)
     markUpgradeRequiredMock.mockReset()
+    routerReplaceMock.mockReset()
     buildAppVersionHeadersMock.mockReset()
     buildAppVersionHeadersMock.mockReturnValue({ 'X-App-Version': '1.1.4' })
   })
@@ -187,6 +194,7 @@ describe('mobile apiClient', () => {
     await expect(apiClient('/secure')).rejects.toThrow('Unauthorized')
 
     expect(clearSessionAndResetAuthMock).toHaveBeenCalledTimes(1)
+    expect(routerReplaceMock).toHaveBeenCalledWith('/login')
   })
 
   it('does not clear the session on a 401 caused by a transient refresh network blip', async () => {
@@ -197,6 +205,7 @@ describe('mobile apiClient', () => {
     await expect(apiClient('/secure')).rejects.toThrow('Unauthorized')
 
     expect(clearSessionAndResetAuthMock).not.toHaveBeenCalled()
+    expect(routerReplaceMock).not.toHaveBeenCalled()
   })
 
   it('does not clear the session on a 401 while an auth transition is in flight', async () => {
@@ -208,6 +217,7 @@ describe('mobile apiClient', () => {
     await expect(apiClient('/secure')).rejects.toThrow('Unauthorized')
 
     expect(clearSessionAndResetAuthMock).not.toHaveBeenCalled()
+    expect(routerReplaceMock).not.toHaveBeenCalled()
   })
 
   it('prefers backend error payload text when available', async () => {
