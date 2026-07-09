@@ -67,7 +67,7 @@ export default function UpgradePage() {
         throw createApiClientError(response.status, errorBody, `Failed with status ${response.status}`)
       }
       const data = (await response.json()) as { url?: string }
-      if (data?.url) {
+      if (data.url) {
         globalThis.location.href = data.url
       }
     } catch (err: unknown) {
