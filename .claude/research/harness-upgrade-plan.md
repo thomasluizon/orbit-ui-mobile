@@ -73,8 +73,8 @@ The generic, one-mechanism fix for "why do you violate instructions" — targets
 
 ## Stage 5 — Workflow docs (one session)
 
-- [ ] `WORKFLOW.md`: add the **slice-vs-campaign router** (campaign = looped / multi-session / externally-tracked, e.g. #243 → workflows + fresh sessions; slice = `/execute`) and the **plan→implement fresh-session split** rule for cross-repo/risky work (persist plan file → `/clear` → fresh `/prime` + `/implement <issue>`).
-- [ ] Document when to use `/execute` vs the manual split; both stay.
+- [x] `WORKFLOW.md`: added the **slice-vs-campaign router** as the top-level Step 1 (litmus: converging-metric finish line → campaign; known diff → slice), a **Campaign pattern** section (assess via workflow → fix a batch via `/implement` → PR → `/clear` → re-run, fresh sessions; the #243 worked example), and the **plan→implement fresh-session split** rule for cross-repo/risky slices. Kept the four slice paths intact. Landed in ui#438 (bundled into the Stage-4 PR per the minimum-PRs preference, not a separate PR).
+- [x] Documented `/execute` vs the split: `/execute` stays the **default for slices**; the split is for cross-repo/risky slices; the campaign loop is for converging-metric work. Both `/execute` and the manual path remain. (Triggered by the user's "I was used to running `/execute` for everything" — the doc now teaches when NOT to.)
 
 ## Stage 6 — Drift hygiene (one session)
 
