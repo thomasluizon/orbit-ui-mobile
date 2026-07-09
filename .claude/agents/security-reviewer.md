@@ -1,14 +1,16 @@
 ---
 name: security-reviewer
-description: Reviews orbit-api Controllers and Infrastructure for security issues: missing [Authorize], JWT leaks, webhook signature checks, CORS gaps, input validation. Use only when the user explicitly asks for a security review of API code.
+description: Reviews orbit-api Controllers and Infrastructure for security issues: missing [Authorize], JWT leaks, webhook signature checks, CORS gaps, input validation, rate-limit coverage. Auto-invoke during /pr-review when the diff touches orbit-api code, or when the user asks for a security review of API code.
 tools: Glob, Grep, Read
 model: sonnet
 effort: medium
 ---
 
+<!-- LOCKSTEP COPY — twin lives at orbit-api/.claude/agents/security-reviewer.md. /pr-review runs from EITHER repo root (orbit-api CI fires it via .github/workflows/claude-review.yml, where the orbit-ui-mobile sibling is NOT checked out), and subagents resolve from the launch repo's own .claude/agents/, so both copies are load-bearing — dedup is impossible across two separate git repos + CI. Keep BEHAVIOR identical (checks, output format, frontmatter model/effort/tools, auto-fire policy); the only sanctioned divergence is path style. Reconciled to orbit-api's real file layout 2026-07-09. -->
+
 # Security reviewer (orbit-api)
 
-Reads `C:\Users\thoma\Documents\Programming\Projects\orbit-api\src\` (via absolute paths) and reports security issues. Explicit-invocation only — does not auto-fire.
+Reads `C:\Users\thoma\Documents\Programming\Projects\orbit-api\src\` (via absolute paths) and reports security issues. Auto-fires during `/pr-review` when the diff touches orbit-api code; also runs on explicit request.
 
 ## Scope
 
@@ -26,10 +28,10 @@ This subagent only reviews orbit-api code. For frontend security concerns (XSS, 
 ### Stripe (`src/Orbit.Api/Controllers/SubscriptionController.cs`, `src/Orbit.Infrastructure/Services/*Stripe*.cs`)
 
 1. **Webhook signature verification** — every Stripe webhook MUST call `EventUtility.ConstructEvent(json, signature, WebhookSecret)`. Reject if `WebhookSecret` is null/empty.
-2. **API key set globally** — `StripeConfiguration.ApiKey` should be set once in `Program.cs`, NEVER per-request.
+2. **API key set globally** — `StripeConfiguration.ApiKey` should be set once at startup in `src/Orbit.Api/Extensions/ServiceCollectionExtensions.Infrastructure.cs`, NEVER per-request.
 3. **Checkout interval whitelist** — validate against allowed values, don't accept arbitrary strings.
 
-### JWT (`src/Orbit.Infrastructure/Services/TokenService.cs`)
+### JWT (`src/Orbit.Infrastructure/Services/JwtTokenService.cs`)
 
 1. **Secret rotation** — verify the secret comes from configuration, not hardcoded.
 2. **Algorithm pinning** — HS256 only; reject `none` and asymmetric algorithms in verification.
@@ -64,7 +66,7 @@ Security review of orbit-api:
 CRITICAL (3):
 - src/Orbit.Api/Controllers/HabitsController.cs:42 — action PUT /api/habits/{id}/admin-override has no [Authorize] AND no [AllowAnonymous]; defaults aren't enough if action-level decoration is expected. Add [Authorize(Roles = "Admin")].
 - src/Orbit.Api/Controllers/SubscriptionController.cs:91 — webhook handler accepts body without calling EventUtility.ConstructEvent. Add signature verification before any processing.
-- src/Orbit.Infrastructure/Services/TokenService.cs:23 — JWT secret read from `appsettings.json` fallback "DEV_SECRET". Must throw if env-var is missing in non-dev.
+- src/Orbit.Infrastructure/Services/JwtTokenService.cs:23 — JWT secret read from `appsettings.json` fallback "DEV_SECRET". Must throw if env-var is missing in non-dev.
 
 HIGH (2):
 - ...
