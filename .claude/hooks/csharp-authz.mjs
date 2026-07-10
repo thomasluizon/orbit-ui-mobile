@@ -1,44 +1,22 @@
 #!/usr/bin/env node
-// PostToolUse hook: warn when an orbit-api Controller is edited without an
-// explicit [Authorize] or [AllowAnonymous] on the action(s) being touched.
-// Any unexpected error exits 0 so the hook never surfaces as a crash.
+// PostToolUse adapter for the orbit-api Controller [Authorize] guard. Thin: logic
+// in _lib/rules-source.mjs (shared with the .opencode/plugin equivalent). Reads
+// the edited file. Exits 0 or 2 + stderr. Any error exits 0.
 
 import { readFileSync, existsSync } from "node:fs"
+import { readStdinJson, filePathFrom } from "./_lib/io.mjs"
+import { checkCsharpAuthz } from "./_lib/rules-source.mjs"
 
 try {
-  let input
-  try {
-    input = JSON.parse(readFileSync(0, "utf8"))
-  } catch {
-    process.exit(0)
-  }
-
-  const filePath = input?.tool_input?.file_path ?? input?.tool_response?.filePath
+  const input = readStdinJson()
+  const filePath = filePathFrom(input)
   if (!filePath || !existsSync(filePath)) process.exit(0)
-
-  const normalized = String(filePath).replace(/\\/g, "/")
-  if (!/\/orbit-api\/src\/Orbit\.Api\/Controllers\/.*\.cs$/.test(normalized)) process.exit(0)
-
-  let contents
-  try {
-    contents = readFileSync(filePath, "utf8")
-  } catch {
-    process.exit(0)
+  const verdict = checkCsharpAuthz(filePath, readFileSync(filePath, "utf8"))
+  if (verdict?.block) {
+    process.stderr.write(verdict.message)
+    process.exit(2)
   }
-
-  const hasControllerAuthorize = /^\s*\[Authorize[^\]]*\]\s*$[\s\S]*?(public\s+(?:partial\s+)?class\s+\w+Controller)/m.test(contents)
-  const hasAnyAuthorize = /\[Authorize/.test(contents)
-  const hasAnyAllowAnonymous = /\[AllowAnonymous/.test(contents)
-
-  if (hasControllerAuthorize || hasAnyAuthorize || hasAnyAllowAnonymous) process.exit(0)
-
-  process.stderr.write(
-    `${filePath}: no [Authorize] or [AllowAnonymous] decorator found.\n` +
-      `\nDefault for orbit-api Controllers is [Authorize] at the class level.\n` +
-      `Use [AllowAnonymous] on individual actions ONLY when truly public (e.g. POST /api/auth/send-code).\n` +
-      `If this is intentional (e.g. webhook with signature verification), add a one-line WHY comment.\n`,
-  )
-  process.exit(2)
+  process.exit(0)
 } catch {
   process.exit(0)
 }

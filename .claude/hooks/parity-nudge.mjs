@@ -1,33 +1,21 @@
 #!/usr/bin/env node
-// PostToolUse hook: track which workspaces were edited in this session and
-// nudge when one is missing its counterpart. Reads/writes a session-scoped
-// state file under .tmp/sessions/<session-id>/.
-// Any unexpected error exits 0 so the hook never surfaces as a crash.
+// PostToolUse adapter for the cross-platform parity nudge. Thin: the pure parts
+// (classify + derive the nudge) live in _lib/rules-parity.mjs (shared with the
+// .opencode/plugin equivalent); this adapter owns the session-state file. Any
+// error exits 0 so the hook never surfaces as a crash.
 
 import { readFileSync, existsSync, writeFileSync, mkdirSync } from "node:fs"
 import { join } from "node:path"
+import { readStdinJson, filePathFrom } from "./_lib/io.mjs"
+import { classifyScope, parityMessages } from "./_lib/rules-parity.mjs"
 
 try {
-  let input
-  try {
-    input = JSON.parse(readFileSync(0, "utf8"))
-  } catch {
-    process.exit(0)
-  }
-
-  const filePath = input?.tool_input?.file_path ?? input?.tool_response?.filePath
+  const input = readStdinJson()
+  const filePath = filePathFrom(input)
   const sessionId = input?.session_id
   if (!filePath || !sessionId) process.exit(0)
 
-  const normalized = String(filePath).replace(/\\/g, "/")
-
-  const scope =
-    /\/apps\/web\//.test(normalized) ? "web"
-    : /\/apps\/mobile\//.test(normalized) ? "mobile"
-    : /\/packages\/shared\//.test(normalized) ? "shared"
-    : /\/orbit-api\/src\//.test(normalized) ? "api"
-    : null
-
+  const scope = classifyScope(filePath)
   if (!scope) process.exit(0)
 
   const projectRoot = process.env.CLAUDE_PROJECT_DIR || process.cwd()
@@ -42,9 +30,7 @@ try {
       // ignore stale state
     }
   }
-
   state[scope] = (state[scope] || 0) + 1
-
   try {
     mkdirSync(stateDir, { recursive: true })
     writeFileSync(statePath, JSON.stringify(state), "utf8")
@@ -52,19 +38,7 @@ try {
     // best effort
   }
 
-  const NUDGE_THRESHOLD = 3
-  const messages = []
-
-  if (state.web >= NUDGE_THRESHOLD && state.mobile === 0) {
-    messages.push(`${state.web} edits to apps/web/ with zero edits to apps/mobile/. Parity is mandatory — apply the matching change in apps/mobile/, or invoke the parity-checker subagent.`)
-  }
-  if (state.mobile >= NUDGE_THRESHOLD && state.web === 0) {
-    messages.push(`${state.mobile} edits to apps/mobile/ with zero edits to apps/web/. Parity is mandatory — apply the matching change in apps/web/, or invoke the parity-checker subagent.`)
-  }
-  if (state.api >= NUDGE_THRESHOLD && state.shared === 0 && state.web === 0 && state.mobile === 0) {
-    messages.push(`${state.api} edits to orbit-api/ with no client-side changes. If the contract changed, update packages/shared/src/api/endpoints.ts and the consumer hooks. Invoke contract-aligner to verify.`)
-  }
-
+  const messages = parityMessages(state)
   if (messages.length === 0) process.exit(0)
 
   process.stderr.write("Parity reminder:\n" + messages.map((m) => `  - ${m}`).join("\n") + "\n")
