@@ -12,6 +12,9 @@ concurrency:
   group: prod-promote
   cancel-in-progress: false
 
+permissions:
+  contents: read
+
 jobs:
   promote:
     name: Promote a healthy deployment to production

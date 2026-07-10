@@ -35,6 +35,9 @@ on:
         required: false
         type: string
 
+permissions:
+  contents: read
+
 jobs:
   release-android:
     name: Build and publish Android app

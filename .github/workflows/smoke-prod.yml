@@ -17,6 +17,9 @@ concurrency:
   group: prod-smoke
   cancel-in-progress: false
 
+permissions:
+  contents: read
+
 jobs:
   smoke:
     name: Post-deploy smoke (required)

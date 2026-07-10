@@ -37,4 +37,13 @@ describe('stripInlineMarkdown', () => {
   it('returns plain text unchanged', () => {
     expect(stripInlineMarkdown('just a plain description')).toBe('just a plain description')
   })
+
+  it('runs in linear time on adversarial nested markers (ReDoS regression, ui#10)', () => {
+    const adversarial = '!['.repeat(200_000) + '![]('.repeat(200_000)
+    const start = performance.now()
+    const result = stripInlineMarkdown(adversarial)
+    const elapsed = performance.now() - start
+    expect(typeof result).toBe('string')
+    expect(elapsed).toBeLessThan(2000)
+  })
 })
