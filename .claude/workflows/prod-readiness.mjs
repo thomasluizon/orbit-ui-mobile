@@ -109,7 +109,7 @@ phase('Ops')
 const opsRaw = (
   await parallel(
     OPS_CHECKS.map((c) => () =>
-      agent(opsPrompt(c), { label: `ops:${c.check}`, phase: 'Ops', model: 'haiku', effort: 'low', schema: OPS_SCHEMA })
+      agent(opsPrompt(c), { label: `ops:${c.check}`, phase: 'Ops', model: 'haiku', effort: 'low', agentType: 'audit-readonly', schema: OPS_SCHEMA })
     )
   )
 ).filter(Boolean).flatMap((r) => r.findings || [])
@@ -126,7 +126,7 @@ const opsVerdicts = (
           `Finding: severity=${f.severity} · check=${f.check} · title=${f.title} · location=${f.location || ''} · risk=${f.risk}.`,
           `Return refuted (bool) + note. If real but over-rated, set adjustedSeverity.`,
         ].join('\n'),
-        { label: `verify:${f.check}`, phase: 'Verify', model: 'haiku', effort: 'low', schema: OPS_VERDICT }
+        { label: `verify:${f.check}`, phase: 'Verify', model: 'haiku', effort: 'low', agentType: 'audit-readonly', schema: OPS_VERDICT }
       ).then((v) => ({ f, v }))
     )
   )

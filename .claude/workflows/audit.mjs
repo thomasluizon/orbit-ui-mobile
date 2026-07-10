@@ -89,7 +89,7 @@ const KIND = {
     ladder: 'Critical (untested critical path) / High (happy-path-only or rubber-stamp on a critical path) / Medium (missing edge/failure off the critical path)',
     rationale: 'what a real behavior break this test would NOT catch',
     checklist: `${UI}\\.claude\\skills\\audit-tests\\rubric.md`,
-    extra: 'Judge tests by what they would FAIL on, never by count/coverage. For each test decide if it covers a critical path (auth, billing/subscription, AI/MCP tools, data-isolation, timezone/dates, validation) and score Behavior/Edge/Failure. Flag happy-path-only, rubber-stamp (asserts a mock was called / tautological / assertion-free), over-mocked (the unit never runs), implementation-coupled (asserts private state or call order). For each gap write the CONCRETE missing test — name + arrange/act/assert + the real factory from packages/shared/src/__tests__/factories.ts. Unit-tests-only policy: flag any integration/E2E/real-DB harness as out-of-policy, do not reward it.',
+    extra: 'Judge tests by what they would FAIL on, never by count/coverage. For each test decide if it covers a critical path (auth, billing/subscription, AI/MCP tools, data-isolation, timezone/dates, validation) and score Behavior/Edge/Failure. Flag happy-path-only, rubber-stamp (asserts a mock was called / tautological / assertion-free), over-mocked (the unit never runs), implementation-coupled (asserts private state or call order). For each gap SPECIFY the CONCRETE missing test as text in the fix field (never write it to disk) — name + arrange/act/assert + the real factory from packages/shared/src/__tests__/factories.ts. Unit-tests-only policy: flag any integration/E2E/real-DB harness as out-of-policy, do not reward it.',
     surfaces: [
       { label: 'web', where: 'apps/web tests (Vitest) — auth flow, pay-gating, any user-facing critical path', sections: '' },
       { label: 'mobile', where: 'apps/mobile tests (Vitest) — auth flow, Play billing verify, critical paths', sections: '' },
@@ -220,7 +220,7 @@ log(`audit:${kind} · scope ${scopeLabelFor(scope)} · ${surfaces.length} surfac
 const firstPass = (
   await parallel(
     surfaces.map((s) => () =>
-      agent(finderPrompt(kind, s, scope), { label: `find:${s.label}`, phase: 'Find', model: 'haiku', effort: 'low', schema: FINDINGS_SCHEMA })
+      agent(finderPrompt(kind, s, scope), { label: `find:${s.label}`, phase: 'Find', model: 'haiku', effort: 'low', agentType: 'audit-readonly', schema: FINDINGS_SCHEMA })
     )
   )
 ).filter(Boolean)
@@ -234,7 +234,7 @@ async function verifySerious(candidates, phaseName) {
   const verdicts = (
     await parallel(
       now.map((f, i) => () =>
-        agent(skepticPrompt(kind, f), { label: `verify:${(f.location || String(i)).slice(0, 40)}`, phase: phaseName, model: 'haiku', effort: 'low', schema: VERDICT_SCHEMA }).then((v) => ({ f, v }))
+        agent(skepticPrompt(kind, f), { label: `verify:${(f.location || String(i)).slice(0, 40)}`, phase: phaseName, model: 'haiku', effort: 'low', agentType: 'audit-readonly', schema: VERDICT_SCHEMA }).then((v) => ({ f, v }))
       )
     )
   ).filter(Boolean)
@@ -259,7 +259,7 @@ let dry = 0
 const maxDry = parsedArgs.loop?.maxDryRounds ?? 2
 while (dry < maxDry && round < HARD_ROUNDS) {
   round += 1
-  const critic = await agent(criticPrompt(kind, scope, sweptLabels, kept.length), { label: `critic:round-${round}`, phase: 'Complete', model: 'haiku', effort: 'low', schema: CRITIC_SCHEMA })
+  const critic = await agent(criticPrompt(kind, scope, sweptLabels, kept.length), { label: `critic:round-${round}`, phase: 'Complete', model: 'haiku', effort: 'low', agentType: 'audit-readonly', schema: CRITIC_SCHEMA })
   const gaps = (critic && critic.gaps) || []
   if (!gaps.length) {
     dry += 1
@@ -268,7 +268,7 @@ while (dry < maxDry && round < HARD_ROUNDS) {
   const roundRaw = (
     await parallel(
       gaps.map((g) => () =>
-        agent(g.prompt, { label: `find:${g.label}`, phase: 'Complete', model: 'haiku', effort: 'low', schema: FINDINGS_SCHEMA })
+        agent(g.prompt, { label: `find:${g.label}`, phase: 'Complete', model: 'haiku', effort: 'low', agentType: 'audit-readonly', schema: FINDINGS_SCHEMA })
       )
     )
   ).filter(Boolean).flatMap((r) => r.findings || [])
