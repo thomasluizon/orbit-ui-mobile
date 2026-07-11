@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { apiClient } from '@/lib/api-client'
+import { setPendingIdempotencyKey } from '@/lib/idempotency-key'
 
 const {
   getTokenMock,
@@ -240,5 +241,51 @@ describe('mobile apiClient', () => {
     })
 
     await expect(apiClient('/broken')).rejects.toThrow('Validation failed')
+  })
+
+  it('attaches an explicit idempotency key as a header', async () => {
+    getTokenMock.mockResolvedValue('token-123')
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      text: () => Promise.resolve('{}'),
+    })
+
+    await apiClient('/api/habits', { method: 'POST', body: '{}', idempotencyKey: 'mutation-1' })
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://api.useorbit.org/api/habits',
+      expect.objectContaining({
+        headers: expect.objectContaining({ 'Idempotency-Key': 'mutation-1' }),
+      }),
+    )
+  })
+
+  it('consumes a pending idempotency key once and does not leak it to the next request', async () => {
+    getTokenMock.mockResolvedValue('token-123')
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      text: () => Promise.resolve('{}'),
+    })
+
+    setPendingIdempotencyKey('mutation-2')
+    await apiClient('/api/habits', { method: 'POST', body: '{}' })
+    await apiClient('/api/habits', { method: 'POST', body: '{}' })
+
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      1,
+      'https://api.useorbit.org/api/habits',
+      expect.objectContaining({
+        headers: expect.objectContaining({ 'Idempotency-Key': 'mutation-2' }),
+      }),
+    )
+    expect(fetchMock).toHaveBeenNthCalledWith(
+      2,
+      'https://api.useorbit.org/api/habits',
+      expect.objectContaining({
+        headers: expect.not.objectContaining({ 'Idempotency-Key': expect.anything() }),
+      }),
+    )
   })
 })

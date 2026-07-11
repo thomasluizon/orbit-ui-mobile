@@ -141,10 +141,12 @@ function upsert(database: SQLite.SQLiteDatabase, mutation: QueuedMutation): void
 
 function replaceAll(mutations: QueuedMutation[]): void {
   const database = getDb()
-  database.runSync('DELETE FROM mutation_queue')
-  for (const mutation of mutations) {
-    upsert(database, mutation)
-  }
+  database.withTransactionSync(() => {
+    database.runSync('DELETE FROM mutation_queue')
+    for (const mutation of mutations) {
+      upsert(database, mutation)
+    }
+  })
   emitQueueCount()
 }
 

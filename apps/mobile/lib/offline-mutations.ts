@@ -26,6 +26,7 @@ import {
 } from './offline-queue'
 import { clearOfflineEntity, getResolvedEntityId, markOfflineTombstone, resolveOfflineEntity, setOfflineEntityStatus, upsertOfflineEntity } from './offline-state'
 import { getCurrentConnectivity } from './offline-runtime'
+import { setPendingIdempotencyKey } from './idempotency-key'
 import { persistQueryCache, queryClient } from './query-client'
 
 type InvalidationQueryKey = readonly unknown[]
@@ -419,6 +420,7 @@ export async function queueOrExecute<TOnlineResult, TQueuedResult>({
   }
 
   try {
+    setPendingIdempotencyKey(resolvedMutation.id)
     return await execute(resolvedMutation)
   } catch (error: unknown) {
     if (!isTransientNetworkError(error)) {
@@ -427,6 +429,8 @@ export async function queueOrExecute<TOnlineResult, TQueuedResult>({
 
     await markQueuedMutation(resolvedMutation)
     return queuedResult
+  } finally {
+    setPendingIdempotencyKey(null)
   }
 }
 
@@ -579,6 +583,7 @@ async function processQueuedMutationFlush(
     const response = await apiClient<unknown>(mutation.endpoint, {
       method: mutation.method,
       body: serializeMutationPayload(mutation.payload),
+      idempotencyKey: mutation.id,
     })
 
     await finalizeSuccessfulFlush(mutation, response, touchedScopes)
