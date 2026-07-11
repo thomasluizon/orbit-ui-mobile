@@ -581,7 +581,7 @@ export function HabitFormFields({
             </div>
           </div>
 
-          {watchedDueTime && !isGeneral && (
+          {!!watchedDueTime && !isGeneral && (
             <div className="space-y-2">
               <label htmlFor="habit-form-due-end-time" className="form-label">
                 {t('habits.form.dueEndTime')}
@@ -639,7 +639,7 @@ export function HabitFormFields({
             </div>
           )}
 
-          {watchedDueTime && !isGeneral && (
+          {!!watchedDueTime && !isGeneral && (
             <ReminderSection
               reminderEnabled={watchedReminderEnabled}
               reminderTimes={reminderTimes}

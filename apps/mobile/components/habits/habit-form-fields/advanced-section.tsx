@@ -123,7 +123,7 @@ export function AdvancedSection({
         </View>
       </View>
 
-      {dueTime && !isGeneral && (
+      {!!dueTime && !isGeneral && (
         <View style={styles.fieldGroup}>
           <Text style={styles.label}>{t("habits.form.dueEndTime")}</Text>
           <AppTimePicker
@@ -188,7 +188,7 @@ export function AdvancedSection({
         </View>
       )}
 
-      {dueTime && !isGeneral && (
+      {!!dueTime && !isGeneral && (
         <ReminderSection
           tokens={tokens}
           reminderEnabled={reminderEnabled}
