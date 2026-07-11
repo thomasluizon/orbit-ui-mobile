@@ -7,10 +7,8 @@ import {
   type StyleProp,
   type ViewStyle,
 } from "react-native";
-import type { FlatList } from "react-native-gesture-handler";
 import { useTranslation } from "react-i18next";
 import type { HabitsFilter } from "@orbit/shared/types/habit";
-import type { Goal } from "@orbit/shared/types/goal";
 import { HabitList, type HabitListHandle } from "@/components/habit-list";
 import { GoalsView } from "@/components/goals/goals-view";
 import { PillButton } from "@/components/ui/pill-button";

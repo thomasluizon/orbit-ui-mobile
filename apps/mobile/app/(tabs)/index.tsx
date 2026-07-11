@@ -2,21 +2,20 @@ import {
   useState,
   useMemo,
   useCallback,
-  useRef,
   useEffect,
+  useRef,
   type ReactElement,
 } from "react";
-import { Animated, AppState, BackHandler, StyleSheet, View } from "react-native";
+import { Animated, StyleSheet, View } from "react-native";
 import type { FlatList } from "react-native-gesture-handler";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { useLocalSearchParams, useRouter } from "expo-router";
+import { useRouter } from "expo-router";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import { addDays, subDays, isToday, isYesterday, isTomorrow } from "date-fns";
+import { isToday } from "date-fns";
 import { useTranslation } from "react-i18next";
 import {
   computeDayProgress,
   formatAPIDate,
-  formatLocaleDate,
   isHabitVisibleInAllView,
   parseShowGeneralOnTodayPreference,
 } from "@orbit/shared/utils";
@@ -38,12 +37,7 @@ import { useCoachTour } from "@/hooks/use-coach-tour";
 import { useUIStore } from "@/stores/ui-store";
 import { useReferralPromptStore } from "@/stores/referral-prompt-store";
 import { type HabitListHandle } from "@/components/habit-list";
-import { CreateHabitModal } from "@/components/habits/create-habit-modal";
-import { HabitDetailDrawer } from "@/components/habits/habit-detail-drawer";
-import { EditHabitModal } from "@/components/habits/edit-habit-modal";
 import { BulkActionBarV2 } from "@/components/habits/bulk-action-bar-v2";
-import { CreateGoalModal } from "@/components/goals/create-goal-modal";
-import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import { GradientTop } from "@/components/ui/gradient-top";
 import { ScrollToTopButton } from "@/components/ui/scroll-to-top-button";
 import { TrialBanner } from "@/components/ui/trial-banner";
@@ -51,18 +45,9 @@ import { DismissibleCard } from "@/components/today/dismissible-card";
 import { TodayHabitsHeader } from "@/components/today/today-habits-header";
 import { ReferralCard } from "@/components/referral/referral-card";
 import { SocialEntryCard } from "@/components/social/social-entry-card";
-import { ReferralDrawer } from "@/components/referral/referral-drawer";
 import { SetupChecklistCard } from "@/components/today/setup-checklist-card";
-import { useHorizontalSwipe } from "@/hooks/use-horizontal-swipe";
 import { useAnchoredMenu } from "@/components/ui/anchored-menu";
-import { useBulkActions } from "@/hooks/use-bulk-actions";
-import { shouldResetSelectionForViewChange } from "@/lib/habit-selection-state";
-import {
-  createAnimatedTimingConfig,
-  toAnimatedEasing,
-  useResolvedMotionPreset,
-} from "@/lib/motion";
-import { createTokensV2, easings } from "@/lib/theme";
+import { createTokensV2 } from "@/lib/theme";
 import { useAppTheme } from "@/lib/use-app-theme";
 import { useEngagementSlot } from "@/hooks/use-engagement-slot";
 import { useTourScrollContainer } from "@/hooks/use-tour-scroll-container";
@@ -71,20 +56,15 @@ import { TodayHeader, TodayTabs, type TodayTabItem } from "./today-shell";
 import { buildTodayFilters } from "./today-model";
 import { useTodayViewSync } from "./use-today-view-sync";
 import { TodayScreenBody } from "./today-sections";
+import { useTodayDate } from "./use-today-date";
+import { useTodayMotion } from "./use-today-motion";
+import { useTodaySelection } from "./use-today-selection";
+import { TodayModals } from "./today-modals";
+
+export { resolveBulkActionBarEnterShift } from "./today-model";
 
 const TAB_VIEWS = ["today", "all", "general", "goals"] as const;
 export type TodayView = (typeof TAB_VIEWS)[number];
-
-function getMillisecondsUntilNextLocalMidnight(): number {
-  const now = new Date();
-  const nextMidnight = new Date(now);
-  nextMidnight.setHours(24, 0, 0, 0);
-  return Math.max(nextMidnight.getTime() - now.getTime(), 1_000);
-}
-
-function getTodayDate(): string {
-  return formatAPIDate(new Date());
-}
 
 export function resolveTodayView(
   activeView: TodayView,
@@ -100,30 +80,17 @@ export function shouldRedirectGoalsTab(
   return nextView === "goals" && !hasProAccess;
 }
 
-export function resolveBulkActionBarEnterShift(selectionMotion: {
-  shift: number;
-  reducedMotionEnabled: boolean;
-}): number {
-  return selectionMotion.reducedMotionEnabled
-    ? selectionMotion.shift
-    : Math.max(12, selectionMotion.shift);
-}
-
 type FreqKey = "Day" | "Week" | "Month" | "Year" | "none";
 
 export default function TodayScreen() {
-  const { t, i18n } = useTranslation();
-  const locale = i18n.language;
+  const { t } = useTranslation();
   const theme = useAppTheme();
   const tokens = useMemo(
     () => createTokensV2(theme.currentScheme, theme.currentTheme),
     [theme.currentScheme, theme.currentTheme],
   );
-  const listMotion = useResolvedMotionPreset("list-enter");
-  const selectionMotion = useResolvedMotionPreset("selection");
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const { date } = useLocalSearchParams<{ date?: string | string[] }>();
   const styles = useMemo(() => createStyles(tokens), [tokens]);
 
   const { showInterstitialIfDue } = useAdMob();
@@ -144,9 +111,6 @@ export default function TodayScreen() {
   const setShowCompleted = useUIStore((s) => s.setShowCompleted);
   const isSelectMode = useUIStore((s) => s.isSelectMode);
   const selectedHabitIds = useUIStore((s) => s.selectedHabitIds);
-  const toggleSelectMode = useUIStore((s) => s.toggleSelectMode);
-  const selectAllHabits = useUIStore((s) => s.selectAllHabits);
-  const clearSelection = useUIStore((s) => s.clearSelection);
   const hasProAccess = profile?.hasProAccess ?? false;
   const currentActiveView = resolveTodayView(activeView, hasProAccess);
 
@@ -166,9 +130,6 @@ export default function TodayScreen() {
     toggle: toggleFreqMenu,
   } = useAnchoredMenu();
   const [showHabitDeleteConfirm, setShowHabitDeleteConfirm] = useState(false);
-  const [slideDirection, setSlideDirection] = useState<"left" | "right">(
-    "right",
-  );
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const habitListRef = useRef<HabitListHandle>(null);
@@ -193,15 +154,6 @@ export default function TodayScreen() {
     "/",
     goalsScrollTo,
   );
-  const previousActiveViewRef = useRef(activeView);
-  const hasAnimatedDateLabelRef = useRef(false);
-  const dateLabelAnim = useMemo(() => new Animated.Value(1), []);
-  const filtersTransitionAnim = useMemo(() => new Animated.Value(1), []);
-  const listTransitionAnim = useMemo(() => new Animated.Value(1), []);
-  const refetchTransitionAnim = useMemo(() => new Animated.Value(0), []);
-  const [bulkBarAnim] = useState(() => new Animated.Value(isSelectMode ? 1 : 0));
-  const hasAnimatedFiltersRef = useRef(false);
-  const [renderBulkActionBar, setRenderBulkActionBar] = useState(isSelectMode);
 
   const [detailHabit, setDetailHabit] = useState<NormalizedHabit | null>(null);
   const [editHabit, setEditHabit] = useState<NormalizedHabit | null>(null);
@@ -211,20 +163,19 @@ export default function TodayScreen() {
   const [habitPendingDelete, setHabitPendingDelete] =
     useState<NormalizedHabit | null>(null);
 
-  const dateParam = Array.isArray(date) ? date[0] : date;
-  const pinnedDateStr =
-    dateParam && /^\d{4}-\d{2}-\d{2}$/.test(dateParam) ? dateParam : null;
-
-  const [today, setToday] = useState(getTodayDate);
-  const handleTodayRollover = useCallback(() => {
-    setToday(getTodayDate());
-  }, []);
-
-  const selectedDateStr = pinnedDateStr ?? today;
-  const selectedDate = useMemo(
-    () => new Date(selectedDateStr + "T00:00:00"),
-    [selectedDateStr],
-  );
+  const {
+    pinnedDateStr,
+    selectedDateStr,
+    selectedDate,
+    dateStr,
+    dateLabel,
+    slideDirection,
+    dateLabelAnim,
+    goToPreviousDay,
+    goToNextDay,
+    goToToday,
+    swipeGesture,
+  } = useTodayDate();
 
   const { slot: engagementSlot } = useEngagementSlot({
     isTodayView: currentActiveView === "today",
@@ -297,113 +248,6 @@ export default function TodayScreen() {
     [t],
   );
 
-  const goToPreviousDay = useCallback(() => {
-    setSlideDirection("left");
-    router.push(`/?date=${formatAPIDate(subDays(selectedDate, 1))}`);
-  }, [router, selectedDate]);
-
-  const goToNextDay = useCallback(() => {
-    setSlideDirection("right");
-    router.push(`/?date=${formatAPIDate(addDays(selectedDate, 1))}`);
-  }, [router, selectedDate]);
-
-  const goToToday = useCallback(() => {
-    setSlideDirection(selectedDate > new Date() ? "left" : "right");
-    setActiveView("today");
-    router.navigate("/");
-  }, [router, selectedDate, setActiveView]);
-
-  useEffect(() => {
-    let rolloverTimer: ReturnType<typeof globalThis.setTimeout> | null = null;
-
-    const resetRolloverTimer = () => {
-      if (rolloverTimer) {
-        globalThis.clearTimeout(rolloverTimer);
-      }
-
-      rolloverTimer = globalThis.setTimeout(() => {
-        handleTodayRollover();
-        resetRolloverTimer();
-      }, getMillisecondsUntilNextLocalMidnight());
-    };
-
-    resetRolloverTimer();
-
-    const subscription = AppState.addEventListener("change", (nextAppState) => {
-      if (nextAppState !== "active") return;
-      handleTodayRollover();
-      resetRolloverTimer();
-    });
-
-    return () => {
-      if (rolloverTimer) {
-        globalThis.clearTimeout(rolloverTimer);
-      }
-      subscription.remove();
-    };
-  }, [handleTodayRollover]);
-
-  const swipeGesture = useHorizontalSwipe({
-    onSwipeLeft: goToNextDay,
-    onSwipeRight: goToPreviousDay,
-  });
-
-  const dateLabel = useMemo(() => {
-    if (isToday(selectedDate)) return t("dates.today");
-    if (isYesterday(selectedDate)) return t("dates.yesterday");
-    if (isTomorrow(selectedDate)) return t("dates.tomorrow");
-    return formatLocaleDate(selectedDate, locale, {
-      month: "short",
-      day: "numeric",
-      year: "numeric",
-    });
-  }, [selectedDate, t, locale]);
-
-  useEffect(() => {
-    if (!hasAnimatedDateLabelRef.current) {
-      hasAnimatedDateLabelRef.current = true;
-      return;
-    }
-
-    dateLabelAnim.setValue(0);
-    Animated.timing(dateLabelAnim, {
-      toValue: 1,
-      duration: 180,
-      easing: toAnimatedEasing(easings.out),
-      useNativeDriver: true,
-    }).start();
-  }, [dateLabelAnim, selectedDateStr, slideDirection]);
-
-  useEffect(() => {
-    if (!hasAnimatedFiltersRef.current) {
-      hasAnimatedFiltersRef.current = true;
-      return;
-    }
-
-    const startValue = listMotion.reducedMotionEnabled ? 1 : 0;
-    const timingConfig = createAnimatedTimingConfig(
-      listMotion.enterDuration,
-      listMotion.enterEasing,
-    );
-
-    filtersTransitionAnim.stopAnimation();
-    listTransitionAnim.stopAnimation();
-    filtersTransitionAnim.setValue(startValue);
-    listTransitionAnim.setValue(startValue);
-
-    Animated.parallel([
-      Animated.timing(filtersTransitionAnim, timingConfig),
-      Animated.timing(listTransitionAnim, timingConfig),
-    ]).start();
-  }, [
-    filterMotionKey,
-    filtersTransitionAnim,
-    listMotion.enterDuration,
-    listMotion.enterEasing,
-    listMotion.reducedMotionEnabled,
-    listTransitionAnim,
-  ]);
-
   const toggleTagFilter = useCallback(
     (tagId: string) => {
       const idx = selectedTagIds.indexOf(tagId);
@@ -417,7 +261,6 @@ export default function TodayScreen() {
     [selectedTagIds, setSelectedTagIds],
   );
 
-  const dateStr = formatAPIDate(selectedDate);
   const filters = useMemo<HabitsFilter>(
     () =>
       buildTodayFilters({
@@ -447,24 +290,6 @@ export default function TodayScreen() {
   const habitsById = habitsQuery.data?.habitsById ?? EMPTY_HABITS_BY_ID;
   const childrenByParent =
     habitsQuery.data?.childrenByParent ?? EMPTY_CHILDREN_BY_PARENT;
-
-  const bulkActions = useBulkActions({
-    selectedHabitIds,
-    habitsById,
-    habitListRef,
-    onSuccess: clearSelection,
-  });
-  const {
-    showBulkDeleteConfirm,
-    showBulkLogConfirm,
-    showBulkSkipConfirm,
-    setShowBulkDeleteConfirm,
-    setShowBulkLogConfirm,
-    setShowBulkSkipConfirm,
-    confirmBulkDelete,
-    confirmBulkLog,
-    confirmBulkSkip,
-  } = bulkActions;
 
   const visibility = useHabitVisibility({
     habitsById,
@@ -518,69 +343,41 @@ export default function TodayScreen() {
   );
   const showDayProgress = currentActiveView === "today" && dayProgress.total > 0;
 
-  useEffect(() => {
-    Animated.timing(refetchTransitionAnim, {
-      toValue: isRefetching ? 1 : 0,
-      duration: isRefetching
-        ? listMotion.enterDuration
-        : listMotion.exitDuration,
-      easing: toAnimatedEasing(
-        isRefetching ? listMotion.enterEasing : listMotion.exitEasing,
-      ),
-      useNativeDriver: true,
-    }).start();
-  }, [
-    isRefetching,
-    listMotion.enterDuration,
-    listMotion.enterEasing,
-    listMotion.exitDuration,
-    listMotion.exitEasing,
-    refetchTransitionAnim,
-  ]);
+  const {
+    showBulkDeleteConfirm,
+    showBulkLogConfirm,
+    showBulkSkipConfirm,
+    setShowBulkDeleteConfirm,
+    setShowBulkLogConfirm,
+    setShowBulkSkipConfirm,
+    confirmBulkDelete,
+    confirmBulkLog,
+    confirmBulkSkip,
+    clearSelection,
+    allSelected,
+    selectedCount,
+    handleToggleSelectMode,
+    handleSelectAll,
+    handleDeselectAll,
+    handleOpenBulkDelete,
+    handleOpenBulkLog,
+    handleOpenBulkSkip,
+  } = useTodaySelection({
+    habitsById,
+    habitListRef,
+    habitListAllLoadedIds,
+    visibleHabitIds,
+    closeControlsMenu,
+  });
 
-  useEffect(() => {
-    if (isSelectMode) {
-      bulkBarAnim.stopAnimation();
-      bulkBarAnim.setValue(selectionMotion.reducedMotionEnabled ? 1 : 0);
-      Animated.timing(
-        bulkBarAnim,
-        createAnimatedTimingConfig(
-          selectionMotion.enterDuration,
-          selectionMotion.enterEasing,
-        ),
-      ).start();
-      return;
-    }
-
-    bulkBarAnim.stopAnimation();
-    Animated.timing(bulkBarAnim, {
-      toValue: 0,
-      duration: selectionMotion.exitDuration,
-      easing: toAnimatedEasing(selectionMotion.exitEasing),
-      useNativeDriver: true,
-    }).start(({ finished }) => {
-      if (finished) {
-        setRenderBulkActionBar(false);
-      }
-    });
-  }, [
-    bulkBarAnim,
-    isSelectMode,
-    selectionMotion.enterDuration,
-    selectionMotion.enterEasing,
-    selectionMotion.exitDuration,
-    selectionMotion.exitEasing,
-    selectionMotion.reducedMotionEnabled,
-  ]);
-
-  const allLoadedIds =
-    habitListAllLoadedIds.size > 0 ? habitListAllLoadedIds : visibleHabitIds;
-
-  const allSelected =
-    allLoadedIds.size > 0 &&
-    Array.from(allLoadedIds).every((id) => selectedHabitIds.has(id));
-
-  const selectedCount = selectedHabitIds.size;
+  const {
+    filtersAnimatedStyle,
+    listAnimatedStyle,
+    refetchAnimatedStyle,
+    bulkBarAnimatedStyle,
+    renderBulkActionBar,
+    setRenderBulkActionBar,
+  } = useTodayMotion({ filterMotionKey, isRefetching });
 
   const setFilters = useUIStore((s) => s.setFilters);
   const showCreateModal = useUIStore((s) => s.showCreateModal);
@@ -602,118 +399,6 @@ export default function TodayScreen() {
   });
 
   const showSummary = currentActiveView === "today" && isToday(selectedDate);
-
-  const filtersAnimatedStyle = useMemo(
-    () => ({
-      opacity: filtersTransitionAnim.interpolate({
-        inputRange: [0, 1],
-        outputRange: [0.86, 1],
-      }),
-      transform: [
-        {
-          translateY: filtersTransitionAnim.interpolate({
-            inputRange: [0, 1],
-            outputRange: [Math.max(4, Math.round(listMotion.shift / 2)), 0],
-          }),
-        },
-      ],
-    }),
-    [filtersTransitionAnim, listMotion.shift],
-  );
-
-  const listAnimatedStyle = useMemo(
-    () => ({
-      opacity: listTransitionAnim.interpolate({
-        inputRange: [0, 1],
-        outputRange: [0.9, 1],
-      }),
-      transform: [
-        {
-          translateY: listTransitionAnim.interpolate({
-            inputRange: [0, 1],
-            outputRange: [Math.max(4, Math.round(listMotion.shift / 2)), 0],
-          }),
-        },
-      ],
-    }),
-    [listMotion.shift, listTransitionAnim],
-  );
-
-  const refetchAnimatedStyle = useMemo(
-    () => ({
-      flex: 1,
-      opacity: refetchTransitionAnim.interpolate({
-        inputRange: [0, 1],
-        outputRange: [1, 0.8],
-      }),
-      transform: [
-        {
-          translateY: refetchTransitionAnim.interpolate({
-            inputRange: [0, 1],
-            outputRange: [0, 4],
-          }),
-        },
-      ],
-    }),
-    [refetchTransitionAnim],
-  );
-
-  const bulkBarAnimatedStyle = useMemo(
-    () => ({
-      opacity: bulkBarAnim,
-      transform: [
-        {
-          translateY: bulkBarAnim.interpolate({
-            inputRange: [0, 1],
-            outputRange: [resolveBulkActionBarEnterShift(selectionMotion), 0],
-          }),
-        },
-        {
-          scale: bulkBarAnim.interpolate({
-            inputRange: [0, 1],
-            outputRange: [selectionMotion.scaleFrom, 1],
-          }),
-        },
-      ],
-    }),
-    [bulkBarAnim, selectionMotion],
-  );
-
-  useEffect(() => {
-    if (
-      !shouldResetSelectionForViewChange(
-        previousActiveViewRef.current,
-        activeView,
-      )
-    ) {
-      return;
-    }
-
-    previousActiveViewRef.current = activeView;
-    closeControlsMenu();
-    if (isSelectMode) clearSelection();
-  }, [activeView, clearSelection, closeControlsMenu, isSelectMode]);
-
-  useEffect(() => {
-    if (!isSelectMode) return;
-    const subscription = BackHandler.addEventListener(
-      "hardwareBackPress",
-      () => {
-        clearSelection();
-        return true;
-      },
-    );
-    return () => subscription.remove();
-  }, [clearSelection, isSelectMode]);
-
-  const handleToggleSelectMode = useCallback(() => {
-    if (isSelectMode) {
-      clearSelection();
-    } else {
-      toggleSelectMode();
-    }
-    closeControlsMenu();
-  }, [clearSelection, closeControlsMenu, isSelectMode, toggleSelectMode]);
 
   const handleToggleCollapse = useCallback(() => {
     if (habitListRef.current?.allCollapsed) {
@@ -741,29 +426,6 @@ export default function TodayScreen() {
     },
     [closeFreqMenu, setSelectedFrequency],
   );
-
-  const handleSelectAll = useCallback(() => {
-    selectAllHabits(Array.from(allLoadedIds));
-  }, [allLoadedIds, selectAllHabits]);
-
-  const handleDeselectAll = useCallback(() => {
-    clearSelection();
-  }, [clearSelection]);
-
-  const handleOpenBulkDelete = useCallback(() => {
-    if (selectedCount === 0) return;
-    setShowBulkDeleteConfirm(true);
-  }, [selectedCount, setShowBulkDeleteConfirm]);
-
-  const handleOpenBulkLog = useCallback(() => {
-    if (selectedCount === 0) return;
-    setShowBulkLogConfirm(true);
-  }, [selectedCount, setShowBulkLogConfirm]);
-
-  const handleOpenBulkSkip = useCallback(() => {
-    if (selectedCount === 0) return;
-    setShowBulkSkipConfirm(true);
-  }, [selectedCount, setShowBulkSkipConfirm]);
 
   const confirmHabitDelete = useCallback(async () => {
     if (!habitPendingDelete) return;
@@ -1037,88 +699,38 @@ export default function TodayScreen() {
         />
       ) : null}
 
-      <CreateHabitModal
-        open={showCreateModal}
-        onClose={() => setShowCreateModal(false)}
-        initialDate={
+      <TodayModals
+        showCreateModal={showCreateModal}
+        onCloseCreateModal={() => setShowCreateModal(false)}
+        createInitialDate={
           currentActiveView === "today" ? formatAPIDate(selectedDate) : null
         }
-      />
-
-      <HabitDetailDrawer
-        open={!!detailHabit}
-        onClose={() => setDetailHabit(null)}
-        habit={detailHabit}
-        onLogged={handleHabitLogged}
-      />
-
-      <EditHabitModal
-        open={!!editHabit}
-        onClose={handleEditHabitClose}
-        habit={editHabit}
-        onSaved={editHabitOnSaved ?? undefined}
-      />
-
-      <ConfirmDialog
-        open={showBulkDeleteConfirm}
-        onOpenChange={setShowBulkDeleteConfirm}
-        title={t("habits.bulkDeleteTitle")}
-        description={plural(
-          t("habits.bulkDeleteMessage", { count: selectedCount }),
-          selectedCount,
-        )}
-        confirmLabel={t("habits.bulkDeleteConfirm")}
-        onConfirm={() => void confirmBulkDelete()}
-        variant="danger"
-      />
-
-      <ConfirmDialog
-        open={showBulkLogConfirm}
-        onOpenChange={setShowBulkLogConfirm}
-        title={t("habits.bulkLogTitle")}
-        description={plural(
-          t("habits.bulkLogMessage", { count: selectedCount }),
-          selectedCount,
-        )}
-        confirmLabel={t("habits.bulkLogConfirm")}
-        onConfirm={() => void confirmBulkLog()}
-        variant="success"
-      />
-
-      <ConfirmDialog
-        open={showBulkSkipConfirm}
-        onOpenChange={setShowBulkSkipConfirm}
-        title={t("habits.bulkSkipTitle")}
-        description={plural(
-          t("habits.bulkSkipMessage", { count: selectedCount }),
-          selectedCount,
-        )}
-        confirmLabel={t("habits.bulkSkipConfirm")}
-        onConfirm={() => void confirmBulkSkip()}
-        variant="warning"
-      />
-
-      <ConfirmDialog
-        open={showHabitDeleteConfirm}
-        onOpenChange={(open) => {
+        detailHabit={detailHabit}
+        onCloseDetail={() => setDetailHabit(null)}
+        onHabitLogged={handleHabitLogged}
+        editHabit={editHabit}
+        onCloseEdit={handleEditHabitClose}
+        editHabitOnSaved={editHabitOnSaved}
+        showBulkDeleteConfirm={showBulkDeleteConfirm}
+        onBulkDeleteOpenChange={setShowBulkDeleteConfirm}
+        onConfirmBulkDelete={() => void confirmBulkDelete()}
+        showBulkLogConfirm={showBulkLogConfirm}
+        onBulkLogOpenChange={setShowBulkLogConfirm}
+        onConfirmBulkLog={() => void confirmBulkLog()}
+        showBulkSkipConfirm={showBulkSkipConfirm}
+        onBulkSkipOpenChange={setShowBulkSkipConfirm}
+        onConfirmBulkSkip={() => void confirmBulkSkip()}
+        selectedCount={selectedCount}
+        showHabitDeleteConfirm={showHabitDeleteConfirm}
+        onHabitDeleteOpenChange={(open) => {
           setShowHabitDeleteConfirm(open);
           if (!open) setHabitPendingDelete(null);
         }}
-        title={t("habits.deleteConfirmTitle")}
-        description={t("habits.deleteConfirmMessage")}
-        confirmLabel={t("common.delete")}
-        onConfirm={() => void confirmHabitDelete()}
-        variant="danger"
-      />
-
-      <CreateGoalModal
-        open={showCreateGoalModal}
-        onClose={() => setShowCreateGoalModal(false)}
-      />
-
-      <ReferralDrawer
-        open={showReferral}
-        onClose={() => setShowReferral(false)}
+        onConfirmHabitDelete={() => void confirmHabitDelete()}
+        showCreateGoalModal={showCreateGoalModal}
+        onCloseCreateGoal={() => setShowCreateGoalModal(false)}
+        showReferral={showReferral}
+        onCloseReferral={() => setShowReferral(false)}
       />
     </View>
   );
