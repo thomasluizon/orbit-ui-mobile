@@ -1,4 +1,5 @@
 export { achievementEmoji } from './achievement-emoji'
+export { createClientId } from './client-id'
 export { parseAPIDate, formatAPIDate } from './dates'
 export { getTimezoneList } from './timezones'
 export { isValidEmail } from './email'
