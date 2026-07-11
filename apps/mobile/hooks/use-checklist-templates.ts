@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { checklistTemplateKeys, QUERY_STALE_TIMES } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
+import { createClientId } from '@orbit/shared/utils'
 import type {
   ChecklistTemplate,
   CreateChecklistTemplateRequest,
@@ -17,7 +18,7 @@ export function useChecklistTemplates() {
 }
 
 function createOptimisticTemplateId(): string {
-  return `optimistic-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+  return createClientId('optimistic')
 }
 
 export function useCreateChecklistTemplate() {

@@ -10,6 +10,7 @@ import { useTranslation } from 'react-i18next'
 import type { SuggestedSubHabit } from '@orbit/shared/types/chat'
 import {
   buildBreakdownCreateRequest,
+  createClientId,
   filterValidBreakdownHabits,
 } from '@orbit/shared/utils'
 import { useBulkCreateHabits } from '@/hooks/use-habits'
@@ -35,7 +36,7 @@ interface BreakdownSuggestionProps {
 }
 
 function createEditableHabitId() {
-  return `editable-habit-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`
+  return createClientId('editable-habit')
 }
 
 function createEditableHabit(source?: SuggestedSubHabit): EditableHabit {
