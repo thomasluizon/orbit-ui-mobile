@@ -128,7 +128,9 @@ export function CalendarDayDetail({
               filteredEntries.length,
             )}
           </Text>
-          <View>{filteredEntries.map(renderEntry)}</View>
+          <View>
+            {filteredEntries.map((entry, index) => renderEntry(entry, index))}
+          </View>
         </>
       )}
 
