@@ -1683,4 +1683,25 @@ describe('HabitFormFields', () => {
 
     expect(await screen.findByText('habits.form.noTagSuggestions')).toBeDefined()
   })
+
+  it('gates the due-end-time and per-time reminder on a truthy dueTime without leaking a falsy value', () => {
+    const formHelpers = createMockFormHelpers({ isGeneral: false })
+    const tags = createMockTags()
+    const { container } = renderWithProviders(
+      <HabitFormFields
+        formHelpers={formHelpers}
+        tags={tags}
+        selectedGoalIds={[]}
+        atGoalLimit={false}
+        onToggleGoal={vi.fn()}
+        reminderTimes={[]}
+        onReminderTimesChange={vi.fn()}
+      />,
+    )
+
+    expect(screen.queryByText('habits.form.dueEndTime')).toBeNull()
+    expect(screen.queryByText('habits.form.reminder')).toBeNull()
+    expect(screen.getByText('habits.form.scheduledReminder')).toBeDefined()
+    expect(container.textContent).not.toContain('false')
+  })
 })
