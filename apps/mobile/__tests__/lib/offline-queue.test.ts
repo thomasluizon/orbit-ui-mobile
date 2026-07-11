@@ -14,6 +14,12 @@ import {
   update,
 } from '@/lib/offline-queue'
 
+const { withTransactionSyncMock } = vi.hoisted(() => ({
+  withTransactionSyncMock: vi.fn((task: () => void) => {
+    task()
+  }),
+}))
+
 vi.mock('expo-sqlite', () => {
   interface StoredRow {
     id: string
@@ -99,6 +105,7 @@ vi.mock('expo-sqlite', () => {
         }
         return null as T
       },
+      withTransactionSync: withTransactionSyncMock,
     }),
   }
 })
@@ -127,6 +134,13 @@ function makeMutation(overrides: Partial<QueuedMutation> = {}): QueuedMutation {
 describe('mobile offline queue', () => {
   beforeEach(() => {
     clear()
+    withTransactionSyncMock.mockClear()
+  })
+
+  it('rewrites the queue inside a single transaction so a crash cannot drop it', () => {
+    enqueue(makeMutation({ id: 'create-1' }))
+
+    expect(withTransactionSyncMock).toHaveBeenCalled()
   })
 
   it('merges updates into a pending create mutation for the same temp entity', () => {

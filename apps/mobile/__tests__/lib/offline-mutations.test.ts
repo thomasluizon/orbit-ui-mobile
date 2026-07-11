@@ -8,6 +8,7 @@ import {
   queueOrExecute,
   runQueuedMutation,
 } from '@/lib/offline-mutations'
+import { consumePendingIdempotencyKey } from '@/lib/idempotency-key'
 
 const mocks = vi.hoisted(() => {
   const queued: QueuedMutation[] = []
@@ -206,6 +207,67 @@ describe('offline mutations', () => {
     expect(mocks.persistQueryCache).toHaveBeenCalledTimes(1)
   })
 
+  it('attaches the mutation id as the idempotency key when flushing a queued mutation', async () => {
+    mocks.setOnline(true)
+    const mutation = buildQueuedMutation({
+      type: 'createHabit',
+      scope: 'habits',
+      endpoint: '/api/habits',
+      method: 'POST',
+      payload: { title: 'Read' },
+    })
+    mocks.queued.push(mutation)
+
+    await flushQueuedMutations()
+
+    expect(mocks.apiClient).toHaveBeenCalledWith(
+      '/api/habits',
+      expect.objectContaining({ idempotencyKey: mutation.id }),
+    )
+  })
+
+  it('exposes the mutation id as the pending idempotency key during an online execute', async () => {
+    mocks.setOnline(true)
+    const mutation = buildQueuedMutation({
+      type: 'createTag',
+      scope: 'tags',
+      endpoint: '/api/tags',
+      method: 'POST',
+      payload: { name: 'Focus' },
+    })
+
+    let keyDuringExecute: string | null = null
+    await queueOrExecute({
+      mutation,
+      execute: async () => {
+        keyDuringExecute = consumePendingIdempotencyKey()
+        return { id: 'tag-1' }
+      },
+      queuedResult: { queued: true as const },
+    })
+
+    expect(keyDuringExecute).toBe(mutation.id)
+  })
+
+  it('clears the pending idempotency key after the online execute settles so it cannot leak', async () => {
+    mocks.setOnline(true)
+    const mutation = buildQueuedMutation({
+      type: 'createTag',
+      scope: 'tags',
+      endpoint: '/api/tags',
+      method: 'POST',
+      payload: { name: 'Focus' },
+    })
+
+    await queueOrExecute({
+      mutation,
+      execute: async () => ({ id: 'tag-1' }),
+      queuedResult: { queued: true as const },
+    })
+
+    expect(consumePendingIdempotencyKey()).toBeNull()
+  })
+
   it('returns a queued marker by default when runQueuedMutation defers execution', async () => {
     mocks.setOnline(false)
 
@@ -369,10 +431,12 @@ describe('offline mutations', () => {
     expect(mocks.apiClient).toHaveBeenNthCalledWith(1, '/api/habits', {
       method: 'POST',
       body: JSON.stringify({ title: 'Read' }),
+      idempotencyKey: expect.any(String),
     })
     expect(mocks.apiClient).toHaveBeenNthCalledWith(2, '/api/habits/habit-1', {
       method: 'PUT',
       body: JSON.stringify({ title: 'Read later', relatedHabitId: 'habit-1' }),
+      idempotencyKey: expect.any(String),
     })
 
     expect(mocks.resolveOfflineEntity).toHaveBeenCalledWith('habit', 'offline-habit-1', 'habit-1')
@@ -422,10 +486,12 @@ describe('offline mutations', () => {
     expect(mocks.apiClient).toHaveBeenNthCalledWith(1, '/api/tags', {
       method: 'POST',
       body: JSON.stringify({ name: 'Focus', color: '#00ff00' }),
+      idempotencyKey: expect.any(String),
     })
     expect(mocks.apiClient).toHaveBeenNthCalledWith(2, '/api/habits/habit-1/tags', {
       method: 'PUT',
       body: JSON.stringify({ tagIds: ['tag-1'] }),
+      idempotencyKey: expect.any(String),
     })
   })
 

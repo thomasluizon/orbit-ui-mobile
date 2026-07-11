@@ -2,12 +2,14 @@ import { getToken, clearAllTokens } from './secure-store'
 import { buildClientTimeZoneHeaders, createApiClientError } from '@orbit/shared'
 import { API } from '@orbit/shared/api'
 import { buildAppVersionHeaders } from './app-version'
+import { consumePendingIdempotencyKey } from './idempotency-key'
 
 const API_BASE = process.env.EXPO_PUBLIC_API_BASE ?? 'https://api.useorbit.org'
 
 type ApiRequestOptions = Omit<RequestInit, 'body' | 'headers'> & {
   body?: string | FormData | null
   headers?: Record<string, string>
+  idempotencyKey?: string
 }
 
 interface ApiErrorPayload {
@@ -69,6 +71,10 @@ function buildRequestHeaders(
 
   if (!(options.body instanceof FormData)) {
     headers['Content-Type'] = 'application/json'
+  }
+
+  if (options.idempotencyKey) {
+    headers['Idempotency-Key'] = options.idempotencyKey
   }
 
   return headers
@@ -158,7 +164,11 @@ export async function apiClient<T = unknown>(
   path: string,
   options: ApiRequestOptions = {},
 ): Promise<T> {
-  const { response, requestId, tokenUsed } = await executeRequest(path, options)
+  const idempotencyKey = options.idempotencyKey ?? consumePendingIdempotencyKey() ?? undefined
+  const effectiveOptions: ApiRequestOptions =
+    idempotencyKey === undefined ? options : { ...options, idempotencyKey }
+
+  const { response, requestId, tokenUsed } = await executeRequest(path, effectiveOptions)
 
   if (response.status === 426) {
     return handleUpgradeRequired<T>(response, requestId)
@@ -167,7 +177,7 @@ export async function apiClient<T = unknown>(
   if (response.status === 401 && path !== API.auth.refresh) {
     const latestToken = await getToken()
     if (latestToken && latestToken !== tokenUsed) {
-      const retryWithLatest = await executeRequest(path, options, latestToken)
+      const retryWithLatest = await executeRequest(path, effectiveOptions, latestToken)
       if (retryWithLatest.response.status !== 401) {
         return parseApiResponse<T>(retryWithLatest.response, retryWithLatest.requestId)
       }
@@ -178,7 +188,7 @@ export async function apiClient<T = unknown>(
     const refreshOutcome = await refreshSession({ clearOnFailure: false })
 
     if (refreshOutcome.status === 'refreshed') {
-      const retry = await executeRequest(path, options, refreshOutcome.token)
+      const retry = await executeRequest(path, effectiveOptions, refreshOutcome.token)
       if (retry.response.status !== 401) {
         return parseApiResponse<T>(retry.response, retry.requestId)
       }
