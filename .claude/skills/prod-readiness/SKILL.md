@@ -1,6 +1,6 @@
 ---
 name: prod-readiness
-description: Pre-launch orchestrator — runs the four repo-wide audits (security, tests, performance, code-quality) in parallel via the audit workflow and adds an ops-layer audit (observability, multi-instance readiness, background durability, backups, staging), then consolidates everything into ONE tier-tagged, verification-protocol-backed report with an honest launch verdict. Use before a release to know what's safe to ship. Orchestrates + consolidates; it does not re-derive the child audits' findings.
+description: Pre-launch orchestrator — runs the four repo-wide audits (security, tests, performance, code-quality) in parallel via the audit workflow, adds an ops-layer audit (observability, multi-instance readiness, background durability, backups, staging) AND a full-repo React-correctness scan (React Doctor) over orbit-ui-mobile, then consolidates everything into ONE tier-tagged, verification-protocol-backed report with an honest launch verdict. Use before a release to know what's safe to ship. Orchestrates + consolidates; it does not re-derive the child audits' findings.
 argument-hint: <both (default) | ui | api | path>
 ---
 
@@ -44,7 +44,7 @@ The workflow runs its own coverage contract over the ops inventory + the §2 cha
 its ops findings, and **inherits** each child audit's verify and loop; you merge every child
 ledger into the consolidated report.
 
-**The binding inventory (§1) — nine items:**
+**The binding inventory (§1) — ten items:**
 
 | # | Inventory item | Kind | Owner of the analysis |
 |---|---|---|---|
@@ -57,6 +57,7 @@ ledger into the consolidated report.
 | 7 | Background durability | ops check | the workflow (own §2 challenge) |
 | 8 | Backups | ops check | the workflow (returns as Deferred — un-verifiable from a repo read) |
 | 9 | Staging | ops check | the workflow (own §2 challenge) |
+| 10 | React correctness (React Doctor) | scanner | the workflow (full-repo react-doctor scan of apps/web + apps/mobile + packages/shared; ui/both scope only) |
 
 This list is **binding**: by the end every item is either **(a) covered with a verdict** or
 **(b) in the Deferred ledger with a one-line reason**. There is no silently-skipped bucket.
@@ -100,12 +101,21 @@ durability · staging — as Haiku finders, runs a Haiku skeptic per Blocker/Hig
 { scope,
   audits: [ { kind, findings, counts, coverage, deferred, rounds }, … ×4 ],
   opsFindings: [ { severity, check, title, location, risk, evidence, fix } ],
+  reactDoctor: { ran, errorCount, warningCount, findings: [ { severity, rule, category, location, message, fix } ], note },
   opsChecksRun, opsDeferred, failedAudits }
 ```
 
 `opsDeferred` always includes **backups** ("verify in the DB console — PITR + a tested
 restore path"). `failedAudits` names any audit workflow that errored — each forces **≤
 CONDITIONAL** and is named as a blocker.
+
+**React Doctor (item 10)** runs only for `ui`/`both` scope (it is React-only — `api` scope
+returns `ran:false`, a legitimate skip, not a gap). It is the deterministic React-correctness
+gate that also runs in CI as a **required** check (`.github/workflows/react-doctor.yml`, but
+there `--scope changed` — only NEW issues). Here it scans the **full** app backlog across the
+three workspaces (design/handoff mockups excluded — their vendored `*.jsx` throw ~1054 false
+`jsx-no-undef`). A `reactDoctor.ran:false` for a ui/both scope is a **Deferred coverage gap**
+(react-doctor couldn't run), not "clean".
 
 ---
 
@@ -129,10 +139,13 @@ audit + native label** so nothing is silently relabeled:
 | Consolidated tier | Maps from |
 |---|---|
 | **Blocker** | security Tier 1 · tests Critical · performance Critical · code-quality Critical · ops Blocker |
-| **High** | security Tier 2 · tests High · performance High · code-quality High · ops High |
+| **High** | security Tier 2 · tests High · performance High · code-quality High · ops High · **react-doctor error** (real React bug: effect cleanup, hydration/browser-global in render, impure updater, prop-callback-in-render, server-auth-actions) |
 | **Medium** | tests Medium · performance Medium · code-quality Medium · ops Medium |
-| **Low / Info** | performance Low/Info · code-quality Low/Info |
+| **Low / Info** | performance Low/Info · code-quality Low/Info · **react-doctor warning** (perf/a11y/maintainability nits) |
 | **Out-of-scope / acknowledged** | security Tier 3 · enterprise-only ops |
+
+Tag each react-doctor finding `[react-doctor · {rule} · {error/warning}]` with its `location`
+and `fix`. Group the (typically many) warnings by rule with a count rather than listing each.
 
 ### Report skeleton
 
@@ -173,6 +186,7 @@ audit + native label** so nothing is silently relabeled:
 | 7 | Background durability | … | … |
 | 8 | Backups | deferred | verify in the DB console |
 | 9 | Staging | … | … |
+| 10 | React correctness (React Doctor) | yes/skipped(api)/deferred | {errorCount errors / warningCount warnings, or "skipped — api scope" / "did not run — deferred"} |
 
 ## Deferred ledger (verification-protocol §4)
 
@@ -188,10 +202,13 @@ above — silence reads as coverage.}
 
 ### Launch verdict (§5 honesty) — computed, never hardcoded
 
-- **GO** only if **zero Blockers** AND all **9** inventory items produced a verdict (every
-  audit ran; every ops check resolved or is a legitimately Deferred un-verifiable like backups).
+- **GO** only if **zero Blockers** AND all **10** inventory items produced a verdict (every
+  audit ran; every ops check resolved or is a legitimately Deferred un-verifiable like backups)
+  AND **react-doctor reports zero errors** (a react-doctor error is a real React bug and the
+  required CI gate's currency — GO requires the app-code error backlog at zero).
 - **CONDITIONAL** if no Blockers but some items are Deferred in a way that gates launch (e.g.
-  backups unverified, staging gate absent) — name the conditions.
+  backups unverified, staging gate absent, react-doctor errors outstanding, or react-doctor
+  did not run for a ui/both scope) — name the conditions.
 - **NO-GO** if any Blocker stands.
 - **A `failedAudit` forces at most CONDITIONAL and names itself as the blocker** — a partial
   sweep can never read green. The coverage table makes any non-running audit visible.
@@ -213,7 +230,7 @@ above — silence reads as coverage.}
 | Medium | {N} |
 | Low / Info | {N} |
 
-**Inventory (9)**: security {ran/deferred} · tests {…} · performance {…} · code-quality {…} · observability {…} · multi-instance {…} · background durability {…} · backups {deferred} · staging {…}
+**Inventory (10)**: security {ran/deferred} · tests {…} · performance {…} · code-quality {…} · observability {…} · multi-instance {…} · background durability {…} · backups {deferred} · staging {…} · react-doctor {N errors / M warnings, or skipped-api}
 **Report**: `.claude/audits/prod-readiness-{scope}.md`
 **Top blocker**: {the single highest-priority thing standing between here and launch, or "none"}
 ```
