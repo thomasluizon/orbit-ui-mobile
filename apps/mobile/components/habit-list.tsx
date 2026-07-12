@@ -1611,6 +1611,9 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
           scrollEventThrottle={16}
           onScrollBeginDrag={onScrollBeginDrag}
           showsVerticalScrollIndicator={false}
+          initialNumToRender={10}
+          maxToRenderPerBatch={8}
+          windowSize={11}
         />
         {commonOverlays}
       </>

@@ -18,22 +18,19 @@ const NO_STORE_CACHE_CONTROL = 'private, no-store, max-age=0'
  */
 
 function buildHeaders(
-  token: string | null,
+  token: string,
   forwardedClientHeaders: Record<string, string>,
 ): Record<string, string> {
-  const headers: Record<string, string> = {
+  return {
     'Content-Type': 'application/json',
     ...forwardedClientHeaders,
+    Authorization: `Bearer ${token}`,
   }
-  if (token) {
-    headers['Authorization'] = `Bearer ${token}`
-  }
-  return headers
 }
 
 async function proxyCheckout(
   body: string,
-  token: string | null,
+  token: string,
   forwardedClientHeaders: Record<string, string>,
 ): Promise<Response> {
   const apiBase = process.env.API_BASE ?? 'http://localhost:5000'
@@ -54,8 +51,35 @@ function resolveForwardedClientHeaders(request: NextRequest): Record<string, str
   return forwardedClientHeaders
 }
 
+function buildNoStoreJsonResponse(
+  body: string,
+  status: number,
+  contentType = 'application/json',
+): NextResponse {
+  return new NextResponse(body, {
+    status,
+    headers: {
+      'Cache-Control': NO_STORE_CACHE_CONTROL,
+      'Content-Type': contentType,
+    },
+  })
+}
+
+async function toNoStoreResponse(source: Response): Promise<NextResponse> {
+  const data = await source.text()
+  return buildNoStoreJsonResponse(
+    data,
+    source.status,
+    source.headers.get('Content-Type') ?? 'application/json',
+  )
+}
+
 export async function POST(request: NextRequest) {
   const session = await resolveServerSession()
+  if (!session.token) {
+    return buildNoStoreJsonResponse(JSON.stringify({ error: 'Unauthorized' }), 401)
+  }
+
   const forwardedClientHeaders = resolveForwardedClientHeaders(request)
   const body = await request.text()
 
@@ -65,23 +89,9 @@ export async function POST(request: NextRequest) {
     const refreshedSession = await resolveServerSession({ forceRefresh: true })
     if (refreshedSession.token) {
       const retryResponse = await proxyCheckout(body, refreshedSession.token, forwardedClientHeaders)
-      const retryData = await retryResponse.text()
-      return new NextResponse(retryData, {
-        status: retryResponse.status,
-        headers: {
-          'Cache-Control': NO_STORE_CACHE_CONTROL,
-          'Content-Type': retryResponse.headers.get('Content-Type') ?? 'application/json',
-        },
-      })
+      return toNoStoreResponse(retryResponse)
     }
   }
 
-  const data = await response.text()
-  return new NextResponse(data, {
-    status: response.status,
-    headers: {
-      'Cache-Control': NO_STORE_CACHE_CONTROL,
-      'Content-Type': response.headers.get('Content-Type') ?? 'application/json',
-    },
-  })
+  return toNoStoreResponse(response)
 }
