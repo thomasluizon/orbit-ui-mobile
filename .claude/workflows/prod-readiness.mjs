@@ -4,6 +4,7 @@ export const meta = {
   phases: [
     { title: 'Audits', detail: 'the four /audit workflows in parallel' },
     { title: 'Ops', detail: 'observability · multi-instance · background durability · staging' },
+    { title: 'React', detail: 'react-doctor full-repo scan of orbit-ui-mobile (ui/both scope)' },
     { title: 'Verify', detail: 'skeptic per Blocker/High ops finding — default refuted' },
   ],
 }
@@ -48,6 +49,48 @@ const OPS_VERDICT = {
 }
 
 const OPS_LADDER = 'Blocker (a whole runtime is dark, or it corrupts user data on scale-out) / High (a single observability gap, a scheduler that double-fires, work lost on restart) / Medium (calibrated — e.g. a missing pre-prod gate)'
+
+// React Doctor — the deterministic React-correctness gate (also a REQUIRED CI check,
+// .github/workflows/react-doctor.yml). The CI gate is --scope changed (only NEW issues);
+// prod-readiness runs the FULL-repo scan so the whole backlog is surfaced and fixed.
+const REACT_DOCTOR_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  properties: {
+    ran: { type: 'boolean' },
+    errorCount: { type: 'number' },
+    warningCount: { type: 'number' },
+    findings: {
+      type: 'array',
+      items: {
+        type: 'object',
+        additionalProperties: false,
+        properties: {
+          severity: { type: 'string' },
+          rule: { type: 'string' },
+          category: { type: 'string' },
+          location: { type: 'string' },
+          message: { type: 'string' },
+          fix: { type: 'string' },
+        },
+        required: ['severity', 'rule', 'location', 'message'],
+      },
+    },
+    note: { type: 'string' },
+  },
+  required: ['ran', 'findings'],
+}
+
+function reactDoctorPrompt() {
+  return [
+    `Run React Doctor over the WHOLE orbit-ui-mobile repo (apps/web + apps/mobile + packages/shared) and report EVERY diagnostic — this is the full backlog, NOT the PR-scoped CI gate.`,
+    `Steps: cd to ${UI}. Ensure deps are present (node_modules exists; if not, run \`npm ci\`). Then run EXACTLY:`,
+    `  npx -y react-doctor@0.7.6 --project apps/web,apps/mobile,packages/shared --json --json-out "%TEMP%/rd-prodreadiness.json" --no-supply-chain --no-score --no-dead-code --yes --max-duration 360 --no-color`,
+    `(SCOPE the scan to the three real app workspaces via --project — this EXCLUDES design/handoff/**, whose vendored *.jsx design mockups emit ~1054 false jsx-no-undef "errors" that are NOT app code. --no-dead-code + --no-supply-chain + --no-score match the CI gate's hermetic/no-knip stance; do NOT drop them. Default scope is "full" and --warnings is on, so BOTH error- and warning-severity diagnostics are reported. Paths in the JSON are workspace-relative — prefix each with its project when reporting location.)`,
+    `Read the JSON report file. For EVERY diagnostic emit a finding: severity ("error" or "warning"), rule (the rule id), category (e.g. Correctness/Performance/Accessibility/Security), location ("apps/…/file.tsx:line"), message (what's wrong), fix (the concrete change — from the rule's guidance; run \`npx react-doctor@0.7.6 why <file:line>\` if you need the rationale).`,
+    `Return ran=true with errorCount + warningCount + the full findings array. This is READ-ONLY analysis — do NOT modify any source file. If react-doctor genuinely cannot run (offline, deps unresolved after npm ci), return ran=false, findings=[], and a one-line note.`,
+  ].join('\n')
+}
 
 const OPS_CHECKS = [
   {
@@ -114,6 +157,19 @@ const opsRaw = (
   )
 ).filter(Boolean).flatMap((r) => r.findings || [])
 
+phase('React')
+let reactDoctor = { ran: false, findings: [], note: 'skipped — react-doctor is orbit-ui-mobile-only (scope=api)' }
+if (scope !== 'api') {
+  reactDoctor =
+    (await agent(reactDoctorPrompt(), {
+      label: 'react-doctor',
+      phase: 'React',
+      agentType: 'general-purpose',
+      effort: 'low',
+      schema: REACT_DOCTOR_SCHEMA,
+    })) || { ran: false, findings: [], note: 'react-doctor agent returned null (died/skipped) — treat as a Deferred coverage gap' }
+}
+
 phase('Verify')
 const seriousOps = opsRaw.filter(isSeriousOps).sort((a, b) => rank(a.severity) - rank(b.severity))
 const opsVerdicts = (
@@ -145,6 +201,7 @@ return {
   scope,
   audits: auditResults,
   opsFindings,
+  reactDoctor,
   opsChecksRun: OPS_CHECKS.map((c) => c.check),
   opsDeferred: [
     { check: 'backups', reason: 'un-verifiable from a repo read — verify in the DB console: automated backups / PITR enabled AND a tested restore path' },

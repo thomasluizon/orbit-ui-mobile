@@ -96,6 +96,29 @@ finding, a completeness pass — same findings shape.
 
 ---
 
+## Phase 2.5 — React Doctor pass (ui / frontend / both scope)
+
+For any scope that includes the frontend, also run the deterministic **React-correctness
+scanner** — it catches state/effects, hydration, perf, and a11y bugs the rubric's LLM finders
+miss, and it is a **required CI check** (`.github/workflows/react-doctor.yml`):
+
+```bash
+npx -y react-doctor@0.7.6 --project apps/web,apps/mobile,packages/shared \
+  --json --json-out "$TMPDIR/rd-audit.json" \
+  --no-supply-chain --no-score --no-dead-code --yes --max-duration 360 --no-color
+```
+
+Scope to the three workspaces via `--project` — this **excludes `design/handoff/**`**, whose
+vendored `*.jsx` design mockups emit ~1054 false `jsx-no-undef` errors that are not app code.
+The flags match the CI gate's hermetic/no-knip stance; the CI gate is `--scope changed`, so it
+never sees the standing backlog this full scan surfaces. Fold every diagnostic into the report
+(the JSON's paths are workspace-relative — prefix with the project): react-doctor **errors** →
+**High** (real React bugs), **warnings** → **Low/Info**, each tagged `[react-doctor · {rule}]`
+with file:line + the rule's fix; group warnings by rule with a count. `api` scope skips this
+(React-only). Report-only — surface findings, do not fix here.
+
+---
+
 ## Phase 3 — Apply the rubric (what a repo-wide audit recalibrates)
 
 The rubric was written for a diff; the workflow's finders already recalibrate two rules —
