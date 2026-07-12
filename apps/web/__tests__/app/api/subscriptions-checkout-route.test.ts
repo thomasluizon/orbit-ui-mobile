@@ -68,4 +68,156 @@ describe('subscriptions checkout route', () => {
       }),
     )
   })
+
+  it('rejects an unauthenticated request with 401 and never calls the upstream API', async () => {
+    vi.mocked(resolveServerSession).mockResolvedValue({
+      token: null,
+      expiresAt: null,
+      refreshed: false,
+    })
+
+    const request = new NextRequest('http://localhost:3000/api/subscriptions/checkout', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ priceId: 'price_123' }),
+    })
+
+    const response = await POST(request)
+
+    expect(response.status).toBe(401)
+    expect(response.headers.get('cache-control')).toBe('private, no-store, max-age=0')
+    expect(mockFetch).not.toHaveBeenCalled()
+    expect(resolveServerSession).toHaveBeenCalledTimes(1)
+  })
+
+  it('propagates a backend 400 for an invalid checkout payload without coercing the status', async () => {
+    vi.mocked(resolveServerSession).mockResolvedValue({
+      token: 'token',
+      expiresAt: Date.now() + 3600000,
+      refreshed: false,
+    })
+    mockFetch.mockResolvedValue(
+      new Response('{"error":"priceId is required"}', {
+        status: 400,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    )
+
+    const request = new NextRequest('http://localhost:3000/api/subscriptions/checkout', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ priceId: '' }),
+    })
+
+    const response = await POST(request)
+
+    expect(response.status).toBe(400)
+    expect(await response.text()).toBe('{"error":"priceId is required"}')
+    expect(mockFetch).toHaveBeenCalledTimes(1)
+  })
+
+  it('propagates an upstream 5xx failure as an error status, not a 200', async () => {
+    vi.mocked(resolveServerSession).mockResolvedValue({
+      token: 'token',
+      expiresAt: Date.now() + 3600000,
+      refreshed: false,
+    })
+    mockFetch.mockResolvedValue(
+      new Response('{"error":"checkout provider unavailable"}', {
+        status: 502,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    )
+
+    const request = new NextRequest('http://localhost:3000/api/subscriptions/checkout', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ priceId: 'price_123' }),
+    })
+
+    const response = await POST(request)
+
+    expect(response.status).toBe(502)
+    expect(await response.text()).toBe('{"error":"checkout provider unavailable"}')
+    expect(mockFetch).toHaveBeenCalledTimes(1)
+  })
+
+  it('force-refreshes the session and retries once when the upstream returns 401', async () => {
+    vi.mocked(resolveServerSession)
+      .mockResolvedValueOnce({
+        token: 'stale-token',
+        expiresAt: Date.now() + 3600000,
+        refreshed: false,
+      })
+      .mockResolvedValueOnce({
+        token: 'fresh-token',
+        expiresAt: Date.now() + 3600000,
+        refreshed: true,
+      })
+    mockFetch
+      .mockResolvedValueOnce(
+        new Response('{"error":"unauthorized"}', {
+          status: 401,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      )
+      .mockResolvedValueOnce(
+        new Response('{"url":"https://checkout.example.com"}', {
+          status: 200,
+          headers: { 'Content-Type': 'application/json' },
+        }),
+      )
+
+    const request = new NextRequest('http://localhost:3000/api/subscriptions/checkout', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ priceId: 'price_123' }),
+    })
+
+    const response = await POST(request)
+
+    expect(response.status).toBe(200)
+    expect(await response.text()).toBe('{"url":"https://checkout.example.com"}')
+    expect(mockFetch).toHaveBeenCalledTimes(2)
+    expect(vi.mocked(resolveServerSession)).toHaveBeenNthCalledWith(2, { forceRefresh: true })
+    expect(mockFetch).toHaveBeenLastCalledWith(
+      'http://localhost:5000/api/subscriptions/checkout',
+      expect.objectContaining({
+        headers: expect.objectContaining({ Authorization: 'Bearer fresh-token' }),
+      }),
+    )
+  })
+
+  it('returns the upstream 401 when the refresh yields no token and does not retry', async () => {
+    vi.mocked(resolveServerSession)
+      .mockResolvedValueOnce({
+        token: 'stale-token',
+        expiresAt: Date.now() + 3600000,
+        refreshed: false,
+      })
+      .mockResolvedValueOnce({
+        token: null,
+        expiresAt: null,
+        refreshed: false,
+      })
+    mockFetch.mockResolvedValue(
+      new Response('{"error":"unauthorized"}', {
+        status: 401,
+        headers: { 'Content-Type': 'application/json' },
+      }),
+    )
+
+    const request = new NextRequest('http://localhost:3000/api/subscriptions/checkout', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ priceId: 'price_123' }),
+    })
+
+    const response = await POST(request)
+
+    expect(response.status).toBe(401)
+    expect(await response.text()).toBe('{"error":"unauthorized"}')
+    expect(mockFetch).toHaveBeenCalledTimes(1)
+    expect(resolveServerSession).toHaveBeenCalledTimes(2)
+  })
 })
