@@ -793,6 +793,59 @@ describe('HabitList', () => {
     })
   })
 
+  it('renders every row with calibrated render-window props while keeping reorder working', async () => {
+    const habits = Array.from({ length: 12 }, (_, index) =>
+      createMockHabit({
+        id: `habit-${index}`,
+        title: `Habit ${index}`,
+        position: index,
+      }),
+    )
+    seedHabits(habits)
+
+    let tree: any
+
+    TestRenderer.act(() => {
+      tree = TestRenderer.create(
+        <HabitList
+          view="today"
+          filters={{}}
+          showCompleted
+          onCreatePress={vi.fn()}
+        />,
+      )
+    })
+
+    const draggableList = tree.root.findByType('DraggableFlatList')
+
+    expect(
+      tree.root
+        .findAllByType(HabitRow)
+        .map((node: any) => node.props.habit.id),
+    ).toEqual(habits.map((habit) => habit.id))
+
+    expect(draggableList.props.initialNumToRender).toBe(10)
+    expect(draggableList.props.maxToRenderPerBatch).toBe(8)
+    expect(draggableList.props.windowSize).toBe(11)
+    expect(draggableList.props.removeClippedSubviews).toBeFalsy()
+
+    await TestRenderer.act(async () => {
+      await draggableList.props.onDragEnd({ from: 0, to: 1 })
+    })
+
+    expect(reorderMutateAsync).toHaveBeenCalledTimes(1)
+    expect(reorderMutateAsync).toHaveBeenCalledWith({
+      positions: [
+        { habitId: 'habit-1', position: 0 },
+        { habitId: 'habit-0', position: 1 },
+        ...Array.from({ length: 10 }, (_, index) => ({
+          habitId: `habit-${index + 2}`,
+          position: index + 2,
+        })),
+      ],
+    })
+  })
+
   it('temporarily collapses dragged parents and restores them after drop', async () => {
     const parent = createMockHabit({ id: 'parent', title: 'Parent', position: 0 })
     const child = createMockHabit({ id: 'child', title: 'Child', parentId: 'parent', position: 0 })
