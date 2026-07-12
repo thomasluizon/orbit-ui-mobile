@@ -166,7 +166,7 @@
     "queued": "Queued",
     "syncing": "Syncing",
     "synced": "Synced",
-    "syncDropped": "Couldn't sync your {{item}} change",
+    "syncDropped": "Couldn't sync your {item} change",
     "syncEntity": {
       "habits": "habit",
       "goals": "goal",

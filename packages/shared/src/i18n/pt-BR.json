@@ -166,7 +166,7 @@
     "queued": "Na fila",
     "syncing": "Sincronizando",
     "synced": "Sincronizado",
-    "syncDropped": "Não foi possível sincronizar sua alteração de {{item}}",
+    "syncDropped": "Não foi possível sincronizar sua alteração de {item}",
     "syncEntity": {
       "habits": "hábito",
       "goals": "meta",
