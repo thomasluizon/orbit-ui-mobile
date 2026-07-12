@@ -1,0 +1,50 @@
+name: React Doctor
+
+# Deterministic React-correctness gate (state/effects, perf, a11y, security lint rules)
+# across apps/web (Next.js) + apps/mobile (Expo) + packages/shared.
+#
+# Hardened for use as a REQUIRED check:
+#   - pinned to an exact version (react-doctor ships multiple releases/day; @latest would
+#     drift the ruleset under the gate). Bump deliberately in its own PR.
+#   - --scope changed: only issues this PR *introduces* fail; the pre-existing backlog never gates.
+#   - --no-supply-chain --no-score: no third-party network in the merge path → hermetic + deterministic.
+#   - --no-dead-code: the bundled knip pass false-positives on packages/shared's public-API exports
+#     (no knip config in-repo); revisit as an advisory check once knip is configured.
+# Docs: https://react.doctor/docs/ci-and-prs/github-actions-setup
+
+on:
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  react-doctor:
+    name: React Doctor
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: Fail on new React issues in changed files
+        run: >
+          npx -y react-doctor@0.7.6 .
+          --blocking error
+          --scope changed --base origin/${{ github.base_ref }}
+          --no-dead-code --no-supply-chain --no-score
+          --yes
