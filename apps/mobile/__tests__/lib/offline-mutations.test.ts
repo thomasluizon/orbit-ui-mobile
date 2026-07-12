@@ -7,6 +7,7 @@ import {
   flushQueuedMutations,
   queueOrExecute,
   runQueuedMutation,
+  subscribeDroppedMutations,
 } from '@/lib/offline-mutations'
 import { consumePendingIdempotencyKey } from '@/lib/idempotency-key'
 
@@ -612,6 +613,54 @@ describe('offline mutations', () => {
     expect(mocks.remove).toHaveBeenCalledWith('update-good')
     expect(mocks.clearOfflineEntity).toHaveBeenCalledWith('habit', 'offline-habit-bad')
     expect(mocks.queued).toHaveLength(0)
+  })
+
+  it('notifies subscribers on every dropped mutation and stops after unsubscribe', async () => {
+    mocks.setOnline(true)
+    mocks.apiClient.mockImplementation(async () => {
+      throw new Error('400 validation failed')
+    })
+
+    const dropped: Array<{ id: string; type: string }> = []
+    const unsubscribe = subscribeDroppedMutations((drop) => {
+      dropped.push({ id: drop.id, type: drop.type })
+    })
+
+    mocks.queued.push({
+      ...buildQueuedMutation({
+        type: 'updateHabit',
+        scope: 'habits',
+        endpoint: '/api/habits/habit-bad',
+        method: 'PUT',
+        payload: { title: 'Rejected' },
+        entityType: 'habit',
+        clientEntityId: 'offline-habit-bad',
+      }),
+      id: 'notify-bad',
+    })
+
+    await flushQueuedMutations()
+
+    expect(dropped).toEqual([{ id: 'notify-bad', type: 'updateHabit' }])
+
+    unsubscribe()
+    dropped.length = 0
+    mocks.queued.push({
+      ...buildQueuedMutation({
+        type: 'updateHabit',
+        scope: 'habits',
+        endpoint: '/api/habits/habit-bad-2',
+        method: 'PUT',
+        payload: { title: 'Rejected again' },
+        entityType: 'habit',
+        clientEntityId: 'offline-habit-bad-2',
+      }),
+      id: 'notify-bad-2',
+    })
+
+    await flushQueuedMutations()
+
+    expect(dropped).toEqual([])
   })
 
   describe('transient-failure backoff', () => {

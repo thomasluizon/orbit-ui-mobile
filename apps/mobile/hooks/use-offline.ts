@@ -1,11 +1,9 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import NetInfo, { type NetInfoState } from '@react-native-community/netinfo'
 import { AppState, type AppStateStatus } from 'react-native'
-import { useTranslation } from 'react-i18next'
 import * as offlineQueue from '@/lib/offline-queue'
-import { flushQueuedMutations, getMutationScope } from '@/lib/offline-mutations'
+import { flushQueuedMutations } from '@/lib/offline-mutations'
 import { getCurrentConnectivity, setCachedConnectivity } from '@/lib/offline-runtime'
-import { useAppToast } from '@/hooks/use-app-toast'
 import type { QueuedMutation } from '@orbit/shared/types/sync'
 
 interface UseOfflineReturn {
@@ -21,8 +19,6 @@ export function useOffline(): UseOfflineReturn {
   const [pendingCount, setPendingCount] = useState(0)
   const [isFlushing, setIsFlushing] = useState(false)
   const flushLock = useRef(false)
-  const { t } = useTranslation()
-  const { showError } = useAppToast()
 
   // Subscribe to network state changes
   useEffect(() => {
@@ -52,20 +48,13 @@ export function useOffline(): UseOfflineReturn {
     setIsFlushing(true)
 
     try {
-      const { droppedMutations } = await flushQueuedMutations()
-      for (const dropped of droppedMutations) {
-        showError(
-          t('common.syncDropped', {
-            item: t(`common.syncEntity.${getMutationScope(dropped.type)}`),
-          }),
-        )
-      }
+      await flushQueuedMutations()
     } finally {
       setPendingCount(offlineQueue.count())
       setIsFlushing(false)
       flushLock.current = false
     }
-  }, [showError, t])
+  }, [])
 
   // Auto-flush when connectivity is restored
   useEffect(() => {

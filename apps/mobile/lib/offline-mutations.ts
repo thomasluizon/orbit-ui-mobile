@@ -53,6 +53,27 @@ export interface DroppedMutation {
   lastError: string | null
 }
 
+type DroppedMutationListener = (dropped: DroppedMutation) => void
+
+const droppedMutationListeners = new Set<DroppedMutationListener>()
+
+/**
+ * Subscribe to mutations dropped from the queue (permanent/validation errors or
+ * retry exhaustion). Fires for EVERY flush path — the foreground flush and the
+ * decoupled backoff retry — so a drop is never surfaced only when a UI-driven
+ * flush happens to discover it. Returns an unsubscribe function.
+ */
+export function subscribeDroppedMutations(listener: DroppedMutationListener): () => void {
+  droppedMutationListeners.add(listener)
+  return () => {
+    droppedMutationListeners.delete(listener)
+  }
+}
+
+function notifyDroppedMutation(dropped: DroppedMutation): void {
+  for (const listener of droppedMutationListeners) listener(dropped)
+}
+
 export interface QueuedMutationBuildOptions {
   type: MutationType
   scope: MutationScope
@@ -632,6 +653,7 @@ async function runQueueFlush(): Promise<FlushOutcome> {
     failed += step.failedDelta
     if (step.dropped) {
       droppedMutations.push(step.dropped)
+      notifyDroppedMutation(step.dropped)
     }
     if (step.stopReason) {
       stopReason = step.stopReason

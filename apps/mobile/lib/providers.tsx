@@ -26,6 +26,7 @@ import { AppState, type AppStateStatus, View, ActivityIndicator } from 'react-na
 import { createTokensV2, getRuntimeTheme } from './theme'
 import { ThemeProvider } from './theme-provider'
 import { useOffline } from '@/hooks/use-offline'
+import { subscribeDroppedMutations, getMutationScope } from '@/lib/offline-mutations'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useTranslation } from 'react-i18next'
 import { useOnboardingDraftHydrated } from '@/stores/onboarding-draft-store'
@@ -40,10 +41,20 @@ interface ProvidersProps {
 function OfflineManager() {
   const { pendingCount, isFlushing } = useOffline()
   const { t } = useTranslation()
-  const { showInfo, showQueued, showSuccess } = useAppToast()
+  const { showInfo, showQueued, showSuccess, showError } = useAppToast()
   const initializedRef = useRef(false)
   const previousPendingRef = useRef(0)
   const previousFlushingRef = useRef(false)
+
+  useEffect(() => {
+    return subscribeDroppedMutations((dropped) => {
+      showError(
+        t('common.syncDropped', {
+          item: t(`common.syncEntity.${getMutationScope(dropped.type)}`),
+        }),
+      )
+    })
+  }, [showError, t])
 
   useEffect(() => {
     if (!initializedRef.current) {
