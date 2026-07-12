@@ -426,6 +426,7 @@ describe('offline mutations', () => {
       succeeded: 2,
       failed: 0,
       remaining: 0,
+      droppedMutations: [],
     })
 
     expect(mocks.apiClient).toHaveBeenNthCalledWith(1, '/api/habits', {
@@ -482,6 +483,7 @@ describe('offline mutations', () => {
       succeeded: 2,
       failed: 0,
       remaining: 0,
+      droppedMutations: [],
     })
     expect(mocks.apiClient).toHaveBeenNthCalledWith(1, '/api/tags', {
       method: 'POST',
@@ -536,6 +538,7 @@ describe('offline mutations', () => {
       succeeded: 0,
       failed: 1,
       remaining: 2,
+      droppedMutations: [],
     })
     expect(mocks.apiClient).toHaveBeenCalledTimes(1)
     expect(mocks.update).toHaveBeenCalledWith(firstMutation.id, {
@@ -544,6 +547,71 @@ describe('offline mutations', () => {
       lastError: 'Unauthorized',
     })
     expect(mocks.remove).not.toHaveBeenCalled()
+  })
+
+  it('drops a validation-rejected mutation, keeps flushing the rest, and reports the dropped one', async () => {
+    mocks.setOnline(true)
+    mocks.apiClient.mockImplementation(async (endpoint: string) => {
+      if (endpoint === '/api/habits/habit-bad') {
+        throw new Error('400 validation failed')
+      }
+      return { id: 'habit-good' }
+    })
+
+    const droppedCandidate = {
+      ...buildQueuedMutation({
+        type: 'updateHabit',
+        scope: 'habits',
+        endpoint: '/api/habits/habit-bad',
+        method: 'PUT',
+        payload: { title: 'Rejected' },
+        entityType: 'habit',
+        clientEntityId: 'offline-habit-bad',
+      }),
+      id: 'update-bad',
+    }
+
+    const survivor = {
+      ...buildQueuedMutation({
+        type: 'updateHabit',
+        scope: 'habits',
+        endpoint: '/api/habits/habit-good',
+        method: 'PUT',
+        payload: { title: 'Accepted' },
+        entityType: 'habit',
+        targetEntityId: 'habit-good',
+      }),
+      id: 'update-good',
+    }
+
+    mocks.queued.push(droppedCandidate, survivor)
+
+    const result = await flushQueuedMutations()
+
+    expect(result).toEqual({
+      succeeded: 1,
+      failed: 1,
+      remaining: 0,
+      droppedMutations: [
+        { id: 'update-bad', type: 'updateHabit', lastError: '400 validation failed' },
+      ],
+    })
+
+    expect(mocks.apiClient).toHaveBeenNthCalledWith(
+      1,
+      '/api/habits/habit-bad',
+      expect.objectContaining({ method: 'PUT' }),
+    )
+    expect(mocks.apiClient).toHaveBeenNthCalledWith(
+      2,
+      '/api/habits/habit-good',
+      expect.objectContaining({ method: 'PUT' }),
+    )
+
+    expect(mocks.remove).toHaveBeenCalledWith('update-bad')
+    expect(mocks.remove).toHaveBeenCalledWith('update-good')
+    expect(mocks.clearOfflineEntity).toHaveBeenCalledWith('habit', 'offline-habit-bad')
+    expect(mocks.queued).toHaveLength(0)
   })
 
   describe('transient-failure backoff', () => {
@@ -574,7 +642,7 @@ describe('offline mutations', () => {
       })
 
       const firstRun = await flushQueuedMutations()
-      expect(firstRun).toEqual({ succeeded: 0, failed: 0, remaining: 1 })
+      expect(firstRun).toEqual({ succeeded: 0, failed: 0, remaining: 1, droppedMutations: [] })
       expect(mocks.apiClient).toHaveBeenCalledTimes(1)
 
       await vi.advanceTimersByTimeAsync(2_000)
