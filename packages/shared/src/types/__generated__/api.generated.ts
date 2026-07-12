@@ -269,6 +269,9 @@ export const PostApiAuthOperationsLogoutBody = zod.object({
 export const PostApiAuthOperationsLogoutResponse = zod.unknown()
 
 
+export const PostApiAuthLogoutAllResponse = zod.unknown()
+
+
 export const PostApiAuthRequestDeletionResponse = zod.unknown()
 
 
@@ -1178,7 +1181,8 @@ export const GetOauthAuthorizeQueryParams = zod.object({
   "response_type": zod.string().optional(),
   "state": zod.string().optional(),
   "code_challenge": zod.string().optional(),
-  "code_challenge_method": zod.string().optional()
+  "code_challenge_method": zod.string().optional(),
+  "nonce": zod.string().optional()
 })
 
 export const GetOauthAuthorizeResponse = zod.unknown()
