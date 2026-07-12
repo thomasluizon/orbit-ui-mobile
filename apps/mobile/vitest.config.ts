@@ -11,7 +11,7 @@ export default defineConfig({
       provider: 'v8',
       reporter: ['text', 'lcov'],
       reportsDirectory: '../../coverage/mobile',
-      include: ['lib/**/*.{ts,tsx}', 'stores/**/*.ts'],
+      include: ['lib/**/*.{ts,tsx}', 'stores/**/*.ts', 'hooks/use-offline.ts'],
       exclude: [
         '**/*.d.ts',
         'lib/offline-queue.ts',

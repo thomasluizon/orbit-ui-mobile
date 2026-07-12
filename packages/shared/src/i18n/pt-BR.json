@@ -166,6 +166,17 @@
     "queued": "Na fila",
     "syncing": "Sincronizando",
     "synced": "Sincronizado",
+    "syncDropped": "Não foi possível sincronizar sua alteração de {item}",
+    "syncEntity": {
+      "habits": "hábito",
+      "goals": "meta",
+      "tags": "tag",
+      "notifications": "notificação",
+      "profile": "configuração",
+      "userFacts": "memória",
+      "apiKeys": "chave de API",
+      "calendar": "calendário"
+    },
     "collapse": "Recolher",
     "expand": "Expandir"
   },

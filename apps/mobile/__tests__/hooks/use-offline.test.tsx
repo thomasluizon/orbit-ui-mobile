@@ -18,10 +18,20 @@ const mocks = vi.hoisted(() => {
     resolveConnectivity: undefined as ((value: boolean) => void) | undefined,
   }
 
-  const flushQueuedMutations = vi.fn(async () => {
-    state.queueCount = 0
-    return { succeeded: 1, failed: 0, remaining: 0 }
-  })
+  const flushQueuedMutations = vi.fn(
+    async (): Promise<{
+      succeeded: number
+      failed: number
+      remaining: number
+      droppedMutations: Array<{ id: string; type: string; lastError: string | null }>
+    }> => {
+      state.queueCount = 0
+      return { succeeded: 1, failed: 0, remaining: 0, droppedMutations: [] }
+    },
+  )
+
+  const getMutationScope = vi.fn((_type: string): string => 'habits')
+  const showError = vi.fn()
 
   const enqueue = vi.fn()
   const subscribeQueueCount = vi.fn((listener: (count: number) => void) => {
@@ -42,6 +52,8 @@ const mocks = vi.hoisted(() => {
   return {
     state,
     flushQueuedMutations,
+    getMutationScope,
+    showError,
     enqueue,
     subscribeQueueCount,
     count,
@@ -82,6 +94,24 @@ vi.mock('@/lib/offline-queue', () => ({
 
 vi.mock('@/lib/offline-mutations', () => ({
   flushQueuedMutations: mocks.flushQueuedMutations,
+  getMutationScope: mocks.getMutationScope,
+}))
+
+vi.mock('react-i18next', () => ({
+  useTranslation: () => ({
+    t: (key: string, options?: Record<string, unknown>) =>
+      options?.item ? `${key}:${String(options.item)}` : key,
+  }),
+}))
+
+vi.mock('@/hooks/use-app-toast', () => ({
+  useAppToast: () => ({
+    showError: mocks.showError,
+    showSuccess: vi.fn(),
+    showInfo: vi.fn(),
+    showQueued: vi.fn(),
+    showToast: vi.fn(),
+  }),
 }))
 
 function HookHarness() {
@@ -96,6 +126,12 @@ describe('useOffline', () => {
     mocks.state.netInfoListener = undefined
     mocks.state.resolveConnectivity = undefined
     mocks.flushQueuedMutations.mockClear()
+    mocks.flushQueuedMutations.mockImplementation(async () => {
+      mocks.state.queueCount = 0
+      return { succeeded: 1, failed: 0, remaining: 0, droppedMutations: [] }
+    })
+    mocks.getMutationScope.mockClear()
+    mocks.showError.mockClear()
     mocks.enqueue.mockClear()
     mocks.subscribeQueueCount.mockClear()
     mocks.count.mockClear()
@@ -150,4 +186,5 @@ describe('useOffline', () => {
     expect(mocks.flushQueuedMutations).toHaveBeenCalledTimes(1)
     expect(mocks.count).toHaveBeenCalled()
   })
+
 })

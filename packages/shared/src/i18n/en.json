@@ -166,6 +166,17 @@
     "queued": "Queued",
     "syncing": "Syncing",
     "synced": "Synced",
+    "syncDropped": "Couldn't sync your {item} change",
+    "syncEntity": {
+      "habits": "habit",
+      "goals": "goal",
+      "tags": "tag",
+      "notifications": "notification",
+      "profile": "settings",
+      "userFacts": "memory",
+      "apiKeys": "API key",
+      "calendar": "calendar"
+    },
     "collapse": "Collapse",
     "expand": "Expand"
   },

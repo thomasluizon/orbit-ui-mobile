@@ -47,6 +47,33 @@ export interface QueuedMarker {
   queuedMutationId: string
 }
 
+export interface DroppedMutation {
+  id: string
+  type: MutationType
+  lastError: string | null
+}
+
+type DroppedMutationListener = (dropped: DroppedMutation) => void
+
+const droppedMutationListeners = new Set<DroppedMutationListener>()
+
+/**
+ * Subscribe to mutations dropped from the queue (permanent/validation errors or
+ * retry exhaustion). Fires for EVERY flush path — the foreground flush and the
+ * decoupled backoff retry — so a drop is never surfaced only when a UI-driven
+ * flush happens to discover it. Returns an unsubscribe function.
+ */
+export function subscribeDroppedMutations(listener: DroppedMutationListener): () => void {
+  droppedMutationListeners.add(listener)
+  return () => {
+    droppedMutationListeners.delete(listener)
+  }
+}
+
+function notifyDroppedMutation(dropped: DroppedMutation): void {
+  for (const listener of droppedMutationListeners) listener(dropped)
+}
+
 export interface QueuedMutationBuildOptions {
   type: MutationType
   scope: MutationScope
@@ -333,7 +360,7 @@ function shouldStopFlushing(error: unknown): boolean {
   return message.includes('unauthorized') || message.includes('forbidden')
 }
 
-function inferScope(type: MutationType): MutationScope {
+export function getMutationScope(type: MutationType): MutationScope {
   switch (type) {
     case 'createGoal':
     case 'updateGoal':
@@ -452,7 +479,7 @@ function addTouchedScope(
   touchedScopes: Set<MutationScope>,
   mutation: QueuedMutation,
 ): void {
-  touchedScopes.add(mutation.scope ?? inferScope(mutation.type))
+  touchedScopes.add(mutation.scope ?? getMutationScope(mutation.type))
 }
 
 async function clearCreatedOfflineEntity(
@@ -507,14 +534,17 @@ async function handleFlushFailure(
 ): Promise<{
   incrementFailed: boolean
   stopReason: FlushStopReason
+  dropped: DroppedMutation | null
 }> {
   if (isTransientNetworkError(error)) {
     update(mutation.id, { status: 'failed', lastError: getErrorMessage(error) })
-    return { incrementFailed: false, stopReason: 'network' }
+    return { incrementFailed: false, stopReason: 'network', dropped: null }
   }
 
+  const lastError = getErrorMessage(error)
   const nextRetries = mutation.retries + 1
   const dropMutation = shouldDropMutation(error, nextRetries, mutation.maxRetries)
+  let dropped: DroppedMutation | null = null
 
   if (dropMutation) {
     remove(mutation.id)
@@ -523,9 +553,9 @@ async function handleFlushFailure(
     if (mutation.entityType && mutation.clientEntityId) {
       await clearOfflineEntity(mutation.entityType, mutation.clientEntityId)
     }
-  } else {
-    const lastError = getErrorMessage(error)
 
+    dropped = { id: mutation.id, type: mutation.type, lastError }
+  } else {
     update(mutation.id, {
       retries: nextRetries,
       status: 'failed',
@@ -545,6 +575,7 @@ async function handleFlushFailure(
   return {
     incrementFailed: true,
     stopReason: shouldStopFlushing(error) ? 'auth' : null,
+    dropped,
   }
 }
 
@@ -560,6 +591,7 @@ type FlushStepResult = {
   failedDelta: number
   stopReason: FlushStopReason
   succeededDelta: number
+  dropped: DroppedMutation | null
 }
 
 async function processQueuedMutationFlush(
@@ -568,13 +600,13 @@ async function processQueuedMutationFlush(
 ): Promise<FlushStepResult> {
   const currentMutation = getById(originalMutation.id)
   if (!currentMutation) {
-    return { failedDelta: 0, stopReason: null, succeededDelta: 0 }
+    return { failedDelta: 0, stopReason: null, succeededDelta: 0, dropped: null }
   }
 
   const mutation = await resolveMutationReferences(currentMutation)
   if (hasPendingOfflineDependencies(mutation)) {
     update(mutation.id, { status: 'pending', lastError: null })
-    return { failedDelta: 0, stopReason: null, succeededDelta: 0 }
+    return { failedDelta: 0, stopReason: null, succeededDelta: 0, dropped: null }
   }
 
   await markMutationSyncing(mutation)
@@ -587,13 +619,14 @@ async function processQueuedMutationFlush(
     })
 
     await finalizeSuccessfulFlush(mutation, response, touchedScopes)
-    return { failedDelta: 0, stopReason: null, succeededDelta: 1 }
+    return { failedDelta: 0, stopReason: null, succeededDelta: 1, dropped: null }
   } catch (error: unknown) {
     const failure = await handleFlushFailure(mutation, error, touchedScopes)
     return {
       failedDelta: failure.incrementFailed ? 1 : 0,
       stopReason: failure.stopReason,
       succeededDelta: 0,
+      dropped: failure.dropped,
     }
   }
 }
@@ -603,12 +636,14 @@ type FlushOutcome = {
   failed: number
   remaining: number
   stopReason: FlushStopReason
+  droppedMutations: DroppedMutation[]
 }
 
 async function runQueueFlush(): Promise<FlushOutcome> {
   let succeeded = 0
   let failed = 0
   let stopReason: FlushStopReason = null
+  const droppedMutations: DroppedMutation[] = []
   const touchedScopes = new Set<MutationScope>()
   const pending = getAll()
 
@@ -616,6 +651,10 @@ async function runQueueFlush(): Promise<FlushOutcome> {
     const step = await processQueuedMutationFlush(originalMutation, touchedScopes)
     succeeded += step.succeededDelta
     failed += step.failedDelta
+    if (step.dropped) {
+      droppedMutations.push(step.dropped)
+      notifyDroppedMutation(step.dropped)
+    }
     if (step.stopReason) {
       stopReason = step.stopReason
       break
@@ -625,16 +664,17 @@ async function runQueueFlush(): Promise<FlushOutcome> {
   await invalidateTouchedScopes(touchedScopes)
   await persistQueryCache()
 
-  return { succeeded, failed, remaining: count(), stopReason }
+  return { succeeded, failed, remaining: count(), stopReason, droppedMutations }
 }
 
 export async function flushQueuedMutations(): Promise<{
   succeeded: number
   failed: number
   remaining: number
+  droppedMutations: DroppedMutation[]
 }> {
   if (flushInFlight) {
-    return { succeeded: 0, failed: 0, remaining: count() }
+    return { succeeded: 0, failed: 0, remaining: count(), droppedMutations: [] }
   }
 
   flushInFlight = true
@@ -655,5 +695,6 @@ export async function flushQueuedMutations(): Promise<{
     succeeded: outcome.succeeded,
     failed: outcome.failed,
     remaining: outcome.remaining,
+    droppedMutations: outcome.droppedMutations,
   }
 }
