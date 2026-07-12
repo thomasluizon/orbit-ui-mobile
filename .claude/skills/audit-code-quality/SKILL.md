@@ -104,7 +104,7 @@ miss, and it is a **required CI check** (`.github/workflows/react-doctor.yml`):
 
 ```bash
 npx -y react-doctor@0.7.6 --project apps/web,apps/mobile,packages/shared \
-  --json --json-out "$TMPDIR/rd-audit.json" \
+  --json --json-out "${TMPDIR:-/tmp}/rd-audit.json" \
   --no-supply-chain --no-score --no-dead-code --yes --max-duration 360 --no-color
 ```
 

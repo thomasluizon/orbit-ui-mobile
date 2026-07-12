@@ -58,8 +58,6 @@ const REACT_DOCTOR_SCHEMA = {
   additionalProperties: false,
   properties: {
     ran: { type: 'boolean' },
-    errorCount: { type: 'number' },
-    warningCount: { type: 'number' },
     findings: {
       type: 'array',
       items: {
@@ -85,12 +83,15 @@ function reactDoctorPrompt() {
   return [
     `Run React Doctor over the WHOLE orbit-ui-mobile repo (apps/web + apps/mobile + packages/shared) and report EVERY diagnostic — this is the full backlog, NOT the PR-scoped CI gate.`,
     `Steps: cd to ${UI}. Ensure deps are present (node_modules exists; if not, run \`npm ci\`). Then run EXACTLY:`,
-    `  npx -y react-doctor@0.7.6 --project apps/web,apps/mobile,packages/shared --json --json-out "%TEMP%/rd-prodreadiness.json" --no-supply-chain --no-score --no-dead-code --yes --max-duration 360 --no-color`,
+    `  npx -y react-doctor@0.7.6 --project apps/web,apps/mobile,packages/shared --json --json-out "${REACT_DOCTOR_JSON_OUT}" --no-supply-chain --no-score --no-dead-code --yes --max-duration 360 --no-color`,
     `(SCOPE the scan to the three real app workspaces via --project — this EXCLUDES design/handoff/**, whose vendored *.jsx design mockups emit ~1054 false jsx-no-undef "errors" that are NOT app code. --no-dead-code + --no-supply-chain + --no-score match the CI gate's hermetic/no-knip stance; do NOT drop them. Default scope is "full" and --warnings is on, so BOTH error- and warning-severity diagnostics are reported. Paths in the JSON are workspace-relative — prefix each with its project when reporting location.)`,
-    `Read the JSON report file. For EVERY diagnostic emit a finding: severity ("error" or "warning"), rule (the rule id), category (e.g. Correctness/Performance/Accessibility/Security), location ("apps/…/file.tsx:line"), message (what's wrong), fix (the concrete change — from the rule's guidance; run \`npx react-doctor@0.7.6 why <file:line>\` if you need the rationale).`,
-    `Return ran=true with errorCount + warningCount + the full findings array. This is READ-ONLY analysis — do NOT modify any source file. If react-doctor genuinely cannot run (offline, deps unresolved after npm ci), return ran=false, findings=[], and a one-line note.`,
+    `Read the JSON report file (${REACT_DOCTOR_JSON_OUT}). For EVERY diagnostic emit a finding: severity ("error" or "warning"), rule (the rule id), category (e.g. Correctness/Performance/Accessibility/Security), location ("apps/…/file.tsx:line"), message (what's wrong), fix (the concrete change — from the rule's guidance; run \`npx react-doctor@0.7.6 why <file:line>\` if you need the rationale).`,
+    `Return ran=true with the full findings array — the report derives the error/warning counts from it, so do NOT report an aggregate of your own. This is READ-ONLY analysis — do NOT modify any source file. If react-doctor genuinely cannot run (offline, deps unresolved after npm ci), return ran=false, findings=[], and a one-line note.`,
   ].join('\n')
 }
+
+const { tmpdir } = await import('node:os')
+const REACT_DOCTOR_JSON_OUT = `${tmpdir().replaceAll('\\', '/')}/rd-prodreadiness.json`
 
 const OPS_CHECKS = [
   {
@@ -137,6 +138,14 @@ const rank = (s) => {
   return 3
 }
 const isSeriousOps = (f) => /blocker|high/i.test(f.severity || '')
+const countBy = (findings) => {
+  const out = {}
+  for (const f of findings) {
+    const s = (f.severity || 'unknown').trim()
+    out[s] = (out[s] || 0) + 1
+  }
+  return out
+}
 
 const parsedArgs = typeof args === 'string' ? JSON.parse(args) : args || {}
 const scope = parsedArgs.scope || 'both'
@@ -169,6 +178,9 @@ if (scope !== 'api') {
       schema: REACT_DOCTOR_SCHEMA,
     })) || { ran: false, findings: [], note: 'react-doctor agent returned null (died/skipped) — treat as a Deferred coverage gap' }
 }
+const reactDoctorSeverities = countBy(reactDoctor.findings || [])
+reactDoctor.errorCount = reactDoctorSeverities.error || 0
+reactDoctor.warningCount = reactDoctorSeverities.warning || 0
 
 phase('Verify')
 const seriousOps = opsRaw.filter(isSeriousOps).sort((a, b) => rank(a.severity) - rank(b.severity))
