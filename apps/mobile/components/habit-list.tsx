@@ -1230,6 +1230,9 @@ export const HabitList = forwardRef<HabitListHandle, HabitListProps>(
       ],
     )
 
+    // No Reanimated entering animation here: a layout animation nested inside a
+    // react-native-draggable-flatlist cell fights the cell's own translateY transform
+    // and mis-positions rows. https://github.com/thomasluizon/orbit-ui-mobile/pull/486
     const renderItem = useCallback(
       ({ item, drag }: RenderItemParams<DragItem>) =>
         renderHabitCard(
