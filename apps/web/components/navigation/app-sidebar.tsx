@@ -144,7 +144,7 @@ export function AppSidebar({
           paddingInline: collapsed ? 13 : 16,
           paddingTop: 12,
           paddingBottom: 4,
-          justifyContent: collapsed ? 'center' : 'flex-start',
+          justifyContent: 'center',
         }}
       >
         {collapsed ? (
