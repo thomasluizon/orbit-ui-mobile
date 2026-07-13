@@ -37,7 +37,7 @@ describe('ActionChips', () => {
     ]
     const { container } = render(<ActionChips actions={actions} />)
     const chips = container.querySelectorAll('.animate-chip-in')
-    expect(chips.length).toBe(2)
+    expect(chips).toHaveLength(2)
   })
 
   it('skips Suggestion status actions', () => {
@@ -47,7 +47,7 @@ describe('ActionChips', () => {
     ]
     const { container } = render(<ActionChips actions={actions} />)
     const chips = container.querySelectorAll('.animate-chip-in')
-    expect(chips.length).toBe(1)
+    expect(chips).toHaveLength(1)
   })
 
   it('shows success styling for successful actions', () => {

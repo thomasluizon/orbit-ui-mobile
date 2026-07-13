@@ -350,7 +350,7 @@ describe("CalendarSyncScreen", () => {
     });
 
     expect(countEventTitles(tree.root)).toBe(8);
-    expect(findShowMore(tree.root).length).toBe(0);
+    expect(findShowMore(tree.root)).toHaveLength(0);
   });
 
   it("shows the source calendar name in each event's meta", async () => {
@@ -394,8 +394,8 @@ describe("CalendarSyncScreen", () => {
     expect(
       tree.root.findAll(
         (node: TestNode) => node.props.children === "calendar.retry",
-      ).length,
-    ).toBe(0);
+      ),
+    ).toHaveLength(0);
   });
 
   it("dismisses a suggestion from the review list", async () => {
@@ -465,13 +465,13 @@ describe("CalendarSyncScreen", () => {
       (node: TestNode & { type?: unknown }) =>
         node.type === "SettingsRow" && node.props.children === "Event 0",
     );
-    expect(doneRows.length).toBe(1);
+    expect(doneRows).toHaveLength(1);
     expect(doneRows[0]!.props.accessory).toBe("none");
     expect(
       tree.root.findAll(
         (node: TestNode & { type?: unknown }) =>
           node.type === "SettingsRow" && node.props.children === "Event 1",
-      ).length,
-    ).toBe(0);
+      ),
+    ).toHaveLength(0);
   });
 });
