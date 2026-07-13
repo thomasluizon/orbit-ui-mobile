@@ -6,9 +6,25 @@ import { useTranslations } from 'next-intl'
 import type { ActiveView } from '@orbit/shared/stores'
 import { useUIStore } from '@/stores/ui-store'
 import { useProfile } from '@/hooks/use-profile'
-import { getTodayTabLabel, type TodayTabItem, type TodayTabView } from './today-shell'
+import { type TodayTabItem, type TodayTabView } from './today-shell'
 
 const TAB_VIEWS = ['today', 'all', 'general', 'goals'] as const
+
+function getTodayTabLabel(
+  view: TodayTabView,
+  t: ReturnType<typeof useTranslations>,
+): string {
+  switch (view) {
+    case 'today':
+      return t('habits.viewToday')
+    case 'all':
+      return t('habits.viewAll')
+    case 'general':
+      return t('habits.viewGeneral')
+    case 'goals':
+      return t('goals.tab')
+  }
+}
 
 export interface TodayViewState {
   currentActiveView: ActiveView
@@ -48,6 +64,7 @@ export function useTodayViewState(): TodayViewState {
       setActiveView(nextView)
       return true
     },
+    // react-doctor-disable-next-line exhaustive-deps -- hasProAccess is derived from profile.hasProAccess every render and already listed; no staleness possible https://github.com/thomasluizon/orbit-ui-mobile/issues/243
     [hasProAccess, router, setActiveView],
   )
 
@@ -55,6 +72,7 @@ export function useTodayViewState(): TodayViewState {
     if (!hasProAccess && activeView === 'goals') {
       setActiveView('today')
     }
+    // react-doctor-disable-next-line exhaustive-deps -- hasProAccess is derived from profile.hasProAccess every render and already listed; no staleness possible https://github.com/thomasluizon/orbit-ui-mobile/issues/243
   }, [activeView, hasProAccess, setActiveView])
 
   return {

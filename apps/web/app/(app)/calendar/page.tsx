@@ -61,6 +61,7 @@ function resolveMonthSlideClass(monthSlide: MonthSlide): string {
   return ''
 }
 
+// react-doctor-disable-next-line no-giant-component -- calendar shell hosting four distinct views (month/week/range/agenda); extraction deferred to avoid regression without visual QA https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 export default function CalendarPage() {
   const t = useTranslations()
   const locale = useLocale()
@@ -92,10 +93,12 @@ export default function CalendarPage() {
 
   const weekStart = useMemo(
     () => startOfWeek(weekAnchor, { weekStartsOn }),
+    // react-doctor-disable-next-line exhaustive-deps -- weekStartsOn is derived from profile.weekStartDay every render and already listed; no staleness possible https://github.com/thomasluizon/orbit-ui-mobile/issues/243
     [weekAnchor, weekStartsOn],
   )
   const weekEnd = useMemo(
     () => endOfWeek(weekAnchor, { weekStartsOn }),
+    // react-doctor-disable-next-line exhaustive-deps -- weekStartsOn is derived from profile.weekStartDay every render and already listed; no staleness possible https://github.com/thomasluizon/orbit-ui-mobile/issues/243
     [weekAnchor, weekStartsOn],
   )
   const rangeBounds = useMemo(() => {

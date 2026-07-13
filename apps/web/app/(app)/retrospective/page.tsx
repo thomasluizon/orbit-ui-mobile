@@ -71,6 +71,7 @@ export default function RetrospectivePage() {
   useEffect(() => {
     if (!profile) return
     if (!hasProAccess) {
+      // react-doctor-disable-next-line nextjs-no-client-side-redirect -- access gate depends on client-fetched profile (hasProAccess); no server-side signal exists https://github.com/thomasluizon/orbit-ui-mobile/issues/243
       router.replace('/upgrade')
     }
   }, [hasProAccess, profile, router])

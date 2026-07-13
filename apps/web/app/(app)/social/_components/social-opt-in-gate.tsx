@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, type CSSProperties } from 'react'
 import { useTranslations } from 'next-intl'
 import { handleSchema } from '@orbit/shared/types/social'
 import { getSocialErrorKey } from '@orbit/shared/utils'
@@ -9,6 +9,17 @@ import { PillButton } from '@/components/ui/pill-button'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useProfile } from '@/hooks/use-profile'
 import { useSetHandle, useSetSocialOptIn } from '@/hooks/use-friends'
+
+const gateTitleStyle: CSSProperties = {
+  margin: 0,
+  fontFamily: 'var(--font-sans)',
+  fontSize: 28,
+  fontWeight: 500,
+  lineHeight: 1.3,
+  letterSpacing: '-0.01em',
+  color: 'var(--fg-1)',
+  textWrap: 'balance',
+}
 
 /**
  * First-run gate shown when the user has not opted into social: confirms a handle and flips the
@@ -44,18 +55,7 @@ export function SocialOptInGate() {
 
   return (
     <div className="flex flex-col items-center px-6 py-10 text-center" style={{ gap: 18 }}>
-      <h1
-        style={{
-          margin: 0,
-          fontFamily: 'var(--font-sans)',
-          fontSize: 28,
-          fontWeight: 500,
-          lineHeight: 1.3,
-          letterSpacing: '-0.01em',
-          color: 'var(--fg-1)',
-          textWrap: 'balance',
-        }}
-      >
+      <h1 style={gateTitleStyle}>
         {t('social.optInGate.title')}
       </h1>
       <p

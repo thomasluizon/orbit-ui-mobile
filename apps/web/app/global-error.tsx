@@ -30,6 +30,17 @@ const DEFAULT_CLIENT_PREFS = 'en|dark scheme-purple'
 
 const emptySubscribe = () => () => {}
 
+const errorTitleStyle = {
+  margin: '18px 0 0',
+  fontFamily: 'var(--font-sans)',
+  fontSize: 22,
+  fontWeight: 500,
+  lineHeight: 1.3,
+  color: 'var(--fg-1)',
+  animation: 'slide-up-fade 0.28s var(--ease-out) backwards',
+  animationDelay: '160ms',
+}
+
 function readClientPrefs(): string {
   const locale = readCookie('i18n_locale') === 'pt-BR' ? 'pt-BR' : 'en'
   const theme = readCookie('orbit_theme_mode') === 'light' ? 'light' : 'dark'
@@ -58,18 +69,7 @@ function GlobalErrorBody({ reset }: Readonly<{ reset: () => void }>) {
           <TriangleAlert size={34} strokeWidth={1.8} className="text-[var(--fg-3)]" />
         </div>
         <div className="flex flex-col items-center md:items-start">
-          <p
-            style={{
-              margin: '18px 0 0',
-              fontFamily: 'var(--font-sans)',
-              fontSize: 22,
-              fontWeight: 500,
-              lineHeight: 1.3,
-              color: 'var(--fg-1)',
-              animation: 'slide-up-fade 0.28s var(--ease-out) backwards',
-              animationDelay: '160ms',
-            }}
-          >
+          <p style={errorTitleStyle}>
             {t('common.somethingWentWrong')}
           </p>
           <div

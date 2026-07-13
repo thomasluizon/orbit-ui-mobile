@@ -90,6 +90,7 @@ function AchievementTile({ achievement, t, displayDate }: Readonly<AchievementTi
       <span
         style={{
           fontFamily: 'var(--font-sans)',
+          // react-doctor-disable-next-line no-tiny-text -- secondary achievement description, one step below the 12px name for hierarchy; intentional small caption https://github.com/thomasluizon/orbit-ui-mobile/issues/243
           fontSize: 11,
           lineHeight: 1.35,
           color: 'var(--fg-3)',

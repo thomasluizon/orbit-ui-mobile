@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useMemo } from 'react'
 import { useRouter } from 'next/navigation'
 import { useTranslations, useLocale } from 'next-intl'
 import { deriveNextRewardCarrot } from '@orbit/shared/utils'
@@ -19,7 +19,8 @@ import { useGoBackOrFallback } from '@/hooks/use-go-back-or-fallback'
 export default function AchievementsPage() {
   const t = useTranslations()
   const locale = useLocale()
-  const formatNum = (n: number) => new Intl.NumberFormat(locale).format(n)
+  const numberFormatter = useMemo(() => new Intl.NumberFormat(locale), [locale])
+  const formatNum = (n: number) => numberFormatter.format(n)
   const { displayDate } = useDateFormat()
   const router = useRouter()
   const goBackOrFallback = useGoBackOrFallback()
@@ -37,6 +38,7 @@ export default function AchievementsPage() {
 
   useEffect(() => {
     if (accountProfile && !canViewGamification) {
+      // react-doctor-disable-next-line nextjs-no-client-side-redirect -- access gate depends on client-fetched profile (canViewGamification); no server-side signal exists https://github.com/thomasluizon/orbit-ui-mobile/issues/243
       router.replace('/upgrade')
     }
   }, [accountProfile, canViewGamification, router])

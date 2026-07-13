@@ -21,6 +21,17 @@ import { getChallengeErrorKey } from './challenge-errors'
 import { HabitPicker } from './habit-picker'
 import { ShareJoinCode } from './share-join-code'
 
+const typeBadgeStyle = {
+  gap: 6,
+  padding: '4px 10px',
+  borderRadius: 999,
+  background: 'rgba(var(--primary-rgb), 0.12)',
+  color: 'var(--primary)',
+  fontFamily: 'var(--font-sans)',
+  fontSize: 12,
+  fontWeight: 500,
+}
+
 interface ChallengeDetailProps {
   challengeId: string
   onLeft: () => void
@@ -128,19 +139,7 @@ function ChallengeHeader({
   return (
     <>
       <div className="flex items-center" style={{ gap: 8 }}>
-        <span
-          className="inline-flex items-center"
-          style={{
-            gap: 6,
-            padding: '4px 10px',
-            borderRadius: 999,
-            background: 'rgba(var(--primary-rgb), 0.12)',
-            color: 'var(--primary)',
-            fontFamily: 'var(--font-sans)',
-            fontSize: 12,
-            fontWeight: 500,
-          }}
-        >
+        <span className="inline-flex items-center" style={typeBadgeStyle}>
           {isCoop ? <Target size={13} strokeWidth={2} /> : <Flame size={13} strokeWidth={2} />}
           {typeLabel}
         </span>
