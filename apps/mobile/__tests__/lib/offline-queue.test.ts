@@ -297,4 +297,60 @@ describe('mobile offline queue', () => {
     enqueue(makeMutation({ id: 'create-2' }))
     expect(listener).toHaveBeenLastCalledWith(0)
   })
+
+  it('collapses a last-write-wins key to the most recently enqueued write even when it carries an older timestamp', () => {
+    enqueue(makeMutation({
+      id: 'scheme-first',
+      type: 'setColorScheme',
+      scope: 'profile',
+      method: 'PUT',
+      endpoint: '/api/profile/color-scheme',
+      dedupeKey: 'profile:color-scheme',
+      timestamp: 5_000,
+      payload: { colorScheme: 'dark' },
+    }))
+
+    enqueue(makeMutation({
+      id: 'scheme-second',
+      type: 'setColorScheme',
+      scope: 'profile',
+      method: 'PUT',
+      endpoint: '/api/profile/color-scheme',
+      dedupeKey: 'profile:color-scheme',
+      timestamp: 1_000,
+      payload: { colorScheme: 'light' },
+    }))
+
+    const queued = getAll()
+    expect(queued).toHaveLength(1)
+    expect(queued[0]?.id).toBe('scheme-second')
+    expect(queued[0]?.payload).toEqual({ colorScheme: 'light' })
+    expect(queued[0]?.timestamp).toBe(1_000)
+  })
+
+  it('orders same-entity updates by timestamp on read so the newest write replays last regardless of arrival order', () => {
+    enqueue(makeMutation({
+      id: 'update-newer',
+      type: 'updateHabit',
+      method: 'PUT',
+      endpoint: '/api/habits/habit-1',
+      targetEntityId: 'habit-1',
+      timestamp: 9_000,
+      payload: { title: 'Newest' },
+    }))
+
+    enqueue(makeMutation({
+      id: 'update-older',
+      type: 'updateHabit',
+      method: 'PUT',
+      endpoint: '/api/habits/habit-1',
+      targetEntityId: 'habit-1',
+      timestamp: 3_000,
+      payload: { title: 'Older' },
+    }))
+
+    const queued = getAll()
+    expect(queued.map((mutation) => mutation.id)).toEqual(['update-older', 'update-newer'])
+    expect(queued[queued.length - 1]?.payload).toEqual({ title: 'Newest' })
+  })
 })
