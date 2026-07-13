@@ -51,7 +51,9 @@ describe('useTodaySearch', () => {
     act(() => result.current.setLocalSearchQuery('run'))
     expect(setSearchQuery).not.toHaveBeenCalledWith('run')
 
-    act(() => vi.advanceTimersByTime(300))
+    act(() => {
+      vi.advanceTimersByTime(300)
+    })
     expect(setSearchQuery).toHaveBeenCalledWith('run')
   })
 })
