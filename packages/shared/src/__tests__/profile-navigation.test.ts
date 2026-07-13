@@ -95,14 +95,14 @@ describe('profile-navigation', () => {
     ])
 
     expect(sections).toHaveLength(2)
-    expect(sections[0].labelKey).toBe('explore.sections.progress')
-    expect(sections[0].items.map((item) => item.id)).toEqual(['retrospective', 'wrapped'])
-    expect(sections[1].items.map((item) => item.id)).toEqual(['about', 'advanced'])
+    expect(sections[0]?.labelKey).toBe('explore.sections.progress')
+    expect(sections[0]?.items.map((item) => item.id)).toEqual(['retrospective', 'wrapped'])
+    expect(sections[1]?.items.map((item) => item.id)).toEqual(['about', 'advanced'])
   })
 
   it('yields an empty item list for a section whose ids match nothing', () => {
     const [section] = buildProfileNavSections([{ labelKey: 'nav.social', ids: ['missing'] }])
-    expect(section.items).toEqual([])
+    expect(section?.items).toEqual([])
   })
 
   it('builds the gamification hint for pro users with a loaded profile', () => {
