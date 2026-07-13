@@ -31,7 +31,6 @@ import {
   EMPTY_HABITS_BY_ID,
   EMPTY_NORMALIZED_HABITS,
   useHabits,
-  useDeleteHabit,
 } from "@/hooks/use-habits";
 import { useTags } from "@/hooks/use-tags";
 import { useCoachTour } from "@/hooks/use-coach-tour";
@@ -99,7 +98,6 @@ export default function TodayScreen() {
   const { profile } = useProfile();
   const { tags } = useTags();
   useCoachTour();
-  const deleteHabit = useDeleteHabit();
 
   const activeView = useUIStore((s) => s.activeView);
   const setActiveView = useUIStore((s) => s.setActiveView);
@@ -131,7 +129,6 @@ export default function TodayScreen() {
     close: closeFreqMenu,
     toggle: toggleFreqMenu,
   } = useAnchoredMenu();
-  const [showHabitDeleteConfirm, setShowHabitDeleteConfirm] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isSearchFocused, setIsSearchFocused] = useState(false);
   const habitListRef = useRef<HabitListHandle>(null);
@@ -162,7 +159,6 @@ export default function TodayScreen() {
   const [editHabitOnSaved, setEditHabitOnSaved] = useState<
     (() => void | Promise<void>) | null
   >(null);
-  const habitPendingDeleteRef = useRef<NormalizedHabit | null>(null);
 
   const {
     pinnedDateStr,
@@ -424,19 +420,6 @@ export default function TodayScreen() {
     },
     [closeFreqMenu, setSelectedFrequency],
   );
-
-  const confirmHabitDelete = useCallback(async () => {
-    const pending = habitPendingDeleteRef.current;
-    if (!pending) return;
-
-    try {
-      await deleteHabit.mutateAsync(pending.id);
-    } finally {
-      setShowHabitDeleteConfirm(false);
-      habitPendingDeleteRef.current = null;
-      setDetailHabit(null);
-    }
-  }, [deleteHabit]);
 
   const handleHabitLogged = useCallback(
     (habitId: string) => {
@@ -719,12 +702,6 @@ export default function TodayScreen() {
         onBulkSkipOpenChange={setShowBulkSkipConfirm}
         onConfirmBulkSkip={() => void confirmBulkSkip()}
         selectedCount={selectedCount}
-        showHabitDeleteConfirm={showHabitDeleteConfirm}
-        onHabitDeleteOpenChange={(open) => {
-          setShowHabitDeleteConfirm(open);
-          if (!open) habitPendingDeleteRef.current = null;
-        }}
-        onConfirmHabitDelete={() => void confirmHabitDelete()}
         showCreateGoalModal={showCreateGoalModal}
         onCloseCreateGoal={() => setShowCreateGoalModal(false)}
         showReferral={showReferral}
