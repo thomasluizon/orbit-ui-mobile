@@ -49,9 +49,9 @@ jobs:
           const path = require('path')
 
           const reports = [
-            { file: 'coverage/web/lcov.info', prefix: 'apps/web' },
-            { file: 'coverage/mobile/lcov.info', prefix: 'apps/mobile' },
-            { file: 'coverage/shared/lcov.info', prefix: 'packages/shared' },
+            { file: 'apps/web/coverage/lcov.info', prefix: 'apps/web' },
+            { file: 'apps/mobile/coverage/lcov.info', prefix: 'apps/mobile' },
+            { file: 'packages/shared/coverage/lcov.info', prefix: 'packages/shared' },
           ]
 
           const outputPath = path.join('coverage', 'lcov.info')

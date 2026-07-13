@@ -12,6 +12,7 @@ import type {
   FriendFeedItem,
 } from '../types/social'
 import type { ChallengeDetail, ChallengeListItem } from '../types/challenge'
+import type { SyncChangesV2Response } from '../types/sync'
 import type { RetrospectiveMetrics } from '../utils/retrospective'
 
 
@@ -334,6 +335,147 @@ export function createMockChallengeListItem(overrides: Partial<ChallengeListItem
     periodEndUtc: '2026-03-31',
     joinCode: 'ABC23456',
     hasLinkedHabits: true,
+    ...overrides,
+  }
+}
+
+
+const RUN_HABIT_ID = '11111111-1111-4111-8111-111111111111'
+const READING_GOAL_ID = '33333333-3333-4333-8333-333333333333'
+
+/**
+ * A fully populated GET /api/sync/v2/changes payload whose fields mirror the
+ * orbit-api SyncChangesV2Response record (SyncController.cs): DateOnly fields as
+ * `YYYY-MM-DD`, TimeOnly fields as `HH:mm:ss`, reminder offsets as minute ints,
+ * enum fields as their PascalCase names. Every entity set carries at least one
+ * updated row so downstream tests exercise realistic nested shapes.
+ */
+export function createMockSyncChangesV2Response(
+  overrides: Partial<SyncChangesV2Response> = {},
+): SyncChangesV2Response {
+  return {
+    habits: {
+      updated: [
+        {
+          id: RUN_HABIT_ID,
+          title: 'Morning run',
+          description: 'Easy 5km around the park',
+          emoji: '🏃',
+          frequencyUnit: 'Week',
+          frequencyQuantity: 3,
+          isBadHabit: false,
+          isCompleted: false,
+          dueDate: '2026-01-15',
+          dueTime: '07:00:00',
+          dueEndTime: '07:45:00',
+          reminderEnabled: true,
+          reminderTimes: [390, 420],
+          isGeneral: false,
+          isFlexible: false,
+          slipAlertEnabled: false,
+          checklistItems: [
+            { text: 'Stretch', isChecked: false },
+            { text: 'Fill water bottle', isChecked: true },
+          ],
+          scheduledReminders: [{ when: 'same_day', time: '06:30:00' }],
+          endDate: null,
+          position: 0,
+          parentHabitId: null,
+          createdAtUtc: '2026-01-01T08:00:00Z',
+          updatedAtUtc: '2026-01-14T09:30:00Z',
+        },
+      ],
+      deleted: [{ id: '1d1d1d1d-1d1d-4d1d-8d1d-1d1d1d1d1d1d', deletedAtUtc: '2026-01-13T10:00:00Z' }],
+    },
+    habitLogs: {
+      updated: [
+        {
+          id: '22222222-2222-4222-8222-222222222222',
+          habitId: RUN_HABIT_ID,
+          date: '2026-01-14',
+          value: 1,
+          createdAtUtc: '2026-01-14T07:50:00Z',
+          updatedAtUtc: '2026-01-14T07:50:00Z',
+        },
+      ],
+      deleted: [],
+    },
+    goals: {
+      updated: [
+        {
+          id: READING_GOAL_ID,
+          title: 'Read 12 books',
+          description: null,
+          targetValue: 12,
+          currentValue: 3,
+          unit: 'books',
+          status: 'Active',
+          type: 'Standard',
+          deadline: '2026-12-31',
+          position: 0,
+          createdAtUtc: '2026-01-01T08:00:00Z',
+          updatedAtUtc: '2026-01-10T12:00:00Z',
+          completedAtUtc: null,
+          streakSyncedAtUtc: null,
+        },
+      ],
+      deleted: [],
+    },
+    goalProgressLogs: {
+      updated: [
+        {
+          id: '44444444-4444-4444-8444-444444444444',
+          goalId: READING_GOAL_ID,
+          value: 3,
+          previousValue: 2,
+          note: 'Finished a novel',
+          createdAtUtc: '2026-01-10T12:00:00Z',
+          updatedAtUtc: '2026-01-10T12:00:00Z',
+        },
+      ],
+      deleted: [],
+    },
+    tags: {
+      updated: [
+        {
+          id: '55555555-5555-4555-8555-555555555555',
+          name: 'Health',
+          color: '#22c55e',
+          createdAtUtc: '2026-01-01T08:00:00Z',
+          updatedAtUtc: '2026-01-01T08:00:00Z',
+        },
+      ],
+      deleted: [],
+    },
+    notifications: {
+      updated: [
+        {
+          id: '66666666-6666-4666-8666-666666666666',
+          title: 'Streak milestone',
+          body: 'You hit a 7-day streak!',
+          url: '/gamification',
+          habitId: RUN_HABIT_ID,
+          isRead: false,
+          createdAtUtc: '2026-01-14T08:00:00Z',
+          updatedAtUtc: '2026-01-14T08:00:00Z',
+        },
+      ],
+      deleted: [],
+    },
+    checklistTemplates: {
+      updated: [
+        {
+          id: '77777777-7777-4777-8777-777777777777',
+          name: 'Gym bag',
+          items: ['Shoes', 'Towel', 'Water'],
+          createdAtUtc: '2026-01-01T08:00:00Z',
+          updatedAtUtc: '2026-01-01T08:00:00Z',
+        },
+      ],
+      deleted: [],
+    },
+    serverTimestamp: '2026-01-15T10:00:00Z',
+    version: 2,
     ...overrides,
   }
 }
