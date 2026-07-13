@@ -10,10 +10,14 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { KeyboardAwareBottomSheetScrollView } from '@/components/ui/keyboard-aware-scroll-view'
 import { PillButton } from '@/components/ui/pill-button'
 import { HabitFormFields } from './habit-form-fields'
+import {
+  applySuggestionChecklist,
+  applySuggestionSchedule,
+} from './create-habit-modal/apply-suggestion'
 import { SubHabitEditor, type SubHabitEntry } from './create-habit-modal/sub-habit-editor'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useDismissGuard } from '@/hooks/use-dismiss-guard'
-import { useHabitForm, type HabitFormHelpers } from '@/hooks/use-habit-form'
+import { useHabitForm } from '@/hooks/use-habit-form'
 import { useProfile } from '@/hooks/use-profile'
 import { useTagSelection } from '@/hooks/use-tag-selection'
 import { useCreateHabit, useCreateSubHabit } from '@/hooks/use-habits'
@@ -32,7 +36,6 @@ import {
 } from '@orbit/shared/utils'
 import { useUIStore } from '@/stores/ui-store'
 import type { NormalizedHabit } from '@orbit/shared/types/habit'
-import type { HabitFormSuggestionPatch } from '@orbit/shared/utils'
 import {
   buildSubHabitRequest,
   buildCreateHabitRequest,
@@ -45,57 +48,6 @@ let subHabitCounter = 0
 function createSubHabitEntry(value = ''): SubHabitEntry {
   subHabitCounter += 1
   return { id: `sub-${subHabitCounter}-${Date.now()}`, value }
-}
-
-type SuggestionScheduleTarget = Pick<
-  HabitFormHelpers,
-  'form' | 'setFlexible' | 'setRecurring' | 'setOneTime'
->
-
-function applySuggestionSchedule(
-  patch: HabitFormSuggestionPatch,
-  target: SuggestionScheduleTarget,
-): void {
-  if (patch.emoji) {
-    target.form.setValue('emoji', patch.emoji, { shouldDirty: true })
-  }
-
-  if (patch.mode === 'flexible') {
-    target.setFlexible()
-    if (patch.frequencyUnit) {
-      target.form.setValue('frequencyUnit', patch.frequencyUnit, { shouldDirty: true })
-    }
-    if (patch.frequencyQuantity) {
-      target.form.setValue('frequencyQuantity', patch.frequencyQuantity, { shouldDirty: true })
-    }
-  } else if (patch.mode === 'recurring') {
-    target.setRecurring()
-    if (patch.frequencyUnit) {
-      target.form.setValue('frequencyUnit', patch.frequencyUnit, { shouldDirty: true })
-    }
-    if (patch.frequencyQuantity) {
-      target.form.setValue('frequencyQuantity', patch.frequencyQuantity, { shouldDirty: true })
-    }
-    target.form.setValue('days', patch.days, { shouldDirty: true })
-  } else {
-    target.setOneTime()
-  }
-
-  if (patch.dueTime) {
-    target.form.setValue('dueTime', patch.dueTime, { shouldDirty: true })
-  }
-}
-
-function applySuggestionChecklist(
-  patch: HabitFormSuggestionPatch,
-  form: HabitFormHelpers['form'],
-): boolean {
-  if (patch.checklistItems.length === 0) return false
-  const existingChecklist = form.getValues('checklistItems') ?? []
-  form.setValue('checklistItems', [...existingChecklist, ...patch.checklistItems], {
-    shouldDirty: true,
-  })
-  return true
 }
 
 interface CreateHabitModalProps {

@@ -2,21 +2,28 @@
 
 import { useState, useCallback, useEffect, useId, useRef } from 'react'
 import { Check, Loader2 } from 'lucide-react'
-import { useTranslations } from 'next-intl'
+import { useLocale, useTranslations } from 'next-intl'
 import { AppOverlay } from '@/components/ui/app-overlay'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { PillButton } from '@/components/ui/pill-button'
 import { HabitFormFields } from './habit-form-fields'
+import {
+  applySuggestionChecklist,
+  applySuggestionSchedule,
+} from './create-habit-modal/apply-suggestion'
 import { useHabitForm } from '@/hooks/use-habit-form'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useDismissGuard } from '@/hooks/use-dismiss-guard'
+import { useHabitSuggestion } from '@/hooks/use-habit-suggestion'
 import { useTagSelection } from '@/hooks/use-tag-selection'
 import { useUpdateHabit, useHabitDetail } from '@/hooks/use-habits'
 import { useAssignTags } from '@/hooks/use-tags'
 import {
   applyHabitFormMode,
   buildEditHabitFormState,
+  buildHabitFormPatchFromSuggestion,
   coalesceFormText,
+  extractBackendErrorCode,
   getFriendlyErrorMessage,
   toggleSelectedId,
 } from '@orbit/shared/utils'
@@ -43,9 +50,11 @@ export function EditHabitModal({
       t(key, values),
     [t],
   )
+  const locale = useLocale()
   const updateHabit = useUpdateHabit()
   const assignTags = useAssignTags()
-  const { showError } = useAppToast()
+  const suggestion = useHabitSuggestion()
+  const { showError, showSuccess, showInfo } = useAppToast()
 
   const formHelpers = useHabitForm()
   const tags = useTagSelection()
@@ -150,6 +159,38 @@ export function EditHabitModal({
     [assignTags, formHelpers, habit, onOpenChange, onSaved, originalEndDate, reminderTimes, selectedGoalIds, showError, tags, translate, updateHabit],
   )
 
+  const handleSuggest = useCallback(async () => {
+    const title = coalesceFormText(formHelpers.form.getValues('title')).trim()
+    if (title.length === 0) return
+    try {
+      const patch = buildHabitFormPatchFromSuggestion(
+        await suggestion.mutateAsync({ title, language: locale }),
+      )
+
+      applySuggestionSchedule(patch, formHelpers)
+
+      const appliedChecklist = applySuggestionChecklist(patch, formHelpers.form)
+
+      const appliedAnything =
+        patch.emoji !== null ||
+        patch.frequencyUnit !== null ||
+        patch.days.length > 0 ||
+        patch.dueTime !== null ||
+        appliedChecklist
+      if (appliedAnything) {
+        showSuccess(t('habits.form.aiSuggestApplied'))
+      } else {
+        showInfo(t('habits.form.aiSuggestEmpty'))
+      }
+    } catch (error: unknown) {
+      showError(
+        extractBackendErrorCode(error) === 'PAY_GATE'
+          ? t('habits.form.aiSuggestLimitReached')
+          : t('habits.form.aiSuggestError'),
+      )
+    }
+  }, [formHelpers, locale, showError, showInfo, showSuccess, suggestion, t])
+
   return (
     <>
       <AppOverlay
@@ -210,6 +251,8 @@ export function EditHabitModal({
           onToggleGoal={toggleGoal}
           reminderTimes={reminderTimes}
           onReminderTimesChange={setReminderTimes}
+          onSuggestSetup={() => void handleSuggest()}
+          isSuggesting={suggestion.isPending}
           defaultExpanded
         />
         </fieldset>
