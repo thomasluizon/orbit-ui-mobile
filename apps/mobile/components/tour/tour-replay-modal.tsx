@@ -40,7 +40,7 @@ interface TourReplayModalProps {
   onClose: () => void
 }
 
-export function TourReplayModal({ visible, onClose }: TourReplayModalProps) {
+export function TourReplayModal({ visible, onClose }: Readonly<TourReplayModalProps>) {
   const { t } = useTranslation()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(

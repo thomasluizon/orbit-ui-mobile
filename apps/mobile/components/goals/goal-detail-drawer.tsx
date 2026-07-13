@@ -44,7 +44,7 @@ export function GoalDetailDrawer({
   open,
   onClose,
   goalId,
-}: GoalDetailDrawerProps) {
+}: Readonly<GoalDetailDrawerProps>) {
   const { t, i18n } = useTranslation()
   const translate = useCallback(
     (key: string, values?: Record<string, unknown>) => t(key, values),

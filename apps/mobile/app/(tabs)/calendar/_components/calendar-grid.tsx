@@ -95,7 +95,7 @@ export function CalendarGrid({
   language,
   t,
   tokens,
-}: CalendarGridProps) {
+}: Readonly<CalendarGridProps>) {
   const styles = useMemo(() => createStyles(tokens), [tokens]);
 
   const grid = (

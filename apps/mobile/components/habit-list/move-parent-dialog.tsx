@@ -121,7 +121,7 @@ export function MoveParentDialog({
   onClose,
   onConfirm,
   onSelectOption,
-}: MoveParentDialogProps) {
+}: Readonly<MoveParentDialogProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const styles = createStyles(tokens)

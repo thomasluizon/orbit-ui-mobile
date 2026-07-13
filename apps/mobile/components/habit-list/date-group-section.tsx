@@ -46,7 +46,7 @@ export function HabitListDateGroupSection({
   group,
   overdueLabel,
   renderHabit,
-}: HabitListDateGroupSectionProps) {
+}: Readonly<HabitListDateGroupSectionProps>) {
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
 

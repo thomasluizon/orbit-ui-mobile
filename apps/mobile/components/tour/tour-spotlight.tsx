@@ -17,7 +17,7 @@ interface TourSpotlightProps {
   targetRect: TourTargetRect | null
 }
 
-export function TourSpotlight({ targetRect }: TourSpotlightProps) {
+export function TourSpotlight({ targetRect }: Readonly<TourSpotlightProps>) {
   const { width: screenWidth, height: screenHeight } = useWindowDimensions()
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = useMemo(

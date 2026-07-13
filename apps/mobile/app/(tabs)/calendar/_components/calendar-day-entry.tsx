@@ -106,7 +106,7 @@ export function CalendarDayEntryRow({
   statusAccessibilityLabel,
   displayTime,
   isLast,
-}: CalendarDayEntryRowProps) {
+}: Readonly<CalendarDayEntryRowProps>) {
   const styles = useMemo(() => createStyles(tokens), [tokens]);
 
   return (

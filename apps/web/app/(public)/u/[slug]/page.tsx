@@ -61,7 +61,7 @@ export async function generateMetadata({ params }: PageParams): Promise<Metadata
   }
 }
 
-export default async function PublicProfileSlugPage({ params }: PageParams) {
+export default async function PublicProfileSlugPage({ params }: Readonly<PageParams>) {
   const { slug } = await params
   const view = await fetchView(slug)
   if (!view) notFound()

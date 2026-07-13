@@ -47,7 +47,7 @@ interface UpdateGoalRequest {
   deadline?: string | null
 }
 
-export function EditGoalModal({ open, onClose, goal }: EditGoalModalProps) {
+export function EditGoalModal({ open, onClose, goal }: Readonly<EditGoalModalProps>) {
   const { t } = useTranslation()
   const translate = useCallback(
     (key: string, values?: Record<string, unknown>) => t(key, values),
