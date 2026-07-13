@@ -1,6 +1,6 @@
 import { useEffect, type RefObject } from 'react'
 import { Animated, BackHandler, Pressable, Text, View } from 'react-native'
-import type { NativeSyntheticEvent, TextInput, TextInputKeyPressEventData } from 'react-native'
+import type { TextInput, TextInputKeyPressEvent } from 'react-native'
 import { type AppTokensV2 } from '@/lib/theme'
 import { PillButton } from '@/components/ui/pill-button'
 import { CodeInput } from '@/components/ui/code-input'
@@ -14,7 +14,7 @@ interface CodeStepProps {
   codeDigits: string[]
   codeInputRefs: RefObject<(TextInput | null)[]>
   onCodeInput: (index: number, value: string) => void
-  onCodeKeyPress: (index: number, event: NativeSyntheticEvent<TextInputKeyPressEventData>) => void
+  onCodeKeyPress: (index: number, event: TextInputKeyPressEvent) => void
   isSubmitting: boolean
   canSubmitCode: boolean
   canResend: boolean

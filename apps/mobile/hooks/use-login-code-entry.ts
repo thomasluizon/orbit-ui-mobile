@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import type { NativeSyntheticEvent, TextInputKeyPressEventData, TextInput } from 'react-native'
+import type { TextInputKeyPressEvent, TextInput } from 'react-native'
 import {
   createVerificationCodeDigits,
   fillVerificationCodeDigits,
@@ -17,7 +17,7 @@ interface UseLoginCodeEntryResult {
   startResendCountdown: () => void
   resetCodeDigits: () => void
   onCodeInput: (index: number, value: string) => void
-  onCodeKeyPress: (index: number, event: NativeSyntheticEvent<TextInputKeyPressEventData>) => void
+  onCodeKeyPress: (index: number, event: TextInputKeyPressEvent) => void
 }
 
 export function useLoginCodeEntry(onCompleteCode?: (code: string) => void): UseLoginCodeEntryResult {
@@ -93,7 +93,7 @@ export function useLoginCodeEntry(onCompleteCode?: (code: string) => void): UseL
   }, [codeDigits])
 
   const onCodeKeyPress = useCallback(
-    (index: number, event: NativeSyntheticEvent<TextInputKeyPressEventData>) => {
+    (index: number, event: TextInputKeyPressEvent) => {
       if (event.nativeEvent.key === 'Backspace' && !codeDigits[index] && index > 0) {
         codeInputRefs.current[index - 1]?.focus()
       }

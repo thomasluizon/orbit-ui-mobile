@@ -3,10 +3,13 @@
 import { useState } from 'react'
 import { Controller, useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
-import { z } from 'zod'
 import { useTranslations } from 'next-intl'
-import { challengeTypeSchema, type ChallengeType } from '@orbit/shared/types/challenge'
 import { formatAPIDate } from '@orbit/shared/utils'
+import {
+  CHALLENGE_TYPE_OPTIONS,
+  createChallengeFormSchema,
+  type CreateChallengeFormValues,
+} from '@orbit/shared/validation'
 import { FieldInput } from '@/components/ui/field-input'
 import { PillButton } from '@/components/ui/pill-button'
 import { SectionLabel } from '@/components/ui/section-label'
@@ -15,28 +18,6 @@ import { useCreateChallenge } from '@/hooks/use-challenges'
 import { getChallengeErrorKey } from './challenge-errors'
 import { HabitPicker } from './habit-picker'
 import { InviteFriendsPicker } from './invite-friends-picker'
-
-const createChallengeFormSchema = z
-  .object({
-    type: challengeTypeSchema,
-    title: z.string().trim().min(1).max(80),
-    targetCount: z.string().optional(),
-    periodEndUtc: z.string().optional(),
-  })
-  .superRefine((value, ctx) => {
-    if (value.type !== 'CoopGoal') return
-    const target = Number(value.targetCount)
-    if (!value.targetCount || !Number.isInteger(target) || target <= 0) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['targetCount'], message: 'required' })
-    }
-    if (!value.periodEndUtc) {
-      ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['periodEndUtc'], message: 'required' })
-    }
-  })
-
-type CreateChallengeFormValues = z.infer<typeof createChallengeFormSchema>
-
-const TYPE_OPTIONS: readonly ChallengeType[] = ['CoopGoal', 'StreakTogether']
 
 interface CreateChallengeFormProps {
   onCreated: (id: string) => void
@@ -92,7 +73,7 @@ export function CreateChallengeForm({ onCreated }: Readonly<CreateChallengeFormP
               {t('challenges.create.typeLabel')}
             </span>
             <div className="flex" style={{ gap: 8 }}>
-              {TYPE_OPTIONS.map((option) => {
+              {CHALLENGE_TYPE_OPTIONS.map((option) => {
                 const selected = field.value === option
                 return (
                   <button

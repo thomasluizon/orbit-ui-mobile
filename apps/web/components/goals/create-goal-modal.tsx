@@ -164,7 +164,7 @@ export function CreateGoalModal({ open, onOpenChange }: Readonly<CreateGoalModal
   )
 
   const onSubmit = useCallback(
-    async (e: React.FormEvent<HTMLFormElement>) => {
+    async (e: React.SubmitEvent<HTMLFormElement>) => {
       e.preventDefault()
       setSubmitted(true)
 

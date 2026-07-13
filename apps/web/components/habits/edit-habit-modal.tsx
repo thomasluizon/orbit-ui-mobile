@@ -121,7 +121,7 @@ export function EditHabitModal({
   }
 
   const handleSubmit = useCallback(
-    async (e: React.FormEvent<HTMLFormElement>) => {
+    async (e: React.SubmitEvent<HTMLFormElement>) => {
       e.preventDefault()
       if (!habit) return
 

@@ -1,22 +1,18 @@
-import { useState, type MutableRefObject } from 'react'
+import { useState, type RefObject } from 'react'
 import {
   StyleSheet,
   TextInput,
   View,
-  type NativeSyntheticEvent,
-  type TextInputKeyPressEventData,
+  type TextInputKeyPressEvent,
 } from 'react-native'
 import { createTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
 
 interface CodeInputProps {
   digits: string[]
-  inputRefs: MutableRefObject<(TextInput | null)[]>
+  inputRefs: RefObject<(TextInput | null)[]>
   onChange: (index: number, value: string) => void
-  onKeyPress: (
-    index: number,
-    event: NativeSyntheticEvent<TextInputKeyPressEventData>,
-  ) => void
+  onKeyPress: (index: number, event: TextInputKeyPressEvent) => void
   ariaLabelForIndex: (index: number) => string
   disabled?: boolean
   autoFocusFirst?: boolean

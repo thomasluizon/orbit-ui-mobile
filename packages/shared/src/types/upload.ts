@@ -13,8 +13,8 @@ export type SignUploadRequest = z.infer<typeof SignUploadRequestSchema>
 
 export const SignUploadResponseSchema = z.object({
   key: z.string().min(1),
-  signedUrl: z.string().url(),
-  publicUrl: z.string().url(),
+  signedUrl: z.url(),
+  publicUrl: z.url(),
 })
 
 export type SignUploadResponse = z.infer<typeof SignUploadResponseSchema>

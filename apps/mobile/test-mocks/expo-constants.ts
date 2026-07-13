@@ -6,6 +6,7 @@ export const AppOwnership = {
 
 const Constants = {
   appOwnership: AppOwnership.Standalone,
+  expoGoConfig: null,
   expoConfig: {
     version: '1.0.0',
     android: {

@@ -59,7 +59,7 @@ function getInitializedSnapshot() {
 }
 
 function canUseNativeAds() {
-  return Platform.OS !== 'web' && Constants.appOwnership !== 'expo'
+  return Platform.OS !== 'web' && Constants.expoGoConfig === null
 }
 
 type ConstantsWithAdMobConfig = {

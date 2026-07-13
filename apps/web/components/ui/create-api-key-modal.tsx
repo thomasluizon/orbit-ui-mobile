@@ -89,7 +89,7 @@ export function CreateApiKeyModal({
   }
 
   const handleSubmit = useCallback(
-    async (e: React.FormEvent<HTMLFormElement>) => {
+    async (e: React.SubmitEvent<HTMLFormElement>) => {
       e.preventDefault()
       if (!validate()) return
 
@@ -185,7 +185,7 @@ interface CreateStepProps {
   validationError: string
   apiError: string | null
   isSubmitting: boolean
-  onSubmit: React.FormEventHandler<HTMLFormElement>
+  onSubmit: React.SubmitEventHandler<HTMLFormElement>
   onCancel: () => void
 }
 

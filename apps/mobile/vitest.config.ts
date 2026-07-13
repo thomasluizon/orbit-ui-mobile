@@ -69,6 +69,10 @@ export default defineConfig({
         replacement: path.resolve(__dirname, './test-mocks/react-native-reanimated.ts'),
       },
       {
+        find: 'react-native-worklets',
+        replacement: path.resolve(__dirname, './test-mocks/react-native-worklets.ts'),
+      },
+      {
         find: 'expo-linear-gradient',
         replacement: path.resolve(__dirname, './test-mocks/expo-linear-gradient.ts'),
       },

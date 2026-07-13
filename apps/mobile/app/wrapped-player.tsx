@@ -2,7 +2,7 @@ import { useEffect, useMemo } from 'react'
 import { BackHandler, Pressable, ScrollView, View } from 'react-native'
 import { useSafeAreaInsets } from 'react-native-safe-area-context'
 import { Gesture, GestureDetector } from 'react-native-gesture-handler'
-import { runOnJS } from 'react-native-reanimated'
+import { scheduleOnRN } from 'react-native-worklets'
 import Svg, { Defs, RadialGradient, Rect, Stop } from 'react-native-svg'
 import { ChevronLeft, X } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
@@ -43,7 +43,7 @@ export function WrappedPlayer({
         .onEnd((event) => {
           'worklet'
           if (event.translationY > 120) {
-            runOnJS(onClose)()
+            scheduleOnRN(onClose)
           }
         }),
     [onClose],

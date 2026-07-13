@@ -109,7 +109,7 @@ export function EditGoalModal({
   }
 
   const onSubmit = useCallback(
-    async (e: React.FormEvent<HTMLFormElement>) => {
+    async (e: React.SubmitEvent<HTMLFormElement>) => {
       e.preventDefault()
       setSubmitted(true)
 

@@ -72,7 +72,7 @@ let activeRegistration: { userId: string | null; promise: Promise<boolean> } | n
 const PUSH_DISABLED_STORAGE_KEY_PREFIX = 'orbit_push_disabled'
 
 function isExpoGo(): boolean {
-  return Constants.appOwnership === 'expo'
+  return Constants.expoGoConfig !== null
 }
 
 function hasFunctionProperty(value: object, key: string): boolean {
