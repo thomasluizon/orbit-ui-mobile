@@ -62,6 +62,7 @@ function makeGoal(id: string, position: number): Goal {
     createdAtUtc: '2025-01-01T00:00:00Z',
     completedAtUtc: null,
     position,
+    linkedHabits: [],
   }
 }
 

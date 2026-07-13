@@ -42,7 +42,7 @@ function makeScheduleItem(overrides: Partial<HabitScheduleItem> = {}): HabitSche
     flexibleTarget: overrides.flexibleTarget ?? null,
     flexibleCompleted: overrides.flexibleCompleted ?? null,
     isLoggedInRange: overrides.isLoggedInRange,
-    linkedGoals: overrides.linkedGoals,
+    linkedGoals: overrides.linkedGoals ?? [],
     instances: overrides.instances ?? [],
     searchMatches: overrides.searchMatches,
   }
@@ -135,6 +135,7 @@ describe('habit normalization utils', () => {
         createdAtUtc: '2025-01-01T00:00:00Z',
         completedAtUtc: null,
         progressPercentage: 20,
+        linkedHabits: [],
       },
       {
         id: 'goal-2',
@@ -149,6 +150,7 @@ describe('habit normalization utils', () => {
         createdAtUtc: '2025-01-01T00:00:00Z',
         completedAtUtc: null,
         progressPercentage: 20,
+        linkedHabits: [],
       },
     ]
 

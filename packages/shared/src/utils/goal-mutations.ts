@@ -39,6 +39,7 @@ export function buildTempGoal(
     createdAtUtc: new Date().toISOString(),
     completedAtUtc: null,
     progressPercentage: 0,
+    linkedHabits: [],
   }
 }
 

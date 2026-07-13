@@ -25,6 +25,7 @@ function makeGoal(overrides: Partial<Goal> = {}): Goal {
     createdAtUtc: overrides.createdAtUtc ?? '2025-01-01T00:00:00.000Z',
     completedAtUtc: overrides.completedAtUtc ?? null,
     progressPercentage: overrides.progressPercentage ?? 20,
+    linkedHabits: overrides.linkedHabits ?? [],
   }
 }
 

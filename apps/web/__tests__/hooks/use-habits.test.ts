@@ -95,6 +95,7 @@ function makeScheduleItem(overrides: Partial<HabitScheduleItem> = {}): HabitSche
     hasSubHabits: false,
     flexibleTarget: null,
     flexibleCompleted: null,
+    linkedGoals: [],
     instances: [],
     ...overrides,
   }

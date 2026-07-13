@@ -103,6 +103,7 @@ function makeHabit(overrides: Partial<HabitScheduleItem> = {}): HabitScheduleIte
     hasSubHabits: false,
     flexibleTarget: null,
     flexibleCompleted: null,
+    linkedGoals: [],
     instances: [],
     ...overrides,
   }
