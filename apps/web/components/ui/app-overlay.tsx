@@ -57,7 +57,6 @@ interface AppOverlayProps {
 }
 
 let bodyScrollLockCount = 0
-let lockedScrollY = 0
 
 export function AppOverlay({
   open,
@@ -90,12 +89,11 @@ export function AppOverlay({
 
   const lockBodyScroll = useCallback(() => {
     if (bodyScrollLockCount === 0) {
-      lockedScrollY = globalThis.scrollY
-      document.body.style.position = 'fixed'
-      document.body.style.top = `-${lockedScrollY}px`
-      document.body.style.width = '100%'
+      const scrollbarWidth = globalThis.innerWidth - document.documentElement.clientWidth
       document.body.style.overflow = 'hidden'
-      document.documentElement.style.overflow = 'hidden'
+      if (scrollbarWidth > 0) {
+        document.body.style.paddingRight = `${scrollbarWidth}px`
+      }
       document.documentElement.style.overscrollBehavior = 'contain'
     }
 
@@ -107,13 +105,9 @@ export function AppOverlay({
 
     if (bodyScrollLockCount > 0) return
 
-    document.body.style.position = ''
-    document.body.style.top = ''
-    document.body.style.width = ''
     document.body.style.overflow = ''
-    document.documentElement.style.overflow = ''
+    document.body.style.paddingRight = ''
     document.documentElement.style.overscrollBehavior = ''
-    globalThis.scrollTo(0, lockedScrollY)
   }, [])
 
   const requestClose = useCallback(
