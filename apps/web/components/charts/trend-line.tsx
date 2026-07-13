@@ -37,7 +37,7 @@ export function TrendLine({
   points,
   height = 168,
   ariaLabel,
-  formatValue = (value) => String(value),
+  formatValue = String,
   formatLabel,
 }: Readonly<TrendLineProps>) {
   const [hoverIndex, setHoverIndex] = useState<number | null>(null)

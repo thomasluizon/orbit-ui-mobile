@@ -23,7 +23,7 @@ const LOCALIZED_POLICY_REASONS = new Set(['confirmation_required', 'step_up_requ
  */
 export function getAgentCapabilityLabelKey(capabilityId: string): string | null {
   return LOCALIZED_CAPABILITY_IDS.has(capabilityId)
-    ? `chat.pendingOp.capability.${capabilityId.replace(/\./g, '-')}`
+    ? `chat.pendingOp.capability.${capabilityId.replaceAll('.', '-')}`
     : null
 }
 

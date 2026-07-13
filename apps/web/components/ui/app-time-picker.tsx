@@ -224,7 +224,7 @@ export function AppTimePicker({
             <TimeColumn
               values={PERIODS}
               selected={period}
-              formatValue={(columnValue) => String(columnValue)}
+              formatValue={String}
               ariaLabel={t('common.amPm')}
               onSelect={(columnValue) =>
                 setDraft((current) => ({
