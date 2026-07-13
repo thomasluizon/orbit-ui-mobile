@@ -46,6 +46,7 @@ export function useNotifications() {
 
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
+  // react-doctor-disable-next-line effect-needs-cleanup -- FP: the interval is cleared on unmount — the returned cleanup calls stopPolling() which runs clearInterval; RD cannot trace the clear through the nested helper. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
   useEffect(() => {
     function startPolling() {
       if (intervalRef.current) return

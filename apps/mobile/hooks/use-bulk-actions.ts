@@ -53,9 +53,10 @@ export function useBulkActions({
     if (ids.length === 0) return
     try {
       const result = await bulkLog.mutateAsync(ids.map((habitId) => ({ habitId })))
-      const successIds = result.results
-        .filter((item) => item.status === 'Success')
-        .map((item) => item.habitId)
+      const successIds: string[] = []
+      for (const item of result.results) {
+        if (item.status === 'Success') successIds.push(item.habitId)
+      }
 
       for (const id of successIds) {
         habitListRef.current?.markRecentlyCompleted(id)
@@ -73,9 +74,10 @@ export function useBulkActions({
     if (ids.length === 0) return
     try {
       const result = await bulkSkip.mutateAsync(ids.map((habitId) => ({ habitId })))
-      const successIds = result.results
-        .filter((item) => item.status === 'Success')
-        .map((item) => item.habitId)
+      const successIds: string[] = []
+      for (const item of result.results) {
+        if (item.status === 'Success') successIds.push(item.habitId)
+      }
 
       for (const id of successIds) {
         habitListRef.current?.markRecentlyCompleted(id)

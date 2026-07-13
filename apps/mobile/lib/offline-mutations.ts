@@ -438,8 +438,10 @@ export async function queueOrExecute<TOnlineResult, TQueuedResult>({
   execute: (resolvedMutation: QueuedMutation) => Promise<TOnlineResult>
   queuedResult: TQueuedResult
 }): Promise<TOnlineResult | TQueuedResult> {
-  const resolvedMutation = await resolveMutationReferences(mutation)
-  const online = await getCurrentConnectivity()
+  const [resolvedMutation, online] = await Promise.all([
+    resolveMutationReferences(mutation),
+    getCurrentConnectivity(),
+  ])
   const hasPendingDependencies = hasPendingOfflineDependencies(resolvedMutation)
 
   if (!online || hasPendingDependencies) {
@@ -581,11 +583,13 @@ async function handleFlushFailure(
 }
 
 async function invalidateTouchedScopes(scopes: Set<MutationScope>): Promise<void> {
+  const invalidations: Promise<void>[] = []
   for (const scope of scopes) {
     for (const queryKey of SCOPE_QUERY_KEYS[scope]) {
-      await queryClient.invalidateQueries({ queryKey })
+      invalidations.push(queryClient.invalidateQueries({ queryKey }))
     }
   }
+  await Promise.all(invalidations)
 }
 
 type FlushStepResult = {

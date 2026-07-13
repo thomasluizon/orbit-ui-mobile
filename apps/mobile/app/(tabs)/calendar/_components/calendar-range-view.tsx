@@ -44,6 +44,7 @@ interface CalendarRangeViewProps {
 /** Interval view: a mini-calendar to pick a contiguous range (capped at the
  *  shared MAX_RANGE_DAYS), then the same time grid rendered with one column per
  *  day in that range. */
+// react-doctor-disable-next-line no-many-boolean-props -- Deliberate presentational aggregator: independent loading/clamped/awaiting UI-state flags passed from the calendar screen; an options-object rewrite would churn the caller and the web parity mirror for no runtime benefit. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 export function CalendarRangeView({
   gridDays,
   weekdayHeaders,

@@ -6,6 +6,7 @@ import {
   useRef,
   type ReactElement,
 } from "react";
+// react-doctor-disable-next-line rn-prefer-reanimated -- Deliberate React Native Animated API; migrating to reanimated risks the pinned worklets 0.10.0 / reanimated 4.5.0 ABI (SDK 57) and would require rewriting the shared lib/motion.ts Animated helpers + cross-component Animated.Value props. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 import { Animated, StyleSheet, View } from "react-native";
 import type { FlatList } from "react-native-gesture-handler";
 import AsyncStorage from "@react-native-async-storage/async-storage";
@@ -82,6 +83,7 @@ export function shouldRedirectGoalsTab(
 
 type FreqKey = "Day" | "Week" | "Month" | "Year" | "none";
 
+// react-doctor-disable-next-line no-giant-component -- Screen orchestration is already decomposed into today-sections / today-shell / today-modals and the use-today-* hooks; the remaining wiring + JSX tree is inherently long, and further splitting is a regression-prone refactor with cross-platform parity cost. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 export default function TodayScreen() {
   const { t } = useTranslation();
   const theme = useAppTheme();
@@ -160,8 +162,7 @@ export default function TodayScreen() {
   const [editHabitOnSaved, setEditHabitOnSaved] = useState<
     (() => void | Promise<void>) | null
   >(null);
-  const [habitPendingDelete, setHabitPendingDelete] =
-    useState<NormalizedHabit | null>(null);
+  const habitPendingDeleteRef = useRef<NormalizedHabit | null>(null);
 
   const {
     pinnedDateStr,
@@ -222,14 +223,14 @@ export default function TodayScreen() {
 
   const handleChangeView = useCallback(
     (nextView: TodayView) => {
-      if (shouldRedirectGoalsTab(nextView, hasProAccess)) {
+      if (shouldRedirectGoalsTab(nextView, profile?.hasProAccess ?? false)) {
         router.push("/upgrade");
         return;
       }
 
       setActiveView(nextView);
     },
-    [hasProAccess, router, setActiveView],
+    [profile?.hasProAccess, router, setActiveView],
   );
 
   const tabItems = useMemo<TodayTabItem[]>(
@@ -335,8 +336,8 @@ export default function TodayScreen() {
   }, [habitsQuery, visibleTopLevelHabits]);
 
   const dayProgress = useMemo(
-    () => computeDayProgress(habitsById, dateStr),
-    [habitsById, dateStr],
+    () => computeDayProgress(habitsQuery.data?.habitsById ?? EMPTY_HABITS_BY_ID, dateStr),
+    [habitsQuery.data?.habitsById, dateStr],
   );
   const showDayProgress = currentActiveView === "today" && dayProgress.total > 0;
 
@@ -425,18 +426,18 @@ export default function TodayScreen() {
   );
 
   const confirmHabitDelete = useCallback(async () => {
-    if (!habitPendingDelete) return;
+    const pending = habitPendingDeleteRef.current;
+    if (!pending) return;
 
     try {
-      await deleteHabit.mutateAsync(habitPendingDelete.id);
+      await deleteHabit.mutateAsync(pending.id);
     } finally {
       setShowHabitDeleteConfirm(false);
-      setHabitPendingDelete(null);
+      habitPendingDeleteRef.current = null;
       setDetailHabit(null);
     }
-  }, [deleteHabit, habitPendingDelete]);
+  }, [deleteHabit]);
 
-  const currentStreak = profile?.currentStreak ?? 0;
   const handleHabitLogged = useCallback(
     (habitId: string) => {
       habitListRef.current?.markRecentlyCompleted(habitId);
@@ -478,7 +479,7 @@ export default function TodayScreen() {
         <GradientTop height={260} />
 
         <TodayHeader
-          currentStreak={currentStreak}
+          currentStreak={profile?.currentStreak ?? 0}
           onGoToToday={goToToday}
           goToTodayLabel={t("dates.goToToday")}
           topInset={insets.top}
@@ -504,7 +505,7 @@ export default function TodayScreen() {
         <TodayTabs
           tabs={tabItems}
           activeView={currentActiveView}
-          hasProAccess={hasProAccess}
+          hasProAccess={profile?.hasProAccess ?? false}
           onChangeView={handleChangeView}
           viewsLabel={t("habits.viewsLabel")}
         />
@@ -512,9 +513,9 @@ export default function TodayScreen() {
     ),
     [
       currentActiveView,
-      currentStreak,
+      profile?.currentStreak,
       engagementSlot,
-      hasProAccess,
+      profile?.hasProAccess,
       insets.top,
       goToToday,
       handleChangeView,
@@ -721,7 +722,7 @@ export default function TodayScreen() {
         showHabitDeleteConfirm={showHabitDeleteConfirm}
         onHabitDeleteOpenChange={(open) => {
           setShowHabitDeleteConfirm(open);
-          if (!open) setHabitPendingDelete(null);
+          if (!open) habitPendingDeleteRef.current = null;
         }}
         onConfirmHabitDelete={() => void confirmHabitDelete()}
         showCreateGoalModal={showCreateGoalModal}

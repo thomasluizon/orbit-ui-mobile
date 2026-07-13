@@ -401,7 +401,7 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
         }
       }
 
-      if (!hasProAccess) {
+      if (!(profile?.hasProAccess ?? false)) {
         queryClient.setQueryData<Profile>(profileKeys.detail(), (current) =>
           current
             ? {
@@ -429,7 +429,7 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
     },
     [
       addMessage,
-      hasProAccess,
+      profile?.hasProAccess,
       queryClient,
       router,
       scrollToBottom,

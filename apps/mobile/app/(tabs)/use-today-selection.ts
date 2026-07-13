@@ -102,19 +102,19 @@ export function useTodaySelection({
   }, [clearSelection]);
 
   const handleOpenBulkDelete = useCallback(() => {
-    if (selectedCount === 0) return;
+    if (selectedHabitIds.size === 0) return;
     setShowBulkDeleteConfirm(true);
-  }, [selectedCount, setShowBulkDeleteConfirm]);
+  }, [selectedHabitIds, setShowBulkDeleteConfirm]);
 
   const handleOpenBulkLog = useCallback(() => {
-    if (selectedCount === 0) return;
+    if (selectedHabitIds.size === 0) return;
     setShowBulkLogConfirm(true);
-  }, [selectedCount, setShowBulkLogConfirm]);
+  }, [selectedHabitIds, setShowBulkLogConfirm]);
 
   const handleOpenBulkSkip = useCallback(() => {
-    if (selectedCount === 0) return;
+    if (selectedHabitIds.size === 0) return;
     setShowBulkSkipConfirm(true);
-  }, [selectedCount, setShowBulkSkipConfirm]);
+  }, [selectedHabitIds, setShowBulkSkipConfirm]);
 
   return {
     ...bulkActions,

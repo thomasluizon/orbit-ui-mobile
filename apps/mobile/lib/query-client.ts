@@ -113,15 +113,20 @@ export async function persistQueryCache(): Promise<void> {
   if (!key) return
   try {
     const cache = queryClient.getQueryCache().getAll()
-    const serializable = cache
-      .filter((query) => query.state.status === 'success')
-      .map((query) => ({
+    const serializable: Array<{
+      queryKey: readonly unknown[]
+      state: { data: unknown; dataUpdatedAt: number }
+    }> = []
+    for (const query of cache) {
+      if (query.state.status !== 'success') continue
+      serializable.push({
         queryKey: query.queryKey,
         state: {
           data: query.state.data,
           dataUpdatedAt: query.state.dataUpdatedAt,
         },
-      }))
+      })
+    }
     await AsyncStorage.setItem(
       key,
       JSON.stringify({ version: QUERY_CACHE_VERSION, entries: serializable }),

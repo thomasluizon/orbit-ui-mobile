@@ -78,6 +78,7 @@ function resolveMonthEntering(monthSlide: MonthSlide) {
   return undefined;
 }
 
+// react-doctor-disable-next-line no-giant-component -- Screen orchestration is already decomposed into ./calendar/_components/*; the remaining hook wiring + JSX tree is inherently long, and further splitting is a regression-prone refactor with cross-platform parity cost. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 export default function CalendarScreen() {
   const { t, i18n } = useTranslation();
   const router = useRouter();
@@ -89,7 +90,10 @@ export default function CalendarScreen() {
     [currentScheme, currentTheme],
   );
   const dateFnsLocale = i18n.language === "pt-BR" ? ptBR : enUS;
-  const weekStartsOn: 0 | 1 = profile?.weekStartDay ?? 1;
+  const weekStartsOn = useMemo<0 | 1>(
+    () => profile?.weekStartDay ?? 1,
+    [profile?.weekStartDay],
+  );
   const styles = useMemo(() => createStyles(), []);
   const calendarGridRef = useRef<View>(null);
   const calendarDayRef = useRef<View>(null);

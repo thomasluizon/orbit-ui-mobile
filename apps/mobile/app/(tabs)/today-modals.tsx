@@ -42,6 +42,7 @@ interface TodayModalsProps {
  * surfaces, the bulk and single-habit confirm dialogs, the create-goal modal,
  * and the referral drawer. Presentational — extracted from TodayScreen unchanged.
  */
+// react-doctor-disable-next-line no-many-boolean-props -- Deliberate presentational modal aggregator: each boolean is an independent modal/confirm visibility flag owned by TodayScreen; an options-object rewrite would churn the caller and the web parity mirror for no runtime benefit. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 export function TodayModals({
   showCreateModal,
   onCloseCreateModal,

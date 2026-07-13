@@ -892,9 +892,10 @@ export function useBulkLogHabits() {
           .getState()
           .trackCompletion(item.date ?? formatAPIDate(new Date()))
       }
-      const immediateIds = items
-        .filter((item) => !item.date)
-        .map((item) => item.habitId)
+      const immediateIds: string[] = []
+      for (const item of items) {
+        if (!item.date) immediateIds.push(item.habitId)
+      }
 
       updateHabitLists(queryClient, (currentItems) =>
         immediateIds.reduce(
@@ -952,9 +953,10 @@ export function useBulkSkipHabits() {
       await queryClient.cancelQueries({ queryKey: habitKeys.lists() })
 
       const previousLists = snapshotHabitLists(queryClient)
-      const immediateIds = items
-        .filter((item) => !item.date)
-        .map((item) => item.habitId)
+      const immediateIds: string[] = []
+      for (const item of items) {
+        if (!item.date) immediateIds.push(item.habitId)
+      }
 
       updateHabitLists(queryClient, (currentItems) =>
         immediateIds.reduce(

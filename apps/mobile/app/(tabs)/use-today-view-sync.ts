@@ -31,12 +31,14 @@ export function useTodayViewSync({
   const [prevScrollTopView, setPrevScrollTopView] = useState(currentActiveView);
   if (currentActiveView !== prevScrollTopView) {
     setPrevScrollTopView(currentActiveView);
+    // react-doctor-disable-next-line no-prop-callback-in-render -- Deliberate adjusting-state-during-render pattern (mirrors web useTodayViewSync); the prop setter is an idempotent guard (constant value under a change check), so a replayed render is harmless. Moving to an effect would add a flash and break web parity. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
     setShowScrollTop(false);
   }
 
   const [prevIsSelectMode, setPrevIsSelectMode] = useState(isSelectMode);
   if (isSelectMode !== prevIsSelectMode) {
     setPrevIsSelectMode(isSelectMode);
+    // react-doctor-disable-next-line no-prop-callback-in-render -- Deliberate adjusting-state-during-render pattern (mirrors web useTodayViewSync); the prop setter is an idempotent guard (constant value under a change check), so a replayed render is harmless. Moving to an effect would add a flash and break web parity. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
     if (isSelectMode) setRenderBulkActionBar(true);
   }
 
@@ -45,12 +47,14 @@ export function useTodayViewSync({
   >(null);
   if (pinnedDateStr !== previousPinnedDateStr) {
     setPreviousPinnedDateStr(pinnedDateStr);
+    // react-doctor-disable-next-line no-prop-callback-in-render -- Deliberate adjusting-state-during-render pattern (mirrors web useTodayViewSync); the prop setter is an idempotent guard (constant value under a change check), so a replayed render is harmless. Moving to an effect would add a flash and break web parity. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
     if (pinnedDateStr) setActiveView("today");
   }
 
   const [prevFilters, setPrevFilters] = useState(filters);
   if (filters !== prevFilters) {
     setPrevFilters(filters);
+    // react-doctor-disable-next-line no-prop-callback-in-render -- Deliberate adjusting-state-during-render pattern (mirrors web useTodayViewSync); the prop setter mirrors the just-computed filters under a change check, so a replayed render is harmless. Moving to an effect would add a flash and break web parity. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
     setFilters(filters);
   }
 }

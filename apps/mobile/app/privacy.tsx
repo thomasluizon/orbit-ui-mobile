@@ -9,6 +9,21 @@ import { useAuthStore } from '@/stores/auth-store'
 import { AppBar } from '@/components/ui/app-bar'
 import { SectionLabel } from '@/components/ui/section-label'
 
+const dataCollectedKeys = ['account', 'habits', 'chat', 'preferences', 'device'] as const
+const howWeUseKeys = ['provide', 'personalize', 'notifications'] as const
+const thirdPartyKeys = [
+  'google',
+  'stripe',
+  'firebase',
+  'openai',
+  'resend',
+  'googlePlay',
+  'admob',
+  'sentry',
+] as const
+const retentionKeys = ['account', 'sessions', 'ai', 'afterDeletion'] as const
+const googleScopesKeys = ['auth', 'calendar', 'control'] as const
+
 function PrivacyBulletList({
   keys,
   prefix,
@@ -38,26 +53,6 @@ export default function PrivacyScreen() {
     [currentScheme, currentTheme],
   )
   const isAuthenticated = useAuthStore((state) => state.isAuthenticated)
-
-  const dataCollectedKeys = ['account', 'habits', 'chat', 'preferences', 'device'] as const
-  const howWeUseKeys = ['provide', 'personalize', 'notifications'] as const
-  const thirdPartyKeys = [
-    'google',
-    'stripe',
-    'firebase',
-    'openai',
-    'resend',
-    'googlePlay',
-    'admob',
-    'sentry',
-  ] as const
-  const retentionKeys = [
-    'account',
-    'sessions',
-    'ai',
-    'afterDeletion',
-  ] as const
-  const googleScopesKeys = ['auth', 'calendar', 'control'] as const
 
   return (
     <SafeAreaView
