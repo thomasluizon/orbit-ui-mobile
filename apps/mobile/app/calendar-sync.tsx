@@ -40,7 +40,6 @@ import {
   resolveCalendarSyncStep,
   resolveDisplayedErrorMessage,
   resolveSyncedSelection,
-  type Step,
   type WizardStage,
 } from '@/lib/calendar-sync-state'
 import { createTokensV2, tintFromPrimary } from '@/lib/theme'
