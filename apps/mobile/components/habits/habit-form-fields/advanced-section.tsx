@@ -29,6 +29,7 @@ interface AdvancedSectionProps {
   reminderTimes: number[];
   onReminderTimesChange: (times: number[]) => void;
   onToggleReminder: (nextEnabled: boolean) => void;
+  hasScheduledReminders: boolean;
   onValidationError: (message: string) => void;
   selectedGoalIds: string[];
   atGoalLimit: boolean;
@@ -49,6 +50,7 @@ export function AdvancedSection({
   reminderTimes,
   onReminderTimesChange,
   onToggleReminder,
+  hasScheduledReminders,
   onValidationError,
   selectedGoalIds,
   atGoalLimit,
@@ -199,7 +201,7 @@ export function AdvancedSection({
         />
       )}
 
-      {!dueTime && !isGeneral && (
+      {!isGeneral && (!dueTime || hasScheduledReminders) && (
         <ScheduledReminderSection
           tokens={tokens}
           reminderEnabled={reminderEnabled}

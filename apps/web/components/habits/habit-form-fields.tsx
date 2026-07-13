@@ -37,6 +37,20 @@ import { useHasProAccess } from '@/hooks/use-profile'
 import { useCreateTag, useDeleteTag, useTags, useUpdateTag } from '@/hooks/use-tags'
 import { useTagSuggestions } from '@/hooks/use-tag-suggestions'
 
+/**
+ * Whether to render the absolute-time scheduled-reminder editor: always for a non-general habit with
+ * no due time, and additionally for a due-timed habit that already holds scheduled reminders (legacy
+ * Astra mixed data) so they stay visible and editable rather than silently wiped.
+ * See https://github.com/thomasluizon/orbit-ui-mobile/issues/447 (Bug 3).
+ */
+function shouldShowScheduledReminders(
+  isGeneral: boolean,
+  dueTime: string,
+  hasScheduledReminders: boolean,
+): boolean {
+  return !isGeneral && (!dueTime || hasScheduledReminders)
+}
+
 export function resolveReminderLabel(
   minutes: number,
   t: ReturnType<typeof useTranslations>,
@@ -63,6 +77,12 @@ interface HabitFormFieldsProps {
   reminderTimes: number[]
   onReminderTimesChange: (times: number[]) => void
   onReminderEnabledChange?: (nextEnabled: boolean) => void
+  /**
+   * Surfaces the scheduled-reminder editor even under a due time when the habit already holds
+   * scheduled reminders (legacy Astra mixed data), so they stay visible and are not silently wiped.
+   * See https://github.com/thomasluizon/orbit-ui-mobile/issues/447 (Bug 3).
+   */
+  hasScheduledReminders?: boolean
   /** When true, advanced fields are visible by default (used in edit modal) */
   defaultExpanded?: boolean
   /** Incrementing this opens the advanced section (used to reveal AI-applied checklist / sub-habits). */
@@ -83,6 +103,7 @@ export function HabitFormFields({
   reminderTimes,
   onReminderTimesChange,
   onReminderEnabledChange,
+  hasScheduledReminders = false,
   defaultExpanded = false,
   expandAdvancedSignal = 0,
   onSuggestSetup,
@@ -650,7 +671,7 @@ export function HabitFormFields({
             />
           )}
 
-          {!watchedDueTime && !isGeneral && (
+          {shouldShowScheduledReminders(isGeneral, watchedDueTime, hasScheduledReminders) && (
             <ScheduledReminderSection
               reminderEnabled={watchedReminderEnabled}
               scheduledReminders={watchedScheduledReminders}

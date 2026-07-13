@@ -453,6 +453,73 @@ describe('HabitFormFields (mobile)', () => {
     expect(hasText('habits.form.tags')).toBe(true)
   })
 
+  it('surfaces both reminder sections for a due-timed habit that also holds scheduled reminders (#447 Bug 3)', async () => {
+    const formHelpers = createMockFormHelpers({
+      dueTime: '09:00',
+      reminderEnabled: true,
+      scheduledReminders: [{ when: 'same_day', time: '08:00' }],
+    })
+    const tags = createMockTags()
+    let tree: any
+
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(
+        <HabitFormFields
+          formHelpers={formHelpers}
+          tags={tags}
+          selectedGoalIds={[]}
+          atGoalLimit={false}
+          onToggleGoal={vi.fn()}
+          reminderTimes={[15]}
+          onReminderTimesChange={vi.fn()}
+          hasScheduledReminders
+          defaultExpanded
+        />,
+      )
+    })
+
+    const hasText = (value: string) =>
+      tree.root.findAll(
+        (node: any) => node.type === 'Text' && node.props.children === value,
+      ).length > 0
+
+    expect(hasText('habits.form.reminder')).toBe(true)
+    expect(hasText('habits.form.scheduledReminder')).toBe(true)
+  })
+
+  it('hides the scheduled reminder section for a plain due-timed habit', async () => {
+    const formHelpers = createMockFormHelpers({
+      dueTime: '09:00',
+      reminderEnabled: true,
+      scheduledReminders: [],
+    })
+    const tags = createMockTags()
+    let tree: any
+
+    await TestRenderer.act(async () => {
+      tree = TestRenderer.create(
+        <HabitFormFields
+          formHelpers={formHelpers}
+          tags={tags}
+          selectedGoalIds={[]}
+          atGoalLimit={false}
+          onToggleGoal={vi.fn()}
+          reminderTimes={[15]}
+          onReminderTimesChange={vi.fn()}
+          defaultExpanded
+        />,
+      )
+    })
+
+    const hasText = (value: string) =>
+      tree.root.findAll(
+        (node: any) => node.type === 'Text' && node.props.children === value,
+      ).length > 0
+
+    expect(hasText('habits.form.reminder')).toBe(true)
+    expect(hasText('habits.form.scheduledReminder')).toBe(false)
+  })
+
   it('advances the frequency carousel to the next card when the next arrow is pressed', async () => {
     const setFlexible = vi.fn()
     const formHelpers = createMockFormHelpers(undefined, { setFlexible })
