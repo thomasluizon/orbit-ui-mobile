@@ -7,18 +7,25 @@ import { useTranslation } from 'react-i18next'
 import { BottomSheetModal } from '@/components/bottom-sheet-modal'
 import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 import { HabitFormFields } from './habit-form-fields'
+import {
+  applySuggestionChecklist,
+  applySuggestionSchedule,
+} from './create-habit-modal/apply-suggestion'
 import { KeyboardAwareBottomSheetScrollView } from '@/components/ui/keyboard-aware-scroll-view'
 import { PillButton } from '@/components/ui/pill-button'
 import { useAppToast } from '@/hooks/use-app-toast'
 import { useDismissGuard } from '@/hooks/use-dismiss-guard'
 import { useHabitForm } from '@/hooks/use-habit-form'
+import { useHabitSuggestion } from '@/hooks/use-habit-suggestion'
 import { useTagSelection } from '@/hooks/use-tag-selection'
 import { useUpdateHabit, useHabitDetail } from '@/hooks/use-habits'
 import { useAssignTags } from '@/hooks/use-tags'
 import {
   applyHabitFormMode,
   buildEditHabitFormState,
+  buildHabitFormPatchFromSuggestion,
   coalesceFormText,
+  extractBackendErrorCode,
   getFriendlyErrorMessage,
   toggleSelectedId,
 } from '@orbit/shared/utils'
@@ -41,7 +48,7 @@ export function EditHabitModal({
   habit,
   onSaved,
 }: Readonly<EditHabitModalProps>) {
-  const { t } = useTranslation()
+  const { t, i18n } = useTranslation()
   const translate = useCallback(
     (key: string, values?: Record<string, unknown>) => t(key, values),
     [t],
@@ -52,7 +59,8 @@ export function EditHabitModal({
   const styles = useMemo(() => createStyles(insets.bottom), [insets.bottom])
   const updateHabit = useUpdateHabit()
   const assignTags = useAssignTags()
-  const { showError } = useAppToast()
+  const suggestion = useHabitSuggestion()
+  const { showError, showSuccess, showInfo } = useAppToast()
 
   const formHelpers = useHabitForm()
   const tags = useTagSelection()
@@ -200,6 +208,40 @@ export function EditHabitModal({
     translate,
   ])
 
+  const handleSuggest = useCallback(async () => {
+    flushBufferedInputsRef.current()
+    const title = coalesceFormText(formHelpers.form.getValues('title')).trim()
+    if (title.length === 0) return
+
+    try {
+      const patch = buildHabitFormPatchFromSuggestion(
+        await suggestion.mutateAsync({ title, language: i18n.language }),
+      )
+
+      applySuggestionSchedule(patch, formHelpers)
+
+      const appliedChecklist = applySuggestionChecklist(patch, formHelpers.form)
+
+      const appliedAnything =
+        patch.emoji !== null ||
+        patch.frequencyUnit !== null ||
+        patch.days.length > 0 ||
+        patch.dueTime !== null ||
+        appliedChecklist
+      if (appliedAnything) {
+        showSuccess(t('habits.form.aiSuggestApplied'))
+      } else {
+        showInfo(t('habits.form.aiSuggestEmpty'))
+      }
+    } catch (error: unknown) {
+      showError(
+        extractBackendErrorCode(error) === 'PAY_GATE'
+          ? t('habits.form.aiSuggestLimitReached')
+          : t('habits.form.aiSuggestError'),
+      )
+    }
+  }, [formHelpers, i18n.language, showError, showInfo, showSuccess, suggestion, t])
+
   const watchedTitle = coalesceFormText(
     useWatch({
       control: formHelpers.form.control,
@@ -243,6 +285,8 @@ export function EditHabitModal({
               reminderTimes={reminderTimes}
               onReminderTimesChange={setReminderTimes}
               onFlushBufferedInputsReady={handleBufferedInputsReady}
+              onSuggestSetup={() => void handleSuggest()}
+              isSuggesting={suggestion.isPending}
               defaultExpanded={true}
             />
           </View>

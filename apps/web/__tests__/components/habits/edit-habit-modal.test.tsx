@@ -7,14 +7,18 @@ import { createMockHabit } from '@orbit/shared/__tests__/factories'
 
 
 const mockUpdateMutateAsync = vi.fn()
+const mockSuggestMutateAsync = vi.fn()
 const mockFormReset = vi.fn()
 const mockFormSetValue = vi.fn()
 const mockFormGetValues = vi.fn()
 const mockFormWatch = vi.fn()
 const mockFormRegister = vi.fn(() => ({ name: 'test', onChange: vi.fn(), onBlur: vi.fn(), ref: vi.fn() }))
+const mockSetFlexible = vi.fn()
 const mockValidateAll = vi.fn()
 const mockResetTags = vi.fn()
 const mockShowError = vi.fn()
+const mockShowSuccess = vi.fn()
+const mockShowInfo = vi.fn()
 
 vi.mock('next-intl', () => ({
   useTranslations: () => {
@@ -64,7 +68,7 @@ vi.mock('@/hooks/use-habit-form', () => ({
     frequencyUnits: [],
     setOneTime: vi.fn(),
     setRecurring: vi.fn(),
-    setFlexible: vi.fn(),
+    setFlexible: mockSetFlexible,
     setGeneral: vi.fn(),
     toggleDay: vi.fn(),
     formatTimeInput: vi.fn((v: string) => v),
@@ -96,9 +100,18 @@ vi.mock('@/hooks/use-tags', () => ({
   }),
 }))
 
+vi.mock('@/hooks/use-habit-suggestion', () => ({
+  useHabitSuggestion: () => ({
+    mutateAsync: mockSuggestMutateAsync,
+    isPending: false,
+  }),
+}))
+
 vi.mock('@/hooks/use-app-toast', () => ({
   useAppToast: () => ({
     showError: mockShowError,
+    showSuccess: mockShowSuccess,
+    showInfo: mockShowInfo,
   }),
 }))
 
@@ -140,8 +153,25 @@ vi.mock('@/components/ui/app-overlay', () => ({
 }))
 
 vi.mock('@/components/habits/habit-form-fields', () => ({
-  HabitFormFields: ({ children }: { children?: React.ReactNode }) => (
-    <div data-testid="habit-form-fields">{children}</div>
+  HabitFormFields: ({
+    children,
+    onSuggestSetup,
+  }: {
+    children?: React.ReactNode
+    onSuggestSetup?: () => void
+  }) => (
+    <div data-testid="habit-form-fields">
+      {onSuggestSetup && (
+        <button
+          type="button"
+          data-testid="suggest-trigger"
+          onClick={() => onSuggestSetup()}
+        >
+          suggest
+        </button>
+      )}
+      {children}
+    </div>
   ),
 }))
 
@@ -305,5 +335,134 @@ describe('EditHabitModal', () => {
     await waitFor(() => {
       expect(onSaved).toHaveBeenCalledOnce()
     })
+  })
+
+  it('applies emoji, schedule, and a checklist from an AI suggestion in edit mode', async () => {
+    mockFormGetValues.mockImplementation((field?: string) => {
+      if (field === 'title') return 'Swim'
+      if (field === 'checklistItems') return []
+      return { title: 'Swim', checklistItems: [] }
+    })
+    mockSuggestMutateAsync.mockResolvedValue({
+      emoji: '🏊',
+      frequencyUnit: 'Week',
+      frequencyQuantity: 1,
+      days: [],
+      isFlexible: true,
+      flexibleTarget: 3,
+      dueTime: '07:00',
+      subHabits: [],
+      checklistItems: ['Towel', 'Goggles'],
+    })
+
+    renderWithProviders(
+      <EditHabitModal open={true} onOpenChange={vi.fn()} habit={defaultHabit} />,
+    )
+    mockFormSetValue.mockClear()
+    mockSetFlexible.mockClear()
+    fireEvent.click(screen.getByTestId('suggest-trigger'))
+
+    await waitFor(() => {
+      expect(mockSetFlexible).toHaveBeenCalled()
+    })
+    expect(mockFormSetValue).toHaveBeenCalledWith('emoji', '🏊', {
+      shouldDirty: true,
+    })
+    expect(mockFormSetValue).toHaveBeenCalledWith('dueTime', '07:00', {
+      shouldDirty: true,
+    })
+    expect(mockFormSetValue).toHaveBeenCalledWith(
+      'checklistItems',
+      [
+        { text: 'Towel', isChecked: false },
+        { text: 'Goggles', isChecked: false },
+      ],
+      { shouldDirty: true },
+    )
+    expect(mockShowSuccess).toHaveBeenCalledWith('habits.form.aiSuggestApplied')
+  })
+
+  it('shows the empty toast when the AI suggestion applies nothing', async () => {
+    mockFormGetValues.mockImplementation((field?: string) => {
+      if (field === 'title') return 'Swim'
+      if (field === 'checklistItems') return []
+      return { title: 'Swim', checklistItems: [] }
+    })
+    mockSuggestMutateAsync.mockResolvedValue({
+      emoji: null,
+      frequencyUnit: null,
+      frequencyQuantity: null,
+      days: [],
+      isFlexible: false,
+      flexibleTarget: null,
+      dueTime: null,
+      subHabits: [],
+      checklistItems: [],
+    })
+
+    renderWithProviders(
+      <EditHabitModal open={true} onOpenChange={vi.fn()} habit={defaultHabit} />,
+    )
+    fireEvent.click(screen.getByTestId('suggest-trigger'))
+
+    await waitFor(() => {
+      expect(mockShowInfo).toHaveBeenCalledWith('habits.form.aiSuggestEmpty')
+    })
+    expect(mockShowSuccess).not.toHaveBeenCalled()
+  })
+
+  it('shows the limit-reached toast when the suggestion hits the pay gate', async () => {
+    mockFormGetValues.mockImplementation((field?: string) =>
+      field === 'title' ? 'Swim' : { title: 'Swim', checklistItems: [] },
+    )
+    mockSuggestMutateAsync.mockRejectedValue({ data: { errorCode: 'PAY_GATE' } })
+
+    renderWithProviders(
+      <EditHabitModal open={true} onOpenChange={vi.fn()} habit={defaultHabit} />,
+    )
+    fireEvent.click(screen.getByTestId('suggest-trigger'))
+
+    await waitFor(() => {
+      expect(mockShowError).toHaveBeenCalledWith(
+        'habits.form.aiSuggestLimitReached',
+      )
+    })
+  })
+
+  it('applies a recurring cadence with weekdays from an AI suggestion in edit mode', async () => {
+    mockFormGetValues.mockImplementation((field?: string) => {
+      if (field === 'title') return 'Walk'
+      if (field === 'checklistItems') return []
+      return { title: 'Walk', checklistItems: [] }
+    })
+    mockSuggestMutateAsync.mockResolvedValue({
+      emoji: '🚶',
+      frequencyUnit: 'Day',
+      frequencyQuantity: 1,
+      days: ['Monday', 'Wednesday'],
+      isFlexible: false,
+      flexibleTarget: null,
+      dueTime: '08:00',
+      subHabits: [],
+      checklistItems: [],
+    })
+
+    renderWithProviders(
+      <EditHabitModal open={true} onOpenChange={vi.fn()} habit={defaultHabit} />,
+    )
+    mockFormSetValue.mockClear()
+    fireEvent.click(screen.getByTestId('suggest-trigger'))
+
+    await waitFor(() => {
+      expect(mockFormSetValue).toHaveBeenCalledWith(
+        'days',
+        ['Monday', 'Wednesday'],
+        { shouldDirty: true },
+      )
+    })
+    expect(mockFormSetValue).toHaveBeenCalledWith('dueTime', '08:00', {
+      shouldDirty: true,
+    })
+    expect(mockShowSuccess).toHaveBeenCalledWith('habits.form.aiSuggestApplied')
   })
 })

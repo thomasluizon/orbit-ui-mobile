@@ -11,7 +11,13 @@ export default defineConfig({
       provider: 'v8',
       reporter: ['text', 'lcov'],
       reportsDirectory: './coverage',
-      include: ['lib/**/*.{ts,tsx}', 'stores/**/*.ts', 'hooks/use-offline.ts'],
+      include: [
+        'lib/**/*.{ts,tsx}',
+        'stores/**/*.ts',
+        'hooks/use-offline.ts',
+        'components/habits/edit-habit-modal.tsx',
+        'components/habits/create-habit-modal/apply-suggestion.ts',
+      ],
       exclude: [
         '**/*.d.ts',
         'lib/offline-queue.ts',
