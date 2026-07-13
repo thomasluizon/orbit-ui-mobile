@@ -80,7 +80,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     set({ isAuthenticated: false, user: null, expiresAt: null })
     useOnboardingDraftStore.getState().reset()
 
-    if (typeof globalThis !== 'undefined' && typeof globalThis.location !== 'undefined') {
+    if ('location' in globalThis) {
       globalThis.location.href = '/login'
     }
   },

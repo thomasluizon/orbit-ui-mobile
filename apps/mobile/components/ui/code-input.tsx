@@ -32,12 +32,13 @@ export function CodeInput({
   const { currentScheme, currentTheme } = useAppTheme()
   const tokens = createTokensV2(currentScheme, currentTheme)
   const [activeIndex, setActiveIndex] = useState<number | null>(null)
+  const boxKeys = digits.map((_, position) => `code-digit-${position}`)
 
   return (
     <View style={styles.row}>
       {digits.map((digit, index) => (
         <TextInput
-          key={`code-digit-${index}`}
+          key={boxKeys[index]}
           ref={(node) => {
             inputRefs.current[index] = node
           }}

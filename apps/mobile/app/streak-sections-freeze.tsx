@@ -268,7 +268,7 @@ function FreezeProGate({
 
 function CardGroup({ children }: Readonly<{ children: ReactNode }>) {
   const tokens = useTokens()
-  const rows = React.Children.toArray(children).filter(Boolean)
+  const rows = React.Children.toArray(children).filter(React.isValidElement)
 
   return (
     <View
@@ -278,7 +278,7 @@ function CardGroup({ children }: Readonly<{ children: ReactNode }>) {
       ]}
     >
       {rows.map((row, index) => (
-        <View key={index} collapsable={false}>
+        <View key={row.key} collapsable={false}>
           {index > 0 ? (
             <View style={[styles.cardDivider, { backgroundColor: tokens.hairline }]} />
           ) : null}
@@ -328,14 +328,16 @@ interface ChargeGaugeProps {
 function ChargeGauge({ banked, max, tokens }: Readonly<ChargeGaugeProps>) {
   return (
     <View style={styles.gauge}>
-      {Array.from({ length: max }, (_, index) => (
-        <ChargePip
-          key={index}
-          filled={index < banked}
-          delay={index * 40}
-          tokens={tokens}
-        />
-      ))}
+      {Array.from({ length: max }, (_, index) => `charge-pip-${index}`).map(
+        (pipKey, index) => (
+          <ChargePip
+            key={pipKey}
+            filled={index < banked}
+            delay={index * 40}
+            tokens={tokens}
+          />
+        ),
+      )}
     </View>
   )
 }

@@ -110,7 +110,7 @@ function DatePickerMonthNav({
 interface DatePickerBodyProps {
   pickerMode: 'days' | 'years'
   viewDate: Date
-  weekDays: string[]
+  weekDays: { key: string; label: string }[]
   calendarWeeks: Date[][]
   selectedDate: Date | null
   locale: string
@@ -145,9 +145,9 @@ function DatePickerBody({
   return (
     <>
       <View style={styles.weekRow}>
-        {weekDays.map((day, i) => (
-          <View key={`wh-${i}`} style={styles.dayCell}>
-            <Text style={styles.weekDayText}>{day}</Text>
+        {weekDays.map((day) => (
+          <View key={day.key} style={styles.dayCell}>
+            <Text style={styles.weekDayText}>{day.label}</Text>
           </View>
         ))}
       </View>
@@ -276,9 +276,12 @@ export function AppDatePicker({
     ]
     const keys =
       weekStartsOn === 1
-        ? [...sundayFirst.slice(1), sundayFirst[0]]
+        ? [...sundayFirst.slice(1), ...sundayFirst.slice(0, 1)]
         : sundayFirst
-    return keys.map((k) => t(`dates.daysShort.${k}`).charAt(0))
+    return keys.map((key) => ({
+      key,
+      label: t(`dates.daysShort.${key}`).charAt(0),
+    }))
   }, [weekStartsOn, t])
 
   const calendarDays = useMemo(() => {

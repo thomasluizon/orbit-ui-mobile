@@ -37,7 +37,7 @@ export function RingMotif({
           const opacity = i === 0 ? 0.85 : (1 - i / ringCount) * 0.6
           return (
             <span
-              key={i}
+              key={size}
               className="absolute rounded-full"
               style={{
                 width: size,

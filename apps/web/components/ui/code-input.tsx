@@ -38,6 +38,8 @@ export function CodeInput({
     onChange(index, event.target.value)
   }
 
+  const boxKeys = digits.map((_, position) => `code-digit-${position}`)
+
   return (
     <fieldset
       className="flex items-center justify-center"
@@ -46,7 +48,7 @@ export function CodeInput({
     >
       {digits.map((digit, index) => (
         <input
-          key={`code-digit-${index}`}
+          key={boxKeys[index]}
           ref={(el) => {
             inputRefs.current[index] = el
           }}

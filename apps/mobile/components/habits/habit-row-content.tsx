@@ -33,6 +33,7 @@ export function HabitRowContent({
   tokens,
 }: Readonly<HabitRowContentProps>) {
   const { t } = useTranslation()
+  const metaKeys = metaParts.map((_, index) => `meta-part-${index}`)
   return (
     <View style={styles.titleBlock}>
       <Text
@@ -80,7 +81,7 @@ export function HabitRowContent({
                 </Text>
               )
             return (
-              <Fragment key={i}>
+              <Fragment key={metaKeys[i]}>
                 {i > 0 ? (
                   <Text style={{ color: tokens.fg3 }}> · </Text>
                 ) : null}
