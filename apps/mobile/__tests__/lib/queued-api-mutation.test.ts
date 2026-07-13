@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { logHabitResponseSchema } from '@orbit/shared/types/habit'
 
 import { performQueuedApiMutation } from '@/lib/queued-api-mutation'
 
@@ -71,6 +72,32 @@ describe('performQueuedApiMutation', () => {
       method: 'PUT',
       body: JSON.stringify({ timeZone: 'America/Sao_Paulo' }),
     }, undefined)
+  })
+
+  it('forwards the registry response schema when the mutation type has one', async () => {
+    mocks.runQueuedMutation.mockImplementation(async ({ execute }: { execute: (mutation: { type: string; endpoint: string; method: string; payload: unknown }) => Promise<unknown> }) => (
+      execute({
+        type: 'logHabit',
+        endpoint: '/api/habits/habit-1/log',
+        method: 'POST',
+        payload: undefined,
+      })
+    ))
+    mocks.apiClient.mockResolvedValue(undefined)
+
+    await performQueuedApiMutation({
+      type: 'logHabit',
+      scope: 'habits',
+      endpoint: '/api/habits/habit-1/log',
+      method: 'POST',
+      payload: undefined,
+    })
+
+    expect(mocks.apiClient).toHaveBeenCalledWith(
+      '/api/habits/habit-1/log',
+      { method: 'POST', body: undefined },
+      logHabitResponseSchema,
+    )
   })
 
   it('respects a custom executor override', async () => {

@@ -1,5 +1,6 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import type { QueuedMutation } from '@orbit/shared/types/sync'
+import { logHabitResponseSchema } from '@orbit/shared/types/habit'
 
 import {
   buildQueuedMutation,
@@ -225,6 +226,28 @@ describe('offline mutations', () => {
       '/api/habits',
       expect.objectContaining({ idempotencyKey: mutation.id }),
       undefined,
+    )
+  })
+
+  it('forwards the registered response schema when flushing a schema-backed mutation', async () => {
+    mocks.setOnline(true)
+    const mutation = buildQueuedMutation({
+      type: 'logHabit',
+      scope: 'habits',
+      endpoint: '/api/habits/habit-1/log',
+      method: 'POST',
+      payload: undefined,
+      entityType: 'habit',
+      targetEntityId: 'habit-1',
+    })
+    mocks.queued.push(mutation)
+
+    await flushQueuedMutations()
+
+    expect(mocks.apiClient).toHaveBeenCalledWith(
+      '/api/habits/habit-1/log',
+      expect.objectContaining({ method: 'POST', idempotencyKey: mutation.id }),
+      logHabitResponseSchema,
     )
   })
 
