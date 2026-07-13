@@ -18,12 +18,14 @@ export function useHabitSuggestion() {
   const queryClient = useQueryClient()
 
   return useMutation<HabitSetupSuggestion, Error, HabitSetupSuggestionRequest>({
-    mutationFn: async (data) =>
-      habitSetupSuggestionSchema.parse(
-        await apiClient<HabitSetupSuggestion>(API.habits.suggestSetup, {
+    mutationFn: (data) =>
+      apiClient<HabitSetupSuggestion>(
+        API.habits.suggestSetup,
+        {
           method: 'POST',
           body: JSON.stringify(data),
-        }),
+        },
+        habitSetupSuggestionSchema,
       ),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: subscriptionKeys.status() })

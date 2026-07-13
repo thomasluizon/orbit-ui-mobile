@@ -1,15 +1,36 @@
 import { resolveServerSession } from '@/lib/auth-api'
-import { createApiClientError } from '@orbit/shared'
+import { ApiClientError, createApiClientError } from '@orbit/shared'
 import { APP_VERSION_HEADER } from '@orbit/shared/utils'
+import type { ZodType } from 'zod'
 
 const API_BASE = process.env.API_BASE ?? 'http://localhost:5000'
+
+function parseResponseBody<T>(text: string, schema: ZodType<T> | undefined, path: string): T {
+  const body: unknown = JSON.parse(text)
+  if (!schema) return body as T
+
+  const parsed = schema.safeParse(body)
+  if (!parsed.success) {
+    throw new ApiClientError(502, `Unexpected API response shape for ${path}`, {
+      code: 'INVALID_RESPONSE_SCHEMA',
+      data: parsed.error.issues,
+    })
+  }
+  return parsed.data
+}
 
 /**
  * Shared authenticated fetch for Server Actions.
  * Resolves the current session, forwards it as Bearer to the .NET API,
- * and throws a structured ApiClientError on failure.
+ * and throws a structured ApiClientError on failure. When a Zod `schema`
+ * is supplied, the response body is validated at the trust boundary and a
+ * typed ApiClientError (502) is thrown if it does not match the contract.
  */
-export async function serverAuthFetch<T = unknown>(path: string, init: RequestInit = {}): Promise<T> {
+export async function serverAuthFetch<T = unknown>(
+  path: string,
+  init: RequestInit = {},
+  schema?: ZodType<T>,
+): Promise<T> {
   const appVersion = process.env.APP_VERSION
   const buildHeaders = (token: string): Record<string, string> => ({
     Authorization: `Bearer ${token}`,
@@ -45,15 +66,21 @@ export async function serverAuthFetch<T = unknown>(path: string, init: RequestIn
   if (res.status === 204) return null as T
   const text = await res.text()
   if (!text) return null as T
-  return JSON.parse(text) as T
+  return parseResponseBody(text, schema, path)
 }
 
 /**
  * Unauthenticated server fetch for public, no-auth API routes (e.g. public profiles).
  * Sends no Bearer token, forwards the app version, and returns null on 404 so callers
- * can render a not-found page. Throws an ApiClientError on other non-OK statuses.
+ * can render a not-found page. Throws an ApiClientError on other non-OK statuses. When a
+ * Zod `schema` is supplied, the response body is validated at the trust boundary and a
+ * typed ApiClientError (502) is thrown if it does not match the contract.
  */
-export async function serverPublicFetch<T = unknown>(path: string, init: RequestInit = {}): Promise<T | null> {
+export async function serverPublicFetch<T = unknown>(
+  path: string,
+  init: RequestInit = {},
+  schema?: ZodType<T>,
+): Promise<T | null> {
   const appVersion = process.env.APP_VERSION
   const res = await fetch(`${API_BASE}${path}`, {
     ...init,
@@ -71,5 +98,5 @@ export async function serverPublicFetch<T = unknown>(path: string, init: Request
   }
   const text = await res.text()
   if (!text) return null
-  return JSON.parse(text) as T
+  return parseResponseBody(text, schema, path)
 }

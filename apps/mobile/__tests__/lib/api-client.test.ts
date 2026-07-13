@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { z } from 'zod'
 
 import { apiClient } from '@/lib/api-client'
 import { setPendingIdempotencyKey } from '@/lib/idempotency-key'
@@ -287,5 +288,50 @@ describe('mobile apiClient', () => {
         headers: expect.not.objectContaining({ 'Idempotency-Key': expect.anything() }),
       }),
     )
+  })
+
+  it('validates and returns the parsed body when a schema is supplied', async () => {
+    getTokenMock.mockResolvedValue('token-123')
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      text: () => Promise.resolve(JSON.stringify({ id: 'h-1', extra: 'stripped' })),
+    })
+
+    const schema = z.object({ id: z.string() })
+
+    await expect(apiClient('/api/habits/h-1', {}, schema)).resolves.toEqual({ id: 'h-1' })
+  })
+
+  it('rejects a malformed body with a typed 502 ApiClientError', async () => {
+    getTokenMock.mockResolvedValue('token-123')
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 200,
+      text: () => Promise.resolve(JSON.stringify({ id: 123 })),
+    })
+
+    const schema = z.object({ id: z.string() })
+
+    await expect(apiClient('/api/habits/h-1', {}, schema)).rejects.toMatchObject({
+      name: 'ApiClientError',
+      status: 502,
+      code: 'INVALID_RESPONSE_SCHEMA',
+    })
+  })
+
+  it('skips schema validation for empty (204) responses', async () => {
+    getTokenMock.mockResolvedValue('token-123')
+    fetchMock.mockResolvedValue({
+      ok: true,
+      status: 204,
+      text: () => Promise.resolve(''),
+    })
+
+    const schema = z.object({ id: z.string() })
+
+    await expect(
+      apiClient('/api/habits/h-1', { method: 'DELETE' }, schema),
+    ).resolves.toBeUndefined()
   })
 })

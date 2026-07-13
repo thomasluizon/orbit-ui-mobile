@@ -1,8 +1,9 @@
 import { getToken, clearAllTokens } from './secure-store'
-import { buildClientTimeZoneHeaders, createApiClientError } from '@orbit/shared'
+import { ApiClientError, buildClientTimeZoneHeaders, createApiClientError } from '@orbit/shared'
 import { API } from '@orbit/shared/api'
 import { buildAppVersionHeaders } from './app-version'
 import { consumePendingIdempotencyKey } from './idempotency-key'
+import type { ZodType } from 'zod'
 
 const API_BASE = process.env.EXPO_PUBLIC_API_BASE ?? 'https://api.useorbit.org'
 
@@ -129,9 +130,25 @@ async function handleUpgradeRequired<T>(
   )
 }
 
+function validateResponseSchema<T>(body: T, schema: ZodType<T> | undefined, path: string): T {
+  if (!schema) return body
+
+  const parsed = schema.safeParse(body)
+  if (!parsed.success) {
+    throw new ApiClientError(502, `Unexpected API response shape for ${path}`, {
+      code: 'INVALID_RESPONSE_SCHEMA',
+      data: parsed.error.issues,
+    })
+  }
+
+  return parsed.data
+}
+
 async function parseApiResponse<T>(
   response: Response,
   requestId: string | null,
+  path: string,
+  schema?: ZodType<T>,
 ): Promise<T> {
   if (!response.ok) {
     const error = attachRequestIdToPayload(
@@ -152,7 +169,7 @@ async function parseApiResponse<T>(
     return undefined as T
   }
 
-  return JSON.parse(text) as T
+  return validateResponseSchema(JSON.parse(text) as T, schema, path)
 }
 
 async function redirectToLogin(): Promise<void> {
@@ -160,9 +177,16 @@ async function redirectToLogin(): Promise<void> {
   router.replace('/login')
 }
 
+/**
+ * Authenticated fetch for the mobile app. Attaches the bearer token, time-zone and app-version
+ * headers, transparently refreshes/retries on a 401, and surfaces upgrade-required (426) gating.
+ * When a Zod `schema` is supplied the response body is validated at the trust boundary and a typed
+ * `ApiClientError` (502, `INVALID_RESPONSE_SCHEMA`) is thrown if it does not match the contract.
+ */
 export async function apiClient<T = unknown>(
   path: string,
   options: ApiRequestOptions = {},
+  schema?: ZodType<T>,
 ): Promise<T> {
   const idempotencyKey = options.idempotencyKey ?? consumePendingIdempotencyKey() ?? undefined
   const effectiveOptions: ApiRequestOptions =
@@ -179,7 +203,7 @@ export async function apiClient<T = unknown>(
     if (latestToken && latestToken !== tokenUsed) {
       const retryWithLatest = await executeRequest(path, effectiveOptions, latestToken)
       if (retryWithLatest.response.status !== 401) {
-        return parseApiResponse<T>(retryWithLatest.response, retryWithLatest.requestId)
+        return parseApiResponse<T>(retryWithLatest.response, retryWithLatest.requestId, path, schema)
       }
     }
 
@@ -190,7 +214,7 @@ export async function apiClient<T = unknown>(
     if (refreshOutcome.status === 'refreshed') {
       const retry = await executeRequest(path, effectiveOptions, refreshOutcome.token)
       if (retry.response.status !== 401) {
-        return parseApiResponse<T>(retry.response, retry.requestId)
+        return parseApiResponse<T>(retry.response, retry.requestId, path, schema)
       }
 
       if (!isAuthTransitionInFlight()) {
@@ -212,5 +236,5 @@ export async function apiClient<T = unknown>(
     throw toUnauthorizedError(requestId)
   }
 
-  return parseApiResponse<T>(response, requestId)
+  return parseApiResponse<T>(response, requestId, path, schema)
 }

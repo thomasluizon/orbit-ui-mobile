@@ -1,6 +1,7 @@
 import React from 'react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { API } from '@orbit/shared/api'
+import { reportEventResponseSchema } from '@orbit/shared/types/gamification'
 import { useReportEvent } from '@/hooks/use-gamification'
 const TestRenderer = require('react-test-renderer')
 
@@ -73,10 +74,14 @@ describe('mobile useReportEvent', () => {
     const mutation = await callHook(() => useReportEvent())
     await mutation.mutate('card_shared')
 
-    expect(mocks.apiClient).toHaveBeenCalledWith(API.gamification.reportEvent, {
-      method: 'POST',
-      body: JSON.stringify({ eventKey: 'card_shared' }),
-    })
+    expect(mocks.apiClient).toHaveBeenCalledWith(
+      API.gamification.reportEvent,
+      {
+        method: 'POST',
+        body: JSON.stringify({ eventKey: 'card_shared' }),
+      },
+      reportEventResponseSchema,
+    )
     expect(mocks.enqueueCelebration).toHaveBeenCalledWith('achievement', {
       achievementId: 'show_off',
       xpReward: 75,

@@ -13,6 +13,7 @@ import type {
   ReportEventResponse,
   StreakInfo,
 } from '@orbit/shared/types/gamification'
+import { reportEventResponseSchema } from '@orbit/shared/types/gamification'
 import {
   deriveGamificationProfileState,
   detectCrossedStreakMilestones,
@@ -130,10 +131,14 @@ export function useReportEvent() {
 
   return useMutation({
     mutationFn: (eventKey: AchievementEventKey) =>
-      apiClient<ReportEventResponse>(API.gamification.reportEvent, {
-        method: 'POST',
-        body: JSON.stringify({ eventKey }),
-      }),
+      apiClient<ReportEventResponse>(
+        API.gamification.reportEvent,
+        {
+          method: 'POST',
+          body: JSON.stringify({ eventKey }),
+        },
+        reportEventResponseSchema,
+      ),
     onSuccess: (response) => {
       for (const achievement of response.granted) {
         enqueueCelebration('achievement', {
