@@ -150,6 +150,38 @@ export default function UpgradeScreen() {
     }
   }
 
+  const billingDashboard = isPlaySource ? (
+    <PlayBillingDashboard
+      profile={profile}
+      locale={locale}
+      usagePercent={usagePercent}
+      usageProfile={usageProfile}
+      portalError={portalError}
+      onManagePlay={handleManagePlay}
+      t={t}
+      tokens={tokens}
+    />
+  ) : (
+    <BillingDashboard
+      data={billing}
+      isBillingLoading={isBillingLoading}
+      isBillingError={isBillingError}
+      isOnline={isOnline}
+      locale={locale}
+      usagePercent={usagePercent}
+      usageProfile={usageProfile}
+      profile={profile ?? null}
+      portalLoading={portalLoading}
+      portalError={portalError}
+      onPortal={() => void handlePortal()}
+      onRetryBilling={() => {
+        refetchBilling().catch(() => {})
+      }}
+      t={t}
+      tokens={tokens}
+    />
+  )
+
   return (
     <SafeAreaView
       style={[styles.safe, { backgroundColor: tokens.bg }]}
@@ -179,37 +211,7 @@ export default function UpgradeScreen() {
         ) : null}
 
         {showBilling ? (
-          isPlaySource ? (
-            <PlayBillingDashboard
-              profile={profile}
-              locale={locale}
-              usagePercent={usagePercent}
-              usageProfile={usageProfile}
-              portalError={portalError}
-              onManagePlay={handleManagePlay}
-              t={t}
-              tokens={tokens}
-            />
-          ) : (
-            <BillingDashboard
-              data={billing}
-              isBillingLoading={isBillingLoading}
-              isBillingError={isBillingError}
-              isOnline={isOnline}
-              locale={locale}
-              usagePercent={usagePercent}
-              usageProfile={usageProfile}
-              profile={profile ?? null}
-              portalLoading={portalLoading}
-              portalError={portalError}
-              onPortal={() => void handlePortal()}
-              onRetryBilling={() => {
-                refetchBilling().catch(() => {})
-              }}
-              t={t}
-              tokens={tokens}
-            />
-          )
+          billingDashboard
         ) : (
           <PricingSection
             profile={profile ?? null}

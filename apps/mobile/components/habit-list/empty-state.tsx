@@ -1,4 +1,4 @@
-import { useEffect } from 'react'
+import { useEffect, type ReactNode } from 'react'
 import { Pressable, StyleSheet, Text, View, type StyleProp, type ViewStyle } from 'react-native'
 import Animated, {
   cancelAnimation,
@@ -48,6 +48,53 @@ export function HabitListEmptyState({
   const showStackedActions =
     showAstraAction || (isAstraPrompt && Boolean(actionLabel))
 
+  let emptyActions: ReactNode = null
+  if (showStackedActions) {
+    emptyActions = (
+      <View style={styles.actions}>
+        {showAstraAction ? (
+          <PillButton
+            fullWidth
+            onPress={onAskAstra}
+            leading={
+              <Sparkles size={18} color={tokens.fgOnPrimary} strokeWidth={1.8} />
+            }
+          >
+            {askAstraLabel}
+          </PillButton>
+        ) : null}
+        {actionLabel ? (
+          <PillButton
+            variant="ghost"
+            fullWidth
+            onPress={onAction}
+            leading={<Plus size={18} color={tokens.fg1} strokeWidth={1.8} />}
+          >
+            {actionLabel}
+          </PillButton>
+        ) : null}
+      </View>
+    )
+  } else if (actionLabel) {
+    emptyActions = (
+      <Pressable
+        onPress={onAction}
+        accessibilityRole="button"
+        accessibilityLabel={actionLabel}
+        style={({ pressed }) => [styles.linkAction, { opacity: pressed ? 0.7 : 1 }]}
+      >
+        <Text
+          style={[
+            styles.linkActionText,
+            { color: tokens.fg1, textDecorationColor: tokens.hairlineStrong },
+          ]}
+        >
+          {actionLabel}
+        </Text>
+      </Pressable>
+    )
+  }
+
   return (
     <View style={styles.container}>
       <SatelliteGlyph size={104} />
@@ -55,47 +102,7 @@ export function HabitListEmptyState({
       {hasDistinctDescription ? (
         <Text style={[styles.description, { color: tokens.fg2 }]}>{description}</Text>
       ) : null}
-      {showStackedActions ? (
-        <View style={styles.actions}>
-          {showAstraAction ? (
-            <PillButton
-              fullWidth
-              onPress={onAskAstra}
-              leading={
-                <Sparkles size={18} color={tokens.fgOnPrimary} strokeWidth={1.8} />
-              }
-            >
-              {askAstraLabel}
-            </PillButton>
-          ) : null}
-          {actionLabel ? (
-            <PillButton
-              variant="ghost"
-              fullWidth
-              onPress={onAction}
-              leading={<Plus size={18} color={tokens.fg1} strokeWidth={1.8} />}
-            >
-              {actionLabel}
-            </PillButton>
-          ) : null}
-        </View>
-      ) : actionLabel ? (
-        <Pressable
-          onPress={onAction}
-          accessibilityRole="button"
-          accessibilityLabel={actionLabel}
-          style={({ pressed }) => [styles.linkAction, { opacity: pressed ? 0.7 : 1 }]}
-        >
-          <Text
-            style={[
-              styles.linkActionText,
-              { color: tokens.fg1, textDecorationColor: tokens.hairlineStrong },
-            ]}
-          >
-            {actionLabel}
-          </Text>
-        </Pressable>
-      ) : null}
+      {emptyActions}
     </View>
   )
 }

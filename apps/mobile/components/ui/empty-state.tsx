@@ -47,8 +47,8 @@ export function EmptyState({
       >
         {description}
       </Text>
-      {action ? (
-        action.variant === 'secondary' ? (
+      {action &&
+        (action.variant === 'secondary' ? (
           <Pressable
             onPress={action.onPress}
             accessibilityRole="button"
@@ -64,8 +64,7 @@ export function EmptyState({
           <PillButton onPress={action.onPress} style={styles.primaryAction}>
             {action.label}
           </PillButton>
-        )
-      ) : null}
+        ))}
     </View>
   )
 }

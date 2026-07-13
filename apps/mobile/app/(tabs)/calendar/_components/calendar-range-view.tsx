@@ -69,11 +69,8 @@ export function CalendarRangeView({
   t,
   tokens,
 }: Readonly<CalendarRangeViewProps>) {
-  const hintText = isAwaitingEnd
-    ? t("calendar.timeGrid.pickEndHint")
-    : isClamped
-      ? clampedNotice
-      : hint;
+  const clampedHint = isClamped ? clampedNotice : hint;
+  const hintText = isAwaitingEnd ? t("calendar.timeGrid.pickEndHint") : clampedHint;
 
   return (
     <>

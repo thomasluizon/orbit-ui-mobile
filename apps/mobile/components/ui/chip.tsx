@@ -32,18 +32,17 @@ export function Chip({
       accessibilityLabel={accessibilityLabel}
       accessibilityState={{ selected: active }}
       hitSlop={{ top: 6, bottom: 6 }}
-      style={({ pressed }) => [
-        styles.chip,
-        {
-          backgroundColor: active
-            ? tokens.selectionBg
-            : pressed
-              ? tokens.bgElev2
-              : tokens.bgElev,
-          borderColor: active ? tintFromPrimary(tokens, 0.45) : tokens.hairline,
-        },
-        pressed && !active ? styles.chipPressed : null,
-      ]}
+      style={({ pressed }) => {
+        const pressedBackground = pressed ? tokens.bgElev2 : tokens.bgElev
+        return [
+          styles.chip,
+          {
+            backgroundColor: active ? tokens.selectionBg : pressedBackground,
+            borderColor: active ? tintFromPrimary(tokens, 0.45) : tokens.hairline,
+          },
+          pressed && !active ? styles.chipPressed : null,
+        ]
+      }}
     >
       {leading ? <View style={styles.leading}>{leading}</View> : null}
       <Text

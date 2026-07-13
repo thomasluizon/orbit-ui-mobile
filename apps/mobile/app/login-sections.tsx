@@ -52,11 +52,8 @@ export function LoginHeader({
   const logoEntrance = useEntrance(280, prefersReducedMotion)
   const showPlanSummary = fromOnboarding && step === 'email'
 
-  const title = showPlanSummary
-    ? t('onboarding.flow.saveYourPlan.title')
-    : step === 'email'
-      ? t('auth.signIn')
-      : t('auth.enterCode')
+  const authTitle = step === 'email' ? t('auth.signIn') : t('auth.enterCode')
+  const title = showPlanSummary ? t('onboarding.flow.saveYourPlan.title') : authTitle
 
   return (
     <>

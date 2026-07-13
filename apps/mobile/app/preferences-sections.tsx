@@ -66,12 +66,10 @@ export function PushNotificationSection({
     isRegistered: pushRegistered,
   })
   const pushStatusText = t(pushStatusPresentation.messageKey)
+  const accentStatusColor =
+    pushStatusPresentation.tone === 'accent' ? tokens.primary : tokens.fg3
   const pushStatusColor =
-    pushStatusPresentation.tone === 'critical'
-      ? tokens.statusBad
-      : pushStatusPresentation.tone === 'accent'
-        ? tokens.primary
-        : tokens.fg3
+    pushStatusPresentation.tone === 'critical' ? tokens.statusBad : accentStatusColor
 
   return (
     <>

@@ -30,6 +30,16 @@ const WEEKDAY_KEYS = [
   'sunday',
 ] as const
 
+function resolveHabitStatLabel(
+  habit: RetrospectiveHabitStat,
+  t: ReturnType<typeof useTranslation>['t'],
+): string {
+  if (!habit.isOneTime) return `${habit.completionRate}%`
+  return habit.completedCount > 0
+    ? t('retrospective.completed')
+    : t('retrospective.notCompleted')
+}
+
 function renderNarrativeInline(text: string, tokens: Tokens) {
   return text
     .split(/(\*\*.+?\*\*)/g)
@@ -182,11 +192,7 @@ function HabitStatList({
                 },
               ]}
             >
-              {habit.isOneTime
-                ? habit.completedCount > 0
-                  ? t('retrospective.completed')
-                  : t('retrospective.notCompleted')
-                : `${habit.completionRate}%`}
+              {resolveHabitStatLabel(habit, t)}
             </Text>
           </View>
         ))}

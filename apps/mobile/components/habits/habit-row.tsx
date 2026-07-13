@@ -191,21 +191,20 @@ export function HabitRow({
         delayLongPress={300}
         accessibilityRole="button"
         accessibilityLabel={rowAccessibilityLabel}
-        style={({ pressed }) => [
-          styles.row,
-          {
-            backgroundColor: isSelected
-              ? tokens.bgSunk
-              : pressed
-                ? tokens.bgElevPressed
-                : tokens.bgCard,
-            borderColor: pressed ? tokens.hairlineStrong : tokens.hairline,
-            marginLeft: 20 + indentPx,
-            marginRight: 20,
-            marginBottom: 10,
-          },
-          pressed ? styles.rowPressed : null,
-        ]}
+        style={({ pressed }) => {
+          const pressedBackground = pressed ? tokens.bgElevPressed : tokens.bgCard
+          return [
+            styles.row,
+            {
+              backgroundColor: isSelected ? tokens.bgSunk : pressedBackground,
+              borderColor: pressed ? tokens.hairlineStrong : tokens.hairline,
+              marginLeft: 20 + indentPx,
+              marginRight: 20,
+              marginBottom: 10,
+            },
+            pressed ? styles.rowPressed : null,
+          ]
+        }}
       >
         <HabitRowLeading
           habitTitle={habit.title}

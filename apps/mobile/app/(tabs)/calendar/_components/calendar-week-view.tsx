@@ -63,12 +63,14 @@ export function CalendarWeekView({
   t,
   tokens,
 }: Readonly<CalendarWeekViewProps>) {
+  const leftWeekEntering =
+    slideDirection === "left"
+      ? FadeInLeft.duration(220).reduceMotion(ReduceMotion.System)
+      : undefined;
   const weekEntering =
     slideDirection === "right"
       ? FadeInRight.duration(220).reduceMotion(ReduceMotion.System)
-      : slideDirection === "left"
-        ? FadeInLeft.duration(220).reduceMotion(ReduceMotion.System)
-        : undefined;
+      : leftWeekEntering;
 
   return (
     <>

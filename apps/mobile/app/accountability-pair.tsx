@@ -196,25 +196,26 @@ export default function AccountabilityPairScreen() {
             <SectionLabel bottom={8} inset={false}>
               {t('social.buddies.detail.history')}
             </SectionLabel>
-            {checkInsQuery.isPending ? null : (checkInsQuery.data?.items.length ?? 0) === 0 ? (
-              <Text style={styles.muted}>{t('social.buddies.detail.historyEmpty')}</Text>
-            ) : (
-              <View style={styles.history}>
-                {checkInsQuery.data?.items.map((item) => (
-                  <View key={item.id} style={styles.historyItem}>
-                    <View style={styles.historyHead}>
-                      <Text style={styles.historyName} numberOfLines={1}>
-                        {item.displayName}
-                      </Text>
-                      <Text style={styles.historyDate}>
-                        {formatLocaleDate(item.date, locale, { month: 'short', day: 'numeric' })}
-                      </Text>
+            {!checkInsQuery.isPending &&
+              ((checkInsQuery.data?.items.length ?? 0) === 0 ? (
+                <Text style={styles.muted}>{t('social.buddies.detail.historyEmpty')}</Text>
+              ) : (
+                <View style={styles.history}>
+                  {checkInsQuery.data?.items.map((item) => (
+                    <View key={item.id} style={styles.historyItem}>
+                      <View style={styles.historyHead}>
+                        <Text style={styles.historyName} numberOfLines={1}>
+                          {item.displayName}
+                        </Text>
+                        <Text style={styles.historyDate}>
+                          {formatLocaleDate(item.date, locale, { month: 'short', day: 'numeric' })}
+                        </Text>
+                      </View>
+                      {item.note ? <Text style={styles.historyNote}>{item.note}</Text> : null}
                     </View>
-                    {item.note ? <Text style={styles.historyNote}>{item.note}</Text> : null}
-                  </View>
-                ))}
-              </View>
-            )}
+                  ))}
+                </View>
+              ))}
 
             <Pressable
               onPress={() => setConfirmUnpair(true)}

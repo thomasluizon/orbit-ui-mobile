@@ -416,7 +416,7 @@ export default function CalendarScreen() {
 
       <CalendarLoadingBar active={activeFetching} tokens={tokens} />
 
-      {activeError ? (
+      {activeError && (
         <View style={styles.errorWrap}>
           <View
             style={[
@@ -432,7 +432,8 @@ export default function CalendarScreen() {
             </PillButton>
           </View>
         </View>
-      ) : view === "month" ? (
+      )}
+      {!activeError && view === "month" && (
         <FlatList
           ref={calendarScrollRef}
           style={styles.container}
@@ -445,7 +446,8 @@ export default function CalendarScreen() {
           onScroll={onCalendarTourScroll}
           scrollEventThrottle={16}
         />
-      ) : (
+      )}
+      {!activeError && view !== "month" && (
         <ScrollView
           style={styles.container}
           contentContainerStyle={styles.viewScrollContent}

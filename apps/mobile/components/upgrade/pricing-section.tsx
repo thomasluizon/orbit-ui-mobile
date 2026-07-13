@@ -80,11 +80,11 @@ export function PricingSection({
   tokens: Tokens
 }>) {
   const trialActive = !!profile?.isTrialActive
-  const eyebrow = trialActive
-    ? trialDaysLeft === 0
+  const trialEyebrow =
+    trialDaysLeft === 0
       ? t('upgrade.convert.trialLastDay')
       : plural(t('upgrade.convert.trialDaysLeft', { days: trialDaysLeft ?? 0 }), trialDaysLeft ?? 0)
-    : t('upgrade.convert.freeEyebrow')
+  const eyebrow = trialActive ? trialEyebrow : t('upgrade.convert.freeEyebrow')
   const heading = trialActive ? t('upgrade.convert.trialHeading') : t('upgrade.convert.freeHeading')
 
   return (

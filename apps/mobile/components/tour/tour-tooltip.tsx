@@ -147,23 +147,17 @@ export function TourTooltip({
 
         <View style={styles.dotsContainer} importantForAccessibility="no-hide-descendants">
           {Array.from({ length: sectionProgress.total }).map((_, i) => {
-            const dotState: ProgressDotState =
-              i === sectionProgress.current - 1
-                ? 'active'
-                : i < sectionProgress.current - 1
-                  ? 'completed'
-                  : 'inactive'
+            let dotState: ProgressDotState = 'inactive'
+            if (i === sectionProgress.current - 1) dotState = 'active'
+            else if (i < sectionProgress.current - 1) dotState = 'completed'
+            let dotColor = tokens.fg4
+            if (dotState === 'active') dotColor = tokens.primary
+            else if (dotState === 'completed') dotColor = tintFromPrimary(tokens, 0.4)
             return (
               <ProgressDot
                 key={`progress-dot-${sectionProgress.section}-${i}`}
                 state={dotState}
-                color={
-                  dotState === 'active'
-                    ? tokens.primary
-                    : dotState === 'completed'
-                      ? tintFromPrimary(tokens, 0.4)
-                      : tokens.fg4
-                }
+                color={dotColor}
                 reduceMotion={prefersReducedMotion}
               />
             )
