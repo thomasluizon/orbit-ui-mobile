@@ -726,4 +726,212 @@ describe('offline mutations', () => {
       expect(mocks.apiClient).toHaveBeenCalledTimes(1)
     })
   })
+
+  describe('stress replay, crash recovery, timeout, and dependency ordering', () => {
+    it('replays 120 queued mutations in enqueue order, applying every one with none dropped', async () => {
+      mocks.setOnline(true)
+      const flushOrder: string[] = []
+      mocks.apiClient.mockImplementation(async (endpoint: string) => {
+        flushOrder.push(endpoint)
+        return null
+      })
+
+      const total = 120
+      const expectedOrder: string[] = []
+      for (let index = 0; index < total; index += 1) {
+        const endpoint = `/api/habits/habit-${index}`
+        expectedOrder.push(endpoint)
+        mocks.queued.push({
+          ...buildQueuedMutation({
+            type: 'updateHabit',
+            scope: 'habits',
+            endpoint,
+            method: 'PUT',
+            payload: { title: `Habit ${index}` },
+            entityType: 'habit',
+            targetEntityId: `habit-${index}`,
+          }),
+          id: `update-${index}`,
+        })
+      }
+
+      const result = await flushQueuedMutations()
+
+      expect(result).toEqual({ succeeded: total, failed: 0, remaining: 0, droppedMutations: [] })
+      expect(flushOrder).toEqual(expectedOrder)
+      expect(mocks.queued).toHaveLength(0)
+    })
+
+    it('resumes a flush interrupted by a mid-batch network drop without re-applying already-synced mutations', async () => {
+      mocks.setOnline(true)
+      const flushOrder: string[] = []
+      let dropThirdOnce = true
+      mocks.apiClient.mockImplementation(async (endpoint: string) => {
+        flushOrder.push(endpoint)
+        if (endpoint === '/api/habits/habit-c' && dropThirdOnce) {
+          dropThirdOnce = false
+          throw new Error('Network request failed')
+        }
+        return null
+      })
+
+      for (const suffix of ['a', 'b', 'c', 'd']) {
+        mocks.queued.push({
+          ...buildQueuedMutation({
+            type: 'updateHabit',
+            scope: 'habits',
+            endpoint: `/api/habits/habit-${suffix}`,
+            method: 'PUT',
+            payload: { title: suffix },
+            entityType: 'habit',
+            targetEntityId: `habit-${suffix}`,
+          }),
+          id: `update-${suffix}`,
+        })
+      }
+
+      const interrupted = await flushQueuedMutations()
+
+      expect(interrupted).toEqual({ succeeded: 2, failed: 0, remaining: 2, droppedMutations: [] })
+      expect(mocks.queued.map((mutation) => mutation.id)).toEqual(['update-c', 'update-d'])
+      expect(mocks.queued.find((mutation) => mutation.id === 'update-c')?.status).toBe('failed')
+      expect(mocks.queued.find((mutation) => mutation.id === 'update-d')?.status).toBe('pending')
+
+      const resumed = await flushQueuedMutations()
+
+      expect(resumed).toEqual({ succeeded: 2, failed: 0, remaining: 0, droppedMutations: [] })
+      expect(flushOrder).toEqual([
+        '/api/habits/habit-a',
+        '/api/habits/habit-b',
+        '/api/habits/habit-c',
+        '/api/habits/habit-c',
+        '/api/habits/habit-d',
+      ])
+      expect(mocks.queued).toHaveLength(0)
+    })
+
+    it('keeps unacknowledged mutations queued and unsent when a flush times out mid-batch', async () => {
+      mocks.setOnline(true)
+      const flushOrder: string[] = []
+      mocks.apiClient.mockImplementation(async (endpoint: string) => {
+        flushOrder.push(endpoint)
+        if (endpoint === '/api/habits/habit-slow') {
+          throw new Error('The request timed out')
+        }
+        return null
+      })
+
+      mocks.queued.push(
+        {
+          ...buildQueuedMutation({
+            type: 'updateHabit',
+            scope: 'habits',
+            endpoint: '/api/habits/habit-fast',
+            method: 'PUT',
+            payload: { title: 'Fast' },
+            entityType: 'habit',
+            targetEntityId: 'habit-fast',
+          }),
+          id: 'update-fast',
+        },
+        {
+          ...buildQueuedMutation({
+            type: 'updateHabit',
+            scope: 'habits',
+            endpoint: '/api/habits/habit-slow',
+            method: 'PUT',
+            payload: { title: 'Slow' },
+            entityType: 'habit',
+            targetEntityId: 'habit-slow',
+          }),
+          id: 'update-slow',
+        },
+        {
+          ...buildQueuedMutation({
+            type: 'updateHabit',
+            scope: 'habits',
+            endpoint: '/api/habits/habit-tail',
+            method: 'PUT',
+            payload: { title: 'Tail' },
+            entityType: 'habit',
+            targetEntityId: 'habit-tail',
+          }),
+          id: 'update-tail',
+        },
+      )
+
+      const result = await flushQueuedMutations()
+
+      expect(result).toEqual({ succeeded: 1, failed: 0, remaining: 2, droppedMutations: [] })
+      expect(flushOrder).toEqual(['/api/habits/habit-fast', '/api/habits/habit-slow'])
+
+      const timedOut = mocks.queued.find((mutation) => mutation.id === 'update-slow')
+      expect(timedOut?.status).toBe('failed')
+      expect(timedOut?.lastError).toContain('timed out')
+      expect(timedOut?.retries).toBe(0)
+
+      const untouched = mocks.queued.find((mutation) => mutation.id === 'update-tail')
+      expect(untouched?.status).toBe('pending')
+
+      cancelScheduledFlush()
+    })
+
+    it('defers a dependent mutation until its offline dependency resolves, even when queued ahead of the create', async () => {
+      mocks.setOnline(true)
+      const flushOrder: string[] = []
+      mocks.apiClient.mockImplementation(async (endpoint: string) => {
+        flushOrder.push(endpoint)
+        if (endpoint === '/api/tags') return { id: 'tag-1' }
+        return null
+      })
+
+      mocks.queued.push(
+        {
+          ...buildQueuedMutation({
+            type: 'assignTags',
+            scope: 'tags',
+            endpoint: '/api/habits/habit-1/tags',
+            method: 'PUT',
+            payload: { tagIds: ['offline-tag-1'] },
+            targetEntityId: 'habit-1',
+            dependsOn: ['offline-tag-1'],
+          }),
+          id: 'assign-1',
+        },
+        {
+          ...buildQueuedMutation({
+            type: 'createTag',
+            scope: 'tags',
+            endpoint: '/api/tags',
+            method: 'POST',
+            payload: { name: 'Focus' },
+            entityType: 'tag',
+            clientEntityId: 'offline-tag-1',
+          }),
+          id: 'create-1',
+        },
+      )
+
+      const firstPass = await flushQueuedMutations()
+
+      expect(firstPass).toEqual({ succeeded: 1, failed: 0, remaining: 1, droppedMutations: [] })
+      expect(flushOrder).toEqual(['/api/tags'])
+      expect(mocks.apiClient).not.toHaveBeenCalledWith('/api/habits/habit-1/tags', expect.anything())
+
+      const deferred = mocks.queued.find((mutation) => mutation.id === 'assign-1')
+      expect(deferred?.status).toBe('pending')
+      expect(deferred?.payload).toEqual({ tagIds: ['tag-1'] })
+
+      const secondPass = await flushQueuedMutations()
+
+      expect(secondPass).toEqual({ succeeded: 1, failed: 0, remaining: 0, droppedMutations: [] })
+      expect(flushOrder).toEqual(['/api/tags', '/api/habits/habit-1/tags'])
+      expect(mocks.apiClient).toHaveBeenLastCalledWith('/api/habits/habit-1/tags', {
+        method: 'PUT',
+        body: JSON.stringify({ tagIds: ['tag-1'] }),
+        idempotencyKey: 'assign-1',
+      })
+      expect(mocks.queued).toHaveLength(0)
+    })
+  })
 })
