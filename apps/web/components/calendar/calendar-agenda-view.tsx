@@ -270,7 +270,7 @@ function AgendaEventBlock({ block, displayTime }: Readonly<AgendaEventBlockProps
           className="block truncate"
           style={{
             fontFamily: 'var(--font-mono)',
-            fontSize: 11,
+            fontSize: 12,
             color: 'var(--fg-3)',
             fontVariantNumeric: 'tabular-nums',
           }}
@@ -538,7 +538,7 @@ export function CalendarAgendaView({
                   className="uppercase"
                   style={{
                     fontFamily: 'var(--font-mono)',
-                    fontSize: 10,
+                    fontSize: 12,
                     fontWeight: 500,
                     letterSpacing: '0.04em',
                     color: 'var(--fg-4)',
@@ -569,7 +569,7 @@ export function CalendarAgendaView({
                     style={{
                       top: hour * HOUR_HEIGHT + 2,
                       fontFamily: 'var(--font-mono)',
-                      fontSize: 11,
+                      fontSize: 12,
                       color: 'var(--fg-4)',
                       fontVariantNumeric: 'tabular-nums',
                     }}

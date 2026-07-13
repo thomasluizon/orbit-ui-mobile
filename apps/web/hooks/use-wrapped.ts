@@ -33,6 +33,7 @@ export function useWrapped(period: RecapSharePeriod, options: UseWrappedOptions 
   })
 
   const recap = query.data ?? null
+  // react-doctor-disable-next-line exhaustive-deps -- recap aliases query.data and is already in deps; react-doctor does not resolve the alias; https://github.com/thomasluizon/orbit-ui-mobile/issues/243
   const slides = useMemo(() => (recap ? buildWrappedSlides(recap) : []), [recap])
   const isEmpty = recap ? isRecapShareEmpty(recap.metrics) : false
 
@@ -42,6 +43,7 @@ export function useWrapped(period: RecapSharePeriod, options: UseWrappedOptions 
     if (storage.getItem(WRAPPED_YEAR_SEEN_STORAGE_KEY)) return
     storage.setItem(WRAPPED_YEAR_SEEN_STORAGE_KEY, '1')
     reportEvent(ACHIEVEMENT_EVENT_KEYS.wrappedViewed)
+    // react-doctor-disable-next-line exhaustive-deps -- recap aliases query.data and is already in deps; react-doctor does not resolve the alias; https://github.com/thomasluizon/orbit-ui-mobile/issues/243
   }, [active, period, recap, isEmpty, reportEvent])
 
   return {

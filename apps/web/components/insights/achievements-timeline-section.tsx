@@ -1,9 +1,11 @@
 'use client'
 
-import { useTranslations, useLocale } from 'next-intl'
+import { useTranslations } from 'next-intl'
 import { ChartRing } from '@/components/charts/chart-ring'
+import { useDateFormat } from '@/hooks/use-date-format'
 import { useGamificationProfile } from '@/hooks/use-gamification'
-import { InsightsSection, toSectionStatus } from './insights-section'
+import { InsightsSection } from './insights-section'
+import { toSectionStatus } from './insights-section-status'
 
 const MAX_TIMELINE_ITEMS = 8
 
@@ -13,18 +15,13 @@ export function AchievementsTimelineSection({
   className,
 }: Readonly<{ divider?: boolean; className?: string }>) {
   const t = useTranslations()
-  const locale = useLocale()
+  const { displayDateMedium } = useDateFormat()
   const { profile, earnedAchievements, isLoading, isError, refetch } = useGamificationProfile()
 
   const recent = [...earnedAchievements]
     .sort((a, b) => (b.earnedAtUtc ?? '').localeCompare(a.earnedAtUtc ?? ''))
     .slice(0, MAX_TIMELINE_ITEMS)
 
-  const dateFormatter = new Intl.DateTimeFormat(locale, {
-    month: 'short',
-    day: 'numeric',
-    year: 'numeric',
-  })
   const title = t('insights.sections.achievementsTimeline')
 
   return (
@@ -56,9 +53,7 @@ export function AchievementsTimelineSection({
                 {t(`gamification.achievements.${achievement.id}.name`)}
               </span>
               <span className="t-meta shrink-0">
-                {achievement.earnedAtUtc
-                  ? dateFormatter.format(new Date(achievement.earnedAtUtc))
-                  : ''}
+                {displayDateMedium(achievement.earnedAtUtc)}
               </span>
             </li>
           ))}

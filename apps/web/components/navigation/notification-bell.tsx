@@ -1,7 +1,7 @@
 'use client'
 
 import { useCallback, useMemo, useState, useSyncExternalStore } from 'react'
-import { AnimatePresence, motion } from 'motion/react'
+import { AnimatePresence, domAnimation, LazyMotion, m } from 'motion/react'
 import { Bell, CheckCheck, Flame, Heart, Sparkles, Trash2, Trophy, UserPlus, Users, X } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import {
@@ -63,6 +63,96 @@ function NotificationGlyphCircle({
     >
       <GlyphIcon size={20} strokeWidth={1.8} color={glyphColorMap[glyph]} />
     </span>
+  )
+}
+
+function NotificationRow({
+  item,
+  onOpen,
+  onDelete,
+}: Readonly<{
+  item: NotificationItem
+  onOpen: (notification: NotificationItem) => void
+  onDelete: (notification: NotificationItem) => void
+}>) {
+  const t = useTranslations()
+  return (
+    <m.li
+      exit={{
+        opacity: 0,
+        y: -6,
+        transition: { duration: 0.16, ease: [0.2, 0, 0, 1] },
+      }}
+      className="flex items-start transition-[background-color] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev)] active:bg-[var(--bg-elev-pressed)]"
+      style={{
+        gap: 12,
+        padding: '14px 16px',
+        borderBottom: '1px solid var(--hairline)',
+        background: item.isRead ? 'transparent' : 'rgba(var(--primary-rgb), 0.06)',
+      }}
+    >
+      <button
+        type="button"
+        className="flex flex-1 min-w-0 items-start text-left appearance-none border-0 bg-transparent cursor-pointer p-0"
+        style={{ gap: 12 }}
+        onClick={() => onOpen(item)}
+      >
+        <NotificationGlyphCircle notification={item} />
+        <span className="flex-1 min-w-0">
+          <span className="flex items-baseline justify-between" style={{ gap: 8 }}>
+            <span
+              className="truncate"
+              style={{
+                fontFamily: 'var(--font-sans)',
+                fontSize: 15,
+                fontWeight: 500,
+                color: 'var(--fg-1)',
+              }}
+            >
+              {item.title}
+            </span>
+            <span
+              className="shrink-0"
+              style={{
+                fontFamily: 'var(--font-mono)',
+                fontSize: 12,
+                color: 'var(--fg-3)',
+                fontVariantNumeric: 'tabular-nums',
+                letterSpacing: '0.02em',
+              }}
+            >
+              {formatNotificationRelativeTime(item.createdAtUtc, (key, values) =>
+                t(`notifications.${key}`, values),
+              )}
+            </span>
+          </span>
+          <span
+            className="line-clamp-2"
+            style={{
+              fontFamily: 'var(--font-sans)',
+              fontSize: 14,
+              lineHeight: 1.4,
+              color: 'var(--fg-3)',
+              marginTop: 3,
+            }}
+          >
+            {item.body}
+          </span>
+        </span>
+      </button>
+      <button
+        type="button"
+        aria-label={t('notifications.deleteNotification')}
+        className="touch-target icon-btn icon-btn-well shrink-0 hover:text-[var(--status-bad)]"
+        style={{ width: 36, height: 36, margin: -2, color: 'var(--fg-4)' }}
+        onClick={(e) => {
+          e.stopPropagation()
+          onDelete(item)
+        }}
+      >
+        <X size={18} strokeWidth={1.8} aria-hidden="true" />
+      </button>
+    </m.li>
   )
 }
 
@@ -263,89 +353,18 @@ export function NotificationBell() {
             </li>
           )}
           {visibleNotifications.length > 0 && (
-            <AnimatePresence initial={false}>
-              {visibleNotifications.map((item) => (
-                <motion.li
-                  key={item.id}
-                  exit={{
-                    opacity: 0,
-                    y: -6,
-                    transition: { duration: 0.16, ease: [0.2, 0, 0, 1] },
-                  }}
-                  className="flex items-start transition-[background-color] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:bg-[var(--bg-elev)] active:bg-[var(--bg-elev-pressed)]"
-                  style={{
-                    gap: 12,
-                    padding: '14px 16px',
-                    borderBottom: '1px solid var(--hairline)',
-                    background: item.isRead
-                      ? 'transparent'
-                      : 'rgba(var(--primary-rgb), 0.06)',
-                  }}
-                >
-                  <button
-                    type="button"
-                    className="flex flex-1 min-w-0 items-start text-left appearance-none border-0 bg-transparent cursor-pointer p-0"
-                    style={{ gap: 12 }}
-                    onClick={() => handleClick(item)}
-                  >
-                    <NotificationGlyphCircle notification={item} />
-                    <span className="flex-1 min-w-0">
-                      <span className="flex items-baseline justify-between" style={{ gap: 8 }}>
-                        <span
-                          className="truncate"
-                          style={{
-                            fontFamily: 'var(--font-sans)',
-                            fontSize: 15,
-                            fontWeight: 500,
-                            color: 'var(--fg-1)',
-                          }}
-                        >
-                          {item.title}
-                        </span>
-                        <span
-                          className="shrink-0"
-                          style={{
-                            fontFamily: 'var(--font-mono)',
-                            fontSize: 12,
-                            color: 'var(--fg-3)',
-                            fontVariantNumeric: 'tabular-nums',
-                            letterSpacing: '0.02em',
-                          }}
-                        >
-                          {formatNotificationRelativeTime(item.createdAtUtc, (key, values) =>
-                            t(`notifications.${key}`, values),
-                          )}
-                        </span>
-                      </span>
-                      <span
-                        className="line-clamp-2"
-                        style={{
-                          fontFamily: 'var(--font-sans)',
-                          fontSize: 14,
-                          lineHeight: 1.4,
-                          color: 'var(--fg-3)',
-                          marginTop: 3,
-                        }}
-                      >
-                        {item.body}
-                      </span>
-                    </span>
-                  </button>
-                  <button
-                    type="button"
-                    aria-label={t('notifications.deleteNotification')}
-                    className="touch-target icon-btn icon-btn-well shrink-0 hover:text-[var(--status-bad)]"
-                    style={{ width: 36, height: 36, margin: -2, color: 'var(--fg-4)' }}
-                    onClick={(e) => {
-                      e.stopPropagation()
-                      requestDeleteNotification(item)
-                    }}
-                  >
-                    <X size={18} strokeWidth={1.8} aria-hidden="true" />
-                  </button>
-                </motion.li>
-              ))}
-            </AnimatePresence>
+            <LazyMotion features={domAnimation}>
+              <AnimatePresence initial={false}>
+                {visibleNotifications.map((item) => (
+                  <NotificationRow
+                    key={item.id}
+                    item={item}
+                    onOpen={handleClick}
+                    onDelete={requestDeleteNotification}
+                  />
+                ))}
+              </AnimatePresence>
+            </LazyMotion>
           )}
         </ul>
       </Popover>

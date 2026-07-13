@@ -154,7 +154,7 @@ function TabBtn({ tab, label, active, onClick, unread = false }: Readonly<TabBtn
       <span
         style={{
           fontFamily: 'var(--font-sans)',
-          fontSize: 11,
+          fontSize: 12,
           fontWeight: active ? 500 : 400,
         }}
       >

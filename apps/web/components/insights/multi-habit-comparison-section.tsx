@@ -3,7 +3,8 @@
 import { useTranslations } from 'next-intl'
 import { BarChart } from '@/components/charts/bar-chart'
 import { useHabits } from '@/hooks/use-habits'
-import { InsightsSection, toSectionStatus } from './insights-section'
+import { InsightsSection } from './insights-section'
+import { toSectionStatus } from './insights-section-status'
 
 const MAX_BARS = 8
 

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useEffectEvent } from 'react'
 import { Loader2, Check, Settings2 } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import { useAppToast } from '@/hooks/use-app-toast'
@@ -45,13 +45,15 @@ export function OnboardingCreateHabit({ onCreated }: Readonly<OnboardingCreateHa
   const { showError } = useAppToast()
   const actions = useOnboardingActions()
 
+  const onCreatedEvent = useEffectEvent(onCreated)
+
   useEffect(() => {
     if (!createdInfo) return
     const timer = setTimeout(() => {
-      onCreated(createdInfo.id, createdInfo.title)
+      onCreatedEvent(createdInfo.id, createdInfo.title)
     }, 1500)
     return () => clearTimeout(timer)
-  }, [createdInfo, onCreated])
+  }, [createdInfo])
 
   const activeFrequency = frequencyUnit ?? 'one-time'
 

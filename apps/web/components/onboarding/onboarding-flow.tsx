@@ -230,6 +230,7 @@ export function OnboardingFlow() {
   const isStarter = sharedStep === 0 && !viewingAstra && !astraStepShown
 
   const overlay = (
+    // react-doctor-disable-next-line prefer-html-dialog -- full-screen onboarding takeover with its own focus/escape management via overlayRef; native <dialog>'s modal backdrop and sizing do not fit a full-viewport flow; https://github.com/thomasluizon/orbit-ui-mobile/issues/243
     <div
       ref={overlayRef}
       role="dialog"
@@ -248,7 +249,7 @@ export function OnboardingFlow() {
             id="onboarding-title"
             style={{
               fontFamily: 'var(--font-mono)',
-              fontSize: 11,
+              fontSize: 12,
               fontWeight: 500,
               color: 'var(--fg-3)',
               letterSpacing: '0.04em',

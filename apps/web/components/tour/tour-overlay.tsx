@@ -53,7 +53,7 @@ export function TourOverlay() {
     })
     try {
       localStorage.setItem(
-        'orbit_tour_sections',
+        'orbit_tour_sections:v1',
         JSON.stringify({
           habits: true,
           goals: true,
