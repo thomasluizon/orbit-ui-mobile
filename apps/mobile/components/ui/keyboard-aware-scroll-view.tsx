@@ -34,14 +34,14 @@ interface KeyboardAwareViewProps {
   children: ReactNode
   style?: StyleProp<ViewStyle>
   keyboardVerticalOffset?: number
-  behavior?: KeyboardAvoidingViewProps['behavior']
+  behavior?: Exclude<KeyboardAvoidingViewProps['behavior'], undefined>
 }
 
 interface KeyboardAwareScrollViewProps extends ComponentProps<typeof ScrollView> {
   children: ReactNode
   containerStyle?: StyleProp<ViewStyle>
   keyboardVerticalOffset?: number
-  behavior?: KeyboardAvoidingViewProps['behavior']
+  behavior?: Exclude<KeyboardAvoidingViewProps['behavior'], undefined>
 }
 
 interface KeyboardAwareBottomSheetScrollViewProps

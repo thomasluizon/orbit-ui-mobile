@@ -1,5 +1,5 @@
 import { useMemo, useState, useCallback, useSyncExternalStore } from 'react'
-import { View, Text, Pressable } from 'react-native'
+import { View, Text, Pressable, type ListRenderItemInfo } from 'react-native'
 import Animated, { LinearTransition, ReduceMotion, ZoomIn } from 'react-native-reanimated'
 import { Bell, CheckCheck, Trash2 } from 'lucide-react-native'
 import { useTranslation } from 'react-i18next'
@@ -222,7 +222,7 @@ export function NotificationBell() {
     }
   }
 
-  function renderNotification({ item, index }: { item: NotificationItem; index: number }) {
+  function renderNotification({ item, index }: ListRenderItemInfo<NotificationItem>) {
     return (
       <NotificationRow
         item={item}

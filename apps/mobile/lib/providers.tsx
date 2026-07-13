@@ -34,6 +34,10 @@ import './i18n'
 
 void SplashScreen.preventAutoHideAsync()
 
+function syncWidgetDataSafely() {
+  void syncWidgetData().catch(() => {})
+}
+
 interface ProvidersProps {
   children: ReactNode
 }
@@ -113,7 +117,7 @@ function AuthInitializer({ children }: Readonly<{ children: ReactNode }>) {
 
       if (isAuthenticated) {
         try { await restoreQueryCache() } catch {}
-        void syncWidgetData().catch(() => {})
+        syncWidgetDataSafely()
       } else {
         queryClient.clear()
         try { await clearPersistedQueryCache() } catch {}
@@ -132,7 +136,7 @@ function AuthInitializer({ children }: Readonly<{ children: ReactNode }>) {
 
       if (nextState === 'active') {
         reconcileSessionOnForeground()
-          .then(() => { void syncWidgetData().catch(() => {}) })
+          .then(syncWidgetDataSafely)
           .catch(() => {})
       }
     }

@@ -16,7 +16,7 @@ export function createChatSseParser(): ChatSseParser {
 
   return {
     feed(chunk) {
-      buffer = (buffer + chunk).replace(/\r\n/g, '\n')
+      buffer = (buffer + chunk).replaceAll('\r\n', '\n')
       const events: ChatStreamEvent[] = []
 
       let separatorIndex = buffer.indexOf('\n\n')

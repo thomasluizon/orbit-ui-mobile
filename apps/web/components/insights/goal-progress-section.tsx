@@ -32,7 +32,7 @@ export function GoalProgressSection({ range, divider }: Readonly<GoalProgressSec
   }))
   const hasGoals = goals.length > 0
   const title = t('insights.sections.goalProgress')
-  const latestPoint = points[points.length - 1]
+  const latestPoint = points.at(-1)
 
   let status: SectionStatus
   if (goalsLoading) {

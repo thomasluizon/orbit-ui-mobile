@@ -46,7 +46,7 @@ function getCookieValue(source: CookieValueReader, name: string): string | null 
 }
 
 function decodeBase64Url(segment: string): string {
-  const normalized = segment.replace(/-/g, '+').replace(/_/g, '/')
+  const normalized = segment.replaceAll('-', '+').replaceAll('_', '/')
   const padded = normalized.padEnd(
     normalized.length + ((4 - (normalized.length % 4)) % 4),
     '=',
