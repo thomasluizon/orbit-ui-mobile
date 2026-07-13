@@ -72,14 +72,13 @@ export function FriendProfileView({
   const renderProfileContent = () => {
     if (isLoading) {
       return (
-        <div
-          role="status"
+        <output
           aria-label={t('common.loading')}
           className="flex items-center justify-center"
           style={{ minHeight: 220 }}
         >
           <Loader2 className="size-[22px] animate-spin" style={{ color: 'var(--primary)' }} />
-        </div>
+        </output>
       )
     }
     if (isError || !view) {
