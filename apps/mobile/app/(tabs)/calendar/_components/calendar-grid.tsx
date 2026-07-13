@@ -129,6 +129,8 @@ export function CalendarGrid({
             if (cell.isToday) labelParts.push(t("calendar.legend.today"));
             if (statusLabel) labelParts.push(statusLabel);
             const dayAccessibilityLabel = labelParts.join(", ");
+            const monthDayColor = cell.isCurrentMonth ? tokens.fg2 : tokens.fg4;
+            const dayNumColor = highlighted || cell.isToday ? tokens.fg1 : monthDayColor;
 
             return (
               <Pressable
@@ -164,12 +166,7 @@ export function CalendarGrid({
                     style={[
                       cell.isToday ? styles.dayTextToday : styles.dayText,
                       {
-                        color:
-                          highlighted || cell.isToday
-                            ? tokens.fg1
-                            : cell.isCurrentMonth
-                              ? tokens.fg2
-                              : tokens.fg4,
+                        color: dayNumColor,
                       },
                     ]}
                   >

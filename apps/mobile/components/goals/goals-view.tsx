@@ -148,13 +148,7 @@ export function GoalsView({
     </>
   );
 
-  const listEmptyElement = !isFetched ? (
-    <View style={styles.skeletonContainer}>
-      <SkeletonCard styles={styles} />
-      <SkeletonCard styles={styles} />
-      <SkeletonCard styles={styles} />
-    </View>
-  ) : activeFilter != null ? (
+  const filteredEmptyElement = activeFilter != null ? (
     <EmptyState
       title={t("goals.filters.emptyFiltered")}
       description={t("goals.filters.emptyFilteredHint")}
@@ -173,6 +167,16 @@ export function GoalsView({
         onPress: () => setShowCreateGoalModal(true),
       }}
     />
+  );
+
+  const listEmptyElement = !isFetched ? (
+    <View style={styles.skeletonContainer}>
+      <SkeletonCard styles={styles} />
+      <SkeletonCard styles={styles} />
+      <SkeletonCard styles={styles} />
+    </View>
+  ) : (
+    filteredEmptyElement
   );
 
   return (

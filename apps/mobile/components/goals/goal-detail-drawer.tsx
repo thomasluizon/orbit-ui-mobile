@@ -117,8 +117,9 @@ export function GoalDetailDrawer({
     [locale],
   )
 
-  const progressText = goal
-    ? isStreak
+  let progressText = ''
+  if (goal) {
+    progressText = isStreak
       ? t('goals.streak.ofTarget', {
           current: goal.currentValue,
           target: goal.targetValue,
@@ -128,7 +129,7 @@ export function GoalDetailDrawer({
           target: goal.targetValue,
           unit: goal.unit,
         })
-    : ''
+  }
 
   const confirmDelete = useCallback(() => {
     setShowDeleteConfirm(true)
@@ -160,9 +161,10 @@ export function GoalDetailDrawer({
 
   const progressFillColor = isStreak ? tokens.statusOverdue : tokens.primary
   const progressPct = Math.min(goal.progressPercentage, 100)
+  const headerUnitSuffix = goal.unit ? `  ·  ${goal.unit}` : ''
   const headerLine = isStreak
     ? t('goals.form.typeStreak')
-    : `${t('goals.form.typeStandard')}${goal.unit ? `  ·  ${goal.unit}` : ''}`
+    : `${t('goals.form.typeStandard')}${headerUnitSuffix}`
 
   return (
     <>

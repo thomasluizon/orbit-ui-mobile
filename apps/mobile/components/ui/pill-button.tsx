@@ -108,19 +108,20 @@ export function PillButton({
       ) : (
         leading
       )}
-      {!hasLabel ? null : typeof children === 'string' || typeof children === 'number' ? (
-        <Text
-          style={[
-            styles.label,
-            { color: textColorByVariant[variant], fontSize: sizeSpec.fontSize },
-            busy ? styles.labelBusy : null,
-          ]}
-        >
-          {children}
-        </Text>
-      ) : (
-        children
-      )}
+      {hasLabel &&
+        (typeof children === 'string' || typeof children === 'number' ? (
+          <Text
+            style={[
+              styles.label,
+              { color: textColorByVariant[variant], fontSize: sizeSpec.fontSize },
+              busy ? styles.labelBusy : null,
+            ]}
+          >
+            {children}
+          </Text>
+        ) : (
+          children
+        ))}
     </Pressable>
   )
 }

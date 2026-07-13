@@ -44,6 +44,11 @@ function AppBarRightAction({
   tokens,
   t,
 }: Readonly<AppBarRightActionProps>) {
+  let rightIcon: ReactNode
+  if (right === 'help') rightIcon = <HelpCircle size={22} color={tokens.fg1} strokeWidth={1.8} />
+  else if (right === 'close') rightIcon = <X size={24} color={tokens.fg1} strokeWidth={1.8} />
+  else rightIcon = <Share2 size={21} color={tokens.fg1} strokeWidth={1.8} />
+
   return (
     <Pressable
       onPress={onRight}
@@ -60,13 +65,7 @@ function AppBarRightAction({
           : null,
       ]}
     >
-      {right === 'help' ? (
-        <HelpCircle size={22} color={tokens.fg1} strokeWidth={1.8} />
-      ) : right === 'close' ? (
-        <X size={24} color={tokens.fg1} strokeWidth={1.8} />
-      ) : (
-        <Share2 size={21} color={tokens.fg1} strokeWidth={1.8} />
-      )}
+      {rightIcon}
     </Pressable>
   )
 }
@@ -87,6 +86,12 @@ function AppBarLeading({
   tokens,
 }: Readonly<AppBarLeadingProps>) {
   if (!back && !LeadingIcon) return null
+
+  let leadingIcon: ReactNode = null
+  if (back) leadingIcon = <ChevronLeft size={26} color={tokens.fg1} strokeWidth={2} />
+  else if (LeadingIcon)
+    leadingIcon = <LeadingIcon size={22} color={tokens.fg1} strokeWidth={1.8} />
+
   return (
     <Pressable
       onPress={onBack}
@@ -101,11 +106,7 @@ function AppBarLeading({
           : null,
       ]}
     >
-      {back ? (
-        <ChevronLeft size={26} color={tokens.fg1} strokeWidth={2} />
-      ) : LeadingIcon ? (
-        <LeadingIcon size={22} color={tokens.fg1} strokeWidth={1.8} />
-      ) : null}
+      {leadingIcon}
     </Pressable>
   )
 }

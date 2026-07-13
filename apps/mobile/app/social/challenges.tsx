@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native'
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { useLocalSearchParams, useRouter } from 'expo-router'
@@ -34,6 +34,52 @@ export default function ChallengesScreen() {
 
   const openDetail = (id: string) => router.push(`/social/challenges/${id}`)
 
+  let challengesContent: ReactNode
+  if (isLoading) {
+    challengesContent = (
+      <View style={styles.centered}>
+        <ActivityIndicator color={tokens.primary} accessibilityLabel={t('common.loading')} />
+      </View>
+    )
+  } else if (!socialEnabled) {
+    challengesContent = <SocialOptInGate />
+  } else if (isError) {
+    challengesContent = (
+      <View style={styles.errorBlock}>
+        <Text style={[styles.errorBody, { color: tokens.fg3 }]}>
+          {t('challenges.errors.loadFailed')}
+        </Text>
+        <PillButton
+          variant="ghost"
+          onPress={() => {
+            void refetch()
+          }}
+        >
+          {t('common.retry')}
+        </PillButton>
+      </View>
+    )
+  } else {
+    challengesContent = (
+      <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
+        <View style={styles.actions}>
+          <PillButton style={styles.actionButton} onPress={() => setCreateOpen(true)}>
+            {t('challenges.actions.create')}
+          </PillButton>
+          <PillButton style={styles.actionButton} variant="ghost" onPress={() => setJoinOpen(true)}>
+            {t('challenges.actions.join')}
+          </PillButton>
+        </View>
+        <ChallengeList
+          challenges={challenges ?? []}
+          onOpen={openDetail}
+          onCreate={() => setCreateOpen(true)}
+          onJoin={() => setJoinOpen(true)}
+        />
+      </ScrollView>
+    )
+  }
+
   return (
     <SafeAreaView style={styles.safeArea} edges={['top']}>
       <GradientTop height={200} />
@@ -43,44 +89,7 @@ export default function ChallengesScreen() {
         title={t('challenges.title')}
         backLabel={t('common.goBack')}
       />
-      {isLoading ? (
-        <View style={styles.centered}>
-          <ActivityIndicator color={tokens.primary} accessibilityLabel={t('common.loading')} />
-        </View>
-      ) : !socialEnabled ? (
-        <SocialOptInGate />
-      ) : isError ? (
-        <View style={styles.errorBlock}>
-          <Text style={[styles.errorBody, { color: tokens.fg3 }]}>
-            {t('challenges.errors.loadFailed')}
-          </Text>
-          <PillButton
-            variant="ghost"
-            onPress={() => {
-              void refetch()
-            }}
-          >
-            {t('common.retry')}
-          </PillButton>
-        </View>
-      ) : (
-        <ScrollView contentContainerStyle={styles.scroll} showsVerticalScrollIndicator={false}>
-          <View style={styles.actions}>
-            <PillButton style={styles.actionButton} onPress={() => setCreateOpen(true)}>
-              {t('challenges.actions.create')}
-            </PillButton>
-            <PillButton style={styles.actionButton} variant="ghost" onPress={() => setJoinOpen(true)}>
-              {t('challenges.actions.join')}
-            </PillButton>
-          </View>
-          <ChallengeList
-            challenges={challenges ?? []}
-            onOpen={openDetail}
-            onCreate={() => setCreateOpen(true)}
-            onJoin={() => setJoinOpen(true)}
-          />
-        </ScrollView>
-      )}
+      {challengesContent}
 
       <BottomSheetModal
         open={createOpen}

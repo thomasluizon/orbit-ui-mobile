@@ -1,3 +1,4 @@
+import type { ReactNode } from 'react'
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native'
 import Animated, { FadeInDown, ReduceMotion } from 'react-native-reanimated'
 import { useTranslation } from 'react-i18next'
@@ -65,32 +66,39 @@ export function FriendProfileSheet({
     (error.status === 403 || error.status === 404)
   const profileUnavailable = missingView || isPermanentError
 
+  let profileContent: ReactNode
+  if (isLoading) {
+    profileContent = (
+      <View style={styles.centered}>
+        <ActivityIndicator color={tokens.primary} accessibilityLabel={t('common.loading')} />
+      </View>
+    )
+  } else if (isError || !view) {
+    profileContent = (
+      <View style={styles.centered}>
+        {profileUnavailable ? <SatelliteGlyph size={84} /> : null}
+        <Text style={styles.unavailable}>
+          {t(
+            profileUnavailable
+              ? 'social.friendProfile.unavailable'
+              : 'social.friendProfile.loadError',
+          )}
+        </Text>
+        {profileUnavailable ? null : (
+          <PillButton variant="ghost" onPress={() => void refetch()}>
+            {t('common.retry')}
+          </PillButton>
+        )}
+      </View>
+    )
+  } else {
+    profileContent = <ProfileBody view={view} tokens={tokens} styles={styles} />
+  }
+
   return (
     <BottomSheetModal open={open} onClose={onClose} title={displayName} snapPoints={['70%', '90%']}>
       <View style={styles.body}>
-        {isLoading ? (
-          <View style={styles.centered}>
-            <ActivityIndicator color={tokens.primary} accessibilityLabel={t('common.loading')} />
-          </View>
-        ) : isError || !view ? (
-          <View style={styles.centered}>
-            {profileUnavailable ? <SatelliteGlyph size={84} /> : null}
-            <Text style={styles.unavailable}>
-              {t(
-                profileUnavailable
-                  ? 'social.friendProfile.unavailable'
-                  : 'social.friendProfile.loadError',
-              )}
-            </Text>
-            {profileUnavailable ? null : (
-              <PillButton variant="ghost" onPress={() => void refetch()}>
-                {t('common.retry')}
-              </PillButton>
-            )}
-          </View>
-        ) : (
-          <ProfileBody view={view} tokens={tokens} styles={styles} />
-        )}
+        {profileContent}
       </View>
     </BottomSheetModal>
   )

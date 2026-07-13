@@ -161,10 +161,13 @@ export function StatusDot({
       accessibilityRole="button"
       accessibilityLabel={accessibilityLabel ?? state}
       accessibilityState={{ disabled }}
-      style={({ pressed }) => ({
-        transform: [{ scale: pressed && !disabled ? 0.96 : 1 }],
-        opacity: disabled ? 0.4 : pressed ? 0.85 : 1,
-      })}
+      style={({ pressed }) => {
+        const pressedOpacity = pressed ? 0.85 : 1
+        return {
+          transform: [{ scale: pressed && !disabled ? 0.96 : 1 }],
+          opacity: disabled ? 0.4 : pressedOpacity,
+        }
+      }}
     >
       {dot}
     </Pressable>

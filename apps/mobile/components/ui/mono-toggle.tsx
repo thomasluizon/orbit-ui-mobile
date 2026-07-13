@@ -41,13 +41,16 @@ export function MonoToggle({
       accessibilityRole="switch"
       accessibilityLabel={accessibilityLabel}
       accessibilityState={{ checked: on, disabled }}
-      style={({ pressed }) => [
-        styles.toggle,
-        {
-          backgroundColor: on ? tintFromPrimary(tokens, 0.12) : tokens.bgField,
-          opacity: pressed && onPress && !disabled ? 0.75 : disabled ? 0.55 : 1,
-        },
-      ]}
+      style={({ pressed }) => {
+        const disabledOpacity = disabled ? 0.55 : 1
+        return [
+          styles.toggle,
+          {
+            backgroundColor: on ? tintFromPrimary(tokens, 0.12) : tokens.bgField,
+            opacity: pressed && onPress && !disabled ? 0.75 : disabledOpacity,
+          },
+        ]
+      }}
     >
       <Text
         style={[

@@ -146,11 +146,8 @@ export function TodayDateNavigation({
   const tokens = createTokensV2(currentScheme, currentTheme)
   const dateNavRef = useRef<View>(null)
   const dateMotion = useResolvedMotionPreset('tab-switch')
-  const dateLabelEnterShift = dateMotion.reducedMotionEnabled
-    ? 0
-    : slideDirection === 'left'
-      ? -12
-      : 12
+  const enterShiftDirection = slideDirection === 'left' ? -12 : 12
+  const dateLabelEnterShift = dateMotion.reducedMotionEnabled ? 0 : enterShiftDirection
   useTourTarget('tour-date-nav', dateNavRef)
 
   if (!visible) return null

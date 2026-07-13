@@ -52,9 +52,9 @@ export function CalendarSyncEventRow({
       pluralize: plural,
     },
   )
-  const timeLabel = event.startTime
-    ? `${event.startTime}${event.endTime ? ` - ${event.endTime}` : ''}`
-    : ''
+  const endTimeSuffix = event.endTime ? ` - ${event.endTime}` : ''
+  const timeLabel = event.startTime ? `${event.startTime}${endTimeSuffix}` : ''
+  const selectedBackground = selected ? tintFromPrimary(tokens, 0.06) : 'transparent'
 
   return (
     <Animated.View entering={rowEntrance(index)}>
@@ -66,11 +66,7 @@ export function CalendarSyncEventRow({
           styles.eventRow,
           {
             borderBottomColor: tokens.hairline,
-            backgroundColor: pressed
-              ? tokens.bgElev
-              : selected
-                ? tintFromPrimary(tokens, 0.06)
-                : 'transparent',
+            backgroundColor: pressed ? tokens.bgElev : selectedBackground,
           },
         ]}
       >

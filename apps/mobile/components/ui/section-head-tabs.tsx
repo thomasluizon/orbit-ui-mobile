@@ -47,20 +47,19 @@ export function SectionHeadTabs<T extends string = string>({
             accessibilityLabel={tab.label}
             accessibilityState={{ selected: isActive }}
             hitSlop={{ top: 6, bottom: 6 }}
-            style={({ pressed }) => [
-              styles.tab,
-              {
-                backgroundColor: isActive
-                  ? tokens.selectionBg
-                  : pressed
-                    ? tokens.bgElev2
-                    : tokens.bgElev,
-                borderColor: isActive
-                  ? tintFromPrimary(tokens, 0.45)
-                  : tokens.hairline,
-              },
-              pressed && !isActive ? styles.tabPressed : null,
-            ]}
+            style={({ pressed }) => {
+              const pressedBackground = pressed ? tokens.bgElev2 : tokens.bgElev
+              return [
+                styles.tab,
+                {
+                  backgroundColor: isActive ? tokens.selectionBg : pressedBackground,
+                  borderColor: isActive
+                    ? tintFromPrimary(tokens, 0.45)
+                    : tokens.hairline,
+                },
+                pressed && !isActive ? styles.tabPressed : null,
+              ]
+            }}
           >
             {tab.locked ? (
               <Lock
