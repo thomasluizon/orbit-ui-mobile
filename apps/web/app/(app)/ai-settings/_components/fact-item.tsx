@@ -14,6 +14,19 @@ interface FactItemProps {
   onDelete: () => void
 }
 
+const categoryBadgeStyle: React.CSSProperties = {
+  fontFamily: 'var(--font-mono)',
+  // react-doctor-disable-next-line no-tiny-text -- intentional pill badge matching DESIGN.md Badge (10.5/600 UPPERCASE); not body text https://github.com/thomasluizon/orbit-ui-mobile/issues/243
+  fontSize: 10,
+  fontWeight: 500,
+  color: 'var(--fg-3)',
+  letterSpacing: '0.06em',
+  padding: '2px 7px',
+  borderRadius: 999,
+  alignSelf: 'flex-start',
+  boxShadow: 'inset 0 0 0 1px var(--hairline-strong)',
+}
+
 export function FactItem({
   fact,
   selectMode,
@@ -44,19 +57,7 @@ export function FactItem({
       {selectMode && <RadioGlyph selected={isSelected} size={18} />}
       <div className="flex-1 min-w-0" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
         {categoryLabel && (
-          <span
-            style={{
-              fontFamily: 'var(--font-mono)',
-              fontSize: 10,
-              fontWeight: 500,
-              color: 'var(--fg-3)',
-              letterSpacing: '0.06em',
-              padding: '2px 7px',
-              borderRadius: 999,
-              alignSelf: 'flex-start',
-              boxShadow: 'inset 0 0 0 1px var(--hairline-strong)',
-            }}
-          >
+          <span style={categoryBadgeStyle}>
             {categoryLabel}
           </span>
         )}

@@ -80,8 +80,9 @@ export function useUserFacts(hasProAccess: boolean) {
       const previous = queryClient.getQueryData<UserFact[]>(
         userFactKeys.lists(),
       )
+      const idsToDelete = new Set(ids)
       queryClient.setQueryData<UserFact[]>(userFactKeys.lists(), (old) =>
-        old ? old.filter((fact) => !ids.includes(fact.id)) : old,
+        old ? old.filter((fact) => !idsToDelete.has(fact.id)) : old,
       )
       return { previous }
     },

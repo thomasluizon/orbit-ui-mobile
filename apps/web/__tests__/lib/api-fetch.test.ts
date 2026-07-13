@@ -1,4 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { z } from 'zod'
 
 vi.mock('sonner', () => ({
   toast: {
@@ -24,16 +25,20 @@ vi.mock('@/stores/version-gate-store', () => ({
   },
 }))
 
-vi.mock('@orbit/shared/utils', () => ({
-  buildClientTimeZoneHeaders: vi.fn(() => ({
-    'X-Orbit-Time-Zone': 'America/Sao_Paulo',
-  })),
-  extractBackendError: vi.fn((err: { data?: { error?: string } }) => err.data?.error ?? undefined),
-  extractBackendErrorCode: vi.fn(
-    (err: { data?: { code?: string; errorCode?: string } }) =>
-      err.data?.code ?? err.data?.errorCode ?? undefined,
-  ),
-}))
+vi.mock('@orbit/shared/utils', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@orbit/shared/utils')>()
+  return {
+    ...actual,
+    buildClientTimeZoneHeaders: vi.fn(() => ({
+      'X-Orbit-Time-Zone': 'America/Sao_Paulo',
+    })),
+    extractBackendError: vi.fn((err: { data?: { error?: string } }) => err.data?.error ?? undefined),
+    extractBackendErrorCode: vi.fn(
+      (err: { data?: { code?: string; errorCode?: string } }) =>
+        err.data?.code ?? err.data?.errorCode ?? undefined,
+    ),
+  }
+})
 
 const mockFetch = vi.fn()
 vi.stubGlobal('fetch', mockFetch)
@@ -320,6 +325,42 @@ describe('apiFetch', () => {
     })
 
     await expect(apiFetch('/api/test')).rejects.toThrow(ApiError)
+  })
+
+  it('validates and returns the parsed body when a schema is supplied', async () => {
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ id: 'h-1', extra: 'stripped' }),
+    })
+
+    const result = await apiFetch('/api/habits/h-1', undefined, z.object({ id: z.string() }))
+    expect(result).toEqual({ id: 'h-1' })
+  })
+
+  it('still passes when a valid response carries an additive unknown field', async () => {
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ id: 'h-1', serverAddedLater: { experiment: true } }),
+    })
+
+    const result = await apiFetch('/api/habits/h-1', undefined, z.object({ id: z.string() }))
+    expect(result).toEqual({ id: 'h-1' })
+  })
+
+  it('rejects a contract mismatch with a typed 502 ApiClientError', async () => {
+    mockFetch.mockResolvedValue({
+      ok: true,
+      json: () => Promise.resolve({ id: 123 }),
+    })
+
+    await expect(
+      apiFetch('/api/habits/h-1', undefined, z.object({ id: z.string() })),
+    ).rejects.toMatchObject({
+      name: 'ApiClientError',
+      status: 502,
+      code: 'INVALID_RESPONSE_SCHEMA',
+    })
+    expect(toast.error).not.toHaveBeenCalled()
   })
 })
 

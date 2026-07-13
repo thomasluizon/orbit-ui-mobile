@@ -41,6 +41,12 @@ interface HabitFormFieldsProps {
   reminderTimes: number[];
   onReminderTimesChange: (times: number[]) => void;
   onReminderEnabledChange?: (nextEnabled: boolean) => void;
+  /**
+   * Surfaces the scheduled-reminder editor even under a due time when the habit already holds
+   * scheduled reminders (legacy Astra mixed data), so they stay visible and are not silently wiped.
+   * See https://github.com/thomasluizon/orbit-ui-mobile/issues/447 (Bug 3).
+   */
+  hasScheduledReminders?: boolean;
   onFlushBufferedInputsReady?: (flush: () => void) => void;
   /** When true, advanced fields are visible by default (used in edit modal) */
   defaultExpanded?: boolean;
@@ -61,6 +67,7 @@ export function HabitFormFields({
   reminderTimes,
   onReminderTimesChange,
   onReminderEnabledChange,
+  hasScheduledReminders = false,
   onFlushBufferedInputsReady,
   defaultExpanded = false,
   expandAdvancedSignal = 0,
@@ -277,6 +284,7 @@ export function HabitFormFields({
             reminderTimes={reminderTimes}
             onReminderTimesChange={onReminderTimesChange}
             onToggleReminder={handleReminderEnabledChange}
+            hasScheduledReminders={hasScheduledReminders}
             onValidationError={showError}
             selectedGoalIds={selectedGoalIds}
             atGoalLimit={atGoalLimit}

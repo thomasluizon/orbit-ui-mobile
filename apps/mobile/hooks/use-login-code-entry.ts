@@ -22,11 +22,10 @@ interface UseLoginCodeEntryResult {
 
 export function useLoginCodeEntry(onCompleteCode?: (code: string) => void): UseLoginCodeEntryResult {
   const [codeDigits, setCodeDigits] = useState(() => createVerificationCodeDigits())
-  const [canResend, setCanResend] = useState(true)
   const [resendCountdown, setResendCountdown] = useState(0)
+  const canResend = resendCountdown === 0
   const codeInputRefs = useRef<(TextInput | null)[]>([])
   const resendTimerRef = useRef<ReturnType<typeof globalThis.setInterval> | null>(null)
-  const resendCountdownRef = useRef(0)
   const submittedCodeRef = useRef<string | null>(null)
 
   const clearResendTimer = useCallback(() => {
@@ -45,24 +44,21 @@ export function useLoginCodeEntry(onCompleteCode?: (code: string) => void): UseL
     }
     if (submittedCodeRef.current === joinedCode) return
     submittedCodeRef.current = joinedCode
+    // react-doctor-disable-next-line no-pass-data-to-parent, no-pass-live-state-to-parent -- Deliberate: auto-submit must fire once per unique complete code (submittedCodeRef dedup) from ANY input source — typing, paste, or external setCodeDigits (SMS autofill) — which an event-handler-only call would miss. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
     onCompleteCode?.(joinedCode)
   }, [codeDigits, joinedCode, onCompleteCode])
 
   const startResendCountdown = useCallback(() => {
     clearResendTimer()
-    setCanResend(false)
-    resendCountdownRef.current = 60
     setResendCountdown(60)
     resendTimerRef.current = globalThis.setInterval(() => {
-      const next = Math.max(resendCountdownRef.current - 1, 0)
-      resendCountdownRef.current = next
-      setResendCountdown(next)
-      if (next === 0) {
-        clearResendTimer()
-        setCanResend(true)
-      }
+      setResendCountdown((previous) => Math.max(0, previous - 1))
     }, 1000)
   }, [clearResendTimer])
+
+  useEffect(() => {
+    if (resendCountdown === 0) clearResendTimer()
+  }, [resendCountdown, clearResendTimer])
 
   const resetCodeDigits = useCallback(() => {
     setCodeDigits(createVerificationCodeDigits())

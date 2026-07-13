@@ -13,7 +13,11 @@ import type {
   ReportEventResponse,
   StreakInfo,
 } from '@orbit/shared/types/gamification'
-import { reportEventResponseSchema } from '@orbit/shared/types/gamification'
+import {
+  gamificationProfileSchema,
+  reportEventResponseSchema,
+  streakInfoSchema,
+} from '@orbit/shared/types/gamification'
 import {
   deriveGamificationProfileState,
   detectCrossedStreakMilestones,
@@ -33,7 +37,7 @@ export function useGamificationProfile(enabled = true) {
 
   const query = useQuery({
     queryKey: gamificationKeys.profile(),
-    queryFn: () => apiClient<GamificationProfile>(API.gamification.profile),
+    queryFn: () => apiClient<GamificationProfile>(API.gamification.profile, undefined, gamificationProfileSchema),
     staleTime: QUERY_STALE_TIMES.gamification,
     enabled,
   })
@@ -44,7 +48,7 @@ export function useGamificationProfile(enabled = true) {
     earnedAchievements,
     lockedAchievements,
     achievementsByCategory,
-  } = useMemo(() => deriveGamificationProfileState(profile), [profile])
+  } = useMemo(() => deriveGamificationProfileState(query.data ?? null), [query.data])
 
   const [milestones, setMilestones] = useState(() => ({
     ...detectGamificationMilestones(profile, null, new Set<string>(), acknowledgedLevel),
@@ -52,22 +56,23 @@ export function useGamificationProfile(enabled = true) {
   }))
 
   useEffect(() => {
+    const currentProfile = query.data ?? null
     const next = detectGamificationMilestones(
-      profile,
+      currentProfile,
       previousLevelRef.current,
       previousAchievementIdsRef.current,
       acknowledgedLevel,
     )
     const crossedStreakMilestones = detectCrossedStreakMilestones(
       previousStreakRef.current,
-      profile?.currentStreak ?? null,
+      currentProfile?.currentStreak ?? null,
       STREAK_CROSSING_MILESTONES,
     )
-    previousLevelRef.current = profile?.level ?? null
-    previousStreakRef.current = profile?.currentStreak ?? null
+    previousLevelRef.current = currentProfile?.level ?? null
+    previousStreakRef.current = currentProfile?.currentStreak ?? null
     previousAchievementIdsRef.current = next.currentEarnedAchievementIds
     setMilestones({ ...next, crossedStreakMilestones })
-  }, [profile, acknowledgedLevel])
+  }, [query.data, acknowledgedLevel])
 
   const { leveledUp, newLevel, newAchievements, crossedStreakMilestones } = milestones
 
@@ -98,7 +103,7 @@ export function useGamificationProfile(enabled = true) {
 export function useStreakInfo(enabled = true) {
   return useQuery({
     queryKey: gamificationKeys.streak(),
-    queryFn: () => apiClient<StreakInfo>(API.gamification.streak),
+    queryFn: () => apiClient<StreakInfo>(API.gamification.streak, undefined, streakInfoSchema),
     staleTime: QUERY_STALE_TIMES.gamification,
     enabled,
   })
@@ -109,8 +114,8 @@ export function useStreakFreeze(profile?: { streakFreezesAvailable?: number; cur
   const streakInfo = streakQuery.data ?? null
 
   const state = useMemo(
-    () => deriveStreakFreezeState(streakInfo, profile),
-    [streakInfo, profile],
+    () => deriveStreakFreezeState(streakQuery.data ?? null, profile),
+    [streakQuery.data, profile],
   )
 
   return {

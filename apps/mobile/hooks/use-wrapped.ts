@@ -36,7 +36,10 @@ export function useWrapped(period: RecapSharePeriod, options: UseWrappedOptions 
   const isEmpty = recap ? isRecapShareEmpty(recap.metrics) : false
 
   useEffect(() => {
-    if (!active || period !== 'year' || !recap || isEmpty) return
+    const currentRecap = query.data ?? null
+    if (!active || period !== 'year' || !currentRecap || isRecapShareEmpty(currentRecap.metrics)) {
+      return
+    }
     let cancelled = false
     void AsyncStorage.getItem(WRAPPED_YEAR_SEEN_STORAGE_KEY).then((seen) => {
       if (cancelled || seen) return
@@ -46,7 +49,7 @@ export function useWrapped(period: RecapSharePeriod, options: UseWrappedOptions 
     return () => {
       cancelled = true
     }
-  }, [active, period, recap, isEmpty, reportEvent])
+  }, [active, period, query.data, reportEvent])
 
   return {
     recap,

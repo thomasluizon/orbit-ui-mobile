@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest'
+import { z } from 'zod'
 import {
   ApiClientError,
   createApiClientError,
@@ -11,6 +12,7 @@ import {
   getFriendlyErrorKey,
   getFriendlyErrorMessage,
   translateErrorKey,
+  validateApiResponse,
 } from '../utils/error-utils'
 
 
@@ -453,5 +455,38 @@ describe('getErrorMessage (edge cases)', () => {
   it('returns data.message from nested response', () => {
     const err = { data: { data: { message: 'Deeply nested' } } }
     expect(getErrorMessage(err, 'Fallback')).toBe('Deeply nested')
+  })
+})
+
+describe('validateApiResponse', () => {
+  const schema = z.object({ id: z.string(), count: z.number() })
+
+  it('returns the parsed body when it matches the schema', () => {
+    const body = { id: 'h-1', count: 3 }
+    expect(validateApiResponse(body, schema, '/api/x')).toEqual(body)
+  })
+
+  it('still passes but strips additive unknown fields (append-only contract)', () => {
+    const body = { id: 'h-1', count: 3, serverAddedLater: { experiment: true } }
+    expect(validateApiResponse(body, schema, '/api/x')).toEqual({ id: 'h-1', count: 3 })
+  })
+
+  it('throws a typed 502 ApiClientError on a contract mismatch', () => {
+    try {
+      validateApiResponse({ id: 42, count: 'nope' }, schema, '/api/x')
+      expect.unreachable('validateApiResponse should have thrown')
+    } catch (error) {
+      expect(error).toBeInstanceOf(ApiClientError)
+      const apiError = error as ApiClientError
+      expect(apiError.status).toBe(502)
+      expect(apiError.code).toBe('INVALID_RESPONSE_SCHEMA')
+      expect(apiError.message).toContain('/api/x')
+      expect(Array.isArray(apiError.data)).toBe(true)
+    }
+  })
+
+  it('returns the body untouched when no schema is supplied (opt-in)', () => {
+    const body = { anything: true }
+    expect(validateApiResponse(body, undefined, '/api/x')).toBe(body)
   })
 })

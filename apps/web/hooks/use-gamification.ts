@@ -8,10 +8,12 @@ import {
 } from '@tanstack/react-query'
 import { gamificationKeys, QUERY_STALE_TIMES } from '@orbit/shared/query'
 import { API } from '@orbit/shared/api'
-import type {
-  AchievementEventKey,
-  GamificationProfile,
-  StreakInfo,
+import {
+  gamificationProfileSchema,
+  streakInfoSchema,
+  type AchievementEventKey,
+  type GamificationProfile,
+  type StreakInfo,
 } from '@orbit/shared/types/gamification'
 import {
   deriveGamificationProfileState,
@@ -33,7 +35,7 @@ export function useGamificationProfile(enabled = true) {
 
   const query = useQuery({
     queryKey: gamificationKeys.profile(),
-    queryFn: () => fetchJson<GamificationProfile>(API.gamification.profile),
+    queryFn: () => fetchJson<GamificationProfile>(API.gamification.profile, gamificationProfileSchema),
     staleTime: QUERY_STALE_TIMES.gamification,
     refetchOnWindowFocus: true,
     enabled,
@@ -108,7 +110,7 @@ export function useGamificationProfile(enabled = true) {
 export function useStreakInfo(enabled = true) {
   return useQuery({
     queryKey: gamificationKeys.streak(),
-    queryFn: () => fetchJson<StreakInfo>(API.gamification.streak),
+    queryFn: () => fetchJson<StreakInfo>(API.gamification.streak, streakInfoSchema),
     staleTime: QUERY_STALE_TIMES.gamification,
     enabled,
   })

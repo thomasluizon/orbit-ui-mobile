@@ -365,6 +365,7 @@ export function useDeleteTag() {
 }
 
 export function useSuggestTags() {
+  // react-doctor-disable-next-line query-mutation-missing-invalidation -- Returns AI tag suggestions for the picker; it mutates no persisted state, so there is nothing to invalidate. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
   return useMutation({
     mutationFn: ({
       title,

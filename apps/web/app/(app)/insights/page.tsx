@@ -31,6 +31,7 @@ export default function InsightsPage() {
   const topbarRangeSelector = useMemo(
     () =>
       isDesktop && hasProAccess ? <RangeSelector value={preset} onChange={setPreset} /> : null,
+    // react-doctor-disable-next-line exhaustive-deps -- hasProAccess is derived from profile.hasProAccess every render and already listed; no staleness possible https://github.com/thomasluizon/orbit-ui-mobile/issues/243
     [isDesktop, hasProAccess, preset],
   )
   useTopbarSlot(topbarRangeSelector)

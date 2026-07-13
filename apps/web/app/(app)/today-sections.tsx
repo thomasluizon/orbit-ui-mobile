@@ -1,5 +1,6 @@
 'use client'
 
+// react-doctor-disable-next-line use-lazy-motion -- LazyMotion migration is app-wide (needs a shared provider + converting every motion.* incl. components/**); a partial per-file swap yields no bundle benefit and risks unprovided m https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 import { AnimatePresence, motion, type Transition } from 'motion/react'
 import { useTranslations } from 'next-intl'
 import type { EngagementSlotCard } from '@orbit/shared/utils'
@@ -258,6 +259,7 @@ interface TodayHabitsListShellProps {
   onAllCollapsedChange: (allCollapsed: boolean) => void
 }
 
+// react-doctor-disable-next-line no-many-boolean-props -- private single-use Today list shell; the flags are independent render inputs (fetch/refetch/select/show-completed), not a combinatorial API https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 export function TodayHabitsListShell({
   hasFetched,
   isRefetching,

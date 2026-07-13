@@ -18,6 +18,7 @@ export function InviteFriendsPicker({ selectedIds, onToggle }: Readonly<InviteFr
   const tokens = createTokensV2(currentScheme, currentTheme)
   const { data } = useFriends()
   const friends = data?.friends ?? []
+  const selectedIdSet = new Set(selectedIds)
 
   if (friends.length === 0) {
     return (
@@ -30,7 +31,7 @@ export function InviteFriendsPicker({ selectedIds, onToggle }: Readonly<InviteFr
   return (
     <View style={styles.list}>
       {friends.map((friend) => {
-        const active = selectedIds.includes(friend.userId)
+        const active = selectedIdSet.has(friend.userId)
         return (
           <Pressable
             key={friend.userId}

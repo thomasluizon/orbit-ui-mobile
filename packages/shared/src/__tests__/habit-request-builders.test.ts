@@ -235,13 +235,12 @@ describe('habit-request-builders', () => {
     })
   })
 
-  it('builds update requests with due-time reminders and disabled reminders fallback', () => {
+  it('builds update requests with due-time reminders and leaves the scheduled store untouched', () => {
     const timedRequest = buildUpdateHabitRequest(
       makeFormData({
         dueTime: '10:00',
         dueEndTime: '10:30',
         reminderEnabled: true,
-        scheduledReminders: [{ when: 'same_day', time: '21:00' }],
       }),
       true,
       '',
@@ -260,10 +259,10 @@ describe('habit-request-builders', () => {
       dueEndTime: '10:30',
       reminderEnabled: true,
       reminderTimes: [0],
-      scheduledReminders: [],
       slipAlertEnabled: false,
       goalIds: [],
     })
+    expect(timedRequest).not.toHaveProperty('scheduledReminders')
 
     const disabledReminderRequest = buildUpdateHabitRequest(
       makeFormData({
@@ -317,6 +316,61 @@ describe('habit-request-builders', () => {
       slipAlertEnabled: false,
       goalIds: [],
     })
+  })
+
+  it('preserves a due-timed habit\'s scheduled reminders on save without clearing them (#447 Bug 3)', () => {
+    const request = buildUpdateHabitRequest(
+      makeFormData({
+        dueTime: '09:00',
+        reminderEnabled: true,
+        scheduledReminders: [{ when: 'same_day', time: '08:00' }],
+      }),
+      true,
+      '',
+      [15],
+      [],
+      true,
+    )
+
+    expect(request.dueTime).toBe('09:00')
+    expect(request.reminderTimes).toEqual([15])
+    expect(request.scheduledReminders).toEqual([{ when: 'same_day', time: '08:00' }])
+  })
+
+  it('clears a due-timed habit\'s scheduled reminders only when reminders are turned off (#447 Bug 3)', () => {
+    const request = buildUpdateHabitRequest(
+      makeFormData({
+        dueTime: '09:00',
+        reminderEnabled: false,
+        scheduledReminders: [{ when: 'same_day', time: '08:00' }],
+      }),
+      true,
+      '',
+      [15],
+      [],
+      true,
+    )
+
+    expect(request.reminderEnabled).toBe(false)
+    expect(request.reminderTimes).toEqual([])
+    expect(request.scheduledReminders).toEqual([])
+  })
+
+  it('omits the scheduled store for a plain due-timed habit so the API preserves it (#447 Bug 3)', () => {
+    const request = buildUpdateHabitRequest(
+      makeFormData({
+        dueTime: '09:00',
+        reminderEnabled: true,
+      }),
+      true,
+      '',
+      [15],
+      [],
+      false,
+    )
+
+    expect(request).not.toHaveProperty('scheduledReminders')
+    expect(request.reminderTimes).toEqual([15])
   })
 })
 

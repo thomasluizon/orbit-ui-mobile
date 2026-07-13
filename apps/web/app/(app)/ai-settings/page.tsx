@@ -28,6 +28,7 @@ export default function AiSettingsPage() {
   const aiSummaryEnabled = hasProAccess && (profile?.aiSummaryEnabled ?? false)
   const proactiveAstraEnabled = hasProAccess && (profile?.proactiveAstraEnabled ?? false)
 
+  // react-doctor-disable-next-line query-mutation-missing-invalidation -- optimistic cache update via patchProfile (setQueryData) + onError rollback keeps the profile cache in sync; no dependent query to refetch https://github.com/thomasluizon/orbit-ui-mobile/issues/243
   const aiMemoryMutation = useMutation({
     mutationFn: (enabled: boolean) => updateAiMemory({ enabled }),
     onMutate: (enabled) => {
@@ -59,6 +60,7 @@ export default function AiSettingsPage() {
     },
   })
 
+  // react-doctor-disable-next-line query-mutation-missing-invalidation -- optimistic cache update via patchProfile (setQueryData) + onError rollback keeps the profile cache in sync; no dependent query to refetch https://github.com/thomasluizon/orbit-ui-mobile/issues/243
   const proactiveAstraMutation = useMutation({
     mutationFn: (enabled: boolean) => updateProactiveAstra({ enabled }),
     onMutate: (enabled) => {

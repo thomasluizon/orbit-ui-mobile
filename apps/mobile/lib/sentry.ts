@@ -17,15 +17,17 @@ export function scrubEvent(event: ErrorEvent): ErrorEvent {
   }
 
   if (event.breadcrumbs) {
-    event.breadcrumbs = event.breadcrumbs
-      .filter((breadcrumb) => breadcrumb.category !== 'console')
-      .map((breadcrumb) => {
-        if (breadcrumb.category === 'http' && breadcrumb.data) {
-          const { Authorization, authorization, request_body, ...rest } = breadcrumb.data
-          return { ...breadcrumb, data: rest }
-        }
-        return breadcrumb
-      })
+    const scrubbed: NonNullable<ErrorEvent['breadcrumbs']> = []
+    for (const breadcrumb of event.breadcrumbs) {
+      if (breadcrumb.category === 'console') continue
+      if (breadcrumb.category === 'http' && breadcrumb.data) {
+        const { Authorization, authorization, request_body, ...rest } = breadcrumb.data
+        scrubbed.push({ ...breadcrumb, data: rest })
+      } else {
+        scrubbed.push(breadcrumb)
+      }
+    }
+    event.breadcrumbs = scrubbed
   }
 
   return event

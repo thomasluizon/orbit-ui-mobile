@@ -30,6 +30,7 @@ export {
   getFriendlyErrorKey,
   getFriendlyErrorMessage,
   translateErrorKey,
+  validateApiResponse,
 } from './error-utils'
 export { isFeatureEnabled } from './config'
 export { getSocialErrorKey } from './social-errors'

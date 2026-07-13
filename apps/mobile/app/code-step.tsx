@@ -1,4 +1,5 @@
 import { useEffect, type RefObject } from 'react'
+// react-doctor-disable-next-line rn-prefer-reanimated -- Deliberate React Native Animated API; migrating to reanimated risks the pinned worklets 0.10.0 / reanimated 4.5.0 ABI (SDK 57) and would require rewriting the shared lib/motion.ts Animated helpers + cross-component Animated.Value props. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 import { Animated, BackHandler, Pressable, Text, View } from 'react-native'
 import type { TextInput, TextInputKeyPressEvent } from 'react-native'
 import { type AppTokensV2 } from '@/lib/theme'
@@ -29,6 +30,7 @@ interface CodeStepProps {
   t: TranslationFn
 }
 
+// react-doctor-disable-next-line no-many-boolean-props -- Deliberate presentational auth step: independent submitting/can-submit/can-resend UI-state flags owned by the login flow; an options-object rewrite would churn the caller and the web parity mirror for no runtime benefit. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 export function CodeStep({
   email,
   codeDigits,

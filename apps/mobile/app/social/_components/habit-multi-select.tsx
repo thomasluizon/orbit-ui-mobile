@@ -46,6 +46,7 @@ export function HabitMultiSelect({ selectedIds, onChange }: Readonly<HabitMultiS
   const shown = filtered.slice(0, RESULT_LIMIT)
   const hiddenCount = filtered.length - shown.length
   const atMax = selectedIds.length >= MAX_HABITS
+  const selectedIdSet = new Set(selectedIds)
 
   function toggle(id: string) {
     if (selectedIds.includes(id)) {
@@ -120,7 +121,7 @@ export function HabitMultiSelect({ selectedIds, onChange }: Readonly<HabitMultiS
       ) : (
         <View style={styles.list}>
           {shown.map((option) => {
-            const active = selectedIds.includes(option.id)
+            const active = selectedIdSet.has(option.id)
             const disabled = !active && atMax
             return (
               <Pressable

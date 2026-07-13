@@ -33,13 +33,11 @@ export function useTodaySearch(): TodaySearch {
   }, [localSearchQuery, setSearchQuery])
 
   const toggleSearch = useCallback(() => {
-    setSearchOpen((open) => {
-      if (open && localSearchQuery) {
-        setLocalSearchQuery('')
-      }
-      return !open
-    })
-  }, [localSearchQuery])
+    if (searchOpen && localSearchQuery) {
+      setLocalSearchQuery('')
+    }
+    setSearchOpen((open) => !open)
+  }, [searchOpen, localSearchQuery])
 
   return { localSearchQuery, searchOpen, setLocalSearchQuery, toggleSearch }
 }

@@ -31,7 +31,11 @@ type Tokens = ReturnType<typeof createTokensV2>
 
 export default function AchievementsScreen() {
   const { t, i18n } = useTranslation()
-  const formatNum = (n: number) => new Intl.NumberFormat(i18n.language).format(n)
+  const numberFormatter = useMemo(
+    () => new Intl.NumberFormat(i18n.language),
+    [i18n.language],
+  )
+  const formatNum = (n: number) => numberFormatter.format(n)
   const { displayDate } = useDateFormat()
   const router = useRouter()
   const goBackOrFallback = useGoBackOrFallback()

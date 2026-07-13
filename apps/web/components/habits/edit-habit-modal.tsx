@@ -145,7 +145,14 @@ export function EditHabitModal({
       }
       const data = habitFormSchema.parse(formHelpers.form.getValues())
 
-      const request = buildUpdateHabitRequest(data, formHelpers.isOneTime, originalEndDate, reminderTimes, selectedGoalIds)
+      const request = buildUpdateHabitRequest(
+        data,
+        formHelpers.isOneTime,
+        originalEndDate,
+        reminderTimes,
+        selectedGoalIds,
+        habit.scheduledReminders.length > 0,
+      )
 
       try {
         await updateHabit.mutateAsync({ habitId: habit.id, data: request })
@@ -251,6 +258,7 @@ export function EditHabitModal({
           onToggleGoal={toggleGoal}
           reminderTimes={reminderTimes}
           onReminderTimesChange={setReminderTimes}
+          hasScheduledReminders={(habit?.scheduledReminders.length ?? 0) > 0}
           onSuggestSetup={() => void handleSuggest()}
           isSuggesting={suggestion.isPending}
           defaultExpanded

@@ -51,6 +51,7 @@ export default function StreakPage() {
     if (streak >= 7) return t('streakDisplay.profile.encouragement7')
     if (streak >= 1) return t('streakDisplay.profile.encouragement1')
     return ''
+    // react-doctor-disable-next-line exhaustive-deps -- streak is derived from profile.currentStreak every render and already listed; no staleness possible https://github.com/thomasluizon/orbit-ui-mobile/issues/243
   }, [streak, t])
 
   const weekDays = useMemo(
@@ -61,6 +62,7 @@ export default function StreakPage() {
         dayNum: day.dayNum,
         status: day.status,
       })),
+    // react-doctor-disable-next-line exhaustive-deps -- streak is derived from profile.currentStreak every render and already listed; no staleness possible https://github.com/thomasluizon/orbit-ui-mobile/issues/243
     [streakInfo, streak, isFrozenToday, displayDate],
   )
 

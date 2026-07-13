@@ -21,6 +21,7 @@ interface WrappedCoverProps {
 }
 
 /** Wrapped entry screen: period picker, Start CTA, and the loading / empty / error states before the player opens. */
+// react-doctor-disable-next-line no-many-boolean-props -- private single-use entry screen; the flags are independent render-state inputs (loading/error/empty/canStart), not a combinatorial API https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 export function WrappedCover({
   period,
   onSelectPeriod,

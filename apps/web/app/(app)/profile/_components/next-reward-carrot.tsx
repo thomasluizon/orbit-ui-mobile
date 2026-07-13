@@ -5,6 +5,17 @@ import { Lock, Sparkles } from 'lucide-react'
 import { useTranslations } from 'next-intl'
 import type { NextRewardCarrotState } from '@orbit/shared/utils'
 
+const upgradeLinkStyle = {
+  padding: '9px 16px',
+  background: 'var(--primary)',
+  color: 'var(--fg-on-primary)',
+  fontFamily: 'var(--font-sans)',
+  fontSize: 13,
+  fontWeight: 500,
+  textDecoration: 'none',
+  boxShadow: 'var(--primary-glow)',
+}
+
 interface NextRewardCarrotProps {
   carrot: NextRewardCarrotState | null
 }
@@ -91,16 +102,7 @@ export function NextRewardCarrot({ carrot }: Readonly<NextRewardCarrotProps>) {
             <Link
               href="/upgrade"
               className="touch-target-y shrink-0 rounded-full transition-[background-color,box-shadow,transform] duration-[var(--dur-fast)] ease-[var(--ease-standard)] hover:-translate-y-px hover:bg-[var(--primary-pressed)] active:translate-y-0 active:scale-[0.96]"
-              style={{
-                padding: '9px 16px',
-                background: 'var(--primary)',
-                color: 'var(--fg-on-primary)',
-                fontFamily: 'var(--font-sans)',
-                fontSize: 13,
-                fontWeight: 500,
-                textDecoration: 'none',
-                boxShadow: 'var(--primary-glow)',
-              }}
+              style={upgradeLinkStyle}
             >
               {t('common.upgrade')}
             </Link>

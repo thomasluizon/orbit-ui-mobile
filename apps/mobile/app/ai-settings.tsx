@@ -40,6 +40,7 @@ export default function AiSettingsScreen() {
   const aiSummaryEnabled = hasProAccess && (profile?.aiSummaryEnabled ?? false)
   const proactiveAstraEnabled = hasProAccess && (profile?.proactiveAstraEnabled ?? false)
 
+  // react-doctor-disable-next-line query-mutation-missing-invalidation -- Deliberate optimistic update: patchProfile() in onMutate writes the toggle to the profile cache and rolls back on error; the server stores the boolean verbatim, so no post-success refetch is needed. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
   const aiMemoryMutation = useMutation({
     mutationFn: (enabled: boolean) =>
       performQueuedApiMutation({
@@ -95,6 +96,7 @@ export default function AiSettingsScreen() {
     },
   })
 
+  // react-doctor-disable-next-line query-mutation-missing-invalidation -- Deliberate optimistic update: patchProfile() in onMutate writes the toggle to the profile cache and rolls back on error; the server stores the boolean verbatim, so no post-success refetch is needed. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
   const proactiveAstraMutation = useMutation({
     mutationFn: (enabled: boolean) =>
       performQueuedApiMutation({

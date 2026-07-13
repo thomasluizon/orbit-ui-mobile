@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, Suspense } from 'react'
 import { useRouter, usePathname, useSearchParams } from 'next/navigation'
 import { useTranslations } from 'next-intl'
 import { Providers } from '@/lib/providers'
@@ -71,7 +71,9 @@ export default function AppLayout({
   return (
     <Providers>
       <TodayProvider>
-        <AppLayoutContent>{children}</AppLayoutContent>
+        <Suspense fallback={null}>
+          <AppLayoutContent>{children}</AppLayoutContent>
+        </Suspense>
       </TodayProvider>
     </Providers>
   )
@@ -159,6 +161,7 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
       return
     }
     setShowCreateModal(true)
+    // react-doctor-disable-next-line exhaustive-deps -- hasProAccess is derived from profile.hasProAccess every render and already listed; no staleness possible https://github.com/thomasluizon/orbit-ui-mobile/issues/243
   }, [activeView, hasProAccess, totalHabitCount, router, setShowCreateModal, setShowCreateGoalModal])
 
   const handleDismissCalendarPrompt = useCallback(() => {
@@ -286,6 +289,7 @@ function AppLayoutContent({ children }: Readonly<{ children: React.ReactNode }>)
   )
 }
 
+// react-doctor-disable-next-line no-many-boolean-props -- private layout-internal overlay aggregator, not a reusable API; the flags are independent render gates, not a combinatorial surface https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 function GlobalOverlays({
   profile,
   hasProAccess,
@@ -404,6 +408,7 @@ function GlobalOverlays({
               {t('onboarding.wizard.calendarButton')}
             </PillButton>
             <button
+              type="button"
               className="w-full py-3 text-[var(--fg-2)] text-sm font-medium hover:text-[var(--fg-1)] transition-colors"
               onClick={onDismissCalendarPrompt}
             >
@@ -426,6 +431,7 @@ function GlobalOverlays({
               {t('onboarding.wizard.importButton')}
             </PillButton>
             <button
+              type="button"
               className="w-full py-3 text-[var(--fg-2)] text-sm font-medium hover:text-[var(--fg-1)] transition-colors"
               onClick={onDismissImportPrompt}
             >
