@@ -26,6 +26,7 @@ export function useLoginCodeEntry(onCompleteCode?: (code: string) => void): UseL
   const [resendCountdown, setResendCountdown] = useState(0)
   const codeInputRefs = useRef<(TextInput | null)[]>([])
   const resendTimerRef = useRef<ReturnType<typeof globalThis.setInterval> | null>(null)
+  const resendCountdownRef = useRef(0)
   const submittedCodeRef = useRef<string | null>(null)
 
   const clearResendTimer = useCallback(() => {
@@ -50,16 +51,16 @@ export function useLoginCodeEntry(onCompleteCode?: (code: string) => void): UseL
   const startResendCountdown = useCallback(() => {
     clearResendTimer()
     setCanResend(false)
+    resendCountdownRef.current = 60
     setResendCountdown(60)
     resendTimerRef.current = globalThis.setInterval(() => {
-      setResendCountdown((previous) => {
-        if (previous <= 1) {
-          setCanResend(true)
-          clearResendTimer()
-          return 0
-        }
-        return previous - 1
-      })
+      const next = Math.max(resendCountdownRef.current - 1, 0)
+      resendCountdownRef.current = next
+      setResendCountdown(next)
+      if (next === 0) {
+        clearResendTimer()
+        setCanResend(true)
+      }
     }, 1000)
   }, [clearResendTimer])
 

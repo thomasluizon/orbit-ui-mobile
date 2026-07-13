@@ -154,7 +154,8 @@ function TabBtn({ tab, label, active, onClick, unread = false }: Readonly<TabBtn
       <span
         style={{
           fontFamily: 'var(--font-sans)',
-          fontSize: 12,
+          // react-doctor-disable-next-line no-tiny-text -- the TabBar label is locked at 11px by DESIGN.md:135; https://github.com/thomasluizon/orbit-ui-mobile/issues/243
+          fontSize: 11,
           fontWeight: active ? 500 : 400,
         }}
       >
