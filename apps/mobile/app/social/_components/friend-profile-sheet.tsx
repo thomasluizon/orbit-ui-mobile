@@ -1,4 +1,4 @@
-import { useMemo, type ReactNode } from 'react'
+import type { ReactNode } from 'react'
 import { ActivityIndicator, StyleSheet, Text, View } from 'react-native'
 import Animated, { FadeInDown, ReduceMotion } from 'react-native-reanimated'
 import { useTranslation } from 'react-i18next'
@@ -32,6 +32,17 @@ function sectionEntrance(index: number) {
   return FadeInDown.duration(220)
     .delay(index * 60)
     .reduceMotion(ReduceMotion.System)
+}
+
+function buildDayLabels(count: number, locale: string): { key: string; label: string }[] {
+  // react-doctor-disable-next-line js-hoist-intl -- This 7-day-strip builder is mirrored verbatim in apps/web friend-profile-view.tsx; the correct DRY fix is a packages/shared util, deferred here because this is a mobile-only React Doctor burn-down (editing web + shared is out of this bucket and would conflict with their agents). It builds a fixed 7-cell strip, so per-render Intl construction is negligible. https://github.com/thomasluizon/orbit-ui-mobile/issues/243
+  const formatter = new Intl.DateTimeFormat(locale, { weekday: 'narrow' })
+  const base = new Date()
+  return Array.from({ length: count }, (_, index) => {
+    const date = new Date(base)
+    date.setDate(base.getDate() - (count - 1 - index))
+    return { key: date.toISOString().slice(0, 10), label: formatter.format(date) }
+  })
 }
 
 /** Bottom sheet showing an accepted friend's rich profile: identity, stat tiles, a 7-day activity
@@ -201,15 +212,7 @@ function ActivityStrip({
   tokens,
   styles,
 }: Readonly<{ counts: number[]; locale: string; tokens: Tokens; styles: ReturnType<typeof createStyles> }>) {
-  const days = useMemo(() => {
-    const formatter = new Intl.DateTimeFormat(locale, { weekday: 'narrow' })
-    const base = new Date()
-    return Array.from({ length: counts.length }, (_, index) => {
-      const date = new Date(base)
-      date.setDate(base.getDate() - (counts.length - 1 - index))
-      return { key: date.toISOString().slice(0, 10), label: formatter.format(date) }
-    })
-  }, [counts.length, locale])
+  const days = buildDayLabels(counts.length, locale)
   return (
     <View style={styles.activityStrip}>
       {days.map((day, index) => (
