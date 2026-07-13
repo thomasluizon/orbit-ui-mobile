@@ -10,8 +10,8 @@ interface FieldInputProps {
   value?: string
   onChange?: (next: string) => void
   placeholder?: string
-  type?: InputHTMLAttributes<HTMLInputElement>['type']
-  inputMode?: InputHTMLAttributes<HTMLInputElement>['inputMode']
+  type?: Exclude<InputHTMLAttributes<HTMLInputElement>['type'], undefined>
+  inputMode?: Exclude<InputHTMLAttributes<HTMLInputElement>['inputMode'], undefined>
   autoComplete?: string
   mono?: boolean
   disabled?: boolean

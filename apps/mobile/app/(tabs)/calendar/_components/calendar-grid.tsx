@@ -49,7 +49,7 @@ interface CalendarGridProps {
   rangeStart?: string | null;
   rangeEnd?: string | null;
   monthKey?: string;
-  monthEntering?: EntryOrExitLayoutType | undefined;
+  monthEntering?: EntryOrExitLayoutType;
   swipeGesture?: PanGesture;
   gridRef?: RefObject<View | null>;
   todayRef?: RefObject<View | null>;

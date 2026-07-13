@@ -2,7 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { FlatList } from "react-native";
 import * as ImagePicker from "expo-image-picker";
 import * as DocumentPicker from "expo-document-picker";
-import { File as FileSystemFile } from "expo-file-system";
+import { File } from "expo-file-system";
 import { useRouter } from "expo-router";
 import { useTranslation } from "react-i18next";
 import { useQueryClient } from "@tanstack/react-query";
@@ -42,7 +42,6 @@ import { useProfile } from "@/hooks/use-profile";
 import { useSpeechToText } from "@/hooks/use-speech-to-text";
 import { usePendingOperationExecution } from "@/hooks/use-pending-operation-execution";
 import { useChatStore } from "@/stores/chat-store";
-import { File } from "expo-file-system";
 
 interface AttemptedSend {
   content: string;
@@ -291,7 +290,7 @@ export function useChatComposer({ isOnline, offlineTitle }: UseChatComposerOptio
     const asset = result.assets[0];
     if (!asset) return;
 
-    const file = new FileSystemFile(asset.uri);
+    const file = new File(asset.uri);
     const validationError = getChatTextFileValidationError({
       name: asset.name,
       uri: asset.uri,

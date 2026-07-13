@@ -21,8 +21,8 @@ import { GoalDetailDrawer } from './goal-detail-drawer'
 
 interface GoalListProps {
   goals: Goal[]
-  ListHeaderComponent?: FlatListProps<Goal>['ListHeaderComponent']
-  ListEmptyComponent?: FlatListProps<Goal>['ListEmptyComponent']
+  ListHeaderComponent?: Exclude<FlatListProps<Goal>['ListHeaderComponent'], undefined>
+  ListEmptyComponent?: Exclude<FlatListProps<Goal>['ListEmptyComponent'], undefined>
   contentContainerStyle?: StyleProp<ViewStyle>
   onScroll?: (event: NativeSyntheticEvent<NativeScrollEvent>) => void
   onScrollBeginDrag?: (event: NativeSyntheticEvent<NativeScrollEvent>) => void

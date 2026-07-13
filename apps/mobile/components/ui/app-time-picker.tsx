@@ -335,7 +335,7 @@ export function AppTimePicker({
                   key={`period-${openNonce}`}
                   values={PERIODS}
                   selected={period}
-                  formatValue={(columnValue) => String(columnValue)}
+                  formatValue={String}
                   onSelect={(columnValue) =>
                     setDraft((current) => ({
                       ...current,

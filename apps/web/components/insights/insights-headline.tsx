@@ -64,7 +64,7 @@ export function trendHeadline(
   formatValue: (value: number) => string,
 ): InsightsHeadlineProps | null {
   const first = points[0]
-  const last = points[points.length - 1]
+  const last = points.at(-1)
   if (!first || !last) return null
   const diff = last.value - first.value
   if (points.length < 2 || diff === 0) {

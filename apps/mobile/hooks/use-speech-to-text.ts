@@ -125,7 +125,7 @@ export function useSpeechToText() {
   }, [stopRecording])
 
   const handleAnalysis = useCallback(async (event: AudioAnalysis) => {
-    const latest = event.dataPoints[event.dataPoints.length - 1]
+    const latest = event.dataPoints.at(-1)
     if (!latest) return
 
     if (latest.rms > VOICE_MOBILE_SPEECH_RMS_THRESHOLD) {

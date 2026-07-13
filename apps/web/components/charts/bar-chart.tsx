@@ -18,7 +18,7 @@ export interface BarChartProps {
 export function BarChart({
   bars,
   ariaLabel,
-  formatValue = (value) => String(value),
+  formatValue = String,
 }: Readonly<BarChartProps>) {
   const max = bars.reduce((peak, bar) => Math.max(peak, bar.value), 0)
 
