@@ -10,22 +10,13 @@ import { HabitRowMenu } from './habit-row-menu'
 import type { HabitRowActions } from './habit-row'
 import type { StatusDotState } from '@/components/ui/status-dot'
 
-function runParentProgressAction(
-  isDone: boolean,
+function resolveLogAction(
   childProgress: { done: number; total: number } | undefined,
   actions: HabitRowActions,
-) {
-  if (isDone) {
-    actions.onUnlog?.()
-  } else if (
-    childProgress &&
-    childProgress.total > 0 &&
-    childProgress.done >= childProgress.total
-  ) {
-    actions.onLog?.()
-  } else {
-    actions.onForceLogParent?.()
-  }
+): (() => void) | undefined {
+  const childrenComplete =
+    !!childProgress && childProgress.total > 0 && childProgress.done >= childProgress.total
+  return childrenComplete ? actions.onLog : actions.onForceLogParent
 }
 
 function resolveParentRingColor(isBadHabit: boolean): string | undefined {
@@ -126,7 +117,8 @@ export function HabitRowTrailing({
               }
               onClick={(event) => {
                 event.stopPropagation()
-                runParentProgressAction(isDone, childProgress, actions)
+                const parentAction = isDone ? actions.onUnlog : resolveLogAction(childProgress, actions)
+                parentAction?.()
               }}
               className="appearance-none border-0 bg-transparent flex items-center justify-center cursor-pointer"
               style={{ padding: 7, margin: -7 }}

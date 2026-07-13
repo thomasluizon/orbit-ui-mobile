@@ -1,7 +1,7 @@
 import type { ErrorEvent, EventHint } from '@sentry/nextjs'
 import { ApiClientError } from '@orbit/shared'
 
-const SENSITIVE_HEADERS = ['authorization', 'cookie', 'set-cookie']
+const SENSITIVE_HEADERS = new Set(['authorization', 'cookie', 'set-cookie'])
 
 const TRANSIENT_GATEWAY_STATUSES = new Set([502, 503, 504, 520, 521, 522, 523, 524])
 const EXPECTED_API_ERROR_CODES = new Set(['AI_UNAVAILABLE', 'CONCURRENT_UPDATE_CONFLICT'])
@@ -44,7 +44,7 @@ export function scrubEvent(event: ErrorEvent): ErrorEvent {
   if (event.request) {
     if (event.request.headers) {
       for (const key of Object.keys(event.request.headers)) {
-        if (SENSITIVE_HEADERS.includes(key.toLowerCase())) {
+        if (SENSITIVE_HEADERS.has(key.toLowerCase())) {
           delete event.request.headers[key]
         }
       }

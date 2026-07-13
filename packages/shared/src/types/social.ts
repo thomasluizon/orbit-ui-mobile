@@ -19,7 +19,7 @@ export const friendFeedEventTypeSchema = z.enum([
 
 export type FriendFeedEventType = z.infer<typeof friendFeedEventTypeSchema>
 
-export const handleSchema = z.string().regex(/^[A-Za-z0-9_]{3,20}$/)
+export const handleSchema = z.string().regex(/^\w{3,20}$/)
 
 export const setHandleRequestSchema = z.object({
   handle: handleSchema,

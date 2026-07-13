@@ -47,6 +47,24 @@ interface PlayOfferSource {
     | null
 }
 
+type PlayOfferSourceEntry = NonNullable<PlayOfferSource['subscriptionOffers']>[number]
+
+function toPlayOffer(offer: PlayOfferSourceEntry, subscriptionId: string): PlayOffer | null {
+  const interval = offer.basePlanIdAndroid ? playBasePlanToInterval(offer.basePlanIdAndroid) : null
+  if (!interval || !offer.offerTokenAndroid) return null
+  const isReferral = offer.offerTagsAndroid?.includes(PLAY_REFERRAL_OFFER_TAG) ?? false
+  const firstPhase = offer.pricingPhasesAndroid?.pricingPhaseList[0] ?? null
+  return {
+    interval,
+    sku: subscriptionId,
+    offerToken: offer.offerTokenAndroid,
+    displayPrice: isReferral && firstPhase ? firstPhase.formattedPrice : offer.displayPrice,
+    isReferral,
+    priceAmountMicros: firstPhase?.priceAmountMicros ?? null,
+    currency: firstPhase?.priceCurrencyCode ?? null,
+  }
+}
+
 /**
  * Flattens the fetched Play subscription product into at most one base offer and one
  * referral-tagged offer per interval (first match wins). A referral offer is priced from its
@@ -56,20 +74,13 @@ export function extractPlayOffers(subscriptions: PlayOfferSource[]): PlayOffer[]
   const offers: PlayOffer[] = []
   for (const subscription of subscriptions) {
     for (const offer of subscription.subscriptionOffers ?? []) {
-      const interval = offer.basePlanIdAndroid ? playBasePlanToInterval(offer.basePlanIdAndroid) : null
-      if (!interval || !offer.offerTokenAndroid) continue
-      const isReferral = offer.offerTagsAndroid?.includes(PLAY_REFERRAL_OFFER_TAG) ?? false
-      if (offers.some((existing) => existing.interval === interval && existing.isReferral === isReferral)) continue
-      const firstPhase = offer.pricingPhasesAndroid?.pricingPhaseList[0] ?? null
-      offers.push({
-        interval,
-        sku: subscription.id,
-        offerToken: offer.offerTokenAndroid,
-        displayPrice: isReferral && firstPhase ? firstPhase.formattedPrice : offer.displayPrice,
-        isReferral,
-        priceAmountMicros: firstPhase?.priceAmountMicros ?? null,
-        currency: firstPhase?.priceCurrencyCode ?? null,
-      })
+      const playOffer = toPlayOffer(offer, subscription.id)
+      if (!playOffer) continue
+      const isDuplicate = offers.some(
+        (existing) =>
+          existing.interval === playOffer.interval && existing.isReferral === playOffer.isReferral,
+      )
+      if (!isDuplicate) offers.push(playOffer)
     }
   }
   return offers

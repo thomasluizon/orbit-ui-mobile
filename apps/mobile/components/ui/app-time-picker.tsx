@@ -76,7 +76,7 @@ interface TimeColumnProps {
 
 function TimeColumn({ values, selected, formatValue, onSelect, styles }: Readonly<TimeColumnProps>) {
   const scrollRef = useRef<ScrollView>(null)
-  const selectedIndex = values.findIndex((value) => value === selected)
+  const selectedIndex = values.indexOf(selected)
 
   const centerSelected = useCallback(() => {
     if (selectedIndex < 0) return

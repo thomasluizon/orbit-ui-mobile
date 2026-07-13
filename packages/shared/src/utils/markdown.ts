@@ -13,8 +13,8 @@ export function stripInlineMarkdown(markdown: string): string {
     .replace(/~~(.+?)~~/g, '$1')
     .replace(/`+([^`]*)`+/g, '$1')
     .replace(/^\s{0,3}#{1,6}\s+/gm, '')
-    .replace(/^\s*(?:[-*+]|\d+[.)])\s+/gm, '')
-    .replace(/^\s*>\s?/gm, '')
+    .replace(/^[^\S\r\n]*(?:[-*+]|\d+[.)])\s+/gm, '')
+    .replace(/^[^\S\r\n]*>\s?/gm, '')
     .replace(/\s+/g, ' ')
     .trim()
 }

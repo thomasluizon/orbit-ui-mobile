@@ -177,6 +177,45 @@ async function redirectToLogin(): Promise<void> {
   router.replace('/login')
 }
 
+async function handleUnauthorized<T>(
+  path: string,
+  effectiveOptions: ApiRequestOptions,
+  requestId: string | null,
+  tokenUsed: string | null,
+  schema: ZodType<T> | undefined,
+): Promise<T> {
+  const latestToken = await getToken()
+  if (latestToken && latestToken !== tokenUsed) {
+    const retryWithLatest = await executeRequest(path, effectiveOptions, latestToken)
+    if (retryWithLatest.response.status !== 401) {
+      return parseApiResponse<T>(retryWithLatest.response, retryWithLatest.requestId, path, schema)
+    }
+  }
+
+  const { clearSessionAndResetAuth, refreshSession, isAuthTransitionInFlight } =
+    await import('@/stores/auth-store')
+  const refreshOutcome = await refreshSession({ clearOnFailure: false })
+
+  if (refreshOutcome.status === 'refreshed') {
+    const retry = await executeRequest(path, effectiveOptions, refreshOutcome.token)
+    if (retry.response.status !== 401) {
+      return parseApiResponse<T>(retry.response, retry.requestId, path, schema)
+    }
+
+    if (!isAuthTransitionInFlight()) {
+      await clearSessionAndResetAuth()
+      await redirectToLogin()
+    }
+    throw toUnauthorizedError(retry.requestId)
+  }
+
+  if (refreshOutcome.status === 'unauthorized' && !isAuthTransitionInFlight()) {
+    await clearSessionAndResetAuth()
+    await redirectToLogin()
+  }
+  throw toUnauthorizedError(requestId)
+}
+
 /**
  * Authenticated fetch for the mobile app. Attaches the bearer token, time-zone and app-version
  * headers, transparently refreshes/retries on a 401, and surfaces upgrade-required (426) gating.
@@ -199,36 +238,7 @@ export async function apiClient<T = unknown>(
   }
 
   if (response.status === 401 && path !== API.auth.refresh) {
-    const latestToken = await getToken()
-    if (latestToken && latestToken !== tokenUsed) {
-      const retryWithLatest = await executeRequest(path, effectiveOptions, latestToken)
-      if (retryWithLatest.response.status !== 401) {
-        return parseApiResponse<T>(retryWithLatest.response, retryWithLatest.requestId, path, schema)
-      }
-    }
-
-    const { clearSessionAndResetAuth, refreshSession, isAuthTransitionInFlight } =
-      await import('@/stores/auth-store')
-    const refreshOutcome = await refreshSession({ clearOnFailure: false })
-
-    if (refreshOutcome.status === 'refreshed') {
-      const retry = await executeRequest(path, effectiveOptions, refreshOutcome.token)
-      if (retry.response.status !== 401) {
-        return parseApiResponse<T>(retry.response, retry.requestId, path, schema)
-      }
-
-      if (!isAuthTransitionInFlight()) {
-        await clearSessionAndResetAuth()
-        await redirectToLogin()
-      }
-      throw toUnauthorizedError(retry.requestId)
-    }
-
-    if (refreshOutcome.status === 'unauthorized' && !isAuthTransitionInFlight()) {
-      await clearSessionAndResetAuth()
-      await redirectToLogin()
-    }
-    throw toUnauthorizedError(requestId)
+    return handleUnauthorized<T>(path, effectiveOptions, requestId, tokenUsed, schema)
   }
 
   if (response.status === 401) {

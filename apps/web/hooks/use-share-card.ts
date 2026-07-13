@@ -11,6 +11,15 @@ interface ShareCardPayload {
   url: string
 }
 
+function downloadFile(file: File) {
+  const href = URL.createObjectURL(file)
+  const anchor = document.createElement('a')
+  anchor.href = href
+  anchor.download = file.name
+  anchor.click()
+  URL.revokeObjectURL(href)
+}
+
 /** Captures a ShareCard node to PNG and shares it via the Web Share API (files), falling back to a file download. */
 export function useShareCard() {
   const captureRef = useRef<HTMLDivElement>(null)
@@ -31,15 +40,6 @@ export function useShareCard() {
     const dataUrl = await toPng(node, { pixelRatio: 3, cacheBust: true })
     const blob = await (await fetch(dataUrl)).blob()
     return new File([blob], 'orbit-recap.png', { type: 'image/png' })
-  }
-
-  function downloadFile(file: File) {
-    const href = URL.createObjectURL(file)
-    const anchor = document.createElement('a')
-    anchor.href = href
-    anchor.download = file.name
-    anchor.click()
-    URL.revokeObjectURL(href)
   }
 
   async function share(payload: ShareCardPayload) {

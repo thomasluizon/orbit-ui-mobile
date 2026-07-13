@@ -29,19 +29,12 @@ interface HabitRowTrailingProps {
   onMenuActivity: () => void
 }
 
-function runParentProgressAction(
-  isDoneForRange: boolean,
+function resolveLogAction(
   childrenDone: number,
   childrenTotal: number,
   actions: HabitRowActions,
-) {
-  if (isDoneForRange) {
-    actions.onUnlog?.()
-  } else if (childrenDone >= childrenTotal) {
-    actions.onLog?.()
-  } else {
-    actions.onForceLogParent?.()
-  }
+): (() => void) | undefined {
+  return childrenDone >= childrenTotal ? actions.onLog : actions.onForceLogParent
 }
 
 function resolveParentRingTrackColor(
@@ -97,9 +90,12 @@ export function HabitRowTrailing({
               {childrenDone}/{childrenTotal}
             </Text>
             <Pressable
-              onPress={() =>
-                runParentProgressAction(isDoneForRange, childrenDone, childrenTotal, actions)
-              }
+              onPress={() => {
+                const parentAction = isDoneForRange
+                  ? actions.onUnlog
+                  : resolveLogAction(childrenDone, childrenTotal, actions)
+                parentAction?.()
+              }}
               hitSlop={{ top: 14, bottom: 14, left: 14, right: 14 }}
               accessibilityRole="button"
               accessibilityLabel={`${habit.title} ${childrenDone}/${childrenTotal}`}

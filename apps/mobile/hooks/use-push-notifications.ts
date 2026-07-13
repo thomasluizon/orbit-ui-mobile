@@ -286,7 +286,7 @@ export function usePushNotifications(): UsePushNotificationsReturn {
   }, [disabledStorageKey])
 
   const registerAndSync = useCallback(async (): Promise<boolean> => {
-    if (activeRegistration && activeRegistration.userId === userId) {
+    if (activeRegistration?.userId === userId) {
       return activeRegistration.promise
     }
 

@@ -18,7 +18,7 @@ const rubik = Rubik({
   display: 'swap',
 })
 
-const SCHEME_NAMES = ['purple', 'blue', 'green', 'rose', 'orange', 'cyan']
+const SCHEME_NAMES = new Set(['purple', 'blue', 'green', 'rose', 'orange', 'cyan'])
 
 function readCookie(name: string): string | null {
   const match = document.cookie.match(new RegExp('(?:^|; )' + name + '=([^;]+)'))
@@ -35,7 +35,7 @@ function readClientPrefs(): string {
   const theme = readCookie('orbit_theme_mode') === 'light' ? 'light' : 'dark'
   const schemeCookie = readCookie('orbit_color_scheme')
   const scheme =
-    schemeCookie && SCHEME_NAMES.includes(schemeCookie) ? schemeCookie : 'purple'
+    schemeCookie && SCHEME_NAMES.has(schemeCookie) ? schemeCookie : 'purple'
   return `${locale}|${theme} scheme-${scheme}`
 }
 

@@ -28,12 +28,12 @@ const audioStudio = AudioStudioModule as {
   requestPermissionsAsync: () => Promise<MicPermission>
 }
 
-const ALLOWED_AUDIO_EXTENSIONS = ['wav', 'webm', 'm4a', 'mp4', 'mp3', 'ogg', 'oga', 'flac']
+const ALLOWED_AUDIO_EXTENSIONS = new Set(['wav', 'webm', 'm4a', 'mp4', 'mp3', 'ogg', 'oga', 'flac'])
 
 function buildRecordingFileName(uri: string): string {
   const path = uri.split('?')[0] ?? uri
   const candidate = path.includes('.') ? path.split('.').pop()?.toLowerCase() : undefined
-  const extension = candidate && ALLOWED_AUDIO_EXTENSIONS.includes(candidate) ? candidate : 'wav'
+  const extension = candidate && ALLOWED_AUDIO_EXTENSIONS.has(candidate) ? candidate : 'wav'
   return `recording.${extension}`
 }
 

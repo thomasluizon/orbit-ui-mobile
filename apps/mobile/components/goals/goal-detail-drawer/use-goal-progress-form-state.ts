@@ -51,7 +51,7 @@ export function useGoalProgressFormState({
 
   const progressExceedsTarget = useMemo(() => {
     const numVal = Number(progressValue)
-    if (!progressValue || isNaN(numVal) || goalTargetValue === undefined) {
+    if (!progressValue || Number.isNaN(numVal) || goalTargetValue === undefined) {
       return false
     }
     return numVal > goalTargetValue
@@ -95,7 +95,7 @@ export function useGoalProgressFormState({
       return
     }
     const numVal = Number(progressValue)
-    if (!progressValue || isNaN(numVal)) return
+    if (!progressValue || Number.isNaN(numVal)) return
     try {
       await updateProgress.mutateAsync({
         goalId,

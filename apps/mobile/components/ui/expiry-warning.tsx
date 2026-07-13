@@ -8,6 +8,11 @@ import { useAppTheme } from '@/lib/use-app-theme'
 
 const WARN_AT_MINUTES = 5
 
+function stripTrailingPeriod(text: string): string {
+  const trimmed = text.trimEnd()
+  return (trimmed.endsWith('.') ? trimmed.slice(0, -1) : trimmed).trimEnd()
+}
+
 function mixHexOver(baseHex: string, tintHex: string, alpha: number): string {
   const channels = (hex: string) => {
     const normalized = hex.replace('#', '')
@@ -100,10 +105,7 @@ export function ExpiryWarning() {
             <Text style={styles.urgent}>{t('auth.sessionExpired')}</Text>
           ) : (
             <>
-              {t('auth.sessionExpiring', { minutes: '' }).replace(
-                /\s*\.\s*$/,
-                '',
-              )}{' '}
+              {stripTrailingPeriod(t('auth.sessionExpiring', { minutes: '' }))}{' '}
               <Text style={styles.monoCount}>
                 {`${minutesLeft ?? 0} min`}
               </Text>

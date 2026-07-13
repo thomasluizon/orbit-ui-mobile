@@ -681,9 +681,7 @@ export function useMoveHabitParent() {
   }>({
     mutationFn: async ({ habitId, data }) => {
       const targetEntityId =
-        (data.parentId && data.parentId.startsWith('offline-'))
-          ? data.parentId
-          : habitId
+        data.parentId?.startsWith('offline-') ? data.parentId : habitId
 
       return performQueuedApiMutation<void>({
         type: 'moveHabitParent',

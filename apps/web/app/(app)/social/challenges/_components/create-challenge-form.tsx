@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { Controller, useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useTranslations } from 'next-intl'
-import { formatAPIDate } from '@orbit/shared/utils'
+import { formatAPIDate, toggleSelectedId } from '@orbit/shared/utils'
 import {
   CHALLENGE_TYPE_OPTIONS,
   createChallengeFormSchema,
@@ -39,10 +39,6 @@ export function CreateChallengeForm({ onCreated }: Readonly<CreateChallengeFormP
 
   const type = watch('type')
   const isCoop = type === 'CoopGoal'
-
-  function toggleId(id: string, list: string[], set: (next: string[]) => void) {
-    set(list.includes(id) ? list.filter((value) => value !== id) : [...list, id])
-  }
 
   async function onSubmit(values: CreateChallengeFormValues) {
     try {
@@ -172,7 +168,7 @@ export function CreateChallengeForm({ onCreated }: Readonly<CreateChallengeFormP
         </SectionLabel>
         <HabitPicker
           selectedIds={habitIds}
-          onToggle={(id) => toggleId(id, habitIds, setHabitIds)}
+          onToggle={(id) => setHabitIds(toggleSelectedId(habitIds, id))}
         />
       </div>
 
@@ -182,7 +178,7 @@ export function CreateChallengeForm({ onCreated }: Readonly<CreateChallengeFormP
         </SectionLabel>
         <InviteFriendsPicker
           selectedIds={friendIds}
-          onToggle={(id) => toggleId(id, friendIds, setFriendIds)}
+          onToggle={(id) => setFriendIds(toggleSelectedId(friendIds, id))}
         />
       </div>
 
