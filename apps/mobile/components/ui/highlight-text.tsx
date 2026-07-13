@@ -22,6 +22,7 @@ export function HighlightText({ text, query, style }: Readonly<HighlightTextProp
     <Text style={style}>
       {segments.map((seg, i) =>
         seg.isMatch ? (
+          // react-doctor-disable-next-line no-array-index-as-key -- static positional split of a fixed string; segments never reorder or filter https://github.com/thomasluizon/orbit-ui-mobile/issues/243
           <Text
             key={`segment-${i}-${seg.text}`}
             style={{
@@ -34,6 +35,7 @@ export function HighlightText({ text, query, style }: Readonly<HighlightTextProp
             {seg.text}
           </Text>
         ) : (
+          // react-doctor-disable-next-line no-array-index-as-key -- static positional split of a fixed string; segments never reorder or filter https://github.com/thomasluizon/orbit-ui-mobile/issues/243
           <Text key={`segment-${i}-${seg.text}`}>{seg.text}</Text>
         ),
       )}

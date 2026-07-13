@@ -19,6 +19,7 @@ export function ActiveDaysSection({
 }: Readonly<ActiveDaysSectionProps>) {
   const { t } = useTranslation();
   const watchedDays = useWatch({ control, name: "days" }) ?? [];
+  const watchedDaySet = new Set(watchedDays);
 
   return (
     <View style={styles.fieldGroup}>
@@ -32,7 +33,7 @@ export function ActiveDaysSection({
         options={daysList.map((day) => ({
           key: day.value,
           label: day.label,
-          active: watchedDays.includes(day.value),
+          active: watchedDaySet.has(day.value),
           onPress: () => onToggleDay(day.value),
         }))}
       />

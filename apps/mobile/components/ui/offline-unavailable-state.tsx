@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { StyleSheet, Text, TouchableOpacity, View } from 'react-native'
+import { Pressable, StyleSheet, Text, View } from 'react-native'
 import { WifiOff } from 'lucide-react-native'
 import { createTokensV2, radius, type AppTokensV2 } from '@/lib/theme'
 import { useAppTheme } from '@/lib/use-app-theme'
@@ -47,10 +47,13 @@ export function OfflineUnavailableState({
         <Text style={[styles.title, compact ? styles.compactTitle : null]}>{title}</Text>
         <Text style={[styles.description, compact ? styles.compactDescription : null]}>{description}</Text>
         {actionLabel && onAction ? (
-          <TouchableOpacity
-            style={[styles.button, disabled ? styles.buttonDisabled : null]}
+          <Pressable
+            style={({ pressed }) => [
+              styles.button,
+              disabled ? styles.buttonDisabled : null,
+              pressed && !disabled ? { opacity: 0.85 } : null,
+            ]}
             onPress={onAction}
-            activeOpacity={0.85}
             disabled={disabled}
           accessibilityRole="button"
           accessibilityLabel={actionLabel}
@@ -62,7 +65,7 @@ export function OfflineUnavailableState({
           accessibilityState={{ disabled }}
         >
             <Text style={styles.buttonText}>{actionLabel}</Text>
-          </TouchableOpacity>
+          </Pressable>
         ) : null}
       </View>
     </View>

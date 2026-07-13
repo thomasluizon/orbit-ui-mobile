@@ -114,6 +114,7 @@ export function HabitEmojiSelector({
               contentContainerStyle={styles.emojiCategoryTabs}
               accessibilityLabel={t("habits.form.emojiCategories")}
             >
+              {/* react-doctor-disable-next-line rn-no-scrollview-mapped-list -- fixed horizontal category-tab strip over a static category list; ScrollView is the right primitive for a short horizontal tab row https://github.com/thomasluizon/orbit-ui-mobile/issues/243 */}
               {HABIT_EMOJI_CATEGORIES.map((category) => {
                 const selected = selectedCategoryId === category.id;
                 return (

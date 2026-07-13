@@ -1,9 +1,10 @@
-import { useEffect, useMemo, useState } from 'react'
+import { memo, useCallback, useEffect, useMemo, useState } from 'react'
 import {
+  // react-doctor-disable-next-line rn-prefer-reanimated -- RN Animated with useNativeDriver drives the select transform/opacity on the UI thread already; Reanimated 4.x migration deferred (worklets 0.10.0 ABI-pinned to the SDK 57 set, needs on-device QA) https://github.com/thomasluizon/orbit-ui-mobile/issues/243
   Animated,
   Modal,
   Text,
-  TouchableOpacity,
+  Pressable,
   FlatList,
   StyleSheet,
 } from 'react-native'
@@ -25,6 +26,42 @@ interface AppSelectProps {
   options: AppSelectOption[]
   label?: string
 }
+
+interface AppSelectOptionRowProps {
+  option: AppSelectOption
+  isSelected: boolean
+  primaryColor: string
+  styles: ReturnType<typeof createStyles>
+  onSelect: (value: string) => void
+}
+
+const AppSelectOptionRow = memo(function AppSelectOptionRow({
+  option,
+  isSelected,
+  primaryColor,
+  styles,
+  onSelect,
+}: Readonly<AppSelectOptionRowProps>) {
+  return (
+    <Pressable
+      style={({ pressed }) => [
+        styles.option,
+        isSelected && styles.optionSelected,
+        pressed ? { opacity: 0.7 } : null,
+      ]}
+      onPress={() => onSelect(option.value)}
+      accessibilityRole="button"
+      accessibilityState={{ selected: isSelected }}
+    >
+      <Text style={[styles.optionText, isSelected && styles.optionTextSelected]}>
+        {option.label}
+      </Text>
+      {isSelected ? (
+        <Check size={18} strokeWidth={1.8} color={primaryColor} />
+      ) : null}
+    </Pressable>
+  )
+})
 
 export function AppSelect({
   value,
@@ -49,6 +86,7 @@ export function AppSelect({
     if (isOpen) setVisible(true)
   }
 
+  // react-doctor-disable-next-line no-event-handler -- mount/exit-animation orchestration: `visible` keeps the Modal mounted through the exit timing driven by the isOpen transition; not a synthetic event handler https://github.com/thomasluizon/orbit-ui-mobile/issues/243
   useEffect(() => {
     if (isOpen) {
       Animated.timing(progress, {
@@ -81,10 +119,26 @@ export function AppSelect({
 
   const selectedOption = options.find((o) => o.value === value)
 
-  function handleSelect(optionValue: string) {
-    onChange(optionValue)
-    setIsOpen(false)
-  }
+  const handleSelect = useCallback(
+    (optionValue: string) => {
+      onChange(optionValue)
+      setIsOpen(false)
+    },
+    [onChange],
+  )
+
+  const renderOption = useCallback(
+    ({ item }: { item: AppSelectOption }) => (
+      <AppSelectOptionRow
+        option={item}
+        isSelected={item.value === value}
+        primaryColor={tokens.primary}
+        styles={styles}
+        onSelect={handleSelect}
+      />
+    ),
+    [handleSelect, styles, tokens.primary, value],
+  )
 
   const translateY = progress.interpolate({
     inputRange: [0, 1],
@@ -97,10 +151,12 @@ export function AppSelect({
 
   return (
     <>
-      <TouchableOpacity
-        style={styles.trigger}
+      <Pressable
+        style={({ pressed }) => [
+          styles.trigger,
+          pressed ? { opacity: 0.7 } : null,
+        ]}
         onPress={() => setIsOpen(true)}
-        activeOpacity={0.7}
         accessibilityLabel={label}
         accessibilityRole="button"
       >
@@ -114,7 +170,7 @@ export function AppSelect({
           {selectedOption?.label ?? label ?? ''}
         </Text>
         <ChevronDown size={20} strokeWidth={1.8} color={tokens.fg4} />
-      </TouchableOpacity>
+      </Pressable>
 
       {visible ? (
         <Modal
@@ -123,9 +179,8 @@ export function AppSelect({
           animationType="none"
           onRequestClose={() => setIsOpen(false)}
         >
-          <TouchableOpacity
+          <Pressable
             style={styles.root}
-            activeOpacity={1}
             onPress={() => setIsOpen(false)}
             importantForAccessibility="no"
           >
@@ -149,36 +204,10 @@ export function AppSelect({
                 data={options}
                 keyExtractor={(item) => item.value}
                 style={styles.list}
-                renderItem={({ item }) => {
-                  const isSelected = item.value === value
-                  return (
-                    <TouchableOpacity
-                      style={[
-                        styles.option,
-                        isSelected && styles.optionSelected,
-                      ]}
-                      onPress={() => handleSelect(item.value)}
-                      activeOpacity={0.7}
-                      accessibilityRole="button"
-                      accessibilityState={{ selected: isSelected }}
-                    >
-                      <Text
-                        style={[
-                          styles.optionText,
-                          isSelected && styles.optionTextSelected,
-                        ]}
-                      >
-                        {item.label}
-                      </Text>
-                      {isSelected ? (
-                        <Check size={18} strokeWidth={1.8} color={tokens.primary} />
-                      ) : null}
-                    </TouchableOpacity>
-                  )
-                }}
+                renderItem={renderOption}
               />
             </Animated.View>
-          </TouchableOpacity>
+          </Pressable>
         </Modal>
       ) : null}
     </>

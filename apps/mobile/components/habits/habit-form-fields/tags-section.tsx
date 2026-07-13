@@ -68,6 +68,7 @@ export function TagsSection({
   }
 
   const tagSuggestions = useTagSuggestions(title, description, tags.atTagLimit);
+  const selectedTagIdSet = new Set(tags.selectedTagIds);
 
   async function handleSuggest() {
     try {
@@ -89,7 +90,7 @@ export function TagsSection({
       <Text style={styles.label}>{t("habits.form.tags")}</Text>
       <View style={styles.tagsRow}>
         {availableTags.map((tag) => {
-          const isSelected = tags.selectedTagIds.includes(tag.id);
+          const isSelected = selectedTagIdSet.has(tag.id);
           const isDisabled = !isSelected && tags.atTagLimit;
           return (
             <HabitTagChip

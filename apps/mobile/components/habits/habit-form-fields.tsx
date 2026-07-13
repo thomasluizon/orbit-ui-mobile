@@ -150,6 +150,7 @@ export function HabitFormFields({
       return;
     }
 
+    // react-doctor-disable-next-line no-prop-callback-in-effect -- registers the buffered-inputs flush handle with the parent (cleanup unregisters it); an imperative handle, not a state sync https://github.com/thomasluizon/orbit-ui-mobile/issues/243
     onFlushBufferedInputsReady(flushBufferedInputs);
 
     return () => {

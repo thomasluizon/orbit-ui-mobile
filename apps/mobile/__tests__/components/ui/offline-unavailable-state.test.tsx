@@ -1,4 +1,5 @@
 import React from 'react'
+import { Pressable } from 'react-native'
 import { describe, expect, it, vi } from 'vitest'
 
 import { OfflineUnavailableState } from '@/components/ui/offline-unavailable-state'
@@ -53,7 +54,7 @@ describe('OfflineUnavailableState', () => {
     )
     expect(summary.props.accessibilityLiveRegion).toBe('polite')
 
-    const button = tree.root.findByType('TouchableOpacity')
+    const button = tree.root.findByType(Pressable)
     expect(button.props.accessibilityRole).toBe('button')
     expect(button.props.accessibilityLabel).toBe('Try again')
     expect(button.props.accessibilityState).toEqual({ disabled: true })
@@ -75,7 +76,7 @@ describe('OfflineUnavailableState', () => {
 
     expect(
       tree.root.findAll(
-        (node: any) => node.type === 'TouchableOpacity' && node.props.onPress,
+        (node: any) => node.type === Pressable && node.props.onPress,
       ),
     ).toHaveLength(0)
     expect(

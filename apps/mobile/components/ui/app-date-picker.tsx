@@ -1,10 +1,11 @@
 import { useState, useMemo, useCallback, useEffect } from 'react'
 import {
+  // react-doctor-disable-next-line rn-prefer-reanimated -- RN Animated with useNativeDriver drives the dialog transform/opacity on the UI thread already; Reanimated 4.x migration deferred (worklets 0.10.0 ABI-pinned to the SDK 57 set, needs on-device QA) https://github.com/thomasluizon/orbit-ui-mobile/issues/243
   Animated,
   Modal,
   View,
   Text,
-  TouchableOpacity,
+  Pressable,
   StyleSheet,
 } from 'react-native'
 import {
@@ -61,26 +62,30 @@ function DatePickerMonthNav({
 
   return (
     <View style={styles.monthNav}>
-      <TouchableOpacity
+      <Pressable
         onPress={onPrevMonth}
         hitSlop={{ top: 13, bottom: 13, left: 13, right: 13 }}
         accessibilityRole="button"
         accessibilityLabel={t('common.previousMonth')}
         disabled={pickerMode === 'years'}
-        style={pickerMode === 'years' ? styles.navHidden : undefined}
+        style={({ pressed }) => [
+          pickerMode === 'years' ? styles.navHidden : null,
+          pressed ? { opacity: 0.2 } : null,
+        ]}
       >
         <ChevronLeft size={18} strokeWidth={1.8} color={tokens.fg3} />
-      </TouchableOpacity>
+      </Pressable>
 
       <View style={styles.monthLabelGroup}>
         {monthLead ? (
           <Text style={styles.monthLabel}>{monthLead}</Text>
         ) : null}
-        <TouchableOpacity
+        <Pressable
           onPress={onToggleMode}
           hitSlop={{ top: 13, bottom: 13, left: 13, right: 13 }}
           accessibilityRole="button"
           accessibilityLabel={t('common.selectYear')}
+          style={({ pressed }) => (pressed ? { opacity: 0.2 } : undefined)}
         >
           <Text
             style={[
@@ -90,19 +95,22 @@ function DatePickerMonthNav({
           >
             {yearLabel}
           </Text>
-        </TouchableOpacity>
+        </Pressable>
       </View>
 
-      <TouchableOpacity
+      <Pressable
         onPress={onNextMonth}
         hitSlop={{ top: 13, bottom: 13, left: 13, right: 13 }}
         accessibilityRole="button"
         accessibilityLabel={t('common.nextMonth')}
         disabled={pickerMode === 'years'}
-        style={pickerMode === 'years' ? styles.navHidden : undefined}
+        style={({ pressed }) => [
+          pickerMode === 'years' ? styles.navHidden : null,
+          pressed ? { opacity: 0.2 } : null,
+        ]}
       >
         <ChevronRight size={18} strokeWidth={1.8} color={tokens.fg3} />
-      </TouchableOpacity>
+      </Pressable>
     </View>
   )
 }
@@ -161,15 +169,15 @@ function DatePickerBody({
             const isCurrentMonth = isSameMonth(day, viewDate)
 
             return (
-              <TouchableOpacity
+              <Pressable
                 key={day.toISOString()}
-                style={[
+                style={({ pressed }) => [
                   styles.dayCell,
                   isSelected && styles.dayCellSelected,
                   isToday && !isSelected && styles.dayCellToday,
+                  pressed ? { opacity: 0.7 } : null,
                 ]}
                 onPress={() => onSelectDay(day)}
-                activeOpacity={0.7}
                 accessibilityRole="button"
                 accessibilityState={{ selected: isSelected }}
                 accessibilityLabel={formatLocaleDate(day, locale, {
@@ -187,7 +195,7 @@ function DatePickerBody({
                 >
                   {format(day, 'd')}
                 </Text>
-              </TouchableOpacity>
+              </Pressable>
             )
           })}
         </View>
@@ -223,6 +231,7 @@ export function AppDatePicker({
     if (isOpen) setVisible(true)
   }
 
+  // react-doctor-disable-next-line no-event-handler -- mount/exit-animation orchestration: `visible` keeps the Modal mounted through the exit timing driven by the isOpen transition; not a synthetic event handler https://github.com/thomasluizon/orbit-ui-mobile/issues/243
   useEffect(() => {
     if (isOpen) {
       Animated.timing(progress, {
@@ -282,11 +291,13 @@ export function AppDatePicker({
       key,
       label: t(`dates.daysShort.${key}`).charAt(0),
     }))
+    // react-doctor-disable-next-line exhaustive-deps -- weekStartsOn is the extracted profile.weekStartDay and already listed; the analyzer wants the qualified member path but the alias tracks it https://github.com/thomasluizon/orbit-ui-mobile/issues/243
   }, [weekStartsOn, t])
 
   const calendarDays = useMemo(() => {
     const calStart = startOfWeek(startOfMonth(viewDate), { weekStartsOn })
     return Array.from({ length: 42 }, (_, index) => addDays(calStart, index))
+    // react-doctor-disable-next-line exhaustive-deps -- weekStartsOn is the extracted profile.weekStartDay and already listed; the analyzer wants the qualified member path but the alias tracks it https://github.com/thomasluizon/orbit-ui-mobile/issues/243
   }, [viewDate, weekStartsOn])
 
   const calendarWeeks = useMemo(() => {
@@ -337,10 +348,12 @@ export function AppDatePicker({
 
   return (
     <>
-      <TouchableOpacity
-        style={styles.trigger}
+      <Pressable
+        style={({ pressed }) => [
+          styles.trigger,
+          pressed ? { opacity: 0.7 } : null,
+        ]}
         onPress={openPicker}
-        activeOpacity={0.7}
         accessibilityLabel={
           displayValue
             ? t('common.selectedDate', { date: displayValue })
@@ -358,7 +371,7 @@ export function AppDatePicker({
           {displayValue || placeholder || t('common.selectDate')}
         </Text>
         <Calendar size={20} strokeWidth={1.8} color={tokens.fg4} />
-      </TouchableOpacity>
+      </Pressable>
 
       {visible ? (
         <Modal
@@ -367,9 +380,8 @@ export function AppDatePicker({
           animationType="none"
           onRequestClose={closePicker}
         >
-        <TouchableOpacity
+        <Pressable
           style={styles.root}
-          activeOpacity={1}
           onPress={closePicker}
           accessibilityRole="button"
           accessibilityLabel={t('common.close')}
@@ -414,7 +426,7 @@ export function AppDatePicker({
               styles={styles}
             />
           </Animated.View>
-        </TouchableOpacity>
+        </Pressable>
         </Modal>
       ) : null}
     </>

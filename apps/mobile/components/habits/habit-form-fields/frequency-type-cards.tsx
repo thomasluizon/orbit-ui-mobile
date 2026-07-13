@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -84,10 +84,12 @@ export function FrequencyTypeCards({
   else if (isGeneral) activeIndex = 3;
   else if (isFlexible) activeIndex = 2;
 
-  const frequencyHandlers = useMemo<(() => void)[]>(
-    () => [onSetOneTime, onSetRecurring, onSetFlexible, onSetGeneral],
-    [onSetOneTime, onSetRecurring, onSetFlexible, onSetGeneral],
-  );
+  const frequencyHandlers: (() => void)[] = [
+    onSetOneTime,
+    onSetRecurring,
+    onSetFlexible,
+    onSetGeneral,
+  ];
 
   const scrollToActive = useCallback(
     (animated: boolean) => {
@@ -158,6 +160,7 @@ export function FrequencyTypeCards({
           showsHorizontalScrollIndicator={false}
           onMomentumScrollEnd={handleMomentumScrollEnd}
         >
+          {/* react-doctor-disable-next-line rn-no-scrollview-mapped-list -- fixed 4-card horizontal paging carousel; ScrollView + pagingEnabled with programmatic scrollTo is the right primitive, FlatList virtualization breaks paging https://github.com/thomasluizon/orbit-ui-mobile/issues/243 */}
           {FREQUENCY_TYPE_CARDS.map((card, index) => {
             const CardIcon = card.icon;
             return (

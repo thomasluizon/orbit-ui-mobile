@@ -13,6 +13,7 @@ export interface HabitListDateGroup {
   habits: NormalizedHabit[]
 }
 
+// react-doctor-disable-next-line only-export-components -- co-located date-label helper dedicated to this section; Fast Refresh dev-only, no runtime effect https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 export function formatDateGroupLabel(
   key: string,
   locale: string,

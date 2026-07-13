@@ -42,6 +42,7 @@ interface AdvancedSectionProps {
   children?: ReactNode;
 }
 
+// react-doctor-disable-next-line no-many-boolean-props -- private single-use form section; the flags are independent field-visibility gates from the form state, not a combinatorial public API https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 export function AdvancedSection({
   control,
   isGeneral,

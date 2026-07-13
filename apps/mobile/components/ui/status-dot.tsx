@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+// react-doctor-disable-next-line rn-prefer-reanimated -- RN Animated drives an SVG strokeDashoffset completion sweep (the native driver cannot animate SVG props); Reanimated 4.x migration deferred (worklets 0.10.0 ABI-pinned to the SDK 57 set, needs on-device QA) https://github.com/thomasluizon/orbit-ui-mobile/issues/243
 import { AccessibilityInfo, Animated, Pressable, View } from 'react-native'
 import Svg, { Circle } from 'react-native-svg'
 import { createTokensV2, easings } from '@/lib/theme'
@@ -59,6 +60,7 @@ export function StatusDot({
 
   const [prevState, setPrevState] = useState(state)
   const [playing, setPlaying] = useState(false)
+  // react-doctor-disable-next-line rerender-state-only-in-handlers -- reduceMotion is read during render (it gates the completion-sweep via `playing` on the next state transition), so it is behavioral state, not display-only https://github.com/thomasluizon/orbit-ui-mobile/issues/243
   const [reduceMotion, setReduceMotion] = useState(false)
   if (state !== prevState) {
     setPrevState(state)

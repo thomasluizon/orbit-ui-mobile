@@ -30,6 +30,7 @@ export function HabitDetailReminders({
         />
       ) : null}
       {habit.scheduledReminders.map((sr, idx) => (
+        // react-doctor-disable-next-line no-array-index-as-key -- scheduled reminders are value objects with no id; a read-only detail list that never reorders, so the positional key is stable https://github.com/thomasluizon/orbit-ui-mobile/issues/243
         <SettingsRow
           key={`${sr.when}-${sr.time}-${idx}`}
           label={

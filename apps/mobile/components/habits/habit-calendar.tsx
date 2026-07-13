@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback } from "react"
-import { View, Text, TouchableOpacity, StyleSheet } from "react-native"
+import { View, Text, Pressable, StyleSheet } from "react-native"
 import { addMonths, subMonths, parseISO } from "date-fns"
 import { ChevronLeft, ChevronRight, X } from "lucide-react-native"
 import { useTranslation } from "react-i18next"
@@ -61,11 +61,13 @@ export function HabitCalendar({
         key,
         label: t(`dates.daysShort.${key}`).charAt(0),
       })),
+    // react-doctor-disable-next-line exhaustive-deps -- weekStartsOn is the extracted profile.weekStartDay and already listed; the analyzer wants the qualified member path but the alias tracks it https://github.com/thomasluizon/orbit-ui-mobile/issues/243
     [t, weekStartsOn],
   )
 
   const calendarDays = useMemo(
     () => buildHabitCalendarDayCells(currentMonth, weekStartsOn, logDates),
+    // react-doctor-disable-next-line exhaustive-deps -- weekStartsOn is the extracted profile.weekStartDay and already listed; the analyzer wants the qualified member path but the alias tracks it https://github.com/thomasluizon/orbit-ui-mobile/issues/243
     [currentMonth, logDates, weekStartsOn],
   )
 
@@ -109,46 +111,52 @@ export function HabitCalendar({
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <TouchableOpacity
+        <Pressable
           testID="habit-calendar-prev-month"
           accessibilityRole="button"
           accessibilityLabel={t('common.previousMonth')}
-          style={styles.iconButton}
+          style={({ pressed }) => [
+            styles.iconButton,
+            pressed ? { opacity: 0.7 } : null,
+          ]}
           onPress={prevMonth}
-          activeOpacity={0.7}
           hitSlop={4}
         >
           <ChevronLeft size={20} color={tokens.fg2} strokeWidth={1.8} />
-        </TouchableOpacity>
+        </Pressable>
 
-        <TouchableOpacity
+        <Pressable
           testID="habit-calendar-month-label"
           accessibilityRole="button"
           accessibilityLabel={monthLabel}
           accessibilityHint={t('dates.goToToday')}
-          style={styles.monthButton}
+          style={({ pressed }) => [
+            styles.monthButton,
+            pressed ? { opacity: 0.7 } : null,
+          ]}
           onPress={goToToday}
-          activeOpacity={0.7}
         >
           <Text style={styles.monthLabel}>{monthLabel}</Text>
-        </TouchableOpacity>
+        </Pressable>
 
-        <TouchableOpacity
+        <Pressable
           testID="habit-calendar-next-month"
           accessibilityRole="button"
           accessibilityLabel={t('common.nextMonth')}
-          style={styles.iconButton}
+          style={({ pressed }) => [
+            styles.iconButton,
+            pressed ? { opacity: 0.7 } : null,
+          ]}
           onPress={nextMonth}
-          activeOpacity={0.7}
           hitSlop={4}
         >
           <ChevronRight size={20} color={tokens.fg2} strokeWidth={1.8} />
-        </TouchableOpacity>
+        </Pressable>
       </View>
 
       <View style={styles.weekdayRow}>
-        {weekdays.map((day, index) => (
-          <View key={`${day.key}-${index}`} style={styles.weekdayCell}>
+        {weekdays.map((day) => (
+          <View key={day.key} style={styles.weekdayCell}>
             <Text style={styles.weekdayText}>{day.label}</Text>
           </View>
         ))}
@@ -158,20 +166,20 @@ export function HabitCalendar({
         {calendarDays.map((day) => (
           <View key={day.dateStr} style={styles.dayCell}>
             {day.isCurrentMonth && day.isCompleted ? (
-              <TouchableOpacity
+              <Pressable
                 testID={`habit-calendar-day-${day.dateStr}`}
                 accessibilityRole="button"
                 accessibilityState={{ selected: selectedDate === day.dateStr }}
-                style={[
+                style={({ pressed }) => [
                   styles.completedDay,
                   selectedDate === day.dateStr && styles.completedDaySelected,
+                  pressed ? { opacity: 0.8 } : null,
                 ]}
                 hitSlop={5}
                 onPress={() => toggleDay(day.dateStr)}
-                activeOpacity={0.8}
               >
                 <Text style={styles.completedDayText}>{day.dayNum}</Text>
-              </TouchableOpacity>
+              </Pressable>
             ) : (
               <View
                 style={[
@@ -200,16 +208,18 @@ export function HabitCalendar({
             <Text style={styles.selectedLogsDate}>
               {displayDate(parseISO(selectedDate))}
             </Text>
-            <TouchableOpacity
+            <Pressable
               accessibilityRole="button"
               accessibilityLabel={t('common.close')}
-              style={styles.closeSelectionButton}
+              style={({ pressed }) => [
+                styles.closeSelectionButton,
+                pressed ? { opacity: 0.7 } : null,
+              ]}
               onPress={() => setSelectedDate(null)}
-              activeOpacity={0.7}
               hitSlop={8}
             >
               <X size={16} color={tokens.fg3} strokeWidth={1.8} />
-            </TouchableOpacity>
+            </Pressable>
           </View>
 
           <View style={styles.selectedLogsList}>

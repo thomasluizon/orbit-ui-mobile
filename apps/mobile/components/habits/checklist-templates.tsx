@@ -1,8 +1,8 @@
 import { useCallback, useMemo, useState } from 'react'
 import {
+  Pressable,
   StyleSheet,
   Text,
-  TouchableOpacity,
   View,
 } from 'react-native'
 import { Plus, X } from 'lucide-react-native'
@@ -89,17 +89,19 @@ export function ChecklistTemplates({
     <View style={styles.container}>
       <View style={styles.actionsRow}>
         {items.length > 0 && !showSave ? (
-          <TouchableOpacity
-            style={styles.saveChip}
+          <Pressable
+            style={({ pressed }) => [
+              styles.saveChip,
+              pressed ? { opacity: 0.8 } : null,
+            ]}
             onPress={() => setShowSave(true)}
-            activeOpacity={0.8}
             accessibilityRole="button"
             accessibilityLabel={t('habits.form.saveAsTemplate')}
             accessibilityHint={t('habits.form.templateNamePlaceholder')}
           >
             <Plus size={14} color={tokens.fg2} strokeWidth={2} />
             <Text style={styles.saveChipText}>{t('habits.form.saveAsTemplate')}</Text>
-          </TouchableOpacity>
+          </Pressable>
         ) : null}
 
         {templates.length > 0 ? (
@@ -108,31 +110,33 @@ export function ChecklistTemplates({
             <View style={styles.chipsRow}>
               {templates.map((template) => (
                 <View key={template.id} style={styles.chip}>
-                  <TouchableOpacity
-                    style={styles.chipLoadButton}
+                  <Pressable
+                    style={({ pressed }) => [
+                      styles.chipLoadButton,
+                      pressed ? { opacity: 0.8 } : null,
+                    ]}
                     onPress={() => handleLoad(template.id)}
-                    activeOpacity={0.8}
                     accessibilityRole="button"
                     accessibilityLabel={template.name}
                     accessibilityHint={t('habits.form.templates')}
                   >
                     <Text style={styles.chipText}>{template.name}</Text>
-                  </TouchableOpacity>
-                  <TouchableOpacity
+                  </Pressable>
+                  <Pressable
                     accessibilityLabel={t('common.delete')}
                     accessibilityRole="button"
                     accessibilityHint={template.name}
                     accessibilityState={{ disabled: isDeletingThisTemplate(template.id) }}
-                    style={[
+                    style={({ pressed }) => [
                       styles.chipDeleteButton,
                       isDeletingThisTemplate(template.id) && styles.chipDeleteButtonDisabled,
+                      pressed ? { opacity: 0.8 } : null,
                     ]}
                     onPress={() => handleDelete(template.id)}
                     disabled={isDeletingThisTemplate(template.id)}
-                    activeOpacity={0.8}
                   >
                     <X size={13} color={tokens.fg3} strokeWidth={1.8} />
-                  </TouchableOpacity>
+                  </Pressable>
                 </View>
               ))}
             </View>
@@ -152,32 +156,34 @@ export function ChecklistTemplates({
             onSubmitEditing={handleSave}
             returnKeyType="done"
           />
-          <TouchableOpacity
-            style={[
+          <Pressable
+            style={({ pressed }) => [
               styles.saveButton,
               (!templateName.trim() || createTemplate.isPending) && styles.saveButtonDisabled,
+              pressed ? { opacity: 0.8 } : null,
             ]}
             onPress={handleSave}
             disabled={!templateName.trim() || createTemplate.isPending}
-            activeOpacity={0.8}
             accessibilityRole="button"
             accessibilityLabel={t('common.save')}
             accessibilityState={{ disabled: !templateName.trim() || createTemplate.isPending }}
           >
             <Text style={styles.saveButtonText}>{t('common.save')}</Text>
-          </TouchableOpacity>
-          <TouchableOpacity
-            style={styles.closeButton}
+          </Pressable>
+          <Pressable
+            style={({ pressed }) => [
+              styles.closeButton,
+              pressed ? { opacity: 0.8 } : null,
+            ]}
             onPress={() => {
               setTemplateName('')
               setShowSave(false)
             }}
-            activeOpacity={0.8}
             accessibilityRole="button"
             accessibilityLabel={t('common.close')}
           >
             <X size={16} color={tokens.fg3} strokeWidth={1.8} />
-          </TouchableOpacity>
+          </Pressable>
         </View>
       ) : null}
     </View>

@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native'
+import { View, Text, Pressable, StyleSheet } from 'react-native'
 import { useQuery } from '@tanstack/react-query'
 import { useTranslation } from 'react-i18next'
 import { API } from '@orbit/shared/api'
@@ -45,6 +45,10 @@ export function GoalLinkingField({
     () => goals?.filter((goal) => goal.status === 'Active') ?? [],
     [goals],
   )
+  const selectedGoalIdSet = useMemo(
+    () => new Set(selectedGoalIds),
+    [selectedGoalIds],
+  )
 
   return (
     <View style={styles.container}>
@@ -52,20 +56,20 @@ export function GoalLinkingField({
       {activeGoals.length > 0 ? (
         <View style={styles.chips}>
           {activeGoals.map((goal) => {
-            const isSelected = selectedGoalIds.includes(goal.id)
+            const isSelected = selectedGoalIdSet.has(goal.id)
             const isDisabled = !isSelected && atGoalLimit
 
             return (
-              <TouchableOpacity
+              <Pressable
                 key={goal.id}
-                style={[
+                style={({ pressed }) => [
                   styles.chip,
                   isSelected ? styles.chipSelected : styles.chipDefault,
                   isDisabled && styles.chipDisabled,
+                  pressed && !isDisabled ? { opacity: 0.75 } : null,
                 ]}
                 disabled={isDisabled}
                 onPress={() => onToggleGoal(goal.id)}
-                activeOpacity={0.75}
                 accessibilityRole="button"
                 accessibilityState={{ selected: isSelected, disabled: isDisabled }}
               >
@@ -88,7 +92,7 @@ export function GoalLinkingField({
                     {Math.round(goal.progressPercentage)}%
                   </Text>
                 </Text>
-              </TouchableOpacity>
+              </Pressable>
             )
           })}
         </View>

@@ -109,6 +109,7 @@ export function PillButton({
         leading
       )}
       {hasLabel &&
+        // react-doctor-disable-next-line no-polymorphic-children -- deliberate label-or-node API: a string/number child renders as the themed label, any other node renders as-is; matches the web PillButton contract https://github.com/thomasluizon/orbit-ui-mobile/issues/243
         (typeof children === 'string' || typeof children === 'number' ? (
           <Text
             style={[

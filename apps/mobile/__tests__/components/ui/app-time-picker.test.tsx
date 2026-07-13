@@ -32,14 +32,14 @@ function columns(tree: any): any[] {
 
 function optionIn(column: any, label: string): any {
   return column
-    .findAll((node: any) => node.type === 'TouchableOpacity')
+    .findAll((node: any) => node.type === Pressable)
     .find((node: any) => node.props.accessibilityLabel === label)
 }
 
 function doneButton(tree: any): any {
   return tree.root.find(
     (node: any) =>
-      node.type === 'TouchableOpacity' && node.props.accessibilityLabel === 'common.done',
+      node.type === Pressable && node.props.accessibilityLabel === 'common.done',
   )
 }
 
