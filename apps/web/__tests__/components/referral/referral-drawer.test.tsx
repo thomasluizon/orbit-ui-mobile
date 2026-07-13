@@ -46,9 +46,13 @@ describe('ReferralDrawer', () => {
     expect(container.innerHTML).toBe('')
   })
 
-  it('renders title when open', () => {
+  it.each([
+    'referral.drawer.title',
+    'referral.drawer.howItWorks',
+    'referral.drawer.yourLink',
+  ])('renders %s when open', (text) => {
     render(<ReferralDrawer open={true} onOpenChange={vi.fn()} />)
-    expect(screen.getByText('referral.drawer.title')).toBeInTheDocument()
+    expect(screen.getByText(text)).toBeInTheDocument()
   })
 
   it('shows loading state', () => {
@@ -116,18 +120,8 @@ describe('ReferralDrawer', () => {
     expect(screen.getByText('referral.drawer.couponsEarned')).toBeInTheDocument()
   })
 
-  it('shows how it works section', () => {
-    render(<ReferralDrawer open={true} onOpenChange={vi.fn()} />)
-    expect(screen.getByText('referral.drawer.howItWorks')).toBeInTheDocument()
-  })
-
   it('shows disclaimer', () => {
     render(<ReferralDrawer open={true} onOpenChange={vi.fn()} />)
     expect(document.body.textContent).toContain('referral.drawer.disclaimer')
-  })
-
-  it('shows your link label', () => {
-    render(<ReferralDrawer open={true} onOpenChange={vi.fn()} />)
-    expect(screen.getByText('referral.drawer.yourLink')).toBeInTheDocument()
   })
 })

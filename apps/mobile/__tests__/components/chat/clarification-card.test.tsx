@@ -186,8 +186,13 @@ describe('ClarificationCard (mobile)', () => {
     expect(successNodes.length).toBeGreaterThan(0)
   })
 
-  it('shows expired-error text when resolve throws a 404', async () => {
-    mutateAsync.mockRejectedValueOnce(Object.assign(new Error('expired'), { status: 404 }))
+  it.each<{ name: string; error: Error; expectedKey: string }>([
+    { name: 'shows expired-error text when resolve throws a 404', error: Object.assign(new Error('expired'), { status: 404 }), expectedKey: 'habits.clarification.errorExpired' },
+    { name: 'shows generic-error text when resolve throws a non-404 error', error: new Error('network error'), expectedKey: 'habits.clarification.errorGeneric' },
+    { name: 'shows already-resolved error when resolve throws a 409', error: Object.assign(new Error('conflict'), { status: 409 }), expectedKey: 'habits.clarification.errorAlreadyResolved' },
+    { name: 'shows expired-error text when resolve throws a 410 Gone', error: Object.assign(new Error('gone'), { status: 410 }), expectedKey: 'habits.clarification.errorExpired' },
+  ])('$name', async ({ error, expectedKey }) => {
+    mutateAsync.mockRejectedValueOnce(error)
 
     let tree!: TestInstance
     await TestRenderer.act(async () => {
@@ -200,62 +205,7 @@ describe('ClarificationCard (mobile)', () => {
       await firstButton.props.onPress!()
     })
 
-    const errorNodes = findTextNodesWithChild(tree.root, 'habits.clarification.errorExpired')
-    expect(errorNodes.length).toBeGreaterThan(0)
-  })
-
-  it('shows generic-error text when resolve throws a non-404 error', async () => {
-    // No .status property — exercises the `status === 0` fallback path.
-    mutateAsync.mockRejectedValueOnce(new Error('network error'))
-
-    let tree!: TestInstance
-    await TestRenderer.act(async () => {
-      tree = TestRenderer.create(<ClarificationCard clarificationRequest={baseClarification} />)
-    })
-
-    const [firstButton] = findPressables(tree.root)
-    if (!firstButton?.props.onPress) throw new Error('first button missing onPress')
-    await TestRenderer.act(async () => {
-      await firstButton.props.onPress!()
-    })
-
-    const errorNodes = findTextNodesWithChild(tree.root, 'habits.clarification.errorGeneric')
-    expect(errorNodes.length).toBeGreaterThan(0)
-  })
-
-  it('shows already-resolved error when resolve throws a 409', async () => {
-    mutateAsync.mockRejectedValueOnce(Object.assign(new Error('conflict'), { status: 409 }))
-
-    let tree!: TestInstance
-    await TestRenderer.act(async () => {
-      tree = TestRenderer.create(<ClarificationCard clarificationRequest={baseClarification} />)
-    })
-
-    const [firstButton] = findPressables(tree.root)
-    if (!firstButton?.props.onPress) throw new Error('first button missing onPress')
-    await TestRenderer.act(async () => {
-      await firstButton.props.onPress!()
-    })
-
-    const errorNodes = findTextNodesWithChild(tree.root, 'habits.clarification.errorAlreadyResolved')
-    expect(errorNodes.length).toBeGreaterThan(0)
-  })
-
-  it('shows expired-error text when resolve throws a 410 Gone', async () => {
-    mutateAsync.mockRejectedValueOnce(Object.assign(new Error('gone'), { status: 410 }))
-
-    let tree!: TestInstance
-    await TestRenderer.act(async () => {
-      tree = TestRenderer.create(<ClarificationCard clarificationRequest={baseClarification} />)
-    })
-
-    const [firstButton] = findPressables(tree.root)
-    if (!firstButton?.props.onPress) throw new Error('first button missing onPress')
-    await TestRenderer.act(async () => {
-      await firstButton.props.onPress!()
-    })
-
-    const errorNodes = findTextNodesWithChild(tree.root, 'habits.clarification.errorExpired')
+    const errorNodes = findTextNodesWithChild(tree.root, expectedKey)
     expect(errorNodes.length).toBeGreaterThan(0)
   })
 

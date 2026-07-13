@@ -102,24 +102,14 @@ describe('getTimezoneList', () => {
     expect(list.length).toBeGreaterThan(0)
   })
 
-  it('includes America/New_York', () => {
+  it.each([
+    'America/New_York',
+    'Europe/London',
+    'Asia/Tokyo',
+    'America/Sao_Paulo',
+  ])('includes %s', (timeZone) => {
     const list = getTimezoneList()
-    expect(list).toContain('America/New_York')
-  })
-
-  it('includes Europe/London', () => {
-    const list = getTimezoneList()
-    expect(list).toContain('Europe/London')
-  })
-
-  it('includes Asia/Tokyo', () => {
-    const list = getTimezoneList()
-    expect(list).toContain('Asia/Tokyo')
-  })
-
-  it('includes America/Sao_Paulo', () => {
-    const list = getTimezoneList()
-    expect(list).toContain('America/Sao_Paulo')
+    expect(list).toContain(timeZone)
   })
 
   it('returns strings in every entry', () => {

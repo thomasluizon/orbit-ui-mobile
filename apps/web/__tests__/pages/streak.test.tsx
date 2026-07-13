@@ -108,14 +108,13 @@ describe('StreakPage', () => {
     expect(countEl?.textContent).toBe('10')
   })
 
-  it('renders days unit text', () => {
+  it.each([
+    { name: 'renders days unit text', text: 'streakDisplay.detail.daysUnit' },
+    { name: 'renders encouragement message for streak >= 7', text: 'streakDisplay.profile.encouragement7' },
+    { name: 'renders longest streak value from profile', text: '30' },
+  ])('$name', ({ text }) => {
     render(<StreakPage />)
-    expect(document.body.textContent).toContain('streakDisplay.detail.daysUnit')
-  })
-
-  it('renders encouragement message for streak >= 7', () => {
-    render(<StreakPage />)
-    expect(document.body.textContent).toContain('streakDisplay.profile.encouragement7')
+    expect(document.body.textContent).toContain(text)
   })
 
   it('renders no encouragement for streak 0', () => {
@@ -126,9 +125,13 @@ describe('StreakPage', () => {
   })
 
 
-  it('renders 7-day timeline', () => {
+  it.each([
+    { name: 'renders 7-day timeline', text: 'streakDisplay.detail.thisWeek' },
+    { name: 'renders the freeze section title', text: 'streakDisplay.freeze.title' },
+    { name: 'renders the auto explainer copy', text: 'streakDisplay.freeze.auto.explainer' },
+  ])('$name', ({ text }) => {
     render(<StreakPage />)
-    expect(screen.getByText('streakDisplay.detail.thisWeek')).toBeInTheDocument()
+    expect(screen.getByText(text)).toBeInTheDocument()
   })
 
   it('renders legend items', () => {
@@ -145,21 +148,6 @@ describe('StreakPage', () => {
     expect(screen.getByText('streakDisplay.detail.longestStreak')).toBeInTheDocument()
   })
 
-  it('renders longest streak value from profile', () => {
-    render(<StreakPage />)
-    expect(document.body.textContent).toContain('30')
-  })
-
-
-  it('renders the freeze section title', () => {
-    render(<StreakPage />)
-    expect(screen.getByText('streakDisplay.freeze.title')).toBeInTheDocument()
-  })
-
-  it('renders the auto explainer copy', () => {
-    render(<StreakPage />)
-    expect(screen.getByText('streakDisplay.freeze.auto.explainer')).toBeInTheDocument()
-  })
 
   it('renders the banked charge gauge with the banked count', () => {
     render(<StreakPage />)

@@ -188,7 +188,13 @@ describe('HabitFormFields', () => {
     mockHasProAccess = false
   })
 
-  it('renders without crashing', () => {
+  it.each([
+    { name: 'renders without crashing', text: 'habits.form.title' },
+    { name: 'renders the title input label', text: 'habits.form.title' },
+    { name: 'renders the description input label', text: 'habits.form.description' },
+    { name: 'shows tags section label', text: 'habits.form.tags' },
+    { name: 'shows checklist section', text: 'habits.form.checklist' },
+  ])('$name', ({ text }) => {
     const formHelpers = createMockFormHelpers()
     const tags = createMockTags()
     renderWithProviders(
@@ -202,41 +208,7 @@ describe('HabitFormFields', () => {
         onReminderTimesChange={vi.fn()}
       />,
     )
-    expect(screen.getByText('habits.form.title')).toBeDefined()
-  })
-
-  it('renders the title input label', () => {
-    const formHelpers = createMockFormHelpers()
-    const tags = createMockTags()
-    renderWithProviders(
-      <HabitFormFields
-        formHelpers={formHelpers}
-        tags={tags}
-        selectedGoalIds={[]}
-        atGoalLimit={false}
-        onToggleGoal={vi.fn()}
-        reminderTimes={[]}
-        onReminderTimesChange={vi.fn()}
-      />,
-    )
-    expect(screen.getByText('habits.form.title')).toBeDefined()
-  })
-
-  it('renders the description input label', () => {
-    const formHelpers = createMockFormHelpers()
-    const tags = createMockTags()
-    renderWithProviders(
-      <HabitFormFields
-        formHelpers={formHelpers}
-        tags={tags}
-        selectedGoalIds={[]}
-        atGoalLimit={false}
-        onToggleGoal={vi.fn()}
-        reminderTimes={[]}
-        onReminderTimesChange={vi.fn()}
-      />,
-    )
-    expect(screen.getByText('habits.form.description')).toBeDefined()
+    expect(screen.getByText(text)).toBeDefined()
   })
 
   it('opens a searchable emoji picker from the whole emoji field', async () => {
@@ -383,23 +355,6 @@ describe('HabitFormFields', () => {
     expect(screen.getByText('habits.form.habitTypeAvoid')).toBeDefined()
   })
 
-  it('shows tags section label', () => {
-    const formHelpers = createMockFormHelpers()
-    const tags = createMockTags()
-    renderWithProviders(
-      <HabitFormFields
-        formHelpers={formHelpers}
-        tags={tags}
-        selectedGoalIds={[]}
-        atGoalLimit={false}
-        onToggleGoal={vi.fn()}
-        reminderTimes={[]}
-        onReminderTimesChange={vi.fn()}
-      />,
-    )
-    expect(screen.getByText('habits.form.tags')).toBeDefined()
-  })
-
   it('shows day picker when showDayPicker is true', () => {
     const formHelpers = createMockFormHelpers({ showDayPicker: true, isGeneral: false })
     const tags = createMockTags()
@@ -435,23 +390,6 @@ describe('HabitFormFields', () => {
     )
     expect(screen.getByTestId('custom-children')).toBeDefined()
     expect(screen.getByText('Custom Content')).toBeDefined()
-  })
-
-  it('shows checklist section', () => {
-    const formHelpers = createMockFormHelpers()
-    const tags = createMockTags()
-    renderWithProviders(
-      <HabitFormFields
-        formHelpers={formHelpers}
-        tags={tags}
-        selectedGoalIds={[]}
-        atGoalLimit={false}
-        onToggleGoal={vi.fn()}
-        reminderTimes={[]}
-        onReminderTimesChange={vi.fn()}
-      />,
-    )
-    expect(screen.getByText('habits.form.checklist')).toBeDefined()
   })
 
   it('shows goal linking field', () => {

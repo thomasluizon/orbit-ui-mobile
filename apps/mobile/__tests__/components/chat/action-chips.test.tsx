@@ -84,18 +84,24 @@ function findPressableByType(root: any) {
 }
 
 describe('ActionChips (mobile)', () => {
-  it('renders successful Create chip as a Pressable when onChipClick is provided', () => {
+  it.each<{ name: string; overrides: Partial<ActionResult>; handler: boolean; expected: number }>([
+    { name: 'renders successful Create chip as a Pressable when onChipClick is provided', overrides: { type: 'CreateHabit', status: 'Success', entityId: 'h-1' }, handler: true, expected: 1 },
+    { name: 'does not render Delete chip as Pressable even with handler', overrides: { type: 'DeleteHabit', status: 'Success', entityId: 'h-1' }, handler: true, expected: 0 },
+    { name: 'does not render DeleteGoal chip as Pressable even with handler', overrides: { type: 'DeleteGoal', status: 'Success', entityId: 'g-1' }, handler: true, expected: 0 },
+    { name: 'does not render Failed chip as Pressable even with handler', overrides: { type: 'CreateHabit', status: 'Failed', entityId: 'h-1', error: 'oops' }, handler: true, expected: 0 },
+    { name: 'does not render as Pressable when no handler is provided', overrides: { type: 'CreateHabit', status: 'Success', entityId: 'h-1' }, handler: false, expected: 0 },
+    { name: 'does not render chip with null entityId as Pressable', overrides: { type: 'CreateHabit', status: 'Success', entityId: null }, handler: true, expected: 0 },
+  ])('$name', ({ overrides, handler, expected }) => {
     let tree: any
     TestRenderer.act(() => {
       tree = TestRenderer.create(
         <ActionChips
-          actions={[makeAction({ type: 'CreateHabit', status: 'Success', entityId: 'h-1' })]}
-          onChipClick={() => {}}
+          actions={[makeAction(overrides)]}
+          onChipClick={handler ? () => {} : undefined}
         />,
       )
     })
-    const pressables = findPressableByType(tree.root)
-    expect(pressables.length).toBe(1)
+    expect(findPressableByType(tree.root).length).toBe(expected)
   })
 
   it('calls onChipClick with entityId and actionType on press', () => {
@@ -134,20 +140,6 @@ describe('ActionChips (mobile)', () => {
     expect(onChipClick).toHaveBeenCalledWith('g-42', 'UpdateGoal')
   })
 
-  it('does not render Delete chip as Pressable even with handler', () => {
-    let tree: any
-    TestRenderer.act(() => {
-      tree = TestRenderer.create(
-        <ActionChips
-          actions={[makeAction({ type: 'DeleteHabit', status: 'Success', entityId: 'h-1' })]}
-          onChipClick={() => {}}
-        />,
-      )
-    })
-    const pressables = findPressableByType(tree.root)
-    expect(pressables.length).toBe(0)
-  })
-
   it('does not render tag mutation chips as Pressable even with handler', () => {
     for (const type of ['CreateTag', 'UpdateTag', 'DeleteTag']) {
       let tree: any
@@ -161,47 +153,6 @@ describe('ActionChips (mobile)', () => {
       })
       expect(findPressableByType(tree.root).length).toBe(0)
     }
-  })
-
-  it('does not render DeleteGoal chip as Pressable even with handler', () => {
-    let tree: any
-    TestRenderer.act(() => {
-      tree = TestRenderer.create(
-        <ActionChips
-          actions={[makeAction({ type: 'DeleteGoal', status: 'Success', entityId: 'g-1' })]}
-          onChipClick={() => {}}
-        />,
-      )
-    })
-    const pressables = findPressableByType(tree.root)
-    expect(pressables.length).toBe(0)
-  })
-
-  it('does not render Failed chip as Pressable even with handler', () => {
-    let tree: any
-    TestRenderer.act(() => {
-      tree = TestRenderer.create(
-        <ActionChips
-          actions={[
-            makeAction({ type: 'CreateHabit', status: 'Failed', entityId: 'h-1', error: 'oops' }),
-          ]}
-          onChipClick={() => {}}
-        />,
-      )
-    })
-    expect(findPressableByType(tree.root).length).toBe(0)
-  })
-
-  it('does not render as Pressable when no handler is provided', () => {
-    let tree: any
-    TestRenderer.act(() => {
-      tree = TestRenderer.create(
-        <ActionChips
-          actions={[makeAction({ type: 'CreateHabit', status: 'Success', entityId: 'h-1' })]}
-        />,
-      )
-    })
-    expect(findPressableByType(tree.root).length).toBe(0)
   })
 
   it('renders localized labels for the new tag and reorder action types', () => {
@@ -228,16 +179,4 @@ describe('ActionChips (mobile)', () => {
     }
   })
 
-  it('does not render chip with null entityId as Pressable', () => {
-    let tree: any
-    TestRenderer.act(() => {
-      tree = TestRenderer.create(
-        <ActionChips
-          actions={[makeAction({ type: 'CreateHabit', status: 'Success', entityId: null })]}
-          onChipClick={() => {}}
-        />,
-      )
-    })
-    expect(findPressableByType(tree.root).length).toBe(0)
-  })
 })

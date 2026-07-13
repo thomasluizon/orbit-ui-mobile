@@ -35,25 +35,15 @@ describe('LevelUpOverlay', () => {
     expect(alert).toBeInTheDocument()
   })
 
-  it('displays the new level number padded to two digits', () => {
+  it.each([
+    { name: 'displays the new level number padded to two digits', text: '05' },
+    { name: 'displays level up title', text: 'gamification.levelUp.title' },
+    { name: 'displays steady hand quiet copy', text: 'gamification.levelUp.steadyHand' },
+  ])('$name', ({ text }) => {
     render(
       <LevelUpOverlay leveledUp={true} newLevel={5} onClear={vi.fn()} />,
     )
-    expect(document.body.textContent).toContain('05')
-  })
-
-  it('displays level up title', () => {
-    render(
-      <LevelUpOverlay leveledUp={true} newLevel={5} onClear={vi.fn()} />,
-    )
-    expect(document.body.textContent).toContain('gamification.levelUp.title')
-  })
-
-  it('displays steady hand quiet copy', () => {
-    render(
-      <LevelUpOverlay leveledUp={true} newLevel={5} onClear={vi.fn()} />,
-    )
-    expect(document.body.textContent).toContain('gamification.levelUp.steadyHand')
+    expect(document.body.textContent).toContain(text)
   })
 
   it('renders the rotating orbit ring SVG', () => {

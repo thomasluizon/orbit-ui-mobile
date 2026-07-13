@@ -224,20 +224,13 @@ describe('getFriendlyErrorKey (extended coverage)', () => {
     expect(getFriendlyErrorKey(err, 'errors.generic')).toBe('habits.errors.circularReference')
   })
 
-  it('maps HABIT_NOT_FOUND code', () => {
-    const err = createApiClientError(400, { errorCode: 'HABIT_NOT_FOUND' }, 'fallback')
-    expect(getFriendlyErrorKey(err, 'errors.generic')).toBe('toast.errors.notFound')
-  })
-
-  it('maps GOAL_NOT_FOUND code', () => {
-    const err = createApiClientError(400, { errorCode: 'GOAL_NOT_FOUND' }, 'fallback')
-    expect(getFriendlyErrorKey(err, 'errors.generic')).toBe('toast.errors.notFound')
-  })
-
-  it('maps TAG_NOT_FOUND code', () => {
-    const err = createApiClientError(400, { errorCode: 'TAG_NOT_FOUND' }, 'fallback')
-    expect(getFriendlyErrorKey(err, 'errors.generic')).toBe('toast.errors.notFound')
-  })
+  it.each(['HABIT_NOT_FOUND', 'GOAL_NOT_FOUND', 'TAG_NOT_FOUND'])(
+    'maps %s code to notFound',
+    (errorCode) => {
+      const err = createApiClientError(400, { errorCode }, 'fallback')
+      expect(getFriendlyErrorKey(err, 'errors.generic')).toBe('toast.errors.notFound')
+    },
+  )
 
   it('maps "please wait" message to too many requests', () => {
     const err = createApiClientError(400, { error: 'Please wait before trying again' }, 'fallback')

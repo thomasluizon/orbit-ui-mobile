@@ -49,16 +49,14 @@ describe('StreakCelebration', () => {
     expect(document.querySelector('[role="status"]')).toBeInTheDocument()
   })
 
-  it('displays the streak count', () => {
-    mockStreakCelebration = { streak: 14 }
+  it.each([
+    { name: 'displays the streak count', streak: 14, text: '14' },
+    { name: 'shows milestone encouragement for milestone streaks', streak: 30, text: 'streakDisplay.celebration.milestone' },
+    { name: 'renders the Streak eyebrow label', streak: 3, text: 'streakDisplay.celebration.eyebrow' },
+  ])('$name', ({ streak, text }) => {
+    mockStreakCelebration = { streak }
     render(<StreakCelebration />)
-    expect(document.body.textContent).toContain('14')
-  })
-
-  it('shows milestone encouragement for milestone streaks', () => {
-    mockStreakCelebration = { streak: 30 }
-    render(<StreakCelebration />)
-    expect(document.body.textContent).toContain('streakDisplay.celebration.milestone')
+    expect(document.body.textContent).toContain(text)
   })
 
   it('renders Saturn-ring concentric rings via RingMotif', () => {
@@ -66,12 +64,6 @@ describe('StreakCelebration', () => {
     render(<StreakCelebration />)
     const rings = document.querySelector('[data-slot="celebration-rings"]')
     expect(rings?.querySelectorAll('span').length).toBe(4)
-  })
-
-  it('renders the Streak eyebrow label', () => {
-    mockStreakCelebration = { streak: 3 }
-    render(<StreakCelebration />)
-    expect(document.body.textContent).toContain('streakDisplay.celebration.eyebrow')
   })
 
   it('dismisses on click', () => {
