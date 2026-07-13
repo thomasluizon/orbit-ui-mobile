@@ -4,7 +4,7 @@ import { ChevronLeft, ChevronRight, Search, X, Filter, Check } from 'lucide-reac
 import { useTranslations } from 'next-intl'
 import { AppLogo } from '@/components/ui/app-logo'
 import { Popover } from '@/components/ui/popover'
-import { ControlsMenu } from '@/components/habits/controls-menu'
+import { ControlsMenu, type ControlsMenuProps } from '@/components/habits/controls-menu'
 import { SectionHeadTabs, type SectionHeadTabItem } from '@/components/ui/section-head-tabs'
 import { TagChip } from '@/components/ui/tag-chip'
 import { ThemeToggle } from '@/components/ui/theme-toggle'
@@ -300,51 +300,91 @@ export function TodayUtilityRow({
           </button>
         </div>
       ) : (
-        <>
-          <button
-            type="button"
-            aria-label={t('habits.searchPlaceholder')}
-            onClick={onSearchToggle}
-            className="icon-btn touch-target-y shrink-0"
-            style={{ width: 36, height: 36 }}
-          >
-            <Search size={18} strokeWidth={1.8} color="var(--fg-2)" aria-hidden="true" />
-          </button>
-          <div
-            className="flex items-center flex-1 min-w-0 overflow-x-auto thin-scrollbar"
-            style={{ gap: 8, padding: '4px 4px' }}
-          >
-            {tags.map((tag) => (
-              <TagChip
-                key={tag.id}
-                tag={tag}
-                active={selectedTagIds.includes(tag.id)}
-                onClick={() => onTagToggle(tag.id)}
-              />
-            ))}
-          </div>
-          {showFreq && (
-            <FrequencyFunnel
-              selected={selectedFrequency}
-              options={frequencyOptions}
-              onChange={onFrequencyChange}
-              triggerAriaLabel={t('habits.frequencyFilter')}
-              allLabel={t('common.all')}
-            />
-          )}
-          <ControlsMenu
-            isSelectMode={isSelectMode}
-            showCompleted={showCompleted}
-            isFetching={isFetching}
-            allCollapsed={allCollapsed}
-            onToggleSelect={onToggleSelect}
-            onToggleCollapse={onToggleCollapse}
-            onRefresh={onRefresh}
-            onToggleCompleted={onToggleCompleted}
-          />
-        </>
+        <TodayUtilityFilters
+          showFreq={showFreq}
+          tags={tags}
+          selectedTagIds={selectedTagIds}
+          selectedFrequency={selectedFrequency}
+          frequencyOptions={frequencyOptions}
+          onSearchToggle={onSearchToggle}
+          onTagToggle={onTagToggle}
+          onFrequencyChange={onFrequencyChange}
+          controls={{
+            isSelectMode,
+            showCompleted,
+            isFetching,
+            allCollapsed,
+            onToggleSelect,
+            onToggleCollapse,
+            onRefresh,
+            onToggleCompleted,
+          }}
+        />
       )}
     </div>
+  )
+}
+
+interface TodayUtilityFiltersProps {
+  showFreq: boolean
+  tags: Tag[]
+  selectedTagIds: string[]
+  selectedFrequency: FreqKey | null
+  frequencyOptions: Array<{ key: FreqKey; label: string }>
+  onSearchToggle: () => void
+  onTagToggle: (tagId: string) => void
+  onFrequencyChange: (key: FreqKey | null) => void
+  controls: ControlsMenuProps
+}
+
+function TodayUtilityFilters({
+  showFreq,
+  tags,
+  selectedTagIds,
+  selectedFrequency,
+  frequencyOptions,
+  onSearchToggle,
+  onTagToggle,
+  onFrequencyChange,
+  controls,
+}: Readonly<TodayUtilityFiltersProps>) {
+  const t = useTranslations()
+
+  return (
+    <>
+      <button
+        type="button"
+        aria-label={t('habits.searchPlaceholder')}
+        onClick={onSearchToggle}
+        className="icon-btn touch-target-y shrink-0"
+        style={{ width: 36, height: 36 }}
+      >
+        <Search size={18} strokeWidth={1.8} color="var(--fg-2)" aria-hidden="true" />
+      </button>
+      <div
+        className="flex items-center flex-1 min-w-0 overflow-x-auto thin-scrollbar"
+        style={{ gap: 8, padding: '4px 4px' }}
+      >
+        {tags.map((tag) => (
+          <TagChip
+            key={tag.id}
+            tag={tag}
+            active={selectedTagIds.includes(tag.id)}
+            onClick={() => onTagToggle(tag.id)}
+          />
+        ))}
+      </div>
+      {showFreq && (
+        <FrequencyFunnel
+          selected={selectedFrequency}
+          options={frequencyOptions}
+          onChange={onFrequencyChange}
+          triggerAriaLabel={t('habits.frequencyFilter')}
+          allLabel={t('common.all')}
+        />
+      )}
+      <ControlsMenu {...controls} />
+    </>
   )
 }
 
